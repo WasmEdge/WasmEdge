@@ -32,9 +32,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_alloc");
-  auto &HostFuncAVFrameAlloc =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameAlloc &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameAlloc = FuncInst->getHostFunc();
 
   uint32_t EmptyFramePtr = UINT32_C(64);
 
@@ -48,9 +46,7 @@ TEST_F(FFmpegTest, AVFrame) {
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_free");
-  auto &HostFuncAVFrameFree =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameFree &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameFree = FuncInst->getHostFunc();
 
   {
     uint32_t EmptyFrameId = readUInt32(MemInst, EmptyFramePtr);
@@ -63,9 +59,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_width");
-  auto &HostFuncAVFrameWidth =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameWidth &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameWidth = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameWidth.run(
@@ -77,9 +71,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_height");
-  auto &HostFuncAVFrameHeight =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameHeight &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameHeight = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameHeight.run(
@@ -91,9 +83,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_video_format");
-  auto &HostFuncAVFrameVideoFormat = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameVideoFormat &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameVideoFormat = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameVideoFormat.run(
@@ -105,9 +95,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_isnull");
-  auto &HostFuncAVFrameIsNull =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameIsNull &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameIsNull = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameIsNull.run(
@@ -119,9 +107,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_linesize");
-  auto &HostFuncAVFrameLinesize =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameLinesize &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameLinesize = FuncInst->getHostFunc();
 
   int32_t Stride = 0;
   uint32_t Idx = 0;
@@ -136,9 +122,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_get_buffer");
-  auto &HostFuncAVFrameGetBuffer =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameGetBuffer &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameGetBuffer = FuncInst->getHostFunc();
   {
     // For video, it is 32.
     int32_t Align = 32;
@@ -151,9 +135,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_best_effort_timestamp");
-  auto &HostFuncAVFrameBestEffortTimestamp = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameBestEffortTimestamp &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameBestEffortTimestamp = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameBestEffortTimestamp.run(
@@ -164,9 +146,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_pict_type");
-  auto &HostFuncAVFramePictType =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFramePictType &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFramePictType = FuncInst->getHostFunc();
 
   {
     HostFuncAVFramePictType.run(
@@ -177,9 +157,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_interlaced_frame");
-  auto &HostFuncAVFrameInterlacedFrame = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameInterlacedFrame &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameInterlacedFrame = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameInterlacedFrame.run(
@@ -190,9 +168,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_top_field_first");
-  auto &HostFuncAVFrameTopFieldFirst = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameTopFieldFirst &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameTopFieldFirst = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameTopFieldFirst.run(
@@ -203,9 +179,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_palette_has_changed");
-  auto &HostFuncAVFramePaletteHasChanged = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFramePaletteHasChanged &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFramePaletteHasChanged = FuncInst->getHostFunc();
 
   {
     HostFuncAVFramePaletteHasChanged.run(
@@ -216,9 +190,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_colorspace");
-  auto &HostFuncAVFrameColorspace =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameColorSpace &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameColorspace = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameColorspace.run(
@@ -229,9 +201,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_color_range");
-  auto &HostFuncAVFrameColorRange =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameColorRange &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameColorRange = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameColorRange.run(
@@ -242,9 +212,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_color_trc");
-  auto &HostAVFrameColorTransferCharacteristic = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameColorTransferCharacteristic
-          &>(FuncInst->getHostFunc());
+  auto &HostAVFrameColorTransferCharacteristic = FuncInst->getHostFunc();
 
   {
     HostAVFrameColorTransferCharacteristic.run(
@@ -255,9 +223,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_chroma_location");
-  auto &HostAVFrameChromaLocation = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameChromaLocation &>(
-      FuncInst->getHostFunc());
+  auto &HostAVFrameChromaLocation = FuncInst->getHostFunc();
 
   {
     HostAVFrameChromaLocation.run(
@@ -268,9 +234,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_repeat_pict");
-  auto &HostAVFrameRepeatPict =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameRepeatPict &>(
-          FuncInst->getHostFunc());
+  auto &HostAVFrameRepeatPict = FuncInst->getHostFunc();
 
   {
     HostAVFrameRepeatPict.run(
@@ -281,9 +245,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_flags");
-  auto &HostAVFrameFlags =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameFlags &>(
-          FuncInst->getHostFunc());
+  auto &HostAVFrameFlags = FuncInst->getHostFunc();
 
   {
     HostAVFrameFlags.run(CallFrame,
@@ -294,9 +256,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_quality");
-  auto &HostAVFrameQuality =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameQuality &>(
-          FuncInst->getHostFunc());
+  auto &HostAVFrameQuality = FuncInst->getHostFunc();
 
   {
     HostAVFrameQuality.run(
@@ -307,9 +267,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_metadata");
-  auto &HostAVFrameMetadata =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameMetadata &>(
-          FuncInst->getHostFunc());
+  auto &HostAVFrameMetadata = FuncInst->getHostFunc();
 
   {
     HostAVFrameMetadata.run(
@@ -323,9 +281,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_metadata");
-  auto &HostAVFrameSetMetadata = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetMetadata &>(
-      FuncInst->getHostFunc());
+  auto &HostAVFrameSetMetadata = FuncInst->getHostFunc();
 
   {
     HostAVFrameSetMetadata.run(
@@ -336,9 +292,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_key_frame");
-  auto &HostAVFrameKeyFrame =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameKeyFrame &>(
-          FuncInst->getHostFunc());
+  auto &HostAVFrameKeyFrame = FuncInst->getHostFunc();
 
   {
     HostAVFrameKeyFrame.run(
@@ -348,9 +302,7 @@ TEST_F(FFmpegTest, AVFrame) {
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_pts");
-  auto &HostAVFramePts =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFramePts &>(
-          FuncInst->getHostFunc());
+  auto &HostAVFramePts = FuncInst->getHostFunc();
 
   {
     HostAVFramePts.run(CallFrame,
@@ -360,9 +312,7 @@ TEST_F(FFmpegTest, AVFrame) {
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_copy");
-  auto &HostAVFrameCopy =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameCopy &>(
-          FuncInst->getHostFunc());
+  auto &HostAVFrameCopy = FuncInst->getHostFunc();
 
   {
     HostAVFrameCopy.run(
@@ -374,9 +324,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_copy_props");
-  auto &HostAVFrameCopyProps =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameCopyProps &>(
-          FuncInst->getHostFunc());
+  auto &HostAVFrameCopyProps = FuncInst->getHostFunc();
 
   {
     HostAVFrameCopyProps.run(
@@ -388,9 +336,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_set_width");
-  auto &HostFuncAVFrameSetWidth =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetWidth &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetWidth = FuncInst->getHostFunc();
 
   {
     int32_t Width = 100;
@@ -407,9 +353,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_set_height");
-  auto &HostFuncAVFrameSetHeight =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetHeight &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetHeight = FuncInst->getHostFunc();
 
   int32_t Height = 100;
   {
@@ -425,9 +369,7 @@ TEST_F(FFmpegTest, AVFrame) {
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_data");
-  auto &HostFuncAVFrameData =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameData &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameData = FuncInst->getHostFunc();
 
   {
     int32_t Size = 1; // Just reading One byte data for test.
@@ -441,9 +383,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_video_format");
-  auto &HostFuncAVFrameSetVideoFormat = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetVideoFormat &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetVideoFormat = FuncInst->getHostFunc();
 
   {
     uint32_t PixFormatId = 10; // GRAY8
@@ -461,9 +401,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_pict_type");
-  auto &HostFuncAVFrameSetPictType = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetPictType &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetPictType = FuncInst->getHostFunc();
 
   {
     int32_t PictureId = 4; // AV_PICTURE_TYPE_S
@@ -481,9 +419,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_colorspace");
-  auto &HostFuncAVFrameSetColorSpace = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetColorSpace &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetColorSpace = FuncInst->getHostFunc();
 
   {
     int32_t ColorSpaceId = 4; // FCC
@@ -501,9 +437,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_color_range");
-  auto &HostFuncAVFrameSetColorRange = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetColorRange &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetColorRange = FuncInst->getHostFunc();
 
   {
     int32_t ColorRangeId = 1; //  MPEG
@@ -521,10 +455,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_color_trc");
-  auto &HostFuncAVFrameSetColorTransferCharacteristic =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::
-                       AVFrameSetColorTransferCharacteristic &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetColorTransferCharacteristic = FuncInst->getHostFunc();
 
   {
     int32_t ColorTrcId = 5; // GAMMA28
@@ -542,9 +473,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_set_pts");
-  auto &HostFuncAVFrameSetPts =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetPts &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetPts = FuncInst->getHostFunc();
 
   {
     int64_t Pts = 10;
@@ -561,9 +490,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_sample_aspect_ratio");
-  auto &HostFuncAVFrameSampleAspectRatio = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSampleAspectRatio &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSampleAspectRatio = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameSampleAspectRatio.run(
@@ -576,9 +503,7 @@ TEST_F(FFmpegTest, AVFrame) {
   int32_t ColorPrimariesId = 1; // BT709
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_color_primaries");
-  auto &HostFuncAVFrameSetColorPrimaries = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetColorPrimaries &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetColorPrimaries = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameSetColorPrimaries.run(
@@ -591,9 +516,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_color_primaries");
-  auto &HostFuncAVFrameColorPrimaries = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameColorPrimaries &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameColorPrimaries = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameColorPrimaries.run(
@@ -610,9 +533,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_audio_format");
-  auto &HostFuncAVFrameSetAudioFormat = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetAudioFormat &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetAudioFormat = FuncInst->getHostFunc();
 
   uint32_t SampleFormatId = 4;
   {
@@ -625,9 +546,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_audio_format");
-  auto &HostFuncAVFrameAudioFormat = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameAudioFormat &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameAudioFormat = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameAudioFormat.run(
@@ -638,9 +557,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_nb_samples");
-  auto &HostFuncAVFrameSetNbSamples = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetNbSamples &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetNbSamples = FuncInst->getHostFunc();
 
   int32_t NbSamples = 32;
   {
@@ -653,9 +570,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_nb_samples");
-  auto &HostFuncAVFrameNbSamples =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameNbSamples &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameNbSamples = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameNbSamples.run(
@@ -666,9 +581,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_sample_rate");
-  auto &HostFuncAVFrameSetSampleRate = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetSampleRate &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetSampleRate = FuncInst->getHostFunc();
 
   int32_t SampleRate = 10;
   {
@@ -681,9 +594,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_sample_rate");
-  auto &HostFuncAVFrameSampleRate =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSampleRate &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSampleRate = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameSampleRate.run(
@@ -694,9 +605,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_channels");
-  auto &HostFuncAVFrameSetChannels = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetChannels &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetChannels = FuncInst->getHostFunc();
 
   int32_t Channels = 3;
   {
@@ -709,9 +618,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_channels");
-  auto &HostFuncAVFrameChannels =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameChannels &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameChannels = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameChannels.run(
@@ -722,9 +629,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_channel_layout");
-  auto &HostFuncAVFrameSetChannelLayout = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetChannelLayout &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetChannelLayout = FuncInst->getHostFunc();
 
   uint64_t ChannelLayout = 1UL << 10;
   {
@@ -737,9 +642,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_channel_layout");
-  auto &HostFuncAVFrameChannelLayout = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameChannelLayout &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameChannelLayout = FuncInst->getHostFunc();
 
   {
     HostFuncAVFrameChannelLayout.run(

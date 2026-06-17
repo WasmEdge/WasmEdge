@@ -63,9 +63,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterGraphAlloc = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterGraphAlloc &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterGraphAlloc = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFilterGraphAlloc.run(
@@ -82,9 +80,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterGetByName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterGetByName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterGetByName = FuncInst->getHostFunc();
 
   {
     int32_t Length = InputName.length();
@@ -114,9 +110,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterGraphCreateFilter = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterGraphCreateFilter &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterGraphCreateFilter = FuncInst->getHostFunc();
 
   {
     int32_t NameLen = InputFilterName.length();
@@ -146,9 +140,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterInOutAlloc = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInOutAlloc &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterInOutAlloc = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFilterInOutAlloc.run(
@@ -173,9 +165,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterGraphGetFilter = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterGraphGetFilter &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterGraphGetFilter = FuncInst->getHostFunc();
 
   {
     int32_t Length = OutputFilterName.length();
@@ -210,9 +200,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterInOutSetName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInOutSetName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterInOutSetName = FuncInst->getHostFunc();
 
   {
     int32_t Length = InputFilterName.length();
@@ -237,9 +225,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterInOutSetFilterCtx = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInOutSetFilterCtx &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterInOutSetFilterCtx = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFilterInOutSetFilterCtx.run(
@@ -262,9 +248,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterInOutSetPadIdx = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInOutSetPadIdx &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterInOutSetPadIdx = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFilterInOutSetPadIdx.run(
@@ -283,9 +267,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterInOutSetNext = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInOutSetNext &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterInOutSetNext = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFilterInOutSetNext.run(
@@ -308,9 +290,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterGraphParsePtr = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterGraphParsePtr &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterGraphParsePtr = FuncInst->getHostFunc();
 
   {
     int32_t Length = SpecStr.length();
@@ -327,9 +307,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterGraphConfig = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterGraphConfig &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterGraphConfig = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFilterGraphConfig.run(
@@ -343,9 +321,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterGraphDumpLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterGraphDumpLength &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterGraphDumpLength = FuncInst->getHostFunc();
 
   int32_t GraphStrLen = 0;
   {
@@ -361,9 +337,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterGraphDump = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterGraphDump &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterGraphDump = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFilterGraphDump.run(
@@ -405,9 +379,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterVersion =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterVersion &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFilterVersion = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFilterVersion.run(
@@ -420,9 +392,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterConfigurationLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterConfigurationLength &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterConfigurationLength = FuncInst->getHostFunc();
 
   int32_t Length = 0;
   {
@@ -437,9 +407,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterConfiguration = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterConfiguration &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterConfiguration = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFilterConfiguration.run(
@@ -453,9 +421,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterLicenseLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterLicenseLength &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterLicenseLength = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFilterLicenseLength.run(
@@ -469,9 +435,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterLicense =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterLicense &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFilterLicense = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFilterLicense.run(
@@ -489,9 +453,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVBufferSrcGetNbFailedRequests = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVBufferSrcGetNbFailedRequests
-          &>(FuncInst->getHostFunc());
+  auto &HostFuncAVBufferSrcGetNbFailedRequests = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVBufferSrcGetNbFailedRequests.run(
@@ -505,9 +467,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVBufferSrcAddFrame = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVBufferSrcAddFrame &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVBufferSrcAddFrame = FuncInst->getHostFunc();
 
   // Returning Error Code -22 (Invalid Argument), Due to Passing Empty Frame.
   {
@@ -548,9 +508,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVBufferSinkGetFrame = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVBufferSinkGetFrame &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVBufferSinkGetFrame = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVBufferSinkGetFrame.run(
@@ -565,9 +523,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVBufferSinkGetSamples = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVBufferSinkGetSamples &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVBufferSinkGetSamples = FuncInst->getHostFunc();
 
   // Passing Empty frames. Return AVERROR due to no frames presen Return AVERROR
   // due to no frames present.
@@ -585,9 +541,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAvBufferSinkSetFrameSize = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AvBufferSinkSetFrameSize &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAvBufferSinkSetFrameSize = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAvBufferSinkSetFrameSize.run(
@@ -610,9 +564,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterFreeGraphStr = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterFreeGraphStr &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterFreeGraphStr = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFilterFreeGraphStr.run(
@@ -626,9 +578,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterDrop =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterDrop &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFilterDrop = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFilterDrop.run(
@@ -642,9 +592,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterContextDrop = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterContextDrop &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterContextDrop = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFilterContextDrop.run(
@@ -664,9 +612,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterGraphFree = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterGraphFree &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterGraphFree = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFilterGraphFree.run(

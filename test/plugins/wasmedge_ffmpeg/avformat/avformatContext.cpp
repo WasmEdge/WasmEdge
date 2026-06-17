@@ -28,9 +28,7 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
       "wasmedge_ffmpeg_avformat_avformatContext_iformat");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxIFormat = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxIFormat &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFormatCtxIFormat = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFormatCtxIFormat.run(
@@ -46,9 +44,7 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
       "wasmedge_ffmpeg_avformat_avformatContext_oformat");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxOFormat = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxOFormat &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFormatCtxOFormat = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFormatCtxOFormat.run(
@@ -64,9 +60,7 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
       "wasmedge_ffmpeg_avformat_avformatContext_probescope");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxProbeScore = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxProbeScore &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFormatCtxProbeScore = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFormatCtxProbeScore.run(
@@ -79,9 +73,7 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
       "wasmedge_ffmpeg_avformat_avformatContext_nb_streams");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxNbStreams = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxNbStreams &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFormatCtxNbStreams = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFormatCtxNbStreams.run(
@@ -94,9 +86,7 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
       "wasmedge_ffmpeg_avformat_avformatContext_duration");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxDuration = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxDuration &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFormatCtxDuration = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFormatCtxDuration.run(
@@ -109,9 +99,7 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
       "wasmedge_ffmpeg_avformat_avformatContext_bit_rate");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxBitRate = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxBitRate &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFormatCtxBitRate = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFormatCtxBitRate.run(
@@ -124,17 +112,13 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
       "wasmedge_ffmpeg_avformat_avformatContext_set_nb_chapters");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxSetNbChapters = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxSetNbChapters &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFormatCtxSetNbChapters = FuncInst->getHostFunc();
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_nb_chapters");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxNbChapters = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxNbChapters &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFormatCtxNbChapters = FuncInst->getHostFunc();
   {
     uint32_t NbChapters = 200;
     EXPECT_TRUE(HostFuncAVFormatCtxSetNbChapters.run(
@@ -153,17 +137,13 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
       "wasmedge_ffmpeg_avformat_avformatContext_metadata");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxMetadata = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxMetadata &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFormatCtxMetadata = FuncInst->getHostFunc();
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_set_metadata");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxSetMetadata = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxSetMetadata &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFormatCtxSetMetadata = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFormatCtxMetadata.run(

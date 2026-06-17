@@ -23,9 +23,7 @@ TEST_F(FFmpegTest, SwsContext) {
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_getContext");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsGetContext =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsGetContext &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsGetContext = FuncInst->getHostFunc();
 
   uint32_t SWScalePtr = UINT32_C(4);
   uint32_t SWCachedScalePtr = UINT32_C(8);
@@ -73,9 +71,7 @@ TEST_F(FFmpegTest, SwsContext) {
   FuncInst = SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_scale");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsScale =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsScale &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsScale = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(
@@ -90,9 +86,7 @@ TEST_F(FFmpegTest, SwsContext) {
       "wasmedge_ffmpeg_swscale_sws_getCachedContext");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsGetCachedContext = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsGetCachedContext &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncSwsGetCachedContext = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncSwsGetCachedContext.run(
@@ -109,9 +103,7 @@ TEST_F(FFmpegTest, SwsContext) {
       "wasmedge_ffmpeg_swscale_sws_isSupportedInput");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsIsSupportedInput = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsIsSupportedInput &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncSwsIsSupportedInput = FuncInst->getHostFunc();
 
   {
     // AV_PIX_FMT_RGB24 is a supported pixel format.
@@ -131,9 +123,7 @@ TEST_F(FFmpegTest, SwsContext) {
       "wasmedge_ffmpeg_swscale_sws_isSupportedOutput");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsIsSupportedOutput = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsIsSupportedOutput &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncSwsIsSupportedOutput = FuncInst->getHostFunc();
 
   {
     // AV_PIX_FMT_RGB24 is a supported pixel format.
@@ -153,10 +143,7 @@ TEST_F(FFmpegTest, SwsContext) {
       "wasmedge_ffmpeg_swscale_sws_isSupportedEndiannessConversion");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsIsSupportedEndiannessConversion =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::
-                       SwsIsSupportedEndiannessConversion &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsIsSupportedEndiannessConversion = FuncInst->getHostFunc();
 
   {
     // AV_PIX_FMT_XVMC is not a supported pixel format for
@@ -170,9 +157,7 @@ TEST_F(FFmpegTest, SwsContext) {
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_freeContext");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsFreeContext =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsFreeContext &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsFreeContext = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncSwsFreeContext.run(
@@ -207,9 +192,7 @@ TEST_F(FFmpegTest, SwsFilter) {
       "wasmedge_ffmpeg_swscale_sws_getDefaultFilter");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsGetDefaultFilter = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsGetDefaultFilter &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncSwsGetDefaultFilter = FuncInst->getHostFunc();
 
   uint32_t SwsFilterPtr = UINT32_C(40);
   {
@@ -236,9 +219,7 @@ TEST_F(FFmpegTest, SwsFilter) {
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_getLumaH");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsGetLumaH =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsGetLumaH &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsGetLumaH = FuncInst->getHostFunc();
 
   uint32_t SwsVectorPtr = UINT32_C(20);
   {
@@ -254,9 +235,7 @@ TEST_F(FFmpegTest, SwsFilter) {
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_getLumaV");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsGetLumaV =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsGetLumaV &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsGetLumaV = FuncInst->getHostFunc();
 
   {
     writeUInt32(MemInst, UINT32_C(0), SwsVectorPtr);
@@ -272,9 +251,7 @@ TEST_F(FFmpegTest, SwsFilter) {
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_getChromaH");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsGetChromaH =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsGetChromaH &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsGetChromaH = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncSwsGetChromaH.run(
@@ -289,9 +266,7 @@ TEST_F(FFmpegTest, SwsFilter) {
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_getChromaV");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsGetChromaV =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsGetChromaV &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsGetChromaV = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncSwsGetChromaV.run(
@@ -306,9 +281,7 @@ TEST_F(FFmpegTest, SwsFilter) {
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_freeFilter");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsFreeFilter =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsFreeFilter &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsFreeFilter = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncSwsFreeFilter.run(
@@ -331,9 +304,7 @@ TEST_F(FFmpegTest, SwsVector) {
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_allocVec");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsAllocVec =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsAllocVec &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsAllocVec = FuncInst->getHostFunc();
 
   {
     writeUInt32(MemInst, UINT32_C(0), SwsVectorPtr);
@@ -350,9 +321,7 @@ TEST_F(FFmpegTest, SwsVector) {
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_getGaussianVec");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsGetGaussianVec = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsGetGaussianVec &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncSwsGetGaussianVec = FuncInst->getHostFunc();
 
   {
     writeUInt32(MemInst, UINT32_C(0), SwsVectorPtr);
@@ -371,9 +340,7 @@ TEST_F(FFmpegTest, SwsVector) {
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_scaleVec");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsScaleVec =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsScaleVec &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsScaleVec = FuncInst->getHostFunc();
 
   {
     uint32_t SwsVecId = readUInt32(MemInst, SwsVectorPtr);
@@ -388,9 +355,7 @@ TEST_F(FFmpegTest, SwsVector) {
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_normalizeVec");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsNormalizeVec =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsNormalizeVec &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsNormalizeVec = FuncInst->getHostFunc();
 
   {
     uint32_t SwsVecId = readUInt32(MemInst, SwsVectorPtr);
@@ -405,9 +370,7 @@ TEST_F(FFmpegTest, SwsVector) {
       "wasmedge_ffmpeg_swscale_sws_getCoeffVecLength");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsGetCoeffVecLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsGetCoeffVecLength &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncSwsGetCoeffVecLength = FuncInst->getHostFunc();
 
   int Length = 0;
   {
@@ -423,9 +386,7 @@ TEST_F(FFmpegTest, SwsVector) {
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_getCoeff");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsGetCoeff =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsGetCoeff &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsGetCoeff = FuncInst->getHostFunc();
 
   fillMemContent(MemInst, CoeffPtr, Length);
   {
@@ -440,9 +401,7 @@ TEST_F(FFmpegTest, SwsVector) {
   FuncInst = SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_freeVec");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwsFreeVec =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsFreeVec &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsFreeVec = FuncInst->getHostFunc();
 
   {
     uint32_t SwsVecId = readUInt32(MemInst, SwsVectorPtr);
@@ -465,9 +424,7 @@ TEST_F(FFmpegTest, SWScaleVersion) {
 
   auto *FuncInst =
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_swscale_version");
-  auto &HostFuncSwscaleVersion =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwscaleVersion &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwscaleVersion = FuncInst->getHostFunc();
 
   {
     HostFuncSwscaleVersion.run(
@@ -478,9 +435,7 @@ TEST_F(FFmpegTest, SWScaleVersion) {
 
   FuncInst = SWScaleMod->findFuncExports(
       "wasmedge_ffmpeg_swscale_swscale_configuration_length");
-  auto &HostFuncSwscaleConfigurationLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwscaleConfigurationLength &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncSwscaleConfigurationLength = FuncInst->getHostFunc();
 
   {
     HostFuncSwscaleConfigurationLength.run(
@@ -495,9 +450,7 @@ TEST_F(FFmpegTest, SWScaleVersion) {
   fillMemContent(MemInst, NamePtr, Length);
   FuncInst = SWScaleMod->findFuncExports(
       "wasmedge_ffmpeg_swscale_swscale_configuration");
-  auto &HostFuncSwscaleConfiguration = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwscaleConfiguration &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncSwscaleConfiguration = FuncInst->getHostFunc();
 
   {
     HostFuncSwscaleConfiguration.run(
@@ -508,9 +461,7 @@ TEST_F(FFmpegTest, SWScaleVersion) {
 
   FuncInst = SWScaleMod->findFuncExports(
       "wasmedge_ffmpeg_swscale_swscale_license_length");
-  auto &HostFuncSwscaleLicenseLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwscaleLicenseLength &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncSwscaleLicenseLength = FuncInst->getHostFunc();
 
   {
     HostFuncSwscaleLicenseLength.run(
@@ -524,9 +475,7 @@ TEST_F(FFmpegTest, SWScaleVersion) {
   fillMemContent(MemInst, NamePtr, Length);
   FuncInst =
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_swscale_license");
-  auto &HostFuncSwscaleLicense =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwscaleLicense &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwscaleLicense = FuncInst->getHostFunc();
 
   {
     HostFuncSwscaleLicense.run(

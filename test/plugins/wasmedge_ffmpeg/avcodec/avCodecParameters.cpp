@@ -30,9 +30,7 @@ TEST_F(FFmpegTest, AVCodecParameters) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecParamCodecId = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecParamCodecId &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecParamCodecId = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecParamCodecId.run(
@@ -46,9 +44,7 @@ TEST_F(FFmpegTest, AVCodecParameters) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecParamCodecType = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecParamCodecType &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecParamCodecType = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecParamCodecType.run(
@@ -62,9 +58,7 @@ TEST_F(FFmpegTest, AVCodecParameters) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecParamSetCodecTag = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecParamSetCodecTag &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecParamSetCodecTag = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecParamSetCodecTag.run(

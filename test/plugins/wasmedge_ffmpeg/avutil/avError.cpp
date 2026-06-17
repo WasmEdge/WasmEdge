@@ -24,9 +24,7 @@ TEST_F(FFmpegTest, AVError) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_strerror");
-  auto &HostFuncAVUtilAVStrError =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVUtilAVStrError &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVUtilAVStrError = FuncInst->getHostFunc();
 
   {
     HostFuncAVUtilAVStrError.run(
@@ -36,9 +34,7 @@ TEST_F(FFmpegTest, AVError) {
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_AVERROR");
-  auto &HostFuncAVUtilAVError =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVUtilAVError &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVUtilAVError = FuncInst->getHostFunc();
 
   {
     HostFuncAVUtilAVError.run(
@@ -49,9 +45,7 @@ TEST_F(FFmpegTest, AVError) {
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_AVUNERROR");
-  auto &HostFuncAVUtilAVUNError =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVUtilAVUNError &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVUtilAVUNError = FuncInst->getHostFunc();
 
   {
     HostFuncAVUtilAVUNError.run(

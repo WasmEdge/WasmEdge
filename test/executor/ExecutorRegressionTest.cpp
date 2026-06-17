@@ -741,8 +741,8 @@ TEST(ExecutorRegression, RefTestNullAbility) {
   // branch and dereferenced the null object pointer, causing a segfault.
   {
     Configure Conf6;
-    VM::VM VM6(Conf6);
     GCCheckModule GCMod;
+    VM::VM VM6(Conf6);
     VM6.registerModule(GCMod);
     ASSERT_TRUE(VM6.loadWasm(NullRefTestWasm));
     ASSERT_TRUE(VM6.validate());
@@ -758,8 +758,8 @@ TEST(ExecutorRegression, RefTestNullAbility) {
   // --- Part 7: function returning null ref with concrete type ---
   {
     Configure Conf7;
-    VM::VM VM7(Conf7);
     GCCheckModule GCMod;
+    VM::VM VM7(Conf7);
     VM7.registerModule(GCMod);
     ASSERT_TRUE(VM7.loadWasm(NullReturnConcreteWasm));
     ASSERT_TRUE(VM7.validate());
@@ -774,8 +774,8 @@ TEST(ExecutorRegression, RefTestNullAbility) {
   // --- Part 8: table.grow creates null entries, then ref.cast ---
   {
     Configure Conf8;
-    VM::VM VM8(Conf8);
     GCCheckModule GCMod;
+    VM::VM VM8(Conf8);
     VM8.registerModule(GCMod);
     ASSERT_TRUE(VM8.loadWasm(NullTableGrowWasm));
     ASSERT_TRUE(VM8.validate());
@@ -801,8 +801,8 @@ TEST(ExecutorRegression, RefCastNullAbility) {
   // --- Part 1: ref.cast eqref on null --- nullable cast passes through
   {
     Configure Conf;
-    VM::VM VM(Conf);
     GCCheckModule GCMod;
+    VM::VM VM(Conf);
     VM.registerModule(GCMod);
     ASSERT_TRUE(VM.loadWasm(NullRefCastWasm));
     ASSERT_TRUE(VM.validate());
@@ -817,8 +817,8 @@ TEST(ExecutorRegression, RefCastNullAbility) {
   // --- Part 2: ref.cast (ref eq) on null --- non-nullable cast must trap
   {
     Configure Conf;
-    VM::VM VM(Conf);
     GCCheckModule GCMod;
+    VM::VM VM(Conf);
     VM.registerModule(GCMod);
     ASSERT_TRUE(VM.loadWasm(NullRefCastNonNullWasm));
     ASSERT_TRUE(VM.validate());
@@ -842,8 +842,8 @@ TEST(ExecutorRegression, RefCastNullAbility) {
 ///     fail branch taken
 TEST(ExecutorRegression, BrOnCastNullAbility) {
   Configure Conf;
-  VM::VM VM(Conf);
   GCCheckModule GCMod;
+  VM::VM VM(Conf);
   VM.registerModule(GCMod);
   ASSERT_TRUE(VM.loadWasm(NullBrOnCastWasm));
   ASSERT_TRUE(VM.validate());
@@ -873,8 +873,8 @@ TEST(ExecutorRegression, NullLocalConcreteType) {
   // --- Part 1: local (ref null $s) where $s is a struct type ---
   {
     Configure Conf;
-    VM::VM VM(Conf);
     GCCheckModule GCMod;
+    VM::VM VM(Conf);
     VM.registerModule(GCMod);
     ASSERT_TRUE(VM.loadWasm(NullLocalStructWasm));
     ASSERT_TRUE(VM.validate());
@@ -890,8 +890,8 @@ TEST(ExecutorRegression, NullLocalConcreteType) {
   // --- Part 2: local (ref null $f) where $f is a func type ---
   {
     Configure Conf;
-    VM::VM VM(Conf);
     GCCheckModule GCMod;
+    VM::VM VM(Conf);
     VM.registerModule(GCMod);
     ASSERT_TRUE(VM.loadWasm(NullLocalFuncWasm));
     ASSERT_TRUE(VM.validate());
@@ -906,8 +906,8 @@ TEST(ExecutorRegression, NullLocalConcreteType) {
   // --- Part 3: local (ref null $a) where $a is an array type ---
   {
     Configure Conf;
-    VM::VM VM(Conf);
     GCCheckModule GCMod;
+    VM::VM VM(Conf);
     VM.registerModule(GCMod);
     ASSERT_TRUE(VM.loadWasm(NullLocalArrayWasm));
     ASSERT_TRUE(VM.validate());
@@ -924,8 +924,8 @@ TEST(ExecutorRegression, NullLocalConcreteType) {
   // toBottomType).
   {
     Configure Conf;
-    VM::VM VM(Conf);
     GCCheckModule GCMod;
+    VM::VM VM(Conf);
     VM.registerModule(GCMod);
     ASSERT_TRUE(VM.loadWasm(NullGlobalStructWasm));
     ASSERT_TRUE(VM.validate());

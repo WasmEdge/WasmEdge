@@ -405,8 +405,28 @@ Validator::validate(const AST::Component::AliasSection &AliasSec) noexcept {
     const bool IsOuter =
         Alias.getTargetType() == AST::Component::Alias::TargetType::Outer;
     if (Sort.isCore()) {
-      uint32_t NewCoreIdx =
-          CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
+      uint32_t NewCoreIdx;
+      // For an `alias core export` of a memory, carry the source memory's type
+      // into the core-memory sort space so canonical options can subtype-check
+      // its index type later (GAP-CI-1).
+      if (Alias.getTargetType() ==
+              AST::Component::Alias::TargetType::CoreExport &&
+          Sort.getCoreSortType() ==
+              AST::Component::Sort::CoreSortType::Memory) {
+        const AST::MemoryType *SrcMem = nullptr;
+        const auto SrcIdx = Alias.getExport().first;
+        if (SrcIdx < CompCtx.getCoreSortIndexSize(
+                         AST::Component::Sort::CoreSortType::Instance)) {
+          const auto &Exports = CompCtx.getCoreInstance(SrcIdx);
+          const auto It = Exports.find(std::string(Alias.getExport().second));
+          if (It != Exports.end()) {
+            SrcMem = It->second.Mem;
+          }
+        }
+        NewCoreIdx = CompCtx.addCoreMemory(SrcMem);
+      } else {
+        NewCoreIdx = CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
+      }
       // Carry the outer-aliased module's slot so the alias stays enumerable
       // when instantiated.
       if (IsOuter && Sort.getCoreSortType() ==
@@ -654,12 +674,73 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
       }
     }
 
+    // GAP-CI-1: the index type (i32/i64) of each provided memory must match
+    // the corresponding memory import of the instantiated module.
+    if (Mod != nullptr) {
+      const uint32_t InstCount = CompCtx.getCoreSortIndexSize(
+          AST::Component::Sort::CoreSortType::Instance);
+      for (const auto &Import : Mod->getImportSection().getContent()) {
+        if (Import.getExternalType() != ExternalType::Memory) {
+          continue;
+        }
+        const auto ArgIt =
+            std::find_if(Args.begin(), Args.end(), [&](const auto &Arg) {
+              return Arg.getName() == Import.getModuleName();
+            });
+        if (ArgIt == Args.end() || ArgIt->getIndex() >= InstCount) {
+          continue;
+        }
+        const auto &ProvExports = CompCtx.getCoreInstance(ArgIt->getIndex());
+        const auto ExpIt =
+            ProvExports.find(std::string(Import.getExternalName()));
+        if (ExpIt == ProvExports.end() ||
+            ExpIt->second.Kind != ExternalType::Memory ||
+            ExpIt->second.Mem == nullptr) {
+          continue;
+        }
+        if (Import.getExternalMemoryType().getLimit().is64() !=
+            ExpIt->second.Mem->getLimit().is64()) {
+          spdlog::error(ErrCode::Value::ComponentMemoryIndexTypeMismatch);
+          spdlog::error(
+              "    CoreInstance: memory import '{}'.'{}' index type does not "
+              "match the provided memory"sv,
+              Import.getModuleName(), Import.getExternalName());
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreInstance));
+          return Unexpect(ErrCode::Value::ComponentMemoryIndexTypeMismatch);
+        }
+      }
+    }
+
     // Allocate the core:instance and bind exports to it.
     uint32_t InstanceIdx = CompCtx.addCoreInstance();
     if (Mod != nullptr) {
       for (const auto &ExportDesc : Mod->getExportSection().getContent()) {
+        // Resolve the memory type so re-exports carry their index type for
+        // later instantiation subtype checks (GAP-CI-1).
+        const AST::MemoryType *MemTy = nullptr;
+        if (ExportDesc.getExternalType() == ExternalType::Memory) {
+          const uint32_t Target = ExportDesc.getExternalIndex();
+          uint32_t MemImpCount = 0;
+          for (const auto &Imp : Mod->getImportSection().getContent()) {
+            if (Imp.getExternalType() != ExternalType::Memory) {
+              continue;
+            }
+            if (MemImpCount == Target) {
+              MemTy = &Imp.getExternalMemoryType();
+              break;
+            }
+            ++MemImpCount;
+          }
+          if (MemTy == nullptr) {
+            const auto Mems = Mod->getMemorySection().getContent();
+            const uint32_t Local = Target - MemImpCount;
+            if (Local < Mems.size()) {
+              MemTy = &Mems[Local];
+            }
+          }
+        }
         CompCtx.addCoreInstanceExport(InstanceIdx, ExportDesc.getExternalName(),
-                                      ExportDesc.getExternalType());
+                                      ExportDesc.getExternalType(), MemTy);
       }
     } else if (ModTy != nullptr && ModTy->isModuleType()) {
       for (const auto &Decl : ModTy->getModuleType()) {
@@ -1108,7 +1189,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       return Unexpect(ErrCode::Value::ExportNotFound);
     }
 
-    const auto ExternTy = It->second;
+    const auto ExternTy = It->second.Kind;
     AST::Component::Sort::CoreSortType ST;
     switch (ExternTy) {
     case ExternalType::Function:
@@ -1442,6 +1523,19 @@ Expect<void> Validator::validateCanonOptions(
         MemoryIdx);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
     return Unexpect(ErrCode::Value::InvalidIndex);
+  }
+  // The canonical ABI requires a 32-bit linear memory (GAP-CI-1).
+  if (HasMemory) {
+    const auto *Mem = CompCtx.getCoreMemory(MemoryIdx);
+    if (Mem != nullptr && Mem->getLimit().is64()) {
+      spdlog::error(ErrCode::Value::ComponentCanonMemoryNot32Bit);
+      spdlog::error(
+          "    canonical option 'memory': core memory {} is not a 32-bit "
+          "linear memory"sv,
+          MemoryIdx);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+      return Unexpect(ErrCode::Value::ComponentCanonMemoryNot32Bit);
+    }
   }
   const uint32_t CoreFuncSpaceSize =
       CompCtx.getCoreSortIndexSize(AST::Component::Sort::CoreSortType::Func);

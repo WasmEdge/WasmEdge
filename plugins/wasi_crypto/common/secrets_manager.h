@@ -19,7 +19,9 @@
 #include "utils/error.h"
 #include "wasi_crypto/api.hpp"
 
+#include <algorithm>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <shared_mutex>
 #include <vector>

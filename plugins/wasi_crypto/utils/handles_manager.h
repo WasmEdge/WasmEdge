@@ -103,9 +103,13 @@ public:
 
   WasiCryptoExpect<std::vector<uint8_t>> getId(HandleType Handle) noexcept {
     std::shared_lock<std::shared_mutex> Lock{Mutex};
-    auto It = ManagedInfos.find(HandleWrapper(Handle));
-    if (It == ManagedInfos.end()) {
+    auto Wrapper = HandleWrapper(Handle);
+    if (Map.find(Wrapper) == Map.end()) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+    }
+    auto It = ManagedInfos.find(Wrapper);
+    if (It == ManagedInfos.end()) {
+      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
     }
     return It->second.Id;
   }
@@ -113,9 +117,13 @@ public:
   WasiCryptoExpect<__wasi_version_t>
   getManagedVersion(HandleType Handle) noexcept {
     std::shared_lock<std::shared_mutex> Lock{Mutex};
-    auto It = ManagedInfos.find(HandleWrapper(Handle));
-    if (It == ManagedInfos.end()) {
+    auto Wrapper = HandleWrapper(Handle);
+    if (Map.find(Wrapper) == Map.end()) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+    }
+    auto It = ManagedInfos.find(Wrapper);
+    if (It == ManagedInfos.end()) {
+      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
     }
     return It->second.Version;
   }

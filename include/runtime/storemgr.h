@@ -49,15 +49,6 @@ public:
     return std::forward<CallbackT>(CallBack)(NamedMod);
   }
 
-  /// Find module by name.
-  const Instance::ModuleInstance *findModule(std::string_view Name) const {
-    std::shared_lock Lock(Mutex);
-    if (auto Iter = NamedMod.find(Name); likely(Iter != NamedMod.cend())) {
-      return Iter->second;
-    }
-    return nullptr;
-  }
-
   /// Run Callback with the named module instance (or nullptr) while holding the
   /// shared lock, so the caller can pin a dependency before a concurrent
   /// unregisterModule destroys it.
@@ -70,6 +61,13 @@ public:
       }
       return std::forward<CallbackT>(Callback)(Found);
     });
+  }
+
+  /// Find module by name. Returns the pointer with the lock already released;
+  /// use withModuleLocked to pin or dereference the result race-free.
+  const Instance::ModuleInstance *findModule(std::string_view Name) const {
+    return withModuleLocked(
+        Name, [](const Instance::ModuleInstance *Found) { return Found; });
   }
 
   /// Find component by name.

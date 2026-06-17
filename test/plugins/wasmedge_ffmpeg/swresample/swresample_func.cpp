@@ -37,8 +37,8 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   auto *FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swresample_version");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncSWResampleVersion = FuncInst->getHostFunc();
 
   {
@@ -48,8 +48,8 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swr_alloc_set_opts");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncSwrAllocSetOpts = FuncInst->getHostFunc();
 
   // Testing with Null Old SwrCtx. Hence 2nd argument is 0.
@@ -96,8 +96,8 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst =
       SWResampleMod->findFuncExports("wasmedge_ffmpeg_swresample_swr_free");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncSwrFree = FuncInst->getHostFunc();
 
   {
@@ -108,8 +108,8 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst =
       SWResampleMod->findFuncExports("wasmedge_ffmpeg_swresample_swr_init");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncSwrInit = FuncInst->getHostFunc();
 
   {
@@ -121,8 +121,8 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_av_opt_set_dict");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVOptSetDict = FuncInst->getHostFunc();
 
   {
@@ -145,8 +145,8 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swr_convert_frame");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncSwrConvertFrame = FuncInst->getHostFunc();
 
   {
@@ -160,8 +160,8 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swr_get_delay");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncSwrGetDelay = FuncInst->getHostFunc();
 
   {
@@ -174,8 +174,8 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swresample_configuration_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncSwrConfigLength = FuncInst->getHostFunc();
 
   int32_t Length = 0;
@@ -189,8 +189,8 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swresample_configuration");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncSwrConfig = FuncInst->getHostFunc();
 
   {
@@ -203,8 +203,8 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swresample_license_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncSwrLicenseLen = FuncInst->getHostFunc();
 
   {
@@ -218,8 +218,8 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swresample_license");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncSwrLicense = FuncInst->getHostFunc();
 
   {

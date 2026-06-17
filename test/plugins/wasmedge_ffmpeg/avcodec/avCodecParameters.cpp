@@ -27,8 +27,8 @@ TEST_F(FFmpegTest, AVCodecParameters) {
 
   auto *FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodecparam_codec_id");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecParamCodecId = FuncInst->getHostFunc();
 
@@ -41,8 +41,8 @@ TEST_F(FFmpegTest, AVCodecParameters) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodecparam_codec_type");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecParamCodecType = FuncInst->getHostFunc();
 
@@ -55,8 +55,8 @@ TEST_F(FFmpegTest, AVCodecParameters) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodecparam_set_codec_tag");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecParamSetCodecTag = FuncInst->getHostFunc();
 

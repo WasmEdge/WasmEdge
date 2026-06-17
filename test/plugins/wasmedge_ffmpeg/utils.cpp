@@ -18,6 +18,8 @@ namespace WasmEdgeFFmpeg {
 void FFmpegTest::initEmptyFrame(uint32_t FramePtr) {
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_alloc");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVFrameAlloc = FuncInst->getHostFunc();
   HostFuncAVFrameAlloc.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{FramePtr}, Result);
@@ -34,6 +36,8 @@ void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
 
   auto *FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_av_find_best_stream");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVFindBestStream = FuncInst->getHostFunc();
   uint32_t MediaTypeId = 0; // Video
   uint32_t WantedStream = -1;
@@ -50,7 +54,8 @@ void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avStream_codecpar");
-
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamCodecpar = FuncInst->getHostFunc();
 
   HostFuncAVStreamCodecpar.run(CallFrame,
@@ -62,6 +67,8 @@ void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_alloc_context3");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVCodecAllocContext3 = FuncInst->getHostFunc();
 
   HostFuncAVCodecAllocContext3.run(
@@ -72,6 +79,8 @@ void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_parameters_to_context");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVCodecParametersToContext = FuncInst->getHostFunc();
 
   HostFuncAVCodecParametersToContext.run(
@@ -82,6 +91,8 @@ void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_codec_id");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVCodecContextCodecId = FuncInst->getHostFunc();
 
   HostFuncAVCodecContextCodecId.run(
@@ -92,6 +103,8 @@ void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_find_decoder");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVCodecFindDecoder = FuncInst->getHostFunc();
 
   HostFuncAVCodecFindDecoder.run(
@@ -102,6 +115,8 @@ void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_open2");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVCodecOpen2 = FuncInst->getHostFunc();
 
   HostFuncAVCodecOpen2.run(
@@ -114,18 +129,26 @@ void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_receive_frame");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVCodecReceiveFrame = FuncInst->getHostFunc();
 
   FuncInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_av_read_frame");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVReadFrame = FuncInst->getHostFunc();
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_send_packet");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVCodecSendPacket = FuncInst->getHostFunc();
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_av_packet_stream_index");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVPacketStreamIndex = FuncInst->getHostFunc();
 
   while (true) {
@@ -186,6 +209,8 @@ void FFmpegTest::initFormatCtx(uint32_t AVFormatCtxPtr, uint32_t FilePtr,
 
   auto *FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformat_open_input");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVFormatOpenInput = FuncInst->getHostFunc();
   HostFuncAVFormatOpenInput.run(
       CallFrame,
@@ -204,6 +229,8 @@ void FFmpegTest::initDict(uint32_t DictPtr, uint32_t KeyPtr, std::string Key,
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_set");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVDictSet = FuncInst->getHostFunc();
 
   HostFuncAVDictSet.run(CallFrame,
@@ -215,6 +242,8 @@ void FFmpegTest::initDict(uint32_t DictPtr, uint32_t KeyPtr, std::string Key,
 void FFmpegTest::allocPacket(uint32_t PacketPtr) {
   auto *FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_alloc");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVPacketAlloc = FuncInst->getHostFunc();
 
   HostFuncAVPacketAlloc.run(

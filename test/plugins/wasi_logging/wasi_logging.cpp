@@ -83,10 +83,10 @@ TEST(WasiLoggingTests, func_log) {
   // Get the function "log".
   auto *FuncInst1 = WasiLoggingMod1->findFuncExports("log");
   auto *FuncInst2 = WasiLoggingMod2->findFuncExports("log");
-  EXPECT_NE(FuncInst1, nullptr);
-  EXPECT_NE(FuncInst2, nullptr);
-  EXPECT_TRUE(FuncInst1->isHostFunction());
-  EXPECT_TRUE(FuncInst2->isHostFunction());
+  ASSERT_NE(FuncInst1, nullptr);
+  ASSERT_NE(FuncInst2, nullptr);
+  ASSERT_TRUE(FuncInst1->isHostFunction());
+  ASSERT_TRUE(FuncInst2->isHostFunction());
   auto &HostFuncInst1 = FuncInst1->getHostFunc();
   auto &HostFuncInst2 = FuncInst2->getHostFunc();
 

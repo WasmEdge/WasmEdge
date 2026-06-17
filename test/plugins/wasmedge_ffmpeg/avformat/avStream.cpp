@@ -31,8 +31,8 @@ TEST_F(FFmpegTest, AVStreamStruct) {
 
   auto *FuncInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avStream_id");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamId = FuncInst->getHostFunc();
 
   uint32_t AvFormatCtxId = readUInt32(MemInst, FormatCtxPtr);
@@ -46,8 +46,8 @@ TEST_F(FFmpegTest, AVStreamStruct) {
 
   FuncInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avStream_index");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamIndex = FuncInst->getHostFunc();
 
   {
@@ -60,8 +60,8 @@ TEST_F(FFmpegTest, AVStreamStruct) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avStream_codecpar");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamCodecPar = FuncInst->getHostFunc();
 
   {
@@ -76,14 +76,14 @@ TEST_F(FFmpegTest, AVStreamStruct) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avStream_timebase");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamTimebase = FuncInst->getHostFunc();
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avStream_set_timebase");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamSetTimebase = FuncInst->getHostFunc();
 
   {
@@ -108,8 +108,8 @@ TEST_F(FFmpegTest, AVStreamStruct) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avStream_duration");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamDuration = FuncInst->getHostFunc();
 
   {
@@ -122,8 +122,8 @@ TEST_F(FFmpegTest, AVStreamStruct) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avStream_start_time");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamStartTime = FuncInst->getHostFunc();
 
   {
@@ -136,8 +136,8 @@ TEST_F(FFmpegTest, AVStreamStruct) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avStream_nb_frames");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamNbFrames = FuncInst->getHostFunc();
 
   {
@@ -150,8 +150,8 @@ TEST_F(FFmpegTest, AVStreamStruct) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avStream_disposition");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamDisposition = FuncInst->getHostFunc();
 
   {
@@ -164,14 +164,14 @@ TEST_F(FFmpegTest, AVStreamStruct) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avStream_set_r_frame_rate");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamSetRFrameRate = FuncInst->getHostFunc();
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avStream_r_frame_rate");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamRFrameRate = FuncInst->getHostFunc();
 
   {
@@ -196,14 +196,14 @@ TEST_F(FFmpegTest, AVStreamStruct) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avStream_set_avg_frame_rate");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamSetAvgFrameRate = FuncInst->getHostFunc();
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avStream_avg_frame_rate");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamAvgFrameRate = FuncInst->getHostFunc();
 
   {
@@ -229,14 +229,14 @@ TEST_F(FFmpegTest, AVStreamStruct) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avStream_metadata");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamMetadata = FuncInst->getHostFunc();
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avStream_set_metadata");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamSetMetadata = FuncInst->getHostFunc();
   {
     EXPECT_TRUE(HostFuncAVStreamMetadata.run(
@@ -257,8 +257,8 @@ TEST_F(FFmpegTest, AVStreamStruct) {
 
   FuncInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avStream_discard");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamDiscard = FuncInst->getHostFunc();
   {
     EXPECT_TRUE(HostFuncAVStreamDiscard.run(

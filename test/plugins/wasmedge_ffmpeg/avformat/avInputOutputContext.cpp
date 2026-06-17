@@ -30,8 +30,8 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   auto *FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_iformat");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVFormatCtxIFormat = FuncInst->getHostFunc();
 
   {
@@ -51,8 +51,8 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avIOFormat_name_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVIOFormatNameLength = FuncInst->getHostFunc();
 
   int32_t Length = 0;
@@ -66,8 +66,8 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avInputFormat_name");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVInputFormatName = FuncInst->getHostFunc();
 
   fillMemContent(MemInst, StrBuf, Length);
@@ -82,8 +82,8 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avIOFormat_long_name_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVIOFormatLongNameLength = FuncInst->getHostFunc();
 
   {
@@ -97,8 +97,8 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avInputFormat_long_name");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVInputFormatLongName = FuncInst->getHostFunc();
 
   {
@@ -113,8 +113,8 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avIOFormat_extensions_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVIOFormatExtensionsLength = FuncInst->getHostFunc();
 
   {
@@ -128,8 +128,8 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avInputFormat_extensions");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVInputFormatExtensions = FuncInst->getHostFunc();
 
   {
@@ -143,8 +143,8 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avIOFormat_mime_type_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVIOFormatMimeTypeLength = FuncInst->getHostFunc();
 
   {
@@ -158,8 +158,8 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avInputFormat_mime_type");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVInputFormatMimeType = FuncInst->getHostFunc();
 
   {
@@ -173,8 +173,8 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avInputOutputFormat_free");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVInputOutputFormatFree = FuncInst->getHostFunc();
 
   {

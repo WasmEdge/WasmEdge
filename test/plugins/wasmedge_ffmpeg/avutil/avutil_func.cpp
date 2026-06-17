@@ -20,6 +20,8 @@ TEST_F(FFmpegTest, AVUtilFunc) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_log_set_level");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVLogSetLevel = FuncInst->getHostFunc();
 
   int32_t LogLvlId = 32;
@@ -31,6 +33,8 @@ TEST_F(FFmpegTest, AVUtilFunc) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_log_get_level");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVLogGetLevel = FuncInst->getHostFunc();
 
   {
@@ -41,6 +45,8 @@ TEST_F(FFmpegTest, AVUtilFunc) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_log_set_flags");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVLogSetFlags = FuncInst->getHostFunc();
 
   {
@@ -50,6 +56,8 @@ TEST_F(FFmpegTest, AVUtilFunc) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_log_get_flags");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVLogGetFlags = FuncInst->getHostFunc();
 
   {
@@ -60,6 +68,8 @@ TEST_F(FFmpegTest, AVUtilFunc) {
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_rescale_q");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVRescaleQ = FuncInst->getHostFunc();
 
   int64_t A = 20;
@@ -79,6 +89,8 @@ TEST_F(FFmpegTest, AVUtilFunc) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_rescale_q_rnd");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVRescaleQRnd = FuncInst->getHostFunc();
 
   {
@@ -93,6 +105,8 @@ TEST_F(FFmpegTest, AVUtilFunc) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_avutil_version");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVUtilVersion = FuncInst->getHostFunc();
 
   {
@@ -105,6 +119,8 @@ TEST_F(FFmpegTest, AVUtilFunc) {
   uint64_t ChannelId = 1; // FRONT_LEFT
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_channel_layout_nb_channels");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVGetChannelLayoutNbChannels = FuncInst->getHostFunc();
 
   {
@@ -116,6 +132,8 @@ TEST_F(FFmpegTest, AVUtilFunc) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_default_channel_layout");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVGetDefaultChannelLayout = FuncInst->getHostFunc();
 
   {
@@ -128,6 +146,8 @@ TEST_F(FFmpegTest, AVUtilFunc) {
   uint32_t Length = 0;
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_avutil_configuration_length");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVUtilConfigurationLength = FuncInst->getHostFunc();
 
   {
@@ -142,6 +162,8 @@ TEST_F(FFmpegTest, AVUtilFunc) {
   fillMemContent(MemInst, NamePtr, Length);
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_avutil_configuration");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVUtilConfiguration = FuncInst->getHostFunc();
 
   {
@@ -153,6 +175,8 @@ TEST_F(FFmpegTest, AVUtilFunc) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_avutil_license_length");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVUtilLicenseLength = FuncInst->getHostFunc();
 
   {
@@ -167,6 +191,8 @@ TEST_F(FFmpegTest, AVUtilFunc) {
   fillMemContent(MemInst, NamePtr, Length);
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_avutil_license");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVUtilLicense = FuncInst->getHostFunc();
 
   {
@@ -183,6 +209,8 @@ TEST_F(FFmpegTest, AVTime) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_gettime");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVGetTime = FuncInst->getHostFunc();
 
   {
@@ -194,6 +222,8 @@ TEST_F(FFmpegTest, AVTime) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_gettime_relative");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVGetTimeRelative = FuncInst->getHostFunc();
 
   {
@@ -205,6 +235,8 @@ TEST_F(FFmpegTest, AVTime) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_gettime_relative_is_monotonic");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVGetTimeRelativeIsMonotonic = FuncInst->getHostFunc();
 
   {
@@ -215,6 +247,8 @@ TEST_F(FFmpegTest, AVTime) {
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_usleep");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVUSleep = FuncInst->getHostFunc();
 
   {

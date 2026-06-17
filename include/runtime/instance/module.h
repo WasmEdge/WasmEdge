@@ -24,6 +24,7 @@
 #include "runtime/instance/function.h"
 #include "runtime/instance/global.h"
 #include "runtime/instance/memory.h"
+#include "runtime/instance/reflifetime.h"
 #include "runtime/instance/struct.h"
 #include "runtime/instance/table.h"
 #include "runtime/instance/tag.h"
@@ -37,6 +38,7 @@
 #include <shared_mutex>
 #include <string>
 #include <type_traits>
+#include <unordered_set>
 #include <vector>
 
 namespace WasmEdge {
@@ -84,14 +86,19 @@ public:
     if (HostDataFinalizer.operator bool()) {
       HostDataFinalizer(HostData);
     }
-    for (auto *Provider : DependencyList) {
-      if (Provider) {
-        Provider->decrementInDegree();
+    for (auto *Provider : Providers) {
+      if (Provider && Provider->Life.releaseDependent()) {
+        delete Provider;
       }
     }
   }
 
-  void terminate() noexcept { resetSelfDegree(); }
+  void terminate() noexcept {
+    unlinkAllStores();
+    if (Life.releaseOwner()) {
+      delete this;
+    }
+  }
 
   std::string_view getModuleName() const noexcept {
     std::shared_lock Lock(Mutex);
@@ -553,37 +560,10 @@ protected:
     LinkedStore.clear();
   }
 
-  void incrementInDegree() noexcept {
-    InDegree.fetch_add(1, std::memory_order_relaxed);
-  }
-
-  void decrementInDegree() noexcept {
-    if (InDegree.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-      this->tryToDelete();
-    }
-  }
-
-  void linkDependency(ModuleInstance &Provider) {
+  void addDependency(ModuleInstance &Provider) {
     std::unique_lock Lock(Mutex);
-    auto It =
-        std::find(DependencyList.begin(), DependencyList.end(), &Provider);
-    if (It != DependencyList.end()) {
-      return;
-    }
-    DependencyList.push_back(&Provider);
-    Provider.incrementInDegree();
-  }
-
-  void resetSelfDegree() noexcept {
-    unlinkAllStores();
-    SelfDegree.store(0, std::memory_order_release);
-    this->tryToDelete();
-  }
-
-  void tryToDelete() noexcept {
-    if (SelfDegree.load(std::memory_order_acquire) == 0 &&
-        InDegree.load(std::memory_order_acquire) == 0) {
-      delete this;
+    if (Providers.insert(&Provider).second) {
+      Provider.Life.addDependent();
     }
   }
 
@@ -643,14 +623,12 @@ protected:
   void *HostData;
   std::function<void(void *)> HostDataFinalizer;
 
-  /// In-degree of the reference counting. Represents the number of
-  /// moduleimporting this instance.
-  std::atomic<uint32_t> InDegree{0};
-  /// Self-degree of the reference counting. 1 if this instance is held by
-  /// somebody, 0 otherwise.
-  std::atomic<uint32_t> SelfDegree{1};
-  /// Dependency list of the provider module instances.
-  std::vector<Instance::ModuleInstance *> DependencyList;
+  /// Intrusive lifetime: owner flag plus importer count, packed into one
+  /// atomic.
+  RefLifetime Life;
+  /// Provider instances this module imported from; each holds one dependent
+  /// pin, released when this module is destroyed.
+  std::unordered_set<ModuleInstance *> Providers;
 };
 
 } // namespace Instance

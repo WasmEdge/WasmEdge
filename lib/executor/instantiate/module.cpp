@@ -76,7 +76,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
               auto *Target =
                   const_cast<WasmEdge::Runtime::Instance::ModuleInstance *>(
                       Found);
-              ModInst->linkDependency(*Target);
+              ModInst->addDependency(*Target);
             }
             return Found;
           },

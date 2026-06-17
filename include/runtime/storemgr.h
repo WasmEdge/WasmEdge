@@ -58,6 +58,20 @@ public:
     return nullptr;
   }
 
+  /// Run Callback with the named module instance (or nullptr) while holding the
+  /// shared lock, so the caller can pin a dependency before a concurrent
+  /// unregisterModule destroys it.
+  template <typename CallbackT>
+  auto withModuleLocked(std::string_view Name, CallbackT &&Callback) const {
+    return getModuleList([&](const auto &Mods) {
+      const Instance::ModuleInstance *Found = nullptr;
+      if (auto Iter = Mods.find(Name); likely(Iter != Mods.cend())) {
+        Found = Iter->second;
+      }
+      return std::forward<CallbackT>(Callback)(Found);
+    });
+  }
+
   /// Find component by name.
   const Instance::ComponentInstance *
   findComponent(std::string_view Name) const {

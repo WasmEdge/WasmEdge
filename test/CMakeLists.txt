@@ -85,6 +85,7 @@ add_subdirectory(span)
 add_subdirectory(po)
 add_subdirectory(meminstance)
 add_subdirectory(reflifetime)
+add_subdirectory(moduleinstance)
 add_subdirectory(errinfo)
 add_subdirectory(vm)
 

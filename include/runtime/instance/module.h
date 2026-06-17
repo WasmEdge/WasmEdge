@@ -86,11 +86,7 @@ public:
     if (HostDataFinalizer.operator bool()) {
       HostDataFinalizer(HostData);
     }
-    for (auto *Provider : Providers) {
-      if (Provider && Provider->Life.releaseDependent()) {
-        delete Provider;
-      }
-    }
+    releaseProviders();
   }
 
   void terminate() noexcept {
@@ -551,19 +547,55 @@ protected:
   }
 
   void unlinkAllStores() noexcept {
-    // When destroying this module instance, call the callbacks to unlink to the
-    // store managers.
-    for (auto &&[Key, Callback] : LinkedStore) {
+    std::map<LinkedStoreKey, std::function<BeforeModuleDestroyCallback>>
+        Snapshot;
+    {
+      std::unique_lock Lock(Mutex);
+      Snapshot.swap(LinkedStore);
+    }
+    for (auto &&[Key, Callback] : Snapshot) {
       assuming(Callback);
       Callback(Key, this);
     }
-    LinkedStore.clear();
   }
 
   void addDependency(ModuleInstance &Provider) {
     std::unique_lock Lock(Mutex);
     if (Providers.insert(&Provider).second) {
       Provider.Life.addDependent();
+    }
+  }
+
+  void takeProviders(std::unordered_set<ModuleInstance *> &Snapshot) noexcept {
+    std::unique_lock Lock(Mutex);
+    Snapshot.swap(Providers);
+  }
+
+  static void drainPins(std::unordered_set<ModuleInstance *> &Provs,
+                        std::vector<ModuleInstance *> &ToDelete) noexcept {
+    for (auto *Provider : Provs) {
+      if (Provider->Life.releaseDependent()) {
+        ToDelete.push_back(Provider);
+      }
+    }
+    Provs.clear();
+  }
+
+  void releaseProviders() noexcept {
+    std::unordered_set<ModuleInstance *> ProvidersToRelease;
+    takeProviders(ProvidersToRelease);
+    if (ProvidersToRelease.empty()) {
+      return;
+    }
+    std::vector<ModuleInstance *> ToDelete;
+    drainPins(ProvidersToRelease, ToDelete);
+    while (!ToDelete.empty()) {
+      ModuleInstance *Next = ToDelete.back();
+      ToDelete.pop_back();
+      std::unordered_set<ModuleInstance *> NextProviders;
+      Next->takeProviders(NextProviders);
+      delete Next;
+      drainPins(NextProviders, ToDelete);
     }
   }
 

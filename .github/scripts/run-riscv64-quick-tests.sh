@@ -63,7 +63,7 @@ QUICK_TESTS="
   wasmedgeLoaderASTTests
   wasmedgeLoaderSerializerTests
   wasmedgeValidatorSubtypeTests
-  wasmedgeMemInstanceTests
+  wasmedgeRuntimeInstanceTests
   wasmedgeExternrefTests
   wasmedgeHostMockTests
   wasmedgeAPIUnitTests

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2026 Second State INC
 
-//===-- wasmedge/test/reflifetime/RefLifetimeTest.cpp ---------------------===//
+//===-- wasmedge/test/instance/RefLifetimeTest.cpp ------------------------===//
 //
 // Part of the WasmEdge Project.
 //

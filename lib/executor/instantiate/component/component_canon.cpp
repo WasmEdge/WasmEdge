@@ -66,19 +66,9 @@ std::vector<ValVariant> Executor::convValsToCoreWASM(
       std::vector<ValType> ReallocTypes =
           RFuncInst->getFuncType().getParamTypes();
       auto AllocRes = invoke(RFuncInst, ReallocArgs, ReallocTypes);
-      // The 'realloc' core function signature is not yet checked during
-      // validation (GAP-C-5b). It must return exactly one i32 pointer; a
-      // component declaring a 'realloc' with no result would otherwise make
-      // (*AllocRes)[0] an out-of-bounds access on an empty vector. Guard the
-      // failure cases first, and propagate the setBytes failure instead of
-      // silently handing the guest a (ptr, size) pair for bytes that were
-      // never copied.
-      if (!AllocRes) {
-        CoreVals.push_back(0);
-        CoreVals.push_back(0);
-        break;
-      }
-      if (AllocRes->empty()) {
+      // realloc's signature is not validated yet (GAP-C-5b); it must return
+      // one i32 pointer, so guard against a missing or empty result.
+      if (!AllocRes || AllocRes->empty()) {
         CoreVals.push_back(0);
         CoreVals.push_back(0);
         break;

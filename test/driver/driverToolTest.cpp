@@ -551,6 +551,74 @@ TEST(ParseSubcommand, OutputTagSection) {
       R.Stdout, {"Table[", "Memory[", "Start:", "Element[",
                  "DataCount section", "Data["}));
 }
+
+// --summary flag: compact section-header output.
+
+TEST(ParseSubcommand, SummaryFormat) {
+  // Verify top-level structure: header line, "Section Summary:", hex offsets,
+  // and counts appear; verbose detail lines do not.
+  auto R = callParseCaptureStdout({"--summary", parseTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(R.Stdout, {"file format wasm 0x1", "Section Summary:",
+                                     "start=0x", "end=0x", "(size=0x",
+                                     "count="}));
+  EXPECT_TRUE(containsNone(R.Stdout, {"Section Details:", " - type[", " - func[",
+                                      " - global[", " - memory[", " - table["}));
+}
+
+TEST(ParseSubcommand, SummaryCountsPresent) {
+  // parse_test.wasm has 4 types, 5 imports, 4 functions, 6 globals, 12 exports,
+  // 4 code entries, and a "name" custom section.
+  auto R = callParseCaptureStdout({"--summary", parseTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(R.Stdout, {"Type", "count=4", "Import", "count=5",
+                                     "Function", "count=4", "Global", "count=6",
+                                     "Export", "count=12", "Code", "count=4"}));
+  EXPECT_TRUE(containsAll(R.Stdout, {"Custom", "name=\"name\""}));
+}
+
+TEST(ParseSubcommand, SummarySkipsEmptySections) {
+  // MinimalWasm is just magic+version with no sections; summary should show
+  // only the file header and a blank section table.
+  std::string Path =
+      writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(), "minimal_sum.wasm");
+  auto R = callParseCaptureStdout({"--summary", Path.c_str()});
+  std::filesystem::remove(Path.c_str());
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(R.Stdout, {"file format wasm 0x1", "Section Summary:"}));
+  EXPECT_TRUE(containsNone(R.Stdout, {"Type", "Import", "Function", "Global",
+                                      "Export", "Code", "Custom", "count="}));
+}
+
+TEST(ParseSubcommand, SummaryOffsetsIncreasing) {
+  // Extract all "start=0x..." values and verify they are strictly increasing,
+  // confirming sections appear in file order.
+  auto R = callParseCaptureStdout({"--summary", parseTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  std::vector<uint64_t> Starts;
+  const std::string &Out = R.Stdout;
+  size_t Pos = 0;
+  while ((Pos = Out.find("start=0x", Pos)) != std::string::npos) {
+    Pos += 8; // skip "start=0x"
+    uint64_t V = std::stoull(Out.substr(Pos, 8), nullptr, 16);
+    Starts.push_back(V);
+  }
+  ASSERT_GT(Starts.size(), 1u);
+  for (size_t I = 1; I < Starts.size(); ++I) {
+    EXPECT_GT(Starts[I], Starts[I - 1])
+        << "section[" << I << "] start not greater than section[" << I - 1
+        << "] start";
+  }
+}
+
+TEST(ParseSubcommand, SummaryFileSize) {
+  // The header line should mention the file's byte count when available.
+  auto R = callParseCaptureStdout({"--summary", parseTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  // ParseTestWasm is 502 bytes; check that a numeric byte count appears in the
+  // first line of the summary header.
+  EXPECT_TRUE(containsAll(R.Stdout, {"502 bytes"}));
+}
 #endif
 
 // ---------------------------------------------------------------------------

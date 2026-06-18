@@ -282,16 +282,14 @@ WasiCryptoExpect<__wasi_symmetric_key_t> Context::symmetricKeyGenerateManaged(
     __wasi_opt_options_t OptOptionsHandle) noexcept {
   return SecretsManagerManager.get(SecretsManagerHandle)
       .and_then([&](auto &&) noexcept {
-        auto OptOptionsResult = mapAndTransposeOptional(
+        return mapAndTransposeOptional(
             OptOptionsHandle, [this](__wasi_options_t OptionsHandle) noexcept {
               return OptionsManager.get(OptionsHandle);
             });
-        if (!OptOptionsResult) {
-          return WasiCryptoUnexpect(OptOptionsResult);
-        }
-
+      })
+      .and_then([&, Alg](auto &&OptOptions) noexcept {
         return transposeOptionalToRef(
-                   *OptOptionsResult,
+                   OptOptions,
                    [](const auto &Options) noexcept
                        -> WasiCryptoExpect<
                            OptionalRef<const Symmetric::Options>> {
@@ -303,8 +301,8 @@ WasiCryptoExpect<__wasi_symmetric_key_t> Context::symmetricKeyGenerateManaged(
                      }
                      return SymmetricOptions;
                    })
-            .and_then([Alg](auto &&OptOptions) noexcept {
-              return Symmetric::generateKey(Alg, OptOptions);
+            .and_then([Alg](auto &&OptSymmetricOptions) noexcept {
+              return Symmetric::generateKey(Alg, OptSymmetricOptions);
             })
             .and_then([this](auto &&Key) noexcept {
               return SymmetricKeyManager.registerManager(

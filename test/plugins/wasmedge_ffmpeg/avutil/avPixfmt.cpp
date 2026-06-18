@@ -13,6 +13,7 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 TEST_F(FFmpegTest, AVPixFmt) {
+  using namespace std::literals::string_view_literals;
   uint32_t NamePtr = UINT32_C(4);
 
   auto *FuncInst = AVUtilMod->findFuncExports(
@@ -91,6 +92,9 @@ TEST_F(FFmpegTest, AVPixFmt) {
         Result);
 
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(NamePtr),
+                               static_cast<size_t>(Length)),
+              "smpte170m"sv);
   }
 
   int32_t ColorRangeId = 2; //; JPEG
@@ -124,6 +128,9 @@ TEST_F(FFmpegTest, AVPixFmt) {
                                  Result);
 
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(NamePtr),
+                               static_cast<size_t>(Length)),
+              std::string_view("pc"sv));
   }
 
   int32_t ColorSpaceId = 1; // BT709
@@ -157,6 +164,9 @@ TEST_F(FFmpegTest, AVPixFmt) {
                                  Result);
 
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(NamePtr),
+                               static_cast<size_t>(Length)),
+              "bt709"sv);
   }
 
   int32_t ColorPrimariesId = 1; // BT709
@@ -191,6 +201,9 @@ TEST_F(FFmpegTest, AVPixFmt) {
         Result);
 
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(NamePtr),
+                               static_cast<size_t>(Length)),
+              "bt709"sv);
   }
 
   PixFmtId = 1; // YUV420P
@@ -224,6 +237,9 @@ TEST_F(FFmpegTest, AVPixFmt) {
         Result);
 
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(NamePtr),
+                               static_cast<size_t>(Length)),
+              "yuv420p"sv);
   }
 
   FuncInst =

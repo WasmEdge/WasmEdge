@@ -14,6 +14,7 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 TEST_F(FFmpegTest, AVFilterStructs) {
+  using namespace std::literals::string_view_literals;
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   uint32_t FilterPtr = UINT32_C(8);
@@ -82,6 +83,9 @@ TEST_F(FFmpegTest, AVFilterStructs) {
         std::initializer_list<WasmEdge::ValVariant>{FilterId, StrPtr, Length},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(StrPtr),
+                               static_cast<size_t>(Length)),
+              "abuffer"sv);
   }
 
   FuncInst = AVFilterMod->findFuncExports(
@@ -114,6 +118,10 @@ TEST_F(FFmpegTest, AVFilterStructs) {
         std::initializer_list<WasmEdge::ValVariant>{FilterId, StrPtr, Length},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(StrPtr),
+                               static_cast<size_t>(Length)),
+              "Buffer audio frames, and make them accessible to the "
+              "filterchain."sv);
   }
 
   FuncInst = AVFilterMod->findFuncExports(
@@ -166,12 +174,14 @@ TEST_F(FFmpegTest, AVFilterStructs) {
   auto &HostFuncAVFilterGetInputsFilterPad = FuncInst->getHostFunc();
 
   {
+    writeUInt32(MemInst, UINT32_C(0), InputFilterPadPtr);
     EXPECT_TRUE(HostFuncAVFilterGetInputsFilterPad.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{FilterId,
                                                     InputFilterPadPtr},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(readUInt32(MemInst, InputFilterPadPtr), UINT32_C(0));
   }
 
   FuncInst = AVFilterMod->findFuncExports(
@@ -224,6 +234,9 @@ TEST_F(FFmpegTest, AVFilterStructs) {
                                                     StrPtr, Length},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(StrPtr),
+                               static_cast<size_t>(Length)),
+              "default"sv);
   }
 
   FuncInst = AVFilterMod->findFuncExports(

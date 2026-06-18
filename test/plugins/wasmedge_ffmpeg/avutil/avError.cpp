@@ -29,10 +29,11 @@ TEST_F(FFmpegTest, AVError) {
   auto &HostFuncAVUtilAVStrError = FuncInst->getHostFunc();
 
   {
-    HostFuncAVUtilAVStrError.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result);
-
-    EXPECT_EQ(Result[0].get<int32_t>(), 0);
+    EXPECT_TRUE(HostFuncAVUtilAVStrError.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ErrNum, ErrStartPtr,
+                                                    ErrSize},
+        Result));
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_AVERROR");

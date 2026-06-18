@@ -209,6 +209,12 @@ TEST_F(FFmpegTest, AVCodecFunc) {
                                                     CodecNamePtr, Length},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+    uint32_t DecoderByNameId = readUInt32(MemInst, CodecDecoderPtr);
+    EXPECT_TRUE(HostFuncAVCodecIsDecoder.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{DecoderByNameId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), 1);
   }
 
   FuncInst = AVCodecMod->findFuncExports(
@@ -227,6 +233,12 @@ TEST_F(FFmpegTest, AVCodecFunc) {
                                                     CodecNamePtr, Length},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+    uint32_t EncoderByNameId = readUInt32(MemInst, CodecEncoderPtr);
+    EXPECT_TRUE(HostFuncAVCodecIsEncoder.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{EncoderByNameId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), 1);
   }
 
   FuncInst = AVCodecMod->findFuncExports(
@@ -273,7 +285,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
   {
     EXPECT_TRUE(HostFuncAVCodecVersion.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result));
-    EXPECT_TRUE(Result[0].get<int32_t>() > 0);
+    EXPECT_TRUE((Result[0].get<int32_t>() >> 16) > 0);
   }
 
   FuncInst = AVCodecMod->findFuncExports(
@@ -305,6 +317,10 @@ TEST_F(FFmpegTest, AVCodecFunc) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{StrPtr, Length},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_NE(std::string_view(MemInst->getPointer<char *>(StrPtr),
+                               static_cast<size_t>(Length))
+                  .find("--"),
+              std::string_view::npos);
   }
 
   FuncInst = AVCodecMod->findFuncExports(
@@ -336,6 +352,10 @@ TEST_F(FFmpegTest, AVCodecFunc) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{StrPtr, Length},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(StrPtr),
+                               static_cast<size_t>(Length))
+                  .find("--"),
+              std::string_view::npos);
   }
 
   FuncInst = AVCodecMod->findFuncExports(

@@ -43,7 +43,7 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   {
     EXPECT_TRUE(HostFuncSWResampleVersion.run(CallFrame, {}, Result));
-    ASSERT_TRUE(Result[0].get<int32_t>() > 0);
+    ASSERT_TRUE((Result[0].get<int32_t>() >> 16) > 0);
   }
 
   FuncInst = SWResampleMod->findFuncExports(
@@ -199,6 +199,10 @@ TEST_F(FFmpegTest, SWResampleFunc) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{StrPtr, Length},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_NE(std::string_view(MemInst->getPointer<char *>(StrPtr),
+                               static_cast<size_t>(Length))
+                  .find("--"),
+              std::string_view::npos);
   }
 
   FuncInst = SWResampleMod->findFuncExports(
@@ -228,6 +232,10 @@ TEST_F(FFmpegTest, SWResampleFunc) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{StrPtr, Length},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(StrPtr),
+                               static_cast<size_t>(Length))
+                  .find("--"),
+              std::string_view::npos);
   }
 }
 

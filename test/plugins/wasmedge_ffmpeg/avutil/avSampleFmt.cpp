@@ -168,6 +168,9 @@ TEST_F(FFmpegTest, AVSampleFmt) {
                                    Result);
 
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(NamePtr),
+                               static_cast<size_t>(Length)),
+              "u8"sv);
   }
 
   FuncInst = AVUtilMod->findFuncExports(

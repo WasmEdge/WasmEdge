@@ -92,7 +92,7 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
     EXPECT_TRUE(HostFuncAVFormatCtxDuration.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
         Result));
-    EXPECT_TRUE(Result[0].get<int64_t>() >= 0 || Result[0].get<int64_t>() < 0);
+    EXPECT_EQ(Result[0].get<int64_t>(), INT64_C(2000000));
   }
 
   FuncInst = AVFormatMod->findFuncExports(

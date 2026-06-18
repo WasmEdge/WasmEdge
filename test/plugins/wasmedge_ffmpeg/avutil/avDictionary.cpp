@@ -114,7 +114,12 @@ TEST_F(FFmpegTest, AVDictionary) {
             UINT32_C(3), PrevDictEntryIdx, Flags},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), 1);
-    // Verify String. Read String from MemInst
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(KeyBufPtr),
+                               static_cast<size_t>(KeyLen)),
+              "KEY"sv);
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(ValueBufPtr),
+                               static_cast<size_t>(ValueLen)),
+              "VALUE"sv);
 
     // Pass a Null Dict and testing.
     EXPECT_TRUE(HostFuncAVDictGetKeyValue.run(

@@ -420,9 +420,14 @@ WasiNNGetOutput::bodyImpl(const Runtime::CallingFrame &Frame,
     auto Stub = wasi_ephemeral_nn::GraphExecutionContextResource::NewStub(
         Env.NNRPCChannel);
     grpc::ClientContext ClientContext;
+    static constexpr uint32_t MaxOutputBytesLimit = 16U * 1024U * 1024U;
+    if (OutBufferMaxSize == 0 || OutBufferMaxSize > MaxOutputBytesLimit) {
+      return WASINN::ErrNo::InvalidArgument;
+    }
     wasi_ephemeral_nn::GetOutputRequest Req;
     Req.set_resource_handle(ContextId);
     Req.set_index(Index);
+    Req.set_max_size(OutBufferMaxSize);
     wasi_ephemeral_nn::GetOutputResult Res;
     auto Status = Stub->GetOutput(&ClientContext, Req, &Res);
     if (!Status.ok()) {
@@ -490,9 +495,14 @@ Expect<WASINN::ErrNo> WasiNNGetOutputSingle::bodyImpl(
     auto Stub = wasi_ephemeral_nn::GraphExecutionContextResource::NewStub(
         Env.NNRPCChannel);
     grpc::ClientContext ClientContext;
+    static constexpr uint32_t MaxOutputBytesLimit = 16U * 1024U * 1024U;
+    if (OutBufferMaxSize == 0 || OutBufferMaxSize > MaxOutputBytesLimit) {
+      return WASINN::ErrNo::InvalidArgument;
+    }
     wasi_ephemeral_nn::GetOutputRequest Req;
     Req.set_resource_handle(ContextId);
     Req.set_index(Index);
+    Req.set_max_size(OutBufferMaxSize);
     wasi_ephemeral_nn::GetOutputResult Res;
     auto Status = Stub->GetOutputSingle(&ClientContext, Req, &Res);
     if (!Status.ok()) {

@@ -1547,6 +1547,34 @@ TEST(WasiNNTest, GGMLBackend) {
     EXPECT_GE(BytesWritten, 50);
   }
 }
+
+TEST(WasiNNTest, GraphIdDoubleFree) {
+  // Regression test for issue #5023: a repeated unload (double free) of a graph
+  // ID must not corrupt the recycle bookkeeping and crash the next load.
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
+  auto &Env = NNMod->getEnv();
+
+  // Allocate two graphs without loading any model: indices 0 and 1.
+  uint32_t G0 = Env.newGraph(Backend::GGML);
+  uint32_t G1 = Env.newGraph(Backend::GGML);
+  EXPECT_EQ(G0, UINT32_C(0));
+  EXPECT_EQ(G1, UINT32_C(1));
+
+  // Delete the non-last graph first so its index is recycled, then the last.
+  Env.deleteGraph(G0);
+  Env.deleteGraph(G1);
+
+  // Double free of the already-recycled graph: must be a harmless no-op and
+  // must not shrink NNGraph below the recycled index.
+  Env.deleteGraph(G0);
+
+  // The next allocation must reuse the recycled index without an out-of-bounds
+  // access into an emptied NNGraph vector.
+  uint32_t G2 = Env.newGraph(Backend::GGML);
+  EXPECT_LT(G2, Env.NNGraph.size());
+}
+
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 TEST(WasiNNTest, GGMLBackendWithRPC) {
   // wasi_nn_rpcserver has to be started outside this test,

@@ -314,7 +314,8 @@ struct WasiNNEnvironment :
   void deleteGraph(const uint32_t Id) noexcept {
     // TODO: Add the deallocation callback.
     std::unique_lock Lock(GraphMutex);
-    if (Id < NNGraph.size()) {
+    if (Id < NNGraph.size() &&
+        NNGraphRecycle.find(Id) == NNGraphRecycle.end()) {
       auto &G = NNGraph[Id];
       G.setFinalized();
       if (G.getContextCount() == 0) {

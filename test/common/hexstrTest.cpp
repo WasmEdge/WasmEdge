@@ -79,6 +79,17 @@ TEST(HexStrTest, HexToBytesEmpty) {
   EXPECT_TRUE(Dst.empty());
 }
 
+TEST(HexStrTest, HexToBytesInvalidCharsMapToZero) {
+  // Non-hex characters decode to 0 via convertCharToHex rather than erroring.
+  std::vector<uint8_t> Dst;
+  WasmEdge::convertHexStrToBytes("zz"sv, Dst);
+  EXPECT_EQ(Dst, (std::vector<uint8_t>{0x00}));
+  WasmEdge::convertHexStrToBytes("0g"sv, Dst);
+  EXPECT_EQ(Dst, (std::vector<uint8_t>{0x00}));
+  WasmEdge::convertHexStrToBytes("a!"sv, Dst);
+  EXPECT_EQ(Dst, (std::vector<uint8_t>{0xa0}));
+}
+
 TEST(HexStrTest, RoundTripBigEndian) {
   const std::vector<uint8_t> Bytes{0xde, 0xad, 0xbe, 0xef, 0x00, 0x7f};
   std::string Hex;

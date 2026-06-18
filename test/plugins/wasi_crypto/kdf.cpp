@@ -29,7 +29,7 @@ TEST_F(WasiCryptoTest, Kdf) {
     WASI_CRYPTO_EXPECT_TRUE(
         symmetricStateSqueeze(ExpandStateHandle, SqueezeKey));
 
-    auto BothInvalid = [this, &ExpandAlg](std::string_view Name,
+    auto BothInvalid = [this](std::string_view Name,
                               __wasi_symmetric_state_t StateHandle) {
       EXPECT_TRUE(
           symmetricStateOpen(Name, InvaildHandle, std::nullopt).error() ==

@@ -45,6 +45,20 @@ TEST_F(FFmpegTest, AVPacketTest) {
   ASSERT_TRUE(PacketId > 0);
   ASSERT_TRUE(PacketId2 > 0);
 
+  uint32_t PacketDataSize = 0;
+  FuncInst =
+      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_size");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPacketSize = FuncInst->getHostFunc();
+  auto ExpectPacketSize = [&](uint32_t ExpectedSize) {
+    EXPECT_TRUE(HostFuncAVPacketSize.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketId},
+        Result));
+    PacketDataSize = static_cast<uint32_t>(Result[0].get<int32_t>());
+    EXPECT_EQ(PacketDataSize, ExpectedSize);
+  };
+
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_new_packet");
   ASSERT_NE(FuncInst, nullptr);
@@ -58,6 +72,7 @@ TEST_F(FFmpegTest, AVPacketTest) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketId, Size},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), 0);
+    ExpectPacketSize(Size);
   }
 
   FuncInst =
@@ -72,6 +87,7 @@ TEST_F(FFmpegTest, AVPacketTest) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketId, Size},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), 0);
+    ExpectPacketSize(80);
   }
 
   FuncInst =
@@ -86,6 +102,7 @@ TEST_F(FFmpegTest, AVPacketTest) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketId, Size},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), 0);
+    ExpectPacketSize(Size);
   }
 
   uint32_t StreamIdx = 3;
@@ -114,21 +131,6 @@ TEST_F(FFmpegTest, AVPacketTest) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), StreamIdx);
-  }
-
-  uint32_t Size = 0;
-  FuncInst =
-      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_size");
-  ASSERT_NE(FuncInst, nullptr);
-  ASSERT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVPacketSize = FuncInst->getHostFunc();
-
-  {
-    EXPECT_TRUE(HostFuncAVPacketSize.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketId},
-        Result));
-    Size = Result[0].get<int32_t>();
-    EXPECT_TRUE(Size > 0);
   }
 
   uint32_t Flags = 5;
@@ -290,7 +292,8 @@ TEST_F(FFmpegTest, AVPacketTest) {
   {
     EXPECT_TRUE(HostFuncAVPacketData.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{PacketId, DataPtr, Size},
+        std::initializer_list<WasmEdge::ValVariant>{PacketId, DataPtr,
+                                                    PacketDataSize},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }

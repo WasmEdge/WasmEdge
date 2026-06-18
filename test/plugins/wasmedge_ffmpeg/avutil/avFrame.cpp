@@ -36,12 +36,13 @@ TEST_F(FFmpegTest, AVFrame) {
   ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVFrameAlloc = FuncInst->getHostFunc();
 
-  uint32_t EmptyFramePtr = UINT32_C(64);
+  uint32_t EmptyFramePtr = UINT32_C(88);
 
   {
-    HostFuncAVFrameAlloc.run(
+    writeUInt32(MemInst, UINT32_C(0), EmptyFramePtr);
+    EXPECT_TRUE(HostFuncAVFrameAlloc.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{EmptyFramePtr},
-        Result);
+        Result));
 
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
     EXPECT_TRUE(readUInt32(MemInst, EmptyFramePtr) > 0);

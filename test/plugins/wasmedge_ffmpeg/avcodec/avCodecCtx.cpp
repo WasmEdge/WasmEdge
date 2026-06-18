@@ -1293,7 +1293,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
     EXPECT_TRUE(HostFuncAVCodecCtxColorTrc.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
         Result));
-    ASSERT_TRUE(Result[0].get<int32_t>() > 0);
+    EXPECT_EQ(Result[0].get<int32_t>(), 2);
   }
 
   FuncInst = AVCodecMod->findFuncExports(

@@ -49,9 +49,10 @@ TEST_F(FFmpegTest, AVUtilFunc) {
   ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVLogSetFlags = FuncInst->getHostFunc();
 
+  int32_t FlagId = 1;
   {
-    HostFuncAVLogSetFlags.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{1}, Result);
+    EXPECT_TRUE(HostFuncAVLogSetFlags.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{FlagId}, {}));
   }
 
   FuncInst =
@@ -61,10 +62,10 @@ TEST_F(FFmpegTest, AVUtilFunc) {
   auto &HostFuncAVLogGetFlags = FuncInst->getHostFunc();
 
   {
-    HostFuncAVLogGetFlags.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{1}, Result);
+    EXPECT_TRUE(HostFuncAVLogGetFlags.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result));
 
-    EXPECT_EQ(Result[0].get<int32_t>(), 32);
+    EXPECT_EQ(Result[0].get<int32_t>(), FlagId);
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_rescale_q");
@@ -110,10 +111,10 @@ TEST_F(FFmpegTest, AVUtilFunc) {
   auto &HostFuncAVUtilVersion = FuncInst->getHostFunc();
 
   {
-    HostFuncAVUtilVersion.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result);
+    EXPECT_TRUE(HostFuncAVUtilVersion.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result));
 
-    EXPECT_TRUE(Result[0].get<uint32_t>() > 0);
+    EXPECT_TRUE((Result[0].get<uint32_t>() >> 16) > 0);
   }
 
   uint64_t ChannelId = 1; // FRONT_LEFT
@@ -171,6 +172,10 @@ TEST_F(FFmpegTest, AVUtilFunc) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{NamePtr, Length},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_NE(std::string_view(MemInst->getPointer<char *>(NamePtr),
+                               static_cast<size_t>(Length))
+                  .find("--"),
+              std::string_view::npos);
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -200,6 +205,10 @@ TEST_F(FFmpegTest, AVUtilFunc) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{NamePtr, Length},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(NamePtr),
+                               static_cast<size_t>(Length))
+                  .find("--"),
+              std::string_view::npos);
   }
 }
 

@@ -121,6 +121,9 @@ TEST_F(FFmpegTest, AVCodec) {
                                        AVCodecId, StringPtr, Length},
                                    Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(StringPtr),
+                               static_cast<size_t>(Length)),
+              "h264"sv);
   }
 
   FuncInst = AVCodecMod->findFuncExports(
@@ -154,6 +157,9 @@ TEST_F(FFmpegTest, AVCodec) {
                                                     Length},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(StringPtr),
+                               static_cast<size_t>(Length)),
+              "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10"sv);
   }
 
   FuncInst =

@@ -243,7 +243,7 @@ TEST_F(FFmpegTest, AVInputFormatFunc) {
     EXPECT_TRUE(HostFuncAVFormatVersion.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result));
 
-    EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+    EXPECT_TRUE((Result[0].get<int32_t>() >> 16) > 0);
   }
 
   FuncInst = AVFormatMod->findFuncExports(
@@ -274,6 +274,10 @@ TEST_F(FFmpegTest, AVInputFormatFunc) {
         Result));
 
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+    EXPECT_NE(std::string_view(MemInst->getPointer<char *>(StrPtr),
+                               static_cast<size_t>(Length))
+                  .find("--"),
+              std::string_view::npos);
   }
 
   FuncInst = AVFormatMod->findFuncExports(
@@ -304,6 +308,10 @@ TEST_F(FFmpegTest, AVInputFormatFunc) {
         Result));
 
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(StrPtr),
+                               static_cast<size_t>(Length))
+                  .find("--"),
+              std::string_view::npos);
   }
 }
 

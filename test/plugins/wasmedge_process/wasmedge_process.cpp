@@ -424,9 +424,10 @@ TEST(WasmEdgeProcessTest, GetExitCode) {
   auto &HostFuncInst = FuncInst->getHostFunc();
 
   // Test: Run function successfully to get exit code.
+  ProcMod->getEnv().ExitCode = 42;
   std::array<WasmEdge::ValVariant, 1> RetVal;
   EXPECT_TRUE(HostFuncInst.run(DummyCallFrame, {}, RetVal));
-  EXPECT_EQ(RetVal[0].get<int32_t>(), 0);
+  EXPECT_EQ(RetVal[0].get<int32_t>(), 42);
 }
 
 TEST(WasmEdgeProcessTest, GetStdOut) {
@@ -547,8 +548,8 @@ TEST(WasmEdgeProcessTest, GetStdErr) {
   // Test: Run wasmedge_process_get_stdout successfully.
   EXPECT_TRUE(HostFuncGetStdErr.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)}, {}));
-  EXPECT_TRUE(std::equal(ProcMod->getEnv().StdOut.begin(),
-                         ProcMod->getEnv().StdOut.end(),
+  EXPECT_TRUE(std::equal(ProcMod->getEnv().StdErr.begin(),
+                         ProcMod->getEnv().StdErr.end(),
                          MemInst.getPointer<uint8_t *>(0)));
 }
 

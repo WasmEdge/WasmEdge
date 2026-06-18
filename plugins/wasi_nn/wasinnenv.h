@@ -314,13 +314,25 @@ struct WasiNNEnvironment :
   void deleteGraph(const uint32_t Id) noexcept {
     // TODO: Add the deallocation callback.
     std::unique_lock Lock(GraphMutex);
-    if (Id < NNGraph.size()) {
+    if (Id < NNGraph.size() &&
+        NNGraphRecycle.find(Id) == NNGraphRecycle.end() &&
+        !NNGraph[Id].isFinalized()) {
       auto &G = NNGraph[Id];
       G.setFinalized();
       if (G.getContextCount() == 0) {
         // All contexts are deleted. Release the graph ID.
         if (Id == NNGraph.size() - 1) {
           NNGraph.pop_back();
+          while (!NNGraph.empty() &&
+                 ((NNGraph.back().isFinalized() &&
+                   NNGraph.back().getContextCount() == 0) ||
+                  NNGraphRecycle.find(
+                      static_cast<uint32_t>(NNGraph.size() - 1)) !=
+                      NNGraphRecycle.end())) {
+            uint32_t BackId = static_cast<uint32_t>(NNGraph.size() - 1);
+            NNGraphRecycle.erase(BackId);
+            NNGraph.pop_back();
+          }
         } else {
           G.reset();
           NNGraphRecycle.insert(Id);
@@ -341,6 +353,16 @@ struct WasiNNEnvironment :
         // All contexts are deleted. Release the graph ID.
         if (GId == NNGraph.size() - 1) {
           NNGraph.pop_back();
+          while (!NNGraph.empty() &&
+                 ((NNGraph.back().isFinalized() &&
+                   NNGraph.back().getContextCount() == 0) ||
+                  NNGraphRecycle.find(
+                      static_cast<uint32_t>(NNGraph.size() - 1)) !=
+                      NNGraphRecycle.end())) {
+            uint32_t BackId = static_cast<uint32_t>(NNGraph.size() - 1);
+            NNGraphRecycle.erase(BackId);
+            NNGraph.pop_back();
+          }
         } else {
           G.reset();
           NNGraphRecycle.insert(GId);
@@ -348,6 +370,14 @@ struct WasiNNEnvironment :
       }
       if (Id == NNContext.size() - 1) {
         NNContext.pop_back();
+        while (!NNContext.empty() &&
+               NNContextRecycle.find(
+                   static_cast<uint32_t>(NNContext.size() - 1)) !=
+                   NNContextRecycle.end()) {
+          uint32_t BackId = static_cast<uint32_t>(NNContext.size() - 1);
+          NNContextRecycle.erase(BackId);
+          NNContext.pop_back();
+        }
       } else {
         NNContext[Id].reset();
         NNContextRecycle.insert(Id);

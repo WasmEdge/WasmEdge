@@ -2814,6 +2814,14 @@ TEST(WasiNNTest, ChatTTSBackend) {
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
+  // Test: unload -- double unload should fail.
+  {
+    EXPECT_TRUE(HostFuncUnload.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS
 
@@ -3393,5 +3401,104 @@ TEST(WasiNNTest, BitNetBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
+  // Test: unload -- double unload should fail.
+  {
+    EXPECT_TRUE(HostFuncUnload.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{GraphId},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET
+
+#if defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO) ||                       \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH) ||                          \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE) ||                         \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML) ||                           \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER) ||                          \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER) ||                        \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS) ||                        \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX) ||                            \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET)
+
+TEST(WasiNNTest, EnvironmentDoubleFreeSafety) {
+#if defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO)
+  constexpr Backend TestBackend = Backend::OpenVINO;
+#elif defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH)
+  constexpr Backend TestBackend = Backend::PyTorch;
+#elif defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE)
+  constexpr Backend TestBackend = Backend::TensorflowLite;
+#elif defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML)
+  constexpr Backend TestBackend = Backend::GGML;
+#elif defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER)
+  constexpr Backend TestBackend = Backend::Piper;
+#elif defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER)
+  constexpr Backend TestBackend = Backend::Whisper;
+#elif defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS)
+  constexpr Backend TestBackend = Backend::ChatTTS;
+#elif defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX)
+  constexpr Backend TestBackend = Backend::MLX;
+#elif defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET)
+  constexpr Backend TestBackend = Backend::BitNet;
+#endif
+
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod != nullptr);
+  auto &Env = NNMod->getEnv();
+
+  // Clear existing graphs/contexts to ensure a clean state for the unit test
+  {
+    std::unique_lock Lock(Env.GraphMutex);
+    Env.NNGraph.clear();
+    Env.NNContext.clear();
+    Env.NNGraphRecycle.clear();
+    Env.NNContextRecycle.clear();
+  }
+
+  // 1. Create a graph
+  uint32_t GId0 = Env.newGraph(TestBackend);
+  Env.NNGraph[GId0].setReady();
+  EXPECT_EQ(GId0, 0U);
+
+  // 2. Initialize a context linked to that graph
+  uint32_t CtxId0 = Env.newContext(GId0, Env.NNGraph[GId0]);
+  EXPECT_EQ(CtxId0, 0U);
+  EXPECT_EQ(Env.NNGraph[GId0].getContextCount(), 1U);
+
+  // 3. deleteGraph should finalize it but not recycle it because context count is 1
+  Env.deleteGraph(GId0);
+  EXPECT_TRUE(Env.NNGraph[GId0].isFinalized());
+  EXPECT_TRUE(Env.NNGraphRecycle.empty());
+
+  // 4. Double deleteGraph on GId0 should be ignored safely
+  Env.deleteGraph(GId0);
+  EXPECT_TRUE(Env.NNGraph[GId0].isFinalized());
+
+  // 5. deleteContext should decrease context count to 0, triggering deletion and popping from vectors
+  Env.deleteContext(CtxId0);
+  EXPECT_TRUE(Env.NNGraph.empty());
+  EXPECT_TRUE(Env.NNContext.empty());
+
+  // 6. Double deleteContext should be ignored safely
+  Env.deleteContext(CtxId0);
+
+  // 7. Test multiple graphs and recursive popping of recycled graph IDs
+  uint32_t GId1 = Env.newGraph(TestBackend); // GId = 0
+  Env.NNGraph[GId1].setReady();
+  uint32_t GId2 = Env.newGraph(TestBackend); // GId = 1
+  Env.NNGraph[GId2].setReady();
+  EXPECT_EQ(GId1, 0U);
+  EXPECT_EQ(GId2, 1U);
+
+  // Finalize GId1 (index 0) - it has 0 contexts, so it gets reset and recycled
+  Env.deleteGraph(GId1);
+  EXPECT_EQ(Env.NNGraphRecycle.size(), 1U);
+  EXPECT_TRUE(Env.NNGraphRecycle.count(GId1));
+
+  // Finalize GId2 (index 1) - it has 0 contexts, so it gets popped, which recursively pops GId1
+  Env.deleteGraph(GId2);
+  EXPECT_TRUE(Env.NNGraph.empty());
+  EXPECT_TRUE(Env.NNGraphRecycle.empty());
+}
+#endif

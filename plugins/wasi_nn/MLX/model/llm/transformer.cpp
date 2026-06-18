@@ -243,6 +243,8 @@ Transformer::generate(const std::string &Prompt, const BasePrompt &ModelPrompt,
   const std::vector<int> Ids = Tok->Encode(Prompt);
   mx::array Token =
       mx::array(Ids.data(), {static_cast<int>(Ids.size())}, mx::int32);
+  const std::vector<int> EosIds = Tok->Encode(ModelPrompt.TextEnd);
+
   std::vector<int32_t> TokenList;
   int TokenCount = 0;
   int Skip = 0;
@@ -254,22 +256,31 @@ Transformer::generate(const std::string &Prompt, const BasePrompt &ModelPrompt,
       break;
     }
     eval(Y);
-    const std::vector<int> EosIds = Tok->Encode(ModelPrompt.TextEnd);
-    int EosTokenId = EosIds.empty() ? -1 : EosIds[0];
 
     std::vector<int32_t> Tokens;
     auto *Data = Y.data<int32_t>();
-    bool HitEos = false;
     for (int Idx = 0; Idx < static_cast<int>(Y.size()); Idx++) {
-      if (Data[Idx] == EosTokenId) {
-        HitEos = true;
-        break;
-      }
       Tokens.emplace_back(Data[Idx]);
     }
-    
+
     TokenList.insert(TokenList.end(), Tokens.begin(), Tokens.end());
-    
+
+    bool HitEos = false;
+    if (!EosIds.empty() && TokenList.size() >= EosIds.size()) {
+      bool Match = true;
+      for (size_t I = 0; I < EosIds.size(); I++) {
+        if (TokenList[TokenList.size() - EosIds.size() + I] != EosIds[I]) {
+          Match = false;
+          break;
+        }
+      }
+      if (Match) {
+        HitEos = true;
+        // Strip the EOS tokens from the final output
+        TokenList.resize(TokenList.size() - EosIds.size());
+      }
+    }
+
     if (HitEos) {
       Answer = Tok->Decode(TokenList);
       break;

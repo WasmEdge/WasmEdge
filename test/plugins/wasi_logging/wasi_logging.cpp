@@ -183,6 +183,50 @@ TEST(WasiLoggingTests, func_log) {
       {}));
 }
 
+TEST(WasiLoggingTests, func_log_oob) {
+  using namespace std::literals::string_view_literals;
+  auto WasiLoggingMod = createModule();
+  ASSERT_TRUE(WasiLoggingMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  // Place a valid "stdout" context at offset 0.
+  fillMemContent(MemInst, 0, "stdout"sv);
+  // Place one byte of message data at the last byte of the page.
+  fillMemContent(MemInst, 65535, 1, 'x');
+
+  auto *FuncInst = WasiLoggingMod->findFuncExports("log");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInst =
+      dynamic_cast<WasmEdge::Host::WASILogging::Log &>(FuncInst->getHostFunc());
+
+  // OOB context: CxtPtr=65535, CxtLen=100 extends 99 bytes past the page end.
+  // Expected: HostFuncError (not a crash).
+  EXPECT_FALSE(HostFuncInst.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          UINT32_C(0), UINT32_C(65535), UINT32_C(100), UINT32_C(0),
+          UINT32_C(6)},
+      {}));
+
+  // OOB message: valid context ("stdout"), MsgPtr=65535, MsgLen=100.
+  // Expected: HostFuncError (not a crash).
+  EXPECT_FALSE(HostFuncInst.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          UINT32_C(0), UINT32_C(0), UINT32_C(6), UINT32_C(65535),
+          UINT32_C(100)},
+      {}));
+}
+
 GTEST_API_ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

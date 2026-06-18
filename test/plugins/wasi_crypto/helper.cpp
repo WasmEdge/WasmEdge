@@ -395,7 +395,7 @@ WasiCryptoTest::symmetricKeyId(__wasi_symmetric_key_t KeyHandle,
   EXPECT_NE(Func, nullptr);
   EXPECT_TRUE(Func->run(CallFrame,
                         std::initializer_list<WasmEdge::ValVariant>{
-                            KeyHandle, 0, KeyIdSize, KeyIdSize, KeyIdSize + 1},
+                            KeyHandle, 0, KeyIdSize, KeyIdSize, KeyIdSize + 4},
                         Errno));
   ensureOrReturnOnTest(Errno[0].get<int32_t>());
 
@@ -403,8 +403,8 @@ WasiCryptoTest::symmetricKeyId(__wasi_symmetric_key_t KeyHandle,
             MemInst->getPointer<uint8_t *>(KeyIdSize), KeyId.begin());
 
   return std::make_tuple(
-      *MemInst->getPointer<size_t *>(KeyIdSize),
-      *MemInst->getPointer<__wasi_version_t *>(KeyIdSize + 1));
+      *MemInst->getPointer<__wasi_size_t *>(KeyIdSize),
+      *MemInst->getPointer<__wasi_version_t *>(KeyIdSize + 4));
 }
 
 WasiCryptoExpect<__wasi_symmetric_key_t> WasiCryptoTest::symmetricKeyFromId(

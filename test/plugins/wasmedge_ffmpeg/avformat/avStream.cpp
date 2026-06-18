@@ -117,7 +117,7 @@ TEST_F(FFmpegTest, AVStreamStruct) {
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, StreamIdx},
         Result));
-    EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+    EXPECT_EQ(Result[0].get<int64_t>(), INT64_C(30720));
   }
 
   FuncInst = AVFormatMod->findFuncExports(
@@ -131,7 +131,7 @@ TEST_F(FFmpegTest, AVStreamStruct) {
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, StreamIdx},
         Result));
-    EXPECT_TRUE(Result[0].get<int64_t>() >= 0);
+    EXPECT_EQ(Result[0].get<int64_t>(), INT64_C(0));
   }
 
   FuncInst = AVFormatMod->findFuncExports(
@@ -145,7 +145,7 @@ TEST_F(FFmpegTest, AVStreamStruct) {
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, StreamIdx},
         Result));
-    EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+    EXPECT_EQ(Result[0].get<int64_t>(), INT64_C(120));
   }
 
   FuncInst = AVFormatMod->findFuncExports(
@@ -159,7 +159,7 @@ TEST_F(FFmpegTest, AVStreamStruct) {
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, StreamIdx},
         Result));
-    EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+    EXPECT_EQ(Result[0].get<int32_t>(), 1); // AV_DISPOSITION_DEFAULT
   }
 
   FuncInst = AVFormatMod->findFuncExports(

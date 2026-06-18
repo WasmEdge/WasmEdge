@@ -38,11 +38,14 @@ TEST_F(FFmpegTest, AVPixFmt) {
   ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAvPixFmtDescriptorLog2ChromaW = FuncInst->getHostFunc();
 
-  {
-    HostFuncAvPixFmtDescriptorLog2ChromaW.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{1}, Result);
+  uint32_t Yuv422PId = 5; // YUV422P: chroma subsampled on width only
 
-    EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+  {
+    EXPECT_TRUE(HostFuncAvPixFmtDescriptorLog2ChromaW.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{Yuv422PId},
+        Result));
+
+    EXPECT_EQ(Result[0].get<int32_t>(), 1);
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -52,11 +55,11 @@ TEST_F(FFmpegTest, AVPixFmt) {
   auto &HostFuncAvPixFmtDescriptorLog2ChromaH = FuncInst->getHostFunc();
 
   {
-    HostFuncAvPixFmtDescriptorLog2ChromaH.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{PixFmtId},
-        Result);
+    EXPECT_TRUE(HostFuncAvPixFmtDescriptorLog2ChromaH.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{Yuv422PId},
+        Result));
 
-    EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+    EXPECT_EQ(Result[0].get<int32_t>(), 0);
   }
 
   int32_t Length = 0;

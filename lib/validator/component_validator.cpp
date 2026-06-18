@@ -1536,13 +1536,21 @@ Expect<void> Validator::validateCanonOptions(
     case OptCode::Encode_UTF16:
     case OptCode::Encode_Latin1:
       if (HasEncoding) {
-        return RejectDup("string-encoding");
+        spdlog::error(ErrCode::Value::ComponentCanonEncodingConflict);
+        spdlog::error(
+            "    canonical encoding option conflicts with a previous one"sv);
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+        return Unexpect(ErrCode::Value::ComponentCanonEncodingConflict);
       }
       HasEncoding = true;
       break;
     case OptCode::Memory:
       if (HasMemory) {
-        return RejectDup("memory");
+        spdlog::error(ErrCode::Value::ComponentCanonDuplicateOption);
+        spdlog::error(
+            "    canonical option `memory` is specified more than once"sv);
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+        return Unexpect(ErrCode::Value::ComponentCanonDuplicateOption);
       }
       HasMemory = true;
       MemoryIdx = Opt.getIndex();
@@ -1632,12 +1640,12 @@ Expect<void> Validator::validateCanonOptions(
   if (HasMemory &&
       MemoryIdx >= CompCtx.getCoreSortIndexSize(
                        AST::Component::Sort::CoreSortType::Memory)) {
-    spdlog::error(ErrCode::Value::InvalidIndex);
+    spdlog::error(ErrCode::Value::ComponentCanonMemoryOutOfBounds);
     spdlog::error(
         "    canonical option 'memory': core memory index {} out of bounds"sv,
         MemoryIdx);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
-    return Unexpect(ErrCode::Value::InvalidIndex);
+    return Unexpect(ErrCode::Value::ComponentCanonMemoryOutOfBounds);
   }
   // The canonical ABI requires a 32-bit linear memory (GAP-CI-1).
   if (HasMemory) {
@@ -1915,12 +1923,12 @@ Validator::validateCanonLift(const AST::Component::Canonical &Canon) noexcept {
     return Unexpect(ErrCode::Value::InvalidTypeReference);
   }
   if (!DT->isFuncType()) {
-    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error(ErrCode::Value::ComponentCanonNotFuncType);
     spdlog::error(
-        "    canon lift: target type index {} does not reference a component func type"sv,
+        "    canon lift: target type index {} is not a function type"sv,
         TypeIdx);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
-    return Unexpect(ErrCode::Value::InvalidTypeReference);
+    return Unexpect(ErrCode::Value::ComponentCanonNotFuncType);
   }
   // 4. Validate canonical options (Lift site allows all).
   EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions()));

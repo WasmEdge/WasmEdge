@@ -274,7 +274,7 @@ public:
   void setTypeIndex(uint32_t Index) noexcept { TypeIndex = Index; }
 
 private:
-  /// \name Data of CompositeType.
+  /// \name Data of SubType.
   /// @{
   /// Is final.
   bool IsFinal = true;

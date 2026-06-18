@@ -20,7 +20,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   uint32_t NamePtr = UINT32_C(80);
   uint32_t LinesizePtr = UINT32_C(20);
 
-  uint32_t SampleFmtId = 1; // AV_SAMPLE_FMT_S32
+  uint32_t SampleFmtId = 1; // AV_SAMPLE_FMT_U8
   auto *FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_packed_sample_fmt");
   ASSERT_NE(FuncInst, nullptr);
@@ -70,11 +70,11 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   auto &HostFuncAVGetBytesPerSample = FuncInst->getHostFunc();
 
   {
-    HostFuncAVGetBytesPerSample.run(
+    EXPECT_TRUE(HostFuncAVGetBytesPerSample.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{SampleFmtId},
-        Result);
+        Result));
 
-    EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+    EXPECT_EQ(Result[0].get<int32_t>(), 1);
   }
 
   FuncInst =

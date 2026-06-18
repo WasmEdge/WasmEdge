@@ -24,11 +24,10 @@ TEST_F(FFmpegTest, AVUtilFunc) {
   ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVLogSetLevel = FuncInst->getHostFunc();
 
-  int32_t LogLvlId = 32;
+  int32_t LogLvlId = 16; // AV_LOG_ERROR, distinct from the default AV_LOG_INFO
   {
-    HostFuncAVLogSetLevel.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{LogLvlId},
-        Result);
+    EXPECT_TRUE(HostFuncAVLogSetLevel.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{LogLvlId}, {}));
   }
 
   FuncInst =
@@ -38,8 +37,8 @@ TEST_F(FFmpegTest, AVUtilFunc) {
   auto &HostFuncAVLogGetLevel = FuncInst->getHostFunc();
 
   {
-    HostFuncAVLogGetLevel.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result);
+    EXPECT_TRUE(HostFuncAVLogGetLevel.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result));
     EXPECT_EQ(Result[0].get<int32_t>(), LogLvlId);
   }
 
@@ -125,10 +124,10 @@ TEST_F(FFmpegTest, AVUtilFunc) {
   auto &HostFuncAVGetChannelLayoutNbChannels = FuncInst->getHostFunc();
 
   {
-    HostFuncAVGetChannelLayoutNbChannels.run(
+    EXPECT_TRUE(HostFuncAVGetChannelLayoutNbChannels.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{ChannelId},
-        Result);
-    EXPECT_TRUE(Result[0].get<int32_t>() > 0);
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), 1);
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -138,10 +137,11 @@ TEST_F(FFmpegTest, AVUtilFunc) {
   auto &HostFuncAVGetDefaultChannelLayout = FuncInst->getHostFunc();
 
   {
-    HostFuncAVGetDefaultChannelLayout.run(
+    EXPECT_TRUE(HostFuncAVGetDefaultChannelLayout.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{ChannelId},
-        Result);
-    EXPECT_TRUE(Result[0].get<uint64_t>() > 0);
+        Result));
+    EXPECT_EQ(Result[0].get<uint64_t>(),
+              UINT64_C(67108868)); // guest-encoded AV_CH_LAYOUT_MONO
   }
 
   uint32_t Length = 0;
@@ -222,11 +222,14 @@ TEST_F(FFmpegTest, AVTime) {
   ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVGetTime = FuncInst->getHostFunc();
 
+  int64_t AbsTime = 0;
   {
-    HostFuncAVGetTime.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result);
+    EXPECT_TRUE(HostFuncAVGetTime.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result));
 
-    EXPECT_TRUE(Result[0].get<int64_t>() > 0);
+    AbsTime = Result[0].get<int64_t>();
+    // Wall-clock epoch microseconds: well past 2020-01-01.
+    EXPECT_GT(AbsTime, INT64_C(1577836800000000));
   }
 
   FuncInst =
@@ -236,10 +239,13 @@ TEST_F(FFmpegTest, AVTime) {
   auto &HostFuncAVGetTimeRelative = FuncInst->getHostFunc();
 
   {
-    HostFuncAVGetTimeRelative.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result);
+    EXPECT_TRUE(HostFuncAVGetTimeRelative.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result));
 
-    EXPECT_TRUE(Result[0].get<int64_t>() > 0);
+    int64_t RelTime = Result[0].get<int64_t>();
+    EXPECT_GT(RelTime, 0);
+    // Relative monotonic clock is not epoch time; it stays smaller.
+    EXPECT_LT(RelTime, AbsTime);
   }
 
   FuncInst = AVUtilMod->findFuncExports(

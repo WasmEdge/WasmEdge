@@ -42,6 +42,7 @@ TEST_F(FFmpegTest, SwsContext) {
   uint32_t YUV420PId = 1; // YUV420P AVPixFormatId (From Bindings.h)
   uint32_t RGB24Id = 3;   // RGB24  AVPixFormatId (From Bindings.h)
   uint32_t XVMCId = 174;  // XVMC AVPixFormatId (From Bindings.h)
+  uint32_t PAL8Id = 13;   // PAL8 AVPixFormatId (From Bindings.h)
 
   uint32_t SrcWidth = 100;
   uint32_t SrcHeight = 100;
@@ -117,6 +118,12 @@ TEST_F(FFmpegTest, SwsContext) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{XVMCId},
         Result));
     ASSERT_TRUE(Result[0].get<int32_t>() == 0);
+
+    // AV_PIX_FMT_PAL8 is supported as input but not as output.
+    EXPECT_TRUE(HostFuncSwsIsSupportedInput.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{PAL8Id},
+        Result));
+    ASSERT_TRUE(Result[0].get<int32_t>() > 0);
   }
 
   FuncInst = SWScaleMod->findFuncExports(
@@ -135,6 +142,12 @@ TEST_F(FFmpegTest, SwsContext) {
     // AV_PIX_FMT_XVMC is not a supported pixel format.
     EXPECT_TRUE(HostFuncSwsIsSupportedOutput.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{XVMCId},
+        Result));
+    ASSERT_TRUE(Result[0].get<int32_t>() == 0);
+
+    // AV_PIX_FMT_PAL8 is supported as input but not as output.
+    EXPECT_TRUE(HostFuncSwsIsSupportedOutput.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{PAL8Id},
         Result));
     ASSERT_TRUE(Result[0].get<int32_t>() == 0);
   }

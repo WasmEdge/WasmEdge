@@ -8,6 +8,8 @@ wasmedge_add_executable(wasmedgeCommonTests
   roundevenTest.cpp
   hexstrTest.cpp
   spareEnumMapTest.cpp
+  byteswapTest.cpp
+  statisticsTest.cpp
 )
 
 add_test(wasmedgeCommonTests wasmedgeCommonTests)

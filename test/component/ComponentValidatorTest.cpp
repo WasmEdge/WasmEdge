@@ -1296,9 +1296,17 @@ inline AST::Component::Component makeCompWithCoreFuncAndFuncType() {
   // Type 0: ResourceType (local).
   TypeSec.getContent().emplace_back();
   TypeSec.getContent().back().setResourceType(AST::Component::ResourceType{});
-  // Type 1: FuncType.
+  // Type 1: FuncType (param "p" u32) (result u32). Its lift flattening
+  // (flatten_functype($opts, $ft, 'lift'), CanonicalABI.md L3562) is
+  // [i32] -> [i32], matching the resource.new core func used as the lift
+  // $callee below.
+  AST::Component::FuncType FT;
+  std::vector<AST::Component::LabelValType> Params;
+  Params.emplace_back("p", ComponentValType(ComponentTypeCode::U32));
+  FT.setParamList(std::move(Params));
+  FT.setResultList(ComponentValType(ComponentTypeCode::U32));
   TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+  TypeSec.getContent().back().setFuncType(std::move(FT));
   // Canon section: allocate core func 0 via resource.new 0.
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::CanonSection>();
@@ -1658,17 +1666,22 @@ TEST(ComponentValidatorTest, CanonLift_Valid_Passes) {
 }
 
 TEST(ComponentValidatorTest, CanonLift_WithPostReturn_Passes) {
-  // post-return is a Lift-only option; exercise the happy path.
+  // post-return is a Lift-only option; exercise the happy path. Target type 1
+  // lift-flattens to [i32] -> [i32], so spec L3564 requires post-return to have
+  // type (func (param i32)), i.e. [i32] -> []. resource.drop 0 produces exactly
+  // such a core func at index 1.
   auto Comp = makeCompWithCoreFuncAndFuncType();
   auto &CanonSec =
       std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical Drop;
+  Drop.setOpCode(ComponentCanonOpCode::Resource__drop);
+  Drop.setIndex(0); // resource at type 0 -> core func 1, sig [i32] -> []
+  CanonSec.getContent().emplace_back(std::move(Drop));
   AST::Component::Canonical Lift;
   Lift.setOpCode(ComponentCanonOpCode::Lift);
-  Lift.setIndex(0);
+  Lift.setIndex(0); // $callee = core func 0 (resource.new), sig [i32] -> [i32]
   Lift.setTargetIndex(1);
-  // post-return points to core func 0 (the resource.new result from the
-  // fixture).
-  Lift.setOptions({mkOpt(ComponentCanonOptCode::PostReturn, 0)});
+  Lift.setOptions({mkOpt(ComponentCanonOptCode::PostReturn, 1)});
   CanonSec.getContent().emplace_back(std::move(Lift));
   Validator::Validator V(Conf);
   ASSERT_TRUE(V.validate(Comp));

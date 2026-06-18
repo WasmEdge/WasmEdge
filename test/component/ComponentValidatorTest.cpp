@@ -1498,6 +1498,69 @@ TEST(ComponentValidatorTest, CanonResourceDrop_TypeIndexOutOfBounds_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
+// Canonical option validation (string-encoding / memory / lift target).
+
+TEST(ComponentValidatorTest, CanonOptionsStringEncodingConflictRejected) {
+  // (canon lower (func 0) string-encoding=utf8 string-encoding=utf16) -> reject
+  auto Comp = makeCompWithImportedFunc();
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(ComponentCanonOpCode::Lower);
+  C.setIndex(0);
+  C.setOptions({mkOpt(ComponentCanonOptCode::Encode_UTF8),
+                mkOpt(ComponentCanonOptCode::Encode_UTF16)});
+  CanonSec.getContent().emplace_back(std::move(C));
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonOptionsDuplicateMemoryRejected) {
+  // (canon lower (func 0) (memory 0) (memory 0)) -> reject (option specified
+  // more than once)
+  auto Comp = makeCompWithImportedFunc();
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(ComponentCanonOpCode::Lower);
+  C.setIndex(0);
+  C.setOptions({mkOpt(ComponentCanonOptCode::Memory, 0),
+                mkOpt(ComponentCanonOptCode::Memory, 0)});
+  CanonSec.getContent().emplace_back(std::move(C));
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonOptionsMemoryIndexOutOfBoundsRejected) {
+  // (canon lower (func 0) (memory 0)) with no core memory in scope -> reject
+  auto Comp = makeCompWithImportedFunc();
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(ComponentCanonOpCode::Lower);
+  C.setIndex(0);
+  C.setOptions({mkOpt(ComponentCanonOptCode::Memory, 0)});
+  CanonSec.getContent().emplace_back(std::move(C));
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonLiftTargetNotFuncTypeRejected) {
+  // (canon lift (core func 0) (type 0)) where type 0 is a resource, not a
+  // function type -> reject.
+  auto Comp = makeCompWithCoreFuncAndFuncType();
+  auto &CanonSec =
+      std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical C;
+  C.setOpCode(ComponentCanonOpCode::Lift);
+  C.setIndex(0);       // core func 0 (allocated by resource.new)
+  C.setTargetIndex(0); // type 0 = resource, not a function type
+  CanonSec.getContent().emplace_back(std::move(C));
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
 TEST(ComponentValidatorTest, CanonResourceDropAsync_OnLocalResource_Passes) {
   auto Comp = makeCompWithLocalResource();
   auto &CanonSec = appendCanonSection(Comp);

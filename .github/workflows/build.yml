@@ -98,6 +98,15 @@ jobs:
       matrix: "[{'name':'MacOS 15 (x86_64)','runner':'macos-15-intel','darwin_version':24,'arch':'x86_64'},
                 {'name':'MacOS 14 (arm64)','runner':'macos-14','darwin_version':23,'arch':'arm64'}]"
 
+  build_on_macos_static:
+    permissions:
+      contents: write
+    needs: [get_version, lint]
+    name: macOS (static)
+    uses: ./.github/workflows/reusable-build-on-macos-static.yml
+    with:
+      version: ${{ needs.get_version.outputs.version }}
+
   build_on_manylinux_2_28:
     permissions:
       contents: write

@@ -127,7 +127,7 @@ TEST_F(WasiCryptoTest, Signatures) {
     WASI_CRYPTO_EXPECT_SUCCESS(KpHandle1,
                                keypairGenerate(AlgType, Alg, std::nullopt));
     WASI_CRYPTO_EXPECT_SUCCESS(PkHandle1, keypairPublickey(KpHandle1));
-    
+
     WASI_CRYPTO_EXPECT_SUCCESS(KpHandle2,
                                keypairGenerate(AlgType, Alg, std::nullopt));
     WASI_CRYPTO_EXPECT_SUCCESS(SkHandle2, keypairSecretkey(KpHandle2));

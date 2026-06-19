@@ -283,15 +283,22 @@ Transformer::generate(const std::string &Prompt, const BasePrompt &ModelPrompt,
 
     if (HitEos) {
       Answer = Tok->Decode(TokenList);
+      if (Verbose && Answer.size() > static_cast<size_t>(Skip)) {
+        spdlog::info("[WASI-NN] MLX backend: {}"sv, Answer.substr(Skip));
+      }
       break;
     }
     Answer = Tok->Decode(TokenList);
     const AnserSataus Status = answerSataus(Answer, ModelPrompt.TextEnd);
-    if (EosIds.empty() && Status == STOP) {
+    if (Status == STOP) {
+      Answer.resize(Answer.size() - ModelPrompt.TextEnd.size());
+      if (Verbose && Answer.size() > static_cast<size_t>(Skip)) {
+        spdlog::info("[WASI-NN] MLX backend: {}"sv, Answer.substr(Skip));
+      }
       break;
     }
     if (Status != WAIT) {
-      if (Verbose) {
+      if (Verbose && Answer.size() > static_cast<size_t>(Skip)) {
         spdlog::info("[WASI-NN] MLX backend: {}"sv, Answer.substr(Skip));
       }
       Skip = Answer.size();

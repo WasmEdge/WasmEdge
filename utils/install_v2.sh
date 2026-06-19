@@ -610,15 +610,34 @@ main() {
 	echo "$ENV" >"$IPATH/env"
 	echo "# Please do not edit comments below this for uninstallation purpose" >> "$IPATH/env"
 
+	local _shell_ _shell_rc
+	_shell_="${SHELL#${SHELL%/*}/}"
+	_shell_rc=".""$_shell_""rc"
+
+	if [[ "$_shell_" =~ "fish" ]]; then
+		{
+			printf '#!/usr/bin/env fish\n'
+			printf '# wasmedge shell setup for fish\n'
+			printf 'fish_add_path -p "%s/bin"\n' "$IPATH"
+			printf 'set -gx %s "%s/lib" $%s\n' "$_LD_LIBRARY_PATH_" "$IPATH" "$_LD_LIBRARY_PATH_"
+			printf 'set -gx LIBRARY_PATH "%s/lib" $LIBRARY_PATH\n' "$IPATH"
+			printf 'set -gx C_INCLUDE_PATH "%s/include" $C_INCLUDE_PATH\n' "$IPATH"
+			printf 'set -gx CPLUS_INCLUDE_PATH "%s/include" $CPLUS_INCLUDE_PATH\n' "$IPATH"
+			printf '# Please do not edit comments below this for uninstallation purpose\n'
+		} >"$IPATH/env.fish"
+		local _fish_config="$__HOME__/.config/fish/config.fish"
+		local _fish_source="source \"$IPATH/env.fish\""
+		local _fish_grep=$(cat "$_fish_config" 2>/dev/null | grep "$IPATH/env.fish")
+		if [ "$_fish_grep" = "" ]; then
+			[ -f "$_fish_config" ] && echo "$_fish_source" >>"$_fish_config"
+		fi
+	fi
+
 	local _source="source \"$IPATH/env\""
 	local _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
 	if [ "$_grep" = "" ]; then
 		[ -f "$__HOME__/.profile" ] && echo "$_source" >>"$__HOME__/.profile"
 	fi
-
-	local _shell_ _shell_rc
-	_shell_="${SHELL#${SHELL%/*}/}"
-	_shell_rc=".""$_shell_""rc"
 
 	if [[ "$_shell_" =~ "zsh" ]]; then
 		local _grep=$(cat "$__HOME__/.zprofile" 2>/dev/null | grep "$IPATH/env")
@@ -676,6 +695,9 @@ end_message() {
 			echo "${GREEN}source $IPATH/env${NC} to use wasmedge binaries"
 			;;
 	esac
+	if [ -f "$IPATH/env.fish" ]; then
+		echo "${GREEN}Fish: source $IPATH/env.fish${NC}"
+	fi
 }
 
 main "$@"

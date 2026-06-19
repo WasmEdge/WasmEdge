@@ -29,12 +29,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   auto *FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_codec_id");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxCodecID = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxCodecID &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxCodecID = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxCodecID.run(
@@ -46,12 +44,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   int32_t CodecType = 0; // MediaType Video
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_codec_type");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetCodecType = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetCodecType &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetCodecType = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetCodecType.run(
@@ -63,12 +59,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_codec_type");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxCodecType = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxCodecType &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxCodecType = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxCodecType.run(
@@ -81,12 +75,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   int32_t Den = 10;
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_time_base");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetTimebase = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetTimebase &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetTimebase = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetTimebase.run(
@@ -98,12 +90,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_time_base");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxTimeBase = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxTimeBase &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxTimeBase = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxTimeBase.run(
@@ -121,12 +111,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   int32_t Dimension = 200;
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_width");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetWidth = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetWidth &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetWidth = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetWidth.run(
@@ -138,12 +126,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_width");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxWidth =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxWidth &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxWidth = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxWidth.run(
@@ -154,12 +140,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_height");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetHeight = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetHeight &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetHeight = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetHeight.run(
@@ -171,12 +155,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_height");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxHeight =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxHeight &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxHeight = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxHeight.run(
@@ -189,12 +171,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   Den = 20;
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_aspect_ratio");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetSampleAspectRatio = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetSampleAspectRatio
-          &>(FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetSampleAspectRatio = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetSampleAspectRatio.run(
@@ -206,12 +186,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_sample_aspect_ratio");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSampleAspectRatio = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSampleAspectRatio &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSampleAspectRatio = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSampleAspectRatio.run(
@@ -230,12 +208,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   uint64_t ChannelLayoutId = 1; // FRONT_LEFT;
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channel_layout");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetChannelLayout = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetChannelLayout &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetChannelLayout = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetChannelLayout.run(
@@ -248,12 +224,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_channel_layout");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxChannelLayout = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxChannelLayout &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxChannelLayout = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxChannelLayout.run(
@@ -266,12 +240,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_pix_fmt");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetPixFormat = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetPixFormat &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetPixFormat = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetPixFormat.run(
@@ -283,12 +255,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_pix_fmt");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxPixFormat = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxPixFormat &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxPixFormat = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxPixFormat.run(
@@ -300,12 +270,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   uint32_t SampleFmtId = 1; // SAMPLE_FMT_U8
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_format");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetSampleFormat = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetSampleFormat &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetSampleFormat = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetSampleFormat.run(
@@ -317,12 +285,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_sample_format");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSampleFormat = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSampleFormat &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSampleFormat = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSampleFormat.run(
@@ -334,12 +300,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   int32_t SampleRate = 500;
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_rate");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetSampleRate = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetSampleRate &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetSampleRate = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetSampleRate.run(
@@ -351,12 +315,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_sample_rate");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSampleRate = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSampleRate &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSampleRate = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSampleRate.run(
@@ -367,12 +329,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_gop_size");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetGopSize = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetGopSize &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetGopSize = FuncInst->getHostFunc();
 
   {
     int32_t GopSize = 20;
@@ -385,12 +345,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_max_b_frames");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetMaxBFrames = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetMaxBFrames &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetMaxBFrames = FuncInst->getHostFunc();
 
   {
     int32_t MaxBFrames = 30;
@@ -403,12 +361,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_b_quant_factor");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetBQuantFactor = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetBQuantFactor &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetBQuantFactor = FuncInst->getHostFunc();
 
   {
     float BQuantFactor = 12.32;
@@ -421,12 +377,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_b_quant_offset");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetBQuantOffset = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetBQuantOffset &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetBQuantOffset = FuncInst->getHostFunc();
 
   {
     float BQuantOffset = 3.53;
@@ -439,12 +393,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_i_quant_factor");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetIQuantFactor = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetIQuantFactor &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetIQuantFactor = FuncInst->getHostFunc();
 
   {
     float IQuantFactor = 3.435;
@@ -457,12 +409,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_i_quant_offset");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetIQuantOffset = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetIQuantOffset &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetIQuantOffset = FuncInst->getHostFunc();
 
   {
     float IQuantOffset = 6.322;
@@ -475,12 +425,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_lumi_masking");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetLumiMasking = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetLumiMasking &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetLumiMasking = FuncInst->getHostFunc();
 
   {
     float LumiMasking = 54.32432;
@@ -493,12 +441,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_temporal_cplx_masking");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetTemporalCplxMasking = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetTemporalCplxMasking
-          &>(FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetTemporalCplxMasking = FuncInst->getHostFunc();
 
   {
     float TemporialCplxMasking = 642.32;
@@ -512,12 +458,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_spatial_cplx_masking");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetSpatialCplxMasking = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetSpatialCplxMasking
-          &>(FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetSpatialCplxMasking = FuncInst->getHostFunc();
 
   {
     float SpatialCplxMasking = 324.32;
@@ -531,12 +475,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_p_masking");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetPMasking = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetPMasking &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetPMasking = FuncInst->getHostFunc();
 
   {
     float PMasking = 65.3245;
@@ -549,12 +491,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_dark_masking");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetDarkMasking = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetDarkMasking &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetDarkMasking = FuncInst->getHostFunc();
 
   {
     float DarkMasking = 83.32;
@@ -567,12 +507,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_cmp");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetMeCmp = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetMeCmp &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetMeCmp = FuncInst->getHostFunc();
 
   {
     int32_t MeCmp = 532;
@@ -585,12 +523,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_sub_cmp");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetMeSubCmp = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetMeSubCmp &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetMeSubCmp = FuncInst->getHostFunc();
 
   {
     int32_t MeSubCmp = 321;
@@ -603,12 +539,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_mb_cmp");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetMbCmp = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetMbCmp &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetMbCmp = FuncInst->getHostFunc();
 
   {
     int32_t MbCmp = 243;
@@ -621,12 +555,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_ildct_cmp");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetIldctCmp = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetIldctCmp &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetIldctCmp = FuncInst->getHostFunc();
 
   {
     int32_t IldctCmp = 3;
@@ -639,12 +571,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_dia_size");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetDiaSize = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetDiaSize &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetDiaSize = FuncInst->getHostFunc();
 
   {
     int32_t DiaSize = 9;
@@ -657,12 +587,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_last_predictor_count");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetLastPredictorsCount = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetLastPredictorsCount
-          &>(FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetLastPredictorsCount = FuncInst->getHostFunc();
 
   {
     int32_t LastPredictorCount = 21;
@@ -676,12 +604,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_pre_cmp");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetMePreCmp = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetMePreCmp &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetMePreCmp = FuncInst->getHostFunc();
 
   {
     int32_t MePreCmp = 53;
@@ -694,12 +620,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_pre_dia_size");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetPreDiaSize = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetPreDiaSize &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetPreDiaSize = FuncInst->getHostFunc();
 
   {
     int32_t PreDiaSize = 74;
@@ -712,12 +636,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_subpel_quality");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetMeSubpelQuality = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetMeSubpelQuality &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetMeSubpelQuality = FuncInst->getHostFunc();
 
   {
     int32_t MeSubpelQuality = 85;
@@ -731,12 +653,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_range");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetMeRange = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetMeRange &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetMeRange = FuncInst->getHostFunc();
 
   {
     int32_t SetMeRange = 31;
@@ -749,12 +669,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_mb_decision");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetMbDecision = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetMbDecision &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetMbDecision = FuncInst->getHostFunc();
 
   {
     int32_t MbDecision = 78;
@@ -767,12 +685,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_mb_lmin");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetMbLMin = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetMbLMin &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetMbLMin = FuncInst->getHostFunc();
 
   {
     int32_t MbLMin = 11;
@@ -785,12 +701,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_mb_lmax");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetMbLMax = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetMbLMax &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetMbLMax = FuncInst->getHostFunc();
 
   {
     int32_t MbLMax = 18;
@@ -803,13 +717,11 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_intra_dc_precision");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   int32_t IntraDcPrecision = 323;
-  auto &HostFuncAVCodecCtxSetIntraDcPrecision = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetIntraDcPrecision &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetIntraDcPrecision = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetIntraDcPrecision.run(
@@ -822,12 +734,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_intra_dc_precision");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxIntraDcPrecision = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxIntraDcPrecision &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxIntraDcPrecision = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxIntraDcPrecision.run(
@@ -838,12 +748,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_qmin");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetQMin = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetQMin &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetQMin = FuncInst->getHostFunc();
 
   {
     int32_t QMin = 10;
@@ -856,12 +764,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_qmax");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetQMax = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetQMax &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetQMax = FuncInst->getHostFunc();
 
   {
     int32_t QMax = 20;
@@ -874,12 +780,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_global_quality");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetGlobalQuality = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetGlobalQuality &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetGlobalQuality = FuncInst->getHostFunc();
 
   {
     int32_t GlobalQuality = 93;
@@ -893,12 +797,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_colorspace");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetColorspace = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetColorspace &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetColorspace = FuncInst->getHostFunc();
 
   int32_t ColorspaceId = 1; // AVCOL_SPC_BT709
   {
@@ -911,12 +813,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_colorspace");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxColorspace = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxColorspace &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxColorspace = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxColorspace.run(
@@ -927,12 +827,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_color_range");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetColorRange = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetColorRange &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetColorRange = FuncInst->getHostFunc();
 
   int32_t ColorRangeId = 1; // MPEG
   {
@@ -945,12 +843,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_color_range");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxColorRange = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxColorRange &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxColorRange = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxColorRange.run(
@@ -961,12 +857,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_frame_size");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxFrameSize = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxFrameSize &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxFrameSize = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxFrameSize.run(
@@ -977,12 +871,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_bit_rate");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetBitRate = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetBitRate &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetBitRate = FuncInst->getHostFunc();
 
   int64_t BitRate = 9932;
   {
@@ -995,12 +887,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_bit_rate");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxBitRate = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxBitRate &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxBitRate = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxBitRate.run(
@@ -1011,13 +901,11 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_rc_max_rate");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   int64_t RcMaxRate = 3245;
-  auto &HostFuncAVCodecCtxSetRcMaxRate = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetRcMaxRate &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetRcMaxRate = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetRcMaxRate.run(
@@ -1029,12 +917,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_rc_max_rate");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxRcMaxRate = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxRcMaxRate &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxRcMaxRate = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxRcMaxRate.run(
@@ -1045,12 +931,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_bit_rate_tolerance");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetBitRateTolerance = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetBitRateTolerance &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetBitRateTolerance = FuncInst->getHostFunc();
 
   {
     int32_t BitRateTolerance = 9543;
@@ -1064,12 +948,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_compression_level");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetCompressionLevel = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetCompressionLevel &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetCompressionLevel = FuncInst->getHostFunc();
 
   {
     int32_t CompressionLevel = 934;
@@ -1083,14 +965,12 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_framerate");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   Num = 20;
   Den = 30;
-  auto &HostFuncAVCodecCtxSetFrameRate = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetFrameRate &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetFrameRate = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetFrameRate.run(
@@ -1102,12 +982,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_framerate");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxFrameRate = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxFrameRate &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxFrameRate = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxFrameRate.run(
@@ -1124,12 +1002,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_flags");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetFlags = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetFlags &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetFlags = FuncInst->getHostFunc();
 
   {
     int32_t Flags = 3;
@@ -1142,12 +1018,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_strict_std_compliance");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetStrictStdCompliance = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetStrictStdCompliance
-          &>(FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetStrictStdCompliance = FuncInst->getHostFunc();
 
   {
     int32_t ComplianceId = 3;
@@ -1160,12 +1034,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_debug");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetDebug = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetDebug &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetDebug = FuncInst->getHostFunc();
 
   {
     int32_t Debug = 50;
@@ -1178,12 +1050,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_codec");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxCodec =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxCodec &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxCodec = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxCodec.run(
@@ -1196,12 +1066,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channels");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetChannels = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetChannels &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetChannels = FuncInst->getHostFunc();
 
   int32_t Channels = 10;
   {
@@ -1214,12 +1082,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_channels");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxChannels = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxChannels &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxChannels = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxChannels.run(
@@ -1230,12 +1096,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_skip_loop_filter");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetSkipLoopFilter = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetSkipLoopFilter &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetSkipLoopFilter = FuncInst->getHostFunc();
 
   int32_t DiscardId = 16; // Bidirectional
   {
@@ -1248,12 +1112,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_skip_frame");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetSkipFrame = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetSkipFrame &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetSkipFrame = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetSkipFrame.run(
@@ -1265,12 +1127,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_skip_idct");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetSkipIdct = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetSkipIdct &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetSkipIdct = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetSkipIdct.run(
@@ -1282,12 +1142,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_error_concealment");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetErrorConcealment = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetErrorConcealment &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetErrorConcealment = FuncInst->getHostFunc();
 
   {
     int32_t ErrorConcealment = 99;
@@ -1301,12 +1159,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_err_recognition");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetErrorRecognition = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetErrorRecognition &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetErrorRecognition = FuncInst->getHostFunc();
 
   {
     int32_t ErrorRecognition = 88;
@@ -1320,12 +1176,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_delay");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxDelay =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxDelay &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxDelay = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxDelay.run(
@@ -1336,12 +1190,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_skip_top");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetSkipTop = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetSkipTop &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetSkipTop = FuncInst->getHostFunc();
 
   {
     int32_t Value = 50;
@@ -1354,12 +1206,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_skip_bottom");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetSkipBottom = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetSkipBottom &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetSkipBottom = FuncInst->getHostFunc();
 
   {
     int32_t Value = 60;
@@ -1372,12 +1222,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_refs");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxRefs =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxRefs &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxRefs = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxRefs.run(
@@ -1388,12 +1236,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_slice_flags");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetSliceFlags = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetSliceFlags &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetSliceFlags = FuncInst->getHostFunc();
 
   {
     int32_t Value = 70;
@@ -1406,12 +1252,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_slice_count");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetSliceCount = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetSliceCount &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetSliceCount = FuncInst->getHostFunc();
 
   {
     int32_t Value = 100;
@@ -1424,12 +1268,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_field_order");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetFieldOrder = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetFieldOrder &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetFieldOrder = FuncInst->getHostFunc();
 
   {
     int32_t Value = 200;
@@ -1442,28 +1284,24 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_color_trc");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxColorTrc = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxColorTrc &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxColorTrc = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxColorTrc.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
         Result));
-    ASSERT_TRUE(Result[0].get<int32_t>() > 0);
+    EXPECT_EQ(Result[0].get<int32_t>(), 2);
   }
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_chroma_sample_location");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxChromaSampleLocation = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxChromaSampleLocation
-          &>(FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxChromaSampleLocation = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxChromaSampleLocation.run(
@@ -1474,12 +1312,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_frame_number");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxFrameNumber = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxFrameNumber &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxFrameNumber = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxFrameNumber.run(
@@ -1490,12 +1326,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_block_align");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxBlockAlign = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxBlockAlign &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxBlockAlign = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxBlockAlign.run(
@@ -1506,12 +1340,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_request_sample_fmt");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetRequestSampleFmt = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetRequestSampleFmt &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetRequestSampleFmt = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetRequestSampleFmt.run(
@@ -1523,12 +1355,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_audio_service_type");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxAudioServiceType = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxAudioServiceType &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxAudioServiceType = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxAudioServiceType.run(
@@ -1539,12 +1369,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_has_b_frames");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxHasBFrames = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxHasBFrames &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxHasBFrames = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxHasBFrames.run(
@@ -1555,12 +1383,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_active_thread_type");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxActiveThreadType = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxActiveThreadType &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxActiveThreadType = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxActiveThreadType.run(
@@ -1571,12 +1397,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_thread_type");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetThreadType = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetThreadType &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetThreadType = FuncInst->getHostFunc();
 
   {
     int32_t ThreadType = 1; // Frame
@@ -1589,12 +1413,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_set_thread_count");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxSetThreadCount = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetThreadCount &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxSetThreadCount = FuncInst->getHostFunc();
 
   int32_t ThreadCount = 50;
   {
@@ -1607,12 +1429,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_thread_count");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxThreadCount = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxThreadCount &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxThreadCount = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxThreadCount.run(
@@ -1623,12 +1443,10 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_color_primaries");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCtxColorPrimaries = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxColorPrimaries &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCtxColorPrimaries = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxColorPrimaries.run(

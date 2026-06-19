@@ -84,3 +84,6 @@ The CI workflows will be approved to run only if:
 2. Commit messages follow the Conventional Commits standard.
 3. The pull request title follows the Conventional Commits standard.
 4. The local tests have been run, and evidence (a screenshot or logs) is provided in the PR description.
+
+For which workflows run for a given change and what to do when one fails, see the
+[CI Workflows reference](../.github/workflows/README.md).

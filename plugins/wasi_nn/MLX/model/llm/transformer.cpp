@@ -276,7 +276,7 @@ Transformer::generate(const std::string &Prompt, const BasePrompt &ModelPrompt,
       }
       if (Match) {
         HitEos = true;
-        // Strip the EOS tokens from the final output
+        // Strip the end marker tokens from the final output
         TokenList.resize(TokenList.size() - EosIds.size());
       }
     }

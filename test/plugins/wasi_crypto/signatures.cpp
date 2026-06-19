@@ -133,7 +133,7 @@ TEST_F(WasiCryptoTest, Signatures) {
     WASI_CRYPTO_EXPECT_SUCCESS(SkHandle2, keypairSecretkey(KpHandle2));
 
     WASI_CRYPTO_EXPECT_FAILURE(keypairFromPkAndSk(PkHandle1, SkHandle2),
-                               __WASI_CRYPTO_ERRNO_INVALID_KEY);
+                               __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
   };
   KeypairFromPkAndSkMismatchTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv);
 

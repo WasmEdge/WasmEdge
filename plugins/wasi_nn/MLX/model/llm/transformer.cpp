@@ -287,10 +287,10 @@ Transformer::generate(const std::string &Prompt, const BasePrompt &ModelPrompt,
     }
     Answer = Tok->Decode(TokenList);
     const AnserSataus Status = answerSataus(Answer, ModelPrompt.TextEnd);
-    if (Status == STOP) {
+    if (EosIds.empty() && Status == STOP) {
       break;
     }
-    if (Status == GO) {
+    if (Status != WAIT) {
       if (Verbose) {
         spdlog::info("[WASI-NN] MLX backend: {}"sv, Answer.substr(Skip));
       }

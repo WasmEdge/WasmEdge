@@ -23,12 +23,10 @@ TEST_F(FFmpegTest, AVPacketTest) {
 
   auto *FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_alloc");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVPacketAlloc =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketAlloc &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVPacketAlloc = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketAlloc.run(
@@ -47,14 +45,26 @@ TEST_F(FFmpegTest, AVPacketTest) {
   ASSERT_TRUE(PacketId > 0);
   ASSERT_TRUE(PacketId2 > 0);
 
+  uint32_t PacketDataSize = 0;
+  FuncInst =
+      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_size");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPacketSize = FuncInst->getHostFunc();
+  auto ExpectPacketSize = [&](uint32_t ExpectedSize) {
+    EXPECT_TRUE(HostFuncAVPacketSize.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketId},
+        Result));
+    PacketDataSize = static_cast<uint32_t>(Result[0].get<int32_t>());
+    EXPECT_EQ(PacketDataSize, ExpectedSize);
+  };
+
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_new_packet");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVNewPacket =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVNewPacket &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVNewPacket = FuncInst->getHostFunc();
 
   {
     uint32_t Size = 40;
@@ -62,15 +72,14 @@ TEST_F(FFmpegTest, AVPacketTest) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketId, Size},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), 0);
+    ExpectPacketSize(Size);
   }
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_grow_packet");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVGrowPacket =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVGrowPacket &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVGrowPacket = FuncInst->getHostFunc();
 
   {
     uint32_t Size = 40;
@@ -78,15 +87,14 @@ TEST_F(FFmpegTest, AVPacketTest) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketId, Size},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), 0);
+    ExpectPacketSize(80);
   }
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_shrink_packet");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVShrinkPacket =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVShrinkPacket &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVShrinkPacket = FuncInst->getHostFunc();
 
   {
     uint32_t Size = 40;
@@ -94,16 +102,15 @@ TEST_F(FFmpegTest, AVPacketTest) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketId, Size},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), 0);
+    ExpectPacketSize(Size);
   }
 
   uint32_t StreamIdx = 3;
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_av_packet_set_stream_index");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVPacketSetStreamIndex = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketSetStreamIndex &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPacketSetStreamIndex = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketSetStreamIndex.run(
@@ -115,11 +122,9 @@ TEST_F(FFmpegTest, AVPacketTest) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_av_packet_stream_index");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVPacketStreamIndex = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketStreamIndex &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPacketStreamIndex = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketStreamIndex.run(
@@ -128,32 +133,13 @@ TEST_F(FFmpegTest, AVPacketTest) {
     EXPECT_EQ(Result[0].get<int32_t>(), StreamIdx);
   }
 
-  uint32_t Size = 0;
-  FuncInst =
-      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_size");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVPacketSize =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketSize &>(
-          FuncInst->getHostFunc());
-
-  {
-    EXPECT_TRUE(HostFuncAVPacketSize.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketId},
-        Result));
-    Size = Result[0].get<int32_t>();
-    EXPECT_TRUE(Size > 0);
-  }
-
   uint32_t Flags = 5;
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_av_packet_set_flags");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVPacketSetFlags =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketSetFlags &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPacketSetFlags = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketSetFlags.run(
@@ -164,11 +150,9 @@ TEST_F(FFmpegTest, AVPacketTest) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_flags");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVPacketFlags =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketFlags &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPacketFlags = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketFlags.run(
@@ -180,11 +164,9 @@ TEST_F(FFmpegTest, AVPacketTest) {
   int64_t Pos = 500;
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_set_pos");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVPacketSetPos =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketSetPos &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPacketSetPos = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketSetPos.run(
@@ -195,11 +177,9 @@ TEST_F(FFmpegTest, AVPacketTest) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_pos");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVPacketPos =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketPos &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPacketPos = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketPos.run(
@@ -211,11 +191,9 @@ TEST_F(FFmpegTest, AVPacketTest) {
   int64_t Duration = 100;
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_av_packet_set_duration");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVPacketSetDuration = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketSetDuration &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPacketSetDuration = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketSetDuration.run(
@@ -227,11 +205,9 @@ TEST_F(FFmpegTest, AVPacketTest) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_duration");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVPacketDuration =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketDuration &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPacketDuration = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketDuration.run(
@@ -243,11 +219,9 @@ TEST_F(FFmpegTest, AVPacketTest) {
   int64_t Dts = 1000;
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_set_dts");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVPacketSetDts =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketSetDts &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPacketSetDts = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketSetDts.run(
@@ -258,11 +232,9 @@ TEST_F(FFmpegTest, AVPacketTest) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_dts");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVPacketDts =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketDts &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPacketDts = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketDts.run(
@@ -274,11 +246,9 @@ TEST_F(FFmpegTest, AVPacketTest) {
   int64_t Pts = 5000;
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_set_pts");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVPacketSetPts =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketSetPts &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPacketSetPts = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketSetPts.run(
@@ -289,11 +259,9 @@ TEST_F(FFmpegTest, AVPacketTest) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_pts");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVPacketPts =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketPts &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPacketPts = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketPts.run(
@@ -304,11 +272,9 @@ TEST_F(FFmpegTest, AVPacketTest) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_av_packet_is_data_null");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVPacketIsDataNull = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketIsDataNull &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPacketIsDataNull = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketIsDataNull.run(
@@ -319,28 +285,25 @@ TEST_F(FFmpegTest, AVPacketTest) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_data");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVPacketData =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketData &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPacketData = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketData.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{PacketId, DataPtr, Size},
+        std::initializer_list<WasmEdge::ValVariant>{PacketId, DataPtr,
+                                                    PacketDataSize},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_ref");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVPacketRef =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketRef &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVPacketRef = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketRef.run(
@@ -352,12 +315,10 @@ TEST_F(FFmpegTest, AVPacketTest) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_unref");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVPacketUnref =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketUnref &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVPacketUnref = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVPacketUnref.run(

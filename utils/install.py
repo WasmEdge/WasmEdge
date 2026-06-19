@@ -1396,7 +1396,9 @@ def main(args):
         if args.modify_shell_profile:
             env_shell = getenv("SHELL")
             if env_shell != SHELL:
-                logging.warning("Unexpected SHELL: {0}. Using {1} as SHELL".format(env_shell, SHELL))
+                logging.warning(
+                    "Unexpected SHELL: {0}. Using {1} as SHELL".format(env_shell, SHELL)
+                )
 
             if shell_configure(args, compat) != 0:
                 logging.error("Error in configuring shell")

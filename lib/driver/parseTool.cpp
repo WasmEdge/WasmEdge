@@ -236,9 +236,9 @@ static void PrintSummary(const AST::Module &Mod,
     printSummaryRow("Element"sv, S, E, Elems.size(), ""sv);
   }
 
-  if (Mod.getDataCountSection().getContent().has_value()) {
+  if (auto DC = Mod.getDataCountSection().getContent()) {
     bounds(Mod.getDataCountSection(), S, E);
-    printSummaryRow("DataCount"sv, S, E, 1, ""sv);
+    printSummaryRow("DataCount"sv, S, E, *DC, ""sv);
   }
 
   const auto &Codes = Mod.getCodeSection().getContent();

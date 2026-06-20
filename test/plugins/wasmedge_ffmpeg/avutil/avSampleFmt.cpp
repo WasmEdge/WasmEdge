@@ -20,12 +20,12 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   uint32_t NamePtr = UINT32_C(80);
   uint32_t LinesizePtr = UINT32_C(20);
 
-  uint32_t SampleFmtId = 1; // AV_SAMPLE_FMT_S32
+  uint32_t SampleFmtId = 1; // AV_SAMPLE_FMT_U8
   auto *FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_packed_sample_fmt");
-  auto &HostFuncAVGetPackedSampleFmt = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetPackedSampleFmt &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVGetPackedSampleFmt = FuncInst->getHostFunc();
 
   {
     HostFuncAVGetPackedSampleFmt.run(
@@ -37,9 +37,9 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_planar_sample_fmt");
-  auto &HostFuncAVGetPlanarSampleFmt = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetPlanarSampleFmt &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVGetPlanarSampleFmt = FuncInst->getHostFunc();
 
   {
     HostFuncAVGetPlanarSampleFmt.run(
@@ -51,9 +51,9 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_sample_fmt_is_planar");
-  auto &HostFuncAVSampleFmtIsPlanar = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVSampleFmtIsPlanar &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVSampleFmtIsPlanar = FuncInst->getHostFunc();
 
   {
     HostFuncAVSampleFmtIsPlanar.run(
@@ -65,23 +65,23 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_bytes_per_sample");
-  auto &HostFuncAVGetBytesPerSample = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetBytesPerSample &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVGetBytesPerSample = FuncInst->getHostFunc();
 
   {
-    HostFuncAVGetBytesPerSample.run(
+    EXPECT_TRUE(HostFuncAVGetBytesPerSample.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{SampleFmtId},
-        Result);
+        Result));
 
-    EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+    EXPECT_EQ(Result[0].get<int32_t>(), 1);
   }
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_get_sample_fmt");
-  auto &HostFuncAVGetSampleFmt =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmt &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVGetSampleFmt = FuncInst->getHostFunc();
 
   uint32_t SampleFmtStart = 100;
   uint32_t SampleFmtSize = 2;
@@ -99,9 +99,9 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_samples_get_buffer_size");
-  auto &HostFuncAVSamplesGetBufferSize = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVSamplesGetBufferSize &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVSamplesGetBufferSize = FuncInst->getHostFunc();
 
   int32_t NbChannels = 1;
   int32_t NbSamples = 5;
@@ -120,9 +120,9 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_samples_alloc_array_and_samples");
-  auto &HostFuncAVSamplesAllocArrayAndSamples = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVSamplesAllocArrayAndSamples &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVSamplesAllocArrayAndSamples = FuncInst->getHostFunc();
 
   {
     HostFuncAVSamplesAllocArrayAndSamples.run(
@@ -140,9 +140,9 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   int32_t Length = 0;
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name_length");
-  auto &HostFuncAVGetSampleFmtNameLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmtNameLength &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVGetSampleFmtNameLength = FuncInst->getHostFunc();
 
   {
     HostFuncAVGetSampleFmtNameLength.run(
@@ -155,9 +155,9 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name");
-  auto &HostFuncAVGetSampleFmtName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmtName &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVGetSampleFmtName = FuncInst->getHostFunc();
 
   // Fill Memory with 0.
   fillMemContent(MemInst, NamePtr, Length);
@@ -168,13 +168,16 @@ TEST_F(FFmpegTest, AVSampleFmt) {
                                    Result);
 
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(NamePtr),
+                               static_cast<size_t>(Length)),
+              "u8"sv);
   }
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_sample_fmt_mask");
-  auto &HostFuncAVGetSampleFmtMask = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmtMask &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVGetSampleFmtMask = FuncInst->getHostFunc();
 
   {
     uint32_t SampleId = 2; // AV_SAMPLE_FMT_S16;
@@ -186,9 +189,9 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_freep");
-  auto &HostFuncAVFreep =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFreep &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFreep = FuncInst->getHostFunc();
 
   {
     uint32_t BufferId = readUInt32(MemInst, BufferPtr);

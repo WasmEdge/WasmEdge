@@ -113,8 +113,7 @@ TEST(WasmBpfTest, SimpleMapTest) {
   auto *loadFunc = module->findFuncExports("wasm_load_bpf_object");
   ASSERT_NE(loadFunc, nullptr);
   ASSERT_TRUE(loadFunc->isHostFunction());
-  auto &loadFuncHost =
-      dynamic_cast<WasmEdge::Host::LoadBpfObject &>(loadFunc->getHostFunc());
+  auto &loadFuncHost = loadFunc->getHostFunc();
 
   // call "wasm_load_bpf_object" to Load `bootstrap.bpf.o`, and check the
   // result
@@ -132,8 +131,7 @@ TEST(WasmBpfTest, SimpleMapTest) {
   auto *attachFunc = module->findFuncExports("wasm_attach_bpf_program");
   ASSERT_NE(attachFunc, nullptr);
   ASSERT_TRUE(attachFunc->isHostFunction());
-  auto &attachFuncHost = dynamic_cast<WasmEdge::Host::AttachBpfProgram &>(
-      attachFunc->getHostFunc());
+  auto &attachFuncHost = attachFunc->getHostFunc();
 
   // Call "wasm_attach_bpf_program" to attach, and check the result
   std::array<WasmEdge::ValVariant, 1> attachResult;
@@ -151,8 +149,7 @@ TEST(WasmBpfTest, SimpleMapTest) {
   auto *mapFdFunc = module->findFuncExports("wasm_bpf_map_fd_by_name");
   ASSERT_NE(mapFdFunc, nullptr);
   ASSERT_TRUE(mapFdFunc->isHostFunction());
-  auto &mapFdFuncHost =
-      dynamic_cast<WasmEdge::Host::BpfMapFdByName &>(mapFdFunc->getHostFunc());
+  auto &mapFdFuncHost = mapFdFunc->getHostFunc();
 
   // Call "wasm_bpf_map_fd_by_name" to get the map fd, and check the result
   std::array<WasmEdge::ValVariant, 1> mapFdResult;
@@ -164,12 +161,11 @@ TEST(WasmBpfTest, SimpleMapTest) {
   auto mapFd = mapFdResult[0].get<int32_t>();
   ASSERT_GE(mapFd, 0);
 
-  // Get function `wasm_bpf_map_fd_by_name`
+  // Get function `wasm_bpf_map_operate`
   auto *mapOptFunc = module->findFuncExports("wasm_bpf_map_operate");
-  EXPECT_NE(mapOptFunc, nullptr);
-  EXPECT_TRUE(mapOptFunc->isHostFunction());
-  auto &mapOptFuncHost =
-      dynamic_cast<WasmEdge::Host::BpfMapOperate &>(mapOptFunc->getHostFunc());
+  ASSERT_NE(mapOptFunc, nullptr);
+  ASSERT_TRUE(mapOptFunc->isHostFunction());
+  auto &mapOptFuncHost = mapOptFunc->getHostFunc();
 
   // A wrapper to call wasm_bpf_map_operate
   auto callMapOperate = [&](int32_t fd, int32_t cmd, uint32_t key,
@@ -278,8 +274,7 @@ TEST(WasmBpfTest, SimpleMapTest) {
   auto *closeFunc = module->findFuncExports("wasm_close_bpf_object");
   ASSERT_NE(closeFunc, nullptr);
   ASSERT_TRUE(closeFunc->isHostFunction());
-  auto &closeFuncHost =
-      dynamic_cast<WasmEdge::Host::CloseBpfObject &>(closeFunc->getHostFunc());
+  auto &closeFuncHost = closeFunc->getHostFunc();
 
   // Call "wasm_close_bpf_object" to attach, and check the result
   std::array<WasmEdge::ValVariant, 1> closeResult;

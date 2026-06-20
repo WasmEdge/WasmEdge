@@ -319,16 +319,24 @@ Expect<PkgPath> parsePkgPath(std::string_view &Next,
   std::string_view Namespace;
   if (!readUntil(Next, ':', Namespace))
     return reportError("expected ':' in namespace"sv);
-  if (!isLowercaseKebabString(Namespace))
-    return reportError("invalid namespace"sv);
+  if (!isLowercaseKebabString(Namespace)) {
+    spdlog::error(ErrCode::Value::ComponentPackageNameNotLowercase);
+    spdlog::error("    Component name: namespace '{}' is not lowercase"sv,
+                  Namespace);
+    return Unexpect(ErrCode::Value::ComponentPackageNameNotLowercase);
+  }
 
   size_t PkgEnd = Next.find_first_of(StopChars);
   if (PkgEnd == Next.npos)
     return reportError("unterminated package name"sv);
   std::string_view Package = Next.substr(0, PkgEnd);
   Next.remove_prefix(PkgEnd);
-  if (!isLowercaseKebabString(Package))
-    return reportError("invalid package name"sv);
+  if (!isLowercaseKebabString(Package)) {
+    spdlog::error(ErrCode::Value::ComponentPackageNameNotLowercase);
+    spdlog::error("    Component name: package '{}' is not lowercase"sv,
+                  Package);
+    return Unexpect(ErrCode::Value::ComponentPackageNameNotLowercase);
+  }
 
   return PkgPath{Namespace, Package};
 }
@@ -581,7 +589,10 @@ Expect<ComponentName> ComponentName::parse(std::string_view Name) {
     while (readUntil(Next, ':', Namespace)) {
       Counter++;
       if (!isLowercaseKebabString(Namespace)) {
-        return reportError("invalid namespace in interface name"sv);
+        spdlog::error(ErrCode::Value::ComponentPackageNameNotLowercase);
+        spdlog::error("    Component name: namespace '{}' is not lowercase"sv,
+                      Namespace);
+        return Unexpect(ErrCode::Value::ComponentPackageNameNotLowercase);
       }
     }
     if (Counter == 0) {
@@ -594,7 +605,10 @@ Expect<ComponentName> ComponentName::parse(std::string_view Name) {
 
     // interfacename ::= <namespace> <words> <projection> ...
     if (!tryReadKebab(Next, Package) || !isLowercaseKebabString(Package)) {
-      return reportError("invalid package in interface name"sv);
+      spdlog::error(ErrCode::Value::ComponentPackageNameNotLowercase);
+      spdlog::error("    Component name: package '{}' is not lowercase"sv,
+                    Package);
+      return Unexpect(ErrCode::Value::ComponentPackageNameNotLowercase);
     }
 
     Counter = 0;
@@ -629,7 +643,10 @@ Expect<ComponentName> ComponentName::parse(std::string_view Name) {
 
 ParseLabel:
   if (!isKebabString(Next)) {
-    return reportError("invalid label"sv);
+    spdlog::error(ErrCode::Value::ComponentNameNotKebab);
+    spdlog::error("    Component name: label '{}' is not in kebab case"sv,
+                  Next);
+    return Unexpect(ErrCode::Value::ComponentNameNotKebab);
   }
   Result.Detail.emplace<LabelDetail>();
   Result.Kind = ComponentNameKind::Label;

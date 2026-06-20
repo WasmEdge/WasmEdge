@@ -1120,6 +1120,24 @@ E(InvalidExportName, 0x02B3, "not a valid export name")
 E(InvalidExternName, 0x02B4, "not a valid extern name")
 // Core tag referenced by a core-export alias or inline-export does not exist
 E(UnknownCoreTag, 0x02B5, "unknown tag")
+// Component name label is not in kebab case
+E(ComponentNameNotKebab, 0x02B6, "not in kebab case")
+// Component package name/namespace is not lowercase
+E(ComponentPackageNameNotLowercase, 0x02B7,
+  "not lowercase in package name/namespace")
+// Component import name conflicts with a previous import name
+E(ComponentImportNameConflict, 0x02B8,
+  "import name conflicts with previous name")
+// Component alias references an export the instance does not provide
+E(ComponentUnknownExport, 0x02B9, "unknown export")
+// Core type index referenced in a component core:moduledecl is out of bounds
+E(CoreTypeIndexOutOfBounds, 0x02BA, "type index out of bounds")
+// Core instance arg memory index type does not match the import (i32 vs i64)
+E(ComponentMemoryIndexTypeMismatch, 0x02BB,
+  "mismatch in index type used for memories")
+// Canonical option `memory` must reference a 32-bit linear memory
+E(ComponentCanonMemoryNot32Bit, 0x02BC,
+  "canonical ABI memory is not a 32-bit linear memory")
 // @}
 
 // Instantiation phase

@@ -2117,4 +2117,76 @@ TEST(ComponentValidatorTest, InstantiateImportedComponentMissingArgRejected) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
+// =============================================================================
+// Core instance memory index-type checking on instantiation (GAP-CI-1)
+// =============================================================================
+
+namespace {
+// Builds:
+//   (core module $A (import "" "" (memory 1)))   ;; imports a 32-bit memory
+//   (core module $B (memory (export "") <mem>))  ;; exports `Mem`
+//   (core instance $b (instantiate $B))
+//   (core instance $a (instantiate $A (with "" (instance $b))))
+// so the provided memory's index type is checked against $A's import.
+AST::Component::Component buildMemoryLinkComponent(const AST::MemoryType &Mem) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreModuleSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreModuleSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreInstanceSection>();
+
+  // Module 0 ($A): import a 32-bit memory.
+  auto &ModA =
+      std::get<AST::Component::CoreModuleSection>(Comp.getSections()[0])
+          .getContent();
+  AST::ImportDesc ImpA;
+  ImpA.setModuleName("");
+  ImpA.setExternalName("");
+  ImpA.setExternalType(ExternalType::Memory);
+  ImpA.getExternalMemoryType() = AST::MemoryType(AST::Limit(1));
+  ModA.getImportSection().getContent().push_back(std::move(ImpA));
+
+  // Module 1 ($B): define and export `Mem`.
+  auto &ModB =
+      std::get<AST::Component::CoreModuleSection>(Comp.getSections()[1])
+          .getContent();
+  ModB.getMemorySection().getContent().push_back(Mem);
+  AST::ExportDesc EDB;
+  EDB.setExternalName("");
+  EDB.setExternalType(ExternalType::Memory);
+  EDB.setExternalIndex(0);
+  ModB.getExportSection().getContent().push_back(std::move(EDB));
+
+  // Core instance 0: instantiate module 1 ($B).
+  auto &CoreInstSec =
+      std::get<AST::Component::CoreInstanceSection>(Comp.getSections()[2]);
+  CoreInstSec.getContent().emplace_back();
+  CoreInstSec.getContent().back().setInstantiateArgs(
+      1U, AST::Component::CoreInstance::InstantiateArgs{});
+  // Core instance 1: instantiate module 0 ($A) with instance 0 as arg "".
+  AST::Component::InstantiateArg<uint32_t> Arg;
+  Arg.getName() = "";
+  Arg.getIndex() = 0U;
+  CoreInstSec.getContent().emplace_back();
+  CoreInstSec.getContent().back().setInstantiateArgs(0U, {Arg});
+  return Comp;
+}
+} // namespace
+
+TEST(ComponentValidatorTest, CoreInstanceMemoryIndexTypeMismatchRejected) {
+  // Provide a 64-bit memory where a 32-bit memory is imported -> reject.
+  auto Comp = buildMemoryLinkComponent(AST::MemoryType(AST::Limit(1, true)));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CoreInstanceMemoryIndexTypeMatchAccepted) {
+  // Provide a 32-bit memory matching the 32-bit import -> accept.
+  auto Comp = buildMemoryLinkComponent(AST::MemoryType(AST::Limit(1)));
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
 } // namespace

@@ -165,6 +165,7 @@ cmake --build build -j$(nproc)
 ## Build Artifacts
 
 After building, key paths are:
+
 - Binary: `build/tools/wasmedge/wasmedge`
 - AOT compiler: `build/tools/wasmedge/wasmedgec` when `WASMEDGE_USE_LLVM=ON`
 - WASI-NN RPC server: `build/tools/wasmedge/wasi_nn_rpcserver` when
@@ -176,6 +177,7 @@ After building, key paths are:
 - Built-in `wasi_logging`: `build/lib/plugin/wasi_logging/`
 
 To run with plugins:
+
 ```bash
 WASMEDGE_PLUGIN_PATH=build/plugins ./build/tools/wasmedge/wasmedge <wasm-file>
 ```
@@ -186,16 +188,23 @@ subdirectory; the loader recursively scans plugin directories.
 ## Testing
 
 Tests use the Google Test framework:
+
 ```bash
-cmake --build build --target test
+cmake --build build --target <test-name-regex>
 ```
 
 Run a specific test:
+
 ```bash
 cd build && ctest -R <test-name-regex>
 ```
 
 Test files are located in `test/`, with a structure mirroring `lib/`. Plugin tests live in `test/plugins/`.
+
+### Test Case Guidelines
+
+- **Avoid adding new test targets**: Do not casually register a new CMake test executable (`wasmedge_add_test` / `add_test`) for new cases. Prefer adding `TEST(...)` cases to an existing test target whose scope matches (e.g. add loader/serializer cases to `test/loader`), so the suite stays consolidated and CI does not gain extra binaries to build and run.
+- Only create a new test target when the work introduces a genuinely new component or test category with no suitable existing home; when you do, justify it and register it in the directory's `CMakeLists.txt` following the surrounding pattern.
 
 ## Plugin System
 
@@ -264,7 +273,7 @@ After adding files, verify the build works.
 
 Use the Conventional Commits format with DCO sign-off:
 
-```
+```text
 <type>: <description>
 
 Signed-off-by: Your Name <email@example.com>
@@ -273,6 +282,7 @@ Signed-off-by: Your Name <email@example.com>
 Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`
 
 Rules:
+
 - Header: 100 characters maximum
 - Each logical change gets its own commit
 - Sign-off required: `git commit -s`
@@ -284,7 +294,7 @@ Use the `Assisted-by:` trailer for the AI assistance disclosure.
 
 The `Assisted-by:` trailer should be placed before `Signed-off-by:` to indicate that AI assistance was used, with the human sign-off as the final confirmation.
 
-```
+```text
 <type>: <description>
 
 Assisted-by: <name of AI tool or service>

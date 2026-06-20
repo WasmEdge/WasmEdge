@@ -148,7 +148,8 @@ TEST_F(WasiCryptoTest, Signatures) {
                                keypairGenerate(AlgType, Alg, std::nullopt));
     WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
     WASI_CRYPTO_EXPECT_SUCCESS(
-        ExportHandle, publickeyExport(PkHandle, __WASI_PUBLICKEY_ENCODING_PKCS8));
+        ExportHandle,
+        publickeyExport(PkHandle, __WASI_PUBLICKEY_ENCODING_PKCS8));
     WASI_CRYPTO_EXPECT_SUCCESS(ExportSize, arrayOutputLen(ExportHandle));
     std::vector<uint8_t> ExportedPk(ExportSize);
     WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(ExportHandle, ExportedPk));

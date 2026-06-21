@@ -34,13 +34,12 @@ public:
   /// `flattenFuncType(IsLift=false)`) determines the core wasm signature
   /// exposed to wasm callers; `Callee` is the component function being
   /// adapted; `Memory` / `Realloc` come from the canon lower options.
-  CanonLowerHostFunc(
-      Executor *Exec, const CanonicalABI::FlatFuncType &FlatSig,
-      Runtime::Instance::Component::FunctionInstance *Callee,
-      Runtime::Instance::MemoryInstance *Memory,
-      Runtime::Instance::FunctionInstance *Realloc,
-      const Runtime::Instance::ComponentInstance *CompInst,
-      StringEncoding Enc = StringEncoding::UTF8) noexcept;
+  CanonLowerHostFunc(Executor *Exec, const CanonicalABI::FlatFuncType &FlatSig,
+                     Runtime::Instance::Component::FunctionInstance *Callee,
+                     Runtime::Instance::MemoryInstance *Memory,
+                     Runtime::Instance::FunctionInstance *Realloc,
+                     const Runtime::Instance::ComponentInstance *CompInst,
+                     StringEncoding Enc = StringEncoding::UTF8) noexcept;
 
   Expect<void> run(const Runtime::CallingFrame &Frame,
                    Span<const ValVariant> Args, Span<ValVariant> Rets) override;

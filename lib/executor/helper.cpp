@@ -33,6 +33,23 @@ Executor::SavedThreadLocal::SavedThreadLocal(
     ExecutionContext.Gas = &Ex.Stat->getTotalCostRef();
     ExecutionContext.GasLimit = Ex.Stat->getCostLimit();
   }
+  // Native stack limit for compiled code (grows down): trap before descending
+  // MaxStackSize bytes below the entry frame. 0 disables the check; the budget
+  // must fit the thread's stack or the native stack overflows before trapping.
+  {
+    const uint64_t StackBudget =
+        Ex.Conf.getRuntimeConfigure().getMaxStackSize();
+    if (StackBudget != 0) {
+      volatile char StackProbe;
+      const uintptr_t SP = reinterpret_cast<uintptr_t>(&StackProbe);
+      const uintptr_t Limit = StackBudget < SP
+                                  ? SP - static_cast<uintptr_t>(StackBudget)
+                                  : static_cast<uintptr_t>(0);
+      ExecutionContext.StackLimit = reinterpret_cast<uint8_t *>(Limit);
+    } else {
+      ExecutionContext.StackLimit = nullptr;
+    }
+  }
 
   SavedCurrentStack = CurrentStack;
   CurrentStack = &StackMgr;
@@ -54,6 +71,30 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
   if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
     spdlog::error(ErrCode::Value::Interrupted);
     return Unexpect(ErrCode::Value::Interrupted);
+  }
+
+  // Bound the interpreter's heap value/frame stack in bytes (its native stack
+  // stays flat), counting the frame and locals this entry is about to push so a
+  // function with large per-frame locals is caught before they are pushed. Tail
+  // calls reuse the frame and are exempt; a 0 limit disables the check.
+  if (unlikely(!IsTailCall)) {
+    const uint64_t StackSizeLimit =
+        Conf.getRuntimeConfigure().getMaxStackSize();
+    if (StackSizeLimit != 0) {
+      const uint64_t LocalBytes =
+          Func.isWasmFunction()
+              ? static_cast<uint64_t>(Func.getLocalNum()) * sizeof(ValVariant)
+              : UINT64_C(0);
+      const uint64_t StackSizeNeeded =
+          static_cast<uint64_t>(StackMgr.size()) * sizeof(ValVariant) +
+          static_cast<uint64_t>(StackMgr.getFramesSpan().size() + 1) *
+              sizeof(Runtime::StackManager::Frame) +
+          LocalBytes;
+      if (unlikely(StackSizeNeeded >= StackSizeLimit)) {
+        spdlog::error(ErrCode::Value::CallStackExhausted);
+        return Unexpect(ErrCode::Value::CallStackExhausted);
+      }
+    }
   }
 
   // Get the function type for the parameter and return counts.
@@ -82,12 +123,12 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     }
     Runtime::CallingFrame CallFrame(this, ModInst);
 
-    // Push frame.
+    // Push frame. Host and compiled functions complete inline, so a return_call
+    // to them is entered as an ordinary (non-tail) call.
     StackMgr.pushFrame(Func.getModule(), // Module instance
                        RetIt,            // Return PC
                        ArgsN,            // Only args, no locals in stack
-                       RetsN,            // Returns num
-                       IsTailCall        // For tail-call
+                       RetsN             // Returns num
     );
 
     // Do the statistics if the statistics turned on.
@@ -139,19 +180,19 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       StackMgr.push(std::move(R));
     }
 
-    // For host function case, the continuation will be the continuation from
-    // the popped frame.
+    // The continuation is the popped frame's return PC; a return_call's tail
+    // semantics come from the caller returning through its own End.
     return StackMgr.popFrame();
   } else if (Func.isCompiledFunction()) {
     // Compiled function case: Execute the function and jump to the
     // continuation.
 
-    // Push frame.
+    // Push frame. Host and compiled functions complete inline, so a return_call
+    // to them is entered as an ordinary (non-tail) call.
     StackMgr.pushFrame(Func.getModule(), // Module instance
                        RetIt,            // Return PC
                        ArgsN,            // Only args, no locals in stack
-                       RetsN,            // Returns num
-                       IsTailCall        // For tail-call
+                       RetsN             // Returns num
     );
 
     // Prepare arguments.
@@ -203,8 +244,8 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       StackMgr.push(Rets[I]);
     }
 
-    // For compiled function case, the continuation will be the continuation
-    // from the popped frame.
+    // The continuation is the popped frame's return PC; a return_call's tail
+    // semantics come from the caller returning through its own End.
     return StackMgr.popFrame();
   } else {
     // Native function case: Jump to the start of the function body.

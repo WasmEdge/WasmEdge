@@ -160,6 +160,34 @@ WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern uint64_t WasmEdge_ConfigureGetMaxMemoryPage(
     const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
+/// Set the stack size limit of execution.
+///
+/// Limit the stack (in bytes) that a single execution may use; a call chain
+/// exceeding it traps with a call-stack-exhausted error. For compiled (AOT/JIT)
+/// code this bounds the native stack; for the interpreter it bounds the heap
+/// value/frame stack. The default is 512 KiB. A value of 0 disables the limit.
+/// For compiled code the value must fit the calling thread's stack; a larger
+/// value lets the native stack overflow before the trap fires.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the maximum stack size.
+/// \param Size the maximum stack size in bytes (0 to disable the limit).
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureSetMaxStackSize(WasmEdge_ConfigureContext *Cxt,
+                                  const uint64_t Size) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the setting of the stack size limit of execution.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the maximum stack size
+/// setting.
+///
+/// \returns the stack size limit in bytes (0 if the limit is disabled).
+WASMEDGE_CAPI_EXPORT extern uint64_t WasmEdge_ConfigureGetMaxStackSize(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
 /// Set the run mode for module execution.
 ///
 /// Selects the engine used to execute a WebAssembly module: interpreter

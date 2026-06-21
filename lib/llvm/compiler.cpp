@@ -267,6 +267,8 @@ struct LLVM::Compiler::CompileContext {
                 Int64Ty,
                 // StopToken
                 Int32PtrTy,
+                // StackLimit
+                Int8PtrTy,
             })),
         ExecCtxPtrTy(ExecCtxTy.getPointerTo()),
         IntrinsicsTableTy(LLVM::Type::getArrayType(
@@ -377,6 +379,10 @@ struct LLVM::Compiler::CompileContext {
   LLVM::Value getStopToken(LLVM::Builder &Builder,
                            LLVM::Value ExecCtx) noexcept {
     return Builder.createExtractValue(ExecCtx, 6);
+  }
+  LLVM::Value getStackLimit(LLVM::Builder &Builder,
+                            LLVM::Value ExecCtx) noexcept {
+    return Builder.createExtractValue(ExecCtx, 7);
   }
   LLVM::FunctionCallee getIntrinsic(LLVM::Builder &Builder,
                                     Executable::Intrinsics Index,
@@ -618,6 +624,7 @@ public:
   Expect<void>
   compile(const AST::CodeSegment &Code,
           std::pair<std::vector<ValType>, std::vector<ValType>> Type) noexcept {
+    checkStackLimit();
     auto RetBB = LLVM::BasicBlock::create(LLContext, F.Fn, "ret");
     Type.first.clear();
     enterBlock(RetBB, {}, {}, {}, std::move(Type));
@@ -4207,6 +4214,20 @@ public:
     } else {
       Builder.createRet(stackPop());
     }
+  }
+
+  void checkStackLimit() noexcept {
+    // Trap if the stack pointer (approximated by a fresh alloca) descended past
+    // the limit. A null limit (disabled) never triggers since addresses >= 0.
+    auto SP = Builder.createPtrToInt(Builder.createAlloca(Context.Int8Ty),
+                                     Context.Int64Ty);
+    auto Limit = Builder.createPtrToInt(Context.getStackLimit(Builder, ExecCtx),
+                                        Context.Int64Ty);
+    auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "stack_ok");
+    auto IsOk = Builder.createLikely(Builder.createICmpULE(Limit, SP));
+    Builder.createCondBr(IsOk, OkBB,
+                         getTrapBB(ErrCode::Value::CallStackExhausted));
+    Builder.positionAtEnd(OkBB);
   }
 
   void updateInstrCount() noexcept {

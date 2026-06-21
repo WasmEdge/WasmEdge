@@ -108,6 +108,17 @@ std::vector<uint8_t> IntrinsicsWasm = {
     0x77, 0x00, 0x01, 0x0a, 0x0c, 0x02, 0x03, 0x00, 0x00, 0x0b, 0x06,
     0x00, 0x20, 0x00, 0x40, 0x00, 0x0b};
 
+// Self-recursive f(n) = n ? f(n-1)+1 : 0; the non-tail "+1" grows the native
+// stack so the AOT/JIT stack-limit check fires instead of TCO into a loop.
+std::vector<uint8_t> RecurseWasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
+    0x60, 0x01, 0x7e, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05,
+    0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x17, 0x01, 0x15, 0x00, 0x20,
+    0x00, 0x50, 0x04, 0x7e, 0x42, 0x00, 0x05, 0x20, 0x00, 0x42, 0x01,
+    0x7d, 0x10, 0x00, 0x42, 0x01, 0x7c, 0x0b, 0x0b, 0x00, 0x13, 0x04,
+    0x6e, 0x61, 0x6d, 0x65, 0x01, 0x04, 0x01, 0x00, 0x01, 0x66, 0x02,
+    0x06, 0x01, 0x00, 0x01, 0x00, 0x01, 0x6e};
+
 class HostAdd : public Runtime::HostFunction<HostAdd> {
 public:
   Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t A, uint32_t B) {
@@ -139,6 +150,16 @@ protected:
     Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
     Conf.getCompilerConfigure().setOptimizationLevel(
         CompilerConfigure::OptimizationLevel::O1);
+    return std::make_unique<VM::VM>(Conf);
+  }
+
+  // Helper to create a VM with lazy JIT and a specific native stack-size budget
+  std::unique_ptr<VM::VM> createLazyJITVM(uint64_t MaxStackSize) {
+    Configure Conf;
+    Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+    Conf.getCompilerConfigure().setOptimizationLevel(
+        CompilerConfigure::OptimizationLevel::O1);
+    Conf.getRuntimeConfigure().setMaxStackSize(MaxStackSize);
     return std::make_unique<VM::VM>(Conf);
   }
 };
@@ -805,6 +826,25 @@ TEST_F(LazyJITTest, LazyJITConcurrentFibonacci) {
     T.join();
   }
   EXPECT_EQ(VM->getLazyCompiledFuncCount(), 1U);
+
+  VM->cleanup();
+}
+
+// Deeply recursive JIT-compiled code must trap with CallStackExhausted once it
+// exhausts the configured native stack budget, instead of overflowing the
+// native stack. With a 64 KiB budget, f(20000) recurses far past it.
+TEST_F(LazyJITTest, LazyJITCallStackExhaustion) {
+  auto VM = createLazyJITVM(UINT64_C(65536));
+
+  ASSERT_TRUE(VM->loadWasm(RecurseWasm));
+  ASSERT_TRUE(VM->validate());
+  ASSERT_TRUE(VM->instantiate());
+
+  std::vector<ValType> Types = {ValType(TypeCode::I64)};
+  std::vector<ValVariant> Params = {UINT64_C(20000)};
+  auto Result = VM->execute("f", Params, Types);
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::CallStackExhausted);
 
   VM->cleanup();
 }

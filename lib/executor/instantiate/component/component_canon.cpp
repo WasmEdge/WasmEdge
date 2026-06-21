@@ -66,17 +66,23 @@ std::vector<ValVariant> Executor::convValsToCoreWASM(
       std::vector<ValType> ReallocTypes =
           RFuncInst->getFuncType().getParamTypes();
       auto AllocRes = invoke(RFuncInst, ReallocArgs, ReallocTypes);
-      if (AllocRes) {
-        ValVariant PtrInMem = (*AllocRes)[0].first;
-        MemInst->setBytes(std::vector<Byte>{Str.begin(), Str.end()},
-                          PtrInMem.get<uint32_t>(), 0,
-                          static_cast<uint32_t>(Str.size()));
-        CoreVals.push_back(PtrInMem);
-        CoreVals.push_back(StrSize);
-      } else {
+      // realloc's signature is not validated yet (GAP-C-5b); it must return
+      // one i32 pointer, so guard against a missing or empty result.
+      if (!AllocRes || AllocRes->empty()) {
         CoreVals.push_back(0);
         CoreVals.push_back(0);
+        break;
       }
+      ValVariant PtrInMem = (*AllocRes)[0].first;
+      if (!MemInst->setBytes(std::vector<Byte>{Str.begin(), Str.end()},
+                             PtrInMem.get<uint32_t>(), 0,
+                             static_cast<uint32_t>(Str.size()))) {
+        CoreVals.push_back(0);
+        CoreVals.push_back(0);
+        break;
+      }
+      CoreVals.push_back(PtrInMem);
+      CoreVals.push_back(StrSize);
       break;
     }
     case ComponentTypeCode::TypeIndex: {

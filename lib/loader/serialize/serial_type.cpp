@@ -167,7 +167,7 @@ Expect<void>
 Serializer::serializeType(const AST::SubType &SType,
                           std::vector<uint8_t> &OutVec) const noexcept {
   // Sub type: vec(typeidx)
-  if (SType.getSuperTypeIndices().size() > 0) {
+  if (SType.getSuperTypeIndices().size() > 0 || !SType.isFinal()) {
     if (!Conf.hasProposal(Proposal::GC)) {
       return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::GC,
                              ASTNodeAttr::Type_Rec);

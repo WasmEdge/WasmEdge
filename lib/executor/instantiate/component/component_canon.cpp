@@ -16,6 +16,22 @@ namespace Executor {
 
 using namespace std::literals;
 
+namespace {
+// Map a canon `string-encoding` option code to the runtime StringEncoding. The
+// three encoding option codes correspond 1:1; shared by the canon lift and
+// lower option loops so the mapping lives in one place.
+StringEncoding toStringEncoding(ComponentCanonOptCode Code) noexcept {
+  switch (Code) {
+  case ComponentCanonOptCode::Encode_UTF16:
+    return StringEncoding::UTF16;
+  case ComponentCanonOptCode::Encode_Latin1:
+    return StringEncoding::Latin1UTF16;
+  default:
+    return StringEncoding::UTF8;
+  }
+}
+} // namespace
+
 Expect<std::vector<ValVariant>> Executor::convValsToCoreWASM(
     Span<const ComponentValVariant> Vals, Span<const ComponentValType> ValTypes,
     Runtime::Instance::FunctionInstance *RFuncInst,
@@ -63,13 +79,9 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       for (auto &Opt : Opts) {
         switch (Opt.getCode()) {
         case ComponentCanonOptCode::Encode_UTF8:
-          Enc = StringEncoding::UTF8;
-          break;
         case ComponentCanonOptCode::Encode_UTF16:
-          Enc = StringEncoding::UTF16;
-          break;
         case ComponentCanonOptCode::Encode_Latin1:
-          Enc = StringEncoding::Latin1UTF16;
+          Enc = toStringEncoding(Opt.getCode());
           break;
         case ComponentCanonOptCode::Memory:
           MemInst = CompInst.getCoreMemory(Opt.getIndex());
@@ -157,13 +169,9 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       for (auto &Opt : Opts) {
         switch (Opt.getCode()) {
         case ComponentCanonOptCode::Encode_UTF8:
-          Enc = StringEncoding::UTF8;
-          break;
         case ComponentCanonOptCode::Encode_UTF16:
-          Enc = StringEncoding::UTF16;
-          break;
         case ComponentCanonOptCode::Encode_Latin1:
-          Enc = StringEncoding::Latin1UTF16;
+          Enc = toStringEncoding(Opt.getCode());
           break;
         case ComponentCanonOptCode::Memory:
           MemInst = CompInst.getCoreMemory(Opt.getIndex());

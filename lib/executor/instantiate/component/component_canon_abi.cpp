@@ -892,7 +892,8 @@ void assumeValidUSV(uint32_t I) noexcept {
 // host side is canonically UTF-8, which collapses the spec's full src/dst
 // encoding matrix (store_string_into_range, L1592-1709) to the src='utf8' rows.
 
-// utf16_tag for an i32 ptr_type (CanonicalABI.md L1388): high bit of the length.
+// utf16_tag for an i32 ptr_type (CanonicalABI.md L1388): high bit of the
+// length.
 constexpr uint32_t kUtf16Tag = 0x80000000u;
 
 // Append a Unicode scalar value as UTF-8. Caller guarantees a valid USV.
@@ -914,51 +915,70 @@ void appendUtf8(std::string &Out, uint32_t CP) noexcept {
   }
 }
 
-// Decode a UTF-8 host string into Unicode scalar values, validating as we go
-// (overlong forms, surrogates, and out-of-range code points all trap). Used by
-// the encode side where the source is the host's UTF-8 std::string.
+// Decode one UTF-8 scalar starting at S[I], advancing I past it. Validates the
+// sequence (bad lead/continuation byte, truncation, overlong form, surrogate,
+// out-of-range) and traps on any malformed input. The single source of truth
+// for UTF-8 decoding shared by validateUtf8 and utf8ToCodePoints.
+Expect<uint32_t> decodeUtf8Scalar(std::string_view S, size_t &I) noexcept {
+  const size_t N = S.size();
+  const uint8_t B0 = static_cast<uint8_t>(S[I]);
+  uint32_t CP = 0;
+  size_t Len = 0;
+  uint32_t Min = 0;
+  if (B0 < 0x80u) {
+    CP = B0;
+    Len = 1;
+    Min = 0;
+  } else if ((B0 & 0xE0u) == 0xC0u) {
+    CP = B0 & 0x1Fu;
+    Len = 2;
+    Min = 0x80u;
+  } else if ((B0 & 0xF0u) == 0xE0u) {
+    CP = B0 & 0x0Fu;
+    Len = 3;
+    Min = 0x800u;
+  } else if ((B0 & 0xF8u) == 0xF0u) {
+    CP = B0 & 0x07u;
+    Len = 4;
+    Min = 0x10000u;
+  } else {
+    EXPECTED_TRY(trapDataInvalid("invalid UTF-8 lead byte"));
+  }
+  if (I + Len > N) {
+    EXPECTED_TRY(trapDataInvalid("truncated UTF-8 sequence"));
+  }
+  for (size_t K = 1; K < Len; ++K) {
+    const uint8_t B = static_cast<uint8_t>(S[I + K]);
+    if ((B & 0xC0u) != 0x80u) {
+      EXPECTED_TRY(trapDataInvalid("invalid UTF-8 continuation byte"));
+    }
+    CP = (CP << 6) | (B & 0x3Fu);
+  }
+  if (CP < Min || CP > 0x10FFFFu || (CP >= 0xD800u && CP <= 0xDFFFu)) {
+    EXPECTED_TRY(trapDataInvalid("invalid UTF-8 scalar value"));
+  }
+  I += Len;
+  return CP;
+}
+
+// Validate that S is well-formed UTF-8, trapping otherwise. Allocates nothing —
+// used by the lift/load path, which only needs to reject malformed guest bytes
+// before handing the raw view to the host.
+Expect<void> validateUtf8(std::string_view S) noexcept {
+  for (size_t I = 0; I < S.size();) {
+    EXPECTED_TRY(auto CP, decodeUtf8Scalar(S, I));
+    static_cast<void>(CP);
+  }
+  return {};
+}
+
+// Decode a UTF-8 host string into Unicode scalar values, validating as we go.
+// Used by the encode side where the source is the host's UTF-8 std::string.
 Expect<std::vector<uint32_t>> utf8ToCodePoints(std::string_view S) noexcept {
   std::vector<uint32_t> CPs;
-  const size_t N = S.size();
-  for (size_t I = 0; I < N;) {
-    const uint8_t B0 = static_cast<uint8_t>(S[I]);
-    uint32_t CP = 0;
-    size_t Len = 0;
-    uint32_t Min = 0;
-    if (B0 < 0x80u) {
-      CP = B0;
-      Len = 1;
-      Min = 0;
-    } else if ((B0 & 0xE0u) == 0xC0u) {
-      CP = B0 & 0x1Fu;
-      Len = 2;
-      Min = 0x80u;
-    } else if ((B0 & 0xF0u) == 0xE0u) {
-      CP = B0 & 0x0Fu;
-      Len = 3;
-      Min = 0x800u;
-    } else if ((B0 & 0xF8u) == 0xF0u) {
-      CP = B0 & 0x07u;
-      Len = 4;
-      Min = 0x10000u;
-    } else {
-      EXPECTED_TRY(trapDataInvalid("invalid UTF-8 lead byte"));
-    }
-    if (I + Len > N) {
-      EXPECTED_TRY(trapDataInvalid("truncated UTF-8 sequence"));
-    }
-    for (size_t K = 1; K < Len; ++K) {
-      const uint8_t B = static_cast<uint8_t>(S[I + K]);
-      if ((B & 0xC0u) != 0x80u) {
-        EXPECTED_TRY(trapDataInvalid("invalid UTF-8 continuation byte"));
-      }
-      CP = (CP << 6) | (B & 0x3Fu);
-    }
-    if (CP < Min || CP > 0x10FFFFu || (CP >= 0xD800u && CP <= 0xDFFFu)) {
-      EXPECTED_TRY(trapDataInvalid("invalid UTF-8 scalar value"));
-    }
+  for (size_t I = 0; I < S.size();) {
+    EXPECTED_TRY(auto CP, decodeUtf8Scalar(S, I));
     CPs.push_back(CP);
-    I += Len;
   }
   return CPs;
 }
@@ -967,9 +987,14 @@ Expect<std::vector<uint32_t>> utf8ToCodePoints(std::string_view S) noexcept {
 Expect<std::string> utf16leToUtf8(Span<const Byte> Bytes) noexcept {
   std::string Out;
   const size_t N = Bytes.size();
+  // Each UTF-16 code unit expands to at most 3 UTF-8 bytes (a surrogate pair is
+  // two units → one 4-byte scalar, still ≤ 3 bytes/unit), so this never
+  // under-reserves and avoids reallocation while appending.
+  Out.reserve(N / 2 * 3);
   for (size_t I = 0; I + 1 < N; I += 2) {
-    uint32_t U = static_cast<uint32_t>(static_cast<uint8_t>(Bytes[I])) |
-                 (static_cast<uint32_t>(static_cast<uint8_t>(Bytes[I + 1])) << 8);
+    uint32_t U =
+        static_cast<uint32_t>(static_cast<uint8_t>(Bytes[I])) |
+        (static_cast<uint32_t>(static_cast<uint8_t>(Bytes[I + 1])) << 8);
     if (U >= 0xD800u && U <= 0xDBFFu) {
       if (I + 3 >= N) {
         EXPECTED_TRY(trapDataInvalid("unpaired UTF-16 high surrogate"));
@@ -991,7 +1016,8 @@ Expect<std::string> utf16leToUtf8(Span<const Byte> Bytes) noexcept {
 }
 
 // Encode Unicode scalar values to UTF-16-LE bytes (surrogate pair for >U+FFFF).
-std::vector<Byte> codePointsToUtf16le(const std::vector<uint32_t> &CPs) noexcept {
+std::vector<Byte>
+codePointsToUtf16le(const std::vector<uint32_t> &CPs) noexcept {
   std::vector<Byte> Out;
   Out.reserve(CPs.size() * 2);
   auto push16 = [&](uint32_t U) {
@@ -1051,10 +1077,13 @@ Expect<std::string> decodeString(const CanonCtx &Cx, uint32_t Begin,
   }
   auto SV = Cx.Mem->getStringView(Begin, ByteLen);
   switch (W) {
-  case WireEnc::Utf8:
-    // TODO: the spec validates UTF-8 here and traps on error; preserved as a
-    // raw copy to match the pre-existing utf8 path.
+  case WireEnc::Utf8: {
+    // load_string utf8 (L1418-1421): the spec decodes as UTF-8 and traps on
+    // malformed input, so validate before handing the bytes to the host (which
+    // treats component strings as well-formed UTF-8).
+    EXPECTED_TRY(validateUtf8(SV));
     return std::string(SV);
+  }
   case WireEnc::Latin1: {
     std::string Out;
     Out.reserve(ByteLen);
@@ -1064,8 +1093,8 @@ Expect<std::string> decodeString(const CanonCtx &Cx, uint32_t Begin,
     return Out;
   }
   case WireEnc::Utf16:
-    return utf16leToUtf8(Span<const Byte>{
-        reinterpret_cast<const Byte *>(SV.data()), SV.size()});
+    return utf16leToUtf8(
+        Span<const Byte>{reinterpret_cast<const Byte *>(SV.data()), SV.size()});
   }
   assumingUnreachable();
 }
@@ -1082,7 +1111,7 @@ encodeString(const CanonCtx &Cx, const std::string &S) noexcept {
     if (Len == 0u) {
       return uint32_t{0};
     }
-    EXPECTED_TRY(auto Begin,callRealloc(Cx, 0u, 0u, Align, Len));
+    EXPECTED_TRY(auto Begin, callRealloc(Cx, 0u, 0u, Align, Len));
     if (Begin != alignTo(Begin, Align)) {
       EXPECTED_TRY(trapDataInvalid("string buffer misaligned"));
     }
@@ -1093,46 +1122,51 @@ encodeString(const CanonCtx &Cx, const std::string &S) noexcept {
     return Begin;
   };
 
+  // Encode the code points as UTF-16-LE into a fresh 2-aligned guest buffer and
+  // return (begin, tagged_code_units); `Tag` sets the high-bit utf16 marker for
+  // the latin1+utf16 fallback (CanonicalABI.md L1705).
+  auto writeUtf16 = [&](const std::vector<uint32_t> &CPs,
+                        bool Tag) -> Expect<std::pair<uint32_t, uint32_t>> {
+    auto Bytes = codePointsToUtf16le(CPs);
+    const uint32_t Units = static_cast<uint32_t>(Bytes.size() / 2);
+    EXPECTED_TRY(auto Begin, writeBuf(Bytes, 2u));
+    return std::make_pair(Begin, Tag ? (Units | kUtf16Tag) : Units);
+  };
+
   switch (Cx.Enc) {
   case StringEncoding::UTF8: {
     // store_string_copy utf8->utf8 (L1633): plain byte copy.
     Span<const Byte> Bytes{reinterpret_cast<const Byte *>(S.data()), S.size()};
-    EXPECTED_TRY(auto Begin,writeBuf(Bytes, 1u));
+    EXPECTED_TRY(auto Begin, writeBuf(Bytes, 1u));
     return std::make_pair(Begin, static_cast<uint32_t>(S.size()));
   }
   case StringEncoding::UTF16: {
     // store_utf8_to_utf16 (L1665): code units = bytes / 2.
     EXPECTED_TRY(auto CPs, utf8ToCodePoints(S));
-    auto Bytes = codePointsToUtf16le(CPs);
-    const uint32_t Units = static_cast<uint32_t>(Bytes.size() / 2);
-    EXPECTED_TRY(auto Begin,writeBuf(Bytes, 2u));
-    return std::make_pair(Begin, Units);
+    return writeUtf16(CPs, /*Tag=*/false);
   }
   case StringEncoding::Latin1UTF16: {
     // store_string_to_latin1_or_utf16 (L1689): latin1 when every scalar fits in
     // a byte, else utf16 with the high-bit tag. The buffer is 2-aligned either
-    // way (the latin1 case may have been a utf16 fallback per spec).
+    // way (the latin1 case may have been a utf16 fallback per spec). Build the
+    // latin1 bytes in the same pass that checks the < 0x100 bound, falling back
+    // to a full utf16 encode the moment an astral scalar appears.
     EXPECTED_TRY(auto CPs, utf8ToCodePoints(S));
+    std::vector<Byte> Latin1;
+    Latin1.reserve(CPs.size());
     bool AllLatin1 = true;
     for (uint32_t CP : CPs) {
       if (CP >= 0x100u) {
         AllLatin1 = false;
         break;
       }
+      Latin1.push_back(static_cast<Byte>(CP));
     }
     if (AllLatin1) {
-      std::vector<Byte> Bytes;
-      Bytes.reserve(CPs.size());
-      for (uint32_t CP : CPs) {
-        Bytes.push_back(static_cast<Byte>(CP));
-      }
-      EXPECTED_TRY(auto Begin,writeBuf(Bytes, 2u));
+      EXPECTED_TRY(auto Begin, writeBuf(Latin1, 2u));
       return std::make_pair(Begin, static_cast<uint32_t>(CPs.size()));
     }
-    auto Bytes = codePointsToUtf16le(CPs);
-    const uint32_t Units = static_cast<uint32_t>(Bytes.size() / 2);
-    EXPECTED_TRY(auto Begin,writeBuf(Bytes, 2u));
-    return std::make_pair(Begin, Units | kUtf16Tag);
+    return writeUtf16(CPs, /*Tag=*/true);
   }
   }
   assumingUnreachable();
@@ -1490,7 +1524,8 @@ Expect<void> storePrim(const CanonCtx &Cx, const ComponentValVariant &V,
   case P::F32:
     // encode_float_as_i32 (L1528, L1570): canonicalize NaN on store
     // (DETERMINISTIC_PROFILE).
-    return Cx.Mem->storeValue<float>(canonicalizeNaN32(std::get<float>(V)), Ptr);
+    return Cx.Mem->storeValue<float>(canonicalizeNaN32(std::get<float>(V)),
+                                     Ptr);
   case P::F64:
     // encode_float_as_i64 (L1529, L1573): canonicalize NaN on store.
     return Cx.Mem->storeValue<double>(canonicalizeNaN64(std::get<double>(V)),

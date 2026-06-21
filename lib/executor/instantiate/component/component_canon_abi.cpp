@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <unordered_set>
@@ -780,6 +781,35 @@ namespace {
 // MAX_LIST_BYTE_LENGTH).
 constexpr uint32_t kMaxCanonByteLength = (1u << 28) - 1u;
 
+// CanonicalABI.md (definitions.py L1348-1367) NaN canonicalization. WasmEdge
+// follows the DETERMINISTIC_PROFILE: every NaN crossing the canonical ABI — in
+// either direction, via flat values or linear memory — collapses to the
+// canonical quiet-NaN bit pattern instead of the non-deterministic profile's
+// random scrambling, keeping float values reproducible across the boundary.
+// The four primitive conversions (load / store / lift_flat / lower_flat) funnel
+// through these, so floats nested in records / tuples / variants / lists are
+// covered transitively.
+constexpr uint32_t kCanonicalF32NaNBits = 0x7fc00000u;
+constexpr uint64_t kCanonicalF64NaNBits = 0x7ff8000000000000ull;
+
+float canonicalizeNaN32(float F) noexcept {
+  if (std::isnan(F)) {
+    float C = 0.f;
+    std::memcpy(&C, &kCanonicalF32NaNBits, sizeof(C));
+    return C;
+  }
+  return F;
+}
+
+double canonicalizeNaN64(double F) noexcept {
+  if (std::isnan(F)) {
+    double C = 0.;
+    std::memcpy(&C, &kCanonicalF64NaNBits, sizeof(C));
+    return C;
+  }
+  return F;
+}
+
 // Wraps MemoryInstance::loadValue<T,N> with a runtime byte width. The
 // template-arg comma must stay out of EXPECTED_TRY's macro expansion, which is
 // why this dispatcher exists instead of inlining loadValue at each call site.
@@ -907,15 +937,16 @@ Expect<ComponentValVariant> loadPrim(const CanonCtx &Cx, uint32_t Ptr,
     return ComponentValVariant{V};
   }
   case P::F32: {
+    // decode_i32_as_float (L1326, L1363): canonicalize NaN on load.
     float V = 0.f;
     EXPECTED_TRY(Cx.Mem->loadValue<float>(V, Ptr));
-    // TODO: decode_i32_as_float canonicalises NaN payloads (L2106-2119).
-    return ComponentValVariant{V};
+    return ComponentValVariant{canonicalizeNaN32(V)};
   }
   case P::F64: {
+    // decode_i64_as_float (L1327, L1366): canonicalize NaN on load.
     double V = 0.;
     EXPECTED_TRY(Cx.Mem->loadValue<double>(V, Ptr));
-    return ComponentValVariant{V};
+    return ComponentValVariant{canonicalizeNaN64(V)};
   }
   case P::Char: {
     uint32_t V = 0;
@@ -1210,9 +1241,13 @@ Expect<void> storePrim(const CanonCtx &Cx, const ComponentValVariant &V,
   case P::U64:
     return Cx.Mem->storeValue<uint64_t>(std::get<uint64_t>(V), Ptr);
   case P::F32:
-    return Cx.Mem->storeValue<float>(std::get<float>(V), Ptr);
+    // encode_float_as_i32 (L1528, L1570): canonicalize NaN on store
+    // (DETERMINISTIC_PROFILE).
+    return Cx.Mem->storeValue<float>(canonicalizeNaN32(std::get<float>(V)), Ptr);
   case P::F64:
-    return Cx.Mem->storeValue<double>(std::get<double>(V), Ptr);
+    // encode_float_as_i64 (L1529, L1573): canonicalize NaN on store.
+    return Cx.Mem->storeValue<double>(canonicalizeNaN64(std::get<double>(V)),
+                                      Ptr);
   case P::Char: {
     const uint32_t I = std::get<uint32_t>(V);
     assumeValidUSV(I);
@@ -1671,9 +1706,11 @@ liftFlatPrim(const CanonCtx &Cx, FlatIter &VI,
   case P::S64:
     return liftFlatSigned(64, Next->get<uint64_t>());
   case P::F32:
-    return ComponentValVariant{Next->get<float>()};
+    // lift_flat_float (L1932): canonicalize NaN.
+    return ComponentValVariant{canonicalizeNaN32(Next->get<float>())};
   case P::F64:
-    return ComponentValVariant{Next->get<double>()};
+    // lift_flat_float (L1933): canonicalize NaN.
+    return ComponentValVariant{canonicalizeNaN64(Next->get<double>())};
   case P::Char: {
     const uint32_t I = Next->get<uint32_t>();
     EXPECTED_TRY(validateUSV(I));
@@ -1947,9 +1984,13 @@ lowerFlatPrim(const CanonCtx &Cx, const ComponentValVariant &V,
   case P::S64:
     return lowerSigned64(std::get<int64_t>(V));
   case P::F32:
-    return std::vector<ValVariant>{ValVariant(std::get<float>(V))};
+    // lower_flat_float (L2026): canonicalize NaN (DETERMINISTIC_PROFILE).
+    return std::vector<ValVariant>{
+        ValVariant(canonicalizeNaN32(std::get<float>(V)))};
   case P::F64:
-    return std::vector<ValVariant>{ValVariant(std::get<double>(V))};
+    // lower_flat_float (L2027): canonicalize NaN (DETERMINISTIC_PROFILE).
+    return std::vector<ValVariant>{
+        ValVariant(canonicalizeNaN64(std::get<double>(V)))};
   case P::Char: {
     const uint32_t I = std::get<uint32_t>(V);
     assumeValidUSV(I);

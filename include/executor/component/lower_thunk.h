@@ -39,7 +39,8 @@ public:
       Runtime::Instance::Component::FunctionInstance *Callee,
       Runtime::Instance::MemoryInstance *Memory,
       Runtime::Instance::FunctionInstance *Realloc,
-      const Runtime::Instance::ComponentInstance *CompInst) noexcept;
+      const Runtime::Instance::ComponentInstance *CompInst,
+      StringEncoding Enc = StringEncoding::UTF8) noexcept;
 
   Expect<void> run(const Runtime::CallingFrame &Frame,
                    Span<const ValVariant> Args, Span<ValVariant> Rets) override;
@@ -53,6 +54,8 @@ private:
   // Cached at construction: true if lower added a trailing out-pointer
   // (spec L2829-2831: flat_results > MAX_FLAT_RESULTS).
   bool HasOutPtr;
+  // Guest string encoding from the canon lower `string-encoding` option.
+  StringEncoding Enc;
 };
 
 } // namespace Executor

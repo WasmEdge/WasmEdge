@@ -61,6 +61,11 @@ struct CanonCtx {
   /// ComponentInstance) reuse alignment / elemSize / flatten_* without
   /// duplicating the recursion. Takes precedence over CompInst when set.
   std::function<const AST::Component::DefType *(uint32_t)> TypeResolver;
+  /// Guest string encoding for the canon function this context serves
+  /// (CanonicalABI.md `string-encoding` option). Selects the byte layout used
+  /// by load / store / lift_flat / lower_flat for `string` values. Defaults to
+  /// UTF-8; type-only callers (alignment / flatten) never read it.
+  StringEncoding Enc = StringEncoding::UTF8;
 };
 
 /// Resolve a component type index. Returns the DefType pointer using

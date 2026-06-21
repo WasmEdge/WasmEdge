@@ -20,9 +20,9 @@ Expect<std::vector<ValVariant>> Executor::convValsToCoreWASM(
     Span<const ComponentValVariant> Vals, Span<const ComponentValType> ValTypes,
     Runtime::Instance::FunctionInstance *RFuncInst,
     Runtime::Instance::MemoryInstance *MemInst,
-    const Runtime::Instance::ComponentInstance *CompInst) {
+    const Runtime::Instance::ComponentInstance *CompInst, StringEncoding Enc) {
   // Wrapper over the spec's lower_flat_values (CanonicalABI.md L3212-3232).
-  CanonicalABI::CanonCtx Cx{this, MemInst, RFuncInst, CompInst, {}};
+  CanonicalABI::CanonCtx Cx{this, MemInst, RFuncInst, CompInst, {}, Enc};
   return CanonicalABI::lowerFlatValues(Cx, Vals, ValTypes,
                                        CanonicalABI::MaxFlatParams);
 }
@@ -32,9 +32,9 @@ Executor::convValsToComponent(
     Span<const std::pair<ValVariant, ValType>> CoreVals,
     Span<const ComponentValType> ValTypes,
     Runtime::Instance::MemoryInstance *MemInst,
-    const Runtime::Instance::ComponentInstance *CompInst) {
+    const Runtime::Instance::ComponentInstance *CompInst, StringEncoding Enc) {
   // Wrapper over the spec's lift_flat_values (CanonicalABI.md L3193-3202).
-  CanonicalABI::CanonCtx Cx{this, MemInst, nullptr, CompInst, {}};
+  CanonicalABI::CanonCtx Cx{this, MemInst, nullptr, CompInst, {}, Enc};
   CanonicalABI::FlatIter VI(CoreVals);
   EXPECTED_TRY(auto Lifted,
                CanonicalABI::liftFlatValues(Cx, VI, ValTypes,
@@ -59,16 +59,18 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       Runtime::Instance::MemoryInstance *MemInst = nullptr;
       Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
       Runtime::Instance::FunctionInstance *PostReturnFunc = nullptr;
+      StringEncoding Enc = StringEncoding::UTF8;
       for (auto &Opt : Opts) {
         switch (Opt.getCode()) {
         case ComponentCanonOptCode::Encode_UTF8:
-          // UTF-8 is the only encoding supported by the current canon ABI.
+          Enc = StringEncoding::UTF8;
           break;
         case ComponentCanonOptCode::Encode_UTF16:
+          Enc = StringEncoding::UTF16;
+          break;
         case ComponentCanonOptCode::Encode_Latin1:
-          spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-          spdlog::error("    canon lift: non-UTF-8 encoding not implemented"sv);
-          return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+          Enc = StringEncoding::Latin1UTF16;
+          break;
         case ComponentCanonOptCode::Memory:
           MemInst = CompInst.getCoreMemory(Opt.getIndex());
           break;
@@ -141,7 +143,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       CompInst.addFunction(
           std::make_unique<Runtime::Instance::Component::FunctionInstance>(
               DType->getFuncType(), FuncInst, MemInst, ReallocFunc, &CompInst,
-              PostReturnFunc));
+              PostReturnFunc, Enc));
       break;
     }
     case ComponentCanonOpCode::Lower: {
@@ -151,17 +153,18 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       const auto &Opts = Canon.getOptions();
       Runtime::Instance::MemoryInstance *MemInst = nullptr;
       Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
+      StringEncoding Enc = StringEncoding::UTF8;
       for (auto &Opt : Opts) {
         switch (Opt.getCode()) {
         case ComponentCanonOptCode::Encode_UTF8:
-          // UTF-8 is the only encoding supported here.
+          Enc = StringEncoding::UTF8;
           break;
         case ComponentCanonOptCode::Encode_UTF16:
+          Enc = StringEncoding::UTF16;
+          break;
         case ComponentCanonOptCode::Encode_Latin1:
-          spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-          spdlog::error(
-              "    canon lower: non-UTF-8 encoding not implemented"sv);
-          return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+          Enc = StringEncoding::Latin1UTF16;
+          break;
         case ComponentCanonOptCode::Memory:
           MemInst = CompInst.getCoreMemory(Opt.getIndex());
           break;
@@ -197,7 +200,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
                                                  /*IsLift=*/false));
 
       auto Thunk = std::make_unique<CanonLowerHostFunc>(
-          this, FlatSig, Callee, MemInst, ReallocFunc, &CompInst);
+          this, FlatSig, Callee, MemInst, ReallocFunc, &CompInst, Enc);
       // Register via the host-function helper so the synthesized core
       // function's defined type lands in a ModuleInstance::Types list and
       // matchType walks find it when wasm callers import this function.

@@ -64,6 +64,8 @@ public:
 
   void compileReturn() noexcept;
 
+  void checkStackLimit() noexcept;
+
   void updateInstrCount() noexcept;
 
   void updateGas() noexcept;

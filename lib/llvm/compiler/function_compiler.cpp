@@ -65,6 +65,7 @@ LLVM::BasicBlock FunctionCompiler::getTrapBB(ErrCode::Value Error) noexcept {
 Expect<void> FunctionCompiler::compile(
     const AST::CodeSegment &Code,
     std::pair<std::vector<ValType>, std::vector<ValType>> Type) noexcept {
+  checkStackLimit();
   auto RetBB = LLVM::BasicBlock::create(LLContext, F.Fn, "ret");
   Type.first.clear();
   enterBlock(RetBB, {}, {}, {}, std::move(Type));
@@ -1096,6 +1097,20 @@ void FunctionCompiler::compileReturn() noexcept {
   } else {
     Builder.createRet(stackPop());
   }
+}
+
+void FunctionCompiler::checkStackLimit() noexcept {
+  // Trap if the stack pointer (approximated by a fresh alloca) descended past
+  // the limit. A null limit (disabled) never triggers since addresses >= 0.
+  auto SP = Builder.createPtrToInt(Builder.createAlloca(Context.Int8Ty),
+                                   Context.Int64Ty);
+  auto Limit = Builder.createPtrToInt(Context.getStackLimit(Builder, ExecCtx),
+                                      Context.Int64Ty);
+  auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "stack_ok");
+  auto IsOk = Builder.createLikely(Builder.createICmpULE(Limit, SP));
+  Builder.createCondBr(IsOk, OkBB,
+                       getTrapBB(ErrCode::Value::CallStackExhausted));
+  Builder.positionAtEnd(OkBB);
 }
 
 void FunctionCompiler::updateInstrCount() noexcept {

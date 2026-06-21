@@ -25,58 +25,6 @@ namespace {
 
 using namespace WasmEdge;
 
-/// Host function that records i32 values for later inspection.
-class Check : public Runtime::HostFunction<Check> {
-public:
-  Expect<void> body(const Runtime::CallingFrame &, uint32_t Value) {
-    Values.push_back(Value);
-    return {};
-  }
-  Span<const uint32_t> getValues() const noexcept { return Values; }
-
-private:
-  std::vector<uint32_t> Values;
-};
-
-/// Module that provides a "check" host function under the "gc" namespace.
-class GCCheckModule : public Runtime::Instance::ModuleInstance {
-public:
-  GCCheckModule() : ModuleInstance("gc") {
-    auto CP = std::make_unique<Check>();
-    C = CP.get();
-    addHostFunc("check", std::move(CP));
-  }
-  Span<const uint32_t> getValues() const noexcept { return C->getValues(); }
-
-private:
-  Check *C = nullptr;
-};
-
-/// After instantiation, read the exported table "t" at index 0 and verify the
-/// null reference has been normalized to an abstract heap type. This catches
-/// the root cause of #4757 without executing wasm that would segfault if the
-/// fix is absent.
-bool checkNullTableEntry(VM::VM &VMInst) {
-  const auto *ModInst = VMInst.getActiveModule();
-  if (!ModInst) {
-    return false;
-  }
-  auto *TabInst = ModInst->findTableExports("t");
-  if (!TabInst) {
-    return false;
-  }
-  auto RefRes = TabInst->getRefAddr(0);
-  if (!RefRes) {
-    return false;
-  }
-  auto Ref = *RefRes;
-  EXPECT_TRUE(Ref.isNull());
-  EXPECT_TRUE(Ref.getType().isAbsHeapType())
-      << "Null reference in concrete-typed table must be normalized to an "
-         "abstract heap type (issue #4757)";
-  return Ref.isNull() && Ref.getType().isAbsHeapType();
-}
-
 // clang-format off
 /// Binary Wasm module with functions testing ref.test on externalized refs.
 ///
@@ -515,7 +463,81 @@ std::array<WasmEdge::Byte, 77> CallIndirectStructTableWasm{
     0xfd, 0x0c, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x49, 0x41,
     0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0xfb, 0x00, 0x01, 0x26, 0x00, 0x41,
     0x00, 0x11, 0x00, 0x00, 0x0b};
+
+/// Self-recursive f(n) = n ? f(n-1) : 0 (no tail-call); recursing deeper than
+/// the configured MaxStackSize must trap with CallStackExhausted, not complete.
+std::array<WasmEdge::Byte, 70> RecurseWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+    0x01, 0x7e, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+    0x66, 0x00, 0x00, 0x0a, 0x14, 0x01, 0x12, 0x00, 0x20, 0x00, 0x50, 0x04,
+    0x7e, 0x42, 0x00, 0x05, 0x20, 0x00, 0x42, 0x01, 0x7d, 0x10, 0x00, 0x0b,
+    0x0b, 0x00, 0x13, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x04, 0x01, 0x00,
+    0x01, 0x66, 0x02, 0x06, 0x01, 0x00, 0x01, 0x00, 0x01, 0x6e};
+
+/// Binary Wasm module exercising return_call into an imported host function.
+/// (module
+///   (import "host" "h" (func $h (param i32) (result i32)))
+///   (func $f (param i32) (result i32) local.get 0 return_call $h)
+///   (func (export "run") (param i32) (result i32) local.get 0 call $f))
+std::array<WasmEdge::Byte, 59> ReturnCallHostWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+    0x01, 0x7f, 0x01, 0x7f, 0x02, 0x0a, 0x01, 0x04, 0x68, 0x6f, 0x73, 0x74,
+    0x01, 0x68, 0x00, 0x00, 0x03, 0x03, 0x02, 0x00, 0x00, 0x07, 0x07, 0x01,
+    0x03, 0x72, 0x75, 0x6e, 0x00, 0x02, 0x0a, 0x0f, 0x02, 0x06, 0x00, 0x20,
+    0x00, 0x12, 0x00, 0x0b, 0x06, 0x00, 0x20, 0x00, 0x10, 0x01, 0x0b};
 // clang-format on
+
+/// Host function that records i32 values for later inspection.
+class Check : public Runtime::HostFunction<Check> {
+public:
+  Expect<void> body(const Runtime::CallingFrame &, uint32_t Value) {
+    Values.push_back(Value);
+    return {};
+  }
+  Span<const uint32_t> getValues() const noexcept { return Values; }
+
+private:
+  std::vector<uint32_t> Values;
+};
+
+/// Module that provides a "check" host function under the "gc" namespace.
+class GCCheckModule : public Runtime::Instance::ModuleInstance {
+public:
+  GCCheckModule() : ModuleInstance("gc") {
+    auto CP = std::make_unique<Check>();
+    C = CP.get();
+    addHostFunc("check", std::move(CP));
+  }
+  Span<const uint32_t> getValues() const noexcept { return C->getValues(); }
+
+private:
+  Check *C = nullptr;
+};
+
+/// After instantiation, read the exported table "t" at index 0 and verify the
+/// null reference has been normalized to an abstract heap type. This catches
+/// the root cause of #4757 without executing wasm that would segfault if the
+/// fix is absent.
+bool checkNullTableEntry(VM::VM &VMInst) {
+  const auto *ModInst = VMInst.getActiveModule();
+  if (!ModInst) {
+    return false;
+  }
+  auto *TabInst = ModInst->findTableExports("t");
+  if (!TabInst) {
+    return false;
+  }
+  auto RefRes = TabInst->getRefAddr(0);
+  if (!RefRes) {
+    return false;
+  }
+  auto Ref = *RefRes;
+  EXPECT_TRUE(Ref.isNull());
+  EXPECT_TRUE(Ref.getType().isAbsHeapType())
+      << "Null reference in concrete-typed table must be normalized to an "
+         "abstract heap type (issue #4757)";
+  return Ref.isNull() && Ref.getType().isAbsHeapType();
+}
 
 /// Regression test for ref.test on externalized nullable references.
 ///
@@ -990,6 +1012,58 @@ TEST(ExecutorRegression, CallIndirectNonFuncTable) {
   auto Result = VM.validate();
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), ErrCode::Value::TypeCheckFailed);
+}
+
+/// Deeply recursive wasm must trap with CallStackExhausted once MaxStackSize
+/// is exceeded, instead of completing or overflowing the host stack.
+TEST(ExecutorRegression, CallStackExhaustion) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setMaxStackSize(UINT64_C(64) << 10);
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(RecurseWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  const std::vector<ValVariant> Params = {ValVariant(UINT64_C(5000))};
+  const std::vector<ValType> ParamTypes = {ValType(TypeCode::I64)};
+  auto Result = VM.execute("f", Params, ParamTypes);
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::CallStackExhausted);
+  EXPECT_EQ(Result.error().getErrCodePhase(), WasmPhase::Execution);
+}
+
+/// return_call (tail call) into an imported host function must invoke the host
+/// function once and return its result to the original caller, instead of
+/// re-entering the call in a loop and crashing.
+TEST(ExecutorRegression, ReturnCallToHostFunction) {
+  // Host function returning its argument plus 100.
+  class TailAddHundred : public Runtime::HostFunction<TailAddHundred> {
+  public:
+    Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t Value) {
+      return Value + 100;
+    }
+  };
+  // Module exporting the host function "h" under the "host" namespace.
+  class TailHostModule : public Runtime::Instance::ModuleInstance {
+  public:
+    TailHostModule() : ModuleInstance("host") {
+      addHostFunc("h", std::make_unique<TailAddHundred>());
+    }
+  };
+
+  Configure Conf;
+  TailHostModule HostMod;
+  VM::VM VM(Conf);
+  VM.registerModule(HostMod);
+  ASSERT_TRUE(VM.loadWasm(ReturnCallHostWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  const std::vector<ValVariant> Params = {ValVariant(UINT32_C(7))};
+  const std::vector<ValType> ParamTypes = {ValType(TypeCode::I32)};
+  auto Result = VM.execute("run", Params, ParamTypes);
+  ASSERT_TRUE(Result);
+  EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(107));
 }
 
 } // namespace

@@ -1117,6 +1117,7 @@ private:
     uint64_t GasLimit;
     std::atomic_uint32_t *StopToken;
     const void *ModuleInst;
+    uint8_t *StackLimit;
   };
 
   /// Restores thread local VM reference after overwriting it.

@@ -1088,7 +1088,10 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         return;
       }
       case CommandID::AssertExhaustion: {
-        // TODO: Add stack overflow mechanism.
+        const simdjson::dom::object &Action = Cmd["action"];
+        const std::string_view Text = Cmd["text"];
+        const uint64_t LineNumber = Cmd["line"];
+        TrapInvoke(Action, std::string(Text), LineNumber);
         return;
       }
       case CommandID::AssertMalformed: {

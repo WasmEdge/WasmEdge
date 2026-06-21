@@ -112,9 +112,13 @@ private:
 
 class RuntimeConfigure {
 public:
+  /// Default maximum stack bytes per execution (512 KiB).
+  static constexpr uint64_t DefaultMaxStackSize = UINT64_C(512) << 10;
+
   RuntimeConfigure() noexcept = default;
   RuntimeConfigure(const RuntimeConfigure &RHS) noexcept
       : MaxMemPage(RHS.MaxMemPage.load(std::memory_order_relaxed)),
+        MaxStackSize(RHS.MaxStackSize.load(std::memory_order_relaxed)),
         Mode(RHS.Mode.load(std::memory_order_relaxed)),
         EnableCoredump(RHS.EnableCoredump.load(std::memory_order_relaxed)),
         CoredumpWasmgdb(RHS.CoredumpWasmgdb.load(std::memory_order_relaxed)),
@@ -126,6 +130,14 @@ public:
 
   uint64_t getMaxMemoryPage() const noexcept {
     return MaxMemPage.load(std::memory_order_relaxed);
+  }
+
+  void setMaxStackSize(const uint64_t Size) noexcept {
+    MaxStackSize.store(Size, std::memory_order_relaxed);
+  }
+
+  uint64_t getMaxStackSize() const noexcept {
+    return MaxStackSize.load(std::memory_order_relaxed);
   }
 
   void setRunMode(RunMode M) noexcept {
@@ -162,6 +174,10 @@ public:
 
 private:
   std::atomic<uint64_t> MaxMemPage = 65536;
+  // Max stack bytes per execution: native stack (compiled) or heap stack
+  // (interpreter). 0 disables the limit. The compiled-mode budget must fit the
+  // thread's stack, since the native stack is not auto-detected.
+  std::atomic<uint64_t> MaxStackSize = DefaultMaxStackSize;
   std::atomic<RunMode> Mode = RunMode::Interpreter;
   std::atomic<bool> EnableCoredump = false;
   std::atomic<bool> CoredumpWasmgdb = false;

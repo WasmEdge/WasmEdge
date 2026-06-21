@@ -3,8 +3,7 @@
 
 #include "executor/executor.h"
 
-#include <new>
-#include <stdexcept>
+#include <exception>
 
 namespace WasmEdge {
 namespace Executor {
@@ -496,9 +495,7 @@ Executor::arrayNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
           TypeIdx,
           packVals(VType, std::vector<ValVariant>(Args.begin(), Args.end())));
     }
-  } catch (const std::bad_alloc &) {
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
-  } catch (const std::length_error &) {
+  } catch (const std::exception &) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   return RefVariant(Inst->getDefType(), Inst);
@@ -529,9 +526,7 @@ Executor::arrayNewData(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
     WasmEdge::Runtime::Instance::ArrayInstance *Inst =
         ModInst->newArray(TypeIdx, std::move(Args));
     return RefVariant(Inst->getDefType(), Inst);
-  } catch (const std::bad_alloc &) {
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
-  } catch (const std::length_error &) {
+  } catch (const std::exception &) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 }
@@ -557,9 +552,7 @@ Executor::arrayNewElem(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
     WasmEdge::Runtime::Instance::ArrayInstance *Inst =
         ModInst->newArray(TypeIdx, packVals(VType, std::move(Refs)));
     return RefVariant(Inst->getDefType(), Inst);
-  } catch (const std::bad_alloc &) {
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
-  } catch (const std::length_error &) {
+  } catch (const std::exception &) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 }

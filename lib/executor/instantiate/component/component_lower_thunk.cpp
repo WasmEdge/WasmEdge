@@ -19,14 +19,16 @@ CanonLowerHostFunc::CanonLowerHostFunc(
     Runtime::Instance::Component::FunctionInstance *CalleeIn,
     Runtime::Instance::MemoryInstance *MemoryIn,
     Runtime::Instance::FunctionInstance *ReallocIn,
-    const Runtime::Instance::ComponentInstance *CompInstIn) noexcept
+    const Runtime::Instance::ComponentInstance *CompInstIn,
+    StringEncoding EncIn) noexcept
     : HostFunctionBase(/*FuncCost=*/0), Exec(ExecIn), Callee(CalleeIn),
       Memory(MemoryIn), Realloc(ReallocIn), CompInst(CompInstIn),
       // Lower side adds a trailing out-ptr when flat_results > MaxFlatResults;
       // in that case FlatSig.Results is empty (spec L2829-2831) while the
       // callee still has result types.
       HasOutPtr(FlatSig.Results.empty() &&
-                !CalleeIn->getFuncType().getResultList().empty()) {
+                !CalleeIn->getFuncType().getResultList().empty()),
+      Enc(EncIn) {
   // Populate DefType from the pre-flighted flat ABI signature.
   auto &FT = DefType.getCompositeType().getFuncType();
   auto &Params = FT.getParamTypes();
@@ -47,7 +49,7 @@ Expect<void> CanonLowerHostFunc::run(const Runtime::CallingFrame &,
   // Lower-direction CanonCtx: Memory/Realloc come from the canon lower
   // options. Exec is needed by callRealloc inside lower_flat_values when
   // nested strings/lists in results need their own buffer.
-  CanonicalABI::CanonCtx Cx{Exec, Memory, Realloc, CompInst, {}};
+  CanonicalABI::CanonCtx Cx{Exec, Memory, Realloc, CompInst, {}, Enc};
 
   // Collect component-level param + result types from the callee.
   const auto &CFT = Callee->getFuncType();

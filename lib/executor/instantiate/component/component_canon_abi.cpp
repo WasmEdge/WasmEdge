@@ -884,6 +884,260 @@ void assumeValidUSV(uint32_t I) noexcept {
   assuming(I < 0x110000u && (I < 0xD800u || I > 0xDFFFu));
 }
 
+// ---- String transcoding (CanonicalABI.md `string-encoding` option) ----------
+// The host represents component strings as a UTF-8 std::string. decodeString
+// converts the guest's on-the-wire bytes (in Cx.Enc) into that UTF-8 form (lift
+// / load); encodeString does the reverse, allocating the guest buffer via
+// realloc (lower / store). Only the host<->guest direction is transcoded; the
+// host side is canonically UTF-8, which collapses the spec's full src/dst
+// encoding matrix (store_string_into_range, L1592-1709) to the src='utf8' rows.
+
+// utf16_tag for an i32 ptr_type (CanonicalABI.md L1388): high bit of the length.
+constexpr uint32_t kUtf16Tag = 0x80000000u;
+
+// Append a Unicode scalar value as UTF-8. Caller guarantees a valid USV.
+void appendUtf8(std::string &Out, uint32_t CP) noexcept {
+  if (CP < 0x80u) {
+    Out.push_back(static_cast<char>(CP));
+  } else if (CP < 0x800u) {
+    Out.push_back(static_cast<char>(0xC0u | (CP >> 6)));
+    Out.push_back(static_cast<char>(0x80u | (CP & 0x3Fu)));
+  } else if (CP < 0x10000u) {
+    Out.push_back(static_cast<char>(0xE0u | (CP >> 12)));
+    Out.push_back(static_cast<char>(0x80u | ((CP >> 6) & 0x3Fu)));
+    Out.push_back(static_cast<char>(0x80u | (CP & 0x3Fu)));
+  } else {
+    Out.push_back(static_cast<char>(0xF0u | (CP >> 18)));
+    Out.push_back(static_cast<char>(0x80u | ((CP >> 12) & 0x3Fu)));
+    Out.push_back(static_cast<char>(0x80u | ((CP >> 6) & 0x3Fu)));
+    Out.push_back(static_cast<char>(0x80u | (CP & 0x3Fu)));
+  }
+}
+
+// Decode a UTF-8 host string into Unicode scalar values, validating as we go
+// (overlong forms, surrogates, and out-of-range code points all trap). Used by
+// the encode side where the source is the host's UTF-8 std::string.
+Expect<std::vector<uint32_t>> utf8ToCodePoints(std::string_view S) noexcept {
+  std::vector<uint32_t> CPs;
+  const size_t N = S.size();
+  for (size_t I = 0; I < N;) {
+    const uint8_t B0 = static_cast<uint8_t>(S[I]);
+    uint32_t CP = 0;
+    size_t Len = 0;
+    uint32_t Min = 0;
+    if (B0 < 0x80u) {
+      CP = B0;
+      Len = 1;
+      Min = 0;
+    } else if ((B0 & 0xE0u) == 0xC0u) {
+      CP = B0 & 0x1Fu;
+      Len = 2;
+      Min = 0x80u;
+    } else if ((B0 & 0xF0u) == 0xE0u) {
+      CP = B0 & 0x0Fu;
+      Len = 3;
+      Min = 0x800u;
+    } else if ((B0 & 0xF8u) == 0xF0u) {
+      CP = B0 & 0x07u;
+      Len = 4;
+      Min = 0x10000u;
+    } else {
+      EXPECTED_TRY(trapDataInvalid("invalid UTF-8 lead byte"));
+    }
+    if (I + Len > N) {
+      EXPECTED_TRY(trapDataInvalid("truncated UTF-8 sequence"));
+    }
+    for (size_t K = 1; K < Len; ++K) {
+      const uint8_t B = static_cast<uint8_t>(S[I + K]);
+      if ((B & 0xC0u) != 0x80u) {
+        EXPECTED_TRY(trapDataInvalid("invalid UTF-8 continuation byte"));
+      }
+      CP = (CP << 6) | (B & 0x3Fu);
+    }
+    if (CP < Min || CP > 0x10FFFFu || (CP >= 0xD800u && CP <= 0xDFFFu)) {
+      EXPECTED_TRY(trapDataInvalid("invalid UTF-8 scalar value"));
+    }
+    CPs.push_back(CP);
+    I += Len;
+  }
+  return CPs;
+}
+
+// Decode UTF-16-LE bytes into a UTF-8 string, pairing surrogates (L1395-1423).
+Expect<std::string> utf16leToUtf8(Span<const Byte> Bytes) noexcept {
+  std::string Out;
+  const size_t N = Bytes.size();
+  for (size_t I = 0; I + 1 < N; I += 2) {
+    uint32_t U = static_cast<uint32_t>(static_cast<uint8_t>(Bytes[I])) |
+                 (static_cast<uint32_t>(static_cast<uint8_t>(Bytes[I + 1])) << 8);
+    if (U >= 0xD800u && U <= 0xDBFFu) {
+      if (I + 3 >= N) {
+        EXPECTED_TRY(trapDataInvalid("unpaired UTF-16 high surrogate"));
+      }
+      const uint32_t L =
+          static_cast<uint32_t>(static_cast<uint8_t>(Bytes[I + 2])) |
+          (static_cast<uint32_t>(static_cast<uint8_t>(Bytes[I + 3])) << 8);
+      if (L < 0xDC00u || L > 0xDFFFu) {
+        EXPECTED_TRY(trapDataInvalid("invalid UTF-16 low surrogate"));
+      }
+      U = 0x10000u + ((U - 0xD800u) << 10) + (L - 0xDC00u);
+      I += 2;
+    } else if (U >= 0xDC00u && U <= 0xDFFFu) {
+      EXPECTED_TRY(trapDataInvalid("unpaired UTF-16 low surrogate"));
+    }
+    appendUtf8(Out, U);
+  }
+  return Out;
+}
+
+// Encode Unicode scalar values to UTF-16-LE bytes (surrogate pair for >U+FFFF).
+std::vector<Byte> codePointsToUtf16le(const std::vector<uint32_t> &CPs) noexcept {
+  std::vector<Byte> Out;
+  Out.reserve(CPs.size() * 2);
+  auto push16 = [&](uint32_t U) {
+    Out.push_back(static_cast<Byte>(U & 0xFFu));
+    Out.push_back(static_cast<Byte>((U >> 8) & 0xFFu));
+  };
+  for (uint32_t CP : CPs) {
+    if (CP < 0x10000u) {
+      push16(CP);
+    } else {
+      const uint32_t V = CP - 0x10000u;
+      push16(0xD800u + (V >> 10));
+      push16(0xDC00u + (V & 0x3FFu));
+    }
+  }
+  return Out;
+}
+
+// load_string_from_range (CanonicalABI.md L1395-1423): decode tagged_code_units
+// of guest bytes at Begin into the host UTF-8 string.
+Expect<std::string> decodeString(const CanonCtx &Cx, uint32_t Begin,
+                                 uint32_t TaggedCodeUnits) noexcept {
+  enum class WireEnc { Utf8, Utf16, Latin1 } W = WireEnc::Utf8;
+  uint32_t Alignment = 1;
+  uint64_t ByteLen64 = 0;
+  switch (Cx.Enc) {
+  case StringEncoding::UTF8:
+    W = WireEnc::Utf8;
+    Alignment = 1;
+    ByteLen64 = TaggedCodeUnits;
+    break;
+  case StringEncoding::UTF16:
+    W = WireEnc::Utf16;
+    Alignment = 2;
+    ByteLen64 = 2ull * TaggedCodeUnits;
+    break;
+  case StringEncoding::Latin1UTF16:
+    Alignment = 2;
+    if ((TaggedCodeUnits & kUtf16Tag) != 0u) {
+      W = WireEnc::Utf16;
+      ByteLen64 = 2ull * (TaggedCodeUnits ^ kUtf16Tag);
+    } else {
+      W = WireEnc::Latin1;
+      ByteLen64 = TaggedCodeUnits;
+    }
+    break;
+  }
+  if (ByteLen64 > static_cast<uint64_t>(kMaxCanonByteLength)) {
+    EXPECTED_TRY(trapDataInvalid("string byte length exceeds MAX"));
+  }
+  const uint32_t ByteLen = static_cast<uint32_t>(ByteLen64);
+  if (Begin != alignTo(Begin, Alignment)) {
+    EXPECTED_TRY(trapDataInvalid("string pointer misaligned"));
+  }
+  if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
+    EXPECTED_TRY(trapMemoryOOB("string payload", Begin, ByteLen));
+  }
+  auto SV = Cx.Mem->getStringView(Begin, ByteLen);
+  switch (W) {
+  case WireEnc::Utf8:
+    // TODO: the spec validates UTF-8 here and traps on error; preserved as a
+    // raw copy to match the pre-existing utf8 path.
+    return std::string(SV);
+  case WireEnc::Latin1: {
+    std::string Out;
+    Out.reserve(ByteLen);
+    for (size_t I = 0; I < SV.size(); ++I) {
+      appendUtf8(Out, static_cast<uint8_t>(SV[I]));
+    }
+    return Out;
+  }
+  case WireEnc::Utf16:
+    return utf16leToUtf8(Span<const Byte>{
+        reinterpret_cast<const Byte *>(SV.data()), SV.size()});
+  }
+  assumingUnreachable();
+}
+
+// store_string_into_range (CanonicalABI.md L1592-1709) with the host source
+// always UTF-8. Allocates the guest buffer and returns (begin,
+// tagged_code_units) ready to write into the (ptr, len) header.
+Expect<std::pair<uint32_t, uint32_t>>
+encodeString(const CanonCtx &Cx, const std::string &S) noexcept {
+  // Helper: realloc a buffer, bounds-check it, copy `Bytes` in.
+  auto writeBuf = [&](Span<const Byte> Bytes,
+                      uint32_t Align) -> Expect<uint32_t> {
+    const uint32_t Len = static_cast<uint32_t>(Bytes.size());
+    if (Len == 0u) {
+      return uint32_t{0};
+    }
+    EXPECTED_TRY(auto Begin,callRealloc(Cx, 0u, 0u, Align, Len));
+    if (Begin != alignTo(Begin, Align)) {
+      EXPECTED_TRY(trapDataInvalid("string buffer misaligned"));
+    }
+    if (!Cx.Mem->checkAccessBound(Begin, Len)) {
+      EXPECTED_TRY(trapMemoryOOB("string payload (post-realloc)", Begin, Len));
+    }
+    EXPECTED_TRY(Cx.Mem->setBytes(Bytes, Begin, 0u, Len));
+    return Begin;
+  };
+
+  switch (Cx.Enc) {
+  case StringEncoding::UTF8: {
+    // store_string_copy utf8->utf8 (L1633): plain byte copy.
+    Span<const Byte> Bytes{reinterpret_cast<const Byte *>(S.data()), S.size()};
+    EXPECTED_TRY(auto Begin,writeBuf(Bytes, 1u));
+    return std::make_pair(Begin, static_cast<uint32_t>(S.size()));
+  }
+  case StringEncoding::UTF16: {
+    // store_utf8_to_utf16 (L1665): code units = bytes / 2.
+    EXPECTED_TRY(auto CPs, utf8ToCodePoints(S));
+    auto Bytes = codePointsToUtf16le(CPs);
+    const uint32_t Units = static_cast<uint32_t>(Bytes.size() / 2);
+    EXPECTED_TRY(auto Begin,writeBuf(Bytes, 2u));
+    return std::make_pair(Begin, Units);
+  }
+  case StringEncoding::Latin1UTF16: {
+    // store_string_to_latin1_or_utf16 (L1689): latin1 when every scalar fits in
+    // a byte, else utf16 with the high-bit tag. The buffer is 2-aligned either
+    // way (the latin1 case may have been a utf16 fallback per spec).
+    EXPECTED_TRY(auto CPs, utf8ToCodePoints(S));
+    bool AllLatin1 = true;
+    for (uint32_t CP : CPs) {
+      if (CP >= 0x100u) {
+        AllLatin1 = false;
+        break;
+      }
+    }
+    if (AllLatin1) {
+      std::vector<Byte> Bytes;
+      Bytes.reserve(CPs.size());
+      for (uint32_t CP : CPs) {
+        Bytes.push_back(static_cast<Byte>(CP));
+      }
+      EXPECTED_TRY(auto Begin,writeBuf(Bytes, 2u));
+      return std::make_pair(Begin, static_cast<uint32_t>(CPs.size()));
+    }
+    auto Bytes = codePointsToUtf16le(CPs);
+    const uint32_t Units = static_cast<uint32_t>(Bytes.size() / 2);
+    EXPECTED_TRY(auto Begin,writeBuf(Bytes, 2u));
+    return std::make_pair(Begin, Units | kUtf16Tag);
+  }
+  }
+  assumingUnreachable();
+}
+
 // Load a primitive at Ptr. CanonicalABI.md L2054-2065.
 Expect<ComponentValVariant> loadPrim(const CanonCtx &Cx, uint32_t Ptr,
                                      AST::Component::PrimValType PVT) noexcept {
@@ -955,21 +1209,14 @@ Expect<ComponentValVariant> loadPrim(const CanonCtx &Cx, uint32_t Ptr,
     return ComponentValVariant{V};
   }
   case P::String: {
-    // load_string (L2163-2225): UTF-8 only (other encodings deferred at the
-    // canon-options level; see component_canon.cpp L164-169).
+    // load_string (L1383-1423): read (begin, tagged_code_units), then decode
+    // per the canon string-encoding option into the host's UTF-8 string.
     uint32_t Begin = 0;
     uint32_t Tagged = 0;
     EXPECTED_TRY(Cx.Mem->loadValue<uint32_t>(Begin, Ptr));
     EXPECTED_TRY(Cx.Mem->loadValue<uint32_t>(Tagged, Ptr + 4u));
-    const uint32_t ByteLen = Tagged;
-    if (ByteLen > kMaxCanonByteLength) {
-      EXPECTED_TRY(trapDataInvalid("string byte length exceeds MAX"));
-    }
-    if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
-      EXPECTED_TRY(trapMemoryOOB("string payload", Begin, ByteLen));
-    }
-    auto SV = Cx.Mem->getStringView(Begin, ByteLen);
-    return ComponentValVariant{std::string(SV)};
+    EXPECTED_TRY(auto Str, decodeString(Cx, Begin, Tagged));
+    return ComponentValVariant{std::move(Str)};
   }
   case P::ErrorContext:
     spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
@@ -1254,25 +1501,12 @@ Expect<void> storePrim(const CanonCtx &Cx, const ComponentValVariant &V,
     return Cx.Mem->storeValue<uint32_t>(I, Ptr);
   }
   case P::String: {
-    // store_string (CanonicalABI.md L2477-2502): UTF-8 only here — other
-    // encodings are filtered at the canon-options layer in
-    // component_canon.cpp. Allocate via realloc with alignment 1 (L2432),
-    // copy payload, then store the (ptr, len) pair at Ptr.
-    const auto &Str = std::get<std::string>(V);
-    const uint32_t Len = static_cast<uint32_t>(Str.size());
-    uint32_t Begin = 0;
-    if (Len > 0u) {
-      EXPECTED_TRY(Begin, callRealloc(Cx, 0u, 0u, 1u, Len));
-      if (!Cx.Mem->checkAccessBound(Begin, Len)) {
-        EXPECTED_TRY(
-            trapMemoryOOB("string payload (post-realloc)", Begin, Len));
-      }
-      EXPECTED_TRY(Cx.Mem->setBytes(
-          Span<const Byte>{reinterpret_cast<const Byte *>(Str.data()), Len},
-          Begin, 0u, Len));
-    }
-    EXPECTED_TRY(Cx.Mem->storeValue<uint32_t>(Begin, Ptr));
-    EXPECTED_TRY(Cx.Mem->storeValue<uint32_t>(Len, Ptr + 4u));
+    // store_string (CanonicalABI.md L1587-1709): encode the host UTF-8 string
+    // per the canon string-encoding option, then store the (begin,
+    // tagged_code_units) pair at Ptr.
+    EXPECTED_TRY(auto Enc, encodeString(Cx, std::get<std::string>(V)));
+    EXPECTED_TRY(Cx.Mem->storeValue<uint32_t>(Enc.first, Ptr));
+    EXPECTED_TRY(Cx.Mem->storeValue<uint32_t>(Enc.second, Ptr + 4u));
     return {};
   }
   case P::ErrorContext:
@@ -1717,20 +1951,15 @@ liftFlatPrim(const CanonCtx &Cx, FlatIter &VI,
     return ComponentValVariant{I};
   }
   case P::String: {
-    // lift_flat_string (L3010-3013): ptr + len pair from flat values.
+    // lift_flat string (L3010-3013): (ptr, tagged_code_units) from flat values,
+    // then decode per the canon string-encoding option.
     assuming(Next.has_value());
     const uint32_t Ptr = Next->get<uint32_t>();
     auto LenV = VI.next();
     assuming(LenV.has_value());
-    const uint32_t Len = LenV->get<uint32_t>();
-    if (Len > kMaxCanonByteLength) {
-      EXPECTED_TRY(trapDataInvalid("string byte length exceeds MAX"));
-    }
-    if (!Cx.Mem->checkAccessBound(Ptr, Len)) {
-      EXPECTED_TRY(trapMemoryOOB("string payload", Ptr, Len));
-    }
-    auto SV = Cx.Mem->getStringView(Ptr, Len);
-    return ComponentValVariant{std::string(SV)};
+    const uint32_t Tagged = LenV->get<uint32_t>();
+    EXPECTED_TRY(auto Str, decodeString(Cx, Ptr, Tagged));
+    return ComponentValVariant{std::move(Str)};
   }
   case P::ErrorContext:
     spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
@@ -1997,21 +2226,11 @@ lowerFlatPrim(const CanonCtx &Cx, const ComponentValVariant &V,
     return std::vector<ValVariant>{ValVariant(I)};
   }
   case P::String: {
-    // lower_flat_string (L3130-3132): realloc + copy, push (ptr, len).
-    const auto &Str = std::get<std::string>(V);
-    const uint32_t Len = static_cast<uint32_t>(Str.size());
-    uint32_t Begin = 0;
-    if (Len > 0u) {
-      EXPECTED_TRY(Begin, callRealloc(Cx, 0u, 0u, 1u, Len));
-      if (!Cx.Mem->checkAccessBound(Begin, Len)) {
-        EXPECTED_TRY(
-            trapMemoryOOB("string payload (post-realloc)", Begin, Len));
-      }
-      EXPECTED_TRY(Cx.Mem->setBytes(
-          Span<const Byte>{reinterpret_cast<const Byte *>(Str.data()), Len},
-          Begin, 0u, Len));
-    }
-    return std::vector<ValVariant>{ValVariant(Begin), ValVariant(Len)};
+    // lower_flat string (L3130-3132): encode per the canon string-encoding
+    // option, push (ptr, tagged_code_units).
+    EXPECTED_TRY(auto Enc, encodeString(Cx, std::get<std::string>(V)));
+    return std::vector<ValVariant>{ValVariant(Enc.first),
+                                   ValVariant(Enc.second)};
   }
   case P::ErrorContext:
     spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);

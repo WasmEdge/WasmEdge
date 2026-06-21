@@ -531,6 +531,12 @@ private:
 
 // >>>>>>>> Component Model Value definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+/// Canonical ABI string encoding (CanonicalABI.md `string-encoding` canon
+/// option). The host always represents component strings as a UTF-8
+/// std::string; this selects how the *guest* lays them out in linear memory, so
+/// lift decodes from it and lower encodes to it.
+enum class StringEncoding : uint8_t { UTF8, UTF16, Latin1UTF16 };
+
 /// Forward declaration of the aggregate component value container.
 /// Defined after ComponentValVariant so members can hold ComponentValVariant.
 struct ValComp;

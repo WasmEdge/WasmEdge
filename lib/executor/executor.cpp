@@ -240,7 +240,8 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
   auto *MemInst = FuncInst->getMemoryInstance();
   EXPECTED_TRY(auto CoreWASMArgs,
                convValsToCoreWASM(Params, ParamTypes, ReallocFuncInst, MemInst,
-                                  FuncInst->getComponentInstance()));
+                                  FuncInst->getComponentInstance(),
+                                  FuncInst->getStringEncoding()));
 
   // Call runFunction.
   auto *CoreFuncInst = FuncInst->getLowerFunction();
@@ -257,7 +258,8 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
   }
   EXPECTED_TRY(auto Returns,
                convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst,
-                                   FuncInst->getComponentInstance()));
+                                   FuncInst->getComponentInstance(),
+                                   FuncInst->getStringEncoding()));
   assuming(Returns.size() == ReturnTypes.size());
 
   // CanonicalABI.md L3367-3372: after a sync lift completes (post

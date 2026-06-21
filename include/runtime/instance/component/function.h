@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/component/type.h"
+#include "common/types.h"
 #include "runtime/instance/function.h"
 #include "runtime/instance/memory.h"
 
@@ -26,7 +27,8 @@ public:
   FunctionInstance(FunctionInstance &&Inst) noexcept
       : FuncType(Inst.FuncType), LowerFunc(Inst.LowerFunc),
         MemInst(Inst.MemInst), ReallocFunc(Inst.ReallocFunc),
-        PostReturnFunc(Inst.PostReturnFunc), ParentComp(Inst.ParentComp) {}
+        PostReturnFunc(Inst.PostReturnFunc), ParentComp(Inst.ParentComp),
+        Enc(Inst.Enc) {}
   /// Constructor for component native function. `PR` is the optional
   /// post-return core function (CanonicalABI.md L3367-3372); pass nullptr
   /// when the canon lift declared no post-return option.
@@ -35,9 +37,10 @@ public:
                    Runtime::Instance::MemoryInstance *M,
                    Runtime::Instance::FunctionInstance *R,
                    const Runtime::Instance::ComponentInstance *P,
-                   Runtime::Instance::FunctionInstance *PR = nullptr) noexcept
+                   Runtime::Instance::FunctionInstance *PR = nullptr,
+                   StringEncoding E = StringEncoding::UTF8) noexcept
       : FuncType(Type), LowerFunc(F), MemInst(M), ReallocFunc(R),
-        PostReturnFunc(PR), ParentComp(P) {}
+        PostReturnFunc(PR), ParentComp(P), Enc(E) {}
 
   /// Getter for component function type.
   const AST::Component::FuncType &getFuncType() const noexcept {
@@ -72,6 +75,10 @@ public:
     return PostReturnFunc;
   }
 
+  /// Getter for the guest string encoding declared by the canon lift's
+  /// `string-encoding` option (defaults to UTF-8).
+  StringEncoding getStringEncoding() const noexcept { return Enc; }
+
 protected:
   const AST::Component::FuncType &FuncType;
   Runtime::Instance::FunctionInstance *LowerFunc;
@@ -79,6 +86,7 @@ protected:
   Runtime::Instance::FunctionInstance *ReallocFunc;
   Runtime::Instance::FunctionInstance *PostReturnFunc;
   const Runtime::Instance::ComponentInstance *ParentComp;
+  StringEncoding Enc;
 };
 
 } // namespace Component

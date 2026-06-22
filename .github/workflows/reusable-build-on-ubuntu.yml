@@ -30,6 +30,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       BUILD_TESTS: OFF
+      SCCACHE_GHA_ENABLED: "true"
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
     container: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
       - name: Install dependencies - non-release
@@ -45,6 +48,10 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@1583d6b38d7be47f593cb472781bbb21cab4321e # v0.0.10
+        with:
+          version: "v0.10.0"
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)

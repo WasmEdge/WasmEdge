@@ -204,7 +204,7 @@ security audit.
     - Outbound
         - [WasmEdge Discord server](https://discord.gg/h4KDyB8XTt).
         - **#wasmedge** channel on the [CNCF Slack](https://slack.cncf.io/).
-        - Mailing list <wasmedge@googlegroup.com>.
+        - Mailing list <WasmEdge@googlegroups.com>.
         - We host a monthly community meeting to showcase new features, demo new
           use cases, and a Q&A part.
             - The first Tuesday of each month at 11PM Hong Kong Time/ 7AM PST.

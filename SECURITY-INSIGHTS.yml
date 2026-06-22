@@ -52,11 +52,11 @@ security-testing:
     before-release: true
 security-contacts:
 - type: email
-  value: security@secondstate.io
+  value: wasmedge-security@lists.cncf.io
 vulnerability-reporting:
   accepts-vulnerability-reports: true
   security-policy: https://github.com/WasmEdge/WasmEdge/blob/master/SECURITY.md
-  email-contact: security@secondstate.io
+  email-contact: wasmedge-security@lists.cncf.io
   comment: |
     You will receive an acknowledgement mail within 24 hours. After that, we will give a detailed response about the subsequent process within 48 hours.
 dependencies:

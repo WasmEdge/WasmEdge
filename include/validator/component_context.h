@@ -57,6 +57,8 @@ public:
       const AST::Component::InstanceType *IT;
       std::optional<uint32_t> NestedInstIdx;
       std::optional<uint64_t> ResourceId;
+      // Set when this export is a `(core module)`; ST is unused then.
+      bool IsCoreModule = false;
     };
     // Instance slot. Type is set only when bound via
     // validate(ExternDesc::InstanceType) (GAP-I-5b follow-up otherwise).
@@ -417,6 +419,14 @@ public:
       std::optional<uint64_t> ResourceId = std::nullopt) noexcept {
     getCurrentContext().Instances.at(InstIdx).Exports[std::string(Name)] = {
         ST, IT, NestedInstIdx, ResourceId};
+  }
+
+  // Record a `(core module)` export so a later `alias export` can resolve it.
+  void addCoreModuleInstanceExport(uint32_t InstIdx,
+                                   std::string_view Name) noexcept {
+    getCurrentContext().Instances.at(InstIdx).Exports[std::string(Name)] =
+        InstanceExport{AST::Component::Sort::SortType::Max, nullptr,
+                       std::nullopt, std::nullopt, /*IsCoreModule=*/true};
   }
 
   // ==========================================================================

@@ -1513,17 +1513,12 @@ static void sigevCallback(union sigval Value) noexcept {
 }
 
 WasiExpect<void> setTimerPipeFlags(int Fd) noexcept {
-  const int FdFlags = ::fcntl(Fd, F_GETFD);
-  if (unlikely(FdFlags < 0)) {
-    return WasiUnexpect(fromErrNo(errno));
-  }
-
   const int StatusFlags = ::fcntl(Fd, F_GETFL);
   if (unlikely(StatusFlags < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }
 
-  if (unlikely(::fcntl(Fd, F_SETFD, FdFlags | FD_CLOEXEC) != 0 ||
+  if (unlikely(::fcntl(Fd, F_SETFD, FD_CLOEXEC) != 0 ||
                ::fcntl(Fd, F_SETFL, StatusFlags | O_NONBLOCK) != 0)) {
     return WasiUnexpect(fromErrNo(errno));
   }

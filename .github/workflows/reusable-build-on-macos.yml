@@ -100,7 +100,9 @@ jobs:
           CACHE_HIT: ${{ steps.cache-lld.outputs.cache-hit }}
         run: |
           if [ "${CACHE_HIT}" != "true" ]; then
-            brew install --build-from-source "${LLD_FORMULA}"
+            # Prefer the prebuilt bottle; fall back to building from source
+            # if no bottle is published for this macOS/arch.
+            brew install "${LLD_FORMULA}" || brew install --build-from-source "${LLD_FORMULA}"
           fi
           brew link "${LLD_KEG}" || true
           brew link cmake || true

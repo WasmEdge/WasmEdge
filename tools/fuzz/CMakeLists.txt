@@ -39,3 +39,25 @@ else()
     wasmedge_shared
   )
 endif()
+
+wasmedge_add_executable(wasmedge-fuzzcomponent
+  component.cpp
+)
+
+if(DEFINED LIB_FUZZING_ENGINE)
+  target_link_libraries(wasmedge-fuzzcomponent
+    PRIVATE
+    ${LIB_FUZZING_ENGINE}
+  )
+endif()
+
+target_link_libraries(wasmedge-fuzzcomponent
+  PRIVATE
+  wasmedgeLoader
+  wasmedgeValidator
+)
+
+target_include_directories(wasmedge-fuzzcomponent
+  PRIVATE
+  ${PROJECT_SOURCE_DIR}/include
+)

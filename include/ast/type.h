@@ -274,10 +274,10 @@ public:
   void setTypeIndex(uint32_t Index) noexcept { TypeIndex = Index; }
 
 private:
-  /// \name Data of CompositeType.
+  /// \name Data of SubType.
   /// @{
   /// Is final.
-  bool IsFinal;
+  bool IsFinal = true;
   /// List of super type indices.
   std::vector<uint32_t> SuperTypeIndices;
   /// Content of composite type.

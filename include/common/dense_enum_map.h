@@ -151,12 +151,8 @@ public:
 
   friend constexpr difference_type
   operator-(const ConstIterator &LHS, const ConstIterator &RHS) noexcept {
-    // Subtract the stored indices directly. Dereferencing the underlying array
-    // (e.g. the one-past-the-end iterator returned by end(), whose index equals
-    // Size) would form a glvalue to an out-of-bounds element -- undefined
-    // behavior, and an abort under a hardened libstdc++ (_GLIBCXX_ASSERTIONS).
-    // For the dense 0..Size index space the index difference is identical to
-    // the pointer difference.
+    // Subtract stored indices only; end() uses index Size and must not
+    // dereference the backing array (UB, aborts under _GLIBCXX_ASSERTIONS).
     return static_cast<difference_type>(LHS.Value.first) -
            static_cast<difference_type>(RHS.Value.first);
   }

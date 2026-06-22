@@ -20,14 +20,8 @@ constexpr std::pair<Color, std::string_view> ColorArr[] = {
     {Color::Red, "red"sv}, {Color::Green, "green"sv}, {Color::Blue, "blue"sv}};
 constexpr WasmEdge::DenseEnumMap ColorMap(ColorArr);
 
-// Compile-time regression guard for the one-past-the-end dereference bug.
-//
-// `end()` stores the index `Size`. The iterator distance `operator-` must NOT
-// dereference the underlying array at that index. Evaluating these distances in
-// a constant-expression context forces the compiler through `operator-` against
-// `end()`; if it ever goes back to dereferencing `(*Data)[Size]`, this becomes
-// ill-formed and fails the build on every toolchain -- not only on a hardened
-// libstdc++ where it aborts at runtime.
+// Compile-time guard: if operator- dereferences past the array again,
+// these constexpr distance checks fail at build time.
 static_assert(ColorMap.end() - ColorMap.begin() == 3,
               "DenseEnumMap end() - begin() must equal Size");
 static_assert(ColorMap.find(Color::Green) - ColorMap.begin() == 1,

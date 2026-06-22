@@ -10,12 +10,12 @@ SPDXID: SPDXRef-DOCUMENT
 DocumentNamespace: https://wasmedge.org/
 DocumentName: LICENSE.spdx
 
-Creator: Organization: Second State INC (contact@secondstate.io)
+Creator: Organization: The WasmEdge Authors (contact@secondstate.io)
 
 ## Package Information
 PackageName: wasmedge
 SPDXID: SPDXRef-wasmedge
-PackageOriginator: Organization: Second State INC (contact@secondstate.io)
+PackageOriginator: Organization: The WasmEdge Authors (contact@secondstate.io)
 PackageLicenseDeclared: Apache-2.0
 FilesAnalyzed: false
 
@@ -30,7 +30,7 @@ FilesAnalyzed: false
 PackageName: wasi-cpp-header
 SPDXID: SPDXRef-wasi-cpp-header
 PackageFileName: ./utils/wasi-cpp-header
-PackageOriginator: Organization: Second State INC (contact@secondstate.io)
+PackageOriginator: Organization: The WasmEdge Authors (contact@secondstate.io)
 PackageLicenseDeclared: Apache-2.0
 
 PackageName: llama.cpp

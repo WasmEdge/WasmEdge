@@ -291,7 +291,26 @@ Transformer::generate(const std::string &Prompt, const BasePrompt &ModelPrompt,
     Answer = Tok->Decode(TokenList);
     const AnserSataus Status = answerSataus(Answer, ModelPrompt.TextEnd);
     if (Status == STOP) {
-      Answer.resize(Answer.size() - ModelPrompt.TextEnd.size());
+      // Keep Answer and TokenList consistent by stripping the end marker tokens
+      // when they match the pre-encoded TextEnd sequence.
+      bool Stripped = false;
+      if (!EosIds.empty() && TokenList.size() >= EosIds.size()) {
+        bool Match = true;
+        for (size_t I = 0; I < EosIds.size(); I++) {
+          if (TokenList[TokenList.size() - EosIds.size() + I] != EosIds[I]) {
+            Match = false;
+            break;
+          }
+        }
+        if (Match) {
+          TokenList.resize(TokenList.size() - EosIds.size());
+          Answer = Tok->Decode(TokenList);
+          Stripped = true;
+        }
+      }
+      if (!Stripped) {
+        Answer.resize(Answer.size() - ModelPrompt.TextEnd.size());
+      }
       if (Verbose && Answer.size() > static_cast<size_t>(Skip)) {
         spdlog::info("[WASI-NN] MLX backend: {}"sv, Answer.substr(Skip));
       }

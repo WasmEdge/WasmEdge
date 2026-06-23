@@ -36,6 +36,16 @@ jobs:
         uses: mozilla-actions/sccache-action@1583d6b38d7be47f593cb472781bbb21cab4321e # v0.0.10
         with:
           version: "v0.10.0"
+      - name: Warm up sccache server
+        run: |
+          for ($i = 1; $i -le 5; $i++) {
+            sccache --show-stats
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            Write-Host "sccache server not ready (attempt $i/5); retrying..."
+            Start-Sleep -Seconds ($i * 3)
+          }
+          Write-Error "sccache server did not become ready; aborting before the long build"
+          exit 1
       - name: Cache LLVM for Windows
         id: cache-llvm
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5

@@ -28,7 +28,7 @@ body:
     validations:
       required: false
   - type: textarea
-    id: reproducuction_steps
+    id: reproduction_steps
     attributes:
       label: "Reproduction steps"
       description: Please provide as much information as necessary to reproduce the bug.

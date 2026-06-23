@@ -3,7 +3,6 @@
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 #include "wasi_ephemeral_nn.grpc.pb.h"
-
 #include "common/spdlog.h"
 #include <algorithm>
 #include <grpc/grpc.h>

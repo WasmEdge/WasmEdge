@@ -40,15 +40,6 @@ body:
     validations:
       required: true
   - type: textarea
-    id: screenshot
-    attributes:
-      label: "Screenshots"
-      description: If applicable, add screenshots to help explain your problem.
-      value: |
-        ![DESCRIPTION](LINK.png)
-    validations:
-      required: false
-  - type: textarea
     id: logs
     attributes:
       label: "Any logs you want to share for showing the specific issue"
@@ -62,9 +53,12 @@ body:
       description: Which kind of WasmEdge components do you use?
       multiple: true
       options:
-        - CLI
+        - Core
+        - CLI Tools
         - C SDK
-        - Rust SDK
+        - CI
+        - Docs
+        - Plugins
         - Others
     validations:
       required: true
@@ -73,7 +67,7 @@ body:
     attributes:
       label: "WasmEdge Version or Commit you used"
       description: WasmEdge Version or Commit you used
-      placeholder: ex. 0.13.4, 0.12.1, or 5286cc, etc.
+      placeholder: e.g. 0.17.0, or 5286cc, etc.
     validations:
       required: true
   - type: input
@@ -81,7 +75,7 @@ body:
     attributes:
       label: "Operating system information"
       description: Operating system information
-      placeholder: ex. Ubuntu 20.04, CentOS 7.6, macOS 13.5.2, or Windows 11, etc.
+      placeholder: e.g. Ubuntu 20.04, CentOS 7.6, macOS 13.5.2, or Windows 11, etc.
     validations:
       required: true
   - type: input
@@ -89,17 +83,14 @@ body:
     attributes:
       label: "Hardware Architecture"
       description: Hardware Architecture
-      placeholder: ex. amd64, x86_64, arm64, aarch64, or RISC-V, etc.
+      placeholder: e.g. amd64, x86_64, arm64, aarch64, s390x, or RISC-V, etc.
     validations:
       required: true
   - type: textarea
-    id: compiler_flags_and_options
+    id: appendix
     attributes:
-      label: "Compiler flags and options"
-      description: Compiler flags and options. Please provide these information if you are building from source.
-      placeholder: |
-        - C++ Compiler version:
-        - CMake version:
-        - CMake flags: (e.g. `-DCMAKE_BUILD_TYPE=Release -DWASMEDGE_USE_LLVM=ON`)
+      label: "Appendix"
+      description: Any other information you want to share, such as screenshots, links, etc.
+      placeholder: Please provide any other information you want to share, such as screenshots, links, etc.
     validations:
       required: false

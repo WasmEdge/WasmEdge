@@ -45,7 +45,9 @@ mx::array fromBytes(const Span<uint8_t> &Bytes) {
 
   // Each dimension is four bytes; the dimension block plus the following
   // four-byte data-length field must lie within the input.
-  if (DimBufLen % 4 != 0 || DimBufLen > Bytes.size() - 9) {
+  if (DimBufLen % 4 != 0 ||
+      Offset + static_cast<size_t>(DimBufLen) + sizeof(uint32_t) >
+          Bytes.size()) {
     spdlog::error(
         "[WASI-NN] MLX backend: Tensor dimension length {} is out of range."sv,
         DimBufLen);
@@ -104,7 +106,7 @@ mx::array fromBytes(const Span<uint8_t> &Bytes) {
     ElemSize = 8; // I64
     break;
   default:
-    spdlog::error("[WASI-NN] MLX backend: Unsupported rtype: {}", RtypeValue);
+    spdlog::error("[WASI-NN] MLX backend: Unsupported rtype: {}"sv, RtypeValue);
     return mx::array({0.0f});
   }
 

@@ -32,6 +32,7 @@ namespace WasiCrypto {
 /// A vector wrapper, but swipe the secret key info on destroy.
 class SecretVec {
 public:
+  SecretVec() noexcept = default;
   SecretVec(const SecretVec &) = default;
   SecretVec &operator=(const SecretVec &) = default;
   SecretVec &operator=(SecretVec &&) noexcept = default;
@@ -43,6 +44,8 @@ public:
   SecretVec(size_t Size) noexcept : Data(Size) {}
 
   ~SecretVec() noexcept { OPENSSL_cleanse(Data.data(), Data.size()); }
+
+  void resize(size_t Size) { Data.resize(Size); }
 
   auto begin() noexcept { return Data.begin(); }
   auto begin() const noexcept { return Data.begin(); }

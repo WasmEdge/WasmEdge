@@ -196,7 +196,7 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
 
   // Get function type at index x.
   const auto *ModInst = StackMgr.getModule();
-  const auto &ExpDefType = **ModInst->getType(Instr.getTargetIndex());
+  const auto &ExpDefType = *ModInst->unsafeGetType(Instr.getTargetIndex());
 
   // Pop the value of index from the Stack.
   const auto AddrType = TabInst->getTableType().getLimit().getAddrType();

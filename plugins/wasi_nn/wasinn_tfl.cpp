@@ -81,7 +81,7 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
   uint32_t InCnt = TfLiteInterpreterGetInputTensorCount(CxtRef.TFLiteInterp);
   if (Index >= InCnt) {
     spdlog::error("[WASI-NN] Invalid index id {} for the input, only {} "
-                  "inputs are allowed",
+                  "inputs are allowed"sv,
                   Index, InCnt);
     return WASINN::ErrNo::InvalidArgument;
   }

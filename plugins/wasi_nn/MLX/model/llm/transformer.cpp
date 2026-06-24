@@ -266,10 +266,11 @@ Transformer::generate(const std::string &Prompt, const BasePrompt &ModelPrompt,
     TokenList.insert(TokenList.end(), Tokens.begin(), Tokens.end());
 
     bool HitEos = false;
-    if (!EosIds.empty() && TokenList.size() >= EosIds.size()) {
+    if (!TextEndIds.empty() && TokenList.size() >= TextEndIds.size()) {
       bool Match = true;
-      for (size_t I = 0; I < EosIds.size(); I++) {
-        if (TokenList[TokenList.size() - EosIds.size() + I] != EosIds[I]) {
+      for (size_t I = 0; I < TextEndIds.size(); I++) {
+        if (TokenList[TokenList.size() - TextEndIds.size() + I] !=
+            static_cast<int32_t>(TextEndIds[I])) {
           Match = false;
           break;
         }
@@ -277,7 +278,7 @@ Transformer::generate(const std::string &Prompt, const BasePrompt &ModelPrompt,
       if (Match) {
         HitEos = true;
         // Strip the end marker tokens from the final output
-        TokenList.resize(TokenList.size() - EosIds.size());
+        TokenList.resize(TokenList.size() - TextEndIds.size());
       }
     }
 

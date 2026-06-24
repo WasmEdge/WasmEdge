@@ -203,6 +203,97 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   }
 }
 
+TEST_F(FFmpegTest, AVSampleFmtNameBounds) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name");
+  auto &HostFuncAVGetSampleFmtName = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmtName &>(
+      FuncInst->getHostFunc());
+
+  uint32_t NamePtr = UINT32_C(4);
+  uint32_t SampleFmtId = 1; // AV_SAMPLE_FMT_U8, name "u8".
+  // NameLen is guest-controlled and deliberately far larger than the source
+  // name av_get_sample_fmt_name returns.
+  uint32_t NameLen = UINT32_C(64);
+  fillMemContent(MemInst, NamePtr, NameLen, UINT8_C(0xAA));
+
+  HostFuncAVGetSampleFmtName.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     SampleFmtId, NamePtr, NameLen},
+                                 Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  // The host must write exactly the name and its terminator ("u8\0"). The
+  // buggy unbounded copy reads NameLen bytes from the shorter source name,
+  // overwriting the rest of the fenced buffer with adjacent host bytes; the
+  // fence past the terminator therefore detects the over-read.
+  char *Buf = MemInst->getPointer<char *>(NamePtr);
+  EXPECT_STREQ(Buf, "u8");
+  uint32_t WrittenLen = 0;
+  while (WrittenLen < NameLen && Buf[WrittenLen] != '\0') {
+    ++WrittenLen;
+  }
+  for (uint32_t I = WrittenLen + 1; I < NameLen; ++I) {
+    EXPECT_EQ(static_cast<uint8_t>(Buf[I]), UINT8_C(0xAA));
+  }
+}
+
+TEST_F(FFmpegTest, AVSampleFmtNameInvalid) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  uint32_t NamePtr = UINT32_C(4);
+  uint32_t NameLen = UINT32_C(16);
+
+  auto *FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name");
+  auto &HostFuncAVGetSampleFmtName = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmtName &>(
+      FuncInst->getHostFunc());
+
+  // SampleFmtId 0 maps to AV_SAMPLE_FMT_NONE, for which av_get_sample_fmt_name
+  // returns nullptr; the host must report an error, not dereference it.
+  fillMemContent(MemInst, NamePtr, NameLen, UINT8_C(0));
+  HostFuncAVGetSampleFmtName.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     UINT32_C(0), NamePtr, NameLen},
+                                 Result);
+  EXPECT_NE(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name_length");
+  auto &HostFuncAVGetSampleFmtNameLength = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmtNameLength &>(
+      FuncInst->getHostFunc());
+
+  HostFuncAVGetSampleFmtNameLength.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), 0);
+}
+
+TEST_F(FFmpegTest, AVSampleFmtGetBounds) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_get_sample_fmt");
+  auto &HostFuncAVGetSampleFmt =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmt &>(
+          FuncInst->getHostFunc());
+
+  // The name pointer is in bounds but the guest-declared length runs off the
+  // end of linear memory; the host must reject it, not read past the page.
+  uint32_t OutOfBoundsStrPtr = UINT32_C(65000);
+  uint32_t OutOfBoundsStrLen = UINT32_C(2000);
+  HostFuncAVGetSampleFmt.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 OutOfBoundsStrPtr, OutOfBoundsStrLen},
+                             Result);
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::MissingMemory));
+}
+
 } // namespace WasmEdgeFFmpeg
 } // namespace Host
 } // namespace WasmEdge

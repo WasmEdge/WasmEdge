@@ -57,7 +57,9 @@ public:
   // points into.
   void allocChild(void *Data, uint32_t *DataPtr, uint32_t ParentId) {
     allocRef(Data, DataPtr);
-    ChildIdsByParent.emplace(ParentId, *DataPtr);
+    if (ParentIdByChild.emplace(*DataPtr, ParentId).second) {
+      ChildIdsByParent.emplace(ParentId, *DataPtr);
+    }
   }
 
   // Transfers ownership of an already-stored id to ParentId: the id becomes
@@ -65,15 +67,22 @@ public:
   // dropped when the parent is freed via deallocChildren.
   void markBorrowedChild(uint32_t Index, uint32_t ParentId) {
     BorrowedKeys.insert(Index);
-    ChildIdsByParent.emplace(ParentId, Index);
+    if (ParentIdByChild.emplace(Index, ParentId).second) {
+      ChildIdsByParent.emplace(ParentId, Index);
+    }
   }
 
   void deallocChildren(uint32_t ParentId) {
     auto Range = ChildIdsByParent.equal_range(ParentId);
+    std::vector<uint32_t> Children;
     for (auto It = Range.first; It != Range.second; ++It) {
-      dealloc(It->second);
+      Children.push_back(It->second);
+      ParentIdByChild.erase(It->second);
     }
     ChildIdsByParent.erase(ParentId);
+    for (uint32_t const ChildId : Children) {
+      dealloc(ChildId);
+    }
   }
 
   void *fetchData(const size_t Index) {
@@ -102,10 +111,13 @@ public:
       FfmpegPtrMap.erase(It);
     }
     BorrowedKeys.erase(static_cast<uint32_t>(Index));
+    eraseChildLink(static_cast<uint32_t>(Index));
   }
 
-  // Removes every key that maps to Data. Used when an underlying object is
-  // freed while more than one id may still alias it, so no id is left dangling.
+  // Removes every key that maps to Data, including each id's parent/child
+  // bookkeeping. Used when an underlying object is freed while more than one id
+  // may still alias it, so no id is left dangling and no stale child link
+  // survives in ChildIdsByParent for a later deallocChildren to trip over.
   void deallocByValue(void *Data) {
     if (Data == nullptr) {
       return;
@@ -114,6 +126,7 @@ public:
     for (auto It = Range.first; It != Range.second; ++It) {
       FfmpegPtrMap.erase(It->second);
       BorrowedKeys.erase(It->second);
+      eraseChildLink(It->second);
     }
     KeysByValue.erase(Data);
   }
@@ -132,12 +145,35 @@ private:
     }
   }
 
+  // Drops the parent/child bookkeeping for ChildId, if any. Freeing a
+  // parent-owned child id on its own (e.g. a repeatedly snapshotted metadata
+  // handle) must not leave a stale ChildIdsByParent entry behind, which would
+  // otherwise grow without bound for the parent's lifetime.
+  void eraseChildLink(uint32_t ChildId) {
+    auto It = ParentIdByChild.find(ChildId);
+    if (It == ParentIdByChild.end()) {
+      return;
+    }
+    auto Range = ChildIdsByParent.equal_range(It->second);
+    for (auto CIt = Range.first; CIt != Range.second; ++CIt) {
+      if (CIt->second == ChildId) {
+        ChildIdsByParent.erase(CIt);
+        break;
+      }
+    }
+    ParentIdByChild.erase(It);
+  }
+
   //  Using zero as NULL Value.
   uint32_t FfmpegPtrAllocateKey = 1;
   // Can update this to uint64_t to get more memory.
   std::map<uint32_t, void *> FfmpegPtrMap;
   std::set<uint32_t> BorrowedKeys;
   std::multimap<uint32_t, uint32_t> ChildIdsByParent;
+  // Reverse index of ChildIdsByParent: maps a child id back to its parent so a
+  // child freed on its own can drop its ChildIdsByParent entry in O(log n)
+  // instead of leaking it for the parent's lifetime.
+  std::map<uint32_t, uint32_t> ParentIdByChild;
   // Reverse index of FfmpegPtrMap: maps a stored pointer to every id that
   // aliases it, so deallocByValue need not scan the whole table.
   std::multimap<void *, uint32_t> KeysByValue;
@@ -157,6 +193,16 @@ private:
   Type *StructPtr = nullptr;                                                   \
   if (FFmpegStructId != 0)                                                     \
     StructPtr = static_cast<Type *>(Env.get()->fetchData(FFmpegStructId));
+
+// Returns Ret from the calling host function when a guest-supplied handle id
+// did not resolve to a live pointer. FFMPEG_PTR_FETCH yields nullptr for
+// unknown, stale, or forged ids, and dereferencing it would let the guest crash
+// the host (DoS). The id is intentionally not logged, so a guest cannot turn a
+// stream of bad ids into a log-spam amplification vector.
+#define FFMPEG_PTR_CHECK(StructPtr, Ret)                                       \
+  if (unlikely(StructPtr == nullptr)) {                                        \
+    return Ret;                                                                \
+  }
 
 #define MEM_SPAN_CHECK(OutSpan, MemInst, Type, BufPtr, BufLen, Message)        \
   auto OutSpan = MemInst->getSpan<Type>(BufPtr, BufLen);                       \

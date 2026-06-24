@@ -120,17 +120,33 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
   ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVFormatCtxNbChapters = FuncInst->getHostFunc();
   {
-    uint32_t NbChapters = 200;
+    EXPECT_TRUE(HostFuncAVFormatCtxNbChapters.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
+        Result));
+    uint32_t const CurrentNbChapters = Result[0].get<uint32_t>();
+
+    // Setting the count to its current (authoritative) value is allowed.
     EXPECT_TRUE(HostFuncAVFormatCtxSetNbChapters.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, NbChapters},
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId,
+                                                    CurrentNbChapters},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+    // Forging a larger count must be rejected: the chapters array is not grown
+    // here, so a raised nb_chapters would let chapterAt walk past the array.
+    EXPECT_TRUE(HostFuncAVFormatCtxSetNbChapters.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId,
+                                                    CurrentNbChapters + 200},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(),
+              static_cast<int32_t>(ErrNo::InternalError));
 
     EXPECT_TRUE(HostFuncAVFormatCtxNbChapters.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
         Result));
-    EXPECT_EQ(Result[0].get<uint32_t>(), NbChapters);
+    EXPECT_EQ(Result[0].get<uint32_t>(), CurrentNbChapters);
   }
 
   FuncInst = AVFormatMod->findFuncExports(
@@ -160,6 +176,27 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
+}
+
+TEST_F(FFmpegTest, AVFormatCtxMetadataNullHandle) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+
+  auto *FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformatContext_metadata");
+  auto &HostFuncAVFormatCtxMetadata = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxMetadata &>(
+      FuncInst->getHostFunc());
+
+  // A guest id of 0 resolves to a null AVFormatContext; the getter must report
+  // InternalError instead of dereferencing it.
+  uint32_t InvalidFormatCtxId = UINT32_C(0);
+  uint32_t DictPtr = UINT32_C(4);
+  EXPECT_TRUE(HostFuncAVFormatCtxMetadata.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{InvalidFormatCtxId, DictPtr},
+      Result));
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
 }
 
 } // namespace WasmEdgeFFmpeg

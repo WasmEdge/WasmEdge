@@ -9,7 +9,7 @@
 // https://github.com/gabime/spdlog/pull/3198
 #pragma clang diagnostic ignored "-Wextra-semi"
 #endif
-#if __has_include(<spdlog/sinks/callback_sink.h>)
+#if !defined(__has_include) || __has_include(<spdlog/sinks/callback_sink.h>)
 #include <spdlog/sinks/callback_sink.h>
 #else
 // Fallback for spdlog without callback_sink.h (e.g. RHEL 9 / EPEL 9
@@ -17,6 +17,7 @@
 #include <functional>
 #include <mutex>
 #include <spdlog/sinks/base_sink.h>
+#include <utility>
 namespace spdlog::sinks {
 template <typename Mutex> class callback_sink final : public base_sink<Mutex> {
 public:

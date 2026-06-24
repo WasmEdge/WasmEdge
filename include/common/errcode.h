@@ -15,6 +15,7 @@
 
 #include "common/enum_errcode.hpp"
 #include "common/expected.h"
+#include "common/fmt.h"
 #include "common/hexstr.h"
 #include "common/spdlog.h"
 

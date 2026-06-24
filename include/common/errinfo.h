@@ -19,6 +19,7 @@
 #include "common/enum_errinfo.hpp"
 #include "common/enum_types.hpp"
 #include "common/filesystem.h"
+#include "common/fmt.h"
 #include "common/spdlog.h"
 #include "common/types.h"
 

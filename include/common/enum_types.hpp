@@ -16,6 +16,7 @@
 
 #include "dense_enum_map.h"
 #include "errcode.h"
+#include "fmt.h"
 #include "spare_enum_map.h"
 
 #include <cstdint>

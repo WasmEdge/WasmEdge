@@ -553,6 +553,9 @@ using uint128_t = uint128;
 FMT_BEGIN_NAMESPACE
 #if FMT_VERSION >= 90000
 namespace detail {
+#if FMT_VERSION >= 120200
+using uint128_fallback = uint128;
+#endif
 inline constexpr bool operator>=(detail::uint128_fallback LHS,
                                  unsigned int RHS) {
   return LHS.high() != 0 || LHS.low() >= static_cast<uint64_t>(RHS);

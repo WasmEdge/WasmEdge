@@ -23,8 +23,10 @@ jobs:
           git config --global --add safe.directory $(pwd)
       - name: Install clang-format
         run: |
+          curl -sSfL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
+          sudo add-apt-repository -y "deb http://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-22 main"
           sudo apt update
-          sudo apt install -y clang-format-20
+          sudo apt install -y clang-format-22
       - name: Run clang-format
         run: |
-          bash ./.github/scripts/clang-format.sh `which clang-format-20`
+          bash ./.github/scripts/clang-format.sh `which clang-format-22`

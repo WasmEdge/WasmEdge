@@ -14,6 +14,7 @@
 #pragma once
 
 #include "ast/instruction.h"
+#include "common/enum_ast.hpp"
 #include "common/symbol.h"
 #include "runtime/hostfunc.h"
 #include "runtime/instance/composite.h"
@@ -141,9 +142,9 @@ private:
                               [](uint32_t N, const auto &Pair) -> uint32_t {
                                 return N + Pair.first;
                               })) {
-      // FIXME: Modify the capacity to prevent connecting 2 vectors.
       Instrs.reserve(Expr.size() + 1);
       Instrs.assign(Expr.begin(), Expr.end());
+      Instrs.emplace_back(OpCode::End);
     }
   };
 

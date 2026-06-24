@@ -1079,12 +1079,25 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   return ErrNo::Success;
 }
 
+void finalizeGraphContexts(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
+  std::vector<uint32_t> ContextIds;
+  for (uint32_t I = 0; I < Env.NNContext.size(); ++I) {
+    if (Env.NNContext[I].getGraphId() == GraphId && Env.NNContext[I].isReady()) {
+      ContextIds.push_back(I);
+    }
+  }
+  for (uint32_t ContextId : ContextIds) {
+    Env.deleteContext(ContextId);
+  }
+}
+
 Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
   auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
   const bool IsDebugLog = GraphRef.WhisperConfig.EnableDebugLog;
   if (IsDebugLog) {
     spdlog::info("[WASI-NN][Debug] Whisper backend: unload"sv);
   }
+  finalizeGraphContexts(Env, GraphId);
   if (GraphRef.WhisperCtx != nullptr) {
     if (IsDebugLog) {
       spdlog::info(
@@ -1113,7 +1126,6 @@ Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &Env,
     spdlog::info(
         "[WASI-NN][Debug] Whisper backend: finalize_execution_context"sv);
   }
-  // TODO: Free resources
   Env.deleteContext(ContextId);
   if (IsDebugLog) {
     spdlog::info(

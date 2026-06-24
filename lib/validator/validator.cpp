@@ -34,20 +34,14 @@ AST::SubType makeCoreFuncType(std::initializer_list<TypeCode> Params,
 }
 
 static constexpr uint32_t MaxSubtypeDepth = 63;
+static constexpr uint32_t Unvisited = UINT32_MAX;
+static constexpr uint32_t Visiting = UINT32_MAX - 1;
 
 // TODO: make the super type depth table instead of recursively querying.
-Expect<void>
-checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx,
-                  std::unordered_set<uint32_t> &VisitedNodes,
-                  const std::vector<const WasmEdge::AST::SubType *> &TypeVec,
-                  uint32_t Depth) {
-  if (VisitedNodes.count(TestIdx)) {
-    spdlog::error(ErrCode::Value::InvalidSubType);
-    spdlog::error("    Cycle detected in subtype hierarchy for type {}."sv,
-                  BaseIdx);
-    return Unexpect(ErrCode::Value::InvalidSubType);
-  }
-
+Expect<uint32_t>
+checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx, uint32_t Depth,
+                  std::vector<uint32_t> &DepthMap,
+                  const std::vector<const WasmEdge::AST::SubType *> &TypeVec) {
   if (Depth >= MaxSubtypeDepth) {
     spdlog::error(ErrCode::Value::InvalidSubType);
     spdlog::error("    Subtype depth for type {} exceeded the limits of {}"sv,
@@ -55,8 +49,19 @@ checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx,
     return Unexpect(ErrCode::Value::InvalidSubType);
   }
 
-  // The caller guarantees test type index validation.
-  VisitedNodes.insert(TestIdx);
+  if (TestIdx >= DepthMap.size()) {
+    DepthMap.resize(TestIdx + 1, Unvisited);
+  } else if (DepthMap[TestIdx] == Visiting) {
+    spdlog::error(ErrCode::Value::InvalidSubType);
+    spdlog::error("    Cycle detected in subtype hierarchy for type {}."sv,
+                  BaseIdx);
+    return Unexpect(ErrCode::Value::InvalidSubType);
+  } else if (DepthMap[TestIdx] != Unvisited) {
+    return DepthMap[TestIdx];
+  }
+
+  DepthMap[TestIdx] = Visiting;
+  uint32_t MaxDepth = 0;
   const auto &TestType = *TypeVec[TestIdx];
   for (const auto SuperIdx : TestType.getSuperTypeIndices()) {
     if (unlikely(SuperIdx >= TypeVec.size())) {
@@ -67,15 +72,26 @@ checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx,
       return Unexpect(ErrCode::Value::InvalidSubType);
     }
     EXPECTED_TRY(
-        checkSubtypeDepth(BaseIdx, SuperIdx, VisitedNodes, TypeVec, Depth + 1)
+        auto RetDepth,
+        checkSubtypeDepth(BaseIdx, SuperIdx, Depth + 1, DepthMap, TypeVec)
             .map_error([=](auto E) {
               spdlog::error(
                   "    When checking subtype hierarchy of super type {}."sv,
                   SuperIdx);
               return E;
             }));
+    MaxDepth = std::max(MaxDepth, RetDepth + 1);
   }
-  return {};
+
+  if (MaxDepth >= MaxSubtypeDepth) {
+    spdlog::error(ErrCode::Value::InvalidSubType);
+    spdlog::error("    Subtype depth for type {} exceeded the limits of {}"sv,
+                  BaseIdx, MaxSubtypeDepth);
+    return Unexpect(ErrCode::Value::InvalidSubType);
+  }
+
+  DepthMap[TestIdx] = MaxDepth;
+  return MaxDepth;
 }
 
 } // namespace
@@ -199,8 +215,8 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
 }
 
 // Validate Sub type. See "include/validator/validator.h".
-Expect<void> Validator::validate(const AST::SubType &Type,
-                                 uint32_t OwnTypeIdx) {
+Expect<void> Validator::validate(const AST::SubType &Type, uint32_t OwnTypeIdx,
+                                 std::vector<uint32_t> &SubTypeDepthMap) {
   const auto &TypeVec = Checker.getTypes();
   const auto &CompType = Type.getCompositeType();
 
@@ -251,9 +267,8 @@ Expect<void> Validator::validate(const AST::SubType &Type,
       return Unexpect(ErrCode::Value::InvalidSubType);
     }
 
-    std::unordered_set<uint32_t> VisitedNodes;
     EXPECTED_TRY(
-        checkSubtypeDepth(Index, Index, VisitedNodes, TypeVec, 0)
+        checkSubtypeDepth(Index, Index, 0, SubTypeDepthMap, TypeVec)
             .map_error([=](auto E) {
               spdlog::error(
                   "    When checking subtype hierarchy of super type {}."sv,
@@ -642,6 +657,7 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
 
 Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
   const auto STypeList = TypeSec.getContent();
+  std::vector<uint32_t> SubTypeDepthMap(STypeList.size(), Unvisited);
   uint32_t Idx = 0;
   while (Idx < STypeList.size()) {
     const auto &SType = STypeList[Idx];
@@ -658,16 +674,17 @@ Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
       }
       for (uint32_t I = Idx; I < Idx + RecSize; I++) {
         EXPECTED_TRY(
-            validate(STypeList[I], BaseIdx + (I - Idx)).map_error([](auto E) {
-              spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Rec));
-              return E;
-            }));
+            validate(STypeList[I], BaseIdx + (I - Idx), SubTypeDepthMap)
+                .map_error([](auto E) {
+                  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Rec));
+                  return E;
+                }));
       }
       Idx += RecSize;
     } else {
       // Without GC there are no rec groups: a type may reference only earlier
       // ones, so validate it before registering.
-      EXPECTED_TRY(validate(SType, BaseIdx));
+      EXPECTED_TRY(validate(SType, BaseIdx, SubTypeDepthMap));
       Checker.addType(SType);
       Idx++;
     }

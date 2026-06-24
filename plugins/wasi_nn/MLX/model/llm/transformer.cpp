@@ -243,7 +243,7 @@ Transformer::generate(const std::string &Prompt, const BasePrompt &ModelPrompt,
   const std::vector<int> Ids = Tok->Encode(Prompt);
   mx::array Token =
       mx::array(Ids.data(), {static_cast<int>(Ids.size())}, mx::int32);
-  const std::vector<int> EosIds = Tok->Encode(ModelPrompt.TextEnd);
+  const std::vector<int> TextEndIds = Tok->Encode(ModelPrompt.TextEnd);
 
   std::vector<int32_t> TokenList;
   int TokenCount = 0;

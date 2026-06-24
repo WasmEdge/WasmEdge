@@ -88,6 +88,11 @@ public:
     return MemType.getLimit().getMin();
   }
 
+  /// Get a stable pointer to the live page-count field for compiled code.
+  const uint64_t *getPageSizePtr() const noexcept {
+    return MemType.getLimit().getMinPtr();
+  }
+
   /// Get memory size of memory.data
   uint64_t getSize() const noexcept {
     // The memory page size is bound to the limit in the memory type.

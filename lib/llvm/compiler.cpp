@@ -252,8 +252,12 @@ struct LLVM::Compiler::CompileContext {
         ExecCtxTy(LLVM::Type::getStructType(
             "ExecCtx",
             std::initializer_list<LLVM::Type>{
-                // Memory
+                // MemoryPtrs
                 Int8PtrTy.getPointerTo(),
+                // MemorySizes
+                Int64PtrTy.getPointerTo(),
+                // TableSizes
+                Int64PtrTy.getPointerTo(),
                 // Globals
                 Int128PtrTy.getPointerTo(),
                 // InstrCount
@@ -346,11 +350,31 @@ struct LLVM::Compiler::CompileContext {
 #endif
     return Builder.createBitCast(VPtr, Int8PtrTy);
   }
+  LLVM::Value getMemorySize(LLVM::Builder &Builder, LLVM::Value ExecCtx,
+                            uint32_t Index) noexcept {
+    auto Array = Builder.createExtractValue(ExecCtx, 1);
+    auto VPtr = Builder.createLoad(
+        Int64PtrTy, Builder.createInBoundsGEP1(Int64PtrTy, Array,
+                                               LLContext.getInt64(Index)));
+    VPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
+                     LLVM::Metadata(LLContext, {}));
+    return Builder.createLoad(Int64Ty, VPtr);
+  }
+  LLVM::Value getTableSize(LLVM::Builder &Builder, LLVM::Value ExecCtx,
+                           uint32_t Index) noexcept {
+    auto Array = Builder.createExtractValue(ExecCtx, 2);
+    auto VPtr = Builder.createLoad(
+        Int64PtrTy, Builder.createInBoundsGEP1(Int64PtrTy, Array,
+                                               LLContext.getInt64(Index)));
+    VPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
+                     LLVM::Metadata(LLContext, {}));
+    return Builder.createLoad(Int64Ty, VPtr);
+  }
   std::pair<LLVM::Type, LLVM::Value> getGlobal(LLVM::Builder &Builder,
                                                LLVM::Value ExecCtx,
                                                uint32_t Index) noexcept {
     auto Ty = Globals[Index];
-    auto Array = Builder.createExtractValue(ExecCtx, 1);
+    auto Array = Builder.createExtractValue(ExecCtx, 3);
     auto VPtr = Builder.createLoad(
         Int128PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
                                                 LLContext.getInt64(Index)));
@@ -361,22 +385,22 @@ struct LLVM::Compiler::CompileContext {
   }
   LLVM::Value getInstrCount(LLVM::Builder &Builder,
                             LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 2);
+    return Builder.createExtractValue(ExecCtx, 4);
   }
   LLVM::Value getCostTable(LLVM::Builder &Builder,
                            LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 3);
+    return Builder.createExtractValue(ExecCtx, 5);
   }
   LLVM::Value getGas(LLVM::Builder &Builder, LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 4);
+    return Builder.createExtractValue(ExecCtx, 6);
   }
   LLVM::Value getGasLimit(LLVM::Builder &Builder,
                           LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 5);
+    return Builder.createExtractValue(ExecCtx, 7);
   }
   LLVM::Value getStopToken(LLVM::Builder &Builder,
                            LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 6);
+    return Builder.createExtractValue(ExecCtx, 8);
   }
   LLVM::FunctionCallee getIntrinsic(LLVM::Builder &Builder,
                                     Executable::Intrinsics Index,
@@ -1618,12 +1642,7 @@ public:
       }
       case OpCode::Table__size: {
         stackPush(Builder.createTrunc(
-            Builder.createCall(
-                Context.getIntrinsic(
-                    Builder, Executable::Intrinsics::kTableSize,
-                    LLVM::Type::getFunctionType(Context.Int64Ty,
-                                                {Context.Int32Ty}, false)),
-                {LLContext.getInt32(Instr.getTargetIndex())}),
+            Context.getTableSize(Builder, ExecCtx, Instr.getTargetIndex()),
             Context.TableAddrTypes[Instr.getTargetIndex()]));
         break;
       }
@@ -1741,12 +1760,7 @@ public:
         break;
       case OpCode::Memory__size:
         stackPush(Builder.createTrunc(
-            Builder.createCall(
-                Context.getIntrinsic(
-                    Builder, Executable::Intrinsics::kMemSize,
-                    LLVM::Type::getFunctionType(Context.Int64Ty,
-                                                {Context.Int32Ty}, false)),
-                {LLContext.getInt32(Instr.getTargetIndex())}),
+            Context.getMemorySize(Builder, ExecCtx, Instr.getTargetIndex()),
             Context.MemoryAddrTypes[Instr.getTargetIndex()]));
         break;
       case OpCode::Memory__grow: {

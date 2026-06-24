@@ -82,6 +82,7 @@ public:
   /// Getter and setter for min value.
   uint64_t getMin() const noexcept { return Min; }
   void setMin(uint64_t Val) noexcept { Min = Val; }
+  const uint64_t *getMinPtr() const noexcept { return &Min; }
 
   /// Getter and setter for max value.
   uint64_t getMax() const noexcept { return Max; }

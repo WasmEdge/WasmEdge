@@ -1050,8 +1050,6 @@ public:
   Expect<uint64_t> proxyTableGrow(Runtime::StackManager &StackMgr,
                                   const uint32_t TableIdx, const RefVariant Val,
                                   const uint64_t NewSize) noexcept;
-  Expect<uint64_t> proxyTableSize(Runtime::StackManager &StackMgr,
-                                  const uint32_t TableIdx) noexcept;
   Expect<void> proxyTableFill(Runtime::StackManager &StackMgr,
                               const uint32_t TableIdx, const uint64_t Off,
                               const RefVariant Ref,
@@ -1059,8 +1057,6 @@ public:
   Expect<uint64_t> proxyMemGrow(Runtime::StackManager &StackMgr,
                                 const uint32_t MemIdx,
                                 const uint64_t NewSize) noexcept;
-  Expect<uint64_t> proxyMemSize(Runtime::StackManager &StackMgr,
-                                const uint32_t MemIdx) noexcept;
   Expect<void> proxyMemInit(Runtime::StackManager &StackMgr,
                             const uint32_t MemIdx, const uint32_t DataIdx,
                             const uint64_t DstOff, const uint32_t SrcOff,
@@ -1105,6 +1101,8 @@ private:
 #else
     uint8_t **const *Memories;
 #endif
+    const uint64_t *const *MemorySizes;
+    const uint64_t *const *TableSizes;
     ValVariant *const *Globals;
     std::atomic_uint64_t *InstrCount;
     uint64_t *CostTable;

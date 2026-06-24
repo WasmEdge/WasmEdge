@@ -482,6 +482,10 @@ protected:
     std::shared_lock Lock(Mutex);
     return static_cast<uint32_t>(FuncInsts.size());
   }
+  uint32_t getTableNum() const noexcept {
+    std::shared_lock Lock(Mutex);
+    return static_cast<uint32_t>(TabInsts.size());
+  }
   uint32_t getMemoryNum() const noexcept {
     std::shared_lock Lock(Mutex);
     return static_cast<uint32_t>(MemInsts.size());
@@ -573,6 +577,8 @@ protected:
 #else
   std::vector<uint8_t **> MemoryPtrs;
 #endif
+  std::vector<const uint64_t *> MemorySizePtrs;
+  std::vector<const uint64_t *> TableSizePtrs;
   std::vector<ValVariant *> GlobalPtrs;
   /// @}
 

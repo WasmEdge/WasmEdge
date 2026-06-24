@@ -54,6 +54,11 @@ public:
     return TabType.getLimit().getMin();
   }
 
+  /// Get a stable pointer to the live size field for compiled code.
+  const uint64_t *getSizePtr() const noexcept {
+    return TabType.getLimit().getMinPtr();
+  }
+
   /// Getter for table type.
   const AST::TableType &getTableType() const noexcept { return TabType; }
 

@@ -14,6 +14,15 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                                    const AST::TableSection &TabSec) {
   // A frame with the temporary module is pushed onto the stack by the caller.
 
+  // Prepare the table-size pointers vector for compiled functions.
+  ModInst.TableSizePtrs.resize(ModInst.getTableNum() +
+                               TabSec.getContent().size());
+
+  // Set the table-size pointers of imported tables.
+  for (uint32_t I = 0; I < ModInst.getTableNum(); ++I) {
+    ModInst.TableSizePtrs[I] = ModInst.unsafeGetTable(I)->getSizePtr();
+  }
+
   // Iterate through the table segments to instantiate and initialize table
   // instances.
   for (const auto &TabSeg : TabSec.getContent()) {
@@ -37,6 +46,9 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       RefVariant InitTabValue(ValType(TypeCode::RefNull, BotType));
       ModInst.addTable(TabSeg.getTableType(), InitTabValue);
     }
+    // Set the table-size pointer of the instantiated table.
+    const auto Index = ModInst.getTableNum() - 1;
+    ModInst.TableSizePtrs[Index] = ModInst.unsafeGetTable(Index)->getSizePtr();
   }
   return {};
 }

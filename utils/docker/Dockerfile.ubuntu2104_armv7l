@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-FROM arm32v7/ubuntu:hirsute
+FROM arm32v7/ubuntu:hirsute@sha256:2f2ec5fea422c04da4367a67c2570c6737cb848542a695734944ea35aff5fa87
 
 MAINTAINER hydai hydai@secondstate.io
 ENV DEBIAN_FRONTEND=noninteractive

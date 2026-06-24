@@ -20,3 +20,32 @@ updates:
       docker:
         patterns:
           - "docker/*"
+
+  - package-ecosystem: "docker"
+    directories:
+      - "/utils/docker"
+      - "/.devcontainer"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci(dependabot):"
+
+  - package-ecosystem: "pip"
+    directory: "/.github/requirements"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci(dependabot):"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci(dependabot):"
+    groups:
+      commitlint:
+        patterns:
+          - "commitlint"
+          - "@commitlint/*"
+          - "conventional-changelog-conventionalcommits"

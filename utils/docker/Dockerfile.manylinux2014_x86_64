@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-FROM quay.io/pypa/manylinux2014_x86_64
+FROM quay.io/pypa/manylinux2014_x86_64@sha256:298eccaea20b9e9223dcfbd6af48743dce2dd3dd92ede4aff44e7af2e919db86
 
 MAINTAINER hydai hydai@secondstate.io
 

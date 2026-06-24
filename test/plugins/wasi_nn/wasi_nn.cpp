@@ -2029,6 +2029,19 @@ TEST(WasiNNTest, WhisperBackend) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncCompute = FuncInst->getHostFunc();
+  // Get the function "finalize_execution_context".
+  FuncInst = NNMod->findFuncExports("finalize_execution_context");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncFinalizeExecCtx = FuncInst->getHostFunc();
+  // Get the function "unload".
+  FuncInst = NNMod->findFuncExports("unload");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncUnload = FuncInst->getHostFunc();
+
+  const uint32_t WhisperGraphId = UINT32_C(0);
+  const uint32_t WhisperCtxId = UINT32_C(0);
 
   // Whisper WASI-NN load tests.
   // Test: load -- meaningless binaries.
@@ -2196,6 +2209,47 @@ TEST(WasiNNTest, WhisperBackend) {
     // Should output more than 50 bytes.
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     EXPECT_GE(BytesWritten, 50);
+  }
+
+  // Whisper WASI-NN finalize_execution_context tests.
+  // Test: finalize_execution_context -- invalid context id.
+  {
+    EXPECT_TRUE(HostFuncFinalizeExecCtx.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(3)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+  // Test: finalize_execution_context -- finalize successfully.
+  {
+    EXPECT_TRUE(HostFuncFinalizeExecCtx.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{WhisperCtxId},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Whisper WASI-NN unload tests.
+  // Test: unload -- invalid graph id.
+  {
+    EXPECT_TRUE(HostFuncUnload.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(999)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+  // Test: unload -- unload successfully and verify.
+  {
+    ASSERT_TRUE(HostFuncUnload.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{WhisperGraphId}, Errno));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{WhisperGraphId, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER

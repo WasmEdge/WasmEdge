@@ -16,6 +16,7 @@
 
 #include "common/enum_types.hpp"
 #include "common/errcode.h"
+#include "common/fmt.h"
 #include "common/int128.h"
 #include "common/variant.h"
 #include "endian.h"

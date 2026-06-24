@@ -550,12 +550,6 @@ using uint128_t = uint128;
 
 #include <fmt/format.h>
 
-#if FMT_VERSION >= 80000
-#define WASMEDGE_FMT_CONST const
-#else
-#define WASMEDGE_FMT_CONST
-#endif
-
 FMT_BEGIN_NAMESPACE
 #if FMT_VERSION >= 90000
 namespace detail {

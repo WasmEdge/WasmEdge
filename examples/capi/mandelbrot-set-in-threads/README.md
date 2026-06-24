@@ -71,8 +71,8 @@ We are going to demonstrate how to use the [WasmEdge C API](https://wasmedge.org
 With thread proposal enabled, we can add a flag `.Shared = true` to memory instance, so the memory could be shared between workers. The following snippet creates a new WebAssembly Memory instance with an initial size of 60 pages. Notice that, unlike unshared memories, shared memories must specify a "maximum" size.
 
 ```c
-WasmEdge_Limit MemLimit = {.HasMax = true, .Shared = true, .Min = 60, .Max = 60};
-WasmEdge_MemoryTypeContext *MemTypeCxt = WasmEdge_MemoryTypeCreate(MemLimit);
+WasmEdge_LimitContext *LimitCxt = WasmEdge_LimitCreateWithMax(60, 60, false, true);
+WasmEdge_MemoryTypeContext *MemTypeCxt = WasmEdge_MemoryTypeCreate(LimitCxt);
 ```
 
 Notice that the imported memory of the WASM is at module `{env: memory}`. This could be ensured by checking the compiled WASM file. We should create the module instance and the memory instance with WasmEdge C API.

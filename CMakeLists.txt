@@ -17,12 +17,12 @@ endif()
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 
 # WasmEdge CAPI and so versions.
-set(WASMEDGE_CAPI_VERSION "0.1.0" CACHE STRING "WasmEdge C API library version")
+set(WASMEDGE_CAPI_VERSION "0.1.1" CACHE STRING "WasmEdge C API library version")
 set(WASMEDGE_CAPI_SOVERSION "0" CACHE STRING "WasmEdge C API library soversion")
 
 # Set cpack package version.
 find_program(GIT_CMD git)
-# Assuming the git command is not found and .git folder is not available.
+# Assume the git command is not found and the .git folder is not available.
 set(GIT_VERSION_NOT_FOUND 1)
 if(GIT_CMD AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
   execute_process(COMMAND
@@ -84,7 +84,7 @@ option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable and build WasmEdge wasi-crypto plugin
 #   WASI plug-in: WASI-Http proposal.
 option(WASMEDGE_PLUGIN_WASI_HTTP "Enable and build WasmEdge wasi-http plugin." OFF)
 #   WASI plug-in: WASI-Logging proposal.
-#     Note: WASMEDGE_PLUGIN_WASI_LOGGING is not used until the new plug-in mechanism ready in 0.15.0.
+#     Note: WASMEDGE_PLUGIN_WASI_LOGGING is not used until the new plug-in mechanism is ready in 0.15.0.
 option(WASMEDGE_PLUGIN_WASI_LOGGING "Enable and build WasmEdge wasi-logging plugin." ON)
 #   WASI plug-in: WASI-NN proposal with backends.
 set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable and build WasmEdge Wasi-NN plugin with backends.")
@@ -106,7 +106,7 @@ option(WASMEDGE_PLUGIN_FFMPEG "Enable and build WasmEdge ffmpeg plugin." OFF)
 #   WasmEdge plug-in: Image.
 option(WASMEDGE_PLUGIN_IMAGE "Enable and build WasmEdge image plugin." OFF)
 #   WasmEdge plug-in: LLMC.
-option(WASMEDGE_PLUGIN_LLMC "Enable and build WasmEdge LLMC plugin." OFF)
+option(WASMEDGE_PLUGIN_LLMC "Removed (deprecated option kept for compatibility): WasmEdge LLMC plugin." OFF)
 #   WasmEdge plug-in: OCR.
 option(WASMEDGE_PLUGIN_OCR "Enable and build WasmEdge OCR plugin." OFF)
 #   WasmEdge plug-in: OpenCV-mini.

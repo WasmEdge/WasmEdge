@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/defines.h"
-#include "image_func.h"
 #include "image_module.h"
+#include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 
 #include <algorithm>
@@ -179,8 +179,7 @@ TEST(WasmEdgeImageTest, LoadJPG) {
   auto *FuncInst = ImgMod->findFuncExports("load_jpg");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInst = dynamic_cast<WasmEdge::Host::WasmEdgeImage::LoadJPG &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncInst = FuncInst->getHostFunc();
 
   // Test: Load JPG and resize into 50x60 RGB u8 format.
   // Clear the memory[0, 32768].
@@ -320,8 +319,7 @@ TEST(WasmEdgeImageTest, LoadPNG) {
   auto *FuncInst = ImgMod->findFuncExports("load_png");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInst = dynamic_cast<WasmEdge::Host::WasmEdgeImage::LoadPNG &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncInst = FuncInst->getHostFunc();
 
   // Test: Load PNG and resize into 50x60 RGB u8 format.
   // Clear the memory[0, 32768].
@@ -459,8 +457,7 @@ TEST(WasmEdgeImageTest, LoadImage) {
   auto *FuncInst = ImgMod->findFuncExports("load_image");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInst = dynamic_cast<WasmEdge::Host::WasmEdgeImage::LoadImage &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncInst = FuncInst->getHostFunc();
 
   // Test: Load JPG and resize into 50x60 BGR u8 format.
   // Clear the memory[0, 32768].

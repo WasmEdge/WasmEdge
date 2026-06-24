@@ -32,11 +32,10 @@ namespace detail {
 
 /// The Handles Manager base class.
 ///
-/// @tparam HandleType This is the type of handle, notice it must be `32-bit
-/// long`.
+/// @tparam HandleType This is the handle type. It must be 32 bits wide.
 /// @tparam ManagerType The managed content type.
 ///
-/// HandlesManager uses handle as index to represent the managed contents.
+/// HandlesManager uses a handle as the index to represent the managed contents.
 ///
 /// Referenced from:
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/implementations/hostcalls/rust/src/handles.rs
@@ -60,36 +59,36 @@ public:
     return {};
   }
 
-  /// Constructor a new manager.
+  /// Construct a new manager.
   template <typename... Args>
   WasiCryptoExpect<HandleType> registerManager(Args &&...Manager) noexcept {
     std::unique_lock<std::shared_mutex> Lock{Mutex};
 
-    // Find a handle that can be used and emplace.
+    // Find an available handle and emplace it.
     // Assume that LastHandle is 0x01000000, NextHandle is 0x01000001.
     auto NextHandle = LastHandle.nextHandle();
     while (true) {
       // Try to emplace NextHandle.
       if (Map.try_emplace(NextHandle, std::forward<Args>(Manager)...).second) {
-        // If success, emplace which indicate the NextHandle not exists in the
-        // managed content. Update the last handle and return it.
+        // If this succeeds, the emplacement indicates that NextHandle does not
+        // exist in the managed content. Update the last handle and return it.
         LastHandle = NextHandle;
         return LastHandle.Handle;
       }
-      // Otherwise, the NextHandle Map already exists a content, call NextHandle
-      // and loop.
+      // Otherwise, the NextHandle map already contains content. Advance
+      // NextHandle and loop.
       NextHandle = NextHandle.nextHandle();
 
-      // If after looping `many times(2^24 - 1)`, we get 0x01000000 again.
+      // If, after looping many times (2^24 - 1), we get 0x01000000 again, the
+      // hash map is full.
       if (NextHandle == LastHandle) {
-        // It indicates the hashmap is full.
         return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_TOO_MANY_HANDLES);
       }
     }
   }
 
 protected:
-  /// The handle internal representation as [-TypeID-|------CurrentNumber------]
+  /// The handle internal representation: [-TypeID-|------CurrentNumber------]
   union HandleWrapper {
     static_assert(sizeof(HandleType) == 4, "HandleType must be 4 byte");
     HandleWrapper(uint8_t TypeID, uint32_t CurrentNumber) noexcept

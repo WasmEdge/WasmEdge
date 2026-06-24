@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file is the definition class of Data class.
+/// This file defines the Data class.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -35,7 +35,6 @@ public:
 
 private:
   std::unique_ptr<DataContext> Context;
-  const Configure Conf;
 };
 
 } // namespace WasmEdge::LLVM

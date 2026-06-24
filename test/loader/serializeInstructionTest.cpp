@@ -580,7 +580,7 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   //   2.  Serialize invalid reference type without Ref-Types proposal.
   //   3.  Serialize Ref_as_non_null instruction with valid type index.
   //   4.  Serialize Ref_as_non_null instruction without Func-Ref proposal.
-  //   5.  Serializs Ref__eq instruction.
+  //   5.  Serialize Ref__eq instruction.
   //   6.  Serialize Ref__i31 instruction.
   //   7.  Serialize Ref__test instruction.
   //   8.  Serialize Ref__test_null instruction.
@@ -1084,9 +1084,11 @@ TEST(SerializeInstructionTest, SerializeTableInstruction) {
   //
   //   1.  Serialize table_get instruction.
   //   2.  Serialize table_init instruction.
+  //   3.  Serialize table_copy instruction with distinct source and destination.
 
   WasmEdge::AST::Instruction TableGet(WasmEdge::OpCode::Table__get);
   WasmEdge::AST::Instruction TableInit(WasmEdge::OpCode::Table__init);
+  WasmEdge::AST::Instruction TableCopy(WasmEdge::OpCode::Table__copy);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   TableGet.getTargetIndex() = 0xFFFFFFFFU;
@@ -1122,6 +1124,25 @@ TEST(SerializeInstructionTest, SerializeTableInstruction) {
       0x0BU                              // Expression End.
   };
   EXPECT_EQ(Output, Expected);
+
+  // table.copy x y encodes both x (destination) and y (source) as u32.
+  TableCopy.getTargetIndex() = 0x01U;
+  TableCopy.getSourceIndex() = 0x02U;
+  Instructions = {TableCopy, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,       // Code section
+      0x08U,       // Content size = 8
+      0x01U,       // Vector length = 1
+      0x06U,       // Code segment size = 6
+      0x00U,       // Local vec(0)
+      0xFCU, 0x0EU, // OpCode Table__copy.
+      0x01U,       // Destination table index.
+      0x02U,       // Source table index.
+      0x0BU        // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
 }
 
 TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
@@ -1133,9 +1154,13 @@ TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
   //
   //   1.  Serialize memory_grow instruction.
   //   2.  Serialize i32_load instruction.
+  //   3.  Serialize memory_init with a non-zero data segment index.
+  //   4.  Serialize memory_copy (non-multi-memory: both indices must be 0x00).
 
   WasmEdge::AST::Instruction MemoryGrow(WasmEdge::OpCode::Memory__grow);
   WasmEdge::AST::Instruction I32Load(WasmEdge::OpCode::I32__load);
+  WasmEdge::AST::Instruction MemoryInit(WasmEdge::OpCode::Memory__init);
+  WasmEdge::AST::Instruction MemoryCopy(WasmEdge::OpCode::Memory__copy);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   Instructions = {MemoryGrow, End};
@@ -1186,6 +1211,45 @@ TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Align.
       0xFEU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Offset.
       0x0BU                              // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // memory.init x y encodes x (data segment index, SourceIndex) before y (memory
+  // index, TargetIndex).  Using SourceIndex=5, TargetIndex=0 (non-multi-memory).
+  MemoryInit.getSourceIndex() = 0x05U;
+  MemoryInit.getTargetIndex() = 0x00U;
+  Instructions = {MemoryInit, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,       // Code section
+      0x08U,       // Content size = 8
+      0x01U,       // Vector length = 1
+      0x06U,       // Code segment size = 6
+      0x00U,       // Local vec(0)
+      0xFCU, 0x08U, // OpCode Memory__init.
+      0x05U,       // Data segment index (SourceIndex).
+      0x00U,       // Memory index (TargetIndex, must be 0x00).
+      0x0BU        // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // memory.copy (non-multi-memory) encodes both memory indices as 0x00.
+  MemoryCopy.getTargetIndex() = 0x00U;
+  MemoryCopy.getSourceIndex() = 0x00U;
+  Instructions = {MemoryCopy, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,       // Code section
+      0x08U,       // Content size = 8
+      0x01U,       // Vector length = 1
+      0x06U,       // Code segment size = 6
+      0x00U,       // Local vec(0)
+      0xFCU, 0x0AU, // OpCode Memory__copy.
+      0x00U,       // Destination memory index (TargetIndex, must be 0x00).
+      0x00U,       // Source memory index (SourceIndex, must be 0x00).
+      0x0BU        // Expression End.
   };
   EXPECT_EQ(Output, Expected);
 }
@@ -1270,6 +1334,61 @@ TEST(SerializeInstructionTest, SerializeConstInstruction) {
       0x18U, 0x2DU, 0x44U, 0x54U,
       0xFBU, 0x21U, 0x09U, 0xC0U, // F64 -3.1415926535897932
       0x0BU                       // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+}
+
+TEST(SerializeInstructionTest, SerializeSIMDConstInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 13. Test SIMD const and shuffle instructions.
+  //
+  //   1.  Serialize V128__const instruction.
+  //   2.  Serialize I8x16__shuffle instruction.
+
+  WasmEdge::AST::Instruction V128Const(WasmEdge::OpCode::V128__const);
+  WasmEdge::AST::Instruction I8x16Shuffle(WasmEdge::OpCode::I8x16__shuffle);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  // Use an asymmetric 16-byte pattern so byte-order bugs are detectable.
+  WasmEdge::uint128_t Value = 0U;
+  for (uint32_t I = 0; I < 16; ++I) {
+    Value |= static_cast<WasmEdge::uint128_t>(I + 1) << (I * 8);
+  }
+
+  V128Const.setNum(Value);
+  Instructions = {V128Const, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x16U,        // Content size = 22
+      0x01U,        // Vector length = 1
+      0x14U,        // Code segment size = 20
+      0x00U,        // Local vec(0)
+      0xFDU, 0x0CU, // OpCode V128__const.
+      0x01U, 0x02U, 0x03U, 0x04U, 0x05U, 0x06U, 0x07U, 0x08U,
+      0x09U, 0x0AU, 0x0BU, 0x0CU, 0x0DU, 0x0EU, 0x0FU, 0x10U,
+      0x0BU // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  I8x16Shuffle.setNum(Value);
+  Instructions = {I8x16Shuffle, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x16U,        // Content size = 22
+      0x01U,        // Vector length = 1
+      0x14U,        // Code segment size = 20
+      0x00U,        // Local vec(0)
+      0xFDU, 0x0DU, // OpCode I8x16__shuffle.
+      0x01U, 0x02U, 0x03U, 0x04U, 0x05U, 0x06U, 0x07U, 0x08U,
+      0x09U, 0x0AU, 0x0BU, 0x0CU, 0x0DU, 0x0EU, 0x0FU, 0x10U,
+      0x0BU // Expression End.
   };
   EXPECT_EQ(Output, Expected);
 }

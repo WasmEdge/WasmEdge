@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "wasinnfunc.h"
 #include "wasinnmodule.h"
 
 #include "common/types.h"
+#include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 
 #include <gtest/gtest.h>
@@ -105,7 +105,7 @@ std::vector<size_t> classSort(WasmEdge::Span<const T> Array) {
   std::iota(Indices.begin(), Indices.end(), 0);
   std::sort(Indices.begin(), Indices.end(),
             [&Array](size_t Left, size_t Right) -> bool {
-              // Sort indices according to corresponding array element.
+              // Sort indices according to the corresponding array elements.
               return Array[Left] > Array[Right];
             });
   return Indices;
@@ -176,32 +176,27 @@ TEST(WasiNNTest, OpenVINOBackend) {
   auto *FuncInst = NNMod->findFuncExports("load");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncLoad =
-      dynamic_cast<WasmEdge::Host::WasiNNLoad &>(FuncInst->getHostFunc());
+  auto &HostFuncLoad = FuncInst->getHostFunc();
   // Get the function "init_execution_context".
   FuncInst = NNMod->findFuncExports("init_execution_context");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInit = dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncInit = FuncInst->getHostFunc();
   // Get the function "set_input".
   FuncInst = NNMod->findFuncExports("set_input");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSetInput =
-      dynamic_cast<WasmEdge::Host::WasiNNSetInput &>(FuncInst->getHostFunc());
+  auto &HostFuncSetInput = FuncInst->getHostFunc();
   // Get the function "get_output".
   FuncInst = NNMod->findFuncExports("get_output");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetOutput =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
+  auto &HostFuncGetOutput = FuncInst->getHostFunc();
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncCompute =
-      dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
+  auto &HostFuncCompute = FuncInst->getHostFunc();
 
   // OpenVINO WASI-NN load tests.
   // Test: load -- meaningless binaries.
@@ -274,7 +269,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: load -- wrong builders' length.
+  // Test: load -- wrong builder count.
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(XmlRead.size()),
                   BuilderPtr);
@@ -361,7 +356,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   NNContextTmp.swap(NNMod->getEnv().NNContext);
 
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -372,7 +367,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
     BuilderPtr += 4;
   }
 
-  // Test: init_execution_context -- init second context.
+  // Test: init_execution_context -- initialize the second context.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -599,32 +594,27 @@ TEST(WasiNNTest, PyTorchBackend) {
   auto *FuncInst = NNMod->findFuncExports("load");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncLoad =
-      dynamic_cast<WasmEdge::Host::WasiNNLoad &>(FuncInst->getHostFunc());
+  auto &HostFuncLoad = FuncInst->getHostFunc();
   // Get the function "init_execution_context".
   FuncInst = NNMod->findFuncExports("init_execution_context");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInit = dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncInit = FuncInst->getHostFunc();
   // Get the function "set_input".
   FuncInst = NNMod->findFuncExports("set_input");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSetInput =
-      dynamic_cast<WasmEdge::Host::WasiNNSetInput &>(FuncInst->getHostFunc());
+  auto &HostFuncSetInput = FuncInst->getHostFunc();
   // Get the function "get_output".
   FuncInst = NNMod->findFuncExports("get_output");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetOutput =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
+  auto &HostFuncGetOutput = FuncInst->getHostFunc();
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncCompute =
-      dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
+  auto &HostFuncCompute = FuncInst->getHostFunc();
 
   // Torch WASI-NN load tests.
   // Test: load -- meaningless binaries.
@@ -677,7 +667,7 @@ TEST(WasiNNTest, PyTorchBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: load -- wrong builders' length.
+  // Test: load -- wrong builder count.
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(WeightRead.size()),
                   BuilderPtr);
@@ -747,7 +737,7 @@ TEST(WasiNNTest, PyTorchBackend) {
   NNGraphTmp.emplace_back(Backend::PyTorch);
   NNGraphTmp.back().setReady();
   // Test: init_execution_context -- graph id exceeds.
-  // TODO: not null test for pytorch now
+  // TODO: add a non-null test for PyTorch.
   //   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   //   NNContextTmp.swap(NNMod->getEnv().NNContext);
   //   {
@@ -762,7 +752,7 @@ TEST(WasiNNTest, PyTorchBackend) {
   //   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   //   NNContextTmp.swap(NNMod->getEnv().NNContext);
 
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -773,7 +763,7 @@ TEST(WasiNNTest, PyTorchBackend) {
     BuilderPtr += 4;
   }
 
-  // Test: init_execution_context -- init second context.
+  // Test: init_execution_context -- initialize the second context.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -974,32 +964,27 @@ TEST(WasiNNTest, TFLiteBackend) {
   auto *FuncInst = NNMod->findFuncExports("load");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncLoad =
-      dynamic_cast<WasmEdge::Host::WasiNNLoad &>(FuncInst->getHostFunc());
+  auto &HostFuncLoad = FuncInst->getHostFunc();
   // Get the function "init_execution_context".
   FuncInst = NNMod->findFuncExports("init_execution_context");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInit = dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncInit = FuncInst->getHostFunc();
   // Get the function "set_input".
   FuncInst = NNMod->findFuncExports("set_input");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSetInput =
-      dynamic_cast<WasmEdge::Host::WasiNNSetInput &>(FuncInst->getHostFunc());
+  auto &HostFuncSetInput = FuncInst->getHostFunc();
   // Get the function "get_output".
   FuncInst = NNMod->findFuncExports("get_output");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetOutput =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
+  auto &HostFuncGetOutput = FuncInst->getHostFunc();
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncCompute =
-      dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
+  auto &HostFuncCompute = FuncInst->getHostFunc();
 
   // Torch WASI-NN load tests.
   // Test: load -- meaningless binaries.
@@ -1056,7 +1041,7 @@ TEST(WasiNNTest, TFLiteBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: load -- wrong builders' length.
+  // Test: load -- wrong builder count.
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(WeightRead.size()),
                   BuilderPtr);
@@ -1144,7 +1129,7 @@ TEST(WasiNNTest, TFLiteBackend) {
   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   NNContextTmp.swap(NNMod->getEnv().NNContext);
 
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -1155,7 +1140,7 @@ TEST(WasiNNTest, TFLiteBackend) {
     BuilderPtr += 4;
   }
 
-  // Test: init_execution_context -- init second context.
+  // Test: init_execution_context -- initialize the second context.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -1338,32 +1323,27 @@ TEST(WasiNNTest, GGMLBackend) {
   auto *FuncInst = NNMod->findFuncExports("load");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncLoad =
-      dynamic_cast<WasmEdge::Host::WasiNNLoad &>(FuncInst->getHostFunc());
+  auto &HostFuncLoad = FuncInst->getHostFunc();
   // Get the function "init_execution_context".
   FuncInst = NNMod->findFuncExports("init_execution_context");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInit = dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncInit = FuncInst->getHostFunc();
   // Get the function "set_input".
   FuncInst = NNMod->findFuncExports("set_input");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSetInput =
-      dynamic_cast<WasmEdge::Host::WasiNNSetInput &>(FuncInst->getHostFunc());
+  auto &HostFuncSetInput = FuncInst->getHostFunc();
   // Get the function "get_output".
   FuncInst = NNMod->findFuncExports("get_output");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetOutput =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
+  auto &HostFuncGetOutput = FuncInst->getHostFunc();
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncCompute =
-      dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
+  auto &HostFuncCompute = FuncInst->getHostFunc();
 
   // GGML WASI-NN load tests.
   // Test: load -- meaningless binaries.
@@ -1458,7 +1438,7 @@ TEST(WasiNNTest, GGMLBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -1616,39 +1596,32 @@ TEST(WasiNNTest, GGMLBackendWithRPC) {
   auto FuncInst = NNMod->findFuncExports("load_by_name");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncLoadByName =
-      dynamic_cast<WasmEdge::Host::WasiNNLoadByName &>(FuncInst->getHostFunc());
+  auto &HostFuncLoadByName = FuncInst->getHostFunc();
   // Get the function "load_by_name_with_config".
   FuncInst = NNMod->findFuncExports("load_by_name_with_config");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncLoadByNameWithConfig =
-      dynamic_cast<WasmEdge::Host::WasiNNLoadByNameWithConfig &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncLoadByNameWithConfig = FuncInst->getHostFunc();
   // Get the function "init_execution_context".
   FuncInst = NNMod->findFuncExports("init_execution_context");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInit = dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncInit = FuncInst->getHostFunc();
   // Get the function "set_input".
   FuncInst = NNMod->findFuncExports("set_input");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSetInput =
-      dynamic_cast<WasmEdge::Host::WasiNNSetInput &>(FuncInst->getHostFunc());
+  auto &HostFuncSetInput = FuncInst->getHostFunc();
   // Get the function "get_output".
   FuncInst = NNMod->findFuncExports("get_output");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetOutput =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
+  auto &HostFuncGetOutput = FuncInst->getHostFunc();
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncCompute =
-      dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
+  auto &HostFuncCompute = FuncInst->getHostFunc();
 
   // Test: load_by_name -- load successfully.
   {
@@ -1695,7 +1668,7 @@ TEST(WasiNNTest, GGMLBackendWithRPC) {
     EXPECT_NE(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
 
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -1849,41 +1822,32 @@ TEST(WasiNNTest, GGMLBackendComputeSingleWithRPC) {
   auto FuncInst = NNMod->findFuncExports("load_by_name");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncLoadByName =
-      dynamic_cast<WasmEdge::Host::WasiNNLoadByName &>(FuncInst->getHostFunc());
+  auto &HostFuncLoadByName = FuncInst->getHostFunc();
   // Get the function "load_by_name_with_config".
   FuncInst = NNMod->findFuncExports("load_by_name_with_config");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncLoadByNameWithConfig =
-      dynamic_cast<WasmEdge::Host::WasiNNLoadByNameWithConfig &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncLoadByNameWithConfig = FuncInst->getHostFunc();
   // Get the function "init_execution_context".
   FuncInst = NNMod->findFuncExports("init_execution_context");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInit = dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncInit = FuncInst->getHostFunc();
   // Get the function "set_input".
   FuncInst = NNMod->findFuncExports("set_input");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSetInput =
-      dynamic_cast<WasmEdge::Host::WasiNNSetInput &>(FuncInst->getHostFunc());
+  auto &HostFuncSetInput = FuncInst->getHostFunc();
   // Get the function "get_output".
   FuncInst = NNMod->findFuncExports("get_output_single");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetOutputSingle =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOutputSingle &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncGetOutputSingle = FuncInst->getHostFunc();
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute_single");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncComputeSingle =
-      dynamic_cast<WasmEdge::Host::WasiNNComputeSingle &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncComputeSingle = FuncInst->getHostFunc();
 
   // Test: load_by_name -- load successfully.
   {
@@ -1920,7 +1884,7 @@ TEST(WasiNNTest, GGMLBackendComputeSingleWithRPC) {
     BuilderPtr += 4;
   }
 
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -2044,32 +2008,27 @@ TEST(WasiNNTest, WhisperBackend) {
   auto *FuncInst = NNMod->findFuncExports("load");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncLoad =
-      dynamic_cast<WasmEdge::Host::WasiNNLoad &>(FuncInst->getHostFunc());
+  auto &HostFuncLoad = FuncInst->getHostFunc();
   // Get the function "init_execution_context".
   FuncInst = NNMod->findFuncExports("init_execution_context");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInit = dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncInit = FuncInst->getHostFunc();
   // Get the function "set_input".
   FuncInst = NNMod->findFuncExports("set_input");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSetInput =
-      dynamic_cast<WasmEdge::Host::WasiNNSetInput &>(FuncInst->getHostFunc());
+  auto &HostFuncSetInput = FuncInst->getHostFunc();
   // Get the function "get_output".
   FuncInst = NNMod->findFuncExports("get_output");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetOutput =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
+  auto &HostFuncGetOutput = FuncInst->getHostFunc();
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncCompute =
-      dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
+  auto &HostFuncCompute = FuncInst->getHostFunc();
 
   // Whisper WASI-NN load tests.
   // Test: load -- meaningless binaries.
@@ -2147,7 +2106,7 @@ TEST(WasiNNTest, WhisperBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: init_execution_context -- init second context.
+  // Test: init_execution_context -- initialize the second context.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -2275,32 +2234,27 @@ TEST(WasiNNTest, PiperBackend) {
   auto *FuncInst = NNMod->findFuncExports("load");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncLoad =
-      dynamic_cast<WasmEdge::Host::WasiNNLoad &>(FuncInst->getHostFunc());
+  auto &HostFuncLoad = FuncInst->getHostFunc();
   // Get the function "init_execution_context".
   FuncInst = NNMod->findFuncExports("init_execution_context");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInit = dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncInit = FuncInst->getHostFunc();
   // Get the function "set_input".
   FuncInst = NNMod->findFuncExports("set_input");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSetInput =
-      dynamic_cast<WasmEdge::Host::WasiNNSetInput &>(FuncInst->getHostFunc());
+  auto &HostFuncSetInput = FuncInst->getHostFunc();
   // Get the function "get_output".
   FuncInst = NNMod->findFuncExports("get_output");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetOutput =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
+  auto &HostFuncGetOutput = FuncInst->getHostFunc();
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncCompute =
-      dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
+  auto &HostFuncCompute = FuncInst->getHostFunc();
 
   // Piper WASI-NN load tests.
   // Test: load -- graph id ptr out of bounds.
@@ -2386,7 +2340,7 @@ TEST(WasiNNTest, PiperBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -2506,7 +2460,7 @@ TEST(WasiNNTest, PiperBackend) {
     BuilderPtr += 4;
   }
 
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -2517,10 +2471,9 @@ TEST(WasiNNTest, PiperBackend) {
     BuilderPtr += 4;
   }
 
-  // First json input with parameters overridden
+  // First JSON input with parameters overridden.
   Text = "{\"text\": \"This is a test.\", \"noise_scale\": 0.0, "
-         "\"length_scale\": 2.0, \"noise_w\": 0.0, \"sentence_silence\": 1.0, "
-         "\"phoneme_silence\": {\"t\": 0.0}}";
+         "\"length_scale\": 2.0, \"noise_w\": 0.0}";
   TensorData = {Text.begin(), Text.end()};
   SetInputEntryPtr = BuilderPtr;
   writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
@@ -2563,11 +2516,11 @@ TEST(WasiNNTest, PiperBackend) {
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
-    // Should output more than 50000 bytes.
-    EXPECT_GE(BytesWritten, 50000);
+    // Should output more than 40000 bytes.
+    EXPECT_GE(BytesWritten, 40000);
   }
 
-  // Second json input to check if one-time overriding is working properly
+  // Second JSON input to check if one-time overriding works properly.
   Text = "{\"text\": \"This is a test.\", \"output_type\": \"raw\", "
          "\"noise_scale\": 0.0, \"noise_w\": 0.0}";
   TensorData = {Text.begin(), Text.end()};
@@ -2613,9 +2566,9 @@ TEST(WasiNNTest, PiperBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     EXPECT_GE(BytesWritten, 30000);
-    // Should output less than 40000 bytes.
-    EXPECT_LT(BytesWritten, 40000);
-    EXPECT_EQ(BytesWritten, 34048);
+    // Should output less than 50000 bytes.
+    EXPECT_LT(BytesWritten, 50000);
+    EXPECT_EQ(BytesWritten, 44100);
   }
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
@@ -2658,38 +2611,32 @@ TEST(WasiNNTest, ChatTTSBackend) {
   auto *FuncInst = NNMod->findFuncExports("load");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncLoad =
-      dynamic_cast<WasmEdge::Host::WasiNNLoad &>(FuncInst->getHostFunc());
+  auto &HostFuncLoad = FuncInst->getHostFunc();
   // Get the function "init_execution_context".
   FuncInst = NNMod->findFuncExports("init_execution_context");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInit = dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncInit = FuncInst->getHostFunc();
   // Get the function "set_input".
   FuncInst = NNMod->findFuncExports("set_input");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSetInput =
-      dynamic_cast<WasmEdge::Host::WasiNNSetInput &>(FuncInst->getHostFunc());
+  auto &HostFuncSetInput = FuncInst->getHostFunc();
   // Get the function "get_output".
   FuncInst = NNMod->findFuncExports("get_output");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetOutput =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
+  auto &HostFuncGetOutput = FuncInst->getHostFunc();
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncCompute =
-      dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
+  auto &HostFuncCompute = FuncInst->getHostFunc();
   // Get the function "unload".
   FuncInst = NNMod->findFuncExports("unload");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncUnload =
-      dynamic_cast<WasmEdge::Host::WasiNNUnload &>(FuncInst->getHostFunc());
+  auto &HostFuncUnload = FuncInst->getHostFunc();
 
   // ChatTTS WASI-NN load tests.
   // Test: load -- graph id ptr out of bounds.
@@ -2740,7 +2687,7 @@ TEST(WasiNNTest, ChatTTSBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: init_execution_context -- init second context.
+  // Test: init_execution_context -- initialize the second context.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -2907,32 +2854,27 @@ TEST(WasiNNTest, MLXBackend) {
   auto *FuncInst = NNMod->findFuncExports("load");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncLoad =
-      dynamic_cast<WasmEdge::Host::WasiNNLoad &>(FuncInst->getHostFunc());
+  auto &HostFuncLoad = FuncInst->getHostFunc();
   // Get the function "init_execution_context".
   FuncInst = NNMod->findFuncExports("init_execution_context");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInit = dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncInit = FuncInst->getHostFunc();
   // Get the function "set_input".
   FuncInst = NNMod->findFuncExports("set_input");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSetInput =
-      dynamic_cast<WasmEdge::Host::WasiNNSetInput &>(FuncInst->getHostFunc());
+  auto &HostFuncSetInput = FuncInst->getHostFunc();
   // Get the function "get_output".
   FuncInst = NNMod->findFuncExports("get_output");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetOutput =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
+  auto &HostFuncGetOutput = FuncInst->getHostFunc();
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncCompute =
-      dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
+  auto &HostFuncCompute = FuncInst->getHostFunc();
 
   // MLX WASI-NN load tests.
   // Test: load -- meaningless binaries.
@@ -3021,7 +2963,7 @@ TEST(WasiNNTest, MLXBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: init_execution_context -- init second context.
+  // Test: init_execution_context -- initialize the second context.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -3136,50 +3078,39 @@ TEST(WasiNNTest, BitNetBackend) {
   // Get the function "load".
   auto *FuncInst = NNMod->findFuncExports("load");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncLoad =
-      dynamic_cast<WasmEdge::Host::WasiNNLoad &>(FuncInst->getHostFunc());
+  auto &HostFuncLoad = FuncInst->getHostFunc();
   // Get the function "init_execution_context".
   FuncInst = NNMod->findFuncExports("init_execution_context");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncInit = dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncInit = FuncInst->getHostFunc();
   // Get the function "set_input".
   FuncInst = NNMod->findFuncExports("set_input");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncSetInput =
-      dynamic_cast<WasmEdge::Host::WasiNNSetInput &>(FuncInst->getHostFunc());
+  auto &HostFuncSetInput = FuncInst->getHostFunc();
   // Get the function "get_output".
   FuncInst = NNMod->findFuncExports("get_output");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncGetOutput =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
+  auto &HostFuncGetOutput = FuncInst->getHostFunc();
   // Get the function "compute".
   FuncInst = NNMod->findFuncExports("compute");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncCompute =
-      dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
+  auto &HostFuncCompute = FuncInst->getHostFunc();
   // Get the function "unload".
   FuncInst = NNMod->findFuncExports("unload");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncUnload =
-      dynamic_cast<WasmEdge::Host::WasiNNUnload &>(FuncInst->getHostFunc());
+  auto &HostFuncUnload = FuncInst->getHostFunc();
   // Get the function "compute_single".
   FuncInst = NNMod->findFuncExports("compute_single");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncComputeSingle =
-      dynamic_cast<WasmEdge::Host::WasiNNComputeSingle &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncComputeSingle = FuncInst->getHostFunc();
   // Get the function "get_output_single".
   FuncInst = NNMod->findFuncExports("get_output_single");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncGetOutputSingle =
-      dynamic_cast<WasmEdge::Host::WasiNNGetOutputSingle &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncGetOutputSingle = FuncInst->getHostFunc();
   // Get the function "fini_single".
   FuncInst = NNMod->findFuncExports("fini_single");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncFiniSingle =
-      dynamic_cast<WasmEdge::Host::WasiNNFiniSingle &>(FuncInst->getHostFunc());
+  auto &HostFuncFiniSingle = FuncInst->getHostFunc();
 
   // --- Test Data & Pointer Setup ---
   const std::string ModelPath = "./wasinn_bitnet_fixtures/ggml-model-i2_s.gguf";
@@ -3289,7 +3220,7 @@ TEST(WasiNNTest, BitNetBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     ASSERT_TRUE(HostFuncInit.run(
         CallFrame,

@@ -14,6 +14,7 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 TEST_F(FFmpegTest, AVInputFormat) {
+  using namespace std::literals::string_view_literals;
   std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
   uint32_t FormatCtxPtr = UINT32_C(24);
   uint32_t InputFormatPtr = UINT32_C(28);
@@ -30,11 +31,9 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   auto *FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_iformat");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxIFormat = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxIFormat &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatCtxIFormat = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFormatCtxIFormat.run(
@@ -53,11 +52,9 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avIOFormat_name_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVIOFormatNameLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVIOFormatNameLength &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVIOFormatNameLength = FuncInst->getHostFunc();
 
   int32_t Length = 0;
   {
@@ -70,11 +67,9 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avInputFormat_name");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVInputFormatName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVInputFormatName &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVInputFormatName = FuncInst->getHostFunc();
 
   fillMemContent(MemInst, StrBuf, Length);
   {
@@ -84,15 +79,16 @@ TEST_F(FFmpegTest, AVInputFormat) {
                                                     Length},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(StrBuf),
+                               static_cast<size_t>(Length)),
+              "mov,mp4,m4a,3gp,3g2,mj2"sv);
   }
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avIOFormat_long_name_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVIOFormatLongNameLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVIOFormatLongNameLength &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVIOFormatLongNameLength = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVIOFormatLongNameLength.run(
@@ -105,11 +101,9 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avInputFormat_long_name");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVInputFormatLongName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVInputFormatLongName &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVInputFormatLongName = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVInputFormatLongName.run(
@@ -119,15 +113,16 @@ TEST_F(FFmpegTest, AVInputFormat) {
         Result));
 
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(StrBuf),
+                               static_cast<size_t>(Length)),
+              "QuickTime / MOV"sv);
   }
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avIOFormat_extensions_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVIOFormatExtensionsLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVIOFormatExtensionsLength &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVIOFormatExtensionsLength = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVIOFormatExtensionsLength.run(
@@ -140,11 +135,9 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avInputFormat_extensions");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVInputFormatExtensions = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVInputFormatExtensions &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVInputFormatExtensions = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVInputFormatExtensions.run(
@@ -157,11 +150,9 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avIOFormat_mime_type_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVIOFormatMimeTypeLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVIOFormatMimeTypeLength &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVIOFormatMimeTypeLength = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVIOFormatMimeTypeLength.run(
@@ -174,11 +165,9 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avInputFormat_mime_type");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVInputFormatMimeType = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVInputFormatMimeType &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVInputFormatMimeType = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVInputFormatMimeType.run(
@@ -191,11 +180,9 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avInputOutputFormat_free");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVInputOutputFormatFree = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVInputOutputFormatFree &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVInputOutputFormatFree = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVInputOutputFormatFree.run(

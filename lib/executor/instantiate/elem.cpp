@@ -29,13 +29,13 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
             spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
             return E;
           }));
-      // Pop result from stack.
+      // Pop result from the stack.
       InitVals.push_back(StackMgr.pop().get<RefVariant>());
     }
 
-    uint32_t Offset = 0;
+    uint64_t Offset = 0;
     if (ElemSeg.getMode() == AST::ElementSegment::ElemMode::Active) {
-      // Run initialize expression.
+      // Run the initialization expression.
       EXPECTED_TRY(
           runExpression(StackMgr, ElemSeg.getExpr().getInstrs())
               .map_error([](auto E) {
@@ -43,18 +43,19 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                 spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
                 return E;
               }));
-      Offset = StackMgr.pop().get<uint32_t>();
+      // Get table instance and address type.
+      // Memory64 proposal is checked in validation phase.
+      auto *TabInst = getTabInstByIdx(StackMgr, ElemSeg.getIdx());
+      assuming(TabInst);
+      Offset = extractAddr(StackMgr.pop(),
+                           TabInst->getTableType().getLimit().getAddrType());
 
       // Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
       // enabled.
       if (unlikely(!Conf.hasProposal(Proposal::ReferenceTypes) &&
                    !Conf.hasProposal(Proposal::BulkMemoryOperations))) {
-        // Table index should be 0. Checked in validation phase.
-        auto *TabInst = getTabInstByIdx(StackMgr, ElemSeg.getIdx());
         // Check elements fits.
-        assuming(TabInst);
-        if (!TabInst->checkAccessBound(
-                Offset, static_cast<uint32_t>(InitVals.size()))) {
+        if (!TabInst->checkAccessBound(Offset, InitVals.size())) {
           spdlog::error(ErrCode::Value::ElemSegDoesNotFit);
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
           return Unexpect(ErrCode::Value::ElemSegDoesNotFit);
@@ -62,7 +63,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       }
     }
 
-    // Create and add the element instance into the module instance.
+    // Create and add the element instance to the module instance.
     ModInst.addElem(Offset, ElemSeg.getRefType(), InitVals);
   }
   return {};
@@ -74,19 +75,19 @@ Expect<void> Executor::initTable(Runtime::StackManager &StackMgr,
   // Initialize tables.
   uint32_t Idx = 0;
   for (const auto &ElemSeg : ElemSec.getContent()) {
+    // Element index is checked in validation phase.
     auto *ElemInst = getElemInstByIdx(StackMgr, Idx);
     assuming(ElemInst);
     if (ElemSeg.getMode() == AST::ElementSegment::ElemMode::Active) {
       // Table index is checked in validation phase.
       auto *TabInst = getTabInstByIdx(StackMgr, ElemSeg.getIdx());
       assuming(TabInst);
-      const uint32_t Off = ElemInst->getOffset();
+      const uint64_t Off = ElemInst->getOffset();
 
       // Replace table[Off : Off + n] with elem[0 : n].
       EXPECTED_TRY(
           TabInst
-              ->setRefs(ElemInst->getRefs(), Off, 0,
-                        static_cast<uint32_t>(ElemInst->getRefs().size()))
+              ->setRefs(ElemInst->getRefs(), Off, 0, ElemInst->getRefs().size())
               .map_error([](auto E) {
                 spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
                 return E;

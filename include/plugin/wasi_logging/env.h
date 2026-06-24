@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-// BUILTIN-PLUGIN: Temporary move the wasi-logging plugin sources here until
-// the new plugin architecture ready in 0.15.0.
+// BUILTIN-PLUGIN: Temporarily move the wasi-logging plugin sources here until
+// the new plugin architecture is ready in 0.15.0.
 
 #pragma once
 
@@ -58,7 +58,11 @@ public:
 
   ~LogEnv() noexcept {
     std::unique_lock Lock(Mutex);
-    spdlog::drop(LogFileName);
+    // Drop the file logger by its registered name; never LogFileName, which is
+    // empty until a file is set and would reset the unnamed default logger.
+    if (FileLogger) {
+      spdlog::drop(LogRegName);
+    }
     RegisteredID.erase(InstanceID);
   }
 

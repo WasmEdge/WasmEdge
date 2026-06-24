@@ -24,7 +24,7 @@ public:
   virtual Expect<void> run(Span<const ComponentValVariant> Args,
                            Span<ComponentValVariant> Rets) = 0;
 
-  /// Getter of function type.
+  /// Getter for function type.
   const AST::FunctionType &getFuncType() const noexcept { return FuncType; }
   AST::FunctionType &getFuncType() noexcept { return FuncType; }
 

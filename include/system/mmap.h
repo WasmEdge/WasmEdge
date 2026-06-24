@@ -9,7 +9,7 @@
 ///
 /// \file
 /// This file contains the memory mapped file handler for various operating
-/// system.
+/// systems.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

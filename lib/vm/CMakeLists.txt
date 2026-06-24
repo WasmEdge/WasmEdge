@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 wasmedge_add_library(wasmedgeVM
+  plugin_modules.cpp
   vm.cpp
 )
 
@@ -25,4 +26,8 @@ if(WASMEDGE_USE_LLVM)
     PUBLIC
     wasmedgeLLVM
   )
+endif()
+
+if(MSVC)
+  target_compile_options(wasmedgeVM PRIVATE "/bigobj")
 endif()

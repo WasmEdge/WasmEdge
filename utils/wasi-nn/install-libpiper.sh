@@ -43,6 +43,37 @@ cmake -Bbuild \
 cmake --build build --parallel $(nproc)
 cmake --install build
 
+echo "Copying espeak-ng static libraries to ${PIPER_INSTALL_TO}/lib..."
+
+if [ -f "build/espeak_ng-install/lib/libespeak-ng.a" ]; then
+    cp "build/espeak_ng-install/lib/libespeak-ng.a" "${PIPER_INSTALL_TO}/lib/"
+else
+    find build -name "libespeak-ng.a" -exec cp {} "${PIPER_INSTALL_TO}/lib/" \; -quit
+fi
+
+find build -name "libucd.a" -exec cp {} "${PIPER_INSTALL_TO}/lib/" \; -quit
+
+if [ ! -f "${PIPER_INSTALL_TO}/lib/libespeak-ng.a" ]; then
+    echo "Error: Failed to install libespeak-ng.a"
+    exit 1
+fi
+
+if [ ! -f "${PIPER_INSTALL_TO}/lib/libucd.a" ]; then
+    echo "Error: Failed to install libucd.a"
+    exit 1
+fi
+
+echo "Installing espeak-ng-data to ${PIPER_INSTALL_TO}/share..."
+
+if [ -d "build/espeak_ng-install/share/espeak-ng-data" ]; then
+    mkdir -p "${PIPER_INSTALL_TO}/share"
+    cp -r "build/espeak_ng-install/share/espeak-ng-data" "${PIPER_INSTALL_TO}/share/"
+    echo "Espeak-ng-data installed successfully."
+else
+    echo "Error: espeak-ng-data directory not found in build tree!"
+    exit 1
+fi
+
 cd ../..
 rm -rf piper-source
 

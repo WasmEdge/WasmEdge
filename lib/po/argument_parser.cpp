@@ -51,7 +51,9 @@ cxx20::expected<bool, Error> ArgumentParser::SubCommandDescriptor::parse(
         }
       }
     } else if (!Escaped && CurrentDesc) {
-      consume_argument(*CurrentDesc, Arg);
+      if (auto Res = consume_argument(*CurrentDesc, Arg); !Res) {
+        return cxx20::unexpected(Res.error());
+      }
       CurrentDesc = nullptr;
     } else {
       // no more options
@@ -275,11 +277,14 @@ ArgumentParser::SubCommandDescriptor::consume_long_option_with_argument(
     if (auto Res = consume_long_option(Option); !Res) {
       return cxx20::unexpected<Error>(Res.error());
     } else if (ArgumentDescriptor *CurrentDesc = *Res; !CurrentDesc) {
-      return cxx20::unexpected<Error>(std::in_place, ErrCode::InvalidArgument,
-                                      "option "s + std::string(Option) +
-                                          "doesn't need arguments."s);
+      return cxx20::unexpected<Error>(
+          std::in_place, ErrCode::InvalidArgument,
+          fmt::format("option {} doesn't need arguments.", Option));
     } else {
-      consume_argument(*CurrentDesc, Argument);
+      if (auto ConsumeRes = consume_argument(*CurrentDesc, Argument);
+          !ConsumeRes) {
+        return cxx20::unexpected<Error>(ConsumeRes.error());
+      }
       return nullptr;
     }
   } else {

@@ -25,6 +25,7 @@ permissions:
 
 jobs:
   build:
+    if: ${{ inputs.plugins != '[]' }}
     permissions:
       contents: write
     strategy:
@@ -42,11 +43,11 @@ jobs:
       output_dir: build/plugins/${{ matrix.dir }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
       - name: Build and install dependencies
@@ -54,6 +55,13 @@ jobs:
         run: |
           brew install ninja opencv rust ffmpeg@7
           brew unlink ffmpeg
+      - name: Install dependencies for wasi_nn-piper
+        if: matrix.plugin == 'wasi_nn-piper'
+        shell: bash
+        run: |
+          chmod +x utils/build_libpiper.sh
+          ./utils/build_libpiper.sh
+          echo "PIPER_INSTALL_PATH=$PWD/piper-source/libpiper/install" >> $GITHUB_ENV
       - name: Build ${{ matrix.plugin }}
         shell: bash
         run: |
@@ -61,9 +69,9 @@ jobs:
           export OpenSSL_DIR="$(brew --prefix)/opt/openssl"
           export CC=clang
           export CXX=clang++
-
           cmake -Bbuild -GNinja \
             -DCMAKE_BUILD_TYPE=Release \
+            -DPIPER_ROOT="$PIPER_INSTALL_PATH" \
             -DWASMEDGE_BUILD_TESTS=${{ inputs.release && 'OFF' || 'ON' }} \
             -DWASMEDGE_BUILD_TOOLS=OFF \
             -DWASMEDGE_USE_LLVM=OFF \
@@ -120,7 +128,7 @@ jobs:
         shell: bash
       - if: ${{ !inputs.release }}
         name: Upload artifact ${{ matrix.plugin }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ steps.var.outputs.artifact }}
           path: ${{ steps.var.outputs.artifacts }}

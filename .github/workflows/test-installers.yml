@@ -42,7 +42,7 @@ jobs:
       version: ${{ steps.get-version.outputs.version }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
@@ -69,7 +69,7 @@ jobs:
         run: pip install black==25.1.0
 
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
 
@@ -108,12 +108,12 @@ jobs:
 
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: audit
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       with:
         fetch-depth: 0
 
@@ -174,12 +174,12 @@ jobs:
 
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: audit
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       with:
         fetch-depth: 0
 
@@ -247,12 +247,12 @@ jobs:
 
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: audit
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       with:
         fetch-depth: 0
 
@@ -334,12 +334,12 @@ jobs:
 
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: audit
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       with:
         fetch-depth: 0
 
@@ -434,12 +434,12 @@ jobs:
 
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: audit
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       with:
         fetch-depth: 0
 
@@ -478,6 +478,21 @@ jobs:
           echo "Test 3: Deprecated version handling"
           ${python_cmd} utils/install.py -v ${DEPRECATED_TEST_VERSION} -D 2>&1 | grep -q "Version not supported. Min Version: 0.13.0" && \
             echo "[PASS] Version validation works" || (echo "[FAIL] Version validation failed" && exit 1)
+
+          # Test shell config
+          printf "\n=== Test 4: Shell config (default) ===\n"
+          tempdir="$(mktemp -d)"
+          ${python_cmd} utils/install.py -p "$tempdir"
+          verify_shell_config "$tempdir" "1"
+          bash utils/uninstall.sh -q -V -p "$tempdir"
+
+          # Test no shell config
+          printf "\n=== Test 5: Shell config (--no-modify-shell-profile) ===\n"
+          tempdir="$(mktemp -d)"
+          ${python_cmd} utils/install.py --no-modify-shell-profile -p "$tempdir"
+          verify_shell_config "$tempdir" "0"
+          bash utils/uninstall.sh -q -V -p "$tempdir"
+
         done
 
     - name: Test Plugin Installations
@@ -521,12 +536,12 @@ jobs:
 
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: audit
 
     - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       with:
         fetch-depth: 0
 
@@ -563,6 +578,20 @@ jobs:
         printf "\n=== Test 3: Deprecated version handling ===\n"
         python3 utils/install.py -v ${DEPRECATED_TEST_VERSION} -D 2>&1 | grep -q "Version not supported. Min Version: 0.13.0" && \
           echo "[PASS] Version validation works" || (echo "[FAIL] Version validation failed" && exit 1)
+
+        # Test shell config
+        printf "\n=== Test 4: Shell config (default) ===\n"
+        tempdir="$(mktemp -d)"
+        python3 utils/install.py -p "$tempdir"
+        verify_shell_config "$tempdir" "1"
+        bash utils/uninstall.sh -q -V -p "$tempdir"
+
+        # Test no shell config
+        printf "\n=== Test 5: Shell config (--no-modify-shell-profile) ===\n"
+        tempdir="$(mktemp -d)"
+        python3 utils/install.py --no-modify-shell-profile -p "$tempdir"
+        verify_shell_config "$tempdir" "0"
+        bash utils/uninstall.sh -q -V -p "$tempdir"
 
     - name: Test Plugin Installations
       shell: zsh {0}

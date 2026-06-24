@@ -129,6 +129,12 @@ Serializer::serializeLimit(const AST::Limit &Lim,
   //       |0x01 + min:u32 + max:u32
   //       |0x02 + min:u32 (shared, invalid)
   //       |0x03 + min:u32 + max:u32 (shared)
+  //       |0x04 + min:u64
+  //       |0x05 + min:u64 + max:u64
+  //       |0x06 + min:u64
+  //       |0x07 + min:u64 + max:u64
+  //
+  // we encode all of them in u64
   uint8_t Flag = 0;
   if (Lim.isShared()) {
     Flag |= 0x02U;
@@ -149,9 +155,9 @@ Serializer::serializeLimit(const AST::Limit &Lim,
     }
   }
   OutVec.push_back(Flag);
-  serializeU32(Lim.getMin(), OutVec);
+  serializeU64(Lim.getMin(), OutVec);
   if (Lim.hasMax()) {
-    serializeU32(Lim.getMax(), OutVec);
+    serializeU64(Lim.getMax(), OutVec);
   }
   return {};
 }
@@ -161,7 +167,7 @@ Expect<void>
 Serializer::serializeType(const AST::SubType &SType,
                           std::vector<uint8_t> &OutVec) const noexcept {
   // Sub type: vec(typeidx)
-  if (SType.getSuperTypeIndices().size() > 0) {
+  if (SType.getSuperTypeIndices().size() > 0 || !SType.isFinal()) {
     if (!Conf.hasProposal(Proposal::GC)) {
       return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::GC,
                              ASTNodeAttr::Type_Rec);

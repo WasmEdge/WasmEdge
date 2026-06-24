@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-// BUILTIN-PLUGIN: Temporary move the wasi-logging plugin sources here until
-// the new plugin architecture ready in 0.15.0.
+// BUILTIN-PLUGIN: Temporarily move the wasi-logging plugin sources here until
+// the new plugin architecture is ready in 0.15.0.
 
 #include "plugin/wasi_logging/func.h"
 
@@ -23,16 +23,12 @@ Expect<void> Log::body(const Runtime::CallingFrame &Frame, uint32_t Level,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  // Get Buffer Pointer.
-  char *CxtBuf = MemInst->getPointer<char *>(CxtPtr);
-  char *MsgBuf = MemInst->getPointer<char *>(MsgPtr);
-  if (CxtBuf == nullptr || MsgBuf == nullptr) {
+  // Get Context and Message string_view with full-extent bounds check.
+  auto CxtSV = MemInst->getStringView(CxtPtr, CxtLen);
+  auto MsgSV = MemInst->getStringView(MsgPtr, MsgLen);
+  if (CxtSV.data() == nullptr || MsgSV.data() == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-
-  // Get Context and Message string_view
-  std::string_view CxtSV(CxtBuf, CxtLen);
-  std::string_view MsgSV(MsgBuf, MsgLen);
 
   // Setup Logger for Stdout or Stderr
   std::shared_ptr<spdlog::logger> Logger;

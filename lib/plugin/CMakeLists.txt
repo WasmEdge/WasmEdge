@@ -15,8 +15,8 @@ target_include_directories(wasmedgePlugin
 
 target_link_libraries(wasmedgePlugin
   PUBLIC
-  # BUILTIN-PLUGIN: Temporary add the wasi-logging plugin here until the new
-  # plugin architecture ready in 0.15.0.
+  # BUILTIN-PLUGIN: Temporarily add the wasi-logging plugin here until the new
+  # plugin architecture is ready in 0.15.0.
   wasmedgePluginWasiLogging
   wasmedgeCommon
   wasmedgeLoaderFileMgr

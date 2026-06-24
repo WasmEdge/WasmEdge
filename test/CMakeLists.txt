@@ -20,14 +20,23 @@ else()
   else()
     add_compile_options(
       ${WASMEDGE_CFLAGS}
-      -Wno-language-extension-token
       -Wno-missing-noreturn
-      -Wno-shift-sign-overflow
       -Wno-undef
-      -Wno-unused-member-function
       $<$<COMPILE_LANGUAGE:CXX>:-Wno-zero-as-null-pointer-constant>
       -Wno-deprecated
     )
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+      add_compile_options(
+        -Wno-language-extension-token
+        -Wno-shift-sign-overflow
+        -Wno-unused-member-function
+      )
+      if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+        add_compile_options(
+          -Wno-suggest-destructor-override
+        )
+      endif()
+    endif()
     if(WIN32)
       add_compile_options(
         -Wno-padded
@@ -38,13 +47,13 @@ else()
     endif()
     if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
       add_compile_options(
-        -Wno-suggest-destructor-override
         $<$<COMPILE_LANGUAGE:CXX>:-Wno-suggest-override>
       )
     endif()
   endif()
 
   FetchContent_MakeAvailable(GTest)
+  wasmedge_suppress_shadow_warnings(gtest gtest_main)
   set(GTEST_BOTH_LIBRARIES "gtest_main")
 endif()
 
@@ -62,6 +71,7 @@ add_subdirectory(component)
 add_subdirectory(thread)
 if(WASMEDGE_BUILD_SHARED_LIB)
   add_subdirectory(api)
+  add_subdirectory(driver)
   add_subdirectory(externref)
 endif()
 if(WASMEDGE_BUILD_PLUGINS)
@@ -73,8 +83,9 @@ add_subdirectory(host/mock)
 add_subdirectory(expected)
 add_subdirectory(span)
 add_subdirectory(po)
-add_subdirectory(memlimit)
+add_subdirectory(meminstance)
 add_subdirectory(errinfo)
+add_subdirectory(vm)
 
 if(WASMEDGE_BUILD_COVERAGE)
   setup_target_for_coverage_gcovr_html(

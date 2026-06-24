@@ -27,6 +27,7 @@ wasmedge_add_library(utilBlake3
   blake3_dispatch.c
   blake3_portable.c
 )
+wasmedge_suppress_shadow_warnings(utilBlake3)
 
 # optional SIMD sources
 macro(BLAKE3_DISABLE_SIMD)
@@ -122,7 +123,6 @@ if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     -Wno-cast-align
     -Wno-cast-qual
     -Wno-implicit-int-conversion
-    -Wno-implicit-int-enum-cast
     -Wno-language-extension-token
     -Wno-missing-prototypes
     -Wno-pointer-sign
@@ -130,6 +130,12 @@ if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     -Wno-sign-conversion
     -Wno-unused-function
   )
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "21")
+    target_compile_options(utilBlake3
+      PRIVATE
+      -Wno-implicit-int-enum-cast
+    )
+  endif()
 endif()
 
 target_include_directories(utilBlake3

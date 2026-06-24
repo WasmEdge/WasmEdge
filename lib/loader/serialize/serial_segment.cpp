@@ -173,7 +173,7 @@ Serializer::serializeSegment(const AST::DataSegment &Seg,
   case AST::DataSegment::DataMode::Active:
     if (Seg.getIdx() != 0) {
       OutVec.push_back(0x02);
-      serializeU32(Seg.getIdx(), OutVec);
+      serializeU64(Seg.getIdx(), OutVec);
     } else {
       OutVec.push_back(0x00);
     }

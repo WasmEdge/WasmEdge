@@ -152,7 +152,7 @@ INode INode::stdOut() noexcept { return INode(STDOUT_FILENO); }
 
 INode INode::stdErr() noexcept { return INode(STDERR_FILENO); }
 
-WasiExpect<INode> INode::fromFd(int32_t Fd) { return createStdNode(Fd); }
+WasiExpect<INode> INode::fromFd(int32_t FdNum) { return createStdNode(FdNum); }
 
 WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
                               __wasi_fdflags_t FdFlags,
@@ -197,7 +197,7 @@ WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
   if (auto Res = ::fcntl(Fd, F_PREALLOCATE, &Store); unlikely(Res < 0)) {
     // Try to allocate sparse space.
     Store.fst_flags = F_ALLOCATEALL;
-    if (auto Res = ::fcntl(Fd, F_PREALLOCATE, &Store); unlikely(Res < 0)) {
+    if (auto Res2 = ::fcntl(Fd, F_PREALLOCATE, &Store); unlikely(Res2 < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
   }
@@ -927,8 +927,8 @@ static VarAddrT sockAddressAssignHelper(__wasi_address_family_t AddrFamily,
     auto &ServerAddrUN = Addr.emplace<sockaddr_un>();
 
     ServerAddrUN.sun_family = AF_UNIX;
-    // The length of sockaddr_un::sun_path is depend on cruuent system
-    // We should always check the size of it.
+    // The length of sockaddr_un::sun_path depends on the current system.
+    // We should always check its size.
     assuming(Address.size() >= sizeof(sockaddr_un::sun_path));
     std::memcpy(&ServerAddrUN.sun_path, Address.data(),
                 sizeof(sockaddr_un::sun_path));
@@ -1050,7 +1050,7 @@ WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
     switch (SockAddr.ss_family) {
     case AF_UNSPEC: {
       spdlog::warn("remote address unavailable"sv);
-      // if ss_family is AF_UNSPEC, the access of the other members are
+      // If ss_family is AF_UNSPEC, accessing the other members is
       // undefined.
       break;
     }

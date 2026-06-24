@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents unit tests of loading AST expression node.
+/// This file contains unit tests for loading AST expression nodes.
 ///
 //===----------------------------------------------------------------------===//
 

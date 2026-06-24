@@ -40,22 +40,22 @@ public:
   }
   ~Statistics() = default;
 
-  /// Increment of instruction counter.
+  /// Increment the instruction counter.
   void incInstrCount() { InstrCnt.fetch_add(1, std::memory_order_relaxed); }
 
-  /// Getter of instruction counter.
+  /// Getter for instruction counter.
   uint64_t getInstrCount() const {
     return InstrCnt.load(std::memory_order_relaxed);
   }
   std::atomic_uint64_t &getInstrCountRef() { return InstrCnt; }
 
-  /// Getter of instruction per second.
+  /// Getter for instructions per second.
   double getInstrPerSecond() const {
     return static_cast<double>(InstrCnt) /
            std::chrono::duration<double>(getWasmExecTime()).count();
   }
 
-  /// Setter and setter of cost table.
+  /// Setter and getter for the cost table.
   void setCostTable(Span<const uint64_t> NewTable) {
     CostTab.assign(NewTable.begin(), NewTable.end());
     if (unlikely(CostTab.size() < UINT16_MAX + 1)) {
@@ -65,23 +65,23 @@ public:
   Span<const uint64_t> getCostTable() const noexcept { return CostTab; }
   Span<uint64_t> getCostTable() noexcept { return CostTab; }
 
-  /// Adder of instruction costs.
+  /// Add instruction costs.
   bool addInstrCost(OpCode Code) { return addCost(CostTab[uint16_t(Code)]); }
 
-  /// Subber of instruction costs.
+  /// Subtract instruction costs.
   bool subInstrCost(OpCode Code) { return subCost(CostTab[uint16_t(Code)]); }
 
-  /// Getter of total gas cost.
+  /// Getter for total gas cost.
   uint64_t getTotalCost() const {
     return CostSum.load(std::memory_order_relaxed);
   }
   std::atomic_uint64_t &getTotalCostRef() { return CostSum; }
 
-  /// Getter and setter of cost limit.
+  /// Getter and setter for cost limit.
   void setCostLimit(uint64_t Lim) { CostLimit = Lim; }
   uint64_t getCostLimit() const { return CostLimit; }
 
-  /// Add cost and return false if exceeded limit.
+  /// Add cost and return false if the limit is exceeded.
   bool addCost(uint64_t Cost) {
     using namespace std::literals;
     const auto Limit = CostLimit;
@@ -139,7 +139,7 @@ public:
     TimeRecorder.stopRecord(Timer::TimerTag::HostFunc);
   }
 
-  /// Getter of execution time.
+  /// Getter for execution time.
   Timer::Timer::Clock::duration getWasmExecTime() const noexcept {
     return TimeRecorder.getRecord(Timer::TimerTag::Wasm);
   }

@@ -67,7 +67,7 @@ public:
   int MaxSize;
   int Idx;
 
-  RotatingKVCache(int MaxSize = -1, int Keep = 0, int Step = 256);
+  RotatingKVCache(int MaxSize = -1, int Keep = 0, int StepSize = 256);
 
   std::tuple<mx::array, mx::array>
   updateAndFetch(const mx::array &NewKeys, const mx::array &NewValues) override;

@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definitions of Wasm VM used AST and instruction nodes
-/// enumerations.
+/// This file contains the definitions of AST and instruction node enumerations
+/// used by the Wasm VM.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -84,6 +84,48 @@ static inline constexpr const auto OpCodeStr = []() constexpr {
 #undef UseOpCode
   };
   return SpareEnumMap(Array);
+}();
+
+/// Component Model Value opcode C++ enumeration class.
+enum class ComponentCanonOpCode : uint8_t {
+#define UseComponentCanonOpCode
+#define Line(NAME, VALUE, STRING) NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseComponentCanonOpCode
+};
+
+static inline constexpr const auto ComponentCanonOpCodeStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<ComponentCanonOpCode, std::string_view> Array[] = {
+#define UseComponentCanonOpCode
+#define Line(NAME, VALUE, STRING) {ComponentCanonOpCode::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UseComponentCanonOpCode
+  };
+  return SpareEnumMap(Array);
+}();
+
+/// Component Model Value Opt code C++ enumeration class.
+enum class ComponentCanonOptCode : uint8_t {
+#define UseComponentCanonOptCode
+#define Line(NAME, VALUE, STRING) NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseComponentCanonOptCode
+};
+
+static inline constexpr const auto ComponentCanonOptCodeStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<ComponentCanonOptCode, std::string_view> Array[] = {
+#define UseComponentCanonOptCode
+#define Line(NAME, VALUE, STRING) {ComponentCanonOptCode::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UseComponentCanonOptCode
+  };
+  return DenseEnumMap(Array);
 }();
 
 } // namespace WasmEdge

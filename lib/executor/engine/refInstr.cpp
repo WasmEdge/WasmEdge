@@ -28,7 +28,7 @@ void logArrayOOB(const ErrCode &Code, const uint32_t Idx, const uint32_t Cnt,
   if (Code == ErrCode::Value::ArrayOutOfBounds) {
     const auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
     spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx), Cnt,
-                                        Inst->getBoundIdx()));
+                                        Inst->getLength()));
   }
 }
 
@@ -42,11 +42,11 @@ void logDoubleArrayOOB(const ErrCode &Code, const uint32_t Idx1,
     if (static_cast<uint64_t>(Idx1) + static_cast<uint64_t>(Cnt1) >
         Inst1->getLength()) {
       spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx1), Cnt1,
-                                          Inst1->getBoundIdx()));
+                                          Inst1->getLength()));
     } else if (static_cast<uint64_t>(Idx2) + static_cast<uint64_t>(Cnt2) >
                Inst2->getLength()) {
       spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx2), Cnt2,
-                                          Inst2->getBoundIdx()));
+                                          Inst2->getLength()));
     }
   }
 }
@@ -57,9 +57,7 @@ void logMemoryOOB(const ErrCode &Code,
   if (Code == ErrCode::Value::MemoryOutOfBounds) {
     spdlog::error(ErrInfo::InfoBoundary(
         static_cast<uint64_t>(Idx), Length,
-        DataInst.getData().size() > 0
-            ? static_cast<uint32_t>(DataInst.getData().size() - 1)
-            : 0U));
+        static_cast<uint32_t>(DataInst.getData().size())));
   }
 }
 
@@ -68,9 +66,8 @@ void logTableOOB(const ErrCode &Code,
                  const uint32_t Idx, const uint32_t Length) noexcept {
   if (Code == ErrCode::Value::TableOutOfBounds) {
     auto ElemSrc = ElemInst.getRefs();
-    spdlog::error(ErrInfo::InfoBoundary(
-        static_cast<uint64_t>(Idx), Length,
-        ElemSrc.size() > 0 ? static_cast<uint32_t>(ElemSrc.size() - 1) : 0U));
+    spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx), Length,
+                                        static_cast<uint32_t>(ElemSrc.size())));
   }
 }
 
@@ -330,7 +327,8 @@ Executor::runRefTestOp(const Runtime::Instance::ModuleInstance *ModInst,
   // Copy the value type here due to handling the externalized case.
   auto VT = Val.get<RefVariant>().getType();
   if (VT.isExternalized()) {
-    VT = ValType(TypeCode::Ref, TypeCode::ExternRef);
+    VT = ValType(VT.isNullableRefType() ? TypeCode::RefNull : TypeCode::Ref,
+                 TypeCode::ExternRef);
   }
   Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
   if (!VT.isAbsHeapType()) {
@@ -338,6 +336,7 @@ Executor::runRefTestOp(const Runtime::Instance::ModuleInstance *ModInst,
         Val.get<RefVariant>().getPtr<Runtime::Instance::CompositeBase>();
     // Reference must not be nullptr here because the null references are typed
     // with the least abstract heap type.
+    assuming(Inst);
     if (Inst->getModule()) {
       GotTypeList = Inst->getModule()->getTypeList();
     }
@@ -413,8 +412,8 @@ Expect<void> Executor::runI31GetOp(ValVariant &Val,
 Expect<RefVariant>
 Executor::structNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
                     Span<const ValVariant> Args) const noexcept {
-  /// TODO: The array and struct instances are owned by the module instance
-  /// currently because of referring the defined types of the module instances.
+  /// TODO: The array and struct instances are currently owned by the module
+  /// instance because they refer to the defined types of the module instances.
   /// This may be changed after applying the garbage collection mechanism.
   const auto &CompType = getCompositeTypeByIdx(StackMgr, TypeIdx);
   uint32_t N = static_cast<uint32_t>(CompType.getFieldTypes().size());
@@ -466,8 +465,8 @@ Expect<RefVariant>
 Executor::arrayNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
                    const uint32_t Length,
                    Span<const ValVariant> Args) const noexcept {
-  /// TODO: The array and struct instances are owned by the module instance
-  /// currently because of referring the defined types of the module instances.
+  /// TODO: The array and struct instances are currently owned by the module
+  /// instance because they refer to the defined types of the module instances.
   /// This may be changed after applying the garbage collection mechanism.
   const auto &VType = getArrayStorageTypeByIdx(StackMgr, TypeIdx);
   WasmEdge::Runtime::Instance::ArrayInstance *Inst = nullptr;
@@ -480,10 +479,10 @@ Executor::arrayNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
                        : ValVariant(static_cast<uint128_t>(0U));
     Inst = ModInst->newArray(TypeIdx, Length, InitVal);
   } else if (Args.size() == 1) {
-    // New and fill with the arg value.
+    // Create and fill with the argument value.
     Inst = ModInst->newArray(TypeIdx, Length, packVal(VType, Args[0]));
   } else {
-    // New with args.
+    // Create with arguments.
     Inst = ModInst->newArray(
         TypeIdx,
         packVals(VType, std::vector<ValVariant>(Args.begin(), Args.end())));

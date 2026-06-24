@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the linkage of logging system.
+/// This file contains the logging system linkage.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -34,6 +34,11 @@ void setWarnLoggingLevel();
 void setErrorLoggingLevel();
 
 void setCriticalLoggingLevel();
+
+/// Set the logging level from a string.
+/// Supported values: off, trace, debug, info, warning, error, fatal.
+/// Returns true if level was set successfully, false if invalid.
+bool setLoggingLevelFromString(std::string_view Level);
 
 void setLoggingCallback(
     std::function<void(const spdlog::details::log_msg &)> Callback);

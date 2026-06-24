@@ -115,6 +115,9 @@ jobs:
             # Prefer the prebuilt bottle; fall back to building from source
             # if no bottle is published for this macOS/arch.
             brew install "${LLD_FORMULA}" || brew install --build-from-source "${LLD_FORMULA}"
+            # cmake is only a build-time dep of lld, so pouring the bottle skips
+            # it; install it explicitly (WasmEdge needs cmake directly anyway).
+            brew install cmake
           fi
           brew link "${LLD_KEG}" || true
           brew link cmake || true

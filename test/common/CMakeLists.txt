@@ -10,6 +10,7 @@ wasmedge_add_executable(wasmedgeCommonTests
   spareEnumMapTest.cpp
   byteswapTest.cpp
   statisticsTest.cpp
+  denseEnumMapTest.cpp
 )
 
 add_test(wasmedgeCommonTests wasmedgeCommonTests)

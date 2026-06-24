@@ -15,6 +15,7 @@
 #pragma once
 
 #include "common/dense_enum_map.h"
+#include "common/fmt.h"
 #include "common/spare_enum_map.h"
 #include "common/spdlog.h"
 

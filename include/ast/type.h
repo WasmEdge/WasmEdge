@@ -15,6 +15,7 @@
 #pragma once
 
 #include "common/executable.h"
+#include "common/fmt.h"
 #include "common/span.h"
 #include "common/symbol.h"
 #include "common/types.h"

@@ -17,6 +17,7 @@
 #pragma once
 
 #include "dense_enum_map.h"
+#include "fmt.h"
 
 #include <cstdint>
 #include <string_view>

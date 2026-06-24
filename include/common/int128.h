@@ -831,7 +831,7 @@ public:
     };
     const auto WriteFill = [&](unsigned int Count) {
       for (unsigned int I = 0U; I < Count; ++I) {
-        *Out++ = static_cast<char>(Fill);
+        *Out++ = Fill;
       }
     };
 

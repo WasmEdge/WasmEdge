@@ -343,9 +343,7 @@ TEST_F(FFmpegTest, AVCodecChannelLayoutIterBounds) {
 
   auto *FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_find_encoder_by_name");
-  auto &HostFuncFindEncoder = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecFindEncoderByName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncFindEncoder = FuncInst->getHostFunc();
   HostFuncFindEncoder.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
@@ -360,18 +358,14 @@ TEST_F(FFmpegTest, AVCodecChannelLayoutIterBounds) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_channel_layouts_is_null");
-  auto &HostFuncIsNull = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecChannelLayoutIsNull &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncIsNull = FuncInst->getHostFunc();
   HostFuncIsNull.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{CodecId}, Result);
   ASSERT_EQ(Result[0].get<int32_t>(), 0);
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_channel_layouts_iter");
-  auto &HostFuncIter = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecChannelLayoutIter &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncIter = FuncInst->getHostFunc();
 
   // A valid in-range index returns a non-zero converted layout id, exercising
   // the intoChannelLayoutID(const AVChannelLayout &) conversion path (ac3's
@@ -404,9 +398,7 @@ TEST_F(FFmpegTest, AVCodecPixFmtsIterBounds) {
 
   auto *FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_find_encoder_by_name");
-  auto &HostFuncFindEncoder = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecFindEncoderByName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncFindEncoder = FuncInst->getHostFunc();
   HostFuncFindEncoder.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
@@ -421,18 +413,14 @@ TEST_F(FFmpegTest, AVCodecPixFmtsIterBounds) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_pix_fmts_is_null");
-  auto &HostFuncIsNull = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecPixFmtsIsNull &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncIsNull = FuncInst->getHostFunc();
   HostFuncIsNull.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{CodecId}, Result);
   ASSERT_EQ(Result[0].get<int32_t>(), 0);
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_pix_fmts_iter");
-  auto &HostFuncIter = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecPixFmtsIter &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncIter = FuncInst->getHostFunc();
 
   // An index far past the NONE-terminated pix_fmts array must clamp to 0
   // instead of reading past the array bounds.
@@ -454,9 +442,7 @@ TEST_F(FFmpegTest, AVCodecSupportedFrameratesIterBounds) {
 
   auto *FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_find_encoder_by_name");
-  auto &HostFuncFindEncoder = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecFindEncoderByName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncFindEncoder = FuncInst->getHostFunc();
   HostFuncFindEncoder.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
@@ -471,21 +457,22 @@ TEST_F(FFmpegTest, AVCodecSupportedFrameratesIterBounds) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_supported_framerate_is_null");
-  auto &HostFuncIsNull = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSupportedFrameratesIsNull
-          &>(FuncInst->getHostFunc());
+  auto &HostFuncIsNull = FuncInst->getHostFunc();
   HostFuncIsNull.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{CodecId}, Result);
   ASSERT_EQ(Result[0].get<int32_t>(), 0);
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_supported_framerate_iter");
-  auto &HostFuncIter = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSupportedFrameratesIter
-          &>(FuncInst->getHostFunc());
+  auto &HostFuncIter = FuncInst->getHostFunc();
 
   uint32_t NumPtr = UINT32_C(60);
   uint32_t DenPtr = UINT32_C(64);
+  // Poison the output slots first. wasm linear memory is zero-initialised, so
+  // without a nonzero sentinel the {0,0} assertions below would pass even if
+  // the host wrote nothing; the clamp must actively overwrite these.
+  fillMemContent(MemInst, NumPtr, sizeof(int32_t), UINT8_C(0xAA));
+  fillMemContent(MemInst, DenPtr, sizeof(int32_t), UINT8_C(0xAA));
   // An index far past the {0,0}-terminated array must clamp to {0,0} instead
   // of reading past the array bounds.
   HostFuncIter.run(CallFrame,
@@ -508,9 +495,7 @@ TEST_F(FFmpegTest, AVCodecSupportedSampleRatesIterBounds) {
 
   auto *FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_find_encoder_by_name");
-  auto &HostFuncFindEncoder = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecFindEncoderByName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncFindEncoder = FuncInst->getHostFunc();
   HostFuncFindEncoder.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
@@ -525,18 +510,14 @@ TEST_F(FFmpegTest, AVCodecSupportedSampleRatesIterBounds) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_supported_samplerates_is_null");
-  auto &HostFuncIsNull = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSupportedSampleRatesIsNull
-          &>(FuncInst->getHostFunc());
+  auto &HostFuncIsNull = FuncInst->getHostFunc();
   HostFuncIsNull.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{CodecId}, Result);
   ASSERT_EQ(Result[0].get<int32_t>(), 0);
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_supported_samplerates_iter");
-  auto &HostFuncIter = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSupportedSampleRatesIter
-          &>(FuncInst->getHostFunc());
+  auto &HostFuncIter = FuncInst->getHostFunc();
 
   // An index far past the 0-terminated array must clamp to 0 instead of
   // reading past the array bounds.
@@ -558,9 +539,7 @@ TEST_F(FFmpegTest, AVCodecSampleFmtsIterBounds) {
 
   auto *FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_find_encoder_by_name");
-  auto &HostFuncFindEncoder = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecFindEncoderByName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncFindEncoder = FuncInst->getHostFunc();
   HostFuncFindEncoder.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
@@ -575,18 +554,14 @@ TEST_F(FFmpegTest, AVCodecSampleFmtsIterBounds) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_sample_fmts_is_null");
-  auto &HostFuncIsNull = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSampleFmtsIsNull &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncIsNull = FuncInst->getHostFunc();
   HostFuncIsNull.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{CodecId}, Result);
   ASSERT_EQ(Result[0].get<int32_t>(), 0);
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_sample_fmts_iter");
-  auto &HostFuncIter = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSampleFmtsIter &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncIter = FuncInst->getHostFunc();
 
   // An index far past the NONE-terminated sample_fmts array must clamp to 0
   // instead of reading past the array bounds.
@@ -607,9 +582,7 @@ TEST_F(FFmpegTest, AVCodecGetNameBounds) {
 
   auto *FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_find_encoder_by_name");
-  auto &HostFuncFindEncoder = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecFindEncoderByName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncFindEncoder = FuncInst->getHostFunc();
   HostFuncFindEncoder.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
@@ -629,9 +602,7 @@ TEST_F(FFmpegTest, AVCodecGetNameBounds) {
   // host string into the rest of the guest buffer.
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_get_name_len");
-  auto &HostFuncNameLen = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecGetNameLen &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncNameLen = FuncInst->getHostFunc();
   HostFuncNameLen.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{CodecId}, Result);
   uint32_t NameLen = Result[0].get<int32_t>();
@@ -639,9 +610,7 @@ TEST_F(FFmpegTest, AVCodecGetNameBounds) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_get_name");
-  auto &HostFuncGetName =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecGetName &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncGetName = FuncInst->getHostFunc();
   uint32_t NameBufLen = NameLen + UINT32_C(32);
   fillMemContent(MemInst, StrPtr, NameBufLen, UINT8_C(0xAA));
   HostFuncGetName.run(
@@ -658,9 +627,7 @@ TEST_F(FFmpegTest, AVCodecGetNameBounds) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_get_long_name_len");
-  auto &HostFuncLongNameLen = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecGetLongNameLen &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncLongNameLen = FuncInst->getHostFunc();
   HostFuncLongNameLen.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{CodecId}, Result);
   uint32_t LongNameLen = Result[0].get<int32_t>();
@@ -668,9 +635,7 @@ TEST_F(FFmpegTest, AVCodecGetNameBounds) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_get_long_name");
-  auto &HostFuncGetLongName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecGetLongName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncGetLongName = FuncInst->getHostFunc();
   uint32_t LongNameBufLen = LongNameLen + UINT32_C(32);
   fillMemContent(MemInst, StrPtr, LongNameBufLen, UINT8_C(0xAA));
   HostFuncGetLongName.run(CallFrame,
@@ -690,9 +655,7 @@ TEST_F(FFmpegTest, AVCodecFindEncoderByNameBounds) {
 
   auto *FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_find_encoder_by_name");
-  auto &HostFuncFindEncoder = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecFindEncoderByName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncFindEncoder = FuncInst->getHostFunc();
 
   // CodecPtr is in bounds but the guest-declared name length runs off the end
   // of linear memory; the host must reject it, not read past the page.
@@ -718,9 +681,7 @@ TEST_F(FFmpegTest, AVCodecGetNameLengthContract) {
 
   auto *FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_find_encoder_by_name");
-  auto &HostFuncFindEncoder = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecFindEncoderByName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncFindEncoder = FuncInst->getHostFunc();
   HostFuncFindEncoder.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
@@ -735,9 +696,7 @@ TEST_F(FFmpegTest, AVCodecGetNameLengthContract) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_get_name_len");
-  auto &HostFuncNameLen = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecGetNameLen &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncNameLen = FuncInst->getHostFunc();
   HostFuncNameLen.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{CodecId}, Result);
   uint32_t NameLen = Result[0].get<int32_t>();
@@ -748,9 +707,7 @@ TEST_F(FFmpegTest, AVCodecGetNameLengthContract) {
   // it stays untouched.
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_get_name");
-  auto &HostFuncGetName =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecGetName &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncGetName = FuncInst->getHostFunc();
   uint32_t FenceLen = NameLen + UINT32_C(8);
   fillMemContent(MemInst, StrPtr, FenceLen, UINT8_C(0xAA));
   HostFuncGetName.run(

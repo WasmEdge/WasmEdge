@@ -217,9 +217,7 @@ TEST_F(FFmpegTest, AVUtilChannelLayoutNameBounds) {
 
   auto *FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_channel_layout_name");
-  auto &HostFuncAVGetChannelLayoutName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetChannelLayoutName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVGetChannelLayoutName = FuncInst->getHostFunc();
 
   uint32_t NamePtr = UINT32_C(4);
   uint64_t ChannelId = 1; // FRONT_LEFT, a short name such as "FL".
@@ -259,9 +257,7 @@ TEST_F(FFmpegTest, AVUtilChannelLayoutNameLowFrequency) {
 
   auto *FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_channel_layout_name");
-  auto &HostFuncAVGetChannelLayoutName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetChannelLayoutName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVGetChannelLayoutName = FuncInst->getHostFunc();
 
   uint32_t NamePtr = UINT32_C(4);
   // The SDK LOW_FREQUENCY id maps to AV_CH_LOW_FREQUENCY, whose channel index
@@ -293,9 +289,7 @@ TEST_F(FFmpegTest, AVUtilChannelLayoutNameStereo) {
 
   auto *FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_channel_layout_name_len");
-  auto &HostFuncAVGetChannelLayoutNameLen = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetChannelLayoutNameLen &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVGetChannelLayoutNameLen = FuncInst->getHostFunc();
   HostFuncAVGetChannelLayoutNameLen.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ChannelId},
       Result);
@@ -303,9 +297,7 @@ TEST_F(FFmpegTest, AVUtilChannelLayoutNameStereo) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_channel_layout_name");
-  auto &HostFuncAVGetChannelLayoutName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetChannelLayoutName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVGetChannelLayoutName = FuncInst->getHostFunc();
   fillMemContent(MemInst, NamePtr, NameLen, UINT8_C(0));
   HostFuncAVGetChannelLayoutName.run(
       CallFrame,
@@ -376,9 +368,7 @@ TEST_F(FFmpegTest, AVUtilChannelLayoutInvalidInputs) {
 
   auto *FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_channel_layout_nb_channels");
-  auto &HostFuncNbChannels = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetChannelLayoutNbChannels &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncNbChannels = FuncInst->getHostFunc();
 
   // ChannelLayoutId 0 maps to mask 0, which av_channel_layout_from_mask
   // rejects; the host must not read or uninit the then-uninitialized layout.
@@ -389,9 +379,7 @@ TEST_F(FFmpegTest, AVUtilChannelLayoutInvalidInputs) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_default_channel_layout");
-  auto &HostFuncDefault = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetDefaultChannelLayout &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncDefault = FuncInst->getHostFunc();
 
   // 63 channels exceeds FFmpeg's largest native layout (22.2, 24 channels), so
   // av_channel_layout_default yields a non-native layout whose union must not

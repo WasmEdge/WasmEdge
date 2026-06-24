@@ -183,9 +183,7 @@ TEST_F(FFmpegTest, AVFormatCtxMetadataNullHandle) {
 
   auto *FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_metadata");
-  auto &HostFuncAVFormatCtxMetadata = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxMetadata &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFormatCtxMetadata = FuncInst->getHostFunc();
 
   // A guest id of 0 resolves to a null AVFormatContext; the getter must report
   // InternalError instead of dereferencing it.

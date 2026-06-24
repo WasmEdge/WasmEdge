@@ -282,9 +282,7 @@ TEST_F(FFmpegTest, AVFilterNameBounds) {
 
   auto *FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_get_by_name");
-  auto &HostFuncAVFilterGetByName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterGetByName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterGetByName = FuncInst->getHostFunc();
   HostFuncAVFilterGetByName.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
@@ -299,9 +297,7 @@ TEST_F(FFmpegTest, AVFilterNameBounds) {
   // host string into the rest of the guest buffer.
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_name_length");
-  auto &HostFuncNameLen = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterNameLength &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncNameLen = FuncInst->getHostFunc();
   HostFuncNameLen.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{FilterId}, Result);
   uint32_t NameLen = Result[0].get<int32_t>();
@@ -309,9 +305,7 @@ TEST_F(FFmpegTest, AVFilterNameBounds) {
 
   FuncInst =
       AVFilterMod->findFuncExports("wasmedge_ffmpeg_avfilter_avfilter_name");
-  auto &HostFuncName =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterName &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncName = FuncInst->getHostFunc();
   uint32_t NameBufLen = NameLen + UINT32_C(32);
   fillMemContent(MemInst, StrPtr, NameBufLen, UINT8_C(0xAA));
   HostFuncName.run(
@@ -328,9 +322,7 @@ TEST_F(FFmpegTest, AVFilterNameBounds) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_description_length");
-  auto &HostFuncDescLen = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterDescriptionLength &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncDescLen = FuncInst->getHostFunc();
   HostFuncDescLen.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{FilterId}, Result);
   uint32_t DescLen = Result[0].get<int32_t>();
@@ -338,9 +330,7 @@ TEST_F(FFmpegTest, AVFilterNameBounds) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_description");
-  auto &HostFuncDesc = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterDescription &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncDesc = FuncInst->getHostFunc();
   uint32_t DescBufLen = DescLen + UINT32_C(32);
   fillMemContent(MemInst, StrPtr, DescBufLen, UINT8_C(0xAA));
   HostFuncDesc.run(
@@ -361,9 +351,7 @@ TEST_F(FFmpegTest, AVFilterGetByNameBounds) {
 
   auto *FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_get_by_name");
-  auto &HostFuncAVFilterGetByName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterGetByName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterGetByName = FuncInst->getHostFunc();
 
   // The string pointer is in bounds but the guest-declared length runs off the
   // end of linear memory; the host must reject it, not read past the page.
@@ -393,9 +381,7 @@ TEST_F(FFmpegTest, AVFilterPadGetterIndexBounds) {
   auto *FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_get_by_name");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncGetByName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterGetByName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncGetByName = FuncInst->getHostFunc();
   HostFuncGetByName.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
@@ -407,9 +393,7 @@ TEST_F(FFmpegTest, AVFilterPadGetterIndexBounds) {
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_get_outputs_filter_pad");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncGetOutputs = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterGetOutputsFilterPad &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncGetOutputs = FuncInst->getHostFunc();
   HostFuncGetOutputs.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{FilterId, PadPtr},
       Result);
@@ -419,21 +403,15 @@ TEST_F(FFmpegTest, AVFilterPadGetterIndexBounds) {
   auto *LenInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_pad_get_name_length");
   ASSERT_NE(LenInst, nullptr);
-  auto &HostFuncLen = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterPadGetNameLength &>(
-      LenInst->getHostFunc());
+  auto &HostFuncLen = LenInst->getHostFunc();
   auto *NameInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_pad_get_name");
   ASSERT_NE(NameInst, nullptr);
-  auto &HostFuncName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterPadGetName &>(
-      NameInst->getHostFunc());
+  auto &HostFuncName = NameInst->getHostFunc();
   auto *TypeInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_pad_get_type");
   ASSERT_NE(TypeInst, nullptr);
-  auto &HostFuncType = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterPadGetType &>(
-      TypeInst->getHostFunc());
+  auto &HostFuncType = TypeInst->getHostFunc();
 
   // A valid index still resolves the pad (abuffer has one output pad).
   HostFuncLen.run(

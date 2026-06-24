@@ -759,9 +759,7 @@ TEST_F(FFmpegTest, AVFrameDataIndexBounds) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_alloc");
-  auto &HostFuncAVFrameAlloc =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameAlloc &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameAlloc = FuncInst->getHostFunc();
 
   uint32_t FramePtr = UINT32_C(4);
   HostFuncAVFrameAlloc.run(
@@ -771,9 +769,7 @@ TEST_F(FFmpegTest, AVFrameDataIndexBounds) {
   ASSERT_TRUE(FrameId > 0);
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_data");
-  auto &HostFuncAVFrameData =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameData &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameData = FuncInst->getHostFunc();
 
   // The destination buffer is valid but the plane index runs far past the
   // fixed-size data[] array; the host must reject it instead of reading a wild
@@ -795,9 +791,7 @@ TEST_F(FFmpegTest, AVFrameDataNullPlane) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_alloc");
-  auto &HostFuncAVFrameAlloc =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameAlloc &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameAlloc = FuncInst->getHostFunc();
 
   uint32_t FramePtr = UINT32_C(4);
   HostFuncAVFrameAlloc.run(
@@ -807,9 +801,7 @@ TEST_F(FFmpegTest, AVFrameDataNullPlane) {
   ASSERT_TRUE(FrameId > 0);
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_data");
-  auto &HostFuncAVFrameData =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameData &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameData = FuncInst->getHostFunc();
 
   // The frame is allocated but never given a buffer, so data[0] is null; the
   // host must reject the read instead of copying from a null plane.
@@ -830,9 +822,7 @@ TEST_F(FFmpegTest, AVFrameDataRejectsOversizedRead) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_alloc");
-  auto &HostFuncAVFrameAlloc =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameAlloc &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameAlloc = FuncInst->getHostFunc();
 
   uint32_t FramePtr = UINT32_C(4);
   HostFuncAVFrameAlloc.run(
@@ -845,9 +835,7 @@ TEST_F(FFmpegTest, AVFrameDataRejectsOversizedRead) {
   // 8-byte data[0] plane, far smaller than the destination buffer below.
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_audio_format");
-  auto &HostFuncAVFrameSetAudioFormat = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetAudioFormat &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetAudioFormat = FuncInst->getHostFunc();
   uint32_t SampleFormatId = UINT32_C(1);
   HostFuncAVFrameSetAudioFormat.run(
       CallFrame,
@@ -857,9 +845,7 @@ TEST_F(FFmpegTest, AVFrameDataRejectsOversizedRead) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_channel_layout");
-  auto &HostFuncAVFrameSetChannelLayout = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetChannelLayout &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetChannelLayout = FuncInst->getHostFunc();
   uint64_t ChannelLayout = 1UL << 10;
   HostFuncAVFrameSetChannelLayout.run(
       CallFrame,
@@ -869,9 +855,7 @@ TEST_F(FFmpegTest, AVFrameDataRejectsOversizedRead) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_nb_samples");
-  auto &HostFuncAVFrameSetNbSamples = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetNbSamples &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetNbSamples = FuncInst->getHostFunc();
   int32_t NbSamples = 8;
   HostFuncAVFrameSetNbSamples.run(
       CallFrame,
@@ -880,9 +864,7 @@ TEST_F(FFmpegTest, AVFrameDataRejectsOversizedRead) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_get_buffer");
-  auto &HostFuncAVFrameGetBuffer =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameGetBuffer &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameGetBuffer = FuncInst->getHostFunc();
   int32_t Align = 0;
   HostFuncAVFrameGetBuffer.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{FrameId, Align},
@@ -890,9 +872,7 @@ TEST_F(FFmpegTest, AVFrameDataRejectsOversizedRead) {
   ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_data");
-  auto &HostFuncAVFrameData =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameData &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameData = FuncInst->getHostFunc();
 
   // Ask for far more than the plane backs. The host must reject the request
   // outright: a partial copy reported as success would let the guest consume
@@ -928,9 +908,7 @@ TEST_F(FFmpegTest, AVFrameMetadataNullHandle) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_metadata");
-  auto &HostFuncAVFrameMetadata =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameMetadata &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameMetadata = FuncInst->getHostFunc();
 
   // A guest id of 0 resolves to a null AVFrame; the getter must report
   // InternalError instead of dereferencing it.
@@ -949,9 +927,7 @@ TEST_F(FFmpegTest, AVFrameMetadataLiveView) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_alloc");
-  auto &HostFuncAVFrameAlloc =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameAlloc &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameAlloc = FuncInst->getHostFunc();
 
   uint32_t FramePtr = UINT32_C(4);
   HostFuncAVFrameAlloc.run(
@@ -970,9 +946,7 @@ TEST_F(FFmpegTest, AVFrameMetadataLiveView) {
   // Take a metadata handle before any metadata exists.
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_metadata");
-  auto &HostFuncAVFrameMetadata =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameMetadata &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFrameMetadata = FuncInst->getHostFunc();
   uint32_t MetaDictPtr = UINT32_C(84);
   HostFuncAVFrameMetadata.run(
       CallFrame,
@@ -984,9 +958,7 @@ TEST_F(FFmpegTest, AVFrameMetadataLiveView) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_metadata");
-  auto &HostFuncAVFrameSetMetadata = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameSetMetadata &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFrameSetMetadata = FuncInst->getHostFunc();
   HostFuncAVFrameSetMetadata.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{FrameId, OwnedDictId},
@@ -996,9 +968,7 @@ TEST_F(FFmpegTest, AVFrameMetadataLiveView) {
   // The handle taken before the set is a live view of the frame's metadata
   // field, so it observes the freshly installed dictionary.
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_get");
-  auto &HostFuncAVDictGet =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictGet &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVDictGet = FuncInst->getHostFunc();
   uint32_t KeyLenPtr = UINT32_C(100);
   uint32_t ValueLenPtr = UINT32_C(104);
   HostFuncAVDictGet.run(CallFrame,
@@ -1013,9 +983,7 @@ TEST_F(FFmpegTest, AVFrameMetadataLiveView) {
   // Freeing the borrowed handle drops only the id; the frame keeps its
   // metadata and a fresh handle still reads it.
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_free");
-  auto &HostFuncAVDictFree =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictFree &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVDictFree = FuncInst->getHostFunc();
   HostFuncAVDictFree.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{MetaDictId},
       Result);

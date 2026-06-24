@@ -208,9 +208,7 @@ TEST_F(FFmpegTest, AVSampleFmtNameBounds) {
 
   auto *FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name");
-  auto &HostFuncAVGetSampleFmtName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmtName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVGetSampleFmtName = FuncInst->getHostFunc();
 
   uint32_t NamePtr = UINT32_C(4);
   uint32_t SampleFmtId = 1; // AV_SAMPLE_FMT_U8, name "u8".
@@ -248,9 +246,7 @@ TEST_F(FFmpegTest, AVSampleFmtNameInvalid) {
 
   auto *FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name");
-  auto &HostFuncAVGetSampleFmtName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmtName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVGetSampleFmtName = FuncInst->getHostFunc();
 
   // SampleFmtId 0 maps to AV_SAMPLE_FMT_NONE, for which av_get_sample_fmt_name
   // returns nullptr; the host must report an error, not dereference it.
@@ -263,9 +259,7 @@ TEST_F(FFmpegTest, AVSampleFmtNameInvalid) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name_length");
-  auto &HostFuncAVGetSampleFmtNameLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmtNameLength &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVGetSampleFmtNameLength = FuncInst->getHostFunc();
 
   HostFuncAVGetSampleFmtNameLength.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
@@ -278,9 +272,7 @@ TEST_F(FFmpegTest, AVSampleFmtGetBounds) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_get_sample_fmt");
-  auto &HostFuncAVGetSampleFmt =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmt &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVGetSampleFmt = FuncInst->getHostFunc();
 
   // The name pointer is in bounds but the guest-declared length runs off the
   // end of linear memory; the host must reject it, not read past the page.

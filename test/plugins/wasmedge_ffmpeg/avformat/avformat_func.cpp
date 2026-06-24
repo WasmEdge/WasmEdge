@@ -552,9 +552,7 @@ TEST_F(FFmpegTest, AVIOOpenBounds) {
 
   auto *FuncInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avio_open");
-  auto &HostFuncAVIOOpen =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVIOOpen &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVIOOpen = FuncInst->getHostFunc();
 
   // The file-name pointer is in bounds but the guest-declared length runs off
   // the end of linear memory; the host must reject it, not read past the page.
@@ -580,9 +578,7 @@ TEST_F(FFmpegTest, AVChapterDynarrayAddNullContext) {
   auto *FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avchapter_dynarray_add");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncDynarrayAdd = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterDynarrayAdd &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncDynarrayAdd = FuncInst->getHostFunc();
 
   // A null/zero format-context id must be rejected, not dereferenced when
   // writing through &(AvFormatContext->chapters).
@@ -612,9 +608,7 @@ TEST_F(FFmpegTest, AVChapterDynarrayAddIgnoresForgedCount) {
   auto *NbInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_nb_chapters");
   ASSERT_NE(NbInst, nullptr);
-  auto &HostFuncNbChapters = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxNbChapters &>(
-      NbInst->getHostFunc());
+  auto &HostFuncNbChapters = NbInst->getHostFunc();
   HostFuncNbChapters.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
       Result);
@@ -623,9 +617,7 @@ TEST_F(FFmpegTest, AVChapterDynarrayAddIgnoresForgedCount) {
   auto *MalloczInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avchapter_mallocz");
   ASSERT_NE(MalloczInst, nullptr);
-  auto &HostFuncMallocz = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterMallocz &>(
-      MalloczInst->getHostFunc());
+  auto &HostFuncMallocz = MalloczInst->getHostFunc();
   HostFuncMallocz.run(CallFrame,
                       std::initializer_list<WasmEdge::ValVariant>{ChapterPtr},
                       Result);
@@ -635,9 +627,7 @@ TEST_F(FFmpegTest, AVChapterDynarrayAddIgnoresForgedCount) {
   auto *FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avchapter_dynarray_add");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncDynarrayAdd = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterDynarrayAdd &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncDynarrayAdd = FuncInst->getHostFunc();
 
   // A guest that forges a large (non-power-of-two) count must not make
   // av_dynarray_add write the chapter past the array; the host appends at the
@@ -674,9 +664,7 @@ TEST_F(FFmpegTest, AVFreePOnContextOwnedChapter) {
   auto *NbInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_nb_chapters");
   ASSERT_NE(NbInst, nullptr);
-  auto &HostFuncNbChapters = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxNbChapters &>(
-      NbInst->getHostFunc());
+  auto &HostFuncNbChapters = NbInst->getHostFunc();
   HostFuncNbChapters.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
       Result);
@@ -685,9 +673,7 @@ TEST_F(FFmpegTest, AVFreePOnContextOwnedChapter) {
   auto *MalloczInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avchapter_mallocz");
   ASSERT_NE(MalloczInst, nullptr);
-  auto &HostFuncMallocz = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterMallocz &>(
-      MalloczInst->getHostFunc());
+  auto &HostFuncMallocz = MalloczInst->getHostFunc();
   HostFuncMallocz.run(CallFrame,
                       std::initializer_list<WasmEdge::ValVariant>{ChapterPtr},
                       Result);
@@ -697,9 +683,7 @@ TEST_F(FFmpegTest, AVFreePOnContextOwnedChapter) {
   auto *AddInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avchapter_dynarray_add");
   ASSERT_NE(AddInst, nullptr);
-  auto &HostFuncDynarrayAdd = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterDynarrayAdd &>(
-      AddInst->getHostFunc());
+  auto &HostFuncDynarrayAdd = AddInst->getHostFunc();
   writeSInt32(MemInst, static_cast<int32_t>(ChapterIdx), NbChaptersPtr);
   HostFuncDynarrayAdd.run(CallFrame,
                           std::initializer_list<WasmEdge::ValVariant>{
@@ -714,9 +698,7 @@ TEST_F(FFmpegTest, AVFreePOnContextOwnedChapter) {
   auto *SetIdInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avChapter_set_id");
   ASSERT_NE(SetIdInst, nullptr);
-  auto &HostFuncSetId =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterSetId &>(
-          SetIdInst->getHostFunc());
+  auto &HostFuncSetId = SetIdInst->getHostFunc();
   int64_t const PoisonId = INT64_C(0x4141414141414141);
   HostFuncSetId.run(CallFrame,
                     std::initializer_list<WasmEdge::ValVariant>{
@@ -766,9 +748,7 @@ TEST_F(FFmpegTest, AVFormatCtxSetMetadataCopiesDict) {
   auto *SetInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_set");
   ASSERT_NE(SetInst, nullptr);
-  auto &HostFuncDictSet =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictSet &>(
-          SetInst->getHostFunc());
+  auto &HostFuncDictSet = SetInst->getHostFunc();
   HostFuncDictSet.run(CallFrame,
                       std::initializer_list<WasmEdge::ValVariant>{
                           DictPtr, KeyPtr, static_cast<uint32_t>(Key.length()),
@@ -782,9 +762,7 @@ TEST_F(FFmpegTest, AVFormatCtxSetMetadataCopiesDict) {
   auto *SetMetaInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_set_metadata");
   ASSERT_NE(SetMetaInst, nullptr);
-  auto &HostFuncSetMetadata = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxSetMetadata &>(
-      SetMetaInst->getHostFunc());
+  auto &HostFuncSetMetadata = SetMetaInst->getHostFunc();
   HostFuncSetMetadata.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, DictId}, Result);
@@ -793,9 +771,7 @@ TEST_F(FFmpegTest, AVFormatCtxSetMetadataCopiesDict) {
   auto *FreeInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_free");
   ASSERT_NE(FreeInst, nullptr);
-  auto &HostFuncDictFree =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictFree &>(
-          FreeInst->getHostFunc());
+  auto &HostFuncDictFree = FreeInst->getHostFunc();
   HostFuncDictFree.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{DictId}, Result);
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
@@ -805,9 +781,7 @@ TEST_F(FFmpegTest, AVFormatCtxSetMetadataCopiesDict) {
   auto *MetaInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_metadata");
   ASSERT_NE(MetaInst, nullptr);
-  auto &HostFuncMetadata = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxMetadata &>(
-      MetaInst->getHostFunc());
+  auto &HostFuncMetadata = MetaInst->getHostFunc();
   HostFuncMetadata.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, MetaDictPtr},
@@ -818,9 +792,7 @@ TEST_F(FFmpegTest, AVFormatCtxSetMetadataCopiesDict) {
   auto *GetInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_get");
   ASSERT_NE(GetInst, nullptr);
-  auto &HostFuncDictGet =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictGet &>(
-          GetInst->getHostFunc());
+  auto &HostFuncDictGet = GetInst->getHostFunc();
   HostFuncDictGet.run(CallFrame,
                       std::initializer_list<WasmEdge::ValVariant>{
                           MetaDictId, KeyPtr,
@@ -834,9 +806,7 @@ TEST_F(FFmpegTest, AVFormatCtxSetMetadataCopiesDict) {
   auto *CloseInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformat_close_input");
   ASSERT_NE(CloseInst, nullptr);
-  auto &HostFuncClose = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCloseInput &>(
-      CloseInst->getHostFunc());
+  auto &HostFuncClose = CloseInst->getHostFunc();
   HostFuncClose.run(CallFrame,
                     std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
                     Result);

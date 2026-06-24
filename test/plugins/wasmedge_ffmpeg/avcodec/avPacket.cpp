@@ -290,11 +290,11 @@ TEST_F(FFmpegTest, AVPacketTest) {
   auto &HostFuncAVPacketData = FuncInst->getHostFunc();
 
   {
-    EXPECT_TRUE(HostFuncAVPacketData.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{PacketId, DataPtr,
-                                                    PacketDataSize},
-        Result));
+    EXPECT_TRUE(
+        HostFuncAVPacketData.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     PacketId, DataPtr, PacketDataSize},
+                                 Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 
@@ -333,9 +333,7 @@ TEST_F(FFmpegTest, AVPacketDataBounds) {
   uint32_t PacketPtr = UINT32_C(4);
   auto *FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_alloc");
-  auto &HostFuncAVPacketAlloc =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketAlloc &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVPacketAlloc = FuncInst->getHostFunc();
   HostFuncAVPacketAlloc.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketPtr},
       Result);
@@ -345,9 +343,7 @@ TEST_F(FFmpegTest, AVPacketDataBounds) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_new_packet");
-  auto &HostFuncAVNewPacket =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVNewPacket &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVNewPacket = FuncInst->getHostFunc();
   uint32_t PacketSize = UINT32_C(40);
   HostFuncAVNewPacket.run(
       CallFrame,
@@ -357,9 +353,7 @@ TEST_F(FFmpegTest, AVPacketDataBounds) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_data");
-  auto &HostFuncAVPacketData =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVPacketData &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVPacketData = FuncInst->getHostFunc();
 
   // The destination buffer is larger than the packet data and is fenced with a
   // sentinel; a guest length larger than AvPacket->size must be rejected

@@ -288,9 +288,7 @@ TEST_F(FFmpegTest, AVStreamIndexOutOfRange) {
   auto *IdFunc =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avStream_id");
   ASSERT_NE(IdFunc, nullptr);
-  auto &HostFuncAVStreamId =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVStreamId &>(
-          IdFunc->getHostFunc());
+  auto &HostFuncAVStreamId = IdFunc->getHostFunc();
   HostFuncAVStreamId.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, OutOfRangeIdx},
@@ -301,9 +299,7 @@ TEST_F(FFmpegTest, AVStreamIndexOutOfRange) {
   auto *CodecParFunc = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avStream_codecpar");
   ASSERT_NE(CodecParFunc, nullptr);
-  auto &HostFuncAVStreamCodecPar = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVStreamCodecPar &>(
-      CodecParFunc->getHostFunc());
+  auto &HostFuncAVStreamCodecPar = CodecParFunc->getHostFunc();
   HostFuncAVStreamCodecPar.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, OutOfRangeIdx,

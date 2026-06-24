@@ -193,6 +193,8 @@ TEST_F(FFmpegTest, AVInputFormat) {
 }
 
 TEST_F(FFmpegTest, AVInputFormatNameBounds) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+
   std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
   uint32_t FormatCtxPtr = UINT32_C(24);
   uint32_t InputFormatPtr = UINT32_C(80);
@@ -200,12 +202,14 @@ TEST_F(FFmpegTest, AVInputFormatNameBounds) {
   initFFmpegStructs(UINT32_C(20), FormatCtxPtr, UINT32_C(28), FileName,
                     UINT32_C(60), UINT32_C(64), UINT32_C(68), UINT32_C(72));
   uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
+  // Fail cleanly if the test asset could not be opened; otherwise the format
+  // context getters below would receive id 0 and report an error (or, before
+  // the getters were null-guarded, NULL-deref and crash the test binary).
+  ASSERT_TRUE(FormatCtxId > 0);
 
   auto *FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_iformat");
-  auto &HostFuncIFormat = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxIFormat &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncIFormat = FuncInst->getHostFunc();
   HostFuncIFormat.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, InputFormatPtr},
@@ -219,9 +223,7 @@ TEST_F(FFmpegTest, AVInputFormatNameBounds) {
   // host string into the rest of the guest buffer.
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avIOFormat_name_length");
-  auto &HostFuncNameLen = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVIOFormatNameLength &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncNameLen = FuncInst->getHostFunc();
   HostFuncNameLen.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{InputFormatId, 0},
       Result);
@@ -230,9 +232,7 @@ TEST_F(FFmpegTest, AVInputFormatNameBounds) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avInputFormat_name");
-  auto &HostFuncName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVInputFormatName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncName = FuncInst->getHostFunc();
   uint32_t NameBufLen = NameLen + UINT32_C(32);
   fillMemContent(MemInst, StrBuf, NameBufLen, UINT8_C(0xAA));
   HostFuncName.run(CallFrame,
@@ -249,9 +249,7 @@ TEST_F(FFmpegTest, AVInputFormatNameBounds) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avIOFormat_long_name_length");
-  auto &HostFuncLongNameLen = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVIOFormatLongNameLength &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncLongNameLen = FuncInst->getHostFunc();
   HostFuncLongNameLen.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{InputFormatId, 0},
       Result);
@@ -260,9 +258,7 @@ TEST_F(FFmpegTest, AVInputFormatNameBounds) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avInputFormat_long_name");
-  auto &HostFuncLongName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVInputFormatLongName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncLongName = FuncInst->getHostFunc();
   uint32_t LongNameBufLen = LongNameLen + UINT32_C(32);
   fillMemContent(MemInst, StrBuf, LongNameBufLen, UINT8_C(0xAA));
   HostFuncLongName.run(CallFrame,

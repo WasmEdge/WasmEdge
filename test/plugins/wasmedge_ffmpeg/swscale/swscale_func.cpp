@@ -551,9 +551,7 @@ TEST_F(FFmpegTest, SwsGetCachedContextFailureInvalidatesAliases) {
 
   FuncInst = SWScaleMod->findFuncExports(
       "wasmedge_ffmpeg_swscale_sws_getCachedContext");
-  auto &HostFuncSwsGetCachedContext = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsGetCachedContext &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncSwsGetCachedContext = FuncInst->getHostFunc();
 
   // A zero source size makes sws_getCachedContext free the passed context and
   // fail. The id passed in -- now dangling -- must be invalidated so a later
@@ -604,9 +602,7 @@ TEST_F(FFmpegTest, SwsFreeContextInvalidatesAliases) {
   // the same SwsContext, so the minted id aliases the same pointer.
   FuncInst = SWScaleMod->findFuncExports(
       "wasmedge_ffmpeg_swscale_sws_getCachedContext");
-  auto &HostFuncSwsGetCachedContext = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsGetCachedContext &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncSwsGetCachedContext = FuncInst->getHostFunc();
   writeUInt32(MemInst, UINT32_C(0), SwsCachedCtxPtr);
   HostFuncSwsGetCachedContext.run(
       CallFrame,
@@ -628,9 +624,7 @@ TEST_F(FFmpegTest, SwsFreeContextInvalidatesAliases) {
   // return a dangling pointer.
   FuncInst =
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_freeContext");
-  auto &HostFuncSwsFreeContext =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsFreeContext &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsFreeContext = FuncInst->getHostFunc();
   HostFuncSwsFreeContext.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{FirstId}, Result);
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
@@ -645,9 +639,7 @@ TEST_F(FFmpegTest, SwsGetCoeffBounds) {
   int32_t VecLength = 5;
   auto *FuncInst =
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_allocVec");
-  auto &HostFuncSwsAllocVec =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsAllocVec &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsAllocVec = FuncInst->getHostFunc();
   writeUInt32(MemInst, UINT32_C(0), SwsVectorPtr);
   HostFuncSwsAllocVec.run(
       CallFrame,
@@ -659,9 +651,7 @@ TEST_F(FFmpegTest, SwsGetCoeffBounds) {
 
   FuncInst =
       SWScaleMod->findFuncExports("wasmedge_ffmpeg_swscale_sws_getCoeff");
-  auto &HostFuncSwsGetCoeff =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::SwsGetCoeff &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwsGetCoeff = FuncInst->getHostFunc();
 
   // The vector holds VecLength doubles; the destination is larger and fenced
   // with a sentinel. A guest length beyond the coeff array must be rejected

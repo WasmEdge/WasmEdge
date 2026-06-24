@@ -347,9 +347,7 @@ TEST_F(FFmpegTest, SWRFreeInvalidatesAliases) {
   // return a dangling pointer.
   FuncInst =
       SWResampleMod->findFuncExports("wasmedge_ffmpeg_swresample_swr_free");
-  auto &HostFuncSwrFree =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWRFree &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncSwrFree = FuncInst->getHostFunc();
   HostFuncSwrFree.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{FirstId}, Result);
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));

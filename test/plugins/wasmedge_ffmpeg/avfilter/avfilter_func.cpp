@@ -356,9 +356,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVFilterInOutFree = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInOutFree &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVFilterInOutFree = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFilterInOutFree.run(
@@ -645,9 +643,7 @@ TEST_F(FFmpegTest, AVFilterInOutChainOwnership) {
   auto *AllocInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_inout_alloc");
   ASSERT_NE(AllocInst, nullptr);
-  auto &HostFuncInOutAlloc = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInOutAlloc &>(
-      AllocInst->getHostFunc());
+  auto &HostFuncInOutAlloc = AllocInst->getHostFunc();
 
   ASSERT_TRUE(HostFuncInOutAlloc.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{HeadPtr}, Result));
@@ -665,9 +661,7 @@ TEST_F(FFmpegTest, AVFilterInOutChainOwnership) {
   auto *SetNextInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_inout_set_next");
   ASSERT_NE(SetNextInst, nullptr);
-  auto &HostFuncInOutSetNext = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInOutSetNext &>(
-      SetNextInst->getHostFunc());
+  auto &HostFuncInOutSetNext = SetNextInst->getHostFunc();
 
   ASSERT_TRUE(HostFuncInOutSetNext.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{HeadId, NextId},
@@ -677,9 +671,7 @@ TEST_F(FFmpegTest, AVFilterInOutChainOwnership) {
   auto *FreeInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_inout_free");
   ASSERT_NE(FreeInst, nullptr);
-  auto &HostFuncInOutFree = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInOutFree &>(
-      FreeInst->getHostFunc());
+  auto &HostFuncInOutFree = FreeInst->getHostFunc();
 
   // Freeing the borrowed next node directly is refused (a no-op): the head
   // still owns it and will release it.

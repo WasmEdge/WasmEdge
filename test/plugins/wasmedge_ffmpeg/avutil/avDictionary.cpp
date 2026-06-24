@@ -159,9 +159,7 @@ TEST_F(FFmpegTest, AVDictGetKeyValueBounds) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_set");
-  auto &HostFuncAVDictSet =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictSet &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVDictSet = FuncInst->getHostFunc();
 
   fillMemContent(MemInst, KeyStart, KeyLen + ValueLen);
   fillMemContent(MemInst, KeyStart, "KEY"sv);
@@ -175,9 +173,7 @@ TEST_F(FFmpegTest, AVDictGetKeyValueBounds) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_dict_get_key_value");
-  auto &HostFuncAVDictGetKeyValue =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictGetKeyValue &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVDictGetKeyValue = FuncInst->getHostFunc();
 
   // Destination buffers are deliberately smaller than the stored key/value and
   // fenced with a sentinel; the host must clamp the copy to the given lengths.
@@ -221,9 +217,7 @@ TEST_F(FFmpegTest, AVDictGetKeyValueKeyLenBounds) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_set");
-  auto &HostFuncAVDictSet =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictSet &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVDictSet = FuncInst->getHostFunc();
 
   fillMemContent(MemInst, KeyStart, "KEY"sv);
   fillMemContent(MemInst, ValueStart, "VALUE"sv);
@@ -237,9 +231,7 @@ TEST_F(FFmpegTest, AVDictGetKeyValueKeyLenBounds) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_dict_get_key_value");
-  auto &HostFuncAVDictGetKeyValue =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictGetKeyValue &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVDictGetKeyValue = FuncInst->getHostFunc();
 
   // The lookup-key pointer is in bounds but the guest-declared key length runs
   // off the end of linear memory. The host must reject the call instead of
@@ -270,9 +262,7 @@ TEST_F(FFmpegTest, AVDictGetKeyLenBounds) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_get");
-  auto &HostFuncAVDictGet =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictGet &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVDictGet = FuncInst->getHostFunc();
 
   // KeyPtr is in bounds but the guest-declared key length runs off the end of
   // linear memory; the host must reject it, not read past the page.
@@ -297,9 +287,7 @@ TEST_F(FFmpegTest, AVDictSetKeyLenBounds) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_set");
-  auto &HostFuncAVDictSet =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictSet &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVDictSet = FuncInst->getHostFunc();
 
   // KeyPtr is in bounds but the guest-declared key length runs off the end of
   // linear memory; the host must reject it, not read past the page.
@@ -328,9 +316,7 @@ TEST_F(FFmpegTest, AVDictGetLargePrevIndexTerminates) {
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_set");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncAVDictSet =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictSet &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVDictSet = FuncInst->getHostFunc();
 
   fillMemContent(MemInst, KeyStart, "KEY"sv);
   fillMemContent(MemInst, ValueStart, "VALUE"sv);
@@ -344,9 +330,7 @@ TEST_F(FFmpegTest, AVDictGetLargePrevIndexTerminates) {
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_get");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncAVDictGet =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictGet &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVDictGet = FuncInst->getHostFunc();
 
   // A guest-supplied previous-entry index past the number of matching entries
   // must terminate and report InternalError. With UINT32_MAX an unbounded loop
@@ -379,9 +363,7 @@ TEST_F(FFmpegTest, AVDictStaleIdHandling) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_set");
-  auto &HostFuncAVDictSet =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictSet &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVDictSet = FuncInst->getHostFunc();
 
   // A nonzero id that was never allocated must be rejected instead of being
   // handed to av_dict_set as a null map.
@@ -405,9 +387,7 @@ TEST_F(FFmpegTest, AVDictStaleIdHandling) {
   ASSERT_TRUE(DictId > 0);
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_copy");
-  auto &HostFuncAVDictCopy =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictCopy &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVDictCopy = FuncInst->getHostFunc();
 
   // A stale destination id must be rejected the same way.
   uint32_t DestDictPtr = UINT32_C(84);
@@ -420,9 +400,7 @@ TEST_F(FFmpegTest, AVDictStaleIdHandling) {
             static_cast<int32_t>(ErrNo::InternalError));
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_free");
-  auto &HostFuncAVDictFree =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictFree &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVDictFree = FuncInst->getHostFunc();
 
   // Freeing a stale id is a harmless no-op, and freeing a valid id twice must
   // not turn into a null-map free on the second call.

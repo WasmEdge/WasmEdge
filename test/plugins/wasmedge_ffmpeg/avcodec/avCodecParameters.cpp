@@ -93,9 +93,7 @@ TEST_F(FFmpegTest, BorrowedHandlesSurviveGuestFree) {
   auto *CodecIdFunc = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodecparam_codec_id");
   ASSERT_NE(CodecIdFunc, nullptr);
-  auto &HostFuncCodecId = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecParamCodecId &>(
-      CodecIdFunc->getHostFunc());
+  auto &HostFuncCodecId = CodecIdFunc->getHostFunc();
   HostFuncCodecId.run(CallFrame,
                       std::initializer_list<WasmEdge::ValVariant>{CodecParamId},
                       Result);
@@ -106,9 +104,7 @@ TEST_F(FFmpegTest, BorrowedHandlesSurviveGuestFree) {
   auto *ParamFreeFunc = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_parameters_free");
   ASSERT_NE(ParamFreeFunc, nullptr);
-  auto &HostFuncParamFree = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecParametersFree &>(
-      ParamFreeFunc->getHostFunc());
+  auto &HostFuncParamFree = ParamFreeFunc->getHostFunc();
   HostFuncParamFree.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{CodecParamId},
       Result);
@@ -119,9 +115,7 @@ TEST_F(FFmpegTest, BorrowedHandlesSurviveGuestFree) {
   auto *MetadataFunc = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_metadata");
   ASSERT_NE(MetadataFunc, nullptr);
-  auto &HostFuncMetadata = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxMetadata &>(
-      MetadataFunc->getHostFunc());
+  auto &HostFuncMetadata = MetadataFunc->getHostFunc();
   HostFuncMetadata.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, DictPtr},
@@ -133,9 +127,7 @@ TEST_F(FFmpegTest, BorrowedHandlesSurviveGuestFree) {
   auto *DictFreeFunc =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_free");
   ASSERT_NE(DictFreeFunc, nullptr);
-  auto &HostFuncDictFree =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictFree &>(
-          DictFreeFunc->getHostFunc());
+  auto &HostFuncDictFree = DictFreeFunc->getHostFunc();
   HostFuncDictFree.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{DictId}, Result);
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
@@ -175,9 +167,7 @@ TEST_F(FFmpegTest, ClosingContextInvalidatesBorrowedChildIds) {
   auto *MetadataFunc = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_metadata");
   ASSERT_NE(MetadataFunc, nullptr);
-  auto &HostFuncMetadata = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxMetadata &>(
-      MetadataFunc->getHostFunc());
+  auto &HostFuncMetadata = MetadataFunc->getHostFunc();
   HostFuncMetadata.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, DictPtr},
@@ -227,9 +217,7 @@ TEST_F(FFmpegTest, AVCodecParametersCopyIndexOutOfRange) {
   auto *FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_parameters_copy");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncCopy = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecParametersCopy &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncCopy = FuncInst->getHostFunc();
 
   // A guest-supplied stream index past nb_streams must be rejected, not walked
   // off the end of the streams array.

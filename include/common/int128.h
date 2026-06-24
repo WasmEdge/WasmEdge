@@ -720,22 +720,155 @@ public:
 };
 #else
 template <typename Char> struct formatter<WasmEdge::uint128, Char> {
+private:
+  Char Fill = static_cast<Char>(' ');
+  char Align = '\0';
+  bool Alt = false;
+  bool ZeroPad = false;
+  unsigned int Width = 0U;
+  char Type = '\0';
+
+public:
   template <typename ParseContext>
   constexpr auto parse(ParseContext &Ctx) -> decltype(Ctx.begin()) {
-    return Ctx.begin();
+    auto It = Ctx.begin();
+    const auto End = Ctx.end();
+    if (It == End || *It == static_cast<Char>('}')) {
+      return It;
+    }
+    const auto IsAlign = [](Char C) {
+      return C == static_cast<Char>('<') || C == static_cast<Char>('>') ||
+             C == static_cast<Char>('^');
+    };
+    auto Next = It;
+    ++Next;
+    if (Next != End && IsAlign(*Next)) {
+      Fill = *It;
+      Align = static_cast<char>(*Next);
+      It = Next;
+      ++It;
+    } else if (IsAlign(*It)) {
+      Align = static_cast<char>(*It);
+      ++It;
+    }
+    if (It != End && *It == static_cast<Char>('#')) {
+      Alt = true;
+      ++It;
+    }
+    if (It != End && *It == static_cast<Char>('0')) {
+      ZeroPad = true;
+      ++It;
+    }
+    while (It != End && *It >= static_cast<Char>('0') &&
+           *It <= static_cast<Char>('9')) {
+      Width =
+          Width * 10U + static_cast<unsigned int>(*It - static_cast<Char>('0'));
+      ++It;
+    }
+    if (It != End && *It != static_cast<Char>('}')) {
+      Type = static_cast<char>(*It);
+      ++It;
+    }
+    return It;
   }
+
   template <typename FormatContext>
   auto format(WasmEdge::uint128 V, FormatContext &Ctx) -> decltype(Ctx.out()) {
-    char Buf[40];
+    const bool IsZeroValue = (V == WasmEdge::uint128(0U));
+    unsigned int Base = 10U;
+    const char *DigitChars = "0123456789abcdef";
+    char Prefix[2] = {'\0', '\0'};
+    switch (Type) {
+    case 'X':
+      DigitChars = "0123456789ABCDEF";
+      [[fallthrough]];
+    case 'x':
+      Base = 16U;
+      if (Alt) {
+        Prefix[0] = '0';
+        Prefix[1] = (Type == 'X') ? 'X' : 'x';
+      }
+      break;
+    case 'B':
+    case 'b':
+      Base = 2U;
+      if (Alt) {
+        Prefix[0] = '0';
+        Prefix[1] = (Type == 'B') ? 'B' : 'b';
+      }
+      break;
+    case 'o':
+      Base = 8U;
+      if (Alt && !IsZeroValue) {
+        Prefix[0] = '0';
+      }
+      break;
+    default:
+      break;
+    }
+
+    char Buf[130];
     char *Pos = Buf + sizeof(Buf);
-    const WasmEdge::uint128 Ten(10U);
+    const WasmEdge::uint128 BaseV(Base);
     do {
-      *--Pos = static_cast<char>('0' + (V % Ten).low());
-      V /= Ten;
+      *--Pos = DigitChars[static_cast<unsigned int>((V % BaseV).low())];
+      V /= BaseV;
     } while (V != WasmEdge::uint128(0U));
+
+    const unsigned int NumDigits =
+        static_cast<unsigned int>(Buf + sizeof(Buf) - Pos);
+    const unsigned int PrefixLen =
+        (Prefix[0] != '\0') ? (Prefix[1] != '\0' ? 2U : 1U) : 0U;
+    const unsigned int CoreLen = PrefixLen + NumDigits;
+
     auto Out = Ctx.out();
-    for (const char *It = Pos; It != Buf + sizeof(Buf); ++It) {
-      *Out++ = *It;
+    const auto WritePrefix = [&]() {
+      for (unsigned int I = 0U; I < PrefixLen; ++I) {
+        *Out++ = Prefix[I];
+      }
+    };
+    const auto WriteDigits = [&]() {
+      for (const char *It = Pos; It != Buf + sizeof(Buf); ++It) {
+        *Out++ = *It;
+      }
+    };
+    const auto WriteFill = [&](unsigned int Count) {
+      for (unsigned int I = 0U; I < Count; ++I) {
+        *Out++ = static_cast<char>(Fill);
+      }
+    };
+
+    if (Width <= CoreLen) {
+      WritePrefix();
+      WriteDigits();
+      return Out;
+    }
+
+    const unsigned int Pad = Width - CoreLen;
+    if (ZeroPad && Align == '\0') {
+      WritePrefix();
+      for (unsigned int I = 0U; I < Pad; ++I) {
+        *Out++ = '0';
+      }
+      WriteDigits();
+      return Out;
+    }
+
+    const char Alignment = (Align == '\0') ? '>' : Align;
+    if (Alignment == '<') {
+      WritePrefix();
+      WriteDigits();
+      WriteFill(Pad);
+    } else if (Alignment == '^') {
+      const unsigned int Left = Pad / 2U;
+      WriteFill(Left);
+      WritePrefix();
+      WriteDigits();
+      WriteFill(Pad - Left);
+    } else {
+      WriteFill(Pad);
+      WritePrefix();
+      WriteDigits();
     }
     return Out;
   }

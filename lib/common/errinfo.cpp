@@ -7,7 +7,7 @@
 #include "common/int128.h"
 
 #include <spdlog/fmt/fmt.h>
-#if __has_include(<spdlog/fmt/ranges.h>)
+#if !defined(__has_include) || __has_include(<spdlog/fmt/ranges.h>)
 #include <spdlog/fmt/ranges.h>
 #else
 #include <fmt/ranges.h>

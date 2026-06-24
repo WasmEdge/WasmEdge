@@ -129,7 +129,23 @@ Expect<int32_t> AVFilterInOutSetNext::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(InOut, InOutId, AVFilterInOut);
   FFMPEG_PTR_FETCH(NextInOut, NextInOutId, AVFilterInOut);
   FFMPEG_PTR_CHECK(InOut, static_cast<int32_t>(ErrNo::InternalError));
+  AVFilterInOut *const OldNext = InOut->next;
   InOut->next = NextInOut;
+  // Relinking detaches the previous next node from this chain. It was marked
+  // borrowed when linked, so its id can no longer free it; restore that
+  // ownership now that no chain head owns it, otherwise the detached node leaks
+  // for the VM's lifetime.
+  if (OldNext != nullptr && OldNext != NextInOut) {
+    Env.get()->unmarkBorrowedByValue(OldNext);
+  }
+  // NextInOut is now owned by InOut's chain: avfilter_inout_free() on the head
+  // releases the whole list, including this node. Mark its id borrowed so a
+  // direct AVFilterInOutFree on it is refused; otherwise freeing it here would
+  // leave InOut->next dangling and the later head free would double-free it. A
+  // null next clears the link and owns nothing.
+  if (NextInOut != nullptr) {
+    Env.get()->markBorrowed(NextInOutId);
+  }
   return static_cast<int32_t>(ErrNo::Success);
 }
 

@@ -8,6 +8,8 @@ extern "C" {
 #include "libavfilter/avfilter.h"
 }
 
+#include <unordered_set>
+
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
@@ -86,9 +88,52 @@ Expect<int32_t> AVFilterGraphParsePtr::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(FiltersGraph, FilterGraphId, AVFilterGraph);
   FFMPEG_PTR_CHECK(FiltersGraph, static_cast<int32_t>(ErrNo::InternalError));
 
+  // avfilter_graph_parse_ptr() takes ownership of the supplied in/out lists: it
+  // frees the nodes it links into the graph and returns the still-open pads via
+  // *Inputs/*Outputs. Record every original node first (a guest may chain
+  // several via AVFilterInOutSetNext, each with its own id) so every handle id
+  // that aliases them can be dropped afterwards; otherwise those ids would
+  // resolve to freed memory and a later accessor would be a use-after-free. The
+  // same walk rejects a cyclic chain or an Inputs/Outputs pair that shares a
+  // node: passing one list as both arguments makes FFmpeg free a node through
+  // one head while the other still references it, crashing the host.
+  std::vector<AVFilterInOut *> Consumed;
+  std::unordered_set<AVFilterInOut *> Seen;
+  for (AVFilterInOut *Node = Inputs; Node != nullptr; Node = Node->next) {
+    if (!Seen.insert(Node).second) {
+      return static_cast<int32_t>(ErrNo::InternalError);
+    }
+    Consumed.push_back(Node);
+  }
+  for (AVFilterInOut *Node = Outputs; Node != nullptr; Node = Node->next) {
+    if (!Seen.insert(Node).second) {
+      return static_cast<int32_t>(ErrNo::InternalError);
+    }
+    Consumed.push_back(Node);
+  }
+
   std::string Filters(FiltersId.data(), FiltersSize);
-  return avfilter_graph_parse_ptr(FiltersGraph, Filters.c_str(), &Inputs,
-                                  &Outputs, nullptr);
+  int32_t const Res = avfilter_graph_parse_ptr(FiltersGraph, Filters.c_str(),
+                                               &Inputs, &Outputs, nullptr);
+
+  // On failure FFmpeg frees every filter context already in the graph (those
+  // minted by AVFilterGraphCreateFilter or AVFilterGraphGetFilter included), so
+  // drop their child handle ids; otherwise they would resolve to freed
+  // AVFilterContext objects on a later call.
+  if (Res < 0) {
+    Env.get()->deallocChildren(FilterGraphId);
+  }
+
+  for (AVFilterInOut *const Node : Consumed) {
+    Env.get()->deallocByValue(Node);
+  }
+  // The lists returned in *Inputs/*Outputs (surviving original nodes plus any
+  // newly minted open-pad nodes) are unreachable from the guest now that their
+  // ids are dropped, so free them here per the documented contract; otherwise
+  // they leak.
+  avfilter_inout_free(&Inputs);
+  avfilter_inout_free(&Outputs);
+  return Res;
 }
 
 Expect<int32_t> AVFilterInOutFree::body(const Runtime::CallingFrame &,
@@ -96,6 +141,14 @@ Expect<int32_t> AVFilterInOutFree::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(InOut, InOutId, AVFilterInOut);
   if (InOut == nullptr) {
     FFMPEG_PTR_DELETE(InOutId);
+    return static_cast<int32_t>(ErrNo::Success);
+  }
+  // A node linked into another node's chain via AVFilterInOutSetNext is owned
+  // by that chain's head; avfilter_inout_free() on the head releases the whole
+  // list. Its id is marked borrowed, so refuse to free it on its own: freeing
+  // it here would leave the head's ->next dangling and let the head's later
+  // free double-free this node. It is released when the head is freed.
+  if (Env.get()->isBorrowed(InOutId)) {
     return static_cast<int32_t>(ErrNo::Success);
   }
   // avfilter_inout_free releases the entire linked list, so drop the handle

@@ -62,6 +62,13 @@ public:
     }
   }
 
+  // Marks an already-stored id as borrowed (non-owning) without linking it to a
+  // parent. Used when ownership of a node transfers to a sibling structure that
+  // becomes responsible for freeing it (e.g. an AVFilterInOut linked into
+  // another node's chain via AVFilterInOutSetNext), so freeing this id on its
+  // own must not free the underlying object.
+  void markBorrowed(uint32_t Index) { BorrowedKeys.insert(Index); }
+
   // Transfers ownership of an already-stored id to ParentId: the id becomes
   // borrowed, so freeing it no longer frees the underlying object, and it is
   // dropped when the parent is freed via deallocChildren.
@@ -112,6 +119,22 @@ public:
     }
     BorrowedKeys.erase(static_cast<uint32_t>(Index));
     eraseChildLink(static_cast<uint32_t>(Index));
+  }
+
+  // Restores ownership of every id aliasing Data by clearing its borrowed mark,
+  // so freeing such an id frees the underlying object again. Used when a node
+  // is detached from the chain that owned it (e.g. AVFilterInOutSetNext
+  // replacing or clearing ->next): the detached node is no longer released by
+  // any chain head, so its handle must regain the right to free it; otherwise
+  // it would leak for the VM's lifetime.
+  void unmarkBorrowedByValue(void *Data) {
+    if (Data == nullptr) {
+      return;
+    }
+    auto Range = KeysByValue.equal_range(Data);
+    for (auto It = Range.first; It != Range.second; ++It) {
+      BorrowedKeys.erase(It->second);
+    }
   }
 
   // Removes every key that maps to Data, including each id's parent/child

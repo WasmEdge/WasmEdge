@@ -88,6 +88,7 @@ add_subdirectory(errinfo)
 add_subdirectory(vm)
 
 if(WASMEDGE_BUILD_COVERAGE)
+  set(GCOVR_ADDITIONAL_ARGS --gcov-ignore-parse-errors negative_hits.warn_once_per_file)
   setup_target_for_coverage_gcovr_html(
     NAME coverage
     EXECUTABLE ctest -j ${PROCESSOR_COUNT}

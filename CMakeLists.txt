@@ -106,7 +106,7 @@ option(WASMEDGE_PLUGIN_FFMPEG "Enable and build WasmEdge ffmpeg plugin." OFF)
 #   WasmEdge plug-in: Image.
 option(WASMEDGE_PLUGIN_IMAGE "Enable and build WasmEdge image plugin." OFF)
 #   WasmEdge plug-in: LLMC.
-option(WASMEDGE_PLUGIN_LLMC "Enable and build WasmEdge LLMC plugin." OFF)
+option(WASMEDGE_PLUGIN_LLMC "Removed (deprecated option kept for compatibility): WasmEdge LLMC plugin." OFF)
 #   WasmEdge plug-in: OCR.
 option(WASMEDGE_PLUGIN_OCR "Enable and build WasmEdge OCR plugin." OFF)
 #   WasmEdge plug-in: OpenCV-mini.

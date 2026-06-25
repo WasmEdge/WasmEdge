@@ -1,12 +1,9 @@
-name: Build on MacOS
+name: Build on MacOS (static lib)
 
 on:
   workflow_call:
     inputs:
       version:
-        type: string
-        required: true
-      matrix: # [ { name, runner, darwin_version }, ... ]
         type: string
         required: true
       release:
@@ -16,18 +13,13 @@ permissions:
   contents: read
 
 jobs:
-  build_on_macos:
+  build_on_macos_static:
     permissions:
       contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJSON(inputs.matrix) }}
-    name: ${{ matrix.name }}
-    runs-on: ${{ matrix.runner }}
+    name: MacOS 14 (arm64, static lib)
+    runs-on: macos-14
     env:
-      BUILD_TESTS: ON
-      BUILD_TYPE: Debug
+      BUILD_TYPE: Release
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -47,11 +39,7 @@ jobs:
           brew tap WasmEdge/llvm
       - name: Install Homebrew tools
         run: |
-          brew install llvm ninja wabt
-      - name: Install grpc
-        if: ${{ !inputs.release }}
-        run: |
-          brew install grpc
+          brew install llvm ninja
       - name: Resolve matching lld formula
         id: resolve-lld
         run: |
@@ -83,9 +71,9 @@ jobs:
           path: |
             ${{ env.BREW_PREFIX }}/Cellar/${{ steps.resolve-lld.outputs.lld_keg }}
             ${{ env.BREW_PREFIX }}/Cellar/cmake
-          key: homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.resolve-lld.outputs.llvm_version }}
+          key: homebrew-cellar-lld-${{ runner.os }}-arm64-${{ steps.resolve-lld.outputs.llvm_version }}
           restore-keys: |
-            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.resolve-lld.outputs.llvm_version }}
+            homebrew-cellar-lld-${{ runner.os }}-arm64-${{ steps.resolve-lld.outputs.llvm_version }}
       - name: Install or link lld and cmake
         env:
           LLD_FORMULA: ${{ steps.resolve-lld.outputs.lld_formula }}
@@ -97,12 +85,7 @@ jobs:
           fi
           brew link "${LLD_KEG}" || true
           brew link cmake || true
-      - name: Set environment variables for release
-        if: ${{ inputs.release }}
-        run: |
-          echo "BUILD_TESTS=OFF" | tee -a $GITHUB_ENV
-          echo "BUILD_TYPE=Release" | tee -a $GITHUB_ENV
-      - name: Build WasmEdge
+      - name: Build WasmEdge (static lib)
         env:
           LLD_KEG: ${{ steps.resolve-lld.outputs.lld_keg }}
         run: |
@@ -113,53 +96,46 @@ jobs:
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DLLVM_DIR:PATH="$(brew --prefix)/opt/llvm/lib/cmake/llvm" \
             -DLLD_DIR:PATH="$(brew --prefix)/opt/${LLD_KEG}/lib/cmake/lld" \
-            -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS \
+            -DWASMEDGE_BUILD_STATIC_LIB=ON \
+            -DWASMEDGE_BUILD_SHARED_LIB=OFF \
             -DWASMEDGE_LINK_LLVM_STATIC=ON \
+            -DWASMEDGE_BUILD_TOOLS=OFF \
+            -DWASMEDGE_BUILD_TESTS=OFF \
+            -DCMAKE_DISABLE_FIND_PACKAGE_spdlog=ON \
             -DWASMEDGE_BUILD_PACKAGE="TGZ" \
             -DCMAKE_INSTALL_PREFIX:PATH=$GITHUB_WORKSPACE/output .
           cmake --build build
-      - name: Test WasmEdge
+      - name: Verify static archive contents
         run: |
-          export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
-          cd build
-          ctest
+          # libwasmedge.a should exist and be a Mach-O static archive
+          ls -la build/lib/api/libwasmedge.a
+          file build/lib/api/libwasmedge.a | grep -i "archive"
+          # Headers should be installed too
+          cmake --install build
+          ls output/lib/libwasmedge.a
+          ls output/include/wasmedge/wasmedge.h
+          # No dylib should be produced
+          if find build/lib/api -name "libwasmedge*.dylib" -type f | grep -q .; then
+            echo "ERROR: dylib produced despite WASMEDGE_BUILD_SHARED_LIB=OFF"
+            exit 1
+          fi
+          echo "Pass: static archive present, no dylib"
       - name: Create package tarball
         run: |
           cmake --build build --target package
-      - name: Test Standalone WasmEdge without LLVM
-        run: |
-          export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
-          echo "otool -L ./build/tools/wasmedge/wasmedge:"
-          otool -L ./build/tools/wasmedge/wasmedge
-          echo "otool -L ./build/tools/wasmedge/wasmedgec:"
-          otool -L ./build/tools/wasmedge/wasmedgec
-          echo "otool -L ./build/lib/api/libwasmedge.dylib:"
-          otool -L ./build/lib/api/libwasmedge.dylib
-          if otool -L ./build/lib/api/libwasmedge.dylib | grep libLLVM; then echo "Fail: libLLVM shared library linked" && exit 1; else echo "Pass: libLLVM shared library not linked"; fi;
-
-          echo "Generate fibonacci.wasm from fibonacci.wat"
-          wat2wasm examples/wasm/fibonacci.wat -o examples/wasm/fibonacci.wasm
-          echo "./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib_c.dylib"
-          ./build/tools/wasmedge/wasmedgec examples/wasm/fibonacci.wasm fib_c.dylib
-          echo "./build/tools/wasmedge/wasmedge --reactor fib_c.dylib fib 20"
-          ./build/tools/wasmedge/wasmedge --reactor fib_c.dylib fib 20
-          echo "./build/tools/wasmedge/wasmedge compile examples/wasm/fibonacci.wasm fib_compile.dylib"
-          ./build/tools/wasmedge/wasmedge compile examples/wasm/fibonacci.wasm fib_compile.dylib
-          echo "./build/tools/wasmedge/wasmedge --reactor fib_compile.dylib fib 20"
-          ./build/tools/wasmedge/wasmedge --reactor fib_compile.dylib fib 20
-      - name: Check symbol exposure
-        run: |
-          bash .github/scripts/check_symbols.sh
       - name: Upload artifact
         if: ${{ !inputs.release }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: WasmEdge-${{ inputs.version }}-darwin_${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
-          path: build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz
+          name: WasmEdge-${{ inputs.version }}-darwin_arm64_static.tar.gz
+          # Glob the CPack output — for non-release runs the cmake-derived version
+          # (e.g. git-describe output like "0.17.0-48-g863aed95") may not match
+          # `inputs.version`. Only one tarball is produced per run.
+          path: build/WasmEdge-*-Darwin.tar.gz
       - name: Upload package tarball
         if: ${{ inputs.release }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz WasmEdge-${{ inputs.version }}-darwin_${{ matrix.arch }}.tar.gz
-          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
+          mv build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz WasmEdge-${{ inputs.version }}-darwin_arm64_static.tar.gz
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-darwin_arm64_static.tar.gz --clobber

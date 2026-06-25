@@ -86,7 +86,13 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
   AST::InstrView::iterator PC = Start;
   AST::InstrView::iterator PCEnd = End;
 
-  auto Dispatch = [this, &PC, &StackMgr]() -> Expect<void> {
+  // Force the per-instruction dispatch inline; otherwise the compiler may emit
+  // this switch out-of-line as one call per instruction (MSVC: see use site).
+  auto Dispatch = [this, &PC, &StackMgr]()
+#if defined(__GNUC__) || defined(__clang__)
+                      __attribute__((always_inline))
+#endif
+  -> Expect<void> {
     const AST::Instruction &Instr = *PC;
     switch (Instr.getOpCode()) {
     // Control instructions
@@ -2101,6 +2107,10 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
         }
       }
     }
+#if defined(_MSC_VER) && !defined(__clang__) &&                                \
+    __has_cpp_attribute(msvc::forceinline_calls)
+    [[msvc::forceinline_calls]]
+#endif
     EXPECTED_TRY(Dispatch().map_error([this, &StackMgr](auto E) {
       StackTraceSize = interpreterStackTrace(StackMgr, StackTrace).size();
       if (Conf.getRuntimeConfigure().isEnableCoredump() &&

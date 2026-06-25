@@ -256,6 +256,8 @@ struct LLVM::Compiler::CompileContext {
                 Int8PtrTy.getPointerTo(),
                 // MemorySizes
                 Int64PtrTy.getPointerTo(),
+                // TableRefs
+                Int64x2Ty.getPointerTo().getPointerTo(),
                 // TableSizes
                 Int64PtrTy.getPointerTo(),
                 // Globals
@@ -360,9 +362,23 @@ struct LLVM::Compiler::CompileContext {
                      LLVM::Metadata(LLContext, {}));
     return Builder.createLoad(Int64Ty, VPtr);
   }
+  LLVM::Value getTable(LLVM::Builder &Builder, LLVM::Value ExecCtx,
+                       uint32_t Index) noexcept {
+    auto RefPtrTy = Int64x2Ty.getPointerTo();
+    auto Array = Builder.createExtractValue(ExecCtx, 2);
+    auto VPtrPtr = Builder.createLoad(
+        RefPtrTy.getPointerTo(),
+        Builder.createInBoundsGEP1(RefPtrTy.getPointerTo(), Array,
+                                   LLContext.getInt64(Index)));
+    VPtrPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
+                        LLVM::Metadata(LLContext, {}));
+    return Builder.createLoad(
+        RefPtrTy,
+        Builder.createInBoundsGEP1(RefPtrTy, VPtrPtr, LLContext.getInt64(0)));
+  }
   LLVM::Value getTableSize(LLVM::Builder &Builder, LLVM::Value ExecCtx,
                            uint32_t Index) noexcept {
-    auto Array = Builder.createExtractValue(ExecCtx, 2);
+    auto Array = Builder.createExtractValue(ExecCtx, 3);
     auto VPtr = Builder.createLoad(
         Int64PtrTy, Builder.createInBoundsGEP1(Int64PtrTy, Array,
                                                LLContext.getInt64(Index)));
@@ -374,7 +390,7 @@ struct LLVM::Compiler::CompileContext {
                                                LLVM::Value ExecCtx,
                                                uint32_t Index) noexcept {
     auto Ty = Globals[Index];
-    auto Array = Builder.createExtractValue(ExecCtx, 3);
+    auto Array = Builder.createExtractValue(ExecCtx, 4);
     auto VPtr = Builder.createLoad(
         Int128PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
                                                 LLContext.getInt64(Index)));
@@ -385,22 +401,22 @@ struct LLVM::Compiler::CompileContext {
   }
   LLVM::Value getInstrCount(LLVM::Builder &Builder,
                             LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 4);
+    return Builder.createExtractValue(ExecCtx, 5);
   }
   LLVM::Value getCostTable(LLVM::Builder &Builder,
                            LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 5);
+    return Builder.createExtractValue(ExecCtx, 6);
   }
   LLVM::Value getGas(LLVM::Builder &Builder, LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 6);
+    return Builder.createExtractValue(ExecCtx, 7);
   }
   LLVM::Value getGasLimit(LLVM::Builder &Builder,
                           LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 7);
+    return Builder.createExtractValue(ExecCtx, 8);
   }
   LLVM::Value getStopToken(LLVM::Builder &Builder,
                            LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 8);
+    return Builder.createExtractValue(ExecCtx, 9);
   }
   LLVM::FunctionCallee getIntrinsic(LLVM::Builder &Builder,
                                     Executable::Intrinsics Index,
@@ -1562,27 +1578,35 @@ public:
 
       // Table Instructions
       case OpCode::Table__get: {
+        const auto TableIndex = Instr.getTargetIndex();
         auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
-        stackPush(Builder.createCall(
-            Context.getIntrinsic(
-                Builder, Executable::Intrinsics::kTableGet,
-                LLVM::Type::getFunctionType(Context.Int64x2Ty,
-                                            {Context.Int32Ty, Context.Int64Ty},
-                                            false)),
-            {LLContext.getInt32(Instr.getTargetIndex()), Off}));
+        auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "t_get.ok");
+        Builder.createCondBr(
+            Builder.createLikely(Builder.createICmpULT(
+                Off, Context.getTableSize(Builder, ExecCtx, TableIndex))),
+            OkBB, getTrapBB(ErrCode::Value::TableOutOfBounds));
+        Builder.positionAtEnd(OkBB);
+        stackPush(Builder.createLoad(
+            Context.Int64x2Ty,
+            Builder.createInBoundsGEP1(
+                Context.Int64x2Ty,
+                Context.getTable(Builder, ExecCtx, TableIndex), Off)));
         break;
       }
       case OpCode::Table__set: {
-        auto Ref = stackPop();
+        const auto TableIndex = Instr.getTargetIndex();
+        auto Ref = Builder.createBitCast(stackPop(), Context.Int64x2Ty);
         auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
-        Builder.createCall(
-            Context.getIntrinsic(
-                Builder, Executable::Intrinsics::kTableSet,
-                LLVM::Type::getFunctionType(
-                    Context.Int64Ty,
-                    {Context.Int32Ty, Context.Int64Ty, Context.Int64x2Ty},
-                    false)),
-            {LLContext.getInt32(Instr.getTargetIndex()), Off, Ref});
+        auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "t_set.ok");
+        Builder.createCondBr(
+            Builder.createLikely(Builder.createICmpULT(
+                Off, Context.getTableSize(Builder, ExecCtx, TableIndex))),
+            OkBB, getTrapBB(ErrCode::Value::TableOutOfBounds));
+        Builder.positionAtEnd(OkBB);
+        Builder.createStore(
+            Ref, Builder.createInBoundsGEP1(
+                     Context.Int64x2Ty,
+                     Context.getTable(Builder, ExecCtx, TableIndex), Off));
         break;
       }
       case OpCode::Table__init: {

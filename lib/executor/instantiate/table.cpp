@@ -14,13 +14,18 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                                    const AST::TableSection &TabSec) {
   // A frame with the temporary module is pushed onto the stack by the caller.
 
-  // Prepare the table-size pointers vector for compiled functions.
+  // Prepare the table-size and element-buffer pointers vectors for compiled
+  // functions.
   ModInst.TableSizePtrs.resize(ModInst.getTableNum() +
                                TabSec.getContent().size());
+  ModInst.TableRefPtrs.resize(ModInst.getTableNum() +
+                              TabSec.getContent().size());
 
-  // Set the table-size pointers of imported tables.
+  // Set the table pointers of imported tables.
   for (uint32_t I = 0; I < ModInst.getTableNum(); ++I) {
-    ModInst.TableSizePtrs[I] = ModInst.unsafeGetTable(I)->getSizePtr();
+    auto *TabInst = ModInst.unsafeGetTable(I);
+    ModInst.TableSizePtrs[I] = TabInst->getSizePtr();
+    ModInst.TableRefPtrs[I] = &TabInst->getDataPtr();
   }
 
   // Iterate through the table segments to instantiate and initialize table
@@ -46,9 +51,11 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       RefVariant InitTabValue(ValType(TypeCode::RefNull, BotType));
       ModInst.addTable(TabSeg.getTableType(), InitTabValue);
     }
-    // Set the table-size pointer of the instantiated table.
+    // Set the table pointers of the instantiated table.
     const auto Index = ModInst.getTableNum() - 1;
-    ModInst.TableSizePtrs[Index] = ModInst.unsafeGetTable(Index)->getSizePtr();
+    auto *TabInst = ModInst.unsafeGetTable(Index);
+    ModInst.TableSizePtrs[Index] = TabInst->getSizePtr();
+    ModInst.TableRefPtrs[Index] = &TabInst->getDataPtr();
   }
   return {};
 }

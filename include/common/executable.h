@@ -60,8 +60,6 @@ public:
     kArrayInitElem,
     kRefTest,
     kRefCast,
-    kTableGet,
-    kTableSet,
     kTableInit,
     kElemDrop,
     kTableCopy,

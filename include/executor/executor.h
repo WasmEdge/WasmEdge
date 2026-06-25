@@ -1030,12 +1030,6 @@ public:
   Expect<RefVariant> proxyRefCast(Runtime::StackManager &StackMgr,
                                   const RefVariant Ref,
                                   ValType VTCast) noexcept;
-  Expect<RefVariant> proxyTableGet(Runtime::StackManager &StackMgr,
-                                   const uint32_t TableIdx,
-                                   const uint64_t Off) noexcept;
-  Expect<void> proxyTableSet(Runtime::StackManager &StackMgr,
-                             const uint32_t TableIdx, const uint64_t Off,
-                             const RefVariant Ref) noexcept;
   Expect<void> proxyTableInit(Runtime::StackManager &StackMgr,
                               const uint32_t TableIdx, const uint32_t ElemIdx,
                               const uint64_t DstOff, const uint32_t SrcOff,
@@ -1102,6 +1096,7 @@ private:
     uint8_t **const *Memories;
 #endif
     const uint64_t *const *MemorySizes;
+    RefVariant **const *TableRefs;
     const uint64_t *const *TableSizes;
     ValVariant *const *Globals;
     std::atomic_uint64_t *InstrCount;

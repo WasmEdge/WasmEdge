@@ -40,12 +40,14 @@ public:
     // constructor with a properly initialized RefVariant.
     assuming(TType.getRefType().isNullableRefType());
     assuming(TType.getRefType().isAbsHeapType());
+    DataPtr = Refs.data();
   }
   TableInstance(const AST::TableType &TType, const RefVariant &InitVal) noexcept
       : TabType(TType), Refs(TType.getLimit().getMin(), InitVal),
         InitValue(InitVal) {
     // If the reference type is not nullable, the initial reference is required.
     assuming(TType.getRefType().isNullableRefType() || !InitVal.isNull());
+    DataPtr = Refs.data();
   }
 
   /// Get size of table.refs
@@ -58,6 +60,12 @@ public:
   const uint64_t *getSizePtr() const noexcept {
     return TabType.getLimit().getMinPtr();
   }
+
+  /// Get the stable reference to the live element buffer for compiled code.
+  /// The pointed-to address is refreshed whenever the buffer reallocates on
+  /// grow, so taking its address yields a slot stable across the table's life.
+  RefVariant *const &getDataPtr() const noexcept { return DataPtr; }
+  RefVariant *&getDataPtr() noexcept { return DataPtr; }
 
   /// Getter for table type.
   const AST::TableType &getTableType() const noexcept { return TabType; }
@@ -90,6 +98,7 @@ public:
     }
     Refs.resize(Refs.size() + Count);
     std::fill_n(Refs.end() - static_cast<std::ptrdiff_t>(Count), Count, Val);
+    DataPtr = Refs.data();
     TabType.getLimit().setMin(Min + Count);
     return true;
   }
@@ -184,6 +193,7 @@ private:
   AST::TableType TabType;
   std::vector<RefVariant> Refs;
   RefVariant InitValue;
+  RefVariant *DataPtr = nullptr;
   /// @}
 };
 

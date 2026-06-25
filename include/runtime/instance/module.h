@@ -579,6 +579,7 @@ protected:
 #endif
   std::vector<const uint64_t *> MemorySizePtrs;
   std::vector<const uint64_t *> TableSizePtrs;
+  std::vector<RefVariant **> TableRefPtrs;
   std::vector<ValVariant *> GlobalPtrs;
   /// @}
 

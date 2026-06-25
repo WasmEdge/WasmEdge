@@ -90,8 +90,6 @@ const Executable::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kArrayInitElem, proxyArrayInitElem),
     ENTRY(kRefTest, proxyRefTest),
     ENTRY(kRefCast, proxyRefCast),
-    ENTRY(kTableGet, proxyTableGet),
-    ENTRY(kTableSet, proxyTableSet),
     ENTRY(kTableInit, proxyTableInit),
     ENTRY(kElemDrop, proxyElemDrop),
     ENTRY(kTableCopy, proxyTableCopy),
@@ -426,23 +424,6 @@ Expect<RefVariant> Executor::proxyRefCast(Runtime::StackManager &StackMgr,
 // is 32 or 64 bits. On the other hand, a `uint64_t` return should handle the
 // conversion to a 32- or 64-bit value according to the address type in the LLVM
 // compiler.
-
-Expect<RefVariant> Executor::proxyTableGet(Runtime::StackManager &StackMgr,
-                                           const uint32_t TableIdx,
-                                           const uint64_t Off) noexcept {
-  auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
-  assuming(TabInst);
-  return TabInst->getRefAddr(Off);
-}
-
-Expect<void> Executor::proxyTableSet(Runtime::StackManager &StackMgr,
-                                     const uint32_t TableIdx,
-                                     const uint64_t Off,
-                                     const RefVariant Ref) noexcept {
-  auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
-  assuming(TabInst);
-  return TabInst->setRefAddr(Off, Ref);
-}
 
 Expect<void> Executor::proxyTableInit(Runtime::StackManager &StackMgr,
                                       const uint32_t TableIdx,

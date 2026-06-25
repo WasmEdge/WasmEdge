@@ -9,6 +9,7 @@
 #include "common/spdlog.h"
 #include "data.h"
 #include "llvm.h"
+#include "runtime/instance/function.h"
 #include "spdlog/spdlog.h"
 #include "system/allocator.h"
 
@@ -273,6 +274,8 @@ struct LLVM::Compiler::CompileContext {
                 Int64Ty,
                 // StopToken
                 Int32PtrTy,
+                // ModuleInst
+                Int8PtrTy,
             })),
         ExecCtxPtrTy(ExecCtxTy.getPointerTo()),
         IntrinsicsTableTy(LLVM::Type::getArrayType(
@@ -385,6 +388,10 @@ struct LLVM::Compiler::CompileContext {
     VPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
                      LLVM::Metadata(LLContext, {}));
     return Builder.createLoad(Int64Ty, VPtr);
+  }
+  LLVM::Value getModuleInst(LLVM::Builder &Builder,
+                            LLVM::Value ExecCtx) noexcept {
+    return Builder.createExtractValue(ExecCtx, 10);
   }
   std::pair<LLVM::Type, LLVM::Value> getGlobal(LLVM::Builder &Builder,
                                                LLVM::Value ExecCtx,
@@ -4402,6 +4409,10 @@ private:
 
   void compileIndirectCallOp(const uint32_t TableIndex,
                              const uint32_t FuncTypeIndex) noexcept {
+    auto TryFastBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.tryfast");
+    auto NonNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.nonnull");
+    auto FastBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.fast");
+    auto SlowBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.slow");
     auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.not_null");
     auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.is_null");
     auto EndBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.end");
@@ -4410,6 +4421,9 @@ private:
     const auto &FuncType = Context.CompositeTypes[FuncTypeIndex]->getFuncType();
     auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
     auto RTy = FTy.getReturnType();
+    auto FPtrTy = FTy.getPointerTo();
+    auto TableIdx = LLContext.getInt32(TableIndex);
+    auto TypeIdx = LLContext.getInt32(FuncTypeIndex);
 
     const size_t ArgSize = FuncType.getParamTypes().size();
     const size_t RetSize =
@@ -4420,18 +4434,83 @@ private:
       const size_t J = ArgSize - I;
       ArgsVec[J] = stackPop();
     }
+    auto UnpackRets = [&](LLVM::Value Ret) -> std::vector<LLVM::Value> {
+      if (RetSize == 0) {
+        return {};
+      } else if (RetSize == 1) {
+        return {Ret};
+      } else {
+        return unpackStruct(Builder, Ret);
+      }
+    };
 
+    auto Idx64 = Builder.createZExt(FuncIndex, Context.Int64Ty);
+
+    // Fast path: an in-bounds funcref defined in the running module with the
+    // call site's type index and compiled code is called directly.
+    std::vector<LLVM::Value> FastRetsVec;
+    {
+      Builder.createCondBr(
+          Builder.createLikely(Builder.createICmpULT(
+              Idx64, Context.getTableSize(Builder, ExecCtx, TableIndex))),
+          TryFastBB, SlowBB);
+      Builder.positionAtEnd(TryFastBB);
+
+      auto FuncRef = Builder.createLoad(
+          Context.Int64x2Ty,
+          Builder.createInBoundsGEP1(
+              Context.Int64x2Ty, Context.getTable(Builder, ExecCtx, TableIndex),
+              Idx64));
+      auto FuncInstInt =
+          Builder.createExtractElement(FuncRef, LLContext.getInt64(1));
+      Builder.createCondBr(Builder.createLikely(Builder.createICmpNE(
+                               FuncInstInt, LLContext.getInt64(0))),
+                           NonNullBB, SlowBB);
+      Builder.positionAtEnd(NonNullBB);
+
+      auto FuncInstPtr = Builder.createIntToPtr(FuncInstInt, Context.Int8PtrTy);
+      auto LoadField = [&](uint64_t Off, LLVM::Type Ty) {
+        return Builder.createLoad(
+            Ty, Builder.createBitCast(
+                    Builder.createInBoundsGEP1(Context.Int8Ty, FuncInstPtr,
+                                               LLContext.getInt64(Off)),
+                    Ty.getPointerTo()));
+      };
+      using Runtime::Instance::FunctionInstance;
+      auto DefModule =
+          LoadField(FunctionInstance::getModuleOffset(), Context.Int8PtrTy);
+      auto CalleeTypeIdx =
+          LoadField(FunctionInstance::getTypeIndexOffset(), Context.Int32Ty);
+      auto Code = LoadField(FunctionInstance::getCompiledCodeOffset(),
+                            Context.Int8PtrTy);
+      auto Hit = Builder.createAnd(
+          Builder.createAnd(
+              Builder.createICmpEQ(DefModule,
+                                   Context.getModuleInst(Builder, ExecCtx)),
+              Builder.createICmpEQ(CalleeTypeIdx, TypeIdx)),
+          Builder.createNot(Builder.createIsNull(Code)));
+      Builder.createCondBr(Builder.createLikely(Hit), FastBB, SlowBB);
+
+      Builder.positionAtEnd(FastBB);
+      auto FastRet = Builder.createCall(
+          LLVM::FunctionCallee{FTy, Builder.createBitCast(Code, FPtrTy)},
+          ArgsVec);
+      FastRetsVec = UnpackRets(FastRet);
+      Builder.createBr(EndBB);
+    }
+
+    // Slow path: resolve through the runtime, which handles cross-module, host,
+    // subtype, uninitialized, and not-yet-compiled cases.
+    Builder.positionAtEnd(SlowBB);
     std::vector<LLVM::Value> FPtrRetsVec;
-    FPtrRetsVec.reserve(RetSize);
     {
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kTableGetFuncSymbol,
               LLVM::Type::getFunctionType(
-                  FTy.getPointerTo(),
-                  {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
-          {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
-           FuncIndex});
+                  FPtrTy, {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty},
+                  false)),
+          {TableIdx, TypeIdx, FuncIndex});
       Builder.createCondBr(
           Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
           NotNullBB, IsNullBB);
@@ -4439,15 +4518,7 @@ private:
 
       auto FPtrRet =
           Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, ArgsVec);
-      if (RetSize == 0) {
-        // nothing to do
-      } else if (RetSize == 1) {
-        FPtrRetsVec.push_back(FPtrRet);
-      } else {
-        for (auto Val : unpackStruct(Builder, FPtrRet)) {
-          FPtrRetsVec.push_back(Val);
-        }
-      }
+      FPtrRetsVec = UnpackRets(FPtrRet);
     }
 
     Builder.createBr(EndBB);
@@ -4469,8 +4540,7 @@ private:
                                            Context.Int32Ty, Context.Int8PtrTy,
                                            Context.Int8PtrTy},
                                           false)),
-          {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
-           FuncIndex, Args, Rets});
+          {TableIdx, TypeIdx, FuncIndex, Args, Rets});
 
       if (RetSize == 0) {
         // nothing to do
@@ -4487,6 +4557,7 @@ private:
 
     for (unsigned I = 0; I < RetSize; ++I) {
       auto PHIRet = Builder.createPHI(FPtrRetsVec[I].getType());
+      PHIRet.addIncoming(FastRetsVec[I], FastBB);
       PHIRet.addIncoming(FPtrRetsVec[I], NotNullBB);
       PHIRet.addIncoming(RetsVec[I], IsNullBB);
       stackPush(PHIRet);

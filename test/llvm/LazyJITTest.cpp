@@ -480,9 +480,9 @@ TEST_F(LazyJITTest, LazyJITOnlySomeFunctionsCalled) {
 }
 
 TEST_F(LazyJITTest, LazyJITWithImports) {
-  auto VM = createLazyJITVM();
-
   TestEnvModule HostMod;
+
+  auto VM = createLazyJITVM();
   ASSERT_TRUE(VM->registerModule(HostMod));
 
   ASSERT_TRUE(VM->loadWasm(ImportWasm));

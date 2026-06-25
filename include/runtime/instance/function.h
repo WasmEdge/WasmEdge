@@ -36,7 +36,8 @@ public:
   FunctionInstance() = delete;
   /// Move constructor.
   FunctionInstance(FunctionInstance &&Inst) noexcept
-      : CompositeBase(Inst.ModInst, Inst.TypeIdx), FuncType(Inst.FuncType),
+      : CompositeBase(Inst.ModInst, Inst.TypeIdx),
+        CompiledCode(Inst.CompiledCode), FuncType(Inst.FuncType),
         Data(std::move(Inst.Data)) {
     assuming(ModInst);
   }
@@ -53,7 +54,7 @@ public:
   FunctionInstance(const ModuleInstance *Mod, const uint32_t TIdx,
                    const AST::FunctionType &Type,
                    Symbol<CompiledFunction> S) noexcept
-      : CompositeBase(Mod, TIdx), FuncType(Type),
+      : CompositeBase(Mod, TIdx), CompiledCode(S.get()), FuncType(Type),
         Data(std::in_place_type_t<Symbol<CompiledFunction>>(), std::move(S)) {
     assuming(ModInst);
   }
@@ -124,9 +125,15 @@ public:
     if (!isWasmFunction()) {
       return false;
     }
+    void *Code = Sym.get();
     Data = std::move(Sym);
+    CompiledCode = Code;
     return true;
   }
+
+  /// Getter for the compiled code pointer, mirrored by the AOT/JIT compiler at
+  /// a fixed offset; null until the function is compiled.
+  void *getCompiledCode() const noexcept { return CompiledCode; }
 
 private:
   struct WasmFunction {
@@ -150,6 +157,11 @@ private:
   /// \name Data of function instance.
   /// @{
 
+  /// Compiled code pointer. Must stay the first member of FunctionInstance:
+  /// the AOT/JIT compiler reads it inline at offset sizeof(CompositeBase),
+  /// together with CompositeBase's ModInst (offset 0) and TypeIdx (offset 8),
+  /// to dispatch call_indirect without entering the runtime resolver.
+  void *CompiledCode = nullptr;
   const AST::FunctionType &FuncType;
   std::variant<WasmFunction, Symbol<CompiledFunction>,
                std::unique_ptr<HostFunctionBase>>

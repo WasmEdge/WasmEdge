@@ -273,6 +273,8 @@ struct LLVM::Compiler::CompileContext {
                 Int64Ty,
                 // StopToken
                 Int32PtrTy,
+                // ModuleInst
+                Int8PtrTy,
             })),
         ExecCtxPtrTy(ExecCtxTy.getPointerTo()),
         IntrinsicsTableTy(LLVM::Type::getArrayType(
@@ -385,6 +387,10 @@ struct LLVM::Compiler::CompileContext {
     VPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
                      LLVM::Metadata(LLContext, {}));
     return Builder.createLoad(Int64Ty, VPtr);
+  }
+  LLVM::Value getModuleInst(LLVM::Builder &Builder,
+                            LLVM::Value ExecCtx) noexcept {
+    return Builder.createExtractValue(ExecCtx, 10);
   }
   std::pair<LLVM::Type, LLVM::Value> getGlobal(LLVM::Builder &Builder,
                                                LLVM::Value ExecCtx,
@@ -4402,6 +4408,10 @@ private:
 
   void compileIndirectCallOp(const uint32_t TableIndex,
                              const uint32_t FuncTypeIndex) noexcept {
+    auto TryFastBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.tryfast");
+    auto NonNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.nonnull");
+    auto FastBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.fast");
+    auto SlowBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.slow");
     auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.not_null");
     auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.is_null");
     auto EndBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.end");
@@ -4421,6 +4431,73 @@ private:
       ArgsVec[J] = stackPop();
     }
 
+    auto Idx64 = Builder.createZExt(FuncIndex, Context.Int64Ty);
+
+    // Fast path: when the index is in bounds and the referenced function is
+    // defined in the running module with the call site's type and already
+    // compiled, read its compiled code pointer straight from the function
+    // instance and call it without entering the runtime resolver.
+    std::vector<LLVM::Value> FastRetsVec;
+    FastRetsVec.reserve(RetSize);
+    {
+      Builder.createCondBr(
+          Builder.createLikely(Builder.createICmpULT(
+              Idx64, Context.getTableSize(Builder, ExecCtx, TableIndex))),
+          TryFastBB, SlowBB);
+      Builder.positionAtEnd(TryFastBB);
+
+      auto FuncRef = Builder.createLoad(
+          Context.Int64x2Ty,
+          Builder.createInBoundsGEP1(
+              Context.Int64x2Ty, Context.getTable(Builder, ExecCtx, TableIndex),
+              Idx64));
+      auto FuncInstInt =
+          Builder.createExtractElement(FuncRef, LLContext.getInt64(1));
+      Builder.createCondBr(Builder.createLikely(Builder.createICmpNE(
+                               FuncInstInt, LLContext.getInt64(0))),
+                           NonNullBB, SlowBB);
+      Builder.positionAtEnd(NonNullBB);
+
+      auto FuncInstPtr = Builder.createIntToPtr(FuncInstInt, Context.Int8PtrTy);
+      auto LoadField = [&](uint64_t Off, LLVM::Type Ty) {
+        return Builder.createLoad(
+            Ty, Builder.createBitCast(
+                    Builder.createInBoundsGEP1(Context.Int8Ty, FuncInstPtr,
+                                               LLContext.getInt64(Off)),
+                    Ty.getPointerTo()));
+      };
+      auto DefModule = LoadField(0, Context.Int64Ty);
+      auto TypeIdx = LoadField(8, Context.Int32Ty);
+      auto Code = LoadField(16, Context.Int8PtrTy);
+      auto ThisModule = Builder.createPtrToInt(
+          Context.getModuleInst(Builder, ExecCtx), Context.Int64Ty);
+      auto Hit = Builder.createAnd(
+          Builder.createAnd(
+              Builder.createICmpEQ(DefModule, ThisModule),
+              Builder.createICmpEQ(TypeIdx, LLContext.getInt32(FuncTypeIndex))),
+          Builder.createNot(Builder.createIsNull(Code)));
+      Builder.createCondBr(Builder.createLikely(Hit), FastBB, SlowBB);
+
+      Builder.positionAtEnd(FastBB);
+      auto FastRet = Builder.createCall(
+          LLVM::FunctionCallee{FTy,
+                               Builder.createBitCast(Code, FTy.getPointerTo())},
+          ArgsVec);
+      if (RetSize == 0) {
+        // nothing to do
+      } else if (RetSize == 1) {
+        FastRetsVec.push_back(FastRet);
+      } else {
+        for (auto Val : unpackStruct(Builder, FastRet)) {
+          FastRetsVec.push_back(Val);
+        }
+      }
+      Builder.createBr(EndBB);
+    }
+
+    // Slow path: resolve through the runtime, which handles cross-module, host,
+    // subtype, uninitialized, and not-yet-compiled cases.
+    Builder.positionAtEnd(SlowBB);
     std::vector<LLVM::Value> FPtrRetsVec;
     FPtrRetsVec.reserve(RetSize);
     {
@@ -4487,6 +4564,7 @@ private:
 
     for (unsigned I = 0; I < RetSize; ++I) {
       auto PHIRet = Builder.createPHI(FPtrRetsVec[I].getType());
+      PHIRet.addIncoming(FastRetsVec[I], FastBB);
       PHIRet.addIncoming(FPtrRetsVec[I], NotNullBB);
       PHIRet.addIncoming(RetsVec[I], IsNullBB);
       stackPush(PHIRet);

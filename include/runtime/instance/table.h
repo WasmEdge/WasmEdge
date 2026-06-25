@@ -40,14 +40,14 @@ public:
     // constructor with a properly initialized RefVariant.
     assuming(TType.getRefType().isNullableRefType());
     assuming(TType.getRefType().isAbsHeapType());
-    DataPtr = Refs.data();
+    refreshCompiledPtrs();
   }
   TableInstance(const AST::TableType &TType, const RefVariant &InitVal) noexcept
       : TabType(TType), Refs(TType.getLimit().getMin(), InitVal),
         InitValue(InitVal) {
     // If the reference type is not nullable, the initial reference is required.
     assuming(TType.getRefType().isNullableRefType() || !InitVal.isNull());
-    DataPtr = Refs.data();
+    refreshCompiledPtrs();
   }
 
   /// Get size of table.refs
@@ -98,7 +98,7 @@ public:
     }
     Refs.resize(Refs.size() + Count);
     std::fill_n(Refs.end() - static_cast<std::ptrdiff_t>(Count), Count, Val);
-    DataPtr = Refs.data();
+    refreshCompiledPtrs();
     TabType.getLimit().setMin(Min + Count);
     return true;
   }
@@ -190,6 +190,10 @@ public:
 private:
   /// \name Data of table instance.
   /// @{
+  /// Refresh the buffer pointers exposed to compiled code after the element
+  /// vector reallocates, keeping the dispatch cache sized with the table.
+  void refreshCompiledPtrs() noexcept { DataPtr = Refs.data(); }
+
   AST::TableType TabType;
   std::vector<RefVariant> Refs;
   RefVariant InitValue;

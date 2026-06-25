@@ -17,6 +17,7 @@
 #include "ast/type.h"
 #include "common/types.h"
 
+#include <type_traits>
 #include <vector>
 
 namespace WasmEdge {
@@ -66,6 +67,16 @@ protected:
   uint32_t TypeIdx;
   /// @}
 };
+
+// The AOT/JIT compiler reads ModInst (offset 0) and TypeIdx (offset 8) inline
+// from a function instance, and FunctionInstance::CompiledCode right after the
+// base. Standard layout keeps ModInst first with no tail-padding reuse, so
+// these offsets and the base size are part of the codegen ABI.
+static_assert(std::is_standard_layout_v<CompositeBase>,
+              "compiled code relies on CompositeBase being standard layout");
+static_assert(
+    sizeof(CompositeBase) == 16,
+    "compiled code reads FunctionInstance::CompiledCode at offset 16");
 
 } // namespace Instance
 } // namespace Runtime

@@ -689,8 +689,9 @@ Expect<WASINN::ErrNo> WasiNNUnload::bodyImpl(const Runtime::CallingFrame &Frame,
   }
 
   if (Env.NNGraph.size() <= GraphId || Env.NNGraph[GraphId].isFinalized()) {
-    spdlog::error("[WASI-NN] unload: GraphId {} does not exist or is unloaded."sv,
-                  GraphId);
+    spdlog::error(
+        "[WASI-NN] unload: GraphId {} does not exist or is unloaded."sv,
+        GraphId);
     return WASINN::ErrNo::InvalidArgument;
   }
 

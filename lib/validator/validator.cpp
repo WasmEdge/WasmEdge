@@ -199,7 +199,8 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
 }
 
 // Validate Sub type. See "include/validator/validator.h".
-Expect<void> Validator::validate(const AST::SubType &Type) {
+Expect<void> Validator::validate(const AST::SubType &Type,
+                                 uint32_t CurrentTypeIdx) {
   const auto &TypeVec = Checker.getTypes();
   const auto &CompType = Type.getCompositeType();
 
@@ -245,6 +246,15 @@ Expect<void> Validator::validate(const AST::SubType &Type) {
       spdlog::error(
           ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::DefinedType, Index,
                                    static_cast<uint32_t>(TypeVec.size())));
+      return Unexpect(ErrCode::Value::InvalidSubType);
+    }
+
+    if (Index >= CurrentTypeIdx) {
+      spdlog::error(ErrCode::Value::InvalidSubType);
+      spdlog::error(
+          "    Super type index {} is a forward reference: must be less "
+          "than the current type index {}."sv,
+          Index, CurrentTypeIdx);
       return Unexpect(ErrCode::Value::InvalidSubType);
     }
 
@@ -649,7 +659,7 @@ Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
         Checker.addType(STypeList[I]);
       }
       for (uint32_t I = Idx; I < Idx + RecSize; I++) {
-        EXPECTED_TRY(validate(STypeList[I]).map_error([](auto E) {
+        EXPECTED_TRY(validate(STypeList[I], I).map_error([](auto E) {
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Rec));
           return E;
         }));
@@ -661,10 +671,11 @@ Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
         // For the GC proposal, the subtype is treated as a self-recursive type.
         // Add types first for recursive references.
         Checker.addType(SType);
-        EXPECTED_TRY(validate(*Checker.getTypes().back()));
+        EXPECTED_TRY(validate(*Checker.getTypes().back(), Idx));
       } else {
         // Validating first.
-        EXPECTED_TRY(validate(SType));
+        EXPECTED_TRY(
+            validate(SType, static_cast<uint32_t>(Checker.getTypes().size())));
         Checker.addType(SType);
       }
       Idx++;

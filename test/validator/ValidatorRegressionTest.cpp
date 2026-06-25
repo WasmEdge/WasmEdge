@@ -365,6 +365,44 @@ TEST_F(ValidatorRegressionTest, ActiveElemTypedFuncrefTrap) {
   EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
 }
 
+TEST_F(ValidatorRegressionTest, ForwardSupertypeInRecGroup) {
+  // Issue #5061: (rec
+  //   (type $mid (sub $top (func (result i32))))
+  //   (type $top (sub (func (result i32)))))
+  // $mid (index 0) declares supertype $top (index 1): forward reference.
+  std::array<WasmEdge::Byte, 45> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x10, 0x01, 0x4e,
+      0x02, 0x50, 0x01, 0x01, 0x60, 0x00, 0x01, 0x7f, 0x50, 0x00, 0x60, 0x00,
+      0x01, 0x7f, 0x03, 0x02, 0x01, 0x01, 0x07, 0x05, 0x01, 0x01, 0x66, 0x00,
+      0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x2a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
+TEST_F(ValidatorRegressionTest, ValidSupertypeOrderInRecGroup) {
+  // (rec
+  //   (type $top (sub (func (result i32))))
+  //   (type $mid (sub $top (func (result i32)))))
+  // Note: the func uses type index 1 ($mid, which is (sub $top ...)).
+  // Since $mid subtypes $top (0 < 1), this module is fully valid.
+  std::array<WasmEdge::Byte, 45> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x10, 0x01, 0x4e,
+      0x02, 0x50, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x50, 0x01, 0x00, 0x60, 0x00,
+      0x01, 0x7f, 0x03, 0x02, 0x01, 0x01, 0x07, 0x05, 0x01, 0x01, 0x66, 0x00,
+      0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x2a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
 // Test that ref.test after unreachable passes validation.
 // The unreachable instruction produces bottom types on the stack, which should
 // be accepted by ref.test per the Wasm spec.

@@ -6,6 +6,7 @@
 #include "common/expected.h"
 #include "common/variant.h"
 
+#include <optional>
 #include <string_view>
 
 namespace WasmEdge {
@@ -87,6 +88,9 @@ public:
   std::string_view getNoTagName() const noexcept { return NoTagName; }
   const ComponentNameDetail &getDetail() const noexcept { return Detail; }
 };
+
+Expect<void> validateVersionSuffix(const ComponentName &CName,
+                                   std::optional<std::string_view> Suffix);
 
 } // namespace Validator
 } // namespace WasmEdge

@@ -3,6 +3,7 @@
 
 #include "validator/component_context.h"
 #include "validator/component_name.h"
+#include "validator/validator.h"
 
 #include "ast/component/component.h"
 #include "ast/component/section.h"
@@ -12,6 +13,9 @@
 #include "loader/loader.h"
 
 #include <gtest/gtest.h>
+
+#include <array>
+#include <vector>
 
 namespace {
 
@@ -402,6 +406,45 @@ TEST(ComponentNameParserTest, Semver) {
   EXPECT_FALSE(Validator::ComponentName::parse("ns:pkg/iface@0"sv));
 }
 
+TEST(ComponentNameParserTest, VersionSuffixValidation) {
+  auto ParseIface = [](std::string_view Name) {
+    return Validator::ComponentName::parse(Name);
+  };
+
+  {
+    auto CName = ParseIface("wasi:http/types@0.2"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_TRUE(
+        Validator::validateVersionSuffix(*CName, std::nullopt).has_value());
+    EXPECT_TRUE(
+        Validator::validateVersionSuffix(*CName, ".0"sv).has_value());
+  }
+  {
+    auto CName = ParseIface("wasi:http/types"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_FALSE(
+        Validator::validateVersionSuffix(*CName, ".0"sv).has_value());
+  }
+  {
+    auto CName = ParseIface("wasi:http/types@1.2.3"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_FALSE(
+        Validator::validateVersionSuffix(*CName, ".0"sv).has_value());
+  }
+  {
+    auto CName = Validator::ComponentName::parse("f"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_FALSE(
+        Validator::validateVersionSuffix(*CName, ".0"sv).has_value());
+  }
+  {
+    auto CName = ParseIface("wasi:http/types@0.2"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_FALSE(
+        Validator::validateVersionSuffix(*CName, ".x"sv).has_value());
+  }
+}
+
 TEST(ComponentNameParserTest, SpecExamples) {
   // Examples from Explainer.md
   EXPECT_EQ(Validator::ComponentName::parse("custom-hook"sv)->getKind(),
@@ -574,6 +617,170 @@ TEST(ComponentLoaderTest, AsyncI64ResourceRepWithMemory64) {
   EXPECT_EQ(*RT.getDestructor(), 0U);
   // Callback is absent in this payload.
   EXPECT_FALSE(RT.getCallback().has_value());
+}
+
+// --- importname'/exportname' encoding ---
+
+namespace {
+
+constexpr std::array<uint8_t, 8> ComponentPreamble = {
+    0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+};
+constexpr std::array<uint8_t, 5> EmptyInstanceTypeSection = {
+    0x07, 0x03, 0x01, 0x42, 0x00,
+};
+
+std::vector<uint8_t> makeImportOnlyComponent(std::vector<uint8_t> ImportPayload) {
+  std::vector<uint8_t> Vec(ComponentPreamble.begin(), ComponentPreamble.end());
+  Vec.insert(Vec.end(), EmptyInstanceTypeSection.begin(),
+             EmptyInstanceTypeSection.end());
+  Vec.push_back(0x0a);
+  Vec.push_back(static_cast<uint8_t>(ImportPayload.size()));
+  Vec.insert(Vec.end(), ImportPayload.begin(), ImportPayload.end());
+  return Vec;
+}
+
+Loader::Loader makeComponentLoader() {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  return Loader::Loader(Conf);
+}
+
+} // namespace
+
+TEST(ComponentLoaderTest, LegacyImportNameEncoding) {
+  auto Loader = makeComponentLoader();
+  auto Vec = makeImportOnlyComponent({
+      0x01,
+      0x00, 0x0c, 0x6d, 0x79, 0x3a, 0x64, 0x65, 0x6d, 0x6f, 0x2f,
+      0x68, 0x6f, 0x73, 0x74,
+      0x05, 0x00,
+  });
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_TRUE(Res);
+  auto *Comp =
+      std::get_if<std::unique_ptr<AST::Component::Component>>(&*Res);
+  ASSERT_NE(Comp, nullptr);
+  const auto &ImpSec = std::get<AST::Component::ImportSection>(
+      (*Comp)->getSections().back());
+  ASSERT_EQ(ImpSec.getContent().size(), 1U);
+  EXPECT_EQ(ImpSec.getContent()[0].getName(), "my:demo/host"sv);
+  EXPECT_FALSE(ImpSec.getContent()[0].getVersionSuffix().has_value());
+}
+
+TEST(ComponentLoaderTest, SynonymImportNameEncoding) {
+  auto Loader = makeComponentLoader();
+  auto Vec = makeImportOnlyComponent({
+      0x01,
+      0x01, 0x0c, 0x6d, 0x79, 0x3a, 0x64, 0x65, 0x6d, 0x6f, 0x2f,
+      0x68, 0x6f, 0x73, 0x74,
+      0x05, 0x00,
+  });
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_TRUE(Res);
+  auto *Comp =
+      std::get_if<std::unique_ptr<AST::Component::Component>>(&*Res);
+  ASSERT_NE(Comp, nullptr);
+  const auto &ImpSec = std::get<AST::Component::ImportSection>(
+      (*Comp)->getSections().back());
+  EXPECT_EQ(ImpSec.getContent()[0].getName(), "my:demo/host"sv);
+  EXPECT_FALSE(ImpSec.getContent()[0].getVersionSuffix().has_value());
+}
+
+TEST(ComponentLoaderTest, ExtendedVersionSuffixEncoding) {
+  auto Loader = makeComponentLoader();
+  auto Vec = makeImportOnlyComponent({
+      0x01,
+      0x02, 0x13, 0x77, 0x61, 0x73, 0x69, 0x3a, 0x68, 0x74, 0x74, 0x70,
+      0x2f, 0x74, 0x79, 0x70, 0x65, 0x73, 0x40, 0x30, 0x2e, 0x32,
+      0x01, 0x01, 0x02, 0x2e, 0x30,
+      0x05, 0x00,
+  });
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_TRUE(Res);
+  auto *Comp =
+      std::get_if<std::unique_ptr<AST::Component::Component>>(&*Res);
+  ASSERT_NE(Comp, nullptr);
+  const auto &ImpSec = std::get<AST::Component::ImportSection>(
+      (*Comp)->getSections().back());
+  EXPECT_EQ(ImpSec.getContent()[0].getName(), "wasi:http/types@0.2"sv);
+  ASSERT_TRUE(ImpSec.getContent()[0].getVersionSuffix().has_value());
+  EXPECT_EQ(*ImpSec.getContent()[0].getVersionSuffix(), ".0"sv);
+}
+
+TEST(ComponentLoaderTest, ExtendedVersionSuffixLoadAndValidate) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  Loader::Loader Loader(Conf);
+  auto Vec = makeImportOnlyComponent({
+      0x01,
+      0x02, 0x13, 0x77, 0x61, 0x73, 0x69, 0x3a, 0x68, 0x74, 0x74, 0x70,
+      0x2f, 0x74, 0x79, 0x70, 0x65, 0x73, 0x40, 0x30, 0x2e, 0x32,
+      0x01, 0x01, 0x02, 0x2e, 0x30,
+      0x05, 0x00,
+  });
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_TRUE(Res);
+  auto *CompPtr =
+      std::get_if<std::unique_ptr<AST::Component::Component>>(&*Res);
+  ASSERT_NE(CompPtr, nullptr);
+  Validator::Validator Validator(Conf);
+  EXPECT_TRUE(Validator.validate(**CompPtr));
+}
+
+TEST(ComponentLoaderTest, ImplementsNameoptDecodeOnly) {
+  auto Loader = makeComponentLoader();
+  auto Vec = makeImportOnlyComponent({
+      0x01,
+      0x02, 0x13, 0x77, 0x61, 0x73, 0x69, 0x3a, 0x68, 0x74, 0x74, 0x70,
+      0x2f, 0x74, 0x79, 0x70, 0x65, 0x73, 0x40, 0x30, 0x2e, 0x32,
+      0x01, 0x00, 0x13, 0x77, 0x61, 0x73, 0x69, 0x3a, 0x68, 0x74, 0x74, 0x70,
+      0x2f, 0x74, 0x79, 0x70, 0x65, 0x73, 0x40, 0x30, 0x2e, 0x32,
+      0x05, 0x00,
+  });
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_TRUE(Res);
+  auto *Comp =
+      std::get_if<std::unique_ptr<AST::Component::Component>>(&*Res);
+  ASSERT_NE(Comp, nullptr);
+  const auto &ImpSec = std::get<AST::Component::ImportSection>(
+      (*Comp)->getSections().back());
+  EXPECT_FALSE(ImpSec.getContent()[0].getVersionSuffix().has_value());
+}
+
+TEST(ComponentLoaderTest, UnknownExternNameDiscriminant) {
+  auto Loader = makeComponentLoader();
+  auto Vec = makeImportOnlyComponent({
+      0x01, 0x03, 0x01, 0x66, 0x05, 0x00,
+  });
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error().getEnum(), ErrCode::Value::MalformedName);
+}
+
+TEST(ComponentLoaderTest, UnknownNameoptTag) {
+  auto Loader = makeComponentLoader();
+  auto Vec = makeImportOnlyComponent({
+      0x01,
+      0x02, 0x01, 0x66, 0x01, 0x02, 0x01, 0x78, 0x05, 0x00,
+  });
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error().getEnum(), ErrCode::Value::MalformedName);
+}
+
+TEST(ComponentLoaderTest, DuplicateVersionSuffixNameopt) {
+  auto Loader = makeComponentLoader();
+  auto Vec = makeImportOnlyComponent({
+      0x01,
+      0x02, 0x13, 0x77, 0x61, 0x73, 0x69, 0x3a, 0x68, 0x74, 0x74, 0x70,
+      0x2f, 0x74, 0x79, 0x70, 0x65, 0x73, 0x40, 0x30, 0x2e, 0x32,
+      0x02, 0x01, 0x02, 0x2e, 0x30, 0x01, 0x02, 0x2e, 0x31,
+      0x05, 0x00,
+  });
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error().getEnum(), ErrCode::Value::MalformedName);
 }
 
 } // namespace

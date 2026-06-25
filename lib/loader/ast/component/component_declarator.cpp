@@ -84,9 +84,11 @@ Expect<void> Loader::loadDecl(AST::Component::CoreModuleDecl &Decl) {
 
 Expect<void> Loader::loadDecl(AST::Component::ImportDecl &Decl) {
   // importdecl  ::= in:<importname'> ed:<externdesc> => (import in ed)
-  // importname' ::= 0x00 len:<u32> in:<importname>   => in (if len = |in|)
+  // importname' ::= 0x00|0x01 len:<u32> in:<importname>  => in
+  //               | 0x02 len:<u32> in:<importname> opts:vec(<nameopt>) => in opts
 
-  EXPECTED_TRY(loadExternName(Decl.getName()).map_error([this](auto E) {
+  EXPECTED_TRY(loadExternName(Decl.getName(), Decl.getVersionSuffixMut())
+                   .map_error([this](auto E) {
     return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Decl_Import);
   }));
   return loadDesc(Decl.getExternDesc()).map_error([](auto E) {
@@ -97,9 +99,11 @@ Expect<void> Loader::loadDecl(AST::Component::ImportDecl &Decl) {
 
 Expect<void> Loader::loadDecl(AST::Component::ExportDecl &Decl) {
   // exportdecl  ::= en:<exportname'> ed:<externdesc> => (export en ed)
-  // exportname' ::= 0x00 len:<u32> en:<exportname>   => en (if len = |en|)
+  // exportname' ::= 0x00|0x01 len:<u32> en:<exportname>  => en
+  //               | 0x02 len:<u32> en:<exportname> opts:vec(<nameopt>) => en opts
 
-  EXPECTED_TRY(loadExternName(Decl.getName()).map_error([this](auto E) {
+  EXPECTED_TRY(loadExternName(Decl.getName(), Decl.getVersionSuffixMut())
+                   .map_error([this](auto E) {
     return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Decl_Export);
   }));
   return loadDesc(Decl.getExternDesc()).map_error([](auto E) {

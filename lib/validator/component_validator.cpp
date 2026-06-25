@@ -162,6 +162,15 @@ Expect<ComponentName> validateExportName(std::string_view Name) noexcept {
   }
 }
 
+Expect<void> checkVersionSuffix(const ComponentName &CName,
+                                std::optional<std::string_view> Suffix,
+                                ASTNodeAttr Attr) noexcept {
+  return validateVersionSuffix(CName, Suffix).map_error([Attr](auto E) {
+    spdlog::error(ErrInfo::InfoAST(Attr));
+    return E;
+  });
+}
+
 } // namespace
 
 void Validator::populateInstanceFromType(
@@ -1020,11 +1029,13 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
     // Inline-export names on a component instance must be strongly-unique.
     std::unordered_set<std::string_view> SeenExports;
     for (const auto &Export : Inst.getInlineExports()) {
-      // Inline-export names must be valid component export names.
-      if (auto Res = validateExportName(Export.getName()); !Res) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
-        return Unexpect(Res.error());
-      }
+      EXPECTED_TRY(ComponentName CName,
+                   validateExportName(Export.getName()).map_error([](auto E) {
+                     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
+                     return E;
+                   }));
+      EXPECTED_TRY(checkVersionSuffix(CName, Export.getVersionSuffix(),
+                                      ASTNodeAttr::Comp_Instance));
       if (!SeenExports.insert(Export.getName()).second) {
         spdlog::error(ErrCode::Value::ComponentDuplicateName);
         spdlog::error("    Instance: Duplicate inline-export name '{}'"sv,
@@ -2060,6 +2071,9 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
                  return E;
                }));
 
+  EXPECTED_TRY(checkVersionSuffix(CName, Im.getVersionSuffix(),
+                                  ASTNodeAttr::Comp_Import));
+
   // Annotated plainnames ([constructor], [method], [static]) can only appear
   // on func imports.
   switch (CName.getKind()) {
@@ -2189,6 +2203,8 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
                  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
                  return E;
                }));
+  EXPECTED_TRY(checkVersionSuffix(CName, Ex.getVersionSuffix(),
+                                  ASTNodeAttr::Comp_Export));
   if (!CompCtx.addExportedName(CName)) {
     spdlog::error(ErrCode::Value::ComponentDuplicateName);
     spdlog::error("    Export: Duplicate export name '{}'"sv, Ex.getName());
@@ -2442,6 +2458,9 @@ Validator::validate(const AST::Component::ImportDecl &Decl) noexcept {
   EXPECTED_TRY(ComponentName CName,
                ComponentName::parse(Decl.getName()).map_error(ReportError));
 
+  EXPECTED_TRY(checkVersionSuffix(CName, Decl.getVersionSuffix(),
+                                  ASTNodeAttr::Comp_Decl_Import));
+
   // Annotated plainnames can only appear on func imports.
   switch (CName.getKind()) {
   case ComponentNameKind::Constructor:
@@ -2480,6 +2499,8 @@ Validator::validate(const AST::Component::ExportDecl &Decl) noexcept {
                  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Export));
                  return E;
                }));
+  EXPECTED_TRY(checkVersionSuffix(CName, Decl.getVersionSuffix(),
+                                  ASTNodeAttr::Comp_Decl_Export));
   if (!CompCtx.addExportedName(CName)) {
     spdlog::error(ErrCode::Value::ComponentDuplicateName);
     spdlog::error("    ExportDecl: Duplicate export name '{}'"sv,

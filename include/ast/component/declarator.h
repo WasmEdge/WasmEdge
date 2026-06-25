@@ -15,6 +15,7 @@
 
 #include "ast/component/alias.h"
 #include "ast/component/descriptor.h"
+#include "ast/component/extern_name.h"
 
 #include <string>
 #include <string_view>
@@ -118,9 +119,11 @@ private:
 };
 
 // exportdecl  ::= en:<exportname'> ed:<externdesc> => (export en ed)
-// exportname' ::= 0x00 len:<u32> en:<exportname>   => en (if len = |en|)
+// exportname' ::= 0x00|0x01 len:<u32> en:<exportname>  => en
+//               | 0x02 len:<u32> en:<exportname> opts:vec(<nameopt>) => en opts
 // importdecl  ::= in:<importname'> ed:<externdesc> => (import in ed)
-// importname' ::= 0x00 len:<u32> in:<importname>   => in (if len = |in|)
+// importname' ::= 0x00|0x01 len:<u32> in:<importname>  => in
+//               | 0x02 len:<u32> in:<importname> opts:vec(<nameopt>) => in opts
 
 /// Base class of Component::ImportDecl and Component::ExportDecl node.
 class ExternDecl {
@@ -129,10 +132,17 @@ public:
   std::string &getName() noexcept { return Name; }
   const ExternDesc &getExternDesc() const noexcept { return Desc; }
   ExternDesc &getExternDesc() noexcept { return Desc; }
+  std::optional<std::string_view> getVersionSuffix() const noexcept {
+    return Annotations.getVersionSuffix();
+  }
+  std::optional<std::string> &getVersionSuffixMut() noexcept {
+    return Annotations.getVersionSuffixMut();
+  }
 
 private:
   std::string Name;
   ExternDesc Desc;
+  ExternNameAnnotations Annotations;
 };
 
 /// AST Component::ImportDecl node.

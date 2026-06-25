@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/extern_name.h"
 #include "ast/component/sort.h"
 #include "ast/component/type.h"
 
@@ -25,8 +26,8 @@ namespace Component {
 
 // export      ::= en:<exportname'> si:<sortidx> ed?:<externdesc>?
 //               => (export en si ed?)
-// exportname' ::= 0x00 len:<u32> en:<exportname>
-//               => en  (if len = |en|)
+// exportname' ::= 0x00|0x01 len:<u32> en:<exportname>  => en
+//               | 0x02 len:<u32> en:<exportname> opts:vec(<nameopt>) => en opts
 
 /// AST Component::Export node.
 class Export {
@@ -37,11 +38,18 @@ public:
   const SortIndex &getSortIndex() const noexcept { return SortIdx; }
   std::optional<ExternDesc> &getDesc() noexcept { return Desc; }
   const std::optional<ExternDesc> &getDesc() const noexcept { return Desc; }
+  std::optional<std::string_view> getVersionSuffix() const noexcept {
+    return Annotations.getVersionSuffix();
+  }
+  std::optional<std::string> &getVersionSuffixMut() noexcept {
+    return Annotations.getVersionSuffixMut();
+  }
 
 private:
   std::string Name;
   SortIndex SortIdx;
   std::optional<ExternDesc> Desc;
+  ExternNameAnnotations Annotations;
 };
 
 } // namespace Component

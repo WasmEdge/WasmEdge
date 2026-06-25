@@ -642,5 +642,49 @@ ParseLabel:
   return Result;
 }
 
+Expect<void> validateVersionSuffix(const ComponentName &CName,
+                                   std::optional<std::string_view> Suffix) {
+  if (!Suffix.has_value()) {
+    return {};
+  }
+  if (Suffix->empty()) {
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error("    Component name: empty version suffix"sv);
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+  if (CName.getKind() != ComponentNameKind::InterfaceType) {
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error("    Component name: version suffix requires interface name"sv);
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+  const auto &Detail = CName.getDetail().get<InterfaceDetail>();
+  if (Detail.Version.empty()) {
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error(
+        "    Component name: version suffix requires canonversion in name"sv);
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+  if (isValidSemver(Detail.Version)) {
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error(
+        "    Component name: version suffix not allowed with full semver"sv);
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+  if (!isCanonVersion(Detail.Version)) {
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error(
+        "    Component name: version suffix requires canonversion in name"sv);
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+  std::string Combined(Detail.Version);
+  Combined.append(*Suffix);
+  if (!isValidSemver(Combined)) {
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error("    Component name: invalid version suffix '{}'"sv, *Suffix);
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+  return {};
+}
+
 } // namespace Validator
 } // namespace WasmEdge

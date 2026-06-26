@@ -81,7 +81,30 @@ public:
     // (GAP-CI-1).
     struct CoreInstanceExport {
       ExternalType Kind;
-      const AST::MemoryType *Mem = nullptr;
+      // Stored by value (not pointer): the module-type descriptor getter
+      // returns a temporary, so a pointer into it would dangle. Each optional
+      // is populated only for its matching Kind, for instantiation subtype
+      // checks (GAP-CI-1).
+      std::optional<AST::MemoryType> Mem;
+      std::optional<AST::TableType> Tab;
+      std::optional<AST::GlobalType> Glob;
+
+      CoreInstanceExport() noexcept = default;
+      // Copies whichever core extern type is provided (the others stay empty).
+      CoreInstanceExport(ExternalType K, const AST::MemoryType *M,
+                         const AST::TableType *T,
+                         const AST::GlobalType *G) noexcept
+          : Kind(K) {
+        if (M != nullptr) {
+          Mem = *M;
+        }
+        if (T != nullptr) {
+          Tab = *T;
+        }
+        if (G != nullptr) {
+          Glob = *G;
+        }
+      }
     };
 
     // ---- Scope identity ----
@@ -259,9 +282,11 @@ public:
 
   void addCoreInstanceExport(uint32_t InstIdx, std::string_view Name,
                              ExternalType ET,
-                             const AST::MemoryType *Mem = nullptr) {
+                             const AST::MemoryType *Mem = nullptr,
+                             const AST::TableType *Tab = nullptr,
+                             const AST::GlobalType *Glob = nullptr) {
     getCurrentContext().CoreInstances.at(InstIdx)[std::string(Name)] =
-        Context::CoreInstanceExport{ET, Mem};
+        Context::CoreInstanceExport{ET, Mem, Tab, Glob};
   }
 
   // ==========================================================================

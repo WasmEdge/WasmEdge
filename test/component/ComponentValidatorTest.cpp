@@ -2295,4 +2295,168 @@ TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoReallocRejected) {
   EXPECT_FALSE(VM.validate());
 }
 
+// =============================================================================
+// Core instance global/table/memory checking via an imported core MODULE TYPE
+// (GAP-CI-1). Unlike the raw-module tests above, these drive the imported
+// module-type subtype path: the instantiated module's core externs come from a
+// CoreModuleType (not an inline AST::Module).
+// =============================================================================
+
+namespace {
+// Builds a component that links two imported core modules by type:
+//   (core type (module (export "g" <ExpDesc>)))      ;; core:type 0 (provider)
+//   (core type (module (import "provider" "g" <ImpDesc>)))  ;; core:type 1
+//   (import "provider-mod" (core module (type 0)))    ;; core:module 0
+//   (import "consumer-mod" (core module (type 1)))    ;; core:module 1
+//   (core instance (instantiate 0))                   ;; core instance 0
+//   (core instance (instantiate 1 (with "provider" (instance 0))))
+// so the provider's exported core extern is subtype-checked against the
+// consumer's import on instantiation.
+AST::Component::Component
+buildCoreModuleLinkComponent(AST::Component::CoreImportDesc ExpDesc,
+                             AST::Component::CoreImportDesc ImpDesc) {
+  AST::Component::Component Comp;
+
+  // CoreTypeSection with the two module types.
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
+  auto &CoreTypeSec =
+      std::get<AST::Component::CoreTypeSection>(Comp.getSections().back());
+
+  // core:type 0 (provider): (module (export "g" <ExpDesc>))
+  std::vector<AST::Component::CoreModuleDecl> Decls0;
+  AST::Component::CoreExportDecl CExp;
+  CExp.getName() = "g";
+  CExp.getImportDesc() = std::move(ExpDesc);
+  AST::Component::CoreModuleDecl DE;
+  DE.setExport(std::move(CExp));
+  Decls0.push_back(std::move(DE));
+  CoreTypeSec.getContent().emplace_back();
+  CoreTypeSec.getContent().back().setModuleType(std::move(Decls0));
+
+  // core:type 1 (consumer): (module (import "provider" "g" <ImpDesc>))
+  std::vector<AST::Component::CoreModuleDecl> Decls1;
+  AST::Component::CoreImportDecl CImp;
+  CImp.getModuleName() = "provider";
+  CImp.getName() = "g";
+  CImp.getImportDesc() = std::move(ImpDesc);
+  AST::Component::CoreModuleDecl DI;
+  DI.setImport(std::move(CImp));
+  Decls1.push_back(std::move(DI));
+  CoreTypeSec.getContent().emplace_back();
+  CoreTypeSec.getContent().back().setModuleType(std::move(Decls1));
+
+  // ImportSection: import the two core modules ascribed to those types.
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "provider-mod";
+  ImpSec.getContent().back().getDesc().setCoreTypeIdx(0);
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "consumer-mod";
+  ImpSec.getContent().back().getDesc().setCoreTypeIdx(1);
+
+  // CoreInstanceSection: instantiate provider then consumer.
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreInstanceSection>();
+  auto &CoreInstSec =
+      std::get<AST::Component::CoreInstanceSection>(Comp.getSections().back());
+  // Core instance 0: instantiate core module 0 (provider), no args.
+  CoreInstSec.getContent().emplace_back();
+  CoreInstSec.getContent().back().setInstantiateArgs(
+      0U, AST::Component::CoreInstance::InstantiateArgs{});
+  // Core instance 1: instantiate core module 1 (consumer) with the provider.
+  AST::Component::InstantiateArg<uint32_t> Arg;
+  Arg.getName() = "provider";
+  Arg.getIndex() = 0U;
+  CoreInstSec.getContent().emplace_back();
+  CoreInstSec.getContent().back().setInstantiateArgs(1U, {Arg});
+  return Comp;
+}
+
+// Helper: build a CoreImportDesc carrying a global type.
+AST::Component::CoreImportDesc mkGlobalDesc(ValType VT, ValMut Mut) {
+  AST::Component::CoreImportDesc D;
+  D.setGlobalType(AST::GlobalType(VT, Mut));
+  return D;
+}
+
+// Helper: build a CoreImportDesc carrying a table type.
+AST::Component::CoreImportDesc mkTableDesc(ValType RefT, uint64_t Min) {
+  AST::Component::CoreImportDesc D;
+  D.setTableType(AST::TableType(RefT, Min));
+  return D;
+}
+
+// Helper: build a CoreImportDesc carrying a memory type.
+AST::Component::CoreImportDesc mkMemoryDesc(const AST::Limit &L) {
+  AST::Component::CoreImportDesc D;
+  D.setMemoryType(AST::MemoryType(L));
+  return D;
+}
+} // namespace
+
+TEST(ComponentValidatorTest, CoreInstanceImportGlobalTypeMismatchRejected) {
+  // Provider exports (global (mut i64)); consumer imports (global (mut i32)).
+  auto Comp =
+      buildCoreModuleLinkComponent(mkGlobalDesc(TypeCode::I64, ValMut::Var),
+                                   mkGlobalDesc(TypeCode::I32, ValMut::Var));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest,
+     CoreInstanceImportGlobalMutabilityMismatchRejected) {
+  // Same value type but mutability differs (var vs const) -> reject.
+  auto Comp =
+      buildCoreModuleLinkComponent(mkGlobalDesc(TypeCode::I32, ValMut::Const),
+                                   mkGlobalDesc(TypeCode::I32, ValMut::Var));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CoreInstanceImportGlobalTypeMatchAccepted) {
+  // Provider and consumer agree on (global (mut i64)) -> accept.
+  auto Comp =
+      buildCoreModuleLinkComponent(mkGlobalDesc(TypeCode::I64, ValMut::Var),
+                                   mkGlobalDesc(TypeCode::I64, ValMut::Var));
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CoreInstanceImportTableElemTypeMismatchRejected) {
+  // Provider exports a funcref table; consumer imports an externref table.
+  auto Comp = buildCoreModuleLinkComponent(mkTableDesc(TypeCode::FuncRef, 1),
+                                           mkTableDesc(TypeCode::ExternRef, 1));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CoreInstanceImportTableLimitsMismatchRejected) {
+  // Consumer requires min 5; provider only offers min 1 -> reject.
+  auto Comp = buildCoreModuleLinkComponent(mkTableDesc(TypeCode::FuncRef, 1),
+                                           mkTableDesc(TypeCode::FuncRef, 5));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CoreInstanceImportTableTypeMatchAccepted) {
+  // Provider offers min 5 where consumer requires min 1 -> accept.
+  auto Comp = buildCoreModuleLinkComponent(mkTableDesc(TypeCode::FuncRef, 5),
+                                           mkTableDesc(TypeCode::FuncRef, 1));
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest,
+     CoreInstanceImportMemoryIndexTypeMismatchRejected) {
+  // Provider exports a 32-bit memory; consumer imports a 64-bit memory.
+  auto Comp = buildCoreModuleLinkComponent(mkMemoryDesc(AST::Limit(1)),
+                                           mkMemoryDesc(AST::Limit(1, true)));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
 } // namespace

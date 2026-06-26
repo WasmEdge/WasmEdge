@@ -608,6 +608,21 @@ Validator::validate(const AST::Component::ExportSection &ExpSec) noexcept {
 }
 
 Expect<void>
+Validator::validate(const AST::Component::ValueSection &ValSec) noexcept {
+  // Each defined value appends one entry to the value index space. Validate
+  // the declared type first, then register it so that downstream value
+  // references (e.g. start arguments) resolve against the right bounds.
+  for (const auto &Val : ValSec.getContent()) {
+    EXPECTED_TRY(validate(Val.getType()).map_error([](auto E) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Value));
+      return E;
+    }));
+    CompCtx.addValue();
+  }
+  return {};
+}
+
+Expect<void>
 Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
   if (Inst.isInstantiateModule()) {
     // Instantiate module case.

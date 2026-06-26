@@ -5,6 +5,7 @@
 
 #include "common/errinfo.h"
 #include "common/spdlog.h"
+#include "runtime/instance/component/hostfunc.h"
 #include "system/stacktrace.h"
 
 using namespace std::literals;
@@ -235,52 +236,67 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
     return Unexpect(ErrCode::Value::FuncSigMismatch);
   }
 
-  // Convert the component params into core WASM params.
-  auto *ReallocFuncInst = FuncInst->getAllocFunction();
-  auto *MemInst = FuncInst->getMemoryInstance();
-  EXPECTED_TRY(auto CoreWASMArgs,
-               convValsToCoreWASM(Params, ParamTypes, ReallocFuncInst, MemInst,
-                                  FuncInst->getComponentInstance(),
-                                  FuncInst->getStringEncoding()));
+  // Convert the component params into core WASM params, invoke, and convert
+  // back for lifted functions; call host functions directly with component
+  // values.
+  if (FuncInst->isLifted()) {
+    auto *ReallocFuncInst = FuncInst->getReallocFunction();
+    auto *MemInst = FuncInst->getMemoryInstance();
+    EXPECTED_TRY(auto CoreWASMArgs,
+                 convValsToCoreWASM(Params, ParamTypes, ReallocFuncInst,
+                                    MemInst, FuncInst->getComponentInstance(),
+                                    FuncInst->getStringEncoding()));
 
-  // Call runFunction.
-  auto *CoreFuncInst = FuncInst->getLowerFunction();
-  assuming(CoreFuncInst);
-  const auto &CoreFuncType = CoreFuncInst->getFuncType();
-  // TODO: COMPONENT - check the ABI types between core functype and args.
-  EXPECTED_TRY(auto CoreWASMReturns, invoke(CoreFuncInst, CoreWASMArgs,
-                                            CoreFuncType.getParamTypes()));
+    auto *CoreFuncInst = FuncInst->getLowerFunction();
+    assuming(CoreFuncInst);
+    const auto &CoreFuncType = CoreFuncInst->getFuncType();
+    EXPECTED_TRY(auto CoreWASMReturns, invoke(CoreFuncInst, CoreWASMArgs,
+                                              CoreFuncType.getParamTypes()));
 
-  // Get return values.
-  std::vector<ComponentValType> ReturnTypes;
-  for (const auto &Type : FuncInst->getFuncType().getResultList()) {
-    ReturnTypes.push_back(Type.getValType());
-  }
-  EXPECTED_TRY(auto Returns,
-               convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst,
-                                   FuncInst->getComponentInstance(),
-                                   FuncInst->getStringEncoding()));
-  assuming(Returns.size() == ReturnTypes.size());
-
-  // CanonicalABI.md L3367-3372: after a sync lift completes (post
-  // task.return_), invoke the optional post-return with the ORIGINAL flat
-  // core return values as parameters. This is how Preview 2 components free
-  // buffers allocated for indirect-result / list / string returns.
-  //
-  // TODO: spec L3370 also gates this region with `may_leave = False`;
-  // WasmEdge doesn't model may_leave yet (deferred along with async).
-  // In practice sync Preview 2 post-return implementations don't re-enter.
-  if (auto *PostReturnInst = FuncInst->getPostReturnFunction()) {
-    std::vector<ValVariant> PRArgs;
-    PRArgs.reserve(CoreWASMReturns.size());
-    for (const auto &P : CoreWASMReturns) {
-      PRArgs.push_back(P.first);
+    std::vector<ComponentValType> ReturnTypes;
+    for (const auto &Type : FuncInst->getFuncType().getResultList()) {
+      ReturnTypes.push_back(Type.getValType());
     }
-    EXPECTED_TRY(invoke(PostReturnInst, PRArgs,
-                        PostReturnInst->getFuncType().getParamTypes()));
+    EXPECTED_TRY(auto Returns,
+                 convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst,
+                                     FuncInst->getComponentInstance(),
+                                     FuncInst->getStringEncoding()));
+    assuming(Returns.size() == ReturnTypes.size());
+
+    if (auto *PostReturnInst = FuncInst->getPostReturnFunction()) {
+      std::vector<ValVariant> PRArgs;
+      PRArgs.reserve(CoreWASMReturns.size());
+      for (const auto &P : CoreWASMReturns) {
+        PRArgs.push_back(P.first);
+      }
+      EXPECTED_TRY(invoke(PostReturnInst, PRArgs,
+                          PostReturnInst->getFuncType().getParamTypes()));
+    }
+
+    return Returns;
   }
 
-  return Returns;
+  if (FuncInst->isHost()) {
+    auto *HostFunc = FuncInst->getHostFunction();
+    assuming(HostFunc);
+
+    const auto &FuncType = FuncInst->getFuncType();
+    const auto &ResultList = FuncType.getResultList();
+    std::vector<ComponentValVariant> RetVals(ResultList.size());
+
+    EXPECTED_TRY(HostFunc->run(Params, RetVals));
+
+    std::vector<std::pair<ComponentValVariant, ComponentValType>> Returns;
+    Returns.reserve(ResultList.size());
+    for (size_t I = 0; I < ResultList.size(); ++I) {
+      Returns.emplace_back(std::move(RetVals[I]), ResultList[I].getValType());
+    }
+    return Returns;
+  }
+
+  spdlog::error(ErrCode::Value::FuncNotFound);
+  spdlog::error("    Unknown component function kind"sv);
+  return Unexpect(ErrCode::Value::FuncNotFound);
 }
 
 } // namespace Executor

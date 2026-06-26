@@ -6,16 +6,16 @@
 #include "env.h"
 
 #include "common/errcode.h"
-#include "runtime/component/hostfunc.h"
+#include "runtime/instance/component/hostfunc.h"
 
 namespace WasmEdge {
 namespace Host {
 
 template <typename T>
-class WasiHttp : public Runtime::Component::HostFunction<T> {
+class WasiHttp : public Runtime::Instance::Component::HostFunction<T> {
 public:
   WasiHttp(WasiHttpEnvironment &HostEnv)
-      : Runtime::Component::HostFunction<T>(), Env(HostEnv) {}
+      : Runtime::Instance::Component::HostFunction<T>(), Env(HostEnv) {}
 
 protected:
   WasiHttpEnvironment &Env;

@@ -71,26 +71,23 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
     case ComponentCanonOpCode::Lift: {
       // Lift wraps a core Wasm function to a component function with proper
       // canonical ABI modification.
-      const auto &Opts = Canon.getOptions();
-      Runtime::Instance::MemoryInstance *MemInst = nullptr;
-      Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
-      Runtime::Instance::FunctionInstance *PostReturnFunc = nullptr;
-      StringEncoding Enc = StringEncoding::UTF8;
-      for (auto &Opt : Opts) {
+      Runtime::Instance::Component::CanonicalOptions CanonOpts;
+      CanonOpts.ParentComp = &CompInst;
+      for (auto &Opt : Canon.getOptions()) {
         switch (Opt.getCode()) {
         case ComponentCanonOptCode::Encode_UTF8:
         case ComponentCanonOptCode::Encode_UTF16:
         case ComponentCanonOptCode::Encode_Latin1:
-          Enc = toStringEncoding(Opt.getCode());
+          CanonOpts.StringEnc = toStringEncoding(Opt.getCode());
           break;
         case ComponentCanonOptCode::Memory:
-          MemInst = CompInst.getCoreMemory(Opt.getIndex());
+          CanonOpts.Memory = CompInst.getCoreMemory(Opt.getIndex());
           break;
         case ComponentCanonOptCode::Realloc:
-          ReallocFunc = CompInst.getCoreFunction(Opt.getIndex());
+          CanonOpts.Realloc = CompInst.getCoreFunction(Opt.getIndex());
           break;
         case ComponentCanonOptCode::PostReturn:
-          PostReturnFunc = CompInst.getCoreFunction(Opt.getIndex());
+          CanonOpts.PostReturn = CompInst.getCoreFunction(Opt.getIndex());
           break;
         case ComponentCanonOptCode::Async:
           spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
@@ -131,8 +128,8 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       // the fallback that catches signature mismatches on those paths. Do
       // not demote it to `assuming` until the validator can resolve core
       // func types from every source.
-      if (PostReturnFunc != nullptr) {
-        const auto &PRType = PostReturnFunc->getFuncType();
+      if (CanonOpts.PostReturn != nullptr) {
+        const auto &PRType = CanonOpts.PostReturn->getFuncType();
         if (!PRType.getReturnTypes().empty() ||
             PRType.getParamTypes().size() != FlatSig.Results.size()) {
           spdlog::error(ErrCode::Value::InvalidCanonOption);
@@ -154,8 +151,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       auto *FuncInst = CompInst.getCoreFunction(Canon.getIndex());
       CompInst.addFunction(
           std::make_unique<Runtime::Instance::Component::FunctionInstance>(
-              DType->getFuncType(), FuncInst, MemInst, ReallocFunc, &CompInst,
-              PostReturnFunc, Enc));
+              DType->getFuncType(), FuncInst, CanonOpts));
       break;
     }
     case ComponentCanonOpCode::Lower: {
@@ -197,6 +193,11 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       }
 
       auto *Callee = CompInst.getFunction(Canon.getIndex());
+      if (Callee->isHost()) {
+        spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+        spdlog::error("    lowering host functions not yet implemented"sv);
+        return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+      }
       const auto &CFT = Callee->getFuncType();
 
       // Pre-flight the lower-direction flat ABI so unsupported shapes (async,
@@ -220,7 +221,8 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
     case ComponentCanonOpCode::Resource__rep:
     default:
       spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-      spdlog::error("    incomplete canonical"sv);
+      spdlog::error("    resource/task canonical operations not yet "
+                    "implemented"sv);
       return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
     }
   }

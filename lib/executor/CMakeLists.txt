@@ -39,5 +39,6 @@ wasmedge_add_library(wasmedgeExecutor
 target_link_libraries(wasmedgeExecutor
   PUBLIC
   wasmedgeCommon
+  wasmedgeRuntime
   wasmedgeSystem
 )

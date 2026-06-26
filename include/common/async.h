@@ -35,7 +35,6 @@ public:
                          &TargetInst, std::forward<ArgsT>(Args)...)]() mutable {
           P.set_value(std::apply(FPtr, Tuple));
         });
-    Thread.detach();
   }
   Async(const Async &) noexcept = delete;
   Async(Async &&Other) noexcept : Async() { swap(*this, Other); }
@@ -43,6 +42,11 @@ public:
   Async &operator=(Async &&Other) noexcept {
     swap(*this, Other);
     return *this;
+  }
+  ~Async() noexcept {
+    if (Thread.joinable()) {
+      Thread.join();
+    }
   }
 
   bool valid() const noexcept { return Future.valid(); }
@@ -71,6 +75,9 @@ public:
   void cancel() noexcept {
     if (likely(StopFunc.operator bool())) {
       StopFunc();
+    }
+    if (Thread.joinable()) {
+      Thread.join();
     }
   }
 

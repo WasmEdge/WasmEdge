@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2026 Second State INC
 
-//===-- wasmedge/test/meminstance/MemInstanceTest.cpp ---------------------===//
+//===-- wasmedge/test/instance/MemInstanceTest.cpp ------------------------===//
 //
 // Part of the WasmEdge Project.
 //

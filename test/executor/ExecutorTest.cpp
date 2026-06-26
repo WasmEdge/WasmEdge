@@ -49,8 +49,8 @@ TEST_P(CoreTest, TestSuites) {
 
   // Define context structure
   struct TestContext {
-    WasmEdge::VM::VM VM;
     WasmEdge::SpecTestModule SpecTestMod;
+    WasmEdge::VM::VM VM;
     TestContext(const WasmEdge::Configure &C) : VM(C) {
       VM.registerModule(SpecTestMod);
     }

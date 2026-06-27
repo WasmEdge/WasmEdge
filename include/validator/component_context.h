@@ -127,7 +127,7 @@ public:
     std::vector<InstanceSlot> Instances;                 // instance
     std::vector<const AST::Component::DefType *> Types;  // type
     std::vector<const AST::Component::FuncType *> Funcs; // func (i may be null)
-    uint32_t ValueCount = 0;                             // value
+    std::vector<bool> ValueConsumed;                     // value (consumed?)
 
     // ---- Type annotations (keyed by type index) ----
     // ResourceType bodies live on Resources[i].Body (see below).
@@ -536,7 +536,34 @@ public:
     const auto &V = getCurrentContext().Funcs;
     return Idx < V.size() ? V[Idx] : nullptr;
   }
-  uint32_t addValue() noexcept { return getCurrentContext().ValueCount++; }
+  uint32_t addValue(bool Consumed = false) noexcept {
+    auto &V = getCurrentContext().ValueConsumed;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(Consumed);
+    return Idx;
+  }
+
+  Expect<void> consumeValue(uint32_t Idx) noexcept {
+    auto &V = getCurrentContext().ValueConsumed;
+    if (Idx >= V.size()) {
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+    if (V[Idx]) {
+      return Unexpect(ErrCode::Value::ComponentValueAlreadyConsumed);
+    }
+    V[Idx] = true;
+    return {};
+  }
+
+  std::optional<uint32_t> firstUnconsumedValue() const noexcept {
+    const auto &V = getCurrentContext().ValueConsumed;
+    for (uint32_t I = 0; I < V.size(); ++I) {
+      if (!V[I]) {
+        return I;
+      }
+    }
+    return std::nullopt;
+  }
 
   // ==========================================================================
   // Validation state

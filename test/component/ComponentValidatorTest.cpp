@@ -2459,4 +2459,221 @@ TEST(ComponentValidatorTest,
   ASSERT_FALSE(V.validate(Comp));
 }
 
+TEST(ComponentValidatorTest, ValueNotConsumedAtEndOfComponent) {
+  // Import a value, never consume it -> reject
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "val0";
+  ImpSec.getContent().back().getDesc().setValueBound(
+      ComponentValType(ComponentTypeCode::U32));
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueNotConsumed);
+}
+
+TEST(ComponentValidatorTest, ValueConsumedExactlyOnceByExport) {
+  // Import a value, export it once -> accept
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "val0";
+  ImpSec.getContent().back().getDesc().setValueBound(
+      ComponentValType(ComponentTypeCode::U32));
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ExportSection>();
+  auto &ExpSec =
+      std::get<AST::Component::ExportSection>(Comp.getSections().back());
+  ExpSec.getContent().emplace_back();
+  ExpSec.getContent().back().getName() = "exp0";
+  ExpSec.getContent().back().getSortIndex().getSort().setIsCore(false);
+  ExpSec.getContent().back().getSortIndex().getSort().setSortType(
+      AST::Component::Sort::SortType::Value);
+  ExpSec.getContent().back().getSortIndex().setIdx(0);
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_TRUE(Res);
+}
+
+TEST(ComponentValidatorTest, ExportConsumesSameValueTwice) {
+  // Import a value, export it twice -> reject
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "val0";
+  ImpSec.getContent().back().getDesc().setValueBound(
+      ComponentValType(ComponentTypeCode::U32));
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ExportSection>();
+  auto &ExpSec =
+      std::get<AST::Component::ExportSection>(Comp.getSections().back());
+
+  ExpSec.getContent().emplace_back();
+  ExpSec.getContent().back().getName() = "exp0";
+  ExpSec.getContent().back().getSortIndex().getSort().setIsCore(false);
+  ExpSec.getContent().back().getSortIndex().getSort().setSortType(
+      AST::Component::Sort::SortType::Value);
+  ExpSec.getContent().back().getSortIndex().setIdx(0);
+
+  ExpSec.getContent().emplace_back();
+  ExpSec.getContent().back().getName() = "exp1";
+  ExpSec.getContent().back().getSortIndex().getSort().setIsCore(false);
+  ExpSec.getContent().back().getSortIndex().getSort().setSortType(
+      AST::Component::Sort::SortType::Value);
+  ExpSec.getContent().back().getSortIndex().setIdx(0);
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueAlreadyConsumed);
+}
+
+TEST(ComponentValidatorTest, ValueConsumedExactlyOnceByStart) {
+  // Import a value, call a start function with that value -> accept
+  AST::Component::Component Comp;
+
+  // 1. Define a function type (param: u32, result: none)
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  TypeSec.getContent().emplace_back();
+  AST::Component::FuncType FT;
+  FT.setParamList({AST::Component::LabelValType(
+      "arg0"s, ComponentValType(ComponentTypeCode::U32))});
+  TypeSec.getContent().back().setFuncType(std::move(FT));
+
+  // 2. Import section: first import the value, then the function using type 0
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "val0";
+  ImpSec.getContent().back().getDesc().setValueBound(
+      ComponentValType(ComponentTypeCode::U32));
+
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "func0";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  // 3. Start section calling func0 (funcidx 0) with val0 (valueidx 0)
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::StartSection>();
+  auto &StartSec =
+      std::get<AST::Component::StartSection>(Comp.getSections().back());
+  StartSec.getContent().getFunctionIndex() = 0;
+  StartSec.getContent().getArguments() = {0};
+  StartSec.getContent().getResult() = 0;
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_TRUE(Res);
+}
+
+TEST(ComponentValidatorTest, StartConsumesSameValueTwice) {
+  // Import a value, call a start function with two params using same value
+  // twice
+  // -> reject
+  AST::Component::Component Comp;
+
+  // 1. Define a function type (param: u32, u32, result: none)
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  TypeSec.getContent().emplace_back();
+  AST::Component::FuncType FT;
+  FT.setParamList({AST::Component::LabelValType(
+                       "arg0"s, ComponentValType(ComponentTypeCode::U32)),
+                   AST::Component::LabelValType(
+                       "arg1"s, ComponentValType(ComponentTypeCode::U32))});
+  TypeSec.getContent().back().setFuncType(std::move(FT));
+
+  // 2. Import section: first import the value, then the function using type 0
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "val0";
+  ImpSec.getContent().back().getDesc().setValueBound(
+      ComponentValType(ComponentTypeCode::U32));
+
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "func0";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  // 3. Start section calling func0 (funcidx 0) with args {0, 0}
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::StartSection>();
+  auto &StartSec =
+      std::get<AST::Component::StartSection>(Comp.getSections().back());
+  StartSec.getContent().getFunctionIndex() = 0;
+  StartSec.getContent().getArguments() = {0, 0};
+  StartSec.getContent().getResult() = 0;
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueAlreadyConsumed);
+}
+
+TEST(ComponentValidatorTest, StartArgumentValueIndexOutOfBounds) {
+  // Call a start function whose argument references a value index that does not
+  // exist in the (empty) value index space -> reject with InvalidIndex.
+  AST::Component::Component Comp;
+
+  // 1. Define a function type (param: u32, result: none).
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  TypeSec.getContent().emplace_back();
+  AST::Component::FuncType FT;
+  FT.setParamList({AST::Component::LabelValType(
+      "arg0"s, ComponentValType(ComponentTypeCode::U32))});
+  TypeSec.getContent().back().setFuncType(std::move(FT));
+
+  // 2. Import only the function (no value is imported, so the value index
+  // space stays empty).
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "func0";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  // 3. Start section calling func0 with value index 0, which is out of bounds.
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::StartSection>();
+  auto &StartSec =
+      std::get<AST::Component::StartSection>(Comp.getSections().back());
+  StartSec.getContent().getFunctionIndex() = 0;
+  StartSec.getContent().getArguments() = {0};
+  StartSec.getContent().getResult() = 0;
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::InvalidIndex);
+}
+
 } // namespace

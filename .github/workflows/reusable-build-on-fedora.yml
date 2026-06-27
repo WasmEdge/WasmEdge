@@ -43,7 +43,7 @@ jobs:
         run: |
           dnf update -y
           dnf install -y cmake ninja-build llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev spdlog-devel \
-            pkgconf-pkg-config protobuf-c-compiler grpc-cpp grpc-plugins grpc-devel
+            pkgconf-pkg-config
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0

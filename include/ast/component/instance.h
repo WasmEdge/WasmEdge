@@ -13,9 +13,11 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/extern_name.h"
 #include "ast/component/sort.h"
 #include "common/span.h"
 
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -44,7 +46,7 @@ private:
 
 // core:inlineexport   ::= n:<core:name> si:<core:sortidx>
 //                       => (export n si)
-// inlineexport        ::= n:<exportname> si:<sortidx>
+// inlineexport        ::= n:<exportname'> si:<sortidx>
 //                       => (export n si)
 
 /// AST Component::InlineExport class.
@@ -54,10 +56,17 @@ public:
   std::string &getName() noexcept { return Name; }
   const SortIndex &getSortIdx() const noexcept { return SortIdx; }
   SortIndex &getSortIdx() noexcept { return SortIdx; }
+  std::optional<std::string_view> getVersionSuffix() const noexcept {
+    return Annotations.getVersionSuffix();
+  }
+  std::optional<std::string> &getVersionSuffixMut() noexcept {
+    return Annotations.getVersionSuffixMut();
+  }
 
 private:
   std::string Name;
   SortIndex SortIdx;
+  ExternNameAnnotations Annotations;
 };
 
 // core:instance       ::= ie:<core:instanceexpr>

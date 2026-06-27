@@ -6,17 +6,54 @@
 namespace WasmEdge {
 namespace Loader {
 
-Expect<void> Loader::loadExternName(std::string &Name) {
-  // importname' ::= 0x00 len:<u32> in:<importname> => in (if len = |in|)
-  // exportname' ::= 0x00 len:<u32> en:<exportname> => en (if len = |en|)
+Expect<void> Loader::loadExternName(std::string &Name,
+                                    std::optional<std::string> &VersionSuffix) {
+  // importname' ::= 0x00|0x01 len:<u32> in:<importname>  => in
+  //               | 0x02 len:<u32> in:<importname> opts:vec(<nameopt>) => in opts
+  // exportname' ::= 0x00|0x01 len:<u32> en:<exportname>  => en
+  //               | 0x02 len:<u32> en:<exportname> opts:vec(<nameopt>) => en opts
+  // nameopt     ::= 0x00 len:<u32> n:<interfacename>     => (implements n)
+  //               | 0x01 len:<u32> vs:<semversuffix>     => (versionsuffix vs)
 
-  // Error messages will be handled in the parent scope.
+  VersionSuffix.reset();
   EXPECTED_TRY(auto B, FMgr.readByte());
-  if (B != 0x00) {
-    return Unexpect(ErrCode::Value::MalformedName);
+  if (B == 0x00 || B == 0x01) {
+    // 0x01: reserved synonym for 0x00 (Binary.md #536; no semantic difference today)
+    EXPECTED_TRY(Name, FMgr.readName());
+    return {};
   }
-  EXPECTED_TRY(Name, FMgr.readName());
-  return {};
+  if (B == 0x02) {
+    EXPECTED_TRY(Name, FMgr.readName());
+    EXPECTED_TRY(uint32_t OptCnt, loadVecCnt());
+    bool HasVersionSuffix = false;
+    for (uint32_t I = 0; I < OptCnt; ++I) {
+      EXPECTED_TRY(uint8_t OptTag, FMgr.readByte());
+      switch (OptTag) {
+      case 0x00: {
+        std::string Discard;
+        EXPECTED_TRY(Discard, FMgr.readName());
+        break;
+      }
+      case 0x01: {
+        if (HasVersionSuffix) {
+          return Unexpect(ErrCode::Value::MalformedName);
+        }
+        std::string Suffix;
+        EXPECTED_TRY(Suffix, FMgr.readName());
+        if (Suffix.empty()) {
+          return Unexpect(ErrCode::Value::MalformedName);
+        }
+        HasVersionSuffix = true;
+        VersionSuffix = std::move(Suffix);
+        break;
+      }
+      default:
+        return Unexpect(ErrCode::Value::MalformedName);
+      }
+    }
+    return {};
+  }
+  return Unexpect(ErrCode::Value::MalformedName);
 }
 
 Expect<void> Loader::loadType(ComponentValType &Ty) {

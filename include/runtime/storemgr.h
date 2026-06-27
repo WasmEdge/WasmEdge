@@ -89,6 +89,7 @@ public:
     }
     NamedMod.clear();
     NamedComp.clear();
+    FailedMod.clear();
   }
 
   /// Register a named module in this store.
@@ -150,13 +151,7 @@ private:
 
   /// Collect the instantiation failed module.
   void recycleModule(std::unique_ptr<Instance::ModuleInstance> &&Mod) {
-    if (FailedMod) {
-      auto *OldMod = FailedMod.release();
-      if (OldMod) {
-        OldMod->terminate();
-      }
-    }
-    FailedMod = std::move(Mod);
+    FailedMod.emplace_back(std::move(Mod));
   }
 
   /// \name Module name mapping.
@@ -165,12 +160,13 @@ private:
   std::map<std::string, const Instance::ComponentInstance *, std::less<>>
       NamedComp;
 
-  /// \name Last instantiation failed module.
+  /// \name Failed instantiation modules.
   /// According to the current spec, instances should remain referenceable even
-  /// if instantiation failed. Therefore, store the failed module instance here
+  /// if instantiation failed. Therefore, store the failed module instances here
   /// to keep the instances alive.
-  /// FIXME: Is this necessary to be a vector?
-  std::unique_ptr<Instance::ModuleInstance> FailedMod;
+  /// Using a vector of unique_ptr allows storing multiple failed modules
+  /// without copying the non-copyable ModuleInstance objects.
+  std::vector<std::unique_ptr<Instance::ModuleInstance>> FailedMod;
 };
 
 } // namespace Runtime

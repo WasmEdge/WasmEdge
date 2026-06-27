@@ -30,11 +30,9 @@ TEST_F(FFmpegTest, AVChapter) {
 
   auto *FuncInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avChapter_id");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVChapterId =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterId &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVChapterId = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVChapterId.run(
@@ -46,11 +44,9 @@ TEST_F(FFmpegTest, AVChapter) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avChapter_timebase");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVChapterTimebase = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterTimebase &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVChapterTimebase = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVChapterTimebase.run(
@@ -65,11 +61,9 @@ TEST_F(FFmpegTest, AVChapter) {
 
   FuncInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avChapter_start");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVChapterStart =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterStart &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVChapterStart = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVChapterStart.run(
@@ -81,11 +75,9 @@ TEST_F(FFmpegTest, AVChapter) {
 
   FuncInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avChapter_end");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVChapterEnd =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterEnd &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVChapterEnd = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVChapterEnd.run(
@@ -97,11 +89,9 @@ TEST_F(FFmpegTest, AVChapter) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avChapter_metadata");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVChapterMetadata = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterMetadata &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVChapterMetadata = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVChapterMetadata.run(
@@ -115,11 +105,9 @@ TEST_F(FFmpegTest, AVChapter) {
 
   FuncInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avChapter_set_id");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVChapterSetId =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterSetId &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVChapterSetId = FuncInst->getHostFunc();
 
   {
     int64_t ChapterId = 10000;
@@ -140,11 +128,9 @@ TEST_F(FFmpegTest, AVChapter) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avChapter_set_timebase");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVChapterSetTimebase = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterSetTimebase &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVChapterSetTimebase = FuncInst->getHostFunc();
 
   {
     int32_t Num = 3;
@@ -169,11 +155,9 @@ TEST_F(FFmpegTest, AVChapter) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avChapter_set_start");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVChapterSetStart = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterSetStart &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVChapterSetStart = FuncInst->getHostFunc();
 
   {
     int64_t StartValue = 1000;
@@ -194,11 +178,9 @@ TEST_F(FFmpegTest, AVChapter) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avChapter_set_end");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVChapterSetEnd =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterSetEnd &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVChapterSetEnd = FuncInst->getHostFunc();
 
   {
     int64_t EndValue = 99999;

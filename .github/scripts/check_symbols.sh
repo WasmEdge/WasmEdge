@@ -131,9 +131,12 @@ else
         exit 1
     fi
 
+    # Strip the version suffix (e.g. WasmEdge_Foo@@WASMEDGE_0.17 or
+    # WasmEdge_Foo@WASMEDGE_0.16) so versioned symbols match the whitelist,
+    # then de-duplicate the default and compat aliases of the same name.
     nm -D --defined-only "$LIB_PATH" 2>/dev/null | \
-        awk '/^[0-9a-fA-F]+ [TBDW] / {print $3}' | \
-        grep -E "^WasmEdge" | sort > "$TEMP_DIR/extracted.symbols"
+        awk '/^[0-9a-fA-F]+ [TBDW] / {sub(/@.*/, "", $3); print $3}' | \
+        grep -E "^WasmEdge" | sort -u > "$TEMP_DIR/extracted.symbols"
 fi
 
 if [ ! -s "$TEMP_DIR/extracted.symbols" ]; then

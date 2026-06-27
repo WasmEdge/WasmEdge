@@ -274,8 +274,11 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Table__size:
   case OpCode::Table__fill:
   case OpCode::Elem__drop:
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    return {};
   case OpCode::Table__copy:
     serializeU32(Instr.getTargetIndex(), OutVec);
+    serializeU32(Instr.getSourceIndex(), OutVec);
     return {};
 
   // Memory Instructions.
@@ -305,7 +308,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     return serializeMemImmediate();
 
   case OpCode::Memory__init:
-    serializeU32(Instr.getTargetIndex(), OutVec);
+    serializeU32(Instr.getSourceIndex(), OutVec);
     [[fallthrough]];
   case OpCode::Memory__grow:
   case OpCode::Memory__size:
@@ -324,7 +327,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
       return {};
     } else {
       EXPECTED_TRY(serializeCheckZero(Instr.getTargetIndex()));
-      return serializeCheckZero(Instr.getTargetIndex());
+      return serializeCheckZero(Instr.getSourceIndex());
     }
 
   case OpCode::Data__drop:
@@ -521,9 +524,8 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   // SIMD Shuffle Instruction.
   case OpCode::I8x16__shuffle: {
     uint128_t Value = Instr.getNum().get<uint128_t>();
-    const std::uint8_t *Ptr = reinterpret_cast<const uint8_t *>(&Value);
     for (uint32_t I = 0; I < 16; ++I) {
-      OutVec.push_back(Ptr[15 - I]);
+      OutVec.push_back(static_cast<uint8_t>(Value >> (I * 8)));
     }
     return {};
   }

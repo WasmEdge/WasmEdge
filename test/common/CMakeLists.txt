@@ -4,6 +4,8 @@
 wasmedge_add_executable(wasmedgeCommonTests
   int128Test.cpp
   hashTest.cpp
+  spdlogTest.cpp
+  denseEnumMapTest.cpp
 )
 
 add_test(wasmedgeCommonTests wasmedgeCommonTests)

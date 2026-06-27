@@ -2,7 +2,9 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/defines.h"
+#include "driver/tool.h"
 #include "driver/unitool.h"
+#include "po/argument_parser.h"
 
 #include <array>
 #include <cstdlib>
@@ -51,7 +53,6 @@ int callCompile(std::initializer_list<const char *> Args) {
                                    WasmEdge::Driver::ToolType::Compiler);
 }
 
-/* TODO: Uncomment when plugin re-entrancy issue is fixed.
 int callInstantiate(std::initializer_list<const char *> Args) {
   std::vector<const char *> Argv = {"wasmedge"};
   Argv.insert(Argv.end(), Args.begin(), Args.end());
@@ -72,7 +73,6 @@ int callUniToolAll(std::initializer_list<const char *> Args) {
   return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
                                    WasmEdge::Driver::ToolType::All);
 }
-*/
 
 #if !WASMEDGE_OS_WINDOWS
 struct ToolResult {
@@ -113,6 +113,21 @@ containsAll(const std::string &Output,
     if (Output.find(Needle) == std::string::npos) {
       return ::testing::AssertionFailure()
              << "output missing substring: \"" << Needle << "\"\n"
+             << "full output:\n"
+             << Output;
+    }
+  }
+  return ::testing::AssertionSuccess();
+}
+
+::testing::AssertionResult
+containsNone(const std::string &Output,
+             std::initializer_list<const char *> Needles) {
+  for (const char *Needle : Needles) {
+    if (Output.find(Needle) != std::string::npos) {
+      return ::testing::AssertionFailure()
+             << "output unexpectedly contains substring: \"" << Needle
+             << "\"\n"
              << "full output:\n"
              << Output;
     }
@@ -209,7 +224,31 @@ static const std::array<uint8_t, 25> MemNoMaxWasm{
     0x0f, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x06, 0x6d, 0x65,
     0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x01};
 
-/* TODO: Uncomment when plugin re-entrancy issue is fixed.
+// sections_test.wasm: compiled from sections_test.wat.
+// Defines its own table (funcref, min=2 max=3), memory (min=1 max=2), a
+// nullary start function, an active and a passive element segment (both
+// referencing the start function), an active and a passive data segment.
+static const std::array<uint8_t, 70> SectionsTestWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+    0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x04, 0x05, 0x01, 0x70, 0x01, 0x02,
+    0x03, 0x05, 0x04, 0x01, 0x01, 0x01, 0x02, 0x08, 0x01, 0x00, 0x09, 0x0b,
+    0x02, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x0c,
+    0x01, 0x02, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b, 0x0b, 0x0c, 0x02, 0x00,
+    0x41, 0x00, 0x0b, 0x02, 0x61, 0x62, 0x01, 0x02, 0x63, 0x64};
+
+// tag_import_test.wasm: compiled from tag_import_test.wat.
+// Imports a tag "env"."tag" whose signature is type[0] (func (param i32)).
+static const std::array<uint8_t, 29> TagImportTestWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+    0x60, 0x01, 0x7f, 0x00, 0x02, 0x0c, 0x01, 0x03, 0x65, 0x6e, 0x76,
+    0x03, 0x74, 0x61, 0x67, 0x04, 0x00, 0x00};
+
+// tag_section_test.wasm: compiled from tag_section_test.wat.
+// Defines a tag whose signature is type[0] (func (param i32)).
+static const std::array<uint8_t, 20> TagSectionTestWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+    0x01, 0x60, 0x01, 0x7f, 0x00, 0x0d, 0x03, 0x01, 0x00, 0x00};
+
 // provider.wasm: exports function "add" (i32, i32) -> i32.
 static const std::array<uint8_t, 41> ProviderWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
@@ -223,7 +262,6 @@ static const std::array<uint8_t, 44> ConsumerWasm{
     0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02, 0x10, 0x01, 0x08, 0x70,
     0x72, 0x6f, 0x76, 0x69, 0x64, 0x65, 0x72, 0x03, 0x61, 0x64, 0x64,
     0x00, 0x00, 0x07, 0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00};
-*/
 
 std::string simplePath() {
   static std::string Path;
@@ -251,7 +289,6 @@ std::string parseTestPath() {
   return Path;
 }
 
-/* TODO: Uncomment when plugin re-entrancy issue is fixed.
 std::string providerPath() {
   static std::string Path;
   if (Path.empty()) {
@@ -269,7 +306,33 @@ std::string consumerPath() {
   }
   return Path;
 }
-*/
+
+std::string sectionsTestPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(SectionsTestWasm.data(), SectionsTestWasm.size(),
+                           "sections_test.wasm");
+  }
+  return Path;
+}
+
+std::string tagImportTestPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(TagImportTestWasm.data(), TagImportTestWasm.size(),
+                           "tag_import_test.wasm");
+  }
+  return Path;
+}
+
+std::string tagSectionTestPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(TagSectionTestWasm.data(),
+                           TagSectionTestWasm.size(), "tag_section_test.wasm");
+  }
+  return Path;
+}
 
 std::string nonExistPath() { return TestDataPath + "/nonexist.wasm"; }
 
@@ -391,6 +454,16 @@ TEST(ParseSubcommand, ForbiddenPluginFlag) {
             EXIT_SUCCESS);
 }
 
+TEST(ParseSubcommand, ExtraSectionModules) {
+  EXPECT_EQ(callParse({sectionsTestPath().c_str()}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--enable-exception-handling",
+                       tagImportTestPath().c_str()}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--enable-exception-handling",
+                       tagSectionTestPath().c_str()}),
+            EXIT_SUCCESS);
+}
+
 #if !WASMEDGE_OS_WINDOWS
 TEST(ParseSubcommand, OutputSectionHeaders) {
   auto R = callParseCaptureStdout({parseTestPath().c_str()});
@@ -433,8 +506,50 @@ TEST(ParseSubcommand, MinimalModuleEmptyCounts) {
   auto R = callParseCaptureStdout({Path.c_str()});
   std::filesystem::remove(Path.c_str());
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
-  EXPECT_TRUE(containsAll(R.Stdout, {"Type[0]:", "Import[0]:", "Function[0]:",
-                                     "Global[0]:", "Export[0]:", "Code[0]:"}));
+  EXPECT_TRUE(
+      containsAll(R.Stdout, {"file format wasm 0x1", "Section Details:"}));
+  EXPECT_TRUE(containsNone(
+      R.Stdout, {"Type[", "Import[", "Function[", "Global[", "Export[",
+                 "Code[", "Table[", "Memory[", "Start:", "Element[",
+                 "DataCount section", "Data[", "Tag["}));
+}
+
+TEST(ParseSubcommand, OutputTableMemoryStartElementData) {
+  auto R = callParseCaptureStdout({sectionsTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(
+      R.Stdout,
+      {"Table[1]:", " - table[0] type=ref_null func initial=2 max=3",
+       "Memory[1]:", " - memory[0] pages: initial=1 max=2", "Start:",
+       " - func[0]"}));
+  EXPECT_TRUE(containsAll(
+      R.Stdout, {"Element[2]:",
+                 " - segment[0] flags=0 table=0 type=ref func count=1"
+                 " - init i32=0",
+                 "  - elem[0] = func[0]",
+                 " - segment[1] flags=1 passive type=ref func count=1",
+                 "DataCount section: 2"}));
+  EXPECT_TRUE(containsAll(
+      R.Stdout, {"Data[2]:", " - segment[0] memory=0 size=2 - init i32=0",
+                 " - segment[1] passive size=2"}));
+}
+
+TEST(ParseSubcommand, OutputImportedTagType) {
+  auto R = callParseCaptureStdout(
+      {"--enable-exception-handling", tagImportTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(
+      R.Stdout, {"Import[1]:", " - tag[0] sig=0 <- env.tag"}));
+}
+
+TEST(ParseSubcommand, OutputTagSection) {
+  auto R = callParseCaptureStdout(
+      {"--enable-exception-handling", tagSectionTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(R.Stdout, {"Tag[1]:", " - tag[0] sig=0"}));
+  EXPECT_TRUE(containsNone(
+      R.Stdout, {"Table[", "Memory[", "Start:", "Element[",
+                 "DataCount section", "Data["}));
 }
 #endif
 
@@ -679,13 +794,33 @@ TEST(CompileSubcommand, OutputFormat) {
   std::filesystem::remove(NativeOutput.c_str());
 }
 
-/* ---------------------------------------------------------------------------
- * InstantiateSubcommand tests
- * TODO: Commented out due to plugin re-entrancy issue.
- * UniTool with ToolType::Instantiate calls addLinkerOptions ->
- * loadFromDefaultPaths -> addPluginOptions, which leaves dangling pointers
- * on repeated calls. Uncomment when the plugin system is made re-entrant.
- * ---------------------------------------------------------------------------
+TEST(RunSubcommand, RunModeFlagParses) {
+  WasmEdge::Driver::DriverToolOptions Opt;
+  WasmEdge::PO::ArgumentParser Parser;
+  Opt.addOptions(Parser);
+
+  const char *Argv[] = {"wasmedge", "--enable-jit", "--run-mode=jit",
+                        "dummy.wasm"};
+  EXPECT_TRUE(Parser.parse(stdout, 4, Argv));
+  EXPECT_TRUE(Opt.ConfEnableJIT.value());
+  EXPECT_EQ(Opt.ConfRunMode.value(), "jit");
+}
+
+TEST(RunSubcommand, ParseRunModeArg) {
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("interpreter"),
+            WasmEdge::RunMode::Interpreter);
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("jit"), WasmEdge::RunMode::JIT);
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("aot"), WasmEdge::RunMode::AOT);
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("lazyjit"),
+            WasmEdge::RunMode::LazyJIT);
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("JIT"), WasmEdge::RunMode::JIT);
+  EXPECT_FALSE(WasmEdge::Driver::parseRunModeArg("jti").has_value());
+  EXPECT_FALSE(WasmEdge::Driver::parseRunModeArg("").has_value());
+}
+
+// ---------------------------------------------------------------------------
+// InstantiateSubcommand tests
+// ---------------------------------------------------------------------------
 
 TEST(InstantiateSubcommand, ErrorHandling) {
   EXPECT_NE(callInstantiate({}), EXIT_SUCCESS);
@@ -765,13 +900,9 @@ TEST(InstantiateSubcommand, ForbiddenPluginFlag) {
             EXIT_SUCCESS);
 }
 
- * ---------------------------------------------------------------------------
- * RunSubcommand tests
- * TODO: Commented out due to plugin re-entrancy issue.
- * UniTool with ToolType::Tool calls addLinkerOptions -> loadFromDefaultPaths
- * -> addPluginOptions, which leaves dangling pointers on repeated calls.
- * Uncomment when the plugin system is made re-entrant.
- * ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// RunSubcommand tests
+// ---------------------------------------------------------------------------
 
 TEST(RunSubcommand, ErrorHandling) {
   EXPECT_NE(callRun({}), EXIT_SUCCESS);
@@ -895,7 +1026,6 @@ TEST(NoSubcommand, FallbackToRun) {
                             simplePath().c_str(), "add", "1", "2"}),
             EXIT_SUCCESS);
 }
-*/
 
 } // namespace
 

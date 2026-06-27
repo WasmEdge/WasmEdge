@@ -63,7 +63,7 @@ public:
   int getNoTimestamps() const;
   int getTimestampBegin() const;
   int languageToken() const;
-  int toLanguageToken(const std::string &Language) const;
+  int toLanguageToken(const std::string &LanguageCode) const;
   std::vector<int> getAllLanguageTokens() const;
   std::vector<std::string> getAllLanguageCodes() const;
   std::vector<int> getSotSequenceIncludingNotimestamps() const;

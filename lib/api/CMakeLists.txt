@@ -128,6 +128,13 @@ if(WASMEDGE_BUILD_SHARED_LIB)
       PRIVATE
       "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libwasmedge.lds"
     )
+
+    # The 0.16 `@WASMEDGE_0.16` compat shims rely on the version script, so they
+    # belong only to the shared library, not the static one (see wasmedge_compat.cpp).
+    target_sources(wasmedge_shared
+      PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/wasmedge_compat.cpp
+    )
   endif()
 
   target_link_libraries(wasmedge_shared

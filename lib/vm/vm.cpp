@@ -3,9 +3,9 @@
 
 #include "vm/vm.h"
 
-#include "ast/instruction.h"
+#include "plugin_modules.h"
+
 #include "ast/module.h"
-#include "common/enum_errcode.hpp"
 #include "common/errcode.h"
 #include "common/types.h"
 #include "host/wasi/wasimodule.h"
@@ -13,111 +13,12 @@
 #include "llvm/compiler.h"
 #include "llvm/jit.h"
 
-#include "host/mock/wasi_crypto_module.h"
-#include "host/mock/wasi_logging_module.h"
-#include "host/mock/wasi_nn_module.h"
-#include "host/mock/wasmedge_image_module.h"
-#include "host/mock/wasmedge_process_module.h"
-#include "host/mock/wasmedge_stablediffusion_module.h"
-#include "host/mock/wasmedge_tensorflow_module.h"
-#include "host/mock/wasmedge_tensorflowlite_module.h"
 #include "validator/validator.h"
-#include <algorithm>
-#include <cstddef>
 #include <memory>
 #include <variant>
-#include <vector>
-
-#ifdef WASMEDGE_USE_LLVM
-#include <llvm/IR/Module.h>
-#endif
 
 namespace WasmEdge {
 namespace VM {
-
-namespace {
-
-#ifdef WASMEDGE_USE_LLVM
-void collectLazyCallGraphBatch(uint32_t LocalSeed, const AST::Module *ModulePtr,
-                               uint32_t ImportFuncCount,
-                               const std::unordered_set<uint32_t> &LazyCompiled,
-                               std::vector<uint32_t> &OutSortedLocals) {
-  OutSortedLocals.clear();
-  if (!ModulePtr) {
-    return;
-  }
-  const auto &CodeSec = ModulePtr->getCodeSection().getContent();
-  const uint32_t DefinedCount = static_cast<uint32_t>(CodeSec.size());
-
-  if (LocalSeed >= DefinedCount || LazyCompiled.count(LocalSeed)) {
-    return;
-  }
-
-  std::vector<uint8_t> Visited(DefinedCount, 0);
-  std::vector<uint32_t> Stack;
-  Stack.reserve(64);
-
-  Visited[LocalSeed] = 1;
-  Stack.push_back(LocalSeed);
-  OutSortedLocals.push_back(LocalSeed);
-
-  while (!Stack.empty()) {
-    const uint32_t L = Stack.back();
-    Stack.pop_back();
-
-    for (const auto &Instr : CodeSec[L].getExpr().getInstrs()) {
-      const auto Op = Instr.getOpCode();
-      if (Op == OpCode::Call || Op == OpCode::Return_call ||
-          Op == OpCode::Ref__func) {
-        const uint32_t Target = Instr.getTargetIndex();
-        if (Target >= ImportFuncCount) {
-          const uint32_t LocalIdx = Target - ImportFuncCount;
-          if (LocalIdx < DefinedCount && !Visited[LocalIdx] &&
-              !LazyCompiled.count(LocalIdx)) {
-            Visited[LocalIdx] = 1;
-            Stack.push_back(LocalIdx);
-            OutSortedLocals.push_back(LocalIdx);
-          }
-        }
-      }
-    }
-  }
-
-  std::sort(OutSortedLocals.begin(), OutSortedLocals.end());
-}
-#endif
-
-template <typename T> struct VisitUnit {
-  using MT = std::function<T(std::unique_ptr<AST::Module> &)>;
-  using CT = std::function<T(std::unique_ptr<AST::Component::Component> &)>;
-
-  VisitUnit(MT F, CT G) : VisitMod{F}, VisitComp{G} {}
-  T operator()(std::unique_ptr<AST::Module> &Mod) const {
-    return VisitMod(Mod);
-  }
-  T operator()(std::unique_ptr<AST::Component::Component> &Comp) const {
-    return VisitComp(Comp);
-  }
-
-private:
-  MT VisitMod;
-  CT VisitComp;
-};
-
-template <typename T>
-std::unique_ptr<Runtime::Instance::ModuleInstance>
-createPluginModule(std::string_view PName, std::string_view MName) {
-  using namespace std::literals::string_view_literals;
-  if (const auto *Plugin = Plugin::Plugin::find(PName)) {
-    if (const auto *Module = Plugin->findModule(MName)) {
-      return Module->create();
-    }
-  }
-  spdlog::debug("Plugin: {} , module name: {} not found. Mock instead."sv,
-                PName, MName);
-  return std::make_unique<T>();
-}
-} // namespace
 
 VM::VM(const Configure &Conf)
     : Conf(Conf), Stage(VMStage::Inited),
@@ -139,15 +40,15 @@ void VM::unsafeInitVM() {
   unsafeLoadBuiltInHosts();
   unsafeLoadPlugInHosts();
 
-  // Register the lazy compilation callback if lazy JIT mode is enabled.
+  // Set up the lazy JIT engine if lazy JIT mode is enabled.
 #ifdef WASMEDGE_USE_LLVM
   if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT) {
     spdlog::warn(
         "Lazy JIT is an alpha and experimental feature, which is not ready for production use."sv);
+    LazyEngine = std::make_unique<LLVM::LazyJITEngine>(Conf);
     ExecutorEngine.registerLazyCompilationCallback(
-        [this](const std::string &ID, const uint32_t FuncIdx) -> Expect<void> {
-          return lazyCompileFunctions(ID, FuncIdx);
-        });
+        [this](const Runtime::Instance::FunctionInstance *FuncInst)
+            -> Expect<void> { return LazyEngine->compileOnDemand(FuncInst); });
   }
 #endif
 
@@ -168,55 +69,16 @@ void VM::unsafeLoadBuiltInHosts() {
 }
 
 void VM::unsafeLoadPlugInHosts() {
-  // Load the plugins and mock them if not found.
-  using namespace std::literals::string_view_literals;
+  // Load the official plugin modules and mock them if not found.
   cleanupModInstContainer(PlugInModInsts);
-
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasiNNModuleMock>("wasi_nn"sv, "wasi_nn"sv));
-  PlugInModInsts.push_back(createPluginModule<Host::WasiCryptoCommonModuleMock>(
-      "wasi_crypto"sv, "wasi_crypto_common"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasiCryptoAsymmetricCommonModuleMock>(
-          "wasi_crypto"sv, "wasi_crypto_asymmetric_common"sv));
-  PlugInModInsts.push_back(createPluginModule<Host::WasiCryptoKxModuleMock>(
-      "wasi_crypto"sv, "wasi_crypto_kx"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasiCryptoSignaturesModuleMock>(
-          "wasi_crypto"sv, "wasi_crypto_signatures"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasiCryptoSymmetricModuleMock>(
-          "wasi_crypto"sv, "wasi_crypto_symmetric"sv));
-  PlugInModInsts.push_back(createPluginModule<Host::WasmEdgeProcessModuleMock>(
-      "wasmedge_process"sv, "wasmedge_process"sv));
-  PlugInModInsts.push_back(createPluginModule<Host::WasiLoggingModuleMock>(
-      "wasi_logging"sv, "wasi:logging/logging"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasmEdgeTensorflowModuleMock>(
-          "wasmedge_tensorflow"sv, "wasmedge_tensorflow"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasmEdgeTensorflowLiteModuleMock>(
-          "wasmedge_tensorflowlite"sv, "wasmedge_tensorflowlite"sv));
-  PlugInModInsts.push_back(createPluginModule<Host::WasmEdgeImageModuleMock>(
-      "wasmedge_image"sv, "wasmedge_image"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasmEdgeStableDiffusionModuleMock>(
-          "wasmedge_stablediffusion"sv, "wasmedge_stablediffusion"sv));
+  PlugInModInsts = loadOfficialPluginModules();
 
   // Load the other non-official plugins.
   for (const auto &Plugin : Plugin::Plugin::plugins()) {
     if (Conf.isForbiddenPlugins(Plugin.name())) {
       continue;
     }
-    // Skip wasi_crypto, wasi_nn, wasi_logging, WasmEdge_Process,
-    // WasmEdge_Tensorflow, WasmEdge_TensorflowLite, and WasmEdge_Image.
-    if (Plugin.name() == "wasi_crypto"sv || Plugin.name() == "wasi_nn"sv ||
-        Plugin.name() == "wasi_logging"sv ||
-        Plugin.name() == "wasmedge_process"sv ||
-        Plugin.name() == "wasmedge_tensorflow"sv ||
-        Plugin.name() == "wasmedge_tensorflowlite"sv ||
-        Plugin.name() == "wasmedge_image"sv ||
-        Plugin.name() == "wasmedge_stablediffusion"sv) {
+    if (isOfficialPlugin(Plugin.name())) {
       continue;
     }
     for (const auto &Module : Plugin.modules()) {
@@ -247,100 +109,71 @@ void VM::unsafeRegisterPlugInHosts() {
 
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,
                                       const std::filesystem::path &Path) {
-  if (Stage == VMStage::Instantiated) {
-    // When registering a module, the instantiated module in the store will be
-    // reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
   // Load module.
   EXPECTED_TRY(std::shared_ptr<AST::Module> Module,
                LoaderEngine.parseModule(Path));
-
-  EXPECTED_TRY(unsafeRegisterModule(Name, *Module));
-
-  if (!RegASTModules.empty()) {
-    RegASTModules.back() = Module;
-  }
-
-  return {};
+  return unsafeRegisterModule(Name, std::move(Module));
 }
 
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,
                                       Span<const Byte> Code) {
-  if (Stage == VMStage::Instantiated) {
-    // When registering a module, the instantiated module in the store will be
-    // reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
   // Load module.
   EXPECTED_TRY(std::shared_ptr<AST::Module> Module,
                LoaderEngine.parseModule(Code));
-
-  EXPECTED_TRY(unsafeRegisterModule(Name, *Module));
-
-  if (!RegASTModules.empty()) {
-    RegASTModules.back() = Module;
-  }
-
-  return {};
+  return unsafeRegisterModule(Name, std::move(Module));
 }
 
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,
                                       const AST::Module &Module) {
-  if (Stage == VMStage::Instantiated) {
-    // When registering a module, the instantiated module in the store will be
-    // reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
+#ifdef WASMEDGE_USE_LLVM
+  if (LazyEngine) {
+    // The lazy JIT engine needs to own the AST module and hook the compiled
+    // executable into it, so register an owned copy instead of mutating the
+    // caller's module.
+    return unsafeRegisterModule(Name, std::make_shared<AST::Module>(Module));
   }
+#endif
+  unsafeRevertStageToValidated();
   // Validate module.
   EXPECTED_TRY(ValidatorEngine.validate(Module));
+  // Instantiate and register module.
+  EXPECTED_TRY(auto ModInst,
+               ExecutorEngine.registerModule(StoreRef, Module, Name));
+  RegModInsts.push_back(std::move(ModInst));
+  return {};
+}
 
-  std::string ID = Module.getID();
+Expect<void> VM::unsafeRegisterModule(std::string_view Name,
+                                      std::shared_ptr<AST::Module> Module) {
+  unsafeRevertStageToValidated();
+  // Validate module.
+  EXPECTED_TRY(ValidatorEngine.validate(*Module));
 
 #ifdef WASMEDGE_USE_LLVM
-  std::optional<WasmEdge::LLVM::LazyJITState> State;
-  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT &&
-      !Module.getSymbol()) {
-    EXPECTED_TRY(State, prepareLazyJIT(const_cast<AST::Module &>(Module)));
+  if (LazyEngine && !Module->getSymbol()) {
+    EXPECTED_TRY(auto Exec, LazyEngine->prepare(Module));
+    EXPECTED_TRY(LoaderEngine.loadExecutable(*Module, std::move(Exec)));
   }
 #endif
 
   // Instantiate and register module.
   EXPECTED_TRY(auto ModInst,
-               ExecutorEngine.registerModule(StoreRef, Module, Name));
+               ExecutorEngine.registerModule(StoreRef, *Module, Name));
+
+#ifdef WASMEDGE_USE_LLVM
+  if (LazyEngine) {
+    LazyEngine->registerInstance(*ModInst, std::move(Module));
+  }
+#endif
+
   RegModInsts.push_back(std::move(ModInst));
-
-#ifdef WASMEDGE_USE_LLVM
-  if (State) {
-    std::unique_lock Lock(LazyJITMutex);
-    LazyJITStates.insert({ID, std::move(*State)});
-  }
-#endif
-
-#ifdef WASMEDGE_USE_LLVM
-  size_t InstIdx = RegModInsts.size() - 1;
-  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT) {
-    auto It = RegModMap.find(ID);
-    if (It != RegModMap.end()) {
-      It->second[1] = InstIdx;
-    } else {
-      RegASTModules.push_back(std::make_shared<const AST::Module>(Module));
-      RegModMap[ID] = {RegASTModules.size() - 1, InstIdx};
-    }
-  }
-#endif
-
   return {};
 }
 
 Expect<void>
 VM::unsafeRegisterModule(std::string_view Name,
                          const Runtime::Instance::ModuleInstance &ModInst) {
-  if (Stage == VMStage::Instantiated) {
-    // When registering a module, the instantiated module in the store will be
-    // reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   return ExecutorEngine.registerModule(StoreRef, ModInst, Name);
 }
 
@@ -351,13 +184,16 @@ Expect<void> VM::unsafeUnregisterModule(std::string_view Name) {
         return Inst && Inst->getModuleName() == Name;
       });
   if (InstIt != RegModInsts.end()) {
-    auto ModId = (*InstIt)->getID();
     auto *ModInst = (*InstIt).release();
 
     if (ModInst) {
+#ifdef WASMEDGE_USE_LLVM
+      if (LazyEngine) {
+        LazyEngine->unregisterInstance(*ModInst);
+      }
+#endif
       ModInst->terminate();
     }
-    RegModMap.erase(ModId);
     return {};
   }
   for (auto It = BuiltInModInsts.begin(); It != BuiltInModInsts.end(); ++It) {
@@ -386,63 +222,50 @@ Expect<void> VM::unsafeUnregisterModule(std::string_view Name) {
   return {};
 }
 
+VM::WasmUnitKind
+VM::unsafeStoreWasmUnit(std::variant<std::unique_ptr<AST::Component::Component>,
+                                     std::unique_ptr<AST::Module>> &&Unit) {
+  if (auto *M = std::get_if<std::unique_ptr<AST::Module>>(&Unit)) {
+    Mod = std::move(*M);
+    return WasmUnitKind::Module;
+  }
+  Comp = std::move(std::get<std::unique_ptr<AST::Component::Component>>(Unit));
+  return WasmUnitKind::Component;
+}
+
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
-  if (Stage == VMStage::Instantiated) {
-    // When running another module, the instantiated module in the store will
-    // be reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   // Load wasm unit.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Path));
-  return std::visit(
-      VisitUnit<Expect<std::vector<std::pair<ValVariant, ValType>>>>(
-          [&](auto &M) -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            Mod = std::move(M);
-            return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
-          },
-          [&](auto &C) -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            Comp = std::move(C);
-            return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
-          }),
-      ComponentOrModule);
+  if (unsafeStoreWasmUnit(std::move(ComponentOrModule)) ==
+      WasmUnitKind::Component) {
+    return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
+  }
+  return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
-  if (Stage == VMStage::Instantiated) {
-    // When running another module, the instantiated module in the store will
-    // be reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   // Load wasm unit.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Code));
-  return std::visit(
-      VisitUnit<Expect<std::vector<std::pair<ValVariant, ValType>>>>(
-          [&](auto &M) -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            Mod = std::move(M);
-            return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
-          },
-          [&](auto &C) -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            Comp = std::move(C);
-            return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
-          }),
-      ComponentOrModule);
+  if (unsafeStoreWasmUnit(std::move(ComponentOrModule)) ==
+      WasmUnitKind::Component) {
+    return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
+  }
+  return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const AST::Component::Component &Component,
                       std::string_view, Span<const ValVariant>,
                       Span<const ValType>) {
-  if (Stage == VMStage::Instantiated) {
-    // When running another module, the instantiated module in the store will
-    // be reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   EXPECTED_TRY(ValidatorEngine.validate(Component));
   spdlog::error("component execution is not done yet."sv);
   return Unexpect(ErrCode::Value::RuntimeError);
@@ -452,14 +275,25 @@ Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
-  if (Stage == VMStage::Instantiated) {
-    // When running another module, the instantiated module in the store will
-    // be reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   EXPECTED_TRY(ValidatorEngine.validate(Module));
-  EXPECTED_TRY(ActiveModInst,
+#ifdef WASMEDGE_USE_LLVM
+  if (LazyEngine) {
+    // This one-shot path takes no shared ownership of the module, so it is
+    // not bound to the lazy JIT engine and executes in the interpreter.
+    spdlog::debug("[lazy-jit]: runWasmFile executes in interpreter mode"sv);
+  }
+#endif
+  EXPECTED_TRY(auto NewModInst,
                ExecutorEngine.instantiateModule(StoreRef, Module));
+#ifdef WASMEDGE_USE_LLVM
+  // Drop the lazy binding of the replaced instance only after the new
+  // instantiation succeeds, so a failed run keeps the current instance bound.
+  if (LazyEngine && ActiveModInst) {
+    LazyEngine->unregisterInstance(*ActiveModInst);
+  }
+#endif
+  ActiveModInst = std::move(NewModInst);
 
   // Get module instance.
   if (ActiveModInst) {
@@ -519,10 +353,7 @@ VM::asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
 Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
   // If loading does not succeed, the previous status will be preserved.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Path));
-
-  std::visit(VisitUnit<void>([&](auto &M) -> void { Mod = std::move(M); },
-                             [&](auto &C) -> void { Comp = std::move(C); }),
-             ComponentOrModule);
+  unsafeStoreWasmUnit(std::move(ComponentOrModule));
   Stage = VMStage::Loaded;
   return {};
 }
@@ -530,34 +361,16 @@ Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
 Expect<void> VM::unsafeLoadWasm(Span<const Byte> Code) {
   // If loading does not succeed, the previous status will be preserved.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Code));
-
-  std::visit(VisitUnit<void>([&](auto &M) -> void { Mod = std::move(M); },
-                             [&](auto &C) -> void { Comp = std::move(C); }),
-             ComponentOrModule);
+  unsafeStoreWasmUnit(std::move(ComponentOrModule));
   Stage = VMStage::Loaded;
   return {};
 }
 
 Expect<void> VM::unsafeLoadWasm(const AST::Module &Module) {
-  Mod = std::make_unique<AST::Module>(Module);
+  Mod = std::make_shared<AST::Module>(Module);
   Stage = VMStage::Loaded;
   return {};
 }
-
-struct Validate {
-  // borrow validator to pass control to it
-  Validate(Validator::Validator &Engine) : ValidatorEngine(Engine) {}
-  Expect<void> operator()(const std::unique_ptr<AST::Module> &Mod) const {
-    return ValidatorEngine.validate(*Mod.get());
-  }
-  Expect<void>
-  operator()(const std::unique_ptr<AST::Component::Component> &Comp) const {
-    return ValidatorEngine.validate(*Comp.get());
-  }
-
-private:
-  Validator::Validator &ValidatorEngine;
-};
 
 Expect<void> VM::unsafeValidate() {
   if (Stage < VMStage::Loaded) {
@@ -578,6 +391,68 @@ Expect<void> VM::unsafeValidate() {
   return {};
 }
 
+Expect<void> VM::unsafeLoadJITExecutable() {
+  if ((Conf.getRuntimeConfigure().getRunMode() != RunMode::JIT &&
+       Conf.getRuntimeConfigure().getRunMode() != RunMode::LazyJIT) ||
+      Mod->getSymbol()) {
+    return {};
+  }
+#ifdef WASMEDGE_USE_LLVM
+  if (LazyEngine) {
+    EXPECTED_TRY(auto Exec, LazyEngine->prepare(Mod));
+    EXPECTED_TRY(LoaderEngine.loadExecutable(*Mod, std::move(Exec)));
+    return {};
+  }
+  LLVM::Compiler Compiler(Conf);
+  Compiler.checkConfigure()
+      .map_error([](uint32_t Err) {
+        if (Err != ErrCode::Value::Success) {
+          spdlog::error("Compiler Configure failed. Error code: {}, use "
+                        "interpreter mode instead."sv,
+                        Err);
+        }
+        return ErrCode::Value::Success;
+      })
+      .and_then([&]() { return Compiler.compile(*Mod); })
+      .map_error([](uint32_t Err) {
+        if (Err != ErrCode::Value::Success) {
+          spdlog::error("Compilation failed. Error code: {}, use "
+                        "interpreter mode instead."sv,
+                        Err);
+        }
+        return ErrCode::Value::Success;
+      })
+      .and_then([&](auto LLModule) {
+        LLVM::JIT JIT(Conf);
+        return JIT.load(std::move(LLModule));
+      })
+      .map_error([](uint32_t Err) {
+        if (Err != ErrCode::Value::Success) {
+          spdlog::warn(
+              "JIT failed. Error code: {}, use interpreter mode instead."sv,
+              Err);
+        }
+        return ErrCode::Value::Success;
+      })
+      .and_then([&](auto Module) {
+        return LoaderEngine.loadExecutable(*Mod, std::move(Module));
+      })
+      .map_error([](uint32_t Err) {
+        if (Err != ErrCode::Value::Success) {
+          spdlog::warn("Loader failed. Error code: {}, use interpreter "
+                       "mode instead."sv,
+                       Err);
+        }
+        return ErrCode::Value::Success;
+      });
+  return {};
+#else
+  spdlog::warn("JIT was requested but WasmEdge was built without LLVM, "
+               "falling back to interpreter."sv);
+  return {};
+#endif
+}
+
 Expect<void> VM::unsafeInstantiate() {
   if (Stage < VMStage::Validated) {
     // Do not instantiate when the module is not validated.
@@ -585,98 +460,33 @@ Expect<void> VM::unsafeInstantiate() {
     return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
   if (Mod) {
-    std::string ID = Mod->getID();
-
-    if ((Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT ||
-         Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT) &&
-        !Mod->getSymbol()) {
-#ifdef WASMEDGE_USE_LLVM
-      if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT) {
-        EXPECTED_TRY(auto State, prepareLazyJIT(*Mod));
-        std::unique_lock Lock(LazyJITMutex);
-        LazyJITStates[ID] = std::move(State);
-      } else {
-        LLVM::Compiler Compiler(Conf);
-        Compiler.checkConfigure()
-            .map_error([](uint32_t Err) {
-              if (Err != ErrCode::Value::Success) {
-                spdlog::error("Compiler Configure failed. Error code: {}, use "
-                              "interpreter mode instead."sv,
-                              Err);
-              }
-              return ErrCode::Value::Success;
-            })
-            .and_then([&]() { return Compiler.compile(*Mod); })
-            .map_error([](uint32_t Err) {
-              if (Err != ErrCode::Value::Success) {
-                spdlog::error("Compilation failed. Error code: {}, use "
-                              "interpreter mode instead."sv,
-                              Err);
-              }
-              return ErrCode::Value::Success;
-            })
-            .and_then([&](auto LLModule) {
-              LLVM::JIT JIT(Conf);
-              return JIT.load(LLModule);
-            })
-            .map_error([](uint32_t Err) {
-              if (Err != ErrCode::Value::Success) {
-                spdlog::warn(
-                    "JIT failed. Error code: {}, use interpreter mode instead."sv,
-                    Err);
-              }
-              return ErrCode::Value::Success;
-            })
-            .and_then([&](auto Module) {
-              return LoaderEngine.loadExecutable(*Mod, std::move(Module));
-            })
-            .map_error([](uint32_t Err) {
-              if (Err != ErrCode::Value::Success) {
-                spdlog::warn("Loader failed. Error code: {}, use interpreter "
-                             "mode instead."sv,
-                             Err);
-              }
-              return ErrCode::Value::Success;
-            });
-      }
-#else
-      spdlog::warn("JIT was requested but WasmEdge was built without LLVM, "
-                   "falling back to interpreter."sv);
-#endif
-    }
-
-#ifdef WASMEDGE_USE_LLVM
-    if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT) {
-      std::unique_lock Lock(LazyJITMutex);
-      auto StateIt = LazyJITStates.find(ID);
-      if (StateIt != LazyJITStates.end()) {
-        size_t ImportFuncCount = 0;
-        for (const auto &ImpDesc : Mod->getImportSection().getContent()) {
-          if (ImpDesc.getExternalType() == ExternalType::Function) {
-            ++ImportFuncCount;
-          }
-        }
-        StateIt->second.ImportFuncCount =
-            static_cast<uint32_t>(ImportFuncCount);
-        StateIt->second.LazyCompiledFuncs.clear();
-      }
-    }
-#endif
-
-    EXPECTED_TRY(ActiveModInst,
+    EXPECTED_TRY(unsafeLoadJITExecutable());
+    EXPECTED_TRY(auto NewModInst,
                  ExecutorEngine.instantiateModule(StoreRef, *Mod));
+
+#ifdef WASMEDGE_USE_LLVM
+    if (LazyEngine) {
+      // Rebind the lazy JIT state only after instantiation succeeds, so a
+      // failed re-instantiation keeps the current instance bound.
+      if (ActiveModInst) {
+        LazyEngine->unregisterInstance(*ActiveModInst);
+      }
+      LazyEngine->registerInstance(*NewModInst, Mod);
+    }
+#endif
+    ActiveModInst = std::move(NewModInst);
 
     Stage = VMStage::Instantiated;
     return {};
-  } else if (Comp) {
+  }
+  if (Comp) {
     EXPECTED_TRY(ActiveCompInst,
                  ExecutorEngine.instantiateComponent(StoreRef, *Comp));
     Stage = VMStage::Instantiated;
     return {};
-  } else {
-    spdlog::error(ErrCode::Value::WrongVMWorkflow);
-    return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
+  spdlog::error(ErrCode::Value::WrongVMWorkflow);
+  return Unexpect(ErrCode::Value::WrongVMWorkflow);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -742,25 +552,9 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
       ModInst->findFuncExports(Func);
 
 #ifdef WASMEDGE_USE_LLVM
-  // lazy JIT: compile function on-demand if needed.
-  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT && FuncInst) {
-    bool NeedsCompile = false;
-    uint32_t FuncIdx = UINT32_MAX;
-    {
-      std::shared_lock Lock(LazyJITMutex);
-      if (FuncInst->isWasmFunction()) {
-        NeedsCompile = true;
-        if (auto Res = ModInst->getFuncIdx(FuncInst)) {
-          FuncIdx = *Res;
-        }
-      }
-    }
-    if (NeedsCompile && FuncIdx != UINT32_MAX) {
-      if (auto Result = lazyCompileFunctions(ModInst->getID(), FuncIdx);
-          !Result) {
-        return Unexpect(Result.error());
-      }
-    }
+  // Lazy JIT: compile the function on-demand if needed.
+  if (LazyEngine) {
+    EXPECTED_TRY(LazyEngine->compileOnDemand(FuncInst));
   }
 #endif
 
@@ -866,8 +660,6 @@ void VM::unsafeCleanup() {
   }
   StoreRef.reset();
   cleanupModInstContainer(RegModInsts);
-  RegASTModules.clear();
-  RegModMap.clear();
   Stat.clear();
   unsafeLoadBuiltInHosts();
   unsafeLoadPlugInHosts();
@@ -876,9 +668,9 @@ void VM::unsafeCleanup() {
   LoaderEngine.reset();
   Stage = VMStage::Inited;
 #ifdef WASMEDGE_USE_LLVM
-  // LazyJITStates.clear() will automatically clean up all unique_ptr
-  // LLContexts.
-  LazyJITStates.clear();
+  if (LazyEngine) {
+    LazyEngine->clear();
+  }
 #endif
 }
 
@@ -926,237 +718,6 @@ const Runtime::Instance::ModuleInstance *VM::unsafeGetActiveModule() const {
   }
   return nullptr;
 };
-
-#ifdef WASMEDGE_USE_LLVM
-Expect<void> VM::lazyCompileFunctions(const std::string &ID, uint32_t FuncIdx) {
-  std::unique_lock Lock(LazyJITMutex);
-  uint32_t ImportFuncCount = 0;
-  const AST::Module *ModulePtr = nullptr;
-  LLVM::Data *LLDataPtr = nullptr;
-  std::unique_ptr<LLVM::Compiler::CompileContext,
-                  LLVM::Compiler::CompileContextDeleter> *LLContextPtr =
-      nullptr;
-  LLVM::LazyJITState *StatePtr = nullptr;
-  const Runtime::Instance::ModuleInstance *ModInst = nullptr;
-
-  if (ActiveModInst && ActiveModInst->getID() == ID) {
-    ModInst = ActiveModInst.get();
-    ModulePtr = Mod.get();
-  } else {
-    auto ItMap = RegModMap.find(ID);
-    if (ItMap != RegModMap.end()) {
-      ModInst = RegModInsts[ItMap->second[1]].get();
-      ModulePtr = RegASTModules[ItMap->second[0]].get();
-    }
-  }
-
-  if (!ModInst || !ModulePtr) {
-    return {};
-  }
-
-  auto It = LazyJITStates.find(ID);
-  if (It != LazyJITStates.end()) {
-    StatePtr = &It->second;
-    ImportFuncCount = StatePtr->ImportFuncCount;
-    LLDataPtr = &StatePtr->LLData;
-    LLContextPtr = &StatePtr->LLContext;
-  } else {
-    spdlog::error("[lazy-jit]: failed to find JIT state for ID: {}"sv, ID);
-    return Unexpect(ErrCode::Value::WrongInstanceAddress);
-  }
-
-  if (FuncIdx < ImportFuncCount) {
-    return {};
-  }
-
-  uint32_t LocalFuncIdx = FuncIdx - ImportFuncCount;
-
-  auto FuncResult = ModInst->getFuncInst(FuncIdx);
-  if (!FuncResult) {
-    spdlog::error(
-        "[lazy-jit]: failed to get function instance for index {}, module ID: {}"sv,
-        FuncIdx, ID);
-    return Unexpect(FuncResult.error());
-  }
-  auto *FuncInst = *FuncResult;
-
-  // If already compiled or not a Wasm function, nothing to do.
-  if (!FuncInst->isWasmFunction() || FuncInst->isCompiledFunction()) {
-    return {};
-  }
-
-  if (StatePtr && StatePtr->LazyCompiledFuncs.count(LocalFuncIdx) > 0) {
-    return {};
-  }
-
-  const std::unordered_set<uint32_t> EmptyCompiledSet;
-  const std::unordered_set<uint32_t> &CompiledSet =
-      StatePtr ? StatePtr->LazyCompiledFuncs : EmptyCompiledSet;
-
-  std::vector<uint32_t> BatchLocals;
-  collectLazyCallGraphBatch(LocalFuncIdx, ModulePtr, ImportFuncCount,
-                            CompiledSet, BatchLocals);
-  if (BatchLocals.empty()) {
-    return {};
-  }
-
-  spdlog::debug("[lazy-jit]: Lazy compiling batch ({} local funcs) for wasm "
-                "entry local "
-                "{}, module ID: {}"sv,
-                BatchLocals.size(), LocalFuncIdx, ID);
-
-  LLVM::Compiler Compiler(Conf);
-  auto ConfigResult = Compiler.checkConfigure();
-  if (!ConfigResult) {
-    spdlog::error(
-        "[lazy-jit]: Lazy JIT compiler config failed: {}, module ID: {}"sv,
-        ConfigResult.error(), ID);
-    return Unexpect(ConfigResult.error());
-  }
-
-  if (!LLDataPtr->hasModule()) {
-    LLDataPtr->resetModule();
-  }
-  auto CompileResult = Compiler.compileFunctions(
-      std::move(*LLDataPtr),
-      static_cast<LLVM::Compiler::CompileContext *>(LLContextPtr->get()),
-      *ModulePtr,
-      WasmEdge::Span<const uint32_t>(BatchLocals.data(), BatchLocals.size()));
-  if (!CompileResult) {
-    spdlog::error(
-        "[lazy-jit]: Lazy JIT function compilation failed: {}, module ID: {}"sv,
-        CompileResult.error(), ID);
-    return Unexpect(CompileResult.error());
-  }
-
-  *LLDataPtr = std::move(*CompileResult);
-  LLVM::JIT JIT(Conf);
-  std::shared_ptr<LLVM::JITLibrary> JITLib;
-  if (StatePtr && StatePtr->JITLib) {
-    JITLib = StatePtr->JITLib;
-  }
-
-  std::vector<uint32_t> BatchGlobal;
-  BatchGlobal.reserve(BatchLocals.size());
-  for (uint32_t L : BatchLocals) {
-    BatchGlobal.push_back(ImportFuncCount + L);
-  }
-
-  std::vector<LLVM::WasmFunctionCodeAddress> ResolvedAddresses;
-  if (JITLib) {
-    auto AddrRes = JIT.add(
-        *JITLib, *LLDataPtr,
-        WasmEdge::Span<const uint32_t>(BatchGlobal.data(), BatchGlobal.size()));
-    if (!AddrRes) {
-      spdlog::error("[lazy-jit]: Lazy JIT add failed: {}, module ID: {}"sv,
-                    AddrRes.error(), ID);
-      return Unexpect(AddrRes.error());
-    }
-    ResolvedAddresses = std::move(*AddrRes);
-  } else {
-    auto LoadResult = JIT.load(*LLDataPtr, true);
-    if (!LoadResult) {
-      spdlog::error("[lazy-jit]: Lazy JIT load failed: {}, module ID: {}"sv,
-                    LoadResult.error(), ID);
-      return Unexpect(LoadResult.error());
-    }
-    JITLib = std::static_pointer_cast<LLVM::JITLibrary>(*LoadResult);
-    if (StatePtr) {
-      StatePtr->JITLib = JITLib;
-    }
-    auto LkRes = JIT.lookupWasmFunctionSymbols(
-        *JITLib, LLDataPtr->getPrefix(),
-        WasmEdge::Span<const uint32_t>(BatchGlobal.data(), BatchGlobal.size()));
-    if (!LkRes) {
-      spdlog::error(
-          "[lazy-jit]: Lazy JIT symbol resolution failed: {}, module ID: {}"sv,
-          LkRes.error(), ID);
-      return Unexpect(LkRes.error());
-    }
-    ResolvedAddresses = std::move(*LkRes);
-  }
-
-  if (ResolvedAddresses.size() != BatchLocals.size()) {
-    spdlog::error(
-        "[lazy-jit]: Lazy JIT address count mismatch, module ID: {}"sv, ID);
-    return Unexpect(ErrCode::Value::LazyCompilationError);
-  }
-
-  if (auto IntrinsicsSymbol = JITLib->getIntrinsics()) {
-    *IntrinsicsSymbol = &Executor::Executor::Intrinsics;
-  } else {
-    spdlog::error(
-        "[lazy-jit]: failed to get intrinsics symbol, module ID: {}"sv, ID);
-    return Unexpect(ErrCode::Value::LazyCompilationError);
-  }
-
-  for (size_t I = 0; I < BatchLocals.size(); ++I) {
-    const uint32_t L = BatchLocals[I];
-    const uint32_t WasmFuncIdx = ImportFuncCount + L;
-    LLVM::WasmFunctionCodeAddress CompiledCodePtr = ResolvedAddresses[I];
-    auto BatchFuncResult = ModInst->getFuncInst(WasmFuncIdx);
-    if (!BatchFuncResult) {
-      spdlog::error(
-          "[lazy-jit]: failed to get function instance for index {}, module ID: {}"sv,
-          WasmFuncIdx, ID);
-      return Unexpect(ErrCode::Value::WrongInstanceAddress);
-    }
-
-    auto *BatchFuncInst = *BatchFuncResult;
-    if (BatchFuncInst->isWasmFunction()) {
-      auto CompiledSym = JITLib->createSymbol(
-          reinterpret_cast<Runtime::Instance::FunctionInstance::CompiledFunction
-                               *>(CompiledCodePtr));
-      BatchFuncInst->unsafeUpgradeToCompiled(std::move(CompiledSym));
-    }
-  }
-
-  if (StatePtr) {
-    for (uint32_t L : BatchLocals) {
-      StatePtr->LazyCompiledFuncs.insert(L);
-    }
-  }
-
-  spdlog::debug(
-      "Lazy compilation completed for batch of {} functions, total compiled: "
-      "{}, module ID: {}"sv,
-      BatchLocals.size(),
-      StatePtr ? StatePtr->LazyCompiledFuncs.size() : BatchLocals.size(), ID);
-
-  return {};
-}
-#endif
-
-#ifdef WASMEDGE_USE_LLVM
-Expect<WasmEdge::LLVM::LazyJITState> VM::prepareLazyJIT(AST::Module &Module) {
-  WasmEdge::LLVM::LazyJITState State;
-  LLVM::Compiler Compiler(Conf);
-  EXPECTED_TRY(
-      Compiler.checkConfigure().map_error([](uint32_t Err) { return Err; }));
-
-  auto Prefix = fmt::format("m{}_"sv, Module.getID());
-  EXPECTED_TRY(auto LLModule, Compiler.compileInfrastructure(Module, Prefix));
-
-  State.LLData = std::move(LLModule.first);
-  State.LLContext = std::move(LLModule.second);
-
-  LLVM::JIT JIT(Conf);
-  EXPECTED_TRY(auto Exec, JIT.load(State.LLData, true));
-  State.JITLib = std::static_pointer_cast<LLVM::JITLibrary>(Exec);
-
-  EXPECTED_TRY(LoaderEngine.loadExecutable(Module, State.JITLib));
-
-  size_t ImportFuncCount = 0;
-  for (const auto &ImpDesc : Module.getImportSection().getContent()) {
-    if (ImpDesc.getExternalType() == ExternalType::Function) {
-      ++ImportFuncCount;
-    }
-  }
-  State.ImportFuncCount = static_cast<uint32_t>(ImportFuncCount);
-
-  return State;
-}
-#endif
 
 } // namespace VM
 } // namespace WasmEdge

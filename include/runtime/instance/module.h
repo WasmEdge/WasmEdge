@@ -24,6 +24,7 @@
 #include "runtime/instance/function.h"
 #include "runtime/instance/global.h"
 #include "runtime/instance/memory.h"
+#include "runtime/instance/reflifetime.h"
 #include "runtime/instance/struct.h"
 #include "runtime/instance/table.h"
 #include "runtime/instance/tag.h"
@@ -37,7 +38,7 @@
 #include <shared_mutex>
 #include <string>
 #include <type_traits>
-#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace WasmEdge {
@@ -72,41 +73,41 @@ inline constexpr const bool IsInstanceV =
 
 class ComponentInstance;
 
+/// Module instances use a dependency-pinned lifetime: each importer pins the
+/// instances it imports from (see RefLifetime) and releases them when
+/// destroyed, so a heap instance torn down via terminate() is deleted only
+/// after its owner and all importers release.
+///
+/// A stack- or member-allocated provider cannot be deferred by a pin, so it
+/// must outlive its importers: declare a host module before the VM or
+/// StoreManager that imports it. The destructor enforces this with
+/// assuming(!hasDependents()).
 class ModuleInstance {
 public:
   ModuleInstance(std::string_view Name, void *Data = nullptr,
                  std::function<void(void *)> Finalizer = nullptr)
       : ModName(Name), HostData(Data), HostDataFinalizer(Finalizer) {}
   virtual ~ModuleInstance() noexcept {
-    // Some module instances (e.g., stack-allocated ones) may not trigger
-    // the explicit termination process. We call unlinkAllStores() as
-    // a fallback to ensure all store manager callbacks are cleared.
+    // Fallback for instances torn down outside terminate() (e.g.
+    // stack-allocated).
     unlinkAllStores();
+    assuming(!Life.hasDependents());
     if (HostDataFinalizer.operator bool()) {
       HostDataFinalizer(HostData);
     }
-    for (auto *Provider : DependencyList) {
-      if (Provider) {
-        Provider->decrementInDegree();
-      }
-    }
+    releaseProviders();
   }
 
-  void terminate() noexcept { resetSelfDegree(); }
+  void terminate() noexcept {
+    unlinkAllStores();
+    if (Life.releaseOwner()) {
+      delete this;
+    }
+  }
 
   std::string_view getModuleName() const noexcept {
     std::shared_lock Lock(Mutex);
     return ModName;
-  }
-
-  std::string getID() const noexcept {
-    std::shared_lock Lock(Mutex);
-    return ID;
-  }
-
-  void setID(std::string_view NewID) noexcept {
-    std::unique_lock Lock(Mutex);
-    ID = NewID;
   }
 
   void *getHostData() const noexcept { return HostData; }
@@ -243,22 +244,6 @@ public:
   auto getGlobalExports(CallbackT &&CallBack) const noexcept {
     std::shared_lock Lock(Mutex);
     return std::forward<CallbackT>(CallBack)(ExpGlobals);
-  }
-
-  Expect<uint32_t> getFuncIdx(const FunctionInstance *FuncInst) const noexcept {
-    std::shared_lock Lock(Mutex);
-    if (auto It = FuncInstMap.find(FuncInst); It != FuncInstMap.end()) {
-      return It->second;
-    }
-    return Unexpect(ErrCode::Value::WrongInstanceAddress);
-  }
-
-  Expect<FunctionInstance *> getFuncInst(uint32_t Idx) const noexcept {
-    std::shared_lock Lock(Mutex);
-    if (Idx >= FuncInsts.size()) {
-      return Unexpect(ErrCode::Value::WrongInstanceIndex);
-    }
-    return FuncInsts[Idx];
   }
 
 protected:
@@ -499,9 +484,6 @@ protected:
   std::enable_if_t<IsEntityV<T>, void>
   unsafeImportInstance(std::vector<T *> &Vec, T *Ptr) {
     Vec.push_back(Ptr);
-    if constexpr (std::is_same_v<T, FunctionInstance>) {
-      FuncInstMap[Ptr] = static_cast<uint32_t>(Vec.size()) - 1;
-    }
   }
 
   /// Unsafely import a defined type from a host function into this module.
@@ -518,9 +500,6 @@ protected:
                     std::vector<T *> &InstsVec, Args &&...Values) {
     OwnedInstsVec.push_back(std::make_unique<T>(std::forward<Args>(Values)...));
     InstsVec.push_back(OwnedInstsVec.back().get());
-    if constexpr (std::is_same_v<T, FunctionInstance>) {
-      FuncInstMap[InstsVec.back()] = static_cast<uint32_t>(InstsVec.size()) - 1;
-    }
   }
 
   /// Unsafely add and export the existing instance to this module.
@@ -534,9 +513,6 @@ protected:
     OwnedInstsVec.push_back(std::move(Inst));
     InstsVec.push_back(OwnedInstsVec.back().get());
     InstsMap.insert_or_assign(std::string(Name), InstsVec.back());
-    if constexpr (std::is_same_v<T, FunctionInstance>) {
-      FuncInstMap[InstsVec.back()] = static_cast<uint32_t>(InstsVec.size()) - 1;
-    }
   }
 
   /// Unsafely find and get the exported instance by name.
@@ -580,46 +556,55 @@ protected:
   }
 
   void unlinkAllStores() noexcept {
-    // When destroying this module instance, call the callbacks to unlink to the
-    // store managers.
-    for (auto &&[Key, Callback] : LinkedStore) {
+    std::map<LinkedStoreKey, std::function<BeforeModuleDestroyCallback>>
+        Snapshot;
+    {
+      std::unique_lock Lock(Mutex);
+      Snapshot.swap(LinkedStore);
+    }
+    for (auto &&[Key, Callback] : Snapshot) {
       assuming(Callback);
       Callback(Key, this);
     }
-    LinkedStore.clear();
   }
 
-  void incrementInDegree() noexcept {
-    InDegree.fetch_add(1, std::memory_order_relaxed);
-  }
-
-  void decrementInDegree() noexcept {
-    if (InDegree.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-      this->tryToDelete();
+  void addDependency(ModuleInstance &Provider) {
+    std::unique_lock Lock(Mutex);
+    if (Providers.insert(&Provider).second) {
+      Provider.Life.addDependent();
     }
   }
 
-  void linkDependency(ModuleInstance &Provider) {
+  void takeProviders(std::unordered_set<ModuleInstance *> &Snapshot) noexcept {
     std::unique_lock Lock(Mutex);
-    auto It =
-        std::find(DependencyList.begin(), DependencyList.end(), &Provider);
-    if (It != DependencyList.end()) {
+    Snapshot.swap(Providers);
+  }
+
+  static void drainPins(std::unordered_set<ModuleInstance *> &Provs,
+                        std::vector<ModuleInstance *> &ToDelete) noexcept {
+    for (auto *Provider : Provs) {
+      if (Provider->Life.releaseDependent()) {
+        ToDelete.push_back(Provider);
+      }
+    }
+    Provs.clear();
+  }
+
+  void releaseProviders() noexcept {
+    std::unordered_set<ModuleInstance *> ProvidersToRelease;
+    takeProviders(ProvidersToRelease);
+    if (ProvidersToRelease.empty()) {
       return;
     }
-    DependencyList.push_back(&Provider);
-    Provider.incrementInDegree();
-  }
-
-  void resetSelfDegree() noexcept {
-    unlinkAllStores();
-    SelfDegree.store(0, std::memory_order_release);
-    this->tryToDelete();
-  }
-
-  void tryToDelete() noexcept {
-    if (SelfDegree.load(std::memory_order_acquire) == 0 &&
-        InDegree.load(std::memory_order_acquire) == 0) {
-      delete this;
+    std::vector<ModuleInstance *> ToDelete;
+    drainPins(ProvidersToRelease, ToDelete);
+    while (!ToDelete.empty()) {
+      ModuleInstance *Next = ToDelete.back();
+      ToDelete.pop_back();
+      std::unordered_set<ModuleInstance *> NextProviders;
+      Next->takeProviders(NextProviders);
+      delete Next;
+      drainPins(NextProviders, ToDelete);
     }
   }
 
@@ -628,9 +613,6 @@ protected:
 
   /// Module name.
   const std::string ModName;
-
-  /// Module ID.
-  std::string ID;
 
   /// Defined types.
   std::vector<const AST::SubType *> Types;
@@ -656,7 +638,6 @@ protected:
   std::vector<GlobalInstance *> GlobInsts;
   std::vector<ElementInstance *> ElemInsts;
   std::vector<DataInstance *> DataInsts;
-  std::unordered_map<const FunctionInstance *, uint32_t> FuncInstMap;
 
   /// Imported instance counts.
   uint32_t ImpGlobalNum = 0;
@@ -683,14 +664,12 @@ protected:
   void *HostData;
   std::function<void(void *)> HostDataFinalizer;
 
-  /// In-degree of the reference counting. Represents the number of
-  /// moduleimporting this instance.
-  std::atomic<uint32_t> InDegree{0};
-  /// Self-degree of the reference counting. 1 if this instance is held by
-  /// somebody, 0 otherwise.
-  std::atomic<uint32_t> SelfDegree{1};
-  /// Dependency list of the provider module instances.
-  std::vector<Instance::ModuleInstance *> DependencyList;
+  /// Intrusive lifetime: owner flag plus importer count, packed into one
+  /// atomic.
+  RefLifetime Life;
+  /// Provider instances this module imported from; each holds one dependent
+  /// pin, released when this module is destroyed.
+  std::unordered_set<ModuleInstance *> Providers;
 };
 
 } // namespace Instance

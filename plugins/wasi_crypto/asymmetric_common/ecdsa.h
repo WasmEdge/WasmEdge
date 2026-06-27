@@ -82,7 +82,14 @@ public:
     }
 
     WasiCryptoExpect<void> verify() const noexcept {
-      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+      EvpPkeyCtxPtr CheckCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
+      ensureOrReturn(CheckCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+      // EVP_PKEY_public_check() returns 1 for a valid key and 0 for an invalid
+      // one. A negative value means the check is unsupported for this key type
+      // (e.g. on OpenSSL 1.1.1), so only an explicit 0 is treated as invalid.
+      ensureOrReturn(EVP_PKEY_public_check(CheckCtx.get()) != 0,
+                     __WASI_CRYPTO_ERRNO_INVALID_KEY);
+      return {};
     }
 
   protected:

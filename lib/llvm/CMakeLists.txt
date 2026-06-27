@@ -20,6 +20,7 @@ if(WASMEDGE_LINK_LLVM_STATIC)
     codegen.cpp
     data.cpp
     jit.cpp
+    lazyjit.cpp
   )
 
   target_link_libraries(wasmedgeLLVM
@@ -56,6 +57,7 @@ else()
     codegen.cpp
     data.cpp
     jit.cpp
+    lazyjit.cpp
     LINK_LIBS
     wasmedgeCommon
     wasmedgeSystem

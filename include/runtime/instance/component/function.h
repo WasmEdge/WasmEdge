@@ -13,80 +13,125 @@ namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
 
-class ComponentInstance; // forward decl for parent component pointer
+class ComponentInstance;
 
 namespace Component {
 
+class HostFunctionBase;
+
+/// Canonical ABI options for component functions.
+struct CanonicalOptions {
+  Runtime::Instance::MemoryInstance *Memory = nullptr;
+  Runtime::Instance::FunctionInstance *Realloc = nullptr;
+  Runtime::Instance::FunctionInstance *PostReturn = nullptr;
+  const Runtime::Instance::ComponentInstance *ParentComp = nullptr;
+  StringEncoding StringEnc = StringEncoding::UTF8;
+  bool IsAsync = false;
+
+  CanonicalOptions() noexcept = default;
+};
+
+/// Custom deleter for HostFunctionBase to avoid incomplete type issues.
+struct HostFunctionDeleter {
+  void operator()(HostFunctionBase *Ptr) const;
+};
+
+/// Unified component function instance supporting both lifted core functions
+/// and native component host functions.
 class FunctionInstance {
-  // The component function instance currently can only be instantiated by the
-  // `canon lift` operation. For the component host functions, the extension may
-  // be implemented in the future.
 public:
+  enum class FunctionKind : uint8_t {
+    Lifted,
+    Host,
+  };
+
   FunctionInstance() = delete;
-  /// Move constructor.
-  FunctionInstance(FunctionInstance &&Inst) noexcept
-      : FuncType(Inst.FuncType), LowerFunc(Inst.LowerFunc),
-        MemInst(Inst.MemInst), ReallocFunc(Inst.ReallocFunc),
-        PostReturnFunc(Inst.PostReturnFunc), ParentComp(Inst.ParentComp),
-        Enc(Inst.Enc) {}
-  /// Constructor for component native function. `PR` is the optional
-  /// post-return core function (CanonicalABI.md L3367-3372); pass nullptr
-  /// when the canon lift declared no post-return option.
+  ~FunctionInstance();
+  FunctionInstance(FunctionInstance &&Inst) noexcept;
+  FunctionInstance &operator=(FunctionInstance &&Inst) noexcept;
+
+  /// Constructor for lifted component function (from core WASM).
   FunctionInstance(const AST::Component::FuncType &Type,
                    Runtime::Instance::FunctionInstance *F,
-                   Runtime::Instance::MemoryInstance *M,
-                   Runtime::Instance::FunctionInstance *R,
-                   const Runtime::Instance::ComponentInstance *P,
-                   Runtime::Instance::FunctionInstance *PR = nullptr,
-                   StringEncoding E = StringEncoding::UTF8) noexcept
-      : FuncType(Type), LowerFunc(F), MemInst(M), ReallocFunc(R),
-        PostReturnFunc(PR), ParentComp(P), Enc(E) {}
+                   const CanonicalOptions &Opts) noexcept
+      : FuncType(Type), Kind(FunctionKind::Lifted), CanonOpts(Opts),
+        LowerFunc(F), HostFunc(nullptr) {}
+
+  /// Constructor for native component host function.
+  FunctionInstance(const AST::Component::FuncType &Type,
+                   std::unique_ptr<HostFunctionBase, HostFunctionDeleter> &&HF,
+                   const CanonicalOptions &Opts = CanonicalOptions()) noexcept
+      : FuncType(Type), Kind(FunctionKind::Host), CanonOpts(Opts),
+        LowerFunc(nullptr), HostFunc(std::move(HF)) {}
 
   /// Getter for component function type.
   const AST::Component::FuncType &getFuncType() const noexcept {
     return FuncType;
   }
 
-  /// Getter for lower core function instance.
+  /// Getter of function kind.
+  FunctionKind getKind() const noexcept { return Kind; }
+
+  /// Check if this is a lifted function.
+  bool isLifted() const noexcept { return Kind == FunctionKind::Lifted; }
+
+  /// Check if this is a host function.
+  bool isHost() const noexcept { return Kind == FunctionKind::Host; }
+
+  /// Getter of canonical ABI options.
+  const CanonicalOptions &getCanonicalOptions() const noexcept {
+    return CanonOpts;
+  }
+
+  /// Getter for lower core function instance (for lifted functions).
   Runtime::Instance::FunctionInstance *getLowerFunction() const noexcept {
     return LowerFunc;
   }
 
-  /// Getter for memory instance to value conversion.
+  /// Getter of host function instance (for host functions).
+  HostFunctionBase *getHostFunction() const noexcept { return HostFunc.get(); }
+
+  /// Getter for memory instance for canonical ABI conversion.
   Runtime::Instance::MemoryInstance *getMemoryInstance() const noexcept {
-    return MemInst;
+    return CanonOpts.Memory;
   }
 
-  /// Getter for allocation core function instance.
+  /// Getter for realloc function for canonical ABI conversion.
   Runtime::Instance::FunctionInstance *getAllocFunction() const noexcept {
-    return ReallocFunc;
+    return CanonOpts.Realloc;
   }
 
-  /// Getter for the owning component instance. Required for resolving
-  /// TypeIndex-based component types through the canonical ABI.
+  /// Getter for realloc function for canonical ABI conversion.
+  Runtime::Instance::FunctionInstance *getReallocFunction() const noexcept {
+    return CanonOpts.Realloc;
+  }
+
+  /// Getter for the owning component instance.
   const Runtime::Instance::ComponentInstance *
   getComponentInstance() const noexcept {
-    return ParentComp;
+    return CanonOpts.ParentComp;
   }
 
-  /// Getter for the post-return core function instance, or nullptr when the
-  /// canon lift declared no post-return option (CanonicalABI.md L3367-3372).
+  /// Getter for the post-return core function instance.
   Runtime::Instance::FunctionInstance *getPostReturnFunction() const noexcept {
-    return PostReturnFunc;
+    return CanonOpts.PostReturn;
   }
 
-  /// Getter for the guest string encoding declared by the canon lift's
-  /// `string-encoding` option (defaults to UTF-8).
-  StringEncoding getStringEncoding() const noexcept { return Enc; }
+  /// Getter for the guest string encoding declared by the canon lift option.
+  StringEncoding getStringEncoding() const noexcept {
+    return CanonOpts.StringEnc;
+  }
 
-protected:
-  const AST::Component::FuncType &FuncType;
+  /// Check if function is async.
+  bool isAsync() const noexcept { return CanonOpts.IsAsync; }
+
+private:
+  AST::Component::FuncType FuncType;
+  FunctionKind Kind;
+  CanonicalOptions CanonOpts;
+
   Runtime::Instance::FunctionInstance *LowerFunc;
-  Runtime::Instance::MemoryInstance *MemInst;
-  Runtime::Instance::FunctionInstance *ReallocFunc;
-  Runtime::Instance::FunctionInstance *PostReturnFunc;
-  const Runtime::Instance::ComponentInstance *ParentComp;
-  StringEncoding Enc;
+  std::unique_ptr<HostFunctionBase, HostFunctionDeleter> HostFunc;
 };
 
 } // namespace Component

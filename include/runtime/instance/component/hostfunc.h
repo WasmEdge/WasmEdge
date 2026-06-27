@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 #pragma once
 
-#include "ast/type.h"
+#include "ast/component/type.h"
 #include "common/symbol.h"
 #include "common/types.h"
 
@@ -20,24 +20,87 @@ public:
   HostFunctionBase() = default;
   virtual ~HostFunctionBase() = default;
 
-  /// Run host function body.
+  /// Run host function body with component value types.
   virtual Expect<void> run(Span<const ComponentValVariant> Args,
                            Span<ComponentValVariant> Rets) = 0;
 
-  /// Getter for function type.
-  const AST::FunctionType &getFuncType() const noexcept { return FuncType; }
-  AST::FunctionType &getFuncType() noexcept { return FuncType; }
+  /// Getter of component function type (uses component value types).
+  const AST::Component::FuncType &getComponentFuncType() const noexcept {
+    return CompFuncType;
+  }
+  AST::Component::FuncType &getComponentFuncType() noexcept {
+    return CompFuncType;
+  }
 
 protected:
-  AST::FunctionType FuncType;
+  AST::Component::FuncType CompFuncType;
+};
+
+/// Map C++ host-function parameter/return types to component value types.
+template <typename T> struct Wit;
+template <> struct Wit<bool> {
+  static ComponentValType type() noexcept {
+    return ComponentValType(ComponentTypeCode::Bool);
+  }
+};
+template <> struct Wit<uint8_t> {
+  static ComponentValType type() noexcept {
+    return ComponentValType(ComponentTypeCode::U8);
+  }
+};
+template <> struct Wit<uint16_t> {
+  static ComponentValType type() noexcept {
+    return ComponentValType(ComponentTypeCode::U16);
+  }
+};
+template <> struct Wit<uint32_t> {
+  static ComponentValType type() noexcept {
+    return ComponentValType(ComponentTypeCode::U32);
+  }
+};
+template <> struct Wit<uint64_t> {
+  static ComponentValType type() noexcept {
+    return ComponentValType(ComponentTypeCode::U64);
+  }
+};
+template <> struct Wit<int8_t> {
+  static ComponentValType type() noexcept {
+    return ComponentValType(ComponentTypeCode::S8);
+  }
+};
+template <> struct Wit<int16_t> {
+  static ComponentValType type() noexcept {
+    return ComponentValType(ComponentTypeCode::S16);
+  }
+};
+template <> struct Wit<int32_t> {
+  static ComponentValType type() noexcept {
+    return ComponentValType(ComponentTypeCode::S32);
+  }
+};
+template <> struct Wit<int64_t> {
+  static ComponentValType type() noexcept {
+    return ComponentValType(ComponentTypeCode::S64);
+  }
+};
+template <> struct Wit<float> {
+  static ComponentValType type() noexcept {
+    return ComponentValType(ComponentTypeCode::F32);
+  }
+};
+template <> struct Wit<double> {
+  static ComponentValType type() noexcept {
+    return ComponentValType(ComponentTypeCode::F64);
+  }
+};
+template <> struct Wit<std::string> {
+  static ComponentValType type() noexcept {
+    return ComponentValType(ComponentTypeCode::String);
+  }
 };
 
 template <typename ArgT> struct convert {
   static ArgT run(const ComponentValVariant &V) {
-    // ComponentValVariant uses the typed arm convention; the explicit
-    // specializations below are kept as documentation of the supported
-    // primitive set. Any unsupported ArgT fails to compile here, which
-    // mirrors std::variant's contract.
     return std::get<ArgT>(V);
   }
 };
@@ -72,6 +135,16 @@ template <> struct convert<int8_t> {
 template <> struct convert<int16_t> {
   static int16_t run(const ComponentValVariant &V) {
     return std::get<int16_t>(V);
+  }
+};
+template <> struct convert<int32_t> {
+  static int32_t run(const ComponentValVariant &V) {
+    return std::get<int32_t>(V);
+  }
+};
+template <> struct convert<int64_t> {
+  static int64_t run(const ComponentValVariant &V) {
+    return std::get<int64_t>(V);
   }
 };
 
@@ -153,6 +226,16 @@ template <> struct emplace<int8_t> {
 template <> struct emplace<int16_t> {
   static void run(ComponentValVariant &V, int16_t Arg) {
     V.emplace<int16_t>(Arg);
+  }
+};
+template <> struct emplace<int32_t> {
+  static void run(ComponentValVariant &V, int32_t Arg) {
+    V.emplace<int32_t>(Arg);
+  }
+};
+template <> struct emplace<int64_t> {
+  static void run(ComponentValVariant &V, int64_t Arg) {
+    V.emplace<int64_t>(Arg);
   }
 };
 template <> struct emplace<std::string> {
@@ -241,15 +324,19 @@ protected:
   }
 
   void initializeFuncType() {
-    auto &FuncType = getFuncType();
+    auto &FuncType = getComponentFuncType();
     using F = FuncTraits<decltype(&T::body)>;
     using ArgsT = typename F::ArgsT;
-    FuncType.getParamTypes().reserve(F::ArgsN);
-    pushValType<ArgsT>(std::make_index_sequence<F::ArgsN>());
+    std::vector<AST::Component::LabelValType> Params;
+    Params.reserve(F::ArgsN);
+    pushParamTypes<ArgsT>(Params, std::make_index_sequence<F::ArgsN>());
+    FuncType.setParamList(std::move(Params));
     if constexpr (F::hasReturn) {
-      FuncType.getReturnTypes().reserve(F::RetsN);
       using RetsT = typename F::RetsT;
-      pushRetType<RetsT>(std::make_index_sequence<F::RetsN>());
+      std::vector<AST::Component::LabelValType> Rets;
+      Rets.reserve(F::RetsN);
+      pushReturnTypes<RetsT>(Rets, std::make_index_sequence<F::RetsN>());
+      FuncType.setResultList(std::move(Rets));
     }
   }
 
@@ -293,17 +380,17 @@ private:
   }
 
   template <typename Tuple, std::size_t... Indices>
-  void pushValType(std::index_sequence<Indices...>) {
-    (FuncType.getParamTypes().push_back(
+  void pushParamTypes(std::vector<AST::Component::LabelValType> &Params,
+                      std::index_sequence<Indices...>) {
+    (Params.emplace_back(
          Wit<std::tuple_element_t<Indices, Tuple>>::type()),
      ...);
   }
 
   template <typename Tuple, std::size_t... Indices>
-  void pushRetType(std::index_sequence<Indices...>) {
-    (FuncType.getReturnTypes().push_back(
-         Wit<std::tuple_element_t<Indices, Tuple>>::type()),
-     ...);
+  void pushReturnTypes(std::vector<AST::Component::LabelValType> &Rets,
+                       std::index_sequence<Indices...>) {
+    (Rets.emplace_back(Wit<std::tuple_element_t<Indices, Tuple>>::type()), ...);
   }
 };
 

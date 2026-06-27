@@ -2295,4 +2295,385 @@ TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoReallocRejected) {
   EXPECT_FALSE(VM.validate());
 }
 
+// =============================================================================
+// Core instance global/table/memory checking via an imported core MODULE TYPE
+// (GAP-CI-1). Unlike the raw-module tests above, these drive the imported
+// module-type subtype path: the instantiated module's core externs come from a
+// CoreModuleType (not an inline AST::Module).
+// =============================================================================
+
+namespace {
+// Builds a component that links two imported core modules by type:
+//   (core type (module (export "g" <ExpDesc>)))      ;; core:type 0 (provider)
+//   (core type (module (import "provider" "g" <ImpDesc>)))  ;; core:type 1
+//   (import "provider-mod" (core module (type 0)))    ;; core:module 0
+//   (import "consumer-mod" (core module (type 1)))    ;; core:module 1
+//   (core instance (instantiate 0))                   ;; core instance 0
+//   (core instance (instantiate 1 (with "provider" (instance 0))))
+// so the provider's exported core extern is subtype-checked against the
+// consumer's import on instantiation.
+AST::Component::Component
+buildCoreModuleLinkComponent(AST::Component::CoreImportDesc ExpDesc,
+                             AST::Component::CoreImportDesc ImpDesc) {
+  AST::Component::Component Comp;
+
+  // CoreTypeSection with the two module types.
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
+  auto &CoreTypeSec =
+      std::get<AST::Component::CoreTypeSection>(Comp.getSections().back());
+
+  // core:type 0 (provider): (module (export "g" <ExpDesc>))
+  std::vector<AST::Component::CoreModuleDecl> Decls0;
+  AST::Component::CoreExportDecl CExp;
+  CExp.getName() = "g";
+  CExp.getImportDesc() = std::move(ExpDesc);
+  AST::Component::CoreModuleDecl DE;
+  DE.setExport(std::move(CExp));
+  Decls0.push_back(std::move(DE));
+  CoreTypeSec.getContent().emplace_back();
+  CoreTypeSec.getContent().back().setModuleType(std::move(Decls0));
+
+  // core:type 1 (consumer): (module (import "provider" "g" <ImpDesc>))
+  std::vector<AST::Component::CoreModuleDecl> Decls1;
+  AST::Component::CoreImportDecl CImp;
+  CImp.getModuleName() = "provider";
+  CImp.getName() = "g";
+  CImp.getImportDesc() = std::move(ImpDesc);
+  AST::Component::CoreModuleDecl DI;
+  DI.setImport(std::move(CImp));
+  Decls1.push_back(std::move(DI));
+  CoreTypeSec.getContent().emplace_back();
+  CoreTypeSec.getContent().back().setModuleType(std::move(Decls1));
+
+  // ImportSection: import the two core modules ascribed to those types.
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "provider-mod";
+  ImpSec.getContent().back().getDesc().setCoreTypeIdx(0);
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "consumer-mod";
+  ImpSec.getContent().back().getDesc().setCoreTypeIdx(1);
+
+  // CoreInstanceSection: instantiate provider then consumer.
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreInstanceSection>();
+  auto &CoreInstSec =
+      std::get<AST::Component::CoreInstanceSection>(Comp.getSections().back());
+  // Core instance 0: instantiate core module 0 (provider), no args.
+  CoreInstSec.getContent().emplace_back();
+  CoreInstSec.getContent().back().setInstantiateArgs(
+      0U, AST::Component::CoreInstance::InstantiateArgs{});
+  // Core instance 1: instantiate core module 1 (consumer) with the provider.
+  AST::Component::InstantiateArg<uint32_t> Arg;
+  Arg.getName() = "provider";
+  Arg.getIndex() = 0U;
+  CoreInstSec.getContent().emplace_back();
+  CoreInstSec.getContent().back().setInstantiateArgs(1U, {Arg});
+  return Comp;
+}
+
+// Helper: build a CoreImportDesc carrying a global type.
+AST::Component::CoreImportDesc mkGlobalDesc(ValType VT, ValMut Mut) {
+  AST::Component::CoreImportDesc D;
+  D.setGlobalType(AST::GlobalType(VT, Mut));
+  return D;
+}
+
+// Helper: build a CoreImportDesc carrying a table type.
+AST::Component::CoreImportDesc mkTableDesc(ValType RefT, uint64_t Min) {
+  AST::Component::CoreImportDesc D;
+  D.setTableType(AST::TableType(RefT, Min));
+  return D;
+}
+
+// Helper: build a CoreImportDesc carrying a memory type.
+AST::Component::CoreImportDesc mkMemoryDesc(const AST::Limit &L) {
+  AST::Component::CoreImportDesc D;
+  D.setMemoryType(AST::MemoryType(L));
+  return D;
+}
+} // namespace
+
+TEST(ComponentValidatorTest, CoreInstanceImportGlobalTypeMismatchRejected) {
+  // Provider exports (global (mut i64)); consumer imports (global (mut i32)).
+  auto Comp =
+      buildCoreModuleLinkComponent(mkGlobalDesc(TypeCode::I64, ValMut::Var),
+                                   mkGlobalDesc(TypeCode::I32, ValMut::Var));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest,
+     CoreInstanceImportGlobalMutabilityMismatchRejected) {
+  // Same value type but mutability differs (var vs const) -> reject.
+  auto Comp =
+      buildCoreModuleLinkComponent(mkGlobalDesc(TypeCode::I32, ValMut::Const),
+                                   mkGlobalDesc(TypeCode::I32, ValMut::Var));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CoreInstanceImportGlobalTypeMatchAccepted) {
+  // Provider and consumer agree on (global (mut i64)) -> accept.
+  auto Comp =
+      buildCoreModuleLinkComponent(mkGlobalDesc(TypeCode::I64, ValMut::Var),
+                                   mkGlobalDesc(TypeCode::I64, ValMut::Var));
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CoreInstanceImportTableElemTypeMismatchRejected) {
+  // Provider exports a funcref table; consumer imports an externref table.
+  auto Comp = buildCoreModuleLinkComponent(mkTableDesc(TypeCode::FuncRef, 1),
+                                           mkTableDesc(TypeCode::ExternRef, 1));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CoreInstanceImportTableLimitsMismatchRejected) {
+  // Consumer requires min 5; provider only offers min 1 -> reject.
+  auto Comp = buildCoreModuleLinkComponent(mkTableDesc(TypeCode::FuncRef, 1),
+                                           mkTableDesc(TypeCode::FuncRef, 5));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CoreInstanceImportTableTypeMatchAccepted) {
+  // Provider offers min 5 where consumer requires min 1 -> accept.
+  auto Comp = buildCoreModuleLinkComponent(mkTableDesc(TypeCode::FuncRef, 5),
+                                           mkTableDesc(TypeCode::FuncRef, 1));
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest,
+     CoreInstanceImportMemoryIndexTypeMismatchRejected) {
+  // Provider exports a 32-bit memory; consumer imports a 64-bit memory.
+  auto Comp = buildCoreModuleLinkComponent(mkMemoryDesc(AST::Limit(1)),
+                                           mkMemoryDesc(AST::Limit(1, true)));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, ValueNotConsumedAtEndOfComponent) {
+  // Import a value, never consume it -> reject
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "val0";
+  ImpSec.getContent().back().getDesc().setValueBound(
+      ComponentValType(ComponentTypeCode::U32));
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueNotConsumed);
+}
+
+TEST(ComponentValidatorTest, ValueConsumedExactlyOnceByExport) {
+  // Import a value, export it once -> accept
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "val0";
+  ImpSec.getContent().back().getDesc().setValueBound(
+      ComponentValType(ComponentTypeCode::U32));
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ExportSection>();
+  auto &ExpSec =
+      std::get<AST::Component::ExportSection>(Comp.getSections().back());
+  ExpSec.getContent().emplace_back();
+  ExpSec.getContent().back().getName() = "exp0";
+  ExpSec.getContent().back().getSortIndex().getSort().setIsCore(false);
+  ExpSec.getContent().back().getSortIndex().getSort().setSortType(
+      AST::Component::Sort::SortType::Value);
+  ExpSec.getContent().back().getSortIndex().setIdx(0);
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_TRUE(Res);
+}
+
+TEST(ComponentValidatorTest, ExportConsumesSameValueTwice) {
+  // Import a value, export it twice -> reject
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "val0";
+  ImpSec.getContent().back().getDesc().setValueBound(
+      ComponentValType(ComponentTypeCode::U32));
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ExportSection>();
+  auto &ExpSec =
+      std::get<AST::Component::ExportSection>(Comp.getSections().back());
+
+  ExpSec.getContent().emplace_back();
+  ExpSec.getContent().back().getName() = "exp0";
+  ExpSec.getContent().back().getSortIndex().getSort().setIsCore(false);
+  ExpSec.getContent().back().getSortIndex().getSort().setSortType(
+      AST::Component::Sort::SortType::Value);
+  ExpSec.getContent().back().getSortIndex().setIdx(0);
+
+  ExpSec.getContent().emplace_back();
+  ExpSec.getContent().back().getName() = "exp1";
+  ExpSec.getContent().back().getSortIndex().getSort().setIsCore(false);
+  ExpSec.getContent().back().getSortIndex().getSort().setSortType(
+      AST::Component::Sort::SortType::Value);
+  ExpSec.getContent().back().getSortIndex().setIdx(0);
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueAlreadyConsumed);
+}
+
+TEST(ComponentValidatorTest, ValueConsumedExactlyOnceByStart) {
+  // Import a value, call a start function with that value -> accept
+  AST::Component::Component Comp;
+
+  // 1. Define a function type (param: u32, result: none)
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  TypeSec.getContent().emplace_back();
+  AST::Component::FuncType FT;
+  FT.setParamList({AST::Component::LabelValType(
+      "arg0"s, ComponentValType(ComponentTypeCode::U32))});
+  TypeSec.getContent().back().setFuncType(std::move(FT));
+
+  // 2. Import section: first import the value, then the function using type 0
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "val0";
+  ImpSec.getContent().back().getDesc().setValueBound(
+      ComponentValType(ComponentTypeCode::U32));
+
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "func0";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  // 3. Start section calling func0 (funcidx 0) with val0 (valueidx 0)
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::StartSection>();
+  auto &StartSec =
+      std::get<AST::Component::StartSection>(Comp.getSections().back());
+  StartSec.getContent().getFunctionIndex() = 0;
+  StartSec.getContent().getArguments() = {0};
+  StartSec.getContent().getResult() = 0;
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_TRUE(Res);
+}
+
+TEST(ComponentValidatorTest, StartConsumesSameValueTwice) {
+  // Import a value, call a start function with two params using same value
+  // twice
+  // -> reject
+  AST::Component::Component Comp;
+
+  // 1. Define a function type (param: u32, u32, result: none)
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  TypeSec.getContent().emplace_back();
+  AST::Component::FuncType FT;
+  FT.setParamList({AST::Component::LabelValType(
+                       "arg0"s, ComponentValType(ComponentTypeCode::U32)),
+                   AST::Component::LabelValType(
+                       "arg1"s, ComponentValType(ComponentTypeCode::U32))});
+  TypeSec.getContent().back().setFuncType(std::move(FT));
+
+  // 2. Import section: first import the value, then the function using type 0
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "val0";
+  ImpSec.getContent().back().getDesc().setValueBound(
+      ComponentValType(ComponentTypeCode::U32));
+
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "func0";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  // 3. Start section calling func0 (funcidx 0) with args {0, 0}
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::StartSection>();
+  auto &StartSec =
+      std::get<AST::Component::StartSection>(Comp.getSections().back());
+  StartSec.getContent().getFunctionIndex() = 0;
+  StartSec.getContent().getArguments() = {0, 0};
+  StartSec.getContent().getResult() = 0;
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueAlreadyConsumed);
+}
+
+TEST(ComponentValidatorTest, StartArgumentValueIndexOutOfBounds) {
+  // Call a start function whose argument references a value index that does not
+  // exist in the (empty) value index space -> reject with InvalidIndex.
+  AST::Component::Component Comp;
+
+  // 1. Define a function type (param: u32, result: none).
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  TypeSec.getContent().emplace_back();
+  AST::Component::FuncType FT;
+  FT.setParamList({AST::Component::LabelValType(
+      "arg0"s, ComponentValType(ComponentTypeCode::U32))});
+  TypeSec.getContent().back().setFuncType(std::move(FT));
+
+  // 2. Import only the function (no value is imported, so the value index
+  // space stays empty).
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "func0";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  // 3. Start section calling func0 with value index 0, which is out of bounds.
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::StartSection>();
+  auto &StartSec =
+      std::get<AST::Component::StartSection>(Comp.getSections().back());
+  StartSec.getContent().getFunctionIndex() = 0;
+  StartSec.getContent().getArguments() = {0};
+  StartSec.getContent().getResult() = 0;
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::InvalidIndex);
+}
+
 } // namespace

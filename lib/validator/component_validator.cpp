@@ -338,6 +338,17 @@ Validator::validateComponent(const AST::Component::Component &Comp) noexcept {
     };
     EXPECTED_TRY(std::visit(Func, Sec));
   }
+  // Value linearity: every value in the value index space must have been
+  // consumed exactly once before the component scope closes.
+  if (auto Idx = CompCtx.firstUnconsumedValue()) {
+    spdlog::error(ErrCode::Value::ComponentValueNotConsumed);
+    spdlog::error(
+        "    Component: value index {} was not consumed before end of component"sv,
+        *Idx);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+    CompCtx.exitComponent();
+    return Unexpect(ErrCode::Value::ComponentValueNotConsumed);
+  }
   CompCtx.exitComponent();
   return {};
 }
@@ -515,10 +526,8 @@ Validator::validate(const AST::Component::StartSection &StartSec) noexcept {
   //   2. `f`'s functype param arity equals |arg*| and result arity equals
   //      `r`. Per-argument value-type subtype is checked once subtype
   //      machinery exists (Phase 3).
-  //   3. Each argument index is in bounds of the value index space.
-  //      Per-value linearity (consume-once) is the responsibility of
-  //      GAP-EX-4: the per-value `consumed` flag and the end-of-component
-  //      "all consumed" pass. They are not yet wired here.
+  //   3. Each argument index is in bounds of the value index space and
+  //      has not already been consumed (value linearity).
   //   4. The function's result types are appended to the value index space
   //      as fresh values, so later definitions can reference them.
   const auto &Start = StartSec.getContent();
@@ -563,18 +572,21 @@ Validator::validate(const AST::Component::StartSection &StartSec) noexcept {
     }
   }
 
-  // 3. Argument indices must be in value index space bounds. Per-arg
-  // consume-once tracking is deferred (GAP-EX-4).
-  const uint32_t ValueSpaceSize =
-      CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Value);
+  // 3. Each argument index must be in value index space bounds and must not
+  // have been consumed already (value linearity).
   for (const uint32_t ArgIdx : Start.getArguments()) {
-    if (ArgIdx >= ValueSpaceSize) {
-      spdlog::error(ErrCode::Value::InvalidIndex);
-      spdlog::error(
-          "    Start: argument value index {} exceeds value index space size {}"sv,
-          ArgIdx, ValueSpaceSize);
+    if (auto Res = CompCtx.consumeValue(ArgIdx); !Res) {
+      spdlog::error(Res.error());
+      if (Res.error() == ErrCode::Value::InvalidIndex) {
+        spdlog::error(
+            "    Start: argument value index {} is out of value index space bounds"sv,
+            ArgIdx);
+      } else {
+        spdlog::error("    Start: value index {} has already been consumed"sv,
+                      ArgIdx);
+      }
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Start));
-      return Unexpect(ErrCode::Value::InvalidIndex);
+      return Unexpect(Res);
     }
   }
 
@@ -2223,9 +2235,9 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
   //   4. The export name is strongly-unique across exports.
   //   5. The export introduces a new index aliasing the definition in the
   //      component's own index space for its sort.
+  //   6. If the sort is `value`, the value is consumed (value linearity).
   //
-  // Not yet enforced: transitive resource-avoidance in exported types;
-  // flipping the "consumed" flag for value exports.
+  // Not yet enforced: transitive resource-avoidance in exported types.
 
   // Validate the sortidx bounds.
   const auto &Sort = Ex.getSortIndex().getSort();
@@ -2252,6 +2264,15 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
       spdlog::error("    Export: sort index {} out of bounds"sv, Idx);
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
       return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
+    }
+    if (Sort.getSortType() == AST::Component::Sort::SortType::Value) {
+      if (auto Res = CompCtx.consumeValue(Idx); !Res) {
+        spdlog::error(Res.error());
+        spdlog::error("    Export: value index {} has already been consumed"sv,
+                      Idx);
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+        return Unexpect(Res);
+      }
     }
   }
 
@@ -2310,7 +2331,11 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
         }
       }
     }
-    uint32_t NewIdx = CompCtx.incSortIndexSize(Sort.getSortType());
+
+    uint32_t NewIdx =
+        Sort.getSortType() == AST::Component::Sort::SortType::Value
+            ? CompCtx.addValue(/*Consumed=*/true)
+            : CompCtx.incSortIndexSize(Sort.getSortType());
     if (IsInst) {
       if (IT != nullptr) {
         populateInstanceFromType(NewIdx, *IT);
@@ -2337,7 +2362,7 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
   // matching the descriptor's sort:
   //   * core module (CoreType) → core:module
   //   * func                   → func
-  //   * value                  → value (consumed=false; not yet tracked)
+  //   * value                  → value (consumed=false)
   //   * type (eq i)            → type aliased to i (resource property
   //                              propagated when i refers to a resource)
   //   * type (sub resource)    → fresh abstract resource type

@@ -65,6 +65,7 @@ public:
     struct InstanceSlot {
       std::unordered_map<std::string, InstanceExport> Exports;
       const AST::Component::InstanceType *Type;
+      bool FromInstantiate = false;
       InstanceSlot() : Type(nullptr) {}
       InstanceSlot(const AST::Component::InstanceType *T) : Type(T) {}
     };

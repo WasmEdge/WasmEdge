@@ -1145,10 +1145,12 @@ E(ComponentTableLimitsMismatch, 0x02BE, "mismatch in table limits")
 // Core instance arg table element type does not match the import
 E(ComponentTableElemTypeMismatch, 0x02BF, "type mismatch in table element type")
 // Value linearity: each value must be consumed exactly once (GAP-EX-4)
-E(ComponentValueAlreadyConsumed, 0x02C0,
-  "value has already been consumed")
+E(ComponentValueAlreadyConsumed, 0x02C0, "value has already been consumed")
 E(ComponentValueNotConsumed, 0x02C1,
   "value was not consumed before end of component")
+E(ComponentAliasUnknownExportModule, 0x02C2, "alias unknown export module")
+E(ComponentAliasUnknownExportName, 0x02C3, "alias unknown export name")
+E(ComponentInvalidOuterAliasCount, 0x02C4, "invalid outer alias count")
 // @}
 
 // Instantiation phase

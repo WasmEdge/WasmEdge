@@ -392,6 +392,13 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       Conf.getStatisticsConfigure().setTimeMeasuring(true);
     }
   }
+  const auto &StatsFmt = Opt.ConfStatsFormat.value();
+  if (StatsFmt == "json") {
+    Conf.getStatisticsConfigure().setStatsOutputFormat(
+        Configure::StatisticsConfigure::StatsOutputFormat::JSON);
+  } else if (!StatsFmt.empty() && StatsFmt != "human") {
+    fmt::print(stderr, "Unknown --stats-format value '{}'; defaulting to human.\n"sv, StatsFmt);
+  }
   // Determine the effective run mode.
   // Precedence: --run-mode > deprecated --enable-jit / --force-interpreter.
   RunMode RunModeFromFlag = RunMode::Interpreter;

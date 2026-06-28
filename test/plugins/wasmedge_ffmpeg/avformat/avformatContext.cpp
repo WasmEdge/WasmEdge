@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "avformat/avformatContext.h"
 #include "avformat/module.h"
@@ -26,11 +26,9 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
 
   auto *FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_iformat");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxIFormat = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxIFormat &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatCtxIFormat = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFormatCtxIFormat.run(
@@ -44,11 +42,9 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_oformat");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxOFormat = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxOFormat &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatCtxOFormat = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFormatCtxOFormat.run(
@@ -62,11 +58,9 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_probescope");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxProbeScore = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxProbeScore &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatCtxProbeScore = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFormatCtxProbeScore.run(
@@ -77,11 +71,9 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_nb_streams");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxNbStreams = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxNbStreams &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatCtxNbStreams = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFormatCtxNbStreams.run(
@@ -92,26 +84,22 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_duration");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxDuration = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxDuration &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatCtxDuration = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFormatCtxDuration.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
         Result));
-    EXPECT_TRUE(Result[0].get<int64_t>() >= 0 || Result[0].get<int64_t>() < 0);
+    EXPECT_EQ(Result[0].get<int64_t>(), AV_NOPTS_VALUE);
   }
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_bit_rate");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxBitRate = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxBitRate &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatCtxBitRate = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFormatCtxBitRate.run(
@@ -122,19 +110,15 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_set_nb_chapters");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxSetNbChapters = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxSetNbChapters &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatCtxSetNbChapters = FuncInst->getHostFunc();
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_nb_chapters");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxNbChapters = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxNbChapters &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatCtxNbChapters = FuncInst->getHostFunc();
   {
     uint32_t NbChapters = 200;
     EXPECT_TRUE(HostFuncAVFormatCtxSetNbChapters.run(
@@ -151,19 +135,15 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_metadata");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxMetadata = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxMetadata &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatCtxMetadata = FuncInst->getHostFunc();
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_set_metadata");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFormatCtxSetMetadata = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatCtxSetMetadata &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatCtxSetMetadata = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVFormatCtxMetadata.run(

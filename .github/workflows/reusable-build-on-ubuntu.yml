@@ -42,7 +42,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y pkg-config
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -56,7 +56,7 @@ jobs:
         run: |
           git config --global --add safe.directory $(pwd)
       - name: Build (${{ matrix.compiler }}, ${{ matrix.build_type }})
-        if: ${{ !matrix.coverage }}
+        if: ${{ !matrix.coverage && !matrix.fuzzing }}
         shell: bash
         env:
           CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
@@ -68,8 +68,17 @@ jobs:
           fi
           cmake --build build
           cmake --build build --target package
+      - name: Build fuzzer (${{ matrix.compiler }}, ${{ matrix.build_type }})
+        if: ${{ matrix.fuzzing }}
+        shell: bash
+        env:
+          CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
+        run: |
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_FUZZING=ON -DWASMEDGE_BUILD_TOOLS=OFF .
+          cmake --build build --target wasmedge-fuzzpo
+          cmake --build build --target wasmedge-fuzztool
       - name: Test
-        if: ${{ !matrix.coverage && matrix.tests }}
+        if: ${{ !matrix.coverage && !matrix.fuzzing && matrix.tests }}
         run: |
           export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
           cd build
@@ -77,13 +86,13 @@ jobs:
           ctest
           cd -
       - name: Install wasm-tools
-        if: ${{ !matrix.coverage && matrix.tests }}
+        if: ${{ !matrix.coverage && !matrix.fuzzing && matrix.tests }}
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           source "$HOME/.cargo/env"
           cargo install wasm-tools@1.245.1
       - name: Component Fuzz Test
-        if: ${{ !matrix.coverage && matrix.tests }}
+        if: ${{ !matrix.coverage && !matrix.fuzzing && matrix.tests }}
         env:
           FUZZ_ITERATION_COUNT: 100
         run: |
@@ -91,7 +100,7 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
           bash test/component/fuzzing/run_fuzz.sh ./build/test/component/fuzzing/wasmedgeComponentFuzzTest
       - name: Check symbol exposure
-        if: ${{ !matrix.coverage }}
+        if: ${{ !matrix.coverage && !matrix.fuzzing }}
         run: |
           bash .github/scripts/check_symbols.sh
       - name: Build (${{ matrix.compiler }}, Coverage)
@@ -103,7 +112,7 @@ jobs:
           cmake --build build
           LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target codecov
       - name: Upload artifact
-        if: ${{ !inputs.release && !matrix.coverage }}
+        if: ${{ !inputs.release && !matrix.coverage && !matrix.fuzzing }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: WasmEdge-${{ inputs.version }}-${{ matrix.name }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ matrix.arch }}.tar.gz

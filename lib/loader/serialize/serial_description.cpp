@@ -1,6 +1,6 @@
 
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "loader/serialize.h"
 
@@ -69,8 +69,6 @@ Serializer::serializeDesc(const AST::ExportDesc &Desc,
       return logNeedProposal(ErrCode::Value::MalformedExportKind,
                              Proposal::ExceptionHandling, ASTNodeAttr::Module);
     }
-    serializeU32(Desc.getExternalIndex(), OutVec);
-    return {};
   }
   serializeU32(Desc.getExternalIndex(), OutVec);
   return {};

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -788,29 +788,31 @@ public:
   using Poller::result;
   using Poller::wait;
 
-  void read(std::shared_ptr<VINode> Fd, TriggerType Trigger,
+  void read(std::shared_ptr<VINode> Node, TriggerType Trigger,
             __wasi_userdata_t UserData) noexcept {
-    if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
-        !Fd->can(__WASI_RIGHTS_FD_READ)) {
+    if (!Node->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
+        !Node->can(__WASI_RIGHTS_FD_READ)) {
       Poller::error(UserData, __WASI_ERRNO_NOTCAPABLE,
                     __WASI_EVENTTYPE_FD_READ);
     } else {
-      Poller::read(Fd->Node, Trigger, UserData);
+      Poller::read(Node->Node, Trigger, UserData);
     }
   }
 
-  void write(std::shared_ptr<VINode> Fd, TriggerType Trigger,
+  void write(std::shared_ptr<VINode> Node, TriggerType Trigger,
              __wasi_userdata_t UserData) noexcept {
-    if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
-        !Fd->can(__WASI_RIGHTS_FD_WRITE)) {
+    if (!Node->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
+        !Node->can(__WASI_RIGHTS_FD_WRITE)) {
       Poller::error(UserData, __WASI_ERRNO_NOTCAPABLE,
                     __WASI_EVENTTYPE_FD_WRITE);
     } else {
-      Poller::write(Fd->Node, Trigger, UserData);
+      Poller::write(Node->Node, Trigger, UserData);
     }
   }
 
-  void close(std::shared_ptr<VINode> Fd) noexcept { Poller::close(Fd->Node); }
+  void close(std::shared_ptr<VINode> Node) noexcept {
+    Poller::close(Node->Node);
+  }
 };
 
 } // namespace WASI

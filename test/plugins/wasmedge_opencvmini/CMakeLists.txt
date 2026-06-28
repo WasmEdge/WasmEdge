@@ -1,9 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 wasmedge_add_executable(wasmedgeOpencvminiTests
   wasmedge_opencvmini.cpp
 )
+
+# OpenCV headers come in through the plugin's include directories as regular
+# includes and trip the shadow warnings; they are not ours to fix.
+wasmedge_suppress_shadow_warnings(wasmedgeOpencvminiTests)
 
 add_dependencies(wasmedgeOpencvminiTests
   wasmedgePluginWasmEdgeOpenCVMini

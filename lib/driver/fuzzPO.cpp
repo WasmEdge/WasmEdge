@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #ifdef WASMEDGE_BUILD_FUZZING
 #include "driver/fuzzPO.h"
@@ -178,6 +178,8 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
   //     PO::Description("Disable Memory64 proposal"sv));
   PO::Option<PO::Toggle> PropThreads(
       PO::Description("Enable Threads proposal"sv));
+  PO::Option<PO::Toggle> PropComponent(PO::Description(
+      "Enable Component Model proposal, this is experimental"sv));
   PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
 
   PO::Option<PO::Toggle> ConfEnableInstructionCounting(PO::Description(

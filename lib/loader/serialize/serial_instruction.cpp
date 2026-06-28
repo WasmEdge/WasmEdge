@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "loader/serialize.h"
 
@@ -524,9 +524,8 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   // SIMD Shuffle Instruction.
   case OpCode::I8x16__shuffle: {
     uint128_t Value = Instr.getNum().get<uint128_t>();
-    const std::uint8_t *Ptr = reinterpret_cast<const uint8_t *>(&Value);
     for (uint32_t I = 0; I < 16; ++I) {
-      OutVec.push_back(Ptr[15 - I]);
+      OutVec.push_back(static_cast<uint8_t>(Value >> (I * 8)));
     }
     return {};
   }

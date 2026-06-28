@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "loader/serialize.h"
 
@@ -1334,6 +1334,61 @@ TEST(SerializeInstructionTest, SerializeConstInstruction) {
       0x18U, 0x2DU, 0x44U, 0x54U,
       0xFBU, 0x21U, 0x09U, 0xC0U, // F64 -3.1415926535897932
       0x0BU                       // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+}
+
+TEST(SerializeInstructionTest, SerializeSIMDConstInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 13. Test SIMD const and shuffle instructions.
+  //
+  //   1.  Serialize V128__const instruction.
+  //   2.  Serialize I8x16__shuffle instruction.
+
+  WasmEdge::AST::Instruction V128Const(WasmEdge::OpCode::V128__const);
+  WasmEdge::AST::Instruction I8x16Shuffle(WasmEdge::OpCode::I8x16__shuffle);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  // Use an asymmetric 16-byte pattern so byte-order bugs are detectable.
+  WasmEdge::uint128_t Value = 0U;
+  for (uint32_t I = 0; I < 16; ++I) {
+    Value |= static_cast<WasmEdge::uint128_t>(I + 1) << (I * 8);
+  }
+
+  V128Const.setNum(Value);
+  Instructions = {V128Const, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x16U,        // Content size = 22
+      0x01U,        // Vector length = 1
+      0x14U,        // Code segment size = 20
+      0x00U,        // Local vec(0)
+      0xFDU, 0x0CU, // OpCode V128__const.
+      0x01U, 0x02U, 0x03U, 0x04U, 0x05U, 0x06U, 0x07U, 0x08U,
+      0x09U, 0x0AU, 0x0BU, 0x0CU, 0x0DU, 0x0EU, 0x0FU, 0x10U,
+      0x0BU // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  I8x16Shuffle.setNum(Value);
+  Instructions = {I8x16Shuffle, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x16U,        // Content size = 22
+      0x01U,        // Vector length = 1
+      0x14U,        // Code segment size = 20
+      0x00U,        // Local vec(0)
+      0xFDU, 0x0DU, // OpCode I8x16__shuffle.
+      0x01U, 0x02U, 0x03U, 0x04U, 0x05U, 0x06U, 0x07U, 0x08U,
+      0x09U, 0x0AU, 0x0BU, 0x0CU, 0x0DU, 0x0EU, 0x0FU, 0x10U,
+      0x0BU // Expression End.
   };
   EXPECT_EQ(Output, Expected);
 }

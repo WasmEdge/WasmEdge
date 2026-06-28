@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/executable.h - Executable Code definition ---------===//
 //
@@ -90,8 +90,7 @@ public:
   virtual std::vector<Symbol<void>> getCodes(size_t Offset,
                                              size_t Size) noexcept = 0;
 
-  virtual bool isLazy() const noexcept { return false; }
-
+protected:
   template <typename T> Symbol<T> createSymbol(T *Pointer) const noexcept {
     return Symbol<T>(shared_from_this(), Pointer);
   }

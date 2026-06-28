@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "avutil/avDictionary.h"
 #include "avutil/module.h"
@@ -28,11 +28,9 @@ TEST_F(FFmpegTest, AVDictionary) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_set");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVDictSet =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictSet &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVDictSet = FuncInst->getHostFunc();
 
   // Fill 0 in WasmMemory.
   fillMemContent(MemInst, KeyStart, KeyLen + ValueLen);
@@ -52,11 +50,9 @@ TEST_F(FFmpegTest, AVDictionary) {
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_copy");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVDictCopy =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictCopy &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVDictCopy = FuncInst->getHostFunc();
 
   {
     uint32_t DestDictPtr = UINT32_C(80);
@@ -70,11 +66,9 @@ TEST_F(FFmpegTest, AVDictionary) {
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_get");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVDictGet =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictGet &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVDictGet = FuncInst->getHostFunc();
 
   {
     // Store the string lengths of Key and value in the pointers below.
@@ -104,11 +98,9 @@ TEST_F(FFmpegTest, AVDictionary) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_dict_get_key_value");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVDictGetKeyValue =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictGetKeyValue &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVDictGetKeyValue = FuncInst->getHostFunc();
 
   {
     // Store the strings of Key and value in the buffer pointers below.
@@ -122,7 +114,12 @@ TEST_F(FFmpegTest, AVDictionary) {
             UINT32_C(3), PrevDictEntryIdx, Flags},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), 1);
-    // Verify String. Read String from MemInst
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(KeyBufPtr),
+                               static_cast<size_t>(KeyLen)),
+              "KEY"sv);
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(ValueBufPtr),
+                               static_cast<size_t>(ValueLen)),
+              "VALUE"sv);
 
     // Pass a Null Dict and testing.
     EXPECT_TRUE(HostFuncAVDictGetKeyValue.run(
@@ -136,11 +133,9 @@ TEST_F(FFmpegTest, AVDictionary) {
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_free");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVDictFree =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDictFree &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVDictFree = FuncInst->getHostFunc();
 
   {
     uint32_t DictId = readUInt32(MemInst, DictPtr);

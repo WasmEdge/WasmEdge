@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -1252,15 +1252,15 @@ public:
 
   /// Concurrently poll for a ready-to-read event.
   ///
-  /// @param[in] Fd The file descriptor on which to wait for it to become ready
-  /// for reading.
+  /// @param[in] WasiFd The file descriptor on which to wait for it to become
+  /// ready for reading.
   /// @param[in] Trigger Specifying whether the notification is level-trigger or
   /// edge-trigger.
   /// @param[in] UserData User-provided value that may be attached to objects
   /// that is retained when extracted from the implementation.
-  void read(__wasi_fd_t Fd, TriggerType Trigger,
+  void read(__wasi_fd_t WasiFd, TriggerType Trigger,
             __wasi_userdata_t UserData) noexcept {
-    if (auto Node = env().getNodeOrNull(Fd); unlikely(!Node)) {
+    if (auto Node = env().getNodeOrNull(WasiFd); unlikely(!Node)) {
       VPoller::error(UserData, __WASI_ERRNO_BADF, __WASI_EVENTTYPE_FD_READ);
     } else {
       VPoller::read(Node, Trigger, UserData);
@@ -1269,15 +1269,15 @@ public:
 
   /// Concurrently poll for a ready-to-write event.
   ///
-  /// @param[in] Fd The file descriptor on which to wait for it to become ready
-  /// for writing.
+  /// @param[in] WasiFd The file descriptor on which to wait for it to become
+  /// ready for writing.
   /// @param[in] Trigger Specifying whether the notification is level-trigger or
   /// edge-trigger.
   /// @param[in] UserData User-provided value that may be attached to objects
   /// that is retained when extracted from the implementation.
-  void write(__wasi_fd_t Fd, TriggerType Trigger,
+  void write(__wasi_fd_t WasiFd, TriggerType Trigger,
              __wasi_userdata_t UserData) noexcept {
-    if (auto Node = env().getNodeOrNull(Fd); unlikely(!Node)) {
+    if (auto Node = env().getNodeOrNull(WasiFd); unlikely(!Node)) {
       VPoller::error(UserData, __WASI_ERRNO_BADF, __WASI_EVENTTYPE_FD_WRITE);
     } else {
       VPoller::write(Node, Trigger, UserData);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 #pragma once
 
 #include "llvm.h"
@@ -18,7 +18,6 @@ struct WasmEdge::LLVM::Data::DataContext {
 #endif
   LLVM::Module LLModule;
   LLVM::TargetMachine TM;
-  std::string Prefix;
   DataContext() noexcept : LLModule(getLLContext(), "wasm") {}
   void resetModule() noexcept {
     LLModule = LLVM::Module(getLLContext(), "wasm");

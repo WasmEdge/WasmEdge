@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "loader/serialize.h"
 
@@ -213,12 +213,12 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createExportSec(Desc), Output));
   Expected = {
-      0x07U,
-      0x0AU,
-      0x01U,
-      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U,
-      0x04U,
-      0x02U
+      0x07U,                                           // Export section
+      0x0AU,                                           // Content size = 10
+      0x01U,                                           // Vector length = 1
+      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // External name: Loader
+      0x04U,                                           // Tag type
+      0x02U                                            // TypeIdx value
   };
   EXPECT_EQ(Expected, Output);
 

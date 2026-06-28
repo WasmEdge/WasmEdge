@@ -88,13 +88,18 @@ public:
       std::optional<AST::MemoryType> Mem;
       std::optional<AST::TableType> Tab;
       std::optional<AST::GlobalType> Glob;
+      // For function exports: the address-stable core SubType of the exported
+      // func, when resolvable from a concrete core module. Used so a
+      // `(core func $i "foo")` alias can thread foo's real signature into the
+      // core:func space for canon signature checks. nullptr when unknown.
+      const AST::SubType *Func = nullptr;
 
       CoreInstanceExport() noexcept = default;
       // Copies whichever core extern type is provided (the others stay empty).
       CoreInstanceExport(ExternalType K, const AST::MemoryType *M,
-                         const AST::TableType *T,
-                         const AST::GlobalType *G) noexcept
-          : Kind(K) {
+                         const AST::TableType *T, const AST::GlobalType *G,
+                         const AST::SubType *F = nullptr) noexcept
+          : Kind(K), Func(F) {
         if (M != nullptr) {
           Mem = *M;
         }
@@ -284,9 +289,10 @@ public:
                              ExternalType ET,
                              const AST::MemoryType *Mem = nullptr,
                              const AST::TableType *Tab = nullptr,
-                             const AST::GlobalType *Glob = nullptr) {
+                             const AST::GlobalType *Glob = nullptr,
+                             const AST::SubType *Func = nullptr) {
     getCurrentContext().CoreInstances.at(InstIdx)[std::string(Name)] =
-        Context::CoreInstanceExport{ET, Mem, Tab, Glob};
+        Context::CoreInstanceExport{ET, Mem, Tab, Glob, Func};
   }
 
   // ==========================================================================

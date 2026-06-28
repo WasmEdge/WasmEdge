@@ -437,6 +437,23 @@ Validator::validate(const AST::Component::AliasSection &AliasSec) noexcept {
           }
         }
         NewCoreIdx = CompCtx.addCoreMemory(SrcMem);
+      } else if (Alias.getTargetType() ==
+                     AST::Component::Alias::TargetType::CoreExport &&
+                 Sort.getCoreSortType() ==
+                     AST::Component::Sort::CoreSortType::Func) {
+        // Carry the source func's SubType into the core:func space so canon
+        // signature checks can run. nullptr if not resolvable.
+        const AST::SubType *SrcFunc = nullptr;
+        const auto SrcIdx = Alias.getExport().first;
+        if (SrcIdx < CompCtx.getCoreSortIndexSize(
+                         AST::Component::Sort::CoreSortType::Instance)) {
+          const auto &Exports = CompCtx.getCoreInstance(SrcIdx);
+          const auto It = Exports.find(std::string(Alias.getExport().second));
+          if (It != Exports.end()) {
+            SrcFunc = It->second.Func;
+          }
+        }
+        NewCoreIdx = CompCtx.addCoreFunc(SrcFunc);
       } else {
         NewCoreIdx = CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
       }
@@ -829,8 +846,32 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
             }
           }
         }
+        // Resolve the exported func's SubType so an alias can thread its
+        // signature into the core:func space for canon signature checks.
+        const AST::SubType *FuncTy = nullptr;
+        if (ExportDesc.getExternalType() == ExternalType::Function) {
+          const uint32_t Target = ExportDesc.getExternalIndex();
+          uint32_t FuncImpCount = 0;
+          for (const auto &Imp : Mod->getImportSection().getContent()) {
+            if (Imp.getExternalType() == ExternalType::Function) {
+              ++FuncImpCount;
+            }
+          }
+          if (Target >= FuncImpCount) {
+            const auto Funcs = Mod->getFunctionSection().getContent();
+            const uint32_t Local = Target - FuncImpCount;
+            if (Local < Funcs.size()) {
+              const uint32_t TypeIdx = Funcs[Local];
+              const auto Types = Mod->getTypeSection().getContent();
+              if (TypeIdx < Types.size()) {
+                FuncTy = &Types[TypeIdx];
+              }
+            }
+          }
+        }
         CompCtx.addCoreInstanceExport(InstanceIdx, ExportDesc.getExternalName(),
-                                      ExportDesc.getExternalType(), MemTy);
+                                      ExportDesc.getExternalType(), MemTy,
+                                      nullptr, nullptr, FuncTy);
       }
     } else if (ModTy != nullptr && ModTy->isModuleType()) {
       for (const auto &Decl : ModTy->getModuleType()) {
@@ -1531,11 +1572,11 @@ Expect<void> Validator::validateCanonOptions(
       break;
     case OptCode::Memory:
       if (HasMemory) {
-        spdlog::error(ErrCode::Value::ComponentCanonDuplicateOption);
+        spdlog::error(ErrCode::Value::ComponentCanonInvalidOption);
         spdlog::error(
             "    canonical option `memory` is specified more than once"sv);
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
-        return Unexpect(ErrCode::Value::ComponentCanonDuplicateOption);
+        return Unexpect(ErrCode::Value::ComponentCanonInvalidOption);
       }
       HasMemory = true;
       MemoryIdx = Opt.getIndex();
@@ -1655,6 +1696,33 @@ Expect<void> Validator::validateCanonOptions(
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
     return Unexpect(ErrCode::Value::InvalidIndex);
   }
+  // The `realloc` target must be (func (param i32 i32 i32 i32) (result i32)).
+  // Only checked when the core func's SubType is known; else defer to instantiate.
+  if (HasRealloc) {
+    if (const auto *RT = CompCtx.getCoreFunc(ReallocIdx);
+        RT != nullptr && RT->getCompositeType().isFunc()) {
+      const auto &RFunc = RT->getCompositeType().getFuncType();
+      const auto &RParams = RFunc.getParamTypes();
+      const auto &RResults = RFunc.getReturnTypes();
+      bool SigOk = RParams.size() == 4 && RResults.size() == 1 &&
+                   RResults[0].getCode() == TypeCode::I32;
+      if (SigOk) {
+        for (const auto &P : RParams) {
+          if (P.getCode() != TypeCode::I32) {
+            SigOk = false;
+            break;
+          }
+        }
+      }
+      if (!SigOk) {
+        spdlog::error(ErrCode::Value::ComponentCanonInvalidOption);
+        spdlog::error("    canonical option `realloc` uses a core function with "
+                      "an incorrect signature"sv);
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+        return Unexpect(ErrCode::Value::ComponentCanonInvalidOption);
+      }
+    }
+  }
   if (HasCallback && CallbackIdx >= CoreFuncSpaceSize) {
     spdlog::error(ErrCode::Value::InvalidIndex);
     spdlog::error(
@@ -1769,37 +1837,19 @@ Expect<void> checkCanonFlatRules(const ComponentContext &CompCtx,
                                  const ParsedCanonOpts &O) noexcept {
   Executor::CanonicalABI::CanonCtx Cx = makeValidatorCanonCtx(CompCtx);
 
-  const char *Site = IsLift ? "canon lift" : "canon lower";
-  const bool RequireReallocForList = [&]() {
-    // lift(T) requires realloc if T contains list/string (params);
-    // lower(T) requires realloc if T contains list/string (result).
-    if (IsLift) {
-      for (const auto &P : FT.getParamList()) {
-        if (Executor::CanonicalABI::containsListOrString(Cx, P.getValType())) {
-          return true;
-        }
-      }
-    } else {
-      for (const auto &R : FT.getResultList()) {
-        if (Executor::CanonicalABI::containsListOrString(Cx, R.getValType())) {
-          return true;
-        }
+  // Whether params / results contain any list or string.
+  const bool ParamsHaveListOrString = [&]() {
+    for (const auto &P : FT.getParamList()) {
+      if (Executor::CanonicalABI::containsListOrString(Cx, P.getValType())) {
+        return true;
       }
     }
     return false;
   }();
-  const bool RequireMemoryForList = [&]() {
-    if (IsLift) {
-      for (const auto &R : FT.getResultList()) {
-        if (Executor::CanonicalABI::containsListOrString(Cx, R.getValType())) {
-          return true;
-        }
-      }
-    } else {
-      for (const auto &P : FT.getParamList()) {
-        if (Executor::CanonicalABI::containsListOrString(Cx, P.getValType())) {
-          return true;
-        }
+  const bool ResultsHaveListOrString = [&]() {
+    for (const auto &R : FT.getResultList()) {
+      if (Executor::CanonicalABI::containsListOrString(Cx, R.getValType())) {
+        return true;
       }
     }
     return false;
@@ -1820,49 +1870,31 @@ Expect<void> checkCanonFlatRules(const ComponentContext &CompCtx,
     PreFlatResults += Sub.size();
   }
 
-  // Spec L3293-3294 (lift) / L3520-3521 (lower).
-  if (RequireReallocForList && !O.HasRealloc) {
-    spdlog::error(ErrCode::Value::InvalidCanonOption);
-    spdlog::error(
-        "    {}: 'realloc' is required because {} contains a list / string"sv,
-        Site, IsLift ? "param" : "result");
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
-    return Unexpect(ErrCode::Value::InvalidCanonOption);
-  }
-  if (RequireMemoryForList && !O.HasMemory) {
-    spdlog::error(ErrCode::Value::InvalidCanonOption);
-    spdlog::error(
-        "    {}: 'memory' is required because {} contains a list / string"sv,
-        Site, IsLift ? "result" : "param");
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
-    return Unexpect(ErrCode::Value::InvalidCanonOption);
-  }
+  const bool ParamsSpill = PreFlatParams > Executor::CanonicalABI::MaxFlatParams;
+  const bool ResultsSpill =
+      PreFlatResults > Executor::CanonicalABI::MaxFlatResults;
 
-  // Threshold rules (L3295-3296 for lift, L3522-3523 for lower). Sync only —
-  // async would set different caps but is already rejected by flattenFuncType.
-  // For lift: params need realloc to spill, results need memory. For lower
-  // the two swap.
-  const char *ParamsSpillOpt = IsLift ? "realloc" : "memory";
-  const bool ParamsSpillOptPresent = IsLift ? O.HasRealloc : O.HasMemory;
-  const char *ResultsSpillOpt = IsLift ? "memory" : "realloc";
-  const bool ResultsSpillOptPresent = IsLift ? O.HasMemory : O.HasRealloc;
-  if (PreFlatParams > Executor::CanonicalABI::MaxFlatParams &&
-      !ParamsSpillOptPresent) {
-    spdlog::error(ErrCode::Value::InvalidCanonOption);
-    spdlog::error("    {}: param flat count {} exceeds MAX_FLAT_PARAMS, "
-                  "'{}' is required"sv,
-                  Site, PreFlatParams, ParamsSpillOpt);
+  // Spec L3290-3296 (lift) / L3519-3524 (lower). `memory` is required if either
+  // side has a list/string or spills; `realloc` for the allocating direction
+  // (params on lift, results on lower).
+  const bool MemoryRequired = ParamsHaveListOrString || ResultsHaveListOrString ||
+                              ParamsSpill || ResultsSpill;
+  const bool ReallocRequired =
+      IsLift ? (ParamsHaveListOrString || ParamsSpill)
+             : (ResultsHaveListOrString || ResultsSpill);
+
+  // Check memory before realloc so the reported option matches the spec order.
+  if (MemoryRequired && !O.HasMemory) {
+    spdlog::error(ErrCode::Value::ComponentCanonInvalidOption);
+    spdlog::error("    canonical option `memory` is required"sv);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
-    return Unexpect(ErrCode::Value::InvalidCanonOption);
+    return Unexpect(ErrCode::Value::ComponentCanonInvalidOption);
   }
-  if (PreFlatResults > Executor::CanonicalABI::MaxFlatResults &&
-      !ResultsSpillOptPresent) {
-    spdlog::error(ErrCode::Value::InvalidCanonOption);
-    spdlog::error("    {}: result flat count {} exceeds MAX_FLAT_RESULTS, "
-                  "'{}' is required"sv,
-                  Site, PreFlatResults, ResultsSpillOpt);
+  if (ReallocRequired && !O.HasRealloc) {
+    spdlog::error(ErrCode::Value::ComponentCanonInvalidOption);
+    spdlog::error("    canonical option `realloc` is required"sv);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
-    return Unexpect(ErrCode::Value::InvalidCanonOption);
+    return Unexpect(ErrCode::Value::ComponentCanonInvalidOption);
   }
   return {};
 }
@@ -1972,11 +2004,10 @@ Validator::validateCanonLift(const AST::Component::Canonical &Canon) noexcept {
       CalleeSub != nullptr && CalleeSub->getCompositeType().isFunc()) {
     if (!sameFlatSignature(CalleeSub->getCompositeType().getFuncType(),
                            FlatSig)) {
-      spdlog::error(ErrCode::Value::InvalidCanonOption);
-      spdlog::error("    canon lift: $callee signature does not match "
-                    "flatten_functype($opts, $ft, 'lift')"sv);
+      spdlog::error(ErrCode::Value::ComponentCanonLoweredTypeMismatch);
+      spdlog::error("    lowered parameter types do not match parameter types"sv);
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
-      return Unexpect(ErrCode::Value::InvalidCanonOption);
+      return Unexpect(ErrCode::Value::ComponentCanonLoweredTypeMismatch);
     }
   }
 

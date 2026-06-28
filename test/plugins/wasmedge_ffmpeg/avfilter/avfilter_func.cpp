@@ -348,31 +348,27 @@ TEST_F(FFmpegTest, AVFilterFunc) {
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 
-  // Crashing the program. Checked even from Rust side.
+  // avfilter_graph_parse_ptr consumed the in/out lists above and the host
+  // invalidated their handle ids, so freeing them is now a safe no-op. This
+  // previously double-freed the already-consumed nodes and crashed the program.
+  FuncInst = AVFilterMod->findFuncExports(
+      "wasmedge_ffmpeg_avfilter_avfilter_inout_free");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
 
-  //  FuncInst = AVFilterMod->findFuncExports(
-  //      "wasmedge_ffmpeg_avfilter_avfilter_inout_free");
-  //  EXPECT_NE(FuncInst, nullptr);
-  //  EXPECT_TRUE(FuncInst->isHostFunction());
-  //
-  //  auto &HostFuncAVFilterInOutFree = dynamic_cast<
-  //      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterInOutFree &>(
-  //      FuncInst->getHostFunc());
-  //
-  //  {
-  //    EXPECT_TRUE(HostFuncAVFilterInOutFree.run(
-  //        CallFrame,
-  //        std::initializer_list<WasmEdge::ValVariant>{InputInOutId}, Result));
-  //    EXPECT_EQ(Result[0].get<int32_t>(),
-  //    static_cast<int32_t>(ErrNo::Success));
-  //
-  //    EXPECT_TRUE(HostFuncAVFilterInOutFree.run(
-  //        CallFrame,
-  //        std::initializer_list<WasmEdge::ValVariant>{OutputInOutId},
-  //        Result));
-  //    EXPECT_EQ(Result[0].get<int32_t>(),
-  //    static_cast<int32_t>(ErrNo::Success));
-  //  }
+  auto &HostFuncAVFilterInOutFree = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVFilterInOutFree.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{InputInOutId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+    EXPECT_TRUE(HostFuncAVFilterInOutFree.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{OutputInOutId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
 
   FuncInst =
       AVFilterMod->findFuncExports("wasmedge_ffmpeg_avfilter_avfilter_version");
@@ -632,6 +628,255 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   // ==================================================================
   //                        End Clean Memory
   // ==================================================================
+}
+
+// Regression: a node linked into a chain via avfilter_inout_set_next is owned
+// by the chain's head. Freeing the linked node on its own must be a refused
+// no-op, and freeing the head must release the whole chain exactly once.
+// Previously freeing the next node and then the head double-freed the host.
+TEST_F(FFmpegTest, AVFilterInOutChainOwnership) {
+  ASSERT_TRUE(AVFilterMod != nullptr);
+
+  uint32_t HeadPtr = UINT32_C(4);
+  uint32_t NextPtr = UINT32_C(8);
+
+  auto *AllocInst = AVFilterMod->findFuncExports(
+      "wasmedge_ffmpeg_avfilter_avfilter_inout_alloc");
+  ASSERT_NE(AllocInst, nullptr);
+  auto &HostFuncInOutAlloc = AllocInst->getHostFunc();
+
+  ASSERT_TRUE(HostFuncInOutAlloc.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{HeadPtr}, Result));
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  ASSERT_TRUE(HostFuncInOutAlloc.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{NextPtr}, Result));
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  uint32_t HeadId = readUInt32(MemInst, HeadPtr);
+  uint32_t NextId = readUInt32(MemInst, NextPtr);
+  ASSERT_TRUE(HeadId > 0);
+  ASSERT_TRUE(NextId > 0);
+  ASSERT_NE(HeadId, NextId);
+
+  auto *SetNextInst = AVFilterMod->findFuncExports(
+      "wasmedge_ffmpeg_avfilter_avfilter_inout_set_next");
+  ASSERT_NE(SetNextInst, nullptr);
+  auto &HostFuncInOutSetNext = SetNextInst->getHostFunc();
+
+  ASSERT_TRUE(HostFuncInOutSetNext.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{HeadId, NextId},
+      Result));
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  auto *FreeInst = AVFilterMod->findFuncExports(
+      "wasmedge_ffmpeg_avfilter_avfilter_inout_free");
+  ASSERT_NE(FreeInst, nullptr);
+  auto &HostFuncInOutFree = FreeInst->getHostFunc();
+
+  // Freeing the borrowed next node directly is refused (a no-op): the head
+  // still owns it and will release it.
+  ASSERT_TRUE(HostFuncInOutFree.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{NextId}, Result));
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  // Freeing the head releases the whole chain (head + next) exactly once.
+  ASSERT_TRUE(HostFuncInOutFree.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{HeadId}, Result));
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  // The next id was dropped with the chain, so freeing it again resolves to no
+  // live pointer and stays a safe no-op rather than a second free.
+  ASSERT_TRUE(HostFuncInOutFree.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{NextId}, Result));
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+}
+
+// Regression: relinking a chain head to a different next node must release the
+// previously linked node back to its own handle. Before the fix the old next
+// stayed marked borrowed forever, so AVFilterInOutFree refused to free it and
+// the host allocation leaked for the VM's lifetime. Leak-freedom is verified
+// under sanitizers; here we assert the relink-then-free sequence stays a
+// crash-free no-op with the expected return codes.
+TEST_F(FFmpegTest, AVFilterInOutRelinkReleasesOldNext) {
+  ASSERT_TRUE(AVFilterMod != nullptr);
+
+  uint32_t HeadPtr = UINT32_C(4);
+  uint32_t OldNextPtr = UINT32_C(8);
+  uint32_t NewNextPtr = UINT32_C(12);
+
+  auto *AllocInst = AVFilterMod->findFuncExports(
+      "wasmedge_ffmpeg_avfilter_avfilter_inout_alloc");
+  ASSERT_NE(AllocInst, nullptr);
+  auto &HostFuncInOutAlloc = AllocInst->getHostFunc();
+
+  auto Alloc = [&](uint32_t Ptr) {
+    EXPECT_TRUE(HostFuncInOutAlloc.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{Ptr}, Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    return readUInt32(MemInst, Ptr);
+  };
+  uint32_t HeadId = Alloc(HeadPtr);
+  uint32_t OldNextId = Alloc(OldNextPtr);
+  uint32_t NewNextId = Alloc(NewNextPtr);
+  ASSERT_TRUE(HeadId > 0);
+  ASSERT_TRUE(OldNextId > 0);
+  ASSERT_TRUE(NewNextId > 0);
+
+  auto *SetNextInst = AVFilterMod->findFuncExports(
+      "wasmedge_ffmpeg_avfilter_avfilter_inout_set_next");
+  ASSERT_NE(SetNextInst, nullptr);
+  auto &HostFuncInOutSetNext = SetNextInst->getHostFunc();
+
+  auto SetNext = [&](uint32_t Id, uint32_t NextId) {
+    EXPECT_TRUE(HostFuncInOutSetNext.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{Id, NextId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  };
+  SetNext(HeadId, OldNextId); // OldNext is linked and becomes borrowed.
+  SetNext(HeadId, NewNextId); // Relink: OldNext detached, NewNext borrowed.
+
+  auto *FreeInst = AVFilterMod->findFuncExports(
+      "wasmedge_ffmpeg_avfilter_avfilter_inout_free");
+  ASSERT_NE(FreeInst, nullptr);
+  auto &HostFuncInOutFree = FreeInst->getHostFunc();
+
+  auto FreeInOut = [&](uint32_t Id) {
+    EXPECT_TRUE(HostFuncInOutFree.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{Id}, Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  };
+  // The detached old next is owned by its handle again, so freeing it releases
+  // it rather than being refused as still-borrowed (which would leak it).
+  FreeInOut(OldNextId);
+  // Freeing the head releases head + the still-linked new next exactly once.
+  FreeInOut(HeadId);
+  // Both freed ids now resolve to no live pointer, so freeing again is a no-op.
+  FreeInOut(OldNextId);
+  FreeInOut(NewNextId);
+}
+
+// Regression: passing the same AVFilterInOut id as both the inputs and the
+// outputs list makes FFmpeg's parser free a node through one aliased head while
+// the other still references it, crashing the host. The wrapper now detects the
+// shared node and rejects the call before reaching FFmpeg.
+TEST_F(FFmpegTest, AVFilterGraphParsePtrRejectsAliasedInOut) {
+  ASSERT_TRUE(AVFilterMod != nullptr);
+
+  auto Run = [&](const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = AVFilterMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  uint32_t GraphPtr = UINT32_C(4);
+  uint32_t InOutPtr = UINT32_C(8);
+  uint32_t SpecPtr = UINT32_C(100);
+  std::string Spec("anull");
+  fillMemContent(MemInst, SpecPtr, Spec);
+
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avfilter_avfilter_graph_alloc", {GraphPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t GraphId = readUInt32(MemInst, GraphPtr);
+  ASSERT_TRUE(GraphId > 0);
+
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avfilter_avfilter_inout_alloc", {InOutPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t InOutId = readUInt32(MemInst, InOutPtr);
+  ASSERT_TRUE(InOutId > 0);
+
+  // Same id for both inputs and outputs must be rejected rather than letting
+  // FFmpeg double-free the shared list and crash the host.
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avfilter_avfilter_graph_parse_ptr",
+                {GraphId, SpecPtr, static_cast<int32_t>(Spec.length()), InOutId,
+                 InOutId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  // The rejected node is still owned by its handle and frees normally.
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avfilter_avfilter_inout_free", {InOutId}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avfilter_avfilter_graph_free", {GraphId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
+// Regression: when avfilter_graph_parse_ptr fails it frees every filter context
+// already in the graph, including ones the guest created earlier via
+// AVFilterGraphCreateFilter. The wrapper now drops those child handle ids on
+// failure; otherwise the id would resolve to a freed AVFilterContext and the
+// next call dereferencing it would be a use-after-free.
+TEST_F(FFmpegTest, AVFilterGraphParsePtrDropsChildrenOnError) {
+  ASSERT_TRUE(AVFilterMod != nullptr);
+
+  auto Run = [&](const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = AVFilterMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  uint32_t GraphPtr = UINT32_C(4);
+  uint32_t FilterPtr = UINT32_C(8);
+  uint32_t CtxPtr = UINT32_C(12);
+  uint32_t SrcNamePtr = UINT32_C(100);
+  uint32_t CtxNamePtr = UINT32_C(200);
+  uint32_t ArgsPtr = UINT32_C(300);
+  uint32_t SpecPtr = UINT32_C(500);
+
+  std::string SrcName("abuffer");
+  fillMemContent(MemInst, SrcNamePtr, SrcName);
+  std::string CtxName("in");
+  fillMemContent(MemInst, CtxNamePtr, CtxName);
+  std::string Args(
+      "time_base=1/44100:sample_rate=44100:sample_fmt=fltp:channel_layout=0x3");
+  fillMemContent(MemInst, ArgsPtr, Args);
+  std::string BadSpec("thisfilterdoesnotexist");
+  fillMemContent(MemInst, SpecPtr, BadSpec);
+
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avfilter_avfilter_graph_alloc", {GraphPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t GraphId = readUInt32(MemInst, GraphPtr);
+  ASSERT_TRUE(GraphId > 0);
+
+  EXPECT_EQ(
+      Run("wasmedge_ffmpeg_avfilter_avfilter_get_by_name",
+          {FilterPtr, SrcNamePtr, static_cast<int32_t>(SrcName.length())}),
+      static_cast<int32_t>(ErrNo::Success));
+  uint32_t FilterId = readUInt32(MemInst, FilterPtr);
+  ASSERT_TRUE(FilterId > 0);
+
+  ASSERT_GE(
+      Run("wasmedge_ffmpeg_avfilter_avfilter_graph_create_filter",
+          {CtxPtr, FilterId, CtxNamePtr, static_cast<int32_t>(CtxName.length()),
+           ArgsPtr, static_cast<int32_t>(Args.length()), GraphId}),
+      0);
+  uint32_t CtxId = readUInt32(MemInst, CtxPtr);
+  ASSERT_TRUE(CtxId > 0);
+
+  // Sanity: the freshly created context resolves and reports no failed
+  // requests.
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avfilter_av_buffersrc_get_nb_failed_requests",
+                {CtxId}),
+            0);
+
+  // An unknown filter name makes parsing fail; FFmpeg's error path frees every
+  // context already in the graph, including the one created above.
+  EXPECT_LT(Run("wasmedge_ffmpeg_avfilter_avfilter_graph_parse_ptr",
+                {GraphId, SpecPtr, static_cast<int32_t>(BadSpec.length()),
+                 UINT32_C(0), UINT32_C(0)}),
+            0);
+
+  // The child id was dropped on failure, so it no longer resolves to the freed
+  // context: the call returns the missing-handle error instead of dereferencing
+  // freed memory.
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avfilter_av_buffersrc_get_nb_failed_requests",
+                {CtxId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avfilter_avfilter_graph_free", {GraphId}),
+            static_cast<int32_t>(ErrNo::Success));
 }
 
 } // namespace WasmEdgeFFmpeg

@@ -100,12 +100,6 @@ TEST_F(FFmpegTest, SWResampleFunc) {
   ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncSwrFree = FuncInst->getHostFunc();
 
-  {
-    EXPECT_TRUE(HostFuncSwrFree.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{SwrId}, Result));
-    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
-  }
-
   FuncInst =
       SWResampleMod->findFuncExports("wasmedge_ffmpeg_swresample_swr_init");
   ASSERT_NE(FuncInst, nullptr);
@@ -237,6 +231,128 @@ TEST_F(FFmpegTest, SWResampleFunc) {
                   .find("--"),
               std::string_view::npos);
   }
+
+  // Free once every operation is done: freeing invalidates all ids aliasing the
+  // same SwrContext, so an earlier free would strand the reconfigured alias.
+  {
+    SwrId = readUInt32(MemInst, SWResamplePtr);
+    EXPECT_TRUE(HostFuncSwrFree.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{SwrId}, Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+}
+
+TEST_F(FFmpegTest, SWRAllocSetOptsFailureInvalidatesAliases) {
+  ASSERT_TRUE(SWResampleMod != nullptr);
+
+  auto *FuncInst = SWResampleMod->findFuncExports(
+      "wasmedge_ffmpeg_swresample_swr_alloc_set_opts");
+  auto &HostFuncSwrAllocSetOpts = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWRAllocSetOpts &>(
+      FuncInst->getHostFunc());
+
+  uint32_t SWResamplePtr = UINT32_C(4);
+  uint64_t OutChLayoutId = UINT64_C(1) << 1; // Front Right
+  uint32_t OutSampleFmtId = 2;               // AV_SAMPLE_FMT_S16
+  uint64_t InChLayoutId = UINT64_C(1) << 2;  // Front Center
+  uint32_t InSampleFmtId = 3;                // AV_SAMPLE_FMT_S32
+  int32_t InSampleRate = 40;
+  int32_t LogOffset = 1;
+
+  auto AllocSetOpts = [&](uint32_t ExistingId, int32_t OutSampleRate) {
+    HostFuncSwrAllocSetOpts.run(CallFrame,
+                                std::initializer_list<WasmEdge::ValVariant>{
+                                    SWResamplePtr, ExistingId, OutChLayoutId,
+                                    OutSampleFmtId, OutSampleRate, InChLayoutId,
+                                    InSampleFmtId, InSampleRate, LogOffset},
+                                Result);
+    return Result[0].get<int32_t>();
+  };
+
+  writeUInt32(MemInst, UINT32_C(0), SWResamplePtr);
+
+  // Allocate a context, then reconfigure it. Reconfiguring mints a second id
+  // that aliases the same SwrContext (the established contract).
+  ASSERT_EQ(AllocSetOpts(UINT32_C(0), 30),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t FirstId = readUInt32(MemInst, SWResamplePtr);
+  ASSERT_TRUE(FirstId > 0);
+
+  ASSERT_EQ(AllocSetOpts(FirstId, 30), static_cast<int32_t>(ErrNo::Success));
+  uint32_t SecondId = readUInt32(MemInst, SWResamplePtr);
+  ASSERT_TRUE(SecondId > 0);
+  ASSERT_NE(SecondId, FirstId);
+
+  auto Env = HostFuncSwrAllocSetOpts.getEnv();
+  ASSERT_NE(Env->fetchData(FirstId), nullptr);
+  ASSERT_EQ(Env->fetchData(FirstId), Env->fetchData(SecondId));
+
+  // A failing reconfigure (negative out sample rate) makes swr_alloc_set_opts2
+  // free the underlying SwrContext. Every id aliasing it -- not just the one
+  // passed in -- must be invalidated so a later lookup cannot return a dangling
+  // pointer.
+  EXPECT_EQ(AllocSetOpts(FirstId, -1),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Env->fetchData(FirstId), nullptr);
+  EXPECT_EQ(Env->fetchData(SecondId), nullptr);
+}
+
+TEST_F(FFmpegTest, SWRFreeInvalidatesAliases) {
+  ASSERT_TRUE(SWResampleMod != nullptr);
+
+  auto *FuncInst = SWResampleMod->findFuncExports(
+      "wasmedge_ffmpeg_swresample_swr_alloc_set_opts");
+  auto &HostFuncSwrAllocSetOpts = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWRAllocSetOpts &>(
+      FuncInst->getHostFunc());
+
+  uint32_t SWResamplePtr = UINT32_C(4);
+  uint64_t OutChLayoutId = UINT64_C(1) << 1; // Front Right
+  uint32_t OutSampleFmtId = 2;               // AV_SAMPLE_FMT_S16
+  uint64_t InChLayoutId = UINT64_C(1) << 2;  // Front Center
+  uint32_t InSampleFmtId = 3;                // AV_SAMPLE_FMT_S32
+  int32_t InSampleRate = 40;
+  int32_t LogOffset = 1;
+
+  auto AllocSetOpts = [&](uint32_t ExistingId, int32_t OutSampleRate) {
+    HostFuncSwrAllocSetOpts.run(CallFrame,
+                                std::initializer_list<WasmEdge::ValVariant>{
+                                    SWResamplePtr, ExistingId, OutChLayoutId,
+                                    OutSampleFmtId, OutSampleRate, InChLayoutId,
+                                    InSampleFmtId, InSampleRate, LogOffset},
+                                Result);
+    return Result[0].get<int32_t>();
+  };
+
+  writeUInt32(MemInst, UINT32_C(0), SWResamplePtr);
+
+  // Allocate a context, then reconfigure it. Reconfiguring mints a second id
+  // that aliases the same SwrContext (the established contract).
+  ASSERT_EQ(AllocSetOpts(UINT32_C(0), 30),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t FirstId = readUInt32(MemInst, SWResamplePtr);
+  ASSERT_TRUE(FirstId > 0);
+
+  ASSERT_EQ(AllocSetOpts(FirstId, 30), static_cast<int32_t>(ErrNo::Success));
+  uint32_t SecondId = readUInt32(MemInst, SWResamplePtr);
+  ASSERT_TRUE(SecondId > 0);
+  ASSERT_NE(SecondId, FirstId);
+
+  auto Env = HostFuncSwrAllocSetOpts.getEnv();
+  ASSERT_NE(Env->fetchData(FirstId), nullptr);
+  ASSERT_EQ(Env->fetchData(FirstId), Env->fetchData(SecondId));
+
+  // Freeing via one id frees the underlying SwrContext. Every id aliasing it --
+  // not just the one passed in -- must be invalidated so a later lookup cannot
+  // return a dangling pointer.
+  FuncInst =
+      SWResampleMod->findFuncExports("wasmedge_ffmpeg_swresample_swr_free");
+  auto &HostFuncSwrFree = FuncInst->getHostFunc();
+  HostFuncSwrFree.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FirstId}, Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Env->fetchData(FirstId), nullptr);
+  EXPECT_EQ(Env->fetchData(SecondId), nullptr);
 }
 
 } // namespace WasmEdgeFFmpeg

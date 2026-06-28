@@ -212,6 +212,186 @@ TEST_F(FFmpegTest, AVUtilFunc) {
   }
 }
 
+TEST_F(FFmpegTest, AVUtilChannelLayoutNameBounds) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name");
+  auto &HostFuncAVGetChannelLayoutName = FuncInst->getHostFunc();
+
+  uint32_t NamePtr = UINT32_C(4);
+  uint64_t ChannelId = 1; // FRONT_LEFT, a short name such as "FL".
+  // The host copies only the channel name and its terminator into the guest
+  // span, never the full NameLen, so the sentinel bytes past the name below
+  // stay intact and the over-write check stays exact.
+  uint32_t NameLen = UINT32_C(64);
+
+  // Pre-fill the whole destination span with a sentinel so any byte the host
+  // writes past the real channel name becomes observable.
+  fillMemContent(MemInst, NamePtr, NameLen, UINT8_C(0xAA));
+
+  HostFuncAVGetChannelLayoutName.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{ChannelId, NamePtr, NameLen},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  char *Buf = MemInst->getPointer<char *>(NamePtr);
+  uint32_t WrittenLen = 0;
+  while (WrittenLen < UINT32_C(16) && Buf[WrittenLen] != '\0') {
+    ++WrittenLen;
+  }
+  // "FL" is two characters, so it is NUL terminated well before this scan
+  // bound.
+  EXPECT_LT(WrittenLen, UINT32_C(16));
+  // Every byte beyond the name and its terminator must be untouched; otherwise
+  // the host wrote past the real name into the guest span (a buffer over-write
+  // / disclosure).
+  for (uint32_t I = WrittenLen + 1; I < NameLen; ++I) {
+    EXPECT_EQ(static_cast<uint8_t>(Buf[I]), UINT8_C(0xAA));
+  }
+}
+
+TEST_F(FFmpegTest, AVUtilChannelLayoutNameLowFrequency) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name");
+  auto &HostFuncAVGetChannelLayoutName = FuncInst->getHostFunc();
+
+  uint32_t NamePtr = UINT32_C(4);
+  // The SDK LOW_FREQUENCY id maps to AV_CH_LOW_FREQUENCY, whose channel index
+  // is bit position 3; av_channel_name returns "LFE" for it. A mask>>1 maps it
+  // to the wrong channel ("BL").
+  uint64_t ChannelId = UINT64_C(1) << 3;
+  uint32_t NameLen = UINT32_C(16);
+  fillMemContent(MemInst, NamePtr, NameLen, UINT8_C(0));
+
+  HostFuncAVGetChannelLayoutName.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{ChannelId, NamePtr, NameLen},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  char *Buf = MemInst->getPointer<char *>(NamePtr);
+  EXPECT_STREQ(Buf, "LFE");
+}
+
+TEST_F(FFmpegTest, AVUtilChannelLayoutNameStereo) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  // FRONT_LEFT | FRONT_RIGHT (SDK ids 1 and 2) is the stereo layout; a
+  // multi-channel layout must be named as a layout ("stereo"), not by the name
+  // of its first channel alone ("FL").
+  uint64_t ChannelId = UINT64_C(0x3);
+  uint32_t NamePtr = UINT32_C(4);
+  uint32_t NameLen = UINT32_C(16);
+
+  auto *FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name_len");
+  auto &HostFuncAVGetChannelLayoutNameLen = FuncInst->getHostFunc();
+  HostFuncAVGetChannelLayoutNameLen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{ChannelId},
+      Result);
+  int32_t const ReportedLen = Result[0].get<int32_t>();
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name");
+  auto &HostFuncAVGetChannelLayoutName = FuncInst->getHostFunc();
+  fillMemContent(MemInst, NamePtr, NameLen, UINT8_C(0));
+  HostFuncAVGetChannelLayoutName.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{ChannelId, NamePtr, NameLen},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  char *Buf = MemInst->getPointer<char *>(NamePtr);
+  EXPECT_STREQ(Buf, "stereo");
+  // The reported length is the written name's exact length; a single-channel
+  // name such as "FL" would be shorter.
+  uint32_t WrittenLen = 0;
+  while (WrittenLen < NameLen && Buf[WrittenLen] != '\0') {
+    ++WrittenLen;
+  }
+  EXPECT_EQ(ReportedLen, static_cast<int32_t>(WrittenLen));
+}
+
+// Regression: a custom (non-standard) channel layout whose description exceeds
+// the old fixed 64-byte host buffer must report its true length and round-trip
+// in full. Previously both getters truncated into that buffer, so the length
+// was under-reported and the complete name was unreachable by the guest.
+TEST_F(FFmpegTest, AVUtilChannelLayoutNameLargeCustom) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  // Channels 0..17 (FL..TBR): a valid 18-channel native mask that matches no
+  // predefined layout, so FFmpeg describes it as "18 channels (FL+FR+...)",
+  // well past 63 bytes.
+  uint64_t const ChannelId = UINT64_C(0x3FFFF);
+
+  auto *LenInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name_len");
+  ASSERT_NE(LenInst, nullptr);
+  auto &HostFuncNameLen = LenInst->getHostFunc();
+  HostFuncNameLen.run(CallFrame,
+                      std::initializer_list<WasmEdge::ValVariant>{ChannelId},
+                      Result);
+  int32_t const ReportedLen = Result[0].get<int32_t>();
+  // The full description does not fit in the old 64-byte buffer.
+  EXPECT_GT(ReportedLen, 63);
+
+  auto *NameInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name");
+  ASSERT_NE(NameInst, nullptr);
+  auto &HostFuncName = NameInst->getHostFunc();
+
+  uint32_t const NamePtr = UINT32_C(4);
+  uint32_t const NameLen = static_cast<uint32_t>(ReportedLen) + 1;
+  fillMemContent(MemInst, NamePtr, NameLen, UINT8_C(0));
+  HostFuncName.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{ChannelId, NamePtr, NameLen},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  // Given a buffer of the reported size, the whole name is written untruncated:
+  // its length matches what the length getter reported.
+  char *Buf = MemInst->getPointer<char *>(NamePtr);
+  uint32_t WrittenLen = 0;
+  while (WrittenLen < NameLen && Buf[WrittenLen] != '\0') {
+    ++WrittenLen;
+  }
+  EXPECT_EQ(static_cast<int32_t>(WrittenLen), ReportedLen);
+}
+
+TEST_F(FFmpegTest, AVUtilChannelLayoutInvalidInputs) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_nb_channels");
+  auto &HostFuncNbChannels = FuncInst->getHostFunc();
+
+  // ChannelLayoutId 0 maps to mask 0, which av_channel_layout_from_mask
+  // rejects; the host must not read or uninit the then-uninitialized layout.
+  HostFuncNbChannels.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT64_C(0)},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), 0);
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_default_channel_layout");
+  auto &HostFuncDefault = FuncInst->getHostFunc();
+
+  // 63 channels exceeds FFmpeg's largest native layout (22.2, 24 channels), so
+  // av_channel_layout_default yields a non-native layout whose union must not
+  // be reinterpreted as a mask.
+  int32_t const ChannelCountWithoutNativeDefault = 63;
+  HostFuncDefault.run(CallFrame,
+                      std::initializer_list<WasmEdge::ValVariant>{
+                          ChannelCountWithoutNativeDefault},
+                      Result);
+  EXPECT_EQ(Result[0].get<uint64_t>(), UINT64_C(0));
+}
+
 TEST_F(FFmpegTest, AVTime) {
 
   ASSERT_TRUE(AVUtilMod != nullptr);

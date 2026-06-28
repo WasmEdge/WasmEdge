@@ -100,6 +100,10 @@ parse_env() {
         _COUNT_=$((_COUNT_ + 1))
         echo "$IPATH/env"
     fi
+    if [ -f "$IPATH/env.fish" ]; then
+        _COUNT_=$((_COUNT_ + 1))
+        echo "$IPATH/env.fish"
+    fi
     if [ $_COUNT_ -lt 2 ]; then
         echo "_ERROR_ : Found $_COUNT_ file(s) only"
     fi
@@ -267,6 +271,19 @@ main() {
       sed "${line_num}d" "$real_file.bak" > "$real_file"
       rm -f "$real_file.bak"
     done
+
+    local _fish_config="${__HOME__}/.config/fish/config.fish"
+    if [[ -f "$_fish_config" ]]; then
+      local _fish_line_num
+      _fish_line_num="$(grep -n "$IPATH/env\.fish" "$_fish_config" | cut -d : -f 1)"
+      if [[ -n "$_fish_line_num" ]]; then
+        local _real_fish_file
+        _real_fish_file="$(resolve_path "$_fish_config")"
+        cp "$_real_fish_file" "$_real_fish_file.bak"
+        sed "${_fish_line_num}d" "$_real_fish_file.bak" > "$_real_fish_file"
+        rm -f "$_real_fish_file.bak"
+      fi
+    fi
 
     exit 0
 }

@@ -1728,6 +1728,209 @@ TEST(ComponentValidatorTest, CanonLift_Valid_Passes) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
+// Append a FuncType with a `string` result (and no params) at the next type
+// index of an existing TypeSection-bearing fixture. Returns the new type index.
+// Lift-flattening such a type requires `memory` (string result must be written
+// out through linear memory).
+inline uint32_t appendStringResultFuncType(AST::Component::Component &Comp) {
+  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+  AST::Component::FuncType FT;
+  FT.setResultList(ComponentValType(ComponentTypeCode::String));
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(std::move(FT));
+  return static_cast<uint32_t>(TypeSec.getContent().size() - 1);
+}
+
+// Build a component that:
+//   (core module $M (func ...sig...) (export "f" (func 0)))
+//   (core instance $i (instantiate $M))
+//   (alias core export $i "f" (core func))   ;; core func 0
+//   (type ...FuncType at type 0...)
+// so a subsequent `canon lift (core func 0) (type 0)` runs with the aliased
+// core func's real SubType threaded through (exercises the plumbing for
+// adapt.9 / adapt.14-style signature checks). `ParamTys` / `ResultTys` set the
+// exported core func's signature.
+inline AST::Component::Component
+makeCompWithAliasedCoreFunc(const std::vector<TypeCode> &ParamTys,
+                            const std::vector<TypeCode> &ResultTys,
+                            AST::Component::FuncType TargetFT,
+                            bool WithMemory = false) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreModuleSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreInstanceSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::AliasSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CanonSection>();
+
+  // type 0: the component FuncType the lift targets.
+  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(std::move(TargetFT));
+
+  // Core module $M: one local func of the given signature, exported as "f",
+  // and (optionally) a memory exported as "m".
+  auto &ModSec =
+      std::get<AST::Component::CoreModuleSection>(Comp.getSections()[1]);
+  auto &Mod = ModSec.getContent();
+  AST::FunctionType CoreFT;
+  for (auto C : ParamTys) {
+    CoreFT.getParamTypes().emplace_back(C);
+  }
+  for (auto C : ResultTys) {
+    CoreFT.getReturnTypes().emplace_back(C);
+  }
+  AST::SubType ST;
+  ST.getCompositeType().setFunctionType(std::move(CoreFT));
+  Mod.getTypeSection().getContent().push_back(std::move(ST));
+  Mod.getFunctionSection().getContent().push_back(0U); // local func 0 : type 0
+  {
+    AST::ExportDesc ED;
+    ED.setExternalName("f");
+    ED.setExternalType(ExternalType::Function);
+    ED.setExternalIndex(0); // func 0
+    Mod.getExportSection().getContent().push_back(std::move(ED));
+  }
+  if (WithMemory) {
+    AST::MemoryType MT;
+    Mod.getMemorySection().getContent().push_back(MT);
+    AST::ExportDesc ED;
+    ED.setExternalName("m");
+    ED.setExternalType(ExternalType::Memory);
+    ED.setExternalIndex(0); // memory 0
+    Mod.getExportSection().getContent().push_back(std::move(ED));
+  }
+
+  // Core instance: instantiate module 0.
+  auto &CoreInstSec =
+      std::get<AST::Component::CoreInstanceSection>(Comp.getSections()[2]);
+  CoreInstSec.getContent().emplace_back();
+  CoreInstSec.getContent().back().setInstantiateArgs(
+      0U, AST::Component::CoreInstance::InstantiateArgs{});
+
+  // Alias core:export 0 "f" -> core func 0, then (optionally) "m" -> core
+  // memory 0. Both precede the canon section so they are in scope for it.
+  auto &AliasSec =
+      std::get<AST::Component::AliasSection>(Comp.getSections()[3]);
+  {
+    AliasSec.getContent().emplace_back();
+    auto &A = AliasSec.getContent().back();
+    A.setTargetType(AST::Component::Alias::TargetType::CoreExport);
+    A.getSort().setIsCore(true);
+    A.getSort().setCoreSortType(AST::Component::Sort::CoreSortType::Func);
+    A.setExport(0U, "f");
+  }
+  if (WithMemory) {
+    AliasSec.getContent().emplace_back();
+    auto &A = AliasSec.getContent().back();
+    A.setTargetType(AST::Component::Alias::TargetType::CoreExport);
+    A.getSort().setIsCore(true);
+    A.getSort().setCoreSortType(AST::Component::Sort::CoreSortType::Memory);
+    A.setExport(0U, "m");
+  }
+
+  return Comp;
+}
+
+TEST(ComponentValidatorTest, CanonLift_MemoryRequiredForStringResult_Fails) {
+  // (canon lift (core func 0) (type 2)) where type 2 has a `string` result and
+  // no `memory` option -> reject with ComponentCanonInvalidOption (0x2c5).
+  auto Comp = makeCompWithCoreFuncAndFuncType();
+  const uint32_t StrTy = appendStringResultFuncType(Comp);
+  auto &CanonSec =
+      std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical Lift;
+  Lift.setOpCode(ComponentCanonOpCode::Lift);
+  Lift.setIndex(0); // core func 0
+  Lift.setTargetIndex(StrTy);
+  CanonSec.getContent().emplace_back(std::move(Lift));
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentCanonInvalidOption);
+}
+
+TEST(ComponentValidatorTest, CanonLift_ReallocRequiredForStringParam_Fails) {
+  // canon lift of a func type with a `string` param, with `memory` present but
+  // `realloc` missing -> reject with ComponentCanonInvalidOption (0x2c5). The
+  // aliased core memory makes `(memory 0)` in-bounds so the realloc-required
+  // rule is what fires.
+  AST::Component::FuncType TargetFT;
+  std::vector<AST::Component::LabelValType> Params;
+  Params.emplace_back("p", ComponentValType(ComponentTypeCode::String));
+  TargetFT.setParamList(std::move(Params));
+  // Core func signature is irrelevant to the realloc-required check (it runs
+  // before the callee-signature check); give it [i32] -> [i32].
+  auto Comp = makeCompWithAliasedCoreFunc(
+      /*ParamTys=*/{TypeCode::I32}, /*ResultTys=*/{TypeCode::I32},
+      std::move(TargetFT), /*WithMemory=*/true);
+  auto &CanonSec =
+      std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical Lift;
+  Lift.setOpCode(ComponentCanonOpCode::Lift);
+  Lift.setIndex(0);       // core func 0 = aliased func
+  Lift.setTargetIndex(0); // type 0 = (param string)
+  Lift.setOptions({mkOpt(ComponentCanonOptCode::Memory, 0)});
+  CanonSec.getContent().emplace_back(std::move(Lift));
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentCanonInvalidOption);
+}
+
+TEST(ComponentValidatorTest, CanonOptions_ReallocWrongSignature_Fails) {
+  // realloc must be (func (param i32 i32 i32 i32) (result i32)). The aliased
+  // core func has the wrong signature ([i32] -> [i32]); pointing `realloc` at
+  // it (core func 0) -> reject with ComponentCanonInvalidOption (0x2c5). The
+  // target func type carries a `string` param so `memory`/`realloc` are
+  // legitimately requested.
+  AST::Component::FuncType TargetFT;
+  std::vector<AST::Component::LabelValType> Params;
+  Params.emplace_back("p", ComponentValType(ComponentTypeCode::String));
+  TargetFT.setParamList(std::move(Params));
+  auto Comp = makeCompWithAliasedCoreFunc(
+      /*ParamTys=*/{TypeCode::I32}, /*ResultTys=*/{TypeCode::I32},
+      std::move(TargetFT), /*WithMemory=*/true);
+  auto &CanonSec =
+      std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical Lift;
+  Lift.setOpCode(ComponentCanonOpCode::Lift);
+  Lift.setIndex(0);       // core func 0 = aliased wrong-sig func
+  Lift.setTargetIndex(0); // type 0 = (param string)
+  Lift.setOptions({mkOpt(ComponentCanonOptCode::Memory, 0),
+                   mkOpt(ComponentCanonOptCode::Realloc, 0)});
+  CanonSec.getContent().emplace_back(std::move(Lift));
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentCanonInvalidOption);
+}
+
+TEST(ComponentValidatorTest, CanonLift_CalleeSignatureMismatch_Fails) {
+  // The aliased core func has signature [i32] -> [], but the target FuncType
+  // (no params, no results) lift-flattens to [] -> []. The callee signature
+  // therefore does not match flatten_functype($opts, $ft, 'lift') -> reject
+  // with ComponentCanonLoweredTypeMismatch (0x2c6).
+  AST::Component::FuncType TargetFT; // empty: [] -> []
+  auto Comp = makeCompWithAliasedCoreFunc(
+      /*ParamTys=*/{TypeCode::I32}, /*ResultTys=*/{}, std::move(TargetFT));
+  auto &CanonSec =
+      std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical Lift;
+  Lift.setOpCode(ComponentCanonOpCode::Lift);
+  Lift.setIndex(0);       // core func 0 = aliased [i32] -> [] func
+  Lift.setTargetIndex(0); // type 0 = empty func type
+  CanonSec.getContent().emplace_back(std::move(Lift));
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentCanonLoweredTypeMismatch);
+}
+
 TEST(ComponentValidatorTest, CanonLift_WithPostReturn_Passes) {
   // post-return is a Lift-only option; exercise the happy path. Target type 1
   // lift-flattens to [i32] -> [i32], so spec L3564 requires post-return to have

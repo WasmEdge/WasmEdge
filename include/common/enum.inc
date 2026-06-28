@@ -1153,13 +1153,21 @@ E(ComponentValueAlreadyConsumed, 0x02C0,
 E(ComponentValueNotConsumed, 0x02C1,
   "value was not consumed before end of component")
 // More than one string-encoding canonical option was specified
-E(ComponentCanonEncodingConflict, 0x02C2, "canonical encoding option conflicts")
+E(ComponentCanonEncodingConflict, 0x02C4, "canonical encoding option conflicts")
 // Canonical option `memory` references a core memory index out of bounds
-E(ComponentCanonMemoryOutOfBounds, 0x02C3, "memory index out of bounds")
+E(ComponentCanonMemoryOutOfBounds, 0x02C5, "memory index out of bounds")
 // Canon lift/lower target type index does not reference a component func type
-E(ComponentCanonNotFuncType, 0x02C4, "not a function type")
-// A canonical option (memory / realloc / post-return) was specified twice
-E(ComponentCanonDuplicateOption, 0x02C5, "canonical option")
+E(ComponentCanonNotFuncType, 0x02C6, "not a function type")
+// A canonical option is invalid: specified twice, missing when required by the
+// flat ABI (memory / realloc), or names a core func with the wrong signature
+// (realloc). The registered string "canonical option" is a prefix of the
+// spec's expected texts for these cases.
+E(ComponentCanonInvalidOption, 0x02C7, "canonical option")
+// Lifted/lowered core function parameter types do not match the flattened
+// component func type parameter types. Verbatim string so result-type
+// mismatches (which expect "lowered result types ...") are NOT matched here.
+E(ComponentCanonLoweredTypeMismatch, 0x02C8,
+  "lowered parameter types do not match parameter types")
 // @}
 
 // Instantiation phase

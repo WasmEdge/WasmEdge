@@ -842,14 +842,17 @@ struct wasm_instance_t : public wasm::Instance,
       std::vector<std::unique_ptr<wasm_import_module_t>> &&imps,
       std::vector<wasm::own<wasm::Extern>> &&retained,
       std::vector<export_entry_t> &&exps) noexcept
-      : wasm_ref_base_t<wasm_instance_t>(s), modinst(std::move(mi)),
-        importmods(std::move(imps)), retainedImports(std::move(retained)),
-        exportorder(std::move(exps)) {}
-  std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance> modinst;
-  std::vector<std::unique_ptr<wasm_import_module_t>> importmods;
-  // Keep host-provided imports alive for the instance's lifetime.
-  std::vector<wasm::own<wasm::Extern>> retainedImports;
+      : wasm_ref_base_t<wasm_instance_t>(s), exportorder(std::move(exps)),
+        retainedImports(std::move(retained)), importmods(std::move(imps)),
+        modinst(std::move(mi)) {}
   std::vector<export_entry_t> exportorder;
+  // Keep host-provided imports alive for the instance's lifetime. Declared
+  // before the shims and modinst so destruction (reverse order) tears down
+  // modinst first (releasing its pins on the shims), then the shims, then the
+  // host instances the shims alias.
+  std::vector<wasm::own<wasm::Extern>> retainedImports;
+  std::vector<std::unique_ptr<wasm_import_module_t>> importmods;
+  std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance> modinst;
 };
 
 namespace {

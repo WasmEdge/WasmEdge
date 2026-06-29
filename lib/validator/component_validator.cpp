@@ -65,6 +65,16 @@ bool sortMatchesDescType(const AST::Component::Sort &S,
   return Mapped.has_value() && S.getSortType() == *Mapped;
 }
 
+std::string coreImportNameKey(std::string_view ModName,
+                              std::string_view Name) {
+  std::string Key;
+  Key.reserve(ModName.size() + Name.size() + 1);
+  Key.append(ModName);
+  Key.push_back('\0');
+  Key.append(Name);
+  return Key;
+}
+
 // Fallback type-index lookup against an InstanceType's own local
 // type-decl space (used when the outer ComponentContext scope doesn't
 // own the InstanceType).
@@ -355,6 +365,18 @@ Validator::validateComponent(const AST::Component::Component &Comp) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::CoreModuleSection &ModSec) noexcept {
+  std::unordered_set<std::string> ImportNames;
+  for (const auto &Import :
+       ModSec.getContent().getImportSection().getContent()) {
+    if (!ImportNames
+             .insert(coreImportNameKey(Import.getModuleName(),
+                                       Import.getExternalName()))
+             .second) {
+      spdlog::error(ErrCode::Value::ComponentImportNameConflict);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_CoreMod));
+      return Unexpect(ErrCode::Value::ComponentImportNameConflict);
+    }
+  }
   EXPECTED_TRY(validate(ModSec.getContent()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_CoreMod));
     return E;
@@ -1409,7 +1431,20 @@ Validator::validate(const AST::Component::CoreDefType &DType) noexcept {
   } else if (DType.isModuleType()) {
     // Module types are validated with an initially-empty type index space.
     CompCtx.enterTypeDefinition();
+    std::unordered_set<std::string> ImportNames;
     for (const auto &Decl : DType.getModuleType()) {
+      if (Decl.isImport()) {
+        const auto &Import = Decl.getImport();
+        if (!ImportNames
+                 .insert(coreImportNameKey(Import.getModuleName(),
+                                           Import.getName()))
+                 .second) {
+          spdlog::error(ErrCode::Value::ComponentImportNameConflict);
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreDefType));
+          CompCtx.exitComponent();
+          return Unexpect(ErrCode::Value::ComponentImportNameConflict);
+        }
+      }
       EXPECTED_TRY(validate(Decl).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreDefType));
         return E;
@@ -2386,6 +2421,12 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
           RefIdx, CoreTypeSize);
       return Unexpect(ErrCode::Value::InvalidIndex);
     }
+    if (CompCtx.getCoreModuleType(RefIdx) == nullptr) {
+      spdlog::error(ErrCode::Value::CoreTypeIndexOutOfBounds);
+      spdlog::error(
+          "    ExternDesc: core type index {} is not a module type"sv, RefIdx);
+      return Unexpect(ErrCode::Value::CoreTypeIndexOutOfBounds);
+    }
     break;
   }
   case AST::Component::ExternDesc::DescType::FuncType:
@@ -2400,6 +2441,26 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
           "    ExternDesc: referenced type index {} exceeds type index space size {}"sv,
           RefIdx, TypeSize);
       return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+    const auto *DT = CompCtx.getDefType(RefIdx);
+    if (DT != nullptr) {
+      const bool IsExpectedType =
+          (Desc.getDescType() ==
+               AST::Component::ExternDesc::DescType::FuncType &&
+           DT->isFuncType()) ||
+          (Desc.getDescType() ==
+               AST::Component::ExternDesc::DescType::ComponentType &&
+           DT->isComponentType()) ||
+          (Desc.getDescType() ==
+               AST::Component::ExternDesc::DescType::InstanceType &&
+           DT->isInstanceType());
+      if (!IsExpectedType) {
+        spdlog::error(ErrCode::Value::DefTypeIndexOutOfBounds);
+        spdlog::error(
+            "    ExternDesc: referenced type index {} has incompatible kind"sv,
+            RefIdx);
+        return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
+      }
     }
     break;
   }

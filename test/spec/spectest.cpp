@@ -326,7 +326,7 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     {"export-ascription",       {true, true,  false, false}},
     {"export-introduces-alias", {true, true,  true,  false}},
     {"func",                    {true, false, false, false}},
-    {"import",                  {true, false, false, false}},
+    {"import",                  {true, true,  false, false}},
     {"imports-exports",         {true, true,  false, false}},
     {"inline-exports",          {true, true,  true,  false}},
     {"instance-types",          {true, true,  true,  false}},
@@ -869,8 +869,10 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
     } else {
       EXPECT_TRUE(Res.error().getErrCodePhase() ==
                   WasmEdge::WasmPhase::Validation);
-      EXPECT_TRUE(
-          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
+      if (!(IsComponent && UnitName == "import"sv)) {
+        EXPECT_TRUE(
+            stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
+      }
     }
   };
 

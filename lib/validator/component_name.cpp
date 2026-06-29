@@ -115,6 +115,31 @@ bool tryReadKebab(std::string_view &Input, std::string_view &Output) {
 // hash-algorithm      = "sha256" / "sha384" / "sha512"
 // base64-value        = *VCHAR (visible chars, no whitespace)
 bool isIntegrityMetadata(std::string_view Input) {
+  auto isBase64Value = [](std::string_view Value) {
+    if (Value.empty()) {
+      return false;
+    }
+    size_t Padding = 0;
+    bool SeenPadding = false;
+    for (char C : Value) {
+      if (C == '=') {
+        SeenPadding = true;
+        Padding++;
+        if (Padding > 2) {
+          return false;
+        }
+        continue;
+      }
+      if (SeenPadding) {
+        return false;
+      }
+      if (!isalnum(C) && C != '+' && C != '/') {
+        return false;
+      }
+    }
+    return Padding < Value.size();
+  };
+
   while (!Input.empty() && Input.front() == ' ')
     Input.remove_prefix(1);
   while (!Input.empty() && Input.back() == ' ')
@@ -146,8 +171,7 @@ bool isIntegrityMetadata(std::string_view Input) {
       if (HashExpr.size() > AlgoSV.size() &&
           HashExpr.substr(0, AlgoSV.size()) == AlgoSV) {
         auto Value = HashExpr.substr(AlgoSV.size());
-        if (std::all_of(Value.begin(), Value.end(),
-                        [](char C) { return C >= 0x21 && C <= 0x7E; })) {
+        if (isBase64Value(Value)) {
           ValidAlgo = true;
         }
         break;

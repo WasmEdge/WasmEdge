@@ -116,6 +116,16 @@ bool addStronglyUniqueName(std::unordered_set<std::string> &Names,
     return Result;
   };
 
+  switch (Name.getKind()) {
+  case ComponentNameKind::LockedDep:
+  case ComponentNameKind::UnlockedDep:
+  case ComponentNameKind::Url:
+  case ComponentNameKind::Integrity:
+    return Names.insert(std::string(Name.getOriginalName())).second;
+  default:
+    break;
+  }
+
   // Handle the Constructor case separately.
   if (Name.getKind() == ComponentNameKind::Constructor) {
     std::string LowerCase = toLowerString(Name.getOriginalName());
@@ -138,7 +148,9 @@ bool addStronglyUniqueName(std::unordered_set<std::string> &Names,
   }
 
   // For case 2, L and L.L are not strongly-unique together.
-  std::string Normal = std::string(Name.getNoTagName());
+  std::string Normal =
+      std::string(Name.getNoTagName().empty() ? Name.getOriginalName()
+                                              : Name.getNoTagName());
   std::string UniForm = toLowerString(Normal);
   std::string LdL =
       std::string(Name.getNoTagName()) + "." + std::string(Name.getNoTagName());

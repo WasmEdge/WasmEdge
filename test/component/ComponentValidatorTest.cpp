@@ -850,6 +850,105 @@ TEST(ComponentValidatorTest, ComponentTypeImportAnnotatedNameRequiresFunc) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
+TEST(ComponentValidatorTest, ImportFuncRequiresFuncType) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+  AST::Component::DefValType DVT;
+  DVT.setPrimValType(AST::Component::PrimValType::String);
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setDefValType(std::move(DVT));
+
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "f";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, ImportCoreModuleRequiresModuleType) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+
+  auto &CoreTypeSec =
+      std::get<AST::Component::CoreTypeSection>(Comp.getSections()[0]);
+  std::vector<AST::SubType> STs;
+  STs.emplace_back();
+  STs.back().getCompositeType().setFunctionType(AST::FunctionType());
+  CoreTypeSec.getContent().emplace_back();
+  CoreTypeSec.getContent().back().setSubTypes(std::move(STs));
+
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "m";
+  ImpSec.getContent().back().getDesc().setCoreTypeIdx(0);
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, IntegrityImportNamesAreExactUnique) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+  for (uint32_t I = 0; I < 2; ++I) {
+    TypeSec.getContent().emplace_back();
+    TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+  }
+
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
+  for (const auto &[Name, TypeIdx] :
+       {std::pair{"integrity=<sha256-a>"sv, 0U},
+        std::pair{"integrity=<sha384-a>"sv, 1U}}) {
+    ImpSec.getContent().emplace_back();
+    ImpSec.getContent().back().getName() = Name;
+    ImpSec.getContent().back().getDesc().setFuncTypeIdx(TypeIdx);
+  }
+
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, IntegrityImportRejectsInvalidBase64) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "integrity=<sha256-^^^^>";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
 TEST(ComponentValidatorTest, ComponentTypeExportedInstanceAliasResolves) {
   // Regression for wit-smith–generated fuzz case: an `alias export` inside a
   // ComponentType body must see the sub-exports declared by an earlier
@@ -1062,6 +1161,70 @@ TEST(ComponentValidatorTest, CoreModuleTypeFuncTypeOutOfBounds) {
 
   CoreTypeSec.getContent().emplace_back();
   CoreTypeSec.getContent().back().setModuleType(std::move(ModDecls));
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CoreModuleTypeDuplicateImportName) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreTypeSection>();
+  auto &CoreTypeSec =
+      std::get<AST::Component::CoreTypeSection>(Comp.getSections().back());
+
+  std::vector<AST::Component::CoreModuleDecl> ModDecls;
+
+  auto CDT = std::make_unique<AST::Component::CoreDefType>();
+  std::vector<AST::SubType> STs;
+  STs.emplace_back();
+  STs.back().getCompositeType().setFunctionType(AST::FunctionType());
+  CDT->setSubTypes(std::move(STs));
+  AST::Component::CoreModuleDecl TypeDecl;
+  TypeDecl.setType(std::move(CDT));
+  ModDecls.push_back(std::move(TypeDecl));
+
+  for (uint32_t I = 0; I < 2; ++I) {
+    AST::Component::CoreImportDecl CImp;
+    CImp.getModuleName() = "m";
+    CImp.getName() = "f";
+    CImp.getImportDesc().setTypeIndex(0);
+    AST::Component::CoreModuleDecl MD;
+    MD.setImport(std::move(CImp));
+    ModDecls.push_back(std::move(MD));
+  }
+
+  CoreTypeSec.getContent().emplace_back();
+  CoreTypeSec.getContent().back().setModuleType(std::move(ModDecls));
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, InlineCoreModuleDuplicateImportName) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreModuleSection>();
+  auto &ModSec =
+      std::get<AST::Component::CoreModuleSection>(Comp.getSections().back());
+
+  ModSec.getContent().getTypeSection().getContent().emplace_back();
+  ModSec.getContent()
+      .getTypeSection()
+      .getContent()
+      .back()
+      .getCompositeType()
+      .setFunctionType(AST::FunctionType());
+
+  for (uint32_t I = 0; I < 2; ++I) {
+    AST::ImportDesc Imp;
+    Imp.setModuleName("m");
+    Imp.setExternalName("f");
+    Imp.setExternalType(ExternalType::Function);
+    Imp.setExternalFuncTypeIdx(0);
+    ModSec.getContent().getImportSection().getContent().push_back(
+        std::move(Imp));
+  }
 
   Validator::Validator V(Conf);
   ASSERT_FALSE(V.validate(Comp));

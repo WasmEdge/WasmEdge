@@ -1,4 +1,4 @@
-### 0.17.1-rc.1 (2026-06-16)
+### 0.17.1 (2026-06-29)
 
 Features:
 
@@ -24,7 +24,7 @@ Thank all the contributors who made this release possible!
 
 Shen-Ta Hsieh(BestSteve), Yi-Ying He
 
-If you want to build from source, please use WasmEdge-0.17.1-rc.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.17.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.17.0 (2026-05-18)
 

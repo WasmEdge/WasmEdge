@@ -1,4 +1,4 @@
-### 0.17.1 (2026-06-29)
+### 0.17.1-rc.2 (2026-06-29)
 
 Features:
 
@@ -13,18 +13,43 @@ Fixed issues:
   * fix(wasi): reject symlink targets that resolve outside the preopen root (#4938)
 * [WASI-Logging]
   * fix(plugin/wasi-logging): keep the default logger alive across instances
+* [Common]
+  * fix(common): build against fmt 8 and spdlog without callback_sink
+  * fix(common): extend formatter compat to fmt 6 and spdlog 1.5
+  * fix(common): build against fmt 12.2 where uint128_fallback was renamed
+  * fix(common): honor format specs and preserve Char fill width in fmt<8 uint128 formatter fallback
+  * fix(common): guard __has_include probes and include <utility> for std::move
+
+Refactored:
+
+* [Common]
+  * refactor(common): move WASMEDGE_FMT_CONST to a dedicated fmt compat header
+  * refactor(common): unify ErrInfo fmt formatters on the FmtCtx template pattern
 
 CI:
 
+* feat(ci): add static-lib build workflow for macOS arm64 (#4948)
+* fix(ci): brew trust for wasmedge/llvm (#5079)
+* ci: ignore gcov negative-hit parse errors in coverage build (#5062)
+* ci: add fuzzer build to Ubuntu CI matrix (#5036)
+* ci: remove unused packages in fedora rawhide (#5069)
+* ci(linter): bump clang-format from 20 to 22
 * [dependabot]
   * ci(dependabot): bump codecov/codecov-action from 6.0.1 to 7.0.0 (#4943)
   * ci(dependabot): bump github/codeql-action from 4.36.1 to 4.36.2 (#4944)
+  * ci(dependabot): bump step-security/harden-runner from 2.19.1 to 2.19.4 (#4890, #4899)
+  * ci(dependabot): bump actions/checkout from 6.0.2 to 7.0.0 (#4925, #5042)
+  * ci(dependabot): bump the docker group with 3 updates (#4898)
+
+Misc:
+
+* style: reformat int128.h and winapi.h with clang-format-22
 
 Thank all the contributors who made this release possible!
 
-Shen-Ta Hsieh(BestSteve), Yi-Ying He
+Shen-Ta Hsieh(BestSteve), Yi-Ying He, dm4, hydai
 
-If you want to build from source, please use WasmEdge-0.17.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.17.1-rc.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.17.0 (2026-05-18)
 

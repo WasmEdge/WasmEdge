@@ -4796,10 +4796,30 @@ private:
       Off = Builder.createAdd(Off, LLContext.getInt64(Offset));
     }
 
+    const uint64_t AccessBytes = LoadTy.getPrimitiveSizeInBits() / 8;
+    auto MemPages = Builder.createCall(
+        Context.getIntrinsic(
+            Builder, Executable::Intrinsics::kMemSize,
+            LLVM::Type::getFunctionType(Context.Int64Ty,
+                                        {Context.Int32Ty}, false)),
+        {LLContext.getInt32(MemoryIndex)});
+    MemPages.addCallSiteAttribute(Context.ReadOnly);
+    auto MemSize =
+        Builder.createMul(MemPages, LLContext.getInt64(UINT64_C(65536)));
+    auto EndOff = Builder.createAdd(Off, LLContext.getInt64(AccessBytes));
+    auto OkBB =
+        LLVM::BasicBlock::create(LLContext, F.Fn, "mem_load_ok");
+    auto IsInBound = Builder.createLikely(
+        Builder.createICmpULE(EndOff, MemSize));
+    Builder.createCondBr(
+        IsInBound, OkBB,
+        getTrapBB(ErrCode::Value::MemoryOutOfBounds));
+    Builder.positionAtEnd(OkBB);
+
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
     auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
-    auto LoadInst = Builder.createLoad(LoadTy, Ptr, true);
+    auto LoadInst = Builder.createLoad(LoadTy, Ptr, false);
     LoadInst.setAlignment(1 << Alignment);
     stackPush(switchEndian(LoadInst));
   }
@@ -4856,6 +4876,26 @@ private:
       Off = Builder.createAdd(Off, LLContext.getInt64(Offset));
     }
 
+    const uint64_t AccessBytes = LoadTy.getPrimitiveSizeInBits() / 8;
+    auto MemPages = Builder.createCall(
+        Context.getIntrinsic(
+            Builder, Executable::Intrinsics::kMemSize,
+            LLVM::Type::getFunctionType(Context.Int64Ty,
+                                        {Context.Int32Ty}, false)),
+        {LLContext.getInt32(MemoryIndex)});
+    MemPages.addCallSiteAttribute(Context.ReadOnly);
+    auto MemSize =
+        Builder.createMul(MemPages, LLContext.getInt64(UINT64_C(65536)));
+    auto EndOff = Builder.createAdd(Off, LLContext.getInt64(AccessBytes));
+    auto OkBB =
+        LLVM::BasicBlock::create(LLContext, F.Fn, "mem_store_ok");
+    auto IsInBound = Builder.createLikely(
+        Builder.createICmpULE(EndOff, MemSize));
+    Builder.createCondBr(
+        IsInBound, OkBB,
+        getTrapBB(ErrCode::Value::MemoryOutOfBounds));
+    Builder.positionAtEnd(OkBB);
+
     if (Trunc) {
       V = Builder.createTrunc(V, LoadTy);
     }
@@ -4866,7 +4906,7 @@ private:
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
     auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
-    auto StoreInst = Builder.createStore(V, Ptr, true);
+    auto StoreInst = Builder.createStore(V, Ptr, false);
     StoreInst.setAlignment(1 << Alignment);
   }
   void compileStoreLaneOp(uint32_t MemoryIndex, uint64_t Offset,

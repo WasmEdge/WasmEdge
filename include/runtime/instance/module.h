@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/runtime/instance/module.h - Module Instance definition ---===//
 //
@@ -24,6 +24,7 @@
 #include "runtime/instance/function.h"
 #include "runtime/instance/global.h"
 #include "runtime/instance/memory.h"
+#include "runtime/instance/reflifetime.h"
 #include "runtime/instance/struct.h"
 #include "runtime/instance/table.h"
 #include "runtime/instance/tag.h"
@@ -37,6 +38,7 @@
 #include <shared_mutex>
 #include <string>
 #include <type_traits>
+#include <unordered_set>
 #include <vector>
 
 namespace WasmEdge {
@@ -71,27 +73,37 @@ inline constexpr const bool IsInstanceV =
 
 class ComponentInstance;
 
+/// Module instances use a dependency-pinned lifetime: each importer pins the
+/// instances it imports from (see RefLifetime) and releases them when
+/// destroyed, so a heap instance torn down via terminate() is deleted only
+/// after its owner and all importers release.
+///
+/// A stack- or member-allocated provider cannot be deferred by a pin, so it
+/// must outlive its importers: declare a host module before the VM or
+/// StoreManager that imports it. The destructor enforces this with
+/// assuming(!hasDependents()).
 class ModuleInstance {
 public:
   ModuleInstance(std::string_view Name, void *Data = nullptr,
                  std::function<void(void *)> Finalizer = nullptr)
       : ModName(Name), HostData(Data), HostDataFinalizer(Finalizer) {}
   virtual ~ModuleInstance() noexcept {
-    // Some module instances (e.g., stack-allocated ones) may not trigger
-    // the explicit termination process. We call unlinkAllStores() as
-    // a fallback to ensure all store manager callbacks are cleared.
+    // Fallback for instances torn down outside terminate() (e.g.
+    // stack-allocated).
     unlinkAllStores();
+    assuming(!Life.hasDependents());
     if (HostDataFinalizer.operator bool()) {
       HostDataFinalizer(HostData);
     }
-    for (auto *Provider : DependencyList) {
-      if (Provider) {
-        Provider->decrementInDegree();
-      }
-    }
+    releaseProviders();
   }
 
-  void terminate() noexcept { resetSelfDegree(); }
+  void terminate() noexcept {
+    unlinkAllStores();
+    if (Life.releaseOwner()) {
+      delete this;
+    }
+  }
 
   std::string_view getModuleName() const noexcept {
     std::shared_lock Lock(Mutex);
@@ -544,46 +556,55 @@ protected:
   }
 
   void unlinkAllStores() noexcept {
-    // When destroying this module instance, call the callbacks to unlink to the
-    // store managers.
-    for (auto &&[Key, Callback] : LinkedStore) {
+    std::map<LinkedStoreKey, std::function<BeforeModuleDestroyCallback>>
+        Snapshot;
+    {
+      std::unique_lock Lock(Mutex);
+      Snapshot.swap(LinkedStore);
+    }
+    for (auto &&[Key, Callback] : Snapshot) {
       assuming(Callback);
       Callback(Key, this);
     }
-    LinkedStore.clear();
   }
 
-  void incrementInDegree() noexcept {
-    InDegree.fetch_add(1, std::memory_order_relaxed);
-  }
-
-  void decrementInDegree() noexcept {
-    if (InDegree.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-      this->tryToDelete();
+  void addDependency(ModuleInstance &Provider) {
+    std::unique_lock Lock(Mutex);
+    if (Providers.insert(&Provider).second) {
+      Provider.Life.addDependent();
     }
   }
 
-  void linkDependency(ModuleInstance &Provider) {
+  void takeProviders(std::unordered_set<ModuleInstance *> &Snapshot) noexcept {
     std::unique_lock Lock(Mutex);
-    auto It =
-        std::find(DependencyList.begin(), DependencyList.end(), &Provider);
-    if (It != DependencyList.end()) {
+    Snapshot.swap(Providers);
+  }
+
+  static void drainPins(std::unordered_set<ModuleInstance *> &Provs,
+                        std::vector<ModuleInstance *> &ToDelete) noexcept {
+    for (auto *Provider : Provs) {
+      if (Provider->Life.releaseDependent()) {
+        ToDelete.push_back(Provider);
+      }
+    }
+    Provs.clear();
+  }
+
+  void releaseProviders() noexcept {
+    std::unordered_set<ModuleInstance *> ProvidersToRelease;
+    takeProviders(ProvidersToRelease);
+    if (ProvidersToRelease.empty()) {
       return;
     }
-    DependencyList.push_back(&Provider);
-    Provider.incrementInDegree();
-  }
-
-  void resetSelfDegree() noexcept {
-    unlinkAllStores();
-    SelfDegree.store(0, std::memory_order_release);
-    this->tryToDelete();
-  }
-
-  void tryToDelete() noexcept {
-    if (SelfDegree.load(std::memory_order_acquire) == 0 &&
-        InDegree.load(std::memory_order_acquire) == 0) {
-      delete this;
+    std::vector<ModuleInstance *> ToDelete;
+    drainPins(ProvidersToRelease, ToDelete);
+    while (!ToDelete.empty()) {
+      ModuleInstance *Next = ToDelete.back();
+      ToDelete.pop_back();
+      std::unordered_set<ModuleInstance *> NextProviders;
+      Next->takeProviders(NextProviders);
+      delete Next;
+      drainPins(NextProviders, ToDelete);
     }
   }
 
@@ -643,14 +664,12 @@ protected:
   void *HostData;
   std::function<void(void *)> HostDataFinalizer;
 
-  /// In-degree of the reference counting. Represents the number of
-  /// moduleimporting this instance.
-  std::atomic<uint32_t> InDegree{0};
-  /// Self-degree of the reference counting. 1 if this instance is held by
-  /// somebody, 0 otherwise.
-  std::atomic<uint32_t> SelfDegree{1};
-  /// Dependency list of the provider module instances.
-  std::vector<Instance::ModuleInstance *> DependencyList;
+  /// Intrusive lifetime: owner flag plus importer count, packed into one
+  /// atomic.
+  RefLifetime Life;
+  /// Provider instances this module imported from; each holds one dependent
+  /// pin, released when this module is destroyed.
+  std::unordered_set<ModuleInstance *> Providers;
 };
 
 } // namespace Instance

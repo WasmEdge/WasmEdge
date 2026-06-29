@@ -79,7 +79,7 @@ The Security Response Team is responsible for handling all reports of security h
 
 While most business in WasmEdge runtime is conducted by "lazy consensus", periodically the Maintainers may need to vote on specific actions or changes.
 
-Generally, a vote can be taken on the developer mailing list (wasmedge@googlegroups.com) or the private Maintainer mailing list (cncf-wasmedge-runtime-maintainers@lists.cncf.io) for security or conduct matters, or via GitHub.
+Generally, a vote can be taken on the developer mailing list (WasmEdge@googlegroups.com) or the private Maintainer mailing list (cncf-wasmedge-runtime-maintainers@lists.cncf.io) for security or conduct matters, or via GitHub.
 
 ### Voting Requirements
 

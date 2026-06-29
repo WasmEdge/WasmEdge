@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2023 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "ocr_env.h"
 #include "ocr_module.h"

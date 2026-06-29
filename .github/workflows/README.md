@@ -87,7 +87,7 @@ filter.
 
 | Workflow | What it does | If it fails |
 | -------- | ------------ | ----------- |
-| **Core** (`build.yml`) | The main build: clang-format gate, then build and unit tests across macOS, manylinux, Ubuntu (gcc/clang x Debug/Release), Windows (+MSVC), Android, Fedora, Debian, and Alpine (static). Its Ubuntu coverage job also produces the **CodeCov** report. | Fix the build or unit-test failure on the reported platform. |
+| **Core** (`build.yml`) | The main build: clang-format gate, then build and unit tests across macOS, manylinux, Ubuntu (gcc/clang x Debug/Release), Windows (+MSVC), Android, Fedora, Debian, and Alpine (static). Its Ubuntu matrix also includes single-environment coverage and fuzzer-build checks; coverage uploads the **CodeCov** report. | Fix the build or unit-test failure on the reported platform. |
 | **Extensions** (`build-extensions.yml`) | Also triggered by shared build paths such as `thirdparty/`, `tools/`, `cmake/`, and `CMakeLists.txt`; plugin matrix scope still follows the Extensions path filter. | Investigate like any triggered check; for failures clearly unrelated to your shared change, follow [Interpreting failures](#interpreting-failures). |
 | **CodeQL** (`codeql-analysis.yml`) | Security analysis of C/C++ sources (excludes `docs/`, `.github/`, `utils/`); also runs weekly. | Address the flagged security finding. |
 | **IWYU checker** (`IWYU_scan.yml`) | Include-what-you-use scan on Fedora and macOS; reports header suggestions as logs/artifacts. | Review the log and tidy includes where applicable. |
@@ -159,7 +159,7 @@ workflows are called by the entries below and are not listed here; see
 
 | Name | File | Triggers (events, branches, paths) | Notes |
 | ---- | ---- | ---------------------------------- | ----- |
-| Core | `build.yml` | `push` (`master`, `X.Y.x`), `pull_request` (`master`, `proposal/**`, `X.Y.x`); paths: core build workflows, `include/`, `lib/`, `test/` (not `test/plugins/`), `utils/docker/*static*`, `thirdparty/`, `tools/`, `cmake/`, `CMakeLists.txt` | clang-format gate, then cross-platform build/test; coverage job uploads CodeCov |
+| Core | `build.yml` | `push` (`master`, `X.Y.x`), `pull_request` (`master`, `proposal/**`, `X.Y.x`); paths: core build workflows, `include/`, `lib/`, `test/` (not `test/plugins/`), `utils/docker/*static*`, `thirdparty/`, `tools/`, `cmake/`, `CMakeLists.txt` | clang-format gate, then cross-platform build/test; Ubuntu matrix includes coverage upload and fuzzer build |
 | Extensions | `build-extensions.yml` | same events/branches as Core; paths: extension build workflows + config, `plugins/`, `test/plugins/`, `thirdparty/`, `tools/`, `cmake/`, `CMakeLists.txt` | clang-format gate; always runs WASI-NN GGML RPC + Windows WASI-NN jobs; path-filters the plugin build matrix |
 | Commit Lint | `commitlint.yml` | `pull_request` (opened/synchronize/reopened/edited); no path filter | validates commit messages + PR title |
 | Misc linters | `misc-linters.yml` | `push`, `pull_request`; no path filter | codespell + lineguard |
@@ -225,7 +225,8 @@ Some required checks are not `.yml` workflows in this directory:
 | manylinux_2_28 | aarch64 | gcc | `manylinux_2_28_aarch64` | o | o |
 | Ubuntu 24.04 | x86_64 | clang | `ubuntu-24.04-build-clang` | o ||
 | Ubuntu 24.04 | x86_64 | gcc | `ubuntu-24.04-build-gcc` | o ||
-| Ubuntu 22.04 | x86_64 | gcc | `ubuntu-22.04-build-gcc` | coverage ||
+| Ubuntu 24.04 | x86_64 | clang | `ubuntu-24.04-build-clang` | fuzzer build ||
+| Ubuntu 24.04 | x86_64 | gcc | `ubuntu-24.04-build-gcc` | coverage ||
 | Ubuntu 20.04 | x86_64 | clang | `ubuntu-20.04-build-clang` | o | o |
 | Ubuntu 20.04 | aarch64 | clang | `ubuntu-20.04-build-clang-aarch64` | o | o |
 

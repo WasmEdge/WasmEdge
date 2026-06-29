@@ -28,12 +28,12 @@ jobs:
       version: ${{ steps.prep.outputs.version }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
@@ -68,6 +68,16 @@ jobs:
       matrix:
         "[{'name':'MacOS 15 (x86_64)','runner':'macos-15-intel','darwin_version':24,'arch':'x86_64'},
         {'name':'MacOS 14 (arm64)','runner':'macos-14','darwin_version':23,'arch':'arm64'}]"
+      release: true
+    secrets: inherit
+
+  build_on_macos_static:
+    needs: create_release
+    uses: ./.github/workflows/reusable-build-on-macos-static.yml
+    permissions:
+      contents: write
+    with:
+      version: ${{ needs.create_release.outputs.version }}
       release: true
     secrets: inherit
 
@@ -165,12 +175,12 @@ jobs:
       contents: write
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Grant the safe directory for git
         run: |

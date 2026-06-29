@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
 #include "common/types.h"
@@ -706,6 +706,128 @@ TEST(WasiSockTest, SocketUDP_6) {
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
     Env.fini();
   }
+}
+
+TEST(WasiSockTest, SockConnect_6) {
+  if (!TestIPv6Enabled()) {
+    GTEST_SKIP();
+  }
+
+#if WASMEDGE_OS_WINDOWS
+  WSADATA_ WSAData;
+  WSAStartup(0x0202, &WSAData);
+  const SOCKET_ ErrFd = INVALID_SOCKET_;
+  SOCKET_ ServerFd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+#else
+  const int ErrFd = -1;
+  int ServerFd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+#endif
+
+  ASSERT_NE(ServerFd, ErrFd);
+
+  const int One = 1;
+  ASSERT_EQ(setsockopt(ServerFd, SOL_SOCKET, SO_REUSEADDR,
+                       reinterpret_cast<const char *>(&One),
+                       static_cast<int>(sizeof(One))),
+            0);
+
+  sockaddr_in6 ServerAddr{};
+  ServerAddr.sin6_family = AF_INET6;
+  ServerAddr.sin6_port = htons(0);
+  ServerAddr.sin6_addr = in6addr_loopback;
+
+  ASSERT_EQ(bind(ServerFd, reinterpret_cast<sockaddr *>(&ServerAddr),
+                 sizeof(ServerAddr)),
+            0);
+  ASSERT_EQ(listen(ServerFd, 1), 0);
+
+  sockaddr_in6 BoundAddr{};
+#if WASMEDGE_OS_WINDOWS
+  int BoundLen = sizeof(BoundAddr);
+#else
+  socklen_t BoundLen = sizeof(BoundAddr);
+#endif
+  ASSERT_EQ(getsockname(ServerFd, reinterpret_cast<sockaddr *>(&BoundAddr),
+                        &BoundLen),
+            0);
+  const uint16_t Port = ntohs(BoundAddr.sin6_port);
+
+  std::promise<void> ServerReady;
+  auto ReadyFuture = ServerReady.get_future();
+
+  std::thread AcceptThread([&]() {
+    // Signal main thread that server thread is scheduled and running
+    ServerReady.set_value();
+    auto ConnFd = accept(ServerFd, nullptr, nullptr);
+    if (ConnFd != ErrFd) {
+#if WASMEDGE_OS_WINDOWS
+      closesocket(ConnFd);
+#else
+      close(ConnFd);
+#endif
+    }
+  });
+
+  ReadyFuture.wait();
+
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory",
+      std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+          WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  WasmEdge::Host::WasiSockOpenV1 WasiSockOpen(Env);
+  WasmEdge::Host::WasiSockConnectV1 WasiSockConnect(Env);
+  WasmEdge::Host::WasiFdClose WasiFdClose(Env);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+  const uint32_t FdPtr = 0;
+  const uint32_t AddrPtr = 16;
+  const uint32_t AddrBufPtr = 64;
+  const uint32_t AddrBufLen = 16;
+
+  Env.init({}, "test"s, {}, {});
+
+  EXPECT_TRUE(WasiSockOpen.run(
+      CallFrame,
+      std::array<WasmEdge::ValVariant, 3>{
+          static_cast<uint32_t>(__WASI_ADDRESS_FAMILY_INET6),
+          static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_STREAM), FdPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+  int32_t Fd =
+      WasmEdge::EndianValue(*MemInst.getPointer<const int32_t *>(FdPtr)).le();
+
+  auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
+  auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBufLen);
+  std::fill_n(AddrBuf.data(), AddrBuf.size(), 0x00);
+  AddrBuf[AddrBufLen - 1] = 1;
+
+  Addr->buf = WasmEdge::EndianValue(AddrBufPtr).le();
+  Addr->buf_len = WasmEdge::EndianValue(AddrBufLen).le();
+
+  EXPECT_TRUE(WasiSockConnect.run(
+      CallFrame,
+      std::array<WasmEdge::ValVariant, 3>{Fd, AddrPtr, Port}, Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+  WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{Fd}, Errno);
+  Env.fini();
+
+#if WASMEDGE_OS_WINDOWS
+  closesocket(ServerFd);
+  AcceptThread.join();
+  WSACleanup();
+#else
+  close(ServerFd);
+  AcceptThread.join();
+#endif
 }
 
 TEST(WasiSockTest, SocketUDP_4_Fallback) {

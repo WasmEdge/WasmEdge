@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasinnfunc.h"
 #include "wasinnenv.h"
@@ -356,8 +356,8 @@ WasiNNSetInput::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t ContextId,
     RPCTensor.mutable_dimensions()->Add(Tensor.Dimension.begin(),
                                         Tensor.Dimension.end());
     RPCTensor.set_ty(wasi_ephemeral_nn::TensorType(Tensor.RType));
-    RPCTensor.set_data(MemInst->getPointer<char *>(WasiTensor->TensorPtr),
-                       WasiTensor->TensorLen);
+    RPCTensor.set_data(reinterpret_cast<const char *>(Tensor.Tensor.data()),
+                       Tensor.Tensor.size());
     *Req.mutable_tensor() = RPCTensor;
     google::protobuf::Empty Res;
     auto Status = Stub->SetInput(&ClientContext, Req, &Res);

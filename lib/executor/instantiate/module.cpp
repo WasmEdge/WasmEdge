@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 
@@ -68,9 +68,19 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // Instantiate ImportSection and do import matching. (ImportSec)
   const AST::ImportSection &ImportSec = Mod.getImportSection();
   EXPECTED_TRY(instantiate(
-                   [&StoreMgr](std::string_view ModName)
+                   [&StoreMgr, &ModInst](std::string_view ModName)
                        -> const WasmEdge::Runtime::Instance::ModuleInstance * {
-                     return StoreMgr.findModule(ModName);
+                     using WasmEdge::Runtime::Instance::ModuleInstance;
+                     return StoreMgr.withModuleLocked(
+                         ModName,
+                         [&ModInst](const ModuleInstance *Found)
+                             -> const ModuleInstance * {
+                           if (Found) {
+                             ModInst->addDependency(
+                                 *const_cast<ModuleInstance *>(Found));
+                           }
+                           return Found;
+                         });
                    },
                    *ModInst, ImportSec)
                    .map_error(ReportError(ASTNodeAttr::Sec_Import)));

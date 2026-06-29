@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 enable_language(ASM)
 
@@ -27,6 +27,7 @@ wasmedge_add_library(utilBlake3
   blake3_dispatch.c
   blake3_portable.c
 )
+wasmedge_suppress_shadow_warnings(utilBlake3)
 
 # optional SIMD sources
 macro(BLAKE3_DISABLE_SIMD)

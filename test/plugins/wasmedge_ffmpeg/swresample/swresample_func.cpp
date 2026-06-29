@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "swresample/swresample_func.h"
 #include "swresample/module.h"
@@ -37,24 +37,20 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   auto *FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swresample_version");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSWResampleVersion = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWResampleVersion &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSWResampleVersion = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncSWResampleVersion.run(CallFrame, {}, Result));
-    ASSERT_TRUE(Result[0].get<int32_t>() > 0);
+    ASSERT_TRUE((Result[0].get<int32_t>() >> 16) > 0);
   }
 
   FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swr_alloc_set_opts");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwrAllocSetOpts = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWRAllocSetOpts &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSwrAllocSetOpts = FuncInst->getHostFunc();
 
   // Testing with Null Old SwrCtx. Hence 2nd argument is 0.
   {
@@ -100,11 +96,9 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst =
       SWResampleMod->findFuncExports("wasmedge_ffmpeg_swresample_swr_free");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwrFree =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWRFree &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSwrFree = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncSwrFree.run(
@@ -114,11 +108,9 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst =
       SWResampleMod->findFuncExports("wasmedge_ffmpeg_swresample_swr_init");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwrInit =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWRInit &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSwrInit = FuncInst->getHostFunc();
 
   {
     SwrId = readUInt32(MemInst, SWResamplePtr);
@@ -129,11 +121,9 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_av_opt_set_dict");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVOptSetDict =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWResample::AVOptSetDict &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVOptSetDict = FuncInst->getHostFunc();
 
   {
     uint32_t EmptyDictId = 0;
@@ -155,11 +145,9 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swr_convert_frame");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwrConvertFrame = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWRConvertFrame &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSwrConvertFrame = FuncInst->getHostFunc();
 
   {
     SwrId = readUInt32(MemInst, SWResamplePtr);
@@ -172,11 +160,9 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swr_get_delay");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwrGetDelay =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWRGetDelay &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSwrGetDelay = FuncInst->getHostFunc();
 
   {
     SwrId = readUInt32(MemInst, SWResamplePtr);
@@ -188,11 +174,9 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swresample_configuration_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwrConfigLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWResampleConfigurationLength
-          &>(FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSwrConfigLength = FuncInst->getHostFunc();
 
   int32_t Length = 0;
   {
@@ -205,11 +189,9 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swresample_configuration");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwrConfig = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWResampleConfiguration &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSwrConfig = FuncInst->getHostFunc();
 
   {
     SwrId = readUInt32(MemInst, SWResamplePtr);
@@ -217,15 +199,17 @@ TEST_F(FFmpegTest, SWResampleFunc) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{StrPtr, Length},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_NE(std::string_view(MemInst->getPointer<char *>(StrPtr),
+                               static_cast<size_t>(Length))
+                  .find("--"),
+              std::string_view::npos);
   }
 
   FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swresample_license_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwrLicenseLen = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWResampleLicenseLength &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSwrLicenseLen = FuncInst->getHostFunc();
 
   {
     SwrId = readUInt32(MemInst, SWResamplePtr);
@@ -238,11 +222,9 @@ TEST_F(FFmpegTest, SWResampleFunc) {
 
   FuncInst = SWResampleMod->findFuncExports(
       "wasmedge_ffmpeg_swresample_swresample_license");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncSwrLicense = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWResampleLicense &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSwrLicense = FuncInst->getHostFunc();
 
   {
     SwrId = readUInt32(MemInst, SWResamplePtr);
@@ -250,6 +232,10 @@ TEST_F(FFmpegTest, SWResampleFunc) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{StrPtr, Length},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(StrPtr),
+                               static_cast<size_t>(Length))
+                  .find("--"),
+              std::string_view::npos);
   }
 }
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "validator/component_context.h"
 #include "validator/component_name.h"
@@ -164,6 +164,68 @@ TEST(ComponentNameParserTest, StronglyUnique) {
 
   EXPECT_FALSE(add("[method]foo"sv));
   EXPECT_FALSE(add("[static]foo.abc"sv));
+}
+
+TEST(ComponentNameParserTest, StronglyUniqueExportBasicCases) {
+  // Mirrors StronglyUniqueBasicCases on the export-side name set: the
+  // strong-uniqueness rule must apply symmetrically to import and export
+  // name sets (Explainer §Import and Export Definitions).
+  Validator::ComponentContext::Context Ctx(nullptr);
+
+  auto add = [&](std::string_view S) -> bool {
+    auto CN = Validator::ComponentName::parse(S);
+    if (!CN.has_value()) {
+      return false;
+    }
+    return Ctx.AddExportedName(*CN);
+  };
+
+  EXPECT_TRUE(add("foo"sv));
+  EXPECT_TRUE(add("foo-bar"sv));
+  EXPECT_TRUE(add("[constructor]foo"sv));
+  EXPECT_TRUE(add("[method]foo.bar"sv));
+  EXPECT_TRUE(add("[method]foo.baz"sv));
+
+  EXPECT_FALSE(add("foo"sv));
+  EXPECT_FALSE(add("foo-BAR"sv));
+  EXPECT_FALSE(add("[constructor]foo-BAR"sv));
+  EXPECT_FALSE(add("[method]foo.foo"sv));
+  EXPECT_FALSE(add("[method]foo.BAR"sv));
+}
+
+TEST(ComponentNameParserTest, StronglyUniqueExport) {
+  Validator::ComponentContext::Context Ctx(nullptr);
+
+  auto add = [&](std::string_view S) -> bool {
+    auto CN = Validator::ComponentName::parse(S);
+    if (!CN.has_value()) {
+      return false;
+    }
+    return Ctx.AddExportedName(*CN);
+  };
+
+  EXPECT_TRUE(add("[method]foo.abc"sv));
+  EXPECT_TRUE(add("[constructor]foo"sv));
+  EXPECT_TRUE(add("foo-bar"sv));
+  EXPECT_TRUE(add("foo"sv));
+
+  EXPECT_FALSE(add("[method]foo"sv));
+  EXPECT_FALSE(add("[static]foo.abc"sv));
+}
+
+TEST(ComponentNameParserTest, StronglyUniqueImportExportIndependence) {
+  // Spec: import and export name sets are checked *separately* — an import
+  // and an export sharing a name is not a strong-uniqueness violation.
+  Validator::ComponentContext::Context Ctx(nullptr);
+
+  auto parse = [](std::string_view S) {
+    return *Validator::ComponentName::parse(S);
+  };
+
+  EXPECT_TRUE(Ctx.AddImportedName(parse("foo"sv)));
+  EXPECT_TRUE(Ctx.AddExportedName(parse("foo"sv)));
+  EXPECT_FALSE(Ctx.AddImportedName(parse("foo"sv)));
+  EXPECT_FALSE(Ctx.AddExportedName(parse("foo"sv)));
 }
 
 TEST(ComponentNameParserTest, LockedDep) {

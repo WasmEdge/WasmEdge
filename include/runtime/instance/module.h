@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/runtime/instance/module.h - Module Instance definition ---===//
 //
@@ -20,9 +20,11 @@
 #include "runtime/instance/array.h"
 #include "runtime/instance/data.h"
 #include "runtime/instance/elem.h"
+#include "runtime/instance/exception.h"
 #include "runtime/instance/function.h"
 #include "runtime/instance/global.h"
 #include "runtime/instance/memory.h"
+#include "runtime/instance/reflifetime.h"
 #include "runtime/instance/struct.h"
 #include "runtime/instance/table.h"
 #include "runtime/instance/tag.h"
@@ -36,6 +38,7 @@
 #include <shared_mutex>
 #include <string>
 #include <type_traits>
+#include <unordered_set>
 #include <vector>
 
 namespace WasmEdge {
@@ -70,20 +73,35 @@ inline constexpr const bool IsInstanceV =
 
 class ComponentInstance;
 
+/// Module instances use a dependency-pinned lifetime: each importer pins the
+/// instances it imports from (see RefLifetime) and releases them when
+/// destroyed, so a heap instance torn down via terminate() is deleted only
+/// after its owner and all importers release.
+///
+/// A stack- or member-allocated provider cannot be deferred by a pin, so it
+/// must outlive its importers: declare a host module before the VM or
+/// StoreManager that imports it. The destructor enforces this with
+/// assuming(!hasDependents()).
 class ModuleInstance {
 public:
   ModuleInstance(std::string_view Name, void *Data = nullptr,
                  std::function<void(void *)> Finalizer = nullptr)
       : ModName(Name), HostData(Data), HostDataFinalizer(Finalizer) {}
   virtual ~ModuleInstance() noexcept {
-    // When destroying this module instance, call the callbacks to unlink to the
-    // store managers.
-    for (auto &&[Key, Callback] : LinkedStore) {
-      assuming(Callback);
-      Callback(Key, this);
-    }
+    // Fallback for instances torn down outside terminate() (e.g.
+    // stack-allocated).
+    unlinkAllStores();
+    assuming(!Life.hasDependents());
     if (HostDataFinalizer.operator bool()) {
       HostDataFinalizer(HostData);
+    }
+    releaseProviders();
+  }
+
+  void terminate() noexcept {
+    unlinkAllStores();
+    if (Life.releaseOwner()) {
+      delete this;
     }
   }
 
@@ -281,6 +299,13 @@ protected:
     OwnedStructInsts.push_back(
         std::make_unique<StructInstance>(this, std::forward<Args>(Values)...));
     return OwnedStructInsts.back().get();
+  }
+  template <typename... Args>
+  ExceptionInstance *newException(Args &&...Values) {
+    std::unique_lock Lock(Mutex);
+    OwnedExceptionInsts.push_back(
+        std::make_unique<ExceptionInstance>(std::forward<Args>(Values)...));
+    return OwnedExceptionInsts.back().get();
   }
 
   /// Import instances into this module instance.
@@ -530,6 +555,59 @@ protected:
     LinkedStore.erase(LinkedStoreKey{Store, std::string(Name)});
   }
 
+  void unlinkAllStores() noexcept {
+    std::map<LinkedStoreKey, std::function<BeforeModuleDestroyCallback>>
+        Snapshot;
+    {
+      std::unique_lock Lock(Mutex);
+      Snapshot.swap(LinkedStore);
+    }
+    for (auto &&[Key, Callback] : Snapshot) {
+      assuming(Callback);
+      Callback(Key, this);
+    }
+  }
+
+  void addDependency(ModuleInstance &Provider) {
+    std::unique_lock Lock(Mutex);
+    if (Providers.insert(&Provider).second) {
+      Provider.Life.addDependent();
+    }
+  }
+
+  void takeProviders(std::unordered_set<ModuleInstance *> &Snapshot) noexcept {
+    std::unique_lock Lock(Mutex);
+    Snapshot.swap(Providers);
+  }
+
+  static void drainPins(std::unordered_set<ModuleInstance *> &Provs,
+                        std::vector<ModuleInstance *> &ToDelete) noexcept {
+    for (auto *Provider : Provs) {
+      if (Provider->Life.releaseDependent()) {
+        ToDelete.push_back(Provider);
+      }
+    }
+    Provs.clear();
+  }
+
+  void releaseProviders() noexcept {
+    std::unordered_set<ModuleInstance *> ProvidersToRelease;
+    takeProviders(ProvidersToRelease);
+    if (ProvidersToRelease.empty()) {
+      return;
+    }
+    std::vector<ModuleInstance *> ToDelete;
+    drainPins(ProvidersToRelease, ToDelete);
+    while (!ToDelete.empty()) {
+      ModuleInstance *Next = ToDelete.back();
+      ToDelete.pop_back();
+      std::unordered_set<ModuleInstance *> NextProviders;
+      Next->takeProviders(NextProviders);
+      delete Next;
+      drainPins(NextProviders, ToDelete);
+    }
+  }
+
   /// Mutex.
   mutable std::shared_mutex Mutex;
 
@@ -550,6 +628,7 @@ protected:
   std::vector<std::unique_ptr<DataInstance>> OwnedDataInsts;
   std::vector<std::unique_ptr<ArrayInstance>> OwnedArrayInsts;
   std::vector<std::unique_ptr<StructInstance>> OwnedStructInsts;
+  std::vector<std::unique_ptr<ExceptionInstance>> OwnedExceptionInsts;
 
   /// Imported and added instances in this module.
   std::vector<FunctionInstance *> FuncInsts;
@@ -584,6 +663,13 @@ protected:
   /// External data and its finalizer function pointer.
   void *HostData;
   std::function<void(void *)> HostDataFinalizer;
+
+  /// Intrusive lifetime: owner flag plus importer count, packed into one
+  /// atomic.
+  RefLifetime Life;
+  /// Provider instances this module imported from; each holds one dependent
+  /// pin, released when this module is destroyed.
+  std::unordered_set<ModuleInstance *> Providers;
 };
 
 } // namespace Instance

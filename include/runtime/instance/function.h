@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/runtime/instance/function.h - Function Instance definition ==//
 //
@@ -115,6 +115,17 @@ public:
   /// Getter for host function.
   HostFunctionBase &getHostFunc() const noexcept {
     return *std::get_if<std::unique_ptr<HostFunctionBase>>(&Data)->get();
+  }
+
+  /// Upgrade from WasmFunction to CompiledFunction.
+  /// Must be called under synchronization that
+  /// prevents concurrent access to this function's body.
+  bool unsafeUpgradeToCompiled(Symbol<CompiledFunction> Sym) noexcept {
+    if (!isWasmFunction()) {
+      return false;
+    }
+    Data = std::move(Sym);
+    return true;
   }
 
 private:

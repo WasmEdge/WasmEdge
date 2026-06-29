@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/executor/executor.h - Executor class definition ----------===//
 //
@@ -202,6 +202,13 @@ public:
   Expect<void> registerPostHostFunction(void *HostData,
                                         std::function<void(void *)> HostFunc);
 
+  /// Register a callback for lazy function compilation
+  void registerLazyCompilationCallback(
+      std::function<Expect<void>(const Runtime::Instance::FunctionInstance *)>
+          Callback) {
+    LazyCompilationHandler = std::move(Callback);
+  }
+
   /// Invoke a WASM function by function instance.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   invoke(const Runtime::Instance::FunctionInstance *FuncInst,
@@ -377,10 +384,10 @@ private:
                      Runtime::Instance::FunctionInstance *RFuncInst,
                      Runtime::Instance::MemoryInstance *MemInst) noexcept;
 
-  std::vector<std::pair<ComponentValVariant, ComponentValType>>
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
   convValsToComponent(Span<const std::pair<ValVariant, ValType>> CoreVals,
                       Span<const ComponentValType> ValTypes,
-                      Runtime::Instance::MemoryInstance *MemInst) noexcept;
+                      Runtime::Instance::MemoryInstance *MemInst);
   /// @}
 
   /// \name Helper Functions for block controls.
@@ -396,10 +403,12 @@ private:
                              const AST::Instruction::JumpDescriptor &JumpDesc,
                              AST::InstrView::iterator &PC) noexcept;
 
-  /// Helper function for throwing an exception.
-  Expect<void> throwException(Runtime::StackManager &StackMgr,
-                              Runtime::Instance::TagInstance &TagInst,
-                              AST::InstrView::iterator &PC) noexcept;
+  /// Helper function for throwing an exception. Pass `ExnInst` on `throw_ref`
+  /// to reuse the exception instance and preserve exnref identity.
+  Expect<void> throwException(
+      Runtime::StackManager &StackMgr, Runtime::Instance::TagInstance &TagInst,
+      AST::InstrView::iterator &PC,
+      const Runtime::Instance::ExceptionInstance *ExnInst = nullptr) noexcept;
   /// @}
 
   /// \name Helper Function for checking memory offset boundary.
@@ -1079,6 +1088,8 @@ public:
                                          const uint32_t FuncIdx) noexcept;
   Expect<void *> proxyRefGetFuncSymbol(Runtime::StackManager &StackMgr,
                                        const RefVariant Ref) noexcept;
+  Expect<void *> proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,
+                                        const uint32_t FuncIdx) noexcept;
   /// @}
 
   /// Callbacks for compiled modules
@@ -1137,6 +1148,24 @@ private:
   std::atomic<Runtime::Instance::MemoryInstance *> WaitingMemory = nullptr;
   /// Executor Host Function Handler
   HostFuncHandler HostFuncHelper = {};
+  /// Callback for lazy function compilation
+  std::function<Expect<void>(const Runtime::Instance::FunctionInstance *)>
+      LazyCompilationHandler;
+
+  /// Helper function for triggering lazy compilation.
+  /// XXX: Calling checkLazyCompilation in one thread while another thread calls
+  /// unsafeUpgradeToCompiled on the same FuncInst could result in a race
+  /// condition if checking FuncInst->isCompiledFunction() directly here. As a
+  /// temporary workaround, checks for compilation state are deferred to the
+  /// LazyCompilationHandler, which must serialize them against compiled-state
+  /// upgrades (the lazy JIT engine does so under its internal lock).
+  Expect<void> checkLazyCompilation(
+      const Runtime::Instance::FunctionInstance *FuncInst) const noexcept {
+    if (unlikely(LazyCompilationHandler != nullptr)) {
+      return LazyCompilationHandler(FuncInst);
+    }
+    return {};
+  }
 };
 
 } // namespace Executor

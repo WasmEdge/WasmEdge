@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 
@@ -51,8 +51,11 @@ Expect<void> Executor::runThrowRefOp(Runtime::StackManager &StackMgr,
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::AccessNullException);
   }
-  auto *TagInst = Ref.getPtr<Runtime::Instance::TagInstance>();
-  return throwException(StackMgr, *TagInst, PC);
+  const auto *ExnInst = Ref.getPtr<Runtime::Instance::ExceptionInstance>();
+  auto *TagInst = ExnInst->getTag();
+  // Re-push the captured payload to mirror an initial `throw`, then unwind.
+  StackMgr.pushValVec(ExnInst->getPayload());
+  return throwException(StackMgr, *TagInst, PC, ExnInst);
 }
 
 Expect<void> Executor::runBrOp(Runtime::StackManager &StackMgr,
@@ -169,7 +172,8 @@ Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
                                     AST::InstrView::iterator &PC,
                                     bool IsTailCall) noexcept {
   const auto Ref = StackMgr.pop().get<RefVariant>();
-  if (Ref.isNull()) {
+  const auto *FuncInst = retrieveFuncRef(Ref);
+  if (FuncInst == nullptr) {
     spdlog::error(ErrCode::Value::AccessNullFunc);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -177,7 +181,6 @@ Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
   }
 
   // Get Function address.
-  const auto *FuncInst = retrieveFuncRef(Ref);
   EXPECTED_TRY(auto NextPC,
                enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall));
   PC = NextPC - 1;
@@ -210,7 +213,8 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
 
   // Get function address. The bound is guaranteed.
   RefVariant Ref = *TabInst->getRefAddr(Idx);
-  if (Ref.isNull()) {
+  const auto *FuncInst = retrieveFuncRef(Ref);
+  if (FuncInst == nullptr) {
     spdlog::error(ErrCode::Value::UninitializedElement);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
@@ -219,7 +223,6 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
   }
 
   // Check function type.
-  const auto *FuncInst = retrieveFuncRef(Ref);
   bool IsMatch = false;
   if (FuncInst->getModule()) {
     IsMatch = AST::TypeMatcher::matchType(

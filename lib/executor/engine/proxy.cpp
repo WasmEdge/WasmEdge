@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 #include "system/fault.h"
 
 #include <cstdint>
+#include <cstring>
 
 namespace WasmEdge {
 namespace Executor {
@@ -107,6 +108,7 @@ const Executable::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kMemAtomicWait, proxyMemAtomicWait),
     ENTRY(kTableGetFuncSymbol, proxyTableGetFuncSymbol),
     ENTRY(kRefGetFuncSymbol, proxyRefGetFuncSymbol),
+    ENTRY(kFuncGetFuncSymbol, proxyFuncGetFuncSymbol),
 #undef ENTRY
 };
 
@@ -123,6 +125,8 @@ Expect<void> Executor::proxyCall(Runtime::StackManager &StackMgr,
                                  const uint32_t FuncIdx, const ValVariant *Args,
                                  ValVariant *Rets) noexcept {
   const auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
+  assuming(FuncInst);
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
   const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =
       static_cast<uint32_t>(FuncType.getParamTypes().size());
@@ -167,6 +171,9 @@ Expect<void> Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
   const auto &ExpDefType = **ModInst->getType(FuncTypeIdx);
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
+
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
   bool IsMatch = false;
   if (FuncInst->getModule()) {
     IsMatch = AST::TypeMatcher::matchType(
@@ -208,6 +215,12 @@ Expect<void> Executor::proxyCallRef(Runtime::StackManager &StackMgr,
                                     const ValVariant *Args,
                                     ValVariant *Rets) noexcept {
   const auto *FuncInst = retrieveFuncRef(Ref);
+  if (unlikely(!FuncInst)) {
+    return Unexpect(ErrCode::Value::AccessNullFunc);
+  }
+
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
   const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =
       static_cast<uint32_t>(FuncType.getParamTypes().size());
@@ -566,7 +579,16 @@ Expect<void> Executor::proxyMemCopy(Runtime::StackManager &StackMgr,
   assuming(MemInstSrc);
 
   EXPECTED_TRY(auto Data, MemInstSrc->getBytes(SrcOff, Len));
-  return MemInstDst->setBytes(Data, DstOff, 0, Len);
+  if (MemInstSrc == MemInstDst) {
+    // Same memory instance may overlap, so use memmove semantics.
+    EXPECTED_TRY(MemInstDst->getBytes(DstOff, Len));
+    if (likely(Len > 0)) {
+      std::memmove(MemInstDst->getDataPtr() + DstOff, Data.data(), Len);
+    }
+    return {};
+  } else {
+    return MemInstDst->setBytes(Data, DstOff, 0, Len);
+  }
 }
 
 Expect<void> Executor::proxyMemFill(Runtime::StackManager &StackMgr,
@@ -626,7 +648,17 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
   bool IsMatch = false;
-  if (FuncInst->getModule()) {
+  // Check if the function type matches the expected type.
+  if (FuncInst->getModule() == ModInst &&
+      *ExpDefType.getTypeIndex() == FuncInst->getTypeIndex()) {
+    // Fast path: If the function instance is in the same module instance, we
+    // can bypass the expensive structural type matching (O(N)) by checking the
+    // type index directly (O(1)).
+    IsMatch = true;
+  } else if (FuncInst->getModule()) {
+    // If the type index is not the same, we still need to check the type
+    // structure. This is because the type alias may have different type
+    // indices but the same type structure.
     IsMatch = AST::TypeMatcher::matchType(
         ModInst->getTypeList(), *ExpDefType.getTypeIndex(),
         FuncInst->getModule()->getTypeList(), FuncInst->getTypeIndex());
@@ -641,6 +673,8 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
     return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
   if (unlikely(!FuncInst->isCompiledFunction())) {
     return nullptr;
   }
@@ -651,6 +685,27 @@ Expect<void *> Executor::proxyRefGetFuncSymbol(Runtime::StackManager &,
                                                const RefVariant Ref) noexcept {
   const auto *FuncInst = retrieveFuncRef(Ref);
   assuming(FuncInst);
+  if (likely(FuncInst->isCompiledFunction())) {
+    return FuncInst->getSymbol().get();
+  }
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
+  if (unlikely(!FuncInst->isCompiledFunction())) {
+    return nullptr;
+  }
+  return FuncInst->getSymbol().get();
+}
+
+Expect<void *>
+Executor::proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,
+                                 const uint32_t FuncIdx) noexcept {
+  const auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
+  assuming(FuncInst);
+  if (likely(FuncInst->isCompiledFunction())) {
+    return FuncInst->getSymbol().get();
+  }
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
   if (unlikely(!FuncInst->isCompiledFunction())) {
     return nullptr;
   }

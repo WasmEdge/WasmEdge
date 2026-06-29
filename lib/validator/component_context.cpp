@@ -88,8 +88,11 @@ ComponentContext::incCoreSortIndexSize(Sort::CoreSortType ST) noexcept {
   }
 }
 
-bool ComponentContext::Context::AddImportedName(
-    const ComponentName &Name) noexcept {
+namespace {
+constexpr std::string_view ConstructorTag{"[constructor]"};
+
+bool addStronglyUniqueName(std::unordered_set<std::string> &Names,
+                           const ComponentName &Name) noexcept {
   switch (Name.getKind()) {
   case ComponentNameKind::Constructor:
   case ComponentNameKind::Method:
@@ -118,19 +121,19 @@ bool ComponentContext::Context::AddImportedName(
     std::string LowerCase = toLowerString(Name.getOriginalName());
     std::string Label = std::string(Name.getNoTagName());
     // Check for conflicts with existing constructors.
-    if (ImportedNames.count(LowerCase)) {
+    if (Names.count(LowerCase)) {
       return false;
     }
 
-    if (ImportedNames.count(toLowerString(Label))) {
-      if (!ImportedNames.count(Label)) {
+    if (Names.count(toLowerString(Label))) {
+      if (!Names.count(Label)) {
         return false;
       }
       // By rule, a constructor [constructor]X and X are strongly-unique.
       // If X and its lower-case x form both exist, it means x comes from X.
     }
-    ImportedNames.insert(LowerCase);
-    ImportedNames.insert(std::string(Name.getOriginalName()));
+    Names.insert(LowerCase);
+    Names.insert(std::string(Name.getOriginalName()));
     return true;
   }
 
@@ -140,7 +143,7 @@ bool ComponentContext::Context::AddImportedName(
   std::string LdL =
       std::string(Name.getNoTagName()) + "." + std::string(Name.getNoTagName());
 
-  if (ImportedNames.count(LdL)) {
+  if (Names.count(LdL)) {
     return false;
   }
 
@@ -151,30 +154,41 @@ bool ComponentContext::Context::AddImportedName(
     Right = Normal.substr(Pos + 1);
     if (Left == Right) {
       // Conflict with l.l and [*]l.
-      if (ImportedNames.count(toLowerString(Left))) {
+      if (Names.count(toLowerString(Left))) {
         return false;
       }
     }
   }
 
   // Case 3: check existing names.
-  if (ImportedNames.count(UniForm)) {
+  if (Names.count(UniForm)) {
     return false;
   }
 
   // Special case: check conflicts with constructor names.
-  std::string ConstrName = "[constructor]" + UniForm;
-  if (ImportedNames.count(ConstrName)) {
-    if (!ImportedNames.count("[constructor]" + Normal)) {
+  std::string ConstrName = std::string(ConstructorTag) + UniForm;
+  if (Names.count(ConstrName)) {
+    if (!Names.count(std::string(ConstructorTag) + Normal)) {
       return false;
     }
     // By rule, a constructor [constructor]X and X are strongly-unique.
     // If [constructor]X and its lower-case [constructor]x form both exist, it
     // means [constructor]x comes from [constructor]X.
   }
-  ImportedNames.insert(Normal);
-  ImportedNames.insert(UniForm);
+  Names.insert(Normal);
+  Names.insert(UniForm);
   return true;
+}
+} // namespace
+
+bool ComponentContext::Context::AddImportedName(
+    const ComponentName &Name) noexcept {
+  return addStronglyUniqueName(ImportedNames, Name);
+}
+
+bool ComponentContext::Context::AddExportedName(
+    const ComponentName &Name) noexcept {
+  return addStronglyUniqueName(ExportedNames, Name);
 }
 } // namespace Validator
 } // namespace WasmEdge

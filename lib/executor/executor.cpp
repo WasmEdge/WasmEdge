@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 
@@ -256,8 +256,8 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
   for (const auto &Type : FuncInst->getFuncType().getResultList()) {
     ReturnTypes.push_back(Type.getValType());
   }
-  std::vector<std::pair<ComponentValVariant, ComponentValType>> Returns =
-      convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst);
+  EXPECTED_TRY(auto Returns,
+               convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst));
   assuming(Returns.size() == ReturnTypes.size());
   return Returns;
 }

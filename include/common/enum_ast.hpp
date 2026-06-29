@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/enum_ast.hpp - AST C++ enumerations ---------------===//
 //
@@ -18,6 +18,7 @@
 #pragma once
 
 #include "common/dense_enum_map.h"
+#include "common/fmt.h"
 #include "common/spare_enum_map.h"
 #include "common/spdlog.h"
 
@@ -86,14 +87,56 @@ static inline constexpr const auto OpCodeStr = []() constexpr {
   return SpareEnumMap(Array);
 }();
 
+/// Component Model Value opcode C++ enumeration class.
+enum class ComponentCanonOpCode : uint8_t {
+#define UseComponentCanonOpCode
+#define Line(NAME, VALUE, STRING) NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseComponentCanonOpCode
+};
+
+static inline constexpr const auto ComponentCanonOpCodeStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<ComponentCanonOpCode, std::string_view> Array[] = {
+#define UseComponentCanonOpCode
+#define Line(NAME, VALUE, STRING) {ComponentCanonOpCode::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UseComponentCanonOpCode
+  };
+  return SpareEnumMap(Array);
+}();
+
+/// Component Model Value Opt code C++ enumeration class.
+enum class ComponentCanonOptCode : uint8_t {
+#define UseComponentCanonOptCode
+#define Line(NAME, VALUE, STRING) NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseComponentCanonOptCode
+};
+
+static inline constexpr const auto ComponentCanonOptCodeStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<ComponentCanonOptCode, std::string_view> Array[] = {
+#define UseComponentCanonOptCode
+#define Line(NAME, VALUE, STRING) {ComponentCanonOptCode::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UseComponentCanonOptCode
+  };
+  return DenseEnumMap(Array);
+}();
+
 } // namespace WasmEdge
 
 template <>
 struct fmt::formatter<WasmEdge::ASTNodeAttr>
     : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::ASTNodeAttr &Attr,
-         fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::ASTNodeAttr &Attr,
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(WasmEdge::ASTNodeAttrStr[Attr],
                                                Ctx);
   }
@@ -101,9 +144,9 @@ struct fmt::formatter<WasmEdge::ASTNodeAttr>
 
 template <>
 struct fmt::formatter<WasmEdge::OpCode> : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::OpCode &Code,
-         fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::OpCode &Code,
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(WasmEdge::OpCodeStr[Code], Ctx);
   }
 };

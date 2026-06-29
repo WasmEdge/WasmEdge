@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 find_package(spdlog QUIET)
 add_definitions(-DWASMEDGE_COMPILE_LIBRARY)
@@ -127,6 +127,13 @@ if(WASMEDGE_BUILD_SHARED_LIB)
     target_link_options(wasmedge_shared
       PRIVATE
       "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libwasmedge.lds"
+    )
+
+    # The 0.16 `@WASMEDGE_0.16` compat shims rely on the version script, so they
+    # belong only to the shared library, not the static one (see wasmedge_compat.cpp).
+    target_sources(wasmedge_shared
+      PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/wasmedge_compat.cpp
     )
   endif()
 

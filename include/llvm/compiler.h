@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/llvm/compiler.h - Compiler class definition --------------===//
 //
@@ -38,20 +38,13 @@ public:
   Expect<Data> compile(const AST::Module &Module) noexcept;
 
   struct CompileContext;
-  struct CompileContextDeleter {
-    void operator()(CompileContext *Context) const noexcept;
-  };
 
   /// Compile only the infrastructure (types, imports, globals, etc.) without
   /// function bodies.
-  Expect<
-      std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>>
-  compileInfrastructure(const AST::Module &Module,
-                        std::string Prefix = "") noexcept;
+  Expect<Data> compileInfrastructure(const AST::Module &Module) noexcept;
   /// Compile multiple function bodies in one LLVM module for lazy JIT.
   /// \p LocalFuncIndices are indices of defined functions (not imports).
-  Expect<Data> compileFunctions(Data &&LLData, CompileContext *Context,
-                                const AST::Module &Module,
+  Expect<Data> compileFunctions(Data &&LLData, const AST::Module &Module,
                                 Span<const uint32_t> LocalFuncIndices) noexcept;
 
 private:
@@ -64,9 +57,12 @@ private:
                const AST::DataSection &DataSection) noexcept;
   void compile(const AST::TableSection &TableSection,
                const AST::ElementSection &ElementSection) noexcept;
-  Expect<void> compile(const AST::FunctionSection &FunctionSection,
-                       const AST::CodeSection &CodeSection) noexcept;
 
+  /// Compile all sections and create the function declarations. When
+  /// \p DeclarationsOnly is set, the type wrappers are emitted as external
+  /// declarations resolved against another module in the same JIT session.
+  void compileSections(const AST::Module &Module,
+                       bool DeclarationsOnly) noexcept;
   void compileFunctionDeclarations(const AST::FunctionSection &FunctionSec,
                                    const AST::CodeSection &CodeSec) noexcept;
   Expect<void> compileFunctionBody(uint32_t LocalFuncIndex) noexcept;

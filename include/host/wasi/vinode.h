@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -45,6 +45,35 @@ public:
   /// Check path is valid.
   static bool isPathValid(std::string_view Path) noexcept {
     return Path.find('\0') == std::string_view::npos;
+  }
+
+  /// Check whether a relative symlink target would resolve outside the base
+  /// directory. Each component descends a level and each `..` ascends one; it
+  /// escapes if the level ever drops below the base.
+  /// @param[in] Target Symlink target (link contents).
+  /// @param[in] Depth The link directory's depth below the base fd.
+  /// @return Whether the target escapes the base directory.
+  static bool isSymlinkTargetEscaping(std::string_view Target,
+                                      uint32_t Depth) noexcept {
+    int64_t Level = static_cast<int64_t>(Depth);
+    std::string_view Path = Target;
+    while (!Path.empty()) {
+      const auto Slash = Path.find('/');
+      const auto Part = Path.substr(0, Slash);
+      Path = (Slash == std::string_view::npos) ? std::string_view()
+                                               : Path.substr(Slash + 1);
+      if (Part.empty() || (Part.size() == 1 && Part[0] == '.')) {
+        continue;
+      }
+      if (Part.size() == 2 && Part[0] == '.' && Part[1] == '.') {
+        if (--Level < 0) {
+          return true;
+        }
+        continue;
+      }
+      ++Level;
+    }
+    return false;
   }
 
   static std::shared_ptr<VINode> stdIn(__wasi_rights_t FRB,
@@ -724,12 +753,14 @@ private:
   /// @param[in] LinkCount Counting symbolic link lookup times.
   /// @param[in] FollowTrailingSlashes If Path ends with slash, open it and set
   /// Path to ".".
+  /// @param[out] ResolvedDepth If not null, set to the parent's depth below
+  /// `Fd`. Left untouched on error paths.
   /// @return Allocated buffer, or WASI error.
   static WasiExpect<std::vector<char>> resolvePath(
       std::shared_ptr<VINode> &Fd, std::string_view &Path,
       __wasi_lookupflags_t LookupFlags = __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW,
       VFS::Flags VFSFlags = static_cast<VFS::Flags>(0), uint8_t LinkCount = 0,
-      bool FollowTrailingSlashes = true);
+      bool FollowTrailingSlashes = true, uint32_t *ResolvedDepth = nullptr);
 
   /// Proxy function for `resolvePath`.
   /// @param[in,out] Fd Fd. Return parent of last part if found.
@@ -757,29 +788,31 @@ public:
   using Poller::result;
   using Poller::wait;
 
-  void read(std::shared_ptr<VINode> Fd, TriggerType Trigger,
+  void read(std::shared_ptr<VINode> Node, TriggerType Trigger,
             __wasi_userdata_t UserData) noexcept {
-    if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
-        !Fd->can(__WASI_RIGHTS_FD_READ)) {
+    if (!Node->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
+        !Node->can(__WASI_RIGHTS_FD_READ)) {
       Poller::error(UserData, __WASI_ERRNO_NOTCAPABLE,
                     __WASI_EVENTTYPE_FD_READ);
     } else {
-      Poller::read(Fd->Node, Trigger, UserData);
+      Poller::read(Node->Node, Trigger, UserData);
     }
   }
 
-  void write(std::shared_ptr<VINode> Fd, TriggerType Trigger,
+  void write(std::shared_ptr<VINode> Node, TriggerType Trigger,
              __wasi_userdata_t UserData) noexcept {
-    if (!Fd->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
-        !Fd->can(__WASI_RIGHTS_FD_WRITE)) {
+    if (!Node->can(__WASI_RIGHTS_POLL_FD_READWRITE) &&
+        !Node->can(__WASI_RIGHTS_FD_WRITE)) {
       Poller::error(UserData, __WASI_ERRNO_NOTCAPABLE,
                     __WASI_EVENTTYPE_FD_WRITE);
     } else {
-      Poller::write(Fd->Node, Trigger, UserData);
+      Poller::write(Node->Node, Trigger, UserData);
     }
   }
 
-  void close(std::shared_ptr<VINode> Fd) noexcept { Poller::close(Fd->Node); }
+  void close(std::shared_ptr<VINode> Node) noexcept {
+    Poller::close(Node->Node);
+  }
 };
 
 } // namespace WASI

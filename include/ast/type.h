@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/ast/type.h - type class definitions ----------------------===//
 //
@@ -15,6 +15,7 @@
 #pragma once
 
 #include "common/executable.h"
+#include "common/fmt.h"
 #include "common/span.h"
 #include "common/symbol.h"
 #include "common/types.h"
@@ -274,10 +275,10 @@ public:
   void setTypeIndex(uint32_t Index) noexcept { TypeIndex = Index; }
 
 private:
-  /// \name Data of CompositeType.
+  /// \name Data of SubType.
   /// @{
   /// Is final.
-  bool IsFinal;
+  bool IsFinal = true;
   /// List of super type indices.
   std::vector<uint32_t> SuperTypeIndices;
   /// Content of composite type.
@@ -797,9 +798,9 @@ private:
 template <>
 struct fmt::formatter<WasmEdge::AST::FunctionType>
     : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::AST::FunctionType &Type,
-         fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::AST::FunctionType &Type,
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     using namespace std::literals;
 
     fmt::memory_buffer Buffer;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2025 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/wasmedge_vm.h - WasmEdge C API ---------------------------===//
 //
@@ -604,18 +604,15 @@ WasmEdge_VMGetFunctionList(const WasmEdge_VMContext *Cxt,
                            const WasmEdge_FunctionTypeContext **FuncTypes,
                            const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Forcibly delete a registered module from the VM context.
+/// Unregister and trigger the deletion of a registered module from the VM.
 ///
-/// \warning This function does not check whether other modules depend on the
-/// target. Deleting a module that is still in use may cause undefined behavior
-/// or crashes.
-///
-/// A safer deletion API may be introduced in the future once module dependency
-/// management is implemented.
+/// This function unregisters the module with the given name from the VM.
+/// The module will be safely destroyed only when there are no remaining
+/// dependencies from other modules
 ///
 /// \param Cxt the WasmEdge_VMContext to delete the module from.
 /// \param ModuleName the name of the module to delete.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMForceDeleteRegisteredModule(
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMDeleteRegisteredModule(
     const WasmEdge_VMContext *Cxt,
     const WasmEdge_String ModuleName) WASMEDGE_CAPI_NOEXCEPT;
 

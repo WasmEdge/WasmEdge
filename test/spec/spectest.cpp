@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/test/spec/spectest.cpp - Wasm test suites ----------------===//
 //
@@ -318,7 +318,7 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     // Test table: the testing status of load, validate, instantiate, and execute.
     {"adapt",                   {true, false, false, false}},
     {"alias",                   {true, false, false, false}},
-    {"big",                     {true, false, false, false}},
+    {"big",                     {true, true,  false, false}},
     {"definedtypes",            {true, true,  true,  false}},
     {"empty",                   {true, true,  true,  false}},
     {"example",                 {true, true,  true,  false}},
@@ -327,7 +327,7 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     {"export-introduces-alias", {true, true,  true,  false}},
     {"func",                    {true, false, false, false}},
     {"import",                  {true, false, false, false}},
-    {"imports-exports",         {true, false, false, false}},
+    {"imports-exports",         {true, true,  false, false}},
     {"inline-exports",          {true, true,  true,  false}},
     {"instance-types",          {true, true,  true,  false}},
     {"instantiate",             {true, false, false, false}},
@@ -336,16 +336,16 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     {"lots-of-aliases",         {true, true,  true,  false}},
     {"lower",                   {true, false, false, false}},
     {"memory64",                {true, false, false, false}},
-    {"module-link",             {true, false, false, false}},
+    {"module-link",             {true, true,  false, false}},
     {"more-flags",              {true, true,  true,  false}},
     {"naming",                  {true, false, false, false}},
     {"nested-modules",          {true, false, false, false}},
     {"resources",               {true, false, false, false}},
-    {"tags",                    {true, false, false, false}},
+    {"tags",                    {true, true,  false, false}},
     {"type-export-restrictions",{true, false, false, false}},
     {"types",                   {true, false, false, false}},
     {"very-nested",             {true, false, false, false}},
-    {"virtualize",              {true, false, false, false}},
+    {"virtualize",              {true, true,  false, false}},
 };
 // clang-format on
 

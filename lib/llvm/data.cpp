@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "llvm/data.h"
 #include "data.h"
@@ -16,14 +16,4 @@ LLVM::Data &LLVM::Data::operator=(LLVM::Data &&RHS) noexcept {
   using std::swap;
   swap(Context, RHS.Context);
   return *this;
-}
-bool LLVM::Data::hasModule() const noexcept {
-  return static_cast<bool>(Context->LLModule);
-}
-void LLVM::Data::resetModule() noexcept { Context->resetModule(); }
-void LLVM::Data::setPrefix(std::string_view P) noexcept {
-  Context->Prefix = std::string(P);
-}
-std::string_view LLVM::Data::getPrefix() const noexcept {
-  return Context->Prefix;
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "helper.h"
 
@@ -21,10 +21,10 @@ TEST_F(WasiCryptoTest, NotImplement) {
   WASI_CRYPTO_EXPECT_FAILURE(symmetricKeyFromId(1, {}, 1),
                              __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 
-  EXPECT_EQ(keypairGenerateManaged(1, __WASI_ALGORITHM_TYPE_SIGNATURES,
-                                   "Ed25519"sv, std::nullopt)
-                .error(),
-            __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  WASI_CRYPTO_EXPECT_FAILURE(
+      keypairGenerateManaged(1, __WASI_ALGORITHM_TYPE_SIGNATURES,
+                             "ECDSA_P256_SHA256"sv, std::nullopt),
+      __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   WASI_CRYPTO_EXPECT_FAILURE(keypairStoreManaged(1, 1, {}),
                              __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   WASI_CRYPTO_EXPECT_FAILURE(keypairReplaceManaged(1, 1, 1),

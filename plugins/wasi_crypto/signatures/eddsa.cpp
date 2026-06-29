@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "signatures/eddsa.h"
 
@@ -35,7 +35,15 @@ Eddsa::PublicKey::import(Span<const uint8_t> Encoded,
 }
 
 WasiCryptoExpect<void> Eddsa::PublicKey::verify() const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  EvpPkeyCtxPtr CheckCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
+  ensureOrReturn(CheckCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  // EVP_PKEY_public_check() returns 1 for a valid key and 0 for an invalid
+  // one. A negative value means the check is unsupported for this key type
+  // (e.g. Ed25519 on OpenSSL 1.1.1), so only an explicit 0 is treated as
+  // invalid.
+  ensureOrReturn(EVP_PKEY_public_check(CheckCtx.get()) != 0,
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  return {};
 }
 
 WasiCryptoExpect<std::vector<uint8_t>> Eddsa::PublicKey::exportData(

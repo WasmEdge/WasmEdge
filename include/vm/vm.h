@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/vm/vm.h - VM execution flow class definition -------------===//
 //
@@ -27,20 +27,18 @@
 #include "runtime/storemgr.h"
 
 #ifdef WASMEDGE_USE_LLVM
-#include "llvm/compiler.h"
-#include "llvm/data.h"
-#include "llvm/jit.h"
+#include "llvm/lazyjit.h"
 #endif
 
 #include <cstdint>
 #include <memory>
-#include <mutex>
 #include <shared_mutex>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace WasmEdge {
@@ -52,7 +50,17 @@ public:
   VM() = delete;
   VM(const Configure &Conf);
   VM(const Configure &Conf, Runtime::StoreManager &S);
-  ~VM() = default;
+  ~VM() {
+    if (ActiveModInst) {
+      auto *RawMod = ActiveModInst.release();
+      if (RawMod) {
+        RawMod->terminate();
+      }
+    }
+    cleanupModInstContainer(RegModInsts);
+    cleanupModInstContainer(BuiltInModInsts);
+    cleanupModInstContainer(PlugInModInsts);
+  }
 
   /// ======= Functions can be called before the instantiated stage. =======
   /// Register wasm modules and host modules.
@@ -79,6 +87,12 @@ public:
                  const Runtime::Instance::ModuleInstance &ModInst) {
     std::unique_lock Lock(Mutex);
     return unsafeRegisterModule(Name, ModInst);
+  }
+
+  /// Unregister a named module instance.
+  Expect<void> unregisterModule(std::string_view Name) {
+    std::unique_lock Lock(Mutex);
+    return unsafeUnregisterModule(Name);
   }
 
   /// Rapidly load, validate, instantiate, and run wasm function.
@@ -290,26 +304,46 @@ public:
   Statistics::Statistics &getStatistics() noexcept { return Stat; }
 
 #ifdef WASMEDGE_USE_LLVM
+  /// Getter for the number of lazily compiled functions.
   uint32_t getLazyCompiledFuncCount() const noexcept {
-    std::shared_lock Lock(LazyJITMutex);
-    uint32_t Count = 0;
-    for (const auto &Pair : LazyJITStates) {
-      Count += static_cast<uint32_t>(Pair.second.LazyCompiledFuncs.size());
-    }
-    return Count;
+    return LazyEngine ? LazyEngine->compiledFunctionCount() : 0;
   }
 #endif
 
 private:
+  /// Release and terminate all module instances in a sequence or map
+  /// container, then clear the container.
+  template <typename ContainerT>
+  void cleanupModInstContainer(ContainerT &Container) {
+    for (auto &Item : Container) {
+      Runtime::Instance::ModuleInstance *ModInst;
+      if constexpr (std::is_same_v<
+                        typename ContainerT::value_type,
+                        std::unique_ptr<Runtime::Instance::ModuleInstance>>) {
+        ModInst = Item.release();
+      } else {
+        ModInst = Item.second.release();
+      }
+      if (ModInst) {
+        ModInst->terminate();
+      }
+    }
+    Container.clear();
+  }
+
   Expect<void> unsafeRegisterModule(std::string_view Name,
                                     const std::filesystem::path &Path);
   Expect<void> unsafeRegisterModule(std::string_view Name,
                                     Span<const Byte> Code);
   Expect<void> unsafeRegisterModule(std::string_view Name,
                                     const AST::Module &Module);
+  Expect<void> unsafeRegisterModule(std::string_view Name,
+                                    std::shared_ptr<AST::Module> Module);
   Expect<void>
   unsafeRegisterModule(std::string_view Name,
                        const Runtime::Instance::ModuleInstance &ModInst);
+
+  Expect<void> unsafeUnregisterModule(std::string_view Name);
 
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
@@ -336,11 +370,15 @@ private:
 
   Expect<void> unsafeInstantiate();
 
+  /// In JIT or lazy JIT mode, compile and attach an executable to the loaded
+  /// module if it does not carry one yet. Eager JIT compilation failures fall
+  /// back to the interpreter; without LLVM support this only logs a warning.
+  Expect<void> unsafeLoadJITExecutable();
+
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   unsafeExecute(std::string_view Func, Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});
   Expect<std::vector<std::pair<ValVariant, ValType>>>
-
   unsafeExecute(std::string_view Mod, std::string_view Func,
                 Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});
@@ -369,6 +407,22 @@ private:
   const Runtime::Instance::ModuleInstance *unsafeGetActiveModule() const;
 
   enum class VMStage : uint8_t { Inited, Loaded, Validated, Instantiated };
+  enum class WasmUnitKind : uint8_t { Module, Component };
+
+  /// Store a parsed wasm unit into the matching slot and report its kind.
+  /// The slot for the other kind keeps its previous content.
+  WasmUnitKind
+  unsafeStoreWasmUnit(std::variant<std::unique_ptr<AST::Component::Component>,
+                                   std::unique_ptr<AST::Module>> &&Unit);
+
+  /// Registering a module or running another wasm unit resets the active
+  /// instantiation in the store, so the stage falls back to Validated and
+  /// the instantiation must restart.
+  void unsafeRevertStageToValidated() {
+    if (Stage == VMStage::Instantiated) {
+      Stage = VMStage::Validated;
+    }
+  }
 
   void unsafeInitVM();
   void unsafeLoadBuiltInHosts();
@@ -394,30 +448,31 @@ private:
   Statistics::Statistics Stat;
   VMStage Stage;
   mutable std::shared_mutex Mutex;
-  mutable std::shared_mutex LazyJITMutex;
   /// @}
 
   /// \name VM components.
   /// @{
   Loader::Loader LoaderEngine;
   Validator::Validator ValidatorEngine;
+#ifdef WASMEDGE_USE_LLVM
+  /// Lazy JIT engine. Created only when the run mode is LazyJIT. Declared
+  /// before the executor so it outlives the executor-registered lazy
+  /// compilation callback that references it.
+  std::unique_ptr<LLVM::LazyJITEngine> LazyEngine;
+#endif
   Executor::Executor ExecutorEngine;
   /// @}
 
   /// \name VM Storage.
   /// @{
   /// Loaded AST module.
-  std::unique_ptr<AST::Module> Mod;
+  std::shared_ptr<AST::Module> Mod;
   std::unique_ptr<AST::Component::Component> Comp;
   /// Active module instance.
   std::unique_ptr<Runtime::Instance::ModuleInstance> ActiveModInst;
   std::unique_ptr<Runtime::Instance::ComponentInstance> ActiveCompInst;
-  /// Registered AST modules.
-  std::vector<std::shared_ptr<const AST::Module>> RegASTModules;
   /// Registered module instances by user.
   std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>> RegModInsts;
-  /// Map from ID to the index in RegASTModules and RegModInsts.
-  std::unordered_map<std::string, std::array<size_t, 2>> RegModMap;
   /// Built-in module instances mapped to the configurations. For WASI.
   std::unordered_map<HostRegistration,
                      std::unique_ptr<Runtime::Instance::ModuleInstance>>
@@ -432,22 +487,6 @@ private:
   /// Reference to the store.
   Runtime::StoreManager &StoreRef;
   /// @}
-
-#ifdef WASMEDGE_USE_LLVM
-  /// \name Lazy JIT.
-  /// @{
-  /// Prepare Lazy JIT infrastructure for a module.
-  Expect<WasmEdge::LLVM::LazyJITState> prepareLazyJIT(AST::Module &Module);
-
-  /// Lazy compile a function if lazy JIT mode is enabled and function not yet
-  /// compiled.
-  Expect<void> lazyCompileFunctions(const std::string &ID, uint32_t FuncIdx);
-
-  /// Map from module ID to its lazy JIT state
-  std::unordered_map<std::string, WasmEdge::LLVM::LazyJITState> LazyJITStates;
-
-  /// @}
-#endif
 };
 
 } // namespace VM

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "vm/vm.h"
 
@@ -902,6 +902,94 @@ TEST(Component, ExportAscriptionSortKindMismatchRejected) {
 
   ASSERT_TRUE(VM.loadWasm(Vec));
   ASSERT_FALSE(VM.validate());
+}
+
+TEST(Component, OuterAliasResourceTypeAccepted) {
+  // Regression for a component-fuzz false rejection: outer-aliasing a resource
+  // type is legal because the alias preserves the resource's type identity
+  // rather than introducing a fresh generative resource.
+  //
+  // (component
+  //   (type
+  //     (component
+  //       (type (;0;) (instance (export "sc" (type (sub resource)))))
+  //       (import "a:b/c" (instance (;0;) (type 0)))
+  //       (alias export 0 "sc" (type (;1;)))        ;; resource at type[1]
+  //       (type (;2;)
+  //         (instance
+  //           (alias outer 1 1 (type (;0;)))        ;; refers to resource
+  //           type[1] (export "n" (type (eq 0)))))
+  //       (export "a:b/d" (instance (type 2))))))
+  // wasm-tools validates this component.
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
+
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // WASM preamble
+      0x07, 0x37, 0x01,                               // Type section: vec 1
+      0x41, 0x05, 0x01,                               // type[0]: component, vec 1
+      0x42, 0x01,                                     //   inner type[0]: instance, vec 1
+      0x04, 0x00, 0x02, 0x73, 0x63, 0x03, 0x01,       //     export "sc" (type (sub resource))
+      0x03, 0x00, 0x05, 0x61, 0x3a, 0x62, 0x2f, 0x63, //   import "a:b/c"
+      0x05, 0x00,                                     //     externdesc: instance (type 0)
+      0x02, 0x03, 0x00, 0x00, 0x02, 0x73, 0x63,       //   alias export instance 0 "sc" (type)
+      0x01, 0x42, 0x02,                               //   inner type[2]: instance, vec 2
+      0x02, 0x03, 0x02, 0x01, 0x01,                   //     alias outer 1 1 (type)
+      0x04, 0x00, 0x01, 0x6e, 0x03, 0x00, 0x00,       //     export "n" (type (eq 0))
+      0x04, 0x00, 0x05, 0x61, 0x3a, 0x62, 0x2f, 0x64, //   export "a:b/d"
+      0x05, 0x02,                                     //     externdesc: instance (type 2)
+  };
+  // clang-format on
+
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_TRUE(VM.validate());
+}
+
+TEST(Component, OuterAliasResourceTypeKeepsResourceIdentity) {
+  // The outer alias to a resource type must keep the resource identity in the
+  // current scope; otherwise a later (borrow i) / (own i) referring to the
+  // aliased slot is wrongly rejected as "not a resource type".
+  //
+  // (component
+  //   (type
+  //     (component
+  //       (type (;0;) (instance (export "sc" (type (sub resource)))))
+  //       (import "a:b/c" (instance (;0;) (type 0)))
+  //       (alias export 0 "sc" (type (;1;)))        ;; resource at type[1]
+  //       (type (;2;)
+  //         (instance
+  //           (alias outer 1 1 (type (;0;)))        ;; resource -> type[0]
+  //           (type (;1;) (borrow 0))               ;; needs type[0] = resource
+  //           (type (;2;) (func (param "x" 1)))))
+  //       (export "a:b/d" (instance (type 2))))))
+  // wasm-tools validates this component.
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
+
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // WASM preamble
+      0x07, 0x3b, 0x01,                               // Type section: vec 1
+      0x41, 0x05, 0x01,                               // type[0]: component, vec 1
+      0x42, 0x01,                                     //   inner type[0]: instance, vec 1
+      0x04, 0x00, 0x02, 0x73, 0x63, 0x03, 0x01,       //     export "sc" (type (sub resource))
+      0x03, 0x00, 0x05, 0x61, 0x3a, 0x62, 0x2f, 0x63, //   import "a:b/c"
+      0x05, 0x00,                                     //     externdesc: instance (type 0)
+      0x02, 0x03, 0x00, 0x00, 0x02, 0x73, 0x63,       //   alias export instance 0 "sc" (type)
+      0x01, 0x42, 0x03,                               //   inner type[2]: instance, vec 3
+      0x02, 0x03, 0x02, 0x01, 0x01,                   //     alias outer 1 1 (type) -> resource
+      0x01, 0x68, 0x00,                               //     type[1]: (borrow type 0)
+      0x01, 0x40, 0x01, 0x01, 0x78, 0x01, 0x01, 0x00, //     type[2]: func (param "x" type 1)
+      0x04, 0x00, 0x05, 0x61, 0x3a, 0x62, 0x2f, 0x64, //   export "a:b/d"
+      0x05, 0x02,                                     //     externdesc: instance (type 2)
+  };
+  // clang-format on
+
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_TRUE(VM.validate());
 }
 
 } // namespace

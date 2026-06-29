@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/validator/validator.h - validator class definition -------===//
 //
@@ -27,7 +27,7 @@ namespace Validator {
 /// Validator flow control class.
 class Validator {
 public:
-  Validator(const Configure &Conf) noexcept : Conf(Conf) {}
+  Validator(const Configure &Conf) noexcept;
   ~Validator() noexcept = default;
 
   /// Validate AST::Module.
@@ -143,6 +143,24 @@ private:
   Expect<void> validate(const AST::Component::ResourceType &RT) noexcept;
   bool containsBorrow(const ComponentValType &VT) const noexcept;
   bool containsBorrow(const AST::Component::DefValType &DVT) const noexcept;
+
+  // Populate the export table of an instance slot from an InstanceType.
+  void
+  populateInstanceFromType(uint32_t InstIdx,
+                           const AST::Component::InstanceType &IT) noexcept;
+  // Structural subtype on InstanceTypes (sort-kind for non-instance exports).
+  bool isInstanceSubtype(const AST::Component::InstanceType &S,
+                         const AST::Component::InstanceType &T) const noexcept;
+  // True iff a provided export satisfies a required-decl entry.
+  bool
+  exportSatisfies(const AST::Component::InstanceType &RequiredCtx,
+                  const ComponentContext::InstanceExport &Provided,
+                  const AST::Component::ExternDesc &Required) const noexcept;
+  // Name of the first required export of `RequiredIT` not satisfied by the
+  // instance at `ProvidedInstIdx`; nullopt ⇒ all satisfied.
+  std::optional<std::string> findMissingRequiredExport(
+      uint32_t ProvidedInstIdx,
+      const AST::Component::InstanceType &RequiredIT) const noexcept;
   /// @}
 
   /// Memory page limit for WASM32 and WASM64
@@ -154,6 +172,9 @@ private:
   FormChecker Checker;
   /// Context for Component validation
   ComponentContext CompCtx;
+  /// Pre-defined core function SubTypes
+  const AST::SubType CoreFuncType_I32_I32;  // [i32] -> [i32]
+  const AST::SubType CoreFuncType_I32_Void; // [i32] -> []
 };
 
 } // namespace Validator

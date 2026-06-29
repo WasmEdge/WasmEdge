@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "llvm/jit.h"
 
@@ -78,19 +78,18 @@ static WasmEdge::Expect<LLVM::OrcLLJIT> createTunedLazyLLJIT() noexcept {
 
 namespace WasmEdge::LLVM {
 
-JITLibrary::JITLibrary(std::shared_ptr<LLVM::OrcLLJIT> JIT, std::string P,
+JITLibrary::JITLibrary(std::shared_ptr<LLVM::OrcLLJIT> JIT,
                        bool IsLazy) noexcept
-    : J(std::move(JIT)), Prefix(std::move(P)), IsLazy(IsLazy) {}
+    : J(std::move(JIT)), IsLazy(IsLazy) {}
 
 JITLibrary::~JITLibrary() noexcept {}
 
 Symbol<const Executable::IntrinsicsTable *>
 JITLibrary::getIntrinsics() noexcept {
-  if (auto Symbol = J->lookup<const IntrinsicsTable *>(
-          fmt::format("{}intrinsics"sv, Prefix).c_str())) {
+  if (auto Symbol = J->lookup<const IntrinsicsTable *>("intrinsics")) {
     return createSymbol<const IntrinsicsTable *>(*Symbol);
   } else {
-    spdlog::error("[lazy-jit]: failed to lookup intrinsics symbol: {}"sv,
+    spdlog::error("failed to lookup intrinsics symbol: {}"sv,
                   errorToString(std::move(Symbol.error())));
     return {};
   }
@@ -101,11 +100,11 @@ JITLibrary::getTypes(size_t Size) noexcept {
   std::vector<Symbol<Wrapper>> Result;
   Result.reserve(Size);
   for (size_t I = 0; I < Size; ++I) {
-    const std::string Name = fmt::format("{}t{}"sv, Prefix, I);
+    const std::string Name = fmt::format("t{}"sv, I);
     if (auto Symbol = J->lookup<Wrapper>(Name.c_str())) {
       Result.push_back(createSymbol<Wrapper>(*Symbol));
     } else {
-      spdlog::error("[lazy-jit]: failed to lookup table symbol {}: {}"sv, Name,
+      spdlog::error("failed to lookup table symbol {}: {}"sv, Name,
                     errorToString(std::move(Symbol.error())));
       Result.emplace_back();
     }
@@ -119,7 +118,7 @@ std::vector<Symbol<void>> JITLibrary::getCodes(size_t Offset,
   std::vector<Symbol<void>> Result;
   Result.reserve(Size);
   for (size_t I = 0; I < Size; ++I) {
-    const std::string Name = fmt::format("{}f{}"sv, Prefix, I + Offset);
+    const std::string Name = fmt::format("f{}"sv, I + Offset);
     void *Addr = nullptr;
     auto AddrOrErr = J->lookup<void *>(Name.c_str());
     if (AddrOrErr) {
@@ -128,8 +127,8 @@ std::vector<Symbol<void>> JITLibrary::getCodes(size_t Offset,
       auto ErrMsg = errorToString(std::move(AddrOrErr.error()));
       // consuming only symbol not found errors for lazy-jit
       if (!IsLazy || ErrMsg.find("Symbols not found"sv) == std::string::npos) {
-        spdlog::error("[lazy-jit]: failed to lookup function symbol {}: {}"sv,
-                      Name, ErrMsg);
+        spdlog::error("failed to lookup function symbol {}: {}"sv, Name,
+                      ErrMsg);
       }
     }
     if (Addr) {
@@ -145,7 +144,16 @@ std::vector<Symbol<void>> JITLibrary::getCodes(size_t Offset,
   return Result;
 }
 
-Expect<std::shared_ptr<Executable>> JIT::load(Data &D, bool IsLazy) noexcept {
+Expect<std::shared_ptr<Executable>> JIT::load(Data D) noexcept {
+  return loadImpl(D, false);
+}
+
+Expect<std::shared_ptr<Executable>> JIT::loadLazy(Data &D) noexcept {
+  return loadImpl(D, true);
+}
+
+Expect<std::shared_ptr<Executable>> JIT::loadImpl(Data &D,
+                                                  bool IsLazy) noexcept {
   OrcLLJIT LLJITInstance;
   if (IsLazy) {
     auto R = createTunedLazyLLJIT();
@@ -183,8 +191,7 @@ Expect<std::shared_ptr<Executable>> JIT::load(Data &D, bool IsLazy) noexcept {
   }
 
   return std::make_shared<JITLibrary>(
-      std::make_shared<OrcLLJIT>(std::move(LLJITInstance)),
-      std::string(D.getPrefix()), IsLazy);
+      std::make_shared<OrcLLJIT>(std::move(LLJITInstance)), IsLazy);
 }
 
 Expect<std::vector<WasmFunctionCodeAddress>>
@@ -215,8 +222,7 @@ JIT::add(JITLibrary &Lib, Data &D,
   std::vector<WasmFunctionCodeAddress> Addresses;
   Addresses.reserve(GlobalFuncIndices.size());
   for (uint32_t GlobalFuncIndex : GlobalFuncIndices) {
-    const std::string SymName =
-        fmt::format("{}f{}"sv, D.getPrefix(), GlobalFuncIndex);
+    const std::string SymName = fmt::format("f{}"sv, GlobalFuncIndex);
     auto AddrOrErr = Lib.J->lookup<void *>(SymName.c_str());
     if (!AddrOrErr) {
       spdlog::error("[lazy-jit]: failed to lookup function symbol {}: {}"sv,
@@ -226,24 +232,6 @@ JIT::add(JITLibrary &Lib, Data &D,
             "[lazy-jit]: failed to remove failed module from tracker: {}"sv,
             RemoveErr.message().string_view());
       }
-      return Unexpect(ErrCode::Value::LazyCompilationError);
-    }
-    Addresses.push_back(*AddrOrErr);
-  }
-  return Addresses;
-}
-
-Expect<std::vector<WasmFunctionCodeAddress>> JIT::lookupWasmFunctionSymbols(
-    JITLibrary &Lib, std::string_view Prefix,
-    Span<const uint32_t> GlobalFuncIndices) noexcept {
-  std::vector<WasmFunctionCodeAddress> Addresses;
-  Addresses.reserve(GlobalFuncIndices.size());
-  for (uint32_t GlobalFuncIndex : GlobalFuncIndices) {
-    const std::string SymName = fmt::format("{}f{}"sv, Prefix, GlobalFuncIndex);
-    auto AddrOrErr = Lib.J->lookup<void *>(SymName.c_str());
-    if (!AddrOrErr) {
-      spdlog::error("[lazy-jit]: failed to lookup function symbol {}: {}"sv,
-                    SymName, errorToString(std::move(AddrOrErr.error())));
       return Unexpect(ErrCode::Value::LazyCompilationError);
     }
     Addresses.push_back(*AddrOrErr);

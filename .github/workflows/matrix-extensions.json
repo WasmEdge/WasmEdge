@@ -205,22 +205,6 @@
             ]
         },
         {
-            "plugin": "wasmedge_llmc",
-            "bin": "libwasmedgePluginWasmEdgeLLMC",
-            "dir": "wasmedge_llmc",
-            "target": "wasmedgePluginWasmEdgeLLMC",
-            "testBin": "wasmedgeLLMCTests",
-            "options": "-DWASMEDGE_PLUGIN_LLMC=ON",
-            "platforms": [
-                "macos_x86_64",
-                "macos_arm64",
-                "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64",
-                "ubuntu2004_x86_64",
-                "ubuntu_latest"
-            ]
-        },
-        {
             "plugin": "wasmedge_opencvmini",
             "bin": "libwasmedgePluginWasmEdgeOpenCVMini",
             "dir": "wasmedge_opencvmini",

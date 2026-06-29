@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/types.h - Types definition ------------------------===//
 //
@@ -16,6 +16,7 @@
 
 #include "common/enum_types.hpp"
 #include "common/errcode.h"
+#include "common/fmt.h"
 #include "common/int128.h"
 #include "common/variant.h"
 #include "endian.h"
@@ -689,6 +690,9 @@ inline ValVariant ValueFromType(ValType Type) noexcept {
 
 inline const Runtime::Instance::FunctionInstance *
 retrieveFuncRef(const RefVariant &Val) {
+  if (!Val.getType().isFuncRefType()) {
+    return nullptr;
+  }
   return Val.getPtr<Runtime::Instance::FunctionInstance>();
 }
 
@@ -788,9 +792,9 @@ private:
 
 template <>
 struct fmt::formatter<WasmEdge::ValType> : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::ValType &Type,
-         fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::ValType &Type,
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     using namespace std::literals;
     // For the number types, print the type directly.
     if (!Type.isRefType()) {

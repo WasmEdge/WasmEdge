@@ -43,11 +43,11 @@ jobs:
       ubuntu_latest: ${{ steps.readfile.outputs.ubuntu_latest }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
       - id: filter
@@ -94,7 +94,6 @@ jobs:
           wasm_bpf: ${{ steps.filter.outputs.wasm_bpf }}
           wasmedge_ffmpeg: ${{ steps.filter.outputs.wasmedge_ffmpeg }}
           wasmedge_image: ${{ steps.filter.outputs.wasmedge_image }}
-          wasmedge_llmc: ${{ steps.filter.outputs.wasmedge_llmc }}
           wasmedge_opencvmini: ${{ steps.filter.outputs.wasmedge_opencvmini }}
           wasmedge_process: ${{ steps.filter.outputs.wasmedge_process }}
           wasmedge_stablediffusion: ${{ steps.filter.outputs.wasmedge_stablediffusion }}

@@ -8,6 +8,10 @@
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+#include "driver/wasi_nn_rpc/wasi_nn_rpcserver/wasi_nn_rpcserver.h"
+#endif
+
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -2103,6 +2107,22 @@ TEST(WasiNNTest, GGMLBackendComputeSingleWithRPC) {
     EXPECT_NE(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
 }
+
+namespace {
+uint64_t hostFuncCallerPages(uint64_t MemoryBytes) {
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  WasmEdge::WasiNNRPC::Server::HostFuncCaller Caller(Mod, "noop", MemoryBytes);
+  return Caller.getMemInst().getPageSize();
+}
+} // namespace
+
+TEST(WasiNNTest, RPCServerHostFuncCallerSizesMemoryByBytes) {
+  EXPECT_EQ(hostFuncCallerPages(0U), UINT64_C(0));
+  EXPECT_EQ(hostFuncCallerPages(1U), UINT64_C(1));
+  EXPECT_EQ(hostFuncCallerPages(UINT32_C(65536)), UINT64_C(1));
+  EXPECT_EQ(hostFuncCallerPages(UINT32_C(65537)), UINT64_C(2));
+  EXPECT_EQ(hostFuncCallerPages(UINT64_C(60) * UINT64_C(1024)), UINT64_C(1));
+}
 #endif // WASMEDGE_BUILD_WASI_NN_RPC
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 
@@ -2930,8 +2950,8 @@ TEST(WasiNNTest, ChatTTSBackend) {
   {
     EXPECT_TRUE(HostFuncGetOutput.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{
-            UINT32_C(0), UINT32_C(0), StorePtr, 0, BuilderPtr},
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(0),
+                                                    StorePtr, 0, BuilderPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::TooLarge));
     // Should output more than 50 bytes.

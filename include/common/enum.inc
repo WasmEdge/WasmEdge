@@ -1139,6 +1139,17 @@ E(ComponentMemoryIndexTypeMismatch, 0x02BB,
 // Canonical option `memory` must reference a 32-bit linear memory
 E(ComponentCanonMemoryNot32Bit, 0x02BC,
   "canonical ABI memory is not a 32-bit linear memory")
+// Core instance arg global type does not match the import
+E(ComponentGlobalTypeMismatch, 0x02BD, "type mismatch in global type")
+// Core instance arg table limits do not match the import
+E(ComponentTableLimitsMismatch, 0x02BE, "mismatch in table limits")
+// Core instance arg table element type does not match the import
+E(ComponentTableElemTypeMismatch, 0x02BF, "type mismatch in table element type")
+// Value linearity: each value must be consumed exactly once (GAP-EX-4)
+E(ComponentValueAlreadyConsumed, 0x02C0,
+  "value has already been consumed")
+E(ComponentValueNotConsumed, 0x02C1,
+  "value was not consumed before end of component")
 // @}
 
 // Instantiation phase

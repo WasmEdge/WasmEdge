@@ -41,7 +41,7 @@ struct VLMOutput {
   mx::array Answer = mx::array({});
 };
 struct WhisperInput {
-  std::string Audio;
+  mx::array Audio = mx::array({});
 };
 struct Graph {
   std::string ModelType;

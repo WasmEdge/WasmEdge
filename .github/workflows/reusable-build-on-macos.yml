@@ -64,6 +64,7 @@ jobs:
           echo "BREW_PREFIX=$(brew --prefix)" >> $GITHUB_ENV
           brew uninstall cmake # conflict with the one used by WasmEdge/llvm/lld
           brew tap WasmEdge/llvm
+          brew trust WasmEdge/llvm
       - name: Install Homebrew tools
         run: |
           brew install llvm ninja wabt
@@ -97,7 +98,7 @@ jobs:
           echo "lld_keg=${LLD_KEG}" >> $GITHUB_OUTPUT
       - name: Cache lld and cmake
         id: cache-lld
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ${{ env.BREW_PREFIX }}/Cellar/${{ steps.resolve-lld.outputs.lld_keg }}

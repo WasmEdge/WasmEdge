@@ -154,6 +154,9 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // Pop Frame.
   StackMgr.popFrame();
 
+  // Instantiation done; finalize so the executor reads instances lock-free.
+  ModInst->finalizeInstantiation();
+
   // For a named module, register it in the store.
   if (Name.has_value()) {
     StoreMgr.registerModule(ModInst.get());

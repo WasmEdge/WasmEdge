@@ -380,7 +380,7 @@ Expect<uint32_t> WasiArgsGet::body(const Runtime::CallingFrame &Frame,
                                    uint32_t ArgvPtr, uint32_t ArgvBufPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<uint8_t_ptr>(ArgvPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
   // ArgvBufPtr should be aligned to at least 1 byte (which is always true)
 

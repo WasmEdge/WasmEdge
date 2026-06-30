@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -41,7 +41,7 @@ struct VLMOutput {
   mx::array Answer = mx::array({});
 };
 struct WhisperInput {
-  std::string Audio;
+  mx::array Audio = mx::array({});
 };
 struct Graph {
   std::string ModelType;

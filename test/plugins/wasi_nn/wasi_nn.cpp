@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+#include "wasinnfunc.h"
 #include "wasinnmodule.h"
 
 #include "common/types.h"
@@ -1449,6 +1450,22 @@ TEST(WasiNNTest, GGMLBackend) {
     BuilderPtr += 4;
   }
 
+  // Test: get_output_single -- a freshly initialized context has an empty
+  // streamed-token vector, so it reports zero bytes instead of dereferencing
+  // past the end of the vector.
+  {
+    auto *SingleInst = NNMod->findFuncExports("get_output_single");
+    ASSERT_NE(SingleInst, nullptr);
+    auto &HostFuncGetOutputSingle = SingleInst->getHostFunc();
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0U);
+  }
+
   // GGML WASI-NN set_input tests.
   SetInputEntryPtr = BuilderPtr;
   writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
@@ -1545,6 +1562,43 @@ TEST(WasiNNTest, GGMLBackend) {
     // Should output more than 50 bytes.
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     EXPECT_GE(BytesWritten, 50);
+  }
+
+  // Test: get_output -- an undersized buffer is rejected without any partial
+  // write. The required size is still reported through BytesWritten.
+  {
+    const uint32_t Needed = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    ASSERT_GE(Needed, 2U);
+    constexpr uint8_t GuardByte = 0xE7U;
+    const uint32_t GuardLen = Needed + 16U;
+    for (uint32_t I = 0; I < GuardLen; ++I) {
+      *MemInst.getPointer<uint8_t *>(StorePtr + I) = GuardByte;
+    }
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, Needed - 1U, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::TooLarge));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), Needed);
+    bool Untouched = true;
+    for (uint32_t I = 0; I < GuardLen; ++I) {
+      Untouched = Untouched &&
+                  (*MemInst.getPointer<uint8_t *>(StorePtr + I) == GuardByte);
+    }
+    EXPECT_TRUE(Untouched);
+  }
+
+  // Test: get_output -- an exact-size buffer succeeds.
+  {
+    const uint32_t Needed = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, Needed, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), Needed);
   }
 }
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
@@ -2793,17 +2847,25 @@ TEST(WasiNNTest, ChatTTSBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-  // Test: get_output -- get output successfully.
+  // Test: get_output -- a zero-size probe reports the required size through
+  // TooLarge, then a correctly sized buffer succeeds.
   {
     EXPECT_TRUE(HostFuncGetOutput.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
-            UINT32_C(0), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+            UINT32_C(0), UINT32_C(0), StorePtr, 0, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::TooLarge));
+    // Should output more than 50 bytes.
+    const uint32_t BytesNeeded = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_GE(BytesNeeded, 50);
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, BytesNeeded, BuilderPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
-    // Should output more than 50 bytes.
-    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
-    EXPECT_GE(BytesWritten, 50);
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), BytesNeeded);
   }
 
   // ChatTTS WASI-NN unload tests.
@@ -3307,7 +3369,8 @@ TEST(WasiNNTest, BitNetBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-  // Test: get_output -- get output successfully.
+  // Test: get_output -- a zero-size probe reports the required size through
+  // TooLarge, then a correctly sized buffer succeeds.
   {
     uint32_t BytesNeeded = 0;
     ASSERT_TRUE(
@@ -3315,9 +3378,16 @@ TEST(WasiNNTest, BitNetBackend) {
                               std::initializer_list<WasmEdge::ValVariant>{
                                   CtxId, 0, StorePtr, 0, BuilderPtr},
                               Errno));
-    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::TooLarge));
     BytesNeeded = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     EXPECT_GT(BytesNeeded, 10);
+    ASSERT_TRUE(
+        HostFuncGetOutput.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  CtxId, 0, StorePtr, BytesNeeded, BuilderPtr},
+                              Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), BytesNeeded);
   }
 
   // BitNet compute_single tests

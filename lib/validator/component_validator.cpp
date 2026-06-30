@@ -426,17 +426,17 @@ Validator::validate(const AST::Component::AliasSection &AliasSec) noexcept {
               AST::Component::Alias::TargetType::CoreExport &&
           Sort.getCoreSortType() ==
               AST::Component::Sort::CoreSortType::Memory) {
-        const AST::MemoryType *SrcMem = nullptr;
+        std::optional<AST::MemoryType> SrcMem;
         const auto SrcIdx = Alias.getExport().first;
         if (SrcIdx < CompCtx.getCoreSortIndexSize(
                          AST::Component::Sort::CoreSortType::Instance)) {
           const auto &Exports = CompCtx.getCoreInstance(SrcIdx);
           const auto It = Exports.find(std::string(Alias.getExport().second));
           if (It != Exports.end() && It->second.Mem.has_value()) {
-            SrcMem = &*It->second.Mem;
+            SrcMem = It->second.Mem;
           }
         }
-        NewCoreIdx = CompCtx.addCoreMemory(SrcMem);
+        NewCoreIdx = CompCtx.addCoreMemory(std::move(SrcMem));
       } else {
         NewCoreIdx = CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
       }

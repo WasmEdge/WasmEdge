@@ -2619,48 +2619,72 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceListGlobal(
   return 0;
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceAddFunction(
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ModuleInstanceAddFunction(
     WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
     WasmEdge_FunctionInstanceContext *FuncCxt) noexcept {
-  if (Cxt && FuncCxt) {
-    fromModCxt(Cxt)->addHostFunc(
-        genStrView(Name),
-        std::unique_ptr<WasmEdge::Runtime::Instance::FunctionInstance>(
-            fromFuncCxt(FuncCxt)));
-  }
+  return wrap(
+      [&]() -> WasmEdge::Expect<void> {
+        std::unique_ptr<WasmEdge::Runtime::Instance::FunctionInstance> Inst(
+            fromFuncCxt(FuncCxt));
+        auto Res =
+            fromModCxt(Cxt)->addHostFunc(genStrView(Name), std::move(Inst));
+        if (!Res) {
+          static_cast<void>(Inst.release());
+        }
+        return Res;
+      },
+      EmptyThen, Cxt, FuncCxt);
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceAddTable(
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ModuleInstanceAddTable(
     WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
     WasmEdge_TableInstanceContext *TableCxt) noexcept {
-  if (Cxt && TableCxt) {
-    fromModCxt(Cxt)->addHostTable(
-        genStrView(Name),
-        std::unique_ptr<WasmEdge::Runtime::Instance::TableInstance>(
-            fromTabCxt(TableCxt)));
-  }
+  return wrap(
+      [&]() -> WasmEdge::Expect<void> {
+        std::unique_ptr<WasmEdge::Runtime::Instance::TableInstance> Inst(
+            fromTabCxt(TableCxt));
+        auto Res =
+            fromModCxt(Cxt)->addHostTable(genStrView(Name), std::move(Inst));
+        if (!Res) {
+          static_cast<void>(Inst.release());
+        }
+        return Res;
+      },
+      EmptyThen, Cxt, TableCxt);
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceAddMemory(
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ModuleInstanceAddMemory(
     WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
     WasmEdge_MemoryInstanceContext *MemoryCxt) noexcept {
-  if (Cxt && MemoryCxt) {
-    fromModCxt(Cxt)->addHostMemory(
-        genStrView(Name),
-        std::unique_ptr<WasmEdge::Runtime::Instance::MemoryInstance>(
-            fromMemCxt(MemoryCxt)));
-  }
+  return wrap(
+      [&]() -> WasmEdge::Expect<void> {
+        std::unique_ptr<WasmEdge::Runtime::Instance::MemoryInstance> Inst(
+            fromMemCxt(MemoryCxt));
+        auto Res =
+            fromModCxt(Cxt)->addHostMemory(genStrView(Name), std::move(Inst));
+        if (!Res) {
+          static_cast<void>(Inst.release());
+        }
+        return Res;
+      },
+      EmptyThen, Cxt, MemoryCxt);
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceAddGlobal(
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ModuleInstanceAddGlobal(
     WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
     WasmEdge_GlobalInstanceContext *GlobalCxt) noexcept {
-  if (Cxt && GlobalCxt) {
-    fromModCxt(Cxt)->addHostGlobal(
-        genStrView(Name),
-        std::unique_ptr<WasmEdge::Runtime::Instance::GlobalInstance>(
-            fromGlobCxt(GlobalCxt)));
-  }
+  return wrap(
+      [&]() -> WasmEdge::Expect<void> {
+        std::unique_ptr<WasmEdge::Runtime::Instance::GlobalInstance> Inst(
+            fromGlobCxt(GlobalCxt));
+        auto Res =
+            fromModCxt(Cxt)->addHostGlobal(genStrView(Name), std::move(Inst));
+        if (!Res) {
+          static_cast<void>(Inst.release());
+        }
+        return Res;
+      },
+      EmptyThen, Cxt, GlobalCxt);
 }
 
 WASMEDGE_CAPI_EXPORT void

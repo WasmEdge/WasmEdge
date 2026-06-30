@@ -6,9 +6,9 @@ WASMEDGE_0.16 {
     };
 
   local:
-    # Internal names of the 0.16 backward-compat shims (see
+    # Internal names of the backward-compat shims (see
     # lib/api/wasmedge_compat.cpp).
-    # They need default visibility so `.symver` can export their `@WASMEDGE_0.16`
+    # They need default visibility so `.symver` can export their versioned
     # aliases, but their own names match the `WasmEdge*` pattern above; listing
     # them here (an exact match outranks the wildcard) keeps them unexported.
     WasmEdge_LimitIsEqual_Compat_016;
@@ -16,6 +16,10 @@ WASMEDGE_0.16 {
     WasmEdge_MemoryTypeGetLimit_Compat_016;
     WasmEdge_TableTypeCreate_Compat_016;
     WasmEdge_TableTypeGetLimit_Compat_016;
+    WasmEdge_ModuleInstanceAddFunction_Compat_017;
+    WasmEdge_ModuleInstanceAddTable_Compat_017;
+    WasmEdge_ModuleInstanceAddMemory_Compat_017;
+    WasmEdge_ModuleInstanceAddGlobal_Compat_017;
     *;
 };
 
@@ -27,3 +31,11 @@ WASMEDGE_0.17 {
     WasmEdge_TableTypeCreate;
     WasmEdge_TableTypeGetLimit;
 } WASMEDGE_0.16;
+
+WASMEDGE_0.18 {
+  global:
+    WasmEdge_ModuleInstanceAddFunction;
+    WasmEdge_ModuleInstanceAddTable;
+    WasmEdge_ModuleInstanceAddMemory;
+    WasmEdge_ModuleInstanceAddGlobal;
+} WASMEDGE_0.17;

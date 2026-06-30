@@ -1919,6 +1919,27 @@ TEST(APICoreTest, ExecutorWithStatistics) {
       WasmEdge_ResultOK(WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 1, R, 1)));
   EXPECT_EQ(1000, WasmEdge_ValueGetI32(R[0]));
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+
+  // The "extern" host module is now finalized (a host function was invoked), so
+  // adding to it fails with WrongVMWorkflow and the caller keeps ownership.
+  {
+    WasmEdge_String FinName = WasmEdge_StringCreateByCString("func-finalized");
+    WasmEdge_ValType FinParam[2] = {WasmEdge_ValTypeGenExternRef(),
+                                    WasmEdge_ValTypeGenI32()},
+                     FinResult[1] = {WasmEdge_ValTypeGenI32()};
+    WasmEdge_FunctionTypeContext *FinFType =
+        WasmEdge_FunctionTypeCreate(FinParam, 2, FinResult, 1);
+    WasmEdge_FunctionInstanceContext *FinFunc =
+        WasmEdge_FunctionInstanceCreate(FinFType, externAdd, nullptr, 0);
+    EXPECT_TRUE(isErrMatch(
+        WasmEdge_ErrCode_WrongVMWorkflow,
+        WasmEdge_ModuleInstanceAddFunction(HostMod, FinName, FinFunc)));
+    // Add failed: the caller still owns FinFunc and must destroy it.
+    WasmEdge_FunctionInstanceDelete(FinFunc);
+    WasmEdge_FunctionTypeDelete(FinFType);
+    WasmEdge_StringDelete(FinName);
+  }
+
   // Call sub: (123) - (456)
   FuncName = WasmEdge_StringCreateByCString("func-host-sub");
   FuncCxt = WasmEdge_ModuleInstanceFindFunction(ModCxt, FuncName);
@@ -2662,12 +2683,14 @@ TEST(APICoreTest, ModuleInstance) {
   HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, externAdd, nullptr, 0);
   EXPECT_NE(HostFunc, nullptr);
   HostName = WasmEdge_StringCreateByCString("func-add");
-  WasmEdge_ModuleInstanceAddFunction(nullptr, HostName, HostFunc);
-  EXPECT_TRUE(true);
-  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, nullptr);
-  EXPECT_TRUE(true);
-  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
-  EXPECT_TRUE(true);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_ModuleInstanceAddFunction(nullptr, HostName, HostFunc)));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, nullptr)));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc)));
   WasmEdge_FunctionTypeDelete(HostFType);
   WasmEdge_StringDelete(HostName);
 
@@ -2679,12 +2702,14 @@ TEST(APICoreTest, ModuleInstance) {
   HostTable = WasmEdge_TableInstanceCreate(HostTType);
   EXPECT_NE(HostTable, nullptr);
   HostName = WasmEdge_StringCreateByCString("table");
-  WasmEdge_ModuleInstanceAddTable(nullptr, HostName, HostTable);
-  EXPECT_TRUE(true);
-  WasmEdge_ModuleInstanceAddTable(HostMod, HostName, nullptr);
-  EXPECT_TRUE(true);
-  WasmEdge_ModuleInstanceAddTable(HostMod, HostName, HostTable);
-  EXPECT_TRUE(true);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_ModuleInstanceAddTable(nullptr, HostName, HostTable)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_ModuleInstanceAddTable(HostMod, HostName, nullptr)));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ModuleInstanceAddTable(HostMod, HostName, HostTable)));
   WasmEdge_TableTypeDelete(HostTType);
   WasmEdge_StringDelete(HostName);
 
@@ -2696,12 +2721,14 @@ TEST(APICoreTest, ModuleInstance) {
   HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
   EXPECT_NE(HostMemory, nullptr);
   HostName = WasmEdge_StringCreateByCString("memory");
-  WasmEdge_ModuleInstanceAddMemory(nullptr, HostName, HostMemory);
-  EXPECT_TRUE(true);
-  WasmEdge_ModuleInstanceAddMemory(HostMod, HostName, nullptr);
-  EXPECT_TRUE(true);
-  WasmEdge_ModuleInstanceAddMemory(HostMod, HostName, HostMemory);
-  EXPECT_TRUE(true);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_ModuleInstanceAddMemory(nullptr, HostName, HostMemory)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_ModuleInstanceAddMemory(HostMod, HostName, nullptr)));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ModuleInstanceAddMemory(HostMod, HostName, HostMemory)));
   WasmEdge_MemoryTypeDelete(HostMType);
   WasmEdge_StringDelete(HostName);
 
@@ -2712,12 +2739,14 @@ TEST(APICoreTest, ModuleInstance) {
       WasmEdge_GlobalInstanceCreate(HostGType, WasmEdge_ValueGenI32(666));
   EXPECT_NE(HostGlobal, nullptr);
   HostName = WasmEdge_StringCreateByCString("global_i32");
-  WasmEdge_ModuleInstanceAddGlobal(nullptr, HostName, HostGlobal);
-  EXPECT_TRUE(true);
-  WasmEdge_ModuleInstanceAddGlobal(HostMod, HostName, nullptr);
-  EXPECT_TRUE(true);
-  WasmEdge_ModuleInstanceAddGlobal(HostMod, HostName, HostGlobal);
-  EXPECT_TRUE(true);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_ModuleInstanceAddGlobal(nullptr, HostName, HostGlobal)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_ModuleInstanceAddGlobal(HostMod, HostName, nullptr)));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ModuleInstanceAddGlobal(HostMod, HostName, HostGlobal)));
   WasmEdge_GlobalTypeDelete(HostGType);
   WasmEdge_StringDelete(HostName);
 

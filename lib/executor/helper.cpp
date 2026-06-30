@@ -73,6 +73,12 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     // Host function case: Push args and call function.
     auto &HostFunc = Func.getHostFunc();
 
+    // Finalize the host module on its first host-function invocation, after
+    // which adding host instances to it is rejected.
+    if (const auto *HostModInst = Func.getModule()) {
+      HostModInst->finalizeInstantiation();
+    }
+
     // Generate CallingFrame from current frame.
     // The module instance will be nullptr if current frame is a dummy frame.
     // For this case, use the module instance of this host function.
@@ -215,9 +221,9 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
         // For non-abstract heap types (concrete type indices), convert the
         // null ref to the abstract heap type so that ref.cast/ref.test won't
         // dereference a null pointer when checking the type.
-        const auto &CompType =
-            (*Func.getModule()->getType(Def.second.getTypeIndex()))
-                ->getCompositeType();
+        const auto &CompType = Func.getModule()
+                                   ->unsafeGetType(Def.second.getTypeIndex())
+                                   ->getCompositeType();
         auto BotTypeCode =
             CompType.isFunc() ? TypeCode::NullFuncRef : TypeCode::NullRef;
         RefVariant InitVal(ValType(TypeCode::RefNull, BotTypeCode));
@@ -469,9 +475,9 @@ TypeCode Executor::toBottomType(Runtime::StackManager &StackMgr,
         assumingUnreachable();
       }
     } else {
-      const auto &CompType =
-          (*StackMgr.getModule()->getType(Type.getTypeIndex()))
-              ->getCompositeType();
+      const auto &CompType = StackMgr.getModule()
+                                 ->unsafeGetType(Type.getTypeIndex())
+                                 ->getCompositeType();
       if (CompType.isFunc()) {
         return TypeCode::NullFuncRef;
       } else {

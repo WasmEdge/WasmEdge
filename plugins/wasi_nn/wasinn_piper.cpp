@@ -358,15 +358,15 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
     return WASINN::ErrNo::InvalidArgument;
   }
 
+  BytesWritten = static_cast<uint32_t>(CxtRef.Output->size());
   if (CxtRef.Output->size() > OutBuffer.size_bytes()) {
     spdlog::error(
         "[WASI-NN] Piper backend: Output size {} is greater than buffer size {}."sv,
         CxtRef.Output->size(), OutBuffer.size_bytes());
-    return WASINN::ErrNo::InvalidArgument;
+    return WASINN::ErrNo::TooLarge;
   }
 
   std::memcpy(OutBuffer.data(), CxtRef.Output->data(), CxtRef.Output->size());
-  BytesWritten = CxtRef.Output->size();
   return WASINN::ErrNo::Success;
 }
 

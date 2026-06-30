@@ -2191,19 +2191,28 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   // Handle Metadata Output at Index 1
   if (Index == 1) {
     const std::string Metadata = buildOutputMetadata(CxtRef);
-    const size_t BytesToCopy =
-        std::min(static_cast<size_t>(OutBuffer.size()), Metadata.length());
-    std::copy_n(Metadata.data(), BytesToCopy, OutBuffer.data());
     BytesWritten = static_cast<uint32_t>(Metadata.length());
+    if (OutBuffer.size() < Metadata.length()) {
+      spdlog::error("[WASI-NN] BitNet backend: output buffer too small, "
+                    "need {} bytes but got {}."sv,
+                    Metadata.length(), OutBuffer.size());
+      return ErrNo::TooLarge;
+    }
+    std::copy_n(Metadata.data(), Metadata.length(), OutBuffer.data());
 
     LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput: Metadata (Index 1)...Done"sv)
     return ErrNo::Success;
   }
 
-  const size_t BytesToCopy = std::min(static_cast<size_t>(OutBuffer.size()),
-                                      CxtRef.LlamaOutputs.size());
-  std::copy_n(CxtRef.LlamaOutputs.data(), BytesToCopy, OutBuffer.data());
-  BytesWritten = CxtRef.LlamaOutputs.size();
+  BytesWritten = static_cast<uint32_t>(CxtRef.LlamaOutputs.size());
+  if (OutBuffer.size() < CxtRef.LlamaOutputs.size()) {
+    spdlog::error("[WASI-NN] BitNet backend: output buffer too small, "
+                  "need {} bytes but got {}."sv,
+                  CxtRef.LlamaOutputs.size(), OutBuffer.size());
+    return ErrNo::TooLarge;
+  }
+  std::copy_n(CxtRef.LlamaOutputs.data(), CxtRef.LlamaOutputs.size(),
+              OutBuffer.data());
 
   LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput: Text (Index 0)...Done"sv)
   return ErrNo::Success;
@@ -2269,10 +2278,14 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
   // Metadata Output at Index 1
   if (Index == 1) {
     const std::string Metadata = buildOutputMetadata(CxtRef);
-    const size_t BytesToCopy =
-        std::min(static_cast<size_t>(OutBuffer.size()), Metadata.length());
-    std::copy_n(Metadata.data(), BytesToCopy, OutBuffer.data());
     BytesWritten = static_cast<uint32_t>(Metadata.length());
+    if (OutBuffer.size() < Metadata.length()) {
+      spdlog::error("[WASI-NN] BitNet backend: output buffer too small, "
+                    "need {} bytes but got {}."sv,
+                    Metadata.length(), OutBuffer.size());
+      return ErrNo::TooLarge;
+    }
+    std::copy_n(Metadata.data(), Metadata.length(), OutBuffer.data());
 
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "getOutputSingle: Metadata (Index 1)...Done"sv)
@@ -2287,10 +2300,14 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
   const std::string LastTokenStr = common_token_to_piece(
       GraphRef.LlamaContext.get(), CxtRef.LlamaOutputTokens.back());
 
-  const size_t BytesToCopy =
-      std::min(static_cast<size_t>(OutBuffer.size()), LastTokenStr.length());
-  std::copy_n(LastTokenStr.data(), BytesToCopy, OutBuffer.data());
-  BytesWritten = LastTokenStr.length();
+  BytesWritten = static_cast<uint32_t>(LastTokenStr.length());
+  if (OutBuffer.size() < LastTokenStr.length()) {
+    spdlog::error("[WASI-NN] BitNet backend: output buffer too small, "
+                  "need {} bytes but got {}."sv,
+                  LastTokenStr.length(), OutBuffer.size());
+    return ErrNo::TooLarge;
+  }
+  std::copy_n(LastTokenStr.data(), LastTokenStr.length(), OutBuffer.data());
 
   LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle: Text (Index 0)...Done"sv)
   return ErrNo::Success;

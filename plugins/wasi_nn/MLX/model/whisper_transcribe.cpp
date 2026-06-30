@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2025 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "whisper_transcribe.h"
 #include "mlx/base.h"
@@ -10,7 +10,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstdio>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -24,65 +23,6 @@
 
 namespace WasmEdge::Host::WASINN::MLX {
 namespace whisper {
-
-mx::array loadAudio(const std::string &FilePath, int SampleRate) {
-  int Channels = 1;
-  std::vector<std::string> Cmd = {"ffmpeg",   "-nostdin",
-                                  "-threads", "0",
-                                  "-i",       FilePath,
-                                  "-f",       "s16le",
-                                  "-ac",      std::to_string(Channels),
-                                  "-acodec",  "pcm_s16le",
-                                  "-ar",      std::to_string(SampleRate),
-                                  "-v",       "quiet",
-                                  "-"};
-
-  // Build command string
-  std::stringstream CmdStream;
-  for (size_t i = 0; i < Cmd.size(); ++i) {
-    if (i > 0)
-      CmdStream << " ";
-    CmdStream << Cmd[i];
-  }
-  std::string CmdString = CmdStream.str();
-
-  // Execute ffmpeg command
-  FILE *Pipe = popen(CmdString.c_str(), "r");
-  if (!Pipe) {
-    throw std::runtime_error("Failed to execute ffmpeg command");
-  }
-
-  // Read raw audio data
-  std::vector<int16_t> AudioData;
-  int16_t Buffer[4096];
-  size_t BytesRead;
-
-  while ((BytesRead = fread(Buffer, sizeof(int16_t), 4096, Pipe)) > 0) {
-    AudioData.insert(AudioData.end(), Buffer, Buffer + BytesRead);
-  }
-
-  int ExitCode = pclose(Pipe);
-  if (ExitCode != 0) {
-    throw std::runtime_error("ffmpeg command failed with exit code: " +
-                             std::to_string(ExitCode));
-  }
-
-  if (AudioData.empty()) {
-    throw std::runtime_error("No audio data loaded from file: " + FilePath);
-  }
-
-  mx::array AudioArray = mx::array(
-      AudioData.data(), {static_cast<int>(AudioData.size())}, mx::int16);
-
-  if (Channels > 1) {
-    int Frames = AudioData.size() / Channels;
-    AudioArray = mx::reshape(AudioArray, {Frames, Channels});
-  }
-
-  mx::array FloatAudio = mx::astype(AudioArray, mx::float32) / 32768.0f;
-
-  return FloatAudio;
-}
 
 mx::array padOrTrim(const mx::array &Array, int Length, int Axis) {
   auto Shape = Array.shape();
@@ -382,8 +322,8 @@ nextWordsSegment(const std::vector<TranscribeSegment> &Segments) {
 
 // Main transcribe function
 TranscribeResult
-transcribe(const std::variant<std::string, mx::array> &Audio,
-           std::shared_ptr<whisper::Whisper> Model, std::optional<bool> Verbose,
+transcribe(const mx::array &Audio, std::shared_ptr<whisper::Whisper> Model,
+           std::optional<bool> Verbose,
            std::variant<float, std::vector<float>> Temperature,
            std::optional<float> CompressionRatioThreshold,
            std::optional<float> LogprobThreshold,
@@ -396,10 +336,7 @@ transcribe(const std::variant<std::string, mx::array> &Audio,
            const DecodingOptions &DecodeOptions) {
 
   // Get audio array
-  mx::array AudioArray =
-      std::holds_alternative<std::string>(Audio)
-          ? loadAudio(std::get<std::string>(Audio), DefaultSampleRate)
-          : std::get<mx::array>(Audio);
+  mx::array AudioArray = Audio;
 
   // Get dtype
   mx::Dtype Dtype = DecodeOptions.Fp16 ? mx::float16 : mx::float32;

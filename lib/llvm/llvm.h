@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 #pragma once
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -102,6 +102,7 @@ public:
   }
 
   static inline const unsigned int NotIntrinsic = 0;
+  static inline unsigned int Abs = 0;
   static inline unsigned int Ceil = 0;
   static inline unsigned int CopySign = 0;
   static inline unsigned int Ctlz = 0;
@@ -129,6 +130,10 @@ public:
   static inline unsigned int UAddSat = 0;
   static inline unsigned int USubSat = 0;
   static inline unsigned int Bswap = 0;
+  static inline unsigned int SMax = 0;
+  static inline unsigned int SMin = 0;
+  static inline unsigned int UMax = 0;
+  static inline unsigned int UMin = 0;
 #if defined(__x86_64__)
   static inline unsigned int X86SSE2PAvgB = 0;
   static inline unsigned int X86SSE2PAvgW = 0;
@@ -182,6 +187,7 @@ private:
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmPrinter();
 
+    Abs = getIntrinsicID("llvm.abs"sv);
     Ceil = getIntrinsicID("llvm.ceil"sv);
     CopySign = getIntrinsicID("llvm.copysign"sv);
     Ctlz = getIntrinsicID("llvm.ctlz"sv);
@@ -215,6 +221,10 @@ private:
     UAddSat = getIntrinsicID("llvm.uadd.sat"sv);
     USubSat = getIntrinsicID("llvm.usub.sat"sv);
     Bswap = getIntrinsicID("llvm.bswap"sv);
+    SMax = getIntrinsicID("llvm.smax"sv);
+    SMin = getIntrinsicID("llvm.smin"sv);
+    UMax = getIntrinsicID("llvm.umax"sv);
+    UMin = getIntrinsicID("llvm.umin"sv);
 
 #if defined(__x86_64__)
     X86SSE2PAvgB = getIntrinsicID("llvm.x86.sse2.pavg.b"sv);

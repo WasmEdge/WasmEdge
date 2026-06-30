@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasinn_mlx.h"
 #include "wasinnenv.h"
@@ -15,6 +15,7 @@
 #include "MLX/model/whisper/whisper.h"
 #include "MLX/model/whisper_transcribe.h"
 #include "MLX/prompt/prompt.h"
+#include <cstring>
 #include <memory>
 #include <mlx/array.h>
 
@@ -528,9 +529,16 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       return ErrNo::InvalidArgument;
     }
   } else if (GraphRef.ModelArch == "whisper") {
-    std::get<WhisperInput>(CxtRef.Inputs).Audio =
-        std::string(reinterpret_cast<const char *>(Tensor.Tensor.data()),
-                    Tensor.Tensor.size());
+    if (Tensor.RType != TensorType::F32 || Tensor.Tensor.empty() ||
+        Tensor.Tensor.size() % sizeof(float) != 0) {
+      spdlog::error("[WASI-NN] MLX backend: Whisper input must be non-empty "
+                    "FP32 PCM samples."sv);
+      return ErrNo::InvalidArgument;
+    }
+    std::vector<float> Samples(Tensor.Tensor.size() / sizeof(float));
+    std::memcpy(Samples.data(), Tensor.Tensor.data(), Tensor.Tensor.size());
+    std::get<WhisperInput>(CxtRef.Inputs).Audio = mx::array(
+        Samples.data(), {static_cast<int>(Samples.size())}, mx::float32);
   } else {
     spdlog::error(
         "[WASI-NN] MLX backend: Model architecture {} not supported."sv,

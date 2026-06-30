@@ -1601,6 +1601,84 @@ TEST(WasiNNTest, GGMLBackend) {
     EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), Needed);
   }
 }
+
+namespace {
+uint32_t runLoadByName(uint32_t NamePtr, uint32_t NameLen) {
+  auto NNMod = createModule();
+  if (!NNMod) {
+    return UINT32_C(0xFFFFFFFF);
+  }
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  auto &HostFunc = dynamic_cast<WasmEdge::Host::WasiNNLoadByName &>(
+      NNMod->findFuncExports("load_by_name")->getHostFunc());
+  std::array<WasmEdge::ValVariant, 1> Rets = {UINT32_C(0)};
+  HostFunc.run(CallFrame,
+               std::initializer_list<WasmEdge::ValVariant>{NamePtr, NameLen,
+                                                           UINT32_C(0)},
+               Rets);
+  return Rets[0].get<uint32_t>();
+}
+
+uint32_t runLoadByNameWithConfig(uint32_t NamePtr, uint32_t NameLen,
+                                 uint32_t ConfigPtr, uint32_t ConfigLen) {
+  auto NNMod = createModule();
+  if (!NNMod) {
+    return UINT32_C(0xFFFFFFFF);
+  }
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  auto &HostFunc = dynamic_cast<WasmEdge::Host::WasiNNLoadByNameWithConfig &>(
+      NNMod->findFuncExports("load_by_name_with_config")->getHostFunc());
+  std::array<WasmEdge::ValVariant, 1> Rets = {UINT32_C(0)};
+  HostFunc.run(CallFrame,
+               std::initializer_list<WasmEdge::ValVariant>{
+                   NamePtr, NameLen, ConfigPtr, ConfigLen, UINT32_C(0)},
+               Rets);
+  return Rets[0].get<uint32_t>();
+}
+} // namespace
+
+TEST(WasiNNTest, WasiNNLoadByNameRejectsNameBeyondMemory) {
+  uint32_t E = runLoadByName(/*NamePtr=*/65500U, /*NameLen=*/64U);
+  if (E == 0xFFFFFFFFU) {
+    GTEST_SKIP() << "wasi_nn plugin not found";
+  }
+  EXPECT_EQ(E, static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  uint32_t ZeroLenName = runLoadByName(/*NamePtr=*/0xFFFFFFFFU, /*NameLen=*/0U);
+  EXPECT_EQ(ZeroLenName, static_cast<uint32_t>(ErrNo::InvalidArgument));
+}
+
+TEST(WasiNNTest, WasiNNLoadByNameWithConfigRejectsOutOfBoundsExtent) {
+  uint32_t NameOOB =
+      runLoadByNameWithConfig(/*NamePtr=*/65500U, /*NameLen=*/64U,
+                              /*ConfigPtr=*/0U, /*ConfigLen=*/8U);
+  if (NameOOB == 0xFFFFFFFFU) {
+    GTEST_SKIP() << "wasi_nn plugin not found";
+  }
+  EXPECT_EQ(NameOOB, static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  uint32_t ConfigOOB = runLoadByNameWithConfig(
+      /*NamePtr=*/0U, /*NameLen=*/8U, /*ConfigPtr=*/65500U, /*ConfigLen=*/64U);
+  EXPECT_EQ(ConfigOOB, static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  uint32_t ZeroLenName = runLoadByNameWithConfig(
+      /*NamePtr=*/0xFFFFFFFFU, /*NameLen=*/0U, /*ConfigPtr=*/0U,
+      /*ConfigLen=*/0U);
+  EXPECT_EQ(ZeroLenName, static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  uint32_t ZeroLenConfig = runLoadByNameWithConfig(
+      /*NamePtr=*/0U, /*NameLen=*/0U, /*ConfigPtr=*/0xFFFFFFFFU,
+      /*ConfigLen=*/0U);
+  EXPECT_EQ(ZeroLenConfig, static_cast<uint32_t>(ErrNo::InvalidArgument));
+}
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 TEST(WasiNNTest, GGMLBackendWithRPC) {
   // wasi_nn_rpcserver has to be started outside this test,

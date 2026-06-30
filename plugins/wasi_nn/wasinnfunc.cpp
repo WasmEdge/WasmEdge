@@ -12,6 +12,7 @@
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 #include "wasi_ephemeral_nn.grpc.pb.h"
 
+#include <charconv>
 #include <grpc/grpc.h>
 #endif // #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 
@@ -40,11 +41,18 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 WASINN::ErrNo metadataToErrNo(
     const std::multimap<grpc::string_ref, grpc::string_ref> &Metadata) {
-  if (Metadata.find("errno") != Metadata.end()) {
-    auto ErrNo = std::stoi(Metadata.find("errno")->second.data());
-    return static_cast<WASINN::ErrNo>(ErrNo);
+  const auto It = Metadata.find("errno");
+  if (It != Metadata.end()) {
+    const grpc::string_ref &ErrNoRef = It->second;
+    int ErrNoValue = 0;
+    const char *Begin = ErrNoRef.data();
+    const auto Result =
+        std::from_chars(Begin, Begin + ErrNoRef.size(), ErrNoValue);
+    if (Result.ec == std::errc()) {
+      return static_cast<WASINN::ErrNo>(ErrNoValue);
+    }
   }
-  return WASINN::ErrNo::Success;
+  return WASINN::ErrNo::RuntimeError;
 }
 #endif // #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 } // namespace
@@ -418,13 +426,18 @@ WasiNNGetOutput::bodyImpl(const Runtime::CallingFrame &Frame,
     wasi_ephemeral_nn::GetOutputResult Res;
     auto Status = Stub->GetOutput(&ClientContext, Req, &Res);
     if (!Status.ok()) {
+      *BytesWritten = 0;
       auto Metadata = ClientContext.GetServerTrailingMetadata();
       return metadataToErrNo(Metadata);
     }
-    uint32_t BytesWrittenVal =
-        std::min(static_cast<uint32_t>(Res.data().size()), OutBufferMaxSize);
-    std::copy_n(Res.data().begin(), BytesWrittenVal, OutBuffer.begin());
-    *BytesWritten = BytesWrittenVal;
+    *BytesWritten = static_cast<uint32_t>(Res.data().size());
+    if (OutBufferMaxSize < Res.data().size()) {
+      spdlog::error("[WASI-NN] get_output: output buffer too small, "
+                    "need {} bytes but got {}."sv,
+                    Res.data().size(), OutBufferMaxSize);
+      return WASINN::ErrNo::TooLarge;
+    }
+    std::copy_n(Res.data().begin(), Res.data().size(), OutBuffer.begin());
     return WASINN::ErrNo::Success;
   }
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
@@ -483,13 +496,18 @@ Expect<WASINN::ErrNo> WasiNNGetOutputSingle::bodyImpl(
     wasi_ephemeral_nn::GetOutputResult Res;
     auto Status = Stub->GetOutputSingle(&ClientContext, Req, &Res);
     if (!Status.ok()) {
+      *BytesWritten = 0;
       auto Metadata = ClientContext.GetServerTrailingMetadata();
       return metadataToErrNo(Metadata);
     }
-    uint32_t BytesWrittenVal =
-        std::min(static_cast<uint32_t>(Res.data().size()), OutBufferMaxSize);
-    std::copy_n(Res.data().begin(), BytesWrittenVal, OutBuffer.begin());
-    *BytesWritten = BytesWrittenVal;
+    *BytesWritten = static_cast<uint32_t>(Res.data().size());
+    if (OutBufferMaxSize < Res.data().size()) {
+      spdlog::error("[WASI-NN] get_output_single: output buffer too small, "
+                    "need {} bytes but got {}."sv,
+                    Res.data().size(), OutBufferMaxSize);
+      return WASINN::ErrNo::TooLarge;
+    }
+    std::copy_n(Res.data().begin(), Res.data().size(), OutBuffer.begin());
     return WASINN::ErrNo::Success;
   }
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC

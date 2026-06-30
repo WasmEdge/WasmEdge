@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2025 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "whisper.h"
 #include "mlx/activations.h"

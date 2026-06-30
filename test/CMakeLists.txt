@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 find_package(GTest QUIET)
 if(GTest_FOUND)
@@ -83,11 +83,12 @@ add_subdirectory(host/mock)
 add_subdirectory(expected)
 add_subdirectory(span)
 add_subdirectory(po)
-add_subdirectory(meminstance)
+add_subdirectory(instance)
 add_subdirectory(errinfo)
 add_subdirectory(vm)
 
 if(WASMEDGE_BUILD_COVERAGE)
+  set(GCOVR_ADDITIONAL_ARGS --gcov-ignore-parse-errors negative_hits.warn_once_per_file)
   setup_target_for_coverage_gcovr_html(
     NAME coverage
     EXECUTABLE ctest -j ${PROCESSOR_COUNT}

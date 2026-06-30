@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 use heck::ShoutySnakeCase;
 use witx::*;
@@ -9,7 +9,7 @@ pub fn to_cpp_header(doc: &Document, inputs_str: &str) -> String {
 
     ret.push_str(&format!(
         r#"// SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 /**
  * THIS FILE IS AUTO-GENERATED from the following files:

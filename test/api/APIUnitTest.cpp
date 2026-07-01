@@ -737,6 +737,12 @@ TEST(APICoreTest, Configure) {
   WasmEdge_ConfigureSetMaxMemoryPage(Conf, 1234U);
   EXPECT_NE(WasmEdge_ConfigureGetMaxMemoryPage(ConfNull), 1234U);
   EXPECT_EQ(WasmEdge_ConfigureGetMaxMemoryPage(Conf), 1234U);
+  // Tests for stack size limit.
+  EXPECT_EQ(WasmEdge_ConfigureGetMaxStackSize(Conf), UINT64_C(512) << 10);
+  WasmEdge_ConfigureSetMaxStackSize(ConfNull, 65536U);
+  WasmEdge_ConfigureSetMaxStackSize(Conf, 65536U);
+  EXPECT_NE(WasmEdge_ConfigureGetMaxStackSize(ConfNull), 65536U);
+  EXPECT_EQ(WasmEdge_ConfigureGetMaxStackSize(Conf), 65536U);
   // Tests for force interpreter (deprecated API).
   // Pre-set to JIT so the SetForceInterpreter(true) flip is observable; the
   // default run mode is Interpreter, which would make IsForceInterpreter()

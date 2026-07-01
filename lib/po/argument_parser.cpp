@@ -279,7 +279,7 @@ ArgumentParser::SubCommandDescriptor::consume_long_option_with_argument(
     } else if (ArgumentDescriptor *CurrentDesc = *Res; !CurrentDesc) {
       return cxx20::unexpected<Error>(
           std::in_place, ErrCode::InvalidArgument,
-          fmt::format("option {} doesn't need arguments.", Option));
+          fmt::format("option {} doesn't need arguments."sv, Option));
     } else {
       if (auto ConsumeRes = consume_argument(*CurrentDesc, Argument);
           !ConsumeRes) {

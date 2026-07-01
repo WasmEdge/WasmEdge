@@ -10,9 +10,11 @@
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 #define DR_WAV_IMPLEMENTATION
 #include "simdjson.h"
+#include "wasinn_ggml_log.h"
 #include <examples/dr_wav.h>
 
 #include <algorithm>
+#include <mutex>
 #endif
 
 using namespace std::literals;
@@ -398,28 +400,20 @@ bool loadWAV(Span<const uint8_t> Buf, std::vector<float> &PCMF32,
   return true;
 }
 
-void WhisperLogCallback(ggml_log_level LogLevel, const char *LogText,
-                        void *UserData) {
-  const Graph &GraphRef = *reinterpret_cast<Graph *>(UserData);
-  if (!GraphRef.WhisperConfig.EnableLog) {
+// No per-graph user pointer (would dangle); gated on the shared whisper gate.
+void WhisperLogCallback(ggml_log_level LogLevel, const char *LogText, void *) {
+  if (!whisperLogEnabled()) {
     return;
   }
-  std::string Text(LogText);
-  // Remove the trailing newlines.
-  Text = Text.erase(Text.find_last_not_of("\n") + 1);
-  // Skip for "."
-  if (Text == ".") {
-    return;
-  }
-  if (LogLevel == GGML_LOG_LEVEL_ERROR) {
-    spdlog::error("[WASI-NN] whisper.cpp: {}"sv, Text);
-  } else if (LogLevel == GGML_LOG_LEVEL_WARN) {
-    spdlog::warn("[WASI-NN] whisper.cpp: {}"sv, Text);
-  } else if (LogLevel == GGML_LOG_LEVEL_INFO) {
-    spdlog::info("[WASI-NN] whisper.cpp: {}"sv, Text);
-  } else if (LogLevel == GGML_LOG_LEVEL_DEBUG) {
-    spdlog::debug("[WASI-NN] whisper.cpp: {}"sv, Text);
-  }
+  logGgmlMessage(LogLevel, LogText, "whisper.cpp"sv);
+}
+
+// Bind the whisper log callback once and sync the graph's log gate.
+void installWhisperLog(Graph &GraphRef, bool EnableLog) noexcept {
+  static std::once_flag LogOnce;
+  std::call_once(
+      LogOnce, []() noexcept { whisper_log_set(WhisperLogCallback, nullptr); });
+  GraphRef.WhisperLog.set(EnableLog);
 }
 
 void WhisperOutputSegmentCallback(struct whisper_context *WhisperCtx,
@@ -850,9 +844,6 @@ Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &G,
   GraphRef.UseGPU = CParam.use_gpu;
   GraphRef.MainGPU = CParam.gpu_device;
 
-  // Set whisper log callback.
-  whisper_log_set(WhisperLogCallback, &GraphRef);
-
   // If the graph builder length is greater than 1, builder[1] contains the
   // metadata.
   if (Builders.size() > 1) {
@@ -865,6 +856,9 @@ Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &G,
       return Res;
     }
   }
+
+  // EnableLog is only known after metadata parsing; sync the log gate now.
+  installWhisperLog(GraphRef, GraphRef.WhisperConfig.EnableLog);
 
   // Handle the model path.
   if (GraphRef.WhisperConfig.EnableDebugLog) {
@@ -956,6 +950,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
       spdlog::error("[WASI-NN] Whisper backend: Failed to parse metadata."sv);
       return Res;
     }
+    // Reconcile this graph's whisper log gate with the reparsed EnableLog.
+    installWhisperLog(GraphRef, CxtRef.WhisperConfig.EnableLog);
     Res = handleTranslationConfig(GraphRef.WhisperCtx, CxtRef.WhisperConfig);
     if (Res != ErrNo::Success) {
       return Res;

@@ -227,8 +227,10 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &, WASINN::Graph &G,
   auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "finiSingle"sv)
 
-  // Logging for the llama timings.
-  if (GraphRef.EnableLog) {
+  // A failed set_input reload can leave a null llama context or sampler and
+  // fini_single still admits the graph, so guard both.
+  if (GraphRef.EnableLog && GraphRef.LlamaContext != nullptr &&
+      CxtRef.LlamaSampler != nullptr) {
     common_perf_print(GraphRef.LlamaContext.get(), CxtRef.LlamaSampler);
   }
 
@@ -241,7 +243,9 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &, WASINN::Graph &G,
             "finiSingle: clear the previous output and tokens...Done"sv)
 
   // Reset the llama sampler.
-  common_sampler_reset(CxtRef.LlamaSampler);
+  if (CxtRef.LlamaSampler != nullptr) {
+    common_sampler_reset(CxtRef.LlamaSampler);
+  }
   CxtRef.ComputeSingleStarted = false;
   CxtRef.NPos = 0;
 

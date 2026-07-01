@@ -186,21 +186,25 @@ Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &G,
     PyModelBackend ModelType = guessPyModelBackendType(BinModel);
 
     if (ModelType == PyModelBackend::TorchScript) {
-      GraphRef.Model = new TorchScript();
+      GraphRef.Model = std::make_unique<TorchScript>();
     } else if (ModelType == PyModelBackend::AOTInductor) {
-      GraphRef.Model = new AOTInductor();
+      GraphRef.Model = std::make_unique<AOTInductor>();
     } else {
       spdlog::error("[WASI-NN] Torch: Unknown model type."sv);
       return ErrNo::InvalidArgument;
     }
 
+    Expect<ErrNo> LoadRes = ErrNo::Success;
     if (BinModel.substr(0, 8) == "preload:"sv) {
       const std::string ModelFilePath(BinModel.substr(8));
-      GraphRef.Model->loadFromPath(ModelFilePath, Device);
+      LoadRes = GraphRef.Model->loadFromPath(ModelFilePath, Device);
     } else {
       std::istringstream BinRead{std::string(BinModel)};
       // std::istringstream BinRead(BinModel); // Need C++26...
-      GraphRef.Model->loadFromBinary(BinRead, Device);
+      LoadRes = GraphRef.Model->loadFromBinary(BinRead, Device);
+    }
+    if (!LoadRes.has_value() || *LoadRes != ErrNo::Success) {
+      return LoadRes;
     }
   } catch (const c10::Error &e) {
     spdlog::error("[WASI-NN] Torch: Failed when load the TorchScript model."sv);

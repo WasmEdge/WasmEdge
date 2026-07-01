@@ -1021,15 +1021,15 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
                  Index);
   }
 
+  BytesWritten = static_cast<uint32_t>(CxtRef.Outputs.length());
   // Check out buffer max size.
   if (OutBuffer.size() < CxtRef.Outputs.length()) {
     spdlog::error("[WASI-NN] Expect out buffer max size {}, but got {}"sv,
                   CxtRef.Outputs.length(), OutBuffer.size());
-    return WASINN::ErrNo::InvalidArgument;
+    return WASINN::ErrNo::TooLarge;
   }
 
   std::copy_n(CxtRef.Outputs.data(), CxtRef.Outputs.length(), OutBuffer.data());
-  BytesWritten = CxtRef.Outputs.length();
   if (CxtRef.WhisperConfig.EnableDebugLog) {
     spdlog::info(
         "[WASI-NN][Debug] Whisper backend: getOutput with Index {}...Done"sv,

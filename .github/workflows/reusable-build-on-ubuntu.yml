@@ -96,6 +96,7 @@ jobs:
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_FUZZING=ON -DWASMEDGE_BUILD_TOOLS=OFF .
           cmake --build build --target wasmedge-fuzzpo
           cmake --build build --target wasmedge-fuzztool
+          cmake --build build --target wasmedge-fuzzcomponent
       - name: Test
         if: ${{ !matrix.coverage && !matrix.fuzzing && matrix.tests }}
         run: |
@@ -104,20 +105,6 @@ jobs:
           ./tools/wasmedge/wasmedge -v
           ctest
           cd -
-      - name: Install wasm-tools
-        if: ${{ !matrix.coverage && !matrix.fuzzing && matrix.tests }}
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          source "$HOME/.cargo/env"
-          cargo install wasm-tools@1.245.1
-      - name: Component Fuzz Test
-        if: ${{ !matrix.coverage && !matrix.fuzzing && matrix.tests }}
-        env:
-          FUZZ_ITERATION_COUNT: 100
-        run: |
-          source "$HOME/.cargo/env"
-          export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
-          bash test/component/fuzzing/run_fuzz.sh ./build/test/component/fuzzing/wasmedgeComponentFuzzTest
       - name: Check symbol exposure
         if: ${{ !matrix.coverage && !matrix.fuzzing }}
         run: |

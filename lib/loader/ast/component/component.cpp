@@ -125,6 +125,10 @@ Expect<void> Loader::loadComponent(AST::Component::Component &Comp,
       EXPECTED_TRY(loadSection(Sec.emplace<AST::Component::ExportSection>())
                        .map_error(ReportError));
       break;
+    case 0x0C:
+      EXPECTED_TRY(loadSection(Sec.emplace<AST::Component::ValueSection>())
+                       .map_error(ReportError));
+      break;
     default:
       return logLoadError(ErrCode::Value::MalformedSection,
                           FMgr.getLastOffset(), ASTNodeAttr::Component);

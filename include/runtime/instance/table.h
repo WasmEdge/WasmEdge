@@ -40,12 +40,14 @@ public:
     // constructor with a properly initialized RefVariant.
     assuming(TType.getRefType().isNullableRefType());
     assuming(TType.getRefType().isAbsHeapType());
+    refreshCompiledPtrs();
   }
   TableInstance(const AST::TableType &TType, const RefVariant &InitVal) noexcept
       : TabType(TType), Refs(TType.getLimit().getMin(), InitVal),
         InitValue(InitVal) {
     // If the reference type is not nullable, the initial reference is required.
     assuming(TType.getRefType().isNullableRefType() || !InitVal.isNull());
+    refreshCompiledPtrs();
   }
 
   /// Get size of table.refs
@@ -53,6 +55,17 @@ public:
     // The table size is bound to the limit in the table type.
     return TabType.getLimit().getMin();
   }
+
+  /// Get a stable pointer to the live size field for compiled code.
+  const uint64_t *getSizePtr() const noexcept {
+    return TabType.getLimit().getMinPtr();
+  }
+
+  /// Get the stable reference to the live element buffer for compiled code.
+  /// The pointed-to address is refreshed whenever the buffer reallocates on
+  /// grow, so taking its address yields a slot stable across the table's life.
+  RefVariant *const &getDataPtr() const noexcept { return DataPtr; }
+  RefVariant *&getDataPtr() noexcept { return DataPtr; }
 
   /// Getter for table type.
   const AST::TableType &getTableType() const noexcept { return TabType; }
@@ -85,6 +98,7 @@ public:
     }
     Refs.resize(Refs.size() + Count);
     std::fill_n(Refs.end() - static_cast<std::ptrdiff_t>(Count), Count, Val);
+    refreshCompiledPtrs();
     TabType.getLimit().setMin(Min + Count);
     return true;
   }
@@ -176,9 +190,14 @@ public:
 private:
   /// \name Data of table instance.
   /// @{
+  /// Refresh the buffer pointers exposed to compiled code after the element
+  /// vector reallocates, keeping the dispatch cache sized with the table.
+  void refreshCompiledPtrs() noexcept { DataPtr = Refs.data(); }
+
   AST::TableType TabType;
   std::vector<RefVariant> Refs;
   RefVariant InitValue;
+  RefVariant *DataPtr = nullptr;
   /// @}
 };
 

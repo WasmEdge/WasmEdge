@@ -252,8 +252,14 @@ struct LLVM::Compiler::CompileContext {
         ExecCtxTy(LLVM::Type::getStructType(
             "ExecCtx",
             std::initializer_list<LLVM::Type>{
-                // Memory
+                // MemoryPtrs
                 Int8PtrTy.getPointerTo(),
+                // MemorySizes
+                Int64PtrTy.getPointerTo(),
+                // TableRefs
+                Int64x2Ty.getPointerTo().getPointerTo(),
+                // TableSizes
+                Int64PtrTy.getPointerTo(),
                 // Globals
                 Int128PtrTy.getPointerTo(),
                 // InstrCount
@@ -267,6 +273,8 @@ struct LLVM::Compiler::CompileContext {
                 Int64Ty,
                 // StopToken
                 Int32PtrTy,
+                // ModuleInst
+                Int8PtrTy,
             })),
         ExecCtxPtrTy(ExecCtxTy.getPointerTo()),
         IntrinsicsTableTy(LLVM::Type::getArrayType(
@@ -346,11 +354,49 @@ struct LLVM::Compiler::CompileContext {
 #endif
     return Builder.createBitCast(VPtr, Int8PtrTy);
   }
+  LLVM::Value getMemorySize(LLVM::Builder &Builder, LLVM::Value ExecCtx,
+                            uint32_t Index) noexcept {
+    auto Array = Builder.createExtractValue(ExecCtx, 1);
+    auto VPtr = Builder.createLoad(
+        Int64PtrTy, Builder.createInBoundsGEP1(Int64PtrTy, Array,
+                                               LLContext.getInt64(Index)));
+    VPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
+                     LLVM::Metadata(LLContext, {}));
+    return Builder.createLoad(Int64Ty, VPtr);
+  }
+  LLVM::Value getTable(LLVM::Builder &Builder, LLVM::Value ExecCtx,
+                       uint32_t Index) noexcept {
+    auto RefPtrTy = Int64x2Ty.getPointerTo();
+    auto Array = Builder.createExtractValue(ExecCtx, 2);
+    auto VPtrPtr = Builder.createLoad(
+        RefPtrTy.getPointerTo(),
+        Builder.createInBoundsGEP1(RefPtrTy.getPointerTo(), Array,
+                                   LLContext.getInt64(Index)));
+    VPtrPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
+                        LLVM::Metadata(LLContext, {}));
+    return Builder.createLoad(
+        RefPtrTy,
+        Builder.createInBoundsGEP1(RefPtrTy, VPtrPtr, LLContext.getInt64(0)));
+  }
+  LLVM::Value getTableSize(LLVM::Builder &Builder, LLVM::Value ExecCtx,
+                           uint32_t Index) noexcept {
+    auto Array = Builder.createExtractValue(ExecCtx, 3);
+    auto VPtr = Builder.createLoad(
+        Int64PtrTy, Builder.createInBoundsGEP1(Int64PtrTy, Array,
+                                               LLContext.getInt64(Index)));
+    VPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
+                     LLVM::Metadata(LLContext, {}));
+    return Builder.createLoad(Int64Ty, VPtr);
+  }
+  LLVM::Value getModuleInst(LLVM::Builder &Builder,
+                            LLVM::Value ExecCtx) noexcept {
+    return Builder.createExtractValue(ExecCtx, 10);
+  }
   std::pair<LLVM::Type, LLVM::Value> getGlobal(LLVM::Builder &Builder,
                                                LLVM::Value ExecCtx,
                                                uint32_t Index) noexcept {
     auto Ty = Globals[Index];
-    auto Array = Builder.createExtractValue(ExecCtx, 1);
+    auto Array = Builder.createExtractValue(ExecCtx, 4);
     auto VPtr = Builder.createLoad(
         Int128PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
                                                 LLContext.getInt64(Index)));
@@ -361,22 +407,22 @@ struct LLVM::Compiler::CompileContext {
   }
   LLVM::Value getInstrCount(LLVM::Builder &Builder,
                             LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 2);
+    return Builder.createExtractValue(ExecCtx, 5);
   }
   LLVM::Value getCostTable(LLVM::Builder &Builder,
                            LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 3);
+    return Builder.createExtractValue(ExecCtx, 6);
   }
   LLVM::Value getGas(LLVM::Builder &Builder, LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 4);
+    return Builder.createExtractValue(ExecCtx, 7);
   }
   LLVM::Value getGasLimit(LLVM::Builder &Builder,
                           LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 5);
+    return Builder.createExtractValue(ExecCtx, 8);
   }
   LLVM::Value getStopToken(LLVM::Builder &Builder,
                            LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 6);
+    return Builder.createExtractValue(ExecCtx, 9);
   }
   LLVM::FunctionCallee getIntrinsic(LLVM::Builder &Builder,
                                     Executable::Intrinsics Index,
@@ -1538,27 +1584,35 @@ public:
 
       // Table Instructions
       case OpCode::Table__get: {
+        const auto TableIndex = Instr.getTargetIndex();
         auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
-        stackPush(Builder.createCall(
-            Context.getIntrinsic(
-                Builder, Executable::Intrinsics::kTableGet,
-                LLVM::Type::getFunctionType(Context.Int64x2Ty,
-                                            {Context.Int32Ty, Context.Int64Ty},
-                                            false)),
-            {LLContext.getInt32(Instr.getTargetIndex()), Off}));
+        auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "t_get.ok");
+        Builder.createCondBr(
+            Builder.createLikely(Builder.createICmpULT(
+                Off, Context.getTableSize(Builder, ExecCtx, TableIndex))),
+            OkBB, getTrapBB(ErrCode::Value::TableOutOfBounds));
+        Builder.positionAtEnd(OkBB);
+        stackPush(Builder.createLoad(
+            Context.Int64x2Ty,
+            Builder.createInBoundsGEP1(
+                Context.Int64x2Ty,
+                Context.getTable(Builder, ExecCtx, TableIndex), Off)));
         break;
       }
       case OpCode::Table__set: {
-        auto Ref = stackPop();
+        const auto TableIndex = Instr.getTargetIndex();
+        auto Ref = Builder.createBitCast(stackPop(), Context.Int64x2Ty);
         auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
-        Builder.createCall(
-            Context.getIntrinsic(
-                Builder, Executable::Intrinsics::kTableSet,
-                LLVM::Type::getFunctionType(
-                    Context.Int64Ty,
-                    {Context.Int32Ty, Context.Int64Ty, Context.Int64x2Ty},
-                    false)),
-            {LLContext.getInt32(Instr.getTargetIndex()), Off, Ref});
+        auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "t_set.ok");
+        Builder.createCondBr(
+            Builder.createLikely(Builder.createICmpULT(
+                Off, Context.getTableSize(Builder, ExecCtx, TableIndex))),
+            OkBB, getTrapBB(ErrCode::Value::TableOutOfBounds));
+        Builder.positionAtEnd(OkBB);
+        Builder.createStore(
+            Ref, Builder.createInBoundsGEP1(
+                     Context.Int64x2Ty,
+                     Context.getTable(Builder, ExecCtx, TableIndex), Off));
         break;
       }
       case OpCode::Table__init: {
@@ -1618,12 +1672,7 @@ public:
       }
       case OpCode::Table__size: {
         stackPush(Builder.createTrunc(
-            Builder.createCall(
-                Context.getIntrinsic(
-                    Builder, Executable::Intrinsics::kTableSize,
-                    LLVM::Type::getFunctionType(Context.Int64Ty,
-                                                {Context.Int32Ty}, false)),
-                {LLContext.getInt32(Instr.getTargetIndex())}),
+            Context.getTableSize(Builder, ExecCtx, Instr.getTargetIndex()),
             Context.TableAddrTypes[Instr.getTargetIndex()]));
         break;
       }
@@ -1741,12 +1790,7 @@ public:
         break;
       case OpCode::Memory__size:
         stackPush(Builder.createTrunc(
-            Builder.createCall(
-                Context.getIntrinsic(
-                    Builder, Executable::Intrinsics::kMemSize,
-                    LLVM::Type::getFunctionType(Context.Int64Ty,
-                                                {Context.Int32Ty}, false)),
-                {LLContext.getInt32(Instr.getTargetIndex())}),
+            Context.getMemorySize(Builder, ExecCtx, Instr.getTargetIndex()),
             Context.MemoryAddrTypes[Instr.getTargetIndex()]));
         break;
       case OpCode::Memory__grow: {
@@ -4364,6 +4408,10 @@ private:
 
   void compileIndirectCallOp(const uint32_t TableIndex,
                              const uint32_t FuncTypeIndex) noexcept {
+    auto TryFastBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.tryfast");
+    auto NonNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.nonnull");
+    auto FastBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.fast");
+    auto SlowBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.slow");
     auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.not_null");
     auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.is_null");
     auto EndBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.end");
@@ -4383,6 +4431,73 @@ private:
       ArgsVec[J] = stackPop();
     }
 
+    auto Idx64 = Builder.createZExt(FuncIndex, Context.Int64Ty);
+
+    // Fast path: when the index is in bounds and the referenced function is
+    // defined in the running module with the call site's type and already
+    // compiled, read its compiled code pointer straight from the function
+    // instance and call it without entering the runtime resolver.
+    std::vector<LLVM::Value> FastRetsVec;
+    FastRetsVec.reserve(RetSize);
+    {
+      Builder.createCondBr(
+          Builder.createLikely(Builder.createICmpULT(
+              Idx64, Context.getTableSize(Builder, ExecCtx, TableIndex))),
+          TryFastBB, SlowBB);
+      Builder.positionAtEnd(TryFastBB);
+
+      auto FuncRef = Builder.createLoad(
+          Context.Int64x2Ty,
+          Builder.createInBoundsGEP1(
+              Context.Int64x2Ty, Context.getTable(Builder, ExecCtx, TableIndex),
+              Idx64));
+      auto FuncInstInt =
+          Builder.createExtractElement(FuncRef, LLContext.getInt64(1));
+      Builder.createCondBr(Builder.createLikely(Builder.createICmpNE(
+                               FuncInstInt, LLContext.getInt64(0))),
+                           NonNullBB, SlowBB);
+      Builder.positionAtEnd(NonNullBB);
+
+      auto FuncInstPtr = Builder.createIntToPtr(FuncInstInt, Context.Int8PtrTy);
+      auto LoadField = [&](uint64_t Off, LLVM::Type Ty) {
+        return Builder.createLoad(
+            Ty, Builder.createBitCast(
+                    Builder.createInBoundsGEP1(Context.Int8Ty, FuncInstPtr,
+                                               LLContext.getInt64(Off)),
+                    Ty.getPointerTo()));
+      };
+      auto DefModule = LoadField(0, Context.Int64Ty);
+      auto TypeIdx = LoadField(8, Context.Int32Ty);
+      auto Code = LoadField(16, Context.Int8PtrTy);
+      auto ThisModule = Builder.createPtrToInt(
+          Context.getModuleInst(Builder, ExecCtx), Context.Int64Ty);
+      auto Hit = Builder.createAnd(
+          Builder.createAnd(
+              Builder.createICmpEQ(DefModule, ThisModule),
+              Builder.createICmpEQ(TypeIdx, LLContext.getInt32(FuncTypeIndex))),
+          Builder.createNot(Builder.createIsNull(Code)));
+      Builder.createCondBr(Builder.createLikely(Hit), FastBB, SlowBB);
+
+      Builder.positionAtEnd(FastBB);
+      auto FastRet = Builder.createCall(
+          LLVM::FunctionCallee{FTy,
+                               Builder.createBitCast(Code, FTy.getPointerTo())},
+          ArgsVec);
+      if (RetSize == 0) {
+        // nothing to do
+      } else if (RetSize == 1) {
+        FastRetsVec.push_back(FastRet);
+      } else {
+        for (auto Val : unpackStruct(Builder, FastRet)) {
+          FastRetsVec.push_back(Val);
+        }
+      }
+      Builder.createBr(EndBB);
+    }
+
+    // Slow path: resolve through the runtime, which handles cross-module, host,
+    // subtype, uninitialized, and not-yet-compiled cases.
+    Builder.positionAtEnd(SlowBB);
     std::vector<LLVM::Value> FPtrRetsVec;
     FPtrRetsVec.reserve(RetSize);
     {
@@ -4449,6 +4564,7 @@ private:
 
     for (unsigned I = 0; I < RetSize; ++I) {
       auto PHIRet = Builder.createPHI(FPtrRetsVec[I].getType());
+      PHIRet.addIncoming(FastRetsVec[I], FastBB);
       PHIRet.addIncoming(FPtrRetsVec[I], NotNullBB);
       PHIRet.addIncoming(RetsVec[I], IsNullBB);
       stackPush(PHIRet);

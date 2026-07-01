@@ -243,7 +243,7 @@ Context::keypairFromId(__wasi_secrets_manager_t SecretsManagerHandle,
   return SecretsManagerManager.get(SecretsManagerHandle)
       .and_then([&](auto &&Sm) noexcept {
         return Sm.getKp(KpId, KpIdVersion).and_then([&](auto &&Kp) noexcept {
-          return KeyPairManager.registerManager(Kp).and_then(
+          return KeyPairManager.registerManager(std::move(Kp)).and_then(
               [&](auto &&KpHandle) noexcept {
                 return KeyPairManager
                     .setManagedInfo(KpHandle, KpId, KpIdVersion)

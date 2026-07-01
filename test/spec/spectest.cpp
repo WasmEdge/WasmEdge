@@ -317,7 +317,7 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     // Folder: the directory name of tests.
     // Test table: the testing status of load, validate, instantiate, and execute.
     {"adapt",                   {true, false, false, false}},
-    {"alias",                   {true, false, false, false}},
+    {"alias",                   {true, true,  false, false}},
     {"big",                     {true, true,  false, false}},
     {"definedtypes",            {true, true,  true,  false}},
     {"empty",                   {true, true,  true,  false}},

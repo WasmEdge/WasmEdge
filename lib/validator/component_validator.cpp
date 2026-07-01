@@ -162,6 +162,163 @@ Expect<ComponentName> validateExportName(std::string_view Name) noexcept {
   }
 }
 
+const AST::FunctionType *getModuleFunctionType(const AST::Module &M,
+                                               uint32_t FuncIdx) {
+  const auto ImportFuncCount = M.getImportFuncCount();
+  if (FuncIdx < ImportFuncCount) {
+    uint32_t Seen = 0;
+    for (const auto &Imp : M.getImportSection().getContent()) {
+      if (Imp.getExternalType() != ExternalType::Function) {
+        continue;
+      }
+      if (Seen == FuncIdx) {
+        const uint32_t TId = Imp.getExternalFuncTypeIdx();
+        const auto &Types = M.getTypeSection().getContent();
+        if (TId >= Types.size()) {
+          return nullptr;
+        }
+        const auto &ST = Types[TId];
+        if (!ST.getCompositeType().isFunc()) {
+          return nullptr;
+        }
+        return &ST.getCompositeType().getFuncType();
+      }
+      ++Seen;
+    }
+    return nullptr;
+  }
+  const uint32_t LocalIdx = FuncIdx - ImportFuncCount;
+  const auto &FuncSec = M.getFunctionSection().getContent();
+  if (LocalIdx >= FuncSec.size()) {
+    return nullptr;
+  }
+  const uint32_t TId = FuncSec[LocalIdx];
+  const auto &Types = M.getTypeSection().getContent();
+  if (TId >= Types.size()) {
+    return nullptr;
+  }
+  const auto &ST = Types[TId];
+  if (!ST.getCompositeType().isFunc()) {
+    return nullptr;
+  }
+  return &ST.getCompositeType().getFuncType();
+}
+
+const AST::FunctionType *
+getModuleExportFunctionType(const AST::Module &M, std::string_view ExportName) {
+  for (const auto &Exp : M.getExportSection().getContent()) {
+    if (Exp.getExternalType() != ExternalType::Function ||
+        Exp.getExternalName() != ExportName) {
+      continue;
+    }
+    return getModuleFunctionType(M, Exp.getExternalIndex());
+  }
+  return nullptr;
+}
+
+bool sameCoreFunctionSignature(const AST::FunctionType &A,
+                               const AST::FunctionType &B) noexcept {
+  return A.getParamTypes() == B.getParamTypes() &&
+         A.getReturnTypes() == B.getReturnTypes();
+}
+
+const AST::FunctionType *
+resolveCoreModuleTypeFuncType(const AST::Component::CoreDefType &ModTy,
+                              uint32_t TypeIdx) {
+  if (!ModTy.isModuleType()) {
+    return nullptr;
+  }
+  uint32_t Seen = 0;
+  for (const auto &Decl : ModTy.getModuleType()) {
+    if (!Decl.isType()) {
+      continue;
+    }
+    const auto *Inner = Decl.getType();
+    if (Inner == nullptr || !Inner->isRecType()) {
+      continue;
+    }
+    for (const auto &ST : Inner->getSubTypes()) {
+      if (Seen == TypeIdx && ST.getCompositeType().isFunc()) {
+        return &ST.getCompositeType().getFuncType();
+      }
+      ++Seen;
+    }
+  }
+  return nullptr;
+}
+
+const AST::FunctionType *
+getCoreModuleTypeExportFunctionType(const AST::Component::CoreDefType &ModTy,
+                                    std::string_view ExportName) {
+  if (!ModTy.isModuleType()) {
+    return nullptr;
+  }
+  for (const auto &Decl : ModTy.getModuleType()) {
+    if (!Decl.isExport() || Decl.getExport().getName() != ExportName) {
+      continue;
+    }
+    const auto &Desc = Decl.getExport().getImportDesc();
+    if (!Desc.isFunc()) {
+      return nullptr;
+    }
+    return resolveCoreModuleTypeFuncType(ModTy, Desc.getTypeIndex());
+  }
+  return nullptr;
+}
+
+bool projectedInstanceExportSortMatches(
+    const ComponentContext &Ctx, const ComponentContext::InstanceExport &Exp,
+    std::string_view Name, AST::Component::Sort::SortType WantST) {
+  if (Exp.ST == WantST) {
+    return true;
+  }
+  if (Exp.ST != AST::Component::Sort::SortType::Instance) {
+    return false;
+  }
+  if (Exp.NestedInstIdx.has_value()) {
+    const auto &Nested = Ctx.getInstance(*Exp.NestedInstIdx).Exports;
+    auto It = Nested.find(std::string(Name));
+    if (It == Nested.end()) {
+      return false;
+    }
+    return projectedInstanceExportSortMatches(Ctx, It->second, Name, WantST);
+  }
+  const AST::Component::InstanceType *IT = Exp.IT;
+  if (IT == nullptr) {
+    return false;
+  }
+  for (const auto &Decl : IT->getDecl()) {
+    if (!Decl.isExportDecl() || Decl.getExport().getName() != Name) {
+      continue;
+    }
+    const auto OptST =
+        descTypeToSortType(Decl.getExport().getExternDesc().getDescType());
+    if (!OptST.has_value()) {
+      return false;
+    }
+    if (*OptST == WantST) {
+      return true;
+    }
+    if (*OptST != AST::Component::Sort::SortType::Instance) {
+      return false;
+    }
+    const auto &ED = Decl.getExport().getExternDesc();
+    if (ED.getDescType() !=
+        AST::Component::ExternDesc::DescType::InstanceType) {
+      return false;
+    }
+    const auto *NestedIT = resolveNestedInstanceType(*IT, ED.getTypeIndex());
+    if (NestedIT == nullptr) {
+      return false;
+    }
+    ComponentContext::InstanceExport NestedExp{
+        AST::Component::Sort::SortType::Instance, NestedIT, std::nullopt,
+        std::nullopt};
+    return projectedInstanceExportSortMatches(Ctx, NestedExp, Name, WantST);
+  }
+  return false;
+}
+
 } // namespace
 
 void Validator::populateInstanceFromType(
@@ -740,6 +897,68 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
       }
     }
 
+    if (Mod != nullptr) {
+      const uint32_t InstCount = CompCtx.getCoreSortIndexSize(
+          AST::Component::Sort::CoreSortType::Instance);
+      for (const auto &Import : Mod->getImportSection().getContent()) {
+        if (Import.getExternalType() != ExternalType::Function) {
+          continue;
+        }
+        const auto ArgIt =
+            std::find_if(Args.begin(), Args.end(), [&](const auto &Arg) {
+              return Arg.getName() == Import.getModuleName();
+            });
+        if (ArgIt == Args.end() || ArgIt->getIndex() >= InstCount) {
+          continue;
+        }
+        const auto &ProvExports = CompCtx.getCoreInstance(ArgIt->getIndex());
+        const auto ExpIt =
+            ProvExports.find(std::string(Import.getExternalName()));
+        if (ExpIt == ProvExports.end() ||
+            ExpIt->second.Kind != ExternalType::Function) {
+          continue;
+        }
+        const AST::FunctionType *WantFT = nullptr;
+        uint32_t FuncIdx = 0;
+        for (const auto &Imp : Mod->getImportSection().getContent()) {
+          if (Imp.getExternalType() != ExternalType::Function) {
+            continue;
+          }
+          if (Imp.getModuleName() == Import.getModuleName() &&
+              Imp.getExternalName() == Import.getExternalName()) {
+            WantFT = getModuleFunctionType(*Mod, FuncIdx);
+            break;
+          }
+          ++FuncIdx;
+        }
+        if (ArgIt->getIndex() >=
+            CompCtx.getCoreSortIndexSize(
+                AST::Component::Sort::CoreSortType::Module)) {
+          continue;
+        }
+        const auto &ProvSlot = CompCtx.getCoreModule(ArgIt->getIndex());
+        const AST::FunctionType *ExportFT = nullptr;
+        if (ProvSlot.Body != nullptr) {
+          ExportFT = getModuleExportFunctionType(*ProvSlot.Body,
+                                                 Import.getExternalName());
+        } else if (ProvSlot.Type != nullptr) {
+          ExportFT = getCoreModuleTypeExportFunctionType(
+              *ProvSlot.Type, Import.getExternalName());
+        }
+        if (WantFT == nullptr || ExportFT == nullptr) {
+          continue;
+        }
+        if (!sameCoreFunctionSignature(*WantFT, *ExportFT)) {
+          spdlog::error(ErrCode::Value::ArgTypeMismatch);
+          spdlog::error(
+              "    CoreInstance: function import '{}'.'{}' type mismatch"sv,
+              Import.getModuleName(), Import.getExternalName());
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreInstance));
+          return Unexpect(ErrCode::Value::ArgTypeMismatch);
+        }
+      }
+    }
+
     // GAP-CI-1 (cont.): for an imported core module type, subtype-check each
     // provided core extern (memory / table / global) against the import.
     if (ModTy != nullptr && ModTy->isModuleType()) {
@@ -751,7 +970,8 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
         }
         const auto &Imp = Decl.getImport();
         const auto Desc = Imp.getImportDesc();
-        if (!Desc.isMemory() && !Desc.isTable() && !Desc.isGlobal()) {
+        if (!Desc.isMemory() && !Desc.isTable() && !Desc.isGlobal() &&
+            !Desc.isFunc()) {
           continue;
         }
         const auto ArgIt =
@@ -776,8 +996,25 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreInstance));
           return Unexpect(Code);
         };
-        if (Desc.isMemory() && Got.Kind == ExternalType::Memory &&
-            Got.Mem.has_value()) {
+        if (Desc.isFunc() && Got.Kind == ExternalType::Function) {
+          const AST::FunctionType *WantFT =
+              resolveCoreModuleTypeFuncType(*ModTy, Desc.getTypeIndex());
+          const auto &ProvSlot = CompCtx.getCoreModule(ArgIt->getIndex());
+          const AST::FunctionType *ExportFT = nullptr;
+          if (ProvSlot.Body != nullptr) {
+            ExportFT =
+                getModuleExportFunctionType(*ProvSlot.Body, Imp.getName());
+          } else if (ProvSlot.Type != nullptr) {
+            ExportFT = getCoreModuleTypeExportFunctionType(*ProvSlot.Type,
+                                                           Imp.getName());
+          }
+          if (WantFT != nullptr && ExportFT != nullptr &&
+              !sameCoreFunctionSignature(*WantFT, *ExportFT)) {
+            return reportMismatch(ErrCode::Value::ArgTypeMismatch,
+                                  "type mismatch");
+          }
+        } else if (Desc.isMemory() && Got.Kind == ExternalType::Memory &&
+                   Got.Mem.has_value()) {
           const auto &W = Desc.getMemoryType().getLimit();
           const auto &G = Got.Mem->getLimit();
           if (W.is64() != G.is64()) {
@@ -1082,7 +1319,9 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
     // Raw-Component path resolves the IT for instance-typed exports;
     // ComponentType path registers sort-kind only (GAP-DECL-ED).
     // TODO (GAP-I-3): fresh ResourceIds + per-export resource remapping.
-    uint32_t InstanceIdx = CompCtx.addInstance();
+    ComponentContext::Context::InstanceSlot Slot;
+    Slot.FromInstantiate = true;
+    uint32_t InstanceIdx = CompCtx.addInstance(Slot);
     if (Comp != nullptr) {
       for (const auto &Sec : Comp->getSections()) {
         const auto *ES = std::get_if<AST::Component::ExportSection>(&Sec);
@@ -1208,21 +1447,19 @@ Expect<void> Validator::validate(const AST::Component::CoreAlias &A) noexcept {
     OutLinkCompCnt++;
   }
   if (TargetCtx == nullptr) {
-    spdlog::error(ErrCode::Value::InvalidIndex);
-    // The final hop is the one that ran off the top of the scope chain, so the
-    // number of actually-enclosing components is one less than the hop count.
+    spdlog::error(ErrCode::Value::ComponentInvalidOuterAliasCount);
     spdlog::error(
         "    CoreAlias: outer count {} exceeds enclosing component count {}"sv,
         Ct, OutLinkCompCnt - 1);
-    return Unexpect(ErrCode::Value::InvalidIndex);
+    return Unexpect(ErrCode::Value::ComponentInvalidOuterAliasCount);
   }
 
   const auto &Sort = A.getSort();
   if (Sort.isCore()) {
     if (Idx >= TargetCtx->getCoreSortIndexSize(Sort.getCoreSortType())) {
-      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(ErrCode::Value::DefTypeIndexOutOfBounds);
       spdlog::error("    CoreAlias: outer index {} out of bounds"sv, Idx);
-      return Unexpect(ErrCode::Value::InvalidIndex);
+      return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
     }
     CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
   }
@@ -1237,6 +1474,30 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
     const auto &Name = Alias.getExport().second;
 
     if (Sort.isCore()) {
+      if (Idx >=
+          CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Instance)) {
+        spdlog::error(ErrCode::Value::DefTypeIndexOutOfBounds);
+        spdlog::error(
+            "    Alias export: Export index {} exceeds available component instance index {}"sv,
+            Idx,
+            CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Instance));
+        return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
+      }
+
+      const auto &InstExports = CompCtx.getInstance(Idx).Exports;
+      auto It = InstExports.find(std::string(Name));
+      if (Sort.getCoreSortType() ==
+          AST::Component::Sort::CoreSortType::Module) {
+        if (It != InstExports.cend()) {
+          spdlog::error(ErrCode::Value::ComponentAliasUnknownExportModule);
+          spdlog::error(
+              "    Alias export: Export '{}' for instance {} is not a module"sv,
+              Name, Idx);
+          return Unexpect(ErrCode::Value::ComponentAliasUnknownExportModule);
+        }
+        return {};
+      }
+
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error("    Alias export: Mapping an export '{}' to core:sort"sv,
                     Name);
@@ -1245,25 +1506,32 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
 
     if (Idx >=
         CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Instance)) {
-      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(ErrCode::Value::DefTypeIndexOutOfBounds);
       spdlog::error(
           "    Alias export: Export index {} exceeds available component instance index {}"sv,
           Idx,
           CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Instance));
-      return Unexpect(ErrCode::Value::InvalidIndex);
+      return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
     }
 
     const auto &InstExports = CompCtx.getInstance(Idx).Exports;
     auto It = InstExports.find(std::string(Name));
     if (It == InstExports.cend()) {
-      spdlog::error(ErrCode::Value::ComponentUnknownExport);
+      const auto &InstSlot = CompCtx.getInstance(Idx);
+      const ErrCode::Value NotFoundErr =
+          !InstSlot.FromInstantiate && InstSlot.Exports.empty() &&
+                  InstSlot.Type == nullptr
+              ? ErrCode::Value::ComponentUnknownExport
+              : ErrCode::Value::ComponentAliasUnknownExportName;
+      spdlog::error(NotFoundErr);
       spdlog::error(
           "    Alias export: No matching export '{}' found in component instance index {}"sv,
           Name, Idx);
-      return Unexpect(ErrCode::Value::ComponentUnknownExport);
+      return Unexpect(NotFoundErr);
     }
 
-    if (It->second.ST != Sort.getSortType()) {
+    if (!projectedInstanceExportSortMatches(CompCtx, It->second, Name,
+                                            Sort.getSortType())) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error("    Alias export: Type mapping mismatch for export '{}'"sv,
                     Name);
@@ -1284,24 +1552,24 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
 
     if (Idx >= CompCtx.getCoreSortIndexSize(
                    AST::Component::Sort::CoreSortType::Instance)) {
-      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(ErrCode::Value::DefTypeIndexOutOfBounds);
       spdlog::error(
           "    Alias core:export: Export index {} exceeds available core instance index {}"sv,
           Idx,
           CompCtx.getCoreSortIndexSize(
               AST::Component::Sort::CoreSortType::Instance) -
               1);
-      return Unexpect(ErrCode::Value::InvalidIndex);
+      return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
     }
 
     const auto &CoreExports = CompCtx.getCoreInstance(Idx);
     auto It = CoreExports.find(std::string(Name));
     if (It == CoreExports.end()) {
-      spdlog::error(ErrCode::Value::ExportNotFound);
+      spdlog::error(ErrCode::Value::ComponentAliasUnknownExportName);
       spdlog::error(
           "    Alias core:export: No matching export '{}' found in core instance index {}"sv,
           Name, Idx);
-      return Unexpect(ErrCode::Value::ExportNotFound);
+      return Unexpect(ErrCode::Value::ComponentAliasUnknownExportName);
     }
 
     const auto ExternTy = It->second.Kind;
@@ -1330,7 +1598,14 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
     if (ST != Sort.getCoreSortType()) {
-      // The error message differs of the tag core sort.
+      if (Sort.getCoreSortType() ==
+          AST::Component::Sort::CoreSortType::Module) {
+        spdlog::error(ErrCode::Value::ComponentAliasUnknownExportModule);
+        spdlog::error(
+            "    Alias core:export: Export '{}' for core instance {} is not a module"sv,
+            Name, Idx);
+        return Unexpect(ErrCode::Value::ComponentAliasUnknownExportModule);
+      }
       ErrCode::Value ErrValue = ErrCode::Value::InvalidIndex;
       if (Sort.getCoreSortType() == AST::Component::Sort::CoreSortType::Tag) {
         ErrValue = ErrCode::Value::UnknownCoreTag;
@@ -1354,14 +1629,11 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       OutLinkCompCnt++;
     }
     if (TargetCtx == nullptr) {
-      spdlog::error(ErrCode::Value::InvalidIndex);
-      // The final hop is the one that ran off the top of the scope chain, so
-      // the number of actually-enclosing components is one less than the hop
-      // count.
+      spdlog::error(ErrCode::Value::ComponentInvalidOuterAliasCount);
       spdlog::error(
           "    Alias outer: Component out-link count {} is exceeding the enclosing component count {}"sv,
           Ct, OutLinkCompCnt - 1);
-      return Unexpect(ErrCode::Value::InvalidIndex);
+      return Unexpect(ErrCode::Value::ComponentInvalidOuterAliasCount);
     }
 
     if (Sort.isCore()) {
@@ -1374,11 +1646,11 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
         return Unexpect(ErrCode::Value::InvalidTypeReference);
       }
       if (Idx >= TargetCtx->getCoreSortIndexSize(Sort.getCoreSortType())) {
-        spdlog::error(ErrCode::Value::InvalidIndex);
+        spdlog::error(ErrCode::Value::DefTypeIndexOutOfBounds);
         spdlog::error(
             "    Alias outer: core:sort index {} invalid in component context"sv,
             Idx);
-        return Unexpect(ErrCode::Value::InvalidIndex);
+        return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
       }
     } else {
       if (Sort.getSortType() != AST::Component::Sort::SortType::Type &&
@@ -1389,11 +1661,11 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
         return Unexpect(ErrCode::Value::InvalidTypeReference);
       }
       if (Idx >= TargetCtx->getSortIndexSize(Sort.getSortType())) {
-        spdlog::error(ErrCode::Value::InvalidIndex);
+        spdlog::error(ErrCode::Value::DefTypeIndexOutOfBounds);
         spdlog::error(
             "    Alias outer: sort index {} invalid in component context"sv,
             Idx);
-        return Unexpect(ErrCode::Value::InvalidIndex);
+        return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
       }
       // Outer-aliasing a resource type is permitted: the alias preserves the
       // resource's type identity rather than introducing a fresh generative

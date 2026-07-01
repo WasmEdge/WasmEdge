@@ -2344,12 +2344,18 @@ Expect<ErrNo> finiSingle([[maybe_unused]] WasiNNEnvironment &Env,
   auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "finiSingle");
 
-  if (GraphRef.EnableLog) {
+  // A failed set_input reload can leave the graph Invalid with a null llama
+  // context or a null per-context sampler; fini_single still admits that
+  // graph, so guard both.
+  if (GraphRef.EnableLog && GraphRef.LlamaContext != nullptr &&
+      CxtRef.LlamaSampler != nullptr) {
     common_perf_print(GraphRef.LlamaContext.get(), CxtRef.LlamaSampler.get());
   }
 
   // Reset the llama sampler.
-  common_sampler_reset(CxtRef.LlamaSampler.get());
+  if (CxtRef.LlamaSampler != nullptr) {
+    common_sampler_reset(CxtRef.LlamaSampler.get());
+  }
 
   // Clear the outputs.
   LOG_DEBUG(GraphRef.EnableDebugLog,

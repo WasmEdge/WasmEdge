@@ -10,6 +10,7 @@
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 #include "GGML/metadata/metadata_parser.h"
+#include "wasinn_ggml_log.h"
 #include <base64.hpp>
 #include <common.h>
 #include <cstdlib>
@@ -23,37 +24,30 @@
 
 #include <filesystem>
 #include <math.h>
+#include <mutex>
 #endif
 
 namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 namespace {
 
-// Llama logging callback.
-void llamaLogCallback(ggml_log_level LogLevel, const char *LogText,
-                      void *UserData) {
-  Graph &GraphRef = *reinterpret_cast<Graph *>(UserData);
-  if (!GraphRef.EnableLog) {
+// No per-graph user pointer (would dangle); gated on the shared llama gate.
+void llamaLogCallback(ggml_log_level LogLevel, const char *LogText, void *) {
+  if (!llamaLogEnabled()) {
     return;
   }
-  std::string Text(LogText);
-  // Remove the trailing newlines.
-  Text = Text.erase(Text.find_last_not_of("\n") + 1);
-  // Skip for "."
-  if (Text == ".") {
-    return;
-  }
-  if (LogLevel == GGML_LOG_LEVEL_ERROR) {
-    spdlog::error("[WASI-NN] llama.cpp: {}"sv, Text);
-  } else if (LogLevel == GGML_LOG_LEVEL_WARN) {
-    spdlog::warn("[WASI-NN] llama.cpp: {}"sv, Text);
-  } else if (LogLevel == GGML_LOG_LEVEL_INFO) {
-    spdlog::info("[WASI-NN] llama.cpp: {}"sv, Text);
-  } else if (LogLevel == GGML_LOG_LEVEL_DEBUG) {
-    spdlog::debug("[WASI-NN] llama.cpp: {}"sv, Text);
-  }
+  logGgmlMessage(LogLevel, LogText, "llama.cpp"sv);
 }
 } // namespace
+
+void installLlamaLog(Graph &GraphRef) noexcept {
+  static std::once_flag LogOnce;
+  std::call_once(LogOnce, []() noexcept {
+    llama_log_set(llamaLogCallback, nullptr);
+    mtmd_helper_log_set(llamaLogCallback, nullptr);
+  });
+  GraphRef.LlamaLog.set(GraphRef.EnableLog);
+}
 
 Expect<ErrNo> load(WasiNNEnvironment &Env, WASINN::Graph &G,
                    Span<const Span<uint8_t>> Builders, Device) noexcept {
@@ -89,10 +83,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, WASINN::Graph &G,
   GraphRef.Conf.ReversePrompt = ""sv;
   GraphRef.Conf.ImagePath = ""sv;
 
-  // Set llama log callback.
-  llama_log_set(llamaLogCallback, &GraphRef);
-  mtmd_helper_log_set(llamaLogCallback, &GraphRef);
-
   // If the graph builder length is greater than 1, builder[1] contains the
   // metadata.
   if (Builders.size() > 1) {
@@ -104,6 +94,9 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, WASINN::Graph &G,
       RET_ERROR(Res, "load: Failed to parse metadata."sv)
     }
   }
+
+  // EnableLog is only known after metadata parsing; sync the log gate now.
+  installLlamaLog(GraphRef);
 
   // Logging.
   LOG_DEBUG(GraphRef.EnableDebugLog, "load"sv)

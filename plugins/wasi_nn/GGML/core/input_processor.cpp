@@ -35,6 +35,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
     if (Res != ErrNo::Success) {
       RET_ERROR(Res, "setInput: failed to parse metadata."sv)
     }
+    // Reconcile this graph's llama log gate with the reparsed EnableLog.
+    installLlamaLog(GraphRef);
 
 #ifndef __APPLE__
     // XXX: Because of the limitation in the WASI-NN proposal, this is a

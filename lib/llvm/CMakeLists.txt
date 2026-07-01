@@ -16,11 +16,12 @@ set(LLD_INCLUDE_DIRS "${LLD_INCLUDE_DIRS}" PARENT_SCOPE)
 
 set(WASMEDGE_LLVM_SOURCES
   compiler.cpp
+  compiler/context.cpp
+  compiler/function_compiler.cpp
   codegen.cpp
   data.cpp
   jit.cpp
   lazyjit.cpp
-  compiler/context.cpp
   llvm.cpp
 )
 

@@ -18,6 +18,12 @@ class Context;
 } // namespace WasmEdge::Host::WASINN
 namespace WasmEdge::Host::WASINN::GGML {
 
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+// Bind the process-global llama/mtmd log callback once and reconcile this
+// graph's contribution to the shared enable gate with its EnableLog.
+void installLlamaLog(Graph &GraphRef) noexcept;
+#endif
+
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
                            Span<const Span<uint8_t>> Builders,
                            WASINN::Device Device) noexcept;

@@ -7,6 +7,7 @@
 #include "wasinntypes.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+#include "wasinn_llama_log.h"
 #include "wasinntypes.h"
 #include <ggml.h>
 #include <list>
@@ -47,6 +48,9 @@ struct Graph {
   // Plugin parameters:
   bool EnableLog = false;
   bool EnableDebugLog = false;
+  // This graph's contribution to the shared llama log gate; reconciled with
+  // EnableLog by installLlamaLog on load and on set_input reconfiguration.
+  LlamaLogToken LlamaLog;
   common_params Params;
   std::list<std::string> TensorBuftOverrides;
   // Model context:

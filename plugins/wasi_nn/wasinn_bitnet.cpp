@@ -4,12 +4,14 @@
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET
 #include "simdjson.h"
+#include "wasinn_ggml_log.h"
 #include <algorithm>
 #include <common.h>
 #include <filesystem>
 #include <fmt/ranges.h>
 #include <fstream>
 #include <llama.h>
+#include <mutex>
 #include <sampling.h>
 #include <sstream>
 #endif
@@ -44,28 +46,23 @@ namespace {
   return Error;
 
 // Llama logging callback.
-void llamaLogCallback(ggml_log_level LogLevel, const char *LogText,
-                      void *UserData) {
-  Graph &GraphRef = *reinterpret_cast<Graph *>(UserData);
-  if (!GraphRef.EnableLog) {
+// BitNet shares llama.cpp's single process-global log callback, so it carries
+// no per-graph user pointer (which would dangle once that graph is released)
+// and is gated on the shared ref-counted llama gate instead.
+void llamaLogCallback(ggml_log_level LogLevel, const char *LogText, void *) {
+  if (!llamaLogEnabled()) {
     return;
   }
-  std::string Text(LogText);
-  // Remove the trailing newlines.
-  Text = Text.erase(Text.find_last_not_of("\n") + 1);
-  // Skip for "."
-  if (Text == ".") {
-    return;
-  }
-  if (LogLevel == GGML_LOG_LEVEL_ERROR) {
-    spdlog::error("[WASI-NN] BitNet.cpp: {}"sv, Text);
-  } else if (LogLevel == GGML_LOG_LEVEL_WARN) {
-    spdlog::warn("[WASI-NN] BitNet.cpp: {}"sv, Text);
-  } else if (LogLevel == GGML_LOG_LEVEL_INFO) {
-    spdlog::info("[WASI-NN] BitNet.cpp: {}"sv, Text);
-  } else if (LogLevel == GGML_LOG_LEVEL_DEBUG) {
-    spdlog::debug("[WASI-NN] BitNet.cpp: {}"sv, Text);
-  }
+  logGgmlMessage(LogLevel, LogText, "BitNet.cpp"sv);
+}
+
+// Bind the process-global llama log callback once and reconcile this graph's
+// contribution to the shared enable gate with its EnableLog.
+void installLlamaLog(Graph &GraphRef) noexcept {
+  static std::once_flag LogOnce;
+  std::call_once(LogOnce,
+                 []() noexcept { llama_log_set(llamaLogCallback, nullptr); });
+  GraphRef.LlamaLog.set(GraphRef.EnableLog);
 }
 
 // >>>>>>>> Metadata related functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -1921,8 +1918,6 @@ Expect<ErrNo> load([[maybe_unused]] WasiNNEnvironment &Env, WASINN::Graph &G,
   GraphRef.Conf.NPredict = ContextParamsDefault.n_ctx;
   GraphRef.Conf.ReversePrompt = ""sv;
 
-  // Set llama log callback.
-  llama_log_set(llamaLogCallback, &GraphRef);
   LOG_DEBUG(GraphRef.EnableDebugLog, "load start."sv)
 
   // If the graph builder length is greater than 1, builder[1] contains the
@@ -1936,6 +1931,10 @@ Expect<ErrNo> load([[maybe_unused]] WasiNNEnvironment &Env, WASINN::Graph &G,
       RET_ERROR(Res, "load: Failed to parse metadata."sv);
     }
   }
+
+  // Bind the process-global llama log callback (once) and refresh its gate
+  // with this load's EnableLog, now that metadata has been parsed.
+  installLlamaLog(GraphRef);
 
   LOG_INFO(GraphRef.EnableLog, "LLAMA_COMMIT {}"sv, LLAMA_COMMIT)
   LOG_INFO(GraphRef.EnableLog, "LLAMA_BUILD_NUMBER {}"sv, LLAMA_BUILD_NUMBER)
@@ -2047,6 +2046,8 @@ Expect<ErrNo> setInput([[maybe_unused]] WasiNNEnvironment &Env,
     if (Res != ErrNo::Success) {
       RET_ERROR(Res, "setInput: failed to parse metadata."sv)
     }
+    // Reconcile this graph's llama log gate with the reparsed EnableLog.
+    installLlamaLog(GraphRef);
 
     if (IsModelUpdated || GraphRef.LlamaModel == nullptr) {
       // The llama model may be nullptr if set_input updated the model params

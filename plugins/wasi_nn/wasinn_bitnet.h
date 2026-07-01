@@ -5,6 +5,7 @@
 #include <string>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET
+#include "wasinn_llama_log.h"
 #include <common.h>
 #include <llama.h>
 #include <memory>
@@ -66,6 +67,9 @@ struct LocalConfig {
 struct Graph {
   bool EnableLog = false;
   bool EnableDebugLog = false;
+  // This graph's contribution to the shared llama log gate; reconciled with
+  // EnableLog by installLlamaLog on load and on set_input reconfiguration.
+  LlamaLogToken LlamaLog;
   common_params Params;
   LlamaModelPtr LlamaModel = nullptr;
   LlamaContextPtr LlamaContext = nullptr;

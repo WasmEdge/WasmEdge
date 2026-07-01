@@ -9,6 +9,7 @@
 #include <cstdint>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
+#include "wasinn_whisper_log.h"
 #include <whisper.h>
 
 #include <algorithm>
@@ -75,6 +76,9 @@ struct Graph {
   }
   whisper_context *WhisperCtx = nullptr;
   std::string ModelFilePath;
+  // This graph's contribution to the shared whisper log gate; reconciled with
+  // EnableLog by installWhisperLog on load and on set_input reconfiguration.
+  WhisperLogToken WhisperLog;
   // Whisper config:
   Config WhisperConfig;
   // Context parameters:

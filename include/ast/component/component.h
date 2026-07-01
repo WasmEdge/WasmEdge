@@ -45,12 +45,11 @@ namespace Component {
 
 /// AST Component::Component node.
 class Component {
-  // TODO: COMPONENT - ValueSection
   using Section =
       std::variant<CustomSection, CoreModuleSection, CoreInstanceSection,
                    CoreTypeSection, ComponentSection, InstanceSection,
                    AliasSection, TypeSection, CanonSection, StartSection,
-                   ImportSection, ExportSection>;
+                   ImportSection, ExportSection, ValueSection>;
 
 public:
   /// Getter for magic vector.

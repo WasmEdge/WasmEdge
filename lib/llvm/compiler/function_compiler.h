@@ -33,6 +33,7 @@ public:
           std::pair<std::vector<ValType>, std::vector<ValType>> Type) noexcept;
 
   Expect<void> compile(AST::InstrView Instrs) noexcept;
+  Expect<void> compileRefOp(const AST::Instruction &Instr) noexcept;
   void compileSignedTrunc(LLVM::Type IntType) noexcept;
   void compileSignedTruncSat(LLVM::Type IntType) noexcept;
   void compileUnsignedTrunc(LLVM::Type IntType) noexcept;

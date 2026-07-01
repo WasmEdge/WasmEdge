@@ -455,12 +455,18 @@ struct WasiNNEnvironment :
   std::shared_ptr<grpc::Channel> NNRPCChannel;
 #endif
 
-  const Host::WASI::Environ *getEnv() const noexcept { return Environ; }
+  const Host::WASI::Environ *getEnv() const noexcept {
+    return Environ.load(std::memory_order_acquire);
+  }
+  // Every host call from any thread re-derives the same WASI environ for this
+  // module instance; the member is atomic so those concurrent stores race
+  // benignly instead of being undefined behavior.
   void setEnviron(const Runtime::CallingFrame *CurrentFrame) noexcept {
     auto *WasiModule = CurrentFrame->getWASIModule();
     if (WasiModule != nullptr) {
-      Environ = dynamic_cast<const WasmEdge::Host::WasiModule *>(WasiModule)
-                    ->getEnv();
+      Environ.store(dynamic_cast<const WasmEdge::Host::WasiModule *>(WasiModule)
+                        ->getEnv(),
+                    std::memory_order_release);
     }
   }
 
@@ -486,7 +492,7 @@ private:
                   Op, C.getGraphId(), ContextId);
   }
 
-  const Host::WASI::Environ *Environ = nullptr;
+  std::atomic<const Host::WASI::Environ *> Environ{nullptr};
 };
 
 } // namespace WASINN

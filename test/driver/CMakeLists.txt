@@ -3,6 +3,7 @@
 
 wasmedge_add_executable(wasmedgeDriverToolTests
   driverToolTest.cpp
+  statsJsonTest.cpp
 )
 
 add_test(NAME wasmedgeDriverToolTests

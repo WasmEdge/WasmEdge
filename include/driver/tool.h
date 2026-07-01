@@ -63,6 +63,10 @@ struct DriverToolOptions : public DriverProposalOptions {
         ConfEnableAllStatistics(PO::Description(
             "Enable generating code for all statistics options include "
             "instruction counting, gas measuring, and execution time"sv)),
+        ConfStatsFormat(
+            PO::Description(
+                "Output format for statistics: human (default) or json"sv),
+            PO::DefaultValue<std::string>("human"sv)),
         ConfEnableJIT(
             PO::Description("Enable Just-In-Time compiler for running WASM"sv)),
         ConfEnableCoredump(PO::Description(
@@ -118,6 +122,7 @@ struct DriverToolOptions : public DriverProposalOptions {
   PO::Option<PO::Toggle> ConfEnableGasMeasuring;
   PO::Option<PO::Toggle> ConfEnableTimeMeasuring;
   PO::Option<PO::Toggle> ConfEnableAllStatistics;
+  PO::Option<std::string> ConfStatsFormat;
   PO::Option<PO::Toggle> ConfEnableJIT;
   PO::Option<PO::Toggle> ConfEnableCoredump;
   PO::Option<PO::Toggle> ConfCoredumpWasmgdb;
@@ -169,6 +174,7 @@ public:
         .add_option("enable-gas-measuring"sv, ConfEnableGasMeasuring)
         .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
         .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
+        .add_option("stats-format"sv, ConfStatsFormat)
         .add_option("enable-jit"sv, ConfEnableJIT)
         .add_option("enable-coredump"sv, ConfEnableCoredump)
         .add_option("coredump-for-wasmgdb"sv, ConfCoredumpWasmgdb)

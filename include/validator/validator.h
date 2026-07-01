@@ -94,6 +94,7 @@ private:
   Expect<void> validate(const AST::Component::StartSection &StartSec) noexcept;
   Expect<void> validate(const AST::Component::ImportSection &ImpSec) noexcept;
   Expect<void> validate(const AST::Component::ExportSection &ExpSec) noexcept;
+  Expect<void> validate(const AST::Component::ValueSection &ValSec) noexcept;
   // Validate component core:instance and instance
   Expect<void> validate(const AST::Component::CoreInstance &Inst) noexcept;
   Expect<void> validate(const AST::Component::Instance &Inst) noexcept;

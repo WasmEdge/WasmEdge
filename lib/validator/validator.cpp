@@ -42,13 +42,6 @@ Expect<uint32_t>
 checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx, uint32_t Depth,
                   std::vector<uint32_t> &DepthMap,
                   const std::vector<const WasmEdge::AST::SubType *> &TypeVec) {
-  if (Depth >= MaxSubtypeDepth) {
-    spdlog::error(ErrCode::Value::InvalidSubType);
-    spdlog::error("    Subtype depth for type {} exceeded the limits of {}"sv,
-                  BaseIdx, MaxSubtypeDepth);
-    return Unexpect(ErrCode::Value::InvalidSubType);
-  }
-
   if (TestIdx >= DepthMap.size()) {
     DepthMap.resize(TestIdx + 1, Unvisited);
   } else if (DepthMap[TestIdx] == Visiting) {
@@ -58,6 +51,13 @@ checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx, uint32_t Depth,
     return Unexpect(ErrCode::Value::InvalidSubType);
   } else if (DepthMap[TestIdx] != Unvisited) {
     return DepthMap[TestIdx];
+  }
+
+  if (Depth >= MaxSubtypeDepth) {
+    spdlog::error(ErrCode::Value::InvalidSubType);
+    spdlog::error("    Subtype depth for type {} exceeded the limits of {}"sv,
+                  BaseIdx, MaxSubtypeDepth);
+    return Unexpect(ErrCode::Value::InvalidSubType);
   }
 
   DepthMap[TestIdx] = Visiting;

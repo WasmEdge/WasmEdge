@@ -1857,16 +1857,14 @@ Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
 
 } // namespace
 
-Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
-                   [[maybe_unused]] Device Device, uint32_t &GraphId) noexcept {
+Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &G,
+                   Span<const Span<uint8_t>> Builders, Device) noexcept {
   if (Builders.empty()) {
     RET_ERROR(ErrNo::InvalidArgument,
               "Invalid builders size, builders size must be > 0.");
   }
 
-  // Add a graph
-  const uint32_t GId = Env.newGraph(Backend::BitNet);
-  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
+  auto &GraphRef = G.get<Graph>();
 
   // Initialize the plugin parameters.
   GraphRef.EnableLog = false;
@@ -1934,7 +1932,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     // Ignore context or model updates when initializing the graph.
     auto Res = parseMetadata(GraphRef, GraphRef.Conf, Metadata);
     if (Res != ErrNo::Success) {
-      Env.deleteGraph(GId);
       RET_ERROR(Res, "load: Failed to parse metadata."sv);
     }
   }
@@ -1957,7 +1954,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     std::ofstream TempFile(GraphRef.Params.model,
                            std::ios::out | std::ios::binary | std::ios::trunc);
     if (!TempFile) {
-      Env.deleteGraph(GId);
       RET_ERROR(ErrNo::InvalidArgument, "Failed to create temp model file."sv)
     }
     TempFile.write(BinModel.data(), BinModel.size());
@@ -1970,7 +1966,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Check if the model exists.
   if (!std::filesystem::exists(
           std::filesystem::u8path(GraphRef.Params.model))) {
-    Env.deleteGraph(GId);
     RET_ERROR(ErrNo::ModelNotFound,
               "load: Model file not found at path: '{}'."sv,
               GraphRef.Params.model)
@@ -1992,31 +1987,24 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.LlamaContext.reset(LlamaInit.context);
 
   if (GraphRef.LlamaModel == nullptr) {
-    Env.deleteGraph(GId);
     RET_ERROR(ErrNo::InvalidArgument, "load: Unable to init model."sv)
   }
   if (GraphRef.LlamaContext == nullptr) {
-    Env.deleteGraph(GId);
     RET_ERROR(ErrNo::InvalidArgument, "load: Unable to init context."sv)
   }
 
   LOG_DEBUG(GraphRef.EnableDebugLog,
             "load: initialize model with given parameters...Done"sv)
 
-  // Store the loaded graph.
-  GraphId = GId;
-  Env.NNGraph[GId].setReady();
-
   LOG_DEBUG(GraphRef.EnableDebugLog, "load...Done"sv)
   return ErrNo::Success;
 }
 
-Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
-                          uint32_t &ContextId) noexcept {
-  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
+Expect<ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &G,
+                          WASINN::Context &C) noexcept {
+  auto &GraphRef = G.get<Graph>();
+  auto &CxtRef = C.get<Context>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx"sv)
-  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
 
   LOG_INFO(GraphRef.EnableLog, "llama_system_info: {}"sv,
            llama_print_system_info())
@@ -2032,15 +2020,15 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
   CxtRef.LlamaSampler.reset(
       common_sampler_init(GraphRef.LlamaModel.get(), GraphRef.Params.sparams));
 
-  Env.NNContext[ContextId].setReady();
   LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx...Done"sv)
   return ErrNo::Success;
 }
 
-Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
-                       uint32_t Index, const TensorData &Tensor) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
+                       WASINN::Context &C, uint32_t Index,
+                       const TensorData &Tensor) noexcept {
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput"sv)
 
   // Handle Metadata at Index 1
@@ -2088,7 +2076,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       GraphRef.LlamaModel.reset(llama_load_model_from_file(
           GraphRef.Params.model.c_str(), ModelParams));
       if (GraphRef.LlamaModel == nullptr) {
-        Env.NNGraph[CxtRef.GraphId].setInvalid();
+        G.setInvalid();
         RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init model."sv)
       }
     }
@@ -2104,7 +2092,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       GraphRef.LlamaContext.reset(
           llama_new_context_with_model(GraphRef.LlamaModel.get(), CtxParams));
       if (GraphRef.LlamaContext == nullptr) {
-        Env.NNGraph[CxtRef.GraphId].setInvalid();
+        G.setInvalid();
         RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init context."sv)
       }
     }
@@ -2116,7 +2104,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       CxtRef.LlamaSampler.reset(common_sampler_init(GraphRef.LlamaModel.get(),
                                                     GraphRef.Params.sparams));
       if (CxtRef.LlamaSampler == nullptr) {
-        Env.NNGraph[CxtRef.GraphId].setInvalid();
+        G.setInvalid();
         RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init sampler."sv)
       }
     }
@@ -2133,7 +2121,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
     }
 
-    Env.NNGraph[CxtRef.GraphId].setReady();
+    G.setReady();
     LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: metadata processing...Done");
     return ErrNo::Success;
   }
@@ -2145,7 +2133,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
 
   // Check that the graph is valid after reloading during the previous
   // set_input.
-  if (!Env.NNGraph[CxtRef.GraphId].isReady()) {
+  if (!G.isReady()) {
     RET_ERROR(
         ErrNo::InvalidArgument,
         "setInput: Graph is invalid. Please reload again by passing metadata "sv
@@ -2181,11 +2169,12 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   return ErrNo::Success;
 }
 
-Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
-                        uint32_t Index, Span<uint8_t> OutBuffer,
+Expect<ErrNo> getOutput(WasiNNEnvironment &, WASINN::Graph &G,
+                        WASINN::Context &C, uint32_t Index,
+                        Span<uint8_t> OutBuffer,
                         uint32_t &BytesWritten) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput: with Index {}"sv, Index)
 
   // Handle Metadata Output at Index 1
@@ -2218,9 +2207,10 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   return ErrNo::Success;
 }
 
-Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+Expect<ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &G,
+                      WASINN::Context &C) noexcept {
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "compute");
 
   // Clear the context and reset the sampler.
@@ -2268,11 +2258,12 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   return ReturnCode;
 }
 
-Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
-                              uint32_t Index, Span<uint8_t> OutBuffer,
+Expect<ErrNo> getOutputSingle(WasiNNEnvironment &, WASINN::Graph &G,
+                              WASINN::Context &C, uint32_t Index,
+                              Span<uint8_t> OutBuffer,
                               uint32_t &BytesWritten) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle: with Index {}"sv, Index)
 
   // Metadata Output at Index 1
@@ -2313,10 +2304,10 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
   return ErrNo::Success;
 }
 
-Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
-                            uint32_t ContextId) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+Expect<ErrNo> computeSingle(WasiNNEnvironment &, WASINN::Graph &G,
+                            WASINN::Context &C) noexcept {
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "computeSingle"sv)
 
   auto ReturnCode = ErrNo::Success;
@@ -2346,9 +2337,10 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
   return ReturnCode;
 }
 
-Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+Expect<ErrNo> finiSingle(WasiNNEnvironment &, WASINN::Graph &G,
+                         WASINN::Context &C) noexcept {
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "finiSingle");
 
   if (GraphRef.EnableLog) {
@@ -2373,40 +2365,6 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   return ErrNo::Success;
 }
 
-Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
-
-  if (GraphId >= Env.NNGraph.size()) {
-    return ErrNo::Success;
-  }
-  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
-  if (GraphRef.LlamaModel == nullptr) {
-    return ErrNo::Success;
-  }
-
-  LOG_DEBUG(GraphRef.EnableDebugLog, "unload"sv)
-
-  Env.deleteGraph(GraphId);
-
-  LOG_DEBUG(GraphRef.EnableDebugLog, "unload...Done"sv)
-  return ErrNo::Success;
-}
-
-Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &Env,
-                              uint32_t ContextId) noexcept {
-
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  LOG_DEBUG(GraphRef.EnableDebugLog, "finalizeExecCtx"sv)
-
-  CxtRef.LlamaSampler.reset();
-  llama_batch_free(CxtRef.LlamaBatch);
-  llama_batch_free(CxtRef.OutputBatch);
-  Env.deleteContext(ContextId);
-
-  LOG_DEBUG(GraphRef.EnableDebugLog, "finalizeExecCtx...Done"sv)
-  return ErrNo::Success;
-}
-
 #else
 namespace {
 Expect<ErrNo> reportBackendNotSupported() noexcept {
@@ -2416,38 +2374,37 @@ Expect<ErrNo> reportBackendNotSupported() noexcept {
 }
 } // namespace
 
-Expect<ErrNo> load(WasiNNEnvironment &, Span<const Span<uint8_t>>, Device,
-                   uint32_t &) noexcept {
+Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &,
+                   Span<const Span<uint8_t>>, Device) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> initExecCtx(WasiNNEnvironment &, uint32_t, uint32_t &) noexcept {
+Expect<ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &,
+                          WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> setInput(WasiNNEnvironment &, uint32_t, uint32_t,
-                       const TensorData &) noexcept {
+Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &, WASINN::Context &,
+                       uint32_t, const TensorData &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> getOutput(WasiNNEnvironment &, uint32_t, uint32_t, Span<uint8_t>,
-                        uint32_t &) noexcept {
+Expect<ErrNo> getOutput(WasiNNEnvironment &, WASINN::Graph &, WASINN::Context &,
+                        uint32_t, Span<uint8_t>, uint32_t &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> compute(WasiNNEnvironment &, uint32_t) noexcept {
+Expect<ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &,
+                      WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> getOutputSingle(WasiNNEnvironment &, uint32_t, uint32_t,
-                              Span<uint8_t>, uint32_t &) noexcept {
+Expect<ErrNo> getOutputSingle(WasiNNEnvironment &, WASINN::Graph &,
+                              WASINN::Context &, uint32_t, Span<uint8_t>,
+                              uint32_t &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> computeSingle(WasiNNEnvironment &, uint32_t) noexcept {
+Expect<ErrNo> computeSingle(WasiNNEnvironment &, WASINN::Graph &,
+                            WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> finiSingle(WasiNNEnvironment &, uint32_t) noexcept {
-  return reportBackendNotSupported();
-}
-Expect<ErrNo> unload(WasiNNEnvironment &, uint32_t) noexcept {
-  return reportBackendNotSupported();
-}
-Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &, uint32_t) noexcept {
+Expect<ErrNo> finiSingle(WasiNNEnvironment &, WASINN::Graph &,
+                         WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
 

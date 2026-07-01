@@ -55,11 +55,9 @@ void llamaLogCallback(ggml_log_level LogLevel, const char *LogText,
 }
 } // namespace
 
-Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
-                   [[maybe_unused]] Device Device, uint32_t &GraphId) noexcept {
-  // Add a new graph.
-  EndianValue<uint32_t> GId = Env.newGraph(Backend::GGML);
-  auto &GraphRef = Env.NNGraph[GId.raw()].get<Graph>();
+Expect<ErrNo> load(WasiNNEnvironment &Env, WASINN::Graph &G,
+                   Span<const Span<uint8_t>> Builders, Device) noexcept {
+  auto &GraphRef = G.get<Graph>();
 
   // Initialize the plugin parameters.
   GraphRef.EnableLog = false;
@@ -103,7 +101,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     // Ignore context or model updates when initializing the graph.
     auto Res = parseMetadata(GraphRef, GraphRef.Conf, Metadata);
     if (Res != ErrNo::Success) {
-      Env.deleteGraph(GId.raw());
       RET_ERROR(Res, "load: Failed to parse metadata."sv)
     }
   }
@@ -131,7 +128,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
         GraphRef.Params.model.path, std::ios_base::out | std::ios_base::binary,
         Env.getEnv());
     if (!TempFile) {
-      Env.deleteGraph(GId.raw());
       RET_ERROR(ErrNo::InvalidArgument,
                 "load: Failed to create the temporary file. Currently, our "sv
                 "workaround involves creating a temporary model file named "sv
@@ -148,7 +144,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Check if the model exists.
   if (!std::filesystem::exists(
           std::filesystem::u8path(GraphRef.Params.model.path))) {
-    Env.deleteGraph(GId.raw());
     RET_ERROR(ErrNo::ModelNotFound, "load: model file not found."sv)
   }
   GraphRef.Params.model = GraphRef.Params.model;
@@ -170,13 +165,11 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.LlamaModel = llama_model_ptr(
       llama_model_load_from_file(Params.model.path.c_str(), ModelParams));
   if (GraphRef.LlamaModel == nullptr) {
-    Env.deleteGraph(GId.raw());
     RET_ERROR(ErrNo::InvalidArgument, "load: unable to init model."sv)
   }
   GraphRef.LlamaContext = llama_context_ptr(llama_init_from_model(
       GraphRef.LlamaModel.get(), common_context_params_to_llama(Params)));
   if (GraphRef.LlamaContext == nullptr) {
-    Env.deleteGraph(GId.raw());
     RET_ERROR(ErrNo::InvalidArgument, "load: unable to init context."sv)
   }
   LOG_DEBUG(GraphRef.EnableDebugLog,
@@ -191,35 +184,28 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     GraphRef.TTSModel = llama_model_ptr(
         llama_model_load_from_file(Params.model.path.c_str(), TTSModelParams));
     if (GraphRef.TTSModel == nullptr) {
-      Env.deleteGraph(GId.raw());
       RET_ERROR(ErrNo::InvalidArgument, "load: unable to init TTS model."sv)
     }
     GraphRef.TTSContext = llama_context_ptr(llama_init_from_model(
         GraphRef.TTSModel.get(), common_context_params_to_llama(Params)));
     if (GraphRef.TTSContext == nullptr) {
-      Env.deleteGraph(GId.raw());
       RET_ERROR(ErrNo::InvalidArgument, "load: unable to init TTS context."sv)
     }
     LOG_DEBUG(GraphRef.EnableDebugLog, "load: initialize TTS model...Done"sv)
   }
 
-  // Store the loaded graph.
-  GraphId = GId.le();
-  Env.NNGraph[GId.raw()].setReady();
-
   LOG_DEBUG(GraphRef.EnableDebugLog, "load...Done"sv)
   return ErrNo::Success;
 }
 
-Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
-                          uint32_t &ContextId) noexcept {
-  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
+Expect<ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &G,
+                          WASINN::Context &C) noexcept {
+  auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx"sv)
-  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
   LOG_INFO(GraphRef.EnableLog, "llama_system_info: {}"sv,
            llama_print_system_info())
 
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &CxtRef = C.get<Context>();
   // Allocate the batch for input string prompt tokens.
   CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
   CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
@@ -231,15 +217,14 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
   CxtRef.LlamaSampler =
       common_sampler_init(GraphRef.LlamaModel.get(), GraphRef.Params.sampling);
 
-  Env.NNContext[ContextId].setReady();
-  ContextId = EndianValue(ContextId).le();
   LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx...Done"sv)
   return ErrNo::Success;
 }
 
-Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+Expect<ErrNo> finiSingle(WasiNNEnvironment &, WASINN::Graph &G,
+                         WASINN::Context &C) noexcept {
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "finiSingle"sv)
 
   // Logging for the llama timings.
@@ -264,77 +249,6 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   return ErrNo::Success;
 }
 
-Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
-  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
-  const bool IsDebugLog = GraphRef.EnableDebugLog;
-  LOG_DEBUG(IsDebugLog, "unload"sv)
-
-  // TODO: Move the resource deallocation into the destructor.
-  if (GraphRef.LlamaModel != nullptr) {
-    LOG_DEBUG(IsDebugLog, "unload: free llama model"sv)
-    GraphRef.LlamaModel.reset();
-    LOG_DEBUG(IsDebugLog, "unload: free llama model...Done"sv)
-  }
-  if (GraphRef.LlamaContext != nullptr) {
-    LOG_DEBUG(IsDebugLog, "unload: free llama context"sv)
-    GraphRef.LlamaContext.reset();
-    LOG_DEBUG(IsDebugLog, "unload: free llama context...Done"sv)
-  }
-  if (GraphRef.VisionContext != nullptr) {
-    LOG_DEBUG(IsDebugLog, "unload: free mtmd context"sv)
-    GraphRef.VisionContext.reset();
-    LOG_DEBUG(IsDebugLog, "unload: free mtmd context...Done"sv)
-  }
-  if (GraphRef.VisionInputChunks != nullptr) {
-    LOG_DEBUG(IsDebugLog, "unload: free mtmd chunks"sv)
-    GraphRef.VisionInputChunks.reset();
-    LOG_DEBUG(IsDebugLog, "unload: free mtmd chunks...Done"sv)
-  }
-  if (GraphRef.TTSModel != nullptr) {
-    LOG_DEBUG(IsDebugLog, "unload: free TTS model"sv)
-    GraphRef.TTSModel.reset();
-    LOG_DEBUG(IsDebugLog, "unload: free TTS model...Done"sv)
-  }
-  if (GraphRef.TTSContext != nullptr) {
-    LOG_DEBUG(IsDebugLog, "unload: free TTS context"sv)
-    GraphRef.TTSContext.reset();
-    LOG_DEBUG(IsDebugLog, "unload: free TTS context...Done"sv)
-  }
-  if (!GraphRef.TensorBuftOverrides.empty()) {
-    LOG_DEBUG(IsDebugLog, "unload: free tensor buffer overrides"sv)
-    GraphRef.TensorBuftOverrides.clear();
-    LOG_DEBUG(IsDebugLog, "unload: free tensor buffer overrides...Done"sv)
-  }
-  Env.deleteGraph(GraphId);
-  Env.mdRemoveById(GraphId);
-
-  LOG_DEBUG(IsDebugLog, "unload...Done"sv)
-  return ErrNo::Success;
-}
-
-Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &Env,
-                              uint32_t ContextId) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  LOG_DEBUG(GraphRef.EnableDebugLog, "finalize_execution_context"sv)
-
-  if (CxtRef.LlamaSampler != nullptr) {
-    LOG_DEBUG(GraphRef.EnableDebugLog,
-              "finalize_execution_context: free compute_single sampler"sv)
-    common_sampler_free(CxtRef.LlamaSampler);
-    CxtRef.LlamaSampler = nullptr;
-    LOG_DEBUG(
-        GraphRef.EnableDebugLog,
-        "finalize_execution_context: free compute_single sampler...Done"sv)
-  }
-  llama_batch_free(CxtRef.LlamaBatch);
-  llama_batch_free(CxtRef.OutputBatch);
-  Env.deleteContext(ContextId);
-
-  LOG_DEBUG(GraphRef.EnableDebugLog, "finalize_execution_context...Done"sv)
-  return ErrNo::Success;
-}
-
 #else
 namespace {
 Expect<ErrNo> reportBackendNotSupported() noexcept {
@@ -344,38 +258,37 @@ Expect<ErrNo> reportBackendNotSupported() noexcept {
 }
 } // namespace
 
-Expect<ErrNo> load(WasiNNEnvironment &, Span<const Span<uint8_t>>, Device,
-                   uint32_t &) noexcept {
+Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &,
+                   Span<const Span<uint8_t>>, Device) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> initExecCtx(WasiNNEnvironment &, uint32_t, uint32_t &) noexcept {
+Expect<ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &,
+                          WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> setInput(WasiNNEnvironment &, uint32_t, uint32_t,
-                       const TensorData &) noexcept {
+Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &, WASINN::Context &,
+                       uint32_t, const TensorData &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> getOutput(WasiNNEnvironment &, uint32_t, uint32_t, Span<uint8_t>,
-                        uint32_t &) noexcept {
+Expect<ErrNo> getOutput(WasiNNEnvironment &, WASINN::Graph &, WASINN::Context &,
+                        uint32_t, Span<uint8_t>, uint32_t &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> compute(WasiNNEnvironment &, uint32_t) noexcept {
+Expect<ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &,
+                      WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> getOutputSingle(WasiNNEnvironment &, uint32_t, uint32_t,
-                              Span<uint8_t>, uint32_t &) noexcept {
+Expect<ErrNo> getOutputSingle(WasiNNEnvironment &, WASINN::Graph &,
+                              WASINN::Context &, uint32_t, Span<uint8_t>,
+                              uint32_t &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> computeSingle(WasiNNEnvironment &, uint32_t) noexcept {
+Expect<ErrNo> computeSingle(WasiNNEnvironment &, WASINN::Graph &,
+                            WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> finiSingle(WasiNNEnvironment &, uint32_t) noexcept {
-  return reportBackendNotSupported();
-}
-Expect<ErrNo> unload(WasiNNEnvironment &, uint32_t) noexcept {
-  return reportBackendNotSupported();
-}
-Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &, uint32_t) noexcept {
+Expect<ErrNo> finiSingle(WasiNNEnvironment &, WASINN::Graph &,
+                         WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
 #endif

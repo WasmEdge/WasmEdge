@@ -543,6 +543,35 @@ TEST(ComponentLoaderTest, AsyncFuncType) {
   EXPECT_TRUE(Sec.getContent()[0].getFuncType().isAsync());
 }
 
+TEST(ComponentLoaderTest, ValueSection) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // Component with 1 value section containing one `bool true` value:
+  //   0x0c = value section id (12), 0x04 = content size,
+  //   0x01 = vec count (1 value), 0x7f = bool valtype,
+  //   0x01 = len (1 byte), 0x01 = val(bool) true.
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
+      0x0c, 0x04, 0x01, 0x7f, 0x01, 0x01,             // value section
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_TRUE(Res);
+  auto *Comp =
+      std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res);
+  ASSERT_NE(Comp, nullptr);
+  ASSERT_EQ((*Comp)->getSections().size(), 1U);
+  const auto &Sec = std::get<WasmEdge::AST::Component::ValueSection>(
+      (*Comp)->getSections()[0]);
+  ASSERT_EQ(Sec.getContent().size(), 1U);
+  EXPECT_EQ(Sec.getContent()[0].getType().getCode(),
+            WasmEdge::ComponentTypeCode::Bool);
+  ASSERT_EQ(Sec.getContent()[0].getData().size(), 1U);
+  EXPECT_EQ(Sec.getContent()[0].getData()[0], 0x01);
+}
+
 TEST(ComponentLoaderTest, MalformedResultList) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Component);

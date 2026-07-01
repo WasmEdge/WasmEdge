@@ -410,9 +410,10 @@ public:
     uint32_t MaxSize = RPCRequest->max_size();
     uint32_t BytesWrittenPtr = UINT32_C(0);
     uint32_t BufPtr = BytesWrittenPtr + UINT32_C(4);
-    uint32_t BufMaxSize = MaxSize;
+    uint32_t BufMaxSize =
+        MaxSize == 0 ? (UINT32_C(65536) - UINT32_C(4)) : MaxSize;
 
-    auto ValidationStatus = validateMaxSize(MaxSize, BufPtr, RPCContext);
+    auto ValidationStatus = validateMaxSize(BufMaxSize, BufPtr, RPCContext);
     if (!ValidationStatus.ok()) {
       return ValidationStatus;
     }
@@ -422,6 +423,18 @@ public:
     uint32_t Errno = HostFuncCaller.call(
         {ResourceHandle, Index, BufPtr, BufMaxSize, BytesWrittenPtr});
     if (Errno != 0) {
+      if (Errno == UINT32_C(7)) {
+        auto *Needed = MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
+        RPCContext->AddTrailingMetadata("errno", std::to_string(Errno));
+        if (Needed != nullptr) {
+          RPCContext->AddTrailingMetadata("required_size", std::to_string(*Needed));
+          return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                              fmt::format("output buffer too small, need {} bytes"sv,
+                                          *Needed));
+        }
+        return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                            "output buffer too small"s);
+      }
       return createRPCStatusFromErrno(RPCContext, FuncName, Errno);
     }
     /* clang-format off */

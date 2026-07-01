@@ -309,7 +309,7 @@ Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
 namespace {
 Expect<ErrNo> reportBackendNotSupported() noexcept {
   spdlog::error("[WASI-NN] PyTorch backend is not built. use "
-                "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"PyTorch\" to build it.");
+                "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"PyTorch\" to build it."sv);
   return ErrNo::InvalidArgument;
 }
 } // namespace

@@ -166,8 +166,9 @@ PyModelBackend guessPyModelBackendType(const std::string_view &Model) {
   return PyModelBackend::TorchScript;
 }
 
-Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
-                   Device Device, uint32_t &GraphId) noexcept {
+Expect<ErrNo> load([[maybe_unused]] WasiNNEnvironment &Env, WASINN::Graph &G,
+                   Span<const Span<uint8_t>> Builders, Device Device) noexcept {
+  auto &GraphRef = G.get<Graph>();
   // The graph builder length must be 1.
   if (Builders.size() != 1) {
     spdlog::error("[WASI-NN] Torch: Wrong GraphBuilder Length {:d}, expect 1"sv,
@@ -176,9 +177,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   }
 
   auto Weight = Builders[0];
-  // Add a new graph.
-  uint32_t GId = Env.newGraph(Backend::PyTorch);
-  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
 
   // Load the model from the binary data.
   // Note: Pytorch use try catch to handle the error.
@@ -206,25 +204,23 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     }
   } catch (const c10::Error &e) {
     spdlog::error("[WASI-NN] Torch: Failed when load the TorchScript model."sv);
-    Env.NNGraph.pop_back();
     return ErrNo::InvalidArgument;
   }
 
-  GraphId = GId;
-  Env.NNGraph[GId].setReady();
   return ErrNo::Success;
 }
 
-Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
-                          uint32_t &ContextId) noexcept {
-  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
-  Env.NNContext[ContextId].setReady();
+Expect<ErrNo> initExecCtx([[maybe_unused]] WasiNNEnvironment &Env,
+                          [[maybe_unused]] WASINN::Graph &G,
+                          [[maybe_unused]] WASINN::Context &C) noexcept {
   return ErrNo::Success;
 }
 
-Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
-                       uint32_t Index, const TensorData &Tensor) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+Expect<ErrNo> setInput([[maybe_unused]] WasiNNEnvironment &Env,
+                       WASINN::Graph &G, WASINN::Context &C, uint32_t Index,
+                       const TensorData &Tensor) noexcept {
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   if (Index >= CxtRef.TorchInputs.size()) {
     CxtRef.TorchInputs.resize(Index + 1);
   }
@@ -239,7 +235,6 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   for (size_t I = 0; I < Tensor.Dimension.size(); I++) {
     Dims.push_back(static_cast<int64_t>(Tensor.Dimension[I]));
   }
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   torch::Tensor InTensor =
       torch::from_blob(reinterpret_cast<float *>(Tensor.Tensor.data()), Dims,
                        Options)
@@ -249,10 +244,11 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   return ErrNo::Success;
 }
 
-Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
+Expect<ErrNo> getOutput([[maybe_unused]] WasiNNEnvironment &Env,
+                        [[maybe_unused]] WASINN::Graph &G, WASINN::Context &C,
                         uint32_t Index, Span<uint8_t> OutBuffer,
                         uint32_t &BytesWritten) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &CxtRef = C.get<Context>();
   if (CxtRef.TorchOutputs.size() <= Index) {
     spdlog::error(
         "[WASI-NN] Torch: The output index {} exceeds the outputs number {}."sv,
@@ -280,8 +276,10 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   return ErrNo::Success;
 }
 
-Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+Expect<ErrNo> compute([[maybe_unused]] WasiNNEnvironment &Env, WASINN::Graph &G,
+                      WASINN::Context &C) noexcept {
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   if (CxtRef.TorchInputs.size() == 0) {
     spdlog::error("[WASI-NN] Torch: Input is not set!"sv);
     return ErrNo::InvalidArgument;
@@ -293,16 +291,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
       return ErrNo::InvalidArgument;
     }
   }
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   return GraphRef.Model->run(CxtRef.TorchInputs, CxtRef.TorchOutputs);
-}
-
-Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
-  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
-  if (GraphRef.Model) {
-    delete GraphRef.Model;
-  }
-  return ErrNo::Success;
 }
 
 #else
@@ -314,25 +303,24 @@ Expect<ErrNo> reportBackendNotSupported() noexcept {
 }
 } // namespace
 
-Expect<ErrNo> load(WasiNNEnvironment &, Span<const Span<uint8_t>>, Device,
-                   uint32_t &) noexcept {
+Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &,
+                   Span<const Span<uint8_t>>, Device) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> initExecCtx(WasiNNEnvironment &, uint32_t, uint32_t &) noexcept {
+Expect<ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &,
+                          WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> setInput(WasiNNEnvironment &, uint32_t, uint32_t,
-                       const TensorData &) noexcept {
+Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &, WASINN::Context &,
+                       uint32_t, const TensorData &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> getOutput(WasiNNEnvironment &, uint32_t, uint32_t, Span<uint8_t>,
-                        uint32_t &) noexcept {
+Expect<ErrNo> getOutput(WasiNNEnvironment &, WASINN::Graph &, WASINN::Context &,
+                        uint32_t, Span<uint8_t>, uint32_t &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> compute(WasiNNEnvironment &, uint32_t) noexcept {
-  return reportBackendNotSupported();
-}
-Expect<ErrNo> unload(WasiNNEnvironment &, uint32_t) noexcept {
+Expect<ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &,
+                      WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
 

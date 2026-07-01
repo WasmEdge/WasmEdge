@@ -125,6 +125,22 @@ TEST(WasiNNResourceTableTest, DestructorMayReenterTable) {
   EXPECT_EQ(Reentrant::ObservedSize, 0U);
 }
 
+TEST(WasiNNResourceTableTest, SwapExchangesContentsAndIdCounter) {
+  ResourceTable<int> A;
+  ResourceTable<int> B;
+  const auto IdA = A.insert(std::make_shared<int>(1));
+  ASSERT_TRUE(IdA.has_value());
+  A.swap(B);
+  EXPECT_EQ(A.size(), 0U);
+  EXPECT_EQ(B.size(), 1U);
+  const auto Moved = B.get(*IdA);
+  ASSERT_NE(Moved, nullptr);
+  EXPECT_EQ(*Moved, 1);
+  // The id counter moves with the contents: A restarts, B continues.
+  EXPECT_EQ(A.insert(std::make_shared<int>(2)), std::optional<uint32_t>{0U});
+  EXPECT_EQ(B.insert(std::make_shared<int>(3)), std::optional<uint32_t>{1U});
+}
+
 TEST(WasiNNResourceTableTest, InsertFailsOnIdExhaustion) {
   ResourceTable<int> Table(std::numeric_limits<uint32_t>::max() - 1);
   const auto Last = Table.insert(std::make_shared<int>(0));

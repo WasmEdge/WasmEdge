@@ -26,11 +26,31 @@ inline void reportUnknownBackend(WASINN::Backend B) noexcept {
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                            Span<const Span<uint8_t>> Builders,
                            WASINN::Backend Backend, WASINN::Device Device,
-                           uint32_t &GraphId) {
+                           std::string_view Name, uint32_t &GraphId) {
+  // Build the graph fully before publishing it to the handle table: a table
+  // entry is always a complete, usable resource, and a failed load leaves no
+  // trace behind.
+  auto LoadInto = [&](WASINN::Backend BE,
+                      auto BackendLoad) -> Expect<WASINN::ErrNo> {
+    auto G = std::make_shared<WASINN::Graph>(BE);
+    G->setModelName(std::string(Name));
+    auto Res = BackendLoad(Env, *G, Builders, Device);
+    if (!Res.has_value() || *Res != WASINN::ErrNo::Success) {
+      return Res;
+    }
+    const auto Id = Env.NNGraph.insert(std::move(G));
+    if (!Id.has_value()) {
+      spdlog::error("[WASI-NN] load: graph handle space is exhausted."sv);
+      return WASINN::ErrNo::RuntimeError;
+    }
+    GraphId = *Id;
+    return WASINN::ErrNo::Success;
+  };
   switch (Backend) {
 #define EACH(B)                                                                \
   case WASINN::Backend::B:                                                     \
-    return WASINN::B::load(Env, Builders, Device, GraphId);
+    return LoadInto(WASINN::Backend::B,                                        \
+                    [](auto &...Args) { return WASINN::B::load(Args...); });
     FOR_EACH_BACKEND(EACH)
 #undef EACH
   default:
@@ -122,7 +142,12 @@ WasiNNLoad::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t BuilderPtr,
     Builders.emplace_back(Builder);
   }
   auto Backend = static_cast<WASINN::Backend>(RawEncoding);
-  return load(Env, Builders, Backend, Device, *GraphId);
+  uint32_t NewGraphId = 0;
+  auto Res = load(Env, Builders, Backend, Device, ""sv, NewGraphId);
+  if (Res.has_value() && *Res == WASINN::ErrNo::Success) {
+    *GraphId = EndianValue(NewGraphId).le();
+  }
+  return Res;
 }
 
 Expect<WASINN::ErrNo>
@@ -167,11 +192,16 @@ WasiNNLoadByName::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
 
   // Get the model.
   std::string ModelName(NameStrView);
-  if (Env.mdGet(ModelName, *GraphId)) {
+  uint32_t FoundGraphId = 0;
+  if (Env.mdGet(ModelName, FoundGraphId)) {
+    *GraphId = EndianValue(FoundGraphId).le();
     return WASINN::ErrNo::Success;
-  } else {
-    return Env.mdBuild(ModelName, *GraphId, load);
   }
+  auto Res = Env.mdBuild(ModelName, FoundGraphId, load);
+  if (Res.has_value() && *Res == WASINN::ErrNo::Success) {
+    *GraphId = EndianValue(FoundGraphId).le();
+  }
+  return Res;
 }
 
 Expect<WASINN::ErrNo> WasiNNLoadByNameWithConfig::bodyImpl(
@@ -226,11 +256,16 @@ Expect<WASINN::ErrNo> WasiNNLoadByNameWithConfig::bodyImpl(
   // Get the model.
   std::string ModelName(NameStrView);
   std::vector<uint8_t> ModelConfig(ConfigSpan.begin(), ConfigSpan.end());
-  if (Env.mdGet(ModelName, *GraphId)) {
+  uint32_t FoundGraphId = 0;
+  if (Env.mdGet(ModelName, FoundGraphId)) {
+    *GraphId = EndianValue(FoundGraphId).le();
     return WASINN::ErrNo::Success;
-  } else {
-    return Env.mdBuild(ModelName, *GraphId, load, ModelConfig);
   }
+  auto Res = Env.mdBuild(ModelName, FoundGraphId, load, ModelConfig);
+  if (Res.has_value() && *Res == WASINN::ErrNo::Success) {
+    *GraphId = EndianValue(FoundGraphId).le();
+  }
+  return Res;
 }
 
 Expect<WASINN::ErrNo>
@@ -266,29 +301,34 @@ WasiNNInitExecCtx::bodyImpl(const Runtime::CallingFrame &Frame,
   }
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
 
-  if (Env.NNGraph.size() <= GraphId || Env.NNGraph[GraphId].isFinalized()) {
-    spdlog::error("[WASI-NN] init_execution_context: Graph ID {} does not "
-                  "exist or is unloaded."sv,
-                  GraphId);
-    return WASINN::ErrNo::InvalidArgument;
-  }
-  if (!Env.NNGraph[GraphId].isReady()) {
-    spdlog::error("[WASI-NN] init_execution_context: Graph ID {} is invalid. "
-                  "Please reload or unload this graph."sv,
-                  GraphId);
-    return WASINN::ErrNo::InvalidArgument;
-  }
-
-  switch (const auto Backend = Env.NNGraph[GraphId].getBackend()) {
+  return Env.withGraphOp(
+      GraphId, WASINN::HostOp::InitExecCtx,
+      [&](const std::shared_ptr<WASINN::Graph> &G) -> Expect<WASINN::ErrNo> {
+        auto NewContext = std::make_shared<WASINN::Context>(GraphId, G);
+        Expect<WASINN::ErrNo> Res = WASINN::ErrNo::Success;
+        switch (const auto Backend = G->getBackend()) {
 #define EACH(B)                                                                \
   case WASINN::Backend::B:                                                     \
-    return WASINN::B::initExecCtx(Env, GraphId, *Context);
-    FOR_EACH_BACKEND(EACH)
+    Res = WASINN::B::initExecCtx(Env, *G, *NewContext);                        \
+    break;
+          FOR_EACH_BACKEND(EACH)
 #undef EACH
-  default:
-    reportUnknownBackend(Backend);
-    return WASINN::ErrNo::InvalidEncoding;
-  }
+        default:
+          reportUnknownBackend(Backend);
+          return WASINN::ErrNo::InvalidEncoding;
+        }
+        if (!Res.has_value() || *Res != WASINN::ErrNo::Success) {
+          return Res;
+        }
+        const auto Id = Env.NNContext.insert(std::move(NewContext));
+        if (!Id.has_value()) {
+          spdlog::error("[WASI-NN] init_execution_context: context handle "
+                        "space is exhausted."sv);
+          return WASINN::ErrNo::RuntimeError;
+        }
+        *Context = EndianValue(*Id).le();
+        return WASINN::ErrNo::Success;
+      });
 }
 
 Expect<WASINN::ErrNo>
@@ -372,23 +412,20 @@ WasiNNSetInput::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t ContextId,
   }
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
 
-  if (Env.NNContext.size() <= ContextId ||
-      !Env.NNContext[ContextId].isReady()) {
-    spdlog::error("[WASI-NN] set_input: Context ID {} does not exist."sv,
-                  ContextId);
-    return WASINN::ErrNo::InvalidArgument;
-  }
-
-  switch (const auto Backend = Env.NNContext[ContextId].getBackend()) {
+  return Env.withContextOp(
+      ContextId, WASINN::HostOp::SetInput,
+      [&](WASINN::Graph &G, WASINN::Context &C) -> Expect<WASINN::ErrNo> {
+        switch (const auto Backend = C.getBackend()) {
 #define EACH(B)                                                                \
   case WASINN::Backend::B:                                                     \
-    return WASINN::B::setInput(Env, ContextId, Index, Tensor);
-    FOR_EACH_BACKEND(EACH)
+    return WASINN::B::setInput(Env, G, C, Index, Tensor);
+          FOR_EACH_BACKEND(EACH)
 #undef EACH
-  default:
-    reportUnknownBackend(Backend);
-    return WASINN::ErrNo::InvalidEncoding;
-  }
+        default:
+          reportUnknownBackend(Backend);
+          return WASINN::ErrNo::InvalidEncoding;
+        }
+      });
 }
 
 Expect<WASINN::ErrNo>
@@ -442,24 +479,20 @@ WasiNNGetOutput::bodyImpl(const Runtime::CallingFrame &Frame,
   }
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
 
-  if (Env.NNContext.size() <= ContextId ||
-      !Env.NNContext[ContextId].isReady()) {
-    spdlog::error("[WASI-NN] get_output: Context ID {} does not exist."sv,
-                  ContextId);
-    return WASINN::ErrNo::InvalidArgument;
-  }
-
-  switch (const auto Backend = Env.NNContext[ContextId].getBackend()) {
+  return Env.withContextOp(
+      ContextId, WASINN::HostOp::GetOutput,
+      [&](WASINN::Graph &G, WASINN::Context &C) -> Expect<WASINN::ErrNo> {
+        switch (const auto Backend = C.getBackend()) {
 #define EACH(B)                                                                \
   case WASINN::Backend::B:                                                     \
-    return WASINN::B::getOutput(Env, ContextId, Index, OutBuffer,              \
-                                *BytesWritten);
-    FOR_EACH_BACKEND(EACH)
+    return WASINN::B::getOutput(Env, G, C, Index, OutBuffer, *BytesWritten);
+          FOR_EACH_BACKEND(EACH)
 #undef EACH
-  default:
-    reportUnknownBackend(Backend);
-    return WASINN::ErrNo::InvalidEncoding;
-  }
+        default:
+          reportUnknownBackend(Backend);
+          return WASINN::ErrNo::InvalidEncoding;
+        }
+      });
 }
 
 Expect<WASINN::ErrNo> WasiNNGetOutputSingle::bodyImpl(
@@ -512,27 +545,22 @@ Expect<WASINN::ErrNo> WasiNNGetOutputSingle::bodyImpl(
   }
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
 
-  if (Env.NNContext.size() <= ContextId ||
-      !Env.NNContext[ContextId].isReady()) {
-    spdlog::error(
-        "[WASI-NN] get_output_single: Context ID {} does not exist."sv,
-        ContextId);
-    return WASINN::ErrNo::InvalidArgument;
-  }
-
-  switch (Env.NNContext[ContextId].getBackend()) {
-  case WASINN::Backend::GGML:
-    return WASINN::GGML::getOutputSingle(Env, ContextId, Index, OutBuffer,
-                                         *BytesWritten);
-  case WASINN::Backend::BitNet:
-    return WASINN::BitNet::getOutputSingle(Env, ContextId, Index, OutBuffer,
-                                           *BytesWritten);
-  default:
-    spdlog::error(
-        "[WASI-NN] get_output_single: Only GGML and BitNet backend supports "sv
-        "get_output_single."sv);
-    return WASINN::ErrNo::InvalidArgument;
-  }
+  return Env.withContextOp(
+      ContextId, WASINN::HostOp::GetOutputSingle,
+      [&](WASINN::Graph &G, WASINN::Context &C) -> Expect<WASINN::ErrNo> {
+        switch (C.getBackend()) {
+        case WASINN::Backend::GGML:
+          return WASINN::GGML::getOutputSingle(Env, G, C, Index, OutBuffer,
+                                               *BytesWritten);
+        case WASINN::Backend::BitNet:
+          return WASINN::BitNet::getOutputSingle(Env, G, C, Index, OutBuffer,
+                                                 *BytesWritten);
+        default:
+          spdlog::error("[WASI-NN] get_output_single: Only GGML and BitNet "
+                        "backend supports get_output_single."sv);
+          return WASINN::ErrNo::InvalidArgument;
+        }
+      });
 }
 
 Expect<WASINN::ErrNo>
@@ -560,32 +588,20 @@ WasiNNCompute::bodyImpl(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  if (Env.NNContext.size() <= ContextId ||
-      !Env.NNContext[ContextId].isReady()) {
-    spdlog::error("[WASI-NN] compute: Context ID {} does not exist."sv,
-                  ContextId);
-    return WASINN::ErrNo::InvalidArgument;
-  }
-
-  auto GraphId = Env.NNContext[ContextId].getGraphId();
-  assuming(Env.NNGraph.size() > GraphId);
-  if (!Env.NNGraph[GraphId].isReady()) {
-    spdlog::error("[WASI-NN] compute: Graph ID {} for context ID {} does not "sv
-                  "exist or has released."sv,
-                  GraphId, ContextId);
-    return WASINN::ErrNo::InvalidArgument;
-  }
-
-  switch (const auto Backend = Env.NNContext[ContextId].getBackend()) {
+  return Env.withContextOp(
+      ContextId, WASINN::HostOp::Compute,
+      [&](WASINN::Graph &G, WASINN::Context &C) -> Expect<WASINN::ErrNo> {
+        switch (const auto Backend = C.getBackend()) {
 #define EACH(B)                                                                \
   case WASINN::Backend::B:                                                     \
-    return WASINN::B::compute(Env, ContextId);
-    FOR_EACH_BACKEND(EACH)
+    return WASINN::B::compute(Env, G, C);
+          FOR_EACH_BACKEND(EACH)
 #undef EACH
-  default:
-    reportUnknownBackend(Backend);
-    return WASINN::ErrNo::InvalidEncoding;
-  }
+        default:
+          reportUnknownBackend(Backend);
+          return WASINN::ErrNo::InvalidEncoding;
+        }
+      });
 }
 
 Expect<WASINN::ErrNo>
@@ -613,33 +629,20 @@ WasiNNComputeSingle::bodyImpl(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  if (Env.NNContext.size() <= ContextId ||
-      !Env.NNContext[ContextId].isReady()) {
-    spdlog::error("[WASI-NN] compute_single: Context ID {} does not exist."sv,
-                  ContextId);
-    return WASINN::ErrNo::InvalidArgument;
-  }
-
-  auto GraphId = Env.NNContext[ContextId].getGraphId();
-  assuming(Env.NNGraph.size() > GraphId);
-  if (!Env.NNGraph[GraphId].isReady()) {
-    spdlog::error("[WASI-NN] compute_single: Graph ID {} for context ID {} "sv
-                  "does not exist or has released."sv,
-                  GraphId, ContextId);
-    return WASINN::ErrNo::InvalidArgument;
-  }
-
-  switch (Env.NNContext[ContextId].getBackend()) {
-  case WASINN::Backend::GGML:
-    return WASINN::GGML::computeSingle(Env, ContextId);
-  case WASINN::Backend::BitNet:
-    return WASINN::BitNet::computeSingle(Env, ContextId);
-  default:
-    spdlog::error(
-        "[WASI-NN] compute_single: Only GGML and BitNet backend supports "sv
-        "compute_single."sv);
-    return WASINN::ErrNo::InvalidArgument;
-  }
+  return Env.withContextOp(
+      ContextId, WASINN::HostOp::ComputeSingle,
+      [&](WASINN::Graph &G, WASINN::Context &C) -> Expect<WASINN::ErrNo> {
+        switch (C.getBackend()) {
+        case WASINN::Backend::GGML:
+          return WASINN::GGML::computeSingle(Env, G, C);
+        case WASINN::Backend::BitNet:
+          return WASINN::BitNet::computeSingle(Env, G, C);
+        default:
+          spdlog::error("[WASI-NN] compute_single: Only GGML and BitNet "
+                        "backend supports compute_single."sv);
+          return WASINN::ErrNo::InvalidArgument;
+        }
+      });
 }
 
 Expect<WASINN::ErrNo>
@@ -667,23 +670,20 @@ WasiNNFiniSingle::bodyImpl(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  if (Env.NNContext.size() <= ContextId ||
-      !Env.NNContext[ContextId].isReady()) {
-    spdlog::error("[WASI-NN] fini_single: Context ID {} does not exist."sv,
-                  ContextId);
-    return WASINN::ErrNo::InvalidArgument;
-  }
-
-  switch (Env.NNContext[ContextId].getBackend()) {
-  case WASINN::Backend::GGML:
-    return WASINN::GGML::finiSingle(Env, ContextId);
-  case WASINN::Backend::BitNet:
-    return WASINN::BitNet::finiSingle(Env, ContextId);
-  default:
-    spdlog::error(
-        "[WASI-NN] fini_single: Only GGML and BitNet backend supports fini_single."sv);
-    return WASINN::ErrNo::InvalidArgument;
-  }
+  return Env.withContextOp(
+      ContextId, WASINN::HostOp::FiniSingle,
+      [&](WASINN::Graph &G, WASINN::Context &C) -> Expect<WASINN::ErrNo> {
+        switch (C.getBackend()) {
+        case WASINN::Backend::GGML:
+          return WASINN::GGML::finiSingle(Env, G, C);
+        case WASINN::Backend::BitNet:
+          return WASINN::BitNet::finiSingle(Env, G, C);
+        default:
+          spdlog::error("[WASI-NN] fini_single: Only GGML and BitNet backend "
+                        "supports fini_single."sv);
+          return WASINN::ErrNo::InvalidArgument;
+        }
+      });
 }
 
 Expect<WASINN::ErrNo> WasiNNUnload::bodyImpl(const Runtime::CallingFrame &Frame,
@@ -701,25 +701,7 @@ Expect<WASINN::ErrNo> WasiNNUnload::bodyImpl(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  if (Env.NNGraph.size() <= GraphId) {
-    spdlog::error("[WASI-NN] unload: GraphId {} does not exist."sv, GraphId);
-    return WASINN::ErrNo::InvalidArgument;
-  }
-
-  switch (Env.NNGraph[GraphId].getBackend()) {
-  case WASINN::Backend::GGML:
-    return WASINN::GGML::unload(Env, GraphId);
-  case WASINN::Backend::Whisper:
-    return WASINN::Whisper::unload(Env, GraphId);
-  case WASINN::Backend::ChatTTS:
-    return WASINN::ChatTTS::unload(Env, GraphId);
-  case WASINN::Backend::BitNet:
-    return WASINN::BitNet::unload(Env, GraphId);
-  default:
-    spdlog::error("[WASI-NN] unload: Only GGML, Whisper, ChatTTS and BitNet "sv
-                  "backends support unload."sv);
-    return WASINN::ErrNo::InvalidArgument;
-  }
+  return Env.unloadGraph(GraphId);
 }
 
 Expect<WASINN::ErrNo>
@@ -739,26 +721,7 @@ WasiNNFinalizeExecCtx::bodyImpl(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  if (Env.NNContext.size() <= ContextId) {
-    spdlog::error(
-        "[WASI-NN] finalize_execution_context: Context ID {} does not exist."sv,
-        ContextId);
-    return WASINN::ErrNo::InvalidArgument;
-  }
-
-  switch (Env.NNContext[ContextId].getBackend()) {
-  case WASINN::Backend::GGML:
-    return WASINN::GGML::finalizeExecCtx(Env, ContextId);
-  case WASINN::Backend::Whisper:
-    return WASINN::Whisper::finalizeExecCtx(Env, ContextId);
-  case WASINN::Backend::BitNet:
-    return WASINN::BitNet::finalizeExecCtx(Env, ContextId);
-  default:
-    spdlog::error(
-        "[WASI-NN] finalize_execution_context: Only GGML, BitNet and "sv
-        "Whisper backends support finalize_execution_context."sv);
-    return WASINN::ErrNo::InvalidArgument;
-  }
+  return Env.finalizeContext(ContextId);
 }
 
 } // namespace Host

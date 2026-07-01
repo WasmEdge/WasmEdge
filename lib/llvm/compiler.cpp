@@ -3,6 +3,8 @@
 
 #include "llvm/compiler.h"
 
+#include "compiler/context.h"
+
 #include "aot/version.h"
 #include "common/defines.h"
 #include "common/filesystem.h"
@@ -40,36 +42,7 @@ struct RAIICleanup {
   LLVM::Compiler::CompileContext *&Context;
 };
 
-static bool
-isVoidReturn(WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
-static LLVM::Type toLLVMType(LLVM::Context LLContext,
-                             const WasmEdge::ValType &ValType) noexcept;
-static std::vector<LLVM::Type>
-toLLVMArgsType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
-               WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
-static LLVM::Type
-toLLVMRetsType(LLVM::Context LLContext,
-               WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
-static LLVM::Type
-toLLVMType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
-           const WasmEdge::AST::FunctionType &FuncType) noexcept;
-static LLVM::Value
-toLLVMConstantZero(LLVM::Context LLContext, const WasmEdge::ValType &ValType,
-                   WasmEdge::Span<const WasmEdge::AST::CompositeType *const>
-                       CompositeTypes) noexcept;
-static std::vector<LLVM::Value> unpackStruct(LLVM::Builder &Builder,
-                                             LLVM::Value Struct) noexcept;
 class FunctionCompiler;
-
-// XXX: Misalignment handler not implemented yet, forcing unalignment
-// force unalignment load/store
-static inline constexpr const bool kForceUnalignment = true;
-
-// force checking div/rem on zero
-static inline constexpr const bool kForceDivCheck = true;
-
-// Size of a ValVariant
-static inline constexpr const uint32_t kValSize = sizeof(WasmEdge::ValVariant);
 
 // Translate Compiler::OptimizationLevel to llvm::PassBuilder version
 #if LLVM_VERSION_MAJOR >= 13
@@ -138,429 +111,9 @@ static inline LLVMCodeGenOptLevel toLLVMCodeGenLevel(
 }
 } // namespace
 
-struct LLVM::Compiler::CompileContext {
-  LLVM::Context LLContext;
-  std::reference_wrapper<LLVM::Module> LLModule;
-  LLVM::Attribute Cold;
-  LLVM::Attribute NoAlias;
-  LLVM::Attribute NoInline;
-  LLVM::Attribute NoReturn;
-  LLVM::Attribute ReadOnly;
-  LLVM::Attribute StrictFP;
-  LLVM::Attribute UWTable;
-  LLVM::Attribute NoStackArgProbe;
-  LLVM::Type VoidTy;
-  LLVM::Type Int8Ty;
-  LLVM::Type Int16Ty;
-  LLVM::Type Int32Ty;
-  LLVM::Type Int64Ty;
-  LLVM::Type Int128Ty;
-  LLVM::Type FloatTy;
-  LLVM::Type DoubleTy;
-  LLVM::Type Int8x16Ty;
-  LLVM::Type Int16x8Ty;
-  LLVM::Type Int32x4Ty;
-  LLVM::Type Floatx4Ty;
-  LLVM::Type Int64x2Ty;
-  LLVM::Type Doublex2Ty;
-  LLVM::Type Int128x1Ty;
-  LLVM::Type Int8PtrTy;
-  LLVM::Type Int32PtrTy;
-  LLVM::Type Int64PtrTy;
-  LLVM::Type Int128PtrTy;
-  LLVM::Type Int8PtrPtrTy;
-  LLVM::Type ExecCtxTy;
-  LLVM::Type ExecCtxPtrTy;
-  LLVM::Type IntrinsicsTableTy;
-  LLVM::Type IntrinsicsTablePtrTy;
-  LLVM::Message SubtargetFeatures;
-
-#if defined(__x86_64__)
-#if defined(__XOP__)
-  bool SupportXOP = true;
-#else
-  bool SupportXOP = false;
-#endif
-
-#if defined(__SSE4_1__)
-  bool SupportSSE4_1 = true;
-#else
-  bool SupportSSE4_1 = false;
-#endif
-
-#if defined(__SSSE3__)
-  bool SupportSSSE3 = true;
-#else
-  bool SupportSSSE3 = false;
-#endif
-
-#if defined(__SSE2__)
-  bool SupportSSE2 = true;
-#else
-  bool SupportSSE2 = false;
-#endif
-#endif
-
-#if defined(__aarch64__)
-#if defined(__ARM_NEON__) || defined(__ARM_NEON) || defined(__ARM_NEON_FP)
-  bool SupportNEON = true;
-#else
-  bool SupportNEON = false;
-#endif
-#endif
-
-  std::vector<const AST::CompositeType *> CompositeTypes;
-  std::vector<LLVM::Value> FunctionWrappers;
-  std::vector<std::tuple<uint32_t, LLVM::FunctionCallee,
-                         const WasmEdge::AST::CodeSegment *>>
-      Functions;
-  std::vector<LLVM::Value> LazyJITCacheVars;
-  uint32_t ImportCount = 0;
-  std::vector<LLVM::Type> MemoryAddrTypes;
-  std::vector<LLVM::Type> TableAddrTypes;
-  std::vector<LLVM::Type> Globals;
-  LLVM::Value IntrinsicsTable;
-  LLVM::FunctionCallee Trap;
-  CompileContext(LLVM::Context C, LLVM::Module &M,
-                 bool IsGenericBinary) noexcept
-      : LLContext(C), LLModule(M),
-        Cold(LLVM::Attribute::createEnum(C, LLVM::Core::Cold, 0)),
-        NoAlias(LLVM::Attribute::createEnum(C, LLVM::Core::NoAlias, 0)),
-        NoInline(LLVM::Attribute::createEnum(C, LLVM::Core::NoInline, 0)),
-        NoReturn(LLVM::Attribute::createEnum(C, LLVM::Core::NoReturn, 0)),
-        ReadOnly(LLVM::Attribute::createEnum(C, LLVM::Core::ReadOnly, 0)),
-        StrictFP(LLVM::Attribute::createEnum(C, LLVM::Core::StrictFP, 0)),
-        UWTable(LLVM::Attribute::createEnum(C, LLVM::Core::UWTable,
-                                            LLVM::Core::UWTableDefault)),
-        NoStackArgProbe(
-            LLVM::Attribute::createString(C, "no-stack-arg-probe"sv, {})),
-        VoidTy(LLContext.getVoidTy()), Int8Ty(LLContext.getInt8Ty()),
-        Int16Ty(LLContext.getInt16Ty()), Int32Ty(LLContext.getInt32Ty()),
-        Int64Ty(LLContext.getInt64Ty()), Int128Ty(LLContext.getInt128Ty()),
-        FloatTy(LLContext.getFloatTy()), DoubleTy(LLContext.getDoubleTy()),
-        Int8x16Ty(LLVM::Type::getVectorType(Int8Ty, 16)),
-        Int16x8Ty(LLVM::Type::getVectorType(Int16Ty, 8)),
-        Int32x4Ty(LLVM::Type::getVectorType(Int32Ty, 4)),
-        Floatx4Ty(LLVM::Type::getVectorType(FloatTy, 4)),
-        Int64x2Ty(LLVM::Type::getVectorType(Int64Ty, 2)),
-        Doublex2Ty(LLVM::Type::getVectorType(DoubleTy, 2)),
-        Int128x1Ty(LLVM::Type::getVectorType(Int128Ty, 1)),
-        Int8PtrTy(Int8Ty.getPointerTo()), Int32PtrTy(Int32Ty.getPointerTo()),
-        Int64PtrTy(Int64Ty.getPointerTo()),
-        Int128PtrTy(Int128Ty.getPointerTo()),
-        Int8PtrPtrTy(Int8PtrTy.getPointerTo()),
-        ExecCtxTy(LLVM::Type::getStructType(
-            "ExecCtx",
-            std::initializer_list<LLVM::Type>{
-                // Memory
-                Int8PtrTy.getPointerTo(),
-                // Globals
-                Int128PtrTy.getPointerTo(),
-                // InstrCount
-                Int64PtrTy,
-                // CostTable
-                LLVM::Type::getArrayType(Int64Ty, UINT16_MAX + 1)
-                    .getPointerTo(),
-                // Gas
-                Int64PtrTy,
-                // GasLimit
-                Int64Ty,
-                // StopToken
-                Int32PtrTy,
-            })),
-        ExecCtxPtrTy(ExecCtxTy.getPointerTo()),
-        IntrinsicsTableTy(LLVM::Type::getArrayType(
-            Int8Ty.getPointerTo(),
-            static_cast<uint32_t>(Executable::Intrinsics::kIntrinsicMax))),
-        IntrinsicsTablePtrTy(IntrinsicsTableTy.getPointerTo()),
-        IntrinsicsTable(LLModule.get().addGlobal(IntrinsicsTablePtrTy, true,
-                                                 LLVMExternalLinkage,
-                                                 LLVM::Value(), "intrinsics")) {
-    Trap.Ty = LLVM::Type::getFunctionType(VoidTy, {Int32Ty});
-    Trap.Fn = LLModule.get().addFunction(Trap.Ty, LLVMPrivateLinkage, "trap");
-    Trap.Fn.setDSOLocal(true);
-    Trap.Fn.addFnAttr(NoStackArgProbe);
-    Trap.Fn.addFnAttr(StrictFP);
-    Trap.Fn.addFnAttr(UWTable);
-    Trap.Fn.addFnAttr(NoReturn);
-    Trap.Fn.addFnAttr(Cold);
-    Trap.Fn.addFnAttr(NoInline);
-
-    if (!IsGenericBinary) {
-      SubtargetFeatures = LLVM::getHostCPUFeatures();
-      auto Features = SubtargetFeatures.string_view();
-      while (!Features.empty()) {
-        std::string_view Feature;
-        if (auto Pos = Features.find(','); Pos != std::string_view::npos) {
-          Feature = Features.substr(0, Pos);
-          Features = Features.substr(Pos + 1);
-        } else {
-          Feature = std::exchange(Features, std::string_view());
-        }
-        if (Feature[0] != '+') {
-          continue;
-        }
-        Feature = Feature.substr(1);
-
-#if defined(__x86_64__)
-        if (!SupportXOP && Feature == "xop"sv) {
-          SupportXOP = true;
-        }
-        if (!SupportSSE4_1 && Feature == "sse4.1"sv) {
-          SupportSSE4_1 = true;
-        }
-        if (!SupportSSSE3 && Feature == "ssse3"sv) {
-          SupportSSSE3 = true;
-        }
-        if (!SupportSSE2 && Feature == "sse2"sv) {
-          SupportSSE2 = true;
-        }
-#elif defined(__aarch64__)
-        if (!SupportNEON && Feature == "neon"sv) {
-          SupportNEON = true;
-        }
-#endif
-      }
-    }
-
-    compileTrap();
-  }
-  LLVM::Value getMemory(LLVM::Builder &Builder, LLVM::Value ExecCtx,
-                        uint32_t Index) noexcept {
-    auto Array = Builder.createExtractValue(ExecCtx, 0);
-#if WASMEDGE_ALLOCATOR_IS_STABLE
-    auto VPtr = Builder.createLoad(
-        Int8PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
-                                              LLContext.getInt64(Index)));
-    VPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
-                     LLVM::Metadata(LLContext, {}));
-#else
-    auto VPtrPtr = Builder.createLoad(
-        Int8PtrPtrTy, Builder.createInBoundsGEP1(Int8PtrPtrTy, Array,
-                                                 LLContext.getInt64(Index)));
-    VPtrPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
-                        LLVM::Metadata(LLContext, {}));
-    auto VPtr = Builder.createLoad(
-        Int8PtrTy,
-        Builder.createInBoundsGEP1(Int8PtrTy, VPtrPtr, LLContext.getInt64(0)));
-#endif
-    return Builder.createBitCast(VPtr, Int8PtrTy);
-  }
-  std::pair<LLVM::Type, LLVM::Value> getGlobal(LLVM::Builder &Builder,
-                                               LLVM::Value ExecCtx,
-                                               uint32_t Index) noexcept {
-    auto Ty = Globals[Index];
-    auto Array = Builder.createExtractValue(ExecCtx, 1);
-    auto VPtr = Builder.createLoad(
-        Int128PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
-                                                LLContext.getInt64(Index)));
-    VPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
-                     LLVM::Metadata(LLContext, {}));
-    auto Ptr = Builder.createBitCast(VPtr, Ty.getPointerTo());
-    return {Ty, Ptr};
-  }
-  LLVM::Value getInstrCount(LLVM::Builder &Builder,
-                            LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 2);
-  }
-  LLVM::Value getCostTable(LLVM::Builder &Builder,
-                           LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 3);
-  }
-  LLVM::Value getGas(LLVM::Builder &Builder, LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 4);
-  }
-  LLVM::Value getGasLimit(LLVM::Builder &Builder,
-                          LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 5);
-  }
-  LLVM::Value getStopToken(LLVM::Builder &Builder,
-                           LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 6);
-  }
-  LLVM::FunctionCallee getIntrinsic(LLVM::Builder &Builder,
-                                    Executable::Intrinsics Index,
-                                    LLVM::Type Ty) noexcept {
-    const auto Value = static_cast<uint32_t>(Index);
-    auto PtrTy = Ty.getPointerTo();
-    auto PtrPtrTy = PtrTy.getPointerTo();
-    auto IT = Builder.createLoad(IntrinsicsTablePtrTy, IntrinsicsTable);
-    IT.setMetadata(LLContext, LLVM::Core::InvariantGroup,
-                   LLVM::Metadata(LLContext, {}));
-    auto VPtr =
-        Builder.createInBoundsGEP2(IntrinsicsTableTy, IT, LLContext.getInt64(0),
-                                   LLContext.getInt64(Value));
-    auto Ptr = Builder.createBitCast(VPtr, PtrPtrTy);
-    return {Ty, Builder.createLoad(PtrTy, Ptr)};
-  }
-  void compileTrap() noexcept {
-    LLVM::Builder Builder(LLContext);
-    Builder.positionAtEnd(
-        LLVM::BasicBlock::create(LLContext, Trap.Fn, "entry"));
-    auto FnTy = LLVM::Type::getFunctionType(VoidTy, {Int32Ty});
-    auto CallTrap = Builder.createCall(
-        getIntrinsic(Builder, Executable::Intrinsics::kTrap, FnTy),
-        {Trap.Fn.getFirstParam()});
-    CallTrap.addCallSiteAttribute(NoReturn);
-    Builder.createUnreachable();
-  }
-  void addVersionGlobal() noexcept {
-    LLModule.get().addGlobal(
-        Int32Ty, true, LLVMExternalLinkage,
-        LLVM::Value::getConstInt(Int32Ty, AOT::kBinaryVersion), "version");
-  }
-  void finalizeIntrinsicsTable() noexcept {
-    if (auto Table = LLModule.get().getNamedGlobal("intrinsics")) {
-      Table.setInitializer(LLVM::Value::getConstNull(Table.getType()));
-      Table.setGlobalConstant(false);
-    } else {
-      LLModule.get().addGlobal(IntrinsicsTablePtrTy, false, LLVMExternalLinkage,
-                               LLVM::Value::getConstNull(IntrinsicsTablePtrTy),
-                               "intrinsics");
-    }
-  }
-  std::pair<std::vector<ValType>, std::vector<ValType>>
-  resolveBlockType(const BlockType &BType) const noexcept {
-    using VecT = std::vector<ValType>;
-    using RetT = std::pair<VecT, VecT>;
-    if (BType.isEmpty()) {
-      return RetT{};
-    }
-    if (BType.isValType()) {
-      return RetT{{}, {BType.getValType()}};
-    } else {
-      // Type index case. t2* = type[index].returns
-      const uint32_t TypeIdx = BType.getTypeIndex();
-      const auto &FType = CompositeTypes[TypeIdx]->getFuncType();
-      return RetT{
-          VecT(FType.getParamTypes().begin(), FType.getParamTypes().end()),
-          VecT(FType.getReturnTypes().begin(), FType.getReturnTypes().end())};
-    }
-  }
-};
-
 namespace {
 
 using namespace WasmEdge;
-
-static bool isVoidReturn(Span<const ValType> ValTypes) noexcept {
-  return ValTypes.empty();
-}
-
-static LLVM::Type toLLVMType(LLVM::Context LLContext,
-                             const ValType &ValType) noexcept {
-  switch (ValType.getCode()) {
-  case TypeCode::I32:
-    return LLContext.getInt32Ty();
-  case TypeCode::I64:
-    return LLContext.getInt64Ty();
-  case TypeCode::Ref:
-  case TypeCode::RefNull:
-  case TypeCode::V128:
-    return LLVM::Type::getVectorType(LLContext.getInt64Ty(), 2);
-  case TypeCode::F32:
-    return LLContext.getFloatTy();
-  case TypeCode::F64:
-    return LLContext.getDoubleTy();
-  default:
-    assumingUnreachable();
-  }
-}
-
-static LLVM::Type toLLVMType(LLVM::Context LLContext,
-                             const AddressType AddrType) noexcept {
-  switch (AddrType) {
-  case AddressType::I32:
-    return LLContext.getInt32Ty();
-  case AddressType::I64:
-    return LLContext.getInt64Ty();
-  default:
-    assumingUnreachable();
-  }
-}
-
-static std::vector<LLVM::Type>
-toLLVMTypeVector(LLVM::Context LLContext,
-                 Span<const ValType> ValTypes) noexcept {
-  std::vector<LLVM::Type> Result;
-  Result.reserve(ValTypes.size());
-  for (const auto &Type : ValTypes) {
-    Result.push_back(toLLVMType(LLContext, Type));
-  }
-  return Result;
-}
-
-static std::vector<LLVM::Type>
-toLLVMArgsType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
-               Span<const ValType> ValTypes) noexcept {
-  auto Result = toLLVMTypeVector(LLContext, ValTypes);
-  Result.insert(Result.begin(), ExecCtxPtrTy);
-  return Result;
-}
-
-static LLVM::Type toLLVMRetsType(LLVM::Context LLContext,
-                                 Span<const ValType> ValTypes) noexcept {
-  if (isVoidReturn(ValTypes)) {
-    return LLContext.getVoidTy();
-  }
-  if (ValTypes.size() == 1) {
-    return toLLVMType(LLContext, ValTypes.front());
-  }
-  std::vector<LLVM::Type> Result;
-  Result.reserve(ValTypes.size());
-  for (const auto &Type : ValTypes) {
-    Result.push_back(toLLVMType(LLContext, Type));
-  }
-  return LLVM::Type::getStructType(Result);
-}
-
-static LLVM::Type toLLVMType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
-                             const AST::FunctionType &FuncType) noexcept {
-  auto ArgsTy =
-      toLLVMArgsType(LLContext, ExecCtxPtrTy, FuncType.getParamTypes());
-  auto RetTy = toLLVMRetsType(LLContext, FuncType.getReturnTypes());
-  return LLVM::Type::getFunctionType(RetTy, ArgsTy);
-}
-
-static LLVM::Value toLLVMConstantZero(
-    LLVM::Context LLContext, const ValType &ValType,
-    Span<const AST::CompositeType *const> CompositeTypes) noexcept {
-  switch (ValType.getCode()) {
-  case TypeCode::I32:
-    return LLVM::Value::getConstNull(LLContext.getInt32Ty());
-  case TypeCode::I64:
-    return LLVM::Value::getConstNull(LLContext.getInt64Ty());
-  case TypeCode::Ref:
-  case TypeCode::RefNull: {
-    std::array<uint8_t, 16> Data{};
-    if (ValType.isAbsHeapType()) {
-      // Abstract heap types are already fine for null refs.
-      const auto Raw = ValType.getRawData();
-      std::copy(Raw.begin(), Raw.end(), Data.begin());
-    } else {
-      // For non-abstract heap types (concrete type indices), convert to the
-      // abstract heap type so that ref.cast/ref.test won't dereference a null
-      // pointer when checking the type.
-      assuming(ValType.getTypeIndex() < CompositeTypes.size());
-      const auto *CompType = CompositeTypes[ValType.getTypeIndex()];
-      assuming(CompType != nullptr);
-      WasmEdge::ValType VType =
-          CompType->isFunc() ? TypeCode::NullFuncRef : TypeCode::NullRef;
-      std::copy_n(VType.getRawData().cbegin(), 8, Data.begin());
-    }
-    return LLVM::Value::getConstVector8(LLContext, Data);
-  }
-  case TypeCode::V128:
-    return LLVM::Value::getConstNull(
-        LLVM::Type::getVectorType(LLContext.getInt64Ty(), 2));
-  case TypeCode::F32:
-    return LLVM::Value::getConstNull(LLContext.getFloatTy());
-  case TypeCode::F64:
-    return LLVM::Value::getConstNull(LLContext.getDoubleTy());
-  default:
-    assumingUnreachable();
-  }
-}
 
 class FunctionCompiler {
   struct Control;
@@ -1016,8 +569,9 @@ public:
           for (size_t I = 0; I < ArgSize; ++I) {
             ArgsVec[ArgSize - I - 1] = stackPop();
           }
-          Args = Builder.createArray(ArgSize, kValSize);
-          Builder.createArrayPtrStore(ArgsVec, Args, Context.Int8Ty, kValSize);
+          Args = Builder.createArray(ArgSize, LLVM::kValSize);
+          Builder.createArrayPtrStore(ArgsVec, Args, Context.Int8Ty,
+                                      LLVM::kValSize);
         } else {
           ArgSize = 0;
         }
@@ -1146,8 +700,9 @@ public:
         for (size_t I = 0; I < ArgSize; ++I) {
           ArgsVec[ArgSize - I - 1] = stackPop();
         }
-        LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
-        Builder.createArrayPtrStore(ArgsVec, Args, Context.Int8Ty, kValSize);
+        LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
+        Builder.createArrayPtrStore(ArgsVec, Args, Context.Int8Ty,
+                                    LLVM::kValSize);
         stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kArrayNew,
                                  LLVM::Type::getFunctionType(
@@ -2196,7 +1751,7 @@ public:
       case OpCode::I64__div_s: {
         LLVM::Value RHS = stackPop();
         LLVM::Value LHS = stackPop();
-        if constexpr (kForceDivCheck) {
+        if constexpr (LLVM::kForceDivCheck) {
           const bool Is32 = Instr.getOpCode() == OpCode::I32__div_s;
           LLVM::Value IntZero =
               Is32 ? LLContext.getInt32(0) : LLContext.getInt64(0);
@@ -2233,7 +1788,7 @@ public:
       case OpCode::I64__div_u: {
         LLVM::Value RHS = stackPop();
         LLVM::Value LHS = stackPop();
-        if constexpr (kForceDivCheck) {
+        if constexpr (LLVM::kForceDivCheck) {
           const bool Is32 = Instr.getOpCode() == OpCode::I32__div_u;
           LLVM::Value IntZero =
               Is32 ? LLContext.getInt32(0) : LLContext.getInt64(0);
@@ -2268,7 +1823,7 @@ public:
             LLVM::BasicBlock::create(LLContext, F.Fn, "no.overflow");
         auto EndBB = LLVM::BasicBlock::create(LLContext, F.Fn, "end.overflow");
 
-        if constexpr (kForceDivCheck) {
+        if constexpr (LLVM::kForceDivCheck) {
           auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "rem.ok");
 
           auto IsNotZero =
@@ -2301,7 +1856,7 @@ public:
       case OpCode::I64__rem_u: {
         LLVM::Value RHS = stackPop();
         LLVM::Value LHS = stackPop();
-        if constexpr (kForceDivCheck) {
+        if constexpr (LLVM::kForceDivCheck) {
           LLVM::Value IntZero = Instr.getOpCode() == OpCode::I32__rem_u
                                     ? LLContext.getInt32(0)
                                     : LLContext.getInt64(0);
@@ -4417,11 +3972,11 @@ private:
 
     std::vector<LLVM::Value> RetsVec;
     {
-      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
-      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
+      LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
+      LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
       Builder.createArrayPtrStore(
           Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
-          kValSize);
+          LLVM::kValSize);
 
       Builder.createCall(
           Context.getIntrinsic(
@@ -4441,7 +3996,7 @@ private:
             Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
       } else {
         RetsVec = Builder.createArrayPtrLoad(RetSize, RTy, Rets, Context.Int8Ty,
-                                             kValSize);
+                                             LLVM::kValSize);
       }
       Builder.createBr(EndBB);
       Builder.positionAtEnd(EndBB);
@@ -4582,11 +4137,11 @@ private:
     Builder.positionAtEnd(IsNullBB);
 
     {
-      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
-      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
+      LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
+      LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
       Builder.createArrayPtrStore(
           Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
-          kValSize);
+          LLVM::kValSize);
 
       Builder.createCall(
           Context.getIntrinsic(
@@ -4606,7 +4161,7 @@ private:
             Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
       } else {
         Builder.createAggregateRet(Builder.createArrayPtrLoad(
-            RetSize, RTy, Rets, Context.Int8Ty, kValSize));
+            RetSize, RTy, Rets, Context.Int8Ty, LLVM::kValSize));
       }
     }
   }
@@ -4671,11 +4226,11 @@ private:
 
     std::vector<LLVM::Value> RetsVec;
     {
-      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
-      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
+      LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
+      LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
       Builder.createArrayPtrStore(
           Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
-          kValSize);
+          LLVM::kValSize);
 
       Builder.createCall(
           Context.getIntrinsic(
@@ -4693,7 +4248,7 @@ private:
             Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
       } else {
         RetsVec = Builder.createArrayPtrLoad(RetSize, RTy, Rets, Context.Int8Ty,
-                                             kValSize);
+                                             LLVM::kValSize);
       }
       Builder.createBr(EndBB);
       Builder.positionAtEnd(EndBB);
@@ -4759,11 +4314,11 @@ private:
     Builder.positionAtEnd(IsNullBB);
 
     {
-      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
-      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
+      LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
+      LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
       Builder.createArrayPtrStore(
           Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
-          kValSize);
+          LLVM::kValSize);
 
       Builder.createCall(
           Context.getIntrinsic(
@@ -4781,14 +4336,14 @@ private:
             Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
       } else {
         Builder.createAggregateRet(Builder.createArrayPtrLoad(
-            RetSize, RTy, Rets, Context.Int8Ty, kValSize));
+            RetSize, RTy, Rets, Context.Int8Ty, LLVM::kValSize));
       }
     }
   }
 
   void compileLoadOp(unsigned MemoryIndex, uint64_t Offset, unsigned Alignment,
                      LLVM::Type LoadTy) noexcept {
-    if constexpr (kForceUnalignment) {
+    if constexpr (LLVM::kForceUnalignment) {
       Alignment = 0;
     }
     auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
@@ -4847,7 +4402,7 @@ private:
   void compileStoreOp(uint32_t MemoryIndex, uint64_t Offset, uint32_t Alignment,
                       LLVM::Type LoadTy, bool Trunc = false,
                       bool BitCast = false) noexcept {
-    if constexpr (kForceUnalignment) {
+    if constexpr (LLVM::kForceUnalignment) {
       Alignment = 0;
     }
     auto V = stackPop();
@@ -5867,7 +5422,7 @@ private:
   buildPHI(Span<const ValType> RetType,
            Span<const std::tuple<std::vector<LLVM::Value>, LLVM::BasicBlock>>
                Incomings) noexcept {
-    if (isVoidReturn(RetType)) {
+    if (LLVM::isVoidReturn(RetType)) {
       return;
     }
     std::vector<LLVM::Value> Nodes;
@@ -6000,17 +5555,6 @@ private:
   LLVM::Value ExecCtx;
   LLVM::Builder Builder;
 };
-
-std::vector<LLVM::Value> unpackStruct(LLVM::Builder &Builder,
-                                      LLVM::Value Struct) noexcept {
-  const auto N = Struct.getType().getStructNumElements();
-  std::vector<LLVM::Value> Ret;
-  Ret.reserve(N);
-  for (unsigned I = 0; I < N; ++I) {
-    Ret.push_back(Builder.createExtractValue(Struct, I));
-  }
-  return Ret;
-}
 
 } // namespace
 
@@ -6263,7 +5807,7 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
           Args.push_back(ExecCtxPtr);
           for (size_t J = 0; J < ArgCount; ++J) {
             Args.push_back(Builder.createValuePtrLoad(
-                FPTy[J + 1], RawArgs, Context->Int8Ty, J * kValSize));
+                FPTy[J + 1], RawArgs, Context->Int8Ty, J * LLVM::kValSize));
           }
 
           auto Ret = Builder.createCall(RawFunc, Args);
@@ -6272,7 +5816,7 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
           } else if (RTy.isStructTy()) {
             auto Rets = unpackStruct(Builder, Ret);
             Builder.createArrayPtrStore(Rets, RawRets, Context->Int8Ty,
-                                        kValSize);
+                                        LLVM::kValSize);
           } else {
             Builder.createValuePtrStore(Ret, RawRets, Context->Int8Ty);
           }
@@ -6339,13 +5883,14 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       const auto RetSize =
           RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
 
-      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
-      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
+      LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
+      LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
 
       auto Arg = F.Fn.getFirstParam();
       for (unsigned I = 0; I < ArgSize; ++I) {
         Arg = Arg.getNextParam();
-        Builder.createValuePtrStore(Arg, Args, Context->Int8Ty, I * kValSize);
+        Builder.createValuePtrStore(Arg, Args, Context->Int8Ty,
+                                    I * LLVM::kValSize);
       }
 
       Builder.createCall(
@@ -6364,7 +5909,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
             Builder.createValuePtrLoad(RTy, Rets, Context->Int8Ty));
       } else {
         Builder.createAggregateRet(Builder.createArrayPtrLoad(
-            RetSize, RTy, Rets, Context->Int8Ty, kValSize));
+            RetSize, RTy, Rets, Context->Int8Ty, LLVM::kValSize));
       }
 
       Context->Functions.emplace_back(TypeIdx, F, nullptr);

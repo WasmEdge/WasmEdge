@@ -20,6 +20,7 @@ set(WASMEDGE_LLVM_SOURCES
   data.cpp
   jit.cpp
   lazyjit.cpp
+  compiler/context.cpp
   llvm.cpp
 )
 
@@ -81,6 +82,11 @@ else()
 endif()
 
 wasmedge_setup_target(wasmedgeLLVM)
+
+target_include_directories(wasmedgeLLVM
+  PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
+)
 
 target_include_directories(wasmedgeLLVM
   SYSTEM

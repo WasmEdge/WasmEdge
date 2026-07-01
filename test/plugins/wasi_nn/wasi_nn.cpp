@@ -20,6 +20,7 @@
 #include <memory>
 #include <numeric>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace std::literals;
@@ -1614,6 +1615,302 @@ TEST(WasiNNTest, GGMLBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), Needed);
   }
+
+  // Get the unload, finalize_execution_context, get_output_single, and
+  // fini_single host functions for the lifetime tests below.
+  FuncInst = NNMod->findFuncExports("unload");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncUnload = FuncInst->getHostFunc();
+  FuncInst = NNMod->findFuncExports("finalize_execution_context");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncFinalize = FuncInst->getHostFunc();
+  FuncInst = NNMod->findFuncExports("get_output_single");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncGetOutputSingleDrain = FuncInst->getHostFunc();
+  FuncInst = NNMod->findFuncExports("fini_single");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncFiniSingle = FuncInst->getHostFunc();
+
+  // Test: init_execution_context -- create a second, token-less context so
+  // the graph stays pinned by two contexts across the unload below.
+  uint32_t NoTokenCtx = UINT32_C(0);
+  {
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    NoTokenCtx = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_EQ(NoTokenCtx, UINT32_C(1));
+  }
+
+  // Test: unload -- unload while both contexts are alive: returns
+  // immediately and the live contexts keep the model alive to drain.
+  {
+    EXPECT_TRUE(HostFuncUnload.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: unload -- a second unload of the same handle is rejected; the
+  // handle died with the first call.
+  {
+    EXPECT_TRUE(HostFuncUnload.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: init_execution_context -- the unloaded graph cannot create new
+  // contexts.
+  {
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output -- drain the still-alive context after unload. The
+  // context pins the graph, so the buffered output stays readable.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_GE(BytesWritten, 50);
+  }
+
+  // Test: get_output_single -- drain via the model after unload. Unlike
+  // get_output's buffered copy, this detokenizes through the graph-owned
+  // llama context, so it only works if the model survived the unload.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingleDrain.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, UINT32_C(65532), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: fini_single -- reset the still-alive context's streaming state
+  // after unload.
+  {
+    EXPECT_TRUE(HostFuncFiniSingle.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: finalize_execution_context -- finalize both contexts. The second
+  // release drops the last pin and destroys the backend payload.
+  {
+    EXPECT_TRUE(HostFuncFinalize.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_TRUE(HostFuncFinalize.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{NoTokenCtx},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: finalize_execution_context -- a finalized handle stays dead.
+  {
+    EXPECT_TRUE(HostFuncFinalize.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: load -- reloading yields a fresh handle: id 0 is never reused, so
+  // stale handles keep failing instead of aliasing the new graph.
+  uint32_t FreshGraphId = UINT32_C(0);
+  {
+    *MemInst.getPointer<uint32_t *>(BuilderPtr) = UINT32_C(0xFFFFFFFF);
+    EXPECT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, UINT32_C(1), static_cast<uint32_t>(Backend::GGML),
+            static_cast<uint32_t>(Device::CPU), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    FreshGraphId = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_EQ(FreshGraphId, UINT32_C(1));
+  }
+
+  // Test: concurrent host ops -- one thread hammers dead and unknown handles
+  // while another runs real inference on the fresh graph. The dead handles
+  // must keep failing cleanly and the live path must stay unaffected.
+  {
+    uint32_t FreshCtx = UINT32_C(0);
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{FreshGraphId, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    FreshCtx = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_EQ(FreshCtx, UINT32_C(2));
+
+    // Re-marshal the input tensor: the earlier get_output tests overwrote the
+    // prompt bytes at StorePtr with model output and guard bytes.
+    BuilderPtr = SetInputEntryPtr;
+    writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                    BuilderPtr);
+    writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+    writeFatPointer(MemInst,
+                    StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                    static_cast<uint32_t>(TensorData.size()), BuilderPtr);
+    writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+    writeBinaries<uint8_t>(MemInst, TensorData,
+                           StorePtr +
+                               static_cast<uint32_t>(TensorDim.size()) * 4);
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 FreshCtx, UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+
+    std::thread StaleThread([&]() {
+      WasmEdge::Runtime::Instance::ModuleInstance StaleMod("");
+      StaleMod.addHostMemory(
+          "memory",
+          std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+              WasmEdge::AST::MemoryType(1)));
+      WasmEdge::Runtime::CallingFrame StaleFrame(nullptr, &StaleMod);
+      std::array<WasmEdge::ValVariant, 1> StaleErrno = {UINT32_C(0)};
+      // A bounded number of rounds keeps the rejection logging finite while
+      // still overlapping the live computes on the main thread.
+      for (int Round = 0; Round < 100; ++Round) {
+        // The unloaded graph handle.
+        EXPECT_TRUE(
+            HostFuncInit.run(StaleFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(0), UINT32_C(0)},
+                             StaleErrno));
+        EXPECT_EQ(StaleErrno[0].get<int32_t>(),
+                  static_cast<uint32_t>(ErrNo::InvalidArgument));
+        // The finalized context handle.
+        EXPECT_TRUE(HostFuncCompute.run(
+            StaleFrame,
+            std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+            StaleErrno));
+        EXPECT_EQ(StaleErrno[0].get<int32_t>(),
+                  static_cast<uint32_t>(ErrNo::InvalidArgument));
+        // A never-allocated handle.
+        EXPECT_TRUE(HostFuncUnload.run(
+            StaleFrame,
+            std::initializer_list<WasmEdge::ValVariant>{UINT32_C(9999)},
+            StaleErrno));
+        EXPECT_EQ(StaleErrno[0].get<int32_t>(),
+                  static_cast<uint32_t>(ErrNo::InvalidArgument));
+      }
+    });
+    // Compute until finish or context full, as the earlier compute test does.
+    EXPECT_TRUE(HostFuncCompute.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{FreshCtx},
+        Errno));
+    EXPECT_TRUE(
+        Errno[0].get<int32_t>() == static_cast<uint32_t>(ErrNo::Success) ||
+        Errno[0].get<int32_t>() == static_cast<uint32_t>(ErrNo::ContextFull));
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            FreshCtx, UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    StaleThread.join();
+
+    // Unload the fresh graph, drain the context once more, then finalize it.
+    EXPECT_TRUE(HostFuncUnload.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{FreshGraphId},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            FreshCtx, UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_TRUE(HostFuncFinalize.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{FreshCtx},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+}
+
+TEST(WasiNNTest, DrainAfterUnloadHostOpTiers) {
+  // Pin each op's hostOpPolicy tier so a later edit cannot move set_input
+  // (NotDetached) or compute/init (Ready) onto a drain tier and let them
+  // reconfigure or re-run an unloaded graph.
+  using WasmEdge::Host::WASINN::GraphReq;
+  using WasmEdge::Host::WASINN::HostOp;
+  using WasmEdge::Host::WASINN::hostOpPolicy;
+  // Reconfigure- and compute-class ops require a live graph.
+  EXPECT_EQ(hostOpPolicy(HostOp::SetInput).Req, GraphReq::NotDetached);
+  EXPECT_EQ(hostOpPolicy(HostOp::InitExecCtx).Req, GraphReq::Ready);
+  EXPECT_EQ(hostOpPolicy(HostOp::Compute).Req, GraphReq::Ready);
+  EXPECT_EQ(hostOpPolicy(HostOp::ComputeSingle).Req, GraphReq::Ready);
+  // Drain-class ops keep working after unload while a context finishes.
+  EXPECT_EQ(hostOpPolicy(HostOp::GetOutput).Req, GraphReq::Any);
+  EXPECT_EQ(hostOpPolicy(HostOp::GetOutputSingle).Req, GraphReq::Drainable);
+  EXPECT_EQ(hostOpPolicy(HostOp::FiniSingle).Req, GraphReq::Any);
+}
+
+namespace {
+// Table bookkeeping is covered backend-free in resource_table_test.cpp; these
+// check the host-function wiring: guards reject an id that is not a live
+// graph/context before dispatching to any backend, so no model is needed.
+void expectRejectsUnknownId(std::string_view FuncName) {
+  auto NNMod = createModule();
+  if (!NNMod) {
+    GTEST_SKIP() << "wasi_nn plugin not found";
+  }
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  auto *FuncInst = NNMod->findFuncExports(FuncName);
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFunc = FuncInst->getHostFunc();
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  // The module is fresh, so no id exists; 9999 is plainly unknown.
+  const uint32_t UnknownId = 9999;
+  EXPECT_TRUE(HostFunc.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{UnknownId},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+}
+} // namespace
+
+TEST(WasiNNTest, UnloadRejectsInvalidGraphId) {
+  expectRejectsUnknownId("unload"sv);
+}
+
+TEST(WasiNNTest, FinalizeRejectsInvalidContextId) {
+  expectRejectsUnknownId("finalize_execution_context"sv);
+}
+
+TEST(WasiNNTest, ComputeRejectsInvalidContextId) {
+  expectRejectsUnknownId("compute"sv);
 }
 
 namespace {

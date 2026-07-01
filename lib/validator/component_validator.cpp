@@ -174,12 +174,9 @@ void Validator::populateInstanceFromType(
     const auto &ED = Exp.getExternDesc();
     auto ST = descTypeToSortType(ED.getDescType());
     if (!ST.has_value()) {
-      // InstanceExport::ST has no `(core module)` variant — skip rather
-      // than crash. TODO: extend InstanceExport with a core-sort alternative.
-      spdlog::debug(
-          "    populateInstanceFromType: skipping `(core module)` export "
-          "'{}'"sv,
-          Exp.getName());
+      // A `(core module)` export has no component sort; record it so an
+      // alias export can still resolve it (GAP-ED-2).
+      CompCtx.addCoreModuleInstanceExport(InstIdx, Exp.getName());
       continue;
     }
     const AST::Component::InstanceType *NestedIT = nullptr;
@@ -1236,13 +1233,6 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
     const auto Idx = Alias.getExport().first;
     const auto &Name = Alias.getExport().second;
 
-    if (Sort.isCore()) {
-      spdlog::error(ErrCode::Value::InvalidTypeReference);
-      spdlog::error("    Alias export: Mapping an export '{}' to core:sort"sv,
-                    Name);
-      return Unexpect(ErrCode::Value::InvalidTypeReference);
-    }
-
     if (Idx >=
         CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Instance)) {
       spdlog::error(ErrCode::Value::InvalidIndex);
@@ -1263,7 +1253,13 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       return Unexpect(ErrCode::Value::ComponentUnknownExport);
     }
 
-    if (It->second.ST != Sort.getSortType()) {
+    // A component instance can only export a core module as a core sort.
+    const bool Matches = Sort.isCore()
+                             ? (It->second.IsCoreModule &&
+                                Sort.getCoreSortType() ==
+                                    AST::Component::Sort::CoreSortType::Module)
+                             : (It->second.ST == Sort.getSortType());
+    if (!Matches) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error("    Alias export: Type mapping mismatch for export '{}'"sv,
                     Name);

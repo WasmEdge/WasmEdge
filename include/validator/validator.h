@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/validator/validator.h - validator class definition -------===//
 //
@@ -39,7 +39,7 @@ private:
   /// \name Validate WASM AST nodes
   /// @{
   // Validate AST::Types
-  Expect<void> validate(const AST::SubType &Type);
+  Expect<void> validate(const AST::SubType &Type, uint32_t OwnTypeIdx);
   Expect<void> validate(const AST::Limit &Lim);
   Expect<void> validate(const AST::TableType &Tab);
   Expect<void> validate(const AST::MemoryType &Mem);

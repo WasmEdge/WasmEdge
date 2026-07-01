@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 #include "system/fault.h"
 
 #include <cstdint>
+#include <cstring>
 
 namespace WasmEdge {
 namespace Executor {
@@ -167,7 +168,7 @@ Expect<void> Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
 
   const auto *ModInst = StackMgr.getModule();
   assuming(ModInst);
-  const auto &ExpDefType = **ModInst->getType(FuncTypeIdx);
+  const auto &ExpDefType = *ModInst->unsafeGetType(FuncTypeIdx);
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
 
@@ -578,7 +579,16 @@ Expect<void> Executor::proxyMemCopy(Runtime::StackManager &StackMgr,
   assuming(MemInstSrc);
 
   EXPECTED_TRY(auto Data, MemInstSrc->getBytes(SrcOff, Len));
-  return MemInstDst->setBytes(Data, DstOff, 0, Len);
+  if (MemInstSrc == MemInstDst) {
+    // Same memory instance may overlap, so use memmove semantics.
+    EXPECTED_TRY(MemInstDst->getBytes(DstOff, Len));
+    if (likely(Len > 0)) {
+      std::memmove(MemInstDst->getDataPtr() + DstOff, Data.data(), Len);
+    }
+    return {};
+  } else {
+    return MemInstDst->setBytes(Data, DstOff, 0, Len);
+  }
 }
 
 Expect<void> Executor::proxyMemFill(Runtime::StackManager &StackMgr,
@@ -634,11 +644,21 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
 
   const auto *ModInst = StackMgr.getModule();
   assuming(ModInst);
-  const auto &ExpDefType = **ModInst->getType(FuncTypeIdx);
+  const auto &ExpDefType = *ModInst->unsafeGetType(FuncTypeIdx);
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
   bool IsMatch = false;
-  if (FuncInst->getModule()) {
+  // Check if the function type matches the expected type.
+  if (FuncInst->getModule() == ModInst &&
+      *ExpDefType.getTypeIndex() == FuncInst->getTypeIndex()) {
+    // Fast path: If the function instance is in the same module instance, we
+    // can bypass the expensive structural type matching (O(N)) by checking the
+    // type index directly (O(1)).
+    IsMatch = true;
+  } else if (FuncInst->getModule()) {
+    // If the type index is not the same, we still need to check the type
+    // structure. This is because the type alias may have different type
+    // indices but the same type structure.
     IsMatch = AST::TypeMatcher::matchType(
         ModInst->getTypeList(), *ExpDefType.getTypeIndex(),
         FuncInst->getModule()->getTypeList(), FuncInst->getTypeIndex());

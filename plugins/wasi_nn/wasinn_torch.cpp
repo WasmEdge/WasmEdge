@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasinn_torch.h"
 #include "wasinnenv.h"
@@ -267,11 +267,16 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   for (auto I : OutTensor.sizes()) {
     BlobSize *= I;
   }
-  uint32_t BytesToWrite =
-      std::min(static_cast<size_t>(BlobSize * 4), OutBuffer.size());
-  std::copy_n(reinterpret_cast<const uint8_t *>(TensorBuffer), BytesToWrite,
+  const size_t RequiredSize = BlobSize * 4;
+  BytesWritten = static_cast<uint32_t>(RequiredSize);
+  if (OutBuffer.size() < RequiredSize) {
+    spdlog::error("[WASI-NN] Torch backend: output buffer too small, "
+                  "need {} bytes but got {}."sv,
+                  RequiredSize, OutBuffer.size());
+    return ErrNo::TooLarge;
+  }
+  std::copy_n(reinterpret_cast<const uint8_t *>(TensorBuffer), RequiredSize,
               OutBuffer.data());
-  BytesWritten = BytesToWrite;
   return ErrNo::Success;
 }
 

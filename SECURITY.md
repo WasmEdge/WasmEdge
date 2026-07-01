@@ -4,7 +4,7 @@
 
 For information regarding the security of WasmEdge please join:
 
-* Mailing List <wasmedge@googlegroup.com>
+* Mailing List <WasmEdge@googlegroups.com>
 
 ## Reporting a vulnerability
 

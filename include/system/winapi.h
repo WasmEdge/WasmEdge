@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/system/winapi.h - Wrapper for Windows API-----------------===//
 //
@@ -851,8 +851,7 @@ WriteFile(WasmEdge::winapi::HANDLE_ hFile, WasmEdge::winapi::LPCVOID_ lpBuffer,
 
 #if WINAPI_PARTITION_DESKTOP
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::HANDLE_
-    WASMEDGE_WINAPI_WINAPI_CC
-    CreateFileMappingW(
+    WASMEDGE_WINAPI_WINAPI_CC CreateFileMappingW(
         WasmEdge::winapi::HANDLE_ hFile,
         WasmEdge::winapi::LPSECURITY_ATTRIBUTES_ lpFileMappingAttributes,
         WasmEdge::winapi::DWORD_ flProtect,
@@ -976,12 +975,12 @@ MoveFileTransactedW(WasmEdge::winapi::LPCWSTR_ lpExistingFileName,
 #endif
 
 #if !WINAPI_PARTITION_DESKTOP || NTDDI_VERSION >= NTDDI_VISTA
-WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
-GetFileInformationByHandleEx(
-    WasmEdge::winapi::HANDLE_ hFile,
-    WasmEdge::winapi::FILE_INFO_BY_HANDLE_CLASS_ FileInformationClass,
-    WasmEdge::winapi::LPVOID_ lpFileInformation,
-    WasmEdge::winapi::DWORD_ dwBufferSize);
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_
+    WASMEDGE_WINAPI_WINAPI_CC GetFileInformationByHandleEx(
+        WasmEdge::winapi::HANDLE_ hFile,
+        WasmEdge::winapi::FILE_INFO_BY_HANDLE_CLASS_ FileInformationClass,
+        WasmEdge::winapi::LPVOID_ lpFileInformation,
+        WasmEdge::winapi::DWORD_ dwBufferSize);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::DWORD_ WASMEDGE_WINAPI_WINAPI_CC
 GetFinalPathNameByHandleW(WasmEdge::winapi::HANDLE_ hFile,
@@ -999,8 +998,7 @@ SetFileInformationByHandle(
 
 #if !WINAPI_PARTITION_DESKTOP || NTDDI_VERSION >= NTDDI_WIN8
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::HANDLE_
-    WASMEDGE_WINAPI_WINAPI_CC
-    CreateFile2(
+    WASMEDGE_WINAPI_WINAPI_CC CreateFile2(
         WasmEdge::winapi::LPCWSTR_ lpFileName,
         WasmEdge::winapi::DWORD_ dwDesiredAccess,
         WasmEdge::winapi::DWORD_ dwShareMode,
@@ -1296,11 +1294,10 @@ WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::HRESULT_
 
 #if NTDDI_VERSION >= NTDDI_VISTA
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::HRESULT_
-    WASMEDGE_WINAPI_WINAPI_CC
-    SHGetKnownFolderPath(WasmEdge::winapi::REFKNOWNFOLDERID_ rfid,
-                         WasmEdge::winapi::DWORD_ dwFlags,
-                         WasmEdge::winapi::HANDLE_ hToken,
-                         WasmEdge::winapi::PWSTR_ *ppszPath);
+    WASMEDGE_WINAPI_WINAPI_CC SHGetKnownFolderPath(
+        WasmEdge::winapi::REFKNOWNFOLDERID_ rfid,
+        WasmEdge::winapi::DWORD_ dwFlags, WasmEdge::winapi::HANDLE_ hToken,
+        WasmEdge::winapi::PWSTR_ *ppszPath);
 #endif
 
 } // extern "C"

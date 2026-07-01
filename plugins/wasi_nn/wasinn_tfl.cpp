@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasinn_tfl.h"
 #include "wasinnenv.h"
@@ -162,14 +162,14 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
   const TfLiteTensor *HoldTensor =
       TfLiteInterpreterGetOutputTensor(CxtRef.TFLiteInterp, Index);
   const uint32_t BytesToWrite = TfLiteTensorByteSize(HoldTensor);
+  BytesWritten = BytesToWrite;
   // Check out buffer max size.
   if (OutBuffer.size() < BytesToWrite) {
     spdlog::error("[WASI-NN] Expect out buffer max size {}, but got {}"sv,
                   BytesToWrite, OutBuffer.size());
-    return WASINN::ErrNo::InvalidArgument;
+    return WASINN::ErrNo::TooLarge;
   }
   TfLiteTensorCopyToBuffer(HoldTensor, OutBuffer.data(), BytesToWrite);
-  BytesWritten = BytesToWrite;
   return WASINN::ErrNo::Success;
 }
 

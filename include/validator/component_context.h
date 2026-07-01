@@ -114,13 +114,16 @@ public:
     // ---- Core sort index spaces ----
     std::vector<CoreModuleSlot> CoreModules; // core:module
     std::vector<std::unordered_map<std::string, CoreInstanceExport>>
-        CoreInstances;                                 // core:instance
-    std::vector<const AST::SubType *> CoreTypes;       // core:type
-    std::vector<const AST::SubType *> CoreFuncs;       // core:func
-    std::vector<const AST::TableType *> CoreTables;    // core:table
-    std::vector<const AST::MemoryType *> CoreMemories; // core:memory
-    std::vector<const AST::GlobalType *> CoreGlobals;  // core:global
-    uint32_t CoreTagCount = 0;                         // core:tag
+        CoreInstances;                              // core:instance
+    std::vector<const AST::SubType *> CoreTypes;    // core:type
+    std::vector<const AST::SubType *> CoreFuncs;    // core:func
+    std::vector<const AST::TableType *> CoreTables; // core:table
+    // Owns its MemoryType copies (not pointers): the source lives in the
+    // CoreInstances vector-of-maps, which relocates when later instances are
+    // added, so a pointer into it would dangle (GAP-CI-1).
+    std::vector<std::optional<AST::MemoryType>> CoreMemories; // core:memory
+    std::vector<const AST::GlobalType *> CoreGlobals;         // core:global
+    uint32_t CoreTagCount = 0;                                // core:tag
 
     // ---- Component sort index spaces ----
     std::vector<ComponentSlot> Components;               // component
@@ -330,15 +333,16 @@ public:
     V.push_back(TT);
     return Idx;
   }
-  uint32_t addCoreMemory(const AST::MemoryType *MT = nullptr) noexcept {
+  uint32_t
+  addCoreMemory(std::optional<AST::MemoryType> MT = std::nullopt) noexcept {
     auto &V = getCurrentContext().CoreMemories;
     uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.push_back(MT);
+    V.push_back(std::move(MT));
     return Idx;
   }
   const AST::MemoryType *getCoreMemory(uint32_t Idx) const noexcept {
     const auto &V = getCurrentContext().CoreMemories;
-    return Idx < V.size() ? V[Idx] : nullptr;
+    return Idx < V.size() && V[Idx].has_value() ? &*V[Idx] : nullptr;
   }
   uint32_t addCoreGlobal(const AST::GlobalType *GT = nullptr) noexcept {
     auto &V = getCurrentContext().CoreGlobals;

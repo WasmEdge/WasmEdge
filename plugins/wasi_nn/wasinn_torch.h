@@ -77,15 +77,7 @@ public:
 enum class PyModelBackend { TorchScript, AOTInductor, UNKNOWN };
 
 struct Graph {
-  Graph() noexcept = default;
-  Graph(const Graph &) = delete;
-  Graph &operator=(const Graph &) = delete;
-  ~Graph() noexcept {
-    if (Model != nullptr) {
-      delete Model;
-    }
-  }
-  PyBaseModule *Model = nullptr;
+  std::unique_ptr<PyBaseModule> Model;
 };
 
 struct Context {

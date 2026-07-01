@@ -243,6 +243,8 @@ Transformer::generate(const std::string &Prompt, const BasePrompt &ModelPrompt,
   const std::vector<int> Ids = Tok->Encode(Prompt);
   mx::array Token =
       mx::array(Ids.data(), {static_cast<int>(Ids.size())}, mx::int32);
+  const std::vector<int> TextEndIds = Tok->Encode(ModelPrompt.TextEnd);
+
   std::vector<int32_t> TokenList;
   int TokenCount = 0;
   int Skip = 0;
@@ -254,20 +256,50 @@ Transformer::generate(const std::string &Prompt, const BasePrompt &ModelPrompt,
       break;
     }
     eval(Y);
+
     std::vector<int32_t> Tokens;
     auto *Data = Y.data<int32_t>();
     for (int Idx = 0; Idx < static_cast<int>(Y.size()); Idx++) {
       Tokens.emplace_back(Data[Idx]);
     }
-    // TODO: break when the token is the eos_token_id
+
     TokenList.insert(TokenList.end(), Tokens.begin(), Tokens.end());
+
+    bool HitEos = false;
+    if (!TextEndIds.empty() && TokenList.size() >= TextEndIds.size()) {
+      bool Match = true;
+      for (size_t I = 0; I < TextEndIds.size(); I++) {
+        if (TokenList[TokenList.size() - TextEndIds.size() + I] !=
+            static_cast<int32_t>(TextEndIds[I])) {
+          Match = false;
+          break;
+        }
+      }
+      if (Match) {
+        HitEos = true;
+        // Strip the end marker tokens from the final output
+        TokenList.resize(TokenList.size() - TextEndIds.size());
+      }
+    }
+
+    if (HitEos) {
+      Answer = Tok->Decode(TokenList);
+      if (Verbose && Answer.size() > static_cast<size_t>(Skip)) {
+        spdlog::info("[WASI-NN] MLX backend: {}"sv, Answer.substr(Skip));
+      }
+      break;
+    }
     Answer = Tok->Decode(TokenList);
     const AnserSataus Status = answerSataus(Answer, ModelPrompt.TextEnd);
     if (Status == STOP) {
+      Answer.resize(Answer.size() - ModelPrompt.TextEnd.size());
+      if (Verbose && Answer.size() > static_cast<size_t>(Skip)) {
+        spdlog::info("[WASI-NN] MLX backend: {}"sv, Answer.substr(Skip));
+      }
       break;
     }
-    if (Status == GO) {
-      if (Verbose) {
+    if (Status != WAIT) {
+      if (Verbose && Answer.size() > static_cast<size_t>(Skip)) {
         spdlog::info("[WASI-NN] MLX backend: {}"sv, Answer.substr(Skip));
       }
       Skip = Answer.size();

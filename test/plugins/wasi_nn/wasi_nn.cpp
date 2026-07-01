@@ -174,8 +174,11 @@ TEST(WasiNNTest, OpenVINOBackend) {
   std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
 
   // Temp. values.
-  std::vector<WasmEdge::Host::WASINN::Graph> NNGraphTmp;
-  std::vector<WasmEdge::Host::WASINN::Context> NNContextTmp;
+  WasmEdge::Host::WASINN::ResourceTable<WasmEdge::Host::WASINN::Graph>
+      NNGraphTmp;
+  WasmEdge::Host::WASINN::ResourceTable<WasmEdge::Host::WASINN::Context>
+      NNContextTmp;
+  std::shared_ptr<WasmEdge::Host::WASINN::Graph> TmpGraph;
 
   // Get the function "load".
   auto *FuncInst = NNMod->findFuncExports("load");
@@ -344,8 +347,8 @@ TEST(WasiNNTest, OpenVINOBackend) {
   }
 
   // Swap to the tmp. env.
-  NNGraphTmp.emplace_back(Backend::OpenVINO);
-  NNGraphTmp.back().setReady();
+  TmpGraph = std::make_shared<WasmEdge::Host::WASINN::Graph>(Backend::OpenVINO);
+  NNGraphTmp.insert(TmpGraph);
   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   NNContextTmp.swap(NNMod->getEnv().NNContext);
   // Test: init_execution_context -- graph id exceeds.
@@ -395,8 +398,8 @@ TEST(WasiNNTest, OpenVINOBackend) {
   writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + TensorDim.size() * 4);
 
   // Swap to the tmp. env.
-  NNContextTmp.emplace_back(0, NNGraphTmp[0]);
-  NNContextTmp.back().setReady();
+  NNContextTmp.insert(
+      std::make_shared<WasmEdge::Host::WASINN::Context>(0, TmpGraph));
   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   NNContextTmp.swap(NNMod->getEnv().NNContext);
   // Test: set_input -- context id exceeds.
@@ -592,8 +595,11 @@ TEST(WasiNNTest, PyTorchBackend) {
   std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
 
   // Temp. values.
-  std::vector<WasmEdge::Host::WASINN::Graph> NNGraphTmp;
-  std::vector<WasmEdge::Host::WASINN::Context> NNContextTmp;
+  WasmEdge::Host::WASINN::ResourceTable<WasmEdge::Host::WASINN::Graph>
+      NNGraphTmp;
+  WasmEdge::Host::WASINN::ResourceTable<WasmEdge::Host::WASINN::Context>
+      NNContextTmp;
+  std::shared_ptr<WasmEdge::Host::WASINN::Graph> TmpGraph;
 
   // Get the function "load".
   auto *FuncInst = NNMod->findFuncExports("load");
@@ -739,8 +745,8 @@ TEST(WasiNNTest, PyTorchBackend) {
   }
 
   // Swap to the tmp. env.
-  NNGraphTmp.emplace_back(Backend::PyTorch);
-  NNGraphTmp.back().setReady();
+  TmpGraph = std::make_shared<WasmEdge::Host::WASINN::Graph>(Backend::PyTorch);
+  NNGraphTmp.insert(TmpGraph);
   // Test: init_execution_context -- graph id exceeds.
   // TODO: add a non-null test for PyTorch.
   //   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
@@ -801,8 +807,8 @@ TEST(WasiNNTest, PyTorchBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  NNContextTmp.emplace_back(0, NNGraphTmp[0]);
-  NNContextTmp.back().setReady();
+  NNContextTmp.insert(
+      std::make_shared<WasmEdge::Host::WASINN::Context>(0, TmpGraph));
 
   // Test: set_input -- tensor type not FP32.
   BuilderPtr = SetInputEntryPtr;
@@ -962,8 +968,11 @@ TEST(WasiNNTest, TFLiteBackend) {
   std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
 
   // Temp. values.
-  std::vector<WasmEdge::Host::WASINN::Graph> NNGraphTmp;
-  std::vector<WasmEdge::Host::WASINN::Context> NNContextTmp;
+  WasmEdge::Host::WASINN::ResourceTable<WasmEdge::Host::WASINN::Graph>
+      NNGraphTmp;
+  WasmEdge::Host::WASINN::ResourceTable<WasmEdge::Host::WASINN::Context>
+      NNContextTmp;
+  std::shared_ptr<WasmEdge::Host::WASINN::Graph> TmpGraph;
 
   // Get the function "load".
   auto *FuncInst = NNMod->findFuncExports("load");
@@ -1118,8 +1127,9 @@ TEST(WasiNNTest, TFLiteBackend) {
 
   // Swap to the tmp. env.
   // Test: init_execution_context -- graph id exceeds.
-  NNGraphTmp.emplace_back(Backend::TensorflowLite);
-  NNGraphTmp.back().setReady();
+  TmpGraph =
+      std::make_shared<WasmEdge::Host::WASINN::Graph>(Backend::TensorflowLite);
+  NNGraphTmp.insert(TmpGraph);
   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   NNContextTmp.swap(NNMod->getEnv().NNContext);
   {
@@ -1178,8 +1188,8 @@ TEST(WasiNNTest, TFLiteBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  NNContextTmp.emplace_back(0, NNGraphTmp[0]);
-  NNContextTmp.back().setReady();
+  NNContextTmp.insert(
+      std::make_shared<WasmEdge::Host::WASINN::Context>(0, TmpGraph));
 
   // Test: set_input -- set input successfully.
   BuilderPtr = SetInputEntryPtr;

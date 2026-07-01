@@ -17,11 +17,12 @@ std::string buildOutputMetadata(Context &CxtRef) noexcept {
 }
 } // namespace
 
-Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
-                              uint32_t Index, Span<uint8_t> OutBuffer,
+Expect<ErrNo> getOutputSingle(WasiNNEnvironment &, WASINN::Graph &G,
+                              WASINN::Context &C, uint32_t Index,
+                              Span<uint8_t> OutBuffer,
                               uint32_t &BytesWritten) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle: with Index {}"sv, Index)
 
   // Use index 1 for output metadata.
@@ -60,11 +61,12 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
   return ErrNo::Success;
 }
 
-Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
-                        uint32_t Index, Span<uint8_t> OutBuffer,
+Expect<ErrNo> getOutput(WasiNNEnvironment &, WASINN::Graph &G,
+                        WASINN::Context &C, uint32_t Index,
+                        Span<uint8_t> OutBuffer,
                         uint32_t &BytesWritten) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput: with Index {}"sv, Index)
 
   // Use index 1 for output metadata.

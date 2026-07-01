@@ -70,6 +70,16 @@ public:
     return static_cast<uint32_t>(Map.size());
   }
 
+  // Swap contents including the id counter; lets tests stage a scratch table.
+  void swap(ResourceTable &Other) noexcept {
+    if (this == &Other) {
+      return;
+    }
+    std::scoped_lock Lock(Mutex, Other.Mutex);
+    Map.swap(Other.Map);
+    std::swap(NextId, Other.NextId);
+  }
+
 private:
   mutable std::mutex Mutex;
   uint32_t NextId = 0;

@@ -6024,12 +6024,12 @@ Expect<void> Compiler::checkConfigure() noexcept {
   if (Conf.hasProposal(Proposal::ExceptionHandling)) {
     spdlog::warn("Proposal Exception Handling is not yet supported in WasmEdge "
                  "AOT/JIT. The compilation will be trapped when related data "
-                 "structure or instructions found in WASM.");
+                 "structure or instructions found in WASM."sv);
   }
   if (Conf.hasProposal(Proposal::Annotations)) {
     spdlog::error(ErrCode::Value::InvalidAOTConfigure);
     spdlog::error("    Proposal Custom Annotation Syntax is not yet supported "
-                  "in WasmEdge AOT/JIT.");
+                  "in WasmEdge AOT/JIT."sv);
     return Unexpect(ErrCode::Value::InvalidAOTConfigure);
   }
   return {};

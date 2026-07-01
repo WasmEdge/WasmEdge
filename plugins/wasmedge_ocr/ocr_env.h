@@ -29,7 +29,7 @@ public:
     // without specifying the tessdata path.
     if (TesseractApi->Init(NULL, "eng")) {
       spdlog::error(
-          "[WasmEdge-OCR] Error occurred when initializing tesseract.");
+          "[WasmEdge-OCR] Error occurred when initializing tesseract."sv);
     }
   }
   ~OCREnv() noexcept {

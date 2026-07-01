@@ -11,8 +11,9 @@ namespace WasmEdge {
 namespace Host {
 
 inline void printPluginMock(std::string_view PluginName) {
+  using namespace std::literals;
   spdlog::error("{} plugin not installed. Please install the plugin and "
-                "restart WasmEdge.",
+                "restart WasmEdge."sv,
                 PluginName);
 }
 

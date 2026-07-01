@@ -15,13 +15,15 @@
 #include <gtest/gtest.h>
 #include <stack>
 
+using namespace std::literals;
+
 namespace {
 /// C++ overloaded error checking functions
 /// `try` is keyword, `_try` is reserved in msvc
 void _Try(const char *Name, const WasmEdge_Result &R) {
   if (not WasmEdge_ResultOK(R)) {
     throw std::runtime_error{
-        fmt::format("{}: {}", Name, WasmEdge_ResultGetMessage(R))};
+        fmt::format("{}: {}"sv, Name, WasmEdge_ResultGetMessage(R))};
   }
 }
 template <typename T> T *_Try(const char *Name, T *R) {

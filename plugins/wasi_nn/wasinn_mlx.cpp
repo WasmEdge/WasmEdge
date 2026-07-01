@@ -559,9 +559,15 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   if (GraphRef.ModelArch == "llm") {
     auto *Output = std::get_if<LLMOutput>(&CxtRef.Outputs);
     if (Output != nullptr) {
+      BytesWritten = static_cast<uint32_t>(Output->Answer.length());
+      if (OutBuffer.size() < Output->Answer.length()) {
+        spdlog::error("[WASI-NN] MLX backend: output buffer too small, "
+                      "need {} bytes but got {}."sv,
+                      Output->Answer.length(), OutBuffer.size());
+        return ErrNo::TooLarge;
+      }
       std::copy_n(Output->Answer.data(), Output->Answer.length(),
                   OutBuffer.data());
-      BytesWritten = Output->Answer.length();
     } else {
       spdlog::error("[WASI-NN] MLX backend: No output found."sv);
       return ErrNo::InvalidArgument;
@@ -570,8 +576,14 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
     auto *Output = std::get_if<VLMOutput>(&CxtRef.Outputs);
     if (Output != nullptr) {
       auto OutputBytes = toBytes(Output->Answer);
+      BytesWritten = static_cast<uint32_t>(OutputBytes.size());
+      if (OutBuffer.size() < OutputBytes.size()) {
+        spdlog::error("[WASI-NN] MLX backend: output buffer too small, "
+                      "need {} bytes but got {}."sv,
+                      OutputBytes.size(), OutBuffer.size());
+        return ErrNo::TooLarge;
+      }
       std::copy_n(OutputBytes.data(), OutputBytes.size(), OutBuffer.data());
-      BytesWritten = OutputBytes.size();
     } else {
       spdlog::error("[WASI-NN] MLX backend: No output found."sv);
       return ErrNo::InvalidArgument;
@@ -580,8 +592,14 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
     auto *Output = std::get_if<whisper::TranscribeResult>(&CxtRef.Outputs);
     if (Output != nullptr) {
       std::string Text = Output->Text;
+      BytesWritten = static_cast<uint32_t>(Text.length());
+      if (OutBuffer.size() < Text.length()) {
+        spdlog::error("[WASI-NN] MLX backend: output buffer too small, "
+                      "need {} bytes but got {}."sv,
+                      Text.length(), OutBuffer.size());
+        return ErrNo::TooLarge;
+      }
       std::copy_n(Text.data(), Text.length(), OutBuffer.data());
-      BytesWritten = Text.length();
     } else {
       spdlog::error("[WASI-NN] MLX backend: No output found."sv);
       return ErrNo::InvalidArgument;

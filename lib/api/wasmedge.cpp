@@ -188,6 +188,24 @@ inline ValType genValType(const WasmEdge_ValType &T) noexcept {
   return ValType(R);
 }
 
+// The runtime retains only struct/array refs (see Executor::invoke); releasing
+// any other value could drop an unrelated root by pointer-identity collision,
+// so restrict the release APIs to GC ref types.
+inline bool isRetainedRefValue(const WasmEdge_Value &Val) noexcept {
+  const ValType VT = genValType(Val.Type);
+  if (!VT.isRefType()) {
+    return false;
+  }
+  // Null references are never retained roots (mirrors Executor::releaseRef).
+  const RefVariant Ref = ValVariant::wrap<RefVariant>(
+                             to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
+                             .get<RefVariant>();
+  if (Ref.isNull()) {
+    return false;
+  }
+  return VT.isGCRefType();
+}
+
 inline std::filesystem::path genPath(const char *Path) {
   return (Path && *Path) ? std::filesystem::absolute(Path)
                          : std::filesystem::path();
@@ -277,8 +295,10 @@ inline std::string_view genStrView(const WasmEdge_String S) noexcept {
   return std::string_view(S.Buf, S.Length);
 }
 
-// Helper functions for converting a ValVariant vector to a WasmEdge_Value
-// array.
+// Convert a ValVariant vector to a WasmEdge_Value array. Pure formatter: never
+// mutates GC retention, so re-fetching callers (WasmEdge_AsyncGet over a
+// shared_future) can call it repeatedly. Releasing refs the buffer cannot hold
+// is releaseOverflowRefs's job, below.
 inline constexpr void
 fillWasmEdge_ValueArr(Span<const std::pair<ValVariant, ValType>> Vec,
                       WasmEdge_Value *Val, const uint32_t Len) noexcept {
@@ -287,6 +307,35 @@ fillWasmEdge_ValueArr(Span<const std::pair<ValVariant, ValType>> Vec,
   }
   for (uint32_t I = 0; I < Len && I < Vec.size(); I++) {
     Val[I] = genWasmEdge_Value(Vec[I].first, Vec[I].second);
+  }
+}
+
+// Release the roots Executor::invoke retained for returned GC references that
+// overflow the host buffer and are dropped by fillWasmEdge_ValueArr; the host
+// gets no handle to release them otherwise.
+//
+// Call ONLY on a terminal path that owns and discards the result (synchronous
+// invoke/run/execute). NOT on WasmEdge_AsyncGet, which re-reads a
+// shared_future: a later larger-buffer fetch must still see every reference.
+//
+// Externalized refs appear as externref, fall outside isGCRefType, and remain
+// releasable only via releaseAllRefs.
+inline void releaseOverflowRefs(Span<const std::pair<ValVariant, ValType>> Vec,
+                                const WasmEdge_Value *Val, const uint32_t Len,
+                                GC::Allocator &Alloc) noexcept {
+  // Mirror fillWasmEdge_ValueArr's kept count: none if no buffer, else
+  // min(Len, size).
+  uint32_t Kept = 0;
+  if (Val != nullptr) {
+    Kept = (Len < Vec.size()) ? Len : static_cast<uint32_t>(Vec.size());
+  }
+  for (uint32_t I = Kept; I < Vec.size(); I++) {
+    if (Vec[I].second.isGCRefType()) {
+      const RefVariant Ref = Vec[I].first.get<RefVariant>();
+      if (!Ref.isNull()) {
+        Alloc.releaseRef(Ref);
+      }
+    }
   }
 }
 
@@ -2192,7 +2241,11 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorInvoke(
           return fromExecutorCxt(Cxt)->invoke(
               fromFuncCxt(FuncCxt), ParamPair.first, ParamPair.second);
         },
-        [&](auto &&Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); },
+        [&](auto &&Res) {
+          fillWasmEdge_ValueArr(*Res, Returns, ReturnLen);
+          releaseOverflowRefs(*Res, Returns, ReturnLen,
+                              fromExecutorCxt(Cxt)->getAllocator());
+        },
         Cxt, FuncCxt);
   } catch (...) {
     return handleCAPIError();
@@ -2214,6 +2267,45 @@ WasmEdge_ExecutorAsyncInvoke(WasmEdge_ExecutorContext *Cxt,
     handleCAPIError();
   }
   return nullptr;
+}
+
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ExecutorReleaseRef(WasmEdge_ExecutorContext *Cxt,
+                            const WasmEdge_Value Ref) noexcept {
+  // Only retained GC refs may be released (see isRetainedRefValue); mirrors
+  // WasmEdge_VMReleaseRef for the direct Executor.
+  if (Cxt && isRetainedRefValue(Ref)) {
+    fromExecutorCxt(Cxt)->releaseRef(
+        WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
+            to_WasmEdge_128_t<WasmEdge::uint128_t>(Ref.Value))
+            .get<WasmEdge::RefVariant>());
+  }
+}
+
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ExecutorReleaseRefs(WasmEdge_ExecutorContext *Cxt,
+                             const WasmEdge_Value *Refs,
+                             const uint32_t Len) noexcept {
+  if (Cxt && Refs) {
+    // Release per element, not via a vector: noexcept, and a host-controlled
+    // Len could throw on a vector grow (see WasmEdge_VMReleaseRefs).
+    for (uint32_t I = 0; I < Len; ++I) {
+      if (!isRetainedRefValue(Refs[I])) {
+        continue;
+      }
+      fromExecutorCxt(Cxt)->releaseRef(
+          WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
+              to_WasmEdge_128_t<WasmEdge::uint128_t>(Refs[I].Value))
+              .get<WasmEdge::RefVariant>());
+    }
+  }
+}
+
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ExecutorReleaseAllRefs(WasmEdge_ExecutorContext *Cxt) noexcept {
+  if (Cxt) {
+    fromExecutorCxt(Cxt)->releaseAllRefs();
+  }
 }
 
 WASMEDGE_CAPI_EXPORT void
@@ -3191,6 +3283,9 @@ WasmEdge_AsyncGetReturnsLength(const WasmEdge_Async *Cxt) noexcept {
 WASMEDGE_CAPI_EXPORT WasmEdge_Result
 WasmEdge_AsyncGet(const WasmEdge_Async *Cxt, WasmEdge_Value *Returns,
                   const uint32_t ReturnLen) noexcept {
+  // No releaseOverflowRefs here: the shared_future lets the host call again
+  // with a larger buffer and still see every reference. Overflow refs stay
+  // retained; free them via WasmEdge_VM/ExecutorReleaseAllRefs.
   return wrap(
       [&]() { return Cxt->Async.get(); },
       [&](auto Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); }, Cxt);
@@ -3297,7 +3392,11 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRunWasmFromFile(
           return Cxt->VM.runWasmFile(genPath(Path), genStrView(FuncName),
                                      ParamPair.first, ParamPair.second);
         },
-        [&](auto Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); },
+        [&](auto Res) {
+          fillWasmEdge_ValueArr(*Res, Returns, ReturnLen);
+          releaseOverflowRefs(*Res, Returns, ReturnLen,
+                              Cxt->VM.getExecutor().getAllocator());
+        },
         Cxt);
   } catch (...) {
     return handleCAPIError();
@@ -3327,7 +3426,11 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRunWasmFromBytes(
                                      genStrView(FuncName), ParamPair.first,
                                      ParamPair.second);
         },
-        [&](auto &&Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); },
+        [&](auto &&Res) {
+          fillWasmEdge_ValueArr(*Res, Returns, ReturnLen);
+          releaseOverflowRefs(*Res, Returns, ReturnLen,
+                              Cxt->VM.getExecutor().getAllocator());
+        },
         Cxt);
   } catch (...) {
     return handleCAPIError();
@@ -3347,7 +3450,11 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRunWasmFromASTModule(
                                      genStrView(FuncName), ParamPair.first,
                                      ParamPair.second);
         },
-        [&](auto &&Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); },
+        [&](auto &&Res) {
+          fillWasmEdge_ValueArr(*Res, Returns, ReturnLen);
+          releaseOverflowRefs(*Res, Returns, ReturnLen,
+                              Cxt->VM.getExecutor().getAllocator());
+        },
         Cxt, ASTCxt);
   } catch (...) {
     return handleCAPIError();
@@ -3459,7 +3566,11 @@ WasmEdge_VMExecute(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,
           return Cxt->VM.execute(genStrView(FuncName), ParamPair.first,
                                  ParamPair.second);
         },
-        [&](auto &&Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); },
+        [&](auto &&Res) {
+          fillWasmEdge_ValueArr(*Res, Returns, ReturnLen);
+          releaseOverflowRefs(*Res, Returns, ReturnLen,
+                              Cxt->VM.getExecutor().getAllocator());
+        },
         Cxt);
   } catch (...) {
     return handleCAPIError();
@@ -3478,7 +3589,11 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMExecuteRegistered(
           return Cxt->VM.execute(genStrView(ModuleName), genStrView(FuncName),
                                  ParamPair.first, ParamPair.second);
         },
-        [&](auto &&Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); },
+        [&](auto &&Res) {
+          fillWasmEdge_ValueArr(*Res, Returns, ReturnLen);
+          releaseOverflowRefs(*Res, Returns, ReturnLen,
+                              Cxt->VM.getExecutor().getAllocator());
+        },
         Cxt);
   } catch (...) {
     return handleCAPIError();
@@ -3556,6 +3671,44 @@ WasmEdge_VMGetFunctionTypeRegistered(const WasmEdge_VMContext *Cxt,
 WASMEDGE_CAPI_EXPORT void WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt) noexcept {
   if (Cxt) {
     Cxt->VM.cleanup();
+  }
+}
+
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_VMReleaseRef(WasmEdge_VMContext *Cxt,
+                      const WasmEdge_Value Ref) noexcept {
+  // Only retained GC refs may be released (see isRetainedRefValue).
+  if (Cxt && isRetainedRefValue(Ref)) {
+    Cxt->VM.releaseRef(WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
+                           to_WasmEdge_128_t<WasmEdge::uint128_t>(Ref.Value))
+                           .get<WasmEdge::RefVariant>());
+  }
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_VMReleaseRefs(WasmEdge_VMContext *Cxt,
+                                                 const WasmEdge_Value *Refs,
+                                                 const uint32_t Len) noexcept {
+  if (Cxt && Refs) {
+    // Release per element, not via a vector: noexcept, and a vector sized by
+    // the host-controlled Len could throw (bad_alloc/length_error) and
+    // std::terminate. releaseRefs() forwards per element anyway.
+    for (uint32_t I = 0; I < Len; ++I) {
+      // Skip values the runtime never retains (see isRetainedRefValue).
+      if (!isRetainedRefValue(Refs[I])) {
+        continue;
+      }
+      Cxt->VM.releaseRef(
+          WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
+              to_WasmEdge_128_t<WasmEdge::uint128_t>(Refs[I].Value))
+              .get<WasmEdge::RefVariant>());
+    }
+  }
+}
+
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_VMReleaseAllRefs(WasmEdge_VMContext *Cxt) noexcept {
+  if (Cxt) {
+    Cxt->VM.releaseAllRefs();
   }
 }
 

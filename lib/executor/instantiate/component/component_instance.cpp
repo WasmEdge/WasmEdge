@@ -47,6 +47,9 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           break;
         case AST::Component::Sort::CoreSortType::Table:
           Mod->importTable(CompInst.getCoreTable(Idx));
+          // Attach the GC allocator for an imported anyref/externref table
+          // (idempotent; a core table already owning an allocator keeps it).
+          CompInst.getCoreTable(Idx)->setAllocator(Allocator);
           Mod->exportTable(Exp.getName(), ExpIdx[1]);
           ExpIdx[1]++;
           break;
@@ -57,6 +60,9 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           break;
         case AST::Component::Sort::CoreSortType::Global:
           Mod->importGlobal(CompInst.getCoreGlobal(Idx));
+          // Attach the GC allocator for an imported anyref/externref global
+          // (idempotent; a core global already owning an allocator keeps it).
+          CompInst.getCoreGlobal(Idx)->setAllocator(Allocator);
           Mod->exportGlobal(Exp.getName(), ExpIdx[3]);
           ExpIdx[3]++;
           break;

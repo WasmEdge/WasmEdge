@@ -18,7 +18,10 @@
 namespace WasmEdge {
 namespace AOT {
 
-static inline constexpr const uint32_t kBinaryVersion [[maybe_unused]] = 2;
+// Bump on any AOT ABI change so an old runtime rejects a newer artifact
+// instead of mis-reading it. v3 added the kWriteBarrier intrinsic; a v2
+// runtime's shorter Intrinsics table would be indexed out of bounds.
+static inline constexpr const uint32_t kBinaryVersion [[maybe_unused]] = 3;
 
 } // namespace AOT
 } // namespace WasmEdge

@@ -20,18 +20,31 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
 
   // Iterate through the element segments to instantiate element instances.
   for (const auto &ElemSeg : ElemSec.getContent()) {
-    std::vector<RefVariant> InitVals;
-    for (const auto &Expr : ElemSeg.getInitExprs()) {
-      // Run init expr of every elements and get the result reference.
+    // Evaluate every init expression, leaving each result on the (GC-rooted)
+    // value stack, not an unrooted local: a later init expr may run
+    // struct.new/array.new and trigger a collection that sweeps earlier
+    // results.
+    const auto &InitExprs = ElemSeg.getInitExprs();
+    for (const auto &Expr : InitExprs) {
+      // Run the init expr; leave its result reference on the stack.
       EXPECTED_TRY(
           runExpression(StackMgr, Expr.getInstrs()).map_error([](auto E) {
             spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
             spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
             return E;
           }));
-      // Pop result from the stack.
-      InitVals.push_back(StackMgr.pop().get<RefVariant>());
     }
+    // Snapshot the still-rooted results into InitVals, then drop them.
+    // Detaching is safe mid-collection: the refs were on the GC-scanned stack
+    // at every root scan so far, so SATB already shaded them. The active-offset
+    // expression below is a non-allocating const expression: no new cycle.
+    const uint32_t InitCount = static_cast<uint32_t>(InitExprs.size());
+    std::vector<RefVariant> InitVals;
+    InitVals.reserve(InitCount);
+    for (const auto &Val : StackMgr.getTopSpan(InitCount)) {
+      InitVals.push_back(Val.get<RefVariant>());
+    }
+    StackMgr.eraseValueStack(InitCount, 0);
 
     uint64_t Offset = 0;
     if (ElemSeg.getMode() == AST::ElementSegment::ElemMode::Active) {
@@ -47,7 +60,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       // Memory64 proposal is checked in validation phase.
       auto *TabInst = getTabInstByIdx(StackMgr, ElemSeg.getIdx());
       assuming(TabInst);
-      Offset = extractAddr(StackMgr.pop(),
+      Offset = extractAddr(StackMgr.pop<ValVariant>(),
                            TabInst->getTableType().getLimit().getAddrType());
 
       // Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
@@ -63,8 +76,9 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       }
     }
 
-    // Create and add the element instance to the module instance.
-    ModInst.addElem(Offset, ElemSeg.getRefType(), InitVals);
+    // Add the element instance; addElem registers it with the GC allocator so
+    // its references are scanned as roots.
+    ModInst.addElem(Allocator, Offset, ElemSeg.getRefType(), InitVals);
   }
   return {};
 }
@@ -86,12 +100,10 @@ Expect<void> Executor::initTable(Runtime::StackManager &StackMgr,
 
       // Replace table[Off : Off + n] with elem[0 : n].
       EXPECTED_TRY(
-          TabInst
-              ->setRefs(ElemInst->getRefs(), Off, 0, ElemInst->getRefs().size())
-              .map_error([](auto E) {
-                spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
-                return E;
-              }));
+          TabInst->setRefs(ElemInst->getRefs(), Off).map_error([](auto E) {
+            spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
+            return E;
+          }));
 
       // Drop the element instance.
       ElemInst->clear();

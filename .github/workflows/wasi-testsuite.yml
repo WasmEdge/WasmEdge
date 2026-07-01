@@ -73,12 +73,12 @@ jobs:
 
       - name: Install dependency on Windows
         if: matrix.os == 'windows-2025'
-        uses: crazy-max/ghaction-chocolatey@dff3862348493b11fba2fbc49147b6d2dfe09b66 # v4.0.0
+        uses: crazy-max/ghaction-chocolatey@dfdcf5bba9c0a16358a21c13a06ec5c89024b3ac # v4.1.0
         with:
           args: install --no-progress ninja vswhere
       - name: Upgrade dependency on Windows
         if: matrix.os == 'windows-2025'
-        uses: crazy-max/ghaction-chocolatey@dff3862348493b11fba2fbc49147b6d2dfe09b66 # v4.0.0
+        uses: crazy-max/ghaction-chocolatey@dfdcf5bba9c0a16358a21c13a06ec5c89024b3ac # v4.1.0
         with:
           args: upgrade --no-progress llvm
       - name: Install Windows SDK

@@ -45,6 +45,7 @@ jobs:
           echo "BREW_PREFIX=$(brew --prefix)" >> $GITHUB_ENV
           brew uninstall cmake # conflict with the one used by WasmEdge/llvm/lld
           brew tap WasmEdge/llvm
+          brew trust WasmEdge/llvm
       - name: Install Homebrew tools
         run: |
           brew install llvm ninja wabt

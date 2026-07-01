@@ -8,6 +8,7 @@
 #include "driver/tool.h"
 #include "loader/loader.h"
 
+#include <cstdint>
 #include <cstdlib>
 #include <map>
 #include <string>
@@ -120,6 +121,145 @@ std::string getElemEntryStr(const AST::Expression &Expr) {
   }
 }
 
+// Number of bytes that the unsigned LEB128 encoding of V occupies.
+static uint32_t uleb128Width(uint64_t V) noexcept {
+  if (V == 0)
+    return 1;
+  uint32_t W = 0;
+  while (V > 0) {
+    V >>= 7;
+    ++W;
+  }
+  return W;
+}
+
+// Print one summary row. start/end are byte offsets into the file.
+static void printSummaryRow(std::string_view Name, uint64_t Start, uint64_t End,
+                            uint64_t Count, std::string_view Extra) noexcept {
+  using namespace std::literals;
+  if (Extra.empty()) {
+    fmt::print("  {:>10}   start=0x{:08x}   end=0x{:08x}   "
+               "(size=0x{:08x})   count={}\n"sv,
+               Name, Start, End, End - Start, Count);
+  } else {
+    fmt::print("  {:>10}   start=0x{:08x}   end=0x{:08x}   "
+               "(size=0x{:08x})   {}\n"sv,
+               Name, Start, End, End - Start, Extra);
+  }
+}
+
+static void PrintSummary(const AST::Module &Mod,
+                         const std::filesystem::path &InputPath) noexcept {
+  using namespace std::literals;
+
+  // Header line.
+  std::error_code EC;
+  const auto FileSize = std::filesystem::file_size(InputPath, EC);
+  if (!EC) {
+    fmt::print("{}:  file format wasm 0x1  ({} bytes)\n\n"sv,
+               InputPath.filename().string(), FileSize);
+  } else {
+    fmt::print("{}:  file format wasm 0x1\n\n"sv,
+               InputPath.filename().string());
+  }
+  fmt::print("Section Summary:\n\n"sv);
+
+  // Helper: given a Section base, compute content start and end offsets.
+  // StartOffset is the position of the LEB128-encoded content-size field;
+  // content begins immediately after that field.
+  auto bounds = [](const AST::Section &Sec,
+                   uint64_t &Start,
+                   uint64_t &End) noexcept {
+    const uint64_t SzFieldWidth = uleb128Width(Sec.getContentSize());
+    Start = Sec.getStartOffset() + SzFieldWidth;
+    End = Start + Sec.getContentSize();
+  };
+
+  uint64_t S = 0, E = 0;
+
+  const auto &Types = Mod.getTypeSection().getContent();
+  if (!Types.empty()) {
+    bounds(Mod.getTypeSection(), S, E);
+    printSummaryRow("Type"sv, S, E, Types.size(), ""sv);
+  }
+
+  const auto &Imports = Mod.getImportSection().getContent();
+  if (!Imports.empty()) {
+    bounds(Mod.getImportSection(), S, E);
+    printSummaryRow("Import"sv, S, E, Imports.size(), ""sv);
+  }
+
+  const auto &Funcs = Mod.getFunctionSection().getContent();
+  if (!Funcs.empty()) {
+    bounds(Mod.getFunctionSection(), S, E);
+    printSummaryRow("Function"sv, S, E, Funcs.size(), ""sv);
+  }
+
+  const auto &Tables = Mod.getTableSection().getContent();
+  if (!Tables.empty()) {
+    bounds(Mod.getTableSection(), S, E);
+    printSummaryRow("Table"sv, S, E, Tables.size(), ""sv);
+  }
+
+  const auto &Mems = Mod.getMemorySection().getContent();
+  if (!Mems.empty()) {
+    bounds(Mod.getMemorySection(), S, E);
+    printSummaryRow("Memory"sv, S, E, Mems.size(), ""sv);
+  }
+
+  const auto &Tags = Mod.getTagSection().getContent();
+  if (!Tags.empty()) {
+    bounds(Mod.getTagSection(), S, E);
+    printSummaryRow("Tag"sv, S, E, Tags.size(), ""sv);
+  }
+
+  const auto &Globals = Mod.getGlobalSection().getContent();
+  if (!Globals.empty()) {
+    bounds(Mod.getGlobalSection(), S, E);
+    printSummaryRow("Global"sv, S, E, Globals.size(), ""sv);
+  }
+
+  const auto &Exports = Mod.getExportSection().getContent();
+  if (!Exports.empty()) {
+    bounds(Mod.getExportSection(), S, E);
+    printSummaryRow("Export"sv, S, E, Exports.size(), ""sv);
+  }
+
+  if (Mod.getStartSection().getContent().has_value()) {
+    bounds(Mod.getStartSection(), S, E);
+    printSummaryRow("Start"sv, S, E, 1, ""sv);
+  }
+
+  const auto &Elems = Mod.getElementSection().getContent();
+  if (!Elems.empty()) {
+    bounds(Mod.getElementSection(), S, E);
+    printSummaryRow("Element"sv, S, E, Elems.size(), ""sv);
+  }
+
+  if (auto DC = Mod.getDataCountSection().getContent()) {
+    bounds(Mod.getDataCountSection(), S, E);
+    printSummaryRow("DataCount"sv, S, E, *DC, ""sv);
+  }
+
+  const auto &Codes = Mod.getCodeSection().getContent();
+  if (!Codes.empty()) {
+    bounds(Mod.getCodeSection(), S, E);
+    printSummaryRow("Code"sv, S, E, Codes.size(), ""sv);
+  }
+
+  const auto &Datas = Mod.getDataSection().getContent();
+  if (!Datas.empty()) {
+    bounds(Mod.getDataSection(), S, E);
+    printSummaryRow("Data"sv, S, E, Datas.size(), ""sv);
+  }
+
+  for (const auto &Custom : Mod.getCustomSections()) {
+    bounds(Custom, S, E);
+    printSummaryRow("Custom"sv, S, E, 0,
+                    fmt::format("name=\"{}\""sv, Custom.getName()));
+  }
+}
+
 } // namespace
 
 int ParseTool(struct DriverToolOptions &Opt) noexcept {
@@ -136,6 +276,11 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
     return EXIT_FAILURE;
   }
   const auto &Mod = **Res;
+
+  if (Opt.ParseSummary.value()) {
+    PrintSummary(Mod, InputPath);
+    return EXIT_SUCCESS;
+  }
 
   const auto &Customs = Mod.getCustomSections();
   NameSection NS;

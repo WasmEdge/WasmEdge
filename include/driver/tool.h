@@ -104,7 +104,11 @@ struct DriverToolOptions : public DriverProposalOptions {
             PO::Description(
                 "Set logging level. Valid values: off, trace, debug, info, "
                 "warning, error, fatal. Default is info."sv),
-            PO::MetaVar("LEVEL"sv), PO::DefaultValue(std::string())) {}
+            PO::MetaVar("LEVEL"sv), PO::DefaultValue(std::string())),
+        ParseSummary(PO::Description(
+            "Print a compact section-header table instead of full section "
+            "details. Shows each section's file offset, byte size, and item "
+            "count. Equivalent to wasm-objdump -h."sv)) {}
 
   PO::Option<std::string> SoName;
   PO::List<std::string> Args;
@@ -130,6 +134,7 @@ struct DriverToolOptions : public DriverProposalOptions {
   PO::List<std::string> LinkedModules;
   PO::List<std::string> ForbiddenPlugins;
   PO::Option<std::string> LogLevel;
+  PO::Option<PO::Toggle> ParseSummary;
 
 private:
   void addGlobalOptions(PO::ArgumentParser &Parser) noexcept {
@@ -145,6 +150,7 @@ public:
         .add_option("enable-exception-handling"sv,
                     PropExceptionHandlingDeprecated)
         .add_option("enable-component"sv, PropComponent)
+        .add_option("summary"sv, ParseSummary)
         .add_option(SoName);
   }
 

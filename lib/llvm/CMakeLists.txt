@@ -14,13 +14,18 @@ endif()
 set(LLVM_INCLUDE_DIR "${LLVM_INCLUDE_DIR}" PARENT_SCOPE)
 set(LLD_INCLUDE_DIRS "${LLD_INCLUDE_DIRS}" PARENT_SCOPE)
 
+set(WASMEDGE_LLVM_SOURCES
+  compiler.cpp
+  codegen.cpp
+  data.cpp
+  jit.cpp
+  lazyjit.cpp
+  llvm.cpp
+)
+
 if(WASMEDGE_LINK_LLVM_STATIC)
   wasmedge_add_library(wasmedgeLLVM
-    compiler.cpp
-    codegen.cpp
-    data.cpp
-    jit.cpp
-    lazyjit.cpp
+    ${WASMEDGE_LLVM_SOURCES}
   )
 
   target_link_libraries(wasmedgeLLVM
@@ -53,11 +58,7 @@ else()
   endif()
 
   llvm_add_library(wasmedgeLLVM
-    compiler.cpp
-    codegen.cpp
-    data.cpp
-    jit.cpp
-    lazyjit.cpp
+    ${WASMEDGE_LLVM_SOURCES}
     LINK_LIBS
     wasmedgeCommon
     wasmedgeSystem

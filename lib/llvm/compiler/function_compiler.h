@@ -33,6 +33,7 @@ public:
           std::pair<std::vector<ValType>, std::vector<ValType>> Type) noexcept;
 
   Expect<void> compile(AST::InstrView Instrs) noexcept;
+  Expect<void> compileVectorOp(const AST::Instruction &Instr) noexcept;
   Expect<void> compileMemoryOp(const AST::Instruction &Instr) noexcept;
   Expect<void> compileNumericOp(const AST::Instruction &Instr) noexcept;
   Expect<void> compileRefOp(const AST::Instruction &Instr) noexcept;

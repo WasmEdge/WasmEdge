@@ -10,6 +10,8 @@
 #include <array>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
+#include <filesystem>
 #include <gtest/gtest.h>
 #include <memory>
 #include <string>
@@ -131,26 +133,28 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
 
   // deflateInit_ Test
   // WASM z_stream size Mismatch
-  EXPECT_TRUE(DeflateInit_.run(CallFrame,
-                               std::initializer_list<WasmEdge::ValVariant>{
-                                   ModuleZStream, INT32_C(-1), WasmZlibVersion,
-                                   sizeof(WasmZStream) + 16},
-                               RetVal));
+  EXPECT_TRUE(
+      DeflateInit_.run(CallFrame,
+                       std::initializer_list<WasmEdge::ValVariant>{
+                           ModuleZStream, INT32_C(-1), WasmZlibVersion,
+                           static_cast<uint32_t>(sizeof(WasmZStream) + 16)},
+                       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
 
   // Version Mismatch
-  EXPECT_TRUE(DeflateInit_.run(
-      CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{
-          ModuleZStream, INT32_C(-1), WasmZlibVersion + 2, sizeof(WasmZStream)},
-      RetVal));
+  EXPECT_TRUE(
+      DeflateInit_.run(CallFrame,
+                       std::initializer_list<WasmEdge::ValVariant>{
+                           ModuleZStream, INT32_C(-1), WasmZlibVersion + 2,
+                           static_cast<uint32_t>(sizeof(WasmZStream))},
+                       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
 
-  EXPECT_TRUE(DeflateInit_.run(
-      CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{
-          ModuleZStream, INT32_C(-1), WasmZlibVersion, sizeof(WasmZStream)},
-      RetVal));
+  EXPECT_TRUE(DeflateInit_.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   ModuleZStream, INT32_C(-1), WasmZlibVersion,
+                                   static_cast<uint32_t>(sizeof(WasmZStream))},
+                               RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
   WasmCompressedData = WasmHP;
@@ -191,26 +195,27 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
 
   // inflateInit_ Test
   // WASM z_stream size Mismatch
-  EXPECT_TRUE(InflateInit_.run(
-      CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{
-          ModuleZStream, WasmZlibVersion, sizeof(WasmZStream) + 16},
-      RetVal));
-  EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
-
-  // Version Mismatch
-  EXPECT_TRUE(InflateInit_.run(
-      CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{
-          ModuleZStream, WasmZlibVersion + 2, sizeof(WasmZStream)},
-      RetVal));
-  EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
-
   EXPECT_TRUE(
       InflateInit_.run(CallFrame,
                        std::initializer_list<WasmEdge::ValVariant>{
-                           ModuleZStream, WasmZlibVersion, sizeof(WasmZStream)},
+                           ModuleZStream, WasmZlibVersion,
+                           static_cast<uint32_t>(sizeof(WasmZStream) + 16)},
                        RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
+
+  // Version Mismatch
+  EXPECT_TRUE(InflateInit_.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   ModuleZStream, WasmZlibVersion + 2,
+                                   static_cast<uint32_t>(sizeof(WasmZStream))},
+                               RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
+
+  EXPECT_TRUE(InflateInit_.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   ModuleZStream, WasmZlibVersion,
+                                   static_cast<uint32_t>(sizeof(WasmZStream))},
+                               RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
   WasmDecompressedData = WasmHP;
@@ -252,6 +257,227 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
                          MemInst.getPointer<uint8_t *>(
                              WasmDecompressedData + WasmDecompressedDataSize),
                          MemInst.getPointer<uint8_t *>(WasmData)));
+}
+
+#define GET_ZLIB_FUNC(Var, Name)                                               \
+  auto *Var##Inst = ZlibMod->findFuncExports(Name);                            \
+  ASSERT_NE(Var##Inst, nullptr);                                               \
+  auto &Var = Var##Inst->getHostFunc();
+
+TEST(WasmEdgeZlibTest, HardeningBounds) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  // Out-of-bounds z_stream pointer must fail instead of dereferencing NULL:
+  // 65530 + sizeof(WasmZStream) exceeds the single memory page.
+  {
+    GET_ZLIB_FUNC(DeflateInit, "deflateInit")
+    EXPECT_FALSE(DeflateInit.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     UINT32_C(65530), INT32_C(-1)},
+                                 RetVal));
+  }
+
+  // A guest-controlled avail_out larger than linear memory must be rejected
+  // rather than letting zlib write past the end of memory.
+  {
+    GET_ZLIB_FUNC(DeflateInit, "deflateInit")
+    GET_ZLIB_FUNC(Deflate, "deflate")
+    const uint32_t ZS = 0;
+    std::fill_n(MemInst.getPointer<uint8_t *>(ZS), sizeof(WasmZStream), 0);
+    ASSERT_TRUE(DeflateInit.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS, INT32_C(-1)},
+        RetVal));
+    ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
+    auto *Strm = MemInst.getPointer<WasmZStream *>(ZS);
+    Strm->NextIn = 1000;
+    Strm->AvailIn = 4;
+    Strm->NextOut = 2000;
+    Strm->AvailOut = UINT32_C(0xFFFFFFFF);
+    EXPECT_FALSE(Deflate.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS, INT32_C(0)},
+        RetVal));
+  }
+
+  // compress with an out-of-bounds destination-length pointer must fail.
+  {
+    GET_ZLIB_FUNC(Compress, "compress")
+    EXPECT_FALSE(Compress.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(65534), UINT32_C(100), UINT32_C(10)},
+        RetVal));
+  }
+
+  // compress with a valid destination but an out-of-bounds source length must
+  // fail rather than let zlib read past the end of memory.
+  {
+    GET_ZLIB_FUNC(Compress, "compress")
+    *MemInst.getPointer<uint32_t *>(0) = 100;
+    EXPECT_FALSE(Compress.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(8), UINT32_C(0), UINT32_C(4000), UINT32_C(0xFFFFFFF0)},
+        RetVal));
+  }
+
+  // uncompress with an out-of-bounds destination-length pointer must fail.
+  {
+    GET_ZLIB_FUNC(Uncompress, "uncompress")
+    EXPECT_FALSE(Uncompress.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(65535), UINT32_C(100), UINT32_C(10)},
+        RetVal));
+  }
+
+  // adler32 / crc32 with a length larger than memory must fail rather than
+  // read out of bounds.
+  {
+    GET_ZLIB_FUNC(Adler32, "adler32")
+    EXPECT_FALSE(
+        Adler32.run(CallFrame,
+                    std::initializer_list<WasmEdge::ValVariant>{
+                        UINT32_C(1), UINT32_C(100), UINT32_C(0xFFFFFFFF)},
+                    RetVal));
+    GET_ZLIB_FUNC(CRC32, "crc32")
+    EXPECT_FALSE(
+        CRC32.run(CallFrame,
+                  std::initializer_list<WasmEdge::ValVariant>{
+                      UINT32_C(0), UINT32_C(100), UINT32_C(0xFFFFFFFF)},
+                  RetVal));
+  }
+
+  // An unknown gz file handle must be rejected, not dereferenced.
+  {
+    GET_ZLIB_FUNC(GZRead, "gzread")
+    EXPECT_FALSE(GZRead.run(CallFrame,
+                            std::initializer_list<WasmEdge::ValVariant>{
+                                UINT32_C(9999), UINT32_C(0), UINT32_C(10)},
+                            RetVal));
+  }
+}
+
+TEST(WasmEdgeZlibTest, HardeningUnterminatedString) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  // Fill every byte of linear memory with a non-NUL value so any C string
+  // starting inside it has no terminator before the end of memory.
+  std::fill_n(MemInst.getPointer<uint8_t *>(0),
+              static_cast<size_t>(MemInst.getSize()),
+              static_cast<uint8_t>(0xFF));
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+  EXPECT_FALSE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(100)},
+      RetVal));
+}
+
+TEST(WasmEdgeZlibTest, GZFileRoundTrip) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const std::string TmpPath = (std::filesystem::temp_directory_path() /
+                               "wasmedge_zlib_hardening_test.gz")
+                                  .string();
+  ASSERT_LT(TmpPath.size() + 1, 1024U);
+
+  const uint32_t PathPtr = 0;
+  std::strcpy(MemInst.getPointer<char *>(PathPtr), TmpPath.c_str());
+  const uint32_t ModeWPtr = 1024;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+  const uint32_t ModeRPtr = 1040;
+  std::strcpy(MemInst.getPointer<char *>(ModeRPtr), "rb");
+  const uint32_t DataPtr = 1100;
+  const char *const Payload = "hello zlib hardening";
+  const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
+  std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+  GET_ZLIB_FUNC(GZWrite, "gzwrite")
+  GET_ZLIB_FUNC(GZRead, "gzread")
+  GET_ZLIB_FUNC(GZClose, "gzclose")
+
+  if (!GZOpen.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWPtr},
+          RetVal)) {
+    GTEST_SKIP() << "cannot create temporary file: " << TmpPath;
+  }
+  const uint32_t WHandle = RetVal[0].get<uint32_t>();
+
+  EXPECT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, DataPtr, PayloadLen},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+
+  // Closing must free the zlib handle exactly once (no double-free).
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, RetVal));
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeRPtr},
+      RetVal));
+  const uint32_t RHandle = RetVal[0].get<uint32_t>();
+  EXPECT_NE(RHandle, WHandle);
+
+  // gzread with an out-of-bounds length must fail rather than overflow the
+  // buffer.
+  EXPECT_FALSE(GZRead.run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              RHandle, UINT32_C(60000), UINT32_C(0xFFFFFFFF)},
+                          RetVal));
+
+  const uint32_t ReadBuf = 4096;
+  EXPECT_TRUE(GZRead.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, ReadBuf, UINT32_C(256)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_EQ(
+      0, std::memcmp(MemInst.getPointer<char *>(ReadBuf), Payload, PayloadLen));
+
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
+
+  // A double close must be rejected gracefully; the handle is already gone.
+  EXPECT_FALSE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
+
+  std::remove(TmpPath.c_str());
 }
 
 TEST(WasmEdgeZlibTest, Module) {

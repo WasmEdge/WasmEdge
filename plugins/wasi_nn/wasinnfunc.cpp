@@ -12,6 +12,7 @@
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 #include "wasi_ephemeral_nn.grpc.pb.h"
 
+#include <charconv>
 #include <grpc/grpc.h>
 #endif // #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 
@@ -40,11 +41,18 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 WASINN::ErrNo metadataToErrNo(
     const std::multimap<grpc::string_ref, grpc::string_ref> &Metadata) {
-  if (Metadata.find("errno") != Metadata.end()) {
-    auto ErrNo = std::stoi(Metadata.find("errno")->second.data());
-    return static_cast<WASINN::ErrNo>(ErrNo);
+  const auto It = Metadata.find("errno");
+  if (It != Metadata.end()) {
+    const grpc::string_ref &ErrNoRef = It->second;
+    int ErrNoValue = 0;
+    const char *Begin = ErrNoRef.data();
+    const auto Result =
+        std::from_chars(Begin, Begin + ErrNoRef.size(), ErrNoValue);
+    if (Result.ec == std::errc()) {
+      return static_cast<WASINN::ErrNo>(ErrNoValue);
+    }
   }
-  return WASINN::ErrNo::Success;
+  return WASINN::ErrNo::RuntimeError;
 }
 #endif // #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 } // namespace
@@ -134,18 +142,17 @@ WasiNNLoadByName::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
   }
 
   // Get the model name.
-  auto Name = MemInst->getPointer<const uint32_t *>(NamePtr);
-  if (unlikely(Name == nullptr)) {
-    spdlog::error("[WASI-NN] Failed when accessing the return Name memory."sv);
+  if (unlikely(!MemInst->checkAccessBound(NamePtr, NameLen))) {
+    spdlog::error("[WASI-NN] Failed when accessing the Name memory."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
+  auto NameStrView = MemInst->getStringView(NamePtr, NameLen);
 
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
     auto Stub = wasi_ephemeral_nn::Graph::NewStub(Env.NNRPCChannel);
     grpc::ClientContext ClientContext;
     wasi_ephemeral_nn::LoadByNameRequest Req;
-    auto NameStrView = MemInst->getStringView(NamePtr, NameLen);
     Req.set_name(NameStrView.data(), NameStrView.size());
     wasi_ephemeral_nn::LoadByNameResult Res;
     auto Status = Stub->LoadByName(&ClientContext, Req, &Res);
@@ -159,7 +166,7 @@ WasiNNLoadByName::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
 
   // Get the model.
-  std::string ModelName(reinterpret_cast<const char *>(Name), NameLen);
+  std::string ModelName(NameStrView);
   if (Env.mdGet(ModelName, *GraphId)) {
     return WASINN::ErrNo::Success;
   } else {
@@ -184,29 +191,27 @@ Expect<WASINN::ErrNo> WasiNNLoadByNameWithConfig::bodyImpl(
   }
 
   // Get the model name.
-  auto Name = MemInst->getPointer<const uint32_t *>(NamePtr);
-  if (unlikely(Name == nullptr)) {
-    spdlog::error("[WASI-NN] Failed when accessing the return Name memory."sv);
+  if (unlikely(!MemInst->checkAccessBound(NamePtr, NameLen))) {
+    spdlog::error("[WASI-NN] Failed when accessing the Name memory."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
+  auto NameStrView = MemInst->getStringView(NamePtr, NameLen);
 
   // Get the model config.
-  auto Config = MemInst->getPointer<const uint32_t *>(ConfigPtr);
-  if (unlikely(Config == nullptr)) {
-    spdlog::error(
-        "[WASI-NN] Failed when accessing the return Config memory."sv);
+  if (unlikely(!MemInst->checkAccessBound(ConfigPtr, ConfigLen))) {
+    spdlog::error("[WASI-NN] Failed when accessing the Config memory."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
+  auto ConfigSpan = MemInst->getSpan<const uint8_t>(ConfigPtr, ConfigLen);
 
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
     auto Stub = wasi_ephemeral_nn::Graph::NewStub(Env.NNRPCChannel);
     grpc::ClientContext ClientContext;
     wasi_ephemeral_nn::LoadByNameWithConfigRequest Req;
-    auto NameStrView = MemInst->getStringView(NamePtr, NameLen);
-    auto ConfigStrView = MemInst->getStringView(ConfigPtr, ConfigLen);
     Req.set_name(NameStrView.data(), NameStrView.size());
-    Req.set_config(ConfigStrView.data(), ConfigStrView.size());
+    Req.set_config(reinterpret_cast<const char *>(ConfigSpan.data()),
+                   ConfigSpan.size());
     wasi_ephemeral_nn::LoadByNameWithConfigResult Res;
     auto Status = Stub->LoadByNameWithConfig(&ClientContext, Req, &Res);
     if (!Status.ok()) {
@@ -219,10 +224,8 @@ Expect<WASINN::ErrNo> WasiNNLoadByNameWithConfig::bodyImpl(
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
 
   // Get the model.
-  std::string ModelName(reinterpret_cast<const char *>(Name), NameLen);
-  std::vector<uint8_t> ModelConfig(reinterpret_cast<const uint8_t *>(Config),
-                                   reinterpret_cast<const uint8_t *>(Config) +
-                                       ConfigLen);
+  std::string ModelName(NameStrView);
+  std::vector<uint8_t> ModelConfig(ConfigSpan.begin(), ConfigSpan.end());
   if (Env.mdGet(ModelName, *GraphId)) {
     return WASINN::ErrNo::Success;
   } else {
@@ -423,13 +426,18 @@ WasiNNGetOutput::bodyImpl(const Runtime::CallingFrame &Frame,
     wasi_ephemeral_nn::GetOutputResult Res;
     auto Status = Stub->GetOutput(&ClientContext, Req, &Res);
     if (!Status.ok()) {
+      *BytesWritten = 0;
       auto Metadata = ClientContext.GetServerTrailingMetadata();
       return metadataToErrNo(Metadata);
     }
-    uint32_t BytesWrittenVal =
-        std::min(static_cast<uint32_t>(Res.data().size()), OutBufferMaxSize);
-    std::copy_n(Res.data().begin(), BytesWrittenVal, OutBuffer.begin());
-    *BytesWritten = BytesWrittenVal;
+    *BytesWritten = static_cast<uint32_t>(Res.data().size());
+    if (OutBufferMaxSize < Res.data().size()) {
+      spdlog::error("[WASI-NN] get_output: output buffer too small, "
+                    "need {} bytes but got {}."sv,
+                    Res.data().size(), OutBufferMaxSize);
+      return WASINN::ErrNo::TooLarge;
+    }
+    std::copy_n(Res.data().begin(), Res.data().size(), OutBuffer.begin());
     return WASINN::ErrNo::Success;
   }
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
@@ -488,13 +496,18 @@ Expect<WASINN::ErrNo> WasiNNGetOutputSingle::bodyImpl(
     wasi_ephemeral_nn::GetOutputResult Res;
     auto Status = Stub->GetOutputSingle(&ClientContext, Req, &Res);
     if (!Status.ok()) {
+      *BytesWritten = 0;
       auto Metadata = ClientContext.GetServerTrailingMetadata();
       return metadataToErrNo(Metadata);
     }
-    uint32_t BytesWrittenVal =
-        std::min(static_cast<uint32_t>(Res.data().size()), OutBufferMaxSize);
-    std::copy_n(Res.data().begin(), BytesWrittenVal, OutBuffer.begin());
-    *BytesWritten = BytesWrittenVal;
+    *BytesWritten = static_cast<uint32_t>(Res.data().size());
+    if (OutBufferMaxSize < Res.data().size()) {
+      spdlog::error("[WASI-NN] get_output_single: output buffer too small, "
+                    "need {} bytes but got {}."sv,
+                    Res.data().size(), OutBufferMaxSize);
+      return WASINN::ErrNo::TooLarge;
+    }
+    std::copy_n(Res.data().begin(), Res.data().size(), OutBuffer.begin());
     return WASINN::ErrNo::Success;
   }
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC

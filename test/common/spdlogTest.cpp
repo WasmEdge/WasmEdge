@@ -181,7 +181,7 @@ TEST(SpdlogTest, SetLoggingCallback_CallbackIsInvoked) {
   WasmEdge::Log::setErrorLoggingLevel();
 
   // Emit a log message at a level that will be delivered.
-  spdlog::error("spdlogTest callback probe");
+  spdlog::error("spdlogTest callback probe"sv);
 
   EXPECT_GT(CallCount.load(), 0);
 
@@ -198,7 +198,7 @@ TEST(SpdlogTest, SetLoggingCallback_CallbackReceivesCorrectLevel) {
       });
   WasmEdge::Log::setWarnLoggingLevel();
 
-  spdlog::warn("level probe");
+  spdlog::warn("level probe"sv);
 
   EXPECT_EQ(Captured, spdlog::level::warn);
 
@@ -223,12 +223,12 @@ TEST(SpdlogTest, SetLoggingCallback_ReplaceCallback) {
   WasmEdge::Log::setLoggingCallback(
       [&FirstCount](const spdlog::details::log_msg &) { ++FirstCount; });
   WasmEdge::Log::setErrorLoggingLevel();
-  spdlog::error("first callback");
+  spdlog::error("first callback"sv);
 
   // Replace with a second callback.
   WasmEdge::Log::setLoggingCallback(
       [&SecondCount](const spdlog::details::log_msg &) { ++SecondCount; });
-  spdlog::error("second callback");
+  spdlog::error("second callback"sv);
 
   EXPECT_GT(FirstCount.load(), 0);
   EXPECT_GT(SecondCount.load(), 0);
@@ -261,7 +261,7 @@ TEST(SpdlogTest, EdgeCase_CallbackSetResetSet) {
   WasmEdge::Log::setLoggingCallback(Cb);
 
   WasmEdge::Log::setErrorLoggingLevel();
-  spdlog::error("edge case probe");
+  spdlog::error("edge case probe"sv);
 
   EXPECT_GT(Count.load(), 0);
 

@@ -93,7 +93,13 @@ LLMPipelineBackend::GetContextOutput(Context &CxtRef, uint32_t Index,
   }
 
   try {
-    BytesWritten = CxtRef.StringOutput.size();
+    BytesWritten = static_cast<uint32_t>(CxtRef.StringOutput.size());
+    if (OutBuffer.size() < CxtRef.StringOutput.size()) {
+      spdlog::error("[WASI-NN] OpenVINOGenAI backend: output buffer too small, "
+                    "need {} bytes but got {}."sv,
+                    CxtRef.StringOutput.size(), OutBuffer.size());
+      return WASINN::ErrNo::TooLarge;
+    }
     std::copy_n(reinterpret_cast<const uint8_t *>(CxtRef.StringOutput.data()),
                 BytesWritten, OutBuffer.data());
   } catch (const std::exception &EX) {

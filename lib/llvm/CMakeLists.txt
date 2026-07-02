@@ -18,6 +18,7 @@ set(WASMEDGE_LLVM_SOURCES
   compiler.cpp
   compiler/context.cpp
   compiler/function_compiler.cpp
+  compiler/numericInstr.cpp
   compiler/refInstr.cpp
   codegen.cpp
   data.cpp

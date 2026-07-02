@@ -5,6 +5,10 @@
 
 #include "runtime/instance/function.h"
 
+#include <algorithm>
+#include <array>
+#include <limits>
+
 using namespace std::literals;
 
 namespace WasmEdge {

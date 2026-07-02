@@ -4,12 +4,7 @@
 
 #include "compiler/context.h"
 
-#include <algorithm>
 #include <cstdint>
-#include <map>
-#include <memory>
-#include <numeric>
-#include <string>
 #include <tuple>
 #include <unordered_map>
 #include <utility>

@@ -10,6 +10,8 @@
 #include "system/allocator.h"
 
 #include <cstdint>
+#include <functional>
+
 #include <tuple>
 #include <utility>
 #include <vector>

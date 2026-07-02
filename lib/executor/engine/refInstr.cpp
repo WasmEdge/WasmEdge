@@ -3,6 +3,8 @@
 
 #include "executor/executor.h"
 
+#include <exception>
+
 namespace WasmEdge {
 namespace Executor {
 
@@ -158,12 +160,16 @@ Expect<void> Executor::runArrayNewOp(Runtime::StackManager &StackMgr,
                                      uint32_t Length) const noexcept {
   assuming(InitCnt == 0 || InitCnt == 1 || InitCnt == Length);
   if (InitCnt == 0) {
-    StackMgr.push(*arrayNew(StackMgr, TypeIdx, Length));
+    EXPECTED_TRY(auto Ref, arrayNew(StackMgr, TypeIdx, Length));
+    StackMgr.push(Ref);
   } else if (InitCnt == 1) {
-    StackMgr.getTop().emplace<RefVariant>(
-        *arrayNew(StackMgr, TypeIdx, Length, {StackMgr.getTop()}));
+    EXPECTED_TRY(auto Ref,
+                 arrayNew(StackMgr, TypeIdx, Length, {StackMgr.getTop()}));
+    StackMgr.getTop().emplace<RefVariant>(Ref);
   } else {
-    StackMgr.push(*arrayNew(StackMgr, TypeIdx, Length, StackMgr.pop(Length)));
+    EXPECTED_TRY(auto Ref,
+                 arrayNew(StackMgr, TypeIdx, Length, StackMgr.pop(Length)));
+    StackMgr.push(Ref);
   }
   return {};
 }
@@ -472,20 +478,25 @@ Executor::arrayNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
   WasmEdge::Runtime::Instance::ArrayInstance *Inst = nullptr;
   Runtime::Instance::ModuleInstance *ModInst =
       const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
-  if (Args.size() == 0) {
-    // New and fill with default values.
-    auto InitVal = VType.isRefType()
-                       ? ValVariant(RefVariant(toBottomType(StackMgr, VType)))
-                       : ValVariant(static_cast<uint128_t>(0U));
-    Inst = ModInst->newArray(TypeIdx, Length, InitVal);
-  } else if (Args.size() == 1) {
-    // Create and fill with the argument value.
-    Inst = ModInst->newArray(TypeIdx, Length, packVal(VType, Args[0]));
-  } else {
-    // Create with arguments.
-    Inst = ModInst->newArray(
-        TypeIdx,
-        packVals(VType, std::vector<ValVariant>(Args.begin(), Args.end())));
+  // Length is a runtime operand, so sizing the array backing store may throw.
+  try {
+    if (Args.size() == 0) {
+      // New and fill with default values.
+      auto InitVal = VType.isRefType()
+                         ? ValVariant(RefVariant(toBottomType(StackMgr, VType)))
+                         : ValVariant(static_cast<uint128_t>(0U));
+      Inst = ModInst->newArray(TypeIdx, Length, InitVal);
+    } else if (Args.size() == 1) {
+      // Create and fill with the argument value.
+      Inst = ModInst->newArray(TypeIdx, Length, packVal(VType, Args[0]));
+    } else {
+      // Create with arguments.
+      Inst = ModInst->newArray(
+          TypeIdx,
+          packVals(VType, std::vector<ValVariant>(Args.begin(), Args.end())));
+    }
+  } catch (const std::exception &) {
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   return RefVariant(Inst->getDefType(), Inst);
 }
@@ -504,15 +515,20 @@ Executor::arrayNewData(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
   }
   Runtime::Instance::ModuleInstance *ModInst =
       const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
-  std::vector<ValVariant> Args;
-  Args.reserve(Length);
-  for (uint32_t Idx = 0; Idx < Length; Idx++) {
-    // The value has been packed.
-    Args.push_back(DataInst->loadValue(Start + Idx * BSize, BSize));
+  // Length is a runtime operand, so sizing the array backing store may throw.
+  try {
+    std::vector<ValVariant> Args;
+    Args.reserve(Length);
+    for (uint32_t Idx = 0; Idx < Length; Idx++) {
+      // The value has been packed.
+      Args.push_back(DataInst->loadValue(Start + Idx * BSize, BSize));
+    }
+    WasmEdge::Runtime::Instance::ArrayInstance *Inst =
+        ModInst->newArray(TypeIdx, std::move(Args));
+    return RefVariant(Inst->getDefType(), Inst);
+  } catch (const std::exception &) {
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  WasmEdge::Runtime::Instance::ArrayInstance *Inst =
-      ModInst->newArray(TypeIdx, std::move(Args));
-  return RefVariant(Inst->getDefType(), Inst);
 }
 
 Expect<RefVariant>
@@ -527,13 +543,18 @@ Executor::arrayNewElem(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
       ElemSrc.size()) {
     return Unexpect(ErrCode::Value::TableOutOfBounds);
   }
-  std::vector<ValVariant> Refs(ElemSrc.begin() + Start,
-                               ElemSrc.begin() + Start + Length);
   Runtime::Instance::ModuleInstance *ModInst =
       const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
-  WasmEdge::Runtime::Instance::ArrayInstance *Inst =
-      ModInst->newArray(TypeIdx, packVals(VType, std::move(Refs)));
-  return RefVariant(Inst->getDefType(), Inst);
+  // Length is a runtime operand, so sizing the array backing store may throw.
+  try {
+    std::vector<ValVariant> Refs(ElemSrc.begin() + Start,
+                                 ElemSrc.begin() + Start + Length);
+    WasmEdge::Runtime::Instance::ArrayInstance *Inst =
+        ModInst->newArray(TypeIdx, packVals(VType, std::move(Refs)));
+    return RefVariant(Inst->getDefType(), Inst);
+  } catch (const std::exception &) {
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  }
 }
 
 Expect<ValVariant> Executor::arrayGet(Runtime::StackManager &StackMgr,

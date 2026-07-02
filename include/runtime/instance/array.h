@@ -27,13 +27,15 @@ namespace Instance {
 class ArrayInstance : public CompositeBase {
 public:
   ArrayInstance() = delete;
+  // Not noexcept: Data is sized from a runtime element count and may throw
+  // (bad_alloc/length_error), which the executor catches and turns into a trap.
   ArrayInstance(const ModuleInstance *Mod, const uint32_t Idx,
-                const uint32_t Size, const ValVariant &Init) noexcept
+                const uint32_t Size, const ValVariant &Init)
       : CompositeBase(Mod, Idx), Data(Size, Init) {
     assuming(ModInst);
   }
   ArrayInstance(const ModuleInstance *Mod, const uint32_t Idx,
-                std::vector<ValVariant> &&Init) noexcept
+                std::vector<ValVariant> &&Init)
       : CompositeBase(Mod, Idx), Data(std::move(Init)) {
     assuming(ModInst);
   }

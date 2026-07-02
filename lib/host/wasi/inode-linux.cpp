@@ -1019,7 +1019,7 @@ WasiExpect<INode> INode::sockAccept(__wasi_fdflags_t FdFlags) noexcept {
   if (FdFlags & __WASI_FDFLAGS_NONBLOCK) {
     int SysFlag = fcntl(NewFd, F_GETFL, 0);
     SysFlag |= O_NONBLOCK;
-    if (auto Res = ::fcntl(Fd, F_SETFL, SysFlag); unlikely(Res != 0)) {
+    if (auto Res = ::fcntl(NewFd, F_SETFL, SysFlag); unlikely(Res != 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
   }

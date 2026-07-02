@@ -52,8 +52,23 @@ Rsa<PadMode, KeyBits, ShaNid>::PublicKey::checkValid(EvpPkeyPtr Ctx) noexcept {
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<void>
 Rsa<PadMode, KeyBits, ShaNid>::PublicKey::verify() const noexcept {
-  ensureOrReturn(RSA_check_key(EVP_PKEY_get0_RSA(Ctx.get())),
-                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  EvpPkeyCtxPtr CheckCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
+  ensureOrReturn(CheckCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  int Ret = EVP_PKEY_public_check(CheckCtx.get());
+  if (Ret == -2) {
+    // Fallback for older OpenSSL versions where public_check is not supported
+    // for RSA
+    const RSA *RsaKey = EVP_PKEY_get0_RSA(Ctx.get());
+    ensureOrReturn(RsaKey, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+    const BIGNUM *N, *E;
+    RSA_get0_key(RsaKey, &N, &E, nullptr);
+    ensureOrReturn(N != nullptr && E != nullptr,
+                   __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  } else if (Ret == 0) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
+  } else {
+    ensureOrReturn(Ret == 1, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  }
   return {};
 }
 

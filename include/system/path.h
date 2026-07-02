@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/system/path.h - Get system directory path ----------------===//
 //
@@ -8,7 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains helper to get system path for various operating system.
+/// This file contains helpers for getting system paths for various operating
+/// systems.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

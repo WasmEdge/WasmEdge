@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/dense_enum_map.h - mapping dense enum to data -----===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains a class for mapping enum value to data.
+/// This file contains a class for mapping enum values to data.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -151,11 +151,10 @@ public:
 
   friend constexpr difference_type
   operator-(const ConstIterator &LHS, const ConstIterator &RHS) noexcept {
-    const T *const L =
-        std::addressof((*LHS.Data)[static_cast<size_type>(LHS.Value.first)]);
-    const T *const R =
-        std::addressof((*RHS.Data)[static_cast<size_type>(RHS.Value.first)]);
-    return L - R;
+    // Subtract stored indices only; end() uses index Size and must not
+    // dereference the backing array (UB, aborts under _GLIBCXX_ASSERTIONS).
+    return static_cast<difference_type>(LHS.Value.first) -
+           static_cast<difference_type>(RHS.Value.first);
   }
 
   constexpr reference operator[](difference_type N) noexcept {

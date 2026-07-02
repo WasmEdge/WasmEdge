@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/test/thread/ThreadTest.cpp - Multithread test ------------===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains tests for running Executor in parallel multithread way.
+/// This file contains tests for running Executor in parallel.
 ///
 //===----------------------------------------------------------------------===//
 

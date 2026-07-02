@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -846,10 +846,13 @@ public:
     if (!VINode::isPathValid(NewPath)) {
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
-    // forbid absolute path
+    // Forbid an absolute target. A target escaping the base directory is "not
+    // permitted", matching resolvePath and the `..` check in pathSymlink.
     if (!OldPath.empty() && OldPath[0] == '/') {
-      return WasiUnexpect(__WASI_ERRNO_INVAL);
+      return WasiUnexpect(__WASI_ERRNO_PERM);
     }
+    // Relative targets escaping via `..` are rejected in VINode::pathSymlink,
+    // where the link's depth is known.
     auto NewNode = getNodeOrNull(New);
     if (unlikely(!NewNode)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
@@ -910,9 +913,9 @@ public:
   /// @return Poll helper or WASI error.
   WasiExpect<EVPoller> acquirePoller(Span<__wasi_event_t> Events) noexcept;
 
-  /// Release a used Poller object.
+  /// Release a Poller object after use.
   ///
-  /// @param[in] Poller Used poller object.
+  /// @param[in] Poller Poller object to release.
   void releasePoller(EVPoller &&Poller) noexcept;
 
   /// Close unused Fd in Pollers.
@@ -921,7 +924,7 @@ public:
   void close(std::shared_ptr<VINode> Node) noexcept;
 
   /// Terminate the process normally. An exit code of 0 indicates successful
-  /// termination of the program. The meanings of other values is dependent on
+  /// termination of the program. The meanings of other values are dependent on
   /// the environment.
   ///
   /// @param[in] Code The exit code returned by the process.
@@ -947,7 +950,7 @@ public:
   /// This function blocks when the implementation is unable to immediately
   /// provide sufficient high-quality random data.
   ///
-  /// This function may execute slowly, so when large mounts of random data are
+  /// This function may execute slowly, so when large amounts of random data are
   /// required, it's advisable to use this function to seed a pseudo-random
   /// number generator, rather than to provide the random data directly.
   ///
@@ -1249,15 +1252,15 @@ public:
 
   /// Concurrently poll for a ready-to-read event.
   ///
-  /// @param[in] Fd The file descriptor on which to wait for it to become ready
-  /// for reading.
+  /// @param[in] WasiFd The file descriptor on which to wait for it to become
+  /// ready for reading.
   /// @param[in] Trigger Specifying whether the notification is level-trigger or
   /// edge-trigger.
   /// @param[in] UserData User-provided value that may be attached to objects
   /// that is retained when extracted from the implementation.
-  void read(__wasi_fd_t Fd, TriggerType Trigger,
+  void read(__wasi_fd_t WasiFd, TriggerType Trigger,
             __wasi_userdata_t UserData) noexcept {
-    if (auto Node = env().getNodeOrNull(Fd); unlikely(!Node)) {
+    if (auto Node = env().getNodeOrNull(WasiFd); unlikely(!Node)) {
       VPoller::error(UserData, __WASI_ERRNO_BADF, __WASI_EVENTTYPE_FD_READ);
     } else {
       VPoller::read(Node, Trigger, UserData);
@@ -1266,15 +1269,15 @@ public:
 
   /// Concurrently poll for a ready-to-write event.
   ///
-  /// @param[in] Fd The file descriptor on which to wait for it to become ready
-  /// for writing.
+  /// @param[in] WasiFd The file descriptor on which to wait for it to become
+  /// ready for writing.
   /// @param[in] Trigger Specifying whether the notification is level-trigger or
   /// edge-trigger.
   /// @param[in] UserData User-provided value that may be attached to objects
   /// that is retained when extracted from the implementation.
-  void write(__wasi_fd_t Fd, TriggerType Trigger,
+  void write(__wasi_fd_t WasiFd, TriggerType Trigger,
              __wasi_userdata_t UserData) noexcept {
-    if (auto Node = env().getNodeOrNull(Fd); unlikely(!Node)) {
+    if (auto Node = env().getNodeOrNull(WasiFd); unlikely(!Node)) {
       VPoller::error(UserData, __WASI_ERRNO_BADF, __WASI_EVENTTYPE_FD_WRITE);
     } else {
       VPoller::write(Node, Trigger, UserData);

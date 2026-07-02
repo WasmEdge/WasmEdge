@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/ast/module.h - Module class definition -------------------===//
 //
@@ -9,7 +9,7 @@
 ///
 /// \file
 /// This file contains the declaration of the Module node class, which is the
-/// module node in AST.
+/// module node in the AST.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -24,11 +24,11 @@ namespace AST {
 /// AST Module node.
 class Module {
 public:
-  /// Getter of magic vector.
+  /// Getter for magic vector.
   const std::vector<Byte> &getMagic() const noexcept { return Magic; }
   std::vector<Byte> &getMagic() noexcept { return Magic; }
 
-  /// Getter of version vector.
+  /// Getter for version vector.
   const std::vector<Byte> &getVersion() const noexcept { return Version; }
   std::vector<Byte> &getVersion() noexcept { return Version; }
 
@@ -68,13 +68,29 @@ public:
   const AOTSection &getAOTSection() const { return AOTSec; }
   AOTSection &getAOTSection() { return AOTSec; }
 
-  /// Getter and setter of compiled symbol.
+  /// Get the number of imported functions.
+  uint32_t getImportFuncCount() const noexcept {
+    uint32_t Count = 0;
+    for (const auto &ImpDesc : ImportSec.getContent()) {
+      if (ImpDesc.getExternalType() == ExternalType::Function) {
+        ++Count;
+      }
+    }
+    return Count;
+  }
+
+  /// Get the number of defined (non-imported) functions.
+  uint32_t getDefinedFuncCount() const noexcept {
+    return static_cast<uint32_t>(CodeSec.getContent().size());
+  }
+
+  /// Getter and setter for compiled symbol.
   const auto &getSymbol() const noexcept { return IntrSymbol; }
   void setSymbol(Symbol<const Executable::IntrinsicsTable *> S) noexcept {
     IntrSymbol = std::move(S);
   }
 
-  /// Getter and setter of validated flag.
+  /// Getter and setter for validated flag.
   bool getIsValidated() const noexcept { return IsValidated; }
   void setIsValidated(bool V = true) noexcept { IsValidated = V; }
 

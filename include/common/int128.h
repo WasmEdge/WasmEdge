@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/int128.h - 128-bit integer type -------------------===//
 //
@@ -18,7 +18,7 @@
 #pragma intrinsic(_BitScanReverse64)
 #include <immintrin.h>
 #endif
-// We have to detect for those environments who don't support __int128 type
+// We have to detect those environments that don't support __int128 type
 // natively.
 #include "endian.h"
 
@@ -128,14 +128,12 @@ public:
   constexpr uint128(unsigned long V) noexcept : Low(V), High(0) {}
   constexpr uint128(unsigned long long V) noexcept : Low(V), High(0) {}
   constexpr uint128(int128 V) noexcept;
-  constexpr uint128(uint64_t H, uint64_t L) noexcept
-      : Low(L), High(H){}
+  constexpr uint128(uint64_t H, uint64_t L) noexcept : Low(L), High(H) {}
 
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
-        constexpr uint128(unsigned __int128 V) noexcept
-      : Low(static_cast<uint64_t>(V)), High(static_cast<uint64_t>(V >> 64)) {
-  }
+  constexpr uint128(unsigned __int128 V) noexcept
+      : Low(static_cast<uint64_t>(V)), High(static_cast<uint64_t>(V >> 64)) {}
 #endif
 
   constexpr operator bool() const noexcept {
@@ -395,13 +393,11 @@ public:
   constexpr int128(unsigned long V) noexcept : Low(V), High(INT64_C(0)) {}
   constexpr int128(unsigned long long V) noexcept : Low(V), High(INT64_C(0)) {}
   constexpr int128(uint128 V) noexcept;
-  constexpr int128(int64_t H, uint64_t L) noexcept
-      : Low(L), High(H){}
+  constexpr int128(int64_t H, uint64_t L) noexcept : Low(L), High(H) {}
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
-        constexpr int128(__int128 V) noexcept
-      : Low(static_cast<uint64_t>(V)), High(V >> 64) {
-  }
+  constexpr int128(__int128 V) noexcept
+      : Low(static_cast<uint64_t>(V)), High(V >> 64) {}
 #endif
 
   constexpr int128 &operator=(int V) noexcept { return *this = int128(V); }
@@ -540,11 +536,6 @@ public:
 };
 } // namespace std
 
-#include <type_traits>
-namespace std {
-template <> struct is_class<WasmEdge::uint128> : std::true_type {};
-} // namespace std
-
 namespace WasmEdge {
 // If there is a built-in type __int128, then use it directly
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
@@ -560,7 +551,11 @@ using uint128_t = uint128;
 #include <fmt/format.h>
 
 FMT_BEGIN_NAMESPACE
+#if FMT_VERSION >= 90000
 namespace detail {
+#if FMT_VERSION >= 120200
+using uint128_fallback = uint128;
+#endif
 inline constexpr bool operator>=(detail::uint128_fallback LHS,
                                  unsigned int RHS) {
   return LHS.high() != 0 || LHS.low() >= static_cast<uint64_t>(RHS);
@@ -586,8 +581,8 @@ operator+(detail::uint128_fallback LHS, unsigned int RHS) {
 
 inline constexpr detail::uint128_fallback
 operator-(unsigned int LHS, detail::uint128_fallback RHS) {
-  uint128_fallback Result = RHS;
-  return (~Result) + 1 + LHS;
+  detail::uint128_fallback Negated = {~RHS.high(), ~RHS.low()};
+  return Negated + 1 + LHS;
 }
 
 inline constexpr detail::uint128_fallback &
@@ -673,7 +668,9 @@ FMT_CONSTEXPR20 inline int count_digits(detail::uint128_fallback N) {
 }
 
 } // namespace detail
+#endif
 
+#if FMT_VERSION >= 80000
 template <typename Char> struct formatter<WasmEdge::uint128, Char> {
 private:
   detail::dynamic_format_specs<Char> Specs;
@@ -718,4 +715,160 @@ public:
 #endif
   }
 };
+#else
+template <typename Char> struct formatter<WasmEdge::uint128, Char> {
+private:
+  Char Fill = static_cast<Char>(' ');
+  char Align = '\0';
+  bool Alt = false;
+  bool ZeroPad = false;
+  unsigned int Width = 0U;
+  char Type = '\0';
+
+public:
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext &Ctx) -> decltype(Ctx.begin()) {
+    auto It = Ctx.begin();
+    const auto End = Ctx.end();
+    if (It == End || *It == static_cast<Char>('}')) {
+      return It;
+    }
+    const auto IsAlign = [](Char C) {
+      return C == static_cast<Char>('<') || C == static_cast<Char>('>') ||
+             C == static_cast<Char>('^');
+    };
+    auto Next = It;
+    ++Next;
+    if (Next != End && IsAlign(*Next)) {
+      Fill = *It;
+      Align = static_cast<char>(*Next);
+      It = Next;
+      ++It;
+    } else if (IsAlign(*It)) {
+      Align = static_cast<char>(*It);
+      ++It;
+    }
+    if (It != End && *It == static_cast<Char>('#')) {
+      Alt = true;
+      ++It;
+    }
+    if (It != End && *It == static_cast<Char>('0')) {
+      ZeroPad = true;
+      ++It;
+    }
+    while (It != End && *It >= static_cast<Char>('0') &&
+           *It <= static_cast<Char>('9')) {
+      Width =
+          Width * 10U + static_cast<unsigned int>(*It - static_cast<Char>('0'));
+      ++It;
+    }
+    if (It != End && *It != static_cast<Char>('}')) {
+      Type = static_cast<char>(*It);
+      ++It;
+    }
+    return It;
+  }
+
+  template <typename FormatContext>
+  auto format(WasmEdge::uint128 V, FormatContext &Ctx) -> decltype(Ctx.out()) {
+    const bool IsZeroValue = (V == WasmEdge::uint128(0U));
+    unsigned int Base = 10U;
+    const char *DigitChars = "0123456789abcdef";
+    char Prefix[2] = {'\0', '\0'};
+    switch (Type) {
+    case 'X':
+      DigitChars = "0123456789ABCDEF";
+      [[fallthrough]];
+    case 'x':
+      Base = 16U;
+      if (Alt) {
+        Prefix[0] = '0';
+        Prefix[1] = (Type == 'X') ? 'X' : 'x';
+      }
+      break;
+    case 'B':
+    case 'b':
+      Base = 2U;
+      if (Alt) {
+        Prefix[0] = '0';
+        Prefix[1] = (Type == 'B') ? 'B' : 'b';
+      }
+      break;
+    case 'o':
+      Base = 8U;
+      if (Alt && !IsZeroValue) {
+        Prefix[0] = '0';
+      }
+      break;
+    default:
+      break;
+    }
+
+    char Buf[130];
+    char *Pos = Buf + sizeof(Buf);
+    const WasmEdge::uint128 BaseV(Base);
+    do {
+      *--Pos = DigitChars[static_cast<unsigned int>((V % BaseV).low())];
+      V /= BaseV;
+    } while (V != WasmEdge::uint128(0U));
+
+    const unsigned int NumDigits =
+        static_cast<unsigned int>(Buf + sizeof(Buf) - Pos);
+    const unsigned int PrefixLen =
+        (Prefix[0] != '\0') ? (Prefix[1] != '\0' ? 2U : 1U) : 0U;
+    const unsigned int CoreLen = PrefixLen + NumDigits;
+
+    auto Out = Ctx.out();
+    const auto WritePrefix = [&]() {
+      for (unsigned int I = 0U; I < PrefixLen; ++I) {
+        *Out++ = Prefix[I];
+      }
+    };
+    const auto WriteDigits = [&]() {
+      for (const char *It = Pos; It != Buf + sizeof(Buf); ++It) {
+        *Out++ = *It;
+      }
+    };
+    const auto WriteFill = [&](unsigned int Count) {
+      for (unsigned int I = 0U; I < Count; ++I) {
+        *Out++ = Fill;
+      }
+    };
+
+    if (Width <= CoreLen) {
+      WritePrefix();
+      WriteDigits();
+      return Out;
+    }
+
+    const unsigned int Pad = Width - CoreLen;
+    if (ZeroPad && Align == '\0') {
+      WritePrefix();
+      for (unsigned int I = 0U; I < Pad; ++I) {
+        *Out++ = '0';
+      }
+      WriteDigits();
+      return Out;
+    }
+
+    const char Alignment = (Align == '\0') ? '>' : Align;
+    if (Alignment == '<') {
+      WritePrefix();
+      WriteDigits();
+      WriteFill(Pad);
+    } else if (Alignment == '^') {
+      const unsigned int Left = Pad / 2U;
+      WriteFill(Left);
+      WritePrefix();
+      WriteDigits();
+      WriteFill(Pad - Left);
+    } else {
+      WriteFill(Pad);
+      WritePrefix();
+      WriteDigits();
+    }
+    return Out;
+  }
+};
+#endif
 FMT_END_NAMESPACE

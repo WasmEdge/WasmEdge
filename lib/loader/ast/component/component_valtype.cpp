@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "loader/loader.h"
 
@@ -29,7 +29,7 @@ Expect<void> Loader::loadType(ComponentValType &Ty) {
   if (Val < 0) {
     // PrimValType case.
     if (Val < -64) {
-      // For checking the invalid s33 value which is larger than 1 byte.
+      // Check for an invalid s33 value larger than 1 byte.
       return logLoadError(ErrCode::Value::MalformedValType,
                           FMgr.getLastOffset(), ASTNodeAttr::Comp_ValueType);
     }

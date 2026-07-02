@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 
@@ -17,7 +17,7 @@ Expect<void> Executor::runIfElseOp(Runtime::StackManager &StackMgr,
   // If non-zero, run if-statement; else, run else-statement.
   if (Cond == 0) {
     if (Instr.getJumpElse() == Instr.getJumpEnd()) {
-      // No else-statement case. Jump to right before End instruction.
+      // No else-statement case. Jump to right before the End instruction.
       PC += (Instr.getJumpEnd() - 1);
     } else {
       if (Stat) {
@@ -26,7 +26,7 @@ Expect<void> Executor::runIfElseOp(Runtime::StackManager &StackMgr,
           return Unexpect(ErrCode::Value::CostLimitExceeded);
         }
       }
-      // Have else-statement case. Jump to Else instruction to continue.
+      // Else-statement case. Jump to the Else instruction to continue.
       PC += Instr.getJumpElse();
     }
   }
@@ -37,7 +37,7 @@ Expect<void> Executor::runThrowOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr,
                                   AST::InstrView::iterator &PC) noexcept {
   auto *TagInst = getTagInstByIdx(StackMgr, Instr.getTargetIndex());
-  // The args will be popped from stack in the throw function.
+  // The arguments will be popped from the stack in the throw function.
   return throwException(StackMgr, *TagInst, PC);
 }
 
@@ -51,8 +51,11 @@ Expect<void> Executor::runThrowRefOp(Runtime::StackManager &StackMgr,
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::AccessNullException);
   }
-  auto *TagInst = Ref.getPtr<Runtime::Instance::TagInstance>();
-  return throwException(StackMgr, *TagInst, PC);
+  const auto *ExnInst = Ref.getPtr<Runtime::Instance::ExceptionInstance>();
+  auto *TagInst = ExnInst->getTag();
+  // Re-push the captured payload to mirror an initial `throw`, then unwind.
+  StackMgr.pushValVec(ExnInst->getPayload());
+  return throwException(StackMgr, *TagInst, PC, ExnInst);
 }
 
 Expect<void> Executor::runBrOp(Runtime::StackManager &StackMgr,
@@ -93,7 +96,7 @@ Expect<void> Executor::runBrOnNonNullOp(Runtime::StackManager &StackMgr,
 Expect<void> Executor::runBrTableOp(Runtime::StackManager &StackMgr,
                                     const AST::Instruction &Instr,
                                     AST::InstrView::iterator &PC) noexcept {
-  // Get value on top of stack.
+  // Get the value on top of the stack.
   uint32_t Value = StackMgr.pop().get<uint32_t>();
 
   // Do branch.
@@ -109,7 +112,7 @@ Expect<void> Executor::runBrOnCastOp(Runtime::StackManager &StackMgr,
                                      const AST::Instruction &Instr,
                                      AST::InstrView::iterator &PC,
                                      bool IsReverse) noexcept {
-  // Get value on top of stack.
+  // Get the value on top of the stack.
   const auto *ModInst = StackMgr.getModule();
   const auto &Val = StackMgr.getTop().get<RefVariant>();
   const auto &VT = Val.getType();
@@ -169,7 +172,8 @@ Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
                                     AST::InstrView::iterator &PC,
                                     bool IsTailCall) noexcept {
   const auto Ref = StackMgr.pop().get<RefVariant>();
-  if (Ref.isNull()) {
+  const auto *FuncInst = retrieveFuncRef(Ref);
+  if (FuncInst == nullptr) {
     spdlog::error(ErrCode::Value::AccessNullFunc);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -177,7 +181,6 @@ Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
   }
 
   // Get Function address.
-  const auto *FuncInst = retrieveFuncRef(Ref);
   EXPECTED_TRY(auto NextPC,
                enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall));
   PC = NextPC - 1;
@@ -193,7 +196,7 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
 
   // Get function type at index x.
   const auto *ModInst = StackMgr.getModule();
-  const auto &ExpDefType = **ModInst->getType(Instr.getTargetIndex());
+  const auto &ExpDefType = *ModInst->unsafeGetType(Instr.getTargetIndex());
 
   // Pop the value of index from the Stack.
   const auto AddrType = TabInst->getTableType().getLimit().getAddrType();
@@ -210,7 +213,8 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
 
   // Get function address. The bound is guaranteed.
   RefVariant Ref = *TabInst->getRefAddr(Idx);
-  if (Ref.isNull()) {
+  const auto *FuncInst = retrieveFuncRef(Ref);
+  if (FuncInst == nullptr) {
     spdlog::error(ErrCode::Value::UninitializedElement);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
@@ -219,7 +223,6 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
   }
 
   // Check function type.
-  const auto *FuncInst = retrieveFuncRef(Ref);
   bool IsMatch = false;
   if (FuncInst->getModule()) {
     IsMatch = AST::TypeMatcher::matchType(

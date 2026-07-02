@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 
@@ -12,26 +12,30 @@ namespace Executor {
 Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                                    Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::TableSection &TabSec) {
-  // A frame with temp. module is pushed into the stack in caller.
+  // A frame with the temporary module is pushed onto the stack by the caller.
 
   // Iterate through the table segments to instantiate and initialize table
   // instances.
   for (const auto &TabSeg : TabSec.getContent()) {
     if (TabSeg.getExpr().getInstrs().size() > 0) {
-      // Run initialize expression.
+      // Run the initialization expression.
       EXPECTED_TRY(runExpression(StackMgr, TabSeg.getExpr().getInstrs())
                        .map_error([](auto E) {
                          spdlog::error(
                              ErrInfo::InfoAST(ASTNodeAttr::Expression));
                          return E;
                        }));
-      // Pop result from stack.
+      // Pop result from the stack.
       RefVariant InitTabValue = StackMgr.pop().get<RefVariant>();
-      // Create and add the table instance into the module instance.
+      // Create and add the table instance to the module instance.
       ModInst.addTable(TabSeg.getTableType(), InitTabValue);
     } else {
       // No init expression case. Use the null reference to initialize.
-      ModInst.addTable(TabSeg.getTableType());
+      // Normalize the type to the bottom abstract heap type so that null
+      // references always carry abstract types, as ref.cast/ref.test assume.
+      auto BotType = toBottomType(StackMgr, TabSeg.getTableType().getRefType());
+      RefVariant InitTabValue(ValType(TypeCode::RefNull, BotType));
+      ModInst.addTable(TabSeg.getTableType(), InitTabValue);
     }
   }
   return {};

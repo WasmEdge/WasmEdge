@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/spare_enum_map.h - mapping spare enum to data -----===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains a class for mapping spare enum value to data.
+/// This file contains a class for mapping spare enum values to data.
 ///
 //===----------------------------------------------------------------------===//
 

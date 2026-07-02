@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/executable.h - Executable Code definition ---------===//
 //
@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the Executable, which holds interface
-/// to executable binary objects.
+/// This file contains the declaration of the Executable, which defines the
+/// interface to executable binary objects.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -24,7 +24,7 @@
 
 namespace WasmEdge {
 
-/// Holder class for library handle
+/// Holder class for a library handle.
 class Executable : public std::enable_shared_from_this<Executable> {
   Executable(const Executable &) = delete;
   Executable &operator=(const Executable &) = delete;
@@ -78,6 +78,7 @@ public:
     kMemAtomicWait,
     kTableGetFuncSymbol,
     kRefGetFuncSymbol,
+    kFuncGetFuncSymbol,
     kIntrinsicMax,
   };
   using IntrinsicsTable = void * [uint32_t(Intrinsics::kIntrinsicMax)];

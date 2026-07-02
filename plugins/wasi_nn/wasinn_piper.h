@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -35,7 +35,7 @@ struct SynthesisConfig {
   // Amount of noise to add during audio generation
   std::optional<float> NoiseScale;
 
-  // Speed of speaking (1 = normal, < 1 is faster, > 1 is slower)
+  // Speech speed (1 = normal, < 1 is faster, > 1 is slower)
   std::optional<float> LengthScale;
 
   // Variation in phoneme lengths

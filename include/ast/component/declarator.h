@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2025 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/ast/component/declarator.h - Declarator class definitions ===//
 //
@@ -96,6 +96,19 @@ public:
   }
   void setExport(CoreExportDecl &&Exp) noexcept {
     Decl.emplace<CoreExportDecl>(std::move(Exp));
+  }
+
+  bool isImport() const noexcept {
+    return std::holds_alternative<CoreImportDecl>(Decl);
+  }
+  bool isType() const noexcept {
+    return std::holds_alternative<std::unique_ptr<CoreDefType>>(Decl);
+  }
+  bool isAlias() const noexcept {
+    return std::holds_alternative<CoreAlias>(Decl);
+  }
+  bool isExport() const noexcept {
+    return std::holds_alternative<CoreExportDecl>(Decl);
   }
 
 private:

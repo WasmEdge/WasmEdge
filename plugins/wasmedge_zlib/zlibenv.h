@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -12,7 +12,7 @@
 #include <zlib.h>
 
 /**
- * @brief A struct which maps perfectly to a wasm 32bit z_stream object
+ * @brief A struct that maps exactly to a 32-bit Wasm z_stream object
  *
  */
 struct WasmZStream {

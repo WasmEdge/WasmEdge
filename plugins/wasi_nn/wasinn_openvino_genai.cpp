@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasinn_openvino_genai.h"
 #include "wasinnenv.h"
@@ -93,7 +93,13 @@ LLMPipelineBackend::GetContextOutput(Context &CxtRef, uint32_t Index,
   }
 
   try {
-    BytesWritten = CxtRef.StringOutput.size();
+    BytesWritten = static_cast<uint32_t>(CxtRef.StringOutput.size());
+    if (OutBuffer.size() < CxtRef.StringOutput.size()) {
+      spdlog::error("[WASI-NN] OpenVINOGenAI backend: output buffer too small, "
+                    "need {} bytes but got {}."sv,
+                    CxtRef.StringOutput.size(), OutBuffer.size());
+      return WASINN::ErrNo::TooLarge;
+    }
     std::copy_n(reinterpret_cast<const uint8_t *>(CxtRef.StringOutput.data()),
                 BytesWritten, OutBuffer.data());
   } catch (const std::exception &EX) {
@@ -118,7 +124,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   //   Builder-1: Path to the dir model xml/bin files
   //   Builder-2: Empty for now (reserved for future use)
 
-  // There are 4 types (text or img) x (text or img), we assume the input is 0
+  // There are 4 types (text or img) x (text or img); we assume the input is 0
   // for now.
   auto ModelType = std::string(
       reinterpret_cast<const char *>(Builders[0].data()), Builders[0].size());

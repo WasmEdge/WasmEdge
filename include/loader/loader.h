@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/loader/loader.h - Loader flow control class definition ---===//
 //
@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the Loader class, which controls flow
-/// of WASM loading.
+/// This file contains the declaration of the Loader class, which controls the
+/// flow of WASM loading.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -249,7 +249,7 @@ public:
   /// Reset status.
   void reset() noexcept { FMgr.reset(); }
 
-  /// Setup Symbol from an Exetuable.
+  /// Set up Symbol from an Executable.
   Expect<void> loadExecutable(AST::Module &Mod,
                               std::shared_ptr<Executable> Library);
 

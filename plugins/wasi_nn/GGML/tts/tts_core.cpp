@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "tts_core.h"
 #include "host/wasi/vfs_io.h"
@@ -385,7 +385,7 @@ getSpeakerProfileFromFile(const std::string &FilePath, WasiNNEnvironment &Env) {
   JsonFile >> JsonData;
   JsonFile.close();
 
-  // Initialize the outputs
+  // Initialize the outputs.
   std::string AudioOutputText = "<|audio_start|>\n";
   std::string TextOutput = "<|text_start|>";
 
@@ -412,7 +412,7 @@ getSpeakerProfileFromFile(const std::string &FilePath, WasiNNEnvironment &Env) {
   return TTSSpeakerProfile{TextOutput, AudioOutputText};
 }
 
-// TextToSpeech function, will generate voice data from codes.
+// TextToSpeech function that generates voice data from codes.
 ErrNo codesToSpeech(WasiNNEnvironment &Env, Graph &GraphRef,
                     Context &CxtRef) noexcept {
   // Remove all non-audio tokens.
@@ -456,7 +456,7 @@ ErrNo codesToSpeech(WasiNNEnvironment &Env, Graph &GraphRef,
     AudioData[I] = 0.0f;
   }
 
-  // Convert audio data to wav and put it into output buffer.
+  // Convert audio data to WAV and put it into the output buffer.
   CxtRef.LlamaOutputs = audioDataToWav(AudioData, SamplingRate);
 
   // Save .wav file if path is provided.

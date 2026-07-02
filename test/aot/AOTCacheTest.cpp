@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/test/aot/AOTCacheTest.cpp - aot cache unit tests ---------===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents unit tests of caching compiled WASM.
+/// This file contains unit tests for caching compiled WASM.
 ///
 //===----------------------------------------------------------------------===//
 

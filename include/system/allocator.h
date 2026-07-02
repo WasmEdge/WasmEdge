@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/system/allocator.h - large memory allocator --------------===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the memory allocator for various operating system.
+/// This file contains the memory allocator for various operating systems.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

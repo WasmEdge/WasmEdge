@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "tensorflow_func.h"
 
@@ -138,8 +138,8 @@ Expect<uint32_t> CreateSessionSavedModel::body(
   Tags.reserve(TagsBufLen);
   TagsArgv.reserve(TagsBufLen);
   for (size_t I = 0; I < TagSpan.size(); ++I) {
-    // Should use std::string to copy the tag name here to prevent from no
-    // null-termination of the tag strings here.
+    // Use std::string to copy the tag name here and avoid relying on
+    // null-termination of the tag strings.
     const auto &Tag = TagSpan[I];
     MEM_SV_CHECK(TagNameSV, MemInst, Tag.Ptr, Tag.Len,
                  "Failed when accessing the tag name memory."sv)

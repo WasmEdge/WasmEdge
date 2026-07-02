@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -40,7 +40,7 @@ public:
   /// Configurations
   /// Timeout in milliseconds.
   uint32_t TimeOut = DEFAULT_TIMEOUT;
-  /// Programs in white list.
+  /// Programs in the allowlist.
   std::unordered_set<std::string> AllowedCmd;
   /// Flag to allow all programs.
   bool AllowedAll;

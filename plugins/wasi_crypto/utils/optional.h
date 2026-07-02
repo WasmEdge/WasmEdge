@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/plugins/wasi_crypto/utils/handles_manager.h - OptionalRef ===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definition of the OptionalRef and some helper
+/// This file contains the definition of OptionalRef and some helper
 /// functions.
 ///
 //===----------------------------------------------------------------------===//

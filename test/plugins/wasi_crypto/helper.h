@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -137,7 +137,7 @@ protected:
   WasiCryptoExpect<void> optionsSetU64(__wasi_options_t OptionsHandle,
                                        std::string_view Name, uint64_t Value);
 
-  // Not supported, Buf placing must be on page.
+  // Not supported, buffer placement must be on a page.
   //   WasiCryptoExpect<void>
   //   optionsSetGuestBuffer(__wasi_options_t OptionsHandle,
   //                         std::string_view Name, Span<uint8_t> Buf);

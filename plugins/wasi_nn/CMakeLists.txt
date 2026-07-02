@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 wasmedge_add_library(wasmedgePluginWasiNN
   SHARED
@@ -38,8 +38,8 @@ target_compile_definitions(wasmedgePluginWasiNN PRIVATE
     WASI_NN_VERSION_MINOR=${WASI_NN_VERSION_MINOR}
     WASI_NN_VERSION_PATCH=${WASI_NN_VERSION_PATCH}
 )
-# This for-each iteration is for the additional sources.
-# The dependencies are moved into `cmake/WASINNDeps.cmake`.
+# This foreach iteration handles the additional sources.
+# The dependencies are moved to `cmake/WASINNDeps.cmake`.
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   string(TOLOWER ${BACKEND} BACKEND)
   if(BACKEND STREQUAL "mlx")

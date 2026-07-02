@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/hash.h - Fast hash function -----------------------===//
 //
@@ -8,14 +8,13 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the functions about hashing data.
+/// This file contains functions for hashing data.
 /// Currently using rapidhash.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
 
 #include "common/defines.h"
-#include "common/endian.h"
 #include "common/errcode.h"
 #include "common/int128.h"
 #include "common/span.h"
@@ -31,8 +30,8 @@ namespace WasmEdge::Hash {
 inline constexpr void rapidMum(uint64_t &A, uint64_t &B) noexcept {
   uint128_t R = A;
   R *= B;
-  A = static_cast<uint64_t>(R);
-  B = static_cast<uint64_t>(R >> 64);
+  A ^= static_cast<uint64_t>(R);
+  B ^= static_cast<uint64_t>(R >> 64);
 }
 inline constexpr uint64_t rapidMix(uint64_t A, uint64_t B) noexcept {
   rapidMum(A, B);
@@ -83,7 +82,7 @@ struct Hash {
   template <typename T, std::enable_if_t<std::is_integral_v<std::remove_cv_t<
                             std::remove_reference_t<T>>>> * = nullptr>
   inline uint64_t operator()(const T &Value) const noexcept {
-    RandomEngine E(Value);
+    RandomEngine E(static_cast<uint64_t>(Value));
     return E();
   }
 };

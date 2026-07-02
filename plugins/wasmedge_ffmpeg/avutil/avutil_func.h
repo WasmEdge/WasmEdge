@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -34,7 +34,7 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame);
 };
 
-// Option funcs.
+// Option functions.
 class AVOptSetBin : public HostFunction<AVOptSetBin> {
 public:
   using HostFunction::HostFunction;

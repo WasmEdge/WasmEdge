@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 find_package(spdlog QUIET)
 add_definitions(-DWASMEDGE_COMPILE_LIBRARY)
@@ -35,7 +35,7 @@ function(wasmedge_add_static_lib_component_command target)
   set(WASMEDGE_STATIC_LIB_DEPS ${WASMEDGE_STATIC_LIB_DEPS} ${target} PARENT_SCOPE)
 endfunction()
 
-# Helper function to construct commands about packaging llvm and dependency libraries with paths.
+# Helper function to construct commands for packaging LLVM and dependency libraries with paths.
 function(wasmedge_add_libs_component_command target_path)
   get_filename_component(target_name ${target_path} NAME)
   string(REGEX REPLACE "^lib" "" target_name ${target_name})
@@ -128,6 +128,13 @@ if(WASMEDGE_BUILD_SHARED_LIB)
       PRIVATE
       "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libwasmedge.lds"
     )
+
+    # The 0.16 `@WASMEDGE_0.16` compat shims rely on the version script, so they
+    # belong only to the shared library, not the static one (see wasmedge_compat.cpp).
+    target_sources(wasmedge_shared
+      PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/wasmedge_compat.cpp
+    )
   endif()
 
   target_link_libraries(wasmedge_shared
@@ -162,8 +169,8 @@ if(WASMEDGE_BUILD_STATIC_LIB)
   wasmedge_add_static_lib_component_command(wasmedgeExecutor)
   wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasi)
   wasmedge_add_static_lib_component_command(wasmedgePlugin)
-  # BUILTIN-PLUGIN: Temporary add the wasi-logging plugin here until the new
-  # plugin architecture ready in the future.
+  # BUILTIN-PLUGIN: Temporarily add the wasi-logging plugin here until the new
+  # plugin architecture is ready in the future.
   wasmedge_add_static_lib_component_command(wasmedgePluginWasiLogging)
   wasmedge_add_static_lib_component_command(wasmedgeVM)
   wasmedge_add_static_lib_component_command(wasmedgeDriver)

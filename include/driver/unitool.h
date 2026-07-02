@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-//===-- wasmedge/driver/unitool.h - UniTool entrypoint ------------------===//
+//===-- wasmedge/driver/unitool.h - UniTool entry point ------------------===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents the entrypoint for the wasmedge unified tool executable.
+/// This file contains the entry point for the wasmedge unified tool executable.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -16,7 +16,14 @@
 namespace WasmEdge {
 namespace Driver {
 
-enum class ToolType : char { All, Compiler, Tool };
+enum class ToolType : char {
+  All,
+  Compiler,
+  Tool,
+  Parse,
+  Validate,
+  Instantiate
+};
 
 int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept;
 

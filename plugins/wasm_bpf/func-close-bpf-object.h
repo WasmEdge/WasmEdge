@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -13,8 +13,8 @@
 namespace WasmEdge {
 namespace Host {
 
-/// \brief Close an opened bpf object. Will remove mapfds from the cache.
-/// Return 0 if success. Others represent error codes.
+/// \brief Close an opened BPF object and remove map fds from the cache.
+/// Returns 0 on success; other values represent error codes.
 class CloseBpfObject : public WasmEdge::Runtime::HostFunction<CloseBpfObject> {
 public:
   CloseBpfObject(state_t state) : state(state) {}

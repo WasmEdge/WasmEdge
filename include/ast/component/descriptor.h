@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2025 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/ast/component/descriptor.h - Descriptor class definitions ===//
 //
@@ -21,9 +21,9 @@ namespace WasmEdge {
 namespace AST {
 namespace Component {
 
-/// NOTE: The `ImportDesc` in AST implemented the fully import with name and
-/// module name in a class. Therefore create a `CoreImportDesc` class with
-/// only the import descriptions for component model.
+/// NOTE: The `ImportDesc` in AST implements the full import with name and
+/// module name in one class. Therefore, create a `CoreImportDesc` class with
+/// only the import descriptions for the component model.
 
 /// AST Component::CoreImportDesc node.
 class CoreImportDesc {
@@ -63,6 +63,20 @@ public:
     Type.emplace<TagType>(std::move(TT));
   }
 
+  bool isFunc() const noexcept {
+    return std::holds_alternative<uint32_t>(Type);
+  }
+  bool isTable() const noexcept {
+    return std::holds_alternative<TableType>(Type);
+  }
+  bool isMemory() const noexcept {
+    return std::holds_alternative<MemoryType>(Type);
+  }
+  bool isGlobal() const noexcept {
+    return std::holds_alternative<GlobalType>(Type);
+  }
+  bool isTag() const noexcept { return std::holds_alternative<TagType>(Type); }
+
 private:
   std::variant<uint32_t, TableType, MemoryType, GlobalType, TagType> Type;
 };
@@ -84,7 +98,7 @@ private:
 /// preceding type definition.
 ///
 /// NOTE:
-/// One just need to consider Java's `? extends T` in mind.
+/// Think of Java's `? extends T`.
 ///
 /// 1. optional `some i` as `(eq i)`
 /// 2. optional `none` as `sub`, i.e. Subresource

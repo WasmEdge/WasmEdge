@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/loader/aot_section.h - AOT Section definition ------------===//
 //
@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the AOTSection, which holds logics to
-/// load from an AOTSection
+/// This file contains the declaration of the AOTSection, which contains the
+/// logic for loading an AOT section.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -26,7 +26,7 @@
 namespace WasmEdge {
 namespace Loader {
 
-/// Holder class for library handle
+/// Holder class for a library handle.
 class AOTSection : public Executable {
 public:
   AOTSection() noexcept = default;

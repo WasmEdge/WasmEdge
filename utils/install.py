@@ -439,7 +439,7 @@ case :"${1}": in
     *:"{0}/bin":*)
         ;;
     *)
-        # Prepending path in case a system-installed wasmedge needs to be overridden
+        # Prepend the path in case a system-installed wasmedge needs to be overridden
         if [ -n "${1}" ]; then
             export PATH="{0}/bin:$PATH"
         else
@@ -451,7 +451,7 @@ case :"${2}": in
     *:"{0}/{6}":*)
         ;;
     *)
-        # Prepending path in case a system-installed wasmedge libs needs to be overridden
+        # Prepend the path in case system-installed wasmedge libraries need to be overridden
         if [ -n "${2}" ]; then
             export {2}="{0}/{6}:${2}"
         else
@@ -1380,7 +1380,7 @@ def main(args):
         )
         remove(uninstaller_path)
 
-        # If args.path is default then remove it initially
+        # If args.path is the default, remove it initially
         if PATH in args.path and exists(args.path):
             shutil.rmtree(args.path)
 
@@ -1393,14 +1393,18 @@ def main(args):
         logging.debug("CONST_urls: %s", CONST_urls)
         logging.debug("CONST_lib_dir: %s", CONST_lib_dir)
 
-        if getenv("SHELL") != SHELL:
-            logging.warning("SHELL variable not found. Using %s as SHELL", SHELL)
+        if args.modify_shell_profile:
+            env_shell = getenv("SHELL")
+            if env_shell != SHELL:
+                logging.warning(
+                    "Unexpected SHELL: {0}. Using {1} as SHELL".format(env_shell, SHELL)
+                )
 
-        if shell_configure(args, compat) != 0:
-            logging.error("Error in configuring shell")
+            if shell_configure(args, compat) != 0:
+                logging.error("Error in configuring shell")
 
-        logging.debug("CONST_shell_profile: %s", CONST_shell_profile)
-        logging.debug("CONST_shell_config: %s", CONST_shell_config)
+            logging.debug("CONST_shell_profile: %s", CONST_shell_profile)
+            logging.debug("CONST_shell_config: %s", CONST_shell_config)
 
         logging.info("Downloading WasmEdge")
 
@@ -1477,18 +1481,22 @@ def main(args):
         # Cleanup
         shutil.rmtree(TEMP_PATH)
 
-        if CONST_shell_config is None:
-            CONST_shell_config = CONST_PATH_NOT_EXIST_STR
+        to_source = join(args.path, "env")
 
-        if CONST_shell_profile is None:
-            CONST_shell_profile = CONST_PATH_NOT_EXIST_STR
+        if args.modify_shell_profile:
+            if CONST_shell_config is None:
+                CONST_shell_config = CONST_PATH_NOT_EXIST_STR
 
-        if exists(CONST_shell_config) and compat.platform != "Darwin":
-            logging.info("Run:\nsource {0}".format(CONST_shell_config))
-        elif exists(CONST_shell_profile):
-            logging.info("Run:\nsource {0}".format(CONST_shell_profile))
-        else:
-            logging.info("Please source the env file: %s", join(args.path, "env"))
+            if CONST_shell_profile is None:
+                CONST_shell_profile = CONST_PATH_NOT_EXIST_STR
+
+            if exists(CONST_shell_config) and compat.platform != "Darwin":
+                to_source = CONST_shell_config
+            elif exists(CONST_shell_profile):
+                to_source = CONST_shell_profile
+
+        logging.info("Run:\nsource {0}".format(to_source))
+
     else:
         reraise(Exception("Incompatible with your machine\n{0}".format(compat)))
 
@@ -1522,6 +1530,13 @@ if __name__ == "__main__":
         required=False,
         default=PATH,
         help="Installation path for WasmEdge",
+    )
+    parser.add_argument(
+        "--no-modify-shell-profile",
+        dest="modify_shell_profile",
+        default=True,
+        help="Do not modify shell profile/startup files; source the generated env file manually",
+        action="store_false",
     )
     parser.add_argument(
         "-r",

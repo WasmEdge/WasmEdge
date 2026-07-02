@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/runtime/storemgr.h - Store Manager definition ------------===//
 //
@@ -49,13 +49,25 @@ public:
     return std::forward<CallbackT>(CallBack)(NamedMod);
   }
 
-  /// Find module by name.
+  /// Run Callback with the named module instance (or nullptr) while holding the
+  /// shared lock, so the caller can pin a dependency before a concurrent
+  /// unregisterModule destroys it.
+  template <typename CallbackT>
+  auto withModuleLocked(std::string_view Name, CallbackT &&Callback) const {
+    return getModuleList([&](const auto &Mods) {
+      const Instance::ModuleInstance *Found = nullptr;
+      if (auto Iter = Mods.find(Name); likely(Iter != Mods.cend())) {
+        Found = Iter->second;
+      }
+      return std::forward<CallbackT>(Callback)(Found);
+    });
+  }
+
+  /// Find module by name. Returns the pointer with the lock already released;
+  /// use withModuleLocked to pin or dereference the result race-free.
   const Instance::ModuleInstance *findModule(std::string_view Name) const {
-    std::shared_lock Lock(Mutex);
-    if (auto Iter = NamedMod.find(Name); likely(Iter != NamedMod.cend())) {
-      return Iter->second;
-    }
-    return nullptr;
+    return withModuleLocked(
+        Name, [](const Instance::ModuleInstance *Found) { return Found; });
   }
 
   /// Find component by name.
@@ -70,29 +82,39 @@ public:
 
   /// Reset this store manager and unlink all the registered module instances.
   void reset() noexcept {
-    std::shared_lock Lock(Mutex);
-    for (auto &&Pair : NamedMod) {
-      (const_cast<Instance::ModuleInstance *>(Pair.second))->unlinkStore(this);
+    std::unique_lock Lock(Mutex);
+    for (auto &&[Name, ModInst] : NamedMod) {
+      (const_cast<Instance::ModuleInstance *>(ModInst))
+          ->unlinkStore(this, Name);
     }
     NamedMod.clear();
+    NamedComp.clear();
   }
 
-  /// Register named module into this store.
+  /// Register a named module in this store.
   Expect<void> registerModule(const Instance::ModuleInstance *ModInst) {
+    return registerModule(ModInst, ModInst->getModuleName());
+  }
+
+  /// Register a module instance in this store under the given alias name.
+  Expect<void> registerModule(const Instance::ModuleInstance *ModInst,
+                              std::string_view Name) {
     std::unique_lock Lock(Mutex);
-    auto Iter = NamedMod.find(ModInst->getModuleName());
+    auto Iter = NamedMod.find(Name);
     if (likely(Iter != NamedMod.cend())) {
       return Unexpect(ErrCode::Value::ModuleNameConflict);
     }
-    NamedMod.emplace(ModInst->getModuleName(), ModInst);
+    NamedMod.emplace(std::string(Name), ModInst);
     // Link the module instance to this store manager.
     (const_cast<Instance::ModuleInstance *>(ModInst))
-        ->linkStore(this, [](StoreManager *Store,
-                             const Instance::ModuleInstance *Inst) {
-          // The unlink callback.
-          std::unique_lock CallbackLock(Store->Mutex);
-          (Store->NamedMod).erase(std::string(Inst->getModuleName()));
-        });
+        ->linkStore(this, Name,
+                    [](const Instance::ModuleInstance::LinkedStoreKey &Key,
+                       const Instance::ModuleInstance *) {
+                      // The unlink callback: erase the alias name from the
+                      // store.
+                      std::unique_lock CallbackLock(Key.first->Mutex);
+                      (Key.first->NamedMod).erase(Key.second);
+                    });
     return {};
   }
 
@@ -103,12 +125,13 @@ public:
     if (Iter == NamedMod.cend()) {
       return Unexpect(ErrCode::Value::UnknownImport);
     }
-    (const_cast<Instance::ModuleInstance *>(Iter->second))->unlinkStore(this);
+    (const_cast<Instance::ModuleInstance *>(Iter->second))
+        ->unlinkStore(this, Name);
     NamedMod.erase(Iter);
     return {};
   }
 
-  /// Register named component into this store.
+  /// Register a named component in this store.
   Expect<void> registerComponent(const Instance::ComponentInstance *CompInst) {
     std::unique_lock Lock(Mutex);
     auto Iter = NamedComp.find(CompInst->getComponentName());
@@ -127,6 +150,12 @@ private:
 
   /// Collect the instantiation failed module.
   void recycleModule(std::unique_ptr<Instance::ModuleInstance> &&Mod) {
+    if (FailedMod) {
+      auto *OldMod = FailedMod.release();
+      if (OldMod) {
+        OldMod->terminate();
+      }
+    }
     FailedMod = std::move(Mod);
   }
 
@@ -137,9 +166,9 @@ private:
       NamedComp;
 
   /// \name Last instantiation failed module.
-  /// According to the current spec, the instances should be able to be
-  /// referenced even if instantiation failed. Therefore store the failed module
-  /// instance here to keep the instances.
+  /// According to the current spec, instances should remain referenceable even
+  /// if instantiation failed. Therefore, store the failed module instance here
+  /// to keep the instances alive.
   /// FIXME: Is this necessary to be a vector?
   std::unique_ptr<Instance::ModuleInstance> FailedMod;
 };

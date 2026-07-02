@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/system/fault.h - Memory and arithmetic exception ---------===//
 //
@@ -9,7 +9,7 @@
 ///
 /// \file
 /// This file contains the software exception handler for various operating
-/// system.
+/// systems.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

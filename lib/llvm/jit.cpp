@@ -1,30 +1,96 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "llvm/jit.h"
-#include "common/spdlog.h"
 
 #include "data.h"
 #include "llvm.h"
+#include "spdlog/spdlog.h"
+
+#include <mutex>
+
+#include <fmt/format.h>
 
 namespace LLVM = WasmEdge::LLVM;
 using namespace std::literals;
 
+namespace {
+
+std::string errorToString(LLVM::Error &&E) noexcept {
+  auto Msg = E.message();
+  return std::string(Msg.string_view());
+}
+
+static WasmEdge::Expect<LLVM::OrcLLJIT> createTunedLazyLLJIT() noexcept {
+  LLVMOrcLLJITBuilderRef Builder = LLVM::OrcLLJIT::getBuilder();
+  if (!Builder) {
+    Builder = LLVMOrcCreateLLJITBuilder();
+  }
+
+  LLVMTargetRef TheTarget = nullptr;
+  LLVM::Message Triple(LLVMGetDefaultTargetTriple());
+  char *TripleErr = nullptr;
+  if (LLVMGetTargetFromTriple(Triple.string_view().data(), &TheTarget,
+                              &TripleErr)) {
+    spdlog::error("[lazy-jit]: getTargetFromTriple failed: {}"sv,
+                  TripleErr ? TripleErr : "");
+    LLVMDisposeMessage(TripleErr);
+    LLVMOrcDisposeLLJITBuilder(Builder);
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::LazyCompilationError);
+  }
+
+  LLVM::Message CPU(LLVMGetHostCPUName());
+  LLVM::Message Features(LLVMGetHostCPUFeatures());
+
+  // LLVMCodeGenLevelNone is used deliberately here as a performance trade-off.
+  // ORC's IRCompileLayer inherits the codegen optimisation level from this
+  // target machine and applies it during every lazy materialisation.
+  // Note that this codegen level is independent of the optimisation
+  // level passed through WasmEdge::Configure, which governs the
+  // IR compilation step, this setting only controls the ORC materialisation
+  // pipeline for lazy JIT.
+  LLVMTargetMachineRef TM = LLVMCreateTargetMachine(
+      TheTarget, Triple.string_view().data(), CPU.string_view().data(),
+      Features.string_view().data(), LLVMCodeGenLevelNone, LLVMRelocDefault,
+      LLVMCodeModelJITDefault);
+
+  if (!TM) {
+    spdlog::error("[lazy-jit]: createTargetMachine failed"sv);
+    LLVMOrcDisposeLLJITBuilder(Builder);
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::LazyCompilationError);
+  }
+
+  LLVMOrcJITTargetMachineBuilderRef JTMB =
+      LLVMOrcJITTargetMachineBuilderCreateFromTargetMachine(TM);
+  LLVMOrcLLJITBuilderSetJITTargetMachineBuilder(Builder, JTMB);
+
+  LLVM::OrcLLJIT Result;
+  if (LLVMErrorRef CreateErr = LLVMOrcCreateLLJIT(&Result.unwrap(), Builder)) {
+    LLVM::ErrorMessage Msg(LLVMGetErrorMessage(CreateErr));
+    spdlog::error("[lazy-jit]: LLVMOrcCreateLLJIT failed: {}"sv,
+                  Msg.string_view());
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::LazyCompilationError);
+  }
+  return Result;
+}
+
+} // namespace
+
 namespace WasmEdge::LLVM {
 
-JITLibrary::JITLibrary(OrcLLJIT JIT) noexcept
-    : J(std::make_unique<OrcLLJIT>(std::move(JIT)).release()) {}
+JITLibrary::JITLibrary(std::shared_ptr<LLVM::OrcLLJIT> JIT,
+                       bool IsLazy) noexcept
+    : J(std::move(JIT)), IsLazy(IsLazy) {}
 
-JITLibrary::~JITLibrary() noexcept {
-  std::unique_ptr<OrcLLJIT> JIT(std::exchange(J, nullptr));
-}
+JITLibrary::~JITLibrary() noexcept {}
 
 Symbol<const Executable::IntrinsicsTable *>
 JITLibrary::getIntrinsics() noexcept {
   if (auto Symbol = J->lookup<const IntrinsicsTable *>("intrinsics")) {
     return createSymbol<const IntrinsicsTable *>(*Symbol);
   } else {
-    spdlog::error("{}"sv, Symbol.error().message().string_view());
+    spdlog::error("failed to lookup intrinsics symbol: {}"sv,
+                  errorToString(std::move(Symbol.error())));
     return {};
   }
 }
@@ -38,7 +104,8 @@ JITLibrary::getTypes(size_t Size) noexcept {
     if (auto Symbol = J->lookup<Wrapper>(Name.c_str())) {
       Result.push_back(createSymbol<Wrapper>(*Symbol));
     } else {
-      spdlog::error("{}"sv, Symbol.error().message().string_view());
+      spdlog::error("failed to lookup table symbol {}: {}"sv, Name,
+                    errorToString(std::move(Symbol.error())));
       Result.emplace_back();
     }
   }
@@ -52,10 +119,24 @@ std::vector<Symbol<void>> JITLibrary::getCodes(size_t Offset,
   Result.reserve(Size);
   for (size_t I = 0; I < Size; ++I) {
     const std::string Name = fmt::format("f{}"sv, I + Offset);
-    if (auto Symbol = J->lookup<void>(Name.c_str())) {
-      Result.push_back(createSymbol<void>(*Symbol));
+    void *Addr = nullptr;
+    auto AddrOrErr = J->lookup<void *>(Name.c_str());
+    if (AddrOrErr) {
+      Addr = *AddrOrErr;
     } else {
-      spdlog::error("{}"sv, Symbol.error().message().string_view());
+      auto ErrMsg = errorToString(std::move(AddrOrErr.error()));
+      // consuming only symbol not found errors for lazy-jit
+      if (!IsLazy || ErrMsg.find("Symbols not found"sv) == std::string::npos) {
+        spdlog::error("failed to lookup function symbol {}: {}"sv, Name,
+                      ErrMsg);
+      }
+    }
+    if (Addr) {
+      Result.push_back(createSymbol<void>(Addr));
+    } else {
+      if (IsLazy) {
+        spdlog::debug("[lazy-jit]: function {} not yet compiled"sv, I + Offset);
+      }
       Result.emplace_back();
     }
   }
@@ -64,30 +145,97 @@ std::vector<Symbol<void>> JITLibrary::getCodes(size_t Offset,
 }
 
 Expect<std::shared_ptr<Executable>> JIT::load(Data D) noexcept {
-  OrcLLJIT J;
-  if (auto Res = OrcLLJIT::create(); !Res) {
-    spdlog::error("{}"sv, Res.error().message().string_view());
-    return Unexpect(ErrCode::Value::HostFuncError);
+  return loadImpl(D, false);
+}
+
+Expect<std::shared_ptr<Executable>> JIT::loadLazy(Data &D) noexcept {
+  return loadImpl(D, true);
+}
+
+Expect<std::shared_ptr<Executable>> JIT::loadImpl(Data &D,
+                                                  bool IsLazy) noexcept {
+  OrcLLJIT LLJITInstance;
+  if (IsLazy) {
+    auto R = createTunedLazyLLJIT();
+    if (!R) {
+      spdlog::error("[lazy-jit]: failed to create LLJIT"sv);
+      return Unexpect(R.error());
+    }
+    LLJITInstance = std::move(*R);
   } else {
-    J = std::move(*Res);
+    auto R = OrcLLJIT::create();
+    if (!R) {
+      spdlog::error("failed to create LLJIT: {}"sv,
+                    R.error().message().string_view());
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    LLJITInstance = std::move(*R);
   }
 
   auto &LLModule = D.extract().LLModule;
-  auto TSContext = D.extract().getTSContext();
+  auto &TSContext = D.extract().getTSContext();
 
   if (Conf.getCompilerConfigure().isDumpIR()) {
-    if (auto ErrorMessage = LLModule.printModuleToFile("wasm-jit.ll")) {
+    const auto *Filename = IsLazy ? "wasm-lazy-jit.ll" : "wasm-jit.ll";
+    if (auto ErrorMessage = LLModule.printModuleToFile(Filename)) {
       spdlog::error("printModuleToFile failed"sv);
     }
   }
 
-  auto MainJD = J.getMainJITDylib();
-  if (auto Err = J.addLLVMIRModule(
+  auto MainJD = LLJITInstance.getMainJITDylib();
+  if (auto Err = LLJITInstance.addLLVMIRModule(
           MainJD, OrcThreadSafeModule(LLModule.release(), TSContext))) {
-    spdlog::error("{}"sv, Err.message().string_view());
+    spdlog::error("failed to add LLVM IR module: {}"sv,
+                  Err.message().string_view());
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return std::make_shared<JITLibrary>(std::move(J));
+  return std::make_shared<JITLibrary>(
+      std::make_shared<OrcLLJIT>(std::move(LLJITInstance)), IsLazy);
+}
+
+Expect<std::vector<WasmFunctionCodeAddress>>
+JIT::add(JITLibrary &Lib, Data &D,
+         Span<const uint32_t> GlobalFuncIndices) noexcept {
+  if (GlobalFuncIndices.empty()) {
+    spdlog::error("JIT::add: empty function index list"sv);
+    return Unexpect(ErrCode::Value::LazyCompilationError);
+  }
+
+  auto &LLModule = D.extract().LLModule;
+  auto &TSContext = D.extract().getTSContext();
+
+  auto JD = Lib.J->getMainJITDylib();
+  auto RT = JD.createResourceTracker();
+  if (!RT) {
+    spdlog::error("[lazy-jit]: failed to create resource tracker"sv);
+    return Unexpect(ErrCode::Value::LazyCompilationError);
+  }
+
+  if (auto Err = Lib.J->addLLVMIRModuleWithRT(
+          RT, OrcThreadSafeModule(LLModule.release(), TSContext))) {
+    spdlog::error("[lazy-jit]: failed to add LLVM IR module: {}"sv,
+                  Err.message().string_view());
+    return Unexpect(ErrCode::Value::LazyCompilationError);
+  }
+
+  std::vector<WasmFunctionCodeAddress> Addresses;
+  Addresses.reserve(GlobalFuncIndices.size());
+  for (uint32_t GlobalFuncIndex : GlobalFuncIndices) {
+    const std::string SymName = fmt::format("f{}"sv, GlobalFuncIndex);
+    auto AddrOrErr = Lib.J->lookup<void *>(SymName.c_str());
+    if (!AddrOrErr) {
+      spdlog::error("[lazy-jit]: failed to lookup function symbol {}: {}"sv,
+                    SymName, errorToString(std::move(AddrOrErr.error())));
+      if (auto RemoveErr = RT.remove()) {
+        spdlog::error(
+            "[lazy-jit]: failed to remove failed module from tracker: {}"sv,
+            RemoveErr.message().string_view());
+      }
+      return Unexpect(ErrCode::Value::LazyCompilationError);
+    }
+    Addresses.push_back(*AddrOrErr);
+  }
+  return Addresses;
 }
 } // namespace WasmEdge::LLVM

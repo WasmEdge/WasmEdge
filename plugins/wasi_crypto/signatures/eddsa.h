@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/plugins/wasi_crypto/signatures/eddsa.h - Eddsa alg -------===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definition of eddsa algorithm.
+/// This file contains the definition of the EdDSA algorithm.
 ///
 //===----------------------------------------------------------------------===//
 

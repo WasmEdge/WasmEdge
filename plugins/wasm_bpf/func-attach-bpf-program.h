@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -13,7 +13,7 @@
 namespace WasmEdge {
 namespace Host {
 
-/// \brief Attach a bpf program to the specified target
+/// \brief Attach a BPF program to the specified target.
 class AttachBpfProgram
     : public WasmEdge::Runtime::HostFunction<AttachBpfProgram> {
 public:

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_PATH}" "${LLVM_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
@@ -11,12 +11,16 @@ if(LLD_FOUND)
   list(APPEND CMAKE_MODULE_PATH "${LLD_CMAKE_DIR}")
 endif()
 
+set(LLVM_INCLUDE_DIR "${LLVM_INCLUDE_DIR}" PARENT_SCOPE)
+set(LLD_INCLUDE_DIRS "${LLD_INCLUDE_DIRS}" PARENT_SCOPE)
+
 if(WASMEDGE_LINK_LLVM_STATIC)
   wasmedge_add_library(wasmedgeLLVM
     compiler.cpp
     codegen.cpp
     data.cpp
     jit.cpp
+    lazyjit.cpp
   )
 
   target_link_libraries(wasmedgeLLVM
@@ -53,6 +57,7 @@ else()
     codegen.cpp
     data.cpp
     jit.cpp
+    lazyjit.cpp
     LINK_LIBS
     wasmedgeCommon
     wasmedgeSystem
@@ -61,6 +66,7 @@ else()
     ${CMAKE_THREAD_LIBS_INIT}
     LINK_COMPONENTS
     core
+    linker
     lto
     native
     nativecodegen

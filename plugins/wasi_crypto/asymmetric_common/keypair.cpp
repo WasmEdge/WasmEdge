@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "asymmetric_common/keypair.h"
 
@@ -42,7 +42,7 @@ generateKp(AsymmetricCommon::Algorithm Alg,
         return transposeOptionalRef(
                    OptOptions,
                    [](auto &&Options) noexcept
-                   -> WasiCryptoExpect<OptionalRef<RequiredOptionsType>> {
+                       -> WasiCryptoExpect<OptionalRef<RequiredOptionsType>> {
                      using InOptionsType = std::decay_t<decltype(Options)>;
                      if constexpr (std::is_same_v<InOptionsType,
                                                   RequiredOptionsType>) {

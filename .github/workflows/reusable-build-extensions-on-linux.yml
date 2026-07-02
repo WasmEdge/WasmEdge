@@ -28,6 +28,7 @@ permissions:
 
 jobs:
   build:
+    if: ${{ inputs.plugins != '[]' }}
     permissions:
       contents: write
     strategy:
@@ -48,18 +49,38 @@ jobs:
       target: ${{ inputs.release && matrix.target || matrix.testBin || matrix.target }}
       test_dir: build/test/plugins/${{ matrix.dir }}
       output_dir: build/plugins/${{ matrix.dir }}
+      SCCACHE_GHA_ENABLED: "true"
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - id: var
         run: |
           echo "artifact=WasmEdge-plugin-${{ matrix.plugin }}-${{ inputs.version }}-${{ inputs.asset_tag }}.tar.gz" >> $GITHUB_OUTPUT
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@1583d6b38d7be47f593cb472781bbb21cab4321e # v0.0.10
+        with:
+          version: "v0.10.0"
+      - name: Warm up sccache server
+        shell: bash
+        run: |
+          for i in 1 2 3 4 5; do
+            if sccache --show-stats >/dev/null 2>&1; then
+              sccache --show-stats
+              exit 0
+            fi
+            echo "sccache server not ready (attempt ${i}/5); retrying..." >&2
+            sleep $((i * 3))
+          done
+          echo "sccache server did not become ready; aborting before the long build" >&2
+          exit 1
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
@@ -103,7 +124,7 @@ jobs:
           ESPEAK_DATA_PATH: /usr/local/share/espeak-ng-data
       - if: ${{ !inputs.release }}
         name: Upload artifact ${{ matrix.plugin }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ steps.var.outputs.artifact }}
           path: ${{ steps.var.outputs.artifact }}

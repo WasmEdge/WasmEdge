@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "metadata_parser.h"
 
@@ -12,7 +12,7 @@
 
 namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
-// Parse metadata from json.
+// Parse metadata from JSON.
 ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                     const std::string &Metadata, bool *IsModelUpdated,
                     bool *IsContextUpdated, bool *IsSamplerUpdated) noexcept {
@@ -33,7 +33,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   double PrevRepeatPenalty = GraphRef.Params.sampling.penalty_repeat;
   double PrevPresencePenalty = GraphRef.Params.sampling.penalty_present;
   double PrevFrequencyPenalty = GraphRef.Params.sampling.penalty_freq;
-  std::string PrevGrammar = GraphRef.Params.sampling.grammar;
+  std::string PrevGrammar =
+      common_grammar_value(GraphRef.Params.sampling.grammar);
   uint32_t PrevSeed = GraphRef.Params.sampling.seed;
 
   try {
@@ -56,7 +57,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonWithProcessorAuto<int64_t>(
         Doc, "n-cpu-moe", [&GraphRef](const int64_t &NCpuMoe) -> bool {
           if (NCpuMoe < 0) {
-            spdlog::error("[WASI-NN] GGML backend: Invalid n-cpu-moe value.");
+            spdlog::error("[WASI-NN] GGML backend: Invalid n-cpu-moe value."sv);
             return false;
           }
           for (int I = 0; I < NCpuMoe; I++) {
@@ -84,7 +85,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
           if (TensorSplitSize > NDevices) {
             spdlog::error(
                 "[WASI-NN] GGML backend: Number of Tensor-Split is larger than "
-                "MaxDevices, please reduce the size of tensor-split.");
+                "MaxDevices, please reduce the size of tensor-split."sv);
             return false;
           }
           for (size_t Idx = TensorSplitSize; Idx < NDevices; Idx++) {
@@ -104,7 +105,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
             GraphRef.Params.split_mode = LLAMA_SPLIT_MODE_ROW;
           } else {
             spdlog::error("[WASI-NN] GGML backend: Unknown split-mode: "
-                          "{}. Valid: none, layer, row.",
+                          "{}. Valid: none, layer, row."sv,
                           SplitMode);
             return false;
           }
@@ -259,13 +260,19 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonAuto<bool>(Doc, "timing-per-token",
                         GraphRef.Params.sampling.timing_per_token);
 
-    parseJsonWithCastAuto<std::string_view>(Doc, "grammar",
-                                            GraphRef.Params.sampling.grammar);
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "grammar", [&GraphRef](const std::string_view &Grammar) -> bool {
+          GraphRef.Params.sampling.grammar =
+              common_grammar(COMMON_GRAMMAR_TYPE_USER, std::string(Grammar));
+          return true;
+        });
     parseJsonWithProcessorAuto<std::string_view>(
         Doc, "json-schema",
         [&GraphRef](const std::string_view &JsonSchema) -> bool {
           GraphRef.Params.sampling.grammar =
-              json_schema_to_grammar(nlohmann::ordered_json::parse(JsonSchema));
+              common_grammar(COMMON_GRAMMAR_TYPE_OUTPUT_FORMAT,
+                             json_schema_to_grammar(
+                                 nlohmann::ordered_json::parse(JsonSchema)));
           return true;
         });
     parseJsonWithCastAuto<int64_t>(Doc, "seed", GraphRef.Params.sampling.seed);
@@ -299,8 +306,12 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonWithCastAuto<std::string_view>(Doc, "image", ConfRef.ImagePath);
     parseJsonAuto<bool>(Doc, "always-regenerate-image-embd",
                         ConfRef.AlwaysRegenerateImageEmbd);
-    parseJsonWithCastAuto<std::string_view>(Doc, "model-alias",
-                                            GraphRef.Params.model_alias);
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "model-alias",
+        [&GraphRef](const std::string_view &ModelAlias) -> bool {
+          GraphRef.Params.model_alias.emplace(ModelAlias);
+          return true;
+        });
     parseJsonWithCastAuto<std::string_view>(Doc, "model-url",
                                             GraphRef.Params.model.url);
     parseJsonWithCastAuto<std::string_view>(Doc, "hf-token",
@@ -318,9 +329,11 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonWithCastAuto<std::string_view>(Doc, "input-suffix",
                                             GraphRef.Params.input_suffix);
     parseJsonWithCastAuto<std::string_view>(
-        Doc, "lookup-cache-static", GraphRef.Params.lookup_cache_static);
+        Doc, "lookup-cache-static",
+        GraphRef.Params.speculative.lookup_cache_static);
     parseJsonWithCastAuto<std::string_view>(
-        Doc, "lookup-cache-dynamic", GraphRef.Params.lookup_cache_dynamic);
+        Doc, "lookup-cache-dynamic",
+        GraphRef.Params.speculative.lookup_cache_dynamic);
     parseJsonWithCastAuto<std::string_view>(Doc, "logits-file",
                                             GraphRef.Params.logits_file);
     parseJsonAuto<bool>(Doc, "lora-init-without-apply",
@@ -372,7 +385,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
           } else {
             spdlog::error(
                 "[WASI-NN] GGML backend: The flash-attn option must be "
-                "one of: on, off, auto.");
+                "one of: on, off, auto."sv);
             return false;
           }
           return true;
@@ -508,7 +521,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   } catch (const ErrNo &Error) {
     return Error;
   }
-  // The tensor buffer overrides should terminated with empty pattern.
+  // The tensor buffer overrides should be terminated with an empty pattern.
   if (!GraphRef.TensorBuftOverrides.empty()) {
     for (const std::string &Override : GraphRef.TensorBuftOverrides) {
       GraphRef.Params.tensor_buft_overrides.push_back(
@@ -540,7 +553,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
        PrevRepeatPenalty != GraphRef.Params.sampling.penalty_repeat ||
        PrevPresencePenalty != GraphRef.Params.sampling.penalty_present ||
        PrevFrequencyPenalty != GraphRef.Params.sampling.penalty_freq ||
-       PrevGrammar != GraphRef.Params.sampling.grammar ||
+       PrevGrammar != common_grammar_value(GraphRef.Params.sampling.grammar) ||
        PrevSeed != GraphRef.Params.sampling.seed)) {
     *IsSamplerUpdated = true;
   }

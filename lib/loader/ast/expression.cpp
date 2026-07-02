@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "loader/loader.h"
 
@@ -11,7 +11,7 @@ Expect<void> Loader::loadExpression(AST::Expression &Expr,
                                     std::optional<uint64_t> SizeBound) {
   return loadInstrSeq(SizeBound)
       .map_error([](auto E) {
-        // For the section size mismatch case, check in caller.
+        // The caller checks for section size mismatches.
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
         return E;
       })

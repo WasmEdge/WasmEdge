@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "validator/validator.h"
 
@@ -18,19 +18,39 @@ namespace Validator {
 
 namespace {
 
+// One-shot builder for the pre-defined core function SubTypes.
+AST::SubType makeCoreFuncType(std::initializer_list<TypeCode> Params,
+                              std::initializer_list<TypeCode> Results) {
+  AST::FunctionType FT;
+  for (auto T : Params) {
+    FT.getParamTypes().emplace_back(T);
+  }
+  for (auto T : Results) {
+    FT.getReturnTypes().emplace_back(T);
+  }
+  AST::SubType ST;
+  ST.getCompositeType().setFunctionType(std::move(FT));
+  return ST;
+}
+
 static constexpr uint32_t MaxSubtypeDepth = 63;
+static constexpr uint32_t Unvisited = UINT32_MAX;
+static constexpr uint32_t Visiting = UINT32_MAX - 1;
 
 // TODO: make the super type depth table instead of recursively querying.
-Expect<void>
-checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx,
-                  std::unordered_set<uint32_t> &VisitedNodes,
-                  const std::vector<const WasmEdge::AST::SubType *> &TypeVec,
-                  uint32_t Depth) {
-  if (VisitedNodes.count(TestIdx)) {
+Expect<uint32_t>
+checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx, uint32_t Depth,
+                  std::vector<uint32_t> &DepthMap,
+                  const std::vector<const WasmEdge::AST::SubType *> &TypeVec) {
+  if (TestIdx >= DepthMap.size()) {
+    DepthMap.resize(TestIdx + 1, Unvisited);
+  } else if (DepthMap[TestIdx] == Visiting) {
     spdlog::error(ErrCode::Value::InvalidSubType);
     spdlog::error("    Cycle detected in subtype hierarchy for type {}."sv,
                   BaseIdx);
     return Unexpect(ErrCode::Value::InvalidSubType);
+  } else if (DepthMap[TestIdx] != Unvisited) {
+    return DepthMap[TestIdx];
   }
 
   if (Depth >= MaxSubtypeDepth) {
@@ -40,8 +60,8 @@ checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx,
     return Unexpect(ErrCode::Value::InvalidSubType);
   }
 
-  // The test type index validation is guaranteed in the caller.
-  VisitedNodes.insert(TestIdx);
+  DepthMap[TestIdx] = Visiting;
+  uint32_t MaxDepth = 0;
   const auto &TestType = *TypeVec[TestIdx];
   for (const auto SuperIdx : TestType.getSuperTypeIndices()) {
     if (unlikely(SuperIdx >= TypeVec.size())) {
@@ -52,18 +72,35 @@ checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx,
       return Unexpect(ErrCode::Value::InvalidSubType);
     }
     EXPECTED_TRY(
-        checkSubtypeDepth(BaseIdx, SuperIdx, VisitedNodes, TypeVec, Depth + 1)
+        auto RetDepth,
+        checkSubtypeDepth(BaseIdx, SuperIdx, Depth + 1, DepthMap, TypeVec)
             .map_error([=](auto E) {
               spdlog::error(
                   "    When checking subtype hierarchy of super type {}."sv,
                   SuperIdx);
               return E;
             }));
+    MaxDepth = std::max(MaxDepth, RetDepth + 1);
   }
-  return {};
+
+  if (MaxDepth >= MaxSubtypeDepth) {
+    spdlog::error(ErrCode::Value::InvalidSubType);
+    spdlog::error("    Subtype depth for type {} exceeded the limits of {}"sv,
+                  BaseIdx, MaxSubtypeDepth);
+    return Unexpect(ErrCode::Value::InvalidSubType);
+  }
+
+  DepthMap[TestIdx] = MaxDepth;
+  return MaxDepth;
 }
 
 } // namespace
+
+// Validator constructor. See "include/validator/validator.h".
+Validator::Validator(const Configure &Conf) noexcept
+    : Conf(Conf),
+      CoreFuncType_I32_I32(makeCoreFuncType({TypeCode::I32}, {TypeCode::I32})),
+      CoreFuncType_I32_Void(makeCoreFuncType({TypeCode::I32}, {})) {}
 
 // Validate Module. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::Module &Mod) {
@@ -77,42 +114,42 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     return E;
   }));
 
-  // Validate and register import section into FormChecker.
+  // Validate and register the import section in FormChecker.
   EXPECTED_TRY(validate(Mod.getImportSection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Import));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return E;
   }));
 
-  // Validate function section and register functions into FormChecker.
+  // Validate the function section and register functions in FormChecker.
   EXPECTED_TRY(validate(Mod.getFunctionSection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Function));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return E;
   }));
 
-  // Validate table section and register tables into FormChecker.
+  // Validate the table section and register tables in FormChecker.
   EXPECTED_TRY(validate(Mod.getTableSection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Table));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return E;
   }));
 
-  // Validate memory section and register memories into FormChecker.
+  // Validate the memory section and register memories in FormChecker.
   EXPECTED_TRY(validate(Mod.getMemorySection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Memory));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return E;
   }));
 
-  // Validate global section and register globals into FormChecker.
+  // Validate the global section and register globals in FormChecker.
   EXPECTED_TRY(validate(Mod.getGlobalSection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Global));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return E;
   }));
 
-  // Validate tag section and register tags into FormChecker.
+  // Validate the tag section and register tags in FormChecker.
   EXPECTED_TRY(validate(Mod.getTagSection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Tag));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
@@ -133,14 +170,14 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     return E;
   }));
 
-  // Validate element section which initialize tables.
+  // Validate the element section that initializes tables.
   EXPECTED_TRY(validate(Mod.getElementSection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Element));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return E;
   }));
 
-  // Validate data section which initialize memories.
+  // Validate the data section that initializes memories.
   EXPECTED_TRY(validate(Mod.getDataSection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Data));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
@@ -154,7 +191,7 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     return E;
   }));
 
-  // Multiple tables is for the ReferenceTypes proposal.
+  // Multiple tables are for the ReferenceTypes proposal.
   if (Checker.getTables().size() > 1 &&
       !Conf.hasProposal(Proposal::ReferenceTypes)) {
     spdlog::error(ErrCode::Value::MultiTables);
@@ -163,7 +200,7 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     return Unexpect(ErrCode::Value::MultiTables);
   }
 
-  // Multiple memories is for the MultiMemories proposal.
+  // Multiple memories are for the MultiMemories proposal.
   if (Checker.getMemories().size() > 1 &&
       !Conf.hasProposal(Proposal::MultiMemories)) {
     spdlog::error(ErrCode::Value::MultiMemories);
@@ -178,7 +215,8 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
 }
 
 // Validate Sub type. See "include/validator/validator.h".
-Expect<void> Validator::validate(const AST::SubType &Type) {
+Expect<void> Validator::validate(const AST::SubType &Type, uint32_t OwnTypeIdx,
+                                 std::vector<uint32_t> &SubTypeDepthMap) {
   const auto &TypeVec = Checker.getTypes();
   const auto &CompType = Type.getCompositeType();
 
@@ -211,7 +249,7 @@ Expect<void> Validator::validate(const AST::SubType &Type) {
     }
   }
 
-  // In current version, the length of type index vector will be <= 1.
+  // In the current version, the length of the type index vector will be <= 1.
   if (Type.getSuperTypeIndices().size() > 1) {
     spdlog::error(ErrCode::Value::InvalidSubType);
     spdlog::error("    Accepts only one super type currently."sv);
@@ -219,17 +257,18 @@ Expect<void> Validator::validate(const AST::SubType &Type) {
   }
 
   for (const auto &Index : Type.getSuperTypeIndices()) {
-    if (unlikely(Index >= TypeVec.size())) {
+    // A super type must be previously defined (smaller index than this sub
+    // type), so OwnTypeIdx is the exclusive bound, subsuming the range check.
+    if (unlikely(Index >= OwnTypeIdx)) {
       spdlog::error(ErrCode::Value::InvalidSubType);
-      spdlog::error(
-          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::DefinedType, Index,
-                                   static_cast<uint32_t>(TypeVec.size())));
+      spdlog::error("    Super type index {} must be smaller than the sub type "
+                    "index {}."sv,
+                    Index, OwnTypeIdx);
       return Unexpect(ErrCode::Value::InvalidSubType);
     }
 
-    std::unordered_set<uint32_t> VisitedNodes;
     EXPECTED_TRY(
-        checkSubtypeDepth(Index, Index, VisitedNodes, TypeVec, 0)
+        checkSubtypeDepth(Index, Index, 0, SubTypeDepthMap, TypeVec)
             .map_error([=](auto E) {
               spdlog::error(
                   "    When checking subtype hierarchy of super type {}."sv,
@@ -336,7 +375,7 @@ Expect<void> Validator::validate(const AST::TableSegment &TabSeg) {
               return E;
             }));
   } else {
-    // No init expression. Check the reference type is nullable.
+    // No init expression. Check that the reference type is nullable.
     if (!TabSeg.getTableType().getRefType().isNullableRefType()) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       spdlog::error(ErrInfo::InfoMismatch(
@@ -372,7 +411,7 @@ Expect<void> Validator::validate(const AST::GlobalSegment &GlobSeg) {
 
 // Validate Element segment. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
-  // Check initialization expressions are const expressions.
+  // Check that initialization expressions are const expressions.
   for (auto &Expr : ElemSeg.getInitExprs()) {
     EXPECTED_TRY(
         validateConstExpr(Expr.getInstrs(), {ValType(ElemSeg.getRefType())})
@@ -385,7 +424,7 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
   // The reference type should be valid.
   EXPECTED_TRY(Checker.validate(ElemSeg.getRefType()));
 
-  // Passive and declarative cases are valid with the valid reference type.
+  // Passive and declarative cases are valid with a valid reference type.
   if (ElemSeg.getMode() == AST::ElementSegment::ElemMode::Active) {
     // Check table index and reference type in context.
     const auto &TableVec = Checker.getTables();
@@ -396,17 +435,10 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
           static_cast<uint32_t>(TableVec.size())));
       return Unexpect(ErrCode::Value::InvalidTableIdx);
     }
-    // TODO: Use AST::TypeMatcher::matchType() to match types instead.
-    // For the element segments, the RefType may not record the strict type
-    // index, and should check the init exprs for the real type index to do type
-    // matching. But for the table type, the type index is recorded into the
-    // heap type. So it will fail here to do strict type matching. Therefore,
-    // only check the FuncRef and ExternRef and the nullable here.
-    if (TableVec[ElemSeg.getIdx()].second.isFuncRefType() !=
-            ElemSeg.getRefType().isFuncRefType() ||
-        (!TableVec[ElemSeg.getIdx()].second.isNullableRefType() &&
-         ElemSeg.getRefType().isNullableRefType())) {
-      // Reference type not matched.
+    if (!AST::TypeMatcher::matchType(Checker.getTypes(),
+                                     TableVec[ElemSeg.getIdx()].second,
+                                     ElemSeg.getRefType())) {
+      // Reference type does not match.
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       spdlog::error(ErrInfo::InfoMismatch(TableVec[ElemSeg.getIdx()].second,
                                           ElemSeg.getRefType()));
@@ -426,18 +458,18 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
 // Validate Code segment. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::CodeSegment &CodeSeg,
                                  const uint32_t TypeIdx) {
-  // Due to the validation of the function section, the type of index bust be a
-  // function type.
+  // Due to validation of the function section, the type at this index must
+  // be a function type.
   const auto &FuncType =
       Checker.getTypes()[TypeIdx]->getCompositeType().getFuncType();
   // Reset stack in FormChecker.
   Checker.reset();
-  // Add parameters into this frame.
+  // Add parameters to this frame.
   for (auto &Type : FuncType.getParamTypes()) {
     // Local passed by function parameters must have been initialized.
     Checker.addLocal(Type, true);
   }
-  // Add locals into this frame.
+  // Add locals to this frame.
   for (auto Val : CodeSeg.getLocals()) {
     for (uint32_t Cnt = 0; Cnt < Val.first; ++Cnt) {
       // The local value type should be valid.
@@ -486,8 +518,8 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
 // Validate Import description. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
   switch (ImpDesc.getExternalType()) {
-  // External type and the external content are ensured to be matched in
-  // loader phase.
+  // External type and external content are ensured to match in the loader
+  // phase.
   case ExternalType::Function: {
     const auto TId = ImpDesc.getExternalFuncTypeIdx();
     // Function type index must exist in context and be valid.
@@ -625,34 +657,35 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
 
 Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
   const auto STypeList = TypeSec.getContent();
+  std::vector<uint32_t> SubTypeDepthMap(STypeList.size(), Unvisited);
   uint32_t Idx = 0;
   while (Idx < STypeList.size()) {
     const auto &SType = STypeList[Idx];
-    if (SType.getRecursiveInfo().has_value()) {
-      // Recursive type case. Add types first for referring recursively.
-      uint32_t RecSize = SType.getRecursiveInfo()->RecTypeSize;
+    // The next type to add takes this index in the type index space.
+    const uint32_t BaseIdx = static_cast<uint32_t>(Checker.getTypes().size());
+    if (Conf.hasProposal(Proposal::GC)) {
+      // With GC a type is (self-)recursive (a singleton is a rec group of 1):
+      // add the whole group before validating so members can reference it.
+      const uint32_t RecSize = SType.getRecursiveInfo().has_value()
+                                   ? SType.getRecursiveInfo()->RecTypeSize
+                                   : 1;
       for (uint32_t I = Idx; I < Idx + RecSize; I++) {
         Checker.addType(STypeList[I]);
       }
       for (uint32_t I = Idx; I < Idx + RecSize; I++) {
-        EXPECTED_TRY(validate(STypeList[I]).map_error([](auto E) {
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Rec));
-          return E;
-        }));
+        EXPECTED_TRY(
+            validate(STypeList[I], BaseIdx + (I - Idx), SubTypeDepthMap)
+                .map_error([](auto E) {
+                  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Rec));
+                  return E;
+                }));
       }
       Idx += RecSize;
     } else {
-      // SubType case.
-      if (Conf.hasProposal(Proposal::GC)) {
-        // For the GC proposal, the subtype is seemed as a self-recursive type.
-        // Add types first for referring recursively.
-        Checker.addType(SType);
-        EXPECTED_TRY(validate(*Checker.getTypes().back()));
-      } else {
-        // Validating first.
-        EXPECTED_TRY(validate(SType));
-        Checker.addType(SType);
-      }
+      // Without GC there are no rec groups: a type may reference only earlier
+      // ones, so validate it before registering.
+      EXPECTED_TRY(validate(SType, BaseIdx, SubTypeDepthMap));
+      Checker.addType(SType);
       Idx++;
     }
   }
@@ -675,7 +708,7 @@ Expect<void> Validator::validate(const AST::FunctionSection &FuncSec) {
   const auto &FuncVec = FuncSec.getContent();
   const auto &TypeVec = Checker.getTypes();
 
-  // Check if type id of function is valid in context.
+  // Check whether the function type ID is valid in context.
   for (auto &TId : FuncVec) {
     if (TId >= TypeVec.size()) {
       spdlog::error(ErrCode::Value::InvalidFuncTypeIdx);
@@ -751,7 +784,7 @@ Expect<void> Validator::validate(const AST::CodeSection &CodeSec) {
 
   // Validate function body.
   for (uint32_t Id = 0; Id < static_cast<uint32_t>(CodeVec.size()); ++Id) {
-    // Added functions contains imported functions.
+    // Added functions contain imported functions.
     uint32_t TId = Id + static_cast<uint32_t>(Checker.getNumImportFuncs());
     if (TId >= static_cast<uint32_t>(FuncVec.size())) {
       spdlog::error(ErrCode::Value::InvalidFuncIdx);
@@ -834,7 +867,7 @@ Expect<void> Validator::validate(const AST::TagSection &TagSec) {
   const auto &TagVec = TagSec.getContent();
   const auto &TypeVec = Checker.getTypes();
 
-  // Check if type id of tag is valid in context.
+  // Check whether the tag type ID is valid in context.
   for (auto &TagType : TagVec) {
     auto TagTypeIdx = TagType.getTypeIdx();
     if (TagTypeIdx >= TypeVec.size()) {
@@ -867,7 +900,7 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
     // Only these instructions are accepted.
     switch (Instr.getOpCode()) {
     case OpCode::Global__get: {
-      // For initialization case, global indices must be imported globals.
+      // For the initialization case, global indices must be imported globals.
       auto GlobIdx = Instr.getTargetIndex();
       uint32_t ValidGlobalSize = Checker.getNumImportGlobals();
       if (Conf.hasProposal(Proposal::FunctionReferences)) {
@@ -890,7 +923,7 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
       break;
     }
     case OpCode::Ref__func: {
-      // When in const expression, add the reference into context.
+      // In a const expression, add the reference to the context.
       auto FuncIdx = Instr.getTargetIndex();
       if (FuncIdx >= Checker.getFunctions().size()) {
         // Function index out of range.

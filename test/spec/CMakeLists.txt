@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 include(FetchContent)
 
@@ -9,7 +9,7 @@ message(STATUS "Downloading the WASM spec test suite")
 FetchContent_Declare(
   wasmedge_unit_test
   GIT_REPOSITORY https://github.com/WasmEdge/wasmedge-spectest
-  GIT_TAG        wasm-core-20251216
+  GIT_TAG        wasm-core-20260322
 )
 FetchContent_MakeAvailable(wasmedge_unit_test)
 message(STATUS "Downloading the WASM spec test suite -- done")
@@ -36,6 +36,7 @@ set(WASMEDGE_SPECTEST_FOLDERS
   "wasm-3.0-relaxed-simd"
   "wasm-3.0-simd"
   "threads"
+  "component-model"
 )
 
 foreach(PROPOSAL ${WASMEDGE_SPECTEST_FOLDERS})

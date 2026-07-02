@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/runtime/instance/tag.h - Tag Instance definition ---===//
 //
@@ -25,7 +25,7 @@ public:
   TagInstance(const AST::TagType &T, const AST::SubType *F) noexcept
       : TgType(T.getTypeIdx(), F) {}
 
-  /// Getter of tag type.
+  /// Getter for tag type.
   const AST::TagType &getTagType() const noexcept { return TgType; }
 
 private:

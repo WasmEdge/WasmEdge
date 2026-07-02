@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 
@@ -21,10 +21,10 @@ Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
   if (CodeSegs.size() == 0) {
     return {};
   }
-  // The module will always choose the `for` loop in `else` case under
-  // interpreter mode. Instead, if we do branch in the `for` loop which might
-  // cause meaningless branch misses. Therefore we should check the first item
-  // and dispatch it into different cases to reduce branch misses.
+  // Under interpreter mode, the module always chooses the `for` loop in the
+  // `else` case. Branching in the `for` loop might cause meaningless branch
+  // misses, so check the first item and dispatch it into different cases to
+  // reduce branch misses.
   if (CodeSegs[0].getSymbol() != false) {
     for (uint32_t I = 0; I < CodeSegs.size(); ++I) {
       auto Symbol = CodeSegs[I].getSymbol();
@@ -36,7 +36,7 @@ Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
   } else {
     // Iterate through the code segments to instantiate function instances.
     for (uint32_t I = 0; I < CodeSegs.size(); ++I) {
-      // Create and add the function instance into the module instance.
+      // Create and add the function instance to the module instance.
       ModInst.addFunc(
           TypeIdxs[I],
           (*ModInst.getType(TypeIdxs[I]))->getCompositeType().getFuncType(),

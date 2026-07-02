@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/filesystem.h - std::filesystem selection ----------===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the handling of std::filesystem linkage for various
+/// This file contains std::filesystem linkage handling for various
 /// compilers.
 ///
 //===----------------------------------------------------------------------===//

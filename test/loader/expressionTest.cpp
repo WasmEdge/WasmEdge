@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/test/loader/expressionTest.cpp - Load AST expression tests===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents unit tests of loading AST expression node.
+/// This file contains unit tests for loading AST expression nodes.
 ///
 //===----------------------------------------------------------------------===//
 

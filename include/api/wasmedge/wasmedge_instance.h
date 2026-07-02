@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2025 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/wasmedge_instance.h - WasmEdge C API ---------------------===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the functions about runtime instances (module instance,
+/// This file contains functions for runtime instances (module instance,
 /// function instance, table instance, memory instance, tag instance, and global
 /// instance) in WasmEdge C API.
 ///
@@ -30,39 +30,52 @@ extern "C" {
 /// Creation of the WasmEdge_ModuleInstanceContext.
 ///
 /// Create a module instance context with exported module name for host
-/// instances. Developer can use this API to create a module instance for
+/// instances. Developers can use this API to create a module instance for
 /// collecting host functions, tables, memories, tags, and globals.
 /// The caller owns the object and should call `WasmEdge_ModuleInstanceDelete`
 /// to destroy it.
+///
+/// The created module instance is mutable: host instances can be added through
+/// the `WasmEdge_ModuleInstanceAdd*` APIs until it is first used during
+/// execution (e.g. one of its host functions is invoked). After that it becomes
+/// finalized (immutable), and subsequent `WasmEdge_ModuleInstanceAdd*` calls
+/// fail with `WrongVMWorkflow`.
 ///
 /// \param ModuleName the module name WasmEdge_String of this host module to
 /// import.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
-WasmEdge_ModuleInstanceCreate(const WasmEdge_String ModuleName);
+WasmEdge_ModuleInstanceCreate(const WasmEdge_String ModuleName)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Creation of the WasmEdge_ModuleInstanceContext with host data.
 ///
 /// Create a module instance context with exported module name, host data, and
-/// host data finalizer for host instances. Developer can use this API to create
-/// a module instance for collecting host functions, tables, memories, and
-/// globals. When this created module instance being destroyed, the host data
+/// host data finalizer for host instances. Developers can use this API to
+/// create a module instance for collecting host functions, tables, memories,
+/// tags, and globals. When this module instance is destroyed, the host data
 /// finalizer will be invoked. The caller owns the object and should call
 /// `WasmEdge_ModuleInstanceDelete` to destroy it.
 ///
+/// The created module instance is mutable: host instances can be added through
+/// the `WasmEdge_ModuleInstanceAdd*` APIs until it is first used during
+/// execution (e.g. one of its host functions is invoked). After that it becomes
+/// finalized (immutable), and subsequent `WasmEdge_ModuleInstanceAdd*` calls
+/// fail with `WrongVMWorkflow`.
+///
 /// \param ModuleName the module name WasmEdge_String of this host module to
 /// import.
-/// \param HostData the host data to set into the module instance. When calling
-/// the finalizer, this pointer will become the argument of the finalizer
+/// \param HostData the host data to set for the module instance. When calling
+/// the finalizer, this pointer will be passed as the argument to the finalizer
 /// function.
 /// \param Finalizer the function to finalize the host data.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
 WasmEdge_ModuleInstanceCreateWithData(const WasmEdge_String ModuleName,
-                                      void *HostData,
-                                      void (*Finalizer)(void *));
+                                      void *HostData, void (*Finalizer)(void *))
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Creation of the WasmEdge_ModuleInstanceContext for the WASI specification.
 ///
@@ -83,12 +96,10 @@ WasmEdge_ModuleInstanceCreateWithData(const WasmEdge_String ModuleName,
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
-WasmEdge_ModuleInstanceCreateWASI(const char *const *Args,
-                                  const uint32_t ArgLen,
-                                  const char *const *Envs,
-                                  const uint32_t EnvLen,
-                                  const char *const *Preopens,
-                                  const uint32_t PreopenLen);
+WasmEdge_ModuleInstanceCreateWASI(
+    const char *const *Args, const uint32_t ArgLen, const char *const *Envs,
+    const uint32_t EnvLen, const char *const *Preopens,
+    const uint32_t PreopenLen) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Same as WasmEdge_ModuleInstanceCreateWASI but with extended support for
 /// File Descriptors
@@ -102,7 +113,7 @@ WasmEdge_ModuleInstanceCreateWASIWithFds(
     const char *const *Args, const uint32_t ArgLen, const char *const *Envs,
     const uint32_t EnvLen, const char *const *Preopens,
     const uint32_t PreopenLen, const int32_t StdInFd, const int32_t StdOutFd,
-    const int32_t StdErrFd);
+    const int32_t StdErrFd) WASMEDGE_CAPI_NOEXCEPT;
 /// Initialize the WasmEdge_ModuleInstanceContext for the WASI specification.
 ///
 /// This function will initialize the WASI host module with the parameters.
@@ -121,7 +132,8 @@ WasmEdge_ModuleInstanceCreateWASIWithFds(
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceInitWASI(
     WasmEdge_ModuleInstanceContext *Cxt, const char *const *Args,
     const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
-    const char *const *Preopens, const uint32_t PreopenLen);
+    const char *const *Preopens,
+    const uint32_t PreopenLen) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Same as WasmEdge_ModuleInstanceInitWASI but with extended support for File
 /// Descriptors
@@ -133,7 +145,8 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceInitWASIWithFds(
     WasmEdge_ModuleInstanceContext *Cxt, const char *const *Args,
     const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
     const char *const *Preopens, const uint32_t PreopenLen,
-    const int32_t StdInFd, const int32_t StdOutFd, const int32_t StdErrFd);
+    const int32_t StdInFd, const int32_t StdOutFd,
+    const int32_t StdErrFd) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the WASI exit code.
 ///
@@ -145,7 +158,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceInitWASIWithFds(
 /// \returns the exit code after executing the "_start" function. Return
 /// `EXIT_FAILURE` if the `Cxt` is NULL or not a WASI host module.
 WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceWASIGetExitCode(
-    const WasmEdge_ModuleInstanceContext *Cxt);
+    const WasmEdge_ModuleInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the native handler from the WASI mapped FD/Handler.
 ///
@@ -162,7 +175,7 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceWASIGetExitCode(
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ModuleInstanceWASIGetNativeHandler(
     const WasmEdge_ModuleInstanceContext *Cxt, int32_t Fd,
-    uint64_t *NativeHandler);
+    uint64_t *NativeHandler) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Initialize the WasmEdge_ModuleInstanceContext for the wasmedge_process
 /// specification.
@@ -170,16 +183,15 @@ WasmEdge_ModuleInstanceWASIGetNativeHandler(
 /// This function will initialize the wasmedge_process host module with the
 /// parameters.
 ///
-/// \param AllowedCmds the allowed commands white list. NULL if the
+/// \param AllowedCmds the allowed command list. NULL if the
 /// length is 0.
-/// \param CmdsLen the length of the allowed commands white list.
+/// \param CmdsLen the length of the allowed command list.
 /// \param AllowAll the boolean value to allow all commands. `false` is
-/// suggested. If this value is `true`, the allowed commands white list will not
+/// recommended. If this value is `true`, the allowed command list will not
 /// be recorded and all commands can be executed by wasmedge_process.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ModuleInstanceInitWasmEdgeProcess(const char *const *AllowedCmds,
-                                           const uint32_t CmdsLen,
-                                           const bool AllowAll);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceInitWasmEdgeProcess(
+    const char *const *AllowedCmds, const uint32_t CmdsLen,
+    const bool AllowAll) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the export module name of a module instance.
 ///
@@ -190,19 +202,20 @@ WasmEdge_ModuleInstanceInitWasmEdgeProcess(const char *const *AllowedCmds,
 ///
 /// \returns string object. Length will be 0 and Buf will be NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_String
-WasmEdge_ModuleInstanceGetModuleName(const WasmEdge_ModuleInstanceContext *Cxt);
+WasmEdge_ModuleInstanceGetModuleName(const WasmEdge_ModuleInstanceContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
-/// Get the host data set into the module instance when creating.
+/// Get the host data set for the module instance during creation.
 ///
-/// The returned data is owned by the module instance, and will be passed into
-/// the finalizer when deleting this module instance.
+/// The returned data is owned by the module instance, and will be passed to
+/// the finalizer during deletion of this module instance.
 ///
 /// \param Cxt the WasmEdge_ModuleInstanceContext.
 ///
 /// \returns host data. NULL if the module instance context is NULL or no host
-/// data set into the module instance.
-WASMEDGE_CAPI_EXPORT extern void *
-WasmEdge_ModuleInstanceGetHostData(const WasmEdge_ModuleInstanceContext *Cxt);
+/// data is set for the module instance.
+WASMEDGE_CAPI_EXPORT extern void *WasmEdge_ModuleInstanceGetHostData(
+    const WasmEdge_ModuleInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the exported function instance context of a module instance.
 ///
@@ -218,7 +231,8 @@ WasmEdge_ModuleInstanceGetHostData(const WasmEdge_ModuleInstanceContext *Cxt);
 /// \returns pointer to the function instance context. NULL if not found.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionInstanceContext *
 WasmEdge_ModuleInstanceFindFunction(const WasmEdge_ModuleInstanceContext *Cxt,
-                                    const WasmEdge_String Name);
+                                    const WasmEdge_String Name)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the exported table instance context of a module instance.
 ///
@@ -234,7 +248,8 @@ WasmEdge_ModuleInstanceFindFunction(const WasmEdge_ModuleInstanceContext *Cxt,
 /// \returns pointer to the table instance context. NULL if not found.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_TableInstanceContext *
 WasmEdge_ModuleInstanceFindTable(const WasmEdge_ModuleInstanceContext *Cxt,
-                                 const WasmEdge_String Name);
+                                 const WasmEdge_String Name)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the exported memory instance context of a module instance.
 ///
@@ -250,7 +265,8 @@ WasmEdge_ModuleInstanceFindTable(const WasmEdge_ModuleInstanceContext *Cxt,
 /// \returns pointer to the memory instance context. NULL if not found.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryInstanceContext *
 WasmEdge_ModuleInstanceFindMemory(const WasmEdge_ModuleInstanceContext *Cxt,
-                                  const WasmEdge_String Name);
+                                  const WasmEdge_String Name)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the exported tag instance context of a module instance.
 ///
@@ -265,7 +281,8 @@ WasmEdge_ModuleInstanceFindMemory(const WasmEdge_ModuleInstanceContext *Cxt,
 /// \returns pointer to the tag instance context. NULL if not found.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_TagInstanceContext *
 WasmEdge_ModuleInstanceFindTag(const WasmEdge_ModuleInstanceContext *Cxt,
-                               const WasmEdge_String Name);
+                               const WasmEdge_String Name)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the exported global instance context of a module instance.
 ///
@@ -281,7 +298,8 @@ WasmEdge_ModuleInstanceFindTag(const WasmEdge_ModuleInstanceContext *Cxt,
 /// \returns pointer to the global instance context. NULL if not found.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_GlobalInstanceContext *
 WasmEdge_ModuleInstanceFindGlobal(const WasmEdge_ModuleInstanceContext *Cxt,
-                                  const WasmEdge_String Name);
+                                  const WasmEdge_String Name)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the length of exported function list of a module instance.
 ///
@@ -291,11 +309,11 @@ WasmEdge_ModuleInstanceFindGlobal(const WasmEdge_ModuleInstanceContext *Cxt,
 ///
 /// \returns length of the exported function list.
 WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListFunctionLength(
-    const WasmEdge_ModuleInstanceContext *Cxt);
+    const WasmEdge_ModuleInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// List the exported function names of a module instance.
 ///
-/// The returned function names filled into the `Names` array are linked to the
+/// The returned function names stored in the `Names` array are linked to the
 /// exported names of functions of the module instance context, and the caller
 /// should __NOT__ call the `WasmEdge_StringDelete`.
 /// If the `Names` buffer length is smaller than the result of the exported
@@ -310,7 +328,8 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListFunctionLength(
 /// \returns actual exported function list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ModuleInstanceListFunction(const WasmEdge_ModuleInstanceContext *Cxt,
-                                    WasmEdge_String *Names, const uint32_t Len);
+                                    WasmEdge_String *Names,
+                                    const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the length of exported table list of a module instance.
 ///
@@ -320,11 +339,11 @@ WasmEdge_ModuleInstanceListFunction(const WasmEdge_ModuleInstanceContext *Cxt,
 ///
 /// \returns length of the exported table list.
 WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListTableLength(
-    const WasmEdge_ModuleInstanceContext *Cxt);
+    const WasmEdge_ModuleInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// List the exported table names of a module instance.
 ///
-/// The returned table names filled into the `Names` array are linked to the
+/// The returned table names stored in the `Names` array are linked to the
 /// exported names of tables of the module instance context, and the caller
 /// should __NOT__ call the `WasmEdge_StringDelete`.
 /// If the `Names` buffer length is smaller than the result of the exported
@@ -339,7 +358,8 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListTableLength(
 /// \returns actual exported table list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ModuleInstanceListTable(const WasmEdge_ModuleInstanceContext *Cxt,
-                                 WasmEdge_String *Names, const uint32_t Len);
+                                 WasmEdge_String *Names,
+                                 const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the length of exported memory list of a module instance.
 ///
@@ -349,11 +369,11 @@ WasmEdge_ModuleInstanceListTable(const WasmEdge_ModuleInstanceContext *Cxt,
 ///
 /// \returns length of the exported memory list.
 WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListMemoryLength(
-    const WasmEdge_ModuleInstanceContext *Cxt);
+    const WasmEdge_ModuleInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// List the exported memory names of a module instance.
 ///
-/// The returned memory names filled into the `Names` array are linked to the
+/// The returned memory names stored in the `Names` array are linked to the
 /// exported names of memories of the module instance context, and the caller
 /// should __NOT__ call the `WasmEdge_StringDelete`.
 /// If the `Names` buffer length is smaller than the result of the exported
@@ -368,7 +388,8 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListMemoryLength(
 /// \returns actual exported memory list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ModuleInstanceListMemory(const WasmEdge_ModuleInstanceContext *Cxt,
-                                  WasmEdge_String *Names, const uint32_t Len);
+                                  WasmEdge_String *Names,
+                                  const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the length of exported tag list of a module instance.
 ///
@@ -377,12 +398,12 @@ WasmEdge_ModuleInstanceListMemory(const WasmEdge_ModuleInstanceContext *Cxt,
 /// \param Cxt the WasmEdge_ModuleInstanceContext.
 ///
 /// \returns length of the exported tag list.
-WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_ModuleInstanceListTagLength(const WasmEdge_ModuleInstanceContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListTagLength(
+    const WasmEdge_ModuleInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// List the exported tag names of a module instance.
 ///
-/// The returned tag names filled into the `Names` array are linked to the
+/// The returned tag names stored in the `Names` array are linked to the
 /// exported names of tags of the module instance context, and the caller
 /// should __NOT__ call the `WasmEdge_StringDelete`.
 /// If the `Names` buffer length is smaller than the result of the exported
@@ -397,7 +418,8 @@ WasmEdge_ModuleInstanceListTagLength(const WasmEdge_ModuleInstanceContext *Cxt);
 /// \returns actual exported tag list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ModuleInstanceListTag(const WasmEdge_ModuleInstanceContext *Cxt,
-                               WasmEdge_String *Names, const uint32_t Len);
+                               WasmEdge_String *Names,
+                               const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the length of exported global list of a module instance.
 ///
@@ -407,11 +429,11 @@ WasmEdge_ModuleInstanceListTag(const WasmEdge_ModuleInstanceContext *Cxt,
 ///
 /// \returns length of the exported global list.
 WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListGlobalLength(
-    const WasmEdge_ModuleInstanceContext *Cxt);
+    const WasmEdge_ModuleInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// List the exported global names of a module instance.
 ///
-/// The returned global names filled into the `Names` array are linked to the
+/// The returned global names stored in the `Names` array are linked to the
 /// exported names of globals of the module instance context, and the caller
 /// should __NOT__ call the `WasmEdge_StringDelete`.
 /// If the `Names` buffer length is smaller than the result of the exported
@@ -426,82 +448,111 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ModuleInstanceListGlobalLength(
 /// \returns actual exported global list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ModuleInstanceListGlobal(const WasmEdge_ModuleInstanceContext *Cxt,
-                                  WasmEdge_String *Names, const uint32_t Len);
+                                  WasmEdge_String *Names,
+                                  const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Add a function instance context into a WasmEdge_ModuleInstanceContext.
+/// Add a function instance context to a WasmEdge_ModuleInstanceContext.
 ///
-/// Export and move the ownership of the function instance into the module
-/// instance. The caller should __NOT__ access or destroy the function instance
-/// context after calling this function.
+/// On success, export and move the ownership of the function instance into the
+/// module instance; the caller should __NOT__ access or destroy the function
+/// instance context afterwards. On failure, the ownership is __NOT__ taken: the
+/// caller still owns the function instance context and is responsible for
+/// destroying it.
+///
+/// This function will fail with `WrongVMWorkflow` if the module instance has
+/// already been finalized, i.e. it has been used during execution and become
+/// immutable.
 ///
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ModuleInstanceContext to add the function instance.
 /// \param Name the export function name WasmEdge_String.
 /// \param FuncCxt the WasmEdge_FunctionInstanceContext to add.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ModuleInstanceAddFunction(WasmEdge_ModuleInstanceContext *Cxt,
-                                   const WasmEdge_String Name,
-                                   WasmEdge_FunctionInstanceContext *FuncCxt);
-
-/// Add a table instance context into a WasmEdge_ModuleInstanceContext.
 ///
-/// Export and move the ownership of the table instance into the module
-/// instance. The caller should __NOT__ access or destroy the table instance
-/// context after calling this function.
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultOK` to check the value.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ModuleInstanceAddFunction(
+    WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
+    WasmEdge_FunctionInstanceContext *FuncCxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Add a table instance context to a WasmEdge_ModuleInstanceContext.
+///
+/// On success, export and move the ownership of the table instance into the
+/// module instance; the caller should __NOT__ access or destroy the table
+/// instance context afterwards. On failure, the ownership is __NOT__ taken: the
+/// caller still owns the table instance context and is responsible for
+/// destroying it.
+///
+/// This function will fail with `WrongVMWorkflow` if the module instance has
+/// already been finalized, i.e. it has been used during execution and become
+/// immutable.
 ///
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ModuleInstanceContext to add the table instance.
 /// \param Name the export table name WasmEdge_String.
 /// \param TableCxt the WasmEdge_TableInstanceContext to add.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ModuleInstanceAddTable(WasmEdge_ModuleInstanceContext *Cxt,
-                                const WasmEdge_String Name,
-                                WasmEdge_TableInstanceContext *TableCxt);
-
-/// Add a memory instance context into a WasmEdge_ModuleInstanceContext.
 ///
-/// Export and move the ownership of the memory instance into the module
-/// instance. The caller should __NOT__ access or destroy the memory instance
-/// context after calling this function.
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultOK` to check the value.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ModuleInstanceAddTable(
+    WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
+    WasmEdge_TableInstanceContext *TableCxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Add a memory instance context to a WasmEdge_ModuleInstanceContext.
+///
+/// On success, export and move the ownership of the memory instance into the
+/// module instance; the caller should __NOT__ access or destroy the memory
+/// instance context afterwards. On failure, the ownership is __NOT__ taken: the
+/// caller still owns the memory instance context and is responsible for
+/// destroying it.
+///
+/// This function will fail with `WrongVMWorkflow` if the module instance has
+/// already been finalized, i.e. it has been used during execution and become
+/// immutable.
 ///
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ModuleInstanceContext to add the memory instance.
 /// \param Name the export memory name WasmEdge_String.
 /// \param MemoryCxt the WasmEdge_MemoryInstanceContext to add.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ModuleInstanceAddMemory(WasmEdge_ModuleInstanceContext *Cxt,
-                                 const WasmEdge_String Name,
-                                 WasmEdge_MemoryInstanceContext *MemoryCxt);
-
-/// Add a global instance context into a WasmEdge_ModuleInstanceContext.
 ///
-/// Export and move the ownership of the global instance into the module
-/// instance. The caller should __NOT__ access or destroy the global instance
-/// context after calling this function.
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultOK` to check the value.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ModuleInstanceAddMemory(
+    WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
+    WasmEdge_MemoryInstanceContext *MemoryCxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Add a global instance context to a WasmEdge_ModuleInstanceContext.
+///
+/// On success, export and move the ownership of the global instance into the
+/// module instance; the caller should __NOT__ access or destroy the global
+/// instance context afterwards. On failure, the ownership is __NOT__ taken: the
+/// caller still owns the global instance context and is responsible for
+/// destroying it.
+///
+/// This function will fail with `WrongVMWorkflow` if the module instance has
+/// already been finalized, i.e. it has been used during execution and become
+/// immutable.
 ///
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ModuleInstanceContext to add the global instance.
 /// \param Name the export global name WasmEdge_String.
 /// \param GlobalCxt the WasmEdge_GlobalInstanceContext to add.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ModuleInstanceAddGlobal(WasmEdge_ModuleInstanceContext *Cxt,
-                                 const WasmEdge_String Name,
-                                 WasmEdge_GlobalInstanceContext *GlobalCxt);
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultOK` to check the value.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ModuleInstanceAddGlobal(
+    WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
+    WasmEdge_GlobalInstanceContext *GlobalCxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_ModuleInstanceContext.
 ///
 /// After calling this function, the context will be destroyed and should
 /// __NOT__ be used.
-/// If the module instance has been registered into one or more store contexts,
+/// If the module instance has been registered in one or more store contexts,
 /// it will be automatically unregistered.
 ///
 /// \param Cxt the WasmEdge_ModuleInstanceContext to destroy.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ModuleInstanceDelete(WasmEdge_ModuleInstanceContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceDelete(
+    WasmEdge_ModuleInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge module instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -513,8 +564,8 @@ typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 /// Creation of the WasmEdge_FunctionInstanceContext for host functions.
 ///
 /// The caller owns the object and should call `WasmEdge_FunctionInstanceDelete`
-/// to destroy it if the returned object is not added into a
-/// `WasmEdge_ModuleInstanceContext`. The following is an example to create a
+/// to destroy it if the returned object is not added to a
+/// `WasmEdge_ModuleInstanceContext`. The following is an example of creating a
 /// host function context.
 /// ```c
 /// WasmEdge_Result FuncAdd(void *Data,
@@ -542,7 +593,7 @@ typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 /// \param Type the function type context to describe the host function
 /// signature.
 /// \param HostFunc the host function pointer. The host function signature must
-/// be as following:
+/// be as follows:
 /// ```c
 /// typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 ///     void *Data,
@@ -550,13 +601,13 @@ typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 ///     const WasmEdge_Value *Params,
 ///     WasmEdge_Value *Returns);
 /// ```
-/// The `Params` is the input parameters array with length guaranteed to be the
-/// same as the parameter types in the `Type`. The `Returns` is the output
-/// results array with length guaranteed to be the same as the result types in
-/// the `Type`. The return value is `WasmEdge_Result` for the execution status.
+/// The `Params` array has a length guaranteed to be the same as the parameter
+/// types in the `Type`. The `Returns` array has a length guaranteed to be the
+/// same as the result types in the `Type`. The return value is
+/// `WasmEdge_Result` for the execution status.
 /// \param Data the additional object, such as the pointer to a data structure,
-/// to set to this host function context. The caller should guarantee the life
-/// cycle of the object. NULL if the additional data object is not needed.
+/// to set to this host function context. The caller should guarantee the
+/// lifetime of the object. NULL if the additional data object is not needed.
 /// \param Cost the function cost in statistics. Pass 0 if the calculation is
 /// not needed.
 ///
@@ -564,7 +615,7 @@ typedef WasmEdge_Result (*WasmEdge_HostFunc_t)(
 WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionInstanceContext *
 WasmEdge_FunctionInstanceCreate(const WasmEdge_FunctionTypeContext *Type,
                                 WasmEdge_HostFunc_t HostFunc, void *Data,
-                                const uint64_t Cost);
+                                const uint64_t Cost) WASMEDGE_CAPI_NOEXCEPT;
 
 typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
     void *This, void *Data, const WasmEdge_CallingFrameContext *CallFrameCxt,
@@ -572,11 +623,11 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
     WasmEdge_Value *Returns, const uint32_t ReturnLen);
 /// Creation of the WasmEdge_FunctionInstanceContext for host functions.
 ///
-/// This function is for the languages which cannot pass the function pointer of
+/// This function is for the languages that cannot pass the function pointer of
 /// the host function into this shared library directly. The caller owns the
 /// object and should call `WasmEdge_FunctionInstanceDelete` to destroy it if
-/// the returned object is not added into a `WasmEdge_ModuleInstanceContext`.
-/// The following is an example to create a host function context for other
+/// the returned object is not added to a `WasmEdge_ModuleInstanceContext`.
+/// The following is an example of creating a host function context for other
 /// languages.
 /// ```c
 /// // `RealFunc` is the pointer to the function in other languages.
@@ -586,13 +637,13 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 ///     const WasmEdge_CallingFrameContext *CallFrameCxt,
 ///     const WasmEdge_Value *In, const uint32_t InLen, WasmEdge_Value *Out,
 ///     const uint32_t OutLen) {
-///   // Wrapper function of host function to return A + B.
+///   // Wrapper function for a host function that returns A + B.
 ///
 ///   // `This` is the same as `RealFunc`.
 ///   int32_t A = WasmEdge_ValueGetI32(In[0]);
 ///   int32_t B = WasmEdge_ValueGetI32(In[1]);
 ///
-///   // Call the function of `This` in the host language ...
+///   // Call the function pointed to by `This` in the host language ...
 ///   int32_t Result = ...;
 ///
 ///   Out[0] = Result;
@@ -615,7 +666,7 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 /// \param Type the function type context to describe the host function
 /// signature.
 /// \param WrapFunc the wrapper function pointer. The wrapper function signature
-/// must be as following:
+/// must be as follows:
 /// ```c
 /// typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 ///     void *This,
@@ -626,39 +677,37 @@ typedef WasmEdge_Result (*WasmEdge_WrapFunc_t)(
 ///     WasmEdge_Value *Returns,
 ///     const uint32_t ReturnLen);
 /// ```
-/// The `This` is the pointer the same as the `Binding` parameter of this
-/// function. The `Params` is the input parameters array with length guaranteed
-/// to be the same as the parameter types in the `Type`, and the `ParamLen` is
-/// the length of the array. The `Returns` is the output results array with
-/// length guaranteed to be the same as the result types in the `Type`, and the
-/// `ReturnLen` is the length of the array. The return value is
-/// `WasmEdge_Result` for the execution status.
-/// \param Binding the `this` pointer of the host function target or the
-/// function indexing maintained by the caller which can specify the host
-/// function. When invoking the host function, this pointer will be the first
-/// argument of the wrapper function.
+/// The `This` pointer is the same as the `Binding` parameter of this function.
+/// The `Params` array has a length guaranteed to be the same as the parameter
+/// types in the `Type`, and the `ParamLen` is the length of the array. The
+/// `Returns` array has a length guaranteed to be the same as the result types
+/// in the `Type`, and the `ReturnLen` is the length of the array. The return
+/// value is `WasmEdge_Result` for the execution status.
+/// \param Binding the `this` pointer of the host function target or a function
+/// index maintained by the caller to identify the host function. When invoking
+/// the host function, this pointer will be passed as the first argument to the
+/// wrapper function.
 /// \param Data the additional object, such as the pointer to a data structure,
-/// to set to this host function context. The caller should guarantee the life
-/// cycle of the object. NULL if the additional data object is not needed.
+/// to set to this host function context. The caller should guarantee the
+/// lifetime of the object. NULL if the additional data object is not needed.
 /// \param Cost the function cost in statistics. Pass 0 if the calculation is
 /// not needed.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionInstanceContext *
-WasmEdge_FunctionInstanceCreateBinding(const WasmEdge_FunctionTypeContext *Type,
-                                       WasmEdge_WrapFunc_t WrapFunc,
-                                       void *Binding, void *Data,
-                                       const uint64_t Cost);
+WasmEdge_FunctionInstanceCreateBinding(
+    const WasmEdge_FunctionTypeContext *Type, WasmEdge_WrapFunc_t WrapFunc,
+    void *Binding, void *Data, const uint64_t Cost) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the function data field of the function instance.
 ///
-/// The function data is passed when creating the FunctionInstance.
+/// The function data is passed during FunctionInstance creation.
 ///
 /// \param Cxt the WasmEdge_FunctionInstanceContext.
 ///
 /// \returns pointer to Data, NULL if failed.
-WASMEDGE_CAPI_EXPORT extern const void *
-WasmEdge_FunctionInstanceGetData(const WasmEdge_FunctionInstanceContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern const void *WasmEdge_FunctionInstanceGetData(
+    const WasmEdge_FunctionInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the function type context of the function instance.
 ///
@@ -671,7 +720,7 @@ WasmEdge_FunctionInstanceGetData(const WasmEdge_FunctionInstanceContext *Cxt);
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
 WasmEdge_FunctionInstanceGetFunctionType(
-    const WasmEdge_FunctionInstanceContext *Cxt);
+    const WasmEdge_FunctionInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_FunctionInstanceContext.
 ///
@@ -679,8 +728,8 @@ WasmEdge_FunctionInstanceGetFunctionType(
 /// __NOT__ be used.
 ///
 /// \param Cxt the WasmEdge_FunctionInstanceContext to destroy.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_FunctionInstanceDelete(WasmEdge_FunctionInstanceContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_FunctionInstanceDelete(
+    WasmEdge_FunctionInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge function instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -689,12 +738,12 @@ WasmEdge_FunctionInstanceDelete(WasmEdge_FunctionInstanceContext *Cxt);
 /// Creation of the WasmEdge_TableInstanceContext.
 ///
 /// The caller owns the object and should call `WasmEdge_TableInstanceDelete` to
-/// destroy it if the returned object is not added into a
+/// destroy it if the returned object is not added to a
 /// `WasmEdge_ModuleInstanceContext`.
 /// The default value of the elements in the output table instance will be null
 /// references with the same reference type in the table type when table grows.
 /// If the reference type of the input table type is a non-nullable value type,
-/// a non-null default init value is required. In this case, please use the
+/// a non-null default initial value is required. In this case, please use the
 /// `WasmEdge_TableInstanceCreateWithInit` API instead.
 ///
 /// \param TabType the table type context to initialize the table instance
@@ -702,27 +751,30 @@ WasmEdge_FunctionInstanceDelete(WasmEdge_FunctionInstanceContext *Cxt);
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_TableInstanceContext *
-WasmEdge_TableInstanceCreate(const WasmEdge_TableTypeContext *TabType);
+WasmEdge_TableInstanceCreate(const WasmEdge_TableTypeContext *TabType)
+    WASMEDGE_CAPI_NOEXCEPT;
 
-/// Creation of the WasmEdge_TableInstanceContext with the default init value.
+/// Creation of the WasmEdge_TableInstanceContext with the default initial
+/// value.
 ///
 /// The caller owns the object and should call `WasmEdge_TableInstanceDelete` to
-/// destroy it if the returned object is not added into a
+/// destroy it if the returned object is not added to a
 /// `WasmEdge_ModuleInstanceContext`.
-/// The value type of the default init value should compatible with the
-/// reference type of the input table type, otherwise this function will fail.
+/// The value type of the default initial value should be compatible with the
+/// reference type of the input table type. Otherwise, this function will fail.
 /// If the reference type of the input table type is a non-nullable value type,
-/// this function will fail if the default init value is a null reference.
+/// this function will fail if the default initial value is a null reference.
 ///
 /// \param TabType the table type context to initialize the table instance
 /// context.
-/// \param Value the default init value for the table element when table
+/// \param Value the default initial value for the table element when table
 /// grows.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_TableInstanceContext *
 WasmEdge_TableInstanceCreateWithInit(const WasmEdge_TableTypeContext *TabType,
-                                     const WasmEdge_Value Value);
+                                     const WasmEdge_Value Value)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the table type context from a table instance.
 ///
@@ -734,7 +786,8 @@ WasmEdge_TableInstanceCreateWithInit(const WasmEdge_TableTypeContext *TabType,
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_TableTypeContext *
-WasmEdge_TableInstanceGetTableType(const WasmEdge_TableInstanceContext *Cxt);
+WasmEdge_TableInstanceGetTableType(const WasmEdge_TableInstanceContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the reference value in a table instance.
 ///
@@ -746,27 +799,29 @@ WasmEdge_TableInstanceGetTableType(const WasmEdge_TableInstanceContext *Cxt);
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_TableInstanceGetData(const WasmEdge_TableInstanceContext *Cxt,
-                              WasmEdge_Value *Data, const uint64_t Offset);
+                              WasmEdge_Value *Data,
+                              const uint64_t Offset) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Set the reference value into a table instance.
+/// Set the reference value in a table instance.
 ///
 /// \param Cxt the WasmEdge_TableInstanceContext.
-/// \param Data the reference value to set into the table instance.
+/// \param Data the reference value to set in the table instance.
 /// \param Offset the reference value offset (index) in the table instance.
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_TableInstanceSetData(WasmEdge_TableInstanceContext *Cxt,
-                              WasmEdge_Value Data, const uint64_t Offset);
+                              WasmEdge_Value Data,
+                              const uint64_t Offset) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the size of a table instance.
 ///
 /// \param Cxt the WasmEdge_TableInstanceContext.
 ///
 /// \returns the size of the table instance.
-WASMEDGE_CAPI_EXPORT extern uint64_t
-WasmEdge_TableInstanceGetSize(const WasmEdge_TableInstanceContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern uint64_t WasmEdge_TableInstanceGetSize(
+    const WasmEdge_TableInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Grow a table instance with a size.
 ///
@@ -777,7 +832,7 @@ WasmEdge_TableInstanceGetSize(const WasmEdge_TableInstanceContext *Cxt);
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_TableInstanceGrow(WasmEdge_TableInstanceContext *Cxt,
-                           const uint64_t Size);
+                           const uint64_t Size) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_TableInstanceContext.
 ///
@@ -785,8 +840,8 @@ WasmEdge_TableInstanceGrow(WasmEdge_TableInstanceContext *Cxt,
 /// __NOT__ be used.
 ///
 /// \param Cxt the WasmEdge_TableInstanceContext to destroy.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_TableInstanceDelete(WasmEdge_TableInstanceContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_TableInstanceDelete(
+    WasmEdge_TableInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge table instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -795,7 +850,7 @@ WasmEdge_TableInstanceDelete(WasmEdge_TableInstanceContext *Cxt);
 /// Creation of the WasmEdge_MemoryInstanceContext.
 ///
 /// The caller owns the object and should call `WasmEdge_MemoryInstanceDelete`
-/// to destroy it if the returned object is not added into a
+/// to destroy it if the returned object is not added to a
 /// `WasmEdge_ModuleInstanceContext`.
 ///
 /// \param MemType the memory type context to initialize the memory instance
@@ -803,7 +858,8 @@ WasmEdge_TableInstanceDelete(WasmEdge_TableInstanceContext *Cxt);
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryInstanceContext *
-WasmEdge_MemoryInstanceCreate(const WasmEdge_MemoryTypeContext *MemType);
+WasmEdge_MemoryInstanceCreate(const WasmEdge_MemoryTypeContext *MemType)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the memory type context from a memory instance.
 ///
@@ -815,22 +871,23 @@ WasmEdge_MemoryInstanceCreate(const WasmEdge_MemoryTypeContext *MemType);
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_MemoryTypeContext *
-WasmEdge_MemoryInstanceGetMemoryType(const WasmEdge_MemoryInstanceContext *Cxt);
+WasmEdge_MemoryInstanceGetMemoryType(const WasmEdge_MemoryInstanceContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Copy the data to the output buffer from a memory instance.
 ///
 /// \param Cxt the WasmEdge_MemoryInstanceContext.
-/// \param [out] Data the result data buffer of copying destination.
+/// \param [out] Data the output buffer for copied data.
 /// \param Offset the data start offset in the memory instance.
 /// \param Length the requested data length. If the `Offset + Length` is larger
-/// than the data size in the memory instance, this function will failed.
+/// than the data size in the memory instance, this function will fail.
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_MemoryInstanceGetData(const WasmEdge_MemoryInstanceContext *Cxt,
                                uint8_t *Data, const uint64_t Offset,
-                               const uint64_t Length);
+                               const uint64_t Length) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Copy the data into a memory instance from the input buffer.
 ///
@@ -838,14 +895,14 @@ WasmEdge_MemoryInstanceGetData(const WasmEdge_MemoryInstanceContext *Cxt,
 /// \param Data the data buffer to copy.
 /// \param Offset the data start offset in the memory instance.
 /// \param Length the data buffer length. If the `Offset + Length` is larger
-/// than the data size in the memory instance, this function will failed.
+/// than the data size in the memory instance, this function will fail.
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_MemoryInstanceSetData(WasmEdge_MemoryInstanceContext *Cxt,
                                const uint8_t *Data, const uint64_t Offset,
-                               const uint64_t Length);
+                               const uint64_t Length) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the data pointer in a memory instance.
 ///
@@ -857,7 +914,8 @@ WasmEdge_MemoryInstanceSetData(WasmEdge_MemoryInstanceContext *Cxt,
 /// \returns the pointer to data with the start offset. NULL if failed.
 WASMEDGE_CAPI_EXPORT extern uint8_t *
 WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
-                                  const uint64_t Offset, const uint64_t Length);
+                                  const uint64_t Offset,
+                                  const uint64_t Length) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the const data pointer in a const memory instance.
 ///
@@ -870,15 +928,15 @@ WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern const uint8_t *
 WasmEdge_MemoryInstanceGetPointerConst(
     const WasmEdge_MemoryInstanceContext *Cxt, const uint64_t Offset,
-    const uint64_t Length);
+    const uint64_t Length) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the current page size (64 KiB of each page) of a memory instance.
 ///
 /// \param Cxt the WasmEdge_MemoryInstanceContext.
 ///
 /// \returns the page size of the memory instance.
-WASMEDGE_CAPI_EXPORT extern uint64_t
-WasmEdge_MemoryInstanceGetPageSize(const WasmEdge_MemoryInstanceContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern uint64_t WasmEdge_MemoryInstanceGetPageSize(
+    const WasmEdge_MemoryInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Grow a memory instance with a page size.
 ///
@@ -889,7 +947,7 @@ WasmEdge_MemoryInstanceGetPageSize(const WasmEdge_MemoryInstanceContext *Cxt);
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_MemoryInstanceGrowPage(WasmEdge_MemoryInstanceContext *Cxt,
-                                const uint64_t Page);
+                                const uint64_t Page) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_MemoryInstanceContext.
 ///
@@ -897,8 +955,8 @@ WasmEdge_MemoryInstanceGrowPage(WasmEdge_MemoryInstanceContext *Cxt,
 /// __NOT__ be used.
 ///
 /// \param Cxt the WasmEdge_MemoryInstanceContext to destroy.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_MemoryInstanceDelete(WasmEdge_MemoryInstanceContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_MemoryInstanceDelete(
+    WasmEdge_MemoryInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge memory instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -913,7 +971,8 @@ WasmEdge_MemoryInstanceDelete(WasmEdge_MemoryInstanceContext *Cxt);
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_TagTypeContext *
-WasmEdge_TagInstanceGetTagType(const WasmEdge_TagInstanceContext *Cxt);
+WasmEdge_TagInstanceGetTagType(const WasmEdge_TagInstanceContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge tag instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -922,19 +981,20 @@ WasmEdge_TagInstanceGetTagType(const WasmEdge_TagInstanceContext *Cxt);
 /// Creation of the WasmEdge_GlobalInstanceContext.
 ///
 /// The caller owns the object and should call `WasmEdge_GlobalInstanceDelete`
-/// to destroy it if the returned object is not added into a
+/// to destroy it if the returned object is not added to a
 /// `WasmEdge_ModuleInstanceContext`.
 ///
 /// \param GlobType the global type context to initialize the global instance
 /// context.
 /// \param Value the initial value with its value type of the global instance.
-/// This function will fail if the value type of `GlobType` and `Value` are not
-/// the same.
+/// This function will fail if the value types of `GlobType` and `Value` do not
+/// match.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_GlobalInstanceContext *
 WasmEdge_GlobalInstanceCreate(const WasmEdge_GlobalTypeContext *GlobType,
-                              const WasmEdge_Value Value);
+                              const WasmEdge_Value Value)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the global type context from a global instance.
 ///
@@ -946,29 +1006,30 @@ WasmEdge_GlobalInstanceCreate(const WasmEdge_GlobalTypeContext *GlobType,
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_GlobalTypeContext *
-WasmEdge_GlobalInstanceGetGlobalType(const WasmEdge_GlobalInstanceContext *Cxt);
+WasmEdge_GlobalInstanceGetGlobalType(const WasmEdge_GlobalInstanceContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the value from a global instance.
 ///
 /// \param Cxt the WasmEdge_GlobalInstanceContext.
 ///
 /// \returns the current value of the global instance.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Value
-WasmEdge_GlobalInstanceGetValue(const WasmEdge_GlobalInstanceContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Value WasmEdge_GlobalInstanceGetValue(
+    const WasmEdge_GlobalInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Set the value into a global instance.
+/// Set the value in a global instance.
 ///
-/// This function will return error if the global context is set as the `Const`
-/// mutation or the value type not matched.
+/// This function will return an error if the global context is set as the
+/// `Const` mutation or the value type does not match.
 ///
 /// \param Cxt the WasmEdge_GlobalInstanceContext.
-/// \param Value the value to set into the global context.
+/// \param Value the value to set in the global context.
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
-WasmEdge_GlobalInstanceSetValue(WasmEdge_GlobalInstanceContext *Cxt,
-                                const WasmEdge_Value Value);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_GlobalInstanceSetValue(
+    WasmEdge_GlobalInstanceContext *Cxt,
+    const WasmEdge_Value Value) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_GlobalInstanceContext.
 ///
@@ -976,8 +1037,8 @@ WasmEdge_GlobalInstanceSetValue(WasmEdge_GlobalInstanceContext *Cxt,
 /// __NOT__ be used.
 ///
 /// \param Cxt the WasmEdge_GlobalInstanceContext to destroy.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_GlobalInstanceDelete(WasmEdge_GlobalInstanceContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_GlobalInstanceDelete(
+    WasmEdge_GlobalInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge global instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

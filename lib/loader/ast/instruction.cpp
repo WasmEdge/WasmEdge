@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "loader/loader.h"
 
@@ -130,7 +130,7 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
   bool IsReachEnd = false;
   // Read opcode until the End code of the top block.
   do {
-    // Read the opcode and check if error.
+    // Read the opcode and check for errors.
     uint64_t Offset = FMgr.getOffset();
     EXPECTED_TRY(OpCode Code, loadOpCode().map_error([this](auto E) {
       return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Instruction);
@@ -153,7 +153,7 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
       }
     };
 
-    // Process the instruction which contains a block.
+    // Process the instruction that contains a block.
     switch (Code) {
     case OpCode::Block:
     case OpCode::Loop:
@@ -193,7 +193,8 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
           Instrs[Pos].setJumpEnd(Cnt - Pos);
           if (BackOp == OpCode::If) {
             if (Instrs[Pos].getJumpElse() == 0) {
-              // If block without else. Set the else jump the same as end jump.
+              // For an if block without an else branch, set the else jump to
+              // the end jump.
               Instrs[Pos].setJumpElse(Cnt - Pos);
             } else {
               const uint32_t ElsePos = Pos + Instrs[Pos].getJumpElse();
@@ -290,6 +291,14 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     // Read the block return type.
     EXPECTED_TRY(int64_t Code, FMgr.readS33().map_error(ReportError));
     if (Code < 0) {
+      // The empty and valtype cases are encoded as a single-byte SLEB128,
+      // i.e. the decoded value must be in [-64, -1]. Any negative value
+      // smaller than -64 means a non-canonical multi-byte SLEB128 encoding,
+      // which is not a valid blocktype.
+      if (Code < -64) {
+        return logLoadError(ErrCode::Value::MalformedValType,
+                            FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+      }
       TypeCode TypeByte = static_cast<TypeCode>(Code & INT64_C(0x7F));
       if (TypeByte == TypeCode::Epsilon) {
         // Empty case.
@@ -339,6 +348,10 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       auto &Desc = Instr.getTryCatch().Catch[I];
       // Read the catch flag.
       EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error(ReportError));
+      if (unlikely(Flag > 0x03U)) {
+        return logLoadError(ErrCode::Value::MalformedCatchFlags,
+                            FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+      }
       Desc.IsRef = (Flag & 0x01U) ? true : false;
       Desc.IsAll = (Flag & 0x02U) ? true : false;
       if (!Desc.IsAll) {

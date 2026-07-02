@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "loader/serialize.h"
 
@@ -587,8 +587,9 @@ TEST(serializeTypeTest, SerializeSubType) {
   //   1. Test SubType (and CompositeType too) with final flag.
   //   2. Test SubType (CompositeType, and FieldType too) with final flag.
   //   3. Test SubType (CompositeType, and FieldType too) without final flag.
-  //   4. Test RecType (RecType ::= 0x4E vector(subtype)).
-  //   5. Test RecType without GC proposal.
+  //   4. Test non-final SubType with zero supertypes (emits 0x50 0x00).
+  //   5. Test RecType (RecType ::= 0x4E vector(subtype)).
+  //   6. Test RecType without GC proposal.
 
   WasmEdge::AST::SubType SubType;
   Conf.addProposal(WasmEdge::Proposal::GC);
@@ -646,6 +647,23 @@ TEST(serializeTypeTest, SerializeSubType) {
       0x5EU,               // Array type
       0x78U,               // I8 type
       0x00U                // Const mutation
+  };
+  EXPECT_EQ(Output, Expected);
+
+  WasmEdge::AST::SubType SubType3;
+  SubType3.getCompositeType() = CompType;
+  SubType3.setFinal(false);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createTypeSec(SubType3), Output));
+  Expected = {
+      0x01U, // Type section
+      0x06U, // Content size
+      0x01U, // Vector length
+      0x50U, // Sub type (non-final)
+      0x00U, // TypeIdx vector size (empty)
+      0x5EU, // Array type
+      0x78U, // I8 type
+      0x00U  // Const mutation
   };
   EXPECT_EQ(Output, Expected);
 

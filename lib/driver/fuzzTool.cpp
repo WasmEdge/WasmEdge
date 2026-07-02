@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #ifdef WASMEDGE_BUILD_FUZZING
 #include "driver/fuzzTool.h"
@@ -18,7 +18,7 @@ int FuzzTool(const uint8_t *Data, size_t Size) noexcept {
   spdlog::set_level(spdlog::level::critical);
 
   Configure Conf;
-  Conf.getRuntimeConfigure().setForceInterpreter(true);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::Interpreter);
   Loader::Loader Loader(Conf);
 
   std::unique_ptr<AST::Module> Module;

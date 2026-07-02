@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 #pragma once
 
 #include "ast/component/type.h"
@@ -30,22 +30,22 @@ public:
                    Runtime::Instance::FunctionInstance *R) noexcept
       : FuncType(Type), LowerFunc(F), MemInst(M), ReallocFunc(R) {}
 
-  /// Getter of component function type.
+  /// Getter for component function type.
   const AST::Component::FuncType &getFuncType() const noexcept {
     return FuncType;
   }
 
-  /// Getter of lower core function instance.
+  /// Getter for lower core function instance.
   Runtime::Instance::FunctionInstance *getLowerFunction() const noexcept {
     return LowerFunc;
   }
 
-  /// Getter of memory instance to value conversion.
+  /// Getter for memory instance to value conversion.
   Runtime::Instance::MemoryInstance *getMemoryInstance() const noexcept {
     return MemInst;
   }
 
-  /// Getter of allocation core function instance.
+  /// Getter for allocation core function instance.
   Runtime::Instance::FunctionInstance *getAllocFunction() const noexcept {
     return ReallocFunc;
   }

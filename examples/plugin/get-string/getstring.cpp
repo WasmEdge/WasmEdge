@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "plugin/plugin.h"
 #include "po/helper.h"
@@ -91,6 +91,8 @@ Plugin::Plugin::PluginDescriptor Descriptor{
             /* Create */ create,
         },
     },
+    /* ComponentCount */ 0,
+    /* ComponentDescriptions */ nullptr,
     /* AddOptions */ addOptions,
 };
 

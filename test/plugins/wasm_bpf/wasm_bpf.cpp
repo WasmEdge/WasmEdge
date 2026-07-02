@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "ast/type.h"
 #include "common/defines.h"
@@ -134,7 +134,7 @@ public:
 
 TEST(WasmBpfTest, RunBpfProgramWithPolling) {
   using namespace std::literals::string_view_literals;
-  // Test loading and attaching a bpf program, and polling buffer
+  // Test loading and attaching a BPF program and polling a buffer.
   auto module = createModule();
   ASSERT_TRUE(module);
 
@@ -153,10 +153,10 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
   namespace fs = std::filesystem;
   auto bpfObject = getAssertsPath() / "bootstrap.bpf.o";
 
-  // Ensure the bpf object we need exists
+  // Ensure the BPF object we need exists.
   EXPECT_TRUE(fs::exists(bpfObject));
 
-  // Read the bpf object into wasm memory
+  // Read the BPF object into Wasm memory.
   std::ifstream bpfObjStream(bpfObject);
   EXPECT_TRUE(bpfObjStream.is_open());
   EXPECT_TRUE(bpfObjStream.good());
@@ -165,11 +165,11 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
       std::istreambuf_iterator<char>());
   EXPECT_FALSE(bpfObjectBytes.empty());
 
-  // Fill bpf object into memory
+  // Fill memory with the BPF object.
   const uint32_t bpfObjectMemoryOffset = 1;
   fillMemContent(memoryInstRef, bpfObjectMemoryOffset, bpfObjectBytes);
 
-  // Fill `handle_exec`, the bpf function name, into memory
+  // Write `handle_exec`, the BPF function name, to memory.
   const uint32_t targetHandleExecNameMemoryOffset =
       bpfObjectMemoryOffset + static_cast<uint32_t>(bpfObjectBytes.size());
   const std::string targetHandleExecName("handle_exec");
@@ -181,7 +181,7 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
   fillMemContent(memoryInstRef, targetHandleExecNameMemoryOffset,
                  targetHandleExecNameBytes);
 
-  // Fill `handle_exit`, the bpf function name, into memory
+  // Write `handle_exit`, the BPF function name, to memory.
   const uint32_t targetHandleExitNameMemoryOffset =
       targetHandleExecNameMemoryOffset +
       static_cast<uint32_t>(targetHandleExecNameBytes.size());
@@ -204,7 +204,7 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
   std::copy(mapName.begin(), mapName.end(), mapNameBytes.begin());
   fillMemContent(memoryInstRef, mapNameMemoryOffset, mapNameBytes);
 
-  // Prepare a memory area for storing polled things
+  // Prepare a memory area for storing polled items.
   const uint32_t bufferPollMemoryOffset =
       mapNameMemoryOffset + static_cast<uint32_t>(mapNameBytes.size());
   const uint32_t bufferPollSize = 1024;
@@ -212,10 +212,9 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
 
   // Get function "wasm_load_bpf_object"
   auto *loadFunc = module->findFuncExports("wasm_load_bpf_object");
-  EXPECT_NE(loadFunc, nullptr);
-  EXPECT_TRUE(loadFunc->isHostFunction());
-  auto &loadFuncHost =
-      dynamic_cast<WasmEdge::Host::LoadBpfObject &>(loadFunc->getHostFunc());
+  ASSERT_NE(loadFunc, nullptr);
+  ASSERT_TRUE(loadFunc->isHostFunction());
+  auto &loadFuncHost = loadFunc->getHostFunc();
 
   // call "wasm_load_bpf_object" to Load `bootstrap.bpf.o`, and check the
   // result
@@ -231,10 +230,9 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
 
   // Get function `wasm_attach_bpf_program`
   auto *attachFunc = module->findFuncExports("wasm_attach_bpf_program");
-  EXPECT_NE(attachFunc, nullptr);
-  EXPECT_TRUE(attachFunc->isHostFunction());
-  auto &attachFuncHost = dynamic_cast<WasmEdge::Host::AttachBpfProgram &>(
-      attachFunc->getHostFunc());
+  ASSERT_NE(attachFunc, nullptr);
+  ASSERT_TRUE(attachFunc->isHostFunction());
+  auto &attachFuncHost = attachFunc->getHostFunc();
 
   // Call "wasm_attach_bpf_program" to attach, and check the result
   std::array<WasmEdge::ValVariant, 1> attachResult;
@@ -265,10 +263,9 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
 
   // Get function `wasm_bpf_map_fd_by_name`
   auto *mapFdFunc = module->findFuncExports("wasm_bpf_map_fd_by_name");
-  EXPECT_NE(mapFdFunc, nullptr);
-  EXPECT_TRUE(mapFdFunc->isHostFunction());
-  auto &mapFdFuncHost =
-      dynamic_cast<WasmEdge::Host::BpfMapFdByName &>(mapFdFunc->getHostFunc());
+  ASSERT_NE(mapFdFunc, nullptr);
+  ASSERT_TRUE(mapFdFunc->isHostFunction());
+  auto &mapFdFuncHost = mapFdFunc->getHostFunc();
 
   // Call "wasm_bpf_map_fd_by_name" to get the map fd, and check the result
   std::array<WasmEdge::ValVariant, 1> mapFdResult;
@@ -280,13 +277,13 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
   auto mapFd = mapFdResult[0].get<int32_t>();
   EXPECT_GE(mapFd, 0);
 
-  // In the following several steps we will prepare for polling
-  // Create an instance of the polling callback function
+  // In the following steps we prepare for polling.
+  // Create an instance of the polling callback function.
   moduleInst.addHostFunc("__polling_callback_hostfunc"sv,
                          std::make_unique<PollCallbackFunction>());
   auto *callbackFuncInst =
       moduleInst.findFuncExports("__polling_callback_hostfunc");
-  // Create a function table, and fill the callback function into it
+  // Create a function table and fill it with the callback function.
   auto funcTableInst =
       std::make_unique<WasmEdge::Runtime::Instance::TableInstance>(
           WasmEdge::AST::TableType(WasmEdge::TypeCode::FuncRef, 1));
@@ -299,10 +296,9 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
 
   // Get the "wasm_bpf_buffer_poll" function
   auto *bufferPollFunc = module->findFuncExports("wasm_bpf_buffer_poll");
-  EXPECT_NE(bufferPollFunc, nullptr);
-  EXPECT_TRUE(bufferPollFunc->isHostFunction());
-  auto &bufferPollFuncHost = dynamic_cast<WasmEdge::Host::BpfBufferPoll &>(
-      bufferPollFunc->getHostFunc());
+  ASSERT_NE(bufferPollFunc, nullptr);
+  ASSERT_TRUE(bufferPollFunc->isHostFunction());
+  auto &bufferPollFuncHost = bufferPollFunc->getHostFunc();
 
   // Call the polling function
   std::array<WasmEdge::ValVariant, 1> pollResult;
@@ -325,10 +321,9 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
 
   // Get function `wasm_close_bpf_object`
   auto *closeFunc = module->findFuncExports("wasm_close_bpf_object");
-  EXPECT_NE(closeFunc, nullptr);
-  EXPECT_TRUE(closeFunc->isHostFunction());
-  auto &closeFuncHost =
-      dynamic_cast<WasmEdge::Host::CloseBpfObject &>(closeFunc->getHostFunc());
+  ASSERT_NE(closeFunc, nullptr);
+  ASSERT_TRUE(closeFunc->isHostFunction());
+  auto &closeFuncHost = closeFunc->getHostFunc();
 
   // Call "wasm_close_bpf_object" to attach, and check the result
   std::array<WasmEdge::ValVariant, 1> closeResult;
@@ -348,7 +343,7 @@ struct hist {
 } __attribute__((packed));
 
 TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
-  // Test loading and attaching a bpf program, and polling buffer
+  // Test loading and attaching a BPF program and polling a buffer.
   auto module = createModule();
   ASSERT_TRUE(module);
 
@@ -366,10 +361,10 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
   namespace fs = std::filesystem;
   auto bpfObject = getAssertsPath() / "runqlat.bpf.o";
 
-  // Ensure the bpf object we need exists
+  // Ensure the BPF object we need exists.
   EXPECT_TRUE(fs::exists(bpfObject));
 
-  // Read the bpf object into wasm memory
+  // Read the BPF object into Wasm memory.
   std::ifstream bpfObjStream(bpfObject);
   EXPECT_TRUE(bpfObjStream.is_open());
   EXPECT_TRUE(bpfObjStream.good());
@@ -377,15 +372,15 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
       (std::istreambuf_iterator<char>(bpfObjStream)),
       std::istreambuf_iterator<char>());
   EXPECT_FALSE(bpfObjectBytes.empty());
-  // Offset to put things into memory
+  // Offset used to place data in memory.
   uint32_t nextOffset = 1;
 
-  // Put the bpf object into memory
+  // Put the BPF object in memory.
   const uint32_t bpfObjectMemoryOffset = nextOffset;
   fillMemContent(memoryInstRef, bpfObjectMemoryOffset, bpfObjectBytes);
   nextOffset += static_cast<uint32_t>(bpfObjectBytes.size());
 
-  // Fill strings that will be used into memory
+  // Write the strings to memory.
   std::array<const char *, 5> strings = {
       "hists",                                            // Map name
       "sched_wakeup", "sched_wakeup_new", "sched_switch", // Program names
@@ -405,10 +400,9 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
 
   // Get function "wasm_load_bpf_object"
   auto *loadFunc = module->findFuncExports("wasm_load_bpf_object");
-  EXPECT_NE(loadFunc, nullptr);
-  EXPECT_TRUE(loadFunc->isHostFunction());
-  auto &loadFuncHost =
-      dynamic_cast<WasmEdge::Host::LoadBpfObject &>(loadFunc->getHostFunc());
+  ASSERT_NE(loadFunc, nullptr);
+  ASSERT_TRUE(loadFunc->isHostFunction());
+  auto &loadFuncHost = loadFunc->getHostFunc();
 
   // call "wasm_load_bpf_object" to Load `bootstrap.bpf.o`, and check the
   // result
@@ -424,10 +418,9 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
 
   // Get function `wasm_attach_bpf_program`
   auto *attachFunc = module->findFuncExports("wasm_attach_bpf_program");
-  EXPECT_NE(attachFunc, nullptr);
-  EXPECT_TRUE(attachFunc->isHostFunction());
-  auto &attachFuncHost = dynamic_cast<WasmEdge::Host::AttachBpfProgram &>(
-      attachFunc->getHostFunc());
+  ASSERT_NE(attachFunc, nullptr);
+  ASSERT_TRUE(attachFunc->isHostFunction());
+  auto &attachFuncHost = attachFunc->getHostFunc();
   std::array<size_t, 3> programNameIndexes = {1, 2, 3};
 
   // Attach the programs
@@ -447,10 +440,9 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
 
   // Get function `wasm_bpf_map_fd_by_name`
   auto *mapFdFunc = module->findFuncExports("wasm_bpf_map_fd_by_name");
-  EXPECT_NE(mapFdFunc, nullptr);
-  EXPECT_TRUE(mapFdFunc->isHostFunction());
-  auto &mapFdFuncHost =
-      dynamic_cast<WasmEdge::Host::BpfMapFdByName &>(mapFdFunc->getHostFunc());
+  ASSERT_NE(mapFdFunc, nullptr);
+  ASSERT_TRUE(mapFdFunc->isHostFunction());
+  auto &mapFdFuncHost = mapFdFunc->getHostFunc();
 
   // Call "wasm_bpf_map_fd_by_name" to get the map fd, and check the result
   std::array<WasmEdge::ValVariant, 1> mapFdResult;
@@ -462,12 +454,11 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
   auto histsFd = mapFdResult[0].get<int32_t>();
   EXPECT_GE(histsFd, 0);
 
-  // Get function `wasm_bpf_map_fd_by_name`
+  // Get function `wasm_bpf_map_operate`
   auto *mapOptFunc = module->findFuncExports("wasm_bpf_map_operate");
-  EXPECT_NE(mapOptFunc, nullptr);
-  EXPECT_TRUE(mapOptFunc->isHostFunction());
-  auto &mapOptFuncHost =
-      dynamic_cast<WasmEdge::Host::BpfMapOperate &>(mapOptFunc->getHostFunc());
+  ASSERT_NE(mapOptFunc, nullptr);
+  ASSERT_TRUE(mapOptFunc->isHostFunction());
+  auto &mapOptFuncHost = mapOptFunc->getHostFunc();
   // A wrapper to call wasm_bpf_map_operate
   auto callMapOperate = [&](int32_t fd, int32_t cmd, uint32_t key,
                             uint32_t value, uint32_t nextKey,
@@ -482,7 +473,7 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
         callResult));
     return callResult[0].get<int32_t>();
   };
-  // Three helper functions that will be used
+  // Three helper functions used below.
   auto mapGetNextKey = [&](int32_t fd, uint32_t lookupKey,
                            uint32_t nextKey) -> int32_t {
     // lookupKey is the last element -> returns -1
@@ -508,7 +499,7 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
                           3, // BPF_MAP_DELETE_ELEM
                           key, 0, 0, 0);
   };
-  // Three helper functions to make read & write more convenient
+  // Three helper functions that make reading and writing more convenient.
   auto readU32 = [&](uint32_t offset) -> uint32_t {
     const auto *ptr = memoryInstRef.getPointer<const uint32_t *>(offset);
     EXPECT_NE(ptr, nullptr);
@@ -540,13 +531,13 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
       EXPECT_GE(mapLookupElem(histsFd, nextKeyOffset, histOffset), 0);
       const auto &histRef = readHistRef(histOffset);
       size_t maxIdx = 0;
-      for (size_t i = 0; i < std::size(histRef.slots); i++)
-        if (histRef.slots[i] > 0)
-          maxIdx = i;
-      for (size_t i = 0; i < maxIdx; i++) {
-        auto low = UINT64_C(1) << (i);
-        auto high = (UINT64_C(1) << (i + 1)) - 1;
-        fmt::print("{:<6}...{:<6} {:<6}\n"sv, low, high, histRef.slots[i]);
+      for (size_t j = 0; j < std::size(histRef.slots); j++)
+        if (histRef.slots[j] > 0)
+          maxIdx = j;
+      for (size_t j = 0; j < maxIdx; j++) {
+        auto low = UINT64_C(1) << (j);
+        auto high = (UINT64_C(1) << (j + 1)) - 1;
+        fmt::print("{:<6}...{:<6} {:<6}\n"sv, low, high, histRef.slots[j]);
       }
       writeU32(lookUpKeyOffset, readU32(nextKeyOffset));
     }
@@ -560,10 +551,9 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
 
   // Get function `wasm_close_bpf_object`
   auto *closeFunc = module->findFuncExports("wasm_close_bpf_object");
-  EXPECT_NE(closeFunc, nullptr);
-  EXPECT_TRUE(closeFunc->isHostFunction());
-  auto &closeFuncHost =
-      dynamic_cast<WasmEdge::Host::CloseBpfObject &>(closeFunc->getHostFunc());
+  ASSERT_NE(closeFunc, nullptr);
+  ASSERT_TRUE(closeFunc->isHostFunction());
+  auto &closeFuncHost = closeFunc->getHostFunc();
 
   // Call "wasm_close_bpf_object" to attach, and check the result
   std::array<WasmEdge::ValVariant, 1> closeResult;

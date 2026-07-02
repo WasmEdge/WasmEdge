@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 
@@ -16,7 +16,7 @@ namespace Executor {
 Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
                       std::optional<std::string_view> Name) {
-  // Check the module is validated.
+  // Check that the module is validated.
   if (unlikely(!Mod.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
@@ -26,7 +26,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // Create the stack manager.
   Runtime::StackManager StackMgr;
 
-  // Check is module name duplicated when trying to registration.
+  // Check whether the module name is duplicated during registration.
   if (Name.has_value()) {
     const auto *FindModInst = StoreMgr.findModule(Name.value());
     if (FindModInst != nullptr) {
@@ -36,7 +36,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
     }
   }
 
-  // Insert the module instance to store manager and retrieve instance.
+  // Insert the module instance into the store manager and retrieve it.
   std::unique_ptr<Runtime::Instance::ModuleInstance> ModInst;
   if (Name.has_value()) {
     ModInst = std::make_unique<Runtime::Instance::ModuleInstance>(Name.value());
@@ -68,9 +68,19 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // Instantiate ImportSection and do import matching. (ImportSec)
   const AST::ImportSection &ImportSec = Mod.getImportSection();
   EXPECTED_TRY(instantiate(
-                   [&StoreMgr](std::string_view ModName)
+                   [&StoreMgr, &ModInst](std::string_view ModName)
                        -> const WasmEdge::Runtime::Instance::ModuleInstance * {
-                     return StoreMgr.findModule(ModName);
+                     using WasmEdge::Runtime::Instance::ModuleInstance;
+                     return StoreMgr.withModuleLocked(
+                         ModName,
+                         [&ModInst](const ModuleInstance *Found)
+                             -> const ModuleInstance * {
+                           if (Found) {
+                             ModInst->addDependency(
+                                 *const_cast<ModuleInstance *>(Found));
+                           }
+                           return Found;
+                         });
                    },
                    *ModInst, ImportSec)
                    .map_error(ReportError(ASTNodeAttr::Sec_Import)));
@@ -144,7 +154,10 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // Pop Frame.
   StackMgr.popFrame();
 
-  // For the named modules, register it into the store.
+  // Instantiation done; finalize so the executor reads instances lock-free.
+  ModInst->finalizeInstantiation();
+
+  // For a named module, register it in the store.
   if (Name.has_value()) {
     StoreMgr.registerModule(ModInst.get());
   }

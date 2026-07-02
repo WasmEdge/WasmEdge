@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/enum_types.hpp - WASM types C++ enumerations ------===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definitions of WASM types related C++ enumerations.
+/// This file contains the definitions of WASM type-related C++ enumerations.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -16,6 +16,7 @@
 
 #include "dense_enum_map.h"
 #include "errcode.h"
+#include "fmt.h"
 #include "spare_enum_map.h"
 
 #include <cstdint>
@@ -111,8 +112,9 @@ static inline constexpr const auto ComponentTypeCodeStr = []() constexpr {
 
 template <>
 struct fmt::formatter<WasmEdge::ValMut> : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::ValMut &Mut, fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::ValMut &Mut,
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(WasmEdge::ValMutStr[Mut], Ctx);
   }
 };
@@ -120,9 +122,9 @@ struct fmt::formatter<WasmEdge::ValMut> : fmt::formatter<std::string_view> {
 template <>
 struct fmt::formatter<WasmEdge::ExternalType>
     : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::ExternalType &Type,
-         fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::ExternalType &Type,
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(WasmEdge::ExternalTypeStr[Type],
                                                Ctx);
   }

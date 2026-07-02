@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 set(WASMEDGE_INTERPROCEDURAL_OPTIMIZATION OFF)
 if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo)
@@ -33,7 +33,12 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     /wd4819 # file contains a character not in current code page
     /wd4127 # conditional expression is constant
     /wd4611 # interaction between '_setjmp' and C++ object destruction is non-portable
+    /bigobj # for large object files
   )
+  # /W4 already enables the C4456-C4459 shadow warnings, so no extra enables
+  # are needed; pair them with suppression flags to keep third-party targets
+  # exempt on MSVC as well.
+  set(WASMEDGE_SHADOW_SUPPRESS_FLAGS /wd4456 /wd4457 /wd4458 /wd4459)
 else()
   list(APPEND WASMEDGE_CFLAGS
     -Wall
@@ -67,7 +72,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-documentation-unknown-command
     -Wno-error=nested-anon-types
     -Wno-error=old-style-cast
-    -Wno-error=shadow
     -Wno-error=unused-command-line-argument
     -Wno-error=unknown-warning-option
     -Wno-ctad-maybe-unsupported
@@ -75,11 +79,25 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-keyword-macro
     -Wno-language-extension-token
     -Wno-newline-eof
-    -Wno-shadow-field-in-constructor
     -Wno-signed-enum-bitfield
     -Wno-switch-enum
     -Wno-undefined-func-template
   )
+
+  # -Wshadow is not documented to enable -Wshadow-field-in-constructor, so
+  # the Name(Name) constructor idiom should stay accepted, but clang-cl 21 on
+  # Windows fires it under these flags anyway; disable it explicitly and
+  # re-enable the narrower -Wshadow-field-in-constructor-modified check that
+  # -Wshadow intends. -Wshadow-field is not part of -Wshadow either; it is
+  # enabled explicitly to catch declarations that shadow members inherited
+  # from a base class.
+  list(APPEND WASMEDGE_CFLAGS
+    -Wshadow
+    -Wshadow-field
+    -Wno-shadow-field-in-constructor
+    -Wshadow-field-in-constructor-modified
+  )
+  set(WASMEDGE_SHADOW_SUPPRESS_FLAGS -Wno-shadow -Wno-shadow-field)
 
   if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 17.0.0)
     list(APPEND WASMEDGE_CFLAGS
@@ -99,11 +117,17 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     )
   elseif(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     list(APPEND WASMEDGE_CFLAGS
-      -Wno-error=shadow-field
       -Wno-reserved-identifier
     )
   endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+  # GCC's -Wshadow, unlike Clang's, flags the Name(Name) constructor idiom
+  # and offers no subgroup to exempt it; =local checks local shadowing only.
+  list(APPEND WASMEDGE_CFLAGS
+    -Wshadow=local
+  )
+  # Match the enabled subgroup so third-party targets drop -Wshadow=local.
+  set(WASMEDGE_SHADOW_SUPPRESS_FLAGS -Wno-shadow=local)
   if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
     list(APPEND WASMEDGE_CFLAGS
       -Wno-error=dangling-reference
@@ -184,6 +208,21 @@ function(wasmedge_setup_target target)
   endif()
 endfunction()
 
+# Third-party targets built with WASMEDGE_CFLAGS are not ours to fix; undo the
+# shadow warning enables on them.
+function(wasmedge_suppress_shadow_warnings)
+  if(NOT WASMEDGE_SHADOW_SUPPRESS_FLAGS)
+    return()
+  endif()
+  set(SHADOW_SUPPRESS_OPTIONS)
+  foreach(flag IN LISTS WASMEDGE_SHADOW_SUPPRESS_FLAGS)
+    list(APPEND SHADOW_SUPPRESS_OPTIONS "$<$<COMPILE_LANGUAGE:C,CXX>:${flag}>")
+  endforeach()
+  foreach(target IN LISTS ARGN)
+    target_compile_options(${target} PRIVATE ${SHADOW_SUPPRESS_OPTIONS})
+  endforeach()
+endfunction()
+
 function(wasmedge_add_library target)
   add_library(${target} ${ARGN})
   wasmedge_setup_target(${target})
@@ -225,7 +264,7 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
   endif()
   execute_process(
     COMMAND ${LLVM_BINARY_DIR}/bin/llvm-config --libs --link-static
-    core lto native nativecodegen option passes support orcjit transformutils all-targets
+    core linker lto native nativecodegen option passes support orcjit transformutils all-targets
     OUTPUT_VARIABLE WASMEDGE_LLVM_LINK_LIBS_NAME
   )
   string(REPLACE "-l" "" WASMEDGE_LLVM_LINK_LIBS_NAME "${WASMEDGE_LLVM_LINK_LIBS_NAME}")
@@ -260,7 +299,7 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
     )
   endif()
   if(LLVM_VERSION_MAJOR GREATER_EQUAL 15)
-    # For LLVM 15 or greater on MacOS, or all LLVM 16+
+    # For LLVM 15 or greater on macOS, or all LLVM 16+
     if(APPLE OR LLVM_VERSION_MAJOR GREATER_EQUAL 16)
       find_package(zstd REQUIRED)
       get_filename_component(ZSTD_PATH "${zstd_LIBRARY}" DIRECTORY)
@@ -358,6 +397,7 @@ function(wasmedge_setup_simdjson)
         $<$<COMPILE_LANGUAGE:C,CXX>:/wd4505> # unreferenced local function has been removed
       )
     endif()
+    wasmedge_suppress_shadow_warnings(simdjson)
   endif()
 endfunction()
 
@@ -390,6 +430,7 @@ function(wasmedge_setup_spdlog)
         -Wno-sign-conversion
       )
     endif()
+    wasmedge_suppress_shadow_warnings(fmt)
     if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(fmt
         PUBLIC
@@ -412,6 +453,7 @@ function(wasmedge_setup_spdlog)
     FetchContent_MakeAvailable(spdlog)
     message(STATUS "Downloading spdlog source -- done")
     wasmedge_setup_target(spdlog)
+    wasmedge_suppress_shadow_warnings(spdlog)
     if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(spdlog
         PUBLIC

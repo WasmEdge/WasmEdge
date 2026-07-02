@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/spdlog.h"
 #include "driver/wasi_nn_rpc/wasi_nn_rpcserver/wasi_nn_rpcserver.h"
@@ -37,7 +37,7 @@ int WasiNNRPCServer(int Argc, const char *Argv[]) noexcept {
   Log::setInfoLoggingLevel();
   setenv("_WASI_NN_RPCSERVER", "1", 1); // wasi_nn plugin checks this env var
 
-  // Parse the args
+  // Parse the arguments.
   PO::Option<std::string> NNRPCURI(
       PO::Description("Specify NN RPC URI to serve (\"unix://...\")"sv),
       PO::MetaVar("URI"sv), PO::DefaultValue(std::string("")));

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/plugins/wasi_crypto/asymmetric_common/publickey.h --------===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the asymmetric common PubicKey of wasi-crypto.
+/// This file contains the asymmetric common PublicKey of wasi-crypto.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

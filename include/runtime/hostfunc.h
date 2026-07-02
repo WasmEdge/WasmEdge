@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/runtime/hostfunc.h - host function interface -------------===//
 //
@@ -39,15 +39,15 @@ public:
                            Span<const ValVariant> Args,
                            Span<ValVariant> Rets) = 0;
 
-  /// Getter of function type.
+  /// Getter for function type.
   const AST::FunctionType &getFuncType() const noexcept {
     return DefType.getCompositeType().getFuncType();
   }
 
-  /// Getter of host function cost.
+  /// Getter for host function cost.
   uint64_t getCost() const { return Cost; }
 
-  /// Getter of defined type.
+  /// Getter for defined type.
   const AST::SubType &getDefinedType() const noexcept { return DefType; }
 
 protected:

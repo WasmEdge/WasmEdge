@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
 #include "processfunc.h"
@@ -8,6 +8,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cerrno>
+#include <chrono>
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <memory>
@@ -80,11 +82,9 @@ TEST(WasmEdgeProcessTest, SetProgName) {
 
   // Get the function "wasmedge_process_set_prog_name".
   auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_set_prog_name");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInst =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessSetProgName &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInst = FuncInst->getHostFunc();
 
   // Test: Run function successfully.
   EXPECT_TRUE(HostFuncInst.run(
@@ -126,10 +126,9 @@ TEST(WasmEdgeProcessTest, AddArg) {
 
   // Get the function "wasmedge_process_add_arg".
   auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_add_arg");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInst = dynamic_cast<WasmEdge::Host::WasmEdgeProcessAddArg &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInst = FuncInst->getHostFunc();
 
   // Test: Run function successfully to add "arg1".
   EXPECT_TRUE(HostFuncInst.run(
@@ -190,10 +189,9 @@ TEST(WasmEdgeProcessTest, AddEnv) {
 
   // Get the function "wasmedge_process_add_env".
   auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_add_env");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInst = dynamic_cast<WasmEdge::Host::WasmEdgeProcessAddEnv &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInst = FuncInst->getHostFunc();
 
   // Test: Run function successfully to add "ENV1", "VALUE1".
   EXPECT_TRUE(
@@ -245,10 +243,9 @@ TEST(WasmEdgeProcessTest, AddStdIn) {
 
   // Get the function "wasmedge_process_add_stdin".
   auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_add_stdin");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInst = dynamic_cast<WasmEdge::Host::WasmEdgeProcessAddStdIn &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInst = FuncInst->getHostFunc();
 
   // Test: Run function successfully to add "\01\02\03\04".
   EXPECT_TRUE(HostFuncInst.run(
@@ -284,11 +281,9 @@ TEST(WasmEdgeProcessTest, SetTimeOut) {
 
   // Get the function "wasmedge_process_set_timeout".
   auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_set_timeout");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInst =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessSetTimeOut &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInst = FuncInst->getHostFunc();
 
   // Test: Run function successfully to set timeout 100.
   EXPECT_TRUE(HostFuncInst.run(
@@ -321,15 +316,14 @@ TEST(WasmEdgeProcessTest, Run) {
 
   // Get the function "wasmedge_process_run".
   auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_run");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInst = dynamic_cast<WasmEdge::Host::WasmEdgeProcessRun &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInst = FuncInst->getHostFunc();
 
   // Return value.
   std::array<WasmEdge::ValVariant, 1> RetVal;
 
-  // Test: Run function failed to run "c++" without allowing all commands.
+  // Test: Run function fails to run "c++" without allowing all commands.
   ProcMod->getEnv().AllowedAll = false;
   ProcMod->getEnv().Name = "c++";
   EXPECT_TRUE(HostFuncInst.run(DummyCallFrame, {}, RetVal));
@@ -343,7 +337,7 @@ TEST(WasmEdgeProcessTest, Run) {
   EXPECT_TRUE(std::equal(ProcMod->getEnv().StdErr.begin(),
                          ProcMod->getEnv().StdErr.end(), ErrStr.begin()));
 
-  // Test: Run function successfully to run "c++" with allowing all commands.
+  // Test: Run function successfully to run "c++" while allowing all commands.
   ProcMod->getEnv().AllowedAll = true;
   ProcMod->getEnv().Name = "c++";
   EXPECT_TRUE(HostFuncInst.run(DummyCallFrame, {}, RetVal));
@@ -351,7 +345,7 @@ TEST(WasmEdgeProcessTest, Run) {
   EXPECT_TRUE(ProcMod->getEnv().StdOut.size() == 0);
   EXPECT_TRUE(ProcMod->getEnv().StdErr.size() > 0);
 
-  // Test: Run function successfully to run "c++" with allowing this command.
+  // Test: Run function successfully to run "c++" while allowing this command.
   ProcMod->getEnv().AllowedAll = false;
   ProcMod->getEnv().AllowedCmd.insert("c++");
   ProcMod->getEnv().Name = "c++";
@@ -360,7 +354,7 @@ TEST(WasmEdgeProcessTest, Run) {
   EXPECT_TRUE(ProcMod->getEnv().StdOut.size() == 0);
   EXPECT_TRUE(ProcMod->getEnv().StdErr.size() > 0);
 
-  // Test: Run function successfully to run "/bin/echo" with allowing this
+  // Test: Run function successfully to run "/bin/echo" while allowing this
   // command.
   ProcMod->getEnv().AllowedAll = false;
   ProcMod->getEnv().AllowedCmd.clear();
@@ -376,6 +370,48 @@ TEST(WasmEdgeProcessTest, Run) {
                          ProcMod->getEnv().StdOut.end(), OutStr.begin()));
 }
 
+TEST(WasmEdgeProcessTest, TimeoutPrecision) {
+  // Create the wasmedge_process module instance.
+  auto ProcMod = createModule();
+  ASSERT_TRUE(ProcMod);
+
+  // Get the function "wasmedge_process_run".
+  auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_run");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncRun = FuncInst->getHostFunc();
+
+  // Return value.
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  // Run "sleep 2" with a 500ms timeout.
+  // With the fix, the process should be killed after ~500ms.
+  // With the old bug (/1000000U instead of /1000U), the microsecond
+  // component was effectively zero, so timeout only fired at whole-second
+  // boundaries (i.e., at ~1000ms instead of ~500ms).
+  ProcMod->getEnv().AllowedAll = true;
+  ProcMod->getEnv().Name = "sleep";
+  ProcMod->getEnv().Args.push_back("2");
+  ProcMod->getEnv().TimeOut = 500;
+
+  auto Start = std::chrono::steady_clock::now();
+  EXPECT_TRUE(HostFuncRun.run(DummyCallFrame, {}, RetVal));
+  auto End = std::chrono::steady_clock::now();
+  auto ElapsedMs =
+      std::chrono::duration_cast<std::chrono::milliseconds>(End - Start)
+          .count();
+
+  // The process should have been killed due to timeout.
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), static_cast<uint32_t>(ETIMEDOUT));
+
+  // With the fix, elapsed time should be close to 500ms (the timeout value).
+  // Allow generous margins for CI/scheduling variance, but the key assertion
+  // is that it finishes well before the 2-second sleep completes and does not
+  // overshoot to ~1000ms (the old buggy whole-second boundary).
+  EXPECT_GE(ElapsedMs, 400);
+  EXPECT_LE(ElapsedMs, 900);
+}
+
 TEST(WasmEdgeProcessTest, GetExitCode) {
   // Create the wasmedge_process module instance.
   auto ProcMod = createModule();
@@ -383,16 +419,15 @@ TEST(WasmEdgeProcessTest, GetExitCode) {
 
   // Get the function "wasmedge_process_get_exit_code".
   auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_get_exit_code");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInst =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessGetExitCode &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInst = FuncInst->getHostFunc();
 
   // Test: Run function successfully to get exit code.
+  ProcMod->getEnv().ExitCode = 42;
   std::array<WasmEdge::ValVariant, 1> RetVal;
   EXPECT_TRUE(HostFuncInst.run(DummyCallFrame, {}, RetVal));
-  EXPECT_EQ(RetVal[0].get<int32_t>(), 0);
+  EXPECT_EQ(RetVal[0].get<int32_t>(), 42);
 }
 
 TEST(WasmEdgeProcessTest, GetStdOut) {
@@ -415,24 +450,19 @@ TEST(WasmEdgeProcessTest, GetStdOut) {
 
   // Get the function "wasmedge_process_run".
   auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_run");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncRun = dynamic_cast<WasmEdge::Host::WasmEdgeProcessRun &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncRun = FuncInst->getHostFunc();
   // Get the function "wasmedge_process_run".
   FuncInst = ProcMod->findFuncExports("wasmedge_process_get_stdout_len");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetStdOutLen =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessGetStdOutLen &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncGetStdOutLen = FuncInst->getHostFunc();
   // Get the function "wasmedge_process_run".
   FuncInst = ProcMod->findFuncExports("wasmedge_process_get_stdout");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetStdOut =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessGetStdOut &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncGetStdOut = FuncInst->getHostFunc();
 
   // Return value.
   std::array<WasmEdge::ValVariant, 1> RetVal;
@@ -482,24 +512,19 @@ TEST(WasmEdgeProcessTest, GetStdErr) {
 
   // Get the function "wasmedge_process_run".
   auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_run");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncRun = dynamic_cast<WasmEdge::Host::WasmEdgeProcessRun &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncRun = FuncInst->getHostFunc();
   // Get the function "wasmedge_process_run".
   FuncInst = ProcMod->findFuncExports("wasmedge_process_get_stderr_len");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetStdErrLen =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessGetStdErrLen &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncGetStdErrLen = FuncInst->getHostFunc();
   // Get the function "wasmedge_process_run".
   FuncInst = ProcMod->findFuncExports("wasmedge_process_get_stderr");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncGetStdErr =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessGetStdErr &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncGetStdErr = FuncInst->getHostFunc();
 
   // Return value.
   std::array<WasmEdge::ValVariant, 1> RetVal;
@@ -523,8 +548,8 @@ TEST(WasmEdgeProcessTest, GetStdErr) {
   // Test: Run wasmedge_process_get_stdout successfully.
   EXPECT_TRUE(HostFuncGetStdErr.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)}, {}));
-  EXPECT_TRUE(std::equal(ProcMod->getEnv().StdOut.begin(),
-                         ProcMod->getEnv().StdOut.end(),
+  EXPECT_TRUE(std::equal(ProcMod->getEnv().StdErr.begin(),
+                         ProcMod->getEnv().StdErr.end(),
                          MemInst.getPointer<uint8_t *>(0)));
 }
 

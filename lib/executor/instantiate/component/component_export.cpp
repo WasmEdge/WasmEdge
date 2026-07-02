@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 
@@ -31,7 +31,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       case AST::Component::Sort::CoreSortType::Global:
       case AST::Component::Sort::CoreSortType::Type:
       case AST::Component::Sort::CoreSortType::Module:
-        // The cases are invalid.
+        // These cases are invalid.
       default:
         assumingUnreachable();
       }

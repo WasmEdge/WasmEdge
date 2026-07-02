@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -13,9 +13,9 @@
 namespace WasmEdge {
 namespace Host {
 
-/// \brief Lookup a map fd by its name.
+/// \brief Look up a map fd by its name.
 ///
-/// Map fd is returned if succeed, others if failed.
+/// Returns the map fd on success; other values indicate failure.
 class BpfMapFdByName : public WasmEdge::Runtime::HostFunction<BpfMapFdByName> {
 public:
   BpfMapFdByName(state_t state) : state(state) {}

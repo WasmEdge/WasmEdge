@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
 #if WASMEDGE_OS_WINDOWS
@@ -284,7 +284,7 @@ getHandlePath(HANDLE_ Handle) noexcept {
 
 inline WasiExpect<std::filesystem::path>
 getRelativePath(HANDLE_ Handle, std::string_view Path) noexcept {
-  // Check if the path is a directory or not
+  // Check whether the path is a directory.
   EXPECTED_TRY(forceDirectory(Handle));
   EXPECTED_TRY(auto FullPath, getHandlePath(Handle));
 
@@ -679,8 +679,8 @@ INode INode::stdErr() noexcept {
   return INode(GetStdHandle(STD_ERROR_HANDLE_), true);
 }
 
-WasiExpect<INode> INode::fromFd(int32_t Fd) {
-  EXPECTED_TRY(auto Handle, getWindowsHandle(Fd));
+WasiExpect<INode> INode::fromFd(int32_t FdNum) {
+  EXPECTED_TRY(auto Handle, getWindowsHandle(FdNum));
   return INode(Handle, true);
 }
 
@@ -1104,10 +1104,10 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
       break;
     }
     if (!FindNextResult) {
-      // Check if there no more files left or if an error has been encountered
+      // Check whether there are no more files left or an error was encountered.
       if (DWORD_ Code = GetLastError();
           unlikely(Code != ERROR_NO_MORE_FILES_)) {
-        // The FindNextFileW() function has failed
+        // The FindNextFileW() function failed.
         return WasiUnexpect(detail::fromLastError(Code));
       }
       break;
@@ -1694,7 +1694,7 @@ WasiExpect<void> INode::sockConnect(__wasi_address_family_t AddressFamily,
     ClientAddr6.sin6_family = AF_INET6;
     ClientAddr6.sin6_port = htons(Port);
     assuming(Address.size() >= sizeof(in6_addr));
-    std::memcpy(&ClientAddr6.sin6_addr, Address.data(), sizeof(in_addr));
+    std::memcpy(&ClientAddr6.sin6_addr, Address.data(), sizeof(in6_addr));
   } else {
     assumingUnreachable();
   }
@@ -2264,8 +2264,7 @@ void Poller::read(const INode &Node, TriggerType Trigger,
 
   if (Node.Type != HandleHolder::HandleType::NormalSocket ||
       Trigger != TriggerType::Level) {
-    // Windows does not support polling other then socket, and only with level
-    // triggering.
+    // Windows supports polling only sockets, and only with level triggering.
     error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_READ);
     return;
   }
@@ -2337,8 +2336,7 @@ void Poller::write(const INode &Node, TriggerType Trigger,
   }
   if (Node.Type != HandleHolder::HandleType::NormalSocket ||
       Trigger != TriggerType::Level) {
-    // Windows does not support polling other then socket, and only with level
-    // triggering.
+    // Windows supports polling only sockets, and only with level triggering.
     error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_WRITE);
     return;
   }

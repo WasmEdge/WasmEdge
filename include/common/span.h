@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/span.h - Helper template of std::span -------------===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents the helper template aliasing of std::span.
+/// This file contains the helper template alias for std::span.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 /// This file contains tests of nested VM execution.
-/// When entering compiled wasm functions current VM references are written to
+/// When entering compiled wasm functions, current VM references are written to
 /// thread local variables (e.g. `Executor::This`).
-/// These references are read when compiled wasm calls host function.
-/// There was a bug, when host function created nested VM to call another
-/// compiled wasm function, and overwritten reference was not restored.
+/// These references are read when compiled wasm calls a host function.
+/// There was a bug where a host function created a nested VM to call another
+/// compiled wasm function, and the overwritten reference was not restored.
 
 #include "wasmedge/wasmedge.h"
 
@@ -15,13 +15,15 @@
 #include <gtest/gtest.h>
 #include <stack>
 
+using namespace std::literals;
+
 namespace {
 /// C++ overloaded error checking functions
 /// `try` is keyword, `_try` is reserved in msvc
 void _Try(const char *Name, const WasmEdge_Result &R) {
   if (not WasmEdge_ResultOK(R)) {
     throw std::runtime_error{
-        fmt::format("{}: {}", Name, WasmEdge_ResultGetMessage(R))};
+        fmt::format("{}: {}"sv, Name, WasmEdge_ResultGetMessage(R))};
   }
 }
 template <typename T> T *_Try(const char *Name, T *R) {
@@ -35,6 +37,11 @@ template <typename T> T *_Try(const char *Name, T *R) {
 template <typename T> struct TryWrap;
 template <typename R, typename... A> struct TryWrap<R (*)(A...)> {
   static auto wrap(const char *Name, R (*Fn)(A...)) {
+    return [Name, Fn](A... Args) { return _Try(Name, Fn(Args...)); };
+  }
+};
+template <typename R, typename... A> struct TryWrap<R (*)(A...) noexcept> {
+  static auto wrap(const char *Name, R (*Fn)(A...) noexcept) {
     return [Name, Fn](A... Args) { return _Try(Name, Fn(Args...)); };
   }
 };

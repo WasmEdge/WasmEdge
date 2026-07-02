@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/runtime/instance/composite.h - Composite base definition -===//
 //
@@ -35,13 +35,13 @@ public:
     assuming(ModInst);
   }
 
-  /// Getter of module instance of this instance.
+  /// Getter for the module instance of this instance.
   const ModuleInstance *getModule() const noexcept { return ModInst; }
 
-  /// Getter of closed type index of this instance in the module.
+  /// Getter for the closed type index of this instance in the module.
   uint32_t getTypeIndex() const noexcept { return TypeIdx; }
 
-  /// Getter of value type in defined type form.
+  /// Getter for the value type in defined type form.
   ValType getDefType() const noexcept {
     if (ModInst) {
       return ValType(TypeCode::Ref, TypeIdx);

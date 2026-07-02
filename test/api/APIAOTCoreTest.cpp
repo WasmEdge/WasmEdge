@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/test/api/APIAOTVMCoreTest.cpp - WasmEdge C API AOT core tests//
 //
@@ -9,22 +9,22 @@
 ///
 /// \file
 /// This file contains tests of Wasm test suites extracted by wast2json.
-/// Test Suits: https://github.com/WebAssembly/spec/tree/master/test/core
+/// Test Suites: https://github.com/WebAssembly/spec/tree/master/test/core
 /// wast2json: https://webassembly.github.io/wabt/doc/wast2json.1.html
 ///
 //===----------------------------------------------------------------------===//
 
-#include "common/defines.h"
 #include "helper.h"
 #include "hostfunc_c.h"
 #include "wasmedge/wasmedge.h"
 
 #include "../spec/spectest.h"
 
+#include <gtest/gtest.h>
+
 #include <cstdint>
 #include <fstream>
 #include <functional>
-#include <gtest/gtest.h>
 #include <iterator>
 #include <string>
 #include <string_view>
@@ -42,33 +42,82 @@ class CoreCompileTest : public testing::TestWithParam<std::string> {};
 class CoreCompileArrayTest : public testing::TestWithParam<std::string> {};
 
 TEST_P(CoreCompileTest, TestSuites) {
-  const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
-  WasmEdge_ConfigureContext *ConfCxt = createConf(Conf);
-  WasmEdge_VMContext *VM = WasmEdge_VMCreate(ConfCxt, nullptr);
-  WasmEdge_ConfigureCompilerSetOptimizationLevel(
-      ConfCxt, WasmEdge_CompilerOptimizationLevel_O0);
-  WasmEdge_ConfigureCompilerSetOutputFormat(
-      ConfCxt, WasmEdge_CompilerOutputFormat_Native);
-  WasmEdge_CompilerContext *CompilerCxt = WasmEdge_CompilerCreate(ConfCxt);
-  WasmEdge_ConfigureDelete(ConfCxt);
-  WasmEdge_ModuleInstanceContext *TestModCxt = createSpecTestModule();
-  WasmEdge_VMRegisterModuleFromImport(VM, TestModCxt);
+  auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
+  // C API AOT spec test: opt into RunMode::AOT so the runtime load
+  // step uses the produced .so as AOT under the new default mode.
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
+  const auto &ConfRef = Conf;
 
-  auto Compile = [&](const std::string &FileName) -> Expect<std::string> {
-    auto Path = std::filesystem::u8path(FileName);
-    Path.replace_extension(std::filesystem::u8path(WASMEDGE_LIB_EXTENSION));
-    const auto SOPath = Path.u8string();
-    WasmEdge_Result Res =
-        WasmEdge_CompilerCompile(CompilerCxt, FileName.c_str(), SOPath.c_str());
-    if (!WasmEdge_ResultOK(Res)) {
-      return Unexpect(convResult(Res));
+  // Define context structure for C API AOT
+  struct TestContext {
+    WasmEdge_VMContext *VM;
+    WasmEdge_ModuleInstanceContext *TestModCxt;
+    WasmEdge_CompilerContext *CompilerCxt;
+    TestContext(const WasmEdge::Configure &C) {
+      WasmEdge_ConfigureContext *ConfCxt = createConf(C);
+      VM = WasmEdge_VMCreate(ConfCxt, nullptr);
+      WasmEdge_ConfigureCompilerSetOptimizationLevel(
+          ConfCxt, WasmEdge_CompilerOptimizationLevel_O0);
+      WasmEdge_ConfigureCompilerSetOutputFormat(
+          ConfCxt, WasmEdge_CompilerOutputFormat_Native);
+      CompilerCxt = WasmEdge_CompilerCreate(ConfCxt);
+      WasmEdge_ConfigureDelete(ConfCxt);
+      TestModCxt = createSpecTestModule();
+      WasmEdge_VMRegisterModuleFromImport(VM, TestModCxt);
     }
-    return SOPath;
+    ~TestContext() {
+      WasmEdge_VMDelete(VM);
+      WasmEdge_ModuleInstanceDelete(TestModCxt);
+      WasmEdge_CompilerDelete(CompilerCxt);
+    }
+    Expect<std::string> compile(const std::string &FileName) {
+      auto Path = std::filesystem::u8path(FileName);
+      Path.replace_extension(std::filesystem::u8path(WASMEDGE_LIB_EXTENSION));
+      const auto SOPath = Path.u8string();
+      WasmEdge_Result Res = WasmEdge_CompilerCompile(
+          CompilerCxt, FileName.c_str(), SOPath.c_str());
+      if (!WasmEdge_ResultOK(Res)) {
+        return Unexpect(convResult(Res));
+      }
+      return SOPath;
+    }
   };
-  T.onModule = [&VM, &Compile](const std::string &ModName,
-                               const std::string &FileName) -> Expect<void> {
-    return Compile(FileName).and_then(
-        [&VM, &ModName](const std::string &SOFileName) -> Expect<void> {
+
+  T.onInit = [&ConfRef](SpecTest::ContextHandle Parent,
+                        const std::vector<std::pair<std::string, std::string>>
+                            &SharedModules) -> SpecTest::ContextHandle {
+    auto *Ctx = new TestContext(ConfRef);
+    if (Parent != nullptr && !SharedModules.empty()) {
+      auto *P = static_cast<TestContext *>(Parent);
+      WasmEdge_StoreContext *ParentStore = WasmEdge_VMGetStoreContext(P->VM);
+      for (const auto &[ParentName, AliasName] : SharedModules) {
+        WasmEdge_String ParentNameStr =
+            WasmEdge_StringCreateByCString(ParentName.c_str());
+        const WasmEdge_ModuleInstanceContext *ModInst =
+            WasmEdge_StoreFindModule(ParentStore, ParentNameStr);
+        WasmEdge_StringDelete(ParentNameStr);
+        if (ModInst != nullptr) {
+          WasmEdge_String AliasNameStr =
+              WasmEdge_StringCreateByCString(AliasName.c_str());
+          WasmEdge_VMRegisterModuleFromImportWithAlias(Ctx->VM, AliasNameStr,
+                                                       ModInst);
+          WasmEdge_StringDelete(AliasNameStr);
+        }
+      }
+    }
+    return Ctx;
+  };
+
+  T.onFini = [](SpecTest::ContextHandle Ctx) {
+    delete static_cast<TestContext *>(Ctx);
+  };
+
+  T.onModule = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+                  const std::string &FileName) -> Expect<void> {
+    auto *TC = static_cast<TestContext *>(Ctx);
+    auto *VM = TC->VM;
+    return TC->compile(FileName).and_then(
+        [VM, &ModName](const std::string &SOFileName) -> Expect<void> {
           WasmEdge_Result Res;
           if (!ModName.empty()) {
             WasmEdge_String ModStr = WasmEdge_StringWrap(
@@ -92,9 +141,12 @@ TEST_P(CoreCompileTest, TestSuites) {
           return {};
         });
   };
-  T.onLoad = [&VM, &Compile](const std::string &FileName) -> Expect<void> {
-    return Compile(FileName).and_then(
-        [&](const std::string &SOFileName) -> Expect<void> {
+  T.onLoad = [](SpecTest::ContextHandle Ctx,
+                const std::string &FileName) -> Expect<void> {
+    auto *TC = static_cast<TestContext *>(Ctx);
+    auto *VM = TC->VM;
+    return TC->compile(FileName).and_then(
+        [VM](const std::string &SOFileName) -> Expect<void> {
           WasmEdge_Result Res =
               WasmEdge_VMLoadWasmFromFile(VM, SOFileName.c_str());
           if (!WasmEdge_ResultOK(Res)) {
@@ -103,9 +155,12 @@ TEST_P(CoreCompileTest, TestSuites) {
           return {};
         });
   };
-  T.onValidate = [&VM, &Compile](const std::string &FileName) -> Expect<void> {
-    return Compile(FileName).and_then(
-        [&](const std::string &SOFileName) -> Expect<void> {
+  T.onValidate = [](SpecTest::ContextHandle Ctx,
+                    const std::string &FileName) -> Expect<void> {
+    auto *TC = static_cast<TestContext *>(Ctx);
+    auto *VM = TC->VM;
+    return TC->compile(FileName).and_then(
+        [VM](const std::string &SOFileName) -> Expect<void> {
           WasmEdge_Result Res =
               WasmEdge_VMLoadWasmFromFile(VM, SOFileName.c_str());
           if (!WasmEdge_ResultOK(Res)) {
@@ -119,11 +174,12 @@ TEST_P(CoreCompileTest, TestSuites) {
         });
   };
   T.onModuleDefine =
-      [&VM, &Compile](
-          const std::string &FileName) -> Expect<std::unique_ptr<AST::Module>> {
-    return Compile(FileName).and_then(
-        [&VM](const std::string &SOFileName)
-            -> Expect<std::unique_ptr<AST::Module>> {
+      [](SpecTest::ContextHandle Ctx,
+         const std::string &FileName) -> Expect<SpecTest::WasmUnit> {
+    auto *TC = static_cast<TestContext *>(Ctx);
+    auto *VM = TC->VM;
+    return TC->compile(FileName).and_then(
+        [VM](const std::string &SOFileName) -> Expect<SpecTest::WasmUnit> {
           WasmEdge_LoaderContext *LoadCxt = WasmEdge_VMGetLoaderContext(VM);
           WasmEdge_ValidatorContext *ValidCxt =
               WasmEdge_VMGetValidatorContext(VM);
@@ -141,8 +197,10 @@ TEST_P(CoreCompileTest, TestSuites) {
               reinterpret_cast<AST::Module *>(ASTMod));
         });
   };
-  T.onInstanceFromDef = [&VM](const std::string &ModName,
-                              const AST::Module &ASTMod) -> Expect<void> {
+  T.onInstanceFromDef = [](SpecTest::ContextHandle Ctx,
+                           const std::string &ModName,
+                           const AST::Module &ASTMod) -> Expect<void> {
+    auto *VM = static_cast<TestContext *>(Ctx)->VM;
     const WasmEdge_ASTModuleContext *ASTModCxt =
         reinterpret_cast<const WasmEdge_ASTModuleContext *>(&ASTMod);
     WasmEdge_String ModStr = WasmEdge_StringWrap(
@@ -154,10 +212,12 @@ TEST_P(CoreCompileTest, TestSuites) {
     }
     return {};
   };
-  T.onInstantiate = [&VM,
-                     &Compile](const std::string &FileName) -> Expect<void> {
-    return Compile(FileName).and_then(
-        [&](const std::string &SOFileName) -> Expect<void> {
+  T.onInstantiate = [](SpecTest::ContextHandle Ctx,
+                       const std::string &FileName) -> Expect<void> {
+    auto *TC = static_cast<TestContext *>(Ctx);
+    auto *VM = TC->VM;
+    return TC->compile(FileName).and_then(
+        [VM](const std::string &SOFileName) -> Expect<void> {
           WasmEdge_Result Res =
               WasmEdge_VMLoadWasmFromFile(VM, SOFileName.c_str());
           if (!WasmEdge_ResultOK(Res)) {
@@ -175,10 +235,12 @@ TEST_P(CoreCompileTest, TestSuites) {
         });
   };
   // Helper function to call functions.
-  T.onInvoke = [&VM](const std::string &ModName, const std::string &Field,
-                     const std::vector<ValVariant> &Params,
-                     const std::vector<ValType> &ParamTypes)
+  T.onInvoke = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+                  const std::string &Field,
+                  const std::vector<ValVariant> &Params,
+                  const std::vector<ValType> &ParamTypes)
       -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
+    auto *VM = static_cast<TestContext *>(Ctx)->VM;
     WasmEdge_Result Res;
     std::vector<WasmEdge_Value> CParams = convFromValVec(Params, ParamTypes);
     std::vector<WasmEdge_Value> CReturns;
@@ -186,7 +248,7 @@ TEST_P(CoreCompileTest, TestSuites) {
         Field.data(), static_cast<uint32_t>(Field.length()));
     if (!ModName.empty()) {
       // Invoke function of named module. Named modules are registered in Store
-      // Manager. Get the function type to specify the return nums.
+      // Manager. Get the function type to specify the return count.
       WasmEdge_String ModStr = WasmEdge_StringWrap(
           ModName.data(), static_cast<uint32_t>(ModName.length()));
       const WasmEdge_FunctionTypeContext *FuncType =
@@ -202,7 +264,7 @@ TEST_P(CoreCompileTest, TestSuites) {
           static_cast<uint32_t>(CReturns.size()));
     } else {
       // Invoke function of anonymous module. Anonymous modules are instantiated
-      // in VM. Get function type to specify the return nums.
+      // in the VM. Get the function type to specify the return count.
       const WasmEdge_FunctionTypeContext *FuncType =
           WasmEdge_VMGetFunctionType(VM, FieldStr);
       if (FuncType == nullptr) {
@@ -220,8 +282,10 @@ TEST_P(CoreCompileTest, TestSuites) {
     return convToValVec(CReturns);
   };
   // Helper function to get values.
-  T.onGet = [&VM](const std::string &ModName, const std::string &Field)
-      -> Expect<std::pair<ValVariant, ValType>> {
+  T.onGet =
+      [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+         const std::string &Field) -> Expect<std::pair<ValVariant, ValType>> {
+    auto *VM = static_cast<TestContext *>(Ctx)->VM;
     // Get module instance.
     const WasmEdge_ModuleInstanceContext *ModCxt = nullptr;
     WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(VM);
@@ -248,16 +312,13 @@ TEST_P(CoreCompileTest, TestSuites) {
   };
 
   T.run(Proposal, UnitName);
-
-  WasmEdge_VMDelete(VM);
-  WasmEdge_ModuleInstanceDelete(TestModCxt);
-  WasmEdge_CompilerDelete(CompilerCxt);
 }
 
 // Initiate test suite.
 INSTANTIATE_TEST_SUITE_P(
     TestUnit, CoreCompileTest,
-    testing::ValuesIn(T.enumerate(SpecTest::TestMode::AOT)));
+    testing::ValuesIn(T.enumerate(SpecTest::TestMode::AOT,
+                                  /* IncludeComponent */ false)));
 
 } // namespace
 

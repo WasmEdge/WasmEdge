@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/plugins/wasi_crypto/symmetric/state.h - Symmetric State --===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the symmetric state related classes, and provide a
+/// This file contains the symmetric state related classes, and provides a
 /// unified interface which can be used to implement the algorithm operations.
 ///
 //===----------------------------------------------------------------------===//
@@ -27,7 +27,7 @@ namespace Host {
 namespace WasiCrypto {
 namespace Symmetric {
 
-/// State created from key, and performs symmetric operations with using the
+/// State created from a key, and performs symmetric operations using the
 /// underlying algorithms.
 ///
 /// More detail:

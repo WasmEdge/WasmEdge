@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "zlibfunc.h"
 
@@ -149,14 +149,14 @@ Expect<int32_t>
 WasmEdgeZlibDeflateInit::body(const Runtime::CallingFrame &Frame,
                               uint32_t ZStreamPtr, int32_t Level) {
 
-  auto HostZStream = std::make_unique<z_stream>();
-  HostZStream->zalloc = Z_NULL;
-  HostZStream->zfree = Z_NULL;
-  HostZStream->opaque =
+  auto NewZStream = std::make_unique<z_stream>();
+  NewZStream->zalloc = Z_NULL;
+  NewZStream->zfree = Z_NULL;
+  NewZStream->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
   auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)))
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
           .second;
 
   const auto ZRes = SyncRun(
@@ -194,14 +194,14 @@ Expect<int32_t>
 WasmEdgeZlibInflateInit::body(const Runtime::CallingFrame &Frame,
                               uint32_t ZStreamPtr) {
 
-  auto HostZStream = std::make_unique<z_stream>();
-  HostZStream->zalloc = Z_NULL;
-  HostZStream->zfree = Z_NULL;
-  HostZStream->opaque =
+  auto NewZStream = std::make_unique<z_stream>();
+  NewZStream->zalloc = Z_NULL;
+  NewZStream->zfree = Z_NULL;
+  NewZStream->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
   auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)))
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
           .second;
 
   const auto ZRes =
@@ -238,14 +238,14 @@ Expect<int32_t> WasmEdgeZlibDeflateInit2::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr, int32_t Level,
     int32_t Method, int32_t WindowBits, int32_t MemLevel, int32_t Strategy) {
 
-  auto HostZStream = std::make_unique<z_stream>();
-  HostZStream->zalloc = Z_NULL;
-  HostZStream->zfree = Z_NULL;
-  HostZStream->opaque =
+  auto NewZStream = std::make_unique<z_stream>();
+  NewZStream->zalloc = Z_NULL;
+  NewZStream->zfree = Z_NULL;
+  NewZStream->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
   auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)))
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
           .second;
 
   const auto ZRes =
@@ -308,10 +308,10 @@ WasmEdgeZlibDeflateCopy::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto DestZStream = std::make_unique<z_stream>();
+  auto NewZStream = std::make_unique<z_stream>();
 
   auto It =
-      Env.ZStreamMap.emplace(std::make_pair(DestPtr, std::move(DestZStream)))
+      Env.ZStreamMap.emplace(std::make_pair(DestPtr, std::move(NewZStream)))
           .second;
 
   const auto Res = SyncRun("WasmEdgeZlibDeflateCopy", Env, DestPtr, Frame,
@@ -429,14 +429,14 @@ WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t>
 WasmEdgeZlibInflateInit2::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr, int32_t WindowBits) {
-  auto HostZStream = std::make_unique<z_stream>();
-  HostZStream->zalloc = Z_NULL;
-  HostZStream->zfree = Z_NULL;
-  HostZStream->opaque =
+  auto NewZStream = std::make_unique<z_stream>();
+  NewZStream->zalloc = Z_NULL;
+  NewZStream->zfree = Z_NULL;
+  NewZStream->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
   auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)))
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
           .second;
 
   const auto ZRes = SyncRun("WasmEdgeZlibInflateInit2", Env, ZStreamPtr, Frame,
@@ -500,10 +500,10 @@ WasmEdgeZlibInflateCopy::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto DestZStream = std::make_unique<z_stream>();
+  auto NewZStream = std::make_unique<z_stream>();
 
   auto It =
-      Env.ZStreamMap.emplace(std::make_pair(DestPtr, std::move(DestZStream)))
+      Env.ZStreamMap.emplace(std::make_pair(DestPtr, std::move(NewZStream)))
           .second;
 
   const auto Res = SyncRun("WasmEdgeZlibInflateCopy", Env, DestPtr, Frame,
@@ -593,10 +593,10 @@ Expect<int32_t>
 WasmEdgeZlibInflateBackInit::body(const Runtime::CallingFrame &Frame,
                                   uint32_t ZStreamPtr, int32_t WindowBits,
                                   uint32_t WindowPtr) {
-  auto HostZStream = std::make_unique<z_stream>();
-  HostZStream->zalloc = Z_NULL;
-  HostZStream->zfree = Z_NULL;
-  HostZStream->opaque =
+  auto NewZStream = std::make_unique<z_stream>();
+  NewZStream->zalloc = Z_NULL;
+  NewZStream->zfree = Z_NULL;
+  NewZStream->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
   MEMINST_CHECK(MemInst, Frame, 0)
@@ -604,7 +604,7 @@ WasmEdgeZlibInflateBackInit::body(const Runtime::CallingFrame &Frame,
   auto *Window = MemInst->getPointer<unsigned char *>(WindowPtr);
 
   auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)))
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
           .second;
 
   const auto ZRes =
@@ -1112,16 +1112,16 @@ WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0)
 
   const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
-  auto HostZStream = std::make_unique<z_stream>();
+  auto NewZStream = std::make_unique<z_stream>();
 
   // ignore wasm custom allocators
-  HostZStream->zalloc = Z_NULL;
-  HostZStream->zfree = Z_NULL;
-  // ignore opaque since zmalloc and zfree was ignored
-  HostZStream->opaque = Z_NULL;
+  NewZStream->zalloc = Z_NULL;
+  NewZStream->zfree = Z_NULL;
+  // Ignore opaque because zmalloc and zfree are ignored.
+  NewZStream->opaque = Z_NULL;
 
   auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)))
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
           .second;
 
   const auto ZRes =
@@ -1147,16 +1147,16 @@ WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0)
 
   const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
-  auto HostZStream = std::make_unique<z_stream>();
+  auto NewZStream = std::make_unique<z_stream>();
 
   // ignore wasm custom allocators
-  HostZStream->zalloc = Z_NULL;
-  HostZStream->zfree = Z_NULL;
-  // ignore opaque since zmalloc and zfree was ignored
-  HostZStream->opaque = Z_NULL;
+  NewZStream->zalloc = Z_NULL;
+  NewZStream->zfree = Z_NULL;
+  // Ignore opaque because zmalloc and zfree are ignored.
+  NewZStream->opaque = Z_NULL;
 
   auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)))
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
           .second;
 
   const auto ZRes = SyncRun("WasmEdgeZlibInflateInit_", Env, ZStreamPtr, Frame,
@@ -1181,14 +1181,14 @@ Expect<int32_t> WasmEdgeZlibDeflateInit2_::body(
   MEMINST_CHECK(MemInst, Frame, 0)
 
   const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
-  auto HostZStream = std::make_unique<z_stream>();
-  HostZStream->zalloc = Z_NULL;
-  HostZStream->zfree = Z_NULL;
-  HostZStream->opaque =
+  auto NewZStream = std::make_unique<z_stream>();
+  NewZStream->zalloc = Z_NULL;
+  NewZStream->zfree = Z_NULL;
+  NewZStream->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
   auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)))
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
           .second;
 
   const auto ZRes = SyncRun(
@@ -1214,14 +1214,14 @@ WasmEdgeZlibInflateInit2_::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0)
 
   const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
-  auto HostZStream = std::make_unique<z_stream>();
-  HostZStream->zalloc = Z_NULL;
-  HostZStream->zfree = Z_NULL;
-  HostZStream->opaque =
+  auto NewZStream = std::make_unique<z_stream>();
+  NewZStream->zalloc = Z_NULL;
+  NewZStream->zfree = Z_NULL;
+  NewZStream->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
   auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)))
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
           .second;
 
   const auto ZRes =
@@ -1247,14 +1247,14 @@ Expect<int32_t> WasmEdgeZlibInflateBackInit_::body(
 
   const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
   auto *Window = MemInst->getPointer<unsigned char *>(WindowPtr);
-  auto HostZStream = std::make_unique<z_stream>();
-  HostZStream->zalloc = Z_NULL;
-  HostZStream->zfree = Z_NULL;
-  HostZStream->opaque =
+  auto NewZStream = std::make_unique<z_stream>();
+  NewZStream->zalloc = Z_NULL;
+  NewZStream->zfree = Z_NULL;
+  NewZStream->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
   auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(HostZStream)))
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
           .second;
 
   const auto ZRes =

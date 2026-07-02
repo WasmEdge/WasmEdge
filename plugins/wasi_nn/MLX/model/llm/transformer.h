@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 #include "mlx/activations.h"
@@ -150,7 +150,7 @@ public:
       : Dim(Dim), HiddenDim(HiddenDim), Gemma(Gemma),
         EmbedAsHead(EmbedAsHeadPar) {
     if (VocabSize <= 0) {
-      spdlog::error("VocabSize must be greater than 0.");
+      spdlog::error("VocabSize must be greater than 0."sv);
       assumingUnreachable();
     }
     EmbedAsHead = Gemma ? true : EmbedAsHead;

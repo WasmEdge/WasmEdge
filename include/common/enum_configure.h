@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-//===-- wasmedge/common/enum_configure.h - Configure related enumerations -===//
+//===-- wasmedge/common/enum_configure.h - Configuration-related enums ----===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definitions of configure related enumerations.
+/// This file contains the definitions of configuration-related enumerations.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -66,6 +66,16 @@ enum WasmEdge_CompilerOutputFormat {
   WasmEdge_CompilerOutputFormat_Native = 0,
   // WebAssembly with AOT compiled codes in custom sections.
   WasmEdge_CompilerOutputFormat_Wasm
+};
+
+/// Run mode C enumeration. Selects the engine used to execute a WebAssembly
+/// module: interpreter (default), JIT, or AOT.
+enum WasmEdge_RunMode {
+#define UseRunMode
+#define Line(NAME) WasmEdge_RunMode_##NAME,
+#include "enum.inc"
+#undef Line
+#undef UseRunMode
 };
 
 #endif // WASMEDGE_C_API_ENUM_CONFIGURE_H

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/ast/expression.h - Expression class definition -----------===//
 //
@@ -9,7 +9,7 @@
 ///
 /// \file
 /// This file contains the declaration of the Expression node class, which is
-/// the expression node in AST.
+/// the expression node in the AST.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -22,7 +22,7 @@ namespace AST {
 /// AST Expression node.
 class Expression {
 public:
-  /// Getter of instructions vector.
+  /// Getter for instructions vector.
   InstrView getInstrs() const noexcept { return Instrs; }
   InstrVec &getInstrs() noexcept { return Instrs; }
 

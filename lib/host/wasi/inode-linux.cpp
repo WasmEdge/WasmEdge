@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
 #include "common/types.h"
@@ -182,7 +182,7 @@ INode INode::stdOut() noexcept { return INode(STDOUT_FILENO); }
 
 INode INode::stdErr() noexcept { return INode(STDERR_FILENO); }
 
-WasiExpect<INode> INode::fromFd(int32_t Fd) { return createStdNode(Fd); }
+WasiExpect<INode> INode::fromFd(int32_t FdNum) { return createStdNode(FdNum); }
 
 WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
                               __wasi_fdflags_t FdFlags,
@@ -218,7 +218,7 @@ WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
                                    __wasi_filesize_t Len) const noexcept {
   if (auto Res = ::posix_fallocate(Fd, Offset, Len); unlikely(Res != 0)) {
     // https://man7.org/linux/man-pages/man3/posix_fallocate.3.html
-    // posix_fallocate will not set errno, use return the value directly.
+    // posix_fallocate will not set errno, so use the return value directly.
     return WasiUnexpect(fromErrNo(Res));
   }
 
@@ -975,8 +975,8 @@ static VarAddrT sockAddressAssignHelper(__wasi_address_family_t AddrFamily,
     auto &ServerAddrUN = Addr.emplace<sockaddr_un>();
 
     ServerAddrUN.sun_family = AF_UNIX;
-    // The length of sockaddr_un::sun_path is depend on cruuent system
-    // We should always check the size of it.
+    // The length of sockaddr_un::sun_path depends on the current system.
+    // We should always check its size.
     assuming(Address.size() >= sizeof(sockaddr_un::sun_path));
     std::memcpy(&ServerAddrUN.sun_path, Address.data(),
                 sizeof(sockaddr_un::sun_path));
@@ -1098,7 +1098,7 @@ WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
     switch (SockAddr.ss_family) {
     case AF_UNSPEC: {
       spdlog::warn("remote address unavailable"sv);
-      // if ss_family is AF_UNSPEC, the access of the other members are
+      // If ss_family is AF_UNSPEC, accessing the other members is
       // undefined.
       break;
     }
@@ -1494,8 +1494,8 @@ WasiExpect<void> Poller::Timer::setTime(__wasi_timestamp_t Timeout,
   if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
     SysFlags |= TFD_TIMER_ABSTIME;
   }
-  // Zero timeout has a special meaning. When the itimerspec is set to 0, then
-  // it will disarm timer.
+  // Zero timeout has a special meaning. When itimerspec is set to 0, it will
+  // disarm the timer.
   Timeout = std::max<__wasi_timestamp_t>(Timeout, 1U);
   itimerspec Spec{toTimespec(0), toTimespec(Timeout)};
   if (auto Res = ::timerfd_settime(Fd, SysFlags, &Spec, nullptr);
@@ -1510,6 +1510,20 @@ namespace {
 static void sigevCallback(union sigval Value) noexcept {
   const uint64_t One = 1;
   ::write(Value.sival_int, &One, sizeof(One));
+}
+
+WasiExpect<void> setTimerPipeFlags(int Fd) noexcept {
+  const int StatusFlags = ::fcntl(Fd, F_GETFL);
+  if (unlikely(StatusFlags < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  if (unlikely(::fcntl(Fd, F_SETFD, FD_CLOEXEC) != 0 ||
+               ::fcntl(Fd, F_SETFL, StatusFlags | O_NONBLOCK) != 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
 }
 } // namespace
 
@@ -1532,9 +1546,10 @@ WasiExpect<void> Poller::Timer::create() noexcept {
     Event.sigev_value.sival_int = Notify.Fd;
     Event.sigev_notify_attributes = nullptr;
 
-    if (unlikely(::fcntl(Fd, F_SETFD, O_NONBLOCK | FD_CLOEXEC) != 0 ||
-                 ::fcntl(Notify.Fd, F_SETFD, O_NONBLOCK | FD_CLOEXEC) != 0 ||
-                 ::timer_create(toClockId(Clock), &Event, &TId) < 0)) {
+    EXPECTED_TRY(setTimerPipeFlags(Fd));
+    EXPECTED_TRY(setTimerPipeFlags(Notify.Fd));
+
+    if (unlikely(::timer_create(toClockId(Clock), &Event, &TId) < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
   }
@@ -1571,8 +1586,8 @@ WasiExpect<void> Poller::Timer::setTime(__wasi_timestamp_t Timeout,
   if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
     SysFlags |= TIMER_ABSTIME;
   }
-  // Zero timeout has a special meaning. When the itimerspec is set to 0, then
-  // it will disarm timer.
+  // Zero timeout has a special meaning. When itimerspec is set to 0, it will
+  // disarm the timer.
   Timeout = std::max<__wasi_timestamp_t>(Timeout, 1U);
   itimerspec Spec{toTimespec(0), toTimespec(Timeout)};
   if (auto Res = ::timer_settime(*TimerId.Id, SysFlags, &Spec, nullptr);

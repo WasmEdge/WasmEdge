@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/test/loader/moduleTest.cpp - Load AST module unit tests --===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents unit tests of loading AST module node and the main
+/// This file contains unit tests for loading the AST module node and the main
 /// function.
 ///
 //===----------------------------------------------------------------------===//

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasinn_piper.h"
 #include "common/errcode.h"
@@ -28,7 +28,7 @@ namespace WasmEdge::Host::WASINN::Piper {
 
 namespace {
 
-// helper function to write WAV header
+// Helper function to write the WAV header.
 void writeWavHeader(int SampleRate, int16_t NumChannels, int32_t NumSamples,
                     std::vector<uint8_t> &OutputBuffer) {
   int32_t const ByteRate = SampleRate * NumChannels * sizeof(int16_t);
@@ -358,15 +358,15 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
     return WASINN::ErrNo::InvalidArgument;
   }
 
+  BytesWritten = static_cast<uint32_t>(CxtRef.Output->size());
   if (CxtRef.Output->size() > OutBuffer.size_bytes()) {
     spdlog::error(
         "[WASI-NN] Piper backend: Output size {} is greater than buffer size {}."sv,
         CxtRef.Output->size(), OutBuffer.size_bytes());
-    return WASINN::ErrNo::InvalidArgument;
+    return WASINN::ErrNo::TooLarge;
   }
 
   std::memcpy(OutBuffer.data(), CxtRef.Output->data(), CxtRef.Output->size());
-  BytesWritten = CxtRef.Output->size();
   return WASINN::ErrNo::Success;
 }
 

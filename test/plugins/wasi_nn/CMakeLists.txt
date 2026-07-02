@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 wasmedge_add_executable(wasiNNTests
   wasi_nn.cpp
@@ -203,6 +203,13 @@ target_link_libraries(wasiNNTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
 )
+
+if(TARGET build_info)
+  target_link_libraries(wasiNNTests
+    PRIVATE
+    build_info
+  )
+endif()
 
 # Link to the WasmEdge library
 if(WASMEDGE_LINK_PLUGINS_STATIC)

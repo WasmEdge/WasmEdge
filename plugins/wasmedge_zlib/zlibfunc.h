@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -114,7 +114,7 @@ public:
 };
 
 // https://github.com/emscripten-core/emscripten/issues/17009
-// Using 32bit, because on wasm-side it will be 32bit long
+// Use 32-bit because long is 32-bit wide on the Wasm side.
 class WasmEdgeZlibDeflateBound : public WasmEdgeZlib<WasmEdgeZlibDeflateBound> {
 public:
   WasmEdgeZlibDeflateBound(WasmEdgeZlibEnvironment &HostEnv)

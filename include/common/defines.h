@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/defines.h - General defines -----------------------===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains macro defines that tweak wasmedge internal.
+/// This file contains macro definitions that tweak WasmEdge internals.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

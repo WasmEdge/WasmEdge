@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/runtime/instance/module.h - Module Instance definition ---===//
 //
@@ -20,9 +20,11 @@
 #include "runtime/instance/array.h"
 #include "runtime/instance/data.h"
 #include "runtime/instance/elem.h"
+#include "runtime/instance/exception.h"
 #include "runtime/instance/function.h"
 #include "runtime/instance/global.h"
 #include "runtime/instance/memory.h"
+#include "runtime/instance/reflifetime.h"
 #include "runtime/instance/struct.h"
 #include "runtime/instance/table.h"
 #include "runtime/instance/tag.h"
@@ -36,6 +38,7 @@
 #include <shared_mutex>
 #include <string>
 #include <type_traits>
+#include <unordered_set>
 #include <vector>
 
 namespace WasmEdge {
@@ -52,7 +55,7 @@ class CallingFrame;
 namespace Instance {
 
 namespace {
-/// Return true if T is an entity which can be exported or imported.
+/// Return true if T is an entity that can be exported or imported.
 template <typename T>
 inline constexpr const bool IsEntityV =
     std::is_same_v<T, Instance::FunctionInstance> ||
@@ -70,21 +73,50 @@ inline constexpr const bool IsInstanceV =
 
 class ComponentInstance;
 
+/// Module instances use a dependency-pinned lifetime: each importer pins the
+/// instances it imports from (see RefLifetime) and releases them when
+/// destroyed, so a heap instance torn down via terminate() is deleted only
+/// after its owner and all importers release.
+///
+/// A stack- or member-allocated provider cannot be deferred by a pin, so it
+/// must outlive its importers: declare a host module before the VM or
+/// StoreManager that imports it. The destructor enforces this with
+/// assuming(!hasDependents()).
 class ModuleInstance {
 public:
   ModuleInstance(std::string_view Name, void *Data = nullptr,
                  std::function<void(void *)> Finalizer = nullptr)
       : ModName(Name), HostData(Data), HostDataFinalizer(Finalizer) {}
   virtual ~ModuleInstance() noexcept {
-    // When destroying this module instance, call the callbacks to unlink to the
-    // store managers.
-    for (auto &&Pair : LinkedStore) {
-      assuming(Pair.second);
-      Pair.second(Pair.first, this);
-    }
+    // Fallback for instances torn down outside terminate() (e.g.
+    // stack-allocated).
+    unlinkAllStores();
+    assuming(!Life.hasDependents());
     if (HostDataFinalizer.operator bool()) {
       HostDataFinalizer(HostData);
     }
+    releaseProviders();
+  }
+
+  void terminate() noexcept {
+    unlinkAllStores();
+    if (Life.releaseOwner()) {
+      delete this;
+    }
+  }
+
+  /// Mark this module instance finalized (immutable). Idempotent, thread-safe.
+  void finalizeInstantiation() const noexcept {
+    if (InstantiateFinalized.load(std::memory_order_acquire)) {
+      return;
+    }
+    std::unique_lock Lock(Mutex);
+    InstantiateFinalized.store(true, std::memory_order_release);
+  }
+
+  /// Return true if this module instance has been finalized (immutable).
+  bool isInstantiateFinalized() const noexcept {
+    return InstantiateFinalized.load(std::memory_order_acquire);
   }
 
   std::string_view getModuleName() const noexcept {
@@ -118,43 +150,68 @@ public:
         DataInsts.size());
   }
 
-  /// Add exist instances and move ownership with exporting name.
-  void addHostFunc(std::string_view Name,
-                   std::unique_ptr<HostFunctionBase> &&Func) {
+  /// Add existing instances and move ownership with the export name.
+  ///
+  /// These functions fail with `ErrCode::Value::WrongVMWorkflow` if the module
+  /// instance has already been finalized, i.e. it has been used during
+  /// execution and become immutable. On failure the passed-in `unique_ptr` is
+  /// not moved from, so the caller retains ownership of the instance.
+  Expect<void> addHostFunc(std::string_view Name,
+                           std::unique_ptr<HostFunctionBase> &&Func) {
     std::unique_lock Lock(Mutex);
+    if (unlikely(InstantiateFinalized.load(std::memory_order_acquire))) {
+      return Unexpect(ErrCode::Value::WrongVMWorkflow);
+    }
     unsafeImportDefinedType(Func->getDefinedType());
     unsafeAddHostInstance(
         Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
         std::make_unique<FunctionInstance>(
             this, static_cast<uint32_t>(Types.size()) - 1, std::move(Func)));
+    return {};
   }
-  void addHostFunc(std::string_view Name,
-                   std::unique_ptr<FunctionInstance> &&Func) {
+  Expect<void> addHostFunc(std::string_view Name,
+                           std::unique_ptr<FunctionInstance> &&Func) {
     std::unique_lock Lock(Mutex);
+    if (unlikely(InstantiateFinalized.load(std::memory_order_acquire))) {
+      return Unexpect(ErrCode::Value::WrongVMWorkflow);
+    }
     assuming(Func->isHostFunction());
     unsafeImportDefinedType(Func->getHostFunc().getDefinedType());
     Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
     unsafeAddHostInstance(Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
                           std::move(Func));
+    return {};
   }
 
-  void addHostTable(std::string_view Name,
-                    std::unique_ptr<TableInstance> &&Tab) {
+  Expect<void> addHostTable(std::string_view Name,
+                            std::unique_ptr<TableInstance> &&Tab) {
     std::unique_lock Lock(Mutex);
+    if (unlikely(InstantiateFinalized.load(std::memory_order_acquire))) {
+      return Unexpect(ErrCode::Value::WrongVMWorkflow);
+    }
     unsafeAddHostInstance(Name, OwnedTabInsts, TabInsts, ExpTables,
                           std::move(Tab));
+    return {};
   }
-  void addHostMemory(std::string_view Name,
-                     std::unique_ptr<MemoryInstance> &&Mem) {
+  Expect<void> addHostMemory(std::string_view Name,
+                             std::unique_ptr<MemoryInstance> &&Mem) {
     std::unique_lock Lock(Mutex);
+    if (unlikely(InstantiateFinalized.load(std::memory_order_acquire))) {
+      return Unexpect(ErrCode::Value::WrongVMWorkflow);
+    }
     unsafeAddHostInstance(Name, OwnedMemInsts, MemInsts, ExpMems,
                           std::move(Mem));
+    return {};
   }
-  void addHostGlobal(std::string_view Name,
-                     std::unique_ptr<GlobalInstance> &&Glob) {
+  Expect<void> addHostGlobal(std::string_view Name,
+                             std::unique_ptr<GlobalInstance> &&Glob) {
     std::unique_lock Lock(Mutex);
+    if (unlikely(InstantiateFinalized.load(std::memory_order_acquire))) {
+      return Unexpect(ErrCode::Value::WrongVMWorkflow);
+    }
     unsafeAddHostInstance(Name, OwnedGlobInsts, GlobInsts, ExpGlobals,
                           std::move(Glob));
+    return {};
   }
 
   /// Find and get the exported instance by name.
@@ -240,7 +297,7 @@ protected:
     Types.push_back(OwnedTypes.back().get());
   }
 
-  /// Create and add instances into this module instance.
+  /// Create and add instances to this module instance.
   template <typename... Args> void addFunc(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedFuncInsts, FuncInsts, this,
@@ -281,6 +338,13 @@ protected:
     OwnedStructInsts.push_back(
         std::make_unique<StructInstance>(this, std::forward<Args>(Values)...));
     return OwnedStructInsts.back().get();
+  }
+  template <typename... Args>
+  ExceptionInstance *newException(Args &&...Values) {
+    std::unique_lock Lock(Mutex);
+    OwnedExceptionInsts.push_back(
+        std::make_unique<ExceptionInstance>(std::forward<Args>(Values)...));
+    return OwnedExceptionInsts.back().get();
   }
 
   /// Import instances into this module instance.
@@ -335,7 +399,7 @@ protected:
   Expect<const AST::SubType *> getType(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
     if (unlikely(Idx >= Types.size())) {
-      // Error logging need to be handled in caller.
+      // Error logging needs to be handled by the caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetType(Idx);
@@ -346,7 +410,7 @@ protected:
   Expect<FunctionInstance *> getFunc(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
     if (Idx >= FuncInsts.size()) {
-      // Error logging need to be handled in caller.
+      // Error logging needs to be handled by the caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetFunction(Idx);
@@ -357,7 +421,7 @@ protected:
   Expect<TableInstance *> getTable(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
     if (Idx >= TabInsts.size()) {
-      // Error logging need to be handled in caller.
+      // Error logging needs to be handled by the caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetTable(Idx);
@@ -368,7 +432,7 @@ protected:
   Expect<MemoryInstance *> getMemory(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
     if (Idx >= MemInsts.size()) {
-      // Error logging need to be handled in caller.
+      // Error logging needs to be handled by the caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetMemory(Idx);
@@ -382,7 +446,7 @@ protected:
   Expect<GlobalInstance *> getGlobal(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
     if (Idx >= GlobInsts.size()) {
-      // Error logging need to be handled in caller.
+      // Error logging needs to be handled by the caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetGlobal(Idx);
@@ -393,7 +457,7 @@ protected:
   Expect<ElementInstance *> getElem(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
     if (Idx >= ElemInsts.size()) {
-      // Error logging need to be handled in caller.
+      // Error logging needs to be handled by the caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetElem(Idx);
@@ -404,7 +468,7 @@ protected:
   Expect<DataInstance *> getData(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
     if (Idx >= DataInsts.size()) {
-      // Error logging need to be handled in caller.
+      // Error logging needs to be handled by the caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetData(Idx);
@@ -442,33 +506,33 @@ protected:
     return StartFunc;
   }
 
-  /// Set the target imported WASI module when instantiation.
+  /// Set the target imported WASI module during instantiation.
   void setWASIModule(const ModuleInstance *Mod) noexcept {
     std::unique_lock Lock(Mutex);
     WASIModInst = Mod;
   }
 
-  /// Get the target imported WASI module when instantiation.
+  /// Get the target imported WASI module during instantiation.
   const ModuleInstance *getWASIModule() const noexcept {
     std::shared_lock Lock(Mutex);
     return WASIModInst;
   }
 
-  /// Unsafe import instance into this module.
+  /// Unsafely import an instance into this module.
   template <typename T>
   std::enable_if_t<IsEntityV<T>, void>
   unsafeImportInstance(std::vector<T *> &Vec, T *Ptr) {
     Vec.push_back(Ptr);
   }
 
-  /// Unsafe import defined type from host function into this module.
+  /// Unsafely import a defined type from a host function into this module.
   void unsafeImportDefinedType(const AST::SubType &SType) {
     Types.push_back(&SType);
     const_cast<AST::SubType *>(Types.back())
         ->setTypeIndex(static_cast<uint32_t>(Types.size()) - 1);
   }
 
-  /// Unsafe create and add the instance into this module.
+  /// Unsafely create and add the instance to this module.
   template <typename T, typename... Args>
   std::enable_if_t<IsInstanceV<T>, void>
   unsafeAddInstance(std::vector<std::unique_ptr<T>> &OwnedInstsVec,
@@ -477,7 +541,7 @@ protected:
     InstsVec.push_back(OwnedInstsVec.back().get());
   }
 
-  /// Unsafe add and export the existing instance into this module.
+  /// Unsafely add and export the existing instance to this module.
   template <typename T, typename... Args>
   std::enable_if_t<IsEntityV<T>, void>
   unsafeAddHostInstance(std::string_view Name,
@@ -490,7 +554,7 @@ protected:
     InstsMap.insert_or_assign(std::string(Name), InstsVec.back());
   }
 
-  /// Unsafe find and get the exported instance by name.
+  /// Unsafely find and get the exported instance by name.
   template <typename T>
   std::enable_if_t<IsEntityV<T>, T *>
   unsafeFindExports(const std::map<std::string, T *, std::less<>> &Map,
@@ -513,19 +577,74 @@ protected:
   /// @}
 
   friend class Runtime::StoreManager;
-  using BeforeModuleDestroyCallback = void(StoreManager *Store,
+  using LinkedStoreKey = std::pair<StoreManager *, std::string>;
+  using BeforeModuleDestroyCallback = void(const LinkedStoreKey &Key,
                                            const ModuleInstance *Mod);
-  void linkStore(StoreManager *Store, BeforeModuleDestroyCallback Callback) {
-    // Link to store when registration.
+  void linkStore(StoreManager *Store, std::string_view Name,
+                 BeforeModuleDestroyCallback Callback) {
+    // Link to the store during registration.
     std::unique_lock Lock(Mutex);
-    LinkedStore.insert_or_assign(Store, Callback);
+    LinkedStore.insert_or_assign(LinkedStoreKey{Store, std::string(Name)},
+                                 Callback);
   }
 
-  void unlinkStore(StoreManager *Store) {
-    // Unlink to store. Call by the store manager when the store manager being
-    // destroyed before this module instance.
+  void unlinkStore(StoreManager *Store, std::string_view Name) {
+    // Unlink a specific (Store, Name) entry.
     std::unique_lock Lock(Mutex);
-    LinkedStore.erase(Store);
+    LinkedStore.erase(LinkedStoreKey{Store, std::string(Name)});
+  }
+
+  void unlinkAllStores() noexcept {
+    std::map<LinkedStoreKey, std::function<BeforeModuleDestroyCallback>>
+        Snapshot;
+    {
+      std::unique_lock Lock(Mutex);
+      Snapshot.swap(LinkedStore);
+    }
+    for (auto &&[Key, Callback] : Snapshot) {
+      assuming(Callback);
+      Callback(Key, this);
+    }
+  }
+
+  void addDependency(ModuleInstance &Provider) {
+    std::unique_lock Lock(Mutex);
+    if (Providers.insert(&Provider).second) {
+      Provider.Life.addDependent();
+    }
+  }
+
+  void takeProviders(std::unordered_set<ModuleInstance *> &Snapshot) noexcept {
+    std::unique_lock Lock(Mutex);
+    Snapshot.swap(Providers);
+  }
+
+  static void drainPins(std::unordered_set<ModuleInstance *> &Provs,
+                        std::vector<ModuleInstance *> &ToDelete) noexcept {
+    for (auto *Provider : Provs) {
+      if (Provider->Life.releaseDependent()) {
+        ToDelete.push_back(Provider);
+      }
+    }
+    Provs.clear();
+  }
+
+  void releaseProviders() noexcept {
+    std::unordered_set<ModuleInstance *> ProvidersToRelease;
+    takeProviders(ProvidersToRelease);
+    if (ProvidersToRelease.empty()) {
+      return;
+    }
+    std::vector<ModuleInstance *> ToDelete;
+    drainPins(ProvidersToRelease, ToDelete);
+    while (!ToDelete.empty()) {
+      ModuleInstance *Next = ToDelete.back();
+      ToDelete.pop_back();
+      std::unordered_set<ModuleInstance *> NextProviders;
+      Next->takeProviders(NextProviders);
+      delete Next;
+      drainPins(NextProviders, ToDelete);
+    }
   }
 
   /// Mutex.
@@ -548,6 +667,7 @@ protected:
   std::vector<std::unique_ptr<DataInstance>> OwnedDataInsts;
   std::vector<std::unique_ptr<ArrayInstance>> OwnedArrayInsts;
   std::vector<std::unique_ptr<StructInstance>> OwnedStructInsts;
+  std::vector<std::unique_ptr<ExceptionInstance>> OwnedExceptionInsts;
 
   /// Imported and added instances in this module.
   std::vector<FunctionInstance *> FuncInsts;
@@ -558,7 +678,7 @@ protected:
   std::vector<ElementInstance *> ElemInsts;
   std::vector<DataInstance *> DataInsts;
 
-  /// Imported instances counts.
+  /// Imported instance counts.
   uint32_t ImpGlobalNum = 0;
 
   /// Exported name maps.
@@ -571,16 +691,28 @@ protected:
   /// Start function instance.
   const FunctionInstance *StartFunc = nullptr;
 
-  /// Imported WASI module instance when instantiation.
+  /// Imported WASI module instance during instantiation.
   const ModuleInstance *WASIModInst = nullptr;
 
-  /// Linked store.
-  std::map<StoreManager *, std::function<BeforeModuleDestroyCallback>>
+  /// Linked store. Key is (StoreManager*, RegisteredName) to support
+  /// the same module registered under multiple alias names.
+  std::map<LinkedStoreKey, std::function<BeforeModuleDestroyCallback>>
       LinkedStore;
 
   /// External data and its finalizer function pointer.
   void *HostData;
   std::function<void(void *)> HostDataFinalizer;
+
+  /// Whether this module instance has been finalized (immutable). Once set,
+  /// the indexed instances will not be mutated anymore.
+  mutable std::atomic<bool> InstantiateFinalized{false};
+
+  /// Intrusive lifetime: owner flag plus importer count, packed into one
+  /// atomic.
+  RefLifetime Life;
+  /// Provider instances this module imported from; each holds one dependent
+  /// pin, released when this module is destroyed.
+  std::unordered_set<ModuleInstance *> Providers;
 };
 
 } // namespace Instance

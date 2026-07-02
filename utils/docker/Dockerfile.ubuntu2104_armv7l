@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 FROM arm32v7/ubuntu:hirsute
 
@@ -27,7 +27,7 @@ RUN apt update && apt upgrade -y \
 	wget \
 	xz-utils
 
-# CMake build from source to avoid compiler_id_detection fails when using QEMU user-mode emulation
+# Build CMake from source to avoid compiler_id_detection failures when using QEMU user-mode emulation
 # See: https://gitlab.kitware.com/cmake/cmake/-/issues/20568
 
 #RUN wget https://github.com/Kitware/CMake/releases/download/v3.29.3/cmake-3.29.3.tar.gz --no-check-certificate && \

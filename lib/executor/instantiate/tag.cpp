@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 
@@ -11,7 +11,7 @@ Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
                                    const AST::TagSection &TagSec) {
   // Iterate through the tags to instantiate the tag instances.
   for (const auto &TgType : TagSec.getContent()) {
-    // Add Tag with corresponding Type.
+    // Add a tag with the corresponding type.
     auto SubTypePtr = *ModInst.getType(TgType.getTypeIdx());
     ModInst.addTag(TgType, SubTypePtr);
   }

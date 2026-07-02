@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/configure.h"
 #include "common/filesystem.h"
@@ -10,6 +10,8 @@
 #include "host/wasi/wasimodule.h"
 #include "vm/vm.h"
 
+#include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
@@ -23,6 +25,51 @@ using namespace std::literals;
 namespace WasmEdge {
 namespace Driver {
 
+std::optional<RunMode> parseRunModeArg(std::string_view S) noexcept {
+  std::string Lower(S);
+  std::transform(Lower.begin(), Lower.end(), Lower.begin(),
+                 [](unsigned char C) -> char {
+                   return static_cast<char>(std::tolower(C));
+                 });
+  if (Lower == "interpreter") {
+    return RunMode::Interpreter;
+  }
+  if (Lower == "jit") {
+    return RunMode::JIT;
+  }
+  if (Lower == "aot") {
+    return RunMode::AOT;
+  }
+  if (Lower == "lazyjit") {
+    return RunMode::LazyJIT;
+  }
+  return std::nullopt;
+}
+
+namespace {
+
+// Helper template to parse numeric arguments and catch conversion exceptions
+template <typename Converter, typename ValVec, typename TypeVec, typename TC>
+bool parseNumericArg(const std::string &Value, size_t ParamIndex,
+                     std::string_view TypeName, Converter Conv,
+                     ValVec &FuncArgs, TypeVec &FuncArgTypes, TC TCode) {
+  try {
+    auto Out = Conv(Value);
+    FuncArgs.emplace_back(Out);
+    FuncArgTypes.emplace_back(TCode);
+    return true;
+  } catch (const std::invalid_argument &) {
+    spdlog::error("Invalid argument '{}' for parameter {}: expected {}"sv,
+                  Value, ParamIndex + 1, TypeName);
+    return false;
+  } catch (const std::out_of_range &) {
+    spdlog::error("Argument '{}' for parameter {}: {} out of range"sv, Value,
+                  ParamIndex + 1, TypeName);
+    return false;
+  }
+}
+} // namespace
+
 static int
 ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
              std::optional<std::chrono::system_clock::time_point> Timeout,
@@ -31,35 +78,59 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
   std::vector<ValVariant> FuncArgs;
   std::vector<ValType> FuncArgTypes;
 
+  const size_t Expected = FuncType.getParamTypes().size();
+  const size_t Got = Opt.Args.value().size() - 1;
+  if (Got < Expected) {
+    spdlog::error("function `{}` expects {} argument(s), got {}"sv, FuncName,
+                  Expected, Got);
+    return EXIT_FAILURE;
+  }
+
   for (size_t I = 0;
        I < FuncType.getParamTypes().size() && I + 1 < Opt.Args.value().size();
        ++I) {
     const auto TCode = FuncType.getParamTypes()[I].getCode();
+    const auto &ArgValue = Opt.Args.value()[I + 1];
+
     switch (TCode) {
     case TypeCode::I32: {
-      const int32_t Value =
-          static_cast<int32_t>(std::stol(Opt.Args.value()[I + 1]));
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
+      if (!parseNumericArg(
+              ArgValue, I, "i32"sv,
+              [](const std::string &S) {
+                return static_cast<int32_t>(std::stol(S));
+              },
+              FuncArgs, FuncArgTypes, TCode)) {
+        return EXIT_FAILURE;
+      }
       break;
     }
     case TypeCode::I64: {
-      const int64_t Value =
-          static_cast<int64_t>(std::stoll(Opt.Args.value()[I + 1]));
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
+      if (!parseNumericArg(
+              ArgValue, I, "i64"sv,
+              [](const std::string &S) {
+                return static_cast<int64_t>(std::stoll(S));
+              },
+              FuncArgs, FuncArgTypes, TCode)) {
+        return EXIT_FAILURE;
+      }
       break;
     }
     case TypeCode::F32: {
-      const float Value = std::stof(Opt.Args.value()[I + 1]);
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
+      if (!parseNumericArg(
+              ArgValue, I, "f32"sv,
+              [](const std::string &S) { return std::stof(S); }, FuncArgs,
+              FuncArgTypes, TCode)) {
+        return EXIT_FAILURE;
+      }
       break;
     }
     case TypeCode::F64: {
-      const double Value = std::stod(Opt.Args.value()[I + 1]);
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
+      if (!parseNumericArg(
+              ArgValue, I, "f64"sv,
+              [](const std::string &S) { return std::stod(S); }, FuncArgs,
+              FuncArgTypes, TCode)) {
+        return EXIT_FAILURE;
+      }
       break;
     }
     // TODO: FuncRef and ExternRef
@@ -70,10 +141,14 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
   if (FuncType.getParamTypes().size() + 1 < Opt.Args.value().size()) {
     for (size_t I = FuncType.getParamTypes().size() + 1;
          I < Opt.Args.value().size(); ++I) {
-      const uint64_t Value =
-          static_cast<uint64_t>(std::stoll(Opt.Args.value()[I]));
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TypeCode::I64);
+      if (!parseNumericArg(
+              Opt.Args.value()[I], I, "i64"sv,
+              [](const std::string &S) {
+                return static_cast<uint64_t>(std::stoll(S));
+              },
+              FuncArgs, FuncArgTypes, TypeCode::I64)) {
+        return EXIT_FAILURE;
+      }
     }
   }
 
@@ -128,7 +203,7 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
     }
     return EXIT_SUCCESS;
   } else {
-    // It indicates that the execution of wasm has been aborted
+    // It indicates that the execution of wasm has been aborted.
     return 128 + SIGABRT;
   }
 }
@@ -141,37 +216,81 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
   std::vector<ComponentValVariant> FuncArgs;
   std::vector<ComponentValType> FuncArgTypes;
 
+  const size_t Expected = FuncType.getParamList().size();
+  const size_t Got = Opt.Args.value().size() - 1;
+  if (Got < Expected) {
+    spdlog::error("function `{}` expects {} argument(s), got {}"sv, FuncName,
+                  Expected, Got);
+    return EXIT_FAILURE;
+  }
+
   for (size_t I = 0;
        I < FuncType.getParamList().size() && I + 1 < Opt.Args.value().size();
        ++I) {
     const auto TCode = FuncType.getParamList()[I].getValType().getCode();
+    const auto &ArgValue = Opt.Args.value()[I + 1];
+
     switch (TCode) {
-    case ComponentTypeCode::S32:
-    case ComponentTypeCode::U32: {
-      const uint32_t Value =
-          static_cast<uint32_t>(std::stol(Opt.Args.value()[I + 1]));
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
+    case ComponentTypeCode::S32: {
+      if (!parseNumericArg(
+              ArgValue, I, "s32"sv,
+              [](const std::string &S) {
+                return ValVariant(static_cast<uint32_t>(std::stol(S)));
+              },
+              FuncArgs, FuncArgTypes, TCode)) {
+        return EXIT_FAILURE;
+      }
       break;
     }
-    case ComponentTypeCode::S64:
+    case ComponentTypeCode::U32: {
+      if (!parseNumericArg(
+              ArgValue, I, "u32"sv,
+              [](const std::string &S) {
+                return ValVariant(static_cast<uint32_t>(std::stol(S)));
+              },
+              FuncArgs, FuncArgTypes, TCode)) {
+        return EXIT_FAILURE;
+      }
+      break;
+    }
+    case ComponentTypeCode::S64: {
+      if (!parseNumericArg(
+              ArgValue, I, "s64"sv,
+              [](const std::string &S) {
+                return ValVariant(static_cast<uint64_t>(std::stoll(S)));
+              },
+              FuncArgs, FuncArgTypes, TCode)) {
+        return EXIT_FAILURE;
+      }
+      break;
+    }
     case ComponentTypeCode::U64: {
-      const uint64_t Value =
-          static_cast<uint64_t>(std::stoll(Opt.Args.value()[I + 1]));
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
+      if (!parseNumericArg(
+              ArgValue, I, "u64"sv,
+              [](const std::string &S) {
+                return ValVariant(static_cast<uint64_t>(std::stoll(S)));
+              },
+              FuncArgs, FuncArgTypes, TCode)) {
+        return EXIT_FAILURE;
+      }
       break;
     }
     case ComponentTypeCode::F32: {
-      const float Value = std::stof(Opt.Args.value()[I + 1]);
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
+      if (!parseNumericArg(
+              ArgValue, I, "f32"sv,
+              [](const std::string &S) { return ValVariant(std::stof(S)); },
+              FuncArgs, FuncArgTypes, TCode)) {
+        return EXIT_FAILURE;
+      }
       break;
     }
     case ComponentTypeCode::F64: {
-      const double Value = std::stod(Opt.Args.value()[I + 1]);
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
+      if (!parseNumericArg(
+              ArgValue, I, "f64"sv,
+              [](const std::string &S) { return ValVariant(std::stod(S)); },
+              FuncArgs, FuncArgTypes, TCode)) {
+        return EXIT_FAILURE;
+      }
       break;
     }
     case ComponentTypeCode::String: {
@@ -188,10 +307,14 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
   if (FuncType.getParamList().size() + 1 < Opt.Args.value().size()) {
     for (size_t I = FuncType.getParamList().size() + 1;
          I < Opt.Args.value().size(); ++I) {
-      const uint64_t Value =
-          static_cast<uint64_t>(std::stoll(Opt.Args.value()[I]));
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(ComponentTypeCode::U64);
+      if (!parseNumericArg(
+              Opt.Args.value()[I], I, "u64"sv,
+              [](const std::string &S) {
+                return ValVariant(static_cast<uint64_t>(std::stoll(S)));
+              },
+              FuncArgs, FuncArgTypes, ComponentTypeCode::U64)) {
+        return EXIT_FAILURE;
+      }
     }
   }
 
@@ -233,7 +356,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
 
     return EXIT_SUCCESS;
   } else {
-    // It indicates that the execution of wasm has been aborted
+    // It indicates that the execution of wasm has been aborted.
     return 128 + SIGABRT;
   }
 }
@@ -241,115 +364,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
 int Tool(struct DriverToolOptions &Opt) noexcept {
   std::ios::sync_with_stdio(false);
 
-  const std::string &Level = Opt.LogLevel.value();
-
-  if (!Log::setLoggingLevelFromString(Level)) {
-    spdlog::warn("Invalid log level: {}. Valid values are: off, trace, debug, "
-                 "info, warning, error, fatal. Falling back to info level.",
-                 Level);
-    Log::setInfoLoggingLevel();
-  }
-
-  Configure Conf;
-  // WASM standard configuration has the highest priority.
-  if (Opt.PropWASM1.value()) {
-    Conf.setWASMStandard(Standard::WASM_1);
-  }
-  if (Opt.PropWASM2.value()) {
-    Conf.setWASMStandard(Standard::WASM_2);
-  }
-  if (Opt.PropWASM3.value()) {
-    Conf.setWASMStandard(Standard::WASM_3);
-  }
-
-  // Proposals adjustment.
-  if (Opt.PropMutGlobals.value()) {
-    Conf.removeProposal(Proposal::ImportExportMutGlobals);
-  }
-  if (Opt.PropNonTrapF2IConvs.value()) {
-    Conf.removeProposal(Proposal::NonTrapFloatToIntConversions);
-  }
-  if (Opt.PropSignExtendOps.value()) {
-    Conf.removeProposal(Proposal::SignExtensionOperators);
-  }
-  if (Opt.PropMultiValue.value()) {
-    Conf.removeProposal(Proposal::MultiValue);
-  }
-  if (Opt.PropBulkMemOps.value()) {
-    Conf.removeProposal(Proposal::BulkMemoryOperations);
-  }
-  if (Opt.PropSIMD.value()) {
-    Conf.removeProposal(Proposal::SIMD);
-  }
-  if (Opt.PropTailCall.value()) {
-    Conf.removeProposal(Proposal::TailCall);
-  }
-  if (Opt.PropExtendConst.value()) {
-    Conf.removeProposal(Proposal::ExtendedConst);
-  }
-  if (Opt.PropMultiMem.value()) {
-    Conf.removeProposal(Proposal::MultiMemories);
-  }
-  if (Opt.PropRelaxedSIMD.value()) {
-    Conf.removeProposal(Proposal::RelaxSIMD);
-  }
-  if (Opt.PropExceptionHandling.value()) {
-    Conf.removeProposal(Proposal::ExceptionHandling);
-  }
-  if (Opt.PropMemory64.value()) {
-    Conf.removeProposal(Proposal::Memory64);
-  }
-  if (Opt.PropTailCallDeprecated.value()) {
-    Conf.addProposal(Proposal::TailCall);
-  }
-  if (Opt.PropExtendConstDeprecated.value()) {
-    Conf.addProposal(Proposal::ExtendedConst);
-  }
-  if (Opt.PropMultiMemDeprecated.value()) {
-    Conf.addProposal(Proposal::MultiMemories);
-  }
-  if (Opt.PropRelaxedSIMDDeprecated.value()) {
-    Conf.addProposal(Proposal::RelaxSIMD);
-  }
-  if (Opt.PropExceptionHandlingDeprecated.value()) {
-    Conf.addProposal(Proposal::ExceptionHandling);
-  }
-
-  // Handle the proposal removal which has dependency.
-  // The GC proposal depends on the func-ref proposal, and the func-ref proposal
-  // depends on the ref-types proposal.
-  if (Opt.PropGC.value()) {
-    Conf.removeProposal(Proposal::GC);
-  }
-  if (Opt.PropFunctionReference.value()) {
-    // This will automatically not work if the GC proposal not disabled.
-    Conf.removeProposal(Proposal::FunctionReferences);
-  }
-  if (Opt.PropRefTypes.value()) {
-    // This will automatically not work if the GC or func-ref proposal not
-    // disabled.
-    Conf.removeProposal(Proposal::ReferenceTypes);
-  }
-  if (Opt.PropFunctionReferenceDeprecated.value()) {
-    Conf.addProposal(Proposal::FunctionReferences);
-  }
-  if (Opt.PropGCDeprecated.value()) {
-    Conf.addProposal(Proposal::GC);
-  }
-
-  if (Opt.PropThreads.value()) {
-    Conf.addProposal(Proposal::Threads);
-  }
-  if (Opt.PropComponent.value()) {
-    Conf.addProposal(Proposal::Component);
-    spdlog::warn("component model is enabled, this is experimental."sv);
-  }
-  if (Opt.PropAll.value()) {
-    Conf.setWASMStandard(Standard::WASM_3);
-    Conf.addProposal(Proposal::Threads);
-    spdlog::warn("component model is enabled, this is experimental."sv);
-    Conf.addProposal(Proposal::Component);
-  }
+  Configure Conf = createConfigure(Opt);
 
   std::optional<std::chrono::system_clock::time_point> Timeout;
   if (Opt.TimeLim.value() > 0) {
@@ -380,8 +395,32 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       Conf.getStatisticsConfigure().setTimeMeasuring(true);
     }
   }
-  if (Opt.ConfEnableJIT.value()) {
-    Conf.getRuntimeConfigure().setEnableJIT(true);
+  // Determine the effective run mode.
+  // Precedence: --run-mode > deprecated --enable-jit / --force-interpreter.
+  RunMode RunModeFromFlag = RunMode::Interpreter;
+  if (!Opt.ConfRunMode.value().empty()) {
+    if (Opt.ConfEnableJIT.value() || Opt.ConfForceInterpreter.value()) {
+      spdlog::warn("--run-mode overrides deprecated --enable-jit / "
+                   "--force-interpreter."sv);
+    }
+    if (auto Mode = parseRunModeArg(Opt.ConfRunMode.value())) {
+      RunModeFromFlag = *Mode;
+    } else {
+      spdlog::warn("Unknown --run-mode value: \"{}\"; using interpreter. "
+                   "Valid values: interpreter, jit, aot, lazyjit."sv,
+                   Opt.ConfRunMode.value());
+      RunModeFromFlag = RunMode::Interpreter;
+    }
+  } else if (Opt.ConfEnableJIT.value()) {
+    spdlog::warn("--enable-jit is deprecated, use --run-mode=jit instead."sv);
+    RunModeFromFlag = RunMode::JIT;
+  } else if (Opt.ConfForceInterpreter.value()) {
+    spdlog::warn("--force-interpreter is deprecated, use "
+                 "--run-mode=interpreter instead."sv);
+    RunModeFromFlag = RunMode::Interpreter;
+  }
+  Conf.getRuntimeConfigure().setRunMode(RunModeFromFlag);
+  if (RunModeFromFlag == RunMode::JIT || RunModeFromFlag == RunMode::LazyJIT) {
     Conf.getCompilerConfigure().setOptimizationLevel(
         WasmEdge::CompilerConfigure::OptimizationLevel::O1);
   }
@@ -391,15 +430,8 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   if (Opt.ConfCoredumpWasmgdb.value()) {
     Conf.getRuntimeConfigure().setCoredumpWasmgdb(true);
   }
-  if (Opt.ConfForceInterpreter.value()) {
-    Conf.getRuntimeConfigure().setForceInterpreter(true);
-  }
   if (Opt.ConfAFUNIX.value()) {
     Conf.getRuntimeConfigure().setAllowAFUNIX(true);
-  }
-
-  for (const auto &Name : Opt.ForbiddenPlugins.value()) {
-    Conf.addForbiddenPlugins(Name);
   }
 
   Conf.addHostRegistration(HostRegistration::Wasi);
@@ -410,6 +442,23 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   VM::VM VM(Conf);
   Host::WasiModule *WasiMod = dynamic_cast<Host::WasiModule *>(
       VM.getImportModule(HostRegistration::Wasi));
+
+  for (const auto &ModEntry : Opt.LinkedModules.value()) {
+    auto Pos = ModEntry.find(':');
+    if (Pos == std::string::npos) {
+      spdlog::error("Invalid --module format: \"{}\". Expected name:path."sv,
+                    ModEntry);
+      return EXIT_FAILURE;
+    }
+    auto Name = ModEntry.substr(0, Pos);
+    auto Path = std::filesystem::absolute(
+        std::filesystem::u8path(ModEntry.substr(Pos + 1)));
+    if (auto Result = VM.registerModule(Name, Path); !Result) {
+      spdlog::error("Failed to register module \"{}\" from: {}"sv, Name,
+                    Path.u8string());
+      return EXIT_FAILURE;
+    }
+  }
 
   // Load, validate, and instantiate WASM or Component.
   if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
@@ -438,7 +487,8 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       }
     }
 
-    // if HasStart but not Valid, insert _start to enter reactor mode
+    // If HasStart is true but Valid is false, insert _start to enter reactor
+    // mode.
     if (HasStart && !Valid) {
       Opt.Args.value().insert(Opt.Args.value().begin(), "_start");
     }
@@ -470,7 +520,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
         Result || Result.error() == ErrCode::Value::Terminated) {
       return static_cast<int>(WasiMod->getExitCode());
     } else {
-      // It indicates that the execution of wasm has been aborted
+      // It indicates that the execution of wasm has been aborted.
       return 128 + SIGABRT;
     }
   } else {
@@ -510,8 +560,8 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
         return EXIT_FAILURE;
       }
 
-      // If found initialize function and it's not being called explicitly,
-      // invoke it first.
+      // If the initialize function was found and is not being called
+      // explicitly, invoke it first.
       if (HasInit && FuncName != InitFunc) {
         auto AsyncResult = VM.asyncExecute(InitFunc);
         if (Timeout.has_value()) {

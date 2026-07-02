@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/plugins/wasi_crypto/kx/dh/x25519.h - X25519 alg implement ===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definition of x25519 algorithm.
+/// This file contains the definition of the X25519 algorithm.
 ///
 //===----------------------------------------------------------------------===//
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasinn_mlx.h"
 #include "wasinnenv.h"
@@ -15,6 +15,7 @@
 #include "MLX/model/whisper/whisper.h"
 #include "MLX/model/whisper_transcribe.h"
 #include "MLX/prompt/prompt.h"
+#include <cstring>
 #include <memory>
 #include <mlx/array.h>
 
@@ -77,7 +78,7 @@ mx::array fromBytes(const Span<uint8_t> &Bytes) {
     return mx::array(static_cast<const int64_t *>(DataPtr), Shape, mx::int64);
   }
   default:
-    spdlog::error("[WASI-NN] MLX backend: Unsupported rtype: {}", RtypeValue);
+    spdlog::error("[WASI-NN] MLX backend: Unsupported rtype: {}"sv, RtypeValue);
     return mx::array({0.0f});
   }
 }
@@ -528,9 +529,16 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       return ErrNo::InvalidArgument;
     }
   } else if (GraphRef.ModelArch == "whisper") {
-    std::get<WhisperInput>(CxtRef.Inputs).Audio =
-        std::string(reinterpret_cast<const char *>(Tensor.Tensor.data()),
-                    Tensor.Tensor.size());
+    if (Tensor.RType != TensorType::F32 || Tensor.Tensor.empty() ||
+        Tensor.Tensor.size() % sizeof(float) != 0) {
+      spdlog::error("[WASI-NN] MLX backend: Whisper input must be non-empty "
+                    "FP32 PCM samples."sv);
+      return ErrNo::InvalidArgument;
+    }
+    std::vector<float> Samples(Tensor.Tensor.size() / sizeof(float));
+    std::memcpy(Samples.data(), Tensor.Tensor.data(), Tensor.Tensor.size());
+    std::get<WhisperInput>(CxtRef.Inputs).Audio = mx::array(
+        Samples.data(), {static_cast<int>(Samples.size())}, mx::float32);
   } else {
     spdlog::error(
         "[WASI-NN] MLX backend: Model architecture {} not supported."sv,
@@ -551,9 +559,15 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   if (GraphRef.ModelArch == "llm") {
     auto *Output = std::get_if<LLMOutput>(&CxtRef.Outputs);
     if (Output != nullptr) {
+      BytesWritten = static_cast<uint32_t>(Output->Answer.length());
+      if (OutBuffer.size() < Output->Answer.length()) {
+        spdlog::error("[WASI-NN] MLX backend: output buffer too small, "
+                      "need {} bytes but got {}."sv,
+                      Output->Answer.length(), OutBuffer.size());
+        return ErrNo::TooLarge;
+      }
       std::copy_n(Output->Answer.data(), Output->Answer.length(),
                   OutBuffer.data());
-      BytesWritten = Output->Answer.length();
     } else {
       spdlog::error("[WASI-NN] MLX backend: No output found."sv);
       return ErrNo::InvalidArgument;
@@ -562,8 +576,14 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
     auto *Output = std::get_if<VLMOutput>(&CxtRef.Outputs);
     if (Output != nullptr) {
       auto OutputBytes = toBytes(Output->Answer);
+      BytesWritten = static_cast<uint32_t>(OutputBytes.size());
+      if (OutBuffer.size() < OutputBytes.size()) {
+        spdlog::error("[WASI-NN] MLX backend: output buffer too small, "
+                      "need {} bytes but got {}."sv,
+                      OutputBytes.size(), OutBuffer.size());
+        return ErrNo::TooLarge;
+      }
       std::copy_n(OutputBytes.data(), OutputBytes.size(), OutBuffer.data());
-      BytesWritten = OutputBytes.size();
     } else {
       spdlog::error("[WASI-NN] MLX backend: No output found."sv);
       return ErrNo::InvalidArgument;
@@ -572,8 +592,14 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
     auto *Output = std::get_if<whisper::TranscribeResult>(&CxtRef.Outputs);
     if (Output != nullptr) {
       std::string Text = Output->Text;
+      BytesWritten = static_cast<uint32_t>(Text.length());
+      if (OutBuffer.size() < Text.length()) {
+        spdlog::error("[WASI-NN] MLX backend: output buffer too small, "
+                      "need {} bytes but got {}."sv,
+                      Text.length(), OutBuffer.size());
+        return ErrNo::TooLarge;
+      }
       std::copy_n(Text.data(), Text.length(), OutBuffer.data());
-      BytesWritten = Text.length();
     } else {
       spdlog::error("[WASI-NN] MLX backend: No output found."sv);
       return ErrNo::InvalidArgument;
@@ -637,7 +663,7 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
   const std::chrono::duration<double> ElapsedSeconds{End - Start};
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] MLX backend: Generate {} tokens."sv, TokenListSize);
-    spdlog::info("Elapsed time: {} s. TPS: {}.", ElapsedSeconds.count(),
+    spdlog::info("Elapsed time: {} s. TPS: {}."sv, ElapsedSeconds.count(),
                  TokenListSize / ElapsedSeconds.count());
   }
   return WASINN::ErrNo::Success;

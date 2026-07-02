@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "ctx.h"
 
@@ -162,10 +162,12 @@ Context::secretkeyImport(AsymmetricCommon::Algorithm Alg,
       });
 }
 
-WasiCryptoExpect<__wasi_keypair_t>
-Context::keypairGenerateManaged(__wasi_secrets_manager_t,
-                                AsymmetricCommon::Algorithm,
-                                __wasi_opt_options_t) noexcept {
+WasiCryptoExpect<__wasi_keypair_t> Context::keypairGenerateManaged(
+    __wasi_secrets_manager_t, AsymmetricCommon::Algorithm Alg,
+    __wasi_opt_options_t OptOptionsHandle) noexcept {
+  if (std::holds_alternative<Signatures::Eddsa>(Alg)) {
+    return keypairGenerate(Alg, OptOptionsHandle);
+  }
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 

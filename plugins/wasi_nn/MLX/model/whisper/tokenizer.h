@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2025 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -63,7 +63,7 @@ public:
   int getNoTimestamps() const;
   int getTimestampBegin() const;
   int languageToken() const;
-  int toLanguageToken(const std::string &Language) const;
+  int toLanguageToken(const std::string &LanguageCode) const;
   std::vector<int> getAllLanguageTokens() const;
   std::vector<std::string> getAllLanguageCodes() const;
   std::vector<int> getSotSequenceIncludingNotimestamps() const;

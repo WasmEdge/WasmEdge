@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "loader/serialize.h"
 
@@ -167,7 +167,7 @@ Expect<void>
 Serializer::serializeType(const AST::SubType &SType,
                           std::vector<uint8_t> &OutVec) const noexcept {
   // Sub type: vec(typeidx)
-  if (SType.getSuperTypeIndices().size() > 0) {
+  if (SType.getSuperTypeIndices().size() > 0 || !SType.isFinal()) {
     if (!Conf.hasProposal(Proposal::GC)) {
       return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::GC,
                              ASTNodeAttr::Type_Rec);

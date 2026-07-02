@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
 #include "runtime/instance/module.h"
@@ -43,7 +43,7 @@ std::unique_ptr<WasmEdge::Host::WasmEdgeTensorflowLiteModule> createModule() {
 
 } // namespace
 
-// TODO: unit tests for every functions.
+// TODO: add unit tests for every function.
 
 TEST(WasmEdgeTensorflowLiteTest, Module) {
   // Create the wasmedge_tensorflowlite module instance.

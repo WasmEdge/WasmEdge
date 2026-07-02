@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/plugins/wasi_crypto/kx/dh/ecdsa.h - Ecdsa alg implement --===//
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definition of ecdsa algorithm.
+/// This file contains the definition of the ECDSA algorithm.
 ///
 //===----------------------------------------------------------------------===//
 

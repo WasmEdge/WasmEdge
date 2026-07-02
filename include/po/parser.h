@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/po/parser.h - Single Argument parser ---------------------===//
 //
@@ -11,6 +11,7 @@
 #include "po/error.h"
 #include <algorithm>
 #include <cstdint>
+#include <fmt/format.h>
 #include <string>
 #include <utility>
 
@@ -33,9 +34,10 @@ stringToInteger(ConvResultT (&Conv)(const char *, char **, int),
   auto SavedErrNo = std::exchange(errno, 0);
   const auto Result = Conv(CStr, &EndPtr, 10);
   std::swap(SavedErrNo, errno);
-  if (EndPtr == CStr) {
-    return cxx20::unexpected<Error>(std::in_place, ErrCode::InvalidArgument,
-                                    ""s);
+  if (Value.empty() || *EndPtr != '\0') {
+    return cxx20::unexpected<Error>(
+        std::in_place, ErrCode::InvalidArgument,
+        fmt::format("invalid integer value: {}"sv, Value));
   }
   auto InsideRange = [](auto WiderResult) constexpr noexcept {
     using WiderResultT = decltype(WiderResult);
@@ -49,7 +51,9 @@ stringToInteger(ConvResultT (&Conv)(const char *, char **, int),
     }
   };
   if (SavedErrNo == ERANGE || !InsideRange(Result)) {
-    return cxx20::unexpected<Error>(std::in_place, ErrCode::OutOfRange, ""s);
+    return cxx20::unexpected<Error>(
+        std::in_place, ErrCode::OutOfRange,
+        fmt::format("integer value out of range: {}"sv, Value));
   }
   return static_cast<ResultT>(Result);
 }
@@ -64,12 +68,15 @@ stringToFloating(ConvResultT (&Conv)(const char *, char **),
   auto SavedErrNo = std::exchange(errno, 0);
   const auto Result = Conv(CStr, &EndPtr);
   std::swap(SavedErrNo, errno);
-  if (EndPtr == CStr) {
-    return cxx20::unexpected<Error>(std::in_place, ErrCode::InvalidArgument,
-                                    ""s);
+  if (Value.empty() || *EndPtr != '\0') {
+    return cxx20::unexpected<Error>(
+        std::in_place, ErrCode::InvalidArgument,
+        fmt::format("invalid floating-point value: {}"sv, Value));
   }
   if (SavedErrNo == ERANGE) {
-    return cxx20::unexpected<Error>(std::in_place, ErrCode::OutOfRange, ""s);
+    return cxx20::unexpected<Error>(
+        std::in_place, ErrCode::OutOfRange,
+        fmt::format("floating-point value out of range: {}"sv, Value));
   }
   return Result;
 }

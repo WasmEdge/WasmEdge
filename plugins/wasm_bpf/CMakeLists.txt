@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 # Try to get libbpf use the following order
 # - PkgConfig
@@ -104,7 +104,7 @@ if(NOT ${LIBBPF_FOUND})
   set(LIBBPF_SOURCE "fetch-content")
 endif()
 
-# If we cannot find libbpf..
+# If we cannot find libbpf.
 if(NOT ${LIBBPF_FOUND})
   message(FATAL_ERROR "Could not find libbpf")
 endif()
@@ -145,7 +145,8 @@ if("${LIBBPF_SOURCE}" STREQUAL "pkgconf")
   message(STATUS "Link libbpf dynamically")
   target_link_libraries(wasmedgePluginWasmBpf PUBLIC ${LIBBPF_LIBRARIES} ${LIBBPF_DEP_LIBRARIES})
 else()
-  # Link libbpf statically if we don't use pkgconf, because under this case libbpf is not installed systemwide
+  # Link libbpf statically if we don't use pkgconf, because in this case libbpf is
+  # not installed systemwide.
   message(STATUS "Link libbpf statically")
   target_link_libraries(wasmedgePluginWasmBpf PUBLIC ${LIBBPF_LIBRARIES_STATIC} ${LIBBPF_DEP_LIBRARIES})
 endif()

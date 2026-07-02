@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/plugins/wasi_crypto/signatures/signstate.h - SignState ---===//
 //
@@ -25,7 +25,7 @@ namespace Host {
 namespace WasiCrypto {
 namespace Signatures {
 
-/// Signatures computation.
+/// Signature computation.
 ///
 /// More detailed:
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#signature-creation

@@ -92,9 +92,11 @@ filter.
 | **CodeQL** (`codeql-analysis.yml`) | Security analysis of C/C++ sources (excludes `docs/`, `.github/`, `utils/`); also runs weekly. | Address the flagged security finding. |
 | **IWYU checker** (`IWYU_scan.yml`) | Include-what-you-use scan on Fedora and macOS; reports header suggestions as logs/artifacts. | Review the log and tidy includes where applicable. |
 | **Static Code Analysis** (`static-code-analysis.yml`) | Meta **Infer** analysis; uploads a report artifact. | Review the report for genuine defects (e.g. null dereferences). |
-| **riscv64 / s390x** (`build_for_riscv.yml`, `build_for_s390x.yml`) | Emulated build and test on these architectures. | Fix the architecture-specific failure. |
+| **riscv64** (`build_for_riscv.yml`) | Emulated build and test on riscv64. | Fix the architecture-specific failure. |
 | **Nix** (`build_for_nix.yml`) | `nix build` and `nix flake check` (also triggered by `flake.nix` / `flake.lock`). | Fix the Nix build or flake check. |
-| **OpenWrt** (`build_for_openwrt.yml`) | Build and test on OpenWrt (also triggered by `plugins/**` and `utils/openwrt/**`). | Fix the OpenWrt build failure. |
+
+The s390x (`build_for_s390x.yml`) and OpenWrt (`build_for_openwrt.yml`) workflows
+are manual-only (`workflow_dispatch`) and do not run on pushes or pull requests.
 
 ### Plugins
 
@@ -103,9 +105,9 @@ Triggered by changes under `plugins/` or `test/plugins/`.
 | Workflow | What it does | If it fails |
 | -------- | ------------ | ----------- |
 | **Extensions** (`build-extensions.yml`) | Runs a path-filtered plugin build matrix for changed plugins, plus unconditional WASI-NN GGML RPC and Windows WASI-NN jobs. | Fix failures in changed plugin builds and in WASI-NN jobs when related to your change; for clearly unrelated WASI-NN, flaky, or upstream failures, see [Interpreting failures](#interpreting-failures). |
-| **IWYU checker**, **Static Code Analysis**, **CodeQL**, **OpenWrt** | Also triggered by plugin sources (see the Core engine table above). | As above. |
+| **IWYU checker**, **Static Code Analysis**, **CodeQL** | Also triggered by plugin sources (see the Core engine table above). | As above. |
 
-Plugin-only changes do **not** trigger `Core`, `riscv64`, `s390x`, or `Nix`.
+Plugin-only changes do **not** trigger `Core`, `riscv64`, or `Nix`.
 
 ### WASI host implementation
 
@@ -170,8 +172,8 @@ workflows are called by the entries below and are not listed here; see
 | Installers | `test-installers.yml` | `push` (`master`), `pull_request` (`master`); paths: workflow, `utils/install.sh`, `utils/install_v2.sh`, `utils/install.py`, `utils/uninstall.sh` | black check + installer/uninstaller tests |
 | docker | `docker.yml` | `push` (`master`), `pull_request`, periodic `schedule` (days 1/8/15/22/29 of each month); paths: workflow, `utils/docker/`, `utils/ffmpeg/`, `utils/opencvmini/`, `utils/wasi-crypto/`, `utils/wasi-nn/` | builds the affected base/CI images |
 | Build and Test WasmEdge on riscv64 arch | `build_for_riscv.yml` | `push` (`master`), `pull_request` (`master`, `proposal/**`); paths: core engine paths (not `test/plugins/`) | emulated build/test |
-| Build and Test WasmEdge on s390x arch | `build_for_s390x.yml` | `push` (`master`), `pull_request` (`master`, `proposal/**`); paths: core engine paths (not `test/plugins/`) | emulated build/test |
-| Test WasmEdge on OpenWrt | `build_for_openwrt.yml` | `push` (`master`), `pull_request` (`master`, `proposal/**`); paths: core engine paths + `plugins/`, `utils/openwrt/` | build/test on OpenWrt |
+| Build and Test WasmEdge on s390x arch | `build_for_s390x.yml` | `workflow_dispatch` only | emulated build/test; run manually from the Actions tab |
+| Test WasmEdge on OpenWrt | `build_for_openwrt.yml` | `workflow_dispatch` only | build/test on OpenWrt; run manually from the Actions tab |
 | Build WasmEdge on Nix | `build_for_nix.yml` | `push` (`master`), `pull_request` (`master`, `proposal/**`); paths: workflow, `flake.nix`, `flake.lock`, `include/`, `lib/`, `thirdparty/`, `tools/`, `cmake/`, `CMakeLists.txt` | `nix build` + `nix flake check` |
 | Pull Request Labeler | `labeler.yml` | `pull_request_target` (opened/synchronize/reopened/closed); no path filter | auto-labels by path; runs in base-repo context |
 | release | `release.yml` | `workflow_dispatch`, `push` tags `X.Y.Z*` | creates release, tarball, release builds |

@@ -5,6 +5,7 @@
 #include <string>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET
+#include "wasinn_llama_log.h"
 #include <common.h>
 #include <llama.h>
 #include <memory>
@@ -13,7 +14,9 @@
 
 namespace WasmEdge::Host::WASINN {
 struct WasiNNEnvironment;
-}
+class Graph;
+class Context;
+} // namespace WasmEdge::Host::WASINN
 
 namespace WasmEdge::Host::WASINN::BitNet {
 
@@ -64,6 +67,9 @@ struct LocalConfig {
 struct Graph {
   bool EnableLog = false;
   bool EnableDebugLog = false;
+  // This graph's contribution to the shared llama log gate; reconciled with
+  // EnableLog by installLlamaLog on load and on set_input reconfiguration.
+  LlamaLogToken LlamaLog;
   common_params Params;
   LlamaModelPtr LlamaModel = nullptr;
   LlamaContextPtr LlamaContext = nullptr;
@@ -73,6 +79,12 @@ struct Graph {
 struct Context {
 public:
   Context(uint32_t GId, Graph &G) noexcept : GraphId(GId), Conf(G.Conf) {}
+  Context(const Context &) = delete;
+  Context &operator=(const Context &) = delete;
+  ~Context() noexcept {
+    llama_batch_free(LlamaBatch);
+    llama_batch_free(OutputBatch);
+  }
 
   uint32_t GraphId;
   bool ComputeSingleStarted = false;
@@ -84,8 +96,8 @@ public:
   std::vector<uint8_t> LlamaOutputs;
   CommonSamplerPtr LlamaSampler = nullptr;
   int64_t CurrentBatchSize = 0;
-  struct llama_batch LlamaBatch;
-  struct llama_batch OutputBatch;
+  struct llama_batch LlamaBatch{};
+  struct llama_batch OutputBatch{};
 
   LocalConfig Conf;
 };
@@ -100,41 +112,36 @@ struct Context {
 
 struct Environ {};
 
-Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
+Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
                            Span<const Span<uint8_t>> Builders,
-                           WASINN::Device Device, uint32_t &GraphId) noexcept;
+                           WASINN::Device Device) noexcept;
 
 Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
-                                  uint32_t GraphId,
-                                  uint32_t &ContextId) noexcept;
+                                  WASINN::Graph &G,
+                                  WASINN::Context &C) noexcept;
 
-Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
-                               uint32_t ContextId, uint32_t Index,
+Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
+                               WASINN::Context &C, uint32_t Index,
                                const TensorData &Tensor) noexcept;
 
 Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
-                                uint32_t ContextId, uint32_t Index,
-                                Span<uint8_t> OutBuffer,
+                                WASINN::Graph &G, WASINN::Context &C,
+                                uint32_t Index, Span<uint8_t> OutBuffer,
                                 uint32_t &BytesWritten) noexcept;
 
-Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
-                              uint32_t ContextId) noexcept;
+Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
+                              WASINN::Context &C) noexcept;
 
 Expect<WASINN::ErrNo> getOutputSingle(WASINN::WasiNNEnvironment &Env,
-                                      uint32_t ContextId, uint32_t Index,
-                                      Span<uint8_t> OutBuffer,
+                                      WASINN::Graph &G, WASINN::Context &C,
+                                      uint32_t Index, Span<uint8_t> OutBuffer,
                                       uint32_t &BytesWritten) noexcept;
 
 Expect<WASINN::ErrNo> computeSingle(WASINN::WasiNNEnvironment &Env,
-                                    uint32_t ContextId) noexcept;
+                                    WASINN::Graph &G,
+                                    WASINN::Context &C) noexcept;
 
 Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &Env,
-                                 uint32_t ContextId) noexcept;
-
-Expect<WASINN::ErrNo> finalizeExecCtx(WASINN::WasiNNEnvironment &Env,
-                                      uint32_t ContextId) noexcept;
-
-Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
-                             uint32_t GraphId) noexcept;
+                                 WASINN::Graph &G, WASINN::Context &C) noexcept;
 
 } // namespace WasmEdge::Host::WASINN::BitNet

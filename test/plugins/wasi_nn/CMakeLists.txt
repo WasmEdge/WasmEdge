@@ -3,6 +3,7 @@
 
 wasmedge_add_executable(wasiNNTests
   wasi_nn.cpp
+  resource_table_test.cpp
 )
 
 function(download URL OUTPUT HASH)

@@ -10,9 +10,11 @@
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 #define DR_WAV_IMPLEMENTATION
 #include "simdjson.h"
+#include "wasinn_ggml_log.h"
 #include <examples/dr_wav.h>
 
 #include <algorithm>
+#include <mutex>
 #endif
 
 using namespace std::literals;
@@ -398,28 +400,23 @@ bool loadWAV(Span<const uint8_t> Buf, std::vector<float> &PCMF32,
   return true;
 }
 
-void WhisperLogCallback(ggml_log_level LogLevel, const char *LogText,
-                        void *UserData) {
-  const Graph &GraphRef = *reinterpret_cast<Graph *>(UserData);
-  if (!GraphRef.WhisperConfig.EnableLog) {
+// whisper.cpp keeps one process-global log callback, so it carries no
+// per-graph user pointer (which would dangle once that graph is released) and
+// is gated on the shared ref-counted whisper gate instead.
+void WhisperLogCallback(ggml_log_level LogLevel, const char *LogText, void *) {
+  if (!whisperLogEnabled()) {
     return;
   }
-  std::string Text(LogText);
-  // Remove the trailing newlines.
-  Text = Text.erase(Text.find_last_not_of("\n") + 1);
-  // Skip for "."
-  if (Text == ".") {
-    return;
-  }
-  if (LogLevel == GGML_LOG_LEVEL_ERROR) {
-    spdlog::error("[WASI-NN] whisper.cpp: {}"sv, Text);
-  } else if (LogLevel == GGML_LOG_LEVEL_WARN) {
-    spdlog::warn("[WASI-NN] whisper.cpp: {}"sv, Text);
-  } else if (LogLevel == GGML_LOG_LEVEL_INFO) {
-    spdlog::info("[WASI-NN] whisper.cpp: {}"sv, Text);
-  } else if (LogLevel == GGML_LOG_LEVEL_DEBUG) {
-    spdlog::debug("[WASI-NN] whisper.cpp: {}"sv, Text);
-  }
+  logGgmlMessage(LogLevel, LogText, "whisper.cpp"sv);
+}
+
+// Bind the process-global whisper log callback once and reconcile this
+// graph's contribution to the shared enable gate with its EnableLog.
+void installWhisperLog(Graph &GraphRef, bool EnableLog) noexcept {
+  static std::once_flag LogOnce;
+  std::call_once(
+      LogOnce, []() noexcept { whisper_log_set(WhisperLogCallback, nullptr); });
+  GraphRef.WhisperLog.set(EnableLog);
 }
 
 void WhisperOutputSegmentCallback(struct whisper_context *WhisperCtx,
@@ -839,11 +836,10 @@ Expect<ErrNo> handleTranslationConfig(whisper_context *WhisperCtx,
 
 } // Namespace
 
-Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
-                   [[maybe_unused]] Device Device, uint32_t &GraphId) noexcept {
-  // Add a new graph.
-  uint32_t GId = Env.newGraph(Backend::Whisper);
-  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
+Expect<ErrNo> load([[maybe_unused]] WasiNNEnvironment &Env, WASINN::Graph &G,
+                   Span<const Span<uint8_t>> Builders,
+                   [[maybe_unused]] Device Device) noexcept {
+  auto &GraphRef = G.get<Graph>();
 
   // Initialize the parameters.
   auto CParam = whisper_context_default_params();
@@ -851,9 +847,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.WhisperConfig.SpokenLanguage = "en"sv;
   GraphRef.UseGPU = CParam.use_gpu;
   GraphRef.MainGPU = CParam.gpu_device;
-
-  // Set whisper log callback.
-  whisper_log_set(WhisperLogCallback, &GraphRef);
 
   // If the graph builder length is greater than 1, builder[1] contains the
   // metadata.
@@ -864,10 +857,13 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     auto Res = parseMetadata(GraphRef.WhisperConfig, Metadata);
     if (Res != ErrNo::Success) {
       spdlog::error("[WASI-NN] Whisper backend: Failed to parse metadata."sv);
-      Env.deleteGraph(GId);
       return Res;
     }
   }
+
+  // Bind the process-global whisper log callback (once) and refresh its gate
+  // with this load's EnableLog, now that metadata has been parsed.
+  installWhisperLog(GraphRef, GraphRef.WhisperConfig.EnableLog);
 
   // Handle the model path.
   if (GraphRef.WhisperConfig.EnableDebugLog) {
@@ -897,7 +893,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     spdlog::error(
         "[WASI-NN] Whisper backend: Error: unable to init whisper context from "
         "model."sv);
-    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
   if (GraphRef.WhisperConfig.EnableDebugLog) {
@@ -909,25 +904,19 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   auto ResTranslateConfig =
       handleTranslationConfig(GraphRef.WhisperCtx, GraphRef.WhisperConfig);
   if (ResTranslateConfig != ErrNo::Success) {
-    Env.deleteGraph(GId);
     return ResTranslateConfig;
   }
-
-  // Store the loaded graph.
-  GraphId = GId;
-  Env.NNGraph[GId].setReady();
 
   return ErrNo::Success;
 }
 
-Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
-                          uint32_t &ContextId) noexcept {
-  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
+Expect<ErrNo> initExecCtx([[maybe_unused]] WasiNNEnvironment &Env,
+                          WASINN::Graph &G, WASINN::Context &C) noexcept {
+  auto &GraphRef = G.get<Graph>();
+  auto &CxtRef = C.get<Context>();
   if (GraphRef.WhisperConfig.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] Whisper backend: initExecCtx"sv);
   }
-  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   CxtRef.WhisperParams = whisper_full_default_params(
       whisper_sampling_strategy::WHISPER_SAMPLING_BEAM_SEARCH);
   setWhisperParams(CxtRef);
@@ -935,17 +924,18 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
     spdlog::info("[WASI-NN] Whisper backend: whisper_system_info: {}"sv,
                  whisper_print_system_info());
   }
-  Env.NNContext[ContextId].setReady();
   if (GraphRef.WhisperConfig.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] Whisper backend: initExecCtx...Done"sv);
   }
   return ErrNo::Success;
 }
 
-Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
+Expect<ErrNo> setInput([[maybe_unused]] WasiNNEnvironment &Env,
+                       WASINN::Graph &G, WASINN::Context &C,
                        uint32_t Index [[maybe_unused]],
                        const TensorData &Tensor) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &GraphRef = G.get<Graph>();
+  auto &CxtRef = C.get<Context>();
   if (CxtRef.WhisperConfig.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] Whisper backend: setInput"sv);
   }
@@ -958,7 +948,6 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     }
     // Set the whisper config of this context as the graph default first.
     // This will reset the config and inherit settings from the graph metadata.
-    auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
     CxtRef.WhisperConfig = GraphRef.WhisperConfig;
     const std::string Metadata(reinterpret_cast<char *>(Tensor.Tensor.data()),
                                Tensor.Tensor.size());
@@ -967,6 +956,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       spdlog::error("[WASI-NN] Whisper backend: Failed to parse metadata."sv);
       return Res;
     }
+    // Reconcile this graph's whisper log gate with the reparsed EnableLog.
+    installWhisperLog(GraphRef, CxtRef.WhisperConfig.EnableLog);
     Res = handleTranslationConfig(GraphRef.WhisperCtx, CxtRef.WhisperConfig);
     if (Res != ErrNo::Success) {
       return Res;
@@ -1011,11 +1002,12 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   return ErrNo::Success;
 }
 
-Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
-                        uint32_t Index, Span<uint8_t> OutBuffer,
+Expect<ErrNo> getOutput(WasiNNEnvironment &Env, WASINN::Graph &G,
+                        WASINN::Context &C, uint32_t Index,
+                        Span<uint8_t> OutBuffer,
                         uint32_t &BytesWritten) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &GraphRef = G.get<Graph>();
+  auto &CxtRef = C.get<Context>();
   if (CxtRef.WhisperConfig.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] Whisper backend: getOutput with Index {}"sv,
                  Index);
@@ -1057,9 +1049,10 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   return ErrNo::Success;
 }
 
-Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+Expect<ErrNo> compute([[maybe_unused]] WasiNNEnvironment &Env, WASINN::Graph &G,
+                      WASINN::Context &C) noexcept {
+  auto &GraphRef = G.get<Graph>();
+  auto &CxtRef = C.get<Context>();
   if (CxtRef.WhisperConfig.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] Whisper backend: compute"sv);
   }
@@ -1079,48 +1072,6 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   return ErrNo::Success;
 }
 
-Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
-  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
-  const bool IsDebugLog = GraphRef.WhisperConfig.EnableDebugLog;
-  if (IsDebugLog) {
-    spdlog::info("[WASI-NN][Debug] Whisper backend: unload"sv);
-  }
-  if (GraphRef.WhisperCtx != nullptr) {
-    if (IsDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] Whisper backend: unload: free whisper context"sv);
-    }
-    whisper_free(GraphRef.WhisperCtx);
-    GraphRef.WhisperCtx = nullptr;
-    if (IsDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] Whisper backend: unload: free whisper context...Done"sv);
-    }
-  }
-  Env.deleteGraph(GraphId);
-  Env.mdRemoveById(GraphId);
-  if (IsDebugLog) {
-    spdlog::info("[WASI-NN][Debug] Whisper backend: unload...Done"sv);
-  }
-  return ErrNo::Success;
-}
-
-Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &Env,
-                              uint32_t ContextId) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  const bool IsDebugLog = CxtRef.WhisperConfig.EnableDebugLog;
-  if (IsDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] Whisper backend: finalize_execution_context"sv);
-  }
-  // TODO: Free resources
-  Env.deleteContext(ContextId);
-  if (IsDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] Whisper backend: finalize_execution_context...Done"sv);
-  }
-  return ErrNo::Success;
-}
 #else
 
 namespace {
@@ -1131,28 +1082,24 @@ Expect<ErrNo> reportBackendNotSupported() noexcept {
 }
 } // Namespace
 
-Expect<ErrNo> load(WasiNNEnvironment &, Span<const Span<uint8_t>>, Device,
-                   uint32_t &) noexcept {
+Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &,
+                   Span<const Span<uint8_t>>, Device) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> initExecCtx(WasiNNEnvironment &, uint32_t, uint32_t &) noexcept {
+Expect<ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &,
+                          WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> setInput(WasiNNEnvironment &, uint32_t, uint32_t,
-                       const TensorData &) noexcept {
+Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &, WASINN::Context &,
+                       uint32_t, const TensorData &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> getOutput(WasiNNEnvironment &, uint32_t, uint32_t, Span<uint8_t>,
-                        uint32_t &) noexcept {
+Expect<ErrNo> getOutput(WasiNNEnvironment &, WASINN::Graph &, WASINN::Context &,
+                        uint32_t, Span<uint8_t>, uint32_t &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> compute(WasiNNEnvironment &, uint32_t) noexcept {
-  return reportBackendNotSupported();
-}
-Expect<ErrNo> unload(WasiNNEnvironment &, uint32_t) noexcept {
-  return reportBackendNotSupported();
-}
-Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &, uint32_t) noexcept {
+Expect<ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &,
+                      WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
 

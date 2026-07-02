@@ -7,6 +7,7 @@
 #include "wasinntypes.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+#include "wasinn_llama_log.h"
 #include "wasinntypes.h"
 #include <ggml.h>
 #include <list>
@@ -47,6 +48,9 @@ struct Graph {
   // Plugin parameters:
   bool EnableLog = false;
   bool EnableDebugLog = false;
+  // This graph's contribution to the shared llama log gate; reconciled with
+  // EnableLog by installLlamaLog on load and on set_input reconfiguration.
+  LlamaLogToken LlamaLog;
   common_params Params;
   std::list<std::string> TensorBuftOverrides;
   // Model context:
@@ -68,6 +72,16 @@ struct Graph {
 struct Context {
 public:
   Context(uint32_t GId, Graph &G) noexcept : GraphId(GId), Conf(G.Conf) {}
+  Context(const Context &) = delete;
+  Context &operator=(const Context &) = delete;
+  ~Context() noexcept {
+    if (LlamaSampler != nullptr) {
+      common_sampler_free(LlamaSampler);
+      LlamaSampler = nullptr;
+    }
+    llama_batch_free(LlamaBatch);
+    llama_batch_free(OutputBatch);
+  }
   uint32_t GraphId;
   // Llama inputs:
   std::vector<llama_token> LlamaInputs;
@@ -79,9 +93,10 @@ public:
   bool ComputeSingleStarted = false;
   struct common_sampler *LlamaSampler = nullptr;
   // Handle the batch in the context to prevent reallocation during every
-  // computation.
-  struct llama_batch LlamaBatch;
-  struct llama_batch OutputBatch;
+  // computation. Value-initialized so destroying a context whose batches were
+  // never allocated frees nothing.
+  struct llama_batch LlamaBatch{};
+  struct llama_batch OutputBatch{};
   int64_t CurrentBatchSize = 0;
   size_t ImagePosition = 0;
   int32_t NPos = 0;

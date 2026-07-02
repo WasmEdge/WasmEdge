@@ -44,16 +44,20 @@ This has three practical consequences:
 
 Two workflows further narrow their work *within* a run:
 
-- **`Extensions`** has path-filtered plugin builds plus always-run WASI-NN jobs.
+- **`Extensions`** path-filters both its plugin builds and its WASI-NN jobs.
   Its `build_plugins` job builds only the plugin(s) whose paths changed, selected
   by `dorny/paths-filter` against
   [`.github/extensions.paths-filter.yml`](../extensions.paths-filter.yml). For
   example, editing only `plugins/wasi_nn/**` builds the `wasi_nn` plugin but not
   `wasmedge_ffmpeg`. Changes to shared plugin files (the `all` filter:
   `.github/**`, the root `CMakeLists.txt`, `plugins/CMakeLists.txt`, or
-  `test/plugins/CMakeLists.txt`) and release builds build **all** plugins. Once
-  the workflow is triggered, the `test_wasi_nn_ggml_rpc` and
-  `build_windows_wasi_nn` jobs also run regardless of which plugin paths changed.
+  `test/plugins/CMakeLists.txt`) and release builds build **all** plugins. The
+  `test_wasi_nn_ggml_rpc` and `build_windows_wasi_nn` jobs run only when the
+  `all`, `wasi_nn`, or `shared_cmake` (`cmake/Helper.cmake`) filters match;
+  `test_wasi_nn_ggml_rpc` also runs when the `wasi_nn_rpc` filter matches —
+  the RPC server sources and their CMake wiring, whose authoritative list is
+  the `wasi_nn_rpc` entry in
+  [`.github/extensions.paths-filter.yml`](../extensions.paths-filter.yml).
 - **`docker`** builds only the image set affected by the change on pull requests,
   and all images on `push` or `schedule`.
 
@@ -82,8 +86,8 @@ group watch slightly different subsets — for example, `IWYU checker` does not 
 [Workflow reference](#workflow-reference) for each one's exact paths.
 
 Shared build paths in this group can also trigger **Extensions**: `thirdparty/`,
-`tools/`, `cmake/`, and `CMakeLists.txt` are in `build-extensions.yml`'s path
-filter.
+`tools/`, `cmake/`, `CMakeLists.txt`, and the WASI-NN RPC sources (the
+`wasi_nn_rpc` filter paths) are in `build-extensions.yml`'s path filter.
 
 | Workflow | What it does | If it fails |
 | -------- | ------------ | ----------- |
@@ -104,7 +108,7 @@ Triggered by changes under `plugins/` or `test/plugins/`.
 
 | Workflow | What it does | If it fails |
 | -------- | ------------ | ----------- |
-| **Extensions** (`build-extensions.yml`) | Runs a path-filtered plugin build matrix for changed plugins, plus unconditional WASI-NN GGML RPC and Windows WASI-NN jobs. | Fix failures in changed plugin builds and in WASI-NN jobs when related to your change; for clearly unrelated WASI-NN, flaky, or upstream failures, see [Interpreting failures](#interpreting-failures). |
+| **Extensions** (`build-extensions.yml`) | Runs a path-filtered plugin build matrix for changed plugins; the WASI-NN GGML RPC and Windows WASI-NN jobs run only when the `all`, `shared_cmake`, `wasi_nn`, or (RPC job only) `wasi_nn_rpc` filters match. | Fix failures in changed plugin builds and in WASI-NN jobs when related to your change; for flaky or upstream failures, see [Interpreting failures](#interpreting-failures). |
 | **IWYU checker**, **Static Code Analysis**, **CodeQL** | Also triggered by plugin sources (see the Core engine table above). | As above. |
 
 Plugin-only changes do **not** trigger `Core`, `riscv64`, or `Nix`.
@@ -162,7 +166,7 @@ workflows are called by the entries below and are not listed here; see
 | Name | File | Triggers (events, branches, paths) | Notes |
 | ---- | ---- | ---------------------------------- | ----- |
 | Core | `build.yml` | `push` (`master`, `X.Y.x`), `pull_request` (`master`, `proposal/**`, `X.Y.x`); paths: core build workflows, `include/`, `lib/`, `test/` (not `test/plugins/`), `utils/docker/*static*`, `thirdparty/`, `tools/`, `cmake/`, `CMakeLists.txt` | clang-format gate, then cross-platform build/test; Ubuntu matrix includes coverage upload and fuzzer build |
-| Extensions | `build-extensions.yml` | same events/branches as Core; paths: extension build workflows + config, `plugins/`, `test/plugins/`, `thirdparty/`, `tools/`, `cmake/`, `CMakeLists.txt` | clang-format gate; always runs WASI-NN GGML RPC + Windows WASI-NN jobs; path-filters the plugin build matrix |
+| Extensions | `build-extensions.yml` | same events/branches as Core; paths: extension build workflows + config, WASI-NN RPC sources (the `wasi_nn_rpc` filter paths), `plugins/`, `test/plugins/`, `thirdparty/`, `tools/`, `cmake/`, `CMakeLists.txt` | clang-format gate; path-filters the plugin build matrix and the WASI-NN GGML RPC + Windows WASI-NN jobs |
 | Commit Lint | `commitlint.yml` | `pull_request` (opened/synchronize/reopened/edited); no path filter | validates commit messages + PR title |
 | Misc linters | `misc-linters.yml` | `push`, `pull_request`; no path filter | codespell + lineguard |
 | CodeQL | `codeql-analysis.yml` | `push` (`master`), `pull_request` (`master`, `proposal/**`), weekly `schedule`; paths: C/C++ source globs, excluding `docs/`, `.github/`, `utils/` | clang-format gate, then CodeQL analysis |
@@ -195,9 +199,9 @@ workflows are called by the entries below and are not listed here; see
      plugin. A failure in a plugin you did not touch should only appear when a
      shared `all` filter path (for example `plugins/CMakeLists.txt`; see
      [How CI is triggered](#how-ci-is-triggered)) or a release build caused
-     **every** plugin to build. The workflow still always runs the WASI-NN GGML
-     RPC and Windows WASI-NN jobs; treat those failures as yours only when your
-     change can affect them.
+     **every** plugin to build. The WASI-NN GGML RPC and Windows WASI-NN jobs
+     are gated the same way and appear only when the `all`, `shared_cmake`,
+     `wasi_nn`, or (for the RPC job) `wasi_nn_rpc` filters match your change.
    - **Upstream breakage.** A job already failing on `master` because of an upstream
      issue (for example, a broken Fedora Rawhide package) cannot be fixed from a
      contributor PR until upstream is fixed.

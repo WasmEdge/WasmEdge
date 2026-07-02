@@ -166,19 +166,19 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
   auto IntrinsicsSymbol = Exec->getIntrinsics();
   if (unlikely(FuncTypeSymbols.size() != SubTypes.size())) {
     spdlog::error("    AOT section -- number of types not matching:{} {}, "
-                  "use interpreter mode instead.",
+                  "use interpreter mode instead."sv,
                   FuncTypeSymbols.size(), SubTypes.size());
     return Unexpect(ErrCode::Value::IllegalGrammar);
   }
   if (unlikely(CodeSymbols.size() != CodeSegs.size())) {
     spdlog::error("    AOT section -- number of codes not matching:{} {}, "
-                  "use interpreter mode instead.",
+                  "use interpreter mode instead."sv,
                   CodeSymbols.size(), CodeSegs.size());
     return Unexpect(ErrCode::Value::IllegalGrammar);
   }
   if (unlikely(!IntrinsicsSymbol)) {
     spdlog::error("    AOT section -- intrinsics table symbol not found, use "
-                  "interpreter mode instead.");
+                  "interpreter mode instead."sv);
     return Unexpect(ErrCode::Value::IllegalGrammar);
   }
 
@@ -298,10 +298,10 @@ Expect<void> Loader::loadModuleAOT(AST::AOTSection &AOTSection) {
           // interpreter mode.
           if (WASMType == InputType::UniversalWASM) {
             spdlog::info(
-                "    Load AOT section failed. Use the previous succeeded one.");
+                "    Load AOT section failed. Use the previous succeeded one."sv);
           } else {
             spdlog::info(
-                "    Load AOT section failed. Use interpreter mode instead.");
+                "    Load AOT section failed. Use interpreter mode instead."sv);
           }
         }
       } else {

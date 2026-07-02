@@ -81,7 +81,7 @@ mx::array slidingWindows(const mx::array &X,
 
     spdlog::error(
         "The window shapes and strides must have the same number of spatial "
-        "dimensions as the signal.");
+        "dimensions as the signal."sv);
     assumingUnreachable();
   }
   bool UseNonOverlap = true;

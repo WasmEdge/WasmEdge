@@ -757,6 +757,8 @@ TEST(APICoreTest, Configure) {
   EXPECT_EQ(WasmEdge_ConfigureGetRunMode(Conf), WasmEdge_RunMode_AOT);
   WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_Interpreter);
   EXPECT_EQ(WasmEdge_ConfigureGetRunMode(Conf), WasmEdge_RunMode_Interpreter);
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_LazyJIT);
+  EXPECT_EQ(WasmEdge_ConfigureGetRunMode(Conf), WasmEdge_RunMode_LazyJIT);
   // Cross-API consistency with deprecated SetForceInterpreter /
   // IsForceInterpreter.
   WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_JIT);

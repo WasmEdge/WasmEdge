@@ -10,6 +10,7 @@
 #include <array>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <gtest/gtest.h>
 #include <memory>
 #include <string>
@@ -252,6 +253,68 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
                          MemInst.getPointer<uint8_t *>(
                              WasmDecompressedData + WasmDecompressedDataSize),
                          MemInst.getPointer<uint8_t *>(WasmData)));
+}
+
+TEST(WasmEdgeZlibTest, GZOpenFailure) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1 * 64, 1 * 64)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  auto *FuncInst = ZlibMod->findFuncExports("gzopen");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &GZOpen = FuncInst->getHostFunc();
+
+  uint32_t PathPtr = 0;
+  std::strcpy(MemInst.getPointer<char *>(PathPtr), "non_existent_file.txt.gz");
+  uint32_t ModePtr = 100;
+  std::strcpy(MemInst.getPointer<char *>(ModePtr), "r");
+
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+  EXPECT_FALSE(GZOpen.run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              PathPtr,
+                              ModePtr,
+                          },
+                          RetVal));
+}
+
+TEST(WasmEdgeZlibTest, GZDOpenFailure) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1 * 64, 1 * 64)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  auto *FuncInst = ZlibMod->findFuncExports("gzdopen");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &GZDOpen = FuncInst->getHostFunc();
+
+  uint32_t ModePtr = 0;
+  std::strcpy(MemInst.getPointer<char *>(ModePtr), "invalid_mode");
+
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+  EXPECT_FALSE(GZDOpen.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               INT32_C(-1),
+                               ModePtr,
+                           },
+                           RetVal));
 }
 
 TEST(WasmEdgeZlibTest, Module) {

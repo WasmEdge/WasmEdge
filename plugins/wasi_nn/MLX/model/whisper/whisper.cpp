@@ -432,7 +432,7 @@ std::shared_ptr<Whisper> Whisper::fromPretrained(const std::string &ModelPath) {
   simdjson::dom::element Doc;
   auto Error = Parser.load((Path / "config.json").string()).get(Doc);
   if (Error) {
-    spdlog::error("Could not open config.json at {}", Path.string());
+    spdlog::error("Could not open config.json at {}"sv, Path.string());
     assumingUnreachable();
   }
   auto Obj = Doc.get_object();
@@ -444,7 +444,7 @@ std::shared_ptr<Whisper> Whisper::fromPretrained(const std::string &ModelPath) {
       WeightFiles.push_back(P.path());
   }
   if (WeightFiles.empty()) {
-    spdlog::error("No safetensors found in {}.", Path.string());
+    spdlog::error("No safetensors found in {}."sv, Path.string());
     assumingUnreachable();
   }
   std::unordered_map<std::string, mx::array> Weights;

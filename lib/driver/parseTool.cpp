@@ -85,19 +85,19 @@ std::string getInitExprStr(const AST::Expression &Expr) {
   const auto &Instr = Instrs[0];
   switch (Instr.getOpCode()) {
   case OpCode::I32__const:
-    return fmt::format("i32={}", Instr.getNum().get<int32_t>());
+    return fmt::format("i32={}"sv, Instr.getNum().get<int32_t>());
   case OpCode::I64__const:
-    return fmt::format("i64={}", Instr.getNum().get<int64_t>());
+    return fmt::format("i64={}"sv, Instr.getNum().get<int64_t>());
   case OpCode::F32__const:
-    return fmt::format("f32={}", Instr.getNum().get<float>());
+    return fmt::format("f32={}"sv, Instr.getNum().get<float>());
   case OpCode::F64__const:
-    return fmt::format("f64={}", Instr.getNum().get<double>());
+    return fmt::format("f64={}"sv, Instr.getNum().get<double>());
   case OpCode::Global__get:
-    return fmt::format("global.get {}", Instr.getTargetIndex());
+    return fmt::format("global.get {}"sv, Instr.getTargetIndex());
   case OpCode::Ref__func:
-    return fmt::format("ref.func {}", Instr.getTargetIndex());
+    return fmt::format("ref.func {}"sv, Instr.getTargetIndex());
   case OpCode::Ref__null:
-    return fmt::format("ref.null {}", Instr.getValType());
+    return fmt::format("ref.null {}"sv, Instr.getValType());
   default:
     return {};
   }
@@ -112,7 +112,7 @@ std::string getElemEntryStr(const AST::Expression &Expr) {
   const auto &Instr = Instrs[0];
   switch (Instr.getOpCode()) {
   case OpCode::Ref__func:
-    return fmt::format("func[{}]", Instr.getTargetIndex());
+    return fmt::format("func[{}]"sv, Instr.getTargetIndex());
   case OpCode::Ref__null:
     return "ref.null";
   default:
@@ -168,14 +168,14 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
   auto FuncName = [&](uint32_t Idx) -> std::string {
     auto It = NS.FuncNames.find(Idx);
     if (It != NS.FuncNames.end())
-      return fmt::format(" <{}>", It->second);
+      return fmt::format(" <{}>"sv, It->second);
     return {};
   };
 
   auto GlobalName = [&](uint32_t Idx) -> std::string {
     auto It = NS.GlobalNames.find(Idx);
     if (It != NS.GlobalNames.end())
-      return fmt::format(" <{}>", It->second);
+      return fmt::format(" <{}>"sv, It->second);
     return {};
   };
 

@@ -21,6 +21,7 @@ set(WASMEDGE_LLVM_SOURCES
   compiler/memoryInstr.cpp
   compiler/numericInstr.cpp
   compiler/refInstr.cpp
+  compiler/threadInstr.cpp
   compiler/vectorInstr.cpp
   codegen.cpp
   data.cpp

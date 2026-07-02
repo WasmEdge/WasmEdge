@@ -7,7 +7,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <zlib.h>
 
@@ -80,16 +82,33 @@ namespace Host {
 
 class WasmEdgeZlibEnvironment {
 public:
-  using GZFile = std::remove_pointer_t<gzFile>;
-
   struct GZStore {
     uint32_t WasmGZHeaderOffset;
+    /* true for inflateGetHeader (zlib writes the header buffers), false for
+       deflateSetHeader (zlib reads them) */
+    bool IsInflate;
     std::unique_ptr<gz_header> HostGZHeader;
+    /* host-owned snapshots of the deflateSetHeader fields; zlib emits name and
+       comment incrementally across deflate() calls, so the buffers must stay
+       stable rather than be re-read from guest memory each call */
+    std::vector<Bytef> Extra;
+    std::string Name;
+    std::string Comment;
   };
 
+  WasmEdgeZlibEnvironment() = default;
+  WasmEdgeZlibEnvironment(const WasmEdgeZlibEnvironment &) = delete;
+  WasmEdgeZlibEnvironment &operator=(const WasmEdgeZlibEnvironment &) = delete;
+  ~WasmEdgeZlibEnvironment() {
+    for (const auto &[Handle, File] : GZFileMap) {
+      gzclose(File);
+    }
+  }
+
   std::unordered_map<uint32_t, std::unique_ptr<z_stream>> ZStreamMap;
-  std::map<uint32_t, std::unique_ptr<GZFile>, std::greater<uint32_t>> GZFileMap;
+  std::unordered_map<uint32_t, gzFile> GZFileMap;
   std::unordered_map<uint32_t, GZStore> GZHeaderMap;
+  uint32_t NextGZFile = sizeof(gzFile);
 };
 
 } // namespace Host

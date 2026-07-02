@@ -5,33 +5,7 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  push:
-    branches:
-      - master
-    paths:
-      - ".github/workflows/build_for_s390x.yml"
-      - "include/**"
-      - "lib/**"
-      - "test/**"
-      - "!test/plugins/**"
-      - "thirdparty/**"
-      - "tools/**"
-      - "CMakeLists.txt"
-      - "cmake/**"
-  pull_request:
-    branches:
-      - master
-      - 'proposal/**'
-    paths:
-      - ".github/workflows/build_for_s390x.yml"
-      - "include/**"
-      - "lib/**"
-      - "test/**"
-      - "!test/plugins/**"
-      - "thirdparty/**"
-      - "tools/**"
-      - "CMakeLists.txt"
-      - "cmake/**"
+  workflow_dispatch:
 
 permissions:
   contents: read

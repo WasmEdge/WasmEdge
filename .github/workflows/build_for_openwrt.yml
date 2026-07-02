@@ -5,35 +5,7 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  push:
-    branches:
-      - master
-    paths:
-      - ".github/workflows/build_for_openwrt.yml"
-      - "include/**"
-      - "lib/**"
-      - "plugins/**"
-      - "test/**"
-      - "thirdparty/**"
-      - "tools/**"
-      - "CMakeLists.txt"
-      - "cmake/**"
-      - "utils/openwrt/**"
-  pull_request:
-    branches:
-      - master
-      - 'proposal/**'
-    paths:
-      - ".github/workflows/build_for_openwrt.yml"
-      - "include/**"
-      - "lib/**"
-      - "plugins/**"
-      - "test/**"
-      - "thirdparty/**"
-      - "tools/**"
-      - "CMakeLists.txt"
-      - "cmake/**"
-      - "utils/openwrt/**"
+  workflow_dispatch:
 
 permissions:
   contents: read

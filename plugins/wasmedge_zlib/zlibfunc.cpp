@@ -127,9 +127,13 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
   unsigned char *PreComputeName{};
   unsigned char *PreComputeComment{};
 
-  if (GZHeaderStoreIt != Env.GZHeaderMap.end()) {
-    // Sync GZ Header
-
+  // Only inflateGetHeader syncs the header here: zlib writes into the guest
+  // buffers, each bounded by the guest-provided *_max field, so the whole span
+  // is validated every call. The deflateSetHeader (read) direction is captured
+  // into host-owned storage once, at set-header time, because zlib emits the
+  // name/comment across calls and must not re-read mutating guest memory.
+  if (GZHeaderStoreIt != Env.GZHeaderMap.end() &&
+      GZHeaderStoreIt->second.IsInflate) {
     auto *ModuleGZHeader = MemInst->getPointer<WasmGZHeader *>(
         GZHeaderStoreIt->second.WasmGZHeaderOffset);
     if (unlikely(ModuleGZHeader == nullptr)) {
@@ -139,64 +143,34 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
       return Unexpect(ErrCode::Value::HostFuncError);
     }
     auto *HostGZHeader = GZHeaderStoreIt->second.HostGZHeader.get();
-    const bool IsInflate = GZHeaderStoreIt->second.IsInflate;
 
     HostGZHeader->text = ModuleGZHeader->Text;
     HostGZHeader->time = ModuleGZHeader->Time;
     HostGZHeader->xflags = ModuleGZHeader->XFlags;
     HostGZHeader->os = ModuleGZHeader->OS;
 
-    // inflateGetHeader writes into the buffers (bounded by *_max); the strings
-    // are read back as-is. deflateSetHeader reads the buffers: extra spans
-    // extra_len bytes and name/comment are zlib-scanned C strings.
-    const uint32_t ExtraCap =
-        IsInflate ? ModuleGZHeader->ExtraMax : ModuleGZHeader->ExtraLen;
-    const auto ExtraSpan =
-        MemInst->getSpan<unsigned char>(ModuleGZHeader->Extra, ExtraCap);
-    if (unlikely(ExtraCap != 0 && ExtraSpan.data() == nullptr)) {
+    const auto ExtraSpan = MemInst->getSpan<unsigned char>(
+        ModuleGZHeader->Extra, ModuleGZHeader->ExtraMax);
+    const auto NameSpan = MemInst->getSpan<unsigned char>(
+        ModuleGZHeader->Name, ModuleGZHeader->NameMax);
+    const auto CommentSpan = MemInst->getSpan<unsigned char>(
+        ModuleGZHeader->Comment, ModuleGZHeader->CommMax);
+    if (unlikely(
+            (ModuleGZHeader->ExtraMax != 0 && ExtraSpan.data() == nullptr) ||
+            (ModuleGZHeader->NameMax != 0 && NameSpan.data() == nullptr) ||
+            (ModuleGZHeader->CommMax != 0 && CommentSpan.data() == nullptr))) {
       spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
-                    "Out-of-bounds gzip header extra field."sv,
+                    "Out-of-bounds gzip header buffer."sv,
                     Msg);
       return Unexpect(ErrCode::Value::HostFuncError);
     }
     HostGZHeader->extra = ExtraSpan.data();
     HostGZHeader->extra_len = ModuleGZHeader->ExtraLen;
     HostGZHeader->extra_max = ModuleGZHeader->ExtraMax;
-
-    const auto BindHeaderString = [&](uint32_t FieldOffset, uint32_t MaxLen,
-                                      Bytef *&HostField) -> bool {
-      if (IsInflate) {
-        const auto FieldSpan =
-            MemInst->getSpan<unsigned char>(FieldOffset, MaxLen);
-        if (unlikely(MaxLen != 0 && FieldSpan.data() == nullptr)) {
-          return false;
-        }
-        HostField = FieldSpan.data();
-      } else if (FieldOffset != 0) {
-        const auto *FieldStr = getInBoundsCString(*MemInst, FieldOffset);
-        if (unlikely(FieldStr == nullptr)) {
-          return false;
-        }
-        HostField = reinterpret_cast<Bytef *>(const_cast<char *>(FieldStr));
-      } else {
-        HostField = nullptr;
-      }
-      return true;
-    };
-
-    if (unlikely(
-            !BindHeaderString(ModuleGZHeader->Name, ModuleGZHeader->NameMax,
-                              HostGZHeader->name) ||
-            !BindHeaderString(ModuleGZHeader->Comment, ModuleGZHeader->CommMax,
-                              HostGZHeader->comment))) {
-      spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
-                    "Out-of-bounds gzip header name/comment field."sv,
-                    Msg);
-      return Unexpect(ErrCode::Value::HostFuncError);
-    }
+    HostGZHeader->name = NameSpan.data();
     HostGZHeader->name_max = ModuleGZHeader->NameMax;
+    HostGZHeader->comment = CommentSpan.data();
     HostGZHeader->comm_max = ModuleGZHeader->CommMax;
-
     HostGZHeader->hcrc = ModuleGZHeader->HCRC;
     HostGZHeader->done = ModuleGZHeader->Done;
 
@@ -223,30 +197,31 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
   ModuleZStream->Adler = HostZStream->adler;
   ModuleZStream->Reserved = HostZStream->reserved;
 
-  if (GZHeaderStoreIt != Env.GZHeaderMap.end()) {
-    // Sync GZ Header
-
+  if (GZHeaderStoreIt != Env.GZHeaderMap.end() &&
+      GZHeaderStoreIt->second.IsInflate) {
     auto *ModuleGZHeader = MemInst->getPointer<WasmGZHeader *>(
         GZHeaderStoreIt->second.WasmGZHeaderOffset);
-    auto *HostGZHeader = GZHeaderStoreIt->second.HostGZHeader.get();
+    if (ModuleGZHeader != nullptr) {
+      auto *HostGZHeader = GZHeaderStoreIt->second.HostGZHeader.get();
 
-    ModuleGZHeader->Text = HostGZHeader->text;
-    ModuleGZHeader->Time = HostGZHeader->time;
-    ModuleGZHeader->XFlags = HostGZHeader->xflags;
-    ModuleGZHeader->OS = HostGZHeader->os;
+      ModuleGZHeader->Text = HostGZHeader->text;
+      ModuleGZHeader->Time = HostGZHeader->time;
+      ModuleGZHeader->XFlags = HostGZHeader->xflags;
+      ModuleGZHeader->OS = HostGZHeader->os;
 
-    ModuleGZHeader->Extra += HostGZHeader->extra - PreComputeExtra;
-    ModuleGZHeader->ExtraLen = HostGZHeader->extra_len;
-    ModuleGZHeader->ExtraMax = HostGZHeader->extra_max;
+      ModuleGZHeader->Extra += HostGZHeader->extra - PreComputeExtra;
+      ModuleGZHeader->ExtraLen = HostGZHeader->extra_len;
+      ModuleGZHeader->ExtraMax = HostGZHeader->extra_max;
 
-    ModuleGZHeader->Name += HostGZHeader->name - PreComputeName;
-    ModuleGZHeader->NameMax = HostGZHeader->name_max;
+      ModuleGZHeader->Name += HostGZHeader->name - PreComputeName;
+      ModuleGZHeader->NameMax = HostGZHeader->name_max;
 
-    ModuleGZHeader->Comment += HostGZHeader->comment - PreComputeComment;
-    ModuleGZHeader->CommMax = HostGZHeader->comm_max;
+      ModuleGZHeader->Comment += HostGZHeader->comment - PreComputeComment;
+      ModuleGZHeader->CommMax = HostGZHeader->comm_max;
 
-    ModuleGZHeader->HCRC = HostGZHeader->hcrc;
-    ModuleGZHeader->Done = HostGZHeader->done;
+      ModuleGZHeader->HCRC = HostGZHeader->hcrc;
+      ModuleGZHeader->Done = HostGZHeader->done;
+    }
   }
 
   return ZRes;
@@ -524,15 +499,77 @@ Expect<int32_t>
 WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
                                    uint32_t ZStreamPtr, uint32_t HeadPtr) {
 
-  auto HostGZHeader = std::make_unique<gz_header>();
-  auto HostGZHeaderPtr = HostGZHeader.get();
+  MEMINST_CHECK(MemInst, Frame, 0)
 
-  const auto [It, Inserted] = Env.GZHeaderMap.emplace(
-      std::pair<uint32_t, WasmEdgeZlibEnvironment::GZStore>{
-          ZStreamPtr, WasmEdgeZlibEnvironment::GZStore{
-                          .WasmGZHeaderOffset = HeadPtr,
-                          .IsInflate = false,
-                          .HostGZHeader = std::move(HostGZHeader)}});
+  auto *ModuleGZHeader = MemInst->getPointer<WasmGZHeader *>(HeadPtr);
+  if (unlikely(ModuleGZHeader == nullptr)) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateSetHeader] "sv
+                  "Out-of-bounds gzip header."sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  // Snapshot the header into host-owned storage; deflate() emits the name and
+  // comment incrementally across calls (resuming at an internal index), so the
+  // buffers must stay stable and must not be re-read from mutable guest memory.
+  WasmEdgeZlibEnvironment::GZStore Store{};
+  Store.WasmGZHeaderOffset = HeadPtr;
+  Store.IsInflate = false;
+  Store.HostGZHeader = std::make_unique<gz_header>();
+
+  const bool HasExtra =
+      ModuleGZHeader->Extra != 0 && ModuleGZHeader->ExtraLen != 0;
+  const bool HasName = ModuleGZHeader->Name != 0;
+  const bool HasComment = ModuleGZHeader->Comment != 0;
+
+  if (HasExtra) {
+    const auto ExtraSpan = MemInst->getSpan<Bytef>(ModuleGZHeader->Extra,
+                                                   ModuleGZHeader->ExtraLen);
+    if (unlikely(ExtraSpan.data() == nullptr)) {
+      spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateSetHeader] "sv
+                    "Out-of-bounds gzip header extra field."sv);
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    Store.Extra.assign(ExtraSpan.begin(), ExtraSpan.end());
+  }
+  if (HasName) {
+    const auto *NameStr = getInBoundsCString(*MemInst, ModuleGZHeader->Name);
+    if (unlikely(NameStr == nullptr)) {
+      spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateSetHeader] "sv
+                    "Out-of-bounds gzip header name field."sv);
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    Store.Name = NameStr;
+  }
+  if (HasComment) {
+    const auto *CommentStr =
+        getInBoundsCString(*MemInst, ModuleGZHeader->Comment);
+    if (unlikely(CommentStr == nullptr)) {
+      spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateSetHeader] "sv
+                    "Out-of-bounds gzip header comment field."sv);
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    Store.Comment = CommentStr;
+  }
+
+  Store.HostGZHeader->text = ModuleGZHeader->Text;
+  Store.HostGZHeader->time = ModuleGZHeader->Time;
+  Store.HostGZHeader->xflags = ModuleGZHeader->XFlags;
+  Store.HostGZHeader->os = ModuleGZHeader->OS;
+  Store.HostGZHeader->hcrc = ModuleGZHeader->HCRC;
+  Store.HostGZHeader->extra_len = ModuleGZHeader->ExtraLen;
+
+  const auto [It, Inserted] =
+      Env.GZHeaderMap.insert_or_assign(ZStreamPtr, std::move(Store));
+
+  // Bind the zlib header to the now-stable, in-map host storage.
+  auto &StoredHeader = It->second;
+  auto *HostGZHeaderPtr = StoredHeader.HostGZHeader.get();
+  HostGZHeaderPtr->extra = HasExtra ? StoredHeader.Extra.data() : Z_NULL;
+  HostGZHeaderPtr->name =
+      HasName ? reinterpret_cast<Bytef *>(StoredHeader.Name.data()) : Z_NULL;
+  HostGZHeaderPtr->comment =
+      HasComment ? reinterpret_cast<Bytef *>(StoredHeader.Comment.data())
+                 : Z_NULL;
 
   const auto ZRes =
       SyncRun("WasmEdgeZlibDeflateSetHeader", Env, ZStreamPtr, Frame,
@@ -705,12 +742,13 @@ WasmEdgeZlibInflateGetHeader::body(const Runtime::CallingFrame &Frame,
   auto HostGZHeader = std::make_unique<gz_header>();
   auto HostGZHeaderPtr = HostGZHeader.get();
 
-  const auto [It, Inserted] = Env.GZHeaderMap.emplace(
-      std::pair<uint32_t, WasmEdgeZlibEnvironment::GZStore>{
-          ZStreamPtr, WasmEdgeZlibEnvironment::GZStore{
-                          .WasmGZHeaderOffset = HeadPtr,
-                          .IsInflate = true,
-                          .HostGZHeader = std::move(HostGZHeader)}});
+  WasmEdgeZlibEnvironment::GZStore Store{};
+  Store.WasmGZHeaderOffset = HeadPtr;
+  Store.IsInflate = true;
+  Store.HostGZHeader = std::move(HostGZHeader);
+
+  const auto [It, Inserted] =
+      Env.GZHeaderMap.emplace(ZStreamPtr, std::move(Store));
 
   const auto ZRes =
       SyncRun("WasmEdgeZlibInflateGetHeader", Env, ZStreamPtr, Frame,
@@ -1182,7 +1220,10 @@ Expect<int32_t> WasmEdgeZlibGZClose_r::body(const Runtime::CallingFrame &,
 
   const auto ZRes = gzclose_r(GZFileIt->second);
 
-  Env.GZFileMap.erase(GZFileIt);
+  // Z_STREAM_ERROR means the handle was the wrong mode and was NOT freed; keep
+  // it so the environment destructor can still reclaim it.
+  if (ZRes != Z_STREAM_ERROR)
+    Env.GZFileMap.erase(GZFileIt);
 
   return ZRes;
 }
@@ -1198,7 +1239,10 @@ Expect<int32_t> WasmEdgeZlibGZClose_w::body(const Runtime::CallingFrame &,
 
   const auto ZRes = gzclose_w(GZFileIt->second);
 
-  Env.GZFileMap.erase(GZFileIt);
+  // Z_STREAM_ERROR means the handle was the wrong mode and was NOT freed; keep
+  // it so the environment destructor can still reclaim it.
+  if (ZRes != Z_STREAM_ERROR)
+    Env.GZFileMap.erase(GZFileIt);
 
   return ZRes;
 }

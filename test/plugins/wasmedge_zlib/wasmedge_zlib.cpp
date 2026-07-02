@@ -480,6 +480,123 @@ TEST(WasmEdgeZlibTest, GZFileRoundTrip) {
   std::remove(TmpPath.c_str());
 }
 
+TEST(WasmEdgeZlibTest, GZHeaderSnapshot) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(16, 16)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  GET_ZLIB_FUNC(DeflateInit2, "deflateInit2")
+  GET_ZLIB_FUNC(DeflateSetHeader, "deflateSetHeader")
+  GET_ZLIB_FUNC(Deflate, "deflate")
+  GET_ZLIB_FUNC(DeflateEnd, "deflateEnd")
+  GET_ZLIB_FUNC(InflateInit2, "inflateInit2")
+  GET_ZLIB_FUNC(InflateGetHeader, "inflateGetHeader")
+  GET_ZLIB_FUNC(Inflate, "inflate")
+  GET_ZLIB_FUNC(InflateEnd, "inflateEnd")
+
+  const uint32_t DZS = 0x100;
+  const uint32_t DHdr = 0x200;
+  const uint32_t NamePtr = 0x300;
+  const uint32_t DataPtr = 0x500;
+  const uint32_t CompPtr = 0x1000;
+  const uint32_t CompCap = 0x2000;
+  const char *const OrigName = "original-header-name";
+  const char *const Payload = "payload-to-compress-through-gzip";
+  const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
+  std::strcpy(MemInst.getPointer<char *>(NamePtr), OrigName);
+  std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
+  std::fill_n(MemInst.getPointer<uint8_t *>(DZS), sizeof(WasmZStream), 0);
+  std::fill_n(MemInst.getPointer<uint8_t *>(DHdr), sizeof(WasmGZHeader), 0);
+
+  ASSERT_TRUE(
+      DeflateInit2.run(CallFrame,
+                       std::initializer_list<WasmEdge::ValVariant>{
+                           DZS, INT32_C(-1), INT32_C(Z_DEFLATED), INT32_C(31),
+                           INT32_C(8), INT32_C(Z_DEFAULT_STRATEGY)},
+                       RetVal));
+  ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
+
+  auto *DHeader = MemInst.getPointer<WasmGZHeader *>(DHdr);
+  DHeader->Name = NamePtr;
+  ASSERT_TRUE(DeflateSetHeader.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{DZS, DHdr},
+      RetVal));
+  ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
+
+  // After the header is captured, corrupt the guest name and repoint the header
+  // field to an unterminated region at the end of memory. With the snapshot the
+  // emitted name must stay "original-header-name"; without it, deflate would
+  // re-read this and run off the end of linear memory.
+  std::strcpy(MemInst.getPointer<char *>(NamePtr), "CORRUPTED-VALUE");
+  DHeader->Name = static_cast<uint32_t>(MemInst.getSize()) - 3;
+  std::fill_n(MemInst.getPointer<uint8_t *>(
+                  static_cast<uint32_t>(MemInst.getSize()) - 3),
+              3, static_cast<uint8_t>(0xFF));
+
+  auto *DStrm = MemInst.getPointer<WasmZStream *>(DZS);
+  DStrm->NextIn = DataPtr;
+  DStrm->AvailIn = PayloadLen;
+  DStrm->NextOut = CompPtr;
+  DStrm->AvailOut = CompCap;
+  ASSERT_TRUE(Deflate.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{DZS, INT32_C(Z_FINISH)},
+      RetVal));
+  ASSERT_EQ(RetVal[0].get<int32_t>(), Z_STREAM_END);
+  const uint32_t CompLen = CompCap - DStrm->AvailOut;
+  ASSERT_TRUE(DeflateEnd.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{DZS}, RetVal));
+
+  const uint32_t IZS = 0x4000;
+  const uint32_t IHdr = 0x4100;
+  const uint32_t INameBuf = 0x4200;
+  const uint32_t INameMax = 128;
+  const uint32_t DecPtr = 0x5000;
+  const uint32_t DecCap = 0x1000;
+  std::fill_n(MemInst.getPointer<uint8_t *>(IZS), sizeof(WasmZStream), 0);
+  std::fill_n(MemInst.getPointer<uint8_t *>(IHdr), sizeof(WasmGZHeader), 0);
+  std::fill_n(MemInst.getPointer<uint8_t *>(INameBuf), INameMax, 0);
+
+  ASSERT_TRUE(InflateInit2.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{IZS, INT32_C(31)},
+      RetVal));
+  ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
+
+  auto *IHeader = MemInst.getPointer<WasmGZHeader *>(IHdr);
+  IHeader->Name = INameBuf;
+  IHeader->NameMax = INameMax;
+  ASSERT_TRUE(InflateGetHeader.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{IZS, IHdr},
+      RetVal));
+  ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
+
+  auto *IStrm = MemInst.getPointer<WasmZStream *>(IZS);
+  IStrm->NextIn = CompPtr;
+  IStrm->AvailIn = CompLen;
+  IStrm->NextOut = DecPtr;
+  IStrm->AvailOut = DecCap;
+  ASSERT_TRUE(Inflate.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{IZS, INT32_C(Z_FINISH)},
+      RetVal));
+  ASSERT_EQ(RetVal[0].get<int32_t>(), Z_STREAM_END);
+  ASSERT_TRUE(InflateEnd.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{IZS}, RetVal));
+
+  // The round-tripped header name is the snapshot taken at set-header time, not
+  // the corrupted guest value.
+  EXPECT_STREQ(MemInst.getPointer<char *>(INameBuf), OrigName);
+}
+
 TEST(WasmEdgeZlibTest, Module) {
   // Create the wasmedge_zlib module instance.
   auto ZlibMod = createModule();

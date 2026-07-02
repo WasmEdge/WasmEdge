@@ -3,6 +3,9 @@
 
 #include "compiler/function_compiler.h"
 
+#include <algorithm>
+#include <array>
+
 namespace WasmEdge {
 
 Expect<void>

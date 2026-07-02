@@ -6,27 +6,13 @@
 #include "compiler/context.h"
 #include "compiler/function_compiler.h"
 
-#include "aot/version.h"
-#include "common/defines.h"
-#include "common/filesystem.h"
 #include "common/spdlog.h"
 #include "data.h"
 #include "llvm.h"
-#include "spdlog/spdlog.h"
-#include "system/allocator.h"
 
 #include <algorithm>
-#include <array>
-#include <cinttypes>
 #include <cstdint>
-#include <cstdlib>
-#include <functional>
-#include <limits>
-#include <memory>
-#include <numeric>
 #include <string>
-#include <string_view>
-#include <system_error>
 
 namespace LLVM = WasmEdge::LLVM;
 using namespace std::literals;

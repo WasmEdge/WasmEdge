@@ -3,6 +3,10 @@
 
 #include "compiler/function_compiler.h"
 
+#include <array>
+#include <limits>
+#include <numeric>
+
 namespace WasmEdge {
 
 Expect<void>

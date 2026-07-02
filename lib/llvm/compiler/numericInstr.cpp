@@ -3,6 +3,8 @@
 
 #include "compiler/function_compiler.h"
 
+#include <limits>
+
 namespace WasmEdge {
 
 Expect<void>

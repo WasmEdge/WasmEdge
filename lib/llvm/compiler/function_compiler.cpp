@@ -3,6 +3,10 @@
 
 #include "compiler/function_compiler.h"
 
+#include <algorithm>
+#include <array>
+#include <limits>
+
 using namespace std::literals;
 
 namespace WasmEdge {

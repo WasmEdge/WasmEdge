@@ -15,6 +15,15 @@ on:
       - ".github/workflows/matrix-extensions.json"
       - ".github/workflows/reusable-build-extensions**"
       - ".github/workflows/reusable-call-linter.yml"
+      - "include/api/wasmedge/wasmedge_tools.h"
+      - "include/driver/wasi_nn_rpc/**"
+      - "include/driver/wasiNNRPCServerTool.h"
+      - "lib/CMakeLists.txt"
+      - "lib/api/CMakeLists.txt"
+      - "lib/api/wasmedge.cpp"
+      - "lib/driver/CMakeLists.txt"
+      - "lib/driver/wasiNNRPCServerTool.cpp"
+      - "lib/wasi_nn_rpc/**"
       - "plugins/**"
       - "test/plugins/**"
       - "thirdparty/**"
@@ -32,6 +41,15 @@ on:
       - ".github/workflows/matrix-extensions.json"
       - ".github/workflows/reusable-build-extensions**"
       - ".github/workflows/reusable-call-linter.yml"
+      - "include/api/wasmedge/wasmedge_tools.h"
+      - "include/driver/wasi_nn_rpc/**"
+      - "include/driver/wasiNNRPCServerTool.h"
+      - "lib/CMakeLists.txt"
+      - "lib/api/CMakeLists.txt"
+      - "lib/api/wasmedge.cpp"
+      - "lib/driver/CMakeLists.txt"
+      - "lib/driver/wasiNNRPCServerTool.cpp"
+      - "lib/wasi_nn_rpc/**"
       - "plugins/**"
       - "test/plugins/**"
       - "thirdparty/**"
@@ -74,6 +92,31 @@ jobs:
           echo "Set version: $(git describe --match "[0-9].[0-9]*" --tag)"
           echo "version=$(git describe --match '[0-9].[0-9]*' --tag)" >> $GITHUB_OUTPUT
 
+  filter:
+    name: Filter changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # Required by dorny/paths-filter on pull_request events
+    outputs:
+      all: ${{ steps.filter.outputs.all }}
+      shared_cmake: ${{ steps.filter.outputs.shared_cmake }}
+      wasi_nn: ${{ steps.filter.outputs.wasi_nn }}
+      wasi_nn_rpc: ${{ steps.filter.outputs.wasi_nn_rpc }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - id: filter
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        with:
+          filters: '.github/extensions.paths-filter.yml'
+
   test_wasi_nn_ggml_rpc:
     permissions:
       contents: write
@@ -89,7 +132,12 @@ jobs:
             build_type: Release
     name: WASI-NN GGML RPC (${{ matrix.name }})
     runs-on: ubuntu-latest
-    needs: [ get_version ]
+    needs: [ get_version, filter ]
+    if: >-
+      ${{ needs.filter.outputs.all == 'true'
+       || needs.filter.outputs.shared_cmake == 'true'
+       || needs.filter.outputs.wasi_nn == 'true'
+       || needs.filter.outputs.wasi_nn_rpc == 'true' }}
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
@@ -150,7 +198,11 @@ jobs:
       tar_names: wasi_nn-ggml
       test_bin: wasiNNTests
       output_bin: wasmedgePluginWasiNN.dll
-    needs: [ get_version ]
+    needs: [ get_version, filter ]
+    if: >-
+      ${{ needs.filter.outputs.all == 'true'
+       || needs.filter.outputs.shared_cmake == 'true'
+       || needs.filter.outputs.wasi_nn == 'true' }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4

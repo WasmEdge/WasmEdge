@@ -14,6 +14,8 @@ on:
       - "lib/host/wasi/**"
       - "include/host/wasi/**"
       - "thirdparty/wasi/**"
+      - "lib/executor/**"
+      - "include/executor/**"
   pull_request:
     branches:
       - master
@@ -23,6 +25,8 @@ on:
       - "lib/host/wasi/**"
       - "include/host/wasi/**"
       - "thirdparty/wasi/**"
+      - "lib/executor/**"
+      - "include/executor/**"
 
 permissions:
   contents: read

@@ -28,15 +28,34 @@ jobs:
     env:
       BUILD_TESTS: ON
       BUILD_TYPE: Debug
+      SCCACHE_GHA_ENABLED: "true"
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@1583d6b38d7be47f593cb472781bbb21cab4321e # v0.0.10
+        with:
+          version: "v0.10.0"
+      - name: Warm up sccache server
+        run: |
+          for i in 1 2 3 4 5; do
+            if sccache --show-stats >/dev/null 2>&1; then
+              sccache --show-stats
+              exit 0
+            fi
+            echo "sccache server not ready (attempt ${i}/5); retrying..." >&2
+            sleep $((i * 3))
+          done
+          echo "sccache server did not become ready; aborting before the long build" >&2
+          exit 1
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
@@ -45,6 +64,7 @@ jobs:
           echo "BREW_PREFIX=$(brew --prefix)" >> $GITHUB_ENV
           brew uninstall cmake # conflict with the one used by WasmEdge/llvm/lld
           brew tap WasmEdge/llvm
+          brew trust WasmEdge/llvm
       - name: Install Homebrew tools
         run: |
           brew install llvm ninja wabt
@@ -78,7 +98,7 @@ jobs:
           echo "lld_keg=${LLD_KEG}" >> $GITHUB_OUTPUT
       - name: Cache lld and cmake
         id: cache-lld
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ${{ env.BREW_PREFIX }}/Cellar/${{ steps.resolve-lld.outputs.lld_keg }}
@@ -93,7 +113,12 @@ jobs:
           CACHE_HIT: ${{ steps.cache-lld.outputs.cache-hit }}
         run: |
           if [ "${CACHE_HIT}" != "true" ]; then
-            brew install --build-from-source "${LLD_FORMULA}"
+            # Prefer the prebuilt bottle; fall back to building from source
+            # if no bottle is published for this macOS/arch.
+            brew install "${LLD_FORMULA}" || brew install --build-from-source "${LLD_FORMULA}"
+            # cmake is only a build-time dep of lld, so pouring the bottle skips
+            # it; install it explicitly (WasmEdge needs cmake directly anyway).
+            brew install cmake
           fi
           brew link "${LLD_KEG}" || true
           brew link cmake || true

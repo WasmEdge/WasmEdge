@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 
@@ -182,7 +182,7 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
         // because the independent host function instance cannot be imported and
         // be referred by instructions.
         const auto *ModInst = Inst->getModule();
-        auto *DefType = *ModInst->getType(RefType.getTypeIndex());
+        const auto *DefType = *ModInst->getType(RefType.getTypeIndex());
         RefType =
             ValType(RefType.getCode(), DefType->getCompositeType().expand());
       }

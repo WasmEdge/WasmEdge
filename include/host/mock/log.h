@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -11,8 +11,9 @@ namespace WasmEdge {
 namespace Host {
 
 inline void printPluginMock(std::string_view PluginName) {
+  using namespace std::literals;
   spdlog::error("{} plugin not installed. Please install the plugin and "
-                "restart WasmEdge.",
+                "restart WasmEdge."sv,
                 PluginName);
 }
 

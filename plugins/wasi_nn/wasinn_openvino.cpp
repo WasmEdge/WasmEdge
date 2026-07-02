@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasinn_openvino.h"
 #include "wasinnenv.h"
@@ -159,7 +159,13 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
   try {
     const ov::Tensor &OutputTensor =
         CxtRef.OpenVINOInferRequest.get_output_tensor(Index);
-    BytesWritten = OutputTensor.get_byte_size();
+    BytesWritten = static_cast<uint32_t>(OutputTensor.get_byte_size());
+    if (OutBuffer.size() < OutputTensor.get_byte_size()) {
+      spdlog::error("[WASI-NN] OpenVINO backend: output buffer too small, "
+                    "need {} bytes but got {}."sv,
+                    OutputTensor.get_byte_size(), OutBuffer.size());
+      return WASINN::ErrNo::TooLarge;
+    }
     std::copy_n(static_cast<const uint8_t *>(OutputTensor.data()), BytesWritten,
                 OutBuffer.data());
   } catch (const std::exception &EX) {

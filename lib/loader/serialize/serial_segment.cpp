@@ -77,8 +77,26 @@ Serializer::serializeSegment(const AST::ElementSegment &Seg,
     return E;
   };
 
+  // Distinguish between FuncIdx and Expr.
+  auto IsInitExpr = false;
+  if (Seg.getInitExprs().size() != 0) {
+    for (auto &Expr : Seg.getInitExprs()) {
+      if (Expr.getInstrs().size() != 2 ||
+          Expr.getInstrs()[0].getOpCode() != OpCode::Ref__func ||
+          Expr.getInstrs()[1].getOpCode() != OpCode::End) {
+        IsInitExpr = true;
+        break;
+      }
+    }
+  }
+  if (Seg.getRefType() != TypeCode::FuncRef) {
+    IsInitExpr = true;
+  }
+
   // Serialize idx.
-  if (Seg.getIdx() != 0) {
+  if (Seg.getIdx() != 0 ||
+      (Seg.getMode() == AST::ElementSegment::ElemMode::Active &&
+       Seg.getRefType() != TypeCode::FuncRef)) {
     Mode |= 0x02;
     serializeU32(Seg.getIdx(), OutVec);
   }
@@ -89,20 +107,8 @@ Serializer::serializeSegment(const AST::ElementSegment &Seg,
         serializeExpression(Seg.getExpr(), OutVec).map_error(ReportError));
   }
 
-  // Distinguish between FuncIdx and Expr.
-  if (Seg.getInitExprs().size() != 0) {
-    auto IsInitExpr = false;
-    for (auto &Expr : Seg.getInitExprs()) {
-      if (Expr.getInstrs().size() != 2 ||
-          Expr.getInstrs()[0].getOpCode() != OpCode::Ref__func ||
-          Expr.getInstrs()[1].getOpCode() != OpCode::End) {
-        IsInitExpr = true;
-        break;
-      }
-    }
-    if (IsInitExpr) {
-      Mode |= 0x04;
-    }
+  if (IsInitExpr) {
+    Mode |= 0x04;
   }
 
   // Serialize ElemKind or RefType.

@@ -1712,7 +1712,8 @@ Expect<void> Validator::validateCanonOptions(
     return Unexpect(ErrCode::Value::InvalidIndex);
   }
   // The `realloc` target must be (func (param i32 i32 i32 i32) (result i32)).
-  // Only checked when the core func's SubType is known; else defer to instantiate.
+  // Only checked when the core func's SubType is known; else defer to
+  // instantiate.
   if (HasRealloc) {
     if (const auto *RT = CompCtx.getCoreFunc(ReallocIdx);
         RT != nullptr && RT->getCompositeType().isFunc()) {
@@ -1731,8 +1732,9 @@ Expect<void> Validator::validateCanonOptions(
       }
       if (!SigOk) {
         spdlog::error(ErrCode::Value::ComponentCanonInvalidOption);
-        spdlog::error("    canonical option `realloc` uses a core function with "
-                      "an incorrect signature"sv);
+        spdlog::error(
+            "    canonical option `realloc` uses a core function with "
+            "an incorrect signature"sv);
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
         return Unexpect(ErrCode::Value::ComponentCanonInvalidOption);
       }
@@ -1885,18 +1887,20 @@ Expect<void> checkCanonFlatRules(const ComponentContext &CompCtx,
     PreFlatResults += Sub.size();
   }
 
-  const bool ParamsSpill = PreFlatParams > Executor::CanonicalABI::MaxFlatParams;
+  const bool ParamsSpill =
+      PreFlatParams > Executor::CanonicalABI::MaxFlatParams;
   const bool ResultsSpill =
       PreFlatResults > Executor::CanonicalABI::MaxFlatResults;
 
   // Spec L3290-3296 (lift) / L3519-3524 (lower). `memory` is required if either
   // side has a list/string or spills; `realloc` for the allocating direction
   // (params on lift, results on lower).
-  const bool MemoryRequired = ParamsHaveListOrString || ResultsHaveListOrString ||
-                              ParamsSpill || ResultsSpill;
-  const bool ReallocRequired =
-      IsLift ? (ParamsHaveListOrString || ParamsSpill)
-             : (ResultsHaveListOrString || ResultsSpill);
+  const bool MemoryRequired = ParamsHaveListOrString ||
+                              ResultsHaveListOrString || ParamsSpill ||
+                              ResultsSpill;
+  const bool ReallocRequired = IsLift
+                                   ? (ParamsHaveListOrString || ParamsSpill)
+                                   : (ResultsHaveListOrString || ResultsSpill);
 
   // Check memory before realloc so the reported option matches the spec order.
   if (MemoryRequired && !O.HasMemory) {
@@ -2020,7 +2024,8 @@ Validator::validateCanonLift(const AST::Component::Canonical &Canon) noexcept {
     if (!sameFlatSignature(CalleeSub->getCompositeType().getFuncType(),
                            FlatSig)) {
       spdlog::error(ErrCode::Value::ComponentCanonLoweredTypeMismatch);
-      spdlog::error("    lowered parameter types do not match parameter types"sv);
+      spdlog::error(
+          "    lowered parameter types do not match parameter types"sv);
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
       return Unexpect(ErrCode::Value::ComponentCanonLoweredTypeMismatch);
     }

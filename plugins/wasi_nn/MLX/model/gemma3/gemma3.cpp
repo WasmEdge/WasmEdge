@@ -183,7 +183,7 @@ std::shared_ptr<Model> Model::fromPretrained(const std::string &ModelPath) {
   simdjson::dom::element Doc;
   auto Error = Parser.load((Path / "config.json").string()).get(Doc);
   if (Error) {
-    spdlog::error("Could not open config.json");
+    spdlog::error("Could not open config.json"sv);
     assumingUnreachable();
   }
   auto Obj = Doc.get_object();

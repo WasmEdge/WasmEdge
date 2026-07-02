@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <spdlog/fmt/fmt.h>
 
+using namespace std::literals;
+
 namespace WasmEdge {
 
 uint8_t convertCharToHex(const char C) {
@@ -27,11 +29,11 @@ void convertBytesToHexStr(Span<const uint8_t> Src, std::string &Dst,
   Dst.reserve(Src.size() * 2);
   if (IsLittleEndian) {
     for (auto It = Src.rbegin(); It != Src.rend(); It++) {
-      Dst += fmt::format("{:02x}", *It);
+      Dst += fmt::format("{:02x}"sv, *It);
     }
   } else {
     for (auto It = Src.begin(); It != Src.end(); It++) {
-      Dst += fmt::format("{:02x}", *It);
+      Dst += fmt::format("{:02x}"sv, *It);
     }
   }
   if (Dst.length() < Padding) {
@@ -82,7 +84,7 @@ void convertHexStrToValVec(std::string_view Src, std::vector<uint8_t> &Dst,
 }
 
 std::string convertUIntToHexStr(const uint64_t Num, uint32_t MinLen) {
-  return fmt::format("0x{:0{}x}", Num, std::min(MinLen, UINT32_C(16)));
+  return fmt::format("0x{:0{}x}"sv, Num, std::min(MinLen, UINT32_C(16)));
 }
 
 } // namespace WasmEdge

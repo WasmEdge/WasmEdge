@@ -57,7 +57,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonWithProcessorAuto<int64_t>(
         Doc, "n-cpu-moe", [&GraphRef](const int64_t &NCpuMoe) -> bool {
           if (NCpuMoe < 0) {
-            spdlog::error("[WASI-NN] GGML backend: Invalid n-cpu-moe value.");
+            spdlog::error("[WASI-NN] GGML backend: Invalid n-cpu-moe value."sv);
             return false;
           }
           for (int I = 0; I < NCpuMoe; I++) {
@@ -85,7 +85,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
           if (TensorSplitSize > NDevices) {
             spdlog::error(
                 "[WASI-NN] GGML backend: Number of Tensor-Split is larger than "
-                "MaxDevices, please reduce the size of tensor-split.");
+                "MaxDevices, please reduce the size of tensor-split."sv);
             return false;
           }
           for (size_t Idx = TensorSplitSize; Idx < NDevices; Idx++) {
@@ -105,7 +105,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
             GraphRef.Params.split_mode = LLAMA_SPLIT_MODE_ROW;
           } else {
             spdlog::error("[WASI-NN] GGML backend: Unknown split-mode: "
-                          "{}. Valid: none, layer, row.",
+                          "{}. Valid: none, layer, row."sv,
                           SplitMode);
             return false;
           }
@@ -385,7 +385,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
           } else {
             spdlog::error(
                 "[WASI-NN] GGML backend: The flash-attn option must be "
-                "one of: on, off, auto.");
+                "one of: on, off, auto."sv);
             return false;
           }
           return true;

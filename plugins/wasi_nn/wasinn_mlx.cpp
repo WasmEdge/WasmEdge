@@ -78,7 +78,7 @@ mx::array fromBytes(const Span<uint8_t> &Bytes) {
     return mx::array(static_cast<const int64_t *>(DataPtr), Shape, mx::int64);
   }
   default:
-    spdlog::error("[WASI-NN] MLX backend: Unsupported rtype: {}", RtypeValue);
+    spdlog::error("[WASI-NN] MLX backend: Unsupported rtype: {}"sv, RtypeValue);
     return mx::array({0.0f});
   }
 }
@@ -663,7 +663,7 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
   const std::chrono::duration<double> ElapsedSeconds{End - Start};
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] MLX backend: Generate {} tokens."sv, TokenListSize);
-    spdlog::info("Elapsed time: {} s. TPS: {}.", ElapsedSeconds.count(),
+    spdlog::info("Elapsed time: {} s. TPS: {}."sv, ElapsedSeconds.count(),
                  TokenListSize / ElapsedSeconds.count());
   }
   return WASINN::ErrNo::Success;

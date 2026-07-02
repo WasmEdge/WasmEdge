@@ -53,8 +53,10 @@ public:
   WasiCryptoExpect<void> close(HandleType Handle) noexcept {
     std::unique_lock<std::shared_mutex> Lock{Mutex};
 
-    if (!Map.erase(HandleWrapper(Handle)))
+    auto Wrapper = HandleWrapper(Handle);
+    if (!Map.erase(Wrapper))
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_CLOSED);
+    ManagedInfos.erase(Wrapper);
 
     return {};
   }
@@ -87,7 +89,51 @@ public:
     }
   }
 
+  WasiCryptoExpect<void> setManagedInfo(HandleType Handle, Span<const uint8_t> Id,
+                                        __wasi_version_t Version) noexcept {
+    std::unique_lock<std::shared_mutex> Lock{Mutex};
+    auto Wrapper = HandleWrapper(Handle);
+    if (Map.find(Wrapper) == Map.end()) {
+      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+    }
+    ManagedInfos[Wrapper] = {std::vector<uint8_t>(Id.begin(), Id.end()),
+                             Version};
+    return {};
+  }
+
+  WasiCryptoExpect<std::vector<uint8_t>> getId(HandleType Handle) noexcept {
+    std::shared_lock<std::shared_mutex> Lock{Mutex};
+    auto Wrapper = HandleWrapper(Handle);
+    if (Map.find(Wrapper) == Map.end()) {
+      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+    }
+    auto It = ManagedInfos.find(Wrapper);
+    if (It == ManagedInfos.end()) {
+      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    }
+    return It->second.Id;
+  }
+
+  WasiCryptoExpect<__wasi_version_t>
+  getManagedVersion(HandleType Handle) noexcept {
+    std::shared_lock<std::shared_mutex> Lock{Mutex};
+    auto Wrapper = HandleWrapper(Handle);
+    if (Map.find(Wrapper) == Map.end()) {
+      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+    }
+    auto It = ManagedInfos.find(Wrapper);
+    if (It == ManagedInfos.end()) {
+      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    }
+    return It->second.Version;
+  }
+
 protected:
+  struct ManagedInfo {
+    std::vector<uint8_t> Id;
+    __wasi_version_t Version;
+  };
+
   /// The handle internal representation: [-TypeID-|------CurrentNumber------]
   union HandleWrapper {
     static_assert(sizeof(HandleType) == 4, "HandleType must be 4 byte");
@@ -120,6 +166,8 @@ protected:
   HandleWrapper LastHandle;
   std::unordered_map<HandleWrapper, ManagerType, typename HandleWrapper::Hash>
       Map;
+  std::unordered_map<HandleWrapper, ManagedInfo, typename HandleWrapper::Hash>
+      ManagedInfos;
 };
 
 template <typename T, typename VariantType> struct IsVariantMember;

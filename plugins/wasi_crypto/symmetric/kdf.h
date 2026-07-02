@@ -161,8 +161,8 @@ public:
       static WasiCryptoExpect<State>
       open(const Key &Key, OptionalRef<const Options> OptOption) noexcept;
 
-      State(EvpPkeyCtxPtr Ctx) noexcept
-          : Ctx(std::make_shared<Inner>(std::move(Ctx))) {}
+      State(EvpPkeyCtxPtr Ctx, SecretVec Key) noexcept
+          : Ctx(std::make_shared<Inner>(std::move(Ctx), std::move(Key))) {}
 
       /// absorb info information.
       WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) noexcept;
@@ -174,8 +174,13 @@ public:
 
     private:
       struct Inner {
-        Inner(EvpPkeyCtxPtr RawCtx) : RawCtx(std::move(RawCtx)) {}
+        Inner(EvpPkeyCtxPtr RawCtx, SecretVec Key)
+            : RawCtx(std::move(RawCtx)), Key(std::move(Key)) {}
         EvpPkeyCtxPtr RawCtx;
+        SecretVec Key;
+        std::vector<uint8_t> Info;
+        SecretVec Derived;
+        size_t SqueezedOffset = 0;
         std::mutex Mutex;
       };
       std::shared_ptr<Inner> Ctx;
@@ -203,8 +208,8 @@ public:
 
     class State : public ExtractState<Key> {
     public:
-      State(EvpPkeyCtxPtr Ctx) noexcept
-          : Ctx(std::make_shared<Inner>(std::move(Ctx))) {}
+      State(EvpPkeyCtxPtr Ctx, SecretVec Key) noexcept
+          : Ctx(std::make_shared<Inner>(std::move(Ctx), std::move(Key))) {}
 
       static WasiCryptoExpect<State>
       open(const Key &Key, OptionalRef<const Options> OptOption) noexcept;
@@ -220,10 +225,12 @@ public:
 
     private:
       struct Inner {
-        Inner(EvpPkeyCtxPtr RawCtx) : RawCtx(std::move(RawCtx)) {}
+        Inner(EvpPkeyCtxPtr RawCtx, SecretVec Key)
+            : RawCtx(std::move(RawCtx)), Key(std::move(Key)) {}
         std::mutex Mutex;
         std::vector<uint8_t> Salt;
         EvpPkeyCtxPtr RawCtx;
+        SecretVec Key;
       };
       std::shared_ptr<Inner> Ctx;
     };

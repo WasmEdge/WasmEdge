@@ -124,6 +124,56 @@ TEST_F(WasiCryptoTest, Options) {
   }
 }
 
+TEST_F(WasiCryptoTest, SecretsManager) {
+  // Open secrets manager.
+  WASI_CRYPTO_EXPECT_SUCCESS(SmHandle, secretsManagerOpen(std::nullopt));
+
+  // Generate and store a key.
+  std::string_view Alg = "HKDF-EXTRACT/SHA-256";
+  WASI_CRYPTO_EXPECT_SUCCESS(KeyHandle, symmetricKeyGenerate(Alg, std::nullopt));
+  std::vector<uint8_t> KeyId = "test-key-id"_u8;
+  WASI_CRYPTO_EXPECT_TRUE(symmetricKeyStoreManaged(SmHandle, KeyHandle, KeyId));
+
+  // Verify key ID and version.
+  std::vector<uint8_t> OutId(KeyId.size());
+  WASI_CRYPTO_EXPECT_SUCCESS(IdRes, symmetricKeyId(KeyHandle, OutId));
+  EXPECT_EQ(std::get<0>(IdRes), KeyId.size());
+  EXPECT_EQ(std::get<1>(IdRes), 0);
+  EXPECT_EQ(OutId, KeyId);
+
+  // Replace the key.
+  WASI_CRYPTO_EXPECT_SUCCESS(NewKeyHandle,
+                             symmetricKeyGenerate(Alg, std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(NewVersion, symmetricKeyReplaceManaged(
+                                             SmHandle, KeyHandle, NewKeyHandle));
+  EXPECT_EQ(NewVersion, 1);
+
+  // Verify new key ID and version.
+  WASI_CRYPTO_EXPECT_SUCCESS(NewIdRes, symmetricKeyId(NewKeyHandle, OutId));
+  EXPECT_EQ(std::get<0>(NewIdRes), KeyId.size());
+  EXPECT_EQ(std::get<1>(NewIdRes), 1);
+  EXPECT_EQ(OutId, KeyId);
+
+  // Invalidate the key.
+  WASI_CRYPTO_EXPECT_TRUE(secretsManagerInvalidate(SmHandle, KeyId, 0));
+  WASI_CRYPTO_EXPECT_TRUE(secretsManagerInvalidate(SmHandle, KeyId, 1));
+
+  // Test invalidate missing key.
+  WASI_CRYPTO_EXPECT_FAILURE(
+      secretsManagerInvalidate(SmHandle, "non-existent"_u8, 0),
+      __WASI_CRYPTO_ERRNO_NOT_FOUND);
+
+  // Close secrets manager.
+  WASI_CRYPTO_EXPECT_TRUE(secretsManagerClose(SmHandle));
+
+  // Test invalid handle after close.
+  WASI_CRYPTO_EXPECT_FAILURE(secretsManagerInvalidate(SmHandle, KeyId, 0),
+                             __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+
+  WASI_CRYPTO_EXPECT_TRUE(symmetricKeyClose(KeyHandle));
+  WASI_CRYPTO_EXPECT_TRUE(symmetricKeyClose(NewKeyHandle));
+}
+
 } // namespace WasiCrypto
 } // namespace Host
 } // namespace WasmEdge

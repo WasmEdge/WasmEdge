@@ -58,11 +58,33 @@ TEST_F(WasiCryptoTest, Kdf) {
                                  __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
 
       // Clone checking.
-      WASI_CRYPTO_EXPECT_FAILURE(symmetricStateClone(StateHandle),
-                                 __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+      WASI_CRYPTO_EXPECT_SUCCESS(StateCloneHandle,
+                                 symmetricStateClone(StateHandle));
+      if (Name.find("EXPAND") != std::string::npos) {
+        std::vector<uint8_t> Out1(32);
+        std::vector<uint8_t> Out2(32);
+        WASI_CRYPTO_EXPECT_TRUE(symmetricStateSqueeze(StateHandle, Out1));
+        WASI_CRYPTO_EXPECT_TRUE(symmetricStateSqueeze(StateCloneHandle, Out2));
+        EXPECT_EQ(Out1, Out2);
+
+        // Streaming squeeze check (Expand state).
+        std::vector<uint8_t> Out3(32);
+        std::vector<uint8_t> Out4(32);
+        // Next squeeze from original state.
+        WASI_CRYPTO_EXPECT_TRUE(symmetricStateSqueeze(StateHandle, Out3));
+        // It should be different from the first 32 bytes.
+        EXPECT_NE(Out1, Out3);
+
+        // Next squeeze from clone state.
+        WASI_CRYPTO_EXPECT_TRUE(symmetricStateSqueeze(StateCloneHandle, Out4));
+        // It should be same as Out3.
+        EXPECT_EQ(Out3, Out4);
+      }
+
+      WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(StateCloneHandle));
     };
-    BothInvalid(ExpandAlg, ExtractStateHandle);
-    BothInvalid(ExtractAlg, ExpandStateHandle);
+    BothInvalid(ExpandAlg, ExpandStateHandle);
+    BothInvalid(ExtractAlg, ExtractStateHandle);
     WASI_CRYPTO_EXPECT_FAILURE(symmetricStateSqueeze(ExtractStateHandle, {}),
                                __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
     WASI_CRYPTO_EXPECT_FAILURE(

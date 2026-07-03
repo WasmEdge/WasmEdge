@@ -84,6 +84,13 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       PRIVATE
       mtmd
     )
+    # This second llama/ggml copy must stay out of the dynamic symbol table:
+    # wasmedge_setup_target enables ENABLE_EXPORTS, and on ELF the exported
+    # copy would interpose the dlopened plugin's global llama/ggml references
+    # while its hidden internals keep using its own copy. The two half-mixed
+    # copies then tear down the same state twice at exit (glibc: double free
+    # or corruption).
+    set_target_properties(wasiNNTests PROPERTIES ENABLE_EXPORTS OFF)
   elseif(BACKEND STREQUAL "piper")
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures")
     wasmedge_download(

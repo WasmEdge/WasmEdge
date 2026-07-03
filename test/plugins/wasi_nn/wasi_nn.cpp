@@ -2007,7 +2007,7 @@ TEST(WasiNNTest, GGMLBackendDrainAfterInvalidReloadUnload) {
   std::string Prompt = "Once upon a time, ";
   std::vector<uint8_t> TensorData(Prompt.begin(), Prompt.end());
   std::string Model = WasmEdge::Endian::native == WasmEdge::Endian::little
-                          ? "./wasinn_ggml_fixtures/orca_mini.gguf"
+                          ? "./wasinn_ggml_fixtures/stories260K.gguf"
                           : "./wasinn_ggml_fixtures/granite-3.gguf";
   std::vector<uint8_t> WeightRead = readEntireFile(Model);
   ASSERT_FALSE(WeightRead.empty());

@@ -46,12 +46,12 @@ jobs:
           }
           Write-Error "sccache server did not become ready; aborting before the long build"
           exit 1
-      - name: Cache LLVM for Windows
+      - name: Restore LLVM for Windows
         id: cache-llvm
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: LLVM-21.1.3-win64-MultiThreadedDLL
-          key: llvm-21.1.3-windows-2025-msvc
+          key: llvm-21.1.3-windows-2025
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
@@ -82,6 +82,12 @@ jobs:
           $cmake_sys_version = "10.0.26100.0"
           cmake -Bbuild -GNinja -DCMAKE_SYSTEM_VERSION="$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_POLICY_DEFAULT_CMP0141=NEW -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded -DLLVM_DIR:PATH="$llvm_dir" -DWASMEDGE_BUILD_TESTS="$Env:build_tests" -DWASMEDGE_BUILD_PACKAGE=ZIP .
           cmake --build build
+      - name: Save LLVM for Windows
+        if: ${{ github.ref == 'refs/heads/master' && steps.cache-llvm.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: LLVM-21.1.3-win64-MultiThreadedDLL
+          key: llvm-21.1.3-windows-2025
       - name: Test WasmEdge
         run: |
           $vsPath = (vswhere -latest -property installationPath)

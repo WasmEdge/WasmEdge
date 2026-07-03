@@ -1,4 +1,4 @@
-### 0.17.1-rc.2 (2026-06-29)
+### 0.17.1 (2026-07-03)
 
 Features:
 
@@ -40,6 +40,9 @@ CI:
   * ci(dependabot): bump step-security/harden-runner from 2.19.1 to 2.19.4 (#4890, #4899)
   * ci(dependabot): bump actions/checkout from 6.0.2 to 7.0.0 (#4925, #5042)
   * ci(dependabot): bump the docker group with 3 updates (#4898)
+  * ci(dependabot): bump actions/cache from 5.0.5 to 6.1.0 (#5083, #5084, #5085)
+  * ci(dependabot): bump actions/setup-python from 6.2.0 to 6.3.0 (#5082)
+  * ci(dependabot): bump crazy-max/ghaction-chocolatey from 4.0.0 to 4.1.0 (#5081)
 
 Misc:
 
@@ -49,7 +52,7 @@ Thank all the contributors who made this release possible!
 
 Shen-Ta Hsieh(BestSteve), Yi-Ying He, dm4, hydai
 
-If you want to build from source, please use WasmEdge-0.17.1-rc.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.17.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.17.0 (2026-05-18)
 

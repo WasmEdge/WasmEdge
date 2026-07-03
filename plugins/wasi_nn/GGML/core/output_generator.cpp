@@ -46,6 +46,14 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &, WASINN::Graph &G,
     return ErrNo::Success;
   }
 
+  // A failed set_input reload can null the llama context; unload then makes
+  // the Invalid graph Drainable, so this op can be admitted without one.
+  if (GraphRef.LlamaContext == nullptr) {
+    RET_ERROR(ErrNo::InvalidArgument,
+              "getOutputSingle: the llama context is gone. The last reload "sv
+              "failed and the graph was unloaded."sv)
+  }
+
   std::string LastToken = common_token_to_piece(
       GraphRef.LlamaContext.get(), CxtRef.LlamaOutputTokens.back());
   BytesWritten = EndianValue(static_cast<uint32_t>(LastToken.length())).le();

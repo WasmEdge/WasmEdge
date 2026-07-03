@@ -77,6 +77,13 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         -Wno-unused-function
       )
     endif()
+    # The lifetime tests construct WASINN::Graph values inside the test
+    # binary, so the GGML payload's mtmd member deleters must resolve at link
+    # time here, not only in the plugin library.
+    target_link_libraries(wasiNNTests
+      PRIVATE
+      mtmd
+    )
   elseif(BACKEND STREQUAL "piper")
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures")
     wasmedge_download(
@@ -145,6 +152,20 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_whisper_fixtures/test.wav
       MD5=6cf3f7af1ebbd6b29c373e526b548dba
     )
+    # The lifetime tests construct WASINN::Graph values inside the test
+    # binary, so whisper_free in the Whisper payload's destructor must
+    # resolve at link time here, not only in the plugin library.
+    target_link_libraries(wasiNNTests
+      PRIVATE
+      whisper
+    )
+    # Keep this second whisper/ggml copy out of the dynamic symbol table for
+    # the same reason as the ggml archives above.
+    if(UNIX AND NOT APPLE)
+      target_link_options(wasiNNTests PRIVATE
+        "LINKER:--exclude-libs,libwhisper.a:libggml.a:libggml-base.a:libggml-cpu.a:libggml-blas.a:libggml-cuda.a"
+      )
+    endif()
   elseif(BACKEND STREQUAL "mlx")
     message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_mlx_fixtures")
     wasmedge_download(

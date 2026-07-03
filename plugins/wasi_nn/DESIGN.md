@@ -39,7 +39,10 @@ no observable "uninitialized" state and no rollback bookkeeping.
 
 `GraphStatus` (atomic, on the wrapper): `Ready`, `Invalid` (a set_input
 metadata reload failed; reloadable), `Detached` (unloaded; drain-only).
-Contexts need no status: they are only visible fully built.
+`Detached` is terminal: `setReady`/`setInvalid` CAS and give up once they
+observe it, so a reload that was in flight when the guest unloaded cannot
+resurrect the graph. Contexts need no status: they are only visible fully
+built.
 
 Each host op declares the graph status it requires in `hostOpPolicy()`
 (`wasinnenv.h`) via `GraphReq`:
@@ -112,7 +115,8 @@ Rules of thumb:
   operations (and re-default the default constructor for `Graph` payloads —
   the core default-constructs them).
 - A failed set_input metadata reload marks the graph with `G.setInvalid()`;
-  a successful one restores it with `G.setReady()`.
+  a successful one restores it with `G.setReady()`. Both are no-ops on a
+  `Detached` graph, so a reload finishing after an unload cannot undo it.
 - Never register a global callback with a pointer to your payload; use a
   ref-counted gate like the llama/whisper log gates.
 - Your ops run under the graph's op mutex: you may assume no other op touches

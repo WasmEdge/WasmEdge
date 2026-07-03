@@ -84,14 +84,15 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
-      # Cache the ML models downloaded at configure time, keyed per plugin
+      # Restore the ML models downloaded at configure time, keyed per plugin
       # (per backend for wasi_nn, with the bitnet variants sharing one model)
       # so flaky upstream downloads only hit on cache misses. Only the
-      # downloaded files are cached, not test byproducts. The same key may
-      # appear once per compression toolchain (gzip/zstd) across job images.
+      # downloaded files are cached, not test byproducts, and only master
+      # runs save the cache so PR runs never create per-ref duplicates.
       - if: ${{ !inputs.release && (matrix.dir == 'wasi_nn' || matrix.dir == 'wasmedge_stablediffusion') }}
-        name: Cache ML model fixtures
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        name: Restore ML model fixtures
+        id: ml-fixtures
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             build/test/plugins/wasi_nn/wasinn_*_fixtures
@@ -117,6 +118,14 @@ jobs:
 
           cp -f ${output_dir}/${bin_name} ${bin_name}
           tar -zcvf ${{ steps.var.outputs.artifact }} ${bin_name}
+      - if: ${{ !inputs.release && (matrix.dir == 'wasi_nn' || matrix.dir == 'wasmedge_stablediffusion') && github.ref == 'refs/heads/master' && steps.ml-fixtures.outputs.cache-hit != 'true' }}
+        name: Save ML model fixtures
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            build/test/plugins/wasi_nn/wasinn_*_fixtures
+            build/test/plugins/wasmedge_stablediffusion/stableDiffusion/sd-v1-5-fp16.safetensors
+          key: ml-fixtures-${{ matrix.dir == 'wasi_nn' && (contains(matrix.plugin, 'bitnet') && 'wasi_nn-bitnet' || matrix.plugin) || matrix.dir }}-${{ hashFiles(format('test/plugins/{0}/CMakeLists.txt', matrix.dir)) }}
       - if: ${{ !inputs.release && matrix.plugin == 'wasm_bpf' }}
         name: Prepare test env
         shell: bash

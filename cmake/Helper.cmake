@@ -250,6 +250,70 @@ function(wasmedge_add_executable target)
   endif()
 endfunction()
 
+# Download a file with hash verification, retrying on transient failures.
+# HASH uses the same ALGO=value format as file(DOWNLOAD EXPECTED_HASH).
+# Set the HF_TOKEN environment variable to authenticate Hugging Face
+# downloads and avoid anonymous rate limits.
+function(wasmedge_download URL OUTPUT HASH)
+  string(REPLACE "=" ";" HASH_PARTS "${HASH}")
+  list(GET HASH_PARTS 0 HASH_ALGORITHM)
+  list(GET HASH_PARTS 1 HASH_EXPECTED)
+  string(TOLOWER "${HASH_EXPECTED}" HASH_EXPECTED)
+  if(EXISTS "${OUTPUT}")
+    file(${HASH_ALGORITHM} "${OUTPUT}" HASH_ACTUAL)
+    if(HASH_ACTUAL STREQUAL HASH_EXPECTED)
+      message(STATUS "Skipping download of ${URL}: ${OUTPUT} is up-to-date")
+      return()
+    endif()
+    file(REMOVE "${OUTPUT}")
+  endif()
+  set(DOWNLOAD_EXTRA_ARGS "")
+  if(URL MATCHES "^https://huggingface\\.co/" AND NOT "$ENV{HF_TOKEN}" STREQUAL "")
+    list(APPEND DOWNLOAD_EXTRA_ARGS HTTPHEADER "Authorization: Bearer $ENV{HF_TOKEN}")
+  endif()
+  set(RETRY_DELAYS 0 15 60)
+  foreach(RETRY_DELAY IN LISTS RETRY_DELAYS)
+    if(RETRY_DELAY GREATER 0)
+      message(STATUS "Retrying download of ${URL} in ${RETRY_DELAY} seconds")
+      execute_process(COMMAND "${CMAKE_COMMAND}" -E sleep ${RETRY_DELAY})
+    endif()
+    file(DOWNLOAD "${URL}" "${OUTPUT}"
+      SHOW_PROGRESS
+      INACTIVITY_TIMEOUT 60
+      STATUS DOWNLOAD_STATUS
+      LOG DOWNLOAD_LOG
+      ${DOWNLOAD_EXTRA_ARGS}
+    )
+    list(GET DOWNLOAD_STATUS 0 DOWNLOAD_CODE)
+    list(GET DOWNLOAD_STATUS 1 DOWNLOAD_MESSAGE)
+    if(DOWNLOAD_CODE EQUAL 0)
+      file(${HASH_ALGORITHM} "${OUTPUT}" HASH_ACTUAL)
+      if(HASH_ACTUAL STREQUAL HASH_EXPECTED)
+        return()
+      endif()
+      set(DOWNLOAD_MESSAGE "${HASH_ALGORITHM} mismatch: expected ${HASH_EXPECTED}, got ${HASH_ACTUAL}")
+    endif()
+    if(NOT "$ENV{HF_TOKEN}" STREQUAL "")
+      string(REPLACE "$ENV{HF_TOKEN}" "<redacted>" DOWNLOAD_LOG "${DOWNLOAD_LOG}")
+    endif()
+    string(REGEX MATCHALL "HTTP/[0-9.]+ [0-9]+" HTTP_STATUS_LINES "${DOWNLOAD_LOG}")
+    if(HTTP_STATUS_LINES)
+      list(GET HTTP_STATUS_LINES -1 LAST_HTTP_STATUS)
+      string(APPEND DOWNLOAD_MESSAGE " (${LAST_HTTP_STATUS})")
+    else()
+      string(LENGTH "${DOWNLOAD_LOG}" DOWNLOAD_LOG_LENGTH)
+      if(DOWNLOAD_LOG_LENGTH GREATER 512)
+        math(EXPR DOWNLOAD_LOG_OFFSET "${DOWNLOAD_LOG_LENGTH} - 512")
+        string(SUBSTRING "${DOWNLOAD_LOG}" ${DOWNLOAD_LOG_OFFSET} -1 DOWNLOAD_LOG)
+      endif()
+      string(APPEND DOWNLOAD_MESSAGE "\nTransfer log tail:\n${DOWNLOAD_LOG}")
+    endif()
+    message(WARNING "Downloading ${URL} failed: ${DOWNLOAD_MESSAGE}")
+    file(REMOVE "${OUTPUT}")
+  endforeach()
+  message(FATAL_ERROR "Failed to download ${URL} after 3 attempts")
+endfunction()
+
 # Generate the list of static libs to statically link LLVM.
 if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLVM)
   # Pack the LLVM and lld static libraries.

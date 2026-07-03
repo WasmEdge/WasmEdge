@@ -1,0 +1,36 @@
+name: Cleanup PR caches
+
+on:
+  pull_request_target:
+    types:
+      - closed
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    name: Delete caches of the closed PR
+    permissions:
+      actions: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Delete caches on the merge ref
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF: refs/pull/${{ github.event.pull_request.number }}/merge
+        run: |
+          while :; do
+            ids=$(gh cache list --repo "$REPO" --ref "$REF" --limit 100 --json id --jq '.[].id')
+            [ -z "$ids" ] && break
+            for id in $ids; do
+              gh cache delete "$id" --repo "$REPO" || true
+            done
+          done
+          echo "All caches on $REF are deleted."

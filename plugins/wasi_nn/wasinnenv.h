@@ -75,14 +75,13 @@ template <Backend B> using BackendGraphT = typename BackendTrait<B>::Graph;
 template <Backend B> using BackendContextT = typename BackendTrait<B>::Context;
 } // namespace detail
 
-// Graph lifecycle status. A Graph is only published to the handle table once
-// its model is fully loaded, so a half-built graph is never observable and
-// needs no state here.
-//   Ready:    The graph can create contexts and run inference.
-//   Invalid:  A set_input metadata reload failed; the model may be gone. It
-//             can be reloaded with new metadata in set_input.
-//   Detached: The guest unloaded the graph. The handle is dead, but contexts
-//             created earlier keep the object alive to drain.
+// Graph lifecycle status. A Graph is published to the handle table only fully
+// loaded, so a half-built graph is never observable.
+//   Ready:    Can create contexts and run inference.
+//   Invalid:  A set_input metadata reload failed; reloadable in set_input.
+//   Detached: Unloaded by the guest. The handle is dead; earlier contexts
+//             keep the object alive to drain. Terminal, so a reload racing
+//             the unload cannot resurrect the graph.
 enum class GraphStatus : uint8_t { Ready, Invalid, Detached };
 
 // How strict a host op's owning-graph status check is: Any (just resolve the
@@ -153,12 +152,11 @@ public:
     return Stat.load(std::memory_order_acquire);
   }
   bool isReady() const noexcept { return status() == GraphStatus::Ready; }
-  void setReady() noexcept {
-    Stat.store(GraphStatus::Ready, std::memory_order_release);
-  }
-  void setInvalid() noexcept {
-    Stat.store(GraphStatus::Invalid, std::memory_order_release);
-  }
+  // unload writes Detached without the op mutex, so it never blocks behind a
+  // running op; a (re)load finishing later must not resurrect the graph, so
+  // these transitions CAS and give up once they observe Detached.
+  void setReady() noexcept { transitionUnlessDetached(GraphStatus::Ready); }
+  void setInvalid() noexcept { transitionUnlessDetached(GraphStatus::Invalid); }
   void setDetached() noexcept {
     Stat.store(GraphStatus::Detached, std::memory_order_release);
   }
@@ -169,6 +167,14 @@ public:
   std::mutex &opMutex() noexcept { return OpMutex; }
 
 private:
+  void transitionUnlessDetached(GraphStatus Next) noexcept {
+    auto Cur = Stat.load(std::memory_order_acquire);
+    while (Cur != GraphStatus::Detached &&
+           !Stat.compare_exchange_weak(Cur, Next, std::memory_order_acq_rel,
+                                       std::memory_order_acquire)) {
+    }
+  }
+
   std::variant<
 #define EACH(B) B::Graph,
       FOR_EACH_BACKEND(EACH)

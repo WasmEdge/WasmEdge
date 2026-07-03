@@ -1869,6 +1869,35 @@ TEST(WasiNNTest, DrainAfterUnloadHostOpTiers) {
   EXPECT_EQ(hostOpPolicy(HostOp::FiniSingle).Req, GraphReq::Any);
 }
 
+TEST(WasiNNTest, GraphStatusDetachedIsTerminal) {
+  // unload marks a graph Detached without the op mutex, so an in-flight
+  // set_input reload can finish afterwards; its trailing setReady/setInvalid
+  // must not overwrite Detached or a surviving context would regain compute
+  // rights on an unloaded graph.
+  using WasmEdge::Host::WASINN::Graph;
+  using WasmEdge::Host::WASINN::GraphStatus;
+
+  Graph Reloaded(Backend::GGML);
+  EXPECT_EQ(Reloaded.status(), GraphStatus::Ready);
+  Reloaded.setDetached();
+  Reloaded.setReady();
+  EXPECT_EQ(Reloaded.status(), GraphStatus::Detached);
+
+  Graph FailedReload(Backend::GGML);
+  FailedReload.setDetached();
+  FailedReload.setInvalid();
+  EXPECT_EQ(FailedReload.status(), GraphStatus::Detached);
+
+  // Outside Detached, the Ready <-> Invalid reload transitions stay allowed.
+  Graph Live(Backend::GGML);
+  Live.setInvalid();
+  EXPECT_EQ(Live.status(), GraphStatus::Invalid);
+  Live.setReady();
+  EXPECT_EQ(Live.status(), GraphStatus::Ready);
+  Live.setDetached();
+  EXPECT_EQ(Live.status(), GraphStatus::Detached);
+}
+
 namespace {
 // Table bookkeeping is covered backend-free in resource_table_test.cpp; these
 // check the host-function wiring: guards reject an id that is not a live

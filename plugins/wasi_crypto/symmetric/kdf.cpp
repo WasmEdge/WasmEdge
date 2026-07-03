@@ -56,6 +56,8 @@ template <int ShaNid>
 WasiCryptoExpect<void>
 Hkdf<ShaNid>::Expand::State::absorb(Span<const uint8_t> Data) noexcept {
   std::scoped_lock Lock{Ctx->Mutex};
+  ensureOrReturn(Ctx->SqueezedOffset == 0,
+                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   opensslCheck(
       EVP_PKEY_CTX_add1_hkdf_info(Ctx->RawCtx.get(), Data.data(), Data.size()));
   Ctx->Info.insert(Ctx->Info.end(), Data.begin(), Data.end());

@@ -310,14 +310,13 @@ Rsa<PadMode, KeyBits, ShaNid>::Signature::import(
     return std::vector<uint8_t>(Encoded.begin(), Encoded.end());
   case __WASI_SIGNATURE_ENCODING_DER: {
     const uint8_t *DataPtr = Encoded.data();
-    ASN1_OCTET_STRING *OctetString =
-        d2i_ASN1_OCTET_STRING(nullptr, &DataPtr, Encoded.size());
+    Asn1OctetStringPtr OctetString(
+        d2i_ASN1_OCTET_STRING(nullptr, &DataPtr, Encoded.size()));
     ensureOrReturn(OctetString, __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
     ensureOrReturn(DataPtr == Encoded.data() + Encoded.size(),
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
     std::vector<uint8_t> Res(OctetString->data,
                              OctetString->data + OctetString->length);
-    ASN1_OCTET_STRING_free(OctetString);
     ensureOrReturn(Res.size() == getSigSize(),
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
     return Res;

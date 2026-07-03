@@ -46,13 +46,14 @@ public:
       UINT64_C(0x1000000000000);
   MemoryInstance() = delete;
   MemoryInstance(MemoryInstance &&Inst) noexcept
-      : MemType(Inst.MemType), DataPtr(Inst.DataPtr),
-        PageLimit(Inst.PageLimit) {
+      : MemType(Inst.MemType), DataPtr(Inst.DataPtr), PageLimit(Inst.PageLimit),
+        LivePageCount(Inst.LivePageCount) {
     Inst.DataPtr = nullptr;
   }
   MemoryInstance(const AST::MemoryType &MType,
                  uint64_t PageLim = kPageLimit64) noexcept
-      : MemType(MType), PageLimit(PageLim) {
+      : MemType(MType), PageLimit(PageLim),
+        LivePageCount(MType.getLimit().getMin()) {
     using namespace std::literals;
     if (MemType.getLimit().is32() && PageLimit > kPageLimit32) {
       if (PageLimit != kPageLimit64) {
@@ -67,12 +68,12 @@ public:
     if (MemType.getLimit().getMin() > PageLimit) {
       spdlog::error("Memory Instance: Limited {} page in configuration."sv,
                     PageLimit);
-      MemType.getLimit().setMin(PageLimit);
+      setLivePageCount(PageLimit);
     }
     DataPtr = Allocator::allocate(MemType.getLimit().getMin());
     if (DataPtr == nullptr) {
       spdlog::error("Memory Instance: Unable to find usable memory address."sv);
-      MemType.getLimit().setMin(0U);
+      setLivePageCount(0U);
       return;
     }
   }
@@ -87,6 +88,13 @@ public:
     // The memory page size is bound to the limit in the memory type.
     return MemType.getLimit().getMin();
   }
+
+  /// Get a stable pointer to the live page-count field for compiled code.
+  const uint64_t *getPageSizePtr() const noexcept { return &LivePageCount; }
+
+  /// Get the stable reference to the live data buffer for compiled code.
+  uint8_t *const &getDataPtr() const noexcept { return DataPtr; }
+  uint8_t *&getDataPtr() noexcept { return DataPtr; }
 
   /// Get memory size of memory.data
   uint64_t getSize() const noexcept {
@@ -138,7 +146,7 @@ public:
     } else {
       DataPtr = NewPtr;
     }
-    MemType.getLimit().setMin(Min + Count);
+    setLivePageCount(Min + Count);
     return true;
   }
 
@@ -374,9 +382,6 @@ public:
     return {};
   }
 
-  uint8_t *const &getDataPtr() const noexcept { return DataPtr; }
-  uint8_t *&getDataPtr() noexcept { return DataPtr; }
-
   /// Waiter support for atomic wait/notify across threads.
   struct Waiter {
     std::mutex Mutex;
@@ -406,11 +411,18 @@ public:
   }
 
 private:
+  /// Update the page count in the limit and its live mirror synchronously.
+  void setLivePageCount(const uint64_t Count) noexcept {
+    MemType.getLimit().setMin(Count);
+    LivePageCount = Count;
+  }
+
   /// \name Data of memory instance.
   /// @{
   AST::MemoryType MemType;
   uint8_t *DataPtr = nullptr;
   uint64_t PageLimit;
+  uint64_t LivePageCount;
   std::mutex WaiterMapMutex;
   std::unordered_multimap<uint64_t, Waiter> WaiterMap;
   /// @}

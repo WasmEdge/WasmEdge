@@ -24,6 +24,7 @@
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 namespace WasmEdge {
 namespace Host {

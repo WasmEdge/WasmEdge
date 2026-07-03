@@ -73,10 +73,14 @@ must add itself there.
   detach the handle immediately and let the last release run the destructor.
   An unload during a long compute returns at once; memory is reclaimed when
   the compute finishes.
-- Lock order: `MdMutex` before a table mutex (only in `mdGet`). The op mutex
-  is never held while acquiring either. `RawMdMap` (preloaded model bytes) is
-  immutable after construction and read without locks; `MdMutex` guards only
-  the name→handle map and is never held across a model load.
+- Lock order: `MdMutex` before a table mutex (only in `mdGet` and the
+  `mdBuild` cache re-check). The op mutex is never held while acquiring
+  either. `RawMdMap` (preloaded model bytes) is immutable after construction
+  and read without locks; `MdMutex` guards only the name→handle map and is
+  never held across a model load. Because builds run outside the lock,
+  concurrent `load_by_name` calls for one name may both build; `mdBuild`
+  re-checks the cache before publishing and folds later finishers onto the
+  first cached graph, dropping their duplicate builds.
 - Global third-party log callbacks (llama.cpp, mtmd, whisper.cpp) are bound
   once with **no user pointer** and gated by ref-counted atomic counters
   (`wasinn_log_gate.h`): each graph that wants logs holds a RAII `LogToken`.

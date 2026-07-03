@@ -337,7 +337,21 @@ struct WasiNNEnvironment :
     auto Result = Load(*this, Builders, std::get<1>(It->second),
                        std::get<2>(It->second), Name, GraphId);
     if (Result.has_value() && *Result == WASINN::ErrNo::Success) {
+      // Concurrent builds for the same name race here: each ran outside the
+      // lock and published its own graph. Keep the first cached live graph
+      // and fold later finishers onto it, dropping their duplicate builds,
+      // so one name never retains two copies of a model.
       std::unique_lock Lock(MdMutex);
+      if (auto Cached = MdMap.find(Name);
+          Cached != MdMap.end() && NNGraph.get(Cached->second) != nullptr) {
+        const uint32_t LoserId = GraphId;
+        GraphId = Cached->second;
+        Lock.unlock();
+        if (auto Loser = NNGraph.remove(LoserId); Loser != nullptr) {
+          Loser->setDetached();
+        }
+        return Result;
+      }
       MdMap[Name] = GraphId;
     }
     return Result;

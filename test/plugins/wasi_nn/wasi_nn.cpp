@@ -15,6 +15,8 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <fstream>
 #include <memory>
@@ -1896,6 +1898,94 @@ TEST(WasiNNTest, GraphStatusDetachedIsTerminal) {
   EXPECT_EQ(Live.status(), GraphStatus::Ready);
   Live.setDetached();
   EXPECT_EQ(Live.status(), GraphStatus::Detached);
+}
+
+TEST(WasiNNTest, LoadByNameConcurrentBuildsShareOneGraph) {
+  // Two load_by_name calls for one name can miss the cache and build
+  // concurrently (MdMutex is not held across a load); the second finisher
+  // must adopt the first one's cached graph instead of keeping a duplicate.
+  auto NNMod = createModule();
+  if (!NNMod) {
+    GTEST_SKIP() << "wasi_nn plugin not found";
+  }
+  auto &Env = NNMod->getEnv();
+  const std::string Name = "concurrent-build";
+  Env.RawMdMap.emplace(
+      Name, std::make_tuple(std::vector<std::vector<uint8_t>>{{0x00}},
+                            Backend::GGML, Device::CPU));
+
+  const auto Deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(30);
+  auto SpinUntil = [&Deadline](auto Cond) {
+    while (!Cond()) {
+      if (std::chrono::steady_clock::now() > Deadline) {
+        return false;
+      }
+      std::this_thread::yield();
+    }
+    return true;
+  };
+
+  // A stand-in for a slow backend load: park each caller until released by
+  // entry order, then publish an empty graph wrapper like the real loader.
+  std::atomic<uint32_t> Entered{0};
+  std::atomic<uint32_t> ReleaseUpTo{0};
+  std::array<uint32_t, 2> PublishedIds = {0, 0};
+  auto SlowLoad = [&](WasmEdge::Host::WASINN::WasiNNEnvironment &E,
+                      WasmEdge::Span<const WasmEdge::Span<uint8_t>>, Backend BE,
+                      Device, std::string_view MdName,
+                      uint32_t &GraphIdOut) -> WasmEdge::Expect<ErrNo> {
+    const uint32_t Order = Entered.fetch_add(1) + 1;
+    while (ReleaseUpTo.load() < Order) {
+      std::this_thread::yield();
+    }
+    auto G = std::make_shared<WasmEdge::Host::WASINN::Graph>(BE);
+    G->setModelName(std::string(MdName));
+    auto Id = E.NNGraph.insert(std::move(G));
+    EXPECT_TRUE(Id.has_value());
+    GraphIdOut = *Id;
+    PublishedIds[Order - 1] = *Id;
+    return ErrNo::Success;
+  };
+
+  uint32_t FirstId = UINT32_C(0xFFFFFFFF);
+  uint32_t SecondId = UINT32_C(0xFFFFFFFF);
+  std::atomic<uint32_t> DoneCount{0};
+  std::thread First([&]() {
+    auto Res = Env.mdBuild(Name, FirstId, SlowLoad);
+    EXPECT_TRUE(Res.has_value());
+    DoneCount.fetch_add(1);
+  });
+  std::thread Second([&]() {
+    auto Res = Env.mdBuild(Name, SecondId, SlowLoad);
+    EXPECT_TRUE(Res.has_value());
+    DoneCount.fetch_add(1);
+  });
+
+  // Both callers sit inside their builds before either caches: this is the
+  // race window between a shared cache miss and the first cache write.
+  EXPECT_TRUE(SpinUntil([&]() { return Entered.load() == 2; }));
+  // The first entrant finishes its whole build and caches its graph.
+  ReleaseUpTo.store(1);
+  EXPECT_TRUE(SpinUntil([&]() { return DoneCount.load() == 1; }));
+  // The second entrant finishes and must fold onto the cached winner.
+  ReleaseUpTo.store(2);
+  First.join();
+  Second.join();
+
+  // Exactly one graph survives for the name: both callers hold the winner's
+  // id, the loser's build was dropped, and the cache resolves to the winner.
+  EXPECT_EQ(FirstId, SecondId);
+  const uint32_t WinnerId = FirstId;
+  EXPECT_NE(Env.NNGraph.get(WinnerId), nullptr);
+  EXPECT_EQ(Env.NNGraph.size(), 1U);
+  const uint32_t LoserId =
+      PublishedIds[0] == WinnerId ? PublishedIds[1] : PublishedIds[0];
+  EXPECT_NE(LoserId, WinnerId);
+  EXPECT_EQ(Env.NNGraph.get(LoserId), nullptr);
+  uint32_t CachedId = UINT32_C(0xFFFFFFFF);
+  EXPECT_TRUE(Env.mdGet(Name, CachedId));
+  EXPECT_EQ(CachedId, WinnerId);
 }
 
 namespace {

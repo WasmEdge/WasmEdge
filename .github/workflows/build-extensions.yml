@@ -104,8 +104,15 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
+      - name: Cache ML model fixtures
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build_rpc/test/plugins/wasi_nn/wasinn_*_fixtures
+          key: ml-fixtures-wasi_nn-ggml-rpc-${{ hashFiles('test/plugins/wasi_nn/CMakeLists.txt') }}
       - name: Test WASI-NN RPC mode with GGML
         shell: bash
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -eux
           # wasi_nn_rpcserver is built in a clean "build_rpc" dir
@@ -123,7 +130,7 @@ jobs:
           export WASMEDGE_PLUGIN_PATH=build_rpc/plugins/wasi_nn
           build_rpc/tools/wasmedge/wasi_nn_rpcserver \
             --nn-rpc-uri $WASI_NN_RPC_TEST_URI \
-            --nn-preload default:GGML:AUTO:build_rpc/test/plugins/wasi_nn/wasinn_ggml_fixtures/orca_mini.gguf &
+            --nn-preload default:GGML:AUTO:build_rpc/test/plugins/wasi_nn/wasinn_ggml_fixtures/stories260K.gguf &
           RPC_SERVER_PID=$!
           sleep 3
           # The test binary consumes $WASI_NN_RPC_TEST_URI
@@ -133,7 +140,7 @@ jobs:
           # Restart the server for the compute single test
           build_rpc/tools/wasmedge/wasi_nn_rpcserver \
             --nn-rpc-uri $WASI_NN_RPC_TEST_URI \
-            --nn-preload default:GGML:AUTO:build_rpc/test/plugins/wasi_nn/wasinn_ggml_fixtures/orca_mini.gguf &
+            --nn-preload default:GGML:AUTO:build_rpc/test/plugins/wasi_nn/wasinn_ggml_fixtures/stories260K.gguf &
           RPC_SERVER_PID=$!
           sleep 3
           (cd ${nnrpc_test_dir} && ./${test_bin} --gtest_filter=WasiNNTest.GGMLBackendComputeSingleWithRPC)
@@ -168,10 +175,15 @@ jobs:
           sdk-version: 26100
       - name: Cache LLVM
         id: llvm-cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: LLVM-21.1.3-win64-MultiThreadedDLL
           key: llvm-21.1.3-windows-2025
+      - name: Cache ML model fixtures
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/test/plugins/wasi_nn/wasinn_*_fixtures
+          key: ml-fixtures-wasi_nn-ggml-windows-${{ hashFiles('test/plugins/wasi_nn/CMakeLists.txt') }}
       - name: Download and Extract LLVM
         if: steps.llvm-cache.outputs.cache-hit != 'true'
         run: |
@@ -181,6 +193,8 @@ jobs:
           Expand-Archive -Path $llvm
           Remove-Item -Path $llvm
       - name: Build WasmEdge
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")

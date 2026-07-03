@@ -1320,7 +1320,7 @@ TEST(WasiNNTest, GGMLBackend) {
   std::string Prompt = "Once upon a time, ";
   std::vector<uint8_t> TensorData(Prompt.begin(), Prompt.end());
   std::string Model = WasmEdge::Endian::native == WasmEdge::Endian::little
-                          ? "./wasinn_ggml_fixtures/orca_mini.gguf"
+                          ? "./wasinn_ggml_fixtures/stories260K.gguf"
                           : "./wasinn_ggml_fixtures/granite-3.gguf";
   std::vector<uint8_t> WeightRead = readEntireFile(Model);
 
@@ -1578,7 +1578,7 @@ TEST(WasiNNTest, GGMLBackendWithRPC) {
     export WASMEDGE_PLUGIN_PATH=${DIR}/plugins/wasi_nn
     ${DIR}/tools/wasmedge/wasi_nn_rpcserver \
       --nn-rpc-uri=$WASI_NN_RPC_TEST_URI \
-      --nn-preload=default:GGML:AUTO:${DIR}/test/plugins/wasi_nn/wasinn_ggml_fixtures/orca_mini.gguf
+      --nn-preload=default:GGML:AUTO:${DIR}/test/plugins/wasi_nn/wasinn_ggml_fixtures/stories260K.gguf
   */
   const auto NNRPCURI = ::getenv("WASI_NN_RPC_TEST_URI");
   if (NNRPCURI == nullptr) {
@@ -1811,7 +1811,7 @@ TEST(WasiNNTest, GGMLBackendComputeSingleWithRPC) {
     export WASMEDGE_PLUGIN_PATH=${DIR}/plugins/wasi_nn
     ${DIR}/tools/wasmedge/wasi_nn_rpcserver \
       --nn-rpc-uri=$WASI_NN_RPC_TEST_URI \
-      --nn-preload=default:GGML:AUTO:${DIR}/test/plugins/wasi_nn/wasinn_ggml_fixtures/orca_mini.gguf
+      --nn-preload=default:GGML:AUTO:${DIR}/test/plugins/wasi_nn/wasinn_ggml_fixtures/stories260K.gguf
   */
   const auto NNRPCURI = ::getenv("WASI_NN_RPC_TEST_URI");
   if (NNRPCURI == nullptr) {
@@ -2029,7 +2029,7 @@ TEST(WasiNNTest, WhisperBackend) {
   std::vector<uint8_t> TensorData =
       readEntireFile("./wasinn_whisper_fixtures/test.wav");
   std::vector<uint8_t> WeightRead =
-      readEntireFile("./wasinn_whisper_fixtures/ggml-base.bin");
+      readEntireFile("./wasinn_whisper_fixtures/ggml-tiny.bin");
   std::vector<uint32_t> TensorDim{1, static_cast<uint32_t>(TensorData.size())};
   uint32_t BuilderPtr = UINT32_C(0);
   uint32_t LoadEntryPtr = UINT32_C(0);
@@ -2984,11 +2984,11 @@ TEST(WasiNNTest, MLXBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
   // Test: load -- load successfully.
-  std::string Config =
-      "{\"model_type\":\"tiny_llama_1.1B_chat_v1.0\", "
-      "\"tokenizer\":\"" +
-      Tokenizer +
-      "\", \"q_bits\": 4, \"group_size\": 128, \"is_quantized\": false}";
+  std::string Config = "{\"model_type\":\"tiny_llama_1.1B_chat_v1.0\", "
+                       "\"tokenizer\":\"" +
+                       Tokenizer +
+                       "\", \"q_bits\": 4, \"group_size\": 64, "
+                       "\"is_quantized\": true, \"max_token\": 64}";
   std::vector<uint8_t> ConfigData(Config.begin(), Config.end());
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, WeightRead.size(), BuilderPtr);

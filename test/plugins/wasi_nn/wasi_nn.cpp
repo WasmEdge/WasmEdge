@@ -1988,6 +1988,77 @@ TEST(WasiNNTest, LoadByNameConcurrentBuildsShareOneGraph) {
   EXPECT_EQ(CachedId, WinnerId);
 }
 
+TEST(WasiNNTest, LoadByNameSkipsDetachedGraphStillInTable) {
+  // unload publishes Detached before dropping the table entry, so a racing
+  // load_by_name can observe a Detached yet still-tabled graph. The name
+  // cache must treat it as unloaded - neither resolving it nor folding a
+  // build onto it - or the guest would get an already-rejected handle.
+  auto NNMod = createModule();
+  if (!NNMod) {
+    GTEST_SKIP() << "wasi_nn plugin not found";
+  }
+  auto &Env = NNMod->getEnv();
+  const std::string Name = "detached-window";
+  Env.RawMdMap.emplace(
+      Name, std::make_tuple(std::vector<std::vector<uint8_t>>{{0x00}},
+                            Backend::GGML, Device::CPU));
+  auto StubLoad = [](WasmEdge::Host::WASINN::WasiNNEnvironment &E,
+                     WasmEdge::Span<const WasmEdge::Span<uint8_t>>, Backend BE,
+                     Device, std::string_view MdName,
+                     uint32_t &GraphIdOut) -> WasmEdge::Expect<ErrNo> {
+    auto G = std::make_shared<WasmEdge::Host::WASINN::Graph>(BE);
+    G->setModelName(std::string(MdName));
+    auto Id = E.NNGraph.insert(std::move(G));
+    EXPECT_TRUE(Id.has_value());
+    GraphIdOut = *Id;
+    return ErrNo::Success;
+  };
+
+  uint32_t BuiltId = UINT32_C(0xFFFFFFFF);
+  auto Res = Env.mdBuild(Name, BuiltId, StubLoad);
+  ASSERT_TRUE(Res.has_value());
+  EXPECT_EQ(*Res, ErrNo::Success);
+  uint32_t ResolvedId = UINT32_C(0xFFFFFFFF);
+  EXPECT_TRUE(Env.mdGet(Name, ResolvedId));
+  EXPECT_EQ(ResolvedId, BuiltId);
+
+  // Enter the mid-unload window: Detached is visible while the table entry
+  // and the cache entry still exist.
+  auto G = Env.NNGraph.get(BuiltId);
+  ASSERT_NE(G, nullptr);
+  G->setDetached();
+  EXPECT_NE(Env.NNGraph.get(BuiltId), nullptr);
+  EXPECT_FALSE(Env.mdGet(Name, ResolvedId));
+
+  // A Ready-tier graph-keyed op rejects the half-detached graph even though
+  // its handle still resolves.
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  auto *FuncInst = NNMod->findFuncExports("init_execution_context"sv);
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+  EXPECT_TRUE(FuncInst->getHostFunc().run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{BuiltId, UINT32_C(0)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // A build finishing inside the window publishes its own graph instead of
+  // folding onto the dying one.
+  uint32_t RebuiltId = UINT32_C(0xFFFFFFFF);
+  Res = Env.mdBuild(Name, RebuiltId, StubLoad);
+  ASSERT_TRUE(Res.has_value());
+  EXPECT_EQ(*Res, ErrNo::Success);
+  EXPECT_NE(RebuiltId, BuiltId);
+  EXPECT_TRUE(Env.mdGet(Name, ResolvedId));
+  EXPECT_EQ(ResolvedId, RebuiltId);
+}
+
 TEST(WasiNNTest, GGMLBackendDrainAfterInvalidReloadUnload) {
   // A failed metadata reload leaves the graph Invalid with a null llama
   // context; unload then makes it Detached, which Drainable admits, so the

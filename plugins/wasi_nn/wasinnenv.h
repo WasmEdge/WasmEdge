@@ -301,12 +301,14 @@ struct WasiNNEnvironment :
 
   WasiNNEnvironment() noexcept;
 
-  // Resolve a preloaded model name to a live graph handle. Handles are never
-  // reused, so a cache entry whose graph was unloaded simply stops resolving.
+  // Resolve a preloaded model name to a live graph handle. A cache entry
+  // whose graph was unloaded (or is mid-unload, already Detached) simply
+  // stops resolving.
   bool mdGet(std::string_view Name, uint32_t &GraphId) noexcept {
     std::shared_lock Lock(MdMutex);
     if (auto It = MdMap.find(std::string(Name)); It != MdMap.end()) {
-      if (NNGraph.get(It->second) != nullptr) {
+      if (auto G = NNGraph.get(It->second);
+          G != nullptr && G->status() != GraphStatus::Detached) {
         GraphId = It->second;
         return true;
       }
@@ -337,18 +339,22 @@ struct WasiNNEnvironment :
     auto Result = Load(*this, Builders, std::get<1>(It->second),
                        std::get<2>(It->second), Name, GraphId);
     if (Result.has_value() && *Result == WASINN::ErrNo::Success) {
-      // Concurrent builds for the same name race here: each ran outside the
-      // lock and published its own graph. Keep the first cached live graph
-      // and fold later finishers onto it, dropping their duplicate builds,
-      // so one name never retains two copies of a model.
+      // Concurrent builds for the same name each published a graph: keep the
+      // first cached live one and fold later finishers onto it, so one name
+      // never retains two model copies. A Detached cached graph is mid-unload
+      // and gets replaced instead. A dropped build flips its status first.
       std::unique_lock Lock(MdMutex);
-      if (auto Cached = MdMap.find(Name);
-          Cached != MdMap.end() && NNGraph.get(Cached->second) != nullptr) {
+      auto Cached = MdMap.find(Name);
+      const std::shared_ptr<Graph> CachedGraph =
+          Cached != MdMap.end() ? NNGraph.get(Cached->second) : nullptr;
+      if (CachedGraph != nullptr &&
+          CachedGraph->status() != GraphStatus::Detached) {
         const uint32_t LoserId = GraphId;
         GraphId = Cached->second;
         Lock.unlock();
-        if (auto Loser = NNGraph.remove(LoserId); Loser != nullptr) {
+        if (auto Loser = NNGraph.get(LoserId); Loser != nullptr) {
           Loser->setDetached();
+          NNGraph.remove(LoserId);
         }
         return Result;
       }
@@ -357,13 +363,13 @@ struct WasiNNEnvironment :
     return Result;
   }
 
-  // Uniform graph unload: detach the handle now and let the backend payload
-  // destructor run at the last release - immediately if nothing pins the
-  // graph, or after the last draining context / in-flight op otherwise. The
-  // host call never blocks behind a running compute.
+  // Detach the handle now; the payload destructor runs at the last release,
+  // so unload never blocks behind a running compute. The status must flip
+  // before the table entry goes: context-keyed admission consults only the
+  // status, so a compute could otherwise be admitted after unload committed.
   Expect<WASINN::ErrNo> unloadGraph(uint32_t GraphId) noexcept {
     using namespace std::literals;
-    auto G = NNGraph.remove(GraphId);
+    auto G = NNGraph.get(GraphId);
     if (G == nullptr) {
       spdlog::error(
           "[WASI-NN] unload: Graph ID {} does not exist or is unloaded."sv,
@@ -371,6 +377,7 @@ struct WasiNNEnvironment :
       return WASINN::ErrNo::InvalidArgument;
     }
     G->setDetached();
+    NNGraph.remove(GraphId);
     // Evict the name cache so a later load_by_name reloads instead of
     // resolving to the dead handle; matching the cached id is exact.
     if (const auto &Name = G->getModelName(); !Name.empty()) {

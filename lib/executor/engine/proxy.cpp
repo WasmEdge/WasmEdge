@@ -90,16 +90,12 @@ const Executable::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kArrayInitElem, proxyArrayInitElem),
     ENTRY(kRefTest, proxyRefTest),
     ENTRY(kRefCast, proxyRefCast),
-    ENTRY(kTableGet, proxyTableGet),
-    ENTRY(kTableSet, proxyTableSet),
     ENTRY(kTableInit, proxyTableInit),
     ENTRY(kElemDrop, proxyElemDrop),
     ENTRY(kTableCopy, proxyTableCopy),
     ENTRY(kTableGrow, proxyTableGrow),
-    ENTRY(kTableSize, proxyTableSize),
     ENTRY(kTableFill, proxyTableFill),
     ENTRY(kMemGrow, proxyMemGrow),
-    ENTRY(kMemSize, proxyMemSize),
     ENTRY(kMemInit, proxyMemInit),
     ENTRY(kDataDrop, proxyDataDrop),
     ENTRY(kMemCopy, proxyMemCopy),
@@ -429,23 +425,6 @@ Expect<RefVariant> Executor::proxyRefCast(Runtime::StackManager &StackMgr,
 // conversion to a 32- or 64-bit value according to the address type in the LLVM
 // compiler.
 
-Expect<RefVariant> Executor::proxyTableGet(Runtime::StackManager &StackMgr,
-                                           const uint32_t TableIdx,
-                                           const uint64_t Off) noexcept {
-  auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
-  assuming(TabInst);
-  return TabInst->getRefAddr(Off);
-}
-
-Expect<void> Executor::proxyTableSet(Runtime::StackManager &StackMgr,
-                                     const uint32_t TableIdx,
-                                     const uint64_t Off,
-                                     const RefVariant Ref) noexcept {
-  auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
-  assuming(TabInst);
-  return TabInst->setRefAddr(Off, Ref);
-}
-
 Expect<void> Executor::proxyTableInit(Runtime::StackManager &StackMgr,
                                       const uint32_t TableIdx,
                                       const uint32_t ElemIdx,
@@ -504,13 +483,6 @@ Expect<uint64_t> Executor::proxyTableGrow(Runtime::StackManager &StackMgr,
   }
 }
 
-Expect<uint64_t> Executor::proxyTableSize(Runtime::StackManager &StackMgr,
-                                          const uint32_t TableIdx) noexcept {
-  auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
-  assuming(TabInst);
-  return TabInst->getSize();
-}
-
 Expect<void> Executor::proxyTableFill(Runtime::StackManager &StackMgr,
                                       const uint32_t TableIdx,
                                       const uint64_t Off, const RefVariant Ref,
@@ -539,13 +511,6 @@ Expect<uint64_t> Executor::proxyMemGrow(Runtime::StackManager &StackMgr,
       assumingUnreachable();
     }
   }
-}
-
-Expect<uint64_t> Executor::proxyMemSize(Runtime::StackManager &StackMgr,
-                                        const uint32_t MemIdx) noexcept {
-  auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
-  assuming(MemInst);
-  return MemInst->getPageSize();
 }
 
 Expect<void>

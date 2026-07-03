@@ -1988,6 +1988,156 @@ TEST(WasiNNTest, LoadByNameConcurrentBuildsShareOneGraph) {
   EXPECT_EQ(CachedId, WinnerId);
 }
 
+TEST(WasiNNTest, GGMLBackendDrainAfterInvalidReloadUnload) {
+  // A failed metadata reload leaves the graph Invalid with a null llama
+  // context; unload then makes it Detached, which Drainable admits, so the
+  // backend drain must reject the null context instead of dereferencing it.
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(60000)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::string Prompt = "Once upon a time, ";
+  std::vector<uint8_t> TensorData(Prompt.begin(), Prompt.end());
+  std::string Model = WasmEdge::Endian::native == WasmEdge::Endian::little
+                          ? "./wasinn_ggml_fixtures/orca_mini.gguf"
+                          : "./wasinn_ggml_fixtures/granite-3.gguf";
+  std::vector<uint8_t> WeightRead = readEntireFile(Model);
+  ASSERT_FALSE(WeightRead.empty());
+
+  std::vector<uint32_t> TensorDim{1};
+  uint32_t BuilderPtr = UINT32_C(0);
+  const uint32_t LoadEntryPtr = UINT32_C(0);
+  const uint32_t SetInputEntryPtr = UINT32_C(16);
+  const uint32_t BytesWrittenPtr = UINT32_C(40);
+  uint32_t StorePtr = UINT32_C(65536);
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  auto GetHostFunc =
+      [&](std::string_view FuncName) -> WasmEdge::Runtime::HostFunctionBase & {
+    auto *FuncInst = NNMod->findFuncExports(FuncName);
+    EXPECT_NE(FuncInst, nullptr);
+    EXPECT_TRUE(FuncInst->isHostFunction());
+    return FuncInst->getHostFunc();
+  };
+  auto &HostFuncLoad = GetHostFunc("load"sv);
+  auto &HostFuncInit = GetHostFunc("init_execution_context"sv);
+  auto &HostFuncSetInput = GetHostFunc("set_input"sv);
+  auto &HostFuncComputeSingle = GetHostFunc("compute_single"sv);
+  auto &HostFuncGetOutputSingle = GetHostFunc("get_output_single"sv);
+  auto &HostFuncFiniSingle = GetHostFunc("fini_single"sv);
+  auto &HostFuncUnload = GetHostFunc("unload"sv);
+  auto &HostFuncFinalize = GetHostFunc("finalize_execution_context"sv);
+
+  // Load the model and stream one token so the context buffers output.
+  BuilderPtr = LoadEntryPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(WeightRead.size()),
+                  BuilderPtr);
+  writeBinaries<uint8_t>(MemInst, WeightRead, StorePtr);
+  StorePtr += static_cast<uint32_t>(WeightRead.size());
+  EXPECT_TRUE(HostFuncLoad.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          LoadEntryPtr, UINT32_C(1), static_cast<uint32_t>(Backend::GGML),
+          static_cast<uint32_t>(Device::CPU), BuilderPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  const uint32_t GraphId = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+  BuilderPtr += 4;
+  EXPECT_TRUE(HostFuncInit.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{GraphId, BuilderPtr}, Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  const uint32_t CtxId = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+
+  BuilderPtr = SetInputEntryPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                  BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
+  writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+  writeBinaries<uint8_t>(MemInst, TensorData,
+                         StorePtr +
+                             static_cast<uint32_t>(TensorDim.size()) * 4);
+  EXPECT_TRUE(HostFuncSetInput.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       CtxId, UINT32_C(0), SetInputEntryPtr},
+                                   Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  EXPECT_TRUE(HostFuncComputeSingle.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{CtxId}, Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  EXPECT_TRUE(HostFuncGetOutputSingle.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          CtxId, UINT32_C(0), StorePtr, UINT32_C(65532), BytesWrittenPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+
+  // A context-parameter reload that must fail: llama rejects a context whose
+  // batch and ubatch sizes are both zero, so set_input leaves the graph
+  // Invalid and the llama context null.
+  const std::string BadMetadata =
+      "{\"embedding\": true, \"batch-size\": 0, \"ubatch-size\": 0}";
+  std::vector<uint8_t> BadMetadataData(BadMetadata.begin(), BadMetadata.end());
+  BuilderPtr = SetInputEntryPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                  BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(BadMetadataData.size()), BuilderPtr);
+  writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+  writeBinaries<uint8_t>(MemInst, BadMetadataData,
+                         StorePtr +
+                             static_cast<uint32_t>(TensorDim.size()) * 4);
+  EXPECT_TRUE(HostFuncSetInput.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       CtxId, UINT32_C(1), SetInputEntryPtr},
+                                   Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Invalid is rejected by the Drainable tier before the unload.
+  EXPECT_TRUE(HostFuncGetOutputSingle.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          CtxId, UINT32_C(0), StorePtr, UINT32_C(65532), BytesWrittenPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // unload admits the drain tier again; the null context must be rejected by
+  // the backend instead of crashing the drain.
+  EXPECT_TRUE(HostFuncUnload.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{GraphId}, Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  EXPECT_TRUE(HostFuncGetOutputSingle.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          CtxId, UINT32_C(0), StorePtr, UINT32_C(65532), BytesWrittenPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // The context still resets and finalizes cleanly without a llama context.
+  EXPECT_TRUE(HostFuncFiniSingle.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{CtxId}, Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  EXPECT_TRUE(HostFuncFinalize.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{CtxId}, Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+}
+
 namespace {
 // Table bookkeeping is covered backend-free in resource_table_test.cpp; these
 // check the host-function wiring: guards reject an id that is not a live

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 #include "system/fault.h"
@@ -168,7 +168,7 @@ Expect<void> Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
 
   const auto *ModInst = StackMgr.getModule();
   assuming(ModInst);
-  const auto &ExpDefType = **ModInst->getType(FuncTypeIdx);
+  const auto &ExpDefType = *ModInst->unsafeGetType(FuncTypeIdx);
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
 
@@ -644,7 +644,7 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
 
   const auto *ModInst = StackMgr.getModule();
   assuming(ModInst);
-  const auto &ExpDefType = **ModInst->getType(FuncTypeIdx);
+  const auto &ExpDefType = *ModInst->unsafeGetType(FuncTypeIdx);
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
   bool IsMatch = false;

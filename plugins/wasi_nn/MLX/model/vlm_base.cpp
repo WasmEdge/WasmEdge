@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "vlm_base.h"
 #include "common/errcode.h"
@@ -381,7 +381,7 @@ std::vector<int> Module::generate(
   //   assumingUnreachable();
   // }
   if (Kwargs.count("pixel_values") == 0) {
-    spdlog::error("Not implemented");
+    spdlog::error("Not implemented"sv);
     assumingUnreachable();
   } else {
     InputIds = *std::get_if<mx::array>(&Kwargs.find("input_ids")->second);
@@ -424,7 +424,7 @@ std::vector<int> Module::generate(
   };
 
   if (RepetitionPenalty.has_value() && RepetitionPenalty < 0) {
-    spdlog::error("Repetition penalty must be greater than 0");
+    spdlog::error("Repetition penalty must be greater than 0"sv);
     assumingUnreachable();
   }
 

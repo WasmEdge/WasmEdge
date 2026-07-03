@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2023 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -29,7 +29,7 @@ public:
     // without specifying the tessdata path.
     if (TesseractApi->Init(NULL, "eng")) {
       spdlog::error(
-          "[WasmEdge-OCR] Error occurred when initializing tesseract.");
+          "[WasmEdge-OCR] Error occurred when initializing tesseract."sv);
     }
   }
   ~OCREnv() noexcept {

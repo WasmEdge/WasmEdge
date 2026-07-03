@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasinn_chattts.h"
 #include "wasinnenv.h"
@@ -236,8 +236,14 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
     spdlog::info("[WASI-NN] ChatTTS backend: getOutput"sv);
   }
   if (Index == 0) {
+    BytesWritten = static_cast<uint32_t>(CxtRef.Outputs.size());
+    if (OutBuffer.size() < CxtRef.Outputs.size()) {
+      spdlog::error("[WASI-NN] ChatTTS backend: output buffer too small, "
+                    "need {} bytes but got {}."sv,
+                    CxtRef.Outputs.size(), OutBuffer.size());
+      return WASINN::ErrNo::TooLarge;
+    }
     std::copy_n(CxtRef.Outputs.data(), CxtRef.Outputs.size(), OutBuffer.data());
-    BytesWritten = CxtRef.Outputs.size();
     return WASINN::ErrNo::Success;
   }
   return WASINN::ErrNo::InvalidArgument;

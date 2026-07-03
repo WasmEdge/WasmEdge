@@ -15,6 +15,15 @@ on:
       - ".github/workflows/matrix-extensions.json"
       - ".github/workflows/reusable-build-extensions**"
       - ".github/workflows/reusable-call-linter.yml"
+      - "include/api/wasmedge/wasmedge_tools.h"
+      - "include/driver/wasi_nn_rpc/**"
+      - "include/driver/wasiNNRPCServerTool.h"
+      - "lib/CMakeLists.txt"
+      - "lib/api/CMakeLists.txt"
+      - "lib/api/wasmedge.cpp"
+      - "lib/driver/CMakeLists.txt"
+      - "lib/driver/wasiNNRPCServerTool.cpp"
+      - "lib/wasi_nn_rpc/**"
       - "plugins/**"
       - "test/plugins/**"
       - "thirdparty/**"
@@ -32,6 +41,15 @@ on:
       - ".github/workflows/matrix-extensions.json"
       - ".github/workflows/reusable-build-extensions**"
       - ".github/workflows/reusable-call-linter.yml"
+      - "include/api/wasmedge/wasmedge_tools.h"
+      - "include/driver/wasi_nn_rpc/**"
+      - "include/driver/wasiNNRPCServerTool.h"
+      - "lib/CMakeLists.txt"
+      - "lib/api/CMakeLists.txt"
+      - "lib/api/wasmedge.cpp"
+      - "lib/driver/CMakeLists.txt"
+      - "lib/driver/wasiNNRPCServerTool.cpp"
+      - "lib/wasi_nn_rpc/**"
       - "plugins/**"
       - "test/plugins/**"
       - "thirdparty/**"
@@ -74,6 +92,31 @@ jobs:
           echo "Set version: $(git describe --match "[0-9].[0-9]*" --tag)"
           echo "version=$(git describe --match '[0-9].[0-9]*' --tag)" >> $GITHUB_OUTPUT
 
+  filter:
+    name: Filter changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # Required by dorny/paths-filter on pull_request events
+    outputs:
+      all: ${{ steps.filter.outputs.all }}
+      shared_cmake: ${{ steps.filter.outputs.shared_cmake }}
+      wasi_nn: ${{ steps.filter.outputs.wasi_nn }}
+      wasi_nn_rpc: ${{ steps.filter.outputs.wasi_nn_rpc }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - id: filter
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        with:
+          filters: '.github/extensions.paths-filter.yml'
+
   test_wasi_nn_ggml_rpc:
     permissions:
       contents: write
@@ -89,7 +132,12 @@ jobs:
             build_type: Release
     name: WASI-NN GGML RPC (${{ matrix.name }})
     runs-on: ubuntu-latest
-    needs: [ get_version ]
+    needs: [ get_version, filter ]
+    if: >-
+      ${{ needs.filter.outputs.all == 'true'
+       || needs.filter.outputs.shared_cmake == 'true'
+       || needs.filter.outputs.wasi_nn == 'true'
+       || needs.filter.outputs.wasi_nn_rpc == 'true' }}
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
@@ -104,8 +152,15 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
+      - name: Cache ML model fixtures
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build_rpc/test/plugins/wasi_nn/wasinn_*_fixtures
+          key: ml-fixtures-wasi_nn-ggml-rpc-${{ hashFiles('test/plugins/wasi_nn/CMakeLists.txt') }}
       - name: Test WASI-NN RPC mode with GGML
         shell: bash
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -eux
           # wasi_nn_rpcserver is built in a clean "build_rpc" dir
@@ -123,7 +178,7 @@ jobs:
           export WASMEDGE_PLUGIN_PATH=build_rpc/plugins/wasi_nn
           build_rpc/tools/wasmedge/wasi_nn_rpcserver \
             --nn-rpc-uri $WASI_NN_RPC_TEST_URI \
-            --nn-preload default:GGML:AUTO:build_rpc/test/plugins/wasi_nn/wasinn_ggml_fixtures/orca_mini.gguf &
+            --nn-preload default:GGML:AUTO:build_rpc/test/plugins/wasi_nn/wasinn_ggml_fixtures/stories260K.gguf &
           RPC_SERVER_PID=$!
           sleep 3
           # The test binary consumes $WASI_NN_RPC_TEST_URI
@@ -133,7 +188,7 @@ jobs:
           # Restart the server for the compute single test
           build_rpc/tools/wasmedge/wasi_nn_rpcserver \
             --nn-rpc-uri $WASI_NN_RPC_TEST_URI \
-            --nn-preload default:GGML:AUTO:build_rpc/test/plugins/wasi_nn/wasinn_ggml_fixtures/orca_mini.gguf &
+            --nn-preload default:GGML:AUTO:build_rpc/test/plugins/wasi_nn/wasinn_ggml_fixtures/stories260K.gguf &
           RPC_SERVER_PID=$!
           sleep 3
           (cd ${nnrpc_test_dir} && ./${test_bin} --gtest_filter=WasiNNTest.GGMLBackendComputeSingleWithRPC)
@@ -150,7 +205,11 @@ jobs:
       tar_names: wasi_nn-ggml
       test_bin: wasiNNTests
       output_bin: wasmedgePluginWasiNN.dll
-    needs: [ get_version ]
+    needs: [ get_version, filter ]
+    if: >-
+      ${{ needs.filter.outputs.all == 'true'
+       || needs.filter.outputs.shared_cmake == 'true'
+       || needs.filter.outputs.wasi_nn == 'true' }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -168,10 +227,15 @@ jobs:
           sdk-version: 26100
       - name: Cache LLVM
         id: llvm-cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: LLVM-21.1.3-win64-MultiThreadedDLL
           key: llvm-21.1.3-windows-2025
+      - name: Cache ML model fixtures
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/test/plugins/wasi_nn/wasinn_*_fixtures
+          key: ml-fixtures-wasi_nn-ggml-windows-${{ hashFiles('test/plugins/wasi_nn/CMakeLists.txt') }}
       - name: Download and Extract LLVM
         if: steps.llvm-cache.outputs.cache-hit != 'true'
         run: |
@@ -181,6 +245,8 @@ jobs:
           Expand-Archive -Path $llvm
           Remove-Item -Path $llvm
       - name: Build WasmEdge
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")

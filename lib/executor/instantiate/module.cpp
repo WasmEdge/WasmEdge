@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 
@@ -153,6 +153,9 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
 
   // Pop Frame.
   StackMgr.popFrame();
+
+  // Instantiation done; finalize so the executor reads instances lock-free.
+  ModInst->finalizeInstantiation();
 
   // For a named module, register it in the store.
   if (Name.has_value()) {

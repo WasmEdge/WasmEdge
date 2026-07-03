@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "model/gemma3/gemma3.h"
 #include "language.h"
@@ -183,7 +183,7 @@ std::shared_ptr<Model> Model::fromPretrained(const std::string &ModelPath) {
   simdjson::dom::element Doc;
   auto Error = Parser.load((Path / "config.json").string()).get(Doc);
   if (Error) {
-    spdlog::error("Could not open config.json");
+    spdlog::error("Could not open config.json"sv);
     assumingUnreachable();
   }
   auto Obj = Doc.get_object();

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/runtime/instance/memory.h - Memory Instance definition ---===//
 //
@@ -110,6 +110,7 @@ public:
 
   /// Grow page
   bool growPage(const uint64_t Count) noexcept {
+    using namespace std::literals;
     if (Count == 0) {
       return true;
     }
@@ -127,7 +128,7 @@ public:
     assuming(PageLimit >= Min);
     if (Count > PageLimit - Min) {
       spdlog::error("Memory Instance: Memory grow page failed, exceeded "
-                    "limited {} page size in configuration.",
+                    "limited {} page size in configuration."sv,
                     PageLimit);
       return false;
     }

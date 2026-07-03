@@ -23,6 +23,8 @@
 
 # Nested build directory
 /build
+# Local WASI-NN test model cache (large GGUF files; use utils/wasi-nn/download-bitnet-i2s-fixture.sh)
+/test/plugins/wasi_nn/fixtures_cache/
 # Nix's output
 result
 

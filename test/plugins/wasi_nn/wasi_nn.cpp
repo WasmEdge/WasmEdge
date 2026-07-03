@@ -1972,6 +1972,195 @@ TEST(WasiNNTest, GGMLBackendComputeSingleWithRPC) {
   }
 }
 #endif // WASMEDGE_BUILD_WASI_NN_RPC
+
+TEST(WasiNNTest, GGMLBackendBitNetModel) {
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(60000)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  auto *FuncInst = NNMod->findFuncExports("load");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncLoad = FuncInst->getHostFunc();
+  FuncInst = NNMod->findFuncExports("init_execution_context");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncInit = FuncInst->getHostFunc();
+  FuncInst = NNMod->findFuncExports("set_input");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncSetInput = FuncInst->getHostFunc();
+  FuncInst = NNMod->findFuncExports("get_output");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncGetOutput = FuncInst->getHostFunc();
+  FuncInst = NNMod->findFuncExports("compute");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncCompute = FuncInst->getHostFunc();
+  FuncInst = NNMod->findFuncExports("unload");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncUnload = FuncInst->getHostFunc();
+  FuncInst = NNMod->findFuncExports("compute_single");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncComputeSingle = FuncInst->getHostFunc();
+  FuncInst = NNMod->findFuncExports("get_output_single");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncGetOutputSingle = FuncInst->getHostFunc();
+  FuncInst = NNMod->findFuncExports("fini_single");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncFiniSingle = FuncInst->getHostFunc();
+
+  const std::string ModelPath = "./wasinn_ggml_fixtures/ggml-model-i2_s.gguf";
+  const std::string ModelPreloadStr = "preload:" + ModelPath;
+  const std::string MetadataStr = R"({"n-predict": 128})";
+  const std::string Prompt = "Once upon a time, ";
+
+  uint32_t BuilderPtr = 0;
+  uint32_t LoadEntryPtr = 0;
+  uint32_t SetInputEntryPtr = 0;
+  uint32_t StorePtr = 65536;
+  std::array<WasmEdge::ValVariant, 1> Errno = {0};
+  uint32_t GraphId = 0;
+  uint32_t CtxId = 0;
+
+  {
+    std::vector<uint8_t> ModelPreloadVec(ModelPreloadStr.begin(),
+                                         ModelPreloadStr.end());
+    std::vector<uint8_t> MetadataVec(MetadataStr.begin(), MetadataStr.end());
+    BuilderPtr = LoadEntryPtr;
+    writeFatPointer(MemInst, StorePtr, ModelPreloadVec.size(), BuilderPtr);
+    writeFatPointer(MemInst, StorePtr + ModelPreloadVec.size(),
+                    MetadataVec.size(), BuilderPtr);
+    writeBinaries<uint8_t>(MemInst, ModelPreloadVec, StorePtr);
+    writeBinaries<uint8_t>(MemInst, MetadataVec,
+                           StorePtr + ModelPreloadVec.size());
+    StorePtr += ModelPreloadVec.size() + MetadataVec.size();
+    ASSERT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, 2, static_cast<uint32_t>(Backend::GGML),
+            static_cast<uint32_t>(Device::CPU), BuilderPtr},
+        Errno))
+        << "Load call failed. Ensure model file exists at: " << ModelPath;
+    if (Errno[0].get<int32_t>() !=
+        static_cast<uint32_t>(ErrNo::Success)) {
+      EXPECT_NE(Errno[0].get<int32_t>(),
+                static_cast<uint32_t>(ErrNo::Success));
+      return;
+    }
+    GraphId = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    BuilderPtr += 4;
+  }
+
+  {
+    ASSERT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{GraphId, BuilderPtr},
+        Errno));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    CtxId = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    BuilderPtr += 4;
+  }
+
+  SetInputEntryPtr = BuilderPtr;
+  {
+    std::vector<uint8_t> PromptData(Prompt.begin(), Prompt.end());
+    std::vector<uint32_t> PromptDim = {
+        static_cast<uint32_t>(PromptData.size())};
+
+    writeFatPointer(MemInst, StorePtr, PromptDim.size(), BuilderPtr);
+    writeUInt32(MemInst, static_cast<uint32_t>(TensorType::U8), BuilderPtr);
+    writeFatPointer(MemInst, StorePtr + PromptDim.size() * 4, PromptData.size(),
+                    BuilderPtr);
+    writeBinaries<uint32_t>(MemInst, PromptDim, StorePtr);
+    writeBinaries<uint8_t>(MemInst, PromptData,
+                           StorePtr + PromptDim.size() * 4);
+  }
+  {
+    ASSERT_TRUE(HostFuncSetInput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{CtxId, 0, SetInputEntryPtr},
+        Errno));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  {
+    ASSERT_TRUE(HostFuncCompute.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{CtxId}, Errno));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+  {
+    uint32_t BytesNeeded = 0;
+    ASSERT_TRUE(
+        HostFuncGetOutput.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  CtxId, 0, StorePtr, 0, BuilderPtr},
+                              Errno));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    BytesNeeded = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_GT(BytesNeeded, 10);
+  }
+
+  {
+    std::string FullStreamedOutput = "";
+    const int MaxStreamTokens = 20;
+
+    ASSERT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 CtxId, 0, SetInputEntryPtr},
+                             Errno));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+
+    for (int I = 0; I < MaxStreamTokens; ++I) {
+      ASSERT_TRUE(HostFuncComputeSingle.run(
+          CallFrame, std::initializer_list<WasmEdge::ValVariant>{CtxId},
+          Errno));
+      if (Errno[0].get<int32_t>() ==
+          static_cast<uint32_t>(ErrNo::EndOfSequence)) {
+        break;
+      }
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+
+      uint32_t SingleTokenBytes = 0;
+      ASSERT_TRUE(HostFuncGetOutputSingle.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{CtxId, 0, StorePtr, 32,
+                                                      BuilderPtr},
+          Errno));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      SingleTokenBytes = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+      if (SingleTokenBytes > 0) {
+        auto TokenSpan = *MemInst.getBytes(StorePtr, SingleTokenBytes);
+        FullStreamedOutput += std::string(
+            reinterpret_cast<const char *>(TokenSpan.data()), TokenSpan.size());
+      }
+    }
+    EXPECT_GT(FullStreamedOutput.length(), 10);
+
+    ASSERT_TRUE(HostFuncFiniSingle.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{CtxId}, Errno));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  {
+    ASSERT_TRUE(HostFuncUnload.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{GraphId},
+        Errno));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{GraphId, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+}
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER

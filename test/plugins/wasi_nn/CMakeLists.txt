@@ -14,6 +14,29 @@ function(download URL OUTPUT HASH)
   )
 endfunction()
 
+function(download_bitnet_i2s_fixture OUT_DIR)
+  file(MAKE_DIRECTORY ${OUT_DIR})
+  set(MODEL_PATH ${OUT_DIR}/ggml-model-i2_s.gguf)
+  set(CACHE_PATH ${CMAKE_SOURCE_DIR}/test/plugins/wasi_nn/fixtures_cache/ggml-model-i2_s.gguf)
+  if(EXISTS ${CACHE_PATH})
+    file(COPY ${CACHE_PATH} DESTINATION ${OUT_DIR})
+    message(STATUS "BitNet i2_s fixture staged from cache: ${CACHE_PATH}")
+    return()
+  endif()
+  if(EXISTS ${MODEL_PATH})
+    file(MD5 ${MODEL_PATH} EXISTING_MD5)
+    if(EXISTING_MD5 STREQUAL "65cb04366e4d02ccd78b4b7b48c84b3b")
+      message(STATUS "BitNet i2_s fixture already present at ${MODEL_PATH}")
+      return()
+    endif()
+  endif()
+  download(
+    https://huggingface.co/microsoft/bitnet-b1.58-2B-4T-gguf/resolve/main/ggml-model-i2_s.gguf
+    ${MODEL_PATH}
+    MD5=65cb04366e4d02ccd78b4b7b48c84b3b
+  )
+endfunction()
+
 # Prepare the testing data for each backends.
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   string(TOLOWER ${BACKEND} BACKEND)
@@ -68,12 +91,25 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       MD5=2520fd8a702468942fdd1595b9dca9a2
       )
     else()
-      download(
-      https://huggingface.co/TheBloke/orca_mini_v3_7B-GGUF/resolve/main/orca_mini_v3_7b.Q2_K.gguf
-      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/orca_mini.gguf
-      MD5=f895f00678bfbf89f70d6d25f20a7b5f
-      )
+      set(ORCA_FIXTURE ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/orca_mini.gguf)
+      set(ORCA_CACHE ${CMAKE_SOURCE_DIR}/test/plugins/wasi_nn/fixtures_cache/orca_mini.gguf)
+      if(EXISTS ${ORCA_CACHE})
+        file(COPY ${ORCA_CACHE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures)
+        message(STATUS "orca_mini fixture staged from cache: ${ORCA_CACHE}")
+      elseif(EXISTS ${ORCA_FIXTURE})
+        file(MD5 ${ORCA_FIXTURE} EXISTING_ORCA_MD5)
+        if(NOT EXISTING_ORCA_MD5 STREQUAL "f895f00678bfbf89f70d6d25f20a7b5f")
+          download(
+            https://huggingface.co/TheBloke/orca_mini_v3_7B-GGUF/resolve/main/orca_mini_v3_7b.Q2_K.gguf
+            ${ORCA_FIXTURE}
+            MD5=f895f00678bfbf89f70d6d25f20a7b5f
+          )
+        endif()
+      else()
+        message(STATUS "orca_mini.gguf not cached; skipping download (cache orca at test/plugins/wasi_nn/fixtures_cache/orca_mini.gguf for GGMLBackend)")
+      endif()
     endif()
+    download_bitnet_i2s_fixture(${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures)
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
       target_compile_options(wasiNNTests PUBLIC
         /wd4067 # unexpected tokens following preprocessor directive - expected a newline
@@ -171,11 +207,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
 
   elseif(BACKEND STREQUAL "bitnet")
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_bitnet_fixtures")
-    download(
-      https://huggingface.co/microsoft/bitnet-b1.58-2B-4T-gguf/resolve/main/ggml-model-i2_s.gguf
-      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_bitnet_fixtures/ggml-model-i2_s.gguf
-      MD5=65cb04366e4d02ccd78b4b7b48c84b3b
-    )
+    download_bitnet_i2s_fixture(${CMAKE_CURRENT_BINARY_DIR}/wasinn_bitnet_fixtures)
     if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
       target_compile_options(wasiNNTests PUBLIC
         -Wno-unused-function

@@ -97,7 +97,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     # the WASI-NN RPC URI would silently fail to apply.
     if(UNIX AND NOT APPLE)
       target_link_options(wasiNNTests PRIVATE
-        "LINKER:--exclude-libs,libllama.a:libggml.a:libggml-base.a:libggml-cpu.a:libggml-blas.a:libmtmd.a:libcommon.a"
+        "LINKER:--exclude-libs,libllama.a:libggml.a:libggml-base.a:libggml-cpu.a:libggml-blas.a:libggml-cuda.a:libmtmd.a:libcommon.a"
       )
     endif()
   elseif(BACKEND STREQUAL "piper")

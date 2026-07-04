@@ -26,11 +26,17 @@ jobs:
           REPO: ${{ github.repository }}
           REF: refs/pull/${{ github.event.pull_request.number }}/merge
         run: |
-          while :; do
+          for pass in 1 2 3 4 5 6 7 8 9 10; do
             ids=$(gh cache list --repo "$REPO" --ref "$REF" --limit 100 --json id --jq '.[].id')
             [ -z "$ids" ] && break
+            echo "Delete pass ${pass}"
             for id in $ids; do
               gh cache delete "$id" --repo "$REPO" || true
             done
           done
-          echo "All caches on $REF are deleted."
+          remaining=$(gh cache list --repo "$REPO" --ref "$REF" --limit 1 --json id --jq 'length')
+          if [ "$remaining" -gt 0 ]; then
+            echo "::warning::Caches remain on $REF after 10 delete passes; they expire automatically within 7 days."
+          else
+            echo "All caches on $REF are deleted."
+          fi

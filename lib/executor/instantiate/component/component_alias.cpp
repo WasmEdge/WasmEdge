@@ -75,6 +75,11 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
         CompInst.addCoreGlobal(GlobInst);
         break;
       }
+      case AST::Component::Sort::CoreSortType::Tag: {
+        auto *TagInst = ModInst->getTagExports(FindExports);
+        CompInst.addCoreTag(TagInst);
+        break;
+      }
       case AST::Component::Sort::CoreSortType::Type:
       case AST::Component::Sort::CoreSortType::Module:
       case AST::Component::Sort::CoreSortType::Instance:

@@ -20,6 +20,7 @@
 #include "common/types.h"
 #include "runtime/instance/component/function.h"
 #include "runtime/instance/module.h"
+#include "runtime/instance/tag.h"
 
 #include <atomic>
 #include <functional>
@@ -329,6 +330,18 @@ public:
     return findExport(ExpCoreGlobInsts, Name);
   }
 
+  // Index space: core tag.
+  void addCoreTag(TagInstance *Inst) noexcept { CoreTagInsts.push_back(Inst); }
+  TagInstance *getCoreTag(uint32_t Index) const noexcept {
+    return CoreTagInsts[Index];
+  }
+  void exportCoreTag(std::string_view Name, uint32_t Idx) noexcept {
+    ExpCoreTagInsts.insert_or_assign(std::string(Name), CoreTagInsts[Idx]);
+  }
+  TagInstance *findCoreTag(std::string_view Name) const noexcept {
+    return findExport(ExpCoreTagInsts, Name);
+  }
+
   // Index space: core type.
   // TODO: deep copy the type
   void addCoreType(const AST::Component::CoreDefType &Ty) noexcept {
@@ -379,6 +392,7 @@ private:
   std::vector<MemoryInstance *> CoreMemInsts;
   std::vector<GlobalInstance *> CoreGlobInsts;
   std::vector<const AST::Component::CoreDefType *> CoreTypes;
+  std::vector<TagInstance *> CoreTagInsts;
   std::vector<const ModuleInstance *> CoreModInsts;
   std::vector<const AST::Module *> CoreMods;
 
@@ -405,6 +419,7 @@ private:
   std::map<std::string, TableInstance *, std::less<>> ExpCoreTabInsts;
   std::map<std::string, MemoryInstance *, std::less<>> ExpCoreMemInsts;
   std::map<std::string, GlobalInstance *, std::less<>> ExpCoreGlobInsts;
+  std::map<std::string, TagInstance *, std::less<>> ExpCoreTagInsts;
   // TODO: ExpCoreTypes
   std::map<std::string, const ModuleInstance *, std::less<>> ExpCoreModInsts;
   // TODO: ExpCoreMods

@@ -34,7 +34,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       // Inline exports case.
       // Create a core module instance with the exports.
       auto Mod = std::make_unique<Runtime::Instance::ModuleInstance>("");
-      uint32_t ExpIdx[4] = {0, 0, 0, 0};
+      uint32_t ExpIdx[5] = {0, 0, 0, 0, 0};
 
       for (const auto &Exp : Expr.getInlineExports()) {
         const auto &SortIdx = Exp.getSortIdx();
@@ -68,6 +68,11 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           Mod->importGlobal(CompInst.getCoreGlobal(Idx));
           Mod->exportGlobal(Exp.getName(), ExpIdx[3]);
           ExpIdx[3]++;
+          break;
+        case AST::Component::Sort::CoreSortType::Tag:
+          Mod->importTag(CompInst.getCoreTag(Idx));
+          Mod->exportTag(Exp.getName(), ExpIdx[4]);
+          ExpIdx[4]++;
           break;
         case AST::Component::Sort::CoreSortType::Type:
         case AST::Component::Sort::CoreSortType::Module:
@@ -191,6 +196,11 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
             Comp->addCoreGlobal(CompInst.getCoreGlobal(Idx));
             Comp->exportCoreGlobal(Exp.getName(), CoreExpIdx[3]);
             CoreExpIdx[3]++;
+            break;
+          case AST::Component::Sort::CoreSortType::Tag:
+            Comp->addCoreTag(CompInst.getCoreTag(Idx));
+            Comp->exportCoreTag(Exp.getName(), CoreExpIdx[4]);
+            CoreExpIdx[4]++;
             break;
           case AST::Component::Sort::CoreSortType::Type:
           case AST::Component::Sort::CoreSortType::Module:

@@ -21,19 +21,29 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   // Clear the context and reset the sampler.
   clearContext(GraphRef, CxtRef);
 
-  if (GraphRef.Params.embedding) {
-    return getEmbedding(GraphRef, CxtRef);
-  }
-
-  // Evaluate the input tokens.
   ErrNo ReturnCode = ErrNo::Success;
-  if (GraphRef.VisionContext == nullptr) {
-    // Text only prompt.
-    ReturnCode = evaluateInput(GraphRef, CxtRef, "compute"sv);
-    if (ReturnCode != ErrNo::Success) {
-      return ReturnCode;
+
+  if (GraphRef.Params.embedding) {
+    const llama_vocab *Vocab = llama_model_get_vocab(GraphRef.LlamaModel.get());
+    // Add SEP if not present.
+    if (CxtRef.LlamaInputs.size() > 0 &&
+        CxtRef.LlamaInputs.back() != llama_vocab_sep(Vocab)) {
+      LOG_WARN(
+          "compute: last token in the prompt is not SEP, "sv
+          "'tokenizer.ggml.add_eos_token' should be set to 'true' in the GGUF "sv
+          "header."sv)
     }
-  } else {
+
+    // Check if the input is too long.
+    if (static_cast<int64_t>(CxtRef.LlamaInputs.size()) >
+        GraphRef.Params.n_batch) {
+      RET_ERROR(
+          ErrNo::PromptTooLong,
+          "compute: the prompt is too long. Your input has {} tokens exceeds batch "sv
+          "size {}. Please reduce the input size or increase your batch-size."sv,
+          CxtRef.LlamaInputs.size(), GraphRef.Params.n_batch)
+    }
+  } else if (GraphRef.VisionContext != nullptr) {
     // Multimodal prompt.
     llama_pos NewNPos;
     int32_t Res = mtmd_helper_eval_chunks(
@@ -48,26 +58,65 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     }
   }
 
+  if (GraphRef.Params.embedding || GraphRef.VisionContext == nullptr) {
+      // Text only prompt.
+      ReturnCode = evaluateInput(GraphRef, CxtRef, "compute"sv);
+      if (ReturnCode != ErrNo::Success) {
+        return ReturnCode;
+      }
+  }
+
   // Main prediction loop.
   LOG_DEBUG(GraphRef.EnableDebugLog, "compute: enter main prediction loop"sv)
-  int64_t NPredict =
-      CxtRef.Conf.NPredict < 0 ? INT32_MAX : CxtRef.Conf.NPredict;
+  if (GraphRef.Params.embedding) {
+    const int32_t NEmbd = llama_model_n_embd(GraphRef.LlamaModel.get());
+    std::vector<float> Embeddings(NEmbd);
 
-  while (NPredict-- > 0) {
-    ReturnCode = sampleOutput(GraphRef, CxtRef);
-    if (ReturnCode != ErrNo::Success) {
-      break;
+    for (int I = 0; I < CxtRef.LlamaBatch.n_tokens; I++) {
+      if (!CxtRef.LlamaBatch.logits[I]) {
+        continue;
+      }
+
+      // Try to get sequence embeddings.
+      auto *Embd = llama_get_embeddings_seq(GraphRef.LlamaContext.get(),
+                                            CxtRef.LlamaBatch.seq_id[I][0]);
+      if (Embd == nullptr) {
+        Embd = llama_get_embeddings_ith(GraphRef.LlamaContext.get(), I);
+        if (Embd == nullptr) {
+          LOG_ERROR("compute: failed to get embeddings for token {}"sv, I);
+          continue;
+        }
+      }
+
+      // Normalize the embeddings.
+      common_embd_normalize(Embd, Embeddings.data(), NEmbd,
+                            static_cast<int32_t>(CxtRef.Conf.EmbdNormalize));
     }
-  }
-  if (ReturnCode == ErrNo::EndOfSequence) {
-    ReturnCode = ErrNo::Success;
+
+    std::string EmbeddingString;
+    buildOutputEmbedding(EmbeddingString, NEmbd, Embeddings.data());
+    CxtRef.LlamaOutputs =
+        std::vector<uint8_t>(EmbeddingString.begin(), EmbeddingString.end());
+  } else {
+    int64_t NPredict =
+        CxtRef.Conf.NPredict < 0 ? INT32_MAX : CxtRef.Conf.NPredict;
+
+    while (NPredict-- > 0) {
+      ReturnCode = sampleOutput(GraphRef, CxtRef);
+      if (ReturnCode != ErrNo::Success) {
+        break;
+      }
+    }
+    if (ReturnCode == ErrNo::EndOfSequence) {
+      ReturnCode = ErrNo::Success;
+    }
   }
   LOG_DEBUG(GraphRef.EnableDebugLog,
             "compute: enter main prediction loop...Done"sv)
   // End of main prediction loop.
 
   // TTS: convert output codes to audio file.
-  if (GraphRef.TextToSpeech) {
+  if (!GraphRef.Params.embedding && GraphRef.TextToSpeech) {
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "compute: convert output codes to audio file."sv)
     ReturnCode = codesToSpeech(Env, GraphRef, CxtRef);
@@ -81,7 +130,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
 
   if (GraphRef.EnableLog) {
-    common_perf_print(GraphRef.LlamaContext.get(), CxtRef.LlamaSampler);
+    common_perf_print(GraphRef.LlamaContext.get(), GraphRef.Params.embedding ? nullptr : CxtRef.LlamaSampler);
   }
 
   LOG_DEBUG(GraphRef.EnableDebugLog, "compute...Done"sv)

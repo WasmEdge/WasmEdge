@@ -357,7 +357,7 @@ function(wasmedge_setup_llama_target target)
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggml-org/llama.cpp.git
-      GIT_TAG        b8757
+      GIT_TAG        a29e4c0b7b23e020107058480dabbe03b7cba6e1  # b8757
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)
@@ -515,7 +515,7 @@ function(wasmedge_setup_mlx_target target)
       FetchContent_Declare(
         mlx
         GIT_REPOSITORY https://github.com/ml-explore/mlx.git
-        GIT_TAG        v0.24.1
+        GIT_TAG        aba899cef8c9188f92eb12b173fbe5a7ef62d4aa  # v0.24.1
         GIT_SHALLOW    FALSE
       )
       set(MLX_BUILD_GGUF OFF)

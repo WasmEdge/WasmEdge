@@ -5,55 +5,46 @@ wasmedge_add_executable(wasiNNTests
   wasi_nn.cpp
 )
 
-function(download URL OUTPUT HASH)
-  file(DOWNLOAD
-    ${URL}
-    ${OUTPUT}
-    SHOW_PROGRESS
-    EXPECTED_HASH ${HASH}
-  )
-endfunction()
-
 # Prepare the testing data for each backends.
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   string(TOLOWER ${BACKEND} BACKEND)
   if(BACKEND MATCHES "openvino")
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures")
-    download(
+    wasmedge_download(
       https://github.com/intel/openvino-rs/raw/v0.3.3/crates/openvino/tests/fixtures/mobilenet/mobilenet.bin
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/mobilenet.bin
       MD5=ae096b1f735f1e8e54bac8b2a42303bd
     )
-    download(
+    wasmedge_download(
       https://github.com/intel/openvino-rs/raw/v0.3.3/crates/openvino/tests/fixtures/mobilenet/mobilenet.xml
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/mobilenet.xml
       MD5=4ea3a14273587ce5c1662018878f9f90
     )
-    download(
+    wasmedge_download(
       https://github.com/intel/openvino-rs/raw/v0.3.3/crates/openvino/tests/fixtures/mobilenet/tensor-1x224x224x3-f32.bgr
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/tensor-1x224x224x3-f32.bgr
       MD5=bfca546f4a3b5e6da49b7bd728e2799a
     )
   elseif(BACKEND MATCHES "pytorch")
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures")
-    download(
+    wasmedge_download(
       https://github.com/second-state/WasmEdge-WASINN-examples/raw/master/pytorch-mobilenet-image/mobilenet.pt
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures/mobilenet.pt
       MD5=234f446d2446e0f6fd8ed700c0b4b63b
     )
-    download(
+    wasmedge_download(
       https://github.com/second-state/WasmEdge-WASINN-examples/raw/master/pytorch-mobilenet-image/image-1x3x224x224.rgb
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures/image-1x3x224x224.rgb
       MD5=551caa6f3b66c1d953655228462570a1
     )
   elseif(BACKEND STREQUAL "tensorflowlite")
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures")
-    download(
+    wasmedge_download(
       https://raw.githubusercontent.com/gusye1234/WasmEdge-WASINN-examples/demo-tflite-image/tflite-birds_v1-image/lite-model_aiy_vision_classifier_birds_V1_3.tflite
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures/lite-model_aiy_vision_classifier_birds_V1_3.tflite
       MD5=3e59cc3a99afeeb819c2c38b319a7938
     )
-    download(
+    wasmedge_download(
       https://raw.githubusercontent.com/gusye1234/WasmEdge-WASINN-examples/demo-tflite-image/tflite-birds_v1-image/birdx224x224x3.rgb
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures/birdx224x224x3.rgb
       MD5=ad51c39cfe35d2ef35c4052b78cb3c55
@@ -62,16 +53,16 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures")
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "s390x")
       # Use a big endian model for s390x
-      download(
+      wasmedge_download(
       https://huggingface.co/taronaeo/Granite-3.0-1B-A400M-Instruct-BE-GGUF/resolve/main/granite-3.0-1b-a400m-instruct-be.Q2_K.gguf
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/granite-3.gguf
       MD5=2520fd8a702468942fdd1595b9dca9a2
       )
     else()
-      download(
-      https://huggingface.co/TheBloke/orca_mini_v3_7B-GGUF/resolve/main/orca_mini_v3_7b.Q2_K.gguf
-      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/orca_mini.gguf
-      MD5=f895f00678bfbf89f70d6d25f20a7b5f
+      wasmedge_download(
+      https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories260K.gguf
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/stories260K.gguf
+      SHA256=270cba1bd5109f42d03350f60406024560464db173c0e387d91f0426d3bd256d
       )
     endif()
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
@@ -87,12 +78,12 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     endif()
   elseif(BACKEND STREQUAL "piper")
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures")
-    download(
+    wasmedge_download(
       https://github.com/OHF-Voice/piper1-gpl/raw/v1.3.0/tests/test_voice.onnx
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/test_voice.onnx
       SHA256=1c8bbb420741358f0a356bb83eaae1b4161fbb5974f6941e10eb5a1725d78994
     )
-    download(
+    wasmedge_download(
       https://github.com/OHF-Voice/piper1-gpl/raw/v1.3.0/tests/test_voice.onnx.json
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/test_voice.onnx.json
       SHA256=ccd28e02c334fbcfc94a86c8f86f1d7dbb5bffc844af9f22243a1f9f7840db1b
@@ -143,24 +134,24 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     )
   elseif(BACKEND STREQUAL "whisper")
     message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_whisper_fixtures")
-    download(
-      https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
-      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_whisper_fixtures/ggml-base.bin
-      MD5=4279db3d7b18d9f6e4d5817a16af4f09
+    wasmedge_download(
+      https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_whisper_fixtures/ggml-tiny.bin
+      SHA256=921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f
     )
-    download(
+    wasmedge_download(
       https://github.com/second-state/WasmEdge-WASINN-examples/raw/master/wasmedge-ggml/whisper/test.wav
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_whisper_fixtures/test.wav
       MD5=6cf3f7af1ebbd6b29c373e526b548dba
     )
   elseif(BACKEND STREQUAL "mlx")
     message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_mlx_fixtures")
-    download(
-      https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0/resolve/main/model.safetensors
+    wasmedge_download(
+      https://huggingface.co/mlx-community/TinyLlama-1.1B-Chat-v1.0-4bit/resolve/main/weights.00.safetensors
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_mlx_fixtures/model.safetensors
-      MD5=59e1605b3af5f1673eb8396251d6bc46
+      SHA256=5e84abc79956b48bb6e4a6c319bb6313aa6c0cbab34288e9f50d063854c486a6
     )
-    download(
+    wasmedge_download(
       https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0/resolve/main/tokenizer.json
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_mlx_fixtures/tokenizer.json
       MD5=c9dc953a24ad2b76b4bae4bf456f18bd
@@ -171,10 +162,10 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
 
   elseif(BACKEND STREQUAL "bitnet")
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_bitnet_fixtures")
-    download(
-      https://huggingface.co/microsoft/bitnet-b1.58-2B-4T-gguf/resolve/main/ggml-model-i2_s.gguf
+    wasmedge_download(
+      https://huggingface.co/tiiuae/Falcon-E-1B-Instruct-GGUF/resolve/main/ggml-model-i2_s.gguf
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_bitnet_fixtures/ggml-model-i2_s.gguf
-      MD5=65cb04366e4d02ccd78b4b7b48c84b3b
+      SHA256=feb7478007e916d26bb807cb1a01cc45ac16f197e355d8c30aed25e550ecd73b
     )
     if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
       target_compile_options(wasiNNTests PUBLIC

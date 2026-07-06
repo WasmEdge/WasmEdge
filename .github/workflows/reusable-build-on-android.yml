@@ -31,9 +31,9 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
-      - name: Cache Android NDK and CMake
+      - name: Restore Android NDK and CMake
         id: cache-android
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             cmake-3.22.2-linux-x86_64.tar.gz
@@ -49,6 +49,14 @@ jobs:
           cp -r cmake-3.22.2-linux-x86_64/share /usr/local
           [ -f android-ndk-r23b-linux.zip ] || curl -sLO https://dl.google.com/android/repository/android-ndk-r23b-linux.zip
           unzip -q android-ndk-r23b-linux.zip
+      - name: Save Android NDK and CMake
+        if: ${{ github.ref == 'refs/heads/master' && steps.cache-android.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            cmake-3.22.2-linux-x86_64.tar.gz
+            android-ndk-r23b-linux.zip
+          key: android-ndk-r23b-cmake-3.22.2
       - name: Grant the safe directory for git
         run: |
           git config --global --add safe.directory $(pwd)

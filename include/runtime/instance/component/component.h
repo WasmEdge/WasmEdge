@@ -82,6 +82,24 @@ public:
     NamedCoreModInst.emplace(Name, Inst);
   }
 
+  // Export a named component to this import manager.
+  void exportComponent(std::string_view Name,
+                       const AST::Component::Component *Comp) noexcept {
+    NamedComp.emplace(Name, Comp);
+  }
+
+  // Export a named core type to this import manager.
+  void exportCoreType(std::string_view Name,
+                      const AST::Component::CoreDefType *Ty) noexcept {
+    NamedCoreType.emplace(Name, Ty);
+  }
+
+  // Export a named core module to this import manager.
+  void exportCoreModule(std::string_view Name,
+                        const AST::Module *Mod) noexcept {
+    NamedCoreMod.emplace(Name, Mod);
+  }
+
   // Find component func by name.
   Component::FunctionInstance *
   findFunction(std::string_view Name) const noexcept {
@@ -121,6 +139,24 @@ public:
     return findExport(NamedCoreModInst, Name);
   }
 
+  // Find component by name.
+  const AST::Component::Component *
+  findComponent(std::string_view Name) const noexcept {
+    return findExport(NamedComp, Name);
+  }
+
+  // Find core type by name.
+  const AST::Component::CoreDefType *
+  findCoreType(std::string_view Name) const noexcept {
+    return findExport(NamedCoreType, Name);
+  }
+
+  // Find core module by name.
+  const AST::Module *
+  findCoreModule(std::string_view Name) const noexcept {
+    return findExport(NamedCoreMod, Name);
+  }
+
   // Reset the import manager.
   void reset() noexcept {
     NamedFunc.clear();
@@ -130,6 +166,9 @@ public:
     NamedCoreMemory.clear();
     NamedCoreGlobal.clear();
     NamedCoreModInst.clear();
+    NamedComp.clear();
+    NamedCoreType.clear();
+    NamedCoreMod.clear();
   }
 
 private:
@@ -149,14 +188,14 @@ private:
   // TODO: NamedValue
   // TODO: NamedType
   std::map<std::string, const ComponentInstance *, std::less<>> NamedCompInst;
-  // TODO: NamedComp
+  std::map<std::string, const AST::Component::Component *, std::less<>> NamedComp;
   std::map<std::string, FunctionInstance *, std::less<>> NamedCoreFunc;
   std::map<std::string, TableInstance *, std::less<>> NamedCoreTable;
   std::map<std::string, MemoryInstance *, std::less<>> NamedCoreMemory;
   std::map<std::string, GlobalInstance *, std::less<>> NamedCoreGlobal;
-  // TODO: NamedCoreType
+  std::map<std::string, const AST::Component::CoreDefType *, std::less<>> NamedCoreType;
   std::map<std::string, const ModuleInstance *, std::less<>> NamedCoreModInst;
-  // TODO: NamedCoreMod
+  std::map<std::string, const AST::Module *, std::less<>> NamedCoreMod;
 };
 
 class ComponentInstance {
@@ -256,6 +295,13 @@ public:
   const AST::Component::Component &getComponent(uint32_t Index) const noexcept {
     return *Comps[Index];
   }
+  void exportComponent(std::string_view Name, uint32_t Idx) noexcept {
+    ExpComps.insert_or_assign(std::string(Name), Comps[Idx]);
+  }
+  const AST::Component::Component *
+  findComponent(std::string_view Name) const noexcept {
+    return findExport(ExpComps, Name);
+  }
 
   // Index space: core function.
   void addCoreFunction(std::unique_ptr<FunctionInstance> &&Inst) noexcept {
@@ -351,6 +397,13 @@ public:
   getCoreType(uint32_t Index) const noexcept {
     return *CoreTypes[Index];
   }
+  void exportCoreType(std::string_view Name, uint32_t Idx) noexcept {
+    ExpCoreTypes.insert_or_assign(std::string(Name), CoreTypes[Idx]);
+  }
+  const AST::Component::CoreDefType *
+  findCoreType(std::string_view Name) const noexcept {
+    return findExport(ExpCoreTypes, Name);
+  }
 
   // Index space: core module instance.
   void addCoreModuleInstance(std::unique_ptr<ModuleInstance> &&Inst) noexcept {
@@ -372,6 +425,13 @@ public:
   void addModule(const AST::Module &M) noexcept { CoreMods.emplace_back(&M); }
   const AST::Module &getModule(uint32_t Index) const noexcept {
     return *CoreMods[Index];
+  }
+  void exportCoreModule(std::string_view Name, uint32_t Idx) noexcept {
+    ExpCoreMods.insert_or_assign(std::string(Name), CoreMods[Idx]);
+  }
+  const AST::Module *
+  findCoreModule(std::string_view Name) const noexcept {
+    return findExport(ExpCoreMods, Name);
   }
 
 private:
@@ -414,15 +474,15 @@ private:
   // TODO: ExpValue
   std::map<std::string, const AST::Component::DefType *, std::less<>> ExpTypes;
   std::map<std::string, const ComponentInstance *, std::less<>> ExpCompInsts;
-  // TODO: ExpComps
+  std::map<std::string, const AST::Component::Component *, std::less<>> ExpComps;
   std::map<std::string, FunctionInstance *, std::less<>> ExpCoreFuncInsts;
   std::map<std::string, TableInstance *, std::less<>> ExpCoreTabInsts;
   std::map<std::string, MemoryInstance *, std::less<>> ExpCoreMemInsts;
   std::map<std::string, GlobalInstance *, std::less<>> ExpCoreGlobInsts;
   std::map<std::string, TagInstance *, std::less<>> ExpCoreTagInsts;
-  // TODO: ExpCoreTypes
+  std::map<std::string, const AST::Component::CoreDefType *, std::less<>> ExpCoreTypes;
   std::map<std::string, const ModuleInstance *, std::less<>> ExpCoreModInsts;
-  // TODO: ExpCoreMods
+  std::map<std::string, const AST::Module *, std::less<>> ExpCoreMods;
 
   // Find export template.
   template <typename T>

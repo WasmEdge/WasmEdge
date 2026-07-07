@@ -2908,7 +2908,7 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
 
 Expect<void> Validator::validate(const AST::Component::FuncType &FT) noexcept {
   // Validate param names: kebab-case + unique
-  std::unordered_set<std::string_view> ParamNames;
+  std::unordered_map<std::string, std::string> ParamNames;
   for (const auto &P : FT.getParamList()) {
     if (!P.getLabel().empty()) {
       if (!isKebabString(P.getLabel())) {
@@ -2918,11 +2918,15 @@ Expect<void> Validator::validate(const AST::Component::FuncType &FT) noexcept {
             P.getLabel());
         return Unexpect(ErrCode::Value::ComponentNameNotKebab);
       }
-      if (!ParamNames.insert(P.getLabel()).second) {
-        spdlog::error(ErrCode::Value::ComponentDuplicateName);
-        spdlog::error("    FuncType: duplicate parameter name '{}'"sv,
-                      P.getLabel());
-        return Unexpect(ErrCode::Value::ComponentDuplicateName);
+      auto Normalized = toLowerStr(P.getLabel());
+      auto [It, Inserted] =
+          ParamNames.emplace(Normalized, std::string(P.getLabel()));
+      if (!Inserted) {
+        spdlog::error(ErrCode::Value::FuncParamNameConflict);
+        spdlog::error(
+            "    function parameter name `{}` conflicts with previous parameter name `{}`"sv,
+            P.getLabel(), It->second);
+        return Unexpect(ErrCode::Value::FuncParamNameConflict);
       }
     }
     EXPECTED_TRY(validate(P.getValType()));

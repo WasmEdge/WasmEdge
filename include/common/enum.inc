@@ -1173,7 +1173,10 @@ E(ElemSegDoesNotFit, 0x0304, "elements segment does not fit")
 // Invalid core sort for component export
 E(InvalidCoreSort, 0x03A0, "invalid core sort")
 // Canonical option lifting failed
-E(InvalidCanonOption, 0x03A1, "invalid canonical option")
+E(InvalidCanonOption, 0x02C2, "canonical option")
+// Function parameter name conflict
+E(FuncParamNameConflict, 0x02C3,
+  "function parameter name conflicts with previous parameter name")
 // Invalid export core exports
 E(CoreInvalidExport, 0x03A2, "invalid export in core module")
 // Invalid resource.drop args

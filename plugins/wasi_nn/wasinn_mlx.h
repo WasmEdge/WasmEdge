@@ -7,7 +7,11 @@
 
 #include "plugin/plugin.h"
 
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <string>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 #include "MLX/mlx/base.h"
@@ -27,6 +31,18 @@ class Context;
 } // namespace WasmEdge::Host::WASINN
 
 namespace WasmEdge::Host::WASINN::MLX {
+
+// A raw-bytes load materializes each model builder as a temporary safetensors
+// file before conversion. The path stays relative so it resolves under the
+// same WASI preopen the writer and the reader share, and a process-wide serial
+// keeps concurrent builds from colliding on one file.
+inline std::string uniqueModelFileName(std::size_t Idx) noexcept {
+  static std::atomic<std::uint64_t> Serial{0};
+  const std::uint64_t Ticket = Serial.fetch_add(1, std::memory_order_relaxed);
+  return "MLX" + std::to_string(Ticket) + "-" + std::to_string(Idx) +
+         ".safetensors";
+}
+
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 struct LLMInput {
   std::string Prompt = {};

@@ -427,10 +427,11 @@ public:
         auto *Needed = MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
         RPCContext->AddTrailingMetadata("errno", std::to_string(Errno));
         if (Needed != nullptr) {
-          RPCContext->AddTrailingMetadata("required_size", std::to_string(*Needed));
-          return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
-                              fmt::format("output buffer too small, need {} bytes"sv,
-                                          *Needed));
+          RPCContext->AddTrailingMetadata("required_size",
+                                          std::to_string(*Needed));
+          return grpc::Status(
+              grpc::StatusCode::RESOURCE_EXHAUSTED,
+              fmt::format("output buffer too small, need {} bytes"sv, *Needed));
         }
         return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
                             "output buffer too small"s);
@@ -445,6 +446,9 @@ public:
     /* clang-format on */
     auto *BytesWrittenInMem = MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
     if (BytesWrittenInMem == nullptr) {
+      spdlog::error(
+          "[WASI-NN-RPCSERVER] {}: failed to allocate output buffer for BytesWritten"sv,
+          FuncName);
       RPCContext->AddTrailingMetadata("errno", "5");
       return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
                           "failed to allocate output buffer for BytesWritten"s);
@@ -460,6 +464,9 @@ public:
     }
     auto *Buf = MemInst.getPointer<char *>(BufPtr);
     if (Buf == nullptr) {
+      spdlog::error(
+          "[WASI-NN-RPCSERVER] {}: failed to allocate output buffer for Buf"sv,
+          FuncName);
       RPCContext->AddTrailingMetadata("errno", "5");
       return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
                           "failed to allocate output buffer for Buf"s);

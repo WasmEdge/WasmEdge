@@ -328,7 +328,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
       }
       // Write model to file.
       // TODO: handle different model format.
-      ModelFilePath = "MLX" + std::to_string(Idx) + ".safetensors";
+      ModelFilePath = uniqueModelFileName(Idx);
       WasmEdge::FStream::OFStream TempFile(
           ModelFilePath, std::ios_base::out | std::ios_base::binary,
           Env.getEnv());

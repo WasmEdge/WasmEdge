@@ -70,3 +70,7 @@ WasmEdge
 2
 3
 ```
+
+## Exception handling
+
+See [../exception_handling/README.md](../exception_handling/README.md) and the [WasmEdge Book](https://wasmedge.org/docs/develop/c/exception_handling).

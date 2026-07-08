@@ -340,6 +340,43 @@ TEST(WasmEdgeZlibTest, Module) {
   EXPECT_NE(ZlibMod->findFuncExports("deflateResetKeep"), nullptr);
 }
 
+TEST(WasmEdgeZlibTest, GZOpenFailure) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1 * 64, 1 * 64)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  auto *FuncInst = ZlibMod->findFuncExports("gzopen");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &GZOpen = FuncInst->getHostFunc();
+
+  // Write invalid path and mode into Wasm memory
+  uint32_t PathPtr = 0;
+  std::strcpy(MemInst.getPointer<char *>(PathPtr), "/non_existent_file_path_12345");
+  uint32_t ModePtr = 100;
+  std::strcpy(MemInst.getPointer<char *>(ModePtr), "r");
+
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+  // Run it - since the file does not exist and mode is "r", it should fail and return Unexpect
+  auto Res = GZOpen.run(CallFrame,
+                        std::initializer_list<WasmEdge::ValVariant>{
+                            PathPtr, ModePtr},
+                        RetVal);
+  EXPECT_FALSE(Res);
+  if (!Res) {
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::HostFuncError);
+  }
+}
+
 GTEST_API_ int main(int ArgC, char **ArgV) {
   testing::InitGoogleTest(&ArgC, ArgV);
   return RUN_ALL_TESTS();

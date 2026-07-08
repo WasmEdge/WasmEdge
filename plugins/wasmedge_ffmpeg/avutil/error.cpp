@@ -17,12 +17,10 @@ Expect<int32_t> AVUtilAVStrError::body(const Runtime::CallingFrame &Frame,
                                        uint32_t BufLen) {
   MEMINST_CHECK(MemInst, Frame, 0);
 
-  MEM_PTR_CHECK(ErrId, MemInst, char, ErrBuf,
-                "Failed when accessing the return URL memory"sv);
+  MEM_SPAN_CHECK(ErrId, MemInst, char, ErrBuf, BufLen,
+                 "Failed when accessing the return URL memory"sv);
 
-  std::string Error;
-  std::copy_n(ErrId, BufLen, std::back_inserter(Error));
-  return av_strerror(ErrNum, const_cast<char *>(Error.c_str()), BufLen);
+  return av_strerror(ErrNum, ErrId.data(), BufLen);
 }
 
 Expect<int32_t> AVUtilAVError::body(const Runtime::CallingFrame &,

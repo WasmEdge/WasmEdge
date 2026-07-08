@@ -181,10 +181,10 @@ public:
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
 
-    // Copy the data.
+    // Copy the data. The slice may be from the same memory instance, so use
+    // memmove semantics for the possible overlapping case.
     if (likely(Length > 0)) {
-      std::copy(Slice.begin() + Start, Slice.begin() + Start + Length,
-                DataPtr + Offset);
+      std::memmove(DataPtr + Offset, Slice.data() + Start, Length);
     }
     return {};
   }

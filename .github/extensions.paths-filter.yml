@@ -12,6 +12,28 @@ wasi_nn:
   - 'cmake/WASINNDeps.cmake'
   - 'plugins/wasi_nn/**'
   - 'test/plugins/wasi_nn/**'
+wasi_nn-bitnet-arm-tl1:
+  - 'cmake/wasi_nn/bitnet.cmake'
+wasi_nn-bitnet-x86-tl2:
+  - 'cmake/wasi_nn/bitnet.cmake'
+wasi_nn-chattts:
+  - 'cmake/wasi_nn/chattts.cmake'
+wasi_nn-ggml:
+  - 'cmake/wasi_nn/ggml.cmake'
+wasi_nn-mlx:
+  - 'cmake/wasi_nn/mlx.cmake'
+wasi_nn-openvino:
+  - 'cmake/wasi_nn/openvino.cmake'
+wasi_nn-openvino-genai:
+  - 'cmake/wasi_nn/openvino_genai.cmake'
+wasi_nn-piper:
+  - 'cmake/wasi_nn/piper.cmake'
+wasi_nn-pytorch:
+  - 'cmake/wasi_nn/pytorch.cmake'
+wasi_nn-tensorflowlite:
+  - 'cmake/TensorflowDeps.cmake'
+wasi_nn-whisper:
+  - 'cmake/wasi_nn/whisper.cmake'
 wasi_nn_rpc:
   - 'include/api/wasmedge/wasmedge_tools.h'
   - 'include/driver/wasi_nn_rpc/**'
@@ -44,11 +66,11 @@ wasmedge_stablediffusion:
   - 'plugins/wasmedge_stablediffusion/**'
   - 'test/plugins/wasmedge_stablediffusion/**'
 wasmedge_tensorflow:
-  - 'cmake/WASINNDeps.cmake'
+  - 'cmake/TensorflowDeps.cmake'
   - 'plugins/wasmedge_tensorflow/**'
   - 'test/plugins/wasmedge_tensorflow/**'
 wasmedge_tensorflowlite:
-  - 'cmake/WASINNDeps.cmake'
+  - 'cmake/TensorflowDeps.cmake'
   - 'plugins/wasmedge_tensorflowlite/**'
   - 'test/plugins/wasmedge_tensorflowlite/**'
 wasmedge_zlib:

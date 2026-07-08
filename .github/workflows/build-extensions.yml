@@ -102,6 +102,7 @@ jobs:
       all: ${{ steps.filter.outputs.all }}
       shared_cmake: ${{ steps.filter.outputs.shared_cmake }}
       wasi_nn: ${{ steps.filter.outputs.wasi_nn }}
+      wasi_nn-ggml: ${{ steps.filter.outputs['wasi_nn-ggml'] }}
       wasi_nn_rpc: ${{ steps.filter.outputs.wasi_nn_rpc }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -137,6 +138,7 @@ jobs:
       ${{ needs.filter.outputs.all == 'true'
        || needs.filter.outputs.shared_cmake == 'true'
        || needs.filter.outputs.wasi_nn == 'true'
+       || needs.filter.outputs['wasi_nn-ggml'] == 'true'
        || needs.filter.outputs.wasi_nn_rpc == 'true' }}
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -216,7 +218,8 @@ jobs:
     if: >-
       ${{ needs.filter.outputs.all == 'true'
        || needs.filter.outputs.shared_cmake == 'true'
-       || needs.filter.outputs.wasi_nn == 'true' }}
+       || needs.filter.outputs.wasi_nn == 'true'
+       || needs.filter.outputs['wasi_nn-ggml'] == 'true' }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4

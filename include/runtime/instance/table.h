@@ -134,15 +134,11 @@ public:
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
 
-    // Copy the references.
-    if (Dst <= Src) {
-      std::copy(Slice.begin() + Src, Slice.begin() + Src + Length,
-                Refs.begin() + static_cast<std::ptrdiff_t>(Dst));
-    } else {
-      std::copy(std::make_reverse_iterator(Slice.begin() + Src + Length),
-                std::make_reverse_iterator(Slice.begin() + Src),
-                std::make_reverse_iterator(
-                    Refs.begin() + static_cast<std::ptrdiff_t>(Dst + Length)));
+    // Copy the references. The slice may be from the same table instance, so
+    // use memmove semantics for the possible overlapping case.
+    if (likely(Length > 0)) {
+      std::memmove(Refs.data() + Dst, Slice.data() + Src,
+                   Length * sizeof(RefVariant));
     }
     return {};
   }

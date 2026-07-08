@@ -233,9 +233,9 @@ void updatePiperOptions(const SynthesisConfig &SynthesisConfig,
   }
 }
 
-Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
-                           Span<const Span<uint8_t>> Builders, WASINN::Device,
-                           uint32_t &GraphId) noexcept {
+Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
+                           Span<const Span<uint8_t>> Builders,
+                           WASINN::Device) noexcept {
   // The graph builder length must be 1.
   if (Builders.size() != 1) {
     spdlog::error(
@@ -244,14 +244,11 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     return WASINN::ErrNo::InvalidArgument;
   }
 
-  // Add a new graph.
-  uint32_t const GId = Env.newGraph(Backend::Piper);
-  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
+  auto &GraphRef = G.get<Graph>();
   GraphRef.Config = std::make_unique<RunConfig>();
   auto String = std::string{Builders[0].begin(), Builders[0].end()};
   if (auto Res = parseRunConfig(*GraphRef.Config, String);
       Res != WASINN::ErrNo::Success) {
-    Env.deleteGraph(GId);
     spdlog::error("[WASI-NN] Piper backend: Failed to parse run config."sv);
     return Res;
   }
@@ -269,27 +266,20 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   if (!Synth) {
     spdlog::error(
         "[WASI-NN] Piper backend: Failed to create piper synthesizer."sv);
-    Env.deleteGraph(GId);
     return WASINN::ErrNo::InvalidArgument;
   }
 
   GraphRef.Synth = std::unique_ptr<piper_synthesizer, PiperDeleter>(Synth);
-  GraphId = GId;
-  Env.NNGraph[GId].setReady();
   return WASINN::ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
-                                  uint32_t GraphId,
-                                  uint32_t &ContextId) noexcept {
-  // Create context.
-  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
-  Env.NNContext[ContextId].setReady();
+Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                                  WASINN::Context &) noexcept {
   return WASINN::ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
-                               uint32_t ContextId, uint32_t Index,
+Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
+                               WASINN::Context &C, uint32_t Index,
                                const TensorData &Tensor) noexcept {
   if (Index != 0) {
     spdlog::error("[WASI-NN] Piper backend: Input index must be 0."sv);
@@ -301,8 +291,8 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
     return WASINN::ErrNo::InvalidArgument;
   }
 
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
 
   CxtRef.Line =
       std::string(reinterpret_cast<const char *>(Tensor.Tensor.data()),
@@ -335,8 +325,8 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
   return WASINN::ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
-                                uint32_t ContextId, uint32_t Index,
+Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                                WASINN::Context &C, uint32_t Index,
                                 Span<uint8_t> OutBuffer,
                                 uint32_t &BytesWritten) noexcept {
   if (Index != 0) {
@@ -344,7 +334,7 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
     return WASINN::ErrNo::InvalidArgument;
   }
 
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &CxtRef = C.get<Context>();
 
   if (!CxtRef.Output) {
     spdlog::error("[WASI-NN] Piper backend: No output available."sv);
@@ -370,10 +360,10 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
   return WASINN::ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
-                              uint32_t ContextId) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
+                              WASINN::Context &C) noexcept {
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
 
   if (!CxtRef.Line) {
     spdlog::error("[WASI-NN] Piper backend: Input is not set."sv);
@@ -493,24 +483,26 @@ Expect<WASINN::ErrNo> reportBackendNotSupported() noexcept {
 }
 } // namespace
 
-Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &,
-                           Span<const Span<uint8_t>>, WASINN::Device,
-                           uint32_t &) noexcept {
+Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                           Span<const Span<uint8_t>>, WASINN::Device) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &, uint32_t,
-                                  uint32_t &) noexcept {
+Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                                  WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
+Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                               WASINN::Context &, uint32_t,
                                const TensorData &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
-                                Span<uint8_t>, uint32_t &) noexcept {
+Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                                WASINN::Context &, uint32_t, Span<uint8_t>,
+                                uint32_t &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
+Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                              WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
 #endif

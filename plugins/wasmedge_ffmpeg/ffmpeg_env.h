@@ -216,6 +216,16 @@ public:
     return hasFlag(Index, MuxHeaderWritten | MuxFailed);
   }
 
+  // A muxer between its header and its trailer: it takes packets, and it
+  // still owes the trailer. Only the trailer releases what the header set up
+  // (the pulse output device keeps a thread whose callbacks dereference the
+  // context, and has no deinit hook), so such a context is trailed before
+  // it is freed, and its pb stays open until then.
+  bool isMuxing(uint32_t Index) const {
+    return hasFlag(Index, MuxHeaderWritten) &&
+           !hasFlag(Index, MuxTrailerWritten);
+  }
+
   uint32_t parentIdOf(uint32_t ChildId) const {
     auto It = ParentIdByChild.find(ChildId);
     return It == ParentIdByChild.end() ? 0 : It->second;

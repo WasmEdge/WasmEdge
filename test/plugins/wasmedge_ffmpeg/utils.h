@@ -18,7 +18,14 @@
 #include "runtime/instance/module.h"
 
 #include <gtest/gtest.h>
+
+#include <cstdint>
+#include <fstream>
+#include <iterator>
 #include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
 #include <fcntl.h>
@@ -85,6 +92,24 @@ inline int countOpenDescriptors() {
   return Count;
 }
 #endif
+
+// The RIFF chunk size at offset 4 of a WAV file, and the file's size. The
+// wav muxer writes the chunk size as 0xFFFFFFFF in its header and patches in
+// the real one, the file size less 8, only in its trailer.
+inline std::pair<uint32_t, uint32_t>
+wavRiffAndFileSize(const std::string &Path) {
+  std::ifstream In(Path, std::ios::binary);
+  std::vector<unsigned char> Bytes((std::istreambuf_iterator<char>(In)),
+                                   std::istreambuf_iterator<char>());
+  uint32_t RiffSize = 0;
+  if (Bytes.size() >= 8) {
+    RiffSize = static_cast<uint32_t>(Bytes[4]) |
+               (static_cast<uint32_t>(Bytes[5]) << 8) |
+               (static_cast<uint32_t>(Bytes[6]) << 16) |
+               (static_cast<uint32_t>(Bytes[7]) << 24);
+  }
+  return {RiffSize, static_cast<uint32_t>(Bytes.size())};
+}
 
 class FFmpegTest : public ::testing::Test {
 public:

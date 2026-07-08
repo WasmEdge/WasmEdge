@@ -250,6 +250,109 @@ TEST_F(FFmpegTest, EnvTeardownReclaimsStrandedObjects) {
 #endif
 }
 
+// A muxer stranded between its header and its trailer owes the trailer (see
+// AVFormatFreeContextWritesThePendingTrailer): the teardown writes it before
+// freeing the context, so the abandoned file comes out complete.
+TEST_F(FFmpegTest, EnvTeardownFinishesAnAbandonedMuxer) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+  ASSERT_TRUE(AVCodecMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+  uint32_t CodecPtr = UINT32_C(4);
+  uint32_t EncCtxPtr = UINT32_C(8);
+  uint32_t CtxPtr = UINT32_C(12);
+  uint32_t ParPtr = UINT32_C(16);
+  uint32_t FormatPtr = UINT32_C(100);
+  uint32_t FilePtr = UINT32_C(200);
+  std::string Format("wav");
+  std::string File("teardown_pending_trailer.wav");
+  fillMemContent(MemInst, FormatPtr, Format);
+  fillMemContent(MemInst, FilePtr, File);
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+  int const Before = countOpenDescriptors();
+#endif
+
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_find_encoder",
+                {UINT32_C(216), CodecPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t CodecId = readUInt32(MemInst, CodecPtr);
+  ASSERT_TRUE(CodecId > 0);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_alloc_context3",
+                {CodecId, EncCtxPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t EncCtxId = readUInt32(MemInst, EncCtxPtr);
+  ASSERT_TRUE(EncCtxId > 0);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_format",
+                {EncCtxId, UINT32_C(2)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_rate",
+                {EncCtxId, INT32_C(48000)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channel_layout",
+                {EncCtxId, UINT64_C(3)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_GE(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_alloc_output_context2",
+                {CtxPtr, UINT32_C(0), FormatPtr,
+                 static_cast<uint32_t>(Format.length()), FilePtr,
+                 static_cast<uint32_t>(File.length())}),
+            0);
+  uint32_t CtxId = readUInt32(MemInst, CtxPtr);
+  ASSERT_TRUE(CtxId > 0);
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_new_stream",
+                {CtxId, UINT32_C(0)}),
+            1);
+  EXPECT_EQ(Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_avStream_codecpar",
+                {CtxId, UINT32_C(0), ParPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t ParId = readUInt32(MemInst, ParPtr);
+  ASSERT_TRUE(ParId > 0);
+  EXPECT_GE(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_parameters_from_context",
+                {ParId, EncCtxId}),
+            0);
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avStream_set_timebase",
+                {UINT32_C(1), UINT32_C(48000), CtxId, UINT32_C(0)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_GE(
+      Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_avio_open",
+          {CtxId, FilePtr, static_cast<uint32_t>(File.length()), INT32_C(2)}),
+      0);
+  EXPECT_GE(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_write_header",
+                {CtxId, UINT32_C(0)}),
+            0);
+
+  // Dropping every module releases the last references to the shared env.
+  AVFormatMod.reset();
+  AVCodecMod.reset();
+  AVUtilMod.reset();
+  AVFilterMod.reset();
+  SWScaleMod.reset();
+  SWResampleMod.reset();
+  AVDeviceMod.reset();
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+  EXPECT_EQ(countOpenDescriptors(), Before);
+#endif
+  auto const [RiffSize, FileSize] = wavRiffAndFileSize(File);
+  EXPECT_GT(FileSize, UINT32_C(8));
+  EXPECT_EQ(RiffSize, FileSize - 8);
+}
+
 // The SDK never releases a borrowed view, so every getter that returns one
 // must hand out one id per object: a second call returns the id of the
 // first instead of a new handle that only the parent's free would release.

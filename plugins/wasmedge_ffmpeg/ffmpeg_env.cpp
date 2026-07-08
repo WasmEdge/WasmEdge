@@ -193,6 +193,9 @@ WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::~WasmEdgeFFmpegEnv() {
     if (isBorrowed(Pair.first) || !Released.insert(Pair.second.Ptr).second) {
       continue;
     }
+    if (tagged<AVFormatContext>(Pair.second.Tag) && isMuxing(Pair.first)) {
+      av_write_trailer(static_cast<AVFormatContext *>(Pair.second.Ptr));
+    }
     releaseHandle(Pair.second.Tag, Pair.second.Ptr);
   }
 }

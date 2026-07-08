@@ -8,6 +8,9 @@ extern "C" {
 #include "libavutil/time.h"
 }
 
+#include <optional>
+#include <string>
+
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
@@ -71,20 +74,31 @@ AVGetChannelLayoutNbChannels::body(const Runtime::CallingFrame &,
 }
 
 namespace {
-int describeChannelLayoutName(uint64_t ChannelLayout, char *Buf, size_t Size) {
+std::optional<std::string> describeChannelLayoutName(uint64_t ChannelLayout) {
   AVChannelLayout TmpChLayout;
   if (av_channel_layout_from_mask(&TmpChLayout, ChannelLayout) < 0) {
-    return -1;
+    return std::nullopt;
   }
-  int Ret;
-  if (TmpChLayout.nb_channels == 1) {
-    Ret = av_channel_name(
-        Buf, Size, FFmpegUtils::ChannelLayout::channelFromMask(ChannelLayout));
-  } else {
-    Ret = av_channel_layout_describe(&TmpChLayout, Buf, Size);
+  auto Describe = [&](char *Buf, size_t Size) {
+    return TmpChLayout.nb_channels == 1
+               ? av_channel_name(
+                     Buf, Size,
+                     FFmpegUtils::ChannelLayout::channelFromMask(ChannelLayout))
+               : av_channel_layout_describe(&TmpChLayout, Buf, Size);
+  };
+  int const Needed = Describe(nullptr, 0);
+  if (Needed <= 0) {
+    av_channel_layout_uninit(&TmpChLayout);
+    return std::nullopt;
   }
+  std::string Name(static_cast<size_t>(Needed), '\0');
+  int const Ret = Describe(Name.data(), Name.size());
   av_channel_layout_uninit(&TmpChLayout);
-  return Ret;
+  if (Ret < 0) {
+    return std::nullopt;
+  }
+  Name.resize(std::strlen(Name.c_str()));
+  return Name;
 }
 } // namespace
 
@@ -92,11 +106,12 @@ Expect<int32_t> AVGetChannelLayoutNameLen::body(const Runtime::CallingFrame &,
                                                 uint64_t ChannelLayoutId) {
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
-  char Name[64] = {0};
-  if (describeChannelLayoutName(ChannelLayout, Name, sizeof(Name)) < 0) {
+  std::optional<std::string> const Name =
+      describeChannelLayoutName(ChannelLayout);
+  if (!Name) {
     return 0;
   }
-  return std::strlen(Name);
+  return static_cast<int32_t>(Name->size());
 }
 
 Expect<int32_t> AVGetChannelLayoutName::body(const Runtime::CallingFrame &Frame,
@@ -108,15 +123,15 @@ Expect<int32_t> AVGetChannelLayoutName::body(const Runtime::CallingFrame &Frame,
 
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
-  char Name[64] = {0};
-  int const Ret = describeChannelLayoutName(ChannelLayout, Name, sizeof(Name));
-  if (Ret < 0) {
+  std::optional<std::string> const Name =
+      describeChannelLayoutName(ChannelLayout);
+  if (!Name) {
     spdlog::error("[WasmEdge-FFmpeg] AVGetChannelLayoutName: cannot describe "
-                  "channel layout mask {:#x} ({})"sv,
-                  ChannelLayout, Ret);
+                  "channel layout mask {:#x}"sv,
+                  ChannelLayout);
     return static_cast<int32_t>(ErrNo::InternalError);
   }
-  copyCStringToBuffer(NameBuf.data(), NameLen, Name);
+  copyCStringToBuffer(NameBuf.data(), NameLen, Name->c_str());
   return static_cast<int32_t>(ErrNo::Success);
 }
 

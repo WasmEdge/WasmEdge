@@ -164,6 +164,8 @@ public:
 
   WasmEdgeFFmpegEnv() noexcept {}
 
+  ~WasmEdgeFFmpegEnv();
+
 private:
   void eraseKeyByValue(void *Data, uint32_t Key) {
     auto Range = KeysByValue.equal_range(Data);

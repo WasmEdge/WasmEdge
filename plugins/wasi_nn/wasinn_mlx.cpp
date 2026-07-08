@@ -204,12 +204,10 @@ AnswerSataus answerSataus(std::string Text, std::string End) {
   return GO;
 }
 
-Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
-                           Span<const Span<uint8_t>> Builders, WASINN::Device,
-                           uint32_t &GraphId) noexcept {
-  // Add a new graph.
-  uint32_t GId = Env.newGraph(Backend::MLX);
-  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
+Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
+                           Span<const Span<uint8_t>> Builders,
+                           WASINN::Device) noexcept {
+  auto &GraphRef = G.get<Graph>();
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] MLX backend: Load."sv);
   }
@@ -218,7 +216,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   if (Builders.size() <= 1) {
     spdlog::error(
         "[WASI-NN] MLX backend: Lack model weight or required metadata (model_type)."sv);
-    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
   const std::string Metadata = std::string(
@@ -228,7 +225,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   auto ParseError = Parser.parse(Metadata).get(Doc);
   if (ParseError) {
     spdlog::error("[WASI-NN] MLX backend: Parse metadata error"sv);
-    Env.deleteGraph(GId);
     return ErrNo::InvalidEncoding;
   }
   if (Doc.at_key("model_type").error() == simdjson::SUCCESS) {
@@ -237,14 +233,12 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (Err) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the model_type option."sv);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.ModelType = ModelType;
   } else {
     spdlog::error(
         "[WASI-NN] MLX backend: Unable to retrieve the model_type option."sv);
-    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
   if (Doc.at_key("enable_debug_log").error() == simdjson::SUCCESS) {
@@ -253,7 +247,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (Err) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the enable_debug_log option."sv);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.EnableDebugLog = EnableDebugLog;
@@ -264,7 +257,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (Err) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the tokenizer option."sv);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     TokenizerPath = TokenizerPathView;
@@ -275,7 +267,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (Err) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the max_token option."sv);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.MaxToken = MaxToken;
@@ -292,7 +283,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (ErrQBits || ErrGroupSize || ErrIsQuantized) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the q_bits or group_size option."sv);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.IsQuantized = IsQuantized;
@@ -306,14 +296,12 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (Err) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the group size from quantization option."sv);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     Err = QuantResult.value()["bits"].get<uint64_t>().get(GraphRef.QBits);
     if (Err) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the group size from quantization option."sv);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.IsQuantized = true;
@@ -327,7 +315,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                                WeightData.size());
     spdlog::info("[WASI-NN] MLX BinModel: {}"sv, BinModel.size());
     if (BinModel.size() == 0) {
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     std::string ModelFilePath;
@@ -341,14 +328,13 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       }
       // Write model to file.
       // TODO: handle different model format.
-      ModelFilePath = "MLX" + std::to_string(Idx) + ".safetensors";
+      ModelFilePath = uniqueModelFileName(Idx);
       WasmEdge::FStream::OFStream TempFile(
           ModelFilePath, std::ios_base::out | std::ios_base::binary,
           Env.getEnv());
       if (!TempFile) {
         spdlog::error(
             "[WASI-NN] MLX backend: Failed to create the temporary file. "sv);
-        Env.deleteGraph(GId);
         return ErrNo::InvalidArgument;
       }
       TempFile.write(BinModel.data(), BinModel.size());
@@ -377,7 +363,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     } else {
       spdlog::error("[WASI-NN] MLX backend: Model type {} not supported."sv,
                     GraphRef.ModelType);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
   }
@@ -425,7 +410,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   } else {
     spdlog::error("[WASI-NN] MLX backend: Model type {} not supported."sv,
                   GraphRef.ModelType);
-    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
 
@@ -434,13 +418,11 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     auto Bytes = loadBytesFromFile(TokenizerPath, Env.getEnv());
     if (Bytes.empty()) {
       spdlog::error("[WASI-NN] MLX backend: Load tokenizer failed."sv);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.Tok = tokenizers::Tokenizer::FromBlobJSON(Bytes);
   } else if (GraphRef.ModelArch == "llm") {
     spdlog::error("[WASI-NN] MLX backend: Tokenizer path not found."sv);
-    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
 
@@ -466,7 +448,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   } else {
     spdlog::error("[WASI-NN] MLX backend: Model type {} not supported."sv,
                   GraphRef.ModelType);
-    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
 
@@ -477,17 +458,13 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     GraphRef.Model->toQuantized(GraphRef.GroupSize, GraphRef.QBits);
   }
 
-  GraphId = GId;
-  Env.NNGraph[GId].setReady();
   return WASINN::ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
-                                  uint32_t &ContextId) noexcept {
-  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
-  Env.NNContext[ContextId].setReady();
-  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &G,
+                                  WASINN::Context &C) noexcept {
+  auto &GraphRef = G.get<Graph>();
+  auto &CxtRef = C.get<Context>();
   if (GraphRef.ModelArch == "llm") {
     CxtRef.Inputs = LLMInput();
   } else if (GraphRef.ModelArch == "vlm") {
@@ -498,17 +475,16 @@ Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
     spdlog::error(
         "[WASI-NN] MLX backend: Model architecture {} not supported."sv,
         GraphRef.ModelArch);
-    Env.deleteContext(ContextId);
     return ErrNo::InvalidArgument;
   }
   return ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
-                               uint32_t Index,
+Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
+                               WASINN::Context &C, uint32_t Index,
                                const TensorData &Tensor) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] MLX backend: setInput"sv);
   }
@@ -548,11 +524,12 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   return WASINN::ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
-                                uint32_t, Span<uint8_t> OutBuffer,
+Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &, WASINN::Graph &G,
+                                WASINN::Context &C, uint32_t,
+                                Span<uint8_t> OutBuffer,
                                 uint32_t &BytesWritten) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] MLX backend: getOutput"sv);
   }
@@ -614,10 +591,10 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   return WASINN::ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
-                              uint32_t ContextId) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+Expect<WASINN::ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &G,
+                              WASINN::Context &C) noexcept {
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
 
   const auto Start{std::chrono::steady_clock::now()};
   size_t TokenListSize = 0;
@@ -677,24 +654,26 @@ Expect<WASINN::ErrNo> reportBackendNotSupported() noexcept {
 }
 } // namespace
 
-Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &,
-                           Span<const Span<uint8_t>>, WASINN::Device,
-                           uint32_t &) noexcept {
+Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                           Span<const Span<uint8_t>>, WASINN::Device) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &, uint32_t,
-                                  uint32_t &) noexcept {
+Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                                  WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
+Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                               WASINN::Context &, uint32_t,
                                const TensorData &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
-                                Span<uint8_t>, uint32_t &) noexcept {
+Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                                WASINN::Context &, uint32_t, Span<uint8_t>,
+                                uint32_t &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
+Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                              WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
 #endif

@@ -88,10 +88,15 @@ add_subdirectory(errinfo)
 add_subdirectory(vm)
 
 if(WASMEDGE_BUILD_COVERAGE)
+  include(ProcessorCount)
+  ProcessorCount(PROCESSOR_COUNT)
+  if(PROCESSOR_COUNT EQUAL 0)
+    set(PROCESSOR_COUNT 1)
+  endif()
   set(GCOVR_ADDITIONAL_ARGS --gcov-ignore-parse-errors negative_hits.warn_once_per_file)
   setup_target_for_coverage_gcovr_html(
     NAME coverage
-    EXECUTABLE ctest -j ${PROCESSOR_COUNT}
+    EXECUTABLE ctest -j ${PROCESSOR_COUNT} --output-on-failure
     DEPENDENCIES wasmedge
     BASE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     EXCLUDE
@@ -100,7 +105,7 @@ if(WASMEDGE_BUILD_COVERAGE)
   )
   setup_target_for_coverage_gcovr_xml(
     NAME codecov
-    EXECUTABLE ctest -j ${PROCESSOR_COUNT}
+    EXECUTABLE ctest -j ${PROCESSOR_COUNT} --output-on-failure
     DEPENDENCIES wasmedge
     EXCLUDE
     "${PROJECT_SOURCE_DIR}/thirdparty/*"

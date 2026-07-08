@@ -900,6 +900,13 @@ struct VarAddrBuf {
 struct VarAddrSize {
   template <typename T> int operator()(const T &) { return sizeof(T); }
   int operator()(const SockEmptyAddr &) { return 0; }
+  int operator()(const sockaddr_un &U) {
+    const auto Len = strnlen(U.sun_path, sizeof(U.sun_path));
+    if (Len == 0 || Len == sizeof(U.sun_path)) {
+      return sizeof(sockaddr_un);
+    }
+    return static_cast<int>(offsetof(sockaddr_un, sun_path) + Len + 1);
+  }
 };
 
 static VarAddrT sockAddressAssignHelper(__wasi_address_family_t AddrFamily,

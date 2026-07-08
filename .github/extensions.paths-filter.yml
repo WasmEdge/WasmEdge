@@ -8,6 +8,7 @@ shared_cmake:
 wasi_crypto:
   - 'plugins/wasi_crypto/**'
   - 'test/plugins/wasi_crypto/**'
+  - 'thirdparty/wasi_crypto/**'
 wasi_nn:
   - 'cmake/WASINNDeps.cmake'
   - 'plugins/wasi_nn/**'

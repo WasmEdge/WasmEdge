@@ -111,17 +111,15 @@ TEST(StatsJsonTest, AllStatsFlagsProduceAllFields) {
 }
 
 TEST(StatsJsonTest, NoJsonOutputWhenNoStatFlagEnabled) {
-
   Configure Conf;
-
-  Conf.getStatisticsConfigure().setStatsOutputFormat(Configure::StatisticsConfigure::StatsOutputFormat::JSON);
-
+  Conf.getStatisticsConfigure().setStatsOutputFormat(
+      Configure::StatisticsConfigure::StatsOutputFormat::JSON);
   Statistics::Statistics Stats;
-
+  testing::internal::CaptureStderr();
   std::string Out = captureStdout(Stats, Conf);
-
+  std::string Err = testing::internal::GetCapturedStderr();
   EXPECT_EQ(Out, "");
-
+  EXPECT_NE(Err.find("--stats-format=json has no effect"), std::string::npos);
 }
 
 TEST(StatsJsonTest, ValidJsonStructure) {

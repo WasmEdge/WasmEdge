@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2023 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "ocr_func.h"
 
@@ -50,7 +50,7 @@ Expect<uint32_t> GetOutput::body(const Runtime::CallingFrame &Frame,
   auto Buf = MemInst->getSpan<char>(OutBufferPtr, OutBufferMaxSize);
   if (unlikely(Buf.empty())) {
     spdlog::error(
-        "[WasmEdge-OCR] Failed when accessing the return OutBufferPtr memory.");
+        "[WasmEdge-OCR] Failed when accessing the return OutBufferPtr memory."sv);
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
 

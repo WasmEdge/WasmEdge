@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+set -e
 
 if [[ ! -n ${PYTORCH_VERSION} ]]; then
   PYTORCH_VERSION="2.5.1"
@@ -24,7 +25,7 @@ for i in "$@"; do
 done
 
 if [ ! -d ${PYTORCH_INSTALL_TO}/libtorch ]; then
-  curl -s -L -O --remote-name-all https://download.pytorch.org/libtorch/cpu/${PYTORCH_LINK}-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip
+  curl -sSf -L -O --remote-name-all https://download.pytorch.org/libtorch/cpu/${PYTORCH_LINK}-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip
   echo "${PYTORCH_SHA} ${PYTORCH_LINK}-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip" | sha256sum -c
   unzip -q "${PYTORCH_LINK}-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip" -d ${PYTORCH_INSTALL_TO}
   rm -f "${PYTORCH_LINK}-shared-with-deps-${PYTORCH_VERSION}%2Bcpu.zip"

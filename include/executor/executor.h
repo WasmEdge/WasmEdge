@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/executor/executor.h - Executor class definition ----------===//
 //
@@ -204,7 +204,7 @@ public:
 
   /// Register a callback for lazy function compilation
   void registerLazyCompilationCallback(
-      std::function<Expect<void>(const std::string &, const uint32_t)>
+      std::function<Expect<void>(const Runtime::Instance::FunctionInstance *)>
           Callback) {
     LazyCompilationHandler = std::move(Callback);
   }
@@ -1030,12 +1030,6 @@ public:
   Expect<RefVariant> proxyRefCast(Runtime::StackManager &StackMgr,
                                   const RefVariant Ref,
                                   ValType VTCast) noexcept;
-  Expect<RefVariant> proxyTableGet(Runtime::StackManager &StackMgr,
-                                   const uint32_t TableIdx,
-                                   const uint64_t Off) noexcept;
-  Expect<void> proxyTableSet(Runtime::StackManager &StackMgr,
-                             const uint32_t TableIdx, const uint64_t Off,
-                             const RefVariant Ref) noexcept;
   Expect<void> proxyTableInit(Runtime::StackManager &StackMgr,
                               const uint32_t TableIdx, const uint32_t ElemIdx,
                               const uint64_t DstOff, const uint32_t SrcOff,
@@ -1050,8 +1044,6 @@ public:
   Expect<uint64_t> proxyTableGrow(Runtime::StackManager &StackMgr,
                                   const uint32_t TableIdx, const RefVariant Val,
                                   const uint64_t NewSize) noexcept;
-  Expect<uint64_t> proxyTableSize(Runtime::StackManager &StackMgr,
-                                  const uint32_t TableIdx) noexcept;
   Expect<void> proxyTableFill(Runtime::StackManager &StackMgr,
                               const uint32_t TableIdx, const uint64_t Off,
                               const RefVariant Ref,
@@ -1059,8 +1051,6 @@ public:
   Expect<uint64_t> proxyMemGrow(Runtime::StackManager &StackMgr,
                                 const uint32_t MemIdx,
                                 const uint64_t NewSize) noexcept;
-  Expect<uint64_t> proxyMemSize(Runtime::StackManager &StackMgr,
-                                const uint32_t MemIdx) noexcept;
   Expect<void> proxyMemInit(Runtime::StackManager &StackMgr,
                             const uint32_t MemIdx, const uint32_t DataIdx,
                             const uint64_t DstOff, const uint32_t SrcOff,
@@ -1105,12 +1095,16 @@ private:
 #else
     uint8_t **const *Memories;
 #endif
+    const uint64_t *const *MemorySizes;
+    RefVariant **const *TableRefs;
+    const uint64_t *const *TableSizes;
     ValVariant *const *Globals;
     std::atomic_uint64_t *InstrCount;
     uint64_t *CostTable;
     std::atomic_uint64_t *Gas;
     uint64_t GasLimit;
     std::atomic_uint32_t *StopToken;
+    const void *ModuleInst;
   };
 
   /// Restores thread local VM reference after overwriting it.
@@ -1149,7 +1143,7 @@ private:
   /// Executor Host Function Handler
   HostFuncHandler HostFuncHelper = {};
   /// Callback for lazy function compilation
-  std::function<Expect<void>(const std::string &, const uint32_t)>
+  std::function<Expect<void>(const Runtime::Instance::FunctionInstance *)>
       LazyCompilationHandler;
 
   /// Helper function for triggering lazy compilation.
@@ -1157,20 +1151,12 @@ private:
   /// unsafeUpgradeToCompiled on the same FuncInst could result in a race
   /// condition if checking FuncInst->isCompiledFunction() directly here. As a
   /// temporary workaround, checks for compilation state are deferred to the
-  /// LazyCompilationHandler (VM::lazyCompileFunctions), which executes
-  /// under a global JIT compilation lock.
+  /// LazyCompilationHandler, which must serialize them against compiled-state
+  /// upgrades (the lazy JIT engine does so under its internal lock).
   Expect<void> checkLazyCompilation(
       const Runtime::Instance::FunctionInstance *FuncInst) const noexcept {
-    if (LazyCompilationHandler) {
-      if (const auto *TargetModInst = FuncInst->getModule()) {
-        if (auto Res = TargetModInst->getFuncIdx(FuncInst)) {
-          uint32_t TargetFuncIdx = *Res;
-          const std::string ID = TargetModInst->getID();
-          if (!ID.empty()) {
-            return LazyCompilationHandler(ID, TargetFuncIdx);
-          }
-        }
-      }
+    if (unlikely(LazyCompilationHandler != nullptr)) {
+      return LazyCompilationHandler(FuncInst);
     }
     return {};
   }

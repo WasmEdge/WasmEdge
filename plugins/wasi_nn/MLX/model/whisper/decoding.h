@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2025 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -163,7 +163,7 @@ public:
   std::vector<DecodingResult> run(const mx::array &Mel);
 
 private:
-  DecodingOptions verifyOptions(const DecodingOptions &Options);
+  DecodingOptions verifyOptions(const DecodingOptions &InputOptions);
   std::vector<int> getInitialTokens();
   std::vector<int> getSuppressTokens();
   mx::array getAudioFeatures(const mx::array &Mel);

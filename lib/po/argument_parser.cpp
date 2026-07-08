@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "po/argument_parser.h"
 #include "common/defines.h"
@@ -279,7 +279,7 @@ ArgumentParser::SubCommandDescriptor::consume_long_option_with_argument(
     } else if (ArgumentDescriptor *CurrentDesc = *Res; !CurrentDesc) {
       return cxx20::unexpected<Error>(
           std::in_place, ErrCode::InvalidArgument,
-          fmt::format("option {} doesn't need arguments.", Option));
+          fmt::format("option {} doesn't need arguments."sv, Option));
     } else {
       if (auto ConsumeRes = consume_argument(*CurrentDesc, Argument);
           !ConsumeRes) {

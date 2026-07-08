@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "GGML/core/ggml_core.h"
 
@@ -31,11 +31,6 @@ const std::map<int, std::string> Ones = {
 const std::map<int, std::string> Tens = {
     {2, "twenty"}, {3, "thirty"},  {4, "forty"},  {5, "fifty"},
     {6, "sixty"},  {7, "seventy"}, {8, "eighty"}, {9, "ninety"}};
-
-std::vector<float> embdToAudio(const float *Embd, const int NCodes,
-                               const int NEmbd, const int NThread);
-std::vector<uint8_t> audioDataToWav(const std::vector<float> &Data,
-                                    int SampleRate);
 } // namespace
 
 std::string processTTSPromptText(const std::string &Text);

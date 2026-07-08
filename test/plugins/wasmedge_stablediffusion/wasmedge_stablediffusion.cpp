@@ -87,32 +87,24 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
 
   // Get the function "convert".
   auto *FuncInst = SBMod->findFuncExports("convert");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncConvert =
-      dynamic_cast<WasmEdge::Host::StableDiffusion::SDConvert &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncConvert = FuncInst->getHostFunc();
   // Get the function "create_context".
   FuncInst = SBMod->findFuncExports("create_context");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncCreateContext =
-      dynamic_cast<WasmEdge::Host::StableDiffusion::SDCreateContext &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncCreateContext = FuncInst->getHostFunc();
   // Get the function "text_to_image".
   FuncInst = SBMod->findFuncExports("text_to_image");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncTextToImage =
-      dynamic_cast<WasmEdge::Host::StableDiffusion::SDTextToImage &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncTextToImage = FuncInst->getHostFunc();
   // Get the function "image_to_image".
   FuncInst = SBMod->findFuncExports("image_to_image");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncImageToImage =
-      dynamic_cast<WasmEdge::Host::StableDiffusion::SDImageToImage &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncImageToImage = FuncInst->getHostFunc();
 
   std::string Prompt = "a lovely cat";
   std::string Prompt2 = "with blue eyes";
@@ -127,9 +119,9 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
                                 OutputPathString2.end());
   std::vector<char> PromptData(Prompt.begin(), Prompt.end());
   std::vector<char> PromptData2(Prompt2.begin(), Prompt2.end());
-  std::string ModelPathString = "./stableDiffusion/sd-v1-4.ckpt";
+  std::string ModelPathString = "./stableDiffusion/sd-v1-5-fp16.safetensors";
   std::vector<char> ModelPath(ModelPathString.begin(), ModelPathString.end());
-  std::string QuantModelPathString = "./stableDiffusion/sd-v1-4-Q8_0.gguf";
+  std::string QuantModelPathString = "./stableDiffusion/sd-v1-5-Q8_0.gguf";
   std::vector<char> QuantModelPath(QuantModelPathString.begin(),
                                    QuantModelPathString.end());
 

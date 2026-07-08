@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 
@@ -14,6 +14,8 @@ Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
   // Prepare pointers vector for compiled functions.
   ModInst.MemoryPtrs.resize(ModInst.getMemoryNum() +
                             MemSec.getContent().size());
+  ModInst.MemorySizePtrs.resize(ModInst.getMemoryNum() +
+                                MemSec.getContent().size());
 
   // Set the memory pointers of imported memories.
   for (uint32_t I = 0; I < ModInst.getMemoryNum(); ++I) {
@@ -22,6 +24,7 @@ Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
 #else
     ModInst.MemoryPtrs[I] = &(*ModInst.getMemory(I))->getDataPtr();
 #endif
+    ModInst.MemorySizePtrs[I] = (*ModInst.getMemory(I))->getPageSizePtr();
   }
 
   // Iterate through the memory types to instantiate memory instances.
@@ -36,6 +39,7 @@ Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
 #else
     ModInst.MemoryPtrs[Index] = &MemInst->getDataPtr();
 #endif
+    ModInst.MemorySizePtrs[Index] = MemInst->getPageSizePtr();
   }
   return {};
 }

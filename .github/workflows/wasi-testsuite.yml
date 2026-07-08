@@ -42,7 +42,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: WasmEdge
       - name: Ensure git safe directory
@@ -73,12 +73,12 @@ jobs:
 
       - name: Install dependency on Windows
         if: matrix.os == 'windows-2025'
-        uses: crazy-max/ghaction-chocolatey@dff3862348493b11fba2fbc49147b6d2dfe09b66 # v4.0.0
+        uses: crazy-max/ghaction-chocolatey@dfdcf5bba9c0a16358a21c13a06ec5c89024b3ac # v4.1.0
         with:
           args: install --no-progress ninja vswhere
       - name: Upgrade dependency on Windows
         if: matrix.os == 'windows-2025'
-        uses: crazy-max/ghaction-chocolatey@dff3862348493b11fba2fbc49147b6d2dfe09b66 # v4.0.0
+        uses: crazy-max/ghaction-chocolatey@dfdcf5bba9c0a16358a21c13a06ec5c89024b3ac # v4.1.0
         with:
           args: upgrade --no-progress llvm
       - name: Install Windows SDK
@@ -107,14 +107,14 @@ jobs:
           echo "$Env:GITHUB_WORKSPACE\\WasmEdge\\build\\lib\\api" | Out-File -FilePath $Env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Checkout wasi-testsuite
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: WebAssembly/wasi-testsuite
           ref: prod/testsuite-base
           path: wasi-testsuite
 
       - name: Initialize Python environment
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.12'
           cache: pip

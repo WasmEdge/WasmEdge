@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "helper.h"
 
@@ -28,6 +28,21 @@ TEST_F(WasiCryptoTest, Asymmetric) {
           WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
           WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
           WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkHandle));
+
+          if (Alg == "Ed25519"sv) {
+            WASI_CRYPTO_EXPECT_SUCCESS(
+                KpMHandle,
+                keypairGenerateManaged(1, AlgType, Alg, std::nullopt));
+            WASI_CRYPTO_EXPECT_SUCCESS(PkMHandle, keypairPublickey(KpMHandle));
+            WASI_CRYPTO_EXPECT_SUCCESS(SkMHandle, keypairSecretkey(KpMHandle));
+            WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpMHandle));
+            WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkMHandle));
+            WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkMHandle));
+          } else {
+            WASI_CRYPTO_EXPECT_FAILURE(
+                keypairGenerateManaged(1, AlgType, Alg, std::nullopt),
+                __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+          }
         }
 
         // Encoding checking.
@@ -199,6 +214,18 @@ TEST_F(WasiCryptoTest, Asymmetric) {
                         SupportKp);
         }
       };
+
+  auto ManagedNegativeCheck = [this](
+                                  __wasi_secrets_manager_t SmHandle,
+                                  __wasi_algorithm_type_e_t AlgType,
+                                  std::string_view Alg,
+                                  std::optional<__wasi_options_t> OptOptions,
+                                  __wasi_crypto_errno_e_t ExpectedError) {
+    SCOPED_TRACE(Alg);
+    WASI_CRYPTO_EXPECT_FAILURE(
+        keypairGenerateManaged(SmHandle, AlgType, Alg, OptOptions),
+        ExpectedError);
+  };
 
   RsaCheck(
       "2048"sv,
@@ -600,6 +627,14 @@ TEST_F(WasiCryptoTest, Asymmetric) {
         "3e28cd3c23ecbe66098bd0a029a8792ae5259282c116b32a28908aaa1bcf"
         "ef61d9529f"_u8v}},
       {});
+
+  ManagedNegativeCheck(1, __WASI_ALGORITHM_TYPE_SYMMETRIC, "Ed25519"sv,
+                       std::nullopt, __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  ManagedNegativeCheck(1, __WASI_ALGORITHM_TYPE_SIGNATURES, "FooBar"sv,
+                       std::nullopt, __WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
+  ManagedNegativeCheck(1, __WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv,
+                       static_cast<__wasi_options_t>(InvaildHandle),
+                       __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 }
 
 } // namespace WasiCrypto

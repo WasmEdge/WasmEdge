@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
 #include "executor/executor.h"
@@ -133,8 +133,7 @@ TEST(WasmBpfTest, SimpleRingbuf) {
   auto *loadFunc = module->findFuncExports("wasm_load_bpf_object");
   ASSERT_NE(loadFunc, nullptr);
   ASSERT_TRUE(loadFunc->isHostFunction());
-  auto &loadFuncHost =
-      dynamic_cast<WasmEdge::Host::LoadBpfObject &>(loadFunc->getHostFunc());
+  auto &loadFuncHost = loadFunc->getHostFunc();
 
   // call "wasm_load_bpf_object" to Load `bootstrap.bpf.o`, and check the
   // result
@@ -152,8 +151,7 @@ TEST(WasmBpfTest, SimpleRingbuf) {
   auto *attachFunc = module->findFuncExports("wasm_attach_bpf_program");
   ASSERT_NE(attachFunc, nullptr);
   ASSERT_TRUE(attachFunc->isHostFunction());
-  auto &attachFuncHost = dynamic_cast<WasmEdge::Host::AttachBpfProgram &>(
-      attachFunc->getHostFunc());
+  auto &attachFuncHost = attachFunc->getHostFunc();
 
   // Call "wasm_attach_bpf_program" to attach, and check the result
   std::array<WasmEdge::ValVariant, 1> attachResult;
@@ -171,8 +169,7 @@ TEST(WasmBpfTest, SimpleRingbuf) {
   auto *mapFdFunc = module->findFuncExports("wasm_bpf_map_fd_by_name");
   ASSERT_NE(mapFdFunc, nullptr);
   ASSERT_TRUE(mapFdFunc->isHostFunction());
-  auto &mapFdFuncHost =
-      dynamic_cast<WasmEdge::Host::BpfMapFdByName &>(mapFdFunc->getHostFunc());
+  auto &mapFdFuncHost = mapFdFunc->getHostFunc();
 
   // Call "wasm_bpf_map_fd_by_name" to get the map fd, and check the result
   std::array<WasmEdge::ValVariant, 1> mapFdResult;
@@ -205,8 +202,7 @@ TEST(WasmBpfTest, SimpleRingbuf) {
   auto *bufferPollFunc = module->findFuncExports("wasm_bpf_buffer_poll");
   ASSERT_NE(bufferPollFunc, nullptr);
   ASSERT_TRUE(bufferPollFunc->isHostFunction());
-  auto &bufferPollFuncHost = dynamic_cast<WasmEdge::Host::BpfBufferPoll &>(
-      bufferPollFunc->getHostFunc());
+  auto &bufferPollFuncHost = bufferPollFunc->getHostFunc();
 
   // Call the polling function
   std::array<WasmEdge::ValVariant, 1> pollResult;
@@ -231,8 +227,7 @@ TEST(WasmBpfTest, SimpleRingbuf) {
   auto *closeFunc = module->findFuncExports("wasm_close_bpf_object");
   ASSERT_NE(closeFunc, nullptr);
   ASSERT_TRUE(closeFunc->isHostFunction());
-  auto &closeFuncHost =
-      dynamic_cast<WasmEdge::Host::CloseBpfObject &>(closeFunc->getHostFunc());
+  auto &closeFuncHost = closeFunc->getHostFunc();
 
   // Call "wasm_close_bpf_object" to attach, and check the result
   std::array<WasmEdge::ValVariant, 1> closeResult;

@@ -8,12 +8,22 @@ on:
   push:
     branches:
       - master
+      - "[0-9]+.[0-9]+.x"
     paths:
       - ".github/extensions.paths-filter.yml"
       - ".github/workflows/build-extensions.yml"
       - ".github/workflows/matrix-extensions.json"
       - ".github/workflows/reusable-build-extensions**"
       - ".github/workflows/reusable-call-linter.yml"
+      - "include/api/wasmedge/wasmedge_tools.h"
+      - "include/driver/wasi_nn_rpc/**"
+      - "include/driver/wasiNNRPCServerTool.h"
+      - "lib/CMakeLists.txt"
+      - "lib/api/CMakeLists.txt"
+      - "lib/api/wasmedge.cpp"
+      - "lib/driver/CMakeLists.txt"
+      - "lib/driver/wasiNNRPCServerTool.cpp"
+      - "lib/wasi_nn_rpc/**"
       - "plugins/**"
       - "test/plugins/**"
       - "thirdparty/**"
@@ -24,12 +34,22 @@ on:
     branches:
       - master
       - "proposal/**"
+      - "[0-9]+.[0-9]+.x"
     paths:
       - ".github/extensions.paths-filter.yml"
       - ".github/workflows/build-extensions.yml"
       - ".github/workflows/matrix-extensions.json"
       - ".github/workflows/reusable-build-extensions**"
       - ".github/workflows/reusable-call-linter.yml"
+      - "include/api/wasmedge/wasmedge_tools.h"
+      - "include/driver/wasi_nn_rpc/**"
+      - "include/driver/wasiNNRPCServerTool.h"
+      - "lib/CMakeLists.txt"
+      - "lib/api/CMakeLists.txt"
+      - "lib/api/wasmedge.cpp"
+      - "lib/driver/CMakeLists.txt"
+      - "lib/driver/wasiNNRPCServerTool.cpp"
+      - "lib/wasi_nn_rpc/**"
       - "plugins/**"
       - "test/plugins/**"
       - "thirdparty/**"
@@ -58,7 +78,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -71,6 +91,31 @@ jobs:
           git fetch --tags --force
           echo "Set version: $(git describe --match "[0-9].[0-9]*" --tag)"
           echo "version=$(git describe --match '[0-9].[0-9]*' --tag)" >> $GITHUB_OUTPUT
+
+  filter:
+    name: Filter changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # Required by dorny/paths-filter on pull_request events
+    outputs:
+      all: ${{ steps.filter.outputs.all }}
+      shared_cmake: ${{ steps.filter.outputs.shared_cmake }}
+      wasi_nn: ${{ steps.filter.outputs.wasi_nn }}
+      wasi_nn_rpc: ${{ steps.filter.outputs.wasi_nn_rpc }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - id: filter
+        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+        with:
+          filters: '.github/extensions.paths-filter.yml'
 
   test_wasi_nn_ggml_rpc:
     permissions:
@@ -87,7 +132,12 @@ jobs:
             build_type: Release
     name: WASI-NN GGML RPC (${{ matrix.name }})
     runs-on: ubuntu-latest
-    needs: [ get_version ]
+    needs: [ get_version, filter ]
+    if: >-
+      ${{ needs.filter.outputs.all == 'true'
+       || needs.filter.outputs.shared_cmake == 'true'
+       || needs.filter.outputs.wasi_nn == 'true'
+       || needs.filter.outputs.wasi_nn_rpc == 'true' }}
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
@@ -96,14 +146,22 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
+      - name: Restore ML model fixtures
+        id: ml-fixtures
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build_rpc/test/plugins/wasi_nn/wasinn_*_fixtures
+          key: ml-fixtures-wasi_nn-ggml-rpc-${{ hashFiles('test/plugins/wasi_nn/CMakeLists.txt') }}
       - name: Test WASI-NN RPC mode with GGML
         shell: bash
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -eux
           # wasi_nn_rpcserver is built in a clean "build_rpc" dir
@@ -121,7 +179,7 @@ jobs:
           export WASMEDGE_PLUGIN_PATH=build_rpc/plugins/wasi_nn
           build_rpc/tools/wasmedge/wasi_nn_rpcserver \
             --nn-rpc-uri $WASI_NN_RPC_TEST_URI \
-            --nn-preload default:GGML:AUTO:build_rpc/test/plugins/wasi_nn/wasinn_ggml_fixtures/orca_mini.gguf &
+            --nn-preload default:GGML:AUTO:build_rpc/test/plugins/wasi_nn/wasinn_ggml_fixtures/stories260K.gguf &
           RPC_SERVER_PID=$!
           sleep 3
           # The test binary consumes $WASI_NN_RPC_TEST_URI
@@ -131,11 +189,17 @@ jobs:
           # Restart the server for the compute single test
           build_rpc/tools/wasmedge/wasi_nn_rpcserver \
             --nn-rpc-uri $WASI_NN_RPC_TEST_URI \
-            --nn-preload default:GGML:AUTO:build_rpc/test/plugins/wasi_nn/wasinn_ggml_fixtures/orca_mini.gguf &
+            --nn-preload default:GGML:AUTO:build_rpc/test/plugins/wasi_nn/wasinn_ggml_fixtures/stories260K.gguf &
           RPC_SERVER_PID=$!
           sleep 3
           (cd ${nnrpc_test_dir} && ./${test_bin} --gtest_filter=WasiNNTest.GGMLBackendComputeSingleWithRPC)
           kill -9 "$RPC_SERVER_PID"
+      - name: Save ML model fixtures
+        if: ${{ github.ref == 'refs/heads/master' && steps.ml-fixtures.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build_rpc/test/plugins/wasi_nn/wasinn_*_fixtures
+          key: ml-fixtures-wasi_nn-ggml-rpc-${{ hashFiles('test/plugins/wasi_nn/CMakeLists.txt') }}
 
   build_windows_wasi_nn:
     permissions:
@@ -148,14 +212,18 @@ jobs:
       tar_names: wasi_nn-ggml
       test_bin: wasiNNTests
       output_bin: wasmedgePluginWasiNN.dll
-    needs: [ get_version ]
+    needs: [ get_version, filter ]
+    if: >-
+      ${{ needs.filter.outputs.all == 'true'
+       || needs.filter.outputs.shared_cmake == 'true'
+       || needs.filter.outputs.wasi_nn == 'true' }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -164,12 +232,18 @@ jobs:
       - uses: GuillaumeFalourd/setup-windows10-sdk-action@d4f23d08ae372a72e47dc2616c9ec8c951f853ec # v2.5
         with:
           sdk-version: 26100
-      - name: Cache LLVM
+      - name: Restore LLVM
         id: llvm-cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: LLVM-21.1.3-win64-MultiThreadedDLL
           key: llvm-21.1.3-windows-2025
+      - name: Restore ML model fixtures
+        id: ml-fixtures
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/test/plugins/wasi_nn/wasinn_*_fixtures
+          key: ml-fixtures-wasi_nn-ggml-windows-${{ hashFiles('test/plugins/wasi_nn/CMakeLists.txt') }}
       - name: Download and Extract LLVM
         if: steps.llvm-cache.outputs.cache-hit != 'true'
         run: |
@@ -178,7 +252,15 @@ jobs:
           Invoke-WebRequest -Uri $uri -HttpVersion 2.0 -OutFile $llvm
           Expand-Archive -Path $llvm
           Remove-Item -Path $llvm
+      - name: Save LLVM
+        if: ${{ github.ref == 'refs/heads/master' && steps.llvm-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: LLVM-21.1.3-win64-MultiThreadedDLL
+          key: llvm-21.1.3-windows-2025
       - name: Build WasmEdge
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
@@ -203,6 +285,12 @@ jobs:
           Write-Output "Compress-Archive -Path $Env:output_bin -DestinationPath plugin_${Env:tar_names}.zip -CompressionLevel Optimal"
           Compress-Archive -Path "$Env:output_bin" -DestinationPath "plugin_${Env:tar_names}.zip" -CompressionLevel Optimal
           ls "plugin_${Env:tar_names}.zip"
+      - name: Save ML model fixtures
+        if: ${{ github.ref == 'refs/heads/master' && steps.ml-fixtures.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/test/plugins/wasi_nn/wasinn_*_fixtures
+          key: ml-fixtures-wasi_nn-ggml-windows-${{ hashFiles('test/plugins/wasi_nn/CMakeLists.txt') }}
       - name: Upload artifact - wasi_nn-ggml
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

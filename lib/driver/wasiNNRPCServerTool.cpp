@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/spdlog.h"
 #include "driver/wasi_nn_rpc/wasi_nn_rpcserver/wasi_nn_rpcserver.h"

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "avutil/module.h"
 #include "avutil/pixfmt.h"
@@ -13,13 +13,14 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 TEST_F(FFmpegTest, AVPixFmt) {
+  using namespace std::literals::string_view_literals;
   uint32_t NamePtr = UINT32_C(4);
 
   auto *FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_avpixfmtdescriptor_nb_components");
-  auto &HostFuncAVPixFmtDescriptorNbComponents = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AvPixFmtDescriptorNbComponents &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPixFmtDescriptorNbComponents = FuncInst->getHostFunc();
 
   uint32_t PixFmtId = 3; // RGB24
 
@@ -33,38 +34,41 @@ TEST_F(FFmpegTest, AVPixFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_avpixfmtdescriptor_log2_chromaw");
-  auto &HostFuncAvPixFmtDescriptorLog2ChromaW = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AvPixFmtDescriptorLog2ChromaW &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAvPixFmtDescriptorLog2ChromaW = FuncInst->getHostFunc();
+
+  uint32_t Yuv422PId = 5; // YUV422P: chroma subsampled on width only
 
   {
-    HostFuncAvPixFmtDescriptorLog2ChromaW.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{1}, Result);
+    EXPECT_TRUE(HostFuncAvPixFmtDescriptorLog2ChromaW.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{Yuv422PId},
+        Result));
 
-    EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+    EXPECT_EQ(Result[0].get<int32_t>(), 1);
   }
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_avpixfmtdescriptor_log2_chromah");
-  auto &HostFuncAvPixFmtDescriptorLog2ChromaH = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AvPixFmtDescriptorLog2ChromaH &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAvPixFmtDescriptorLog2ChromaH = FuncInst->getHostFunc();
 
   {
-    HostFuncAvPixFmtDescriptorLog2ChromaH.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{PixFmtId},
-        Result);
+    EXPECT_TRUE(HostFuncAvPixFmtDescriptorLog2ChromaH.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{Yuv422PId},
+        Result));
 
-    EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+    EXPECT_EQ(Result[0].get<int32_t>(), 0);
   }
 
   int32_t Length = 0;
   int32_t TransferCharacteristicId = 6; // (SMPTE170M)
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_color_transfer_name_length");
-  auto &HostFuncAVColorTransferNameLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVColorTransferNameLength &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVColorTransferNameLength = FuncInst->getHostFunc();
 
   {
     HostFuncAVColorTransferNameLength.run(
@@ -79,9 +83,9 @@ TEST_F(FFmpegTest, AVPixFmt) {
   fillMemContent(MemInst, NamePtr, Length);
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_color_transfer_name");
-  auto &HostFuncAVColorTransferName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVColorTransferName &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVColorTransferName = FuncInst->getHostFunc();
 
   {
     HostFuncAVColorTransferName.run(
@@ -91,14 +95,17 @@ TEST_F(FFmpegTest, AVPixFmt) {
         Result);
 
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(NamePtr),
+                               static_cast<size_t>(Length)),
+              "smpte170m"sv);
   }
 
   int32_t ColorRangeId = 2; //; JPEG
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_color_range_name_length");
-  auto &HostFuncAVColorRangeNameLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVColorRangeNameLength &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVColorRangeNameLength = FuncInst->getHostFunc();
 
   {
     HostFuncAVColorRangeNameLength.run(
@@ -113,9 +120,9 @@ TEST_F(FFmpegTest, AVPixFmt) {
   fillMemContent(MemInst, NamePtr, Length);
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_color_range_name");
-  auto &HostFuncAVColorRangeName =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVColorRangeName &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVColorRangeName = FuncInst->getHostFunc();
 
   {
     HostFuncAVColorRangeName.run(CallFrame,
@@ -124,14 +131,17 @@ TEST_F(FFmpegTest, AVPixFmt) {
                                  Result);
 
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(NamePtr),
+                               static_cast<size_t>(Length)),
+              std::string_view("pc"sv));
   }
 
   int32_t ColorSpaceId = 1; // BT709
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_color_space_name_length");
-  auto &HostFuncAVColorSpaceNameLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVColorSpaceNameLength &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVColorSpaceNameLength = FuncInst->getHostFunc();
 
   {
     HostFuncAVColorSpaceNameLength.run(
@@ -146,9 +156,9 @@ TEST_F(FFmpegTest, AVPixFmt) {
   fillMemContent(MemInst, NamePtr, Length);
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_color_space_name");
-  auto &HostFuncAVColorSpaceName =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVColorSpaceName &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVColorSpaceName = FuncInst->getHostFunc();
 
   {
     HostFuncAVColorSpaceName.run(CallFrame,
@@ -157,14 +167,17 @@ TEST_F(FFmpegTest, AVPixFmt) {
                                  Result);
 
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(NamePtr),
+                               static_cast<size_t>(Length)),
+              "bt709"sv);
   }
 
   int32_t ColorPrimariesId = 1; // BT709
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_color_primaries_name_length");
-  auto &HostFuncAVColorPrimariesNameLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVColorPrimariesNameLength &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVColorPrimariesNameLength = FuncInst->getHostFunc();
 
   {
     HostFuncAVColorPrimariesNameLength.run(
@@ -179,9 +192,9 @@ TEST_F(FFmpegTest, AVPixFmt) {
   fillMemContent(MemInst, NamePtr, Length);
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_color_primaries_name");
-  auto &HostFuncAVColorPrimariesName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVColorPrimariesName &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVColorPrimariesName = FuncInst->getHostFunc();
 
   {
     HostFuncAVColorPrimariesName.run(
@@ -191,14 +204,17 @@ TEST_F(FFmpegTest, AVPixFmt) {
         Result);
 
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(NamePtr),
+                               static_cast<size_t>(Length)),
+              "bt709"sv);
   }
 
   PixFmtId = 1; // YUV420P
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_pix_format_name_length");
-  auto &HostFuncAVPixFormatNameLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVPixelFormatNameLength &>(
-      FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPixFormatNameLength = FuncInst->getHostFunc();
 
   {
     HostFuncAVPixFormatNameLength.run(
@@ -213,9 +229,9 @@ TEST_F(FFmpegTest, AVPixFmt) {
   fillMemContent(MemInst, NamePtr, Length);
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_pix_format_name");
-  auto &HostFuncAVPixFormatName =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVPixelFormatName &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPixFormatName = FuncInst->getHostFunc();
 
   {
     HostFuncAVPixFormatName.run(
@@ -224,13 +240,16 @@ TEST_F(FFmpegTest, AVPixFmt) {
         Result);
 
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(NamePtr),
+                               static_cast<size_t>(Length)),
+              "yuv420p"sv);
   }
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_pix_format_mask");
-  auto &HostFuncAVPixFormatMask =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVPixelFormatMask &>(
-          FuncInst->getHostFunc());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVPixFormatMask = FuncInst->getHostFunc();
 
   {
     uint32_t PixId = 3; //  AV_PIX_FMT_RGB24:

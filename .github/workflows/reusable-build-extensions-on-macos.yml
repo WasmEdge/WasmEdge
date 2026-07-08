@@ -47,9 +47,23 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+      # Restore the ML models downloaded at configure time, keyed per plugin
+      # (per backend for wasi_nn, with the bitnet variants sharing one model)
+      # so flaky upstream downloads only hit on cache misses. Only the
+      # downloaded files are cached, not test byproducts, and only master
+      # runs save the cache so PR runs never create per-ref duplicates.
+      - if: ${{ !inputs.release && (matrix.dir == 'wasi_nn' || matrix.dir == 'wasmedge_stablediffusion') }}
+        name: Restore ML model fixtures
+        id: ml-fixtures
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            build/test/plugins/wasi_nn/wasinn_*_fixtures
+            build/test/plugins/wasmedge_stablediffusion/stableDiffusion/sd-v1-5-fp16.safetensors
+          key: ml-fixtures-${{ matrix.dir == 'wasi_nn' && (contains(matrix.plugin, 'bitnet') && 'wasi_nn-bitnet' || matrix.plugin) || matrix.dir }}-${{ hashFiles(format('test/plugins/{0}/CMakeLists.txt', matrix.dir)) }}
       - name: Build and install dependencies
         shell: bash
         run: |
@@ -64,6 +78,8 @@ jobs:
           echo "PIPER_INSTALL_PATH=$PWD/piper-source/libpiper/install" >> $GITHUB_ENV
       - name: Build ${{ matrix.plugin }}
         shell: bash
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           export PKG_CONFIG_PATH="$(brew --prefix)/opt/ffmpeg@7/lib/pkgconfig:$PKG_CONFIG_PATH"
           export OpenSSL_DIR="$(brew --prefix)/opt/openssl"
@@ -78,6 +94,14 @@ jobs:
             -DOPENSSL_ROOT_DIR=${OpenSSL_DIR} \
             ${{ matrix.options }}
           cmake --build build --target ${target}
+      - if: ${{ !inputs.release && (matrix.dir == 'wasi_nn' || matrix.dir == 'wasmedge_stablediffusion') && github.ref == 'refs/heads/master' && steps.ml-fixtures.outputs.cache-hit != 'true' }}
+        name: Save ML model fixtures
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            build/test/plugins/wasi_nn/wasinn_*_fixtures
+            build/test/plugins/wasmedge_stablediffusion/stableDiffusion/sd-v1-5-fp16.safetensors
+          key: ml-fixtures-${{ matrix.dir == 'wasi_nn' && (contains(matrix.plugin, 'bitnet') && 'wasi_nn-bitnet' || matrix.plugin) || matrix.dir }}-${{ hashFiles(format('test/plugins/{0}/CMakeLists.txt', matrix.dir)) }}
       - id: var
         run: |
           export prefix="WasmEdge-plugin-${{ matrix.plugin }}"
@@ -100,8 +124,12 @@ jobs:
           fi
       - if: ${{ !inputs.release && contains(matrix.plugin, 'stablediffusion') && contains(inputs.asset_tag, 'arm64') }}
         name: Rebuild with METAL=OFF for testing
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          rm -rf build/
+          # Wipe the CMake cache for reconfiguration, but keep the
+          # downloaded model fixtures to avoid another multi-GB download.
+          rm -rf build/CMakeCache.txt build/CMakeFiles
 
           cmake -Bbuild -GNinja \
             -DCMAKE_BUILD_TYPE=Release \

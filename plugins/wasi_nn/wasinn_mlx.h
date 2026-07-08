@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -7,7 +7,11 @@
 
 #include "plugin/plugin.h"
 
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <string>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 #include "MLX/mlx/base.h"
@@ -22,9 +26,23 @@
 
 namespace WasmEdge::Host::WASINN {
 struct WasiNNEnvironment;
-}
+class Graph;
+class Context;
+} // namespace WasmEdge::Host::WASINN
 
 namespace WasmEdge::Host::WASINN::MLX {
+
+// A raw-bytes load materializes each model builder as a temporary safetensors
+// file before conversion. The path stays relative so it resolves under the
+// same WASI preopen the writer and the reader share, and a process-wide serial
+// keeps concurrent builds from colliding on one file.
+inline std::string uniqueModelFileName(std::size_t Idx) noexcept {
+  static std::atomic<std::uint64_t> Serial{0};
+  const std::uint64_t Ticket = Serial.fetch_add(1, std::memory_order_relaxed);
+  return "MLX" + std::to_string(Ticket) + "-" + std::to_string(Idx) +
+         ".safetensors";
+}
+
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 struct LLMInput {
   std::string Prompt = {};
@@ -41,7 +59,7 @@ struct VLMOutput {
   mx::array Answer = mx::array({});
 };
 struct WhisperInput {
-  std::string Audio;
+  mx::array Audio = mx::array({});
 };
 struct Graph {
   std::string ModelType;
@@ -71,21 +89,19 @@ struct Context {
 
 struct Environ {};
 
-Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
+Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
                            Span<const Span<uint8_t>> Builders,
-                           WASINN::Device Device, uint32_t &GraphId) noexcept;
+                           WASINN::Device Device) noexcept;
 Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
-                                  uint32_t GraphId,
-                                  uint32_t &ContextId) noexcept;
-Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
-                               uint32_t ContextId, uint32_t Index,
+                                  WASINN::Graph &G,
+                                  WASINN::Context &C) noexcept;
+Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
+                               WASINN::Context &C, uint32_t Index,
                                const TensorData &Tensor) noexcept;
 Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
-                                uint32_t ContextId, uint32_t Index,
-                                Span<uint8_t> OutBuffer,
+                                WASINN::Graph &G, WASINN::Context &C,
+                                uint32_t Index, Span<uint8_t> OutBuffer,
                                 uint32_t &BytesWritten) noexcept;
-Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
-                              uint32_t ContextId) noexcept;
-Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
-                             uint32_t GraphId) noexcept;
+Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
+                              WASINN::Context &C) noexcept;
 } // namespace WasmEdge::Host::WASINN::MLX

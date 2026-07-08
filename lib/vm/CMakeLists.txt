@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 wasmedge_add_library(wasmedgeVM
+  plugin_modules.cpp
   vm.cpp
 )
 
@@ -24,12 +25,6 @@ if(WASMEDGE_USE_LLVM)
   target_link_libraries(wasmedgeVM
     PUBLIC
     wasmedgeLLVM
-  )
-  target_include_directories(wasmedgeVM
-    SYSTEM
-    PRIVATE
-    ${LLVM_INCLUDE_DIR}
-    ${LLD_INCLUDE_DIRS}
   )
 endif()
 

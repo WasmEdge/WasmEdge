@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 set(WASMEDGE_INTERPROCEDURAL_OPTIMIZATION OFF)
 if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo)
@@ -35,6 +35,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     /wd4611 # interaction between '_setjmp' and C++ object destruction is non-portable
     /bigobj # for large object files
   )
+  # /W4 already enables the C4456-C4459 shadow warnings, so no extra enables
+  # are needed; pair them with suppression flags to keep third-party targets
+  # exempt on MSVC as well.
+  set(WASMEDGE_SHADOW_SUPPRESS_FLAGS /wd4456 /wd4457 /wd4458 /wd4459)
 else()
   list(APPEND WASMEDGE_CFLAGS
     -Wall
@@ -68,7 +72,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-documentation-unknown-command
     -Wno-error=nested-anon-types
     -Wno-error=old-style-cast
-    -Wno-error=shadow
     -Wno-error=unused-command-line-argument
     -Wno-error=unknown-warning-option
     -Wno-ctad-maybe-unsupported
@@ -76,11 +79,25 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-keyword-macro
     -Wno-language-extension-token
     -Wno-newline-eof
-    -Wno-shadow-field-in-constructor
     -Wno-signed-enum-bitfield
     -Wno-switch-enum
     -Wno-undefined-func-template
   )
+
+  # -Wshadow is not documented to enable -Wshadow-field-in-constructor, so
+  # the Name(Name) constructor idiom should stay accepted, but clang-cl 21 on
+  # Windows fires it under these flags anyway; disable it explicitly and
+  # re-enable the narrower -Wshadow-field-in-constructor-modified check that
+  # -Wshadow intends. -Wshadow-field is not part of -Wshadow either; it is
+  # enabled explicitly to catch declarations that shadow members inherited
+  # from a base class.
+  list(APPEND WASMEDGE_CFLAGS
+    -Wshadow
+    -Wshadow-field
+    -Wno-shadow-field-in-constructor
+    -Wshadow-field-in-constructor-modified
+  )
+  set(WASMEDGE_SHADOW_SUPPRESS_FLAGS -Wno-shadow -Wno-shadow-field)
 
   if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 17.0.0)
     list(APPEND WASMEDGE_CFLAGS
@@ -100,11 +117,17 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     )
   elseif(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     list(APPEND WASMEDGE_CFLAGS
-      -Wno-error=shadow-field
       -Wno-reserved-identifier
     )
   endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+  # GCC's -Wshadow, unlike Clang's, flags the Name(Name) constructor idiom
+  # and offers no subgroup to exempt it; =local checks local shadowing only.
+  list(APPEND WASMEDGE_CFLAGS
+    -Wshadow=local
+  )
+  # Match the enabled subgroup so third-party targets drop -Wshadow=local.
+  set(WASMEDGE_SHADOW_SUPPRESS_FLAGS -Wno-shadow=local)
   if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
     list(APPEND WASMEDGE_CFLAGS
       -Wno-error=dangling-reference
@@ -185,6 +208,21 @@ function(wasmedge_setup_target target)
   endif()
 endfunction()
 
+# Third-party targets built with WASMEDGE_CFLAGS are not ours to fix; undo the
+# shadow warning enables on them.
+function(wasmedge_suppress_shadow_warnings)
+  if(NOT WASMEDGE_SHADOW_SUPPRESS_FLAGS)
+    return()
+  endif()
+  set(SHADOW_SUPPRESS_OPTIONS)
+  foreach(flag IN LISTS WASMEDGE_SHADOW_SUPPRESS_FLAGS)
+    list(APPEND SHADOW_SUPPRESS_OPTIONS "$<$<COMPILE_LANGUAGE:C,CXX>:${flag}>")
+  endforeach()
+  foreach(target IN LISTS ARGN)
+    target_compile_options(${target} PRIVATE ${SHADOW_SUPPRESS_OPTIONS})
+  endforeach()
+endfunction()
+
 function(wasmedge_add_library target)
   add_library(${target} ${ARGN})
   wasmedge_setup_target(${target})
@@ -210,6 +248,70 @@ function(wasmedge_add_executable target)
       INSTALL_RPATH "@executable_path/${rel}"
     )
   endif()
+endfunction()
+
+# Download a file with hash verification, retrying on transient failures.
+# HASH uses the same ALGO=value format as file(DOWNLOAD EXPECTED_HASH).
+# Set the HF_TOKEN environment variable to authenticate Hugging Face
+# downloads and avoid anonymous rate limits.
+function(wasmedge_download URL OUTPUT HASH)
+  string(REPLACE "=" ";" HASH_PARTS "${HASH}")
+  list(GET HASH_PARTS 0 HASH_ALGORITHM)
+  list(GET HASH_PARTS 1 HASH_EXPECTED)
+  string(TOLOWER "${HASH_EXPECTED}" HASH_EXPECTED)
+  if(EXISTS "${OUTPUT}")
+    file(${HASH_ALGORITHM} "${OUTPUT}" HASH_ACTUAL)
+    if(HASH_ACTUAL STREQUAL HASH_EXPECTED)
+      message(STATUS "Skipping download of ${URL}: ${OUTPUT} is up-to-date")
+      return()
+    endif()
+    file(REMOVE "${OUTPUT}")
+  endif()
+  set(DOWNLOAD_EXTRA_ARGS "")
+  if(URL MATCHES "^https://huggingface\\.co/" AND NOT "$ENV{HF_TOKEN}" STREQUAL "")
+    list(APPEND DOWNLOAD_EXTRA_ARGS HTTPHEADER "Authorization: Bearer $ENV{HF_TOKEN}")
+  endif()
+  set(RETRY_DELAYS 0 15 60)
+  foreach(RETRY_DELAY IN LISTS RETRY_DELAYS)
+    if(RETRY_DELAY GREATER 0)
+      message(STATUS "Retrying download of ${URL} in ${RETRY_DELAY} seconds")
+      execute_process(COMMAND "${CMAKE_COMMAND}" -E sleep ${RETRY_DELAY})
+    endif()
+    file(DOWNLOAD "${URL}" "${OUTPUT}"
+      SHOW_PROGRESS
+      INACTIVITY_TIMEOUT 60
+      STATUS DOWNLOAD_STATUS
+      LOG DOWNLOAD_LOG
+      ${DOWNLOAD_EXTRA_ARGS}
+    )
+    list(GET DOWNLOAD_STATUS 0 DOWNLOAD_CODE)
+    list(GET DOWNLOAD_STATUS 1 DOWNLOAD_MESSAGE)
+    if(DOWNLOAD_CODE EQUAL 0)
+      file(${HASH_ALGORITHM} "${OUTPUT}" HASH_ACTUAL)
+      if(HASH_ACTUAL STREQUAL HASH_EXPECTED)
+        return()
+      endif()
+      set(DOWNLOAD_MESSAGE "${HASH_ALGORITHM} mismatch: expected ${HASH_EXPECTED}, got ${HASH_ACTUAL}")
+    endif()
+    if(NOT "$ENV{HF_TOKEN}" STREQUAL "")
+      string(REPLACE "$ENV{HF_TOKEN}" "<redacted>" DOWNLOAD_LOG "${DOWNLOAD_LOG}")
+    endif()
+    string(REGEX MATCHALL "HTTP/[0-9.]+ [0-9]+" HTTP_STATUS_LINES "${DOWNLOAD_LOG}")
+    if(HTTP_STATUS_LINES)
+      list(GET HTTP_STATUS_LINES -1 LAST_HTTP_STATUS)
+      string(APPEND DOWNLOAD_MESSAGE " (${LAST_HTTP_STATUS})")
+    else()
+      string(LENGTH "${DOWNLOAD_LOG}" DOWNLOAD_LOG_LENGTH)
+      if(DOWNLOAD_LOG_LENGTH GREATER 512)
+        math(EXPR DOWNLOAD_LOG_OFFSET "${DOWNLOAD_LOG_LENGTH} - 512")
+        string(SUBSTRING "${DOWNLOAD_LOG}" ${DOWNLOAD_LOG_OFFSET} -1 DOWNLOAD_LOG)
+      endif()
+      string(APPEND DOWNLOAD_MESSAGE "\nTransfer log tail:\n${DOWNLOAD_LOG}")
+    endif()
+    message(WARNING "Downloading ${URL} failed: ${DOWNLOAD_MESSAGE}")
+    file(REMOVE "${OUTPUT}")
+  endforeach()
+  message(FATAL_ERROR "Failed to download ${URL} after 3 attempts")
 endfunction()
 
 # Generate the list of static libs to statically link LLVM.
@@ -323,7 +425,7 @@ function(wasmedge_setup_simdjson)
     FetchContent_Declare(
       simdjson
       GIT_REPOSITORY https://github.com/simdjson/simdjson.git
-      GIT_TAG  tags/v3.10.0
+      GIT_TAG  ccf8694510bcf3d7d53fd58cd574d5b78bcc28aa  # v3.10.0
       GIT_SHALLOW TRUE
     )
     set(SIMDJSON_DEVELOPER_MODE OFF CACHE BOOL "SIMDJSON developer mode" FORCE)
@@ -359,6 +461,7 @@ function(wasmedge_setup_simdjson)
         $<$<COMPILE_LANGUAGE:C,CXX>:/wd4505> # unreferenced local function has been removed
       )
     endif()
+    wasmedge_suppress_shadow_warnings(simdjson)
   endif()
 endfunction()
 
@@ -376,7 +479,7 @@ function(wasmedge_setup_spdlog)
     FetchContent_Declare(
       fmt
       GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-      GIT_TAG        11.0.2
+      GIT_TAG        0c9fce2ffefecfdce794e1859584e25877b7b592  # 11.0.2
       GIT_SHALLOW    TRUE
     )
     set(FMT_INSTALL OFF CACHE BOOL "Generate the install target." FORCE)
@@ -391,6 +494,7 @@ function(wasmedge_setup_spdlog)
         -Wno-sign-conversion
       )
     endif()
+    wasmedge_suppress_shadow_warnings(fmt)
     if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(fmt
         PUBLIC
@@ -405,7 +509,7 @@ function(wasmedge_setup_spdlog)
     FetchContent_Declare(
       spdlog
       GIT_REPOSITORY https://github.com/gabime/spdlog.git
-      GIT_TAG        v1.13.0
+      GIT_TAG        7c02e204c92545f869e2f04edaab1f19fe8b19fd  # v1.13.0
       GIT_SHALLOW    TRUE
     )
     set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "Build shared library" FORCE)
@@ -413,6 +517,7 @@ function(wasmedge_setup_spdlog)
     FetchContent_MakeAvailable(spdlog)
     message(STATUS "Downloading spdlog source -- done")
     wasmedge_setup_target(spdlog)
+    wasmedge_suppress_shadow_warnings(spdlog)
     if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(spdlog
         PUBLIC

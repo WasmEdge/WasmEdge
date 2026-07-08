@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
 #if WASMEDGE_OS_WINDOWS
@@ -679,8 +679,8 @@ INode INode::stdErr() noexcept {
   return INode(GetStdHandle(STD_ERROR_HANDLE_), true);
 }
 
-WasiExpect<INode> INode::fromFd(int32_t Fd) {
-  EXPECTED_TRY(auto Handle, getWindowsHandle(Fd));
+WasiExpect<INode> INode::fromFd(int32_t FdNum) {
+  EXPECTED_TRY(auto Handle, getWindowsHandle(FdNum));
   return INode(Handle, true);
 }
 
@@ -1665,6 +1665,7 @@ WasiExpect<INode> INode::sockAccept(__wasi_fdflags_t FdFlags) noexcept {
         unlikely(Res == SOCKET_ERROR_)) {
       return WasiUnexpect(detail::fromWSALastError());
     }
+    New.SavedFdFlags |= __WASI_FDFLAGS_NONBLOCK;
   }
 
   return New;

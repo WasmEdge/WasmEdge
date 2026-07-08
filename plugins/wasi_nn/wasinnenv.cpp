@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasinnenv.h"
 #include "wasinnmodule.h"
@@ -144,8 +144,6 @@ WasiNNEnvironment::WasiNNEnvironment() noexcept {
           "[WASI-NN] Preload Model's Backend or Device is Not Support."sv);
     }
   }
-  NNGraph.reserve(16U);
-  NNContext.reserve(16U);
 }
 
 PO::List<std::string> WasiNNEnvironment::NNModels(

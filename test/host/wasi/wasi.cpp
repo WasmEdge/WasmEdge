@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
 #include "common/types.h"
@@ -4003,6 +4003,9 @@ TEST(WasiTest, SymbolicLink) {
   WasmEdge::Host::WasiPathSymlink WasiPathSymlink(Env);
   WasmEdge::Host::WasiPathUnlinkFile WasiPathUnlinkFile(Env);
   WasmEdge::Host::WasiPathFilestatGet WasiPathFilestatGet(Env);
+  WasmEdge::Host::WasiPathCreateDirectory WasiPathCreateDirectory(Env);
+  WasmEdge::Host::WasiPathReadLink WasiPathReadLink(Env);
+  WasmEdge::Host::WasiPathRemoveDirectory WasiPathRemoveDirectory(Env);
   std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
 
   const uint32_t Fd = 3;
@@ -4126,6 +4129,129 @@ TEST(WasiTest, SymbolicLink) {
                                    Fd, NewPathPtr, NewPathSize},
                                Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    Env.fini();
+  }
+
+  // Symlink targets resolving outside the preopen root are rejected; in-bounds
+  // targets are stored verbatim. Use spaced buffers so the targets and link
+  // names do not overlap in guest memory.
+  OldPathPtr = 0;
+  NewPathPtr = 64;
+  const auto makeSymlink = [&](std::string_view OldPath,
+                               std::string_view NewPath) {
+    writeString(MemInst, OldPath, OldPathPtr);
+    writeString(MemInst, NewPath, NewPathPtr);
+    EXPECT_TRUE(WasiPathSymlink.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            OldPathPtr, static_cast<uint32_t>(OldPath.size()), Fd, NewPathPtr,
+            static_cast<uint32_t>(NewPath.size())},
+        Errno));
+    return Errno[0].get<int32_t>();
+  };
+  // Read back the verbatim stored target of a link.
+  const uint32_t LinkBufPtr = 256;
+  const uint32_t NReadPtr = 600;
+  const auto readSymlink = [&](std::string_view NewPath) {
+    writeString(MemInst, NewPath, NewPathPtr);
+    EXPECT_TRUE(WasiPathReadLink.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            Fd, NewPathPtr, static_cast<uint32_t>(NewPath.size()), LinkBufPtr,
+            UINT32_C(256), NReadPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    const auto NRead = *MemInst.getPointer<const uint32_t *>(NReadPtr);
+    return std::string(MemInst.getPointer<const char *>(LinkBufPtr), NRead);
+  };
+  const auto removeSymlink = [&](std::string_view NewPath) {
+    writeString(MemInst, NewPath, NewPathPtr);
+    EXPECT_TRUE(WasiPathUnlinkFile.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            Fd, NewPathPtr, static_cast<uint32_t>(NewPath.size())},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  };
+
+  // absolute target rejected (control)
+  {
+    Env.init({"/:."s}, "test"s, {}, {});
+    EXPECT_EQ(makeSymlink("/etc/passwd"sv, "planted_abs_symlink"sv),
+              __WASI_ERRNO_PERM);
+    Env.fini();
+  }
+
+  // `..` targets at the preopen root escape and are rejected
+  {
+    Env.init({"/:."s}, "test"s, {}, {});
+    EXPECT_EQ(makeSymlink("../../etc/passwd"sv, "escape_a"sv),
+              __WASI_ERRNO_PERM);
+    EXPECT_EQ(makeSymlink("foo/../../etc/passwd"sv, "escape_b"sv),
+              __WASI_ERRNO_PERM);
+    EXPECT_EQ(makeSymlink(".."sv, "escape_c"sv), __WASI_ERRNO_PERM);
+    Env.fini();
+  }
+
+  // depth-1 link: in-bounds `..` accepted, deeper escape rejected
+  {
+    Env.init({"/:."s}, "test"s, {}, {});
+    writeString(MemInst, "sub"sv, NewPathPtr);
+    EXPECT_TRUE(
+        WasiPathCreateDirectory.run(CallFrame,
+                                    std::initializer_list<WasmEdge::ValVariant>{
+                                        Fd, NewPathPtr, UINT32_C(3)},
+                                    Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    // single `..` stays in bounds
+    EXPECT_EQ(makeSymlink("../sibling"sv, "sub/keep"sv), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(readSymlink("sub/keep"sv), "../sibling");
+    // deeper `..` escapes, rejected
+    EXPECT_EQ(makeSymlink("../../../etc/passwd"sv, "sub/escape"sv),
+              __WASI_ERRNO_PERM);
+    removeSymlink("sub/keep"sv);
+    writeString(MemInst, "sub"sv, NewPathPtr);
+    EXPECT_TRUE(
+        WasiPathRemoveDirectory.run(CallFrame,
+                                    std::initializer_list<WasmEdge::ValVariant>{
+                                        Fd, NewPathPtr, UINT32_C(3)},
+                                    Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    Env.fini();
+  }
+
+  // in-bounds targets stored verbatim
+  {
+    Env.init({"/:."s}, "test"s, {}, {});
+    EXPECT_EQ(makeSymlink("sibling_file"sv, "safe_same_dir"sv),
+              __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(readSymlink("safe_same_dir"sv), "sibling_file");
+    EXPECT_EQ(makeSymlink("a/../sibling_file"sv, "safe_normalized"sv),
+              __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(readSymlink("safe_normalized"sv), "a/../sibling_file");
+    removeSymlink("safe_same_dir"sv);
+    removeSymlink("safe_normalized"sv);
+    Env.fini();
+  }
+
+  // the new path's trailing component is not followed: creating a link where
+  // one already exists fails with EEXIST instead of being created at the
+  // existing link's target
+  {
+    Env.init({"/:."s}, "test"s, {}, {});
+    EXPECT_EQ(makeSymlink("target_x"sv, "existing_link"sv),
+              __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(makeSymlink("target_y"sv, "existing_link"sv), __WASI_ERRNO_EXIST);
+    // the original link is untouched and no link named after its target exists
+    EXPECT_EQ(readSymlink("existing_link"sv), "target_x");
+    writeString(MemInst, "target_x"sv, NewPathPtr);
+    EXPECT_TRUE(WasiPathReadLink.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            Fd, NewPathPtr, UINT32_C(8), LinkBufPtr, UINT32_C(256), NReadPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOENT);
+    removeSymlink("existing_link"sv);
     Env.fini();
   }
 }
@@ -6203,4 +6329,209 @@ TEST(WasiTest, PointerAlignment) {
       Env.fini();
     }
   }
+}
+
+// Test that sock_accept with NONBLOCK flag sets the flag on the accepted
+// socket (not the listening socket). This is a regression test for the bug
+// where fcntl(Fd, F_SETFL, ...) was called on the listening socket fd instead
+// of fcntl(NewFd, F_SETFL, ...) on the newly accepted socket fd.
+TEST(WasiTest, SockAcceptNonblockFlag) {
+  std::atomic_bool ServerReady(false);
+  std::atomic_bool ServerDone(false);
+  std::atomic_bool AcceptedFdIsNonblock(false);
+  std::mutex Mutex;
+  std::condition_variable ServerReadyCv;
+  std::condition_variable ServerDoneCv;
+  const std::array<uint8_t, 128> Address{1, 0, 127, 0, 0, 1};
+  const uint32_t Port = 18100;
+
+  // Server thread: open, bind, listen, accept with NONBLOCK, verify flag
+  std::thread Server([&]() {
+    WasmEdge::Host::WASI::Environ Env;
+    WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+    Mod.addHostMemory(
+        "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                      WasmEdge::AST::MemoryType(1)));
+    auto *MemInstPtr = Mod.findMemoryExports("memory");
+    ASSERT_TRUE(MemInstPtr != nullptr);
+    auto &MemInst = *MemInstPtr;
+    WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+    WasmEdge::Host::WasiFdClose WasiFdClose(Env);
+    WasmEdge::Host::WasiFdFdstatGet WasiFdFdstatGet(Env);
+    WasmEdge::Host::WasiSockAcceptV2 WasiSockAccept(Env);
+    WasmEdge::Host::WasiSockBindV2 WasiSockBind(Env);
+    WasmEdge::Host::WasiSockListenV2 WasiSockListen(Env);
+    WasmEdge::Host::WasiSockOpenV2 WasiSockOpen(Env);
+    WasmEdge::Host::WasiSockSetOpt WasiSockSetOpt(Env);
+
+    std::array<WasmEdge::ValVariant, 1> Errno;
+    const uint32_t FdPtr = 0;
+    const uint32_t SrvAddressPtr = 4;
+    const int32_t Backlog = 1;
+
+    Env.init({}, "test"s, {}, {});
+
+    int32_t ServerFd = -1;
+
+    // open socket
+    EXPECT_TRUE(WasiSockOpen.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            static_cast<uint32_t>(__WASI_ADDRESS_FAMILY_INET4),
+            static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_STREAM), FdPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    EXPECT_TRUE((MemInst.loadValue(ServerFd, FdPtr)));
+
+    // set socket options (SO_REUSEADDR)
+    const uint32_t SockOptionsPtr = 0;
+    const uint32_t OneVal = 1;
+    MemInst.storeValue(OneVal, SockOptionsPtr);
+    EXPECT_TRUE(WasiSockSetOpt.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            ServerFd, static_cast<uint32_t>(__WASI_SOCK_OPT_LEVEL_SOL_SOCKET),
+            static_cast<uint32_t>(__WASI_SOCK_OPT_SO_REUSEADDR),
+            static_cast<uint32_t>(SockOptionsPtr),
+            static_cast<uint32_t>(sizeof(OneVal))},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    // bind port
+    writeAddress(MemInst, Address, SrvAddressPtr);
+    EXPECT_TRUE(WasiSockBind.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     ServerFd, SrvAddressPtr, Port},
+                                 Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    // listen
+    EXPECT_TRUE(WasiSockListen.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ServerFd, Backlog}, Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    // Signal that server is ready for connection
+    {
+      std::lock_guard<std::mutex> Lock(Mutex);
+      ServerReady.store(true);
+    }
+    ServerReadyCv.notify_one();
+
+    // accept with NONBLOCK flag via the V2 API: (Fd, FsFlags, RoFdPtr)
+    EXPECT_TRUE(WasiSockAccept.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            ServerFd, static_cast<uint32_t>(__WASI_FDFLAGS_NONBLOCK), FdPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    int32_t ConnectionFd = -1;
+    EXPECT_TRUE((MemInst.loadValue(ConnectionFd, FdPtr)));
+
+    // Use FdFdstatGet to verify the accepted socket has NONBLOCK flag.
+    // The FdStatPtr must be properly aligned for __wasi_fdstat_t.
+    const uint32_t FdStatPtr =
+        static_cast<uint32_t>(alignof(__wasi_fdstat_t) * 2);
+    writeDummyMemoryContent(MemInst);
+    EXPECT_TRUE(WasiFdFdstatGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ConnectionFd, FdStatPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    // Read the fdstat and check that NONBLOCK is set on the accepted fd.
+    auto *FdStat = MemInst.getPointer<const __wasi_fdstat_t *>(FdStatPtr);
+    ASSERT_NE(FdStat, nullptr);
+    __wasi_fdflags_t Flags = WasmEdge::EndianValue(FdStat->fs_flags).le();
+    AcceptedFdIsNonblock.store((Flags & __WASI_FDFLAGS_NONBLOCK) != 0);
+    EXPECT_TRUE((Flags & __WASI_FDFLAGS_NONBLOCK) != 0)
+        << "Accepted socket should have NONBLOCK flag set, but fs_flags = "
+        << Flags;
+
+    // close accepted connection
+    EXPECT_TRUE(WasiFdClose.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ConnectionFd},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    // close server socket
+    EXPECT_TRUE(WasiFdClose.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ServerFd},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    Env.fini();
+
+    // Signal that server is done
+    {
+      std::lock_guard<std::mutex> Lock(Mutex);
+      ServerDone.store(true);
+    }
+    ServerDoneCv.notify_one();
+  });
+
+  // Client side: wait for server, then connect to trigger accept
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  WasmEdge::Host::WasiFdClose WasiFdClose(Env);
+  WasmEdge::Host::WasiSockConnectV2 WasiSockConnect(Env);
+  WasmEdge::Host::WasiSockOpenV2 WasiSockOpen(Env);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+  const uint32_t FdPtr = 0;
+  const uint32_t ClientAddressPtr = 4;
+
+  Env.init({}, "test"s, {}, {});
+
+  // open client socket
+  EXPECT_TRUE(WasiSockOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          static_cast<uint32_t>(__WASI_ADDRESS_FAMILY_INET4),
+          static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_STREAM), FdPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  int32_t ClientFd;
+  EXPECT_TRUE((MemInst.loadValue(ClientFd, FdPtr)));
+
+  // Wait for server to be ready
+  {
+    std::unique_lock<std::mutex> Lock(Mutex);
+    ServerReadyCv.wait(Lock, [&]() { return ServerReady.load(); });
+  }
+
+  // connect to server to trigger the accept
+  writeAddress(MemInst, Address, ClientAddressPtr);
+  EXPECT_TRUE(WasiSockConnect.run(CallFrame,
+                                  std::initializer_list<WasmEdge::ValVariant>{
+                                      ClientFd, ClientAddressPtr, Port},
+                                  Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+  // Wait for server to finish verification
+  {
+    std::unique_lock<std::mutex> Lock(Mutex);
+    ServerDoneCv.wait(Lock, [&]() { return ServerDone.load(); });
+  }
+
+  // close client socket
+  EXPECT_TRUE(WasiFdClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{ClientFd}, Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+  Env.fini();
+  Server.join();
+
+  EXPECT_TRUE(AcceptedFdIsNonblock.load())
+      << "The accepted socket fd should have NONBLOCK flag when "
+         "sock_accept is called with __WASI_FDFLAGS_NONBLOCK";
 }

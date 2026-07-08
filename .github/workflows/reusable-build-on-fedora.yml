@@ -33,6 +33,10 @@ jobs:
     container:
       image: ${{ matrix.image }}
       options: --privileged
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -43,10 +47,26 @@ jobs:
         run: |
           dnf update -y
           dnf install -y cmake ninja-build llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev spdlog-devel \
-            pkgconf-pkg-config protobuf-c-compiler grpc-cpp grpc-plugins grpc-devel
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+            pkgconf-pkg-config
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+        with:
+          version: "v0.10.0"
+      - name: Warm up sccache server
+        run: |
+          for i in 1 2 3 4 5; do
+            if sccache --show-stats >/dev/null 2>&1; then
+              sccache --show-stats
+              exit 0
+            fi
+            echo "sccache server not ready (attempt ${i}/5); retrying..." >&2
+            sleep $((i * 3))
+          done
+          echo "sccache server did not become ready; aborting before the long build" >&2
+          exit 1
       - name: Grant the safe directory for git
         run: |
           git config --global --add safe.directory $(pwd)

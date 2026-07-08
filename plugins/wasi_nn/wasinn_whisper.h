@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -9,6 +9,7 @@
 #include <cstdint>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
+#include "wasinn_whisper_log.h"
 #include <whisper.h>
 
 #include <algorithm>
@@ -19,7 +20,9 @@
 
 namespace WasmEdge::Host::WASINN {
 struct WasiNNEnvironment;
-}
+class Graph;
+class Context;
+} // namespace WasmEdge::Host::WASINN
 
 namespace WasmEdge::Host::WASINN::Whisper {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
@@ -63,8 +66,18 @@ struct Config {
 };
 
 struct Graph {
+  Graph() = default;
+  Graph(const Graph &) = delete;
+  Graph &operator=(const Graph &) = delete;
+  ~Graph() noexcept {
+    if (WhisperCtx != nullptr) {
+      whisper_free(WhisperCtx);
+    }
+  }
   whisper_context *WhisperCtx = nullptr;
   std::string ModelFilePath;
+  // This graph's unit in the shared whisper log gate.
+  WhisperLogToken WhisperLog;
   // Whisper config:
   Config WhisperConfig;
   // Context parameters:
@@ -96,23 +109,19 @@ struct Context {
 
 struct Environ {};
 
-Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
+Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
                            Span<const Span<uint8_t>> Builders,
-                           WASINN::Device Device, uint32_t &GraphId) noexcept;
+                           WASINN::Device Device) noexcept;
 Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
-                                  uint32_t GraphId,
-                                  uint32_t &ContextId) noexcept;
-Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
-                               uint32_t ContextId, uint32_t Index,
+                                  WASINN::Graph &G,
+                                  WASINN::Context &C) noexcept;
+Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
+                               WASINN::Context &C, uint32_t Index,
                                const TensorData &Tensor) noexcept;
 Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
-                                uint32_t ContextId, uint32_t Index,
-                                Span<uint8_t> OutBuffer,
+                                WASINN::Graph &G, WASINN::Context &C,
+                                uint32_t Index, Span<uint8_t> OutBuffer,
                                 uint32_t &BytesWritten) noexcept;
-Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
-                              uint32_t ContextId) noexcept;
-Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
-                             uint32_t GraphId) noexcept;
-Expect<WASINN::ErrNo> finalizeExecCtx(WASINN::WasiNNEnvironment &Env,
-                                      uint32_t ContextId) noexcept;
+Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
+                              WASINN::Context &C) noexcept;
 } // namespace WasmEdge::Host::WASINN::Whisper

@@ -53,7 +53,7 @@ jobs:
       with:
         egress-policy: audit
 
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       with:
         fetch-depth: 0
 
@@ -77,17 +77,28 @@ jobs:
           cmake g++ dpkg-dev make \
           gcc-riscv64-linux-gnu g++-riscv64-linux-gnu \
           zlib1g-dev:riscv64 libzstd-dev:riscv64 \
-          libffi-dev:riscv64 libedit-dev:riscv64 libxml2-dev:riscv64
+          libffi-dev:riscv64 libxml2-dev:riscv64
 
-        # llvm-20-dev:riscv64 cannot be fully installed because:
-        # 1. python3-minimal:riscv64 postinst tries to run a riscv64 binary
-        # 2. llvm-20/llvm-20-tools pull in libcurl4t64 -> libssh-4, which
-        #    fails when noble-security has a newer Multi-Arch:same version
-        #    of libssh-4:amd64 than what riscv64 ports provide.
+        # Several riscv64 packages cannot be fully installed via apt because
+        # noble-security ships newer Multi-Arch:same versions for amd64 that
+        # conflict with the older riscv64 versions on noble-ports:
+        # 1. libedit-dev -> libedit2 -> libtinfo6 (version conflict)
+        # 2. llvm-20-dev -> llvm-20-tools -> libcurl4t64 -> libssh-4 (version conflict)
+        # 3. python3-minimal:riscv64 postinst tries to run a riscv64 binary
         # Workaround: download only the dev/lib packages needed for
         # cross-compilation (skip tools), then extract without postinst.
+        # libbsd0/libmd0 are runtime deps of libedit2 that the linker needs
+        # to resolve libedit.so.2 when linking against libLLVM.
         mkdir -p /tmp/riscv64-debs && cd /tmp/riscv64-debs
         apt-get download \
+          libedit-dev:riscv64 \
+          libedit2:riscv64 \
+          libbsd0:riscv64 \
+          libmd0:riscv64 \
+          libncurses-dev:riscv64 \
+          libncurses6:riscv64 \
+          libncursesw6:riscv64 \
+          libtinfo6:riscv64 \
           llvm-20-dev:riscv64 \
           llvm-20:riscv64 \
           llvm-20-runtime:riscv64 \
@@ -146,7 +157,7 @@ jobs:
       with:
         egress-policy: audit
 
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       with:
         fetch-depth: 0
 
@@ -173,12 +184,30 @@ jobs:
           libgcc-s1-riscv64-cross \
           libatomic1-riscv64-cross
 
-        # Install riscv64 LLVM/LLD runtime libraries (these do NOT depend on
-        # python3:riscv64, so apt-get install works without postinst issues)
-        apt-get install -y --no-install-recommends \
+        # Install riscv64 LLVM/LLD runtime libraries and their dependency
+        # closure via download+extract instead of apt-get install: libllvm20
+        # depends on libedit2 -> libtinfo6, which hits the same noble-security
+        # vs noble-ports Multi-Arch:same version skew as the cross_compile
+        # job. The extracted libraries land in /usr/lib/riscv64-linux-gnu,
+        # where LD_LIBRARY_PATH and the sysroot symlinks below resolve them
+        # without needing postinst or ldconfig.
+        mkdir -p /tmp/riscv64-debs && cd /tmp/riscv64-debs
+        apt-get download \
           libllvm20:riscv64 \
           liblld-20:riscv64 \
+          libedit2:riscv64 \
+          libbsd0:riscv64 \
+          libmd0:riscv64 \
+          libtinfo6:riscv64 \
+          libffi8:riscv64 \
+          libxml2:riscv64 \
+          libicu74:riscv64 \
+          liblzma5:riscv64 \
+          libzstd1:riscv64 \
           zlib1g:riscv64
+        for deb in *.deb; do
+          dpkg-deb -x "$deb" /
+        done
 
         # Create symlinks so QEMU sysroot can find multi-arch libraries.
         # With -L /usr/riscv64-linux-gnu, QEMU translates guest absolute paths

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "avcodec/avCodecParameters.h"
 #include "avcodec/module.h"
@@ -27,12 +27,10 @@ TEST_F(FFmpegTest, AVCodecParameters) {
 
   auto *FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodecparam_codec_id");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecParamCodecId = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecParamCodecId &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecParamCodecId = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecParamCodecId.run(
@@ -43,12 +41,10 @@ TEST_F(FFmpegTest, AVCodecParameters) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodecparam_codec_type");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecParamCodecType = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecParamCodecType &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecParamCodecType = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecParamCodecType.run(
@@ -59,12 +55,10 @@ TEST_F(FFmpegTest, AVCodecParameters) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodecparam_set_codec_tag");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecParamSetCodecTag = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecParamSetCodecTag &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecParamSetCodecTag = FuncInst->getHostFunc();
 
   {
     EXPECT_TRUE(HostFuncAVCodecParamSetCodecTag.run(

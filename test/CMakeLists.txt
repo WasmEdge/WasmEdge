@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 find_package(GTest QUIET)
 if(GTest_FOUND)
@@ -8,7 +8,7 @@ else()
   FetchContent_Declare(
     GTest
     GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG v1.15.2
+    GIT_TAG b514bdc898e2951020cbdca1304b75f5950d1f59  # v1.15.2
     GIT_SHALLOW TRUE
   )
   set(BUILD_GMOCK OFF CACHE BOOL "Builds the googlemock subproject" FORCE)
@@ -53,6 +53,7 @@ else()
   endif()
 
   FetchContent_MakeAvailable(GTest)
+  wasmedge_suppress_shadow_warnings(gtest gtest_main)
   set(GTEST_BOTH_LIBRARIES "gtest_main")
 endif()
 
@@ -82,13 +83,20 @@ add_subdirectory(host/mock)
 add_subdirectory(expected)
 add_subdirectory(span)
 add_subdirectory(po)
-add_subdirectory(meminstance)
+add_subdirectory(instance)
 add_subdirectory(errinfo)
+add_subdirectory(vm)
 
 if(WASMEDGE_BUILD_COVERAGE)
+  include(ProcessorCount)
+  ProcessorCount(PROCESSOR_COUNT)
+  if(PROCESSOR_COUNT EQUAL 0)
+    set(PROCESSOR_COUNT 1)
+  endif()
+  set(GCOVR_ADDITIONAL_ARGS --gcov-ignore-parse-errors negative_hits.warn_once_per_file)
   setup_target_for_coverage_gcovr_html(
     NAME coverage
-    EXECUTABLE ctest -j ${PROCESSOR_COUNT}
+    EXECUTABLE ctest -j ${PROCESSOR_COUNT} --output-on-failure
     DEPENDENCIES wasmedge
     BASE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     EXCLUDE
@@ -97,7 +105,7 @@ if(WASMEDGE_BUILD_COVERAGE)
   )
   setup_target_for_coverage_gcovr_xml(
     NAME codecov
-    EXECUTABLE ctest -j ${PROCESSOR_COUNT}
+    EXECUTABLE ctest -j ${PROCESSOR_COUNT} --output-on-failure
     DEPENDENCIES wasmedge
     EXCLUDE
     "${PROJECT_SOURCE_DIR}/thirdparty/*"

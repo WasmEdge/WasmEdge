@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/enum.inc - Enumerations ---------------------------===//
 //
@@ -977,6 +977,8 @@ E(UnknownCanonicalOption, 0x01AB, "unknown canonical option")
 E(MalformedName, 0x01AC, "malformed name")
 // Component model not implemented
 E(ComponentNotImplLoader, 0x01AD, "component model (loader) not implemented")
+// Component model nesting level exceeded
+E(ComponentNestLevelExceeded, 0x01AE, "component nesting level exceeded")
 // @}
 
 // Validation phase
@@ -1118,6 +1120,8 @@ E(InstanceMissingExpectedExport, 0x02B2, "missing expected export")
 E(InvalidExportName, 0x02B3, "not a valid export name")
 // Extern (import/export) name fails the extern-name grammar
 E(InvalidExternName, 0x02B4, "not a valid extern name")
+// Core tag referenced by a core-export alias or inline-export does not exist
+E(UnknownCoreTag, 0x02B5, "unknown tag")
 // @}
 
 // Instantiation phase

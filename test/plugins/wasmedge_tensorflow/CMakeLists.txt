@@ -18,7 +18,7 @@ add_dependencies(wasmedgeTensorflowTests
   wasmedgePluginWasmEdgeTensorflow
 )
 
-include(WASINNDeps)
+include(TensorflowDeps)
 wasmedge_setup_tf_target(wasmedgeTensorflowTests)
 
 target_include_directories(wasmedgeTensorflowTests

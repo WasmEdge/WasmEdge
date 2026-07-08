@@ -57,8 +57,8 @@ public:
 class AVFrameSetVideoFormat : public HostFunction<AVFrameSetVideoFormat> {
 public:
   using HostFunction::HostFunction;
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId,
-                        uint32_t AvPixFormatId);
+  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId,
+                       uint32_t AvPixFormatId);
 };
 
 class AVFrameIsNull : public HostFunction<AVFrameIsNull> {

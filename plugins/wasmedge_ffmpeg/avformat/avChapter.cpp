@@ -12,15 +12,25 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVFormat {
 
+namespace {
+AVChapter **chapterAt(AVFormatContext *Ctx, uint32_t Idx) {
+  if (Ctx == nullptr) {
+    return nullptr;
+  }
+  return checkedArraySlot(Ctx->chapters, Ctx->nb_chapters, Idx);
+}
+} // namespace
+
 Expect<int64_t> AVChapterId::body(const Runtime::CallingFrame &,
                                   uint32_t AvFormatCtxId, uint32_t ChapterIdx) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVChapter **AvChapter = AvFormatContext->chapters;
-
-  // No check here (Check)
-  // Raw Pointer Iteration.
-  for (unsigned int I = 1; I <= ChapterIdx; I++) {
-    AvChapter++;
+  AVChapter **AvChapter = chapterAt(AvFormatContext, ChapterIdx);
+  if (AvChapter == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVChapterId: invalid chapter index {} "
+                  "(format context id {}, nb_chapters={})"sv,
+                  ChapterIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_chapters : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   return static_cast<AVChapter *>(*AvChapter)->id;
@@ -30,12 +40,13 @@ Expect<int32_t> AVChapterSetId::body(const Runtime::CallingFrame &,
                                      uint32_t AvFormatCtxId,
                                      uint32_t ChapterIdx, int64_t ChapterId) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVChapter **AvChapter = AvFormatContext->chapters;
-
-  // No check here (Check)
-  // Raw Pointer Iteration.
-  for (unsigned int I = 1; I <= ChapterIdx; I++) {
-    AvChapter++;
+  AVChapter **AvChapter = chapterAt(AvFormatContext, ChapterIdx);
+  if (AvChapter == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVChapterSetId: invalid chapter index "
+                  "{} (format context id {}, nb_chapters={})"sv,
+                  ChapterIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_chapters : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   (*AvChapter)->id = ChapterId;
@@ -51,12 +62,13 @@ Expect<int32_t> AVChapterTimebase::body(const Runtime::CallingFrame &Frame,
   MEM_PTR_CHECK(Den, MemInst, int32_t, DenPtr, "");
 
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVChapter **AvChapter = AvFormatContext->chapters;
-
-  // No check here (Check)
-  // Raw Pointer Iteration.
-  for (unsigned int I = 1; I <= ChapterIdx; I++) {
-    AvChapter++;
+  AVChapter **AvChapter = chapterAt(AvFormatContext, ChapterIdx);
+  if (AvChapter == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVChapterTimebase: invalid chapter "
+                  "index {} (format context id {}, nb_chapters={})"sv,
+                  ChapterIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_chapters : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   AVRational const AvRational = static_cast<AVChapter *>(*AvChapter)->time_base;
@@ -72,12 +84,13 @@ Expect<int32_t> AVChapterSetTimebase::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
   AVRational const Timebase = av_make_q(Num, Den);
 
-  AVChapter **AvChapter = AvFormatContext->chapters;
-
-  // No check here (Check)
-  // Raw Pointer Iteration.
-  for (unsigned int I = 1; I <= ChapterIdx; I++) {
-    AvChapter++;
+  AVChapter **AvChapter = chapterAt(AvFormatContext, ChapterIdx);
+  if (AvChapter == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVChapterSetTimebase: invalid chapter "
+                  "index {} (format context id {}, nb_chapters={})"sv,
+                  ChapterIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_chapters : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   (*AvChapter)->time_base = Timebase;
@@ -88,12 +101,13 @@ Expect<int64_t> AVChapterStart::body(const Runtime::CallingFrame &,
                                      uint32_t AvFormatCtxId,
                                      uint32_t ChapterIdx) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVChapter **AvChapter = AvFormatContext->chapters;
-
-  // No check here (Check)
-  // Raw Pointer Iteration.
-  for (unsigned int I = 1; I <= ChapterIdx; I++) {
-    AvChapter++;
+  AVChapter **AvChapter = chapterAt(AvFormatContext, ChapterIdx);
+  if (AvChapter == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVChapterStart: invalid chapter index "
+                  "{} (format context id {}, nb_chapters={})"sv,
+                  ChapterIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_chapters : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   return static_cast<AVChapter *>(*AvChapter)->start;
@@ -104,12 +118,13 @@ Expect<int32_t> AVChapterSetStart::body(const Runtime::CallingFrame &,
                                         uint32_t ChapterIdx,
                                         int64_t StartValue) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVChapter **AvChapter = AvFormatContext->chapters;
-
-  // No check here (Check)
-  // Raw Pointer Iteration.
-  for (unsigned int I = 1; I <= ChapterIdx; I++) {
-    AvChapter++;
+  AVChapter **AvChapter = chapterAt(AvFormatContext, ChapterIdx);
+  if (AvChapter == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVChapterSetStart: invalid chapter "
+                  "index {} (format context id {}, nb_chapters={})"sv,
+                  ChapterIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_chapters : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   (*AvChapter)->start = StartValue;
@@ -120,12 +135,13 @@ Expect<int64_t> AVChapterEnd::body(const Runtime::CallingFrame &,
                                    uint32_t AvFormatCtxId,
                                    uint32_t ChapterIdx) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVChapter **AvChapter = AvFormatContext->chapters;
-
-  // No check here (Check)
-  // Raw Pointer Iteration.
-  for (unsigned int I = 1; I <= ChapterIdx; I++) {
-    AvChapter++;
+  AVChapter **AvChapter = chapterAt(AvFormatContext, ChapterIdx);
+  if (AvChapter == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVChapterEnd: invalid chapter index {} "
+                  "(format context id {}, nb_chapters={})"sv,
+                  ChapterIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_chapters : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   return static_cast<AVChapter *>(*AvChapter)->end;
@@ -135,12 +151,13 @@ Expect<int32_t> AVChapterSetEnd::body(const Runtime::CallingFrame &,
                                       uint32_t AvFormatCtxId,
                                       uint32_t ChapterIdx, int64_t EndValue) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVChapter **AvChapter = AvFormatContext->chapters;
-
-  // No check here (Check)
-  // Raw Pointer Iteration.
-  for (unsigned int I = 1; I <= ChapterIdx; I++) {
-    AvChapter++;
+  AVChapter **AvChapter = chapterAt(AvFormatContext, ChapterIdx);
+  if (AvChapter == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVChapterSetEnd: invalid chapter index "
+                  "{} (format context id {}, nb_chapters={})"sv,
+                  ChapterIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_chapters : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   (*AvChapter)->end = EndValue;
@@ -156,18 +173,16 @@ Expect<int32_t> AVChapterMetadata::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
 
-  AVDictionary **AvDictionary =
-      static_cast<AVDictionary **>(av_malloc(sizeof(AVDictionary *)));
-  AVChapter **AvChapter = AvFormatCtx->chapters;
-
-  // No check here (Check)
-  // Raw Pointer Iteration.
-  for (unsigned int I = 1; I <= ChapterIdx; I++) {
-    AvChapter++;
+  AVChapter **AvChapter = chapterAt(AvFormatCtx, ChapterIdx);
+  if (AvChapter == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVChapterMetadata: invalid chapter "
+                  "index {} (format context id {}, nb_chapters={})"sv,
+                  ChapterIdx, AvFormatCtxId,
+                  AvFormatCtx ? AvFormatCtx->nb_chapters : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
-  *AvDictionary = (*AvChapter)->metadata;
-  FFMPEG_PTR_STORE(AvDictionary, DictId);
+  FFMPEG_PTR_STORE_CHILD(&(*AvChapter)->metadata, DictId, AvFormatCtxId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -178,20 +193,18 @@ Expect<int32_t> AVChapterSetMetadata::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
   FFMPEG_PTR_FETCH(AvDictionary, DictId, AVDictionary *);
 
-  AVChapter **AvChapter = AvFormatCtx->chapters;
-
-  // No check here (Check)
-  // Raw Pointer Iteration.
-  for (unsigned int I = 1; I <= ChapterIdx; I++) {
-    AvChapter++;
+  AVChapter **AvChapter = chapterAt(AvFormatCtx, ChapterIdx);
+  if (AvChapter == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVChapterSetMetadata: invalid chapter "
+                  "index {} (format context id {}, nb_chapters={})"sv,
+                  ChapterIdx, AvFormatCtxId,
+                  AvFormatCtx ? AvFormatCtx->nb_chapters : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
-  if (AvDictionary == nullptr) {
-    (*AvChapter)->metadata = nullptr;
-  } else {
-    (*AvChapter)->metadata = *AvDictionary;
-  }
-  return static_cast<int32_t>(ErrNo::Success);
+  FFMPEG_PTR_CHECK_NONZERO(AvDictionary, DictId,
+                           static_cast<int32_t>(ErrNo::InternalError));
+  return applyMetadataCopy(&(*AvChapter)->metadata, AvDictionary);
 }
 
 } // namespace AVFormat

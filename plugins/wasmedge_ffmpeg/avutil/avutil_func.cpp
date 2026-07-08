@@ -61,26 +61,47 @@ AVGetChannelLayoutNbChannels::body(const Runtime::CallingFrame &,
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
 
   AVChannelLayout TmpChLayout;
-  av_channel_layout_from_mask(&TmpChLayout, ChannelLayout);
+  if (av_channel_layout_from_mask(&TmpChLayout, ChannelLayout) < 0) {
+    return 0;
+  }
   int32_t ChannelLayoutNbChannels = TmpChLayout.nb_channels;
   av_channel_layout_uninit(&TmpChLayout);
 
   return ChannelLayoutNbChannels;
 }
 
+namespace {
+// Writes the name of the channel layout given by the FFmpeg mask ChannelLayout
+// into Buf. A single-channel layout is named by its channel (e.g. "FL", "LFE"),
+// a layout with more than one channel by its description (e.g. "stereo",
+// "5.1"). Returns the underlying av_* return code, negative when the mask does
+// not form a valid layout.
+int describeChannelLayoutName(uint64_t ChannelLayout, char *Buf, size_t Size) {
+  AVChannelLayout TmpChLayout;
+  if (av_channel_layout_from_mask(&TmpChLayout, ChannelLayout) < 0) {
+    return -1;
+  }
+  int Ret;
+  if (TmpChLayout.nb_channels == 1) {
+    Ret = av_channel_name(
+        Buf, Size, FFmpegUtils::ChannelLayout::channelFromMask(ChannelLayout));
+  } else {
+    Ret = av_channel_layout_describe(&TmpChLayout, Buf, Size);
+  }
+  av_channel_layout_uninit(&TmpChLayout);
+  return Ret;
+}
+} // namespace
+
 Expect<int32_t> AVGetChannelLayoutNameLen::body(const Runtime::CallingFrame &,
                                                 uint64_t ChannelLayoutId) {
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
-  char ChName[16] = {0}; // bufsize based on AVChannelCustom.name
-  // mask ChannelLayout to AVChannel before passing
-  int Code =
-      av_channel_name(ChName, 16, static_cast<AVChannel>(ChannelLayout >> 1));
-
-  if (Code < 0) {
+  char Name[64] = {0};
+  if (describeChannelLayoutName(ChannelLayout, Name, sizeof(Name)) < 0) {
     return 0;
   }
-  return strlen(ChName);
+  return std::strlen(Name);
 }
 
 Expect<int32_t> AVGetChannelLayoutName::body(const Runtime::CallingFrame &Frame,
@@ -92,11 +113,15 @@ Expect<int32_t> AVGetChannelLayoutName::body(const Runtime::CallingFrame &Frame,
 
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
-  char ChName[16] = {0}; // bufsize based on AVChannelCustom.name
-  // mask ChannelLayout to AVChannel before passing
-  av_channel_name(ChName, 16, static_cast<AVChannel>(ChannelLayout >> 1));
-
-  std::copy_n(ChName, NameLen, NameBuf.data());
+  char Name[64] = {0};
+  int const Ret = describeChannelLayoutName(ChannelLayout, Name, sizeof(Name));
+  if (Ret < 0) {
+    spdlog::error("[WasmEdge-FFmpeg] AVGetChannelLayoutName: cannot describe "
+                  "channel layout mask {:#x} ({})"sv,
+                  ChannelLayout, Ret);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  copyCStringToBuffer(NameBuf.data(), NameLen, Name);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -111,8 +136,8 @@ Expect<uint64_t> AVGetDefaultChannelLayout::body(const Runtime::CallingFrame &,
                                                  int32_t Number) {
   AVChannelLayout TmpChLayout;
   av_channel_layout_default(&TmpChLayout, Number);
-  uint64_t DefaultChannelLayout =
-      FFmpegUtils::ChannelLayout::intoChannelLayoutID(TmpChLayout.u.mask);
+  uint64_t const DefaultChannelLayout =
+      FFmpegUtils::ChannelLayout::intoChannelLayoutID(TmpChLayout);
   av_channel_layout_uninit(&TmpChLayout);
 
   return DefaultChannelLayout;
@@ -130,9 +155,7 @@ Expect<int32_t> AVUtilConfiguration::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
 
   const char *Config = avutil_configuration();
-  auto Actual = std::strlen(Config);
-  auto N = std::min<uint32_t>(ConfigLen, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(Config, N, ConfigBuf.data());
+  copyCStringToBuffer(ConfigBuf.data(), ConfigLen, Config);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -147,9 +170,7 @@ Expect<int32_t> AVUtilLicense::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
 
   const char *License = avutil_license();
-  auto Actual = std::strlen(License);
-  auto N = std::min<uint32_t>(LicenseLen, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(License, N, LicenseBuf.data());
+  copyCStringToBuffer(LicenseBuf.data(), LicenseLen, License);
   return static_cast<int32_t>(ErrNo::Success);
 }
 

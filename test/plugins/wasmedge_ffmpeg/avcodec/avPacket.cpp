@@ -290,11 +290,11 @@ TEST_F(FFmpegTest, AVPacketTest) {
   auto &HostFuncAVPacketData = FuncInst->getHostFunc();
 
   {
-    EXPECT_TRUE(HostFuncAVPacketData.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{PacketId, DataPtr,
-                                                    PacketDataSize},
-        Result));
+    EXPECT_TRUE(
+        HostFuncAVPacketData.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     PacketId, DataPtr, PacketDataSize},
+                                 Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 
@@ -327,6 +327,151 @@ TEST_F(FFmpegTest, AVPacketTest) {
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 }
+TEST_F(FFmpegTest, AVPacketDataBounds) {
+  ASSERT_TRUE(AVCodecMod != nullptr);
+
+  uint32_t PacketPtr = UINT32_C(4);
+  auto *FuncInst =
+      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_alloc");
+  auto &HostFuncAVPacketAlloc = FuncInst->getHostFunc();
+  HostFuncAVPacketAlloc.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketPtr},
+      Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  uint32_t PacketId = readUInt32(MemInst, PacketPtr);
+  ASSERT_TRUE(PacketId > 0);
+
+  FuncInst =
+      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_new_packet");
+  auto &HostFuncAVNewPacket = FuncInst->getHostFunc();
+  uint32_t PacketSize = UINT32_C(40);
+  HostFuncAVNewPacket.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PacketId, PacketSize},
+      Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), 0);
+
+  FuncInst =
+      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_data");
+  auto &HostFuncAVPacketData = FuncInst->getHostFunc();
+
+  // The destination is fenced with a sentinel; a guest length larger than
+  // AvPacket->size must be rejected outright, not partially copied.
+  uint32_t DataPtr = UINT32_C(200);
+  uint32_t DataLen = PacketSize + UINT32_C(24);
+  fillMemContent(MemInst, DataPtr, DataLen, UINT8_C(0xAA));
+  HostFuncAVPacketData.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PacketId, DataPtr, DataLen},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  char *Buf = MemInst->getPointer<char *>(DataPtr);
+  for (uint32_t I = 0; I < DataLen; ++I) {
+    EXPECT_EQ(static_cast<uint8_t>(Buf[I]), UINT8_C(0xAA));
+  }
+
+  // A request bounded by the packet size still succeeds.
+  HostFuncAVPacketData.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               PacketId, DataPtr, PacketSize},
+                           Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+}
+
+// Regression: a valid empty packet has data == null and size == 0; a
+// zero-length av_packet_data read of it must succeed and leave the
+// destination untouched.
+TEST_F(FFmpegTest, AVPacketDataEmptyPacketZeroLength) {
+  ASSERT_TRUE(AVCodecMod != nullptr);
+
+  uint32_t PacketPtr = UINT32_C(4);
+  auto *FuncInst =
+      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_alloc");
+  auto &HostFuncAVPacketAlloc = FuncInst->getHostFunc();
+  HostFuncAVPacketAlloc.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketPtr},
+      Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  uint32_t PacketId = readUInt32(MemInst, PacketPtr);
+  ASSERT_TRUE(PacketId > 0);
+
+  // A freshly allocated packet is empty: av_packet_size reports 0.
+  FuncInst =
+      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_size");
+  auto &HostFuncAVPacketSize = FuncInst->getHostFunc();
+  HostFuncAVPacketSize.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PacketId}, Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), 0);
+
+  FuncInst =
+      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_data");
+  auto &HostFuncAVPacketData = FuncInst->getHostFunc();
+
+  // The zero-length read is a no-op success; the sentinel-filled destination
+  // stays untouched.
+  uint32_t DataPtr = UINT32_C(200);
+  uint32_t DataLen = UINT32_C(8);
+  fillMemContent(MemInst, DataPtr, DataLen, UINT8_C(0xAA));
+  HostFuncAVPacketData.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               PacketId, DataPtr, UINT32_C(0)},
+                           Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  char *Buf = MemInst->getPointer<char *>(DataPtr);
+  for (uint32_t I = 0; I < DataLen; ++I) {
+    EXPECT_EQ(static_cast<uint8_t>(Buf[I]), UINT8_C(0xAA));
+  }
+}
+
+// av_packet_unref consumes the packet handle: id 0 and an already-consumed
+// id are no-op successes like the other free wrappers; a live id of another
+// type is rejected before any id-keyed deallocation.
+TEST_F(FFmpegTest, AVPacketUnrefNullSafeAndIdempotent) {
+  ASSERT_TRUE(AVCodecMod != nullptr);
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  EXPECT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_av_packet_unref",
+                {UINT32_C(0)}),
+            static_cast<int32_t>(ErrNo::Success));
+
+  uint32_t PacketPtr = UINT32_C(4);
+  allocPacket(PacketPtr);
+  uint32_t PacketId = readUInt32(MemInst, PacketPtr);
+  ASSERT_TRUE(PacketId > 0);
+
+  EXPECT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_av_packet_unref",
+                {PacketId}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_av_packet_unref",
+                {PacketId}),
+            static_cast<int32_t>(ErrNo::Success));
+
+  uint32_t FramePtr = UINT32_C(8);
+  initEmptyFrame(FramePtr);
+  uint32_t FrameId = readUInt32(MemInst, FramePtr);
+  ASSERT_TRUE(FrameId > 0);
+  EXPECT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_av_packet_unref",
+                {FrameId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  // The frame handle survived the rejected unref and still frees normally.
+  EXPECT_EQ(
+      Run(AVUtilMod.get(), "wasmedge_ffmpeg_avutil_av_frame_free", {FrameId}),
+      static_cast<int32_t>(ErrNo::Success));
+}
+
 } // namespace WasmEdgeFFmpeg
 } // namespace Host
 } // namespace WasmEdge

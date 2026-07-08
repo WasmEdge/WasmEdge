@@ -186,6 +186,11 @@ public:
 
   WasmEdgeFFmpegEnv() noexcept {}
 
+  // Reclaims the FilterPadView entries still in the table: they are the only
+  // plugin-owned objects in it, and a view whose id the guest discarded would
+  // otherwise leak. Defined in ffmpeg_env.cpp, where FilterPadView is complete.
+  ~WasmEdgeFFmpegEnv();
+
 private:
   void eraseKeyByValue(void *Data, uint32_t Key) {
     auto Range = KeysByValue.equal_range(Data);

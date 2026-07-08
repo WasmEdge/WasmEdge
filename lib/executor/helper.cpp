@@ -26,6 +26,10 @@ Executor::SavedThreadLocal::SavedThreadLocal(
   SavedExecutionContext = ExecutionContext;
   ExecutionContext.StopToken = &Ex.StopToken;
   ExecutionContext.Memories = ModInst->MemoryPtrs.data();
+  ExecutionContext.MemorySizes = ModInst->MemorySizePtrs.data();
+  ExecutionContext.TableSizes = ModInst->TableSizePtrs.data();
+  ExecutionContext.TableRefs = ModInst->TableRefPtrs.data();
+  ExecutionContext.ModuleInst = ModInst;
   ExecutionContext.Globals = ModInst->GlobalPtrs.data();
   if (Ex.Stat) {
     ExecutionContext.InstrCount = &Ex.Stat->getInstrCountRef();

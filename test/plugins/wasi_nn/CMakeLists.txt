@@ -3,6 +3,7 @@
 
 wasmedge_add_executable(wasiNNTests
   wasi_nn.cpp
+  resource_table_test.cpp
 )
 
 # Prepare the testing data for each backends.
@@ -76,6 +77,29 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         -Wno-unused-function
       )
     endif()
+    # The lifetime tests construct WASINN::Graph values inside the test
+    # binary, so the GGML payload's mtmd member deleters must resolve at link
+    # time here, not only in the plugin library.
+    target_link_libraries(wasiNNTests
+      PRIVATE
+      mtmd
+    )
+    # This second llama/ggml copy must stay out of the dynamic symbol table:
+    # on ELF the exported copy would interpose the dlopened plugin's global
+    # llama/ggml references while its hidden internals keep using its own
+    # copy, and the two half-mixed copies then tear down the same state twice
+    # at exit (glibc: double free or corruption). Hide only these archives
+    # rather than turning off ENABLE_EXPORTS: the test binary must keep
+    # exporting its WasmEdge internals (Hash::rapidHash in particular) so the
+    # dlopened plugin resolves them to the executable's copy. Each rapidHash
+    # copy seeds itself randomly, so if the plugin hashed PO option maps with
+    # a different copy than the test binary, option lookups would miss and
+    # the WASI-NN RPC URI would silently fail to apply.
+    if(UNIX AND NOT APPLE)
+      target_link_options(wasiNNTests PRIVATE
+        "LINKER:--exclude-libs,libllama.a:libggml.a:libggml-base.a:libggml-cpu.a:libggml-blas.a:libggml-cuda.a:libmtmd.a:libcommon.a"
+      )
+    endif()
   elseif(BACKEND STREQUAL "piper")
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures")
     wasmedge_download(
@@ -144,6 +168,20 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_whisper_fixtures/test.wav
       MD5=6cf3f7af1ebbd6b29c373e526b548dba
     )
+    # The lifetime tests construct WASINN::Graph values inside the test
+    # binary, so whisper_free in the Whisper payload's destructor must
+    # resolve at link time here, not only in the plugin library.
+    target_link_libraries(wasiNNTests
+      PRIVATE
+      whisper
+    )
+    # Keep this second whisper/ggml copy out of the dynamic symbol table for
+    # the same reason as the ggml archives above.
+    if(UNIX AND NOT APPLE)
+      target_link_options(wasiNNTests PRIVATE
+        "LINKER:--exclude-libs,libwhisper.a:libggml.a:libggml-base.a:libggml-cpu.a:libggml-blas.a:libggml-cuda.a"
+      )
+    endif()
   elseif(BACKEND STREQUAL "mlx")
     message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_mlx_fixtures")
     wasmedge_download(

@@ -6,7 +6,7 @@
 
 #include "common/statistics.h"
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 #include <string>
 
 using namespace WasmEdge;

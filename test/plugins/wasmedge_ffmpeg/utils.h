@@ -4,6 +4,7 @@
 #pragma once
 
 #include "avcodec/module.h"
+#include "avdevice/module.h"
 #include "avfilter/module.h"
 #include "avformat/module.h"
 #include "avutil/module.h"
@@ -11,12 +12,17 @@
 #include "swresample/module.h"
 #include "swscale/module.h"
 
+#include "common/defines.h"
 #include "common/types.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 
 #include <gtest/gtest.h>
 #include <memory>
+
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#include <fcntl.h>
+#endif
 
 namespace WasmEdge {
 namespace Host {
@@ -67,6 +73,18 @@ inline uint32_t readUInt32(WasmEdge::Runtime::Instance::MemoryInstance *MemInst,
   uint32_t *BufPtr = MemInst->getPointer<uint32_t *>(Ptr);
   return *BufPtr;
 }
+
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+inline int countOpenDescriptors() {
+  int Count = 0;
+  for (int Fd = 0; Fd < 1024; ++Fd) {
+    if (fcntl(Fd, F_GETFD) != -1) {
+      ++Count;
+    }
+  }
+  return Count;
+}
+#endif
 
 class FFmpegTest : public ::testing::Test {
 public:
@@ -122,6 +140,13 @@ public:
                                    WasmEdgeFFmpegAVFilterModule>(
                 Module->create());
       }
+      if (const auto *Module =
+              Plugin->findModule("wasmedge_ffmpeg_avdevice"sv)) {
+        AVDeviceMod =
+            dynamicPointerCast<WasmEdge::Host::WasmEdgeFFmpeg::AVDevice::
+                                   WasmEdgeFFmpegAVDeviceModule>(
+                Module->create());
+      }
     }
   }
 
@@ -166,6 +191,9 @@ protected:
   std::unique_ptr<
       WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::WasmEdgeFFmpegAVFilterModule>
       AVFilterMod;
+  std::unique_ptr<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVDevice::WasmEdgeFFmpegAVDeviceModule>
+      AVDeviceMod;
 };
 
 } // namespace WasmEdgeFFmpeg

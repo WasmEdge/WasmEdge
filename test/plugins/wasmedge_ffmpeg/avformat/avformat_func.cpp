@@ -320,14 +320,14 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
   uint32_t FormatCtxPtr = UINT32_C(4);
   uint32_t DictPtr = UINT32_C(16);
   uint32_t ChapterPtr = UINT32_C(20);
-  uint32_t FramePtr = UINT32_C(24);
+  uint32_t PacketPtr = UINT32_C(24);
   uint32_t KeyPtr = UINT32_C(100);
   uint32_t ValuePtr = UINT32_C(200);
 
   initDict(DictPtr, KeyPtr, std::string("Key"), ValuePtr, std::string("Value"));
-  initEmptyFrame(FramePtr);
+  allocPacket(PacketPtr);
   uint32_t DictId = readUInt32(MemInst, DictPtr);
-  uint32_t FrameId = readUInt32(MemInst, FramePtr);
+  uint32_t PacketId = readUInt32(MemInst, PacketPtr);
 
   uint32_t FormatStart = 300;
   uint32_t FormatLen = 3;
@@ -516,12 +516,12 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
   auto &HostFuncAVWriteFrame = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVWriteFrame"sv);
-  // Passing Empty Frame, Hence giving Invalid Argument Error.
+  // Empty packet against a stream-less context, hence Invalid Argument Error.
   {
     uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
     EXPECT_TRUE(HostFuncAVWriteFrame.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, FrameId},
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, PacketId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), -22);
   }
@@ -533,12 +533,12 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
   auto &HostFuncAVInterleavedWriteFrame = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVInterleavedWriteFrame"sv);
-  // Passing Empty Frame, Hence giving Invalid Argument Error.
+  // Empty packet against a stream-less context, hence Invalid Argument Error.
   {
     uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
     EXPECT_TRUE(HostFuncAVInterleavedWriteFrame.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, FrameId},
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, PacketId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), -22);
   }

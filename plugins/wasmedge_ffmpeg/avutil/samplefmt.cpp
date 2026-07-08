@@ -47,10 +47,9 @@ Expect<int32_t> AVGetBytesPerSample::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVGetSampleFmt::body(const Runtime::CallingFrame &Frame,
                                      uint32_t Str, uint32_t StrLen) {
   MEMINST_CHECK(MemInst, Frame, 0);
-  MEM_PTR_CHECK(StrId, MemInst, char, Str, "");
+  MEM_SPAN_CHECK(StrId, MemInst, char, Str, StrLen, "");
 
-  std::string TargetUrl;
-  std::copy_n(StrId, StrLen, std::back_inserter(TargetUrl));
+  std::string TargetUrl(StrId.data(), StrLen);
 
   AVSampleFormat const AvSampleFormat = av_get_sample_fmt(TargetUrl.c_str());
   return FFmpegUtils::SampleFmt::toSampleID(AvSampleFormat);
@@ -95,6 +94,9 @@ Expect<int32_t> AVGetSampleFmtNameLength::body(const Runtime::CallingFrame &,
       FFmpegUtils::SampleFmt::fromSampleID(SampleFmtId);
 
   const char *Name = av_get_sample_fmt_name(SampleFmt);
+  if (Name == nullptr) {
+    return 0;
+  }
   return strlen(Name);
 }
 
@@ -109,7 +111,7 @@ Expect<int32_t> AVGetSampleFmtName::body(const Runtime::CallingFrame &Frame,
   AVSampleFormat const SampleFmt =
       FFmpegUtils::SampleFmt::fromSampleID(SampleFmtId);
   const char *Name = av_get_sample_fmt_name(SampleFmt);
-  std::copy_n(Name, SampleFmtNameLen, SampleFmtBuf.data());
+  copyCStringToBuffer(SampleFmtBuf.data(), SampleFmtNameLen, Name);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -123,6 +125,8 @@ Expect<int32_t> AVGetSampleFmtMask::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVFreep::body(const Runtime::CallingFrame &,
                               uint32_t BufferId) {
   FFMPEG_PTR_FETCH(Buffer, BufferId, uint8_t *);
+  FFMPEG_PTR_CHECK_FREE(Buffer, BufferId,
+                        static_cast<int32_t>(ErrNo::InternalError));
   av_freep(Buffer);
   FFMPEG_PTR_DELETE(BufferId);
   return static_cast<int32_t>(ErrNo::Success);

@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
+#include "host/wasi/wasimodule.h"
 #include "runtime/instance/module.h"
 #include "zlibfunc.h"
 #include "zlibmodule.h"
@@ -12,10 +13,15 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <gtest/gtest.h>
 #include <memory>
 #include <string>
 #include <vector>
+
+#if !defined(_WIN32)
+#include <sys/stat.h>
+#endif
 
 namespace {
 
@@ -44,6 +50,12 @@ std::unique_ptr<WasmEdge::Host::WasmEdgeZlibModule> createModule() {
   }
   return {};
 }
+
+class WasiWiredModule : public WasmEdge::Runtime::Instance::ModuleInstance {
+public:
+  using ModuleInstance::ModuleInstance;
+  void wireWASIModule(const ModuleInstance *M) noexcept { setWASIModule(M); }
+};
 
 } // namespace
 
@@ -118,8 +130,6 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
   WasmZlibVersion = WasmHP;
   std::snprintf(MemInst.getPointer<char *>(WasmHP),
                 std::strlen(ZLIB_VERSION) + 1, ZLIB_VERSION);
-  // Reserve the terminator too so the version stays a NUL-terminated in-bounds
-  // C string; the wrapper rejects an unterminated version.
   WasmHP += std::strlen(ZLIB_VERSION) + 1;
 
   WasmData = WasmHP;
@@ -280,8 +290,6 @@ TEST(WasmEdgeZlibTest, HardeningBounds) {
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
   std::array<WasmEdge::ValVariant, 1> RetVal;
 
-  // Out-of-bounds z_stream pointer must fail instead of dereferencing NULL:
-  // 65530 + sizeof(WasmZStream) exceeds the single memory page.
   {
     GET_ZLIB_FUNC(DeflateInit, "deflateInit")
     EXPECT_FALSE(DeflateInit.run(CallFrame,
@@ -290,8 +298,6 @@ TEST(WasmEdgeZlibTest, HardeningBounds) {
                                  RetVal));
   }
 
-  // A guest-controlled avail_out larger than linear memory must be rejected
-  // rather than letting zlib write past the end of memory.
   {
     GET_ZLIB_FUNC(DeflateInit, "deflateInit")
     GET_ZLIB_FUNC(Deflate, "deflate")
@@ -311,7 +317,6 @@ TEST(WasmEdgeZlibTest, HardeningBounds) {
         RetVal));
   }
 
-  // compress with an out-of-bounds destination-length pointer must fail.
   {
     GET_ZLIB_FUNC(Compress, "compress")
     EXPECT_FALSE(Compress.run(
@@ -321,8 +326,6 @@ TEST(WasmEdgeZlibTest, HardeningBounds) {
         RetVal));
   }
 
-  // compress with a valid destination but an out-of-bounds source length must
-  // fail rather than let zlib read past the end of memory.
   {
     GET_ZLIB_FUNC(Compress, "compress")
     *MemInst.getPointer<uint32_t *>(0) = 100;
@@ -333,7 +336,6 @@ TEST(WasmEdgeZlibTest, HardeningBounds) {
         RetVal));
   }
 
-  // uncompress with an out-of-bounds destination-length pointer must fail.
   {
     GET_ZLIB_FUNC(Uncompress, "uncompress")
     EXPECT_FALSE(Uncompress.run(
@@ -343,8 +345,6 @@ TEST(WasmEdgeZlibTest, HardeningBounds) {
         RetVal));
   }
 
-  // adler32 / crc32 with a length larger than memory must fail rather than
-  // read out of bounds.
   {
     GET_ZLIB_FUNC(Adler32, "adler32")
     EXPECT_FALSE(
@@ -360,7 +360,6 @@ TEST(WasmEdgeZlibTest, HardeningBounds) {
                   RetVal));
   }
 
-  // An unknown gz file handle must be rejected, not dereferenced.
   {
     GET_ZLIB_FUNC(GZRead, "gzread")
     EXPECT_FALSE(GZRead.run(CallFrame,
@@ -371,11 +370,6 @@ TEST(WasmEdgeZlibTest, HardeningBounds) {
 }
 
 TEST(WasmEdgeZlibTest, HardeningCompress2AnswersInvalidLevelBeforeBounds) {
-  // An out-of-range level fails compress2's deflateInit before any source
-  // byte is read or dest byte written -- though only after *destLen has been
-  // zeroed -- so the wrapper must surface that Z_STREAM_ERROR instead of
-  // trapping on data spans the rejected call would never touch. A level zlib
-  // accepts keeps the bounds check.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -391,7 +385,6 @@ TEST(WasmEdgeZlibTest, HardeningCompress2AnswersInvalidLevelBeforeBounds) {
 
   GET_ZLIB_FUNC(Compress2, "compress2")
 
-  // A garbage *destLen makes the dest span run far past linear memory.
   const uint32_t DestLenPtr = 0;
   *MemInst.getPointer<uint32_t *>(DestLenPtr) = UINT32_C(0xFFFFFFF0);
   ASSERT_TRUE(Compress2.run(
@@ -402,7 +395,6 @@ TEST(WasmEdgeZlibTest, HardeningCompress2AnswersInvalidLevelBeforeBounds) {
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_STREAM_ERROR);
   EXPECT_EQ(*MemInst.getPointer<uint32_t *>(DestLenPtr), UINT32_C(0));
 
-  // With an accepted level the same out-of-bounds span must keep trapping.
   *MemInst.getPointer<uint32_t *>(DestLenPtr) = UINT32_C(0xFFFFFFF0);
   EXPECT_FALSE(Compress2.run(
       CallFrame,
@@ -412,11 +404,6 @@ TEST(WasmEdgeZlibTest, HardeningCompress2AnswersInvalidLevelBeforeBounds) {
 }
 
 TEST(WasmEdgeZlibTest, HardeningUncompress2AliasedLengthMatchesNative) {
-  // Native uncompress2 writes *destLen last, so when a guest aliases the two
-  // length pointers (DestLenPtr == SourceLenPtr) the shared slot ends holding
-  // the produced (uncompressed) length, not the consumed source length. The
-  // wrapper snapshots into separate host variables, so it must write them back
-  // in the same order to leave the guest the value native would.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -433,7 +420,6 @@ TEST(WasmEdgeZlibTest, HardeningUncompress2AliasedLengthMatchesNative) {
   GET_ZLIB_FUNC(Compress, "compress")
   GET_ZLIB_FUNC(Uncompress2, "uncompress2")
 
-  // A highly compressible payload, compressed to a zlib stream.
   const uint32_t RawPtr = 4096;
   const uint32_t RawLen = 100;
   fillMemContent(MemInst, RawPtr, RawLen, static_cast<uint8_t>('A'));
@@ -451,10 +437,6 @@ TEST(WasmEdgeZlibTest, HardeningUncompress2AliasedLengthMatchesNative) {
   const uint32_t CompLen = *MemInst.getPointer<uint32_t *>(CompLenPtr);
   ASSERT_GT(CompLen, 0U);
 
-  // Aliased call: the single slot is both dest capacity and source length. A
-  // capacity that covers the produced and compressed sizes lets the decode
-  // finish; the wrapper bounds the source by this length, and inflate stops at
-  // the stream end long before consuming the zero-filled tail.
   const uint32_t Cap = 256;
   ASSERT_GE(Cap, RawLen);
   ASSERT_GT(Cap, CompLen);
@@ -471,7 +453,6 @@ TEST(WasmEdgeZlibTest, HardeningUncompress2AliasedLengthMatchesNative) {
   EXPECT_EQ(0, std::memcmp(MemInst.getPointer<char *>(OutPtr),
                            MemInst.getPointer<char *>(RawPtr), RawLen));
 
-  // Non-aliased control: each slot keeps its own result.
   const uint32_t DestLenPtr = 32;
   const uint32_t SrcLenPtr = 48;
   fillMemContent(MemInst, OutPtr, Cap);
@@ -487,11 +468,6 @@ TEST(WasmEdgeZlibTest, HardeningUncompress2AliasedLengthMatchesNative) {
 }
 
 TEST(WasmEdgeZlibTest, HardeningZeroCapacityDestMatchesZlib) {
-  // compress distinguishes a null destination (Z_STREAM_ERROR) from a
-  // non-null one with no capacity (Z_BUF_ERROR) without writing a byte, so
-  // the wrapper must not turn either answer into the other: a guest null maps
-  // to Z_NULL while a nonzero offset stays non-null even when its zero-length
-  // span carries no pointer (one out of bounds included).
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -513,7 +489,6 @@ TEST(WasmEdgeZlibTest, HardeningZeroCapacityDestMatchesZlib) {
   const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
   std::strcpy(MemInst.getPointer<char *>(SourcePtr), Payload);
 
-  // A guest-null destination with no capacity is zlib's Z_STREAM_ERROR.
   *MemInst.getPointer<uint32_t *>(DestLenPtr) = 0;
   ASSERT_TRUE(Compress.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
@@ -521,8 +496,6 @@ TEST(WasmEdgeZlibTest, HardeningZeroCapacityDestMatchesZlib) {
                            RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_STREAM_ERROR);
 
-  // A nonzero destination offset past the end of linear memory still answers
-  // Z_BUF_ERROR at zero capacity; the pointer is never dereferenced.
   *MemInst.getPointer<uint32_t *>(DestLenPtr) = 0;
   ASSERT_TRUE(
       Compress.run(CallFrame,
@@ -531,7 +504,6 @@ TEST(WasmEdgeZlibTest, HardeningZeroCapacityDestMatchesZlib) {
                    RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_BUF_ERROR);
 
-  // An in-bounds destination with no capacity keeps the same answer.
   *MemInst.getPointer<uint32_t *>(DestLenPtr) = 0;
   ASSERT_TRUE(Compress.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
@@ -541,10 +513,6 @@ TEST(WasmEdgeZlibTest, HardeningZeroCapacityDestMatchesZlib) {
 }
 
 TEST(WasmEdgeZlibTest, HardeningZeroLengthDictionaryMatchesZlib) {
-  // deflateSetDictionary never reads a zero-length dictionary yet still
-  // rejects Z_NULL, so the wrapper must not turn either case into the other:
-  // any nonzero guest offset stays acceptable at length zero, while a guest
-  // null keeps failing with Z_STREAM_ERROR the way it does natively.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -569,7 +537,6 @@ TEST(WasmEdgeZlibTest, HardeningZeroLengthDictionaryMatchesZlib) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // Beyond the single memory page, so the zero-length span has no pointer.
   ASSERT_TRUE(
       DeflateSetDictionary.run(CallFrame,
                                std::initializer_list<WasmEdge::ValVariant>{
@@ -583,7 +550,6 @@ TEST(WasmEdgeZlibTest, HardeningZeroLengthDictionaryMatchesZlib) {
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_STREAM_ERROR);
 
-  // A nonzero length keeps the bounds check: the same wild offset must fail.
   EXPECT_FALSE(
       DeflateSetDictionary.run(CallFrame,
                                std::initializer_list<WasmEdge::ValVariant>{
@@ -597,11 +563,6 @@ TEST(WasmEdgeZlibTest, HardeningZeroLengthDictionaryMatchesZlib) {
 
 TEST(WasmEdgeZlibTest,
      HardeningInflateSetDictionaryValidatesOnlyWhenZlibReads) {
-  // inflateSetDictionary reads the dictionary only from a raw stream or a
-  // stream waiting in DICT mode; a wrapped stream that is not waiting answers
-  // Z_STREAM_ERROR before touching the bytes, so an unreadable guest buffer
-  // must surface that error rather than a trap -- and must keep trapping in
-  // the states where zlib does read it.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -635,8 +596,6 @@ TEST(WasmEdgeZlibTest,
   const uint32_t WrongDictLen = static_cast<uint32_t>(std::strlen(WrongDict));
   std::strcpy(MemInst.getPointer<char *>(WrongDictPtr), WrongDict);
 
-  // A zlib-wrapped stream that never saw Z_NEED_DICT: zlib rejects before
-  // reading, so even an out-of-bounds dictionary gets the soft error.
   const uint32_t ZS = 0x40;
   fillMemContent(MemInst, ZS, sizeof(WasmZStream));
   ASSERT_TRUE(InflateInit.run(
@@ -650,8 +609,6 @@ TEST(WasmEdgeZlibTest,
   ASSERT_TRUE(InflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS}, RetVal));
 
-  // A raw stream folds the dictionary into the window immediately, so the
-  // unreadable buffer must keep trapping and a readable one must be accepted.
   fillMemContent(MemInst, ZS, sizeof(WasmZStream));
   ASSERT_TRUE(InflateInit2.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS, INT32_C(-15)},
@@ -669,7 +626,6 @@ TEST(WasmEdgeZlibTest,
   ASSERT_TRUE(InflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS}, RetVal));
 
-  // Produce an FDICT stream so inflate really enters DICT mode.
   const uint32_t DataPtr = 0x200;
   const char *const Payload = "the quick brown fox jumps over the lazy dog!";
   const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
@@ -718,8 +674,6 @@ TEST(WasmEdgeZlibTest,
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_NEED_DICT);
 
-  // Waiting in DICT mode, zlib checksums the bytes: unreadable memory traps,
-  // a wrong dictionary gets Z_DATA_ERROR and leaves the stream waiting.
   EXPECT_FALSE(InflateSetDictionary.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{ZS, OOBPtr, UINT32_C(0x100)},
@@ -736,8 +690,6 @@ TEST(WasmEdgeZlibTest,
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // The stream leaves DICT mode only inside the next inflate call, so a
-  // repeated set still checksums (and so still traps on unreadable memory).
   EXPECT_FALSE(InflateSetDictionary.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{ZS, OOBPtr, UINT32_C(0x10)},
@@ -751,7 +703,6 @@ TEST(WasmEdgeZlibTest,
   EXPECT_EQ(
       0, std::memcmp(MemInst.getPointer<char *>(DecPtr), Payload, PayloadLen));
 
-  // Done inflating, the stream is no longer waiting: back to the soft error.
   EXPECT_TRUE(InflateSetDictionary.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{ZS, OOBPtr, UINT32_C(0x10)},
@@ -762,9 +713,6 @@ TEST(WasmEdgeZlibTest,
 }
 
 TEST(WasmEdgeZlibTest, HardeningDeflateSetDictionaryGzipStreamAnswersFirst) {
-  // A gzip-wrapped deflate stream refuses any preset dictionary before
-  // reading it, so an unreadable guest buffer surfaces Z_STREAM_ERROR there;
-  // a zlib-wrapped stream at INIT does read it and must keep trapping.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -818,12 +766,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflateSetDictionaryGzipStreamAnswersFirst) {
 }
 
 TEST(WasmEdgeZlibTest, HardeningDeflateSetDictionaryStartedStreamAnswersFirst) {
-  // Once a zlib-wrapped deflate stream has produced output (left INIT_STATE),
-  // deflateSetDictionary returns Z_STREAM_ERROR before reading the dictionary,
-  // so an unreadable guest buffer must surface that error rather than trap. The
-  // same stream still at INIT reads the dictionary and keeps trapping, and a
-  // raw stream (which rejects on live lookahead, untracked here) keeps trapping
-  // too.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -849,8 +791,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflateSetDictionaryStartedStreamAnswersFirst) {
   const uint32_t InLen = static_cast<uint32_t>(std::strlen(Input));
   std::strcpy(MemInst.getPointer<char *>(InPtr), Input);
 
-  // A zlib-wrapped (wrap == 1) stream still at INIT_STATE reads the dictionary,
-  // so an OOB buffer traps.
   const uint32_t ZS = 0;
   fillMemContent(MemInst, ZS, sizeof(WasmZStream));
   ASSERT_TRUE(
@@ -865,7 +805,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflateSetDictionaryStartedStreamAnswersFirst) {
       std::initializer_list<WasmEdge::ValVariant>{ZS, OOBPtr, UINT32_C(0x100)},
       RetVal));
 
-  // Advance the stream past INIT_STATE with one deflate() call.
   auto *Strm = MemInst.getPointer<WasmZStream *>(ZS);
   Strm->NextIn = InPtr;
   Strm->AvailIn = InLen;
@@ -877,8 +816,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflateSetDictionaryStartedStreamAnswersFirst) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // The started stream now answers an OOB dictionary with Z_STREAM_ERROR
-  // instead of trapping on the span.
   EXPECT_TRUE(DeflateSetDictionary.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{ZS, OOBPtr, UINT32_C(0x100)},
@@ -887,8 +824,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflateSetDictionaryStartedStreamAnswersFirst) {
   ASSERT_TRUE(DeflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS}, RetVal));
 
-  // A raw stream rejects on live lookahead, which is not tracked, so a started
-  // raw stream keeps trapping on an OOB dictionary (documented residual).
   const uint32_t ZSRaw = 0x40;
   fillMemContent(MemInst, ZSRaw, sizeof(WasmZStream));
   ASSERT_TRUE(DeflateInit2.run(CallFrame,
@@ -918,13 +853,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflateSetDictionaryStartedStreamAnswersFirst) {
 }
 
 TEST(WasmEdgeZlibTest, HardeningDeflateCopyInheritsDictionaryState) {
-  // deflateCopy duplicates zlib's internal state wholesale, wrap and progress
-  // included, so the tracked facts must follow the copy. A copy of a started
-  // zlib-wrapped stream answers an OOB dictionary with Z_STREAM_ERROR before
-  // validating the span, exactly as the source would; and a copy of a raw
-  // stream stays raw, so after its own deflate() it still accepts a preset
-  // dictionary the way native zlib does (raw rejects depend on live lookahead,
-  // not on having started).
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -955,9 +883,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflateCopyInheritsDictionaryState) {
   const uint32_t DictLen = static_cast<uint32_t>(std::strlen(Dict));
   std::strcpy(MemInst.getPointer<char *>(DictPtr), Dict);
 
-  // A copy of a started zlib-wrapped stream inherits the started fact: the
-  // dictionary refusal is answered before the span is validated, so an OOB
-  // buffer yields Z_STREAM_ERROR rather than a trap.
   const uint32_t ZS = 0;
   const uint32_t ZC = 0x40;
   fillMemContent(MemInst, ZS, sizeof(WasmZStream));
@@ -992,9 +917,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflateCopyInheritsDictionaryState) {
   ASSERT_TRUE(DeflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZC}, RetVal));
 
-  // A copy of a raw stream inherits rawness: after the copy's own deflate()
-  // drains the lookahead with a sync flush, native zlib still accepts a preset
-  // dictionary, so the started fact must not misfile the copy as zlib-wrapped.
   const uint32_t ZSRaw = 0x80;
   const uint32_t ZCRaw = 0xC0;
   fillMemContent(MemInst, ZSRaw, sizeof(WasmZStream));
@@ -1032,11 +954,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflateCopyInheritsDictionaryState) {
 }
 
 TEST(WasmEdgeZlibTest, HardeningZeroLengthChecksumMatchesZlib) {
-  // adler32/crc32 read Z_NULL as "return the initial value" and any non-null
-  // zero-length buffer as "return the running value unchanged". A guest null
-  // (offset 0) must map to Z_NULL, while any other zero-length offset -- even a
-  // wild one past the end of memory whose span carries no pointer -- must
-  // preserve the caller's checksum instead of resetting it to the seed.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -1055,29 +972,23 @@ TEST(WasmEdgeZlibTest, HardeningZeroLengthChecksumMatchesZlib) {
   const uint32_t Running = 999;
   const uint32_t WildOffset = 0xFFFF0000;
 
-  // Guest Z_NULL (offset 0, length 0) returns the checksum's initial value.
-  // zlib defines adler32(0, Z_NULL, 0) == 1 and crc32(0, Z_NULL, 0) == 0.
   ASSERT_TRUE(Adler32.run(CallFrame,
                           std::initializer_list<WasmEdge::ValVariant>{
                               Running, UINT32_C(0), UINT32_C(0)},
                           RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(1));
 
-  // A non-null zero-length buffer, including a wild offset past memory whose
-  // span has no pointer, preserves the running value rather than seeding.
   ASSERT_TRUE(Adler32.run(CallFrame,
                           std::initializer_list<WasmEdge::ValVariant>{
                               Running, WildOffset, UINT32_C(0)},
                           RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(Running));
 
-  // The same wild offset with a nonzero length still fails the bounds check.
   EXPECT_FALSE(Adler32.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
                                Running, WildOffset, UINT32_C(1)},
                            RetVal));
 
-  // crc32 shares the contract; its initial value is 0 rather than 1.
   ASSERT_TRUE(CRC32.run(CallFrame,
                         std::initializer_list<WasmEdge::ValVariant>{
                             Running, UINT32_C(0), UINT32_C(0)},
@@ -1105,8 +1016,6 @@ TEST(WasmEdgeZlibTest, HardeningUnterminatedString) {
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
   std::array<WasmEdge::ValVariant, 1> RetVal;
 
-  // Fill every byte of linear memory with a non-NUL value so any C string
-  // starting inside it has no terminator before the end of memory.
   std::fill_n(MemInst.getPointer<uint8_t *>(0),
               static_cast<size_t>(MemInst.getSize()),
               static_cast<uint8_t>(0xFF));
@@ -1114,7 +1023,50 @@ TEST(WasmEdgeZlibTest, HardeningUnterminatedString) {
   GET_ZLIB_FUNC(GZOpen, "gzopen")
   EXPECT_FALSE(GZOpen.run(
       CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(100)},
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1), UINT32_C(100)},
+      RetVal));
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZOpenRejectsOversizedPathOrMode) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+
+  std::fill_n(MemInst.getPointer<uint8_t *>(0),
+              static_cast<size_t>(MemInst.getSize()),
+              static_cast<uint8_t>('A'));
+  MemInst.getPointer<char *>(1)[5000] = '\0';
+  std::strcpy(MemInst.getPointer<char *>(6000), "rb");
+  EXPECT_FALSE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1), UINT32_C(6000)},
+      RetVal));
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(6000)},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+
+  std::fill_n(MemInst.getPointer<uint8_t *>(0),
+              static_cast<size_t>(MemInst.getSize()),
+              static_cast<uint8_t>('A'));
+  std::strcpy(MemInst.getPointer<char *>(1), "/tmp/x");
+  MemInst.getPointer<char *>(100)[200] = '\0';
+  EXPECT_FALSE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1), UINT32_C(100)},
       RetVal));
 }
 
@@ -1135,9 +1087,9 @@ TEST(WasmEdgeZlibTest, GZFileRoundTrip) {
   const std::string TmpPath = (std::filesystem::temp_directory_path() /
                                "wasmedge_zlib_hardening_test.gz")
                                   .string();
-  ASSERT_LT(TmpPath.size() + 1, 1024U);
+  ASSERT_LT(TmpPath.size() + 1, 1000U);
 
-  const uint32_t PathPtr = 0;
+  const uint32_t PathPtr = 16;
   std::strcpy(MemInst.getPointer<char *>(PathPtr), TmpPath.c_str());
   const uint32_t ModeWPtr = 1024;
   std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
@@ -1167,7 +1119,6 @@ TEST(WasmEdgeZlibTest, GZFileRoundTrip) {
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
 
-  // Closing must free the zlib handle exactly once (no double-free).
   EXPECT_TRUE(GZClose.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, RetVal));
 
@@ -1177,11 +1128,9 @@ TEST(WasmEdgeZlibTest, GZFileRoundTrip) {
   const uint32_t RHandle = RetVal[0].get<uint32_t>();
   EXPECT_NE(RHandle, WHandle);
 
-  // gzread with an out-of-bounds length must fail rather than overflow the
-  // buffer.
   EXPECT_FALSE(GZRead.run(CallFrame,
                           std::initializer_list<WasmEdge::ValVariant>{
-                              RHandle, UINT32_C(60000), UINT32_C(0xFFFFFFFF)},
+                              RHandle, UINT32_C(60000), UINT32_C(0x40000000)},
                           RetVal));
 
   const uint32_t ReadBuf = 4096;
@@ -1196,10 +1145,226 @@ TEST(WasmEdgeZlibTest, GZFileRoundTrip) {
   EXPECT_TRUE(GZClose.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
 
-  // A double close must be rejected gracefully; the handle is already gone.
   EXPECT_FALSE(GZClose.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
 
+  std::remove(TmpPath.c_str());
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZOversizedRequestsMatchZlib) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const std::string TmpPath = (std::filesystem::temp_directory_path() /
+                               "wasmedge_zlib_oversized_test.gz")
+                                  .string();
+  ASSERT_LT(TmpPath.size() + 1, 1000U);
+  const uint32_t PathPtr = 16;
+  std::strcpy(MemInst.getPointer<char *>(PathPtr), TmpPath.c_str());
+  const uint32_t ModeWPtr = 1024;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+  const uint32_t ModeRPtr = 1040;
+  std::strcpy(MemInst.getPointer<char *>(ModeRPtr), "rb");
+  const uint32_t StrPtr = 1100;
+  const char *const Payload = "gzputs through gzwrite";
+  const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
+  std::strcpy(MemInst.getPointer<char *>(StrPtr), Payload);
+  const uint32_t EmptyStrPtr = 2048;
+  MemInst.getPointer<char *>(EmptyStrPtr)[0] = '\0';
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+  GET_ZLIB_FUNC(GZPuts, "gzputs")
+  GET_ZLIB_FUNC(GZWrite, "gzwrite")
+  GET_ZLIB_FUNC(GZFwrite, "gzfwrite")
+  GET_ZLIB_FUNC(GZRead, "gzread")
+  GET_ZLIB_FUNC(GZFread, "gzfread")
+  GET_ZLIB_FUNC(GZClearerr, "gzclearerr")
+  GET_ZLIB_FUNC(GZClose, "gzclose")
+
+  const uint32_t Oversized = UINT32_C(0x80000000);
+
+  if (!GZOpen.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWPtr},
+          RetVal)) {
+    GTEST_SKIP() << "cannot create temporary file: " << TmpPath;
+  }
+  const uint32_t WHandle = RetVal[0].get<uint32_t>();
+
+  ASSERT_TRUE(GZPuts.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle, StrPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+
+  ASSERT_TRUE(GZPuts.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, EmptyStrPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(0));
+
+  ASSERT_TRUE(GZFwrite.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               StrPtr, Oversized, UINT32_C(2), WHandle},
+                           RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(0));
+  ASSERT_TRUE(GZPuts.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, EmptyStrPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(-1));
+  ASSERT_TRUE(GZClearerr.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, {}));
+  ASSERT_TRUE(GZPuts.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, EmptyStrPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(0));
+
+  ASSERT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, StrPtr, Oversized},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(0));
+
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, RetVal));
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeRPtr},
+      RetVal));
+  const uint32_t RHandle = RetVal[0].get<uint32_t>();
+
+  const uint32_t ReadBuf = 4096;
+  ASSERT_TRUE(GZRead.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, ReadBuf, UINT32_C(256)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_EQ(
+      0, std::memcmp(MemInst.getPointer<char *>(ReadBuf), Payload, PayloadLen));
+
+  ASSERT_TRUE(GZFread.run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              ReadBuf, Oversized, UINT32_C(2), RHandle},
+                          RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(0));
+  ASSERT_TRUE(GZRead.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, ReadBuf, UINT32_C(8)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(-1));
+  ASSERT_TRUE(GZClearerr.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, {}));
+  ASSERT_TRUE(GZRead.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, ReadBuf, UINT32_C(8)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(0));
+
+  ASSERT_TRUE(GZRead.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{RHandle, ReadBuf, Oversized},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(-1));
+
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
+  std::remove(TmpPath.c_str());
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZPutsEmptyStringHonorsMode) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const std::string TmpPath =
+      (std::filesystem::temp_directory_path() / "wasmedge_zlib_gzputs_mode.gz")
+          .string();
+  ASSERT_LT(TmpPath.size() + 1, 1000U);
+
+  const uint32_t PathPtr = 16;
+  std::strcpy(MemInst.getPointer<char *>(PathPtr), TmpPath.c_str());
+  const uint32_t ModeWPtr = 1024;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+  const uint32_t ModeRPtr = 1040;
+  std::strcpy(MemInst.getPointer<char *>(ModeRPtr), "rb");
+  const uint32_t EmptyPtr = 1060;
+  MemInst.getPointer<char *>(EmptyPtr)[0] = '\0';
+  const uint32_t DataPtr = 1100;
+  const char *const Payload = "gzputs mode probe";
+  const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
+  std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+  GET_ZLIB_FUNC(GZPuts, "gzputs")
+  GET_ZLIB_FUNC(GZRead, "gzread")
+  GET_ZLIB_FUNC(GZClose, "gzclose")
+
+  if (!GZOpen.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWPtr},
+          RetVal)) {
+    GTEST_SKIP() << "cannot create temporary file: " << TmpPath;
+  }
+  const uint32_t WHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(WHandle, 0U);
+
+  EXPECT_TRUE(GZPuts.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle, EmptyPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), 0);
+  EXPECT_TRUE(GZPuts.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle, DataPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, RetVal));
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeRPtr},
+      RetVal));
+  const uint32_t RHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(RHandle, 0U);
+
+  EXPECT_TRUE(GZPuts.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle, EmptyPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), -1);
+  EXPECT_TRUE(GZPuts.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle, DataPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), -1);
+
+  const uint32_t ReadBuf = 4096;
+  EXPECT_TRUE(GZRead.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, ReadBuf, UINT32_C(256)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_EQ(
+      0, std::memcmp(MemInst.getPointer<char *>(ReadBuf), Payload, PayloadLen));
+
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
   std::remove(TmpPath.c_str());
 }
 
@@ -1255,10 +1420,6 @@ TEST(WasmEdgeZlibTest, GZHeaderSnapshot) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // After the header is captured, corrupt the guest name and repoint the header
-  // field to an unterminated region at the end of memory. With the snapshot the
-  // emitted name must stay "original-header-name"; without it, deflate would
-  // re-read this and run off the end of linear memory.
   std::strcpy(MemInst.getPointer<char *>(NamePtr), "CORRUPTED-VALUE");
   DHeader->Name = static_cast<uint32_t>(MemInst.getSize()) - 3;
   std::fill_n(MemInst.getPointer<uint8_t *>(
@@ -1315,8 +1476,6 @@ TEST(WasmEdgeZlibTest, GZHeaderSnapshot) {
   ASSERT_TRUE(InflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{IZS}, RetVal));
 
-  // The round-tripped header name is the snapshot taken at set-header time, not
-  // the corrupted guest value.
   EXPECT_STREQ(MemInst.getPointer<char *>(INameBuf), OrigName);
 }
 
@@ -1334,15 +1493,12 @@ TEST(WasmEdgeZlibTest, GZOpenFailureReturnsNullHandle) {
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
   std::array<WasmEdge::ValVariant, 1> RetVal;
 
-  // A gzopen that fails for an ordinary I/O reason (a missing file) must return
-  // a null handle (0) so guest code can handle the usual gzopen(...) == NULL
-  // case, rather than trapping the whole Wasm call.
   const std::string MissingPath =
       (std::filesystem::temp_directory_path() / "wasmedge_zlib_absent_dir_zzz" /
        "definitely_absent.gz")
           .string();
   ASSERT_LT(MissingPath.size() + 1, 900U);
-  const uint32_t PathPtr = 0;
+  const uint32_t PathPtr = 16;
   std::strcpy(MemInst.getPointer<char *>(PathPtr), MissingPath.c_str());
   const uint32_t ModePtr = 1000;
   std::strcpy(MemInst.getPointer<char *>(ModePtr), "rb");
@@ -1353,7 +1509,6 @@ TEST(WasmEdgeZlibTest, GZOpenFailureReturnsNullHandle) {
       RetVal));
   EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
 
-  // gzdopen on an invalid file descriptor is likewise an ordinary failure.
   const uint32_t ModeDPtr = 1010;
   std::strcpy(MemInst.getPointer<char *>(ModeDPtr), "rb");
   GET_ZLIB_FUNC(GZDOpen, "gzdopen")
@@ -1397,8 +1552,6 @@ TEST(WasmEdgeZlibTest, DeflateSetHeaderKeepsHeaderOnFailedReplace) {
                        RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // The first set-header succeeds and is captured into host storage; zlib now
-  // holds a pointer into that stored header.
   auto *DHeader = MemInst.getPointer<WasmGZHeader *>(DHdr);
   DHeader->Name = Name1Ptr;
   ASSERT_TRUE(DeflateSetHeader.run(
@@ -1406,9 +1559,6 @@ TEST(WasmEdgeZlibTest, DeflateSetHeaderKeepsHeaderOnFailedReplace) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // The second set-header names a header whose name runs off the end of linear
-  // memory, so the snapshot is rejected. The failed replacement must not
-  // clobber the previously stored, still-referenced header.
   DHeader->Name = static_cast<uint32_t>(MemInst.getSize()) - 3;
   std::fill_n(MemInst.getPointer<uint8_t *>(
                   static_cast<uint32_t>(MemInst.getSize()) - 3),
@@ -1417,7 +1567,6 @@ TEST(WasmEdgeZlibTest, DeflateSetHeaderKeepsHeaderOnFailedReplace) {
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{DZS, DHdr},
       RetVal));
 
-  // The stored header is still the first one, not the failed replacement.
   const auto &HeaderMap = ZlibMod->getEnv().GZHeaderMap;
   const auto StoreIt = HeaderMap.find(DZS);
   ASSERT_NE(StoreIt, HeaderMap.end());
@@ -1492,12 +1641,6 @@ TEST(WasmEdgeZlibTest, DeflateSetHeaderRejectsOversizedNameAndComment) {
 }
 
 TEST(WasmEdgeZlibTest, HardeningDeflateSetHeaderNonGzipSkipsSnapshot) {
-  // zlib only accepts deflateSetHeader on a gzip deflate stream and answers
-  // Z_STREAM_ERROR for anything else without reading the header. The host must
-  // obtain that verdict before doing any guest-header work: on a zlib-format
-  // stream, even a header whose name would fail the snapshot's bounds check
-  // (or force a guest-sized host copy) surfaces zlib's Z_STREAM_ERROR instead
-  // of trapping or copying.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -1519,8 +1662,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflateSetHeaderNonGzipSkipsSnapshot) {
   std::fill_n(MemInst.getPointer<uint8_t *>(DZS), sizeof(WasmZStream), 0);
   std::fill_n(MemInst.getPointer<uint8_t *>(DHdr), sizeof(WasmGZHeader), 0);
 
-  // windowBits 15 requests the zlib wrapper, not gzip, so zlib will refuse
-  // the header on this stream.
   ASSERT_TRUE(
       DeflateInit2.run(CallFrame,
                        std::initializer_list<WasmEdge::ValVariant>{
@@ -1529,9 +1670,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflateSetHeaderNonGzipSkipsSnapshot) {
                        RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // The header name runs unterminated to the end of linear memory; on a gzip
-  // stream this snapshot would trap. zlib's verdict comes first, so the call
-  // reports Z_STREAM_ERROR and stores nothing.
   auto *DHeader = MemInst.getPointer<WasmGZHeader *>(DHdr);
   DHeader->Name = static_cast<uint32_t>(MemInst.getSize()) - 3;
   std::fill_n(MemInst.getPointer<uint8_t *>(
@@ -1545,10 +1683,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflateSetHeaderNonGzipSkipsSnapshot) {
 }
 
 TEST(WasmEdgeZlibTest, EndErasesGzipHeaderSnapshot) {
-  // deflateEnd / inflateEnd must drop the per-stream gzip-header snapshot.
-  // Leaving it in GZHeaderMap lets a guest accumulate host allocations by
-  // cycling stream pointers, and would keep a copied stream's shared header
-  // alive past the point zlib still needs it.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -1627,11 +1761,6 @@ TEST(WasmEdgeZlibTest, EndErasesGzipHeaderSnapshot) {
 }
 
 TEST(WasmEdgeZlibTest, InflateResetDropsGzipHeaderSnapshot) {
-  // Every inflate reset detaches zlib's internal gzip-header pointer (the
-  // guest must call inflateGetHeader again for the next stream), so the host
-  // snapshot must be dropped with it. A stale entry keeps re-validating and
-  // rewriting the guest header on every inflate call, trapping legitimate
-  // post-reset use once the guest reuses that memory.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -1656,7 +1785,6 @@ TEST(WasmEdgeZlibTest, InflateResetDropsGzipHeaderSnapshot) {
   GET_ZLIB_FUNC(Inflate, "inflate")
   GET_ZLIB_FUNC(InflateEnd, "inflateEnd")
 
-  // Build a small gzip stream to decode after the resets.
   const uint32_t DZS = 0x100;
   const uint32_t DataPtr = 0x300;
   const uint32_t CompPtr = 0x1000;
@@ -1732,8 +1860,6 @@ TEST(WasmEdgeZlibTest, InflateResetDropsGzipHeaderSnapshot) {
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
   EXPECT_EQ(HeaderMap.find(IZS), HeaderMap.end());
 
-  // After a reset the guest may legitimately reuse the header memory; inflate
-  // must not trap on the discarded registration.
   RegisterHeader();
   ASSERT_TRUE(InflateReset.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{IZS}, RetVal));
@@ -1760,10 +1886,6 @@ TEST(WasmEdgeZlibTest, InflateResetDropsGzipHeaderSnapshot) {
 }
 
 TEST(WasmEdgeZlibTest, DeflateCopyKeepsCopiedHeaderAlive) {
-  // deflateCopy duplicates zlib's internal gz_header pointer into the copied
-  // stream. Replacing (or ending) the source header must not free the storage
-  // the copy still references, otherwise a later deflate on the copy reads
-  // freed host memory.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -1821,37 +1943,30 @@ TEST(WasmEdgeZlibTest, DeflateCopyKeepsCopiedHeaderAlive) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // Copy the freshly configured source stream.
   ASSERT_TRUE(DeflateCopy.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{DstZS, SrcZS},
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
   const auto &HeaderMap = ZlibMod->getEnv().GZHeaderMap;
-  // The copy must own an independent, live header snapshot.
   {
     const auto DstIt = HeaderMap.find(DstZS);
     ASSERT_NE(DstIt, HeaderMap.end());
     EXPECT_EQ(DstIt->second->Name, OrigName);
   }
 
-  // Replace the source header; on the buggy code this frees the storage the
-  // copied stream still points at.
   DHeader->Name = Name2Ptr;
   ASSERT_TRUE(DeflateSetHeader.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{SrcZS, Hdr},
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // The copy still carries its own original header, independent of the source.
   {
     const auto DstIt = HeaderMap.find(DstZS);
     ASSERT_NE(DstIt, HeaderMap.end());
     EXPECT_EQ(DstIt->second->Name, OrigName);
   }
 
-  // Drive the copied stream to completion; it must emit the original name
-  // without reading freed memory.
   auto *DStrm = MemInst.getPointer<WasmZStream *>(DstZS);
   DStrm->NextIn = DataPtr;
   DStrm->AvailIn = PayloadLen;
@@ -1868,7 +1983,6 @@ TEST(WasmEdgeZlibTest, DeflateCopyKeepsCopiedHeaderAlive) {
   ASSERT_TRUE(DeflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{SrcZS}, RetVal));
 
-  // Round-trip the copy's output and confirm the header name survived.
   const uint32_t IZS = 0x5000;
   const uint32_t IHdr = 0x5100;
   const uint32_t INameBuf = 0x5200;
@@ -1909,10 +2023,6 @@ TEST(WasmEdgeZlibTest, DeflateCopyKeepsCopiedHeaderAlive) {
 }
 
 TEST(WasmEdgeZlibTest, InflateCopyKeepsCopiedHeaderAlive) {
-  // inflateCopy duplicates zlib's internal gz_header pointer into the copied
-  // stream, exactly like deflateCopy. Ending the source stream must not free
-  // the header snapshot the copy still points at, otherwise a later inflate on
-  // the copy writes the parsed gzip header through freed host memory.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -1959,8 +2069,6 @@ TEST(WasmEdgeZlibTest, InflateCopyKeepsCopiedHeaderAlive) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // The copy must share the source's live header snapshot; its internal head
-  // pointer now aliases the same host storage.
   const auto &HeaderMap = ZlibMod->getEnv().GZHeaderMap;
   const auto SrcIt = HeaderMap.find(SrcZS);
   const auto DstIt = HeaderMap.find(DstZS);
@@ -1968,7 +2076,6 @@ TEST(WasmEdgeZlibTest, InflateCopyKeepsCopiedHeaderAlive) {
   ASSERT_NE(DstIt, HeaderMap.end());
   EXPECT_EQ(DstIt->second, SrcIt->second);
 
-  // Ending the source must keep the shared snapshot alive for the copy.
   ASSERT_TRUE(InflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{SrcZS}, RetVal));
   EXPECT_EQ(HeaderMap.find(SrcZS), HeaderMap.end());
@@ -1979,12 +2086,6 @@ TEST(WasmEdgeZlibTest, InflateCopyKeepsCopiedHeaderAlive) {
 }
 
 TEST(WasmEdgeZlibTest, CopyInitializesDirtyDestinationStream) {
-  // deflateCopy/inflateCopy must make the destination a complete copy of the
-  // source. The generic write-back moves buffer offsets by deltas against the
-  // destination's own pre-call pointers, which an uninitialized destination
-  // (legal per zlib's contract) cannot provide, so the copies must publish the
-  // source's stream fields directly; otherwise the destination keeps garbage
-  // offsets alongside the source's counts and traps on its next use.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -2012,7 +2113,6 @@ TEST(WasmEdgeZlibTest, CopyInitializesDirtyDestinationStream) {
   const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
   std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
 
-  // A gzip blob for the inflate half.
   const uint32_t AZS = 0x200;
   const uint32_t BlobPtr = 0x3000;
   const uint32_t BlobCap = 0x1000;
@@ -2038,8 +2138,6 @@ TEST(WasmEdgeZlibTest, CopyInitializesDirtyDestinationStream) {
   ASSERT_TRUE(DeflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{AZS}, RetVal));
 
-  // deflateCopy onto an uninitialized (all-0xFF) destination struct, with the
-  // source mid-stream and input restaged the way a guest does between calls.
   const uint32_t SZS = 0x100;
   const uint32_t DCopyZS = 0x180;
   const uint32_t CompPtr = 0x1000;
@@ -2080,8 +2178,6 @@ TEST(WasmEdgeZlibTest, CopyInitializesDirtyDestinationStream) {
   EXPECT_EQ(DCopyStrm->AvailOut, SStrm->AvailOut);
   EXPECT_EQ(DCopyStrm->TotalOut, SStrm->TotalOut);
 
-  // The copy must be usable as-is: finishing it may not trap on leftover
-  // garbage offsets.
   ASSERT_TRUE(Deflate.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{DCopyZS, INT32_C(Z_FINISH)},
@@ -2092,8 +2188,6 @@ TEST(WasmEdgeZlibTest, CopyInitializesDirtyDestinationStream) {
   ASSERT_TRUE(DeflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{SZS}, RetVal));
 
-  // inflateCopy: park the source inside the gzip stream, stage the rest of the
-  // input, then copy onto an all-0xFF destination struct.
   const uint32_t IZS = 0x4000;
   const uint32_t ICopyZS = 0x4080;
   const uint32_t DecPtr = 0x5000;
@@ -2144,9 +2238,6 @@ TEST(WasmEdgeZlibTest, CopyInitializesDirtyDestinationStream) {
 }
 
 TEST(WasmEdgeZlibTest, InflateGetHeaderReplacesStoredHeaderOnSuccess) {
-  // A second inflateGetHeader on the same stream re-points zlib's internal head
-  // at the new host snapshot. The stored snapshot must be replaced (and kept
-  // alive), otherwise a later inflate writes the header through freed memory.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -2188,8 +2279,6 @@ TEST(WasmEdgeZlibTest, InflateGetHeaderReplacesStoredHeaderOnSuccess) {
     EXPECT_EQ(It->second->WasmGZHeaderOffset, Hdr1);
   }
 
-  // Re-register a different guest header. zlib now points at the second
-  // snapshot, so the stored entry must become the second one.
   ASSERT_TRUE(InflateGetHeader.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{IZS, Hdr2},
       RetVal));
@@ -2205,10 +2294,6 @@ TEST(WasmEdgeZlibTest, InflateGetHeaderReplacesStoredHeaderOnSuccess) {
 }
 
 TEST(WasmEdgeZlibTest, DeflateEndEarlyAbortErasesState) {
-  // deflateEnd frees all of zlib's internal state even when it returns
-  // Z_DATA_ERROR for a stream ended mid-compression. The host tracking (stream
-  // entry and gzip-header snapshot) must be dropped on that path too, otherwise
-  // a guest can accumulate host allocations by cycling stream pointers.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -2258,7 +2343,6 @@ TEST(WasmEdgeZlibTest, DeflateEndEarlyAbortErasesState) {
   ASSERT_NE(Env.ZStreamMap.find(DZS), Env.ZStreamMap.end());
   ASSERT_NE(Env.GZHeaderMap.find(DZS), Env.GZHeaderMap.end());
 
-  // Compress part of the input without finishing; the stream is now mid-flight.
   auto *DStrm = MemInst.getPointer<WasmZStream *>(DZS);
   DStrm->NextIn = DataPtr;
   DStrm->AvailIn = PayloadLen;
@@ -2270,8 +2354,6 @@ TEST(WasmEdgeZlibTest, DeflateEndEarlyAbortErasesState) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // deflateEnd on a mid-compression stream returns Z_DATA_ERROR but still frees
-  // zlib's state; the host entries must be erased on that path too.
   ASSERT_TRUE(DeflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{DZS}, RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_DATA_ERROR);
@@ -2280,9 +2362,6 @@ TEST(WasmEdgeZlibTest, DeflateEndEarlyAbortErasesState) {
 }
 
 TEST(WasmEdgeZlibTest, InflateSyncAllowsDirtyOutputBuffer) {
-  // inflateSync consumes input but never writes output ("No output is
-  // provided"), so a stale/out-of-bounds next_out must not trap the call. The
-  // input buffer is still validated because inflateSync scans next_in.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -2311,8 +2390,6 @@ TEST(WasmEdgeZlibTest, InflateSyncAllowsDirtyOutputBuffer) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // Valid input, but next_out points one past the end of linear memory with a
-  // nonzero avail_out. inflateSync must still run rather than trap.
   auto *IStrm = MemInst.getPointer<WasmZStream *>(IZS);
   IStrm->NextIn = InPtr;
   IStrm->AvailIn = 8;
@@ -2322,8 +2399,6 @@ TEST(WasmEdgeZlibTest, InflateSyncAllowsDirtyOutputBuffer) {
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{IZS}, RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_DATA_ERROR);
 
-  // The input buffer stays guarded: an out-of-bounds next_in with nonzero
-  // avail_in must still trap.
   IStrm->NextIn = static_cast<uint32_t>(MemInst.getSize());
   IStrm->AvailIn = 8;
   IStrm->NextOut = 0;
@@ -2340,11 +2415,6 @@ TEST(WasmEdgeZlibTest, InflateSyncAllowsDirtyOutputBuffer) {
 }
 
 TEST(WasmEdgeZlibTest, ControlCallsIgnoreDirtyDataBuffers) {
-  // zlib's contract lets a guest call deflateInit / reset / end with
-  // uninitialized next_in/avail_in (only zalloc/zfree/opaque must be set).
-  // Those control operations do not consume the data buffers, so an
-  // out-of-bounds next_in/next_out must not trap them; only the streaming
-  // operations validate the buffers.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -2369,27 +2439,23 @@ TEST(WasmEdgeZlibTest, ControlCallsIgnoreDirtyDataBuffers) {
 
   auto SetDirtyBuffers = [&]() {
     auto *Strm = MemInst.getPointer<WasmZStream *>(ZS);
-    // next_in + avail_in runs off the end of linear memory.
     Strm->NextIn = MemBytes - 4;
     Strm->AvailIn = 0x10000;
     Strm->NextOut = MemBytes - 4;
     Strm->AvailOut = 0x10000;
   };
 
-  // Initialize the stream with dirty, out-of-bounds buffer fields present.
   SetDirtyBuffers();
   ASSERT_TRUE(DeflateInit.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS, INT32_C(-1)},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // reset ignores the data buffers too.
   SetDirtyBuffers();
   ASSERT_TRUE(DeflateReset.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS}, RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // The streaming path must still reject an out-of-bounds output buffer.
   {
     auto *Strm = MemInst.getPointer<WasmZStream *>(ZS);
     Strm->NextIn = 0;
@@ -2402,7 +2468,6 @@ TEST(WasmEdgeZlibTest, ControlCallsIgnoreDirtyDataBuffers) {
       std::initializer_list<WasmEdge::ValVariant>{ZS, INT32_C(Z_NO_FLUSH)},
       RetVal));
 
-  // End cleans up even with dirty buffer fields.
   SetDirtyBuffers();
   ASSERT_TRUE(DeflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS}, RetVal));
@@ -2410,11 +2475,6 @@ TEST(WasmEdgeZlibTest, ControlCallsIgnoreDirtyDataBuffers) {
 }
 
 TEST(WasmEdgeZlibTest, HardeningRejectedParamsIgnoreDirtyDataBuffers) {
-  // deflateParams rejects an out-of-range level or strategy -- and deflate()
-  // an out-of-range flush -- before consuming next_in or producing into
-  // next_out, so a call zlib refuses must surface its Z_STREAM_ERROR instead
-  // of trapping on dirty buffer fields; serviceable parameters keep the
-  // bounds check.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -2450,7 +2510,6 @@ TEST(WasmEdgeZlibTest, HardeningRejectedParamsIgnoreDirtyDataBuffers) {
     Strm->AvailOut = 0x10000;
   };
 
-  // An out-of-range level is zlib's Z_STREAM_ERROR, not a trap.
   SetDirtyBuffers();
   ASSERT_TRUE(DeflateParams.run(CallFrame,
                                 std::initializer_list<WasmEdge::ValVariant>{
@@ -2458,7 +2517,6 @@ TEST(WasmEdgeZlibTest, HardeningRejectedParamsIgnoreDirtyDataBuffers) {
                                 RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_STREAM_ERROR);
 
-  // An out-of-range strategy behaves the same.
   SetDirtyBuffers();
   ASSERT_TRUE(DeflateParams.run(
       CallFrame,
@@ -2466,14 +2524,12 @@ TEST(WasmEdgeZlibTest, HardeningRejectedParamsIgnoreDirtyDataBuffers) {
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_STREAM_ERROR);
 
-  // deflate() with a flush beyond Z_BLOCK is rejected the same way.
   SetDirtyBuffers();
   ASSERT_TRUE(Deflate.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS, INT32_C(99)},
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_STREAM_ERROR);
 
-  // Parameters zlib would service must still reject the dirty buffers.
   SetDirtyBuffers();
   EXPECT_FALSE(DeflateParams.run(CallFrame,
                                  std::initializer_list<WasmEdge::ValVariant>{
@@ -2487,7 +2543,6 @@ TEST(WasmEdgeZlibTest, HardeningRejectedParamsIgnoreDirtyDataBuffers) {
 }
 
 TEST(WasmEdgeZlibTest, Module) {
-  // Create the wasmedge_zlib module instance.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -2596,9 +2651,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateGetHeaderValidatesHeadPtr) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // An out-of-bounds HeadPtr must be rejected up front (like deflateSetHeader)
-  // rather than stored and dereferenced on later inflate/cleanup calls:
-  // 65530 + sizeof(WasmGZHeader) exceeds the single 64 KiB page.
   EXPECT_FALSE(InflateGetHeader.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{IZS, UINT32_C(65530)},
@@ -2606,10 +2658,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateGetHeaderValidatesHeadPtr) {
 }
 
 TEST(WasmEdgeZlibTest, HardeningInflateGetHeaderAnswersNonGzipStreams) {
-  // inflateGetHeader touches the header only on a gzip-capable inflate stream
-  // (wrap & 2); a zlib-wrapped or raw stream gets Z_STREAM_ERROR before any
-  // dereference, so an out-of-bounds HeadPtr must surface that soft error
-  // there and keep trapping only where zlib would accept the registration.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -2630,7 +2678,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateGetHeaderAnswersNonGzipStreams) {
 
   const uint32_t OOBHeadPtr = 65530;
 
-  // Plain inflateInit: zlib wrapper only, the header request is refused.
   const uint32_t ZS = 0;
   fillMemContent(MemInst, ZS, sizeof(WasmZStream));
   ASSERT_TRUE(InflateInit.run(
@@ -2643,7 +2690,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateGetHeaderAnswersNonGzipStreams) {
   ASSERT_TRUE(InflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS}, RetVal));
 
-  // Raw inflate: no wrapper at all, same soft answer.
   fillMemContent(MemInst, ZS, sizeof(WasmZStream));
   ASSERT_TRUE(InflateInit2.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS, INT32_C(-15)},
@@ -2656,10 +2702,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateGetHeaderAnswersNonGzipStreams) {
   ASSERT_TRUE(InflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS}, RetVal));
 
-  // Auto-detect (windowBits 47) is gzip-capable: zlib would store the header
-  // and reset head->done, so the unreadable pointer keeps failing hard (the
-  // gzip-only windowBits 31 case is covered in
-  // HardeningInflateGetHeaderValidatesHeadPtr).
   fillMemContent(MemInst, ZS, sizeof(WasmZStream));
   ASSERT_TRUE(InflateInit2.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS, INT32_C(47)},
@@ -2709,10 +2751,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateEndToleratesCorruptHeaderMax) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // The guest corrupts NameMax to an out-of-bounds span after registering the
-  // header. inflateEnd is a cleanup call that never writes the gzip header, so
-  // it must still run zlib's inflateEnd and release the stream rather than
-  // aborting on header-buffer validation (which would leak the internal state).
   IHeader->NameMax = UINT32_C(0xFFFFFFFF);
   ASSERT_TRUE(InflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{IZS}, RetVal));
@@ -2720,11 +2758,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateEndToleratesCorruptHeaderMax) {
 }
 
 TEST(WasmEdgeZlibTest, GZHeaderAbsentOptionalFieldsSurfaceAsNull) {
-  // zlib clears gz_header.extra/name/comment to Z_NULL when the stream lacks
-  // the field even though the caller supplied buffers. The write-back must
-  // surface that as guest null (0) instead of subtracting a live host pointer
-  // from null, which poisoned the guest header and made every later inflate
-  // call on the stream trap.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -2755,7 +2788,6 @@ TEST(WasmEdgeZlibTest, GZHeaderAbsentOptionalFieldsSurfaceAsNull) {
   std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
   std::fill_n(MemInst.getPointer<uint8_t *>(DZS), sizeof(WasmZStream), 0);
 
-  // The default gzip header carries no extra, name, or comment field.
   ASSERT_TRUE(
       DeflateInit2.run(CallFrame,
                        std::initializer_list<WasmEdge::ValVariant>{
@@ -2805,8 +2837,6 @@ TEST(WasmEdgeZlibTest, GZHeaderAbsentOptionalFieldsSurfaceAsNull) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // The first 12 bytes cover the whole field-free header, so zlib completes it
-  // and clears the absent optional fields within this call.
   auto *IStrm = MemInst.getPointer<WasmZStream *>(IZS);
   IStrm->NextIn = CompPtr;
   IStrm->AvailIn = 12;
@@ -2822,7 +2852,6 @@ TEST(WasmEdgeZlibTest, GZHeaderAbsentOptionalFieldsSurfaceAsNull) {
   EXPECT_EQ(IHeader->Comment, 0U);
   EXPECT_EQ(IHeader->Done, 1);
 
-  // The stream must stay usable after the header write-back.
   IStrm->NextIn = CompPtr + 12;
   IStrm->AvailIn = CompLen - 12;
   ASSERT_TRUE(Inflate.run(
@@ -2837,10 +2866,6 @@ TEST(WasmEdgeZlibTest, GZHeaderAbsentOptionalFieldsSurfaceAsNull) {
 }
 
 TEST(WasmEdgeZlibTest, GZHeaderNullFieldPointersMapToZNull) {
-  // A guest null (0) extra/name/comment pointer means the field is not
-  // requested (zlib's Z_NULL contract) and must not resolve to wasm address 0:
-  // with a nonzero *Max, zlib would copy header contents into guest memory
-  // the guest never offered.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -2953,7 +2978,6 @@ TEST(WasmEdgeZlibTest, GZHeaderNullFieldPointersMapToZNull) {
   EXPECT_EQ(IHeader->Name, 0U);
   EXPECT_EQ(IHeader->Comment, 0U);
 
-  // Nothing may have been written through the null field pointers.
   const std::vector<uint8_t> Expected(64, 0xAB);
   EXPECT_EQ(0,
             std::memcmp(MemInst.getPointer<uint8_t *>(0), Expected.data(), 64));
@@ -2963,9 +2987,6 @@ TEST(WasmEdgeZlibTest, GZHeaderNullFieldPointersMapToZNull) {
 }
 
 TEST(WasmEdgeZlibTest, DeflateSetHeaderNullRevertsToDefaultHeader) {
-  // Native deflateSetHeader accepts Z_NULL and reverts the stream to the
-  // default gzip header; guest 0 must take that path instead of snapshotting
-  // whatever bytes sit at wasm address 0 (and trapping on garbage there).
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -2996,8 +3017,6 @@ TEST(WasmEdgeZlibTest, DeflateSetHeaderNullRevertsToDefaultHeader) {
   std::fill_n(MemInst.getPointer<uint8_t *>(DHdr), sizeof(WasmGZHeader), 0);
   std::strcpy(MemInst.getPointer<char *>(NamePtr), "hdr-name");
   std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
-  // Poison wasm address 0: a wrapper that dereferences the null header would
-  // read a header full of out-of-bounds pointers and trap.
   fillMemContent(MemInst, 0, sizeof(WasmGZHeader), 0xFF);
 
   ASSERT_TRUE(
@@ -3059,8 +3078,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateHeaderExtraLenIsZlibOwned) {
   GET_ZLIB_FUNC(Inflate, "inflate")
   GET_ZLIB_FUNC(InflateEnd, "inflateEnd")
 
-  // Build a gzip stream carrying a 100-byte extra field with distinctive,
-  // non-zero content so a misplaced copy is detectable.
   const uint32_t DZS = 0x100;
   const uint32_t DHdr = 0x200;
   const uint32_t ExtraSrc = 0x300;
@@ -3108,7 +3125,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateHeaderExtraLenIsZlibOwned) {
   ASSERT_TRUE(DeflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{DZS}, RetVal));
 
-  // Inflate it in two chunks, injecting a bogus ExtraLen between them.
   const uint32_t IZS = 0x4000;
   const uint32_t IHdr = 0x4100;
   const uint32_t ExtraDst = 0x4200;
@@ -3132,9 +3148,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateHeaderExtraLenIsZlibOwned) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // First chunk: exactly the 10-byte gzip base header + 2-byte XLEN, so zlib
-  // parses EXLEN (setting extra_len = 100 from the stream) and parks in the
-  // EXTRA state before copying any extra bytes.
   auto *IStrm = MemInst.getPointer<WasmZStream *>(IZS);
   IStrm->NextIn = CompPtr;
   IStrm->AvailIn = 12;
@@ -3146,11 +3159,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateHeaderExtraLenIsZlibOwned) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // extra_len is an OUTPUT field owned by zlib (true XLEN is 100). A malicious
-  // guest overwrites it before the continuation call. The plugin must not push
-  // this back into zlib's header, or the guest controls the EXTRA-state write
-  // offset (len = extra_len - state->length) -- CVE-2022-37434 territory on
-  // zlib <= 1.2.12.
   IHeader->ExtraLen = 150;
 
   IStrm->AvailIn = CompLen - 12;
@@ -3162,19 +3170,11 @@ TEST(WasmEdgeZlibTest, HardeningInflateHeaderExtraLenIsZlibOwned) {
   ASSERT_TRUE(InflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{IZS}, RetVal));
 
-  // zlib's parsed extra_len (100) must survive rather than the injected 150,
-  // and the extra bytes must land at offset 0 (len == 0), not offset 50.
   EXPECT_EQ(IHeader->ExtraLen, ExtraFieldLen);
   EXPECT_EQ(*MemInst.getPointer<uint8_t *>(ExtraDst), static_cast<uint8_t>(1));
 }
 
 TEST(WasmEdgeZlibTest, HardeningInflateHeaderZeroCapacityKeepsGuestPointers) {
-  // zlib never writes through a zero-capacity extra/name/comment buffer, yet
-  // still distinguishes the caller's non-null pointer from Z_NULL ("field not
-  // requested"): the pointer survives untouched and only an absent stream
-  // field nulls it. A stale zero-capacity guest pointer past linear memory is
-  // therefore legal input -- the header sync must not misread it as Z_NULL
-  // and write guest NULL back over it.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -3197,7 +3197,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateHeaderZeroCapacityKeepsGuestPointers) {
   GET_ZLIB_FUNC(Inflate, "inflate")
   GET_ZLIB_FUNC(InflateEnd, "inflateEnd")
 
-  // Build a gzip stream that carries all three optional header fields.
   const uint32_t DZS = 0x100;
   const uint32_t DHdr = 0x200;
   const uint32_t ExtraSrc = 0x300;
@@ -3248,9 +3247,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateHeaderZeroCapacityKeepsGuestPointers) {
   ASSERT_TRUE(DeflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{DZS}, RetVal));
 
-  // Inflate with non-null zero-capacity pointers that lie outside linear
-  // memory: legal for zlib (never dereferenced at *_max == 0), so they must
-  // come back untouched, with the output fields still populated.
   const uint32_t IZS = 0x4000;
   const uint32_t IHdr = 0x4100;
   const uint32_t OOBExtra = 0xFFFF0000;
@@ -3288,8 +3284,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateHeaderZeroCapacityKeepsGuestPointers) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_STREAM_END);
 
-  // The guest's pointers survive; the stream's fields still surface through
-  // the zlib-owned outputs.
   EXPECT_EQ(IHeader->Extra, OOBExtra);
   EXPECT_EQ(IHeader->Name, OOBName);
   EXPECT_EQ(IHeader->Comment, OOBComment);
@@ -3323,9 +3317,6 @@ TEST(WasmEdgeZlibTest, HardeningReinitRejectsLiveStream) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // Re-initializing an already-live stream must be rejected. Running zlib's
-  // init on the existing z_stream would overwrite strm->state and leak the
-  // previous internal state (window/hash/pending buffers), unbounded.
   ASSERT_TRUE(DeflateInit.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS, INT32_C(-1)},
       RetVal));
@@ -3357,10 +3348,6 @@ TEST(WasmEdgeZlibTest, HardeningWrongTypeEndKeepsStream) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // inflateEnd on a deflate stream is the wrong cleanup: zlib returns
-  // Z_STREAM_ERROR without freeing. The wrapper must keep the stream tracked
-  // rather than drop the only handle (which would leak the internal state), so
-  // the correct deflateEnd still frees it afterwards.
   ASSERT_TRUE(InflateEnd.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS}, RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_STREAM_ERROR);
@@ -3370,12 +3357,6 @@ TEST(WasmEdgeZlibTest, HardeningWrongTypeEndKeepsStream) {
 }
 
 TEST(WasmEdgeZlibTest, HardeningWrongKindStreamAnswersLikeZlib) {
-  // Every kind-specific entry point answers a stream of the other kind with
-  // its documented bad-state result before reading or writing anything, so
-  // stale or out-of-bounds buffer fields on the guest stream must not trap,
-  // out-parameters must not be validated, and the mismatched host state must
-  // never be entered (on zlib-ng a cross-kind call could otherwise free
-  // garbage pointers or overwrite live internal state).
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -3431,8 +3412,6 @@ TEST(WasmEdgeZlibTest, HardeningWrongKindStreamAnswersLikeZlib) {
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{IZS}, RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // Poison both guest streams' buffer fields; a wrong-kind call must answer
-  // without ever validating them.
   for (const uint32_t ZS : {DZS, IZS}) {
     auto *Strm = MemInst.getPointer<WasmZStream *>(ZS);
     Strm->NextIn = OOBPtr;
@@ -3448,7 +3427,6 @@ TEST(WasmEdgeZlibTest, HardeningWrongKindStreamAnswersLikeZlib) {
     EXPECT_EQ(RetVal[0].get<int32_t>(), Expected);
   };
 
-  // deflate family on the live inflate stream.
   ExpectI32(Deflate, {IZS, INT32_C(Z_NO_FLUSH)}, Z_STREAM_ERROR);
   ExpectI32(DeflateParams, {IZS, INT32_C(9), INT32_C(Z_DEFAULT_STRATEGY)},
             Z_STREAM_ERROR);
@@ -3463,7 +3441,6 @@ TEST(WasmEdgeZlibTest, HardeningWrongKindStreamAnswersLikeZlib) {
   ExpectI32(DeflateResetKeep, {IZS}, Z_STREAM_ERROR);
   ExpectI32(DeflateEnd, {IZS}, Z_STREAM_ERROR);
 
-  // inflate family on the live deflate stream.
   ExpectI32(Inflate, {DZS, INT32_C(Z_NO_FLUSH)}, Z_STREAM_ERROR);
   ExpectI32(InflateSync, {DZS}, Z_STREAM_ERROR);
   ExpectI32(InflateMark, {DZS}, INT32_C(-65536));
@@ -3478,7 +3455,6 @@ TEST(WasmEdgeZlibTest, HardeningWrongKindStreamAnswersLikeZlib) {
   ExpectI32(InflateResetKeep, {DZS}, Z_STREAM_ERROR);
   ExpectI32(InflateBackEnd, {DZS}, Z_STREAM_ERROR);
 
-  // A rejected copy must not leave a destination entry behind.
   const uint32_t CopyPtr = 0x200;
   fillMemContent(MemInst, CopyPtr, sizeof(WasmZStream));
   ExpectI32(InflateCopy, {CopyPtr, DZS}, Z_STREAM_ERROR);
@@ -3486,8 +3462,6 @@ TEST(WasmEdgeZlibTest, HardeningWrongKindStreamAnswersLikeZlib) {
   ExpectI32(DeflateInit, {CopyPtr, INT32_C(-1)}, Z_OK);
   ExpectI32(DeflateEnd, {CopyPtr}, Z_OK);
 
-  // None of the rejected calls entered zlib: the deflate stream still
-  // compresses (inflateBackEnd in particular must not have freed its state).
   const uint32_t DataPtr = 0x300;
   const char *const Payload = "wrong-kind guard leaves streams intact";
   const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
@@ -3533,9 +3507,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflateCopyRejectsLiveDest) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // Copying onto an already-live destination must be rejected: zlib's
-  // deflateCopy overwrites the dest z_stream (leaking its state) and, on an
-  // allocation failure, leaves dest aliasing the source's state.
   ASSERT_TRUE(DeflateCopy.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{Dest, Source},
       RetVal));
@@ -3559,15 +3530,11 @@ TEST(WasmEdgeZlibTest, HardeningFailedInitLeavesKeyReusable) {
   GET_ZLIB_FUNC(DeflateInit, "deflateInit")
   GET_ZLIB_FUNC(DeflateEnd, "deflateEnd")
 
-  // An out-of-bounds z_stream pointer traps after the tracking entry was
-  // already created; the failed init must drop that entry again.
   const uint32_t ZS = UINT32_C(65536);
   ASSERT_FALSE(DeflateInit.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS, INT32_C(-1)},
       RetVal));
 
-  // Once the same address becomes valid (after a grow), the key must accept a
-  // fresh stream instead of being reported as still live by the dead entry.
   ASSERT_TRUE(MemInst.growPage(1));
   std::fill_n(MemInst.getPointer<uint8_t *>(ZS), sizeof(WasmZStream), 0);
   ASSERT_TRUE(DeflateInit.run(
@@ -3618,8 +3585,6 @@ TEST(WasmEdgeZlibTest, HardeningFailedCopyLeavesKeyReusable) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // An out-of-bounds destination traps after its tracking entry was created;
-  // the failed copy must drop that entry again.
   ASSERT_FALSE(DeflateCopy.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{DeflateDest, DeflateSrc},
@@ -3629,8 +3594,6 @@ TEST(WasmEdgeZlibTest, HardeningFailedCopyLeavesKeyReusable) {
       std::initializer_list<WasmEdge::ValVariant>{InflateDest, InflateSrc},
       RetVal));
 
-  // Once the same addresses become valid (after a grow), the keys must accept
-  // the copies instead of being reported as already-live destinations.
   ASSERT_TRUE(MemInst.growPage(1));
   std::fill_n(MemInst.getPointer<uint8_t *>(DeflateDest), sizeof(WasmZStream),
               0);
@@ -3688,12 +3651,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflateSetHeaderClampsExtra) {
                        RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // Place an 8-byte extra field at the very end of memory and declare an
-  // ExtraLen whose low 16 bits are 8 but whose full value (0x10008) runs far
-  // out of bounds. zlib emits only (ExtraLen & 0xffff) = 8 bytes, all in
-  // bounds, so the wrapper must snapshot only those 8 bytes: it must neither
-  // fail the full-length bounds check nor allocate the full 0x10008 on the
-  // host.
   const uint32_t MemBytes = static_cast<uint32_t>(MemInst.getSize());
   const uint32_t ExtraOff = MemBytes - 8;
   for (uint32_t I = 0; I < 8; ++I) {
@@ -3728,10 +3685,6 @@ TEST(WasmEdgeZlibTest, DeflateSetHeaderKeepsEmptyExtraField) {
   GET_ZLIB_FUNC(Deflate, "deflate")
   GET_ZLIB_FUNC(DeflateEnd, "deflateEnd")
 
-  // zlib keys the gzip FEXTRA flag on the extra pointer alone: a non-null
-  // extra whose emitted length (the low 16 bits of extra_len) is zero still
-  // yields FLG.FEXTRA with XLEN=0. The wrapper must preserve that instead of
-  // silently dropping the flag from the emitted header.
   const std::array<uint32_t, 2> ZeroEmittedLens = {UINT32_C(0),
                                                    UINT32_C(0x10000)};
   for (const uint32_t ExtraLen : ZeroEmittedLens) {
@@ -3799,8 +3752,8 @@ TEST(WasmEdgeZlibTest, HardeningGZBufferClampsSize) {
   const std::string TmpPath = (std::filesystem::temp_directory_path() /
                                "wasmedge_zlib_gzbuffer_test.gz")
                                   .string();
-  ASSERT_LT(TmpPath.size() + 1, 1024U);
-  const uint32_t PathPtr = 0;
+  ASSERT_LT(TmpPath.size() + 1, 1000U);
+  const uint32_t PathPtr = 16;
   std::strcpy(MemInst.getPointer<char *>(PathPtr), TmpPath.c_str());
   const uint32_t ModeWPtr = 1024;
   std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
@@ -3817,13 +3770,15 @@ TEST(WasmEdgeZlibTest, HardeningGZBufferClampsSize) {
   }
   const uint32_t WHandle = RetVal[0].get<uint32_t>();
 
-  // A guest-declared ~4 GB buffer size must be clamped to a sane cap rather
-  // than forwarded verbatim: zlib rejects sizes >= 2^31 (returning -1) and
-  // otherwise allocates three times the size on first I/O. After clamping, an
-  // absurd request is accepted (returns 0) with a bounded host allocation.
   EXPECT_TRUE(GZBuffer.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
                                WHandle, UINT32_C(0xFFFFFFFF)},
+                           RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), -1);
+
+  EXPECT_TRUE(GZBuffer.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               WHandle, UINT32_C(0x40000000)},
                            RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), 0);
 
@@ -3856,9 +3811,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflatePendingRejectsOOBPointer) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // An out-of-bounds pending out-pointer must be rejected outright, not left
-  // for zlib to silently drop via its internal NULL tolerance (65534 + 4 bytes
-  // exceeds the single 64 KiB page; the bits pointer at 0x100 is valid).
   EXPECT_FALSE(DeflatePending.run(CallFrame,
                                   std::initializer_list<WasmEdge::ValVariant>{
                                       ZS, UINT32_C(65534), UINT32_C(0x100)},
@@ -3866,9 +3818,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflatePendingRejectsOOBPointer) {
 }
 
 TEST(WasmEdgeZlibTest, InflateGetHeaderSyncsImmediateDoneReset) {
-  // inflateGetHeader resets head->done to 0 as it registers the header; the
-  // guest must observe that immediately, not only after the next inflate call
-  // happens to sync the header back.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -3909,10 +3858,6 @@ TEST(WasmEdgeZlibTest, InflateGetHeaderSyncsImmediateDoneReset) {
 }
 
 TEST(WasmEdgeZlibTest, GetDictionaryAndPendingHonorNullOutPointers) {
-  // deflateGetDictionary/inflateGetDictionary/deflatePending document Z_NULL
-  // out-pointers as "skip": a null dictionary returns only the length, and a
-  // null dictLength/pending/bits is not set. Guest 0 must map to Z_NULL
-  // rather than to a live pointer at wasm address 0.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -3962,7 +3907,6 @@ TEST(WasmEdgeZlibTest, GetDictionaryAndPendingHonorNullOutPointers) {
       RetVal));
   ASSERT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 
-  // dictionary == Z_NULL: only the length is returned.
   ASSERT_TRUE(DeflateGetDictionary.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{DZS, UINT32_C(0), LenPtr},
@@ -3970,7 +3914,6 @@ TEST(WasmEdgeZlibTest, GetDictionaryAndPendingHonorNullOutPointers) {
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
   EXPECT_EQ(*MemInst.getPointer<uint32_t *>(LenPtr), DictLen);
 
-  // dictLength == Z_NULL: the dictionary is copied, the length is not set.
   ASSERT_TRUE(DeflateGetDictionary.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{DZS, DictOut, UINT32_C(0)},
@@ -3979,7 +3922,6 @@ TEST(WasmEdgeZlibTest, GetDictionaryAndPendingHonorNullOutPointers) {
   EXPECT_EQ(0,
             std::memcmp(MemInst.getPointer<uint8_t *>(DictOut), Dict, DictLen));
 
-  // pending / bits == Z_NULL: the other value is still delivered.
   ASSERT_TRUE(DeflatePending.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{DZS, UINT32_C(0), BitsPtr},
@@ -4014,10 +3956,6 @@ TEST(WasmEdgeZlibTest, GetDictionaryAndPendingHonorNullOutPointers) {
 }
 
 TEST(WasmEdgeZlibTest, HardeningInflateBackInitVersionErrorSkipsWindow) {
-  // inflateBackInit_ answers Z_VERSION_ERROR for a null or major-mismatched
-  // version before it examines any other argument, so a bad version paired
-  // with an out-of-bounds window must surface that soft error rather than a
-  // window-validation trap.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -4047,7 +3985,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateBackInitVersionErrorSkipsWindow) {
                            RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
 
-  // With a matching version the same out-of-bounds window keeps failing hard.
   const uint32_t VersionPtr = 0x140;
   std::strcpy(MemInst.getPointer<char *>(VersionPtr), ZLIB_VERSION);
   EXPECT_FALSE(
@@ -4059,9 +3996,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateBackInitVersionErrorSkipsWindow) {
 }
 
 TEST(WasmEdgeZlibTest, HardeningInflateBackInitNullWindowMatchesZlib) {
-  // inflateBackInit rejects a Z_NULL window before touching it, so a guest
-  // null must take that path instead of resolving to wasm address 0 -- and
-  // the failed init must leave the key reusable.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -4086,7 +4020,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateBackInitNullWindowMatchesZlib) {
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_STREAM_ERROR);
 
-  // A 32 KiB window at a real offset succeeds on the same key afterwards.
   ASSERT_TRUE(InflateBackInit.run(CallFrame,
                                   std::initializer_list<WasmEdge::ValVariant>{
                                       ZS, INT32_C(15), UINT32_C(0x1000)},
@@ -4098,11 +4031,6 @@ TEST(WasmEdgeZlibTest, HardeningInflateBackInitNullWindowMatchesZlib) {
 }
 
 TEST(WasmEdgeZlibTest, HardeningVersionedInitAnswersVersionErrorFirst) {
-  // The versioned init wrappers answer Z_VERSION_ERROR for a null or
-  // major-mismatched version before they examine the stream argument, like
-  // native zlib: a bad version paired with an out-of-bounds z_stream or an
-  // already-live key surfaces the version error instead of a trap or
-  // Z_STREAM_ERROR.
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -4127,8 +4055,6 @@ TEST(WasmEdgeZlibTest, HardeningVersionedInitAnswersVersionErrorFirst) {
   std::strcpy(MemInst.getPointer<char *>(BadVersionPtr), "0.0.0");
   const uint32_t OOBZStreamPtr = 0xFFFF0000;
 
-  // Out-of-bounds stream, bad version: the version error must win in every
-  // versioned wrapper rather than a stream-resolution trap.
   ASSERT_TRUE(DeflateInit_.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{OOBZStreamPtr, INT32_C(-1),
@@ -4154,8 +4080,6 @@ TEST(WasmEdgeZlibTest, HardeningVersionedInitAnswersVersionErrorFirst) {
       RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
 
-  // Live key, bad version: still the version error, and the live stream
-  // survives for a matching-version re-init to reject and an end to free.
   const uint32_t ZS = 0;
   fillMemContent(MemInst, ZS, sizeof(WasmZStream));
   const uint32_t VersionPtr = 0x140;
@@ -4199,11 +4123,6 @@ TEST(WasmEdgeZlibTest, HardeningDeflateInitValidatesVersionString) {
   const uint32_t ZS = 0;
   std::fill_n(MemInst.getPointer<uint8_t *>(ZS), sizeof(WasmZStream), 0);
 
-  // Point the version at the last 4 bytes of memory, filled with the real
-  // ZLIB_VERSION first byte but with no NUL terminator before the end of linear
-  // memory. zlib only reads version[0] today, but the wrapper must validate the
-  // whole in-bounds C string so an unterminated version cannot be accepted (and
-  // a future zlib that compares more of the string cannot read out of bounds).
   const uint32_t MemBytes = static_cast<uint32_t>(MemInst.getSize());
   const uint32_t VersionPtr = MemBytes - 4;
   std::fill_n(MemInst.getPointer<uint8_t *>(VersionPtr), 4,
@@ -4215,6 +4134,828 @@ TEST(WasmEdgeZlibTest, HardeningDeflateInitValidatesVersionString) {
                                    static_cast<int32_t>(sizeof(WasmZStream))},
                                RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZOpenMediatedByWasi) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasiWiredModule Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  const std::filesystem::path SandboxDir =
+      std::filesystem::temp_directory_path() / "wasmedge_zlib_wasi_sandbox";
+  std::error_code EC;
+  std::filesystem::create_directories(SandboxDir, EC);
+  std::filesystem::remove(SandboxDir / "wasi.gz", EC);
+
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const uint32_t PathPtr = 16;
+  std::strcpy(MemInst.getPointer<char *>(PathPtr), "wasi.gz");
+  const uint32_t ModeWPtr = 64;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+  const uint32_t ModeRPtr = 96;
+  std::strcpy(MemInst.getPointer<char *>(ModeRPtr), "rb");
+  const uint32_t EscapePtr = 128;
+  std::strcpy(MemInst.getPointer<char *>(EscapePtr), "../wasi_escape.gz");
+  const uint32_t DataPtr = 256;
+  const char *const Payload = "hello wasi-mediated gzip";
+  const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
+  std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+  GET_ZLIB_FUNC(GZWrite, "gzwrite")
+  GET_ZLIB_FUNC(GZRead, "gzread")
+  GET_ZLIB_FUNC(GZClose, "gzclose")
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWPtr},
+      RetVal));
+  const uint32_t WHandle = RetVal[0].get<uint32_t>();
+  if (WHandle == 0) {
+    GTEST_SKIP() << "WASI preopen unavailable in this environment";
+  }
+  EXPECT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, DataPtr, PayloadLen},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, RetVal));
+
+  EXPECT_TRUE(std::filesystem::exists(SandboxDir / "wasi.gz"));
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeRPtr},
+      RetVal));
+  const uint32_t RHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(RHandle, 0U);
+  const uint32_t ReadBuf = 512;
+  EXPECT_TRUE(GZRead.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, ReadBuf, UINT32_C(256)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_EQ(
+      0, std::memcmp(MemInst.getPointer<char *>(ReadBuf), Payload, PayloadLen));
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
+
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{EscapePtr, ModeWPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+
+  std::filesystem::remove(SandboxDir / "wasi.gz", EC);
+  std::filesystem::remove(SandboxDir / "wasi_escape.gz", EC);
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZOpenWasiAcceptsAbsoluteGuestPaths) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasiWiredModule Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  const std::filesystem::path SandboxDir =
+      std::filesystem::temp_directory_path() / "wasmedge_zlib_wasi_abs";
+  std::error_code EC;
+  std::filesystem::create_directories(SandboxDir, EC);
+  std::filesystem::remove(SandboxDir / "wasi_probe.gz", EC);
+  std::filesystem::remove(SandboxDir / "wasi_abs.gz", EC);
+
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const uint32_t ProbePtr = 16;
+  std::strcpy(MemInst.getPointer<char *>(ProbePtr), "wasi_probe.gz");
+  const uint32_t AbsPtr = 96;
+  std::strcpy(MemInst.getPointer<char *>(AbsPtr), "/wasi_abs.gz");
+  const uint32_t DotPtr = 176;
+  std::strcpy(MemInst.getPointer<char *>(DotPtr), "./wasi_abs.gz");
+  const uint32_t MixedPtr = 256;
+  std::strcpy(MemInst.getPointer<char *>(MixedPtr), "//./wasi_abs.gz");
+  const uint32_t EscapePtr = 336;
+  std::strcpy(MemInst.getPointer<char *>(EscapePtr), "/../wasi_abs_escape.gz");
+  const uint32_t ModeWPtr = 512;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+  const uint32_t ModeRPtr = 544;
+  std::strcpy(MemInst.getPointer<char *>(ModeRPtr), "rb");
+  const uint32_t DataPtr = 1024;
+  const char *const Payload = "absolute path through the preopen";
+  const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
+  std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+  GET_ZLIB_FUNC(GZWrite, "gzwrite")
+  GET_ZLIB_FUNC(GZRead, "gzread")
+  GET_ZLIB_FUNC(GZClose, "gzclose")
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{ProbePtr, ModeWPtr}, RetVal));
+  const uint32_t ProbeHandle = RetVal[0].get<uint32_t>();
+  if (ProbeHandle == 0) {
+    GTEST_SKIP() << "WASI preopen unavailable in this environment";
+  }
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{ProbeHandle},
+      RetVal));
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{AbsPtr, ModeWPtr},
+      RetVal));
+  const uint32_t WHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(WHandle, 0U);
+  EXPECT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, DataPtr, PayloadLen},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, RetVal));
+  EXPECT_TRUE(std::filesystem::exists(SandboxDir / "wasi_abs.gz"));
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{DotPtr, ModeRPtr},
+      RetVal));
+  const uint32_t RHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(RHandle, 0U);
+  const uint32_t ReadBuf = 2048;
+  EXPECT_TRUE(GZRead.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, ReadBuf, UINT32_C(256)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_EQ(
+      0, std::memcmp(MemInst.getPointer<char *>(ReadBuf), Payload, PayloadLen));
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{MixedPtr, ModeRPtr}, RetVal));
+  const uint32_t MHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(MHandle, 0U);
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{MHandle}, RetVal));
+
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{EscapePtr, ModeWPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+
+  std::filesystem::remove(SandboxDir / "wasi_probe.gz", EC);
+  std::filesystem::remove(SandboxDir / "wasi_abs.gz", EC);
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZOpenUnrecognizedWasiFailsClosed) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasiWiredModule Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  WasmEdge::Runtime::Instance::ModuleInstance StubWasi(
+      "wasi_snapshot_preview1");
+  Mod.wireWASIModule(&StubWasi);
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const std::filesystem::path HostFile =
+      std::filesystem::temp_directory_path() /
+      "wasmedge_zlib_unrecognized_wasi.txt";
+  {
+    std::ofstream OFS(HostFile, std::ios::binary | std::ios::trunc);
+    if (!OFS) {
+      GTEST_SKIP() << "cannot create host probe file";
+    }
+    OFS << "not a gzip file, but gzopen reads it transparently";
+  }
+
+  const uint32_t PathPtr = 16;
+  const std::string HostPathStr = HostFile.string();
+  std::strcpy(MemInst.getPointer<char *>(PathPtr), HostPathStr.c_str());
+  const uint32_t ModePtr = 2048;
+  std::strcpy(MemInst.getPointer<char *>(ModePtr), "rb");
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModePtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+
+  std::error_code EC;
+  std::filesystem::remove(HostFile, EC);
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZOpenWasiHonorsOpenModes) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasiWiredModule Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  const std::filesystem::path SandboxDir =
+      std::filesystem::temp_directory_path() / "wasmedge_zlib_wasi_modes";
+  std::error_code EC;
+  std::filesystem::create_directories(SandboxDir, EC);
+  std::filesystem::remove(SandboxDir / "modes.gz", EC);
+  std::filesystem::remove(SandboxDir / "fresh.gz", EC);
+  std::filesystem::remove(SandboxDir / "transparent.gz", EC);
+  std::filesystem::remove(SandboxDir / "gfresh.gz", EC);
+
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const uint32_t PathPtr = 16;
+  std::strcpy(MemInst.getPointer<char *>(PathPtr), "modes.gz");
+  const uint32_t FreshPtr = 32;
+  std::strcpy(MemInst.getPointer<char *>(FreshPtr), "fresh.gz");
+  const uint32_t ModeWPtr = 64;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+  const uint32_t ModeWPlusPtr = 96;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPlusPtr), "w+");
+  const uint32_t ModeNoDirPtr = 128;
+  std::strcpy(MemInst.getPointer<char *>(ModeNoDirPtr), "b");
+  const uint32_t ModeWxPtr = 160;
+  std::strcpy(MemInst.getPointer<char *>(ModeWxPtr), "wx");
+  const uint32_t ModeWrPtr = 192;
+  std::strcpy(MemInst.getPointer<char *>(ModeWrPtr), "wr");
+  const uint32_t ModeAPtr = 224;
+  std::strcpy(MemInst.getPointer<char *>(ModeAPtr), "a");
+  const uint32_t ModeRTPtr = 288;
+  std::strcpy(MemInst.getPointer<char *>(ModeRTPtr), "rT");
+  const uint32_t ModeWTPtr = 320;
+  std::strcpy(MemInst.getPointer<char *>(ModeWTPtr), "wT");
+  const uint32_t TransPathPtr = 352;
+  std::strcpy(MemInst.getPointer<char *>(TransPathPtr), "transparent.gz");
+  const uint32_t ModeWGPtr = 368;
+  std::strcpy(MemInst.getPointer<char *>(ModeWGPtr), "wG");
+  const uint32_t ModeAGPtr = 384;
+  std::strcpy(MemInst.getPointer<char *>(ModeAGPtr), "aG");
+  const uint32_t ModeWTGPtr = 400;
+  std::strcpy(MemInst.getPointer<char *>(ModeWTGPtr), "wTG");
+  const uint32_t ModeWGTPtr = 416;
+  std::strcpy(MemInst.getPointer<char *>(ModeWGTPtr), "wGT");
+  const uint32_t ModeRGPtr = 432;
+  std::strcpy(MemInst.getPointer<char *>(ModeRGPtr), "rG");
+  const uint32_t ModeRNPtr = 448;
+  std::strcpy(MemInst.getPointer<char *>(ModeRNPtr), "rN");
+  const uint32_t GFreshPtr = 464;
+  std::strcpy(MemInst.getPointer<char *>(GFreshPtr), "gfresh.gz");
+  const uint32_t FifoPtr = 480;
+  std::strcpy(MemInst.getPointer<char *>(FifoPtr), "fifo.gz");
+  const uint32_t ModeWNPtr = 496;
+  std::strcpy(MemInst.getPointer<char *>(ModeWNPtr), "wN");
+  const uint32_t DataPtr = 256;
+  const char *const Payload = "gzopen mode fidelity";
+  const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
+  std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
+  const uint32_t ReadBuf = 512;
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+  GET_ZLIB_FUNC(GZWrite, "gzwrite")
+  GET_ZLIB_FUNC(GZRead, "gzread")
+  GET_ZLIB_FUNC(GZClose, "gzclose")
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWPtr},
+      RetVal));
+  const uint32_t WHandle = RetVal[0].get<uint32_t>();
+  if (WHandle == 0) {
+    GTEST_SKIP() << "WASI preopen unavailable in this environment";
+  }
+  ASSERT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, DataPtr, PayloadLen},
+      RetVal));
+  ASSERT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, RetVal));
+  const auto BaselineSize = std::filesystem::file_size(SandboxDir / "modes.gz");
+
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWPlusPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeNoDirPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeRTPtr}, RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWGPtr}, RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{GFreshPtr, ModeWGPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_FALSE(std::filesystem::exists(SandboxDir / "gfresh.gz"));
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeAGPtr}, RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWTGPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{TransPathPtr, ModeWTPtr},
+      RetVal));
+  const uint32_t THandle = RetVal[0].get<uint32_t>();
+  EXPECT_NE(THandle, 0U);
+  if (THandle != 0) {
+    EXPECT_TRUE(GZClose.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{THandle},
+        RetVal));
+  }
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{TransPathPtr, ModeWGTPtr},
+      RetVal));
+  const uint32_t GTHandle = RetVal[0].get<uint32_t>();
+  EXPECT_NE(GTHandle, 0U);
+  if (GTHandle != 0) {
+    EXPECT_TRUE(GZClose.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{GTHandle},
+        RetVal));
+  }
+
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWxPtr}, RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWrPtr}, RetVal));
+  const uint32_t RHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(RHandle, 0U);
+  EXPECT_TRUE(GZRead.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, ReadBuf, UINT32_C(256)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_EQ(
+      0, std::memcmp(MemInst.getPointer<char *>(ReadBuf), Payload, PayloadLen));
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+  for (const uint32_t ModePtr : {ModeRGPtr, ModeRNPtr}) {
+    ASSERT_TRUE(GZOpen.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModePtr}, RetVal));
+    const uint32_t Handle = RetVal[0].get<uint32_t>();
+    EXPECT_NE(Handle, 0U);
+    if (Handle == 0) {
+      continue;
+    }
+    EXPECT_TRUE(GZRead.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               Handle, ReadBuf, UINT32_C(256)},
+                           RetVal));
+    EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+    EXPECT_EQ(0, std::memcmp(MemInst.getPointer<char *>(ReadBuf), Payload,
+                             PayloadLen));
+    EXPECT_TRUE(GZClose.run(CallFrame,
+                            std::initializer_list<WasmEdge::ValVariant>{Handle},
+                            RetVal));
+  }
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+#if !defined(_WIN32)
+  const std::filesystem::path FifoPath = SandboxDir / "fifo.gz";
+  std::filesystem::remove(FifoPath, EC);
+  ASSERT_EQ(::mkfifo(FifoPath.c_str(), 0600), 0);
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FifoPtr, ModeWNPtr}, RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FifoPtr, ModeRNPtr}, RetVal));
+  const uint32_t NHandle = RetVal[0].get<uint32_t>();
+  EXPECT_NE(NHandle, 0U);
+  if (NHandle != 0) {
+    EXPECT_TRUE(GZClose.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{NHandle},
+        RetVal));
+  }
+  std::filesystem::remove(FifoPath, EC);
+#endif
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeAPtr},
+      RetVal));
+  const uint32_t AHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(AHandle, 0U);
+  EXPECT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{AHandle, DataPtr, PayloadLen},
+      RetVal));
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{AHandle}, RetVal));
+  EXPECT_GT(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FreshPtr, ModeWxPtr},
+      RetVal));
+  const uint32_t XHandle = RetVal[0].get<uint32_t>();
+  EXPECT_NE(XHandle, 0U);
+  if (XHandle != 0) {
+    EXPECT_TRUE(GZClose.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{XHandle},
+        RetVal));
+  }
+  EXPECT_TRUE(std::filesystem::exists(SandboxDir / "fresh.gz"));
+
+  std::filesystem::remove(SandboxDir / "modes.gz", EC);
+  std::filesystem::remove(SandboxDir / "fresh.gz", EC);
+  std::filesystem::remove(SandboxDir / "transparent.gz", EC);
+  std::filesystem::remove(SandboxDir / "gfresh.gz", EC);
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZOpenWasiFollowsSandboxSymlinks) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasiWiredModule Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  const std::filesystem::path SandboxDir =
+      std::filesystem::temp_directory_path() / "wasmedge_zlib_wasi_symlink";
+  const std::filesystem::path OutsideFile =
+      std::filesystem::temp_directory_path() /
+      "wasmedge_zlib_wasi_symlink_outside.gz";
+  std::error_code EC;
+  std::filesystem::remove_all(SandboxDir, EC);
+  std::filesystem::create_directories(SandboxDir, EC);
+  std::filesystem::remove(OutsideFile, EC);
+
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const uint32_t TargetPtr = 16;
+  std::strcpy(MemInst.getPointer<char *>(TargetPtr), "target.gz");
+  const uint32_t LinkPtr = 32;
+  std::strcpy(MemInst.getPointer<char *>(LinkPtr), "link.gz");
+  const uint32_t EscLinkPtr = 64;
+  std::strcpy(MemInst.getPointer<char *>(EscLinkPtr), "escape.gz");
+  const uint32_t AbsLinkPtr = 96;
+  std::strcpy(MemInst.getPointer<char *>(AbsLinkPtr), "abslink.gz");
+  const uint32_t DangLinkPtr = 128;
+  std::strcpy(MemInst.getPointer<char *>(DangLinkPtr), "dangling.gz");
+  const uint32_t ModeWPtr = 160;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+  const uint32_t ModeRPtr = 192;
+  std::strcpy(MemInst.getPointer<char *>(ModeRPtr), "rb");
+  const uint32_t ModeWxPtr = 224;
+  std::strcpy(MemInst.getPointer<char *>(ModeWxPtr), "wx");
+  const uint32_t DataPtr = 256;
+  const char *const Payload = "symlinked gzip payload";
+  const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
+  std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
+  const uint32_t ReadBuf = 512;
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+  GET_ZLIB_FUNC(GZWrite, "gzwrite")
+  GET_ZLIB_FUNC(GZRead, "gzread")
+  GET_ZLIB_FUNC(GZClose, "gzclose")
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{TargetPtr, ModeWPtr},
+      RetVal));
+  const uint32_t WHandle = RetVal[0].get<uint32_t>();
+  if (WHandle == 0) {
+    GTEST_SKIP() << "WASI preopen unavailable in this environment";
+  }
+  ASSERT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, DataPtr, PayloadLen},
+      RetVal));
+  ASSERT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, RetVal));
+
+  {
+    std::ofstream(OutsideFile) << "outside";
+  }
+  std::filesystem::create_symlink("target.gz", SandboxDir / "link.gz", EC);
+  if (EC) {
+    GTEST_SKIP() << "cannot create symlinks in this environment";
+  }
+  std::filesystem::create_symlink(OutsideFile, SandboxDir / "abslink.gz", EC);
+  std::filesystem::create_symlink(std::filesystem::path("..") /
+                                      OutsideFile.filename(),
+                                  SandboxDir / "escape.gz", EC);
+  std::filesystem::create_symlink("missing.gz", SandboxDir / "dangling.gz", EC);
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{LinkPtr, ModeRPtr},
+      RetVal));
+  const uint32_t RHandle = RetVal[0].get<uint32_t>();
+  EXPECT_NE(RHandle, 0U);
+  if (RHandle != 0) {
+    EXPECT_TRUE(GZRead.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               RHandle, ReadBuf, UINT32_C(256)},
+                           RetVal));
+    EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+    EXPECT_EQ(0, std::memcmp(MemInst.getPointer<char *>(ReadBuf), Payload,
+                             PayloadLen));
+    EXPECT_TRUE(GZClose.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle},
+        RetVal));
+  }
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{LinkPtr, ModeWPtr},
+      RetVal));
+  const uint32_t LWHandle = RetVal[0].get<uint32_t>();
+  EXPECT_NE(LWHandle, 0U);
+  if (LWHandle != 0) {
+    EXPECT_TRUE(GZClose.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{LWHandle},
+        RetVal));
+  }
+  EXPECT_TRUE(std::filesystem::is_symlink(SandboxDir / "link.gz"));
+  EXPECT_TRUE(std::filesystem::exists(SandboxDir / "target.gz"));
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{EscLinkPtr, ModeRPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{AbsLinkPtr, ModeRPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{DangLinkPtr, ModeWxPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_FALSE(std::filesystem::exists(SandboxDir / "missing.gz"));
+
+  std::filesystem::remove_all(SandboxDir, EC);
+  std::filesystem::remove(OutsideFile, EC);
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZDOpenTemporarilyDisabled) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasiWiredModule Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  const std::filesystem::path SandboxDir =
+      std::filesystem::temp_directory_path() / "wasmedge_zlib_gzdopen_disabled";
+  std::error_code EC;
+  std::filesystem::create_directories(SandboxDir, EC);
+  std::filesystem::remove(SandboxDir / "disabled.gz", EC);
+
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
+  auto *Env = const_cast<WasmEdge::Host::WASI::Environ *>(WasiMod.getEnv());
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const uint32_t ModeWPtr = 0;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+
+  GET_ZLIB_FUNC(GZDOpen, "gzdopen")
+
+  const __wasi_rights_t FullRights =
+      __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_WRITE | __WASI_RIGHTS_FD_SEEK |
+      __WASI_RIGHTS_FD_TELL;
+  auto Fd =
+      Env->pathOpen(3, "disabled.gz", static_cast<__wasi_lookupflags_t>(0),
+                    __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC, FullRights,
+                    FullRights, static_cast<__wasi_fdflags_t>(0));
+  if (!Fd.has_value()) {
+    GTEST_SKIP() << "WASI preopen unavailable in this environment";
+  }
+
+  ASSERT_TRUE(GZDOpen.run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              static_cast<int32_t>(*Fd), ModeWPtr},
+                          RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+
+  __wasi_fdstat_t FdStat;
+  EXPECT_TRUE(Env->fdFdstatGet(*Fd, FdStat).has_value());
+  Env->fdClose(*Fd);
+
+  std::filesystem::remove(SandboxDir / "disabled.gz", EC);
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZOpenWasiStreamingWithoutSeekTellRights) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasiWiredModule Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  const std::filesystem::path SandboxDir =
+      std::filesystem::temp_directory_path() / "wasmedge_zlib_wasi_narrowed";
+  std::error_code EC;
+  std::filesystem::create_directories(SandboxDir, EC);
+  std::filesystem::remove(SandboxDir / "stream.gz", EC);
+  std::filesystem::remove(SandboxDir / "fresh.gz", EC);
+  std::filesystem::remove(SandboxDir / "append.gz", EC);
+
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
+  auto *Env = const_cast<WasmEdge::Host::WASI::Environ *>(WasiMod.getEnv());
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const uint32_t PathPtr = 16;
+  std::strcpy(MemInst.getPointer<char *>(PathPtr), "stream.gz");
+  const uint32_t FreshPtr = 32;
+  std::strcpy(MemInst.getPointer<char *>(FreshPtr), "fresh.gz");
+  const uint32_t AppendPtr = 64;
+  std::strcpy(MemInst.getPointer<char *>(AppendPtr), "append.gz");
+  const uint32_t ModeWPtr = 96;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+  const uint32_t ModeRPtr = 112;
+  std::strcpy(MemInst.getPointer<char *>(ModeRPtr), "rb");
+  const uint32_t ModeAPtr = 128;
+  std::strcpy(MemInst.getPointer<char *>(ModeAPtr), "ab");
+  const uint32_t DataPtr = 256;
+  const char *const Payload = "streaming without seek rights";
+  const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
+  std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
+  const uint32_t ReadPtr = 512;
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+  GET_ZLIB_FUNC(GZWrite, "gzwrite")
+  GET_ZLIB_FUNC(GZRead, "gzread")
+  GET_ZLIB_FUNC(GZClose, "gzclose")
+  GET_ZLIB_FUNC(GZSeek, "gzseek")
+  GET_ZLIB_FUNC(GZOffset, "gzoffset")
+  GET_ZLIB_FUNC(GZTell, "gztell")
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWPtr},
+      RetVal));
+  const uint32_t WHandle = RetVal[0].get<uint32_t>();
+  if (WHandle == 0) {
+    GTEST_SKIP() << "WASI-mediated gzopen unavailable in this environment";
+  }
+  ASSERT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, DataPtr, PayloadLen},
+      RetVal));
+  ASSERT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  ASSERT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, RetVal));
+
+  __wasi_fdstat_t DirStat;
+  ASSERT_TRUE(Env->fdFdstatGet(3, DirStat).has_value());
+  const __wasi_rights_t NoSeekTell =
+      ~(__WASI_RIGHTS_FD_SEEK | __WASI_RIGHTS_FD_TELL);
+  ASSERT_TRUE(Env->fdFdstatSetRights(3, DirStat.fs_rights_base & NoSeekTell,
+                                     DirStat.fs_rights_inheriting & NoSeekTell)
+                  .has_value());
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeRPtr},
+      RetVal));
+  const uint32_t RHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(RHandle, 0U);
+  ASSERT_TRUE(GZRead.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{RHandle, ReadPtr, PayloadLen},
+      RetVal));
+  ASSERT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_EQ(
+      0, std::memcmp(MemInst.getPointer<char *>(ReadPtr), Payload, PayloadLen));
+  ASSERT_TRUE(GZSeek.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, INT32_C(6), INT32_C(SEEK_SET)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), -1);
+  ASSERT_TRUE(GZOffset.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), -1);
+  ASSERT_TRUE(GZTell.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  ASSERT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FreshPtr, ModeWPtr}, RetVal));
+  const uint32_t FHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(FHandle, 0U);
+  ASSERT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FHandle, DataPtr, PayloadLen},
+      RetVal));
+  ASSERT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  ASSERT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FHandle}, RetVal));
+  EXPECT_TRUE(std::filesystem::exists(SandboxDir / "fresh.gz"));
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{AppendPtr, ModeAPtr},
+      RetVal));
+  const uint32_t AHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(AHandle, 0U);
+  ASSERT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{AHandle, DataPtr, PayloadLen},
+      RetVal));
+  ASSERT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  ASSERT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{AHandle}, RetVal));
+
+  std::filesystem::remove(SandboxDir / "stream.gz", EC);
+  std::filesystem::remove(SandboxDir / "fresh.gz", EC);
+  std::filesystem::remove(SandboxDir / "append.gz", EC);
 }
 
 GTEST_API_ int main(int ArgC, char **ArgV) {

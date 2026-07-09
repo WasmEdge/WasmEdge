@@ -353,8 +353,32 @@ Validator::validateComponent(const AST::Component::Component &Comp) noexcept {
   return {};
 }
 
+static bool checkUniqueCoreImportNames(std::unordered_set<std::string> &Seen,
+                                       std::string_view ModName,
+                                       std::string_view ExtName) {
+  std::string Key = std::string(ModName) + ":" + std::string(ExtName);
+  return Seen.insert(Key).second;
+}
+
 Expect<void>
 Validator::validate(const AST::Component::CoreModuleSection &ModSec) noexcept {
+  // Check for duplicate imports in the embedded core module.
+  {
+    std::unordered_set<std::string> ImportNames;
+    for (const auto &Imp :
+         ModSec.getContent().getImportSection().getContent()) {
+      if (!checkUniqueCoreImportNames(ImportNames, Imp.getModuleName(),
+                                      Imp.getExternalName())) {
+        spdlog::error(ErrCode::Value::ComponentDuplicateName);
+        spdlog::error("    Import: duplicate import name `{}:{}`"sv,
+                      Imp.getModuleName(), Imp.getExternalName());
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Import));
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_CoreMod));
+        return Unexpect(ErrCode::Value::ComponentDuplicateName);
+      }
+    }
+  }
   EXPECTED_TRY(validate(ModSec.getContent()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_CoreMod));
     return E;
@@ -1424,7 +1448,19 @@ Validator::validate(const AST::Component::CoreDefType &DType) noexcept {
   } else if (DType.isModuleType()) {
     // Module types are validated with an initially-empty type index space.
     CompCtx.enterTypeDefinition();
+    std::unordered_set<std::string> CoreImportNames;
     for (const auto &Decl : DType.getModuleType()) {
+      if (Decl.isImport()) {
+        const auto &Imp = Decl.getImport();
+        if (!checkUniqueCoreImportNames(CoreImportNames, Imp.getModuleName(),
+                                        Imp.getName())) {
+          spdlog::error(ErrCode::Value::ComponentDuplicateName);
+          spdlog::error("    Import: duplicate import name `{}:{}`"sv,
+                        Imp.getModuleName(), Imp.getName());
+          CompCtx.exitComponent();
+          return Unexpect(ErrCode::Value::ComponentDuplicateName);
+        }
+      }
       EXPECTED_TRY(validate(Decl).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreDefType));
         return E;
@@ -2223,10 +2259,13 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
   }
 
   if (!CompCtx.addImportedName(CName)) {
-    spdlog::error(ErrCode::Value::ComponentImportNameConflict);
+    auto Err = (CName.getKind() == ComponentNameKind::InterfaceType)
+                   ? ErrCode::Value::ComponentImportInterfaceConflict
+                   : ErrCode::Value::ComponentImportNameConflict;
+    spdlog::error(Err);
     spdlog::error("    Import: Duplicate import name"sv);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
-    return Unexpect(ErrCode::Value::ComponentImportNameConflict);
+    return Unexpect(Err);
   }
 
   // If this import introduced a TypeBound resource with a label name,
@@ -2395,11 +2434,17 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
     const uint32_t CoreTypeSize =
         CompCtx.getCoreSortIndexSize(AST::Component::Sort::CoreSortType::Type);
     if (RefIdx >= CoreTypeSize) {
-      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(ErrCode::Value::TypeIndexOutOfBounds);
       spdlog::error(
           "    ExternDesc: core type index {} exceeds core:type index space size {}"sv,
           RefIdx, CoreTypeSize);
-      return Unexpect(ErrCode::Value::InvalidIndex);
+      return Unexpect(ErrCode::Value::TypeIndexOutOfBounds);
+    }
+    if (CompCtx.getCoreModuleType(RefIdx) == nullptr) {
+      spdlog::error(ErrCode::Value::ComponentUnknownModuleType);
+      spdlog::error("    ExternDesc: core type index {} is not a module type"sv,
+                    RefIdx);
+      return Unexpect(ErrCode::Value::ComponentUnknownModuleType);
     }
     break;
   }
@@ -2410,11 +2455,36 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
     const uint32_t TypeSize =
         CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type);
     if (RefIdx >= TypeSize) {
-      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(ErrCode::Value::TypeIndexOutOfBounds);
       spdlog::error(
           "    ExternDesc: referenced type index {} exceeds type index space size {}"sv,
           RefIdx, TypeSize);
-      return Unexpect(ErrCode::Value::InvalidIndex);
+      return Unexpect(ErrCode::Value::TypeIndexOutOfBounds);
+    }
+    // Kind check: if the type is resolved, verify it matches the descriptor.
+    {
+      const auto *DT = CompCtx.getDefType(RefIdx);
+      if (DT != nullptr) {
+        if (Desc.getDescType() ==
+            AST::Component::ExternDesc::DescType::FuncType) {
+          if (!DT->isFuncType()) {
+            spdlog::error(ErrCode::Value::ComponentUnknownFunctionType);
+            spdlog::error(
+                "    ExternDesc: type index {} is not a function type"sv,
+                RefIdx);
+            return Unexpect(ErrCode::Value::ComponentUnknownFunctionType);
+          }
+        } else if (Desc.getDescType() ==
+                   AST::Component::ExternDesc::DescType::InstanceType) {
+          if (!DT->isInstanceType()) {
+            spdlog::error(ErrCode::Value::ComponentUnknownInstanceType);
+            spdlog::error(
+                "    ExternDesc: type index {} is not an instance type"sv,
+                RefIdx);
+            return Unexpect(ErrCode::Value::ComponentUnknownInstanceType);
+          }
+        }
+      }
     }
     break;
   }
@@ -2587,10 +2657,13 @@ Validator::validate(const AST::Component::ImportDecl &Decl) noexcept {
 
   // Check import name uniqueness.
   if (!CompCtx.addImportedName(CName)) {
-    spdlog::error(ErrCode::Value::ComponentImportNameConflict);
+    auto Err = (CName.getKind() == ComponentNameKind::InterfaceType)
+                   ? ErrCode::Value::ComponentImportInterfaceConflict
+                   : ErrCode::Value::ComponentImportNameConflict;
+    spdlog::error(Err);
     spdlog::error("    ImportDecl: Duplicate import name"sv);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Import));
-    return Unexpect(ErrCode::Value::ComponentImportNameConflict);
+    return Unexpect(Err);
   }
 
   return {};

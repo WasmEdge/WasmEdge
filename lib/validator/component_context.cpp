@@ -137,6 +137,19 @@ bool addStronglyUniqueName(std::unordered_set<std::string> &Names,
     return true;
   }
 
+  // Integrity, Url, LockedDep, UnlockedDep names are opaque/case-sensitive;
+  // use the original name directly without case-folding.
+  if (Name.getKind() == ComponentNameKind::Integrity ||
+      Name.getKind() == ComponentNameKind::Url ||
+      Name.getKind() == ComponentNameKind::LockedDep ||
+      Name.getKind() == ComponentNameKind::UnlockedDep) {
+    std::string Key = std::string(Name.getOriginalName());
+    if (Names.count(Key))
+      return false;
+    Names.insert(Key);
+    return true;
+  }
+
   // For case 2, L and L.L are not strongly-unique together.
   std::string Normal = std::string(Name.getNoTagName());
   std::string UniForm = toLowerString(Normal);

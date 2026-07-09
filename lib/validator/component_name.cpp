@@ -146,10 +146,20 @@ bool isIntegrityMetadata(std::string_view Input) {
       if (HashExpr.size() > AlgoSV.size() &&
           HashExpr.substr(0, AlgoSV.size()) == AlgoSV) {
         auto Value = HashExpr.substr(AlgoSV.size());
-        if (std::all_of(Value.begin(), Value.end(),
-                        [](char C) { return C >= 0x21 && C <= 0x7E; })) {
-          ValidAlgo = true;
+        // base64-value: [A-Za-z0-9+/]* with 0-2 '=' padding chars
+        size_t PadCount = 0;
+        while (!Value.empty() && Value.back() == '=') {
+          Value.remove_suffix(1);
+          PadCount++;
         }
+        bool ValidB64 = PadCount <= 2 && !Value.empty() &&
+                        std::all_of(Value.begin(), Value.end(), [](char C) {
+                          return (C >= 'A' && C <= 'Z') ||
+                                 (C >= 'a' && C <= 'z') ||
+                                 (C >= '0' && C <= '9') || C == '+' || C == '/';
+                        });
+        if (ValidB64)
+          ValidAlgo = true;
         break;
       }
     }
@@ -316,6 +326,12 @@ Expect<PkgPath> parsePkgPath(std::string_view &Next,
   std::string_view Namespace;
   if (!readUntil(Next, ':', Namespace))
     return reportError("expected ':' in namespace"sv);
+  if (Namespace.empty() || !isKebabString(Namespace)) {
+    spdlog::error(ErrCode::Value::ComponentNameNotKebab);
+    spdlog::error("    Component name: namespace '{}' is not in kebab case"sv,
+                  Namespace);
+    return Unexpect(ErrCode::Value::ComponentNameNotKebab);
+  }
   if (!isLowercaseKebabString(Namespace)) {
     spdlog::error(ErrCode::Value::ComponentPackageNameNotLowercase);
     spdlog::error("    Component name: namespace '{}' is not lowercase"sv,
@@ -328,6 +344,12 @@ Expect<PkgPath> parsePkgPath(std::string_view &Next,
     return reportError("unterminated package name"sv);
   std::string_view Package = Next.substr(0, PkgEnd);
   Next.remove_prefix(PkgEnd);
+  if (Package.empty() || !isKebabString(Package)) {
+    spdlog::error(ErrCode::Value::ComponentNameNotKebab);
+    spdlog::error("    Component name: package '{}' is not in kebab case"sv,
+                  Package);
+    return Unexpect(ErrCode::Value::ComponentNameNotKebab);
+  }
   if (!isLowercaseKebabString(Package)) {
     spdlog::error(ErrCode::Value::ComponentPackageNameNotLowercase);
     spdlog::error("    Component name: package '{}' is not lowercase"sv,
@@ -528,6 +550,14 @@ Expect<ComponentName> ComponentName::parse(std::string_view Name) {
     return Result;
   }
 
+  // "relative-url=" is not a valid extern name kind in the Component Model
+  // spec. Unlike "url=", there is no valid form of a relative-url extern name.
+  // Reject eagerly here before the url= prefix matching below could
+  // accidentally consume it as a partial match.'''
+  if (Name.rfind("relative-url="sv, 0) == 0) {
+    return reportError("not a valid extern name"sv);
+  }
+
   // urlname ::= 'url=<' <nonbrackets> '>' (',' <hashname>)?
   // nonbrackets ::= [^<>]*
   if (tryRead("url="sv, Next)) {
@@ -577,6 +607,13 @@ Expect<ComponentName> ComponentName::parse(std::string_view Name) {
     int Counter = 0;
     while (readUntil(Next, ':', Namespace)) {
       Counter++;
+      if (Namespace.empty() || !isKebabString(Namespace)) {
+        spdlog::error(ErrCode::Value::ComponentNameNotKebab);
+        spdlog::error(
+            "    Component name: namespace '{}' is not in kebab case"sv,
+            Namespace);
+        return Unexpect(ErrCode::Value::ComponentNameNotKebab);
+      }
       if (!isLowercaseKebabString(Namespace)) {
         spdlog::error(ErrCode::Value::ComponentPackageNameNotLowercase);
         spdlog::error("    Component name: namespace '{}' is not lowercase"sv,
@@ -593,7 +630,13 @@ Expect<ComponentName> ComponentName::parse(std::string_view Name) {
     }
 
     // interfacename ::= <namespace> <words> <projection> ...
-    if (!tryReadKebab(Next, Package) || !isLowercaseKebabString(Package)) {
+    if (!tryReadKebab(Next, Package) || Package.empty()) {
+      spdlog::error(ErrCode::Value::ComponentNameNotKebab);
+      spdlog::error("    Component name: package '{}' is not in kebab case"sv,
+                    Package);
+      return Unexpect(ErrCode::Value::ComponentNameNotKebab);
+    }
+    if (!isLowercaseKebabString(Package)) {
       spdlog::error(ErrCode::Value::ComponentPackageNameNotLowercase);
       spdlog::error("    Component name: package '{}' is not lowercase"sv,
                     Package);

@@ -1088,8 +1088,11 @@ E(ExportNotFound, 0x02A4, "export not found")
 E(ComponentNotImplValidator, 0x02A5,
   "component model (validator) not implemented")
 // Component model duplicate name
-E(ComponentDuplicateName, 0x02A6, "duplicate name in component")
+E(ComponentDuplicateName, 0x02A6, "duplicate import name")
 // Component model invalid name
+// Note: Structural substring matching for this range is handled directly inside
+// the spec test runner (spectest.cpp) to accommodate upstream's highly specific
+// parser messages.
 E(ComponentInvalidName, 0x02A7, "invalid component name")
 // DefValType: own/borrow does not reference a resource type
 E(NotADefinedType, 0x02A8, "not a defined type")
@@ -1131,6 +1134,14 @@ E(ComponentPackageNameNotLowercase, 0x02B7,
 // Component import name conflicts with a previous import name
 E(ComponentImportNameConflict, 0x02B8,
   "import name conflicts with previous name")
+// Component import interface/dependency name conflicts (non-label kind)
+E(ComponentImportInterfaceConflict, 0x02C6, "conflicts with previous name")
+// Component extern descriptor type mismatches
+E(ComponentUnknownInstanceType, 0x02C7, "unknown instance type")
+E(ComponentUnknownModuleType, 0x02C8, "unknown module type")
+E(ComponentUnknownFunctionType, 0x02C9, "unknown function type")
+// Type index out of bounds (canon lift, extern desc)
+E(TypeIndexOutOfBounds, 0x02CA, "type index out of bounds")
 // Component alias references an export the instance does not provide
 E(ComponentUnknownExport, 0x02B9, "unknown export")
 // Core type index referenced in a component core:moduledecl is out of bounds

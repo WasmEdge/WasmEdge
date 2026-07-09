@@ -128,6 +128,7 @@ Expect<int32_t> AVFreep::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_CHECK_FREE(Buffer, BufferId,
                         static_cast<int32_t>(ErrNo::InternalError));
   av_freep(Buffer);
+  av_free(Buffer);
   FFMPEG_PTR_DELETE(BufferId);
   return static_cast<int32_t>(ErrNo::Success);
 }

@@ -1763,4 +1763,350 @@ TEST(SerializeInstructionTest, SerializeDotProductInstruction) {
   Output = {};
   EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
 }
+
+TEST(SerializeInstructionTest, SerializeSIMDMemoryInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 20. Test base SIMD memory instructions.
+  //
+  //   1.  Serialize v128_load instruction with memarg.
+  //   2.  Serialize v128_store instruction with memarg.
+
+  WasmEdge::AST::Instruction V128Load(WasmEdge::OpCode::V128__load);
+  WasmEdge::AST::Instruction V128Store(WasmEdge::OpCode::V128__store);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  V128Load.getMemoryAlign() = 0x04U;
+  V128Load.getMemoryOffset() = 0x10U;
+  Instructions = {V128Load, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x08U,        // Content size = 8
+      0x01U,        // Vector length = 1
+      0x06U,        // Code segment size = 6
+      0x00U,        // Local vec(0)
+      0xFDU, 0x00U, // OpCode V128__load.
+      0x04U,        // Align.
+      0x10U,        // Offset.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  V128Store.getMemoryAlign() = 0x04U;
+  V128Store.getMemoryOffset() = 0x10U;
+  Instructions = {V128Store, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x08U,        // Content size = 8
+      0x01U,        // Vector length = 1
+      0x06U,        // Code segment size = 6
+      0x00U,        // Local vec(0)
+      0xFDU, 0x0BU, // OpCode V128__store.
+      0x04U,        // Align.
+      0x10U,        // Offset.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+}
+
+TEST(SerializeInstructionTest, SerializeSIMDLaneAndNumericInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 21. Test base SIMD lane and numeric instructions.
+  //
+  //   1.  Serialize i8x16_splat instruction.
+  //   2.  Serialize i8x16_add instruction.
+  //   3.  Serialize i32x4_mul instruction (two-byte LEB128 opcode suffix).
+  //   4.  Serialize f32x4_add instruction (two-byte LEB128 opcode suffix).
+  //   5.  Serialize i8x16_extract_lane_s instruction with lane immediate.
+  //   6.  Serialize i8x16_replace_lane instruction with lane immediate.
+
+  WasmEdge::AST::Instruction I8x16Splat(WasmEdge::OpCode::I8x16__splat);
+  WasmEdge::AST::Instruction I8x16Add(WasmEdge::OpCode::I8x16__add);
+  WasmEdge::AST::Instruction I32x4Mul(WasmEdge::OpCode::I32x4__mul);
+  WasmEdge::AST::Instruction F32x4Add(WasmEdge::OpCode::F32x4__add);
+  WasmEdge::AST::Instruction I8x16ExtractLaneS(
+      WasmEdge::OpCode::I8x16__extract_lane_s);
+  WasmEdge::AST::Instruction I8x16ReplaceLane(
+      WasmEdge::OpCode::I8x16__replace_lane);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  Instructions = {I8x16Splat, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFDU, 0x0FU, // OpCode I8x16__splat.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {I8x16Add, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFDU, 0x6EU, // OpCode I8x16__add.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {I32x4Mul, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,               // Code section
+      0x07U,               // Content size = 7
+      0x01U,               // Vector length = 1
+      0x05U,               // Code segment size = 5
+      0x00U,               // Local vec(0)
+      0xFDU, 0xB5U, 0x01U, // OpCode I32x4__mul.
+      0x0BU                // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {F32x4Add, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,               // Code section
+      0x07U,               // Content size = 7
+      0x01U,               // Vector length = 1
+      0x05U,               // Code segment size = 5
+      0x00U,               // Local vec(0)
+      0xFDU, 0xE4U, 0x01U, // OpCode F32x4__add.
+      0x0BU                // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  I8x16ExtractLaneS.getMemoryLane() = 0x05U;
+  Instructions = {I8x16ExtractLaneS, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x07U,        // Content size = 7
+      0x01U,        // Vector length = 1
+      0x05U,        // Code segment size = 5
+      0x00U,        // Local vec(0)
+      0xFDU, 0x15U, // OpCode I8x16__extract_lane_s.
+      0x05U,        // Lane index.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  I8x16ReplaceLane.getMemoryLane() = 0x05U;
+  Instructions = {I8x16ReplaceLane, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x07U,        // Content size = 7
+      0x01U,        // Vector length = 1
+      0x05U,        // Code segment size = 5
+      0x00U,        // Local vec(0)
+      0xFDU, 0x17U, // OpCode I8x16__replace_lane.
+      0x05U,        // Lane index.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+}
+
+TEST(SerializeInstructionTest, SerializeAtomicInstruction) {
+  WasmEdge::Configure ConfThreads;
+  ConfThreads.addProposal(WasmEdge::Proposal::Threads);
+  WasmEdge::Loader::Serializer SerThreads(ConfThreads);
+
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 22. Test atomic instructions.
+  //
+  //   1.  Serialize memory_atomic_notify instruction with memarg.
+  //   2.  Serialize memory_atomic_wait32 instruction with memarg.
+  //   3.  Serialize i32_atomic_load instruction with memarg.
+  //   4.  Serialize i32_atomic_store instruction with memarg.
+  //   5.  Serialize i32_atomic_rmw_add instruction with memarg.
+  //
+  // memory.atomic.* instructions are not Threads-gated; i32.atomic.* requires
+  // the Threads proposal.
+
+  WasmEdge::AST::Instruction MemoryAtomicNotify(
+      WasmEdge::OpCode::Memory__atomic__notify);
+  WasmEdge::AST::Instruction MemoryAtomicWait32(
+      WasmEdge::OpCode::Memory__atomic__wait32);
+  WasmEdge::AST::Instruction I32AtomicLoad(
+      WasmEdge::OpCode::I32__atomic__load);
+  WasmEdge::AST::Instruction I32AtomicStore(
+      WasmEdge::OpCode::I32__atomic__store);
+  WasmEdge::AST::Instruction I32AtomicRmwAdd(
+      WasmEdge::OpCode::I32__atomic__rmw__add);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  MemoryAtomicNotify.getMemoryAlign() = 0x02U;
+  MemoryAtomicNotify.getMemoryOffset() = 0x08U;
+  Instructions = {MemoryAtomicNotify, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x08U,        // Content size = 8
+      0x01U,        // Vector length = 1
+      0x06U,        // Code segment size = 6
+      0x00U,        // Local vec(0)
+      0xFEU, 0x00U, // OpCode Memory__atomic__notify.
+      0x02U,        // Align.
+      0x08U,        // Offset.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  MemoryAtomicWait32.getMemoryAlign() = 0x02U;
+  MemoryAtomicWait32.getMemoryOffset() = 0x08U;
+  Instructions = {MemoryAtomicWait32, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x01U; // OpCode Memory__atomic__wait32.
+  EXPECT_EQ(Output, Expected);
+
+  I32AtomicLoad.getMemoryAlign() = 0x02U;
+  I32AtomicLoad.getMemoryOffset() = 0x08U;
+  Instructions = {I32AtomicLoad, End};
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Output = {};
+  EXPECT_TRUE(SerThreads.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x10U; // OpCode I32__atomic__load.
+  EXPECT_EQ(Output, Expected);
+
+  I32AtomicStore.getMemoryAlign() = 0x02U;
+  I32AtomicStore.getMemoryOffset() = 0x08U;
+  Instructions = {I32AtomicStore, End};
+  Output = {};
+  EXPECT_TRUE(SerThreads.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x17U; // OpCode I32__atomic__store.
+  EXPECT_EQ(Output, Expected);
+
+  I32AtomicRmwAdd.getMemoryAlign() = 0x02U;
+  I32AtomicRmwAdd.getMemoryOffset() = 0x08U;
+  Instructions = {I32AtomicRmwAdd, End};
+  Output = {};
+  EXPECT_TRUE(SerThreads.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x1EU; // OpCode I32__atomic__rmw__add.
+  EXPECT_EQ(Output, Expected);
+}
+
+TEST(SerializeInstructionTest, SerializeMultiMemoryMemArgInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 23. Test multi-memory memarg encoding.
+  //
+  //   1.  Serialize i32_load with a non-zero memory index (MultiMemories on).
+  //   2.  Serialize i32_store with a non-zero memory index (MultiMemories on).
+  //   3.  Serialize i32_load with memory index 0 (single-memory encoding).
+  //   4.  Serialize i32_load with a non-zero memory index but MultiMemories off
+  //       (the memory index is dropped).
+
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  WasmEdge::AST::Instruction I32Load(WasmEdge::OpCode::I32__load);
+  I32Load.getMemoryAlign() = 0x02U;
+  I32Load.getTargetIndex() = 0x03U;
+  I32Load.getMemoryOffset() = 0x10U;
+  Instructions = {I32Load, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU, // Code section
+      0x08U, // Content size = 8
+      0x01U, // Vector length = 1
+      0x06U, // Code segment size = 6
+      0x00U, // Local vec(0)
+      0x28U, // OpCode I32__load.
+      0x42U, // Align with multi-memory flag (0x02 + 0x40).
+      0x03U, // Memory index.
+      0x10U, // Offset.
+      0x0BU  // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  WasmEdge::AST::Instruction I32Store(WasmEdge::OpCode::I32__store);
+  I32Store.getMemoryAlign() = 0x02U;
+  I32Store.getTargetIndex() = 0x03U;
+  I32Store.getMemoryOffset() = 0x10U;
+  Instructions = {I32Store, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU, // Code section
+      0x08U, // Content size = 8
+      0x01U, // Vector length = 1
+      0x06U, // Code segment size = 6
+      0x00U, // Local vec(0)
+      0x36U, // OpCode I32__store.
+      0x42U, // Align with multi-memory flag (0x02 + 0x40).
+      0x03U, // Memory index.
+      0x10U, // Offset.
+      0x0BU  // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  WasmEdge::AST::Instruction I32LoadMem0(WasmEdge::OpCode::I32__load);
+  I32LoadMem0.getMemoryAlign() = 0x02U;
+  I32LoadMem0.getTargetIndex() = 0x00U;
+  I32LoadMem0.getMemoryOffset() = 0x10U;
+  Instructions = {I32LoadMem0, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU, // Code section
+      0x07U, // Content size = 7
+      0x01U, // Vector length = 1
+      0x05U, // Code segment size = 5
+      0x00U, // Local vec(0)
+      0x28U, // OpCode I32__load.
+      0x02U, // Align (no multi-memory flag, memory index 0).
+      0x10U, // Offset.
+      0x0BU  // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  WasmEdge::Configure ConfNoMM;
+  ConfNoMM.removeProposal(WasmEdge::Proposal::MultiMemories);
+  WasmEdge::Loader::Serializer SerNoMM(ConfNoMM);
+  Instructions = {I32Load, End};
+  Output = {};
+  EXPECT_TRUE(SerNoMM.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU, // Code section
+      0x07U, // Content size = 7
+      0x01U, // Vector length = 1
+      0x05U, // Code segment size = 5
+      0x00U, // Local vec(0)
+      0x28U, // OpCode I32__load.
+      0x02U, // Align (multi-memory disabled, memory index dropped).
+      0x10U, // Offset.
+      0x0BU  // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+}
 } // namespace

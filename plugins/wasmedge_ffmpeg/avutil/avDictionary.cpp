@@ -13,6 +13,12 @@ namespace WasmEdgeFFmpeg {
 namespace AVUtil {
 
 namespace {
+constexpr int SafeDictFlags = AV_DICT_MATCH_CASE | AV_DICT_IGNORE_SUFFIX |
+                              AV_DICT_DONT_OVERWRITE | AV_DICT_APPEND |
+                              AV_DICT_MULTIKEY;
+
+int sanitizeDictFlags(int Flags) { return Flags & SafeDictFlags; }
+
 AVDictionaryEntry *dictEntryAt(AVDictionary *Dict, const char *Key,
                                uint32_t PrevIdx, int Flags, uint32_t &Steps) {
   AVDictionaryEntry *Entry = nullptr;
@@ -44,6 +50,7 @@ Expect<int32_t> AVDictSet::body(const Runtime::CallingFrame &Frame,
   std::string Key(KeyBuf.data(), KeyLen);
   std::string Value(ValueBuf.data(), ValueLen);
 
+  int const SafeFlags = sanitizeDictFlags(Flags);
   int Res = 0;
 
   // Using Maybe::uninit(); in Rust. If Uninitialized, zero is
@@ -55,14 +62,19 @@ Expect<int32_t> AVDictSet::body(const Runtime::CallingFrame &Frame,
                     *DictId);
       return static_cast<int32_t>(ErrNo::InternalError);
     }
-    Res = av_dict_set(AvDict, Key.c_str(), Value.c_str(), Flags);
+    Res = av_dict_set(AvDict, Key.c_str(), Value.c_str(), SafeFlags);
   } else {
     AVDictionary **AvDict =
         static_cast<AVDictionary **>(av_mallocz(sizeof(AVDictionary *)));
     if (AvDict == nullptr) {
       return static_cast<int32_t>(ErrNo::InternalError);
     }
-    Res = av_dict_set(AvDict, Key.c_str(), Value.c_str(), Flags);
+    Res = av_dict_set(AvDict, Key.c_str(), Value.c_str(), SafeFlags);
+    if (Res < 0) {
+      av_dict_free(AvDict);
+      av_free(AvDict);
+      return Res;
+    }
     FFMPEG_PTR_STORE(AvDict, DictId);
   }
 
@@ -78,6 +90,7 @@ Expect<int32_t> AVDictCopy::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(SrcAvDict, SrcDictId, AVDictionary *);
 
+  int const SafeFlags = sanitizeDictFlags(static_cast<int>(Flags));
   int Res = 0;
 
   if (SrcAvDict == nullptr) {
@@ -95,14 +108,19 @@ Expect<int32_t> AVDictCopy::body(const Runtime::CallingFrame &Frame,
                     *DestDictId);
       return static_cast<int32_t>(ErrNo::InternalError);
     }
-    Res = av_dict_copy(DestAvDict, *SrcAvDict, Flags);
+    Res = av_dict_copy(DestAvDict, *SrcAvDict, SafeFlags);
   } else {
     AVDictionary **DestAvDict =
         static_cast<AVDictionary **>(av_mallocz(sizeof(AVDictionary *)));
     if (DestAvDict == nullptr) {
       return static_cast<int32_t>(ErrNo::InternalError);
     }
-    Res = av_dict_copy(DestAvDict, *SrcAvDict, Flags);
+    Res = av_dict_copy(DestAvDict, *SrcAvDict, SafeFlags);
+    if (Res < 0) {
+      av_dict_free(DestAvDict);
+      av_free(DestAvDict);
+      return Res;
+    }
     FFMPEG_PTR_STORE(DestAvDict, DestDictId);
   }
 

@@ -23,11 +23,13 @@ jobs:
   #   wasi_nn:
   #     - paths/to/wasi_nn
   #     - other/paths/to/wasi_nn
+  #   wasi_nn-ggml:
+  #     - paths/to/wasi_nn-ggml
   #
   # plugin: 'wasi_nn-ggml'
   #
-  #   process.env['wasi_nn'] => true
-  #   process.env['wasi_nn-ggml'] => undefined
+  #   process.env['wasi_nn'] => 'true' if the umbrella filter matched
+  #   process.env['wasi_nn-ggml'] => 'true' if the exact-name filter matched
   # ------------------------------------------------------------------#
   prepare:
     name: Prepare ${{ inputs.asset_tag }}
@@ -91,6 +93,17 @@ jobs:
         env:
           wasi_crypto: ${{ steps.filter.outputs.wasi_crypto }}
           wasi_nn: ${{ steps.filter.outputs.wasi_nn }}
+          wasi_nn-bitnet-arm-tl1: ${{ steps.filter.outputs['wasi_nn-bitnet-arm-tl1'] }}
+          wasi_nn-bitnet-x86-tl2: ${{ steps.filter.outputs['wasi_nn-bitnet-x86-tl2'] }}
+          wasi_nn-chattts: ${{ steps.filter.outputs['wasi_nn-chattts'] }}
+          wasi_nn-ggml: ${{ steps.filter.outputs['wasi_nn-ggml'] }}
+          wasi_nn-mlx: ${{ steps.filter.outputs['wasi_nn-mlx'] }}
+          wasi_nn-openvino: ${{ steps.filter.outputs['wasi_nn-openvino'] }}
+          wasi_nn-openvino-genai: ${{ steps.filter.outputs['wasi_nn-openvino-genai'] }}
+          wasi_nn-piper: ${{ steps.filter.outputs['wasi_nn-piper'] }}
+          wasi_nn-pytorch: ${{ steps.filter.outputs['wasi_nn-pytorch'] }}
+          wasi_nn-tensorflowlite: ${{ steps.filter.outputs['wasi_nn-tensorflowlite'] }}
+          wasi_nn-whisper: ${{ steps.filter.outputs['wasi_nn-whisper'] }}
           wasm_bpf: ${{ steps.filter.outputs.wasm_bpf }}
           wasmedge_ffmpeg: ${{ steps.filter.outputs.wasmedge_ffmpeg }}
           wasmedge_image: ${{ steps.filter.outputs.wasmedge_image }}

@@ -49,11 +49,19 @@ Two workflows further narrow their work *within* a run:
   by `dorny/paths-filter` against
   [`.github/extensions.paths-filter.yml`](../extensions.paths-filter.yml). For
   example, editing only `plugins/wasi_nn/**` builds the `wasi_nn` plugin but not
-  `wasmedge_ffmpeg`. Changes to shared plugin files (the `all` filter:
+  `wasmedge_ffmpeg`.
+  Per-backend WASI-NN dependency modules map to exact-name filters — e.g.
+  `cmake/wasi_nn/ggml.cmake` matches only the `wasi_nn-ggml` filter, so a
+  single-backend dependency bump rebuilds only that backend's matrix entries,
+  while `cmake/WASINNDeps.cmake` (the dispatcher) and `plugins/wasi_nn/**` still
+  rebuild every WASI-NN backend; `cmake/TensorflowDeps.cmake` maps to
+  `wasi_nn-tensorflowlite`, `wasmedge_tensorflow`, and `wasmedge_tensorflowlite`.
+  Changes to shared plugin files (the `all` filter:
   `.github/**`, the root `CMakeLists.txt`, `plugins/CMakeLists.txt`, or
   `test/plugins/CMakeLists.txt`) and release builds build **all** plugins. The
   `test_wasi_nn_ggml_rpc` and `build_windows_wasi_nn` jobs run only when the
-  `all`, `wasi_nn`, or `shared_cmake` (`cmake/Helper.cmake`) filters match;
+  `all`, `wasi_nn`, `wasi_nn-ggml`, or `shared_cmake` (`cmake/Helper.cmake`)
+  filters match;
   `test_wasi_nn_ggml_rpc` also runs when the `wasi_nn_rpc` filter matches —
   the RPC server sources and their CMake wiring, whose authoritative list is
   the `wasi_nn_rpc` entry in
@@ -108,7 +116,7 @@ Triggered by changes under `plugins/` or `test/plugins/`.
 
 | Workflow | What it does | If it fails |
 | -------- | ------------ | ----------- |
-| **Extensions** (`build-extensions.yml`) | Runs a path-filtered plugin build matrix for changed plugins; the WASI-NN GGML RPC and Windows WASI-NN jobs run only when the `all`, `shared_cmake`, `wasi_nn`, or (RPC job only) `wasi_nn_rpc` filters match. | Fix failures in changed plugin builds and in WASI-NN jobs when related to your change; for flaky or upstream failures, see [Interpreting failures](#interpreting-failures). |
+| **Extensions** (`build-extensions.yml`) | Runs a path-filtered plugin build matrix for changed plugins; the WASI-NN GGML RPC and Windows WASI-NN jobs run only when the `all`, `shared_cmake`, `wasi_nn`, `wasi_nn-ggml`, or (RPC job only) `wasi_nn_rpc` filters match. | Fix failures in changed plugin builds and in WASI-NN jobs when related to your change; for flaky or upstream failures, see [Interpreting failures](#interpreting-failures). |
 | **IWYU checker**, **Static Code Analysis**, **CodeQL** | Also triggered by plugin sources (see the Core engine table above). | As above. |
 
 Plugin-only changes do **not** trigger `Core`, `riscv64`, or `Nix`.
@@ -202,7 +210,8 @@ workflows are called by the entries below and are not listed here; see
      [How CI is triggered](#how-ci-is-triggered)) or a release build caused
      **every** plugin to build. The WASI-NN GGML RPC and Windows WASI-NN jobs
      are gated the same way and appear only when the `all`, `shared_cmake`,
-     `wasi_nn`, or (for the RPC job) `wasi_nn_rpc` filters match your change.
+     `wasi_nn`, `wasi_nn-ggml`, or (for the RPC job) `wasi_nn_rpc` filters match
+     your change.
    - **Upstream breakage.** A job already failing on `master` because of an upstream
      issue (for example, a broken Fedora Rawhide package) cannot be fixed from a
      contributor PR until upstream is fixed.

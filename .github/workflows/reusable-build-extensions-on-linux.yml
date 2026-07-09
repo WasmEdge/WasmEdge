@@ -49,6 +49,9 @@ jobs:
       target: ${{ inputs.release && matrix.target || matrix.testBin || matrix.target }}
       test_dir: build/test/plugins/${{ matrix.dir }}
       output_dir: build/plugins/${{ matrix.dir }}
+      SCCACHE_GHA_ENABLED: "true"
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -61,11 +64,44 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+        with:
+          version: "v0.10.0"
+      - name: Warm up sccache server
+        shell: bash
+        run: |
+          for i in 1 2 3 4 5; do
+            if sccache --show-stats >/dev/null 2>&1; then
+              sccache --show-stats
+              exit 0
+            fi
+            echo "sccache server not ready (attempt ${i}/5); retrying..." >&2
+            sleep $((i * 3))
+          done
+          echo "sccache server did not become ready; aborting before the long build" >&2
+          exit 1
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
+      # Restore the ML models downloaded at configure time, keyed per plugin
+      # (per backend for wasi_nn, with the bitnet variants sharing one model)
+      # so flaky upstream downloads only hit on cache misses. Only the
+      # downloaded files are cached, not test byproducts, and only master
+      # runs save the cache so PR runs never create per-ref duplicates.
+      - if: ${{ !inputs.release && (matrix.dir == 'wasi_nn' || matrix.dir == 'wasmedge_stablediffusion') }}
+        name: Restore ML model fixtures
+        id: ml-fixtures
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            build/test/plugins/wasi_nn/wasinn_*_fixtures
+            build/test/plugins/wasmedge_stablediffusion/stableDiffusion/sd-v1-5-fp16.safetensors
+          key: ml-fixtures-${{ matrix.dir == 'wasi_nn' && (contains(matrix.plugin, 'bitnet') && 'wasi_nn-bitnet' || matrix.plugin) || matrix.dir }}-${{ hashFiles(format('test/plugins/{0}/CMakeLists.txt', matrix.dir)) }}
       - name: Build ${{ matrix.plugin }}
         shell: bash
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           [ "${{ matrix.plugin }}" == "wasi_nn-openvino-genai" ] && source /root/openvino_genai/setupvars.sh
           PIPER_INSTALL_PATH="/usr/local"
@@ -82,6 +118,14 @@ jobs:
 
           cp -f ${output_dir}/${bin_name} ${bin_name}
           tar -zcvf ${{ steps.var.outputs.artifact }} ${bin_name}
+      - if: ${{ !inputs.release && (matrix.dir == 'wasi_nn' || matrix.dir == 'wasmedge_stablediffusion') && github.ref == 'refs/heads/master' && steps.ml-fixtures.outputs.cache-hit != 'true' }}
+        name: Save ML model fixtures
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            build/test/plugins/wasi_nn/wasinn_*_fixtures
+            build/test/plugins/wasmedge_stablediffusion/stableDiffusion/sd-v1-5-fp16.safetensors
+          key: ml-fixtures-${{ matrix.dir == 'wasi_nn' && (contains(matrix.plugin, 'bitnet') && 'wasi_nn-bitnet' || matrix.plugin) || matrix.dir }}-${{ hashFiles(format('test/plugins/{0}/CMakeLists.txt', matrix.dir)) }}
       - if: ${{ !inputs.release && matrix.plugin == 'wasm_bpf' }}
         name: Prepare test env
         shell: bash

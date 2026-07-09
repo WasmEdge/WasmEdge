@@ -105,6 +105,20 @@ public:
     }
   }
 
+  /// Mark this module instance finalized (immutable). Idempotent, thread-safe.
+  void finalizeInstantiation() const noexcept {
+    if (InstantiateFinalized.load(std::memory_order_acquire)) {
+      return;
+    }
+    std::unique_lock Lock(Mutex);
+    InstantiateFinalized.store(true, std::memory_order_release);
+  }
+
+  /// Return true if this module instance has been finalized (immutable).
+  bool isInstantiateFinalized() const noexcept {
+    return InstantiateFinalized.load(std::memory_order_acquire);
+  }
+
   std::string_view getModuleName() const noexcept {
     std::shared_lock Lock(Mutex);
     return ModName;
@@ -137,42 +151,67 @@ public:
   }
 
   /// Add existing instances and move ownership with the export name.
-  void addHostFunc(std::string_view Name,
-                   std::unique_ptr<HostFunctionBase> &&Func) {
+  ///
+  /// These functions fail with `ErrCode::Value::WrongVMWorkflow` if the module
+  /// instance has already been finalized, i.e. it has been used during
+  /// execution and become immutable. On failure the passed-in `unique_ptr` is
+  /// not moved from, so the caller retains ownership of the instance.
+  Expect<void> addHostFunc(std::string_view Name,
+                           std::unique_ptr<HostFunctionBase> &&Func) {
     std::unique_lock Lock(Mutex);
+    if (unlikely(InstantiateFinalized.load(std::memory_order_acquire))) {
+      return Unexpect(ErrCode::Value::WrongVMWorkflow);
+    }
     unsafeImportDefinedType(Func->getDefinedType());
     unsafeAddHostInstance(
         Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
         std::make_unique<FunctionInstance>(
             this, static_cast<uint32_t>(Types.size()) - 1, std::move(Func)));
+    return {};
   }
-  void addHostFunc(std::string_view Name,
-                   std::unique_ptr<FunctionInstance> &&Func) {
+  Expect<void> addHostFunc(std::string_view Name,
+                           std::unique_ptr<FunctionInstance> &&Func) {
     std::unique_lock Lock(Mutex);
+    if (unlikely(InstantiateFinalized.load(std::memory_order_acquire))) {
+      return Unexpect(ErrCode::Value::WrongVMWorkflow);
+    }
     assuming(Func->isHostFunction());
     unsafeImportDefinedType(Func->getHostFunc().getDefinedType());
     Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
     unsafeAddHostInstance(Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
                           std::move(Func));
+    return {};
   }
 
-  void addHostTable(std::string_view Name,
-                    std::unique_ptr<TableInstance> &&Tab) {
+  Expect<void> addHostTable(std::string_view Name,
+                            std::unique_ptr<TableInstance> &&Tab) {
     std::unique_lock Lock(Mutex);
+    if (unlikely(InstantiateFinalized.load(std::memory_order_acquire))) {
+      return Unexpect(ErrCode::Value::WrongVMWorkflow);
+    }
     unsafeAddHostInstance(Name, OwnedTabInsts, TabInsts, ExpTables,
                           std::move(Tab));
+    return {};
   }
-  void addHostMemory(std::string_view Name,
-                     std::unique_ptr<MemoryInstance> &&Mem) {
+  Expect<void> addHostMemory(std::string_view Name,
+                             std::unique_ptr<MemoryInstance> &&Mem) {
     std::unique_lock Lock(Mutex);
+    if (unlikely(InstantiateFinalized.load(std::memory_order_acquire))) {
+      return Unexpect(ErrCode::Value::WrongVMWorkflow);
+    }
     unsafeAddHostInstance(Name, OwnedMemInsts, MemInsts, ExpMems,
                           std::move(Mem));
+    return {};
   }
-  void addHostGlobal(std::string_view Name,
-                     std::unique_ptr<GlobalInstance> &&Glob) {
+  Expect<void> addHostGlobal(std::string_view Name,
+                             std::unique_ptr<GlobalInstance> &&Glob) {
     std::unique_lock Lock(Mutex);
+    if (unlikely(InstantiateFinalized.load(std::memory_order_acquire))) {
+      return Unexpect(ErrCode::Value::WrongVMWorkflow);
+    }
     unsafeAddHostInstance(Name, OwnedGlobInsts, GlobInsts, ExpGlobals,
                           std::move(Glob));
+    return {};
   }
 
   /// Find and get the exported instance by name.
@@ -443,6 +482,10 @@ protected:
     std::shared_lock Lock(Mutex);
     return static_cast<uint32_t>(FuncInsts.size());
   }
+  uint32_t getTableNum() const noexcept {
+    std::shared_lock Lock(Mutex);
+    return static_cast<uint32_t>(TabInsts.size());
+  }
   uint32_t getMemoryNum() const noexcept {
     std::shared_lock Lock(Mutex);
     return static_cast<uint32_t>(MemInsts.size());
@@ -534,6 +577,9 @@ protected:
 #else
   std::vector<uint8_t **> MemoryPtrs;
 #endif
+  std::vector<const uint64_t *> MemorySizePtrs;
+  std::vector<const uint64_t *> TableSizePtrs;
+  std::vector<RefVariant **> TableRefPtrs;
   std::vector<ValVariant *> GlobalPtrs;
   /// @}
 
@@ -663,6 +709,10 @@ protected:
   /// External data and its finalizer function pointer.
   void *HostData;
   std::function<void(void *)> HostDataFinalizer;
+
+  /// Whether this module instance has been finalized (immutable). Once set,
+  /// the indexed instances will not be mutated anymore.
+  mutable std::atomic<bool> InstantiateFinalized{false};
 
   /// Intrusive lifetime: owner flag plus importer count, packed into one
   /// atomic.

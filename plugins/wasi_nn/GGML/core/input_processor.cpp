@@ -14,10 +14,11 @@
 namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 
-Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
-                       uint32_t Index, const TensorData &Tensor) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
+                       WASINN::Context &C, uint32_t Index,
+                       const TensorData &Tensor) noexcept {
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput"sv)
 
   // Use index 1 for metadata.
@@ -34,6 +35,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     if (Res != ErrNo::Success) {
       RET_ERROR(Res, "setInput: failed to parse metadata."sv)
     }
+    // Reconcile this graph's llama log gate with the reparsed EnableLog.
+    installLlamaLog(GraphRef);
 
 #ifndef __APPLE__
     // XXX: Because of the limitation in the WASI-NN proposal, this is a
@@ -63,7 +66,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
         GraphRef.LlamaModel = llama_model_ptr(llama_model_load_from_file(
             GraphRef.Params.model.path.c_str(), ModelParams));
         if (GraphRef.LlamaModel == nullptr) {
-          Env.NNGraph[CxtRef.GraphId].setInvalid();
+          G.setInvalid();
           RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init model."sv)
         }
       }
@@ -80,7 +83,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
           GraphRef.LlamaModel.get(),
           common_context_params_to_llama(GraphRef.Params)));
       if (GraphRef.LlamaContext == nullptr) {
-        Env.NNGraph[CxtRef.GraphId].setInvalid();
+        G.setInvalid();
         RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init context."sv)
       }
     }
@@ -96,7 +99,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       CxtRef.LlamaSampler = common_sampler_init(GraphRef.LlamaModel.get(),
                                                 GraphRef.Params.sampling);
       if (GraphRef.LlamaContext == nullptr) {
-        Env.NNGraph[CxtRef.GraphId].setInvalid();
+        G.setInvalid();
         RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init sampler."sv)
       }
     }
@@ -108,7 +111,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
     }
 
-    Env.NNGraph[CxtRef.GraphId].setReady();
+    G.setReady();
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "setInput: found Metadata, processing...Done"sv)
     return ErrNo::Success;
@@ -116,7 +119,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
 
   // Check that the graph is valid after reloading during the previous
   // set_input.
-  if (!Env.NNGraph[CxtRef.GraphId].isReady()) {
+  if (!G.isReady()) {
     RET_ERROR(
         ErrNo::InvalidArgument,
         "setInput: Graph is invalid. Please reload again by passing metadata "sv

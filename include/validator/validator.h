@@ -20,6 +20,7 @@
 #include "validator/formchecker.h"
 
 #include <cstdint>
+#include <vector>
 
 namespace WasmEdge {
 namespace Validator {
@@ -39,7 +40,8 @@ private:
   /// \name Validate WASM AST nodes
   /// @{
   // Validate AST::Types
-  Expect<void> validate(const AST::SubType &Type);
+  Expect<void> validate(const AST::SubType &Type, uint32_t OwnTypeIdx,
+                        std::vector<uint32_t> &SubTypeDepthMap);
   Expect<void> validate(const AST::Limit &Lim);
   Expect<void> validate(const AST::TableType &Tab);
   Expect<void> validate(const AST::MemoryType &Mem);

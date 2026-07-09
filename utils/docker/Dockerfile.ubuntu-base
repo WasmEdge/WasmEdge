@@ -13,7 +13,8 @@ RUN apt-get update && \
         ninja-build \
         software-properties-common \
         wget \
-        zlib1g-dev
+        zlib1g-dev \
+        zstd
 
 ### deps for ubuntu 20.04 ###
 FROM base AS deps-20

@@ -341,7 +341,7 @@ OFStream::OFStream(const std::string_view FileName,
       }
     } else {
       HasError = true;
-      spdlog::error("Failed to open file for writing: {}",
+      spdlog::error("Failed to open file for writing: {}"sv,
                     std::string(FileName));
     }
   } else {

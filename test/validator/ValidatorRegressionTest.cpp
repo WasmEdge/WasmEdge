@@ -202,6 +202,33 @@ TEST_F(ValidatorRegressionTest, InvalidSupertypeIndex) {
   EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
 }
 
+TEST_F(ValidatorRegressionTest, ForwardSupertypeInRecGroup) {
+  // Module: (module
+  //   (rec
+  //     (type $mid (sub $top (func (result i32))))
+  //     (type $top (sub (func (result i32))))))
+  //
+  // $mid (type index 0) declares supertype $top (type index 1), a forward
+  // reference. The GC spec requires a declared supertype to have a smaller
+  // type index than the sub type itself, so validation must fail.
+  std::array<WasmEdge::Byte, 26> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one rec group of 2 sub types
+      0x01, 0x10, 0x01, 0x4e, 0x02,
+      // type 0 ($mid): (sub 1 (func (result i32)))  -- forward supertype 1
+      0x50, 0x01, 0x01, 0x60, 0x00, 0x01, 0x7f,
+      // type 1 ($top): (sub (func (result i32)))
+      0x50, 0x00, 0x60, 0x00, 0x01, 0x7f};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
 TEST_F(ValidatorRegressionTest, ErrorPropagationRecursive) {
   std::array<WasmEdge::Byte, 255> Wasm = {
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x27, 0x02, 0x4e,
@@ -292,7 +319,7 @@ TEST_F(ValidatorRegressionTest, RejectMismatchedActiveElementRefType) {
       0x41, 0x00, 0x0b, // offset: i32.const 0, end
       0x64, 0x00,       // reftype: (ref 0)
       0x01,             // 1 init expr
-      0xd2, 0x00, 0x0b, // ref.func 0, end
+      0xd2, 0x00, 0x0b  // ref.func 0, end
   };
 
   auto Result = LoadEngine->parseModule(Wasm);

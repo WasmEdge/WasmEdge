@@ -21,5 +21,3 @@ target_include_directories(wasmedgeComponentRegressionTests
   PRIVATE
   ${PROJECT_SOURCE_DIR}/include
 )
-
-add_subdirectory(fuzzing)

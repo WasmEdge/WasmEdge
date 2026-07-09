@@ -18,8 +18,8 @@ T getJsonValue(const simdjson::dom::element &Doc, std::string_view Key) {
     T Value{};
     auto Err = Doc[Key].get<T>().get(Value);
     if (Err) {
-      std::string Msg = fmt::format("Unable to retrieve the {} option.", Key);
-      spdlog::error("[WASI-NN] GGML backend: {}", Msg);
+      std::string Msg = fmt::format("Unable to retrieve the {} option."sv, Key);
+      spdlog::error("[WASI-NN] GGML backend: {}"sv, Msg);
       throw ErrNo(ErrNo::InvalidArgument);
     }
     return Value;

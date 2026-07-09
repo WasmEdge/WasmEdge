@@ -144,8 +144,6 @@ WasiNNEnvironment::WasiNNEnvironment() noexcept {
           "[WASI-NN] Preload Model's Backend or Device is Not Support."sv);
     }
   }
-  NNGraph.reserve(16U);
-  NNContext.reserve(16U);
 }
 
 PO::List<std::string> WasiNNEnvironment::NNModels(

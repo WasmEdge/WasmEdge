@@ -6,7 +6,7 @@ WORKDIR /root
 ### deps for x86_64 ###
 FROM base AS deps-amd64
 RUN cd && (yum check-update || true) && \
-  yum install -y wget unzip zlib-devel zlib-static elfutils-libelf-devel
+  yum install -y wget unzip zlib-devel zlib-static elfutils-libelf-devel zstd
 
 COPY wasi-nn/install-pytorch.sh .
 ENV PYTORCH_VERSION="2.5.1"
@@ -17,7 +17,7 @@ RUN [ "/bin/bash", "install-pytorch.sh", "--disable-cxx11-abi" ]
 ### deps for aarch64 ###
 FROM base AS deps-arm64
 RUN cd && (yum check-update || true) && \
-  yum install -y wget unzip zlib-devel zlib-static
+  yum install -y wget unzip zlib-devel zlib-static zstd
 
 ### deps for all ###
 FROM deps-${TARGETARCH} AS final

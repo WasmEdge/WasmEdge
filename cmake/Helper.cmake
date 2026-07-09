@@ -425,13 +425,22 @@ function(wasmedge_setup_simdjson)
     FetchContent_Declare(
       simdjson
       GIT_REPOSITORY https://github.com/simdjson/simdjson.git
-      GIT_TAG  tags/v3.10.0
+      GIT_TAG  1bcf71bd85059ab6574ea1159de9298dcc1212c5  # v4.6.4
       GIT_SHALLOW TRUE
     )
     set(SIMDJSON_DEVELOPER_MODE OFF CACHE BOOL "SIMDJSON developer mode" FORCE)
     FetchContent_MakeAvailable(simdjson)
     set_property(TARGET simdjson PROPERTY POSITION_INDEPENDENT_CODE ON)
     message(STATUS "Downloading SIMDJSON source -- done")
+
+    # Consumers pull in simdjson through -isystem / -external:I so that its
+    # headers are never compiled with the project warning flags, the same way
+    # gtest is already treated.
+    get_target_property(SIMDJSON_INCLUDE_DIRS simdjson INTERFACE_INCLUDE_DIRECTORIES)
+    if(SIMDJSON_INCLUDE_DIRS)
+      set_property(TARGET simdjson PROPERTY
+        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES ${SIMDJSON_INCLUDE_DIRS})
+    endif()
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(simdjson
@@ -479,7 +488,7 @@ function(wasmedge_setup_spdlog)
     FetchContent_Declare(
       fmt
       GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-      GIT_TAG        11.0.2
+      GIT_TAG        0c9fce2ffefecfdce794e1859584e25877b7b592  # 11.0.2
       GIT_SHALLOW    TRUE
     )
     set(FMT_INSTALL OFF CACHE BOOL "Generate the install target." FORCE)
@@ -509,7 +518,7 @@ function(wasmedge_setup_spdlog)
     FetchContent_Declare(
       spdlog
       GIT_REPOSITORY https://github.com/gabime/spdlog.git
-      GIT_TAG        v1.13.0
+      GIT_TAG        7c02e204c92545f869e2f04edaab1f19fe8b19fd  # v1.13.0
       GIT_SHALLOW    TRUE
     )
     set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "Build shared library" FORCE)

@@ -33,19 +33,22 @@ public:
   TableInstance(const AST::TableType &TType) noexcept
       : TabType(TType),
         Refs(TType.getLimit().getMin(), RefVariant(TType.getRefType())),
-        InitValue(RefVariant(TType.getRefType())) {
+        InitValue(RefVariant(TType.getRefType())),
+        LiveSize(TType.getLimit().getMin()) {
     // The reference type should be nullable because there is no initial ref.
     // This constructor only handles abstract heap types correctly for null
     // refs. For concrete type indices, the caller should use the two-arg
     // constructor with a properly initialized RefVariant.
     assuming(TType.getRefType().isNullableRefType());
     assuming(TType.getRefType().isAbsHeapType());
+    DataPtr = Refs.data();
   }
   TableInstance(const AST::TableType &TType, const RefVariant &InitVal) noexcept
       : TabType(TType), Refs(TType.getLimit().getMin(), InitVal),
-        InitValue(InitVal) {
+        InitValue(InitVal), LiveSize(TType.getLimit().getMin()) {
     // If the reference type is not nullable, the initial reference is required.
     assuming(TType.getRefType().isNullableRefType() || !InitVal.isNull());
+    DataPtr = Refs.data();
   }
 
   /// Get size of table.refs
@@ -53,6 +56,13 @@ public:
     // The table size is bound to the limit in the table type.
     return TabType.getLimit().getMin();
   }
+
+  /// Get a stable pointer to the live size field for compiled code.
+  const uint64_t *getSizePtr() const noexcept { return &LiveSize; }
+
+  /// Get the stable reference to the live element buffer for compiled code.
+  RefVariant *const &getDataPtr() const noexcept { return DataPtr; }
+  RefVariant *&getDataPtr() noexcept { return DataPtr; }
 
   /// Getter for table type.
   const AST::TableType &getTableType() const noexcept { return TabType; }
@@ -85,7 +95,8 @@ public:
     }
     Refs.resize(Refs.size() + Count);
     std::fill_n(Refs.end() - static_cast<std::ptrdiff_t>(Count), Count, Val);
-    TabType.getLimit().setMin(Min + Count);
+    DataPtr = Refs.data();
+    setLiveSize(Min + Count);
     return true;
   }
   bool growTable(const uint64_t Count) noexcept {
@@ -123,15 +134,11 @@ public:
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
 
-    // Copy the references.
-    if (Dst <= Src) {
-      std::copy(Slice.begin() + Src, Slice.begin() + Src + Length,
-                Refs.begin() + static_cast<std::ptrdiff_t>(Dst));
-    } else {
-      std::copy(std::make_reverse_iterator(Slice.begin() + Src + Length),
-                std::make_reverse_iterator(Slice.begin() + Src),
-                std::make_reverse_iterator(
-                    Refs.begin() + static_cast<std::ptrdiff_t>(Dst + Length)));
+    // Copy the references. The slice may be from the same table instance, so
+    // use memmove semantics for the possible overlapping case.
+    if (likely(Length > 0)) {
+      std::memmove(Refs.data() + Dst, Slice.data() + Src,
+                   Length * sizeof(RefVariant));
     }
     return {};
   }
@@ -174,11 +181,19 @@ public:
   }
 
 private:
+  /// Update the size in the limit and its live mirror synchronously.
+  void setLiveSize(const uint64_t Size) noexcept {
+    TabType.getLimit().setMin(Size);
+    LiveSize = Size;
+  }
+
   /// \name Data of table instance.
   /// @{
   AST::TableType TabType;
   std::vector<RefVariant> Refs;
   RefVariant InitValue;
+  RefVariant *DataPtr = nullptr;
+  uint64_t LiveSize;
   /// @}
 };
 

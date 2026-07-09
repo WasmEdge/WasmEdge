@@ -180,6 +180,7 @@ workflows are called by the entries below and are not listed here; see
 | Test WasmEdge on OpenWrt | `build_for_openwrt.yml` | `workflow_dispatch` only | build/test on OpenWrt; run manually from the Actions tab |
 | Build WasmEdge on Nix | `build_for_nix.yml` | `push` (`master`), `pull_request` (`master`, `proposal/**`); paths: workflow, `flake.nix`, `flake.lock`, `include/`, `lib/`, `thirdparty/`, `tools/`, `cmake/`, `CMakeLists.txt` | `nix build` + `nix flake check` |
 | Pull Request Labeler | `labeler.yml` | `pull_request_target` (opened/synchronize/reopened/closed); no path filter | auto-labels by path; runs in base-repo context |
+| Cleanup PR caches | `cleanup-pr-caches.yml` | `pull_request_target` (closed); no path filter | deletes the closed PR's Actions caches to free the repository cache quota; runs in base-repo context |
 | release | `release.yml` | `workflow_dispatch`, `push` tags `X.Y.Z*` | creates release, tarball, release builds |
 | Submit WasmEdge MSI package to the Windows Package Manager Community Repository | `winget-submit.yml` | `workflow_dispatch`, `release` (released) | submits the MSI to the Windows Package Manager |
 

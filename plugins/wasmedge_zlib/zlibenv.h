@@ -156,17 +156,38 @@ public:
     std::string Comment;
   };
 
+  /* A gz handle keeps the WASI rights probed when its descriptor was bridged:
+     zlib operates on a duplicated native descriptor outside WASI's checks, so
+     seek/tell-shaped calls must be refused up here when the fd's rights were
+     narrowed via fd_fdstat_set_rights. Handles opened without WASI mediation
+     carry full rights. */
+  struct GZFileEntry {
+    gzFile GZ;
+    bool CanSeek;
+    bool CanTell;
+    bool RestoredAppendOffset;
+    /* true when the gz mode opened the stream for reading: only read handles
+       ever lseek the descriptor, so only they need FD_SEEK. Stays false on the
+       non-WASI fallbacks, whose CanSeek == true makes it irrelevant */
+    bool OpenedForRead = false;
+    /* guest WASI fd this handle owns, or -1: gzdopen's contract transfers the
+       guest's descriptor to the gzFile, so the gzclose that frees the handle
+       must also release the fd or a guest following the zlib documentation
+       leaks one fd table entry per open/close cycle */
+    int64_t OwnedWasiFd = -1;
+  };
+
   WasmEdgeZlibEnvironment() = default;
   WasmEdgeZlibEnvironment(const WasmEdgeZlibEnvironment &) = delete;
   WasmEdgeZlibEnvironment &operator=(const WasmEdgeZlibEnvironment &) = delete;
   ~WasmEdgeZlibEnvironment() {
-    for (const auto &[Handle, File] : GZFileMap) {
-      gzclose(File);
+    for (const auto &[Handle, Entry] : GZFileMap) {
+      gzclose(Entry.GZ);
     }
   }
 
   std::unordered_map<uint32_t, ZStreamEntry> ZStreamMap;
-  std::unordered_map<uint32_t, gzFile> GZFileMap;
+  std::unordered_map<uint32_t, GZFileEntry> GZFileMap;
   std::unordered_map<uint32_t, std::shared_ptr<GZStore>> GZHeaderMap;
   uint32_t NextGZFile = sizeof(gzFile);
 };

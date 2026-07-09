@@ -3,9 +3,16 @@
 
 #include "zlibfunc.h"
 
+#include "host/wasi/wasimodule.h"
+
 #include <cstring>
 #include <optional>
 #include <string_view>
+
+#if !defined(_WIN32)
+#include <fcntl.h>
+#include <unistd.h>
+#endif
 
 namespace WasmEdge {
 namespace Host {
@@ -57,26 +64,6 @@ constexpr uint64_t MaxGZHeaderStringLen = UINT64_C(1) << 20;
 // scan well above any real ZLIB_VERSION instead of letting a guest pointer
 // into a large non-NUL region drive an unbounded memchr over linear memory.
 constexpr uint64_t MaxZlibVersionLen = 63;
-
-// Return an in-bounds, NUL-terminated C string starting at `Offset`, or nullptr
-// when the offset is out of bounds or no terminator exists before the end of
-// linear memory (which would make zlib's strlen/strcpy read out of bounds).
-static inline const char *
-getInBoundsCString(const Runtime::Instance::MemoryInstance &MemInst,
-                   uint32_t Offset) noexcept {
-  const uint64_t MemSize = MemInst.getSize();
-  if (unlikely(Offset >= MemSize)) {
-    return nullptr;
-  }
-  const auto *Str = MemInst.getPointer<const char *>(Offset);
-  if (unlikely(Str == nullptr)) {
-    return nullptr;
-  }
-  if (unlikely(std::memchr(Str, '\0', MemSize - Offset) == nullptr)) {
-    return nullptr;
-  }
-  return Str;
-}
 
 static inline std::optional<std::string_view>
 getBoundedInBoundsCString(const Runtime::Instance::MemoryInstance &MemInst,
@@ -1458,54 +1445,417 @@ WasmEdgeZlibUncompress2::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
+// Return the WASI environment backing this instance, or nullptr when the
+// embedder did not configure WASI. FStream and the wasi_nn plugins take the
+// same const_cast to reach WASI's mutable fd table from a host function's const
+// view of the environment.
+static WASI::Environ *
+getWasiEnviron(const Runtime::CallingFrame &Frame) noexcept {
+  const auto *WasiMod = Frame.getWASIModule();
+  if (WasiMod == nullptr) {
+    return nullptr;
+  }
+  const auto *Typed = dynamic_cast<const WasiModule *>(WasiMod);
+  if (Typed == nullptr) {
+    return nullptr;
+  }
+  return const_cast<WASI::Environ *>(Typed->getEnv());
+}
+
+// Release the guest WASI fd a gz handle owns (see GZFileEntry::OwnedWasiFd)
+// once zlib has freed the handle. A close that fails because the guest already
+// released the fd itself is ignored: that guest hits the same double close
+// natively.
+static void releaseOwnedWasiFd(const Runtime::CallingFrame &Frame,
+                               int64_t OwnedWasiFd) noexcept {
+  if (OwnedWasiFd < 0) {
+    return;
+  }
+  if (auto *WasiEnv = getWasiEnviron(Frame); WasiEnv != nullptr) {
+    WasiEnv->fdClose(static_cast<__wasi_fd_t>(OwnedWasiFd));
+  }
+}
+
+// Duplicate a WASI-owned host descriptor so zlib owns an independent one
+// (gzclose closes it) without disturbing WASI's own descriptor. Returns -1 on
+// failure.
+#if defined(_WIN32)
+// Bridging a WASI descriptor to a zlib gzFile on Windows needs the underlying
+// HANDLE duplicated (getNativeHandler yields a HANDLE, not a CRT fd). Until the
+// winapi wrapper exposes DuplicateHandle, report open failure here rather than
+// pull in <windows.h> or risk a double close; the guest sees a null handle.
+// TODO: Bridge the HANDLE to a CRT fd (DuplicateHandle + _open_osfhandle) once
+// the winapi wrapper exposes it, and add Windows CI coverage for this plugin so
+// the bridge is exercised.
+static int dupNativeHandle(uint64_t) noexcept { return -1; }
+static void closeNativeFd(int) noexcept {}
+static int64_t tellNativeFd(int) noexcept { return -1; }
+static void seekNativeFd(int, int64_t) noexcept {}
+#else
+static int dupNativeHandle(uint64_t Native) noexcept {
+  // F_DUPFD_CLOEXEC rather than a bare dup(): WASI opens every descriptor with
+  // O_CLOEXEC, so zlib's duplicate must keep close-on-exec too. A bare dup()
+  // clears it, leaking the sandboxed fd across an execve while the gz handle is
+  // live, and gzdopen cannot reapply zlib's "e" mode to an already-open fd.
+  return ::fcntl(static_cast<int>(Native), F_DUPFD_CLOEXEC, 0);
+}
+static void closeNativeFd(int Fd) noexcept { ::close(Fd); }
+static int64_t tellNativeFd(int Fd) noexcept {
+  return static_cast<int64_t>(::lseek(Fd, 0, SEEK_CUR));
+}
+static void seekNativeFd(int Fd, int64_t Offset) noexcept {
+  ::lseek(Fd, static_cast<off_t>(Offset), SEEK_SET);
+}
+#endif
+
+// The subset of zlib's gz_open mode parse that decides how the file is
+// opened: the last of r/w/a wins, 'x' requests an exclusive create, 'N'
+// (zlib >= 1.3.2) requests a nonblocking open, and the last of 'T'/'G'
+// (the latter zlib >= 1.3.2) picks between a transparent and a forced-gzip
+// stream. Any '+', a mode with no direction at all, a transparent read, or
+// a forced-gzip write or append is rejected -- gz_open refuses those before
+// opening the file. Earlier zlib ignores 'G' and 'N' outright, so refusing
+// here is the fail-closed reading that keeps a refused mode free of pathOpen
+// side effects on every zlib. Every other character only affects stream
+// semantics, not the open itself.
+enum class GZOpenDir { None, Read, Write, Append };
+enum class GZOpenDirect { Auto, Transparent, ForceGzip };
+
+struct GZOpenMode {
+  GZOpenDir Dir = GZOpenDir::None;
+  bool Exclusive = false;
+  bool NonBlock = false;
+  GZOpenDirect Direct = GZOpenDirect::Auto;
+};
+
+static std::optional<GZOpenMode>
+parseGZOpenMode(std::string_view Mode) noexcept {
+  GZOpenMode Parsed;
+  for (const char C : Mode) {
+    switch (C) {
+    case 'r':
+      Parsed.Dir = GZOpenDir::Read;
+      break;
+    case 'w':
+      Parsed.Dir = GZOpenDir::Write;
+      break;
+    case 'a':
+      Parsed.Dir = GZOpenDir::Append;
+      break;
+    case 'x':
+      Parsed.Exclusive = true;
+      break;
+    case 'N':
+      Parsed.NonBlock = true;
+      break;
+    case 'T':
+      Parsed.Direct = GZOpenDirect::Transparent;
+      break;
+    case 'G':
+      Parsed.Direct = GZOpenDirect::ForceGzip;
+      break;
+    case '+':
+      return std::nullopt;
+    default:
+      break;
+    }
+  }
+  if (Parsed.Dir == GZOpenDir::None) {
+    return std::nullopt;
+  }
+  if (Parsed.Dir == GZOpenDir::Read &&
+      Parsed.Direct == GZOpenDirect::Transparent) {
+    return std::nullopt;
+  }
+  if (Parsed.Dir != GZOpenDir::Read &&
+      Parsed.Direct == GZOpenDirect::ForceGzip) {
+    return std::nullopt;
+  }
+  return Parsed;
+}
+
+// Resolve a WASI fd to its host descriptor (capability-checked by the WASI fd
+// table), duplicate it, and hand the duplicate to zlib. When OwnWasiFd is set
+// the WASI fd was opened for this call and is released here; otherwise it
+// belongs to the guest and is left intact here -- the gzdopen caller records
+// it on the handle so the gzclose that frees the handle releases it. A failure
+// returns a null-handle entry.
+static WasmEdgeZlibEnvironment::GZFileEntry
+wasiFdToGZ(WASI::Environ &WasiEnv, __wasi_fd_t WasiFd, const char *Mode,
+           bool OwnWasiFd) noexcept {
+  // Enforce the WASI rights that mediate this fd before handing zlib a raw
+  // duplicate it operates on outside WASI's checks. Only the access direction
+  // is required up front: FD_SEEK/FD_TELL stay optional so an unseekable
+  // stream (a pipe or stdout) still opens, and are recorded on the handle for
+  // the gz calls that would lseek the duplicate. Append mode is the one
+  // exception -- gz_open itself lseeks the descriptor to EOF at open time --
+  // so it requires FD_SEEK unless the fd is already append-only, where writes
+  // land at EOF regardless and the open-time reposition is undone below.
+  const auto Parsed = parseGZOpenMode(Mode);
+  if (!Parsed) {
+    spdlog::error("[WasmEdge-Zlib] [wasiFdToGZ] "sv
+                  "Unsupported gz mode \"{}\"."sv,
+                  Mode);
+    if (OwnWasiFd) {
+      WasiEnv.fdClose(WasiFd);
+    }
+    return {};
+  }
+  const __wasi_rights_t RequiredRights = Parsed->Dir == GZOpenDir::Read
+                                             ? __WASI_RIGHTS_FD_READ
+                                             : __WASI_RIGHTS_FD_WRITE;
+  if (!WasiEnv.canFd(WasiFd, RequiredRights)) {
+    spdlog::error("[WasmEdge-Zlib] [wasiFdToGZ] "sv
+                  "WASI fd lacks the rights required by mode \"{}\"."sv,
+                  Mode);
+    if (OwnWasiFd) {
+      WasiEnv.fdClose(WasiFd);
+    }
+    return {};
+  }
+  const bool CanSeek = WasiEnv.canFd(WasiFd, __WASI_RIGHTS_FD_SEEK);
+  const bool CanTell = WasiEnv.canFd(WasiFd, __WASI_RIGHTS_FD_TELL);
+  if (Parsed->Dir == GZOpenDir::Append && !CanSeek) {
+    __wasi_fdstat_t FdStat;
+    const bool AppendOnly = WasiEnv.fdFdstatGet(WasiFd, FdStat).has_value() &&
+                            (FdStat.fs_flags & __WASI_FDFLAGS_APPEND) != 0;
+    if (!AppendOnly) {
+      spdlog::error("[WasmEdge-Zlib] [wasiFdToGZ] "sv
+                    "Append mode needs FD_SEEK on a non-append-only fd."sv);
+      if (OwnWasiFd) {
+        WasiEnv.fdClose(WasiFd);
+      }
+      return {};
+    }
+  }
+  auto HandleRes = WasiEnv.getNativeHandler(WasiFd);
+  if (!HandleRes) {
+    if (OwnWasiFd) {
+      WasiEnv.fdClose(WasiFd);
+    }
+    return {};
+  }
+  const int DupFd = dupNativeHandle(*HandleRes);
+  if (OwnWasiFd) {
+    WasiEnv.fdClose(WasiFd);
+  }
+  if (DupFd < 0) {
+    // On Windows this is the expected fail-closed path (dupNativeHandle cannot
+    // bridge the HANDLE to a CRT fd yet; see its TODO); elsewhere it means the
+    // host ran out of descriptors. Either way the guest sees a null handle.
+    spdlog::error("[WasmEdge-Zlib] [wasiFdToGZ] "sv
+                  "Failed to duplicate the host descriptor for zlib."sv);
+    return {};
+  }
+  // gz_open lseeks an append-mode descriptor to EOF at open time, and the
+  // duplicate shares the guest fd's file offset. When the fd was admitted
+  // through the append-only exception (no FD_SEEK), that reposition would
+  // still be observable through the fd's remaining FD_TELL/FD_READ rights, so
+  // put the shared offset back; the append flag keeps writes landing at EOF
+  // regardless of the offset.
+  const bool RestoreOffset =
+      !OwnWasiFd && Parsed->Dir == GZOpenDir::Append && !CanSeek;
+  const int64_t SavedOffset = RestoreOffset ? tellNativeFd(DupFd) : -1;
+  gzFile GZ = gzdopen(DupFd, Mode);
+  bool RestoredAppendOffset = false;
+  if (RestoreOffset && SavedOffset >= 0) {
+    seekNativeFd(DupFd, SavedOffset);
+    RestoredAppendOffset = true;
+  }
+  if (GZ == nullptr) {
+    // gzdopen does not close the descriptor on failure.
+    closeNativeFd(DupFd);
+    return {};
+  }
+  return {GZ, CanSeek, CanTell, RestoredAppendOffset,
+          Parsed->Dir == GZOpenDir::Read};
+}
+
+// Open a guest path through the WASI capability layer (relative to preopen fd
+// 3, the default working directory) so the guest can only reach files WASI
+// granted, then bridge the host descriptor to zlib. Guest paths are
+// normalized the way wasi-libc's open() starts its preopen match: leading '/'
+// and './' runs are stripped (the libc default cwd is '/'), so an absolute
+// spelling reaches the same sandbox entry as its relative one. With several
+// preopens only fd 3 is consulted -- a documented envelope until a full
+// preopen-table match exists. The mode is parsed the way zlib's own gz_open
+// does, and before pathOpen runs: gzopen must fail without touching the file
+// on a mode zlib rejects (such as "w+"), and an exclusive "wx" create must
+// refuse to clobber an existing sandbox file rather than truncate it. zlib's
+// own gz_open re-parses the same string afterwards and stays the final
+// authority on the stream semantics.
+static WasmEdgeZlibEnvironment::GZFileEntry
+wasiGZOpen(WASI::Environ &WasiEnv, const char *Path,
+           const char *Mode) noexcept {
+  const auto Parsed = parseGZOpenMode(Mode);
+  if (!Parsed) {
+    return {};
+  }
+#if defined(_WIN32)
+  // dupNativeHandle cannot bridge a WASI handle to a CRT descriptor yet, so
+  // this open always fails; fail before pathOpen can create or truncate the
+  // file as a side effect. This is an expected Windows limitation (see the
+  // dupNativeHandle TODO), surfaced to the guest as a null handle.
+  static_cast<void>(WasiEnv);
+  static_cast<void>(Path);
+  spdlog::error("[WasmEdge-Zlib] [wasiGZOpen] "sv
+                "WASI-mediated gzopen is not supported on Windows yet; "sv
+                "returning a null handle for mode \"{}\"."sv,
+                Mode);
+  return {};
+#else
+  auto OpenFlags = static_cast<__wasi_oflags_t>(0);
+  auto FdFlags = static_cast<__wasi_fdflags_t>(0);
+  __wasi_rights_t Rights = static_cast<__wasi_rights_t>(0);
+  switch (Parsed->Dir) {
+  case GZOpenDir::Read:
+    Rights = __WASI_RIGHTS_FD_READ;
+    break;
+  case GZOpenDir::Write:
+    OpenFlags = __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC;
+    Rights = __WASI_RIGHTS_FD_WRITE;
+    break;
+  case GZOpenDir::Append:
+    OpenFlags = __WASI_OFLAGS_CREAT;
+    FdFlags = __WASI_FDFLAGS_APPEND;
+    Rights = __WASI_RIGHTS_FD_WRITE;
+    break;
+  case GZOpenDir::None:
+    return {};
+  }
+  // zlib >= 1.3.2 puts 'N' into the open(2) flags themselves; a FIFO open
+  // blocks (or fails with ENXIO on the write side) before gzdopen could apply
+  // the flag to the descriptor, so the request must ride pathOpen.
+  if (Parsed->NonBlock) {
+    FdFlags = static_cast<__wasi_fdflags_t>(FdFlags | __WASI_FDFLAGS_NONBLOCK);
+  }
+  // FD_SEEK/FD_TELL are optional for streaming use: wasiFdToGZ records them on
+  // the handle and the gz calls that would reposition the descriptor enforce
+  // them. Request them only when the preopen can inherit them (FD_SEEK implies
+  // FD_TELL, matching the fd table's own rights check); requiring them outright
+  // would make pathOpen reject a plain streaming gzopen on a directory narrowed
+  // to its direction rights.
+  __wasi_rights_t OptionalRights =
+      __WASI_RIGHTS_FD_SEEK | __WASI_RIGHTS_FD_TELL;
+  __wasi_fdstat_t DirStat;
+  if (WasiEnv.fdFdstatGet(3, DirStat).has_value()) {
+    __wasi_rights_t Inheriting = DirStat.fs_rights_inheriting;
+    if ((Inheriting & __WASI_RIGHTS_FD_SEEK) != 0) {
+      Inheriting |= __WASI_RIGHTS_FD_TELL;
+    }
+    OptionalRights &= Inheriting;
+  }
+  Rights |= OptionalRights;
+  // Native gzopen follows a final symlink the way wasi-libc's open() does
+  // (LOOKUP_SYMLINK_FOLLOW by default), and resolvePath re-walks the target
+  // with the same preopen-escape checks a guest path_open gets, so follow
+  // here too. The exception is an exclusive create: native O_EXCL refuses an
+  // existing symlink -- dangling included -- rather than following it, and
+  // gzopen applies O_EXCL only when creating (write or append); an exclusive
+  // read mode such as "rx" opens plainly.
+  auto LookupFlags = __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW;
+  if (Parsed->Exclusive && Parsed->Dir != GZOpenDir::Read) {
+    OpenFlags |= __WASI_OFLAGS_EXCL;
+    LookupFlags = static_cast<__wasi_lookupflags_t>(0);
+  }
+  // resolvePath refuses an absolute path outright, so strip the leading '/'
+  // and './' runs the way wasi-libc does before it matches a preopen; the
+  // remainder still walks resolvePath's escape checks, so a ".." can not
+  // climb past the preopen root.
+  while (Path[0] == '/' || (Path[0] == '.' && Path[1] == '/') ||
+         (Path[0] == '.' && Path[1] == '\0')) {
+    Path += (Path[0] == '.' && Path[1] == '/') ? 2 : 1;
+  }
+  auto FdRes = WasiEnv.pathOpen(3, Path, LookupFlags, OpenFlags, Rights, Rights,
+                                FdFlags);
+  if (!FdRes) {
+    return {};
+  }
+  return wasiFdToGZ(WasiEnv, *FdRes, Mode, /*OwnWasiFd=*/true);
+#endif
+}
+
+// gzopen snapshots the path and mode into host memory below; bound the scans so
+// a guest cannot place the terminator at the far end of a multi-GB linear
+// memory and force a matching host allocation. Real paths stay under PATH_MAX
+// and zlib modes are only a few characters.
+constexpr uint64_t MaxGZOpenPathLen = 4096;
+constexpr uint64_t MaxGZOpenModeLen = 63;
+
 Expect<uint32_t> WasmEdgeZlibGZOpen::body(const Runtime::CallingFrame &Frame,
                                           uint32_t PathPtr, uint32_t ModePtr) {
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  const auto *Path = getInBoundsCString(*MemInst, PathPtr);
-  const auto *Mode = getInBoundsCString(*MemInst, ModePtr);
-  if (unlikely(Path == nullptr || Mode == nullptr)) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZOpen] "sv
-                  "Out-of-bounds path or mode string."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
+  // gz_open answers a null path with a null handle before it parses the mode
+  // or touches the filesystem, and wasm address 0 is the guest's NULL, not
+  // the start of a path string.
+  if (PathPtr == 0) {
+    return UINT32_C(0);
   }
 
-  auto ZRes = gzopen(Path, Mode);
-  if (unlikely(ZRes == nullptr)) {
-    // A null gzFile is zlib's ordinary open failure (e.g. a missing file);
-    // surface it to the guest as a null handle instead of trapping. No live
-    // handle is ever 0 because NextGZFile starts at sizeof(gzFile).
+  const auto PathStr =
+      getBoundedInBoundsCString(*MemInst, PathPtr, MaxGZOpenPathLen);
+  const auto ModeStr =
+      getBoundedInBoundsCString(*MemInst, ModePtr, MaxGZOpenModeLen);
+  if (unlikely(!PathStr || !ModeStr)) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZOpen] "sv
+                  "Out-of-bounds or oversized path or mode string."sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  // Copy the guest path and mode into host memory before parsing or opening:
+  // the mode is checked for rights and then re-parsed by zlib's gz_open, and
+  // with shared linear memory another thread could rewrite the bytes in
+  // between (e.g. "r" -> "w") to open with rights that were never granted.
+  // Build the copies from the validated length so no fresh scan reaches past
+  // the range checked above.
+  const std::string Path(PathStr->data(), PathStr->size());
+  const std::string Mode(ModeStr->data(), ModeStr->size());
+
+  // Resolve the path through WASI's preopen capability layer when a WASI module
+  // is configured. Distinguish the two ways getWasiEnviron declines: with no
+  // WASI module at all there is no sandbox to honor, so fall back to a direct
+  // host open (matching the FStream convention) with a full-capability handle;
+  // but a WASI module that is present yet unrecognized (not Host::WasiModule --
+  // a custom or stub wasi_snapshot_preview1) means the guest expects a sandbox
+  // whose capabilities we cannot read, so fail closed rather than open a raw
+  // host path outside it.
+  WasmEdgeZlibEnvironment::GZFileEntry Entry{};
+  if (Frame.getWASIModule() == nullptr) {
+    Entry = {gzopen(Path.c_str(), Mode.c_str()), /*CanSeek=*/true,
+             /*CanTell=*/true, /*RestoredAppendOffset=*/false};
+  } else if (auto *WasiEnv = getWasiEnviron(Frame); WasiEnv != nullptr) {
+    Entry = wasiGZOpen(*WasiEnv, Path.c_str(), Mode.c_str());
+  } else {
+    spdlog::error(
+        "[WasmEdge-Zlib] [WasmEdgeZlibGZOpen] "sv
+        "A WASI module is configured but is not one this plugin can "sv
+        "read capabilities from; refusing to open outside the "sv
+        "capability layer."sv);
+    return UINT32_C(0);
+  }
+  if (unlikely(Entry.GZ == nullptr)) {
+    // A null gzFile is zlib's ordinary open failure (e.g. a missing file or a
+    // path outside the sandbox); surface it to the guest as a null handle
+    // instead of trapping. No live handle is ever 0 because NextGZFile starts
+    // at sizeof(gzFile).
     return UINT32_C(0);
   }
 
   const uint32_t NewWasmGZFile = Env.NextGZFile++;
-  Env.GZFileMap.emplace(NewWasmGZFile, ZRes);
+  Env.GZFileMap.emplace(NewWasmGZFile, Entry);
 
   return NewWasmGZFile;
 }
 
-Expect<uint32_t> WasmEdgeZlibGZDOpen::body(const Runtime::CallingFrame &Frame,
-                                           int32_t FD, uint32_t ModePtr) {
-  MEMINST_CHECK(MemInst, Frame, 0)
-
-  const auto *Mode = getInBoundsCString(*MemInst, ModePtr);
-  if (unlikely(Mode == nullptr)) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZDOpen] "sv
-                  "Out-of-bounds mode string."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-
-  auto ZRes = gzdopen(FD, Mode);
-  if (unlikely(ZRes == nullptr)) {
-    // Match gzopen: a null gzFile is an ordinary failure handed back to the
-    // guest as a null handle, not a host trap.
-    return UINT32_C(0);
-  }
-
-  const uint32_t NewWasmGZFile = Env.NextGZFile++;
-  Env.GZFileMap.emplace(NewWasmGZFile, ZRes);
-
-  return NewWasmGZFile;
+Expect<uint32_t> WasmEdgeZlibGZDOpen::body(const Runtime::CallingFrame &,
+                                           int32_t, uint32_t) {
+  // TODO(zlib): gzdopen is disabled pending an fd-lifecycle rework: bridging
+  // transfers fd ownership to the gzFile, and that owned WASI fd cannot yet be
+  // released safely at environment teardown without an explicit gzclose.
+  // Refuse with a null handle -- zlib's ordinary gzdopen failure -- without
+  // touching the descriptor, so the guest keeps its fd. Re-enable by restoring
+  // the bridge here (see the wasiFdToGZ path used by gzopen).
+  return UINT32_C(0);
 }
 
 Expect<int32_t> WasmEdgeZlibGZBuffer::body(const Runtime::CallingFrame &,
@@ -1517,12 +1867,18 @@ Expect<int32_t> WasmEdgeZlibGZBuffer::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  // Clamp a guest-declared buffer size to a sane maximum: gzbuffer makes zlib
-  // allocate three times this size on the first I/O, so an unclamped multi-GB
-  // request would exhaust host memory (and zlib rejects sizes >= 2^31
-  // outright).
+  // zlib refuses a size >= 2^31 (it must be able to double it) before
+  // recording anything, so keep that -1 answer instead of clamping the
+  // request into an accepted one; answering here also keeps the behavior
+  // uniform when the host links zlib-ng, which would silently clamp and
+  // accept. Below that, clamp a guest-declared size to a sane maximum:
+  // gzbuffer makes zlib allocate three times this size on the first I/O, so
+  // an unclamped request just under 2 GiB would exhaust host memory.
+  if (Size >= UINT32_C(0x80000000)) {
+    return INT32_C(-1);
+  }
   constexpr uint32_t MaxGZBufferSize = UINT32_C(64) * 1024 * 1024;
-  return gzbuffer(GZFileIt->second,
+  return gzbuffer(GZFileIt->second.GZ,
                   Size > MaxGZBufferSize ? MaxGZBufferSize : Size);
 }
 
@@ -1536,7 +1892,7 @@ Expect<int32_t> WasmEdgeZlibGZSetParams::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzsetparams(GZFileIt->second, Level, Strategy);
+  return gzsetparams(GZFileIt->second.GZ, Level, Strategy);
 }
 
 Expect<int32_t> WasmEdgeZlibGZRead::body(const Runtime::CallingFrame &Frame,
@@ -1551,9 +1907,17 @@ Expect<int32_t> WasmEdgeZlibGZRead::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
+  // gzread refuses a length that does not fit in a signed int -- it returns -1
+  // and sets Z_STREAM_ERROR without touching the buffer -- so let zlib answer
+  // instead of trapping on a range that could never be read anyway (0x7fffffff
+  // is INT_MAX).
+  if (Len > UINT32_C(0x7fffffff)) {
+    return gzread(GZFileIt->second.GZ, nullptr, Len);
+  }
+
   BUFFER_CHECK(Buf, MemInst, BufPtr, Len, "WasmEdgeZlibGZRead")
 
-  return gzread(GZFileIt->second, Buf, Len);
+  return gzread(GZFileIt->second.GZ, Buf, Len);
 }
 
 Expect<int32_t> WasmEdgeZlibGZFread::body(const Runtime::CallingFrame &Frame,
@@ -1569,9 +1933,20 @@ Expect<int32_t> WasmEdgeZlibGZFread::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0)
 
   const uint64_t Bytes = static_cast<uint64_t>(Size) * NItems;
+  // A wasm32 guest's z_size_t is 32-bit, so a size*nitems product that does
+  // not fit maps to zlib's documented overflow: nothing is read, zero comes
+  // back, and gz_error records a sticky Z_STREAM_ERROR that blocks further
+  // I/O until gzclearerr. Reproduce that exact path on the host stream -- its
+  // 64-bit gzfread would otherwise attempt the multi-GB read -- with a
+  // product that also overflows the host z_size_t: the buffer is never
+  // touched, and a wrong-mode or already-errored handle still answers first,
+  // as it would natively.
+  if (Bytes > UINT32_MAX) {
+    return gzfread(nullptr, static_cast<z_size_t>(-1), 2, GZFileIt->second.GZ);
+  }
   BUFFER_CHECK(Buf, MemInst, BufPtr, Bytes, "WasmEdgeZlibGZFread")
 
-  return gzfread(Buf, Size, NItems, GZFileIt->second);
+  return gzfread(Buf, Size, NItems, GZFileIt->second.GZ);
 }
 
 Expect<int32_t> WasmEdgeZlibGZWrite::body(const Runtime::CallingFrame &Frame,
@@ -1586,9 +1961,17 @@ Expect<int32_t> WasmEdgeZlibGZWrite::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
+  // gzwrite refuses a length that does not fit in a signed int -- it returns
+  // 0 and sets Z_DATA_ERROR without touching the buffer -- so as with gzread
+  // let zlib answer instead of trapping on a range that could never be
+  // written anyway (0x7fffffff is INT_MAX).
+  if (Len > UINT32_C(0x7fffffff)) {
+    return gzwrite(GZFileIt->second.GZ, nullptr, Len);
+  }
+
   BUFFER_CHECK(Buf, MemInst, BufPtr, Len, "WasmEdgeZlibGZWrite")
 
-  return gzwrite(GZFileIt->second, Buf, Len);
+  return gzwrite(GZFileIt->second.GZ, Buf, Len);
 }
 
 Expect<int32_t> WasmEdgeZlibGZFwrite::body(const Runtime::CallingFrame &Frame,
@@ -1604,9 +1987,16 @@ Expect<int32_t> WasmEdgeZlibGZFwrite::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0)
 
   const uint64_t Bytes = static_cast<uint64_t>(Size) * NItems;
+  // As with gzfread, a wasm32 size*nitems overflow is zlib's documented
+  // zero-return with a sticky Z_STREAM_ERROR; reproduce it on the host stream
+  // with a product that also overflows the host z_size_t, which never touches
+  // the buffer.
+  if (Bytes > UINT32_MAX) {
+    return gzfwrite(nullptr, static_cast<z_size_t>(-1), 2, GZFileIt->second.GZ);
+  }
   BUFFER_CHECK(Buf, MemInst, BufPtr, Bytes, "WasmEdgeZlibGZFwrite")
 
-  return gzfwrite(Buf, Size, NItems, GZFileIt->second);
+  return gzfwrite(Buf, Size, NItems, GZFileIt->second.GZ);
 }
 
 Expect<int32_t> WasmEdgeZlibGZPuts::body(const Runtime::CallingFrame &Frame,
@@ -1620,14 +2010,29 @@ Expect<int32_t> WasmEdgeZlibGZPuts::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  const auto *String = getInBoundsCString(*MemInst, StringPtr);
-  if (unlikely(String == nullptr)) {
+  const auto String =
+      getBoundedInBoundsCString(*MemInst, StringPtr, UINT64_MAX);
+  if (unlikely(!String)) {
     spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZPuts] "sv
                   "Out-of-bounds string."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzputs(GZFileIt->second, String);
+  // Write the validated bytes directly rather than copying them into a host
+  // string: gzputs would re-scan guest memory with strlen (a TOCTOU under
+  // shared memory), and snapshotting a guest-chosen length could force a
+  // multi-GB host allocation. gzwrite takes the measured length, so zlib never
+  // rescans and nothing is materialized. gzputs refuses a non-writing or
+  // errored handle before accepting even a zero-length string, so the empty
+  // case asks the real gzputs with a host-owned empty string, and a short
+  // write reports -1 (not the byte count) exactly as gzputs does.
+  if (String->empty()) {
+    return gzputs(GZFileIt->second.GZ, "");
+  }
+  const int Written = gzwrite(GZFileIt->second.GZ, String->data(),
+                              static_cast<unsigned>(String->size()));
+  return Written > 0 && static_cast<size_t>(Written) == String->size() ? Written
+                                                                       : -1;
 }
 
 Expect<int32_t> WasmEdgeZlibGZPutc::body(const Runtime::CallingFrame &,
@@ -1639,7 +2044,7 @@ Expect<int32_t> WasmEdgeZlibGZPutc::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzputc(GZFileIt->second, C);
+  return gzputc(GZFileIt->second.GZ, C);
 }
 
 Expect<int32_t> WasmEdgeZlibGZGetc::body(const Runtime::CallingFrame &,
@@ -1651,7 +2056,7 @@ Expect<int32_t> WasmEdgeZlibGZGetc::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzgetc(GZFileIt->second);
+  return gzgetc(GZFileIt->second.GZ);
 }
 
 Expect<int32_t> WasmEdgeZlibGZUngetc::body(const Runtime::CallingFrame &,
@@ -1663,7 +2068,7 @@ Expect<int32_t> WasmEdgeZlibGZUngetc::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzungetc(C, GZFileIt->second);
+  return gzungetc(C, GZFileIt->second.GZ);
 }
 
 Expect<int32_t> WasmEdgeZlibGZFlush::body(const Runtime::CallingFrame &,
@@ -1675,7 +2080,7 @@ Expect<int32_t> WasmEdgeZlibGZFlush::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzflush(GZFileIt->second, Flush);
+  return gzflush(GZFileIt->second.GZ, Flush);
 }
 
 Expect<int32_t> WasmEdgeZlibGZSeek::body(const Runtime::CallingFrame &,
@@ -1688,7 +2093,16 @@ Expect<int32_t> WasmEdgeZlibGZSeek::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzseek(GZFileIt->second, Offset, Whence);
+  // WASI's capability checks never see zlib's lseek on the duplicated
+  // descriptor, so refuse repositioning when FD_SEEK was absent at open. Only
+  // read handles need the gate: write-mode gzseek never repositions the
+  // descriptor (zlib answers -1 to backward seeks and compresses zeros for
+  // forward seeks), while a read-mode seek may lseek at zlib's discretion.
+  if (unlikely(!GZFileIt->second.CanSeek && GZFileIt->second.OpenedForRead)) {
+    return static_cast<int32_t>(-1);
+  }
+
+  return gzseek(GZFileIt->second.GZ, Offset, Whence);
 }
 
 Expect<int32_t> WasmEdgeZlibGZRewind::body(const Runtime::CallingFrame &,
@@ -1700,7 +2114,14 @@ Expect<int32_t> WasmEdgeZlibGZRewind::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzrewind(GZFileIt->second);
+  // gzrewind repositions the descriptor with lseek only for read handles
+  // (zlib answers -1 in write mode before any lseek), so enforce FD_SEEK the
+  // same way as gzseek above.
+  if (unlikely(!GZFileIt->second.CanSeek && GZFileIt->second.OpenedForRead)) {
+    return static_cast<int32_t>(-1);
+  }
+
+  return gzrewind(GZFileIt->second.GZ);
 }
 
 Expect<int32_t> WasmEdgeZlibGZTell::body(const Runtime::CallingFrame &,
@@ -1712,7 +2133,7 @@ Expect<int32_t> WasmEdgeZlibGZTell::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gztell(GZFileIt->second);
+  return gztell(GZFileIt->second.GZ);
 }
 
 Expect<int32_t> WasmEdgeZlibGZOffset::body(const Runtime::CallingFrame &,
@@ -1724,7 +2145,15 @@ Expect<int32_t> WasmEdgeZlibGZOffset::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzoffset(GZFileIt->second);
+  // gzoffset queries the descriptor position with lseek; refuse when FD_TELL
+  // was absent at open. gztell stays available regardless: zlib computes it
+  // from its own counters without touching the descriptor, as on a pipe.
+  if (unlikely(!GZFileIt->second.CanTell ||
+               GZFileIt->second.RestoredAppendOffset)) {
+    return static_cast<int32_t>(-1);
+  }
+
+  return gzoffset(GZFileIt->second.GZ);
 }
 
 Expect<int32_t> WasmEdgeZlibGZEof::body(const Runtime::CallingFrame &,
@@ -1736,7 +2165,7 @@ Expect<int32_t> WasmEdgeZlibGZEof::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzeof(GZFileIt->second);
+  return gzeof(GZFileIt->second.GZ);
 }
 
 Expect<int32_t> WasmEdgeZlibGZDirect::body(const Runtime::CallingFrame &,
@@ -1748,10 +2177,10 @@ Expect<int32_t> WasmEdgeZlibGZDirect::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzdirect(GZFileIt->second);
+  return gzdirect(GZFileIt->second.GZ);
 }
 
-Expect<int32_t> WasmEdgeZlibGZClose::body(const Runtime::CallingFrame &,
+Expect<int32_t> WasmEdgeZlibGZClose::body(const Runtime::CallingFrame &Frame,
                                           uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
@@ -1760,14 +2189,16 @@ Expect<int32_t> WasmEdgeZlibGZClose::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const auto ZRes = gzclose(GZFileIt->second);
+  const int64_t OwnedWasiFd = GZFileIt->second.OwnedWasiFd;
+  const auto ZRes = gzclose(GZFileIt->second.GZ);
 
   Env.GZFileMap.erase(GZFileIt);
+  releaseOwnedWasiFd(Frame, OwnedWasiFd);
 
   return ZRes;
 }
 
-Expect<int32_t> WasmEdgeZlibGZClose_r::body(const Runtime::CallingFrame &,
+Expect<int32_t> WasmEdgeZlibGZClose_r::body(const Runtime::CallingFrame &Frame,
                                             uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
@@ -1776,17 +2207,21 @@ Expect<int32_t> WasmEdgeZlibGZClose_r::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const auto ZRes = gzclose_r(GZFileIt->second);
+  const int64_t OwnedWasiFd = GZFileIt->second.OwnedWasiFd;
+  const auto ZRes = gzclose_r(GZFileIt->second.GZ);
 
   // Z_STREAM_ERROR means the handle was the wrong mode and was NOT freed; keep
-  // it so the environment destructor can still reclaim it.
-  if (ZRes != Z_STREAM_ERROR)
+  // it (and the guest fd it owns) so the environment destructor can still
+  // reclaim it.
+  if (ZRes != Z_STREAM_ERROR) {
     Env.GZFileMap.erase(GZFileIt);
+    releaseOwnedWasiFd(Frame, OwnedWasiFd);
+  }
 
   return ZRes;
 }
 
-Expect<int32_t> WasmEdgeZlibGZClose_w::body(const Runtime::CallingFrame &,
+Expect<int32_t> WasmEdgeZlibGZClose_w::body(const Runtime::CallingFrame &Frame,
                                             uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
@@ -1795,12 +2230,16 @@ Expect<int32_t> WasmEdgeZlibGZClose_w::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const auto ZRes = gzclose_w(GZFileIt->second);
+  const int64_t OwnedWasiFd = GZFileIt->second.OwnedWasiFd;
+  const auto ZRes = gzclose_w(GZFileIt->second.GZ);
 
   // Z_STREAM_ERROR means the handle was the wrong mode and was NOT freed; keep
-  // it so the environment destructor can still reclaim it.
-  if (ZRes != Z_STREAM_ERROR)
+  // it (and the guest fd it owns) so the environment destructor can still
+  // reclaim it.
+  if (ZRes != Z_STREAM_ERROR) {
     Env.GZFileMap.erase(GZFileIt);
+    releaseOwnedWasiFd(Frame, OwnedWasiFd);
+  }
 
   return ZRes;
 }
@@ -1814,7 +2253,7 @@ Expect<void> WasmEdgeZlibGZClearerr::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  gzclearerr(GZFileIt->second);
+  gzclearerr(GZFileIt->second.GZ);
 
   return Expect<void>{};
 }
@@ -2047,7 +2486,7 @@ Expect<int32_t> WasmEdgeZlibGZGetc_::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzgetc_(GZFileIt->second);
+  return gzgetc_(GZFileIt->second.GZ);
 }
 
 Expect<int32_t>

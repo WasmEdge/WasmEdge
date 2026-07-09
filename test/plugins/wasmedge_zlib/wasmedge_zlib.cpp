@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
+#include "host/wasi/wasimodule.h"
 #include "runtime/instance/module.h"
 #include "zlibfunc.h"
 #include "zlibmodule.h"
@@ -12,10 +13,15 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <gtest/gtest.h>
 #include <memory>
 #include <string>
 #include <vector>
+
+#if !defined(_WIN32)
+#include <sys/stat.h>
+#endif
 
 namespace {
 
@@ -44,6 +50,14 @@ std::unique_ptr<WasmEdge::Host::WasmEdgeZlibModule> createModule() {
   }
   return {};
 }
+
+// Exposes ModuleInstance's protected setWASIModule so a test can wire a WASI
+// module without going through full module instantiation.
+class WasiWiredModule : public WasmEdge::Runtime::Instance::ModuleInstance {
+public:
+  using ModuleInstance::ModuleInstance;
+  void wireWASIModule(const ModuleInstance *M) noexcept { setWASIModule(M); }
+};
 
 } // namespace
 
@@ -1114,7 +1128,62 @@ TEST(WasmEdgeZlibTest, HardeningUnterminatedString) {
   GET_ZLIB_FUNC(GZOpen, "gzopen")
   EXPECT_FALSE(GZOpen.run(
       CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(100)},
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1), UINT32_C(100)},
+      RetVal));
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZOpenRejectsOversizedPathOrMode) {
+  // gzopen bounds its path and mode snapshots, so a terminator that exists only
+  // beyond the cap is rejected rather than scanned to and copied -- otherwise a
+  // guest could put the NUL at the far end of a huge memory and force a
+  // matching host allocation.
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+
+  // Oversized path: fill memory with a non-NUL byte so the only terminators are
+  // the ones placed here. The path's NUL sits past the 4096 cap, so the scan
+  // gives up; a short valid mode isolates the failure to the path.
+  std::fill_n(MemInst.getPointer<uint8_t *>(0),
+              static_cast<size_t>(MemInst.getSize()),
+              static_cast<uint8_t>('A'));
+  MemInst.getPointer<char *>(1)[5000] = '\0';
+  std::strcpy(MemInst.getPointer<char *>(6000), "rb");
+  EXPECT_FALSE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1), UINT32_C(6000)},
+      RetVal));
+
+  // A guest-null path is gz_open's own pre-open failure (a null handle):
+  // wasm address 0 is NULL, not the start of a path string, so nothing at
+  // offset 0 may be scanned or opened.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(6000)},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+
+  // Oversized mode: a short valid path, but the mode's NUL sits past the
+  // 63-byte cap.
+  std::fill_n(MemInst.getPointer<uint8_t *>(0),
+              static_cast<size_t>(MemInst.getSize()),
+              static_cast<uint8_t>('A'));
+  std::strcpy(MemInst.getPointer<char *>(1), "/tmp/x");
+  MemInst.getPointer<char *>(100)[200] = '\0';
+  EXPECT_FALSE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1), UINT32_C(100)},
       RetVal));
 }
 
@@ -1135,9 +1204,9 @@ TEST(WasmEdgeZlibTest, GZFileRoundTrip) {
   const std::string TmpPath = (std::filesystem::temp_directory_path() /
                                "wasmedge_zlib_hardening_test.gz")
                                   .string();
-  ASSERT_LT(TmpPath.size() + 1, 1024U);
+  ASSERT_LT(TmpPath.size() + 1, 1000U);
 
-  const uint32_t PathPtr = 0;
+  const uint32_t PathPtr = 16;
   std::strcpy(MemInst.getPointer<char *>(PathPtr), TmpPath.c_str());
   const uint32_t ModeWPtr = 1024;
   std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
@@ -1177,11 +1246,13 @@ TEST(WasmEdgeZlibTest, GZFileRoundTrip) {
   const uint32_t RHandle = RetVal[0].get<uint32_t>();
   EXPECT_NE(RHandle, WHandle);
 
-  // gzread with an out-of-bounds length must fail rather than overflow the
-  // buffer.
+  // gzread with an out-of-bounds length that still fits in an int must trap
+  // rather than overflow the buffer (a length that does not fit in an int is
+  // instead answered by zlib itself; see
+  // HardeningGZOversizedRequestsMatchZlib).
   EXPECT_FALSE(GZRead.run(CallFrame,
                           std::initializer_list<WasmEdge::ValVariant>{
-                              RHandle, UINT32_C(60000), UINT32_C(0xFFFFFFFF)},
+                              RHandle, UINT32_C(60000), UINT32_C(0x40000000)},
                           RetVal));
 
   const uint32_t ReadBuf = 4096;
@@ -1200,6 +1271,258 @@ TEST(WasmEdgeZlibTest, GZFileRoundTrip) {
   EXPECT_FALSE(GZClose.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
 
+  std::remove(TmpPath.c_str());
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZOversizedRequestsMatchZlib) {
+  // zlib answers oversized gz I/O with a documented error rather than OOB
+  // access, and the wrappers must surface that instead of trapping:
+  //   - gzread returns -1 for a length that does not fit in a signed int;
+  //   - gzwrite returns 0 for a length that does not fit in a signed int;
+  //   - gzfread/gzfwrite return 0 when size*nitems overflows the guest's
+  //     32-bit z_size_t, and like native zlib they leave a sticky
+  //     Z_STREAM_ERROR on the handle that blocks further I/O until
+  //     gzclearerr.
+  // gzputs is now written through gzwrite, so also confirm it round-trips.
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const std::string TmpPath = (std::filesystem::temp_directory_path() /
+                               "wasmedge_zlib_oversized_test.gz")
+                                  .string();
+  ASSERT_LT(TmpPath.size() + 1, 1000U);
+  const uint32_t PathPtr = 16;
+  std::strcpy(MemInst.getPointer<char *>(PathPtr), TmpPath.c_str());
+  const uint32_t ModeWPtr = 1024;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+  const uint32_t ModeRPtr = 1040;
+  std::strcpy(MemInst.getPointer<char *>(ModeRPtr), "rb");
+  const uint32_t StrPtr = 1100;
+  const char *const Payload = "gzputs through gzwrite";
+  const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
+  std::strcpy(MemInst.getPointer<char *>(StrPtr), Payload);
+  // A guest offset holding a zero byte is an empty string.
+  const uint32_t EmptyStrPtr = 2048;
+  MemInst.getPointer<char *>(EmptyStrPtr)[0] = '\0';
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+  GET_ZLIB_FUNC(GZPuts, "gzputs")
+  GET_ZLIB_FUNC(GZWrite, "gzwrite")
+  GET_ZLIB_FUNC(GZFwrite, "gzfwrite")
+  GET_ZLIB_FUNC(GZRead, "gzread")
+  GET_ZLIB_FUNC(GZFread, "gzfread")
+  GET_ZLIB_FUNC(GZClearerr, "gzclearerr")
+  GET_ZLIB_FUNC(GZClose, "gzclose")
+
+  // > INT_MAX, and 0x80000000 * 2 also overflows a 32-bit z_size_t.
+  const uint32_t Oversized = UINT32_C(0x80000000);
+
+  if (!GZOpen.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWPtr},
+          RetVal)) {
+    GTEST_SKIP() << "cannot create temporary file: " << TmpPath;
+  }
+  const uint32_t WHandle = RetVal[0].get<uint32_t>();
+
+  // gzputs writes the measured string and returns the byte count.
+  ASSERT_TRUE(GZPuts.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle, StrPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+
+  // An empty string writes nothing and returns 0, not -1.
+  ASSERT_TRUE(GZPuts.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, EmptyStrPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(0));
+
+  // gzfwrite whose size*nitems overflows a 32-bit product returns 0 and, as
+  // in native zlib, records a sticky Z_STREAM_ERROR: even an empty gzputs is
+  // refused (-1) until gzclearerr lifts it. The empty probe writes no bytes,
+  // so the payload read back below stays unchanged.
+  ASSERT_TRUE(GZFwrite.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               StrPtr, Oversized, UINT32_C(2), WHandle},
+                           RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(0));
+  ASSERT_TRUE(GZPuts.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, EmptyStrPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(-1));
+  ASSERT_TRUE(GZClearerr.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, {}));
+  ASSERT_TRUE(GZPuts.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, EmptyStrPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(0));
+
+  // gzwrite with a length that does not fit in an int returns 0 instead of
+  // trapping; like native zlib it leaves a sticky Z_DATA_ERROR, so probe it
+  // last in the write phase.
+  ASSERT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, StrPtr, Oversized},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(0));
+
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, RetVal));
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeRPtr},
+      RetVal));
+  const uint32_t RHandle = RetVal[0].get<uint32_t>();
+
+  // A normal read returns the payload gzputs wrote, confirming the
+  // gzwrite-backed gzputs round-trips. Do this before the oversized probes
+  // below, which -- like native zlib -- leave a sticky Z_STREAM_ERROR.
+  const uint32_t ReadBuf = 4096;
+  ASSERT_TRUE(GZRead.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, ReadBuf, UINT32_C(256)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_EQ(
+      0, std::memcmp(MemInst.getPointer<char *>(ReadBuf), Payload, PayloadLen));
+
+  // gzfread whose size*nitems overflows a 32-bit product returns 0 and, as in
+  // native zlib, records a sticky Z_STREAM_ERROR: a normal gzread answers -1
+  // until gzclearerr lifts it (after which the drained stream reads 0 at EOF).
+  ASSERT_TRUE(GZFread.run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              ReadBuf, Oversized, UINT32_C(2), RHandle},
+                          RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(0));
+  ASSERT_TRUE(GZRead.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, ReadBuf, UINT32_C(8)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(-1));
+  ASSERT_TRUE(GZClearerr.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, {}));
+  ASSERT_TRUE(GZRead.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, ReadBuf, UINT32_C(8)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(0));
+
+  // gzread with a length that does not fit in an int returns -1 instead of
+  // trapping (zlib also sets the sticky Z_STREAM_ERROR).
+  ASSERT_TRUE(GZRead.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{RHandle, ReadBuf, Oversized},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), INT32_C(-1));
+
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
+  std::remove(TmpPath.c_str());
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZPutsEmptyStringHonorsMode) {
+  // gzputs refuses a handle that is not writing before accepting even a
+  // zero-length string, so an empty write on a read handle must answer -1
+  // like native gzputs instead of a hardcoded no-op 0.
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const std::string TmpPath =
+      (std::filesystem::temp_directory_path() / "wasmedge_zlib_gzputs_mode.gz")
+          .string();
+  ASSERT_LT(TmpPath.size() + 1, 1000U);
+
+  const uint32_t PathPtr = 16;
+  std::strcpy(MemInst.getPointer<char *>(PathPtr), TmpPath.c_str());
+  const uint32_t ModeWPtr = 1024;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+  const uint32_t ModeRPtr = 1040;
+  std::strcpy(MemInst.getPointer<char *>(ModeRPtr), "rb");
+  const uint32_t EmptyPtr = 1060;
+  MemInst.getPointer<char *>(EmptyPtr)[0] = '\0';
+  const uint32_t DataPtr = 1100;
+  const char *const Payload = "gzputs mode probe";
+  const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
+  std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+  GET_ZLIB_FUNC(GZPuts, "gzputs")
+  GET_ZLIB_FUNC(GZRead, "gzread")
+  GET_ZLIB_FUNC(GZClose, "gzclose")
+
+  if (!GZOpen.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWPtr},
+          RetVal)) {
+    GTEST_SKIP() << "cannot create temporary file: " << TmpPath;
+  }
+  const uint32_t WHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(WHandle, 0U);
+
+  // On a write handle an empty string is an accepted no-op.
+  EXPECT_TRUE(GZPuts.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle, EmptyPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), 0);
+  EXPECT_TRUE(GZPuts.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle, DataPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, RetVal));
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeRPtr},
+      RetVal));
+  const uint32_t RHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(RHandle, 0U);
+
+  // On a read handle gzputs answers -1 for the empty and non-empty string
+  // alike; neither may be reported as a successful no-op.
+  EXPECT_TRUE(GZPuts.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle, EmptyPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), -1);
+  EXPECT_TRUE(GZPuts.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle, DataPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), -1);
+
+  // The rejected writes did not disturb the handle: the payload reads back.
+  const uint32_t ReadBuf = 4096;
+  EXPECT_TRUE(GZRead.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, ReadBuf, UINT32_C(256)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_EQ(
+      0, std::memcmp(MemInst.getPointer<char *>(ReadBuf), Payload, PayloadLen));
+
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
   std::remove(TmpPath.c_str());
 }
 
@@ -1342,7 +1665,7 @@ TEST(WasmEdgeZlibTest, GZOpenFailureReturnsNullHandle) {
        "definitely_absent.gz")
           .string();
   ASSERT_LT(MissingPath.size() + 1, 900U);
-  const uint32_t PathPtr = 0;
+  const uint32_t PathPtr = 16;
   std::strcpy(MemInst.getPointer<char *>(PathPtr), MissingPath.c_str());
   const uint32_t ModePtr = 1000;
   std::strcpy(MemInst.getPointer<char *>(ModePtr), "rb");
@@ -3799,8 +4122,8 @@ TEST(WasmEdgeZlibTest, HardeningGZBufferClampsSize) {
   const std::string TmpPath = (std::filesystem::temp_directory_path() /
                                "wasmedge_zlib_gzbuffer_test.gz")
                                   .string();
-  ASSERT_LT(TmpPath.size() + 1, 1024U);
-  const uint32_t PathPtr = 0;
+  ASSERT_LT(TmpPath.size() + 1, 1000U);
+  const uint32_t PathPtr = 16;
   std::strcpy(MemInst.getPointer<char *>(PathPtr), TmpPath.c_str());
   const uint32_t ModeWPtr = 1024;
   std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
@@ -3817,13 +4140,21 @@ TEST(WasmEdgeZlibTest, HardeningGZBufferClampsSize) {
   }
   const uint32_t WHandle = RetVal[0].get<uint32_t>();
 
-  // A guest-declared ~4 GB buffer size must be clamped to a sane cap rather
-  // than forwarded verbatim: zlib rejects sizes >= 2^31 (returning -1) and
-  // otherwise allocates three times the size on first I/O. After clamping, an
-  // absurd request is accepted (returns 0) with a bounded host allocation.
+  // A size zlib itself refuses (>= 2^31, it must be able to double it) keeps
+  // its native -1 answer instead of being clamped into an accepted request.
   EXPECT_TRUE(GZBuffer.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
                                WHandle, UINT32_C(0xFFFFFFFF)},
+                           RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), -1);
+
+  // Below that, a guest-declared buffer size must be clamped to a sane cap
+  // rather than forwarded verbatim, since zlib allocates three times the size
+  // on first I/O: an absurd request is accepted (returns 0) with a bounded
+  // host allocation.
+  EXPECT_TRUE(GZBuffer.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               WHandle, UINT32_C(0x40000000)},
                            RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), 0);
 
@@ -4215,6 +4546,914 @@ TEST(WasmEdgeZlibTest, HardeningDeflateInitValidatesVersionString) {
                                    static_cast<int32_t>(sizeof(WasmZStream))},
                                RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_VERSION_ERROR);
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZOpenMediatedByWasi) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasiWiredModule Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  // Stand up a WASI sandbox with a single preopened directory (becomes fd 3).
+  const std::filesystem::path SandboxDir =
+      std::filesystem::temp_directory_path() / "wasmedge_zlib_wasi_sandbox";
+  std::error_code EC;
+  std::filesystem::create_directories(SandboxDir, EC);
+  std::filesystem::remove(SandboxDir / "wasi.gz", EC);
+
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const uint32_t PathPtr = 16;
+  std::strcpy(MemInst.getPointer<char *>(PathPtr), "wasi.gz");
+  const uint32_t ModeWPtr = 64;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+  const uint32_t ModeRPtr = 96;
+  std::strcpy(MemInst.getPointer<char *>(ModeRPtr), "rb");
+  const uint32_t EscapePtr = 128;
+  std::strcpy(MemInst.getPointer<char *>(EscapePtr), "../wasi_escape.gz");
+  const uint32_t DataPtr = 256;
+  const char *const Payload = "hello wasi-mediated gzip";
+  const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
+  std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+  GET_ZLIB_FUNC(GZWrite, "gzwrite")
+  GET_ZLIB_FUNC(GZRead, "gzread")
+  GET_ZLIB_FUNC(GZClose, "gzclose")
+
+  // A relative path is resolved through WASI, inside the preopened directory.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWPtr},
+      RetVal));
+  const uint32_t WHandle = RetVal[0].get<uint32_t>();
+  if (WHandle == 0) {
+    GTEST_SKIP() << "WASI preopen unavailable in this environment";
+  }
+  EXPECT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, DataPtr, PayloadLen},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, RetVal));
+
+  // The file must land inside the sandbox host directory, proving the open went
+  // through the WASI preopen rather than the process working directory.
+  EXPECT_TRUE(std::filesystem::exists(SandboxDir / "wasi.gz"));
+
+  // Round-trip read back through WASI mediation.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeRPtr},
+      RetVal));
+  const uint32_t RHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(RHandle, 0U);
+  const uint32_t ReadBuf = 512;
+  EXPECT_TRUE(GZRead.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, ReadBuf, UINT32_C(256)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_EQ(
+      0, std::memcmp(MemInst.getPointer<char *>(ReadBuf), Payload, PayloadLen));
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
+
+  // A path escaping the preopened directory is denied by WASI (null handle),
+  // rather than opened on the host as raw gzopen would.
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{EscapePtr, ModeWPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+
+  std::filesystem::remove(SandboxDir / "wasi.gz", EC);
+  std::filesystem::remove(SandboxDir / "wasi_escape.gz", EC);
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZOpenWasiAcceptsAbsoluteGuestPaths) {
+  // wasi-libc's open() strips leading '/' and './' runs before matching the
+  // preopen table (its default cwd is '/'), so "/f.gz" and "f.gz" name the
+  // same sandbox entry for a guest. resolvePath instead rejects absolute
+  // paths outright, so gzopen must normalize the same way before pathOpen or
+  // every absolute guest path fails with a null handle. Stripping only
+  // removes leading no-ops: ".." still cannot climb out of the preopen.
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasiWiredModule Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  const std::filesystem::path SandboxDir =
+      std::filesystem::temp_directory_path() / "wasmedge_zlib_wasi_abs";
+  std::error_code EC;
+  std::filesystem::create_directories(SandboxDir, EC);
+  std::filesystem::remove(SandboxDir / "wasi_probe.gz", EC);
+  std::filesystem::remove(SandboxDir / "wasi_abs.gz", EC);
+
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const uint32_t ProbePtr = 16;
+  std::strcpy(MemInst.getPointer<char *>(ProbePtr), "wasi_probe.gz");
+  const uint32_t AbsPtr = 96;
+  std::strcpy(MemInst.getPointer<char *>(AbsPtr), "/wasi_abs.gz");
+  const uint32_t DotPtr = 176;
+  std::strcpy(MemInst.getPointer<char *>(DotPtr), "./wasi_abs.gz");
+  const uint32_t MixedPtr = 256;
+  std::strcpy(MemInst.getPointer<char *>(MixedPtr), "//./wasi_abs.gz");
+  const uint32_t EscapePtr = 336;
+  std::strcpy(MemInst.getPointer<char *>(EscapePtr), "/../wasi_abs_escape.gz");
+  const uint32_t ModeWPtr = 512;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+  const uint32_t ModeRPtr = 544;
+  std::strcpy(MemInst.getPointer<char *>(ModeRPtr), "rb");
+  const uint32_t DataPtr = 1024;
+  const char *const Payload = "absolute path through the preopen";
+  const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
+  std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+  GET_ZLIB_FUNC(GZWrite, "gzwrite")
+  GET_ZLIB_FUNC(GZRead, "gzread")
+  GET_ZLIB_FUNC(GZClose, "gzclose")
+
+  // Baseline relative open, which also detects environments without the WASI
+  // bridge.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{ProbePtr, ModeWPtr}, RetVal));
+  const uint32_t ProbeHandle = RetVal[0].get<uint32_t>();
+  if (ProbeHandle == 0) {
+    GTEST_SKIP() << "WASI preopen unavailable in this environment";
+  }
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{ProbeHandle},
+      RetVal));
+
+  // An absolute guest path lands on the same sandbox entry as its relative
+  // spelling, the way wasi-libc resolves it.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{AbsPtr, ModeWPtr},
+      RetVal));
+  const uint32_t WHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(WHandle, 0U);
+  EXPECT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, DataPtr, PayloadLen},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, RetVal));
+  EXPECT_TRUE(std::filesystem::exists(SandboxDir / "wasi_abs.gz"));
+
+  // "./" and mixed "//./" spellings normalize to the same entry too.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{DotPtr, ModeRPtr},
+      RetVal));
+  const uint32_t RHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(RHandle, 0U);
+  const uint32_t ReadBuf = 2048;
+  EXPECT_TRUE(GZRead.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, ReadBuf, UINT32_C(256)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_EQ(
+      0, std::memcmp(MemInst.getPointer<char *>(ReadBuf), Payload, PayloadLen));
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{MixedPtr, ModeRPtr}, RetVal));
+  const uint32_t MHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(MHandle, 0U);
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{MHandle}, RetVal));
+
+  // Stripping must not open an escape hatch: a normalized path that then
+  // climbs with ".." is still denied by the resolver.
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{EscapePtr, ModeWPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+
+  std::filesystem::remove(SandboxDir / "wasi_probe.gz", EC);
+  std::filesystem::remove(SandboxDir / "wasi_abs.gz", EC);
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZOpenUnrecognizedWasiFailsClosed) {
+  // A wasi_snapshot_preview1 import can be satisfied by a module that is not
+  // WasmEdge's Host::WasiModule (a custom or stub WASI). getWasiEnviron cannot
+  // read its capabilities, so gzopen must fail closed with a null handle rather
+  // than fall back to a raw host open that would reach files outside the
+  // sandbox the guest expects.
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasiWiredModule Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  // Wire a plain module instance (not a WasiModule) as the WASI module, the way
+  // an embedder supplying a custom wasi_snapshot_preview1 would.
+  WasmEdge::Runtime::Instance::ModuleInstance StubWasi(
+      "wasi_snapshot_preview1");
+  Mod.wireWASIModule(&StubWasi);
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  // A real host file that a raw gzopen(..., "rb") would open transparently, so
+  // a non-zero handle here would prove the capability layer was bypassed.
+  const std::filesystem::path HostFile =
+      std::filesystem::temp_directory_path() /
+      "wasmedge_zlib_unrecognized_wasi.txt";
+  {
+    std::ofstream OFS(HostFile, std::ios::binary | std::ios::trunc);
+    if (!OFS) {
+      GTEST_SKIP() << "cannot create host probe file";
+    }
+    OFS << "not a gzip file, but gzopen reads it transparently";
+  }
+
+  const uint32_t PathPtr = 16;
+  const std::string HostPathStr = HostFile.string();
+  std::strcpy(MemInst.getPointer<char *>(PathPtr), HostPathStr.c_str());
+  const uint32_t ModePtr = 2048;
+  std::strcpy(MemInst.getPointer<char *>(ModePtr), "rb");
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+
+  // The open runs without trapping but is refused (null handle).
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModePtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+
+  std::error_code EC;
+  std::filesystem::remove(HostFile, EC);
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZOpenWasiHonorsOpenModes) {
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasiWiredModule Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  const std::filesystem::path SandboxDir =
+      std::filesystem::temp_directory_path() / "wasmedge_zlib_wasi_modes";
+  std::error_code EC;
+  std::filesystem::create_directories(SandboxDir, EC);
+  std::filesystem::remove(SandboxDir / "modes.gz", EC);
+  std::filesystem::remove(SandboxDir / "fresh.gz", EC);
+  std::filesystem::remove(SandboxDir / "transparent.gz", EC);
+  std::filesystem::remove(SandboxDir / "gfresh.gz", EC);
+
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const uint32_t PathPtr = 16;
+  std::strcpy(MemInst.getPointer<char *>(PathPtr), "modes.gz");
+  const uint32_t FreshPtr = 32;
+  std::strcpy(MemInst.getPointer<char *>(FreshPtr), "fresh.gz");
+  const uint32_t ModeWPtr = 64;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+  const uint32_t ModeWPlusPtr = 96;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPlusPtr), "w+");
+  const uint32_t ModeNoDirPtr = 128;
+  std::strcpy(MemInst.getPointer<char *>(ModeNoDirPtr), "b");
+  const uint32_t ModeWxPtr = 160;
+  std::strcpy(MemInst.getPointer<char *>(ModeWxPtr), "wx");
+  const uint32_t ModeWrPtr = 192;
+  std::strcpy(MemInst.getPointer<char *>(ModeWrPtr), "wr");
+  const uint32_t ModeAPtr = 224;
+  std::strcpy(MemInst.getPointer<char *>(ModeAPtr), "a");
+  const uint32_t ModeRTPtr = 288;
+  std::strcpy(MemInst.getPointer<char *>(ModeRTPtr), "rT");
+  const uint32_t ModeWTPtr = 320;
+  std::strcpy(MemInst.getPointer<char *>(ModeWTPtr), "wT");
+  const uint32_t TransPathPtr = 352;
+  std::strcpy(MemInst.getPointer<char *>(TransPathPtr), "transparent.gz");
+  const uint32_t ModeWGPtr = 368;
+  std::strcpy(MemInst.getPointer<char *>(ModeWGPtr), "wG");
+  const uint32_t ModeAGPtr = 384;
+  std::strcpy(MemInst.getPointer<char *>(ModeAGPtr), "aG");
+  const uint32_t ModeWTGPtr = 400;
+  std::strcpy(MemInst.getPointer<char *>(ModeWTGPtr), "wTG");
+  const uint32_t ModeWGTPtr = 416;
+  std::strcpy(MemInst.getPointer<char *>(ModeWGTPtr), "wGT");
+  const uint32_t ModeRGPtr = 432;
+  std::strcpy(MemInst.getPointer<char *>(ModeRGPtr), "rG");
+  const uint32_t ModeRNPtr = 448;
+  std::strcpy(MemInst.getPointer<char *>(ModeRNPtr), "rN");
+  const uint32_t GFreshPtr = 464;
+  std::strcpy(MemInst.getPointer<char *>(GFreshPtr), "gfresh.gz");
+  const uint32_t FifoPtr = 480;
+  std::strcpy(MemInst.getPointer<char *>(FifoPtr), "fifo.gz");
+  const uint32_t ModeWNPtr = 496;
+  std::strcpy(MemInst.getPointer<char *>(ModeWNPtr), "wN");
+  const uint32_t DataPtr = 256;
+  const char *const Payload = "gzopen mode fidelity";
+  const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
+  std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
+  const uint32_t ReadBuf = 512;
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+  GET_ZLIB_FUNC(GZWrite, "gzwrite")
+  GET_ZLIB_FUNC(GZRead, "gzread")
+  GET_ZLIB_FUNC(GZClose, "gzclose")
+
+  // Baseline write, which also detects environments without the WASI bridge.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWPtr},
+      RetVal));
+  const uint32_t WHandle = RetVal[0].get<uint32_t>();
+  if (WHandle == 0) {
+    GTEST_SKIP() << "WASI preopen unavailable in this environment";
+  }
+  ASSERT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, DataPtr, PayloadLen},
+      RetVal));
+  ASSERT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, RetVal));
+  const auto BaselineSize = std::filesystem::file_size(SandboxDir / "modes.gz");
+
+  // zlib rejects any '+' mode before touching the file; mediated through WASI
+  // the open must equally fail without truncating the existing file.
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWPlusPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+  // A mode without any r/w/a direction is rejected the same way.
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeNoDirPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+  // A transparent read ("rT") is another mode gz_open refuses before opening
+  // ("can't force transparent read"), so it must fail without reaching the
+  // file -- native zlib never opens it, not even to fail later.
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeRTPtr}, RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+  // zlib 1.3.2 defines 'G' as the forced-gzip counterpart of 'T' and refuses
+  // it for write and append before opening ("G" has no meaning when writing);
+  // earlier zlib ignores the letter. Refusing it up front keeps the failure
+  // side-effect-free on every zlib: no truncation of an existing file and no
+  // creation of a missing one.
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWGPtr}, RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{GFreshPtr, ModeWGPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_FALSE(std::filesystem::exists(SandboxDir / "gfresh.gz"));
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeAGPtr}, RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+  // The last of 'T'/'G' wins exactly as in zlib's parse: "wTG" ends forced
+  // gzip and is refused the same way.
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWTGPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+  // Transparent write stays a valid mode: 'T' alone must not be rejected.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{TransPathPtr, ModeWTPtr},
+      RetVal));
+  const uint32_t THandle = RetVal[0].get<uint32_t>();
+  EXPECT_NE(THandle, 0U);
+  if (THandle != 0) {
+    EXPECT_TRUE(GZClose.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{THandle},
+        RetVal));
+  }
+
+  // "wGT" ends transparent, so it stays as valid as "wT" itself.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{TransPathPtr, ModeWGTPtr},
+      RetVal));
+  const uint32_t GTHandle = RetVal[0].get<uint32_t>();
+  EXPECT_NE(GTHandle, 0U);
+  if (GTHandle != 0) {
+    EXPECT_TRUE(GZClose.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{GTHandle},
+        RetVal));
+  }
+
+  // An exclusive create over an existing file must fail and leave it intact
+  // instead of truncating it.
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWxPtr}, RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+  // The last of r/w/a wins, exactly as in zlib's own parse: "wr" is a read
+  // open and must neither create nor truncate.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWrPtr}, RetVal));
+  const uint32_t RHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(RHandle, 0U);
+  EXPECT_TRUE(GZRead.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, ReadBuf, UINT32_C(256)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_EQ(
+      0, std::memcmp(MemInst.getPointer<char *>(ReadBuf), Payload, PayloadLen));
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+  // A forced-gzip read ("rG", zlib >= 1.3.2) and a nonblocking read ("rN",
+  // ignored by earlier zlib) both stay valid open modes for a regular file.
+  for (const uint32_t ModePtr : {ModeRGPtr, ModeRNPtr}) {
+    ASSERT_TRUE(GZOpen.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModePtr}, RetVal));
+    const uint32_t Handle = RetVal[0].get<uint32_t>();
+    EXPECT_NE(Handle, 0U);
+    if (Handle == 0) {
+      continue;
+    }
+    EXPECT_TRUE(GZRead.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               Handle, ReadBuf, UINT32_C(256)},
+                           RetVal));
+    EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+    EXPECT_EQ(0, std::memcmp(MemInst.getPointer<char *>(ReadBuf), Payload,
+                             PayloadLen));
+    EXPECT_TRUE(GZClose.run(CallFrame,
+                            std::initializer_list<WasmEdge::ValVariant>{Handle},
+                            RetVal));
+  }
+  EXPECT_EQ(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+#if !defined(_WIN32)
+  // 'N' must reach pathOpen as NONBLOCK, because with zlib >= 1.3.2 the
+  // native gzopen carries O_NONBLOCK in open(2) itself: a "wN" open of a
+  // FIFO with no reader fails with ENXIO instead of blocking the host, and
+  // an "rN" open with no writer returns a handle immediately.
+  const std::filesystem::path FifoPath = SandboxDir / "fifo.gz";
+  std::filesystem::remove(FifoPath, EC);
+  ASSERT_EQ(::mkfifo(FifoPath.c_str(), 0600), 0);
+  EXPECT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FifoPtr, ModeWNPtr}, RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FifoPtr, ModeRNPtr}, RetVal));
+  const uint32_t NHandle = RetVal[0].get<uint32_t>();
+  EXPECT_NE(NHandle, 0U);
+  if (NHandle != 0) {
+    EXPECT_TRUE(GZClose.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{NHandle},
+        RetVal));
+  }
+  std::filesystem::remove(FifoPath, EC);
+#endif
+
+  // Append mode extends the existing file rather than truncating it.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeAPtr},
+      RetVal));
+  const uint32_t AHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(AHandle, 0U);
+  EXPECT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{AHandle, DataPtr, PayloadLen},
+      RetVal));
+  EXPECT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{AHandle}, RetVal));
+  EXPECT_GT(std::filesystem::file_size(SandboxDir / "modes.gz"), BaselineSize);
+
+  // An exclusive create of a missing file succeeds.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FreshPtr, ModeWxPtr},
+      RetVal));
+  const uint32_t XHandle = RetVal[0].get<uint32_t>();
+  EXPECT_NE(XHandle, 0U);
+  if (XHandle != 0) {
+    EXPECT_TRUE(GZClose.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{XHandle},
+        RetVal));
+  }
+  EXPECT_TRUE(std::filesystem::exists(SandboxDir / "fresh.gz"));
+
+  std::filesystem::remove(SandboxDir / "modes.gz", EC);
+  std::filesystem::remove(SandboxDir / "fresh.gz", EC);
+  std::filesystem::remove(SandboxDir / "transparent.gz", EC);
+  std::filesystem::remove(SandboxDir / "gfresh.gz", EC);
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZOpenWasiFollowsSandboxSymlinks) {
+  // wasi-libc's open() follows a final symlink by default and so does a
+  // native gzopen, so a WASI-mediated gzopen must too -- the resolver
+  // re-walks the target with the same preopen-escape checks -- while a
+  // symlink that leaves the sandbox stays denied and an exclusive create
+  // keeps native O_EXCL's refusal to follow, dangling links included.
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasiWiredModule Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  const std::filesystem::path SandboxDir =
+      std::filesystem::temp_directory_path() / "wasmedge_zlib_wasi_symlink";
+  const std::filesystem::path OutsideFile =
+      std::filesystem::temp_directory_path() /
+      "wasmedge_zlib_wasi_symlink_outside.gz";
+  std::error_code EC;
+  std::filesystem::remove_all(SandboxDir, EC);
+  std::filesystem::create_directories(SandboxDir, EC);
+  std::filesystem::remove(OutsideFile, EC);
+
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const uint32_t TargetPtr = 16;
+  std::strcpy(MemInst.getPointer<char *>(TargetPtr), "target.gz");
+  const uint32_t LinkPtr = 32;
+  std::strcpy(MemInst.getPointer<char *>(LinkPtr), "link.gz");
+  const uint32_t EscLinkPtr = 64;
+  std::strcpy(MemInst.getPointer<char *>(EscLinkPtr), "escape.gz");
+  const uint32_t AbsLinkPtr = 96;
+  std::strcpy(MemInst.getPointer<char *>(AbsLinkPtr), "abslink.gz");
+  const uint32_t DangLinkPtr = 128;
+  std::strcpy(MemInst.getPointer<char *>(DangLinkPtr), "dangling.gz");
+  const uint32_t ModeWPtr = 160;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+  const uint32_t ModeRPtr = 192;
+  std::strcpy(MemInst.getPointer<char *>(ModeRPtr), "rb");
+  const uint32_t ModeWxPtr = 224;
+  std::strcpy(MemInst.getPointer<char *>(ModeWxPtr), "wx");
+  const uint32_t DataPtr = 256;
+  const char *const Payload = "symlinked gzip payload";
+  const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
+  std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
+  const uint32_t ReadBuf = 512;
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+  GET_ZLIB_FUNC(GZWrite, "gzwrite")
+  GET_ZLIB_FUNC(GZRead, "gzread")
+  GET_ZLIB_FUNC(GZClose, "gzclose")
+
+  // Baseline write, which also detects environments without the WASI bridge.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{TargetPtr, ModeWPtr},
+      RetVal));
+  const uint32_t WHandle = RetVal[0].get<uint32_t>();
+  if (WHandle == 0) {
+    GTEST_SKIP() << "WASI preopen unavailable in this environment";
+  }
+  ASSERT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, DataPtr, PayloadLen},
+      RetVal));
+  ASSERT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, RetVal));
+
+  // A real file outside the sandbox, so a resolver that leaked through the
+  // escaping links below would loudly succeed in opening it.
+  {
+    std::ofstream(OutsideFile) << "outside";
+  }
+  std::filesystem::create_symlink("target.gz", SandboxDir / "link.gz", EC);
+  if (EC) {
+    GTEST_SKIP() << "cannot create symlinks in this environment";
+  }
+  std::filesystem::create_symlink(OutsideFile, SandboxDir / "abslink.gz", EC);
+  std::filesystem::create_symlink(std::filesystem::path("..") /
+                                      OutsideFile.filename(),
+                                  SandboxDir / "escape.gz", EC);
+  std::filesystem::create_symlink("missing.gz", SandboxDir / "dangling.gz", EC);
+
+  // A symlink to an in-sandbox file reads like the file itself.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{LinkPtr, ModeRPtr},
+      RetVal));
+  const uint32_t RHandle = RetVal[0].get<uint32_t>();
+  EXPECT_NE(RHandle, 0U);
+  if (RHandle != 0) {
+    EXPECT_TRUE(GZRead.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               RHandle, ReadBuf, UINT32_C(256)},
+                           RetVal));
+    EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+    EXPECT_EQ(0, std::memcmp(MemInst.getPointer<char *>(ReadBuf), Payload,
+                             PayloadLen));
+    EXPECT_TRUE(GZClose.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle},
+        RetVal));
+  }
+
+  // Writing through the symlink follows it rather than replacing the link.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{LinkPtr, ModeWPtr},
+      RetVal));
+  const uint32_t LWHandle = RetVal[0].get<uint32_t>();
+  EXPECT_NE(LWHandle, 0U);
+  if (LWHandle != 0) {
+    EXPECT_TRUE(GZClose.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{LWHandle},
+        RetVal));
+  }
+  EXPECT_TRUE(std::filesystem::is_symlink(SandboxDir / "link.gz"));
+  EXPECT_TRUE(std::filesystem::exists(SandboxDir / "target.gz"));
+
+  // A symlink whose target steps out of the preopen stays denied, whether it
+  // escapes relatively or names the outside file by absolute path.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{EscLinkPtr, ModeRPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{AbsLinkPtr, ModeRPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+
+  // An exclusive create refuses an existing symlink -- even a dangling one --
+  // rather than following it to create the target, matching native O_EXCL.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{DangLinkPtr, ModeWxPtr},
+      RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+  EXPECT_FALSE(std::filesystem::exists(SandboxDir / "missing.gz"));
+
+  std::filesystem::remove_all(SandboxDir, EC);
+  std::filesystem::remove(OutsideFile, EC);
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZDOpenTemporarilyDisabled) {
+  // gzdopen is temporarily disabled while its bridged-descriptor fd lifecycle
+  // is reworked (an owned WASI fd cannot be released safely at environment
+  // teardown yet). It must refuse every call with a null handle -- even a
+  // valid, fully-writable descriptor -- and must not consume the guest's fd.
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasiWiredModule Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  const std::filesystem::path SandboxDir =
+      std::filesystem::temp_directory_path() / "wasmedge_zlib_gzdopen_disabled";
+  std::error_code EC;
+  std::filesystem::create_directories(SandboxDir, EC);
+  std::filesystem::remove(SandboxDir / "disabled.gz", EC);
+
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
+  auto *Env = const_cast<WasmEdge::Host::WASI::Environ *>(WasiMod.getEnv());
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const uint32_t ModeWPtr = 0;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+
+  GET_ZLIB_FUNC(GZDOpen, "gzdopen")
+
+  const __wasi_rights_t FullRights =
+      __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_WRITE | __WASI_RIGHTS_FD_SEEK |
+      __WASI_RIGHTS_FD_TELL;
+  auto Fd =
+      Env->pathOpen(3, "disabled.gz", static_cast<__wasi_lookupflags_t>(0),
+                    __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC, FullRights,
+                    FullRights, static_cast<__wasi_fdflags_t>(0));
+  if (!Fd.has_value()) {
+    GTEST_SKIP() << "WASI preopen unavailable in this environment";
+  }
+
+  // Even a descriptor that would previously have bridged is refused now.
+  ASSERT_TRUE(GZDOpen.run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              static_cast<int32_t>(*Fd), ModeWPtr},
+                          RetVal));
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), 0U);
+
+  // The refused call left the descriptor untouched, so the guest still owns it.
+  __wasi_fdstat_t FdStat;
+  EXPECT_TRUE(Env->fdFdstatGet(*Fd, FdStat).has_value());
+  Env->fdClose(*Fd);
+
+  std::filesystem::remove(SandboxDir / "disabled.gz", EC);
+}
+
+TEST(WasmEdgeZlibTest, HardeningGZOpenWasiStreamingWithoutSeekTellRights) {
+  // A guest that narrowed the preopen's rights to plain read/write must still
+  // gzopen for streaming: FD_SEEK/FD_TELL stay optional (recorded on the
+  // handle and gated at gzseek/gzrewind/gzoffset), matching gzdopen's
+  // documented design.
+  auto ZlibMod = createModule();
+  ASSERT_TRUE(ZlibMod);
+
+  WasiWiredModule Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1, 1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+
+  const std::filesystem::path SandboxDir =
+      std::filesystem::temp_directory_path() / "wasmedge_zlib_wasi_narrowed";
+  std::error_code EC;
+  std::filesystem::create_directories(SandboxDir, EC);
+  std::filesystem::remove(SandboxDir / "stream.gz", EC);
+  std::filesystem::remove(SandboxDir / "fresh.gz", EC);
+  std::filesystem::remove(SandboxDir / "append.gz", EC);
+
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(std::vector<std::string>{SandboxDir.string()}, "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
+  auto *Env = const_cast<WasmEdge::Host::WASI::Environ *>(WasiMod.getEnv());
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  const uint32_t PathPtr = 16;
+  std::strcpy(MemInst.getPointer<char *>(PathPtr), "stream.gz");
+  const uint32_t FreshPtr = 32;
+  std::strcpy(MemInst.getPointer<char *>(FreshPtr), "fresh.gz");
+  const uint32_t AppendPtr = 64;
+  std::strcpy(MemInst.getPointer<char *>(AppendPtr), "append.gz");
+  const uint32_t ModeWPtr = 96;
+  std::strcpy(MemInst.getPointer<char *>(ModeWPtr), "wb");
+  const uint32_t ModeRPtr = 112;
+  std::strcpy(MemInst.getPointer<char *>(ModeRPtr), "rb");
+  const uint32_t ModeAPtr = 128;
+  std::strcpy(MemInst.getPointer<char *>(ModeAPtr), "ab");
+  const uint32_t DataPtr = 256;
+  const char *const Payload = "streaming without seek rights";
+  const uint32_t PayloadLen = static_cast<uint32_t>(std::strlen(Payload));
+  std::strcpy(MemInst.getPointer<char *>(DataPtr), Payload);
+  const uint32_t ReadPtr = 512;
+
+  GET_ZLIB_FUNC(GZOpen, "gzopen")
+  GET_ZLIB_FUNC(GZWrite, "gzwrite")
+  GET_ZLIB_FUNC(GZRead, "gzread")
+  GET_ZLIB_FUNC(GZClose, "gzclose")
+  GET_ZLIB_FUNC(GZSeek, "gzseek")
+  GET_ZLIB_FUNC(GZOffset, "gzoffset")
+  GET_ZLIB_FUNC(GZTell, "gztell")
+
+  // Seed the file while the preopen still holds its full rights.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeWPtr},
+      RetVal));
+  const uint32_t WHandle = RetVal[0].get<uint32_t>();
+  if (WHandle == 0) {
+    GTEST_SKIP() << "WASI-mediated gzopen unavailable in this environment";
+  }
+  ASSERT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{WHandle, DataPtr, PayloadLen},
+      RetVal));
+  ASSERT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  ASSERT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{WHandle}, RetVal));
+
+  // Narrow the preopen the way a guest would via fd_fdstat_set_rights.
+  __wasi_fdstat_t DirStat;
+  ASSERT_TRUE(Env->fdFdstatGet(3, DirStat).has_value());
+  const __wasi_rights_t NoSeekTell =
+      ~(__WASI_RIGHTS_FD_SEEK | __WASI_RIGHTS_FD_TELL);
+  ASSERT_TRUE(Env->fdFdstatSetRights(3, DirStat.fs_rights_base & NoSeekTell,
+                                     DirStat.fs_rights_inheriting & NoSeekTell)
+                  .has_value());
+
+  // Streaming read still opens; repositioning is refused on the handle.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PathPtr, ModeRPtr},
+      RetVal));
+  const uint32_t RHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(RHandle, 0U);
+  ASSERT_TRUE(GZRead.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{RHandle, ReadPtr, PayloadLen},
+      RetVal));
+  ASSERT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  EXPECT_EQ(
+      0, std::memcmp(MemInst.getPointer<char *>(ReadPtr), Payload, PayloadLen));
+  ASSERT_TRUE(GZSeek.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             RHandle, INT32_C(6), INT32_C(SEEK_SET)},
+                         RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), -1);
+  ASSERT_TRUE(GZOffset.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), -1);
+  ASSERT_TRUE(GZTell.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
+  EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  ASSERT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{RHandle}, RetVal));
+
+  // Streaming write and append open under the narrowed preopen as well.
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FreshPtr, ModeWPtr}, RetVal));
+  const uint32_t FHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(FHandle, 0U);
+  ASSERT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FHandle, DataPtr, PayloadLen},
+      RetVal));
+  ASSERT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  ASSERT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FHandle}, RetVal));
+  EXPECT_TRUE(std::filesystem::exists(SandboxDir / "fresh.gz"));
+
+  ASSERT_TRUE(GZOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{AppendPtr, ModeAPtr},
+      RetVal));
+  const uint32_t AHandle = RetVal[0].get<uint32_t>();
+  ASSERT_NE(AHandle, 0U);
+  ASSERT_TRUE(GZWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{AHandle, DataPtr, PayloadLen},
+      RetVal));
+  ASSERT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(PayloadLen));
+  ASSERT_TRUE(GZClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{AHandle}, RetVal));
+
+  std::filesystem::remove(SandboxDir / "stream.gz", EC);
+  std::filesystem::remove(SandboxDir / "fresh.gz", EC);
+  std::filesystem::remove(SandboxDir / "append.gz", EC);
 }
 
 GTEST_API_ int main(int ArgC, char **ArgV) {

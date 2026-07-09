@@ -1188,6 +1188,21 @@ public:
     return Node->getNativeHandler();
   }
 
+  /// Test whether a file descriptor still holds the given rights.
+  ///
+  /// Exposes the same capability check WASI applies to fd operations so a host
+  /// bridge that lifts I/O out of WASI mediation (the zlib plugin duplicates
+  /// the native descriptor for zlib) can refuse a descriptor whose rights were
+  /// narrowed via fd_fdstat_set_rights. Returns false when the fd is unknown or
+  /// lacks any requested right.
+  bool canFd(__wasi_fd_t Fd, __wasi_rights_t Rights) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return false;
+    }
+    return Node->can(Rights);
+  }
+
   static std::string randomFilename() noexcept {
     using namespace std::literals;
     static constexpr const auto Charset =

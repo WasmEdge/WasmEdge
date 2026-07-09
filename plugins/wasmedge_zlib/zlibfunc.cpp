@@ -15,12 +15,53 @@ namespace Host {
     return Unexpect(ErrCode::Value::HostFuncError);                            \
   }
 
+// Bind `Var` to a guest buffer of `Len` bytes at `Offset`, validating that the
+// whole range is in bounds (zlib may touch all of it). getPointer only checks a
+// single element, so getSpan is required here. A zero-length buffer is
+// accepted.
+#define BUFFER_CHECK(Var, MemInstPtr, Offset, Len, FuncName)                   \
+  const auto Var##Span = (MemInstPtr)->getSpan<uint8_t>((Offset), (Len));      \
+  if (unlikely((Len) != 0 && Var##Span.data() == nullptr)) {                   \
+    spdlog::error("[WasmEdge-Zlib] [" FuncName                                 \
+                  "] Out-of-bounds buffer access."sv);                         \
+    return Unexpect(ErrCode::Value::HostFuncError);                            \
+  }                                                                            \
+  auto *Var = Var##Span.data();
+
+// Bind `Var` to a single `Type` object at `Offset`, rejecting an out-of-bounds
+// offset (getPointer returns nullptr rather than trapping).
+#define PTR_CHECK(Var, MemInstPtr, Offset, Type, FuncName)                     \
+  auto *Var = (MemInstPtr)->getPointer<Type *>((Offset));                      \
+  if (unlikely(Var == nullptr)) {                                              \
+    spdlog::error("[WasmEdge-Zlib] [" FuncName                                 \
+                  "] Out-of-bounds pointer access."sv);                        \
+    return Unexpect(ErrCode::Value::HostFuncError);                            \
+  }
+
 constexpr bool CheckSize(int32_t StreamSize) {
 
   return (StreamSize == static_cast<int32_t>(sizeof(WasmZStream)));
 }
 
-static constexpr uint32_t WasmGZFileStart = sizeof(gzFile);
+// Return an in-bounds, NUL-terminated C string starting at `Offset`, or nullptr
+// when the offset is out of bounds or no terminator exists before the end of
+// linear memory (which would make zlib's strlen/strcpy read out of bounds).
+static inline const char *
+getInBoundsCString(const Runtime::Instance::MemoryInstance &MemInst,
+                   uint32_t Offset) noexcept {
+  const uint64_t MemSize = MemInst.getSize();
+  if (unlikely(Offset >= MemSize)) {
+    return nullptr;
+  }
+  const auto *Str = MemInst.getPointer<const char *>(Offset);
+  if (unlikely(Str == nullptr)) {
+    return nullptr;
+  }
+  if (unlikely(std::memchr(Str, '\0', MemSize - Offset) == nullptr)) {
+    return nullptr;
+  }
+  return Str;
+}
 
 template <typename T>
 auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
@@ -29,6 +70,12 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
 
   MEMINST_CHECK(MemInst, Frame, 0)
   WasmZStream *ModuleZStream = MemInst->getPointer<WasmZStream *>(ZStreamPtr);
+  if (unlikely(ModuleZStream == nullptr)) {
+    spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
+                  "Out-of-bounds ZStreamPtr received."sv,
+                  Msg);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
 
   const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
   if (HostZStreamIt == Env.ZStreamMap.end()) {
@@ -40,13 +87,28 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
   auto HostZStream = HostZStreamIt->second.get();
   const auto GZHeaderStoreIt = Env.GZHeaderMap.find(ZStreamPtr);
 
-  HostZStream->next_in =
-      MemInst->getPointer<unsigned char *>(ModuleZStream->NextIn);
+  const auto InSpan = MemInst->getSpan<unsigned char>(ModuleZStream->NextIn,
+                                                      ModuleZStream->AvailIn);
+  if (unlikely(ModuleZStream->AvailIn != 0 && InSpan.data() == nullptr)) {
+    spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
+                  "Out-of-bounds input buffer."sv,
+                  Msg);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  const auto OutSpan = MemInst->getSpan<unsigned char>(ModuleZStream->NextOut,
+                                                       ModuleZStream->AvailOut);
+  if (unlikely(ModuleZStream->AvailOut != 0 && OutSpan.data() == nullptr)) {
+    spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
+                  "Out-of-bounds output buffer."sv,
+                  Msg);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  HostZStream->next_in = InSpan.data();
   HostZStream->avail_in = ModuleZStream->AvailIn;
   HostZStream->total_in = ModuleZStream->TotalIn;
 
-  HostZStream->next_out =
-      MemInst->getPointer<unsigned char *>(ModuleZStream->NextOut);
+  HostZStream->next_out = OutSpan.data();
   HostZStream->avail_out = ModuleZStream->AvailOut;
   HostZStream->total_out = ModuleZStream->TotalOut;
 
@@ -70,24 +132,69 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
 
     auto *ModuleGZHeader = MemInst->getPointer<WasmGZHeader *>(
         GZHeaderStoreIt->second.WasmGZHeaderOffset);
+    if (unlikely(ModuleGZHeader == nullptr)) {
+      spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
+                    "Out-of-bounds gzip header."sv,
+                    Msg);
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
     auto *HostGZHeader = GZHeaderStoreIt->second.HostGZHeader.get();
+    const bool IsInflate = GZHeaderStoreIt->second.IsInflate;
 
     HostGZHeader->text = ModuleGZHeader->Text;
     HostGZHeader->time = ModuleGZHeader->Time;
     HostGZHeader->xflags = ModuleGZHeader->XFlags;
     HostGZHeader->os = ModuleGZHeader->OS;
 
-    HostGZHeader->extra =
-        MemInst->getPointer<unsigned char *>(ModuleGZHeader->Extra);
+    // inflateGetHeader writes into the buffers (bounded by *_max); the strings
+    // are read back as-is. deflateSetHeader reads the buffers: extra spans
+    // extra_len bytes and name/comment are zlib-scanned C strings.
+    const uint32_t ExtraCap =
+        IsInflate ? ModuleGZHeader->ExtraMax : ModuleGZHeader->ExtraLen;
+    const auto ExtraSpan =
+        MemInst->getSpan<unsigned char>(ModuleGZHeader->Extra, ExtraCap);
+    if (unlikely(ExtraCap != 0 && ExtraSpan.data() == nullptr)) {
+      spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
+                    "Out-of-bounds gzip header extra field."sv,
+                    Msg);
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    HostGZHeader->extra = ExtraSpan.data();
     HostGZHeader->extra_len = ModuleGZHeader->ExtraLen;
     HostGZHeader->extra_max = ModuleGZHeader->ExtraMax;
 
-    HostGZHeader->name =
-        MemInst->getPointer<unsigned char *>(ModuleGZHeader->Name);
-    HostGZHeader->name_max = ModuleGZHeader->NameMax;
+    const auto BindHeaderString = [&](uint32_t FieldOffset, uint32_t MaxLen,
+                                      Bytef *&HostField) -> bool {
+      if (IsInflate) {
+        const auto FieldSpan =
+            MemInst->getSpan<unsigned char>(FieldOffset, MaxLen);
+        if (unlikely(MaxLen != 0 && FieldSpan.data() == nullptr)) {
+          return false;
+        }
+        HostField = FieldSpan.data();
+      } else if (FieldOffset != 0) {
+        const auto *FieldStr = getInBoundsCString(*MemInst, FieldOffset);
+        if (unlikely(FieldStr == nullptr)) {
+          return false;
+        }
+        HostField = reinterpret_cast<Bytef *>(const_cast<char *>(FieldStr));
+      } else {
+        HostField = nullptr;
+      }
+      return true;
+    };
 
-    HostGZHeader->comment =
-        MemInst->getPointer<unsigned char *>(ModuleGZHeader->Comment);
+    if (unlikely(
+            !BindHeaderString(ModuleGZHeader->Name, ModuleGZHeader->NameMax,
+                              HostGZHeader->name) ||
+            !BindHeaderString(ModuleGZHeader->Comment, ModuleGZHeader->CommMax,
+                              HostGZHeader->comment))) {
+      spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
+                    "Out-of-bounds gzip header name/comment field."sv,
+                    Msg);
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    HostGZHeader->name_max = ModuleGZHeader->NameMax;
     HostGZHeader->comm_max = ModuleGZHeader->CommMax;
 
     HostGZHeader->hcrc = ModuleGZHeader->HCRC;
@@ -155,15 +262,14 @@ WasmEdgeZlibDeflateInit::body(const Runtime::CallingFrame &Frame,
   NewZStream->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
-  auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
-          .second;
+  const auto [It, Inserted] =
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
 
   const auto ZRes = SyncRun(
       "WasmEdgeZlibDeflateInit", Env, ZStreamPtr, Frame,
       [&](z_stream *HostZStream) { return deflateInit(HostZStream, Level); });
 
-  if (ZRes != Z_OK)
+  if (ZRes != Z_OK && Inserted)
     Env.ZStreamMap.erase(It);
 
   return ZRes;
@@ -200,15 +306,14 @@ WasmEdgeZlibInflateInit::body(const Runtime::CallingFrame &Frame,
   NewZStream->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
-  auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
-          .second;
+  const auto [It, Inserted] =
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
 
   const auto ZRes =
       SyncRun("WasmEdgeZlibInflateInit", Env, ZStreamPtr, Frame,
               [&](z_stream *HostZStream) { return inflateInit(HostZStream); });
 
-  if (ZRes != Z_OK)
+  if (ZRes != Z_OK && Inserted)
     Env.ZStreamMap.erase(It);
 
   return ZRes;
@@ -244,9 +349,8 @@ Expect<int32_t> WasmEdgeZlibDeflateInit2::body(
   NewZStream->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
-  auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
-          .second;
+  const auto [It, Inserted] =
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
 
   const auto ZRes =
       SyncRun("WasmEdgeZlibDeflateInit2", Env, ZStreamPtr, Frame,
@@ -255,7 +359,7 @@ Expect<int32_t> WasmEdgeZlibDeflateInit2::body(
                                     MemLevel, Strategy);
               });
 
-  if (ZRes != Z_OK)
+  if (ZRes != Z_OK && Inserted)
     Env.ZStreamMap.erase(It);
 
   return ZRes;
@@ -267,11 +371,22 @@ Expect<int32_t> WasmEdgeZlibDeflateSetDictionary::body(
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  const auto *Dictionary = MemInst->getPointer<const Bytef *>(DictionaryPtr);
+  BUFFER_CHECK(Dictionary, MemInst, DictionaryPtr, DictLength,
+               "WasmEdgeZlibDeflateSetDictionary")
+
+  // deflateSetDictionary never reads a zero-length dictionary yet still
+  // rejects Z_NULL, so preserve that contract exactly: a guest null maps to
+  // Z_NULL while any other offset stays non-null, including one past the end
+  // of memory whose zero-length span carries no pointer.
+  static constexpr Bytef EmptyDictionary = 0;
+  const Bytef *DictionaryArg = Dictionary;
+  if (DictLength == 0) {
+    DictionaryArg = DictionaryPtr == 0 ? Z_NULL : &EmptyDictionary;
+  }
 
   return SyncRun("WasmEdgeZlibDeflateSetDictionary", Env, ZStreamPtr, Frame,
                  [&](z_stream *HostZStream) {
-                   return deflateSetDictionary(HostZStream, Dictionary,
+                   return deflateSetDictionary(HostZStream, DictionaryArg,
                                                DictLength);
                  });
 }
@@ -282,8 +397,22 @@ Expect<int32_t> WasmEdgeZlibDeflateGetDictionary::body(
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
-  auto *DictLength = MemInst->getPointer<uint32_t *>(DictLengthPtr);
+  const auto ZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (unlikely(ZStreamIt == Env.ZStreamMap.end())) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateGetDictionary] "sv
+                  "Invalid ZStreamPtr received."sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  // zlib writes up to the internal window (~32 KiB) with no caller-supplied
+  // cap, so query the exact length first and validate the destination for it.
+  uInt NeededLen = 0;
+  deflateGetDictionary(ZStreamIt->second.get(), Z_NULL, &NeededLen);
+
+  BUFFER_CHECK(Dictionary, MemInst, DictionaryPtr, NeededLen,
+               "WasmEdgeZlibDeflateGetDictionary")
+  PTR_CHECK(DictLength, MemInst, DictLengthPtr, uint32_t,
+            "WasmEdgeZlibDeflateGetDictionary")
 
   return SyncRun("WasmEdgeZlibDeflateGetDictionary", Env, ZStreamPtr, Frame,
                  [&](z_stream *HostZStream) {
@@ -307,25 +436,27 @@ WasmEdgeZlibDeflateCopy::body(const Runtime::CallingFrame &Frame,
                   "Invalid SourcePtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
+  auto *SourceZStream = SourceZStreamIt->second.get();
 
   auto NewZStream = std::make_unique<z_stream>();
 
-  auto It =
-      Env.ZStreamMap.emplace(std::make_pair(DestPtr, std::move(NewZStream)))
-          .second;
+  const auto [It, Inserted] =
+      Env.ZStreamMap.emplace(std::make_pair(DestPtr, std::move(NewZStream)));
 
   const auto Res = SyncRun("WasmEdgeZlibDeflateCopy", Env, DestPtr, Frame,
                            [&](z_stream *) { return 0; });
-  if (!Res.has_value())
+  if (!Res.has_value()) {
+    if (Inserted)
+      Env.ZStreamMap.erase(It);
     return Res;
+  }
 
-  const auto ZRes =
-      SyncRun("WasmEdgeZlibDeflateCopy", Env, DestPtr, Frame,
-              [&](z_stream *DestZStream) {
-                return deflateCopy(DestZStream, SourceZStreamIt->second.get());
-              });
+  const auto ZRes = SyncRun("WasmEdgeZlibDeflateCopy", Env, DestPtr, Frame,
+                            [&](z_stream *DestZStream) {
+                              return deflateCopy(DestZStream, SourceZStream);
+                            });
 
-  if (ZRes != Z_OK)
+  if (ZRes != Z_OK && Inserted)
     Env.ZStreamMap.erase(It);
 
   return ZRes;
@@ -406,13 +537,12 @@ WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
   auto HostGZHeader = std::make_unique<gz_header>();
   auto HostGZHeaderPtr = HostGZHeader.get();
 
-  auto It = Env.GZHeaderMap
-                .emplace(std::pair<uint32_t, WasmEdgeZlibEnvironment::GZStore>{
-                    ZStreamPtr,
-                    WasmEdgeZlibEnvironment::GZStore{
-                        .WasmGZHeaderOffset = HeadPtr,
-                        .HostGZHeader = std::move(HostGZHeader)}})
-                .second;
+  const auto [It, Inserted] = Env.GZHeaderMap.emplace(
+      std::pair<uint32_t, WasmEdgeZlibEnvironment::GZStore>{
+          ZStreamPtr, WasmEdgeZlibEnvironment::GZStore{
+                          .WasmGZHeaderOffset = HeadPtr,
+                          .IsInflate = false,
+                          .HostGZHeader = std::move(HostGZHeader)}});
 
   const auto ZRes =
       SyncRun("WasmEdgeZlibDeflateSetHeader", Env, ZStreamPtr, Frame,
@@ -420,7 +550,7 @@ WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
                 return deflateSetHeader(HostZStream, HostGZHeaderPtr);
               });
 
-  if (ZRes != Z_OK)
+  if (ZRes != Z_OK && Inserted)
     Env.GZHeaderMap.erase(It);
 
   return ZRes;
@@ -435,16 +565,15 @@ WasmEdgeZlibInflateInit2::body(const Runtime::CallingFrame &Frame,
   NewZStream->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
-  auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
-          .second;
+  const auto [It, Inserted] =
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
 
   const auto ZRes = SyncRun("WasmEdgeZlibInflateInit2", Env, ZStreamPtr, Frame,
                             [&](z_stream *HostZStream) {
                               return inflateInit2(HostZStream, WindowBits);
                             });
 
-  if (ZRes != Z_OK)
+  if (ZRes != Z_OK && Inserted)
     Env.ZStreamMap.erase(It);
 
   return ZRes;
@@ -456,7 +585,8 @@ Expect<int32_t> WasmEdgeZlibInflateSetDictionary::body(
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
+  BUFFER_CHECK(Dictionary, MemInst, DictionaryPtr, DictLength,
+               "WasmEdgeZlibInflateSetDictionary")
 
   return SyncRun("WasmEdgeZlibInflateSetDictionary", Env, ZStreamPtr, Frame,
                  [&](z_stream *HostZStream) {
@@ -471,8 +601,22 @@ Expect<int32_t> WasmEdgeZlibInflateGetDictionary::body(
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
-  auto *DictLength = MemInst->getPointer<uint32_t *>(DictLengthPtr);
+  const auto ZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
+  if (unlikely(ZStreamIt == Env.ZStreamMap.end())) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateGetDictionary] "sv
+                  "Invalid ZStreamPtr received."sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  // zlib writes up to the internal window (~32 KiB) with no caller-supplied
+  // cap, so query the exact length first and validate the destination for it.
+  uInt NeededLen = 0;
+  inflateGetDictionary(ZStreamIt->second.get(), Z_NULL, &NeededLen);
+
+  BUFFER_CHECK(Dictionary, MemInst, DictionaryPtr, NeededLen,
+               "WasmEdgeZlibInflateGetDictionary")
+  PTR_CHECK(DictLength, MemInst, DictLengthPtr, uint32_t,
+            "WasmEdgeZlibInflateGetDictionary")
 
   return SyncRun("WasmEdgeZlibInflateGetDictionary", Env, ZStreamPtr, Frame,
                  [&](z_stream *HostZStream) {
@@ -499,25 +643,27 @@ WasmEdgeZlibInflateCopy::body(const Runtime::CallingFrame &Frame,
                   "Invalid SourcePtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
+  auto *SourceZStream = SourceZStreamIt->second.get();
 
   auto NewZStream = std::make_unique<z_stream>();
 
-  auto It =
-      Env.ZStreamMap.emplace(std::make_pair(DestPtr, std::move(NewZStream)))
-          .second;
+  const auto [It, Inserted] =
+      Env.ZStreamMap.emplace(std::make_pair(DestPtr, std::move(NewZStream)));
 
   const auto Res = SyncRun("WasmEdgeZlibInflateCopy", Env, DestPtr, Frame,
                            [&](z_stream *) { return 0; });
-  if (!Res.has_value())
+  if (!Res.has_value()) {
+    if (Inserted)
+      Env.ZStreamMap.erase(It);
     return Res;
+  }
 
-  const auto ZRes =
-      SyncRun("WasmEdgeZlibInflateCopy", Env, DestPtr, Frame,
-              [&](z_stream *DestZStream) {
-                return inflateCopy(DestZStream, SourceZStreamIt->second.get());
-              });
+  const auto ZRes = SyncRun("WasmEdgeZlibInflateCopy", Env, DestPtr, Frame,
+                            [&](z_stream *DestZStream) {
+                              return inflateCopy(DestZStream, SourceZStream);
+                            });
 
-  if (ZRes != Z_OK)
+  if (ZRes != Z_OK && Inserted)
     Env.ZStreamMap.erase(It);
 
   return ZRes;
@@ -569,13 +715,12 @@ WasmEdgeZlibInflateGetHeader::body(const Runtime::CallingFrame &Frame,
   auto HostGZHeader = std::make_unique<gz_header>();
   auto HostGZHeaderPtr = HostGZHeader.get();
 
-  auto It = Env.GZHeaderMap
-                .emplace(std::pair<uint32_t, WasmEdgeZlibEnvironment::GZStore>{
-                    ZStreamPtr,
-                    WasmEdgeZlibEnvironment::GZStore{
-                        .WasmGZHeaderOffset = HeadPtr,
-                        .HostGZHeader = std::move(HostGZHeader)}})
-                .second;
+  const auto [It, Inserted] = Env.GZHeaderMap.emplace(
+      std::pair<uint32_t, WasmEdgeZlibEnvironment::GZStore>{
+          ZStreamPtr, WasmEdgeZlibEnvironment::GZStore{
+                          .WasmGZHeaderOffset = HeadPtr,
+                          .IsInflate = true,
+                          .HostGZHeader = std::move(HostGZHeader)}});
 
   const auto ZRes =
       SyncRun("WasmEdgeZlibInflateGetHeader", Env, ZStreamPtr, Frame,
@@ -583,7 +728,7 @@ WasmEdgeZlibInflateGetHeader::body(const Runtime::CallingFrame &Frame,
                 return inflateGetHeader(HostZStream, HostGZHeaderPtr);
               });
 
-  if (ZRes != Z_OK)
+  if (ZRes != Z_OK && Inserted)
     Env.GZHeaderMap.erase(It);
 
   return ZRes;
@@ -601,11 +746,22 @@ WasmEdgeZlibInflateBackInit::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Window = MemInst->getPointer<unsigned char *>(WindowPtr);
+  uint8_t *Window = nullptr;
+  if (WindowBits >= 8 && WindowBits <= 15) {
+    const auto WindowSpan =
+        MemInst->getSpan<uint8_t>(WindowPtr, UINT64_C(1) << WindowBits);
+    if (unlikely(WindowSpan.data() == nullptr)) {
+      spdlog::error("[WasmEdge-Zlib] [InflateBackInit] "sv
+                    "Out-of-bounds window buffer."sv);
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    Window = WindowSpan.data();
+  } else {
+    Window = MemInst->getPointer<unsigned char *>(WindowPtr);
+  }
 
-  auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
-          .second;
+  const auto [It, Inserted] =
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
 
   const auto ZRes =
       SyncRun("WasmEdgeZlibInflateBackInit", Env, ZStreamPtr, Frame,
@@ -613,7 +769,7 @@ WasmEdgeZlibInflateBackInit::body(const Runtime::CallingFrame &Frame,
                 return inflateBackInit(HostZStream, WindowBits, Window);
               });
 
-  if (ZRes != Z_OK)
+  if (ZRes != Z_OK && Inserted)
     Env.ZStreamMap.erase(It);
 
   return ZRes;
@@ -637,6 +793,22 @@ WasmEdgeZlibZlibCompilerFlags::body(const Runtime::CallingFrame &) {
   return zlibCompileFlags();
 }
 
+// compress/compress2 reject a null destination (Z_STREAM_ERROR) yet answer a
+// non-null one that merely lacks capacity with Z_BUF_ERROR, all without
+// writing a byte, so mirror deflateSetDictionary's contract: a guest null
+// maps to Z_NULL while any other offset stays non-null, including one whose
+// zero-length span carries no pointer. uncompress/uncompress2 need no such
+// care -- at zero capacity they swap in an internal probe buffer and never
+// look at the caller's pointer.
+static Bytef ZeroCapacityDest;
+static inline Bytef *resolveDestArg(uint8_t *Dest, uint32_t DestPtr,
+                                    uint32_t DstCap) noexcept {
+  if (DstCap != 0) {
+    return Dest;
+  }
+  return DestPtr == 0 ? Z_NULL : &ZeroCapacityDest;
+}
+
 Expect<int32_t> WasmEdgeZlibCompress::body(const Runtime::CallingFrame &Frame,
                                            uint32_t DestPtr,
                                            uint32_t DestLenPtr,
@@ -644,14 +816,15 @@ Expect<int32_t> WasmEdgeZlibCompress::body(const Runtime::CallingFrame &Frame,
                                            uint32_t SourceLen) {
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Dest = MemInst->getPointer<Bytef *>(DestPtr);
-  auto *DestLen = MemInst->getPointer<uint32_t *>(DestLenPtr);
-  auto *Source = MemInst->getPointer<Bytef *>(SourcePtr);
+  PTR_CHECK(DestLen, MemInst, DestLenPtr, uint32_t, "WasmEdgeZlibCompress")
+  const uint32_t DstCap = *DestLen;
+  BUFFER_CHECK(Dest, MemInst, DestPtr, DstCap, "WasmEdgeZlibCompress")
+  BUFFER_CHECK(Source, MemInst, SourcePtr, SourceLen, "WasmEdgeZlibCompress")
 
-  unsigned long HostDestLen;
-  HostDestLen = *DestLen;
-  const auto ZRes = compress(Dest, &HostDestLen, Source, SourceLen);
-  *DestLen = HostDestLen;
+  unsigned long HostDestLen = DstCap;
+  const auto ZRes = compress(resolveDestArg(Dest, DestPtr, DstCap),
+                             &HostDestLen, Source, SourceLen);
+  *DestLen = static_cast<uint32_t>(HostDestLen);
 
   return ZRes;
 }
@@ -663,14 +836,23 @@ Expect<int32_t> WasmEdgeZlibCompress2::body(const Runtime::CallingFrame &Frame,
                                             uint32_t SourceLen, int32_t Level) {
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Dest = MemInst->getPointer<Bytef *>(DestPtr);
-  auto *DestLen = MemInst->getPointer<uint32_t *>(DestLenPtr);
-  auto *Source = MemInst->getPointer<Bytef *>(SourcePtr);
+  PTR_CHECK(DestLen, MemInst, DestLenPtr, uint32_t, "WasmEdgeZlibCompress2")
+  // An out-of-range level fails compress2's deflateInit before any source
+  // byte is read or dest byte written -- though only after *destLen has been
+  // zeroed -- so answer the same way instead of validating spans the
+  // rejected call would never touch.
+  if (Level != Z_DEFAULT_COMPRESSION && (Level < 0 || Level > 9)) {
+    *DestLen = 0;
+    return Z_STREAM_ERROR;
+  }
+  const uint32_t DstCap = *DestLen;
+  BUFFER_CHECK(Dest, MemInst, DestPtr, DstCap, "WasmEdgeZlibCompress2")
+  BUFFER_CHECK(Source, MemInst, SourcePtr, SourceLen, "WasmEdgeZlibCompress2")
 
-  unsigned long HostDestLen;
-  HostDestLen = *DestLen;
-  const auto ZRes = compress2(Dest, &HostDestLen, Source, SourceLen, Level);
-  *DestLen = HostDestLen;
+  unsigned long HostDestLen = DstCap;
+  const auto ZRes = compress2(resolveDestArg(Dest, DestPtr, DstCap),
+                              &HostDestLen, Source, SourceLen, Level);
+  *DestLen = static_cast<uint32_t>(HostDestLen);
 
   return ZRes;
 }
@@ -687,14 +869,14 @@ Expect<int32_t> WasmEdgeZlibUncompress::body(const Runtime::CallingFrame &Frame,
                                              uint32_t SourceLen) {
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Dest = MemInst->getPointer<Bytef *>(DestPtr);
-  auto *DestLen = MemInst->getPointer<uint32_t *>(DestLenPtr);
-  auto *Source = MemInst->getPointer<Bytef *>(SourcePtr);
+  PTR_CHECK(DestLen, MemInst, DestLenPtr, uint32_t, "WasmEdgeZlibUncompress")
+  const uint32_t DstCap = *DestLen;
+  BUFFER_CHECK(Dest, MemInst, DestPtr, DstCap, "WasmEdgeZlibUncompress")
+  BUFFER_CHECK(Source, MemInst, SourcePtr, SourceLen, "WasmEdgeZlibUncompress")
 
-  unsigned long HostDestLen;
-  HostDestLen = *DestLen;
+  unsigned long HostDestLen = DstCap;
   const auto ZRes = uncompress(Dest, &HostDestLen, Source, SourceLen);
-  *DestLen = HostDestLen;
+  *DestLen = static_cast<uint32_t>(HostDestLen);
 
   return ZRes;
 }
@@ -705,17 +887,21 @@ WasmEdgeZlibUncompress2::body(const Runtime::CallingFrame &Frame,
                               uint32_t SourcePtr, uint32_t SourceLenPtr) {
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Dest = MemInst->getPointer<Bytef *>(DestPtr);
-  auto *DestLen = MemInst->getPointer<uint32_t *>(DestLenPtr);
-  auto *Source = MemInst->getPointer<Bytef *>(SourcePtr);
-  auto *SourceLen = MemInst->getPointer<uint32_t *>(SourceLenPtr);
+  PTR_CHECK(DestLen, MemInst, DestLenPtr, uint32_t, "WasmEdgeZlibUncompress2")
+  PTR_CHECK(SourceLen, MemInst, SourceLenPtr, uint32_t,
+            "WasmEdgeZlibUncompress2")
+  const uint32_t DstCap = *DestLen;
+  const uint32_t SrcLen = *SourceLen;
+  BUFFER_CHECK(Dest, MemInst, DestPtr, DstCap, "WasmEdgeZlibUncompress2")
+  BUFFER_CHECK(Source, MemInst, SourcePtr, SrcLen, "WasmEdgeZlibUncompress2")
 
-  unsigned long HostDestLen, HostSourceLen;
-  HostDestLen = *DestLen;
-  HostSourceLen = *SourceLen;
+  unsigned long HostDestLen = DstCap, HostSourceLen = SrcLen;
   const auto ZRes = uncompress2(Dest, &HostDestLen, Source, &HostSourceLen);
-  *DestLen = HostDestLen;
-  *SourceLen = HostSourceLen;
+  // Write the source length before the destination length so an aliased guest
+  // (DestLenPtr == SourceLenPtr) is left with the produced length, matching
+  // native uncompress2, which writes *destLen last into the shared slot.
+  *SourceLen = static_cast<uint32_t>(HostSourceLen);
+  *DestLen = static_cast<uint32_t>(HostDestLen);
 
   return ZRes;
 }
@@ -724,17 +910,24 @@ Expect<uint32_t> WasmEdgeZlibGZOpen::body(const Runtime::CallingFrame &Frame,
                                           uint32_t PathPtr, uint32_t ModePtr) {
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Path = MemInst->getPointer<const char *>(PathPtr);
-  auto *Mode = MemInst->getPointer<const char *>(ModePtr);
+  const auto *Path = getInBoundsCString(*MemInst, PathPtr);
+  const auto *Mode = getInBoundsCString(*MemInst, ModePtr);
+  if (unlikely(Path == nullptr || Mode == nullptr)) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZOpen] "sv
+                  "Out-of-bounds path or mode string."sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
 
   auto ZRes = gzopen(Path, Mode);
+  if (unlikely(ZRes == nullptr)) {
+    // A null gzFile is zlib's ordinary open failure (e.g. a missing file);
+    // surface it to the guest as a null handle instead of trapping. No live
+    // handle is ever 0 because NextGZFile starts at sizeof(gzFile).
+    return UINT32_C(0);
+  }
 
-  const auto NewWasmGZFile = WasmGZFileStart + Env.GZFileMap.size();
-  auto El =
-      std::pair<uint32_t, std::unique_ptr<WasmEdgeZlibEnvironment::GZFile>>(
-          NewWasmGZFile, ZRes);
-
-  Env.GZFileMap.emplace(std::move(El));
+  const uint32_t NewWasmGZFile = Env.NextGZFile++;
+  Env.GZFileMap.emplace(NewWasmGZFile, ZRes);
 
   return NewWasmGZFile;
 }
@@ -743,16 +936,22 @@ Expect<uint32_t> WasmEdgeZlibGZDOpen::body(const Runtime::CallingFrame &Frame,
                                            int32_t FD, uint32_t ModePtr) {
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Mode = MemInst->getPointer<const char *>(ModePtr);
+  const auto *Mode = getInBoundsCString(*MemInst, ModePtr);
+  if (unlikely(Mode == nullptr)) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZDOpen] "sv
+                  "Out-of-bounds mode string."sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
 
   auto ZRes = gzdopen(FD, Mode);
+  if (unlikely(ZRes == nullptr)) {
+    // Match gzopen: a null gzFile is an ordinary failure handed back to the
+    // guest as a null handle, not a host trap.
+    return UINT32_C(0);
+  }
 
-  const auto NewWasmGZFile = WasmGZFileStart + Env.GZFileMap.size();
-  auto El =
-      std::pair<uint32_t, std::unique_ptr<WasmEdgeZlibEnvironment::GZFile>>(
-          NewWasmGZFile, ZRes);
-
-  Env.GZFileMap.emplace(std::move(El));
+  const uint32_t NewWasmGZFile = Env.NextGZFile++;
+  Env.GZFileMap.emplace(NewWasmGZFile, ZRes);
 
   return NewWasmGZFile;
 }
@@ -766,7 +965,7 @@ Expect<int32_t> WasmEdgeZlibGZBuffer::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzbuffer(GZFileIt->second.get(), Size);
+  return gzbuffer(GZFileIt->second, Size);
 }
 
 Expect<int32_t> WasmEdgeZlibGZSetParams::body(const Runtime::CallingFrame &,
@@ -779,7 +978,7 @@ Expect<int32_t> WasmEdgeZlibGZSetParams::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzsetparams(GZFileIt->second.get(), Level, Strategy);
+  return gzsetparams(GZFileIt->second, Level, Strategy);
 }
 
 Expect<int32_t> WasmEdgeZlibGZRead::body(const Runtime::CallingFrame &Frame,
@@ -794,9 +993,9 @@ Expect<int32_t> WasmEdgeZlibGZRead::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Buf = MemInst->getPointer<unsigned char *>(BufPtr);
+  BUFFER_CHECK(Buf, MemInst, BufPtr, Len, "WasmEdgeZlibGZRead")
 
-  return gzread(GZFileIt->second.get(), Buf, Len);
+  return gzread(GZFileIt->second, Buf, Len);
 }
 
 Expect<int32_t> WasmEdgeZlibGZFread::body(const Runtime::CallingFrame &Frame,
@@ -811,9 +1010,10 @@ Expect<int32_t> WasmEdgeZlibGZFread::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Buf = MemInst->getPointer<unsigned char *>(BufPtr);
+  const uint64_t Bytes = static_cast<uint64_t>(Size) * NItems;
+  BUFFER_CHECK(Buf, MemInst, BufPtr, Bytes, "WasmEdgeZlibGZFread")
 
-  return gzfread(Buf, Size, NItems, GZFileIt->second.get());
+  return gzfread(Buf, Size, NItems, GZFileIt->second);
 }
 
 Expect<int32_t> WasmEdgeZlibGZWrite::body(const Runtime::CallingFrame &Frame,
@@ -828,9 +1028,9 @@ Expect<int32_t> WasmEdgeZlibGZWrite::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Buf = MemInst->getPointer<unsigned char *>(BufPtr);
+  BUFFER_CHECK(Buf, MemInst, BufPtr, Len, "WasmEdgeZlibGZWrite")
 
-  return gzwrite(GZFileIt->second.get(), Buf, Len);
+  return gzwrite(GZFileIt->second, Buf, Len);
 }
 
 Expect<int32_t> WasmEdgeZlibGZFwrite::body(const Runtime::CallingFrame &Frame,
@@ -845,9 +1045,10 @@ Expect<int32_t> WasmEdgeZlibGZFwrite::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Buf = MemInst->getPointer<unsigned char *>(BufPtr);
+  const uint64_t Bytes = static_cast<uint64_t>(Size) * NItems;
+  BUFFER_CHECK(Buf, MemInst, BufPtr, Bytes, "WasmEdgeZlibGZFwrite")
 
-  return gzfwrite(Buf, Size, NItems, GZFileIt->second.get());
+  return gzfwrite(Buf, Size, NItems, GZFileIt->second);
 }
 
 Expect<int32_t> WasmEdgeZlibGZPuts::body(const Runtime::CallingFrame &Frame,
@@ -861,9 +1062,14 @@ Expect<int32_t> WasmEdgeZlibGZPuts::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *String = MemInst->getPointer<const char *>(StringPtr);
+  const auto *String = getInBoundsCString(*MemInst, StringPtr);
+  if (unlikely(String == nullptr)) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZPuts] "sv
+                  "Out-of-bounds string."sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
 
-  return gzputs(GZFileIt->second.get(), String);
+  return gzputs(GZFileIt->second, String);
 }
 
 Expect<int32_t> WasmEdgeZlibGZPutc::body(const Runtime::CallingFrame &,
@@ -875,7 +1081,7 @@ Expect<int32_t> WasmEdgeZlibGZPutc::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzputc(GZFileIt->second.get(), C);
+  return gzputc(GZFileIt->second, C);
 }
 
 Expect<int32_t> WasmEdgeZlibGZGetc::body(const Runtime::CallingFrame &,
@@ -887,7 +1093,7 @@ Expect<int32_t> WasmEdgeZlibGZGetc::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzgetc(GZFileIt->second.get());
+  return gzgetc(GZFileIt->second);
 }
 
 Expect<int32_t> WasmEdgeZlibGZUngetc::body(const Runtime::CallingFrame &,
@@ -899,7 +1105,7 @@ Expect<int32_t> WasmEdgeZlibGZUngetc::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzungetc(C, GZFileIt->second.get());
+  return gzungetc(C, GZFileIt->second);
 }
 
 Expect<int32_t> WasmEdgeZlibGZFlush::body(const Runtime::CallingFrame &,
@@ -911,7 +1117,7 @@ Expect<int32_t> WasmEdgeZlibGZFlush::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzflush(GZFileIt->second.get(), Flush);
+  return gzflush(GZFileIt->second, Flush);
 }
 
 Expect<int32_t> WasmEdgeZlibGZSeek::body(const Runtime::CallingFrame &,
@@ -924,7 +1130,7 @@ Expect<int32_t> WasmEdgeZlibGZSeek::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzseek(GZFileIt->second.get(), Offset, Whence);
+  return gzseek(GZFileIt->second, Offset, Whence);
 }
 
 Expect<int32_t> WasmEdgeZlibGZRewind::body(const Runtime::CallingFrame &,
@@ -936,7 +1142,7 @@ Expect<int32_t> WasmEdgeZlibGZRewind::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzrewind(GZFileIt->second.get());
+  return gzrewind(GZFileIt->second);
 }
 
 Expect<int32_t> WasmEdgeZlibGZTell::body(const Runtime::CallingFrame &,
@@ -948,7 +1154,7 @@ Expect<int32_t> WasmEdgeZlibGZTell::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gztell(GZFileIt->second.get());
+  return gztell(GZFileIt->second);
 }
 
 Expect<int32_t> WasmEdgeZlibGZOffset::body(const Runtime::CallingFrame &,
@@ -960,7 +1166,7 @@ Expect<int32_t> WasmEdgeZlibGZOffset::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzoffset(GZFileIt->second.get());
+  return gzoffset(GZFileIt->second);
 }
 
 Expect<int32_t> WasmEdgeZlibGZEof::body(const Runtime::CallingFrame &,
@@ -972,7 +1178,7 @@ Expect<int32_t> WasmEdgeZlibGZEof::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzeof(GZFileIt->second.get());
+  return gzeof(GZFileIt->second);
 }
 
 Expect<int32_t> WasmEdgeZlibGZDirect::body(const Runtime::CallingFrame &,
@@ -984,7 +1190,7 @@ Expect<int32_t> WasmEdgeZlibGZDirect::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzdirect(GZFileIt->second.get());
+  return gzdirect(GZFileIt->second);
 }
 
 Expect<int32_t> WasmEdgeZlibGZClose::body(const Runtime::CallingFrame &,
@@ -996,7 +1202,7 @@ Expect<int32_t> WasmEdgeZlibGZClose::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const auto ZRes = gzclose(GZFileIt->second.get());
+  const auto ZRes = gzclose(GZFileIt->second);
 
   Env.GZFileMap.erase(GZFileIt);
 
@@ -1012,7 +1218,7 @@ Expect<int32_t> WasmEdgeZlibGZClose_r::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const auto ZRes = gzclose_r(GZFileIt->second.get());
+  const auto ZRes = gzclose_r(GZFileIt->second);
 
   Env.GZFileMap.erase(GZFileIt);
 
@@ -1028,7 +1234,7 @@ Expect<int32_t> WasmEdgeZlibGZClose_w::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const auto ZRes = gzclose_w(GZFileIt->second.get());
+  const auto ZRes = gzclose_w(GZFileIt->second);
 
   Env.GZFileMap.erase(GZFileIt);
 
@@ -1044,9 +1250,25 @@ Expect<void> WasmEdgeZlibGZClearerr::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  gzclearerr(GZFileIt->second.get());
+  gzclearerr(GZFileIt->second);
 
   return Expect<void>{};
+}
+
+// adler32/crc32 read Z_NULL as a request for the checksum's initial value and
+// any non-null zero-length buffer as "leave the running value unchanged",
+// mirroring deflateSetDictionary's contract above. getSpan yields a null
+// pointer for an out-of-bounds zero-length slice (which would reset the
+// caller's checksum) and a non-null pointer for guest offset 0 -- the guest's
+// Z_NULL -- (which would suppress the reset it asked for). Map a guest null to
+// Z_NULL and every other zero-length request to a non-null empty buffer.
+static inline const Bytef *
+normalizeChecksumBuf(const Bytef *Buf, uint32_t BufPtr, uint32_t Len) noexcept {
+  if (Len != 0) {
+    return Buf;
+  }
+  static constexpr Bytef EmptyBuffer = 0;
+  return BufPtr == 0 ? Z_NULL : &EmptyBuffer;
 }
 
 Expect<int32_t> WasmEdgeZlibAdler32::body(const Runtime::CallingFrame &Frame,
@@ -1054,9 +1276,9 @@ Expect<int32_t> WasmEdgeZlibAdler32::body(const Runtime::CallingFrame &Frame,
                                           uint32_t Len) {
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
+  BUFFER_CHECK(Buf, MemInst, BufPtr, Len, "WasmEdgeZlibAdler32")
 
-  return adler32(Adler, Buf, Len);
+  return adler32(Adler, normalizeChecksumBuf(Buf, BufPtr, Len), Len);
 }
 
 Expect<int32_t> WasmEdgeZlibAdler32_z::body(const Runtime::CallingFrame &Frame,
@@ -1064,9 +1286,9 @@ Expect<int32_t> WasmEdgeZlibAdler32_z::body(const Runtime::CallingFrame &Frame,
                                             uint32_t Len) {
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
+  BUFFER_CHECK(Buf, MemInst, BufPtr, Len, "WasmEdgeZlibAdler32_z")
 
-  return adler32_z(Adler, Buf, Len);
+  return adler32_z(Adler, normalizeChecksumBuf(Buf, BufPtr, Len), Len);
 }
 
 Expect<int32_t> WasmEdgeZlibAdler32Combine::body(const Runtime::CallingFrame &,
@@ -1081,9 +1303,9 @@ Expect<int32_t> WasmEdgeZlibCRC32::body(const Runtime::CallingFrame &Frame,
                                         uint32_t Len) {
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
+  BUFFER_CHECK(Buf, MemInst, BufPtr, Len, "WasmEdgeZlibCRC32")
 
-  return crc32(CRC, Buf, Len);
+  return crc32(CRC, normalizeChecksumBuf(Buf, BufPtr, Len), Len);
 }
 
 Expect<int32_t> WasmEdgeZlibCRC32_z::body(const Runtime::CallingFrame &Frame,
@@ -1091,9 +1313,9 @@ Expect<int32_t> WasmEdgeZlibCRC32_z::body(const Runtime::CallingFrame &Frame,
                                           uint32_t Len) {
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
+  BUFFER_CHECK(Buf, MemInst, BufPtr, Len, "WasmEdgeZlibCRC32_z")
 
-  return crc32_z(CRC, Buf, Len);
+  return crc32_z(CRC, normalizeChecksumBuf(Buf, BufPtr, Len), Len);
 }
 
 Expect<int32_t> WasmEdgeZlibCRC32Combine::body(const Runtime::CallingFrame &,
@@ -1120,9 +1342,8 @@ WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
   // Ignore opaque because zmalloc and zfree are ignored.
   NewZStream->opaque = Z_NULL;
 
-  auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
-          .second;
+  const auto [It, Inserted] =
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
 
   const auto ZRes =
       SyncRun("WasmEdgeZlibDeflateInit_", Env, ZStreamPtr, Frame,
@@ -1131,7 +1352,7 @@ WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
                                     sizeof(z_stream));
               });
 
-  if (ZRes != Z_OK)
+  if (ZRes != Z_OK && Inserted)
     Env.ZStreamMap.erase(It);
 
   return ZRes;
@@ -1155,9 +1376,8 @@ WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
   // Ignore opaque because zmalloc and zfree are ignored.
   NewZStream->opaque = Z_NULL;
 
-  auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
-          .second;
+  const auto [It, Inserted] =
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
 
   const auto ZRes = SyncRun("WasmEdgeZlibInflateInit_", Env, ZStreamPtr, Frame,
                             [&](z_stream *HostZStream) {
@@ -1165,7 +1385,7 @@ WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
                                                   sizeof(z_stream));
                             });
 
-  if (ZRes != Z_OK)
+  if (ZRes != Z_OK && Inserted)
     Env.ZStreamMap.erase(It);
 
   return ZRes;
@@ -1187,9 +1407,8 @@ Expect<int32_t> WasmEdgeZlibDeflateInit2_::body(
   NewZStream->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
-  auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
-          .second;
+  const auto [It, Inserted] =
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
 
   const auto ZRes = SyncRun(
       "WasmEdgeZlibDeflateInit2_", Env, ZStreamPtr, Frame,
@@ -1198,7 +1417,7 @@ Expect<int32_t> WasmEdgeZlibDeflateInit2_::body(
                              Strategy, WasmZlibVersion, sizeof(z_stream));
       });
 
-  if (ZRes != Z_OK)
+  if (ZRes != Z_OK && Inserted)
     Env.ZStreamMap.erase(It);
 
   return ZRes;
@@ -1220,9 +1439,8 @@ WasmEdgeZlibInflateInit2_::body(const Runtime::CallingFrame &Frame,
   NewZStream->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
-  auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
-          .second;
+  const auto [It, Inserted] =
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
 
   const auto ZRes =
       SyncRun("WasmEdgeZlibInflateInit2_", Env, ZStreamPtr, Frame,
@@ -1231,7 +1449,7 @@ WasmEdgeZlibInflateInit2_::body(const Runtime::CallingFrame &Frame,
                                      sizeof(z_stream));
               });
 
-  if (ZRes != Z_OK)
+  if (ZRes != Z_OK && Inserted)
     Env.ZStreamMap.erase(It);
 
   return ZRes;
@@ -1246,16 +1464,27 @@ Expect<int32_t> WasmEdgeZlibInflateBackInit_::body(
   MEMINST_CHECK(MemInst, Frame, 0)
 
   const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
-  auto *Window = MemInst->getPointer<unsigned char *>(WindowPtr);
+  uint8_t *Window = nullptr;
+  if (WindowBits >= 8 && WindowBits <= 15) {
+    const auto WindowSpan =
+        MemInst->getSpan<uint8_t>(WindowPtr, UINT64_C(1) << WindowBits);
+    if (unlikely(WindowSpan.data() == nullptr)) {
+      spdlog::error("[WasmEdge-Zlib] [InflateBackInit] "sv
+                    "Out-of-bounds window buffer."sv);
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    Window = WindowSpan.data();
+  } else {
+    Window = MemInst->getPointer<unsigned char *>(WindowPtr);
+  }
   auto NewZStream = std::make_unique<z_stream>();
   NewZStream->zalloc = Z_NULL;
   NewZStream->zfree = Z_NULL;
   NewZStream->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
-  auto It =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)))
-          .second;
+  const auto [It, Inserted] =
+      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
 
   const auto ZRes =
       SyncRun("WasmEdgeZlibInflateBackInit_", Env, ZStreamPtr, Frame,
@@ -1264,7 +1493,7 @@ Expect<int32_t> WasmEdgeZlibInflateBackInit_::body(
                                         WasmZlibVersion, sizeof(z_stream));
               });
 
-  if (ZRes != Z_OK)
+  if (ZRes != Z_OK && Inserted)
     Env.ZStreamMap.erase(It);
 
   return ZRes;
@@ -1279,7 +1508,7 @@ Expect<int32_t> WasmEdgeZlibGZGetc_::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzgetc_(GZFileIt->second.get());
+  return gzgetc_(GZFileIt->second);
 }
 
 Expect<int32_t>

@@ -6,6 +6,10 @@
 
 #include "utils.h"
 
+extern "C" {
+#include "libavutil/dict.h"
+}
+
 #include <gtest/gtest.h>
 
 namespace WasmEdge {
@@ -144,6 +148,65 @@ TEST_F(FFmpegTest, AVDictionary) {
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
+}
+
+TEST_F(FFmpegTest, AVDictSetMasksOwnershipTransferFlags) {
+  using namespace std::literals::string_view_literals;
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  uint32_t KeyStart = UINT32_C(1);
+  uint32_t KeyLen = 3;
+  uint32_t ValueStart = UINT32_C(4);
+  uint32_t ValueLen = 5;
+  uint32_t DictPtr = UINT32_C(80);
+  // The DONT_STRDUP flags ask FFmpeg to adopt key/value pointers that alias
+  // host std::string buffers; the host must strip them so the entry is copied
+  // and still round-trips after the std::strings go out of scope.
+  int32_t Flags = AV_DICT_DONT_STRDUP_KEY | AV_DICT_DONT_STRDUP_VAL;
+
+  auto *FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_set");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncAVDictSet = FuncInst->getHostFunc();
+
+  fillMemContent(MemInst, KeyStart, KeyLen + ValueLen);
+  fillMemContent(MemInst, KeyStart, "KEY"sv);
+  fillMemContent(MemInst, ValueStart, "VALUE"sv);
+
+  EXPECT_TRUE(HostFuncAVDictSet.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{DictPtr, KeyStart, KeyLen,
+                                                  ValueStart, ValueLen, Flags},
+      Result));
+  EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+  ASSERT_TRUE(readUInt32(MemInst, DictPtr) > 0);
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_dict_get_key_value");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncAVDictGetKeyValue = FuncInst->getHostFunc();
+
+  uint32_t KeyBufPtr = UINT32_C(36);
+  uint32_t ValueBufPtr = UINT32_C(40);
+  uint32_t DictId = readUInt32(MemInst, DictPtr);
+  EXPECT_TRUE(HostFuncAVDictGetKeyValue.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          DictId, KeyStart, KeyLen, ValueBufPtr, ValueLen, KeyBufPtr,
+          UINT32_C(3), UINT32_C(0), UINT32_C(0)},
+      Result));
+  EXPECT_EQ(Result[0].get<int32_t>(), 1);
+  EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(ValueBufPtr),
+                             static_cast<size_t>(ValueLen)),
+            "VALUE"sv);
+
+  FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_free");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncAVDictFree = FuncInst->getHostFunc();
+  DictId = readUInt32(MemInst, DictPtr);
+  EXPECT_TRUE(HostFuncAVDictFree.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{DictId}, Result));
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
 TEST_F(FFmpegTest, AVDictGetKeyValueBounds) {

@@ -4,6 +4,8 @@
 #include "zlibfunc.h"
 
 #include <cstring>
+#include <optional>
+#include <string_view>
 
 namespace WasmEdge {
 namespace Host {
@@ -38,10 +40,23 @@ namespace Host {
     return Unexpect(ErrCode::Value::HostFuncError);                            \
   }
 
+// zlib's versioned init entry points reject a null or major-mismatched version
+// before they examine any other argument.
+static inline bool CheckVersion(const char *Version) noexcept {
+  return Version != nullptr && Version[0] == ZLIB_VERSION[0];
+}
+
 constexpr bool CheckSize(int32_t StreamSize) {
 
   return (StreamSize == static_cast<int32_t>(sizeof(WasmZStream)));
 }
+
+constexpr uint64_t MaxGZHeaderStringLen = UINT64_C(1) << 20;
+
+// zlib's versioned initializers inspect only version[0], so cap the version
+// scan well above any real ZLIB_VERSION instead of letting a guest pointer
+// into a large non-NUL region drive an unbounded memchr over linear memory.
+constexpr uint64_t MaxZlibVersionLen = 63;
 
 // Return an in-bounds, NUL-terminated C string starting at `Offset`, or nullptr
 // when the offset is out of bounds or no terminator exists before the end of
@@ -61,6 +76,27 @@ getInBoundsCString(const Runtime::Instance::MemoryInstance &MemInst,
     return nullptr;
   }
   return Str;
+}
+
+static inline std::optional<std::string_view>
+getBoundedInBoundsCString(const Runtime::Instance::MemoryInstance &MemInst,
+                          uint32_t Offset, uint64_t MaxLen) noexcept {
+  const uint64_t MemSize = MemInst.getSize();
+  if (unlikely(Offset >= MemSize)) {
+    return std::nullopt;
+  }
+  const auto *Str = MemInst.getPointer<const char *>(Offset);
+  if (unlikely(Str == nullptr)) {
+    return std::nullopt;
+  }
+  const uint64_t Remaining = MemSize - Offset;
+  const uint64_t Bound = MaxLen == UINT64_MAX ? Remaining : MaxLen + 1;
+  const uint64_t ScanLen = Remaining < Bound ? Remaining : Bound;
+  const auto *End = static_cast<const char *>(std::memchr(Str, '\0', ScanLen));
+  if (unlikely(End == nullptr)) {
+    return std::nullopt;
+  }
+  return std::string_view(Str, static_cast<size_t>(End - Str));
 }
 
 template <typename T>
@@ -86,7 +122,7 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
                   Msg);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  auto HostZStream = HostZStreamIt->second.get();
+  auto *HostZStream = &HostZStreamIt->second.Z;
   const auto GZHeaderStoreIt = Env.GZHeaderMap.find(ZStreamPtr);
 
   const auto InSpan = MemInst->getSpan<unsigned char>(ModuleZStream->NextIn,
@@ -205,11 +241,21 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
 
   const auto ZRes = Callback(HostZStream);
 
-  ModuleZStream->NextIn += HostZStream->next_in - PreComputeNextIn;
+  // deflateCopy/inflateCopy overwrite the host stream with the source's
+  // retained next_in/next_out, so copying onto a destination whose own buffer
+  // did not resolve can leave one side of this delta null while the other is a
+  // live pointer. Subtracting a null from a non-null pointer is undefined, so
+  // advance the guest offset only when both ends are real; every other callback
+  // keeps both ends in the same buffer, where the guard always passes.
+  if (HostZStream->next_in != nullptr && PreComputeNextIn != nullptr) {
+    ModuleZStream->NextIn += HostZStream->next_in - PreComputeNextIn;
+  }
   ModuleZStream->AvailIn = HostZStream->avail_in;
   ModuleZStream->TotalIn = HostZStream->total_in;
 
-  ModuleZStream->NextOut += HostZStream->next_out - PreComputeNextOut;
+  if (HostZStream->next_out != nullptr && PreComputeNextOut != nullptr) {
+    ModuleZStream->NextOut += HostZStream->next_out - PreComputeNextOut;
+  }
   ModuleZStream->AvailOut = HostZStream->avail_out;
   ModuleZStream->TotalOut = HostZStream->total_out;
 
@@ -266,44 +312,96 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
   return ZRes;
 }
 
-Expect<int32_t>
-WasmEdgeZlibDeflateInit::body(const Runtime::CallingFrame &Frame,
-                              uint32_t ZStreamPtr, int32_t Level) {
+// Create a fresh tracked stream, run zlib's init on it, and reject re-init over
+// a live key. Running an init on an already-initialized z_stream would let zlib
+// overwrite strm->state and leak the previous internal state (unbounded, since
+// nothing else frees it). On a failed init the (empty) entry is dropped so the
+// guest may retry.
+template <typename InitFn>
+Expect<int32_t> initStream(const std::string_view &Msg,
+                           WasmEdgeZlibEnvironment &Env, uint32_t ZStreamPtr,
+                           const Runtime::CallingFrame &Frame, ZStreamKind Kind,
+                           InitFn Init) {
+  const auto [It, Inserted] = Env.ZStreamMap.try_emplace(ZStreamPtr, Kind);
+  if (unlikely(!Inserted)) {
+    spdlog::error("[WasmEdge-Zlib] [{}] "
+                  "Re-initializing a stream that is still live."sv,
+                  Msg);
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
-  auto NewZStream = std::make_unique<z_stream>();
-  NewZStream->zalloc = Z_NULL;
-  NewZStream->zfree = Z_NULL;
-  NewZStream->opaque =
-      Z_NULL; // ignore opaque since zmalloc and zfree was ignored
+  const auto ZRes = SyncRun(Msg, Env, ZStreamPtr, Frame, Init);
 
-  const auto [It, Inserted] =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
-
-  const auto ZRes = SyncRun(
-      "WasmEdgeZlibDeflateInit", Env, ZStreamPtr, Frame,
-      [&](z_stream *HostZStream) { return deflateInit(HostZStream, Level); });
-
-  if (ZRes != Z_OK && Inserted)
+  // An errored Expect compares unequal to nothing (both == and != yield
+  // false), so test it explicitly: a SyncRun trap must also drop the entry,
+  // or the failed key would be treated as live forever.
+  if (!ZRes || *ZRes != Z_OK)
     Env.ZStreamMap.erase(It);
 
   return ZRes;
 }
 
+// zlib's stream functions verify the stream kind first (deflateStateCheck /
+// inflateStateCheck) and answer a mismatched stream with Z_STREAM_ERROR
+// before reading or writing anything else. Classic zlib decides that
+// deterministically for a deflate<->inflate mix (the punned status and mode
+// value ranges are disjoint), but zlib-ng's layouts differ enough that the
+// same probe reads arbitrary fields: a cross-kind call may pass its checks
+// and then free garbage pointers (deflateEnd), overwrite live internal state
+// (inflateReset/inflatePrime/inflateValidate), or copy past the allocation
+// (inflateCopy) -- and inflateBackEnd frees whatever state it is handed
+// without any check at all. Answer from the tracked kind instead of entering
+// zlib with a mismatched state; an untracked ZStreamPtr keeps its usual trap.
+static inline bool streamKindMismatch(const WasmEdgeZlibEnvironment &Env,
+                                      uint32_t ZStreamPtr,
+                                      ZStreamKind Expected) noexcept {
+  const auto It = Env.ZStreamMap.find(ZStreamPtr);
+  return It != Env.ZStreamMap.end() && It->second.Kind != Expected;
+}
+
+Expect<int32_t>
+WasmEdgeZlibDeflateInit::body(const Runtime::CallingFrame &Frame,
+                              uint32_t ZStreamPtr, int32_t Level) {
+  return initStream(
+      "WasmEdgeZlibDeflateInit", Env, ZStreamPtr, Frame, ZStreamKind::Deflate,
+      [&](z_stream *HostZStream) { return deflateInit(HostZStream, Level); });
+}
+
 Expect<int32_t> WasmEdgeZlibDeflate::WasmEdgeZlibDeflate::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr, int32_t Flush) {
+
+  if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Deflate)) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
   // deflate() refuses a flush outside [Z_NO_FLUSH, Z_BLOCK] before touching
   // next_in or next_out, so as with deflateParams validate the buffers only
   // for a flush value zlib will service.
   const bool FlushValid = Flush >= Z_NO_FLUSH && Flush <= Z_BLOCK;
-  return SyncRun(
+  const auto ZRes = SyncRun(
       "WasmEdgeZlibDeflate", Env, ZStreamPtr, Frame,
       [&](z_stream *HostZStream) { return deflate(HostZStream, Flush); },
       /*ValidateInputBuffer=*/FlushValid, /*ValidateOutputBuffer=*/FlushValid);
+
+  // A deflate() that returns Z_OK/Z_STREAM_END has written the header and left
+  // INIT_STATE, the state a later deflateSetDictionary refuses; record it so
+  // that guard can answer without validating the dictionary span.
+  if (ZRes && (*ZRes == Z_OK || *ZRes == Z_STREAM_END)) {
+    if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
+        It != Env.ZStreamMap.end()) {
+      It->second.DeflateStarted = true;
+    }
+  }
+
+  return ZRes;
 }
 
 Expect<int32_t> WasmEdgeZlibDeflateEnd::body(const Runtime::CallingFrame &Frame,
                                              uint32_t ZStreamPtr) {
+
+  if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Deflate)) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
   const auto ZRes =
       SyncRun("WasmEdgeZlibDeflateEnd", Env, ZStreamPtr, Frame,
@@ -312,8 +410,8 @@ Expect<int32_t> WasmEdgeZlibDeflateEnd::body(const Runtime::CallingFrame &Frame,
   // deflateEnd frees zlib's internal state on both Z_OK and Z_DATA_ERROR (the
   // latter when the stream is ended mid-compression), so drop the host tracking
   // on either result. Only Z_STREAM_ERROR (an already-invalid stream) leaves
-  // it.
-  if (ZRes == Z_OK || ZRes == Z_DATA_ERROR) {
+  // it, as does a SyncRun trap (zlib never ran, so nothing was freed).
+  if (ZRes && (*ZRes == Z_OK || *ZRes == Z_DATA_ERROR)) {
     Env.ZStreamMap.erase(ZStreamPtr);
     // Drop the header snapshot; zlib no longer references it after deflateEnd.
     // A deflateCopy'd stream that shares it keeps it alive via the shared_ptr.
@@ -326,47 +424,57 @@ Expect<int32_t> WasmEdgeZlibDeflateEnd::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t>
 WasmEdgeZlibInflateInit::body(const Runtime::CallingFrame &Frame,
                               uint32_t ZStreamPtr) {
-
-  auto NewZStream = std::make_unique<z_stream>();
-  NewZStream->zalloc = Z_NULL;
-  NewZStream->zfree = Z_NULL;
-  NewZStream->opaque =
-      Z_NULL; // ignore opaque since zmalloc and zfree was ignored
-
-  const auto [It, Inserted] =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
-
-  const auto ZRes =
-      SyncRun("WasmEdgeZlibInflateInit", Env, ZStreamPtr, Frame,
-              [&](z_stream *HostZStream) { return inflateInit(HostZStream); });
-
-  if (ZRes != Z_OK && Inserted)
-    Env.ZStreamMap.erase(It);
-
-  return ZRes;
+  return initStream(
+      "WasmEdgeZlibInflateInit", Env, ZStreamPtr, Frame, ZStreamKind::Inflate,
+      [&](z_stream *HostZStream) { return inflateInit(HostZStream); });
 }
 
 Expect<int32_t> WasmEdgeZlibInflate::body(const Runtime::CallingFrame &Frame,
                                           uint32_t ZStreamPtr, int32_t Flush) {
 
-  return SyncRun(
+  if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Inflate)) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
+
+  const auto ZRes = SyncRun(
       "WasmEdgeZlibInflate", Env, ZStreamPtr, Frame,
       [&](z_stream *HostZStream) { return inflate(HostZStream, Flush); },
       /*ValidateInputBuffer=*/true, /*ValidateOutputBuffer=*/true,
       /*SyncGZHeader=*/true);
+
+  // Z_NEED_DICT is the only way into DICT mode, and only a later inflate()
+  // leaves it (a successful inflateSetDictionary keeps the mode until then),
+  // so inflate results alone track whether zlib may be awaiting a dictionary.
+  if (ZRes) {
+    if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
+        It != Env.ZStreamMap.end()) {
+      It->second.MayNeedDict = *ZRes == Z_NEED_DICT;
+    }
+  }
+
+  return ZRes;
 }
 
 Expect<int32_t> WasmEdgeZlibInflateEnd::body(const Runtime::CallingFrame &Frame,
                                              uint32_t ZStreamPtr) {
 
+  if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Inflate)) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
+
   const auto ZRes =
       SyncRun("WasmEdgeZlibInflateEnd", Env, ZStreamPtr, Frame,
               [&](z_stream *HostZStream) { return inflateEnd(HostZStream); });
 
-  Env.ZStreamMap.erase(ZStreamPtr);
-  // Drop the header snapshot captured by inflateGetHeader; zlib no longer
-  // references it after inflateEnd.
-  Env.GZHeaderMap.erase(ZStreamPtr);
+  // Z_STREAM_ERROR means zlib did not free the stream (a wrong-type or
+  // already-invalid stream); keep the entry so its internal state is not leaked
+  // and the correct *End can still reclaim it. A SyncRun trap keeps it for the
+  // same reason. Any other result freed zlib's state, so drop the tracking and
+  // the header snapshot with it.
+  if (ZRes && *ZRes != Z_STREAM_ERROR) {
+    Env.ZStreamMap.erase(ZStreamPtr);
+    Env.GZHeaderMap.erase(ZStreamPtr);
+  }
 
   return ZRes;
 }
@@ -374,32 +482,39 @@ Expect<int32_t> WasmEdgeZlibInflateEnd::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> WasmEdgeZlibDeflateInit2::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr, int32_t Level,
     int32_t Method, int32_t WindowBits, int32_t MemLevel, int32_t Strategy) {
-
-  auto NewZStream = std::make_unique<z_stream>();
-  NewZStream->zalloc = Z_NULL;
-  NewZStream->zfree = Z_NULL;
-  NewZStream->opaque =
-      Z_NULL; // ignore opaque since zmalloc and zfree was ignored
-
-  const auto [It, Inserted] =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
-
   const auto ZRes =
-      SyncRun("WasmEdgeZlibDeflateInit2", Env, ZStreamPtr, Frame,
-              [&](z_stream *HostZStream) {
-                return deflateInit2(HostZStream, Level, Method, WindowBits,
-                                    MemLevel, Strategy);
-              });
-
-  if (ZRes != Z_OK && Inserted)
-    Env.ZStreamMap.erase(It);
-
+      initStream("WasmEdgeZlibDeflateInit2", Env, ZStreamPtr, Frame,
+                 ZStreamKind::Deflate, [&](z_stream *HostZStream) {
+                   return deflateInit2(HostZStream, Level, Method, WindowBits,
+                                       MemLevel, Strategy);
+                 });
+  if (ZRes && *ZRes == Z_OK) {
+    if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
+        It != Env.ZStreamMap.end()) {
+      It->second.GzipWrap = WindowBits >= 16;
+      It->second.RawDeflate = WindowBits < 0;
+    }
+  }
   return ZRes;
 }
 
 Expect<int32_t> WasmEdgeZlibDeflateSetDictionary::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
     uint32_t DictionaryPtr, uint32_t DictLength) {
+
+  // deflateSetDictionary reads the dictionary immediately except when it
+  // rejects the request first: a wrong-kind stream fails the state check, a
+  // gzip-wrapped deflate stream refuses any preset dictionary, and a
+  // zlib-wrapped stream that has already produced output (left INIT_STATE)
+  // refuses one too, all before touching the bytes -- answer those from the
+  // tracked state. A raw deflate stream instead rejects on live lookahead,
+  // which is not tracked here, so that case still validates the buffer.
+  if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
+      It != Env.ZStreamMap.end() &&
+      (It->second.Kind != ZStreamKind::Deflate || It->second.GzipWrap ||
+       (!It->second.RawDeflate && It->second.DeflateStarted))) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
@@ -435,16 +550,30 @@ Expect<int32_t> WasmEdgeZlibDeflateGetDictionary::body(
                   "Invalid ZStreamPtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
+  if (ZStreamIt->second.Kind != ZStreamKind::Deflate) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
   // zlib writes up to the internal window (~32 KiB) with no caller-supplied
   // cap, so query the exact length first and validate the destination for it.
   uInt NeededLen = 0;
-  deflateGetDictionary(ZStreamIt->second.get(), Z_NULL, &NeededLen);
+  deflateGetDictionary(&ZStreamIt->second.Z, Z_NULL, &NeededLen);
 
-  BUFFER_CHECK(Dictionary, MemInst, DictionaryPtr, NeededLen,
-               "WasmEdgeZlibDeflateGetDictionary")
-  PTR_CHECK(DictLength, MemInst, DictLengthPtr, uint32_t,
-            "WasmEdgeZlibDeflateGetDictionary")
+  // Both out-pointers are optional: a Z_NULL dictionary returns only the
+  // length and a Z_NULL dictLength is not set, so a guest null (0) maps to
+  // Z_NULL rather than to wasm address 0.
+  uint8_t *Dictionary = nullptr;
+  if (DictionaryPtr != 0) {
+    BUFFER_CHECK(DictionaryBuf, MemInst, DictionaryPtr, NeededLen,
+                 "WasmEdgeZlibDeflateGetDictionary")
+    Dictionary = DictionaryBuf;
+  }
+  uint32_t *DictLength = nullptr;
+  if (DictLengthPtr != 0) {
+    PTR_CHECK(DictLengthOut, MemInst, DictLengthPtr, uint32_t,
+              "WasmEdgeZlibDeflateGetDictionary")
+    DictLength = DictLengthOut;
+  }
 
   return SyncRun("WasmEdgeZlibDeflateGetDictionary", Env, ZStreamPtr, Frame,
                  [&](z_stream *HostZStream) {
@@ -468,19 +597,36 @@ WasmEdgeZlibDeflateCopy::body(const Runtime::CallingFrame &Frame,
                   "Invalid SourcePtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  auto *SourceZStream = SourceZStreamIt->second.get();
+  if (SourceZStreamIt->second.Kind != ZStreamKind::Deflate) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
+  // Capture the source stream pointer before try_emplace may rehash the map;
+  // node addresses are stable across rehash, iterators are not.
+  auto *SourceZStream = &SourceZStreamIt->second.Z;
+  const bool SourceGzipWrap = SourceZStreamIt->second.GzipWrap;
+  const bool SourceRawDeflate = SourceZStreamIt->second.RawDeflate;
+  const bool SourceDeflateStarted = SourceZStreamIt->second.DeflateStarted;
 
-  auto NewZStream = std::make_unique<z_stream>();
+  MEMINST_CHECK(MemInst, Frame, 0)
+  auto *SourceModuleZStream = MemInst->getPointer<WasmZStream *>(SourcePtr);
+  auto *DestModuleZStream = MemInst->getPointer<WasmZStream *>(DestPtr);
+  if (unlikely(SourceModuleZStream == nullptr ||
+               DestModuleZStream == nullptr)) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateCopy] "sv
+                  "Out-of-bounds ZStreamPtr received."sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
 
+  // Reject copying onto a live destination (this also rejects a self-copy where
+  // DestPtr == SourcePtr): deflateCopy would overwrite the destination stream,
+  // leaking its state, and on an allocation failure leave the destination
+  // aliasing the source's internal state.
   const auto [It, Inserted] =
-      Env.ZStreamMap.emplace(std::make_pair(DestPtr, std::move(NewZStream)));
-
-  const auto Res = SyncRun("WasmEdgeZlibDeflateCopy", Env, DestPtr, Frame,
-                           [&](z_stream *) { return 0; });
-  if (!Res.has_value()) {
-    if (Inserted)
-      Env.ZStreamMap.erase(It);
-    return Res;
+      Env.ZStreamMap.try_emplace(DestPtr, ZStreamKind::Deflate);
+  if (unlikely(!Inserted)) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateCopy] "sv
+                  "Destination stream is already live."sv);
+    return static_cast<int32_t>(Z_STREAM_ERROR);
   }
 
   const auto ZRes = SyncRun("WasmEdgeZlibDeflateCopy", Env, DestPtr, Frame,
@@ -488,11 +634,23 @@ WasmEdgeZlibDeflateCopy::body(const Runtime::CallingFrame &Frame,
                               return deflateCopy(DestZStream, SourceZStream);
                             });
 
-  if (ZRes != Z_OK) {
-    if (Inserted)
-      Env.ZStreamMap.erase(It);
+  // A SyncRun trap (errored Expect) compares unequal to nothing, so test it
+  // explicitly: the failed destination entry must be dropped, and the header
+  // sharing below is for a successful copy only.
+  if (!ZRes || *ZRes != Z_OK) {
+    // deflateCopy may have left the destination aliasing the source's internal
+    // state; detach it so erasing the entry does not free the source's state.
+    It->second.Z.state = Z_NULL;
+    Env.ZStreamMap.erase(It);
     return ZRes;
   }
+
+  // The copy inherits the source's wrapper and progress: zlib duplicated the
+  // internal state wholesale, wrap and status included, so the dictionary
+  // rejects keep answering for the copy exactly as they would for the source.
+  It->second.GzipWrap = SourceGzipWrap;
+  It->second.RawDeflate = SourceRawDeflate;
+  It->second.DeflateStarted = SourceDeflateStarted;
 
   // deflateCopy duplicated the source's internal gz_header pointer into the
   // destination stream. Share the same reference-counted header snapshot so it
@@ -502,6 +660,20 @@ WasmEdgeZlibDeflateCopy::body(const Runtime::CallingFrame &Frame,
   if (SourceHeaderIt != Env.GZHeaderMap.end())
     Env.GZHeaderMap.insert_or_assign(DestPtr, SourceHeaderIt->second);
 
+  // zlib overwrote the destination host stream with the source wholesale, but
+  // the delta write-back cannot express that against an uninitialized (legal
+  // here) destination's pre-call pointers. Copy the stream fields directly
+  // from the source's guest-visible struct instead.
+  DestModuleZStream->NextIn = SourceModuleZStream->NextIn;
+  DestModuleZStream->AvailIn = SourceModuleZStream->AvailIn;
+  DestModuleZStream->TotalIn = SourceModuleZStream->TotalIn;
+  DestModuleZStream->NextOut = SourceModuleZStream->NextOut;
+  DestModuleZStream->AvailOut = SourceModuleZStream->AvailOut;
+  DestModuleZStream->TotalOut = SourceModuleZStream->TotalOut;
+  DestModuleZStream->DataType = SourceModuleZStream->DataType;
+  DestModuleZStream->Adler = SourceModuleZStream->Adler;
+  DestModuleZStream->Reserved = SourceModuleZStream->Reserved;
+
   return ZRes;
 }
 
@@ -509,15 +681,34 @@ Expect<int32_t>
 WasmEdgeZlibDeflateReset::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr) {
 
-  return SyncRun(
-      "WasmEdgeZlibDeflateReset", Env, ZStreamPtr, Frame,
-      [&](z_stream *HostZStream) { return deflateReset(HostZStream); });
+  if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Deflate)) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
+
+  const auto ZRes =
+      SyncRun("WasmEdgeZlibDeflateReset", Env, ZStreamPtr, Frame,
+              [&](z_stream *HostZStream) { return deflateReset(HostZStream); });
+
+  // deflateReset returns the stream to INIT_STATE, so a preset dictionary is
+  // allowed again until the next deflate().
+  if (ZRes && *ZRes == Z_OK) {
+    if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
+        It != Env.ZStreamMap.end()) {
+      It->second.DeflateStarted = false;
+    }
+  }
+
+  return ZRes;
 }
 
 Expect<int32_t>
 WasmEdgeZlibDeflateParams::body(const Runtime::CallingFrame &Frame,
                                 uint32_t ZStreamPtr, int32_t Level,
                                 int32_t Strategy) {
+
+  if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Deflate)) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
   // deflateParams rejects an out-of-range level or strategy before consuming
   // next_in or producing into next_out, so buffers only need to prove
@@ -541,6 +732,10 @@ Expect<int32_t> WasmEdgeZlibDeflateTune::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr, int32_t GoodLength,
     int32_t MaxLazy, int32_t NiceLength, int32_t MaxChain) {
 
+  if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Deflate)) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
+
   return SyncRun("WasmEdgeZlibDeflateTune", Env, ZStreamPtr, Frame,
                  [&](z_stream *HostZStream) {
                    return deflateTune(HostZStream, GoodLength, MaxLazy,
@@ -552,6 +747,10 @@ Expect<int32_t>
 WasmEdgeZlibDeflateBound::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr, uint32_t SourceLen) {
 
+  // No kind guard here: deflateBound only reads scalar fields that stay
+  // inside any tracked state's allocation and falls back to its conservative
+  // bound when the checks fail, so a wrong-kind stream is safe host-side and
+  // gets the same answer a native caller would.
   return SyncRun("WasmEdgeZlibDeflateBound", Env, ZStreamPtr, Frame,
                  [&](z_stream *HostZStream) {
                    return deflateBound(HostZStream, SourceLen);
@@ -563,10 +762,27 @@ WasmEdgeZlibDeflatePending::body(const Runtime::CallingFrame &Frame,
                                  uint32_t ZStreamPtr, uint32_t PendingPtr,
                                  uint32_t BitsPtr) {
 
+  // A wrong-kind stream is refused before zlib writes either out-parameter,
+  // so the guest pointers are validated only for a call zlib will service.
+  if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Deflate)) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
+
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  auto *Pending = MemInst->getPointer<uint32_t *>(PendingPtr);
-  auto *Bits = MemInst->getPointer<int32_t *>(BitsPtr);
+  // Both out-pointers are optional: zlib does not set a Z_NULL pending or
+  // bits, so a guest null (0) maps to Z_NULL rather than to wasm address 0.
+  uint32_t *Pending = nullptr;
+  if (PendingPtr != 0) {
+    PTR_CHECK(PendingOut, MemInst, PendingPtr, uint32_t,
+              "WasmEdgeZlibDeflatePending")
+    Pending = PendingOut;
+  }
+  int32_t *Bits = nullptr;
+  if (BitsPtr != 0) {
+    PTR_CHECK(BitsOut, MemInst, BitsPtr, int32_t, "WasmEdgeZlibDeflatePending")
+    Bits = BitsOut;
+  }
 
   return SyncRun("WasmEdgeZlibDeflatePending", Env, ZStreamPtr, Frame,
                  [&](z_stream *HostZStream) {
@@ -579,6 +795,10 @@ WasmEdgeZlibDeflatePrime::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr, int32_t Bits,
                                int32_t Value) {
 
+  if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Deflate)) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
+
   return SyncRun("WasmEdgeZlibDeflatePrime", Env, ZStreamPtr, Frame,
                  [&](z_stream *HostZStream) {
                    return deflatePrime(HostZStream, Bits, Value);
@@ -588,6 +808,10 @@ WasmEdgeZlibDeflatePrime::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t>
 WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
                                    uint32_t ZStreamPtr, uint32_t HeadPtr) {
+
+  if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Deflate)) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
@@ -645,39 +869,53 @@ WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
   Store->IsInflate = false;
   Store->HostGZHeader = std::make_unique<gz_header>();
 
-  const bool HasExtra =
-      ModuleGZHeader->Extra != 0 && ModuleGZHeader->ExtraLen != 0;
+  // The gzip extra field length is 16-bit: zlib writes only the low 16 bits of
+  // extra_len as XLEN and emits at most that many bytes. Snapshot (and bounds-
+  // check) only what zlib will use, so a guest-declared multi-GB ExtraLen can
+  // neither force a matching host allocation nor spuriously fail the bounds
+  // check for bytes zlib never reads.
+  const uint32_t ExtraLen16 = ModuleGZHeader->ExtraLen & UINT32_C(0xffff);
+  const bool HasExtra = ModuleGZHeader->Extra != 0;
   const bool HasName = ModuleGZHeader->Name != 0;
   const bool HasComment = ModuleGZHeader->Comment != 0;
 
   if (HasExtra) {
-    const auto ExtraSpan = MemInst->getSpan<Bytef>(ModuleGZHeader->Extra,
-                                                   ModuleGZHeader->ExtraLen);
-    if (unlikely(ExtraSpan.data() == nullptr)) {
-      spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateSetHeader] "sv
-                    "Out-of-bounds gzip header extra field."sv);
-      return Unexpect(ErrCode::Value::HostFuncError);
+    if (ExtraLen16 != 0) {
+      const auto ExtraSpan =
+          MemInst->getSpan<Bytef>(ModuleGZHeader->Extra, ExtraLen16);
+      if (unlikely(ExtraSpan.data() == nullptr)) {
+        spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateSetHeader] "sv
+                      "Out-of-bounds gzip header extra field."sv);
+        return Unexpect(ErrCode::Value::HostFuncError);
+      }
+      Store->Extra.assign(ExtraSpan.begin(), ExtraSpan.end());
+    } else {
+      // A non-null extra with a zero emitted length still makes zlib set the
+      // gzip FEXTRA flag with XLEN=0. Keep a one-byte placeholder so the
+      // published pointer stays non-null (an empty vector's data() may be
+      // null); extra_len is 0, so zlib never reads the byte.
+      Store->Extra.assign(1, 0);
     }
-    Store->Extra.assign(ExtraSpan.begin(), ExtraSpan.end());
   }
   if (HasName) {
-    const auto *NameStr = getInBoundsCString(*MemInst, ModuleGZHeader->Name);
-    if (unlikely(NameStr == nullptr)) {
+    const auto NameStr = getBoundedInBoundsCString(
+        *MemInst, ModuleGZHeader->Name, MaxGZHeaderStringLen);
+    if (unlikely(!NameStr)) {
       spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateSetHeader] "sv
                     "Out-of-bounds gzip header name field."sv);
       return Unexpect(ErrCode::Value::HostFuncError);
     }
-    Store->Name = NameStr;
+    Store->Name.assign(NameStr->data(), NameStr->size());
   }
   if (HasComment) {
-    const auto *CommentStr =
-        getInBoundsCString(*MemInst, ModuleGZHeader->Comment);
-    if (unlikely(CommentStr == nullptr)) {
+    const auto CommentStr = getBoundedInBoundsCString(
+        *MemInst, ModuleGZHeader->Comment, MaxGZHeaderStringLen);
+    if (unlikely(!CommentStr)) {
       spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateSetHeader] "sv
                     "Out-of-bounds gzip header comment field."sv);
       return Unexpect(ErrCode::Value::HostFuncError);
     }
-    Store->Comment = CommentStr;
+    Store->Comment.assign(CommentStr->data(), CommentStr->size());
   }
 
   Store->HostGZHeader->text = ModuleGZHeader->Text;
@@ -685,7 +923,7 @@ WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
   Store->HostGZHeader->xflags = ModuleGZHeader->XFlags;
   Store->HostGZHeader->os = ModuleGZHeader->OS;
   Store->HostGZHeader->hcrc = ModuleGZHeader->HCRC;
-  Store->HostGZHeader->extra_len = ModuleGZHeader->ExtraLen;
+  Store->HostGZHeader->extra_len = ExtraLen16;
 
   // Point the gz_header at the store's own snapshot buffers. The store keeps a
   // stable heap address, so this binding stays valid after it is inserted.
@@ -702,10 +940,11 @@ WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
                 return deflateSetHeader(HostZStream, HostGZHeaderPtr);
               });
 
-  // Publish the snapshot only after zlib accepts it. On any failure the
-  // previously stored header stays in place, since zlib (or a deflateCopy'd
-  // stream) may still hold a pointer into it from an earlier success.
-  if (ZRes == Z_OK)
+  // Publish the snapshot only after zlib accepts it. On any failure (a zlib
+  // error or a SyncRun trap) the previously stored header stays in place,
+  // since zlib (or a deflateCopy'd stream) may still hold a pointer into it
+  // from an earlier success.
+  if (ZRes && *ZRes == Z_OK)
     Env.GZHeaderMap.insert_or_assign(ZStreamPtr, std::move(Store));
 
   return ZRes;
@@ -714,29 +953,38 @@ WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t>
 WasmEdgeZlibInflateInit2::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr, int32_t WindowBits) {
-  auto NewZStream = std::make_unique<z_stream>();
-  NewZStream->zalloc = Z_NULL;
-  NewZStream->zfree = Z_NULL;
-  NewZStream->opaque =
-      Z_NULL; // ignore opaque since zmalloc and zfree was ignored
-
-  const auto [It, Inserted] =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
-
-  const auto ZRes = SyncRun("WasmEdgeZlibInflateInit2", Env, ZStreamPtr, Frame,
-                            [&](z_stream *HostZStream) {
-                              return inflateInit2(HostZStream, WindowBits);
-                            });
-
-  if (ZRes != Z_OK && Inserted)
-    Env.ZStreamMap.erase(It);
-
+  const auto ZRes =
+      initStream("WasmEdgeZlibInflateInit2", Env, ZStreamPtr, Frame,
+                 ZStreamKind::Inflate, [&](z_stream *HostZStream) {
+                   return inflateInit2(HostZStream, WindowBits);
+                 });
+  // wrap is fixed by windowBits: negative selects a raw stream and 16+
+  // enables the gzip wrapper (24..31 gzip-only, 40..47 auto-detect).
+  if (ZRes && *ZRes == Z_OK) {
+    if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
+        It != Env.ZStreamMap.end()) {
+      It->second.RawInflate = WindowBits < 0;
+      It->second.GzipWrap = WindowBits >= 16;
+    }
+  }
   return ZRes;
 }
 
 Expect<int32_t> WasmEdgeZlibInflateSetDictionary::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
     uint32_t DictionaryPtr, uint32_t DictLength) {
+
+  // inflateSetDictionary reads the dictionary only when the stream can accept
+  // it: raw inflate folds it into the window at once and DICT mode checksums
+  // it, but a wrapped stream that is not waiting for a dictionary (and any
+  // non-inflate stream) answers Z_STREAM_ERROR before touching the bytes, so
+  // only the reading cases validate the guest buffer.
+  if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
+      It != Env.ZStreamMap.end() &&
+      (It->second.Kind != ZStreamKind::Inflate ||
+       (!It->second.RawInflate && !It->second.MayNeedDict))) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
@@ -762,16 +1010,30 @@ Expect<int32_t> WasmEdgeZlibInflateGetDictionary::body(
                   "Invalid ZStreamPtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
+  if (ZStreamIt->second.Kind != ZStreamKind::Inflate) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
   // zlib writes up to the internal window (~32 KiB) with no caller-supplied
   // cap, so query the exact length first and validate the destination for it.
   uInt NeededLen = 0;
-  inflateGetDictionary(ZStreamIt->second.get(), Z_NULL, &NeededLen);
+  inflateGetDictionary(&ZStreamIt->second.Z, Z_NULL, &NeededLen);
 
-  BUFFER_CHECK(Dictionary, MemInst, DictionaryPtr, NeededLen,
-               "WasmEdgeZlibInflateGetDictionary")
-  PTR_CHECK(DictLength, MemInst, DictLengthPtr, uint32_t,
-            "WasmEdgeZlibInflateGetDictionary")
+  // Both out-pointers are optional: a Z_NULL dictionary returns only the
+  // length and a Z_NULL dictLength is not set, so a guest null (0) maps to
+  // Z_NULL rather than to wasm address 0.
+  uint8_t *Dictionary = nullptr;
+  if (DictionaryPtr != 0) {
+    BUFFER_CHECK(DictionaryBuf, MemInst, DictionaryPtr, NeededLen,
+                 "WasmEdgeZlibInflateGetDictionary")
+    Dictionary = DictionaryBuf;
+  }
+  uint32_t *DictLength = nullptr;
+  if (DictLengthPtr != 0) {
+    PTR_CHECK(DictLengthOut, MemInst, DictLengthPtr, uint32_t,
+              "WasmEdgeZlibInflateGetDictionary")
+    DictLength = DictLengthOut;
+  }
 
   return SyncRun("WasmEdgeZlibInflateGetDictionary", Env, ZStreamPtr, Frame,
                  [&](z_stream *HostZStream) {
@@ -783,6 +1045,10 @@ Expect<int32_t> WasmEdgeZlibInflateGetDictionary::body(
 Expect<int32_t>
 WasmEdgeZlibInflateSync::body(const Runtime::CallingFrame &Frame,
                               uint32_t ZStreamPtr) {
+
+  if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Inflate)) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
   return SyncRun(
       "WasmEdgeZlibInflateSync", Env, ZStreamPtr, Frame,
@@ -799,19 +1065,35 @@ WasmEdgeZlibInflateCopy::body(const Runtime::CallingFrame &Frame,
                   "Invalid SourcePtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  auto *SourceZStream = SourceZStreamIt->second.get();
+  if (SourceZStreamIt->second.Kind != ZStreamKind::Inflate) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
+  // Capture the source stream pointer before try_emplace may rehash the map;
+  // node addresses are stable across rehash, iterators are not.
+  auto *SourceZStream = &SourceZStreamIt->second.Z;
+  const bool SourceGzipWrap = SourceZStreamIt->second.GzipWrap;
+  const bool SourceRawInflate = SourceZStreamIt->second.RawInflate;
+  const bool SourceMayNeedDict = SourceZStreamIt->second.MayNeedDict;
 
-  auto NewZStream = std::make_unique<z_stream>();
+  MEMINST_CHECK(MemInst, Frame, 0)
+  auto *SourceModuleZStream = MemInst->getPointer<WasmZStream *>(SourcePtr);
+  auto *DestModuleZStream = MemInst->getPointer<WasmZStream *>(DestPtr);
+  if (unlikely(SourceModuleZStream == nullptr ||
+               DestModuleZStream == nullptr)) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateCopy] "sv
+                  "Out-of-bounds ZStreamPtr received."sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
 
+  // Reject copying onto a live destination (this also rejects a self-copy where
+  // DestPtr == SourcePtr): inflateCopy would overwrite the destination stream,
+  // leaking its state.
   const auto [It, Inserted] =
-      Env.ZStreamMap.emplace(std::make_pair(DestPtr, std::move(NewZStream)));
-
-  const auto Res = SyncRun("WasmEdgeZlibInflateCopy", Env, DestPtr, Frame,
-                           [&](z_stream *) { return 0; });
-  if (!Res.has_value()) {
-    if (Inserted)
-      Env.ZStreamMap.erase(It);
-    return Res;
+      Env.ZStreamMap.try_emplace(DestPtr, ZStreamKind::Inflate);
+  if (unlikely(!Inserted)) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateCopy] "sv
+                  "Destination stream is already live."sv);
+    return static_cast<int32_t>(Z_STREAM_ERROR);
   }
 
   const auto ZRes = SyncRun("WasmEdgeZlibInflateCopy", Env, DestPtr, Frame,
@@ -819,11 +1101,22 @@ WasmEdgeZlibInflateCopy::body(const Runtime::CallingFrame &Frame,
                               return inflateCopy(DestZStream, SourceZStream);
                             });
 
-  if (ZRes != Z_OK) {
-    if (Inserted)
-      Env.ZStreamMap.erase(It);
+  // A SyncRun trap (errored Expect) compares unequal to nothing, so test it
+  // explicitly: the failed destination entry must be dropped, and the header
+  // sharing below is for a successful copy only.
+  if (!ZRes || *ZRes != Z_OK) {
+    // inflateCopy allocates before touching the destination, so a failure
+    // leaves its state null; detach defensively before erasing regardless.
+    It->second.Z.state = Z_NULL;
+    Env.ZStreamMap.erase(It);
     return ZRes;
   }
+
+  // The copy inherits the source's wrapper and dictionary-wait state: zlib
+  // duplicated the internal state wholesale, wrap and mode included.
+  It->second.GzipWrap = SourceGzipWrap;
+  It->second.RawInflate = SourceRawInflate;
+  It->second.MayNeedDict = SourceMayNeedDict;
 
   // inflateCopy duplicated the source's internal gz_header pointer into the
   // destination stream. Share the same reference-counted header snapshot so it
@@ -833,12 +1126,29 @@ WasmEdgeZlibInflateCopy::body(const Runtime::CallingFrame &Frame,
   if (SourceHeaderIt != Env.GZHeaderMap.end())
     Env.GZHeaderMap.insert_or_assign(DestPtr, SourceHeaderIt->second);
 
+  // Same as deflateCopy: express the copied stream fields directly from the
+  // source's guest-visible struct instead of the delta write-back, which
+  // cannot resolve an uninitialized destination's offsets.
+  DestModuleZStream->NextIn = SourceModuleZStream->NextIn;
+  DestModuleZStream->AvailIn = SourceModuleZStream->AvailIn;
+  DestModuleZStream->TotalIn = SourceModuleZStream->TotalIn;
+  DestModuleZStream->NextOut = SourceModuleZStream->NextOut;
+  DestModuleZStream->AvailOut = SourceModuleZStream->AvailOut;
+  DestModuleZStream->TotalOut = SourceModuleZStream->TotalOut;
+  DestModuleZStream->DataType = SourceModuleZStream->DataType;
+  DestModuleZStream->Adler = SourceModuleZStream->Adler;
+  DestModuleZStream->Reserved = SourceModuleZStream->Reserved;
+
   return ZRes;
 }
 
 Expect<int32_t>
 WasmEdgeZlibInflateReset::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr) {
+
+  if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Inflate)) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
   const auto ZRes =
       SyncRun("WasmEdgeZlibInflateReset", Env, ZStreamPtr, Frame,
@@ -850,8 +1160,14 @@ WasmEdgeZlibInflateReset::body(const Runtime::CallingFrame &Frame,
   // and rewriting a guest header zlib no longer references, failing legitimate
   // post-reset inflate calls once the guest reuses that memory. deflate resets
   // keep zlib's gzhead, so deflate snapshots must stay alive.
-  if (ZRes && *ZRes == Z_OK)
+  if (ZRes && *ZRes == Z_OK) {
     Env.GZHeaderMap.erase(ZStreamPtr);
+    // The stream is back at the header stage, no longer awaiting a dictionary.
+    if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
+        It != Env.ZStreamMap.end()) {
+      It->second.MayNeedDict = false;
+    }
+  }
 
   return ZRes;
 }
@@ -860,6 +1176,10 @@ Expect<int32_t>
 WasmEdgeZlibInflateReset2::body(const Runtime::CallingFrame &Frame,
                                 uint32_t ZStreamPtr, int32_t WindowBits) {
 
+  if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Inflate)) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
+
   const auto ZRes = SyncRun("WasmEdgeZlibInflateReset2", Env, ZStreamPtr, Frame,
                             [&](z_stream *HostZStream) {
                               return inflateReset2(HostZStream, WindowBits);
@@ -867,8 +1187,17 @@ WasmEdgeZlibInflateReset2::body(const Runtime::CallingFrame &Frame,
 
   // inflateReset2 detaches zlib's gzip-header pointer like inflateReset; drop
   // the stale snapshot (see WasmEdgeZlibInflateReset).
-  if (ZRes && *ZRes == Z_OK)
+  if (ZRes && *ZRes == Z_OK) {
     Env.GZHeaderMap.erase(ZStreamPtr);
+    // inflateReset2 re-derives wrap from the new windowBits and restarts at
+    // the header stage (see WasmEdgeZlibInflateInit2 for the mapping).
+    if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
+        It != Env.ZStreamMap.end()) {
+      It->second.RawInflate = WindowBits < 0;
+      It->second.GzipWrap = WindowBits >= 16;
+      It->second.MayNeedDict = false;
+    }
+  }
 
   return ZRes;
 }
@@ -877,6 +1206,10 @@ Expect<int32_t>
 WasmEdgeZlibInflatePrime::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr, int32_t Bits,
                                int32_t Value) {
+
+  if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Inflate)) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
   return SyncRun("WasmEdgeZlibInflatePrime", Env, ZStreamPtr, Frame,
                  [&](z_stream *HostZStream) {
@@ -888,6 +1221,11 @@ Expect<int32_t>
 WasmEdgeZlibInflateMark::body(const Runtime::CallingFrame &Frame,
                               uint32_t ZStreamPtr) {
 
+  // inflateMark's bad-state answer is -(1 << 16), not Z_STREAM_ERROR.
+  if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Inflate)) {
+    return INT32_C(-65536);
+  }
+
   return SyncRun(
       "WasmEdgeZlibInflateMark", Env, ZStreamPtr, Frame,
       [&](z_stream *HostZStream) { return inflateMark(HostZStream); });
@@ -896,6 +1234,17 @@ WasmEdgeZlibInflateMark::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t>
 WasmEdgeZlibInflateGetHeader::body(const Runtime::CallingFrame &Frame,
                                    uint32_t ZStreamPtr, uint32_t HeadPtr) {
+
+  // inflateGetHeader stores the header and writes head->done only on a
+  // gzip-capable inflate stream (wrap & 2); every other stream gets
+  // Z_STREAM_ERROR before the header is touched, so the guest pointer is
+  // validated only when zlib will actually accept it. wrap is fixed by
+  // windowBits at init/reset2 time, so the tracked flag mirrors it exactly.
+  if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
+      It != Env.ZStreamMap.end() &&
+      (It->second.Kind != ZStreamKind::Inflate || !It->second.GzipWrap)) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
@@ -922,10 +1271,19 @@ WasmEdgeZlibInflateGetHeader::body(const Runtime::CallingFrame &Frame,
 
   // Publish the snapshot only after zlib accepts it and points its internal
   // head at it. A repeated call replaces the previous snapshot, which zlib no
-  // longer references; on failure zlib left its head untouched, so the local
-  // store is simply dropped and any previously stored header stays in place.
-  if (ZRes == Z_OK)
+  // longer references; on failure (a zlib error or a SyncRun trap) zlib left
+  // its head untouched, so the local store is simply dropped and any
+  // previously stored header stays in place.
+  if (ZRes && *ZRes == Z_OK) {
+    // inflateGetHeader reset head->done to 0 as it registered the header.
+    // Deliver that now: the store was not yet published during this SyncRun,
+    // so the next inflate would otherwise be the first call to sync it back.
+    if (auto *ModuleGZHeader = MemInst->getPointer<WasmGZHeader *>(HeadPtr);
+        ModuleGZHeader != nullptr) {
+      ModuleGZHeader->Done = 0;
+    }
     Env.GZHeaderMap.insert_or_assign(ZStreamPtr, std::move(Store));
+  }
 
   return ZRes;
 }
@@ -934,16 +1292,10 @@ Expect<int32_t>
 WasmEdgeZlibInflateBackInit::body(const Runtime::CallingFrame &Frame,
                                   uint32_t ZStreamPtr, int32_t WindowBits,
                                   uint32_t WindowPtr) {
-  auto NewZStream = std::make_unique<z_stream>();
-  NewZStream->zalloc = Z_NULL;
-  NewZStream->zfree = Z_NULL;
-  NewZStream->opaque =
-      Z_NULL; // ignore opaque since zmalloc and zfree was ignored
-
   MEMINST_CHECK(MemInst, Frame, 0)
 
   uint8_t *Window = nullptr;
-  if (WindowBits >= 8 && WindowBits <= 15) {
+  if (WindowPtr != 0 && WindowBits >= 8 && WindowBits <= 15) {
     const auto WindowSpan =
         MemInst->getSpan<uint8_t>(WindowPtr, UINT64_C(1) << WindowBits);
     if (unlikely(WindowSpan.data() == nullptr)) {
@@ -953,33 +1305,37 @@ WasmEdgeZlibInflateBackInit::body(const Runtime::CallingFrame &Frame,
     }
     Window = WindowSpan.data();
   } else {
-    Window = MemInst->getPointer<unsigned char *>(WindowPtr);
+    // A guest null window is zlib's Z_NULL and an out-of-range windowBits is
+    // equally rejected before the window is touched, so neither resolves a
+    // guest pointer (wasm address 0 must not stand in for Z_NULL here).
+    Window = nullptr;
   }
 
-  const auto [It, Inserted] =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
-
-  const auto ZRes =
-      SyncRun("WasmEdgeZlibInflateBackInit", Env, ZStreamPtr, Frame,
-              [&](z_stream *HostZStream) {
-                return inflateBackInit(HostZStream, WindowBits, Window);
-              });
-
-  if (ZRes != Z_OK && Inserted)
-    Env.ZStreamMap.erase(It);
-
-  return ZRes;
+  return initStream("WasmEdgeZlibInflateBackInit", Env, ZStreamPtr, Frame,
+                    ZStreamKind::InflateBack, [&](z_stream *HostZStream) {
+                      return inflateBackInit(HostZStream, WindowBits, Window);
+                    });
 }
 
 Expect<int32_t>
 WasmEdgeZlibInflateBackEnd::body(const Runtime::CallingFrame &Frame,
                                  uint32_t ZStreamPtr) {
 
+  // inflateBackEnd frees whatever state it is handed -- it never checks the
+  // kind -- so without this a guest could free a live deflate/inflate state
+  // through it and leak that stream's separately allocated internals.
+  if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::InflateBack)) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
+
   const auto ZRes = SyncRun(
       "WasmEdgeZlibInflateBackEnd", Env, ZStreamPtr, Frame,
       [&](z_stream *HostZStream) { return inflateBackEnd(HostZStream); });
 
-  Env.ZStreamMap.erase(ZStreamPtr);
+  // Keep the entry on Z_STREAM_ERROR or a SyncRun trap (zlib did not free it);
+  // otherwise drop it.
+  if (ZRes && *ZRes != Z_STREAM_ERROR)
+    Env.ZStreamMap.erase(ZStreamPtr);
 
   return ZRes;
 }
@@ -1161,7 +1517,13 @@ Expect<int32_t> WasmEdgeZlibGZBuffer::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzbuffer(GZFileIt->second, Size);
+  // Clamp a guest-declared buffer size to a sane maximum: gzbuffer makes zlib
+  // allocate three times this size on the first I/O, so an unclamped multi-GB
+  // request would exhaust host memory (and zlib rejects sizes >= 2^31
+  // outright).
+  constexpr uint32_t MaxGZBufferSize = UINT32_C(64) * 1024 * 1024;
+  return gzbuffer(GZFileIt->second,
+                  Size > MaxGZBufferSize ? MaxGZBufferSize : Size);
 }
 
 Expect<int32_t> WasmEdgeZlibGZSetParams::body(const Runtime::CallingFrame &,
@@ -1535,29 +1897,18 @@ WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
-  auto NewZStream = std::make_unique<z_stream>();
+  const auto WasmZlibVersion =
+      getBoundedInBoundsCString(*MemInst, VersionPtr, MaxZlibVersionLen);
+  if (!WasmZlibVersion || !CheckVersion(WasmZlibVersion->data())) {
+    return static_cast<int32_t>(Z_VERSION_ERROR);
+  }
 
-  // ignore wasm custom allocators
-  NewZStream->zalloc = Z_NULL;
-  NewZStream->zfree = Z_NULL;
-  // Ignore opaque because zmalloc and zfree are ignored.
-  NewZStream->opaque = Z_NULL;
-
-  const auto [It, Inserted] =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
-
-  const auto ZRes =
-      SyncRun("WasmEdgeZlibDeflateInit_", Env, ZStreamPtr, Frame,
-              [&](z_stream *HostZStream) {
-                return deflateInit_(HostZStream, Level, WasmZlibVersion,
-                                    sizeof(z_stream));
-              });
-
-  if (ZRes != Z_OK && Inserted)
-    Env.ZStreamMap.erase(It);
-
-  return ZRes;
+  return initStream("WasmEdgeZlibDeflateInit_", Env, ZStreamPtr, Frame,
+                    ZStreamKind::Deflate, [&](z_stream *HostZStream) {
+                      return deflateInit_(HostZStream, Level,
+                                          WasmZlibVersion->data(),
+                                          sizeof(z_stream));
+                    });
 }
 
 Expect<int32_t>
@@ -1569,28 +1920,17 @@ WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
-  auto NewZStream = std::make_unique<z_stream>();
+  const auto WasmZlibVersion =
+      getBoundedInBoundsCString(*MemInst, VersionPtr, MaxZlibVersionLen);
+  if (!WasmZlibVersion || !CheckVersion(WasmZlibVersion->data())) {
+    return static_cast<int32_t>(Z_VERSION_ERROR);
+  }
 
-  // ignore wasm custom allocators
-  NewZStream->zalloc = Z_NULL;
-  NewZStream->zfree = Z_NULL;
-  // Ignore opaque because zmalloc and zfree are ignored.
-  NewZStream->opaque = Z_NULL;
-
-  const auto [It, Inserted] =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
-
-  const auto ZRes = SyncRun("WasmEdgeZlibInflateInit_", Env, ZStreamPtr, Frame,
-                            [&](z_stream *HostZStream) {
-                              return inflateInit_(HostZStream, WasmZlibVersion,
-                                                  sizeof(z_stream));
-                            });
-
-  if (ZRes != Z_OK && Inserted)
-    Env.ZStreamMap.erase(It);
-
-  return ZRes;
+  return initStream("WasmEdgeZlibInflateInit_", Env, ZStreamPtr, Frame,
+                    ZStreamKind::Inflate, [&](z_stream *HostZStream) {
+                      return inflateInit_(HostZStream, WasmZlibVersion->data(),
+                                          sizeof(z_stream));
+                    });
 }
 
 Expect<int32_t> WasmEdgeZlibDeflateInit2_::body(
@@ -1602,26 +1942,26 @@ Expect<int32_t> WasmEdgeZlibDeflateInit2_::body(
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
-  auto NewZStream = std::make_unique<z_stream>();
-  NewZStream->zalloc = Z_NULL;
-  NewZStream->zfree = Z_NULL;
-  NewZStream->opaque =
-      Z_NULL; // ignore opaque since zmalloc and zfree was ignored
+  const auto WasmZlibVersion =
+      getBoundedInBoundsCString(*MemInst, VersionPtr, MaxZlibVersionLen);
+  if (!WasmZlibVersion || !CheckVersion(WasmZlibVersion->data())) {
+    return static_cast<int32_t>(Z_VERSION_ERROR);
+  }
 
-  const auto [It, Inserted] =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
-
-  const auto ZRes = SyncRun(
-      "WasmEdgeZlibDeflateInit2_", Env, ZStreamPtr, Frame,
-      [&](z_stream *HostZStream) {
-        return deflateInit2_(HostZStream, Level, Method, WindowBits, MemLevel,
-                             Strategy, WasmZlibVersion, sizeof(z_stream));
-      });
-
-  if (ZRes != Z_OK && Inserted)
-    Env.ZStreamMap.erase(It);
-
+  const auto ZRes =
+      initStream("WasmEdgeZlibDeflateInit2_", Env, ZStreamPtr, Frame,
+                 ZStreamKind::Deflate, [&](z_stream *HostZStream) {
+                   return deflateInit2_(
+                       HostZStream, Level, Method, WindowBits, MemLevel,
+                       Strategy, WasmZlibVersion->data(), sizeof(z_stream));
+                 });
+  if (ZRes && *ZRes == Z_OK) {
+    if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
+        It != Env.ZStreamMap.end()) {
+      It->second.GzipWrap = WindowBits >= 16;
+      It->second.RawDeflate = WindowBits < 0;
+    }
+  }
   return ZRes;
 }
 
@@ -1634,26 +1974,26 @@ WasmEdgeZlibInflateInit2_::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
-  auto NewZStream = std::make_unique<z_stream>();
-  NewZStream->zalloc = Z_NULL;
-  NewZStream->zfree = Z_NULL;
-  NewZStream->opaque =
-      Z_NULL; // ignore opaque since zmalloc and zfree was ignored
+  const auto WasmZlibVersion =
+      getBoundedInBoundsCString(*MemInst, VersionPtr, MaxZlibVersionLen);
+  if (!WasmZlibVersion || !CheckVersion(WasmZlibVersion->data())) {
+    return static_cast<int32_t>(Z_VERSION_ERROR);
+  }
 
-  const auto [It, Inserted] =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
-
-  const auto ZRes =
-      SyncRun("WasmEdgeZlibInflateInit2_", Env, ZStreamPtr, Frame,
-              [&](z_stream *HostZStream) {
-                return inflateInit2_(HostZStream, WindowBits, WasmZlibVersion,
-                                     sizeof(z_stream));
-              });
-
-  if (ZRes != Z_OK && Inserted)
-    Env.ZStreamMap.erase(It);
-
+  const auto ZRes = initStream(
+      "WasmEdgeZlibInflateInit2_", Env, ZStreamPtr, Frame, ZStreamKind::Inflate,
+      [&](z_stream *HostZStream) {
+        return inflateInit2_(HostZStream, WindowBits, WasmZlibVersion->data(),
+                             sizeof(z_stream));
+      });
+  // See WasmEdgeZlibInflateInit2 for the windowBits-to-wrap mapping.
+  if (ZRes && *ZRes == Z_OK) {
+    if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
+        It != Env.ZStreamMap.end()) {
+      It->second.RawInflate = WindowBits < 0;
+      It->second.GzipWrap = WindowBits >= 16;
+    }
+  }
   return ZRes;
 }
 
@@ -1665,9 +2005,16 @@ Expect<int32_t> WasmEdgeZlibInflateBackInit_::body(
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
+  const auto WasmZlibVersion =
+      getBoundedInBoundsCString(*MemInst, VersionPtr, MaxZlibVersionLen);
+  // zlib rejects a null or major-mismatched version before it examines any
+  // other argument, so mirror that order and answer Z_VERSION_ERROR here
+  // rather than resolve (and possibly trap on) the window span first.
+  if (!WasmZlibVersion || !CheckVersion(WasmZlibVersion->data())) {
+    return static_cast<int32_t>(Z_VERSION_ERROR);
+  }
   uint8_t *Window = nullptr;
-  if (WindowBits >= 8 && WindowBits <= 15) {
+  if (WindowPtr != 0 && WindowBits >= 8 && WindowBits <= 15) {
     const auto WindowSpan =
         MemInst->getSpan<uint8_t>(WindowPtr, UINT64_C(1) << WindowBits);
     if (unlikely(WindowSpan.data() == nullptr)) {
@@ -1677,28 +2024,18 @@ Expect<int32_t> WasmEdgeZlibInflateBackInit_::body(
     }
     Window = WindowSpan.data();
   } else {
-    Window = MemInst->getPointer<unsigned char *>(WindowPtr);
+    // A guest null window is zlib's Z_NULL and an out-of-range windowBits is
+    // equally rejected before the window is touched, so neither resolves a
+    // guest pointer (wasm address 0 must not stand in for Z_NULL here).
+    Window = nullptr;
   }
-  auto NewZStream = std::make_unique<z_stream>();
-  NewZStream->zalloc = Z_NULL;
-  NewZStream->zfree = Z_NULL;
-  NewZStream->opaque =
-      Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
-  const auto [It, Inserted] =
-      Env.ZStreamMap.emplace(std::make_pair(ZStreamPtr, std::move(NewZStream)));
-
-  const auto ZRes =
-      SyncRun("WasmEdgeZlibInflateBackInit_", Env, ZStreamPtr, Frame,
-              [&](z_stream *HostZStream) {
-                return inflateBackInit_(HostZStream, WindowBits, Window,
-                                        WasmZlibVersion, sizeof(z_stream));
-              });
-
-  if (ZRes != Z_OK && Inserted)
-    Env.ZStreamMap.erase(It);
-
-  return ZRes;
+  return initStream("WasmEdgeZlibInflateBackInit_", Env, ZStreamPtr, Frame,
+                    ZStreamKind::InflateBack, [&](z_stream *HostZStream) {
+                      return inflateBackInit_(HostZStream, WindowBits, Window,
+                                              WasmZlibVersion->data(),
+                                              sizeof(z_stream));
+                    });
 }
 
 Expect<int32_t> WasmEdgeZlibGZGetc_::body(const Runtime::CallingFrame &,
@@ -1722,8 +2059,11 @@ WasmEdgeZlibInflateSyncPoint::body(const Runtime::CallingFrame &,
                   "Invalid ZStreamPtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
+  if (HostZStreamIt->second.Kind != ZStreamKind::Inflate) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
-  return inflateSyncPoint(HostZStreamIt->second.get());
+  return inflateSyncPoint(&HostZStreamIt->second.Z);
 }
 
 Expect<int32_t>
@@ -1735,8 +2075,11 @@ WasmEdgeZlibInflateUndermine::body(const Runtime::CallingFrame &,
                   "Invalid ZStreamPtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
+  if (HostZStreamIt->second.Kind != ZStreamKind::Inflate) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
-  return inflateUndermine(HostZStreamIt->second.get(), Subvert);
+  return inflateUndermine(&HostZStreamIt->second.Z, Subvert);
 }
 
 Expect<int32_t> WasmEdgeZlibInflateValidate::body(const Runtime::CallingFrame &,
@@ -1748,8 +2091,11 @@ Expect<int32_t> WasmEdgeZlibInflateValidate::body(const Runtime::CallingFrame &,
                   "Invalid ZStreamPtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
+  if (HostZStreamIt->second.Kind != ZStreamKind::Inflate) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
-  return inflateValidate(HostZStreamIt->second.get(), Check);
+  return inflateValidate(&HostZStreamIt->second.Z, Check);
 }
 
 Expect<int32_t>
@@ -1761,8 +2107,12 @@ WasmEdgeZlibInflateCodesUsed::body(const Runtime::CallingFrame &,
                   "Invalid ZStreamPtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
+  // inflateCodesUsed's bad-state answer is (unsigned long)-1.
+  if (HostZStreamIt->second.Kind != ZStreamKind::Inflate) {
+    return INT32_C(-1);
+  }
 
-  return inflateCodesUsed(HostZStreamIt->second.get());
+  return inflateCodesUsed(&HostZStreamIt->second.Z);
 }
 
 Expect<int32_t>
@@ -1774,13 +2124,19 @@ WasmEdgeZlibInflateResetKeep::body(const Runtime::CallingFrame &,
                   "Invalid ZStreamPtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
+  if (HostZStreamIt->second.Kind != ZStreamKind::Inflate) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
-  const auto ZRes = inflateResetKeep(HostZStreamIt->second.get());
+  const auto ZRes = inflateResetKeep(&HostZStreamIt->second.Z);
 
   // inflateResetKeep detaches zlib's gzip-header pointer like inflateReset;
-  // drop the stale snapshot (see WasmEdgeZlibInflateReset).
-  if (ZRes == Z_OK)
+  // drop the stale snapshot (see WasmEdgeZlibInflateReset) and the
+  // dictionary-wait flag with it (the stream is back at the header stage).
+  if (ZRes == Z_OK) {
     Env.GZHeaderMap.erase(ZStreamPtr);
+    HostZStreamIt->second.MayNeedDict = false;
+  }
 
   return ZRes;
 }
@@ -1794,8 +2150,19 @@ WasmEdgeZlibDeflateResetKeep::body(const Runtime::CallingFrame &,
                   "Invalid ZStreamPtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
+  if (HostZStreamIt->second.Kind != ZStreamKind::Deflate) {
+    return static_cast<int32_t>(Z_STREAM_ERROR);
+  }
 
-  return deflateResetKeep(HostZStreamIt->second.get());
+  const int ZRes = deflateResetKeep(&HostZStreamIt->second.Z);
+
+  // deflateResetKeep also returns the stream to INIT_STATE, so clear the
+  // started flag that gates deflateSetDictionary.
+  if (ZRes == Z_OK) {
+    HostZStreamIt->second.DeflateStarted = false;
+  }
+
+  return ZRes;
 }
 
 } // namespace Host

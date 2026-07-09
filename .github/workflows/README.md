@@ -61,6 +61,27 @@ Two workflows further narrow their work *within* a run:
 - **`docker`** builds only the image set affected by the change on pull requests,
   and all images on `push` or `schedule`.
 
+### Extensions path-filter design
+
+[`.github/extensions.paths-filter.yml`](../extensions.paths-filter.yml) scopes
+the `Extensions` workflow to the plugins a change actually affects:
+
+- Each plugin's filter key lists the paths that plugin consumes: its
+  `plugins/<name>/**` and `test/plugins/<name>/**` trees, plus shared files it
+  provably uses — `thirdparty/wasi_crypto/**` is in the `wasi_crypto` key
+  because the plugin's sources include `thirdparty/wasi_crypto/api.hpp`, and
+  `cmake/WASINNDeps.cmake` is in the `wasi_nn`, `wasmedge_tensorflow`, and
+  `wasmedge_tensorflowlite` keys because their CMake files include it. A path
+  enters a key only when the plugin consumes it directly.
+- The `all` key holds the files that affect every plugin (`.github/**`, the
+  root `CMakeLists.txt`, `plugins/CMakeLists.txt`,
+  `test/plugins/CMakeLists.txt`); matching it builds all plugins.
+- General-purpose paths — core `lib/`, `include/`, and the rest of `cmake/`,
+  `thirdparty/`, and `tools/` — are deliberately not listed: they are covered
+  by `Core` and the other core-engine workflows instead.
+- The workflow's `on.paths` triggers match the filter entries, so a triggered
+  run always selects at least one job.
+
 ## Which checks run for your change
 
 Find the area you changed; the workflows listed there are the ones that run. Path
@@ -85,14 +106,17 @@ group watch slightly different subsets — for example, `IWYU checker` does not 
 `Nix` does not watch `test/` — so consult the
 [Workflow reference](#workflow-reference) for each one's exact paths.
 
-Shared build paths in this group can also trigger **Extensions**: `thirdparty/`,
-`tools/`, `cmake/`, `CMakeLists.txt`, and the WASI-NN RPC sources (the
-`wasi_nn_rpc` filter paths) are in `build-extensions.yml`'s path filter.
+A few paths in this group also trigger **Extensions**: the root
+`CMakeLists.txt`, `cmake/Helper.cmake`, `cmake/WASINNDeps.cmake`,
+`thirdparty/wasi_crypto/`, and the WASI-NN RPC sources (the `wasi_nn_rpc`
+filter paths, including their `tools/` CMake wiring) are in
+`build-extensions.yml`'s path filter; see
+[Extensions path-filter design](#extensions-path-filter-design).
 
 | Workflow | What it does | If it fails |
 | -------- | ------------ | ----------- |
 | **Core** (`build.yml`) | The main build: clang-format gate, then build and unit tests across macOS, manylinux, Ubuntu (gcc/clang x Debug/Release), Windows (+MSVC), Android, Fedora, Debian, and Alpine (static). Its Ubuntu matrix also includes single-environment coverage and fuzzer-build checks; coverage uploads the **CodeCov** report. | Fix the build or unit-test failure on the reported platform. |
-| **Extensions** (`build-extensions.yml`) | Also triggered by shared build paths such as `thirdparty/`, `tools/`, `cmake/`, and `CMakeLists.txt`; plugin matrix scope still follows the Extensions path filter. | Investigate like any triggered check; for failures clearly unrelated to your shared change, follow [Interpreting failures](#interpreting-failures). |
+| **Extensions** (`build-extensions.yml`) | Also triggered by the shared paths above (root `CMakeLists.txt`, `cmake/Helper.cmake`, `cmake/WASINNDeps.cmake`, `thirdparty/wasi_crypto/`, and the WASI-NN RPC sources); plugin matrix scope still follows the Extensions path filter. | Investigate like any triggered check; for failures clearly unrelated to your shared change, follow [Interpreting failures](#interpreting-failures). |
 | **CodeQL** (`codeql-analysis.yml`) | Security analysis of C/C++ sources (excludes `docs/`, `.github/`, `utils/`); also runs weekly. | Address the flagged security finding. |
 | **IWYU checker** (`IWYU_scan.yml`) | Include-what-you-use scan on Fedora and macOS; reports header suggestions as logs/artifacts. | Review the log and tidy includes where applicable. |
 | **Static Code Analysis** (`static-code-analysis.yml`) | Meta **Infer** analysis; uploads a report artifact. | Review the report for genuine defects (e.g. null dereferences). |
@@ -166,7 +190,7 @@ workflows are called by the entries below and are not listed here; see
 | Name | File | Triggers (events, branches, paths) | Notes |
 | ---- | ---- | ---------------------------------- | ----- |
 | Core | `build.yml` | `push` (`master`, `X.Y.x`), `pull_request` (`master`, `proposal/**`, `X.Y.x`); paths: core build workflows, `include/`, `lib/`, `test/` (not `test/plugins/`), `utils/docker/*static*`, `thirdparty/`, `tools/`, `cmake/`, `CMakeLists.txt` | clang-format gate, then cross-platform build/test; Ubuntu matrix includes coverage upload and fuzzer build |
-| Extensions | `build-extensions.yml` | same events/branches as Core; paths: extension build workflows + config, WASI-NN RPC sources (the `wasi_nn_rpc` filter paths), `plugins/`, `test/plugins/`, `thirdparty/`, `tools/`, `cmake/`, `CMakeLists.txt` | clang-format gate; path-filters the plugin build matrix and the WASI-NN GGML RPC + Windows WASI-NN jobs |
+| Extensions | `build-extensions.yml` | same events/branches as Core; paths: extension build workflows + config, WASI-NN RPC sources (the `wasi_nn_rpc` filter paths), `plugins/`, `test/plugins/`, `thirdparty/wasi_crypto/`, `cmake/Helper.cmake`, `cmake/WASINNDeps.cmake`, `CMakeLists.txt` | clang-format gate; path-filters the plugin build matrix and the WASI-NN GGML RPC + Windows WASI-NN jobs |
 | Commit Lint | `commitlint.yml` | `pull_request` (opened/synchronize/reopened/edited); no path filter | validates commit messages + PR title |
 | Misc linters | `misc-linters.yml` | `push`, `pull_request`; no path filter | codespell + lineguard |
 | CodeQL | `codeql-analysis.yml` | `push` (`master`), `pull_request` (`master`, `proposal/**`), weekly `schedule`; paths: C/C++ source globs, excluding `docs/`, `.github/`, `utils/` | clang-format gate, then CodeQL analysis |

@@ -371,6 +371,15 @@ function(wasmedge_setup_llama_target target)
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
       set_property(TARGET ggml-cuda PROPERTY POSITION_INDEPENDENT_CODE ON)
     endif()
+
+    # Reach llama.cpp's headers through -isystem / -external:I. They are pulled
+    # into this plugin's own translation units, so without this they compile
+    # under WASMEDGE_CFLAGS and trip -Werror on clang-cl, where -Wall means
+    # -Weverything.
+    foreach(LLAMA_TARGET IN ITEMS
+        common ggml ggml-base ggml-cpu ggml-cuda llama mtmd)
+      wasmedge_mark_system_includes(${LLAMA_TARGET})
+    endforeach()
   endif()
   # Ignore unused function warnings in common.h in llama.cpp.
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
@@ -379,12 +388,16 @@ function(wasmedge_setup_llama_target target)
       -Wno-error=unused-function
     )
   elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # The GGML sources index vectors with int, which clang-cl reports under
+    # -Weverything. Keep the diagnostics, but do not fail the build on them.
     target_compile_options(${target}
       PRIVATE
       -Wno-error=unused-function
       -Wno-error=implicit-float-conversion
       -Wno-error=documentation
       -Wno-error=unused-template
+      -Wno-error=sign-conversion
+      -Wno-error=extra-semi-stmt
     )
   elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     target_compile_options(${target}

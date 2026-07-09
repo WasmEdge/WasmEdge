@@ -7,7 +7,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <zlib.h>
 
@@ -86,6 +88,12 @@ public:
        deflateSetHeader (zlib reads them) */
     bool IsInflate;
     std::unique_ptr<gz_header> HostGZHeader;
+    /* host-owned snapshots of the deflateSetHeader fields; zlib emits name and
+       comment incrementally across deflate() calls, so the buffers must stay
+       stable rather than be re-read from guest memory each call */
+    std::vector<Bytef> Extra;
+    std::string Name;
+    std::string Comment;
   };
 
   WasmEdgeZlibEnvironment() = default;
@@ -99,7 +107,7 @@ public:
 
   std::unordered_map<uint32_t, std::unique_ptr<z_stream>> ZStreamMap;
   std::unordered_map<uint32_t, gzFile> GZFileMap;
-  std::unordered_map<uint32_t, GZStore> GZHeaderMap;
+  std::unordered_map<uint32_t, std::shared_ptr<GZStore>> GZHeaderMap;
   uint32_t NextGZFile = sizeof(gzFile);
 };
 

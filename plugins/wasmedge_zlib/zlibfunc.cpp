@@ -66,7 +66,9 @@ getInBoundsCString(const Runtime::Instance::MemoryInstance &MemInst,
 template <typename T>
 auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
              uint32_t ZStreamPtr, const Runtime::CallingFrame &Frame,
-             T Callback) -> Expect<int32_t> {
+             T Callback, bool ValidateInputBuffer = false,
+             bool ValidateOutputBuffer = false, bool SyncGZHeader = false)
+    -> Expect<int32_t> {
 
   MEMINST_CHECK(MemInst, Frame, 0)
   WasmZStream *ModuleZStream = MemInst->getPointer<WasmZStream *>(ZStreamPtr);
@@ -89,19 +91,28 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
 
   const auto InSpan = MemInst->getSpan<unsigned char>(ModuleZStream->NextIn,
                                                       ModuleZStream->AvailIn);
-  if (unlikely(ModuleZStream->AvailIn != 0 && InSpan.data() == nullptr)) {
-    spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
-                  "Out-of-bounds input buffer."sv,
-                  Msg);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
   const auto OutSpan = MemInst->getSpan<unsigned char>(ModuleZStream->NextOut,
                                                        ModuleZStream->AvailOut);
-  if (unlikely(ModuleZStream->AvailOut != 0 && OutSpan.data() == nullptr)) {
-    spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
-                  "Out-of-bounds output buffer."sv,
-                  Msg);
-    return Unexpect(ErrCode::Value::HostFuncError);
+  // Only the streaming callbacks read next_in or write next_out, so only they
+  // must reject an out-of-bounds data buffer (inflateSync scans input but
+  // never writes output). Control operations (init, reset, end, copy, ...)
+  // ignore these fields, and zlib's contract lets a guest leave them
+  // uninitialized; trapping them would break valid init and cleanup calls.
+  if (ValidateInputBuffer) {
+    if (unlikely(ModuleZStream->AvailIn != 0 && InSpan.data() == nullptr)) {
+      spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
+                    "Out-of-bounds input buffer."sv,
+                    Msg);
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+  }
+  if (ValidateOutputBuffer) {
+    if (unlikely(ModuleZStream->AvailOut != 0 && OutSpan.data() == nullptr)) {
+      spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
+                    "Out-of-bounds output buffer."sv,
+                    Msg);
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
   }
 
   HostZStream->next_in = InSpan.data();
@@ -127,78 +138,65 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
   unsigned char *PreComputeName{};
   unsigned char *PreComputeComment{};
 
-  if (GZHeaderStoreIt != Env.GZHeaderMap.end()) {
-    // Sync GZ Header
-
+  // Only inflate() syncs the header, and only the guest-owned INPUT fields:
+  // the buffer locations (extra/name/comment) and their *_max capacities,
+  // re-validated against linear memory every call; a guest null (0) location
+  // is zlib's Z_NULL ("field not requested") and must not resolve to wasm
+  // address 0. The OUTPUT fields (text/time/xflags/os/extra_len/hcrc/done)
+  // stay zlib-owned and flow guest-ward only in the write-back below;
+  // re-injecting extra_len would let a guest drive the EXTRA-state write
+  // offset out of bounds. Cleanup/reset calls skip this (SyncGZHeader=false),
+  // so a corrupted *_max never aborts a stream teardown.
+  if (SyncGZHeader && GZHeaderStoreIt != Env.GZHeaderMap.end() &&
+      GZHeaderStoreIt->second->IsInflate) {
     auto *ModuleGZHeader = MemInst->getPointer<WasmGZHeader *>(
-        GZHeaderStoreIt->second.WasmGZHeaderOffset);
+        GZHeaderStoreIt->second->WasmGZHeaderOffset);
     if (unlikely(ModuleGZHeader == nullptr)) {
       spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
                     "Out-of-bounds gzip header."sv,
                     Msg);
       return Unexpect(ErrCode::Value::HostFuncError);
     }
-    auto *HostGZHeader = GZHeaderStoreIt->second.HostGZHeader.get();
-    const bool IsInflate = GZHeaderStoreIt->second.IsInflate;
+    auto *HostGZHeader = GZHeaderStoreIt->second->HostGZHeader.get();
 
-    HostGZHeader->text = ModuleGZHeader->Text;
-    HostGZHeader->time = ModuleGZHeader->Time;
-    HostGZHeader->xflags = ModuleGZHeader->XFlags;
-    HostGZHeader->os = ModuleGZHeader->OS;
-
-    // inflateGetHeader writes into the buffers (bounded by *_max); the strings
-    // are read back as-is. deflateSetHeader reads the buffers: extra spans
-    // extra_len bytes and name/comment are zlib-scanned C strings.
-    const uint32_t ExtraCap =
-        IsInflate ? ModuleGZHeader->ExtraMax : ModuleGZHeader->ExtraLen;
-    const auto ExtraSpan =
-        MemInst->getSpan<unsigned char>(ModuleGZHeader->Extra, ExtraCap);
-    if (unlikely(ExtraCap != 0 && ExtraSpan.data() == nullptr)) {
-      spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
-                    "Out-of-bounds gzip header extra field."sv,
-                    Msg);
-      return Unexpect(ErrCode::Value::HostFuncError);
-    }
-    HostGZHeader->extra = ExtraSpan.data();
-    HostGZHeader->extra_len = ModuleGZHeader->ExtraLen;
-    HostGZHeader->extra_max = ModuleGZHeader->ExtraMax;
-
-    const auto BindHeaderString = [&](uint32_t FieldOffset, uint32_t MaxLen,
-                                      Bytef *&HostField) -> bool {
-      if (IsInflate) {
-        const auto FieldSpan =
-            MemInst->getSpan<unsigned char>(FieldOffset, MaxLen);
-        if (unlikely(MaxLen != 0 && FieldSpan.data() == nullptr)) {
-          return false;
-        }
-        HostField = FieldSpan.data();
-      } else if (FieldOffset != 0) {
-        const auto *FieldStr = getInBoundsCString(*MemInst, FieldOffset);
-        if (unlikely(FieldStr == nullptr)) {
-          return false;
-        }
-        HostField = reinterpret_cast<Bytef *>(const_cast<char *>(FieldStr));
-      } else {
-        HostField = nullptr;
+    bool FieldOOB = false;
+    // zlib never writes through a zero-capacity field yet still distinguishes
+    // the caller's non-null pointer from Z_NULL ("field not requested"), so a
+    // stale zero-capacity guest pointer past linear memory must stay non-null
+    // rather than read as an absent field; the shared dummy is never written
+    // (every header store is bounded by its *_max), and the delta write-back
+    // below leaves the guest offset untouched for it.
+    static unsigned char ZeroCapacityHeaderField = 0;
+    const auto ResolveField = [&](uint32_t Ptr,
+                                  uint32_t Max) -> unsigned char * {
+      if (Ptr == 0) {
+        return nullptr;
       }
-      return true;
+      const auto FieldSpan = MemInst->getSpan<unsigned char>(Ptr, Max);
+      if (FieldSpan.data() == nullptr) {
+        if (unlikely(Max != 0)) {
+          FieldOOB = true;
+        } else {
+          return &ZeroCapacityHeaderField;
+        }
+      }
+      return FieldSpan.data();
     };
-
-    if (unlikely(
-            !BindHeaderString(ModuleGZHeader->Name, ModuleGZHeader->NameMax,
-                              HostGZHeader->name) ||
-            !BindHeaderString(ModuleGZHeader->Comment, ModuleGZHeader->CommMax,
-                              HostGZHeader->comment))) {
+    HostGZHeader->extra =
+        ResolveField(ModuleGZHeader->Extra, ModuleGZHeader->ExtraMax);
+    HostGZHeader->extra_max = ModuleGZHeader->ExtraMax;
+    HostGZHeader->name =
+        ResolveField(ModuleGZHeader->Name, ModuleGZHeader->NameMax);
+    HostGZHeader->name_max = ModuleGZHeader->NameMax;
+    HostGZHeader->comment =
+        ResolveField(ModuleGZHeader->Comment, ModuleGZHeader->CommMax);
+    HostGZHeader->comm_max = ModuleGZHeader->CommMax;
+    if (unlikely(FieldOOB)) {
       spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
-                    "Out-of-bounds gzip header name/comment field."sv,
+                    "Out-of-bounds gzip header buffer."sv,
                     Msg);
       return Unexpect(ErrCode::Value::HostFuncError);
     }
-    HostGZHeader->name_max = ModuleGZHeader->NameMax;
-    HostGZHeader->comm_max = ModuleGZHeader->CommMax;
-
-    HostGZHeader->hcrc = ModuleGZHeader->HCRC;
-    HostGZHeader->done = ModuleGZHeader->Done;
 
     PreComputeExtra = HostGZHeader->extra;
     PreComputeName = HostGZHeader->name;
@@ -223,30 +221,46 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
   ModuleZStream->Adler = HostZStream->adler;
   ModuleZStream->Reserved = HostZStream->reserved;
 
-  if (GZHeaderStoreIt != Env.GZHeaderMap.end()) {
-    // Sync GZ Header
-
+  if (SyncGZHeader && GZHeaderStoreIt != Env.GZHeaderMap.end() &&
+      GZHeaderStoreIt->second->IsInflate) {
     auto *ModuleGZHeader = MemInst->getPointer<WasmGZHeader *>(
-        GZHeaderStoreIt->second.WasmGZHeaderOffset);
-    auto *HostGZHeader = GZHeaderStoreIt->second.HostGZHeader.get();
+        GZHeaderStoreIt->second->WasmGZHeaderOffset);
+    if (ModuleGZHeader != nullptr) {
+      auto *HostGZHeader = GZHeaderStoreIt->second->HostGZHeader.get();
 
-    ModuleGZHeader->Text = HostGZHeader->text;
-    ModuleGZHeader->Time = HostGZHeader->time;
-    ModuleGZHeader->XFlags = HostGZHeader->xflags;
-    ModuleGZHeader->OS = HostGZHeader->os;
+      ModuleGZHeader->Text = HostGZHeader->text;
+      ModuleGZHeader->Time = HostGZHeader->time;
+      ModuleGZHeader->XFlags = HostGZHeader->xflags;
+      ModuleGZHeader->OS = HostGZHeader->os;
 
-    ModuleGZHeader->Extra += HostGZHeader->extra - PreComputeExtra;
-    ModuleGZHeader->ExtraLen = HostGZHeader->extra_len;
-    ModuleGZHeader->ExtraMax = HostGZHeader->extra_max;
+      // zlib sets an absent optional field's pointer to Z_NULL "to signal its
+      // absence" even when a buffer was supplied; surface that as guest null
+      // instead of subtracting a live pointer from null.
+      if (HostGZHeader->extra == Z_NULL) {
+        ModuleGZHeader->Extra = 0;
+      } else if (PreComputeExtra != nullptr) {
+        ModuleGZHeader->Extra += HostGZHeader->extra - PreComputeExtra;
+      }
+      ModuleGZHeader->ExtraLen = HostGZHeader->extra_len;
+      ModuleGZHeader->ExtraMax = HostGZHeader->extra_max;
 
-    ModuleGZHeader->Name += HostGZHeader->name - PreComputeName;
-    ModuleGZHeader->NameMax = HostGZHeader->name_max;
+      if (HostGZHeader->name == Z_NULL) {
+        ModuleGZHeader->Name = 0;
+      } else if (PreComputeName != nullptr) {
+        ModuleGZHeader->Name += HostGZHeader->name - PreComputeName;
+      }
+      ModuleGZHeader->NameMax = HostGZHeader->name_max;
 
-    ModuleGZHeader->Comment += HostGZHeader->comment - PreComputeComment;
-    ModuleGZHeader->CommMax = HostGZHeader->comm_max;
+      if (HostGZHeader->comment == Z_NULL) {
+        ModuleGZHeader->Comment = 0;
+      } else if (PreComputeComment != nullptr) {
+        ModuleGZHeader->Comment += HostGZHeader->comment - PreComputeComment;
+      }
+      ModuleGZHeader->CommMax = HostGZHeader->comm_max;
 
-    ModuleGZHeader->HCRC = HostGZHeader->hcrc;
-    ModuleGZHeader->Done = HostGZHeader->done;
+      ModuleGZHeader->HCRC = HostGZHeader->hcrc;
+      ModuleGZHeader->Done = HostGZHeader->done;
+    }
   }
 
   return ZRes;
@@ -278,9 +292,14 @@ WasmEdgeZlibDeflateInit::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> WasmEdgeZlibDeflate::WasmEdgeZlibDeflate::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr, int32_t Flush) {
 
+  // deflate() refuses a flush outside [Z_NO_FLUSH, Z_BLOCK] before touching
+  // next_in or next_out, so as with deflateParams validate the buffers only
+  // for a flush value zlib will service.
+  const bool FlushValid = Flush >= Z_NO_FLUSH && Flush <= Z_BLOCK;
   return SyncRun(
       "WasmEdgeZlibDeflate", Env, ZStreamPtr, Frame,
-      [&](z_stream *HostZStream) { return deflate(HostZStream, Flush); });
+      [&](z_stream *HostZStream) { return deflate(HostZStream, Flush); },
+      /*ValidateInputBuffer=*/FlushValid, /*ValidateOutputBuffer=*/FlushValid);
 }
 
 Expect<int32_t> WasmEdgeZlibDeflateEnd::body(const Runtime::CallingFrame &Frame,
@@ -290,8 +309,16 @@ Expect<int32_t> WasmEdgeZlibDeflateEnd::body(const Runtime::CallingFrame &Frame,
       SyncRun("WasmEdgeZlibDeflateEnd", Env, ZStreamPtr, Frame,
               [&](z_stream *HostZStream) { return deflateEnd(HostZStream); });
 
-  if (ZRes == Z_OK)
+  // deflateEnd frees zlib's internal state on both Z_OK and Z_DATA_ERROR (the
+  // latter when the stream is ended mid-compression), so drop the host tracking
+  // on either result. Only Z_STREAM_ERROR (an already-invalid stream) leaves
+  // it.
+  if (ZRes == Z_OK || ZRes == Z_DATA_ERROR) {
     Env.ZStreamMap.erase(ZStreamPtr);
+    // Drop the header snapshot; zlib no longer references it after deflateEnd.
+    // A deflateCopy'd stream that shares it keeps it alive via the shared_ptr.
+    Env.GZHeaderMap.erase(ZStreamPtr);
+  }
 
   return ZRes;
 }
@@ -324,7 +351,9 @@ Expect<int32_t> WasmEdgeZlibInflate::body(const Runtime::CallingFrame &Frame,
 
   return SyncRun(
       "WasmEdgeZlibInflate", Env, ZStreamPtr, Frame,
-      [&](z_stream *HostZStream) { return inflate(HostZStream, Flush); });
+      [&](z_stream *HostZStream) { return inflate(HostZStream, Flush); },
+      /*ValidateInputBuffer=*/true, /*ValidateOutputBuffer=*/true,
+      /*SyncGZHeader=*/true);
 }
 
 Expect<int32_t> WasmEdgeZlibInflateEnd::body(const Runtime::CallingFrame &Frame,
@@ -335,6 +364,9 @@ Expect<int32_t> WasmEdgeZlibInflateEnd::body(const Runtime::CallingFrame &Frame,
               [&](z_stream *HostZStream) { return inflateEnd(HostZStream); });
 
   Env.ZStreamMap.erase(ZStreamPtr);
+  // Drop the header snapshot captured by inflateGetHeader; zlib no longer
+  // references it after inflateEnd.
+  Env.GZHeaderMap.erase(ZStreamPtr);
 
   return ZRes;
 }
@@ -456,8 +488,19 @@ WasmEdgeZlibDeflateCopy::body(const Runtime::CallingFrame &Frame,
                               return deflateCopy(DestZStream, SourceZStream);
                             });
 
-  if (ZRes != Z_OK && Inserted)
-    Env.ZStreamMap.erase(It);
+  if (ZRes != Z_OK) {
+    if (Inserted)
+      Env.ZStreamMap.erase(It);
+    return ZRes;
+  }
+
+  // deflateCopy duplicated the source's internal gz_header pointer into the
+  // destination stream. Share the same reference-counted header snapshot so it
+  // stays alive for the copy even after the source later replaces or ends its
+  // own header; the deflate snapshot is immutable, so sharing is safe.
+  const auto SourceHeaderIt = Env.GZHeaderMap.find(SourcePtr);
+  if (SourceHeaderIt != Env.GZHeaderMap.end())
+    Env.GZHeaderMap.insert_or_assign(DestPtr, SourceHeaderIt->second);
 
   return ZRes;
 }
@@ -476,10 +519,22 @@ WasmEdgeZlibDeflateParams::body(const Runtime::CallingFrame &Frame,
                                 uint32_t ZStreamPtr, int32_t Level,
                                 int32_t Strategy) {
 
-  return SyncRun("WasmEdgeZlibDeflateParams", Env, ZStreamPtr, Frame,
-                 [&](z_stream *HostZStream) {
-                   return deflateParams(HostZStream, Level, Strategy);
-                 });
+  // deflateParams rejects an out-of-range level or strategy before consuming
+  // next_in or producing into next_out, so buffers only need to prove
+  // themselves for a call zlib will actually service; a rejected call still
+  // gets zlib's Z_STREAM_ERROR, and an unresolved span stays untouched
+  // because deflate() re-checks null buffers itself.
+  const bool ParamsValid =
+      (Level == Z_DEFAULT_COMPRESSION || (Level >= 0 && Level <= 9)) &&
+      Strategy >= 0 && Strategy <= Z_FIXED;
+
+  return SyncRun(
+      "WasmEdgeZlibDeflateParams", Env, ZStreamPtr, Frame,
+      [&](z_stream *HostZStream) {
+        return deflateParams(HostZStream, Level, Strategy);
+      },
+      /*ValidateInputBuffer=*/ParamsValid,
+      /*ValidateOutputBuffer=*/ParamsValid);
 }
 
 Expect<int32_t> WasmEdgeZlibDeflateTune::body(
@@ -534,15 +589,112 @@ Expect<int32_t>
 WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
                                    uint32_t ZStreamPtr, uint32_t HeadPtr) {
 
-  auto HostGZHeader = std::make_unique<gz_header>();
-  auto HostGZHeaderPtr = HostGZHeader.get();
+  MEMINST_CHECK(MemInst, Frame, 0)
 
-  const auto [It, Inserted] = Env.GZHeaderMap.emplace(
-      std::pair<uint32_t, WasmEdgeZlibEnvironment::GZStore>{
-          ZStreamPtr, WasmEdgeZlibEnvironment::GZStore{
-                          .WasmGZHeaderOffset = HeadPtr,
-                          .IsInflate = false,
-                          .HostGZHeader = std::move(HostGZHeader)}});
+  // Native deflateSetHeader accepts Z_NULL and reverts the stream to the
+  // default gzip header; guest null (0) takes that path rather than
+  // dereferencing wasm address 0. zlib then retains no pointer into any
+  // snapshot, so a published one can be dropped.
+  if (HeadPtr == 0) {
+    const auto ZRes = SyncRun("WasmEdgeZlibDeflateSetHeader", Env, ZStreamPtr,
+                              Frame, [&](z_stream *HostZStream) {
+                                return deflateSetHeader(HostZStream, Z_NULL);
+                              });
+    if (ZRes && *ZRes == Z_OK)
+      Env.GZHeaderMap.erase(ZStreamPtr);
+    return ZRes;
+  }
+
+  // Get zlib's verdict before any guest-header work: only a gzip deflate
+  // stream accepts a header, and deflateSetHeader merely validates the stream
+  // and stores the pointer, so re-storing the currently published snapshot
+  // (or Z_NULL when none was published) changes nothing. A stream zlib
+  // rejects thus fails with its cheap Z_STREAM_ERROR before the host reads
+  // the header or snapshots a guest-sized extra/name/comment into host
+  // memory, and an invalid ZStreamPtr still traps inside SyncRun.
+  {
+    const auto StoreIt = Env.GZHeaderMap.find(ZStreamPtr);
+    gz_header *CurrentHead = StoreIt != Env.GZHeaderMap.end()
+                                 ? StoreIt->second->HostGZHeader.get()
+                                 : Z_NULL;
+    const auto ProbeRes =
+        SyncRun("WasmEdgeZlibDeflateSetHeader", Env, ZStreamPtr, Frame,
+                [&](z_stream *HostZStream) {
+                  return deflateSetHeader(HostZStream, CurrentHead);
+                });
+    if (!ProbeRes || *ProbeRes != Z_OK) {
+      return ProbeRes;
+    }
+  }
+
+  auto *ModuleGZHeader = MemInst->getPointer<WasmGZHeader *>(HeadPtr);
+  if (unlikely(ModuleGZHeader == nullptr)) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateSetHeader] "sv
+                  "Out-of-bounds gzip header."sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  // Snapshot the header into host-owned storage; deflate() emits the name and
+  // comment incrementally across calls (resuming at an internal index), so the
+  // buffers must stay stable and must not be re-read from mutable guest memory.
+  // The store is heap-allocated and reference-counted so deflateCopy can hand
+  // the same snapshot to a copied stream; its address stays stable, so the
+  // bound buffer pointers remain valid once it is inserted into the map.
+  auto Store = std::make_shared<WasmEdgeZlibEnvironment::GZStore>();
+  Store->WasmGZHeaderOffset = HeadPtr;
+  Store->IsInflate = false;
+  Store->HostGZHeader = std::make_unique<gz_header>();
+
+  const bool HasExtra =
+      ModuleGZHeader->Extra != 0 && ModuleGZHeader->ExtraLen != 0;
+  const bool HasName = ModuleGZHeader->Name != 0;
+  const bool HasComment = ModuleGZHeader->Comment != 0;
+
+  if (HasExtra) {
+    const auto ExtraSpan = MemInst->getSpan<Bytef>(ModuleGZHeader->Extra,
+                                                   ModuleGZHeader->ExtraLen);
+    if (unlikely(ExtraSpan.data() == nullptr)) {
+      spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateSetHeader] "sv
+                    "Out-of-bounds gzip header extra field."sv);
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    Store->Extra.assign(ExtraSpan.begin(), ExtraSpan.end());
+  }
+  if (HasName) {
+    const auto *NameStr = getInBoundsCString(*MemInst, ModuleGZHeader->Name);
+    if (unlikely(NameStr == nullptr)) {
+      spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateSetHeader] "sv
+                    "Out-of-bounds gzip header name field."sv);
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    Store->Name = NameStr;
+  }
+  if (HasComment) {
+    const auto *CommentStr =
+        getInBoundsCString(*MemInst, ModuleGZHeader->Comment);
+    if (unlikely(CommentStr == nullptr)) {
+      spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateSetHeader] "sv
+                    "Out-of-bounds gzip header comment field."sv);
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    Store->Comment = CommentStr;
+  }
+
+  Store->HostGZHeader->text = ModuleGZHeader->Text;
+  Store->HostGZHeader->time = ModuleGZHeader->Time;
+  Store->HostGZHeader->xflags = ModuleGZHeader->XFlags;
+  Store->HostGZHeader->os = ModuleGZHeader->OS;
+  Store->HostGZHeader->hcrc = ModuleGZHeader->HCRC;
+  Store->HostGZHeader->extra_len = ModuleGZHeader->ExtraLen;
+
+  // Point the gz_header at the store's own snapshot buffers. The store keeps a
+  // stable heap address, so this binding stays valid after it is inserted.
+  auto *HostGZHeaderPtr = Store->HostGZHeader.get();
+  HostGZHeaderPtr->extra = HasExtra ? Store->Extra.data() : Z_NULL;
+  HostGZHeaderPtr->name =
+      HasName ? reinterpret_cast<Bytef *>(Store->Name.data()) : Z_NULL;
+  HostGZHeaderPtr->comment =
+      HasComment ? reinterpret_cast<Bytef *>(Store->Comment.data()) : Z_NULL;
 
   const auto ZRes =
       SyncRun("WasmEdgeZlibDeflateSetHeader", Env, ZStreamPtr, Frame,
@@ -550,8 +702,11 @@ WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
                 return deflateSetHeader(HostZStream, HostGZHeaderPtr);
               });
 
-  if (ZRes != Z_OK && Inserted)
-    Env.GZHeaderMap.erase(It);
+  // Publish the snapshot only after zlib accepts it. On any failure the
+  // previously stored header stays in place, since zlib (or a deflateCopy'd
+  // stream) may still hold a pointer into it from an earlier success.
+  if (ZRes == Z_OK)
+    Env.GZHeaderMap.insert_or_assign(ZStreamPtr, std::move(Store));
 
   return ZRes;
 }
@@ -631,7 +786,8 @@ WasmEdgeZlibInflateSync::body(const Runtime::CallingFrame &Frame,
 
   return SyncRun(
       "WasmEdgeZlibInflateSync", Env, ZStreamPtr, Frame,
-      [&](z_stream *HostZStream) { return inflateSync(HostZStream); });
+      [&](z_stream *HostZStream) { return inflateSync(HostZStream); },
+      /*ValidateInputBuffer=*/true);
 }
 
 Expect<int32_t>
@@ -663,8 +819,19 @@ WasmEdgeZlibInflateCopy::body(const Runtime::CallingFrame &Frame,
                               return inflateCopy(DestZStream, SourceZStream);
                             });
 
-  if (ZRes != Z_OK && Inserted)
-    Env.ZStreamMap.erase(It);
+  if (ZRes != Z_OK) {
+    if (Inserted)
+      Env.ZStreamMap.erase(It);
+    return ZRes;
+  }
+
+  // inflateCopy duplicated the source's internal gz_header pointer into the
+  // destination stream. Share the same reference-counted header snapshot so it
+  // stays alive for the copy even after the source later replaces or ends its
+  // own header; zlib's copied head aliases this exact host storage.
+  const auto SourceHeaderIt = Env.GZHeaderMap.find(SourcePtr);
+  if (SourceHeaderIt != Env.GZHeaderMap.end())
+    Env.GZHeaderMap.insert_or_assign(DestPtr, SourceHeaderIt->second);
 
   return ZRes;
 }
@@ -673,19 +840,37 @@ Expect<int32_t>
 WasmEdgeZlibInflateReset::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr) {
 
-  return SyncRun(
-      "WasmEdgeZlibInflateReset", Env, ZStreamPtr, Frame,
-      [&](z_stream *HostZStream) { return inflateReset(HostZStream); });
+  const auto ZRes =
+      SyncRun("WasmEdgeZlibInflateReset", Env, ZStreamPtr, Frame,
+              [&](z_stream *HostZStream) { return inflateReset(HostZStream); });
+
+  // A successful inflate reset detaches zlib's internal gzip-header pointer
+  // (the guest must call inflateGetHeader again for the next stream), so the
+  // snapshot must be dropped with it: a stale entry would keep re-validating
+  // and rewriting a guest header zlib no longer references, failing legitimate
+  // post-reset inflate calls once the guest reuses that memory. deflate resets
+  // keep zlib's gzhead, so deflate snapshots must stay alive.
+  if (ZRes && *ZRes == Z_OK)
+    Env.GZHeaderMap.erase(ZStreamPtr);
+
+  return ZRes;
 }
 
 Expect<int32_t>
 WasmEdgeZlibInflateReset2::body(const Runtime::CallingFrame &Frame,
                                 uint32_t ZStreamPtr, int32_t WindowBits) {
 
-  return SyncRun("WasmEdgeZlibInflateReset2", Env, ZStreamPtr, Frame,
-                 [&](z_stream *HostZStream) {
-                   return inflateReset2(HostZStream, WindowBits);
-                 });
+  const auto ZRes = SyncRun("WasmEdgeZlibInflateReset2", Env, ZStreamPtr, Frame,
+                            [&](z_stream *HostZStream) {
+                              return inflateReset2(HostZStream, WindowBits);
+                            });
+
+  // inflateReset2 detaches zlib's gzip-header pointer like inflateReset; drop
+  // the stale snapshot (see WasmEdgeZlibInflateReset).
+  if (ZRes && *ZRes == Z_OK)
+    Env.GZHeaderMap.erase(ZStreamPtr);
+
+  return ZRes;
 }
 
 Expect<int32_t>
@@ -712,15 +897,22 @@ Expect<int32_t>
 WasmEdgeZlibInflateGetHeader::body(const Runtime::CallingFrame &Frame,
                                    uint32_t ZStreamPtr, uint32_t HeadPtr) {
 
-  auto HostGZHeader = std::make_unique<gz_header>();
-  auto HostGZHeaderPtr = HostGZHeader.get();
+  MEMINST_CHECK(MemInst, Frame, 0)
 
-  const auto [It, Inserted] = Env.GZHeaderMap.emplace(
-      std::pair<uint32_t, WasmEdgeZlibEnvironment::GZStore>{
-          ZStreamPtr, WasmEdgeZlibEnvironment::GZStore{
-                          .WasmGZHeaderOffset = HeadPtr,
-                          .IsInflate = true,
-                          .HostGZHeader = std::move(HostGZHeader)}});
+  // Validate the guest header pointer up front (like deflateSetHeader) so an
+  // out-of-bounds HeadPtr is rejected here instead of being stored and then
+  // failing every later inflate/cleanup call once zlib has accepted the stream.
+  if (unlikely(MemInst->getPointer<WasmGZHeader *>(HeadPtr) == nullptr)) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateGetHeader] "sv
+                  "Out-of-bounds gzip header."sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto Store = std::make_shared<WasmEdgeZlibEnvironment::GZStore>();
+  Store->WasmGZHeaderOffset = HeadPtr;
+  Store->IsInflate = true;
+  Store->HostGZHeader = std::make_unique<gz_header>();
+  auto *HostGZHeaderPtr = Store->HostGZHeader.get();
 
   const auto ZRes =
       SyncRun("WasmEdgeZlibInflateGetHeader", Env, ZStreamPtr, Frame,
@@ -728,8 +920,12 @@ WasmEdgeZlibInflateGetHeader::body(const Runtime::CallingFrame &Frame,
                 return inflateGetHeader(HostZStream, HostGZHeaderPtr);
               });
 
-  if (ZRes != Z_OK && Inserted)
-    Env.GZHeaderMap.erase(It);
+  // Publish the snapshot only after zlib accepts it and points its internal
+  // head at it. A repeated call replaces the previous snapshot, which zlib no
+  // longer references; on failure zlib left its head untouched, so the local
+  // store is simply dropped and any previously stored header stays in place.
+  if (ZRes == Z_OK)
+    Env.GZHeaderMap.insert_or_assign(ZStreamPtr, std::move(Store));
 
   return ZRes;
 }
@@ -1220,7 +1416,10 @@ Expect<int32_t> WasmEdgeZlibGZClose_r::body(const Runtime::CallingFrame &,
 
   const auto ZRes = gzclose_r(GZFileIt->second);
 
-  Env.GZFileMap.erase(GZFileIt);
+  // Z_STREAM_ERROR means the handle was the wrong mode and was NOT freed; keep
+  // it so the environment destructor can still reclaim it.
+  if (ZRes != Z_STREAM_ERROR)
+    Env.GZFileMap.erase(GZFileIt);
 
   return ZRes;
 }
@@ -1236,7 +1435,10 @@ Expect<int32_t> WasmEdgeZlibGZClose_w::body(const Runtime::CallingFrame &,
 
   const auto ZRes = gzclose_w(GZFileIt->second);
 
-  Env.GZFileMap.erase(GZFileIt);
+  // Z_STREAM_ERROR means the handle was the wrong mode and was NOT freed; keep
+  // it so the environment destructor can still reclaim it.
+  if (ZRes != Z_STREAM_ERROR)
+    Env.GZFileMap.erase(GZFileIt);
 
   return ZRes;
 }
@@ -1573,7 +1775,14 @@ WasmEdgeZlibInflateResetKeep::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return inflateResetKeep(HostZStreamIt->second.get());
+  const auto ZRes = inflateResetKeep(HostZStreamIt->second.get());
+
+  // inflateResetKeep detaches zlib's gzip-header pointer like inflateReset;
+  // drop the stale snapshot (see WasmEdgeZlibInflateReset).
+  if (ZRes == Z_OK)
+    Env.GZHeaderMap.erase(ZStreamPtr);
+
+  return ZRes;
 }
 
 Expect<int32_t>

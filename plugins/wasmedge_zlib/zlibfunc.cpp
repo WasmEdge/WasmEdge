@@ -3,9 +3,16 @@
 
 #include "zlibfunc.h"
 
+#include "host/wasi/wasimodule.h"
+
 #include <cstring>
 #include <optional>
 #include <string_view>
+
+#if !defined(_WIN32)
+#include <fcntl.h>
+#include <unistd.h>
+#endif
 
 namespace WasmEdge {
 namespace Host {
@@ -17,10 +24,6 @@ namespace Host {
     return Unexpect(ErrCode::Value::HostFuncError);                            \
   }
 
-// Bind `Var` to a guest buffer of `Len` bytes at `Offset`, validating that the
-// whole range is in bounds (zlib may touch all of it). getPointer only checks a
-// single element, so getSpan is required here. A zero-length buffer is
-// accepted.
 #define BUFFER_CHECK(Var, MemInstPtr, Offset, Len, FuncName)                   \
   const auto Var##Span = (MemInstPtr)->getSpan<uint8_t>((Offset), (Len));      \
   if (unlikely((Len) != 0 && Var##Span.data() == nullptr)) {                   \
@@ -30,8 +33,6 @@ namespace Host {
   }                                                                            \
   auto *Var = Var##Span.data();
 
-// Bind `Var` to a single `Type` object at `Offset`, rejecting an out-of-bounds
-// offset (getPointer returns nullptr rather than trapping).
 #define PTR_CHECK(Var, MemInstPtr, Offset, Type, FuncName)                     \
   auto *Var = (MemInstPtr)->getPointer<Type *>((Offset));                      \
   if (unlikely(Var == nullptr)) {                                              \
@@ -40,8 +41,6 @@ namespace Host {
     return Unexpect(ErrCode::Value::HostFuncError);                            \
   }
 
-// zlib's versioned init entry points reject a null or major-mismatched version
-// before they examine any other argument.
 static inline bool CheckVersion(const char *Version) noexcept {
   return Version != nullptr && Version[0] == ZLIB_VERSION[0];
 }
@@ -53,30 +52,7 @@ constexpr bool CheckSize(int32_t StreamSize) {
 
 constexpr uint64_t MaxGZHeaderStringLen = UINT64_C(1) << 20;
 
-// zlib's versioned initializers inspect only version[0], so cap the version
-// scan well above any real ZLIB_VERSION instead of letting a guest pointer
-// into a large non-NUL region drive an unbounded memchr over linear memory.
 constexpr uint64_t MaxZlibVersionLen = 63;
-
-// Return an in-bounds, NUL-terminated C string starting at `Offset`, or nullptr
-// when the offset is out of bounds or no terminator exists before the end of
-// linear memory (which would make zlib's strlen/strcpy read out of bounds).
-static inline const char *
-getInBoundsCString(const Runtime::Instance::MemoryInstance &MemInst,
-                   uint32_t Offset) noexcept {
-  const uint64_t MemSize = MemInst.getSize();
-  if (unlikely(Offset >= MemSize)) {
-    return nullptr;
-  }
-  const auto *Str = MemInst.getPointer<const char *>(Offset);
-  if (unlikely(Str == nullptr)) {
-    return nullptr;
-  }
-  if (unlikely(std::memchr(Str, '\0', MemSize - Offset) == nullptr)) {
-    return nullptr;
-  }
-  return Str;
-}
 
 static inline std::optional<std::string_view>
 getBoundedInBoundsCString(const Runtime::Instance::MemoryInstance &MemInst,
@@ -129,11 +105,6 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
                                                       ModuleZStream->AvailIn);
   const auto OutSpan = MemInst->getSpan<unsigned char>(ModuleZStream->NextOut,
                                                        ModuleZStream->AvailOut);
-  // Only the streaming callbacks read next_in or write next_out, so only they
-  // must reject an out-of-bounds data buffer (inflateSync scans input but
-  // never writes output). Control operations (init, reset, end, copy, ...)
-  // ignore these fields, and zlib's contract lets a guest leave them
-  // uninitialized; trapping them would break valid init and cleanup calls.
   if (ValidateInputBuffer) {
     if (unlikely(ModuleZStream->AvailIn != 0 && InSpan.data() == nullptr)) {
       spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
@@ -174,15 +145,6 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
   unsigned char *PreComputeName{};
   unsigned char *PreComputeComment{};
 
-  // Only inflate() syncs the header, and only the guest-owned INPUT fields:
-  // the buffer locations (extra/name/comment) and their *_max capacities,
-  // re-validated against linear memory every call; a guest null (0) location
-  // is zlib's Z_NULL ("field not requested") and must not resolve to wasm
-  // address 0. The OUTPUT fields (text/time/xflags/os/extra_len/hcrc/done)
-  // stay zlib-owned and flow guest-ward only in the write-back below;
-  // re-injecting extra_len would let a guest drive the EXTRA-state write
-  // offset out of bounds. Cleanup/reset calls skip this (SyncGZHeader=false),
-  // so a corrupted *_max never aborts a stream teardown.
   if (SyncGZHeader && GZHeaderStoreIt != Env.GZHeaderMap.end() &&
       GZHeaderStoreIt->second->IsInflate) {
     auto *ModuleGZHeader = MemInst->getPointer<WasmGZHeader *>(
@@ -196,12 +158,6 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
     auto *HostGZHeader = GZHeaderStoreIt->second->HostGZHeader.get();
 
     bool FieldOOB = false;
-    // zlib never writes through a zero-capacity field yet still distinguishes
-    // the caller's non-null pointer from Z_NULL ("field not requested"), so a
-    // stale zero-capacity guest pointer past linear memory must stay non-null
-    // rather than read as an absent field; the shared dummy is never written
-    // (every header store is bounded by its *_max), and the delta write-back
-    // below leaves the guest offset untouched for it.
     static unsigned char ZeroCapacityHeaderField = 0;
     const auto ResolveField = [&](uint32_t Ptr,
                                   uint32_t Max) -> unsigned char * {
@@ -241,12 +197,6 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
 
   const auto ZRes = Callback(HostZStream);
 
-  // deflateCopy/inflateCopy overwrite the host stream with the source's
-  // retained next_in/next_out, so copying onto a destination whose own buffer
-  // did not resolve can leave one side of this delta null while the other is a
-  // live pointer. Subtracting a null from a non-null pointer is undefined, so
-  // advance the guest offset only when both ends are real; every other callback
-  // keeps both ends in the same buffer, where the guard always passes.
   if (HostZStream->next_in != nullptr && PreComputeNextIn != nullptr) {
     ModuleZStream->NextIn += HostZStream->next_in - PreComputeNextIn;
   }
@@ -279,9 +229,6 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
       ModuleGZHeader->XFlags = HostGZHeader->xflags;
       ModuleGZHeader->OS = HostGZHeader->os;
 
-      // zlib sets an absent optional field's pointer to Z_NULL "to signal its
-      // absence" even when a buffer was supplied; surface that as guest null
-      // instead of subtracting a live pointer from null.
       if (HostGZHeader->extra == Z_NULL) {
         ModuleGZHeader->Extra = 0;
       } else if (PreComputeExtra != nullptr) {
@@ -312,11 +259,6 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
   return ZRes;
 }
 
-// Create a fresh tracked stream, run zlib's init on it, and reject re-init over
-// a live key. Running an init on an already-initialized z_stream would let zlib
-// overwrite strm->state and leak the previous internal state (unbounded, since
-// nothing else frees it). On a failed init the (empty) entry is dropped so the
-// guest may retry.
 template <typename InitFn>
 Expect<int32_t> initStream(const std::string_view &Msg,
                            WasmEdgeZlibEnvironment &Env, uint32_t ZStreamPtr,
@@ -332,26 +274,12 @@ Expect<int32_t> initStream(const std::string_view &Msg,
 
   const auto ZRes = SyncRun(Msg, Env, ZStreamPtr, Frame, Init);
 
-  // An errored Expect compares unequal to nothing (both == and != yield
-  // false), so test it explicitly: a SyncRun trap must also drop the entry,
-  // or the failed key would be treated as live forever.
   if (!ZRes || *ZRes != Z_OK)
     Env.ZStreamMap.erase(It);
 
   return ZRes;
 }
 
-// zlib's stream functions verify the stream kind first (deflateStateCheck /
-// inflateStateCheck) and answer a mismatched stream with Z_STREAM_ERROR
-// before reading or writing anything else. Classic zlib decides that
-// deterministically for a deflate<->inflate mix (the punned status and mode
-// value ranges are disjoint), but zlib-ng's layouts differ enough that the
-// same probe reads arbitrary fields: a cross-kind call may pass its checks
-// and then free garbage pointers (deflateEnd), overwrite live internal state
-// (inflateReset/inflatePrime/inflateValidate), or copy past the allocation
-// (inflateCopy) -- and inflateBackEnd frees whatever state it is handed
-// without any check at all. Answer from the tracked kind instead of entering
-// zlib with a mismatched state; an untracked ZStreamPtr keeps its usual trap.
 static inline bool streamKindMismatch(const WasmEdgeZlibEnvironment &Env,
                                       uint32_t ZStreamPtr,
                                       ZStreamKind Expected) noexcept {
@@ -374,18 +302,12 @@ Expect<int32_t> WasmEdgeZlibDeflate::WasmEdgeZlibDeflate::body(
     return static_cast<int32_t>(Z_STREAM_ERROR);
   }
 
-  // deflate() refuses a flush outside [Z_NO_FLUSH, Z_BLOCK] before touching
-  // next_in or next_out, so as with deflateParams validate the buffers only
-  // for a flush value zlib will service.
   const bool FlushValid = Flush >= Z_NO_FLUSH && Flush <= Z_BLOCK;
   const auto ZRes = SyncRun(
       "WasmEdgeZlibDeflate", Env, ZStreamPtr, Frame,
       [&](z_stream *HostZStream) { return deflate(HostZStream, Flush); },
       /*ValidateInputBuffer=*/FlushValid, /*ValidateOutputBuffer=*/FlushValid);
 
-  // A deflate() that returns Z_OK/Z_STREAM_END has written the header and left
-  // INIT_STATE, the state a later deflateSetDictionary refuses; record it so
-  // that guard can answer without validating the dictionary span.
   if (ZRes && (*ZRes == Z_OK || *ZRes == Z_STREAM_END)) {
     if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
         It != Env.ZStreamMap.end()) {
@@ -407,14 +329,8 @@ Expect<int32_t> WasmEdgeZlibDeflateEnd::body(const Runtime::CallingFrame &Frame,
       SyncRun("WasmEdgeZlibDeflateEnd", Env, ZStreamPtr, Frame,
               [&](z_stream *HostZStream) { return deflateEnd(HostZStream); });
 
-  // deflateEnd frees zlib's internal state on both Z_OK and Z_DATA_ERROR (the
-  // latter when the stream is ended mid-compression), so drop the host tracking
-  // on either result. Only Z_STREAM_ERROR (an already-invalid stream) leaves
-  // it, as does a SyncRun trap (zlib never ran, so nothing was freed).
   if (ZRes && (*ZRes == Z_OK || *ZRes == Z_DATA_ERROR)) {
     Env.ZStreamMap.erase(ZStreamPtr);
-    // Drop the header snapshot; zlib no longer references it after deflateEnd.
-    // A deflateCopy'd stream that shares it keeps it alive via the shared_ptr.
     Env.GZHeaderMap.erase(ZStreamPtr);
   }
 
@@ -442,9 +358,6 @@ Expect<int32_t> WasmEdgeZlibInflate::body(const Runtime::CallingFrame &Frame,
       /*ValidateInputBuffer=*/true, /*ValidateOutputBuffer=*/true,
       /*SyncGZHeader=*/true);
 
-  // Z_NEED_DICT is the only way into DICT mode, and only a later inflate()
-  // leaves it (a successful inflateSetDictionary keeps the mode until then),
-  // so inflate results alone track whether zlib may be awaiting a dictionary.
   if (ZRes) {
     if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
         It != Env.ZStreamMap.end()) {
@@ -466,11 +379,6 @@ Expect<int32_t> WasmEdgeZlibInflateEnd::body(const Runtime::CallingFrame &Frame,
       SyncRun("WasmEdgeZlibInflateEnd", Env, ZStreamPtr, Frame,
               [&](z_stream *HostZStream) { return inflateEnd(HostZStream); });
 
-  // Z_STREAM_ERROR means zlib did not free the stream (a wrong-type or
-  // already-invalid stream); keep the entry so its internal state is not leaked
-  // and the correct *End can still reclaim it. A SyncRun trap keeps it for the
-  // same reason. Any other result freed zlib's state, so drop the tracking and
-  // the header snapshot with it.
   if (ZRes && *ZRes != Z_STREAM_ERROR) {
     Env.ZStreamMap.erase(ZStreamPtr);
     Env.GZHeaderMap.erase(ZStreamPtr);
@@ -502,13 +410,6 @@ Expect<int32_t> WasmEdgeZlibDeflateSetDictionary::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
     uint32_t DictionaryPtr, uint32_t DictLength) {
 
-  // deflateSetDictionary reads the dictionary immediately except when it
-  // rejects the request first: a wrong-kind stream fails the state check, a
-  // gzip-wrapped deflate stream refuses any preset dictionary, and a
-  // zlib-wrapped stream that has already produced output (left INIT_STATE)
-  // refuses one too, all before touching the bytes -- answer those from the
-  // tracked state. A raw deflate stream instead rejects on live lookahead,
-  // which is not tracked here, so that case still validates the buffer.
   if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
       It != Env.ZStreamMap.end() &&
       (It->second.Kind != ZStreamKind::Deflate || It->second.GzipWrap ||
@@ -521,10 +422,6 @@ Expect<int32_t> WasmEdgeZlibDeflateSetDictionary::body(
   BUFFER_CHECK(Dictionary, MemInst, DictionaryPtr, DictLength,
                "WasmEdgeZlibDeflateSetDictionary")
 
-  // deflateSetDictionary never reads a zero-length dictionary yet still
-  // rejects Z_NULL, so preserve that contract exactly: a guest null maps to
-  // Z_NULL while any other offset stays non-null, including one past the end
-  // of memory whose zero-length span carries no pointer.
   static constexpr Bytef EmptyDictionary = 0;
   const Bytef *DictionaryArg = Dictionary;
   if (DictLength == 0) {
@@ -554,14 +451,9 @@ Expect<int32_t> WasmEdgeZlibDeflateGetDictionary::body(
     return static_cast<int32_t>(Z_STREAM_ERROR);
   }
 
-  // zlib writes up to the internal window (~32 KiB) with no caller-supplied
-  // cap, so query the exact length first and validate the destination for it.
   uInt NeededLen = 0;
   deflateGetDictionary(&ZStreamIt->second.Z, Z_NULL, &NeededLen);
 
-  // Both out-pointers are optional: a Z_NULL dictionary returns only the
-  // length and a Z_NULL dictLength is not set, so a guest null (0) maps to
-  // Z_NULL rather than to wasm address 0.
   uint8_t *Dictionary = nullptr;
   if (DictionaryPtr != 0) {
     BUFFER_CHECK(DictionaryBuf, MemInst, DictionaryPtr, NeededLen,
@@ -600,8 +492,6 @@ WasmEdgeZlibDeflateCopy::body(const Runtime::CallingFrame &Frame,
   if (SourceZStreamIt->second.Kind != ZStreamKind::Deflate) {
     return static_cast<int32_t>(Z_STREAM_ERROR);
   }
-  // Capture the source stream pointer before try_emplace may rehash the map;
-  // node addresses are stable across rehash, iterators are not.
   auto *SourceZStream = &SourceZStreamIt->second.Z;
   const bool SourceGzipWrap = SourceZStreamIt->second.GzipWrap;
   const bool SourceRawDeflate = SourceZStreamIt->second.RawDeflate;
@@ -617,10 +507,6 @@ WasmEdgeZlibDeflateCopy::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  // Reject copying onto a live destination (this also rejects a self-copy where
-  // DestPtr == SourcePtr): deflateCopy would overwrite the destination stream,
-  // leaking its state, and on an allocation failure leave the destination
-  // aliasing the source's internal state.
   const auto [It, Inserted] =
       Env.ZStreamMap.try_emplace(DestPtr, ZStreamKind::Deflate);
   if (unlikely(!Inserted)) {
@@ -634,36 +520,20 @@ WasmEdgeZlibDeflateCopy::body(const Runtime::CallingFrame &Frame,
                               return deflateCopy(DestZStream, SourceZStream);
                             });
 
-  // A SyncRun trap (errored Expect) compares unequal to nothing, so test it
-  // explicitly: the failed destination entry must be dropped, and the header
-  // sharing below is for a successful copy only.
   if (!ZRes || *ZRes != Z_OK) {
-    // deflateCopy may have left the destination aliasing the source's internal
-    // state; detach it so erasing the entry does not free the source's state.
     It->second.Z.state = Z_NULL;
     Env.ZStreamMap.erase(It);
     return ZRes;
   }
 
-  // The copy inherits the source's wrapper and progress: zlib duplicated the
-  // internal state wholesale, wrap and status included, so the dictionary
-  // rejects keep answering for the copy exactly as they would for the source.
   It->second.GzipWrap = SourceGzipWrap;
   It->second.RawDeflate = SourceRawDeflate;
   It->second.DeflateStarted = SourceDeflateStarted;
 
-  // deflateCopy duplicated the source's internal gz_header pointer into the
-  // destination stream. Share the same reference-counted header snapshot so it
-  // stays alive for the copy even after the source later replaces or ends its
-  // own header; the deflate snapshot is immutable, so sharing is safe.
   const auto SourceHeaderIt = Env.GZHeaderMap.find(SourcePtr);
   if (SourceHeaderIt != Env.GZHeaderMap.end())
     Env.GZHeaderMap.insert_or_assign(DestPtr, SourceHeaderIt->second);
 
-  // zlib overwrote the destination host stream with the source wholesale, but
-  // the delta write-back cannot express that against an uninitialized (legal
-  // here) destination's pre-call pointers. Copy the stream fields directly
-  // from the source's guest-visible struct instead.
   DestModuleZStream->NextIn = SourceModuleZStream->NextIn;
   DestModuleZStream->AvailIn = SourceModuleZStream->AvailIn;
   DestModuleZStream->TotalIn = SourceModuleZStream->TotalIn;
@@ -689,8 +559,6 @@ WasmEdgeZlibDeflateReset::body(const Runtime::CallingFrame &Frame,
       SyncRun("WasmEdgeZlibDeflateReset", Env, ZStreamPtr, Frame,
               [&](z_stream *HostZStream) { return deflateReset(HostZStream); });
 
-  // deflateReset returns the stream to INIT_STATE, so a preset dictionary is
-  // allowed again until the next deflate().
   if (ZRes && *ZRes == Z_OK) {
     if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
         It != Env.ZStreamMap.end()) {
@@ -710,11 +578,6 @@ WasmEdgeZlibDeflateParams::body(const Runtime::CallingFrame &Frame,
     return static_cast<int32_t>(Z_STREAM_ERROR);
   }
 
-  // deflateParams rejects an out-of-range level or strategy before consuming
-  // next_in or producing into next_out, so buffers only need to prove
-  // themselves for a call zlib will actually service; a rejected call still
-  // gets zlib's Z_STREAM_ERROR, and an unresolved span stays untouched
-  // because deflate() re-checks null buffers itself.
   const bool ParamsValid =
       (Level == Z_DEFAULT_COMPRESSION || (Level >= 0 && Level <= 9)) &&
       Strategy >= 0 && Strategy <= Z_FIXED;
@@ -747,10 +610,6 @@ Expect<int32_t>
 WasmEdgeZlibDeflateBound::body(const Runtime::CallingFrame &Frame,
                                uint32_t ZStreamPtr, uint32_t SourceLen) {
 
-  // No kind guard here: deflateBound only reads scalar fields that stay
-  // inside any tracked state's allocation and falls back to its conservative
-  // bound when the checks fail, so a wrong-kind stream is safe host-side and
-  // gets the same answer a native caller would.
   return SyncRun("WasmEdgeZlibDeflateBound", Env, ZStreamPtr, Frame,
                  [&](z_stream *HostZStream) {
                    return deflateBound(HostZStream, SourceLen);
@@ -762,16 +621,12 @@ WasmEdgeZlibDeflatePending::body(const Runtime::CallingFrame &Frame,
                                  uint32_t ZStreamPtr, uint32_t PendingPtr,
                                  uint32_t BitsPtr) {
 
-  // A wrong-kind stream is refused before zlib writes either out-parameter,
-  // so the guest pointers are validated only for a call zlib will service.
   if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Deflate)) {
     return static_cast<int32_t>(Z_STREAM_ERROR);
   }
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  // Both out-pointers are optional: zlib does not set a Z_NULL pending or
-  // bits, so a guest null (0) maps to Z_NULL rather than to wasm address 0.
   uint32_t *Pending = nullptr;
   if (PendingPtr != 0) {
     PTR_CHECK(PendingOut, MemInst, PendingPtr, uint32_t,
@@ -815,10 +670,6 @@ WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  // Native deflateSetHeader accepts Z_NULL and reverts the stream to the
-  // default gzip header; guest null (0) takes that path rather than
-  // dereferencing wasm address 0. zlib then retains no pointer into any
-  // snapshot, so a published one can be dropped.
   if (HeadPtr == 0) {
     const auto ZRes = SyncRun("WasmEdgeZlibDeflateSetHeader", Env, ZStreamPtr,
                               Frame, [&](z_stream *HostZStream) {
@@ -829,13 +680,6 @@ WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
     return ZRes;
   }
 
-  // Get zlib's verdict before any guest-header work: only a gzip deflate
-  // stream accepts a header, and deflateSetHeader merely validates the stream
-  // and stores the pointer, so re-storing the currently published snapshot
-  // (or Z_NULL when none was published) changes nothing. A stream zlib
-  // rejects thus fails with its cheap Z_STREAM_ERROR before the host reads
-  // the header or snapshots a guest-sized extra/name/comment into host
-  // memory, and an invalid ZStreamPtr still traps inside SyncRun.
   {
     const auto StoreIt = Env.GZHeaderMap.find(ZStreamPtr);
     gz_header *CurrentHead = StoreIt != Env.GZHeaderMap.end()
@@ -858,22 +702,11 @@ WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  // Snapshot the header into host-owned storage; deflate() emits the name and
-  // comment incrementally across calls (resuming at an internal index), so the
-  // buffers must stay stable and must not be re-read from mutable guest memory.
-  // The store is heap-allocated and reference-counted so deflateCopy can hand
-  // the same snapshot to a copied stream; its address stays stable, so the
-  // bound buffer pointers remain valid once it is inserted into the map.
   auto Store = std::make_shared<WasmEdgeZlibEnvironment::GZStore>();
   Store->WasmGZHeaderOffset = HeadPtr;
   Store->IsInflate = false;
   Store->HostGZHeader = std::make_unique<gz_header>();
 
-  // The gzip extra field length is 16-bit: zlib writes only the low 16 bits of
-  // extra_len as XLEN and emits at most that many bytes. Snapshot (and bounds-
-  // check) only what zlib will use, so a guest-declared multi-GB ExtraLen can
-  // neither force a matching host allocation nor spuriously fail the bounds
-  // check for bytes zlib never reads.
   const uint32_t ExtraLen16 = ModuleGZHeader->ExtraLen & UINT32_C(0xffff);
   const bool HasExtra = ModuleGZHeader->Extra != 0;
   const bool HasName = ModuleGZHeader->Name != 0;
@@ -890,10 +723,6 @@ WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
       }
       Store->Extra.assign(ExtraSpan.begin(), ExtraSpan.end());
     } else {
-      // A non-null extra with a zero emitted length still makes zlib set the
-      // gzip FEXTRA flag with XLEN=0. Keep a one-byte placeholder so the
-      // published pointer stays non-null (an empty vector's data() may be
-      // null); extra_len is 0, so zlib never reads the byte.
       Store->Extra.assign(1, 0);
     }
   }
@@ -925,8 +754,6 @@ WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
   Store->HostGZHeader->hcrc = ModuleGZHeader->HCRC;
   Store->HostGZHeader->extra_len = ExtraLen16;
 
-  // Point the gz_header at the store's own snapshot buffers. The store keeps a
-  // stable heap address, so this binding stays valid after it is inserted.
   auto *HostGZHeaderPtr = Store->HostGZHeader.get();
   HostGZHeaderPtr->extra = HasExtra ? Store->Extra.data() : Z_NULL;
   HostGZHeaderPtr->name =
@@ -940,10 +767,6 @@ WasmEdgeZlibDeflateSetHeader::body(const Runtime::CallingFrame &Frame,
                 return deflateSetHeader(HostZStream, HostGZHeaderPtr);
               });
 
-  // Publish the snapshot only after zlib accepts it. On any failure (a zlib
-  // error or a SyncRun trap) the previously stored header stays in place,
-  // since zlib (or a deflateCopy'd stream) may still hold a pointer into it
-  // from an earlier success.
   if (ZRes && *ZRes == Z_OK)
     Env.GZHeaderMap.insert_or_assign(ZStreamPtr, std::move(Store));
 
@@ -958,8 +781,6 @@ WasmEdgeZlibInflateInit2::body(const Runtime::CallingFrame &Frame,
                  ZStreamKind::Inflate, [&](z_stream *HostZStream) {
                    return inflateInit2(HostZStream, WindowBits);
                  });
-  // wrap is fixed by windowBits: negative selects a raw stream and 16+
-  // enables the gzip wrapper (24..31 gzip-only, 40..47 auto-detect).
   if (ZRes && *ZRes == Z_OK) {
     if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
         It != Env.ZStreamMap.end()) {
@@ -974,11 +795,6 @@ Expect<int32_t> WasmEdgeZlibInflateSetDictionary::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
     uint32_t DictionaryPtr, uint32_t DictLength) {
 
-  // inflateSetDictionary reads the dictionary only when the stream can accept
-  // it: raw inflate folds it into the window at once and DICT mode checksums
-  // it, but a wrapped stream that is not waiting for a dictionary (and any
-  // non-inflate stream) answers Z_STREAM_ERROR before touching the bytes, so
-  // only the reading cases validate the guest buffer.
   if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
       It != Env.ZStreamMap.end() &&
       (It->second.Kind != ZStreamKind::Inflate ||
@@ -1014,14 +830,9 @@ Expect<int32_t> WasmEdgeZlibInflateGetDictionary::body(
     return static_cast<int32_t>(Z_STREAM_ERROR);
   }
 
-  // zlib writes up to the internal window (~32 KiB) with no caller-supplied
-  // cap, so query the exact length first and validate the destination for it.
   uInt NeededLen = 0;
   inflateGetDictionary(&ZStreamIt->second.Z, Z_NULL, &NeededLen);
 
-  // Both out-pointers are optional: a Z_NULL dictionary returns only the
-  // length and a Z_NULL dictLength is not set, so a guest null (0) maps to
-  // Z_NULL rather than to wasm address 0.
   uint8_t *Dictionary = nullptr;
   if (DictionaryPtr != 0) {
     BUFFER_CHECK(DictionaryBuf, MemInst, DictionaryPtr, NeededLen,
@@ -1068,8 +879,6 @@ WasmEdgeZlibInflateCopy::body(const Runtime::CallingFrame &Frame,
   if (SourceZStreamIt->second.Kind != ZStreamKind::Inflate) {
     return static_cast<int32_t>(Z_STREAM_ERROR);
   }
-  // Capture the source stream pointer before try_emplace may rehash the map;
-  // node addresses are stable across rehash, iterators are not.
   auto *SourceZStream = &SourceZStreamIt->second.Z;
   const bool SourceGzipWrap = SourceZStreamIt->second.GzipWrap;
   const bool SourceRawInflate = SourceZStreamIt->second.RawInflate;
@@ -1085,9 +894,6 @@ WasmEdgeZlibInflateCopy::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  // Reject copying onto a live destination (this also rejects a self-copy where
-  // DestPtr == SourcePtr): inflateCopy would overwrite the destination stream,
-  // leaking its state.
   const auto [It, Inserted] =
       Env.ZStreamMap.try_emplace(DestPtr, ZStreamKind::Inflate);
   if (unlikely(!Inserted)) {
@@ -1101,34 +907,20 @@ WasmEdgeZlibInflateCopy::body(const Runtime::CallingFrame &Frame,
                               return inflateCopy(DestZStream, SourceZStream);
                             });
 
-  // A SyncRun trap (errored Expect) compares unequal to nothing, so test it
-  // explicitly: the failed destination entry must be dropped, and the header
-  // sharing below is for a successful copy only.
   if (!ZRes || *ZRes != Z_OK) {
-    // inflateCopy allocates before touching the destination, so a failure
-    // leaves its state null; detach defensively before erasing regardless.
     It->second.Z.state = Z_NULL;
     Env.ZStreamMap.erase(It);
     return ZRes;
   }
 
-  // The copy inherits the source's wrapper and dictionary-wait state: zlib
-  // duplicated the internal state wholesale, wrap and mode included.
   It->second.GzipWrap = SourceGzipWrap;
   It->second.RawInflate = SourceRawInflate;
   It->second.MayNeedDict = SourceMayNeedDict;
 
-  // inflateCopy duplicated the source's internal gz_header pointer into the
-  // destination stream. Share the same reference-counted header snapshot so it
-  // stays alive for the copy even after the source later replaces or ends its
-  // own header; zlib's copied head aliases this exact host storage.
   const auto SourceHeaderIt = Env.GZHeaderMap.find(SourcePtr);
   if (SourceHeaderIt != Env.GZHeaderMap.end())
     Env.GZHeaderMap.insert_or_assign(DestPtr, SourceHeaderIt->second);
 
-  // Same as deflateCopy: express the copied stream fields directly from the
-  // source's guest-visible struct instead of the delta write-back, which
-  // cannot resolve an uninitialized destination's offsets.
   DestModuleZStream->NextIn = SourceModuleZStream->NextIn;
   DestModuleZStream->AvailIn = SourceModuleZStream->AvailIn;
   DestModuleZStream->TotalIn = SourceModuleZStream->TotalIn;
@@ -1154,15 +946,8 @@ WasmEdgeZlibInflateReset::body(const Runtime::CallingFrame &Frame,
       SyncRun("WasmEdgeZlibInflateReset", Env, ZStreamPtr, Frame,
               [&](z_stream *HostZStream) { return inflateReset(HostZStream); });
 
-  // A successful inflate reset detaches zlib's internal gzip-header pointer
-  // (the guest must call inflateGetHeader again for the next stream), so the
-  // snapshot must be dropped with it: a stale entry would keep re-validating
-  // and rewriting a guest header zlib no longer references, failing legitimate
-  // post-reset inflate calls once the guest reuses that memory. deflate resets
-  // keep zlib's gzhead, so deflate snapshots must stay alive.
   if (ZRes && *ZRes == Z_OK) {
     Env.GZHeaderMap.erase(ZStreamPtr);
-    // The stream is back at the header stage, no longer awaiting a dictionary.
     if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
         It != Env.ZStreamMap.end()) {
       It->second.MayNeedDict = false;
@@ -1185,12 +970,8 @@ WasmEdgeZlibInflateReset2::body(const Runtime::CallingFrame &Frame,
                               return inflateReset2(HostZStream, WindowBits);
                             });
 
-  // inflateReset2 detaches zlib's gzip-header pointer like inflateReset; drop
-  // the stale snapshot (see WasmEdgeZlibInflateReset).
   if (ZRes && *ZRes == Z_OK) {
     Env.GZHeaderMap.erase(ZStreamPtr);
-    // inflateReset2 re-derives wrap from the new windowBits and restarts at
-    // the header stage (see WasmEdgeZlibInflateInit2 for the mapping).
     if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
         It != Env.ZStreamMap.end()) {
       It->second.RawInflate = WindowBits < 0;
@@ -1221,7 +1002,6 @@ Expect<int32_t>
 WasmEdgeZlibInflateMark::body(const Runtime::CallingFrame &Frame,
                               uint32_t ZStreamPtr) {
 
-  // inflateMark's bad-state answer is -(1 << 16), not Z_STREAM_ERROR.
   if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::Inflate)) {
     return INT32_C(-65536);
   }
@@ -1235,11 +1015,6 @@ Expect<int32_t>
 WasmEdgeZlibInflateGetHeader::body(const Runtime::CallingFrame &Frame,
                                    uint32_t ZStreamPtr, uint32_t HeadPtr) {
 
-  // inflateGetHeader stores the header and writes head->done only on a
-  // gzip-capable inflate stream (wrap & 2); every other stream gets
-  // Z_STREAM_ERROR before the header is touched, so the guest pointer is
-  // validated only when zlib will actually accept it. wrap is fixed by
-  // windowBits at init/reset2 time, so the tracked flag mirrors it exactly.
   if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
       It != Env.ZStreamMap.end() &&
       (It->second.Kind != ZStreamKind::Inflate || !It->second.GzipWrap)) {
@@ -1248,9 +1023,6 @@ WasmEdgeZlibInflateGetHeader::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  // Validate the guest header pointer up front (like deflateSetHeader) so an
-  // out-of-bounds HeadPtr is rejected here instead of being stored and then
-  // failing every later inflate/cleanup call once zlib has accepted the stream.
   if (unlikely(MemInst->getPointer<WasmGZHeader *>(HeadPtr) == nullptr)) {
     spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateGetHeader] "sv
                   "Out-of-bounds gzip header."sv);
@@ -1269,15 +1041,7 @@ WasmEdgeZlibInflateGetHeader::body(const Runtime::CallingFrame &Frame,
                 return inflateGetHeader(HostZStream, HostGZHeaderPtr);
               });
 
-  // Publish the snapshot only after zlib accepts it and points its internal
-  // head at it. A repeated call replaces the previous snapshot, which zlib no
-  // longer references; on failure (a zlib error or a SyncRun trap) zlib left
-  // its head untouched, so the local store is simply dropped and any
-  // previously stored header stays in place.
   if (ZRes && *ZRes == Z_OK) {
-    // inflateGetHeader reset head->done to 0 as it registered the header.
-    // Deliver that now: the store was not yet published during this SyncRun,
-    // so the next inflate would otherwise be the first call to sync it back.
     if (auto *ModuleGZHeader = MemInst->getPointer<WasmGZHeader *>(HeadPtr);
         ModuleGZHeader != nullptr) {
       ModuleGZHeader->Done = 0;
@@ -1305,9 +1069,6 @@ WasmEdgeZlibInflateBackInit::body(const Runtime::CallingFrame &Frame,
     }
     Window = WindowSpan.data();
   } else {
-    // A guest null window is zlib's Z_NULL and an out-of-range windowBits is
-    // equally rejected before the window is touched, so neither resolves a
-    // guest pointer (wasm address 0 must not stand in for Z_NULL here).
     Window = nullptr;
   }
 
@@ -1321,9 +1082,6 @@ Expect<int32_t>
 WasmEdgeZlibInflateBackEnd::body(const Runtime::CallingFrame &Frame,
                                  uint32_t ZStreamPtr) {
 
-  // inflateBackEnd frees whatever state it is handed -- it never checks the
-  // kind -- so without this a guest could free a live deflate/inflate state
-  // through it and leak that stream's separately allocated internals.
   if (streamKindMismatch(Env, ZStreamPtr, ZStreamKind::InflateBack)) {
     return static_cast<int32_t>(Z_STREAM_ERROR);
   }
@@ -1332,8 +1090,6 @@ WasmEdgeZlibInflateBackEnd::body(const Runtime::CallingFrame &Frame,
       "WasmEdgeZlibInflateBackEnd", Env, ZStreamPtr, Frame,
       [&](z_stream *HostZStream) { return inflateBackEnd(HostZStream); });
 
-  // Keep the entry on Z_STREAM_ERROR or a SyncRun trap (zlib did not free it);
-  // otherwise drop it.
   if (ZRes && *ZRes != Z_STREAM_ERROR)
     Env.ZStreamMap.erase(ZStreamPtr);
 
@@ -1345,13 +1101,6 @@ WasmEdgeZlibZlibCompilerFlags::body(const Runtime::CallingFrame &) {
   return zlibCompileFlags();
 }
 
-// compress/compress2 reject a null destination (Z_STREAM_ERROR) yet answer a
-// non-null one that merely lacks capacity with Z_BUF_ERROR, all without
-// writing a byte, so mirror deflateSetDictionary's contract: a guest null
-// maps to Z_NULL while any other offset stays non-null, including one whose
-// zero-length span carries no pointer. uncompress/uncompress2 need no such
-// care -- at zero capacity they swap in an internal probe buffer and never
-// look at the caller's pointer.
 static Bytef ZeroCapacityDest;
 static inline Bytef *resolveDestArg(uint8_t *Dest, uint32_t DestPtr,
                                     uint32_t DstCap) noexcept {
@@ -1389,10 +1138,6 @@ Expect<int32_t> WasmEdgeZlibCompress2::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0)
 
   PTR_CHECK(DestLen, MemInst, DestLenPtr, uint32_t, "WasmEdgeZlibCompress2")
-  // An out-of-range level fails compress2's deflateInit before any source
-  // byte is read or dest byte written -- though only after *destLen has been
-  // zeroed -- so answer the same way instead of validating spans the
-  // rejected call would never touch.
   if (Level != Z_DEFAULT_COMPRESSION && (Level < 0 || Level > 9)) {
     *DestLen = 0;
     return Z_STREAM_ERROR;
@@ -1449,63 +1194,301 @@ WasmEdgeZlibUncompress2::body(const Runtime::CallingFrame &Frame,
 
   unsigned long HostDestLen = DstCap, HostSourceLen = SrcLen;
   const auto ZRes = uncompress2(Dest, &HostDestLen, Source, &HostSourceLen);
-  // Write the source length before the destination length so an aliased guest
-  // (DestLenPtr == SourceLenPtr) is left with the produced length, matching
-  // native uncompress2, which writes *destLen last into the shared slot.
   *SourceLen = static_cast<uint32_t>(HostSourceLen);
   *DestLen = static_cast<uint32_t>(HostDestLen);
 
   return ZRes;
 }
 
+static WASI::Environ *
+getWasiEnviron(const Runtime::CallingFrame &Frame) noexcept {
+  const auto *WasiMod = Frame.getWASIModule();
+  if (WasiMod == nullptr) {
+    return nullptr;
+  }
+  const auto *Typed = dynamic_cast<const WasiModule *>(WasiMod);
+  if (Typed == nullptr) {
+    return nullptr;
+  }
+  return const_cast<WASI::Environ *>(Typed->getEnv());
+}
+
+static void releaseOwnedWasiFd(const Runtime::CallingFrame &Frame,
+                               int64_t OwnedWasiFd) noexcept {
+  if (OwnedWasiFd < 0) {
+    return;
+  }
+  if (auto *WasiEnv = getWasiEnviron(Frame); WasiEnv != nullptr) {
+    WasiEnv->fdClose(static_cast<__wasi_fd_t>(OwnedWasiFd));
+  }
+}
+
+#if defined(_WIN32)
+// TODO(zlib): Bridge Windows HANDLEs to CRT descriptors.
+static int dupNativeHandle(uint64_t) noexcept { return -1; }
+static void closeNativeFd(int) noexcept {}
+static int64_t tellNativeFd(int) noexcept { return -1; }
+static void seekNativeFd(int, int64_t) noexcept {}
+#else
+static int dupNativeHandle(uint64_t Native) noexcept {
+  return ::fcntl(static_cast<int>(Native), F_DUPFD_CLOEXEC, 0);
+}
+static void closeNativeFd(int Fd) noexcept { ::close(Fd); }
+static int64_t tellNativeFd(int Fd) noexcept {
+  return static_cast<int64_t>(::lseek(Fd, 0, SEEK_CUR));
+}
+static void seekNativeFd(int Fd, int64_t Offset) noexcept {
+  ::lseek(Fd, static_cast<off_t>(Offset), SEEK_SET);
+}
+#endif
+
+enum class GZOpenDir { None, Read, Write, Append };
+enum class GZOpenDirect { Auto, Transparent, ForceGzip };
+
+struct GZOpenMode {
+  GZOpenDir Dir = GZOpenDir::None;
+  bool Exclusive = false;
+  bool NonBlock = false;
+  GZOpenDirect Direct = GZOpenDirect::Auto;
+};
+
+static std::optional<GZOpenMode>
+parseGZOpenMode(std::string_view Mode) noexcept {
+  GZOpenMode Parsed;
+  for (const char C : Mode) {
+    switch (C) {
+    case 'r':
+      Parsed.Dir = GZOpenDir::Read;
+      break;
+    case 'w':
+      Parsed.Dir = GZOpenDir::Write;
+      break;
+    case 'a':
+      Parsed.Dir = GZOpenDir::Append;
+      break;
+    case 'x':
+      Parsed.Exclusive = true;
+      break;
+    case 'N':
+      Parsed.NonBlock = true;
+      break;
+    case 'T':
+      Parsed.Direct = GZOpenDirect::Transparent;
+      break;
+    case 'G':
+      Parsed.Direct = GZOpenDirect::ForceGzip;
+      break;
+    case '+':
+      return std::nullopt;
+    default:
+      break;
+    }
+  }
+  if (Parsed.Dir == GZOpenDir::None) {
+    return std::nullopt;
+  }
+  if (Parsed.Dir == GZOpenDir::Read &&
+      Parsed.Direct == GZOpenDirect::Transparent) {
+    return std::nullopt;
+  }
+  if (Parsed.Dir != GZOpenDir::Read &&
+      Parsed.Direct == GZOpenDirect::ForceGzip) {
+    return std::nullopt;
+  }
+  return Parsed;
+}
+
+static WasmEdgeZlibEnvironment::GZFileEntry
+wasiFdToGZ(WASI::Environ &WasiEnv, __wasi_fd_t WasiFd, const char *Mode,
+           bool OwnWasiFd) noexcept {
+  const auto Parsed = parseGZOpenMode(Mode);
+  if (!Parsed) {
+    spdlog::error("[WasmEdge-Zlib] [wasiFdToGZ] "sv
+                  "Unsupported gz mode \"{}\"."sv,
+                  Mode);
+    if (OwnWasiFd) {
+      WasiEnv.fdClose(WasiFd);
+    }
+    return {};
+  }
+  const __wasi_rights_t RequiredRights = Parsed->Dir == GZOpenDir::Read
+                                             ? __WASI_RIGHTS_FD_READ
+                                             : __WASI_RIGHTS_FD_WRITE;
+  if (!WasiEnv.canFd(WasiFd, RequiredRights)) {
+    spdlog::error("[WasmEdge-Zlib] [wasiFdToGZ] "sv
+                  "WASI fd lacks the rights required by mode \"{}\"."sv,
+                  Mode);
+    if (OwnWasiFd) {
+      WasiEnv.fdClose(WasiFd);
+    }
+    return {};
+  }
+  const bool CanSeek = WasiEnv.canFd(WasiFd, __WASI_RIGHTS_FD_SEEK);
+  const bool CanTell = WasiEnv.canFd(WasiFd, __WASI_RIGHTS_FD_TELL);
+  if (Parsed->Dir == GZOpenDir::Append && !CanSeek) {
+    __wasi_fdstat_t FdStat;
+    const bool AppendOnly = WasiEnv.fdFdstatGet(WasiFd, FdStat).has_value() &&
+                            (FdStat.fs_flags & __WASI_FDFLAGS_APPEND) != 0;
+    if (!AppendOnly) {
+      spdlog::error("[WasmEdge-Zlib] [wasiFdToGZ] "sv
+                    "Append mode needs FD_SEEK on a non-append-only fd."sv);
+      if (OwnWasiFd) {
+        WasiEnv.fdClose(WasiFd);
+      }
+      return {};
+    }
+  }
+  auto HandleRes = WasiEnv.getNativeHandler(WasiFd);
+  if (!HandleRes) {
+    if (OwnWasiFd) {
+      WasiEnv.fdClose(WasiFd);
+    }
+    return {};
+  }
+  const int DupFd = dupNativeHandle(*HandleRes);
+  if (OwnWasiFd) {
+    WasiEnv.fdClose(WasiFd);
+  }
+  if (DupFd < 0) {
+    spdlog::error("[WasmEdge-Zlib] [wasiFdToGZ] "sv
+                  "Failed to duplicate the host descriptor for zlib."sv);
+    return {};
+  }
+  const bool RestoreOffset =
+      !OwnWasiFd && Parsed->Dir == GZOpenDir::Append && !CanSeek;
+  const int64_t SavedOffset = RestoreOffset ? tellNativeFd(DupFd) : -1;
+  gzFile GZ = gzdopen(DupFd, Mode);
+  bool RestoredAppendOffset = false;
+  if (RestoreOffset && SavedOffset >= 0) {
+    seekNativeFd(DupFd, SavedOffset);
+    RestoredAppendOffset = true;
+  }
+  if (GZ == nullptr) {
+    closeNativeFd(DupFd);
+    return {};
+  }
+  return {GZ, CanSeek, CanTell, RestoredAppendOffset,
+          Parsed->Dir == GZOpenDir::Read};
+}
+
+static WasmEdgeZlibEnvironment::GZFileEntry
+wasiGZOpen(WASI::Environ &WasiEnv, const char *Path,
+           const char *Mode) noexcept {
+  const auto Parsed = parseGZOpenMode(Mode);
+  if (!Parsed) {
+    return {};
+  }
+#if defined(_WIN32)
+  static_cast<void>(WasiEnv);
+  static_cast<void>(Path);
+  spdlog::error("[WasmEdge-Zlib] [wasiGZOpen] "sv
+                "WASI-mediated gzopen is not supported on Windows yet; "sv
+                "returning a null handle for mode \"{}\"."sv,
+                Mode);
+  return {};
+#else
+  auto OpenFlags = static_cast<__wasi_oflags_t>(0);
+  auto FdFlags = static_cast<__wasi_fdflags_t>(0);
+  __wasi_rights_t Rights = static_cast<__wasi_rights_t>(0);
+  switch (Parsed->Dir) {
+  case GZOpenDir::Read:
+    Rights = __WASI_RIGHTS_FD_READ;
+    break;
+  case GZOpenDir::Write:
+    OpenFlags = __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC;
+    Rights = __WASI_RIGHTS_FD_WRITE;
+    break;
+  case GZOpenDir::Append:
+    OpenFlags = __WASI_OFLAGS_CREAT;
+    FdFlags = __WASI_FDFLAGS_APPEND;
+    Rights = __WASI_RIGHTS_FD_WRITE;
+    break;
+  case GZOpenDir::None:
+    return {};
+  }
+  if (Parsed->NonBlock) {
+    FdFlags = static_cast<__wasi_fdflags_t>(FdFlags | __WASI_FDFLAGS_NONBLOCK);
+  }
+  __wasi_rights_t OptionalRights =
+      __WASI_RIGHTS_FD_SEEK | __WASI_RIGHTS_FD_TELL;
+  __wasi_fdstat_t DirStat;
+  if (WasiEnv.fdFdstatGet(3, DirStat).has_value()) {
+    __wasi_rights_t Inheriting = DirStat.fs_rights_inheriting;
+    if ((Inheriting & __WASI_RIGHTS_FD_SEEK) != 0) {
+      Inheriting |= __WASI_RIGHTS_FD_TELL;
+    }
+    OptionalRights &= Inheriting;
+  }
+  Rights |= OptionalRights;
+  auto LookupFlags = __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW;
+  if (Parsed->Exclusive && Parsed->Dir != GZOpenDir::Read) {
+    OpenFlags |= __WASI_OFLAGS_EXCL;
+    LookupFlags = static_cast<__wasi_lookupflags_t>(0);
+  }
+  while (Path[0] == '/' || (Path[0] == '.' && Path[1] == '/') ||
+         (Path[0] == '.' && Path[1] == '\0')) {
+    Path += (Path[0] == '.' && Path[1] == '/') ? 2 : 1;
+  }
+  auto FdRes = WasiEnv.pathOpen(3, Path, LookupFlags, OpenFlags, Rights, Rights,
+                                FdFlags);
+  if (!FdRes) {
+    return {};
+  }
+  return wasiFdToGZ(WasiEnv, *FdRes, Mode, /*OwnWasiFd=*/true);
+#endif
+}
+
+constexpr uint64_t MaxGZOpenPathLen = 4096;
+constexpr uint64_t MaxGZOpenModeLen = 63;
+
 Expect<uint32_t> WasmEdgeZlibGZOpen::body(const Runtime::CallingFrame &Frame,
                                           uint32_t PathPtr, uint32_t ModePtr) {
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  const auto *Path = getInBoundsCString(*MemInst, PathPtr);
-  const auto *Mode = getInBoundsCString(*MemInst, ModePtr);
-  if (unlikely(Path == nullptr || Mode == nullptr)) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZOpen] "sv
-                  "Out-of-bounds path or mode string."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
+  if (PathPtr == 0) {
+    return UINT32_C(0);
   }
 
-  auto ZRes = gzopen(Path, Mode);
-  if (unlikely(ZRes == nullptr)) {
-    // A null gzFile is zlib's ordinary open failure (e.g. a missing file);
-    // surface it to the guest as a null handle instead of trapping. No live
-    // handle is ever 0 because NextGZFile starts at sizeof(gzFile).
+  const auto PathStr =
+      getBoundedInBoundsCString(*MemInst, PathPtr, MaxGZOpenPathLen);
+  const auto ModeStr =
+      getBoundedInBoundsCString(*MemInst, ModePtr, MaxGZOpenModeLen);
+  if (unlikely(!PathStr || !ModeStr)) {
+    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZOpen] "sv
+                  "Out-of-bounds or oversized path or mode string."sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  const std::string Path(PathStr->data(), PathStr->size());
+  const std::string Mode(ModeStr->data(), ModeStr->size());
+
+  WasmEdgeZlibEnvironment::GZFileEntry Entry{};
+  if (Frame.getWASIModule() == nullptr) {
+    Entry = {gzopen(Path.c_str(), Mode.c_str()), /*CanSeek=*/true,
+             /*CanTell=*/true, /*RestoredAppendOffset=*/false};
+  } else if (auto *WasiEnv = getWasiEnviron(Frame); WasiEnv != nullptr) {
+    Entry = wasiGZOpen(*WasiEnv, Path.c_str(), Mode.c_str());
+  } else {
+    spdlog::error(
+        "[WasmEdge-Zlib] [WasmEdgeZlibGZOpen] "sv
+        "A WASI module is configured but is not one this plugin can "sv
+        "read capabilities from; refusing to open outside the "sv
+        "capability layer."sv);
+    return UINT32_C(0);
+  }
+  if (unlikely(Entry.GZ == nullptr)) {
     return UINT32_C(0);
   }
 
   const uint32_t NewWasmGZFile = Env.NextGZFile++;
-  Env.GZFileMap.emplace(NewWasmGZFile, ZRes);
+  Env.GZFileMap.emplace(NewWasmGZFile, Entry);
 
   return NewWasmGZFile;
 }
 
-Expect<uint32_t> WasmEdgeZlibGZDOpen::body(const Runtime::CallingFrame &Frame,
-                                           int32_t FD, uint32_t ModePtr) {
-  MEMINST_CHECK(MemInst, Frame, 0)
-
-  const auto *Mode = getInBoundsCString(*MemInst, ModePtr);
-  if (unlikely(Mode == nullptr)) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZDOpen] "sv
-                  "Out-of-bounds mode string."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-
-  auto ZRes = gzdopen(FD, Mode);
-  if (unlikely(ZRes == nullptr)) {
-    // Match gzopen: a null gzFile is an ordinary failure handed back to the
-    // guest as a null handle, not a host trap.
-    return UINT32_C(0);
-  }
-
-  const uint32_t NewWasmGZFile = Env.NextGZFile++;
-  Env.GZFileMap.emplace(NewWasmGZFile, ZRes);
-
-  return NewWasmGZFile;
+Expect<uint32_t> WasmEdgeZlibGZDOpen::body(const Runtime::CallingFrame &,
+                                           int32_t, uint32_t) {
+  // TODO(zlib): Re-enable gzdopen after WASI fd ownership is safe at teardown.
+  return UINT32_C(0);
 }
 
 Expect<int32_t> WasmEdgeZlibGZBuffer::body(const Runtime::CallingFrame &,
@@ -1517,12 +1500,11 @@ Expect<int32_t> WasmEdgeZlibGZBuffer::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  // Clamp a guest-declared buffer size to a sane maximum: gzbuffer makes zlib
-  // allocate three times this size on the first I/O, so an unclamped multi-GB
-  // request would exhaust host memory (and zlib rejects sizes >= 2^31
-  // outright).
+  if (Size >= UINT32_C(0x80000000)) {
+    return INT32_C(-1);
+  }
   constexpr uint32_t MaxGZBufferSize = UINT32_C(64) * 1024 * 1024;
-  return gzbuffer(GZFileIt->second,
+  return gzbuffer(GZFileIt->second.GZ,
                   Size > MaxGZBufferSize ? MaxGZBufferSize : Size);
 }
 
@@ -1536,7 +1518,7 @@ Expect<int32_t> WasmEdgeZlibGZSetParams::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzsetparams(GZFileIt->second, Level, Strategy);
+  return gzsetparams(GZFileIt->second.GZ, Level, Strategy);
 }
 
 Expect<int32_t> WasmEdgeZlibGZRead::body(const Runtime::CallingFrame &Frame,
@@ -1551,9 +1533,13 @@ Expect<int32_t> WasmEdgeZlibGZRead::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
+  if (Len > UINT32_C(0x7fffffff)) {
+    return gzread(GZFileIt->second.GZ, nullptr, Len);
+  }
+
   BUFFER_CHECK(Buf, MemInst, BufPtr, Len, "WasmEdgeZlibGZRead")
 
-  return gzread(GZFileIt->second, Buf, Len);
+  return gzread(GZFileIt->second.GZ, Buf, Len);
 }
 
 Expect<int32_t> WasmEdgeZlibGZFread::body(const Runtime::CallingFrame &Frame,
@@ -1569,9 +1555,12 @@ Expect<int32_t> WasmEdgeZlibGZFread::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0)
 
   const uint64_t Bytes = static_cast<uint64_t>(Size) * NItems;
+  if (Bytes > UINT32_MAX) {
+    return gzfread(nullptr, static_cast<z_size_t>(-1), 2, GZFileIt->second.GZ);
+  }
   BUFFER_CHECK(Buf, MemInst, BufPtr, Bytes, "WasmEdgeZlibGZFread")
 
-  return gzfread(Buf, Size, NItems, GZFileIt->second);
+  return gzfread(Buf, Size, NItems, GZFileIt->second.GZ);
 }
 
 Expect<int32_t> WasmEdgeZlibGZWrite::body(const Runtime::CallingFrame &Frame,
@@ -1586,9 +1575,13 @@ Expect<int32_t> WasmEdgeZlibGZWrite::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
+  if (Len > UINT32_C(0x7fffffff)) {
+    return gzwrite(GZFileIt->second.GZ, nullptr, Len);
+  }
+
   BUFFER_CHECK(Buf, MemInst, BufPtr, Len, "WasmEdgeZlibGZWrite")
 
-  return gzwrite(GZFileIt->second, Buf, Len);
+  return gzwrite(GZFileIt->second.GZ, Buf, Len);
 }
 
 Expect<int32_t> WasmEdgeZlibGZFwrite::body(const Runtime::CallingFrame &Frame,
@@ -1604,9 +1597,12 @@ Expect<int32_t> WasmEdgeZlibGZFwrite::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0)
 
   const uint64_t Bytes = static_cast<uint64_t>(Size) * NItems;
+  if (Bytes > UINT32_MAX) {
+    return gzfwrite(nullptr, static_cast<z_size_t>(-1), 2, GZFileIt->second.GZ);
+  }
   BUFFER_CHECK(Buf, MemInst, BufPtr, Bytes, "WasmEdgeZlibGZFwrite")
 
-  return gzfwrite(Buf, Size, NItems, GZFileIt->second);
+  return gzfwrite(Buf, Size, NItems, GZFileIt->second.GZ);
 }
 
 Expect<int32_t> WasmEdgeZlibGZPuts::body(const Runtime::CallingFrame &Frame,
@@ -1620,14 +1616,21 @@ Expect<int32_t> WasmEdgeZlibGZPuts::body(const Runtime::CallingFrame &Frame,
 
   MEMINST_CHECK(MemInst, Frame, 0)
 
-  const auto *String = getInBoundsCString(*MemInst, StringPtr);
-  if (unlikely(String == nullptr)) {
+  const auto String =
+      getBoundedInBoundsCString(*MemInst, StringPtr, UINT64_MAX);
+  if (unlikely(!String)) {
     spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZPuts] "sv
                   "Out-of-bounds string."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzputs(GZFileIt->second, String);
+  if (String->empty()) {
+    return gzputs(GZFileIt->second.GZ, "");
+  }
+  const int Written = gzwrite(GZFileIt->second.GZ, String->data(),
+                              static_cast<unsigned>(String->size()));
+  return Written > 0 && static_cast<size_t>(Written) == String->size() ? Written
+                                                                       : -1;
 }
 
 Expect<int32_t> WasmEdgeZlibGZPutc::body(const Runtime::CallingFrame &,
@@ -1639,7 +1642,7 @@ Expect<int32_t> WasmEdgeZlibGZPutc::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzputc(GZFileIt->second, C);
+  return gzputc(GZFileIt->second.GZ, C);
 }
 
 Expect<int32_t> WasmEdgeZlibGZGetc::body(const Runtime::CallingFrame &,
@@ -1651,7 +1654,7 @@ Expect<int32_t> WasmEdgeZlibGZGetc::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzgetc(GZFileIt->second);
+  return gzgetc(GZFileIt->second.GZ);
 }
 
 Expect<int32_t> WasmEdgeZlibGZUngetc::body(const Runtime::CallingFrame &,
@@ -1663,7 +1666,7 @@ Expect<int32_t> WasmEdgeZlibGZUngetc::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzungetc(C, GZFileIt->second);
+  return gzungetc(C, GZFileIt->second.GZ);
 }
 
 Expect<int32_t> WasmEdgeZlibGZFlush::body(const Runtime::CallingFrame &,
@@ -1675,7 +1678,7 @@ Expect<int32_t> WasmEdgeZlibGZFlush::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzflush(GZFileIt->second, Flush);
+  return gzflush(GZFileIt->second.GZ, Flush);
 }
 
 Expect<int32_t> WasmEdgeZlibGZSeek::body(const Runtime::CallingFrame &,
@@ -1688,7 +1691,11 @@ Expect<int32_t> WasmEdgeZlibGZSeek::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzseek(GZFileIt->second, Offset, Whence);
+  if (unlikely(!GZFileIt->second.CanSeek && GZFileIt->second.OpenedForRead)) {
+    return static_cast<int32_t>(-1);
+  }
+
+  return gzseek(GZFileIt->second.GZ, Offset, Whence);
 }
 
 Expect<int32_t> WasmEdgeZlibGZRewind::body(const Runtime::CallingFrame &,
@@ -1700,7 +1707,11 @@ Expect<int32_t> WasmEdgeZlibGZRewind::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzrewind(GZFileIt->second);
+  if (unlikely(!GZFileIt->second.CanSeek && GZFileIt->second.OpenedForRead)) {
+    return static_cast<int32_t>(-1);
+  }
+
+  return gzrewind(GZFileIt->second.GZ);
 }
 
 Expect<int32_t> WasmEdgeZlibGZTell::body(const Runtime::CallingFrame &,
@@ -1712,7 +1723,7 @@ Expect<int32_t> WasmEdgeZlibGZTell::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gztell(GZFileIt->second);
+  return gztell(GZFileIt->second.GZ);
 }
 
 Expect<int32_t> WasmEdgeZlibGZOffset::body(const Runtime::CallingFrame &,
@@ -1724,7 +1735,12 @@ Expect<int32_t> WasmEdgeZlibGZOffset::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzoffset(GZFileIt->second);
+  if (unlikely(!GZFileIt->second.CanTell ||
+               GZFileIt->second.RestoredAppendOffset)) {
+    return static_cast<int32_t>(-1);
+  }
+
+  return gzoffset(GZFileIt->second.GZ);
 }
 
 Expect<int32_t> WasmEdgeZlibGZEof::body(const Runtime::CallingFrame &,
@@ -1736,7 +1752,7 @@ Expect<int32_t> WasmEdgeZlibGZEof::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzeof(GZFileIt->second);
+  return gzeof(GZFileIt->second.GZ);
 }
 
 Expect<int32_t> WasmEdgeZlibGZDirect::body(const Runtime::CallingFrame &,
@@ -1748,10 +1764,10 @@ Expect<int32_t> WasmEdgeZlibGZDirect::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzdirect(GZFileIt->second);
+  return gzdirect(GZFileIt->second.GZ);
 }
 
-Expect<int32_t> WasmEdgeZlibGZClose::body(const Runtime::CallingFrame &,
+Expect<int32_t> WasmEdgeZlibGZClose::body(const Runtime::CallingFrame &Frame,
                                           uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
@@ -1760,14 +1776,16 @@ Expect<int32_t> WasmEdgeZlibGZClose::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const auto ZRes = gzclose(GZFileIt->second);
+  const int64_t OwnedWasiFd = GZFileIt->second.OwnedWasiFd;
+  const auto ZRes = gzclose(GZFileIt->second.GZ);
 
   Env.GZFileMap.erase(GZFileIt);
+  releaseOwnedWasiFd(Frame, OwnedWasiFd);
 
   return ZRes;
 }
 
-Expect<int32_t> WasmEdgeZlibGZClose_r::body(const Runtime::CallingFrame &,
+Expect<int32_t> WasmEdgeZlibGZClose_r::body(const Runtime::CallingFrame &Frame,
                                             uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
@@ -1776,17 +1794,18 @@ Expect<int32_t> WasmEdgeZlibGZClose_r::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const auto ZRes = gzclose_r(GZFileIt->second);
+  const int64_t OwnedWasiFd = GZFileIt->second.OwnedWasiFd;
+  const auto ZRes = gzclose_r(GZFileIt->second.GZ);
 
-  // Z_STREAM_ERROR means the handle was the wrong mode and was NOT freed; keep
-  // it so the environment destructor can still reclaim it.
-  if (ZRes != Z_STREAM_ERROR)
+  if (ZRes != Z_STREAM_ERROR) {
     Env.GZFileMap.erase(GZFileIt);
+    releaseOwnedWasiFd(Frame, OwnedWasiFd);
+  }
 
   return ZRes;
 }
 
-Expect<int32_t> WasmEdgeZlibGZClose_w::body(const Runtime::CallingFrame &,
+Expect<int32_t> WasmEdgeZlibGZClose_w::body(const Runtime::CallingFrame &Frame,
                                             uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
@@ -1795,12 +1814,13 @@ Expect<int32_t> WasmEdgeZlibGZClose_w::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const auto ZRes = gzclose_w(GZFileIt->second);
+  const int64_t OwnedWasiFd = GZFileIt->second.OwnedWasiFd;
+  const auto ZRes = gzclose_w(GZFileIt->second.GZ);
 
-  // Z_STREAM_ERROR means the handle was the wrong mode and was NOT freed; keep
-  // it so the environment destructor can still reclaim it.
-  if (ZRes != Z_STREAM_ERROR)
+  if (ZRes != Z_STREAM_ERROR) {
     Env.GZFileMap.erase(GZFileIt);
+    releaseOwnedWasiFd(Frame, OwnedWasiFd);
+  }
 
   return ZRes;
 }
@@ -1814,18 +1834,11 @@ Expect<void> WasmEdgeZlibGZClearerr::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  gzclearerr(GZFileIt->second);
+  gzclearerr(GZFileIt->second.GZ);
 
   return Expect<void>{};
 }
 
-// adler32/crc32 read Z_NULL as a request for the checksum's initial value and
-// any non-null zero-length buffer as "leave the running value unchanged",
-// mirroring deflateSetDictionary's contract above. getSpan yields a null
-// pointer for an out-of-bounds zero-length slice (which would reset the
-// caller's checksum) and a non-null pointer for guest offset 0 -- the guest's
-// Z_NULL -- (which would suppress the reset it asked for). Map a guest null to
-// Z_NULL and every other zero-length request to a non-null empty buffer.
 static inline const Bytef *
 normalizeChecksumBuf(const Bytef *Buf, uint32_t BufPtr, uint32_t Len) noexcept {
   if (Len != 0) {
@@ -1986,7 +1999,6 @@ WasmEdgeZlibInflateInit2_::body(const Runtime::CallingFrame &Frame,
         return inflateInit2_(HostZStream, WindowBits, WasmZlibVersion->data(),
                              sizeof(z_stream));
       });
-  // See WasmEdgeZlibInflateInit2 for the windowBits-to-wrap mapping.
   if (ZRes && *ZRes == Z_OK) {
     if (const auto It = Env.ZStreamMap.find(ZStreamPtr);
         It != Env.ZStreamMap.end()) {
@@ -2007,9 +2019,6 @@ Expect<int32_t> WasmEdgeZlibInflateBackInit_::body(
 
   const auto WasmZlibVersion =
       getBoundedInBoundsCString(*MemInst, VersionPtr, MaxZlibVersionLen);
-  // zlib rejects a null or major-mismatched version before it examines any
-  // other argument, so mirror that order and answer Z_VERSION_ERROR here
-  // rather than resolve (and possibly trap on) the window span first.
   if (!WasmZlibVersion || !CheckVersion(WasmZlibVersion->data())) {
     return static_cast<int32_t>(Z_VERSION_ERROR);
   }
@@ -2024,9 +2033,6 @@ Expect<int32_t> WasmEdgeZlibInflateBackInit_::body(
     }
     Window = WindowSpan.data();
   } else {
-    // A guest null window is zlib's Z_NULL and an out-of-range windowBits is
-    // equally rejected before the window is touched, so neither resolves a
-    // guest pointer (wasm address 0 must not stand in for Z_NULL here).
     Window = nullptr;
   }
 
@@ -2047,7 +2053,7 @@ Expect<int32_t> WasmEdgeZlibGZGetc_::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return gzgetc_(GZFileIt->second);
+  return gzgetc_(GZFileIt->second.GZ);
 }
 
 Expect<int32_t>
@@ -2107,7 +2113,6 @@ WasmEdgeZlibInflateCodesUsed::body(const Runtime::CallingFrame &,
                   "Invalid ZStreamPtr received."sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  // inflateCodesUsed's bad-state answer is (unsigned long)-1.
   if (HostZStreamIt->second.Kind != ZStreamKind::Inflate) {
     return INT32_C(-1);
   }
@@ -2130,9 +2135,6 @@ WasmEdgeZlibInflateResetKeep::body(const Runtime::CallingFrame &,
 
   const auto ZRes = inflateResetKeep(&HostZStreamIt->second.Z);
 
-  // inflateResetKeep detaches zlib's gzip-header pointer like inflateReset;
-  // drop the stale snapshot (see WasmEdgeZlibInflateReset) and the
-  // dictionary-wait flag with it (the stream is back at the header stage).
   if (ZRes == Z_OK) {
     Env.GZHeaderMap.erase(ZStreamPtr);
     HostZStreamIt->second.MayNeedDict = false;
@@ -2156,8 +2158,6 @@ WasmEdgeZlibDeflateResetKeep::body(const Runtime::CallingFrame &,
 
   const int ZRes = deflateResetKeep(&HostZStreamIt->second.Z);
 
-  // deflateResetKeep also returns the stream to INIT_STATE, so clear the
-  // started flag that gates deflateSetDictionary.
   if (ZRes == Z_OK) {
     HostZStreamIt->second.DeflateStarted = false;
   }

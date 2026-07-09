@@ -1286,9 +1286,10 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
   }
 }
 
-Expect<void> Validator::validateCanonOptions(
-    ComponentCanonOpCode Code,
-    Span<const AST::Component::CanonOpt> Opts) noexcept {
+Expect<void>
+Validator::validateCanonOptions(ComponentCanonOpCode Code,
+                                Span<const AST::Component::CanonOpt> Opts,
+                                const AST::Component::FuncType &FT) noexcept {
   using OptCode = ComponentCanonOptCode;
   using CanonOp = ComponentCanonOpCode;
 
@@ -1425,6 +1426,70 @@ Expect<void> Validator::validateCanonOptions(
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
     return Unexpect(ErrCode::Value::InvalidCanonOption);
   }
+  // String encoding options are only meaningful with a memory to read/write.
+  if (HasEncoding && !HasMemory) {
+    spdlog::error(ErrCode::Value::CanonicalOptionMemoryRequired);
+    spdlog::error(
+        "    canonical option 'memory' is required when specifying string encoding"sv);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::CanonicalOptionMemoryRequired);
+  }
+  // Signature-driven requirement (Canonical ABI):
+  // - `memory` is required if any lifted/lowered param/result needs linear
+  //   memory access (string, list, or an aggregate containing them).
+  // - `realloc` is required only when values must be *allocated* into linear
+  //   memory:
+  //     * canon lift: lowering component params into core params
+  //     * canon lower: lowering component results into core results
+  // Also enforce the canonical "flat" limits: when the flattened parameter
+  // list exceeds the direct calling convention capacity, values must be
+  // marshalled via memory (and thus require memory/realloc accordingly).
+  static constexpr uint32_t MaxFlatParams = 16;
+  static constexpr uint32_t MaxFlatResults = 1;
+
+  bool AnyNeedsMemory = false;
+  bool ParamsNeedAlloc = false;
+  bool ResultsNeedAlloc = false;
+  for (const auto &P : FT.getParamList()) {
+    if (needsMemory(P.getValType())) {
+      AnyNeedsMemory = true;
+      ParamsNeedAlloc = true;
+      break;
+    }
+  }
+  for (const auto &R : FT.getResultList()) {
+    if (needsMemory(R.getValType())) {
+      AnyNeedsMemory = true;
+      ResultsNeedAlloc = true;
+      break;
+    }
+  }
+  if (FT.getParamList().size() > MaxFlatParams) {
+    AnyNeedsMemory = true;
+    ParamsNeedAlloc = true;
+  }
+  if (FT.getResultList().size() > MaxFlatResults) {
+    AnyNeedsMemory = true;
+    ResultsNeedAlloc = true;
+  }
+
+  if (AnyNeedsMemory && !HasMemory) {
+    spdlog::error(ErrCode::Value::CanonicalOptionMemoryRequired);
+    spdlog::error(
+        "    canonical option 'memory' is required by the function signature"sv);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::CanonicalOptionMemoryRequired);
+  }
+
+  const bool ReallocRequired = (Code == CanonOp::Lift && ParamsNeedAlloc) ||
+                               (Code == CanonOp::Lower && ResultsNeedAlloc);
+  if (ReallocRequired && !HasRealloc) {
+    spdlog::error(ErrCode::Value::CanonicalOptionReallocRequired);
+    spdlog::error(
+        "    canonical option 'realloc' is required by the function signature"sv);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::CanonicalOptionReallocRequired);
+  }
 
   // Index bounds checks. Core func signature body checks (realloc/callback)
   // deferred as GAP-C-5b once getCoreFunc signatures are populated.
@@ -1514,10 +1579,11 @@ Validator::validateCanonLift(const AST::Component::Canonical &Canon) noexcept {
     return Unexpect(ErrCode::Value::InvalidTypeReference);
   }
   // 4. Validate canonical options (Lift site allows all).
-  EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions()));
+  EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions(),
+                                    DT->getFuncType()));
   // 5. Allocate component func, binding the resolved FuncType. Full ABI
   // signature match (flat_lifted) deferred as GAP-C-1b.
-  CompCtx.addFunc(&DT->getFuncType());
+  CompCtx.addFunc(TypeIdx);
   return {};
 }
 
@@ -1536,7 +1602,16 @@ Validator::validateCanonLower(const AST::Component::Canonical &Canon) noexcept {
     return Unexpect(ErrCode::Value::InvalidIndex);
   }
   // 2. Validate canonical options (per-site rules for Lower).
-  EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions()));
+  const auto *FuncTypePtr = CompCtx.getFunc(FuncIdx);
+  // Some valid components lower imported/aliased funcs whose FuncType body is
+  // not available in this scope yet. In that case, we can still validate
+  // canonical-option well-formedness and index bounds; signature-driven
+  // requirements (e.g. memory/realloc for strings) are skipped until the type
+  // body is wired into the func slot (Phase 3 follow-up).
+  const AST::Component::FuncType EmptyFT{};
+  EXPECTED_TRY(
+      validateCanonOptions(Canon.getOpCode(), Canon.getOptions(),
+                           FuncTypePtr != nullptr ? *FuncTypePtr : EmptyFT));
   // 3. Allocate the resulting core func. Full ABI signature synthesis
   // (flatten_functype for lower) deferred as GAP-C-2b.
   CompCtx.addCoreFunc();
@@ -1576,7 +1651,8 @@ Expect<void> Validator::validateCanonResourceNew(
     return Unexpect(ErrCode::Value::InvalidTypeReference);
   }
   // 4. Validate canonical options.
-  EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions()));
+  EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions(),
+                                    AST::Component::FuncType{}));
   // 5. Allocate the resulting core func with synthesized signature
   // [i32] -> [i32] (rep i32 in, new handle out).
   CompCtx.addCoreFunc(&CoreFuncType_I32_I32);
@@ -1616,7 +1692,8 @@ Expect<void> Validator::validateCanonResourceRep(
     return Unexpect(ErrCode::Value::InvalidTypeReference);
   }
   // 4. Validate canonical options.
-  EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions()));
+  EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions(),
+                                    AST::Component::FuncType{}));
   // 5. Allocate the resulting core func with synthesized signature
   // [i32] -> [i32] (handle in, rep out).
   CompCtx.addCoreFunc(&CoreFuncType_I32_I32);
@@ -1649,7 +1726,8 @@ Expect<void> Validator::validateCanonResourceDrop(
   // 3. resource.drop accepts both local and imported resources — no locality
   // check.
   // 4. Validate canonical options.
-  EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions()));
+  EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions(),
+                                    AST::Component::FuncType{}));
   // 5. Allocate the resulting core func with synthesized signature
   // [i32] -> [] (handle in, no result — matches the resource destructor
   // shape required by validate(ResourceType)).
@@ -1930,7 +2008,9 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
     break;
   }
   case AST::Component::ExternDesc::DescType::FuncType:
-    CompCtx.addFunc();
+    // Imported func introduces a new func slot typed by the referenced type
+    // index (resolved lazily via ComponentContext::getFunc()).
+    CompCtx.addFunc(Desc.getTypeIndex());
     break;
   case AST::Component::ExternDesc::DescType::ValueBound:
     CompCtx.addValue();
@@ -2398,7 +2478,7 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
 
 Expect<void> Validator::validate(const AST::Component::FuncType &FT) noexcept {
   // Validate param names: kebab-case + unique
-  std::unordered_set<std::string_view> ParamNames;
+  std::unordered_set<std::string> ParamNames;
   for (const auto &P : FT.getParamList()) {
     if (!P.getLabel().empty()) {
       if (!isKebabString(P.getLabel())) {
@@ -2408,11 +2488,12 @@ Expect<void> Validator::validate(const AST::Component::FuncType &FT) noexcept {
             P.getLabel());
         return Unexpect(ErrCode::Value::ComponentInvalidName);
       }
-      if (!ParamNames.insert(P.getLabel()).second) {
-        spdlog::error(ErrCode::Value::ComponentDuplicateName);
-        spdlog::error("    FuncType: duplicate parameter name '{}'"sv,
-                      P.getLabel());
-        return Unexpect(ErrCode::Value::ComponentDuplicateName);
+      // Parameter names are compared case-insensitively per the spec tests.
+      if (!ParamNames.insert(toLowerStr(P.getLabel())).second) {
+        spdlog::error(ErrCode::Value::FuncParamNameConflicts);
+        spdlog::error(
+            "    FuncType: parameter name conflicts with previous parameter name"sv);
+        return Unexpect(ErrCode::Value::FuncParamNameConflicts);
       }
     }
     EXPECTED_TRY(validate(P.getValType()));
@@ -2567,6 +2648,46 @@ bool Validator::containsBorrow(
   }
   return false; // PrimValType, OwnTy, FlagsTy, EnumTy
 }
-
+bool Validator::needsMemory(const ComponentValType &VT) const noexcept {
+  if (VT.getCode() == ComponentTypeCode::String ||
+      VT.getCode() == ComponentTypeCode::List) {
+    return true;
+  }
+  if (VT.getCode() != ComponentTypeCode::TypeIndex) {
+    return false;
+  }
+  uint32_t Idx = VT.getTypeIndex();
+  const auto *DT = CompCtx.getDefType(Idx);
+  if (DT == nullptr || !DT->isDefValType()) {
+    return false;
+  }
+  return needsMemory(DT->getDefValType());
+}
+bool Validator::needsMemory(
+    const AST::Component::DefValType &DVT) const noexcept {
+  if (DVT.isPrimValType()) {
+    return DVT.getPrimValType() == AST::Component::PrimValType::String;
+  }
+  // Aggregate/component ABI types are represented via linear memory even when
+  // their fields are plain scalars.
+  if (DVT.isRecordTy() || DVT.isVariantTy() || DVT.isTupleTy() ||
+      DVT.isOptionTy() || DVT.isResultTy() || DVT.isFlagsTy() ||
+      DVT.isEnumTy()) {
+    return true;
+  }
+  if (DVT.isListTy()) {
+    return true;
+  }
+  if (DVT.isStreamTy()) {
+    return true; // streams are backed by memory buffers
+  }
+  if (DVT.isFutureTy()) {
+    return DVT.getFuture().ValTy.has_value() &&
+           needsMemory(*DVT.getFuture().ValTy);
+  }
+  return false; // PrimValType (non-string/list), OwnTy, BorrowTy, FlagsTy,
+                // EnumTy
+}
 } // namespace Validator
+
 } // namespace WasmEdge

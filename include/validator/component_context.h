@@ -91,11 +91,13 @@ public:
     uint32_t CoreTagCount = 0;                         // core:tag
 
     // ---- Component sort index spaces ----
-    std::vector<ComponentSlot> Components;               // component
-    std::vector<InstanceSlot> Instances;                 // instance
-    std::vector<const AST::Component::DefType *> Types;  // type
-    std::vector<const AST::Component::FuncType *> Funcs; // func (i may be null)
-    uint32_t ValueCount = 0;                             // value
+    std::vector<ComponentSlot> Components;              // component
+    std::vector<InstanceSlot> Instances;                // instance
+    std::vector<const AST::Component::DefType *> Types; // type
+    // func: optional type index into the component-level `type` space.
+    // When set, getFunc() resolves the FuncType body via getDefType(TypeIdx).
+    std::vector<std::optional<uint32_t>> Funcs;
+    uint32_t ValueCount = 0; // value
 
     // ---- Type annotations (keyed by type index) ----
     // ResourceType bodies live on Resources[i].Body (see below).
@@ -472,15 +474,19 @@ public:
   // func / value
   // ==========================================================================
 
-  uint32_t addFunc(const AST::Component::FuncType *FT = nullptr) noexcept {
+  uint32_t addFunc(std::optional<uint32_t> TypeIdx = std::nullopt) noexcept {
     auto &V = getCurrentContext().Funcs;
     uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.push_back(FT);
+    V.push_back(TypeIdx);
     return Idx;
   }
   const AST::Component::FuncType *getFunc(uint32_t Idx) const noexcept {
     const auto &V = getCurrentContext().Funcs;
-    return Idx < V.size() ? V[Idx] : nullptr;
+    if (Idx >= V.size() || !V[Idx].has_value()) {
+      return nullptr;
+    }
+    const auto *DT = getDefType(*V[Idx]);
+    return (DT != nullptr && DT->isFuncType()) ? &DT->getFuncType() : nullptr;
   }
   uint32_t addValue() noexcept { return getCurrentContext().ValueCount++; }
 

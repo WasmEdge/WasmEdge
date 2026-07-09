@@ -109,7 +109,8 @@ private:
   Expect<void> validate(const AST::Component::Canonical &Canon) noexcept;
   Expect<void>
   validateCanonOptions(ComponentCanonOpCode Code,
-                       Span<const AST::Component::CanonOpt> Opts) noexcept;
+                       Span<const AST::Component::CanonOpt> Opts,
+                       const AST::Component::FuncType &FT) noexcept;
   // Per-opcode canonical built-in validators.
   Expect<void>
   validateCanonLift(const AST::Component::Canonical &Canon) noexcept;
@@ -145,6 +146,8 @@ private:
   Expect<void> validate(const AST::Component::ResourceType &RT) noexcept;
   bool containsBorrow(const ComponentValType &VT) const noexcept;
   bool containsBorrow(const AST::Component::DefValType &DVT) const noexcept;
+  bool needsMemory(const ComponentValType &VT) const noexcept;
+  bool needsMemory(const AST::Component::DefValType &DVT) const noexcept;
 
   // Populate the export table of an instance slot from an InstanceType.
   void

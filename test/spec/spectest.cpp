@@ -325,7 +325,7 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     {"export",                  {true, true,  false, false}},
     {"export-ascription",       {true, true,  false, false}},
     {"export-introduces-alias", {true, true,  true,  false}},
-    {"func",                    {true, false, false, false}},
+    {"func",                    {true, true,  false, false}},
     {"import",                  {true, false, false, false}},
     {"imports-exports",         {true, true,  false, false}},
     {"inline-exports",          {true, true,  true,  false}},
@@ -868,7 +868,9 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
       EXPECT_TRUE(false);
     } else {
       EXPECT_TRUE(Res.error().getErrCodePhase() ==
-                  WasmEdge::WasmPhase::Validation);
+                  WasmEdge::WasmPhase::Validation)
+          << "Actual phase: " << static_cast<int>(Res.error().getErrCodePhase())
+          << ", code: " << WasmEdge::ErrCodeStr[Res.error().getEnum()];
       EXPECT_TRUE(
           stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
     }

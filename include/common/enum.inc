@@ -1122,6 +1122,15 @@ E(InvalidExportName, 0x02B3, "not a valid export name")
 E(InvalidExternName, 0x02B4, "not a valid extern name")
 // Core tag referenced by a core-export alias or inline-export does not exist
 E(UnknownCoreTag, 0x02B5, "unknown tag")
+// Canonical option `memory` is required by signature (component model)
+E(CanonicalOptionMemoryRequired, 0x02B6,
+  "canonical option `memory` is required")
+// Canonical option `realloc` is required by signature (component model)
+E(CanonicalOptionReallocRequired, 0x02B7,
+  "canonical option `realloc` is required")
+// FuncType parameter names conflict (case-insensitive)
+E(FuncParamNameConflicts, 0x02B8,
+  "function parameter name conflicts with previous parameter name")
 // @}
 
 // Instantiation phase

@@ -127,7 +127,10 @@ Expect<int32_t> AVFreep::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(Buffer, BufferId, uint8_t *);
   FFMPEG_PTR_CHECK_FREE(Buffer, BufferId,
                         static_cast<int32_t>(ErrNo::InternalError));
+  // Ids of this type come from AVSamplesAllocArrayAndSamples: plane 0 owns
+  // the joint sample buffer and the plane-pointer array is its own allocation.
   av_freep(Buffer);
+  av_free(Buffer);
   FFMPEG_PTR_DELETE(BufferId);
   return static_cast<int32_t>(ErrNo::Success);
 }

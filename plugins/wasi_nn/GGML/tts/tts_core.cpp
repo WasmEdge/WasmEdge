@@ -5,8 +5,7 @@
 #include "host/wasi/vfs_io.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
-#include <json-partial.h>
-#include <json-schema-to-grammar.h>
+#include <nlohmann/json.hpp>
 #include <regex>
 #endif
 
@@ -381,35 +380,41 @@ getSpeakerProfileFromFile(const std::string &FilePath, WasiNNEnvironment &Env) {
   if (!JsonFile.is_open()) {
     return std::nullopt;
   }
-  nlohmann::json JsonData;
-  JsonFile >> JsonData;
-  JsonFile.close();
+  try {
+    nlohmann::json JsonData;
+    JsonFile >> JsonData;
+    JsonFile.close();
 
-  // Initialize the outputs.
-  std::string AudioOutputText = "<|audio_start|>\n";
-  std::string TextOutput = "<|text_start|>";
+    // Initialize the outputs.
+    std::string AudioOutputText = "<|audio_start|>\n";
+    std::string TextOutput = "<|text_start|>";
 
-  // Iterate through each word in the JSON data
-  for (const auto &WordData : JsonData["words"]) {
-    std::string Word = WordData["word"];
-    double Duration = WordData["duration"];
-    std::vector<int> Codes = WordData["codes"];
+    // Iterate through each word in the JSON data
+    for (const auto &WordData : JsonData.at("words")) {
+      std::string Word = WordData.at("word");
+      double Duration = WordData.at("duration");
+      std::vector<int> Codes = WordData.at("codes");
 
-    // Create the audio output entry
-    std::ostringstream WordEntry;
-    WordEntry << Word << "<|t_" << std::fixed << std::setprecision(2)
-              << Duration << "|><|code_start|>";
-    for (const auto &Code : Codes) {
-      WordEntry << "<|" << Code << "|>";
+      // Create the audio output entry
+      std::ostringstream WordEntry;
+      WordEntry << Word << "<|t_" << std::fixed << std::setprecision(2)
+                << Duration << "|><|code_start|>";
+      for (const auto &Code : Codes) {
+        WordEntry << "<|" << Code << "|>";
+      }
+      WordEntry << "<|code_end|>\n";
+      AudioOutputText += WordEntry.str();
+
+      // Create the text output entry
+      TextOutput += Word + "<|text_sep|>";
     }
-    WordEntry << "<|code_end|>\n";
-    AudioOutputText += WordEntry.str();
 
-    // Create the text output entry
-    TextOutput += Word + "<|text_sep|>";
+    return TTSSpeakerProfile{TextOutput, AudioOutputText};
+  } catch (const std::exception &E) {
+    LOG_ERROR("getSpeakerProfileFromFile: invalid speaker profile: {}"sv,
+              E.what())
+    return std::nullopt;
   }
-
-  return TTSSpeakerProfile{TextOutput, AudioOutputText};
 }
 
 // TextToSpeech function that generates voice data from codes.

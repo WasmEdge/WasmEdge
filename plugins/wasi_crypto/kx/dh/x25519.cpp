@@ -34,11 +34,11 @@ WasiCryptoExpect<std::vector<uint8_t>> X25519::PublicKey::exportData(
 
 WasiCryptoExpect<void> X25519::PublicKey::verify() const noexcept {
   EvpPkeyCtxPtr CheckCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
-  ensureOrReturn(CheckCtx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  ensureOrReturn(CheckCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   // EVP_PKEY_public_check returns 1 on success, 0 or a negative value on
-  // failure, and -2 when the check is not supported for this key type..
-  const int Ret = EVP_PKEY_public_check(CheckCtx.get());
-  ensureOrReturn(Ret == 1 || Ret == -2, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  // failure, and -2 when the check is not supported for this key type.
+  ensureOrReturn(EVP_PKEY_public_check(CheckCtx.get()) != 0,
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
   return {};
 }
 

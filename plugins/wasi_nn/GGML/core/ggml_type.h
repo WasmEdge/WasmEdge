@@ -62,6 +62,7 @@ struct Graph {
   bool TextToSpeech = false;
   std::string TTSOutputFilePath = "output.wav";
   std::string TTSSpeakerFilePath;
+  common_params_model VocoderModel;
   llama_model_ptr TTSModel = nullptr;
   llama_context_ptr TTSContext = nullptr;
   // Configs.

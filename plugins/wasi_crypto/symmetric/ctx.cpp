@@ -333,10 +333,7 @@ WasiCryptoExpect<__wasi_version_t> Context::symmetricKeyReplaceManaged(
     __wasi_symmetric_key_t NewKeyHandle) noexcept {
   return SecretsManagerManager.get(SecretsManagerHandle)
       .and_then([&](auto &&Sm) noexcept {
-        return SymmetricKeyManager.get(OldKeyHandle)
-            .and_then([&](auto &&) noexcept {
-              return SymmetricKeyManager.getId(OldKeyHandle);
-            })
+        return SymmetricKeyManager.getId(OldKeyHandle)
             .and_then([&](auto &&KeyId) noexcept {
               return Sm.getLatestSkVersion(KeyId).and_then(
                   [&](auto LatestVersion) noexcept {

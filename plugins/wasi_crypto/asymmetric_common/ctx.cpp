@@ -205,10 +205,7 @@ Context::keypairReplaceManaged(__wasi_secrets_manager_t SecretsManagerHandle,
                                __wasi_keypair_t NewKpHandle) noexcept {
   return SecretsManagerManager.get(SecretsManagerHandle)
       .and_then([&](auto &&Sm) noexcept {
-        return KeyPairManager.get(OldKpHandle)
-            .and_then([&](auto &&) noexcept {
-              return KeyPairManager.getId(OldKpHandle);
-            })
+        return KeyPairManager.getId(OldKpHandle)
             .and_then([&](auto &&KpId) noexcept {
               return Sm.getLatestKpVersion(KpId).and_then(
                   [&](auto LatestVersion) noexcept {

@@ -70,7 +70,9 @@ Hkdf<ShaNid>::Expand::State::squeeze(Span<uint8_t> Out) noexcept {
   std::scoped_lock Lock{Ctx->Mutex};
   size_t OutLen = Out.size();
 
-  size_t RequiredLen = Ctx->SqueezedOffset + OutLen;
+  size_t RequiredLen = 0;
+  ensureOrReturn(!__builtin_add_overflow(Ctx->SqueezedOffset, OutLen, &RequiredLen),
+                 __WASI_CRYPTO_ERRNO_OVERFLOW);
   if (RequiredLen > Ctx->Derived.size()) {
     // Re-derive if we need more bytes.
     auto NewCtxResult = openStateImpl(Ctx->Key, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY);

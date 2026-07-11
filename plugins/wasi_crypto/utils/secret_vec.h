@@ -50,10 +50,25 @@ public:
   }
 
   void resize(size_t Size) {
-    if (Size < Data.size()) {
-      OPENSSL_cleanse(Data.data() + Size, Data.size() - Size);
+    if (Size <= Data.size()) {
+      if (Size < Data.size()) {
+        OPENSSL_cleanse(Data.data() + Size, Data.size() - Size);
+      }
+      Data.resize(Size);
+      return;
     }
-    Data.resize(Size);
+    if (Size <= Data.capacity()) {
+      Data.resize(Size);
+      return;
+    }
+    std::vector<uint8_t> NewData(Size);
+    for (size_t I = 0; I < Data.size(); ++I) {
+      NewData[I] = Data[I];
+    }
+    if (auto *Ptr = Data.data(); Ptr != nullptr && Data.capacity() != 0) {
+      OPENSSL_cleanse(Ptr, Data.capacity());
+    }
+    Data.swap(NewData);
   }
 
   auto begin() noexcept { return Data.begin(); }

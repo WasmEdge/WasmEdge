@@ -514,10 +514,17 @@ function(wasmedge_setup_spdlog)
   else()
     include(FetchContent)
     message(STATUS "Downloading fmt source")
+    # Held at 12.1.0. fmt 12.2.0 needs CMake 3.19 or later, which this project
+    # does not require: it sets VERSION, SOVERSION and DEBUG_POSTFIX on the
+    # fmt-header-only INTERFACE target, and CMake rejects non-whitelisted
+    # properties on INTERFACE libraries before 3.19. Debian bullseye, which
+    # builds the static release, carries CMake 3.18. fmt 12.2.0 also fails to
+    # compile its own 128-bit fallback in do_format_decimal, which every target
+    # without a native __int128 -- MSVC among them -- instantiates.
     FetchContent_Declare(
       fmt
       GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-      GIT_TAG        0c9fce2ffefecfdce794e1859584e25877b7b592  # 11.0.2
+      GIT_TAG        407c905e45ad75fc29bf0f9bb7c5c2fd3475976f  # 12.1.0
       GIT_SHALLOW    TRUE
     )
     set(FMT_INSTALL OFF CACHE BOOL "Generate the install target." FORCE)
@@ -549,7 +556,7 @@ function(wasmedge_setup_spdlog)
     FetchContent_Declare(
       spdlog
       GIT_REPOSITORY https://github.com/gabime/spdlog.git
-      GIT_TAG        7c02e204c92545f869e2f04edaab1f19fe8b19fd  # v1.13.0
+      GIT_TAG        79524ddd08a4ec981b7fea76afd08ee05f83755d  # v1.17.0
       GIT_SHALLOW    TRUE
     )
     set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "Build shared library" FORCE)

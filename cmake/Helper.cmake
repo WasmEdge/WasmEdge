@@ -78,6 +78,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-gnu-anonymous-struct
     -Wno-keyword-macro
     -Wno-language-extension-token
+    -Wno-missing-noreturn
     -Wno-newline-eof
     -Wno-signed-enum-bitfield
     -Wno-switch-enum
@@ -156,6 +157,9 @@ if(WIN32)
       -Wno-implicit-int-float-conversion
       -Wno-double-promotion
       -Wno-unsafe-buffer-usage
+      -Wno-padded
+      -Wno-error=nrvo
+      -Wno-unique-object-duplication
       -Wno-deprecated-declarations
       -Wno-error=rtti
       -Wno-error=cast-function-type-strict
@@ -535,16 +539,15 @@ function(wasmedge_setup_spdlog)
     wasmedge_mark_system_includes(fmt)
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(fmt
-        PUBLIC
-        -Wno-missing-noreturn
         PRIVATE
+        -Wno-missing-noreturn
         -Wno-sign-conversion
       )
     endif()
     wasmedge_suppress_shadow_warnings(fmt)
     if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(fmt
-        PUBLIC
+        PRIVATE
         -Wno-duplicate-enum
         -Wno-padded
         -Wno-error=unique-object-duplication
@@ -569,7 +572,7 @@ function(wasmedge_setup_spdlog)
     wasmedge_suppress_shadow_warnings(spdlog)
     if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(spdlog
-        PUBLIC
+        PRIVATE
         -Wno-unique-object-duplication
       )
     endif()

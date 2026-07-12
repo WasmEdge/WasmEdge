@@ -138,6 +138,118 @@ resolveChildInstanceType(const AST::Component::Component &Comp,
   return nullptr;
 }
 
+// Like resolveChildInstanceType, but for resource types — needed because
+// Comp's own scope is already popped by the time this runs, so we can't
+// just call CompCtx.getResource() on the index directly.
+std::optional<uint64_t> resolveChildResourceType(
+    const AST::Component::Component &Comp, uint32_t TypeIdx,
+    Span<const AST::Component::InstantiateArg<AST::Component::SortIndex>> Args,
+    ComponentContext &CompCtx,
+    std::unordered_map<const AST::Component::DefType *, uint64_t>
+        &LocalResourceCache) {
+  uint32_t CurrentIdx = 0;
+  for (const auto &Sec : Comp.getSections()) {
+    if (std::holds_alternative<AST::Component::TypeSection>(Sec)) {
+      const auto &TSec = std::get<AST::Component::TypeSection>(Sec);
+      for (const auto &DT : TSec.getContent()) {
+        if (CurrentIdx == TypeIdx) {
+          if (DT.isResourceType()) {
+            auto It = LocalResourceCache.find(&DT);
+            if (It != LocalResourceCache.end()) {
+              return It->second;
+            }
+            uint64_t FreshId =
+                CompCtx.allocateFreshResourceId(&DT.getResourceType());
+            LocalResourceCache[&DT] = FreshId;
+            return FreshId;
+          }
+          return std::nullopt;
+        }
+        CurrentIdx++;
+      }
+    } else if (std::holds_alternative<AST::Component::ImportSection>(Sec)) {
+      const auto &ISec = std::get<AST::Component::ImportSection>(Sec);
+      for (const auto &Import : ISec.getContent()) {
+        if (Import.getDesc().getDescType() ==
+            AST::Component::ExternDesc::DescType::TypeBound) {
+          if (CurrentIdx == TypeIdx) {
+            auto ArgIt =
+                std::find_if(Args.begin(), Args.end(), [&](const auto &Arg) {
+                  return Arg.getName() == Import.getName();
+                });
+            if (ArgIt != Args.end()) {
+              if (const auto *ResInfo =
+                      CompCtx.getResource(ArgIt->getIndex().getIdx())) {
+                return ResInfo->Id;
+              }
+            }
+            return std::nullopt;
+          }
+          CurrentIdx++;
+        }
+      }
+    } else if (std::holds_alternative<AST::Component::AliasSection>(Sec)) {
+      const auto &ASec = std::get<AST::Component::AliasSection>(Sec);
+      for (const auto &Alias : ASec.getContent()) {
+        if (!Alias.getSort().isCore() &&
+            Alias.getSort().getSortType() ==
+                AST::Component::Sort::SortType::Type) {
+          if (CurrentIdx == TypeIdx) {
+            if (Alias.getTargetType() ==
+                AST::Component::Alias::TargetType::Outer) {
+              const auto *O =
+                  CompCtx.resolveOuterContext(Alias.getOuter().first - 1);
+              if (O != nullptr) {
+                auto It = O->Resources.find(Alias.getOuter().second);
+                if (It != O->Resources.end()) {
+                  return It->second.Id;
+                }
+              }
+            } else if (Alias.getTargetType() ==
+                       AST::Component::Alias::TargetType::Export) {
+              uint32_t InstIdx = Alias.getExport().first;
+              std::string_view ExpName = Alias.getExport().second;
+              uint32_t CurrentInstIdx = 0;
+              for (const auto &SubSec : Comp.getSections()) {
+                const auto *SubISec =
+                    std::get_if<AST::Component::ImportSection>(&SubSec);
+                if (SubISec == nullptr) {
+                  continue;
+                }
+                for (const auto &Import : SubISec->getContent()) {
+                  if (Import.getDesc().getDescType() ==
+                      AST::Component::ExternDesc::DescType::InstanceType) {
+                    if (CurrentInstIdx == InstIdx) {
+                      auto ArgIt = std::find_if(
+                          Args.begin(), Args.end(), [&](const auto &Arg) {
+                            return Arg.getName() == Import.getName();
+                          });
+                      if (ArgIt != Args.end()) {
+                        const auto &Exports =
+                            CompCtx.getInstance(ArgIt->getIndex().getIdx())
+                                .Exports;
+                        auto It = Exports.find(std::string(ExpName));
+                        if (It != Exports.end()) {
+                          return It->second.ResourceId;
+                        }
+                      }
+                      break;
+                    }
+                    CurrentInstIdx++;
+                  }
+                }
+              }
+            }
+            return std::nullopt;
+          }
+          CurrentIdx++;
+        }
+      }
+    }
+  }
+  return std::nullopt;
+}
+
 // Validate that a name may appear at an export position: reject the
 // `relative-url=` prefix (not part of the extern-name grammar) and any
 // plainname/interfacename kind that isn't allowed on an export.
@@ -1081,8 +1193,9 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
     // Allocate the slot + populate exports so alias-export can resolve.
     // Raw-Component path resolves the IT for instance-typed exports;
     // ComponentType path registers sort-kind only (GAP-DECL-ED).
-    // TODO (GAP-I-3): fresh ResourceIds + per-export resource remapping.
     uint32_t InstanceIdx = CompCtx.addInstance();
+    std::unordered_map<const AST::Component::DefType *, uint64_t>
+        LocalResourceCache;
     if (Comp != nullptr) {
       for (const auto &Sec : Comp->getSections()) {
         const auto *ES = std::get_if<AST::Component::ExportSection>(&Sec);
@@ -1102,8 +1215,15 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
                   AST::Component::ExternDesc::DescType::InstanceType) {
             IT = resolveChildInstanceType(*Comp, Exp.getDesc()->getTypeIndex());
           }
+          std::optional<uint64_t> ResId;
+          if (ExpSort.getSortType() == AST::Component::Sort::SortType::Type) {
+            ResId = resolveChildResourceType(*Comp, Exp.getSortIndex().getIdx(),
+                                             Inst.getInstantiateArgs(), CompCtx,
+                                             LocalResourceCache);
+          }
           CompCtx.addInstanceExport(InstanceIdx, Exp.getName(),
-                                    ExpSort.getSortType(), IT);
+                                    ExpSort.getSortType(), IT,
+                                    /*NestedInstIdx=*/std::nullopt, ResId);
         }
       }
     } else if (CompTy != nullptr) {

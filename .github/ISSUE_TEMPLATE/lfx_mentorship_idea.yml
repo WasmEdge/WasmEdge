@@ -48,7 +48,7 @@ body:
     id: mentors
     attributes:
       label: "Mentor(s)"
-      description: Please write down the mentor(s) in this format, e.g. "MentorName (@MentorGitHubID, MentorEmail)"
+      description: Please write down the mentor(s) in this format, e.g. "MentorName | @MentorGitHubID | MentorEmail | LFID"
       placeholder: According to the CNCF policy, at least two mentors(one for major, another for backup) are required for each project.
     validations:
       required: true

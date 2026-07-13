@@ -48,7 +48,7 @@ void resolveRegister(std::map<std::string, std::string> &Alias,
                      simdjson::dom::array &CmdArray) {
   std::string_view OrgName;
   uint64_t LastModLine = 0;
-  for (const simdjson::dom::object &Cmd : CmdArray) {
+  for (const simdjson::dom::object Cmd : CmdArray) {
     std::string_view CmdType = Cmd["type"];
     if (CmdType == "module"sv) {
       // Record last module in order
@@ -127,7 +127,7 @@ parseValueList(const simdjson::dom::array &Args) {
   std::vector<WasmEdge::ValType> ResultTypes;
   Result.reserve(Args.size());
   ResultTypes.reserve(Args.size());
-  for (const simdjson::dom::object &Element : Args) {
+  for (const simdjson::dom::object Element : Args) {
     std::string_view Type = Element["type"];
     simdjson::dom::element Value = Element["value"];
     if (Value.type() == simdjson::dom::element_type::ARRAY) {
@@ -203,7 +203,7 @@ std::vector<std::pair<std::string, std::string>>
 parseExpectedList(const simdjson::dom::array &Args) {
   std::vector<std::pair<std::string, std::string>> Result;
   Result.reserve(Args.size());
-  for (const simdjson::dom::object &Element : Args) {
+  for (const simdjson::dom::object Element : Args) {
     std::string_view Type = Element["type"];
     simdjson::dom::element Value;
     auto NoValue = Element["value"].get(Value);
@@ -1157,7 +1157,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         // and the register commands inside the thread tell us what names
         // to register them under.
         std::map<std::string, std::string> SharedRegisterMap;
-        for (const simdjson::dom::object &SubCmd : ThreadCmds) {
+        for (const simdjson::dom::object SubCmd : ThreadCmds) {
           std::string_view SubType;
           if (!SubCmd["type"].get(SubType) && SubType == "register"sv) {
             std::string_view RegName, RegAs;
@@ -1171,7 +1171,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         std::vector<std::pair<std::string, std::string>> SharedModules;
         simdjson::dom::array SharedArray;
         if (!Cmd["shared"].get(SharedArray)) {
-          for (const simdjson::dom::object &SharedEntry : SharedArray) {
+          for (const simdjson::dom::object SharedEntry : SharedArray) {
             std::string_view ModRef = SharedEntry["module"];
             std::string OrigName(ModRef);
             // Resolve parent store name through alias.
@@ -1228,7 +1228,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
   };
 
   // Iterate commands.
-  for (const simdjson::dom::object &Cmd : CmdArray) {
+  for (const simdjson::dom::object Cmd : CmdArray) {
     RunCommand(Cmd);
   }
 

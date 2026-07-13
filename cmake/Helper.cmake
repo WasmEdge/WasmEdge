@@ -408,6 +408,22 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
   endif()
 endif()
 
+# Re-export a target's interface include directories as system includes, so that
+# consumers reach its headers through -isystem / -external:I instead of -I and
+# never compile them with the project warning flags. The SYSTEM target property
+# would do this directly, but it needs CMake 3.25 and the floor here is 3.18.
+function(wasmedge_mark_system_includes target)
+  if(NOT TARGET ${target})
+    return()
+  endif()
+  get_target_property(WASMEDGE_SYSTEM_INCLUDE_DIRS
+    ${target} INTERFACE_INCLUDE_DIRECTORIES)
+  if(WASMEDGE_SYSTEM_INCLUDE_DIRS)
+    set_property(TARGET ${target} PROPERTY
+      INTERFACE_SYSTEM_INCLUDE_DIRECTORIES ${WASMEDGE_SYSTEM_INCLUDE_DIRS})
+  endif()
+endfunction()
+
 function(wasmedge_setup_simdjson)
   if(TARGET simdjson::simdjson)
     return()
@@ -435,16 +451,14 @@ function(wasmedge_setup_simdjson)
 
     # Consumers pull in simdjson through -isystem / -external:I so that its
     # headers are never compiled with the project warning flags, the same way
-    # gtest is already treated.
-    get_target_property(SIMDJSON_INCLUDE_DIRS simdjson INTERFACE_INCLUDE_DIRECTORIES)
-    if(SIMDJSON_INCLUDE_DIRS)
-      set_property(TARGET simdjson PROPERTY
-        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES ${SIMDJSON_INCLUDE_DIRS})
-    endif()
+    # gtest is already treated. The suppressions below then only have to cover
+    # simdjson's own sources, which inherit WASMEDGE_CFLAGS from the enclosing
+    # directory scope.
+    wasmedge_mark_system_includes(simdjson)
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(simdjson
-        PUBLIC
+        PRIVATE
         -Wno-undef
         -Wno-suggest-override
         -Wno-documentation
@@ -465,7 +479,7 @@ function(wasmedge_setup_simdjson)
       )
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
       target_compile_options(simdjson
-        PUBLIC
+        PRIVATE
         $<$<COMPILE_LANGUAGE:C,CXX>:/wd4100> # unreferenced formal parameter
         $<$<COMPILE_LANGUAGE:C,CXX>:/wd4505> # unreferenced local function has been removed
       )

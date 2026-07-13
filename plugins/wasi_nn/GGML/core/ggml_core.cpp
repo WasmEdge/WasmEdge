@@ -127,7 +127,8 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, WASINN::Graph &G,
                 "\"ggml-model.bin\" and passing this filename as a "sv
                 "parameter to the ggml llama library."sv)
     }
-    TempFile.write(BinModel.data(), BinModel.size());
+    TempFile.write(BinModel.data(),
+                   static_cast<std::streamsize>(BinModel.size()));
     TempFile.close();
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "load: Write model into a tmpfile...Done"sv)

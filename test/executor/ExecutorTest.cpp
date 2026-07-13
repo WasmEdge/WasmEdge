@@ -20,6 +20,7 @@
 #include "../spec/hostfunc.h"
 #include "../spec/spectest.h"
 
+#include <algorithm>
 #include <gtest/gtest.h>
 
 #include <array>
@@ -39,6 +40,24 @@ namespace {
 using namespace std::literals;
 using namespace WasmEdge;
 static SpecTest T(std::filesystem::u8path("../spec/testSuites"sv));
+
+class ScopedWorkingDirectory {
+public:
+  explicit ScopedWorkingDirectory(std::filesystem::path Dir)
+      : Original(std::filesystem::current_path()), Current(std::move(Dir)) {
+    std::filesystem::create_directories(Current);
+    std::filesystem::current_path(Current);
+  }
+
+  ~ScopedWorkingDirectory() {
+    std::filesystem::current_path(Original);
+    std::filesystem::remove_all(Current);
+  }
+
+private:
+  std::filesystem::path Original;
+  std::filesystem::path Current;
+};
 
 // Parameterized testing class.
 class CoreTest : public testing::TestWithParam<std::string> {};
@@ -307,6 +326,11 @@ TEST(VM, MultipleVM) {
 }
 
 TEST(Coredump, generateCoredump) {
+  ScopedWorkingDirectory WorkingDir(
+      std::filesystem::temp_directory_path() /
+      ("wasmedge-coredump-test-" +
+       std::to_string(
+           std::chrono::steady_clock::now().time_since_epoch().count())));
   WasmEdge::Configure Conf;
   Conf.getRuntimeConfigure().setEnableCoredump(true);
   Conf.getRuntimeConfigure().setCoredumpWasmgdb(false);
@@ -321,15 +345,60 @@ TEST(Coredump, generateCoredump) {
   ASSERT_TRUE(VM.loadWasm(Wasm));
   ASSERT_TRUE(VM.validate());
   ASSERT_TRUE(VM.instantiate());
-  VM.execute("access_out_of_bounds");
-  bool FindCoredump = false;
+  EXPECT_FALSE(VM.execute("access_out_of_bounds"));
+  std::filesystem::path CoredumpPath;
   for (const auto &Entry : std::filesystem::directory_iterator("./")) {
     if (Entry.path().string().find("coredump.") != std::string::npos) {
-      FindCoredump = true;
-      break;
+      ASSERT_TRUE(CoredumpPath.empty());
+      CoredumpPath = Entry.path();
     }
   }
-  EXPECT_TRUE(FindCoredump);
+  ASSERT_FALSE(CoredumpPath.empty());
+
+  Loader::Loader LoadEngine(Conf);
+  auto CoredumpModule = LoadEngine.parseModule(CoredumpPath);
+  ASSERT_TRUE(CoredumpModule);
+  const auto &Module = *(*CoredumpModule);
+
+  const auto CoreStackIt = std::find_if(
+      Module.getCustomSections().begin(), Module.getCustomSections().end(),
+      [](const auto &Section) { return Section.getName() == "corestack"; });
+  ASSERT_NE(CoreStackIt, Module.getCustomSections().end());
+
+  const auto Content = CoreStackIt->getContent();
+  size_t Offset = 0;
+  const auto ReadU32 = [&Content, &Offset]() {
+    uint32_t Result = 0;
+    uint32_t Shift = 0;
+    while (true) {
+      EXPECT_LT(Offset, Content.size());
+      if (Offset >= Content.size()) {
+        return 0U;
+      }
+      const uint8_t Byte = Content[Offset++];
+      Result |= static_cast<uint32_t>(Byte & 0x7FU) << Shift;
+      if ((Byte & 0x80U) == 0) {
+        return Result;
+      }
+      Shift += 7U;
+    }
+  };
+
+  ASSERT_GE(Content.size(), 6U);
+  EXPECT_EQ(Content[Offset++], 0x00U);
+  EXPECT_EQ(Content[Offset++], 0x04U);
+  EXPECT_EQ(
+      std::string_view(reinterpret_cast<const char *>(&Content[Offset]), 4),
+      "main");
+  Offset += 4U;
+  EXPECT_EQ(ReadU32(), 1U);
+  EXPECT_EQ(Content[Offset++], 0x00U);
+  static_cast<void>(ReadU32());
+  static_cast<void>(ReadU32());
+  const auto LocalCount = ReadU32();
+  const auto StackCount = ReadU32();
+  EXPECT_EQ(Content.size(),
+            Offset + static_cast<size_t>(LocalCount + StackCount) * 5U);
 }
 
 } // namespace

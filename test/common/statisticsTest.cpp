@@ -11,18 +11,14 @@ namespace {
 using WasmEdge::OpCode;
 using WasmEdge::Statistics::Statistics;
 
-// Statistics is the gas/cost-metering and instruction-counting helper used by
-// the executor, VM, and C API. The cost-limit and counter logic is pure and
-// deterministic, so it can be exercised directly without a running VM.
-
 TEST(StatisticsTest, AddCostRespectsLimit) {
   Statistics S(100);
   EXPECT_EQ(S.getCostLimit(), UINT64_C(100));
   EXPECT_TRUE(S.addCost(10));
   EXPECT_EQ(S.getTotalCost(), UINT64_C(10));
-  EXPECT_TRUE(S.addCost(90)); // reaches exactly the limit
+  EXPECT_TRUE(S.addCost(90));
   EXPECT_EQ(S.getTotalCost(), UINT64_C(100));
-  EXPECT_FALSE(S.addCost(1)); // would exceed; rejected and sum unchanged
+  EXPECT_FALSE(S.addCost(1));
   EXPECT_EQ(S.getTotalCost(), UINT64_C(100));
 }
 
@@ -31,8 +27,6 @@ TEST(StatisticsTest, SubCostGuardsUnderflow) {
   EXPECT_TRUE(S.addCost(10));
   EXPECT_TRUE(S.subCost(5));
   EXPECT_EQ(S.getTotalCost(), UINT64_C(5));
-  // subCost rejects when the remaining sum is less than or equal to the cost,
-  // so it can never drive the total to or below zero.
   EXPECT_FALSE(S.subCost(5));
   EXPECT_EQ(S.getTotalCost(), UINT64_C(5));
   EXPECT_FALSE(S.subCost(10));
@@ -60,8 +54,7 @@ TEST(StatisticsTest, DefaultCostTableChargesOnePerInstr) {
   Statistics S;
   EXPECT_TRUE(S.addInstrCost(OpCode::Block));
   EXPECT_TRUE(S.addInstrCost(OpCode::Br));
-  EXPECT_EQ(S.getTotalCost(), UINT64_C(2)); // default table entry is 1
-  // addInstrCost charges gas only; it does not bump the instruction counter.
+  EXPECT_EQ(S.getTotalCost(), UINT64_C(2));
   EXPECT_EQ(S.getInstrCount(), UINT64_C(0));
 }
 
@@ -71,9 +64,9 @@ TEST(StatisticsTest, CustomCostTableAndSubInstrCost) {
   EXPECT_TRUE(S.addInstrCost(OpCode::Block));
   EXPECT_TRUE(S.addInstrCost(OpCode::Block));
   EXPECT_EQ(S.getTotalCost(), UINT64_C(14));
-  EXPECT_TRUE(S.subInstrCost(OpCode::Block)); // 14 > 7
+  EXPECT_TRUE(S.subInstrCost(OpCode::Block));
   EXPECT_EQ(S.getTotalCost(), UINT64_C(7));
-  EXPECT_FALSE(S.subInstrCost(OpCode::Block)); // 7 <= 7 -> rejected
+  EXPECT_FALSE(S.subInstrCost(OpCode::Block));
   EXPECT_EQ(S.getTotalCost(), UINT64_C(7));
 }
 
@@ -84,7 +77,7 @@ TEST(StatisticsTest, ClearResetsCountersNotLimit) {
   S.clear();
   EXPECT_EQ(S.getInstrCount(), UINT64_C(0));
   EXPECT_EQ(S.getTotalCost(), UINT64_C(0));
-  EXPECT_EQ(S.getCostLimit(), UINT64_C(1000)); // clear does not reset the limit
+  EXPECT_EQ(S.getCostLimit(), UINT64_C(1000));
 }
 
 } // namespace

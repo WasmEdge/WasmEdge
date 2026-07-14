@@ -11,11 +11,6 @@
 namespace {
 using namespace std::literals;
 
-// The hex/byte conversion helpers back the AOT cache key formatting
-// (lib/aot/cache.cpp) and the wasi_logging plugin. Wrong padding, endianness,
-// or round-trip handling silently corrupts cache keys, so these cases lock the
-// contract for every conversion direction.
-
 TEST(HexStrTest, CharToHex) {
   EXPECT_EQ(WasmEdge::convertCharToHex('0'), 0);
   EXPECT_EQ(WasmEdge::convertCharToHex('9'), 9);
@@ -23,7 +18,6 @@ TEST(HexStrTest, CharToHex) {
   EXPECT_EQ(WasmEdge::convertCharToHex('f'), 15);
   EXPECT_EQ(WasmEdge::convertCharToHex('A'), 10);
   EXPECT_EQ(WasmEdge::convertCharToHex('F'), 15);
-  // Out-of-range characters map to 0.
   EXPECT_EQ(WasmEdge::convertCharToHex('g'), 0);
   EXPECT_EQ(WasmEdge::convertCharToHex(' '), 0);
   EXPECT_EQ(WasmEdge::convertCharToHex('\0'), 0);
@@ -46,10 +40,8 @@ TEST(HexStrTest, BytesToHexLittleEndian) {
 TEST(HexStrTest, BytesToHexPadding) {
   const std::vector<uint8_t> Bytes{0xab};
   std::string Out;
-  // Padding longer than the content left-pads with '0'.
   WasmEdge::convertBytesToHexStr(Bytes, Out, 6);
   EXPECT_EQ(Out, "0000ab"sv);
-  // Padding shorter than the content is a no-op.
   WasmEdge::convertBytesToHexStr(Bytes, Out, 1);
   EXPECT_EQ(Out, "ab"sv);
 }
@@ -80,7 +72,6 @@ TEST(HexStrTest, HexToBytesEmpty) {
 }
 
 TEST(HexStrTest, HexToBytesInvalidCharsMapToZero) {
-  // Non-hex characters decode to 0 via convertCharToHex rather than erroring.
   std::vector<uint8_t> Dst;
   WasmEdge::convertHexStrToBytes("zz"sv, Dst);
   EXPECT_EQ(Dst, (std::vector<uint8_t>{0x00}));
@@ -109,8 +100,6 @@ TEST(HexStrTest, RoundTripLittleEndian) {
 }
 
 TEST(HexStrTest, ValVecConversions) {
-  // convertValVecToHexStr emits little-endian (byte-reversed) hex, while
-  // convertHexStrToValVec parses big-endian; they are not inverse operations.
   const std::vector<uint8_t> Bytes{0x01, 0x02, 0x03};
   std::string Hex;
   WasmEdge::convertValVecToHexStr(Bytes, Hex);
@@ -124,7 +113,6 @@ TEST(HexStrTest, UIntToHexStr) {
   EXPECT_EQ(WasmEdge::convertUIntToHexStr(0), "0x00000000"sv);
   EXPECT_EQ(WasmEdge::convertUIntToHexStr(0xabcd, 4), "0xabcd"sv);
   EXPECT_EQ(WasmEdge::convertUIntToHexStr(0xff, 2), "0xff"sv);
-  // MinLen is clamped to 16 hex digits (the width of a uint64_t).
   EXPECT_EQ(WasmEdge::convertUIntToHexStr(1, 100), "0x0000000000000001"sv);
 }
 

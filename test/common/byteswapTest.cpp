@@ -8,15 +8,6 @@
 
 namespace {
 
-// WasmEdge::byteswap<T> backs EndianValue::switchEndian in common/types.h,
-// which performs the byte-order conversion for Wasm value loads/stores on
-// big-endian targets (e.g. s390x). A wrong swap silently corrupts data, so
-// these cases pin the result for each integer width the runtime actually uses.
-//
-// The 128-bit overload is intentionally not exercised here: std::is_integral_v
-// for __int128 is toolchain-dependent under strict -std=c++17, so a 128-bit
-// instantiation would not compile portably across all CI compilers.
-
 TEST(ByteswapTest, KnownValues) {
   EXPECT_EQ(WasmEdge::byteswap<uint16_t>(0x0102),
             static_cast<uint16_t>(0x0201));
@@ -42,7 +33,6 @@ TEST(ByteswapTest, IsInvolution) {
 
 TEST(ByteswapTest, SignedIntegers) {
   EXPECT_EQ(WasmEdge::byteswap<int32_t>(0x01020304), 0x04030201);
-  // All-ones swaps to all-ones; round-trip preserves the value.
   EXPECT_EQ(WasmEdge::byteswap<int64_t>(-1), static_cast<int64_t>(-1));
   EXPECT_EQ(WasmEdge::byteswap(WasmEdge::byteswap<int32_t>(-12345)),
             static_cast<int32_t>(-12345));

@@ -55,8 +55,13 @@ bool load(const std::filesystem::path &Path, std::vector<uint8_t> &Data) {
   File.seekg(0, std::ios::end);
   std::streampos FileSize = File.tellg();
   File.seekg(0, std::ios::beg);
-  Data.resize(FileSize);
-  File.read(reinterpret_cast<char *>(Data.data()), FileSize);
+  if (FileSize < 0) {
+    spdlog::error("[WASI-NN] Preload model fail."sv);
+    return false;
+  }
+  Data.resize(static_cast<size_t>(FileSize));
+  File.read(reinterpret_cast<char *>(Data.data()),
+            static_cast<std::streamsize>(FileSize));
   File.close();
   return true;
 }

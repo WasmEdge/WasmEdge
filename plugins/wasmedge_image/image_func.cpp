@@ -62,12 +62,12 @@ bool decodeImgToSize(Span<const uint8_t> Buf, uint32_t W, uint32_t H,
   }
 
   // Resize.
-  if (unlikely(DstBuf.size() <
-               W * H * 3 * (IsU8 ? sizeof(uint8_t) : sizeof(float)))) {
+  const uint64_t BytesPerPixel = 3 * (IsU8 ? sizeof(uint8_t) : sizeof(float));
+  const uint64_t NumPixels = static_cast<uint64_t>(W) * H;
+  if (unlikely(DstBuf.size() / BytesPerPixel < NumPixels)) {
     spdlog::error("[WasmEdge-Image] Output buffer size {} not enough. "sv
-                  "At least need {} bytes."sv,
-                  DstBuf.size(),
-                  W * H * 3 * (IsU8 ? sizeof(uint8_t) : sizeof(float)));
+                  "At least need {}x{}x{} bytes."sv,
+                  DstBuf.size(), W, H, BytesPerPixel);
     return false;
   }
   if (IsU8) {

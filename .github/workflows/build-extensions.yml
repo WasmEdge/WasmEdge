@@ -26,10 +26,13 @@ on:
       - "lib/wasi_nn_rpc/**"
       - "plugins/**"
       - "test/plugins/**"
-      - "thirdparty/**"
-      - "tools/**"
+      - "thirdparty/wasi_crypto/**"
+      - "tools/CMakeLists.txt"
+      - "tools/wasmedge/CMakeLists.txt"
+      - "tools/wasmedge/wasi_nn_rpcserver.cpp"
       - "CMakeLists.txt"
-      - "cmake/**"
+      - "cmake/Helper.cmake"
+      - "cmake/WASINNDeps.cmake"
   pull_request:
     branches:
       - master
@@ -52,10 +55,13 @@ on:
       - "lib/wasi_nn_rpc/**"
       - "plugins/**"
       - "test/plugins/**"
-      - "thirdparty/**"
-      - "tools/**"
+      - "thirdparty/wasi_crypto/**"
+      - "tools/CMakeLists.txt"
+      - "tools/wasmedge/CMakeLists.txt"
+      - "tools/wasmedge/wasi_nn_rpcserver.cpp"
       - "CMakeLists.txt"
-      - "cmake/**"
+      - "cmake/Helper.cmake"
+      - "cmake/WASINNDeps.cmake"
 
 permissions:
   contents: read

@@ -3,6 +3,8 @@
 
 #include "helper.h"
 
+#include <openssl/opensslv.h>
+
 namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
@@ -122,6 +124,22 @@ TEST_F(WasiCryptoTest, KxDh) {
   };
   NewKxDhTest("P256-SHA256"sv);
   NewKxDhTest("P384-SHA384"sv);
+
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+  // ML-KEM (FIPS 203) is registered behind OpenSSL 3.5. In PR1 the algorithm
+  // resolves and dispatches into the stub, so keypairGenerate reaches the
+  // MlKem stub and returns NOT_IMPLEMENTED (proof of plumbing) rather than
+  // UNSUPPORTED_ALGORITHM. This only runs on OpenSSL >= 3.5 (e.g. macOS CI).
+  auto MlKemRegisteredTest = [this](std::string_view Alg) {
+    SCOPED_TRACE(Alg);
+    WASI_CRYPTO_EXPECT_FAILURE(
+        keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, std::nullopt),
+        __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  };
+  MlKemRegisteredTest("ML-KEM-512"sv);
+  MlKemRegisteredTest("ML-KEM-768"sv);
+  MlKemRegisteredTest("ML-KEM-1024"sv);
+#endif
 }
 
 } // namespace WasiCrypto

@@ -6,18 +6,23 @@ WORKDIR /root
 ### deps for x86_64 ###
 FROM base AS deps-amd64
 RUN cd && (yum check-update || true) && \
-  yum install -y wget unzip zlib-devel zlib-static elfutils-libelf-devel
+  yum install -y wget unzip zlib-devel zlib-static elfutils-libelf-devel zstd
 
 COPY wasi-nn/install-pytorch.sh .
-ENV PYTORCH_VERSION="2.5.1"
-ENV PYTORCH_INSTALL_TO="/root"
+# The pre-cxx11-abi libtorch is kept for the branches still building with the
+# pre-cxx11 ABI; remove it after the 0.18.0 release.
+ENV PYTORCH_INSTALL_TO="/root/libtorch"
 ENV Torch_DIR="/root/libtorch"
 RUN [ "/bin/bash", "install-pytorch.sh", "--disable-cxx11-abi" ]
+
+ENV PYTORCH_VERSION="2.12.1"
+ENV PYTORCH_INSTALL_TO="/root/libtorch-cxx11abi"
+RUN [ "/bin/bash", "install-pytorch.sh" ]
 
 ### deps for aarch64 ###
 FROM base AS deps-arm64
 RUN cd && (yum check-update || true) && \
-  yum install -y wget unzip zlib-devel zlib-static
+  yum install -y wget unzip zlib-devel zlib-static zstd
 
 ### deps for all ###
 FROM deps-${TARGETARCH} AS final

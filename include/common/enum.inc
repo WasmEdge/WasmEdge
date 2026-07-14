@@ -977,6 +977,8 @@ E(UnknownCanonicalOption, 0x01AB, "unknown canonical option")
 E(MalformedName, 0x01AC, "malformed name")
 // Component model not implemented
 E(ComponentNotImplLoader, 0x01AD, "component model (loader) not implemented")
+// Component model nesting level exceeded
+E(ComponentNestLevelExceeded, 0x01AE, "component nesting level exceeded")
 // @}
 
 // Validation phase

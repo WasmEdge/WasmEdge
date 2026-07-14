@@ -948,6 +948,13 @@ struct VarAddrBuf {
 struct VarAddrSize {
   template <typename T> int operator()(const T &) { return sizeof(T); }
   int operator()(const SockEmptyAddr &) { return 0; }
+  int operator()(const sockaddr_un &U) {
+    const auto Len = strnlen(U.sun_path, sizeof(U.sun_path));
+    if (Len == 0 || Len == sizeof(U.sun_path)) {
+      return sizeof(sockaddr_un);
+    }
+    return static_cast<int>(offsetof(sockaddr_un, sun_path) + Len + 1);
+  }
 };
 
 static VarAddrT sockAddressAssignHelper(__wasi_address_family_t AddrFamily,
@@ -1019,7 +1026,7 @@ WasiExpect<INode> INode::sockAccept(__wasi_fdflags_t FdFlags) noexcept {
   if (FdFlags & __WASI_FDFLAGS_NONBLOCK) {
     int SysFlag = fcntl(NewFd, F_GETFL, 0);
     SysFlag |= O_NONBLOCK;
-    if (auto Res = ::fcntl(Fd, F_SETFL, SysFlag); unlikely(Res != 0)) {
+    if (auto Res = ::fcntl(NewFd, F_SETFL, SysFlag); unlikely(Res != 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
   }
@@ -1511,6 +1518,20 @@ static void sigevCallback(union sigval Value) noexcept {
   const uint64_t One = 1;
   ::write(Value.sival_int, &One, sizeof(One));
 }
+
+WasiExpect<void> setTimerPipeFlags(int Fd) noexcept {
+  const int StatusFlags = ::fcntl(Fd, F_GETFL);
+  if (unlikely(StatusFlags < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  if (unlikely(::fcntl(Fd, F_SETFD, FD_CLOEXEC) != 0 ||
+               ::fcntl(Fd, F_SETFL, StatusFlags | O_NONBLOCK) != 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
+}
 } // namespace
 
 WasiExpect<void> Poller::Timer::create() noexcept {
@@ -1532,9 +1553,10 @@ WasiExpect<void> Poller::Timer::create() noexcept {
     Event.sigev_value.sival_int = Notify.Fd;
     Event.sigev_notify_attributes = nullptr;
 
-    if (unlikely(::fcntl(Fd, F_SETFD, O_NONBLOCK | FD_CLOEXEC) != 0 ||
-                 ::fcntl(Notify.Fd, F_SETFD, O_NONBLOCK | FD_CLOEXEC) != 0 ||
-                 ::timer_create(toClockId(Clock), &Event, &TId) < 0)) {
+    EXPECTED_TRY(setTimerPipeFlags(Fd));
+    EXPECTED_TRY(setTimerPipeFlags(Notify.Fd));
+
+    if (unlikely(::timer_create(toClockId(Clock), &Event, &TId) < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
   }

@@ -119,9 +119,9 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
                                 OutputPathString2.end());
   std::vector<char> PromptData(Prompt.begin(), Prompt.end());
   std::vector<char> PromptData2(Prompt2.begin(), Prompt2.end());
-  std::string ModelPathString = "./stableDiffusion/sd-v1-4.ckpt";
+  std::string ModelPathString = "./stableDiffusion/sd-v1-5-fp16.safetensors";
   std::vector<char> ModelPath(ModelPathString.begin(), ModelPathString.end());
-  std::string QuantModelPathString = "./stableDiffusion/sd-v1-4-Q8_0.gguf";
+  std::string QuantModelPathString = "./stableDiffusion/sd-v1-5-Q8_0.gguf";
   std::vector<char> QuantModelPath(QuantModelPathString.begin(),
                                    QuantModelPathString.end());
 

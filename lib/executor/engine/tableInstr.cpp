@@ -84,18 +84,18 @@ Executor::runTableCopyOp(Runtime::StackManager &StackMgr,
   const auto AddrType1 = TabInstSrc.getTableType().getLimit().getAddrType();
   const auto AddrType2 = TabInstDst.getTableType().getLimit().getAddrType();
   uint64_t Len = extractAddr(StackMgr.pop(), std::min(AddrType1, AddrType2));
-  uint64_t Src = extractAddr(StackMgr.pop(), AddrType2);
-  uint64_t Dst = extractAddr(StackMgr.pop(), AddrType1);
+  uint64_t Src = extractAddr(StackMgr.pop(), AddrType1);
+  uint64_t Dst = extractAddr(StackMgr.pop(), AddrType2);
 
   // Replace tab_dst[Dst : Dst + Len] with tab_src[Src : Src + Len].
-  return TabInstSrc.getRefs(0, Src + Len)
-      .and_then(
-          [&](auto Refs) { return TabInstDst.setRefs(Refs, Dst, Src, Len); })
-      .map_error([&Instr](auto E) {
-        spdlog::error(
-            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-        return E;
-      });
+  // The overlapping region cases are handled in the setRefs() internal.
+  auto LogError = [&Instr](auto E) {
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return E;
+  };
+  EXPECTED_TRY(auto Refs, TabInstSrc.getRefs(Src, Len).map_error(LogError));
+  return TabInstDst.setRefs(Refs, Dst, 0, Len).map_error(LogError);
 }
 
 Expect<void>

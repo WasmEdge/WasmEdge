@@ -93,7 +93,13 @@ LLMPipelineBackend::GetContextOutput(Context &CxtRef, uint32_t Index,
   }
 
   try {
-    BytesWritten = CxtRef.StringOutput.size();
+    BytesWritten = static_cast<uint32_t>(CxtRef.StringOutput.size());
+    if (OutBuffer.size() < CxtRef.StringOutput.size()) {
+      spdlog::error("[WASI-NN] OpenVINOGenAI backend: output buffer too small, "
+                    "need {} bytes but got {}."sv,
+                    CxtRef.StringOutput.size(), OutBuffer.size());
+      return WASINN::ErrNo::TooLarge;
+    }
     std::copy_n(reinterpret_cast<const uint8_t *>(CxtRef.StringOutput.data()),
                 BytesWritten, OutBuffer.data());
   } catch (const std::exception &EX) {
@@ -103,9 +109,9 @@ LLMPipelineBackend::GetContextOutput(Context &CxtRef, uint32_t Index,
   return WASINN::ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
+Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
                            Span<const Span<uint8_t>> Builders,
-                           WASINN::Device Device, uint32_t &GraphId) noexcept {
+                           WASINN::Device Device) noexcept {
   // The graph builder length must be 3.
   if (Builders.size() != 3) {
     spdlog::error("[WASI-NN] Wrong GraphBuilder Length {:d}, expect 3"sv,
@@ -128,9 +134,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   [[maybe_unused]] auto ModelExtra = std::string(
       reinterpret_cast<const char *>(Builders[2].data()), Builders[2].size());
 
-  // Add a new graph.
-  uint32_t GId = Env.newGraph(Backend::OpenVINOGenAI);
-  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
+  auto &GraphRef = G.get<Graph>();
 
   // Store device information
   GraphRef.TargetDevice = Device;
@@ -153,35 +157,26 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
 
   } catch (const std::exception &EX) {
     spdlog::error("[WASI-NN] Model Load Exception: {}"sv, EX.what());
-    Env.deleteGraph(GId);
     return WASINN::ErrNo::RuntimeError;
   }
-  // Store the loaded graph.
-  GraphId = GId;
-  Env.NNGraph[GId].setReady();
   return WASINN::ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
-                                  uint32_t GraphId,
-                                  uint32_t &ContextId) noexcept {
-  // Check the network and the execution network with the graph ID.
-  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
+Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
+                                  WASINN::Context &) noexcept {
+  auto &GraphRef = G.get<Graph>();
   if (GraphRef.OpenVINOGenAI == nullptr) {
-    spdlog::error("[WASI-NN] Model for Graph:{} is empty!"sv, GraphId);
+    spdlog::error("[WASI-NN] Model for Graph is empty!"sv);
     return WASINN::ErrNo::MissingMemory;
   }
-  // Create context.
-  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
-  Env.NNContext[ContextId].setReady();
   return WASINN::ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
-                               uint32_t ContextId, uint32_t Index,
+Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
+                               WASINN::Context &C, uint32_t Index,
                                const TensorData &Tensor) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &GraphRef = G.get<Graph>();
+  auto &CxtRef = C.get<Context>();
 
   if (GraphRef.OpenVINOGenAI == nullptr) {
     spdlog::error("[WASI-NN] The founded openvino genei session is empty"sv);
@@ -191,12 +186,12 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
   return GraphRef.OpenVINOGenAI->SetContextInput(CxtRef, Index, Tensor);
 }
 
-Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
-                                uint32_t ContextId, uint32_t Index,
+Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
+                                WASINN::Context &C, uint32_t Index,
                                 Span<uint8_t> OutBuffer,
                                 uint32_t &BytesWritten) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &GraphRef = G.get<Graph>();
+  auto &CxtRef = C.get<Context>();
 
   if (GraphRef.OpenVINOGenAI == nullptr) {
     spdlog::error("[WASI-NN] The founded openvino genei session is empty"sv);
@@ -207,10 +202,10 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
                                                   BytesWritten);
 }
 
-Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
-                              uint32_t ContextId) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
+                              WASINN::Context &C) noexcept {
+  auto &GraphRef = G.get<Graph>();
+  auto &CxtRef = C.get<Context>();
   try {
     GraphRef.OpenVINOGenAI->Generate(CxtRef);
   } catch (const std::exception &EX) {
@@ -229,24 +224,26 @@ Expect<WASINN::ErrNo> reportBackendNotSupported() noexcept {
 }
 } // namespace
 
-Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &,
-                           Span<const Span<uint8_t>>, WASINN::Device,
-                           uint32_t &) noexcept {
+Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                           Span<const Span<uint8_t>>, WASINN::Device) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &, uint32_t,
-                                  uint32_t &) noexcept {
+Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                                  WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
+Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                               WASINN::Context &, uint32_t,
                                const TensorData &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
-                                Span<uint8_t>, uint32_t &) noexcept {
+Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                                WASINN::Context &, uint32_t, Span<uint8_t>,
+                                uint32_t &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
+Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                              WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
 #endif

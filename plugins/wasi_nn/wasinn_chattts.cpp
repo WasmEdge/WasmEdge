@@ -23,12 +23,9 @@ HINSTANCE SharedLib = LoadLibrary(PYTHON_LIB_PATH);
 #else
 void *SharedLib = dlopen(PYTHON_LIB_PATH, RTLD_GLOBAL | RTLD_NOW);
 #endif
-Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
-                           Span<const Span<uint8_t>>, WASINN::Device,
-                           uint32_t &GraphId) noexcept {
-  // Add a new graph.
-  uint32_t GId = Env.newGraph(Backend::ChatTTS);
-  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
+Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
+                           Span<const Span<uint8_t>>, WASINN::Device) noexcept {
+  auto &GraphRef = G.get<Graph>();
   // Initialize the plugin parameters.
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] ChatTTS backend: Load."sv);
@@ -47,7 +44,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (GraphRef.ChatTTSModule == nullptr) {
       spdlog::error(
           "[WASI-NN] ChatTTS backend: Can not find ChatTTS library."sv);
-      Env.deleteGraph(GId);
       return WASINN::ErrNo::RuntimeError;
     }
   }
@@ -57,50 +53,42 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (ChatFunction == nullptr || !PyCallable_Check(ChatFunction)) {
       spdlog::error(
           "[WASI-NN] ChatTTS backend: Can not find Chat class in ChatTTS."sv);
-      Env.deleteGraph(GId);
       return WASINN::ErrNo::RuntimeError;
     }
     GraphRef.Chat = PyObject_CallObject(ChatFunction, nullptr);
     Py_XDECREF(ChatFunction);
     if (GraphRef.Chat == nullptr) {
       spdlog::error("[WASI-NN] ChatTTS backend: Can not create chat."sv);
-      Env.deleteGraph(GId);
       return WASINN::ErrNo::RuntimeError;
     }
     PyObject *LoadMethod = PyObject_GetAttrString(GraphRef.Chat, "load");
     if (LoadMethod == nullptr || !PyCallable_Check(LoadMethod)) {
       spdlog::error("[WASI-NN] ChatTTS backend: Can not load chat."sv);
-      Env.deleteGraph(GId);
       return WASINN::ErrNo::RuntimeError;
     }
     PyObject *Value = PyObject_CallObject(LoadMethod, nullptr);
     Py_XDECREF(Value);
     Py_XDECREF(LoadMethod);
   }
-  // Store the loaded graph.
-  GraphId = GId;
-  Env.NNGraph[GId].setReady();
 
   return WASINN::ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
-                                  uint32_t &ContextId) noexcept {
+Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &,
+                                  WASINN::Context &) noexcept {
   if (!Py_IsInitialized()) {
     spdlog::error(
         "[WASI-NN] ChatTTS backend: Model has been released, please reload it."sv);
     return WASINN::ErrNo::RuntimeError;
   }
-  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
-  Env.NNContext[ContextId].setReady();
   return ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
-                               uint32_t Index,
+Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
+                               WASINN::Context &C, uint32_t Index,
                                const TensorData &Tensor) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   if (!Py_IsInitialized()) {
     spdlog::error(
         "[WASI-NN] ChatTTS backend: Model has been released, please reload it."sv);
@@ -227,31 +215,38 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   return WASINN::ErrNo::InvalidArgument;
 }
 
-Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
-                                uint32_t Index, Span<uint8_t> OutBuffer,
+Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &, WASINN::Graph &G,
+                                WASINN::Context &C, uint32_t Index,
+                                Span<uint8_t> OutBuffer,
                                 uint32_t &BytesWritten) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] ChatTTS backend: getOutput"sv);
   }
   if (Index == 0) {
+    BytesWritten = static_cast<uint32_t>(CxtRef.Outputs.size());
+    if (OutBuffer.size() < CxtRef.Outputs.size()) {
+      spdlog::error("[WASI-NN] ChatTTS backend: output buffer too small, "
+                    "need {} bytes but got {}."sv,
+                    CxtRef.Outputs.size(), OutBuffer.size());
+      return WASINN::ErrNo::TooLarge;
+    }
     std::copy_n(CxtRef.Outputs.data(), CxtRef.Outputs.size(), OutBuffer.data());
-    BytesWritten = CxtRef.Outputs.size();
     return WASINN::ErrNo::Success;
   }
   return WASINN::ErrNo::InvalidArgument;
 }
 
-Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
-                              uint32_t ContextId) noexcept {
+Expect<WASINN::ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &G,
+                              WASINN::Context &C) noexcept {
   if (!Py_IsInitialized()) {
     spdlog::error(
         "[WASI-NN] ChatTTS backend: Model has been released, please reload it."sv);
     return WASINN::ErrNo::RuntimeError;
   }
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] ChatTTS backend: compute"sv);
   }
@@ -314,27 +309,6 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
   return WASINN::ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
-                             uint32_t GraphId) noexcept {
-  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN] ChatTTS backend: start unload."sv);
-  }
-  if (Py_IsInitialized()) {
-    GIL Lock;
-    Py_XDECREF(GraphRef.ParamsRefineText);
-    Py_XDECREF(GraphRef.ParamsInferCode);
-    Py_XDECREF(GraphRef.Chat);
-    Py_XDECREF(GraphRef.ChatTTSModule);
-    GraphRef.ParamsRefineText = nullptr;
-    GraphRef.ParamsInferCode = nullptr;
-    GraphRef.Chat = nullptr;
-    GraphRef.ChatTTSModule = nullptr;
-  }
-  Env.deleteGraph(GraphId);
-  return WASINN::ErrNo::Success;
-}
-
 #else
 namespace {
 Expect<WASINN::ErrNo> reportBackendNotSupported() noexcept {
@@ -344,27 +318,26 @@ Expect<WASINN::ErrNo> reportBackendNotSupported() noexcept {
 }
 } // namespace
 
-Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &,
-                           Span<const Span<uint8_t>>, WASINN::Device,
-                           uint32_t &) noexcept {
+Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                           Span<const Span<uint8_t>>, WASINN::Device) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &, uint32_t,
-                                  uint32_t &) noexcept {
+Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                                  WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
+Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                               WASINN::Context &, uint32_t,
                                const TensorData &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
-                                Span<uint8_t>, uint32_t &) noexcept {
+Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                                WASINN::Context &, uint32_t, Span<uint8_t>,
+                                uint32_t &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
-  return reportBackendNotSupported();
-}
-Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
+Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                              WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
 #endif

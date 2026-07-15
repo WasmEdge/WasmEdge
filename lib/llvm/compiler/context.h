@@ -109,6 +109,10 @@ struct Compiler::CompileContext {
   std::vector<LLVM::Type> MemoryAddrTypes;
   std::vector<LLVM::Type> TableAddrTypes;
   std::vector<LLVM::Type> Globals;
+  // Parallel to Globals: whether each global is reference-typed. A ref-typed
+  // global.set must also run the GC write barrier (kWriteBarrier) on the old
+  // and new reference; a numeric global stores directly with no barrier.
+  std::vector<bool> GlobalIsRef;
   LLVM::Value IntrinsicsTable;
   LLVM::FunctionCallee Trap;
   CompileContext(LLVM::Context C, LLVM::Module &M,

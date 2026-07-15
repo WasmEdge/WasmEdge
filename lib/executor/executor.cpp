@@ -5,7 +5,11 @@
 
 #include "common/errinfo.h"
 #include "common/spdlog.h"
+#include "runtime/instance/gc.h"
 #include "system/stacktrace.h"
+
+#include <cstddef>
+#include <cstring>
 
 using namespace std::literals;
 
@@ -148,7 +152,7 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
     }
   }
 
-  Runtime::StackManager StackMgr;
+  Runtime::StackManager StackMgr(Allocator);
 
   // Call runFunction.
   EXPECTED_TRY(runFunction(StackMgr, *FuncInst, Params).map_error([](auto E) {
@@ -161,35 +165,61 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
   // Get return values.
   std::vector<std::pair<ValVariant, ValType>> Returns(RTypes.size());
   for (uint32_t I = 0; I < RTypes.size(); ++I) {
-    auto Val = StackMgr.pop();
+    // Peek, don't pop: the retain below must run while the value is still on
+    // the GC-rooted value stack. Popping first would leave the object reachable
+    // only via this thread's native-stack local, which another thread's
+    // collector does not scan -- it could be swept before retainResult.
+    auto Val = StackMgr.peekTop<ValVariant>();
     const auto &RType = RTypes[RTypes.size() - I - 1];
     if (RType.isRefType()) {
       // For the reference type cases of the return values, they should be
       // transformed into abstract heap types due to the opaque of type indices.
       auto &RefType = Val.get<RefVariant>().getType();
-      if (RefType.isExternalized()) {
-        // First handle the forced externalized value type case.
-        RefType = ValType(TypeCode::Ref, TypeCode::ExternRef);
-      }
+      // An externalized reference (extern.convert_any) is handed to the host as
+      // externref, but a wrapped GC struct/array still must be retained.
+      // Resolve its real heap kind FIRST and fold to externref only AFTER the
+      // retain decision -- folding first discards the concrete type and the
+      // object would be handed over unrooted and swept. Externalization only
+      // sets a flag, leaving the type index and RawData payload intact.
+      const bool Externalized = RefType.isExternalized();
       if (!RefType.isAbsHeapType()) {
-        // The instance must not be nullptr because the null references are
-        // already dynamic typed into the top abstract heap type.
-        auto *Inst =
-            Val.get<RefVariant>().getPtr<Runtime::Instance::CompositeBase>();
-        assuming(Inst);
+        // Resolve the defining module from the leading `const ModuleInstance *`
+        // of the payload (see getInnerPtr). Null references are dynamic-typed
+        // into the top abstract heap type, so the payload here is non-null.
+        const auto *ModInst =
+            Val.get<RefVariant>()
+                .getInnerPtr<const Runtime::Instance::ModuleInstance>();
         // The ModInst may be nullptr only in the independent host function
         // instance. Therefore the module instance here must not be nullptr
         // because the independent host function instance cannot be imported and
         // be referred by instructions.
-        const auto *ModInst = Inst->getModule();
+        assuming(ModInst);
         const auto *DefType = *ModInst->getType(RefType.getTypeIndex());
         RefType =
             ValType(RefType.getCode(), DefType->getCompositeType().expand());
       }
+      // Retain GC-managed (struct/array) refs returned to the host so the
+      // collector keeps them alive until released (null and i31 excluded).
+      // Still on the stack, so the object stays rooted until it lands in
+      // HostRoots -- no collectible window.
+      // NOTE: an externalized struct/array is retained but handed over typed as
+      // externref, so it can currently be freed only via releaseAllRefs, not
+      // by-value releaseRef (whose type filter excludes externref) -- a known
+      // limitation of the C-API release contract.
+      const auto &RetRef = Val.get<RefVariant>();
+      if (!RetRef.isNull() && RefType.isGCRefType()) {
+        Allocator.retainResult(RetRef);
+      }
+      // Retain decision done; present an externalized ref as plain externref.
+      if (Externalized) {
+        RefType = ValType(TypeCode::Ref, TypeCode::ExternRef);
+      }
+      StackMgr.pop<ValVariant>();
       // Should use the value type from the reference here due to the dynamic
       // typing rule of the null references.
       Returns[RTypes.size() - I - 1] = std::make_pair(Val, RefType);
     } else {
+      StackMgr.pop<ValVariant>();
       // For the number type cases of the return values, the unused bits should
       // be erased due to the security issue.
       cleanNumericVal(Val, RType);

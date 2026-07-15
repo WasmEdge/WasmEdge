@@ -115,7 +115,8 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     // Call pre-host-function
     HostFuncHelper.invokePreHostFunc();
 
-    // Run host function.
+    // Run host function. Keep args on the (GC-rooted) value stack, not a
+    // detached buffer, so managed refs survive a collection during the call.
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     for (uint32_t I = 0; I < ArgsN; I++) {
       // For the number type cases of the arguments, the unused bits should be
@@ -123,7 +124,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       cleanNumericVal(Args[I], FuncType.getParamTypes()[I]);
     }
     std::vector<ValVariant> Rets(RetsN);
-    auto Ret = HostFunc.run(CallFrame, std::move(Args), Rets);
+    auto Ret = HostFunc.run(CallFrame, Args, Rets);
 
     // Call post-host-function
     HostFuncHelper.invokePostHostFunc();
@@ -145,9 +146,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     }
 
     // Push returns back to the stack.
-    for (auto &R : Rets) {
-      StackMgr.push(std::move(R));
-    }
+    StackMgr.pushSpan(Rets);
 
     // For host function case, the continuation will be the continuation from
     // the popped frame.
@@ -164,7 +163,8 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
                        IsTailCall        // For tail-call
     );
 
-    // Prepare arguments.
+    // Prepare arguments. Keep them on the (GC-rooted) value stack, not a
+    // detached buffer, so managed refs survive a collection during the call.
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
     SavedThreadLocal Saved(*this, StackMgr, Func);
@@ -297,11 +297,15 @@ Expect<void> Executor::throwException(
         // reuse the one passed in by throw_ref to preserve exnref identity.
         const Runtime::Instance::ExceptionInstance *Inst = ExnInst;
         if (Inst == nullptr) {
+          // Copy the top AssocValSize payload without removing it: catch_ref
+          // leaves the payload in place and pushes the exnref above it. Copying
+          // via getTopSpan (not pop-then-push) also keeps the managed refs
+          // rooted, with no window for a concurrent collection to miss them.
           auto Payload = StackMgr.getTopSpan(AssocValSize);
           std::vector<ValVariant> Vec(Payload.begin(), Payload.end());
           auto *ModInst = const_cast<Runtime::Instance::ModuleInstance *>(
               StackMgr.getModule());
-          Inst = ModInst->newException(&TagInst, std::move(Vec));
+          Inst = ModInst->newException(Allocator, &TagInst, std::move(Vec));
         }
         StackMgr.push(
             RefVariant(ValType(TypeCode::Ref, TypeCode::ExnRef), Inst));

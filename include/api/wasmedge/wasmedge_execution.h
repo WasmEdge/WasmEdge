@@ -264,6 +264,16 @@ WasmEdge_ExecutorRegisterImportWithAlias(
 /// context from the module instance. Then developers can invoke the function
 /// through this API.
 ///
+/// Returned struct/array (GC) references are retained as collector roots;
+/// release each with `WasmEdge_ExecutorReleaseRef` (or
+/// `WasmEdge_ExecutorReleaseAllRefs`) when done. An externalized reference
+/// (extern.convert_any) comes back typed as externref, which
+/// `WasmEdge_ExecutorReleaseRef` rejects, so release it via
+/// `WasmEdge_ExecutorReleaseAllRefs`. References overflowing a too-small
+/// `Returns` buffer are discarded and released automatically, except an
+/// externalized externref: it is not auto-released on overflow and remains
+/// retained until `WasmEdge_ExecutorReleaseAllRefs`.
+///
 /// \param Cxt the WasmEdge_ExecutorContext.
 /// \param FuncCxt the function instance context to invoke.
 /// \param Params the WasmEdge_Value buffer with the parameter values.
@@ -298,6 +308,45 @@ WasmEdge_ExecutorAsyncInvoke(WasmEdge_ExecutorContext *Cxt,
                              const WasmEdge_FunctionInstanceContext *FuncCxt,
                              const WasmEdge_Value *Params,
                              const uint32_t ParamLen) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Release one GC reference retained as a collector root by this executor.
+///
+/// `WasmEdge_ExecutorInvoke` / `WasmEdge_ExecutorAsyncInvoke` retain every
+/// returned struct/array reference until released; a long-lived executor that
+/// never releases leaks them until destroyed. References match by pointer
+/// identity and by multiplicity (retained N times, release N times);
+/// non-retained values are ignored. Mirrors `WasmEdge_VMReleaseRef`.
+///
+/// \param Cxt the WasmEdge_ExecutorContext.
+/// \param Ref the WasmEdge_Value GC reference to release one retention of.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ExecutorReleaseRef(WasmEdge_ExecutorContext *Cxt,
+                            const WasmEdge_Value Ref) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Release one retention of each of the given GC references.
+///
+/// Null `Refs` or zero `Len` is a no-op. Equivalent to
+/// `WasmEdge_ExecutorReleaseRef` per element; non-retained values are
+/// ignored.
+///
+/// \param Cxt the WasmEdge_ExecutorContext.
+/// \param Refs the WasmEdge_Value buffer of GC references to release.
+/// \param Len the buffer length.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ExecutorReleaseRefs(WasmEdge_ExecutorContext *Cxt,
+                             const WasmEdge_Value *Refs,
+                             const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Release every GC reference retained as a collector root by this executor.
+///
+/// Drops all retained roots at once. Use it for references the host can no
+/// longer name: an externalized struct/array returned as externref (the
+/// by-value release APIs cannot match it), or one dropped on async
+/// return-buffer overflow (see `WasmEdge_AsyncGet`).
+///
+/// \param Cxt the WasmEdge_ExecutorContext.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ExecutorReleaseAllRefs(
+    WasmEdge_ExecutorContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_ExecutorContext.
 ///
@@ -477,7 +526,14 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_AsyncGetReturnsLength(
 /// This function will wait until the execution finishes and return the
 /// execution status and the return values.
 /// If the `Returns` buffer length is smaller than the arity of the function,
-/// the overflowed return values will be discarded.
+/// the overflowed return values will be discarded. Unlike the synchronous
+/// APIs, a discarded GC reference is NOT released: the shared future may be
+/// queried again with a larger buffer and must still see every reference, so a
+/// discarded one stays retained. Free it either by re-querying with a larger
+/// `Returns` buffer so it is handed back and can then be released by value, or
+/// via `WasmEdge_VMReleaseAllRefs` / `WasmEdge_ExecutorReleaseAllRefs`. A
+/// reference handed back in `Returns` also stays retained; release it with
+/// `WasmEdge_VMReleaseRef` / `WasmEdge_ExecutorReleaseRef`.
 ///
 /// \param Cxt the WasmEdge_Async.
 /// \param [out] Returns the WasmEdge_Value buffer to fill the return values.

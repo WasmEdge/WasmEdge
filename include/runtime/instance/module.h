@@ -17,7 +17,6 @@
 #include "ast/module.h"
 #include "common/errcode.h"
 #include "runtime/hostfunc.h"
-#include "runtime/instance/array.h"
 #include "runtime/instance/data.h"
 #include "runtime/instance/elem.h"
 #include "runtime/instance/exception.h"
@@ -25,7 +24,6 @@
 #include "runtime/instance/global.h"
 #include "runtime/instance/memory.h"
 #include "runtime/instance/reflifetime.h"
-#include "runtime/instance/struct.h"
 #include "runtime/instance/table.h"
 #include "runtime/instance/tag.h"
 
@@ -303,9 +301,11 @@ protected:
     unsafeAddInstance(OwnedFuncInsts, FuncInsts, this,
                       std::forward<Args>(Values)...);
   }
-  template <typename... Args> void addTable(Args &&...Values) {
+  template <typename... Args>
+  void addTable(GC::Allocator &A, Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedTabInsts, TabInsts, std::forward<Args>(Values)...);
+    TabInsts.back()->setAllocator(A);
   }
   template <typename... Args> void addMemory(Args &&...Values) {
     std::unique_lock Lock(Mutex);
@@ -315,35 +315,27 @@ protected:
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedTagInsts, TagInsts, std::forward<Args>(Values)...);
   }
-  template <typename... Args> void addGlobal(Args &&...Values) {
+  template <typename... Args>
+  void addGlobal(GC::Allocator &A, Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedGlobInsts, GlobInsts, std::forward<Args>(Values)...);
+    GlobInsts.back()->setAllocator(A);
   }
-  template <typename... Args> void addElem(Args &&...Values) {
+  template <typename... Args> void addElem(GC::Allocator &A, Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedElemInsts, ElemInsts, std::forward<Args>(Values)...);
+    ElemInsts.back()->setAllocator(A);
   }
   template <typename... Args> void addData(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedDataInsts, DataInsts, std::forward<Args>(Values)...);
   }
-  template <typename... Args> ArrayInstance *newArray(Args &&...Values) {
-    std::unique_lock Lock(Mutex);
-    OwnedArrayInsts.push_back(
-        std::make_unique<ArrayInstance>(this, std::forward<Args>(Values)...));
-    return OwnedArrayInsts.back().get();
-  }
-  template <typename... Args> StructInstance *newStruct(Args &&...Values) {
-    std::unique_lock Lock(Mutex);
-    OwnedStructInsts.push_back(
-        std::make_unique<StructInstance>(this, std::forward<Args>(Values)...));
-    return OwnedStructInsts.back().get();
-  }
   template <typename... Args>
-  ExceptionInstance *newException(Args &&...Values) {
+  ExceptionInstance *newException(GC::Allocator &A, Args &&...Values) {
     std::unique_lock Lock(Mutex);
     OwnedExceptionInsts.push_back(
         std::make_unique<ExceptionInstance>(std::forward<Args>(Values)...));
+    OwnedExceptionInsts.back()->setAllocator(A);
     return OwnedExceptionInsts.back().get();
   }
 
@@ -672,8 +664,6 @@ protected:
   std::vector<std::unique_ptr<GlobalInstance>> OwnedGlobInsts;
   std::vector<std::unique_ptr<ElementInstance>> OwnedElemInsts;
   std::vector<std::unique_ptr<DataInstance>> OwnedDataInsts;
-  std::vector<std::unique_ptr<ArrayInstance>> OwnedArrayInsts;
-  std::vector<std::unique_ptr<StructInstance>> OwnedStructInsts;
   std::vector<std::unique_ptr<ExceptionInstance>> OwnedExceptionInsts;
 
   /// Imported and added instances in this module.

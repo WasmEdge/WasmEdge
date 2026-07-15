@@ -418,9 +418,34 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       break;
     }
     case OpCode::Global__set:
-      Builder.createStore(
-          stackPop(),
-          Context.getGlobal(Builder, ExecCtx, Instr.getTargetIndex()).second);
+      if (Context.GlobalIsRef[Instr.getTargetIndex()]) {
+        // Reference-typed global: store directly, but run kWriteBarrier on
+        // both the overwritten reference (SATB, shaded before the store) and
+        // the new one, mirroring GlobalInstance::setValue. A bare store would
+        // let a concurrent collection miss an object reachable only here.
+        auto Val = stackPop();
+        const auto G =
+            Context.getGlobal(Builder, ExecCtx, Instr.getTargetIndex());
+        auto WriteBarrier = Context.getIntrinsic(
+            Builder, Executable::Intrinsics::kWriteBarrier,
+            LLVM::Type::getFunctionType(Context.VoidTy, {Context.Int8PtrTy},
+                                        false));
+        // Shade the overwritten reference before it is replaced.
+        LLVM::Value OldArg = Builder.createAlloca(Context.Int64x2Ty);
+        Builder.createValuePtrStore(Builder.createLoad(G.first, G.second),
+                                    OldArg, Context.Int64x2Ty);
+        Builder.createCall(WriteBarrier, {OldArg});
+        // Shade the newly stored reference.
+        LLVM::Value NewArg = Builder.createAlloca(Context.Int64x2Ty);
+        Builder.createValuePtrStore(Val, NewArg, Context.Int64x2Ty);
+        Builder.createCall(WriteBarrier, {NewArg});
+        Builder.createStore(Val, G.second);
+      } else {
+        // Numeric global: never holds a managed reference, so store directly.
+        Builder.createStore(
+            stackPop(),
+            Context.getGlobal(Builder, ExecCtx, Instr.getTargetIndex()).second);
+      }
       break;
 
     // Table Instructions
@@ -450,10 +475,30 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
               Off, Context.getTableSize(Builder, ExecCtx, TableIndex))),
           OkBB, getTrapBB(ErrCode::Value::TableOutOfBounds));
       Builder.positionAtEnd(OkBB);
-      Builder.createStore(
-          Ref, Builder.createInBoundsGEP1(
-                   Context.Int64x2Ty,
-                   Context.getTable(Builder, ExecCtx, TableIndex), Off));
+      auto Slot = Builder.createInBoundsGEP1(
+          Context.Int64x2Ty, Context.getTable(Builder, ExecCtx, TableIndex),
+          Off);
+
+      // Table slots are GC roots and always hold references, so unlike
+      // global.set this barrier needs no ref-typed discriminator. The store
+      // is inlined (see 35b97d7ad), so it never reaches the barrier in
+      // TableInstance::setRefs; shade here or a concurrent collection can
+      // reclaim an object reachable only through this slot.
+      auto WriteBarrier =
+          Context.getIntrinsic(Builder, Executable::Intrinsics::kWriteBarrier,
+                               LLVM::Type::getFunctionType(
+                                   Context.VoidTy, {Context.Int8PtrTy}, false));
+      // Shade the overwritten reference before it is replaced.
+      LLVM::Value OldArg = Builder.createAlloca(Context.Int64x2Ty);
+      Builder.createValuePtrStore(Builder.createLoad(Context.Int64x2Ty, Slot),
+                                  OldArg, Context.Int64x2Ty);
+      Builder.createCall(WriteBarrier, {OldArg});
+      // Shade the newly stored reference.
+      LLVM::Value NewArg = Builder.createAlloca(Context.Int64x2Ty);
+      Builder.createValuePtrStore(Ref, NewArg, Context.Int64x2Ty);
+      Builder.createCall(WriteBarrier, {NewArg});
+
+      Builder.createStore(Ref, Slot);
       break;
     }
     case OpCode::Table__init: {
@@ -1350,7 +1395,7 @@ void FunctionCompiler::compileIndirectCallOp(
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec).subspan(1, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
@@ -1510,7 +1555,7 @@ void FunctionCompiler::compileReturnIndirectCallOp(
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec).subspan(1, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
@@ -1595,7 +1640,7 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec).subspan(1, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
@@ -1680,7 +1725,7 @@ void FunctionCompiler::compileReturnCallRefOp(
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec).subspan(1, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(

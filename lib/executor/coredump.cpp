@@ -8,6 +8,7 @@
 #include "spdlog/spdlog.h"
 #include <cstdint>
 #include <cstring>
+#include <fstream>
 #include <vector>
 
 using namespace std::literals;
@@ -54,7 +55,7 @@ void generateCoredump(const Runtime::StackManager &StackMgr,
     std::ofstream File(CoredumpPath, std::ios::out | std::ios::binary);
     if (File.is_open()) {
       File.write(reinterpret_cast<const char *>(Res->data()),
-                 static_cast<uint32_t>(Res->size()));
+                 static_cast<std::streamsize>(Res->size()));
       File.close();
     } else {
       spdlog::error("Failed to generate coredump."sv);
@@ -85,9 +86,8 @@ AST::CustomSection createCorestack(
   Content.push_back(0x00);
 
   // Thread name size
-  Content.push_back(0x04);
-
   std::string ThreadName = "main";
+  Content.push_back(static_cast<uint8_t>(ThreadName.size()));
   Content.insert(Content.end(), ThreadName.begin(), ThreadName.end());
   auto FramesSize = Frames.size() - 1;
   Ser.serializeU32(static_cast<uint32_t>(FramesSize), Content);
@@ -129,7 +129,7 @@ AST::CustomSection createCorestack(
       // support i64.
       Content.push_back(0x7F);
       auto Value = Iter.unwrap();
-      std::vector<Byte> ValueBytes(4);
+      std::vector<Byte> ValueBytes(sizeof(int64_t));
       std::memcpy(ValueBytes.data(), &Value, sizeof(int64_t));
       Content.insert(Content.end(), ValueBytes.begin(), ValueBytes.end());
     }
@@ -139,7 +139,7 @@ AST::CustomSection createCorestack(
         // support i64.
         Content.push_back(0x7F);
         auto Value = Iter.unwrap();
-        std::vector<Byte> ValueBytes(4);
+        std::vector<Byte> ValueBytes(sizeof(int64_t));
         std::memcpy(ValueBytes.data(), &Value, sizeof(int64_t));
         Content.insert(Content.end(), ValueBytes.begin(), ValueBytes.end());
       }

@@ -606,5 +606,39 @@ TEST(SerializeSegmentTest, SerializeDataSegment) {
   EXPECT_EQ(Output, Expected);
 
   EXPECT_FALSE(SerWASM1.serializeSection(DataSec, Output));
+
+  // 5. Active data segment with memidx >= 128 must encode the index as u32
+  //    LEB128, not u64. Values below 128 are single-byte in both encodings so
+  //    the bug is only visible at the boundary. memidx = 128 (0x80 0x01 in
+  //    u32 LEB128) produces exactly two bytes; a u64 LEB128 would emit the
+  //    same two bytes followed by five zero-continuation bytes, corrupting
+  //    any compliant parser.
+  {
+    WasmEdge::Configure ConfMultiMem;
+    ConfMultiMem.addProposal(WasmEdge::Proposal::MultiMemories);
+    WasmEdge::Loader::Serializer SerMultiMem(ConfMultiMem);
+
+    WasmEdge::AST::DataSection DataSecMM;
+    WasmEdge::AST::DataSegment DataSegMM;
+    DataSegMM.setMode(WasmEdge::AST::DataSegment::DataMode::Active);
+    DataSegMM.setIdx(128U);
+    DataSegMM.getExpr().getInstrs() = {End};
+    DataSegMM.getData() = {0xAAU};
+    DataSecMM.getContent() = {DataSegMM};
+
+    Output = {};
+    EXPECT_TRUE(SerMultiMem.serializeSection(DataSecMM, Output));
+    Expected = {
+        0x0BU,        // Data section
+        0x07U,        // Content size = 7
+        0x01U,        // Vector length = 1
+        0x02U,        // Prefix byte: active + non-zero memidx
+        0x80U, 0x01U, // memidx = 128 as u32 LEB128 (2 bytes, not 9)
+        0x0BU,        // Offset expression (End)
+        0x01U,        // Data vector length = 1
+        0xAAU         // Data byte
+    };
+    EXPECT_EQ(Output, Expected);
+  }
 }
 } // namespace

@@ -753,13 +753,11 @@ def get_tf_deps_release_package(version, compat):
 def install_tensorflow_extension(
     args,
     compat,
-    download_tf_deps_=False,
-    download_tf_lite_deps_=False,
+    download_tf_deps=False,
+    download_tf_lite_deps=False,
 ):
     global CONST_lib_ext, CONST_lib_dir, CONST_env_path
 
-    download_tf_deps = download_tf_deps_
-    download_tf_lite_deps = download_tf_lite_deps_
     tf_deps_version = get_tf_deps_version(args.version)
     tf_deps_release_pkg = get_tf_deps_release_package(args.version, compat)
 
@@ -769,22 +767,15 @@ def install_tensorflow_extension(
         download_tf_lite_deps,
     )
 
-    if (
-        not get_remote_version_availability(
+    if download_tf_deps or download_tf_lite_deps:
+        if not get_remote_version_availability(
             "second-state/WasmEdge-tensorflow-deps", tf_deps_version
-        )
-        and download_tf_deps
-    ):
-        logging.debug(
-            "Tensorflow Deps extension version not found: {0}".format(tf_deps_version)
-        )
-        download_tf_deps = False
-
-    if compat.arch == "aarch64":
-        download_tf_deps = False
-        logging.warning(
-            "Cannot download WasmEdge Tensorflow, Tools & Deps because it is aarch64"
-        )
+        ):
+            logging.warning(
+                "Tensorflow deps release not found: {0}".format(tf_deps_version)
+            )
+            download_tf_deps = False
+            download_tf_lite_deps = False
 
     if download_tf_deps:
         tf_deps_pkg = (
@@ -1040,7 +1031,7 @@ def install_plugins(args, compat):
                 if WASMEDGE_TENSORFLOW_PLUGIN == plugin_name:
                     if (
                         install_tensorflow_extension(
-                            args, compat, download_tf_deps_=True
+                            args, compat, download_tf_deps=True
                         )
                         != 0
                     ):
@@ -1051,7 +1042,7 @@ def install_plugins(args, compat):
                 if WASMEDGE_TENSORFLOW_LITE_PLUGIN == plugin_name:
                     if (
                         install_tensorflow_extension(
-                            args, compat, download_tf_lite_deps_=True
+                            args, compat, download_tf_lite_deps=True
                         )
                         != 0
                     ):
@@ -1062,7 +1053,7 @@ def install_plugins(args, compat):
                 if WASI_NN_TENSORFLOW_LITE == plugin_name:
                     if (
                         install_tensorflow_extension(
-                            args, compat, download_tf_lite_deps_=True
+                            args, compat, download_tf_lite_deps=True
                         )
                         != 0
                     ):

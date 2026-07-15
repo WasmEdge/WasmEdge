@@ -30,7 +30,10 @@ permissions:
 env:
   # Common test version constants
   # Please update these versions when necessary
-  TEST_VERSION: "0.14.1"
+  TEST_VERSION: "0.17.1"
+  # Releases <= 0.14.1 use the manylinux2014 assets
+  TEST_2014_VERSION: "0.14.1"
+  # Releases >= 0.15.0 use the manylinux_2_28 assets
   TEST_228_VERSION: "0.15.0"
   DEPRECATED_TEST_VERSION: "0.9.0"
 
@@ -149,8 +152,16 @@ jobs:
         verify_plugin "libwasmedgePluginWasiNN.so"
         bash utils/uninstall.sh -q -V
 
+        # Test manylinux2014 installation
+        printf "\n=== Test 3: Specific version <= ${TEST_2014_VERSION} (manylinux2014 assets) ===\n"
+        bash utils/install.sh -v ${TEST_2014_VERSION} --dist manylinux2014 --plugins wasi_nn-ggml -D
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+        verify_version "${TEST_2014_VERSION}"
+        verify_plugin "libwasmedgePluginWasiNN.so"
+        bash utils/uninstall.sh -q -V
+
         # Test manylinux_2_28 installation
-        printf "\n=== Test 3: Specific version >= ${TEST_228_VERSION} ===\n"
+        printf "\n=== Test 4: Specific version >= ${TEST_228_VERSION} ===\n"
         bash utils/install.sh -v ${TEST_228_VERSION} --dist manylinux_2_28 --plugins wasi_nn-ggml -D
         source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
         verify_version "${TEST_228_VERSION}"
@@ -207,11 +218,33 @@ jobs:
         echo "Latest WasmEdge release: ${LATEST_VERSION}"
 
         # Test latest release installation
-        printf "\n=== Test: Latest release installation ===\n"
+        printf "\n=== Test 1: Latest release installation ===\n"
         bash utils/install.sh -D
         source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
         verify_version "${LATEST_VERSION}"
         bash utils/uninstall.sh -q -V
+
+        # Test specific version
+        printf "\n=== Test 2: Specific version ${TEST_VERSION} ===\n"
+        bash utils/install.sh -v ${TEST_VERSION} -D
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+        verify_version "${TEST_VERSION}"
+        bash utils/uninstall.sh -q -V
+
+        # Test the last version with the old tarball structure
+        printf "\n=== Test 3: Specific version ${TEST_2014_VERSION} ===\n"
+        bash utils/install.sh -v ${TEST_2014_VERSION} -D
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+        verify_version "${TEST_2014_VERSION}"
+        bash utils/uninstall.sh -q -V
+
+        # Test the first version with the new tarball structure
+        printf "\n=== Test 4: Specific version ${TEST_228_VERSION} ===\n"
+        bash utils/install.sh -v ${TEST_228_VERSION} -D
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+        verify_version "${TEST_228_VERSION}"
+        bash utils/uninstall.sh -q -V
+
         # Test if the environment variable was removed
         IPATH="$HOME/.wasmedge"
         for file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
@@ -271,7 +304,6 @@ jobs:
         verify_plugin "libwasmedgePluginWasiNN.so"
 
         source ~/.wasmedge/env
-        # Note: install_v2.sh currently defaults to ${TEST_VERSION}, not the latest version
         INSTALLED_VERSION=$(wasmedge -v | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
         if [[ "${INSTALLED_VERSION}" == "${TEST_VERSION}" ]]; then
           echo "[PASS] Version: ${TEST_VERSION} (install_v2.sh default)"
@@ -286,8 +318,9 @@ jobs:
         verify_plugin "libwasmedgePluginWasiNN.so"
 
         # Test specific version with custom GGML build
+        # The GGML plugin registry has no ${TEST_VERSION} assets; pin ${TEST_2014_VERSION}
         printf "\n=== Test 3: Custom GGML build ===\n"
-        bash utils/install_v2.sh -V --version=${TEST_VERSION} --ggmlbn=b5640
+        bash utils/install_v2.sh -V --version=${TEST_2014_VERSION} --ggmlbn=b5640
         verify_plugin "libwasmedgePluginWasiNN.so"
 
         # Test version 0.15.0 with new tarball structure
@@ -367,7 +400,6 @@ jobs:
 
         source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
 
-        # Note: install_v2.sh currently defaults to ${TEST_VERSION}, not the latest version
         INSTALLED_VERSION=$(~/.wasmedge/bin/wasmedge --version | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
         echo "Installed version: ${INSTALLED_VERSION}"
 
@@ -377,6 +409,24 @@ jobs:
           echo "[FAIL] Version mismatch: expected ${TEST_VERSION}, got ${INSTALLED_VERSION}"
           exit 1
         fi
+
+        bash utils/uninstall.sh -q -V
+
+        # Test the last version with the old tarball structure
+        echo "=== Test: Version ${TEST_2014_VERSION} (old tarball structure) ==="
+        bash utils/install_v2.sh -V --version=${TEST_2014_VERSION}
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+
+        INSTALLED_VERSION=$(~/.wasmedge/bin/wasmedge --version | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        echo "Installed version: ${INSTALLED_VERSION}"
+
+        if [ "${INSTALLED_VERSION}" = "${TEST_2014_VERSION}" ]; then
+          echo "[PASS] Version ${TEST_2014_VERSION} installed successfully"
+        else
+          echo "[FAIL] Version mismatch: expected ${TEST_2014_VERSION}, got ${INSTALLED_VERSION}"
+          exit 1
+        fi
+        verify_plugin "libwasmedgePluginWasiNN.dylib"
 
         bash utils/uninstall.sh -q -V
 
@@ -426,6 +476,7 @@ jobs:
             image: wasmedge/wasmedge:manylinux_2_28_aarch64
             pkg_mgr: yum
             setup: echo "No extra setup"
+            test_plugins: true
 
     name: install.py ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
@@ -474,20 +525,32 @@ jobs:
           verify_version "${TEST_VERSION}"
           bash utils/uninstall.sh -q -V
 
+          # Test manylinux2014 assets version
+          echo "Test 3: Specific version with manylinux2014 assets"
+          ${python_cmd} utils/install.py -v ${TEST_2014_VERSION} --dist manylinux2014 -D
+          verify_version "${TEST_2014_VERSION}"
+          bash utils/uninstall.sh -q -V
+
+          # Test manylinux_2_28 assets version
+          echo "Test 4: Specific version with manylinux_2_28 assets"
+          ${python_cmd} utils/install.py -v ${TEST_228_VERSION} --dist manylinux_2_28 -D
+          verify_version "${TEST_228_VERSION}"
+          bash utils/uninstall.sh -q -V
+
           # Test deprecated version handling
-          echo "Test 3: Deprecated version handling"
+          echo "Test 5: Deprecated version handling"
           ${python_cmd} utils/install.py -v ${DEPRECATED_TEST_VERSION} -D 2>&1 | grep -q "Version not supported. Min Version: 0.13.0" && \
             echo "[PASS] Version validation works" || (echo "[FAIL] Version validation failed" && exit 1)
 
           # Test shell config
-          printf "\n=== Test 4: Shell config (default) ===\n"
+          printf "\n=== Test 6: Shell config (default) ===\n"
           tempdir="$(mktemp -d)"
           ${python_cmd} utils/install.py -p "$tempdir"
           verify_shell_config "$tempdir" "1"
           bash utils/uninstall.sh -q -V -p "$tempdir"
 
           # Test no shell config
-          printf "\n=== Test 5: Shell config (--no-modify-shell-profile) ===\n"
+          printf "\n=== Test 7: Shell config (--no-modify-shell-profile) ===\n"
           tempdir="$(mktemp -d)"
           ${python_cmd} utils/install.py --no-modify-shell-profile -p "$tempdir"
           verify_shell_config "$tempdir" "0"
@@ -574,20 +637,32 @@ jobs:
         verify_version "${TEST_VERSION}"
         bash utils/uninstall.sh -q -V
 
+        # Test the last version with the old tarball structure
+        printf "\n=== Test 3: Specific version ${TEST_2014_VERSION} ===\n"
+        python3 utils/install.py -v ${TEST_2014_VERSION} -D
+        verify_version "${TEST_2014_VERSION}"
+        bash utils/uninstall.sh -q -V
+
+        # Test the first version with the new tarball structure
+        printf "\n=== Test 4: Specific version ${TEST_228_VERSION} ===\n"
+        python3 utils/install.py -v ${TEST_228_VERSION} -D
+        verify_version "${TEST_228_VERSION}"
+        bash utils/uninstall.sh -q -V
+
         # Test deprecated version handling
-        printf "\n=== Test 3: Deprecated version handling ===\n"
+        printf "\n=== Test 5: Deprecated version handling ===\n"
         python3 utils/install.py -v ${DEPRECATED_TEST_VERSION} -D 2>&1 | grep -q "Version not supported. Min Version: 0.13.0" && \
           echo "[PASS] Version validation works" || (echo "[FAIL] Version validation failed" && exit 1)
 
         # Test shell config
-        printf "\n=== Test 4: Shell config (default) ===\n"
+        printf "\n=== Test 6: Shell config (default) ===\n"
         tempdir="$(mktemp -d)"
         python3 utils/install.py -p "$tempdir"
         verify_shell_config "$tempdir" "1"
         bash utils/uninstall.sh -q -V -p "$tempdir"
 
         # Test no shell config
-        printf "\n=== Test 5: Shell config (--no-modify-shell-profile) ===\n"
+        printf "\n=== Test 7: Shell config (--no-modify-shell-profile) ===\n"
         tempdir="$(mktemp -d)"
         python3 utils/install.py --no-modify-shell-profile -p "$tempdir"
         verify_shell_config "$tempdir" "0"
@@ -599,8 +674,15 @@ jobs:
         # Source helper functions
         . ./.github/scripts/installer-test-helpers.sh
 
-        echo "=== Test: TensorFlow plugin ==="
+        echo "=== Test 1: TensorFlow plugin ==="
         python3 utils/install.py -v ${TEST_VERSION} --plugins wasmedge_tensorflow -D
         verify_version "${TEST_VERSION}"
+        verify_plugin "libwasmedgePluginWasmEdgeTensorflow.dylib"
+        bash utils/uninstall.sh -q -V
+
+        # The <= 0.14.1 releases use the darwin_{arch} plugin assets
+        echo "=== Test 2: TensorFlow plugin with ${TEST_2014_VERSION} ==="
+        python3 utils/install.py -v ${TEST_2014_VERSION} --plugins wasmedge_tensorflow -D
+        verify_version "${TEST_2014_VERSION}"
         verify_plugin "libwasmedgePluginWasmEdgeTensorflow.dylib"
         bash utils/uninstall.sh -q -V

@@ -32,10 +32,32 @@ TEST(ByteswapTest, IsInvolution) {
 }
 
 TEST(ByteswapTest, SignedIntegers) {
-  EXPECT_EQ(WasmEdge::byteswap<int32_t>(0x01020304), 0x04030201);
-  EXPECT_EQ(WasmEdge::byteswap<int64_t>(-1), static_cast<int64_t>(-1));
-  EXPECT_EQ(WasmEdge::byteswap(WasmEdge::byteswap<int32_t>(-12345)),
-            static_cast<int32_t>(-12345));
+  const int16_t Known16 = static_cast<int16_t>(0x0102);
+  EXPECT_EQ(WasmEdge::byteswap(Known16),
+            static_cast<int16_t>(0x0201));
+
+  const int32_t Known32 = static_cast<int32_t>(0x01020304);
+  EXPECT_EQ(WasmEdge::byteswap(Known32),
+            static_cast<int32_t>(0x04030201));
+
+  EXPECT_EQ(WasmEdge::byteswap<int16_t>(static_cast<int16_t>(-1)),
+            static_cast<int16_t>(-1));
+  EXPECT_EQ(WasmEdge::byteswap<int32_t>(static_cast<int32_t>(-1)),
+            static_cast<int32_t>(-1));
+  EXPECT_EQ(WasmEdge::byteswap<int64_t>(static_cast<int64_t>(-1)),
+            static_cast<int64_t>(-1));
+
+  const int16_t Negative16 = static_cast<int16_t>(-123);
+  EXPECT_EQ(WasmEdge::byteswap(WasmEdge::byteswap(Negative16)),
+            Negative16);
+
+  const int32_t Negative32 = static_cast<int32_t>(-12345);
+  EXPECT_EQ(WasmEdge::byteswap(WasmEdge::byteswap(Negative32)),
+            Negative32);
+
+  const int64_t Negative64 = static_cast<int64_t>(-123456789);
+  EXPECT_EQ(WasmEdge::byteswap(WasmEdge::byteswap(Negative64)),
+            Negative64);
 }
 
 } // namespace

@@ -78,6 +78,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-gnu-anonymous-struct
     -Wno-keyword-macro
     -Wno-language-extension-token
+    -Wno-missing-noreturn
     -Wno-newline-eof
     -Wno-signed-enum-bitfield
     -Wno-switch-enum
@@ -156,6 +157,9 @@ if(WIN32)
       -Wno-implicit-int-float-conversion
       -Wno-double-promotion
       -Wno-unsafe-buffer-usage
+      -Wno-padded
+      -Wno-error=nrvo
+      -Wno-unique-object-duplication
       -Wno-deprecated-declarations
       -Wno-error=rtti
       -Wno-error=cast-function-type-strict
@@ -408,6 +412,34 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
   endif()
 endif()
 
+# Re-export a target's interface include directories as system includes, so that
+# consumers reach its headers through -isystem / -external:I instead of -I and
+# never compile them with the project warning flags. The SYSTEM target property
+# would do this directly, but it needs CMake 3.25 and the floor here is 3.18.
+function(wasmedge_mark_system_includes target)
+  if(NOT TARGET ${target})
+    return()
+  endif()
+  get_target_property(WASMEDGE_ALIASED ${target} ALIASED_TARGET)
+  if(WASMEDGE_ALIASED)
+    set(target ${WASMEDGE_ALIASED})
+  endif()
+  get_target_property(WASMEDGE_INCLUDE_DIRS
+    ${target} INTERFACE_INCLUDE_DIRECTORIES)
+  if(NOT WASMEDGE_INCLUDE_DIRS)
+    return()
+  endif()
+  get_target_property(WASMEDGE_SYSTEM_INCLUDE_DIRS
+    ${target} INTERFACE_SYSTEM_INCLUDE_DIRECTORIES)
+  if(NOT WASMEDGE_SYSTEM_INCLUDE_DIRS)
+    set(WASMEDGE_SYSTEM_INCLUDE_DIRS)
+  endif()
+  list(APPEND WASMEDGE_SYSTEM_INCLUDE_DIRS ${WASMEDGE_INCLUDE_DIRS})
+  list(REMOVE_DUPLICATES WASMEDGE_SYSTEM_INCLUDE_DIRS)
+  set_property(TARGET ${target} PROPERTY
+    INTERFACE_SYSTEM_INCLUDE_DIRECTORIES ${WASMEDGE_SYSTEM_INCLUDE_DIRS})
+endfunction()
+
 function(wasmedge_setup_simdjson)
   if(TARGET simdjson::simdjson)
     return()
@@ -435,16 +467,14 @@ function(wasmedge_setup_simdjson)
 
     # Consumers pull in simdjson through -isystem / -external:I so that its
     # headers are never compiled with the project warning flags, the same way
-    # gtest is already treated.
-    get_target_property(SIMDJSON_INCLUDE_DIRS simdjson INTERFACE_INCLUDE_DIRECTORIES)
-    if(SIMDJSON_INCLUDE_DIRS)
-      set_property(TARGET simdjson PROPERTY
-        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES ${SIMDJSON_INCLUDE_DIRS})
-    endif()
+    # gtest is already treated. The suppressions below then only have to cover
+    # simdjson's own sources, which inherit WASMEDGE_CFLAGS from the enclosing
+    # directory scope.
+    wasmedge_mark_system_includes(simdjson)
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(simdjson
-        PUBLIC
+        PRIVATE
         -Wno-undef
         -Wno-suggest-override
         -Wno-documentation
@@ -465,7 +495,7 @@ function(wasmedge_setup_simdjson)
       )
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
       target_compile_options(simdjson
-        PUBLIC
+        PRIVATE
         $<$<COMPILE_LANGUAGE:C,CXX>:/wd4100> # unreferenced formal parameter
         $<$<COMPILE_LANGUAGE:C,CXX>:/wd4505> # unreferenced local function has been removed
       )
@@ -482,31 +512,42 @@ function(wasmedge_setup_spdlog)
   find_package(spdlog QUIET)
   if(spdlog_FOUND)
     message(STATUS "spdlog found")
+    wasmedge_mark_system_includes(spdlog::spdlog)
+    wasmedge_mark_system_includes(fmt::fmt)
+    wasmedge_mark_system_includes(fmt::fmt-header-only)
   else()
     include(FetchContent)
     message(STATUS "Downloading fmt source")
+    # Held at 12.1.0. fmt 12.2.0 needs CMake 3.19 or later, which this project
+    # does not require: it sets VERSION, SOVERSION and DEBUG_POSTFIX on the
+    # fmt-header-only INTERFACE target, and CMake rejects non-whitelisted
+    # properties on INTERFACE libraries before 3.19. Debian bullseye, which
+    # builds the static release, carries CMake 3.18. fmt 12.2.0 also fails to
+    # compile its own 128-bit fallback in do_format_decimal, which every target
+    # without a native __int128 -- MSVC among them -- instantiates.
     FetchContent_Declare(
       fmt
       GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-      GIT_TAG        0c9fce2ffefecfdce794e1859584e25877b7b592  # 11.0.2
+      GIT_TAG        407c905e45ad75fc29bf0f9bb7c5c2fd3475976f  # 12.1.0
       GIT_SHALLOW    TRUE
     )
     set(FMT_INSTALL OFF CACHE BOOL "Generate the install target." FORCE)
+    set(FMT_SYSTEM_HEADERS ON CACHE BOOL "Expose headers with marking them as system." FORCE)
     FetchContent_MakeAvailable(fmt)
     message(STATUS "Downloading fmt source -- done")
     wasmedge_setup_target(fmt)
+    wasmedge_mark_system_includes(fmt)
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(fmt
-        PUBLIC
-        -Wno-missing-noreturn
         PRIVATE
+        -Wno-missing-noreturn
         -Wno-sign-conversion
       )
     endif()
     wasmedge_suppress_shadow_warnings(fmt)
     if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(fmt
-        PUBLIC
+        PRIVATE
         -Wno-duplicate-enum
         -Wno-padded
         -Wno-error=unique-object-duplication
@@ -518,18 +559,20 @@ function(wasmedge_setup_spdlog)
     FetchContent_Declare(
       spdlog
       GIT_REPOSITORY https://github.com/gabime/spdlog.git
-      GIT_TAG        7c02e204c92545f869e2f04edaab1f19fe8b19fd  # v1.13.0
+      GIT_TAG        79524ddd08a4ec981b7fea76afd08ee05f83755d  # v1.17.0
       GIT_SHALLOW    TRUE
     )
     set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "Build shared library" FORCE)
     set(SPDLOG_FMT_EXTERNAL ON  CACHE BOOL "Use external fmt library instead of bundled" FORCE)
+    set(SPDLOG_SYSTEM_INCLUDES ON CACHE BOOL "Include as system headers (skip for clang-tidy)." FORCE)
     FetchContent_MakeAvailable(spdlog)
     message(STATUS "Downloading spdlog source -- done")
     wasmedge_setup_target(spdlog)
+    wasmedge_mark_system_includes(spdlog)
     wasmedge_suppress_shadow_warnings(spdlog)
     if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(spdlog
-        PUBLIC
+        PRIVATE
         -Wno-unique-object-duplication
       )
     endif()

@@ -4860,14 +4860,17 @@ TEST(WasiTest, PointerAlignment) {
     writeDummyMemoryContent(MemInst);
 
     // Test misaligned IOVsPtr
-    EXPECT_TRUE(WasiFdWrite.run(CallFrame,
-                                std::initializer_list<WasmEdge::ValVariant>{
-                                    static_cast<uint32_t>(1), // stdout
-                                    MisalignedIOVsPtr, // misaligned IOVsPtr
-                                    static_cast<uint32_t>(1), // IOVsLen
-                                    AlignedNWrittenPtr}, // aligned NWrittenPtr
-                                Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    auto ResIOVsPtr =
+        WasiFdWrite.run(CallFrame,
+                        std::initializer_list<WasmEdge::ValVariant>{
+                            static_cast<uint32_t>(1), // stdout
+                            MisalignedIOVsPtr,        // misaligned IOVsPtr
+                            static_cast<uint32_t>(1), // IOVsLen
+                            AlignedNWrittenPtr},      // aligned NWrittenPtr
+                        Errno);
+    ASSERT_FALSE(ResIOVsPtr);
+    EXPECT_EQ(ResIOVsPtr.error(),
+              WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     const uint32_t DataPtr = 64;
@@ -4880,15 +4883,17 @@ TEST(WasiTest, PointerAlignment) {
     writeString(MemInst, TestData, DataPtr);
 
     // Test misaligned NWrittenPtr
-    EXPECT_TRUE(
+    auto ResNWritten =
         WasiFdWrite.run(CallFrame,
                         std::initializer_list<WasmEdge::ValVariant>{
                             static_cast<uint32_t>(1), // stdout
                             AlignedIOVsPtr,           // aligned IOVsPtr
                             static_cast<uint32_t>(1), // IOVsLen
                             MisalignedNWrittenPtr},   // misaligned NWrittenPtr
-                        Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+                        Errno);
+    ASSERT_FALSE(ResNWritten);
+    EXPECT_EQ(ResNWritten.error(),
+              WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
     Env.fini();
   }
 
@@ -6099,12 +6104,12 @@ TEST(WasiTest, PointerAlignment) {
     const uint32_t AlignedArgvPtr = static_cast<uint32_t>(alignof(uint8_t_ptr));
 
     // Test misaligned ArgvPtr
-    EXPECT_TRUE(WasiArgsGet.run(CallFrame,
-                                std::initializer_list<WasmEdge::ValVariant>{
-                                    MisalignedArgvPtr, // misaligned
-                                    static_cast<uint32_t>(0)},
-                                Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    auto Res = WasiArgsGet.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   MisalignedArgvPtr, static_cast<uint32_t>(0)},
+                               Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned pointers (should succeed)

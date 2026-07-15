@@ -60,6 +60,7 @@ else:
     exec("def reraise(tp, value=None, tb=None):\n    raise tp, value, tb\n")
 
     import urllib
+    import urllib2
 
     def wrap_download_url(url, *args):
         headers = ""
@@ -78,6 +79,21 @@ else:
             exit(1)
 
     download_url = wrap_download_url
+
+
+def url_exists(url):
+    try:
+        if sys.version_info[0] == 3:
+            req = urllib.request.Request(url, method="HEAD")
+            res = urllib.request.urlopen(req, timeout=10)
+        else:
+            req = urllib2.Request(url)
+            req.get_method = lambda: "HEAD"
+            res = urllib2.urlopen(req, timeout=10)
+        res.close()
+        return True
+    except Exception:
+        return False
 
 
 def show_progress(block_num, block_size, total_size):
@@ -715,9 +731,23 @@ def is_default_path(args):
 
 def get_tf_deps_version(version):
     # The tensorflow deps version is bound to the WasmEdge version
-    if VersionString(version).compare("0.13.0") >= 0:
+    if VersionString(version).compare("0.18.0") >= 0:
+        return "TF-2.21.0-CC"
+    elif VersionString(version).compare("0.13.0") >= 0:
         return "TF-2.12.0-CC"
     reraise(Exception("Unsupported WasmEdge version: {0}".format(version)))
+
+
+def get_tf_deps_release_package(version, compat):
+    # The TF-2.12.0-CC deps assets are released for manylinux2014 and the
+    # TF-2.21.0-CC deps assets for manylinux_2_28 on all Linux platforms
+    if compat.platform != "Linux":
+        return compat.release_package
+    if get_tf_deps_version(version) == "TF-2.21.0-CC":
+        dist = "manylinux_2_28"
+    else:
+        dist = "manylinux2014"
+    return "{0}_{1}.tar.gz".format(dist, compat.arch)
 
 
 def install_tensorflow_extension(
@@ -726,11 +756,12 @@ def install_tensorflow_extension(
     download_tf_deps_=False,
     download_tf_lite_deps_=False,
 ):
-    global CONST_release_pkg, CONST_lib_ext, CONST_lib_dir, CONST_env_path
+    global CONST_lib_ext, CONST_lib_dir, CONST_env_path
 
     download_tf_deps = download_tf_deps_
     download_tf_lite_deps = download_tf_lite_deps_
     tf_deps_version = get_tf_deps_version(args.version)
+    tf_deps_release_pkg = get_tf_deps_release_package(args.version, compat)
 
     logging.debug(
         "install_tensorflow_extension: %s %s",
@@ -757,7 +788,7 @@ def install_tensorflow_extension(
 
     if download_tf_deps:
         tf_deps_pkg = (
-            "WasmEdge-tensorflow-deps-TF-" + tf_deps_version + "-" + CONST_release_pkg
+            "WasmEdge-tensorflow-deps-TF-" + tf_deps_version + "-" + tf_deps_release_pkg
         )
 
         logging.info("Downloading tensorflow-deps")
@@ -780,7 +811,7 @@ def install_tensorflow_extension(
             "WasmEdge-tensorflow-deps-TFLite-"
             + tf_deps_version
             + "-"
-            + CONST_release_pkg
+            + tf_deps_release_pkg
         )
 
         logging.info("Downloading tensorflow-lite-deps")
@@ -886,6 +917,23 @@ def install_tensorflow_extension(
                 logging.error("Not able to append installed files to env file")
 
     return 0
+
+
+def get_darwin_release_package_variants(compat):
+    # Since 0.15.0 most plugin assets on macOS embed the Darwin kernel major
+    # version (e.g. darwin_23-arm64), while wasi_nn-ggml and the pre-0.15.0
+    # releases keep the darwin_{arch} naming. The kernel-tagged assets start
+    # from darwin_22, so probe from the local kernel version down to 22
+    variants = ["darwin_{0}".format(compat.arch)]
+    kernel = 24
+    if platform.system() == "Darwin":
+        try:
+            kernel = int(platform.release().split(".")[0])
+        except ValueError:
+            pass
+    for k in range(kernel, 21, -1):
+        variants.append("darwin_{0}-{1}".format(k, compat.arch))
+    return variants
 
 
 def install_plugins(args, compat):
@@ -1028,6 +1076,18 @@ def install_plugins(args, compat):
                     .replace("$DIST$", compat.dist)
                     .replace("$ARCH$", compat.arch)
                 )
+
+                if compat.platform == "Darwin":
+                    for variant in get_darwin_release_package_variants(compat):
+                        candidate_url = (
+                            url_root.replace("$PLUGIN_NAME$", plugin_name)
+                            .replace("$VERSION$", plugin_version_supplied)
+                            .replace("$DIST$_$ARCH$", variant)
+                        )
+                        if url_exists(candidate_url):
+                            plugin_url = candidate_url
+                            break
+
                 logging.debug("Plugin URL: %s", plugin_url)
 
                 logging.info("Downloading Plugin: " + plugin_name)
@@ -1061,6 +1121,7 @@ def set_consts(args, compat):
     CONST_lib_ext = compat.lib_extension
 
     tf_deps_version = get_tf_deps_version(args.version)
+    tf_deps_release_pkg = get_tf_deps_release_package(args.version, compat)
 
     CONST_urls = {
         WASMEDGE: "https://github.com/WasmEdge/WasmEdge/releases/download/{0}/WasmEdge-{0}-{1}".format(
@@ -1070,10 +1131,10 @@ def set_consts(args, compat):
             args.uninstall_script_tag
         ),
         TENSORFLOW_DEPS: "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/{0}/WasmEdge-tensorflow-deps-TF-{0}-{1}".format(
-            tf_deps_version, CONST_release_pkg
+            tf_deps_version, tf_deps_release_pkg
         ),
         TENSORFLOW_LITE_DEPS: "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/{0}/WasmEdge-tensorflow-deps-TFLite-{0}-{1}".format(
-            tf_deps_version, CONST_release_pkg
+            tf_deps_version, tf_deps_release_pkg
         ),
     }
 

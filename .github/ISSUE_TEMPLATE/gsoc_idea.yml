@@ -31,9 +31,9 @@ body:
   - type: textarea
     id: recommend-skills
     attributes:
-      label: "Recommend skills"
-      description: Please shortly describe the recommend skills for the project you want to propose for the GSoC program.
-      placeholder: Describe in several bullet points about the recommend skills. E.g. C++, Rust, WebAssembly, etc.
+      label: "Recommended skills"
+      description: Please shortly describe the recommended skills for the project you want to propose for the GSoC program.
+      placeholder: Describe in several bullet points about the recommended skills. E.g. C++, Rust, WebAssembly, etc.
     validations:
       required: true
   - type: textarea

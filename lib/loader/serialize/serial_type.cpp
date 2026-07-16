@@ -136,14 +136,16 @@ Serializer::serializeLimit(const AST::Limit &Lim,
   //
   // we encode all of them in u64
   uint8_t Flag = 0;
+  if (Lim.is64()) {
+    Flag |= 0x04U;
+  }
   if (Lim.isShared()) {
     Flag |= 0x02U;
   }
   if (Lim.hasMax()) {
     Flag |= 0x01U;
   }
-  if (static_cast<AST::Limit::LimitType>(Flag) >=
-      AST::Limit::LimitType::SharedNoMax) {
+  if (Lim.isShared()) {
     if (Conf.hasProposal(Proposal::Threads)) {
       if (unlikely(!Lim.hasMax())) {
         return logSerializeError(ErrCode::Value::SharedMemoryNoMax,
@@ -153,6 +155,10 @@ Serializer::serializeLimit(const AST::Limit &Lim,
       return logSerializeError(ErrCode::Value::IntegerTooLarge,
                                ASTNodeAttr::Type_Limit);
     }
+  }
+  if (Lim.is64() && !Conf.hasProposal(Proposal::Memory64)) {
+    return logSerializeError(ErrCode::Value::IntegerTooLarge,
+                             ASTNodeAttr::Type_Limit);
   }
   OutVec.push_back(Flag);
   serializeU64(Lim.getMin(), OutVec);

@@ -92,9 +92,9 @@ Eddsa::SecretKey::publicKey() const noexcept {
 
 WasiCryptoExpect<Eddsa::KeyPair>
 Eddsa::SecretKey::toKeyPair(const PublicKey &Pk) const noexcept {
-  if (EVP_PKEY_eq(Ctx.get(), Pk.raw().get()) != 1) {
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
-  }
+  int Rc = EVP_PKEY_eq(Ctx.get(), Pk.raw().get());
+  ensureOrReturn(Rc >= 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  ensureOrReturn(Rc == 1, __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
   return Ctx;
 }
 

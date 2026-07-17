@@ -4319,6 +4319,44 @@ bool isValidFd(int Fd) {
 }
 } // namespace
 
+#if WASMEDGE_OS_MACOS
+TEST(WasiTest, FdAllocateRejectsOffsetLenOverflowMacOS) {
+  WasmEdge::Host::WASI::Environ Env;
+  const fs::path TempPath = fs::u8path("wasi_fd_allocate_overflow.tmp");
+  const std::string_view Content = "wasmedge fd_allocate overflow guard"sv;
+
+  {
+    std::ofstream Out(TempPath, std::ios::binary);
+    ASSERT_TRUE(Out.is_open());
+    Out << Content;
+  }
+
+  Env.init({"/:."s}, "test"s, {}, {});
+  const auto Fd = Env.pathOpen(
+      3, TempPath.u8string(), static_cast<__wasi_lookupflags_t>(0),
+      static_cast<__wasi_oflags_t>(0), __WASI_RIGHTS_FD_ALLOCATE,
+      static_cast<__wasi_rights_t>(0), static_cast<__wasi_fdflags_t>(0));
+  ASSERT_TRUE(Fd);
+
+  const auto Res = Env.fdAllocate(*Fd, UINT64_MAX, UINT64_C(1));
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), __WASI_ERRNO_FBIG);
+
+  EXPECT_TRUE(Env.fdClose(*Fd));
+  Env.fini();
+
+  std::ifstream In(TempPath, std::ios::binary);
+  ASSERT_TRUE(In.is_open());
+  const std::string Actual((std::istreambuf_iterator<char>(In)),
+                           std::istreambuf_iterator<char>());
+  EXPECT_EQ(std::string_view(Actual.data(), Actual.size()), Content);
+
+  std::error_code Ec;
+  fs::remove(TempPath, Ec);
+  EXPECT_FALSE(Ec);
+}
+#endif
+
 TEST(WasiTest, CustomFds) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");

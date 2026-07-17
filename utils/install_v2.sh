@@ -149,7 +149,7 @@ if [ "$__HOME__" = "" ]; then
 fi
 
 get_latest_release() {
-	echo "0.14.1"
+	echo "0.17.1"
 }
 
 # Compare semantic versions
@@ -318,7 +318,7 @@ usage() {
 	-l,             --legacy                        Enable legacy OS support.
 														E.g., CentOS 7.
 
-	-v,             --version=[0.14.1]              Install the specific version.
+	-v,             --version=[0.17.1]              Install the specific version.
 
 	-V,             --verbose                       Run script in verbose mode.
 														Will print out each step

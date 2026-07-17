@@ -60,6 +60,7 @@ else:
     exec("def reraise(tp, value=None, tb=None):\n    raise tp, value, tb\n")
 
     import urllib
+    import urllib2
 
     def wrap_download_url(url, *args):
         headers = ""
@@ -78,6 +79,21 @@ else:
             exit(1)
 
     download_url = wrap_download_url
+
+
+def url_exists(url):
+    try:
+        if sys.version_info[0] == 3:
+            req = urllib.request.Request(url, method="HEAD")
+            res = urllib.request.urlopen(req, timeout=10)
+        else:
+            req = urllib2.Request(url)
+            req.get_method = lambda: "HEAD"
+            res = urllib2.urlopen(req, timeout=10)
+        res.close()
+        return True
+    except Exception:
+        return False
 
 
 def show_progress(block_num, block_size, total_size):
@@ -297,8 +313,7 @@ SUPPORTED_MIN_VERSION = {
 WASMEDGE = "WasmEdge"
 WASMEDGE_UNINSTALLER = "WasmEdge_Uninstaller"
 TENSORFLOW = "tensorflow"
-TENSORFLOW_LITE = "tensorflow_lite"
-TENSORFLOW_LITE_P = "tensorflowlite"
+TENSORFLOW_LITE = "tensorflowlite"
 TENSORFLOW_DEPS = "tensorflow_deps"
 TENSORFLOW_LITE_DEPS = "tensorflow_lite_deps"
 IMAGE = "image"
@@ -312,7 +327,7 @@ WASI_NN_GGML_CUDA = "wasi_nn-ggml-cuda"
 WASI_NN_GGML_NOAVX = "wasi_nn-ggml-noavx"
 WASI_LOGGING = "wasi_logging"
 WASMEDGE_TENSORFLOW_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW
-WASMEDGE_TENSORFLOW_LITE_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW_LITE_P
+WASMEDGE_TENSORFLOW_LITE_PLUGIN = WASMEDGE.lower() + "_" + TENSORFLOW_LITE
 WASMEDGE_IMAGE_PLUGIN = WASMEDGE.lower() + "_" + IMAGE
 WASMEDGE_RUSTLS = "wasmedge_rustls"
 WASM_BPF = "wasm_bpf"
@@ -333,79 +348,96 @@ PLUGINS_AVAILABLE = [
     WASM_BPF,
 ]
 
-SUPPORTTED_PLUGINS = {
-    "ubuntu20.04" + "x86_64" + WASI_CRYPTO: VersionString("0.13.0"),
-    "manylinux2014" + "x86_64" + WASI_CRYPTO: VersionString("0.13.0"),
-    "manylinux2014" + "aarch64" + WASI_CRYPTO: VersionString("0.13.0"),
-    "manylinux2014" + "arm64" + WASI_CRYPTO: VersionString("0.13.0"),
-    "manylinux_2_28" + "x86_64" + WASI_CRYPTO: VersionString("0.15.0"),
-    "manylinux_2_28" + "aarch64" + WASI_CRYPTO: VersionString("0.15.0"),
-    "manylinux_2_28" + "arm64" + WASI_CRYPTO: VersionString("0.15.0"),
-    "ubuntu20.04" + "x86_64" + WASI_NN_OPENVINO: VersionString("0.13.0"),
-    "ubuntu20.04" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.13.0"),
-    "ubuntu20.04" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
-    "ubuntu20.04" + "aarch64" + WASI_NN_GGML: VersionString("0.13.5"),
-    "ubuntu20.04" + "x86_64" + WASI_NN_GGML_NOAVX: VersionString("0.13.5"),
-    "ubuntu20.04" + "x86_64" + WASI_NN_GGML_CUDA: VersionString("0.13.4"),
-    "ubuntu20.04" + "aarch64" + WASI_NN_GGML_CUDA: VersionString("0.13.5"),
-    "manylinux2014" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.13.0"),
-    "manylinux2014" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.13.0"),
-    "manylinux2014" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
-    "manylinux2014" + "aarch64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.13.0"),
-    "manylinux2014" + "aarch64" + WASI_NN_GGML: VersionString("0.13.4"),
-    "manylinux_2_28" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.15.0"),
-    "manylinux_2_28" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.15.0"),
-    "manylinux_2_28" + "x86_64" + WASI_NN_GGML: VersionString("0.15.0"),
-    "manylinux_2_28" + "aarch64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.15.0"),
-    "manylinux_2_28" + "aarch64" + WASI_NN_GGML: VersionString("0.15.0"),
-    "darwin" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
-    "darwin" + "arm64" + WASI_NN_GGML: VersionString("0.13.4"),
-    "darwin" + "arm64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.14.1"),
-    "ubuntu20.04" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.13.0"),
-    "darwin" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
-    "darwin" + "arm64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
-    "manylinux2014" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
-    "manylinux2014" + "aarch64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
-    "manylinux_2_28" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.15.0"),
-    "manylinux_2_28" + "aarch64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.15.0"),
-    "ubuntu20.04" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
-    "darwin" + "x86_64" + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
-    "darwin" + "arm64" + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
-    "manylinux2014"
-    + "x86_64"
-    + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
-    "manylinux2014"
-    + "aarch64"
-    + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
-    "manylinux_2_28"
-    + "x86_64"
-    + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.15.0"),
-    "manylinux_2_28"
-    + "aarch64"
-    + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.15.0"),
-    "ubuntu20.04" + "x86_64" + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
-    "darwin" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
-    "darwin" + "arm64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
-    "manylinux2014" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
-    "manylinux2014" + "aarch64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
-    "manylinux_2_28" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.15.0"),
-    "manylinux_2_28" + "aarch64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.15.0"),
-    "ubuntu20.04" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
-    "darwin" + "x86_64" + WASI_LOGGING: VersionString("0.14.0"),
-    "darwin" + "arm64" + WASI_LOGGING: VersionString("0.13.5"),
-    "manylinux2014" + "aarch64" + WASI_LOGGING: VersionString("0.13.5"),
-    "manylinux2014" + "x86_64" + WASI_LOGGING: VersionString("0.13.5"),
-    "ubuntu20.04" + "x86_64" + WASI_LOGGING: VersionString("0.13.5"),
-    "ubuntu20.04" + "aarch64" + WASI_LOGGING: VersionString("0.14.0"),
-    "darwin" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
-    "darwin" + "arm64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
-    "manylinux2014" + "aarch64" + WASMEDGE_RUSTLS: VersionString("0.13.5"),
-    "manylinux2014" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
-    "ubuntu20.04" + "x86_64" + WASMEDGE_RUSTLS: VersionString("0.13.4"),
-    "ubuntu20.04" + "aarch64" + WASMEDGE_RUSTLS: VersionString("0.13.5"),
-    "ubuntu20.04" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
-    "manylinux2014" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
-    "manylinux_2_28" + "x86_64" + WASM_BPF: VersionString("0.15.0"),
+# Minimum WasmEdge version for each plugin on each (dist, arch) pair
+SUPPORTED_PLUGINS = {
+    WASI_CRYPTO: {
+        ("ubuntu20.04", "x86_64"): VersionString("0.13.0"),
+        ("manylinux2014", "x86_64"): VersionString("0.13.0"),
+        ("manylinux2014", "aarch64"): VersionString("0.13.0"),
+        ("manylinux_2_28", "x86_64"): VersionString("0.15.0"),
+        ("manylinux_2_28", "aarch64"): VersionString("0.15.0"),
+    },
+    WASI_NN_OPENVINO: {
+        ("ubuntu20.04", "x86_64"): VersionString("0.13.0"),
+    },
+    WASI_NN_PYTORCH: {
+        ("ubuntu20.04", "x86_64"): VersionString("0.13.0"),
+        ("manylinux2014", "x86_64"): VersionString("0.13.0"),
+        ("manylinux_2_28", "x86_64"): VersionString("0.15.0"),
+    },
+    WASI_NN_GGML: {
+        ("ubuntu20.04", "x86_64"): VersionString("0.13.4"),
+        ("ubuntu20.04", "aarch64"): VersionString("0.13.5"),
+        ("manylinux2014", "x86_64"): VersionString("0.13.4"),
+        ("manylinux2014", "aarch64"): VersionString("0.13.4"),
+        ("manylinux_2_28", "x86_64"): VersionString("0.15.0"),
+        ("manylinux_2_28", "aarch64"): VersionString("0.15.0"),
+        ("darwin", "x86_64"): VersionString("0.13.4"),
+        ("darwin", "arm64"): VersionString("0.13.4"),
+    },
+    WASI_NN_GGML_CUDA: {
+        ("ubuntu20.04", "x86_64"): VersionString("0.13.4"),
+        ("ubuntu20.04", "aarch64"): VersionString("0.13.5"),
+    },
+    WASI_NN_GGML_NOAVX: {
+        ("ubuntu20.04", "x86_64"): VersionString("0.13.5"),
+    },
+    WASI_NN_TENSORFLOW_LITE: {
+        ("ubuntu20.04", "x86_64"): VersionString("0.13.0"),
+        ("manylinux2014", "x86_64"): VersionString("0.13.0"),
+        ("manylinux2014", "aarch64"): VersionString("0.13.0"),
+        ("manylinux_2_28", "x86_64"): VersionString("0.15.0"),
+        ("manylinux_2_28", "aarch64"): VersionString("0.15.0"),
+        ("darwin", "arm64"): VersionString("0.14.1"),
+    },
+    WASI_LOGGING: {
+        ("ubuntu20.04", "x86_64"): VersionString("0.13.5"),
+        ("ubuntu20.04", "aarch64"): VersionString("0.14.0"),
+        ("manylinux2014", "x86_64"): VersionString("0.13.5"),
+        ("manylinux2014", "aarch64"): VersionString("0.13.5"),
+        ("darwin", "x86_64"): VersionString("0.14.0"),
+        ("darwin", "arm64"): VersionString("0.13.5"),
+    },
+    WASMEDGE_TENSORFLOW_PLUGIN: {
+        ("ubuntu20.04", "x86_64"): VersionString("0.13.0"),
+        ("manylinux2014", "x86_64"): VersionString("0.13.0"),
+        ("manylinux2014", "aarch64"): VersionString("0.13.0"),
+        ("manylinux_2_28", "x86_64"): VersionString("0.15.0"),
+        ("manylinux_2_28", "aarch64"): VersionString("0.15.0"),
+        ("darwin", "x86_64"): VersionString("0.13.0"),
+        ("darwin", "arm64"): VersionString("0.13.0"),
+    },
+    WASMEDGE_TENSORFLOW_LITE_PLUGIN: {
+        ("ubuntu20.04", "x86_64"): VersionString("0.13.0"),
+        ("manylinux2014", "x86_64"): VersionString("0.13.0"),
+        ("manylinux2014", "aarch64"): VersionString("0.13.0"),
+        ("manylinux_2_28", "x86_64"): VersionString("0.15.0"),
+        ("manylinux_2_28", "aarch64"): VersionString("0.15.0"),
+        ("darwin", "x86_64"): VersionString("0.13.0"),
+        ("darwin", "arm64"): VersionString("0.13.0"),
+    },
+    WASMEDGE_IMAGE_PLUGIN: {
+        ("ubuntu20.04", "x86_64"): VersionString("0.13.0"),
+        ("manylinux2014", "x86_64"): VersionString("0.13.0"),
+        ("manylinux2014", "aarch64"): VersionString("0.13.0"),
+        ("manylinux_2_28", "x86_64"): VersionString("0.15.0"),
+        ("manylinux_2_28", "aarch64"): VersionString("0.15.0"),
+        ("darwin", "x86_64"): VersionString("0.13.0"),
+        ("darwin", "arm64"): VersionString("0.13.0"),
+    },
+    WASMEDGE_RUSTLS: {
+        ("ubuntu20.04", "x86_64"): VersionString("0.13.4"),
+        ("ubuntu20.04", "aarch64"): VersionString("0.13.5"),
+        ("manylinux2014", "x86_64"): VersionString("0.13.4"),
+        ("manylinux2014", "aarch64"): VersionString("0.13.5"),
+        ("darwin", "x86_64"): VersionString("0.13.4"),
+        ("darwin", "arm64"): VersionString("0.13.4"),
+    },
+    WASM_BPF: {
+        ("ubuntu20.04", "x86_64"): VersionString("0.13.2"),
+        ("manylinux2014", "x86_64"): VersionString("0.13.2"),
+        ("manylinux_2_28", "x86_64"): VersionString("0.15.0"),
+    },
 }
 
 HOME = expanduser("~")
@@ -697,16 +729,37 @@ def is_default_path(args):
     return args.path == abspath(PATH) or args.path[:4] != "/usr"
 
 
+def get_tf_deps_version(version):
+    # The tensorflow deps version is bound to the WasmEdge version
+    if VersionString(version).compare("0.18.0") >= 0:
+        return "TF-2.21.0-CC"
+    elif VersionString(version).compare("0.13.0") >= 0:
+        return "TF-2.12.0-CC"
+    reraise(Exception("Unsupported WasmEdge version: {0}".format(version)))
+
+
+def get_tf_deps_release_package(version, compat):
+    # The TF-2.12.0-CC deps assets are released for manylinux2014 and the
+    # TF-2.21.0-CC deps assets for manylinux_2_28 on all Linux platforms
+    if compat.platform != "Linux":
+        return compat.release_package
+    if get_tf_deps_version(version) == "TF-2.21.0-CC":
+        dist = "manylinux_2_28"
+    else:
+        dist = "manylinux2014"
+    return "{0}_{1}.tar.gz".format(dist, compat.arch)
+
+
 def install_tensorflow_extension(
     args,
     compat,
-    download_tf_deps_=False,
-    download_tf_lite_deps_=False,
+    download_tf_deps=False,
+    download_tf_lite_deps=False,
 ):
-    global CONST_release_pkg, CONST_lib_ext, CONST_lib_dir, CONST_env_path
+    global CONST_lib_ext, CONST_lib_dir, CONST_env_path
 
-    download_tf_deps = download_tf_deps_
-    download_tf_lite_deps = download_tf_lite_deps_
+    tf_deps_version = get_tf_deps_version(args.version)
+    tf_deps_release_pkg = get_tf_deps_release_package(args.version, compat)
 
     logging.debug(
         "install_tensorflow_extension: %s %s",
@@ -714,39 +767,19 @@ def install_tensorflow_extension(
         download_tf_lite_deps,
     )
 
-    if (
-        not get_remote_version_availability(
-            "second-state/WasmEdge-tensorflow-deps", args.tf_deps_version
-        )
-        and download_tf_deps
-    ):
-        logging.debug(
-            "Tensorflow Deps extension version not found: {0}".format(
-                args.tf_deps_version
+    if download_tf_deps or download_tf_lite_deps:
+        if not get_remote_version_availability(
+            "second-state/WasmEdge-tensorflow-deps", tf_deps_version
+        ):
+            logging.warning(
+                "Tensorflow deps release not found: {0}".format(tf_deps_version)
             )
-        )
-        download_tf_deps = False
-
-    if compat.machine == "aarch64":
-        download_tf_deps = False
-        logging.warning(
-            "Cannot download WasmEdge Tensorflow, Tools & Deps because it is aarch64"
-        )
-
-    local_release_package = CONST_release_pkg
-
-    # From WasmEdge 0.11.1, we have the Ubuntu release.
-    # Installation of ubuntu version extensions when the ubuntu version of WasmEdge selected.
-    if VersionString(args.version).compare("0.11.1") >= 0:
-        local_release_package = compat.release_package_wasmedge
-        logging.debug("Downloading dist package: {0}".format(local_release_package))
+            download_tf_deps = False
+            download_tf_lite_deps = False
 
     if download_tf_deps:
         tf_deps_pkg = (
-            "WasmEdge-tensorflow-deps-TF-"
-            + args.tf_deps_version
-            + "-"
-            + CONST_release_pkg
+            "WasmEdge-tensorflow-deps-TF-" + tf_deps_version + "-" + tf_deps_release_pkg
         )
 
         logging.info("Downloading tensorflow-deps")
@@ -767,9 +800,9 @@ def install_tensorflow_extension(
     if download_tf_lite_deps:
         tf_deps_lite_pkg = (
             "WasmEdge-tensorflow-deps-TFLite-"
-            + args.tf_deps_version
+            + tf_deps_version
             + "-"
-            + CONST_release_pkg
+            + tf_deps_release_pkg
         )
 
         logging.info("Downloading tensorflow-lite-deps")
@@ -874,53 +907,24 @@ def install_tensorflow_extension(
             else:
                 logging.error("Not able to append installed files to env file")
 
-    for main_dir in ["WasmEdge-tensorflow", "WasmEdge-tensorflow-lite"]:
-        if not isdir(join(TEMP_PATH, main_dir)):
-            continue
-        for directory_file in listdir(join(TEMP_PATH, main_dir)):
-            if isdir(directory_file):
-                wasmedge_tf_folder = join(TEMP_PATH, main_dir, directory_file)
-                for _file in listdir(wasmedge_tf_folder):
-                    if (
-                        _file == "wasmedge"
-                        and isdir(join(wasmedge_tf_folder, _file))
-                        and is_default_path(args)
-                    ):
-                        copytree(
-                            join(wasmedge_tf_folder, _file),
-                            join(args.path, "include", "wasmedge"),
-                        )
-                    elif CONST_lib_ext in _file:
-                        if isdir(join(args.path, CONST_lib_dir)):
-                            shutil.move(
-                                join(wasmedge_tf_folder, _file),
-                                join(args.path, CONST_lib_dir, _file),
-                            )
-                        else:
-                            logging.error(
-                                "%s is not a directory", join(args.path, CONST_lib_dir)
-                            )
-                            try:
-                                mkdir(join(args.path, CONST_lib_dir))
-                                shutil.move(
-                                    join(wasmedge_tf_folder, _file),
-                                    join(args.path, CONST_lib_dir, _file),
-                                )
-                            except:
-                                pass
-
-                    elif isdir(join(wasmedge_tf_folder, _file)):
-                        copytree(
-                            join(wasmedge_tf_folder, _file),
-                            join(args.path, _file),
-                        )
-                    else:
-                        shutil.move(
-                            join(wasmedge_tf_folder, _file),
-                            join(args.path, "bin", _file),
-                        )
-
     return 0
+
+
+def get_darwin_release_package_variants(compat):
+    # Since 0.15.0 most plugin assets on macOS embed the Darwin kernel major
+    # version (e.g. darwin_23-arm64), while wasi_nn-ggml and the pre-0.15.0
+    # releases keep the darwin_{arch} naming. The kernel-tagged assets start
+    # from darwin_22, so probe from the local kernel version down to 22
+    variants = ["darwin_{0}".format(compat.arch)]
+    kernel = 24
+    if platform.system() == "Darwin":
+        try:
+            kernel = int(platform.release().split(".")[0])
+        except ValueError:
+            pass
+    for k in range(kernel, 21, -1):
+        variants.append("darwin_{0}-{1}".format(k, compat.arch))
+    return variants
 
 
 def install_plugins(args, compat):
@@ -998,24 +1002,24 @@ def install_plugins(args, compat):
                 )
                 continue
 
-            if (
-                compat.dist + compat.machine + plugin_name not in SUPPORTTED_PLUGINS
-                and not plugin_wasi_nn_ggml_bypass_check
-            ):
+            plugin_min_version = SUPPORTED_PLUGINS.get(plugin_name, {}).get(
+                (compat.dist, compat.arch)
+            )
+            if plugin_min_version is None and not plugin_wasi_nn_ggml_bypass_check:
                 logging.error(
-                    "Plugin not compatible: %s",
-                    compat.dist + compat.machine + plugin_name,
+                    "Plugin not compatible: %s %s %s",
+                    plugin_name,
+                    compat.dist,
+                    compat.arch,
                 )
-                logging.debug("Supported: %s", SUPPORTTED_PLUGINS)
+                logging.debug("Supported: %s", SUPPORTED_PLUGINS)
                 continue
             else:
                 if plugin_version_supplied is None:
                     plugin_version_supplied = args.version
                 elif (
-                    SUPPORTTED_PLUGINS[
-                        compat.dist + compat.machine + plugin_name
-                    ].compare(plugin_version_supplied)
-                    > 0
+                    plugin_min_version is not None
+                    and plugin_min_version.compare(plugin_version_supplied) > 0
                 ):
                     logging.error(
                         "Plugin not compatible: %s %s",
@@ -1024,13 +1028,10 @@ def install_plugins(args, compat):
                     )
                     continue
 
-                if (
-                    WASMEDGE_TENSORFLOW_PLUGIN == plugin_name
-                    and VersionString(args.version).compare("0.13.0") >= 0
-                ):
+                if WASMEDGE_TENSORFLOW_PLUGIN == plugin_name:
                     if (
                         install_tensorflow_extension(
-                            args, compat, download_tf_deps_=True
+                            args, compat, download_tf_deps=True
                         )
                         != 0
                     ):
@@ -1041,7 +1042,7 @@ def install_plugins(args, compat):
                 if WASMEDGE_TENSORFLOW_LITE_PLUGIN == plugin_name:
                     if (
                         install_tensorflow_extension(
-                            args, compat, download_tf_lite_deps_=True
+                            args, compat, download_tf_lite_deps=True
                         )
                         != 0
                     ):
@@ -1052,7 +1053,7 @@ def install_plugins(args, compat):
                 if WASI_NN_TENSORFLOW_LITE == plugin_name:
                     if (
                         install_tensorflow_extension(
-                            args, compat, download_tf_lite_deps_=True
+                            args, compat, download_tf_lite_deps=True
                         )
                         != 0
                     ):
@@ -1064,8 +1065,20 @@ def install_plugins(args, compat):
                     url_root.replace("$PLUGIN_NAME$", plugin_name)
                     .replace("$VERSION$", plugin_version_supplied)
                     .replace("$DIST$", compat.dist)
-                    .replace("$ARCH$", compat.machine)
+                    .replace("$ARCH$", compat.arch)
                 )
+
+                if compat.platform == "Darwin":
+                    for variant in get_darwin_release_package_variants(compat):
+                        candidate_url = (
+                            url_root.replace("$PLUGIN_NAME$", plugin_name)
+                            .replace("$VERSION$", plugin_version_supplied)
+                            .replace("$DIST$_$ARCH$", variant)
+                        )
+                        if url_exists(candidate_url):
+                            plugin_url = candidate_url
+                            break
+
                 logging.debug("Plugin URL: %s", plugin_url)
 
                 logging.info("Downloading Plugin: " + plugin_name)
@@ -1098,13 +1111,8 @@ def set_consts(args, compat):
     CONST_ipkg = compat.install_package_name
     CONST_lib_ext = compat.lib_extension
 
-    local_release_package_tf = CONST_release_pkg
-
-    # From WasmEdge 0.11.1, we have the Ubuntu release.
-    # Installation of ubuntu version extensions when the ubuntu version of WasmEdge selected.
-    if VersionString(args.tf_version).compare("0.11.1") >= 0:
-        local_release_package_tf = compat.release_package_wasmedge
-        logging.debug("Tensorflow release pkg: {0}".format(local_release_package_tf))
+    tf_deps_version = get_tf_deps_version(args.version)
+    tf_deps_release_pkg = get_tf_deps_release_package(args.version, compat)
 
     CONST_urls = {
         WASMEDGE: "https://github.com/WasmEdge/WasmEdge/releases/download/{0}/WasmEdge-{0}-{1}".format(
@@ -1114,10 +1122,10 @@ def set_consts(args, compat):
             args.uninstall_script_tag
         ),
         TENSORFLOW_DEPS: "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/{0}/WasmEdge-tensorflow-deps-TF-{0}-{1}".format(
-            args.tf_deps_version, CONST_release_pkg
+            tf_deps_version, tf_deps_release_pkg
         ),
         TENSORFLOW_LITE_DEPS: "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/{0}/WasmEdge-tensorflow-deps-TFLite-{0}-{1}".format(
-            args.tf_deps_version, CONST_release_pkg
+            tf_deps_version, tf_deps_release_pkg
         ),
     }
 
@@ -1181,6 +1189,7 @@ class Compat:
     ):
         self.platform = platform_  # Linux, Darwin
         self.machine = machine  # x86_64, arm
+        self.arch = machine  # normalized arch used in release asset names
         self.version = VersionString(version)
         self.release_package = None
         self.install_package_name = None
@@ -1198,19 +1207,16 @@ class Compat:
             self.ld_library_path = "LD_LIBRARY_PATH"
 
             if self.machine in ["arm64", "armv8", "aarch64"]:
-                if self.version.compare("0.15.0") >= 0:
-                    self.release_package = "manylinux_2_28_aarch64.tar.gz"
-                else:
-                    self.release_package = "manylinux2014_aarch64.tar.gz"
+                self.arch = "aarch64"
             elif self.machine in ["x86_64", "amd64"]:
-                if self.version.compare("0.15.0") >= 0:
-                    self.release_package = "manylinux_2_28_x86_64.tar.gz"
-                else:
-                    self.release_package = "manylinux2014_x86_64.tar.gz"
+                self.arch = "x86_64"
             else:
                 reraise(Exception("Unsupported arch: {0}".format(self.machine)))
 
-            self.release_package_wasmedge = self.release_package
+            if self.version.compare("0.15.0") >= 0:
+                self.release_package = "manylinux_2_28_{0}.tar.gz".format(self.arch)
+            else:
+                self.release_package = "manylinux2014_{0}.tar.gz".format(self.arch)
 
             if self.dist is None:
                 # Only use Ubuntu when the arch is x86_64
@@ -1225,8 +1231,8 @@ class Compat:
                         or VersionString(__lsb_rel).compare("20.04") >= 0
                     ):
                         # ARM-based Ubuntu 20.04 is supported after 0.13.5
-                        if self.machine in ["x86_64", "amd64"] or (
-                            self.machine in ["aarch64", "arm64"]
+                        if self.arch == "x86_64" or (
+                            self.arch == "aarch64"
                             and self.version.compare("0.13.5") >= 0
                         ):
                             self.dist = "ubuntu20.04"
@@ -1250,8 +1256,8 @@ class Compat:
                         "cat /etc/lsb_release 2>/dev/null | grep DESCRIPTION"
                     ):
                         # ARM-based Ubuntu 20.04 is supported after 0.13.5
-                        if self.machine in ["x86_64", "amd64"] or (
-                            self.machine in ["aarch64", "arm64"]
+                        if self.arch == "x86_64" or (
+                            self.arch == "aarch64"
                             and self.version.compare("0.13.5") >= 0
                         ):
                             self.dist = "ubuntu20.04"
@@ -1260,26 +1266,22 @@ class Compat:
                                 self.dist = "manylinux_2_28"
                             else:
                                 self.dist = "manylinux2014"
-                        self.dist = "ubuntu20.04"
                     else:
                         if self.version.compare("0.15.0") >= 0:
                             self.dist = "manylinux_2_28"
                         else:
                             self.dist = "manylinux2014"
 
-            # Below version 0.11.1 different distributions for wasmedge binary do not exist
-            if self.version.compare("0.11.1") != -1:
-                if self.machine in ["arm64", "armv8", "aarch64"]:
-                    self.release_package_wasmedge = self.dist + "_aarch64.tar.gz"
-                elif self.machine in ["x86_64", "amd64"]:
-                    self.release_package_wasmedge = self.dist + "_x86_64.tar.gz"
-                else:
-                    reraise(Exception("Unsupported arch: {0}".format(self.machine)))
+            self.release_package_wasmedge = "{0}_{1}.tar.gz".format(
+                self.dist, self.arch
+            )
 
         elif self.platform == "Darwin":
             self.ld_library_path = "DYLD_LIBRARY_PATH"
             self.install_package_name = "WasmEdge-{0}-Darwin".format(self.version)
-            self.release_package = "darwin_{0}.tar.gz".format(self.machine)
+            if self.machine in ["arm64", "arm"]:
+                self.arch = "arm64"
+            self.release_package = "darwin_{0}.tar.gz".format(self.arch)
             self.release_package_wasmedge = self.release_package
             self.lib_extension = ".dylib"
             if self.dist is None:
@@ -1563,23 +1565,9 @@ if __name__ == "__main__":
         help="(experimental option)Install Supported Plugins - ["
         + ",".join(PLUGINS_AVAILABLE)
         + "]. Example"
-        " '--plugins wasi_crypto:0.11.0'"
+        " '--plugins wasi_crypto:0.13.0'"
         " '--plugins wasi_crypto'"
         " '--plugins all' [Downloads all the supported plugins]",
-    )
-    parser.add_argument(
-        "--tf-version",
-        dest="tf_version",
-        required=False,
-        default=None,
-        help="Tensorflow and tensorflow lite version",
-    )
-    parser.add_argument(
-        "--tf-deps-version",
-        dest="tf_deps_version",
-        required=False,
-        default=None,
-        help="Tensorflow and tensorflow lite deps version",
     )
     parser.add_argument(
         "--platform",
@@ -1615,19 +1603,6 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(levelname)-8s- %(message)s", level=args.loglevel)
 
     args.path = abspath(args.path)
-
-    if args.tf_version is None:
-        args.tf_version = args.version
-
-    if args.tf_deps_version is None:
-        if VersionString(args.version).compare("0.12.0") == -1:
-            args.tf_deps_version = "TF-2.6.0"
-        elif VersionString(args.version).compare("0.13.0") == -1:
-            args.tf_deps_version = "TF-2.6.0-CC"
-        elif VersionString(args.version).compare("0.13.0") >= 0:
-            args.tf_deps_version = "TF-2.12.0-CC"
-        else:
-            reraise("Should not reach here")
 
     logging.debug("Python Version: %s", sys.version_info)
     main(args)

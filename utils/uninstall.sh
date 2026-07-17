@@ -42,7 +42,7 @@ ASK=1
 usage() {
     cat <<EOF
     Usage: $0 -p </path/to/uninstall> [-V]
-    WasmEdge uninstallation and extensions uninstall.
+    WasmEdge uninstallation.
     Mandatory arguments to long options are mandatory for short options too.
     Long options should be assigned with '='
 
@@ -68,13 +68,6 @@ usage() {
 
     - wasmedge is the runtime that executes the wasm program or the AOT compiled
       so program.
-
-    - wasmedgec-tensorflow is the AOT compiler that compiles WebAssembly
-      bytecode programs (wasm programs) into native code (so program) on your
-      deployment machine. It is aware of WamsEdge's Tensorflow extension API.
-
-    - wasmedge-tensorflow-lite is the runtime that executes the wasm program or
-      the AOT compiled so program with the Tensorflow Lite library.
 
 EOF
 }

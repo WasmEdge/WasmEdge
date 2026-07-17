@@ -248,12 +248,13 @@ TEST(serializeTypeTest, SerializeMemory64AndSharedLimit) {
 
   // Test serialize memory64 (i64) and shared limits.
   //
-  //   1.  Serialize i64 limit with only min (flag 0x04).
-  //   2.  Serialize i64 limit with min and max (flag 0x05).
-  //   3.  Serialize invalid i64 limit without the Memory64 proposal.
-  //   4.  Serialize shared limit with min and max (flag 0x03).
-  //   5.  Serialize invalid shared limit without the Threads proposal.
-  //   6.  Serialize invalid shared limit without max (flag 0x02).
+  //   1.  Serialize i64 memory limit with only min (flag 0x04).
+  //   2.  Serialize i64 memory limit with min and max (flag 0x05).
+  //   3.  Serialize invalid i64 memory limit without the Memory64 proposal.
+  //   4.  Serialize i64 table limit with min and max (flag 0x05).
+  //   5.  Serialize shared limit with min and max (flag 0x03).
+  //   6.  Serialize invalid shared limit without the Threads proposal.
+  //   7.  Serialize invalid shared limit without max (flag 0x02).
 
   WasmEdge::Configure ConfMem64;
   ConfMem64.removeProposal(WasmEdge::Proposal::Threads);
@@ -297,6 +298,25 @@ TEST(serializeTypeTest, SerializeMemory64AndSharedLimit) {
   Output = {};
   EXPECT_FALSE(
       SerNoMem64.serializeSection(createMemorySec(MemoryType), Output));
+
+  // The same limit path is used for table64; check the ref type and framing.
+  WasmEdge::AST::TableType TableType;
+  TableType.setRefType(WasmEdge::TypeCode::FuncRef);
+  TableType.getLimit().setType(WasmEdge::AST::Limit::LimitType::I64HasMinMax);
+  TableType.getLimit().setMin(4294967296);
+  TableType.getLimit().setMax(8589934592);
+  Output = {};
+  EXPECT_TRUE(SerMem64.serializeSection(createTableSec(TableType), Output));
+  Expected = {
+      0x04U,                             // Table section
+      0x0DU,                             // Content size = 13
+      0x01U,                             // Vector length = 1
+      0x70U,                             // FuncRef type
+      0x05U,                             // I64 has min and max
+      0x80U, 0x80U, 0x80U, 0x80U, 0x10U, // Min = 4294967296
+      0x80U, 0x80U, 0x80U, 0x80U, 0x20U  // Max = 8589934592
+  };
+  EXPECT_EQ(Output, Expected);
 
   // Shared limit requires the Threads proposal.
   WasmEdge::Configure ConfThreads;

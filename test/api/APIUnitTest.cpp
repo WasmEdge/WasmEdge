@@ -4984,6 +4984,8 @@ TEST(APICoreTest, ModuleDeletion) {
   WasmEdge_StringDelete(PName);
   WasmEdge_FunctionTypeDelete(FType);
   WasmEdge_ExecutorDelete(Exec);
+  WasmEdge_ValidatorDelete(Validator);
+  WasmEdge_LoaderDelete(Loader);
 }
 
 #if defined(WASMEDGE_BUILD_PLUGINS)

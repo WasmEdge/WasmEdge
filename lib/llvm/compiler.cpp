@@ -174,10 +174,9 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
   }
 #endif
   auto PBO = LLVM::PassBuilderOptions::create();
-  if (auto Error = PBO.runPasses(
-          LLModule,
-          toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
-          TM)) {
+  std::string Passes =
+      toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel());
+  if (auto Error = PBO.runPasses(LLModule, Passes.c_str(), TM)) {
     spdlog::error("{}"sv, Error.message().string_view());
   }
 #else

@@ -22,7 +22,7 @@ TEST(StatisticsTest, AddCostRespectsLimit) {
   EXPECT_EQ(S.getTotalCost(), UINT64_C(100));
 }
 
-TEST(StatisticsTest, SubCostGuardsUnderflow) {
+TEST(StatisticsTest, SubCostRejectsCostAtOrAboveTotal) {
   Statistics S;
   EXPECT_TRUE(S.addCost(10));
   EXPECT_TRUE(S.subCost(5));

@@ -628,6 +628,14 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
     return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
+  // The generated code calls the returned symbol with the caller's context,
+  // whose memories, globals, and tables belong to the caller module. Returning
+  // nullptr sends a cross-module callee through the kCallIndirect proxy, which
+  // builds the callee's context around the call and unwinds it afterwards.
+  if (FuncInst->getModule() != ModInst) {
+    return nullptr;
+  }
+
   EXPECTED_TRY(checkLazyCompilation(FuncInst));
 
   if (unlikely(!FuncInst->isCompiledFunction())) {
@@ -636,10 +644,15 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
   return FuncInst->getSymbol().get();
 }
 
-Expect<void *> Executor::proxyRefGetFuncSymbol(Runtime::StackManager &,
+Expect<void *> Executor::proxyRefGetFuncSymbol(Runtime::StackManager &StackMgr,
                                                const RefVariant Ref) noexcept {
   const auto *FuncInst = retrieveFuncRef(Ref);
   assuming(FuncInst);
+  // As in proxyTableGetFuncSymbol, a cross-module callee is left to the
+  // kCallRef proxy rather than fast-called with the caller's context.
+  if (FuncInst->getModule() != StackMgr.getModule()) {
+    return nullptr;
+  }
   if (likely(FuncInst->isCompiledFunction())) {
     return FuncInst->getSymbol().get();
   }

@@ -8,7 +8,6 @@
 #include <limits>
 
 namespace {
-using namespace std::literals;
 
 TEST(RoundevenTest, DoubleTiesToEven) {
   EXPECT_EQ(WasmEdge::roundeven(0.5), 0.0);

@@ -62,10 +62,13 @@ template <typename T> T byteswap(T V) {
     return static_cast<T>(
         __builtin_bswap64(static_cast<uint64_t>(V)));
   } else if constexpr (sizeof(T) == 16) {
-    return (static_cast<__int128_t>(__builtin_bswap64(static_cast<uint64_t>(V)))
-            << 64) |
-           static_cast<__int128_t>(
-               __builtin_bswap64(static_cast<uint64_t>(V >> 64)));
+    using UnsignedT = std::make_unsigned_t<T>;
+    const auto UnsignedV = static_cast<UnsignedT>(V);
+    return static_cast<T>((static_cast<UnsignedT>(__builtin_bswap64(
+                               static_cast<uint64_t>(UnsignedV)))
+                           << 64) |
+                          static_cast<UnsignedT>(__builtin_bswap64(
+                              static_cast<uint64_t>(UnsignedV >> 64))));
   }
 #elif defined(_MSC_VER)
   if constexpr (sizeof(T) == 2) {

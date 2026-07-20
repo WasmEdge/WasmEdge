@@ -60,4 +60,21 @@ TEST(ByteswapTest, SignedIntegers) {
             Negative64);
 }
 
+#if defined(__SIZEOF_INT128__)
+TEST(ByteswapTest, Native128BitIntegers) {
+  constexpr unsigned __int128 UnsignedV =
+      (static_cast<unsigned __int128>(0x0102030405060708ULL) << 64) |
+      0x1112131415161718ULL;
+  constexpr unsigned __int128 Expected =
+      (static_cast<unsigned __int128>(0x1817161514131211ULL) << 64) |
+      0x0807060504030201ULL;
+  EXPECT_TRUE(WasmEdge::byteswap(UnsignedV) == Expected);
+  EXPECT_TRUE(WasmEdge::byteswap(WasmEdge::byteswap(UnsignedV)) == UnsignedV);
+
+  constexpr __int128_t SignedV =
+      -static_cast<__int128_t>(0x0102030405060708ULL);
+  EXPECT_TRUE(WasmEdge::byteswap(WasmEdge::byteswap(SignedV)) == SignedV);
+}
+#endif
+
 } // namespace

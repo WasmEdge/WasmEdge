@@ -57,6 +57,7 @@ private:
                const AST::DataSection &DataSection) noexcept;
   void compile(const AST::TableSection &TableSection,
                const AST::ElementSection &ElementSection) noexcept;
+  void compile(const AST::TagSection &TagSection) noexcept;
 
   /// Compile all sections and create the function declarations. When
   /// \p DeclarationsOnly is set, the type wrappers are emitted as external

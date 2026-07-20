@@ -126,8 +126,7 @@ containsNone(const std::string &Output,
   for (const char *Needle : Needles) {
     if (Output.find(Needle) != std::string::npos) {
       return ::testing::AssertionFailure()
-             << "output unexpectedly contains substring: \"" << Needle
-             << "\"\n"
+             << "output unexpectedly contains substring: \"" << Needle << "\"\n"
              << "full output:\n"
              << Output;
     }
@@ -239,9 +238,9 @@ static const std::array<uint8_t, 70> SectionsTestWasm{
 // tag_import_test.wasm: compiled from tag_import_test.wat.
 // Imports a tag "env"."tag" whose signature is type[0] (func (param i32)).
 static const std::array<uint8_t, 29> TagImportTestWasm{
-    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
-    0x60, 0x01, 0x7f, 0x00, 0x02, 0x0c, 0x01, 0x03, 0x65, 0x6e, 0x76,
-    0x03, 0x74, 0x61, 0x67, 0x04, 0x00, 0x00};
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+    0x01, 0x60, 0x01, 0x7f, 0x00, 0x02, 0x0c, 0x01, 0x03, 0x65,
+    0x6e, 0x76, 0x03, 0x74, 0x61, 0x67, 0x04, 0x00, 0x00};
 
 // tag_section_test.wasm: compiled from tag_section_test.wat.
 // Defines a tag whose signature is type[0] (func (param i32)).
@@ -328,8 +327,8 @@ std::string tagImportTestPath() {
 std::string tagSectionTestPath() {
   static std::string Path;
   if (Path.empty()) {
-    Path = writeWasmToFile(TagSectionTestWasm.data(),
-                           TagSectionTestWasm.size(), "tag_section_test.wasm");
+    Path = writeWasmToFile(TagSectionTestWasm.data(), TagSectionTestWasm.size(),
+                           "tag_section_test.wasm");
   }
   return Path;
 }
@@ -456,12 +455,8 @@ TEST(ParseSubcommand, ForbiddenPluginFlag) {
 
 TEST(ParseSubcommand, ExtraSectionModules) {
   EXPECT_EQ(callParse({sectionsTestPath().c_str()}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--enable-exception-handling",
-                       tagImportTestPath().c_str()}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--enable-exception-handling",
-                       tagSectionTestPath().c_str()}),
-            EXIT_SUCCESS);
+  EXPECT_EQ(callParse({tagImportTestPath().c_str()}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({tagSectionTestPath().c_str()}), EXIT_SUCCESS);
 }
 
 #if !WASMEDGE_OS_WINDOWS
@@ -508,20 +503,19 @@ TEST(ParseSubcommand, MinimalModuleEmptyCounts) {
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
   EXPECT_TRUE(
       containsAll(R.Stdout, {"file format wasm 0x1", "Section Details:"}));
-  EXPECT_TRUE(containsNone(
-      R.Stdout, {"Type[", "Import[", "Function[", "Global[", "Export[",
-                 "Code[", "Table[", "Memory[", "Start:", "Element[",
-                 "DataCount section", "Data[", "Tag["}));
+  EXPECT_TRUE(containsNone(R.Stdout, {"Type[", "Import[", "Function[",
+                                      "Global[", "Export[", "Code[", "Table[",
+                                      "Memory[", "Start:", "Element[",
+                                      "DataCount section", "Data[", "Tag["}));
 }
 
 TEST(ParseSubcommand, OutputTableMemoryStartElementData) {
   auto R = callParseCaptureStdout({sectionsTestPath().c_str()});
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
   EXPECT_TRUE(containsAll(
-      R.Stdout,
-      {"Table[1]:", " - table[0] type=ref_null func initial=2 max=3",
-       "Memory[1]:", " - memory[0] pages: initial=1 max=2", "Start:",
-       " - func[0]"}));
+      R.Stdout, {"Table[1]:", " - table[0] type=ref_null func initial=2 max=3",
+                 "Memory[1]:", " - memory[0] pages: initial=1 max=2",
+                 "Start:", " - func[0]"}));
   EXPECT_TRUE(containsAll(
       R.Stdout, {"Element[2]:",
                  " - segment[0] flags=0 table=0 type=ref func count=1"
@@ -535,21 +529,18 @@ TEST(ParseSubcommand, OutputTableMemoryStartElementData) {
 }
 
 TEST(ParseSubcommand, OutputImportedTagType) {
-  auto R = callParseCaptureStdout(
-      {"--enable-exception-handling", tagImportTestPath().c_str()});
+  auto R = callParseCaptureStdout({tagImportTestPath().c_str()});
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
-  EXPECT_TRUE(containsAll(
-      R.Stdout, {"Import[1]:", " - tag[0] sig=0 <- env.tag"}));
+  EXPECT_TRUE(
+      containsAll(R.Stdout, {"Import[1]:", " - tag[0] sig=0 <- env.tag"}));
 }
 
 TEST(ParseSubcommand, OutputTagSection) {
-  auto R = callParseCaptureStdout(
-      {"--enable-exception-handling", tagSectionTestPath().c_str()});
+  auto R = callParseCaptureStdout({tagSectionTestPath().c_str()});
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
   EXPECT_TRUE(containsAll(R.Stdout, {"Tag[1]:", " - tag[0] sig=0"}));
-  EXPECT_TRUE(containsNone(
-      R.Stdout, {"Table[", "Memory[", "Start:", "Element[",
-                 "DataCount section", "Data["}));
+  EXPECT_TRUE(containsNone(R.Stdout, {"Table[", "Memory[", "Start:", "Element[",
+                                      "DataCount section", "Data["}));
 }
 #endif
 

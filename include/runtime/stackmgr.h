@@ -38,13 +38,15 @@ public:
   struct Frame {
     Frame() = delete;
     Frame(const Instance::ModuleInstance *Mod, AST::InstrView::iterator FromIt,
-          uint32_t L, uint32_t A, uint32_t V) noexcept
-        : Module(Mod), From(FromIt), Locals(L), Arity(A), VPos(V) {}
+          uint32_t L, uint32_t A, uint32_t V, bool E) noexcept
+        : Module(Mod), From(FromIt), Locals(L), Arity(A), VPos(V),
+          NativeEntry(E) {}
     const Instance::ModuleInstance *Module;
     AST::InstrView::iterator From;
     uint32_t Locals;
     uint32_t Arity;
     uint32_t VPos;
+    bool NativeEntry;
     std::vector<Handler> HandlerStack;
   };
 
@@ -100,13 +102,17 @@ public:
     return Vec;
   }
 
-  /// Push a new frame entry to the stack.
+  /// Push a new frame entry to the stack. Set `IsNativeEntry` for the frames
+  /// entered from the native code, which the exception handler walk never
+  /// crosses; tail calls inherit the flag from the replaced frame.
   void pushFrame(const Instance::ModuleInstance *Module,
                  AST::InstrView::iterator From, uint32_t LocalNum = 0,
-                 uint32_t Arity = 0, bool IsTailCall = false) noexcept {
+                 uint32_t Arity = 0, bool IsTailCall = false,
+                 bool IsNativeEntry = false) noexcept {
     if (!IsTailCall) {
       FrameStack.emplace_back(Module, From, LocalNum, Arity,
-                              static_cast<uint32_t>(ValueStack.size()));
+                              static_cast<uint32_t>(ValueStack.size()),
+                              IsNativeEntry);
     } else {
       assuming(!FrameStack.empty());
       assuming(FrameStack.back().VPos >= FrameStack.back().Locals);
@@ -140,6 +146,11 @@ public:
   // Get all frames
   Span<const Frame> getFramesSpan() const { return FrameStack; }
 
+  /// Getter of the native entry flag of the top frame.
+  bool isTopFrameNativeEntry() const noexcept {
+    return !FrameStack.empty() && FrameStack.back().NativeEntry;
+  }
+
   /// Push handler for try-catch block.
   void
   pushHandler(AST::InstrView::iterator TryIt, uint32_t BlockParamNum,
@@ -149,7 +160,8 @@ public:
         TryIt, static_cast<uint32_t>(ValueStack.size()) - BlockParamNum, Catch);
   }
 
-  /// Pop the top handler on the stack.
+  /// Pop the top handler on the stack. The walk stops without popping when
+  /// reaching a frame entered from the native code.
   std::optional<Handler> popTopHandler(uint32_t AssocValSize) noexcept {
     while (!FrameStack.empty()) {
       auto &Frame = FrameStack.back();
@@ -160,6 +172,9 @@ public:
         ValueStack.erase(ValueStack.begin() + TopHandler.VPos,
                          ValueStack.end() - AssocValSize);
         return TopHandler;
+      }
+      if (Frame.NativeEntry) {
+        break;
       }
       FrameStack.pop_back();
     }

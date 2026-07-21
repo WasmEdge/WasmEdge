@@ -10,6 +10,33 @@
 namespace {
 using namespace std::literals;
 
+TEST(Int128Test, Int128ArithmeticTest) {
+  {
+    const WasmEdge::uint128_t A = WasmEdge::uint128_t(1U) << 127U;
+    const WasmEdge::uint128_t B = WasmEdge::uint128_t(1U) << 127U;
+    const WasmEdge::uint128_t Sum = A + B;
+    const auto Wrapped = WasmEdge::uint128(Sum);
+    EXPECT_EQ(Wrapped.high(), 0U);
+    EXPECT_EQ(Wrapped.low(), 0U);
+  }
+  {
+    const WasmEdge::uint128_t A = ~WasmEdge::uint128_t(0U);
+    const WasmEdge::uint128_t B = 1U;
+    const WasmEdge::uint128_t Sum = A + B;
+    const auto Wrapped = WasmEdge::uint128(Sum);
+    EXPECT_EQ(Wrapped.high(), 0U);
+    EXPECT_EQ(Wrapped.low(), 0U);
+  }
+  {
+    const WasmEdge::uint128_t A = 1000000000U;
+    const WasmEdge::uint128_t B = 2000000000U;
+    const WasmEdge::uint128_t Sum = A + B;
+    const auto Wrapped = WasmEdge::uint128(Sum);
+    EXPECT_EQ(Wrapped.high(), 0U);
+    EXPECT_EQ(Wrapped.low(), 3000000000U);
+  }
+}
+
 TEST(Int128Test, Int128OutputTest) {
   {
     const WasmEdge::uint128_t Value = 0U;

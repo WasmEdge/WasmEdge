@@ -319,7 +319,7 @@ Context::symmetricKeyStoreManaged(__wasi_secrets_manager_t SecretsManagerHandle,
       .and_then([&](auto &&Sm) noexcept {
         return SymmetricKeyManager.get(KeyHandle).and_then(
             [&](auto &&Key) noexcept {
-              return Sm.storeSk(KeyId, 0, Key).and_then([&](auto &&Version) {
+              return Sm.storeSk(KeyId, 0, std::move(Key)).and_then([&](auto &&Version) {
                 return SymmetricKeyManager.setManagedInfo(KeyHandle, KeyId,
                                                           Version);
               });
@@ -336,10 +336,16 @@ WasiCryptoExpect<__wasi_version_t> Context::symmetricKeyReplaceManaged(
         return SymmetricKeyManager.getId(OldKeyHandle)
             .and_then([&](auto &&KeyId) noexcept {
               return Sm.getLatestSkVersion(KeyId).and_then(
-                  [&](auto LatestVersion) noexcept {
+                  [&](auto LatestVersion) noexcept -> WasiCryptoExpect<__wasi_version_t> {
+                    __wasi_version_t NextVersion = 0;
+                    ensureOrReturn(!__builtin_add_overflow(
+                                       LatestVersion,
+                                       static_cast<__wasi_version_t>(1),
+                                       &NextVersion),
+                                   __WASI_CRYPTO_ERRNO_OVERFLOW);
                     return SymmetricKeyManager.get(NewKeyHandle).and_then(
                         [&](auto &&NewKey) noexcept {
-                          return Sm.storeSk(KeyId, LatestVersion + 1, NewKey)
+                          return Sm.storeSk(KeyId, NextVersion, std::move(NewKey))
                               .and_then([&](auto &&Version) {
                                 return SymmetricKeyManager
                                     .setManagedInfo(NewKeyHandle, KeyId,

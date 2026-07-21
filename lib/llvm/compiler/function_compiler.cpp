@@ -1517,9 +1517,9 @@ void FunctionCompiler::compileIndirectCallOp(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kTableGetFuncSymbol,
             LLVM::Type::getFunctionType(
-                FPtrTy, {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty},
+                FPtrTy, {Context.Int32Ty, Context.Int32Ty, Context.Int64Ty},
                 false)),
-        {TableIdx, TypeIdx, FuncIndex});
+        {TableIdx, TypeIdx, Idx64});
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
@@ -1544,10 +1544,10 @@ void FunctionCompiler::compileIndirectCallOp(
             Builder, Executable::Intrinsics::kCallIndirect,
             LLVM::Type::getFunctionType(Context.VoidTy,
                                         {Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int32Ty, Context.Int8PtrTy,
+                                         Context.Int64Ty, Context.Int8PtrTy,
                                          Context.Int8PtrTy},
                                         false)),
-        {TableIdx, TypeIdx, FuncIndex, Args, Rets});
+        {TableIdx, TypeIdx, Idx64, Args, Rets});
 
     if (RetSize == 0) {
       // nothing to do
@@ -1664,6 +1664,7 @@ void FunctionCompiler::compileReturnIndirectCallOp(
   auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.is_null");
 
   LLVM::Value FuncIndex = stackPop();
+  auto Idx64 = Builder.createZExt(FuncIndex, Context.Int64Ty);
   const auto &FuncType = Context.CompositeTypes[FuncTypeIndex]->getFuncType();
   auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
   auto RTy = FTy.getReturnType();
@@ -1683,9 +1684,9 @@ void FunctionCompiler::compileReturnIndirectCallOp(
             Builder, Executable::Intrinsics::kTableGetFuncSymbol,
             LLVM::Type::getFunctionType(
                 FTy.getPointerTo(),
-                {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
+                {Context.Int32Ty, Context.Int32Ty, Context.Int64Ty}, false)),
         {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
-         FuncIndex});
+         Idx64});
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
@@ -1719,11 +1720,11 @@ void FunctionCompiler::compileReturnIndirectCallOp(
             Builder, Executable::Intrinsics::kCallIndirect,
             LLVM::Type::getFunctionType(Context.VoidTy,
                                         {Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int32Ty, Context.Int8PtrTy,
+                                         Context.Int64Ty, Context.Int8PtrTy,
                                          Context.Int8PtrTy},
                                         false)),
         {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
-         FuncIndex, Args, Rets});
+         Idx64, Args, Rets});
 
     if (RetSize == 0) {
       Builder.createRetVoid();

@@ -1642,7 +1642,14 @@ void FunctionCompiler::compileReturnCallOp(
     Ret = Builder.createCall(Function, Args);
   }
 
-  Ret.setMustTailCall();
+  // Known limitation: musttail is only valid when the caller and callee
+  // prototypes match. A differing signature falls back to the tail hint, which
+  // LLVM may decline, so such a tail call is not guaranteed constant-space.
+  if (Ret.getInstructionCalledFunctionType().unwrap() == F.Ty.unwrap()) {
+    Ret.setMustTailCall();
+  } else {
+    Ret.setTailCall();
+  }
   auto Ty = Ret.getType();
   if (Ty.isVoidTy()) {
     Builder.createRetVoid();
@@ -1685,7 +1692,13 @@ void FunctionCompiler::compileReturnIndirectCallOp(
     Builder.positionAtEnd(NotNullBB);
 
     auto FPtrRet = Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), ArgsVec);
-    FPtrRet.setMustTailCall();
+    // Known limitation: a mismatched prototype rules musttail out and the tail
+    // hint may be declined, so this tail call is not guaranteed constant-space.
+    if (FPtrRet.getInstructionCalledFunctionType().unwrap() == F.Ty.unwrap()) {
+      FPtrRet.setMustTailCall();
+    } else {
+      FPtrRet.setTailCall();
+    }
     if (RetSize == 0) {
       Builder.createRetVoid();
     } else {
@@ -1857,7 +1870,13 @@ void FunctionCompiler::compileReturnCallRefOp(
     Builder.positionAtEnd(NotNullBB);
 
     auto FPtrRet = Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), ArgsVec);
-    FPtrRet.setMustTailCall();
+    // Known limitation: a mismatched prototype rules musttail out and the tail
+    // hint may be declined, so this tail call is not guaranteed constant-space.
+    if (FPtrRet.getInstructionCalledFunctionType().unwrap() == F.Ty.unwrap()) {
+      FPtrRet.setMustTailCall();
+    } else {
+      FPtrRet.setTailCall();
+    }
     if (RetSize == 0) {
       Builder.createRetVoid();
     } else {

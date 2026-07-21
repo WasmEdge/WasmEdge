@@ -49,25 +49,25 @@ public:
 
   WasiCryptoExpect<__wasi_version_t>
   storeKp(Span<const uint8_t> KeyId, __wasi_version_t Version,
-          const AsymmetricCommon::KpVariant &Kp) noexcept {
+          AsymmetricCommon::KpVariant Kp) noexcept {
     std::unique_lock Lock(Ctx->Mutex);
     KeyIdentifier Ident{std::vector<uint8_t>(KeyId.begin(), KeyId.end()),
                         Version};
     // Since KpVariant (and its alternatives) have deleted assignment operators,
     // we use erase and emplace to update the map.
     Ctx->KeyPairs.erase(Ident);
-    Ctx->KeyPairs.emplace(Ident, Kp);
+    Ctx->KeyPairs.emplace(Ident, std::move(Kp));
     return Version;
   }
 
   WasiCryptoExpect<__wasi_version_t>
   storeSk(Span<const uint8_t> KeyId, __wasi_version_t Version,
-          const Symmetric::KeyVariant &Sk) noexcept {
+          Symmetric::KeyVariant Sk) noexcept {
     std::unique_lock Lock(Ctx->Mutex);
     KeyIdentifier Ident{std::vector<uint8_t>(KeyId.begin(), KeyId.end()),
                         Version};
     Ctx->SymmetricKeys.erase(Ident);
-    Ctx->SymmetricKeys.emplace(Ident, Sk);
+    Ctx->SymmetricKeys.emplace(Ident, std::move(Sk));
     return Version;
   }
 

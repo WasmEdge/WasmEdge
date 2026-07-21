@@ -363,7 +363,7 @@ public:
   inline Value getFirstFunction() noexcept;
   inline Value getNamedFunction(const char *Name) noexcept;
   inline Message printModuleToFile(const char *File) noexcept;
-  inline Message verify(LLVMVerifierFailureAction Action) noexcept;
+  inline bool hasVerificationError(Message &OutMsg) noexcept;
 
   constexpr operator bool() const noexcept { return Ref != nullptr; }
   constexpr auto &unwrap() const noexcept { return Ref; }
@@ -1006,10 +1006,8 @@ Message Module::printModuleToFile(const char *Filename) noexcept {
   return M;
 }
 
-Message Module::verify(LLVMVerifierFailureAction Action) noexcept {
-  Message M;
-  LLVMVerifyModule(Ref, Action, &M.unwrap());
-  return M;
+bool Module::hasVerificationError(Message &OutMsg) noexcept {
+  return LLVMVerifyModule(Ref, LLVMReturnStatusAction, &OutMsg.unwrap()) != 0;
 }
 
 Type Context::getVoidTy() noexcept { return LLVMVoidTypeInContext(Ref); }

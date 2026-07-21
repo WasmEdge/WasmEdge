@@ -229,10 +229,19 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   // StartSection is not required for compilation.
 
   spdlog::info("verify start"sv);
-  LLModule.verify(LLVMPrintMessageAction);
+  if (LLVM::Message VerifyMsg; LLModule.hasVerificationError(VerifyMsg)) {
+    spdlog::error("LLVM module verification failed: {}"sv,
+                  VerifyMsg.string_view());
+    return Unexpect(ErrCode::Value::InvalidAOTConfigure);
+  }
 
   auto &TM = D.extract().TM;
   EXPECTED_TRY(optimize(LLModule, TM));
+  if (LLVM::Message VerifyMsg; LLModule.hasVerificationError(VerifyMsg)) {
+    spdlog::error("LLVM module verification failed after optimization: {}"sv,
+                  VerifyMsg.string_view());
+    return Unexpect(ErrCode::Value::InvalidAOTConfigure);
+  }
 
   // Set initializer for constant value
   Context->finalizeIntrinsicsTable();
@@ -642,7 +651,11 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module) noexcept {
 
   // Set initializer for constant value
   Context->finalizeIntrinsicsTable();
-  LLModule.verify(LLVMPrintMessageAction);
+  if (LLVM::Message VerifyMsg; LLModule.hasVerificationError(VerifyMsg)) {
+    spdlog::error("LLVM module verification failed: {}"sv,
+                  VerifyMsg.string_view());
+    return Unexpect(ErrCode::Value::InvalidAOTConfigure);
+  }
 
   spdlog::info("[lazy-jit]: infrastructure compilation done"sv);
 
@@ -692,11 +705,20 @@ Compiler::compileFunctions(Data &&LLData, const AST::Module &Module,
   }
 
   spdlog::info("[lazy-jit]: verify batch ({} funcs) start"sv, Sorted.size());
-  LLModule.verify(LLVMPrintMessageAction);
+  if (LLVM::Message VerifyMsg; LLModule.hasVerificationError(VerifyMsg)) {
+    spdlog::error("[lazy-jit]: batch verification failed: {}"sv,
+                  VerifyMsg.string_view());
+    return Unexpect(ErrCode::Value::InvalidAOTConfigure);
+  }
   spdlog::info("[lazy-jit]: verify batch ({} funcs) done"sv, Sorted.size());
 
   auto &TM = LLData.extract().TM;
   EXPECTED_TRY(optimize(LLModule, TM));
+  if (LLVM::Message VerifyMsg; LLModule.hasVerificationError(VerifyMsg)) {
+    spdlog::error("LLVM module verification failed after optimization: {}"sv,
+                  VerifyMsg.string_view());
+    return Unexpect(ErrCode::Value::InvalidAOTConfigure);
+  }
 
   spdlog::debug("[lazy-jit]: compile functions batch ({}) done"sv,
                 Sorted.size());

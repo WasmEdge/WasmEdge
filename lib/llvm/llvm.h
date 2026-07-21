@@ -809,6 +809,10 @@ public:
   inline void setMetadata(Context &C, unsigned int KindID,
                           Metadata Node) noexcept;
   inline void setMustTailCall() noexcept;
+  inline void setTailCall() noexcept;
+  Type getInstructionCalledFunctionType() const noexcept {
+    return LLVMGetCalledFunctionType(Ref);
+  }
 
   Value getFirstParam() noexcept { return LLVMGetFirstParam(Ref); }
   Value getNextParam() noexcept { return LLVMGetNextParam(Ref); }
@@ -1062,6 +1066,9 @@ void Value::setMetadata(Context &C, unsigned int KindID,
 
 void Value::setMustTailCall() noexcept {
   LLVMSetTailCallKind(Ref, LLVMTailCallKindMustTail);
+}
+void Value::setTailCall() noexcept {
+  LLVMSetTailCallKind(Ref, LLVMTailCallKindTail);
 }
 
 static inline Message getDefaultTargetTriple() noexcept {

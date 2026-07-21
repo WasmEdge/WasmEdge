@@ -168,7 +168,7 @@ Expect<void> Executor::proxyCall(Runtime::StackManager &StackMgr,
 Expect<void> Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
                                          const uint32_t TableIdx,
                                          const uint32_t FuncTypeIdx,
-                                         const uint32_t FuncIdx,
+                                         const uint64_t FuncIdx,
                                          const ValVariant *Args,
                                          ValVariant *Rets) noexcept {
   const auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
@@ -597,7 +597,7 @@ Executor::proxyMemAtomicWait(Runtime::StackManager &StackMgr,
 
 Expect<void *> Executor::proxyTableGetFuncSymbol(
     Runtime::StackManager &StackMgr, const uint32_t TableIdx,
-    const uint32_t FuncTypeIdx, const uint32_t FuncIdx) noexcept {
+    const uint32_t FuncTypeIdx, const uint64_t FuncIdx) noexcept {
   const auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
   assuming(TabInst);
 

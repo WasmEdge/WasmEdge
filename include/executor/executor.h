@@ -963,7 +963,7 @@ public:
   Expect<void> proxyCallIndirect(Runtime::StackManager &StackMgr,
                                  const uint32_t TableIdx,
                                  const uint32_t FuncTypeIdx,
-                                 const uint32_t FuncIdx, const ValVariant *Args,
+                                 const uint64_t FuncIdx, const ValVariant *Args,
                                  ValVariant *Rets) noexcept;
   Expect<void> proxyCallRef(Runtime::StackManager &StackMgr,
                             const RefVariant Ref, const ValVariant *Args,
@@ -1077,7 +1077,7 @@ public:
   Expect<void *> proxyTableGetFuncSymbol(Runtime::StackManager &StackMgr,
                                          const uint32_t TableIdx,
                                          const uint32_t FuncTypeIdx,
-                                         const uint32_t FuncIdx) noexcept;
+                                         const uint64_t FuncIdx) noexcept;
   Expect<void *> proxyRefGetFuncSymbol(Runtime::StackManager &StackMgr,
                                        const RefVariant Ref) noexcept;
   Expect<void *> proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,

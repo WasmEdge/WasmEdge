@@ -192,7 +192,7 @@ Context::keypairStoreManaged(__wasi_secrets_manager_t SecretsManagerHandle,
   return SecretsManagerManager.get(SecretsManagerHandle)
       .and_then([&](auto &&Sm) noexcept {
         return KeyPairManager.get(KpHandle).and_then([&](auto &&Kp) noexcept {
-          return Sm.storeKp(KpId, 0, Kp).and_then([&](auto &&Version) {
+          return Sm.storeKp(KpId, 0, std::move(Kp)).and_then([&](auto &&Version) {
             return KeyPairManager.setManagedInfo(KpHandle, KpId, Version);
           });
         });
@@ -208,10 +208,16 @@ Context::keypairReplaceManaged(__wasi_secrets_manager_t SecretsManagerHandle,
         return KeyPairManager.getId(OldKpHandle)
             .and_then([&](auto &&KpId) noexcept {
               return Sm.getLatestKpVersion(KpId).and_then(
-                  [&](auto LatestVersion) noexcept {
+                  [&](auto LatestVersion) noexcept -> WasiCryptoExpect<__wasi_version_t> {
+                    __wasi_version_t NextVersion = 0;
+                    ensureOrReturn(!__builtin_add_overflow(
+                                       LatestVersion,
+                                       static_cast<__wasi_version_t>(1),
+                                       &NextVersion),
+                                   __WASI_CRYPTO_ERRNO_OVERFLOW);
                     return KeyPairManager.get(NewKpHandle).and_then(
                         [&](auto &&NewKp) noexcept {
-                          return Sm.storeKp(KpId, LatestVersion + 1, NewKp)
+                          return Sm.storeKp(KpId, NextVersion, std::move(NewKp))
                               .and_then([&](auto &&Version) {
                                 return KeyPairManager
                                     .setManagedInfo(NewKpHandle, KpId, Version)

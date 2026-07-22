@@ -18,6 +18,7 @@
 #include "ast/type.h"
 #include "common/errcode.h"
 #include "common/types.h"
+#include "runtime/instance/component/async.h"
 #include "runtime/instance/component/function.h"
 #include "runtime/instance/module.h"
 #include "runtime/instance/tag.h"
@@ -26,8 +27,10 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <type_traits>
+#include <variant>
 #include <vector>
 
 namespace WasmEdge {
@@ -304,14 +307,25 @@ public:
     std::function<void(uint32_t)> HostDtor;
   };
 
-  // One slot of the canonical `handles` table.
+  // A resource entry of the canonical `handles` table.
   struct HandleSlot {
     const ResourceTypeRT *RT = nullptr;
     uint32_t Rep = 0;
     bool Own = true;
     uint32_t Lends = 0;
-    bool Live = false;
+    // Borrow scope: the task that received this borrow (num_borrows
+    // accounting); null for own handles and host-boundary borrows.
+    Executor::ComponentTask *BorrowScope = nullptr;
   };
+
+  // One slot of the unified per-instance `handles` table: resources,
+  // waitables (subtasks and stream/future ends), waitable sets, and error
+  // contexts share a single index space (CanonicalABI.md
+  // `ComponentInstance.handles`). Waitables are shared: the tasks and
+  // rendezvous objects that queue their events keep them alive.
+  using TableSlot = std::variant<
+      std::monostate, HandleSlot, std::shared_ptr<Component::WaitableObj>,
+      std::unique_ptr<Component::WaitableSetObj>, Component::ErrorContextObj>;
 
   // Index space: type.
   // TODO: deep copy the type
@@ -372,27 +386,42 @@ public:
     return Index < TypeResources.size() ? TypeResources[Index] : nullptr;
   }
 
-  // Canonical handle table (index 0 is never used). The table mutates
-  // through const instance pointers held by canonical contexts.
-  uint32_t handleAdd(const ResourceTypeRT *RT, uint32_t Rep,
-                     bool Own) const noexcept {
+  // Unified canonical `handles` table (index 0 is never used; LIFO slot
+  // reuse). The table mutates through const instance pointers held by
+  // canonical contexts.
+  uint32_t slotAdd(TableSlot &&Slot) const noexcept {
     if (Handles.empty()) {
       Handles.emplace_back(); // slot 0 stays dead
     }
     if (!FreeSlots.empty()) {
       const uint32_t Idx = FreeSlots.back();
       FreeSlots.pop_back();
-      Handles[Idx] = {RT, Rep, Own, 0, true};
+      Handles[Idx] = std::move(Slot);
       return Idx;
     }
-    Handles.push_back({RT, Rep, Own, 0, true});
+    Handles.push_back(std::move(Slot));
     return static_cast<uint32_t>(Handles.size() - 1);
   }
+  bool slotLive(uint32_t Idx) const noexcept {
+    return Idx != 0 && Idx < Handles.size() &&
+           !std::holds_alternative<std::monostate>(Handles[Idx]);
+  }
+  void slotFree(uint32_t Idx) const noexcept {
+    Handles[Idx] = std::monostate{};
+    FreeSlots.push_back(Idx);
+  }
+
+  // Resource entries.
+  uint32_t
+  handleAdd(const ResourceTypeRT *RT, uint32_t Rep, bool Own,
+            Executor::ComponentTask *BorrowScope = nullptr) const noexcept {
+    return slotAdd(TableSlot{HandleSlot{RT, Rep, Own, 0, BorrowScope}});
+  }
   HandleSlot *handleGet(uint32_t Idx) const noexcept {
-    if (Idx == 0 || Idx >= Handles.size() || !Handles[Idx].Live) {
+    if (!slotLive(Idx)) {
       return nullptr;
     }
-    return &Handles[Idx];
+    return std::get_if<HandleSlot>(&Handles[Idx]);
   }
   std::optional<HandleSlot> handleRemove(uint32_t Idx) const noexcept {
     auto *Slot = handleGet(Idx);
@@ -400,9 +429,106 @@ public:
       return std::nullopt;
     }
     HandleSlot Out = *Slot;
-    Slot->Live = false;
-    FreeSlots.push_back(Idx);
+    slotFree(Idx);
     return Out;
+  }
+
+  // Waitable entries (subtasks and stream/future copy ends).
+  uint32_t
+  waitableAdd(std::shared_ptr<Component::WaitableObj> W) const noexcept {
+    return slotAdd(TableSlot{std::move(W)});
+  }
+  Component::WaitableObj *waitableGet(uint32_t Idx) const noexcept {
+    if (!slotLive(Idx)) {
+      return nullptr;
+    }
+    if (auto *P = std::get_if<std::shared_ptr<Component::WaitableObj>>(
+            &Handles[Idx])) {
+      return P->get();
+    }
+    return nullptr;
+  }
+  std::shared_ptr<Component::WaitableObj>
+  waitableRemove(uint32_t Idx) const noexcept {
+    if (auto *W = std::get_if<std::shared_ptr<Component::WaitableObj>>(
+            slotLive(Idx) ? &Handles[Idx] : nullptr)) {
+      auto Out = std::move(*W);
+      slotFree(Idx);
+      return Out;
+    }
+    return nullptr;
+  }
+
+  // Waitable-set entries.
+  uint32_t waitableSetAdd() const noexcept {
+    return slotAdd(TableSlot{std::make_unique<Component::WaitableSetObj>()});
+  }
+  Component::WaitableSetObj *waitableSetGet(uint32_t Idx) const noexcept {
+    if (!slotLive(Idx)) {
+      return nullptr;
+    }
+    if (auto *P = std::get_if<std::unique_ptr<Component::WaitableSetObj>>(
+            &Handles[Idx])) {
+      return P->get();
+    }
+    return nullptr;
+  }
+  std::unique_ptr<Component::WaitableSetObj>
+  waitableSetRemove(uint32_t Idx) const noexcept {
+    if (auto *W = std::get_if<std::unique_ptr<Component::WaitableSetObj>>(
+            slotLive(Idx) ? &Handles[Idx] : nullptr)) {
+      auto Out = std::move(*W);
+      slotFree(Idx);
+      return Out;
+    }
+    return nullptr;
+  }
+
+  // Error-context entries.
+  uint32_t errorContextAdd(std::string Msg) const noexcept {
+    return slotAdd(TableSlot{Component::ErrorContextObj{std::move(Msg)}});
+  }
+  Component::ErrorContextObj *errorContextGet(uint32_t Idx) const noexcept {
+    if (!slotLive(Idx)) {
+      return nullptr;
+    }
+    return std::get_if<Component::ErrorContextObj>(&Handles[Idx]);
+  }
+  bool errorContextRemove(uint32_t Idx) const noexcept {
+    if (errorContextGet(Idx) == nullptr) {
+      return false;
+    }
+    slotFree(Idx);
+    return true;
+  }
+
+  // The per-instance thread table (spec `ComponentInstance.threads`):
+  // thread activations (implicit and spawned) register here; thread.index
+  // reads it.
+  uint32_t threadAdd(Executor::ComponentThreadCtx *T) const noexcept {
+    auto &St = Concurrency;
+    if (St.Threads.empty()) {
+      St.Threads.push_back(nullptr); // slot 0 stays dead
+    }
+    if (!St.ThreadFree.empty()) {
+      const uint32_t Idx = St.ThreadFree.back();
+      St.ThreadFree.pop_back();
+      St.Threads[Idx] = T;
+      return Idx;
+    }
+    St.Threads.push_back(T);
+    return static_cast<uint32_t>(St.Threads.size() - 1);
+  }
+  void threadRemove(uint32_t Idx) const noexcept {
+    if (Idx != 0 && Idx < Concurrency.Threads.size()) {
+      Concurrency.Threads[Idx] = nullptr;
+      Concurrency.ThreadFree.push_back(Idx);
+    }
+  }
+  Executor::ComponentThreadCtx *threadGet(uint32_t Idx) const noexcept {
+    return Idx != 0 && Idx < Concurrency.Threads.size()
+               ? Concurrency.Threads[Idx]
+               : nullptr;
   }
   const AST::Component::DefType *getType(uint32_t Index) const noexcept {
     return Index < Types.size() ? Types[Index] : nullptr;
@@ -457,6 +583,50 @@ public:
   // already executing or still instantiating.
   void setEntered(bool E) const noexcept { Entered = E; }
   bool isEntered() const noexcept { return Entered; }
+
+  // Concurrency state of this instance (spec `ComponentInstance` fields).
+  // MayLeave=false models the regions where built-ins and lowered imports
+  // must trap "cannot leave component instance" (argument lowering and the
+  // post-return call). Poisoned is meaningful on the root instance: after
+  // any trap inside the tree, further entries trap "cannot enter".
+  struct ConcurrencyState {
+    bool MayLeave = true;
+    int64_t Backpressure = 0;
+    uint32_t NumWaitingToEnter = 0;
+    Executor::ComponentTask *ExclusiveTask = nullptr;
+    bool Poisoned = false;
+    std::vector<Executor::ComponentThreadCtx *> Threads;
+    std::vector<uint32_t> ThreadFree;
+  };
+  ConcurrencyState &getConcurrency() const noexcept { return Concurrency; }
+
+  // Root of the lexical instantiation tree (poisoning + host-entry checks).
+  const ComponentInstance *getRoot() const noexcept {
+    const ComponentInstance *R = this;
+    while (R->Parent != nullptr) {
+      R = R->Parent;
+    }
+    return R;
+  }
+  // True when the callee instance and the caller instance are the same or
+  // one is a lexical ancestor of the other: such adapter calls trap
+  // unconditionally (wasmtime fact/trampoline.rs reentrance rule).
+  bool isLinealRelativeOf(const ComponentInstance *Other) const noexcept {
+    if (Other == nullptr) {
+      return false;
+    }
+    for (const ComponentInstance *P = this; P != nullptr; P = P->Parent) {
+      if (P == Other) {
+        return true;
+      }
+    }
+    for (const ComponentInstance *P = Other; P != nullptr; P = P->Parent) {
+      if (P == this) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   // A component index entry: the definition plus the lexical environment
   // the value closed over.
@@ -635,13 +805,14 @@ private:
   std::string CompName;
   const ComponentInstance *Parent = nullptr;
   mutable bool Entered = false;
+  mutable ConcurrencyState Concurrency;
   std::map<std::string, const AST::Module *, std::less<>> ExpCoreMods;
   std::map<std::string, CompEntry, std::less<>> ExpComps;
   std::map<std::string, ComponentValVariant, std::less<>> ExpValues;
   std::vector<const ResourceTypeRT *> TypeResources;
   std::vector<std::unique_ptr<ResourceTypeRT>> OwnedResourceTypes;
   std::vector<std::unique_ptr<AST::Component::DefType>> OwnedDefTypes;
-  mutable std::vector<HandleSlot> Handles;
+  mutable std::vector<TableSlot> Handles;
   mutable std::vector<uint32_t> FreeSlots;
 
   // value

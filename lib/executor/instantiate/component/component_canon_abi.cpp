@@ -4,6 +4,7 @@
 #include "executor/component/canonical_abi.h"
 
 #include "common/spdlog.h"
+#include "executor/component/async_runtime.h"
 #include "executor/executor.h"
 
 #include <algorithm>
@@ -103,7 +104,88 @@ uint32_t lowerHandle(const CanonCtx &Cx, uint32_t TypeIdx, uint32_t Rep,
   if (!Own && RT->Impl == Cx.CompInst) {
     return Rep;
   }
+  if (!Own && Cx.BorrowTask != nullptr) {
+    // The receiving task scopes the borrow (spec lower_borrow).
+    Cx.BorrowTask->NumBorrows += 1;
+    return Cx.CompInst->handleAdd(RT, Rep, Own, Cx.BorrowTask);
+  }
   return Cx.CompInst->handleAdd(RT, Rep, Own);
+}
+
+namespace AC = Runtime::Instance::Component;
+
+// lift_stream / lift_future: transferring the readable end removes it from
+// the sender's table (CanonicalABI.md `lift_async_value`).
+Expect<std::shared_ptr<void>> liftCopyEnd(const CanonCtx &Cx, bool IsStream,
+                                          uint32_t Idx) noexcept {
+  const auto WantKind = IsStream ? AC::WaitableObj::Kind::StreamRead
+                                 : AC::WaitableObj::Kind::FutureRead;
+  auto *W = Cx.CompInst != nullptr ? Cx.CompInst->waitableGet(Idx) : nullptr;
+  if (W == nullptr || W->getKind() != WantKind) {
+    spdlog::error(ErrCode::Value::ComponentHandleUnknown);
+    spdlog::error("    unknown handle index {}"sv, Idx);
+    return Unexpect(ErrCode::Value::ComponentHandleUnknown);
+  }
+  auto *E = static_cast<AC::CopyEndObj *>(W);
+  if (E->St == AC::CopyState::Done && E->DoneByDrop) {
+    const auto Code = IsStream
+                          ? ErrCode::Value::ComponentStreamLiftAfterDrop
+                          : ErrCode::Value::ComponentFutureLiftAfterSuccess;
+    spdlog::error(Code);
+    spdlog::error("    cannot lift {} after being notified that the writable "
+                  "end dropped"sv,
+                  IsStream ? "stream" : "future");
+    return Unexpect(Code);
+  }
+  if (E->inWaitableSet()) {
+    const auto Code = IsStream ? ErrCode::Value::ComponentStreamLiftInSet
+                               : ErrCode::Value::ComponentFutureLiftInSet;
+    spdlog::error(Code);
+    spdlog::error("    cannot lift {} while it's in a waitable set"sv,
+                  IsStream ? "stream" : "future");
+    return Unexpect(Code);
+  }
+  if (E->St == AC::CopyState::Done) {
+    const auto Code = IsStream
+                          ? ErrCode::Value::ComponentStreamLiftAfterDrop
+                          : ErrCode::Value::ComponentFutureLiftAfterSuccess;
+    spdlog::error(Code);
+    if (IsStream) {
+      spdlog::error("    cannot lift stream after being notified that the "
+                    "writable end dropped"sv);
+    } else {
+      spdlog::error("    cannot lift future after previous read succeeded"sv);
+    }
+    return Unexpect(Code);
+  }
+  if (E->copying()) {
+    spdlog::error(ErrCode::Value::ComponentStreamRemoveBusy);
+    spdlog::error("    cannot remove busy stream"sv);
+    return Unexpect(ErrCode::Value::ComponentStreamRemoveBusy);
+  }
+  auto Shared = E->Shared;
+  Cx.CompInst->waitableRemove(Idx);
+  return std::static_pointer_cast<void>(Shared);
+}
+
+// lower_stream / lower_future: entering an instance mints a fresh readable
+// end over the shared object.
+Expect<uint32_t> lowerCopyEnd(const CanonCtx &Cx, bool IsStream,
+                              const std::shared_ptr<void> &SharedV) noexcept {
+  if (Cx.CompInst == nullptr || !SharedV) {
+    spdlog::error(ErrCode::Value::ComponentTrap);
+    spdlog::error("    cannot lower a stream or future without a table"sv);
+    return Unexpect(ErrCode::Value::ComponentTrap);
+  }
+  auto Shared = std::static_pointer_cast<AC::SharedCopyObj>(SharedV);
+  auto End = std::make_shared<AC::CopyEndObj>(
+      IsStream ? AC::WaitableObj::Kind::StreamRead
+               : AC::WaitableObj::Kind::FutureRead,
+      Shared);
+  auto *EndP = End.get();
+  const uint32_t Idx = Cx.CompInst->waitableAdd(std::move(End));
+  EndP->TableIdx = Idx;
+  return Idx;
 }
 } // namespace
 
@@ -132,16 +214,8 @@ Expect<uint32_t> callRealloc(const CanonCtx &Cx, uint32_t OldPtr,
     return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
   }
   const uint32_t Ptr = Res[0].first.get<uint32_t>();
-  // Spec doesn't mandate this, but wasmtime treats realloc returning 0 for a
-  // non-empty allocation as OOM and traps. Without the check the runtime
-  // would silently write payload to address 0, which is usually a valid
-  // (and often live) wasm memory page.
-  if (Ptr == 0u && NewSize > 0u) {
-    spdlog::error(ErrCode::Value::ComponentTrap);
-    spdlog::error("    canonical ABI: realloc returned 0 for size={}"sv,
-                  NewSize);
-    return Unexpect(ErrCode::Value::ComponentTrap);
-  }
+  // The spec only bounds-checks the returned pointer; returning 0 is a valid
+  // allocation (a component may place a single live allocation at address 0).
   // Spec `trap_if(ptr + new_size > len(cx.opts.memory))`.
   if (Cx.Mem != nullptr) {
     const uint64_t End = uint64_t(Ptr) + uint64_t(NewSize);
@@ -387,7 +461,11 @@ Expect<uint32_t> alignmentDef(const CanonCtx &Cx,
     return 4u;
   }
 
-  // stream / future are deferred.
+  if (T.isStreamTy() || T.isFutureTy()) {
+    // Stream/future ends are i32 handles.
+    return 4u;
+  }
+
   spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
   spdlog::error("    canonical ABI: alignment of gated value type"sv);
   return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
@@ -583,6 +661,10 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
   }
 
   if (T.isOwnTy() || T.isBorrowTy()) {
+    return 4u;
+  }
+
+  if (T.isStreamTy() || T.isFutureTy()) {
     return 4u;
   }
 
@@ -784,6 +866,11 @@ flattenTypeDef(const CanonCtx &Cx,
     return std::vector<ValType>{I32T};
   }
 
+  if (T.isStreamTy() || T.isFutureTy()) {
+    // Stream/future ends travel as single handle indices.
+    return std::vector<ValType>{I32T};
+  }
+
   spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
   spdlog::error("    canonical ABI: flatten of gated value type"sv);
   return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
@@ -791,17 +878,13 @@ flattenTypeDef(const CanonCtx &Cx,
 
 Expect<FlatFuncType> flattenFuncType(const CanonCtx &Cx,
                                      const AST::Component::FuncType &FT,
-                                     bool IsLift) noexcept {
-  // CanonicalABI.md L2819-2832 (sync branch only).
-  if (FT.isAsync()) {
-    spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-    spdlog::error("    canonical ABI: async functype not implemented"sv);
-    return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
-  }
-
+                                     bool IsLift, FlattenOpts Opts) noexcept {
+  // CanonicalABI.md `flatten_functype`. The shape depends only on the canon
+  // options, not on whether the function TYPE is async: a sync lift/lower
+  // of an async-typed function uses the sync shape.
   FlatFuncType F;
 
-  // Flatten params (L2820).
+  // Flatten params.
   for (const auto &P : FT.getParamList()) {
     EXPECTED_TRY(auto Sub, flattenType(Cx, P.getValType()));
     F.Params.insert(F.Params.end(), Sub.begin(), Sub.end());
@@ -811,6 +894,35 @@ Expect<FlatFuncType> flattenFuncType(const CanonCtx &Cx,
   for (const auto &R : FT.getResultList()) {
     EXPECTED_TRY(auto Sub, flattenType(Cx, R.getValType()));
     F.Results.insert(F.Results.end(), Sub.begin(), Sub.end());
+  }
+
+  if (Opts.Async) {
+    if (IsLift) {
+      // Async lift: params spill beyond MAX_FLAT_PARAMS; the core function
+      // returns the packed callback code (callback) or nothing (stackful).
+      if (F.Params.size() > MaxFlatParams) {
+        F.Params.clear();
+        F.Params.push_back(I32T);
+      }
+      F.Results.clear();
+      if (Opts.Callback) {
+        F.Results.push_back(I32T);
+      }
+    } else {
+      // Async lower: params spill beyond MAX_FLAT_ASYNC_PARAMS; any result
+      // adds a trailing return-buffer pointer; the core function returns
+      // the packed subtask state.
+      if (F.Params.size() > MaxFlatAsyncParams) {
+        F.Params.clear();
+        F.Params.push_back(I32T);
+      }
+      if (!F.Results.empty()) {
+        F.Params.push_back(I32T);
+      }
+      F.Results.clear();
+      F.Results.push_back(I32T);
+    }
+    return F;
   }
 
   // Params over the cap → indirect-param path (spec L2823-2824 for lift;
@@ -1232,11 +1344,14 @@ Expect<std::string> decodeString(const CanonCtx &Cx, uint32_t Begin,
                                  ErrCode::Value::ComponentPtrUnaligned));
   }
   if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
-    spdlog::error(ErrCode::Value::ComponentStrOOB);
-    spdlog::error(
-        "    canonical ABI: string content out-of-bounds at 0x{:x} len={}"sv,
-        Begin, ByteLen);
-    return Unexpect(ErrCode::Value::ComponentStrOOB);
+    // The adapter between two components reports the fused-adapter
+    // vocabulary; the host boundary reports the reference-interpreter one.
+    const auto Code = Cx.CrossComponent ? ErrCode::Value::ComponentStrOOB
+                                        : ErrCode::Value::ComponentStrPtrLenOOB;
+    spdlog::error(Code);
+    spdlog::error("    canonical ABI: string at 0x{:x} len={} out of bounds"sv,
+                  Begin, ByteLen);
+    return Unexpect(Code);
   }
   auto SV = Cx.Mem->getStringView(Begin, ByteLen);
   switch (W) {
@@ -1653,7 +1768,14 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
     return makeComponentVal(BorrowVal{Rep});
   }
 
-  // stream / future are deferred.
+  if (T.isStreamTy() || T.isFutureTy()) {
+    const bool IsStream = T.isStreamTy();
+    uint32_t H = 0;
+    EXPECTED_TRY(Cx.Mem->loadValue<uint32_t>(H, Ptr));
+    EXPECTED_TRY(auto Shared, liftCopyEnd(Cx, IsStream, H));
+    return makeComponentVal(StreamFutureVal{std::move(Shared), IsStream});
+  }
+
   spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
   spdlog::error("    canonical ABI: load of gated value type"sv);
   return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
@@ -1943,6 +2065,14 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
     const auto &B = std::get<BorrowVal>(VC->V);
     return Cx.Mem->storeValue<uint32_t>(
         lowerHandle(Cx, T.getBorrow().Idx, B.Handle, false), Ptr);
+  }
+
+  if (T.isStreamTy() || T.isFutureTy()) {
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
+    assuming(VC);
+    const auto &SF = std::get<StreamFutureVal>(VC->V);
+    EXPECTED_TRY(uint32_t Idx, lowerCopyEnd(Cx, T.isStreamTy(), SF.Shared));
+    return Cx.Mem->storeValue<uint32_t>(Idx, Ptr);
   }
 
   spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
@@ -2294,6 +2424,14 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
     return makeComponentVal(BorrowVal{Rep});
   }
 
+  if (T.isStreamTy() || T.isFutureTy()) {
+    const bool IsStream = T.isStreamTy();
+    auto Next = VI.next();
+    assuming(Next.has_value());
+    EXPECTED_TRY(auto Shared, liftCopyEnd(Cx, IsStream, Next->get<uint32_t>()));
+    return makeComponentVal(StreamFutureVal{std::move(Shared), IsStream});
+  }
+
   if (T.isVariantTy() || T.isOptionTy() || T.isResultTy()) {
     // lift_flat_variant (L3042-3072): read disc, then read the joined flat
     // slots, coercing the prefix that belongs to the selected case into the
@@ -2599,6 +2737,14 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
     const auto &B = std::get<BorrowVal>(VC->V);
     return std::vector<ValVariant>{
         ValVariant(lowerHandle(Cx, T.getBorrow().Idx, B.Handle, false))};
+  }
+
+  if (T.isStreamTy() || T.isFutureTy()) {
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
+    assuming(VC);
+    const auto &SF = std::get<StreamFutureVal>(VC->V);
+    EXPECTED_TRY(uint32_t Idx, lowerCopyEnd(Cx, T.isStreamTy(), SF.Shared));
+    return std::vector<ValVariant>{ValVariant(Idx)};
   }
 
   if (T.isVariantTy() || T.isOptionTy() || T.isResultTy()) {

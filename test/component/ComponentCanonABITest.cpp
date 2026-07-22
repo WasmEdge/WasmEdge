@@ -609,14 +609,31 @@ TEST(ComponentCanonABI, FlattenFuncTypeTooManyParamsCollapses) {
   EXPECT_EQ(Res->Results[0].getCode(), TypeCode::I32);
 }
 
-TEST(ComponentCanonABI, FlattenFuncTypeAsyncRejected) {
-  // 🔀 async deferred.
+TEST(ComponentCanonABI, FlattenFuncTypeAsyncShapes) {
+  // 🔀 The flat shape depends on the canon options, not the type's
+  // asyncness: an async-typed function flattened with sync options uses the
+  // sync shape, while async options select the callback / subtask shapes.
   CanonCtx Cx{};
-  auto FT = makeFunc({}, {});
+  auto FT =
+      makeFunc({prim(ComponentTypeCode::U32)}, {prim(ComponentTypeCode::U32)});
   FT.setAsync(true);
-  auto Res = flattenFuncType(Cx, FT, /*IsLift=*/true);
-  ASSERT_FALSE(Res.has_value());
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentNotImplInstantiate);
+  auto Sync = flattenFuncType(Cx, FT, /*IsLift=*/true);
+  ASSERT_TRUE(Sync.has_value());
+  ASSERT_EQ(Sync->Params.size(), 1u);
+  ASSERT_EQ(Sync->Results.size(), 1u);
+  auto CbLift = flattenFuncType(Cx, FT, /*IsLift=*/true, {true, true});
+  ASSERT_TRUE(CbLift.has_value());
+  ASSERT_EQ(CbLift->Results.size(), 1u);
+  EXPECT_EQ(CbLift->Results[0].getCode(), TypeCode::I32);
+  auto StackfulLift = flattenFuncType(Cx, FT, /*IsLift=*/true, {true, false});
+  ASSERT_TRUE(StackfulLift.has_value());
+  EXPECT_TRUE(StackfulLift->Results.empty());
+  auto AsyncLower = flattenFuncType(Cx, FT, /*IsLift=*/false, {true, false});
+  ASSERT_TRUE(AsyncLower.has_value());
+  // One lowered param plus the trailing return-buffer pointer.
+  ASSERT_EQ(AsyncLower->Params.size(), 2u);
+  ASSERT_EQ(AsyncLower->Results.size(), 1u);
+  EXPECT_EQ(AsyncLower->Results[0].getCode(), TypeCode::I32);
 }
 
 // =============================================================================
@@ -711,7 +728,7 @@ TEST_F(CanonABIMemFixture, LoadStringOOBTraps) {
   writeLE<uint32_t>(20, 10u);
   auto V = load(Cx, 16, prim(ComponentTypeCode::String));
   ASSERT_FALSE(V.has_value());
-  EXPECT_EQ(V.error(), ErrCode::Value::ComponentStrOOB);
+  EXPECT_EQ(V.error(), ErrCode::Value::ComponentStrPtrLenOOB);
 }
 
 TEST_F(CanonABIMemFixture, LoadRecordU8U32WithPadding) {

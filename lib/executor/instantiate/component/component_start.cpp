@@ -26,9 +26,15 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
   }
 
   // The start function is part of this instantiation, so it may enter the
-  // instance being built.
+  // instance being built; the instantiation-context task steps aside for
+  // the same reason.
   CompInst.setEntered(false);
+  ComponentTask *SavedTask = AsyncRt.currentTask();
+  AsyncRt.popNestedTask();
   auto Res = invoke(FuncInst, Args, PTypes);
+  if (SavedTask != nullptr) {
+    AsyncRt.pushNestedTask(SavedTask);
+  }
   CompInst.setEntered(true);
   EXPECTED_TRY(auto ResultList, std::move(Res));
   // Start results append to the value index space in declaration order.

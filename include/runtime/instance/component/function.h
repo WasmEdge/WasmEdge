@@ -35,7 +35,9 @@ public:
         FuncType(OwnedFuncType ? *OwnedFuncType : Inst.FuncType),
         LowerFunc(Inst.LowerFunc), MemInst(Inst.MemInst),
         ReallocFunc(Inst.ReallocFunc), PostReturnFunc(Inst.PostReturnFunc),
-        ParentComp(Inst.ParentComp), Enc(Inst.Enc),
+        CallbackFunc(Inst.CallbackFunc), ParentComp(Inst.ParentComp),
+        Enc(Inst.Enc), AsyncLifted(Inst.AsyncLifted),
+        AlwaysTaskReturn(Inst.AlwaysTaskReturn),
         HostFunc(std::move(Inst.HostFunc)) {}
   /// Constructor for component native function. `PR` is the optional
   /// post-return core function (CanonicalABI.md L3367-3372); pass nullptr
@@ -100,6 +102,20 @@ public:
   /// `string-encoding` option (defaults to UTF-8).
   StringEncoding getStringEncoding() const noexcept { return Enc; }
 
+  /// Async lift options (`async`, `(callback f)`, `always-task-return`).
+  void setAsyncOptions(bool Async,
+                       Runtime::Instance::FunctionInstance *Callback,
+                       bool AlwaysReturn) noexcept {
+    AsyncLifted = Async;
+    CallbackFunc = Callback;
+    AlwaysTaskReturn = AlwaysReturn;
+  }
+  bool isAsyncLifted() const noexcept { return AsyncLifted; }
+  Runtime::Instance::FunctionInstance *getCallbackFunction() const noexcept {
+    return CallbackFunc;
+  }
+  bool isAlwaysTaskReturn() const noexcept { return AlwaysTaskReturn; }
+
 protected:
   std::unique_ptr<AST::Component::FuncType> OwnedFuncType;
   const AST::Component::FuncType &FuncType;
@@ -107,8 +123,11 @@ protected:
   Runtime::Instance::MemoryInstance *MemInst;
   Runtime::Instance::FunctionInstance *ReallocFunc;
   Runtime::Instance::FunctionInstance *PostReturnFunc;
+  Runtime::Instance::FunctionInstance *CallbackFunc = nullptr;
   const Runtime::Instance::ComponentInstance *ParentComp;
   StringEncoding Enc;
+  bool AsyncLifted = false;
+  bool AlwaysTaskReturn = false;
   HostFuncCallback HostFunc;
 };
 

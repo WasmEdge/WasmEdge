@@ -12,6 +12,25 @@ namespace Executor {
 
 using namespace std::literals;
 
+namespace {
+// The instantiation context runs start functions and canon built-ins as an
+// implicit synchronous task of the instance being built: blocking
+// operations trap "cannot block a synchronous task before returning".
+struct InstantiateTaskGuard {
+  InstantiateTaskGuard(AsyncRuntime &RtIn,
+                       const Runtime::Instance::ComponentInstance *Inst)
+      : Rt(RtIn) {
+    ComponentTask *T = Rt.newTask();
+    T->Inst = Inst;
+    T->CallerTask = Rt.currentTask();
+    T->St = ComponentTask::State::Started;
+    Rt.pushNestedTask(T);
+  }
+  ~InstantiateTaskGuard() { Rt.popNestedTask(); }
+  AsyncRuntime &Rt;
+};
+} // namespace
+
 // Instantiate component module instance. See "include/executor/Executor.h".
 Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
 Executor::instantiate(Runtime::StoreManager &StoreMgr,
@@ -21,6 +40,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       std::make_unique<Runtime::Instance::ComponentInstance>(Name.value_or(""));
   // The instance cannot be entered until instantiation completes.
   CompInst->setEntered(true);
+  InstantiateTaskGuard TaskGuard{AsyncRt, CompInst.get()};
 
   for (const auto &Section : Comp.getSections()) {
     auto Func = [&](auto &&Sec) -> Expect<void> {
@@ -67,6 +87,7 @@ Executor::instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
   CompInst->setParent(Parent);
   // The instance cannot be entered until instantiation completes.
   CompInst->setEntered(true);
+  InstantiateTaskGuard TaskGuard{AsyncRt, CompInst.get()};
 
   for (const auto &Section : Comp.getSections()) {
     auto Func = [&](auto &&Sec) -> Expect<void> {

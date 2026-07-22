@@ -599,10 +599,17 @@ struct OwnVal {
 struct BorrowVal {
   uint32_t Handle;
 };
+struct StreamFutureVal {
+  // A transferred stream/future end: the shared rendezvous object
+  // (Runtime::Instance::Component::SharedCopyObj), type-erased to keep the
+  // value layer free of runtime headers.
+  std::shared_ptr<void> Shared;
+  bool IsStream = true;
+};
 
 struct ValComp {
   std::variant<RecordVal, TupleVal, VariantVal, ListVal, OptionVal, ResultVal,
-               FlagsVal, EnumVal, OwnVal, BorrowVal>
+               FlagsVal, EnumVal, OwnVal, BorrowVal, StreamFutureVal>
       V;
 };
 

@@ -146,6 +146,10 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
 
   // no-arg opcodes
   case ComponentCanonOpCode::Backpressure__set:
+  case ComponentCanonOpCode::Backpressure__inc:
+  case ComponentCanonOpCode::Backpressure__dec:
+  case ComponentCanonOpCode::Thread__index:
+  case ComponentCanonOpCode::Thread__resume_later:
   case ComponentCanonOpCode::Task__cancel:
   case ComponentCanonOpCode::Subtask__drop:
   case ComponentCanonOpCode::Error_context__drop:
@@ -196,9 +200,14 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
     break;
   }
 
-  // async?-only opcodes
+  // async?/cancel?-only opcodes
   case ComponentCanonOpCode::Yield:
-  case ComponentCanonOpCode::Subtask__cancel: {
+  case ComponentCanonOpCode::Subtask__cancel:
+  case ComponentCanonOpCode::Thread__suspend:
+  case ComponentCanonOpCode::Thread__suspend_then_resume:
+  case ComponentCanonOpCode::Thread__yield_then_resume:
+  case ComponentCanonOpCode::Thread__suspend_then_promote:
+  case ComponentCanonOpCode::Thread__yield_then_promote: {
     EXPECTED_TRY(LoadAsync());
     break;
   }
@@ -241,7 +250,8 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
     break;
   }
 
-  // 0x41 ft:<typeidx> tbl:<core:tableidx>
+  // 0x27 / 0x41 ft:<typeidx> tbl:<core:tableidx>
+  case ComponentCanonOpCode::Thread__new_indirect:
   case ComponentCanonOpCode::Thread__spawn_indirect: {
     EXPECTED_TRY(uint32_t TypeIdx, FMgr.readU32().map_error(ReportError));
     C.setIndex(TypeIdx);

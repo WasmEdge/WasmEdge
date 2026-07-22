@@ -1317,6 +1317,8 @@ E(ComponentCharInvalid, 0x034C, "invalid `char` bit pattern")
 E(ComponentDiscriminantInvalid, 0x034D, "invalid variant discriminant")
 E(ComponentPtrUnaligned, 0x034E, "unaligned pointer")
 E(ComponentStrOOB, 0x034F, "string content out-of-bounds")
+E(ComponentStrPtrLenOOB, 0x0350,
+  "string pointer/length out of bounds of memory")
 E(ComponentReallocOOB, 0x0351, "realloc return: beyond end of memory")
 E(ComponentCoreModNotDefined, 0x0352, "not defined")
 E(ComponentCoreModWrongType, 0x0353, "has the wrong type")
@@ -1327,6 +1329,71 @@ E(ComponentCannotEnter, 0x0357, "cannot enter component instance")
 E(ComponentUTF8Invalid, 0x0358, "invalid utf-8")
 E(ComponentUTF8Incomplete, 0x0359, "incomplete utf-8 byte sequence")
 E(ComponentMalformedValue, 0x035A, "malformed value")
+E(ComponentCannotLeave, 0x035B, "cannot leave component instance")
+E(ComponentAsyncDeadlock, 0x035C,
+  "deadlock detected: event loop cannot make further progress")
+E(ComponentCannotBlockSync, 0x035D,
+  "cannot block a synchronous task before returning")
+E(ComponentBadCallbackCode, 0x035E, "unsupported callback code")
+E(ComponentNoAsyncResult, 0x035F,
+  "async-lifted export failed to produce a result")
+E(ComponentBorrowsRemain, 0x0360,
+  "borrow handles still remain at the end of the call")
+E(ComponentAsyncAborted, 0x0361, "async execution aborted")
+E(ComponentWaitableSetNotEmpty, 0x0362, "cannot drop waitable set with waiters")
+E(ComponentSubtaskNotResolved, 0x0363,
+  "cannot drop a subtask which has not yet resolved")
+E(ComponentStreamDropBusy, 0x0364, "cannot drop busy stream")
+E(ComponentFutureWriteEndNoValue, 0x0365,
+  "cannot drop future write end without first writing a value")
+E(ComponentCopyBusy, 0x0366,
+  "cannot have concurrent operations active on a future/stream")
+E(ComponentWaitableInSetSyncUse, 0x0367,
+  "waitable cannot be used synchronously while added to a waitable set")
+E(ComponentStreamReadAfterDrop, 0x0368,
+  "cannot read from stream after being notified that the writable end "
+  "dropped")
+E(ComponentStreamWriteAfterDrop, 0x0369,
+  "cannot write to stream after being notified that the readable end "
+  "dropped")
+E(ComponentFutureReadAfterSuccess, 0x036A,
+  "cannot read from future after previous read succeeded")
+E(ComponentFutureWriteAfterSuccess, 0x036B,
+  "cannot write to future after previous write succeeded")
+E(ComponentFutureWriteAfterSuccessOrDrop, 0x036C,
+  "cannot write to future after previous write succeeded or readable end "
+  "dropped")
+E(ComponentIntraCopy, 0x036D,
+  "cannot read from and write to intra-component future")
+E(ComponentStreamRemoveBusy, 0x036E, "cannot remove busy stream")
+E(ComponentStreamLiftInSet, 0x036F,
+  "cannot lift stream while it's in a waitable set")
+E(ComponentFutureLiftInSet, 0x0370,
+  "cannot lift future while it's in a waitable set")
+E(ComponentStreamLiftAfterDrop, 0x0371,
+  "cannot lift stream after being notified that the writable end dropped")
+E(ComponentFutureLiftAfterSuccess, 0x0372,
+  "cannot lift future after previous read succeeded")
+E(ComponentTaskNotCancelled, 0x0373,
+  "`task.cancel` called by task which has not been cancelled")
+E(ComponentTaskResolvedTwice, 0x0374,
+  "`task.return` or `task.cancel` called more than once for current task")
+E(ComponentSubtaskCancelTerminal, 0x0375,
+  "`subtask.cancel` called after terminal status delivered")
+E(ComponentTaskReturnInvalid, 0x0376,
+  "invalid `task.return` signature and/or options for current task")
+E(ComponentBackpressureOverflow, 0x0377, "backpressure counter overflow")
+E(ComponentStreamOpTooBig, 0x0378, "stream read/write count too large")
+E(ComponentCancelReadNotPending, 0x0379,
+  "stream or future read cancelled when no read is pending")
+E(ComponentCancelWriteNotPending, 0x037A,
+  "stream or future write cancelled when no write is pending")
+E(ComponentReadPtrUnaligned, 0x037B, "read pointer not aligned")
+E(ComponentWritePtrUnaligned, 0x037C, "write pointer not aligned")
+E(ComponentThreadNotSuspended, 0x037D,
+  "cannot resume thread which is not suspended")
+E(ComponentThreadStartInvalid, 0x037E,
+  "start function does not match expected type")
 // @}
 
 // Execution phase

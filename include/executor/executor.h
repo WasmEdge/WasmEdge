@@ -22,6 +22,7 @@
 #include "common/errcode.h"
 #include "common/statistics.h"
 #include "common/types.h"
+#include "executor/component/async_runtime.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/component/component.h"
 #include "runtime/instance/module.h"
@@ -219,6 +220,42 @@ public:
   invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
          Span<const ComponentValVariant> Params,
          Span<const ComponentValType> ParamTypes);
+
+  /// \name Component-model async task runtime.
+  /// @{
+  AsyncRuntime &getComponentAsyncRuntime() noexcept { return AsyncRt; }
+  /// canon lift: build and start the task for a lifted component function.
+  Expect<ComponentTask *> componentLiftCall(
+      const Runtime::Instance::Component::FunctionInstance *FuncInst,
+      ComponentTask::OnStartFn OnStart, ComponentTask::OnResolveFn OnResolve,
+      ComponentTask *CallerTask) noexcept;
+  /// Spec Task.return_ / Task.cancel / thread-exit bookkeeping.
+  Expect<void>
+  componentTaskReturn(ComponentTask &T,
+                      std::vector<ComponentValVariant> Results) noexcept;
+  Expect<void> componentTaskCancel(ComponentTask &T) noexcept;
+  Expect<void> componentTaskExit(ComponentTask &T) noexcept;
+  /// Cancellable suspension point: delivers a pending cancel or parks.
+  /// `AlwaysReleaseExcl` forces the exclusive slot to be released around the
+  /// park (the callback loop's yield/wait); otherwise it releases only when
+  /// the task has already resolved (a mid-core blocking built-in). `FastPath`
+  /// resolves in place when the condition already holds (event-waits only,
+  /// never yield / backpressure / suspend).
+  Expect<ResumeSignal> componentTaskWait(ComponentTask &T,
+                                         std::function<bool()> Ready,
+                                         bool Cancellable,
+                                         bool AlwaysReleaseExcl = false,
+                                         bool FastPath = false) noexcept;
+  /// The canon-lift task body (all four lift shapes).
+  Expect<void> runComponentTaskBody(ComponentTask &T) noexcept;
+  /// Run a resource destructor as an implicit sync task of its instance.
+  Expect<void>
+  componentResourceDtorCall(const Runtime::Instance::ComponentInstance *Impl,
+                            Runtime::Instance::FunctionInstance *Dtor,
+                            uint32_t Rep) noexcept;
+  /// Spec Task.request_cancellation: deliver or queue a cancel for T.
+  void componentRequestCancellation(ComponentTask &T) noexcept;
+  /// @}
 
   /// Asynchronous invoke a WASM function by function instance.
   Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
@@ -1143,6 +1180,8 @@ private:
   const Configure Conf;
   /// Executor statistics
   Statistics::Statistics *Stat;
+  /// Component-model async task runtime.
+  AsyncRuntime AsyncRt;
   /// Stop execution
   std::atomic_uint32_t StopToken = 0;
   /// Memory instance this Executor is currently waiting on (for stop()).

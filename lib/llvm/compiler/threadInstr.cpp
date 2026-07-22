@@ -413,7 +413,7 @@ void FunctionCompiler::compileAtomicLoad(unsigned MemoryIndex,
   }
   compileAtomicCheckOffsetAlignment(Offset, TargetType);
   auto VPtr = Builder.createInBoundsGEP1(
-      Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Offset);
+      Context.Int8Ty, Context.getMemory(Builder, ModCtx, MemoryIndex), Offset);
 
   auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
   auto Load = switchEndian(Builder.createLoad(TargetType, Ptr, true));
@@ -446,7 +446,7 @@ void FunctionCompiler::compileAtomicStore(unsigned MemoryIndex,
   }
   compileAtomicCheckOffsetAlignment(Offset, TargetType);
   auto VPtr = Builder.createInBoundsGEP1(
-      Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Offset);
+      Context.Int8Ty, Context.getMemory(Builder, ModCtx, MemoryIndex), Offset);
   auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
   auto Store = Builder.createStore(V, Ptr, true);
   Store.setAlignment(1 << Alignment);
@@ -464,7 +464,7 @@ void FunctionCompiler::compileAtomicRMWOp(
   }
   compileAtomicCheckOffsetAlignment(Offset, TargetType);
   auto VPtr = Builder.createInBoundsGEP1(
-      Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Offset);
+      Context.Int8Ty, Context.getMemory(Builder, ModCtx, MemoryIndex), Offset);
   auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
 
   LLVM::Value Ret;
@@ -530,7 +530,7 @@ void FunctionCompiler::compileAtomicCompareExchange(
   }
   compileAtomicCheckOffsetAlignment(Offset, TargetType);
   auto VPtr = Builder.createInBoundsGEP1(
-      Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Offset);
+      Context.Int8Ty, Context.getMemory(Builder, ModCtx, MemoryIndex), Offset);
   auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
 
   auto Ret = Builder.createAtomicCmpXchg(

@@ -277,6 +277,7 @@ private:
   bool IsLazyJIT;
   std::vector<Control> ControlStack;
   LLVM::FunctionCallee F;
+  LLVM::Value ModCtx;
   LLVM::Value ExecCtx;
   LLVM::BasicBlock UnwindBB;
   LLVM::Builder Builder;

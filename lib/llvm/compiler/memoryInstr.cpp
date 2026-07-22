@@ -108,7 +108,7 @@ FunctionCompiler::compileMemoryOp(const AST::Instruction &Instr) noexcept {
     break;
   case OpCode::Memory__size:
     stackPush(Builder.createTrunc(
-        Context.getMemorySize(Builder, ExecCtx, Instr.getTargetIndex()),
+        Context.getMemorySize(Builder, ModCtx, Instr.getTargetIndex()),
         Context.MemoryAddrTypes[Instr.getTargetIndex()]));
     break;
   case OpCode::Memory__grow: {
@@ -243,7 +243,7 @@ void FunctionCompiler::compileLoadOp(unsigned MemoryIndex, uint64_t Offset,
   }
 
   auto VPtr = Builder.createInBoundsGEP1(
-      Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
+      Context.Int8Ty, Context.getMemory(Builder, ModCtx, MemoryIndex), Off);
   auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
   auto LoadInst = Builder.createLoad(LoadTy, Ptr, true);
   LoadInst.setAlignment(1 << Alignment);
@@ -284,7 +284,7 @@ void FunctionCompiler::compileStoreOp(uint32_t MemoryIndex, uint64_t Offset,
   }
   V = switchEndian(V);
   auto VPtr = Builder.createInBoundsGEP1(
-      Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
+      Context.Int8Ty, Context.getMemory(Builder, ModCtx, MemoryIndex), Off);
   auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
   auto StoreInst = Builder.createStore(V, Ptr, true);
   StoreInst.setAlignment(1 << Alignment);

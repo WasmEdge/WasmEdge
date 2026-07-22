@@ -16,21 +16,13 @@ namespace Executor {
 
 Executor::SavedThreadLocal::SavedThreadLocal(
     Executor &Ex, Runtime::StackManager &StackMgr,
-    const Runtime::Instance::FunctionInstance &Func) noexcept {
+    [[maybe_unused]] const Runtime::Instance::FunctionInstance &Func) noexcept {
   // Prepare the execution context.
-  auto *ModInst =
-      const_cast<Runtime::Instance::ModuleInstance *>(Func.getModule());
   SavedThis = This;
   This = &Ex;
 
   SavedExecutionContext = ExecutionContext;
-  ExecutionContext.Memories = ModInst->ModCtx.Memories;
-  ExecutionContext.MemorySizes = ModInst->ModCtx.MemorySizes;
-  ExecutionContext.TableRefs = ModInst->ModCtx.TableRefs;
-  ExecutionContext.TableSizes = ModInst->ModCtx.TableSizes;
-  ExecutionContext.Globals = ModInst->ModCtx.Globals;
-  ExecutionContext.Tags =
-      reinterpret_cast<void *const *>(ModInst->TagInsts.data());
+  ExecutionContext.StopToken = &Ex.StopToken;
   ExecutionContext.PendingExnTagAddr =
       reinterpret_cast<void *const *>(&PendingExn.TagInst);
   if (Ex.Stat) {
@@ -39,8 +31,6 @@ Executor::SavedThreadLocal::SavedThreadLocal(
     ExecutionContext.Gas = &Ex.Stat->getTotalCostRef();
     ExecutionContext.GasLimit = Ex.Stat->getCostLimit();
   }
-  ExecutionContext.StopToken = &Ex.StopToken;
-  ExecutionContext.ModuleInst = ModInst;
 
   SavedCurrentStack = CurrentStack;
   CurrentStack = &StackMgr;
@@ -199,8 +189,11 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
         Err = ErrCode(static_cast<ErrCategory>(Code >> 24), Code);
       } else {
         auto &Wrapper = FuncType.getSymbol();
-        Wrapper(&ExecutionContext, &ExecutionContext, Func.getSymbol().get(),
-                Args.data(), Rets.data());
+        Wrapper(
+            &const_cast<Runtime::Instance::ModuleInstance *>(Func.getModule())
+                 ->ModCtx,
+            &ExecutionContext, Func.getSymbol().get(), Args.data(),
+            Rets.data());
       }
     } catch (const ErrCode &E) {
       Err = E;

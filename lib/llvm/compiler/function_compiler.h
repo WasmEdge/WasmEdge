@@ -247,6 +247,10 @@ private:
   std::vector<LLVM::Value> Stack;
   LLVM::Value LocalInstrCount = nullptr;
   LLVM::Value LocalGas = nullptr;
+  // Entry-block slot reused by every call that resolves its callee at runtime.
+  // Only entry-block allocas become static frame slots; one inside a loop body
+  // grows the native stack on every iteration.
+  LLVM::Value CalleeCtxSlot = nullptr;
   std::unordered_map<ErrCode::Value, LLVM::BasicBlock> TrapBB;
   bool IsUnreachable = false;
   bool Interruptible = false;

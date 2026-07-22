@@ -354,11 +354,17 @@ TEST(ComponentValidatorTest, FuncTypeBorrowInResultRejected) {
   TypeSec.getContent().emplace_back();
   TypeSec.getContent().back().setResourceType(AST::Component::ResourceType());
 
-  // Type 1: func with borrow in result
+  // Type 1: (borrow 0)
+  TypeSec.getContent().emplace_back();
+  AST::Component::DefValType BorrowDVT;
+  BorrowDVT.setBorrow(AST::Component::BorrowTy{0});
+  TypeSec.getContent().back().setDefValType(std::move(BorrowDVT));
+
+  // Type 2: func with borrow in result
   TypeSec.getContent().emplace_back();
   AST::Component::FuncType FT;
   std::vector<AST::Component::LabelValType> Results;
-  Results.emplace_back(ComponentValType(ComponentTypeCode::Borrow, 0));
+  Results.emplace_back(ComponentValType(1));
   FT.setResultList(std::move(Results));
   TypeSec.getContent().back().setFuncType(std::move(FT));
 
@@ -660,9 +666,10 @@ TEST(ComponentValidatorTest, InstanceTypeExportCaseFoldConflict) {
 
 TEST(ComponentValidatorTest, InstanceTypeExportConstructorPlainAllowed) {
   // (type (instance
-  //   (type (func))                         ;; type 0 for the exports below
-  //   (export "foo" (func (type 0)))
-  //   (export "[constructor]foo" (func (type 0)))  ;; OK: strongly-unique pair
+  //   (export "foo" (type (sub resource)))       ;; local type 0
+  //   (type (own 0))                             ;; local type 1
+  //   (type (func (result (own 0))))             ;; local type 2
+  //   (export "[constructor]foo" (func (type 2))) ;; OK: strongly-unique pair
   // ))
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
@@ -671,18 +678,36 @@ TEST(ComponentValidatorTest, InstanceTypeExportConstructorPlainAllowed) {
       std::get<AST::Component::TypeSection>(Comp.getSections().back());
 
   std::vector<AST::Component::InstanceDecl> Decls;
-  // Define a FuncType at the instancetype's local type idx 0.
+  {
+    AST::Component::ExportDecl Exp;
+    Exp.getName() = "foo";
+    Exp.getExternDesc().setTypeBound();
+    AST::Component::InstanceDecl D;
+    D.setExport(std::move(Exp));
+    Decls.push_back(std::move(D));
+  }
   {
     auto DT = std::make_unique<AST::Component::DefType>();
-    DT->setFuncType(AST::Component::FuncType{});
-    AST::Component::InstanceDecl FtDecl;
-    FtDecl.setType(std::move(DT));
-    Decls.push_back(std::move(FtDecl));
+    AST::Component::DefValType OwnDVT;
+    OwnDVT.setOwn(AST::Component::OwnTy{0});
+    DT->setDefValType(std::move(OwnDVT));
+    AST::Component::InstanceDecl D;
+    D.setType(std::move(DT));
+    Decls.push_back(std::move(D));
   }
-  for (const auto *N : {"foo", "[constructor]foo"}) {
+  {
+    auto DT = std::make_unique<AST::Component::DefType>();
+    AST::Component::FuncType FT;
+    FT.setResultList(ComponentValType(1));
+    DT->setFuncType(std::move(FT));
+    AST::Component::InstanceDecl D;
+    D.setType(std::move(DT));
+    Decls.push_back(std::move(D));
+  }
+  {
     AST::Component::ExportDecl Exp;
-    Exp.getName() = N;
-    Exp.getExternDesc().setFuncTypeIdx(0);
+    Exp.getName() = "[constructor]foo";
+    Exp.getExternDesc().setFuncTypeIdx(2);
     AST::Component::InstanceDecl D;
     D.setExport(std::move(Exp));
     Decls.push_back(std::move(D));
@@ -1826,28 +1851,41 @@ TEST(ComponentValidatorTest, AnnotatedNameMissingResourceRejected) {
 }
 
 TEST(ComponentValidatorTest, AnnotatedNameResourceInScopePasses) {
-  // type 0: FuncType
-  // import "r" (type (sub resource))    ;; resource "r" → type 1
-  // import "[method]r.f" (func (type 0)) ;; PASS — resource "r" is in scope
+  // import "r" (type (sub resource))          ;; resource "r" → type 0
+  // type 1: (borrow 0)
+  // type 2: (func (param "self" (borrow 0)))
+  // import "[method]r.f" (func (type 2))      ;; PASS — proper method shape
   AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::TypeSection>();
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::ImportSection>();
 
-  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+  auto &ImpSec0 =
+      std::get<AST::Component::ImportSection>(Comp.getSections()[0]);
+  ImpSec0.getContent().emplace_back();
+  ImpSec0.getContent().back().getName() = "r";
+  ImpSec0.getContent().back().getDesc().setTypeBound();
 
-  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
-  // Resource import.
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "r";
-  ImpSec.getContent().back().getDesc().setTypeBound();
-  // Annotated method import referencing resource "r".
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "[method]r.f";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[1]);
+  TypeSec.getContent().emplace_back();
+  AST::Component::DefValType BorrowDVT;
+  BorrowDVT.setBorrow(AST::Component::BorrowTy{0});
+  TypeSec.getContent().back().setDefValType(std::move(BorrowDVT));
+  TypeSec.getContent().emplace_back();
+  AST::Component::FuncType MethodFT;
+  std::vector<AST::Component::LabelValType> Params;
+  Params.emplace_back("self"s, ComponentValType(1));
+  MethodFT.setParamList(std::move(Params));
+  TypeSec.getContent().back().setFuncType(std::move(MethodFT));
+
+  auto &ImpSec1 =
+      std::get<AST::Component::ImportSection>(Comp.getSections()[2]);
+  ImpSec1.getContent().emplace_back();
+  ImpSec1.getContent().back().getName() = "[method]r.f";
+  ImpSec1.getContent().back().getDesc().setFuncTypeIdx(2);
 
   Validator::Validator V(Conf);
   ASSERT_TRUE(V.validate(Comp));
@@ -2004,7 +2042,8 @@ TEST(ComponentValidatorTest, InstantiateImportedComponentMissingArgRejected) {
   // index in the inner component-type scope (which would otherwise need
   // cross-scope resolution to validate). The point of this test is to
   // exercise GAP-I-1: an instantiate of an imported component should
-  // surface MissingArgument from the ComponentType-derived import list.
+  // surface the missing-argument diagnostic from the ComponentType-derived
+  // import list.
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::TypeSection>();

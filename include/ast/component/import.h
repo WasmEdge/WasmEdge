@@ -33,10 +33,13 @@ public:
   std::string_view getName() const noexcept { return Name; }
   ExternDesc &getDesc() noexcept { return Desc; }
   const ExternDesc &getDesc() const noexcept { return Desc; }
+  std::vector<std::string> &getImplements() noexcept { return Implements; }
+  Span<const std::string> getImplements() const noexcept { return Implements; }
 
 private:
   std::string Name;
   ExternDesc Desc;
+  std::vector<std::string> Implements;
 };
 
 } // namespace Component

@@ -182,7 +182,11 @@ TEST(Component, Load_HttpBinary) {
   };
   ASSERT_TRUE(VM.loadWasm(Vec));
 
-  ASSERT_TRUE(VM.validate());
+  // This legacy binary lowers `http-get` with a multi-value core result,
+  // which the canonical ABI does not produce (results flatten through a
+  // return pointer past MAX_FLAT_RESULTS). wasm-tools rejects it with the
+  // same instantiation-argument type mismatch, so validation must fail.
+  ASSERT_FALSE(VM.validate());
 }
 
 TEST(Component, LoadAndRun_MultiComponentBinary) {

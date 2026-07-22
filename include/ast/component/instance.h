@@ -54,10 +54,13 @@ public:
   std::string &getName() noexcept { return Name; }
   const SortIndex &getSortIdx() const noexcept { return SortIdx; }
   SortIndex &getSortIdx() noexcept { return SortIdx; }
+  std::vector<std::string> &getImplements() noexcept { return Implements; }
+  Span<const std::string> getImplements() const noexcept { return Implements; }
 
 private:
   std::string Name;
   SortIndex SortIdx;
+  std::vector<std::string> Implements;
 };
 
 // core:instance       ::= ie:<core:instanceexpr>

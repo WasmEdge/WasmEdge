@@ -188,14 +188,16 @@ TEST(ComponentNameParserTest, KebabLabel) {
 }
 
 TEST(ComponentNameParserTest, StronglyUniqueBasicCases) {
-  Validator::ComponentContext::Context Ctx(nullptr);
+  std::vector<Validator::ComponentContext::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
     auto CN = Validator::ComponentName::parse(S);
     if (!CN.has_value()) {
       return false;
     }
-    return Ctx.AddImportedName(*CN);
+    return Validator::ComponentContext::addUniqueName(
+               Names, Validator::ComponentContext::makeNameRecord(*CN)) ==
+           Validator::ComponentContext::NameClash::None;
   };
 
   EXPECT_TRUE(add("foo"sv));
@@ -212,14 +214,16 @@ TEST(ComponentNameParserTest, StronglyUniqueBasicCases) {
 }
 
 TEST(ComponentNameParserTest, StronglyUnique) {
-  Validator::ComponentContext::Context Ctx(nullptr);
+  std::vector<Validator::ComponentContext::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
     auto CN = Validator::ComponentName::parse(S);
     if (!CN.has_value()) {
       return false;
     }
-    return Ctx.AddImportedName(*CN);
+    return Validator::ComponentContext::addUniqueName(
+               Names, Validator::ComponentContext::makeNameRecord(*CN)) ==
+           Validator::ComponentContext::NameClash::None;
   };
 
   EXPECT_TRUE(add("[method]foo.abc"sv));
@@ -235,14 +239,16 @@ TEST(ComponentNameParserTest, StronglyUniqueExportBasicCases) {
   // Mirrors StronglyUniqueBasicCases on the export-side name set: the
   // strong-uniqueness rule must apply symmetrically to import and export
   // name sets (Explainer §Import and Export Definitions).
-  Validator::ComponentContext::Context Ctx(nullptr);
+  std::vector<Validator::ComponentContext::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
     auto CN = Validator::ComponentName::parse(S);
     if (!CN.has_value()) {
       return false;
     }
-    return Ctx.AddExportedName(*CN);
+    return Validator::ComponentContext::addUniqueName(
+               Names, Validator::ComponentContext::makeNameRecord(*CN)) ==
+           Validator::ComponentContext::NameClash::None;
   };
 
   EXPECT_TRUE(add("foo"sv));
@@ -259,14 +265,16 @@ TEST(ComponentNameParserTest, StronglyUniqueExportBasicCases) {
 }
 
 TEST(ComponentNameParserTest, StronglyUniqueExport) {
-  Validator::ComponentContext::Context Ctx(nullptr);
+  std::vector<Validator::ComponentContext::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
     auto CN = Validator::ComponentName::parse(S);
     if (!CN.has_value()) {
       return false;
     }
-    return Ctx.AddExportedName(*CN);
+    return Validator::ComponentContext::addUniqueName(
+               Names, Validator::ComponentContext::makeNameRecord(*CN)) ==
+           Validator::ComponentContext::NameClash::None;
   };
 
   EXPECT_TRUE(add("[method]foo.abc"sv));
@@ -281,16 +289,20 @@ TEST(ComponentNameParserTest, StronglyUniqueExport) {
 TEST(ComponentNameParserTest, StronglyUniqueImportExportIndependence) {
   // Spec: import and export name sets are checked *separately* — an import
   // and an export sharing a name is not a strong-uniqueness violation.
-  Validator::ComponentContext::Context Ctx(nullptr);
+  std::vector<Validator::ComponentContext::NameRecord> Imports, Exports;
 
-  auto parse = [](std::string_view S) {
-    return *Validator::ComponentName::parse(S);
+  auto add = [](std::vector<Validator::ComponentContext::NameRecord> &Names,
+                std::string_view S) {
+    return Validator::ComponentContext::addUniqueName(
+               Names, Validator::ComponentContext::makeNameRecord(
+                          *Validator::ComponentName::parse(S))) ==
+           Validator::ComponentContext::NameClash::None;
   };
 
-  EXPECT_TRUE(Ctx.AddImportedName(parse("foo"sv)));
-  EXPECT_TRUE(Ctx.AddExportedName(parse("foo"sv)));
-  EXPECT_FALSE(Ctx.AddImportedName(parse("foo"sv)));
-  EXPECT_FALSE(Ctx.AddExportedName(parse("foo"sv)));
+  EXPECT_TRUE(add(Imports, "foo"sv));
+  EXPECT_TRUE(add(Exports, "foo"sv));
+  EXPECT_FALSE(add(Imports, "foo"sv));
+  EXPECT_FALSE(add(Exports, "foo"sv));
 }
 
 TEST(ComponentNameParserTest, LockedDep) {
@@ -498,14 +510,16 @@ TEST(ComponentNameParserTest, SpecExamples) {
 }
 
 TEST(ComponentNameParserTest, StronglyUniqueWithNewKinds) {
-  Validator::ComponentContext::Context Ctx(nullptr);
+  std::vector<Validator::ComponentContext::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
     auto CN = Validator::ComponentName::parse(S);
     if (!CN.has_value()) {
       return false;
     }
-    return Ctx.AddImportedName(*CN);
+    return Validator::ComponentContext::addUniqueName(
+               Names, Validator::ComponentContext::makeNameRecord(*CN)) ==
+           Validator::ComponentContext::NameClash::None;
   };
 
   EXPECT_TRUE(add("foo"sv));

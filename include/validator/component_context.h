@@ -1,14 +1,38 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+//===-- wasmedge/validator/component_context.h - Component context --------===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains the context class used by component-model validation.
+///
+/// The context is organized around two ideas:
+///  1. Every index-space entry is a *resolved view* whose leaves are AST
+///     pointers. External types are resolved once, at definition time, into
+///     per-sort info structs; raw type indices are never stored and never
+///     re-resolved in a different scope.
+///  2. Scopes (components and type-declaration contexts) live in an arena and
+///     stay alive after they pop, so views created in inner scopes (e.g. an
+///     instancetype's export table) remain valid wherever they flow.
+///
+/// Resource identity is a session-global registry; the index is the id.
+/// Instantiation freshens defined resources and substitutes imported ones via
+/// immutable remap chains attached to the AST-typed leaf views.
+///
+//===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/component/component.h"
-#include "ast/module.h"
+#include "ast/component/sort.h"
+#include "ast/component/type.h"
 #include "ast/type.h"
 #include "validator/component_name.h"
 
 #include <deque>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -17,615 +41,457 @@
 #include <vector>
 
 namespace WasmEdge {
+namespace AST {
+class Module;
+} // namespace AST
 namespace Validator {
 
 class ComponentContext {
 public:
+  struct Scope;
+  struct InstanceInfo;
+  struct ComponentInfo;
+
   // ==========================================================================
-  // Validation context (one per component scope)
+  // Resolved views. Leaves are pointers into the AST (or into this context's
+  // arenas for synthesized core types); all referenced storage outlives
+  // validation.
   // ==========================================================================
 
-  struct Context {
-    Context(const AST::Component::Component *C,
-            const Context *P = nullptr) noexcept
-        : Component(C), Parent(P) {}
+  /// Resolved core:importdesc / core export type. Kind discriminates; Func
+  /// doubles as the tag signature for Kind == Tag.
+  struct CoreExternInfo {
+    ExternalType Kind = ExternalType::Function;
+    const AST::SubType *Func = nullptr;
+    const AST::TableType *Table = nullptr;
+    const AST::MemoryType *Memory = nullptr;
+    const AST::GlobalType *Global = nullptr;
+  };
 
-    // ---- Nested types ----
-    // Per-sort slot structs bundling body + externdesc type ascription.
-    // Exactly one of {Body, Type} is non-null per slot (Body for inline,
-    // Type for imported / outer-aliased).
-    struct CoreModuleSlot {
-      const AST::Module *Body;
-      const AST::Component::CoreDefType *Type;
-      CoreModuleSlot() noexcept : Body(nullptr), Type(nullptr) {}
-      CoreModuleSlot(const AST::Module &B) noexcept : Body(&B), Type(nullptr) {}
-      CoreModuleSlot(const AST::Component::CoreDefType *T) noexcept
-          : Body(nullptr), Type(T) {}
-    };
-    struct ComponentSlot {
-      const AST::Component::Component *Body;
-      const AST::Component::ComponentType *Type;
-      ComponentSlot() noexcept : Body(nullptr), Type(nullptr) {}
-      ComponentSlot(const AST::Component::Component &B) noexcept
-          : Body(&B), Type(nullptr) {}
-      ComponentSlot(const AST::Component::ComponentType *T) noexcept
-          : Body(nullptr), Type(T) {}
-    };
-    // Per-export entry inside an instance's export table.
-    // ResourceId is set when ST == Type and the exported type is a resource
-    // (so an alias-export onto a new type slot can carry the same identity).
-    struct InstanceExport {
-      AST::Component::Sort::SortType ST;
-      const AST::Component::InstanceType *IT;
-      std::optional<uint32_t> NestedInstIdx;
-      std::optional<uint64_t> ResourceId;
-    };
-    // Instance slot. Type is set only when bound via
-    // validate(ExternDesc::InstanceType) (GAP-I-5b follow-up otherwise).
-    struct InstanceSlot {
-      std::unordered_map<std::string, InstanceExport> Exports;
-      const AST::Component::InstanceType *Type;
-      InstanceSlot() : Type(nullptr) {}
-      InstanceSlot(const AST::Component::InstanceType *T) : Type(T) {}
-    };
-    // Per-resource bookkeeping. "Key present in Resources" means resource.
-    // The resource's AST body lives on ComponentContext::ResourceRegistry[Id].
-    struct ResourceInfo {
-      // Canonical identity. Two indices share a resource iff ids match.
-      uint64_t Id = 0;
-      // True for validate(DefType) in this scope. Gates resource.new/.rep.
-      bool LocallyDefined = false;
-    };
-    // Export of a core:instance. Kind is always set; Mem is populated for
-    // memory exports so instantiation can subtype-check the index type
-    // (GAP-CI-1).
-    struct CoreInstanceExport {
-      ExternalType Kind;
-      // Stored by value (not pointer): the module-type descriptor getter
-      // returns a temporary, so a pointer into it would dangle. Each optional
-      // is populated only for its matching Kind, for instantiation subtype
-      // checks (GAP-CI-1).
-      std::optional<AST::MemoryType> Mem;
-      std::optional<AST::TableType> Tab;
-      std::optional<AST::GlobalType> Glob;
+  /// External shape of a core module: ordered imports and named exports.
+  struct CoreModuleInfo {
+    std::vector<std::tuple<std::string, std::string, CoreExternInfo>> Imports;
+    std::map<std::string, CoreExternInfo, std::less<>> Exports;
+  };
 
-      CoreInstanceExport() noexcept = default;
-      // Copies whichever core extern type is provided (the others stay empty).
-      CoreInstanceExport(ExternalType K, const AST::MemoryType *M,
-                         const AST::TableType *T,
-                         const AST::GlobalType *G) noexcept
-          : Kind(K) {
-        if (M != nullptr) {
-          Mem = *M;
-        }
-        if (T != nullptr) {
-          Tab = *T;
-        }
-        if (G != nullptr) {
-          Glob = *G;
-        }
+  /// Export table of a core:instance. Synthetic marks inline-export
+  /// instances (diagnostics differ from instantiated ones).
+  struct CoreInstanceInfo {
+    std::map<std::string, CoreExternInfo, std::less<>> Exports;
+    bool Synthetic = false;
+  };
+
+  /// Entry of the core:type index space: a rectype member or a moduletype.
+  struct CoreTypeEntry {
+    const AST::SubType *Func = nullptr;
+    const CoreModuleInfo *Mod = nullptr;
+  };
+
+  /// Immutable resource-id remap. Either a leaf table or the composition
+  /// "apply Inner first, then Outer"; used to view types defined in one scope
+  /// through one or more instantiation boundaries.
+  struct ResourceMap {
+    std::unordered_map<uint32_t, uint32_t> Map;
+    const ResourceMap *Inner = nullptr;
+    const ResourceMap *Outer = nullptr;
+
+    // NOLINTNEXTLINE(misc-no-recursion) -- depth = instantiation nesting.
+    uint32_t apply(uint32_t Id) const noexcept {
+      if (Inner != nullptr) {
+        Id = Inner->apply(Id);
       }
+      if (Outer != nullptr) {
+        return Outer->apply(Id);
+      }
+      auto It = Map.find(Id);
+      return It != Map.end() ? It->second : Id;
+    }
+
+    static uint32_t apply(const ResourceMap *M, uint32_t Id) noexcept {
+      return M != nullptr ? M->apply(Id) : Id;
+    }
+  };
+
+  /// A valtype together with the scope its type indices resolve in and the
+  /// remap chain in effect for resource identities reached through it.
+  struct QualValType {
+    ComponentValType VT{};
+    const Scope *Home = nullptr;
+    const ResourceMap *Remap = nullptr;
+  };
+
+  /// A component-level function type view.
+  struct FuncInfo {
+    const AST::Component::FuncType *FT = nullptr;
+    const Scope *Home = nullptr;
+    const ResourceMap *Remap = nullptr;
+  };
+
+  /// Entry of the type index space. DT is null for abstract resources
+  /// introduced by `(sub resource)` bounds. ResourceId is set iff the entry
+  /// is a resource (already remapped; direct reads need no Remap). Inst/Comp
+  /// are the materialized views for instancetype/componenttype entries.
+  struct TypeEntry {
+    const AST::Component::DefType *DT = nullptr;
+    const Scope *Home = nullptr;
+    const ResourceMap *Remap = nullptr;
+    const InstanceInfo *Inst = nullptr;
+    const ComponentInfo *Comp = nullptr;
+    std::optional<uint32_t> ResourceId;
+    // Naming identity for resources: re-exports mint a fresh NameId while
+    // keeping ResourceId, so matching and the named-types rule can differ.
+    std::optional<uint32_t> NameId;
+  };
+
+  /// Resolved externdesc: the typed identity of an import/export/entity.
+  struct ExternInfo {
+    enum class Kind : uint8_t {
+      CoreModule,
+      Func,
+      Value,
+      Type,
+      Instance,
+      Component
+    };
+    Kind K = Kind::Func;
+    const CoreModuleInfo *CoreMod = nullptr;
+    FuncInfo Func;
+    QualValType Value;
+    TypeEntry Type;
+    const InstanceInfo *Inst = nullptr;
+    const ComponentInfo *Comp = nullptr;
+  };
+
+  using ExternMap = std::map<std::string, ExternInfo, std::less<>>;
+
+  /// Export table of a component-level instance. DeclScope is the scope whose
+  /// resource ids this info binds (its own declarations).
+  struct InstanceInfo {
+    ExternMap Exports;
+    // Export names in declaration order (introduction order matters for the
+    // named-types rule).
+    std::vector<std::string> Order;
+    const Scope *DeclScope = nullptr;
+    bool Synthetic = false;
+  };
+
+  /// External shape of a component. Imports stay ordered because argument
+  /// matching accumulates resource substitutions left to right.
+  struct ComponentInfo {
+    std::vector<std::pair<std::string, ExternInfo>> Imports;
+    ExternMap Exports;
+    const Scope *DeclScope = nullptr;
+    // True when built from a componenttype declaration (imported shapes);
+    // inline bodies keep plain diagnostics on their instances.
+    bool FromDecl = false;
+  };
+
+  /// Entry of the value index space; linearity requires Consumed once.
+  struct ValueEntry {
+    QualValType Type;
+    bool Consumed = false;
+  };
+
+  // ==========================================================================
+  // Resource registry: index is the identity.
+  // ==========================================================================
+
+  struct ResourceEntry {
+    const AST::Component::ResourceType *RT = nullptr;
+    const Scope *Origin = nullptr;
+    bool FromImport = false;
+    uint32_t NameId = 0;
+  };
+
+  // ==========================================================================
+  // Import/export name record for the strong-uniqueness rule.
+  // ==========================================================================
+
+  struct NameRecord {
+    std::string Original;      // the full name as written
+    std::string Stripped;      // annotation removed, acronyms lowercased
+    std::string StrippedExact; // annotation removed, case preserved
+    std::string DottedFirst;   // first label of a dotted annotated name
+    bool HasAnnotation = false;
+    bool IsConstructor = false;
+    bool IsPlainLabel = false;
+    bool IsDottedSame = false; // [*]l.l with the same label twice
+    bool IsPlainish = false;   // label or annotated label (not interface/dep)
+  };
+
+  /// Result of adding a name: exact duplicate vs strong-uniqueness conflict.
+  enum class NameClash : uint8_t { None, Duplicate, Conflict };
+
+  // ==========================================================================
+  // Scope: one per component / componenttype / instancetype / moduletype.
+  // ==========================================================================
+
+  struct Scope {
+    enum class Kind : uint8_t {
+      Component,
+      ComponentType,
+      InstanceType,
+      ModuleType
     };
 
-    // ---- Scope identity ----
-    const AST::Component::Component *Component;
-    const Context *Parent;
+    Scope(Kind K, const Scope *P) noexcept : K(K), Parent(P) {}
 
-    // ---- Core sort index spaces ----
-    std::vector<CoreModuleSlot> CoreModules; // core:module
-    std::vector<std::unordered_map<std::string, CoreInstanceExport>>
-        CoreInstances;                              // core:instance
-    std::vector<const AST::SubType *> CoreTypes;    // core:type
-    std::vector<const AST::SubType *> CoreFuncs;    // core:func
-    std::vector<const AST::TableType *> CoreTables; // core:table
-    // Owns its MemoryType copies (not pointers): the source lives in the
-    // CoreInstances vector-of-maps, which relocates when later instances are
-    // added, so a pointer into it would dangle (GAP-CI-1).
-    std::vector<std::optional<AST::MemoryType>> CoreMemories; // core:memory
-    std::vector<const AST::GlobalType *> CoreGlobals;         // core:global
-    uint32_t CoreTagCount = 0;                                // core:tag
+    Kind K;
+    const Scope *Parent;
+    // Set for component bodies: the external view being materialized while
+    // this scope's import/export sections validate.
+    ComponentInfo *SelfInfo = nullptr;
 
-    // ---- Component sort index spaces ----
-    std::vector<ComponentSlot> Components;               // component
-    std::vector<InstanceSlot> Instances;                 // instance
-    std::vector<const AST::Component::DefType *> Types;  // type
-    std::vector<const AST::Component::FuncType *> Funcs; // func (i may be null)
-    std::vector<bool> ValueConsumed;                     // value (consumed?)
+    // Core index spaces.
+    std::vector<const CoreModuleInfo *> CoreModules;
+    std::vector<const CoreInstanceInfo *> CoreInstances;
+    std::vector<CoreTypeEntry> CoreTypes;
+    std::vector<const AST::SubType *> CoreFuncs;
+    std::vector<const AST::TableType *> CoreTables;
+    std::vector<const AST::MemoryType *> CoreMemories;
+    std::vector<const AST::GlobalType *> CoreGlobals;
+    std::vector<const AST::SubType *> CoreTags;
 
-    // ---- Type annotations (keyed by type index) ----
-    // ResourceType bodies live on Resources[i].Body (see below).
-    std::unordered_map<uint32_t, const AST::Component::InstanceType *>
-        InstanceTypes;
-    std::unordered_map<uint32_t, const AST::Component::ComponentType *>
-        ComponentTypes;
-    // CoreDefType (moduletype) bodies, keyed by core:type-idx.
-    std::unordered_map<uint32_t, const AST::Component::CoreDefType *>
-        CoreModuleTypes;
+    // Component index spaces.
+    std::vector<TypeEntry> Types;
+    std::vector<FuncInfo> Funcs;
+    std::vector<ValueEntry> Values;
+    std::vector<const ComponentInfo *> Components;
+    std::vector<const InstanceInfo *> Instances;
 
-    // ---- Resource state (keyed by type index) ----
-    std::unordered_map<uint32_t, ResourceInfo> Resources;
+    // Naming state.
+    std::vector<NameRecord> ImportNames;
+    std::vector<NameRecord> ExportNames;
+    // Plain resource label -> resource id, per side, for
+    // [constructor]/[method]/[static] name checks.
+    std::unordered_map<std::string, uint32_t> ImportResourceLabels;
+    std::unordered_map<std::string, uint32_t> ExportResourceLabels;
+    std::unordered_map<uint32_t, std::string> ImportResourceNames;
+    std::unordered_map<uint32_t, std::string> ExportResourceNames;
+    // Resource ids introduced by preceding imports/exports (nameability).
+    std::unordered_set<uint32_t> ImportNamedResources;
+    std::unordered_set<uint32_t> ExportNamedResources;
+    // Composite defined types introduced by preceding imports/exports,
+    // with the scope their inner indices resolve in.
+    std::unordered_map<const AST::Component::DefType *, const Scope *>
+        ImportNamedTypes;
+    std::unordered_map<const AST::Component::DefType *, const Scope *>
+        ExportNamedTypes;
+    // Naming identities of introduced types: local references must name the
+    // introduced identity, not merely a structurally identical definition.
+    std::unordered_set<uint32_t> ImportNamedIds;
+    std::unordered_set<uint32_t> ExportNamedIds;
 
-    // ---- Validation state ----
-    std::unordered_map<std::string, uint32_t> TypeSubstitutions;
-    std::unordered_set<std::string> ImportedNames;
-    std::unordered_set<std::string> ExportedNames;
-    // Kebab-case resource name → type-idx; consumed by annotated-name
-    // validation ([constructor]R / [method]R.f / [static]R.f).
-    std::unordered_map<std::string, uint32_t> ResourceLabels;
-
-    // ---- Size queries (used by outer-alias validation on parent ctxs) ----
-    uint32_t getSortIndexSize(AST::Component::Sort::SortType ST) const noexcept;
+    uint32_t getSortSize(AST::Component::Sort::SortType ST) const noexcept;
     uint32_t
-    getCoreSortIndexSize(AST::Component::Sort::CoreSortType ST) const noexcept;
+    getCoreSortSize(AST::Component::Sort::CoreSortType ST) const noexcept;
 
-    bool AddImportedName(const ComponentName &Name) noexcept;
-    bool AddExportedName(const ComponentName &Name) noexcept;
+    const TypeEntry *getType(uint32_t Idx) const noexcept {
+      return Idx < Types.size() ? &Types[Idx] : nullptr;
+    }
+    const FuncInfo *getFunc(uint32_t Idx) const noexcept {
+      return Idx < Funcs.size() ? &Funcs[Idx] : nullptr;
+    }
+    const InstanceInfo *getInstance(uint32_t Idx) const noexcept {
+      return Idx < Instances.size() ? Instances[Idx] : nullptr;
+    }
+    const ComponentInfo *getComponent(uint32_t Idx) const noexcept {
+      return Idx < Components.size() ? Components[Idx] : nullptr;
+    }
+    const CoreModuleInfo *getCoreModule(uint32_t Idx) const noexcept {
+      return Idx < CoreModules.size() ? CoreModules[Idx] : nullptr;
+    }
+    const CoreInstanceInfo *getCoreInstance(uint32_t Idx) const noexcept {
+      return Idx < CoreInstances.size() ? CoreInstances[Idx] : nullptr;
+    }
+    const CoreTypeEntry *getCoreType(uint32_t Idx) const noexcept {
+      return Idx < CoreTypes.size() ? &CoreTypes[Idx] : nullptr;
+    }
+    const AST::SubType *getCoreFunc(uint32_t Idx) const noexcept {
+      return Idx < CoreFuncs.size() ? CoreFuncs[Idx] : nullptr;
+    }
   };
 
-  // Per-id row of the session-global resource registry. Held by
-  // ComponentContext::ResourceRegistry; vector index IS the resource id.
-  struct ResourceRegistryEntry {
-    const AST::Component::ResourceType *Body = nullptr;
-  };
-
   // ==========================================================================
-  // Context stack management
+  // Scope stack management. Popped scopes stay alive in the arena.
   // ==========================================================================
 
-  void reset() noexcept {
-    CompCtxs.clear();
-    ResourceRegistry.clear();
+  Scope &enterScope(Scope::Kind K) noexcept {
+    const Scope *Parent = Stack.empty() ? nullptr : Stack.back();
+    ScopeArena.emplace_back(K, Parent);
+    Stack.push_back(&ScopeArena.back());
+    return ScopeArena.back();
   }
 
-  /// Push a new validation scope for a real component.
-  void enterComponent(const AST::Component::Component *C) noexcept {
-    const Context *Parent = CompCtxs.empty() ? nullptr : &CompCtxs.back();
-    CompCtxs.emplace_back(C, Parent);
+  void exitScope() noexcept {
+    assuming(!Stack.empty());
+    Stack.pop_back();
   }
 
-  /// Push a new validation scope for a type definition
-  /// (componenttype, instancetype, or moduletype).
-  void enterTypeDefinition() noexcept {
-    const Context *Parent = CompCtxs.empty() ? nullptr : &CompCtxs.back();
-    CompCtxs.emplace_back(nullptr, Parent);
+  Scope &top() noexcept {
+    assuming(!Stack.empty());
+    return *Stack.back();
+  }
+  const Scope &top() const noexcept {
+    assuming(!Stack.empty());
+    return *Stack.back();
   }
 
-  void exitComponent() noexcept {
-    assuming(!CompCtxs.empty());
-    CompCtxs.pop_back();
+  uint32_t depth() const noexcept {
+    return static_cast<uint32_t>(Stack.size());
   }
 
-  /// Returns true if the current scope is a type definition scope
-  /// (componenttype or instancetype), not a real component scope.
-  bool isTypeDefinitionScope() const noexcept {
-    return !CompCtxs.empty() && CompCtxs.back().Component == nullptr;
-  }
-
-  Context &getCurrentContext() noexcept {
-    assuming(!CompCtxs.empty());
-    return CompCtxs.back();
-  }
-  const Context &getCurrentContext() const noexcept {
-    assuming(!CompCtxs.empty());
-    return CompCtxs.back();
-  }
-
-  // ==========================================================================
-  // Index space size queries (generic dispatch by sort enum)
-  // ==========================================================================
-
-  uint32_t getSortIndexSize(AST::Component::Sort::SortType ST) const noexcept {
-    return getCurrentContext().getSortIndexSize(ST);
-  }
-  uint32_t
-  getCoreSortIndexSize(AST::Component::Sort::CoreSortType ST) const noexcept {
-    return getCurrentContext().getCoreSortIndexSize(ST);
-  }
-
-  // ==========================================================================
-  // Generic index space increment (for dynamic sort values)
-  // ==========================================================================
-
-  uint32_t incSortIndexSize(AST::Component::Sort::SortType ST) noexcept;
-  uint32_t incCoreSortIndexSize(AST::Component::Sort::CoreSortType ST) noexcept;
-
-  // ==========================================================================
-  // core:module
-  // ==========================================================================
-
-  /// Append a core-module slot. Slot's implicit constructors accept
-  /// `const AST::Module &` (inline body), `const CoreDefType *` (typed
-  /// import / alias), or nothing (empty slot, used by outer-alias
-  /// validation and incCoreSortIndexSize).
-  uint32_t addCoreModule(Context::CoreModuleSlot S = {}) noexcept {
-    auto &Ctx = getCurrentContext();
-    uint32_t Idx = static_cast<uint32_t>(Ctx.CoreModules.size());
-    Ctx.CoreModules.push_back(std::move(S));
-    return Idx;
-  }
-
-  /// Read a core-module slot. Callers access `.Body` (inline body) or
-  /// `.Type` (externdesc-bound moduletype) as needed.
-  const Context::CoreModuleSlot &getCoreModule(uint32_t Idx) const noexcept {
-    return getCurrentContext().CoreModules.at(Idx);
-  }
-
-  /// Returns the CoreDefType (a moduletype) stored at a core:type index, or
-  /// nullptr if the core type is not a ModuleType (or its body is not
-  /// visible here).
-  const AST::Component::CoreDefType *
-  getCoreModuleType(uint32_t TypeIdx) const noexcept {
-    const auto &Ctx = getCurrentContext();
-    auto It = Ctx.CoreModuleTypes.find(TypeIdx);
-    return It != Ctx.CoreModuleTypes.end() ? It->second : nullptr;
-  }
-
-  /// Bind a CoreDefType (a moduletype) to a core:type index. Called by
-  /// validate(CoreDefType) when adding a moduletype to the core:type space.
-  void setCoreModuleType(uint32_t TypeIdx,
-                         const AST::Component::CoreDefType *CT) noexcept {
-    getCurrentContext().CoreModuleTypes[TypeIdx] = CT;
-  }
-
-  // ==========================================================================
-  // core:instance
-  // ==========================================================================
-
-  uint32_t addCoreInstance() noexcept {
-    auto &V = getCurrentContext().CoreInstances;
-    uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.emplace_back();
-    return Idx;
-  }
-
-  const std::unordered_map<std::string, Context::CoreInstanceExport> &
-  getCoreInstance(uint32_t Idx) const noexcept {
-    return getCurrentContext().CoreInstances.at(Idx);
-  }
-
-  void addCoreInstanceExport(uint32_t InstIdx, std::string_view Name,
-                             ExternalType ET,
-                             const AST::MemoryType *Mem = nullptr,
-                             const AST::TableType *Tab = nullptr,
-                             const AST::GlobalType *Glob = nullptr) {
-    getCurrentContext().CoreInstances.at(InstIdx)[std::string(Name)] =
-        Context::CoreInstanceExport{ET, Mem, Tab, Glob};
-  }
-
-  // ==========================================================================
-  // core:type / core:func / core:table / core:memory / core:global / core:tag
-  // ==========================================================================
-
-  uint32_t addCoreType(const AST::SubType *ST = nullptr) noexcept {
-    auto &V = getCurrentContext().CoreTypes;
-    uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.push_back(ST);
-    return Idx;
-  }
-  uint32_t addCoreFunc(const AST::SubType *ST = nullptr) noexcept {
-    auto &V = getCurrentContext().CoreFuncs;
-    uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.push_back(ST);
-    return Idx;
-  }
-  /// Add a core function whose signature is synthesized during validation
-  /// (e.g., the type produced by `canon lower`). The SubType is owned by the
-  /// ComponentContext so its address stays stable for later lookups.
-  uint32_t addCoreFuncOwned(std::unique_ptr<AST::SubType> ST) noexcept {
-    SynthesizedCoreFuncTypes.push_back(std::move(ST));
-    return addCoreFunc(SynthesizedCoreFuncTypes.back().get());
-  }
-  const AST::SubType *getCoreFunc(uint32_t Idx) const noexcept {
-    const auto &V = getCurrentContext().CoreFuncs;
-    return Idx < V.size() ? V[Idx] : nullptr;
-  }
-  /// Look up a registered `core:type` entry. Used by canon lift to retrieve
-  /// the imported `$callee`'s declared core type when threaded from
-  /// CoreImportDesc.
-  const AST::SubType *getCoreType(uint32_t Idx) const noexcept {
-    const auto &V = getCurrentContext().CoreTypes;
-    return Idx < V.size() ? V[Idx] : nullptr;
-  }
-
-  uint32_t addCoreTable(const AST::TableType *TT = nullptr) noexcept {
-    auto &V = getCurrentContext().CoreTables;
-    uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.push_back(TT);
-    return Idx;
-  }
-  uint32_t
-  addCoreMemory(std::optional<AST::MemoryType> MT = std::nullopt) noexcept {
-    auto &V = getCurrentContext().CoreMemories;
-    uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.push_back(std::move(MT));
-    return Idx;
-  }
-  const AST::MemoryType *getCoreMemory(uint32_t Idx) const noexcept {
-    const auto &V = getCurrentContext().CoreMemories;
-    return Idx < V.size() && V[Idx].has_value() ? &*V[Idx] : nullptr;
-  }
-  uint32_t addCoreGlobal(const AST::GlobalType *GT = nullptr) noexcept {
-    auto &V = getCurrentContext().CoreGlobals;
-    uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.push_back(GT);
-    return Idx;
-  }
-  uint32_t addCoreTag() noexcept { return getCurrentContext().CoreTagCount++; }
-
-  // ==========================================================================
-  // component
-  // ==========================================================================
-
-  /// Append a component slot. Slot's implicit constructors accept
-  /// `const Component &` (inline body), `const ComponentType *` (typed
-  /// import / alias), or nothing (empty slot).
-  uint32_t addComponent(Context::ComponentSlot S = {}) noexcept {
-    auto &Ctx = getCurrentContext();
-    uint32_t Idx = static_cast<uint32_t>(Ctx.Components.size());
-    Ctx.Components.push_back(std::move(S));
-    return Idx;
-  }
-
-  /// Read a component slot. Callers access `.Body` (inline body) or
-  /// `.Type` (externdesc-bound ComponentType) as needed.
-  const Context::ComponentSlot &getComponent(uint32_t Idx) const noexcept {
-    return getCurrentContext().Components.at(Idx);
-  }
-
-  /// Returns the ComponentType stored at a type index, or nullptr if the
-  /// type is not a ComponentType (or its body is not visible here).
-  const AST::Component::ComponentType *
-  getComponentType(uint32_t TypeIdx) const noexcept {
-    const auto &Ctx = getCurrentContext();
-    auto It = Ctx.ComponentTypes.find(TypeIdx);
-    return It != Ctx.ComponentTypes.end() ? It->second : nullptr;
-  }
-
-  // The scope an outer alias targets: Ct parent hops up. nullptr if Ct
-  // exceeds the enclosing depth.
-  const Context *resolveOuterContext(uint32_t Ct) const noexcept {
-    uint32_t Hops = 0;
-    const Context *T = &getCurrentContext();
-    while (Ct > Hops && T != nullptr) {
-      T = T->Parent;
-      ++Hops;
+  /// The scope Ct hops up from the current one; nullptr if out of range.
+  Scope *scopeUp(uint32_t Ct) noexcept {
+    if (Ct >= Stack.size()) {
+      return nullptr;
     }
-    return T;
+    return Stack[Stack.size() - 1 - Ct];
   }
 
-  // Reproduce an outer-aliased core module's slot into the alias's slot
-  // DstIdx, so its exports stay enumerable when the alias is instantiated.
-  void carryOuterCoreModule(uint32_t DstIdx, uint32_t Ct,
-                            uint32_t SrcIdx) noexcept {
-    const Context *O = resolveOuterContext(Ct);
-    auto &Dst = getCurrentContext().CoreModules;
-    if (O != nullptr && SrcIdx < O->CoreModules.size() && DstIdx < Dst.size()) {
-      Dst[DstIdx] = O->CoreModules[SrcIdx];
+  /// The scope one level inside the outer-alias target (Ct > 0): if it is a
+  /// real component, the alias crosses a component boundary.
+  const Scope *scopeInsideTarget(uint32_t Ct) const noexcept {
+    if (Ct == 0 || Ct > Stack.size()) {
+      return nullptr;
     }
-  }
-
-  // Component analogue of carryOuterCoreModule.
-  void carryOuterComponent(uint32_t DstIdx, uint32_t Ct,
-                           uint32_t SrcIdx) noexcept {
-    const Context *O = resolveOuterContext(Ct);
-    auto &Dst = getCurrentContext().Components;
-    if (O != nullptr && SrcIdx < O->Components.size() && DstIdx < Dst.size()) {
-      Dst[DstIdx] = O->Components[SrcIdx];
-    }
-  }
-
-  // Inherit an outer-aliased resource type's identity into the alias's type
-  // slot DstIdx, so own/borrow checks and TypeBound (eq i) propagation in this
-  // scope still recognise the aliased type as a resource. The alias does not
-  // locally define the resource, so LocallyDefined stays false (it must not
-  // gate resource.new/.rep here).
-  void carryOuterResource(uint32_t DstIdx, uint32_t Ct,
-                          uint32_t SrcIdx) noexcept {
-    const Context *O = resolveOuterContext(Ct);
-    if (O == nullptr) {
-      return;
-    }
-    auto It = O->Resources.find(SrcIdx);
-    if (It != O->Resources.end()) {
-      getCurrentContext().Resources[DstIdx] = {It->second.Id,
-                                               /*LocallyDefined=*/false};
-    }
+    return Stack[Stack.size() - Ct];
   }
 
   // ==========================================================================
-  // instance
+  // Resource registry.
   // ==========================================================================
 
-  /// Append an instance slot. Slot's implicit constructor accepts
-  /// `const InstanceType *` (typed source) or nothing (untyped — used by
-  /// inline-export / (instantiate ...) sources).
-  uint32_t addInstance(Context::InstanceSlot S = {}) {
-    auto &Ctx = getCurrentContext();
-    uint32_t Idx = static_cast<uint32_t>(Ctx.Instances.size());
-    Ctx.Instances.push_back(std::move(S));
-    return Idx;
-  }
+  uint32_t newNameId() noexcept { return NextNameId++; }
 
-  using InstanceExport = Context::InstanceExport;
-
-  /// Read an instance slot. Callers access `.Exports` (export table) or
-  /// `.Type` (externdesc-bound InstanceType) as needed.
-  const Context::InstanceSlot &getInstance(uint32_t Idx) const noexcept {
-    return getCurrentContext().Instances.at(Idx);
-  }
-
-  void addInstanceExport(
-      uint32_t InstIdx, std::string_view Name,
-      AST::Component::Sort::SortType ST,
-      const AST::Component::InstanceType *IT = nullptr,
-      std::optional<uint32_t> NestedInstIdx = std::nullopt,
-      std::optional<uint64_t> ResourceId = std::nullopt) noexcept {
-    getCurrentContext().Instances.at(InstIdx).Exports[std::string(Name)] = {
-        ST, IT, NestedInstIdx, ResourceId};
-  }
-
-  // ==========================================================================
-  // type
-  // ==========================================================================
-
-  /// Append a type slot. IsLocal=false for resource type imports and
-  /// outer-alias resources, true otherwise.
-  uint32_t addType(const AST::Component::DefType *DT = nullptr,
-                   bool IsLocal = true) noexcept {
-    return addTypeImpl(DT, IsLocal);
-  }
-
-  const AST::Component::DefType *getDefType(uint32_t Idx) const noexcept {
-    const auto &Ctx = getCurrentContext();
-    if (Idx < Ctx.Types.size()) {
-      return Ctx.Types[Idx];
-    }
-    return nullptr;
-  }
-
-  const AST::Component::InstanceType *
-  getInstanceType(uint32_t Idx) const noexcept {
-    const auto &Ctx = getCurrentContext();
-    auto It = Ctx.InstanceTypes.find(Idx);
-    return It != Ctx.InstanceTypes.end() ? It->second : nullptr;
-  }
-
-  // ==========================================================================
-  // resource
-  // ==========================================================================
-
-  /// Allocate a fresh resource id, pushing a new registry row. Body is
-  /// nullptr for (sub resource) imports.
-  uint64_t allocateFreshResourceId(
-      const AST::Component::ResourceType *Body = nullptr) noexcept {
-    uint64_t Id = ResourceRegistry.size();
-    ResourceRegistry.push_back({Body});
+  uint32_t addResource(const AST::Component::ResourceType *RT,
+                       const Scope *Origin, bool FromImport) noexcept {
+    uint32_t Id = static_cast<uint32_t>(Resources.size());
+    Resources.push_back({RT, Origin, FromImport, newNameId()});
     return Id;
   }
 
-  /// Bind a ResourceInfo to a type index in the current scope.
-  void addResource(uint32_t TypeIdx, Context::ResourceInfo Info) noexcept {
-    getCurrentContext().Resources[TypeIdx] = Info;
-  }
-
-  /// ResourceInfo at this type index, or nullptr if not a resource.
-  const Context::ResourceInfo *getResource(uint32_t Idx) const noexcept {
-    const auto &R = getCurrentContext().Resources;
-    auto It = R.find(Idx);
-    return It != R.end() ? &It->second : nullptr;
-  }
-
-  /// Register a kebab-case resource name (from a TypeBound import / export)
-  /// so annotated names ([constructor]R / [method]R.f / [static]R.f) resolve.
-  void addResourceLabel(std::string_view Name, uint32_t TypeIdx) noexcept {
-    getCurrentContext().ResourceLabels.emplace(std::string(Name), TypeIdx);
-  }
-
-  bool hasResourceLabel(std::string_view Name) const noexcept {
-    return getCurrentContext().ResourceLabels.find(std::string(Name)) !=
-           getCurrentContext().ResourceLabels.end();
+  const ResourceEntry &getResource(uint32_t Id) const noexcept {
+    assuming(Id < Resources.size());
+    return Resources[Id];
   }
 
   // ==========================================================================
-  // func / value
+  // Arenas for synthesized views.
   // ==========================================================================
 
-  uint32_t addFunc(const AST::Component::FuncType *FT = nullptr) noexcept {
-    auto &V = getCurrentContext().Funcs;
-    uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.push_back(FT);
-    return Idx;
-  }
-  const AST::Component::FuncType *getFunc(uint32_t Idx) const noexcept {
-    const auto &V = getCurrentContext().Funcs;
-    return Idx < V.size() ? V[Idx] : nullptr;
-  }
-  uint32_t addValue(bool Consumed = false) noexcept {
-    auto &V = getCurrentContext().ValueConsumed;
-    uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.push_back(Consumed);
-    return Idx;
-  }
-
-  Expect<void> consumeValue(uint32_t Idx) noexcept {
-    auto &V = getCurrentContext().ValueConsumed;
-    if (Idx >= V.size()) {
-      return Unexpect(ErrCode::Value::InvalidIndex);
+  /// Composition of two remaps (Inner first, then Outer); memoized so views
+  /// resolved repeatedly share nodes. Either side may be null.
+  const ResourceMap *composeRemap(const ResourceMap *Outer,
+                                  const ResourceMap *Inner) noexcept {
+    if (Outer == nullptr) {
+      return Inner;
     }
-    if (V[Idx]) {
-      return Unexpect(ErrCode::Value::ComponentValueAlreadyConsumed);
+    if (Inner == nullptr) {
+      return Outer;
     }
-    V[Idx] = true;
-    return {};
-  }
-
-  std::optional<uint32_t> firstUnconsumedValue() const noexcept {
-    const auto &V = getCurrentContext().ValueConsumed;
-    for (uint32_t I = 0; I < V.size(); ++I) {
-      if (!V[I]) {
-        return I;
-      }
-    }
-    return std::nullopt;
-  }
-
-  // ==========================================================================
-  // Validation state
-  // ==========================================================================
-
-  void substituteTypeImport(const std::string &ImportName,
-                            uint32_t TypeIdx) noexcept {
-    getCurrentContext().TypeSubstitutions[ImportName] = TypeIdx;
-  }
-
-  std::optional<uint32_t>
-  getSubstitutedType(const std::string &ImportName) const {
-    const auto &Ctx = getCurrentContext();
-    auto It = Ctx.TypeSubstitutions.find(ImportName);
-    if (It != Ctx.TypeSubstitutions.end()) {
+    auto Key = std::make_pair(Outer, Inner);
+    auto It = RemapCompose.find(Key);
+    if (It != RemapCompose.end()) {
       return It->second;
     }
-    return std::nullopt;
+    auto *Node = &RemapArena.emplace_back();
+    Node->Inner = Inner;
+    Node->Outer = Outer;
+    RemapCompose.emplace(Key, Node);
+    return Node;
   }
 
-  bool addImportedName(const ComponentName &Name) noexcept {
-    return getCurrentContext().AddImportedName(Name);
+  CoreModuleInfo *newCoreModuleInfo() noexcept {
+    return &CoreModuleArena.emplace_back();
+  }
+  CoreInstanceInfo *newCoreInstanceInfo() noexcept {
+    return &CoreInstanceArena.emplace_back();
+  }
+  InstanceInfo *newInstanceInfo() noexcept {
+    return &InstanceArena.emplace_back();
+  }
+  ComponentInfo *newComponentInfo() noexcept {
+    return &ComponentArena.emplace_back();
+  }
+  ResourceMap *newResourceMap() noexcept { return &RemapArena.emplace_back(); }
+
+  /// Synthesize a core function type owned by the context (canon lower and
+  /// the resource built-ins produce core funcs with no AST-backed type).
+  const AST::SubType *makeCoreFuncType(Span<const ValType> Params,
+                                       Span<const ValType> Results) noexcept {
+    SynthCoreTypes.push_back(
+        std::make_unique<AST::SubType>(AST::FunctionType(Params, Results)));
+    return SynthCoreTypes.back().get();
   }
 
-  /// Returns false if the export name violates strong-uniqueness.
-  bool addExportedName(const ComponentName &Name) noexcept {
-    return getCurrentContext().AddExportedName(Name);
+  // ==========================================================================
+  // Strong-uniqueness of import/export names.
+  // ==========================================================================
+
+  /// Builds the comparison record for a parsed name.
+  static NameRecord makeNameRecord(const ComponentName &Name) noexcept;
+
+  /// Appends N to Names, reporting how it clashes with an earlier name.
+  static NameClash addUniqueName(std::vector<NameRecord> &Names,
+                                 const NameRecord &N) noexcept;
+
+  /// RAII scope push/pop for validation bodies with early returns.
+  class ScopedScope {
+  public:
+    ScopedScope(ComponentContext &C, Scope::Kind K) noexcept
+        : Ctx(C), S(C.enterScope(K)) {}
+    ~ScopedScope() noexcept { Ctx.exitScope(); }
+    ScopedScope(const ScopedScope &) = delete;
+    ScopedScope &operator=(const ScopedScope &) = delete;
+    Scope &get() noexcept { return S; }
+
+  private:
+    ComponentContext &Ctx;
+    Scope &S;
+  };
+
+  /// Core modules whose function bodies still need validation (deferred to
+  /// the end of the root component).
+  std::vector<const AST::Module *> DeferredModules;
+
+  void reset() noexcept {
+    NextNameId = 0;
+    DeferredModules.clear();
+    Stack.clear();
+    ScopeArena.clear();
+    Resources.clear();
+    CoreModuleArena.clear();
+    CoreInstanceArena.clear();
+    InstanceArena.clear();
+    ComponentArena.clear();
+    RemapArena.clear();
+    RemapCompose.clear();
+    SynthCoreTypes.clear();
   }
 
 private:
-  uint32_t addTypeImpl(const AST::Component::DefType *DT,
-                       bool IsLocal) noexcept {
-    auto &Ctx = getCurrentContext();
-    uint32_t Idx = static_cast<uint32_t>(Ctx.Types.size());
-    Ctx.Types.push_back(DT);
-    if (DT != nullptr) {
-      if (DT->isInstanceType()) {
-        Ctx.InstanceTypes[Idx] = &DT->getInstanceType();
-      } else if (DT->isResourceType()) {
-        // Locally-defined: body goes to the registry; IsLocal sets locality.
-        Ctx.Resources[Idx] = {allocateFreshResourceId(&DT->getResourceType()),
-                              IsLocal};
-      } else if (DT->isComponentType()) {
-        Ctx.ComponentTypes[Idx] = &DT->getComponentType();
-      }
+  struct PtrPairHash {
+    size_t operator()(const std::pair<const ResourceMap *, const ResourceMap *>
+                          &P) const noexcept {
+      return std::hash<const void *>{}(P.first) ^
+             (std::hash<const void *>{}(P.second) << 1);
     }
-    return Idx;
-  }
+  };
 
-  std::deque<Context> CompCtxs;
-
-  // Session-global resource registry; vector index IS the resource id.
-  std::vector<ResourceRegistryEntry> ResourceRegistry;
-
-  /// Storage for SubTypes synthesized during validation (e.g., by
-  /// `canon lower`). Owned here so the pointers handed back by getCoreFunc
-  /// remain valid for the lifetime of the ComponentContext.
-  std::vector<std::unique_ptr<AST::SubType>> SynthesizedCoreFuncTypes;
+  uint32_t NextNameId = 0;
+  std::vector<Scope *> Stack;
+  std::deque<Scope> ScopeArena;
+  std::vector<ResourceEntry> Resources;
+  std::deque<CoreModuleInfo> CoreModuleArena;
+  std::deque<CoreInstanceInfo> CoreInstanceArena;
+  std::deque<InstanceInfo> InstanceArena;
+  std::deque<ComponentInfo> ComponentArena;
+  std::deque<ResourceMap> RemapArena;
+  std::unordered_map<std::pair<const ResourceMap *, const ResourceMap *>,
+                     const ResourceMap *, PtrPairHash>
+      RemapCompose;
+  std::vector<std::unique_ptr<AST::SubType>> SynthCoreTypes;
 };
 
 } // namespace Validator

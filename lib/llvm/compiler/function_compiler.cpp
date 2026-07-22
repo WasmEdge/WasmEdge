@@ -37,6 +37,8 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
       Builder.createStore(LLContext.getInt64(0), LocalGas);
     }
 
+    CalleeCtxSlot = Builder.createAlloca(Context.ModCtxPtrTy);
+
     for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam().getNextParam();
          Arg; Arg = Arg.getNextParam()) {
       LLVM::Type Ty = Arg.getType();
@@ -1533,16 +1535,24 @@ void FunctionCompiler::compileIndirectCallOp(
     auto FPtr = Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kTableGetFuncSymbol,
-            LLVM::Type::getFunctionType(
-                FPtrTy, {Context.Int32Ty, Context.Int32Ty, Context.Int64Ty},
-                false)),
-        {TableIdx, TypeIdx, Idx64});
+            LLVM::Type::getFunctionType(FPtrTy,
+                                        {Context.Int8PtrTy, Context.Int32Ty,
+                                         Context.Int32Ty, Context.Int64Ty,
+                                         Context.ModCtxPtrTy.getPointerTo()},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), TableIdx, TypeIdx, Idx64,
+         CalleeCtxSlot});
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
     Builder.positionAtEnd(NotNullBB);
 
-    auto FPtrRet = Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, ArgsVec);
+    auto Returned = Builder.createLoad(Context.ModCtxPtrTy, CalleeCtxSlot);
+    std::vector<LLVM::Value> SlowArgsVec = ArgsVec;
+    SlowArgsVec[0] = Builder.createSelect(Builder.createIsNull(Returned),
+                                          F.Fn.getFirstParam(), Returned);
+    auto FPtrRet =
+        Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, SlowArgsVec);
     FPtrRetsVec = UnpackRets(FPtrRet);
   }
 
@@ -1706,17 +1716,24 @@ void FunctionCompiler::compileReturnIndirectCallOp(
     auto FPtr = Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kTableGetFuncSymbol,
-            LLVM::Type::getFunctionType(
-                FTy.getPointerTo(),
-                {Context.Int32Ty, Context.Int32Ty, Context.Int64Ty}, false)),
-        {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
-         Idx64});
+            LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                        {Context.Int8PtrTy, Context.Int32Ty,
+                                         Context.Int32Ty, Context.Int64Ty,
+                                         Context.ModCtxPtrTy.getPointerTo()},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), LLContext.getInt32(TableIndex),
+         LLContext.getInt32(FuncTypeIndex), Idx64, CalleeCtxSlot});
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
     Builder.positionAtEnd(NotNullBB);
 
-    auto FPtrRet = Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), ArgsVec);
+    auto Returned = Builder.createLoad(Context.ModCtxPtrTy, CalleeCtxSlot);
+    std::vector<LLVM::Value> SlowArgsVec = ArgsVec;
+    SlowArgsVec[0] = Builder.createSelect(Builder.createIsNull(Returned),
+                                          F.Fn.getFirstParam(), Returned);
+    auto FPtrRet =
+        Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), SlowArgsVec);
     // Known limitation: a mismatched prototype rules musttail out and the tail
     // hint may be declined, so this tail call is not guaranteed constant-space.
     if (FPtrRet.getInstructionCalledFunctionType().unwrap() == F.Ty.unwrap()) {
@@ -1794,17 +1811,24 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
   FPtrRetsVec.reserve(RetSize);
   {
     auto FPtr = Builder.createCall(
-        Context.getIntrinsic(Builder, Executable::Intrinsics::kRefGetFuncSymbol,
-                             LLVM::Type::getFunctionType(FTy.getPointerTo(),
-                                                         {Context.Int64x2Ty},
-                                                         false)),
-        {Ref});
+        Context.getIntrinsic(
+            Builder, Executable::Intrinsics::kRefGetFuncSymbol,
+            LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                        {Context.Int8PtrTy, Context.Int64x2Ty,
+                                         Context.ModCtxPtrTy.getPointerTo()},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), Ref, CalleeCtxSlot});
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
     Builder.positionAtEnd(NotNullBB);
 
-    auto FPtrRet = Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, ArgsVec);
+    auto Returned = Builder.createLoad(Context.ModCtxPtrTy, CalleeCtxSlot);
+    std::vector<LLVM::Value> SlowArgsVec = ArgsVec;
+    SlowArgsVec[0] = Builder.createSelect(Builder.createIsNull(Returned),
+                                          F.Fn.getFirstParam(), Returned);
+    auto FPtrRet =
+        Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, SlowArgsVec);
     if (RetSize == 0) {
       // nothing to do
     } else if (RetSize == 1) {
@@ -1888,17 +1912,24 @@ void FunctionCompiler::compileReturnCallRefOp(
 
   {
     auto FPtr = Builder.createCall(
-        Context.getIntrinsic(Builder, Executable::Intrinsics::kRefGetFuncSymbol,
-                             LLVM::Type::getFunctionType(FTy.getPointerTo(),
-                                                         {Context.Int64x2Ty},
-                                                         false)),
-        {Ref});
+        Context.getIntrinsic(
+            Builder, Executable::Intrinsics::kRefGetFuncSymbol,
+            LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                        {Context.Int8PtrTy, Context.Int64x2Ty,
+                                         Context.ModCtxPtrTy.getPointerTo()},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), Ref, CalleeCtxSlot});
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
     Builder.positionAtEnd(NotNullBB);
 
-    auto FPtrRet = Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), ArgsVec);
+    auto Returned = Builder.createLoad(Context.ModCtxPtrTy, CalleeCtxSlot);
+    std::vector<LLVM::Value> SlowArgsVec = ArgsVec;
+    SlowArgsVec[0] = Builder.createSelect(Builder.createIsNull(Returned),
+                                          F.Fn.getFirstParam(), Returned);
+    auto FPtrRet =
+        Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), SlowArgsVec);
     // Known limitation: a mismatched prototype rules musttail out and the tail
     // hint may be declined, so this tail call is not guaranteed constant-space.
     if (FPtrRet.getInstructionCalledFunctionType().unwrap() == F.Ty.unwrap()) {

@@ -30,6 +30,7 @@
 #include "runtime/instance/tag.h"
 
 #include <atomic>
+#include <cstddef>
 #include <functional>
 #include <map>
 #include <memory>
@@ -600,7 +601,19 @@ protected:
     const uint64_t *const *TableSizes;
     ValVariant *const *Globals;
     const void *ModuleInst;
+    void *const *Tags;
   };
+
+  /// Compiled code reads this struct by field index through the mirrored ModCtx
+  /// type built in lib/llvm/compiler/context.cpp. Keep both in the same order.
+  static_assert(sizeof(ModuleContext) == 7 * sizeof(void *));
+  static_assert(offsetof(ModuleContext, Memories) == 0 * sizeof(void *));
+  static_assert(offsetof(ModuleContext, MemorySizes) == 1 * sizeof(void *));
+  static_assert(offsetof(ModuleContext, TableRefs) == 2 * sizeof(void *));
+  static_assert(offsetof(ModuleContext, TableSizes) == 3 * sizeof(void *));
+  static_assert(offsetof(ModuleContext, Globals) == 4 * sizeof(void *));
+  static_assert(offsetof(ModuleContext, ModuleInst) == 5 * sizeof(void *));
+  static_assert(offsetof(ModuleContext, Tags) == 6 * sizeof(void *));
 
   ModuleContext ModCtx{};
 
@@ -614,6 +627,7 @@ protected:
     ModCtx.TableSizes = TableSizePtrs.data();
     ModCtx.Globals = GlobalPtrs.data();
     ModCtx.ModuleInst = this;
+    ModCtx.Tags = reinterpret_cast<void *const *>(TagInsts.data());
   }
 
   friend class Runtime::StoreManager;

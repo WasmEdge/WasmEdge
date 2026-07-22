@@ -30,6 +30,7 @@
 
 #include <atomic>
 #include <csignal>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -1099,30 +1100,35 @@ public:
 
 private:
   /// Execution context for compiled functions.
-  struct ExecutionContextStruct {
-#if WASMEDGE_ALLOCATOR_IS_STABLE
-    uint8_t *const *Memories;
-#else
-    uint8_t **const *Memories;
-#endif
-    const uint64_t *const *MemorySizes;
-    RefVariant **const *TableRefs;
-    const uint64_t *const *TableSizes;
-    ValVariant *const *Globals;
-    void *const *Tags;
-    void *const *PendingExnTagAddr;
+  struct ExecutorContext {
     std::atomic_uint64_t *InstrCount;
     uint64_t *CostTable;
     std::atomic_uint64_t *Gas;
     uint64_t GasLimit;
     std::atomic_uint32_t *StopToken;
-    const void *ModuleInst;
+    void *const *PendingExnTagAddr;
   };
+
+  /// Compiled code reads this struct by field index through the mirrored
+  /// ExecCtx type built in lib/llvm/compiler/context.cpp. Keep both in the same
+  /// order.
+  static_assert(offsetof(ExecutorContext, InstrCount) == 0);
+  static_assert(offsetof(ExecutorContext, InstrCount) <
+                offsetof(ExecutorContext, CostTable));
+  static_assert(offsetof(ExecutorContext, CostTable) <
+                offsetof(ExecutorContext, Gas));
+  static_assert(offsetof(ExecutorContext, Gas) <
+                offsetof(ExecutorContext, GasLimit));
+  static_assert(offsetof(ExecutorContext, GasLimit) <
+                offsetof(ExecutorContext, StopToken));
+  static_assert(offsetof(ExecutorContext, StopToken) <
+                offsetof(ExecutorContext, PendingExnTagAddr));
 
   /// Restores thread local VM reference after overwriting it.
   struct SavedThreadLocal {
     SavedThreadLocal(Executor &Ex, Runtime::StackManager &StackMgr,
-                     const Runtime::Instance::FunctionInstance &Func) noexcept;
+                     [[maybe_unused]] const Runtime::Instance::FunctionInstance
+                         &Func) noexcept;
 
     SavedThreadLocal(const SavedThreadLocal &) = delete;
     SavedThreadLocal(SavedThreadLocal &&) = delete;
@@ -1131,7 +1137,7 @@ private:
 
     Executor *SavedThis;
     Runtime::StackManager *SavedCurrentStack;
-    ExecutionContextStruct SavedExecutionContext;
+    ExecutorContext SavedExecutionContext;
   };
 
   /// Pending exception passing across the compiled and the native-entered
@@ -1162,7 +1168,7 @@ private:
   /// Stack passed into compiled functions
   static thread_local Runtime::StackManager *CurrentStack;
   /// Execution context for compiled functions
-  static thread_local ExecutionContextStruct ExecutionContext;
+  static thread_local ExecutorContext ExecutionContext;
   /// Pending exception for compiled functions
   static thread_local PendingExnStruct PendingExn;
   /// Record stack trace on error

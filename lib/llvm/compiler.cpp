@@ -252,7 +252,7 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
                        bool DeclarationsOnly) noexcept {
   auto WrapperTy = LLVM::Type::getFunctionType(
       Context->VoidTy,
-      {Context->ExecCtxPtrTy, Context->ExecCtxPtrTy, Context->Int8PtrTy,
+      {Context->ModCtxPtrTy, Context->ExecCtxPtrTy, Context->Int8PtrTy,
        Context->Int8PtrTy, Context->Int8PtrTy},
       false);
   auto SubTypes = TypeSec.getContent();
@@ -329,8 +329,8 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
           Builder.positionAtEnd(
               LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
 
-          auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy,
-                                CompType.getFuncType());
+          auto FTy = toLLVMType(Context->LLContext, Context->ModCtxPtrTy,
+                                Context->ExecCtxPtrTy, CompType.getFuncType());
           auto RTy = FTy.getReturnType();
           std::vector<LLVM::Type> FPTy(FTy.getNumParams());
           FTy.getParamTypes(FPTy);
@@ -404,8 +404,8 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       assuming(TypeIdx < Context->CompositeTypes.size());
       assuming(Context->CompositeTypes[TypeIdx]->isFunc());
       const auto &FuncType = Context->CompositeTypes[TypeIdx]->getFuncType();
-      auto FTy =
-          toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
+      auto FTy = toLLVMType(Context->LLContext, Context->ModCtxPtrTy,
+                            Context->ExecCtxPtrTy, FuncType);
       auto RTy = FTy.getReturnType();
       auto F =
           LLVM::FunctionCallee{FTy, Context->LLModule.get().addFunction(
@@ -567,7 +567,8 @@ void Compiler::compileFunctionDeclarations(
     assuming(Context->CompositeTypes[TypeIdx]->isFunc());
     const auto &FuncType = Context->CompositeTypes[TypeIdx]->getFuncType();
     const auto FuncID = Context->Functions.size();
-    auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
+    auto FTy = toLLVMType(Context->LLContext, Context->ModCtxPtrTy,
+                          Context->ExecCtxPtrTy, FuncType);
     LLVM::FunctionCallee F = {FTy, Context->LLModule.get().addFunction(
                                        FTy, LLVMExternalLinkage,
                                        fmt::format("f{}"sv, FuncID).c_str())};

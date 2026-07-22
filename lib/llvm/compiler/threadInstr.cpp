@@ -369,10 +369,12 @@ void FunctionCompiler::compileAtomicNotify(unsigned MemoryIndex,
       Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kMemAtomicNotify,
-              LLVM::Type::getFunctionType(
-                  Context.Int64Ty,
-                  {Context.Int32Ty, Context.Int64Ty, Context.Int64Ty}, false)),
-          {LLContext.getInt32(MemoryIndex), Offset, Count}),
+              LLVM::Type::getFunctionType(Context.Int64Ty,
+                                          {Context.Int8PtrTy, Context.Int32Ty,
+                                           Context.Int64Ty, Context.Int64Ty},
+                                          false)),
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(MemoryIndex), Offset, Count}),
       Context.MemoryAddrTypes[MemoryIndex]));
 }
 
@@ -392,11 +394,12 @@ void FunctionCompiler::compileAtomicWait(unsigned MemoryIndex,
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kMemAtomicWait,
               LLVM::Type::getFunctionType(Context.Int64Ty,
-                                          {Context.Int32Ty, Context.Int64Ty,
+                                          {Context.Int8PtrTy, Context.Int32Ty,
                                            Context.Int64Ty, Context.Int64Ty,
-                                           Context.Int32Ty},
+                                           Context.Int64Ty, Context.Int32Ty},
                                           false)),
-          {LLContext.getInt32(MemoryIndex), Offset, ExpectedValue, Timeout,
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(MemoryIndex), Offset, ExpectedValue, Timeout,
            LLContext.getInt32(BitWidth)}),
       Context.MemoryAddrTypes[MemoryIndex]));
 }

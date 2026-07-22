@@ -429,6 +429,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
       LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
 
+      auto ModCtx = Builder.createLoad(Context->ModCtxTy, F.Fn.getFirstParam());
       auto Arg = F.Fn.getFirstParam().getNextParam();
       for (unsigned I = 0; I < ArgSize; ++I) {
         Arg = Arg.getNextParam();
@@ -437,13 +438,14 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       }
 
       Builder.createCall(
-          Context->getIntrinsic(
-              Builder, Executable::Intrinsics::kCall,
-              LLVM::Type::getFunctionType(
-                  Context->VoidTy,
-                  {Context->Int32Ty, Context->Int8PtrTy, Context->Int8PtrTy},
-                  false)),
-          {Context->LLContext.getInt32(FuncID), Args, Rets});
+          Context->getIntrinsic(Builder, Executable::Intrinsics::kCall,
+                                LLVM::Type::getFunctionType(
+                                    Context->VoidTy,
+                                    {Context->Int8PtrTy, Context->Int32Ty,
+                                     Context->Int8PtrTy, Context->Int8PtrTy},
+                                    false)),
+          {Context->getModuleInst(Builder, ModCtx),
+           Context->LLContext.getInt32(FuncID), Args, Rets});
 
       if (RetSize == 0) {
         Builder.createRetVoid();

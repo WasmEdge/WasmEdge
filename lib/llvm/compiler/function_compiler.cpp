@@ -320,10 +320,11 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       auto IsRefTest = Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kRefTest,
-              LLVM::Type::getFunctionType(Context.Int32Ty,
-                                          {Context.Int64x2Ty, Context.Int64Ty},
-                                          false)),
-          {Ref, VType});
+              LLVM::Type::getFunctionType(
+                  Context.Int32Ty,
+                  {Context.Int8PtrTy, Context.Int64x2Ty, Context.Int64Ty},
+                  false)),
+          {Context.getModuleInst(Builder, ModCtx), Ref, VType});
       auto Cond = (Instr.getOpCode() == OpCode::Br_on_cast)
                       ? Builder.createICmpNE(IsRefTest, LLContext.getInt32(0))
                       : Builder.createICmpEQ(IsRefTest, LLContext.getInt32(0));
@@ -482,20 +483,23 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kTableInit,
               LLVM::Type::getFunctionType(Context.VoidTy,
-                                          {Context.Int32Ty, Context.Int32Ty,
-                                           Context.Int64Ty, Context.Int32Ty,
-                                           Context.Int32Ty},
+                                          {Context.Int8PtrTy, Context.Int32Ty,
+                                           Context.Int32Ty, Context.Int64Ty,
+                                           Context.Int32Ty, Context.Int32Ty},
                                           false)),
-          {LLContext.getInt32(Instr.getTargetIndex()),
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(Instr.getTargetIndex()),
            LLContext.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
       break;
     }
     case OpCode::Elem__drop: {
       Builder.createCall(
-          Context.getIntrinsic(Builder, Executable::Intrinsics::kElemDrop,
-                               LLVM::Type::getFunctionType(
-                                   Context.VoidTy, {Context.Int32Ty}, false)),
-          {LLContext.getInt32(Instr.getTargetIndex())});
+          Context.getIntrinsic(
+              Builder, Executable::Intrinsics::kElemDrop,
+              LLVM::Type::getFunctionType(
+                  Context.VoidTy, {Context.Int8PtrTy, Context.Int32Ty}, false)),
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(Instr.getTargetIndex())});
       break;
     }
     case OpCode::Table__copy: {
@@ -506,11 +510,12 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kTableCopy,
               LLVM::Type::getFunctionType(Context.VoidTy,
-                                          {Context.Int32Ty, Context.Int32Ty,
-                                           Context.Int64Ty, Context.Int64Ty,
-                                           Context.Int64Ty},
+                                          {Context.Int8PtrTy, Context.Int32Ty,
+                                           Context.Int32Ty, Context.Int64Ty,
+                                           Context.Int64Ty, Context.Int64Ty},
                                           false)),
-          {LLContext.getInt32(Instr.getTargetIndex()),
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(Instr.getTargetIndex()),
            LLContext.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
       break;
     }
@@ -519,13 +524,14 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       auto Val = stackPop();
       stackPush(Builder.createTrunc(
           Builder.createCall(
-              Context.getIntrinsic(
-                  Builder, Executable::Intrinsics::kTableGrow,
-                  LLVM::Type::getFunctionType(
-                      Context.Int64Ty,
-                      {Context.Int32Ty, Context.Int64x2Ty, Context.Int64Ty},
-                      false)),
-              {LLContext.getInt32(Instr.getTargetIndex()), Val, NewSize}),
+              Context.getIntrinsic(Builder, Executable::Intrinsics::kTableGrow,
+                                   LLVM::Type::getFunctionType(
+                                       Context.Int64Ty,
+                                       {Context.Int8PtrTy, Context.Int32Ty,
+                                        Context.Int64x2Ty, Context.Int64Ty},
+                                       false)),
+              {Context.getModuleInst(Builder, ModCtx),
+               LLContext.getInt32(Instr.getTargetIndex()), Val, NewSize}),
           Context.TableAddrTypes[Instr.getTargetIndex()]));
       break;
     }
@@ -543,10 +549,12 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kTableFill,
               LLVM::Type::getFunctionType(Context.Int32Ty,
-                                          {Context.Int32Ty, Context.Int64Ty,
-                                           Context.Int64x2Ty, Context.Int64Ty},
+                                          {Context.Int8PtrTy, Context.Int32Ty,
+                                           Context.Int64Ty, Context.Int64x2Ty,
+                                           Context.Int64Ty},
                                           false)),
-          {LLContext.getInt32(Instr.getTargetIndex()), Off, Val, Len});
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(Instr.getTargetIndex()), Off, Val, Len});
       break;
     }
 
@@ -1250,11 +1258,12 @@ void FunctionCompiler::compileTryTableOp(
       Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kCatchPop,
-              LLVM::Type::getFunctionType(
-                  Context.VoidTy,
-                  {Context.Int8PtrTy, Context.Int32Ty, Context.Int32Ty},
-                  false)),
-          {Out, LLContext.getInt32(C->IsAll ? 0 : 1),
+              LLVM::Type::getFunctionType(Context.VoidTy,
+                                          {Context.Int8PtrTy, Context.Int8PtrTy,
+                                           Context.Int32Ty, Context.Int32Ty},
+                                          false)),
+          {Context.getModuleInst(Builder, ModCtx), Out,
+           LLContext.getInt32(C->IsAll ? 0 : 1),
            LLContext.getInt32(C->IsRef ? 1 : 0)});
 
       uint32_t OutIdx = 0;
@@ -1303,10 +1312,12 @@ void FunctionCompiler::compileThrowOp(const uint32_t TagIndex) noexcept {
   Builder.createCall(
       Context.getIntrinsic(
           Builder, Executable::Intrinsics::kThrow,
-          LLVM::Type::getFunctionType(
-              Context.VoidTy,
-              {Context.Int32Ty, Context.Int8PtrTy, Context.Int32Ty}, false)),
-      {LLContext.getInt32(TagIndex), Vals, LLContext.getInt32(Arity)});
+          LLVM::Type::getFunctionType(Context.VoidTy,
+                                      {Context.Int8PtrTy, Context.Int32Ty,
+                                       Context.Int8PtrTy, Context.Int32Ty},
+                                      false)),
+      {Context.getModuleInst(Builder, ModCtx), LLContext.getInt32(TagIndex),
+       Vals, LLContext.getInt32(Arity)});
 
   Builder.createBr(getEHDispatchTarget());
   setUnreachable();
@@ -1387,9 +1398,11 @@ void FunctionCompiler::compileCallOp(const unsigned int FuncIndex) noexcept {
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kFuncGetFuncSymbol,
-              LLVM::Type::getFunctionType(FTy.getPointerTo(), {Context.Int32Ty},
+              LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                          {Context.Int8PtrTy, Context.Int32Ty},
                                           false)),
-          {LLContext.getInt32(FuncIndex)});
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(FuncIndex)});
       auto Store = Builder.createStore(FPtr, CacheVar);
       Store.setAlignment(8);
       Store.setOrdering(LLVMAtomicOrderingRelease);
@@ -1547,11 +1560,12 @@ void FunctionCompiler::compileIndirectCallOp(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kCallIndirect,
             LLVM::Type::getFunctionType(Context.VoidTy,
-                                        {Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int64Ty, Context.Int8PtrTy,
-                                         Context.Int8PtrTy},
+                                        {Context.Int8PtrTy, Context.Int32Ty,
+                                         Context.Int32Ty, Context.Int64Ty,
+                                         Context.Int8PtrTy, Context.Int8PtrTy},
                                         false)),
-        {TableIdx, TypeIdx, Idx64, Args, Rets});
+        {Context.getModuleInst(Builder, ModCtx), TableIdx, TypeIdx, Idx64, Args,
+         Rets});
 
     if (RetSize == 0) {
       // nothing to do
@@ -1629,9 +1643,11 @@ void FunctionCompiler::compileReturnCallOp(
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kFuncGetFuncSymbol,
-              LLVM::Type::getFunctionType(FTy.getPointerTo(), {Context.Int32Ty},
+              LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                          {Context.Int8PtrTy, Context.Int32Ty},
                                           false)),
-          {LLContext.getInt32(FuncIndex)});
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(FuncIndex)});
       auto Store = Builder.createStore(FPtr, CacheVar);
       Store.setAlignment(8);
       Store.setOrdering(LLVMAtomicOrderingRelease);
@@ -1727,12 +1743,12 @@ void FunctionCompiler::compileReturnIndirectCallOp(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kCallIndirect,
             LLVM::Type::getFunctionType(Context.VoidTy,
-                                        {Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int64Ty, Context.Int8PtrTy,
-                                         Context.Int8PtrTy},
+                                        {Context.Int8PtrTy, Context.Int32Ty,
+                                         Context.Int32Ty, Context.Int64Ty,
+                                         Context.Int8PtrTy, Context.Int8PtrTy},
                                         false)),
-        {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
-         Idx64, Args, Rets});
+        {Context.getModuleInst(Builder, ModCtx), LLContext.getInt32(TableIndex),
+         LLContext.getInt32(FuncTypeIndex), Idx64, Args, Rets});
 
     if (RetSize == 0) {
       Builder.createRetVoid();
@@ -1813,11 +1829,11 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
     Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kCallRef,
-            LLVM::Type::getFunctionType(
-                Context.VoidTy,
-                {Context.Int64x2Ty, Context.Int8PtrTy, Context.Int8PtrTy},
-                false)),
-        {Ref, Args, Rets});
+            LLVM::Type::getFunctionType(Context.VoidTy,
+                                        {Context.Int8PtrTy, Context.Int64x2Ty,
+                                         Context.Int8PtrTy, Context.Int8PtrTy},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), Ref, Args, Rets});
 
     if (RetSize == 0) {
       // nothing to do
@@ -1908,11 +1924,11 @@ void FunctionCompiler::compileReturnCallRefOp(
     Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kCallRef,
-            LLVM::Type::getFunctionType(
-                Context.VoidTy,
-                {Context.Int64x2Ty, Context.Int8PtrTy, Context.Int8PtrTy},
-                false)),
-        {Ref, Args, Rets});
+            LLVM::Type::getFunctionType(Context.VoidTy,
+                                        {Context.Int8PtrTy, Context.Int64x2Ty,
+                                         Context.Int8PtrTy, Context.Int8PtrTy},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), Ref, Args, Rets});
 
     if (RetSize == 0) {
       Builder.createRetVoid();

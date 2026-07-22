@@ -972,137 +972,172 @@ public:
   Expect<void> proxyTrap(Runtime::StackManager &StackMgr,
                          const uint32_t Code) noexcept;
   Expect<void> proxyCall(Runtime::StackManager &StackMgr,
+                         const Runtime::Instance::ModuleInstance *ModInst,
                          const uint32_t FuncIdx, const ValVariant *Args,
                          ValVariant *Rets) noexcept;
-  Expect<void> proxyCallIndirect(Runtime::StackManager &StackMgr,
-                                 const uint32_t TableIdx,
-                                 const uint32_t FuncTypeIdx,
-                                 const uint64_t FuncIdx, const ValVariant *Args,
-                                 ValVariant *Rets) noexcept;
+  Expect<void>
+  proxyCallIndirect(Runtime::StackManager &StackMgr,
+                    const Runtime::Instance::ModuleInstance *ModInst,
+                    const uint32_t TableIdx, const uint32_t FuncTypeIdx,
+                    const uint64_t FuncIdx, const ValVariant *Args,
+                    ValVariant *Rets) noexcept;
   Expect<void> proxyCallRef(Runtime::StackManager &StackMgr,
+                            const Runtime::Instance::ModuleInstance *ModInst,
                             const RefVariant Ref, const ValVariant *Args,
                             ValVariant *Rets) noexcept;
-  Expect<RefVariant> proxyRefFunc(Runtime::StackManager &StackMgr,
-                                  const uint32_t FuncIdx) noexcept;
-  Expect<RefVariant> proxyStructNew(Runtime::StackManager &StackMgr,
-                                    const uint32_t TypeIdx,
-                                    const ValVariant *Args,
-                                    const uint32_t ArgSize) noexcept;
+  Expect<RefVariant>
+  proxyRefFunc(Runtime::StackManager &StackMgr,
+               const Runtime::Instance::ModuleInstance *ModInst,
+               const uint32_t FuncIdx) noexcept;
+  Expect<RefVariant>
+  proxyStructNew(Runtime::StackManager &StackMgr,
+                 const Runtime::Instance::ModuleInstance *ModInst,
+                 const uint32_t TypeIdx, const ValVariant *Args,
+                 const uint32_t ArgSize) noexcept;
   Expect<void> proxyStructGet(Runtime::StackManager &StackMgr,
+                              const Runtime::Instance::ModuleInstance *ModInst,
                               const RefVariant Ref, const uint32_t TypeIdx,
                               const uint32_t Off, const bool IsSigned,
                               ValVariant *Ret) noexcept;
   Expect<void> proxyStructSet(Runtime::StackManager &StackMgr,
+                              const Runtime::Instance::ModuleInstance *ModInst,
                               const RefVariant Ref, const uint32_t TypeIdx,
                               const uint32_t Off,
                               const ValVariant *Val) noexcept;
-  Expect<RefVariant> proxyArrayNew(Runtime::StackManager &StackMgr,
-                                   const uint32_t TypeIdx,
-                                   const uint32_t Length,
-                                   const ValVariant *Args,
-                                   const uint32_t ArgSize) noexcept;
-  Expect<RefVariant> proxyArrayNewData(Runtime::StackManager &StackMgr,
-                                       const uint32_t TypeIdx,
-                                       const uint32_t DataIdx,
-                                       const uint32_t Start,
-                                       const uint32_t Length) noexcept;
-  Expect<RefVariant> proxyArrayNewElem(Runtime::StackManager &StackMgr,
-                                       const uint32_t TypeIdx,
-                                       const uint32_t ElemIdx,
-                                       const uint32_t Start,
-                                       const uint32_t Length) noexcept;
+  Expect<RefVariant>
+  proxyArrayNew(Runtime::StackManager &StackMgr,
+                const Runtime::Instance::ModuleInstance *ModInst,
+                const uint32_t TypeIdx, const uint32_t Length,
+                const ValVariant *Args, const uint32_t ArgSize) noexcept;
+  Expect<RefVariant>
+  proxyArrayNewData(Runtime::StackManager &StackMgr,
+                    const Runtime::Instance::ModuleInstance *ModInst,
+                    const uint32_t TypeIdx, const uint32_t DataIdx,
+                    const uint32_t Start, const uint32_t Length) noexcept;
+  Expect<RefVariant>
+  proxyArrayNewElem(Runtime::StackManager &StackMgr,
+                    const Runtime::Instance::ModuleInstance *ModInst,
+                    const uint32_t TypeIdx, const uint32_t ElemIdx,
+                    const uint32_t Start, const uint32_t Length) noexcept;
   Expect<void> proxyArrayGet(Runtime::StackManager &StackMgr,
+                             const Runtime::Instance::ModuleInstance *ModInst,
                              const RefVariant Ref, const uint32_t TypeIdx,
                              const uint32_t Idx, const bool IsSigned,
                              ValVariant *Ret) noexcept;
   Expect<void> proxyArraySet(Runtime::StackManager &StackMgr,
+                             const Runtime::Instance::ModuleInstance *ModInst,
                              const RefVariant Ref, const uint32_t TypeIdx,
                              const uint32_t Idx,
                              const ValVariant *Val) noexcept;
   Expect<uint32_t> proxyArrayLen(Runtime::StackManager &StackMgr,
                                  const RefVariant Ref) noexcept;
   Expect<void> proxyArrayFill(Runtime::StackManager &StackMgr,
+                              const Runtime::Instance::ModuleInstance *ModInst,
                               const RefVariant Ref, const uint32_t TypeIdx,
                               const uint32_t Idx, const uint32_t Cnt,
                               const ValVariant *Val) noexcept;
   Expect<void> proxyArrayCopy(Runtime::StackManager &StackMgr,
+                              const Runtime::Instance::ModuleInstance *ModInst,
                               const RefVariant DstRef,
                               const uint32_t DstTypeIdx, const uint32_t DstIdx,
                               const RefVariant SrcRef,
                               const uint32_t SrcTypeIdx, const uint32_t SrcIdx,
                               const uint32_t Cnt) noexcept;
-  Expect<void> proxyArrayInitData(Runtime::StackManager &StackMgr,
-                                  const RefVariant Ref, const uint32_t TypeIdx,
-                                  const uint32_t DataIdx, const uint32_t DstIdx,
-                                  const uint32_t SrcIdx,
-                                  const uint32_t Cnt) noexcept;
-  Expect<void> proxyArrayInitElem(Runtime::StackManager &StackMgr,
-                                  const RefVariant Ref, const uint32_t TypeIdx,
-                                  const uint32_t ElemIdx, const uint32_t DstIdx,
-                                  const uint32_t SrcIdx,
-                                  const uint32_t Cnt) noexcept;
-  Expect<uint32_t> proxyRefTest(Runtime::StackManager &StackMgr,
-                                const RefVariant Ref, ValType VTTest) noexcept;
-  Expect<RefVariant> proxyRefCast(Runtime::StackManager &StackMgr,
-                                  const RefVariant Ref,
-                                  ValType VTCast) noexcept;
+  Expect<void>
+  proxyArrayInitData(Runtime::StackManager &StackMgr,
+                     const Runtime::Instance::ModuleInstance *ModInst,
+                     const RefVariant Ref, const uint32_t TypeIdx,
+                     const uint32_t DataIdx, const uint32_t DstIdx,
+                     const uint32_t SrcIdx, const uint32_t Cnt) noexcept;
+  Expect<void>
+  proxyArrayInitElem(Runtime::StackManager &StackMgr,
+                     const Runtime::Instance::ModuleInstance *ModInst,
+                     const RefVariant Ref, const uint32_t TypeIdx,
+                     const uint32_t ElemIdx, const uint32_t DstIdx,
+                     const uint32_t SrcIdx, const uint32_t Cnt) noexcept;
+  Expect<uint32_t>
+  proxyRefTest(Runtime::StackManager &StackMgr,
+               const Runtime::Instance::ModuleInstance *ModInst,
+               const RefVariant Ref, ValType VTTest) noexcept;
+  Expect<RefVariant>
+  proxyRefCast(Runtime::StackManager &StackMgr,
+               const Runtime::Instance::ModuleInstance *ModInst,
+               const RefVariant Ref, ValType VTCast) noexcept;
   Expect<void> proxyTableInit(Runtime::StackManager &StackMgr,
+                              const Runtime::Instance::ModuleInstance *ModInst,
                               const uint32_t TableIdx, const uint32_t ElemIdx,
                               const uint64_t DstOff, const uint32_t SrcOff,
                               const uint32_t Len) noexcept;
   Expect<void> proxyElemDrop(Runtime::StackManager &StackMgr,
+                             const Runtime::Instance::ModuleInstance *ModInst,
                              const uint32_t ElemIdx) noexcept;
   Expect<void> proxyTableCopy(Runtime::StackManager &StackMgr,
+                              const Runtime::Instance::ModuleInstance *ModInst,
                               const uint32_t TableIdxDst,
                               const uint32_t TableIdxSrc, const uint64_t DstOff,
                               const uint64_t SrcOff,
                               const uint64_t Len) noexcept;
-  Expect<uint64_t> proxyTableGrow(Runtime::StackManager &StackMgr,
-                                  const uint32_t TableIdx, const RefVariant Val,
-                                  const uint64_t NewSize) noexcept;
+  Expect<uint64_t>
+  proxyTableGrow(Runtime::StackManager &StackMgr,
+                 const Runtime::Instance::ModuleInstance *ModInst,
+                 const uint32_t TableIdx, const RefVariant Val,
+                 const uint64_t NewSize) noexcept;
   Expect<void> proxyTableFill(Runtime::StackManager &StackMgr,
+                              const Runtime::Instance::ModuleInstance *ModInst,
                               const uint32_t TableIdx, const uint64_t Off,
                               const RefVariant Ref,
                               const uint64_t Len) noexcept;
-  Expect<uint64_t> proxyMemGrow(Runtime::StackManager &StackMgr,
-                                const uint32_t MemIdx,
-                                const uint64_t NewSize) noexcept;
+  Expect<uint64_t>
+  proxyMemGrow(Runtime::StackManager &StackMgr,
+               const Runtime::Instance::ModuleInstance *ModInst,
+               const uint32_t MemIdx, const uint64_t NewSize) noexcept;
   Expect<void> proxyMemInit(Runtime::StackManager &StackMgr,
+                            const Runtime::Instance::ModuleInstance *ModInst,
                             const uint32_t MemIdx, const uint32_t DataIdx,
                             const uint64_t DstOff, const uint32_t SrcOff,
                             const uint32_t Len) noexcept;
   Expect<void> proxyDataDrop(Runtime::StackManager &StackMgr,
+                             const Runtime::Instance::ModuleInstance *ModInst,
                              const uint32_t DataIdx) noexcept;
   Expect<void> proxyMemCopy(Runtime::StackManager &StackMgr,
+                            const Runtime::Instance::ModuleInstance *ModInst,
                             const uint32_t DstMemIdx, const uint32_t SrcMemIdx,
                             const uint64_t DstOff, const uint64_t SrcOff,
                             const uint64_t Len) noexcept;
   Expect<void> proxyMemFill(Runtime::StackManager &StackMgr,
+                            const Runtime::Instance::ModuleInstance *ModInst,
                             const uint32_t MemIdx, const uint64_t Off,
                             const uint8_t Val, const uint64_t Len) noexcept;
-  Expect<uint64_t> proxyMemAtomicNotify(Runtime::StackManager &StackMgr,
-                                        const uint32_t MemIdx,
-                                        const uint64_t Offset,
-                                        const uint64_t Count) noexcept;
   Expect<uint64_t>
-  proxyMemAtomicWait(Runtime::StackManager &StackMgr, const uint32_t MemIdx,
-                     const uint64_t Offset, const uint64_t Expected,
-                     const int64_t Timeout, const uint32_t BitWidth) noexcept;
+  proxyMemAtomicNotify(Runtime::StackManager &StackMgr,
+                       const Runtime::Instance::ModuleInstance *ModInst,
+                       const uint32_t MemIdx, const uint64_t Offset,
+                       const uint64_t Count) noexcept;
+  Expect<uint64_t>
+  proxyMemAtomicWait(Runtime::StackManager &StackMgr,
+                     const Runtime::Instance::ModuleInstance *ModInst,
+                     const uint32_t MemIdx, const uint64_t Offset,
+                     const uint64_t Expected, const int64_t Timeout,
+                     const uint32_t BitWidth) noexcept;
   Expect<void *> proxyTableGetFuncSymbol(Runtime::StackManager &StackMgr,
                                          const uint32_t TableIdx,
                                          const uint32_t FuncTypeIdx,
                                          const uint64_t FuncIdx) noexcept;
   Expect<void *> proxyRefGetFuncSymbol(Runtime::StackManager &StackMgr,
                                        const RefVariant Ref) noexcept;
-  Expect<void *> proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,
-                                        const uint32_t FuncIdx) noexcept;
+  Expect<void *>
+  proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,
+                         const Runtime::Instance::ModuleInstance *ModInst,
+                         const uint32_t FuncIdx) noexcept;
   Expect<void> proxyThrow(Runtime::StackManager &StackMgr,
+                          const Runtime::Instance::ModuleInstance *ModInst,
                           const uint32_t TagIdx, const ValVariant *Vals,
                           const uint32_t Num) noexcept;
   Expect<void> proxyThrowRef(Runtime::StackManager &StackMgr,
                              const RefVariant Ref) noexcept;
-  Expect<void> proxyCatchPop(Runtime::StackManager &StackMgr, ValVariant *Out,
-                             const uint32_t PopPayload,
+  Expect<void> proxyCatchPop(Runtime::StackManager &StackMgr,
+                             const Runtime::Instance::ModuleInstance *ModInst,
+                             ValVariant *Out, const uint32_t PopPayload,
                              const uint32_t NeedRef) noexcept;
   /// @}
 

@@ -15,6 +15,7 @@ TEST(Component, LoadAndValidate_TestWasm) {
   Conf.addProposal(Proposal::Component);
   VM::VM VM(Conf);
 
+  // clang-format off
   std::vector<uint8_t> Vec = {
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // WASM preamble
 
@@ -66,6 +67,7 @@ TEST(Component, LoadAndValidate_TestWasm) {
       0x6f, 0x6e, 0x65, 0x6e, 0x74, 0x07, 0x30, 0x2e, 0x32, 0x32, 0x37, 0x2e,
       0x31, // Custom section
   };
+  // clang-format on
 
   ASSERT_TRUE(VM.loadWasm(Vec));
   ASSERT_TRUE(VM.validate());

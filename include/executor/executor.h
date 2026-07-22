@@ -395,11 +395,12 @@ private:
   /// @{
   /// Helper function for calling functions. Return the continuation iterator.
   /// Set `IsNativeEntry` when entering from the native code.
-  Expect<AST::InstrView::iterator>
-  enterFunction(Runtime::StackManager &StackMgr,
-                const Runtime::Instance::FunctionInstance &Func,
-                const AST::InstrView::iterator RetIt, bool IsTailCall = false,
-                bool IsNativeEntry = false);
+  Expect<AST::InstrView::iterator> enterFunction(
+      Runtime::StackManager &StackMgr,
+      const Runtime::Instance::FunctionInstance &Func,
+      const AST::InstrView::iterator RetIt, bool IsTailCall = false,
+      bool IsNativeEntry = false,
+      const Runtime::Instance::ModuleInstance *CallerModInst = nullptr);
 
   /// Helper function for branching to label.
   Expect<void> branchToLabel(Runtime::StackManager &StackMgr,

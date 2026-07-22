@@ -3,13 +3,13 @@
 
 #pragma once
 #include "common/options.h"
-#include "utils/error.h"
 #include "common/span.h"
+#include "utils/error.h"
 #include "wasi_crypto/api.hpp"
 #include <shared_mutex>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <string>
 #include <vector>
 
 namespace WasmEdge {
@@ -23,28 +23,31 @@ constexpr __wasi_version_t VERSION_ALL = 0xff00000000000002ULL;
 
 class SecretsManager {
 public:
-  explicit SecretsManager(Options OptOptions) noexcept 
+  explicit SecretsManager(Options OptOptions) noexcept
       : ConfigOptions(std::move(OptOptions)) {}
 
-  WasiCryptoExpect<void> invalidate(Span<const uint8_t> KeyId, __wasi_version_t Version) noexcept {
+  WasiCryptoExpect<void> invalidate(Span<const uint8_t> KeyId,
+                                    __wasi_version_t Version) noexcept {
     std::unique_lock<std::shared_mutex> Lock(Mutex);
     std::string KeyIdStr(KeyId.begin(), KeyId.end());
     InvalidatedKeys[KeyIdStr].insert(Version);
     return {};
   }
 
-  bool isInvalidated(Span<const uint8_t> KeyId, __wasi_version_t Version) const noexcept {
+  bool isInvalidated(Span<const uint8_t> KeyId,
+                     __wasi_version_t Version) const noexcept {
     std::shared_lock<std::shared_mutex> Lock(Mutex);
     std::string KeyIdStr(KeyId.begin(), KeyId.end());
-    
+
     auto It = InvalidatedKeys.find(KeyIdStr);
     if (It != InvalidatedKeys.end()) {
-      const auto& versions = It->second;
+      const auto &versions = It->second;
       if (versions.count(VERSION_ALL) > 0 || versions.count(Version) > 0) {
         return true;
       }
-      if (versions.count(VERSION_LATEST) > 0 && Version != VERSION_UNSPECIFIED) {
-        return true; 
+      if (versions.count(VERSION_LATEST) > 0 &&
+          Version != VERSION_UNSPECIFIED) {
+        return true;
       }
     }
     return false;
@@ -53,7 +56,8 @@ public:
 private:
   Options ConfigOptions;
   mutable std::shared_mutex Mutex;
-  std::unordered_map<std::string, std::unordered_set<__wasi_version_t>> InvalidatedKeys;
+  std::unordered_map<std::string, std::unordered_set<__wasi_version_t>>
+      InvalidatedKeys;
 };
 
 } // namespace Common

@@ -70,18 +70,19 @@ Context::optionsSetGuestBuffer(__wasi_options_t OptionsHandle,
 WasiCryptoExpect<__wasi_secrets_manager_t>
 Context::secretsManagerOpen(__wasi_opt_options_t OptOptionsHandle) noexcept {
   Common::Options opts;
-  if (OptOptionsHandle.tag == 0) { 
+  if (OptOptionsHandle.tag == 0) {
     auto Res = OptionsManager.getAs<Common::Options>(OptOptionsHandle.val);
     if (!Res) {
       return Res.error();
     }
     opts = *Res;
   }
-  return SecretsManagerManager.registerManager(Common::SecretsManager(std::move(opts)));
+  return SecretsManagerManager.registerManager(
+      Common::SecretsManager(std::move(opts)));
 }
 
-WasiCryptoExpect<void>
-Context::secretsManagerClose(__wasi_secrets_manager_t SecretsManagerHandle) noexcept {
+WasiCryptoExpect<void> Context::secretsManagerClose(
+    __wasi_secrets_manager_t SecretsManagerHandle) noexcept {
   return SecretsManagerManager.close(SecretsManagerHandle);
 }
 

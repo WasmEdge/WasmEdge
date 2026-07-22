@@ -49,7 +49,21 @@ Expect<void> CanonLowerHostFunc::run(const Runtime::CallingFrame &,
   // Lower-direction CanonCtx: Memory/Realloc come from the canon lower
   // options. Exec is needed by callRealloc inside lower_flat_values when
   // nested strings/lists in results need their own buffer.
-  CanonicalABI::CanonCtx Cx{Exec, Memory, Realloc, CompInst, {}, Enc};
+  std::vector<std::pair<const Runtime::Instance::ComponentInstance *, uint32_t>>
+      LiftedBorrows;
+  CanonicalABI::CanonCtx Cx{Exec, Memory, Realloc,        CompInst,
+                            {},   {},     &LiftedBorrows, Enc};
+  // The callee's function type carries type indices of the callee's
+  // instance; handle tables stay with the caller (CompInst).
+  if (const auto *CalleeComp = Callee->getComponentInstance();
+      CalleeComp != nullptr && CalleeComp != CompInst) {
+    Cx.TypeResolver = [CalleeComp](uint32_t I) {
+      return CalleeComp->getType(I);
+    };
+    Cx.ResourceResolver = [CalleeComp](uint32_t I) {
+      return CalleeComp->getTypeResource(I);
+    };
+  }
 
   // Collect component-level param + result types from the callee.
   const auto &CFT = Callee->getFuncType();
@@ -84,8 +98,15 @@ Expect<void> CanonLowerHostFunc::run(const Runtime::CallingFrame &,
                CanonicalABI::liftFlatValues(Cx, VI, ParamTypes,
                                             CanonicalABI::MaxFlatParams));
 
-  // Invoke the wrapped component function.
-  EXPECTED_TRY(auto CompRes, Exec->invoke(Callee, Params, ParamTypes));
+  // Invoke the wrapped component function, then release the lends taken by
+  // borrow arguments (sync calls scope borrows to the call).
+  auto CompResOrErr = Exec->invoke(Callee, Params, ParamTypes);
+  for (const auto &[Inst, Idx] : LiftedBorrows) {
+    if (auto *Slot = Inst->handleGet(Idx); Slot != nullptr && Slot->Lends > 0) {
+      Slot->Lends -= 1;
+    }
+  }
+  EXPECTED_TRY(auto CompRes, std::move(CompResOrErr));
 
   std::vector<ComponentValVariant> ResultValues;
   ResultValues.reserve(CompRes.size());

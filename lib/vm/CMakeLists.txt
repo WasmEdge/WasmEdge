@@ -15,6 +15,7 @@ target_link_libraries(wasmedgeVM
   wasmedgeValidator
   wasmedgeExecutor
   wasmedgeHostModuleWasi
+  wasmedgeHostModuleWasiP2
 )
 
 if(WASMEDGE_USE_LLVM)

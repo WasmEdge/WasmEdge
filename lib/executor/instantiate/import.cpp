@@ -160,9 +160,20 @@ Expect<void> Executor::instantiate(
       // External function type should match the import function type in
       // description.
 
-      if (!AST::TypeMatcher::matchType(ModInst.getTypeList(), TypeIdx,
-                                       ImpModInst->getTypeList(),
-                                       ImpInst->getTypeIndex())) {
+      bool FnTypeMatch = AST::TypeMatcher::matchType(
+          ModInst.getTypeList(), TypeIdx, ImpModInst->getTypeList(),
+          ImpInst->getTypeIndex());
+      if (!FnTypeMatch &&
+          ImpInst->getTypeIndex() >= ImpModInst->getTypeList().size()) {
+        // Functions re-exported through synthetic component instances lose
+        // their defining module's type list; compare resolved types instead.
+        const auto &ExpFT =
+            (**ModInst.getType(TypeIdx)).getCompositeType().getFuncType();
+        const auto &GotFT = ImpInst->getFuncType();
+        FnTypeMatch = ExpFT.getParamTypes() == GotFT.getParamTypes() &&
+                      ExpFT.getReturnTypes() == GotFT.getReturnTypes();
+      }
+      if (!FnTypeMatch) {
         const auto &ExpDefType = **ModInst.getType(TypeIdx);
         bool IsMatchV2 = false;
         const auto &ExpFuncType = ExpDefType.getCompositeType().getFuncType();
@@ -269,9 +280,21 @@ Expect<void> Executor::instantiate(
       const auto &TagType = ImpDesc.getExternalTagType();
       // Import matching.
       auto *ImpInst = ImpModInst->findTagExports(ExtName);
-      if (!AST::TypeMatcher::matchType(
-              ModInst.getTypeList(), TagType.getTypeIdx(),
-              ImpModInst->getTypeList(), ImpInst->getTagType().getTypeIdx())) {
+      bool TagMatch = AST::TypeMatcher::matchType(
+          ModInst.getTypeList(), TagType.getTypeIdx(),
+          ImpModInst->getTypeList(), ImpInst->getTagType().getTypeIdx());
+      if (!TagMatch && ImpInst->getTagType().getTypeIdx() >=
+                           ImpModInst->getTypeList().size()) {
+        // Tags re-exported through synthetic component instances lose their
+        // defining module's type list; compare the resolved types instead.
+        const auto &ExpFT =
+            TagType.getDefType().getCompositeType().getFuncType();
+        const auto &GotFT =
+            ImpInst->getTagType().getDefType().getCompositeType().getFuncType();
+        TagMatch = ExpFT.getParamTypes() == GotFT.getParamTypes() &&
+                   ExpFT.getReturnTypes() == GotFT.getReturnTypes();
+      }
+      if (!TagMatch) {
         const auto &ExpFuncType =
             TagType.getDefType().getCompositeType().getFuncType();
         const auto &ImpFuncType =

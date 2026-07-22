@@ -317,7 +317,8 @@ private:
   /// Instantiation of Child Component Instance.
   Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
   instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
-              const AST::Component::Component &Comp);
+              const AST::Component::Component &Comp,
+              const Runtime::Instance::ComponentInstance *Parent = nullptr);
 
   /// Instantiation of Child Core Module Instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
@@ -360,6 +361,8 @@ private:
   /// Instantiation of Start Section.
   Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
                            const AST::Component::StartSection &StartSec);
+  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::ValueSection &ValSec);
 
   /// Instantiation of Import Section.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,

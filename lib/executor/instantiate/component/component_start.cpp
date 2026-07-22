@@ -25,8 +25,33 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
     PTypes.push_back(LType.getValType());
   }
 
-  EXPECTED_TRY(auto ResultList, invoke(FuncInst, Args, PTypes));
-  CompInst.setValue(Start.getResult(), ResultList[0].first);
+  // The start function is part of this instantiation, so it may enter the
+  // instance being built.
+  CompInst.setEntered(false);
+  auto Res = invoke(FuncInst, Args, PTypes);
+  CompInst.setEntered(true);
+  EXPECTED_TRY(auto ResultList, std::move(Res));
+  // Start results append to the value index space in declaration order.
+  for (uint32_t I = 0; I < Start.getResult() && I < ResultList.size(); ++I) {
+    CompInst.addValue(ResultList[I].first);
+  }
+  return {};
+}
+
+Expect<void>
+Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
+                      const AST::Component::ValueSection &ValSec) {
+  for (const auto &Value : ValSec.getContent()) {
+    // The payloads decode during validation; an empty slot means this AST
+    // never passed the validator.
+    const auto &Cached = Value.getDecoded();
+    if (!Cached.has_value()) {
+      spdlog::error(ErrCode::Value::NotValidated);
+      spdlog::error("    value definition has no decoded payload"sv);
+      return Unexpect(ErrCode::Value::NotValidated);
+    }
+    CompInst.addValue(*Cached);
+  }
   return {};
 }
 

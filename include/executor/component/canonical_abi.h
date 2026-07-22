@@ -61,6 +61,17 @@ struct CanonCtx {
   /// ComponentInstance) reuse alignment / elemSize / flatten_* without
   /// duplicating the recursion. Takes precedence over CompInst when set.
   std::function<const AST::Component::DefType *(uint32_t)> TypeResolver;
+  /// Optional resolver for resource identities of own/borrow type indices.
+  /// Set together with TypeResolver when the function type belongs to a
+  /// different instance than the handle tables (host or cross-component
+  /// callees). Takes precedence over CompInst when set.
+  std::function<const Runtime::Instance::ComponentInstance::ResourceTypeRT *(
+      uint32_t)>
+      ResourceResolver;
+  /// When set, borrows lifted through this context are recorded so the
+  /// caller can release the lends after the call returns.
+  std::vector<std::pair<const Runtime::Instance::ComponentInstance *, uint32_t>>
+      *LiftedBorrows = nullptr;
   /// Guest string encoding for the canon function this context serves
   /// (CanonicalABI.md `string-encoding` option). Selects the byte layout used
   /// by load / store / lift_flat / lower_flat for `string` values. Defaults to

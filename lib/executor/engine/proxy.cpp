@@ -263,9 +263,10 @@ Expect<RefVariant> Executor::proxyStructNew(Runtime::StackManager &StackMgr,
                                             const ValVariant *Args,
                                             const uint32_t ArgSize) noexcept {
   if (Args == nullptr) {
-    return structNew(StackMgr, TypeIdx);
+    return structNew(StackMgr.getModule(), TypeIdx);
   } else {
-    return structNew(StackMgr, TypeIdx, Span<const ValVariant>(Args, ArgSize));
+    return structNew(StackMgr.getModule(), TypeIdx,
+                     Span<const ValVariant>(Args, ArgSize));
   }
 }
 
@@ -274,7 +275,8 @@ Expect<void> Executor::proxyStructGet(Runtime::StackManager &StackMgr,
                                       const uint32_t TypeIdx,
                                       const uint32_t Off, const bool IsSigned,
                                       ValVariant *Ret) noexcept {
-  EXPECTED_TRY(auto Val, structGet(StackMgr, Ref, TypeIdx, Off, IsSigned));
+  EXPECTED_TRY(auto Val,
+               structGet(StackMgr.getModule(), Ref, TypeIdx, Off, IsSigned));
   *Ret = Val;
   return {};
 }
@@ -284,7 +286,7 @@ Expect<void> Executor::proxyStructSet(Runtime::StackManager &StackMgr,
                                       const uint32_t TypeIdx,
                                       const uint32_t Off,
                                       const ValVariant *Val) noexcept {
-  return structSet(StackMgr, Ref, *Val, TypeIdx, Off);
+  return structSet(StackMgr.getModule(), Ref, *Val, TypeIdx, Off);
 }
 
 Expect<RefVariant> Executor::proxyArrayNew(Runtime::StackManager &StackMgr,
@@ -294,11 +296,11 @@ Expect<RefVariant> Executor::proxyArrayNew(Runtime::StackManager &StackMgr,
                                            const uint32_t ArgSize) noexcept {
   assuming(ArgSize == 0 || ArgSize == 1 || ArgSize == Length);
   if (ArgSize == 0) {
-    return arrayNew(StackMgr, TypeIdx, Length);
+    return arrayNew(StackMgr.getModule(), TypeIdx, Length);
   } else if (ArgSize == 1) {
-    return arrayNew(StackMgr, TypeIdx, Length, {Args[0]});
+    return arrayNew(StackMgr.getModule(), TypeIdx, Length, {Args[0]});
   } else {
-    return arrayNew(StackMgr, TypeIdx, Length,
+    return arrayNew(StackMgr.getModule(), TypeIdx, Length,
                     Span<const ValVariant>(Args, ArgSize));
   }
 }
@@ -308,7 +310,7 @@ Expect<RefVariant> Executor::proxyArrayNewData(Runtime::StackManager &StackMgr,
                                                const uint32_t DataIdx,
                                                const uint32_t Start,
                                                const uint32_t Length) noexcept {
-  return arrayNewData(StackMgr, TypeIdx, DataIdx, Start, Length);
+  return arrayNewData(StackMgr.getModule(), TypeIdx, DataIdx, Start, Length);
 }
 
 Expect<RefVariant> Executor::proxyArrayNewElem(Runtime::StackManager &StackMgr,
@@ -316,7 +318,7 @@ Expect<RefVariant> Executor::proxyArrayNewElem(Runtime::StackManager &StackMgr,
                                                const uint32_t ElemIdx,
                                                const uint32_t Start,
                                                const uint32_t Length) noexcept {
-  return arrayNewElem(StackMgr, TypeIdx, ElemIdx, Start, Length);
+  return arrayNewElem(StackMgr.getModule(), TypeIdx, ElemIdx, Start, Length);
 }
 
 Expect<void> Executor::proxyArrayGet(Runtime::StackManager &StackMgr,
@@ -324,7 +326,8 @@ Expect<void> Executor::proxyArrayGet(Runtime::StackManager &StackMgr,
                                      const uint32_t TypeIdx, const uint32_t Idx,
                                      const bool IsSigned,
                                      ValVariant *Ret) noexcept {
-  EXPECTED_TRY(auto Val, arrayGet(StackMgr, Ref, TypeIdx, Idx, IsSigned));
+  EXPECTED_TRY(auto Val,
+               arrayGet(StackMgr.getModule(), Ref, TypeIdx, Idx, IsSigned));
   *Ret = Val;
   return {};
 }
@@ -333,7 +336,7 @@ Expect<void> Executor::proxyArraySet(Runtime::StackManager &StackMgr,
                                      const RefVariant Ref,
                                      const uint32_t TypeIdx, const uint32_t Idx,
                                      const ValVariant *Val) noexcept {
-  return arraySet(StackMgr, Ref, *Val, TypeIdx, Idx);
+  return arraySet(StackMgr.getModule(), Ref, *Val, TypeIdx, Idx);
 }
 
 Expect<uint32_t> Executor::proxyArrayLen(Runtime::StackManager &,
@@ -350,7 +353,7 @@ Expect<void> Executor::proxyArrayFill(Runtime::StackManager &StackMgr,
                                       const uint32_t TypeIdx,
                                       const uint32_t Idx, const uint32_t Cnt,
                                       const ValVariant *Val) noexcept {
-  return arrayFill(StackMgr, Ref, *Val, TypeIdx, Idx, Cnt);
+  return arrayFill(StackMgr.getModule(), Ref, *Val, TypeIdx, Idx, Cnt);
 }
 
 Expect<void>
@@ -359,22 +362,24 @@ Executor::proxyArrayCopy(Runtime::StackManager &StackMgr,
                          const uint32_t DstIdx, const RefVariant SrcRef,
                          const uint32_t SrcTypeIdx, const uint32_t SrcIdx,
                          const uint32_t Cnt) noexcept {
-  return arrayCopy(StackMgr, DstRef, DstTypeIdx, DstIdx, SrcRef, SrcTypeIdx,
-                   SrcIdx, Cnt);
+  return arrayCopy(StackMgr.getModule(), DstRef, DstTypeIdx, DstIdx, SrcRef,
+                   SrcTypeIdx, SrcIdx, Cnt);
 }
 
 Expect<void> Executor::proxyArrayInitData(
     Runtime::StackManager &StackMgr, const RefVariant Ref,
     const uint32_t TypeIdx, const uint32_t DataIdx, const uint32_t DstIdx,
     const uint32_t SrcIdx, const uint32_t Cnt) noexcept {
-  return arrayInitData(StackMgr, Ref, TypeIdx, DataIdx, DstIdx, SrcIdx, Cnt);
+  return arrayInitData(StackMgr.getModule(), Ref, TypeIdx, DataIdx, DstIdx,
+                       SrcIdx, Cnt);
 }
 
 Expect<void> Executor::proxyArrayInitElem(
     Runtime::StackManager &StackMgr, const RefVariant Ref,
     const uint32_t TypeIdx, const uint32_t ElemIdx, const uint32_t DstIdx,
     const uint32_t SrcIdx, const uint32_t Cnt) noexcept {
-  return arrayInitElem(StackMgr, Ref, TypeIdx, ElemIdx, DstIdx, SrcIdx, Cnt);
+  return arrayInitElem(StackMgr.getModule(), Ref, TypeIdx, ElemIdx, DstIdx,
+                       SrcIdx, Cnt);
 }
 
 Expect<uint32_t> Executor::proxyRefTest(Runtime::StackManager &StackMgr,

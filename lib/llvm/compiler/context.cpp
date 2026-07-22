@@ -182,6 +182,7 @@ std::vector<LLVM::Type> toLLVMArgsType(LLVM::Context LLContext,
                                        Span<const ValType> ValTypes) noexcept {
   auto Result = toLLVMTypeVector(LLContext, ValTypes);
   Result.insert(Result.begin(), ExecCtxPtrTy);
+  Result.insert(Result.begin(), ExecCtxPtrTy);
   return Result;
 }
 

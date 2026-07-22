@@ -198,8 +198,8 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
         Err = ErrCode(static_cast<ErrCategory>(Code >> 24), Code);
       } else {
         auto &Wrapper = FuncType.getSymbol();
-        Wrapper(&ExecutionContext, Func.getSymbol().get(), Args.data(),
-                Rets.data());
+        Wrapper(&ExecutionContext, &ExecutionContext, Func.getSymbol().get(),
+                Args.data(), Rets.data());
       }
     } catch (const ErrCode &E) {
       Err = E;

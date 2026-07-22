@@ -146,7 +146,7 @@ Expect<void> Executor::proxyTrap(Runtime::StackManager &,
 Expect<void> Executor::proxyCall(Runtime::StackManager &StackMgr,
                                  const uint32_t FuncIdx, const ValVariant *Args,
                                  ValVariant *Rets) noexcept {
-  const auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
+  const auto *FuncInst = getFuncInstByIdx(StackMgr.getModule(), FuncIdx);
   assuming(FuncInst);
   EXPECTED_TRY(checkLazyCompilation(FuncInst));
   const auto &FuncType = FuncInst->getFuncType();
@@ -171,7 +171,7 @@ Expect<void> Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
                                          const uint64_t FuncIdx,
                                          const ValVariant *Args,
                                          ValVariant *Rets) noexcept {
-  const auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
+  const auto *TabInst = getTabInstByIdx(StackMgr.getModule(), TableIdx);
   assuming(TabInst);
 
   if (unlikely(FuncIdx >= TabInst->getSize())) {
@@ -253,7 +253,7 @@ Expect<void> Executor::proxyCallRef(Runtime::StackManager &StackMgr,
 
 Expect<RefVariant> Executor::proxyRefFunc(Runtime::StackManager &StackMgr,
                                           const uint32_t FuncIdx) noexcept {
-  auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
+  auto *FuncInst = getFuncInstByIdx(StackMgr.getModule(), FuncIdx);
   assuming(FuncInst);
   return RefVariant(FuncInst->getDefType(), FuncInst);
 }
@@ -444,16 +444,16 @@ Expect<void> Executor::proxyTableInit(Runtime::StackManager &StackMgr,
                                       const uint64_t DstOff,
                                       const uint32_t SrcOff,
                                       const uint32_t Len) noexcept {
-  auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
+  auto *TabInst = getTabInstByIdx(StackMgr.getModule(), TableIdx);
   assuming(TabInst);
-  auto *ElemInst = getElemInstByIdx(StackMgr, ElemIdx);
+  auto *ElemInst = getElemInstByIdx(StackMgr.getModule(), ElemIdx);
   assuming(ElemInst);
   return TabInst->setRefs(ElemInst->getRefs(), DstOff, SrcOff, Len);
 }
 
 Expect<void> Executor::proxyElemDrop(Runtime::StackManager &StackMgr,
                                      const uint32_t ElemIdx) noexcept {
-  auto *ElemInst = getElemInstByIdx(StackMgr, ElemIdx);
+  auto *ElemInst = getElemInstByIdx(StackMgr.getModule(), ElemIdx);
   assuming(ElemInst);
   ElemInst->clear();
   return {};
@@ -465,9 +465,9 @@ Expect<void> Executor::proxyTableCopy(Runtime::StackManager &StackMgr,
                                       const uint64_t DstOff,
                                       const uint64_t SrcOff,
                                       const uint64_t Len) noexcept {
-  auto *TabInstDst = getTabInstByIdx(StackMgr, TableIdxDst);
+  auto *TabInstDst = getTabInstByIdx(StackMgr.getModule(), TableIdxDst);
   assuming(TabInstDst);
-  auto *TabInstSrc = getTabInstByIdx(StackMgr, TableIdxSrc);
+  auto *TabInstSrc = getTabInstByIdx(StackMgr.getModule(), TableIdxSrc);
   assuming(TabInstSrc);
 
   EXPECTED_TRY(auto Refs, TabInstSrc->getRefs(0, SrcOff + Len));
@@ -478,7 +478,7 @@ Expect<uint64_t> Executor::proxyTableGrow(Runtime::StackManager &StackMgr,
                                           const uint32_t TableIdx,
                                           const RefVariant Val,
                                           const uint64_t NewSize) noexcept {
-  auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
+  auto *TabInst = getTabInstByIdx(StackMgr.getModule(), TableIdx);
   assuming(TabInst);
   const auto AddrType = TabInst->getTableType().getLimit().getAddrType();
   const uint64_t CurrTableSize = TabInst->getSize();
@@ -500,7 +500,7 @@ Expect<void> Executor::proxyTableFill(Runtime::StackManager &StackMgr,
                                       const uint32_t TableIdx,
                                       const uint64_t Off, const RefVariant Ref,
                                       const uint64_t Len) noexcept {
-  auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
+  auto *TabInst = getTabInstByIdx(StackMgr.getModule(), TableIdx);
   assuming(TabInst);
   return TabInst->fillRefs(Ref, Off, Len);
 }
@@ -508,7 +508,7 @@ Expect<void> Executor::proxyTableFill(Runtime::StackManager &StackMgr,
 Expect<uint64_t> Executor::proxyMemGrow(Runtime::StackManager &StackMgr,
                                         const uint32_t MemIdx,
                                         const uint64_t NewSize) noexcept {
-  auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
+  auto *MemInst = getMemInstByIdx(StackMgr.getModule(), MemIdx);
   assuming(MemInst);
   const auto AddrType = MemInst->getMemoryType().getLimit().getAddrType();
   const uint64_t CurrPageSize = MemInst->getPageSize();
@@ -530,16 +530,16 @@ Expect<void>
 Executor::proxyMemInit(Runtime::StackManager &StackMgr, const uint32_t MemIdx,
                        const uint32_t DataIdx, const uint64_t DstOff,
                        const uint32_t SrcOff, const uint32_t Len) noexcept {
-  auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
+  auto *MemInst = getMemInstByIdx(StackMgr.getModule(), MemIdx);
   assuming(MemInst);
-  auto *DataInst = getDataInstByIdx(StackMgr, DataIdx);
+  auto *DataInst = getDataInstByIdx(StackMgr.getModule(), DataIdx);
   assuming(DataInst);
   return MemInst->setBytes(DataInst->getData(), DstOff, SrcOff, Len);
 }
 
 Expect<void> Executor::proxyDataDrop(Runtime::StackManager &StackMgr,
                                      const uint32_t DataIdx) noexcept {
-  auto *DataInst = getDataInstByIdx(StackMgr, DataIdx);
+  auto *DataInst = getDataInstByIdx(StackMgr.getModule(), DataIdx);
   assuming(DataInst);
   DataInst->clear();
   return {};
@@ -551,9 +551,9 @@ Expect<void> Executor::proxyMemCopy(Runtime::StackManager &StackMgr,
                                     const uint64_t DstOff,
                                     const uint64_t SrcOff,
                                     const uint64_t Len) noexcept {
-  auto *MemInstDst = getMemInstByIdx(StackMgr, DstMemIdx);
+  auto *MemInstDst = getMemInstByIdx(StackMgr.getModule(), DstMemIdx);
   assuming(MemInstDst);
-  auto *MemInstSrc = getMemInstByIdx(StackMgr, SrcMemIdx);
+  auto *MemInstSrc = getMemInstByIdx(StackMgr.getModule(), SrcMemIdx);
   assuming(MemInstSrc);
 
   EXPECTED_TRY(auto Data, MemInstSrc->getBytes(SrcOff, Len));
@@ -564,7 +564,7 @@ Expect<void> Executor::proxyMemFill(Runtime::StackManager &StackMgr,
                                     const uint32_t MemIdx, const uint64_t Off,
                                     const uint8_t Val,
                                     const uint64_t Len) noexcept {
-  auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
+  auto *MemInst = getMemInstByIdx(StackMgr.getModule(), MemIdx);
   assuming(MemInst);
   return MemInst->fillBytes(Val, Off, Len);
 }
@@ -573,7 +573,7 @@ Expect<uint64_t> Executor::proxyMemAtomicNotify(Runtime::StackManager &StackMgr,
                                                 const uint32_t MemIdx,
                                                 const uint64_t Offset,
                                                 const uint64_t Count) noexcept {
-  auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
+  auto *MemInst = getMemInstByIdx(StackMgr.getModule(), MemIdx);
   assuming(MemInst);
   return atomicNotify(*MemInst, Offset, Count);
 }
@@ -583,7 +583,7 @@ Executor::proxyMemAtomicWait(Runtime::StackManager &StackMgr,
                              const uint32_t MemIdx, const uint64_t Offset,
                              const uint64_t Expected, const int64_t Timeout,
                              const uint32_t BitWidth) noexcept {
-  auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
+  auto *MemInst = getMemInstByIdx(StackMgr.getModule(), MemIdx);
   assuming(MemInst);
 
   if (BitWidth == 64) {
@@ -598,7 +598,7 @@ Executor::proxyMemAtomicWait(Runtime::StackManager &StackMgr,
 Expect<void *> Executor::proxyTableGetFuncSymbol(
     Runtime::StackManager &StackMgr, const uint32_t TableIdx,
     const uint32_t FuncTypeIdx, const uint64_t FuncIdx) noexcept {
-  const auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
+  const auto *TabInst = getTabInstByIdx(StackMgr.getModule(), TableIdx);
   assuming(TabInst);
 
   if (unlikely(FuncIdx >= TabInst->getSize())) {
@@ -668,7 +668,7 @@ Expect<void *> Executor::proxyRefGetFuncSymbol(Runtime::StackManager &,
 Expect<void *>
 Executor::proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,
                                  const uint32_t FuncIdx) noexcept {
-  const auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
+  const auto *FuncInst = getFuncInstByIdx(StackMgr.getModule(), FuncIdx);
   assuming(FuncInst);
   if (likely(FuncInst->isCompiledFunction())) {
     return FuncInst->getSymbol().get();
@@ -684,7 +684,7 @@ Executor::proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,
 Expect<void> Executor::proxyThrow(Runtime::StackManager &StackMgr,
                                   const uint32_t TagIdx, const ValVariant *Vals,
                                   const uint32_t Num) noexcept {
-  auto *TagInst = getTagInstByIdx(StackMgr, TagIdx);
+  auto *TagInst = getTagInstByIdx(StackMgr.getModule(), TagIdx);
   assuming(TagInst);
   assuming(TagInst->getTagType().getAssocValSize() == Num);
   PendingExn.TagInst = TagInst;

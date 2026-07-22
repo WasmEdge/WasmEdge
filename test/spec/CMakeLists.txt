@@ -9,7 +9,7 @@ message(STATUS "Downloading the WASM spec test suite")
 FetchContent_Declare(
   wasmedge_unit_test
   GIT_REPOSITORY https://github.com/WasmEdge/wasmedge-spectest
-  GIT_TAG        e1b86257eac83f3bfa643814d593e7651d5f4c28  # wasm-core-20260322
+  GIT_TAG        c6d697687eaf3bcfb2a8d93032ac1848a38fbd48  # yiying/component
 )
 FetchContent_MakeAvailable(wasmedge_unit_test)
 message(STATUS "Downloading the WASM spec test suite -- done")
@@ -36,7 +36,13 @@ set(WASMEDGE_SPECTEST_FOLDERS
   "wasm-3.0-relaxed-simd"
   "wasm-3.0-simd"
   "threads"
-  "component-model"
+  "component-model-wasm-tools"
+  "component-model-wasmtime"
+  "component-model-validation"
+  "component-model-resources"
+  "component-model-linking"
+  "component-model-async"
+  "component-model-values"
 )
 
 foreach(PROPOSAL ${WASMEDGE_SPECTEST_FOLDERS})

@@ -15,6 +15,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "common/spdlog.h"
+#include "runtime/instance/component/component.h"
+#include "runtime/instance/component/function.h"
 #include "vm/vm.h"
 
 #include "../spec/hostfunc.h"
@@ -51,8 +53,370 @@ TEST_P(CoreTest, TestSuites) {
   struct TestContext {
     WasmEdge::SpecTestModule SpecTestMod;
     WasmEdge::VM::VM VM;
-    TestContext(const WasmEdge::Configure &C) : VM(C) {
+    // Configuration copy for spawning fresh VMs in unlinkable /
+    // uninstantiable checks.
+    WasmEdge::Configure StrictConf;
+    // Host component items the reference test suites expect ("host",
+    // "host-return-two").
+    std::vector<std::unique_ptr<WasmEdge::Runtime::Instance::ComponentInstance>>
+        HostCompInsts;
+    std::vector<std::unique_ptr<WasmEdge::AST::Component::Component>>
+        HostCompDefs;
+    std::unique_ptr<WasmEdge::AST::Module> HostSimpleModule;
+    TestContext(const WasmEdge::Configure &C) : VM(C), StrictConf(C) {
       VM.registerModule(SpecTestMod);
+      if (C.hasProposal(WasmEdge::Proposal::Component)) {
+        registerComponentHostItems();
+      }
+    }
+    void registerComponentHostItems() {
+      using namespace WasmEdge;
+      using namespace WasmEdge::AST::Component;
+      using CompFuncInst = Runtime::Instance::Component::FunctionInstance;
+      using HostRets =
+          std::vector<std::pair<ComponentValVariant, ComponentValType>>;
+
+      // Instance "host": resource1/resource2 with constructor and a static
+      // assert, plus return-three. Mirrors the reference wast runner's host.
+      auto Host =
+          std::make_unique<Runtime::Instance::ComponentInstance>("host");
+      // Drop tracking for resource1 (last-drop / drops statics).
+      struct DropState {
+        uint32_t Drops = 0;
+        uint32_t LastDrop = 0;
+      };
+      auto Track = std::make_shared<DropState>();
+      const uint32_t R1 = Host->addHostResourceType([Track](uint32_t Rep) {
+        Track->Drops += 1;
+        Track->LastDrop = Rep;
+      });
+      Host->exportType("resource1", R1);
+      const uint32_t R2 = Host->addHostResourceType(nullptr);
+      Host->exportType("resource2", R2);
+      Host->exportType("resource1-again", R1);
+      DefType OwnR1;
+      DefValType DVT;
+      DVT.setOwn(OwnTy{R1});
+      OwnR1.setDefValType(std::move(DVT));
+      const uint32_t OwnIdx = Host->addOwnedType(std::move(OwnR1));
+
+      auto Ctor = std::make_unique<FuncType>(
+          std::vector<LabelValType>{
+              LabelValType("r", ComponentValType(ComponentTypeCode::U32))},
+          std::vector<LabelValType>{LabelValType(ComponentValType(OwnIdx))});
+      Host->addHostFunc(
+          "[constructor]resource1",
+          std::make_unique<CompFuncInst>(
+              std::move(Ctor),
+              [OwnIdx](
+                  Span<const ComponentValVariant> Args) -> Expect<HostRets> {
+                HostRets R;
+                R.emplace_back(
+                    makeComponentVal(OwnVal{std::get<uint32_t>(Args[0])}),
+                    ComponentValType(OwnIdx));
+                return R;
+              },
+              Host.get()));
+
+      auto Assert = std::make_unique<FuncType>(
+          std::vector<LabelValType>{
+              LabelValType("r", ComponentValType(OwnIdx)),
+              LabelValType("rep", ComponentValType(ComponentTypeCode::U32))},
+          std::vector<LabelValType>{});
+      Host->addHostFunc(
+          "[static]resource1.assert",
+          std::make_unique<CompFuncInst>(
+              std::move(Assert),
+              [](Span<const ComponentValVariant> Args) -> Expect<HostRets> {
+                const auto &VC = std::get<std::shared_ptr<ValComp>>(Args[0]);
+                const uint32_t Rep = std::get<OwnVal>(VC->V).Handle;
+                if (Rep != std::get<uint32_t>(Args[1])) {
+                  return Unexpect(ErrCode::Value::HostFuncError);
+                }
+                return HostRets{};
+              },
+              Host.get()));
+
+      auto Three = std::make_unique<FuncType>(
+          std::vector<LabelValType>{},
+          std::vector<LabelValType>{
+              LabelValType(ComponentValType(ComponentTypeCode::U32))});
+      Host->addHostFunc(
+          "return-three",
+          std::make_unique<CompFuncInst>(
+              std::move(Three),
+              [](Span<const ComponentValVariant>) -> Expect<HostRets> {
+                HostRets R;
+                R.emplace_back(ComponentValVariant{uint32_t(3)},
+                               ComponentValType(ComponentTypeCode::U32));
+                return R;
+              },
+              Host.get()));
+
+      // Named record types: x, rec, some-record.
+      RecordTy XRec;
+      XRec.LabelTypes.emplace_back("x",
+                                   ComponentValType(ComponentTypeCode::U32));
+      DefType XDT;
+      DefValType XDVT;
+      XDVT.setRecord(std::move(XRec));
+      XDT.setDefValType(std::move(XDVT));
+      const uint32_t XIdx = Host->addOwnedType(std::move(XDT));
+      Host->exportType("x", XIdx);
+      RecordTy RecRec;
+      RecRec.LabelTypes.emplace_back("x", ComponentValType(XIdx));
+      RecRec.LabelTypes.emplace_back(
+          "y", ComponentValType(ComponentTypeCode::String));
+      DefType RecDT;
+      DefValType RecDVT;
+      RecDVT.setRecord(std::move(RecRec));
+      RecDT.setDefValType(std::move(RecDVT));
+      const uint32_t RecIdx = Host->addOwnedType(std::move(RecDT));
+      Host->exportType("rec", RecIdx);
+      Host->exportType("some-record", RecIdx);
+
+      // Nested instance: return-four.
+      auto Nested = std::make_unique<Runtime::Instance::ComponentInstance>("");
+      auto Four = std::make_unique<FuncType>(
+          std::vector<LabelValType>{},
+          std::vector<LabelValType>{
+              LabelValType(ComponentValType(ComponentTypeCode::U32))});
+      Nested->addHostFunc(
+          "return-four",
+          std::make_unique<CompFuncInst>(
+              std::move(Four),
+              [](Span<const ComponentValVariant>) -> Expect<HostRets> {
+                HostRets R;
+                R.emplace_back(ComponentValVariant{uint32_t(4)},
+                               ComponentValType(ComponentTypeCode::U32));
+                return R;
+              },
+              Nested.get()));
+      const auto *NestedPtr = Nested.get();
+      Host->addComponentInstance(std::move(Nested));
+      Host->exportComponentInstance("nested",
+                                    Host->getComponentInstanceCount() - 1);
+      (void)NestedPtr;
+
+      // Core module export: f() -> 101, g = 100.
+      static const std::vector<WasmEdge::Byte> SimpleModuleWasm = {
+          0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+          0x01, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x06,
+          0x07, 0x01, 0x7f, 0x00, 0x41, 0xe4, 0x00, 0x0b, 0x07, 0x09,
+          0x02, 0x01, 0x66, 0x00, 0x00, 0x01, 0x67, 0x03, 0x00, 0x0a,
+          0x07, 0x01, 0x05, 0x00, 0x41, 0xe5, 0x00, 0x0b};
+      if (auto Res = VM.getLoader().parseModule(SimpleModuleWasm)) {
+        HostSimpleModule = std::move(*Res);
+        Host->addModule(*HostSimpleModule);
+        // The module index space of this host instance has exactly one
+        // entry.
+        Host->exportCoreModule("simple-module", 0);
+      }
+
+      // Borrow type for the resource1 methods.
+      DefType BorrowDT;
+      DefValType BorrowDVT;
+      BorrowDVT.setBorrow(BorrowTy{R1});
+      BorrowDT.setDefValType(std::move(BorrowDVT));
+      const uint32_t BorIdx = Host->addOwnedType(std::move(BorrowDT));
+
+      auto Simple = std::make_unique<FuncType>(
+          std::vector<LabelValType>{
+              LabelValType("self", ComponentValType(BorIdx)),
+              LabelValType("rep", ComponentValType(ComponentTypeCode::U32))},
+          std::vector<LabelValType>{});
+      Host->addHostFunc(
+          "[method]resource1.simple",
+          std::make_unique<CompFuncInst>(
+              std::move(Simple),
+              [](Span<const ComponentValVariant> Args) -> Expect<HostRets> {
+                const auto &VC = std::get<std::shared_ptr<ValComp>>(Args[0]);
+                if (std::get<BorrowVal>(VC->V).Handle !=
+                    std::get<uint32_t>(Args[1])) {
+                  return Unexpect(ErrCode::Value::HostFuncError);
+                }
+                return HostRets{};
+              },
+              Host.get()));
+
+      auto TakeOwn = std::make_unique<FuncType>(
+          std::vector<LabelValType>{
+              LabelValType("self", ComponentValType(BorIdx)),
+              LabelValType("b", ComponentValType(OwnIdx))},
+          std::vector<LabelValType>{});
+      Host->addHostFunc(
+          "[method]resource1.take-own",
+          std::make_unique<CompFuncInst>(
+              std::move(TakeOwn),
+              [Track](
+                  Span<const ComponentValVariant> Args) -> Expect<HostRets> {
+                // Taking ownership drops the resource on the host side.
+                const auto &VC = std::get<std::shared_ptr<ValComp>>(Args[1]);
+                Track->Drops += 1;
+                Track->LastDrop = std::get<OwnVal>(VC->V).Handle;
+                return HostRets{};
+              },
+              Host.get()));
+
+      auto TakeBorrow = std::make_unique<FuncType>(
+          std::vector<LabelValType>{
+              LabelValType("self", ComponentValType(BorIdx)),
+              LabelValType("b", ComponentValType(BorIdx))},
+          std::vector<LabelValType>{});
+      Host->addHostFunc(
+          "[method]resource1.take-borrow",
+          std::make_unique<CompFuncInst>(
+              std::move(TakeBorrow),
+              [](Span<const ComponentValVariant>) -> Expect<HostRets> {
+                return HostRets{};
+              },
+              Host.get()));
+
+      auto Drops = std::make_unique<FuncType>(
+          std::vector<LabelValType>{},
+          std::vector<LabelValType>{
+              LabelValType(ComponentValType(ComponentTypeCode::U32))});
+      Host->addHostFunc(
+          "[static]resource1.drops",
+          std::make_unique<CompFuncInst>(
+              std::move(Drops),
+              [Track](Span<const ComponentValVariant>) -> Expect<HostRets> {
+                HostRets R;
+                R.emplace_back(ComponentValVariant{uint32_t(Track->Drops)},
+                               ComponentValType(ComponentTypeCode::U32));
+                return R;
+              },
+              Host.get()));
+
+      auto LastDrop = std::make_unique<FuncType>(
+          std::vector<LabelValType>{},
+          std::vector<LabelValType>{
+              LabelValType(ComponentValType(ComponentTypeCode::U32))});
+      Host->addHostFunc(
+          "[static]resource1.last-drop",
+          std::make_unique<CompFuncInst>(
+              std::move(LastDrop),
+              [Track](Span<const ComponentValVariant>) -> Expect<HostRets> {
+                HostRets R;
+                R.emplace_back(ComponentValVariant{uint32_t(Track->LastDrop)},
+                               ComponentValType(ComponentTypeCode::U32));
+                return R;
+              },
+              Host.get()));
+
+      VM.getStoreManager().registerComponent(Host.get());
+      HostCompInsts.push_back(std::move(Host));
+
+      // Standalone host function "host-return-two".
+      auto Owner = std::make_unique<Runtime::Instance::ComponentInstance>("");
+      auto Two = std::make_unique<FuncType>(
+          std::vector<LabelValType>{},
+          std::vector<LabelValType>{
+              LabelValType(ComponentValType(ComponentTypeCode::U32))});
+      Owner->addHostFunc(
+          "host-return-two",
+          std::make_unique<CompFuncInst>(
+              std::move(Two),
+              [](Span<const ComponentValVariant>) -> Expect<HostRets> {
+                HostRets R;
+                R.emplace_back(ComponentValVariant{uint32_t(2)},
+                               ComponentValType(ComponentTypeCode::U32));
+                return R;
+              },
+              Owner.get()));
+      VM.getStoreManager().registerComponentFunction(
+          "host-return-two", Owner->findFunction("host-return-two"));
+      HostCompInsts.push_back(std::move(Owner));
+
+      // Empty host instances the reference suites import by name.
+      for (const auto *EmptyName :
+           {"wasi", "a:b/c", "a1:b1/c", "r", "not-provided-by-the-host"}) {
+        auto Empty =
+            std::make_unique<Runtime::Instance::ComponentInstance>(EmptyName);
+        VM.getStoreManager().registerComponent(Empty.get());
+        HostCompInsts.push_back(std::move(Empty));
+      }
+
+      // Instance "not-provided-by-the-host2": exports an empty instance "x".
+      auto Npbth2 = std::make_unique<Runtime::Instance::ComponentInstance>(
+          "not-provided-by-the-host2");
+      auto EmptyX = std::make_unique<Runtime::Instance::ComponentInstance>("");
+      Npbth2->addComponentInstance(std::move(EmptyX));
+      Npbth2->exportComponentInstance("x",
+                                      Npbth2->getComponentInstanceCount() - 1);
+      VM.getStoreManager().registerComponent(Npbth2.get());
+      HostCompInsts.push_back(std::move(Npbth2));
+
+      // Instance "a": exports the type u64 under the names "a" and "b".
+      auto InstA = std::make_unique<Runtime::Instance::ComponentInstance>("a");
+      DefType U64DT;
+      DefValType U64DVT;
+      U64DVT.setPrimValType(PrimValType::U64);
+      U64DT.setDefValType(std::move(U64DVT));
+      const uint32_t U64Idx = InstA->addOwnedType(std::move(U64DT));
+      InstA->exportType("a", U64Idx);
+      InstA->exportType("b", U64Idx);
+      VM.getStoreManager().registerComponent(InstA.get());
+      HostCompInsts.push_back(std::move(InstA));
+
+      // Instance "demo:component/types": enum "baz" and record "foo".
+      auto Demo = std::make_unique<Runtime::Instance::ComponentInstance>(
+          "demo:component/types");
+      EnumTy QuxEnum;
+      QuxEnum.Labels.push_back("qux");
+      DefType BazDT;
+      DefValType BazDVT;
+      BazDVT.setEnum(std::move(QuxEnum));
+      BazDT.setDefValType(std::move(BazDVT));
+      const uint32_t BazIdx = Demo->addOwnedType(std::move(BazDT));
+      Demo->exportType("baz", BazIdx);
+      RecordTy FooRec;
+      FooRec.LabelTypes.emplace_back("bar", ComponentValType(BazIdx));
+      DefType FooDT;
+      DefValType FooDVT;
+      FooDVT.setRecord(std::move(FooRec));
+      FooDT.setDefValType(std::move(FooDVT));
+      const uint32_t FooIdx = Demo->addOwnedType(std::move(FooDT));
+      Demo->exportType("foo", FooIdx);
+      VM.getStoreManager().registerComponent(Demo.get());
+      HostCompInsts.push_back(std::move(Demo));
+
+      // Standalone no-op host function "f".
+      auto FOwner = std::make_unique<Runtime::Instance::ComponentInstance>("");
+      auto FTy = std::make_unique<FuncType>(std::vector<LabelValType>{},
+                                            std::vector<LabelValType>{});
+      FOwner->addHostFunc(
+          "f", std::make_unique<CompFuncInst>(
+                   std::move(FTy),
+                   [](Span<const ComponentValVariant>) -> Expect<HostRets> {
+                     return HostRets{};
+                   },
+                   FOwner.get()));
+      VM.getStoreManager().registerComponentFunction("f",
+                                                     FOwner->findFunction("f"));
+      HostCompInsts.push_back(std::move(FOwner));
+
+      // Component definitions the suites import by name: "a" is an empty
+      // component; "x" defines and exports the resource type "x".
+      static const std::vector<WasmEdge::Byte> ComponentAWasm = {
+          0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00};
+      static const std::vector<WasmEdge::Byte> ComponentXWasm = {
+          0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+          0x07, 0x04, 0x01, 0x3f, 0x7f, 0x00, 0x0b, 0x07,
+          0x01, 0x00, 0x01, 0x78, 0x03, 0x00, 0x00};
+      for (const auto &[DefName, DefWasm] :
+           {std::make_pair("a", &ComponentAWasm),
+            std::make_pair("x", &ComponentXWasm)}) {
+        if (auto Res = VM.getLoader().parseWasmUnit(*DefWasm)) {
+          auto &Comp =
+              std::get<std::unique_ptr<AST::Component::Component>>(*Res);
+          if (VM.getValidator().validate(*Comp)) {
+            VM.getStoreManager().registerComponentDefinition(DefName,
+                                                             Comp.get());
+            HostCompDefs.push_back(std::move(Comp));
+          }
+        }
+      }
     }
   };
 
@@ -84,24 +448,19 @@ TEST_P(CoreTest, TestSuites) {
                   const std::string &FileName) -> Expect<void> {
     auto &VM = static_cast<TestContext *>(Ctx)->VM;
     if (!ModName.empty()) {
-      // registerModule only supports core wasm modules. If it fails (e.g.
-      // because the file is a component), fall back to
-      // load/validate/instantiate.
+      // registerModule only supports core wasm modules; components register
+      // through registerComponent. A named unit must also stay invokable, so
+      // the fallthrough instantiation below still runs for components.
       if (auto Res = VM.registerModule(ModName, FileName); Res) {
         return {};
       }
+      if (auto Res = VM.registerComponent(ModName, FileName); !Res) {
+        return Res;
+      }
     }
-    if (T.SkipComponentValidation) {
-      // For component-model tests where validation is not yet supported,
-      // skip validation by force-setting the stage as validated.
-      return VM.loadWasm(FileName)
-          .and_then([&VM]() { return VM.forceValidateForComponent(); })
-          .and_then([&VM]() { return VM.instantiate(); });
-    } else {
-      return VM.loadWasm(FileName)
-          .and_then([&VM]() { return VM.validate(); })
-          .and_then([&VM]() { return VM.instantiate(); });
-    }
+    return VM.loadWasm(FileName)
+        .and_then([&VM]() { return VM.validate(); })
+        .and_then([&VM]() { return VM.instantiate(); });
   };
   T.onLoad = [](SpecTest::ContextHandle Ctx,
                 const std::string &FileName) -> Expect<void> {
@@ -123,7 +482,7 @@ TEST_P(CoreTest, TestSuites) {
     if (std::holds_alternative<std::unique_ptr<AST::Module>>(ASTUnit)) {
       auto &ASTMod = std::get<std::unique_ptr<AST::Module>>(ASTUnit);
       EXPECTED_TRY(Validator.validate(*ASTMod.get()));
-    } else if (!T.SkipComponentValidation) {
+    } else {
       auto &ASTComp =
           std::get<std::unique_ptr<AST::Component::Component>>(ASTUnit);
       EXPECTED_TRY(Validator.validate(*ASTComp.get()));
@@ -138,10 +497,32 @@ TEST_P(CoreTest, TestSuites) {
   };
   T.onInstantiate = [](SpecTest::ContextHandle Ctx,
                        const std::string &FileName) -> Expect<void> {
+    // Unlinkable / uninstantiable checks run strictly: missing imports must
+    // fail rather than be synthesized. Share the store so registered
+    // instances stay visible.
+    auto *TestCtx = static_cast<TestContext *>(Ctx);
+    WasmEdge::VM::VM StrictVM(TestCtx->StrictConf,
+                              TestCtx->VM.getStoreManager());
+    return StrictVM.loadWasm(FileName)
+        .and_then([&StrictVM]() { return StrictVM.validate(); })
+        .and_then([&StrictVM]() { return StrictVM.instantiate(); });
+  };
+  T.onCompInvoke = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+                      const std::string &Field,
+                      const std::vector<WasmEdge::ComponentValVariant> &Params)
+      -> Expect<std::vector<std::pair<WasmEdge::ComponentValVariant,
+                                      WasmEdge::ComponentValType>>> {
     auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    return VM.loadWasm(FileName)
-        .and_then([&VM]() { return VM.validate(); })
-        .and_then([&VM]() { return VM.instantiate(); });
+    if (!ModName.empty()) {
+      return VM.executeComponent(ModName, Field, Params);
+    }
+    return VM.executeComponent(Field, Params);
+  };
+  T.onCompInstanceFromDef =
+      [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+         const AST::Component::Component &Comp) -> Expect<void> {
+    auto &VM = static_cast<TestContext *>(Ctx)->VM;
+    return VM.registerComponent(ModName, Comp);
   };
   // Helper function to call functions.
   T.onInvoke = [](SpecTest::ContextHandle Ctx, const std::string &ModName,

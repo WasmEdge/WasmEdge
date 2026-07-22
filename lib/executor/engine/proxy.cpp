@@ -160,10 +160,11 @@ Executor::proxyCall(Runtime::StackManager &StackMgr,
   }
 
   auto Instrs = FuncInst->getInstrs();
-  auto Res = enterFunction(StackMgr, *FuncInst, Instrs.end(), false, true)
-                 .and_then([&](AST::InstrView::iterator StartIt) {
-                   return execute(StackMgr, StartIt, Instrs.end());
-                 });
+  auto Res =
+      enterFunction(StackMgr, *FuncInst, Instrs.end(), false, true, ModInst)
+          .and_then([&](AST::InstrView::iterator StartIt) {
+            return execute(StackMgr, StartIt, Instrs.end());
+          });
   return callFromCompiled(StackMgr, *FuncInst, Rets, std::move(Res));
 }
 
@@ -218,18 +219,19 @@ Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
   }
 
   auto Instrs = FuncInst->getInstrs();
-  auto Res = enterFunction(StackMgr, *FuncInst, Instrs.end(), false, true)
-                 .and_then([&](AST::InstrView::iterator StartIt) {
-                   return execute(StackMgr, StartIt, Instrs.end());
-                 });
+  auto Res =
+      enterFunction(StackMgr, *FuncInst, Instrs.end(), false, true, ModInst)
+          .and_then([&](AST::InstrView::iterator StartIt) {
+            return execute(StackMgr, StartIt, Instrs.end());
+          });
   return callFromCompiled(StackMgr, *FuncInst, Rets, std::move(Res));
 }
 
-Expect<void> Executor::proxyCallRef(Runtime::StackManager &StackMgr,
-                                    const Runtime::Instance::ModuleInstance *,
-                                    const RefVariant Ref,
-                                    const ValVariant *Args,
-                                    ValVariant *Rets) noexcept {
+Expect<void>
+Executor::proxyCallRef(Runtime::StackManager &StackMgr,
+                       const Runtime::Instance::ModuleInstance *ModInst,
+                       const RefVariant Ref, const ValVariant *Args,
+                       ValVariant *Rets) noexcept {
   const auto *FuncInst = retrieveFuncRef(Ref);
   if (unlikely(!FuncInst)) {
     return Unexpect(ErrCode::Value::AccessNullFunc);
@@ -246,10 +248,11 @@ Expect<void> Executor::proxyCallRef(Runtime::StackManager &StackMgr,
   }
 
   auto Instrs = FuncInst->getInstrs();
-  auto Res = enterFunction(StackMgr, *FuncInst, Instrs.end(), false, true)
-                 .and_then([&](AST::InstrView::iterator StartIt) {
-                   return execute(StackMgr, StartIt, Instrs.end());
-                 });
+  auto Res =
+      enterFunction(StackMgr, *FuncInst, Instrs.end(), false, true, ModInst)
+          .and_then([&](AST::InstrView::iterator StartIt) {
+            return execute(StackMgr, StartIt, Instrs.end());
+          });
   return callFromCompiled(StackMgr, *FuncInst, Rets, std::move(Res));
 }
 

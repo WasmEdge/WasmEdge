@@ -42,11 +42,11 @@ Executor::SavedThreadLocal::~SavedThreadLocal() noexcept {
   This = SavedThis;
 }
 
-Expect<AST::InstrView::iterator>
-Executor::enterFunction(Runtime::StackManager &StackMgr,
-                        const Runtime::Instance::FunctionInstance &Func,
-                        const AST::InstrView::iterator RetIt, bool IsTailCall,
-                        bool IsNativeEntry) {
+Expect<AST::InstrView::iterator> Executor::enterFunction(
+    Runtime::StackManager &StackMgr,
+    const Runtime::Instance::FunctionInstance &Func,
+    const AST::InstrView::iterator RetIt, bool IsTailCall, bool IsNativeEntry,
+    const Runtime::Instance::ModuleInstance *CallerModInst) {
   // RetIt: the return position when the entered function returns.
 
   // Check whether interruption occurred.
@@ -81,7 +81,10 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     // Generate CallingFrame from current frame.
     // The module instance will be nullptr if current frame is a dummy frame.
     // For this case, use the module instance of this host function.
-    const auto *ModInst = StackMgr.getModule();
+    const auto *ModInst = CallerModInst;
+    if (ModInst == nullptr) {
+      ModInst = StackMgr.getModule();
+    }
     if (ModInst == nullptr) {
       ModInst = Func.getModule();
     }

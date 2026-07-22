@@ -24,11 +24,11 @@ Executor::SavedThreadLocal::SavedThreadLocal(
   This = &Ex;
 
   SavedExecutionContext = ExecutionContext;
-  ExecutionContext.Memories = ModInst->MemoryPtrs.data();
-  ExecutionContext.MemorySizes = ModInst->MemorySizePtrs.data();
-  ExecutionContext.TableRefs = ModInst->TableRefPtrs.data();
-  ExecutionContext.TableSizes = ModInst->TableSizePtrs.data();
-  ExecutionContext.Globals = ModInst->GlobalPtrs.data();
+  ExecutionContext.Memories = ModInst->ModCtx.Memories;
+  ExecutionContext.MemorySizes = ModInst->ModCtx.MemorySizes;
+  ExecutionContext.TableRefs = ModInst->ModCtx.TableRefs;
+  ExecutionContext.TableSizes = ModInst->ModCtx.TableSizes;
+  ExecutionContext.Globals = ModInst->ModCtx.Globals;
   ExecutionContext.Tags =
       reinterpret_cast<void *const *>(ModInst->TagInsts.data());
   ExecutionContext.PendingExnTagAddr =

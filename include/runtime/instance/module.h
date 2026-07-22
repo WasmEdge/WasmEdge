@@ -522,10 +522,13 @@ protected:
     return WASIModInst;
   }
 
-  /// Unsafely import an instance into this module.
+  /// Unsafely import an instance into this module. Only valid before
+  /// finalization: buildContext() caches the instance vectors' buffers, which a
+  /// later push_back may reallocate.
   template <typename T>
   std::enable_if_t<IsEntityV<T>, void>
   unsafeImportInstance(std::vector<T *> &Vec, T *Ptr) {
+    assuming(!isInstantiateFinalized());
     Vec.push_back(Ptr);
   }
 
@@ -536,11 +539,14 @@ protected:
         ->setTypeIndex(static_cast<uint32_t>(Types.size()) - 1);
   }
 
-  /// Unsafely create and add the instance to this module.
+  /// Unsafely create and add the instance to this module. Only valid before
+  /// finalization: buildContext() caches the instance vectors' buffers, which a
+  /// later push_back may reallocate.
   template <typename T, typename... Args>
   std::enable_if_t<IsInstanceV<T>, void>
   unsafeAddInstance(std::vector<std::unique_ptr<T>> &OwnedInstsVec,
                     std::vector<T *> &InstsVec, Args &&...Values) {
+    assuming(!isInstantiateFinalized());
     OwnedInstsVec.push_back(std::make_unique<T>(std::forward<Args>(Values)...));
     InstsVec.push_back(OwnedInstsVec.back().get());
   }
@@ -582,6 +588,33 @@ protected:
   std::vector<RefVariant **> TableRefPtrs;
   std::vector<ValVariant *> GlobalPtrs;
   /// @}
+
+  struct ModuleContext {
+#if WASMEDGE_ALLOCATOR_IS_STABLE
+    uint8_t *const *Memories;
+#else
+    uint8_t **const *Memories;
+#endif
+    const uint64_t *const *MemorySizes;
+    RefVariant **const *TableRefs;
+    const uint64_t *const *TableSizes;
+    ValVariant *const *Globals;
+    const void *ModuleInst;
+  };
+
+  ModuleContext ModCtx{};
+
+  /// Snapshot the instance vectors' buffers for compiled code. Call once, after
+  /// the last instance is added and before the start function runs; adding an
+  /// instance afterwards may reallocate and leave the context dangling.
+  void buildContext() noexcept {
+    ModCtx.Memories = MemoryPtrs.data();
+    ModCtx.MemorySizes = MemorySizePtrs.data();
+    ModCtx.TableRefs = TableRefPtrs.data();
+    ModCtx.TableSizes = TableSizePtrs.data();
+    ModCtx.Globals = GlobalPtrs.data();
+    ModCtx.ModuleInst = this;
+  }
 
   friend class Runtime::StoreManager;
   using LinkedStoreKey = std::pair<StoreManager *, std::string>;

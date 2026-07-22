@@ -250,11 +250,11 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
 
 void Compiler::compile(const AST::TypeSection &TypeSec,
                        bool DeclarationsOnly) noexcept {
-  auto WrapperTy =
-      LLVM::Type::getFunctionType(Context->VoidTy,
-                                  {Context->ExecCtxPtrTy, Context->Int8PtrTy,
-                                   Context->Int8PtrTy, Context->Int8PtrTy},
-                                  false);
+  auto WrapperTy = LLVM::Type::getFunctionType(
+      Context->VoidTy,
+      {Context->ExecCtxPtrTy, Context->ExecCtxPtrTy, Context->Int8PtrTy,
+       Context->Int8PtrTy, Context->Int8PtrTy},
+      false);
   auto SubTypes = TypeSec.getContent();
   const auto Size = SubTypes.size();
   if (Size == 0) {
@@ -272,9 +272,11 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
     FDecl.addFnAttr(Context->UWTable);
     FDecl.addParamAttr(0, Context->ReadOnly);
     FDecl.addParamAttr(0, Context->NoAlias);
+    FDecl.addParamAttr(1, Context->ReadOnly);
     FDecl.addParamAttr(1, Context->NoAlias);
     FDecl.addParamAttr(2, Context->NoAlias);
     FDecl.addParamAttr(3, Context->NoAlias);
+    FDecl.addParamAttr(4, Context->NoAlias);
   };
 
   // Iterate and compile types.
@@ -333,8 +335,9 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
           std::vector<LLVM::Type> FPTy(FTy.getNumParams());
           FTy.getParamTypes(FPTy);
 
-          const size_t ArgCount = FPTy.size() - 1;
-          auto ExecCtxPtr = F.getFirstParam();
+          const size_t ArgCount = FPTy.size() - 2;
+          auto ModCtxPtr = F.getFirstParam();
+          auto ExecCtxPtr = ModCtxPtr.getNextParam();
           auto RawFunc = LLVM::FunctionCallee{
               FTy, Builder.createBitCast(ExecCtxPtr.getNextParam(),
                                          FTy.getPointerTo())};
@@ -343,10 +346,11 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
 
           std::vector<LLVM::Value> Args;
           Args.reserve(FTy.getNumParams());
+          Args.push_back(ModCtxPtr);
           Args.push_back(ExecCtxPtr);
           for (size_t J = 0; J < ArgCount; ++J) {
             Args.push_back(Builder.createValuePtrLoad(
-                FPTy[J + 1], RawArgs, Context->Int8Ty, J * LLVM::kValSize));
+                FPTy[J + 2], RawArgs, Context->Int8Ty, J * LLVM::kValSize));
           }
 
           auto Ret = Builder.createCall(RawFunc, Args);
@@ -425,7 +429,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
       LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
 
-      auto Arg = F.Fn.getFirstParam();
+      auto Arg = F.Fn.getFirstParam().getNextParam();
       for (unsigned I = 0; I < ArgSize; ++I) {
         Arg = Arg.getNextParam();
         Builder.createValuePtrStore(Arg, Args, Context->Int8Ty,
@@ -575,6 +579,8 @@ void Compiler::compileFunctionDeclarations(
     F.Fn.addFnAttr(Context->UWTable);
     F.Fn.addParamAttr(0, Context->ReadOnly);
     F.Fn.addParamAttr(0, Context->NoAlias);
+    F.Fn.addParamAttr(1, Context->ReadOnly);
+    F.Fn.addParamAttr(1, Context->NoAlias);
 
     Context->Functions.emplace_back(TypeIdx, F, &Code);
   }

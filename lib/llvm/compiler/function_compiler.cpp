@@ -35,8 +35,8 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
       Builder.createStore(LLContext.getInt64(0), LocalGas);
     }
 
-    for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam(); Arg;
-         Arg = Arg.getNextParam()) {
+    for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam().getNextParam();
+         Arg; Arg = Arg.getNextParam()) {
       LLVM::Type Ty = Arg.getType();
       LLVM::Value ArgPtr = Builder.createAlloca(Ty);
       Builder.createStore(Arg, ArgPtr);
@@ -1341,11 +1341,12 @@ void FunctionCompiler::compileCallOp(const unsigned int FuncIndex) noexcept {
   const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
   const auto &ParamTypes = FuncType.getParamTypes();
 
-  std::vector<LLVM::Value> Args(ParamTypes.size() + 1);
+  std::vector<LLVM::Value> Args(ParamTypes.size() + 2);
   Args[0] = F.Fn.getFirstParam();
+  Args[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ParamTypes.size(); ++I) {
     const size_t J = ParamTypes.size() - 1 - I;
-    Args[J + 1] = stackPop();
+    Args[J + 2] = stackPop();
   }
 
   LLVM::Value Ret;
@@ -1437,10 +1438,11 @@ void FunctionCompiler::compileIndirectCallOp(
 
   const size_t ArgSize = FuncType.getParamTypes().size();
   const size_t RetSize = RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-  std::vector<LLVM::Value> ArgsVec(ArgSize + 1, nullptr);
+  std::vector<LLVM::Value> ArgsVec(ArgSize + 2, nullptr);
   ArgsVec[0] = F.Fn.getFirstParam();
+  ArgsVec[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ArgSize; ++I) {
-    const size_t J = ArgSize - I;
+    const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
   }
   auto UnpackRets = [&](LLVM::Value Ret) -> std::vector<LLVM::Value> {
@@ -1536,7 +1538,7 @@ void FunctionCompiler::compileIndirectCallOp(
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
@@ -1580,11 +1582,12 @@ void FunctionCompiler::compileReturnCallOp(
   const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
   const auto &ParamTypes = FuncType.getParamTypes();
 
-  std::vector<LLVM::Value> Args(ParamTypes.size() + 1);
+  std::vector<LLVM::Value> Args(ParamTypes.size() + 2);
   Args[0] = F.Fn.getFirstParam();
+  Args[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ParamTypes.size(); ++I) {
     const size_t J = ParamTypes.size() - 1 - I;
-    Args[J + 1] = stackPop();
+    Args[J + 2] = stackPop();
   }
 
   LLVM::Value Ret;
@@ -1671,10 +1674,11 @@ void FunctionCompiler::compileReturnIndirectCallOp(
 
   const size_t ArgSize = FuncType.getParamTypes().size();
   const size_t RetSize = RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-  std::vector<LLVM::Value> ArgsVec(ArgSize + 1, nullptr);
+  std::vector<LLVM::Value> ArgsVec(ArgSize + 2, nullptr);
   ArgsVec[0] = F.Fn.getFirstParam();
+  ArgsVec[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ArgSize; ++I) {
-    const size_t J = ArgSize - I;
+    const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
   }
 
@@ -1712,7 +1716,7 @@ void FunctionCompiler::compileReturnIndirectCallOp(
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
@@ -1757,10 +1761,11 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
 
   const size_t ArgSize = FuncType.getParamTypes().size();
   const size_t RetSize = RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-  std::vector<LLVM::Value> ArgsVec(ArgSize + 1, nullptr);
+  std::vector<LLVM::Value> ArgsVec(ArgSize + 2, nullptr);
   ArgsVec[0] = F.Fn.getFirstParam();
+  ArgsVec[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ArgSize; ++I) {
-    const size_t J = ArgSize - I;
+    const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
   }
 
@@ -1797,7 +1802,7 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
@@ -1851,10 +1856,11 @@ void FunctionCompiler::compileReturnCallRefOp(
 
   const size_t ArgSize = FuncType.getParamTypes().size();
   const size_t RetSize = RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-  std::vector<LLVM::Value> ArgsVec(ArgSize + 1, nullptr);
+  std::vector<LLVM::Value> ArgsVec(ArgSize + 2, nullptr);
   ArgsVec[0] = F.Fn.getFirstParam();
+  ArgsVec[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ArgSize; ++I) {
-    const size_t J = ArgSize - I;
+    const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
   }
 
@@ -1890,7 +1896,7 @@ void FunctionCompiler::compileReturnCallRefOp(
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(

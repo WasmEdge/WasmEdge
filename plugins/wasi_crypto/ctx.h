@@ -19,6 +19,7 @@
 #include "asymmetric_common/secretkey.h"
 #include "common/array_output.h"
 #include "common/options.h"
+#include "common/secrets_manager.h"
 #include "kx/registered.h"
 #include "signatures/registered.h"
 #include "signatures/signatures.h"
@@ -338,6 +339,7 @@ private:
   RcHandlesManager<__wasi_options_t, Common::Options> OptionsManager{0x01};
   RefHandlesManager<__wasi_symmetric_tag_t, Symmetric::Tag> SymmetricTagManager{
       0xa};
+  RefHandlesManager<__wasi_secrets_manager_t, Common::SecretsManager> SecretsManagerManager{0x0B};
   RcHandlesManager<__wasi_symmetric_key_t, Symmetric::KeyVariant>
       SymmetricKeyManager{0x09};
   RcHandlesManager<__wasi_symmetric_state_t, Symmetric::StateVariant>

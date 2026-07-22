@@ -1462,7 +1462,7 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
     if (Case >= NumCases) {
       EXPECTED_TRY(trapDataInvalid("enum case index out of range"));
     }
-    return makeComponentVal(EnumVal{Case});
+    return makeComponentVal(EnumVal{Case, {}});
   }
 
   // lift_own / lift_borrow (L2297-2303 / L2316-2322): resource-table
@@ -2102,7 +2102,7 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
     if (Case >= NumCases) {
       EXPECTED_TRY(trapDataInvalid("enum case index out of range"));
     }
-    return makeComponentVal(EnumVal{Case});
+    return makeComponentVal(EnumVal{Case, {}});
   }
 
   if (T.isOwnTy()) {

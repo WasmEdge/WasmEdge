@@ -568,6 +568,9 @@ struct TupleVal {
 struct VariantVal {
   uint32_t Case;
   std::optional<ComponentValVariant> Payload;
+  // Optional case label: when non-empty, host-supplied values resolve the
+  // case index against the declared type at the lowering site.
+  std::string Label;
 };
 struct ListVal {
   std::vector<ComponentValVariant> Elements;
@@ -581,9 +584,14 @@ struct ResultVal {
 };
 struct FlagsVal {
   std::vector<bool> Bits;
+  // Optional set-label form: when non-empty (or Bits is empty), the bits are
+  // resolved against the declared flag labels at the lowering site.
+  std::vector<std::string> SetLabels;
 };
 struct EnumVal {
   uint32_t Case;
+  // Optional case label, resolved like VariantVal::Label.
+  std::string Label;
 };
 struct OwnVal {
   uint32_t Handle;

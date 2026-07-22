@@ -1303,7 +1303,7 @@ TEST_F(CanonABIMemFixture, LowerLiftRoundTripEnum) {
   D.setEnum(std::move(E));
 
   auto VC = std::make_shared<ValComp>();
-  VC->V = EnumVal{2u};
+  VC->V = EnumVal{2u, {}};
 
   auto Lowered = lowerFlatDef(Cx, ComponentValVariant{VC}, D);
   ASSERT_TRUE(Lowered.has_value());
@@ -1322,7 +1322,7 @@ TEST_F(CanonABIMemFixture, LowerLiftRoundTripVariantWithPayload) {
   // variant{none | u32}: joined flat = [i32 disc, i32 payload].
   auto D = makeVariant({std::nullopt, prim(ComponentTypeCode::U32)});
   auto VC = std::make_shared<ValComp>();
-  VC->V = VariantVal{1u, ComponentValVariant{uint32_t{99u}}};
+  VC->V = VariantVal{1u, ComponentValVariant{uint32_t{99u}}, {}};
   auto Lowered = lowerFlatDef(Cx, ComponentValVariant{VC}, D);
   ASSERT_TRUE(Lowered.has_value());
   ASSERT_EQ(Lowered->size(), 2u);
@@ -1344,7 +1344,7 @@ TEST_F(CanonABIMemFixture, LowerLiftRoundTripVariantJoinI64) {
   auto D = makeVariant(
       {prim(ComponentTypeCode::U32), prim(ComponentTypeCode::U64)});
   auto VC = std::make_shared<ValComp>();
-  VC->V = VariantVal{0u, ComponentValVariant{uint32_t{0xCAFEu}}};
+  VC->V = VariantVal{0u, ComponentValVariant{uint32_t{0xCAFEu}}, {}};
   auto Lowered = lowerFlatDef(Cx, ComponentValVariant{VC}, D);
   ASSERT_TRUE(Lowered.has_value());
   ASSERT_EQ(Lowered->size(), 2u);
@@ -1366,7 +1366,7 @@ TEST_F(CanonABIMemFixture, LowerLiftRoundTripVariantJoinF32AsI32) {
   auto D = makeVariant(
       {prim(ComponentTypeCode::U32), prim(ComponentTypeCode::F32)});
   auto VC = std::make_shared<ValComp>();
-  VC->V = VariantVal{1u, ComponentValVariant{1.5f}};
+  VC->V = VariantVal{1u, ComponentValVariant{1.5f}, {}};
   auto Lowered = lowerFlatDef(Cx, ComponentValVariant{VC}, D);
   ASSERT_TRUE(Lowered.has_value());
   ASSERT_EQ(Lowered->size(), 2u);

@@ -1185,6 +1185,7 @@ E(ResourceDropArgument, 0x03A3,
 // Component model not implemented
 E(ComponentNotImplInstantiate, 0x03A4,
   "component model (instantiation) not implemented")
+E(ComponentMalformedValue, 0x035A, "malformed value")
 // @}
 
 // Execution phase

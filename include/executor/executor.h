@@ -424,48 +424,51 @@ private:
 
   /// \name Helper Functions for GC instructions.
   /// @{
-  Expect<RefVariant> structNew(Runtime::StackManager &StackMgr,
+  Expect<RefVariant> structNew(const Runtime::Instance::ModuleInstance *ModInst,
                                const uint32_t TypeIdx,
                                Span<const ValVariant> Args = {}) const noexcept;
-  Expect<ValVariant> structGet(Runtime::StackManager &StackMgr,
+  Expect<ValVariant> structGet(const Runtime::Instance::ModuleInstance *ModInst,
                                const RefVariant Ref, const uint32_t TypeIdx,
                                const uint32_t Off,
                                const bool IsSigned = false) const noexcept;
-  Expect<void> structSet(Runtime::StackManager &StackMgr, const RefVariant Ref,
-                         const ValVariant Val, const uint32_t TypeIdx,
+  Expect<void> structSet(const Runtime::Instance::ModuleInstance *ModInst,
+                         const RefVariant Ref, const ValVariant Val,
+                         const uint32_t TypeIdx,
                          const uint32_t Off) const noexcept;
-  Expect<RefVariant> arrayNew(Runtime::StackManager &StackMgr,
+  Expect<RefVariant> arrayNew(const Runtime::Instance::ModuleInstance *ModInst,
                               const uint32_t TypeIdx, const uint32_t Length,
                               Span<const ValVariant> Args = {}) const noexcept;
-  Expect<RefVariant> arrayNewData(Runtime::StackManager &StackMgr,
-                                  const uint32_t TypeIdx,
-                                  const uint32_t DataIdx, const uint32_t Start,
-                                  const uint32_t Length) const noexcept;
-  Expect<RefVariant> arrayNewElem(Runtime::StackManager &StackMgr,
-                                  const uint32_t TypeIdx,
-                                  const uint32_t ElemIdx, const uint32_t Start,
-                                  const uint32_t Length) const noexcept;
-  Expect<ValVariant> arrayGet(Runtime::StackManager &StackMgr,
+  Expect<RefVariant>
+  arrayNewData(const Runtime::Instance::ModuleInstance *ModInst,
+               const uint32_t TypeIdx, const uint32_t DataIdx,
+               const uint32_t Start, const uint32_t Length) const noexcept;
+  Expect<RefVariant>
+  arrayNewElem(const Runtime::Instance::ModuleInstance *ModInst,
+               const uint32_t TypeIdx, const uint32_t ElemIdx,
+               const uint32_t Start, const uint32_t Length) const noexcept;
+  Expect<ValVariant> arrayGet(const Runtime::Instance::ModuleInstance *ModInst,
                               const RefVariant &Ref, const uint32_t TypeIdx,
                               const uint32_t Idx,
                               const bool IsSigned = false) const noexcept;
-  Expect<void> arraySet(Runtime::StackManager &StackMgr, const RefVariant &Ref,
-                        const ValVariant &Val, const uint32_t TypeIdx,
+  Expect<void> arraySet(const Runtime::Instance::ModuleInstance *ModInst,
+                        const RefVariant &Ref, const ValVariant &Val,
+                        const uint32_t TypeIdx,
                         const uint32_t Idx) const noexcept;
-  Expect<void> arrayFill(Runtime::StackManager &StackMgr, const RefVariant &Ref,
-                         const ValVariant &Val, const uint32_t TypeIdx,
-                         const uint32_t Idx, const uint32_t Cnt) const noexcept;
-  Expect<void> arrayInitData(Runtime::StackManager &StackMgr,
+  Expect<void> arrayFill(const Runtime::Instance::ModuleInstance *ModInst,
+                         const RefVariant &Ref, const ValVariant &Val,
+                         const uint32_t TypeIdx, const uint32_t Idx,
+                         const uint32_t Cnt) const noexcept;
+  Expect<void> arrayInitData(const Runtime::Instance::ModuleInstance *ModInst,
                              const RefVariant &Ref, const uint32_t TypeIdx,
                              const uint32_t DataIdx, const uint32_t DstIdx,
                              const uint32_t SrcIdx,
                              const uint32_t Cnt) const noexcept;
-  Expect<void> arrayInitElem(Runtime::StackManager &StackMgr,
+  Expect<void> arrayInitElem(const Runtime::Instance::ModuleInstance *ModInst,
                              const RefVariant &Ref, const uint32_t TypeIdx,
                              const uint32_t ElemIdx, const uint32_t DstIdx,
                              const uint32_t SrcIdx,
                              const uint32_t Cnt) const noexcept;
-  Expect<void> arrayCopy(Runtime::StackManager &StackMgr,
+  Expect<void> arrayCopy(const Runtime::Instance::ModuleInstance *ModInst,
                          const RefVariant &DstRef, const uint32_t DstTypeIdx,
                          const uint32_t DstIdx, const RefVariant &SrcRef,
                          const uint32_t SrcTypeIdx, const uint32_t SrcIdx,

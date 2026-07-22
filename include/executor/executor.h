@@ -1120,12 +1120,15 @@ public:
                      const uint32_t MemIdx, const uint64_t Offset,
                      const uint64_t Expected, const int64_t Timeout,
                      const uint32_t BitWidth) noexcept;
-  Expect<void *> proxyTableGetFuncSymbol(Runtime::StackManager &StackMgr,
-                                         const uint32_t TableIdx,
-                                         const uint32_t FuncTypeIdx,
-                                         const uint64_t FuncIdx) noexcept;
-  Expect<void *> proxyRefGetFuncSymbol(Runtime::StackManager &StackMgr,
-                                       const RefVariant Ref) noexcept;
+  Expect<void *> proxyTableGetFuncSymbol(
+      Runtime::StackManager &StackMgr,
+      const Runtime::Instance::ModuleInstance *ModInst, const uint32_t TableIdx,
+      const uint32_t FuncTypeIdx, const uint64_t FuncIdx,
+      Runtime::Instance::ModuleInstance::ModuleContext **CalleeCtxOut) noexcept;
+  Expect<void *> proxyRefGetFuncSymbol(
+      Runtime::StackManager &StackMgr,
+      const Runtime::Instance::ModuleInstance *ModInst, const RefVariant Ref,
+      Runtime::Instance::ModuleInstance::ModuleContext **CalleeCtxOut) noexcept;
   Expect<void *>
   proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,
                          const Runtime::Instance::ModuleInstance *ModInst,

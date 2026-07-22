@@ -600,9 +600,11 @@ Expect<uint64_t> Executor::proxyMemAtomicWait(
 }
 
 Expect<void *> Executor::proxyTableGetFuncSymbol(
-    Runtime::StackManager &StackMgr, const uint32_t TableIdx,
-    const uint32_t FuncTypeIdx, const uint64_t FuncIdx) noexcept {
-  const auto *TabInst = getTabInstByIdx(StackMgr.getModule(), TableIdx);
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const uint32_t TableIdx, const uint32_t FuncTypeIdx, const uint64_t FuncIdx,
+    Runtime::Instance::ModuleInstance::ModuleContext **CalleeCtxOut) noexcept {
+  *CalleeCtxOut = nullptr;
+  const auto *TabInst = getTabInstByIdx(ModInst, TableIdx);
   assuming(TabInst);
 
   if (unlikely(FuncIdx >= TabInst->getSize())) {
@@ -615,8 +617,6 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
     return Unexpect(ErrCode::Value::UninitializedElement);
   }
 
-  const auto *ModInst = StackMgr.getModule();
-  assuming(ModInst);
   const auto &ExpDefType = *ModInst->unsafeGetType(FuncTypeIdx);
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
@@ -651,20 +651,38 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
   if (unlikely(!FuncInst->isCompiledFunction())) {
     return nullptr;
   }
+  if (FuncInst->getModule() != ModInst) {
+    *CalleeCtxOut =
+        &const_cast<Runtime::Instance::ModuleInstance *>(FuncInst->getModule())
+             ->ModCtx;
+  }
   return FuncInst->getSymbol().get();
 }
 
-Expect<void *> Executor::proxyRefGetFuncSymbol(Runtime::StackManager &,
-                                               const RefVariant Ref) noexcept {
+Expect<void *> Executor::proxyRefGetFuncSymbol(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const RefVariant Ref,
+    Runtime::Instance::ModuleInstance::ModuleContext **CalleeCtxOut) noexcept {
+  *CalleeCtxOut = nullptr;
   const auto *FuncInst = retrieveFuncRef(Ref);
   assuming(FuncInst);
   if (likely(FuncInst->isCompiledFunction())) {
+    if (FuncInst->getModule() != ModInst) {
+      *CalleeCtxOut = &const_cast<Runtime::Instance::ModuleInstance *>(
+                           FuncInst->getModule())
+                           ->ModCtx;
+    }
     return FuncInst->getSymbol().get();
   }
   EXPECTED_TRY(checkLazyCompilation(FuncInst));
 
   if (unlikely(!FuncInst->isCompiledFunction())) {
     return nullptr;
+  }
+  if (FuncInst->getModule() != ModInst) {
+    *CalleeCtxOut =
+        &const_cast<Runtime::Instance::ModuleInstance *>(FuncInst->getModule())
+             ->ModCtx;
   }
   return FuncInst->getSymbol().get();
 }

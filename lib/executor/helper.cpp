@@ -333,8 +333,13 @@ Expect<void> Executor::throwException(
               StackMgr.getModule());
           Inst = ModInst->newException(&TagInst, std::move(Vec));
         }
+        if (C.IsAll) {
+          StackMgr.eraseValueStack(AssocValSize, 0);
+        }
         StackMgr.push(
             RefVariant(ValType(TypeCode::Ref, TypeCode::ExnRef), Inst));
+      } else if (C.IsAll) {
+        StackMgr.eraseValueStack(AssocValSize, 0);
       }
       // When an exception is caught, move the PC to the try block and branch to
       // the label.

@@ -71,6 +71,12 @@ public:
   void updateGasAtTrap() noexcept;
 
 private:
+  void compileTryTableOp(const AST::Instruction &Instr) noexcept;
+
+  void compileThrowOp(const uint32_t TagIndex) noexcept;
+
+  void compileThrowRefOp() noexcept;
+
   void compileCallOp(const unsigned int FuncIndex) noexcept;
 
   void compileIndirectCallOp(const uint32_t TableIndex,
@@ -213,6 +219,8 @@ private:
 
   void checkStop() noexcept;
 
+  void checkPendingException() noexcept;
+
   void setUnreachable() noexcept;
 
   bool isUnreachable() const noexcept;
@@ -225,6 +233,8 @@ private:
   void setLableJumpPHI(unsigned int Index) noexcept;
 
   LLVM::BasicBlock getLabel(unsigned int Index) const noexcept;
+
+  LLVM::BasicBlock getEHDispatchTarget() noexcept;
 
   void stackPush(LLVM::Value Value) noexcept { Stack.push_back(Value); }
   LLVM::Value stackPop() noexcept;
@@ -246,6 +256,7 @@ private:
     LLVM::BasicBlock JumpBlock;
     LLVM::BasicBlock NextBlock;
     LLVM::BasicBlock ElseBlock;
+    LLVM::BasicBlock TryDispatchBB;
     std::vector<LLVM::Value> Args;
     std::pair<std::vector<ValType>, std::vector<ValType>> Type;
     std::vector<std::tuple<std::vector<LLVM::Value>, LLVM::BasicBlock>>
@@ -256,7 +267,7 @@ private:
             std::vector<std::tuple<std::vector<LLVM::Value>, LLVM::BasicBlock>>
                 R) noexcept
         : StackSize(S), Unreachable(U), JumpBlock(J), NextBlock(N),
-          ElseBlock(E), Args(std::move(A)), Type(std::move(T)),
+          ElseBlock(E), TryDispatchBB(), Args(std::move(A)), Type(std::move(T)),
           ReturnPHI(std::move(R)) {}
     Control(const Control &) = default;
     Control(Control &&) = default;
@@ -267,6 +278,7 @@ private:
   std::vector<Control> ControlStack;
   LLVM::FunctionCallee F;
   LLVM::Value ExecCtx;
+  LLVM::BasicBlock UnwindBB;
   LLVM::Builder Builder;
 };
 

@@ -24,19 +24,23 @@ Executor::SavedThreadLocal::SavedThreadLocal(
   This = &Ex;
 
   SavedExecutionContext = ExecutionContext;
-  ExecutionContext.StopToken = &Ex.StopToken;
   ExecutionContext.Memories = ModInst->MemoryPtrs.data();
   ExecutionContext.MemorySizes = ModInst->MemorySizePtrs.data();
-  ExecutionContext.TableSizes = ModInst->TableSizePtrs.data();
   ExecutionContext.TableRefs = ModInst->TableRefPtrs.data();
-  ExecutionContext.ModuleInst = ModInst;
+  ExecutionContext.TableSizes = ModInst->TableSizePtrs.data();
   ExecutionContext.Globals = ModInst->GlobalPtrs.data();
+  ExecutionContext.Tags =
+      reinterpret_cast<void *const *>(ModInst->TagInsts.data());
+  ExecutionContext.PendingExnTagAddr =
+      reinterpret_cast<void *const *>(&PendingExn.TagInst);
   if (Ex.Stat) {
     ExecutionContext.InstrCount = &Ex.Stat->getInstrCountRef();
     ExecutionContext.CostTable = Ex.Stat->getCostTable().data();
     ExecutionContext.Gas = &Ex.Stat->getTotalCostRef();
     ExecutionContext.GasLimit = Ex.Stat->getCostLimit();
   }
+  ExecutionContext.StopToken = &Ex.StopToken;
+  ExecutionContext.ModuleInst = ModInst;
 
   SavedCurrentStack = CurrentStack;
   CurrentStack = &StackMgr;
@@ -51,7 +55,8 @@ Executor::SavedThreadLocal::~SavedThreadLocal() noexcept {
 Expect<AST::InstrView::iterator>
 Executor::enterFunction(Runtime::StackManager &StackMgr,
                         const Runtime::Instance::FunctionInstance &Func,
-                        const AST::InstrView::iterator RetIt, bool IsTailCall) {
+                        const AST::InstrView::iterator RetIt, bool IsTailCall,
+                        bool IsNativeEntry) {
   // RetIt: the return position when the entered function returns.
 
   // Check whether interruption occurred.
@@ -97,7 +102,8 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
                        RetIt,            // Return PC
                        ArgsN,            // Only args, no locals in stack
                        RetsN,            // Returns num
-                       IsTailCall        // For tail-call
+                       IsTailCall,       // For tail-call
+                       IsNativeEntry     // For native entry
     );
 
     // Do the statistics if the statistics turned on.
@@ -161,7 +167,8 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
                        RetIt,            // Return PC
                        ArgsN,            // Only args, no locals in stack
                        RetsN,            // Returns num
-                       IsTailCall        // For tail-call
+                       IsTailCall,       // For tail-call
+                       IsNativeEntry     // For native entry
     );
 
     // Prepare arguments.
@@ -208,6 +215,28 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       return Unexpect(Err);
     }
 
+    if (unlikely(PendingExn.TagInst != nullptr)) {
+      // The exception escapes this frame: discard it, then hand off to the
+      // native caller or continue the handler walk in the interpreter caller.
+      const bool FromNative = StackMgr.isTopFrameNativeEntry();
+      // Push the dummy results for popping the frame, then drop them because
+      // the escaping exception produces no results.
+      for (uint32_t I = 0; I < RetsN; ++I) {
+        StackMgr.push(Rets[I]);
+      }
+      AST::InstrView::iterator ResumePC = StackMgr.popFrame();
+      StackMgr.eraseValueStack(RetsN, 0);
+      if (FromNative) {
+        return Unexpect(ErrCode::Value::PendingException);
+      }
+      auto &TagInst = *PendingExn.TagInst;
+      const auto *ExnInst = PendingExn.Inst;
+      StackMgr.pushValVec(PendingExn.getPayload());
+      PendingExn = {};
+      EXPECTED_TRY(throwException(StackMgr, TagInst, ResumePC, ExnInst));
+      return ResumePC + 1;
+    }
+
     // Push returns back to the stack.
     for (uint32_t I = 0; I < Rets.size(); ++I) {
       StackMgr.push(Rets[I]);
@@ -217,7 +246,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     // from the popped frame.
     return StackMgr.popFrame();
   } else {
-    // Native function case: Jump to the start of the function body.
+    // WASM interpreter case: Jump to the start of the function body.
 
     // Push local variables into the stack.
     for (auto &Def : Func.getLocals()) {
@@ -248,10 +277,11 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
                        RetIt - 1,                  // Return PC
                        ArgsN + Func.getLocalNum(), // Arguments num + local num
                        RetsN,                      // Returns num
-                       IsTailCall                  // For tail-call
+                       IsTailCall,                 // For tail-call
+                       IsNativeEntry               // For native entry
     );
 
-    // For native function case, the continuation will be the start of the
+    // For the WASM interpreter case, the continuation will be the start of the
     // function body.
     return Instrs.begin();
   }
@@ -312,6 +342,22 @@ Expect<void> Executor::throwException(
       PC = Handler->Try;
       return branchToLabel(StackMgr, C.Jump, PC);
     }
+  }
+  if (StackMgr.isTopFrameNativeEntry()) {
+    // Stopped at a frame entered from the native code: record the exception
+    // as pending and restore the stack; the native caller continues it.
+    PendingExn.TagInst = &TagInst;
+    PendingExn.Inst = ExnInst;
+    PendingExn.setPayload(StackMgr.getTopSpan(AssocValSize));
+    // Push the dummy results for popping the frame, then drop them because
+    // the escaping exception produces no results.
+    const uint32_t Arity = StackMgr.getFramesSpan().back().Arity;
+    for (uint32_t I = 0; I < Arity; ++I) {
+      StackMgr.push(ValVariant());
+    }
+    StackMgr.popFrame();
+    StackMgr.eraseValueStack(Arity, 0);
+    return Unexpect(ErrCode::Value::PendingException);
   }
   spdlog::error(ErrCode::Value::UncaughtException);
   return Unexpect(ErrCode::Value::UncaughtException);

@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <optional>
 
 namespace WasmEdge {
 namespace Host {
@@ -23,7 +24,7 @@ constexpr __wasi_version_t VERSION_ALL = 0xff00000000000002ULL;
 
 class SecretsManager {
 public:
-  explicit SecretsManager(Options OptOptions) noexcept
+  explicit SecretsManager(std::optional<Options> OptOptions) noexcept
       : ConfigOptions(std::move(OptOptions)) {}
 
   WasiCryptoExpect<void> invalidate(Span<const uint8_t> KeyId,
@@ -54,7 +55,7 @@ public:
   }
 
 private:
-  Options ConfigOptions;
+  std::optional<Options> ConfigOptions;
   mutable std::shared_mutex Mutex;
   std::unordered_map<std::string, std::unordered_set<__wasi_version_t>>
       InvalidatedKeys;

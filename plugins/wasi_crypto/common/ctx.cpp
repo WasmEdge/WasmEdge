@@ -5,6 +5,7 @@
 #include "common/array_output.h"
 #include "common/options.h"
 #include "common/secrets_manager.h"
+#include <optional>
 
 namespace WasmEdge {
 namespace Host {
@@ -69,16 +70,15 @@ Context::optionsSetGuestBuffer(__wasi_options_t OptionsHandle,
 
 WasiCryptoExpect<__wasi_secrets_manager_t>
 Context::secretsManagerOpen(__wasi_opt_options_t OptOptionsHandle) noexcept {
-  Common::Options opts;
-  if (OptOptionsHandle.tag == 0) {
-    auto Res = OptionsManager.getAs<Common::Options>(OptOptionsHandle.val);
+  std::optional<Common::Options> opts;
+  if (OptOptionsHandle.tag == __WASI_OPT_OPTIONS_U_SOME) {
+    auto Res = OptionsManager.getAs<Common::Options>(OptOptionsHandle.u.some);
     if (!Res) {
       return Res.error();
     }
-    opts = *Res;
+    opts = std::move(*Res);
   }
-  return SecretsManagerManager.registerManager(
-      Common::SecretsManager(std::move(opts)));
+  return SecretsManagerManager.registerManager((std::move(opts)));
 }
 
 WasiCryptoExpect<void> Context::secretsManagerClose(

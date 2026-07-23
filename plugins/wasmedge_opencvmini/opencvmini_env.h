@@ -16,6 +16,7 @@ class WasmEdgeOpenCVMiniEnvironment {
 public:
   WasmEdgeOpenCVMiniEnvironment() noexcept;
 
+  uint32_t NextMatId = 0;
   std::map<uint32_t, cv::Mat> MatPool;
 
   Expect<cv::Mat> getMat(uint32_t MatKey) {
@@ -26,11 +27,18 @@ public:
     }
   }
 
+  Expect<void> removeMat(uint32_t MatKey) {
+    if (this->MatPool.erase(MatKey) > 0) {
+      return {};
+    } else {
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+  }
+
   Expect<uint32_t> insertMat(const cv::Mat &Img) {
-    // cv::Mat::flags contains magic signature & I believe it's a good enough
-    // key for this purpose.
-    this->MatPool[static_cast<uint32_t>(Img.flags)] = Img;
-    return static_cast<uint32_t>(Img.flags);
+    uint32_t Id = NextMatId++;
+    this->MatPool[Id] = Img;
+    return Id;
   }
 };
 

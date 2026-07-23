@@ -55,6 +55,8 @@ WasmEdgeOpenCVMiniModule::WasmEdgeOpenCVMiniModule()
               std::make_unique<WasmEdgeOpenCVMiniImshow>(Env));
   addHostFunc("wasmedge_opencvmini_waitkey",
               std::make_unique<WasmEdgeOpenCVMiniWaitKey>(Env));
+  addHostFunc("wasmedge_opencvmini_release",
+              std::make_unique<WasmEdgeOpenCVMiniRelease>(Env));
 }
 
 } // namespace Host

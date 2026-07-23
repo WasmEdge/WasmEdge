@@ -48,7 +48,8 @@ TEST(WasmEdgeOpecvminiTest, Module) {
   // Create the wasmedge_opencvmini module instance.
   auto ImgMod = createModule();
   ASSERT_TRUE(ImgMod);
-  EXPECT_EQ(ImgMod->getFuncExportNum(), 19U);
+  EXPECT_EQ(ImgMod->getFuncExportNum(), 20U);
+  EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_release"), nullptr);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_imdecode"), nullptr);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_imencode"), nullptr);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_rectangle"), nullptr);

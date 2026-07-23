@@ -66,6 +66,11 @@ Expect<void> WasmEdgeOpenCVMiniWaitKey::body(const Runtime::CallingFrame &,
   return {};
 }
 
+Expect<void> WasmEdgeOpenCVMiniRelease::body(const Runtime::CallingFrame &,
+                                             uint32_t MatKey) {
+  return Env.removeMat(MatKey);
+}
+
 Expect<uint32_t> WasmEdgeOpenCVMiniBlur::body(const Runtime::CallingFrame &,
                                               uint32_t SrcMatKey,
                                               uint32_t KernelWidth,

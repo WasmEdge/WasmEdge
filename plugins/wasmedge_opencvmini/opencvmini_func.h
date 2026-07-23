@@ -31,6 +31,14 @@ public:
                     uint32_t BufLen);
 };
 
+class WasmEdgeOpenCVMiniRelease
+    : public WasmEdgeOpenCVMini<WasmEdgeOpenCVMiniRelease> {
+public:
+  WasmEdgeOpenCVMiniRelease(WasmEdgeOpenCVMiniEnvironment &HostEnv)
+      : WasmEdgeOpenCVMini(HostEnv) {}
+  Expect<void> body(const Runtime::CallingFrame &Frame, uint32_t MatKey);
+};
+
 class WasmEdgeOpenCVMiniImshow
     : public WasmEdgeOpenCVMini<WasmEdgeOpenCVMiniImshow> {
 public:

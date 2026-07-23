@@ -27,6 +27,7 @@
 #include "runtime/instance/module.h"
 #include "runtime/stackmgr.h"
 #include "runtime/storemgr.h"
+#include "system/stacktrace.h"
 
 #include <atomic>
 #include <csignal>
@@ -220,6 +221,12 @@ public:
   invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
          Span<const ComponentValVariant> Params,
          Span<const ComponentValType> ParamTypes);
+
+  /// Module-qualified stack trace of the most recent failed invocation on this
+  /// thread. Valid right after an invocation returns an error, else stale.
+  static Span<const StackTraceEntry> getRecordedStackTrace() noexcept {
+    return Span<const StackTraceEntry>{StackTrace}.first(StackTraceSize);
+  }
 
   /// Asynchronous invoke a WASM function by function instance.
   Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
@@ -1224,7 +1231,7 @@ private:
   /// Pending exception for compiled functions
   static thread_local PendingExnStruct PendingExn;
   /// Record stack trace on error
-  static thread_local std::array<uint32_t, 256> StackTrace;
+  static thread_local std::array<StackTraceEntry, 256> StackTrace;
   static thread_local size_t StackTraceSize;
 
   /// WasmEdge configuration

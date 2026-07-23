@@ -3,7 +3,10 @@
 
 #include "system/stacktrace.h"
 #include "common/spdlog.h"
-#include <fmt/ranges.h>
+
+#include "runtime/instance/module.h"
+#include <cstdint>
+#include <map>
 
 #if WASMEDGE_OS_WINDOWS
 #include "system/winapi.h"
@@ -14,8 +17,6 @@
 #endif
 
 namespace WasmEdge {
-
-using namespace std::literals;
 
 Span<void *const> stackTrace(Span<void *> Buffer) noexcept {
 #if WASMEDGE_OS_WINDOWS
@@ -74,9 +75,9 @@ Span<void *const> stackTrace(Span<void *> Buffer) noexcept {
 #endif
 }
 
-Span<const uint32_t>
+Span<const StackTraceEntry>
 interpreterStackTrace(const Runtime::StackManager &StackMgr,
-                      Span<uint32_t> Buffer) noexcept {
+                      Span<StackTraceEntry> Buffer) noexcept {
   size_t Index = 0;
   if (auto Module = StackMgr.getModule()) {
     const auto FuncInsts = Module->getFunctionInstances();
@@ -86,7 +87,7 @@ interpreterStackTrace(const Runtime::StackManager &StackMgr,
       if (Func && Func->isWasmFunction()) {
         const auto &Instrs = Func->getInstrs();
         Funcs.emplace(Instrs.end(), INT64_C(-1));
-        Funcs.emplace(Instrs.begin(), I);
+        Funcs.emplace(Instrs.begin(), static_cast<int64_t>(I));
       }
     }
     for (const auto &Frame : StackMgr.getFramesSpan()) {
@@ -98,22 +99,25 @@ interpreterStackTrace(const Runtime::StackManager &StackMgr,
       }
       if (Iter != Funcs.end() && Iter->first < Entry &&
           Iter->second >= INT64_C(0) && Index < Buffer.size()) {
-        Buffer[Index++] = static_cast<uint32_t>(Iter->second);
+        Buffer[Index++] =
+            StackTraceEntry{Module, static_cast<uint32_t>(Iter->second)};
       }
     }
   }
   return Buffer.first(Index);
 }
 
-Span<const uint32_t> compiledStackTrace(const Runtime::StackManager &StackMgr,
-                                        Span<uint32_t> Buffer) noexcept {
+Span<const StackTraceEntry>
+compiledStackTrace(const Runtime::StackManager &StackMgr,
+                   Span<StackTraceEntry> Buffer) noexcept {
   std::array<void *, 256> StackTraceBuffer;
   return compiledStackTrace(StackMgr, stackTrace(StackTraceBuffer), Buffer);
 }
 
-Span<const uint32_t> compiledStackTrace(const Runtime::StackManager &StackMgr,
-                                        Span<void *const> Stack,
-                                        Span<uint32_t> Buffer) noexcept {
+Span<const StackTraceEntry>
+compiledStackTrace(const Runtime::StackManager &StackMgr,
+                   Span<void *const> Stack,
+                   Span<StackTraceEntry> Buffer) noexcept {
   std::map<void *, int64_t> Funcs;
   size_t Index = 0;
   if (auto Module = StackMgr.getModule()) {
@@ -124,7 +128,7 @@ Span<const uint32_t> compiledStackTrace(const Runtime::StackManager &StackMgr,
         Funcs.emplace(
             reinterpret_cast<void *>(Func->getFuncType().getSymbol().get()),
             INT64_C(-1));
-        Funcs.emplace(Func->getSymbol().get(), I);
+        Funcs.emplace(Func->getSymbol().get(), static_cast<int64_t>(I));
       }
     }
     for (auto Entry : Stack) {
@@ -135,15 +139,12 @@ Span<const uint32_t> compiledStackTrace(const Runtime::StackManager &StackMgr,
       }
       if (Iter != Funcs.end() && Iter->first < Entry &&
           Iter->second >= INT64_C(0) && Index < Buffer.size()) {
-        Buffer[Index++] = static_cast<uint32_t>(Iter->second);
+        Buffer[Index++] =
+            StackTraceEntry{Module, static_cast<uint32_t>(Iter->second)};
       }
     }
   }
   return Buffer.first(Index);
-}
-
-void dumpStackTrace(Span<const uint32_t> Stack) noexcept {
-  spdlog::error("calling stack:{}"sv, fmt::join(Stack, ", "sv));
 }
 
 } // namespace WasmEdge

@@ -129,6 +129,23 @@ std::shared_ptr<AST::Module> compileToJIT(const Configure &Conf,
   return Mod;
 }
 
+// Parse and validate a module without compiling it, so its functions run under
+// the interpreter. Exercises interpreterStackTrace directly.
+std::shared_ptr<AST::Module> loadModule(const Configure &Conf,
+                                        Span<const Byte> Bytes) {
+  Loader::Loader LoaderEngine(Conf);
+  Validator::Validator ValidatorEngine(Conf);
+  auto ModOrErr = LoaderEngine.parseModule(Bytes);
+  if (!ModOrErr) {
+    return nullptr;
+  }
+  std::shared_ptr<AST::Module> Mod{std::move(*ModOrErr)};
+  if (!ValidatorEngine.validate(*Mod)) {
+    return nullptr;
+  }
+  return Mod;
+}
+
 // Both modules are compiled, then registered and instantiated in one store
 // under one executor, so the result is not an artifact of cross-VM sharing.
 TEST(AOTCrossModule, CompiledCallUsesCalleeContext) {
@@ -809,6 +826,70 @@ TEST(AOTCrossModule, CompiledThrowUsesCalleeTagSpace) {
   ASSERT_EQ(R->size(), 1u);
   EXPECT_EQ((*R)[0].first.get<uint32_t>(), 1u)
       << "the callee's throw did not resolve its tag in the callee's module";
+}
+
+//   callee (trapper2): (func $g (result i32) unreachable)
+//                       (func $f (export "f") (result i32) (call $g))
+const std::array<WasmEdge::Byte, 55> InterpTrapCalleeWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+    0x60, 0x00, 0x01, 0x7f, 0x03, 0x03, 0x02, 0x00, 0x00, 0x07, 0x05,
+    0x01, 0x01, 0x66, 0x00, 0x01, 0x0a, 0x0a, 0x02, 0x03, 0x00, 0x00,
+    0x0b, 0x04, 0x00, 0x10, 0x00, 0x0b, 0x00, 0x0e, 0x04, 0x6e, 0x61,
+    0x6d, 0x65, 0x01, 0x07, 0x02, 0x00, 0x01, 0x67, 0x01, 0x01, 0x66};
+
+//   caller: (import "trapper2" "f" (func $f (result i32)))
+//           (func (export "run") (result i32) (call $f))
+const std::array<WasmEdge::Byte, 65> InterpTrapCallerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+    0x60, 0x00, 0x01, 0x7f, 0x02, 0x0e, 0x01, 0x08, 0x74, 0x72, 0x61,
+    0x70, 0x70, 0x65, 0x72, 0x32, 0x01, 0x66, 0x00, 0x00, 0x03, 0x02,
+    0x01, 0x00, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x01,
+    0x0a, 0x06, 0x01, 0x04, 0x00, 0x10, 0x00, 0x0b, 0x00, 0x0b, 0x04,
+    0x6e, 0x61, 0x6d, 0x65, 0x01, 0x04, 0x01, 0x00, 0x01, 0x66};
+
+// A cross-module interpreter stack must attribute each frame to its own module.
+// run() (caller) calls f() (callee) calls g(), which traps; the caller's frame
+// must resolve against the caller module, not the top (callee) module.
+TEST(AOTCrossModule, InterpreterTrapAttributesCallerModule) {
+  Configure Conf;
+
+  auto CalleeMod = loadModule(Conf, InterpTrapCalleeWasm);
+  ASSERT_NE(CalleeMod, nullptr);
+  auto CallerMod = loadModule(Conf, InterpTrapCallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+
+  auto CalleeInstOrErr =
+      ExecEngine.registerModule(Store, *CalleeMod, "trapper2");
+  ASSERT_TRUE(CalleeInstOrErr);
+  auto CalleeInst = std::move(*CalleeInstOrErr);
+
+  auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+  ASSERT_TRUE(CallerInstOrErr);
+  auto CallerInst = std::move(*CallerInstOrErr);
+
+  const auto *Run = CallerInst->findFuncExports("run");
+  ASSERT_NE(Run, nullptr);
+
+  auto R = ExecEngine.invoke(Run, {}, {});
+  ASSERT_FALSE(R);
+
+  auto Trace = Executor::Executor::getRecordedStackTrace();
+  bool SawCaller = false;
+  bool SawCallee = false;
+  for (const auto &E : Trace) {
+    if (E.Module == CallerInst.get()) {
+      SawCaller = true;
+    }
+    if (E.Module == CalleeInst.get()) {
+      SawCallee = true;
+    }
+  }
+  EXPECT_TRUE(SawCaller) << "cross-module interpreter frame was not attributed "
+                            "to the caller module";
+  EXPECT_TRUE(SawCallee);
 }
 
 TEST_P(NativeCoreTest, TestSuites) {

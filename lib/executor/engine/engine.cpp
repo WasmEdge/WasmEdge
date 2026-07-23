@@ -767,6 +767,46 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       ValVariant Rhs = StackMgr.pop();
       return runRotrOp<uint64_t>(StackMgr.getTop(), Rhs);
     }
+    case OpCode::I64__add128: {
+      uint64_t BHigh = StackMgr.pop().get<uint64_t>();
+      uint64_t BLow = StackMgr.pop().get<uint64_t>();
+      uint64_t AHigh = StackMgr.pop().get<uint64_t>();
+      uint64_t ALow = StackMgr.getTop().get<uint64_t>();
+      WasmEdge::uint128_t A = (static_cast<WasmEdge::uint128_t>(AHigh) << 64) | ALow;
+      WasmEdge::uint128_t B = (static_cast<WasmEdge::uint128_t>(BHigh) << 64) | BLow;
+      WasmEdge::uint128_t Res = A + B;
+      StackMgr.getTop() = static_cast<uint64_t>(Res); // ResLow
+      StackMgr.push(static_cast<uint64_t>(Res >> 64)); // ResHigh
+      return {};
+    }
+    case OpCode::I64__sub128: {
+      uint64_t BHigh = StackMgr.pop().get<uint64_t>();
+      uint64_t BLow = StackMgr.pop().get<uint64_t>();
+      uint64_t AHigh = StackMgr.pop().get<uint64_t>();
+      uint64_t ALow = StackMgr.getTop().get<uint64_t>();
+      WasmEdge::uint128_t A = (static_cast<WasmEdge::uint128_t>(AHigh) << 64) | ALow;
+      WasmEdge::uint128_t B = (static_cast<WasmEdge::uint128_t>(BHigh) << 64) | BLow;
+      WasmEdge::uint128_t Res = A - B;
+      StackMgr.getTop() = static_cast<uint64_t>(Res); // ResLow
+      StackMgr.push(static_cast<uint64_t>(Res >> 64)); // ResHigh
+      return {};
+    }
+    case OpCode::I64__mul_wide_s: {
+      int64_t B = StackMgr.pop().get<int64_t>();
+      int64_t A = StackMgr.getTop().get<int64_t>();
+      __int128 Res = static_cast<__int128>(A) * static_cast<__int128>(B);
+      StackMgr.getTop() = static_cast<uint64_t>(Res); // ResLow
+      StackMgr.push(static_cast<uint64_t>(Res >> 64)); // ResHigh
+      return {};
+    }
+    case OpCode::I64__mul_wide_u: {
+      uint64_t B = StackMgr.pop().get<uint64_t>();
+      uint64_t A = StackMgr.getTop().get<uint64_t>();
+      WasmEdge::uint128_t Res = static_cast<WasmEdge::uint128_t>(A) * static_cast<WasmEdge::uint128_t>(B);
+      StackMgr.getTop() = static_cast<uint64_t>(Res); // ResLow
+      StackMgr.push(static_cast<uint64_t>(Res >> 64)); // ResHigh
+      return {};
+    }
     case OpCode::F32__add: {
       ValVariant Rhs = StackMgr.pop();
       return runAddOp<float>(StackMgr.getTop(), Rhs);

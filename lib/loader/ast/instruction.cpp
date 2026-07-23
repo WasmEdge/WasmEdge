@@ -738,6 +738,10 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::F64__min:
   case OpCode::F64__max:
   case OpCode::F64__copysign:
+  case OpCode::I64__add128:
+  case OpCode::I64__sub128:
+  case OpCode::I64__mul_wide_s:
+  case OpCode::I64__mul_wide_u:
     return {};
 
   // SIMD Memory Instruction.

@@ -29,6 +29,10 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
     Stat->startRecordWasm();
   }
 
+  // Clear any trace from a previous execution; its entries may reference
+  // modules that have since been freed.
+  StackTraceSize = 0;
+
   // Reset and push a dummy frame into stack.
   StackMgr.pushFrame(nullptr, AST::InstrView::iterator(), 0, 0);
 

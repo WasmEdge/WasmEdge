@@ -12,6 +12,7 @@ wasmedge_add_executable(wasiCryptoTests
   mac.cpp
   notimplement.cpp
   signatures.cpp
+  secrets_manager.cpp
 )
 
 add_dependencies(wasiCryptoTests

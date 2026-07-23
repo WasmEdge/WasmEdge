@@ -98,6 +98,14 @@ jobs:
             build/test/plugins/wasi_nn/wasinn_*_fixtures
             build/test/plugins/wasmedge_stablediffusion/stableDiffusion/sd-v1-5-fp16.safetensors
           key: ml-fixtures-${{ matrix.dir == 'wasi_nn' && (contains(matrix.plugin, 'bitnet') && 'wasi_nn-bitnet' || matrix.plugin) || matrix.dir }}-${{ hashFiles(format('test/plugins/{0}/CMakeLists.txt', matrix.dir)) }}
+      # The manylinux_2_28 deps image keeps its image-level Torch_DIR on the
+      # pre-cxx11-abi libtorch; point at the cxx11-abi one instead. Remove
+      # this override after the 0.18.0 release, when the image drops the
+      # pre-cxx11-abi libtorch and its Torch_DIR moves to the cxx11-abi one.
+      - if: ${{ startsWith(inputs.asset_tag, 'manylinux_2_28') }}
+        name: Use the cxx11-abi libtorch on manylinux_2_28
+        run: |
+          echo "Torch_DIR=/root/libtorch-cxx11abi" >> $GITHUB_ENV
       - name: Build ${{ matrix.plugin }}
         shell: bash
         env:
@@ -111,7 +119,6 @@ jobs:
             -DWASMEDGE_BUILD_TOOLS=OFF \
             -DWASMEDGE_USE_LLVM=OFF \
             -DOPENSSL_ROOT_DIR=${OpenSSL_DIR} \
-            -DWASMEDGE_USE_CXX11_ABI=${{ startsWith(inputs.asset_tag, 'manylinux_2_28') && 'OFF' || 'ON' }} \
             -DPIPER_ROOT="$PIPER_INSTALL_PATH" \
             ${{ matrix.options }}
           cmake --build build --target ${target}

@@ -103,7 +103,7 @@ On macOS, replace `$(nproc)` with `$(sysctl -n hw.logicalcpu)`.
 | `WASMEDGE_USE_LLVM` | ON | LLVM-based AOT/JIT compilation |
 | `WASMEDGE_BUILD_SHARED_LIB` | ON | Build shared library |
 | `WASMEDGE_BUILD_STATIC_LIB` | OFF | Build static library |
-| `WASMEDGE_USE_CXX11_ABI` | ON | Use the libstdc++ C++11 ABI |
+| `WASMEDGE_USE_CXX11_ABI` | — | Deprecated; warns and has no effect (the cxx11 ABI is always used) |
 | `WASMEDGE_FORCE_DISABLE_LTO` | OFF | Disable link-time optimization in release-style builds |
 | `WASMEDGE_LINK_LLVM_STATIC` | OFF | Link LLVM statically |
 | `WASMEDGE_LINK_TOOLS_STATIC` | OFF | Link tools statically; forces static library and static LLVM |

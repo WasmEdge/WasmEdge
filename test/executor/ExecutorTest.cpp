@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "common/spdlog.h"
+#include "experimental/scope.hpp"
 #include "vm/vm.h"
 
 #include "../spec/hostfunc.h"
@@ -40,24 +41,6 @@ namespace {
 using namespace std::literals;
 using namespace WasmEdge;
 static SpecTest T(std::filesystem::u8path("../spec/testSuites"sv));
-
-class ScopedWorkingDirectory {
-public:
-  explicit ScopedWorkingDirectory(std::filesystem::path Dir)
-      : Original(std::filesystem::current_path()), Current(std::move(Dir)) {
-    std::filesystem::create_directories(Current);
-    std::filesystem::current_path(Current);
-  }
-
-  ~ScopedWorkingDirectory() {
-    std::filesystem::current_path(Original);
-    std::filesystem::remove_all(Current);
-  }
-
-private:
-  std::filesystem::path Original;
-  std::filesystem::path Current;
-};
 
 // Parameterized testing class.
 class CoreTest : public testing::TestWithParam<std::string> {};
@@ -326,11 +309,19 @@ TEST(VM, MultipleVM) {
 }
 
 TEST(Coredump, generateCoredump) {
-  ScopedWorkingDirectory WorkingDir(
+  const auto OriginalPath = std::filesystem::current_path();
+  const auto CurrentPath =
       std::filesystem::temp_directory_path() /
       ("wasmedge-coredump-test-" +
        std::to_string(
-           std::chrono::steady_clock::now().time_since_epoch().count())));
+           std::chrono::steady_clock::now().time_since_epoch().count()));
+  std::filesystem::create_directories(CurrentPath);
+  std::filesystem::current_path(CurrentPath);
+  const cxx20::scope_exit WorkingDir([OriginalPath, CurrentPath]() noexcept {
+    std::error_code Error;
+    std::filesystem::current_path(OriginalPath, Error);
+    std::filesystem::remove_all(CurrentPath, Error);
+  });
   WasmEdge::Configure Conf;
   Conf.getRuntimeConfigure().setEnableCoredump(true);
   Conf.getRuntimeConfigure().setCoredumpWasmgdb(false);

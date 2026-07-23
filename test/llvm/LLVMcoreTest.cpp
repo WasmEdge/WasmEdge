@@ -347,6 +347,470 @@ TEST(AOTCrossModule, TailCallLeavesCallerContextIntact) {
       << "the caller resumed with the tail-call target's module";
 }
 
+// A cross-module return_call_indirect must hand the callee its own module. This
+// covers compileReturnIndirectCallOp, the last cross-module tail site (call_ref
+// and call_indirect are covered above). The probe combines the callee's global
+// and memory.grow(0), both in the callee's body: the callee context gives
+// 187*10 + 5 = 1875; a leaked caller context reads 170 and a 1-page memory for
+// 1701.
+//   callee: (memory 5) (global $g (mut i32) 187)
+//           (func (export "probe") (result i32)
+//             (i32.add (i32.mul (global.get $g) (i32.const 10))
+//                      (memory.grow (i32.const 0))))
+//   caller: (import "callee" "probe" (func $probe (result i32)))
+//           (table 1 funcref) (elem (i32.const 0) func $probe)
+//           (memory 1) (global $g (mut i32) 170)
+//           (func (export "run") (result i32)
+//             (return_call_indirect (type $t) (i32.const 0)))
+const std::array<WasmEdge::Byte, 89> CrossModuleRetIndirectCalleeWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x05,
+    0x06, 0x07, 0x01, 0x7f, 0x01, 0x41, 0xbb, 0x01, 0x0b, 0x07, 0x09, 0x01,
+    0x05, 0x70, 0x72, 0x6f, 0x62, 0x65, 0x00, 0x00, 0x0a, 0x0e, 0x01, 0x0c,
+    0x00, 0x23, 0x00, 0x41, 0x0a, 0x6c, 0x41, 0x00, 0x40, 0x00, 0x6a, 0x0b,
+    0x00, 0x1b, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x08, 0x01, 0x00, 0x05,
+    0x70, 0x72, 0x6f, 0x62, 0x65, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74, 0x07,
+    0x04, 0x01, 0x00, 0x01, 0x67};
+
+const std::array<WasmEdge::Byte, 120> CrossModuleRetIndirectCallerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x02, 0x10, 0x01, 0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65,
+    0x65, 0x05, 0x70, 0x72, 0x6f, 0x62, 0x65, 0x00, 0x00, 0x03, 0x02, 0x01,
+    0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01,
+    0x06, 0x07, 0x01, 0x7f, 0x01, 0x41, 0xaa, 0x01, 0x0b, 0x07, 0x07, 0x01,
+    0x03, 0x72, 0x75, 0x6e, 0x00, 0x01, 0x09, 0x07, 0x01, 0x00, 0x41, 0x00,
+    0x0b, 0x01, 0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0x41, 0x00, 0x13, 0x00,
+    0x00, 0x0b, 0x00, 0x20, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x0d, 0x02,
+    0x00, 0x05, 0x70, 0x72, 0x6f, 0x62, 0x65, 0x01, 0x03, 0x72, 0x75, 0x6e,
+    0x04, 0x04, 0x01, 0x00, 0x01, 0x74, 0x07, 0x04, 0x01, 0x00, 0x01, 0x67};
+
+TEST(AOTCrossModule, CompiledReturnCallIndirectUsesCalleeContext) {
+  Configure Conf;
+  Conf.addProposal(Proposal::ReferenceTypes);
+  Conf.addProposal(Proposal::TailCall);
+
+  auto CalleeMod = compileToJIT(Conf, CrossModuleRetIndirectCalleeWasm);
+  ASSERT_NE(CalleeMod, nullptr);
+  auto CallerMod = compileToJIT(Conf, CrossModuleRetIndirectCallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+
+  auto CalleeInstOrErr = ExecEngine.registerModule(Store, *CalleeMod, "callee");
+  ASSERT_TRUE(CalleeInstOrErr);
+  auto CalleeInst = std::move(*CalleeInstOrErr);
+
+  auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+  ASSERT_TRUE(CallerInstOrErr);
+  auto CallerInst = std::move(*CallerInstOrErr);
+
+  const auto *Run = CallerInst->findFuncExports("run");
+  ASSERT_NE(Run, nullptr);
+  ASSERT_TRUE(Run->isCompiledFunction());
+  auto R = ExecEngine.invoke(Run, {}, {});
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 1875u)
+      << "a cross-module return_call_indirect did not run with the callee's "
+         "module";
+}
+
+// Gas metering is one thread-local counter shared by the whole call chain, so
+// it must keep charging once a compiled call crosses into another module. Run 1
+// measures the total cost of one cross-module run_direct invocation; run 2 sets
+// the limit one unit below that and must fail with CostLimitExceeded, proving
+// the callee's instructions charge against the same budget as the caller's.
+TEST(AOTCrossModule, GasMeteringSpansCrossModuleCall) {
+  Configure Conf;
+  Conf.addProposal(Proposal::ReferenceTypes);
+  Conf.addProposal(Proposal::FunctionReferences);
+  Conf.getStatisticsConfigure().setCostMeasuring(true);
+
+  auto CalleeMod = compileToJIT(Conf, CrossModuleCalleeWasm);
+  ASSERT_NE(CalleeMod, nullptr);
+  auto CallerMod = compileToJIT(Conf, CrossModuleCallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  uint64_t FullCost = 0;
+  {
+    Statistics::Statistics Stat;
+    Executor::Executor ExecEngine(Conf, &Stat);
+    Runtime::StoreManager Store;
+
+    auto CalleeInstOrErr =
+        ExecEngine.registerModule(Store, *CalleeMod, "callee");
+    ASSERT_TRUE(CalleeInstOrErr);
+    auto CalleeInst = std::move(*CalleeInstOrErr);
+    auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+    ASSERT_TRUE(CallerInstOrErr);
+    auto CallerInst = std::move(*CallerInstOrErr);
+
+    const auto *RunDirect = CallerInst->findFuncExports("run_direct");
+    ASSERT_NE(RunDirect, nullptr);
+    auto R = ExecEngine.invoke(RunDirect, {}, {});
+    ASSERT_TRUE(R);
+    ASSERT_EQ(R->size(), 1u);
+    EXPECT_EQ((*R)[0].first.get<uint32_t>(), 1871u);
+
+    FullCost = Stat.getTotalCost();
+    EXPECT_GT(FullCost, 0u)
+        << "gas metering did not run across the cross-module call";
+  }
+
+  // Executor::Executor() re-seeds the cost limit from its Configure, so set the
+  // second run's limit here rather than on the Statistics constructor.
+  Conf.getStatisticsConfigure().setCostLimit(FullCost - 1);
+  {
+    Statistics::Statistics Stat;
+    Executor::Executor ExecEngine(Conf, &Stat);
+    Runtime::StoreManager Store;
+
+    auto CalleeInstOrErr =
+        ExecEngine.registerModule(Store, *CalleeMod, "callee");
+    ASSERT_TRUE(CalleeInstOrErr);
+    auto CalleeInst = std::move(*CalleeInstOrErr);
+    auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+    ASSERT_TRUE(CallerInstOrErr);
+    auto CallerInst = std::move(*CallerInstOrErr);
+
+    const auto *RunDirect = CallerInst->findFuncExports("run_direct");
+    ASSERT_NE(RunDirect, nullptr);
+    auto R = ExecEngine.invoke(RunDirect, {}, {});
+    ASSERT_FALSE(R) << "a cost limit one below the measured cross-module "
+                       "total should have been enforced";
+    EXPECT_EQ(R.error(), ErrCode::Value::CostLimitExceeded);
+  }
+}
+
+// One compiled image can back many instances. The shared module is registered
+// twice under different names, each with its own mutated global; a third module
+// call_refs "read" on both. If context selection ever keyed on the (identical)
+// compiled function pointer instead of the calling FunctionInstance, it fails.
+//   shared: (global $g (export "g") (mut i32) 0)
+//           (func (export "read") (result i32) (global.get $g))
+//   caller: (import "inst_a" "read") (import "inst_b" "read")
+//           (func (export "run") (result i32)
+//             (i32.add (i32.mul (call_ref $t (ref.func $ra)) (i32.const 1000))
+//                      (call_ref $t (ref.func $rb))))
+const std::array<WasmEdge::Byte, 71> CrossModuleSharedInstWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x06, 0x06, 0x01, 0x7f, 0x01,
+    0x41, 0x00, 0x0b, 0x07, 0x0c, 0x02, 0x01, 0x67, 0x03, 0x00, 0x04, 0x72,
+    0x65, 0x61, 0x64, 0x00, 0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x23, 0x00,
+    0x0b, 0x00, 0x14, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x07, 0x01, 0x00,
+    0x04, 0x72, 0x65, 0x61, 0x64, 0x07, 0x04, 0x01, 0x00, 0x01, 0x67};
+
+const std::array<WasmEdge::Byte, 115> CrossModuleSharedInstCallerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x02, 0x1d, 0x02, 0x06, 0x69, 0x6e, 0x73, 0x74, 0x5f,
+    0x61, 0x04, 0x72, 0x65, 0x61, 0x64, 0x00, 0x00, 0x06, 0x69, 0x6e, 0x73,
+    0x74, 0x5f, 0x62, 0x04, 0x72, 0x65, 0x61, 0x64, 0x00, 0x00, 0x03, 0x02,
+    0x01, 0x00, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x02, 0x09,
+    0x06, 0x01, 0x03, 0x00, 0x02, 0x00, 0x01, 0x0a, 0x11, 0x01, 0x0f, 0x00,
+    0xd2, 0x00, 0x14, 0x00, 0x41, 0xe8, 0x07, 0x6c, 0xd2, 0x01, 0x14, 0x00,
+    0x6a, 0x0b, 0x00, 0x1b, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x0e, 0x03,
+    0x00, 0x02, 0x72, 0x61, 0x01, 0x02, 0x72, 0x62, 0x02, 0x03, 0x72, 0x75,
+    0x6e, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74};
+
+TEST(AOTCrossModule, SameCompiledModuleTwoInstancesKeepOwnState) {
+  Configure Conf;
+  Conf.addProposal(Proposal::ReferenceTypes);
+  Conf.addProposal(Proposal::FunctionReferences);
+
+  auto SharedMod = compileToJIT(Conf, CrossModuleSharedInstWasm);
+  ASSERT_NE(SharedMod, nullptr);
+  auto CallerMod = compileToJIT(Conf, CrossModuleSharedInstCallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+
+  auto InstAOrErr = ExecEngine.registerModule(Store, *SharedMod, "inst_a");
+  ASSERT_TRUE(InstAOrErr);
+  auto InstA = std::move(*InstAOrErr);
+  auto InstBOrErr = ExecEngine.registerModule(Store, *SharedMod, "inst_b");
+  ASSERT_TRUE(InstBOrErr);
+  auto InstB = std::move(*InstBOrErr);
+  ASSERT_NE(InstA.get(), InstB.get())
+      << "registering the same compiled module twice must produce two "
+         "distinct instances";
+
+  auto *GlobalA = InstA->findGlobalExports("g");
+  ASSERT_NE(GlobalA, nullptr);
+  GlobalA->setValue(ValVariant(uint32_t(111U)));
+  auto *GlobalB = InstB->findGlobalExports("g");
+  ASSERT_NE(GlobalB, nullptr);
+  GlobalB->setValue(ValVariant(uint32_t(222U)));
+
+  auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+  ASSERT_TRUE(CallerInstOrErr);
+  auto CallerInst = std::move(*CallerInstOrErr);
+
+  const auto *Run = CallerInst->findFuncExports("run");
+  ASSERT_NE(Run, nullptr);
+  ASSERT_TRUE(Run->isCompiledFunction());
+  auto R = ExecEngine.invoke(Run, {}, {});
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 111222u)
+      << "the two instances of the identical compiled module did not keep "
+         "their own global state apart";
+}
+
+// A host function reached from a compiled cross-module callee must see the
+// callee's own CallingFrame so CallingFrame::getMemoryByIndex() resolves the
+// callee's memory. The callee is entered via call_ref (a native call that never
+// touches StackManager), then calls its host import; the explicit CallerModInst
+// threaded through Executor::enterFunction keeps that host call's module right.
+class CrossModuleReadMem0 : public Runtime::HostFunction<CrossModuleReadMem0> {
+public:
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame) {
+    auto *MemInst = Frame.getMemoryByIndex(0);
+    if (MemInst == nullptr) {
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    const auto *Ptr = MemInst->getPointer<const uint32_t *>(0);
+    if (Ptr == nullptr) {
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    return *Ptr;
+  }
+};
+
+class CrossModuleHostModule : public Runtime::Instance::ModuleInstance {
+public:
+  CrossModuleHostModule() : ModuleInstance("host") {
+    addHostFunc("read0", std::make_unique<CrossModuleReadMem0>());
+  }
+};
+
+//   callee: (import "host" "read0" (func $read0 (result i32)))
+//           (memory 1) (data (i32.const 0) "\22\22\22\00")
+//           (func (export "probe") (result i32) (call $read0))
+//   caller: (import "callee" "probe" (func $probe (result i32)))
+//           (memory 1) (data (i32.const 0) "\11\11\11\00")
+//           (func (export "run") (result i32)
+//             (call_ref $t (ref.func $probe)))
+const std::array<WasmEdge::Byte, 101> CrossModuleHostCalleeWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x02, 0x0e, 0x01, 0x04, 0x68, 0x6f, 0x73, 0x74, 0x05,
+    0x72, 0x65, 0x61, 0x64, 0x30, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05,
+    0x03, 0x01, 0x00, 0x01, 0x07, 0x09, 0x01, 0x05, 0x70, 0x72, 0x6f, 0x62,
+    0x65, 0x00, 0x01, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x10, 0x00, 0x0b, 0x0b,
+    0x0a, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x04, 0x22, 0x22, 0x22, 0x00, 0x00,
+    0x1c, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x0f, 0x02, 0x00, 0x05, 0x72,
+    0x65, 0x61, 0x64, 0x30, 0x01, 0x05, 0x70, 0x72, 0x6f, 0x62, 0x65, 0x04,
+    0x04, 0x01, 0x00, 0x01, 0x74};
+
+const std::array<WasmEdge::Byte, 108> CrossModuleHostCallerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x02, 0x10, 0x01, 0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65,
+    0x65, 0x05, 0x70, 0x72, 0x6f, 0x62, 0x65, 0x00, 0x00, 0x03, 0x02, 0x01,
+    0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75,
+    0x6e, 0x00, 0x01, 0x09, 0x05, 0x01, 0x03, 0x00, 0x01, 0x00, 0x0a, 0x08,
+    0x01, 0x06, 0x00, 0xd2, 0x00, 0x14, 0x00, 0x0b, 0x0b, 0x0a, 0x01, 0x00,
+    0x41, 0x00, 0x0b, 0x04, 0x11, 0x11, 0x11, 0x00, 0x00, 0x1a, 0x04, 0x6e,
+    0x61, 0x6d, 0x65, 0x01, 0x0d, 0x02, 0x00, 0x05, 0x70, 0x72, 0x6f, 0x62,
+    0x65, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74};
+
+TEST(AOTCrossModule, HostFunctionSeesCalleeMemory) {
+  Configure Conf;
+  Conf.addProposal(Proposal::ReferenceTypes);
+  Conf.addProposal(Proposal::FunctionReferences);
+
+  auto CalleeMod = compileToJIT(Conf, CrossModuleHostCalleeWasm);
+  ASSERT_NE(CalleeMod, nullptr);
+  auto CallerMod = compileToJIT(Conf, CrossModuleHostCallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+
+  CrossModuleHostModule HostMod;
+  ASSERT_TRUE(ExecEngine.registerModule(Store, HostMod));
+
+  auto CalleeInstOrErr = ExecEngine.registerModule(Store, *CalleeMod, "callee");
+  ASSERT_TRUE(CalleeInstOrErr);
+  auto CalleeInst = std::move(*CalleeInstOrErr);
+
+  auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+  ASSERT_TRUE(CallerInstOrErr);
+  auto CallerInst = std::move(*CallerInstOrErr);
+
+  const auto *Run = CallerInst->findFuncExports("run");
+  ASSERT_NE(Run, nullptr);
+  ASSERT_TRUE(Run->isCompiledFunction());
+  auto R = ExecEngine.invoke(Run, {}, {});
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 0x00222222U)
+      << "the host function saw the caller's memory instead of the callee's";
+}
+
+// A cross-module struct.new_default must resolve its type index against the
+// callee's own type section and own the result under the callee's module. The
+// modules number types differently: callee $S is at index 1, while caller index
+// 1 is a differently-shaped struct ($Collide), so a wrongly-bound context reads
+// a valid but wrong type instead of crashing. $S's second field is a concrete
+// (ref null $T), the only default-init field kind that reaches toBottomType.
+//   callee: (type $T (struct (field i32)))
+//           (type $S (struct (field $tag (mut i32)) (field $next (ref null
+//           $T)))) (func (export "make") (result (ref $S)) (struct.new_default
+//           $S))
+//   caller: (type $Collide (struct (field (mut i32)) (field (mut i32))))
+//           (type $S_caller (struct (field (mut i32)) (field (ref null
+//           $T_caller)))) (import "callee" "make" (func $make (result (ref
+//           $S_caller)))) (table 1 funcref) (elem (i32.const 0) func $make)
+//           (func (export "run") (result (ref $S_caller))
+//             (call_indirect (type $MkTy) (i32.const 0)))
+const std::array<WasmEdge::Byte, 97> CrossModuleGCCalleeWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x11, 0x03,
+    0x5f, 0x01, 0x7f, 0x00, 0x5f, 0x02, 0x7f, 0x01, 0x63, 0x00, 0x00,
+    0x60, 0x00, 0x01, 0x64, 0x01, 0x03, 0x02, 0x01, 0x02, 0x07, 0x08,
+    0x01, 0x04, 0x6d, 0x61, 0x6b, 0x65, 0x00, 0x00, 0x0a, 0x07, 0x01,
+    0x05, 0x00, 0xfb, 0x01, 0x01, 0x0b, 0x00, 0x2d, 0x04, 0x6e, 0x61,
+    0x6d, 0x65, 0x01, 0x07, 0x01, 0x00, 0x04, 0x6d, 0x61, 0x6b, 0x65,
+    0x04, 0x0d, 0x03, 0x00, 0x01, 0x54, 0x01, 0x01, 0x53, 0x02, 0x04,
+    0x4d, 0x6b, 0x54, 0x79, 0x0a, 0x0e, 0x01, 0x01, 0x02, 0x00, 0x03,
+    0x74, 0x61, 0x67, 0x01, 0x04, 0x6e, 0x65, 0x78, 0x74};
+
+const std::array<WasmEdge::Byte, 160> CrossModuleGCCallerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x1a, 0x05, 0x60,
+    0x00, 0x00, 0x5f, 0x02, 0x7f, 0x01, 0x7f, 0x01, 0x5f, 0x01, 0x7f, 0x00,
+    0x5f, 0x02, 0x7f, 0x01, 0x63, 0x02, 0x00, 0x60, 0x00, 0x01, 0x64, 0x03,
+    0x02, 0x0f, 0x01, 0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65, 0x65, 0x04, 0x6d,
+    0x61, 0x6b, 0x65, 0x00, 0x04, 0x03, 0x02, 0x01, 0x04, 0x04, 0x04, 0x01,
+    0x70, 0x00, 0x01, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x01,
+    0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x0a, 0x09, 0x01,
+    0x07, 0x00, 0x41, 0x00, 0x11, 0x04, 0x00, 0x0b, 0x00, 0x42, 0x04, 0x6e,
+    0x61, 0x6d, 0x65, 0x01, 0x0c, 0x02, 0x00, 0x04, 0x6d, 0x61, 0x6b, 0x65,
+    0x01, 0x03, 0x72, 0x75, 0x6e, 0x04, 0x2d, 0x05, 0x00, 0x07, 0x41, 0x46,
+    0x69, 0x6c, 0x6c, 0x65, 0x72, 0x01, 0x07, 0x43, 0x6f, 0x6c, 0x6c, 0x69,
+    0x64, 0x65, 0x02, 0x08, 0x54, 0x5f, 0x63, 0x61, 0x6c, 0x6c, 0x65, 0x72,
+    0x03, 0x08, 0x53, 0x5f, 0x63, 0x61, 0x6c, 0x6c, 0x65, 0x72, 0x04, 0x04,
+    0x4d, 0x6b, 0x54, 0x79};
+
+TEST(AOTCrossModule, CrossModuleStructNewOwnedByCallee) {
+  Configure Conf;
+  Conf.addProposal(Proposal::ReferenceTypes);
+  Conf.addProposal(Proposal::FunctionReferences);
+  Conf.addProposal(Proposal::GC);
+
+  auto CalleeMod = compileToJIT(Conf, CrossModuleGCCalleeWasm);
+  ASSERT_NE(CalleeMod, nullptr);
+  auto CallerMod = compileToJIT(Conf, CrossModuleGCCallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+
+  auto CalleeInstOrErr = ExecEngine.registerModule(Store, *CalleeMod, "callee");
+  ASSERT_TRUE(CalleeInstOrErr);
+  auto CalleeInst = std::move(*CalleeInstOrErr);
+
+  auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+  ASSERT_TRUE(CallerInstOrErr);
+  auto CallerInst = std::move(*CallerInstOrErr);
+
+  const auto *Run = CallerInst->findFuncExports("run");
+  ASSERT_NE(Run, nullptr);
+  ASSERT_TRUE(Run->isCompiledFunction());
+  auto R = ExecEngine.invoke(Run, {}, {});
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+
+  const auto *Inst = (*R)[0]
+                         .first.get<RefVariant>()
+                         .getPtr<Runtime::Instance::StructInstance>();
+  ASSERT_NE(Inst, nullptr);
+  EXPECT_EQ(Inst->getModule(), CalleeInst.get())
+      << "the struct created by the callee's struct.new_default is not "
+         "owned by the callee module";
+  EXPECT_NE(Inst->getModule(), CallerInst.get())
+      << "the struct is owned by the caller instead of the callee";
+  EXPECT_EQ(Inst->getField(0).get<uint32_t>(), 0u);
+  EXPECT_TRUE(Inst->getField(1).get<RefVariant>().isNull())
+      << "the default-initialized concrete reference field did not resolve "
+         "to a null bottom type through the callee's own type section";
+}
+
+// A compiled throw must resolve its tag in the throwing module's tag space. The
+// two modules disagree on what tag index 1 means: it is $b1 in the callee but
+// the caller's own $a1, so a throw resolved against the caller is caught by
+// catch_all (2) instead of the imported $b1 (1). call_ref is the probe because
+// it reaches the callee natively, without an interpreter frame to carry the
+// module.
+//   callee: (tag $b0) (tag $b1) (export "b1" (tag $b1))
+//           (func (export "throw1") (throw $b1))
+//   caller: (import "callee" "b1" (tag $ib1))
+//           (import "callee" "throw1" (func $throw1))
+//           (tag $a1)
+//           (func (export "run") (result i32)
+//             (block $on_b1 (block $on_any
+//               (try_table (catch $ib1 $on_b1) (catch_all $on_any)
+//                 (call_ref $v (ref.func $throw1)))
+//               (return (i32.const 0)))
+//               (return (i32.const 2)))
+//             (i32.const 1))
+const std::array<WasmEdge::Byte, 85> CrossModuleThrowCalleeWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01,
+    0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0d, 0x05, 0x02, 0x00,
+    0x00, 0x00, 0x00, 0x07, 0x0f, 0x02, 0x06, 0x74, 0x68, 0x72, 0x6f,
+    0x77, 0x31, 0x00, 0x00, 0x02, 0x62, 0x31, 0x04, 0x01, 0x0a, 0x06,
+    0x01, 0x04, 0x00, 0x08, 0x01, 0x0b, 0x00, 0x21, 0x04, 0x6e, 0x61,
+    0x6d, 0x65, 0x01, 0x09, 0x01, 0x00, 0x06, 0x74, 0x68, 0x72, 0x6f,
+    0x77, 0x31, 0x04, 0x04, 0x01, 0x00, 0x01, 0x76, 0x0b, 0x09, 0x02,
+    0x00, 0x02, 0x62, 0x30, 0x01, 0x02, 0x62, 0x31};
+
+const std::array<WasmEdge::Byte, 164> CrossModuleThrowCallerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x60,
+    0x00, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x02, 0x1e, 0x02, 0x06, 0x63, 0x61,
+    0x6c, 0x6c, 0x65, 0x65, 0x02, 0x62, 0x31, 0x04, 0x00, 0x00, 0x06, 0x63,
+    0x61, 0x6c, 0x6c, 0x65, 0x65, 0x06, 0x74, 0x68, 0x72, 0x6f, 0x77, 0x31,
+    0x00, 0x00, 0x03, 0x02, 0x01, 0x01, 0x0d, 0x03, 0x01, 0x00, 0x00, 0x07,
+    0x07, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x01, 0x09, 0x05, 0x01, 0x03,
+    0x00, 0x01, 0x00, 0x0a, 0x1f, 0x01, 0x1d, 0x00, 0x02, 0x40, 0x02, 0x40,
+    0x1f, 0x40, 0x02, 0x00, 0x00, 0x01, 0x02, 0x00, 0xd2, 0x00, 0x14, 0x00,
+    0x0b, 0x41, 0x00, 0x0f, 0x0b, 0x41, 0x02, 0x0f, 0x0b, 0x41, 0x01, 0x0b,
+    0x00, 0x36, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x09, 0x01, 0x00, 0x06,
+    0x74, 0x68, 0x72, 0x6f, 0x77, 0x31, 0x03, 0x12, 0x01, 0x01, 0x02, 0x00,
+    0x05, 0x6f, 0x6e, 0x5f, 0x62, 0x31, 0x01, 0x06, 0x6f, 0x6e, 0x5f, 0x61,
+    0x6e, 0x79, 0x04, 0x04, 0x01, 0x00, 0x01, 0x76, 0x0b, 0x0a, 0x02, 0x00,
+    0x03, 0x69, 0x62, 0x31, 0x01, 0x02, 0x61, 0x31};
+
+TEST(AOTCrossModule, CompiledThrowUsesCalleeTagSpace) {
+  Configure Conf;
+  Conf.addProposal(Proposal::ReferenceTypes);
+  Conf.addProposal(Proposal::FunctionReferences);
+  Conf.addProposal(Proposal::ExceptionHandling);
+
+  auto CalleeMod = compileToJIT(Conf, CrossModuleThrowCalleeWasm);
+  ASSERT_NE(CalleeMod, nullptr);
+  auto CallerMod = compileToJIT(Conf, CrossModuleThrowCallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+
+  auto CalleeInstOrErr = ExecEngine.registerModule(Store, *CalleeMod, "callee");
+  ASSERT_TRUE(CalleeInstOrErr);
+  auto CalleeInst = std::move(*CalleeInstOrErr);
+
+  auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+  ASSERT_TRUE(CallerInstOrErr);
+  auto CallerInst = std::move(*CallerInstOrErr);
+
+  const auto *Run = CallerInst->findFuncExports("run");
+  ASSERT_NE(Run, nullptr);
+  ASSERT_TRUE(Run->isCompiledFunction());
+  auto R = ExecEngine.invoke(Run, {}, {});
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 1u)
+      << "the callee's throw did not resolve its tag in the callee's module";
+}
+
 TEST_P(NativeCoreTest, TestSuites) {
   auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
   // Native AOT spec test: explicitly opt into RunMode::AOT so the runtime

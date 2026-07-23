@@ -2031,4 +2031,32 @@ TEST(ComponentValidatorTest, InstantiateImportedComponentMissingArgRejected) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
+TEST(ComponentValidatorTest, ResourceTypeInTypeScopeRejected) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+  auto RT = std::make_unique<AST::Component::DefType>();
+  RT->setResourceType(AST::Component::ResourceType());
+  AST::Component::InstanceDecl ID;
+  ID.setType(std::move(RT));
+
+  std::vector<AST::Component::ComponentDecl> Decls;
+  AST::Component::ComponentDecl CD;
+  CD.setInstance(std::move(ID));
+  Decls.push_back(std::move(CD));
+
+  AST::Component::ComponentType CT;
+  CT.setDecl(std::move(Decls));
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setComponentType(std::move(CT));
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  ASSERT_FALSE(Res);
+  ASSERT_EQ(Res.error(), ErrCode::Value::InvalidTypeReference);
+}
+
 } // namespace

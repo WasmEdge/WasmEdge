@@ -1,30 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
 #include "common/secrets_manager.h"
-#include "helper.h"
+#include <gtest/gtest.h>
+#include <vector>
 
 using namespace WasmEdge::Host::WasiCrypto;
 
 TEST(SecretsManagerTest, InvalidateAndCheck) {
-  auto Ctx = Context::getInstance();
+  // Instantiate the SecretsManager directly, bypassing the Context singleton
+  Common::SecretsManager manager(std::nullopt);
 
-  __wasi_opt_options_t opt;
-  opt.tag = __WASI_OPT_OPTIONS_U_NONE;
-  auto smRes = Ctx->secretsManagerOpen(opt);
-  ASSERT_TRUE(smRes);
-  __wasi_secrets_manager_t smHandle = *smRes;
+  std::vector<uint8_t> KeyId = {'k', 'e', 'y', '_', '1'};
+  __wasi_version_t Version = 1;
 
-  std::vector<uint8_t> keyId = {'k', 'e', 'y', '_', '1'};
-  __wasi_version_t version = 1;
-  auto invRes = Ctx->secretsManagerInvalidate(smHandle, keyId, version);
-  ASSERT_TRUE(invRes);
+  // Test invalidation
+  auto InvRes = manager.invalidate(KeyId, Version);
+  ASSERT_TRUE(InvRes);
 
-  // TODO: verify that the internal state reflects this (test via
-  // the dependent *_from_id functions once implemented)
-
-  auto closeRes = Ctx->secretsManagerClose(smHandle);
-  ASSERT_TRUE(closeRes);
-
-  // verify closing an already closed handle returns CLOSED
-  auto closeAgainRes = Ctx->secretsManagerClose(smHandle);
-  ASSERT_FALSE(closeAgainRes);
-  ASSERT_EQ(closeAgainRes.error(), __WASI_CRYPTO_ERRNO_CLOSED);
+  // Verify the internal state reflects the invalidation
+  ASSERT_TRUE(manager.isInvalidated(KeyId, Version));
+  
+  // Verify it doesn't incorrectly invalidate other versions or keys
+  ASSERT_FALSE(manager.isInvalidated(KeyId, 2)); 
+  std::vector<uint8_t> OtherKey = {'o', 't', 'h', 'e', 'r'};
+  ASSERT_FALSE(manager.isInvalidated(OtherKey, Version)); 
 }

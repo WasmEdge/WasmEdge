@@ -206,7 +206,8 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
       }
       StackTraceSize +=
           interpreterStackTrace(
-              StackMgr, Span<uint32_t>{StackTrace}.subspan(StackTraceSize))
+              StackMgr,
+              Span<StackTraceEntry>{StackTrace}.subspan(StackTraceSize))
               .size();
       return Unexpect(Err);
     }

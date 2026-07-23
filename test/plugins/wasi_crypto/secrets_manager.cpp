@@ -20,9 +20,9 @@ TEST(SecretsManagerTest, InvalidateAndCheck) {
 
   // Verify the internal state reflects the invalidation
   ASSERT_TRUE(manager.isInvalidated(KeyId, Version));
-  
+
   // Verify it doesn't incorrectly invalidate other versions or keys
-  ASSERT_FALSE(manager.isInvalidated(KeyId, 2)); 
+  ASSERT_FALSE(manager.isInvalidated(KeyId, 2));
   std::vector<uint8_t> OtherKey = {'o', 't', 'h', 'e', 'r'};
-  ASSERT_FALSE(manager.isInvalidated(OtherKey, Version)); 
+  ASSERT_FALSE(manager.isInvalidated(OtherKey, Version));
 }

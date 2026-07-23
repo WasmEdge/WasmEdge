@@ -6,12 +6,12 @@
 #include "common/span.h"
 #include "utils/error.h"
 #include "wasi_crypto/api.hpp"
+#include <optional>
 #include <shared_mutex>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <optional>
 
 namespace WasmEdge {
 namespace Host {

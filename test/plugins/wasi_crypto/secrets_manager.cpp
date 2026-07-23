@@ -6,7 +6,8 @@ using namespace WasmEdge::Host::WasiCrypto;
 TEST(SecretsManagerTest, InvalidateAndCheck) {
   auto Ctx = Context::getInstance();
 
-  __wasi_opt_options_t opt = {0};
+  __wasi_opt_options_t opt;
+  opt.tag = __WASI_OPT_OPTIONS_U_NONE;
   auto smRes = Ctx->secretsManagerOpen(opt);
   ASSERT_TRUE(smRes);
   __wasi_secrets_manager_t smHandle = *smRes;

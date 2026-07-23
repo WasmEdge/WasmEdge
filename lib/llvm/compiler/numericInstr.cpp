@@ -351,6 +351,62 @@ FunctionCompiler::compileNumericOp(const AST::Instruction &Instr) noexcept {
     stackPush(Builder.createAdd(LHS, RHS));
     break;
   }
+  // Wide Arithmetic Instructions
+  case OpCode::I64__mul_wide_u:
+  case OpCode::I64__mul_wide_s: {
+    LLVM::Value RHS = stackPop();
+    LLVM::Value LHS = stackPop();
+
+    LLVM::Type Int128Ty = Context.Int128Ty;
+    LLVM::Value Shift64 = LLVM::Value::getConstInt(Int128Ty, 64, false);
+
+    // Sign-extend for _s, Zero-extend for _u
+    const bool IsSigned = Instr.getOpCode() == OpCode::I64__mul_wide_s;
+    LLVM::Value ExtLHS = IsSigned ? Builder.createSExt(LHS, Int128Ty) : Builder.createZExt(LHS, Int128Ty);
+    LLVM::Value ExtRHS = IsSigned ? Builder.createSExt(RHS, Int128Ty) : Builder.createZExt(RHS, Int128Ty);
+
+    LLVM::Value Res128 = Builder.createMul(ExtLHS, ExtRHS);
+    
+    LLVM::Value Low64 = Builder.createTrunc(Res128, Context.Int64Ty);
+    LLVM::Value High64 = Builder.createTrunc(Builder.createLShr(Res128, Shift64), Context.Int64Ty);
+
+    // Spec: push lower 64 bits first, then upper 64 bits
+    stackPush(Low64);
+    stackPush(High64);
+    break;
+  }
+  case OpCode::I64__add128:
+  case OpCode::I64__sub128: {
+    // Stack pops in reverse order: [high2, low2, high1, low1]
+    LLVM::Value High2 = stackPop();
+    LLVM::Value Low2 = stackPop();
+    LLVM::Value High1 = stackPop();
+    LLVM::Value Low1 = stackPop();
+
+    LLVM::Type Int128Ty = Context.Int128Ty;
+    LLVM::Value Shift64 = LLVM::Value::getConstInt(Int128Ty, 64, false);
+
+    // Assemble LHS 128-bit value
+    LLVM::Value ExtLow1 = Builder.createZExt(Low1, Int128Ty);
+    LLVM::Value ExtHigh1 = Builder.createZExt(High1, Int128Ty);
+    LLVM::Value Val1 = Builder.createOr(Builder.createShl(ExtHigh1, Shift64), ExtLow1);
+
+    // Assemble RHS 128-bit value
+    LLVM::Value ExtLow2 = Builder.createZExt(Low2, Int128Ty);
+    LLVM::Value ExtHigh2 = Builder.createZExt(High2, Int128Ty);
+    LLVM::Value Val2 = Builder.createOr(Builder.createShl(ExtHigh2, Shift64), ExtLow2);
+
+    const bool IsAdd = Instr.getOpCode() == OpCode::I64__add128;
+    LLVM::Value Res128 = IsAdd ? Builder.createAdd(Val1, Val2) : Builder.createSub(Val1, Val2);
+
+    LLVM::Value ResLow = Builder.createTrunc(Res128, Context.Int64Ty);
+    LLVM::Value ResHigh = Builder.createTrunc(Builder.createLShr(Res128, Shift64), Context.Int64Ty);
+
+    // Spec: push lower 64 bits first, then upper 64 bits
+    stackPush(ResLow);
+    stackPush(ResHigh);
+    break;
+  }
   case OpCode::I32__sub:
   case OpCode::I64__sub: {
     LLVM::Value RHS = stackPop();

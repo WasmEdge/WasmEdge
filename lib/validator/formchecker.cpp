@@ -1454,6 +1454,19 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::I64__rotr:
     return StackTrans({ValType(TypeCode::I64), ValType(TypeCode::I64)},
                       {ValType(TypeCode::I64)});
+  // Wide Arithmetic Instructions.
+  case OpCode::I64__add128:
+  case OpCode::I64__sub128:
+    // Takes 4 x i64 [i64, i64, i64, i64], pushes 2 x i64 [i64, i64]
+    return StackTrans({ValType(TypeCode::I64), ValType(TypeCode::I64),
+                       ValType(TypeCode::I64), ValType(TypeCode::I64)},
+                      {ValType(TypeCode::I64), ValType(TypeCode::I64)});
+
+  case OpCode::I64__mul_wide_s:
+  case OpCode::I64__mul_wide_u:
+    // Takes 2 x i64 [i64, i64], pushes 2 x i64 [i64, i64]
+    return StackTrans({ValType(TypeCode::I64), ValType(TypeCode::I64)},
+                      {ValType(TypeCode::I64), ValType(TypeCode::I64)});
   case OpCode::F32__add:
   case OpCode::F32__sub:
   case OpCode::F32__mul:

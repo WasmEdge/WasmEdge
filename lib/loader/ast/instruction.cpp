@@ -724,6 +724,11 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::I64__shr_u:
   case OpCode::I64__rotl:
   case OpCode::I64__rotr:
+  case OpCode::I64__add128:
+  case OpCode::I64__sub128:
+  case OpCode::I64__mul_wide_s:
+  case OpCode::I64__mul_wide_u:
+    return {};
   case OpCode::F32__add:
   case OpCode::F32__sub:
   case OpCode::F32__mul:

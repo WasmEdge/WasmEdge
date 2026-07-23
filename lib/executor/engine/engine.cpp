@@ -1628,6 +1628,73 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       ValVariant Rhs = StackMgr.pop();
       return runVectorExtMulHighOp<uint32_t, uint64_t>(StackMgr.getTop(), Rhs);
     }
+    // Wide Arithmetic Instructions
+    case OpCode::I64__mul_wide_u: {
+      uint64_t Rhs = StackMgr.pop().get<uint64_t>();
+      uint64_t Lhs = StackMgr.pop().get<uint64_t>();
+
+      unsigned __int128 ExtLhs = static_cast<unsigned __int128>(Lhs);
+      unsigned __int128 ExtRhs = static_cast<unsigned __int128>(Rhs);
+      unsigned __int128 Res = ExtLhs * ExtRhs;
+
+      uint64_t Low = static_cast<uint64_t>(Res);
+      uint64_t High = static_cast<uint64_t>(Res >> 64);
+
+      StackMgr.push(ValVariant(Low));
+      StackMgr.push(ValVariant(High));
+      return {};
+    }
+    case OpCode::I64__mul_wide_s: {
+      int64_t Rhs = StackMgr.pop().get<int64_t>();
+      int64_t Lhs = StackMgr.pop().get<int64_t>();
+
+      __int128 ExtLhs = static_cast<__int128>(Lhs);
+      __int128 ExtRhs = static_cast<__int128>(Rhs);
+      __int128 Res = ExtLhs * ExtRhs;
+
+      uint64_t Low = static_cast<uint64_t>(Res);
+      uint64_t High = static_cast<uint64_t>(static_cast<unsigned __int128>(Res) >> 64);
+
+      StackMgr.push(ValVariant(Low));
+      StackMgr.push(ValVariant(High));
+      return {};
+    }
+    case OpCode::I64__add128: {
+      // Stack pops in reverse order: [high2, low2, high1, low1]
+      uint64_t High2 = StackMgr.pop().get<uint64_t>();
+      uint64_t Low2 = StackMgr.pop().get<uint64_t>();
+      uint64_t High1 = StackMgr.pop().get<uint64_t>();
+      uint64_t Low1 = StackMgr.pop().get<uint64_t>();
+
+      unsigned __int128 Val1 = (static_cast<unsigned __int128>(High1) << 64) | Low1;
+      unsigned __int128 Val2 = (static_cast<unsigned __int128>(High2) << 64) | Low2;
+      unsigned __int128 Res = Val1 + Val2;
+
+      uint64_t Low = static_cast<uint64_t>(Res);
+      uint64_t High = static_cast<uint64_t>(Res >> 64);
+
+      StackMgr.push(ValVariant(Low));
+      StackMgr.push(ValVariant(High));
+      return {};
+    }
+    case OpCode::I64__sub128: {
+      // Stack pops in reverse order: [high2, low2, high1, low1]
+      uint64_t High2 = StackMgr.pop().get<uint64_t>();
+      uint64_t Low2 = StackMgr.pop().get<uint64_t>();
+      uint64_t High1 = StackMgr.pop().get<uint64_t>();
+      uint64_t Low1 = StackMgr.pop().get<uint64_t>();
+
+      unsigned __int128 Val1 = (static_cast<unsigned __int128>(High1) << 64) | Low1;
+      unsigned __int128 Val2 = (static_cast<unsigned __int128>(High2) << 64) | Low2;
+      unsigned __int128 Res = Val1 - Val2;
+
+      uint64_t Low = static_cast<uint64_t>(Res);
+      uint64_t High = static_cast<uint64_t>(Res >> 64);
+
+      StackMgr.push(ValVariant(Low));
+      StackMgr.push(ValVariant(High));
+      return {};
+    }
     case OpCode::F32x4__abs:
       return runVectorAbsOp<float>(StackMgr.getTop());
     case OpCode::F32x4__neg:

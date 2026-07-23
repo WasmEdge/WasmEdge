@@ -409,6 +409,12 @@ OFC(Table__grow, "table.grow", 0xFC, 15)
 OFC(Table__size, "table.size", 0xFC, 16)
 OFC(Table__fill, "table.fill", 0xFC, 17)
 
+// 0xFC prefix - Wide Arithmetic Instructions
+OFC(I64__add128, "i64.add128", 0xFC, 19)
+OFC(I64__sub128, "i64.sub128", 0xFC, 20)
+OFC(I64__mul_wide_s, "i64.mul_wide_s", 0xFC, 21)
+OFC(I64__mul_wide_u, "i64.mul_wide_u", 0xFC, 22)
+
 // 0xFD prefix - Vector Memory Instructions (part 1)
 OFD(V128__load, "v128.load", 0xFD, 0)
 OFD(V128__load8x8_s, "v128.load8x8_s", 0xFD, 1)
@@ -813,6 +819,8 @@ P(ExceptionHandling, "Exception Handling")
 P(Memory64, "Memory64")
 // Phase 4 proposals
 P(Threads, "Threads")
+// Phase 3 proposal
+P(WideArithmetic, "Wide Arithmetic")
 // Phase 1 proposals
 P(Component, "Component Model")
 #undef P

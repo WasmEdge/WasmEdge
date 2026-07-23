@@ -7,6 +7,7 @@
 #include "runtime/instance/module.h"
 #include <cstdint>
 #include <map>
+#include <unordered_map>
 
 #if WASMEDGE_OS_WINDOWS
 #include "system/winapi.h"
@@ -79,29 +80,42 @@ Span<const StackTraceEntry>
 interpreterStackTrace(const Runtime::StackManager &StackMgr,
                       Span<StackTraceEntry> Buffer) noexcept {
   size_t Index = 0;
-  if (auto Module = StackMgr.getModule()) {
-    const auto FuncInsts = Module->getFunctionInstances();
-    std::map<AST::InstrView::iterator, int64_t> Funcs;
-    for (size_t I = 0; I < FuncInsts.size(); ++I) {
-      const auto &Func = FuncInsts[I];
-      if (Func && Func->isWasmFunction()) {
-        const auto &Instrs = Func->getInstrs();
-        Funcs.emplace(Instrs.end(), INT64_C(-1));
-        Funcs.emplace(Instrs.begin(), static_cast<int64_t>(I));
+  std::unordered_map<const Runtime::Instance::ModuleInstance *,
+                     std::map<AST::InstrView::iterator, int64_t>>
+      Cache;
+  const auto Frames = StackMgr.getFramesSpan();
+  for (size_t I = 1; I < Frames.size(); ++I) {
+    // A native-entry frame carries the callee's own end iterator instead of a
+    // return address in the caller, so it resolves against no module.
+    if (Frames[I].NativeEntry) {
+      continue;
+    }
+    const auto *Module = Frames[I - 1].Module;
+    if (Module == nullptr) {
+      continue;
+    }
+    auto [CacheIter, Inserted] = Cache.try_emplace(Module);
+    auto &Funcs = CacheIter->second;
+    if (Inserted) {
+      const auto FuncInsts = Module->getFunctionInstances();
+      for (size_t J = 0; J < FuncInsts.size(); ++J) {
+        const auto &Func = FuncInsts[J];
+        if (Func && Func->isWasmFunction()) {
+          const auto &Instrs = Func->getInstrs();
+          Funcs.emplace(Instrs.end(), INT64_C(-1));
+          Funcs.emplace(Instrs.begin(), static_cast<int64_t>(J));
+        }
       }
     }
-    for (const auto &Frame : StackMgr.getFramesSpan()) {
-      auto Entry = Frame.From;
-      auto Iter = Funcs.lower_bound(Entry);
-      if ((Iter == Funcs.end() || Iter->first > Entry) &&
-          Iter != Funcs.begin()) {
-        --Iter;
-      }
-      if (Iter != Funcs.end() && Iter->first < Entry &&
-          Iter->second >= INT64_C(0) && Index < Buffer.size()) {
-        Buffer[Index++] =
-            StackTraceEntry{Module, static_cast<uint32_t>(Iter->second)};
-      }
+    auto Entry = Frames[I].From;
+    auto Iter = Funcs.lower_bound(Entry);
+    if ((Iter == Funcs.end() || Iter->first > Entry) && Iter != Funcs.begin()) {
+      --Iter;
+    }
+    if (Iter != Funcs.end() && Iter->first <= Entry &&
+        Iter->second >= INT64_C(0) && Index < Buffer.size()) {
+      Buffer[Index++] =
+          StackTraceEntry{Module, static_cast<uint32_t>(Iter->second)};
     }
   }
   return Buffer.first(Index);

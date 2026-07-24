@@ -6,12 +6,27 @@
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 #include <common.h>
 #include <fmt/ranges.h>
-#include <json-partial.h>
 #include <json-schema-to-grammar.h>
+#include <nlohmann/json.hpp>
 #endif
 
 namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+namespace {
+
+// Warn about options removed from llama.cpp instead of silently ignoring
+// them.
+void warnRemovedKey(const simdjson::dom::element &Doc, std::string_view Key) {
+  if (Doc.at_key(Key).error() == simdjson::SUCCESS) {
+    LOG_WARN(
+        "metadata: the \"{}\" option is no longer supported by llama.cpp "sv
+        "and is ignored."sv,
+        Key)
+  }
+}
+
+} // namespace
+
 // Parse metadata from JSON.
 ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                     const std::string &Metadata, bool *IsModelUpdated,
@@ -269,27 +284,32 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonWithProcessorAuto<std::string_view>(
         Doc, "json-schema",
         [&GraphRef](const std::string_view &JsonSchema) -> bool {
-          GraphRef.Params.sampling.grammar =
-              common_grammar(COMMON_GRAMMAR_TYPE_OUTPUT_FORMAT,
-                             json_schema_to_grammar(
-                                 nlohmann::ordered_json::parse(JsonSchema)));
+          try {
+            GraphRef.Params.sampling.grammar =
+                common_grammar(COMMON_GRAMMAR_TYPE_OUTPUT_FORMAT,
+                               json_schema_to_grammar(
+                                   nlohmann::ordered_json::parse(JsonSchema)));
+          } catch (const std::exception &E) {
+            LOG_ERROR("Invalid json-schema option: {}"sv, E.what())
+            return false;
+          }
           return true;
         });
     parseJsonWithCastAuto<int64_t>(Doc, "seed", GraphRef.Params.sampling.seed);
 
     // The speculative parameters.
-    parseJsonWithCastAuto<int64_t>(Doc, "n-ctx-speculative",
-                                   GraphRef.Params.speculative.n_ctx);
+    warnRemovedKey(Doc, "n-ctx-speculative"sv);
     parseJsonWithCastAuto<int64_t>(Doc, "n-max-speculative",
-                                   GraphRef.Params.speculative.n_max);
+                                   GraphRef.Params.speculative.draft.n_max);
     parseJsonWithCastAuto<int64_t>(Doc, "n-min-speculative",
-                                   GraphRef.Params.speculative.n_min);
-    parseJsonWithCastAuto<int64_t>(Doc, "n-gpu-layers-speculative",
-                                   GraphRef.Params.speculative.n_gpu_layers);
+                                   GraphRef.Params.speculative.draft.n_min);
+    parseJsonWithCastAuto<int64_t>(
+        Doc, "n-gpu-layers-speculative",
+        GraphRef.Params.speculative.draft.n_gpu_layers);
     parseJsonWithCastAuto<double>(Doc, "p-split-speculative",
-                                  GraphRef.Params.speculative.p_split);
+                                  GraphRef.Params.speculative.draft.p_split);
     parseJsonWithCastAuto<double>(Doc, "p-min-speculative",
-                                  GraphRef.Params.speculative.p_min);
+                                  GraphRef.Params.speculative.draft.p_min);
     // The vocoder parameters.
     parseJsonWithCastAuto<std::string_view>(
         Doc, "hf-repo-vocoder", GraphRef.Params.vocoder.model.hf_repo);
@@ -330,10 +350,10 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                                             GraphRef.Params.input_suffix);
     parseJsonWithCastAuto<std::string_view>(
         Doc, "lookup-cache-static",
-        GraphRef.Params.speculative.lookup_cache_static);
+        GraphRef.Params.speculative.ngram_cache.lookup_cache_static);
     parseJsonWithCastAuto<std::string_view>(
         Doc, "lookup-cache-dynamic",
-        GraphRef.Params.speculative.lookup_cache_dynamic);
+        GraphRef.Params.speculative.ngram_cache.lookup_cache_dynamic);
     parseJsonWithCastAuto<std::string_view>(Doc, "logits-file",
                                             GraphRef.Params.logits_file);
     parseJsonAuto<bool>(Doc, "lora-init-without-apply",
@@ -440,7 +460,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                                             GraphRef.Params.ssl_file_key);
     parseJsonWithCastAuto<std::string_view>(Doc, "ssl-file-cert",
                                             GraphRef.Params.ssl_file_cert);
-    parseJsonAuto<bool>(Doc, "webui", GraphRef.Params.webui);
+    parseJsonAuto<bool>(Doc, "webui", GraphRef.Params.ui);
     parseJsonAuto<bool>(Doc, "endpoint-slots", GraphRef.Params.endpoint_slots);
     parseJsonAuto<bool>(Doc, "endpoint-props", GraphRef.Params.endpoint_props);
     parseJsonAuto<bool>(Doc, "endpoint-metrics",
@@ -520,6 +540,10 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                         GraphRef.Params.batched_bench_output_jsonl);
   } catch (const ErrNo &Error) {
     return Error;
+  } catch (const std::exception &E) {
+    RET_ERROR(ErrNo::InvalidArgument,
+              "metadata: unexpected exception while applying options: {}"sv,
+              E.what())
   }
   // The tensor buffer overrides should be terminated with an empty pattern.
   if (!GraphRef.TensorBuftOverrides.empty()) {

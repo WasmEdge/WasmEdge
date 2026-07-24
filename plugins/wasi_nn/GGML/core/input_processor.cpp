@@ -13,6 +13,21 @@
 
 namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+namespace {
+
+// Take the ownership of both wrapper members. Video input is not supported:
+// the lazy video bitmap is released before the video context it refers to,
+// and a null bitmap is returned so that callers report a load failure.
+mtmd::bitmap adoptBitmapWrapper(mtmd_helper_bitmap_wrapper Wrapper) noexcept {
+  mtmd_helper::video_ptr VideoContext(Wrapper.video_ctx);
+  mtmd::bitmap Bitmap(Wrapper.bitmap);
+  if (VideoContext != nullptr) {
+    Bitmap.ptr.reset();
+  }
+  return Bitmap;
+}
+
+} // namespace
 
 Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
                        WASINN::Context &C, uint32_t Index,
@@ -95,10 +110,17 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
                "setInput: Reallocate llama sampler due to parameters change."sv)
       if (CxtRef.LlamaSampler) {
         common_sampler_free(CxtRef.LlamaSampler);
+        CxtRef.LlamaSampler = nullptr;
       }
-      CxtRef.LlamaSampler = common_sampler_init(GraphRef.LlamaModel.get(),
-                                                GraphRef.Params.sampling);
-      if (GraphRef.LlamaContext == nullptr) {
+      try {
+        CxtRef.LlamaSampler = common_sampler_init(GraphRef.LlamaModel.get(),
+                                                  GraphRef.Params.sampling);
+      } catch (const std::exception &E) {
+        G.setInvalid();
+        RET_ERROR(ErrNo::InvalidArgument,
+                  "setInput: unable to init sampler: {}"sv, E.what())
+      }
+      if (CxtRef.LlamaSampler == nullptr) {
         G.setInvalid();
         RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init sampler."sv)
       }
@@ -195,13 +217,15 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
                                       VisionPromptImagePlaceholder);
         if (Payload.has_value()) {
           // Create the new image bitmap.
-          mtmd::bitmap Bitmap(mtmd_helper_bitmap_init_from_buf(
-              GraphRef.VisionContext.get(), Payload->first.data(),
-              Payload->first.size()));
+          mtmd::bitmap Bitmap =
+              adoptBitmapWrapper(mtmd_helper_bitmap_init_from_buf(
+                  GraphRef.VisionContext.get(), Payload->first.data(),
+                  Payload->first.size(), false));
           if (Bitmap.ptr == nullptr) {
-            RET_ERROR(
-                ErrNo::InvalidArgument,
-                "setInput: unable to load the image from base64 paylaod."sv)
+            RET_ERROR(ErrNo::InvalidArgument,
+                      "setInput: unable to load the image from base64 "sv
+                      "payload. The data may be corrupt, in an unsupported "sv
+                      "format, or a video, which is not supported."sv)
           }
           Bitmaps.entries.push_back(std::move(Bitmap));
         }
@@ -212,13 +236,16 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
         LOG_DEBUG(GraphRef.EnableDebugLog,
                   "setInput: load the image bitmap from file: {}"sv,
                   CxtRef.Conf.ImagePath)
-        mtmd::bitmap Bitmap(mtmd_helper_bitmap_init_from_file(
-            GraphRef.VisionContext.get(), CxtRef.Conf.ImagePath.c_str()));
+        mtmd::bitmap Bitmap =
+            adoptBitmapWrapper(mtmd_helper_bitmap_init_from_file(
+                GraphRef.VisionContext.get(), CxtRef.Conf.ImagePath.c_str(),
+                false));
         if (Bitmap.ptr == nullptr) {
-          RET_ERROR(
-              ErrNo::InvalidArgument,
-              "setInput: unable to load the image bitmap from file: {}."sv,
-              CxtRef.Conf.ImagePath)
+          RET_ERROR(ErrNo::InvalidArgument,
+                    "setInput: unable to load the image bitmap from file: "sv
+                    "{}. The file may be corrupt, in an unsupported "sv
+                    "format, or a video, which is not supported."sv,
+                    CxtRef.Conf.ImagePath)
         }
         Bitmaps.entries.push_back(std::move(Bitmap));
         LOG_DEBUG(GraphRef.EnableDebugLog,

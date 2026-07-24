@@ -5,6 +5,11 @@ wasmedge_add_executable(wasmedgeCommonTests
   int128Test.cpp
   hashTest.cpp
   spdlogTest.cpp
+  roundevenTest.cpp
+  hexstrTest.cpp
+  spareEnumMapTest.cpp
+  byteswapTest.cpp
+  statisticsTest.cpp
   denseEnumMapTest.cpp
 )
 

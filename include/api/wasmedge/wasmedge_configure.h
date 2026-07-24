@@ -208,6 +208,31 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureSetAllowAFUNIX(
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureIsAllowAFUNIX(
     const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
+/// Add a plugin name to the forbidden list in the WasmEdge_ConfigureContext.
+///
+/// Plugins whose name matches any entry in this list will be skipped during
+/// plugin loading in the VM.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to add the forbidden plugin name.
+/// \param PluginName the plugin name string to deny-list.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureAddForbiddenPlugin(WasmEdge_ConfigureContext *Cxt,
+                                     const char *PluginName) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Check if a plugin name is in the forbidden list.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to check.
+/// \param PluginName the plugin name string to check.
+///
+/// \returns true if the plugin name is in the forbidden list, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ConfigureIsForbiddenPlugin(const WasmEdge_ConfigureContext *Cxt,
+                                    const char *PluginName) WASMEDGE_CAPI_NOEXCEPT;
+
 /// Set the optimization level of the AOT compiler.
 ///
 /// This function is thread-safe.

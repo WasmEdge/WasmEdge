@@ -732,6 +732,13 @@ TEST(APICoreTest, Configure) {
       ConfNull, WasmEdge_HostRegistration_Wasi));
   EXPECT_FALSE(WasmEdge_ConfigureHasHostRegistration(
       Conf, WasmEdge_HostRegistration_Wasi));
+  // Tests for forbidden plugins.
+  WasmEdge_ConfigureAddForbiddenPlugin(ConfNull, "wasi_logging");
+  WasmEdge_ConfigureAddForbiddenPlugin(Conf, "wasi_logging");
+  EXPECT_FALSE(WasmEdge_ConfigureIsForbiddenPlugin(ConfNull, "wasi_logging"));
+  EXPECT_FALSE(WasmEdge_ConfigureIsForbiddenPlugin(Conf, nullptr));
+  EXPECT_TRUE(WasmEdge_ConfigureIsForbiddenPlugin(Conf, "wasi_logging"));
+  EXPECT_FALSE(WasmEdge_ConfigureIsForbiddenPlugin(Conf, "wasmedge_image"));
   // Tests for memory limits.
   WasmEdge_ConfigureSetMaxMemoryPage(ConfNull, 1234U);
   WasmEdge_ConfigureSetMaxMemoryPage(Conf, 1234U);

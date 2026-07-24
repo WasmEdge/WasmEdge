@@ -208,6 +208,49 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureSetAllowAFUNIX(
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureIsAllowAFUNIX(
     const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
+/// Set the option of enabling/disabling coredump generation.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param EnableCoredump the boolean value to determine to enable coredump
+/// generation or not.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureSetEnableCoredump(
+    WasmEdge_ConfigureContext *Cxt,
+    const bool EnableCoredump) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the EnableCoredump option.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to enable coredump generation or not.
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureIsEnableCoredump(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Set the option of enabling/disabling wasmgdb format for coredump.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param CoredumpWasmgdb the boolean value to determine to enable wasmgdb format
+/// for coredump or not.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureSetCoredumpWasmgdb(
+    WasmEdge_ConfigureContext *Cxt,
+    const bool CoredumpWasmgdb) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the CoredumpWasmgdb option.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to enable wasmgdb format for
+/// coredump or not.
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureIsCoredumpWasmgdb(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
 /// Set the optimization level of the AOT compiler.
 ///
 /// This function is thread-safe.

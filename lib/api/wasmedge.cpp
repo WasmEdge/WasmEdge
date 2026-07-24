@@ -1032,6 +1032,39 @@ WasmEdge_ConfigureIsAllowAFUNIX(const WasmEdge_ConfigureContext *Cxt) noexcept {
   return false;
 }
 
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureSetEnableCoredump(WasmEdge_ConfigureContext *Cxt,
+                                    const bool EnableCoredump) noexcept {
+  if (Cxt) {
+    Cxt->Conf.getRuntimeConfigure().setEnableCoredump(EnableCoredump);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ConfigureIsEnableCoredump(const WasmEdge_ConfigureContext *Cxt) noexcept {
+  if (Cxt) {
+    return Cxt->Conf.getRuntimeConfigure().isEnableCoredump();
+  }
+  return false;
+}
+
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureSetCoredumpWasmgdb(WasmEdge_ConfigureContext *Cxt,
+                                     const bool CoredumpWasmgdb) noexcept {
+  if (Cxt) {
+    Cxt->Conf.getRuntimeConfigure().setCoredumpWasmgdb(CoredumpWasmgdb);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ConfigureIsCoredumpWasmgdb(
+    const WasmEdge_ConfigureContext *Cxt) noexcept {
+  if (Cxt) {
+    return Cxt->Conf.getRuntimeConfigure().isCoredumpWasmgdb();
+  }
+  return false;
+}
+
 WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureIsForceInterpreter(
     const WasmEdge_ConfigureContext *Cxt) noexcept {
   if (Cxt) {

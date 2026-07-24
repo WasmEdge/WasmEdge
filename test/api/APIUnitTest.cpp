@@ -769,6 +769,15 @@ TEST(APICoreTest, Configure) {
   EXPECT_EQ(WasmEdge_ConfigureGetRunMode(Conf), WasmEdge_RunMode_Interpreter);
   // Reset to a deterministic mode for the rest of the test.
   WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_Interpreter);
+  // Tests for coredump configurations.
+  WasmEdge_ConfigureSetEnableCoredump(ConfNull, true);
+  WasmEdge_ConfigureSetEnableCoredump(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureIsEnableCoredump(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureIsEnableCoredump(Conf), true);
+  WasmEdge_ConfigureSetCoredumpWasmgdb(ConfNull, true);
+  WasmEdge_ConfigureSetCoredumpWasmgdb(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureIsCoredumpWasmgdb(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureIsCoredumpWasmgdb(Conf), true);
   // Tests for AOT compiler configurations.
   WasmEdge_ConfigureCompilerSetOptimizationLevel(
       ConfNull, WasmEdge_CompilerOptimizationLevel_Os);

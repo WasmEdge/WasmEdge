@@ -515,6 +515,44 @@ std::array<WasmEdge::Byte, 77> CallIndirectStructTableWasm{
     0xfd, 0x0c, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x49, 0x41,
     0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0xfb, 0x00, 0x01, 0x26, 0x00, 0x41,
     0x00, 0x11, 0x00, 0x00, 0x0b};
+/// Binary Wasm module: catch_all must not leak the throw payload.
+///
+/// (module
+///   (tag $e (param i32))
+///   (func (export "test") (result i32)
+///     (i32.const 1)
+///     (block $L
+///       (try_table (catch_all $L)
+///         (i32.const 42)
+///         (throw $e))
+///       unreachable)))
+std::array<WasmEdge::Byte, 60> CatchAllPayloadNotLeakedWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02, 0x60,
+    0x01, 0x7f, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x01, 0x0d,
+    0x03, 0x01, 0x00, 0x00, 0x07, 0x08, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74,
+    0x00, 0x00, 0x0a, 0x14, 0x01, 0x12, 0x00, 0x41, 0x01, 0x02, 0x40, 0x1f,
+    0x40, 0x01, 0x02, 0x00, 0x41, 0x2a, 0x08, 0x00, 0x0b, 0x00, 0x0b, 0x0b};
+
+/// Binary Wasm module: catch_all_ref must not leak the throw payload alongside
+/// the exnref.
+///
+/// (module
+///   (tag $e (param i32))
+///   (func (export "test") (result i32)
+///     (i32.const 1)
+///     (block $L (result exnref)
+///       (try_table (catch_all_ref $L)
+///         (i32.const 42)
+///         (throw $e))
+///       unreachable)
+///     drop))
+std::array<WasmEdge::Byte, 61> CatchAllRefPayloadNotLeakedWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02, 0x60,
+    0x01, 0x7f, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x01, 0x0d,
+    0x03, 0x01, 0x00, 0x00, 0x07, 0x08, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74,
+    0x00, 0x00, 0x0a, 0x15, 0x01, 0x13, 0x00, 0x41, 0x01, 0x02, 0x69, 0x1f,
+    0x40, 0x01, 0x03, 0x00, 0x41, 0x2a, 0x08, 0x00, 0x0b, 0x00, 0x0b, 0x1a,
+    0x0b};
 // clang-format on
 
 /// Regression test for ref.test on externalized nullable references.
@@ -968,6 +1006,49 @@ TEST(ExecutorRegression, ThrowRefPreservesPayload) {
     ASSERT_TRUE(Result);
     ASSERT_EQ((*Result).size(), 1U);
     EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 1007U);
+  }
+}
+
+/// Regression test for catch_all / catch_all_ref payload stack corruption.
+///
+/// The bug: popTopHandler always preserves AssocValSize values (the throw
+/// payload) on the value stack, but the jump descriptor computed at validation
+/// time uses Arity=0 for catch_all clauses and therefore does not erase them.
+/// The result is that the payload (42) clobbers the value pushed before the
+/// throw (1), so the function returns 42 instead of 1 in the interpreter.
+///
+/// This test covers:
+///   - plain catch_all: function must return the pre-throw stack value (1),
+///     not the payload (42)
+///   - catch_all_ref: same, plus the exnref is dropped and only the pre-throw
+///     value (1) remains
+TEST(ExecutorRegression, CatchAllPayloadNotLeaked) {
+  // --- Part 1: catch_all must discard the payload ---
+  {
+    Configure Conf;
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(CatchAllPayloadNotLeakedWasm));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+    auto Result = VM.execute("test");
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result).size(), 1U);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 1U)
+        << "catch_all must not leak the throw payload onto the value stack";
+  }
+
+  // --- Part 2: catch_all_ref must discard the payload (exnref is dropped) ---
+  {
+    Configure Conf;
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(CatchAllRefPayloadNotLeakedWasm));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+    auto Result = VM.execute("test");
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result).size(), 1U);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 1U)
+        << "catch_all_ref must not leak the throw payload alongside the exnref";
   }
 }
 

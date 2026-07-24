@@ -892,6 +892,79 @@ TEST(AOTCrossModule, InterpreterTrapAttributesCallerModule) {
   EXPECT_TRUE(SawCallee);
 }
 
+//   callee (trapper): (func (export "boom") (result i32) unreachable)
+const std::array<WasmEdge::Byte, 36> TrapCalleeWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x08, 0x01, 0x04, 0x62,
+    0x6f, 0x6f, 0x6d, 0x00, 0x00, 0x0a, 0x05, 0x01, 0x03, 0x00, 0x00, 0x0b};
+
+//   caller: (import "trapper" "boom" (func $boom (result i32)))
+//           (table 1 funcref) (elem (i32.const 0) $boom)
+//           (func (export "run") (result i32)
+//             (call_indirect (type $t) (i32.const 0)))
+const std::array<WasmEdge::Byte, 94> TrapCallerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x02, 0x10, 0x01, 0x07, 0x74, 0x72, 0x61, 0x70, 0x70,
+    0x65, 0x72, 0x04, 0x62, 0x6f, 0x6f, 0x6d, 0x00, 0x00, 0x03, 0x02, 0x01,
+    0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x07, 0x07, 0x01, 0x03, 0x72,
+    0x75, 0x6e, 0x00, 0x01, 0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01,
+    0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0x41, 0x00, 0x11, 0x00, 0x00, 0x0b,
+    0x00, 0x14, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x07, 0x01, 0x00, 0x04,
+    0x62, 0x6f, 0x6f, 0x6d, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74};
+
+// A trap inside a frameless cross-module compiled callee must be attributed to
+// the callee's module. The caller's run() call_indirects into the callee's
+// boom(), which traps. The only top-frame module is the caller, so resolving
+// the callee's frame needs the whole live store enumerated.
+TEST(AOTCrossModule, CompiledFramelessTrapAttributedToCallee) {
+  Configure Conf;
+  Conf.addProposal(Proposal::ReferenceTypes);
+  Conf.addProposal(Proposal::FunctionReferences);
+
+  auto CalleeMod = compileToJIT(Conf, TrapCalleeWasm);
+  ASSERT_NE(CalleeMod, nullptr);
+  auto CallerMod = compileToJIT(Conf, TrapCallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+
+  auto CalleeInstOrErr =
+      ExecEngine.registerModule(Store, *CalleeMod, "trapper");
+  ASSERT_TRUE(CalleeInstOrErr);
+  auto CalleeInst = std::move(*CalleeInstOrErr);
+  const auto *Boom = CalleeInst->findFuncExports("boom");
+  ASSERT_NE(Boom, nullptr);
+  ASSERT_TRUE(Boom->isCompiledFunction());
+
+  auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+  ASSERT_TRUE(CallerInstOrErr);
+  auto CallerInst = std::move(*CallerInstOrErr);
+
+  const auto *Run = CallerInst->findFuncExports("run");
+  ASSERT_NE(Run, nullptr);
+  ASSERT_TRUE(Run->isCompiledFunction());
+
+  auto R = ExecEngine.invoke(Run, {}, {});
+  ASSERT_FALSE(R);
+
+  auto Trace = Executor::Executor::getRecordedStackTrace();
+  if (Trace.empty()) {
+    // Walking a compiled frame needs unwind information that the generated
+    // code registers only on some platforms; without it there is nothing to
+    // attribute.
+    GTEST_SKIP() << "no compiled frame was walkable on this platform";
+  }
+  bool SawCallee = false;
+  for (const auto &E : Trace) {
+    if (E.Module == CalleeInst.get()) {
+      SawCallee = true;
+    }
+  }
+  EXPECT_TRUE(SawCallee)
+      << "frameless cross-module trap was not attributed to the callee module";
+}
+
 TEST_P(NativeCoreTest, TestSuites) {
   auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
   // Native AOT spec test: explicitly opt into RunMode::AOT so the runtime

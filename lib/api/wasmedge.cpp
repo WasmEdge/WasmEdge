@@ -1032,6 +1032,23 @@ WasmEdge_ConfigureIsAllowAFUNIX(const WasmEdge_ConfigureContext *Cxt) noexcept {
   return false;
 }
 
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureAddForbiddenPlugin(WasmEdge_ConfigureContext *Cxt,
+                                     const char *PluginName) noexcept {
+  if (Cxt && PluginName) {
+    Cxt->Conf.addForbiddenPlugins(PluginName);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ConfigureIsForbiddenPlugin(const WasmEdge_ConfigureContext *Cxt,
+                                    const char *PluginName) noexcept {
+  if (Cxt && PluginName) {
+    return Cxt->Conf.isForbiddenPlugins(PluginName);
+  }
+  return false;
+}
+
 WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureIsForceInterpreter(
     const WasmEdge_ConfigureContext *Cxt) noexcept {
   if (Cxt) {

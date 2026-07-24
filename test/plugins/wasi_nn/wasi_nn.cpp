@@ -3947,6 +3947,8 @@ TEST(WasiNNTest, BitNetBackend) {
   const std::string ModelPath = "./wasinn_bitnet_fixtures/ggml-model-i2_s.gguf";
   const std::string ModelPreloadStr = "preload:" + ModelPath;
   const std::string MetadataStr = R"({"n-predict": 128})";
+  const std::string InvalidBatchSizeMetadataStr =
+      R"({"batch-size": 4294967295})";
   const std::string Prompt = "Once upon a time, ";
 
   uint32_t BuilderPtr = 0;
@@ -3957,6 +3959,19 @@ TEST(WasiNNTest, BitNetBackend) {
   std::array<WasmEdge::ValVariant, 1> Errno = {0};
   uint32_t GraphId = 0;
   uint32_t CtxId = 0;
+
+  auto WriteLoadBuilders = [&](const std::string &Metadata) {
+    std::vector<uint8_t> ModelPreloadVec(ModelPreloadStr.begin(),
+                                         ModelPreloadStr.end());
+    std::vector<uint8_t> MetadataVec(Metadata.begin(), Metadata.end());
+    BuilderPtr = LoadEntryPtr;
+    writeFatPointer(MemInst, StorePtr, ModelPreloadVec.size(), BuilderPtr);
+    writeFatPointer(MemInst, StorePtr + ModelPreloadVec.size(),
+                    MetadataVec.size(), BuilderPtr);
+    writeBinaries<uint8_t>(MemInst, ModelPreloadVec, StorePtr);
+    writeBinaries<uint8_t>(MemInst, MetadataVec,
+                           StorePtr + ModelPreloadVec.size());
+  };
 
   // BitNet WASI-NN load tests
   // Test: load -- empty builder array.
@@ -4017,19 +4032,43 @@ TEST(WasiNNTest, BitNetBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidEncoding));
   }
+  // Test: load -- invalid batch-size metadata.
+  {
+    WriteLoadBuilders(InvalidBatchSizeMetadataStr);
+    EXPECT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, 2, static_cast<uint32_t>(Backend::BitNet),
+            static_cast<uint32_t>(Device::CPU), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+  // Test: load -- invalid tensor-split metadata.
+  {
+    std::string TensorSplitMetadataStr = R"({"tensor-split": ")";
+    constexpr size_t TooManyTensorSplits = 256;
+    for (size_t I = 0; I < TooManyTensorSplits; I++) {
+      if (I > 0) {
+        TensorSplitMetadataStr += ",";
+      }
+      TensorSplitMetadataStr += "1";
+    }
+    TensorSplitMetadataStr += R"("})";
+    WriteLoadBuilders(TensorSplitMetadataStr);
+    EXPECT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, 2, static_cast<uint32_t>(Backend::BitNet),
+            static_cast<uint32_t>(Device::CPU), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
   // Test: load -- load successfully.
   {
-    std::vector<uint8_t> ModelPreloadVec(ModelPreloadStr.begin(),
-                                         ModelPreloadStr.end());
-    std::vector<uint8_t> MetadataVec(MetadataStr.begin(), MetadataStr.end());
-    BuilderPtr = LoadEntryPtr;
-    writeFatPointer(MemInst, StorePtr, ModelPreloadVec.size(), BuilderPtr);
-    writeFatPointer(MemInst, StorePtr + ModelPreloadVec.size(),
-                    MetadataVec.size(), BuilderPtr);
-    writeBinaries<uint8_t>(MemInst, ModelPreloadVec, StorePtr);
-    writeBinaries<uint8_t>(MemInst, MetadataVec,
-                           StorePtr + ModelPreloadVec.size());
-    StorePtr += ModelPreloadVec.size() + MetadataVec.size();
+    WriteLoadBuilders(MetadataStr);
+    StorePtr += ModelPreloadStr.size() + MetadataStr.size();
     ASSERT_TRUE(HostFuncLoad.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{

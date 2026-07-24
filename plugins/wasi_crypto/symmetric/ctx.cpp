@@ -362,10 +362,10 @@ WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>
 Context::symmetricKeyId(__wasi_symmetric_key_t KeyHandle,
                        Span<uint8_t> KeyId) noexcept {
   return SymmetricKeyManager.getId(KeyHandle).and_then([&](auto &&Id) noexcept {
-    size_t Len = std::min(KeyId.size(), Id.size());
-    std::copy_n(Id.begin(), Len, KeyId.begin());
+    ensureOrReturn(Id.size() <= KeyId.size(), __WASI_CRYPTO_ERRNO_OVERFLOW);
+    std::copy(Id.begin(), Id.end(), KeyId.begin());
     return SymmetricKeyManager.getManagedVersion(KeyHandle).map(
-        [Len](auto Version) { return std::make_tuple(Len, Version); });
+        [&Id](auto Version) { return std::make_tuple(Id.size(), Version); });
   });
 }
 

@@ -413,10 +413,6 @@ Expect<void> Loader::loadType(AST::Component::RecordTy &Ty) {
   EXPECTED_TRY(loadVec<AST::Component::RecordTy>(
       Ty.LabelTypes,
       [this](AST::Component::LabelValType &LT) { return loadType(LT); }));
-  if (Ty.LabelTypes.size() == 0) {
-    return logLoadError(ErrCode::Value::MalformedRecordType,
-                        FMgr.getLastOffset(), ASTNodeAttr::Comp_Type_Record);
-  }
   return {};
 }
 
@@ -476,10 +472,6 @@ Expect<void> Loader::loadType(AST::Component::TupleTy &Ty) {
 
   EXPECTED_TRY(loadVec<AST::Component::TupleTy>(
       Ty.Types, [this](ComponentValType &T) { return loadType(T); }));
-  if (unlikely(Ty.Types.size() == 0)) {
-    return logLoadError(ErrCode::Value::MalformedTupleType,
-                        FMgr.getLastOffset(), ASTNodeAttr::Comp_Type_Tuple);
-  }
   return {};
 }
 
@@ -497,10 +489,6 @@ Expect<void> Loader::loadType(AST::Component::FlagsTy &Ty) {
   };
   EXPECTED_TRY(loadVec<AST::Component::FlagsTy>(
       Ty.Labels, [LoadName](std::string &Label) { return LoadName(Label); }));
-  if (unlikely(Ty.Labels.size() == 0)) {
-    return logLoadError(ErrCode::Value::MalformedFlagsType,
-                        FMgr.getLastOffset(), ASTNodeAttr::Comp_Type_Flags);
-  }
   return {};
 }
 

@@ -14,9 +14,12 @@ wasmedge_add_library(wasmedgeExecutor
   instantiate/module.cpp
   instantiate/component/component.cpp
   instantiate/component/component_alias.cpp
+  instantiate/component/component_async_runtime.cpp
+  instantiate/component/component_async_thunk.cpp
   instantiate/component/component_canon.cpp
   instantiate/component/component_canon_abi.cpp
   instantiate/component/component_lower_thunk.cpp
+  instantiate/component/component_resource_thunk.cpp
   instantiate/component/component_export.cpp
   instantiate/component/component_import.cpp
   instantiate/component/component_instance.cpp

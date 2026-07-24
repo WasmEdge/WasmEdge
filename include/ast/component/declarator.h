@@ -38,7 +38,7 @@ public:
   std::string &getModuleName() noexcept { return ModName; }
   std::string_view getName() const noexcept { return Name; }
   std::string &getName() noexcept { return Name; }
-  CoreImportDesc getImportDesc() const noexcept { return Desc; }
+  const CoreImportDesc &getImportDesc() const noexcept { return Desc; }
   CoreImportDesc &getImportDesc() noexcept { return Desc; }
 
 private:
@@ -54,7 +54,7 @@ class CoreExportDecl {
 public:
   std::string_view getName() const noexcept { return Name; }
   std::string &getName() noexcept { return Name; }
-  CoreImportDesc getImportDesc() const noexcept { return Desc; }
+  const CoreImportDesc &getImportDesc() const noexcept { return Desc; }
   CoreImportDesc &getImportDesc() noexcept { return Desc; }
 
 private:
@@ -129,10 +129,13 @@ public:
   std::string &getName() noexcept { return Name; }
   const ExternDesc &getExternDesc() const noexcept { return Desc; }
   ExternDesc &getExternDesc() noexcept { return Desc; }
+  std::vector<std::string> &getImplements() noexcept { return Implements; }
+  Span<const std::string> getImplements() const noexcept { return Implements; }
 
 private:
   std::string Name;
   ExternDesc Desc;
+  std::vector<std::string> Implements;
 };
 
 /// AST Component::ImportDecl node.

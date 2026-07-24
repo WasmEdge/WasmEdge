@@ -9,9 +9,11 @@
 ///
 /// \file
 /// Synthesized core wasm function backing `canon lower` (CanonicalABI.md
-/// L3534-3640, sync branch). The thunk is a HostFunctionBase subclass whose
-/// run() lifts core wasm args to component values, invokes a wrapped
-/// Component::FunctionInstance, and lowers the result back.
+/// `canon_lower`), covering the sync and async lower directions over both
+/// sync- and async-typed callees. The thunk lifts core wasm args to
+/// component values, drives the callee task through the async runtime, and
+/// lowers the result back (immediately for resolved calls, on resolve for
+/// pending subtasks).
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -39,7 +41,8 @@ public:
                      Runtime::Instance::MemoryInstance *Memory,
                      Runtime::Instance::FunctionInstance *Realloc,
                      const Runtime::Instance::ComponentInstance *CompInst,
-                     StringEncoding Enc = StringEncoding::UTF8) noexcept;
+                     StringEncoding Enc = StringEncoding::UTF8,
+                     bool AsyncLower = false) noexcept;
 
   Expect<void> run(const Runtime::CallingFrame &Frame,
                    Span<const ValVariant> Args, Span<ValVariant> Rets) override;
@@ -50,11 +53,15 @@ private:
   Runtime::Instance::MemoryInstance *Memory;
   Runtime::Instance::FunctionInstance *Realloc;
   const Runtime::Instance::ComponentInstance *CompInst;
-  // Cached at construction: true if lower added a trailing out-pointer
-  // (spec L2829-2831: flat_results > MAX_FLAT_RESULTS).
+  // Cached at construction: true if the signature carries a trailing
+  // out-pointer (sync: flat_results > MAX_FLAT_RESULTS; async: any result).
   bool HasOutPtr;
+  // Number of leading flat argument slots holding the lowered parameters.
+  uint32_t ParamSlotCount;
   // Guest string encoding from the canon lower `string-encoding` option.
   StringEncoding Enc;
+  // The `async` canonical option.
+  bool AsyncLower;
 };
 
 } // namespace Executor

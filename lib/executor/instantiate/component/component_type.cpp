@@ -19,7 +19,17 @@ Expect<void>
 Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::TypeSection &TypeSec) {
   for (auto &Ty : TypeSec.getContent()) {
-    CompInst.addType(Ty);
+    if (Ty.isResourceType()) {
+      // Locally-defined resources mint their runtime identity here; the
+      // destructor is a previously-defined core function.
+      Runtime::Instance::FunctionInstance *Dtor = nullptr;
+      if (auto DtorIdx = Ty.getResourceType().getDestructor()) {
+        Dtor = CompInst.getCoreFunction(*DtorIdx);
+      }
+      CompInst.addResourceType(Ty, Dtor);
+    } else {
+      CompInst.addType(Ty);
+    }
   }
   return {};
 }

@@ -37,11 +37,14 @@ public:
   const SortIndex &getSortIndex() const noexcept { return SortIdx; }
   std::optional<ExternDesc> &getDesc() noexcept { return Desc; }
   const std::optional<ExternDesc> &getDesc() const noexcept { return Desc; }
+  std::vector<std::string> &getImplements() noexcept { return Implements; }
+  Span<const std::string> getImplements() const noexcept { return Implements; }
 
 private:
   std::string Name;
   SortIndex SortIdx;
   std::optional<ExternDesc> Desc;
+  std::vector<std::string> Implements;
 };
 
 } // namespace Component

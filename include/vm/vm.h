@@ -64,15 +64,32 @@ public:
 
   /// ======= Functions can be called before the instantiated stage. =======
   /// Register wasm modules and host modules.
+
+  /// Register a component from a file path with the given name.
+  Expect<void> registerComponent(std::string_view CompName,
+                                 const std::filesystem::path &FilePath) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRegisterComponent(CompName, FilePath);
+  }
+
+  /// Register an already-loaded and validated component with the given name.
+  Expect<void> registerComponent(std::string_view CompName,
+                                 const AST::Component::Component &CompAST) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRegisterComponent(CompName, CompAST);
+  }
+
   Expect<void> registerModule(std::string_view Name,
                               const std::filesystem::path &Path) {
     std::unique_lock Lock(Mutex);
     return unsafeRegisterModule(Name, Path);
   }
+
   Expect<void> registerModule(std::string_view Name, Span<const Byte> Code) {
     std::unique_lock Lock(Mutex);
     return unsafeRegisterModule(Name, Code);
   }
+
   Expect<void> registerModule(std::string_view Name,
                               const AST::Module &Module) {
     std::unique_lock Lock(Mutex);
@@ -425,6 +442,12 @@ private:
   }
 
   void unsafeInitVM();
+  Expect<void> unsafeRegisterComponent(std::string_view CompName,
+                                       const std::filesystem::path &FilePath);
+  Expect<void>
+  unsafeRegisterComponent(std::string_view CompName,
+                          const AST::Component::Component &CompAST);
+
   void unsafeLoadBuiltInHosts();
   void unsafeLoadPlugInHosts();
   void unsafeRegisterBuiltInHosts();
@@ -473,10 +496,17 @@ private:
   std::unique_ptr<Runtime::Instance::ComponentInstance> ActiveCompInst;
   /// Registered module instances by user.
   std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>> RegModInsts;
+  /// Registered component instances (and their owning ASTs) by user.
+  std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+      RegCompInsts;
+  std::vector<std::unique_ptr<AST::Component::Component>> RegCompASTs;
   /// Built-in module instances mapped to the configurations. For WASI.
   std::unordered_map<HostRegistration,
                      std::unique_ptr<Runtime::Instance::ModuleInstance>>
       BuiltInModInsts;
+  /// Built-in WASI preview 2 component instances. For component proposal.
+  std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+      BuiltInCompInsts;
   /// Loaded module instances from plug-ins.
   std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>>
       PlugInModInsts;

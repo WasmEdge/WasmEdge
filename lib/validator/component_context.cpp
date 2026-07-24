@@ -1,4 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2025 Second State INC
+
 #include "validator/component_context.h"
+
+#include <algorithm>
+#include <cctype>
 
 namespace WasmEdge {
 namespace Validator {
@@ -6,12 +12,12 @@ namespace Validator {
 using Sort = AST::Component::Sort;
 
 uint32_t
-ComponentContext::Context::getSortIndexSize(Sort::SortType ST) const noexcept {
+ComponentContext::Scope::getSortSize(Sort::SortType ST) const noexcept {
   switch (ST) {
   case Sort::SortType::Func:
     return static_cast<uint32_t>(Funcs.size());
   case Sort::SortType::Value:
-    return static_cast<uint32_t>(ValueConsumed.size());
+    return static_cast<uint32_t>(Values.size());
   case Sort::SortType::Type:
     return static_cast<uint32_t>(Types.size());
   case Sort::SortType::Component:
@@ -23,8 +29,8 @@ ComponentContext::Context::getSortIndexSize(Sort::SortType ST) const noexcept {
   }
 }
 
-uint32_t ComponentContext::Context::getCoreSortIndexSize(
-    Sort::CoreSortType ST) const noexcept {
+uint32_t
+ComponentContext::Scope::getCoreSortSize(Sort::CoreSortType ST) const noexcept {
   switch (ST) {
   case Sort::CoreSortType::Func:
     return static_cast<uint32_t>(CoreFuncs.size());
@@ -35,7 +41,7 @@ uint32_t ComponentContext::Context::getCoreSortIndexSize(
   case Sort::CoreSortType::Global:
     return static_cast<uint32_t>(CoreGlobals.size());
   case Sort::CoreSortType::Tag:
-    return CoreTagCount;
+    return static_cast<uint32_t>(CoreTags.size());
   case Sort::CoreSortType::Type:
     return static_cast<uint32_t>(CoreTypes.size());
   case Sort::CoreSortType::Module:
@@ -47,148 +53,91 @@ uint32_t ComponentContext::Context::getCoreSortIndexSize(
   }
 }
 
-uint32_t ComponentContext::incSortIndexSize(Sort::SortType ST) noexcept {
-  switch (ST) {
-  case Sort::SortType::Func:
-    return addFunc();
-  case Sort::SortType::Value:
-    return addValue();
-  case Sort::SortType::Type:
-    return addType();
-  case Sort::SortType::Component:
-    return addComponent();
-  case Sort::SortType::Instance:
-    return addInstance();
-  default:
-    return 0;
-  }
-}
-
-uint32_t
-ComponentContext::incCoreSortIndexSize(Sort::CoreSortType ST) noexcept {
-  switch (ST) {
-  case Sort::CoreSortType::Func:
-    return addCoreFunc();
-  case Sort::CoreSortType::Table:
-    return addCoreTable();
-  case Sort::CoreSortType::Memory:
-    return addCoreMemory();
-  case Sort::CoreSortType::Global:
-    return addCoreGlobal();
-  case Sort::CoreSortType::Tag:
-    return addCoreTag();
-  case Sort::CoreSortType::Type:
-    return addCoreType();
-  case Sort::CoreSortType::Module:
-    return addCoreModule();
-  case Sort::CoreSortType::Instance:
-    return addCoreInstance();
-  default:
-    return 0;
-  }
-}
-
 namespace {
-constexpr std::string_view ConstructorTag{"[constructor]"};
+std::string toLowerCopy(std::string_view SV) noexcept {
+  std::string R(SV);
+  std::transform(R.begin(), R.end(), R.begin(), [](unsigned char C) {
+    return static_cast<char>(std::tolower(C));
+  });
+  return R;
+}
+} // namespace
 
-bool addStronglyUniqueName(std::unordered_set<std::string> &Names,
-                           const ComponentName &Name) noexcept {
+ComponentContext::NameRecord
+ComponentContext::makeNameRecord(const ComponentName &Name) noexcept {
+  NameRecord R;
+  R.Original = std::string(Name.getOriginalName());
   switch (Name.getKind()) {
   case ComponentNameKind::Constructor:
+    R.HasAnnotation = true;
+    R.IsConstructor = true;
+    R.StrippedExact = std::string(Name.getNoTagName());
+    break;
   case ComponentNameKind::Method:
-  case ComponentNameKind::Static:
-  case ComponentNameKind::InterfaceType:
+  case ComponentNameKind::Static: {
+    R.HasAnnotation = true;
+    R.StrippedExact = std::string(Name.getNoTagName());
+    auto Dot = R.StrippedExact.find('.');
+    if (Dot != std::string::npos) {
+      R.DottedFirst = R.StrippedExact.substr(0, Dot);
+      R.IsDottedSame = (R.DottedFirst == R.StrippedExact.substr(Dot + 1));
+    }
+    break;
+  }
   case ComponentNameKind::Label:
+    R.IsPlainLabel = true;
+    R.StrippedExact = std::string(Name.getOriginalName());
+    break;
+  default:
+    R.StrippedExact = std::string(Name.getOriginalName());
+    break;
+  }
+  R.IsPlainish = R.IsPlainLabel || R.HasAnnotation;
+  // Case-folding models the acronym rule, which only applies to labels and
+  // interface names; dep/url/integrity names compare exactly.
+  switch (Name.getKind()) {
   case ComponentNameKind::LockedDep:
   case ComponentNameKind::UnlockedDep:
   case ComponentNameKind::Url:
   case ComponentNameKind::Integrity:
+    R.Stripped = R.StrippedExact;
     break;
   default:
-    return false;
+    R.Stripped = toLowerCopy(R.StrippedExact);
+    break;
   }
+  return R;
+}
 
-  auto toLowerString = [](std::string_view SV) {
-    std::string Result = std::string(SV);
-    std::transform(
-        Result.begin(), Result.end(), Result.begin(),
-        [](unsigned char C) { return static_cast<char>(std::tolower(C)); });
-    return Result;
-  };
-
-  // Handle the Constructor case separately.
-  if (Name.getKind() == ComponentNameKind::Constructor) {
-    std::string LowerCase = toLowerString(Name.getOriginalName());
-    std::string Label = std::string(Name.getNoTagName());
-    // Check for conflicts with existing constructors.
-    if (Names.count(LowerCase)) {
-      return false;
+ComponentContext::NameClash
+ComponentContext::addUniqueName(std::vector<NameRecord> &Names,
+                                const NameRecord &N) noexcept {
+  for (const auto &E : Names) {
+    if (E.Original == N.Original) {
+      return NameClash::Duplicate;
     }
-
-    if (Names.count(toLowerString(Label))) {
-      if (!Names.count(Label)) {
-        return false;
+    if (E.Stripped == N.Stripped) {
+      // `l` and `[constructor]l` (for the *same* label) are the one
+      // strongly-unique annotated pair.
+      const bool CtorException = ((E.IsConstructor && N.IsPlainLabel) ||
+                                  (N.IsConstructor && E.IsPlainLabel)) &&
+                                 E.StrippedExact == N.StrippedExact;
+      if (!CtorException) {
+        return NameClash::Conflict;
       }
-      // By rule, a constructor [constructor]X and X are strongly-unique.
-      // If X and its lower-case x form both exist, it means x comes from X.
+      continue;
     }
-    Names.insert(LowerCase);
-    Names.insert(std::string(Name.getOriginalName()));
-    return true;
-  }
-
-  // For case 2, L and L.L are not strongly-unique together.
-  std::string Normal = std::string(Name.getNoTagName());
-  std::string UniForm = toLowerString(Normal);
-  std::string LdL =
-      std::string(Name.getNoTagName()) + "." + std::string(Name.getNoTagName());
-
-  if (Names.count(LdL)) {
-    return false;
-  }
-
-  if (Normal.find('.') != std::string::npos) {
-    std::string Left, Right;
-    size_t Pos = Normal.find('.');
-    Left = Normal.substr(0, Pos);
-    Right = Normal.substr(Pos + 1);
-    if (Left == Right) {
-      // Conflict with l.l and [*]l.
-      if (Names.count(toLowerString(Left))) {
-        return false;
-      }
+    // `l` clashes with `[method]l.l` / `[static]l.l` for the same label.
+    if ((N.IsPlainLabel && E.IsDottedSame &&
+         E.DottedFirst == N.StrippedExact) ||
+        (E.IsPlainLabel && N.IsDottedSame &&
+         N.DottedFirst == E.StrippedExact)) {
+      return NameClash::Conflict;
     }
   }
-
-  // Case 3: check existing names.
-  if (Names.count(UniForm)) {
-    return false;
-  }
-
-  // Special case: check conflicts with constructor names.
-  std::string ConstrName = std::string(ConstructorTag) + UniForm;
-  if (Names.count(ConstrName)) {
-    if (!Names.count(std::string(ConstructorTag) + Normal)) {
-      return false;
-    }
-    // By rule, a constructor [constructor]X and X are strongly-unique.
-    // If [constructor]X and its lower-case [constructor]x form both exist, it
-    // means [constructor]x comes from [constructor]X.
-  }
-  Names.insert(Normal);
-  Names.insert(UniForm);
-  return true;
-}
-} // namespace
-
-bool ComponentContext::Context::AddImportedName(
-    const ComponentName &Name) noexcept {
-  return addStronglyUniqueName(ImportedNames, Name);
+  Names.push_back(N);
+  return NameClash::None;
 }
 
-bool ComponentContext::Context::AddExportedName(
-    const ComponentName &Name) noexcept {
-  return addStronglyUniqueName(ExportedNames, Name);
-}
 } // namespace Validator
 } // namespace WasmEdge

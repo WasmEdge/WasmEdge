@@ -134,14 +134,24 @@ public:
       const std::vector<ValType> &ParamTypes);
   std::function<InvokeCallback> onInvoke;
 
+  // Invoke a component function with component-level values; parameter
+  // types are derived from the function's own type.
+  using CompInvokeCallback =
+      Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>(
+          ContextHandle Ctx, const std::string &ModName,
+          const std::string &Field,
+          const std::vector<ComponentValVariant> &Params);
+  std::function<CompInvokeCallback> onCompInvoke;
+
+  // Instantiate a stored component definition and register it by name.
+  using CompInstanceFromDefCallback =
+      Expect<void>(ContextHandle Ctx, const std::string &ModName,
+                   const AST::Component::Component &Comp);
+  std::function<CompInstanceFromDefCallback> onCompInstanceFromDef;
+
   using GetCallback = Expect<std::pair<ValVariant, ValType>>(
       ContextHandle Ctx, const std::string &ModName, const std::string &Field);
   std::function<GetCallback> onGet;
-
-  // Set by the spec test runner before calling onModule to indicate that
-  // component validation should be skipped. Only used in spec tests and will
-  // be removed when component-model is fully supported.
-  static thread_local bool SkipComponentValidation;
 
 private:
   // Processes the command array for a given context.

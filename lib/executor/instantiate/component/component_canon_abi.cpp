@@ -4,6 +4,7 @@
 #include "executor/component/canonical_abi.h"
 
 #include "common/spdlog.h"
+#include "executor/component/async_runtime.h"
 #include "executor/executor.h"
 
 #include <algorithm>
@@ -18,6 +19,176 @@ namespace WasmEdge {
 namespace Executor {
 namespace CanonicalABI {
 
+namespace {
+using namespace std::literals;
+// Resolve the runtime resource identity for an own/borrow handle type.
+const Runtime::Instance::ComponentInstance::ResourceTypeRT *
+handleResource(const CanonCtx &Cx, uint32_t TypeIdx) noexcept {
+  if (Cx.ResourceResolver) {
+    return Cx.ResourceResolver(TypeIdx);
+  }
+  return Cx.CompInst != nullptr ? Cx.CompInst->getTypeResource(TypeIdx)
+                                : nullptr;
+}
+
+// lift_own: transferring ownership out of the instance removes the handle.
+Expect<uint32_t> liftOwnHandle(const CanonCtx &Cx, uint32_t TypeIdx,
+                               uint32_t Idx) noexcept {
+  const auto *RT = handleResource(Cx, TypeIdx);
+  if (Cx.CompInst == nullptr || RT == nullptr) {
+    // No table context (unit ABI tests): pass the raw value through.
+    return Idx;
+  }
+  auto *Slot = Cx.CompInst->handleGet(Idx);
+  if (Slot == nullptr) {
+    spdlog::error(ErrCode::Value::ComponentHandleUnknown);
+    spdlog::error("    canonical ABI: unknown handle index {}"sv, Idx);
+    return Unexpect(ErrCode::Value::ComponentHandleUnknown);
+  }
+  if (Slot->RT != RT) {
+    spdlog::error(ErrCode::Value::ComponentHandleWrongType);
+    spdlog::error(
+        "    canonical ABI: handle index {} used with the wrong type"sv, Idx);
+    return Unexpect(ErrCode::Value::ComponentHandleWrongType);
+  }
+  if (!Slot->Own || Slot->Lends != 0) {
+    spdlog::error(ErrCode::Value::ComponentResourceBorrowed);
+    spdlog::error("    canonical ABI: own handle {} is lent or not owned"sv,
+                  Idx);
+    return Unexpect(ErrCode::Value::ComponentResourceBorrowed);
+  }
+  return Cx.CompInst->handleRemove(Idx)->Rep;
+}
+
+// lift_borrow: the handle stays; the rep travels for the call's duration.
+Expect<uint32_t> liftBorrowHandle(const CanonCtx &Cx, uint32_t TypeIdx,
+                                  uint32_t Idx) noexcept {
+  const auto *RT = handleResource(Cx, TypeIdx);
+  if (Cx.CompInst == nullptr || RT == nullptr) {
+    return Idx;
+  }
+  // The owning instance passes representations directly for borrows
+  // (CanonicalABI lift_borrow, owner case).
+  if (RT->Impl == Cx.CompInst) {
+    return Idx;
+  }
+  auto *Slot = Cx.CompInst->handleGet(Idx);
+  if (Slot == nullptr) {
+    spdlog::error(ErrCode::Value::ComponentHandleUnknown);
+    spdlog::error("    canonical ABI: unknown handle index {}"sv, Idx);
+    return Unexpect(ErrCode::Value::ComponentHandleUnknown);
+  }
+  if (Slot->RT != RT) {
+    spdlog::error(ErrCode::Value::ComponentHandleWrongType);
+    spdlog::error(
+        "    canonical ABI: handle index {} used with the wrong type"sv, Idx);
+    return Unexpect(ErrCode::Value::ComponentHandleWrongType);
+  }
+  // The borrow lends the handle for the duration of the call.
+  Slot->Lends += 1;
+  if (Cx.LiftedBorrows != nullptr) {
+    Cx.LiftedBorrows->emplace_back(Cx.CompInst, Idx);
+  }
+  return Slot->Rep;
+}
+
+// lower_own / lower_borrow: entering an instance inserts a table entry.
+uint32_t lowerHandle(const CanonCtx &Cx, uint32_t TypeIdx, uint32_t Rep,
+                     bool Own) noexcept {
+  const auto *RT = handleResource(Cx, TypeIdx);
+  if (Cx.CompInst == nullptr || RT == nullptr) {
+    return Rep;
+  }
+  // Borrows lowered into the owning instance receive the representation
+  // directly (CanonicalABI lower_borrow, owner case).
+  if (!Own && RT->Impl == Cx.CompInst) {
+    return Rep;
+  }
+  if (!Own && Cx.BorrowTask != nullptr) {
+    // The receiving task scopes the borrow (spec lower_borrow).
+    Cx.BorrowTask->NumBorrows += 1;
+    return Cx.CompInst->handleAdd(RT, Rep, Own, Cx.BorrowTask);
+  }
+  return Cx.CompInst->handleAdd(RT, Rep, Own);
+}
+
+namespace AC = Runtime::Instance::Component;
+
+// lift_stream / lift_future: transferring the readable end removes it from
+// the sender's table (CanonicalABI.md `lift_async_value`).
+Expect<std::shared_ptr<void>> liftCopyEnd(const CanonCtx &Cx, bool IsStream,
+                                          uint32_t Idx) noexcept {
+  const auto WantKind = IsStream ? AC::WaitableObj::Kind::StreamRead
+                                 : AC::WaitableObj::Kind::FutureRead;
+  auto *W = Cx.CompInst != nullptr ? Cx.CompInst->waitableGet(Idx) : nullptr;
+  if (W == nullptr || W->getKind() != WantKind) {
+    spdlog::error(ErrCode::Value::ComponentHandleUnknown);
+    spdlog::error("    unknown handle index {}"sv, Idx);
+    return Unexpect(ErrCode::Value::ComponentHandleUnknown);
+  }
+  auto *E = static_cast<AC::CopyEndObj *>(W);
+  if (E->St == AC::CopyState::Done && E->DoneByDrop) {
+    const auto Code = IsStream
+                          ? ErrCode::Value::ComponentStreamLiftAfterDrop
+                          : ErrCode::Value::ComponentFutureLiftAfterSuccess;
+    spdlog::error(Code);
+    spdlog::error("    cannot lift {} after being notified that the writable "
+                  "end dropped"sv,
+                  IsStream ? "stream" : "future");
+    return Unexpect(Code);
+  }
+  if (E->inWaitableSet()) {
+    const auto Code = IsStream ? ErrCode::Value::ComponentStreamLiftInSet
+                               : ErrCode::Value::ComponentFutureLiftInSet;
+    spdlog::error(Code);
+    spdlog::error("    cannot lift {} while it's in a waitable set"sv,
+                  IsStream ? "stream" : "future");
+    return Unexpect(Code);
+  }
+  if (E->St == AC::CopyState::Done) {
+    const auto Code = IsStream
+                          ? ErrCode::Value::ComponentStreamLiftAfterDrop
+                          : ErrCode::Value::ComponentFutureLiftAfterSuccess;
+    spdlog::error(Code);
+    if (IsStream) {
+      spdlog::error("    cannot lift stream after being notified that the "
+                    "writable end dropped"sv);
+    } else {
+      spdlog::error("    cannot lift future after previous read succeeded"sv);
+    }
+    return Unexpect(Code);
+  }
+  if (E->copying()) {
+    spdlog::error(ErrCode::Value::ComponentStreamRemoveBusy);
+    spdlog::error("    cannot remove busy stream"sv);
+    return Unexpect(ErrCode::Value::ComponentStreamRemoveBusy);
+  }
+  auto Shared = E->Shared;
+  Cx.CompInst->waitableRemove(Idx);
+  return std::static_pointer_cast<void>(Shared);
+}
+
+// lower_stream / lower_future: entering an instance mints a fresh readable
+// end over the shared object.
+Expect<uint32_t> lowerCopyEnd(const CanonCtx &Cx, bool IsStream,
+                              const std::shared_ptr<void> &SharedV) noexcept {
+  if (Cx.CompInst == nullptr || !SharedV) {
+    spdlog::error(ErrCode::Value::ComponentTrap);
+    spdlog::error("    cannot lower a stream or future without a table"sv);
+    return Unexpect(ErrCode::Value::ComponentTrap);
+  }
+  auto Shared = std::static_pointer_cast<AC::SharedCopyObj>(SharedV);
+  auto End = std::make_shared<AC::CopyEndObj>(
+      IsStream ? AC::WaitableObj::Kind::StreamRead
+               : AC::WaitableObj::Kind::FutureRead,
+      Shared);
+  auto *EndP = End.get();
+  const uint32_t Idx = Cx.CompInst->waitableAdd(std::move(End));
+  EndP->TableIdx = Idx;
+  return Idx;
+}
+} // namespace
+
 using namespace std::literals;
 
 namespace {
@@ -28,8 +199,11 @@ namespace {
 Expect<uint32_t> callRealloc(const CanonCtx &Cx, uint32_t OldPtr,
                              uint32_t OldSize, uint32_t Align,
                              uint32_t NewSize) noexcept {
-  assuming(Cx.Exec != nullptr);
-  assuming(Cx.Realloc != nullptr);
+  if (Cx.Exec == nullptr || Cx.Realloc == nullptr) {
+    spdlog::error(ErrCode::Value::ComponentTrap);
+    spdlog::error("    canonical ABI: realloc required but not provided"sv);
+    return Unexpect(ErrCode::Value::ComponentTrap);
+  }
   std::array<ValVariant, 4> Args{ValVariant(OldPtr), ValVariant(OldSize),
                                  ValVariant(Align), ValVariant(NewSize)};
   auto ParamTypes = Cx.Realloc->getFuncType().getParamTypes();
@@ -40,15 +214,17 @@ Expect<uint32_t> callRealloc(const CanonCtx &Cx, uint32_t OldPtr,
     return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
   }
   const uint32_t Ptr = Res[0].first.get<uint32_t>();
-  // Spec doesn't mandate this, but wasmtime treats realloc returning 0 for a
-  // non-empty allocation as OOM and traps. Without the check the runtime
-  // would silently write payload to address 0, which is usually a valid
-  // (and often live) wasm memory page.
-  if (Ptr == 0u && NewSize > 0u) {
-    spdlog::error(ErrCode::Value::ComponentTrap);
-    spdlog::error("    canonical ABI: realloc returned 0 for size={}"sv,
-                  NewSize);
-    return Unexpect(ErrCode::Value::ComponentTrap);
+  // The spec only bounds-checks the returned pointer; returning 0 is a valid
+  // allocation (a component may place a single live allocation at address 0).
+  // Spec `trap_if(ptr + new_size > len(cx.opts.memory))`.
+  if (Cx.Mem != nullptr) {
+    const uint64_t End = uint64_t(Ptr) + uint64_t(NewSize);
+    if (End > uint64_t(Cx.Mem->getPageSize()) * 65536ULL) {
+      spdlog::error(ErrCode::Value::ComponentReallocOOB);
+      spdlog::error(
+          "    canonical ABI: realloc return: beyond end of memory"sv);
+      return Unexpect(ErrCode::Value::ComponentReallocOOB);
+    }
   }
   return Ptr;
 }
@@ -106,6 +282,54 @@ constexpr uint32_t nextPow2(uint32_t Bytes) noexcept {
 }
 
 } // namespace
+
+// Host-supplied aggregate values may carry case/flag labels instead of
+// resolved indices; map them against the declared type here at the
+// lowering boundary.
+uint32_t resolveVariantCase(const VariantVal &V,
+                            const AST::Component::VariantTy &T) noexcept {
+  if (!V.Label.empty()) {
+    for (size_t I = 0; I < T.Cases.size(); ++I) {
+      if (T.Cases[I].first == V.Label) {
+        return static_cast<uint32_t>(I);
+      }
+    }
+  }
+  return V.Case;
+}
+
+uint32_t resolveEnumCase(const EnumVal &E,
+                         const AST::Component::EnumTy &T) noexcept {
+  if (!E.Label.empty()) {
+    for (size_t I = 0; I < T.Labels.size(); ++I) {
+      if (T.Labels[I] == E.Label) {
+        return static_cast<uint32_t>(I);
+      }
+    }
+  }
+  return E.Case;
+}
+
+uint64_t packFlags(const FlagsVal &F,
+                   const AST::Component::FlagsTy &T) noexcept {
+  uint64_t Packed = 0;
+  if (F.Bits.empty() && !F.SetLabels.empty()) {
+    for (const auto &Label : F.SetLabels) {
+      for (size_t I = 0; I < T.Labels.size(); ++I) {
+        if (T.Labels[I] == Label) {
+          Packed |= (1ull << I);
+        }
+      }
+    }
+    return Packed;
+  }
+  for (size_t I = 0; I < F.Bits.size(); ++I) {
+    if (F.Bits[I]) {
+      Packed |= (1ull << I);
+    }
+  }
+  return Packed;
+}
 
 uint32_t discriminantSize(uint32_t NumCases) noexcept {
   // CanonicalABI.md L1951-1956.
@@ -237,7 +461,11 @@ Expect<uint32_t> alignmentDef(const CanonCtx &Cx,
     return 4u;
   }
 
-  // stream / future are deferred.
+  if (T.isStreamTy() || T.isFutureTy()) {
+    // Stream/future ends are i32 handles.
+    return 4u;
+  }
+
   spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
   spdlog::error("    canonical ABI: alignment of gated value type"sv);
   return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
@@ -433,6 +661,10 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
   }
 
   if (T.isOwnTy() || T.isBorrowTy()) {
+    return 4u;
+  }
+
+  if (T.isStreamTy() || T.isFutureTy()) {
     return 4u;
   }
 
@@ -634,6 +866,11 @@ flattenTypeDef(const CanonCtx &Cx,
     return std::vector<ValType>{I32T};
   }
 
+  if (T.isStreamTy() || T.isFutureTy()) {
+    // Stream/future ends travel as single handle indices.
+    return std::vector<ValType>{I32T};
+  }
+
   spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
   spdlog::error("    canonical ABI: flatten of gated value type"sv);
   return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
@@ -641,17 +878,13 @@ flattenTypeDef(const CanonCtx &Cx,
 
 Expect<FlatFuncType> flattenFuncType(const CanonCtx &Cx,
                                      const AST::Component::FuncType &FT,
-                                     bool IsLift) noexcept {
-  // CanonicalABI.md L2819-2832 (sync branch only).
-  if (FT.isAsync()) {
-    spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-    spdlog::error("    canonical ABI: async functype not implemented"sv);
-    return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
-  }
-
+                                     bool IsLift, FlattenOpts Opts) noexcept {
+  // CanonicalABI.md `flatten_functype`. The shape depends only on the canon
+  // options, not on whether the function TYPE is async: a sync lift/lower
+  // of an async-typed function uses the sync shape.
   FlatFuncType F;
 
-  // Flatten params (L2820).
+  // Flatten params.
   for (const auto &P : FT.getParamList()) {
     EXPECTED_TRY(auto Sub, flattenType(Cx, P.getValType()));
     F.Params.insert(F.Params.end(), Sub.begin(), Sub.end());
@@ -661,6 +894,35 @@ Expect<FlatFuncType> flattenFuncType(const CanonCtx &Cx,
   for (const auto &R : FT.getResultList()) {
     EXPECTED_TRY(auto Sub, flattenType(Cx, R.getValType()));
     F.Results.insert(F.Results.end(), Sub.begin(), Sub.end());
+  }
+
+  if (Opts.Async) {
+    if (IsLift) {
+      // Async lift: params spill beyond MAX_FLAT_PARAMS; the core function
+      // returns the packed callback code (callback) or nothing (stackful).
+      if (F.Params.size() > MaxFlatParams) {
+        F.Params.clear();
+        F.Params.push_back(I32T);
+      }
+      F.Results.clear();
+      if (Opts.Callback) {
+        F.Results.push_back(I32T);
+      }
+    } else {
+      // Async lower: params spill beyond MAX_FLAT_ASYNC_PARAMS; any result
+      // adds a trailing return-buffer pointer; the core function returns
+      // the packed subtask state.
+      if (F.Params.size() > MaxFlatAsyncParams) {
+        F.Params.clear();
+        F.Params.push_back(I32T);
+      }
+      if (!F.Results.empty()) {
+        F.Params.push_back(I32T);
+      }
+      F.Results.clear();
+      F.Results.push_back(I32T);
+    }
+    return F;
   }
 
   // Params over the cap → indirect-param path (spec L2823-2824 for lift;
@@ -858,10 +1120,11 @@ Expect<void> storeN(Runtime::Instance::MemoryInstance &Mem, uint32_t Bytes,
 }
 
 [[nodiscard]] Expect<void>
-trapDataInvalid(const std::string_view Msg) noexcept {
-  spdlog::error(ErrCode::Value::ComponentTrap);
+trapDataInvalid(const std::string_view Msg,
+                ErrCode::Value Code = ErrCode::Value::ComponentTrap) noexcept {
+  spdlog::error(Code);
   spdlog::error("    canonical ABI: {}"sv, Msg);
-  return Unexpect(ErrCode::Value::ComponentTrap);
+  return Unexpect(Code);
 }
 
 // convert_i32_to_char (CanonicalABI.md L2135-2139): trap on >0x10FFFF or
@@ -869,10 +1132,13 @@ trapDataInvalid(const std::string_view Msg) noexcept {
 // guest memory or guest-supplied flat values.
 [[nodiscard]] Expect<void> validateUSV(uint32_t I) noexcept {
   if (I >= 0x110000u) {
-    return trapDataInvalid("char code point out of range");
+    return trapDataInvalid(
+        "invalid `char` bit pattern: code point out of range",
+        ErrCode::Value::ComponentCharInvalid);
   }
   if (I >= 0xD800u && I <= 0xDFFFu) {
-    return trapDataInvalid("char is a UTF-16 surrogate");
+    return trapDataInvalid("invalid `char` bit pattern: surrogate",
+                           ErrCode::Value::ComponentCharInvalid);
   }
   return {};
 }
@@ -942,20 +1208,24 @@ Expect<uint32_t> decodeUtf8Scalar(std::string_view S, size_t &I) noexcept {
     Len = 4;
     Min = 0x10000u;
   } else {
-    EXPECTED_TRY(trapDataInvalid("invalid UTF-8 lead byte"));
+    EXPECTED_TRY(trapDataInvalid("invalid UTF-8 lead byte",
+                                 ErrCode::Value::ComponentUTF8Invalid));
   }
   if (I + Len > N) {
-    EXPECTED_TRY(trapDataInvalid("truncated UTF-8 sequence"));
+    EXPECTED_TRY(trapDataInvalid("truncated UTF-8 sequence",
+                                 ErrCode::Value::ComponentUTF8Incomplete));
   }
   for (size_t K = 1; K < Len; ++K) {
     const uint8_t B = static_cast<uint8_t>(S[I + K]);
     if ((B & 0xC0u) != 0x80u) {
-      EXPECTED_TRY(trapDataInvalid("invalid UTF-8 continuation byte"));
+      EXPECTED_TRY(trapDataInvalid("invalid UTF-8 continuation byte",
+                                   ErrCode::Value::ComponentUTF8Invalid));
     }
     CP = (CP << 6) | (B & 0x3Fu);
   }
   if (CP < Min || CP > 0x10FFFFu || (CP >= 0xD800u && CP <= 0xDFFFu)) {
-    EXPECTED_TRY(trapDataInvalid("invalid UTF-8 scalar value"));
+    EXPECTED_TRY(trapDataInvalid("invalid UTF-8 scalar value",
+                                 ErrCode::Value::ComponentUTF8Invalid));
   }
   I += Len;
   return CP;
@@ -1070,10 +1340,18 @@ Expect<std::string> decodeString(const CanonCtx &Cx, uint32_t Begin,
   }
   const uint32_t ByteLen = static_cast<uint32_t>(ByteLen64);
   if (Begin != alignTo(Begin, Alignment)) {
-    EXPECTED_TRY(trapDataInvalid("string pointer misaligned"));
+    EXPECTED_TRY(trapDataInvalid("unaligned pointer for string",
+                                 ErrCode::Value::ComponentPtrUnaligned));
   }
   if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
-    EXPECTED_TRY(trapMemoryOOB("string payload", Begin, ByteLen));
+    // The adapter between two components reports the fused-adapter
+    // vocabulary; the host boundary reports the reference-interpreter one.
+    const auto Code = Cx.CrossComponent ? ErrCode::Value::ComponentStrOOB
+                                        : ErrCode::Value::ComponentStrPtrLenOOB;
+    spdlog::error(Code);
+    spdlog::error("    canonical ABI: string at 0x{:x} len={} out of bounds"sv,
+                  Begin, ByteLen);
+    return Unexpect(Code);
   }
   auto SV = Cx.Mem->getStringView(Begin, ByteLen);
   switch (W) {
@@ -1108,12 +1386,12 @@ encodeString(const CanonCtx &Cx, const std::string &S) noexcept {
   auto writeBuf = [&](Span<const Byte> Bytes,
                       uint32_t Align) -> Expect<uint32_t> {
     const uint32_t Len = static_cast<uint32_t>(Bytes.size());
-    if (Len == 0u) {
-      return uint32_t{0};
-    }
+    // The spec calls realloc even for empty payloads and bounds-checks the
+    // result, so a misbehaving realloc traps deterministically.
     EXPECTED_TRY(auto Begin, callRealloc(Cx, 0u, 0u, Align, Len));
     if (Begin != alignTo(Begin, Align)) {
-      EXPECTED_TRY(trapDataInvalid("string buffer misaligned"));
+      EXPECTED_TRY(trapDataInvalid("unaligned pointer for string buffer",
+                                   ErrCode::Value::ComponentPtrUnaligned));
     }
     if (!Cx.Mem->checkAccessBound(Begin, Len)) {
       EXPECTED_TRY(trapMemoryOOB("string payload (post-realloc)", Begin, Len));
@@ -1341,7 +1619,9 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
     uint32_t Case = 0;
     EXPECTED_TRY(loadN<uint32_t>(*Cx.Mem, DiscSize, Case, Ptr));
     if (Case >= NumCases) {
-      EXPECTED_TRY(trapDataInvalid("variant case index out of range"));
+      EXPECTED_TRY(
+          trapDataInvalid("invalid variant discriminant",
+                          ErrCode::Value::ComponentDiscriminantInvalid));
     }
     VariantVal VV;
     VV.Case = Case;
@@ -1359,7 +1639,9 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
     uint32_t Disc = 0;
     EXPECTED_TRY(loadN<uint32_t>(*Cx.Mem, 1, Disc, Ptr));
     if (Disc >= 2u) {
-      EXPECTED_TRY(trapDataInvalid("option discriminant out of range"));
+      EXPECTED_TRY(
+          trapDataInvalid("invalid variant discriminant for option",
+                          ErrCode::Value::ComponentDiscriminantInvalid));
     }
     OptionVal OV;
     if (Disc == 1u) {
@@ -1377,7 +1659,9 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
     uint32_t Disc = 0;
     EXPECTED_TRY(loadN<uint32_t>(*Cx.Mem, 1, Disc, Ptr));
     if (Disc >= 2u) {
-      EXPECTED_TRY(trapDataInvalid("result discriminant out of range"));
+      EXPECTED_TRY(
+          trapDataInvalid("invalid variant discriminant for result",
+                          ErrCode::Value::ComponentDiscriminantInvalid));
     }
     ResultVal RV;
     RV.IsOk = (Disc == 0u);
@@ -1418,7 +1702,8 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
       EXPECTED_TRY(trapDataInvalid("list byte length exceeds MAX"));
     }
     if (Begin != alignTo(Begin, ElemAlign)) {
-      EXPECTED_TRY(trapDataInvalid("list pointer misaligned"));
+      EXPECTED_TRY(trapDataInvalid("unaligned pointer for list",
+                                   ErrCode::Value::ComponentPtrUnaligned));
     }
     const uint32_t ByteLen = static_cast<uint32_t>(ByteLen64);
     if (Length > 0u && !Cx.Mem->checkAccessBound(Begin, ByteLen)) {
@@ -1460,27 +1745,37 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
     uint32_t Case = 0;
     EXPECTED_TRY(loadN<uint32_t>(*Cx.Mem, DiscSize, Case, Ptr));
     if (Case >= NumCases) {
-      EXPECTED_TRY(trapDataInvalid("enum case index out of range"));
+      EXPECTED_TRY(
+          trapDataInvalid("invalid variant discriminant for enum",
+                          ErrCode::Value::ComponentDiscriminantInvalid));
     }
-    return makeComponentVal(EnumVal{Case});
+    return makeComponentVal(EnumVal{Case, {}});
   }
 
-  // lift_own / lift_borrow (L2297-2303 / L2316-2322): resource-table
-  // interaction is not yet implemented; the raw handle is preserved verbatim
-  // so future support can pick it up.
+  // lift_own / lift_borrow (L2297-2303 / L2316-2322): the transported value
+  // carries the representation; the handle leaves (own) or stays (borrow).
   if (T.isOwnTy()) {
     uint32_t H = 0;
     EXPECTED_TRY(Cx.Mem->loadValue<uint32_t>(H, Ptr));
-    return makeComponentVal(OwnVal{H});
+    EXPECTED_TRY(uint32_t Rep, liftOwnHandle(Cx, T.getOwn().Idx, H));
+    return makeComponentVal(OwnVal{Rep});
   }
 
   if (T.isBorrowTy()) {
     uint32_t H = 0;
     EXPECTED_TRY(Cx.Mem->loadValue<uint32_t>(H, Ptr));
-    return makeComponentVal(BorrowVal{H});
+    EXPECTED_TRY(uint32_t Rep, liftBorrowHandle(Cx, T.getBorrow().Idx, H));
+    return makeComponentVal(BorrowVal{Rep});
   }
 
-  // stream / future are deferred.
+  if (T.isStreamTy() || T.isFutureTy()) {
+    const bool IsStream = T.isStreamTy();
+    uint32_t H = 0;
+    EXPECTED_TRY(Cx.Mem->loadValue<uint32_t>(H, Ptr));
+    EXPECTED_TRY(auto Shared, liftCopyEnd(Cx, IsStream, H));
+    return makeComponentVal(StreamFutureVal{std::move(Shared), IsStream});
+  }
+
   spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
   spdlog::error("    canonical ABI: load of gated value type"sv);
   return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
@@ -1630,16 +1925,16 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
     assuming(VC);
     const auto &Vv = std::get<VariantVal>(VC->V);
     const auto &Vt = T.getVariant();
-    assuming(Vv.Case < Vt.Cases.size());
+    const uint32_t Case = resolveVariantCase(Vv, Vt);
+    assuming(Case < Vt.Cases.size());
     const uint32_t DiscSize =
         discriminantSize(static_cast<uint32_t>(Vt.Cases.size()));
-    EXPECTED_TRY(storeN<uint32_t>(*Cx.Mem, DiscSize, Vv.Case, Ptr));
-    if (Vt.Cases[Vv.Case].second.has_value()) {
+    EXPECTED_TRY(storeN<uint32_t>(*Cx.Mem, DiscSize, Case, Ptr));
+    if (Vt.Cases[Case].second.has_value()) {
       assuming(Vv.Payload.has_value());
       EXPECTED_TRY(auto MaxAlign, maxCaseAlignment(Cx, Vt.Cases));
       const uint32_t PayloadOff = alignTo(Ptr + DiscSize, MaxAlign);
-      EXPECTED_TRY(
-          store(Cx, *Vv.Payload, *Vt.Cases[Vv.Case].second, PayloadOff));
+      EXPECTED_TRY(store(Cx, *Vv.Payload, *Vt.Cases[Case].second, PayloadOff));
     }
     return {};
   }
@@ -1712,16 +2007,15 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
         static_cast<uint64_t>(Length) * static_cast<uint64_t>(ElemSz);
     assuming(ByteLen64 <= static_cast<uint64_t>(kMaxCanonByteLength));
     const uint32_t ByteLen = static_cast<uint32_t>(ByteLen64);
-    uint32_t Begin = 0;
-    if (Length > 0u) {
-      EXPECTED_TRY(Begin, callRealloc(Cx, 0u, 0u, ElemAlign, ByteLen));
-      if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
-        EXPECTED_TRY(
-            trapMemoryOOB("list payload (post-realloc)", Begin, ByteLen));
-      }
-      for (uint32_t I = 0; I < Length; ++I) {
-        EXPECTED_TRY(store(Cx, Lv.Elements[I], ElemT, Begin + I * ElemSz));
-      }
+    // The spec calls realloc even for empty lists and bounds-checks the
+    // result, so a misbehaving realloc traps deterministically.
+    EXPECTED_TRY(uint32_t Begin, callRealloc(Cx, 0u, 0u, ElemAlign, ByteLen));
+    if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
+      EXPECTED_TRY(
+          trapMemoryOOB("list payload (post-realloc)", Begin, ByteLen));
+    }
+    for (uint32_t I = 0; I < Length; ++I) {
+      EXPECTED_TRY(store(Cx, Lv.Elements[I], ElemT, Begin + I * ElemSz));
     }
     EXPECTED_TRY(Cx.Mem->storeValue<uint32_t>(Begin, Ptr));
     EXPECTED_TRY(Cx.Mem->storeValue<uint32_t>(Length, Ptr + 4u));
@@ -1734,14 +2028,9 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
     assuming(VC);
     const auto &F = std::get<FlagsVal>(VC->V);
     const auto &Ft = T.getFlags();
-    assuming(F.Bits.size() == Ft.Labels.size());
+    assuming(F.Bits.empty() || F.Bits.size() == Ft.Labels.size());
     const uint32_t Bytes = static_cast<uint32_t>((Ft.Labels.size() + 7) / 8);
-    uint64_t Packed = 0;
-    for (size_t I = 0; I < F.Bits.size(); ++I) {
-      if (F.Bits[I]) {
-        Packed |= (1ull << I);
-      }
-    }
+    const uint64_t Packed = packFlags(F, Ft);
     if (Bytes > 0u) {
       assuming(Bytes <= 4u);
       EXPECTED_TRY(
@@ -1755,24 +2044,35 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
     assuming(VC);
     const auto &E = std::get<EnumVal>(VC->V);
     const auto &Et = T.getEnum();
-    assuming(E.Case < Et.Labels.size());
+    const uint32_t Case = resolveEnumCase(E, Et);
+    assuming(Case < Et.Labels.size());
     const uint32_t DiscSize =
         discriminantSize(static_cast<uint32_t>(Et.Labels.size()));
-    return storeN<uint32_t>(*Cx.Mem, DiscSize, E.Case, Ptr);
+    return storeN<uint32_t>(*Cx.Mem, DiscSize, Case, Ptr);
   }
 
   if (T.isOwnTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     assuming(VC);
     const auto &O = std::get<OwnVal>(VC->V);
-    return Cx.Mem->storeValue<uint32_t>(O.Handle, Ptr);
+    return Cx.Mem->storeValue<uint32_t>(
+        lowerHandle(Cx, T.getOwn().Idx, O.Handle, true), Ptr);
   }
 
   if (T.isBorrowTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     assuming(VC);
     const auto &B = std::get<BorrowVal>(VC->V);
-    return Cx.Mem->storeValue<uint32_t>(B.Handle, Ptr);
+    return Cx.Mem->storeValue<uint32_t>(
+        lowerHandle(Cx, T.getBorrow().Idx, B.Handle, false), Ptr);
+  }
+
+  if (T.isStreamTy() || T.isFutureTy()) {
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
+    assuming(VC);
+    const auto &SF = std::get<StreamFutureVal>(VC->V);
+    EXPECTED_TRY(uint32_t Idx, lowerCopyEnd(Cx, T.isStreamTy(), SF.Shared));
+    return Cx.Mem->storeValue<uint32_t>(Idx, Ptr);
   }
 
   spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
@@ -1797,7 +2097,8 @@ liftListFromRange(const CanonCtx &Cx, uint32_t Begin, uint32_t Length,
     EXPECTED_TRY(trapDataInvalid("list byte length exceeds MAX"));
   }
   if (Begin != alignTo(Begin, ElemAlign)) {
-    EXPECTED_TRY(trapDataInvalid("list pointer misaligned"));
+    EXPECTED_TRY(trapDataInvalid("unaligned pointer for list",
+                                 ErrCode::Value::ComponentPtrUnaligned));
   }
   const uint32_t ByteLen = static_cast<uint32_t>(ByteLen64);
   if (Length > 0u && !Cx.Mem->checkAccessBound(Begin, ByteLen)) {
@@ -2100,21 +2401,35 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
     const uint32_t Case = Next->get<uint32_t>();
     const uint32_t NumCases = static_cast<uint32_t>(T.getEnum().Labels.size());
     if (Case >= NumCases) {
-      EXPECTED_TRY(trapDataInvalid("enum case index out of range"));
+      EXPECTED_TRY(
+          trapDataInvalid("invalid variant discriminant for enum",
+                          ErrCode::Value::ComponentDiscriminantInvalid));
     }
-    return makeComponentVal(EnumVal{Case});
+    return makeComponentVal(EnumVal{Case, {}});
   }
 
   if (T.isOwnTy()) {
     auto Next = VI.next();
     assuming(Next.has_value());
-    return makeComponentVal(OwnVal{Next->get<uint32_t>()});
+    EXPECTED_TRY(uint32_t Rep,
+                 liftOwnHandle(Cx, T.getOwn().Idx, Next->get<uint32_t>()));
+    return makeComponentVal(OwnVal{Rep});
   }
 
   if (T.isBorrowTy()) {
     auto Next = VI.next();
     assuming(Next.has_value());
-    return makeComponentVal(BorrowVal{Next->get<uint32_t>()});
+    EXPECTED_TRY(uint32_t Rep, liftBorrowHandle(Cx, T.getBorrow().Idx,
+                                                Next->get<uint32_t>()));
+    return makeComponentVal(BorrowVal{Rep});
+  }
+
+  if (T.isStreamTy() || T.isFutureTy()) {
+    const bool IsStream = T.isStreamTy();
+    auto Next = VI.next();
+    assuming(Next.has_value());
+    EXPECTED_TRY(auto Shared, liftCopyEnd(Cx, IsStream, Next->get<uint32_t>()));
+    return makeComponentVal(StreamFutureVal{std::move(Shared), IsStream});
   }
 
   if (T.isVariantTy() || T.isOptionTy() || T.isResultTy()) {
@@ -2128,13 +2443,17 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
         const auto &Vt = T.getVariant();
         NumCases = Vt.Cases.size();
         if (Case >= NumCases) {
-          EXPECTED_TRY(trapDataInvalid("variant case index out of range"));
+          EXPECTED_TRY(
+              trapDataInvalid("invalid variant discriminant",
+                              ErrCode::Value::ComponentDiscriminantInvalid));
         }
         CasePayloadTy = Vt.Cases[Case].second;
       } else if (T.isOptionTy()) {
         NumCases = 2;
         if (Case >= NumCases) {
-          EXPECTED_TRY(trapDataInvalid("variant case index out of range"));
+          EXPECTED_TRY(
+              trapDataInvalid("invalid variant discriminant",
+                              ErrCode::Value::ComponentDiscriminantInvalid));
         }
         if (Case == 1) {
           CasePayloadTy = T.getOption().ValTy;
@@ -2142,7 +2461,9 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
       } else {
         NumCases = 2;
         if (Case >= NumCases) {
-          EXPECTED_TRY(trapDataInvalid("variant case index out of range"));
+          EXPECTED_TRY(
+              trapDataInvalid("invalid variant discriminant",
+                              ErrCode::Value::ComponentDiscriminantInvalid));
         }
         const auto &Rt = T.getResult();
         CasePayloadTy = (Case == 0) ? Rt.ValTy : Rt.ErrTy;
@@ -2369,16 +2690,15 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
         static_cast<uint64_t>(Length) * static_cast<uint64_t>(ElemSz);
     assuming(ByteLen64 <= static_cast<uint64_t>(kMaxCanonByteLength));
     const uint32_t ByteLen = static_cast<uint32_t>(ByteLen64);
-    uint32_t Begin = 0;
-    if (Length > 0u) {
-      EXPECTED_TRY(Begin, callRealloc(Cx, 0u, 0u, ElemAlign, ByteLen));
-      if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
-        EXPECTED_TRY(
-            trapMemoryOOB("list payload (post-realloc)", Begin, ByteLen));
-      }
-      for (uint32_t I = 0; I < Length; ++I) {
-        EXPECTED_TRY(store(Cx, Lv.Elements[I], ElemT, Begin + I * ElemSz));
-      }
+    // The spec calls realloc even for empty lists and bounds-checks the
+    // result, so a misbehaving realloc traps deterministically.
+    EXPECTED_TRY(uint32_t Begin, callRealloc(Cx, 0u, 0u, ElemAlign, ByteLen));
+    if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
+      EXPECTED_TRY(
+          trapMemoryOOB("list payload (post-realloc)", Begin, ByteLen));
+    }
+    for (uint32_t I = 0; I < Length; ++I) {
+      EXPECTED_TRY(store(Cx, Lv.Elements[I], ElemT, Begin + I * ElemSz));
     }
     return std::vector<ValVariant>{ValVariant(Begin), ValVariant(Length)};
   }
@@ -2389,13 +2709,8 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
     assuming(VC);
     const auto &F = std::get<FlagsVal>(VC->V);
     const auto &Ft = T.getFlags();
-    assuming(F.Bits.size() == Ft.Labels.size());
-    uint32_t Packed = 0;
-    for (size_t I = 0; I < F.Bits.size(); ++I) {
-      if (F.Bits[I]) {
-        Packed |= (1u << I);
-      }
-    }
+    assuming(F.Bits.empty() || F.Bits.size() == Ft.Labels.size());
+    const uint32_t Packed = static_cast<uint32_t>(packFlags(F, Ft));
     return std::vector<ValVariant>{ValVariant(Packed)};
   }
 
@@ -2403,22 +2718,33 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     assuming(VC);
     const auto &E = std::get<EnumVal>(VC->V);
-    assuming(E.Case < T.getEnum().Labels.size());
-    return std::vector<ValVariant>{ValVariant(E.Case)};
+    const uint32_t Case = resolveEnumCase(E, T.getEnum());
+    assuming(Case < T.getEnum().Labels.size());
+    return std::vector<ValVariant>{ValVariant(Case)};
   }
 
   if (T.isOwnTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     assuming(VC);
     const auto &O = std::get<OwnVal>(VC->V);
-    return std::vector<ValVariant>{ValVariant(O.Handle)};
+    return std::vector<ValVariant>{
+        ValVariant(lowerHandle(Cx, T.getOwn().Idx, O.Handle, true))};
   }
 
   if (T.isBorrowTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     assuming(VC);
     const auto &B = std::get<BorrowVal>(VC->V);
-    return std::vector<ValVariant>{ValVariant(B.Handle)};
+    return std::vector<ValVariant>{
+        ValVariant(lowerHandle(Cx, T.getBorrow().Idx, B.Handle, false))};
+  }
+
+  if (T.isStreamTy() || T.isFutureTy()) {
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
+    assuming(VC);
+    const auto &SF = std::get<StreamFutureVal>(VC->V);
+    EXPECTED_TRY(uint32_t Idx, lowerCopyEnd(Cx, T.isStreamTy(), SF.Shared));
+    return std::vector<ValVariant>{ValVariant(Idx)};
   }
 
   if (T.isVariantTy() || T.isOptionTy() || T.isResultTy()) {
@@ -2433,7 +2759,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
       const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
       assuming(VC);
       const auto &Vv = std::get<VariantVal>(VC->V);
-      Case = Vv.Case;
+      Case = resolveVariantCase(Vv, T.getVariant());
       NumCases = T.getVariant().Cases.size();
       assuming(Case < NumCases);
       CasePayloadTy = T.getVariant().Cases[Case].second;
@@ -2543,7 +2869,8 @@ liftFlatValues(const CanonCtx &Cx, FlatIter &VI,
     EXPECTED_TRY(auto Align, alignmentDef(Cx, Td));
     EXPECTED_TRY(auto Sz, elemSizeDef(Cx, Td));
     if (Ptr != alignTo(Ptr, Align)) {
-      EXPECTED_TRY(trapDataInvalid("lift_flat_values: pointer misaligned"));
+      EXPECTED_TRY(trapDataInvalid("lift_flat_values: unaligned pointer",
+                                   ErrCode::Value::ComponentPtrUnaligned));
     }
     if (!Cx.Mem->checkAccessBound(Ptr, Sz)) {
       EXPECTED_TRY(trapMemoryOOB("lift_flat_values area", Ptr, Sz));
@@ -2592,7 +2919,8 @@ lowerFlatValues(const CanonCtx &Cx, Span<const ComponentValVariant> Values,
       ReturnPtr = true;
     }
     if (Ptr != alignTo(Ptr, Align)) {
-      EXPECTED_TRY(trapDataInvalid("lower_flat_values: pointer misaligned"));
+      EXPECTED_TRY(trapDataInvalid("lower_flat_values: unaligned pointer",
+                                   ErrCode::Value::ComponentPtrUnaligned));
     }
     if (!Cx.Mem->checkAccessBound(Ptr, Sz)) {
       EXPECTED_TRY(trapMemoryOOB("lower_flat_values area", Ptr, Sz));

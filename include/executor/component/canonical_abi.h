@@ -38,11 +38,13 @@ namespace Executor {
 // executor/executor.h here would form a header cycle, so the call is routed
 // through this forward-declared pointer instead.
 class Executor;
+class ComponentTask;
 
 namespace CanonicalABI {
 
-/// Sync ABI limits (CanonicalABI.md L2815-2817).
+/// Flat ABI limits (CanonicalABI.md `MAX_FLAT_*`).
 constexpr uint32_t MaxFlatParams = 16;
+constexpr uint32_t MaxFlatAsyncParams = 4;
 constexpr uint32_t MaxFlatResults = 1;
 
 /// Context bundle for canonical-ABI operations. Not every helper requires every
@@ -61,11 +63,30 @@ struct CanonCtx {
   /// ComponentInstance) reuse alignment / elemSize / flatten_* without
   /// duplicating the recursion. Takes precedence over CompInst when set.
   std::function<const AST::Component::DefType *(uint32_t)> TypeResolver;
+  /// Optional resolver for resource identities of own/borrow type indices.
+  /// Set together with TypeResolver when the function type belongs to a
+  /// different instance than the handle tables (host or cross-component
+  /// callees). Takes precedence over CompInst when set.
+  std::function<const Runtime::Instance::ComponentInstance::ResourceTypeRT *(
+      uint32_t)>
+      ResourceResolver;
+  /// When set, borrows lifted through this context are recorded so the
+  /// caller can release the lends after the call returns.
+  std::vector<std::pair<const Runtime::Instance::ComponentInstance *, uint32_t>>
+      *LiftedBorrows = nullptr;
   /// Guest string encoding for the canon function this context serves
   /// (CanonicalABI.md `string-encoding` option). Selects the byte layout used
   /// by load / store / lift_flat / lower_flat for `string` values. Defaults to
   /// UTF-8; type-only callers (alignment / flatten) never read it.
   StringEncoding Enc = StringEncoding::UTF8;
+  /// Borrow scope for borrows lowered through this context: the callee task
+  /// receiving them (its num_borrows accounting; spec lower_borrow).
+  ComponentTask *BorrowTask = nullptr;
+  /// True when this context serves the adapter between two component
+  /// instances (a canon-lowered import or a stream/future element copy);
+  /// false at the host/embedder boundary. Selects the diagnostic vocabulary
+  /// for string bounds traps.
+  bool CrossComponent = false;
 };
 
 /// Resolve a component type index. Returns the DefType pointer using
@@ -125,17 +146,25 @@ Expect<std::vector<ValType>>
 flattenTypeDef(const CanonCtx &Cx,
                const AST::Component::DefValType &T) noexcept;
 
-/// Flatten a component function type into its core ABI signature. Sync only
-/// — async is rejected. CanonicalABI.md L2819-2832.
+/// Canon options that change the flat ABI shape (`flatten_functype` opts).
+struct FlattenOpts {
+  bool Async = false;
+  bool Callback = false;
+};
+
+/// Flatten a component function type into its core ABI signature.
+/// CanonicalABI.md `flatten_functype`.
 ///
 /// `IsLift = true` covers the `canon lift` direction (component-typed
 /// function exposed as core wasm callee); when results exceed
 /// MaxFlatResults the core function returns a single i32 return-area pointer.
 /// `IsLift = false` covers `canon lower` and synthesizes the trailing
-/// out-pointer parameter when results exceed MaxFlatResults.
+/// out-pointer parameter when results exceed MaxFlatResults. `Opts` selects
+/// the async shapes (callback code / packed subtask-state results).
 Expect<FlatFuncType> flattenFuncType(const CanonCtx &Cx,
                                      const AST::Component::FuncType &FT,
-                                     bool IsLift) noexcept;
+                                     bool IsLift,
+                                     FlattenOpts Opts = {}) noexcept;
 
 /// True iff `T` transitively contains a `list` or `string`. Used by the
 /// canon-options validation to enforce the spec's `lift(T)` / `lower(T)`

@@ -132,13 +132,55 @@ public:
   }
 
   /// Register a named component in this store.
-  Expect<void> registerComponent(const Instance::ComponentInstance *CompInst) {
+  /// Register a named host component function (test harnesses / embedders).
+  Expect<void>
+  registerComponentFunction(std::string_view Name,
+                            Instance::Component::FunctionInstance *Func) {
     std::unique_lock Lock(Mutex);
-    auto Iter = NamedComp.find(CompInst->getComponentName());
-    if (likely(Iter != NamedComp.cend())) {
+    if (NamedCompFunc.find(Name) != NamedCompFunc.cend()) {
       return Unexpect(ErrCode::Value::ModuleNameConflict);
     }
-    NamedComp.emplace(CompInst->getComponentName(), CompInst);
+    NamedCompFunc.emplace(std::string(Name), Func);
+    return {};
+  }
+
+  Instance::Component::FunctionInstance *
+  findComponentFunction(std::string_view Name) const {
+    std::shared_lock Lock(Mutex);
+    if (auto It = NamedCompFunc.find(Name); It != NamedCompFunc.cend()) {
+      return It->second;
+    }
+    return nullptr;
+  }
+
+  /// Register a named component definition; provides component-sort imports
+  /// of root instantiations (test harnesses / embedders).
+  Expect<void>
+  registerComponentDefinition(std::string_view Name,
+                              const AST::Component::Component *Comp) {
+    std::unique_lock Lock(Mutex);
+    if (NamedCompDef.find(Name) != NamedCompDef.cend()) {
+      return Unexpect(ErrCode::Value::ModuleNameConflict);
+    }
+    NamedCompDef.emplace(std::string(Name), Comp);
+    return {};
+  }
+
+  const AST::Component::Component *
+  findComponentDefinition(std::string_view Name) const {
+    std::shared_lock Lock(Mutex);
+    if (auto It = NamedCompDef.find(Name); It != NamedCompDef.cend()) {
+      return It->second;
+    }
+    return nullptr;
+  }
+
+  Expect<void> registerComponent(const Instance::ComponentInstance *CompInst) {
+    std::unique_lock Lock(Mutex);
+    // Re-registration shadows the previous instance (wast-runner semantics:
+    // later same-named definitions replace earlier ones).
+    NamedComp.insert_or_assign(std::string(CompInst->getComponentName()),
+                               CompInst);
     return {};
   }
 
@@ -164,6 +206,10 @@ private:
   /// \name Component name mapping.
   std::map<std::string, const Instance::ComponentInstance *, std::less<>>
       NamedComp;
+  std::map<std::string, Instance::Component::FunctionInstance *, std::less<>>
+      NamedCompFunc;
+  std::map<std::string, const AST::Component::Component *, std::less<>>
+      NamedCompDef;
 
   /// \name Last instantiation failed module.
   /// According to the current spec, instances should remain referenceable even

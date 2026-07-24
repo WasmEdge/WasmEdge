@@ -122,40 +122,46 @@ interpreterStackTrace(const Runtime::StackManager &StackMgr,
 }
 
 Span<const StackTraceEntry>
-compiledStackTrace(const Runtime::StackManager &StackMgr,
-                   Span<StackTraceEntry> Buffer) noexcept {
-  std::array<void *, 256> StackTraceBuffer;
-  return compiledStackTrace(StackMgr, stackTrace(StackTraceBuffer), Buffer);
-}
-
-Span<const StackTraceEntry>
-compiledStackTrace(const Runtime::StackManager &StackMgr,
+compiledStackTrace(Span<const Runtime::Instance::ModuleInstance *const> Modules,
                    Span<void *const> Stack,
                    Span<StackTraceEntry> Buffer) noexcept {
-  std::map<void *, int64_t> Funcs;
-  size_t Index = 0;
-  if (auto Module = StackMgr.getModule()) {
+  struct FuncEntry {
+    const Runtime::Instance::ModuleInstance *Module;
+    int64_t Index;
+  };
+  // Known limitation: two instances of the same compiled module share their
+  // code addresses, so emplace keeps whichever instance is enumerated first and
+  // a trap in the other one is reported against it. A native frame carries no
+  // instance identity to tell them apart.
+  std::map<void *, FuncEntry> Funcs;
+  for (const auto *Module : Modules) {
+    if (Module == nullptr) {
+      continue;
+    }
     const auto FuncInsts = Module->getFunctionInstances();
     for (size_t I = 0; I < FuncInsts.size(); ++I) {
       const auto &Func = FuncInsts[I];
-      if (Func && Func->isCompiledFunction()) {
+      if (Func && Func->isCompiledFunction() && Func->getModule() == Module) {
         Funcs.emplace(
             reinterpret_cast<void *>(Func->getFuncType().getSymbol().get()),
-            INT64_C(-1));
-        Funcs.emplace(Func->getSymbol().get(), static_cast<int64_t>(I));
+            FuncEntry{Module, INT64_C(-1)});
+        Funcs.emplace(Func->getSymbol().get(),
+                      FuncEntry{Module, static_cast<int64_t>(I)});
       }
     }
-    for (auto Entry : Stack) {
-      auto Iter = Funcs.lower_bound(Entry);
-      if ((Iter == Funcs.end() || Iter->first > Entry) &&
-          Iter != Funcs.begin()) {
-        --Iter;
-      }
-      if (Iter != Funcs.end() && Iter->first < Entry &&
-          Iter->second >= INT64_C(0) && Index < Buffer.size()) {
-        Buffer[Index++] =
-            StackTraceEntry{Module, static_cast<uint32_t>(Iter->second)};
-      }
+  }
+  size_t Index = 0;
+  for (auto Address : Stack) {
+    auto Probe =
+        reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(Address) - 1);
+    auto Iter = Funcs.lower_bound(Probe);
+    if ((Iter == Funcs.end() || Iter->first > Probe) && Iter != Funcs.begin()) {
+      --Iter;
+    }
+    if (Iter != Funcs.end() && Iter->first < Probe &&
+        Iter->second.Index >= INT64_C(0) && Index < Buffer.size()) {
+      Buffer[Index++] = StackTraceEntry{
+          Iter->second.Module, static_cast<uint32_t>(Iter->second.Index)};
     }
   }
   return Buffer.first(Index);

@@ -37,11 +37,7 @@ interpreterStackTrace(const Runtime::StackManager &StackMgr,
                       Span<StackTraceEntry> Buffer) noexcept;
 
 Span<const StackTraceEntry>
-compiledStackTrace(const Runtime::StackManager &StackMgr,
-                   Span<StackTraceEntry> Buffer) noexcept;
-
-Span<const StackTraceEntry>
-compiledStackTrace(const Runtime::StackManager &StackMgr,
+compiledStackTrace(Span<const Runtime::Instance::ModuleInstance *const> Modules,
                    Span<void *const> Stack,
                    Span<StackTraceEntry> Buffer) noexcept;
 

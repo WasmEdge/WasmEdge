@@ -16,9 +16,13 @@
 
 #include "common/defines.h"
 #include "common/spdlog.h"
+#include "executor/executor.h"
+#include "loader/loader.h"
+#include "validator/validator.h"
 #include "vm/vm.h"
 #include "llvm/codegen.h"
 #include "llvm/compiler.h"
+#include "llvm/jit.h"
 
 #include "../spec/hostfunc.h"
 #include "../spec/spectest.h"
@@ -48,6 +52,304 @@ class NativeCoreTest : public testing::TestWithParam<std::string> {};
 class CustomWasmCoreTest : public testing::TestWithParam<std::string> {};
 class JITCoreTest : public testing::TestWithParam<std::string> {};
 class LazyJITCoreTest : public testing::TestWithParam<std::string> {};
+
+// A compiled cross-module call must run the callee with its own state and give
+// the caller its state back on return. Each caller function returns
+// `callee_global * 10 + memory.grow(0)`: 1871 if both held, 1875 if the call
+// rebound the context and kept it. The second term goes through memory.grow
+// because that intrinsic resolves the memory live, while inline accesses read
+// the context each compiled function snapshots on entry and so cannot see a
+// stale rebind.
+//   callee: (memory 5) (global $g (mut i32) 187)
+//           (func (export "read") (result i32) (global.get $g))
+//   caller: (import "callee" "read" (func $read (result i32)))
+//           (memory 1) (global $g (mut i32) 170)
+//           (table 1 funcref) (elem (i32.const 0) func $read)
+//           (func (export "run_ref") (result i32)
+//             (i32.add (i32.mul (call_ref $t (ref.func $read)) (i32.const 10))
+//                      (memory.grow (i32.const 0))))
+//           run_direct and run_indirect are the same with (call $read) and
+//           (call_indirect (type $t) (i32.const 0)).
+const std::array<WasmEdge::Byte, 70> CrossModuleCalleeWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x05,
+    0x06, 0x07, 0x01, 0x7f, 0x01, 0x41, 0xbb, 0x01, 0x0b, 0x07, 0x08, 0x01,
+    0x04, 0x72, 0x65, 0x61, 0x64, 0x00, 0x00, 0x0a, 0x06, 0x01, 0x04, 0x00,
+    0x23, 0x00, 0x0b, 0x00, 0x11, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x04, 0x04,
+    0x01, 0x00, 0x01, 0x74, 0x07, 0x04, 0x01, 0x00, 0x01, 0x67};
+
+const std::array<WasmEdge::Byte, 183> CrossModuleCallerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x02, 0x0f, 0x01, 0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65,
+    0x65, 0x04, 0x72, 0x65, 0x61, 0x64, 0x00, 0x00, 0x03, 0x04, 0x03, 0x00,
+    0x00, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x05, 0x03, 0x01, 0x00,
+    0x01, 0x06, 0x07, 0x01, 0x7f, 0x01, 0x41, 0xaa, 0x01, 0x0b, 0x07, 0x27,
+    0x03, 0x07, 0x72, 0x75, 0x6e, 0x5f, 0x72, 0x65, 0x66, 0x00, 0x01, 0x0a,
+    0x72, 0x75, 0x6e, 0x5f, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x00, 0x02,
+    0x0c, 0x72, 0x75, 0x6e, 0x5f, 0x69, 0x6e, 0x64, 0x69, 0x72, 0x65, 0x63,
+    0x74, 0x00, 0x03, 0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00,
+    0x0a, 0x2d, 0x03, 0x0e, 0x00, 0xd2, 0x00, 0x14, 0x00, 0x41, 0x0a, 0x6c,
+    0x41, 0x00, 0x40, 0x00, 0x6a, 0x0b, 0x0c, 0x00, 0x10, 0x00, 0x41, 0x0a,
+    0x6c, 0x41, 0x00, 0x40, 0x00, 0x6a, 0x0b, 0x0f, 0x00, 0x41, 0x00, 0x11,
+    0x00, 0x00, 0x41, 0x0a, 0x6c, 0x41, 0x00, 0x40, 0x00, 0x6a, 0x0b, 0x00,
+    0x1a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x07, 0x01, 0x00, 0x04, 0x72,
+    0x65, 0x61, 0x64, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74, 0x07, 0x04, 0x01,
+    0x00, 0x01, 0x67};
+
+// Parse, validate, compile, and attach the compiled symbols. The Loader needs
+// the executor's intrinsics table so loadExecutable patches the compiled code's
+// intrinsics global; without it the generated intrinsic calls jump through a
+// null table.
+std::shared_ptr<AST::Module> compileToJIT(const Configure &Conf,
+                                          Span<const Byte> Bytes) {
+  Loader::Loader LoaderEngine(Conf, &Executor::Executor::Intrinsics);
+  Validator::Validator ValidatorEngine(Conf);
+  auto ModOrErr = LoaderEngine.parseModule(Bytes);
+  if (!ModOrErr) {
+    return nullptr;
+  }
+  std::shared_ptr<AST::Module> Mod{std::move(*ModOrErr)};
+  if (!ValidatorEngine.validate(*Mod)) {
+    return nullptr;
+  }
+  LLVM::Compiler Compiler(Conf);
+  if (!Compiler.checkConfigure()) {
+    return nullptr;
+  }
+  auto Data = Compiler.compile(*Mod);
+  if (!Data) {
+    return nullptr;
+  }
+  LLVM::JIT JIT(Conf);
+  auto Exec = JIT.load(std::move(*Data));
+  if (!Exec) {
+    return nullptr;
+  }
+  if (!LoaderEngine.loadExecutable(*Mod, std::move(*Exec))) {
+    return nullptr;
+  }
+  return Mod;
+}
+
+// Both modules are compiled up front, then registered and instantiated into one
+// store owned by one executor, so the result cannot be an artifact of sharing
+// modules across VMs.
+TEST(AOTCrossModule, CompiledCallUsesCalleeContext) {
+  Configure Conf;
+  Conf.addProposal(Proposal::ReferenceTypes);
+  Conf.addProposal(Proposal::FunctionReferences);
+
+  // Declared before the instances that reference their compiled code.
+  auto CalleeMod = compileToJIT(Conf, CrossModuleCalleeWasm);
+  ASSERT_NE(CalleeMod, nullptr);
+  auto CallerMod = compileToJIT(Conf, CrossModuleCallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+
+  // CalleeInst is declared first so the dependent caller tears down before it.
+  auto CalleeInstOrErr = ExecEngine.registerModule(Store, *CalleeMod, "callee");
+  ASSERT_TRUE(CalleeInstOrErr);
+  auto CalleeInst = std::move(*CalleeInstOrErr);
+  const auto *ReadFn = CalleeInst->findFuncExports("read");
+  ASSERT_NE(ReadFn, nullptr);
+  ASSERT_TRUE(ReadFn->isCompiledFunction());
+
+  auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+  ASSERT_TRUE(CallerInstOrErr);
+  auto CallerInst = std::move(*CallerInstOrErr);
+
+  // call_ref of a cross-module funcref must read the callee's global.
+  const auto *RunRef = CallerInst->findFuncExports("run_ref");
+  ASSERT_NE(RunRef, nullptr);
+  ASSERT_TRUE(RunRef->isCompiledFunction());
+  auto RRef = ExecEngine.invoke(RunRef, {}, {});
+  ASSERT_TRUE(RRef);
+  ASSERT_EQ(RRef->size(), 1u);
+  EXPECT_EQ((*RRef)[0].first.get<uint32_t>(), 1871u)
+      << "call_ref did not keep the two modules' contexts apart";
+
+  const auto *RunDirect = CallerInst->findFuncExports("run_direct");
+  ASSERT_NE(RunDirect, nullptr);
+  ASSERT_TRUE(RunDirect->isCompiledFunction());
+  auto RDir = ExecEngine.invoke(RunDirect, {}, {});
+  ASSERT_TRUE(RDir);
+  ASSERT_EQ(RDir->size(), 1u);
+  EXPECT_EQ((*RDir)[0].first.get<uint32_t>(), 1871u)
+      << "direct call did not keep the two modules' contexts apart";
+
+  // call_indirect resolves through proxyTableGetFuncSymbol, which must mediate
+  // as well.
+  const auto *RunInd = CallerInst->findFuncExports("run_indirect");
+  ASSERT_NE(RunInd, nullptr);
+  ASSERT_TRUE(RunInd->isCompiledFunction());
+  auto RInd = ExecEngine.invoke(RunInd, {}, {});
+  ASSERT_TRUE(RInd);
+  ASSERT_EQ(RInd->size(), 1u);
+  EXPECT_EQ((*RInd)[0].first.get<uint32_t>(), 1871u)
+      << "call_indirect did not keep the two modules' contexts apart";
+}
+
+// A cross-module return_call_ref has to run each side with its own state. It is
+// mediated by the kCallRef proxy, which nests a proxy and an enterFunction
+// frame per hop at roughly a kilobyte of native stack each, so the depth stays
+// low enough to fit a 1 MiB thread stack many times over. This covers the
+// contexts only; constant-space cross-module tail calls are not implemented.
+//   callee: (global $g (mut i32) 187) (global $peer (export "peer")
+//           (mut (ref null $t)) (ref.null $t))
+//           (func $f (export "f") (param i32) (result i32)
+//             if (global.get $g) != 187 -> 1
+//             if param == 0 -> 0
+//             return_call_ref $t (param - 1) (global.get $peer))
+//   caller: (import "callee" "f") (import "callee" "peer")
+//           (global $g (mut i32) 170)
+//           (func $a (param i32) (result i32)
+//             if (global.get $g) != 170 -> 2
+//             if param == 0 -> 0
+//             return_call_ref $t (param - 1) (ref.func $f))
+//           (func (export "run") (param i32) (result i32)
+//             global.set $peer (ref.func $a)
+//             return_call_ref $t (param) (ref.func $f))
+const std::array<WasmEdge::Byte, 116> CrossModuleTailCalleeWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+    0x01, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x06, 0x0d, 0x02, 0x7f,
+    0x01, 0x41, 0xbb, 0x01, 0x0b, 0x63, 0x00, 0x01, 0xd0, 0x00, 0x0b, 0x07,
+    0x0c, 0x02, 0x04, 0x70, 0x65, 0x65, 0x72, 0x03, 0x01, 0x01, 0x66, 0x00,
+    0x00, 0x0a, 0x22, 0x01, 0x20, 0x00, 0x23, 0x00, 0x41, 0xbb, 0x01, 0x47,
+    0x04, 0x40, 0x41, 0x01, 0x0f, 0x0b, 0x20, 0x00, 0x45, 0x04, 0x40, 0x41,
+    0x00, 0x0f, 0x0b, 0x20, 0x00, 0x41, 0x01, 0x6b, 0x23, 0x01, 0x15, 0x00,
+    0x0b, 0x00, 0x1d, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x04, 0x01, 0x00,
+    0x01, 0x66, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74, 0x07, 0x0a, 0x02, 0x00,
+    0x01, 0x67, 0x01, 0x04, 0x70, 0x65, 0x65, 0x72};
+
+const std::array<WasmEdge::Byte, 160> CrossModuleTailCallerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+    0x01, 0x7f, 0x01, 0x7f, 0x02, 0x1c, 0x02, 0x06, 0x63, 0x61, 0x6c, 0x6c,
+    0x65, 0x65, 0x01, 0x66, 0x00, 0x00, 0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65,
+    0x65, 0x04, 0x70, 0x65, 0x65, 0x72, 0x03, 0x63, 0x00, 0x01, 0x03, 0x03,
+    0x02, 0x00, 0x00, 0x06, 0x07, 0x01, 0x7f, 0x01, 0x41, 0xaa, 0x01, 0x0b,
+    0x07, 0x07, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x02, 0x09, 0x06, 0x01,
+    0x03, 0x00, 0x02, 0x01, 0x00, 0x0a, 0x2f, 0x02, 0x20, 0x00, 0x23, 0x01,
+    0x41, 0xaa, 0x01, 0x47, 0x04, 0x40, 0x41, 0x02, 0x0f, 0x0b, 0x20, 0x00,
+    0x45, 0x04, 0x40, 0x41, 0x00, 0x0f, 0x0b, 0x20, 0x00, 0x41, 0x01, 0x6b,
+    0xd2, 0x00, 0x15, 0x00, 0x0b, 0x0c, 0x00, 0xd2, 0x01, 0x24, 0x00, 0x20,
+    0x00, 0xd2, 0x00, 0x15, 0x00, 0x0b, 0x00, 0x20, 0x04, 0x6e, 0x61, 0x6d,
+    0x65, 0x01, 0x07, 0x02, 0x00, 0x01, 0x66, 0x01, 0x01, 0x61, 0x04, 0x04,
+    0x01, 0x00, 0x01, 0x74, 0x07, 0x0a, 0x02, 0x00, 0x04, 0x70, 0x65, 0x65,
+    0x72, 0x01, 0x01, 0x67};
+
+TEST(AOTCrossModule, CompiledTailCallUsesCalleeContext) {
+  Configure Conf;
+  Conf.addProposal(Proposal::ReferenceTypes);
+  Conf.addProposal(Proposal::FunctionReferences);
+  Conf.addProposal(Proposal::TailCall);
+
+  auto CalleeMod = compileToJIT(Conf, CrossModuleTailCalleeWasm);
+  ASSERT_NE(CalleeMod, nullptr);
+  auto CallerMod = compileToJIT(Conf, CrossModuleTailCallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+
+  auto CalleeInstOrErr = ExecEngine.registerModule(Store, *CalleeMod, "callee");
+  ASSERT_TRUE(CalleeInstOrErr);
+  auto CalleeInst = std::move(*CalleeInstOrErr);
+
+  auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+  ASSERT_TRUE(CallerInstOrErr);
+  auto CallerInst = std::move(*CallerInstOrErr);
+
+  const auto *Run = CallerInst->findFuncExports("run");
+  ASSERT_NE(Run, nullptr);
+  ASSERT_TRUE(Run->isCompiledFunction());
+
+  const std::array<ValVariant, 1> Args{ValVariant(uint32_t(8U))};
+  const std::array<ValType, 1> ArgTypes{ValType(TypeCode::I32)};
+  auto R = ExecEngine.invoke(Run, Args, ArgTypes);
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 0u)
+      << "a cross-module tail call ran with the wrong module's globals";
+}
+
+// Lazy JIT resolves calls through its own per-function symbol cache, so cover
+// the same reads under RunMode::LazyJIT.
+TEST(AOTCrossModule, LazyJITCallUsesCalleeContext) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+  Conf.addProposal(Proposal::ReferenceTypes);
+  Conf.addProposal(Proposal::FunctionReferences);
+  VM::VM VM(Conf);
+
+  ASSERT_TRUE(VM.registerModule("callee"sv, CrossModuleCalleeWasm));
+  ASSERT_TRUE(VM.loadWasm(CrossModuleCallerWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  for (const auto &Name : {"run_direct"sv, "run_ref"sv, "run_indirect"sv}) {
+    auto R = VM.execute(Name);
+    ASSERT_TRUE(R) << Name;
+    ASSERT_EQ(R->size(), 1u) << Name;
+    EXPECT_EQ((*R)[0].first.get<uint32_t>(), 1871u)
+        << Name << " did not keep the two modules' contexts apart";
+  }
+}
+
+const std::array<WasmEdge::Byte, 67> CrossModuleNestCalleeWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x05,
+    0x06, 0x07, 0x01, 0x7f, 0x01, 0x41, 0xbb, 0x01, 0x0b, 0x07, 0x05, 0x01,
+    0x01, 0x63, 0x00, 0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x23, 0x00, 0x0b,
+    0x00, 0x11, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x04, 0x04, 0x01, 0x00, 0x01,
+    0x74, 0x07, 0x04, 0x01, 0x00, 0x01, 0x67};
+
+const std::array<WasmEdge::Byte, 115> CrossModuleNestCallerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x02, 0x0c, 0x01, 0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65,
+    0x65, 0x01, 0x63, 0x00, 0x00, 0x03, 0x03, 0x02, 0x00, 0x00, 0x05, 0x03,
+    0x01, 0x00, 0x01, 0x06, 0x07, 0x01, 0x7f, 0x01, 0x41, 0xaa, 0x01, 0x0b,
+    0x07, 0x07, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00, 0x02, 0x09, 0x05, 0x01,
+    0x03, 0x00, 0x01, 0x00, 0x0a, 0x15, 0x02, 0x06, 0x00, 0xd2, 0x00, 0x15,
+    0x00, 0x0b, 0x0c, 0x00, 0x10, 0x01, 0x41, 0x0a, 0x6c, 0x41, 0x00, 0x40,
+    0x00, 0x6a, 0x0b, 0x00, 0x1a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x07,
+    0x02, 0x00, 0x01, 0x63, 0x01, 0x01, 0x62, 0x04, 0x04, 0x01, 0x00, 0x01,
+    0x74, 0x07, 0x04, 0x01, 0x00, 0x01, 0x67};
+
+// A tail call must not leave the caller's caller running with the target's
+// module. Here A.a calls A.b through the same-module fast path, which pushes no
+// frame, and A.b tail-calls into B; when B returns, control lands back in A.a,
+// which must still resolve its own memory.
+TEST(AOTCrossModule, TailCallLeavesCallerContextIntact) {
+  Configure Conf;
+  Conf.addProposal(Proposal::ReferenceTypes);
+  Conf.addProposal(Proposal::FunctionReferences);
+  Conf.addProposal(Proposal::TailCall);
+
+  auto CalleeMod = compileToJIT(Conf, CrossModuleNestCalleeWasm);
+  ASSERT_NE(CalleeMod, nullptr);
+  auto CallerMod = compileToJIT(Conf, CrossModuleNestCallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+  auto CalleeInstOrErr = ExecEngine.registerModule(Store, *CalleeMod, "callee");
+  ASSERT_TRUE(CalleeInstOrErr);
+  auto CalleeInst = std::move(*CalleeInstOrErr);
+  auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+  ASSERT_TRUE(CallerInstOrErr);
+  auto CallerInst = std::move(*CallerInstOrErr);
+
+  const auto *Run = CallerInst->findFuncExports("run");
+  ASSERT_NE(Run, nullptr);
+  ASSERT_TRUE(Run->isCompiledFunction());
+  auto R = ExecEngine.invoke(Run, {}, {});
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 1871u)
+      << "the caller resumed with the tail-call target's module";
+}
 
 TEST_P(NativeCoreTest, TestSuites) {
   auto [Proposal, Conf, UnitName] = T.resolve(GetParam());

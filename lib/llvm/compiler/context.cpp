@@ -55,6 +55,10 @@ Compiler::CompileContext::CompileContext(LLVM::Context C, LLVM::Module &M,
               Int64PtrTy.getPointerTo(),
               // Globals
               Int128PtrTy.getPointerTo(),
+              // Tags
+              Int8PtrPtrTy,
+              // PendingExnTagAddr
+              Int8PtrPtrTy,
               // InstrCount
               Int64PtrTy,
               // CostTable

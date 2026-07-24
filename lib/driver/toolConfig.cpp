@@ -58,6 +58,9 @@ createProposalConfigure(const struct DriverProposalOptions &Opt) noexcept {
   if (Opt.PropRelaxedSIMD.value()) {
     Conf.removeProposal(Proposal::RelaxSIMD);
   }
+  if (Opt.PropExceptionHandling.value()) {
+    Conf.removeProposal(Proposal::ExceptionHandling);
+  }
   if (Opt.PropMemory64.value()) {
     Conf.removeProposal(Proposal::Memory64);
   }
@@ -72,6 +75,9 @@ createProposalConfigure(const struct DriverProposalOptions &Opt) noexcept {
   }
   if (Opt.PropRelaxedSIMDDeprecated.value()) {
     Conf.addProposal(Proposal::RelaxSIMD);
+  }
+  if (Opt.PropExceptionHandlingDeprecated.value()) {
+    Conf.addProposal(Proposal::ExceptionHandling);
   }
 
   // Handle the proposal removal which has dependency.
@@ -120,12 +126,6 @@ Configure createConfigure(const struct DriverToolOptions &Opt) noexcept {
 
   Configure Conf = createProposalConfigure(Opt);
 
-  if (Opt.PropExceptionHandling.value()) {
-    Conf.removeProposal(Proposal::ExceptionHandling);
-  }
-  if (Opt.PropExceptionHandlingDeprecated.value()) {
-    Conf.addProposal(Proposal::ExceptionHandling);
-  }
   if (Opt.PropComponent.value()) {
     Conf.addProposal(Proposal::Component);
     spdlog::warn("component model is enabled, this is experimental."sv);

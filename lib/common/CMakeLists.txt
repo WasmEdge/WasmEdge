@@ -4,6 +4,7 @@
 wasmedge_setup_spdlog()
 
 wasmedge_add_library(wasmedgeCommon
+  statistics.cpp
   hash.cpp
   hexstr.cpp
   spdlog.cpp

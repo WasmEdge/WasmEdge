@@ -4,10 +4,13 @@
 #include "executor/executor.h"
 
 #include "common/spdlog.h"
+#include "runtime/storemgr.h"
 #include "system/fault.h"
 #include "system/stacktrace.h"
 
 #include <cstdint>
+#include <shared_mutex>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -187,8 +190,9 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
             OuterStackTrace = OuterStackTrace.first(OuterStackTrace.size() - 1);
           }
         }
+        auto LiveModules = collectLiveModules(StackMgr);
         StackTraceSize =
-            compiledStackTrace(StackMgr, InnerStackTrace, StackTrace).size();
+            compiledStackTrace(LiveModules, InnerStackTrace, StackTrace).size();
         Err = ErrCode(static_cast<ErrCategory>(Code >> 24), Code);
       } else {
         auto &Wrapper = FuncType.getSymbol();
@@ -284,6 +288,52 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
     // function body.
     return Instrs.begin();
   }
+}
+
+std::vector<const Runtime::Instance::ModuleInstance *>
+Executor::collectLiveModules(
+    const Runtime::StackManager &StackMgr) const noexcept {
+  std::vector<const Runtime::Instance::ModuleInstance *> Modules;
+  std::unordered_set<const Runtime::Instance::ModuleInstance *> Seen;
+  auto AddModule = [&](const Runtime::Instance::ModuleInstance *M) {
+    if (M != nullptr && Seen.insert(M).second) {
+      Modules.push_back(M);
+    }
+  };
+
+  for (const auto &Frame : StackMgr.getFramesSpan()) {
+    AddModule(Frame.Module);
+  }
+
+  std::unordered_set<Runtime::StoreManager *> Stores;
+  auto GatherStores = [&](const Runtime::Instance::ModuleInstance *M) {
+    if (M == nullptr) {
+      return;
+    }
+    std::shared_lock Lock(M->Mutex);
+    for (const auto &Entry : M->LinkedStore) {
+      Stores.insert(Entry.first.first);
+    }
+  };
+
+  const size_t SeedCount = Modules.size();
+  for (size_t I = 0; I < SeedCount; ++I) {
+    GatherStores(Modules[I]);
+    for (const auto *Func : Modules[I]->getFunctionInstances()) {
+      if (Func != nullptr) {
+        GatherStores(Func->getModule());
+      }
+    }
+  }
+
+  for (auto *Store : Stores) {
+    Store->getModuleList([&AddModule](const auto &NamedMod) {
+      for (const auto &Entry : NamedMod) {
+        AddModule(Entry.second);
+      }
+    });
+  }
+  return Modules;
 }
 
 Expect<void>

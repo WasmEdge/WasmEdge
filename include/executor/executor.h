@@ -409,6 +409,12 @@ private:
       bool IsNativeEntry = false,
       const Runtime::Instance::ModuleInstance *CallerModInst = nullptr);
 
+  /// Live module instances whose compiled code may be on the native stack at
+  /// fault time: the current frame-stack modules plus every instance in a store
+  /// reachable through their linked-module back-links. Rebuilt on each fault.
+  std::vector<const Runtime::Instance::ModuleInstance *>
+  collectLiveModules(const Runtime::StackManager &StackMgr) const noexcept;
+
   /// Helper function for branching to label.
   Expect<void> branchToLabel(Runtime::StackManager &StackMgr,
                              const AST::Instruction::JumpDescriptor &JumpDesc,

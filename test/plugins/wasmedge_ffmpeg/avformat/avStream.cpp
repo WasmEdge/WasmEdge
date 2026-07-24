@@ -269,6 +269,46 @@ TEST_F(FFmpegTest, AVStreamStruct) {
   }
 }
 
+TEST_F(FFmpegTest, AVStreamIndexOutOfRange) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+
+  uint32_t FormatCtxPtr = UINT32_C(4);
+  uint32_t CodecParameterPtr = UINT32_C(8);
+  uint32_t FilePtr = UINT32_C(100);
+
+  std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
+  initFormatCtx(FormatCtxPtr, FilePtr, FileName);
+  uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
+  ASSERT_TRUE(FormatCtxId > 0);
+
+  // A guest-supplied stream index past nb_streams must be rejected, not walked
+  // off the end of the streams array.
+  uint32_t OutOfRangeIdx = UINT32_C(1000000);
+
+  auto *IdFunc =
+      AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avStream_id");
+  ASSERT_NE(IdFunc, nullptr);
+  auto &HostFuncAVStreamId = IdFunc->getHostFunc();
+  HostFuncAVStreamId.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, OutOfRangeIdx},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  auto *CodecParFunc = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avStream_codecpar");
+  ASSERT_NE(CodecParFunc, nullptr);
+  auto &HostFuncAVStreamCodecPar = CodecParFunc->getHostFunc();
+  HostFuncAVStreamCodecPar.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, OutOfRangeIdx,
+                                                  CodecParameterPtr},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
+}
+
 } // namespace WasmEdgeFFmpeg
 } // namespace Host
 } // namespace WasmEdge

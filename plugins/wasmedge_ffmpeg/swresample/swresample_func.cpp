@@ -21,12 +21,14 @@ Expect<uint32_t> SWResampleVersion::body(const Runtime::CallingFrame &) {
 Expect<int64_t> SWRGetDelay::body(const Runtime::CallingFrame &,
                                   uint32_t SWRContextId, int64_t Base) {
   FFMPEG_PTR_FETCH(SWRContext, SWRContextId, SwrContext);
+  FFMPEG_PTR_CHECK(SWRContext, 0);
   return swr_get_delay(SWRContext, Base);
 }
 
 Expect<int32_t> SWRInit::body(const Runtime::CallingFrame &,
                               uint32_t SWRContextId) {
   FFMPEG_PTR_FETCH(SWRContext, SWRContextId, SwrContext);
+  FFMPEG_PTR_CHECK(SWRContext, static_cast<int32_t>(ErrNo::InternalError));
   return swr_init(SWRContext);
 }
 
@@ -38,8 +40,15 @@ SWRAllocSetOpts::body(const Runtime::CallingFrame &Frame, uint32_t SwrCtxPtr,
                       int32_t InSampleRate, int32_t LogOffset) {
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(SwrCtxId, MemInst, uint32_t, SwrCtxPtr, "")
-  FFMPEG_PTR_FETCH(CurrSwrCtx, *SwrCtxId, SwrContext);
   FFMPEG_PTR_FETCH(ExistSWRContext, SWRContextId, SwrContext);
+
+  // Id 0 is the legitimate "allocate a fresh context" request; a nonzero id
+  // that does not resolve is rejected instead of silently allocating anew.
+  // Leave *SwrCtxId unchanged: it may alias the guest's live handle (the
+  // in-place reconfigure idiom), and clearing it would strand that handle.
+  if (SWRContextId != 0 && ExistSWRContext == nullptr) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
 
   uint64_t const OutChLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(OutChLayoutId);
@@ -51,21 +60,50 @@ SWRAllocSetOpts::body(const Runtime::CallingFrame &Frame, uint32_t SwrCtxPtr,
       FFmpegUtils::SampleFmt::fromSampleID(InSampleFmtId);
 
   AVChannelLayout AVOutChLayout;
-  av_channel_layout_from_mask(&AVOutChLayout, OutChLayout);
+  int const OutRet = av_channel_layout_from_mask(&AVOutChLayout, OutChLayout);
+  if (OutRet < 0) {
+    // Validation failed before swr_alloc_set_opts2 touched the existing
+    // context, so it is still live; leave the guest's handle intact.
+    spdlog::error("[WasmEdge-FFmpeg] SWRAllocSetOpts: "
+                  "av_channel_layout_from_mask failed ({}) for output "
+                  "channel layout mask {:#x}"sv,
+                  OutRet, OutChLayout);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
 
   AVChannelLayout AVInChLayout;
-  av_channel_layout_from_mask(&AVInChLayout, InChLayout);
+  int const InRet = av_channel_layout_from_mask(&AVInChLayout, InChLayout);
+  if (InRet < 0) {
+    av_channel_layout_uninit(&AVOutChLayout);
+    // As above: the context is untouched; preserve the guest's handle.
+    spdlog::error("[WasmEdge-FFmpeg] SWRAllocSetOpts: "
+                  "av_channel_layout_from_mask failed ({}) for input channel "
+                  "layout mask {:#x}"sv,
+                  InRet, InChLayout);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
 
-  swr_alloc_set_opts2(&ExistSWRContext, &AVOutChLayout, OutSampleFmt,
-                      OutSampleRate, &AVInChLayout, InSampleFmt, InSampleRate,
-                      LogOffset,
-                      nullptr); // Always being used as null in rust sdk.
-  CurrSwrCtx = ExistSWRContext;
-
+  SwrContext *const PrevSWRContext = ExistSWRContext;
+  int const AllocRet = swr_alloc_set_opts2(
+      &ExistSWRContext, &AVOutChLayout, OutSampleFmt, OutSampleRate,
+      &AVInChLayout, InSampleFmt, InSampleRate, LogOffset,
+      nullptr); // Always being used as null in rust sdk.
+  if (AllocRet < 0) {
+    av_channel_layout_uninit(&AVOutChLayout);
+    av_channel_layout_uninit(&AVInChLayout);
+    if (PrevSWRContext != nullptr) {
+      Env.get()->deallocByValue(PrevSWRContext);
+    }
+    *SwrCtxId = 0;
+    spdlog::error("[WasmEdge-FFmpeg] SWRAllocSetOpts: swr_alloc_set_opts2 "
+                  "failed ({})"sv,
+                  AllocRet);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   av_channel_layout_uninit(&AVOutChLayout);
   av_channel_layout_uninit(&AVInChLayout);
 
-  FFMPEG_PTR_STORE(CurrSwrCtx, SwrCtxId);
+  FFMPEG_PTR_STORE(ExistSWRContext, SwrCtxId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -73,6 +111,9 @@ Expect<int32_t> AVOptSetDict::body(const Runtime::CallingFrame &,
                                    uint32_t SWRContextId, uint32_t DictId) {
   FFMPEG_PTR_FETCH(SWRContext, SWRContextId, SwrContext);
   FFMPEG_PTR_FETCH(AvDictionary, DictId, AVDictionary *);
+  FFMPEG_PTR_CHECK(SWRContext, static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK_NONZERO(AvDictionary, DictId,
+                           static_cast<int32_t>(ErrNo::InternalError));
   return av_opt_set_dict(SWRContext, AvDictionary);
 }
 
@@ -83,6 +124,13 @@ Expect<int32_t> SWRConvertFrame::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(SWRContext, SWRContextId, SwrContext);
   FFMPEG_PTR_FETCH(OuputFrame, FrameOutputId, AVFrame);
   FFMPEG_PTR_FETCH(InputFrame, FrameInputId, AVFrame);
+  // swr_convert_frame accepts a NULL output (query buffered samples) or NULL
+  // input (drain), so a null frame is allowed only for handle id 0.
+  FFMPEG_PTR_CHECK(SWRContext, static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK_NONZERO(OuputFrame, FrameOutputId,
+                           static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK_NONZERO(InputFrame, FrameInputId,
+                           static_cast<int32_t>(ErrNo::InternalError));
 
   return swr_convert_frame(SWRContext, OuputFrame, InputFrame);
 }
@@ -90,8 +138,11 @@ Expect<int32_t> SWRConvertFrame::body(const Runtime::CallingFrame &,
 Expect<int32_t> SWRFree::body(const Runtime::CallingFrame &,
                               uint32_t SWRContextId) {
   FFMPEG_PTR_FETCH(SWRContext, SWRContextId, SwrContext);
-  swr_close(SWRContext);
-  FFMPEG_PTR_DELETE(SWRContextId);
+  FFMPEG_PTR_CHECK_FREE(SWRContext, SWRContextId,
+                        static_cast<int32_t>(ErrNo::InternalError));
+  SwrContext *const FreedCtx = SWRContext;
+  swr_free(&SWRContext);
+  Env.get()->deallocByValue(FreedCtx);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -108,9 +159,7 @@ SWResampleConfiguration::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
 
   const char *Config = swresample_configuration();
-  auto Actual = std::strlen(Config);
-  auto N = std::min<uint32_t>(ConfigLen, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(Config, N, ConfigBuf.data());
+  copyCStringToBuffer(ConfigBuf.data(), ConfigLen, Config);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -126,9 +175,7 @@ Expect<int32_t> SWResampleLicense::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
 
   const char *License = swresample_license();
-  auto Actual = std::strlen(License);
-  auto N = std::min<uint32_t>(LicenseLen, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(License, N, LicenseBuf.data());
+  copyCStringToBuffer(LicenseBuf.data(), LicenseLen, License);
   return static_cast<int32_t>(ErrNo::Success);
 }
 

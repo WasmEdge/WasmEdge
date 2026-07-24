@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "avutil/avFrame.h"
+#include "avutil/avDictionary.h"
 #include "avutil/module.h"
 
 #include "utils.h"
@@ -458,6 +459,15 @@ TEST_F(FFmpegTest, AVFrame) {
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), PixFormatId);
+
+    // An invalid frame id reports the signed ErrNo value, not a large
+    // positive number a negative-error check would miss.
+    HostFuncAVFrameSetVideoFormat.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), PixFormatId},
+        Result);
+    EXPECT_EQ(Result[0].get<int32_t>(),
+              static_cast<int32_t>(ErrNo::InternalError));
   }
 
   FuncInst = AVUtilMod->findFuncExports(
@@ -751,6 +761,291 @@ TEST_F(FFmpegTest, AVFrame) {
   //  ==========================================================================
   //                            AVFrame Audio Funcs.
   //  ==========================================================================
+}
+
+TEST_F(FFmpegTest, AVFrameDataIndexBounds) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_alloc");
+  auto &HostFuncAVFrameAlloc = FuncInst->getHostFunc();
+
+  uint32_t FramePtr = UINT32_C(4);
+  HostFuncAVFrameAlloc.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FramePtr}, Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  uint32_t FrameId = readUInt32(MemInst, FramePtr);
+  ASSERT_TRUE(FrameId > 0);
+
+  FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_data");
+  auto &HostFuncAVFrameData = FuncInst->getHostFunc();
+
+  // The destination buffer is valid but the plane index runs far past the
+  // fixed-size data[] array; the host must reject it, not read a wild pointer.
+  uint32_t BufPtr = UINT32_C(100);
+  uint32_t BufLen = UINT32_C(4);
+  uint32_t OutOfBoundsIndex = UINT32_C(100);
+  fillMemContent(MemInst, BufPtr, BufLen);
+  HostFuncAVFrameData.run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              FrameId, BufPtr, BufLen, OutOfBoundsIndex},
+                          Result);
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
+}
+
+TEST_F(FFmpegTest, AVFrameDataNullPlane) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_alloc");
+  auto &HostFuncAVFrameAlloc = FuncInst->getHostFunc();
+
+  uint32_t FramePtr = UINT32_C(4);
+  HostFuncAVFrameAlloc.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FramePtr}, Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  uint32_t FrameId = readUInt32(MemInst, FramePtr);
+  ASSERT_TRUE(FrameId > 0);
+
+  FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_data");
+  auto &HostFuncAVFrameData = FuncInst->getHostFunc();
+
+  // The frame is allocated but never given a buffer, so data[0] is null; the
+  // host must reject the read instead of copying from a null plane.
+  uint32_t BufPtr = UINT32_C(100);
+  uint32_t BufLen = UINT32_C(4);
+  uint32_t Index = UINT32_C(0);
+  fillMemContent(MemInst, BufPtr, BufLen);
+  HostFuncAVFrameData.run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              FrameId, BufPtr, BufLen, Index},
+                          Result);
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
+}
+
+TEST_F(FFmpegTest, AVFrameDataZeroLength) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_alloc");
+  auto &HostFuncAVFrameAlloc = FuncInst->getHostFunc();
+
+  uint32_t FramePtr = UINT32_C(4);
+  HostFuncAVFrameAlloc.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FramePtr}, Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  uint32_t FrameId = readUInt32(MemInst, FramePtr);
+  ASSERT_TRUE(FrameId > 0);
+
+  FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_data");
+  auto &HostFuncAVFrameData = FuncInst->getHostFunc();
+
+  // A zero-length read copies nothing, so it must succeed even on an unbacked
+  // plane where data[0] is null.
+  uint32_t BufPtr = UINT32_C(100);
+  uint32_t BufLen = UINT32_C(0);
+  uint32_t Index = UINT32_C(0);
+  HostFuncAVFrameData.run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              FrameId, BufPtr, BufLen, Index},
+                          Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegTest, AVFrameDataRejectsOversizedRead) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_alloc");
+  auto &HostFuncAVFrameAlloc = FuncInst->getHostFunc();
+
+  uint32_t FramePtr = UINT32_C(4);
+  HostFuncAVFrameAlloc.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FramePtr}, Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  uint32_t FrameId = readUInt32(MemInst, FramePtr);
+  ASSERT_TRUE(FrameId > 0);
+
+  // Build a tiny packed-audio frame: 8 samples * 1 channel * U8 gives an
+  // 8-byte data[0] plane, far smaller than the destination buffer below.
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_frame_set_audio_format");
+  auto &HostFuncAVFrameSetAudioFormat = FuncInst->getHostFunc();
+  uint32_t SampleFormatId = UINT32_C(1);
+  HostFuncAVFrameSetAudioFormat.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FrameId, SampleFormatId},
+      Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_frame_set_channel_layout");
+  auto &HostFuncAVFrameSetChannelLayout = FuncInst->getHostFunc();
+  uint64_t ChannelLayout = 1UL << 10;
+  HostFuncAVFrameSetChannelLayout.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FrameId, ChannelLayout},
+      Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_frame_set_nb_samples");
+  auto &HostFuncAVFrameSetNbSamples = FuncInst->getHostFunc();
+  int32_t NbSamples = 8;
+  HostFuncAVFrameSetNbSamples.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FrameId, NbSamples}, Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_get_buffer");
+  auto &HostFuncAVFrameGetBuffer = FuncInst->getHostFunc();
+  int32_t Align = 0;
+  HostFuncAVFrameGetBuffer.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FrameId, Align},
+      Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_data");
+  auto &HostFuncAVFrameData = FuncInst->getHostFunc();
+
+  // A request far beyond the backed plane must be rejected outright rather
+  // than partially copied and reported as success.
+  uint32_t BufPtr = UINT32_C(16);
+  uint32_t FrameBufLen = UINT32_C(16384);
+  uint32_t Index = UINT32_C(0);
+  uint8_t const Sentinel = UINT8_C(0xCD);
+  fillMemContent(MemInst, BufPtr, FrameBufLen, Sentinel);
+  HostFuncAVFrameData.run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              FrameId, BufPtr, FrameBufLen, Index},
+                          Result);
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  const uint8_t *Buf = MemInst->getPointer<uint8_t *>(BufPtr);
+  EXPECT_EQ(Buf[0], Sentinel);
+  EXPECT_EQ(Buf[FrameBufLen / 2], Sentinel);
+  EXPECT_EQ(Buf[FrameBufLen - 1], Sentinel);
+
+  // A request within the backed plane still succeeds.
+  uint32_t SmallLen = UINT32_C(8);
+  HostFuncAVFrameData.run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              FrameId, BufPtr, SmallLen, Index},
+                          Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegTest, AVFrameMetadataNullHandle) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_metadata");
+  auto &HostFuncAVFrameMetadata = FuncInst->getHostFunc();
+
+  // A guest id of 0 resolves to a null AVFrame; the getter must report
+  // InternalError instead of dereferencing it.
+  uint32_t InvalidFrameId = UINT32_C(0);
+  uint32_t DictPtr = UINT32_C(4);
+  HostFuncAVFrameMetadata.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{InvalidFrameId, DictPtr},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
+}
+
+TEST_F(FFmpegTest, AVFrameMetadataLiveView) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_alloc");
+  auto &HostFuncAVFrameAlloc = FuncInst->getHostFunc();
+
+  uint32_t FramePtr = UINT32_C(4);
+  HostFuncAVFrameAlloc.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FramePtr}, Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  uint32_t FrameId = readUInt32(MemInst, FramePtr);
+  ASSERT_TRUE(FrameId > 0);
+
+  uint32_t KeyPtr = UINT32_C(8);
+  uint32_t ValuePtr = UINT32_C(11);
+  uint32_t OwnedDictPtr = UINT32_C(80);
+  initDict(OwnedDictPtr, KeyPtr, "KEY", ValuePtr, "VALUE");
+  uint32_t OwnedDictId = readUInt32(MemInst, OwnedDictPtr);
+  ASSERT_TRUE(OwnedDictId > 0);
+
+  // Take a metadata handle before any metadata exists.
+  FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_metadata");
+  auto &HostFuncAVFrameMetadata = FuncInst->getHostFunc();
+  uint32_t MetaDictPtr = UINT32_C(84);
+  HostFuncAVFrameMetadata.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FrameId, MetaDictPtr},
+      Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  uint32_t MetaDictId = readUInt32(MemInst, MetaDictPtr);
+  ASSERT_TRUE(MetaDictId > 0);
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_frame_set_metadata");
+  auto &HostFuncAVFrameSetMetadata = FuncInst->getHostFunc();
+  HostFuncAVFrameSetMetadata.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FrameId, OwnedDictId},
+      Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  // The handle taken before the set is a live view of the frame's metadata
+  // field, so it observes the freshly installed dictionary.
+  FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_get");
+  auto &HostFuncAVDictGet = FuncInst->getHostFunc();
+  uint32_t KeyLenPtr = UINT32_C(100);
+  uint32_t ValueLenPtr = UINT32_C(104);
+  HostFuncAVDictGet.run(CallFrame,
+                        std::initializer_list<WasmEdge::ValVariant>{
+                            MetaDictId, KeyPtr, UINT32_C(3), UINT32_C(0),
+                            UINT32_C(0), KeyLenPtr, ValueLenPtr},
+                        Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), 1);
+  EXPECT_EQ(readUInt32(MemInst, KeyLenPtr), UINT32_C(3));
+  EXPECT_EQ(readUInt32(MemInst, ValueLenPtr), UINT32_C(5));
+
+  // Freeing the borrowed handle drops only the id; the frame keeps its
+  // metadata and a fresh handle still reads it.
+  FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_free");
+  auto &HostFuncAVDictFree = FuncInst->getHostFunc();
+  HostFuncAVDictFree.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{MetaDictId},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  HostFuncAVFrameMetadata.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FrameId, MetaDictPtr},
+      Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  MetaDictId = readUInt32(MemInst, MetaDictPtr);
+  ASSERT_TRUE(MetaDictId > 0);
+
+  // The frame owns an independent copy, so freeing the source dictionary
+  // leaves the metadata readable.
+  HostFuncAVDictFree.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{OwnedDictId},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  HostFuncAVDictGet.run(CallFrame,
+                        std::initializer_list<WasmEdge::ValVariant>{
+                            MetaDictId, KeyPtr, UINT32_C(3), UINT32_C(0),
+                            UINT32_C(0), KeyLenPtr, ValueLenPtr},
+                        Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), 1);
 }
 
 } // namespace WasmEdgeFFmpeg

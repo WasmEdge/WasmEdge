@@ -538,6 +538,59 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
   }
 }
 
+// Regression: avcodec_send_packet / avcodec_send_frame read a null packet or
+// frame as an end-of-stream drain request; a nonzero id that fails the typed
+// lookup must be rejected instead of draining, and only id 0 drains.
+TEST_F(FFmpegTest, AVCodecSendRejectsUnresolvedHandles) {
+  ASSERT_TRUE(AVCodecMod != nullptr);
+
+  uint32_t CodecCtxPtr = UINT32_C(4);
+  auto *AllocInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodec_alloc_context3");
+  ASSERT_NE(AllocInst, nullptr);
+  auto &HostFuncAllocCtx = AllocInst->getHostFunc();
+  EXPECT_TRUE(HostFuncAllocCtx.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), CodecCtxPtr},
+      Result));
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  uint32_t CodecCtxId = readUInt32(MemInst, CodecCtxPtr);
+  ASSERT_TRUE(CodecCtxId > 0);
+
+  uint32_t UnresolvedId = UINT32_C(999999);
+
+  auto *SendPacketInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodec_send_packet");
+  ASSERT_NE(SendPacketInst, nullptr);
+  auto &HostFuncSendPacket = SendPacketInst->getHostFunc();
+  EXPECT_TRUE(HostFuncSendPacket.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{CodecCtxId, UnresolvedId},
+      Result));
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  auto *SendFrameInst =
+      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_send_frame");
+  ASSERT_NE(SendFrameInst, nullptr);
+  auto &HostFuncSendFrame = SendFrameInst->getHostFunc();
+  EXPECT_TRUE(HostFuncSendFrame.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{CodecCtxId, UnresolvedId},
+      Result));
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  auto *FreeInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodec_free_context");
+  ASSERT_NE(FreeInst, nullptr);
+  auto &HostFuncFreeCtx = FreeInst->getHostFunc();
+  EXPECT_TRUE(HostFuncFreeCtx.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{CodecCtxId},
+      Result));
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+}
+
 } // namespace WasmEdgeFFmpeg
 } // namespace Host
 } // namespace WasmEdge

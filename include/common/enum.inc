@@ -1210,6 +1210,8 @@ E(CastFailed, 0x0418, "cast failure")
 E(UncaughtException, 0x0419, "uncaught exception")
 // Exception pending for propagating through the native frames
 E(PendingException, 0x041A, "pending exception")
+// Call stack exhausted (e.g. unbounded recursion)
+E(CallStackExhausted, 0x041B, "call stack exhausted")
 // @}
 
 #undef E

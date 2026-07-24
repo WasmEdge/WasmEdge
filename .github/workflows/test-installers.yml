@@ -144,6 +144,17 @@ jobs:
         verify_version "${LATEST_VERSION}"
         bash utils/uninstall.sh -q -V
 
+        # Test uninstall with duplicate env configurations (PR #5140)
+        printf "\n=== Test 1.5: Uninstall duplicate env configs ===\n"
+        bash utils/install.sh -D
+        echo ". \"\$HOME/.wasmedge/env\"" >> ~/.bashrc
+        echo ". \"\$HOME/.wasmedge/env\"" >> ~/.bashrc
+        bash utils/uninstall.sh -q -V
+        if grep -q ". \"\$HOME/.wasmedge/env\"" ~/.bashrc; then
+          echo "[FAIL] Duplicate entries were not successfully removed"
+          exit 1
+        fi
+
         # Test plugin installation
         printf "\n=== Test 2: Specific version with plugin ===\n"
         bash utils/install.sh -v ${TEST_VERSION} --plugins wasi_nn-ggml -D

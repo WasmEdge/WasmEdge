@@ -148,6 +148,10 @@ typedef struct WasmEdge_LogMessage {
   uint64_t ThreadId;
 } WasmEdge_LogMessage;
 
+/// The `WasmEdge_LogMessage` pointer and embedded strings are borrowed. They
+/// are only valid during the callback. Copy the string contents before
+/// returning if they are needed later. The caller should __NOT__ call
+/// `WasmEdge_StringDelete` on the embedded strings.
 typedef void (*WasmEdge_LogCallback_t)(const WasmEdge_LogMessage *Message);
 
 WASMEDGE_CAPI_EXPORT extern void

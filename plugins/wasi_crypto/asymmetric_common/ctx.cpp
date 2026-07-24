@@ -232,10 +232,10 @@ Context::keypairReplaceManaged(__wasi_secrets_manager_t SecretsManagerHandle,
 WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>
 Context::keypairId(__wasi_keypair_t KpHandle, Span<uint8_t> KpId) noexcept {
   return KeyPairManager.getId(KpHandle).and_then([&](auto &&Id) noexcept {
-    size_t Len = std::min(KpId.size(), Id.size());
-    std::copy_n(Id.begin(), Len, KpId.begin());
+    ensureOrReturn(Id.size() <= KpId.size(), __WASI_CRYPTO_ERRNO_OVERFLOW);
+    std::copy(Id.begin(), Id.end(), KpId.begin());
     return KeyPairManager.getManagedVersion(KpHandle).map(
-        [Len](auto Version) { return std::make_tuple(Len, Version); });
+        [&Id](auto Version) { return std::make_tuple(Id.size(), Version); });
   });
 }
 

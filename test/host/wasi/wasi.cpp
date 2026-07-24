@@ -14,8 +14,11 @@
 #include <cstdint>
 #include <cstring>
 #include <ctime>
+#include <filesystem>
 #include <fcntl.h>
+#include <fstream>
 #include <gtest/gtest.h>
+#include <iterator>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -4318,6 +4321,53 @@ bool isValidFd(int Fd) {
 #endif
 }
 } // namespace
+
+#if WASMEDGE_OS_MACOS
+TEST(WasiTest, FdAllocateRejectsOverflowOnMacOS) {
+  WasmEdge::Host::WASI::Environ Env;
+  const fs::path TempPath = fs::u8path("wasi_fd_allocate_overflow.tmp");
+  const std::string_view Content = "fd_allocate overflow check"sv;
+
+  {
+    std::ofstream Out(TempPath, std::ios::binary);
+    ASSERT_TRUE(Out.is_open());
+    Out << Content;
+  }
+
+  Env.init({"/:."s}, "test"s, {}, {});
+  const auto Fd = Env.pathOpen(3, TempPath.u8string(),
+                               static_cast<__wasi_lookupflags_t>(0),
+                               static_cast<__wasi_oflags_t>(0),
+                               __WASI_RIGHTS_FD_ALLOCATE,
+                               static_cast<__wasi_rights_t>(0),
+                               static_cast<__wasi_fdflags_t>(0));
+  ASSERT_TRUE(Fd);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  WasmEdge::Host::WasiFdAllocate WasiFdAllocate(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  EXPECT_TRUE(WasiFdAllocate.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          *Fd, UINT64_MAX, UINT64_C(1)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_INVAL);
+  EXPECT_TRUE(Env.fdClose(*Fd));
+  Env.fini();
+
+  std::ifstream In(TempPath, std::ios::binary);
+  ASSERT_TRUE(In.is_open());
+  const std::string Actual((std::istreambuf_iterator<char>(In)),
+                           std::istreambuf_iterator<char>());
+  EXPECT_EQ(std::string_view(Actual.data(), Actual.size()), Content);
+
+  std::error_code Ec;
+  fs::remove(TempPath, Ec);
+  EXPECT_FALSE(Ec);
+}
+#endif
 
 TEST(WasiTest, CustomFds) {
   WasmEdge::Host::WASI::Environ Env;

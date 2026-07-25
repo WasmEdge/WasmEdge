@@ -54,3 +54,17 @@ verify_shell_config() {
     echo "✓ --no-modify-shell-profile works"
   fi
 }
+
+test_uninstall_duplicates() {
+  printf "\n=== Test: Uninstall duplicate env configs ===\n"
+  bash utils/install.sh -D
+  echo ". \"$HOME/.wasmedge/env\"" >> ~/.bashrc
+  echo ". \"$HOME/.wasmedge/env\"" >> ~/.bashrc
+  bash utils/uninstall.sh -q -V
+  if grep -q ". \"$HOME/.wasmedge/env\"" ~/.bashrc 2>/dev/null; then
+    echo "✗ Duplicate entries were not successfully removed"
+    exit 1
+  else
+    echo "✓ Duplicate entries removed successfully"
+  fi
+}

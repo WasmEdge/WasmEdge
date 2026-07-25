@@ -44,7 +44,7 @@ The WasmEdge project and its leadership embrace the following values:
 There are three levels of maintainers for WasmEdge. The WasmEdge maintainers oversee the overall
 project and its health. Committers focus on a single codebase, a group of related
 codebases, a service (e.g., a website), or project to support the other projects (e.g., marketing or
-community management). Reviewers help review the GitHub issues and PRs. See the [Contributor Ladder](./CONTRIBUTION_LADDER.md) for more detailed information on responsibilities.
+community management). Reviewers help review the GitHub issues and PRs. See the [Contributor Ladder](./CONTRIBUTOR_LADDER.md) for more detailed information on responsibilities.
 
 ## Adding new projects
 

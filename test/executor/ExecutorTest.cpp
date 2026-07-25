@@ -360,8 +360,7 @@ TEST(Coredump, generateCoredump) {
   size_t Offset = 0;
   const auto ReadU32 = [&Content, &Offset]() {
     uint32_t Result = 0;
-    uint32_t Shift = 0;
-    while (true) {
+    for (uint32_t Shift = 0; Shift < 35U; Shift += 7U) {
       EXPECT_LT(Offset, Content.size());
       if (Offset >= Content.size()) {
         return 0U;
@@ -371,8 +370,9 @@ TEST(Coredump, generateCoredump) {
       if ((Byte & 0x80U) == 0) {
         return Result;
       }
-      Shift += 7U;
     }
+    ADD_FAILURE() << "LEB128 u32 encoding exceeds 5 bytes";
+    return 0U;
   };
 
   ASSERT_GE(Content.size(), 6U);

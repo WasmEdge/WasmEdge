@@ -1605,18 +1605,6 @@ public:
     }
     return createCall(C, {V}, Name);
   }
-  Value createBinaryIntrinsic(unsigned int ID, Value LHS, Value RHS,
-                              const char *Name = "") noexcept {
-    FunctionCallee C;
-    {
-      LLVMTypeRef ParamTypes[2] = {LHS.getType().unwrap(),
-                                   RHS.getType().unwrap()};
-      C.Fn = LLVMGetIntrinsicDeclaration(getMod(), ID, ParamTypes, 2);
-      C.Ty = LLVMIntrinsicGetType(getCtx(), ID, ParamTypes, 2);
-    }
-    return createCall(C, {LHS, RHS}, Name);
-  }
-
   Value createVectorSplat(unsigned int ElementCount, Value V,
                           const char *Name = "") noexcept {
     Value Zero = Value::getConstInt(LLVMInt32TypeInContext(getCtx()), 0);

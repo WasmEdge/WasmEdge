@@ -142,7 +142,8 @@ jobs:
         bash utils/uninstall.sh -q -V
 
         # Test uninstall with duplicate env configurations (PR #5140)
-        test_uninstall_duplicates
+        printf "\n=== Test: Uninstall duplicate env configs ===\n"
+        verify_uninstall_duplicate_env
 
         # Test plugin installation
         printf "\n=== Test 2: Specific version with plugin ===\n"

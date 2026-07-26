@@ -14,6 +14,8 @@
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 
+#include <algorithm>
+
 namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
@@ -211,9 +213,45 @@ MlKem<Bits>::KeyPair::generate(OptionalRef<const Options>) noexcept {
 
 template <int Bits>
 WasiCryptoExpect<typename MlKem<Bits>::KeyPair>
-MlKem<Bits>::KeyPair::import(Span<const uint8_t>,
-                             __wasi_keypair_encoding_e_t) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+MlKem<Bits>::KeyPair::import(Span<const uint8_t> Encoded,
+                             __wasi_keypair_encoding_e_t Encoding) noexcept {
+  switch (Encoding) {
+  case __WASI_KEYPAIR_ENCODING_RAW: {
+    ensureOrReturn(Encoded.size() == KpSize, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+    EvpPkeyCtxPtr KpCtx{EVP_PKEY_CTX_new_from_name(nullptr, name(), nullptr)};
+    ensureOrReturn(KpCtx, __WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
+    opensslCheck(EVP_PKEY_fromdata_init(KpCtx.get()));
+
+    OSSL_PARAM Params[2];
+    Params[0] = OSSL_PARAM_construct_octet_string(
+        OSSL_PKEY_PARAM_PRIV_KEY,
+        const_cast<uint8_t *>(Encoded.data() + PkSize), SkSize);
+    Params[1] = OSSL_PARAM_construct_end();
+
+    EVP_PKEY *Kp = nullptr;
+    ensureOrReturn(
+        EVP_PKEY_fromdata(KpCtx.get(), &Kp, EVP_PKEY_KEYPAIR, Params),
+        __WASI_CRYPTO_ERRNO_INVALID_KEY);
+    EvpPkeyPtr Res{Kp};
+
+    // The decapsulation key embeds its own encapsulation key, so the supplied
+    // ek half has to match the one dk derives. Reject inputs whose halves
+    // belong to different keypairs instead of trusting dk alone.
+    std::vector<uint8_t> DerivedPk(PkSize);
+    size_t Size = PkSize;
+    opensslCheck(EVP_PKEY_get_octet_string_param(
+        Res.get(), OSSL_PKEY_PARAM_PUB_KEY, DerivedPk.data(), PkSize, &Size));
+    ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    ensureOrReturn(
+        std::equal(DerivedPk.begin(), DerivedPk.end(), Encoded.begin()),
+        __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+    return Res;
+  }
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
+  }
 }
 
 template <int Bits>

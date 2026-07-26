@@ -565,6 +565,103 @@ TEST_F(WasiCryptoTest, KxMlKemKeypairExport) {
   MlKemKpExportTest("ML-KEM-768"sv, 1184, 2400);
   MlKemKpExportTest("ML-KEM-1024"sv, 1568, 3168);
 }
+
+TEST_F(WasiCryptoTest, KxMlKemKeypairImport) {
+  auto MlKemKpImportTest = [this](std::string_view Alg, size_t PkSize,
+                                  size_t SkSize, size_t CtSize) {
+    SCOPED_TRACE(Alg);
+    constexpr size_t SecretSize = 32;
+    const size_t KpSize = PkSize + SkSize;
+
+    auto ExportKp = [this, Alg, KpSize]() {
+      WASI_CRYPTO_EXPECT_SUCCESS(
+          KpHandle, keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg,
+                                    std::nullopt));
+      WASI_CRYPTO_EXPECT_SUCCESS(
+          OutputHandle, keypairExport(KpHandle, __WASI_KEYPAIR_ENCODING_RAW));
+      std::vector<uint8_t> Raw(KpSize);
+      WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(OutputHandle, Raw));
+      WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+      return Raw;
+    };
+
+    const auto Raw = ExportKp();
+
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        ImportedKpHandle, keypairImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg,
+                                        Raw, __WASI_KEYPAIR_ENCODING_RAW));
+
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        ReexportHandle,
+        keypairExport(ImportedKpHandle, __WASI_KEYPAIR_ENCODING_RAW));
+    std::vector<uint8_t> Reexported(KpSize);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(ReexportHandle, Reexported));
+    EXPECT_EQ(Reexported, Raw);
+
+    // The imported keypair must be usable end to end.
+    WASI_CRYPTO_EXPECT_SUCCESS(ImportedPkHandle,
+                               keypairPublickey(ImportedKpHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(ImportedSkHandle,
+                               keypairSecretkey(ImportedKpHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(Handles, kxEncapsulate(ImportedPkHandle));
+    const auto [SecretHandle, CiphertextHandle] = Handles;
+    std::vector<uint8_t> Secret(SecretSize);
+    std::vector<uint8_t> Ciphertext(CtSize);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(SecretHandle, Secret));
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(CiphertextHandle, Ciphertext));
+    WASI_CRYPTO_EXPECT_SUCCESS(DecapsulatedHandle,
+                               kxDecapsulate(ImportedSkHandle, Ciphertext));
+    std::vector<uint8_t> Decapsulated(SecretSize);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(DecapsulatedHandle, Decapsulated));
+    EXPECT_EQ(Decapsulated, Secret);
+
+    // Halves from different keypairs must be rejected rather than silently
+    // trusting the decapsulation key.
+    const auto Other = ExportKp();
+    std::vector<uint8_t> Mismatched(Other.begin(), Other.begin() + PkSize);
+    Mismatched.insert(Mismatched.end(), Raw.begin() + PkSize, Raw.end());
+    WASI_CRYPTO_EXPECT_FAILURE(keypairImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+                                             Alg, Mismatched,
+                                             __WASI_KEYPAIR_ENCODING_RAW),
+                               __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+    // Corrupting either half breaks the agreement between them.
+    std::vector<uint8_t> BadEk = Raw;
+    BadEk[0] ^= 0xff;
+    WASI_CRYPTO_EXPECT_FAILURE(keypairImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+                                             Alg, BadEk,
+                                             __WASI_KEYPAIR_ENCODING_RAW),
+                               __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+    std::vector<uint8_t> BadDk = Raw;
+    BadDk[PkSize] ^= 0xff;
+    WASI_CRYPTO_EXPECT_FAILURE(keypairImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+                                             Alg, BadDk,
+                                             __WASI_KEYPAIR_ENCODING_RAW),
+                               __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+    for (const size_t BadSize : {KpSize - 1, KpSize + 1, SkSize}) {
+      SCOPED_TRACE(BadSize);
+      WASI_CRYPTO_EXPECT_FAILURE(
+          keypairImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg,
+                        std::vector<uint8_t>(BadSize, 0xa5),
+                        __WASI_KEYPAIR_ENCODING_RAW),
+          __WASI_CRYPTO_ERRNO_INVALID_KEY);
+    }
+
+    WASI_CRYPTO_EXPECT_FAILURE(keypairImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+                                             Alg, Raw,
+                                             __WASI_KEYPAIR_ENCODING_PEM),
+                               __WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
+
+    WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(ImportedSkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(ImportedPkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(ImportedKpHandle));
+  };
+  MlKemKpImportTest("ML-KEM-512"sv, 800, 1632, 768);
+  MlKemKpImportTest("ML-KEM-768"sv, 1184, 2400, 1088);
+  MlKemKpImportTest("ML-KEM-1024"sv, 1568, 3168, 1568);
+}
 #endif
 
 } // namespace WasiCrypto

@@ -249,6 +249,59 @@ TEST_F(WasiCryptoTest, KxMlKemEncapsulate) {
   MlKemEncapsulateTest("ML-KEM-768"sv, 1088);
   MlKemEncapsulateTest("ML-KEM-1024"sv, 1568);
 }
+
+TEST_F(WasiCryptoTest, KxMlKemRoundTrip) {
+  auto MlKemRoundTripTest = [this](std::string_view Alg, size_t CtSize) {
+    SCOPED_TRACE(Alg);
+    constexpr size_t SecretSize = 32;
+
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        KpHandle,
+        keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(SkHandle, keypairSecretkey(KpHandle));
+
+    WASI_CRYPTO_EXPECT_SUCCESS(Handles, kxEncapsulate(PkHandle));
+    const auto [SecretHandle, CiphertextHandle] = Handles;
+
+    std::vector<uint8_t> Secret(SecretSize);
+    std::vector<uint8_t> Ciphertext(CtSize);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(SecretHandle, Secret));
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(CiphertextHandle, Ciphertext));
+
+    auto Decapsulate = [this, SkHandle,
+                        SecretSize](Span<const uint8_t> EncapsulatedSecret) {
+      WASI_CRYPTO_EXPECT_SUCCESS(OutputHandle,
+                                 kxDecapsulate(SkHandle, EncapsulatedSecret));
+      WASI_CRYPTO_EXPECT_SUCCESS(Len, arrayOutputLen(OutputHandle));
+      EXPECT_EQ(Len, SecretSize);
+      std::vector<uint8_t> Out(SecretSize);
+      WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(OutputHandle, Out));
+      return Out;
+    };
+
+    EXPECT_EQ(Decapsulate(Ciphertext), Secret);
+
+    // FIPS 203 uses implicit rejection: decapsulating a corrupted ciphertext
+    // succeeds and yields a pseudorandom secret instead of failing.
+    std::vector<uint8_t> Corrupted = Ciphertext;
+    Corrupted[0] ^= 0xff;
+    EXPECT_NE(Decapsulate(Corrupted), Secret);
+
+    // A wrong-length ciphertext is a real error, unlike a corrupted one.
+    WASI_CRYPTO_EXPECT_FAILURE(
+        kxDecapsulate(SkHandle,
+                      Span<const uint8_t>(Ciphertext.data(), CtSize - 1)),
+        __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
+
+    WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+  };
+  MlKemRoundTripTest("ML-KEM-512"sv, 768);
+  MlKemRoundTripTest("ML-KEM-768"sv, 1088);
+  MlKemRoundTripTest("ML-KEM-1024"sv, 1568);
+}
 #endif
 
 } // namespace WasiCrypto

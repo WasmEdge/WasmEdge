@@ -71,7 +71,8 @@ WasiCryptoExpect<SecretVec> MlKem<Bits>::SecretKey::exportData(
 template <int Bits>
 WasiCryptoExpect<typename MlKem<Bits>::PublicKey>
 MlKem<Bits>::SecretKey::publicKey() const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  // Since the inner is always `const`, we just increase the ref count.
+  return Ctx;
 }
 
 template <int Bits>
@@ -122,7 +123,8 @@ MlKem<Bits>::KeyPair::publicKey() const noexcept {
 template <int Bits>
 WasiCryptoExpect<typename MlKem<Bits>::SecretKey>
 MlKem<Bits>::KeyPair::secretKey() const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  // Since the inner is always `const`, we just increase the ref count.
+  return Ctx;
 }
 
 template <int Bits>

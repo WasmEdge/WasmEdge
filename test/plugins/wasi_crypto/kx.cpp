@@ -165,6 +165,44 @@ TEST_F(WasiCryptoTest, KxMlKemKeypairGenerate) {
   MlKemGenerateTest("ML-KEM-768"sv, 1184);
   MlKemGenerateTest("ML-KEM-1024"sv, 1568);
 }
+
+TEST_F(WasiCryptoTest, KxMlKemKeyAccessors) {
+  auto MlKemAccessorTest = [this](std::string_view Alg, size_t PkSize) {
+    SCOPED_TRACE(Alg);
+
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        KpHandle,
+        keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, std::nullopt));
+
+    WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(SkHandle, keypairSecretkey(KpHandle));
+
+    WASI_CRYPTO_EXPECT_SUCCESS(DerivedPkHandle,
+                               publickeyFromSecretkey(SkHandle));
+
+    auto ExportRaw = [this, PkSize](__wasi_publickey_t Handle) {
+      WASI_CRYPTO_EXPECT_SUCCESS(
+          OutputHandle, publickeyExport(Handle, __WASI_PUBLICKEY_ENCODING_RAW));
+      WASI_CRYPTO_EXPECT_SUCCESS(Len, arrayOutputLen(OutputHandle));
+      EXPECT_EQ(Len, PkSize);
+      std::vector<uint8_t> Raw(PkSize);
+      WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(OutputHandle, Raw));
+      return Raw;
+    };
+
+    // The decapsulation key embeds the encapsulation key, so the public key
+    // derived from the secret key must equal the one from the keypair.
+    EXPECT_EQ(ExportRaw(PkHandle), ExportRaw(DerivedPkHandle));
+
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(DerivedPkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+  };
+  MlKemAccessorTest("ML-KEM-512"sv, 800);
+  MlKemAccessorTest("ML-KEM-768"sv, 1184);
+  MlKemAccessorTest("ML-KEM-1024"sv, 1568);
+}
 #endif
 
 } // namespace WasiCrypto

@@ -76,6 +76,9 @@ public:
   /// Shared secret size in bytes, identical for every parameter set.
   static constexpr size_t SecretSize = 32;
 
+  /// FIPS 203 key generation seed size in bytes, the concatenation of d and z.
+  static constexpr size_t SeedSize = 64;
+
   class PublicKey {
   public:
     PublicKey(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}

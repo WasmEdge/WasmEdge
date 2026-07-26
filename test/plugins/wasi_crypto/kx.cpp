@@ -421,6 +421,102 @@ TEST_F(WasiCryptoTest, KxMlKemSecretkeyExport) {
   MlKemSkExportTest("ML-KEM-768"sv, 1184, 2400);
   MlKemSkExportTest("ML-KEM-1024"sv, 1568, 3168);
 }
+
+TEST_F(WasiCryptoTest, KxMlKemSecretkeyImport) {
+  auto MlKemSkImportTest = [this](std::string_view Alg, size_t PkSize,
+                                  size_t SkSize, size_t CtSize) {
+    SCOPED_TRACE(Alg);
+    constexpr size_t SecretSize = 32;
+
+    auto ExportPk = [this, PkSize](__wasi_publickey_t Handle) {
+      WASI_CRYPTO_EXPECT_SUCCESS(
+          OutputHandle, publickeyExport(Handle, __WASI_PUBLICKEY_ENCODING_RAW));
+      std::vector<uint8_t> Raw(PkSize);
+      WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(OutputHandle, Raw));
+      return Raw;
+    };
+
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        KpHandle,
+        keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(SkHandle, keypairSecretkey(KpHandle));
+
+    const auto Pk = ExportPk(PkHandle);
+
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        SkOutputHandle,
+        secretkeyExport(SkHandle, __WASI_SECRETKEY_ENCODING_RAW));
+    std::vector<uint8_t> Dk(SkSize);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(SkOutputHandle, Dk));
+
+    // Importing the expanded dk must yield a functionally identical key: it
+    // derives the same public key and decapsulates for the original one.
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        DkSkHandle, secretkeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, Dk,
+                                    __WASI_SECRETKEY_ENCODING_RAW));
+    WASI_CRYPTO_EXPECT_SUCCESS(DkPkHandle, publickeyFromSecretkey(DkSkHandle));
+    EXPECT_EQ(ExportPk(DkPkHandle), Pk);
+
+    WASI_CRYPTO_EXPECT_SUCCESS(Handles, kxEncapsulate(PkHandle));
+    const auto [SecretHandle, CiphertextHandle] = Handles;
+    std::vector<uint8_t> Secret(SecretSize);
+    std::vector<uint8_t> Ciphertext(CtSize);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(SecretHandle, Secret));
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(CiphertextHandle, Ciphertext));
+
+    WASI_CRYPTO_EXPECT_SUCCESS(DecapsulatedHandle,
+                               kxDecapsulate(DkSkHandle, Ciphertext));
+    std::vector<uint8_t> Decapsulated(SecretSize);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(DecapsulatedHandle, Decapsulated));
+    EXPECT_EQ(Decapsulated, Secret);
+
+    // A 64-byte input is the FIPS 203 seed. Key generation from a seed is
+    // deterministic, so the same seed must produce the same public key.
+    const std::vector<uint8_t> Seed(64, 0xa5);
+    auto ImportSeed = [this, Alg, &Seed]() {
+      WASI_CRYPTO_EXPECT_SUCCESS(
+          Handle, secretkeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, Seed,
+                                  __WASI_SECRETKEY_ENCODING_RAW));
+      return Handle;
+    };
+    const auto SeedSk1 = ImportSeed();
+    const auto SeedSk2 = ImportSeed();
+    WASI_CRYPTO_EXPECT_SUCCESS(SeedPk1Handle, publickeyFromSecretkey(SeedSk1));
+    WASI_CRYPTO_EXPECT_SUCCESS(SeedPk2Handle, publickeyFromSecretkey(SeedSk2));
+    const auto SeedPk1 = ExportPk(SeedPk1Handle);
+    EXPECT_EQ(SeedPk1, ExportPk(SeedPk2Handle));
+    EXPECT_NE(SeedPk1, Pk);
+
+    for (const size_t BadSize :
+         {size_t{63}, size_t{65}, SkSize - 1, SkSize + 1}) {
+      SCOPED_TRACE(BadSize);
+      WASI_CRYPTO_EXPECT_FAILURE(
+          secretkeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg,
+                          std::vector<uint8_t>(BadSize, 0xa5),
+                          __WASI_SECRETKEY_ENCODING_RAW),
+          __WASI_CRYPTO_ERRNO_INVALID_KEY);
+    }
+
+    WASI_CRYPTO_EXPECT_FAILURE(
+        secretkeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, Dk,
+                        __WASI_SECRETKEY_ENCODING_PEM),
+        __WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
+
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(SeedPk2Handle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(SeedPk1Handle));
+    WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SeedSk2));
+    WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SeedSk1));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(DkPkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(DkSkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+  };
+  MlKemSkImportTest("ML-KEM-512"sv, 800, 1632, 768);
+  MlKemSkImportTest("ML-KEM-768"sv, 1184, 2400, 1088);
+  MlKemSkImportTest("ML-KEM-1024"sv, 1568, 3168, 1568);
+}
 #endif
 
 } // namespace WasiCrypto

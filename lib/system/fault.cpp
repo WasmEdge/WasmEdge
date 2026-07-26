@@ -49,7 +49,7 @@ void signalHandler(int Signal, siginfo_t *Siginfo, void *) {
 void enableHandler() noexcept {
   struct sigaction Action{};
   Action.sa_sigaction = &signalHandler;
-  Action.sa_flags = SA_SIGINFO;
+  Action.sa_flags = SA_SIGINFO | SA_ONSTACK;
   sigaction(SIGFPE, &Action, nullptr);
   sigaction(SIGBUS, &Action, nullptr);
   sigaction(SIGSEGV, &Action, nullptr);

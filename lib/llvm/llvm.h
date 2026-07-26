@@ -11,6 +11,7 @@
 
 #include "common/errcode.h"
 #include "common/span.h"
+#include <cstring>
 #include <llvm-c/Analysis.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/Error.h>

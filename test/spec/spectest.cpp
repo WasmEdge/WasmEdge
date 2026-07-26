@@ -279,12 +279,7 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"wasm-2.0"sv, WasmEdge::Standard::WASM_2},
     {"wasm-3.0"sv, WasmEdge::Standard::WASM_3},
     {"wasm-3.0-bulk-memory"sv, WasmEdge::Standard::WASM_3},
-    // TODO: EXCEPTION - implement the AOT.
-    {"wasm-3.0-exceptions"sv,
-     WasmEdge::Standard::WASM_3,
-     {},
-     {},
-     WasmEdge::SpecTest::TestMode::Interpreter},
+    {"wasm-3.0-exceptions"sv, WasmEdge::Standard::WASM_3},
     {"wasm-3.0-gc"sv, WasmEdge::Standard::WASM_3},
     {"wasm-3.0-memory64"sv, WasmEdge::Standard::WASM_3},
     {"wasm-3.0-multi-memory"sv, WasmEdge::Standard::WASM_3},

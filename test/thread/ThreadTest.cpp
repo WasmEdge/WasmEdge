@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "common/spdlog.h"
+#include "system/fault.h"
 #include "vm/vm.h"
 
 #ifdef WASMEDGE_USE_LLVM
@@ -22,6 +23,8 @@
 
 #include "gtest/gtest.h"
 
+#include <array>
+#include <csignal>
 #include <fstream>
 #include <memory>
 #include <string>
@@ -227,6 +230,21 @@ TEST(AsyncExecute, GasThreadTest) {
     }
   }
 }
+
+#if defined(SA_SIGINFO) && defined(SA_ONSTACK)
+
+TEST(FaultHandler, UsesAlternateSignalStack) {
+  WasmEdge::Fault FaultHandler;
+  constexpr std::array Signals{SIGFPE, SIGBUS, SIGSEGV};
+
+  for (const int Signal : Signals) {
+    struct sigaction Action{};
+    ASSERT_EQ(sigaction(Signal, nullptr, &Action), 0);
+    EXPECT_NE(Action.sa_flags & SA_ONSTACK, 0);
+  }
+}
+
+#endif
 
 #ifdef WASMEDGE_USE_LLVM
 

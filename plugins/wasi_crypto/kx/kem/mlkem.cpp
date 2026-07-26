@@ -11,14 +11,12 @@
 // in mlkem.h).
 #include "kx/kx.h"
 
+#include <openssl/core_names.h>
+
 namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
 namespace Kx {
-
-// TODO(followup #5110): RAW = FIPS 203 64-byte seed d||z; EVP_PKEY KEM calls
-// here. PR1 registers the algorithm and wires up dispatch only; every method
-// is a NOT_IMPLEMENTED stub.
 
 template <int Bits>
 WasiCryptoExpect<typename MlKem<Bits>::PublicKey>
@@ -29,8 +27,21 @@ MlKem<Bits>::PublicKey::import(Span<const uint8_t>,
 
 template <int Bits>
 WasiCryptoExpect<std::vector<uint8_t>> MlKem<Bits>::PublicKey::exportData(
-    __wasi_publickey_encoding_e_t) const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+    __wasi_publickey_encoding_e_t Encoding) const noexcept {
+  switch (Encoding) {
+  case __WASI_PUBLICKEY_ENCODING_RAW: {
+    std::vector<uint8_t> Res(PkSize);
+
+    size_t Size = PkSize;
+    opensslCheck(EVP_PKEY_get_octet_string_param(
+        Ctx.get(), OSSL_PKEY_PARAM_PUB_KEY, Res.data(), PkSize, &Size));
+    ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+    return Res;
+  }
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
+  }
 }
 
 template <int Bits>
@@ -84,7 +95,14 @@ MlKem<Bits>::SecretKey::decapsulate(Span<const uint8_t>) const noexcept {
 template <int Bits>
 WasiCryptoExpect<typename MlKem<Bits>::KeyPair>
 MlKem<Bits>::KeyPair::generate(OptionalRef<const Options>) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  EvpPkeyCtxPtr Ctx{EVP_PKEY_CTX_new_from_name(nullptr, name(), nullptr)};
+  ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
+  opensslCheck(EVP_PKEY_keygen_init(Ctx.get()));
+
+  EVP_PKEY *Kp = nullptr;
+  opensslCheck(EVP_PKEY_keygen(Ctx.get(), &Kp));
+
+  return EvpPkeyPtr{Kp};
 }
 
 template <int Bits>
@@ -97,7 +115,8 @@ MlKem<Bits>::KeyPair::import(Span<const uint8_t>,
 template <int Bits>
 WasiCryptoExpect<typename MlKem<Bits>::PublicKey>
 MlKem<Bits>::KeyPair::publicKey() const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  // Since the inner is always `const`, we just increase the ref count.
+  return Ctx;
 }
 
 template <int Bits>

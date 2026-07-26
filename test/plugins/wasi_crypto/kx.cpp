@@ -124,23 +124,48 @@ TEST_F(WasiCryptoTest, KxDh) {
   };
   NewKxDhTest("P256-SHA256"sv);
   NewKxDhTest("P384-SHA384"sv);
+}
 
 #if OPENSSL_VERSION_NUMBER >= 0x30500000L
-  // ML-KEM (FIPS 203) is registered behind OpenSSL 3.5. In PR1 the algorithm
-  // resolves and dispatches into the stub, so keypairGenerate reaches the
-  // MlKem stub and returns NOT_IMPLEMENTED (proof of plumbing) rather than
-  // UNSUPPORTED_ALGORITHM. This only runs on OpenSSL >= 3.5 (e.g. macOS CI).
-  auto MlKemRegisteredTest = [this](std::string_view Alg) {
+TEST_F(WasiCryptoTest, KxMlKemKeypairGenerate) {
+  auto MlKemGenerateTest = [this](std::string_view Alg, size_t PkSize) {
     SCOPED_TRACE(Alg);
-    WASI_CRYPTO_EXPECT_FAILURE(
-        keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, std::nullopt),
-        __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+
+    auto ExportPk = [this, PkSize](std::string_view InnerAlg) {
+      WASI_CRYPTO_EXPECT_SUCCESS(
+          KpHandle, keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+                                    InnerAlg, std::nullopt));
+      WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
+      WASI_CRYPTO_EXPECT_SUCCESS(
+          OutputHandle,
+          publickeyExport(PkHandle, __WASI_PUBLICKEY_ENCODING_RAW));
+      WASI_CRYPTO_EXPECT_SUCCESS(PkLen, arrayOutputLen(OutputHandle));
+      EXPECT_EQ(PkLen, PkSize);
+
+      std::vector<uint8_t> Pk(PkSize);
+      WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(OutputHandle, Pk));
+
+      WASI_CRYPTO_EXPECT_FAILURE(
+          publickeyExport(PkHandle, __WASI_PUBLICKEY_ENCODING_PEM),
+          __WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
+
+      WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+      WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+      return Pk;
+    };
+
+    const auto Pk1 = ExportPk(Alg);
+    const auto Pk2 = ExportPk(Alg);
+
+    EXPECT_EQ(Pk1.size(), PkSize);
+    EXPECT_NE(Pk1, std::vector<uint8_t>(PkSize, 0));
+    EXPECT_NE(Pk1, Pk2);
   };
-  MlKemRegisteredTest("ML-KEM-512"sv);
-  MlKemRegisteredTest("ML-KEM-768"sv);
-  MlKemRegisteredTest("ML-KEM-1024"sv);
-#endif
+  MlKemGenerateTest("ML-KEM-512"sv, 800);
+  MlKemGenerateTest("ML-KEM-768"sv, 1184);
+  MlKemGenerateTest("ML-KEM-1024"sv, 1568);
 }
+#endif
 
 } // namespace WasiCrypto
 } // namespace Host

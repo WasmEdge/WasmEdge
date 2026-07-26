@@ -25,6 +25,7 @@
 
 #include <openssl/opensslv.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <utility>
 #include <vector>
@@ -59,6 +60,10 @@ public:
       return "ML-KEM-1024";
     }
   }
+
+  /// Encapsulation key size in bytes, from FIPS 203.
+  static constexpr size_t PkSize =
+      Bits == 512 ? 800 : (Bits == 768 ? 1184 : 1568);
 
   class PublicKey {
   public:

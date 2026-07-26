@@ -231,9 +231,28 @@ MlKem<Bits>::KeyPair::secretKey() const noexcept {
 }
 
 template <int Bits>
-WasiCryptoExpect<SecretVec>
-MlKem<Bits>::KeyPair::exportData(__wasi_keypair_encoding_e_t) const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+WasiCryptoExpect<SecretVec> MlKem<Bits>::KeyPair::exportData(
+    __wasi_keypair_encoding_e_t Encoding) const noexcept {
+  switch (Encoding) {
+  case __WASI_KEYPAIR_ENCODING_RAW: {
+    SecretVec Res(KpSize);
+
+    size_t Size = PkSize;
+    opensslCheck(EVP_PKEY_get_octet_string_param(
+        Ctx.get(), OSSL_PKEY_PARAM_PUB_KEY, Res.data(), PkSize, &Size));
+    ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+    Size = SkSize;
+    opensslCheck(
+        EVP_PKEY_get_octet_string_param(Ctx.get(), OSSL_PKEY_PARAM_PRIV_KEY,
+                                        Res.data() + PkSize, SkSize, &Size));
+    ensureOrReturn(Size == SkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+    return Res;
+  }
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
+  }
 }
 
 template class MlKem<512>;

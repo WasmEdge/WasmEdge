@@ -65,6 +65,10 @@ public:
   static constexpr size_t PkSize =
       Bits == 512 ? 800 : (Bits == 768 ? 1184 : 1568);
 
+  /// Expanded decapsulation key size in bytes, from FIPS 203.
+  static constexpr size_t SkSize =
+      Bits == 512 ? 1632 : (Bits == 768 ? 2400 : 3168);
+
   /// Ciphertext size in bytes, from FIPS 203.
   static constexpr size_t CtSize =
       Bits == 512 ? 768 : (Bits == 768 ? 1088 : 1568);

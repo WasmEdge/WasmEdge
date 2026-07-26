@@ -106,8 +106,21 @@ MlKem<Bits>::SecretKey::import(Span<const uint8_t>,
 
 template <int Bits>
 WasiCryptoExpect<SecretVec> MlKem<Bits>::SecretKey::exportData(
-    __wasi_secretkey_encoding_e_t) const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+    __wasi_secretkey_encoding_e_t Encoding) const noexcept {
+  switch (Encoding) {
+  case __WASI_SECRETKEY_ENCODING_RAW: {
+    SecretVec Res(SkSize);
+
+    size_t Size = SkSize;
+    opensslCheck(EVP_PKEY_get_octet_string_param(
+        Ctx.get(), OSSL_PKEY_PARAM_PRIV_KEY, Res.data(), SkSize, &Size));
+    ensureOrReturn(Size == SkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+    return Res;
+  }
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
+  }
 }
 
 template <int Bits>

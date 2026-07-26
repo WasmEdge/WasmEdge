@@ -374,6 +374,53 @@ TEST_F(WasiCryptoTest, KxMlKemPublickeyImport) {
   MlKemPkImportTest("ML-KEM-768"sv, 1184, 1088);
   MlKemPkImportTest("ML-KEM-1024"sv, 1568, 1568);
 }
+
+TEST_F(WasiCryptoTest, KxMlKemSecretkeyExport) {
+  auto MlKemSkExportTest = [this](std::string_view Alg, size_t PkSize,
+                                  size_t SkSize) {
+    SCOPED_TRACE(Alg);
+
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        KpHandle,
+        keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(SkHandle, keypairSecretkey(KpHandle));
+
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        SkOutputHandle,
+        secretkeyExport(SkHandle, __WASI_SECRETKEY_ENCODING_RAW));
+    WASI_CRYPTO_EXPECT_SUCCESS(SkLen, arrayOutputLen(SkOutputHandle));
+    EXPECT_EQ(SkLen, SkSize);
+    std::vector<uint8_t> Sk(SkSize);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(SkOutputHandle, Sk));
+    EXPECT_NE(Sk, std::vector<uint8_t>(SkSize, 0));
+
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        PkOutputHandle,
+        publickeyExport(PkHandle, __WASI_PUBLICKEY_ENCODING_RAW));
+    std::vector<uint8_t> Pk(PkSize);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(PkOutputHandle, Pk));
+
+    // FIPS 203 lays the decapsulation key out as dk_PKE || ek || H(ek) || z,
+    // so the encapsulation key must appear verbatim at that offset. This
+    // confirms the export really is the expanded dk.
+    const size_t EkOffset = SkSize - PkSize - 64;
+    EXPECT_EQ(std::vector<uint8_t>(Sk.begin() + EkOffset,
+                                   Sk.begin() + EkOffset + PkSize),
+              Pk);
+
+    WASI_CRYPTO_EXPECT_FAILURE(
+        secretkeyExport(SkHandle, __WASI_SECRETKEY_ENCODING_PEM),
+        __WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
+
+    WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+  };
+  MlKemSkExportTest("ML-KEM-512"sv, 800, 1632);
+  MlKemSkExportTest("ML-KEM-768"sv, 1184, 2400);
+  MlKemSkExportTest("ML-KEM-1024"sv, 1568, 3168);
+}
 #endif
 
 } // namespace WasiCrypto

@@ -65,6 +65,13 @@ public:
   static constexpr size_t PkSize =
       Bits == 512 ? 800 : (Bits == 768 ? 1184 : 1568);
 
+  /// Ciphertext size in bytes, from FIPS 203.
+  static constexpr size_t CtSize =
+      Bits == 512 ? 768 : (Bits == 768 ? 1088 : 1568);
+
+  /// Shared secret size in bytes, identical for every parameter set.
+  static constexpr size_t SecretSize = 32;
+
   class PublicKey {
   public:
     PublicKey(EvpPkeyPtr Ctx) noexcept : Ctx(std::move(Ctx)) {}

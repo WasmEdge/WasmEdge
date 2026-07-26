@@ -1196,12 +1196,12 @@ WasiCryptoTest::kxEncapsulate(__wasi_kx_publickey_t PkHandle) {
   auto *Func = getHostFunc<Kx::Encapsulate>(WasiCryptoKxMod, "kx_encapsulate");
   EXPECT_NE(Func, nullptr);
   EXPECT_TRUE(Func->run(
-      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PkHandle, 0, 1},
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{PkHandle, 0, 8},
       Errno));
   ensureOrReturnOnTest(Errno[0].get<int32_t>());
 
   return std::make_tuple(*MemInst->getPointer<__wasi_array_output_t *>(0),
-                         *MemInst->getPointer<__wasi_array_output_t *>(1));
+                         *MemInst->getPointer<__wasi_array_output_t *>(8));
 }
 
 WasiCryptoExpect<__wasi_array_output_t>

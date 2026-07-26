@@ -52,7 +52,24 @@ WasiCryptoExpect<void> MlKem<Bits>::PublicKey::verify() const noexcept {
 template <int Bits>
 WasiCryptoExpect<EncapsulatedSecret>
 MlKem<Bits>::PublicKey::encapsulate() const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  EvpPkeyCtxPtr EncCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
+  ensureOrReturn(EncCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  opensslCheck(EVP_PKEY_encapsulate_init(EncCtx.get(), nullptr));
+
+  std::vector<uint8_t> Ciphertext(CtSize);
+  std::vector<uint8_t> Secret(SecretSize);
+  size_t CiphertextLen = CtSize;
+  size_t SecretLen = SecretSize;
+  ensureOrReturn(EVP_PKEY_encapsulate(EncCtx.get(), Ciphertext.data(),
+                                      &CiphertextLen, Secret.data(),
+                                      &SecretLen),
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  ensureOrReturn(CiphertextLen == CtSize,
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  ensureOrReturn(SecretLen == SecretSize,
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  return EncapsulatedSecret{std::move(Ciphertext), std::move(Secret)};
 }
 
 template <int Bits>

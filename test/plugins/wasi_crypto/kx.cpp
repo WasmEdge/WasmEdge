@@ -203,6 +203,52 @@ TEST_F(WasiCryptoTest, KxMlKemKeyAccessors) {
   MlKemAccessorTest("ML-KEM-768"sv, 1184);
   MlKemAccessorTest("ML-KEM-1024"sv, 1568);
 }
+
+TEST_F(WasiCryptoTest, KxMlKemEncapsulate) {
+  auto MlKemEncapsulateTest = [this](std::string_view Alg, size_t CtSize) {
+    SCOPED_TRACE(Alg);
+    constexpr size_t SecretSize = 32;
+
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        KpHandle,
+        keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
+
+    auto Encapsulate = [this, CtSize, SecretSize, PkHandle]() {
+      WASI_CRYPTO_EXPECT_SUCCESS(Handles, kxEncapsulate(PkHandle));
+      const auto [SecretHandle, CiphertextHandle] = Handles;
+
+      WASI_CRYPTO_EXPECT_SUCCESS(SecretLen, arrayOutputLen(SecretHandle));
+      EXPECT_EQ(SecretLen, SecretSize);
+      WASI_CRYPTO_EXPECT_SUCCESS(CiphertextLen,
+                                 arrayOutputLen(CiphertextHandle));
+      EXPECT_EQ(CiphertextLen, CtSize);
+
+      std::vector<uint8_t> Secret(SecretSize);
+      std::vector<uint8_t> Ciphertext(CtSize);
+      WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(SecretHandle, Secret));
+      WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(CiphertextHandle, Ciphertext));
+      return std::make_pair(Secret, Ciphertext);
+    };
+
+    const auto [Secret1, Ciphertext1] = Encapsulate();
+    const auto [Secret2, Ciphertext2] = Encapsulate();
+
+    EXPECT_NE(Secret1, std::vector<uint8_t>(SecretSize, 0));
+    EXPECT_NE(Ciphertext1, std::vector<uint8_t>(CtSize, 0));
+
+    // Encapsulation draws fresh randomness, so the same public key must not
+    // produce the same ciphertext or secret twice.
+    EXPECT_NE(Secret1, Secret2);
+    EXPECT_NE(Ciphertext1, Ciphertext2);
+
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+  };
+  MlKemEncapsulateTest("ML-KEM-512"sv, 768);
+  MlKemEncapsulateTest("ML-KEM-768"sv, 1088);
+  MlKemEncapsulateTest("ML-KEM-1024"sv, 1568);
+}
 #endif
 
 } // namespace WasiCrypto

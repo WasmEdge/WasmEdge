@@ -12,6 +12,7 @@
 #include "kx/kx.h"
 
 #include <openssl/core_names.h>
+#include <openssl/params.h>
 
 namespace WasmEdge {
 namespace Host {
@@ -20,9 +21,33 @@ namespace Kx {
 
 template <int Bits>
 WasiCryptoExpect<typename MlKem<Bits>::PublicKey>
-MlKem<Bits>::PublicKey::import(Span<const uint8_t>,
-                               __wasi_publickey_encoding_e_t) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+MlKem<Bits>::PublicKey::import(
+    Span<const uint8_t> Encoded,
+    __wasi_publickey_encoding_e_t Encoding) noexcept {
+  switch (Encoding) {
+  case __WASI_PUBLICKEY_ENCODING_RAW: {
+    ensureOrReturn(Encoded.size() == PkSize, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+    EvpPkeyCtxPtr PkCtx{EVP_PKEY_CTX_new_from_name(nullptr, name(), nullptr)};
+    ensureOrReturn(PkCtx, __WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
+    opensslCheck(EVP_PKEY_fromdata_init(PkCtx.get()));
+
+    OSSL_PARAM Params[2];
+    Params[0] = OSSL_PARAM_construct_octet_string(
+        OSSL_PKEY_PARAM_PUB_KEY, const_cast<uint8_t *>(Encoded.data()),
+        Encoded.size());
+    Params[1] = OSSL_PARAM_construct_end();
+
+    EVP_PKEY *Pk = nullptr;
+    ensureOrReturn(
+        EVP_PKEY_fromdata(PkCtx.get(), &Pk, EVP_PKEY_PUBLIC_KEY, Params),
+        __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+    return EvpPkeyPtr{Pk};
+  }
+  default:
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
+  }
 }
 
 template <int Bits>

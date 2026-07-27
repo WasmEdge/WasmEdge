@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "validator/component_context.h"
 #include "validator/component_name.h"
@@ -17,6 +17,71 @@ namespace {
 
 using namespace WasmEdge;
 using namespace std::literals;
+
+std::vector<uint8_t> leb128U32(uint32_t N) {
+  std::vector<uint8_t> Out;
+  do {
+    uint8_t B = static_cast<uint8_t>(N & 0x7F);
+    N >>= 7;
+    if (N != 0) {
+      B = static_cast<uint8_t>(B | 0x80);
+    }
+    Out.push_back(B);
+  } while (N != 0);
+  return Out;
+}
+
+const std::vector<uint8_t> ComponentPreamble = {0x00, 0x61, 0x73, 0x6d,
+                                                0x0d, 0x00, 0x01, 0x00};
+
+std::vector<uint8_t> makeTypeSection(uint8_t SecId,
+                                     const std::vector<uint8_t> &TypeBody) {
+  std::vector<uint8_t> Payload = {0x01};
+  Payload.insert(Payload.end(), TypeBody.begin(), TypeBody.end());
+  std::vector<uint8_t> Vec = ComponentPreamble;
+  Vec.push_back(SecId);
+  const auto Size = leb128U32(static_cast<uint32_t>(Payload.size()));
+  Vec.insert(Vec.end(), Size.begin(), Size.end());
+  Vec.insert(Vec.end(), Payload.begin(), Payload.end());
+  return Vec;
+}
+
+// Component type nested `Depth` levels: `41 01 01` per level, `41 00` last.
+std::vector<uint8_t> makeNestedComponentType(uint32_t Depth) {
+  std::vector<uint8_t> Body;
+  for (uint32_t I = 0; I + 1 < Depth; ++I) {
+    Body.insert(Body.end(), {0x41, 0x01, 0x01});
+  }
+  Body.insert(Body.end(), {0x41, 0x00});
+  return makeTypeSection(0x07, Body);
+}
+
+// Core module type nested `Depth` levels: `50 01 01` per level, `50 00` last.
+std::vector<uint8_t> makeNestedCoreModuleType(uint32_t Depth) {
+  std::vector<uint8_t> Body;
+  for (uint32_t I = 0; I + 1 < Depth; ++I) {
+    Body.insert(Body.end(), {0x50, 0x01, 0x01});
+  }
+  Body.insert(Body.end(), {0x50, 0x00});
+  return makeTypeSection(0x03, Body);
+}
+
+// `Depth` components nested via component sections (0x04), innermost empty.
+std::vector<uint8_t> makeNestedComponents(uint32_t Depth) {
+  std::vector<uint8_t> Body;
+  for (uint32_t I = 0; I < Depth; ++I) {
+    std::vector<uint8_t> Content = ComponentPreamble;
+    Content.insert(Content.end(), Body.begin(), Body.end());
+    std::vector<uint8_t> Sec = {0x04};
+    const auto Size = leb128U32(static_cast<uint32_t>(Content.size()));
+    Sec.insert(Sec.end(), Size.begin(), Size.end());
+    Sec.insert(Sec.end(), Content.begin(), Content.end());
+    Body = std::move(Sec);
+  }
+  std::vector<uint8_t> Vec = ComponentPreamble;
+  Vec.insert(Vec.end(), Body.begin(), Body.end());
+  return Vec;
+}
 
 TEST(ComponentNameParserTest, Parse) {
   {
@@ -574,6 +639,55 @@ TEST(ComponentLoaderTest, AsyncI64ResourceRepWithMemory64) {
   EXPECT_EQ(*RT.getDestructor(), 0U);
   // Callback is absent in this payload.
   EXPECT_FALSE(RT.getCallback().has_value());
+}
+
+TEST(ComponentLoaderTest, DeeplyNestedComponentTypeRejected) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // Over the limit: rejected, not a stack overflow.
+  auto Res = Loader.parseWasmUnit(makeNestedComponentType(1000));
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error().getEnum(),
+            WasmEdge::ErrCode::Value::ComponentNestLevelExceeded);
+}
+
+TEST(ComponentLoaderTest, ModeratelyNestedComponentTypeAccepted) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // Within the limit: still loads.
+  auto Res = Loader.parseWasmUnit(makeNestedComponentType(200));
+  ASSERT_TRUE(Res);
+  EXPECT_NE(
+      std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res),
+      nullptr);
+}
+
+TEST(ComponentLoaderTest, DeeplyNestedCoreModuleTypeRejected) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // Core module types share the guard.
+  auto Res = Loader.parseWasmUnit(makeNestedCoreModuleType(1000));
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error().getEnum(),
+            WasmEdge::ErrCode::Value::ComponentNestLevelExceeded);
+}
+
+TEST(ComponentLoaderTest, DeeplyNestedComponentRejected) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // Nested components share the guard.
+  auto Res = Loader.parseWasmUnit(makeNestedComponents(300));
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error().getEnum(),
+            WasmEdge::ErrCode::Value::ComponentNestLevelExceeded);
 }
 
 } // namespace

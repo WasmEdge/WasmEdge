@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/enum_errcode.h - Error code C++ enumerations ------===//
 //
@@ -15,6 +15,7 @@
 #pragma once
 
 #include "common/dense_enum_map.h"
+#include "common/fmt.h"
 #include "common/spare_enum_map.h"
 #include "common/spdlog.h"
 
@@ -151,9 +152,9 @@ static inline constexpr const auto ErrCodeStr = []() constexpr {
 
 template <>
 struct fmt::formatter<WasmEdge::WasmPhase> : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::WasmPhase &Phase,
-         fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::WasmPhase &Phase,
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(WasmEdge::WasmPhaseStr[Phase],
                                                Ctx);
   }

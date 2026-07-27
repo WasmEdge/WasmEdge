@@ -14,50 +14,82 @@ namespace WasmEdge {
 namespace WasiNNRPC {
 namespace Server {
 
-void writeUInt32WithBuilderPtr(
+bool writeUInt32WithBuilderPtr(
     WasmEdge::Runtime::Instance::MemoryInstance &MemInst, uint32_t Value,
     uint32_t &BuilderPtr) {
   uint32_t *BufPtr = MemInst.getPointer<uint32_t *>(BuilderPtr);
+  if (BufPtr == nullptr) {
+    spdlog::error("[WASI-NN-RPCSERVER] out-of-bounds write at offset {}"sv,
+                  BuilderPtr);
+    return false;
+  }
   *BufPtr = Value;
   BuilderPtr += 4;
+  return true;
 }
 
-void writeFatPointerWithBuilderPtr(
+bool writeFatPointerWithBuilderPtr(
     WasmEdge::Runtime::Instance::MemoryInstance &MemInst, uint32_t PtrVal,
     uint32_t PtrSize, uint32_t &BuilderPtr) {
-  writeUInt32WithBuilderPtr(MemInst, PtrVal, BuilderPtr);
-  writeUInt32WithBuilderPtr(MemInst, PtrSize, BuilderPtr);
+  return writeUInt32WithBuilderPtr(MemInst, PtrVal, BuilderPtr) &&
+         writeUInt32WithBuilderPtr(MemInst, PtrSize, BuilderPtr);
 }
 
 template <typename T>
-void writeBinaries(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
+bool writeBinaries(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
                    std::vector<T> Binaries, uint32_t Ptr) noexcept {
-  std::copy(Binaries.begin(), Binaries.end(), MemInst.getPointer<T *>(Ptr));
+  auto Dest = MemInst.getSpan<T>(Ptr, Binaries.size());
+  if (Dest.size() != Binaries.size()) {
+    spdlog::error(
+        "[WASI-NN-RPCSERVER] out-of-bounds write of {} elements at offset {}"sv,
+        Binaries.size(), Ptr);
+    return false;
+  }
+  std::copy(Binaries.begin(), Binaries.end(), Dest.begin());
+  return true;
 }
 
 template <typename T>
-void writeBinaries(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
+bool writeBinaries(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
                    google::protobuf::RepeatedField<T> Binaries,
                    uint32_t Ptr) noexcept {
-  std::copy(Binaries.begin(), Binaries.end(), MemInst.getPointer<T *>(Ptr));
+  auto Dest = MemInst.getSpan<T>(Ptr, static_cast<uint32_t>(Binaries.size()));
+  if (Dest.size() != static_cast<size_t>(Binaries.size())) {
+    spdlog::error(
+        "[WASI-NN-RPCSERVER] out-of-bounds write of {} elements at offset {}"sv,
+        Binaries.size(), Ptr);
+    return false;
+  }
+  std::copy(Binaries.begin(), Binaries.end(), Dest.begin());
+  return true;
 }
 
-void writeBinaries(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
+bool writeBinaries(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
                    const std::string &Binaries, uint32_t Ptr) noexcept {
-  std::copy(Binaries.begin(), Binaries.end(),
-            MemInst.getPointer<uint8_t *>(Ptr));
+  auto Dest =
+      MemInst.getSpan<uint8_t>(Ptr, static_cast<uint32_t>(Binaries.size()));
+  if (Dest.size() != Binaries.size()) {
+    spdlog::error(
+        "[WASI-NN-RPCSERVER] out-of-bounds write of {} bytes at offset {}"sv,
+        Binaries.size(), Ptr);
+    return false;
+  }
+  std::copy(Binaries.begin(), Binaries.end(), Dest.begin());
+  return true;
 }
 
 class HostFuncCaller {
 public:
   HostFuncCaller(const Runtime::Instance::ModuleInstance &NNM,
-                 std::string_view FuncName, uint32_t MemorySize) noexcept
+                 std::string_view FuncName, uint64_t MemoryBytes) noexcept
       : FuncInst(NNM.findFuncExports(FuncName)), FuncName(FuncName), Mod(""),
         Frame(nullptr, &Mod) {
+    const uint32_t Pages = static_cast<uint32_t>(
+        (MemoryBytes + UINT64_C(65535)) / UINT64_C(65536));
     Mod.addHostMemory(
         "memory"sv,
         std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-            WasmEdge::AST::MemoryType(MemorySize)));
+            WasmEdge::AST::MemoryType(Pages)));
   }
 
   Runtime::Instance::MemoryInstance &getMemInst(void) {
@@ -123,7 +155,10 @@ public:
     HostFuncCaller HostFuncCaller(NNMod, FuncName, MemorySize);
     auto &MemInst = HostFuncCaller.getMemInst();
     std::vector<char> NameVec(Name.begin(), Name.end());
-    writeBinaries(MemInst, NameVec, NamePtr);
+    if (!writeBinaries(MemInst, NameVec, NamePtr)) {
+      return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                          "failed to marshal request into guest memory");
+    }
     uint32_t Errno = HostFuncCaller.call({NamePtr, NameLen, OutPtr});
     if (Errno != 0) {
       return createRPCStatusFromErrno(RPCContext, FuncName, Errno);
@@ -163,8 +198,11 @@ public:
     auto &MemInst = HostFuncCaller.getMemInst();
     std::vector<char> NameVec(Name.begin(), Name.end());
     std::vector<char> ConfigVec(Config.begin(), Config.end());
-    writeBinaries(MemInst, NameVec, NamePtr);
-    writeBinaries(MemInst, ConfigVec, ConfigPtr);
+    if (!writeBinaries(MemInst, NameVec, NamePtr) ||
+        !writeBinaries(MemInst, ConfigVec, ConfigPtr)) {
+      return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                          "failed to marshal request into guest memory");
+    }
     uint32_t Errno =
         HostFuncCaller.call({NamePtr, NameLen, ConfigPtr, ConfigLen, OutPtr});
     if (Errno != 0) {
@@ -254,13 +292,16 @@ public:
 
     HostFuncCaller HostFuncCaller(NNMod, FuncName, MemorySize);
     auto &MemInst = HostFuncCaller.getMemInst();
-    writeFatPointerWithBuilderPtr(MemInst, TensorDimPtr, TensorDimSize,
-                                  BuilderPtr);
-    writeUInt32WithBuilderPtr(MemInst, TensorTy, BuilderPtr);
-    writeFatPointerWithBuilderPtr(MemInst, TensorDataPtr, TensorDataSize,
-                                  BuilderPtr);
-    writeBinaries<uint32_t>(MemInst, TensorDim, TensorDimPtr);
-    writeBinaries(MemInst, TensorData, TensorDataPtr);
+    if (!writeFatPointerWithBuilderPtr(MemInst, TensorDimPtr, TensorDimSize,
+                                       BuilderPtr) ||
+        !writeUInt32WithBuilderPtr(MemInst, TensorTy, BuilderPtr) ||
+        !writeFatPointerWithBuilderPtr(MemInst, TensorDataPtr, TensorDataSize,
+                                       BuilderPtr) ||
+        !writeBinaries<uint32_t>(MemInst, TensorDim, TensorDimPtr) ||
+        !writeBinaries(MemInst, TensorData, TensorDataPtr)) {
+      return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                          "failed to marshal request into guest memory");
+    }
 
     uint32_t Errno =
         HostFuncCaller.call({ResourceHandle, Index, SetInputEntryPtr});
@@ -317,29 +358,7 @@ public:
             const wasi_ephemeral_nn::GetOutputRequest *RPCRequest,
             wasi_ephemeral_nn::GetOutputResult *RPCResult) {
     std::string_view FuncName = "get_output"sv;
-    uint32_t ResourceHandle = RPCRequest->resource_handle();
-    uint32_t Index = RPCRequest->index();
-    uint32_t MemorySize = UINT32_C(65536); // FIXME
-    uint32_t BytesWrittenPtr = UINT32_C(0);
-    uint32_t BufPtr = BytesWrittenPtr + UINT32_C(4);
-    uint32_t BufMaxSize = MemorySize - BufPtr;
-    HostFuncCaller HostFuncCaller(NNMod, FuncName, MemorySize);
-    auto &MemInst = HostFuncCaller.getMemInst();
-    uint32_t Errno = HostFuncCaller.call(
-        {ResourceHandle, Index, BufPtr, BufMaxSize, BytesWrittenPtr});
-    if (Errno != 0) {
-      return createRPCStatusFromErrno(RPCContext, FuncName, Errno);
-    }
-    /* clang-format off */
-    /**
-       0                    : BytesWritten
-       4                    : Buf
-    */
-    /* clang-format on */
-    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
-    auto *Buf = MemInst.getPointer<char *>(BufPtr);
-    RPCResult->set_data(Buf, BytesWritten);
-    return grpc::Status::OK;
+    return callGetOutput(FuncName, RPCContext, RPCRequest, RPCResult);
   }
 
   /*
@@ -352,29 +371,38 @@ public:
                   const wasi_ephemeral_nn::GetOutputRequest *RPCRequest,
                   wasi_ephemeral_nn::GetOutputResult *RPCResult) {
     std::string_view FuncName = "get_output_single"sv;
+    return callGetOutput(FuncName, RPCContext, RPCRequest, RPCResult);
+  }
+
+  grpc::Status
+  callGetOutput(std::string_view FuncName, grpc::ServerContext *RPCContext,
+                const wasi_ephemeral_nn::GetOutputRequest *RPCRequest,
+                wasi_ephemeral_nn::GetOutputResult *RPCResult) {
+    constexpr uint32_t WasiNNTooLarge = UINT32_C(7);
     uint32_t ResourceHandle = RPCRequest->resource_handle();
     uint32_t Index = RPCRequest->index();
-    uint32_t MemorySize = UINT32_C(65536); // FIXME
-    uint32_t BytesWrittenPtr = UINT32_C(0);
-    uint32_t BufPtr = BytesWrittenPtr + UINT32_C(4);
-    uint32_t BufMaxSize = MemorySize - BufPtr;
-    HostFuncCaller HostFuncCaller(NNMod, FuncName, MemorySize);
-    auto &MemInst = HostFuncCaller.getMemInst();
-    uint32_t Errno = HostFuncCaller.call(
-        {ResourceHandle, Index, BufPtr, BufMaxSize, BytesWrittenPtr});
-    if (Errno != 0) {
-      return createRPCStatusFromErrno(RPCContext, FuncName, Errno);
+    uint32_t BufMaxSize = UINT32_C(65536) - UINT32_C(4);
+    for (int Attempt = 0; Attempt < 2; ++Attempt) {
+      const uint32_t BytesWrittenPtr = UINT32_C(0);
+      const uint32_t BufPtr = BytesWrittenPtr + UINT32_C(4);
+      const uint64_t NeededBytes = static_cast<uint64_t>(BufPtr) + BufMaxSize;
+      HostFuncCaller HostFuncCaller(NNMod, FuncName, NeededBytes);
+      auto &MemInst = HostFuncCaller.getMemInst();
+      uint32_t Errno = HostFuncCaller.call(
+          {ResourceHandle, Index, BufPtr, BufMaxSize, BytesWrittenPtr});
+      if (Errno == WasiNNTooLarge) {
+        BufMaxSize = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
+        continue;
+      }
+      if (Errno != 0) {
+        return createRPCStatusFromErrno(RPCContext, FuncName, Errno);
+      }
+      auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
+      auto *Buf = MemInst.getPointer<char *>(BufPtr);
+      RPCResult->set_data(Buf, BytesWritten);
+      return grpc::Status::OK;
     }
-    /* clang-format off */
-    /**
-       0                    : BytesWritten
-       4                    : Buf
-    */
-    /* clang-format on */
-    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
-    auto *Buf = MemInst.getPointer<char *>(BufPtr);
-    RPCResult->set_data(Buf, BytesWritten);
-    return grpc::Status::OK;
+    return createRPCStatusFromErrno(RPCContext, FuncName, WasiNNTooLarge);
   }
 
   /*

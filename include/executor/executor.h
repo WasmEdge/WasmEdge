@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/executor/executor.h - Executor class definition ----------===//
 //
@@ -393,10 +393,12 @@ private:
   /// \name Helper Functions for block controls.
   /// @{
   /// Helper function for calling functions. Return the continuation iterator.
+  /// Set `IsNativeEntry` when entering from the native code.
   Expect<AST::InstrView::iterator>
   enterFunction(Runtime::StackManager &StackMgr,
                 const Runtime::Instance::FunctionInstance &Func,
-                const AST::InstrView::iterator RetIt, bool IsTailCall = false);
+                const AST::InstrView::iterator RetIt, bool IsTailCall = false,
+                bool IsNativeEntry = false);
 
   /// Helper function for branching to label.
   Expect<void> branchToLabel(Runtime::StackManager &StackMgr,
@@ -1030,12 +1032,6 @@ public:
   Expect<RefVariant> proxyRefCast(Runtime::StackManager &StackMgr,
                                   const RefVariant Ref,
                                   ValType VTCast) noexcept;
-  Expect<RefVariant> proxyTableGet(Runtime::StackManager &StackMgr,
-                                   const uint32_t TableIdx,
-                                   const uint64_t Off) noexcept;
-  Expect<void> proxyTableSet(Runtime::StackManager &StackMgr,
-                             const uint32_t TableIdx, const uint64_t Off,
-                             const RefVariant Ref) noexcept;
   Expect<void> proxyTableInit(Runtime::StackManager &StackMgr,
                               const uint32_t TableIdx, const uint32_t ElemIdx,
                               const uint64_t DstOff, const uint32_t SrcOff,
@@ -1050,8 +1046,6 @@ public:
   Expect<uint64_t> proxyTableGrow(Runtime::StackManager &StackMgr,
                                   const uint32_t TableIdx, const RefVariant Val,
                                   const uint64_t NewSize) noexcept;
-  Expect<uint64_t> proxyTableSize(Runtime::StackManager &StackMgr,
-                                  const uint32_t TableIdx) noexcept;
   Expect<void> proxyTableFill(Runtime::StackManager &StackMgr,
                               const uint32_t TableIdx, const uint64_t Off,
                               const RefVariant Ref,
@@ -1059,8 +1053,6 @@ public:
   Expect<uint64_t> proxyMemGrow(Runtime::StackManager &StackMgr,
                                 const uint32_t MemIdx,
                                 const uint64_t NewSize) noexcept;
-  Expect<uint64_t> proxyMemSize(Runtime::StackManager &StackMgr,
-                                const uint32_t MemIdx) noexcept;
   Expect<void> proxyMemInit(Runtime::StackManager &StackMgr,
                             const uint32_t MemIdx, const uint32_t DataIdx,
                             const uint64_t DstOff, const uint32_t SrcOff,
@@ -1090,6 +1082,14 @@ public:
                                        const RefVariant Ref) noexcept;
   Expect<void *> proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,
                                         const uint32_t FuncIdx) noexcept;
+  Expect<void> proxyThrow(Runtime::StackManager &StackMgr,
+                          const uint32_t TagIdx, const ValVariant *Vals,
+                          const uint32_t Num) noexcept;
+  Expect<void> proxyThrowRef(Runtime::StackManager &StackMgr,
+                             const RefVariant Ref) noexcept;
+  Expect<void> proxyCatchPop(Runtime::StackManager &StackMgr, ValVariant *Out,
+                             const uint32_t PopPayload,
+                             const uint32_t NeedRef) noexcept;
   /// @}
 
   /// Callbacks for compiled modules
@@ -1105,12 +1105,18 @@ private:
 #else
     uint8_t **const *Memories;
 #endif
+    const uint64_t *const *MemorySizes;
+    RefVariant **const *TableRefs;
+    const uint64_t *const *TableSizes;
     ValVariant *const *Globals;
+    void *const *Tags;
+    void *const *PendingExnTagAddr;
     std::atomic_uint64_t *InstrCount;
     uint64_t *CostTable;
     std::atomic_uint64_t *Gas;
     uint64_t GasLimit;
     std::atomic_uint32_t *StopToken;
+    const void *ModuleInst;
   };
 
   /// Restores thread local VM reference after overwriting it.
@@ -1128,12 +1134,37 @@ private:
     ExecutionContextStruct SavedExecutionContext;
   };
 
+  /// Pending exception passing across the compiled and the native-entered
+  /// frames. A non-null tag means pending; the exception instance keeps the
+  /// throw_ref identity.
+  struct PendingExnStruct {
+    /// Tag instance of the pending exception. Null when no exception is
+    /// pending.
+    Runtime::Instance::TagInstance *TagInst = nullptr;
+    /// Exception instance identity. Null for a fresh throw; set on rethrowing
+    /// to keep the exnref identity.
+    const Runtime::Instance::ExceptionInstance *Inst = nullptr;
+
+    /// Getter and setter of the payload values.
+    const std::vector<ValVariant> &getPayload() const noexcept {
+      return Payload;
+    }
+    void setPayload(Span<const ValVariant> Vals) noexcept {
+      Payload.assign(Vals.begin(), Vals.end());
+    }
+
+  private:
+    std::vector<ValVariant> Payload;
+  };
+
   /// Pointer to current object.
   static thread_local Executor *This;
   /// Stack passed into compiled functions
   static thread_local Runtime::StackManager *CurrentStack;
   /// Execution context for compiled functions
   static thread_local ExecutionContextStruct ExecutionContext;
+  /// Pending exception for compiled functions
+  static thread_local PendingExnStruct PendingExn;
   /// Record stack trace on error
   static thread_local std::array<uint32_t, 256> StackTrace;
   static thread_local size_t StackTraceSize;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2025 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "host/wasi/vfs_io.h"
 
@@ -341,7 +341,7 @@ OFStream::OFStream(const std::string_view FileName,
       }
     } else {
       HasError = true;
-      spdlog::error("Failed to open file for writing: {}",
+      spdlog::error("Failed to open file for writing: {}"sv,
                     std::string(FileName));
     }
   } else {

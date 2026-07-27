@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/enum_errinfo.hpp - ErrInfo C++ enumerations -------===//
 //
@@ -17,6 +17,7 @@
 #pragma once
 
 #include "dense_enum_map.h"
+#include "fmt.h"
 
 #include <cstdint>
 #include <string_view>
@@ -110,9 +111,9 @@ static inline constexpr auto IndexCategoryStr = []() constexpr {
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::PtrType>
     : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::ErrInfo::PtrType &Type,
-         fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::ErrInfo::PtrType &Type,
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(
         WasmEdge::ErrInfo::PtrTypeStr[Type], Ctx);
   }
@@ -121,9 +122,9 @@ struct fmt::formatter<WasmEdge::ErrInfo::PtrType>
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::MismatchCategory>
     : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::ErrInfo::MismatchCategory &Category,
-         fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::ErrInfo::MismatchCategory &Category,
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(
         WasmEdge::ErrInfo::MismatchCategoryStr[Category], Ctx);
   }
@@ -132,9 +133,9 @@ struct fmt::formatter<WasmEdge::ErrInfo::MismatchCategory>
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::IndexCategory>
     : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::ErrInfo::IndexCategory &Category,
-         fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::ErrInfo::IndexCategory &Category,
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(
         WasmEdge::ErrInfo::IndexCategoryStr[Category], Ctx);
   }

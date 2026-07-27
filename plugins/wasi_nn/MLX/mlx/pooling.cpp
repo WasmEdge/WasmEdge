@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "pooling.h"
 #include "base.h"
@@ -81,7 +81,7 @@ mx::array slidingWindows(const mx::array &X,
 
     spdlog::error(
         "The window shapes and strides must have the same number of spatial "
-        "dimensions as the signal.");
+        "dimensions as the signal."sv);
     assumingUnreachable();
   }
   bool UseNonOverlap = true;

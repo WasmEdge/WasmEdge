@@ -1,13 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-// >>>>>>>> WasmEdge 0.16 compat ABI shims >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> WasmEdge compat ABI shims >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 //
-// The 0.16 -> 0.17 transition changed five C API functions from the by-value
-// `WasmEdge_Limit` struct to the opaque `WasmEdge_LimitContext` handle. These
-// shims provide the old `@WASMEDGE_0.16` symbols (bound with `.symver`) while
-// `wasmedge.cpp` keeps the default `@@WASMEDGE_0.17` ones; they are a frozen
-// copy of the 0.16.4-rc.1 implementations so the old ABI stays pinned.
+// Several C API functions changed their signatures across releases. Each such
+// change pins the previous ABI under its historical version node (bound with
+// `.symver`) while `wasmedge.cpp` keeps the new default version, so binaries
+// built against the old library keep resolving the old symbol.
+//
+//   - 0.16 -> 0.17: five functions changed from the by-value `WasmEdge_Limit`
+//     struct to the opaque `WasmEdge_LimitContext` handle. Old ABI pinned at
+//     `@WASMEDGE_0.16`, new default `@@WASMEDGE_0.17`.
+//   - 0.17 -> 0.18: the four `WasmEdge_ModuleInstanceAdd{Function,Table,Memory,
+//     Global}` functions changed their return type from `void` to
+//     `WasmEdge_Result`. Old ABI pinned at `@WASMEDGE_0.17`, new default
+//     `@@WASMEDGE_0.18`.
+//
+// The shims are frozen copies of the previous-release implementations so the
+// old ABIs stay pinned bit-for-bit.
 //
 // Compiled only into the shared library on Linux/Android (see CMakeLists.txt).
 // Kept in a separate TU because under ThinLTO the module-level `.symver` asm
@@ -16,10 +26,13 @@
 #include "wasmedge/wasmedge.h"
 
 #include "ast/type.h"
+#include "runtime/instance/module.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <memory>
+#include <string_view>
 
 #if defined(__ELF__) && (defined(__linux__) || defined(__ANDROID__))
 
@@ -45,6 +58,24 @@ inline auto *toMemTypeCxt(AST::MemoryType *Cxt) noexcept {
 inline const auto *
 fromMemTypeCxt(const WasmEdge_MemoryTypeContext *Cxt) noexcept {
   return reinterpret_cast<const AST::MemoryType *>(Cxt);
+}
+inline std::string_view genStrView(const WasmEdge_String S) noexcept {
+  return std::string_view(S.Buf, S.Length);
+}
+inline auto *fromModCxt(WasmEdge_ModuleInstanceContext *Cxt) noexcept {
+  return reinterpret_cast<Runtime::Instance::ModuleInstance *>(Cxt);
+}
+inline auto *fromFuncCxt(WasmEdge_FunctionInstanceContext *Cxt) noexcept {
+  return reinterpret_cast<Runtime::Instance::FunctionInstance *>(Cxt);
+}
+inline auto *fromTabCxt(WasmEdge_TableInstanceContext *Cxt) noexcept {
+  return reinterpret_cast<Runtime::Instance::TableInstance *>(Cxt);
+}
+inline auto *fromMemCxt(WasmEdge_MemoryInstanceContext *Cxt) noexcept {
+  return reinterpret_cast<Runtime::Instance::MemoryInstance *>(Cxt);
+}
+inline auto *fromGlobCxt(WasmEdge_GlobalInstanceContext *Cxt) noexcept {
+  return reinterpret_cast<Runtime::Instance::GlobalInstance *>(Cxt);
 }
 } // namespace
 
@@ -119,6 +150,54 @@ WasmEdge_MemoryTypeGetLimit_Compat_016(const WasmEdge_MemoryTypeContext *Cxt) {
                              /* Min */ 0, /* Max */ 0};
 }
 
+// The 0.17 -> 0.18 transition changed these four functions from returning
+// `void` to returning `WasmEdge_Result`. These shims pin the old `void` ABI:
+// they perform the same best-effort add and discard the result, matching the
+// 0.17 behavior.
+__attribute__((used, visibility("default"))) void
+WasmEdge_ModuleInstanceAddFunction_Compat_017(
+    WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
+    WasmEdge_FunctionInstanceContext *FuncCxt) {
+  if (Cxt && FuncCxt) {
+    static_cast<void>(fromModCxt(Cxt)->addHostFunc(
+        genStrView(Name), std::unique_ptr<Runtime::Instance::FunctionInstance>(
+                              fromFuncCxt(FuncCxt))));
+  }
+}
+
+__attribute__((used, visibility("default"))) void
+WasmEdge_ModuleInstanceAddTable_Compat_017(
+    WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
+    WasmEdge_TableInstanceContext *TableCxt) {
+  if (Cxt && TableCxt) {
+    static_cast<void>(fromModCxt(Cxt)->addHostTable(
+        genStrView(Name), std::unique_ptr<Runtime::Instance::TableInstance>(
+                              fromTabCxt(TableCxt))));
+  }
+}
+
+__attribute__((used, visibility("default"))) void
+WasmEdge_ModuleInstanceAddMemory_Compat_017(
+    WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
+    WasmEdge_MemoryInstanceContext *MemoryCxt) {
+  if (Cxt && MemoryCxt) {
+    static_cast<void>(fromModCxt(Cxt)->addHostMemory(
+        genStrView(Name), std::unique_ptr<Runtime::Instance::MemoryInstance>(
+                              fromMemCxt(MemoryCxt))));
+  }
+}
+
+__attribute__((used, visibility("default"))) void
+WasmEdge_ModuleInstanceAddGlobal_Compat_017(
+    WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
+    WasmEdge_GlobalInstanceContext *GlobalCxt) {
+  if (Cxt && GlobalCxt) {
+    static_cast<void>(fromModCxt(Cxt)->addHostGlobal(
+        genStrView(Name), std::unique_ptr<Runtime::Instance::GlobalInstance>(
+                              fromGlobCxt(GlobalCxt))));
+  }
+}
+
 } // extern "C"
 
 // Bind each shim to its historical `@WASMEDGE_0.16` symbol name. The shims need
@@ -135,7 +214,15 @@ __asm__(".symver WasmEdge_MemoryTypeCreate_Compat_016, "
         "WasmEdge_MemoryTypeCreate@WASMEDGE_0.16");
 __asm__(".symver WasmEdge_MemoryTypeGetLimit_Compat_016, "
         "WasmEdge_MemoryTypeGetLimit@WASMEDGE_0.16");
+__asm__(".symver WasmEdge_ModuleInstanceAddFunction_Compat_017, "
+        "WasmEdge_ModuleInstanceAddFunction@WASMEDGE_0.17");
+__asm__(".symver WasmEdge_ModuleInstanceAddTable_Compat_017, "
+        "WasmEdge_ModuleInstanceAddTable@WASMEDGE_0.17");
+__asm__(".symver WasmEdge_ModuleInstanceAddMemory_Compat_017, "
+        "WasmEdge_ModuleInstanceAddMemory@WASMEDGE_0.17");
+__asm__(".symver WasmEdge_ModuleInstanceAddGlobal_Compat_017, "
+        "WasmEdge_ModuleInstanceAddGlobal@WASMEDGE_0.17");
 
 #endif // __ELF__ && (__linux__ || __ANDROID__)
 
-// <<<<<<<< WasmEdge 0.16 compat ABI shims <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge compat ABI shims <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasinn_mlx.h"
 #include "wasinnenv.h"
@@ -15,6 +15,7 @@
 #include "MLX/model/whisper/whisper.h"
 #include "MLX/model/whisper_transcribe.h"
 #include "MLX/prompt/prompt.h"
+#include <cstring>
 #include <memory>
 #include <mlx/array.h>
 
@@ -43,17 +44,81 @@ mx::array fromBytes(const Span<uint8_t> &Bytes) {
   std::memcpy(&DimBufLen, &Bytes[Offset], 4);
   Offset += 4;
 
+  // Each dimension is four bytes; the dimension block plus the following
+  // four-byte data-length field must lie within the input.
+  if (DimBufLen % 4 != 0 ||
+      Offset + static_cast<size_t>(DimBufLen) + sizeof(uint32_t) >
+          Bytes.size()) {
+    spdlog::error(
+        "[WASI-NN] MLX backend: Tensor dimension length {} is out of range."sv,
+        DimBufLen);
+    return mx::array({0.0f});
+  }
+
   std::vector<int> Shape;
+  uint64_t ElemCnt = 1;
   for (size_t I = 0; I < DimBufLen; I += 4) {
     uint32_t Dim;
     std::memcpy(&Dim, &Bytes[Offset + I], 4);
+    // Shape is a vector of int; a dimension past INT32_MAX would narrow to a
+    // negative value.
+    if (Dim > static_cast<uint32_t>(INT32_MAX)) {
+      spdlog::error(
+          "[WASI-NN] MLX backend: Tensor dimension {} is out of range."sv, Dim);
+      return mx::array({0.0f});
+    }
     Shape.push_back(static_cast<int>(Dim));
+    ElemCnt =
+        (Dim != 0 && ElemCnt > UINT64_MAX / Dim) ? UINT64_MAX : ElemCnt * Dim;
   }
   Offset += DimBufLen;
 
   uint32_t DataBufLen;
   std::memcpy(&DataBufLen, &Bytes[Offset], 4);
   Offset += 4;
+
+  // The declared data section must lie within the input.
+  if (DataBufLen > Bytes.size() - Offset) {
+    spdlog::error(
+        "[WASI-NN] MLX backend: Tensor data length {} is out of range."sv,
+        DataBufLen);
+    return mx::array({0.0f});
+  }
+
+  // Bytes consumed per element of the declared type.
+  size_t ElemSize;
+  switch (RtypeValue) {
+  case 0:
+    ElemSize = 2; // F16
+    break;
+  case 1:
+    ElemSize = 4; // F32
+    break;
+  case 2:
+    ElemSize = 8; // F64
+    break;
+  case 3:
+    ElemSize = 1; // U8
+    break;
+  case 4:
+    ElemSize = 4; // I32
+    break;
+  case 5:
+    ElemSize = 8; // I64
+    break;
+  default:
+    spdlog::error("[WASI-NN] MLX backend: Unsupported rtype: {}"sv, RtypeValue);
+    return mx::array({0.0f});
+  }
+
+  // The element data described by the shape must fit in the declared data
+  // section, which in turn lies within the input.
+  if (ElemCnt > DataBufLen / ElemSize) {
+    spdlog::error(
+        "[WASI-NN] MLX backend: Tensor data of {} elements does not fit the {}-byte data section."sv,
+        ElemCnt, DataBufLen);
+    return mx::array({0.0f});
+  }
 
   const void *DataPtr = &Bytes[Offset];
   switch (RtypeValue) {
@@ -77,7 +142,7 @@ mx::array fromBytes(const Span<uint8_t> &Bytes) {
     return mx::array(static_cast<const int64_t *>(DataPtr), Shape, mx::int64);
   }
   default:
-    spdlog::error("[WASI-NN] MLX backend: Unsupported rtype: {}", RtypeValue);
+    spdlog::error("[WASI-NN] MLX backend: Unsupported rtype: {}"sv, RtypeValue);
     return mx::array({0.0f});
   }
 }
@@ -203,12 +268,10 @@ AnswerSataus answerSataus(std::string Text, std::string End) {
   return GO;
 }
 
-Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
-                           Span<const Span<uint8_t>> Builders, WASINN::Device,
-                           uint32_t &GraphId) noexcept {
-  // Add a new graph.
-  uint32_t GId = Env.newGraph(Backend::MLX);
-  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
+Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
+                           Span<const Span<uint8_t>> Builders,
+                           WASINN::Device) noexcept {
+  auto &GraphRef = G.get<Graph>();
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] MLX backend: Load."sv);
   }
@@ -217,7 +280,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   if (Builders.size() <= 1) {
     spdlog::error(
         "[WASI-NN] MLX backend: Lack model weight or required metadata (model_type)."sv);
-    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
   const std::string Metadata = std::string(
@@ -227,7 +289,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   auto ParseError = Parser.parse(Metadata).get(Doc);
   if (ParseError) {
     spdlog::error("[WASI-NN] MLX backend: Parse metadata error"sv);
-    Env.deleteGraph(GId);
     return ErrNo::InvalidEncoding;
   }
   if (Doc.at_key("model_type").error() == simdjson::SUCCESS) {
@@ -236,14 +297,12 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (Err) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the model_type option."sv);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.ModelType = ModelType;
   } else {
     spdlog::error(
         "[WASI-NN] MLX backend: Unable to retrieve the model_type option."sv);
-    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
   if (Doc.at_key("enable_debug_log").error() == simdjson::SUCCESS) {
@@ -252,7 +311,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (Err) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the enable_debug_log option."sv);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.EnableDebugLog = EnableDebugLog;
@@ -263,7 +321,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (Err) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the tokenizer option."sv);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     TokenizerPath = TokenizerPathView;
@@ -274,7 +331,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (Err) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the max_token option."sv);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.MaxToken = MaxToken;
@@ -291,7 +347,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (ErrQBits || ErrGroupSize || ErrIsQuantized) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the q_bits or group_size option."sv);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.IsQuantized = IsQuantized;
@@ -305,14 +360,12 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (Err) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the group size from quantization option."sv);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     Err = QuantResult.value()["bits"].get<uint64_t>().get(GraphRef.QBits);
     if (Err) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the group size from quantization option."sv);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.IsQuantized = true;
@@ -326,7 +379,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                                WeightData.size());
     spdlog::info("[WASI-NN] MLX BinModel: {}"sv, BinModel.size());
     if (BinModel.size() == 0) {
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     std::string ModelFilePath;
@@ -340,14 +392,13 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       }
       // Write model to file.
       // TODO: handle different model format.
-      ModelFilePath = "MLX" + std::to_string(Idx) + ".safetensors";
+      ModelFilePath = uniqueModelFileName(Idx);
       WasmEdge::FStream::OFStream TempFile(
           ModelFilePath, std::ios_base::out | std::ios_base::binary,
           Env.getEnv());
       if (!TempFile) {
         spdlog::error(
             "[WASI-NN] MLX backend: Failed to create the temporary file. "sv);
-        Env.deleteGraph(GId);
         return ErrNo::InvalidArgument;
       }
       TempFile.write(BinModel.data(), BinModel.size());
@@ -376,7 +427,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     } else {
       spdlog::error("[WASI-NN] MLX backend: Model type {} not supported."sv,
                     GraphRef.ModelType);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
   }
@@ -424,7 +474,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   } else {
     spdlog::error("[WASI-NN] MLX backend: Model type {} not supported."sv,
                   GraphRef.ModelType);
-    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
 
@@ -433,13 +482,11 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     auto Bytes = loadBytesFromFile(TokenizerPath, Env.getEnv());
     if (Bytes.empty()) {
       spdlog::error("[WASI-NN] MLX backend: Load tokenizer failed."sv);
-      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.Tok = tokenizers::Tokenizer::FromBlobJSON(Bytes);
   } else if (GraphRef.ModelArch == "llm") {
     spdlog::error("[WASI-NN] MLX backend: Tokenizer path not found."sv);
-    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
 
@@ -465,7 +512,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   } else {
     spdlog::error("[WASI-NN] MLX backend: Model type {} not supported."sv,
                   GraphRef.ModelType);
-    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
 
@@ -476,17 +522,13 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     GraphRef.Model->toQuantized(GraphRef.GroupSize, GraphRef.QBits);
   }
 
-  GraphId = GId;
-  Env.NNGraph[GId].setReady();
   return WASINN::ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
-                                  uint32_t &ContextId) noexcept {
-  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
-  Env.NNContext[ContextId].setReady();
-  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &G,
+                                  WASINN::Context &C) noexcept {
+  auto &GraphRef = G.get<Graph>();
+  auto &CxtRef = C.get<Context>();
   if (GraphRef.ModelArch == "llm") {
     CxtRef.Inputs = LLMInput();
   } else if (GraphRef.ModelArch == "vlm") {
@@ -497,17 +539,16 @@ Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
     spdlog::error(
         "[WASI-NN] MLX backend: Model architecture {} not supported."sv,
         GraphRef.ModelArch);
-    Env.deleteContext(ContextId);
     return ErrNo::InvalidArgument;
   }
   return ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
-                               uint32_t Index,
+Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
+                               WASINN::Context &C, uint32_t Index,
                                const TensorData &Tensor) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] MLX backend: setInput"sv);
   }
@@ -528,9 +569,16 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       return ErrNo::InvalidArgument;
     }
   } else if (GraphRef.ModelArch == "whisper") {
-    std::get<WhisperInput>(CxtRef.Inputs).Audio =
-        std::string(reinterpret_cast<const char *>(Tensor.Tensor.data()),
-                    Tensor.Tensor.size());
+    if (Tensor.RType != TensorType::F32 || Tensor.Tensor.empty() ||
+        Tensor.Tensor.size() % sizeof(float) != 0) {
+      spdlog::error("[WASI-NN] MLX backend: Whisper input must be non-empty "
+                    "FP32 PCM samples."sv);
+      return ErrNo::InvalidArgument;
+    }
+    std::vector<float> Samples(Tensor.Tensor.size() / sizeof(float));
+    std::memcpy(Samples.data(), Tensor.Tensor.data(), Tensor.Tensor.size());
+    std::get<WhisperInput>(CxtRef.Inputs).Audio = mx::array(
+        Samples.data(), {static_cast<int>(Samples.size())}, mx::float32);
   } else {
     spdlog::error(
         "[WASI-NN] MLX backend: Model architecture {} not supported."sv,
@@ -540,20 +588,27 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   return WASINN::ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
-                                uint32_t, Span<uint8_t> OutBuffer,
+Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &, WASINN::Graph &G,
+                                WASINN::Context &C, uint32_t,
+                                Span<uint8_t> OutBuffer,
                                 uint32_t &BytesWritten) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] MLX backend: getOutput"sv);
   }
   if (GraphRef.ModelArch == "llm") {
     auto *Output = std::get_if<LLMOutput>(&CxtRef.Outputs);
     if (Output != nullptr) {
+      BytesWritten = static_cast<uint32_t>(Output->Answer.length());
+      if (OutBuffer.size() < Output->Answer.length()) {
+        spdlog::error("[WASI-NN] MLX backend: output buffer too small, "
+                      "need {} bytes but got {}."sv,
+                      Output->Answer.length(), OutBuffer.size());
+        return ErrNo::TooLarge;
+      }
       std::copy_n(Output->Answer.data(), Output->Answer.length(),
                   OutBuffer.data());
-      BytesWritten = Output->Answer.length();
     } else {
       spdlog::error("[WASI-NN] MLX backend: No output found."sv);
       return ErrNo::InvalidArgument;
@@ -562,8 +617,14 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
     auto *Output = std::get_if<VLMOutput>(&CxtRef.Outputs);
     if (Output != nullptr) {
       auto OutputBytes = toBytes(Output->Answer);
+      BytesWritten = static_cast<uint32_t>(OutputBytes.size());
+      if (OutBuffer.size() < OutputBytes.size()) {
+        spdlog::error("[WASI-NN] MLX backend: output buffer too small, "
+                      "need {} bytes but got {}."sv,
+                      OutputBytes.size(), OutBuffer.size());
+        return ErrNo::TooLarge;
+      }
       std::copy_n(OutputBytes.data(), OutputBytes.size(), OutBuffer.data());
-      BytesWritten = OutputBytes.size();
     } else {
       spdlog::error("[WASI-NN] MLX backend: No output found."sv);
       return ErrNo::InvalidArgument;
@@ -572,8 +633,14 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
     auto *Output = std::get_if<whisper::TranscribeResult>(&CxtRef.Outputs);
     if (Output != nullptr) {
       std::string Text = Output->Text;
+      BytesWritten = static_cast<uint32_t>(Text.length());
+      if (OutBuffer.size() < Text.length()) {
+        spdlog::error("[WASI-NN] MLX backend: output buffer too small, "
+                      "need {} bytes but got {}."sv,
+                      Text.length(), OutBuffer.size());
+        return ErrNo::TooLarge;
+      }
       std::copy_n(Text.data(), Text.length(), OutBuffer.data());
-      BytesWritten = Text.length();
     } else {
       spdlog::error("[WASI-NN] MLX backend: No output found."sv);
       return ErrNo::InvalidArgument;
@@ -588,10 +655,10 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   return WASINN::ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
-                              uint32_t ContextId) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+Expect<WASINN::ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &G,
+                              WASINN::Context &C) noexcept {
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
 
   const auto Start{std::chrono::steady_clock::now()};
   size_t TokenListSize = 0;
@@ -637,7 +704,7 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
   const std::chrono::duration<double> ElapsedSeconds{End - Start};
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] MLX backend: Generate {} tokens."sv, TokenListSize);
-    spdlog::info("Elapsed time: {} s. TPS: {}.", ElapsedSeconds.count(),
+    spdlog::info("Elapsed time: {} s. TPS: {}."sv, ElapsedSeconds.count(),
                  TokenListSize / ElapsedSeconds.count());
   }
   return WASINN::ErrNo::Success;
@@ -651,24 +718,26 @@ Expect<WASINN::ErrNo> reportBackendNotSupported() noexcept {
 }
 } // namespace
 
-Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &,
-                           Span<const Span<uint8_t>>, WASINN::Device,
-                           uint32_t &) noexcept {
+Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                           Span<const Span<uint8_t>>, WASINN::Device) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &, uint32_t,
-                                  uint32_t &) noexcept {
+Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                                  WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
+Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                               WASINN::Context &, uint32_t,
                                const TensorData &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
-                                Span<uint8_t>, uint32_t &) noexcept {
+Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                                WASINN::Context &, uint32_t, Span<uint8_t>,
+                                uint32_t &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
+Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &,
+                              WASINN::Context &) noexcept {
   return reportBackendNotSupported();
 }
 #endif

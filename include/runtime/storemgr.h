@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/runtime/storemgr.h - Store Manager definition ------------===//
 //
@@ -49,13 +49,25 @@ public:
     return std::forward<CallbackT>(CallBack)(NamedMod);
   }
 
-  /// Find module by name.
+  /// Run Callback with the named module instance (or nullptr) while holding the
+  /// shared lock, so the caller can pin a dependency before a concurrent
+  /// unregisterModule destroys it.
+  template <typename CallbackT>
+  auto withModuleLocked(std::string_view Name, CallbackT &&Callback) const {
+    return getModuleList([&](const auto &Mods) {
+      const Instance::ModuleInstance *Found = nullptr;
+      if (auto Iter = Mods.find(Name); likely(Iter != Mods.cend())) {
+        Found = Iter->second;
+      }
+      return std::forward<CallbackT>(Callback)(Found);
+    });
+  }
+
+  /// Find module by name. Returns the pointer with the lock already released;
+  /// use withModuleLocked to pin or dereference the result race-free.
   const Instance::ModuleInstance *findModule(std::string_view Name) const {
-    std::shared_lock Lock(Mutex);
-    if (auto Iter = NamedMod.find(Name); likely(Iter != NamedMod.cend())) {
-      return Iter->second;
-    }
-    return nullptr;
+    return withModuleLocked(
+        Name, [](const Instance::ModuleInstance *Found) { return Found; });
   }
 
   /// Find component by name.

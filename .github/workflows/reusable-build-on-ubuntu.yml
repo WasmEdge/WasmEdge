@@ -30,6 +30,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       BUILD_TESTS: OFF
+      SCCACHE_GHA_ENABLED: "true"
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
     container: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
       - name: Install dependencies - non-release
@@ -45,6 +48,22 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+        with:
+          version: "v0.10.0"
+      - name: Warm up sccache server
+        run: |
+          for i in 1 2 3 4 5; do
+            if sccache --show-stats >/dev/null 2>&1; then
+              sccache --show-stats
+              exit 0
+            fi
+            echo "sccache server not ready (attempt ${i}/5); retrying..." >&2
+            sleep $((i * 3))
+          done
+          echo "sccache server did not become ready; aborting before the long build" >&2
+          exit 1
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
@@ -77,6 +96,7 @@ jobs:
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_FUZZING=ON -DWASMEDGE_BUILD_TOOLS=OFF .
           cmake --build build --target wasmedge-fuzzpo
           cmake --build build --target wasmedge-fuzztool
+          cmake --build build --target wasmedge-fuzzcomponent
       - name: Test
         if: ${{ !matrix.coverage && !matrix.fuzzing && matrix.tests }}
         run: |
@@ -85,20 +105,6 @@ jobs:
           ./tools/wasmedge/wasmedge -v
           ctest
           cd -
-      - name: Install wasm-tools
-        if: ${{ !matrix.coverage && !matrix.fuzzing && matrix.tests }}
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          source "$HOME/.cargo/env"
-          cargo install wasm-tools@1.245.1
-      - name: Component Fuzz Test
-        if: ${{ !matrix.coverage && !matrix.fuzzing && matrix.tests }}
-        env:
-          FUZZ_ITERATION_COUNT: 100
-        run: |
-          source "$HOME/.cargo/env"
-          export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
-          bash test/component/fuzzing/run_fuzz.sh ./build/test/component/fuzzing/wasmedgeComponentFuzzTest
       - name: Check symbol exposure
         if: ${{ !matrix.coverage && !matrix.fuzzing }}
         run: |

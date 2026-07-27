@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/aot/version.h - version definition -----------------------===//
 //
@@ -18,7 +18,7 @@
 namespace WasmEdge {
 namespace AOT {
 
-static inline constexpr const uint32_t kBinaryVersion [[maybe_unused]] = 2;
+static inline constexpr const uint32_t kBinaryVersion [[maybe_unused]] = 3;
 
 } // namespace AOT
 } // namespace WasmEdge

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
 #include "common/types.h"
@@ -246,8 +246,8 @@ TEST(WasiSockTest, SocketUDP_4V1) {
 
     WasiSockSendTo.run(CallFrame,
                        std::array<WasmEdge::ValVariant, 7>{
-                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr,
-                           INT32_C(Port), UINT32_C(0), SendtoRetPtr},
+                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr, Port,
+                           UINT32_C(0), SendtoRetPtr},
                        Errno);
 
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
@@ -456,13 +456,14 @@ TEST(WasiSockTest, SocketUDP_4V2) {
 
     WasiSockSendTo.run(CallFrame,
                        std::array<WasmEdge::ValVariant, 7>{
-                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr,
-                           INT32_C(Port), UINT32_C(0), SendtoRetPtr},
+                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr, Port,
+                           UINT32_C(0), SendtoRetPtr},
                        Errno);
 
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    if (Errno[0].get<int32_t>() != __WASI_ERRNO_SUCCESS)
-      GTEST_SKIP();
+    const auto SendErrno = Errno[0].get<int32_t>();
+    if (SendErrno == __WASI_ERRNO_ACCES || SendErrno == __WASI_ERRNO_PERM)
+      GTEST_SKIP() << "sock_send_to blocked with WASI errno=" << SendErrno;
+    ASSERT_EQ(SendErrno, __WASI_ERRNO_SUCCESS);
     uint32_t MaxMsgBufLen = 100;
     auto MsgBuf = MemInst.getSpan<char>(MsgOutPtr, MaxMsgBufLen);
     std::fill_n(MsgBuf.data(), MsgBuf.size(), 0x00);
@@ -671,13 +672,14 @@ TEST(WasiSockTest, SocketUDP_6) {
 
     WasiSockSendTo.run(CallFrame,
                        std::array<WasmEdge::ValVariant, 7>{
-                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr,
-                           INT32_C(Port), UINT32_C(0), SendtoRetPtr},
+                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr, Port,
+                           UINT32_C(0), SendtoRetPtr},
                        Errno);
 
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    if (Errno[0].get<int32_t>() != __WASI_ERRNO_SUCCESS)
-      GTEST_SKIP();
+    const auto SendErrno = Errno[0].get<int32_t>();
+    if (SendErrno == __WASI_ERRNO_ACCES || SendErrno == __WASI_ERRNO_PERM)
+      GTEST_SKIP() << "sock_send_to blocked with WASI errno=" << SendErrno;
+    ASSERT_EQ(SendErrno, __WASI_ERRNO_SUCCESS);
 
     uint32_t MaxMsgBufLen = 100;
     auto MsgBuf = MemInst.getSpan<char>(MsgOutPtr, MaxMsgBufLen);
@@ -933,8 +935,8 @@ TEST(WasiSockTest, SocketUDP_4_Fallback) {
 
     WasiSockSendTo.run(CallFrame,
                        std::array<WasmEdge::ValVariant, 7>{
-                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr,
-                           INT32_C(Port), UINT32_C(0), SendtoRetPtr},
+                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr, Port,
+                           UINT32_C(0), SendtoRetPtr},
                        Errno);
 
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
@@ -1077,8 +1079,8 @@ TEST(WasiSockTest, SocketUDP_6_Fallback) {
 
     WasiSockSendTo.run(CallFrame,
                        std::array<WasmEdge::ValVariant, 7>{
-                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr,
-                           INT32_C(Port), UINT32_C(0), SendtoRetPtr},
+                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr, Port,
+                           UINT32_C(0), SendtoRetPtr},
                        Errno);
 
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
@@ -1689,15 +1691,17 @@ TEST(WasiTest, UNIX_Socket) {
 
     WasiSockSendTo.run(CallFrame,
                        std::array<WasmEdge::ValVariant, 7>{
-                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr,
-                           INT32_C(Port), UINT32_C(0), SendtoRetPtr},
+                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr, Port,
+                           UINT32_C(0), SendtoRetPtr},
                        Errno);
 
-    if (Errno[0].get<int32_t>() != __WASI_ERRNO_SUCCESS)
-      GTEST_SKIP();
+    const auto SendErrno = Errno[0].get<int32_t>();
+    if (SendErrno == __WASI_ERRNO_ACCES || SendErrno == __WASI_ERRNO_PERM)
+      GTEST_SKIP() << "sock_send_to blocked with WASI errno=" << SendErrno;
+    ASSERT_EQ(SendErrno, __WASI_ERRNO_SUCCESS);
     uint32_t MaxMsgBufLen = 100;
     auto MsgBuf = MemInst.getSpan<char>(MsgOutPtr, MaxMsgBufLen);
-    std::fill_n(MsgBuf.data(), AddrBuf.size(), 0x00);
+    std::fill_n(MsgBuf.data(), MsgBuf.size(), 0x00);
 
     auto *MsgOutPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgOutPackPtr);
     MsgOutPack->buf = WasmEdge::EndianValue(MsgOutPtr).le();

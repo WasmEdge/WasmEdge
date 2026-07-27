@@ -12,13 +12,14 @@ TEST_F(WasiCryptoTest, Asymmetric) {
   WASI_CRYPTO_EXPECT_SUCCESS(SmHandle, secretsManagerOpen(std::nullopt));
 
   auto EncodingCheck =
-      [this, SmHandle](std::string_view Alg, __wasi_algorithm_type_e_t AlgType,
-             std::map<__wasi_publickey_encoding_e_t, std::vector<uint8_t>>
-                 SupportPk,
-             std::map<__wasi_secretkey_encoding_e_t, std::vector<uint8_t>>
-                 SupportSk,
-             std::map<__wasi_keypair_encoding_e_t, std::vector<uint8_t>>
-                 SupportKp) {
+      [this,
+       SmHandle](std::string_view Alg, __wasi_algorithm_type_e_t AlgType,
+                 std::map<__wasi_publickey_encoding_e_t, std::vector<uint8_t>>
+                     SupportPk,
+                 std::map<__wasi_secretkey_encoding_e_t, std::vector<uint8_t>>
+                     SupportSk,
+                 std::map<__wasi_keypair_encoding_e_t, std::vector<uint8_t>>
+                     SupportKp) {
         SCOPED_TRACE(Alg);
 
         // Function checking.
@@ -211,12 +212,11 @@ TEST_F(WasiCryptoTest, Asymmetric) {
         }
       };
 
-  auto ManagedNegativeCheck = [this](
-                                  __wasi_secrets_manager_t SmHandle,
-                                  __wasi_algorithm_type_e_t AlgType,
-                                  std::string_view Alg,
-                                  std::optional<__wasi_options_t> OptOptions,
-                                  __wasi_crypto_errno_e_t ExpectedError) {
+  auto ManagedNegativeCheck = [this](__wasi_secrets_manager_t SmHandle,
+                                     __wasi_algorithm_type_e_t AlgType,
+                                     std::string_view Alg,
+                                     std::optional<__wasi_options_t> OptOptions,
+                                     __wasi_crypto_errno_e_t ExpectedError) {
     SCOPED_TRACE(Alg);
     WASI_CRYPTO_EXPECT_FAILURE(
         keypairGenerateManaged(SmHandle, AlgType, Alg, OptOptions),

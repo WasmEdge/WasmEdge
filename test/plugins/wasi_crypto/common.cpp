@@ -130,7 +130,8 @@ TEST_F(WasiCryptoTest, SecretsManager) {
 
   // Generate and store a key.
   std::string_view Alg = "HKDF-EXTRACT/SHA-256";
-  WASI_CRYPTO_EXPECT_SUCCESS(KeyHandle, symmetricKeyGenerate(Alg, std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(KeyHandle,
+                             symmetricKeyGenerate(Alg, std::nullopt));
   std::vector<uint8_t> KeyId = "test-key-id"_u8;
   WASI_CRYPTO_EXPECT_TRUE(symmetricKeyStoreManaged(SmHandle, KeyHandle, KeyId));
 
@@ -144,8 +145,9 @@ TEST_F(WasiCryptoTest, SecretsManager) {
   // Replace the key.
   WASI_CRYPTO_EXPECT_SUCCESS(NewKeyHandle,
                              symmetricKeyGenerate(Alg, std::nullopt));
-  WASI_CRYPTO_EXPECT_SUCCESS(NewVersion, symmetricKeyReplaceManaged(
-                                             SmHandle, KeyHandle, NewKeyHandle));
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      NewVersion,
+      symmetricKeyReplaceManaged(SmHandle, KeyHandle, NewKeyHandle));
   EXPECT_EQ(NewVersion, 1);
 
   // Verify new key ID and version.

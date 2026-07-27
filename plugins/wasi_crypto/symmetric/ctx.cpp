@@ -319,10 +319,11 @@ Context::symmetricKeyStoreManaged(__wasi_secrets_manager_t SecretsManagerHandle,
       .and_then([&](auto &&Sm) noexcept {
         return SymmetricKeyManager.get(KeyHandle).and_then(
             [&](auto &&Key) noexcept {
-              return Sm.storeSk(KeyId, 0, std::move(Key)).and_then([&](auto &&Version) {
-                return SymmetricKeyManager.setManagedInfo(KeyHandle, KeyId,
-                                                          Version);
-              });
+              return Sm.storeSk(KeyId, 0, std::move(Key))
+                  .and_then([&](auto &&Version) {
+                    return SymmetricKeyManager.setManagedInfo(KeyHandle, KeyId,
+                                                              Version);
+                  });
             });
       });
 }
@@ -336,16 +337,18 @@ WasiCryptoExpect<__wasi_version_t> Context::symmetricKeyReplaceManaged(
         return SymmetricKeyManager.getId(OldKeyHandle)
             .and_then([&](auto &&KeyId) noexcept {
               return Sm.getLatestSkVersion(KeyId).and_then(
-                  [&](auto LatestVersion) noexcept -> WasiCryptoExpect<__wasi_version_t> {
+                  [&](auto LatestVersion) noexcept
+                      -> WasiCryptoExpect<__wasi_version_t> {
                     __wasi_version_t NextVersion = 0;
                     ensureOrReturn(!__builtin_add_overflow(
                                        LatestVersion,
                                        static_cast<__wasi_version_t>(1),
                                        &NextVersion),
                                    __WASI_CRYPTO_ERRNO_OVERFLOW);
-                    return SymmetricKeyManager.get(NewKeyHandle).and_then(
-                        [&](auto &&NewKey) noexcept {
-                          return Sm.storeSk(KeyId, NextVersion, std::move(NewKey))
+                    return SymmetricKeyManager.get(NewKeyHandle)
+                        .and_then([&](auto &&NewKey) noexcept {
+                          return Sm
+                              .storeSk(KeyId, NextVersion, std::move(NewKey))
                               .and_then([&](auto &&Version) {
                                 return SymmetricKeyManager
                                     .setManagedInfo(NewKeyHandle, KeyId,
@@ -360,14 +363,16 @@ WasiCryptoExpect<__wasi_version_t> Context::symmetricKeyReplaceManaged(
 
 WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>
 Context::symmetricKeyId(__wasi_symmetric_key_t KeyHandle,
-                       Span<uint8_t> KeyId) noexcept {
+                        Span<uint8_t> KeyId) noexcept {
   return SymmetricKeyManager.getId(KeyHandle).and_then(
       [&](auto &&Id) noexcept
-      -> WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>> {
+          -> WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>> {
         ensureOrReturn(Id.size() <= KeyId.size(), __WASI_CRYPTO_ERRNO_OVERFLOW);
         std::copy(Id.begin(), Id.end(), KeyId.begin());
         return SymmetricKeyManager.getManagedVersion(KeyHandle).map(
-            [&Id](auto Version) { return std::make_tuple(Id.size(), Version); });
+            [&Id](auto Version) {
+              return std::make_tuple(Id.size(), Version);
+            });
       });
 }
 

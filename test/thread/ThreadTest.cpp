@@ -25,12 +25,66 @@
 
 #include <array>
 #include <csignal>
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace {
+
+#if defined(SA_SIGINFO) && defined(SA_ONSTACK)
+
+constexpr std::array FaultSignals{SIGFPE, SIGBUS, SIGSEGV};
+
+void emptySignalHandler(int) {}
+
+void exitSignalHandler(int) { std::_Exit(EXIT_SUCCESS); }
+
+class SignalActionGuard {
+public:
+  SignalActionGuard() {
+    struct sigaction Action{};
+    sigemptyset(&Action.sa_mask);
+    sigaddset(&Action.sa_mask, SIGUSR1);
+    Action.sa_handler = emptySignalHandler;
+    Action.sa_flags = SA_RESTART;
+
+    for (size_t I = 0; I < FaultSignals.size(); ++I) {
+      if (sigaction(FaultSignals[I], &Action, &Original[I]) != 0) {
+        Valid = false;
+        return;
+      }
+      InstalledCount = I + 1;
+      if (sigaction(FaultSignals[I], nullptr, &Installed[I]) != 0) {
+        Valid = false;
+        return;
+      }
+    }
+  }
+
+  ~SignalActionGuard() {
+    for (size_t I = 0; I < InstalledCount; ++I) {
+      sigaction(FaultSignals[I], &Original[I], nullptr);
+    }
+  }
+
+  bool valid() const noexcept { return Valid; }
+
+  const struct sigaction &installed(size_t I) const noexcept {
+    return Installed[I];
+  }
+
+private:
+  std::array<struct sigaction, FaultSignals.size()> Original{};
+  std::array<struct sigaction, FaultSignals.size()> Installed{};
+  size_t InstalledCount = 0;
+  bool Valid = true;
+};
+
+#endif
 
 // See mt19937.c for source of this webassembly data.
 std::array<WasmEdge::Byte, 1481> MersenneTwister19937{
@@ -233,15 +287,54 @@ TEST(AsyncExecute, GasThreadTest) {
 
 #if defined(SA_SIGINFO) && defined(SA_ONSTACK)
 
-TEST(FaultHandler, UsesAlternateSignalStack) {
-  WasmEdge::Fault FaultHandler;
-  constexpr std::array Signals{SIGFPE, SIGBUS, SIGSEGV};
+TEST(FaultHandler, PreservesPreviousSignalActions) {
+  SignalActionGuard Guard;
+  ASSERT_TRUE(Guard.valid());
 
-  for (const int Signal : Signals) {
-    struct sigaction Action{};
-    ASSERT_EQ(sigaction(Signal, nullptr, &Action), 0);
-    EXPECT_NE(Action.sa_flags & SA_ONSTACK, 0);
+  {
+    WasmEdge::Fault FaultHandler;
+    const uint32_t Code = PREPARE_FAULT(FaultHandler);
+    ASSERT_EQ(Code, 0U);
+
+    for (const int Signal : FaultSignals) {
+      struct sigaction Action{};
+      ASSERT_EQ(sigaction(Signal, nullptr, &Action), 0);
+      EXPECT_NE(Action.sa_flags & SA_ONSTACK, 0);
+    }
   }
+
+  for (size_t I = 0; I < FaultSignals.size(); ++I) {
+    struct sigaction Action{};
+    ASSERT_EQ(sigaction(FaultSignals[I], nullptr, &Action), 0);
+    EXPECT_EQ(Action.sa_handler, Guard.installed(I).sa_handler);
+    EXPECT_EQ(Action.sa_flags, Guard.installed(I).sa_flags);
+    EXPECT_EQ(std::memcmp(&Action.sa_mask, &Guard.installed(I).sa_mask,
+                          sizeof(sigset_t)),
+              0);
+  }
+}
+
+TEST(FaultHandler, ChainsSignalFromThreadWithoutFaultContext) {
+  EXPECT_EXIT(
+      {
+        struct sigaction Action{};
+        sigemptyset(&Action.sa_mask);
+        Action.sa_handler = exitSignalHandler;
+        if (sigaction(SIGFPE, &Action, nullptr) != 0) {
+          std::_Exit(EXIT_FAILURE);
+        }
+
+        WasmEdge::Fault FaultHandler;
+        const uint32_t Code = PREPARE_FAULT(FaultHandler);
+        if (Code != 0) {
+          std::_Exit(EXIT_FAILURE);
+        }
+
+        std::thread Worker([] { raise(SIGFPE); });
+        Worker.join();
+        std::_Exit(EXIT_FAILURE);
+      },
+      ::testing::ExitedWithCode(EXIT_SUCCESS), "");
 }
 
 #endif

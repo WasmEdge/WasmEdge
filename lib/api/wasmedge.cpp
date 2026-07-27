@@ -1174,6 +1174,22 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureStatisticsIsTimeMeasuring(
 }
 
 WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureStatisticsSetCostLimit(WasmEdge_ConfigureContext *Cxt,
+                                         const uint64_t Limit) noexcept {
+  if (Cxt) {
+    Cxt->Conf.getStatisticsConfigure().setCostLimit(Limit);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT uint64_t WasmEdge_ConfigureStatisticsGetCostLimit(
+    const WasmEdge_ConfigureContext *Cxt) noexcept {
+  if (Cxt) {
+    return Cxt->Conf.getStatisticsConfigure().getCostLimit();
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureDelete(WasmEdge_ConfigureContext *Cxt) noexcept {
   delete Cxt;
 }

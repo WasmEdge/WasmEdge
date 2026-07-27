@@ -811,6 +811,10 @@ TEST(APICoreTest, Configure) {
   WasmEdge_ConfigureStatisticsSetTimeMeasuring(Conf, true);
   EXPECT_NE(WasmEdge_ConfigureStatisticsIsTimeMeasuring(ConfNull), true);
   EXPECT_EQ(WasmEdge_ConfigureStatisticsIsTimeMeasuring(Conf), true);
+  WasmEdge_ConfigureStatisticsSetCostLimit(ConfNull, 1000U);
+  WasmEdge_ConfigureStatisticsSetCostLimit(Conf, 1000U);
+  EXPECT_NE(WasmEdge_ConfigureStatisticsGetCostLimit(ConfNull), 1000U);
+  EXPECT_EQ(WasmEdge_ConfigureStatisticsGetCostLimit(Conf), 1000U);
   // Test to delete nullptr.
   WasmEdge_ConfigureDelete(ConfNull);
   EXPECT_TRUE(true);

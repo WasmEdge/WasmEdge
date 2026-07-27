@@ -383,6 +383,27 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureStatisticsSetTimeMeasuring(
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsTimeMeasuring(
     const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
+/// Set the cost limit option for the statistics in the WasmEdge_ConfigureContext.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the cost limit value.
+/// \param Limit the cost limit value.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureStatisticsSetCostLimit(WasmEdge_ConfigureContext *Cxt,
+                                         const uint64_t Limit) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the cost limit option for the statistics in the WasmEdge_ConfigureContext.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the cost limit value.
+///
+/// \returns the cost limit value.
+WASMEDGE_CAPI_EXPORT extern uint64_t
+WasmEdge_ConfigureStatisticsGetCostLimit(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
 /// Deletion of the WasmEdge_ConfigureContext.
 ///
 /// After calling this function, the context will be destroyed and should

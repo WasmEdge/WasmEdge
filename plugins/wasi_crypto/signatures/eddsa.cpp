@@ -3,6 +3,7 @@
 
 #include "signatures/eddsa.h"
 
+#include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 
@@ -93,8 +94,20 @@ Eddsa::SecretKey::publicKey() const noexcept {
 }
 
 WasiCryptoExpect<Eddsa::KeyPair>
-Eddsa::SecretKey::toKeyPair(const PublicKey &) const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Eddsa::SecretKey::toKeyPair(const PublicKey &Pk) const noexcept {
+  size_t Size = PkSize;
+  std::vector<uint8_t> DerivedPk(PkSize);
+  opensslCheck(EVP_PKEY_get_raw_public_key(Ctx.get(), DerivedPk.data(), &Size));
+  ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  auto SuppliedPk = Pk.exportData(__WASI_PUBLICKEY_ENCODING_RAW);
+  if (!SuppliedPk) {
+    return WasiCryptoUnexpect(SuppliedPk);
+  }
+  ensureOrReturn(!CRYPTO_memcmp(DerivedPk.data(), SuppliedPk->data(), PkSize),
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+  return Ctx;
 }
 
 WasiCryptoExpect<SecretVec> Eddsa::SecretKey::exportData(

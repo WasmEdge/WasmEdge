@@ -637,6 +637,65 @@ TEST_F(WasiCryptoTest, Asymmetric) {
                        __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 }
 
+TEST_F(WasiCryptoTest, Ed25519KeypairFromPkAndSk) {
+  const auto PublicKey =
+      "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"_u8v;
+  const auto SecretKey =
+      "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"_u8v;
+  const auto KeyPair =
+      "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"
+      "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"_u8v;
+  const auto MismatchedPublicKey =
+      "3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c"_u8v;
+
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      PkHandle, publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv,
+                                PublicKey, __WASI_PUBLICKEY_ENCODING_RAW));
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      SkHandle, secretkeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv,
+                                SecretKey, __WASI_SECRETKEY_ENCODING_RAW));
+  WASI_CRYPTO_EXPECT_SUCCESS(KpHandle, keypairFromPkAndSk(PkHandle, SkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkHandle));
+
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      KpOutputHandle, keypairExport(KpHandle, __WASI_KEYPAIR_ENCODING_RAW));
+  std::vector<uint8_t> ExportedKeyPair(KeyPair.size());
+  WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(KpOutputHandle, ExportedKeyPair));
+  EXPECT_EQ(ExportedKeyPair, KeyPair);
+
+  WASI_CRYPTO_EXPECT_SUCCESS(StateHandle, signatureStateOpen(KpHandle));
+  WASI_CRYPTO_EXPECT_TRUE(signatureStateUpdate(StateHandle, "test"_u8));
+  WASI_CRYPTO_EXPECT_SUCCESS(SigHandle, signatureStateSign(StateHandle));
+  WASI_CRYPTO_EXPECT_TRUE(signatureStateClose(StateHandle));
+  WASI_CRYPTO_EXPECT_SUCCESS(DerivedPkHandle, keypairPublickey(KpHandle));
+  WASI_CRYPTO_EXPECT_SUCCESS(VerificationStateHandle,
+                             signatureVerificationStateOpen(DerivedPkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(
+      signatureVerificationStateUpdate(VerificationStateHandle, "test"_u8));
+  WASI_CRYPTO_EXPECT_TRUE(
+      signatureVerificationStateVerify(VerificationStateHandle, SigHandle));
+  WASI_CRYPTO_EXPECT_TRUE(
+      signatureVerificationStateClose(VerificationStateHandle));
+  WASI_CRYPTO_EXPECT_TRUE(signatureClose(SigHandle));
+  WASI_CRYPTO_EXPECT_TRUE(publickeyClose(DerivedPkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+
+  WASI_CRYPTO_EXPECT_SUCCESS(MismatchedPkHandle,
+                             publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                                             "Ed25519"sv, MismatchedPublicKey,
+                                             __WASI_PUBLICKEY_ENCODING_RAW));
+  WASI_CRYPTO_EXPECT_SUCCESS(MismatchedSkHandle,
+                             secretkeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                                             "Ed25519"sv, SecretKey,
+                                             __WASI_SECRETKEY_ENCODING_RAW));
+  WASI_CRYPTO_EXPECT_FAILURE(
+      keypairFromPkAndSk(MismatchedPkHandle, MismatchedSkHandle),
+      __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  WASI_CRYPTO_EXPECT_TRUE(publickeyClose(MismatchedPkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(MismatchedSkHandle));
+}
+
 } // namespace WasiCrypto
 } // namespace Host
 } // namespace WasmEdge

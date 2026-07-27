@@ -90,7 +90,8 @@ public:
     }
   }
 
-  WasiCryptoExpect<void> setManagedInfo(HandleType Handle, Span<const uint8_t> Id,
+  WasiCryptoExpect<void> setManagedInfo(HandleType Handle,
+                                        Span<const uint8_t> Id,
                                         __wasi_version_t Version) noexcept {
     std::unique_lock<std::shared_mutex> Lock{Mutex};
     auto Wrapper = HandleWrapper(Handle);

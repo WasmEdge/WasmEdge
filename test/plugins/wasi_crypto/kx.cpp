@@ -5,6 +5,10 @@
 
 #include <openssl/opensslv.h>
 
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+#include "mlkem_kat.h"
+#endif
+
 namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
@@ -661,6 +665,52 @@ TEST_F(WasiCryptoTest, KxMlKemKeypairImport) {
   MlKemKpImportTest("ML-KEM-512"sv, 800, 1632, 768);
   MlKemKpImportTest("ML-KEM-768"sv, 1184, 2400, 1088);
   MlKemKpImportTest("ML-KEM-1024"sv, 1568, 3168, 1568);
+}
+
+TEST_F(WasiCryptoTest, KxMlKemKnownAnswerTests) {
+  auto MlKemKatTest = [this](std::string_view Alg, const MlKemKat &Kat) {
+    SCOPED_TRACE(Alg);
+    const auto Seed = mlKemKatBytes(Kat.Seed);
+    const auto ExpectedPk = mlKemKatBytes(Kat.PublicKey);
+    const auto ExpectedSk = mlKemKatBytes(Kat.SecretKey);
+    const auto Ciphertext = mlKemKatBytes(Kat.Ciphertext);
+    const auto ExpectedSecret = mlKemKatBytes(Kat.Secret);
+
+    // Key generation: the seed must expand to the expected encapsulation and
+    // decapsulation keys.
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        SkHandle, secretkeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, Seed,
+                                  __WASI_SECRETKEY_ENCODING_RAW));
+
+    WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, publickeyFromSecretkey(SkHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        PkOutputHandle,
+        publickeyExport(PkHandle, __WASI_PUBLICKEY_ENCODING_RAW));
+    std::vector<uint8_t> Pk(ExpectedPk.size());
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(PkOutputHandle, Pk));
+    EXPECT_EQ(Pk, ExpectedPk);
+
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        SkOutputHandle,
+        secretkeyExport(SkHandle, __WASI_SECRETKEY_ENCODING_RAW));
+    std::vector<uint8_t> Sk(ExpectedSk.size());
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(SkOutputHandle, Sk));
+    EXPECT_EQ(Sk, ExpectedSk);
+
+    // Decapsulation: the same key must recover the expected shared secret from
+    // the vector's ciphertext.
+    WASI_CRYPTO_EXPECT_SUCCESS(SecretHandle,
+                               kxDecapsulate(SkHandle, Ciphertext));
+    std::vector<uint8_t> Secret(ExpectedSecret.size());
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(SecretHandle, Secret));
+    EXPECT_EQ(Secret, ExpectedSecret);
+
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkHandle));
+  };
+  MlKemKatTest("ML-KEM-512"sv, MlKem512Kat);
+  MlKemKatTest("ML-KEM-768"sv, MlKem768Kat);
+  MlKemKatTest("ML-KEM-1024"sv, MlKem1024Kat);
 }
 #endif
 

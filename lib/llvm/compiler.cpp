@@ -100,14 +100,6 @@ namespace WasmEdge {
 namespace LLVM {
 
 Expect<void> Compiler::checkConfigure() noexcept {
-  // Note: Although the Exception Handling and Memory64 proposals are not
-  // implemented in AOT yet, we should not trap here because the default
-  // configuration has become WASM 3.0, which contains these proposals.
-  if (Conf.hasProposal(Proposal::ExceptionHandling)) {
-    spdlog::warn("Proposal Exception Handling is not yet supported in WasmEdge "
-                 "AOT/JIT. The compilation will be trapped when related data "
-                 "structure or instructions found in WASM."sv);
-  }
   if (Conf.hasProposal(Proposal::Annotations)) {
     spdlog::error(ErrCode::Value::InvalidAOTConfigure);
     spdlog::error("    Proposal Custom Annotation Syntax is not yet supported "
@@ -483,7 +475,9 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
     }
     case ExternalType::Tag: // Tag type
     {
-      // TODO: EXCEPTION - implement the AOT.
+      // Get the tag type index. External type checked in validation.
+      const auto &TgType = ImpDesc.getExternalTagType();
+      Context->Tags.push_back(TgType.getTypeIdx());
       break;
     }
     default:
@@ -520,6 +514,12 @@ void Compiler::compile(const AST::TableSection &TableSec,
   }
 }
 
+void Compiler::compile(const AST::TagSection &TagSec) noexcept {
+  for (const auto &TgType : TagSec.getContent()) {
+    Context->Tags.push_back(TgType.getTypeIdx());
+  }
+}
+
 void Compiler::compileSections(const AST::Module &Module,
                                bool DeclarationsOnly) noexcept {
   // Compile Function Types
@@ -532,6 +532,8 @@ void Compiler::compileSections(const AST::Module &Module,
   compile(Module.getMemorySection(), Module.getDataSection());
   // Compile TableSection (TableSec, ElemSec)
   compile(Module.getTableSection(), Module.getElementSection());
+  // Compile TagSection
+  compile(Module.getTagSection());
   // Create function declarations without compiling bodies. (FunctionSec,
   // CodeSec)
   compileFunctionDeclarations(Module.getFunctionSection(),

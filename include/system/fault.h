@@ -14,9 +14,14 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/defines.h"
 #include "common/errcode.h"
 #include <array>
 #include <csetjmp>
+
+#if !WASMEDGE_OS_WINDOWS
+#include <setjmp.h>
+#endif
 
 namespace WasmEdge {
 
@@ -38,9 +43,13 @@ private:
   Fault *Prev = nullptr;
   std::jmp_buf Buffer;
   std::array<void *, 256> StackTraceBuffer;
-  size_t StackTraceSize;
+  size_t StackTraceSize = 0;
 };
 
 } // namespace WasmEdge
 
+#if WASMEDGE_OS_WINDOWS
 #define PREPARE_FAULT(f) (static_cast<uint32_t>(setjmp((f).buffer())))
+#else
+#define PREPARE_FAULT(f) (static_cast<uint32_t>(_setjmp((f).buffer())))
+#endif

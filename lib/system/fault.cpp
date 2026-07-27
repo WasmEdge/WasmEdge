@@ -18,6 +18,7 @@
 
 #if defined(SA_SIGINFO)
 #include <pthread.h>
+#include <sys/ucontext.h>
 #endif
 
 #if WASMEDGE_OS_WINDOWS
@@ -79,25 +80,80 @@ void forwardSignal(int Signal, siginfo_t *Siginfo, void *Context) noexcept {
   }
 }
 
+thread_local ErrCode PendingFault;
+thread_local bool FaultRedirected = false;
+
+[[noreturn]] void faultTrampoline() { Fault::emitFault(PendingFault); }
+
+bool redirectFault(void *Context, ErrCode Error) noexcept {
+  if (Context == nullptr || FaultRedirected) {
+    return false;
+  }
+
+  [[maybe_unused]] auto *Ucontext = static_cast<ucontext_t *>(Context);
+  [[maybe_unused]] const auto Target =
+      reinterpret_cast<uintptr_t>(&faultTrampoline);
+
+#if WASMEDGE_OS_MACOS && (defined(__aarch64__) || defined(__arm64__))
+  Ucontext->uc_mcontext->__ss.__sp &= ~static_cast<uintptr_t>(15);
+  Ucontext->uc_mcontext->__ss.__lr = 0;
+  Ucontext->uc_mcontext->__ss.__pc = Target;
+#elif WASMEDGE_OS_MACOS && defined(__x86_64__)
+  Ucontext->uc_mcontext->__ss.__rsp =
+      (Ucontext->uc_mcontext->__ss.__rsp & ~static_cast<uintptr_t>(15)) - 8;
+  Ucontext->uc_mcontext->__ss.__rip = Target;
+#elif WASMEDGE_OS_LINUX && defined(__aarch64__)
+  Ucontext->uc_mcontext.sp &= ~static_cast<uintptr_t>(15);
+  Ucontext->uc_mcontext.regs[30] = 0;
+  Ucontext->uc_mcontext.pc = Target;
+#elif WASMEDGE_OS_LINUX && defined(__x86_64__)
+  Ucontext->uc_mcontext.gregs[REG_RSP] = static_cast<greg_t>(
+      (static_cast<uintptr_t>(Ucontext->uc_mcontext.gregs[REG_RSP]) &
+       ~static_cast<uintptr_t>(15)) -
+      8);
+  Ucontext->uc_mcontext.gregs[REG_RIP] = static_cast<greg_t>(Target);
+#else
+  return false;
+#endif
+
+  PendingFault = Error;
+  FaultRedirected = true;
+  return true;
+}
+
+void restoreSignalMask(int Signal, void *Context) noexcept {
+  if (Context != nullptr) {
+    pthread_sigmask(SIG_SETMASK,
+                    &static_cast<ucontext_t *>(Context)->uc_sigmask, nullptr);
+    return;
+  }
+
+  sigset_t Set;
+  sigemptyset(&Set);
+  sigaddset(&Set, Signal);
+  pthread_sigmask(SIG_UNBLOCK, &Set, nullptr);
+}
+
 void signalHandler(int Signal, siginfo_t *Siginfo, void *Context) {
   if (localHandler == nullptr) {
     forwardSignal(Signal, Siginfo, Context);
     return;
   }
 
-  {
-    // Unblock current signal
-    sigset_t Set;
-    sigemptyset(&Set);
-    sigaddset(&Set, Signal);
-    pthread_sigmask(SIG_UNBLOCK, &Set, nullptr);
-  }
   switch (Signal) {
   case SIGBUS:
   case SIGSEGV:
+    if (redirectFault(Context, ErrCode::Value::MemoryOutOfBounds)) {
+      return;
+    }
+    restoreSignalMask(Signal, Context);
     Fault::emitFault(ErrCode::Value::MemoryOutOfBounds);
   case SIGFPE:
     if (Siginfo != nullptr && Siginfo->si_code == FPE_INTDIV) {
+      if (redirectFault(Context, ErrCode::Value::DivideByZero)) {
+        return;
+      }
+      restoreSignalMask(Signal, Context);
       Fault::emitFault(ErrCode::Value::DivideByZero);
     }
     forwardSignal(Signal, Siginfo, Context);
@@ -183,9 +239,16 @@ Fault::~Fault() noexcept {
 
 [[noreturn]] void Fault::emitFault(ErrCode Error) {
   assuming(localHandler != nullptr);
+#if defined(SA_SIGINFO)
+  FaultRedirected = false;
+#endif
   auto Buffer = stackTrace(localHandler->StackTraceBuffer);
   localHandler->StackTraceSize = Buffer.size();
+#if WASMEDGE_OS_WINDOWS
   longjmp(localHandler->Buffer, static_cast<int>(Error.operator uint32_t()));
+#else
+  _longjmp(localHandler->Buffer, static_cast<int>(Error.operator uint32_t()));
+#endif
 }
 
 } // namespace WasmEdge

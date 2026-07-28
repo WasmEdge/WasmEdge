@@ -756,4 +756,52 @@ TEST(serializeTypeTest, SerializeCompositeType) {
   EXPECT_FALSE(Ser.serializeSection(createTypeSec(SubType), Output));
 }
 
+TEST(serializeTypeTest, SerializeMemoryTypeSharedLimits) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+
+  // 8. Test serialize memory type with shared limits (Threads proposal).
+  //
+  //   1.  Serialize shared limit (0x03) with Threads proposal.
+  //   2.  Negative: shared limit without Threads proposal fails.
+  //   3.  Negative: shared-without-max (0x02) is rejected even with Threads.
+
+  WasmEdge::Configure ConfThreads;
+  ConfThreads.addProposal(WasmEdge::Proposal::Threads);
+  WasmEdge::Loader::Serializer SerThreads(ConfThreads);
+
+  WasmEdge::Configure ConfNoThreads;
+  ConfNoThreads.removeProposal(WasmEdge::Proposal::Threads);
+  WasmEdge::Loader::Serializer SerNoThreads(ConfNoThreads);
+
+  WasmEdge::AST::MemoryType MemType;
+  MemType.getLimit().setMin(0);
+  MemType.getLimit().setMax(65536);
+  MemType.getLimit().setType(WasmEdge::AST::Limit::LimitType::Shared);
+
+  Output = {};
+  EXPECT_TRUE(SerThreads.serializeSection(createMemorySec(MemType), Output));
+  Expected = {
+      0x05U,               // Memory section
+      0x06U,               // Content size = 6
+      0x01U,               // Vector length = 1
+      0x03U,               // Shared flag (0x03)
+      0x00U,               // Min = 0
+      0x80U, 0x80U, 0x04U  // Max = 65536
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Output = {};
+  EXPECT_FALSE(
+      SerNoThreads.serializeSection(createMemorySec(MemType), Output));
+
+  WasmEdge::AST::MemoryType MemTypeSharedNoMax;
+  MemTypeSharedNoMax.getLimit().setMin(10);
+  MemTypeSharedNoMax.getLimit().setType(
+      WasmEdge::AST::Limit::LimitType::SharedNoMax);
+  Output = {};
+  EXPECT_FALSE(
+      SerThreads.serializeSection(createMemorySec(MemTypeSharedNoMax), Output));
+}
+
 } // namespace

@@ -129,8 +129,8 @@ AST::CustomSection createCorestack(
       // support i64.
       Content.push_back(0x7F);
       auto Value = Iter.unwrap();
-      std::vector<Byte> ValueBytes(sizeof(int64_t));
-      std::memcpy(ValueBytes.data(), &Value, sizeof(int64_t));
+      std::vector<Byte> ValueBytes(sizeof(uint32_t));
+      std::memcpy(ValueBytes.data(), &Value, sizeof(uint32_t));
       Content.insert(Content.end(), ValueBytes.begin(), ValueBytes.end());
     }
     if (!ForWasmgdb) {
@@ -139,8 +139,8 @@ AST::CustomSection createCorestack(
         // support i64.
         Content.push_back(0x7F);
         auto Value = Iter.unwrap();
-        std::vector<Byte> ValueBytes(sizeof(int64_t));
-        std::memcpy(ValueBytes.data(), &Value, sizeof(int64_t));
+        std::vector<Byte> ValueBytes(sizeof(uint32_t));
+        std::memcpy(ValueBytes.data(), &Value, sizeof(uint32_t));
         Content.insert(Content.end(), ValueBytes.begin(), ValueBytes.end());
       }
     }

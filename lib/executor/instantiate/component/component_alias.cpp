@@ -35,8 +35,13 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
         CompInst.addType(*Type);
         break;
       }
+      case AST::Component::Sort::SortType::Component: {
+        const auto *CInst = CompInst.getComponentInstance(Export.first);
+        const auto *Comp = CInst->findComponent(Export.second);
+        CompInst.addComponent(*Comp);
+        break;
+      }
       case AST::Component::Sort::SortType::Value:
-      case AST::Component::Sort::SortType::Component:
       case AST::Component::Sort::SortType::Instance:
         // TODO: COMPONENT - complete the alias instantiation.
         spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);

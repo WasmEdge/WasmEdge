@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 
@@ -196,7 +196,7 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
 
   // Get function type at index x.
   const auto *ModInst = StackMgr.getModule();
-  const auto &ExpDefType = **ModInst->getType(Instr.getTargetIndex());
+  const auto &ExpDefType = *ModInst->unsafeGetType(Instr.getTargetIndex());
 
   // Pop the value of index from the Stack.
   const auto AddrType = TabInst->getTableType().getLimit().getAddrType();

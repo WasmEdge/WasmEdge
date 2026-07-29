@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/enum_ast.hpp - AST C++ enumerations ---------------===//
 //
@@ -18,6 +18,7 @@
 #pragma once
 
 #include "common/dense_enum_map.h"
+#include "common/fmt.h"
 #include "common/spare_enum_map.h"
 #include "common/spdlog.h"
 
@@ -133,9 +134,9 @@ static inline constexpr const auto ComponentCanonOptCodeStr = []() constexpr {
 template <>
 struct fmt::formatter<WasmEdge::ASTNodeAttr>
     : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::ASTNodeAttr &Attr,
-         fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::ASTNodeAttr &Attr,
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(WasmEdge::ASTNodeAttrStr[Attr],
                                                Ctx);
   }
@@ -143,9 +144,9 @@ struct fmt::formatter<WasmEdge::ASTNodeAttr>
 
 template <>
 struct fmt::formatter<WasmEdge::OpCode> : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::OpCode &Code,
-         fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::OpCode &Code,
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(WasmEdge::OpCodeStr[Code], Ctx);
   }
 };

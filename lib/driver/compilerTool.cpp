@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/configure.h"
 #include "common/defines.h"
@@ -30,8 +30,6 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
 #ifdef WASMEDGE_USE_LLVM
 
   Configure Conf = createProposalConfigure(Opt);
-  // TODO: EXCEPTION - enable the option.
-  Conf.removeProposal(Proposal::ExceptionHandling);
 
   if (Opt.PropOptimizationLevel.value() == "0") {
     Conf.getCompilerConfigure().setOptimizationLevel(

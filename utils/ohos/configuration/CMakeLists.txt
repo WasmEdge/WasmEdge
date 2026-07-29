@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 cmake_minimum_required(VERSION 3.10.2)
 cmake_policy(SET CMP0091 NEW)
@@ -87,7 +87,7 @@ endif()
 include(GNUInstallDirs)
 
 string(TOUPPER "${CMAKE_INSTALL_DEFAULT_COMPONENT_NAME}" CMAKE_INSTALL_DEFAULT_COMPONENT_NAME_UPCASE)
-set(CPACK_PACKAGE_VENDOR Second State LLC)
+set(CPACK_PACKAGE_VENDOR The WasmEdge Authors)
 set(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CMAKE_SYSTEM_NAME}")
 set(CPACK_STRIP_FILES ON)
 set(CPACK_PACKAGE_CONTACT "Shen-Ta Hsieh <beststeve@secondstate.io>")

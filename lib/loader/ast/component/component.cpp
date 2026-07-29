@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "loader/loader.h"
 
@@ -42,6 +42,11 @@ Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> Loader::loadPreamble() {
 
 Expect<void> Loader::loadComponent(AST::Component::Component &Comp,
                                    std::optional<uint64_t> Bound) {
+  ComponentNestGuard NestGuard(ComponentNestLevel);
+  if (unlikely(ComponentNestLevel > MaxComponentNestLevel)) {
+    return logLoadError(ErrCode::Value::ComponentNestLevelExceeded,
+                        FMgr.getLastOffset(), ASTNodeAttr::Component);
+  }
   auto ReportError = [](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
     return E;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 
@@ -67,21 +67,23 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
 
   // Instantiate ImportSection and do import matching. (ImportSec)
   const AST::ImportSection &ImportSec = Mod.getImportSection();
-  EXPECTED_TRY(
-      instantiate(
-          [&StoreMgr, &ModInst](std::string_view ModName)
-              -> const WasmEdge::Runtime::Instance::ModuleInstance * {
-            const auto *Found = StoreMgr.findModule(ModName);
-            if (Found) {
-              auto *Target =
-                  const_cast<WasmEdge::Runtime::Instance::ModuleInstance *>(
-                      Found);
-              ModInst->linkDependency(*Target);
-            }
-            return Found;
-          },
-          *ModInst, ImportSec)
-          .map_error(ReportError(ASTNodeAttr::Sec_Import)));
+  EXPECTED_TRY(instantiate(
+                   [&StoreMgr, &ModInst](std::string_view ModName)
+                       -> const WasmEdge::Runtime::Instance::ModuleInstance * {
+                     using WasmEdge::Runtime::Instance::ModuleInstance;
+                     return StoreMgr.withModuleLocked(
+                         ModName,
+                         [&ModInst](const ModuleInstance *Found)
+                             -> const ModuleInstance * {
+                           if (Found) {
+                             ModInst->addDependency(
+                                 *const_cast<ModuleInstance *>(Found));
+                           }
+                           return Found;
+                         });
+                   },
+                   *ModInst, ImportSec)
+                   .map_error(ReportError(ASTNodeAttr::Sec_Import)));
 
   // Instantiate Functions in module. (FunctionSec, CodeSec)
   const AST::FunctionSection &FuncSec = Mod.getFunctionSection();
@@ -151,6 +153,9 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
 
   // Pop Frame.
   StackMgr.popFrame();
+
+  // Instantiation done; finalize so the executor reads instances lock-free.
+  ModInst->finalizeInstantiation();
 
   // For a named module, register it in the store.
   if (Name.has_value()) {

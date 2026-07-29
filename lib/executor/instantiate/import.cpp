@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 
@@ -138,7 +138,7 @@ Expect<void> Executor::instantiate(
                  ModName == "wasi_crypto_symmetric"sv) {
         spdlog::error("    This is a WASI-Crypto related import. Please ensure "
                       "that you've turned on the WASI-Crypto configuration and "
-                      "installed the WASI-Crypto plug-in.");
+                      "installed the WASI-Crypto plug-in."sv);
       } else if (ModName == "env"sv) {
         spdlog::error(
             "    This may be the import of host environment like JavaScript or "

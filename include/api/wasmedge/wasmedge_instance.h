@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2025 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/wasmedge_instance.h - WasmEdge C API ---------------------===//
 //
@@ -35,6 +35,12 @@ extern "C" {
 /// The caller owns the object and should call `WasmEdge_ModuleInstanceDelete`
 /// to destroy it.
 ///
+/// The created module instance is mutable: host instances can be added through
+/// the `WasmEdge_ModuleInstanceAdd*` APIs until it is first used during
+/// execution (e.g. one of its host functions is invoked). After that it becomes
+/// finalized (immutable), and subsequent `WasmEdge_ModuleInstanceAdd*` calls
+/// fail with `WrongVMWorkflow`.
+///
 /// \param ModuleName the module name WasmEdge_String of this host module to
 /// import.
 ///
@@ -51,6 +57,12 @@ WasmEdge_ModuleInstanceCreate(const WasmEdge_String ModuleName)
 /// tags, and globals. When this module instance is destroyed, the host data
 /// finalizer will be invoked. The caller owns the object and should call
 /// `WasmEdge_ModuleInstanceDelete` to destroy it.
+///
+/// The created module instance is mutable: host instances can be added through
+/// the `WasmEdge_ModuleInstanceAdd*` APIs until it is first used during
+/// execution (e.g. one of its host functions is invoked). After that it becomes
+/// finalized (immutable), and subsequent `WasmEdge_ModuleInstanceAdd*` calls
+/// fail with `WrongVMWorkflow`.
 ///
 /// \param ModuleName the module name WasmEdge_String of this host module to
 /// import.
@@ -441,61 +453,93 @@ WasmEdge_ModuleInstanceListGlobal(const WasmEdge_ModuleInstanceContext *Cxt,
 
 /// Add a function instance context to a WasmEdge_ModuleInstanceContext.
 ///
-/// Export and move the ownership of the function instance into the module
-/// instance. The caller should __NOT__ access or destroy the function instance
-/// context after calling this function.
+/// On success, export and move the ownership of the function instance into the
+/// module instance; the caller should __NOT__ access or destroy the function
+/// instance context afterwards. On failure, the ownership is __NOT__ taken: the
+/// caller still owns the function instance context and is responsible for
+/// destroying it.
+///
+/// This function will fail with `WrongVMWorkflow` if the module instance has
+/// already been finalized, i.e. it has been used during execution and become
+/// immutable.
 ///
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ModuleInstanceContext to add the function instance.
 /// \param Name the export function name WasmEdge_String.
 /// \param FuncCxt the WasmEdge_FunctionInstanceContext to add.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceAddFunction(
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultOK` to check the value.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ModuleInstanceAddFunction(
     WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
     WasmEdge_FunctionInstanceContext *FuncCxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Add a table instance context to a WasmEdge_ModuleInstanceContext.
 ///
-/// Export and move the ownership of the table instance into the module
-/// instance. The caller should __NOT__ access or destroy the table instance
-/// context after calling this function.
+/// On success, export and move the ownership of the table instance into the
+/// module instance; the caller should __NOT__ access or destroy the table
+/// instance context afterwards. On failure, the ownership is __NOT__ taken: the
+/// caller still owns the table instance context and is responsible for
+/// destroying it.
+///
+/// This function will fail with `WrongVMWorkflow` if the module instance has
+/// already been finalized, i.e. it has been used during execution and become
+/// immutable.
 ///
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ModuleInstanceContext to add the table instance.
 /// \param Name the export table name WasmEdge_String.
 /// \param TableCxt the WasmEdge_TableInstanceContext to add.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceAddTable(
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultOK` to check the value.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ModuleInstanceAddTable(
     WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
     WasmEdge_TableInstanceContext *TableCxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Add a memory instance context to a WasmEdge_ModuleInstanceContext.
 ///
-/// Export and move the ownership of the memory instance into the module
-/// instance. The caller should __NOT__ access or destroy the memory instance
-/// context after calling this function.
+/// On success, export and move the ownership of the memory instance into the
+/// module instance; the caller should __NOT__ access or destroy the memory
+/// instance context afterwards. On failure, the ownership is __NOT__ taken: the
+/// caller still owns the memory instance context and is responsible for
+/// destroying it.
+///
+/// This function will fail with `WrongVMWorkflow` if the module instance has
+/// already been finalized, i.e. it has been used during execution and become
+/// immutable.
 ///
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ModuleInstanceContext to add the memory instance.
 /// \param Name the export memory name WasmEdge_String.
 /// \param MemoryCxt the WasmEdge_MemoryInstanceContext to add.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceAddMemory(
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultOK` to check the value.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ModuleInstanceAddMemory(
     WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
     WasmEdge_MemoryInstanceContext *MemoryCxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Add a global instance context to a WasmEdge_ModuleInstanceContext.
 ///
-/// Export and move the ownership of the global instance into the module
-/// instance. The caller should __NOT__ access or destroy the global instance
-/// context after calling this function.
+/// On success, export and move the ownership of the global instance into the
+/// module instance; the caller should __NOT__ access or destroy the global
+/// instance context afterwards. On failure, the ownership is __NOT__ taken: the
+/// caller still owns the global instance context and is responsible for
+/// destroying it.
+///
+/// This function will fail with `WrongVMWorkflow` if the module instance has
+/// already been finalized, i.e. it has been used during execution and become
+/// immutable.
 ///
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ModuleInstanceContext to add the global instance.
 /// \param Name the export global name WasmEdge_String.
 /// \param GlobalCxt the WasmEdge_GlobalInstanceContext to add.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceAddGlobal(
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultOK` to check the value.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ModuleInstanceAddGlobal(
     WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
     WasmEdge_GlobalInstanceContext *GlobalCxt) WASMEDGE_CAPI_NOEXCEPT;
 

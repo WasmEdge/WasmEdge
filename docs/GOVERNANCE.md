@@ -44,7 +44,7 @@ The WasmEdge project and its leadership embrace the following values:
 There are three levels of maintainers for WasmEdge. The WasmEdge maintainers oversee the overall
 project and its health. Committers focus on a single codebase, a group of related
 codebases, a service (e.g., a website), or project to support the other projects (e.g., marketing or
-community management). Reviewers help review the GitHub issues and PRs. See the [Contributor Ladder](./CONTRIBUTION_LADDER.md) for more detailed information on responsibilities.
+community management). Reviewers help review the GitHub issues and PRs. See the [Contributor Ladder](./CONTRIBUTOR_LADDER.md) for more detailed information on responsibilities.
 
 ## Adding new projects
 
@@ -79,7 +79,7 @@ The Security Response Team is responsible for handling all reports of security h
 
 While most business in WasmEdge runtime is conducted by "lazy consensus", periodically the Maintainers may need to vote on specific actions or changes.
 
-Generally, a vote can be taken on the developer mailing list (wasmedge@googlegroups.com) or the private Maintainer mailing list (cncf-wasmedge-runtime-maintainers@lists.cncf.io) for security or conduct matters, or via GitHub.
+Generally, a vote can be taken on the developer mailing list (WasmEdge@googlegroups.com) or the private Maintainer mailing list (cncf-wasmedge-runtime-maintainers@lists.cncf.io) for security or conduct matters, or via GitHub.
 
 ### Voting Requirements
 

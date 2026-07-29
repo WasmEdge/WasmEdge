@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/spare_enum_map.h - mapping spare enum to data -----===//
 //
@@ -16,6 +16,9 @@
 
 #include <algorithm>
 #include <array>
+#include <functional>
+#include <iterator>
+#include <memory>
 #include <string_view>
 #include <tuple>
 #include <type_traits>

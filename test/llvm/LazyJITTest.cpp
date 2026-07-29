@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2026 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- test/llvm/LazyJITTest.cpp - Lazy JIT compilation tests ------------===//
 //
@@ -480,9 +480,9 @@ TEST_F(LazyJITTest, LazyJITOnlySomeFunctionsCalled) {
 }
 
 TEST_F(LazyJITTest, LazyJITWithImports) {
-  auto VM = createLazyJITVM();
-
   TestEnvModule HostMod;
+
+  auto VM = createLazyJITVM();
   ASSERT_TRUE(VM->registerModule(HostMod));
 
   ASSERT_TRUE(VM->loadWasm(ImportWasm));

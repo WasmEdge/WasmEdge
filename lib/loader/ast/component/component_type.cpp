@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "loader/loader.h"
 
@@ -9,6 +9,11 @@ namespace WasmEdge {
 namespace Loader {
 
 Expect<void> Loader::loadType(AST::Component::CoreDefType &Ty) {
+  ComponentNestGuard NestGuard(ComponentNestLevel);
+  if (unlikely(ComponentNestLevel > MaxComponentNestLevel)) {
+    return logLoadError(ErrCode::Value::ComponentNestLevelExceeded,
+                        FMgr.getLastOffset(), ASTNodeAttr::Comp_CoreDefType);
+  }
   auto ReportError = [](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreDefType));
     return E;
@@ -82,6 +87,11 @@ Expect<void> Loader::loadType(AST::Component::CoreDefType &Ty) {
 }
 
 Expect<void> Loader::loadType(AST::Component::DefType &Ty) {
+  ComponentNestGuard NestGuard(ComponentNestLevel);
+  if (unlikely(ComponentNestLevel > MaxComponentNestLevel)) {
+    return logLoadError(ErrCode::Value::ComponentNestLevelExceeded,
+                        FMgr.getLastOffset(), ASTNodeAttr::Comp_DefType);
+  }
   auto ReportError = [](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
     return E;

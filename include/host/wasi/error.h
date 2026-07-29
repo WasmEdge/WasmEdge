@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
 #include "common/expected.h"
+#include "common/fmt.h"
 #include "common/spdlog.h"
 #include "wasi/api.hpp"
 #include <string_view>
@@ -29,8 +30,9 @@ template <typename T> constexpr auto WasiUnexpect(const WasiExpect<T> &Val) {
 
 template <>
 struct fmt::formatter<__wasi_errno_t> : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(__wasi_errno_t ErrNo, fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(__wasi_errno_t ErrNo, FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept
+      -> decltype(Ctx.out()) {
     fmt::memory_buffer Buffer;
     using namespace std::literals;
     auto Iter = std::back_inserter(Buffer);

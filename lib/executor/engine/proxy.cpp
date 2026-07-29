@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
 #include "system/fault.h"
@@ -12,8 +12,32 @@ namespace Executor {
 thread_local Executor *Executor::This = nullptr;
 thread_local Runtime::StackManager *Executor::CurrentStack = nullptr;
 thread_local Executor::ExecutionContextStruct Executor::ExecutionContext;
+thread_local Executor::PendingExnStruct Executor::PendingExn;
 thread_local std::array<uint32_t, 256> Executor::StackTrace;
 thread_local size_t Executor::StackTraceSize = 0;
+
+namespace {
+
+/// Helper for the call proxies: keep an escaped exception pending for the
+/// post-call check in the compiled caller and skip the results.
+Expect<void> callFromCompiled(Runtime::StackManager &StackMgr,
+                              const Runtime::Instance::FunctionInstance &Func,
+                              ValVariant *Rets, Expect<void> Res) noexcept {
+  if (unlikely(!Res)) {
+    if (Res.error() == ErrCode::Value::PendingException) {
+      return {};
+    }
+    return Unexpect(Res.error());
+  }
+  const uint32_t ReturnsSize =
+      static_cast<uint32_t>(Func.getFuncType().getReturnTypes().size());
+  for (uint32_t I = 0; I < ReturnsSize; ++I) {
+    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
+  }
+  return {};
+}
+
+} // namespace
 
 template <typename RetT, typename... ArgsT>
 struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StackManager &,
@@ -89,16 +113,12 @@ const Executable::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kArrayInitElem, proxyArrayInitElem),
     ENTRY(kRefTest, proxyRefTest),
     ENTRY(kRefCast, proxyRefCast),
-    ENTRY(kTableGet, proxyTableGet),
-    ENTRY(kTableSet, proxyTableSet),
     ENTRY(kTableInit, proxyTableInit),
     ENTRY(kElemDrop, proxyElemDrop),
     ENTRY(kTableCopy, proxyTableCopy),
     ENTRY(kTableGrow, proxyTableGrow),
-    ENTRY(kTableSize, proxyTableSize),
     ENTRY(kTableFill, proxyTableFill),
     ENTRY(kMemGrow, proxyMemGrow),
-    ENTRY(kMemSize, proxyMemSize),
     ENTRY(kMemInit, proxyMemInit),
     ENTRY(kDataDrop, proxyDataDrop),
     ENTRY(kMemCopy, proxyMemCopy),
@@ -108,6 +128,9 @@ const Executable::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kTableGetFuncSymbol, proxyTableGetFuncSymbol),
     ENTRY(kRefGetFuncSymbol, proxyRefGetFuncSymbol),
     ENTRY(kFuncGetFuncSymbol, proxyFuncGetFuncSymbol),
+    ENTRY(kThrow, proxyThrow),
+    ENTRY(kThrowRef, proxyThrowRef),
+    ENTRY(kCatchPop, proxyCatchPop),
 #undef ENTRY
 };
 
@@ -129,21 +152,17 @@ Expect<void> Executor::proxyCall(Runtime::StackManager &StackMgr,
   const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =
       static_cast<uint32_t>(FuncType.getParamTypes().size());
-  const uint32_t ReturnsSize =
-      static_cast<uint32_t>(FuncType.getReturnTypes().size());
 
   for (uint32_t I = 0; I < ParamsSize; ++I) {
     StackMgr.push(Args[I]);
   }
 
   auto Instrs = FuncInst->getInstrs();
-  EXPECTED_TRY(auto StartIt, enterFunction(StackMgr, *FuncInst, Instrs.end()));
-  EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
-
-  for (uint32_t I = 0; I < ReturnsSize; ++I) {
-    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
-  }
-  return {};
+  auto Res = enterFunction(StackMgr, *FuncInst, Instrs.end(), false, true)
+                 .and_then([&](AST::InstrView::iterator StartIt) {
+                   return execute(StackMgr, StartIt, Instrs.end());
+                 });
+  return callFromCompiled(StackMgr, *FuncInst, Rets, std::move(Res));
 }
 
 Expect<void> Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
@@ -167,7 +186,7 @@ Expect<void> Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
 
   const auto *ModInst = StackMgr.getModule();
   assuming(ModInst);
-  const auto &ExpDefType = **ModInst->getType(FuncTypeIdx);
+  const auto &ExpDefType = *ModInst->unsafeGetType(FuncTypeIdx);
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
 
@@ -192,21 +211,17 @@ Expect<void> Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
   const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =
       static_cast<uint32_t>(FuncType.getParamTypes().size());
-  const uint32_t ReturnsSize =
-      static_cast<uint32_t>(FuncType.getReturnTypes().size());
 
   for (uint32_t I = 0; I < ParamsSize; ++I) {
     StackMgr.push(Args[I]);
   }
 
   auto Instrs = FuncInst->getInstrs();
-  EXPECTED_TRY(auto StartIt, enterFunction(StackMgr, *FuncInst, Instrs.end()));
-  EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
-
-  for (uint32_t I = 0; I < ReturnsSize; ++I) {
-    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
-  }
-  return {};
+  auto Res = enterFunction(StackMgr, *FuncInst, Instrs.end(), false, true)
+                 .and_then([&](AST::InstrView::iterator StartIt) {
+                   return execute(StackMgr, StartIt, Instrs.end());
+                 });
+  return callFromCompiled(StackMgr, *FuncInst, Rets, std::move(Res));
 }
 
 Expect<void> Executor::proxyCallRef(Runtime::StackManager &StackMgr,
@@ -223,22 +238,17 @@ Expect<void> Executor::proxyCallRef(Runtime::StackManager &StackMgr,
   const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =
       static_cast<uint32_t>(FuncType.getParamTypes().size());
-  const uint32_t ReturnsSize =
-      static_cast<uint32_t>(FuncType.getReturnTypes().size());
 
   for (uint32_t I = 0; I < ParamsSize; ++I) {
     StackMgr.push(Args[I]);
   }
 
   auto Instrs = FuncInst->getInstrs();
-  EXPECTED_TRY(auto StartIt, enterFunction(StackMgr, *FuncInst, Instrs.end()));
-  EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
-
-  for (uint32_t I = 0; I < ReturnsSize; ++I) {
-    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
-  }
-
-  return {};
+  auto Res = enterFunction(StackMgr, *FuncInst, Instrs.end(), false, true)
+                 .and_then([&](AST::InstrView::iterator StartIt) {
+                   return execute(StackMgr, StartIt, Instrs.end());
+                 });
+  return callFromCompiled(StackMgr, *FuncInst, Rets, std::move(Res));
 }
 
 Expect<RefVariant> Executor::proxyRefFunc(Runtime::StackManager &StackMgr,
@@ -428,23 +438,6 @@ Expect<RefVariant> Executor::proxyRefCast(Runtime::StackManager &StackMgr,
 // conversion to a 32- or 64-bit value according to the address type in the LLVM
 // compiler.
 
-Expect<RefVariant> Executor::proxyTableGet(Runtime::StackManager &StackMgr,
-                                           const uint32_t TableIdx,
-                                           const uint64_t Off) noexcept {
-  auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
-  assuming(TabInst);
-  return TabInst->getRefAddr(Off);
-}
-
-Expect<void> Executor::proxyTableSet(Runtime::StackManager &StackMgr,
-                                     const uint32_t TableIdx,
-                                     const uint64_t Off,
-                                     const RefVariant Ref) noexcept {
-  auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
-  assuming(TabInst);
-  return TabInst->setRefAddr(Off, Ref);
-}
-
 Expect<void> Executor::proxyTableInit(Runtime::StackManager &StackMgr,
                                       const uint32_t TableIdx,
                                       const uint32_t ElemIdx,
@@ -503,13 +496,6 @@ Expect<uint64_t> Executor::proxyTableGrow(Runtime::StackManager &StackMgr,
   }
 }
 
-Expect<uint64_t> Executor::proxyTableSize(Runtime::StackManager &StackMgr,
-                                          const uint32_t TableIdx) noexcept {
-  auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
-  assuming(TabInst);
-  return TabInst->getSize();
-}
-
 Expect<void> Executor::proxyTableFill(Runtime::StackManager &StackMgr,
                                       const uint32_t TableIdx,
                                       const uint64_t Off, const RefVariant Ref,
@@ -538,13 +524,6 @@ Expect<uint64_t> Executor::proxyMemGrow(Runtime::StackManager &StackMgr,
       assumingUnreachable();
     }
   }
-}
-
-Expect<uint64_t> Executor::proxyMemSize(Runtime::StackManager &StackMgr,
-                                        const uint32_t MemIdx) noexcept {
-  auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
-  assuming(MemInst);
-  return MemInst->getPageSize();
 }
 
 Expect<void>
@@ -634,11 +613,21 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
 
   const auto *ModInst = StackMgr.getModule();
   assuming(ModInst);
-  const auto &ExpDefType = **ModInst->getType(FuncTypeIdx);
+  const auto &ExpDefType = *ModInst->unsafeGetType(FuncTypeIdx);
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
   bool IsMatch = false;
-  if (FuncInst->getModule()) {
+  // Check if the function type matches the expected type.
+  if (FuncInst->getModule() == ModInst &&
+      *ExpDefType.getTypeIndex() == FuncInst->getTypeIndex()) {
+    // Fast path: If the function instance is in the same module instance, we
+    // can bypass the expensive structural type matching (O(N)) by checking the
+    // type index directly (O(1)).
+    IsMatch = true;
+  } else if (FuncInst->getModule()) {
+    // If the type index is not the same, we still need to check the type
+    // structure. This is because the type alias may have different type
+    // indices but the same type structure.
     IsMatch = AST::TypeMatcher::matchType(
         ModInst->getTypeList(), *ExpDefType.getTypeIndex(),
         FuncInst->getModule()->getTypeList(), FuncInst->getTypeIndex());
@@ -690,6 +679,55 @@ Executor::proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,
     return nullptr;
   }
   return FuncInst->getSymbol().get();
+}
+
+Expect<void> Executor::proxyThrow(Runtime::StackManager &StackMgr,
+                                  const uint32_t TagIdx, const ValVariant *Vals,
+                                  const uint32_t Num) noexcept {
+  auto *TagInst = getTagInstByIdx(StackMgr, TagIdx);
+  assuming(TagInst);
+  assuming(TagInst->getTagType().getAssocValSize() == Num);
+  PendingExn.TagInst = TagInst;
+  PendingExn.Inst = nullptr;
+  PendingExn.setPayload(Span<const ValVariant>(Vals, Num));
+  return {};
+}
+
+Expect<void> Executor::proxyThrowRef(Runtime::StackManager &,
+                                     const RefVariant Ref) noexcept {
+  const auto *ExnInst = Ref.getPtr<Runtime::Instance::ExceptionInstance>();
+  if (unlikely(ExnInst == nullptr)) {
+    return Unexpect(ErrCode::Value::AccessNullException);
+  }
+  PendingExn.TagInst = ExnInst->getTag();
+  PendingExn.Inst = ExnInst;
+  PendingExn.setPayload(ExnInst->getPayload());
+  return {};
+}
+
+Expect<void> Executor::proxyCatchPop(Runtime::StackManager &StackMgr,
+                                     ValVariant *Out, const uint32_t PopPayload,
+                                     const uint32_t NeedRef) noexcept {
+  auto *TagInst = PendingExn.TagInst;
+  assuming(TagInst);
+  uint32_t Idx = 0;
+  if (PopPayload != 0) {
+    Idx = TagInst->getTagType().getAssocValSize();
+    std::copy_n(PendingExn.getPayload().begin(), Idx, Out);
+  }
+  if (NeedRef != 0) {
+    const auto *Inst = PendingExn.Inst;
+    if (Inst == nullptr) {
+      auto *ModInst =
+          const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
+      assuming(ModInst);
+      Inst = ModInst->newException(
+          TagInst, std::vector<ValVariant>(PendingExn.getPayload()));
+    }
+    Out[Idx] = RefVariant(ValType(TypeCode::Ref, TypeCode::ExnRef), Inst);
+  }
+  PendingExn = {};
+  return {};
 }
 
 } // namespace Executor

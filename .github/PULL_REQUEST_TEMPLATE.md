@@ -7,6 +7,7 @@ Before submitting this PR, please ensure the following:
 
 - [ ] **DCO Signed-off**: All commits are signed-off (`git commit -s`). CI workflows will only be approved if DCO check is passed.
 - [ ] **Commit Messages**: Run `commitlint` on your commit messages to ensure they meet the [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) standards.
+- [ ] **Coding Style**: Run `clang-format` on your code to ensure it meets the coding style guidelines.
 - [ ] **Local Tests Passed**: Provide a screenshot or logs below to prove that you have passed the test suites locally.
 
 If you are using AI-assisted tools, please ensure the following:

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/common/enum.inc - Enumerations ---------------------------===//
 //
@@ -977,6 +977,8 @@ E(UnknownCanonicalOption, 0x01AB, "unknown canonical option")
 E(MalformedName, 0x01AC, "malformed name")
 // Component model not implemented
 E(ComponentNotImplLoader, 0x01AD, "component model (loader) not implemented")
+// Component model nesting level exceeded
+E(ComponentNestLevelExceeded, 0x01AE, "component nesting level exceeded")
 // @}
 
 // Validation phase
@@ -1206,6 +1208,8 @@ E(AccessNullException, 0x0417, "null exception reference")
 E(CastFailed, 0x0418, "cast failure")
 // Uncaught Exception
 E(UncaughtException, 0x0419, "uncaught exception")
+// Exception pending for propagating through the native frames
+E(PendingException, 0x041A, "pending exception")
 // @}
 
 #undef E

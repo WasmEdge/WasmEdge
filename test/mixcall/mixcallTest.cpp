@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/configure.h"
 #include "common/errinfo.h"
@@ -139,9 +139,9 @@ bool compileModule(const WasmEdge::Configure &Conf, std::string_view InPath,
 
 TEST(MixCallTest, Call__InterpCallAOT) {
   WasmEdge::Configure Conf;
+  HostModule HostMod;
   WasmEdge::VM::VM VM(Conf);
   WasmEdge::Expect<void> Res;
-  HostModule HostMod;
   std::vector<WasmEdge::ValVariant> FuncArgs;
   std::vector<WasmEdge::ValType> FuncArgTypes;
 
@@ -198,9 +198,9 @@ TEST(MixCallTest, Call__InterpCallAOT) {
 
 TEST(MixCallTest, Call__AOTCallInterp) {
   WasmEdge::Configure Conf;
+  HostModule HostMod;
   WasmEdge::VM::VM VM(Conf);
   WasmEdge::Expect<void> Res;
-  HostModule HostMod;
   std::vector<WasmEdge::ValVariant> FuncArgs;
   std::vector<WasmEdge::ValType> FuncArgTypes;
 

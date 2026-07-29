@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2025 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #pragma once
 
@@ -63,8 +63,6 @@ struct TranscribeResult {
 };
 
 // Audio processing functions
-mx::array loadAudio(const std::string &FilePath,
-                    int SampleRate = DefaultSampleRate);
 mx::array padOrTrim(const mx::array &Array, int Length = DefaultNSamples,
                     int Axis = -1);
 mx::array logMelSpectrogram(const mx::array &Audio, int NMels = 80,
@@ -102,8 +100,7 @@ nextWordsSegment(const std::vector<TranscribeSegment> &Segments);
 
 // Main transcribe function
 TranscribeResult
-transcribe(const std::variant<std::string, mx::array> &Audio,
-           std::shared_ptr<whisper::Whisper> Model,
+transcribe(const mx::array &Audio, std::shared_ptr<whisper::Whisper> Model,
            std::optional<bool> Verbose = std::nullopt,
            std::variant<float, std::vector<float>> Temperature =
                std::vector<float>{0.0f, 0.2f, 0.4f, 0.6f, 0.8f, 1.0f},

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 //===-- wasmedge/test/aot/AOTcoreTest.cpp - Wasm test suites --------------===//
 //
@@ -59,8 +59,8 @@ TEST_P(NativeCoreTest, TestSuites) {
 
   // Define context structure
   struct TestContext {
-    WasmEdge::VM::VM VM;
     WasmEdge::SpecTestModule SpecTestMod;
+    WasmEdge::VM::VM VM;
     WasmEdge::Configure Conf;
     TestContext(const WasmEdge::Configure &C) : VM(C), Conf(C) {
       VM.registerModule(SpecTestMod);
@@ -235,8 +235,8 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
 
   // Define context structure
   struct TestContext {
-    WasmEdge::VM::VM VM;
     WasmEdge::SpecTestModule SpecTestMod;
+    WasmEdge::VM::VM VM;
     WasmEdge::Configure Conf;
     TestContext(const WasmEdge::Configure &C) : VM(C), Conf(C) {
       VM.registerModule(SpecTestMod);
@@ -409,8 +409,8 @@ TEST_P(JITCoreTest, TestSuites) {
 
   // Define context structure
   struct TestContext {
-    WasmEdge::VM::VM VM;
     WasmEdge::SpecTestModule SpecTestMod;
+    WasmEdge::VM::VM VM;
     TestContext(const WasmEdge::Configure &C) : VM(C) {
       VM.registerModule(SpecTestMod);
     }
@@ -532,8 +532,8 @@ TEST_P(LazyJITCoreTest, TestSuites) {
 
   // Define context structure
   struct TestContext {
-    WasmEdge::VM::VM VM;
     WasmEdge::SpecTestModule SpecTestMod;
+    WasmEdge::VM::VM VM;
     TestContext(const WasmEdge::Configure &C) : VM(C) {
       VM.registerModule(SpecTestMod);
     }

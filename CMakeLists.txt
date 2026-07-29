@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 cmake_minimum_required(VERSION 3.18)
 cmake_policy(SET CMP0091 NEW)
@@ -71,7 +71,11 @@ if(WASMEDGE_BUILD_AOT_RUNTIME)
   set(WASMEDGE_USE_LLVM "${WASMEDGE_BUILD_AOT_RUNTIME}" CACHE STRING "Enable WasmEdge LLVM-based compilation runtime.")
   unset(WASMEDGE_BUILD_AOT_RUNTIME CACHE)
 endif()
-option(WASMEDGE_USE_CXX11_ABI "Enable cxx11 abi when building WasmEdge." ON)
+if(DEFINED WASMEDGE_USE_CXX11_ABI)
+  message(WARNING "WASMEDGE_USE_CXX11_ABI option is deprecated and has no effect. WasmEdge is always built with the cxx11 ABI.")
+  unset(WASMEDGE_USE_CXX11_ABI CACHE)
+  unset(WASMEDGE_USE_CXX11_ABI)
+endif()
 option(WASMEDGE_FORCE_DISABLE_LTO "Forcefully disable link time optimization when linking even in Release/RelWithDeb build." OFF)
 option(WASMEDGE_LINK_LLVM_STATIC "Statically link the LLVM library into the WasmEdge tools and libraries." OFF)
 option(WASMEDGE_LINK_TOOLS_STATIC "Statically link the wasmedge and wasmedgec tools. Will forcefully link the LLVM library statically." OFF)
@@ -187,7 +191,7 @@ include(FetchContent)
 include(Helper)
 include(GNUInstallDirs)
 
-set(CPACK_PACKAGE_VENDOR Second State LLC)
+set(CPACK_PACKAGE_VENDOR The WasmEdge Authors)
 set(CPACK_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CMAKE_SYSTEM_NAME}")
 set(CPACK_STRIP_FILES ON)
 set(CPACK_PACKAGE_CONTACT "Shen-Ta Hsieh <beststeve@secondstate.io>")

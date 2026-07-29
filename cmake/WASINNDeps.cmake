@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2024 Second State INC
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 include(FetchContent)
 
@@ -125,38 +125,38 @@ endfunction()
 
 # Function for preparing TensorFlow-related variables.
 if(NOT WASMEDGE_DEPS_VERSION)
-  set(WASMEDGE_DEPS_VERSION "TF-2.12.0-CC")
+  set(WASMEDGE_DEPS_VERSION "TF-2.21.0-CC")
 endif()
 function(wasmedge_setup_tf_variables)
   # Set the system name and hash of TF and TFLite releases.
   if(ANDROID)
     if(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
       set(WASMEDGE_TENSORFLOW_SYSTEM_NAME "android_aarch64" PARENT_SCOPE)
-      set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH "2d7dcd7381479d9ffc0968ea66e24a5207b404c7f2ccbdddec6f2a4d6f9813f2" PARENT_SCOPE)
-    elseif()
+      set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH "3937cf406d198f633f0a5af9a9e8f599e9de4c26654cd6ba3a30ec55e910c7c2" PARENT_SCOPE)
+    else()
       message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
     endif()
   elseif(APPLE)
     if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
       set(WASMEDGE_TENSORFLOW_SYSTEM_NAME "darwin_x86_64" PARENT_SCOPE)
-      set(WASMEDGE_TENSORFLOW_DEPS_TF_HASH "60da72a093cf65d733ca2cb9f331356a1637acfe1645050809bd0cf056b1520f" PARENT_SCOPE)
-      set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH "04b58f4b97220633a8e299a63aba73d9a1f228904081e7d5f18e78d1e38d5f00" PARENT_SCOPE)
+      set(WASMEDGE_TENSORFLOW_DEPS_TF_HASH "e8c71d1d741435ab0c23d8deb5421a9f24c7cd375a5e6855ff7e9a8b12b159a2" PARENT_SCOPE)
+      set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH "b4596fd34d2c26ae26b2216561c2cf506684c9ebc3162a4c9a4ccc974727f5c6" PARENT_SCOPE)
     elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
       set(WASMEDGE_TENSORFLOW_SYSTEM_NAME "darwin_arm64" PARENT_SCOPE)
-      set(WASMEDGE_TENSORFLOW_DEPS_TF_HASH "2ede6d96c7563eb826331469d7d0a1f51c9b1ca311f4398d841f679a5b96705a" PARENT_SCOPE)
-      set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH "cb4562a80ac2067bdabe2464b80e129b9d8ddc6d97ad1a2d7215e06a1e1e8cda" PARENT_SCOPE)
+      set(WASMEDGE_TENSORFLOW_DEPS_TF_HASH "ab0a8810f1a4795b1a761ddd1e1ef8e29faaf48c0e904fdc1cfde222fd615c2a" PARENT_SCOPE)
+      set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH "162d3be33b28a4df4dd54e2bdc6648176e6594c06d41205ab65232e559c800b5" PARENT_SCOPE)
     else()
       message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
     endif()
   elseif(UNIX)
     if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
-      set(WASMEDGE_TENSORFLOW_SYSTEM_NAME "manylinux2014_x86_64" PARENT_SCOPE)
-      set(WASMEDGE_TENSORFLOW_DEPS_TF_HASH "266465acd642a9d2d80e56c93aa0a255597bfb3034a826bb2225e61f2bebe2e2" PARENT_SCOPE)
-      set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH "110a06bcda1fdc3e744b1728157b66981e235de130f3a34755684e6adcf08341" PARENT_SCOPE)
+      set(WASMEDGE_TENSORFLOW_SYSTEM_NAME "manylinux_2_28_x86_64" PARENT_SCOPE)
+      set(WASMEDGE_TENSORFLOW_DEPS_TF_HASH "a18d5366bd20b1c6f04748a96f016e07aa8d72cb9578c749d47421d28a6842fa" PARENT_SCOPE)
+      set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH "9365151c3b63dcd3587d562406a02fdb55047c4c364b7be362a71e88393cbdc9" PARENT_SCOPE)
     elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
-      set(WASMEDGE_TENSORFLOW_SYSTEM_NAME "manylinux2014_aarch64" PARENT_SCOPE)
-      set(WASMEDGE_TENSORFLOW_DEPS_TF_HASH "9c15a3aeeda614c9677fe8980d8fa2cd9600072c4701b8a8189225855b9ca1a8" PARENT_SCOPE)
-      set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH "672b81d3f4b5a6c25dc9bbc3b8c6ac1c0357cfab8105b2a85b8bb8c0b59afcb4" PARENT_SCOPE)
+      set(WASMEDGE_TENSORFLOW_SYSTEM_NAME "manylinux_2_28_aarch64" PARENT_SCOPE)
+      set(WASMEDGE_TENSORFLOW_DEPS_TF_HASH "d8f9536ea963e75f7ee7ea1cc5a305578dc8a205af10e7c0c7493449a7c20f2a" PARENT_SCOPE)
+      set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH "e4b97a428c32b9f677512d3ae1b96ebe81966d5e229255ebb81d22d88f7ed21c" PARENT_SCOPE)
     else()
       message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
     endif()
@@ -232,36 +232,20 @@ function(wasmedge_setup_tf_lib)
     )
     FetchContent_MakeAvailable(wasmedge_tensorflow_lib_tf)
     message(STATUS "Downloading libtensorflow dependency -- done")
-
-    if(APPLE)
-      execute_process(
-        COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_cc.2.12.0.dylib ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_cc.2.dylib
-        COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_cc.2.dylib ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_cc.dylib
-        COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_framework.2.12.0.dylib ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_framework.2.dylib
-        COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_framework.2.dylib ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_framework.dylib
-      )
-    else()
-      execute_process(
-        COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_cc.so.2.12.0 ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_cc.so.2
-        COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_cc.so.2 ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_cc.so
-        COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_framework.so.2.12.0 ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_framework.so.2
-        COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_framework.so.2 ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_framework.so
-      )
-    endif()
   endif()
 
   # Setup Tensorflow pre-built library.
   if(ANDROID)
   elseif(APPLE)
     set(WASMEDGE_TENSORFLOW_DEPS_TF_LIB
-      "${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_cc.2.12.0.dylib"
-      "${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_framework.2.12.0.dylib"
+      "${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_cc.2.dylib"
+      "${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_framework.2.dylib"
       PARENT_SCOPE
     )
   elseif(UNIX)
     set(WASMEDGE_TENSORFLOW_DEPS_TF_LIB
-      "${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_cc.so.2.12.0"
-      "${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_framework.so.2.12.0"
+      "${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_cc.so.2"
+      "${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_framework.so.2"
       PARENT_SCOPE
     )
   endif()
@@ -357,7 +341,7 @@ function(wasmedge_setup_llama_target target)
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggml-org/llama.cpp.git
-      GIT_TAG        b8757
+      GIT_TAG        a29e4c0b7b23e020107058480dabbe03b7cba6e1  # b8757
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)
@@ -371,6 +355,15 @@ function(wasmedge_setup_llama_target target)
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
       set_property(TARGET ggml-cuda PROPERTY POSITION_INDEPENDENT_CODE ON)
     endif()
+
+    # Reach llama.cpp's headers through -isystem / -external:I. They are pulled
+    # into this plugin's own translation units, so without this they compile
+    # under WASMEDGE_CFLAGS and trip -Werror on clang-cl, where -Wall means
+    # -Weverything.
+    foreach(LLAMA_TARGET IN ITEMS
+        common ggml ggml-base ggml-cpu ggml-cuda llama mtmd)
+      wasmedge_mark_system_includes(${LLAMA_TARGET})
+    endforeach()
   endif()
   # Ignore unused function warnings in common.h in llama.cpp.
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
@@ -379,12 +372,16 @@ function(wasmedge_setup_llama_target target)
       -Wno-error=unused-function
     )
   elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # The GGML sources index vectors with int, which clang-cl reports under
+    # -Weverything. Keep the diagnostics, but do not fail the build on them.
     target_compile_options(${target}
       PRIVATE
       -Wno-error=unused-function
       -Wno-error=implicit-float-conversion
       -Wno-error=documentation
       -Wno-error=unused-template
+      -Wno-error=sign-conversion
+      -Wno-error=extra-semi-stmt
     )
   elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     target_compile_options(${target}
@@ -515,7 +512,7 @@ function(wasmedge_setup_mlx_target target)
       FetchContent_Declare(
         mlx
         GIT_REPOSITORY https://github.com/ml-explore/mlx.git
-        GIT_TAG        v0.24.1
+        GIT_TAG        aba899cef8c9188f92eb12b173fbe5a7ef62d4aa  # v0.24.1
         GIT_SHALLOW    FALSE
       )
       set(MLX_BUILD_GGUF OFF)

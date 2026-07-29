@@ -442,8 +442,27 @@ function(wasmedge_setup_simdjson)
   endif()
   # setup simdjson
   if(NOT WASMEDGE_FORCE_DOWNLOAD_SIMDJSON)
-    message(STATUS "Checking SIMDJSON from system")
-    find_package(simdjson QUIET)
+    # Package managers such as Homebrew export their entire install prefix as
+    # INTERFACE_INCLUDE_DIRECTORIES; a co-installed fmt 12.2.0 would then
+    # shadow the bundled 12.1.0 at compile time. CMake does not provide a
+    # supported way to remove or replace an imported target once created, so
+    # the check must happen before find_package.
+    set(_wasmedge_use_system_simdjson TRUE)
+    foreach(_pm_prefix /opt/homebrew /opt/local /usr/local)
+      if(IS_DIRECTORY "${_pm_prefix}/lib/cmake/simdjson" AND
+         EXISTS "${_pm_prefix}/include/fmt/format.h")
+        message(STATUS "SIMDJSON at ${_pm_prefix} co-installs with fmt headers; "
+          "downloading simdjson to avoid bundled fmt version conflict")
+        set(_wasmedge_use_system_simdjson FALSE)
+        break()
+      endif()
+    endforeach()
+    unset(_pm_prefix)
+    if(_wasmedge_use_system_simdjson)
+      message(STATUS "Checking SIMDJSON from system")
+      find_package(simdjson QUIET)
+    endif()
+    unset(_wasmedge_use_system_simdjson)
   endif()
   if(simdjson_FOUND)
     message(STATUS "SIMDJSON found")

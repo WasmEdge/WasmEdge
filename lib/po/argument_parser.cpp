@@ -228,8 +228,16 @@ void ArgumentParser::SubCommandDescriptor::indent_output(
   const std::size_t Width = ScreenWidth - kIndent.size() * IndentCount;
   while (Desc.size() > Width) {
     const std::size_t SpacePos = Desc.find_last_of(' ', Width);
-    const std::size_t LineEnd =
-        SpacePos == std::string_view::npos ? Width : SpacePos;
+    std::size_t LineEnd = SpacePos == std::string_view::npos ? Width : SpacePos;
+    if (SpacePos == std::string_view::npos) {
+      while (LineEnd > 0 &&
+             (static_cast<unsigned char>(Desc[LineEnd]) & 0xC0U) == 0x80U) {
+        --LineEnd;
+      }
+      if (LineEnd == 0) {
+        LineEnd = Width;
+      }
+    }
     for (std::size_t I = 0; I < IndentCount; ++I) {
       fmt::print(Out, "{}"sv, kIndent);
     }

@@ -1307,4 +1307,111 @@ TEST(InstructionTest, LoadTryTable) {
   EXPECT_FALSE(Ldr.parseModule(Vec));
 }
 
+TEST(InstructionTest, LoadBrOnCastFlags) {
+  std::vector<uint8_t> Vec;
+
+  // 15. Test br_on_cast and br_on_cast_fail flag validation.
+  //
+  //   1.  Load br_on_cast with all valid flag values (0x00-0x03).
+  //   2.  Load br_on_cast_fail with all valid flag values (0x00-0x03).
+  //   3.  Reject br_on_cast with reserved flag 0x04 (issue #5232 regression).
+  //   4.  Reject br_on_cast with reserved flag 0xFF.
+  //   5.  Reject br_on_cast_fail with reserved flag 0x04.
+  //   6.  Reject br_on_cast_fail with reserved flag 0xFF.
+
+  for (uint8_t Flag = 0x00U; Flag <= 0x03U; ++Flag) {
+    Vec = {
+        0x0AU,        // Code section
+        0x0AU,        // Content size = 10
+        0x01U,        // Vector length = 1
+        0x08U,        // Code segment size = 8
+        0x00U,        // Local vec(0)
+        0xFBU, 0x18U, // OpCode Br_on_cast.
+        Flag,         // Flag byte (valid: 0x00-0x03).
+        0x00U,        // Label index = 0.
+        0x6DU,        // HeapType1: eq.
+        0x6DU,        // HeapType2: eq.
+        0x0BU         // Expression End.
+    };
+    EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+  }
+
+  for (uint8_t Flag = 0x00U; Flag <= 0x03U; ++Flag) {
+    Vec = {
+        0x0AU,        // Code section
+        0x0AU,        // Content size = 10
+        0x01U,        // Vector length = 1
+        0x08U,        // Code segment size = 8
+        0x00U,        // Local vec(0)
+        0xFBU, 0x19U, // OpCode Br_on_cast_fail.
+        Flag,         // Flag byte (valid: 0x00-0x03).
+        0x00U,        // Label index = 0.
+        0x6DU,        // HeapType1: eq.
+        0x6DU,        // HeapType2: eq.
+        0x0BU         // Expression End.
+    };
+    EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+  }
+
+  Vec = {
+      0x0AU,        // Code section
+      0x0AU,        // Content size = 10
+      0x01U,        // Vector length = 1
+      0x08U,        // Code segment size = 8
+      0x00U,        // Local vec(0)
+      0xFBU, 0x18U, // OpCode Br_on_cast.
+      0x04U,        // INVALID flag (reserved bit 2 set).
+      0x00U,        // Label index = 0.
+      0x6DU,        // HeapType1: eq.
+      0x6DU,        // HeapType2: eq.
+      0x0BU         // Expression End.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,        // Code section
+      0x0AU,        // Content size = 10
+      0x01U,        // Vector length = 1
+      0x08U,        // Code segment size = 8
+      0x00U,        // Local vec(0)
+      0xFBU, 0x18U, // OpCode Br_on_cast.
+      0xFFU,        // INVALID flag (all reserved bits set).
+      0x00U,        // Label index = 0.
+      0x6DU,        // HeapType1: eq.
+      0x6DU,        // HeapType2: eq.
+      0x0BU         // Expression End.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,        // Code section
+      0x0AU,        // Content size = 10
+      0x01U,        // Vector length = 1
+      0x08U,        // Code segment size = 8
+      0x00U,        // Local vec(0)
+      0xFBU, 0x19U, // OpCode Br_on_cast_fail.
+      0x04U,        // INVALID flag (reserved bit 2 set).
+      0x00U,        // Label index = 0.
+      0x6DU,        // HeapType1: eq.
+      0x6DU,        // HeapType2: eq.
+      0x0BU         // Expression End.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,        // Code section
+      0x0AU,        // Content size = 10
+      0x01U,        // Vector length = 1
+      0x08U,        // Code segment size = 8
+      0x00U,        // Local vec(0)
+      0xFBU, 0x19U, // OpCode Br_on_cast_fail.
+      0xFFU,        // INVALID flag (all reserved bits set).
+      0x00U,        // Label index = 0.
+      0x6DU,        // HeapType1: eq.
+      0x6DU,        // HeapType2: eq.
+      0x0BU         // Expression End.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+}
+
 } // namespace

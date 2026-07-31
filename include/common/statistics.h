@@ -88,8 +88,8 @@ public:
     uint64_t OldCostSum = CostSum.load(std::memory_order_relaxed);
     uint64_t NewCostSum;
     do {
-      NewCostSum = OldCostSum + Cost;
-      if (unlikely(NewCostSum > Limit)) {
+      if (unlikely(__builtin_add_overflow(OldCostSum, Cost, &NewCostSum) ||
+                   NewCostSum > Limit)) {
         spdlog::error("Cost exceeded limit. Force terminate the execution."sv);
         return false;
       }

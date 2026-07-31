@@ -22,6 +22,34 @@ TEST(StatisticsTest, AddCostRespectsLimit) {
   EXPECT_EQ(S.getTotalCost(), UINT64_C(100));
 }
 
+TEST(StatisticsTest, AddCostNoOverflowBypass) {
+  Statistics S;
+  S.setCostLimit(UINT64_MAX);
+  S.getTotalCostRef().store(UINT64_MAX - 5, std::memory_order_relaxed);
+  EXPECT_FALSE(S.addCost(100));
+  EXPECT_EQ(S.getTotalCost(), UINT64_MAX - 5);
+}
+
+TEST(StatisticsTest, AddCostExactLimitNoOverflow) {
+  Statistics S;
+  S.setCostLimit(UINT64_MAX);
+  S.getTotalCostRef().store(UINT64_MAX - 100, std::memory_order_relaxed);
+  EXPECT_TRUE(S.addCost(100));
+  EXPECT_EQ(S.getTotalCost(), UINT64_MAX);
+  EXPECT_FALSE(S.addCost(1));
+  EXPECT_EQ(S.getTotalCost(), UINT64_MAX);
+}
+
+TEST(StatisticsTest, AddCostAtLimitBoundary) {
+  Statistics S(100);
+  EXPECT_TRUE(S.addCost(99));
+  EXPECT_FALSE(S.addCost(2));
+  EXPECT_EQ(S.getTotalCost(), UINT64_C(99));
+  EXPECT_TRUE(S.addCost(1));
+  EXPECT_EQ(S.getTotalCost(), UINT64_C(100));
+  EXPECT_FALSE(S.addCost(1));
+}
+
 TEST(StatisticsTest, SubCostRejectsCostAtOrAboveTotal) {
   Statistics S;
   EXPECT_TRUE(S.addCost(10));

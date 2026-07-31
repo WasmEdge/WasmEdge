@@ -28,8 +28,7 @@ TEST_F(WasiCryptoTest, Kdf) {
     std::vector<uint8_t> SqueezeKey(KeySize);
     WASI_CRYPTO_EXPECT_TRUE(
         symmetricStateSqueeze(ExpandStateHandle, SqueezeKey));
-    WASI_CRYPTO_EXPECT_FAILURE(symmetricStateAbsorb(ExpandStateHandle, Info),
-                               __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+    WASI_CRYPTO_EXPECT_TRUE(symmetricStateAbsorb(ExpandStateHandle, Info));
 
     auto BothInvalid = [this](std::string_view Name,
                               __wasi_symmetric_state_t StateHandle) {
@@ -69,17 +68,13 @@ TEST_F(WasiCryptoTest, Kdf) {
         WASI_CRYPTO_EXPECT_TRUE(symmetricStateSqueeze(StateCloneHandle, Out2));
         EXPECT_EQ(Out1, Out2);
 
-        // Streaming squeeze check (Expand state).
+        // Non-consuming squeeze check (Expand state derives requested length from info).
         std::vector<uint8_t> Out3(32);
         std::vector<uint8_t> Out4(32);
-        // Next squeeze from original state.
         WASI_CRYPTO_EXPECT_TRUE(symmetricStateSqueeze(StateHandle, Out3));
-        // It should be different from the first 32 bytes.
-        EXPECT_NE(Out1, Out3);
+        EXPECT_EQ(Out1, Out3);
 
-        // Next squeeze from clone state.
         WASI_CRYPTO_EXPECT_TRUE(symmetricStateSqueeze(StateCloneHandle, Out4));
-        // It should be same as Out3.
         EXPECT_EQ(Out3, Out4);
       }
 

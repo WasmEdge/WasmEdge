@@ -56,8 +56,6 @@ template <int ShaNid>
 WasiCryptoExpect<void>
 Hkdf<ShaNid>::Expand::State::absorb(Span<const uint8_t> Data) noexcept {
   std::scoped_lock Lock{Ctx->Mutex};
-  ensureOrReturn(Ctx->SqueezedOffset == 0,
-                 __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
   opensslCheck(
       EVP_PKEY_CTX_add1_hkdf_info(Ctx->RawCtx.get(), Data.data(), Data.size()));
   Ctx->Info.insert(Ctx->Info.end(), Data.begin(), Data.end());
@@ -70,33 +68,27 @@ Hkdf<ShaNid>::Expand::State::squeeze(Span<uint8_t> Out) noexcept {
   std::scoped_lock Lock{Ctx->Mutex};
   size_t OutLen = Out.size();
 
-  size_t RequiredLen = 0;
-  ensureOrReturn(
-      !__builtin_add_overflow(Ctx->SqueezedOffset, OutLen, &RequiredLen),
-      __WASI_CRYPTO_ERRNO_OVERFLOW);
-  if (RequiredLen > Ctx->Derived.size()) {
-    // Re-derive if we need more bytes.
-    auto NewCtxResult =
-        openStateImpl(Ctx->Key, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY);
-    if (!NewCtxResult) {
-      return WasiCryptoUnexpect(NewCtxResult);
-    }
-    auto NewCtx = std::move(*NewCtxResult);
-    if (!Ctx->Info.empty()) {
-      opensslCheck(EVP_PKEY_CTX_add1_hkdf_info(NewCtx.get(), Ctx->Info.data(),
-                                               Ctx->Info.size()));
-    }
+  ensureOrReturn(OutLen <= 255 * static_cast<size_t>(getKeySize()),
+                 __WASI_CRYPTO_ERRNO_OVERFLOW);
 
-    Ctx->Derived.resize(RequiredLen);
-    size_t TotalLen = RequiredLen;
-    opensslCheck(EVP_PKEY_derive(NewCtx.get(), Ctx->Derived.data(), &TotalLen));
-    ensureOrReturn(TotalLen == RequiredLen,
-                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  auto NewCtxResult =
+      openStateImpl(Ctx->Key, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY);
+  if (!NewCtxResult) {
+    return WasiCryptoUnexpect(NewCtxResult);
+  }
+  auto NewCtx = std::move(*NewCtxResult);
+  if (!Ctx->Info.empty()) {
+    opensslCheck(EVP_PKEY_CTX_add1_hkdf_info(NewCtx.get(), Ctx->Info.data(),
+                                             Ctx->Info.size()));
   }
 
-  std::copy_n(Ctx->Derived.begin() + Ctx->SqueezedOffset, OutLen, Out.begin());
-  Ctx->SqueezedOffset += OutLen;
+  SecretVec TempDerived(OutLen);
+  size_t TotalLen = OutLen;
+  opensslCheck(EVP_PKEY_derive(NewCtx.get(), TempDerived.data(), &TotalLen));
+  ensureOrReturn(TotalLen == OutLen,
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
+  std::copy_n(TempDerived.begin(), OutLen, Out.begin());
   return {};
 }
 
@@ -112,8 +104,6 @@ Hkdf<ShaNid>::Expand::State::clone() const noexcept {
         }
         auto Res = State{std::move(NewCtx), Ctx->Key};
         Res.Ctx->Info = Ctx->Info;
-        Res.Ctx->Derived = Ctx->Derived;
-        Res.Ctx->SqueezedOffset = Ctx->SqueezedOffset;
         return Res;
       });
 }

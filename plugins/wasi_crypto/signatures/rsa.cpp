@@ -309,17 +309,34 @@ Rsa<PadMode, KeyBits, ShaNid>::Signature::import(
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
     return std::vector<uint8_t>(Encoded.begin(), Encoded.end());
   case __WASI_SIGNATURE_ENCODING_DER: {
+    const size_t SigSize = getSigSize();
+    const size_t MaxDerLen =
+        SigSize + (SigSize < 128 ? 2 : (SigSize < 256 ? 3 : 4));
+    ensureOrReturn(Encoded.size() <= MaxDerLen,
+                   __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
+
     const uint8_t *DataPtr = Encoded.data();
     Asn1OctetStringPtr OctetString(
         d2i_ASN1_OCTET_STRING(nullptr, &DataPtr, Encoded.size()));
     ensureOrReturn(OctetString, __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
     ensureOrReturn(DataPtr == Encoded.data() + Encoded.size(),
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
-    std::vector<uint8_t> Res(OctetString->data,
-                             OctetString->data + OctetString->length);
-    ensureOrReturn(Res.size() == getSigSize(),
+    ensureOrReturn(static_cast<size_t>(OctetString->length) == SigSize,
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
-    return Res;
+
+    int ReEncodedLen = i2d_ASN1_OCTET_STRING(OctetString.get(), nullptr);
+    ensureOrReturn(ReEncodedLen > 0 &&
+                       static_cast<size_t>(ReEncodedLen) == Encoded.size(),
+                   __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
+    std::vector<uint8_t> ReEncoded(ReEncodedLen);
+    uint8_t *RePtr = ReEncoded.data();
+    int Written = i2d_ASN1_OCTET_STRING(OctetString.get(), &RePtr);
+    ensureOrReturn(Written == ReEncodedLen &&
+                       std::equal(Encoded.begin(), Encoded.end(), ReEncoded.begin()),
+                   __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
+
+    return std::vector<uint8_t>(OctetString->data,
+                                OctetString->data + OctetString->length);
   }
   default:
     assumingUnreachable();

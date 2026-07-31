@@ -61,7 +61,7 @@ WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
               std::make_unique<AVPacketMakeWritable>(Env));
   addHostFunc(
       "wasmedge_ffmpeg_avcodec_avcodec_parameters_copy",
-      std::make_unique<AVCodecParametersCopy>(Env)); // TODO: Write Test.
+      std::make_unique<AVCodecParametersCopy>(Env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_version",
               std::make_unique<AVCodecVersion>(Env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_flush_buffers",

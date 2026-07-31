@@ -162,6 +162,114 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
   }
 }
 
+TEST_F(FFmpegTest, AVFormatNewStream) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+  ASSERT_TRUE(AVCodecMod != nullptr);
+
+  uint32_t FormatCtxPtr = UINT32_C(4);
+  uint32_t CodecEncoderPtr = UINT32_C(8);
+  uint32_t FilePtr = UINT32_C(100);
+  uint32_t CodecNamePtr = UINT32_C(150);
+
+  std::string FileName = "ffmpeg-assets/sample_video.mp4";
+  initFormatCtx(FormatCtxPtr, FilePtr, FileName);
+  uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
+  ASSERT_TRUE(FormatCtxId > 0);
+
+  auto *FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformat_find_stream_info");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  EXPECT_TRUE(FuncInst->getHostFunc().run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, UINT32_C(0)},
+      Result));
+  EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+
+  FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformatContext_nb_streams");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatCtxNbStreams = FuncInst->getHostFunc();
+
+  EXPECT_TRUE(HostFuncAVFormatCtxNbStreams.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
+      Result));
+  const int32_t NbStreamsBefore = Result[0].get<int32_t>();
+  ASSERT_GT(NbStreamsBefore, 0);
+
+  std::string CodecName = "mpeg1video";
+  fillMemContent(MemInst, CodecNamePtr, CodecName);
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodec_find_encoder_by_name");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  EXPECT_TRUE(FuncInst->getHostFunc().run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          CodecEncoderPtr, CodecNamePtr,
+          static_cast<uint32_t>(CodecName.length())},
+      Result));
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  uint32_t AVCodecEncoderId = readUInt32(MemInst, CodecEncoderPtr);
+  ASSERT_TRUE(AVCodecEncoderId > 0);
+
+  FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformat_new_stream");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFormatNewStream = FuncInst->getHostFunc();
+
+  spdlog::info("Testing AVFormatNewStream"sv);
+  EXPECT_TRUE(HostFuncAVFormatNewStream.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FormatCtxId,
+                                                  AVCodecEncoderId},
+      Result));
+  EXPECT_EQ(Result[0].get<int32_t>(), 1);
+
+  EXPECT_TRUE(HostFuncAVFormatCtxNbStreams.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
+      Result));
+  EXPECT_EQ(Result[0].get<int32_t>(), NbStreamsBefore + 1);
+
+  // Encoder argument should initialize the new stream codecpar (MPEG1VIDEO=1).
+  FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avStream_codecpar");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  uint32_t NewStreamParamPtr = UINT32_C(20);
+  EXPECT_TRUE(FuncInst->getHostFunc().run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          FormatCtxId, static_cast<uint32_t>(NbStreamsBefore),
+          NewStreamParamPtr},
+      Result));
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  uint32_t NewStreamParamId = readUInt32(MemInst, NewStreamParamPtr);
+  ASSERT_TRUE(NewStreamParamId > 0);
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodecparam_codec_id");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  EXPECT_TRUE(FuncInst->getHostFunc().run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{NewStreamParamId}, Result));
+  EXPECT_EQ(Result[0].get<int32_t>(), 1); // MPEG1VIDEO
+
+  // Passing a null codec is valid and FFmpeg still creates a stream.
+  EXPECT_TRUE(HostFuncAVFormatNewStream.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, UINT32_C(0)},
+      Result));
+  EXPECT_EQ(Result[0].get<int32_t>(), 1);
+  EXPECT_TRUE(HostFuncAVFormatCtxNbStreams.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
+      Result));
+  EXPECT_EQ(Result[0].get<int32_t>(), NbStreamsBefore + 2);
+}
+
 } // namespace WasmEdgeFFmpeg
 } // namespace Host
 } // namespace WasmEdge

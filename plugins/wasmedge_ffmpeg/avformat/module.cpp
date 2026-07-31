@@ -66,9 +66,8 @@ WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
               std::make_unique<AVWriteFrame>(Env));
   addHostFunc("wasmedge_ffmpeg_avformat_av_interleaved_write_frame",
               std::make_unique<AVInterleavedWriteFrame>(Env));
-  addHostFunc(
-      "wasmedge_ffmpeg_avformat_avformat_new_stream",
-      std::make_unique<AVFormatNewStream>(Env));
+  addHostFunc("wasmedge_ffmpeg_avformat_avformat_new_stream",
+              std::make_unique<AVFormatNewStream>(Env));
   addHostFunc("wasmedge_ffmpeg_avformat_av_guess_codec", // TODO: Write Test
               std::make_unique<AVGuessCodec>(Env));
   addHostFunc("wasmedge_ffmpeg_avformat_avformat_configuration_length",

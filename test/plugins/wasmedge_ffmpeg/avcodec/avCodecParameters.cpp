@@ -102,9 +102,9 @@ TEST_F(FFmpegTest, AVCodecParametersCopy) {
 
   EXPECT_TRUE(HostFuncAVFindBestStream.run(
       CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{
-          FormatCtxId, UINT32_C(0), INT32_C(-1), INT32_C(-1), UINT32_C(0),
-          UINT32_C(0)},
+      std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, UINT32_C(0),
+                                                  INT32_C(-1), INT32_C(-1),
+                                                  UINT32_C(0), UINT32_C(0)},
       Result));
   const uint32_t StreamIdx = static_cast<uint32_t>(Result[0].get<int32_t>());
   ASSERT_TRUE(static_cast<int32_t>(StreamIdx) >= 0);
@@ -115,11 +115,11 @@ TEST_F(FFmpegTest, AVCodecParametersCopy) {
   ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVStreamCodecpar = FuncInst->getHostFunc();
 
-  EXPECT_TRUE(HostFuncAVStreamCodecpar.run(
-      CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, StreamIdx,
-                                                  CodecParamPtr},
-      Result));
+  EXPECT_TRUE(
+      HostFuncAVStreamCodecpar.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       FormatCtxId, StreamIdx, CodecParamPtr},
+                                   Result));
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   uint32_t StreamParamId = readUInt32(MemInst, CodecParamPtr);
   ASSERT_TRUE(StreamParamId > 0);
@@ -197,9 +197,9 @@ TEST_F(FFmpegTest, AVCodecParametersCopy) {
   // If an audio stream exists, also exercise a non-zero StreamIdx path.
   EXPECT_TRUE(HostFuncAVFindBestStream.run(
       CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{
-          FormatCtxId, UINT32_C(1), INT32_C(-1), INT32_C(-1), UINT32_C(0),
-          UINT32_C(0)},
+      std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, UINT32_C(1),
+                                                  INT32_C(-1), INT32_C(-1),
+                                                  UINT32_C(0), UINT32_C(0)},
       Result));
   const int32_t AudioStreamIdx = Result[0].get<int32_t>();
   if (AudioStreamIdx >= 0 &&

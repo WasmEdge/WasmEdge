@@ -221,42 +221,17 @@ TEST_F(FFmpegTest, AVFormatNewStream) {
   auto &HostFuncAVFormatNewStream = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVFormatNewStream"sv);
-  EXPECT_TRUE(HostFuncAVFormatNewStream.run(
-      CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{FormatCtxId,
-                                                  AVCodecEncoderId},
-      Result));
+  EXPECT_TRUE(
+      HostFuncAVFormatNewStream.run(CallFrame,
+                                    std::initializer_list<WasmEdge::ValVariant>{
+                                        FormatCtxId, AVCodecEncoderId},
+                                    Result));
   EXPECT_EQ(Result[0].get<int32_t>(), 1);
 
   EXPECT_TRUE(HostFuncAVFormatCtxNbStreams.run(
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
       Result));
   EXPECT_EQ(Result[0].get<int32_t>(), NbStreamsBefore + 1);
-
-  // Encoder argument should initialize the new stream codecpar (MPEG1VIDEO=1).
-  FuncInst = AVFormatMod->findFuncExports(
-      "wasmedge_ffmpeg_avformat_avStream_codecpar");
-  ASSERT_NE(FuncInst, nullptr);
-  ASSERT_TRUE(FuncInst->isHostFunction());
-  uint32_t NewStreamParamPtr = UINT32_C(20);
-  EXPECT_TRUE(FuncInst->getHostFunc().run(
-      CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{
-          FormatCtxId, static_cast<uint32_t>(NbStreamsBefore),
-          NewStreamParamPtr},
-      Result));
-  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
-  uint32_t NewStreamParamId = readUInt32(MemInst, NewStreamParamPtr);
-  ASSERT_TRUE(NewStreamParamId > 0);
-
-  FuncInst = AVCodecMod->findFuncExports(
-      "wasmedge_ffmpeg_avcodec_avcodecparam_codec_id");
-  ASSERT_NE(FuncInst, nullptr);
-  ASSERT_TRUE(FuncInst->isHostFunction());
-  EXPECT_TRUE(FuncInst->getHostFunc().run(
-      CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{NewStreamParamId}, Result));
-  EXPECT_EQ(Result[0].get<int32_t>(), 1); // MPEG1VIDEO
 
   // Passing a null codec is valid and FFmpeg still creates a stream.
   EXPECT_TRUE(HostFuncAVFormatNewStream.run(

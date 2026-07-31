@@ -165,8 +165,7 @@ TEST_F(FFmpegTest, AVUtilFunc) {
     // Guest FRONT_RIGHT (bit 1) maps to native AV_CH_FRONT_RIGHT (0x2).
     EXPECT_TRUE(HostFuncAVGetChannelLayoutMask.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{UINT64_C(1) << 1},
-        Result));
+        std::initializer_list<WasmEdge::ValVariant>{UINT64_C(1) << 1}, Result));
     EXPECT_EQ(Result[0].get<uint64_t>(), UINT64_C(2));
 
     // Multi-bit: FRONT_LEFT | FRONT_RIGHT must OR both native bits (0x3).
@@ -212,8 +211,7 @@ TEST_F(FFmpegTest, AVUtilFunc) {
     EXPECT_TRUE(HostFuncAVGetChannelLayoutName.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
-            ChannelId, ChannelNamePtr,
-            static_cast<uint32_t>(FrontLeftNameLen)},
+            ChannelId, ChannelNamePtr, static_cast<uint32_t>(FrontLeftNameLen)},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
     EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(ChannelNamePtr),
@@ -223,8 +221,7 @@ TEST_F(FFmpegTest, AVUtilFunc) {
     // FRONT_RIGHT → "FR".
     EXPECT_TRUE(HostFuncAVGetChannelLayoutNameLen.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{UINT64_C(1) << 1},
-        Result));
+        std::initializer_list<WasmEdge::ValVariant>{UINT64_C(1) << 1}, Result));
     const int32_t FrontRightNameLen = Result[0].get<int32_t>();
     EXPECT_EQ(FrontRightNameLen, 2);
     fillMemContent(MemInst, ChannelNamePtr,

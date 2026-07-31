@@ -222,15 +222,12 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVRescaleQRnd>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_get_channel_layout_nb_channels",
               std::make_unique<AVGetChannelLayoutNbChannels>(Env));
-  addHostFunc(
-      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name_len",
-      std::make_unique<AVGetChannelLayoutNameLen>(Env));
-  addHostFunc(
-      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name",
-      std::make_unique<AVGetChannelLayoutName>(Env));
-  addHostFunc(
-      "wasmedge_ffmpeg_avutil_av_get_channel_layout_mask",
-      std::make_unique<AVGetChannelLayoutMask>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_get_channel_layout_name_len",
+              std::make_unique<AVGetChannelLayoutNameLen>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_get_channel_layout_name",
+              std::make_unique<AVGetChannelLayoutName>(Env));
+  addHostFunc("wasmedge_ffmpeg_avutil_av_get_channel_layout_mask",
+              std::make_unique<AVGetChannelLayoutMask>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_get_default_channel_layout",
               std::make_unique<AVGetDefaultChannelLayout>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_avutil_version",

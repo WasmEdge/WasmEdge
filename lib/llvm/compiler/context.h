@@ -109,6 +109,7 @@ struct Compiler::CompileContext {
   std::vector<LLVM::Type> MemoryAddrTypes;
   std::vector<LLVM::Type> TableAddrTypes;
   std::vector<LLVM::Type> Globals;
+  std::vector<uint32_t> Tags;
   LLVM::Value IntrinsicsTable;
   LLVM::FunctionCallee Trap;
   CompileContext(LLVM::Context C, LLVM::Module &M,
@@ -168,10 +169,6 @@ struct Compiler::CompileContext {
                      LLVM::Metadata(LLContext, {}));
     return Builder.createLoad(Int64Ty, VPtr);
   }
-  LLVM::Value getModuleInst(LLVM::Builder &Builder,
-                            LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 10);
-  }
   std::pair<LLVM::Type, LLVM::Value> getGlobal(LLVM::Builder &Builder,
                                                LLVM::Value ExecCtx,
                                                uint32_t Index) noexcept {
@@ -185,24 +182,42 @@ struct Compiler::CompileContext {
     auto Ptr = Builder.createBitCast(VPtr, Ty.getPointerTo());
     return {Ty, Ptr};
   }
+  LLVM::Value getTag(LLVM::Builder &Builder, LLVM::Value ExecCtx,
+                     uint32_t Index) noexcept {
+    auto Array = Builder.createExtractValue(ExecCtx, 5);
+    auto VPtr = Builder.createLoad(
+        Int8PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
+                                              LLContext.getInt64(Index)));
+    VPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
+                     LLVM::Metadata(LLContext, {}));
+    return VPtr;
+  }
+  LLVM::Value getPendingExnTagAddr(LLVM::Builder &Builder,
+                                   LLVM::Value ExecCtx) noexcept {
+    return Builder.createExtractValue(ExecCtx, 6);
+  }
   LLVM::Value getInstrCount(LLVM::Builder &Builder,
                             LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 5);
+    return Builder.createExtractValue(ExecCtx, 7);
   }
   LLVM::Value getCostTable(LLVM::Builder &Builder,
                            LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 6);
+    return Builder.createExtractValue(ExecCtx, 8);
   }
   LLVM::Value getGas(LLVM::Builder &Builder, LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 7);
+    return Builder.createExtractValue(ExecCtx, 9);
   }
   LLVM::Value getGasLimit(LLVM::Builder &Builder,
                           LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 8);
+    return Builder.createExtractValue(ExecCtx, 10);
   }
   LLVM::Value getStopToken(LLVM::Builder &Builder,
                            LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 9);
+    return Builder.createExtractValue(ExecCtx, 11);
+  }
+  LLVM::Value getModuleInst(LLVM::Builder &Builder,
+                            LLVM::Value ExecCtx) noexcept {
+    return Builder.createExtractValue(ExecCtx, 12);
   }
   LLVM::FunctionCallee getIntrinsic(LLVM::Builder &Builder,
                                     Executable::Intrinsics Index,

@@ -75,10 +75,13 @@ TEST(Help, WrapsLongUnbrokenDescription) {
   std::string Utf8DescriptionText(77, 'y');
   Utf8DescriptionText += "\xC3\xA9";
   Utf8DescriptionText.append(21, 'y');
+  std::string LargeDescriptionText(1100, 'z');
+  LargeDescriptionText += "tail";
   Option<Toggle> A{Description(DescriptionText)};
   Option<Toggle> B{Description(Utf8DescriptionText)};
+  Option<Toggle> C{Description(LargeDescriptionText)};
   ArgumentParser Parser;
-  Parser.add_option("a"sv, A).add_option("b"sv, B);
+  Parser.add_option("a"sv, A).add_option("b"sv, B).add_option("c"sv, C);
 
   auto CloseFile = [](std::FILE *File) noexcept { std::fclose(File); };
   std::unique_ptr<std::FILE, decltype(CloseFile)> Out(std::tmpfile(),
@@ -89,10 +92,13 @@ TEST(Help, WrapsLongUnbrokenDescription) {
   ASSERT_EQ(std::fseek(Out.get(), 0, SEEK_SET), 0);
 
   std::array<char, 1024> Buffer{};
-  const std::size_t Size =
-      std::fread(Buffer.data(), sizeof(char), Buffer.size(), Out.get());
+  std::string Output;
+  while (const std::size_t Size = std::fread(Buffer.data(), sizeof(char),
+                                             Buffer.size(), Out.get())) {
+    Output.append(Buffer.data(), Size);
+  }
+  ASSERT_EQ(std::ferror(Out.get()), 0);
 
-  const std::string Output(Buffer.data(), Size);
   const std::size_t FirstLine = Output.find(std::string(78, 'x'));
   ASSERT_NE(FirstLine, std::string::npos);
   EXPECT_EQ(Output.find(std::string(79, 'x')), std::string::npos);
@@ -102,4 +108,5 @@ TEST(Help, WrapsLongUnbrokenDescription) {
   const std::size_t FirstUtf8Line = Output.find(std::string(77, 'y'));
   ASSERT_NE(FirstUtf8Line, std::string::npos);
   EXPECT_NE(Output.find("\xC3\xA9", FirstUtf8Line + 77), std::string::npos);
+  EXPECT_NE(Output.find("tail"), std::string::npos);
 }

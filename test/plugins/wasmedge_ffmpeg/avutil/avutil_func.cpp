@@ -214,8 +214,8 @@ TEST_F(FFmpegTest, AVUtilFunc) {
             ChannelId, ChannelNamePtr, static_cast<uint32_t>(FrontLeftNameLen)},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
-    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(ChannelNamePtr),
-                               static_cast<size_t>(FrontLeftNameLen)),
+    EXPECT_EQ(MemInst->getStringView(ChannelNamePtr,
+                                     static_cast<uint64_t>(FrontLeftNameLen)),
               "FL"sv);
 
     // FRONT_RIGHT → "FR".
@@ -234,8 +234,8 @@ TEST_F(FFmpegTest, AVUtilFunc) {
             static_cast<uint32_t>(FrontRightNameLen)},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
-    EXPECT_EQ(std::string_view(MemInst->getPointer<char *>(ChannelNamePtr),
-                               static_cast<size_t>(FrontRightNameLen)),
+    EXPECT_EQ(MemInst->getStringView(ChannelNamePtr,
+                                     static_cast<uint64_t>(FrontRightNameLen)),
               "FR"sv);
 
     // NameLen == 0: success, but destination bytes must stay untouched.

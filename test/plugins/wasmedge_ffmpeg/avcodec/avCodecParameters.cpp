@@ -106,8 +106,9 @@ TEST_F(FFmpegTest, AVCodecParametersCopy) {
                                                   INT32_C(-1), INT32_C(-1),
                                                   UINT32_C(0), UINT32_C(0)},
       Result));
-  const uint32_t StreamIdx = static_cast<uint32_t>(Result[0].get<int32_t>());
-  ASSERT_TRUE(static_cast<int32_t>(StreamIdx) >= 0);
+  const int32_t StreamIdxI32 = Result[0].get<int32_t>();
+  ASSERT_GE(StreamIdxI32, 0);
+  const uint32_t StreamIdx = static_cast<uint32_t>(StreamIdxI32);
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avStream_codecpar");

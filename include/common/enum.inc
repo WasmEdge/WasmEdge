@@ -658,6 +658,7 @@ OFD(F32x4__pmin, "f32x4.pmin", 0xFD, 234)
 OFD(F32x4__pmax, "f32x4.pmax", 0xFD, 235)
 OFD(F64x2__abs, "f64x2.abs", 0xFD, 236)
 OFD(F64x2__neg, "f64x2.neg", 0xFD, 237)
+// 0xFD 238: Reserved
 OFD(F64x2__sqrt, "f64x2.sqrt", 0xFD, 239)
 OFD(F64x2__add, "f64x2.add", 0xFD, 240)
 OFD(F64x2__sub, "f64x2.sub", 0xFD, 241)
@@ -676,7 +677,7 @@ OFD(I32x4__trunc_sat_f64x2_u_zero, "i32x4.trunc_sat_f64x2_u_zero", 0xFD, 253)
 OFD(F64x2__convert_low_i32x4_s, "f64x2.convert_low_i32x4_s", 0xFD, 254)
 OFD(F64x2__convert_low_i32x4_u, "f64x2.convert_low_i32x4_u", 0xFD, 255)
 
-// 0xFE prefix - Relaxed SIMD Instructions (part 4)
+// 0xFD prefix - Relaxed SIMD Instructions (part 4)
 OFD(I8x16__relaxed_swizzle, "i8x16.relaxed_swizzle", 0xFD, 256)
 OFD(I32x4__relaxed_trunc_f32x4_s, "i32x4.relaxed_trunc_f32x4_s", 0xFD, 257)
 OFD(I32x4__relaxed_trunc_f32x4_u, "i32x4.relaxed_trunc_f32x4_u", 0xFD, 258)
@@ -686,8 +687,8 @@ OFD(I32x4__relaxed_trunc_f64x2_u_zero, "i32x4.relaxed_trunc_f64x2_u_zero", 0xFD,
     260)
 OFD(F32x4__relaxed_madd, "f32x4.relaxed_madd", 0xFD, 261)
 OFD(F32x4__relaxed_nmadd, "f32x4.relaxed_nmadd", 0xFD, 262)
-OFD(F64x2__relaxed_madd, "f32x4.relaxed_madd", 0xFD, 263)
-OFD(F64x2__relaxed_nmadd, "f32x4.relaxed_nmadd", 0xFD, 264)
+OFD(F64x2__relaxed_madd, "f64x2.relaxed_madd", 0xFD, 263)
+OFD(F64x2__relaxed_nmadd, "f64x2.relaxed_nmadd", 0xFD, 264)
 OFD(I8x16__relaxed_laneselect, "i8x16.relaxed_laneselect", 0xFD, 265)
 OFD(I16x8__relaxed_laneselect, "i16x8.relaxed_laneselect", 0xFD, 266)
 OFD(I32x4__relaxed_laneselect, "i32x4.relaxed_laneselect", 0xFD, 267)
@@ -872,9 +873,9 @@ E(SetValueToConst, 0x000A, "set value into const")
 E(SetValueErrorType, 0x000B, "set value type mismatch")
 // User defined error
 E(UserDefError, 0x000C, "user defined error code")
-// Invalid AOT Configure
+// Invalid AOT/JIT configure
 E(InvalidAOTConfigure, 0x000D, "invalid AOT/JIT configure")
-// Invalid Configure
+// Instruction not implemented in AOT/JIT
 E(AOTNotImpl, 0x000E, "Not implemented instructions in AOT/JIT")
 // Lazy JIT Compilation Error
 E(LazyCompilationError, 0x000F, "Lazy JIT compilation failure")
@@ -1361,10 +1362,10 @@ T(List, 0x70, "list")                // list type
 T(Tuple, 0x6F, "tuple")              // tuple type
 T(Flags, 0x6E, "flags")              // flags type
 T(Enum, 0x6D, "enum")                // enum type
-T(Option, 0x6B, "enum")              // option type
+T(Option, 0x6B, "option")            // option type
 T(Result, 0x6A, "result")            // result type
 T(Own, 0x69, "own")                  // own type
-T(Borrow, 0x68, "own")               // borrow type
+T(Borrow, 0x68, "borrow")            // borrow type
 T(ListLen, 0x67, "list_len")         // list type with length
 T(Stream, 0x66, "stream")            // stream type
 T(Future, 0x65, "future")            // future type

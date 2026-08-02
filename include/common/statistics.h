@@ -103,7 +103,7 @@ public:
     uint64_t OldCostSum = CostSum.load(std::memory_order_relaxed);
     uint64_t NewCostSum;
     do {
-      if (unlikely(OldCostSum <= Cost)) {
+      if (unlikely(OldCostSum < Cost)) {
         return false;
       }
       NewCostSum = OldCostSum - Cost;

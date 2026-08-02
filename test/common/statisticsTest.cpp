@@ -22,15 +22,17 @@ TEST(StatisticsTest, AddCostRespectsLimit) {
   EXPECT_EQ(S.getTotalCost(), UINT64_C(100));
 }
 
-TEST(StatisticsTest, SubCostRejectsCostAtOrAboveTotal) {
+TEST(StatisticsTest, SubCostRejectsCostExceedingTotal) {
   Statistics S;
   EXPECT_TRUE(S.addCost(10));
   EXPECT_TRUE(S.subCost(5));
   EXPECT_EQ(S.getTotalCost(), UINT64_C(5));
-  EXPECT_FALSE(S.subCost(5));
-  EXPECT_EQ(S.getTotalCost(), UINT64_C(5));
+  EXPECT_TRUE(S.subCost(5));
+  EXPECT_EQ(S.getTotalCost(), UINT64_C(0));
   EXPECT_FALSE(S.subCost(10));
-  EXPECT_EQ(S.getTotalCost(), UINT64_C(5));
+  EXPECT_EQ(S.getTotalCost(), UINT64_C(0));
+  EXPECT_FALSE(S.subCost(1));
+  EXPECT_EQ(S.getTotalCost(), UINT64_C(0));
 }
 
 TEST(StatisticsTest, SetCostLimit) {
@@ -66,8 +68,8 @@ TEST(StatisticsTest, CustomCostTableAndSubInstrCost) {
   EXPECT_EQ(S.getTotalCost(), UINT64_C(14));
   EXPECT_TRUE(S.subInstrCost(OpCode::Block));
   EXPECT_EQ(S.getTotalCost(), UINT64_C(7));
-  EXPECT_FALSE(S.subInstrCost(OpCode::Block));
-  EXPECT_EQ(S.getTotalCost(), UINT64_C(7));
+  EXPECT_TRUE(S.subInstrCost(OpCode::Block));
+  EXPECT_EQ(S.getTotalCost(), UINT64_C(0));
 }
 
 TEST(StatisticsTest, ClearResetsCountersNotLimit) {

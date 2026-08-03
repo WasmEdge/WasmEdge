@@ -68,7 +68,8 @@ TEST_F(WasiCryptoTest, Kdf) {
         WASI_CRYPTO_EXPECT_TRUE(symmetricStateSqueeze(StateCloneHandle, Out2));
         EXPECT_EQ(Out1, Out2);
 
-        // Non-consuming squeeze check (Expand state derives requested length from info).
+        // Non-consuming squeeze check (Expand state derives requested length
+        // from info).
         std::vector<uint8_t> Out3(32);
         std::vector<uint8_t> Out4(32);
         WASI_CRYPTO_EXPECT_TRUE(symmetricStateSqueeze(StateHandle, Out3));

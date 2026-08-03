@@ -47,4 +47,3 @@ else()
 endif()
 
 add_test(wasiCryptoTests wasiCryptoTests)
-

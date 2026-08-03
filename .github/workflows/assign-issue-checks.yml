@@ -1,11 +1,19 @@
 name: Assign issue checks
 
 on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/scripts/test_assign_issue.mjs'
+      - '.github/workflows/assign-issue-checks.yml'
+      - '.github/workflows/assign-issue.yml'
   pull_request:
     paths:
       - '.github/scripts/test_assign_issue.mjs'
       - '.github/workflows/assign-issue-checks.yml'
       - '.github/workflows/assign-issue.yml'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}

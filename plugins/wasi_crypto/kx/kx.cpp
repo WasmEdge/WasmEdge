@@ -3,6 +3,11 @@
 
 #include "kx/kx.h"
 
+namespace WasmEdge {
+namespace Host {
+namespace WasiCrypto {
+namespace Kx {
+
 WasiCryptoExpect<EncapsulatedSecret> encapsulate(PkVariant &) noexcept {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }

@@ -282,62 +282,59 @@ WasiCryptoExpect<__wasi_symmetric_key_t> Context::symmetricKeyGenerateManaged(
     __wasi_secrets_manager_t SecretsManagerHandle, Symmetric::Algorithm Alg,
     __wasi_opt_options_t OptOptionsHandle) noexcept {
   return SecretsManagerManager.get(SecretsManagerHandle)
-      .and_then(
-          [&](auto &&Sm) noexcept -> WasiCryptoExpect<__wasi_symmetric_key_t> {
-            auto OptOptionsResult = mapAndTransposeOptional(
-                OptOptionsHandle,
-                [this](__wasi_options_t OptionsHandle) noexcept {
-                  return OptionsManager.get(OptionsHandle);
-                });
-            if (!OptOptionsResult) {
-              return WasiCryptoUnexpect(OptOptionsResult);
-            }
+      .and_then([&](auto &&Sm) noexcept
+                    -> WasiCryptoExpect<__wasi_symmetric_key_t> {
+        auto OptOptionsResult = mapAndTransposeOptional(
+            OptOptionsHandle, [this](__wasi_options_t OptionsHandle) noexcept {
+              return OptionsManager.get(OptionsHandle);
+            });
+        if (!OptOptionsResult) {
+          return WasiCryptoUnexpect(OptOptionsResult);
+        }
 
-            auto OptSymmetricOptionsResult = transposeOptionalToRef(
-                *OptOptionsResult,
-                [](const auto &Options) noexcept
-                    -> WasiCryptoExpect<
-                        OptionalRef<const Symmetric::Options>> {
-                  auto *SymmetricOptions =
-                      std::get_if<Symmetric::Options>(&Options);
-                  if (!SymmetricOptions) {
-                    return WasiCryptoUnexpect(
-                        __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
-                  }
-                  return SymmetricOptions;
-                });
-            if (!OptSymmetricOptionsResult) {
-              return WasiCryptoUnexpect(OptSymmetricOptionsResult);
-            }
+        auto OptSymmetricOptionsResult = transposeOptionalToRef(
+            *OptOptionsResult,
+            [](const auto &Options) noexcept
+                -> WasiCryptoExpect<OptionalRef<const Symmetric::Options>> {
+              auto *SymmetricOptions =
+                  std::get_if<Symmetric::Options>(&Options);
+              if (!SymmetricOptions) {
+                return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+              }
+              return SymmetricOptions;
+            });
+        if (!OptSymmetricOptionsResult) {
+          return WasiCryptoUnexpect(OptSymmetricOptionsResult);
+        }
 
-            auto KeyResult =
-                Symmetric::generateKey(Alg, *OptSymmetricOptionsResult);
-            if (!KeyResult) {
-              return WasiCryptoUnexpect(KeyResult);
-            }
+        auto KeyResult =
+            Symmetric::generateKey(Alg, *OptSymmetricOptionsResult);
+        if (!KeyResult) {
+          return WasiCryptoUnexpect(KeyResult);
+        }
 
-            std::vector<uint8_t> GeneratedId(32);
-            opensslCheck(RAND_bytes(GeneratedId.data(), 32));
+        std::vector<uint8_t> GeneratedId(32);
+        opensslCheck(RAND_bytes(GeneratedId.data(), 32));
 
-            auto StoreResult = Sm.storeSk(GeneratedId, 0, *KeyResult);
-            if (!StoreResult) {
-              return WasiCryptoUnexpect(StoreResult);
-            }
+        auto StoreResult = Sm.storeSk(GeneratedId, 0, *KeyResult);
+        if (!StoreResult) {
+          return WasiCryptoUnexpect(StoreResult);
+        }
 
-            auto HandleResult =
-                SymmetricKeyManager.registerManager(std::move(*KeyResult));
-            if (!HandleResult) {
-              return WasiCryptoUnexpect(HandleResult);
-            }
+        auto HandleResult =
+            SymmetricKeyManager.registerManager(std::move(*KeyResult));
+        if (!HandleResult) {
+          return WasiCryptoUnexpect(HandleResult);
+        }
 
-            auto ManagedResult = SymmetricKeyManager.setManagedInfo(
-                *HandleResult, GeneratedId, 0);
-            if (!ManagedResult) {
-              return WasiCryptoUnexpect(ManagedResult);
-            }
+        auto ManagedResult =
+            SymmetricKeyManager.setManagedInfo(*HandleResult, GeneratedId, 0);
+        if (!ManagedResult) {
+          return WasiCryptoUnexpect(ManagedResult);
+        }
 
-            return *HandleResult;
-          });
+        return *HandleResult;
+      });
 }
 
 WasiCryptoExpect<void>
@@ -352,14 +349,15 @@ Context::symmetricKeyStoreManaged(__wasi_secrets_manager_t SecretsManagerHandle,
               std::vector<uint8_t> GeneratedId(32);
               opensslCheck(RAND_bytes(GeneratedId.data(), 32));
 
-              return Sm.storeSk(GeneratedId, 0, Key).and_then([&](auto &&Version) {
-                return SymmetricKeyManager
-                    .setManagedInfo(KeyHandle, GeneratedId, Version)
-                    .map([&]() {
-                      std::copy(GeneratedId.begin(), GeneratedId.end(),
-                                KeyId.begin());
-                    });
-              });
+              return Sm.storeSk(GeneratedId, 0, Key)
+                  .and_then([&](auto &&Version) {
+                    return SymmetricKeyManager
+                        .setManagedInfo(KeyHandle, GeneratedId, Version)
+                        .map([&]() {
+                          std::copy(GeneratedId.begin(), GeneratedId.end(),
+                                    KeyId.begin());
+                        });
+                  });
             });
       });
 }
@@ -384,13 +382,15 @@ WasiCryptoExpect<__wasi_version_t> Context::symmetricKeyReplaceManaged(
         return SymmetricKeyManager.getId(OldKeyHandle)
             .and_then([&](auto &&KeyId) noexcept
                           -> WasiCryptoExpect<__wasi_version_t> {
-              return Sm.replaceSk(KeyId, *NewKey).and_then([&](auto NextVersion) {
-                return SymmetricKeyManager
-                    .setManagedInfo(NewKeyHandle, KeyId, NextVersion)
-                    .and_then(
-                        [&]() { return SymmetricKeyManager.close(OldKeyHandle); })
-                    .map([NextVersion]() { return NextVersion; });
-              });
+              return Sm.replaceSk(KeyId, *NewKey)
+                  .and_then([&](auto NextVersion) {
+                    return SymmetricKeyManager
+                        .setManagedInfo(NewKeyHandle, KeyId, NextVersion)
+                        .and_then([&]() {
+                          return SymmetricKeyManager.close(OldKeyHandle);
+                        })
+                        .map([NextVersion]() { return NextVersion; });
+                  });
             });
       });
 }

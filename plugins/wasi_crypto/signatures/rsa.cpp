@@ -331,9 +331,10 @@ Rsa<PadMode, KeyBits, ShaNid>::Signature::import(
     std::vector<uint8_t> ReEncoded(ReEncodedLen);
     uint8_t *RePtr = ReEncoded.data();
     int Written = i2d_ASN1_OCTET_STRING(OctetString.get(), &RePtr);
-    ensureOrReturn(Written == ReEncodedLen &&
-                       std::equal(Encoded.begin(), Encoded.end(), ReEncoded.begin()),
-                   __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
+    ensureOrReturn(
+        Written == ReEncodedLen &&
+            std::equal(Encoded.begin(), Encoded.end(), ReEncoded.begin()),
+        __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
 
     return std::vector<uint8_t>(OctetString->data,
                                 OctetString->data + OctetString->length);

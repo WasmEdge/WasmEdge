@@ -1,0 +1,23 @@
+# ThreadSanitizer suppressions for WasmEdge.
+#
+# Usage:
+#   TSAN_OPTIONS="suppressions=$PWD/utils/sanitizer/tsan.supp" ./wasmedgeLLVMCoreTests
+#
+# Only races that ThreadSanitizer cannot see the synchronization for belong
+# here. A race in WasmEdge code is a bug to fix, not an entry to add.
+
+# libgcc's registry of dynamically registered DWARF unwind tables.
+#
+# LLVM's JIT registers an EH frame for every module it materializes
+# (__register_frame), and drops it again when the JIT instance dies. libgcc
+# keeps those registrations in the lock-free B-tree of unwind-dw2-btree.h and
+# rebalances it in place, so a node split memmoves entries that another thread
+# is reading through _Unwind_Find_FDE. The B-tree is safe under exactly that
+# access pattern -- it coordinates with version counters read and written
+# through __atomic builtins -- but libgcc_s.so.1 ships uninstrumented, so
+# ThreadSanitizer never observes those atomics and sees only the bare memmove.
+#
+# This suppresses any race whose stack reaches libgcc_s. In practice the only
+# libgcc code a WasmEdge thread enters is the unwinder, so the reach is narrow;
+# it does mean a race inside the unwinder itself would go unreported.
+race:libgcc_s.so.1

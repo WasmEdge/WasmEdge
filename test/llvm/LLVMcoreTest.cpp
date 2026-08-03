@@ -30,6 +30,7 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <functional>
@@ -1675,6 +1676,65 @@ TEST(AsyncExecute, NativeInterruptTest) {
     EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::Interrupted);
   }
   VM.cleanup();
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
+}
+
+// The OS maps an AOT shared library once per process, so every thread that
+// loads the same file patches the one intrinsics slot inside it. All of them
+// publish the same process-wide table, which leaves the loads succeeding and
+// the value correct either way -- only a race detector can see the defect, so
+// this fails under ThreadSanitizer if loadExecutable patches the slot with a
+// plain store.
+TEST(AOTSharedLibrary, ConcurrentLoadPatchesIntrinsics) {
+  WasmEdge::Configure Conf;
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Native);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
+
+  WasmEdge::Loader::Loader Loader(Conf);
+  WasmEdge::Validator::Validator ValidatorEngine(Conf);
+  WasmEdge::LLVM::Compiler Compiler(Conf);
+  WasmEdge::LLVM::CodeGen CodeGen(Conf);
+  auto Path =
+      std::filesystem::temp_directory_path() /
+      std::filesystem::u8path("AOTIntrinsicsPatch" WASMEDGE_LIB_EXTENSION);
+  auto Module = Loader.parseModule(AsyncWasm);
+  ASSERT_TRUE(Module);
+  ASSERT_TRUE(ValidatorEngine.validate(**Module));
+  auto Data = Compiler.compile(**Module);
+  ASSERT_TRUE(Data);
+  ASSERT_TRUE(CodeGen.codegen(AsyncWasm, std::move(*Data), Path));
+
+  constexpr size_t ThreadCount = 4;
+  std::array<bool, ThreadCount> Loaded{};
+  std::atomic<size_t> Ready{0};
+  std::atomic<bool> Go{false};
+  std::vector<std::thread> Threads;
+  Threads.reserve(ThreadCount);
+  for (size_t I = 0; I < ThreadCount; ++I) {
+    Threads.emplace_back([&, I]() {
+      // Everything that can be done before the load is done before the
+      // barrier, so the threads reach loadExecutable together.
+      WasmEdge::VM::VM VM(Conf);
+      Ready.fetch_add(1, std::memory_order_release);
+      while (!Go.load(std::memory_order_acquire)) {
+        std::this_thread::yield();
+      }
+      Loaded[I] = static_cast<bool>(VM.loadWasm(Path));
+      VM.cleanup();
+    });
+  }
+  while (Ready.load(std::memory_order_acquire) != ThreadCount) {
+    std::this_thread::yield();
+  }
+  Go.store(true, std::memory_order_release);
+  for (auto &Thread : Threads) {
+    Thread.join();
+  }
+
+  for (size_t I = 0; I < ThreadCount; ++I) {
+    EXPECT_TRUE(Loaded[I]) << "thread " << I << " failed to load the library";
+  }
   EXPECT_NO_THROW(std::filesystem::remove(Path));
 }
 

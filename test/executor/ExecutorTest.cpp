@@ -43,6 +43,65 @@ static SpecTest T(std::filesystem::u8path("../spec/testSuites"sv));
 // Parameterized testing class.
 class CoreTest : public testing::TestWithParam<std::string> {};
 
+// Generates the following module, where the parameter count and the
+// 0xFC-prefixed opcode are given by the arguments:
+//   (module
+//     (func (export "f") (param i64 ...) (result i64 i64)
+//       local.get 0 ... local.get N
+//       i64.<wide arithmetic instruction>))
+static std::vector<WasmEdge::Byte> createWideArithWasm(uint8_t ParamCount,
+                                                       uint8_t Ext) {
+  std::vector<WasmEdge::Byte> TypeSec = {0x01U, 0x60U, ParamCount};
+  TypeSec.insert(TypeSec.end(), ParamCount, 0x7EU);
+  TypeSec.insert(TypeSec.end(), {0x02U, 0x7EU, 0x7EU});
+
+  std::vector<WasmEdge::Byte> Body = {0x00U};
+  for (uint8_t I = 0; I < ParamCount; ++I) {
+    Body.insert(Body.end(), {0x20U, I});
+  }
+  Body.insert(Body.end(), {0xFCU, Ext, 0x0BU});
+
+  std::vector<WasmEdge::Byte> Wasm = {0x00U, 0x61U, 0x73U, 0x6DU,
+                                      0x01U, 0x00U, 0x00U, 0x00U};
+  Wasm.push_back(0x01U);
+  Wasm.push_back(static_cast<WasmEdge::Byte>(TypeSec.size()));
+  Wasm.insert(Wasm.end(), TypeSec.begin(), TypeSec.end());
+  Wasm.insert(Wasm.end(), {0x03U, 0x02U, 0x01U, 0x00U});
+  Wasm.insert(Wasm.end(), {0x07U, 0x05U, 0x01U, 0x01U, 0x66U, 0x00U, 0x00U});
+  Wasm.push_back(0x0AU);
+  Wasm.push_back(static_cast<WasmEdge::Byte>(Body.size() + 2U));
+  Wasm.push_back(0x01U);
+  Wasm.push_back(static_cast<WasmEdge::Byte>(Body.size()));
+  Wasm.insert(Wasm.end(), Body.begin(), Body.end());
+  return Wasm;
+}
+
+// Invokes the generated module and checks the low and high halves of the
+// result. For add128 and sub128 the arguments are a_lo, a_hi, b_lo, b_hi.
+static void checkWideArith(uint8_t Ext, const std::vector<uint64_t> &Args,
+                           uint64_t ExpLo, uint64_t ExpHi) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::WideArithmetic);
+  WasmEdge::VM::VM VM(Conf);
+  const auto Wasm = createWideArithWasm(static_cast<uint8_t>(Args.size()), Ext);
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  std::vector<WasmEdge::ValVariant> Params;
+  for (const uint64_t Arg : Args) {
+    Params.push_back(WasmEdge::ValVariant(Arg));
+  }
+  const std::vector<WasmEdge::ValType> ParamTypes(
+      Args.size(), WasmEdge::ValType(WasmEdge::TypeCode::I64));
+
+  auto Res = VM.execute("f"sv, Params, ParamTypes);
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 2U);
+  EXPECT_EQ((*Res)[0].first.get<uint64_t>(), ExpLo);
+  EXPECT_EQ((*Res)[1].first.get<uint64_t>(), ExpHi);
+}
+
 TEST_P(CoreTest, TestSuites) {
   const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
   const auto &ConfRef = Conf;
@@ -304,6 +363,49 @@ TEST(VM, MultipleVM) {
   auto Result2 = VM2.execute("_start");
   EXPECT_TRUE(Result1);
   EXPECT_TRUE(Result2);
+}
+
+TEST(WideArithmetic, I64Add128) {
+  // Carry out of the low half: 1 + (2^64 - 1) == 2^64.
+  checkWideArith(0x13U, {1U, 0U, UINT64_MAX, 0U}, 0U, 1U);
+  // Both low halves set, so the high half receives the carry.
+  checkWideArith(0x13U, {UINT64_MAX, 0U, UINT64_MAX, 0U}, UINT64_MAX - 1U, 1U);
+  // Wrapping at 2^128: 2^127 + 2^127.
+  checkWideArith(0x13U, {0U, 0x8000000000000000ULL, 0U, 0x8000000000000000ULL},
+                 0U, 0U);
+}
+
+TEST(WideArithmetic, I64Sub128) {
+  // Borrow below zero wraps to 2^128 - 1.
+  checkWideArith(0x14U, {0U, 0U, 1U, 0U}, UINT64_MAX, UINT64_MAX);
+  // Borrow across the 64-bit boundary: 2^64 - 1.
+  checkWideArith(0x14U, {0U, 1U, 1U, 0U}, UINT64_MAX, 0U);
+}
+
+TEST(WideArithmetic, I64MulWideS) {
+  // Positive operands behave like the unsigned instruction.
+  checkWideArith(0x15U, {3U, 5U}, 15U, 0U);
+  // (-1) * (-1) == 1.
+  checkWideArith(0x15U, {UINT64_MAX, UINT64_MAX}, 1U, 0U);
+  // 1 * (-1) == -1, sign-extended across both halves.
+  checkWideArith(0x15U, {1U, UINT64_MAX}, UINT64_MAX, UINT64_MAX);
+  // INT64_MIN * INT64_MIN == 2^126.
+  checkWideArith(
+      0x15U,
+      {static_cast<uint64_t>(INT64_MIN), static_cast<uint64_t>(INT64_MIN)}, 0U,
+      0x4000000000000000ULL);
+  // INT64_MIN * (-1) == 2^63, which does not fit in a signed i64.
+  checkWideArith(0x15U, {static_cast<uint64_t>(INT64_MIN), UINT64_MAX},
+                 0x8000000000000000ULL, 0U);
+}
+
+TEST(WideArithmetic, I64MulWideU) {
+  // A product that fits in the low half leaves the high half zero.
+  checkWideArith(0x16U, {3U, 5U}, 15U, 0U);
+  // 2^32 * 2^32 == 2^64, spilling entirely into the high half.
+  checkWideArith(0x16U, {0x100000000ULL, 0x100000000ULL}, 0U, 1U);
+  // (2^64 - 1) * (2^64 - 1) == 2^128 - 2^65 + 1.
+  checkWideArith(0x16U, {UINT64_MAX, UINT64_MAX}, 1U, UINT64_MAX - 1U);
 }
 
 TEST(Coredump, generateCoredump) {

@@ -130,9 +130,13 @@ Configure createConfigure(const struct DriverToolOptions &Opt) noexcept {
     Conf.addProposal(Proposal::Component);
     spdlog::warn("component model is enabled, this is experimental."sv);
   }
+  if (Opt.PropWideArithmetic.value()) {
+    Conf.addProposal(Proposal::WideArithmetic);
+  }
   if (Opt.PropAll.value()) {
     spdlog::warn("component model is enabled, this is experimental."sv);
     Conf.addProposal(Proposal::Component);
+    Conf.addProposal(Proposal::WideArithmetic);
   }
 
   for (const auto &Name : Opt.ForbiddenPlugins.value()) {

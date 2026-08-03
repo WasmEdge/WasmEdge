@@ -225,6 +225,59 @@ TypeF<T> Executor::runCopysignOp(ValVariant &Val1,
   return {};
 }
 
+template <typename T>
+TypeU<T> Executor::runAdd128Op(ValVariant &LhsLo, ValVariant &LhsHi,
+                               const ValVariant &RhsLo,
+                               const ValVariant &RhsHi) const {
+  // Return the result of (v1 + v2) modulo 2^128 as the low and high halves.
+  const uint128_t V1 = (static_cast<uint128_t>(LhsHi.get<T>()) << 64U) |
+                       static_cast<uint128_t>(LhsLo.get<T>());
+  const uint128_t V2 = (static_cast<uint128_t>(RhsHi.get<T>()) << 64U) |
+                       static_cast<uint128_t>(RhsLo.get<T>());
+  const uint128_t R = V1 + V2;
+  LhsLo.get<T>() = static_cast<T>(R);
+  LhsHi.get<T>() = static_cast<T>(R >> 64U);
+  return {};
+}
+
+template <typename T>
+TypeU<T> Executor::runSub128Op(ValVariant &LhsLo, ValVariant &LhsHi,
+                               const ValVariant &RhsLo,
+                               const ValVariant &RhsHi) const {
+  // Return the result of (v1 - v2) modulo 2^128 as the low and high halves.
+  const uint128_t V1 = (static_cast<uint128_t>(LhsHi.get<T>()) << 64U) |
+                       static_cast<uint128_t>(LhsLo.get<T>());
+  const uint128_t V2 = (static_cast<uint128_t>(RhsHi.get<T>()) << 64U) |
+                       static_cast<uint128_t>(RhsLo.get<T>());
+  const uint128_t R = V1 - V2;
+  LhsLo.get<T>() = static_cast<T>(R);
+  LhsHi.get<T>() = static_cast<T>(R >> 64U);
+  return {};
+}
+
+template <typename T>
+TypeI<T> Executor::runMulWideOp(ValVariant &Val1, ValVariant &Val2) const {
+  // Return the low and high halves of the product of the operands extended to
+  // 128-bit according to the signedness of T.
+  const uint64_t V1 = static_cast<uint64_t>(Val1.get<T>());
+  const uint64_t V2 = static_cast<uint64_t>(Val2.get<T>());
+  const uint128_t R = static_cast<uint128_t>(V1) * static_cast<uint128_t>(V2);
+  uint64_t High = static_cast<uint64_t>(R >> 64U);
+  if constexpr (std::is_signed_v<T>) {
+    // Sign-extending an operand adds 2^64 times its negation to the product,
+    // so subtract the other operand from the high half for each negative one.
+    if (Val1.get<T>() < 0) {
+      High -= V2;
+    }
+    if (Val2.get<T>() < 0) {
+      High -= V1;
+    }
+  }
+  Val1.get<T>() = static_cast<T>(static_cast<uint64_t>(R));
+  Val2.get<T>() = static_cast<T>(High);
+  return {};
+}
+
 } // namespace Executor
 } // namespace WasmEdge
 

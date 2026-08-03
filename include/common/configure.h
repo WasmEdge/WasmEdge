@@ -430,6 +430,11 @@ public:
       if (unlikely(!hasProposal(Proposal::ExceptionHandling))) {
         return Proposal::ExceptionHandling;
       }
+    } else if (Code >= OpCode::I64__add128 && Code <= OpCode::I64__mul_wide_u) {
+      // These instructions are for WideArithmetic proposal.
+      if (unlikely(!hasProposal(Proposal::WideArithmetic))) {
+        return Proposal::WideArithmetic;
+      }
     }
     return {};
   }

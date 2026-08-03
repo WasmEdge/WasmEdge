@@ -776,6 +776,15 @@ private:
   TypeF<T> runMaxOp(ValVariant &Val1, const ValVariant &Val2) const;
   template <typename T>
   TypeF<T> runCopysignOp(ValVariant &Val1, const ValVariant &Val2) const;
+  /// ======= Wide Arithmetic instructions =======
+  template <typename T>
+  TypeU<T> runAdd128Op(ValVariant &LhsLo, ValVariant &LhsHi,
+                       const ValVariant &RhsLo, const ValVariant &RhsHi) const;
+  template <typename T>
+  TypeU<T> runSub128Op(ValVariant &LhsLo, ValVariant &LhsHi,
+                       const ValVariant &RhsLo, const ValVariant &RhsHi) const;
+  template <typename T>
+  TypeI<T> runMulWideOp(ValVariant &Val1, ValVariant &Val2) const;
   /// ======= Cast Numeric instructions =======
   template <typename TIn, typename TOut>
   TypeUU<TIn, TOut> runWrapOp(ValVariant &Val) const;

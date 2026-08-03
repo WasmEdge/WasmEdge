@@ -833,6 +833,24 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runCopysignOp<double>(StackMgr.getTop(), Rhs);
     }
 
+    // Wide Arithmetic Instructions
+    case OpCode::I64__add128: {
+      ValVariant RhsHi = StackMgr.pop();
+      ValVariant RhsLo = StackMgr.pop();
+      return runAdd128Op<uint64_t>(StackMgr.getTopN(2), StackMgr.getTop(),
+                                   RhsLo, RhsHi);
+    }
+    case OpCode::I64__sub128: {
+      ValVariant RhsHi = StackMgr.pop();
+      ValVariant RhsLo = StackMgr.pop();
+      return runSub128Op<uint64_t>(StackMgr.getTopN(2), StackMgr.getTop(),
+                                   RhsLo, RhsHi);
+    }
+    case OpCode::I64__mul_wide_s:
+      return runMulWideOp<int64_t>(StackMgr.getTopN(2), StackMgr.getTop());
+    case OpCode::I64__mul_wide_u:
+      return runMulWideOp<uint64_t>(StackMgr.getTopN(2), StackMgr.getTop());
+
     // Saturating Truncation Numeric Instructions
     case OpCode::I32__trunc_sat_f32_s:
       return runTruncateSatOp<float, int32_t>(StackMgr.getTop());

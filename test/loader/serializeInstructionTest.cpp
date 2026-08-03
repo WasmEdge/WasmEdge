@@ -3,8 +3,10 @@
 
 #include "loader/serialize.h"
 
+#include <array>
 #include <cstdint>
 #include <gtest/gtest.h>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -2108,5 +2110,48 @@ TEST(SerializeInstructionTest, SerializeMultiMemoryMemArgInstruction) {
       0x0BU  // Expression End.
   };
   EXPECT_EQ(Output, Expected);
+}
+
+TEST(SerializeInstructionTest, SerializeWideArithmeticInstruction) {
+  WasmEdge::Configure ConfWideArith;
+  ConfWideArith.addProposal(WasmEdge::Proposal::WideArithmetic);
+  WasmEdge::Loader::Serializer SerWideArith(ConfWideArith);
+
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 24. Test wide arithmetic instructions.
+  //
+  //   1.  Serialize the four wide arithmetic instructions.
+  //   2.  Serialize invalid instructions without WideArithmetic proposal.
+
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  const std::array<std::pair<WasmEdge::OpCode, uint8_t>, 4> Cases = {
+      {{WasmEdge::OpCode::I64__add128, 0x13U},
+       {WasmEdge::OpCode::I64__sub128, 0x14U},
+       {WasmEdge::OpCode::I64__mul_wide_s, 0x15U},
+       {WasmEdge::OpCode::I64__mul_wide_u, 0x16U}}};
+
+  for (const auto &[Code, Ext] : Cases) {
+    Instructions = {WasmEdge::AST::Instruction(Code), End};
+    Output = {};
+    EXPECT_TRUE(
+        SerWideArith.serializeSection(createCodeSec(Instructions), Output));
+    Expected = {
+        0x0AU,      // Code section
+        0x06U,      // Content size = 6
+        0x01U,      // Vector length = 1
+        0x04U,      // Code segment size = 4
+        0x00U,      // Local vec(0)
+        0xFCU, Ext, // OpCode wide arithmetic instruction.
+        0x0BU       // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
+
+    Output = {};
+    EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  }
 }
 } // namespace

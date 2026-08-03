@@ -444,6 +444,100 @@ TEST_F(ValidatorRegressionTest, RefCastAfterUnreachable) {
   EXPECT_TRUE(ValidationResult);
 }
 
+// Generates a Wasm module with a single function of the given signature whose
+// body is Body followed by the end opcode.
+static std::vector<WasmEdge::Byte>
+generateWideArithWasm(const std::vector<WasmEdge::Byte> &ParamTypes,
+                      const std::vector<WasmEdge::Byte> &ResultTypes,
+                      const std::vector<WasmEdge::Byte> &Body) {
+  std::vector<WasmEdge::Byte> TypeSec = {0x01U, 0x60U};
+  TypeSec.push_back(static_cast<WasmEdge::Byte>(ParamTypes.size()));
+  TypeSec.insert(TypeSec.end(), ParamTypes.begin(), ParamTypes.end());
+  TypeSec.push_back(static_cast<WasmEdge::Byte>(ResultTypes.size()));
+  TypeSec.insert(TypeSec.end(), ResultTypes.begin(), ResultTypes.end());
+
+  std::vector<WasmEdge::Byte> FuncBody = {0x00U};
+  FuncBody.insert(FuncBody.end(), Body.begin(), Body.end());
+  FuncBody.push_back(0x0BU);
+
+  std::vector<WasmEdge::Byte> CodeSec = {
+      0x01U, static_cast<WasmEdge::Byte>(FuncBody.size())};
+  CodeSec.insert(CodeSec.end(), FuncBody.begin(), FuncBody.end());
+
+  std::vector<WasmEdge::Byte> Wasm = {0x00U, 0x61U, 0x73U, 0x6DU,
+                                      0x01U, 0x00U, 0x00U, 0x00U};
+  Wasm.push_back(0x01U);
+  Wasm.push_back(static_cast<WasmEdge::Byte>(TypeSec.size()));
+  Wasm.insert(Wasm.end(), TypeSec.begin(), TypeSec.end());
+  Wasm.insert(Wasm.end(), {0x03U, 0x02U, 0x01U, 0x00U});
+  Wasm.push_back(0x0AU);
+  Wasm.push_back(static_cast<WasmEdge::Byte>(CodeSec.size()));
+  Wasm.insert(Wasm.end(), CodeSec.begin(), CodeSec.end());
+  return Wasm;
+}
+
+class WideArithmeticValidatorTest : public testing::Test {
+protected:
+  void SetUp() override {
+    Conf = std::make_unique<WasmEdge::Configure>();
+    Conf->addProposal(WasmEdge::Proposal::WideArithmetic);
+    LoadEngine = std::make_unique<WasmEdge::Loader::Loader>(*Conf);
+    ValidEngine = std::make_unique<WasmEdge::Validator::Validator>(*Conf);
+  }
+
+  std::unique_ptr<WasmEdge::Configure> Conf;
+  std::unique_ptr<WasmEdge::Loader::Loader> LoadEngine;
+  std::unique_ptr<WasmEdge::Validator::Validator> ValidEngine;
+};
+
+TEST_F(WideArithmeticValidatorTest, TypeMismatch) {
+  const WasmEdge::Byte I64 = 0x7EU;
+  const WasmEdge::Byte I32 = 0x7FU;
+
+  // i64.add128 with only three operands.
+  auto Wasm = generateWideArithWasm(
+      {I64, I64, I64}, {I64, I64},
+      {0x20U, 0x00U, 0x20U, 0x01U, 0x20U, 0x02U, 0xFCU, 0x13U});
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+
+  // i64.mul_wide_u returning a single i64.
+  Wasm = generateWideArithWasm({I64, I64}, {I64},
+                               {0x20U, 0x00U, 0x20U, 0x01U, 0xFCU, 0x16U});
+  Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+  ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+
+  // i64.mul_wide_s with i32 operands.
+  Wasm = generateWideArithWasm({I32, I32}, {I64, I64},
+                               {0x20U, 0x00U, 0x20U, 0x01U, 0xFCU, 0x15U});
+  Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+  ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+TEST_F(ValidatorRegressionTest, WideArithmeticProposalDisabled) {
+  const WasmEdge::Byte I64 = 0x7EU;
+  for (const WasmEdge::Byte Ext : {0x13U, 0x14U, 0x15U, 0x16U}) {
+    auto Wasm = generateWideArithWasm(
+        {I64, I64, I64, I64}, {I64, I64},
+        {0x20U, 0x00U, 0x20U, 0x01U, 0x20U, 0x02U, 0x20U, 0x03U, 0xFCU, Ext});
+    auto Result = LoadEngine->parseModule(Wasm);
+    EXPECT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  }
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

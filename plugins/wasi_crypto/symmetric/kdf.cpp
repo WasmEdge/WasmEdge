@@ -71,8 +71,7 @@ Hkdf<ShaNid>::Expand::State::squeeze(Span<uint8_t> Out) noexcept {
   ensureOrReturn(OutLen <= 255 * static_cast<size_t>(getKeySize()),
                  __WASI_CRYPTO_ERRNO_OVERFLOW);
 
-  auto NewCtxResult =
-      openStateImpl(Ctx->Key, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY);
+  auto NewCtxResult = openStateImpl(Ctx->Key, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY);
   if (!NewCtxResult) {
     return WasiCryptoUnexpect(NewCtxResult);
   }
@@ -85,8 +84,7 @@ Hkdf<ShaNid>::Expand::State::squeeze(Span<uint8_t> Out) noexcept {
   SecretVec TempDerived(OutLen);
   size_t TotalLen = OutLen;
   opensslCheck(EVP_PKEY_derive(NewCtx.get(), TempDerived.data(), &TotalLen));
-  ensureOrReturn(TotalLen == OutLen,
-                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  ensureOrReturn(TotalLen == OutLen, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
   std::copy_n(TempDerived.begin(), OutLen, Out.begin());
   return {};

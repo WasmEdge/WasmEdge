@@ -2356,6 +2356,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       if (Conf.getStatisticsConfigure().isCostMeasuring()) {
         if (unlikely(!Stat->addInstrCost(Code))) {
           const AST::Instruction &Instr = *PC;
+          spdlog::error(ErrCode::Value::CostLimitExceeded);
           spdlog::error(
               ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
           return Unexpect(ErrCode::Value::CostLimitExceeded);

@@ -19,6 +19,7 @@
 #include <array>
 #include <cstdint>
 #include <gtest/gtest.h>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -553,6 +554,25 @@ std::array<WasmEdge::Byte, 61> CatchAllRefPayloadNotLeakedWasm{
     0x00, 0x00, 0x0a, 0x15, 0x01, 0x13, 0x00, 0x41, 0x01, 0x02, 0x69, 0x1f,
     0x40, 0x01, 0x03, 0x00, 0x41, 0x2a, 0x08, 0x00, 0x0b, 0x00, 0x0b, 0x1a,
     0x0b};
+
+/// Binary Wasm module: if/else false branch (takes Else).
+///
+/// Executed opcodes on the false path (default cost = 1 each):
+///   i32.const 0, if, else, i32.const 2, end, end  => 6
+///
+/// (module
+///   (func (export "test") (result i32)
+///     i32.const 0
+///     if (result i32)
+///       i32.const 1
+///     else
+///       i32.const 2
+///     end))
+std::array<WasmEdge::Byte, 45> IfElseFalseBranchWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x08, 0x01, 0x04, 0x74,
+    0x65, 0x73, 0x74, 0x00, 0x00, 0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x41, 0x00,
+    0x04, 0x7f, 0x41, 0x01, 0x05, 0x41, 0x02, 0x0b, 0x0b};
 // clang-format on
 
 /// Regression test for ref.test on externalized nullable references.
@@ -1071,6 +1091,64 @@ TEST(ExecutorRegression, CallIndirectNonFuncTable) {
   auto Result = VM.validate();
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), ErrCode::Value::TypeCheckFailed);
+}
+
+/// Regression test for if→else statistics gating in runIfElseOp.
+///
+/// When the if condition is 0 and an else arm exists, the interpreter jumps to
+/// Else and used to always call incInstrCount() + addInstrCost(Else) whenever
+/// Stat was non-null. Because the executor keeps Stat as soon as *either*
+/// instruction counting or cost measuring is enabled, that leaked cost into
+/// counting-only runs and leaked instruction counts into cost-only runs.
+///
+/// False-branch opcodes (default cost 1): const, if, else, const, end, end.
+TEST(ExecutorRegression, IfElseFalseBranchStatisticsGate) {
+  constexpr uint64_t ExpectedInstrs = 6;
+
+  auto RunFalseBranch = [](bool Counting, bool CostMeasuring) {
+    Configure Conf;
+    Conf.getStatisticsConfigure().setInstructionCounting(Counting);
+    Conf.getStatisticsConfigure().setCostMeasuring(CostMeasuring);
+    VM::VM VM(Conf);
+    EXPECT_TRUE(VM.loadWasm(IfElseFalseBranchWasm));
+    EXPECT_TRUE(VM.validate());
+    EXPECT_TRUE(VM.instantiate());
+    VM.getStatistics().clear();
+    auto Result = VM.execute("test");
+    EXPECT_TRUE(Result);
+    EXPECT_EQ((*Result).size(), 1U);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 2U);
+    return std::make_pair(VM.getStatistics().getInstrCount(),
+                          VM.getStatistics().getTotalCost());
+  };
+
+  // --- Part 1: instruction counting only ---
+  // Else jump must not charge cost when cost measuring is off.
+  {
+    auto [Count, Cost] = RunFalseBranch(/*Counting=*/true,
+                                        /*CostMeasuring=*/false);
+    EXPECT_EQ(Count, ExpectedInstrs);
+    EXPECT_EQ(Cost, 0U)
+        << "counting-only must not charge Else cost on if→else jump";
+  }
+
+  // --- Part 2: cost measuring only ---
+  // Else jump must not bump instruction count when counting is off.
+  {
+    auto [Count, Cost] = RunFalseBranch(/*Counting=*/false,
+                                        /*CostMeasuring=*/true);
+    EXPECT_EQ(Count, 0U)
+        << "cost-only must not increment instruction count on if→else jump";
+    EXPECT_EQ(Cost, ExpectedInstrs);
+  }
+
+  // --- Part 3: both statistics options off ---
+  {
+    auto [Count, Cost] = RunFalseBranch(/*Counting=*/false,
+                                        /*CostMeasuring=*/false);
+    EXPECT_EQ(Count, 0U);
+    EXPECT_EQ(Cost, 0U);
+  }
 }
 
 } // namespace

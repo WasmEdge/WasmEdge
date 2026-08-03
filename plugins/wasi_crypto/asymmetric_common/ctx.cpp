@@ -176,8 +176,8 @@ WasiCryptoExpect<__wasi_keypair_t> Context::keypairGenerateManaged(
         if (!OptOptionsResult) {
           return WasiCryptoUnexpect(OptOptionsResult);
         }
-        auto KpResult = AsymmetricCommon::generateKp(
-            Alg, asOptionalRef(*OptOptionsResult));
+        auto KpResult =
+            AsymmetricCommon::generateKp(Alg, asOptionalRef(*OptOptionsResult));
         if (!KpResult) {
           return WasiCryptoUnexpect(KpResult);
         }
@@ -190,7 +190,8 @@ WasiCryptoExpect<__wasi_keypair_t> Context::keypairGenerateManaged(
           return WasiCryptoUnexpect(StoreResult);
         }
 
-        auto HandleResult = KeyPairManager.registerManager(std::move(*KpResult));
+        auto HandleResult =
+            KeyPairManager.registerManager(std::move(*KpResult));
         if (!HandleResult) {
           return WasiCryptoUnexpect(HandleResult);
         }
@@ -212,20 +213,21 @@ Context::keypairStoreManaged(__wasi_secrets_manager_t SecretsManagerHandle,
   ensureOrReturn(KpId.size() >= 32, __WASI_CRYPTO_ERRNO_OVERFLOW);
   return SecretsManagerManager.get(SecretsManagerHandle)
       .and_then([&](auto &&Sm) noexcept -> WasiCryptoExpect<void> {
-        return KeyPairManager.get(KpHandle).and_then([&](auto &&Kp) noexcept
-                                                         -> WasiCryptoExpect<
-                                                             void> {
-          std::vector<uint8_t> GeneratedId(32);
-          opensslCheck(RAND_bytes(GeneratedId.data(), 32));
+        return KeyPairManager.get(KpHandle).and_then(
+            [&](auto &&Kp) noexcept -> WasiCryptoExpect<void> {
+              std::vector<uint8_t> GeneratedId(32);
+              opensslCheck(RAND_bytes(GeneratedId.data(), 32));
 
-          return Sm.storeKp(GeneratedId, 0, Kp).and_then([&](auto &&Version) {
-            return KeyPairManager.setManagedInfo(KpHandle, GeneratedId, Version)
-                .map([&]() {
-                  std::copy(GeneratedId.begin(), GeneratedId.end(),
-                            KpId.begin());
-                });
-          });
-        });
+              return Sm.storeKp(GeneratedId, 0, Kp)
+                  .and_then([&](auto &&Version) {
+                    return KeyPairManager
+                        .setManagedInfo(KpHandle, GeneratedId, Version)
+                        .map([&]() {
+                          std::copy(GeneratedId.begin(), GeneratedId.end(),
+                                    KpId.begin());
+                        });
+                  });
+            });
       });
 }
 
@@ -250,9 +252,10 @@ Context::keypairReplaceManaged(__wasi_secrets_manager_t SecretsManagerHandle,
             .and_then([&](auto &&KpId) noexcept
                           -> WasiCryptoExpect<__wasi_version_t> {
               return Sm.replaceKp(KpId, *NewKp).and_then([&](auto NextVersion) {
-                return KeyPairManager.setManagedInfo(NewKpHandle, KpId,
-                                                     NextVersion)
-                    .and_then([&]() { return KeyPairManager.close(OldKpHandle); })
+                return KeyPairManager
+                    .setManagedInfo(NewKpHandle, KpId, NextVersion)
+                    .and_then(
+                        [&]() { return KeyPairManager.close(OldKpHandle); })
                     .map([NextVersion]() { return NextVersion; });
               });
             });

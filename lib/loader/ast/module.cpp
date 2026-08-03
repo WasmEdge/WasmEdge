@@ -5,6 +5,7 @@
 #include "loader/loader.h"
 #include "loader/shared_library.h"
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -199,8 +200,28 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
   // load or JIT compile). Patch the intrinsics-table pointer embedded in
   // the produced executable so the native code can call back into the
   // runtime.
+  //
+  // The slot lives in the executable's own data, and the OS maps an AOT shared
+  // library once per process: two threads loading the same file patch the very
+  // same word, and native code already bound to that library may be reading it
+  // meanwhile. Every loader publishes the one process-wide intrinsics table, so
+  // the writes agree on a value, but concurrent plain accesses to a single
+  // object are a data race regardless. A relaxed atomic store is the whole
+  // requirement: one pointer-sized word, idempotent, publishing nothing that
+  // needs ordering behind it -- the table it names is a constant built before
+  // any module is loaded. std::atomic_ref would say this directly; C++17 has to
+  // reach the slot through a matching atomic type instead.
   if (auto &Symbol = Mod.getSymbol()) {
-    *Symbol = IntrinsicsTable;
+    using IntrinsicsPtr = const Executable::IntrinsicsTable *;
+    using AtomicIntrinsicsPtr = std::atomic<IntrinsicsPtr>;
+    static_assert(sizeof(AtomicIntrinsicsPtr) == sizeof(IntrinsicsPtr) &&
+                      alignof(AtomicIntrinsicsPtr) == alignof(IntrinsicsPtr),
+                  "atomic intrinsics-table pointer must alias the plain one");
+    static_assert(AtomicIntrinsicsPtr::is_always_lock_free,
+                  "a locked atomic would not match the plain loads the "
+                  "generated code performs on this slot");
+    reinterpret_cast<AtomicIntrinsicsPtr *>(Symbol.get())
+        ->store(IntrinsicsTable, std::memory_order_relaxed);
   }
 
   return {};

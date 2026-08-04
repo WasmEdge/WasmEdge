@@ -421,10 +421,10 @@ Expect<uint32_t> WasiArgsSizesGet::body(const Runtime::CallingFrame &Frame,
                                         uint32_t /* Out */ ArgvBufSizePtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_size_t>(ArgcPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
   if (unlikely(isMisaligned<__wasi_size_t>(ArgvBufSizePtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // Check memory instance from module.
@@ -454,7 +454,7 @@ Expect<uint32_t> WasiEnvironGet::body(const Runtime::CallingFrame &Frame,
                                       uint32_t EnvPtr, uint32_t EnvBufPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<uint8_t_ptr>(EnvPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
   // EnvBufPtr should be aligned to at least 1 byte (which is always true)
 
@@ -495,10 +495,10 @@ Expect<uint32_t> WasiEnvironSizesGet::body(const Runtime::CallingFrame &Frame,
                                            uint32_t /* Out */ EnvBufSizePtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_size_t>(EnvCntPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
   if (unlikely(isMisaligned<__wasi_size_t>(EnvBufSizePtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // Check memory instance from module.
@@ -530,7 +530,7 @@ Expect<uint32_t> WasiClockResGet::body(const Runtime::CallingFrame &Frame,
                                        uint32_t /* Out */ ResolutionPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_timestamp_t>(ResolutionPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // Check memory instance from module.
@@ -563,7 +563,7 @@ Expect<uint32_t> WasiClockTimeGet::body(const Runtime::CallingFrame &Frame,
                                         uint32_t /* Out */ TimePtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_timestamp_t>(TimePtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // Check memory instance from module.

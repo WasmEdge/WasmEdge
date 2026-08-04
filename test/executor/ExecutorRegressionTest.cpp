@@ -52,6 +52,34 @@ private:
   Check *C = nullptr;
 };
 
+/// Host function that records its i32 argument and returns it incremented, so a
+/// caller can verify both the argument passed in and the value returned.
+class AddOne : public Runtime::HostFunction<AddOne> {
+public:
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t Value) {
+    Args.push_back(Value);
+    return Value + 1;
+  }
+  Span<const uint32_t> getArgs() const noexcept { return Args; }
+
+private:
+  std::vector<uint32_t> Args;
+};
+
+/// Module that provides the "add_one" host function under the "host" namespace.
+class TailCallHostModule : public Runtime::Instance::ModuleInstance {
+public:
+  TailCallHostModule() : ModuleInstance("host") {
+    auto FP = std::make_unique<AddOne>();
+    F = FP.get();
+    addHostFunc("add_one", std::move(FP));
+  }
+  Span<const uint32_t> getArgs() const noexcept { return F->getArgs(); }
+
+private:
+  AddOne *F = nullptr;
+};
+
 /// After instantiation, read the exported table "t" at index 0 and verify the
 /// null reference has been normalized to an abstract heap type. This catches
 /// the root cause of #4757 without executing wasm that would segfault if the
@@ -611,6 +639,38 @@ std::array<WasmEdge::Byte, 97> StaleHandlerPileWasm{
     0x6a, 0x21, 0x00, 0x20, 0x00, 0x41, 0x03, 0x49, 0x0d, 0x00, 0x0b, 0x1f,
     0x40, 0x01, 0x00, 0x00, 0x00, 0x41, 0x07, 0x41, 0x08, 0x08, 0x01, 0x0b,
     0x0b};
+/// Binary Wasm module: a wasm function tail-calls an imported host function
+/// (GHSA-35h9-r764-xq3h). $f2 has more params than the callee (the crashing
+/// shape) and $f1 has equal arity (the hanging shape); both return_call the
+/// host "add_one", whose result must propagate back to the exported caller.
+///
+/// (module
+///   (import "host" "add_one" (func $h (param i32) (result i32)))
+///   (func $f2 (param i32 i32) (result i32)
+///     local.get 0
+///     return_call $h)
+///   (func $f1 (param i32) (result i32)
+///     local.get 0
+///     return_call $h)
+///   (func (export "run_more") (result i32)
+///     i32.const 41
+///     i32.const 99
+///     call $f2)
+///   (func (export "run_eq") (result i32)
+///     i32.const 7
+///     call $f1))
+std::array<WasmEdge::Byte, 129> TailCallHostImportWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x10, 0x03, 0x60,
+    0x01, 0x7f, 0x01, 0x7f, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x60, 0x00,
+    0x01, 0x7f, 0x02, 0x10, 0x01, 0x04, 0x68, 0x6f, 0x73, 0x74, 0x07, 0x61,
+    0x64, 0x64, 0x5f, 0x6f, 0x6e, 0x65, 0x00, 0x00, 0x03, 0x05, 0x04, 0x01,
+    0x00, 0x02, 0x02, 0x07, 0x15, 0x02, 0x08, 0x72, 0x75, 0x6e, 0x5f, 0x6d,
+    0x6f, 0x72, 0x65, 0x00, 0x03, 0x06, 0x72, 0x75, 0x6e, 0x5f, 0x65, 0x71,
+    0x00, 0x04, 0x0a, 0x20, 0x04, 0x06, 0x00, 0x20, 0x00, 0x12, 0x00, 0x0b,
+    0x06, 0x00, 0x20, 0x00, 0x12, 0x00, 0x0b, 0x09, 0x00, 0x41, 0x29, 0x41,
+    0xe3, 0x00, 0x10, 0x01, 0x0b, 0x06, 0x00, 0x41, 0x07, 0x10, 0x02, 0x0b,
+    0x00, 0x13, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x0c, 0x03, 0x00, 0x01,
+    0x68, 0x01, 0x02, 0x66, 0x32, 0x02, 0x02, 0x66, 0x31};
 // clang-format on
 
 /// Regression test for ref.test on externalized nullable references.
@@ -1174,6 +1234,55 @@ TEST(ExecutorRegression, CallIndirectNonFuncTable) {
   auto Result = VM.validate();
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), ErrCode::Value::TypeCheckFailed);
+}
+
+/// Regression test for GHSA-35h9-r764-xq3h.
+///
+/// The bug: return_call to an imported host function popped the caller's frame
+/// but returned its continuation under the interpreter's `-1` convention while
+/// the host branch consumed it with the host convention, so execution resumed
+/// on the caller's call site instead of after it. Depending on the arity
+/// mismatch this crashed (caller has more params) or looped forever (equal
+/// arity), with a guest-controlled out-of-bounds access underneath.
+///
+/// The fix keeps the host branch returning after the caller's call site, so the
+/// host result propagates back to the exported caller as an ordinary return.
+TEST(ExecutorRegression, TailCallToHostImport) {
+  // --- Part 1: caller has more params than callee (was a crash) ---
+  {
+    Configure Conf;
+    TailCallHostModule HostMod;
+    VM::VM VM(Conf);
+    VM.registerModule(HostMod);
+    ASSERT_TRUE(VM.loadWasm(TailCallHostImportWasm));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+    auto Res = VM.execute("run_more");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1);
+    EXPECT_EQ(Res->at(0).first.get<uint32_t>(), 42);
+    auto Args = HostMod.getArgs();
+    ASSERT_EQ(Args.size(), 1);
+    EXPECT_EQ(Args[0], 41);
+  }
+
+  // --- Part 2: caller and callee have equal arity (was an infinite loop) ---
+  {
+    Configure Conf;
+    TailCallHostModule HostMod;
+    VM::VM VM(Conf);
+    VM.registerModule(HostMod);
+    ASSERT_TRUE(VM.loadWasm(TailCallHostImportWasm));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+    auto Res = VM.execute("run_eq");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1);
+    EXPECT_EQ(Res->at(0).first.get<uint32_t>(), 8);
+    auto Args = HostMod.getArgs();
+    ASSERT_EQ(Args.size(), 1);
+    EXPECT_EQ(Args[0], 7);
+  }
 }
 
 } // namespace

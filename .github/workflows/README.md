@@ -205,6 +205,8 @@ workflows are called by the entries below and are not listed here; see
 | Build WasmEdge on Nix | `build_for_nix.yml` | `push` (`master`), `pull_request` (`master`, `proposal/**`); paths: workflow, `flake.nix`, `flake.lock`, `include/`, `lib/`, `thirdparty/`, `tools/`, `cmake/`, `CMakeLists.txt` | `nix build` + `nix flake check` |
 | Pull Request Labeler | `labeler.yml` | `pull_request_target` (opened/synchronize/reopened/closed); no path filter | auto-labels by path; runs in base-repo context |
 | Cleanup PR caches | `cleanup-pr-caches.yml` | `pull_request_target` (closed); no path filter | deletes the closed PR's Actions caches to free the repository cache quota; runs in base-repo context |
+| Assign issue contributors | `assign-issue.yml` | `issue_comment` (created comments starting with `/assign` on issues) | lets maintainers, committers, and reviewers listed in `docs/OWNER.md` use `/assign @username`; allows one assignee per issue and one assigned open issue per contributor; comments from users outside the allowlist are ignored without a reply |
+| Assign issue checks | `assign-issue-checks.yml` | `push` (`master`), `pull_request` (both with paths: the assign-issue workflows and test script), `workflow_dispatch` | runs the `assign-issue.yml` script tests with `node --test` |
 | release | `release.yml` | `workflow_dispatch`, `push` tags `X.Y.Z*` | creates release, tarball, release builds |
 | Submit WasmEdge MSI package to the Windows Package Manager Community Repository | `winget-submit.yml` | `workflow_dispatch`, `release` (released) | submits the MSI to the Windows Package Manager |
 

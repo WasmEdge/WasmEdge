@@ -107,12 +107,25 @@ const assignJobCondition = sliceBlock(assignJobLines, conditionIndex + 1, '     
   .replace(/\s+/g, ' ')
   .trim();
 
+const ownerUserIdsMatch = assignJob.match(
+  /^ {10}OWNER_USER_IDS: '(\[[\d,]*\])'$/m,
+);
+assert.notEqual(
+  ownerUserIdsMatch,
+  null,
+  'expected the "Assign contributor" step to pass the docs/OWNER.md user IDs through an OWNER_USER_IDS environment variable',
+);
+const workflowOwnerUserIds = ownerUserIdsMatch[1];
+
 const makeIssue = (assignees = [], state = 'open', number = 1) => ({
   number,
   state,
   assignees: assignees.map((login) => ({ login })),
   html_url: `https://github.com/WasmEdge/WasmEdge/issues/${number}`,
 });
+
+const OWNER_USER_IDS =
+  '[10806,251849,274041,2776756,3313947,4726889,7088579,14789875,16274282,22004511,23314210,24819143,30090427,34829253,36074633,40065278,45785633,53310459,56215747,61797109,94267867]';
 
 async function runScenario({
   body = '/assign @alice',
@@ -124,11 +137,15 @@ async function runScenario({
   assignable = true,
   eligibilityStatus = 404,
   assignmentResult = makeIssue(['Alice']),
+  targetUserId = 4242,
+  targetLookupError,
+  ownerUserIds = OWNER_USER_IDS,
 }) {
   const comments = [];
   const commentCalls = [];
   const addAssigneeCalls = [];
   const conflictScanParams = [];
+  const targetLookups = [];
   const failures = [];
   const warnings = [];
   let issueFetches = 0;
@@ -166,6 +183,15 @@ async function runScenario({
           return { data: structuredClone(assignmentResult) };
         },
       },
+      users: {
+        getByUsername: async (params) => {
+          targetLookups.push(structuredClone(params));
+          if (targetLookupError) {
+            throw targetLookupError;
+          }
+          return { data: { login: params.username, id: targetUserId } };
+        },
+      },
     },
     paginate: async (endpoint, params) => {
       if (endpoint === listForRepo) {
@@ -191,11 +217,19 @@ async function runScenario({
     setFailed: (message) => failures.push(message),
     warning: (message) => warnings.push(message),
   };
+  const previousOwnerUserIds = process.env.OWNER_USER_IDS;
+  process.env.OWNER_USER_IDS = ownerUserIds;
   let workflowError;
   try {
     await runWorkflow(github, context, core);
   } catch (error) {
     workflowError = error;
+  } finally {
+    if (previousOwnerUserIds === undefined) {
+      delete process.env.OWNER_USER_IDS;
+    } else {
+      process.env.OWNER_USER_IDS = previousOwnerUserIds;
+    }
   }
   return {
     added: addAssigneeCalls.length,
@@ -206,6 +240,7 @@ async function runScenario({
     eligibilityChecks,
     failures,
     issueFetches,
+    targetLookups,
     warnings,
     workflowError,
   };
@@ -238,6 +273,18 @@ test('gates the job on the maintainer allowlist and the /assign command', () => 
       ' github.event.comment.user.id ) && ' +
       "contains(github.event.comment.body, '/assign')",
     'this condition is the authorization boundary of the workflow; change it here only together with a deliberate review of the job gate',
+  );
+});
+
+test('shares one owner allowlist between the job gate and the assign script', () => {
+  assert.equal(
+    workflowOwnerUserIds,
+    OWNER_USER_IDS,
+    'the OWNER_USER_IDS environment variable must list the docs/OWNER.md user IDs',
+  );
+  assert.ok(
+    assignJobCondition.includes(`fromJSON('${OWNER_USER_IDS}')`),
+    'a job-level "if" cannot read the env context, so the gate repeats the OWNER_USER_IDS list and both copies must stay identical',
   );
 });
 
@@ -424,10 +471,83 @@ test('rejects a target who already holds another open issue', async () => {
 
   assert.equal(result.workflowError, undefined);
   assert.equal(result.eligibilityChecks, 1);
+  assert.deepEqual(result.targetLookups, [{ username: 'alice' }]);
   assert.equal(result.added, 0);
   assert.deepEqual(result.comments, [
-    '@hydai, `@alice` is already assigned to [#2](https://github.com/WasmEdge/WasmEdge/issues/2). Contributors can be assigned to only one open issue at a time and cannot receive another until the current issue is resolved.',
+    '@hydai, `@alice` is already assigned to [#2](https://github.com/WasmEdge/WasmEdge/issues/2). Contributors other than the maintainers, committers, and reviewers in docs/OWNER.md can be assigned to only one open issue at a time and cannot receive another until the current issue is resolved.',
   ]);
+});
+
+test('lets an owner target hold more than one open issue', async () => {
+  const result = await runScenario({
+    targetUserId: 2776756,
+    conflictingIssues: [makeIssue(['Alice'], 'open', 2)],
+  });
+
+  assert.equal(result.workflowError, undefined);
+  assert.equal(result.eligibilityChecks, 1);
+  assert.deepEqual(result.targetLookups, [{ username: 'alice' }]);
+  assert.deepEqual(result.conflictScanParams, []);
+  assert.equal(result.added, 1);
+  assert.deepEqual(result.comments, ['Assigned this issue to @alice.']);
+});
+
+test('keeps the one open issue limit for a target outside the owner allowlist', async () => {
+  const result = await runScenario({
+    targetUserId: 2776757,
+    conflictingIssues: [makeIssue(['Alice'], 'open', 2)],
+  });
+
+  assert.equal(result.workflowError, undefined);
+  assert.equal(result.conflictScanParams.length, 1);
+  assert.equal(result.added, 0);
+  assert.equal(result.comments.length, 1);
+  assert.match(result.comments[0], /^@hydai, `@alice` is already assigned to /);
+});
+
+test('keeps the one open issue limit when the target account cannot be resolved', async () => {
+  const targetLookupError = new Error('Not Found');
+  targetLookupError.status = 404;
+  const result = await runScenario({
+    targetLookupError,
+    conflictingIssues: [makeIssue(['Alice'], 'open', 2)],
+  });
+
+  assert.equal(result.workflowError, undefined);
+  assert.equal(result.conflictScanParams.length, 1);
+  assert.equal(result.added, 0);
+  assert.equal(result.comments.length, 1);
+  assert.match(result.comments[0], /^@hydai, `@alice` is already assigned to /);
+});
+
+test('reports an unexpected owner lookup failure', async () => {
+  const targetLookupError = new Error('Server Error');
+  targetLookupError.status = 500;
+  const result = await runScenario({ targetLookupError });
+
+  assert.equal(result.workflowError, undefined);
+  assert.deepEqual(result.conflictScanParams, []);
+  assert.equal(result.added, 0);
+  assert.deepEqual(result.comments, [
+    '@hydai, the `/assign` command failed unexpectedly. Please try again later.',
+  ]);
+  assert.deepEqual(result.failures, [
+    'The /assign command failed: Server Error',
+  ]);
+});
+
+test('reports a malformed owner allowlist without assigning', async () => {
+  const result = await runScenario({ ownerUserIds: 'not-json' });
+
+  assert.equal(result.workflowError, undefined);
+  assert.deepEqual(result.targetLookups, []);
+  assert.deepEqual(result.conflictScanParams, []);
+  assert.equal(result.added, 0);
+  assert.deepEqual(result.comments, [
+    '@hydai, the `/assign` command failed unexpectedly. Please try again later.',
+  ]);
+  assert.equal(result.failures.length, 1);
+  assert.match(result.failures[0], /^The \/assign command failed: /);
 });
 
 test('reports a target that cannot be assigned before scanning for conflicts', async () => {

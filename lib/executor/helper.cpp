@@ -300,6 +300,12 @@ Executor::branchToLabel(Runtime::StackManager &StackMgr,
   StackMgr.eraseValueStack(JumpDesc.StackEraseBegin, JumpDesc.StackEraseEnd);
   // PC needs -1 here because the PC will increase in the next iteration.
   PC += (JumpDesc.PCOffset - 1);
+  // A branch leaves the innermost blocks without running their `end`, so the
+  // handlers it strands are the top of the handler stack right now. Drop them
+  // here: once a later try_table is pushed on top they are indistinguishable
+  // from active handlers, and their stale VPos would invert the erase range in
+  // popTopHandler. PC + 1 is the instruction being branched to.
+  StackMgr.removeInactiveHandler(PC + 1);
   return {};
 }
 

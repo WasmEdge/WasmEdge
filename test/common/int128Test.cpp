@@ -5,6 +5,7 @@
 #include "fmt/format.h"
 
 #include <cstdint>
+#include <limits>
 #include <gtest/gtest.h>
 
 namespace {
@@ -105,4 +106,108 @@ TEST(Int128Test, Int128OutputTest) {
     }
   }
 }
+
+TEST(Int128Test, Int128ArithmeticTest) {
+  // Boundary Constants
+  const WasmEdge::uint128_t U64Max = std::numeric_limits<uint64_t>::max();
+  const WasmEdge::uint128_t U128Max = ~WasmEdge::uint128_t(0);
+  
+  // Addition Overflow and Wrapping
+  EXPECT_EQ(U64Max + WasmEdge::uint128_t(1), WasmEdge::uint128_t(1) << 64U);
+  EXPECT_EQ(U128Max + WasmEdge::uint128_t(1), WasmEdge::uint128_t(0));
+  
+  // Subtraction Underflow
+  EXPECT_EQ(WasmEdge::uint128_t(0) - WasmEdge::uint128_t(1), U128Max);
+  EXPECT_EQ((WasmEdge::uint128_t(1) << 64U) - WasmEdge::uint128_t(1), U64Max);
+  
+  // Multiplication
+  const WasmEdge::uint128_t U32Max = std::numeric_limits<uint32_t>::max();
+  EXPECT_EQ(U32Max * U32Max, U64Max - U32Max * 2); 
+  
+  const WasmEdge::uint128_t MulWide = U64Max * U64Max;
+  WasmEdge::uint128_t ExpectedMulWide = U128Max - (U64Max << 1U);
+  EXPECT_EQ(MulWide, ExpectedMulWide);
+
+  // Multiplication Sanity Checks
+  EXPECT_EQ(U128Max * WasmEdge::uint128_t(0), WasmEdge::uint128_t(0));
+  EXPECT_EQ(U128Max * WasmEdge::uint128_t(1), U128Max);
+
+  // Multiplication Overflow Wrapping
+  EXPECT_EQ(U128Max * WasmEdge::uint128_t(2), U128Max - WasmEdge::uint128_t(1));
+  EXPECT_EQ(U128Max * U128Max, WasmEdge::uint128_t(1));
+  
+  // Division and Remainder Sanity Checks
+  EXPECT_EQ(WasmEdge::uint128_t(0) / WasmEdge::uint128_t(1), WasmEdge::uint128_t(0));
+  EXPECT_EQ(WasmEdge::uint128_t(1) / WasmEdge::uint128_t(1), WasmEdge::uint128_t(1));
+  EXPECT_EQ(WasmEdge::uint128_t(10) / WasmEdge::uint128_t(2), WasmEdge::uint128_t(5));
+
+  // Division and Remainder Boundaries
+  EXPECT_EQ(U128Max / U128Max, WasmEdge::uint128_t(1));
+  EXPECT_EQ(U128Max % U128Max, WasmEdge::uint128_t(0));
+  EXPECT_EQ(U128Max / WasmEdge::uint128_t(2), U128Max >> 1U);
+}
+
+TEST(Int128Test, Int128BitwiseTest) {
+  const WasmEdge::uint128_t Zero = 0U;
+  const WasmEdge::uint128_t U128Max = ~Zero;
+  const WasmEdge::uint128_t U64Max = std::numeric_limits<uint64_t>::max();
+  const WasmEdge::uint128_t HighMask = U128Max ^ U64Max;
+
+  // Bitwise AND
+  EXPECT_EQ(U128Max & U64Max, U64Max);
+  EXPECT_EQ(U128Max & Zero, Zero);
+  EXPECT_EQ(HighMask & U64Max, Zero);
+
+  // Bitwise OR
+  EXPECT_EQ(HighMask | U64Max, U128Max);
+  EXPECT_EQ(Zero | U64Max, U64Max);
+
+  // Bitwise XOR
+  EXPECT_EQ(U128Max ^ U128Max, Zero);
+  EXPECT_EQ(HighMask ^ U64Max, U128Max);
+
+  // Bitwise NOT
+  EXPECT_EQ(~U128Max, Zero);
+  EXPECT_EQ(~Zero, U128Max);
+}
+
+TEST(Int128Test, Int128ShiftTest) {
+  const WasmEdge::uint128_t One = 1U;
+  const WasmEdge::uint128_t U128Max = ~WasmEdge::uint128_t(0);
+  const WasmEdge::uint128_t U64Max = std::numeric_limits<uint64_t>::max();
+
+  // Left and Right Shift Boundaries
+  EXPECT_EQ((One << 64U) >> 64U, One);
+  EXPECT_EQ((One << 127U) >> 127U, One);
+  EXPECT_EQ(U128Max >> 64U, U64Max);
+  // Shift Boundaries
+  const WasmEdge::uint128_t ExpectedShift = WasmEdge::uint128_t(U64Max) << 64U;
+  EXPECT_EQ(U128Max << 64U, ExpectedShift);
+}
+
+TEST(Int128Test, Int128ComparisonTest) {
+  const WasmEdge::uint128_t One = 1U;
+  const WasmEdge::uint128_t Two = 2U;
+  const WasmEdge::uint128_t Large = WasmEdge::uint128_t(1) << 100U;
+
+  EXPECT_TRUE(One == One);
+  EXPECT_FALSE(One == Two);
+
+  EXPECT_TRUE(One != Two);
+  EXPECT_FALSE(One != One);
+
+  EXPECT_TRUE(One < Two);
+  EXPECT_TRUE(One < Large);
+  EXPECT_FALSE(Two < One);
+
+  EXPECT_TRUE(Large > Two);
+  EXPECT_FALSE(One > Large);
+
+  EXPECT_TRUE(One <= One);
+  EXPECT_TRUE(One <= Two);
+
+  EXPECT_TRUE(Two >= Two);
+  EXPECT_TRUE(Large >= Two);
+}
+
 } // namespace

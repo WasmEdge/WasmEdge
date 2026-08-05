@@ -87,7 +87,7 @@ AST::CustomSection createCorestack(
 
   // Thread name size
   std::string ThreadName = "main";
-  Content.push_back(static_cast<uint8_t>(ThreadName.size()));
+  Ser.serializeU32(static_cast<uint32_t>(ThreadName.size()), Content);
   Content.insert(Content.end(), ThreadName.begin(), ThreadName.end());
   auto FramesSize = Frames.size() - 1;
   Ser.serializeU32(static_cast<uint32_t>(FramesSize), Content);

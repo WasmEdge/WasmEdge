@@ -73,12 +73,11 @@ encapsulate(PkVariant &PkVariant) noexcept {
       PkVariant);
 }
 
-WasiCryptoExpect<std::vector<uint8_t>>
+WasiCryptoExpect<SecretVec>
 decapsulate(SkVariant &SkVariant,
             Span<const uint8_t> EncapsulatedSecret) noexcept {
   return std::visit(
-      [EncapsulatedSecret](
-          auto &Sk) noexcept -> WasiCryptoExpect<std::vector<uint8_t>> {
+      [EncapsulatedSecret](auto &Sk) noexcept -> WasiCryptoExpect<SecretVec> {
         using InSkType = std::decay_t<decltype(Sk)>;
         if constexpr (HasDecapsulate<InSkType>) {
           return Sk.decapsulate(EncapsulatedSecret);

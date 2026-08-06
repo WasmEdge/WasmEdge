@@ -129,7 +129,7 @@ public:
 
     WasiCryptoExpect<KeyPair> toKeyPair(const PublicKey &Pk) const noexcept;
 
-    WasiCryptoExpect<std::vector<uint8_t>>
+    WasiCryptoExpect<SecretVec>
     decapsulate(Span<const uint8_t> EncapsulatedSecretData) const noexcept;
 
   private:

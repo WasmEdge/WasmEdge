@@ -84,7 +84,7 @@ MlKem<Bits>::PublicKey::encapsulate() const noexcept {
   opensslCheck(EVP_PKEY_encapsulate_init(EncCtx.get(), nullptr));
 
   std::vector<uint8_t> Ciphertext(CtSize);
-  std::vector<uint8_t> Secret(SecretSize);
+  SecretVec Secret(SecretSize);
   size_t CiphertextLen = CtSize;
   size_t SecretLen = SecretSize;
   ensureOrReturn(EVP_PKEY_encapsulate(EncCtx.get(), Ciphertext.data(),
@@ -177,7 +177,7 @@ MlKem<Bits>::SecretKey::toKeyPair(const PublicKey &) const noexcept {
 }
 
 template <int Bits>
-WasiCryptoExpect<std::vector<uint8_t>> MlKem<Bits>::SecretKey::decapsulate(
+WasiCryptoExpect<SecretVec> MlKem<Bits>::SecretKey::decapsulate(
     Span<const uint8_t> EncapsulatedSecretData) const noexcept {
   ensureOrReturn(EncapsulatedSecretData.size() == CtSize,
                  __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
@@ -186,7 +186,7 @@ WasiCryptoExpect<std::vector<uint8_t>> MlKem<Bits>::SecretKey::decapsulate(
   ensureOrReturn(DecCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   opensslCheck(EVP_PKEY_decapsulate_init(DecCtx.get(), nullptr));
 
-  std::vector<uint8_t> Secret(SecretSize);
+  SecretVec Secret(SecretSize);
   size_t SecretLen = SecretSize;
   ensureOrReturn(EVP_PKEY_decapsulate(DecCtx.get(), Secret.data(), &SecretLen,
                                       EncapsulatedSecretData.data(),

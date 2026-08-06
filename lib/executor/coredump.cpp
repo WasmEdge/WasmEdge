@@ -35,9 +35,8 @@ void generateCoredump(const Runtime::StackManager &StackMgr,
   Module.getCustomSections().emplace_back(createCore());
   Module.getCustomSections().emplace_back(createCorestack(
       Ser, StackMgr.getFramesSpan(), StackMgr.getValueSpan(), ForWasmgdb));
-  // TODO: reconstruct data instances
-  // Module.getDataSection() =
-  //     createData(CurrentInstance->getOwnedDataInstances());
+  Module.getDataSection() =
+      createData(CurrentInstance->getOwnedDataInstances());
   // TODO: pass all module instances
   Module.getCustomSections().emplace_back(
       createCoremodules(Ser, {CurrentInstance}));
@@ -148,19 +147,24 @@ AST::CustomSection createCorestack(
   return CoreStack;
 }
 
-// AST::DataSection
-// createData(Span<const Runtime::Instance::DataInstance *const> DataInstances)
-// {
-//   AST::DataSection DataSec;
-//   AST::DataSegment Seg;
-//   auto &Content = Seg.getData();
-//   for (auto &Data : DataInstances) {
-//     Content.insert(Content.end(), Data->getData().begin(),
-//                    Data->getData().end());
-//   }
-//   DataSec.getContent().push_back(Seg);
-//   return DataSec;
-// }
+AST::DataSection
+createData(Span<const Runtime::Instance::DataInstance *const> DataInstances) {
+  AST::DataSection DataSec;
+  for (const auto *Data : DataInstances) {
+    if (Data == nullptr) {
+      continue;
+    }
+    const auto Bytes = Data->getData();
+    if (Bytes.empty()) {
+      continue;
+    }
+    AST::DataSegment Seg;
+    Seg.setMode(AST::DataSegment::DataMode::Passive);
+    Seg.getData().assign(Bytes.begin(), Bytes.end());
+    DataSec.getContent().push_back(std::move(Seg));
+  }
+  return DataSec;
+}
 AST::GlobalSection createGlobals(
     Span<const Runtime::Instance::GlobalInstance *const> GlobalInstances) {
   AST::GlobalSection Globals;

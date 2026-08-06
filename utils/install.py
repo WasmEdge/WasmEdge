@@ -1250,11 +1250,7 @@ class Compat:
                     __lsb_rel = run_shell_command(
                         "cat /etc/lsb-release 2>/dev/null | grep RELEASE"
                     )[-5:]
-                    if VersionString(__lsb_rel).compare(
-                        "20.04"
-                    ) >= 0 or "Ubuntu 20.04" in run_shell_command(
-                        "cat /etc/lsb_release 2>/dev/null | grep DESCRIPTION"
-                    ):
+                    if VersionString(__lsb_rel).compare("20.04") >= 0:
                         # ARM-based Ubuntu 20.04 is supported after 0.13.5
                         if self.arch == "x86_64" or (
                             self.arch == "aarch64"

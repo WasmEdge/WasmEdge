@@ -57,6 +57,7 @@ WASMEDGE_EXPORT uint64_t Hash::rapidHash(Span<const std::byte> Data) noexcept {
       A = B = 0;
     }
   } else {
+    const Span<const std::byte> Orig = Data;
     if (Data.size() > 48) {
       uint64_t See1 = Seed, See2 = Seed;
       do {
@@ -79,8 +80,8 @@ WASMEDGE_EXPORT uint64_t Hash::rapidHash(Span<const std::byte> Data) noexcept {
                         read(Data.subspan<24>().first<8>()) ^ Seed);
       }
     }
-    A = read(Data.last<16>().first<8>()) ^ Data.size();
-    B = read(Data.last<8>());
+    A = read(Orig.last<16>().first<8>()) ^ Data.size();
+    B = read(Orig.last<8>());
   }
   A ^= Secret[1];
   B ^= Seed;

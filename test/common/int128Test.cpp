@@ -105,4 +105,14 @@ TEST(Int128Test, Int128OutputTest) {
     }
   }
 }
+
+TEST(Int128Test, Int128ClzTest) {
+  EXPECT_EQ(WasmEdge::clz(static_cast<uint32_t>(0)), 32);
+  EXPECT_EQ(WasmEdge::clz(static_cast<uint32_t>(1)), 31);
+  EXPECT_EQ(WasmEdge::clz(static_cast<uint32_t>(0x80000000U)), 0);
+  EXPECT_EQ(WasmEdge::clz(static_cast<uint64_t>(0)), 64);
+  EXPECT_EQ(WasmEdge::clz(static_cast<uint64_t>(1)), 63);
+  EXPECT_EQ(WasmEdge::clz(static_cast<uint64_t>(0x8000000000000000ULL)), 0);
+}
+
 } // namespace

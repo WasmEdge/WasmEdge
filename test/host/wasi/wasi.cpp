@@ -6133,21 +6133,23 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_size_t) * 3);
 
     // Test misaligned ArgcPtr
-    EXPECT_TRUE(
-        WasiArgsSizesGet.run(CallFrame,
-                             std::initializer_list<WasmEdge::ValVariant>{
-                                 MisalignedArgcPtr, // misaligned
-                                 AlignedArgvBufSizePtr},
-                             Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    Res = WasiArgsSizesGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            MisalignedArgcPtr, // misaligned
+            AlignedArgvBufSizePtr},
+        Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     // Test misaligned ArgvBufSizePtr
-    EXPECT_TRUE(WasiArgsSizesGet.run(
+    Res = WasiArgsSizesGet.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             AlignedArgcPtr, MisalignedArgvBufSizePtr}, // misaligned
-        Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+        Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test properly aligned parameters (should succeed)
@@ -6172,12 +6174,14 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(uint8_t_ptr) * 3);
 
     // Test misaligned EnvPtr
-    EXPECT_TRUE(WasiEnvironGet.run(CallFrame,
-                                   std::initializer_list<WasmEdge::ValVariant>{
-                                       MisalignedEnvPtr, // misaligned
-                                       static_cast<uint32_t>(0)},
-                                   Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    auto Res =
+        WasiEnvironGet.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               MisalignedEnvPtr, // misaligned
+                               static_cast<uint32_t>(0)},
+                           Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned pointers (should succeed)
@@ -6201,21 +6205,23 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_size_t) * 5);
 
     // Test misaligned EnvCntPtr
-    EXPECT_TRUE(
-        WasiEnvironSizesGet.run(CallFrame,
-                                std::initializer_list<WasmEdge::ValVariant>{
-                                    MisalignedEnvCntPtr, // misaligned
-                                    AlignedEnvBufSizePtr},
-                                Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    Res = WasiEnvironSizesGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            MisalignedEnvCntPtr, // misaligned
+            AlignedEnvBufSizePtr},
+        Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     // Test misaligned EnvBufSizePtr
-    EXPECT_TRUE(WasiEnvironSizesGet.run(
+    Res = WasiEnvironSizesGet.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             AlignedEnvCntPtr, MisalignedEnvBufSizePtr}, // misaligned
-        Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+        Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned pointers (should succeed)
@@ -6240,13 +6246,14 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(uint64_t) * 2);
 
       // Test misaligned ResolutionPtr
-      EXPECT_TRUE(WasiClockResGet.run(
+      auto Res = WasiClockResGet.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               static_cast<uint32_t>(__WASI_CLOCKID_REALTIME),
               MisalignedResolutionPtr}, // misaligned
-          Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+          Errno);
+      ASSERT_FALSE(Res);
+      EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
       writeDummyMemoryContent(MemInst);
       // Test correctly aligned pointer (should succeed)
@@ -6274,13 +6281,14 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(uint64_t) * 3);
 
       // Test misaligned timestamp pointer
-      EXPECT_TRUE(WasiClockTimeGet.run(
+      auto Res = WasiClockTimeGet.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               static_cast<uint32_t>(__WASI_CLOCKID_REALTIME), UINT64_C(0),
               MisalignedTimePtr}, // misaligned
-          Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+          Errno);
+      ASSERT_FALSE(Res);
+      EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
       writeDummyMemoryContent(MemInst);
       // Test correctly aligned timestamp pointer (should succeed)

@@ -851,6 +851,55 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::I64__trunc_sat_f64_u:
       return runTruncateSatOp<double, uint64_t>(StackMgr.getTop());
 
+    // Wide Arithmetic Instructions
+    case OpCode::I64__add128: {
+      using uint128 = unsigned __int128;
+      uint64_t Hi2 = StackMgr.pop().get<uint64_t>();
+      uint64_t Lo2 = StackMgr.pop().get<uint64_t>();
+      uint64_t Hi1 = StackMgr.pop().get<uint64_t>();
+      uint128 V1 = (static_cast<uint128>(Hi1) << 64) |
+                   StackMgr.getTop().get<uint64_t>();
+      uint128 V2 = (static_cast<uint128>(Hi2) << 64) | Lo2;
+      uint128 Result = V1 + V2;
+      StackMgr.getTop().emplace<uint64_t>(static_cast<uint64_t>(Result));
+      StackMgr.push(ValVariant(static_cast<uint64_t>(Result >> 64)));
+      return {};
+    }
+    case OpCode::I64__sub128: {
+      using uint128 = unsigned __int128;
+      uint64_t Hi2 = StackMgr.pop().get<uint64_t>();
+      uint64_t Lo2 = StackMgr.pop().get<uint64_t>();
+      uint64_t Hi1 = StackMgr.pop().get<uint64_t>();
+      uint128 V1 = (static_cast<uint128>(Hi1) << 64) |
+                   StackMgr.getTop().get<uint64_t>();
+      uint128 V2 = (static_cast<uint128>(Hi2) << 64) | Lo2;
+      uint128 Result = V1 - V2;
+      StackMgr.getTop().emplace<uint64_t>(static_cast<uint64_t>(Result));
+      StackMgr.push(ValVariant(static_cast<uint64_t>(Result >> 64)));
+      return {};
+    }
+    case OpCode::I64__mul_wide_s: {
+      using int128 = __int128;
+      int64_t V2 = StackMgr.pop().get<int64_t>();
+      int128 Result =
+          static_cast<int128>(StackMgr.getTop().get<int64_t>()) *
+          static_cast<int128>(V2);
+      auto UResult = static_cast<unsigned __int128>(Result);
+      StackMgr.getTop().emplace<uint64_t>(static_cast<uint64_t>(UResult));
+      StackMgr.push(ValVariant(static_cast<uint64_t>(UResult >> 64)));
+      return {};
+    }
+    case OpCode::I64__mul_wide_u: {
+      using uint128 = unsigned __int128;
+      uint64_t V2 = StackMgr.pop().get<uint64_t>();
+      uint128 Result =
+          static_cast<uint128>(StackMgr.getTop().get<uint64_t>()) *
+          static_cast<uint128>(V2);
+      StackMgr.getTop().emplace<uint64_t>(static_cast<uint64_t>(Result));
+      StackMgr.push(ValVariant(static_cast<uint64_t>(Result >> 64)));
+      return {};
+    }
+
     // SIMD Memory Instructions
     case OpCode::V128__load:
       return runLoadOp<uint128_t>(

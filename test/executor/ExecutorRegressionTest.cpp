@@ -1176,6 +1176,100 @@ TEST(ExecutorRegression, CallIndirectNonFuncTable) {
   EXPECT_EQ(Result.error(), ErrCode::Value::TypeCheckFailed);
 }
 
+/// Test Wide Arithmetic proposal interpreter execution (i64.add128, i64.sub128, i64.mul_wide_s, i64.mul_wide_u).
+TEST(ExecutorRegression, WideArithmeticInstructions) {
+  const std::vector<uint8_t> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 1 type (func () -> (i64, i64)) - 6 bytes
+      0x01, 0x06, 0x01, 0x60, 0x00, 0x02, 0x7e, 0x7e,
+      // Function section: 4 functions using type 0 - 5 bytes
+      0x03, 0x05, 0x04, 0x00, 0x00, 0x00, 0x00,
+      // Export section: 4 exports - 45 bytes (0x2d)
+      0x07, 0x2d, 0x04,
+      0x06, 'a', 'd', 'd', '1', '2', '8', 0x00, 0x00,
+      0x06, 's', 'u', 'b', '1', '2', '8', 0x00, 0x01,
+      0x0a, 'm', 'u', 'l', '_', 'w', 'i', 'd', 'e', '_', 's', 0x00, 0x02,
+      0x0a, 'm', 'u', 'l', '_', 'w', 'i', 'd', 'e', '_', 'u', 0x00, 0x03,
+      // Code section: 53 bytes (0x35)
+      0x0a, 0x35, 0x04,
+      // Function 0: add128 (12 bytes = 0x0c)
+      0x0c, 0x00,
+      0x42, 0x7f,                                                       // i64.const -1 (0xFFFFFFFFFFFFFFFF)
+      0x42, 0x00,                                                       // i64.const 0
+      0x42, 0x01,                                                       // i64.const 1
+      0x42, 0x00,                                                       // i64.const 0
+      0xfc, 0x13,                                                       // i64.add128
+      0x0b,
+      // Function 1: sub128 (12 bytes = 0x0c)
+      0x0c, 0x00,
+      0x42, 0x00,                                                       // i64.const 0
+      0x42, 0x01,                                                       // i64.const 1
+      0x42, 0x01,                                                       // i64.const 1
+      0x42, 0x00,                                                       // i64.const 0
+      0xfc, 0x14,                                                       // i64.sub128
+      0x0b,
+      // Function 2: mul_wide_s (8 bytes = 0x08)
+      0x08, 0x00,
+      0x42, 0x7f,                                                       // i64.const -1
+      0x42, 0x01,                                                       // i64.const 1
+      0xfc, 0x15,                                                       // i64.mul_wide_s
+      0x0b,
+      // Function 3: mul_wide_u (16 bytes = 0x10)
+      0x10, 0x00,
+      0x42, 0x80, 0x80, 0x80, 0x80, 0x10,                               // i64.const 0x100000000
+      0x42, 0x80, 0x80, 0x80, 0x80, 0x10,                               // i64.const 0x100000000
+      0xfc, 0x16,                                                       // i64.mul_wide_u
+      0x0b
+  };
+
+  Configure Conf;
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  // Test add128: 0xFFFFFFFFFFFFFFFF + 1 = 0 (lo), 1 (hi)
+  {
+    auto Res = VM.execute("add128");
+    ASSERT_TRUE(Res);
+    auto Returns = Res.value();
+    ASSERT_EQ(Returns.size(), 2U);
+    EXPECT_EQ(Returns[0].first.get<uint64_t>(), 0ULL);
+    EXPECT_EQ(Returns[1].first.get<uint64_t>(), 1ULL);
+  }
+
+  // Test sub128: (0, 1) - (1, 0) = 0xFFFFFFFFFFFFFFFF (lo), 0 (hi)
+  {
+    auto Res = VM.execute("sub128");
+    ASSERT_TRUE(Res);
+    auto Returns = Res.value();
+    ASSERT_EQ(Returns.size(), 2U);
+    EXPECT_EQ(Returns[0].first.get<uint64_t>(), 0xFFFFFFFFFFFFFFFFULL);
+    EXPECT_EQ(Returns[1].first.get<uint64_t>(), 0ULL);
+  }
+
+  // Test mul_wide_s: -1 * 1 = -1 (lo), -1 (hi)
+  {
+    auto Res = VM.execute("mul_wide_s");
+    ASSERT_TRUE(Res);
+    auto Returns = Res.value();
+    ASSERT_EQ(Returns.size(), 2U);
+    EXPECT_EQ(Returns[0].first.get<uint64_t>(), 0xFFFFFFFFFFFFFFFFULL);
+    EXPECT_EQ(Returns[1].first.get<uint64_t>(), 0xFFFFFFFFFFFFFFFFULL);
+  }
+
+  // Test mul_wide_u: 2^32 * 2^32 = 0 (lo), 1 (hi)
+  {
+    auto Res = VM.execute("mul_wide_u");
+    ASSERT_TRUE(Res);
+    auto Returns = Res.value();
+    ASSERT_EQ(Returns.size(), 2U);
+    EXPECT_EQ(Returns[0].first.get<uint64_t>(), 0ULL);
+    EXPECT_EQ(Returns[1].first.get<uint64_t>(), 1ULL);
+  }
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

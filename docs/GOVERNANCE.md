@@ -72,7 +72,7 @@ See more details in [Code of Conduct](CODE_OF_CONDUCT.md) document.
 
 The Maintainers will appoint a Security Response Team to handle security reports. This committee may simply consist of the Maintainer Council themselves. If this responsibility is delegated, the Maintainers will appoint a team of at least two contributors to handle it. The Maintainers will review who is assigned to this at least once a year.
 
-The Security Response Team is responsible for handling all reports of security holes and breaches according to the [security policy](./SECURITY.md).
+The Security Response Team is responsible for handling all reports of security holes and breaches according to the [security policy](../SECURITY.md).
 
 
 ## Voting

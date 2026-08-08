@@ -31,11 +31,11 @@ namespace Host {
 namespace WasiCrypto {
 namespace Common {
 
-constexpr __wasi_version_t VERSION_UNSPECIFIED = 0xffffffffffffffffULL;
-constexpr __wasi_version_t VERSION_LATEST = 0xffffffffffffffffULL;
-constexpr __wasi_version_t VERSION_LATEST_ALT = 0xfffffffffffffffeULL;
-constexpr __wasi_version_t VERSION_ALL = 0xfffffffffffffffeULL;
-constexpr __wasi_version_t VERSION_ALL_ALT = 0xfffffffffffffffdULL;
+constexpr __wasi_version_t VERSION_UNSPECIFIED = 0xff00000000000000ULL;
+constexpr __wasi_version_t VERSION_LATEST = 0xff00000000000001ULL;
+constexpr __wasi_version_t VERSION_LATEST_ALT = VERSION_LATEST;
+constexpr __wasi_version_t VERSION_ALL = 0xff00000000000002ULL;
+constexpr __wasi_version_t VERSION_ALL_ALT = VERSION_ALL;
 
 class SecretsManager {
 public:

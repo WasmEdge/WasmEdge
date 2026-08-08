@@ -1307,4 +1307,22 @@ TEST(InstructionTest, LoadTryTable) {
   EXPECT_FALSE(Ldr.parseModule(Vec));
 }
 
+TEST(InstructionTest, LoadBrOnCastFlags) {
+  const auto MakeModule = [](uint8_t Opcode, uint8_t Flag) {
+    return prefixedVec({0x0AU, 0x0AU, 0x01U, 0x08U, 0x00U, 0xFBU, Opcode, Flag,
+                        0x00U, 0x6DU, 0x6DU, 0x0BU});
+  };
+  const uint8_t Opcodes[] = {0x18U, 0x19U};
+  const uint8_t InvalidFlags[] = {0x04U, 0xFFU};
+
+  for (const uint8_t Opcode : Opcodes) {
+    for (uint8_t Flag = 0x00U; Flag <= 0x03U; ++Flag) {
+      EXPECT_TRUE(Ldr.parseModule(MakeModule(Opcode, Flag)));
+    }
+    for (const uint8_t Flag : InvalidFlags) {
+      EXPECT_FALSE(Ldr.parseModule(MakeModule(Opcode, Flag)));
+    }
+  }
+}
+
 } // namespace

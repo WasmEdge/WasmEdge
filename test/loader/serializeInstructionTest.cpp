@@ -2109,4 +2109,63 @@ TEST(SerializeInstructionTest, SerializeMultiMemoryMemArgInstruction) {
   };
   EXPECT_EQ(Output, Expected);
 }
+
+TEST(SerializeInstructionTest, SerializeMemory64MemArgInstruction) {
+  WasmEdge::AST::Instruction I32Load(WasmEdge::OpCode::I32__load);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+  std::vector<uint8_t> Output;
+
+  // 1. Memory64 disabled + small offset
+  WasmEdge::Configure ConfDisabled;
+  ConfDisabled.removeProposal(WasmEdge::Proposal::Memory64);
+  WasmEdge::Loader::Serializer SerDisabled(ConfDisabled);
+
+  I32Load.getMemoryAlign() = 0x02U;
+  I32Load.getMemoryOffset() = 0x10U; // small offset
+  Instructions = {I32Load, End};
+  Output = {};
+  EXPECT_TRUE(SerDisabled.serializeSection(createCodeSec(Instructions), Output));
+  std::vector<uint8_t> Expected = {
+      0x0AU, // Code section
+      0x07U, // Content size = 7
+      0x01U, // Vector length = 1
+      0x05U, // Code segment size = 5
+      0x00U, // Local vec(0)
+      0x28U, // OpCode I32__load.
+      0x02U, // Align.
+      0x10U, // Offset (small).
+      0x0BU  // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // 2. Memory64 disabled + offset > UINT32_MAX
+  I32Load.getMemoryOffset() = 0x100000000ULL; // > UINT32_MAX
+  Instructions = {I32Load, End};
+  Output = {};
+  EXPECT_FALSE(SerDisabled.serializeSection(createCodeSec(Instructions), Output));
+
+  // 3. Memory64 enabled + large offset
+  WasmEdge::Configure ConfEnabled;
+  ConfEnabled.addProposal(WasmEdge::Proposal::Memory64);
+  WasmEdge::Loader::Serializer SerEnabled(ConfEnabled);
+
+  I32Load.getMemoryOffset() = 0x100000000ULL; // > UINT32_MAX
+  Instructions = {I32Load, End};
+  Output = {};
+  EXPECT_TRUE(SerEnabled.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU, // Code section
+      0x0BU, // Content size = 11
+      0x01U, // Vector length = 1
+      0x09U, // Code segment size = 9
+      0x00U, // Local vec(0)
+      0x28U, // OpCode I32__load.
+      0x02U, // Align.
+      0x80U, 0x80U, 0x80U, 0x80U, 0x10U, // Offset = 0x100000000
+      0x0BU  // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+}
+
 } // namespace

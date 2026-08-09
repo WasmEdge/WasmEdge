@@ -575,6 +575,69 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
+
+  // Test: image_to_image -- out of range image size.
+  // A real input image is supplied so the loader succeeds and execution
+  // reaches the resize path; SessionId is valid too. The rejection can
+  // therefore only come from the image-size validation.
+  {
+    uint32_t InputPathPtr = UINT32_C(0);
+    writeBinaries<char>(MemInst, InputPath, InputPathPtr);
+    const std::array<std::pair<uint32_t, uint32_t>, 3> BadSizes = {
+        std::make_pair(UINT32_C(0x40000000), UINT32_C(64)),
+        std::make_pair(UINT32_C(65536), UINT32_C(65536)),
+        std::make_pair(UINT32_C(0x20000000), UINT32_C(128))};
+    for (const auto &BadSize : BadSizes) {
+      EXPECT_TRUE(HostFuncImageToImage.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              InputPathPtr,                            // ImagePtr
+              static_cast<uint32_t>(InputPath.size()), // ImageLen
+              UINT32_C(0),                             // MaskImagePtr
+              UINT32_C(0),                             // MaskImageLen
+              SessionId,                               // SessionId
+              3.5f,                                    // Guidance
+              BadSize.first,                           // Width
+              BadSize.second,                          // Height
+              UINT32_C(0),                             // ControlImagePtr
+              UINT32_C(0),                             // ControlImageLen
+              UINT32_C(0),                             // PromptPtr
+              UINT32_C(0),                             // PromptLen
+              UINT32_C(0),                             // NegativePromptPtr
+              UINT32_C(0),                             // NegativePromptLen
+              INT32_C(-1),                             // ClipSkip
+              7.0f,                                    // CfgScale
+              UINT32_C(0),                             // SampleMethod
+              UINT32_C(1),                             // SampleSteps
+              0.75f,                                   // Strength
+              UINT32_C(42),                            // Seed
+              UINT32_C(1),                             // BatchCount
+              0.9f,                                    // ControlStrength
+              20.0f,                                   // StyleRatio
+              UINT32_C(0),                             // NormalizeInput
+              UINT32_C(0),                             // InputIdImagesDirPtr
+              UINT32_C(0),                             // InputIdImagesDirLen
+              UINT32_C(0),                             // CannyPreprocess
+              UINT32_C(0),                             // UpscaleModelPathPtr
+              UINT32_C(0),                             // UpscaleModelPathLen
+              UINT32_C(1),                             // UpscaleRepeats
+              UINT32_C(0),                             // SkipLayersPtr
+              UINT32_C(0),                             // SkipLayersLen
+              0.0f,                                    // SlgScale
+              0.01f,                                   // SkipLayerStart
+              0.2f,                                    // SkipLayerEnd
+              UINT32_C(0),                             // OutputPathPtr
+              UINT32_C(0),                             // OutputPathLen
+              UINT32_C(0),                             // OutBufferPtr
+              UINT32_C(0),                             // OutBufferMaxSize
+              UINT32_C(0)},                            // BytesWrittenPtr
+          Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(),
+                static_cast<uint32_t>(ErrNo::InvalidArgument))
+          << "image_to_image accepted " << BadSize.first << "x"
+          << BadSize.second;
+    }
+  }
 }
 
 GTEST_API_ int main(int argc, char **argv) {

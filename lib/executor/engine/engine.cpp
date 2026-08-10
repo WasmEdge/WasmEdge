@@ -2120,12 +2120,12 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     __has_cpp_attribute(msvc::forceinline_calls)
     [[msvc::forceinline_calls]]
 #endif
-    EXPECTED_TRY(Dispatch().map_error([this, &StackMgr](auto E) {
+    EXPECTED_TRY(Dispatch().map_error([this, &StackMgr, PC](auto E) {
       StackTraceSize = interpreterStackTrace(StackMgr, StackTrace).size();
       if (Conf.getRuntimeConfigure().isEnableCoredump() &&
           E.getErrCodePhase() == WasmPhase::Execution) {
         Coredump::generateCoredump(
-            StackMgr, Conf.getRuntimeConfigure().isCoredumpWasmgdb());
+            StackMgr, PC, Conf.getRuntimeConfigure().isCoredumpWasmgdb());
       }
       return E;
     }));

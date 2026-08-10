@@ -68,6 +68,18 @@ public:
   void serializeU32(uint32_t Num, std::vector<uint8_t> &OutVec) const noexcept {
     serializeUN<uint32_t, 32>(Num, OutVec, OutVec.end());
   }
+  void serializeS32(int32_t Num, std::vector<uint8_t> &OutVec) const noexcept {
+    serializeSN<int32_t, 32>(Num, OutVec);
+  }
+  void serializeS64(int64_t Num, std::vector<uint8_t> &OutVec) const noexcept {
+    serializeSN<int64_t, 64>(Num, OutVec);
+  }
+  void serializeF32(float Num, std::vector<uint8_t> &OutVec) const noexcept {
+    serializeFN<float, uint32_t>(Num, OutVec);
+  }
+  void serializeF64(double Num, std::vector<uint8_t> &OutVec) const noexcept {
+    serializeFN<double, uint64_t>(Num, OutVec);
+  }
 
 private:
   /// \name Serialize functions for the other nodes of AST.
@@ -179,14 +191,8 @@ private:
     OutVec.insert(OutVec.end(), Buf, Buf + Len);
   }
 
-  void serializeS32(int32_t Num, std::vector<uint8_t> &OutVec) const noexcept {
-    serializeSN<int32_t, 32>(Num, OutVec);
-  }
   void serializeS33(int64_t Num, std::vector<uint8_t> &OutVec) const noexcept {
     serializeSN<int64_t, 33>(Num, OutVec);
-  }
-  void serializeS64(int64_t Num, std::vector<uint8_t> &OutVec) const noexcept {
-    serializeSN<int64_t, 64>(Num, OutVec);
   }
 
   template <typename NumType, typename IntType>
@@ -200,13 +206,6 @@ private:
       OutVec.push_back(static_cast<uint8_t>(Buf & 0xFFU));
       Buf = Buf >> 8;
     }
-  }
-
-  void serializeF32(float Num, std::vector<uint8_t> &OutVec) const noexcept {
-    serializeFN<float, uint32_t>(Num, OutVec);
-  }
-  void serializeF64(double Num, std::vector<uint8_t> &OutVec) const noexcept {
-    serializeFN<double, uint64_t>(Num, OutVec);
   }
 
   template <typename T, typename L>

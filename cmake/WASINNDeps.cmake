@@ -578,18 +578,31 @@ function(wasmedge_setup_mlx_target target)
 
   find_program(FFMPEG_EXECUTABLE ffmpeg)
 
+  # Reach the MLX wrapper and third-party headers through -isystem so they
+  # are never compiled under the project warning flags. The tests see these
+  # directories as plain -I through the plugin's INCLUDE_DIRECTORIES
+  # property and do not link mlx, so mlx's PUBLIC warning suppressions do
+  # not apply to them.
+  FetchContent_GetProperties(gguflib)
+  target_include_directories(${target}
+    SYSTEM PRIVATE
+    ${CMAKE_SOURCE_DIR}/plugins/wasi_nn/MLX
+    ${MLX_INCLUDE_DIRS}
+    $<BUILD_INTERFACE:${gguflib_SOURCE_DIR}>
+  )
+  if(TARGET mlx)
+    target_include_directories(${target}
+      SYSTEM PRIVATE
+      $<TARGET_PROPERTY:mlx,INTERFACE_INCLUDE_DIRECTORIES>
+    )
+  endif()
+
   # Only the plugin library needs to fully link the dependency.
   if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
     wasmedge_setup_simdjson()
     target_include_directories(${target}
       PRIVATE
       ${tokenizers_SOURCE_DIR}/include
-    )
-    target_include_directories(${target}
-      SYSTEM PRIVATE
-      ${CMAKE_SOURCE_DIR}/plugins/wasi_nn/MLX
-      ${MLX_INCLUDE_DIRS}
-      $<BUILD_INTERFACE:${gguflib_SOURCE_DIR}>
     )
     target_link_libraries(${target}
       PRIVATE

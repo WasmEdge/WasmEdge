@@ -100,12 +100,6 @@ TEST_F(FFmpegTest, SWResampleFunc) {
   ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncSwrFree = FuncInst->getHostFunc();
 
-  {
-    EXPECT_TRUE(HostFuncSwrFree.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{SwrId}, Result));
-    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
-  }
-
   FuncInst =
       SWResampleMod->findFuncExports("wasmedge_ffmpeg_swresample_swr_init");
   ASSERT_NE(FuncInst, nullptr);
@@ -237,6 +231,279 @@ TEST_F(FFmpegTest, SWResampleFunc) {
                   .find("--"),
               std::string_view::npos);
   }
+
+  // Free once every operation is done: freeing invalidates all ids aliasing the
+  // same SwrContext, so an earlier free would strand the reconfigured alias.
+  {
+    SwrId = readUInt32(MemInst, SWResamplePtr);
+    EXPECT_TRUE(HostFuncSwrFree.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{SwrId}, Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+}
+
+TEST_F(FFmpegTest, SWRAllocSetOptsFailureInvalidatesAliases) {
+  ASSERT_TRUE(SWResampleMod != nullptr);
+
+  auto *FuncInst = SWResampleMod->findFuncExports(
+      "wasmedge_ffmpeg_swresample_swr_alloc_set_opts");
+  auto &HostFuncSwrAllocSetOpts = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWRAllocSetOpts &>(
+      FuncInst->getHostFunc());
+
+  uint32_t SWResamplePtr = UINT32_C(4);
+  uint64_t OutChLayoutId = UINT64_C(1) << 1; // Front Right
+  uint32_t OutSampleFmtId = 2;               // AV_SAMPLE_FMT_S16
+  uint64_t InChLayoutId = UINT64_C(1) << 2;  // Front Center
+  uint32_t InSampleFmtId = 3;                // AV_SAMPLE_FMT_S32
+  int32_t InSampleRate = 40;
+  int32_t LogOffset = 1;
+
+  auto AllocSetOpts = [&](uint32_t ExistingId, int32_t OutSampleRate) {
+    HostFuncSwrAllocSetOpts.run(CallFrame,
+                                std::initializer_list<WasmEdge::ValVariant>{
+                                    SWResamplePtr, ExistingId, OutChLayoutId,
+                                    OutSampleFmtId, OutSampleRate, InChLayoutId,
+                                    InSampleFmtId, InSampleRate, LogOffset},
+                                Result);
+    return Result[0].get<int32_t>();
+  };
+
+  writeUInt32(MemInst, UINT32_C(0), SWResamplePtr);
+
+  // Allocate a context, then reconfigure it. Reconfiguring mints a second id
+  // that aliases the same SwrContext (the established contract).
+  ASSERT_EQ(AllocSetOpts(UINT32_C(0), 30),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t FirstId = readUInt32(MemInst, SWResamplePtr);
+  ASSERT_TRUE(FirstId > 0);
+
+  ASSERT_EQ(AllocSetOpts(FirstId, 30), static_cast<int32_t>(ErrNo::Success));
+  uint32_t SecondId = readUInt32(MemInst, SWResamplePtr);
+  ASSERT_TRUE(SecondId > 0);
+  ASSERT_NE(SecondId, FirstId);
+
+  auto Env = HostFuncSwrAllocSetOpts.getEnv();
+  ASSERT_NE(Env->fetchData(FirstId), nullptr);
+  ASSERT_EQ(Env->fetchData(FirstId), Env->fetchData(SecondId));
+
+  // A failing reconfigure frees the underlying SwrContext, so every id
+  // aliasing it -- not just the one passed in -- must be invalidated.
+  EXPECT_EQ(AllocSetOpts(FirstId, -1),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Env->fetchData(FirstId), nullptr);
+  EXPECT_EQ(Env->fetchData(SecondId), nullptr);
+}
+
+// Regression: an invalid channel-layout id fails before swr_alloc_set_opts2
+// touches the existing SwrContext, so the guest's output handle (which may be
+// its only copy of the id) must be left intact rather than cleared.
+TEST_F(FFmpegTest, SWRAllocSetOptsPreservesHandleOnInvalidLayout) {
+  ASSERT_TRUE(SWResampleMod != nullptr);
+
+  auto *FuncInst = SWResampleMod->findFuncExports(
+      "wasmedge_ffmpeg_swresample_swr_alloc_set_opts");
+  auto &HostFuncSwrAllocSetOpts = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWRAllocSetOpts &>(
+      FuncInst->getHostFunc());
+
+  uint32_t SWResamplePtr = UINT32_C(4);
+  uint64_t OutChLayoutId = UINT64_C(1) << 1; // Front Right
+  uint32_t OutSampleFmtId = 2;               // AV_SAMPLE_FMT_S16
+  uint64_t InChLayoutId = UINT64_C(1) << 2;  // Front Center
+  uint32_t InSampleFmtId = 3;                // AV_SAMPLE_FMT_S32
+  int32_t OutSampleRate = 30;
+  int32_t InSampleRate = 40;
+  int32_t LogOffset = 1;
+
+  auto AllocSetOpts = [&](uint32_t ExistingId, uint64_t OutLayout,
+                          uint64_t InLayout) {
+    HostFuncSwrAllocSetOpts.run(CallFrame,
+                                std::initializer_list<WasmEdge::ValVariant>{
+                                    SWResamplePtr, ExistingId, OutLayout,
+                                    OutSampleFmtId, OutSampleRate, InLayout,
+                                    InSampleFmtId, InSampleRate, LogOffset},
+                                Result);
+    return Result[0].get<int32_t>();
+  };
+
+  writeUInt32(MemInst, UINT32_C(0), SWResamplePtr);
+
+  // Allocate a valid context; the guest keeps its id in the same slot it passes
+  // as the output pointer.
+  ASSERT_EQ(AllocSetOpts(UINT32_C(0), OutChLayoutId, InChLayoutId),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t FirstId = readUInt32(MemInst, SWResamplePtr);
+  ASSERT_TRUE(FirstId > 0);
+
+  auto Env = HostFuncSwrAllocSetOpts.getEnv();
+  ASSERT_NE(Env->fetchData(FirstId), nullptr);
+
+  // An invalid output channel-layout id (0 -> empty mask) fails; the output
+  // slot must still hold the live handle rather than being cleared to 0.
+  EXPECT_EQ(AllocSetOpts(FirstId, UINT64_C(0), InChLayoutId),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(readUInt32(MemInst, SWResamplePtr), FirstId);
+  EXPECT_NE(Env->fetchData(FirstId), nullptr);
+
+  // The same holds when the input channel-layout id is the invalid one.
+  EXPECT_EQ(AllocSetOpts(FirstId, OutChLayoutId, UINT64_C(0)),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(readUInt32(MemInst, SWResamplePtr), FirstId);
+  EXPECT_NE(Env->fetchData(FirstId), nullptr);
+
+  // The preserved handle still works: a valid reconfigure succeeds.
+  EXPECT_EQ(AllocSetOpts(FirstId, OutChLayoutId, InChLayoutId),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
+// Regression: a nonzero SWRContextId that does not resolve to a SwrContext
+// (forged, stale, or wrong-type) is rejected before any allocation, and the
+// guest's output slot must be left untouched rather than cleared.
+TEST_F(FFmpegTest, SWRAllocSetOptsPreservesSlotOnUnresolvedId) {
+  ASSERT_TRUE(SWResampleMod != nullptr);
+
+  auto *FuncInst = SWResampleMod->findFuncExports(
+      "wasmedge_ffmpeg_swresample_swr_alloc_set_opts");
+  auto &HostFuncSwrAllocSetOpts = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWRAllocSetOpts &>(
+      FuncInst->getHostFunc());
+
+  uint32_t SWResamplePtr = UINT32_C(4);
+  uint64_t OutChLayoutId = UINT64_C(1) << 1; // Front Right
+  uint32_t OutSampleFmtId = 2;               // AV_SAMPLE_FMT_S16
+  uint64_t InChLayoutId = UINT64_C(1) << 2;  // Front Center
+  uint32_t InSampleFmtId = 3;                // AV_SAMPLE_FMT_S32
+  int32_t OutSampleRate = 30;
+  int32_t InSampleRate = 40;
+  int32_t LogOffset = 1;
+
+  // A nonzero id that was never allocated cannot resolve. The guest keeps it in
+  // the same slot it passes as the output pointer (in-place reconfigure idiom).
+  uint32_t UnresolvedId = UINT32_C(0xDEADBEEF);
+  writeUInt32(MemInst, UnresolvedId, SWResamplePtr);
+
+  HostFuncSwrAllocSetOpts.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  SWResamplePtr, UnresolvedId, OutChLayoutId,
+                                  OutSampleFmtId, OutSampleRate, InChLayoutId,
+                                  InSampleFmtId, InSampleRate, LogOffset},
+                              Result);
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(readUInt32(MemInst, SWResamplePtr), UnresolvedId);
+}
+
+TEST_F(FFmpegTest, SWRFreeInvalidatesAliases) {
+  ASSERT_TRUE(SWResampleMod != nullptr);
+
+  auto *FuncInst = SWResampleMod->findFuncExports(
+      "wasmedge_ffmpeg_swresample_swr_alloc_set_opts");
+  auto &HostFuncSwrAllocSetOpts = dynamic_cast<
+      WasmEdge::Host::WasmEdgeFFmpeg::SWResample::SWRAllocSetOpts &>(
+      FuncInst->getHostFunc());
+
+  uint32_t SWResamplePtr = UINT32_C(4);
+  uint64_t OutChLayoutId = UINT64_C(1) << 1; // Front Right
+  uint32_t OutSampleFmtId = 2;               // AV_SAMPLE_FMT_S16
+  uint64_t InChLayoutId = UINT64_C(1) << 2;  // Front Center
+  uint32_t InSampleFmtId = 3;                // AV_SAMPLE_FMT_S32
+  int32_t InSampleRate = 40;
+  int32_t LogOffset = 1;
+
+  auto AllocSetOpts = [&](uint32_t ExistingId, int32_t OutSampleRate) {
+    HostFuncSwrAllocSetOpts.run(CallFrame,
+                                std::initializer_list<WasmEdge::ValVariant>{
+                                    SWResamplePtr, ExistingId, OutChLayoutId,
+                                    OutSampleFmtId, OutSampleRate, InChLayoutId,
+                                    InSampleFmtId, InSampleRate, LogOffset},
+                                Result);
+    return Result[0].get<int32_t>();
+  };
+
+  writeUInt32(MemInst, UINT32_C(0), SWResamplePtr);
+
+  // Allocate a context, then reconfigure it. Reconfiguring mints a second id
+  // that aliases the same SwrContext (the established contract).
+  ASSERT_EQ(AllocSetOpts(UINT32_C(0), 30),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t FirstId = readUInt32(MemInst, SWResamplePtr);
+  ASSERT_TRUE(FirstId > 0);
+
+  ASSERT_EQ(AllocSetOpts(FirstId, 30), static_cast<int32_t>(ErrNo::Success));
+  uint32_t SecondId = readUInt32(MemInst, SWResamplePtr);
+  ASSERT_TRUE(SecondId > 0);
+  ASSERT_NE(SecondId, FirstId);
+
+  auto Env = HostFuncSwrAllocSetOpts.getEnv();
+  ASSERT_NE(Env->fetchData(FirstId), nullptr);
+  ASSERT_EQ(Env->fetchData(FirstId), Env->fetchData(SecondId));
+
+  // Freeing via one id frees the underlying SwrContext, so every id aliasing
+  // it -- not just the one passed in -- must be invalidated.
+  FuncInst =
+      SWResampleMod->findFuncExports("wasmedge_ffmpeg_swresample_swr_free");
+  auto &HostFuncSwrFree = FuncInst->getHostFunc();
+  HostFuncSwrFree.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FirstId}, Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Env->fetchData(FirstId), nullptr);
+  EXPECT_EQ(Env->fetchData(SecondId), nullptr);
+}
+
+// Regression: swr_convert_frame treats a null input as a drain request and a
+// null output as a buffered-samples query, so an unresolved nonzero frame id
+// must be rejected; only id 0 selects the intentional null-frame behavior.
+TEST_F(FFmpegTest, SWRConvertFrameRejectsUnresolvedFrameHandles) {
+  ASSERT_TRUE(SWResampleMod != nullptr);
+
+  auto *AllocInst = SWResampleMod->findFuncExports(
+      "wasmedge_ffmpeg_swresample_swr_alloc_set_opts");
+  ASSERT_NE(AllocInst, nullptr);
+  auto &HostFuncSwrAllocSetOpts = AllocInst->getHostFunc();
+
+  uint32_t SWResamplePtr = UINT32_C(4);
+  uint64_t OutChLayoutId = UINT64_C(1) << 1;
+  uint32_t OutSampleFmtId = 2;
+  uint64_t InChLayoutId = UINT64_C(1) << 2;
+  uint32_t InSampleFmtId = 3;
+  writeUInt32(MemInst, UINT32_C(0), SWResamplePtr);
+  HostFuncSwrAllocSetOpts.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  SWResamplePtr, UINT32_C(0), OutChLayoutId,
+                                  OutSampleFmtId, INT32_C(30), InChLayoutId,
+                                  InSampleFmtId, INT32_C(40), INT32_C(1)},
+                              Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  uint32_t SwrId = readUInt32(MemInst, SWResamplePtr);
+  ASSERT_TRUE(SwrId > 0);
+
+  auto *ConvertInst = SWResampleMod->findFuncExports(
+      "wasmedge_ffmpeg_swresample_swr_convert_frame");
+  ASSERT_NE(ConvertInst, nullptr);
+  auto &HostFuncConvertFrame = ConvertInst->getHostFunc();
+
+  uint32_t UnresolvedId = UINT32_C(999999);
+  HostFuncConvertFrame.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               SwrId, UnresolvedId, UINT32_C(0)},
+                           Result);
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
+  HostFuncConvertFrame.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               SwrId, UINT32_C(0), UnresolvedId},
+                           Result);
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  auto *FreeInst =
+      SWResampleMod->findFuncExports("wasmedge_ffmpeg_swresample_swr_free");
+  ASSERT_NE(FreeInst, nullptr);
+  auto &HostFuncSwrFree = FreeInst->getHostFunc();
+  HostFuncSwrFree.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{SwrId}, Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
 } // namespace WasmEdgeFFmpeg

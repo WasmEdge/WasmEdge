@@ -203,6 +203,132 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   }
 }
 
+TEST_F(FFmpegTest, AVSampleFmtNameBounds) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name");
+  auto &HostFuncAVGetSampleFmtName = FuncInst->getHostFunc();
+
+  uint32_t NamePtr = UINT32_C(4);
+  uint32_t SampleFmtId = 1; // AV_SAMPLE_FMT_U8, name "u8".
+  // NameLen is guest-controlled and far larger than the source name.
+  uint32_t NameLen = UINT32_C(64);
+  fillMemContent(MemInst, NamePtr, NameLen, UINT8_C(0xAA));
+
+  HostFuncAVGetSampleFmtName.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     SampleFmtId, NamePtr, NameLen},
+                                 Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  // The host must write exactly the name and its terminator ("u8\0"); the
+  // fence past the terminator detects any over-copy of adjacent host bytes.
+  char *Buf = MemInst->getPointer<char *>(NamePtr);
+  EXPECT_STREQ(Buf, "u8");
+  uint32_t WrittenLen = 0;
+  while (WrittenLen < NameLen && Buf[WrittenLen] != '\0') {
+    ++WrittenLen;
+  }
+  for (uint32_t I = WrittenLen + 1; I < NameLen; ++I) {
+    EXPECT_EQ(static_cast<uint8_t>(Buf[I]), UINT8_C(0xAA));
+  }
+}
+
+TEST_F(FFmpegTest, AVSampleFmtNameInvalid) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  uint32_t NamePtr = UINT32_C(4);
+  uint32_t NameLen = UINT32_C(16);
+
+  auto *FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name");
+  auto &HostFuncAVGetSampleFmtName = FuncInst->getHostFunc();
+
+  // av_get_sample_fmt_name returns nullptr for AV_SAMPLE_FMT_NONE (id 0); the
+  // host writes an empty string and reports success, matching the length
+  // getter's 0.
+  fillMemContent(MemInst, NamePtr, NameLen, UINT8_C(0xFF));
+  HostFuncAVGetSampleFmtName.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     UINT32_C(0), NamePtr, NameLen},
+                                 Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(readUInt32(MemInst, NamePtr) & 0xFFU, UINT32_C(0));
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name_length");
+  auto &HostFuncAVGetSampleFmtNameLength = FuncInst->getHostFunc();
+
+  HostFuncAVGetSampleFmtNameLength.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), 0);
+}
+
+TEST_F(FFmpegTest, AVSampleFmtGetBounds) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_get_sample_fmt");
+  auto &HostFuncAVGetSampleFmt = FuncInst->getHostFunc();
+
+  // The name pointer is in bounds but the guest-declared length runs off the
+  // end of linear memory; the host must reject it, not read past the page.
+  uint32_t OutOfBoundsStrPtr = UINT32_C(65000);
+  uint32_t OutOfBoundsStrLen = UINT32_C(2000);
+  HostFuncAVGetSampleFmt.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 OutOfBoundsStrPtr, OutOfBoundsStrLen},
+                             Result);
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::MissingMemory));
+}
+
+// av_freep mirrors FFmpeg's null-safe free: the null handle or an already
+// released id is a no-op success, while a live handle of another type is
+// rejected before any id-keyed deallocation.
+TEST_F(FFmpegTest, AVFreepNullSafeAndIdempotent) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto Run = [&](const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = AVUtilMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_freep", {UINT32_C(0)}),
+            static_cast<int32_t>(ErrNo::Success));
+
+  uint32_t BufferPtr = UINT32_C(4);
+  uint32_t LinesizePtr = UINT32_C(8);
+  writeUInt32(MemInst, UINT32_C(0), BufferPtr);
+  EXPECT_GE(Run("wasmedge_ffmpeg_avutil_av_samples_alloc_array_and_samples",
+                {BufferPtr, LinesizePtr, INT32_C(1), INT32_C(5), UINT32_C(1),
+                 INT32_C(1)}),
+            0);
+  uint32_t BufferId = readUInt32(MemInst, BufferPtr);
+  ASSERT_TRUE(BufferId > 0);
+
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_freep", {BufferId}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_freep", {BufferId}),
+            static_cast<int32_t>(ErrNo::Success));
+
+  uint32_t FramePtr = UINT32_C(12);
+  initEmptyFrame(FramePtr);
+  uint32_t FrameId = readUInt32(MemInst, FramePtr);
+  ASSERT_TRUE(FrameId > 0);
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_freep", {FrameId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  // The frame handle survived the rejected free and still frees normally.
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_free", {FrameId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
 } // namespace WasmEdgeFFmpeg
 } // namespace Host
 } // namespace WasmEdge

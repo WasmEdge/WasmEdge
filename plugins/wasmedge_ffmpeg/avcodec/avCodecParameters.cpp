@@ -15,12 +15,14 @@ namespace AVcodec {
 Expect<uint32_t> AVCodecParamCodecId::body(const Runtime::CallingFrame &,
                                            uint32_t AvCodecParamId) {
   FFMPEG_PTR_FETCH(AvCodecParams, AvCodecParamId, AVCodecParameters);
+  FFMPEG_PTR_CHECK(AvCodecParams, 0);
   return FFmpegUtils::CodecID::fromAVCodecID(AvCodecParams->codec_id);
 }
 
 Expect<int32_t> AVCodecParamCodecType::body(const Runtime::CallingFrame &,
                                             uint32_t AvCodecParamId) {
   FFMPEG_PTR_FETCH(AvCodecParams, AvCodecParamId, AVCodecParameters);
+  FFMPEG_PTR_CHECK(AvCodecParams, 0);
   return FFmpegUtils::MediaType::fromMediaType(AvCodecParams->codec_type);
 }
 
@@ -28,6 +30,7 @@ Expect<int32_t> AVCodecParamSetCodecTag::body(const Runtime::CallingFrame &,
                                               uint32_t AvCodecParamId,
                                               uint32_t CodecTag) {
   FFMPEG_PTR_FETCH(AvCodecParams, AvCodecParamId, AVCodecParameters);
+  FFMPEG_PTR_CHECK(AvCodecParams, static_cast<int32_t>(ErrNo::InternalError));
   AvCodecParams->codec_tag = CodecTag;
   return static_cast<int32_t>(ErrNo::Success);
 }

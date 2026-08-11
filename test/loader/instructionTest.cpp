@@ -1308,21 +1308,114 @@ TEST(InstructionTest, LoadTryTable) {
 }
 
 TEST(InstructionTest, LoadBrOnCastFlags) {
-  const auto MakeModule = [](uint8_t Opcode, uint8_t Flag) {
-    return prefixedVec({0x0AU, 0x0AU, 0x01U, 0x08U, 0x00U, 0xFBU, Opcode, Flag,
-                        0x00U, 0x6DU, 0x6DU, 0x0BU});
-  };
-  const uint8_t Opcodes[] = {0x18U, 0x19U};
-  const uint8_t InvalidFlags[] = {0x04U, 0xFFU};
+  std::vector<uint8_t> Vec;
 
-  for (const uint8_t Opcode : Opcodes) {
-    for (uint8_t Flag = 0x00U; Flag <= 0x03U; ++Flag) {
-      EXPECT_TRUE(Ldr.parseModule(MakeModule(Opcode, Flag)));
-    }
-    for (const uint8_t Flag : InvalidFlags) {
-      EXPECT_FALSE(Ldr.parseModule(MakeModule(Opcode, Flag)));
-    }
-  }
+  // 15. Test br_on_cast and br_on_cast_fail flags.
+  //
+  //   1.  Load both instructions with all valid flags (0x00-0x03).
+  //   2.  Load br_on_cast with invalid flag 0x04.
+  //   3.  Load br_on_cast with invalid flag 0xFF.
+  //   4.  Load br_on_cast_fail with invalid flag 0x04.
+  //   5.  Load br_on_cast_fail with invalid flag 0xFF.
+
+  Vec = {
+      0x0AU, // Code section
+      0x34U, // Content size = 52
+      0x01U, // Vector length = 1
+      0x32U, // Code segment size = 50
+      0x00U, // Local vec(0)
+
+      0xFBU, 0x18U, // OpCode Br_on_cast.
+      0x00U,        // Cast flags.
+      0x00U,        // Label index.
+      0x6DU, 0x6DU, // Source and destination heap types.
+      0xFBU, 0x18U, // OpCode Br_on_cast.
+      0x01U,        // Cast flags.
+      0x00U,        // Label index.
+      0x6DU, 0x6DU, // Source and destination heap types.
+      0xFBU, 0x18U, // OpCode Br_on_cast.
+      0x02U,        // Cast flags.
+      0x00U,        // Label index.
+      0x6DU, 0x6DU, // Source and destination heap types.
+      0xFBU, 0x18U, // OpCode Br_on_cast.
+      0x03U,        // Cast flags.
+      0x00U,        // Label index.
+      0x6DU, 0x6DU, // Source and destination heap types.
+      0xFBU, 0x19U, // OpCode Br_on_cast_fail.
+      0x00U,        // Cast flags.
+      0x00U,        // Label index.
+      0x6DU, 0x6DU, // Source and destination heap types.
+      0xFBU, 0x19U, // OpCode Br_on_cast_fail.
+      0x01U,        // Cast flags.
+      0x00U,        // Label index.
+      0x6DU, 0x6DU, // Source and destination heap types.
+      0xFBU, 0x19U, // OpCode Br_on_cast_fail.
+      0x02U,        // Cast flags.
+      0x00U,        // Label index.
+      0x6DU, 0x6DU, // Source and destination heap types.
+      0xFBU, 0x19U, // OpCode Br_on_cast_fail.
+      0x03U,        // Cast flags.
+      0x00U,        // Label index.
+      0x6DU, 0x6DU, // Source and destination heap types.
+      0x0BU         // Expression End.
+  };
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,        // Code section
+      0x0AU,        // Content size = 10
+      0x01U,        // Vector length = 1
+      0x08U,        // Code segment size = 8
+      0x00U,        // Local vec(0)
+      0xFBU, 0x18U, // OpCode Br_on_cast.
+      0x04U,        // Invalid cast flags.
+      0x00U,        // Label index.
+      0x6DU, 0x6DU, // Source and destination heap types.
+      0x0BU         // Expression End.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,        // Code section
+      0x0AU,        // Content size = 10
+      0x01U,        // Vector length = 1
+      0x08U,        // Code segment size = 8
+      0x00U,        // Local vec(0)
+      0xFBU, 0x18U, // OpCode Br_on_cast.
+      0xFFU,        // Invalid cast flags.
+      0x00U,        // Label index.
+      0x6DU, 0x6DU, // Source and destination heap types.
+      0x0BU         // Expression End.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,        // Code section
+      0x0AU,        // Content size = 10
+      0x01U,        // Vector length = 1
+      0x08U,        // Code segment size = 8
+      0x00U,        // Local vec(0)
+      0xFBU, 0x19U, // OpCode Br_on_cast_fail.
+      0x04U,        // Invalid cast flags.
+      0x00U,        // Label index.
+      0x6DU, 0x6DU, // Source and destination heap types.
+      0x0BU         // Expression End.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,        // Code section
+      0x0AU,        // Content size = 10
+      0x01U,        // Vector length = 1
+      0x08U,        // Code segment size = 8
+      0x00U,        // Local vec(0)
+      0xFBU, 0x19U, // OpCode Br_on_cast_fail.
+      0xFFU,        // Invalid cast flags.
+      0x00U,        // Label index.
+      0x6DU, 0x6DU, // Source and destination heap types.
+      0x0BU         // Expression End.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
 
 } // namespace

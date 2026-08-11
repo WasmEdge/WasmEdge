@@ -1,0 +1,232 @@
+name: Assign issue contributors
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions: {}
+
+jobs:
+  assign-issue:
+    name: Process /assign command
+    # User IDs of the maintainers, committers, and reviewers in docs/OWNER.md;
+    # update this list manually when that list changes, and keep it identical to
+    # the OWNER_USER_IDS environment variable of the "Assign contributor" step
+    # because a job-level "if" cannot read the env context.
+    #   10806 = juntao
+    #   251849 = ibmibmibm
+    #   274041 = dm4
+    #   2776756 = hydai
+    #   3313947 = q82419
+    #   4726889 = apepkuss
+    #   7088579 = LFsWang
+    #   14789875 = L-jasmine
+    #   16274282 = grorge123
+    #   22004511 = dannypsnl
+    #   23314210 = am009
+    #   24819143 = MediosZ
+    #   30090427 = 0yi0
+    #   34829253 = gusye1234
+    #   36074633 = yanghaku
+    #   40065278 = michael1017
+    #   45785633 = alabulei1
+    #   53310459 = PeterD1524
+    #   56215747 = sonder-joker
+    #   61797109 = SAtacker
+    #   94267867 = hangedfish
+    if: >-
+      github.event.issue.pull_request == null &&
+      contains(
+        fromJSON('[10806,251849,274041,2776756,3313947,4726889,7088579,14789875,16274282,22004511,23314210,24819143,30090427,34829253,36074633,40065278,45785633,53310459,56215747,61797109,94267867]'),
+        github.event.comment.user.id
+      ) &&
+      contains(github.event.comment.body, '/assign')
+    concurrency:
+      group: wasmedge-assign-issue
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      issues: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden the runner (Block unauthorized outbound calls)
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+
+      # .github/scripts/test_assign_issue.mjs extracts the script below by the
+      # literal step name and the "script: |" line; update that test when
+      # renaming either.
+      - name: Assign contributor
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          OWNER_USER_IDS: '[10806,251849,274041,2776756,3313947,4726889,7088579,14789875,16274282,22004511,23314210,24819143,30090427,34829253,36074633,40065278,45785633,53310459,56215747,61797109,94267867]'
+        with:
+          retries: 3
+          script: |
+            const command = context.payload.comment.body
+              .replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, '')
+              .trim()
+              .split('\n', 1)[0]
+              .trim();
+            if (!/^\/assign(?![\w-])/i.test(command)) {
+              return;
+            }
+
+            const issueParams = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+            };
+            const actor = context.payload.comment.user.login;
+            const reply = async (body) => {
+              try {
+                await github.rest.issues.createComment({ ...issueParams, body });
+              } catch (error) {
+                core.warning(
+                  `Failed to post the /assign reply: ${error?.message ?? String(error)}`,
+                );
+              }
+            };
+
+            const loginPattern = '[a-z\\d](?:[a-z\\d-]{0,37}[a-z\\d])?';
+            const commandMatch = command.match(
+              new RegExp(`^/assign[^\\S\\r\\n]+@(${loginPattern})$`, 'i'),
+            );
+            if (!commandMatch) {
+              await reply(
+                `@${actor}, use \`/assign @username\` with exactly one GitHub username.`,
+              );
+              return;
+            }
+            const target = commandMatch[1];
+            const hasAssignee = (issueData) =>
+              (issueData.assignees ?? []).some(
+                (assignee) => assignee.login.toLowerCase() === target.toLowerCase(),
+              );
+            const isOwner = async (login) => {
+              const owners = new Set(
+                JSON.parse(process.env.OWNER_USER_IDS || '[]'),
+              );
+              try {
+                const { data: user } = await github.rest.users.getByUsername({
+                  username: login,
+                });
+                return owners.has(user.id);
+              } catch (error) {
+                if (error?.status === 404) {
+                  return false;
+                }
+                throw error;
+              }
+            };
+
+            try {
+              const { data: issue } = await github.rest.issues.get(issueParams);
+              if (issue.state !== 'open') {
+                await reply(`@${actor}, only open issues can be assigned.`);
+                return;
+              }
+              const currentAssignees = issue.assignees ?? [];
+              if (currentAssignees.length === 1 && hasAssignee(issue)) {
+                await reply(
+                  `@${actor}, \`@${target}\` is already assigned to this issue.`,
+                );
+                return;
+              }
+              if (currentAssignees.length > 0) {
+                const assignees = currentAssignees
+                  .filter(
+                    (assignee) =>
+                      assignee.login.toLowerCase() !== target.toLowerCase(),
+                  )
+                  .map((assignee) => `\`@${assignee.login}\``)
+                  .join(', ');
+                await reply(
+                  `@${actor}, this issue is already assigned to ${assignees}. Each issue can be assigned to only one contributor.`,
+                );
+                return;
+              }
+
+              try {
+                await github.rest.issues.checkUserCanBeAssignedToIssue({
+                  ...issueParams,
+                  assignee: target,
+                });
+              } catch (error) {
+                if (error?.status !== 404) {
+                  throw error;
+                }
+                await reply(
+                  `@${actor}, GitHub does not allow \`@${target}\` to be assigned to this issue.`,
+                );
+                return;
+              }
+
+              if (!(await isOwner(target))) {
+                const assignedIssues = await github.paginate(
+                  github.rest.issues.listForRepo,
+                  {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    assignee: target,
+                    state: 'open',
+                    per_page: 100,
+                  },
+                );
+                const conflictingIssues = assignedIssues
+                  .filter(
+                    (assignedIssue) =>
+                      !assignedIssue.pull_request &&
+                      assignedIssue.number !== issueParams.issue_number,
+                  )
+                  .sort((left, right) => left.number - right.number);
+                if (conflictingIssues.length > 0) {
+                  const references = conflictingIssues
+                    .map(
+                      (conflict) => `[#${conflict.number}](${conflict.html_url})`,
+                    )
+                    .join(', ');
+                  await reply(
+                    `@${actor}, \`@${target}\` is already assigned to ${references}. Contributors other than the maintainers, committers, and reviewers in docs/OWNER.md can be assigned to only one open issue at a time and cannot receive another until the current issue is resolved.`,
+                  );
+                  return;
+                }
+              }
+
+              const { data: assignedIssue } =
+                await github.rest.issues.addAssignees({
+                  ...issueParams,
+                  assignees: [target],
+                });
+              if (!hasAssignee(assignedIssue)) {
+                await reply(
+                  `@${actor}, GitHub did not allow \`@${target}\` to be assigned to this issue.`,
+                );
+                return;
+              }
+              const otherAssignees = (assignedIssue.assignees ?? []).filter(
+                (assignee) =>
+                  assignee.login.toLowerCase() !== target.toLowerCase(),
+              );
+              if (otherAssignees.length > 0) {
+                const others = otherAssignees
+                  .map((assignee) => `\`@${assignee.login}\``)
+                  .join(', ');
+                await reply(
+                  `@${actor}, \`@${target}\` was assigned alongside ${others}. Each issue can be assigned to only one contributor; please remove the extra assignees.`,
+                );
+                return;
+              }
+              await reply(`Assigned this issue to @${target}.`);
+            } catch (error) {
+              core.setFailed(
+                `The /assign command failed: ${error?.message ?? String(error)}`,
+              );
+              await reply(
+                `@${actor}, the \`/assign\` command failed unexpectedly. Please try again later.`,
+              );
+            }

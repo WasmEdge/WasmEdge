@@ -9,9 +9,13 @@
 
 #include <gtest/gtest.h>
 
+#include <string_view>
+
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
+
+using namespace std::literals;
 
 TEST_F(FFmpegTest, AVUtilFunc) {
   ASSERT_TRUE(AVUtilMod != nullptr);
@@ -142,6 +146,110 @@ TEST_F(FFmpegTest, AVUtilFunc) {
         Result));
     EXPECT_EQ(Result[0].get<uint64_t>(),
               UINT64_C(67108868)); // guest-encoded AV_CH_LAYOUT_MONO
+  }
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_mask");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVGetChannelLayoutMask = FuncInst->getHostFunc();
+
+  spdlog::info("Testing AVGetChannelLayoutMask"sv);
+  {
+    // Guest FRONT_LEFT (bit 0) maps to native AV_CH_FRONT_LEFT (0x1).
+    EXPECT_TRUE(HostFuncAVGetChannelLayoutMask.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ChannelId},
+        Result));
+    EXPECT_EQ(Result[0].get<uint64_t>(), UINT64_C(1));
+
+    // Guest FRONT_RIGHT (bit 1) maps to native AV_CH_FRONT_RIGHT (0x2).
+    EXPECT_TRUE(HostFuncAVGetChannelLayoutMask.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT64_C(1) << 1}, Result));
+    EXPECT_EQ(Result[0].get<uint64_t>(), UINT64_C(2));
+
+    // Multi-bit: FRONT_LEFT | FRONT_RIGHT must OR both native bits (0x3).
+    // This covers fromChannelLayoutID converting each guest bit and combining.
+    const uint64_t StereoGuestId = (UINT64_C(1) << 0) | (UINT64_C(1) << 1);
+    EXPECT_TRUE(HostFuncAVGetChannelLayoutMask.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{StereoGuestId},
+        Result));
+    EXPECT_EQ(Result[0].get<uint64_t>(), UINT64_C(3));
+
+    // No guest channel bits set → empty native mask.
+    EXPECT_TRUE(HostFuncAVGetChannelLayoutMask.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT64_C(0)},
+        Result));
+    EXPECT_EQ(Result[0].get<uint64_t>(), UINT64_C(0));
+  }
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name_len");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVGetChannelLayoutNameLen = FuncInst->getHostFunc();
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVGetChannelLayoutName = FuncInst->getHostFunc();
+
+  spdlog::info("Testing AVGetChannelLayoutNameLen / Name"sv);
+  {
+    // FRONT_LEFT → FFmpeg av_channel_name returns "FL".
+    EXPECT_TRUE(HostFuncAVGetChannelLayoutNameLen.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ChannelId},
+        Result));
+    const int32_t FrontLeftNameLen = Result[0].get<int32_t>();
+    EXPECT_EQ(FrontLeftNameLen, 2);
+
+    uint32_t ChannelNamePtr = UINT32_C(200);
+    fillMemContent(MemInst, ChannelNamePtr,
+                   static_cast<uint32_t>(FrontLeftNameLen),
+                   static_cast<uint8_t>(0xAA));
+    EXPECT_TRUE(HostFuncAVGetChannelLayoutName.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            ChannelId, ChannelNamePtr, static_cast<uint32_t>(FrontLeftNameLen)},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(MemInst->getStringView(ChannelNamePtr,
+                                     static_cast<uint64_t>(FrontLeftNameLen)),
+              "FL"sv);
+
+    // FRONT_RIGHT → "FR".
+    EXPECT_TRUE(HostFuncAVGetChannelLayoutNameLen.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT64_C(1) << 1}, Result));
+    const int32_t FrontRightNameLen = Result[0].get<int32_t>();
+    EXPECT_EQ(FrontRightNameLen, 2);
+    fillMemContent(MemInst, ChannelNamePtr,
+                   static_cast<uint32_t>(FrontRightNameLen),
+                   static_cast<uint8_t>(0xAA));
+    EXPECT_TRUE(HostFuncAVGetChannelLayoutName.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT64_C(1) << 1, ChannelNamePtr,
+            static_cast<uint32_t>(FrontRightNameLen)},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(MemInst->getStringView(ChannelNamePtr,
+                                     static_cast<uint64_t>(FrontRightNameLen)),
+              "FR"sv);
+
+    // NameLen == 0: success, but destination bytes must stay untouched.
+    fillMemContent(MemInst, ChannelNamePtr, 2, static_cast<uint8_t>(0x5A));
+    EXPECT_TRUE(HostFuncAVGetChannelLayoutName.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ChannelId, ChannelNamePtr,
+                                                    UINT32_C(0)},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(MemInst->getPointer<uint8_t *>(ChannelNamePtr)[0],
+              static_cast<uint8_t>(0x5A));
+    EXPECT_EQ(MemInst->getPointer<uint8_t *>(ChannelNamePtr)[1],
+              static_cast<uint8_t>(0x5A));
   }
 
   uint32_t Length = 0;

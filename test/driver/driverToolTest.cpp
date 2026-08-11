@@ -74,6 +74,22 @@ int callUniToolAll(std::initializer_list<const char *> Args) {
                                    WasmEdge::Driver::ToolType::All);
 }
 
+#if WASMEDGE_BUILD_SIGNATURE_TOOLS
+int callSign(std::initializer_list<const char *> Args) {
+  std::vector<const char *> Argv = {"wasmedge", "sign"};
+  Argv.insert(Argv.end(), Args.begin(), Args.end());
+  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
+                                   WasmEdge::Driver::ToolType::All);
+}
+
+int callVerify(std::initializer_list<const char *> Args) {
+  std::vector<const char *> Argv = {"wasmedge", "verify"};
+  Argv.insert(Argv.end(), Args.begin(), Args.end());
+  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
+                                   WasmEdge::Driver::ToolType::All);
+}
+#endif
+
 #if !WASMEDGE_OS_WINDOWS
 struct ToolResult {
   int ExitCode;
@@ -1017,6 +1033,118 @@ TEST(NoSubcommand, FallbackToRun) {
                             simplePath().c_str(), "add", "1", "2"}),
             EXIT_SUCCESS);
 }
+
+#if WASMEDGE_BUILD_SIGNATURE_TOOLS
+static const std::array<uint8_t, 65> ValidEd25519Key = {
+    0x81, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+    0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+    0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+    0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+    0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+    0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
+
+static const std::array<uint8_t, 65> AnotherValidEd25519Key = {
+    0x81, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+    0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+    0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+    0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB,
+    0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB,
+    0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB};
+
+TEST(SignSubcommand, SignValidModule) {
+  std::string WasmPath = simplePath();
+  std::string KeyPath = writeWasmToFile(ValidEd25519Key.data(),
+                                        ValidEd25519Key.size(), "key1.pem");
+  std::string OutPath = TestDataPath + "/signed.wasm";
+
+  EXPECT_EQ(callSign({"--key", KeyPath.c_str(), "--output", OutPath.c_str(),
+                      WasmPath.c_str()}),
+            EXIT_SUCCESS);
+
+  // Check if out path exists and has valid signature section
+  std::ifstream Ifs(OutPath, std::ios::binary);
+  EXPECT_TRUE(Ifs.is_open());
+  Ifs.seekg(0, std::ios::end);
+  EXPECT_GT(Ifs.tellg(), static_cast<std::streampos>(SimpleWasm.size()));
+}
+
+TEST(SignSubcommand, SignMissingKey) {
+  std::string WasmPath = simplePath();
+  std::string OutPath = TestDataPath + "/signed.wasm";
+  EXPECT_NE(callSign({"--key", "nonexistent.pem", "--output", OutPath.c_str(),
+                      WasmPath.c_str()}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callSign({"--output", OutPath.c_str(), WasmPath.c_str()}),
+            EXIT_SUCCESS);
+}
+
+TEST(VerifySubcommand, VerifyValidSignature) {
+  std::string WasmPath = simplePath();
+  std::string KeyPath = writeWasmToFile(ValidEd25519Key.data(),
+                                        ValidEd25519Key.size(), "key1.pem");
+  std::string OutPath = TestDataPath + "/signed.wasm";
+
+  EXPECT_EQ(callSign({"--key", KeyPath.c_str(), "--output", OutPath.c_str(),
+                      WasmPath.c_str()}),
+            EXIT_SUCCESS);
+
+  EXPECT_EQ(callVerify({"--key", KeyPath.c_str(), OutPath.c_str()}),
+            EXIT_SUCCESS);
+}
+
+TEST(VerifySubcommand, VerifyUnsignedModule) {
+  std::string WasmPath = simplePath();
+  std::string KeyPath = writeWasmToFile(ValidEd25519Key.data(),
+                                        ValidEd25519Key.size(), "key1.pem");
+  EXPECT_NE(callVerify({"--key", KeyPath.c_str(), WasmPath.c_str()}),
+            EXIT_SUCCESS);
+}
+
+TEST(VerifySubcommand, VerifyWrongKey) {
+  std::string WasmPath = simplePath();
+  std::string KeyPath1 = writeWasmToFile(ValidEd25519Key.data(),
+                                         ValidEd25519Key.size(), "key1.pem");
+  std::string KeyPath2 = writeWasmToFile(
+      AnotherValidEd25519Key.data(), AnotherValidEd25519Key.size(), "key2.pem");
+  std::string OutPath = TestDataPath + "/signed.wasm";
+
+  EXPECT_EQ(callSign({"--key", KeyPath1.c_str(), "--output", OutPath.c_str(),
+                      WasmPath.c_str()}),
+            EXIT_SUCCESS);
+
+  EXPECT_NE(callVerify({"--key", KeyPath2.c_str(), OutPath.c_str()}),
+            EXIT_SUCCESS);
+}
+
+TEST(VerifySubcommand, VerifyTamperedModule) {
+  std::string WasmPath = simplePath();
+  std::string KeyPath = writeWasmToFile(ValidEd25519Key.data(),
+                                        ValidEd25519Key.size(), "key1.pem");
+  std::string OutPath = TestDataPath + "/signed.wasm";
+
+  EXPECT_EQ(callSign({"--key", KeyPath.c_str(), "--output", OutPath.c_str(),
+                      WasmPath.c_str()}),
+            EXIT_SUCCESS);
+
+  // Tamper the module (e.g. modify byte 8 which is part of the Wasm format)
+  std::fstream Fs(OutPath, std::ios::in | std::ios::out | std::ios::binary);
+  ASSERT_TRUE(Fs.is_open());
+  Fs.seekp(8);
+  char C = 0xFF;
+  Fs.write(&C, 1);
+  Fs.close();
+
+  EXPECT_NE(callVerify({"--key", KeyPath.c_str(), OutPath.c_str()}),
+            EXIT_SUCCESS);
+}
+
+TEST(VerifySubcommand, VerifyMissingKey) {
+  std::string WasmPath = simplePath();
+  EXPECT_NE(callVerify({"--key", "nonexistent.pem", WasmPath.c_str()}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callVerify({WasmPath.c_str()}), EXIT_SUCCESS);
+}
+#endif
 
 } // namespace
 

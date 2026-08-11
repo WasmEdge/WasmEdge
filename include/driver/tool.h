@@ -120,6 +120,13 @@ struct DriverToolOptions : public DriverProposalOptions {
   PO::List<std::string> LinkedModules;
   PO::List<std::string> ForbiddenPlugins;
   PO::Option<std::string> LogLevel;
+  PO::Option<std::string> KeyFile = PO::Option<std::string>(
+      PO::Description("Path to the key file"sv), PO::MetaVar("KEY_FILE"sv),
+      PO::DefaultValue<std::string>(std::string()));
+  PO::Option<std::string> OutputFile = PO::Option<std::string>(
+      PO::Description("Output path for the signed WASM file"sv),
+      PO::MetaVar("OUTPUT_FILE"sv),
+      PO::DefaultValue<std::string>(std::string()));
 
 private:
   void addGlobalOptions(PO::ArgumentParser &Parser) noexcept {
@@ -165,6 +172,18 @@ public:
         .add_option("gas-limit"sv, GasLim)
         .add_option("reactor"sv, Reactor);
   }
+
+#ifdef WASMEDGE_BUILD_SIGNATURE_TOOLS
+  void addSignatureSignOptions(PO::ArgumentParser &Parser) noexcept {
+    Parser.add_option(SoName)
+        .add_option("key"sv, KeyFile)
+        .add_option("output"sv, OutputFile);
+  }
+
+  void addSignatureVerifyOptions(PO::ArgumentParser &Parser) noexcept {
+    Parser.add_option(SoName).add_option("key"sv, KeyFile);
+  }
+#endif
 };
 Configure createConfigure(const struct DriverToolOptions &Opt) noexcept;
 std::optional<RunMode> parseRunModeArg(std::string_view S) noexcept;

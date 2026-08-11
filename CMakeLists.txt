@@ -65,6 +65,7 @@ option(WASMEDGE_BUILD_FUZZING "Generate fuzzing test tools. Couldn't build with 
 option(WASMEDGE_BUILD_PLUGINS "Generate plugins." ON)
 option(WASMEDGE_BUILD_EXAMPLE "Generate examples." OFF)
 option(WASMEDGE_BUILD_WASI_NN_RPC "Generate WASI-NN RPC." OFF)
+option(WASMEDGE_BUILD_SIGNATURE_TOOLS "Generate WasmEdge signature tools. Depends on OpenSSL." OFF)
 option(WASMEDGE_USE_LLVM "Enable WasmEdge LLVM-based compilation runtime." ON)
 if(WASMEDGE_BUILD_AOT_RUNTIME)
   message(WARNING "WASMEDGE_BUILD_AOT_RUNTIME option was renamed to WASMEDGE_USE_LLVM.")
@@ -176,6 +177,10 @@ if(WASMEDGE_BUILD_WASI_NN_RPC)
   if(WASMEDGE_BUILD_WASI_NN_RPC AND NOT WASMEDGE_BUILD_SHARED_LIB)
     message(FATAL_ERROR "WASMEDGE_BUILD_WASI_NN_RPC depends on WASMEDGE_BUILD_SHARED_LIB.")
   endif()
+endif()
+
+if(WASMEDGE_BUILD_SIGNATURE_TOOLS)
+  find_package(OpenSSL REQUIRED)
 endif()
 
 set(WASMEDGE_BUILD_PACKAGE "DEB;RPM" CACHE STRING "Package generate types")

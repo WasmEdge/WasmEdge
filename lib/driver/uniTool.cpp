@@ -5,6 +5,10 @@
 #include "common/spdlog.h"
 #include "driver/compiler.h"
 #include "driver/tool.h"
+#ifdef WASMEDGE_BUILD_SIGNATURE_TOOLS
+#include "driver/signTool.h"
+#include "driver/verifyTool.h"
+#endif
 #include "po/argument_parser.h"
 
 #include <string_view>
@@ -29,11 +33,21 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
       PO::Description("Wasmedge instantiate tool subcommand"sv));
   PO::SubCommand ValidateSubCommand(
       PO::Description("Wasmedge validate tool subcommand"sv));
+#ifdef WASMEDGE_BUILD_SIGNATURE_TOOLS
+  PO::SubCommand SignSubCommand(
+      PO::Description("Wasmedge signature sign tool subcommand"sv));
+  PO::SubCommand VerifySubCommand(
+      PO::Description("Wasmedge signature verify tool subcommand"sv));
+#endif
   struct DriverToolOptions ToolOptions;
   struct DriverCompilerOptions CompilerOptions;
   struct DriverToolOptions ParseOptions;
   struct DriverToolOptions InstantiateOptions;
   struct DriverToolOptions ValidateOptions;
+#ifdef WASMEDGE_BUILD_SIGNATURE_TOOLS
+  struct DriverToolOptions SignOptions;
+  struct DriverToolOptions VerifyOptions;
+#endif
 
   // Construct Parser Subcommands and Options
   if (ToolSelect == ToolType::All) {
@@ -54,6 +68,14 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
     Parser.begin_subcommand(ValidateSubCommand, "validate"sv);
     ValidateOptions.addParserOptions(Parser);
     Parser.end_subcommand();
+#ifdef WASMEDGE_BUILD_SIGNATURE_TOOLS
+    Parser.begin_subcommand(SignSubCommand, "sign"sv);
+    SignOptions.addSignatureSignOptions(Parser);
+    Parser.end_subcommand();
+    Parser.begin_subcommand(VerifySubCommand, "verify"sv);
+    VerifyOptions.addSignatureVerifyOptions(Parser);
+    Parser.end_subcommand();
+#endif
   } else if (ToolSelect == ToolType::Tool) {
     ToolOptions.addOptions(Parser);
   } else if (ToolSelect == ToolType::Compiler) {
@@ -98,6 +120,9 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
 
   if (ToolSelect == ToolType::All) {
     if (!ParseSubCommand.is_selected() && !ValidateSubCommand.is_selected() &&
+#ifdef WASMEDGE_BUILD_SIGNATURE_TOOLS
+        !SignSubCommand.is_selected() && !VerifySubCommand.is_selected() &&
+#endif
         !InstantiateSubCommand.is_selected()) {
       ApplyLogLevel(ToolOptions.LogLevel.value());
     }
@@ -121,6 +146,12 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
   } else if (InstantiateSubCommand.is_selected() ||
              ToolSelect == ToolType::Instantiate) {
     return InstantiateTool(InstantiateOptions);
+#ifdef WASMEDGE_BUILD_SIGNATURE_TOOLS
+  } else if (SignSubCommand.is_selected()) {
+    return SignTool(SignOptions);
+  } else if (VerifySubCommand.is_selected()) {
+    return VerifyTool(VerifyOptions);
+#endif
   } else {
     return Tool(ToolOptions);
   }

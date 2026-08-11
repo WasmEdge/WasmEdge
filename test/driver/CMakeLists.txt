@@ -15,3 +15,10 @@ target_link_libraries(wasmedgeDriverToolTests
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeDriver
 )
+
+if(WASMEDGE_BUILD_SIGNATURE_TOOLS)
+  target_compile_definitions(wasmedgeDriverToolTests
+    PRIVATE
+    -DWASMEDGE_BUILD_SIGNATURE_TOOLS
+  )
+endif()

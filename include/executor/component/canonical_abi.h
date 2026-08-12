@@ -57,8 +57,8 @@ struct CanonCtx {
   Runtime::Instance::FunctionInstance *Realloc = nullptr;
   const Runtime::Instance::ComponentInstance *CompInst = nullptr;
   /// Optional alternative to `CompInst` for resolving component type indices.
-  /// Lets validator-time callers (which have a ComponentContext but no
-  /// ComponentInstance) reuse alignment / elemSize / flatten_* without
+  /// Lets validator-time callers (which have a Validator::Component::Context
+  /// but no ComponentInstance) reuse alignment / elemSize / flatten_* without
   /// duplicating the recursion. Takes precedence over CompInst when set.
   std::function<const AST::Component::DefType *(uint32_t)> TypeResolver;
   /// Guest string encoding for the canon function this context serves

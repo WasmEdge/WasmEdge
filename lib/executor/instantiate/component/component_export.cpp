@@ -49,8 +49,12 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
         CompInst.addComponentInstance(CompInst.getComponentInstance(Index));
         break;
       case AST::Component::Sort::SortType::Type:
+        // A type export introduces a new index aliasing the exported type,
+        // so later definitions resolve indices as validation does.
         CompInst.exportType(Export.getName(), Index);
-        CompInst.addType(*CompInst.getType(Index));
+        if (const auto *Ty = CompInst.getType(Index)) {
+          CompInst.addType(*Ty);
+        }
         break;
       case AST::Component::Sort::SortType::Component:
         CompInst.exportComponent(Export.getName(), Index);

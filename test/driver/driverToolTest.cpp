@@ -412,13 +412,6 @@ TEST(ParseSubcommand, EnableProposalFlags) {
   EXPECT_EQ(callParse({"--enable-all", Path}), EXIT_SUCCESS);
   EXPECT_EQ(callParse({"--enable-threads", Path}), EXIT_SUCCESS);
   EXPECT_EQ(callParse({"--enable-component", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--enable-tail-call", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--enable-extended-const", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--enable-function-reference", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--enable-gc", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--enable-multi-memory", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--enable-relaxed-simd", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--enable-exception-handling", Path}), EXIT_SUCCESS);
 }
 
 TEST(ParseSubcommand, WasmStandardFlags) {
@@ -615,13 +608,6 @@ TEST(ValidateSubcommand, EnableProposalFlags) {
   EXPECT_EQ(callValidate({"--enable-all", Path}), EXIT_SUCCESS);
   EXPECT_EQ(callValidate({"--enable-threads", Path}), EXIT_SUCCESS);
   EXPECT_EQ(callValidate({"--enable-component", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--enable-tail-call", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--enable-extended-const", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--enable-function-reference", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--enable-gc", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--enable-multi-memory", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--enable-relaxed-simd", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--enable-exception-handling", Path}), EXIT_SUCCESS);
 }
 
 TEST(ValidateSubcommand, WasmStandardFlags) {

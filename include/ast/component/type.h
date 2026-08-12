@@ -184,6 +184,16 @@ struct FutureTy {
   std::optional<ComponentValType> ValTy;
 };
 
+// map ::= k:<valtype> v:<valtype> => (map k v) (if k is in <keytype>) 🗺️
+
+/// AST Component::MapTy node. (One type of DefValType)
+struct MapTy {
+  // A map is the specialization of (list (tuple k v)) and shares its layout
+  // in the canonical ABI, but stays a distinct type constructor.
+  ComponentValType KeyTy;
+  ComponentValType ValTy;
+};
+
 // defvaltype ::= pvt:<primvaltype>          => pvt
 //              | 0x72 lt*:vec(<labelvaltype>)
 //                => (record (field lt)*) (if |lt*| > 0)
@@ -199,6 +209,7 @@ struct FutureTy {
 //              | 0x68 i:<typeidx>           => (borrow i)
 //              | 0x66 t?:<valtype>?         => (stream t?) 🔀
 //              | 0x65 t?:<valtype>?         => (future t?) 🔀
+//              | 0x63 k:<valtype> v:<valtype> => (map k v) 🗺️
 
 class DefValType {
 public:
@@ -277,6 +288,9 @@ public:
     Type.emplace<FutureTy>(std::move(Ty));
   }
 
+  const MapTy &getMap() const noexcept { return *std::get_if<MapTy>(&Type); }
+  void setMap(MapTy &&Ty) noexcept { Type.emplace<MapTy>(std::move(Ty)); }
+
   bool isPrimValType() const noexcept {
     return std::holds_alternative<PrimValType>(Type);
   }
@@ -314,10 +328,12 @@ public:
   bool isFutureTy() const noexcept {
     return std::holds_alternative<FutureTy>(Type);
   }
+  bool isMapTy() const noexcept { return std::holds_alternative<MapTy>(Type); }
 
 private:
   std::variant<PrimValType, RecordTy, VariantTy, ListTy, TupleTy, FlagsTy,
-               EnumTy, OptionTy, ResultTy, OwnTy, BorrowTy, StreamTy, FutureTy>
+               EnumTy, OptionTy, ResultTy, OwnTy, BorrowTy, StreamTy, FutureTy,
+               MapTy>
       Type;
 };
 
@@ -423,41 +439,27 @@ private:
 // Part 6: ResourceType and the child types definitions.
 // =============================================================================
 
-// resourcetype ::= 0x3f 0x7f f?:<funcidx>?
-//                => (resource (rep i32) (dtor f)?)
-//                | 0x3e 0x7f f:<funcidx> cb?:<funcidx>?
-//                => (resource (rep i32) (dtor async f (callback cb)?))
-//                | 0x3f 0x7e f?:<funcidx>?
-//                => (resource (rep i64) (dtor f)?)                      🐘
-//                | 0x3e 0x7e f:<funcidx> cb?:<funcidx>?
-//                => (resource (rep i64) (dtor async f (callback cb)?))  🐘
+// resourcetype ::= 0x3f t:<core:valtype> f?:<core:funcidx>?
+//                => (resource (rep t) (dtor f)?)
+// The rep is i32, or i64 under 🐘.
 
 /// AST Component::ResourceType node.
 class ResourceType {
 public:
-  ResourceType() noexcept : DtorSync(true) {}
-  ResourceType(bool Sync) noexcept : DtorSync(Sync) {}
+  ResourceType() noexcept = default;
 
   std::optional<uint32_t> getDestructor() const noexcept { return Dtor; }
-  std::optional<uint32_t> getCallback() const noexcept { return DtorCallback; }
-
-  bool IsSync() noexcept { return DtorSync; }
   std::optional<uint32_t> &getDestructor() noexcept { return Dtor; }
-  std::optional<uint32_t> &getCallback() noexcept { return DtorCallback; }
 
   bool isAddrI64() const noexcept { return AddrI64; }
   void setAddrI64(bool V) noexcept { AddrI64 = V; }
 
 private:
-  // Destructor is sync or not. True for sync, false for async.
-  bool DtorSync;
   // Resource address width. False = i32 (0x7f), true = i64 (0x7e, memory64
   // proposal).
   bool AddrI64 = false;
   // Destructor function index.
   std::optional<uint32_t> Dtor;
-  // Destructor callback function index.
-  std::optional<uint32_t> DtorCallback;
 };
 
 // =============================================================================

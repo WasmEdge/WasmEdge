@@ -27,7 +27,6 @@
 #include "runtime/instance/memory.h"
 
 #include <cstdint>
-#include <functional>
 #include <optional>
 
 namespace WasmEdge {
@@ -46,21 +45,16 @@ constexpr uint32_t MaxFlatParams = 16;
 constexpr uint32_t MaxFlatResults = 1;
 
 /// Context bundle for canonical-ABI operations. Not every helper requires every
-/// field — alignment / elem_size / flatten_* only need a type resolver (either
-/// CompInst or TypeResolver); load / store / lift_flat / lower_flat
-/// additionally require Mem (and Realloc + Exec when allocating list / string
-/// return areas, since the allocation goes through Executor::invoke on the
-/// guest's `realloc` core function).
+/// field — alignment / elem_size / flatten_* only need CompInst to resolve type
+/// indices; load / store / lift_flat / lower_flat additionally require Mem (and
+/// Realloc + Exec when allocating list / string return areas, since the
+/// allocation goes through Executor::invoke on the guest's `realloc` core
+/// function).
 struct CanonCtx {
   Executor *Exec = nullptr;
   Runtime::Instance::MemoryInstance *Mem = nullptr;
   Runtime::Instance::FunctionInstance *Realloc = nullptr;
   const Runtime::Instance::ComponentInstance *CompInst = nullptr;
-  /// Optional alternative to `CompInst` for resolving component type indices.
-  /// Lets validator-time callers (which have a ComponentContext but no
-  /// ComponentInstance) reuse alignment / elemSize / flatten_* without
-  /// duplicating the recursion. Takes precedence over CompInst when set.
-  std::function<const AST::Component::DefType *(uint32_t)> TypeResolver;
   /// Guest string encoding for the canon function this context serves
   /// (CanonicalABI.md `string-encoding` option). Selects the byte layout used
   /// by load / store / lift_flat / lower_flat for `string` values. Defaults to
@@ -68,13 +62,9 @@ struct CanonCtx {
   StringEncoding Enc = StringEncoding::UTF8;
 };
 
-/// Resolve a component type index. Returns the DefType pointer using
-/// TypeResolver when present, otherwise falling back to CompInst.
+/// Resolve a component type index against the component instance.
 inline const AST::Component::DefType *resolveDefType(const CanonCtx &Cx,
                                                      uint32_t Idx) noexcept {
-  if (Cx.TypeResolver) {
-    return Cx.TypeResolver(Idx);
-  }
   if (Cx.CompInst != nullptr) {
     return Cx.CompInst->getType(Idx);
   }

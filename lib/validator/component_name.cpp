@@ -5,12 +5,13 @@
 
 #include "spdlog/spdlog.h"
 
-#include <algorithm>
 #include <cctype>
+#include <string>
 #include <string_view>
 
 namespace WasmEdge {
 namespace Validator {
+namespace Component {
 
 using namespace std::literals;
 
@@ -21,24 +22,27 @@ using namespace std::literals;
 // fragment       ::= <word> | <acronym>
 // word           ::= [0-9a-z]+
 // acronym        ::= [0-9A-Z]+
-bool isKebabString(std::string_view Input) {
+bool ExternName::isKebabString(std::string_view Input) noexcept {
   bool IsFirstPart = true;
   bool Uppercase = false;
   bool Lowercase = false;
   bool Digit = false;
 
   for (char C : Input) {
-    if (islower(C)) {
-      if (Uppercase)
+    if (islower(static_cast<unsigned char>(C))) {
+      if (Uppercase) {
         return false;
+      }
       Lowercase = true;
-    } else if (isupper(C)) {
-      if (Lowercase)
+    } else if (isupper(static_cast<unsigned char>(C))) {
+      if (Lowercase) {
         return false;
+      }
       Uppercase = true;
-    } else if (isdigit(C)) {
-      if (IsFirstPart && !(Uppercase || Lowercase))
+    } else if (isdigit(static_cast<unsigned char>(C))) {
+      if (IsFirstPart && !(Uppercase || Lowercase)) {
         return false;
+      }
       Digit = true;
     } else if (C == '-') {
       if (Uppercase || Lowercase || Digit) {
@@ -57,77 +61,700 @@ bool isKebabString(std::string_view Input) {
   return Input.size() > 0 && Input.back() != '-';
 }
 
-namespace {
+Expect<void> ExternName::parse(std::string_view Name) noexcept {
+  OriName = Name;
+  NoTagName = {};
+  NameKind = Kind::Invalid;
+  NameDetail = {};
+  Rest = Name;
 
-// words      ::= <first-word> ( '-' <word> )*
-// first-word ::= [a-z] [0-9a-z]*
-// word       ::= [0-9a-z]+
-bool isLowercaseKebabString(std::string_view Input) {
-  if (Input.empty() || !islower(Input[0]))
-    return false;
-  for (char C : Input) {
-    if (C != '-' && !islower(C) && !isdigit(C))
-      return false;
+  if (!Rest.empty() && Rest[0] == '[') {
+    return parsePlainName();
   }
-  return Input.back() != '-' && Input.find("--"sv) == Input.npos;
+
+  if (tryRead("unlocked-dep="sv)) {
+    return parseUnlockedDep();
+  }
+  if (tryRead("locked-dep="sv)) {
+    return parseLockedDep();
+  }
+  if (tryRead("url="sv)) {
+    return parseUrlName();
+  }
+  if (tryRead("integrity="sv)) {
+    return parseHashName();
+  }
+  if (Rest.find(':') != std::string_view::npos) {
+    return parseInterfaceName();
+  }
+  return parsePlainName();
 }
 
-bool isEOF(std::string_view Input) { return Input.empty(); }
-
-bool readUntil(std::string_view &Input, char Delim, std::string_view &Output) {
-  size_t Pos = Input.find(Delim);
-  if (Pos == Input.npos) {
+// Consumes Prefix from Rest, or leaves Rest untouched and returns false.
+bool ExternName::tryRead(std::string_view Prefix) noexcept {
+  if (Prefix.size() > Rest.size()) {
+    return false;
+  }
+  if (Prefix != Rest.substr(0, Prefix.size())) {
     return false;
   }
 
-  Output = Input.substr(0, Pos);
-  Input.remove_prefix(Pos + 1);
+  Rest.remove_prefix(Prefix.size());
   return true;
 }
 
-bool tryRead(std::string_view Prefix, std::string_view &Name) {
-  if (Prefix.size() > Name.size())
+// Consumes up to and including Delim, and reports the text before it.
+bool ExternName::readUntil(char Delim, std::string_view &Output) noexcept {
+  size_t Pos = Rest.find(Delim);
+  if (Pos == Rest.npos) {
     return false;
-  if (Prefix != Name.substr(0, Prefix.size()))
-    return false;
+  }
 
-  Name.remove_prefix(Prefix.size());
+  Output = Rest.substr(0, Pos);
+  Rest.remove_prefix(Pos + 1);
   return true;
 }
 
-bool tryReadKebab(std::string_view &Input, std::string_view &Output) {
+// Consumes and returns the leading run of label characters ([0-9A-Za-z-]).
+std::string_view ExternName::readLabelChars() noexcept {
   size_t Pos = 0;
-  while (Pos < Input.size()) {
-    if (isalnum(Input[Pos]) || Input[Pos] == '-') {
-      Pos++;
+  while (Pos < Rest.size() &&
+         (isalnum(static_cast<unsigned char>(Rest[Pos])) || Rest[Pos] == '-')) {
+    Pos++;
+  }
+  std::string_view Output = Rest.substr(0, Pos);
+  Rest.remove_prefix(Pos);
+  return Output;
+}
+
+// plainname ::= <label>
+//             | '[constructor]' <label>
+//             | '[method]' <label> '.' <label>
+//             | '[static]' <label> '.' <label>
+Expect<void> ExternName::parsePlainName() noexcept {
+  if (tryRead("[constructor]"sv)) {
+    if (!isKebabString(Rest)) {
+      spdlog::error(ErrCode::Value::ComponentNameNotKebab);
+      spdlog::error("    Component name: label '{}' is not in kebab case"sv,
+                    Rest);
+      return Unexpect(ErrCode::Value::ComponentNameNotKebab);
+    }
+    NoTagName = Rest;
+    NameDetail.Resource = Rest;
+    NameKind = Kind::Constructor;
+    return {};
+  }
+
+  // Once a '[method]' or '[static]' tag matched, the name must contain a
+  // '.' separating two kebab labels.
+  auto readResourceAndLabel = [this](std::string_view &Resource,
+                                     std::string_view &Label) -> Expect<void> {
+    NoTagName = Rest;
+    if (!readUntil('.', Resource)) {
+      spdlog::error(ErrCode::Value::NameFailedToFindDot);
+      spdlog::error("    Component name: failed to find `.` character"sv);
+      return Unexpect(ErrCode::Value::NameFailedToFindDot);
+    }
+    if (!isKebabString(Resource)) {
+      spdlog::error(ErrCode::Value::ComponentNameNotKebab);
+      spdlog::error("    Component name: label '{}' is not in kebab case"sv,
+                    Resource);
+      return Unexpect(ErrCode::Value::ComponentNameNotKebab);
+    }
+    if (!isKebabString(Rest)) {
+      spdlog::error(ErrCode::Value::ComponentNameNotKebab);
+      spdlog::error("    Component name: label '{}' is not in kebab case"sv,
+                    Rest);
+      return Unexpect(ErrCode::Value::ComponentNameNotKebab);
+    }
+    Label = Rest;
+    return {};
+  };
+
+  if (tryRead("[method]"sv)) {
+    std::string_view Resource, Label;
+    EXPECTED_TRY(readResourceAndLabel(Resource, Label));
+    NameDetail.Resource = Resource;
+    NameDetail.Method = Label;
+    NameKind = Kind::Method;
+    return {};
+  }
+
+  if (tryRead("[static]"sv)) {
+    std::string_view Resource, Label;
+    EXPECTED_TRY(readResourceAndLabel(Resource, Label));
+    NameDetail.Resource = Resource;
+    NameDetail.Method = Label;
+    NameKind = Kind::Static;
+    return {};
+  }
+
+  if (!Rest.empty() && Rest[0] == '[') {
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error("    Component name: unknown annotation"sv);
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+
+  if (!isKebabString(Rest)) {
+    spdlog::error(ErrCode::Value::ComponentNameNotKebab);
+    spdlog::error("    Component name: label '{}' is not in kebab case"sv,
+                  Rest);
+    return Unexpect(ErrCode::Value::ComponentNameNotKebab);
+  }
+  NameKind = Kind::Label;
+  return {};
+}
+
+// depname      ::= 'unlocked-dep=<' <pkgnamequery> '>'
+// pkgnamequery ::= <pkgpath> <verrange>?
+// verrange     ::= '@*' | '@{' <verlower> '}' | '@{' <verupper> '}'
+//                | '@{' <verlower> ' ' <verupper> '}'
+Expect<void> ExternName::parseUnlockedDep() noexcept {
+  if (!tryRead("<"sv)) {
+    spdlog::error(ErrCode::Value::NameExpectedOpenAngle);
+    spdlog::error("    Component name: expected `<` after unlocked-dep="sv);
+    return Unexpect(ErrCode::Value::NameExpectedOpenAngle);
+  }
+
+  EXPECTED_TRY(auto Path, parsePkgPath("@>"sv));
+
+  std::string_view VersionRange;
+  if (!Rest.empty() && Rest[0] == '@') {
+    auto VerStart = Rest;
+    Rest.remove_prefix(1);
+
+    if (!Rest.empty() && Rest[0] == '*') {
+      Rest.remove_prefix(1);
+    } else if (!Rest.empty() && Rest[0] == '{') {
+      size_t ClosePos = Rest.find('}');
+      if (ClosePos == Rest.npos) {
+        spdlog::error(ErrCode::Value::ComponentInvalidName);
+        spdlog::error(
+            "    Component name: expected `}` in unlocked-dep version range"sv);
+        return Unexpect(ErrCode::Value::ComponentInvalidName);
+      }
+      EXPECTED_TRY(checkVersionRange(Rest.substr(1, ClosePos - 1)));
+      Rest.remove_prefix(ClosePos + 1);
     } else {
-      break;
+      spdlog::error(ErrCode::Value::NameExpectedOpenBrace);
+      spdlog::error(
+          "    Component name: expected `{` at start of version range"sv);
+      return Unexpect(ErrCode::Value::NameExpectedOpenBrace);
+    }
+    VersionRange = VerStart.substr(0, VerStart.size() - Rest.size());
+  }
+
+  if (!tryRead(">"sv)) {
+    spdlog::error(ErrCode::Value::NameExpectedCloseAngle);
+    spdlog::error("    Component name: expected `>` closing unlocked-dep"sv);
+    return Unexpect(ErrCode::Value::NameExpectedCloseAngle);
+  }
+  if (!Rest.empty()) {
+    spdlog::error(ErrCode::Value::NameTrailingCharacters);
+    spdlog::error(
+        "    Component name: trailing characters found after unlocked-dep"sv);
+    return Unexpect(ErrCode::Value::NameTrailingCharacters);
+  }
+
+  NameDetail.Namespace = Path.Namespace;
+  NameDetail.Package = Path.Package;
+  NameDetail.VersionRange = VersionRange;
+  NameKind = Kind::UnlockedDep;
+  return {};
+}
+
+// depname ::= 'locked-dep=<' <pkgname> '>' ( ',' <hashname> )?
+// pkgname ::= <pkgpath> ( '@' <valid semver> )?
+Expect<void> ExternName::parseLockedDep() noexcept {
+  if (!tryRead("<"sv)) {
+    spdlog::error(ErrCode::Value::NameExpectedOpenAngle);
+    spdlog::error("    Component name: expected `<` after locked-dep="sv);
+    return Unexpect(ErrCode::Value::NameExpectedOpenAngle);
+  }
+
+  EXPECTED_TRY(auto Path, parsePkgPath("@>"sv));
+
+  std::string_view Version;
+  if (!Rest.empty() && Rest[0] == '@') {
+    Rest.remove_prefix(1);
+    size_t VerEnd = Rest.find('>');
+    if (VerEnd == Rest.npos) {
+      spdlog::error(ErrCode::Value::NameExpectedCloseAngle);
+      spdlog::error(
+          "    Component name: expected `>` after version in locked-dep"sv);
+      return Unexpect(ErrCode::Value::NameExpectedCloseAngle);
+    }
+    Version = Rest.substr(0, VerEnd);
+    Rest.remove_prefix(VerEnd);
+    if (!scanSemver(Version)) {
+      spdlog::error(ErrCode::Value::NameNotValidSemver);
+      spdlog::error(
+          "    Component name: locked-dep version '{}' is not a valid semver"sv,
+          Version);
+      return Unexpect(ErrCode::Value::NameNotValidSemver);
     }
   }
-  Output = Input.substr(0, Pos);
-  Input.remove_prefix(Pos);
-  return isKebabString(Output);
+
+  if (!tryRead(">"sv)) {
+    spdlog::error(ErrCode::Value::NameExpectedCloseAngle);
+    spdlog::error("    Component name: expected `>` closing locked-dep"sv);
+    return Unexpect(ErrCode::Value::NameExpectedCloseAngle);
+  }
+
+  EXPECTED_TRY(auto Integrity, parseIntegritySuffix());
+
+  NameDetail.Namespace = Path.Namespace;
+  NameDetail.Package = Path.Package;
+  NameDetail.Version = Version;
+  NameDetail.Integrity = Integrity;
+  NameKind = Kind::LockedDep;
+  return {};
 }
 
-// integrity-metadata = *WSP hash-with-options *(1*WSP hash-with-options) *WSP
-// hash-with-options   = hash-expression *("?" option-expression)
-// hash-expression     = hash-algorithm "-" base64-value
-// hash-algorithm      = "sha256" / "sha384" / "sha512"
-// base64-value        = *VCHAR (visible chars, no whitespace)
-bool isIntegrityMetadata(std::string_view Input) {
-  while (!Input.empty() && Input.front() == ' ')
-    Input.remove_prefix(1);
-  while (!Input.empty() && Input.back() == ' ')
-    Input.remove_suffix(1);
-  if (Input.empty())
-    return false;
+// urlname     ::= 'url=<' <nonbrackets> '>' ( ',' <hashname> )?
+// nonbrackets ::= [^<>]*
+Expect<void> ExternName::parseUrlName() noexcept {
+  if (!tryRead("<"sv)) {
+    spdlog::error(ErrCode::Value::NameExpectedOpenAngle);
+    spdlog::error("    Component name: expected `<` after url="sv);
+    return Unexpect(ErrCode::Value::NameExpectedOpenAngle);
+  }
 
-  bool HasToken = false;
+  size_t ClosePos = Rest.find('>');
+  if (ClosePos == Rest.npos) {
+    spdlog::error(ErrCode::Value::NameFailedToFindCloseAngle);
+    spdlog::error("    Component name: failed to find `>` closing url"sv);
+    return Unexpect(ErrCode::Value::NameFailedToFindCloseAngle);
+  }
+
+  std::string_view Url = Rest.substr(0, ClosePos);
+  if (Url.find('<') != Url.npos) {
+    spdlog::error(ErrCode::Value::NameUrlContainsOpenAngle);
+    spdlog::error("    Component name: url cannot contain `<`"sv);
+    return Unexpect(ErrCode::Value::NameUrlContainsOpenAngle);
+  }
+  Rest.remove_prefix(ClosePos + 1);
+
+  EXPECTED_TRY(auto Integrity, parseIntegritySuffix());
+
+  NameDetail.Url = Url;
+  NameDetail.Integrity = Integrity;
+  NameKind = Kind::Url;
+  return {};
+}
+
+// hashname ::= 'integrity=<' <integrity-metadata> '>'
+Expect<void> ExternName::parseHashName() noexcept {
+  if (!tryRead("<"sv)) {
+    spdlog::error(ErrCode::Value::NameExpectedOpenAngle);
+    spdlog::error("    Component name: expected `<` after integrity="sv);
+    return Unexpect(ErrCode::Value::NameExpectedOpenAngle);
+  }
+
+  EXPECTED_TRY(auto Integrity, parseIntegrityBody());
+
+  NameDetail.Integrity = Integrity;
+  NameKind = Kind::Integrity;
+  return {};
+}
+
+// interfacename    ::= <namespace> <label> <projection> <interfaceversion>?
+// namespace        ::= <words> ':'
+// projection       ::= '/' <label>
+// interfaceversion ::= '@' <valid semver> | '@' <canonversion>
+Expect<void> ExternName::parseInterfaceName() noexcept {
+  size_t ColonPos = Rest.find(':');
+  std::string_view Namespace = Rest.substr(0, ColonPos);
+  Rest.remove_prefix(ColonPos + 1);
+  EXPECTED_TRY(checkWordsLabel(Namespace, "namespace"sv));
+
+  std::string_view Package = readLabelChars();
+  EXPECTED_TRY(checkWordsLabel(Package, "package"sv));
+
+  // Nested namespaces (`a:b:c/d`) are feature-gated. Only a projection can
+  // follow the package name.
+  if (Rest.empty() || Rest[0] != '/') {
+    spdlog::error(ErrCode::Value::NameExpectedSlashAfterPackage);
+    spdlog::error("    Component name: expected `/` after package name"sv);
+    return Unexpect(ErrCode::Value::NameExpectedSlashAfterPackage);
+  }
+  Rest.remove_prefix(1);
+
+  std::string_view Interface = readLabelChars();
+  if (!isKebabString(Interface)) {
+    spdlog::error(ErrCode::Value::ComponentNameNotKebab);
+    spdlog::error("    Component name: label '{}' is not in kebab case"sv,
+                  Interface);
+    return Unexpect(ErrCode::Value::ComponentNameNotKebab);
+  }
+
+  // Nested projections (`a:b/c/d`) are feature-gated. Only a version can
+  // follow the projection label.
+  if (!Rest.empty() && Rest[0] != '@') {
+    spdlog::error(ErrCode::Value::NameTrailingCharacters);
+    spdlog::error(
+        "    Component name: trailing characters found after projection"sv);
+    return Unexpect(ErrCode::Value::NameTrailingCharacters);
+  }
+
+  std::string_view Version;
+  if (!Rest.empty()) {
+    Rest.remove_prefix(1);
+    Version = Rest;
+    if (!isCanonVersion(Version)) {
+      if (auto Res = scanSemver(Version); !Res) {
+        spdlog::error(Res.error().getEnum());
+        spdlog::error("    Component name: version '{}' is not valid"sv,
+                      Version);
+        return Unexpect(Res);
+      }
+    }
+  }
+
+  NameDetail.Namespace = Namespace;
+  NameDetail.Package = Package;
+  NameDetail.Interface = Interface;
+  NameDetail.Version = Version;
+  NameKind = Kind::InterfaceType;
+  return {};
+}
+
+// Parses 'namespace:package', stopping at the delimiters in StopChars.
+Expect<ExternName::PkgPath>
+ExternName::parsePkgPath(std::string_view StopChars) noexcept {
+  size_t ColonPos = Rest.find(':');
+  size_t StopPos = Rest.find_first_of(StopChars);
+  if (ColonPos == Rest.npos || (StopPos != Rest.npos && StopPos < ColonPos)) {
+    // No namespace delimiter: diagnose the leading label run. This catches
+    // inputs like `<`, `<>`, or a stray label without `:`.
+    std::string_view Label = readLabelChars();
+    EXPECTED_TRY(checkWordsLabel(Label, "namespace"sv));
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error("    Component name: expected `:` after namespace"sv);
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+
+  std::string_view Namespace = Rest.substr(0, ColonPos);
+  Rest.remove_prefix(ColonPos + 1);
+  EXPECTED_TRY(checkWordsLabel(Namespace, "namespace"sv));
+
+  size_t PkgEnd = Rest.find_first_of(StopChars);
+  std::string_view Package =
+      (PkgEnd == Rest.npos) ? Rest : Rest.substr(0, PkgEnd);
+  Rest.remove_prefix(Package.size());
+  EXPECTED_TRY(checkWordsLabel(Package, "package"sv));
+  if (PkgEnd == std::string_view::npos) {
+    // The package name ran to end of input without a closing delimiter.
+    spdlog::error(ErrCode::Value::NameExpectedCloseAngle);
+    spdlog::error("    Component name: expected `>` after package path"sv);
+    return Unexpect(ErrCode::Value::NameExpectedCloseAngle);
+  }
+
+  return PkgPath{Namespace, Package};
+}
+
+// Parses the `<integrity-metadata> '>'` body, which must end the name, and
+// returns the metadata.
+Expect<std::string_view> ExternName::parseIntegrityBody() noexcept {
+  std::string_view Data;
+  if (!readUntil('>', Data)) {
+    spdlog::error(ErrCode::Value::NameFailedToFindCloseAngle);
+    spdlog::error("    Component name: failed to find `>` closing integrity"sv);
+    return Unexpect(ErrCode::Value::NameFailedToFindCloseAngle);
+  }
+  EXPECTED_TRY(checkIntegrityMetadata(Data));
+  if (!Rest.empty()) {
+    spdlog::error(ErrCode::Value::NameTrailingCharacters);
+    spdlog::error(
+        "    Component name: trailing characters found after integrity"sv);
+    return Unexpect(ErrCode::Value::NameTrailingCharacters);
+  }
+  return Data;
+}
+
+// Parse the optional ',' <hashname> suffix. An exhausted input gives no
+// integrity metadata.
+Expect<std::string_view> ExternName::parseIntegritySuffix() noexcept {
+  if (Rest.empty()) {
+    return std::string_view{};
+  }
+  if (Rest[0] != ',') {
+    spdlog::error(ErrCode::Value::NameTrailingCharacters);
+    spdlog::error("    Component name: trailing characters found"sv);
+    return Unexpect(ErrCode::Value::NameTrailingCharacters);
+  }
+  Rest.remove_prefix(1);
+  if (!tryRead("integrity=<"sv)) {
+    spdlog::error(ErrCode::Value::NameExpectedIntegrity);
+    spdlog::error("    Component name: expected `integrity=<` after `,`"sv);
+    return Unexpect(ErrCode::Value::NameExpectedIntegrity);
+  }
+  return parseIntegrityBody();
+}
+
+// words ::= <first-word> ( '-' <word> )*
+// Validate a namespace or package label. A non-kebab label is "not in kebab
+// case". A kebab label with uppercase is "not lowercase".
+Expect<void> ExternName::checkWordsLabel(std::string_view Label,
+                                         std::string_view What) const noexcept {
+  if (!isKebabString(Label)) {
+    spdlog::error(ErrCode::Value::ComponentNameNotKebab);
+    spdlog::error("    Component name: label '{}' is not in kebab case"sv,
+                  Label);
+    return Unexpect(ErrCode::Value::ComponentNameNotKebab);
+  }
+  // A kebab label already has the `<words>` shape, so only case is left.
+  for (char C : Label) {
+    if (isupper(static_cast<unsigned char>(C))) {
+      spdlog::error(ErrCode::Value::ComponentPackageNameNotLowercase);
+      spdlog::error("    Component name: {} '{}' is not lowercase"sv, What,
+                    Label);
+      return Unexpect(ErrCode::Value::ComponentPackageNameNotLowercase);
+    }
+  }
+  return {};
+}
+
+// verrange body ::= <verlower> | <verupper> | <verlower> ' ' <verupper>
+// verlower      ::= '>=' <valid semver>
+// verupper      ::= '<' <valid semver>
+Expect<void>
+ExternName::checkVersionRange(std::string_view Body) const noexcept {
+  if (Body.substr(0, 2) == ">="sv) {
+    Body.remove_prefix(2);
+    size_t SpacePos = Body.find(' ');
+    std::string_view Lower =
+        (SpacePos == Body.npos) ? Body : Body.substr(0, SpacePos);
+    if (!scanSemver(Lower)) {
+      spdlog::error(ErrCode::Value::NameNotValidSemver);
+      spdlog::error(
+          "    Component name: version range lower bound '{}' is not valid"sv,
+          Lower);
+      return Unexpect(ErrCode::Value::NameNotValidSemver);
+    }
+    if (SpacePos == Body.npos) {
+      return {};
+    }
+    Body.remove_prefix(SpacePos + 1);
+    if (Body.substr(0, 1) != "<"sv) {
+      spdlog::error(ErrCode::Value::NameExpectedOpenAngle);
+      spdlog::error(
+          "    Component name: expected `<` before version range upper bound"sv);
+      return Unexpect(ErrCode::Value::NameExpectedOpenAngle);
+    }
+    Body.remove_prefix(1);
+    if (!scanSemver(Body)) {
+      spdlog::error(ErrCode::Value::NameNotValidSemver);
+      spdlog::error(
+          "    Component name: version range upper bound '{}' is not valid"sv,
+          Body);
+      return Unexpect(ErrCode::Value::NameNotValidSemver);
+    }
+    return {};
+  }
+
+  if (Body.substr(0, 1) == "<"sv) {
+    Body.remove_prefix(1);
+    if (!scanSemver(Body)) {
+      spdlog::error(ErrCode::Value::NameNotValidSemver);
+      spdlog::error(
+          "    Component name: version range upper bound '{}' is not valid"sv,
+          Body);
+      return Unexpect(ErrCode::Value::NameNotValidSemver);
+    }
+    return {};
+  }
+
+  spdlog::error(ErrCode::Value::NameExpectedVersionRangeOp);
+  spdlog::error(
+      "    Component name: expected `>=` or `<` at start of version range"sv);
+  return Unexpect(ErrCode::Value::NameExpectedVersionRangeOp);
+}
+
+// semversuffix ::= [0-9A-Za-z.+-]* 🔗
+Expect<void>
+ExternName::checkVersionSuffix(std::string_view Suffix) const noexcept {
+  for (char C : Suffix) {
+    if (!isalnum(static_cast<unsigned char>(C)) && C != '.' && C != '+' &&
+        C != '-') {
+      spdlog::error(ErrCode::Value::ComponentVersionSuffixInvalid);
+      spdlog::error("    `versionsuffix` `{}` is not a semver suffix"sv,
+                    Suffix);
+      return Unexpect(ErrCode::Value::ComponentVersionSuffixInvalid);
+    }
+  }
+  if (NameKind != Kind::InterfaceType || NameDetail.Version.empty() ||
+      !isCanonVersion(NameDetail.Version)) {
+    spdlog::error(ErrCode::Value::ComponentVersionSuffixInvalid);
+    spdlog::error("    `versionsuffix` needs a preceding canonical version"sv);
+    return Unexpect(ErrCode::Value::ComponentVersionSuffixInvalid);
+  }
+  std::string Full(NameDetail.Version);
+  Full.append(Suffix);
+  if (!scanSemver(Full)) {
+    spdlog::error(ErrCode::Value::ComponentVersionSuffixInvalid);
+    spdlog::error("    `{}` and `versionsuffix` `{}` are not a valid semver"sv,
+                  NameDetail.Version, Suffix);
+    return Unexpect(ErrCode::Value::ComponentVersionSuffixInvalid);
+  }
+  return {};
+}
+
+// canonversion ::= [1-9] [0-9]*
+//                | '0.' [1-9] [0-9]*
+//                | '0.0.' [1-9] [0-9]*
+bool ExternName::isCanonVersion(std::string_view V) const noexcept {
+  if (V.substr(0, 4) == "0.0."sv) {
+    V.remove_prefix(4);
+  } else if (V.substr(0, 2) == "0."sv) {
+    V.remove_prefix(2);
+  }
+  if (V.empty() || V[0] < '1' || V[0] > '9') {
+    return false;
+  }
+  for (char C : V) {
+    if (!isdigit(static_cast<unsigned char>(C))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// MAJOR.MINOR.PATCH[-prerelease][+build] per semver.org 2.0. The unlogged
+// granular code reaches an interface version, but not a dep or range bound.
+Expect<void> ExternName::scanSemver(std::string_view V) const noexcept {
+  if (V.empty()) {
+    return Unexpect(ErrCode::Value::NameEmptyString);
+  }
+
+  for (uint32_t I = 0; I < 3; I++) {
+    if (I > 0) {
+      if (V.empty()) {
+        return Unexpect(ErrCode::Value::NameUnexpectedEnd);
+      }
+      if (V[0] != '.') {
+        return Unexpect(ErrCode::Value::NameUnexpectedCharacter);
+      }
+      V.remove_prefix(1);
+    }
+    size_t Len = 0;
+    while (Len < V.size() && isdigit(static_cast<unsigned char>(V[Len]))) {
+      Len++;
+    }
+    if (Len == 0) {
+      return Unexpect(V.empty() ? ErrCode::Value::NameUnexpectedEnd
+                                : ErrCode::Value::NameUnexpectedCharacter);
+    }
+    if (Len > 1 && V[0] == '0') {
+      return Unexpect(ErrCode::Value::ComponentInvalidName);
+    }
+    V.remove_prefix(Len);
+  }
+
+  if (V.empty()) {
+    return {};
+  }
+  if (V[0] != '-' && V[0] != '+') {
+    return Unexpect(ErrCode::Value::NameUnexpectedCharacter);
+  }
+
+  if (V[0] == '-') {
+    V.remove_prefix(1);
+    size_t PlusPos = V.find('+');
+    std::string_view PreRelease =
+        (PlusPos == V.npos) ? V : V.substr(0, PlusPos);
+    EXPECTED_TRY(scanSemverIdentifiers(PreRelease, true));
+    if (PlusPos == V.npos) {
+      return {};
+    }
+    V.remove_prefix(PlusPos);
+  }
+
+  // Here V starts with '+': scan the build metadata identifiers.
+  V.remove_prefix(1);
+  return scanSemverIdentifiers(V, false);
+}
+
+// Scans a dot-separated pre-release or build identifier list. Identifiers are
+// [0-9A-Za-z-]+ and, for pre-release, numeric ones have no leading zeros.
+Expect<void>
+ExternName::scanSemverIdentifiers(std::string_view Idents,
+                                  bool CheckLeadingZeros) const noexcept {
+  size_t Start = 0;
+  while (true) {
+    size_t DotPos = Idents.find('.', Start);
+    std::string_view Ident = (DotPos == Idents.npos)
+                                 ? Idents.substr(Start)
+                                 : Idents.substr(Start, DotPos - Start);
+    if (Ident.empty()) {
+      return Unexpect(ErrCode::Value::NameEmptyIdentifierSegment);
+    }
+    bool AllDigits = true;
+    for (char C : Ident) {
+      if (!isdigit(static_cast<unsigned char>(C))) {
+        AllDigits = false;
+        if (!isalnum(static_cast<unsigned char>(C)) && C != '-') {
+          return Unexpect(ErrCode::Value::NameUnexpectedCharacter);
+        }
+      }
+    }
+    if (CheckLeadingZeros && AllDigits && Ident.size() > 1 && Ident[0] == '0') {
+      return Unexpect(ErrCode::Value::ComponentInvalidName);
+    }
+    if (DotPos == Idents.npos) {
+      return {};
+    }
+    Start = DotPos + 1;
+  }
+}
+
+// integrity-metadata ::= *WSP hash-with-options *(1*WSP hash-with-options) *WSP
+// hash-with-options  ::= hash-expression *("?" option-expression)
+// hash-expression    ::= hash-algorithm "-" base64-value
+// hash-algorithm     ::= "sha256" / "sha384" / "sha512"
+Expect<void>
+ExternName::checkIntegrityMetadata(std::string_view Input) const noexcept {
+  // base64-value ::= [A-Za-z0-9+/]+ ( '=' | '==' )?
+  // Non-empty, with `=` padding only at the end.
+  auto isBase64 = [](std::string_view S) noexcept {
+    if (S.empty()) {
+      return false;
+    }
+    size_t Equals = 0;
+    for (size_t I = 0; I < S.size(); I++) {
+      char C = S[I];
+      if ((isalnum(static_cast<unsigned char>(C)) || C == '+' || C == '/') &&
+          Equals == 0) {
+        continue;
+      }
+      if (C == '=' && I > 0 && Equals < 2) {
+        Equals++;
+        continue;
+      }
+      return false;
+    }
+    return true;
+  };
+
+  while (!Input.empty() && Input.front() == ' ') {
+    Input.remove_prefix(1);
+  }
+  while (!Input.empty() && Input.back() == ' ') {
+    Input.remove_suffix(1);
+  }
+  if (Input.empty()) {
+    spdlog::error(ErrCode::Value::NameIntegrityEmpty);
+    spdlog::error("    Component name: integrity hash cannot be empty"sv);
+    return Unexpect(ErrCode::Value::NameIntegrityEmpty);
+  }
+
   while (!Input.empty()) {
-    while (!Input.empty() && Input.front() == ' ')
+    while (!Input.empty() && Input.front() == ' ') {
       Input.remove_prefix(1);
-    if (Input.empty())
+    }
+    if (Input.empty()) {
       break;
+    }
 
     size_t TokenEnd = Input.find(' ');
     std::string_view Token =
@@ -139,508 +766,29 @@ bool isIntegrityMetadata(std::string_view Input) {
     std::string_view HashExpr =
         (OptPos == Token.npos) ? Token : Token.substr(0, OptPos);
 
-    bool ValidAlgo = false;
-    static constexpr std::string_view Algos[3] = {"sha256-", "sha384-",
-                                                  "sha512-"};
-    for (auto AlgoSV : Algos) {
-      if (HashExpr.size() > AlgoSV.size() &&
-          HashExpr.substr(0, AlgoSV.size()) == AlgoSV) {
-        auto Value = HashExpr.substr(AlgoSV.size());
-        if (std::all_of(Value.begin(), Value.end(),
-                        [](char C) { return C >= 0x21 && C <= 0x7E; })) {
-          ValidAlgo = true;
-        }
-        break;
-      }
+    size_t DashPos = HashExpr.find('-');
+    if (DashPos == HashExpr.npos) {
+      spdlog::error(ErrCode::Value::NameExpectedDashAfterHash);
+      spdlog::error("    Component name: expected `-` after hash algorithm"sv);
+      return Unexpect(ErrCode::Value::NameExpectedDashAfterHash);
     }
-    if (!ValidAlgo)
-      return false;
-
-    HasToken = true;
-  }
-
-  return HasToken;
-}
-
-// Parses a non-negative integer without leading zeros.
-// Returns the end position, or npos on failure.
-size_t parseNumeric(std::string_view V) {
-  if (V.empty())
-    return std::string_view::npos;
-  if (V[0] == '0') {
-    return 1;
-  }
-  if (V[0] >= '1' && V[0] <= '9') {
-    size_t Pos = 1;
-    while (Pos < V.size() && isdigit(V[Pos]))
-      Pos++;
-    return Pos;
-  }
-  return std::string_view::npos;
-}
-
-// canonversion ::= [1-9] [0-9]*
-//                | '0.' [1-9] [0-9]*
-//                | '0.0.' [1-9] [0-9]*
-bool isCanonVersion(std::string_view V) {
-  if (V.empty())
-    return false;
-
-  // canonversion ::= [1-9] [0-9]* | '0.' [1-9] [0-9]* | '0.0.' [1-9] [0-9]*
-  for (int I = 0; I < 3; I++) {
-    if (V[0] >= '1' && V[0] <= '9') {
-      size_t End = parseNumeric(V);
-      return End == V.size();
+    std::string_view Algo = HashExpr.substr(0, DashPos);
+    if (Algo != "sha256"sv && Algo != "sha384"sv && Algo != "sha512"sv) {
+      spdlog::error(ErrCode::Value::NameUnknownHashAlgorithm);
+      spdlog::error("    Component name: unrecognized hash algorithm '{}'"sv,
+                    Algo);
+      return Unexpect(ErrCode::Value::NameUnknownHashAlgorithm);
     }
-    if (!tryRead("0."sv, V) || V.empty())
-      return false;
-  }
-
-  return false;
-}
-
-// Validates a dot-separated pre-release or build identifier segment.
-// Each identifier is [0-9A-Za-z-]+.
-// Numeric identifiers must not have leading zeros.
-bool isPreReleaseOrBuild(std::string_view V, bool CheckLeadingZeros) {
-  if (V.empty())
-    return false;
-  size_t Start = 0;
-  while (Start < V.size()) {
-    size_t DotPos = V.find('.', Start);
-    std::string_view Ident =
-        (DotPos == V.npos) ? V.substr(Start) : V.substr(Start, DotPos - Start);
-    if (Ident.empty())
-      return false;
-    for (char C : Ident) {
-      if (!isalnum(C) && C != '-')
-        return false;
-    }
-    if (CheckLeadingZeros) {
-      bool AllDigits = std::all_of(Ident.begin(), Ident.end(),
-                                   [](char C) { return isdigit(C); });
-      if (AllDigits && Ident.size() > 1 && Ident[0] == '0')
-        return false;
-    }
-    if (DotPos == V.npos)
-      break;
-    Start = DotPos + 1;
-  }
-  return true;
-}
-
-// MAJOR.MINOR.PATCH[-prerelease][+build] per semver.org 2.0
-bool isValidSemver(std::string_view V) {
-  if (V.empty())
-    return false;
-
-  // Parse MAJOR.MINOR.PATCH
-  for (int I = 0; I < 3; I++) {
-    size_t End = parseNumeric(V);
-    if (End == std::string_view::npos)
-      return false;
-    if (I < 2) {
-      if (End >= V.size() || V[End] != '.')
-        return false;
-      V.remove_prefix(End + 1);
-    } else {
-      V.remove_prefix(End);
+    if (!isBase64(HashExpr.substr(DashPos + 1))) {
+      spdlog::error(ErrCode::Value::NameInvalidBase64);
+      spdlog::error("    Component name: hash value is not valid base64"sv);
+      return Unexpect(ErrCode::Value::NameInvalidBase64);
     }
   }
 
-  if (V.empty())
-    return true;
-
-  if (V[0] == '-') {
-    V.remove_prefix(1);
-    size_t PlusPos = V.find('+');
-    std::string_view PreRelease =
-        (PlusPos == V.npos) ? V : V.substr(0, PlusPos);
-    if (!isPreReleaseOrBuild(PreRelease, true))
-      return false;
-    if (PlusPos == V.npos)
-      return true;
-    V.remove_prefix(PlusPos);
-  }
-
-  if (!V.empty() && V[0] == '+') {
-    V.remove_prefix(1);
-    return isPreReleaseOrBuild(V, false);
-  }
-
-  return V.empty();
-}
-
-bool isVersion(std::string_view V) {
-  return isCanonVersion(V) || isValidSemver(V);
-}
-
-Unexpected<ErrCode> reportError(std::string_view Reason) {
-  spdlog::error(ErrCode::Value::ComponentInvalidName);
-  spdlog::error("    Component name: {}"sv, Reason);
-  return Unexpect(ErrCode::Value::ComponentInvalidName);
-}
-
-// hashname ::= 'integrity=<' <integrity-metadata> '>'
-// Parses optional ',integrity=<...>' suffix from Next.
-// If Next is empty, returns true with empty Integrity.
-// On success, Next is consumed and Integrity is set.
-Expect<void> tryParseIntegritySuffix(std::string_view &Next,
-                                     std::string_view &Integrity) {
-  if (Next.empty()) {
-    Integrity = {};
-    return {};
-  }
-  if (!tryRead(",integrity=<"sv, Next))
-    return reportError("expected ',integrity=<' after "sv);
-  std::string_view IntegrityData;
-  if (!readUntil(Next, '>', IntegrityData))
-    return reportError("expected '>' closing integrity"sv);
-  if (!isIntegrityMetadata(IntegrityData))
-    return reportError("invalid integrity metadata"sv);
-  if (!isEOF(Next))
-    return reportError("unexpected trailing content after integrity"sv);
-  Integrity = IntegrityData;
   return {};
 }
 
-// pkgpath ::= <namespace> <words>
-// Parses 'namespace:package' from Next, stopping at delimiters in StopChars.
-struct PkgPath {
-  std::string_view Namespace;
-  std::string_view Package;
-};
-
-Expect<PkgPath> parsePkgPath(std::string_view &Next,
-                             std::string_view StopChars) {
-  std::string_view Namespace;
-  if (!readUntil(Next, ':', Namespace))
-    return reportError("expected ':' in namespace"sv);
-  if (!isLowercaseKebabString(Namespace)) {
-    spdlog::error(ErrCode::Value::ComponentPackageNameNotLowercase);
-    spdlog::error("    Component name: namespace '{}' is not lowercase"sv,
-                  Namespace);
-    return Unexpect(ErrCode::Value::ComponentPackageNameNotLowercase);
-  }
-
-  size_t PkgEnd = Next.find_first_of(StopChars);
-  if (PkgEnd == Next.npos)
-    return reportError("unterminated package name"sv);
-  std::string_view Package = Next.substr(0, PkgEnd);
-  Next.remove_prefix(PkgEnd);
-  if (!isLowercaseKebabString(Package)) {
-    spdlog::error(ErrCode::Value::ComponentPackageNameNotLowercase);
-    spdlog::error("    Component name: package '{}' is not lowercase"sv,
-                  Package);
-    return Unexpect(ErrCode::Value::ComponentPackageNameNotLowercase);
-  }
-
-  return PkgPath{Namespace, Package};
-}
-
-} // anonymous namespace
-
-// exportname        ::= <plainname> | <interfacename>
-// importname        ::= <exportname> | <depname> | <urlname> | <hashname>
-Expect<ComponentName> ComponentName::parse(std::string_view Name) {
-  ComponentName Result(Name);
-  auto Next = Name;
-
-  // plainname         ::= <label>
-  //                     | '[constructor]' <label>
-  //                     | '[method]' <label> '.' <label>
-  //                     | '[static]' <label> '.' <label>
-
-  if (tryRead("[constructor]"sv, Next)) {
-    if (!isKebabString(Next)) {
-      return reportError("invalid label after [constructor]"sv);
-    }
-    Result.Detail.emplace<ConstructorDetail>(ConstructorDetail{Next});
-    Result.NoTagName = Next;
-    Result.Kind = ComponentNameKind::Constructor;
-    return Result;
-  }
-
-  auto tryReadResourceWithLabel = [&](std::string_view Tag,
-                                      std::string_view &Resource,
-                                      std::string_view &Label) -> bool {
-    auto Saved = Next;
-    if (!tryRead(Tag, Next)) {
-      return false;
-    }
-    auto TmpNoTagName = Next;
-    if (!readUntil(Next, '.', Resource)) {
-      Next = Saved;
-      return false;
-    }
-    if (!isKebabString(Resource) || !isKebabString(Next)) {
-      Next = Saved;
-      return false;
-    }
-    Result.NoTagName = TmpNoTagName;
-    Label = Next;
-    return true;
-  };
-
-  {
-    std::string_view Resource, Label;
-    if (tryReadResourceWithLabel("[method]"sv, Resource, Label)) {
-      Result.Detail.emplace<MethodDetail>(MethodDetail{Resource, Label});
-      Result.Kind = ComponentNameKind::Method;
-      return Result;
-    }
-  }
-
-  {
-    std::string_view Resource, Label;
-    if (tryReadResourceWithLabel("[static]"sv, Resource, Label)) {
-      Result.Detail.emplace<StaticDetail>(StaticDetail{Resource, Label});
-      Result.Kind = ComponentNameKind::Static;
-      return Result;
-    }
-  }
-
-  if (tryRead("[async]"sv, Next)) {
-    Result.NoTagName = Next;
-    return reportError("[async] not supported yet"sv);
-  }
-
-  if (tryRead("[async method]"sv, Next)) {
-    Result.NoTagName = Next;
-    return reportError("[async method] not supported yet"sv);
-  }
-
-  if (tryRead("[async static]"sv, Next)) {
-    Result.NoTagName = Next;
-    return reportError("[async static] not supported yet"sv);
-  }
-
-  if (Next.size() != 0 && Next[0] == '[') {
-    return reportError("unknown annotation"sv);
-  }
-  Result.NoTagName = Next;
-
-  // depname ::= 'unlocked-dep=<' <pkgnamequery> '>'
-  //           | 'locked-dep=<' <pkgname> '>' ( ',' <hashname> )?
-
-  if (tryRead("unlocked-dep="sv, Next)) {
-    if (!tryRead("<"sv, Next))
-      return reportError("expected '<' after unlocked-dep="sv);
-
-    EXPECTED_TRY(auto Path, parsePkgPath(Next, "@>"sv));
-
-    // verrange ::= '@*'
-    //            | '@{' verlower '}'
-    //            | '@{' verupper '}'
-    //            | '@{' verlower ' ' verupper '}'
-    std::string_view VersionRange;
-    if (!Next.empty() && Next[0] == '@') {
-      auto VerStart = Next;
-      Next.remove_prefix(1);
-      if (Next.empty())
-        return reportError(
-            "expected version range after '@' in unlocked-dep"sv);
-
-      if (Next[0] == '*') {
-        Next.remove_prefix(1);
-      } else if (Next[0] == '{') {
-        size_t ClosePos = Next.find('}');
-        if (ClosePos == Next.npos)
-          return reportError("expected '}' in unlocked-dep version range"sv);
-        auto RangeBody = Next.substr(1, ClosePos - 1);
-
-        auto ValidateRange = [](std::string_view Body) -> bool {
-          if (Body.empty())
-            return false;
-          auto Remaining = Body;
-
-          if (tryRead(">="sv, Remaining)) {
-            size_t SpacePos = Remaining.find(' ');
-            std::string_view Lower = (SpacePos == Remaining.npos)
-                                         ? Remaining
-                                         : Remaining.substr(0, SpacePos);
-            if (!isValidSemver(Lower))
-              return false;
-            if (SpacePos == Remaining.npos)
-              return true;
-            Remaining.remove_prefix(SpacePos + 1);
-            if (!tryRead("<"sv, Remaining))
-              return false;
-            return isValidSemver(Remaining);
-          }
-
-          if (tryRead("<"sv, Remaining)) {
-            return isValidSemver(Remaining);
-          }
-
-          return false;
-        };
-
-        if (!ValidateRange(RangeBody))
-          return reportError("invalid version range in unlocked-dep"sv);
-
-        Next.remove_prefix(ClosePos + 1);
-      } else {
-        return reportError("expected '*' or '{' after '@' in unlocked-dep"sv);
-      }
-      VersionRange = VerStart.substr(0, VerStart.size() - Next.size());
-    }
-
-    if (!tryRead(">"sv, Next))
-      return reportError("expected '>' closing unlocked-dep"sv);
-
-    if (!isEOF(Next))
-      return reportError("unexpected trailing content after unlocked-dep"sv);
-
-    Result.Detail.emplace<UnlockedDepDetail>(
-        UnlockedDepDetail{Path.Namespace, Path.Package, VersionRange});
-    Result.Kind = ComponentNameKind::UnlockedDep;
-    return Result;
-  }
-
-  if (tryRead("locked-dep="sv, Next)) {
-    if (!tryRead("<"sv, Next))
-      return reportError("expected '<' after locked-dep="sv);
-
-    EXPECTED_TRY(auto Path, parsePkgPath(Next, "@>"sv));
-
-    std::string_view Version;
-    if (!Next.empty() && Next[0] == '@') {
-      Next.remove_prefix(1);
-      size_t VerEnd = Next.find('>');
-      if (VerEnd == Next.npos)
-        return reportError("expected '>' after version in locked-dep"sv);
-      Version = Next.substr(0, VerEnd);
-      Next.remove_prefix(VerEnd);
-      if (!isValidSemver(Version))
-        return reportError("invalid semver in locked-dep"sv);
-    }
-
-    if (!tryRead(">"sv, Next))
-      return reportError("expected '>' closing locked-dep"sv);
-
-    std::string_view Integrity;
-    EXPECTED_TRY(tryParseIntegritySuffix(Next, Integrity));
-
-    Result.Detail.emplace<LockedDepDetail>(
-        LockedDepDetail{Path.Namespace, Path.Package, Version, Integrity});
-    Result.Kind = ComponentNameKind::LockedDep;
-    return Result;
-  }
-
-  // urlname ::= 'url=<' <nonbrackets> '>' (',' <hashname>)?
-  // nonbrackets ::= [^<>]*
-  if (tryRead("url="sv, Next)) {
-    if (!tryRead("<"sv, Next))
-      return reportError("expected '<' after url="sv);
-
-    size_t ClosePos = Next.find('>');
-    if (ClosePos == Next.npos)
-      return reportError("expected '>' closing url"sv);
-
-    std::string_view UrlContent = Next.substr(0, ClosePos);
-    if (UrlContent.find('<') != UrlContent.npos)
-      return reportError("'<' not allowed inside url"sv);
-    Next.remove_prefix(ClosePos + 1);
-
-    std::string_view Integrity;
-    EXPECTED_TRY(tryParseIntegritySuffix(Next, Integrity));
-
-    Result.Detail.emplace<UrlDetail>(UrlDetail{UrlContent, Integrity});
-    Result.Kind = ComponentNameKind::Url;
-    return Result;
-  }
-
-  // hashname ::= 'integrity=<' <integrity-metadata> '>'
-  if (tryRead("integrity="sv, Next)) {
-    if (!tryRead("<"sv, Next))
-      return reportError("expected '<' after integrity="sv);
-    std::string_view IntegrityData;
-    if (!readUntil(Next, '>', IntegrityData))
-      return reportError("expected '>' closing integrity"sv);
-    if (!isIntegrityMetadata(IntegrityData))
-      return reportError("invalid integrity metadata"sv);
-    if (!isEOF(Next))
-      return reportError("unexpected trailing content after integrity"sv);
-    Result.Detail.emplace<IntegrityDetail>(IntegrityDetail{IntegrityData});
-    Result.Kind = ComponentNameKind::Integrity;
-    return Result;
-  }
-
-  // interfacename ::= <namespace> <label> <projection> <interfaceversion>?
-  // namespace     ::= <words> ':'
-  // projection    ::= '/' <label>
-  // interfaceversion ::= '@' <valid semver> | '@' <canonversion>
-  {
-    std::string_view Namespace, Package, Interface, Version;
-
-    int Counter = 0;
-    while (readUntil(Next, ':', Namespace)) {
-      Counter++;
-      if (!isLowercaseKebabString(Namespace)) {
-        spdlog::error(ErrCode::Value::ComponentPackageNameNotLowercase);
-        spdlog::error("    Component name: namespace '{}' is not lowercase"sv,
-                      Namespace);
-        return Unexpect(ErrCode::Value::ComponentPackageNameNotLowercase);
-      }
-    }
-    if (Counter == 0) {
-      // No ':' found — fall through to label parsing below.
-      goto ParseLabel;
-    }
-    if (Counter != 1) {
-      return reportError("nested namespaces not supported yet"sv);
-    }
-
-    // interfacename ::= <namespace> <words> <projection> ...
-    if (!tryReadKebab(Next, Package) || !isLowercaseKebabString(Package)) {
-      spdlog::error(ErrCode::Value::ComponentPackageNameNotLowercase);
-      spdlog::error("    Component name: package '{}' is not lowercase"sv,
-                    Package);
-      return Unexpect(ErrCode::Value::ComponentPackageNameNotLowercase);
-    }
-
-    Counter = 0;
-    while (!isEOF(Next) && Next[0] == '/') {
-      Next.remove_prefix(1);
-      Counter++;
-      if (!tryReadKebab(Next, Interface)) {
-        return reportError("invalid projection label in interface name"sv);
-      }
-    }
-
-    if (Counter == 0) {
-      return reportError("expected '/' projection in interface name"sv);
-    }
-    if (Counter != 1) {
-      return reportError("nested projections not supported yet"sv);
-    }
-
-    if (!isEOF(Next) && Next[0] == '@') {
-      Next.remove_prefix(1);
-      Version = Next;
-      if (!isVersion(Version)) {
-        return reportError("invalid version in interface name"sv);
-      }
-    }
-
-    Result.Detail.emplace<InterfaceDetail>(
-        InterfaceDetail{Namespace, Package, Interface, Version});
-    Result.Kind = ComponentNameKind::InterfaceType;
-    return Result;
-  }
-
-ParseLabel:
-  if (!isKebabString(Next)) {
-    spdlog::error(ErrCode::Value::ComponentNameNotKebab);
-    spdlog::error("    Component name: label '{}' is not in kebab case"sv,
-                  Next);
-    return Unexpect(ErrCode::Value::ComponentNameNotKebab);
-  }
-  Result.Detail.emplace<LabelDetail>();
-  Result.Kind = ComponentNameKind::Label;
-  return Result;
-}
-
+} // namespace Component
 } // namespace Validator
 } // namespace WasmEdge

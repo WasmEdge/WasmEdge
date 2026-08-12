@@ -11,7 +11,9 @@
 
 #include <lld/Common/Driver.h>
 
+#include <cerrno>
 #include <charconv>
+#include <cstring>
 #include <fstream>
 #include <mutex>
 #include <random>
@@ -199,6 +201,11 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
     std::ofstream OS(ObjectName, std::ios_base::binary);
     OS.write(OSVec.data(), static_cast<std::streamsize>(OSVec.size()));
     OS.close();
+    if (!OS) {
+      spdlog::error("object file write failed: {}: {}"sv, ObjectName.u8string(),
+                    std::strerror(errno));
+      return Unexpect(ErrCode::Value::IllegalPath);
+    }
   }
 
   // link
@@ -320,6 +327,11 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
     std::ofstream OS(SharedObjectName, std::ios_base::binary);
     OS.write(OSVec.data(), static_cast<std::streamsize>(OSVec.size()));
     OS.close();
+    if (!OS) {
+      spdlog::error("object file write failed: {}: {}"sv,
+                    SharedObjectName.u8string(), std::strerror(errno));
+      return Unexpect(ErrCode::Value::IllegalPath);
+    }
   }
 
   EXPECTED_TRY(outputNativeLibrary(SharedObjectName, OSVec));

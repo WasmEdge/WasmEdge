@@ -184,7 +184,9 @@ TEST(Component, Load_HttpBinary) {
   };
   ASSERT_TRUE(VM.loadWasm(Vec));
 
-  ASSERT_TRUE(VM.validate());
+  // This legacy binary lowers `http-get` with a multi-value core result,
+  // which the canonical ABI never produces. wasm-tools rejects it too.
+  ASSERT_FALSE(VM.validate());
 }
 
 TEST(Component, LoadAndRun_MultiComponentBinary) {
@@ -714,11 +716,11 @@ TEST(Component, LoadAndValidate_ComponentExportAlias) {
   // (component
   //   (component $c
   //     (component $nested)
-  //     (export "nested" (component $nested))                    ;; exercises CompInst.exportComponent()
+  //     (export "nested" (component $nested))     ;; exportComponent()
   //   )
   //   (instance $inst (instantiate (component $c)))
-  //   (alias export $inst "nested" (component $nested_alias))    ;; exercises CompInst.addComponent()
-  //   (export "comp2" (component $nested_alias))                 ;; exercises CompInst.exportComponent()
+  //   (alias export $inst "nested" (component $a)) ;; addComponent()
+  //   (export "comp2" (component $a))              ;; exportComponent()
   // )
   //
   // VM.instantiate() is required because these code paths execute during

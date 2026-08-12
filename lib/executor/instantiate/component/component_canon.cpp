@@ -38,7 +38,7 @@ Expect<std::vector<ValVariant>> Executor::convValsToCoreWASM(
     Runtime::Instance::MemoryInstance *MemInst,
     const Runtime::Instance::ComponentInstance *CompInst, StringEncoding Enc) {
   // Wrapper over the spec's lower_flat_values (CanonicalABI.md L3212-3232).
-  CanonicalABI::CanonCtx Cx{this, MemInst, RFuncInst, CompInst, {}, Enc};
+  CanonicalABI::CanonCtx Cx{this, MemInst, RFuncInst, CompInst, Enc};
   return CanonicalABI::lowerFlatValues(Cx, Vals, ValTypes,
                                        CanonicalABI::MaxFlatParams);
 }
@@ -50,7 +50,7 @@ Executor::convValsToComponent(
     Runtime::Instance::MemoryInstance *MemInst,
     const Runtime::Instance::ComponentInstance *CompInst, StringEncoding Enc) {
   // Wrapper over the spec's lift_flat_values (CanonicalABI.md L3193-3202).
-  CanonicalABI::CanonCtx Cx{this, MemInst, nullptr, CompInst, {}, Enc};
+  CanonicalABI::CanonCtx Cx{this, MemInst, nullptr, CompInst, Enc};
   CanonicalABI::FlatIter VI(CoreVals);
   EXPECTED_TRY(auto Lifted,
                CanonicalABI::liftFlatValues(Cx, VI, ValTypes,
@@ -116,7 +116,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       // time rather than at call time. Captures FlatSig so the post-return
       // signature check can compare against flatten_functype({}, $ft,
       // 'lift').results (spec L3292).
-      CanonicalABI::CanonCtx PrefCx{nullptr, nullptr, nullptr, &CompInst, {}};
+      CanonicalABI::CanonCtx PrefCx{nullptr, nullptr, nullptr, &CompInst};
       EXPECTED_TRY(auto FlatSig,
                    CanonicalABI::flattenFuncType(PrefCx, DType->getFuncType(),
                                                  /*IsLift=*/true));
@@ -202,7 +202,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       // Pre-flight the lower-direction flat ABI so unsupported shapes (async,
       // gated types) fail at instantiation time. flattenFuncType doesn't need
       // Mem / Realloc to compute the signature.
-      CanonicalABI::CanonCtx PrefCx{this, nullptr, nullptr, &CompInst, {}};
+      CanonicalABI::CanonCtx PrefCx{this, nullptr, nullptr, &CompInst};
       EXPECTED_TRY(auto FlatSig,
                    CanonicalABI::flattenFuncType(PrefCx, CFT,
                                                  /*IsLift=*/false));

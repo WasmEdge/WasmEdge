@@ -287,9 +287,9 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"wasm-3.0-simd"sv, WasmEdge::Standard::WASM_3},
     {"threads"sv, WasmEdge::Standard::WASM_2, {Proposal::Threads}},
     // Currently, the component model supports only interpreter mode.
-    {"component-model"sv,
+    {"component-model-wasm-tools"sv,
      WasmEdge::Standard::WASM_3,
-     {Proposal::Component},
+     {Proposal::Component, Proposal::Threads},
      {},
      WasmEdge::SpecTest::TestMode::Interpreter},
 };
@@ -311,36 +311,36 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     // ---------------------------------------------------------------
     // Folder: the directory name of tests.
     // Test table: the testing status of load, validate, instantiate, and execute.
-    {"adapt",                   {true, false, false, false}},
-    {"alias",                   {true, false, false, false}},
-    {"big",                     {true, true,  false, false}},
-    {"definedtypes",            {true, true,  true,  false}},
-    {"empty",                   {true, true,  true,  false}},
-    {"example",                 {true, true,  true,  false}},
-    {"export",                  {true, true,  false, false}},
-    {"export-ascription",       {true, true,  false, false}},
-    {"export-introduces-alias", {true, true,  true,  false}},
-    {"func",                    {true, true,  true,  true}},
-    {"import",                  {true, false, false, false}},
-    {"imports-exports",         {true, true,  false, false}},
-    {"inline-exports",          {true, true,  true,  false}},
-    {"instance-types",          {true, true,  true,  false}},
-    {"instantiate",             {true, false, false, false}},
-    {"invalid",                 {true, true,  false, false}},
-    {"link",                    {true, true,  true,  false}},
-    {"lots-of-aliases",         {true, true,  true,  false}},
-    {"lower",                   {true, false, false, false}},
-    {"memory64",                {true, true,  false, false}},
-    {"module-link",             {true, true,  false, false}},
-    {"more-flags",              {true, true,  true,  false}},
-    {"naming",                  {true, true,  false, false}},
-    {"nested-modules",          {true, false, false, false}},
-    {"resources",               {true, false, false, false}},
-    {"tags",                    {true, true,  true, true}},
-    {"type-export-restrictions",{true, false, false, false}},
-    {"types",                   {true, false, false, false}},
-    {"very-nested",             {true, false, false, false}},
-    {"virtualize",              {true, true,  false, false}},
+    {"adapt",                    {true, true, false, false}},
+    {"alias",                    {true, true, false, false}},
+    {"big",                      {true, true, false, false}},
+    {"definedtypes",             {true, true, true, false}},
+    {"empty",                    {true, true, true, false}},
+    {"example",                  {true, true, true, false}},
+    {"export",                   {true, true, false, false}},
+    {"export-ascription",        {true, true, false, false}},
+    {"export-introduces-alias",  {true, true, true, false}},
+    {"func",                     {true, true, true, true}},
+    {"import",                   {true, true, false, false}},
+    {"imports-exports",          {true, true, false, false}},
+    {"inline-exports",           {true, true, true, false}},
+    {"instance-type",            {true, true, true, false}},
+    {"instantiate",              {true, true, false, false}},
+    {"invalid",                  {true, true, false, false}},
+    {"link",                     {true, true, true, false}},
+    {"lots-of-aliases",          {true, true, true, false}},
+    {"lower",                    {true, true, false, false}},
+    {"memory64",                 {true, true, false, false}},
+    {"module-link",              {true, true, false, false}},
+    {"more-flags",               {true, true, true, false}},
+    {"naming",                   {true, true, false, false}},
+    {"nested-modules",           {true, true, false, false}},
+    {"resources",                {true, true, false, false}},
+    {"tags",                     {true, true, true, true}},
+    {"type-export-restrictions", {true, true, false, false}},
+    {"types",                    {true, true, false, false}},
+    {"very-nested",              {true, true, false, false}},
+    {"virtualize",               {true, true, false, false}},
 };
 // clang-format on
 
@@ -374,7 +374,7 @@ std::vector<std::string> SpecTest::enumerate(const SpecTest::TestMode Mode,
   std::vector<std::string> Cases;
   for (const auto &Proposal : TestsuiteProposals) {
     if (static_cast<uint8_t>(Proposal.Mode) & static_cast<uint8_t>(Mode)) {
-      if (!IncludeComponent && Proposal.Path == "component-model"sv) {
+      if (!IncludeComponent && Proposal.Path == "component-model-wasm-tools"sv) {
         continue;
       }
       const std::filesystem::path ProposalRoot = TestsuiteRoot / Proposal.Path;
@@ -743,7 +743,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
                                std::string_view UnitName, void *CmdArrayPtr) {
   simdjson::dom::array CmdArray =
       *static_cast<simdjson::dom::array *>(CmdArrayPtr);
-  const bool IsComponent = (Proposal == "component-model"sv);
+  const bool IsComponent = (Proposal == "component-model-wasm-tools"sv);
 
   std::map<std::string, std::string> Alias;
   std::map<std::string, SpecTest::WasmUnit> ASTMap;

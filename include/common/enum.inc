@@ -945,6 +945,8 @@ E(MalformedMemoryOpFlags, 0x011C, "malformed memop flags")
 E(MalformedLimitFlags, 0x011D, "malformed limits flags")
 // Malformed catch flag (Exception-handling proposal).
 E(MalformedCatchFlags, 0x011E, "malformed catch flags")
+// Malformed cast flag (GC proposal).
+E(MalformedCastFlags, 0x011F, "malformed cast flags")
 // @}
 
 // Component model load phase

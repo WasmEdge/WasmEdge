@@ -566,8 +566,11 @@ struct TupleVal {
   std::vector<ComponentValVariant> Values;
 };
 struct VariantVal {
-  uint32_t Case;
+  uint32_t Case = 0;
   std::optional<ComponentValVariant> Payload;
+  // Case label recorded by the value decoder. TODO: resolve host-supplied
+  // values by label against the declared type at the lowering site.
+  std::string Label{};
 };
 struct ListVal {
   std::vector<ComponentValVariant> Elements;
@@ -581,9 +584,14 @@ struct ResultVal {
 };
 struct FlagsVal {
   std::vector<bool> Bits;
+  // Set-label form recorded by the value decoder. TODO: resolve the bits
+  // against the declared flag labels at the lowering site.
+  std::vector<std::string> SetLabels{};
 };
 struct EnumVal {
-  uint32_t Case;
+  uint32_t Case = 0;
+  // Case label recorded like VariantVal::Label.
+  std::string Label{};
 };
 struct OwnVal {
   uint32_t Handle;

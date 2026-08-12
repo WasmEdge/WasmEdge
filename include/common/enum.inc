@@ -111,6 +111,7 @@ A(Comp_Type_Own, "component own type")
 A(Comp_Type_Borrow, "component borrow type")
 A(Comp_Type_Stream, "component stream type")
 A(Comp_Type_Future, "component future type")
+A(Comp_Type_Map, "component map type")
 A(Comp_LabelValType, "component labelvaltype")
 A(Comp_ValueType, "component valuetype")
 
@@ -1188,6 +1189,7 @@ E(ResourceDropArgument, 0x03A3,
 // Component model not implemented
 E(ComponentNotImplInstantiate, 0x03A4,
   "component model (instantiation) not implemented")
+E(ComponentMalformedValue, 0x035A, "malformed value")
 // @}
 
 // Execution phase
@@ -1407,6 +1409,7 @@ T(ListLen, 0x67, "list_len")         // list type with length
 T(Stream, 0x66, "stream")            // stream type
 T(Future, 0x65, "future")            // future type
 T(ErrContext, 0x64, "error-context") // error-context
+T(Map, 0x63, "map")                  // map type
 
 #undef T
 #endif // UseComponentTypeCode
@@ -1418,9 +1421,17 @@ T(Lift, 0x00, "lift")
 T(Lower, 0x01, "lower")
 T(Resource__new, 0x02, "resource.new")
 T(Resource__drop, 0x03, "resource.drop")
-T(Resource__drop_async, 0x07, "resource.drop_async")
 T(Resource__rep, 0x04, "resource.rep")
-T(Backpressure__set, 0x08, "backpressure.set")
+T(Backpressure__inc, 0x24, "backpressure.inc")
+T(Backpressure__dec, 0x25, "backpressure.dec")
+T(Thread__index, 0x26, "thread.index")
+T(Thread__new_indirect, 0x27, "thread.new-indirect")
+T(Thread__resume_later, 0x28, "thread.resume-later")
+T(Thread__suspend, 0x29, "thread.suspend")
+T(Thread__suspend_then_resume, 0x2A, "thread.suspend-then-resume")
+T(Thread__yield_then_resume, 0x2B, "thread.yield-then-resume")
+T(Thread__suspend_then_promote, 0x2C, "thread.suspend-then-promote")
+T(Thread__yield_then_promote, 0x2D, "thread.yield-then-promote")
 T(Task__return, 0x09, "task.return")
 T(Task__cancel, 0x05, "task.cancel")
 T(Context__get, 0x0A, "context.get")
@@ -1433,15 +1444,15 @@ T(Stream__read, 0x0F, "stream.read")
 T(Stream__write, 0x10, "stream.write")
 T(Stream__cancel_read, 0x11, "stream.cancel_read")
 T(Stream__cancel_write, 0x12, "stream.cancel_write")
-T(Stream__close_readable, 0x13, "stream.close_readable")
-T(Stream__close_writable, 0x14, "stream.close_writable")
+T(Stream__drop_readable, 0x13, "stream.drop-readable")
+T(Stream__drop_writable, 0x14, "stream.drop-writable")
 T(Future__new, 0x15, "future.new")
 T(Future__read, 0x16, "future.read")
 T(Future__write, 0x17, "future.write")
 T(Future__cancel_read, 0x18, "future.cancel_read")
 T(Future__cancel_write, 0x19, "future.cancel_write")
-T(Future__close_readable, 0x1A, "future.close_readable")
-T(Future__close_writable, 0x1B, "future.close_writable")
+T(Future__drop_readable, 0x1A, "future.drop-readable")
+T(Future__drop_writable, 0x1B, "future.drop-writable")
 T(Error_context__new, 0x1C, "error-context.new")
 T(Error_context__debug_message, 0x1D, "error-context.debug_message")
 T(Error_context__drop, 0x1E, "error-context.drop")
@@ -1468,7 +1479,6 @@ T(Realloc, 0x04, "realloc")
 T(PostReturn, 0x05, "post-return")
 T(Async, 0x06, "async")
 T(Callback, 0x07, "callback")
-T(AlwaysTaskReturn, 0x08, "always-task-return")
 
 #undef T
 #endif // UseComponentCanonOptCode

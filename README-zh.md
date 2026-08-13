@@ -55,7 +55,7 @@ WasmEdge 及其包含的 wasm 程序可以作为新进程或从现有进程从 C
 
 * [将 WasmEdge 嵌入 host 应用](https://wasmedge.org/docs/zh/embed/overview)
 * [使用容器工具管理和编排 Wasm 实例](https://wasmedge.org/docs/zh/category/deploy-wasmedge-apps-in-kubernetes)
-* [从 WasmEdge 调用原生 host 程序](https://wasmedge.org/docs/embed/c/host_function)
+* [从 WasmEdge 调用原生 host 程序](https://wasmedge.org/docs/zh/embed/c/host_function/)
 
 # 社区
 

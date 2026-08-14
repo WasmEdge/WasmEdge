@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-find_package(OpenCV 4 REQUIRED)
+find_package(OpenCV 5 REQUIRED)
 
 wasmedge_add_library(wasmedgePluginWasmEdgeOpenCVMini
   SHARED

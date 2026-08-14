@@ -401,9 +401,9 @@ Expect<void> Context::checkOptions(const AST::Component::Canonical &Canon,
       const auto &CT = Func->getCompositeType();
       if (!CT.isFunc() || CT.getFuncType().getParamTypes() != CallbackParams ||
           CT.getFuncType().getReturnTypes() != CallbackResults) {
-        spdlog::error(ErrCode::Value::InvalidCanonOption);
+        spdlog::error(ErrCode::Value::CanonCallbackSignature);
         spdlog::error("    callback must have type [i32 i32 i32] -> [i32]."sv);
-        return Unexpect(ErrCode::Value::InvalidCanonOption);
+        return Unexpect(ErrCode::Value::CanonCallbackSignature);
       }
       break;
     }

@@ -9,7 +9,7 @@ This document has not yet covered all workflows.
 | OS | Arch | toolchain | `docker_tag` | test | release |
 | -- | ---- | --------- | ------------ | ---- | ------- |
 | MacOS 13 (darwin 22) | x86_64 | clang || o | o |
-| MacOS 14 (darwin 23) | arm64 | clang || o | o |
+| MacOS 15 (darwin 24) | arm64 | clang || o | o |
 | manylinux_2_28 | x86_64 | gcc | `manylinux_2_28_x86_64` | o | o |
 | manylinux_2_28 | aarch64 | gcc | `manylinux_2_28_aarch64` | o | o |
 | Ubuntu 24.04 | x86_64 | clang | `ubuntu-24.04-build-clang` | o ||
@@ -23,7 +23,7 @@ This document has not yet covered all workflows.
 | OS | Arch | toolchain | `docker_tag` | test | release |
 | -- | ---- | --------- | ------------ | ---- | ------- |
 | MacOS 13 (darwin 22) | x86_64 | clang || o | o |
-| MacOS 14 (darwin 23) | arm64 | clang || o | o |
+| MacOS 15 (darwin 24) | arm64 | clang || o | o |
 | manylinux_2_28 | x86_64 | gcc | `manylinux_2_28_x86_64-plugins-deps` | o | o |
 | manylinux_2_28 | aarch64 | gcc | `manylinux_2_28_aarch64-plugins-deps` | o | o |
 | Ubuntu 24.04 | x86_64 | clang | `ubuntu-24.04-build-clang-plugins-deps` | o ||

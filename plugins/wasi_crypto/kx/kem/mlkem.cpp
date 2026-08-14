@@ -32,7 +32,8 @@ MlKem<Bits>::PublicKey::import(
 
     EvpPkeyCtxPtr PkCtx{EVP_PKEY_CTX_new_from_name(nullptr, name(), nullptr)};
     ensureOrReturn(PkCtx, __WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
-    opensslCheck(EVP_PKEY_fromdata_init(PkCtx.get()));
+    ensureOrReturn(EVP_PKEY_fromdata_init(PkCtx.get()) > 0,
+                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
     OSSL_PARAM Params[2];
     Params[0] = OSSL_PARAM_construct_octet_string(
@@ -42,7 +43,7 @@ MlKem<Bits>::PublicKey::import(
 
     EVP_PKEY *Pk = nullptr;
     ensureOrReturn(
-        EVP_PKEY_fromdata(PkCtx.get(), &Pk, EVP_PKEY_PUBLIC_KEY, Params),
+        EVP_PKEY_fromdata(PkCtx.get(), &Pk, EVP_PKEY_PUBLIC_KEY, Params) > 0,
         __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
     return EvpPkeyPtr{Pk};
@@ -60,8 +61,10 @@ WasiCryptoExpect<std::vector<uint8_t>> MlKem<Bits>::PublicKey::exportData(
     std::vector<uint8_t> Res(PkSize);
 
     size_t Size = PkSize;
-    opensslCheck(EVP_PKEY_get_octet_string_param(
-        Ctx.get(), OSSL_PKEY_PARAM_PUB_KEY, Res.data(), PkSize, &Size));
+    ensureOrReturn(
+        EVP_PKEY_get_octet_string_param(Ctx.get(), OSSL_PKEY_PARAM_PUB_KEY,
+                                        Res.data(), PkSize, &Size) > 0,
+        __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
     return Res;
@@ -81,7 +84,8 @@ WasiCryptoExpect<EncapsulatedSecret>
 MlKem<Bits>::PublicKey::encapsulate() const noexcept {
   EvpPkeyCtxPtr EncCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
   ensureOrReturn(EncCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-  opensslCheck(EVP_PKEY_encapsulate_init(EncCtx.get(), nullptr));
+  ensureOrReturn(EVP_PKEY_encapsulate_init(EncCtx.get(), nullptr) > 0,
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
   std::vector<uint8_t> Ciphertext(CtSize);
   SecretVec Secret(SecretSize);
@@ -89,7 +93,7 @@ MlKem<Bits>::PublicKey::encapsulate() const noexcept {
   size_t SecretLen = SecretSize;
   ensureOrReturn(EVP_PKEY_encapsulate(EncCtx.get(), Ciphertext.data(),
                                       &CiphertextLen, Secret.data(),
-                                      &SecretLen),
+                                      &SecretLen) > 0,
                  __WASI_CRYPTO_ERRNO_INVALID_KEY);
   ensureOrReturn(CiphertextLen == CtSize,
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
@@ -119,7 +123,8 @@ MlKem<Bits>::SecretKey::import(
 
     EvpPkeyCtxPtr SkCtx{EVP_PKEY_CTX_new_from_name(nullptr, name(), nullptr)};
     ensureOrReturn(SkCtx, __WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
-    opensslCheck(EVP_PKEY_fromdata_init(SkCtx.get()));
+    ensureOrReturn(EVP_PKEY_fromdata_init(SkCtx.get()) > 0,
+                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
     OSSL_PARAM Params[2];
     Params[0] = OSSL_PARAM_construct_octet_string(
@@ -128,7 +133,7 @@ MlKem<Bits>::SecretKey::import(
 
     EVP_PKEY *Sk = nullptr;
     ensureOrReturn(
-        EVP_PKEY_fromdata(SkCtx.get(), &Sk, EVP_PKEY_KEYPAIR, Params),
+        EVP_PKEY_fromdata(SkCtx.get(), &Sk, EVP_PKEY_KEYPAIR, Params) > 0,
         __WASI_CRYPTO_ERRNO_INVALID_KEY);
 
     return EvpPkeyPtr{Sk};
@@ -146,8 +151,10 @@ WasiCryptoExpect<SecretVec> MlKem<Bits>::SecretKey::exportData(
     SecretVec Res(SkSize);
 
     size_t Size = SkSize;
-    opensslCheck(EVP_PKEY_get_octet_string_param(
-        Ctx.get(), OSSL_PKEY_PARAM_PRIV_KEY, Res.data(), SkSize, &Size));
+    ensureOrReturn(
+        EVP_PKEY_get_octet_string_param(Ctx.get(), OSSL_PKEY_PARAM_PRIV_KEY,
+                                        Res.data(), SkSize, &Size) > 0,
+        __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     ensureOrReturn(Size == SkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
     return Res;
@@ -184,13 +191,14 @@ WasiCryptoExpect<SecretVec> MlKem<Bits>::SecretKey::decapsulate(
 
   EvpPkeyCtxPtr DecCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
   ensureOrReturn(DecCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-  opensslCheck(EVP_PKEY_decapsulate_init(DecCtx.get(), nullptr));
+  ensureOrReturn(EVP_PKEY_decapsulate_init(DecCtx.get(), nullptr) > 0,
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
   SecretVec Secret(SecretSize);
   size_t SecretLen = SecretSize;
   ensureOrReturn(EVP_PKEY_decapsulate(DecCtx.get(), Secret.data(), &SecretLen,
                                       EncapsulatedSecretData.data(),
-                                      EncapsulatedSecretData.size()),
+                                      EncapsulatedSecretData.size()) > 0,
                  __WASI_CRYPTO_ERRNO_INVALID_KEY);
   ensureOrReturn(SecretLen == SecretSize,
                  __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
@@ -203,10 +211,12 @@ WasiCryptoExpect<typename MlKem<Bits>::KeyPair>
 MlKem<Bits>::KeyPair::generate(OptionalRef<const Options>) noexcept {
   EvpPkeyCtxPtr Ctx{EVP_PKEY_CTX_new_from_name(nullptr, name(), nullptr)};
   ensureOrReturn(Ctx, __WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
-  opensslCheck(EVP_PKEY_keygen_init(Ctx.get()));
+  ensureOrReturn(EVP_PKEY_keygen_init(Ctx.get()) > 0,
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
   EVP_PKEY *Kp = nullptr;
-  opensslCheck(EVP_PKEY_keygen(Ctx.get(), &Kp));
+  ensureOrReturn(EVP_PKEY_keygen(Ctx.get(), &Kp) > 0,
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
   return EvpPkeyPtr{Kp};
 }
@@ -221,7 +231,8 @@ MlKem<Bits>::KeyPair::import(Span<const uint8_t> Encoded,
 
     EvpPkeyCtxPtr KpCtx{EVP_PKEY_CTX_new_from_name(nullptr, name(), nullptr)};
     ensureOrReturn(KpCtx, __WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
-    opensslCheck(EVP_PKEY_fromdata_init(KpCtx.get()));
+    ensureOrReturn(EVP_PKEY_fromdata_init(KpCtx.get()) > 0,
+                   __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
     OSSL_PARAM Params[2];
     Params[0] = OSSL_PARAM_construct_octet_string(
@@ -231,7 +242,7 @@ MlKem<Bits>::KeyPair::import(Span<const uint8_t> Encoded,
 
     EVP_PKEY *Kp = nullptr;
     ensureOrReturn(
-        EVP_PKEY_fromdata(KpCtx.get(), &Kp, EVP_PKEY_KEYPAIR, Params),
+        EVP_PKEY_fromdata(KpCtx.get(), &Kp, EVP_PKEY_KEYPAIR, Params) > 0,
         __WASI_CRYPTO_ERRNO_INVALID_KEY);
     EvpPkeyPtr Res{Kp};
 
@@ -240,8 +251,10 @@ MlKem<Bits>::KeyPair::import(Span<const uint8_t> Encoded,
     // belong to different keypairs instead of trusting dk alone.
     std::vector<uint8_t> DerivedPk(PkSize);
     size_t Size = PkSize;
-    opensslCheck(EVP_PKEY_get_octet_string_param(
-        Res.get(), OSSL_PKEY_PARAM_PUB_KEY, DerivedPk.data(), PkSize, &Size));
+    ensureOrReturn(
+        EVP_PKEY_get_octet_string_param(Res.get(), OSSL_PKEY_PARAM_PUB_KEY,
+                                        DerivedPk.data(), PkSize, &Size) > 0,
+        __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     ensureOrReturn(
         std::equal(DerivedPk.begin(), DerivedPk.end(), Encoded.begin()),
@@ -276,14 +289,17 @@ WasiCryptoExpect<SecretVec> MlKem<Bits>::KeyPair::exportData(
     SecretVec Res(KpSize);
 
     size_t Size = PkSize;
-    opensslCheck(EVP_PKEY_get_octet_string_param(
-        Ctx.get(), OSSL_PKEY_PARAM_PUB_KEY, Res.data(), PkSize, &Size));
+    ensureOrReturn(
+        EVP_PKEY_get_octet_string_param(Ctx.get(), OSSL_PKEY_PARAM_PUB_KEY,
+                                        Res.data(), PkSize, &Size) > 0,
+        __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
     Size = SkSize;
-    opensslCheck(
+    ensureOrReturn(
         EVP_PKEY_get_octet_string_param(Ctx.get(), OSSL_PKEY_PARAM_PRIV_KEY,
-                                        Res.data() + PkSize, SkSize, &Size));
+                                        Res.data() + PkSize, SkSize, &Size) > 0,
+        __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     ensureOrReturn(Size == SkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 
     return Res;

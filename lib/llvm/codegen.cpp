@@ -18,6 +18,7 @@
 #include <mutex>
 #include <random>
 #include <sstream>
+#include <system_error>
 
 #if LLVM_VERSION_MAJOR >= 14
 #include <lld/Common/CommonLinkerContext.h>
@@ -202,8 +203,10 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
     OS.write(OSVec.data(), static_cast<std::streamsize>(OSVec.size()));
     OS.close();
     if (!OS) {
-      spdlog::error("object file write failed: {}: {}"sv, ObjectName.u8string(),
-                    std::strerror(errno));
+      const int ErrorNumber = errno;
+      spdlog::error(
+          "object file write failed: {}: {}"sv, ObjectName.u8string(),
+          std::error_code(ErrorNumber, std::generic_category()).message());
       return Unexpect(ErrCode::Value::IllegalPath);
     }
   }
@@ -328,8 +331,10 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
     OS.write(OSVec.data(), static_cast<std::streamsize>(OSVec.size()));
     OS.close();
     if (!OS) {
-      spdlog::error("object file write failed: {}: {}"sv,
-                    SharedObjectName.u8string(), std::strerror(errno));
+      const int ErrorNumber = errno;
+      spdlog::error(
+          "object file write failed: {}: {}"sv, SharedObjectName.u8string(),
+          std::error_code(ErrorNumber, std::generic_category()).message());
       return Unexpect(ErrCode::Value::IllegalPath);
     }
   }

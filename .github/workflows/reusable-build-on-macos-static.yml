@@ -16,8 +16,8 @@ jobs:
   build_on_macos_static:
     permissions:
       contents: write
-    name: MacOS 14 (arm64, static lib)
-    runs-on: macos-14
+    name: MacOS 15 (arm64, static lib)
+    runs-on: macos-15
     env:
       BUILD_TYPE: Release
     steps:

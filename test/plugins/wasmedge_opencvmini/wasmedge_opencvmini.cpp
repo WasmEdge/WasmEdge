@@ -48,11 +48,13 @@ TEST(WasmEdgeOpecvminiTest, Module) {
   // Create the wasmedge_opencvmini module instance.
   auto ImgMod = createModule();
   ASSERT_TRUE(ImgMod);
-  EXPECT_EQ(ImgMod->getFuncExportNum(), 19U);
+  EXPECT_EQ(ImgMod->getFuncExportNum(), 17U);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_imdecode"), nullptr);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_imencode"), nullptr);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_rectangle"), nullptr);
   EXPECT_NE(ImgMod->findFuncExports("wasmedge_opencvmini_cvt_color"), nullptr);
+  EXPECT_EQ(ImgMod->findFuncExports("wasmedge_opencvmini_imshow"), nullptr);
+  EXPECT_EQ(ImgMod->findFuncExports("wasmedge_opencvmini_waitkey"), nullptr);
 }
 
 GTEST_API_ int main(int argc, char **argv) {

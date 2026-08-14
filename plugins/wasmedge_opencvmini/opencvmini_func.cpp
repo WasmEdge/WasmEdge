@@ -5,10 +5,12 @@
 #include "common/defines.h"
 #include "common/errcode.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <opencv2/core/mat.hpp>
+#include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
-#include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
 

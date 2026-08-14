@@ -41,9 +41,9 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
   auto ResourceEntryAt =
       [&](std::string_view What) -> Expect<const Component::TypeEntry *> {
     if (!Canon.getOptions().empty()) {
-      spdlog::error(ErrCode::Value::InvalidCanonOption);
+      spdlog::error(ErrCode::Value::CanonOptionOnBuiltin);
       spdlog::error("    resource built-ins take no canonical options."sv);
-      return Unexpect(ErrCode::Value::InvalidCanonOption);
+      return Unexpect(ErrCode::Value::CanonOptionOnBuiltin);
     }
     const auto *Entry = S.getType(Canon.getIndex());
     if (Entry == nullptr) {

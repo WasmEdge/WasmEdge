@@ -58,9 +58,12 @@ struct DriverToolOptions : public DriverProposalOptions {
         ConfEnableJIT(
             PO::Description("Enable Just-In-Time compiler for running WASM"sv)),
         ConfEnableCoredump(PO::Description(
-            "Enable coredump when WebAssembly enters a trap"sv)),
+            "Enable coredump when WebAssembly enters a trap. Requires the "
+            "interpreter run mode, otherwise it is disabled"sv)),
         ConfCoredumpWasmgdb(
-            PO::Description("Enable coredump for wasm-gdb to debug"sv)),
+            PO::Description("Enable coredump in the format expected by the "
+                            "wasmgdb debugger, which differs from the one of "
+                            "the WebAssembly tool conventions"sv)),
         ConfForceInterpreter(
             PO::Description("Forcibly run WASM in interpreter mode."sv)),
         ConfRunMode(PO::Description("Set execution mode. Valid values: "

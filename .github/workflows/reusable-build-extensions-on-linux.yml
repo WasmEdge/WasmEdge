@@ -54,18 +54,18 @@ jobs:
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
         with:
           egress-policy: audit
 
       - id: var
         run: |
           echo "artifact=WasmEdge-plugin-${{ matrix.plugin }}-${{ inputs.version }}-${{ inputs.asset_tag }}.tar.gz" >> $GITHUB_OUTPUT
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Setup sccache
-        uses: mozilla-actions/sccache-action@1583d6b38d7be47f593cb472781bbb21cab4321e # v0.0.10
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
         with:
           version: "v0.10.0"
       - name: Warm up sccache server
@@ -84,8 +84,32 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
+      # Restore the ML models downloaded at configure time, keyed per plugin
+      # (per backend for wasi_nn, with the bitnet variants sharing one model)
+      # so flaky upstream downloads only hit on cache misses. Only the
+      # downloaded files are cached, not test byproducts, and only master
+      # runs save the cache so PR runs never create per-ref duplicates.
+      - if: ${{ !inputs.release && (matrix.dir == 'wasi_nn' || matrix.dir == 'wasmedge_stablediffusion') }}
+        name: Restore ML model fixtures
+        id: ml-fixtures
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            build/test/plugins/wasi_nn/wasinn_*_fixtures
+            build/test/plugins/wasmedge_stablediffusion/stableDiffusion/sd-v1-5-fp16.safetensors
+          key: ml-fixtures-${{ matrix.dir == 'wasi_nn' && (contains(matrix.plugin, 'bitnet') && 'wasi_nn-bitnet' || matrix.plugin) || matrix.dir }}-${{ hashFiles(format('test/plugins/{0}/CMakeLists.txt', matrix.dir)) }}
+      # The manylinux_2_28 deps image keeps its image-level Torch_DIR on the
+      # pre-cxx11-abi libtorch; point at the cxx11-abi one instead. Remove
+      # this override after the 0.18.0 release, when the image drops the
+      # pre-cxx11-abi libtorch and its Torch_DIR moves to the cxx11-abi one.
+      - if: ${{ startsWith(inputs.asset_tag, 'manylinux_2_28') }}
+        name: Use the cxx11-abi libtorch on manylinux_2_28
+        run: |
+          echo "Torch_DIR=/root/libtorch-cxx11abi" >> $GITHUB_ENV
       - name: Build ${{ matrix.plugin }}
         shell: bash
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           [ "${{ matrix.plugin }}" == "wasi_nn-openvino-genai" ] && source /root/openvino_genai/setupvars.sh
           PIPER_INSTALL_PATH="/usr/local"
@@ -95,13 +119,20 @@ jobs:
             -DWASMEDGE_BUILD_TOOLS=OFF \
             -DWASMEDGE_USE_LLVM=OFF \
             -DOPENSSL_ROOT_DIR=${OpenSSL_DIR} \
-            -DWASMEDGE_USE_CXX11_ABI=${{ startsWith(inputs.asset_tag, 'manylinux_2_28') && 'OFF' || 'ON' }} \
             -DPIPER_ROOT="$PIPER_INSTALL_PATH" \
             ${{ matrix.options }}
           cmake --build build --target ${target}
 
           cp -f ${output_dir}/${bin_name} ${bin_name}
           tar -zcvf ${{ steps.var.outputs.artifact }} ${bin_name}
+      - if: ${{ !inputs.release && (matrix.dir == 'wasi_nn' || matrix.dir == 'wasmedge_stablediffusion') && github.ref == 'refs/heads/master' && steps.ml-fixtures.outputs.cache-hit != 'true' }}
+        name: Save ML model fixtures
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            build/test/plugins/wasi_nn/wasinn_*_fixtures
+            build/test/plugins/wasmedge_stablediffusion/stableDiffusion/sd-v1-5-fp16.safetensors
+          key: ml-fixtures-${{ matrix.dir == 'wasi_nn' && (contains(matrix.plugin, 'bitnet') && 'wasi_nn-bitnet' || matrix.plugin) || matrix.dir }}-${{ hashFiles(format('test/plugins/{0}/CMakeLists.txt', matrix.dir)) }}
       - if: ${{ !inputs.release && matrix.plugin == 'wasm_bpf' }}
         name: Prepare test env
         shell: bash

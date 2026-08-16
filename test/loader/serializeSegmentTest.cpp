@@ -62,6 +62,143 @@ TEST(SerializeSegmentTest, SerializeGlobalSegment) {
   EXPECT_EQ(Output, Expected);
 }
 
+TEST(SerializeSegmentTest, SerializeTableSegment) {
+  // The init-expression (0x40) table form is gated on the FunctionReferences
+  // proposal. Use a serializer that explicitly enables it for the positive
+  // init-expr cases, and one under WASM 2.0 (which lacks it) for the negative
+  // case, so the gate is exercised from both sides without relying on the
+  // ambient default configuration.
+  WasmEdge::Configure ConfFuncRef;
+  ConfFuncRef.addProposal(WasmEdge::Proposal::FunctionReferences);
+  WasmEdge::Loader::Serializer SerFuncRef(ConfFuncRef);
+
+  WasmEdge::Configure ConfWASM2;
+  ConfWASM2.setWASMStandard(WasmEdge::Standard::WASM_2);
+  WasmEdge::Loader::Serializer SerWASM2(ConfWASM2);
+
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+
+  // Test serialize table segment.
+  //
+  //   1. Serialize plain table type (MVP form) with min-max limit.
+  //   2. Serialize plain table type (MVP form) with min-only limit and a
+  //      different reference type.
+  //   3. Serialize table segment with init expression (the 0x40 0x00 form from
+  //      the FunctionReferences proposal) using an expression of only the End
+  //      operation.
+  //   4. Serialize table segment with init expression carrying a non-empty
+  //      ref.func initializer.
+  //   5. Serialize table segment with init expression without the
+  //      FunctionReferences proposal (negative).
+
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+  WasmEdge::AST::Instruction RefFunc(WasmEdge::OpCode::Ref__func);
+
+  // 1. Plain table type, funcref, limit [0, 14]. No init expression is present,
+  //    so only the table type (reftype + limit) is emitted.
+  {
+    WasmEdge::AST::TableSection TableSec;
+    WasmEdge::AST::TableSegment TableSeg;
+    TableSeg.getTableType() =
+        WasmEdge::AST::TableType(WasmEdge::TypeCode::FuncRef, 0, 14);
+    TableSec.getContent() = {TableSeg};
+
+    Output = {};
+    EXPECT_TRUE(Ser.serializeSection(TableSec, Output));
+    Expected = {
+        0x04U,                     // Table section
+        0x05U,                     // Content size = 5
+        0x01U,                     // Vector length = 1
+        0x70U, 0x01U, 0x00U, 0x0EU // Table type: funcref + limit [0, 14]
+    };
+    EXPECT_EQ(Output, Expected);
+  }
+
+  // 2. Plain table type, externref, min-only limit [5]. Exercises the no-max
+  //    limit flag (0x00) and a non-funcref reference type.
+  {
+    WasmEdge::AST::TableSection TableSec;
+    WasmEdge::AST::TableSegment TableSeg;
+    TableSeg.getTableType() =
+        WasmEdge::AST::TableType(WasmEdge::TypeCode::ExternRef, 5);
+    TableSec.getContent() = {TableSeg};
+
+    Output = {};
+    EXPECT_TRUE(Ser.serializeSection(TableSec, Output));
+    Expected = {
+        0x04U,              // Table section
+        0x04U,              // Content size = 4
+        0x01U,              // Vector length = 1
+        0x6FU, 0x00U, 0x05U // Table type: externref + limit [5]
+    };
+    EXPECT_EQ(Output, Expected);
+  }
+
+  // 3. Table segment with init expression (FunctionReferences proposal). A
+  //    non-empty expression triggers the 0x40 0x00 prefix followed by the table
+  //    type and the expression.
+  {
+    WasmEdge::AST::TableSection TableSec;
+    WasmEdge::AST::TableSegment TableSeg;
+    TableSeg.getTableType() =
+        WasmEdge::AST::TableType(WasmEdge::TypeCode::FuncRef, 0);
+    TableSeg.getExpr().getInstrs() = {End};
+    TableSec.getContent() = {TableSeg};
+
+    Output = {};
+    EXPECT_TRUE(SerFuncRef.serializeSection(TableSec, Output));
+    Expected = {
+        0x04U,              // Table section
+        0x07U,              // Content size = 7
+        0x01U,              // Vector length = 1
+        0x40U, 0x00U,       // Init-expression form prefix
+        0x70U, 0x00U, 0x00U, // Table type: funcref + limit [0]
+        0x0BU               // Expression
+    };
+    EXPECT_EQ(Output, Expected);
+  }
+
+  // 4. Table segment with init expression carrying a ref.func initializer and a
+  //    min-max limit [1, 16].
+  {
+    WasmEdge::AST::TableSection TableSec;
+    WasmEdge::AST::TableSegment TableSeg;
+    TableSeg.getTableType() =
+        WasmEdge::AST::TableType(WasmEdge::TypeCode::FuncRef, 1, 16);
+    RefFunc.getTargetIndex() = 0x00U;
+    TableSeg.getExpr().getInstrs() = {RefFunc, End};
+    TableSec.getContent() = {TableSeg};
+
+    Output = {};
+    EXPECT_TRUE(SerFuncRef.serializeSection(TableSec, Output));
+    Expected = {
+        0x04U,                      // Table section
+        0x0AU,                      // Content size = 10
+        0x01U,                      // Vector length = 1
+        0x40U, 0x00U,               // Init-expression form prefix
+        0x70U, 0x01U, 0x01U, 0x10U, // Table type: funcref + limit [1, 16]
+        0xD2U, 0x00U,               // ref.func 0
+        0x0BU                       // End
+    };
+    EXPECT_EQ(Output, Expected);
+  }
+
+  // 5. The init-expression (0x40) form requires the FunctionReferences proposal.
+  //    Serializing it under WASM 2.0 (which lacks the proposal) must fail.
+  {
+    WasmEdge::AST::TableSection TableSec;
+    WasmEdge::AST::TableSegment TableSeg;
+    TableSeg.getTableType() =
+        WasmEdge::AST::TableType(WasmEdge::TypeCode::FuncRef, 0);
+    TableSeg.getExpr().getInstrs() = {End};
+    TableSec.getContent() = {TableSeg};
+
+    Output = {};
+    EXPECT_FALSE(SerWASM2.serializeSection(TableSec, Output));
+  }
+}
+
 TEST(SerializeSegmentTest, SerializeElementSegment) {
   WasmEdge::Configure ConfWASM1;
   ConfWASM1.setWASMStandard(WasmEdge::Standard::WASM_1);

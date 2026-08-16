@@ -1,15 +1,32 @@
+# Filter design and scope: see "Extensions path-filter design" in .github/workflows/README.md
 all:
   - '.github/**'
   - 'CMakeLists.txt'
   - 'plugins/CMakeLists.txt'
   - 'test/plugins/CMakeLists.txt'
+shared_cmake:
+  - 'cmake/Helper.cmake'
 wasi_crypto:
   - 'plugins/wasi_crypto/**'
   - 'test/plugins/wasi_crypto/**'
+  - 'thirdparty/wasi_crypto/**'
 wasi_nn:
   - 'cmake/WASINNDeps.cmake'
   - 'plugins/wasi_nn/**'
   - 'test/plugins/wasi_nn/**'
+wasi_nn_rpc:
+  - 'include/api/wasmedge/wasmedge_tools.h'
+  - 'include/driver/wasi_nn_rpc/**'
+  - 'include/driver/wasiNNRPCServerTool.h'
+  - 'lib/CMakeLists.txt'
+  - 'lib/api/CMakeLists.txt'
+  - 'lib/api/wasmedge.cpp'
+  - 'lib/driver/CMakeLists.txt'
+  - 'lib/driver/wasiNNRPCServerTool.cpp'
+  - 'lib/wasi_nn_rpc/**'
+  - 'tools/CMakeLists.txt'
+  - 'tools/wasmedge/CMakeLists.txt'
+  - 'tools/wasmedge/wasi_nn_rpcserver.cpp'
 wasm_bpf:
   - 'plugins/wasm_bpf/**'
   - 'test/plugins/wasm_bpf/**'

@@ -4,55 +4,35 @@
 find_package(GTest QUIET)
 if(GTest_FOUND)
   set(GTEST_BOTH_LIBRARIES "${GTEST_BOTH_LIBRARIES};Threads::Threads")
+  wasmedge_mark_system_includes(GTest::gtest)
+  wasmedge_mark_system_includes(GTest::gtest_main)
 else()
   FetchContent_Declare(
     GTest
     GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG v1.15.2
+    GIT_TAG 52eb8108c5bdec04579160ae17225d66034bd723  # v1.17.0
     GIT_SHALLOW TRUE
   )
   set(BUILD_GMOCK OFF CACHE BOOL "Builds the googlemock subproject" FORCE)
   set(INSTALL_GTEST OFF CACHE BOOL "Enable installation of googletest. (Projects embedding googletest may want to turn this OFF.)" FORCE)
-  if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+  # clang-cl maps -Wall to -Weverything, so googletest and the WasmEdge test
+  # sources it is linked into surface warnings no other compiler enables. Every
+  # other compiler builds them cleanly under WASMEDGE_CFLAGS, so this is scoped to
+  # clang-cl only. These stay -Wno-error (visible but non-fatal) rather than fully
+  # silenced, and the list is trimmed to the warnings that actually fire.
+  if(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(
       ${WASMEDGE_CFLAGS}
+      -Wno-error=character-conversion
+      -Wno-error=missing-variable-declarations
+      -Wno-error=nrvo
+      -Wno-error=suggest-override
+      -Wno-error=unused-member-function
     )
-  else()
-    add_compile_options(
-      ${WASMEDGE_CFLAGS}
-      -Wno-missing-noreturn
-      -Wno-undef
-      $<$<COMPILE_LANGUAGE:CXX>:-Wno-zero-as-null-pointer-constant>
-      -Wno-deprecated
-    )
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-      add_compile_options(
-        -Wno-language-extension-token
-        -Wno-shift-sign-overflow
-        -Wno-unused-member-function
-      )
-      if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-        add_compile_options(
-          -Wno-suggest-destructor-override
-        )
-      endif()
-    endif()
-    if(WIN32)
-      add_compile_options(
-        -Wno-padded
-        -Wno-character-conversion
-        -Wno-unique-object-duplication
-        -Wno-nrvo
-      )
-    endif()
-    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-      add_compile_options(
-        $<$<COMPILE_LANGUAGE:CXX>:-Wno-suggest-override>
-      )
-    endif()
   endif()
-
   FetchContent_MakeAvailable(GTest)
+  wasmedge_mark_system_includes(gtest)
+  wasmedge_mark_system_includes(gtest_main)
   wasmedge_suppress_shadow_warnings(gtest gtest_main)
   set(GTEST_BOTH_LIBRARIES "gtest_main")
 endif()
@@ -88,10 +68,15 @@ add_subdirectory(errinfo)
 add_subdirectory(vm)
 
 if(WASMEDGE_BUILD_COVERAGE)
+  include(ProcessorCount)
+  ProcessorCount(PROCESSOR_COUNT)
+  if(PROCESSOR_COUNT EQUAL 0)
+    set(PROCESSOR_COUNT 1)
+  endif()
   set(GCOVR_ADDITIONAL_ARGS --gcov-ignore-parse-errors negative_hits.warn_once_per_file)
   setup_target_for_coverage_gcovr_html(
     NAME coverage
-    EXECUTABLE ctest -j ${PROCESSOR_COUNT}
+    EXECUTABLE ctest -j ${PROCESSOR_COUNT} --output-on-failure
     DEPENDENCIES wasmedge
     BASE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     EXCLUDE
@@ -100,7 +85,7 @@ if(WASMEDGE_BUILD_COVERAGE)
   )
   setup_target_for_coverage_gcovr_xml(
     NAME codecov
-    EXECUTABLE ctest -j ${PROCESSOR_COUNT}
+    EXECUTABLE ctest -j ${PROCESSOR_COUNT} --output-on-failure
     DEPENDENCIES wasmedge
     EXCLUDE
     "${PROJECT_SOURCE_DIR}/thirdparty/*"

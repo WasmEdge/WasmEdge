@@ -515,6 +515,21 @@ private:
   std::recursive_mutex Mutex;
   bool HasDataSection;
 
+  /// Maximum component model loader recursion depth; deeper input is rejected
+  /// to avoid native stack overflow.
+  static inline constexpr uint32_t MaxComponentNestLevel = 256;
+  /// Current component model loader recursion depth.
+  uint32_t ComponentNestLevel = 0;
+
+  /// Scoped increment/decrement of ComponentNestLevel.
+  struct ComponentNestGuard {
+    uint32_t &Level;
+    explicit ComponentNestGuard(uint32_t &L) noexcept : Level(L) { ++Level; }
+    ~ComponentNestGuard() noexcept { --Level; }
+    ComponentNestGuard(const ComponentNestGuard &) = delete;
+    ComponentNestGuard &operator=(const ComponentNestGuard &) = delete;
+  };
+
   /// Input data type enumeration.
   enum class InputType : uint8_t { WASM, UniversalWASM, SharedLibrary };
   InputType WASMType = InputType::WASM;

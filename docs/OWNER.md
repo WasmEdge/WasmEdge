@@ -2,13 +2,13 @@
 
 ## WasmEdge Maintainers
 
-| Maintainer               | GitHub ID  | Organization                  | Email                        |
-| ---------------          | ---------  | -----------                   | -----------                  |
-| Michael Yuan             | @juntao    | Second State                  | <michael@secondstate.io>     |
-| Hung-Ying Tai(hydai)     | @hydai     | Second State                  | <hydai@secondstate.io>       |
-| Yi-Ying He               | @q82419    | Second State                  | <yiying@secondstate.io>      |
-| Shen-Ta Hsieh(BestSteve) | @ibmibmibm | Second State                  | <beststeve@secondstate.io>   |
-| HanWen Tsao              | @grorge123 | National Tsing Hua University | <chodehirgd157842@gmail.com> |
+| Maintainer               | GitHub ID  | Organization                  | Email                        | LFID      |
+| ---------------          | ---------  | -----------                   | -----------                  | ---       |
+| Michael Yuan             | @juntao    | Second State                  | <michael@secondstate.io>     | juntao    |
+| Hung-Ying Tai(hydai)     | @hydai     | Second State                  | <hydai@secondstate.io>       | hydaitw   |
+| Yi-Ying He               | @q82419    | Second State                  | <yiying@secondstate.io>      | q82419    |
+| Shen-Ta Hsieh(BestSteve) | @ibmibmibm | Second State                  | <beststeve@secondstate.io>   | beststeve |
+| HanWen Tsao              | @grorge123 | National Tsing Hua University | <chodehirgd157842@gmail.com> | grorge    |
 
 ## WasmEdge Committers
 

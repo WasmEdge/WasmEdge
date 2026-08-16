@@ -900,6 +900,13 @@ struct VarAddrBuf {
 struct VarAddrSize {
   template <typename T> int operator()(const T &) { return sizeof(T); }
   int operator()(const SockEmptyAddr &) { return 0; }
+  int operator()(const sockaddr_un &U) {
+    const auto Len = strnlen(U.sun_path, sizeof(U.sun_path));
+    if (Len == 0 || Len == sizeof(U.sun_path)) {
+      return sizeof(sockaddr_un);
+    }
+    return static_cast<int>(offsetof(sockaddr_un, sun_path) + Len + 1);
+  }
 };
 
 static VarAddrT sockAddressAssignHelper(__wasi_address_family_t AddrFamily,
@@ -971,7 +978,7 @@ WasiExpect<INode> INode::sockAccept(__wasi_fdflags_t FdFlags) noexcept {
   if (FdFlags & __WASI_FDFLAGS_NONBLOCK) {
     int SysFlag = fcntl(NewFd, F_GETFL, 0);
     SysFlag |= O_NONBLOCK;
-    if (auto Res = ::fcntl(Fd, F_SETFL, SysFlag); unlikely(Res != 0)) {
+    if (auto Res = ::fcntl(NewFd, F_SETFL, SysFlag); unlikely(Res != 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
   }

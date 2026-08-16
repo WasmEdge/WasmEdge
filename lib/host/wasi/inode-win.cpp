@@ -1665,6 +1665,7 @@ WasiExpect<INode> INode::sockAccept(__wasi_fdflags_t FdFlags) noexcept {
         unlikely(Res == SOCKET_ERROR_)) {
       return WasiUnexpect(detail::fromWSALastError());
     }
+    New.SavedFdFlags |= __WASI_FDFLAGS_NONBLOCK;
   }
 
   return New;

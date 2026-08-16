@@ -17,11 +17,12 @@ std::string buildOutputMetadata(Context &CxtRef) noexcept {
 }
 } // namespace
 
-Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
-                              uint32_t Index, Span<uint8_t> OutBuffer,
+Expect<ErrNo> getOutputSingle(WasiNNEnvironment &, WASINN::Graph &G,
+                              WASINN::Context &C, uint32_t Index,
+                              Span<uint8_t> OutBuffer,
                               uint32_t &BytesWritten) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle: with Index {}"sv, Index)
 
   // Use index 1 for output metadata.
@@ -45,6 +46,14 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
     return ErrNo::Success;
   }
 
+  // A failed set_input reload can null the llama context; unload then makes
+  // the Invalid graph Drainable, so this op can be admitted without one.
+  if (GraphRef.LlamaContext == nullptr) {
+    RET_ERROR(ErrNo::InvalidArgument,
+              "getOutputSingle: the llama context is gone. The last reload "sv
+              "failed and the graph was unloaded."sv)
+  }
+
   std::string LastToken = common_token_to_piece(
       GraphRef.LlamaContext.get(), CxtRef.LlamaOutputTokens.back());
   BytesWritten = EndianValue(static_cast<uint32_t>(LastToken.length())).le();
@@ -60,11 +69,12 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
   return ErrNo::Success;
 }
 
-Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
-                        uint32_t Index, Span<uint8_t> OutBuffer,
+Expect<ErrNo> getOutput(WasiNNEnvironment &, WASINN::Graph &G,
+                        WASINN::Context &C, uint32_t Index,
+                        Span<uint8_t> OutBuffer,
                         uint32_t &BytesWritten) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput: with Index {}"sv, Index)
 
   // Use index 1 for output metadata.

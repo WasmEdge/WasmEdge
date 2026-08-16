@@ -15,10 +15,6 @@ if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo
     set(CMAKE_JOB_POOL_LINK link)
   endif()
 endif()
-if(NOT WASMEDGE_USE_CXX11_ABI)
-  add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
-endif()
-
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
   list(APPEND WASMEDGE_CFLAGS
     /utf-8
@@ -78,6 +74,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-gnu-anonymous-struct
     -Wno-keyword-macro
     -Wno-language-extension-token
+    -Wno-missing-noreturn
     -Wno-newline-eof
     -Wno-signed-enum-bitfield
     -Wno-switch-enum
@@ -156,6 +153,9 @@ if(WIN32)
       -Wno-implicit-int-float-conversion
       -Wno-double-promotion
       -Wno-unsafe-buffer-usage
+      -Wno-padded
+      -Wno-error=nrvo
+      -Wno-unique-object-duplication
       -Wno-deprecated-declarations
       -Wno-error=rtti
       -Wno-error=cast-function-type-strict
@@ -248,6 +248,70 @@ function(wasmedge_add_executable target)
       INSTALL_RPATH "@executable_path/${rel}"
     )
   endif()
+endfunction()
+
+# Download a file with hash verification, retrying on transient failures.
+# HASH uses the same ALGO=value format as file(DOWNLOAD EXPECTED_HASH).
+# Set the HF_TOKEN environment variable to authenticate Hugging Face
+# downloads and avoid anonymous rate limits.
+function(wasmedge_download URL OUTPUT HASH)
+  string(REPLACE "=" ";" HASH_PARTS "${HASH}")
+  list(GET HASH_PARTS 0 HASH_ALGORITHM)
+  list(GET HASH_PARTS 1 HASH_EXPECTED)
+  string(TOLOWER "${HASH_EXPECTED}" HASH_EXPECTED)
+  if(EXISTS "${OUTPUT}")
+    file(${HASH_ALGORITHM} "${OUTPUT}" HASH_ACTUAL)
+    if(HASH_ACTUAL STREQUAL HASH_EXPECTED)
+      message(STATUS "Skipping download of ${URL}: ${OUTPUT} is up-to-date")
+      return()
+    endif()
+    file(REMOVE "${OUTPUT}")
+  endif()
+  set(DOWNLOAD_EXTRA_ARGS "")
+  if(URL MATCHES "^https://huggingface\\.co/" AND NOT "$ENV{HF_TOKEN}" STREQUAL "")
+    list(APPEND DOWNLOAD_EXTRA_ARGS HTTPHEADER "Authorization: Bearer $ENV{HF_TOKEN}")
+  endif()
+  set(RETRY_DELAYS 0 15 60)
+  foreach(RETRY_DELAY IN LISTS RETRY_DELAYS)
+    if(RETRY_DELAY GREATER 0)
+      message(STATUS "Retrying download of ${URL} in ${RETRY_DELAY} seconds")
+      execute_process(COMMAND "${CMAKE_COMMAND}" -E sleep ${RETRY_DELAY})
+    endif()
+    file(DOWNLOAD "${URL}" "${OUTPUT}"
+      SHOW_PROGRESS
+      INACTIVITY_TIMEOUT 60
+      STATUS DOWNLOAD_STATUS
+      LOG DOWNLOAD_LOG
+      ${DOWNLOAD_EXTRA_ARGS}
+    )
+    list(GET DOWNLOAD_STATUS 0 DOWNLOAD_CODE)
+    list(GET DOWNLOAD_STATUS 1 DOWNLOAD_MESSAGE)
+    if(DOWNLOAD_CODE EQUAL 0)
+      file(${HASH_ALGORITHM} "${OUTPUT}" HASH_ACTUAL)
+      if(HASH_ACTUAL STREQUAL HASH_EXPECTED)
+        return()
+      endif()
+      set(DOWNLOAD_MESSAGE "${HASH_ALGORITHM} mismatch: expected ${HASH_EXPECTED}, got ${HASH_ACTUAL}")
+    endif()
+    if(NOT "$ENV{HF_TOKEN}" STREQUAL "")
+      string(REPLACE "$ENV{HF_TOKEN}" "<redacted>" DOWNLOAD_LOG "${DOWNLOAD_LOG}")
+    endif()
+    string(REGEX MATCHALL "HTTP/[0-9.]+ [0-9]+" HTTP_STATUS_LINES "${DOWNLOAD_LOG}")
+    if(HTTP_STATUS_LINES)
+      list(GET HTTP_STATUS_LINES -1 LAST_HTTP_STATUS)
+      string(APPEND DOWNLOAD_MESSAGE " (${LAST_HTTP_STATUS})")
+    else()
+      string(LENGTH "${DOWNLOAD_LOG}" DOWNLOAD_LOG_LENGTH)
+      if(DOWNLOAD_LOG_LENGTH GREATER 512)
+        math(EXPR DOWNLOAD_LOG_OFFSET "${DOWNLOAD_LOG_LENGTH} - 512")
+        string(SUBSTRING "${DOWNLOAD_LOG}" ${DOWNLOAD_LOG_OFFSET} -1 DOWNLOAD_LOG)
+      endif()
+      string(APPEND DOWNLOAD_MESSAGE "\nTransfer log tail:\n${DOWNLOAD_LOG}")
+    endif()
+    message(WARNING "Downloading ${URL} failed: ${DOWNLOAD_MESSAGE}")
+    file(REMOVE "${OUTPUT}")
+  endforeach()
+  message(FATAL_ERROR "Failed to download ${URL} after 3 attempts")
 endfunction()
 
 # Generate the list of static libs to statically link LLVM.
@@ -344,6 +408,34 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
   endif()
 endif()
 
+# Re-export a target's interface include directories as system includes, so that
+# consumers reach its headers through -isystem / -external:I instead of -I and
+# never compile them with the project warning flags. The SYSTEM target property
+# would do this directly, but it needs CMake 3.25 and the floor here is 3.18.
+function(wasmedge_mark_system_includes target)
+  if(NOT TARGET ${target})
+    return()
+  endif()
+  get_target_property(WASMEDGE_ALIASED ${target} ALIASED_TARGET)
+  if(WASMEDGE_ALIASED)
+    set(target ${WASMEDGE_ALIASED})
+  endif()
+  get_target_property(WASMEDGE_INCLUDE_DIRS
+    ${target} INTERFACE_INCLUDE_DIRECTORIES)
+  if(NOT WASMEDGE_INCLUDE_DIRS)
+    return()
+  endif()
+  get_target_property(WASMEDGE_SYSTEM_INCLUDE_DIRS
+    ${target} INTERFACE_SYSTEM_INCLUDE_DIRECTORIES)
+  if(NOT WASMEDGE_SYSTEM_INCLUDE_DIRS)
+    set(WASMEDGE_SYSTEM_INCLUDE_DIRS)
+  endif()
+  list(APPEND WASMEDGE_SYSTEM_INCLUDE_DIRS ${WASMEDGE_INCLUDE_DIRS})
+  list(REMOVE_DUPLICATES WASMEDGE_SYSTEM_INCLUDE_DIRS)
+  set_property(TARGET ${target} PROPERTY
+    INTERFACE_SYSTEM_INCLUDE_DIRECTORIES ${WASMEDGE_SYSTEM_INCLUDE_DIRS})
+endfunction()
+
 function(wasmedge_setup_simdjson)
   if(TARGET simdjson::simdjson)
     return()
@@ -361,7 +453,7 @@ function(wasmedge_setup_simdjson)
     FetchContent_Declare(
       simdjson
       GIT_REPOSITORY https://github.com/simdjson/simdjson.git
-      GIT_TAG  tags/v3.10.0
+      GIT_TAG  1bcf71bd85059ab6574ea1159de9298dcc1212c5  # v4.6.4
       GIT_SHALLOW TRUE
     )
     set(SIMDJSON_DEVELOPER_MODE OFF CACHE BOOL "SIMDJSON developer mode" FORCE)
@@ -369,9 +461,16 @@ function(wasmedge_setup_simdjson)
     set_property(TARGET simdjson PROPERTY POSITION_INDEPENDENT_CODE ON)
     message(STATUS "Downloading SIMDJSON source -- done")
 
+    # Consumers pull in simdjson through -isystem / -external:I so that its
+    # headers are never compiled with the project warning flags, the same way
+    # gtest is already treated. The suppressions below then only have to cover
+    # simdjson's own sources, which inherit WASMEDGE_CFLAGS from the enclosing
+    # directory scope.
+    wasmedge_mark_system_includes(simdjson)
+
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(simdjson
-        PUBLIC
+        PRIVATE
         -Wno-undef
         -Wno-suggest-override
         -Wno-documentation
@@ -392,7 +491,7 @@ function(wasmedge_setup_simdjson)
       )
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
       target_compile_options(simdjson
-        PUBLIC
+        PRIVATE
         $<$<COMPILE_LANGUAGE:C,CXX>:/wd4100> # unreferenced formal parameter
         $<$<COMPILE_LANGUAGE:C,CXX>:/wd4505> # unreferenced local function has been removed
       )
@@ -405,58 +504,136 @@ function(wasmedge_setup_spdlog)
   if(TARGET spdlog::spdlog)
     return()
   endif()
-  # setup spdlog
-  find_package(spdlog QUIET)
+  # Static archive assembly extracts objects from fmt and spdlog with ar -x,
+  # which needs the pinned static builds rather than system packages.
+  if(NOT WASMEDGE_BUILD_STATIC_LIB)
+    find_package(spdlog QUIET)
+    if(NOT spdlog_FOUND AND APPLE AND NOT TARGET fmt::fmt)
+      # A package manager fmt without spdlog is common on macOS, where an
+      # injected -I/opt/homebrew/include otherwise shadows the fetched fmt
+      # headers with a different version than the one linked. Adopting the
+      # package keeps one fmt in play; elsewhere no such injection vector
+      # exists and the pinned pair is used as before.
+      find_package(fmt QUIET)
+    endif()
+  endif()
+  # Validate whichever fmt::fmt is in play now: one pulled in by the spdlog
+  # package, one found above, or one populated by an enclosing project. The
+  # loaded target itself is inspected, so every find_package entry point
+  # (fmt_DIR, fmt_ROOT, prefix paths, registries) is covered by construction.
+  if(TARGET fmt::fmt)
+    get_target_property(WASMEDGE_FMT_CONCRETE fmt::fmt ALIASED_TARGET)
+    if(NOT WASMEDGE_FMT_CONCRETE)
+      set(WASMEDGE_FMT_CONCRETE fmt::fmt)
+    endif()
+    get_target_property(WASMEDGE_FMT_TYPE ${WASMEDGE_FMT_CONCRETE} TYPE)
+    get_target_property(WASMEDGE_FMT_IMPORTED ${WASMEDGE_FMT_CONCRETE} IMPORTED)
+    if(WASMEDGE_BUILD_STATIC_LIB AND WASMEDGE_FMT_TYPE STREQUAL "SHARED_LIBRARY")
+      # The static archive assembly extracts fmt objects with ar -x, which a
+      # shared library cannot satisfy; master failed the same setup at build
+      # time inside the archive assembly step.
+      message(FATAL_ERROR "WASMEDGE_BUILD_STATIC_LIB needs a static fmt archive, but the fmt::fmt target is a shared library. Provide a static fmt or let WasmEdge fetch its pinned copy.")
+    endif()
+    if(NOT WASMEDGE_FMT_IMPORTED)
+      # A source fmt populated by an enclosing project must be position
+      # independent to link into the shared library outputs, matching the
+      # treatment the fetched copy receives from wasmedge_setup_target().
+      set_property(TARGET ${WASMEDGE_FMT_CONCRETE} PROPERTY
+        POSITION_INDEPENDENT_CODE ON)
+    else()
+      # A static archive is accepted as master did: package managers build
+      # them with PIC as a rule, and a non-PIC one fails at link with the
+      # linker naming the object and asking for -fPIC, which an imported
+      # target cannot predict at configure time.
+      include(CheckCXXSourceCompiles)
+      check_cxx_source_compiles(
+        "int main() { return static_cast<int>(sizeof(__int128)); }"
+        WASMEDGE_HAS_NATIVE_INT128)
+      if(NOT WASMEDGE_HAS_NATIVE_INT128 AND
+          (NOT fmt_VERSION OR NOT fmt_VERSION VERSION_LESS 12.2.0))
+        # fmt 12.2.0 cannot compile its 128-bit fallback without a native
+        # __int128 (see the pin below).
+        message(FATAL_ERROR "The fmt package (version '${fmt_VERSION}') needs a native __int128 which this toolchain lacks. Install fmt older than 12.2.0 or set -DCMAKE_DISABLE_FIND_PACKAGE_spdlog=ON -DCMAKE_DISABLE_FIND_PACKAGE_fmt=ON to use the pinned copies.")
+      endif()
+    endif()
+    message(STATUS "fmt found")
+    wasmedge_mark_system_includes(fmt::fmt)
+    wasmedge_mark_system_includes(fmt::fmt-header-only)
+  endif()
   if(spdlog_FOUND)
+    # The sources include fmt headers directly, so a spdlog built against its
+    # bundled fmt neither provides the headers nor links the same fmt, and
+    # one binary would mix two fmt copies. An external-fmt package records
+    # SPDLOG_FMT_EXTERNAL in its interface and pulls fmt::fmt in through its
+    # own find_dependency call.
+    get_target_property(WASMEDGE_SPDLOG_DEFS spdlog::spdlog
+      INTERFACE_COMPILE_DEFINITIONS)
+    if(NOT TARGET fmt::fmt OR
+        NOT WASMEDGE_SPDLOG_DEFS MATCHES "SPDLOG_FMT_EXTERNAL")
+      message(FATAL_ERROR "The spdlog package was built against its bundled fmt, which cannot satisfy the direct fmt usage in the sources. Install a spdlog built with SPDLOG_FMT_EXTERNAL or set -DCMAKE_DISABLE_FIND_PACKAGE_spdlog=ON to use the pinned copies.")
+    endif()
     message(STATUS "spdlog found")
+    wasmedge_mark_system_includes(spdlog::spdlog)
   else()
     include(FetchContent)
-    message(STATUS "Downloading fmt source")
-    FetchContent_Declare(
-      fmt
-      GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-      GIT_TAG        11.0.2
-      GIT_SHALLOW    TRUE
-    )
-    set(FMT_INSTALL OFF CACHE BOOL "Generate the install target." FORCE)
-    FetchContent_MakeAvailable(fmt)
-    message(STATUS "Downloading fmt source -- done")
-    wasmedge_setup_target(fmt)
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-      target_compile_options(fmt
-        PUBLIC
-        -Wno-missing-noreturn
-        PRIVATE
-        -Wno-sign-conversion
+    if(NOT TARGET fmt::fmt)
+      message(STATUS "Downloading fmt source")
+      # Held at 12.1.0. fmt 12.2.0 needs CMake 3.19 or later, which this project
+      # does not require: it sets VERSION, SOVERSION and DEBUG_POSTFIX on the
+      # fmt-header-only INTERFACE target, and CMake rejects non-whitelisted
+      # properties on INTERFACE libraries before 3.19. Debian bullseye, which
+      # builds the static release, carries CMake 3.18. fmt 12.2.0 also fails to
+      # compile its own 128-bit fallback in do_format_decimal, which every target
+      # without a native __int128 -- MSVC among them -- instantiates.
+      FetchContent_Declare(
+        fmt
+        GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+        GIT_TAG        407c905e45ad75fc29bf0f9bb7c5c2fd3475976f  # 12.1.0
+        GIT_SHALLOW    TRUE
       )
-    endif()
-    wasmedge_suppress_shadow_warnings(fmt)
-    if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-      target_compile_options(fmt
-        PUBLIC
-        -Wno-duplicate-enum
-        -Wno-padded
-        -Wno-error=unique-object-duplication
-        -Wno-error=nrvo
-      )
+      set(FMT_INSTALL OFF CACHE BOOL "Generate the install target." FORCE)
+      set(FMT_SYSTEM_HEADERS ON CACHE BOOL "Expose headers with marking them as system." FORCE)
+      FetchContent_MakeAvailable(fmt)
+      message(STATUS "Downloading fmt source -- done")
+      wasmedge_setup_target(fmt)
+      wasmedge_mark_system_includes(fmt)
+      if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        target_compile_options(fmt
+          PRIVATE
+          -Wno-missing-noreturn
+          -Wno-sign-conversion
+        )
+      endif()
+      wasmedge_suppress_shadow_warnings(fmt)
+      if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        target_compile_options(fmt
+          PRIVATE
+          -Wno-duplicate-enum
+          -Wno-padded
+          -Wno-error=unique-object-duplication
+          -Wno-error=nrvo
+        )
+      endif()
     endif()
 
     message(STATUS "Downloading spdlog source")
     FetchContent_Declare(
       spdlog
       GIT_REPOSITORY https://github.com/gabime/spdlog.git
-      GIT_TAG        v1.13.0
+      GIT_TAG        79524ddd08a4ec981b7fea76afd08ee05f83755d  # v1.17.0
       GIT_SHALLOW    TRUE
     )
     set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "Build shared library" FORCE)
     set(SPDLOG_FMT_EXTERNAL ON  CACHE BOOL "Use external fmt library instead of bundled" FORCE)
+    set(SPDLOG_SYSTEM_INCLUDES ON CACHE BOOL "Include as system headers (skip for clang-tidy)." FORCE)
     FetchContent_MakeAvailable(spdlog)
     message(STATUS "Downloading spdlog source -- done")
     wasmedge_setup_target(spdlog)
+    wasmedge_mark_system_includes(spdlog)
     wasmedge_suppress_shadow_warnings(spdlog)
     if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(spdlog
-        PUBLIC
+        PRIVATE
         -Wno-unique-object-duplication
       )
     endif()
@@ -473,11 +650,12 @@ function(wasmedge_setup_stb_image)
   FetchContent_Declare(
     stb
     GIT_REPOSITORY https://github.com/nothings/stb.git
-    GIT_TAG        2dfbe86bef853be33cbbda07abcb4db58c7f817d
+    GIT_TAG        31c1ad37456438565541f4919958214b6e762fb4  # stb_image v2.30, stb_image_resize2 v2.18
     GIT_SHALLOW    FALSE
   )
   FetchContent_MakeAvailable(stb)
   message(STATUS "Downloading stb_image source -- done")
   add_library(wasmedgeDepsSTBImage INTERFACE)
   target_include_directories(wasmedgeDepsSTBImage SYSTEM INTERFACE ${stb_SOURCE_DIR})
+  wasmedge_mark_system_includes(wasmedgeDepsSTBImage)
 endfunction()

@@ -18,6 +18,7 @@
 #include "runtime/hostfunc.h"
 #include "runtime/instance/composite.h"
 
+#include <cstddef>
 #include <memory>
 #include <numeric>
 #include <string>
@@ -36,7 +37,8 @@ public:
   FunctionInstance() = delete;
   /// Move constructor.
   FunctionInstance(FunctionInstance &&Inst) noexcept
-      : CompositeBase(Inst.ModInst, Inst.TypeIdx), FuncType(Inst.FuncType),
+      : CompositeBase(Inst.ModInst, Inst.TypeIdx),
+        CompiledCode(Inst.CompiledCode), FuncType(Inst.FuncType),
         Data(std::move(Inst.Data)) {
     assuming(ModInst);
   }
@@ -53,7 +55,7 @@ public:
   FunctionInstance(const ModuleInstance *Mod, const uint32_t TIdx,
                    const AST::FunctionType &Type,
                    Symbol<CompiledFunction> S) noexcept
-      : CompositeBase(Mod, TIdx), FuncType(Type),
+      : CompositeBase(Mod, TIdx), CompiledCode(S.get()), FuncType(Type),
         Data(std::in_place_type_t<Symbol<CompiledFunction>>(), std::move(S)) {
     assuming(ModInst);
   }
@@ -117,6 +119,25 @@ public:
     return *std::get_if<std::unique_ptr<HostFunctionBase>>(&Data)->get();
   }
 
+  /// Field offsets read inline by the AOT/JIT compiler for the call_indirect
+  /// fast path; offsetof-derived so they follow the target ABI.
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif
+  static constexpr uint64_t getModuleOffset() noexcept {
+    return offsetof(FunctionInstance, ModInst);
+  }
+  static constexpr uint64_t getTypeIndexOffset() noexcept {
+    return offsetof(FunctionInstance, TypeIdx);
+  }
+  static constexpr uint64_t getCompiledCodeOffset() noexcept {
+    return offsetof(FunctionInstance, CompiledCode);
+  }
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+
   /// Upgrade from WasmFunction to CompiledFunction.
   /// Must be called under synchronization that
   /// prevents concurrent access to this function's body.
@@ -124,6 +145,7 @@ public:
     if (!isWasmFunction()) {
       return false;
     }
+    CompiledCode = Sym.get();
     Data = std::move(Sym);
     return true;
   }
@@ -150,6 +172,9 @@ private:
   /// \name Data of function instance.
   /// @{
 
+  /// Compiled code pointer, read inline at getCompiledCodeOffset() by the
+  /// call_indirect fast path.
+  void *CompiledCode = nullptr;
   const AST::FunctionType &FuncType;
   std::variant<WasmFunction, Symbol<CompiledFunction>,
                std::unique_ptr<HostFunctionBase>>

@@ -6,6 +6,7 @@
 #include "common/types.h"
 #include "runtime/stackmgr.h"
 #include "spdlog/spdlog.h"
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <vector>
@@ -14,6 +15,18 @@ using namespace std::literals;
 
 namespace WasmEdge {
 namespace Coredump {
+namespace {
+
+std::array<Byte, sizeof(uint32_t)>
+serializeCoreStackValue(const Runtime::StackManager::Value &Value) noexcept {
+  std::array<Byte, sizeof(uint32_t)> ValueBytes{};
+  const auto RawValue = Value.unwrap();
+  std::memcpy(ValueBytes.data(), &RawValue, ValueBytes.size());
+  return ValueBytes;
+}
+
+} // namespace
+
 void generateCoredump(const Runtime::StackManager &StackMgr,
                       bool ForWasmgdb) noexcept {
   spdlog::info("Generating coredump..."sv);
@@ -128,9 +141,7 @@ AST::CustomSection createCorestack(
       // 0x7F implies i32. i128 is not supported here, and wasmgdb does not
       // support i64.
       Content.push_back(0x7F);
-      auto Value = Iter.unwrap();
-      std::vector<Byte> ValueBytes(4);
-      std::memcpy(ValueBytes.data(), &Value, sizeof(int64_t));
+      auto ValueBytes = serializeCoreStackValue(Iter);
       Content.insert(Content.end(), ValueBytes.begin(), ValueBytes.end());
     }
     if (!ForWasmgdb) {
@@ -138,9 +149,7 @@ AST::CustomSection createCorestack(
         // 0x7F implies i32. i128 is not supported here, and wasmgdb does not
         // support i64.
         Content.push_back(0x7F);
-        auto Value = Iter.unwrap();
-        std::vector<Byte> ValueBytes(4);
-        std::memcpy(ValueBytes.data(), &Value, sizeof(int64_t));
+        auto ValueBytes = serializeCoreStackValue(Iter);
         Content.insert(Content.end(), ValueBytes.begin(), ValueBytes.end());
       }
     }

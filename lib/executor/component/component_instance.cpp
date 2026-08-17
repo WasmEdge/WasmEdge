@@ -21,16 +21,16 @@ Expect<void> ComponentExecutor::instantiate(
   for (const auto &Expr : CoreInstSec.getContent()) {
     if (Expr.isInstantiateModule()) {
       // Instantiate-with-arguments: an import manager isolates the imports.
-      Runtime::Instance::Component::ImportManager ImportMgr;
+      Runtime::Component::ImportManager ImportMgr;
       for (const auto &Arg : Expr.getInstantiateArgs()) {
         ImportMgr.exportCoreModuleInstance(
             Arg.getName(), CompInst.getCoreModuleInstance(Arg.getIndex()));
       }
       const AST::Module *ModPtr = CompInst.getModule(Expr.getModuleIndex());
       if (ModPtr == nullptr) {
-        spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+        spdlog::error(ErrCode::Value::ComponentUnknownModule);
         spdlog::error("    core module {} not found"sv, Expr.getModuleIndex());
-        return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+        return Unexpect(ErrCode::Value::ComponentUnknownModule);
       }
       const AST::Module &Mod = *ModPtr;
       // A core module takes its imports from the arguments, not the store.
@@ -108,27 +108,17 @@ ComponentExecutor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
   for (const auto &Expr : InstSec.getContent()) {
     if (Expr.isInstantiateModule()) {
       // Create an import manager to implement the isolation of imports.
-      Runtime::Instance::Component::ImportManager ImportMgr;
+      Runtime::Component::ImportManager ImportMgr;
       for (const auto &Arg : Expr.getInstantiateArgs()) {
         const auto &SortIdx = Arg.getIndex();
         const auto &Sort = SortIdx.getSort();
         if (Sort.isCore()) {
           switch (Sort.getCoreSortType()) {
           case AST::Component::Sort::CoreSortType::Func:
-            ImportMgr.exportCoreFunctionInstance(
-                Arg.getName(), CompInst.getCoreFunction(SortIdx.getIdx()));
-            break;
           case AST::Component::Sort::CoreSortType::Table:
-            ImportMgr.exportCoreTableInstance(
-                Arg.getName(), CompInst.getCoreTable(SortIdx.getIdx()));
-            break;
           case AST::Component::Sort::CoreSortType::Memory:
-            ImportMgr.exportCoreMemoryInstance(
-                Arg.getName(), CompInst.getCoreMemory(SortIdx.getIdx()));
-            break;
           case AST::Component::Sort::CoreSortType::Global:
-            ImportMgr.exportCoreGlobalInstance(
-                Arg.getName(), CompInst.getCoreGlobal(SortIdx.getIdx()));
+            // A component import is never of these core sorts.
             break;
           case AST::Component::Sort::CoreSortType::Instance:
             ImportMgr.exportCoreModuleInstance(
@@ -180,9 +170,9 @@ ComponentExecutor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       const AST::Component::Component *CompPtr =
           CompInst.getComponent(Expr.getComponentIndex());
       if (CompPtr == nullptr) {
-        spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+        spdlog::error(ErrCode::Value::ComponentUnknownComponent);
         spdlog::error("    component {} not found"sv, Expr.getComponentIndex());
-        return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+        return Unexpect(ErrCode::Value::ComponentUnknownComponent);
       }
       const AST::Component::Component &Comp = *CompPtr;
       // The lexical parent is the value's captured definition environment.
@@ -194,7 +184,8 @@ ComponentExecutor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
     } else {
       // Inline exports: create a component instance with the exports.
       auto Comp = std::make_unique<Runtime::Instance::ComponentInstance>("");
-      uint32_t CoreExpIdx[7] = {0, 0, 0, 0, 0, 0, 0};
+      uint32_t CoreModExpIdx = 0;
+      uint32_t CoreModInstExpIdx = 0;
       uint32_t ExpIdx[5] = {0, 0, 0, 0, 0};
 
       for (const auto &Exp : Expr.getInlineExports()) {
@@ -206,41 +197,31 @@ ComponentExecutor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           switch (Sort.getCoreSortType()) {
           case AST::Component::Sort::CoreSortType::Func:
             Comp->addCoreFunction(CompInst.getCoreFunction(Idx));
-            Comp->exportCoreFunction(Exp.getName(), CoreExpIdx[0]);
-            CoreExpIdx[0]++;
             break;
           case AST::Component::Sort::CoreSortType::Table:
             Comp->addCoreTable(CompInst.getCoreTable(Idx));
-            Comp->exportCoreTable(Exp.getName(), CoreExpIdx[1]);
-            CoreExpIdx[1]++;
             break;
           case AST::Component::Sort::CoreSortType::Memory:
             Comp->addCoreMemory(CompInst.getCoreMemory(Idx));
-            Comp->exportCoreMemory(Exp.getName(), CoreExpIdx[2]);
-            CoreExpIdx[2]++;
             break;
           case AST::Component::Sort::CoreSortType::Global:
             Comp->addCoreGlobal(CompInst.getCoreGlobal(Idx));
-            Comp->exportCoreGlobal(Exp.getName(), CoreExpIdx[3]);
-            CoreExpIdx[3]++;
             break;
           case AST::Component::Sort::CoreSortType::Tag:
             Comp->addCoreTag(CompInst.getCoreTag(Idx));
-            Comp->exportCoreTag(Exp.getName(), CoreExpIdx[4]);
-            CoreExpIdx[4]++;
             break;
           case AST::Component::Sort::CoreSortType::Module:
             if (const auto *M = CompInst.getModule(Idx)) {
               Comp->addModule(*M);
-              Comp->exportCoreModule(Exp.getName(), CoreExpIdx[5]);
-              CoreExpIdx[5]++;
+              Comp->exportCoreModule(Exp.getName(), CoreModExpIdx);
+              CoreModExpIdx++;
             }
             break;
           case AST::Component::Sort::CoreSortType::Instance:
             if (const auto *MI = CompInst.getCoreModuleInstance(Idx)) {
               Comp->addCoreModuleInstance(MI);
-              Comp->exportCoreModuleInstance(Exp.getName(), CoreExpIdx[6]);
-              CoreExpIdx[6]++;
+              Comp->exportCoreModuleInstance(Exp.getName(), CoreModInstExpIdx);
+              CoreModInstExpIdx++;
             }
             break;
           case AST::Component::Sort::CoreSortType::Type:

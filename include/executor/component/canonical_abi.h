@@ -8,13 +8,10 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// Component Model Canonical ABI helpers (Preview 2, sync only):
-///   - alignment / elem_size / flatten_type / flatten_functype
-///   - load / store / lift_flat / lower_flat
-///
-/// Spec citations refer to
-/// https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md
-///
+/// Component Model Canonical ABI: the helpers — alignment, element size, type
+/// flattening, and the load / store / lift / lower conversions — and the
+/// synthesized core functions that `canon lower`, `canon resource.*` and the
+/// async built-ins install into a component's core module instances.
 //===----------------------------------------------------------------------===//
 #pragma once
 
@@ -26,12 +23,14 @@
 #include "runtime/hostfunc.h"
 #include "runtime/instance/component/component.h"
 #include "runtime/instance/component/function.h"
+#include "runtime/instance/component/resource.h"
 #include "runtime/instance/function.h"
 #include "runtime/instance/memory.h"
 
 #include <cstdint>
 #include <functional>
 #include <optional>
+#include <vector>
 
 namespace WasmEdge {
 namespace Executor {
@@ -43,8 +42,9 @@ namespace Component {
 
 namespace CanonicalABI {
 
-/// Sync ABI limits (CanonicalABI.md L2815-2817).
+/// Flat ABI limits.
 constexpr uint32_t MaxFlatParams = 16;
+constexpr uint32_t MaxFlatAsyncParams = 4;
 constexpr uint32_t MaxFlatResults = 1;
 
 /// Context of one canonical-ABI operation: its options plus operation state.
@@ -59,6 +59,20 @@ struct Context : Runtime::Component::CanonOptions {
   /// Records borrows lifted here so the caller can release the lends.
   std::vector<std::pair<const Runtime::Instance::ComponentInstance *, uint32_t>>
       *LiftedBorrows = nullptr;
+  /// Borrow scope: the callee task that receives the lowered borrows.
+  Runtime::Component::Task *BorrowTask = nullptr;
+  /// True between components; selects the string bounds-trap vocabulary.
+  bool CrossComponent = false;
+  /// True when the selected memory is 64-bit, widening pointers to i64.
+  bool memory64() const noexcept {
+    return Mem != nullptr && Mem->getMemoryType().getLimit().is64();
+  }
+  /// The core type of a pointer or length under the selected memory.
+  ValType ptrType() const noexcept {
+    return memory64() ? ValType(TypeCode::I64) : ValType(TypeCode::I32);
+  }
+  /// Byte width and alignment of a pointer or length.
+  uint32_t ptrSize() const noexcept { return memory64() ? 8u : 4u; }
 };
 
 /// Resolve a component type index through TypeResolver, else Inst.
@@ -76,7 +90,7 @@ inline const AST::Component::DefType *resolveDefType(const Context &Cx,
 /// Discriminant byte width for a variant / enum with NumCases cases.
 uint32_t discriminantSize(uint32_t NumCases) noexcept;
 
-/// Alignment of a Component Model value type T in linear memory.
+/// Alignment of a Component Model value type T under the selected memory.
 Expect<uint32_t> alignment(const Context &Cx,
                            const ComponentValType &T) noexcept;
 
@@ -100,30 +114,31 @@ Expect<std::vector<ValType>> flattenType(const Context &Cx,
 Expect<std::vector<ValType>>
 flattenTypeDef(const Context &Cx, const AST::Component::DefValType &T) noexcept;
 
-/// Flatten a function type into its core ABI signature. Sync only.
+/// Flatten a function type; `Async` and `Callback` select the async shapes.
 Expect<AST::FunctionType> flattenFuncType(const Context &Cx,
                                           const AST::Component::FuncType &FT,
-                                          bool IsLift) noexcept;
+                                          bool IsLift, bool Async = false,
+                                          bool Callback = false) noexcept;
 
 /// Load a value of type T at Ptr; the caller pre-checks alignment and bounds.
-Expect<ComponentValVariant> load(const Context &Cx, uint32_t Ptr,
+Expect<ComponentValVariant> load(const Context &Cx, uint64_t Ptr,
                                  const ComponentValType &T) noexcept;
 
 /// Load a defined value type — internal recursion helper.
 Expect<ComponentValVariant>
-loadDef(const Context &Cx, uint32_t Ptr,
+loadDef(const Context &Cx, uint64_t Ptr,
         const AST::Component::DefValType &T) noexcept;
 
-/// Store a Component Model value of type T into linear memory at Ptr.
+/// Store a value of type T at Ptr; string and list payloads use Cx.Realloc.
 Expect<void> store(const Context &Cx, const ComponentValVariant &V,
-                   const ComponentValType &T, uint32_t Ptr) noexcept;
+                   const ComponentValType &T, uint64_t Ptr) noexcept;
 
 /// Store a value into a defined value type — internal recursion helper.
 Expect<void> storeDef(const Context &Cx, const ComponentValVariant &V,
                       const AST::Component::DefValType &T,
-                      uint32_t Ptr) noexcept;
+                      uint64_t Ptr) noexcept;
 
-/// Iterator over core wasm values backing a flat lift (spec CoreValueIter).
+/// Iterator over a sequence of core wasm values backing a flat lift.
 class FlatIter {
 public:
   FlatIter(Span<const std::pair<ValVariant, ValType>> Vs) noexcept
@@ -145,7 +160,6 @@ public:
   bool done() const noexcept {
     return Idx >= (Pairs.empty() ? Singles.size() : Pairs.size());
   }
-  size_t pos() const noexcept { return Idx; }
 
 private:
   Span<const std::pair<ValVariant, ValType>> Pairs;
@@ -181,7 +195,7 @@ liftFlatValues(const Context &Cx, FlatIter &VI,
 Expect<std::vector<ValVariant>>
 lowerFlatValues(const Context &Cx, Span<const ComponentValVariant> Values,
                 Span<const ComponentValType> Types, uint32_t MaxFlat,
-                std::optional<uint32_t> OutParam = std::nullopt) noexcept;
+                std::optional<uint64_t> OutParam = std::nullopt) noexcept;
 
 } // namespace CanonicalABI
 
@@ -190,7 +204,7 @@ class CanonLowerHostFunc : public Runtime::HostFunctionBase {
 public:
   /// FlatSig is the core signature exposed to callers and this func's type.
   CanonLowerHostFunc(ComponentExecutor *Exec, AST::FunctionType FlatSig,
-                     Runtime::Instance::Component::FunctionInstance *Callee,
+                     Runtime::Instance::ComponentFunctionInstance *Callee,
                      const Runtime::Component::CanonOptions &Opts) noexcept;
 
   Expect<void> run(const Runtime::CallingFrame &Frame,
@@ -198,10 +212,12 @@ public:
 
 private:
   ComponentExecutor *Exec;
-  Runtime::Instance::Component::FunctionInstance *Callee;
+  Runtime::Instance::ComponentFunctionInstance *Callee;
   Runtime::Component::CanonOptions Opts;
   // True if the signature carries a trailing out-pointer.
   bool HasOutPtr;
+  // Number of leading flat argument slots holding the lowered parameters.
+  uint32_t ParamSlotCount;
 };
 
 /// canon resource.new $rt : [rep:i32] -> [i32]
@@ -248,6 +264,49 @@ private:
   ComponentExecutor *Exec;
   const Runtime::Instance::ComponentInstance *Inst;
   const Runtime::Instance::Component::ResourceTypeInstance *RT;
+};
+
+/// Immediates and options of one async canonical built-in.
+struct AsyncBuiltinInfo {
+  ComponentCanonOpCode Code;
+  /// The canonical options declared at the built-in.
+  Runtime::Component::CanonOptions Opts;
+  /// The `async?` / `cancel?` immediate; read via async() or cancellable().
+  bool Flag = false;
+  /// stream/future ops: the element type declared at the built-in.
+  std::optional<ComponentValType> Elem;
+  bool IsStream = true;
+  /// context.get/set slot index and slot type.
+  uint32_t ContextIdx = 0;
+  ValType ContextType = TypeCode::I32;
+  /// task.return: declared result types.
+  std::vector<ComponentValType> RetTypes;
+  /// thread.new-indirect: the core table holding start functions.
+  Runtime::Instance::TableInstance *Table = nullptr;
+
+  bool async() const noexcept { return Flag; }
+  bool cancellable() const noexcept { return Flag; }
+};
+
+class CanonAsyncBuiltinHostFunc : public Runtime::HostFunctionBase {
+public:
+  CanonAsyncBuiltinHostFunc(ComponentExecutor *ExecIn,
+                            AsyncBuiltinInfo InfoIn) noexcept;
+
+  Expect<void> run(const Runtime::CallingFrame &Frame,
+                   Span<const ValVariant> Args, Span<ValVariant> Rets) override;
+
+private:
+  /// stream/future read/write rendezvous.
+  Expect<void> runCopy(Span<const ValVariant> Args, Span<ValVariant> Rets);
+  /// stream/future cancel-read/cancel-write.
+  Expect<void> runCancelCopy(Span<const ValVariant> Args,
+                             Span<ValVariant> Rets);
+  /// stream/future drop-readable/drop-writable.
+  Expect<void> runDropEnd(Span<const ValVariant> Args);
+
+  ComponentExecutor *Exec;
+  AsyncBuiltinInfo Info;
 };
 
 } // namespace Component

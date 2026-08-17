@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "runtime/component/importmgr.h"
 #include "runtime/component/storemgr.h"
 #include "runtime/instance/component/component.h"
 
@@ -30,7 +31,7 @@ public:
       : Store(&S), Inst(I) {}
 
   /// Nested instantiation.
-  Instantiator(Runtime::Instance::Component::ImportManager &M,
+  Instantiator(Runtime::Component::ImportManager &M,
                Runtime::Instance::ComponentInstance &I) noexcept
       : ImportMgr(&M), Inst(I) {}
 
@@ -38,14 +39,14 @@ public:
   bool isRoot() const noexcept { return Store != nullptr; }
 
   Runtime::Component::StoreManager &store() const noexcept { return *Store; }
-  Runtime::Instance::Component::ImportManager &imports() const noexcept {
+  Runtime::Component::ImportManager &imports() const noexcept {
     return *ImportMgr;
   }
   Runtime::Instance::ComponentInstance &inst() const noexcept { return Inst; }
 
 private:
   Runtime::Component::StoreManager *Store = nullptr;
-  Runtime::Instance::Component::ImportManager *ImportMgr = nullptr;
+  Runtime::Component::ImportManager *ImportMgr = nullptr;
   Runtime::Instance::ComponentInstance &Inst;
 };
 

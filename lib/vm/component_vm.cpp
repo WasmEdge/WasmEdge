@@ -159,7 +159,7 @@ ComponentVM::unsafeExecute(std::string_view CompName, std::string_view Func,
                            Span<const ComponentValVariant> Params,
                            Span<const ComponentValType> ParamTypes) {
   // Find the component instance by name.
-  const auto *FindCompInst = StoreRef.find(CompName);
+  const auto *FindCompInst = StoreRef.findInstance(CompName);
   if (unlikely(!FindCompInst)) {
     spdlog::error(ErrCode::Value::WrongInstanceAddress);
     spdlog::error(ErrInfo::InfoExecuting(CompName, Func));
@@ -173,9 +173,9 @@ ComponentVM::unsafeExecute(const Runtime::Instance::ComponentInstance *CompInst,
                            std::string_view Func,
                            Span<const ComponentValVariant> Params,
                            Span<const ComponentValType> ParamTypes) {
-  // Find exported function by name.
-  Runtime::Instance::Component::FunctionInstance *FuncInst =
-      CompInst->findFunction(Func);
+  // Find exported function by name, or by `interface#func` into an instance.
+  Runtime::Instance::ComponentFunctionInstance *FuncInst =
+      CompInst->findExportedFunction(Func);
 
   // A caller that passes values without types, such as the spec-test
   // harness, takes the parameter types from the own type of the function.
@@ -247,6 +247,18 @@ ComponentVM::unsafeGetFunctionList() const {
       for (auto &&Func : FuncExports) {
         const auto &FuncType = (Func.second)->getFuncType();
         Map.emplace_back(Func.first, FuncType);
+      }
+    });
+    // Functions of an exported instance are reachable as `interface#func`,
+    // which is the shape a WIT world compiles to.
+    ActiveCompInst->getComponentInstanceExports([&](const auto &InstExports) {
+      for (auto &&Inst : InstExports) {
+        (Inst.second)->getFuncExports([&](const auto &FuncExports) {
+          for (auto &&Func : FuncExports) {
+            Map.emplace_back(Inst.first + "#" + Func.first,
+                             (Func.second)->getFuncType());
+          }
+        });
       }
     });
   }

@@ -27,9 +27,14 @@ ComponentExecutor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
   }
 
   // The start function enters the instance it is part of instantiating.
-  Runtime::Instance::Component::ConcurrencyState::LeaveGuard LeaveG{
-      CompInst.concurrency()};
+  Runtime::Instance::Component::ConcurrencyManager::EnteredGuard LeaveG{
+      CompInst.concurrency(), false};
+  Runtime::Component::Task *SavedTask = TaskMgr.currentTask();
+  TaskMgr.popNestedTask();
   auto Res = invoke(FuncInst, Args, PTypes);
+  if (SavedTask != nullptr) {
+    TaskMgr.pushNestedTask(SavedTask);
+  }
   EXPECTED_TRY(auto ResultList, std::move(Res));
   // Start results append to the value index space in declaration order.
   for (uint32_t I = 0; I < Start.getResult() && I < ResultList.size(); ++I) {

@@ -220,7 +220,7 @@ ToolOnComponent(WasmEdge::VM::ComponentVM &VM, const std::string &FuncName,
 
   const size_t Expected = FuncType.getParamList().size();
   const size_t Got = Opt.Args.value().size() - 1;
-  if (Got < Expected) {
+  if (Got != Expected) {
     spdlog::error("function `{}` expects {} argument(s), got {}"sv, FuncName,
                   Expected, Got);
     return EXIT_FAILURE;
@@ -301,22 +301,12 @@ ToolOnComponent(WasmEdge::VM::ComponentVM &VM, const std::string &FuncName,
       FuncArgTypes.emplace_back(TCode);
       break;
     }
-    // TODO: COMPONENT - other types.
+    // TODO: COMPONENT - aggregate types cannot be spelled on the command line.
     default:
-      break;
-    }
-  }
-  if (FuncType.getParamList().size() + 1 < Opt.Args.value().size()) {
-    for (size_t I = FuncType.getParamList().size() + 1;
-         I < Opt.Args.value().size(); ++I) {
-      if (!parseNumericArg(
-              Opt.Args.value()[I], I, "u64"sv,
-              [](const std::string &S) {
-                return static_cast<uint64_t>(std::stoull(S));
-              },
-              FuncArgs, FuncArgTypes, ComponentTypeCode::U64)) {
-        return EXIT_FAILURE;
-      }
+      spdlog::error(
+          "function `{}` argument {} has a type that cannot be given on the command line"sv,
+          FuncName, I);
+      return EXIT_FAILURE;
     }
   }
 

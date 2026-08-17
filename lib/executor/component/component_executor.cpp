@@ -46,7 +46,7 @@ Expect<void> ComponentExecutor::registerComponent(
 /// Invoke component function. See "include/executor/component/executor.h".
 Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
 ComponentExecutor::invoke(
-    const Runtime::Instance::Component::FunctionInstance *FuncInst,
+    const Runtime::Instance::ComponentFunctionInstance *FuncInst,
     Span<const ComponentValVariant> Params,
     Span<const ComponentValType> ParamTypes) {
   if (unlikely(FuncInst == nullptr)) {
@@ -69,53 +69,93 @@ ComponentExecutor::invoke(
     return FuncInst->getHostFunc()(Params);
   }
 
-  // Reentrance guard: sync reentrance and instantiating instances are out.
   const auto *Parent = FuncInst->getComponentInstance();
-  if (Parent != nullptr && Parent->concurrency().entered()) {
+  // Poisoned instance tree: after any trap inside it, entries trap.
+  if (Parent != nullptr && Parent->getRoot()->concurrency().isPoisoned()) {
     spdlog::error(ErrCode::Value::ComponentCannotEnter);
     spdlog::error("    cannot enter component instance"sv);
     return Unexpect(ErrCode::Value::ComponentCannotEnter);
   }
-  std::optional<Runtime::Instance::Component::ConcurrencyState::EnterGuard>
-      EnterG;
-  if (Parent != nullptr) {
-    EnterG.emplace(Parent->concurrency());
+  // Host-entry reentrance: no task of the chain may share the instance tree.
+  Runtime::Component::Task *Caller = TaskMgr.currentTask();
+  for (Runtime::Component::Task *C = Caller; C != nullptr; C = C->CallerTask) {
+    if (Parent != nullptr && C->Opts.Inst != nullptr &&
+        C->Opts.Inst->getRoot() == Parent->getRoot()) {
+      spdlog::error(ErrCode::Value::ComponentCannotEnter);
+      spdlog::error("    cannot enter component instance"sv);
+      return Unexpect(ErrCode::Value::ComponentCannotEnter);
+    }
   }
 
-  // Convert the component params into core WASM params.
-  const auto &CanonOpts = FuncInst->getCanonOptions();
-  EXPECTED_TRY(auto CoreWASMArgs,
-               convValsToCoreWASM(Params, ParamTypes, CanonOpts));
-
-  // Call runFunction.
-  auto *CoreFuncInst = FuncInst->getLowerFunction();
-  assuming(CoreFuncInst);
-  const auto &CoreFuncType = CoreFuncInst->getFuncType();
-  // TODO: COMPONENT - check the ABI types between core functype and args.
-  EXPECTED_TRY(
-      auto CoreWASMReturns,
-      core().invoke(CoreFuncInst, CoreWASMArgs, CoreFuncType.getParamTypes()));
-
-  // Get return values.
+  // Collect the argument and result plumbing for the task.
+  std::vector<ComponentValVariant> ArgVals(Params.begin(), Params.end());
   std::vector<ComponentValType> ReturnTypes;
-  for (const auto &Type : FuncInst->getFuncType().getResultList()) {
+  for (const auto &Type : ExpectedFuncType.getResultList()) {
     ReturnTypes.push_back(Type.getValType());
   }
-  EXPECTED_TRY(auto Returns,
-               convValsToComponent(CoreWASMReturns, ReturnTypes, CanonOpts));
-  assuming(Returns.size() == ReturnTypes.size());
-
-  // After a sync lift, invoke the optional post-return on the flat results.
-  if (auto *PostReturnInst = FuncInst->getPostReturnFunction()) {
-    std::vector<ValVariant> PRArgs;
-    PRArgs.reserve(CoreWASMReturns.size());
-    for (const auto &P : CoreWASMReturns) {
-      PRArgs.push_back(P.first);
+  auto Captured =
+      std::make_shared<std::optional<std::vector<ComponentValVariant>>>();
+  auto OnStart = [ArgVals = std::move(ArgVals)]() {
+    return Expect<std::vector<ComponentValVariant>>(ArgVals);
+  };
+  auto OnResolve =
+      [Captured](std::optional<std::vector<ComponentValVariant>> Results)
+      -> Expect<void> {
+    if (Results.has_value()) {
+      *Captured = std::move(*Results);
+    } else {
+      // A cancelled host call resolves with no values.
+      *Captured = std::vector<ComponentValVariant>{};
     }
-    EXPECTED_TRY(core().invoke(PostReturnInst, PRArgs,
-                               PostReturnInst->getFuncType().getParamTypes()));
+    return {};
+  };
+
+  // Only the embedder thread may tear down; a task thread would self-join.
+  const bool OnEmbedder = TaskMgr.currentThread() == nullptr;
+  TaskMgr.enterInvoke();
+  auto TaskOrErr =
+      liftCall(FuncInst, std::move(OnStart), std::move(OnResolve), Caller);
+  if (!TaskOrErr) {
+    if (TaskMgr.leaveInvoke() == 0 && OnEmbedder &&
+        TaskMgr.trapLatch().has_value()) {
+      const auto Err = *TaskMgr.trapLatch();
+      TaskMgr.teardown();
+      return Unexpect(Err);
+    }
+    return Unexpect(TaskOrErr.error());
+  }
+  Runtime::Component::Task *T = *TaskOrErr;
+
+  // Async-typed exports: drive the scheduler until the task resolves.
+  if (T->FTAsync && T->St != Runtime::Component::Task::State::Resolved) {
+    auto PumpRes = TaskMgr.pumpUntil(
+        [T]() { return T->St == Runtime::Component::Task::State::Resolved; });
+    if (!PumpRes) {
+      TaskMgr.noteTrap(PumpRes.error(), Parent);
+      if (TaskMgr.leaveInvoke() == 0 && OnEmbedder) {
+        const auto Err = TaskMgr.trapLatch().value_or(PumpRes.error());
+        TaskMgr.teardown();
+        return Unexpect(Err);
+      }
+      return Unexpect(PumpRes.error());
+    }
+  }
+  // Drain tasks and threads at the outermost invoke, except suspended ones.
+  if (TaskMgr.leaveInvoke() == 0 && OnEmbedder && !TaskMgr.hasParkedThreads()) {
+    TaskMgr.teardown();
   }
 
+  if (!Captured->has_value()) {
+    spdlog::error(ErrCode::Value::ComponentNoAsyncResult);
+    spdlog::error("    async-lifted export failed to produce a result"sv);
+    return Unexpect(ErrCode::Value::ComponentNoAsyncResult);
+  }
+  auto &Results = **Captured;
+  std::vector<std::pair<ComponentValVariant, ComponentValType>> Returns;
+  Returns.reserve(Results.size());
+  for (size_t I = 0; I < Results.size() && I < ReturnTypes.size(); ++I) {
+    Returns.emplace_back(std::move(Results[I]), ReturnTypes[I]);
+  }
   return Returns;
 }
 

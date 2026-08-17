@@ -89,7 +89,7 @@ ComponentExecutor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       case AST::Component::Sort::SortType::Value: {
         const auto *CInst = CompInst.getComponentInstance(Export.first);
         const auto *V =
-            CInst != nullptr ? CInst->findValueExport(Export.second) : nullptr;
+            CInst != nullptr ? CInst->findValue(Export.second) : nullptr;
         if (V == nullptr) {
           spdlog::error(ErrCode::Value::ComponentUnknownExport);
           spdlog::error("    alias export value '{}' not found"sv,

@@ -13,6 +13,23 @@ namespace Executor {
 
 using namespace std::literals;
 
+namespace {
+// The instantiation context runs as an implicit synchronous task.
+struct InstantiateTaskGuard {
+  InstantiateTaskGuard(Runtime::Component::TaskManager &RtIn,
+                       const Runtime::Instance::ComponentInstance *Inst)
+      : Rt(RtIn) {
+    Runtime::Component::Task *T = Rt.newTask();
+    T->Opts.Inst = Inst;
+    T->CallerTask = Rt.currentTask();
+    T->St = Runtime::Component::Task::State::Started;
+    Rt.pushNestedTask(T);
+  }
+  ~InstantiateTaskGuard() { Rt.popNestedTask(); }
+  Runtime::Component::TaskManager &Rt;
+};
+} // namespace
+
 // Walk the sections of one component. See executor.h.
 Expect<void>
 ComponentExecutor::instantiate(Component::Instantiator &Ctx,
@@ -50,8 +67,9 @@ ComponentExecutor::instantiate(Runtime::Component::StoreManager &StoreMgr,
   auto CompInst =
       std::make_unique<Runtime::Instance::ComponentInstance>(Name.value_or(""));
   // The instance cannot be entered until instantiation completes.
-  Runtime::Instance::Component::ConcurrencyState::EnterGuard EnterG{
-      CompInst->concurrency()};
+  Runtime::Instance::Component::ConcurrencyManager::EnteredGuard EnterG{
+      CompInst->concurrency(), true};
+  InstantiateTaskGuard TaskGuard{TaskMgr, CompInst.get()};
 
   Component::Instantiator Ctx{StoreMgr, *CompInst};
   EXPECTED_TRY(instantiate(Ctx, Comp));
@@ -65,15 +83,16 @@ ComponentExecutor::instantiate(Runtime::Component::StoreManager &StoreMgr,
 // Instantiate a nested component instance. See executor.h.
 Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
 ComponentExecutor::instantiate(
-    Runtime::Instance::Component::ImportManager &ImportMgr,
+    Runtime::Component::ImportManager &ImportMgr,
     const AST::Component::Component &Comp,
     const Runtime::Instance::ComponentInstance *Parent) {
-  auto CompInst = std::make_unique<Runtime::Instance::ComponentInstance>("");
-  // Outer aliases resolve through the lexical parent, so wire it first.
-  CompInst->setParent(Parent);
+  // Outer aliases resolve through the lexical parent.
+  auto CompInst =
+      std::make_unique<Runtime::Instance::ComponentInstance>("", Parent);
   // The instance cannot be entered until instantiation completes.
-  Runtime::Instance::Component::ConcurrencyState::EnterGuard EnterG{
-      CompInst->concurrency()};
+  Runtime::Instance::Component::ConcurrencyManager::EnteredGuard EnterG{
+      CompInst->concurrency(), true};
+  InstantiateTaskGuard TaskGuard{TaskMgr, CompInst.get()};
 
   Component::Instantiator Ctx{ImportMgr, *CompInst};
   EXPECTED_TRY(instantiate(Ctx, Comp));

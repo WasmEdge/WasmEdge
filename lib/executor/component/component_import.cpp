@@ -421,7 +421,7 @@ ComponentExecutor::instantiate(Runtime::Component::StoreManager &StoreMgr,
         CompInst.addFunction(HostFunc);
         break;
       }
-      if (StoreMgr.find(Import.getName()) != nullptr) {
+      if (StoreMgr.findInstance(Import.getName()) != nullptr) {
         spdlog::error(ErrCode::Value::ComponentImportExpectedFunc);
         spdlog::error("    import name: {}"sv, Import.getName());
         return Unexpect(ErrCode::Value::ComponentImportExpectedFunc);
@@ -431,7 +431,7 @@ ComponentExecutor::instantiate(Runtime::Component::StoreManager &StoreMgr,
       return Unexpect(ErrCode::Value::ComponentImportNotFound);
     }
     case AST::Component::ExternDesc::DescType::CoreType:
-      if (StoreMgr.find(Import.getName()) != nullptr) {
+      if (StoreMgr.findInstance(Import.getName()) != nullptr) {
         spdlog::error(ErrCode::Value::ComponentImportExpectedModule);
         spdlog::error("    import name: {}"sv, Import.getName());
         return Unexpect(ErrCode::Value::ComponentImportExpectedModule);
@@ -453,7 +453,7 @@ ComponentExecutor::instantiate(Runtime::Component::StoreManager &StoreMgr,
       return Unexpect(ErrCode::Value::ComponentImportNotFound);
     case AST::Component::ExternDesc::DescType::InstanceType: {
       auto CompName = Import.getName();
-      const auto *ImportedCompInst = StoreMgr.find(CompName);
+      const auto *ImportedCompInst = StoreMgr.findInstance(CompName);
       if (unlikely(ImportedCompInst == nullptr)) {
         if (StoreMgr.findFunction(CompName) != nullptr) {
           spdlog::error(ErrCode::Value::ComponentImportExpectedInstance);
@@ -480,10 +480,10 @@ ComponentExecutor::instantiate(Runtime::Component::StoreManager &StoreMgr,
   return {};
 }
 
-Expect<void> ComponentExecutor::instantiate(
-    Runtime::Instance::Component::ImportManager &ImportMgr,
-    Runtime::Instance::ComponentInstance &CompInst,
-    const AST::Component::ImportSection &ImportSec) {
+Expect<void>
+ComponentExecutor::instantiate(Runtime::Component::ImportManager &ImportMgr,
+                               Runtime::Instance::ComponentInstance &CompInst,
+                               const AST::Component::ImportSection &ImportSec) {
   for (const auto &Import : ImportSec.getContent()) {
     const auto &Desc = Import.getDesc();
     switch (Desc.getDescType()) {
@@ -511,10 +511,8 @@ Expect<void> ComponentExecutor::instantiate(
       break;
     }
     case AST::Component::ExternDesc::DescType::ComponentType: {
-      if (ImportMgr.hasComponent(Import.getName())) {
-        CompInst.addComponentEntry(
-            ImportMgr.findComponent(Import.getName()),
-            ImportMgr.findComponentEnv(Import.getName()));
+      if (const auto *Entry = ImportMgr.findComponentEntry(Import.getName())) {
+        CompInst.addComponentEntry(Entry->Ast, Entry->Env);
         break;
       }
       spdlog::error(ErrCode::Value::UnknownImport);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-//===-- wasmedge/runtime/component/storemgr.h - Component store -----------===//
+//===-- wasmedge/runtime/component/storemgr.h - Component Store Manager ---===//
 //
 // Part of the WasmEdge Project.
 //
@@ -16,6 +16,7 @@
 #include "ast/component/component.h"
 #include "common/errcode.h"
 #include "runtime/instance/component/component.h"
+#include "runtime/instance/component/function.h"
 
 #include <map>
 #include <mutex>
@@ -33,15 +34,6 @@ class StoreManager {
 public:
   StoreManager() = default;
 
-  /// Find a component instance by name.
-  const Instance::ComponentInstance *find(std::string_view Name) const {
-    std::shared_lock Lock(Mutex);
-    if (auto It = NamedInst.find(Name); likely(It != NamedInst.cend())) {
-      return It->second;
-    }
-    return nullptr;
-  }
-
   /// Register a named component instance. A re-registration shadows the
   /// previous instance, which is the wast-runner semantics.
   Expect<void> registerInstance(const Instance::ComponentInstance *CompInst) {
@@ -51,10 +43,19 @@ public:
     return {};
   }
 
+  /// Find a component instance by name.
+  const Instance::ComponentInstance *findInstance(std::string_view Name) const {
+    std::shared_lock Lock(Mutex);
+    if (auto It = NamedInst.find(Name); likely(It != NamedInst.cend())) {
+      return It->second;
+    }
+    return nullptr;
+  }
+
   /// Register a named host component function, for a test harness or an
   /// embedder.
   Expect<void> registerFunction(std::string_view Name,
-                                Instance::Component::FunctionInstance *Func) {
+                                Instance::ComponentFunctionInstance *Func) {
     std::unique_lock Lock(Mutex);
     if (NamedFunc.find(Name) != NamedFunc.cend()) {
       return Unexpect(ErrCode::Value::ModuleNameConflict);
@@ -63,7 +64,8 @@ public:
     return {};
   }
 
-  Instance::Component::FunctionInstance *
+  /// Find a host component function by name.
+  Instance::ComponentFunctionInstance *
   findFunction(std::string_view Name) const {
     std::shared_lock Lock(Mutex);
     if (auto It = NamedFunc.find(Name); It != NamedFunc.cend()) {
@@ -84,6 +86,7 @@ public:
     return {};
   }
 
+  /// Find a component definition by name.
   const AST::Component::Component *findDefinition(std::string_view Name) const {
     std::shared_lock Lock(Mutex);
     if (auto It = NamedDef.find(Name); It != NamedDef.cend()) {
@@ -104,12 +107,15 @@ private:
   /// \name Mutex for thread-safe.
   mutable std::shared_mutex Mutex;
 
+  /// \name Data of store manager.
+  /// @{
   std::map<std::string, const Instance::ComponentInstance *, std::less<>>
       NamedInst;
-  std::map<std::string, Instance::Component::FunctionInstance *, std::less<>>
+  std::map<std::string, Instance::ComponentFunctionInstance *, std::less<>>
       NamedFunc;
   std::map<std::string, const AST::Component::Component *, std::less<>>
       NamedDef;
+  /// @}
 };
 
 } // namespace Component

@@ -18,7 +18,9 @@
 #include "common/errcode.h"
 #include "common/types.h"
 #include "executor/component/instantiator.h"
+#include "runtime/component/importmgr.h"
 #include "runtime/component/storemgr.h"
+#include "runtime/component/taskmgr.h"
 #include "runtime/instance/component/component.h"
 #include "runtime/instance/module.h"
 
@@ -59,9 +61,31 @@ public:
 
   /// Invoke a component function by function instance.
   Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
-  invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
+  invoke(const Runtime::Instance::ComponentFunctionInstance *FuncInst,
          Span<const ComponentValVariant> Params,
          Span<const ComponentValType> ParamTypes);
+
+  /// The component-model task manager below this executor.
+  Runtime::Component::TaskManager &taskManager() noexcept { return TaskMgr; }
+
+  /// \name Guest-driving entries of the async task runtime.
+  /// @{
+  /// canon lift: build and start the task for a lifted component function.
+  Expect<Runtime::Component::Task *>
+  liftCall(const Runtime::Instance::ComponentFunctionInstance *FuncInst,
+           Runtime::Component::Task::OnStartCallback OnStart,
+           Runtime::Component::Task::OnResolveCallback OnResolve,
+           Runtime::Component::Task *CallerTask) noexcept;
+
+  /// The canon-lift task body (all four lift shapes).
+  Expect<void> runTaskBody(Runtime::Component::Task &T) noexcept;
+
+  /// Run a resource destructor as an implicit sync task of its instance.
+  Expect<void>
+  resourceDtorCall(const Runtime::Instance::ComponentInstance *Impl,
+                   Runtime::Instance::FunctionInstance *Dtor,
+                   uint64_t Rep) noexcept;
+  /// @}
 
 private:
   /// \name Functions for instantiation.
@@ -74,7 +98,7 @@ private:
 
   /// Instantiation of a nested component instance.
   Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
-  instantiate(Runtime::Instance::Component::ImportManager &ImportMgr,
+  instantiate(Runtime::Component::ImportManager &ImportMgr,
               const AST::Component::Component &Comp,
               const Runtime::Instance::ComponentInstance *Parent = nullptr);
 
@@ -133,31 +157,19 @@ private:
                            const AST::Component::ImportSection &ImportSec);
 
   /// Instantiation of Import Section from the instantiation arguments.
-  Expect<void>
-  instantiate(Runtime::Instance::Component::ImportManager &ImportMgr,
-              Runtime::Instance::ComponentInstance &CompInst,
-              const AST::Component::ImportSection &ImportSec);
+  Expect<void> instantiate(Runtime::Component::ImportManager &ImportMgr,
+                           Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::ImportSection &ImportSec);
 
   /// Instantiation of Export Section.
   Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
                            const AST::Component::ExportSection &ExportSec);
   /// @}
 
-  /// \name Helper Functions for canonical ABI
-  /// @{
-  Expect<std::vector<ValVariant>>
-  convValsToCoreWASM(Span<const ComponentValVariant> Vals,
-                     Span<const ComponentValType> ValTypes,
-                     const Runtime::Component::CanonOptions &Opts);
-
-  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
-  convValsToComponent(Span<const std::pair<ValVariant, ValType>> CoreVals,
-                      Span<const ComponentValType> ValTypes,
-                      const Runtime::Component::CanonOptions &Opts);
-  /// @}
-
   /// The core executor below this one.
   Executor &Core;
+  /// Component-model task manager.
+  Runtime::Component::TaskManager TaskMgr;
 };
 
 } // namespace Executor

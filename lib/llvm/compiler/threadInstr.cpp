@@ -365,6 +365,8 @@ void FunctionCompiler::compileAtomicNotify(unsigned MemoryIndex,
     Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
   }
   compileAtomicCheckOffsetAlignment(Offset, Context.Int32Ty);
+  // The woken-count result is always i32, even on memory64; truncating to the
+  // memory address type would mis-type the operand stack with an i64.
   stackPush(Builder.createTrunc(
       Builder.createCall(
           Context.getIntrinsic(
@@ -375,7 +377,7 @@ void FunctionCompiler::compileAtomicNotify(unsigned MemoryIndex,
                                           false)),
           {Context.getModuleInst(Builder, ModCtx),
            LLContext.getInt32(MemoryIndex), Offset, Count}),
-      Context.MemoryAddrTypes[MemoryIndex]));
+      Context.Int32Ty));
 }
 
 void FunctionCompiler::compileAtomicWait(unsigned MemoryIndex,
@@ -401,7 +403,9 @@ void FunctionCompiler::compileAtomicWait(unsigned MemoryIndex,
           {Context.getModuleInst(Builder, ModCtx),
            LLContext.getInt32(MemoryIndex), Offset, ExpectedValue, Timeout,
            LLContext.getInt32(BitWidth)}),
-      Context.MemoryAddrTypes[MemoryIndex]));
+      // atomic.wait32/64 returns i32 (0/1/2), even on memory64; truncating to
+      // the memory address type would mis-type the operand stack with an i64.
+      Context.Int32Ty));
 }
 
 void FunctionCompiler::compileAtomicLoad(unsigned MemoryIndex,

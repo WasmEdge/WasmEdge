@@ -1563,7 +1563,7 @@ void FunctionCompiler::compileIndirectCallOp(
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec).subspan(2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
@@ -1753,7 +1753,7 @@ void FunctionCompiler::compileReturnIndirectCallOp(
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec).subspan(2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
@@ -1847,7 +1847,7 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec).subspan(2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
@@ -1949,7 +1949,7 @@ void FunctionCompiler::compileReturnCallRefOp(
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec).subspan(2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(

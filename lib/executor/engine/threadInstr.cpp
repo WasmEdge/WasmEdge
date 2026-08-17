@@ -15,7 +15,9 @@ Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
   uint64_t Address = extractAddr(RawAddress, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(uint32_t)));
   Address += Instr.getMemoryOffset();
-
+  // notify's atomic access is always 4-byte (it does not widen for memory64),
+  // and the count operand and woken-count result are both i32 regardless of
+  // address type; treating them as i64 under memory64 would mis-type the stack.
   if (Address % sizeof(uint32_t) != 0) {
     spdlog::error(ErrCode::Value::UnalignedAtomicAccess);
     spdlog::error(
@@ -23,7 +25,7 @@ Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
-  uint64_t Count = extractAddr(RawCount, AddrType);
+  const uint32_t Count = RawCount.get<uint32_t>();
   EXPECTED_TRY(
       auto Total,
       atomicNotify(MemInst, Address, Count).map_error([&Instr](auto E) {
@@ -32,7 +34,7 @@ Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return E;
       }));
-  StackMgr.emplaceTop(emplaceAddr(Total, AddrType));
+  StackMgr.emplaceTop(static_cast<uint32_t>(Total));
   return {};
 }
 

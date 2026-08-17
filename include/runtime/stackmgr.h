@@ -15,8 +15,11 @@
 
 #include "ast/instruction.h"
 #include "common/types.h"
+#include "gc/allocator.h"
+#include "gc/controller.h"
 #include "runtime/instance/module.h"
 
+#include <cstring>
 #include <optional>
 #include <tuple>
 #include <type_traits>
@@ -94,23 +97,56 @@ public:
   /// Stack manager provides the stack control for Wasm execution with VALIDATED
   /// modules. All operations of instructions passed validation, therefore no
   /// unexpect operations will occur.
-  StackManager() noexcept {
+  explicit StackManager(GC::Controller &C) noexcept : Ctrl(C) {
     ValueStack.reserve(2048U);
     FrameStack.reserve(16U);
+    Reg = Ctrl.registerStack(ValueStack);
   }
-  ~StackManager() = default;
+  ~StackManager() noexcept = default; // Reg deregisters via RAII
+
+  // ValueStack is GC-registered by address (registerStack); a copy/move would
+  // leave the new stack unregistered (refs invisible -> premature reclaim) and
+  // make Reg's RAII deregistration target an unknown address.
+  StackManager(const StackManager &) = delete;
+  StackManager(StackManager &&) = delete;
+  StackManager &operator=(const StackManager &) = delete;
+  StackManager &operator=(StackManager &&) = delete;
 
   /// Getter for stack size.
   size_t size() const noexcept { return ValueStack.size(); }
 
-  /// Push a new value entry.
+  /// Push a new value entry. noexcept by policy: on a growth-path allocation
+  /// failure, abort rather than unwind -- the GC-registered stack must not be
+  /// left partially grown mid-collection.
+  ///
+  /// Unlike emplace(), copies Val verbatim without zeroing a numeric's high
+  /// word. The conservative GC reads every slot's high word as a candidate
+  /// pointer, so callers must pass a determinate high word (a ref's pointer, or
+  /// zero for numerics); push cannot sanitize as it cannot tell a ref pointer
+  /// from numeric bits. The numeric producers feeding this path (ValueFromType,
+  /// emplaceAddr, Instruction immediates, host param/return conv) zero-extend.
   template <typename T> void push(T &&Val) noexcept {
-    ValueStack.push_back(std::forward<T>(Val));
+    // Reallocating past capacity frees the buffer the collector's root scan may
+    // be iterating; lock only on that rare growth path (see lockStackRoots) --
+    // the common in-capacity push stays lock-free.
+    if (unlikely(ValueStack.size() == ValueStack.capacity())) {
+      auto Lock = Ctrl.lockStackRoots();
+      ValueStack.push_back(std::forward<T>(Val));
+    } else {
+      ValueStack.push_back(std::forward<T>(Val));
+    }
   }
 
   /// Pop and return the top entry.
   template <typename T> T pop() noexcept {
     assuming(!ValueStack.empty());
+    if constexpr (std::is_same_v<detail::remove_cvref_t<T>, RefVariant>) {
+      // A ref popped into a C++ local leaves the rooted stack; shade it so a
+      // concurrent collection keeps it alive until the caller is done (e.g. the
+      // struct.set/array.set destination ref used after this pop). Numeric pops
+      // carry no ref.
+      Ctrl.getAllocator().writeBarrier(ValueStack.back());
+    }
     Value V = std::move(ValueStack.back());
     ValueStack.pop_back();
     return get<T>(V);
@@ -149,8 +185,8 @@ public:
         popOrPeek<Is, sizeof...(ArgsT) - 1, ArgsT>()...};
   }
   /// Pop the top entries into a tuple but leave the last on the stack (peeked),
-  /// so the result can be written back in place. First template argument is the
-  /// topmost entry; the last is the peeked survivor.
+  /// keeping a ref-typed survivor rooted while shallower operands pop. First
+  /// template argument is the topmost entry; the last is the peeked survivor.
   template <typename T, typename... ArgsT>
   std::tuple<T, ArgsT...> popsPeekTop() noexcept {
     return popsPeekTopImpl<T, ArgsT...>(std::index_sequence_for<T, ArgsT...>{});
@@ -170,13 +206,23 @@ public:
 
   /// Push a span of values to the stack.
   void pushSpan(Span<const Value> ValSpan) noexcept {
-    ValueStack.insert(ValueStack.end(), ValSpan.begin(), ValSpan.end());
+    // See push(): hold the allocator's stack lock only when the insert grows
+    // past capacity and reallocates the buffer the collector may be scanning.
+    if (unlikely(ValueStack.size() + ValSpan.size() > ValueStack.capacity())) {
+      auto Lock = Ctrl.lockStackRoots();
+      ValueStack.insert(ValueStack.end(), ValSpan.begin(), ValSpan.end());
+    } else {
+      ValueStack.insert(ValueStack.end(), ValSpan.begin(), ValSpan.end());
+    }
   }
 
   /// Pop the top ValSpan.size() entries into ValSpan. ValSpan[0] receives the
   /// deepest (earliest-pushed) of the popped entries, ValSpan.back() the top.
   void popSpan(Span<Value> ValSpan) noexcept {
     assuming(ValSpan.size() <= ValueStack.size());
+    // The popped entries leave the rooted stack into the caller's buffer; shade
+    // them before the erase so an in-flight collection keeps them alive.
+    shadeStackRootsFrom(ValueStack.size() - ValSpan.size());
     const auto VSBegin =
         ValueStack.end() - static_cast<ptrdiff_t>(ValSpan.size());
     std::move(VSBegin, ValueStack.end(), ValSpan.begin());
@@ -184,9 +230,10 @@ public:
   }
 
   /// View of the top N entries while they remain on the stack. Used at the
-  /// host/compiled-function boundary to pass the arguments in place. The span
-  /// aliases the stack buffer and dangles after any growth (push/pushSpan
-  /// realloc); do not hold it across such operations.
+  /// host/compiled-function boundary to keep args on the GC-rooted stack for
+  /// the call: a detached buffer would unroot their refs while the callee runs.
+  /// The span aliases the stack buffer and dangles after any growth
+  /// (push/pushSpan realloc); do not hold it across such operations.
   Span<Value> getTopSpan(uint32_t N) noexcept {
     assuming(N <= ValueStack.size());
     return Span<Value>(ValueStack.end() - static_cast<ptrdiff_t>(N), N);
@@ -208,8 +255,12 @@ public:
       assuming(FrameStack.back().VPos >= FrameStack.back().Locals);
       assuming(FrameStack.back().VPos - FrameStack.back().Locals <=
                ValueStack.size() - LocalNum);
-      ValueStack.erase(ValueStack.begin() + FrameStack.back().VPos -
-                           FrameStack.back().Locals,
+      // Moving erase relocates the preserved Locals tail to lower slots; shade
+      // first so a concurrent root scan cannot miss a relocated ref (see
+      // shadeStackRootsFrom).
+      shadeStackRootsFrom(FrameStack.back().VPos - FrameStack.back().Locals);
+      ValueStack.erase(ValueStack.begin() +
+                           (FrameStack.back().VPos - FrameStack.back().Locals),
                        ValueStack.end() - LocalNum);
       FrameStack.back().Module = Module;
       FrameStack.back().Locals = LocalNum;
@@ -225,8 +276,11 @@ public:
     assuming(FrameStack.back().VPos >= FrameStack.back().Locals);
     assuming(FrameStack.back().VPos - FrameStack.back().Locals <=
              ValueStack.size() - FrameStack.back().Arity);
-    ValueStack.erase(ValueStack.begin() + FrameStack.back().VPos -
-                         FrameStack.back().Locals,
+    // Moving erase relocates the Arity result tail to lower slots; shade first
+    // (see shadeStackRootsFrom).
+    shadeStackRootsFrom(FrameStack.back().VPos - FrameStack.back().Locals);
+    ValueStack.erase(ValueStack.begin() +
+                         (FrameStack.back().VPos - FrameStack.back().Locals),
                      ValueStack.end() - FrameStack.back().Arity);
     auto From = FrameStack.back().From;
     FrameStack.pop_back();
@@ -259,6 +313,9 @@ public:
         auto TopHandler = std::move(Frame.HandlerStack.back());
         Frame.HandlerStack.pop_back();
         assuming(TopHandler.VPos <= ValueStack.size() - AssocValSize);
+        // Moving erase relocates the AssocValSize tail; shade first (see
+        // shadeStackRootsFrom).
+        shadeStackRootsFrom(TopHandler.VPos);
         ValueStack.erase(ValueStack.begin() + TopHandler.VPos,
                          ValueStack.end() - AssocValSize);
         return TopHandler;
@@ -293,6 +350,9 @@ public:
   /// Erase value stack.
   void eraseValueStack(uint32_t EraseBegin, uint32_t EraseEnd) noexcept {
     assuming(EraseEnd <= EraseBegin && EraseBegin <= ValueStack.size());
+    // Moving erase (EraseEnd > 0) relocates the preserved tail; shade first
+    // (see shadeStackRootsFrom).
+    shadeStackRootsFrom(ValueStack.size() - EraseBegin);
     ValueStack.erase(ValueStack.end() - EraseBegin,
                      ValueStack.end() - EraseEnd);
   }
@@ -332,6 +392,8 @@ private:
   /// @{
   std::vector<Value> ValueStack;
   std::vector<Frame> FrameStack;
+  GC::Controller &Ctrl;
+  GC::Controller::Registration Reg;
   /// @}
   template <typename T> static T get(const Value &V) noexcept {
     if constexpr (std::is_same_v<detail::remove_cvref_t<T>, Value>) {
@@ -345,7 +407,29 @@ private:
     if constexpr (std::is_same_v<U, Value>) {
       V = std::forward<T>(Val);
     } else {
+      if constexpr (sizeof(U) < sizeof(Value)) {
+        // Clear the slot before writing a value narrower than ValVariant: the
+        // conservative GC reads each slot's high word as a candidate pointer,
+        // so stale bits from a previously stored ref (e.g. a number written
+        // over a ref by local.set) would be a false root. ValVariant is
+        // trivially copyable, so zeroing raw storage first is well-defined.
+        std::memset(static_cast<void *>(&V), 0, sizeof(V));
+      }
       V.emplace<U>(std::forward<T>(Val));
+    }
+  }
+
+  // SATB shading for value-stack roots. Before an erase removes or relocates
+  // slots, shade the refs in [FromIdx, size) so an in-flight collection cannot
+  // miss them: a moving erase relocates live tail refs to lower slots without
+  // the stack-root lock, and a root scan that already passed a slot never
+  // revisits it. Marking gray up front means they survive regardless of the
+  // move. bulkWriteBarrier self-guards on collector state (one atomic load when
+  // idle).
+  void shadeStackRootsFrom(size_t FromIdx) noexcept {
+    if (FromIdx < ValueStack.size()) {
+      Ctrl.getAllocator().bulkWriteBarrier(Span<const Value>(
+          ValueStack.data() + FromIdx, ValueStack.size() - FromIdx));
     }
   }
 };

@@ -28,6 +28,15 @@ Executor::SavedThreadLocal::SavedThreadLocal(
   ExecutionContext.StopToken = &Ex.StopToken;
   ExecutionContext.PendingExnTagAddr =
       reinterpret_cast<void *const *>(&PendingExn.TagInst);
+  // Thread this compiled thread's stable shadow-root anchor into the ExecCtx so
+  // generated code can publish spilled managed refs. Rebound on every compiled
+  // entry; nullptr if the thread has no registered stack (codegen skips the
+  // push in that case).
+  ExecutionContext.ShadowHead = Ex.getController().currentShadowHead();
+  // Thread the controller's stop flag so generated code can poll it inline at
+  // loop back-edges and call kGCSafepoint to park when a collection is stopping
+  // the world. Stable for the controller's lifetime.
+  ExecutionContext.GCStopFlag = Ex.getController().stopFlagPtr();
   if (Ex.Stat) {
     ExecutionContext.InstrCount = &Ex.Stat->getInstrCountRef();
     ExecutionContext.CostTable = Ex.Stat->getCostTable().data();
@@ -51,6 +60,10 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
     const AST::InstrView::iterator RetIt, bool IsTailCall, bool IsNativeEntry,
     const Runtime::Instance::ModuleInstance *CallerModInst) {
   // RetIt: the return position when the entered function returns.
+
+  if (unlikely(getController().stopRequested())) {
+    getController().gcSafepoint();
+  }
 
   // Check whether interruption occurred.
   if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
@@ -114,10 +127,11 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
       Stat->startRecordHost();
     }
 
-    // Call pre-host-function
-    HostFuncHelper.invokePreHostFunc();
-
-    // Run host function.
+    // Keep args on the (GC-rooted) value stack, not a detached buffer, so
+    // managed refs survive a collection during the call. cleanNumericVal
+    // mutates value-stack slots and so must run as Running (before the native
+    // scope below): a coordinator scanning a NativeRunning thread's stacks in
+    // place must never race a stack write.
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     for (uint32_t I = 0; I < ArgsN; I++) {
       // For the number type cases of the arguments, the unused bits should be
@@ -125,10 +139,48 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
       cleanNumericVal(Args[I], FuncType.getParamTypes()[I]);
     }
     std::vector<ValVariant> Rets(RetsN);
-    auto Ret = HostFunc.run(CallFrame, std::move(Args), Rets);
-
-    // Call post-host-function
-    HostFuncHelper.invokePostHostFunc();
+    // Boundary roots: pin any managed reference the host produces into the
+    // detached Rets buffer as a host root BEFORE this call's native scope dtor
+    // may park at a re-entry safe point -- Rets is on no value stack, so a
+    // collection during that park would not otherwise see them. Released (RAII)
+    // after pushSpan transfers ownership to the GC-scanned value stack.
+    GC::BoundaryRoots RetRoots(getAllocator());
+    // Mark this thread NativeRunning for the duration of ALL
+    // externally-supplied callbacks -- the pre/post hooks as well as run(): a
+    // GC coordinator that starts a setup handshake while we are in native code
+    // must not wait for an ack we cannot deliver (native code reaches no safe
+    // point), and a blocking hook must not hang it; instead it scans our stable
+    // value stacks in place. The scope's dtor restores Running and performs a
+    // re-entry safe-point poll, so a handshake that began during the call is
+    // acknowledged before guest execution resumes. The surrounding stack
+    // mutations (cleanNumericVal above, pushSpan/popFrame below) stay outside
+    // as Running.
+    auto Ret = [&] {
+      GC::Controller::NativeScope Native(getController());
+      // Call pre-host-function
+      HostFuncHelper.invokePreHostFunc();
+      auto R = HostFunc.run(CallFrame, Args, Rets);
+      // Pin managed return refs while still NativeRunning and BEFORE the post
+      // hook. invokePostHostFunc() runs arbitrary user native code that may
+      // block or reenter the runtime, giving a concurrent collection a window
+      // in which a just-returned reference lives only in the unscanned Rets
+      // buffer (Rets is on no value stack, and this thread is NativeRunning, so
+      // the collector scans only its registered guest stacks). Rooting the
+      // returns first closes that window; the post hook and the scope dtor's
+      // re-entry safe point then both run with every managed return already
+      // published as a host root.
+      if (R) {
+        const auto &RTypes = FuncType.getReturnTypes();
+        for (uint32_t I = 0; I < RetsN; ++I) {
+          if (RTypes[I].isRefType()) {
+            RetRoots.pin(Rets[I].get<RefVariant>());
+          }
+        }
+      }
+      // Call post-host-function
+      HostFuncHelper.invokePostHostFunc();
+      return R;
+    }();
 
     // Do the statistics if the statistics turned on.
     if (Stat) {
@@ -157,6 +209,29 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
     // Compiled function case: Execute the function and jump to the
     // continuation.
 
+    // GC backstop: refuse native code that was not compiled with GC support
+    // while this executor runs a collector. Such code polls no safepoint (a
+    // stop-the-world would wait forever on it) and spills no shadow roots (a
+    // collection that did proceed would miss its live references). The
+    // instantiate gate normally deopts these modules to the interpreter, but it
+    // only sees modules THIS executor instantiated: registerModule and a direct
+    // Executor::invoke can both present function instances that a GC-off
+    // executor bound to compiled code. Refuse rather than deopt -- a compiled
+    // FunctionInstance carries no instruction body to fall back to. Checked
+    // before pushFrame so the refusal leaves the stack untouched.
+    if (unlikely(GCEnabled)) {
+      const auto *ModInst = Func.getModule();
+      if (unlikely(ModInst != nullptr && !ModInst->isGCCompiled())) {
+        spdlog::error(ErrCode::Value::IllegalGrammar);
+        spdlog::error(
+            "    Calling compiled function of a module built without "
+            "GC support while the GC proposal is enabled. Instantiate "
+            "the module with this executor, or use a configuration "
+            "matching the one it was compiled with.");
+        return Unexpect(ErrCode::Value::IllegalGrammar);
+      }
+    }
+
     // Push frame.
     StackMgr.pushFrame(Func.getModule(), // Module instance
                        RetIt,            // Return PC
@@ -166,7 +241,8 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
                        IsNativeEntry     // For native entry
     );
 
-    // Prepare arguments.
+    // Prepare arguments. Keep them on the (GC-rooted) value stack, not a
+    // detached buffer, so managed refs survive a collection during the call.
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
     SavedThreadLocal Saved(*this, StackMgr, Func);
@@ -175,8 +251,45 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
     try {
       // Get symbol and execute the function.
       Fault FaultHandler;
+      // Capture the entry's mutator state at this compiled boundary so the
+      // abnormal-fault recovery below can undo any NativeScope transition the
+      // longjmp skips (which would otherwise strand the entry in NativeRunning
+      // -- remotely scannable). Only meaningful when this thread holds a
+      // registered stack (else there is no entry). volatile: it is read after
+      // the setjmp returns non-zero.
+      volatile GC::Controller::MutatorState BoundaryState =
+          GC::Controller::MutatorState::Running;
+      // Arm signal-safe shadow-head truncation. On an abnormal fault the
+      // longjmp below skips generated code's shadow-frame pops; reset the head
+      // to its value at this boundary so no scanner walks an abandoned compiled
+      // frame. The head cell's Head is a lock-free atomic<pointer>,
+      // layout-compatible with atomic<void*>; pass it type-erased to keep the
+      // system/ layer free of a gc/ dependency. Null head (no registered shadow
+      // stack) leaves truncation disabled.
+      if (ExecutionContext.ShadowHead != nullptr) {
+        BoundaryState = getController().currentMutatorState();
+        auto *Cell = static_cast<GC::Controller::ShadowHead *>(
+            ExecutionContext.ShadowHead);
+        static_assert(
+            sizeof(std::atomic<void *>) ==
+                    sizeof(std::atomic<GC::Controller::ShadowFrame *>) &&
+                alignof(std::atomic<void *>) ==
+                    alignof(std::atomic<GC::Controller::ShadowFrame *>),
+            "atomic pointer layout must match for the type-erased head store");
+        FaultHandler.armShadowRestore(
+            reinterpret_cast<std::atomic<void *> *>(&Cell->Head),
+            Cell->Head.load(std::memory_order_relaxed));
+      }
       uint32_t Code = PREPARE_FAULT(FaultHandler);
       if (Code != 0) {
+        // Undo any NativeScope transition the longjmp skipped -- restore the
+        // entry to its boundary state (Running, unless this was a host->guest
+        // reentry) so it is not left stranded remotely-scannable. This runs in
+        // the normal post-longjmp context (locking/parking legal), distinct
+        // from the signal-safe head truncation done in emitFault.
+        if (ExecutionContext.ShadowHead != nullptr) {
+          getController().restoreStateAfterFault(BoundaryState);
+        }
         auto InnerStackTrace = FaultHandler.stacktrace();
         {
           std::array<void *, 256> Buffer;
@@ -232,7 +345,10 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
       auto &TagInst = *PendingExn.TagInst;
       const auto *ExnInst = PendingExn.Inst;
       StackMgr.pushSpan(PendingExn.getPayload());
-      PendingExn = {};
+      // Cleared only after the payload is back on the (rooted) value stack, so
+      // its managed refs are never simultaneously off the stack and off the aux
+      // roots.
+      PendingExn.clear(getController());
       EXPECTED_TRY(throwException(StackMgr, TagInst, ResumePC, ExnInst));
       return ResumePC + 1;
     }
@@ -381,11 +497,16 @@ Expect<void> Executor::throwException(
         // reuse the one passed in by throw_ref to preserve exnref identity.
         const Runtime::Instance::ExceptionInstance *Inst = ExnInst;
         if (Inst == nullptr) {
+          // Copy the top AssocValSize payload without removing it: catch_ref
+          // leaves the payload in place and pushes the exnref above it. Copying
+          // via getTopSpan (not pop-then-push) also keeps the managed refs
+          // rooted, with no window for a concurrent collection to miss them.
           auto Payload = StackMgr.getTopSpan(AssocValSize);
           std::vector<ValVariant> Vec(Payload.begin(), Payload.end());
           auto *ModInst = const_cast<Runtime::Instance::ModuleInstance *>(
               StackMgr.getModule());
-          Inst = ModInst->newException(&TagInst, std::move(Vec));
+          Inst =
+              ModInst->newException(getAllocator(), &TagInst, std::move(Vec));
         }
         if (C.IsAll) {
           StackMgr.eraseValueStack(AssocValSize, 0);
@@ -407,7 +528,10 @@ Expect<void> Executor::throwException(
     // as pending and restore the stack; the native caller continues it.
     PendingExn.TagInst = &TagInst;
     PendingExn.Inst = ExnInst;
-    PendingExn.setPayload(StackMgr.getTopSpan(AssocValSize));
+    // Copied while the payload is still on the rooted value stack, and rooted
+    // as this thread's aux roots from the moment it lands -- the erase below
+    // therefore never leaves the managed refs unrooted.
+    PendingExn.setPayload(getController(), StackMgr.getTopSpan(AssocValSize));
     // Push the dummy results for popping the frame, then drop them because
     // the escaping exception produces no results.
     const uint32_t Arity = StackMgr.getFramesSpan().back().Arity;

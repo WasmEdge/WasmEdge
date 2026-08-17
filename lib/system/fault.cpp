@@ -116,6 +116,19 @@ Fault::~Fault() noexcept {
 
 [[noreturn]] void Fault::emitFault(ErrCode Error) {
   assuming(localHandler != nullptr);
+  // Signal-safe shadow-root truncation. Before the longjmp abandons the
+  // compiled frames, reset the thread's shadow-root head to its value at the
+  // compiled-call boundary, so a concurrent collector never walks a ShadowFrame
+  // in the stack we are about to unwind. A lock-free atomic store is
+  // async-signal-safe; no lock is taken and nothing is allocated here.
+  static_assert(
+      std::atomic<void *>::is_always_lock_free,
+      "shadow-head truncation must be a lock-free (async-signal-safe) "
+      "atomic store");
+  if (localHandler->ShadowHeadCell != nullptr) {
+    localHandler->ShadowHeadCell->store(localHandler->ShadowHeadBoundary,
+                                        std::memory_order_release);
+  }
   auto Buffer = stackTrace(localHandler->StackTraceBuffer);
   localHandler->StackTraceSize = Buffer.size();
   longjmp(localHandler->Buffer, static_cast<int>(Error.operator uint32_t()));

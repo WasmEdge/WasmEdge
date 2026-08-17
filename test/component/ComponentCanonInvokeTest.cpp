@@ -12,6 +12,9 @@
 
 #include "vm/vm.h"
 
+#include "common/component_valtype.h"
+#include "common/component_variant.h"
+
 #include <gtest/gtest.h>
 
 #include <cmath>

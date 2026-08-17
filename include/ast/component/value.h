@@ -13,6 +13,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/component_valtype.h"
+#include "common/component_variant.h"
 #include "common/span.h"
 #include "common/types.h"
 

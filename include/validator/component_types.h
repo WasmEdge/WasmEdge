@@ -20,6 +20,7 @@
 #include "ast/component/sort.h"
 #include "ast/component/type.h"
 #include "ast/type.h"
+#include "common/component_valtype.h"
 #include "common/errcode.h"
 #include "common/span.h"
 
@@ -396,8 +397,7 @@ public:
   const TypeEntry *resolveQualType(const QualValType &Q,
                                    TypeEntry &Storage) noexcept;
   /// The primitive a valtype denotes through aliases; nullopt for composites.
-  std::optional<AST::Component::PrimValType>
-  resolvePrimValType(const QualValType &Q) noexcept;
+  std::optional<PrimValType> resolvePrimValType(const QualValType &Q) noexcept;
   /// Effective resource id behind an own/borrow handle index.
   std::optional<uint32_t> resolveResourceId(const Scope *Home,
                                             const ResourceMap *Remap,
@@ -568,8 +568,7 @@ private:
   // Instances match on exports only; components match imports contravariantly.
   bool matchInstanceShape(const Shape &Sub, const Shape &Sup) noexcept;
   bool matchComponentShape(const Shape &Sub, const Shape &Sup) noexcept;
-  bool matchPrimValType(AST::Component::PrimValType Sub,
-                        AST::Component::PrimValType Sup) noexcept;
+  bool matchPrimValType(PrimValType Sub, PrimValType Sup) noexcept;
   // Drop a leaf reason. A nested failure reports its position instead.
   void clearLeafFailCode() noexcept;
 

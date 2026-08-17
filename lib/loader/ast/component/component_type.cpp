@@ -3,6 +3,8 @@
 
 #include "loader/loader.h"
 
+#include "common/component_valtype.h"
+
 namespace WasmEdge {
 namespace Loader {
 
@@ -180,7 +182,7 @@ Expect<void> Loader::loadType(AST::Component::DefValType &Ty, uint8_t Code) {
   case ComponentTypeCode::Char:
   case ComponentTypeCode::String:
   case ComponentTypeCode::ErrContext:
-    Ty.setPrimValType(static_cast<AST::Component::PrimValType>(TC));
+    Ty.setPrimValType(static_cast<PrimValType>(TC));
     return {};
   case ComponentTypeCode::Record: {
     AST::Component::RecordTy RTy;

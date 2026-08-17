@@ -13,11 +13,13 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "runtime/instance/component/component.h"
 #include "runtime/instance/module.h"
 
+#include <map>
 #include <mutex>
 #include <shared_mutex>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace WasmEdge {
@@ -70,16 +72,6 @@ public:
         Name, [](const Instance::ModuleInstance *Found) { return Found; });
   }
 
-  /// Find component by name.
-  const Instance::ComponentInstance *
-  findComponent(std::string_view Name) const {
-    std::shared_lock Lock(Mutex);
-    if (auto Iter = NamedComp.find(Name); likely(Iter != NamedComp.cend())) {
-      return Iter->second;
-    }
-    return nullptr;
-  }
-
   /// Reset this store manager and unlink all the registered module instances.
   void reset() noexcept {
     std::unique_lock Lock(Mutex);
@@ -88,7 +80,6 @@ public:
           ->unlinkStore(this, Name);
     }
     NamedMod.clear();
-    NamedComp.clear();
   }
 
   /// Register a named module in this store.
@@ -131,17 +122,6 @@ public:
     return {};
   }
 
-  /// Register a named component in this store.
-  Expect<void> registerComponent(const Instance::ComponentInstance *CompInst) {
-    std::unique_lock Lock(Mutex);
-    auto Iter = NamedComp.find(CompInst->getComponentName());
-    if (likely(Iter != NamedComp.cend())) {
-      return Unexpect(ErrCode::Value::ModuleNameConflict);
-    }
-    NamedComp.emplace(CompInst->getComponentName(), CompInst);
-    return {};
-  }
-
 private:
   friend class Executor::Executor;
 
@@ -161,9 +141,6 @@ private:
 
   /// \name Module name mapping.
   std::map<std::string, const Instance::ModuleInstance *, std::less<>> NamedMod;
-  /// \name Component name mapping.
-  std::map<std::string, const Instance::ComponentInstance *, std::less<>>
-      NamedComp;
 
   /// \name Last instantiation failed module.
   /// According to the current spec, instances should remain referenceable even

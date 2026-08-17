@@ -14,6 +14,7 @@
 #pragma once
 
 #include "ast/type.h"
+#include "common/component_valtype.h"
 
 #include <variant>
 

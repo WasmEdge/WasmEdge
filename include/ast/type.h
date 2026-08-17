@@ -20,6 +20,7 @@
 #include "common/symbol.h"
 #include "common/types.h"
 
+#include <initializer_list>
 #include <optional>
 #include <vector>
 
@@ -103,6 +104,9 @@ public:
   FunctionType() noexcept = default;
   FunctionType(Span<const ValType> P, Span<const ValType> R) noexcept
       : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()) {}
+  FunctionType(std::initializer_list<ValType> P,
+               std::initializer_list<ValType> R) noexcept
+      : ParamTypes(P), ReturnTypes(R) {}
   FunctionType(Span<const ValType> P, Span<const ValType> R,
                Symbol<Executable::Wrapper> S) noexcept
       : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()),

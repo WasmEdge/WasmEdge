@@ -12,17 +12,19 @@ wasmedge_add_library(wasmedgeExecutor
   instantiate/export.cpp
   instantiate/tag.cpp
   instantiate/module.cpp
-  instantiate/component/component.cpp
-  instantiate/component/component_alias.cpp
-  instantiate/component/component_canon.cpp
-  instantiate/component/component_canon_abi.cpp
-  instantiate/component/component_lower_thunk.cpp
-  instantiate/component/component_export.cpp
-  instantiate/component/component_import.cpp
-  instantiate/component/component_instance.cpp
-  instantiate/component/component_module.cpp
-  instantiate/component/component_start.cpp
-  instantiate/component/component_type.cpp
+  component/component.cpp
+  component/component_executor.cpp
+  component/component_alias.cpp
+  component/component_canon.cpp
+  component/component_canon_abi.cpp
+  component/component_canon_lower.cpp
+  component/component_canon_resource.cpp
+  component/component_export.cpp
+  component/component_import.cpp
+  component/component_instance.cpp
+  component/component_module.cpp
+  component/component_start.cpp
+  component/component_type.cpp
   engine/proxy.cpp
   engine/controlInstr.cpp
   engine/tableInstr.cpp

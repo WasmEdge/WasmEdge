@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 #include "validator/component_context.h"
 
+#include "common/component_valtype.h"
 #include "common/errinfo.h"
 #include "common/spdlog.h"
 

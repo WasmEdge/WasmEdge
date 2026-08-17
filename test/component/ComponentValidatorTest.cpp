@@ -3,6 +3,8 @@
 
 #include "ast/component/component.h"
 #include "ast/component/type.h"
+#include "common/component_valtype.h"
+#include "common/component_variant.h"
 #include "validator/component_value_decode.h"
 #include "validator/validator.h"
 #include "vm/vm.h"

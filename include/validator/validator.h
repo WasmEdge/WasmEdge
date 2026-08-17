@@ -16,6 +16,7 @@
 
 #include "ast/component/component.h"
 #include "ast/module.h"
+#include "common/component_valtype.h"
 #include "common/configure.h"
 #include "validator/component_context.h"
 #include "validator/formchecker.h"

@@ -147,9 +147,7 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
     }
 
     // Push returns back to the stack.
-    for (auto &R : Rets) {
-      StackMgr.push(std::move(R));
-    }
+    StackMgr.pushSpan(Rets);
 
     // For host function case, the continuation will be the continuation from
     // the popped frame.
@@ -232,7 +230,7 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
       }
       auto &TagInst = *PendingExn.TagInst;
       const auto *ExnInst = PendingExn.Inst;
-      StackMgr.pushValVec(PendingExn.getPayload());
+      StackMgr.pushSpan(PendingExn.getPayload());
       PendingExn = {};
       EXPECTED_TRY(throwException(StackMgr, TagInst, ResumePC, ExnInst));
       return ResumePC + 1;

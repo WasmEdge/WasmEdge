@@ -22,21 +22,24 @@
 #include "common/errcode.h"
 #include "common/expected.h"
 #include "common/types.h"
+#include "runtime/component/canonopt.h"
+#include "runtime/hostfunc.h"
 #include "runtime/instance/component/component.h"
+#include "runtime/instance/component/function.h"
 #include "runtime/instance/function.h"
 #include "runtime/instance/memory.h"
 
 #include <cstdint>
+#include <functional>
 #include <optional>
 
 namespace WasmEdge {
 namespace Executor {
 
-// Forward declaration: store / lowerFlat invoke the guest `realloc` through
-// Executor::invoke when allocating list / string return areas. Pulling in
-// executor/executor.h here would form a header cycle, so the call is routed
-// through this forward-declared pointer instead.
-class Executor;
+// Forward-declared: including executor/executor.h here would cycle.
+class ComponentExecutor;
+
+namespace Component {
 
 namespace CanonicalABI {
 
@@ -44,136 +47,90 @@ namespace CanonicalABI {
 constexpr uint32_t MaxFlatParams = 16;
 constexpr uint32_t MaxFlatResults = 1;
 
-/// Context bundle for canonical-ABI operations. Not every helper requires every
-/// field — alignment / elem_size / flatten_* only need CompInst to resolve type
-/// indices; load / store / lift_flat / lower_flat additionally require Mem (and
-/// Realloc + Exec when allocating list / string return areas, since the
-/// allocation goes through Executor::invoke on the guest's `realloc` core
-/// function).
-struct CanonCtx {
-  Executor *Exec = nullptr;
-  Runtime::Instance::MemoryInstance *Mem = nullptr;
-  Runtime::Instance::FunctionInstance *Realloc = nullptr;
-  const Runtime::Instance::ComponentInstance *CompInst = nullptr;
-  /// Guest string encoding for the canon function this context serves
-  /// (CanonicalABI.md `string-encoding` option). Selects the byte layout used
-  /// by load / store / lift_flat / lower_flat for `string` values. Defaults to
-  /// UTF-8; type-only callers (alignment / flatten) never read it.
-  StringEncoding Enc = StringEncoding::UTF8;
+/// Context of one canonical-ABI operation: its options plus operation state.
+struct Context : Runtime::Component::CanonOptions {
+  ComponentExecutor *Exec = nullptr;
+  /// Type resolver for validator-time callers; wins over Inst.
+  std::function<const AST::Component::DefType *(uint32_t)> TypeResolver = {};
+  /// Resource-identity resolver, set with TypeResolver; wins over Inst.
+  std::function<const Runtime::Instance::Component::ResourceTypeInstance *(
+      uint32_t)>
+      ResourceResolver = {};
+  /// Records borrows lifted here so the caller can release the lends.
+  std::vector<std::pair<const Runtime::Instance::ComponentInstance *, uint32_t>>
+      *LiftedBorrows = nullptr;
 };
 
-/// Resolve a component type index against the component instance.
-inline const AST::Component::DefType *resolveDefType(const CanonCtx &Cx,
+/// Resolve a component type index through TypeResolver, else Inst.
+inline const AST::Component::DefType *resolveDefType(const Context &Cx,
                                                      uint32_t Idx) noexcept {
-  if (Cx.CompInst != nullptr) {
-    return Cx.CompInst->getType(Idx);
+  if (Cx.TypeResolver) {
+    return Cx.TypeResolver(Idx);
+  }
+  if (Cx.Inst != nullptr) {
+    return Cx.Inst->getType(Idx);
   }
   return nullptr;
 }
 
 /// Discriminant byte width for a variant / enum with NumCases cases.
-/// CanonicalABI.md L1951-1956 (`def discriminant_type`).
 uint32_t discriminantSize(uint32_t NumCases) noexcept;
 
-/// Alignment of a Component Model value type T (ptr_type = i32, deferred).
-/// CanonicalABI.md L1904-1985.
-Expect<uint32_t> alignment(const CanonCtx &Cx,
+/// Alignment of a Component Model value type T in linear memory.
+Expect<uint32_t> alignment(const Context &Cx,
                            const ComponentValType &T) noexcept;
 
-/// Alignment of a defined value type — internal recursion helper. Public so
-/// callers that already hold a DefValType (e.g., synthesized result tuple)
-/// can avoid the typeindex round-trip.
-/// CanonicalABI.md L1904-1985.
-Expect<uint32_t> alignmentDef(const CanonCtx &Cx,
+/// Alignment of a defined value type, skipping the typeindex round-trip.
+Expect<uint32_t> alignmentDef(const Context &Cx,
                               const AST::Component::DefValType &T) noexcept;
 
 /// Byte size of a Component Model value type T in linear memory.
-/// CanonicalABI.md L1990-2040.
-Expect<uint32_t> elemSize(const CanonCtx &Cx,
+Expect<uint32_t> elemSize(const Context &Cx,
                           const ComponentValType &T) noexcept;
 
 /// Byte size of a defined value type — internal recursion helper.
-/// CanonicalABI.md L1990-2040.
-Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
+Expect<uint32_t> elemSizeDef(const Context &Cx,
                              const AST::Component::DefValType &T) noexcept;
 
-/// Result of `flatten_functype`: sequences of core wasm types representing
-/// the ABI signature seen by core wasm. CanonicalABI.md L2813-2848.
-struct FlatFuncType {
-  std::vector<ValType> Params;
-  std::vector<ValType> Results;
-};
-
 /// Flatten a Component Model value type to its core wasm representation.
-/// CanonicalABI.md L2860-2877.
-Expect<std::vector<ValType>> flattenType(const CanonCtx &Cx,
+Expect<std::vector<ValType>> flattenType(const Context &Cx,
                                          const ComponentValType &T) noexcept;
 
 /// Flatten a defined value type — internal recursion helper.
-/// CanonicalABI.md L2860-2877.
 Expect<std::vector<ValType>>
-flattenTypeDef(const CanonCtx &Cx,
-               const AST::Component::DefValType &T) noexcept;
+flattenTypeDef(const Context &Cx, const AST::Component::DefValType &T) noexcept;
 
-/// Flatten a component function type into its core ABI signature. Sync only
-/// — async is rejected. CanonicalABI.md L2819-2832.
-///
-/// `IsLift = true` covers the `canon lift` direction (component-typed
-/// function exposed as core wasm callee); when results exceed
-/// MaxFlatResults the core function returns a single i32 return-area pointer.
-/// `IsLift = false` covers `canon lower` and synthesizes the trailing
-/// out-pointer parameter when results exceed MaxFlatResults.
-Expect<FlatFuncType> flattenFuncType(const CanonCtx &Cx,
-                                     const AST::Component::FuncType &FT,
-                                     bool IsLift) noexcept;
+/// Flatten a function type into its core ABI signature. Sync only.
+Expect<AST::FunctionType> flattenFuncType(const Context &Cx,
+                                          const AST::Component::FuncType &FT,
+                                          bool IsLift) noexcept;
 
-/// True iff `T` transitively contains a `list` or `string`. Used by the
-/// canon-options validation to enforce the spec's `lift(T)` / `lower(T)`
-/// requirements (CanonicalABI.md L3273-3277). Cycles through type indices
-/// are bounded by the recursion-guard set the caller passes in.
-bool containsListOrString(const CanonCtx &Cx,
-                          const ComponentValType &T) noexcept;
-
-/// Load a Component Model value of type T from linear memory at Ptr.
-/// CanonicalABI.md L2050-2289 (and L2305-2322 for own/borrow).
-///
-/// Cx must provide a MemoryInstance. Callers are responsible for
-/// alignment and bounds pre-checks at the top level (per spec
-/// `lift_flat_values` L3197-3199); load() itself relies on
-/// MemoryInstance::loadValue for per-primitive bounds checking and does
-/// not re-validate alignment.
-Expect<ComponentValVariant> load(const CanonCtx &Cx, uint32_t Ptr,
+/// Load a value of type T at Ptr; the caller pre-checks alignment and bounds.
+Expect<ComponentValVariant> load(const Context &Cx, uint32_t Ptr,
                                  const ComponentValType &T) noexcept;
 
 /// Load a defined value type — internal recursion helper.
 Expect<ComponentValVariant>
-loadDef(const CanonCtx &Cx, uint32_t Ptr,
+loadDef(const Context &Cx, uint32_t Ptr,
         const AST::Component::DefValType &T) noexcept;
 
 /// Store a Component Model value of type T into linear memory at Ptr.
-/// CanonicalABI.md L2360-2735.
-///
-/// String / variable-length list storage requires invoking realloc, which is
-/// not yet wired through this helper — those cases return
-/// ComponentNotImplInstantiate.
-Expect<void> store(const CanonCtx &Cx, const ComponentValVariant &V,
+Expect<void> store(const Context &Cx, const ComponentValVariant &V,
                    const ComponentValType &T, uint32_t Ptr) noexcept;
 
 /// Store a value into a defined value type — internal recursion helper.
-Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
+Expect<void> storeDef(const Context &Cx, const ComponentValVariant &V,
                       const AST::Component::DefValType &T,
                       uint32_t Ptr) noexcept;
 
-/// Iterator over a sequence of core wasm values backing a flat lift.
-/// Mirrors the spec's CoreValueIter (CanonicalABI.md L2928-2948).
+/// Iterator over core wasm values backing a flat lift (spec CoreValueIter).
 class FlatIter {
 public:
   FlatIter(Span<const std::pair<ValVariant, ValType>> Vs) noexcept
       : Pairs(Vs), Singles{} {}
   FlatIter(Span<const ValVariant> Vs) noexcept : Pairs{}, Singles(Vs) {}
 
-  /// Read the next core value as a ValVariant. Returns std::nullopt if the
-  /// iterator is exhausted.
+  /// Read the next core value, or std::nullopt when exhausted.
   std::optional<ValVariant> next() noexcept {
     if (!Pairs.empty()) {
       auto V = Pairs[Idx].first;
@@ -196,52 +153,103 @@ private:
   size_t Idx = 0;
 };
 
-/// Lift a flat representation of a Component Model value into the rich
-/// ComponentValVariant. CanonicalABI.md L2957-3084 (lift_flat). The
-/// CoerceValueIter (spec L3042-3072) handling for variant/option/result
-/// payloads is implemented; mismatched join slots reinterpret per L3047-3055.
-Expect<ComponentValVariant> liftFlat(const CanonCtx &Cx, FlatIter &VI,
+/// Lift a flat representation; mismatched variant join slots reinterpret.
+Expect<ComponentValVariant> liftFlat(const Context &Cx, FlatIter &VI,
                                      const ComponentValType &T) noexcept;
 
 /// Lift a defined value type from flat values — internal recursion helper.
 Expect<ComponentValVariant>
-liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
+liftFlatDef(const Context &Cx, FlatIter &VI,
             const AST::Component::DefValType &T) noexcept;
 
-/// Lower a ComponentValVariant to its flat representation, the symmetric
-/// inverse of `liftFlat`. CanonicalABI.md L3086-3192 (lower_flat).
-///
-/// String / variable-length list lowering allocates a payload buffer via
-/// `Cx.Realloc`; callers must populate Exec / Realloc on the CanonCtx.
-/// Variant/option/result payload coerce (spec L3158-3180) is implemented:
-/// the selected case's native flat slots are reinterpreted into the joined
-/// shape and the suffix is zero-padded.
-Expect<std::vector<ValVariant>> lowerFlat(const CanonCtx &Cx,
+/// Lower a ComponentValVariant to flat values, the inverse of liftFlat.
+Expect<std::vector<ValVariant>> lowerFlat(const Context &Cx,
                                           const ComponentValVariant &V,
                                           const ComponentValType &T) noexcept;
 
 /// Lower a defined value type to flat values — internal recursion helper.
 Expect<std::vector<ValVariant>>
-lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
+lowerFlatDef(const Context &Cx, const ComponentValVariant &V,
              const AST::Component::DefValType &T) noexcept;
 
-/// Spec L3193-3202 (`def lift_flat_values`). Reads MaxFlat-bounded flat values
-/// from VI; when the type list flattens to more than MaxFlat, reads a single
-/// pointer and loads the synthesized tuple from memory at that pointer.
+/// Lift a value sequence; past MaxFlat it loads a tuple through a pointer.
 Expect<std::vector<ComponentValVariant>>
-liftFlatValues(const CanonCtx &Cx, FlatIter &VI,
+liftFlatValues(const Context &Cx, FlatIter &VI,
                Span<const ComponentValType> Types, uint32_t MaxFlat) noexcept;
 
-/// Spec L3212-3232 (`def lower_flat_values`). Lowers Values into flat core
-/// wasm values. When OutParam is provided, the indirect-store buffer is the
-/// caller-supplied pointer (lower-direction returning to an out-pointer) and
-/// the returned vector is empty. When OutParam is std::nullopt, the indirect
-/// case allocates a buffer via realloc and returns a single i32 pointer.
+/// Lower a value sequence; the indirect case stores into OutParam.
 Expect<std::vector<ValVariant>>
-lowerFlatValues(const CanonCtx &Cx, Span<const ComponentValVariant> Values,
+lowerFlatValues(const Context &Cx, Span<const ComponentValVariant> Values,
                 Span<const ComponentValType> Types, uint32_t MaxFlat,
                 std::optional<uint32_t> OutParam = std::nullopt) noexcept;
 
 } // namespace CanonicalABI
+
+/// Synthesized core function of `canon lower`: lift, call, lower back.
+class CanonLowerHostFunc : public Runtime::HostFunctionBase {
+public:
+  /// FlatSig is the core signature exposed to callers and this func's type.
+  CanonLowerHostFunc(ComponentExecutor *Exec, AST::FunctionType FlatSig,
+                     Runtime::Instance::Component::FunctionInstance *Callee,
+                     const Runtime::Component::CanonOptions &Opts) noexcept;
+
+  Expect<void> run(const Runtime::CallingFrame &Frame,
+                   Span<const ValVariant> Args, Span<ValVariant> Rets) override;
+
+private:
+  ComponentExecutor *Exec;
+  Runtime::Instance::Component::FunctionInstance *Callee;
+  Runtime::Component::CanonOptions Opts;
+  // True if the signature carries a trailing out-pointer.
+  bool HasOutPtr;
+};
+
+/// canon resource.new $rt : [rep:i32] -> [i32]
+class CanonResourceNewHostFunc : public Runtime::HostFunctionBase {
+public:
+  CanonResourceNewHostFunc(
+      const Runtime::Instance::ComponentInstance *Inst,
+      const Runtime::Instance::Component::ResourceTypeInstance *RT) noexcept;
+
+  Expect<void> run(const Runtime::CallingFrame &Frame,
+                   Span<const ValVariant> Args, Span<ValVariant> Rets) override;
+
+private:
+  const Runtime::Instance::ComponentInstance *Inst;
+  const Runtime::Instance::Component::ResourceTypeInstance *RT;
+};
+
+/// canon resource.rep $rt : [i32] -> [rep:i32]
+class CanonResourceRepHostFunc : public Runtime::HostFunctionBase {
+public:
+  CanonResourceRepHostFunc(
+      const Runtime::Instance::ComponentInstance *Inst,
+      const Runtime::Instance::Component::ResourceTypeInstance *RT) noexcept;
+
+  Expect<void> run(const Runtime::CallingFrame &Frame,
+                   Span<const ValVariant> Args, Span<ValVariant> Rets) override;
+
+private:
+  const Runtime::Instance::ComponentInstance *Inst;
+  const Runtime::Instance::Component::ResourceTypeInstance *RT;
+};
+
+/// canon resource.drop $rt : [i32] -> []
+class CanonResourceDropHostFunc : public Runtime::HostFunctionBase {
+public:
+  CanonResourceDropHostFunc(
+      ComponentExecutor *Exec, const Runtime::Instance::ComponentInstance *Inst,
+      const Runtime::Instance::Component::ResourceTypeInstance *RT) noexcept;
+
+  Expect<void> run(const Runtime::CallingFrame &Frame,
+                   Span<const ValVariant> Args, Span<ValVariant> Rets) override;
+
+private:
+  ComponentExecutor *Exec;
+  const Runtime::Instance::ComponentInstance *Inst;
+  const Runtime::Instance::Component::ResourceTypeInstance *RT;
+};
+
+} // namespace Component
 } // namespace Executor
 } // namespace WasmEdge

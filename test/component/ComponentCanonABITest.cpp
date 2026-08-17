@@ -119,28 +119,28 @@ ASTComp::DefValType makeEnum(uint32_t N) {
 }
 
 uint32_t alignDef(const ASTComp::DefValType &D) {
-  CanonCtx Cx{};
+  Context Cx{};
   auto Res = alignmentDef(Cx, D);
   EXPECT_TRUE(Res.has_value()) << "alignmentDef returned an error";
   return Res.has_value() ? *Res : 0;
 }
 
 uint32_t alignVal(const ComponentValType &T) {
-  CanonCtx Cx{};
+  Context Cx{};
   auto Res = alignment(Cx, T);
   EXPECT_TRUE(Res.has_value()) << "alignment returned an error";
   return Res.has_value() ? *Res : 0;
 }
 
 uint32_t sizeDef(const ASTComp::DefValType &D) {
-  CanonCtx Cx{};
+  Context Cx{};
   auto Res = elemSizeDef(Cx, D);
   EXPECT_TRUE(Res.has_value()) << "elemSizeDef returned an error";
   return Res.has_value() ? *Res : 0;
 }
 
 uint32_t sizeVal(const ComponentValType &T) {
-  CanonCtx Cx{};
+  Context Cx{};
   auto Res = elemSize(Cx, T);
   EXPECT_TRUE(Res.has_value()) << "elemSize returned an error";
   return Res.has_value() ? *Res : 0;
@@ -275,7 +275,7 @@ TEST(ComponentCanonABI, AlignmentFixedLengthList) {
 
 TEST(ComponentCanonABI, AlignmentErrorContextRejected) {
   // Error-context is gated and must be rejected.
-  CanonCtx Cx{};
+  Context Cx{};
   auto Res = alignment(Cx, prim(ComponentTypeCode::ErrContext));
   ASSERT_FALSE(Res.has_value());
   EXPECT_EQ(Res.error(), ErrCode::Value::ComponentNotImplInstantiate);
@@ -385,7 +385,7 @@ TEST(ComponentCanonABI, ElemSizeFixedLengthList) {
 // =============================================================================
 
 std::vector<TypeCode> flattenCodes(const ComponentValType &T) {
-  CanonCtx Cx{};
+  Context Cx{};
   auto Res = flattenType(Cx, T);
   EXPECT_TRUE(Res.has_value());
   std::vector<TypeCode> Out;
@@ -398,7 +398,7 @@ std::vector<TypeCode> flattenCodes(const ComponentValType &T) {
 }
 
 std::vector<TypeCode> flattenCodesDef(const ASTComp::DefValType &D) {
-  CanonCtx Cx{};
+  Context Cx{};
   auto Res = flattenTypeDef(Cx, D);
   EXPECT_TRUE(Res.has_value());
   std::vector<TypeCode> Out;
@@ -543,7 +543,7 @@ makeFunc(std::vector<ComponentValType> Params,
 }
 
 TEST(ComponentCanonABI, FlattenFuncTypeDirect) {
-  CanonCtx Cx{};
+  Context Cx{};
   auto FT = makeFunc({prim(ComponentTypeCode::U32),
                       prim(ComponentTypeCode::U64)},
                      {prim(ComponentTypeCode::F32)});
@@ -559,7 +559,7 @@ TEST(ComponentCanonABI, FlattenFuncTypeDirect) {
 TEST(ComponentCanonABI, FlattenFuncTypeLiftIndirectResults) {
   // Two u32 results flatten to [i32, i32] — over MaxFlatResults (=1) — so
   // lift collapses to a single return-area pointer.
-  CanonCtx Cx{};
+  Context Cx{};
   auto FT =
       makeFunc({}, {prim(ComponentTypeCode::U32), prim(ComponentTypeCode::U32)});
   auto Res = flattenFuncType(Cx, FT, /*IsLift=*/true);
@@ -572,7 +572,7 @@ TEST(ComponentCanonABI, FlattenFuncTypeLiftIndirectResults) {
 TEST(ComponentCanonABI, FlattenFuncTypeLowerIndirectResultsAddsOutPtr) {
   // Lower side: results > MAX_FLAT_RESULTS (=1) collapses results=[] and
   // appends a trailing out-pointer to params (CanonicalABI.md L2829-2831).
-  CanonCtx Cx{};
+  Context Cx{};
   auto FT =
       makeFunc({}, {prim(ComponentTypeCode::U32), prim(ComponentTypeCode::U32)});
   auto Res = flattenFuncType(Cx, FT, /*IsLift=*/false);
@@ -584,7 +584,7 @@ TEST(ComponentCanonABI, FlattenFuncTypeLowerIndirectResultsAddsOutPtr) {
 
 TEST(ComponentCanonABI, FlattenFuncTypeLowerIndirectResultsAppendsToParams) {
   // Params + out-pointer combine on lower direction.
-  CanonCtx Cx{};
+  Context Cx{};
   auto FT = makeFunc({prim(ComponentTypeCode::U32), prim(ComponentTypeCode::U32)},
                      {prim(ComponentTypeCode::U32), prim(ComponentTypeCode::U32)});
   auto Res = flattenFuncType(Cx, FT, /*IsLift=*/false);
@@ -600,7 +600,7 @@ TEST(ComponentCanonABI, FlattenFuncTypeTooManyParamsCollapses) {
   // 17 u32 params flatten to 17×i32 — over MaxFlatParams (=16). Indirect-params
   // path collapses to a single i32 (CanonicalABI.md L2823-2824); applies to
   // both lift and lower.
-  CanonCtx Cx{};
+  Context Cx{};
   std::vector<ComponentValType> Ps(17, prim(ComponentTypeCode::U32));
   auto FT = makeFunc(std::move(Ps), {prim(ComponentTypeCode::U32)});
   auto Res = flattenFuncType(Cx, FT, /*IsLift=*/true);
@@ -613,7 +613,7 @@ TEST(ComponentCanonABI, FlattenFuncTypeTooManyParamsCollapses) {
 
 TEST(ComponentCanonABI, FlattenFuncTypeAsyncRejected) {
   // 🔀 async deferred.
-  CanonCtx Cx{};
+  Context Cx{};
   auto FT = makeFunc({}, {});
   FT.setAsync(true);
   auto Res = flattenFuncType(Cx, FT, /*IsLift=*/true);
@@ -642,7 +642,7 @@ protected:
 
   AST::MemoryType MemType;
   Runtime::Instance::MemoryInstance Mem;
-  CanonCtx Cx;
+  Context Cx;
 };
 
 TEST_F(CanonABIMemFixture, LoadPrimU32) {
@@ -864,7 +864,7 @@ TEST_F(CanonABIMemFixture, LoadListMisalignedTraps) {
 // =============================================================================
 
 template <typename T>
-void roundTripPrim(CanonCtx &Cx, ComponentTypeCode TC, T Expected,
+void roundTripPrim(Context &Cx, ComponentTypeCode TC, T Expected,
                    uint32_t Off) {
   auto Ty = prim(TC);
   EXPECT_TRUE(store(Cx, ComponentValVariant{Expected}, Ty, Off).has_value())
@@ -1188,7 +1188,7 @@ namespace {
 // the holds_alternative and equality of the resulting ComponentValVariant.
 // Only valid for primitive shapes that don't need realloc (no string/list).
 template <typename T>
-void roundTripPrim(const CanonCtx &Cx, const ComponentValType &CT,
+void roundTripPrim(const Context &Cx, const ComponentValType &CT,
                    const T &Original) {
   ComponentValVariant CV{Original};
   auto Lowered = lowerFlat(Cx, CV, CT);

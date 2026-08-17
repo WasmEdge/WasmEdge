@@ -4,6 +4,7 @@
 wasmedge_add_library(wasmedgeVM
   plugin_modules.cpp
   vm.cpp
+  component_vm.cpp
 )
 
 target_link_libraries(wasmedgeVM

@@ -4,6 +4,7 @@
 #include "executor/component/canonical_abi.h"
 
 #include "common/spdlog.h"
+#include "executor/component/executor.h"
 #include "executor/executor.h"
 
 #include <algorithm>
@@ -11,52 +12,143 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <unordered_set>
 #include <vector>
 
 namespace WasmEdge {
 namespace Executor {
+namespace Component {
 namespace CanonicalABI {
+
+namespace {
+using namespace std::literals;
+// Resolve the runtime resource identity for an own/borrow handle type.
+const Runtime::Instance::Component::ResourceTypeInstance *
+handleResource(const Context &Cx, uint32_t TypeIdx) noexcept {
+  if (Cx.ResourceResolver) {
+    return Cx.ResourceResolver(TypeIdx);
+  }
+  return Cx.Inst != nullptr ? Cx.Inst->getTypeResource(TypeIdx) : nullptr;
+}
+
+// Transferring ownership out of the instance removes the handle.
+Expect<uint32_t> liftOwnHandle(const Context &Cx, uint32_t TypeIdx,
+                               uint32_t Idx) noexcept {
+  const auto *RT = handleResource(Cx, TypeIdx);
+  if (Cx.Inst == nullptr || RT == nullptr) {
+    // No table context (unit ABI tests): pass the raw value through.
+    return Idx;
+  }
+  auto *Slot = Cx.Inst->handles().handleGet(Idx);
+  if (Slot == nullptr) {
+    spdlog::error(ErrCode::Value::ComponentHandleUnknown);
+    spdlog::error("    canonical ABI: unknown handle index {}"sv, Idx);
+    return Unexpect(ErrCode::Value::ComponentHandleUnknown);
+  }
+  if (Slot->RT != RT) {
+    spdlog::error(ErrCode::Value::ComponentHandleWrongType);
+    spdlog::error(
+        "    canonical ABI: handle index {} used with the wrong type"sv, Idx);
+    return Unexpect(ErrCode::Value::ComponentHandleWrongType);
+  }
+  if (!Slot->Own || Slot->Lends != 0) {
+    spdlog::error(ErrCode::Value::ComponentResourceBorrowed);
+    spdlog::error("    canonical ABI: own handle {} is lent or not owned"sv,
+                  Idx);
+    return Unexpect(ErrCode::Value::ComponentResourceBorrowed);
+  }
+  return Cx.Inst->handles().handleRemove(Idx)->Rep;
+}
+
+// lift_borrow: the handle stays; the rep travels for the call's duration.
+Expect<uint32_t> liftBorrowHandle(const Context &Cx, uint32_t TypeIdx,
+                                  uint32_t Idx) noexcept {
+  const auto *RT = handleResource(Cx, TypeIdx);
+  if (Cx.Inst == nullptr || RT == nullptr) {
+    return Idx;
+  }
+  // The owning instance passes representations directly for borrows.
+  if (RT->Impl == Cx.Inst) {
+    return Idx;
+  }
+  auto *Slot = Cx.Inst->handles().handleGet(Idx);
+  if (Slot == nullptr) {
+    spdlog::error(ErrCode::Value::ComponentHandleUnknown);
+    spdlog::error("    canonical ABI: unknown handle index {}"sv, Idx);
+    return Unexpect(ErrCode::Value::ComponentHandleUnknown);
+  }
+  if (Slot->RT != RT) {
+    spdlog::error(ErrCode::Value::ComponentHandleWrongType);
+    spdlog::error(
+        "    canonical ABI: handle index {} used with the wrong type"sv, Idx);
+    return Unexpect(ErrCode::Value::ComponentHandleWrongType);
+  }
+  // The borrow lends the handle for the duration of the call.
+  Slot->Lends += 1;
+  if (Cx.LiftedBorrows != nullptr) {
+    Cx.LiftedBorrows->emplace_back(Cx.Inst, Idx);
+  }
+  return Slot->Rep;
+}
+
+// Entering an instance inserts a table entry for the handle.
+uint32_t lowerHandle(const Context &Cx, uint32_t TypeIdx, uint32_t Rep,
+                     bool Own) noexcept {
+  const auto *RT = handleResource(Cx, TypeIdx);
+  if (Cx.Inst == nullptr || RT == nullptr) {
+    return Rep;
+  }
+  // Borrows lowered into the owning instance get the representation.
+  if (!Own && RT->Impl == Cx.Inst) {
+    return Rep;
+  }
+  return Cx.Inst->handles().handleAdd(RT, Rep, Own);
+}
+} // namespace
 
 using namespace std::literals;
 
 namespace {
 
-// Invoke the guest's `realloc` core function. Returns the freshly-allocated
-// address. Traps on invoke failure since a realloc shortage at this layer is
-// unrecoverable.
-Expect<uint32_t> callRealloc(const CanonCtx &Cx, uint32_t OldPtr,
+// Invoke the guest's realloc; a failed invoke traps.
+Expect<uint32_t> callRealloc(const Context &Cx, uint32_t OldPtr,
                              uint32_t OldSize, uint32_t Align,
                              uint32_t NewSize) noexcept {
-  assuming(Cx.Exec != nullptr);
-  assuming(Cx.Realloc != nullptr);
+  if (Cx.Exec == nullptr || Cx.Realloc == nullptr) {
+    spdlog::error(ErrCode::Value::ComponentTrap);
+    spdlog::error("    canonical ABI: realloc required but not provided"sv);
+    return Unexpect(ErrCode::Value::ComponentTrap);
+  }
   std::array<ValVariant, 4> Args{ValVariant(OldPtr), ValVariant(OldSize),
                                  ValVariant(Align), ValVariant(NewSize)};
   auto ParamTypes = Cx.Realloc->getFuncType().getParamTypes();
-  EXPECTED_TRY(auto Res, Cx.Exec->invoke(Cx.Realloc, Args, ParamTypes));
+  EXPECTED_TRY(auto Res, Cx.Exec->core().invoke(Cx.Realloc, Args, ParamTypes));
   if (Res.empty()) {
     spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
     spdlog::error("    canonical ABI: realloc returned no value"sv);
     return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
   }
   const uint32_t Ptr = Res[0].first.get<uint32_t>();
-  // Spec doesn't mandate this, but wasmtime treats realloc returning 0 for a
-  // non-empty allocation as OOM and traps. Without the check the runtime
-  // would silently write payload to address 0, which is usually a valid
-  // (and often live) wasm memory page.
+  // A realloc returning 0 for a non-empty allocation is OOM and traps.
   if (Ptr == 0u && NewSize > 0u) {
     spdlog::error(ErrCode::Value::ComponentTrap);
     spdlog::error("    canonical ABI: realloc returned 0 for size={}"sv,
                   NewSize);
     return Unexpect(ErrCode::Value::ComponentTrap);
   }
+  // Spec `trap_if(ptr + new_size > len(cx.opts.memory))`.
+  if (Cx.Mem != nullptr) {
+    const uint64_t End = uint64_t(Ptr) + uint64_t(NewSize);
+    if (End > uint64_t(Cx.Mem->getPageSize()) * 65536ULL) {
+      spdlog::error(ErrCode::Value::ComponentReallocOOB);
+      spdlog::error(
+          "    canonical ABI: realloc return: beyond end of memory"sv);
+      return Unexpect(ErrCode::Value::ComponentReallocOOB);
+    }
+  }
   return Ptr;
 }
 
-// CanonicalABI.md L1951-1956 (`def discriminant_type`):
-//   match math.ceil(math.log2(n)/8):
-//     case 0|1: U8;  case 2: U16;  case 3: U32
-// i.e. 1..256 → 1B, 257..65536 → 2B, else → 4B.
+// 1..256 cases give 1 byte, 257..65536 give 2, else 4.
 constexpr uint32_t kU8Cases = 256;
 constexpr uint32_t kU16Cases = 65536;
 
@@ -107,6 +199,54 @@ constexpr uint32_t nextPow2(uint32_t Bytes) noexcept {
 
 } // namespace
 
+namespace {
+// Host aggregates may carry labels; map them against the declared type.
+uint32_t resolveVariantCase(const VariantVal &V,
+                            const AST::Component::VariantTy &T) noexcept {
+  if (!V.Label.empty()) {
+    for (size_t I = 0; I < T.Cases.size(); ++I) {
+      if (T.Cases[I].first == V.Label) {
+        return static_cast<uint32_t>(I);
+      }
+    }
+  }
+  return V.Case;
+}
+
+uint32_t resolveEnumCase(const EnumVal &E,
+                         const AST::Component::EnumTy &T) noexcept {
+  if (!E.Label.empty()) {
+    for (size_t I = 0; I < T.Labels.size(); ++I) {
+      if (T.Labels[I] == E.Label) {
+        return static_cast<uint32_t>(I);
+      }
+    }
+  }
+  return E.Case;
+}
+
+uint64_t packFlags(const FlagsVal &F,
+                   const AST::Component::FlagsTy &T) noexcept {
+  uint64_t Packed = 0;
+  if (F.Bits.empty() && !F.SetLabels.empty()) {
+    for (const auto &Label : F.SetLabels) {
+      for (size_t I = 0; I < T.Labels.size(); ++I) {
+        if (T.Labels[I] == Label) {
+          Packed |= (1ull << I);
+        }
+      }
+    }
+    return Packed;
+  }
+  for (size_t I = 0; I < F.Bits.size(); ++I) {
+    if (F.Bits[I]) {
+      Packed |= (1ull << I);
+    }
+  }
+  return Packed;
+}
+} // namespace
+
 uint32_t discriminantSize(uint32_t NumCases) noexcept {
   // CanonicalABI.md L1951-1956.
   assuming(NumCases > 0);
@@ -119,7 +259,7 @@ uint32_t discriminantSize(uint32_t NumCases) noexcept {
   return 4u;
 }
 
-Expect<uint32_t> alignment(const CanonCtx &Cx,
+Expect<uint32_t> alignment(const Context &Cx,
                            const ComponentValType &T) noexcept {
   // CanonicalABI.md L1904.
   using TC = ComponentTypeCode;
@@ -137,13 +277,12 @@ Expect<uint32_t> alignment(const CanonCtx &Cx,
     return alignmentDef(Cx, DT->getDefValType());
   }
 
-  // PrimValType and ComponentTypeCode share byte values for the primitive
-  // range (Bool=0x7F .. ErrContext=0x64). Forward to alignmentPrim.
+  // PrimValType and ComponentTypeCode share byte values here.
   return alignmentPrim(
       static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
 }
 
-Expect<uint32_t> alignmentDef(const CanonCtx &Cx,
+Expect<uint32_t> alignmentDef(const Context &Cx,
                               const AST::Component::DefValType &T) noexcept {
   // CanonicalABI.md L1904 (top-level match on type kind).
   if (T.isPrimValType()) {
@@ -185,13 +324,13 @@ Expect<uint32_t> alignmentDef(const CanonCtx &Cx,
   }
 
   if (T.isOptionTy()) {
-    // option<T> is variant{none | some(T)} — 2 cases, disc=1B.
+    // option<T> is variant{none | some(T)}: 2 cases, disc 1B.
     EXPECTED_TRY(auto A, alignment(Cx, T.getOption().ValTy));
     return std::max(1u, A);
   }
 
   if (T.isResultTy()) {
-    // result<T,E> is variant{ok(T)? | err(E)?} — 2 cases, disc=1B.
+    // result<T,E> is variant{ok(T)? | err(E)?}: 2 cases, disc 1B.
     uint32_t Max = 1u;
     const auto &R = T.getResult();
     if (R.ValTy.has_value()) {
@@ -206,8 +345,7 @@ Expect<uint32_t> alignmentDef(const CanonCtx &Cx,
   }
 
   if (T.isListTy()) {
-    // alignment_list (L1927-1933): no-len → 4 (ptr/len pair);
-    //                              with-len → alignment(elem).
+    // no-len aligns to 4 for the ptr/len pair; with-len to the element.
     const auto &L = T.getList();
     if (L.Len.has_value()) {
       return alignment(Cx, L.ValTy);
@@ -281,10 +419,9 @@ Expect<uint32_t> elemSizePrim(AST::Component::PrimValType PVT) noexcept {
   }
 }
 
-// Maximum payload alignment across a variant's cases (`max_case_alignment`,
-// CanonicalABI.md L1960-1969). 1 if no case has a payload.
+// Maximum payload alignment across a variant's cases, 1 if none.
 Expect<uint32_t> maxCaseAlignment(
-    const CanonCtx &Cx,
+    const Context &Cx,
     const std::vector<std::pair<std::string, std::optional<ComponentValType>>>
         &Cases) noexcept {
   uint32_t M = 1u;
@@ -299,7 +436,7 @@ Expect<uint32_t> maxCaseAlignment(
 
 } // namespace
 
-Expect<uint32_t> elemSize(const CanonCtx &Cx,
+Expect<uint32_t> elemSize(const Context &Cx,
                           const ComponentValType &T) noexcept {
   // CanonicalABI.md L1990.
   using TC = ComponentTypeCode;
@@ -321,15 +458,13 @@ Expect<uint32_t> elemSize(const CanonCtx &Cx,
       static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
 }
 
-Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
+Expect<uint32_t> elemSizeDef(const Context &Cx,
                              const AST::Component::DefValType &T) noexcept {
   if (T.isPrimValType()) {
     return elemSizePrim(T.getPrimValType());
   }
 
-  // For records/tuples the aggregate alignment is the max of field alignments,
-  // and elem_size_record (L2014-2024) tells us to align the trailing size to
-  // it. We track Max in-loop instead of re-walking via alignmentDef.
+  // Track the max field alignment in-loop instead of re-walking.
   if (T.isRecordTy()) {
     uint32_t Off = 0u;
     uint32_t Max = 1u;
@@ -357,8 +492,7 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
   }
 
   if (T.isVariantTy()) {
-    // elem_size_variant (L2025-2033). Variant alignment = max(disc, payload
-    // alignments); compute payload max-align and max-size in a single pass.
+    // Variant alignment is max(disc, payloads); one pass gives both.
     const auto &V = T.getVariant();
     const uint32_t NumCases = static_cast<uint32_t>(V.Cases.size());
     const uint32_t Disc = discriminantSize(NumCases);
@@ -377,7 +511,7 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
   }
 
   if (T.isOptionTy()) {
-    // option<T> = variant{none | some(T)} — disc 1B, single payload case.
+    // option<T> = variant{none | some(T)}: disc 1B, one payload case.
     EXPECTED_TRY(auto A, alignment(Cx, T.getOption().ValTy));
     EXPECTED_TRY(auto PS, elemSize(Cx, T.getOption().ValTy));
     const uint32_t Aggr = std::max(1u, A);
@@ -385,7 +519,7 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
   }
 
   if (T.isResultTy()) {
-    // result<T,E> = variant{ok(T)? | err(E)?} — disc 1B.
+    // result<T,E> = variant{ok(T)? | err(E)?}: disc 1B.
     const auto &R = T.getResult();
     uint32_t MaxAlign = 1u;
     uint32_t MaxSize = 0u;
@@ -406,8 +540,7 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
   }
 
   if (T.isListTy()) {
-    // elem_size_list (L2009-2013): no-len → 8 (ptr + len);
-    //                              with-len → len * elem_size(elem).
+    // no-len is 8 for ptr + len; with-len is len * elem_size(elem).
     const auto &L = T.getList();
     if (L.Len.has_value()) {
       EXPECTED_TRY(auto ElemSz, elemSize(Cx, L.ValTy));
@@ -418,8 +551,7 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
   }
 
   if (T.isFlagsTy()) {
-    // elem_size_flags (L2035-2040): ceil(|labels|/8) aligned to
-    // alignment_flags.
+    // Flags size is ceil(|labels|/8) aligned to the flags alignment.
     const auto &F = T.getFlags();
     const uint32_t Labels = static_cast<uint32_t>(F.Labels.size());
     const uint32_t Bytes = (Labels + 7u) / 8u;
@@ -501,7 +633,7 @@ ValType joinFlat(ValType A, ValType B) noexcept {
 
 } // namespace
 
-Expect<std::vector<ValType>> flattenType(const CanonCtx &Cx,
+Expect<std::vector<ValType>> flattenType(const Context &Cx,
                                          const ComponentValType &T) noexcept {
   using TC = ComponentTypeCode;
   const TC Code = T.getCode();
@@ -523,7 +655,7 @@ Expect<std::vector<ValType>> flattenType(const CanonCtx &Cx,
 }
 
 Expect<std::vector<ValType>>
-flattenTypeDef(const CanonCtx &Cx,
+flattenTypeDef(const Context &Cx,
                const AST::Component::DefValType &T) noexcept {
   if (T.isPrimValType()) {
     return flattenTypePrim(T.getPrimValType());
@@ -549,8 +681,7 @@ flattenTypeDef(const CanonCtx &Cx,
   }
 
   if (T.isVariantTy()) {
-    // flatten_variant (L2906-2915):
-    //   payloads are joined element-wise; result is [disc] ++ joined.
+    // Payloads join element-wise; the result is [disc] ++ joined.
     const auto &V = T.getVariant();
     std::vector<ValType> Flat;
     for (const auto &C : V.Cases) {
@@ -606,8 +737,7 @@ flattenTypeDef(const CanonCtx &Cx,
   }
 
   if (T.isListTy()) {
-    // flatten_list (L2882-2885): no-len → [i32, i32] (ptr, len);
-    //                            with-len → flatten(elem) repeated len times.
+    // no-len gives [ptr, len]; with-len repeats the element flattening.
     const auto &L = T.getList();
     if (L.Len.has_value()) {
       EXPECTED_TRY(auto Sub, flattenType(Cx, L.ValTy));
@@ -639,9 +769,9 @@ flattenTypeDef(const CanonCtx &Cx,
   return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
 }
 
-Expect<FlatFuncType> flattenFuncType(const CanonCtx &Cx,
-                                     const AST::Component::FuncType &FT,
-                                     bool IsLift) noexcept {
+Expect<AST::FunctionType> flattenFuncType(const Context &Cx,
+                                          const AST::Component::FuncType &FT,
+                                          bool IsLift) noexcept {
   // CanonicalABI.md L2819-2832 (sync branch only).
   if (FT.isAsync()) {
     spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
@@ -649,40 +779,38 @@ Expect<FlatFuncType> flattenFuncType(const CanonCtx &Cx,
     return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
   }
 
-  FlatFuncType F;
+  AST::FunctionType F;
+  auto &Params = F.getParamTypes();
+  auto &Results = F.getReturnTypes();
 
   // Flatten params (L2820).
   for (const auto &P : FT.getParamList()) {
     EXPECTED_TRY(auto Sub, flattenType(Cx, P.getValType()));
-    F.Params.insert(F.Params.end(), Sub.begin(), Sub.end());
+    Params.insert(Params.end(), Sub.begin(), Sub.end());
   }
 
   // Flatten results.
   for (const auto &R : FT.getResultList()) {
     EXPECTED_TRY(auto Sub, flattenType(Cx, R.getValType()));
-    F.Results.insert(F.Results.end(), Sub.begin(), Sub.end());
+    Results.insert(Results.end(), Sub.begin(), Sub.end());
   }
 
-  // Params over the cap → indirect-param path (spec L2823-2824 for lift;
-  // L2829-2830 for lower). Both directions collapse to a single ptr_type.
-  if (F.Params.size() > MaxFlatParams) {
-    F.Params.clear();
-    F.Params.push_back(I32T);
+  // Params over the cap collapse to a single pointer in both directions.
+  if (Params.size() > MaxFlatParams) {
+    Params.clear();
+    Params.push_back(I32T);
   }
 
   // Results over the cap.
-  if (F.Results.size() > MaxFlatResults) {
+  if (Results.size() > MaxFlatResults) {
     if (IsLift) {
-      // Spec L2826-2828: results = [ptr_type()]; core function returns a
-      // single i32 pointer to the return area.
-      F.Results.clear();
-      F.Results.push_back(I32T);
+      // On lift the core function returns one pointer to the return area.
+      Results.clear();
+      Results.push_back(I32T);
     } else {
-      // Spec L2829-2831: params += [ptr_type()]; results = []. The trailing
-      // i32 is the caller-provided out-pointer where the lowered tuple is
-      // written; the thunk reads it from the end of the argument list.
-      F.Params.push_back(I32T);
-      F.Results.clear();
+      // The trailing pointer is the caller's out-pointer for the lowered tuple.
+      Params.push_back(I32T);
+      Results.clear();
     }
   }
 
@@ -691,104 +819,10 @@ Expect<FlatFuncType> flattenFuncType(const CanonCtx &Cx,
 
 namespace {
 
-// Inner recursion for `containsListOrString`. The `Seen` set guards against
-// cycles in mutually recursive type-index references.
-bool containsListOrStringDef(const CanonCtx &Cx,
-                             const AST::Component::DefValType &T,
-                             std::unordered_set<uint32_t> &Seen) noexcept;
-bool containsListOrStringImpl(const CanonCtx &Cx, const ComponentValType &T,
-                              std::unordered_set<uint32_t> &Seen) noexcept {
-  using TC = ComponentTypeCode;
-  if (T.getCode() == TC::String) {
-    return true;
-  }
-  if (T.getCode() != TC::TypeIndex) {
-    return false;
-  }
-  const uint32_t Idx = T.getTypeIndex();
-  if (!Seen.insert(Idx).second) {
-    return false;
-  }
-  const auto *DT = resolveDefType(Cx, Idx);
-  if (DT == nullptr || !DT->isDefValType()) {
-    return false;
-  }
-  return containsListOrStringDef(Cx, DT->getDefValType(), Seen);
-}
-bool containsListOrStringDef(const CanonCtx &Cx,
-                             const AST::Component::DefValType &T,
-                             std::unordered_set<uint32_t> &Seen) noexcept {
-  if (T.isPrimValType()) {
-    return T.getPrimValType() == AST::Component::PrimValType::String;
-  }
-  if (T.isListTy()) {
-    return true;
-  }
-  if (T.isRecordTy()) {
-    for (const auto &F : T.getRecord().LabelTypes) {
-      if (containsListOrStringImpl(Cx, F.getValType(), Seen)) {
-        return true;
-      }
-    }
-    return false;
-  }
-  if (T.isTupleTy()) {
-    for (const auto &Ty : T.getTuple().Types) {
-      if (containsListOrStringImpl(Cx, Ty, Seen)) {
-        return true;
-      }
-    }
-    return false;
-  }
-  if (T.isVariantTy()) {
-    for (const auto &C : T.getVariant().Cases) {
-      if (C.second.has_value() &&
-          containsListOrStringImpl(Cx, *C.second, Seen)) {
-        return true;
-      }
-    }
-    return false;
-  }
-  if (T.isOptionTy()) {
-    return containsListOrStringImpl(Cx, T.getOption().ValTy, Seen);
-  }
-  if (T.isResultTy()) {
-    const auto &R = T.getResult();
-    if (R.ValTy.has_value() && containsListOrStringImpl(Cx, *R.ValTy, Seen)) {
-      return true;
-    }
-    if (R.ErrTy.has_value() && containsListOrStringImpl(Cx, *R.ErrTy, Seen)) {
-      return true;
-    }
-    return false;
-  }
-  // flags / enum / own / borrow / stream / future contain neither list nor
-  // string by construction.
-  return false;
-}
-
-} // namespace
-
-bool containsListOrString(const CanonCtx &Cx,
-                          const ComponentValType &T) noexcept {
-  std::unordered_set<uint32_t> Seen;
-  return containsListOrStringImpl(Cx, T, Seen);
-}
-
-namespace {
-
-// CanonicalABI.md L2172, L2223 (MAX_STRING_BYTE_LENGTH ==
-// MAX_LIST_BYTE_LENGTH).
+// MAX_STRING_BYTE_LENGTH equals MAX_LIST_BYTE_LENGTH.
 constexpr uint32_t kMaxCanonByteLength = (1u << 28) - 1u;
 
-// CanonicalABI.md (definitions.py L1348-1367) NaN canonicalization. WasmEdge
-// follows the DETERMINISTIC_PROFILE: every NaN crossing the canonical ABI — in
-// either direction, via flat values or linear memory — collapses to the
-// canonical quiet-NaN bit pattern instead of the non-deterministic profile's
-// random scrambling, keeping float values reproducible across the boundary.
-// The four primitive conversions (load / store / lift_flat / lower_flat) funnel
-// through these, so floats nested in records / tuples / variants / lists are
-// covered transitively.
+// Every NaN crossing the ABI collapses to the canonical quiet-NaN.
 constexpr uint32_t kCanonicalF32NaNBits = 0x7fc00000u;
 constexpr uint64_t kCanonicalF64NaNBits = 0x7ff8000000000000ull;
 
@@ -810,10 +844,7 @@ double canonicalizeNaN64(double F) noexcept {
   return F;
 }
 
-// Wraps MemoryInstance::loadValue<T,N> with a runtime byte width. The
-// template-arg comma must stay out of EXPECTED_TRY's macro expansion, which is
-// why this dispatcher exists instead of inlining loadValue at each call site.
-// CanonicalABI.md L2081-2083 (`load_int`).
+// loadValue<T,N> with a runtime width, kept out of EXPECTED_TRY.
 template <typename T>
 Expect<void> loadN(Runtime::Instance::MemoryInstance &Mem, uint32_t Bytes,
                    T &Val, uint64_t Off) noexcept {
@@ -848,7 +879,7 @@ Expect<void> storeN(Runtime::Instance::MemoryInstance &Mem, uint32_t Bytes,
   }
 }
 
-// Helper: trap with a diagnostic that includes the spec-relevant facts.
+// Trap with a diagnostic naming the offending region.
 [[nodiscard]] Expect<void> trapMemoryOOB(const std::string_view What,
                                          uint32_t Ptr, uint32_t Len) noexcept {
   spdlog::error(ErrCode::Value::MemoryOutOfBounds);
@@ -858,42 +889,36 @@ Expect<void> storeN(Runtime::Instance::MemoryInstance &Mem, uint32_t Bytes,
 }
 
 [[nodiscard]] Expect<void>
-trapDataInvalid(const std::string_view Msg) noexcept {
-  spdlog::error(ErrCode::Value::ComponentTrap);
+trapDataInvalid(const std::string_view Msg,
+                ErrCode::Value Code = ErrCode::Value::ComponentTrap) noexcept {
+  spdlog::error(Code);
   spdlog::error("    canonical ABI: {}"sv, Msg);
-  return Unexpect(ErrCode::Value::ComponentTrap);
+  return Unexpect(Code);
 }
 
-// convert_i32_to_char (CanonicalABI.md L2135-2139): trap on >0x10FFFF or
-// UTF-16 surrogate. Used on load/lift paths where the value originates from
-// guest memory or guest-supplied flat values.
+// Trap on >0x10FFFF or a UTF-16 surrogate coming from the guest.
 [[nodiscard]] Expect<void> validateUSV(uint32_t I) noexcept {
   if (I >= 0x110000u) {
-    return trapDataInvalid("char code point out of range");
+    return trapDataInvalid(
+        "invalid `char` bit pattern: code point out of range",
+        ErrCode::Value::ComponentCharInvalid);
   }
   if (I >= 0xD800u && I <= 0xDFFFu) {
-    return trapDataInvalid("char is a UTF-16 surrogate");
+    return trapDataInvalid("invalid `char` bit pattern: surrogate",
+                           ErrCode::Value::ComponentCharInvalid);
   }
   return {};
 }
 
-// Used on store/lower paths where the char originates from a host-constructed
-// ComponentValVariant — a malformed value here is a host-side bug, mirroring
-// the spec's implicit assert on the producer side.
+// The char comes from a host value, so a malformed one is a host bug.
 void assumeValidUSV(uint32_t I) noexcept {
   assuming(I < 0x110000u && (I < 0xD800u || I > 0xDFFFu));
 }
 
 // ---- String transcoding (CanonicalABI.md `string-encoding` option) ----------
-// The host represents component strings as a UTF-8 std::string. decodeString
-// converts the guest's on-the-wire bytes (in Cx.Enc) into that UTF-8 form (lift
-// / load); encodeString does the reverse, allocating the guest buffer via
-// realloc (lower / store). Only the host<->guest direction is transcoded; the
-// host side is canonically UTF-8, which collapses the spec's full src/dst
-// encoding matrix (store_string_into_range, L1592-1709) to the src='utf8' rows.
+// The host holds component strings as UTF-8; Cx.Enc is the guest form.
 
-// utf16_tag for an i32 ptr_type (CanonicalABI.md L1388): high bit of the
-// length.
+// The utf16 tag for an i32 pointer is the high bit of the length.
 constexpr uint32_t kUtf16Tag = 0x80000000u;
 
 // Append a Unicode scalar value as UTF-8. Caller guarantees a valid USV.
@@ -915,10 +940,7 @@ void appendUtf8(std::string &Out, uint32_t CP) noexcept {
   }
 }
 
-// Decode one UTF-8 scalar starting at S[I], advancing I past it. Validates the
-// sequence (bad lead/continuation byte, truncation, overlong form, surrogate,
-// out-of-range) and traps on any malformed input. The single source of truth
-// for UTF-8 decoding shared by validateUtf8 and utf8ToCodePoints.
+// Decode one UTF-8 scalar at S[I], advancing I; traps if malformed.
 Expect<uint32_t> decodeUtf8Scalar(std::string_view S, size_t &I) noexcept {
   const size_t N = S.size();
   const uint8_t B0 = static_cast<uint8_t>(S[I]);
@@ -942,28 +964,30 @@ Expect<uint32_t> decodeUtf8Scalar(std::string_view S, size_t &I) noexcept {
     Len = 4;
     Min = 0x10000u;
   } else {
-    EXPECTED_TRY(trapDataInvalid("invalid UTF-8 lead byte"));
+    EXPECTED_TRY(trapDataInvalid("invalid UTF-8 lead byte",
+                                 ErrCode::Value::ComponentUTF8Invalid));
   }
   if (I + Len > N) {
-    EXPECTED_TRY(trapDataInvalid("truncated UTF-8 sequence"));
+    EXPECTED_TRY(trapDataInvalid("truncated UTF-8 sequence",
+                                 ErrCode::Value::ComponentUTF8Incomplete));
   }
   for (size_t K = 1; K < Len; ++K) {
     const uint8_t B = static_cast<uint8_t>(S[I + K]);
     if ((B & 0xC0u) != 0x80u) {
-      EXPECTED_TRY(trapDataInvalid("invalid UTF-8 continuation byte"));
+      EXPECTED_TRY(trapDataInvalid("invalid UTF-8 continuation byte",
+                                   ErrCode::Value::ComponentUTF8Invalid));
     }
     CP = (CP << 6) | (B & 0x3Fu);
   }
   if (CP < Min || CP > 0x10FFFFu || (CP >= 0xD800u && CP <= 0xDFFFu)) {
-    EXPECTED_TRY(trapDataInvalid("invalid UTF-8 scalar value"));
+    EXPECTED_TRY(trapDataInvalid("invalid UTF-8 scalar value",
+                                 ErrCode::Value::ComponentUTF8Invalid));
   }
   I += Len;
   return CP;
 }
 
-// Validate that S is well-formed UTF-8, trapping otherwise. Allocates nothing —
-// used by the lift/load path, which only needs to reject malformed guest bytes
-// before handing the raw view to the host.
+// Validate S as UTF-8 without allocating, so the raw view can travel.
 Expect<void> validateUtf8(std::string_view S) noexcept {
   for (size_t I = 0; I < S.size();) {
     EXPECTED_TRY(auto CP, decodeUtf8Scalar(S, I));
@@ -972,8 +996,7 @@ Expect<void> validateUtf8(std::string_view S) noexcept {
   return {};
 }
 
-// Decode a UTF-8 host string into Unicode scalar values, validating as we go.
-// Used by the encode side where the source is the host's UTF-8 std::string.
+// Decode a UTF-8 host string into scalar values, validating as we go.
 Expect<std::vector<uint32_t>> utf8ToCodePoints(std::string_view S) noexcept {
   std::vector<uint32_t> CPs;
   for (size_t I = 0; I < S.size();) {
@@ -987,9 +1010,7 @@ Expect<std::vector<uint32_t>> utf8ToCodePoints(std::string_view S) noexcept {
 Expect<std::string> utf16leToUtf8(Span<const Byte> Bytes) noexcept {
   std::string Out;
   const size_t N = Bytes.size();
-  // Each UTF-16 code unit expands to at most 3 UTF-8 bytes (a surrogate pair is
-  // two units → one 4-byte scalar, still ≤ 3 bytes/unit), so this never
-  // under-reserves and avoids reallocation while appending.
+  // A UTF-16 code unit is at most 3 UTF-8 bytes, so this fits.
   Out.reserve(N / 2 * 3);
   for (size_t I = 0; I + 1 < N; I += 2) {
     uint32_t U =
@@ -1036,9 +1057,8 @@ codePointsToUtf16le(const std::vector<uint32_t> &CPs) noexcept {
   return Out;
 }
 
-// load_string_from_range (CanonicalABI.md L1395-1423): decode tagged_code_units
-// of guest bytes at Begin into the host UTF-8 string.
-Expect<std::string> decodeString(const CanonCtx &Cx, uint32_t Begin,
+// Decode tagged_code_units of guest bytes at Begin into UTF-8.
+Expect<std::string> decodeString(const Context &Cx, uint32_t Begin,
                                  uint32_t TaggedCodeUnits) noexcept {
   enum class WireEnc { Utf8, Utf16, Latin1 } W = WireEnc::Utf8;
   uint32_t Alignment = 1;
@@ -1070,17 +1090,20 @@ Expect<std::string> decodeString(const CanonCtx &Cx, uint32_t Begin,
   }
   const uint32_t ByteLen = static_cast<uint32_t>(ByteLen64);
   if (Begin != alignTo(Begin, Alignment)) {
-    EXPECTED_TRY(trapDataInvalid("string pointer misaligned"));
+    EXPECTED_TRY(trapDataInvalid("unaligned pointer for string",
+                                 ErrCode::Value::ComponentPtrUnaligned));
   }
   if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
-    EXPECTED_TRY(trapMemoryOOB("string payload", Begin, ByteLen));
+    spdlog::error(ErrCode::Value::ComponentStrOOB);
+    spdlog::error(
+        "    canonical ABI: string content out-of-bounds at 0x{:x} len={}"sv,
+        Begin, ByteLen);
+    return Unexpect(ErrCode::Value::ComponentStrOOB);
   }
   auto SV = Cx.Mem->getStringView(Begin, ByteLen);
   switch (W) {
   case WireEnc::Utf8: {
-    // load_string utf8 (L1418-1421): the spec decodes as UTF-8 and traps on
-    // malformed input, so validate before handing the bytes to the host (which
-    // treats component strings as well-formed UTF-8).
+    // Validate before handing bytes to the host, which expects UTF-8.
     EXPECTED_TRY(validateUtf8(SV));
     return std::string(SV);
   }
@@ -1099,21 +1122,18 @@ Expect<std::string> decodeString(const CanonCtx &Cx, uint32_t Begin,
   assumingUnreachable();
 }
 
-// store_string_into_range (CanonicalABI.md L1592-1709) with the host source
-// always UTF-8. Allocates the guest buffer and returns (begin,
-// tagged_code_units) ready to write into the (ptr, len) header.
+// Encode into a fresh guest buffer, returning (begin, tagged_code_units).
 Expect<std::pair<uint32_t, uint32_t>>
-encodeString(const CanonCtx &Cx, const std::string &S) noexcept {
-  // Helper: realloc a buffer, bounds-check it, copy `Bytes` in.
+encodeString(const Context &Cx, const std::string &S) noexcept {
+  // Realloc a buffer, bounds-check it, then copy `Bytes` in.
   auto writeBuf = [&](Span<const Byte> Bytes,
                       uint32_t Align) -> Expect<uint32_t> {
     const uint32_t Len = static_cast<uint32_t>(Bytes.size());
-    if (Len == 0u) {
-      return uint32_t{0};
-    }
+    // Realloc runs even for an empty payload, so a bad one traps.
     EXPECTED_TRY(auto Begin, callRealloc(Cx, 0u, 0u, Align, Len));
     if (Begin != alignTo(Begin, Align)) {
-      EXPECTED_TRY(trapDataInvalid("string buffer misaligned"));
+      EXPECTED_TRY(trapDataInvalid("unaligned pointer for string buffer",
+                                   ErrCode::Value::ComponentPtrUnaligned));
     }
     if (!Cx.Mem->checkAccessBound(Begin, Len)) {
       EXPECTED_TRY(trapMemoryOOB("string payload (post-realloc)", Begin, Len));
@@ -1122,9 +1142,7 @@ encodeString(const CanonCtx &Cx, const std::string &S) noexcept {
     return Begin;
   };
 
-  // Encode the code points as UTF-16-LE into a fresh 2-aligned guest buffer and
-  // return (begin, tagged_code_units); `Tag` sets the high-bit utf16 marker for
-  // the latin1+utf16 fallback (CanonicalABI.md L1705).
+  // UTF-16-LE into a 2-aligned buffer; Tag sets the utf16 marker.
   auto writeUtf16 = [&](const std::vector<uint32_t> &CPs,
                         bool Tag) -> Expect<std::pair<uint32_t, uint32_t>> {
     auto Bytes = codePointsToUtf16le(CPs);
@@ -1146,11 +1164,7 @@ encodeString(const CanonCtx &Cx, const std::string &S) noexcept {
     return writeUtf16(CPs, /*Tag=*/false);
   }
   case StringEncoding::Latin1UTF16: {
-    // store_string_to_latin1_or_utf16 (L1689): latin1 when every scalar fits in
-    // a byte, else utf16 with the high-bit tag. The buffer is 2-aligned either
-    // way (the latin1 case may have been a utf16 fallback per spec). Build the
-    // latin1 bytes in the same pass that checks the < 0x100 bound, falling back
-    // to a full utf16 encode the moment an astral scalar appears.
+    // latin1 when every scalar fits a byte, else tagged utf16.
     EXPECTED_TRY(auto CPs, utf8ToCodePoints(S));
     std::vector<Byte> Latin1;
     Latin1.reserve(CPs.size());
@@ -1173,7 +1187,7 @@ encodeString(const CanonCtx &Cx, const std::string &S) noexcept {
 }
 
 // Load a primitive at Ptr. CanonicalABI.md L2054-2065.
-Expect<ComponentValVariant> loadPrim(const CanonCtx &Cx, uint32_t Ptr,
+Expect<ComponentValVariant> loadPrim(const Context &Cx, uint32_t Ptr,
                                      AST::Component::PrimValType PVT) noexcept {
   assuming(Cx.Mem != nullptr);
   using P = AST::Component::PrimValType;
@@ -1243,8 +1257,7 @@ Expect<ComponentValVariant> loadPrim(const CanonCtx &Cx, uint32_t Ptr,
     return ComponentValVariant{V};
   }
   case P::String: {
-    // load_string (L1383-1423): read (begin, tagged_code_units), then decode
-    // per the canon string-encoding option into the host's UTF-8 string.
+    // Read (begin, tagged_code_units), then decode per the encoding.
     uint32_t Begin = 0;
     uint32_t Tagged = 0;
     EXPECTED_TRY(Cx.Mem->loadValue<uint32_t>(Begin, Ptr));
@@ -1267,15 +1280,13 @@ Expect<ComponentValVariant> loadPrim(const CanonCtx &Cx, uint32_t Ptr,
 } // namespace
 
 namespace {
-// Forward declaration: fixed-length list load reuses the same in-place element
-// loader as variable-length lists, but liftListFromRange (internal linkage) is
-// defined further below. Declared here so load() can call it.
+// The fixed-length list load reuses the element loader defined below.
 Expect<ComponentValVariant>
-liftListFromRange(const CanonCtx &Cx, uint32_t Begin, uint32_t Length,
+liftListFromRange(const Context &Cx, uint32_t Begin, uint32_t Length,
                   const ComponentValType &ElemT) noexcept;
 } // namespace
 
-Expect<ComponentValVariant> load(const CanonCtx &Cx, uint32_t Ptr,
+Expect<ComponentValVariant> load(const Context &Cx, uint32_t Ptr,
                                  const ComponentValType &T) noexcept {
   using TC = ComponentTypeCode;
   const TC Code = T.getCode();
@@ -1298,7 +1309,7 @@ Expect<ComponentValVariant> load(const CanonCtx &Cx, uint32_t Ptr,
 }
 
 Expect<ComponentValVariant>
-loadDef(const CanonCtx &Cx, uint32_t Ptr,
+loadDef(const Context &Cx, uint32_t Ptr,
         const AST::Component::DefValType &T) noexcept {
   if (T.isPrimValType()) {
     return loadPrim(Cx, Ptr, T.getPrimValType());
@@ -1341,7 +1352,9 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
     uint32_t Case = 0;
     EXPECTED_TRY(loadN<uint32_t>(*Cx.Mem, DiscSize, Case, Ptr));
     if (Case >= NumCases) {
-      EXPECTED_TRY(trapDataInvalid("variant case index out of range"));
+      EXPECTED_TRY(
+          trapDataInvalid("invalid variant discriminant",
+                          ErrCode::Value::ComponentDiscriminantInvalid));
     }
     VariantVal VV;
     VV.Case = Case;
@@ -1355,11 +1368,13 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
   }
 
   if (T.isOptionTy()) {
-    // option<T> = variant{none(0) | some(T)(1)}, disc 1B.
+    // option<T> = variant{none(0) | some(T)(1)}: disc 1B.
     uint32_t Disc = 0;
     EXPECTED_TRY(loadN<uint32_t>(*Cx.Mem, 1, Disc, Ptr));
     if (Disc >= 2u) {
-      EXPECTED_TRY(trapDataInvalid("option discriminant out of range"));
+      EXPECTED_TRY(
+          trapDataInvalid("invalid variant discriminant for option",
+                          ErrCode::Value::ComponentDiscriminantInvalid));
     }
     OptionVal OV;
     if (Disc == 1u) {
@@ -1372,12 +1387,14 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
   }
 
   if (T.isResultTy()) {
-    // result<T,E> = variant{ok(0)(T?) | err(1)(E?)}, disc 1B.
+    // result<T,E> = variant{ok(0)(T?) | err(1)(E?)}: disc 1B.
     const auto &R = T.getResult();
     uint32_t Disc = 0;
     EXPECTED_TRY(loadN<uint32_t>(*Cx.Mem, 1, Disc, Ptr));
     if (Disc >= 2u) {
-      EXPECTED_TRY(trapDataInvalid("result discriminant out of range"));
+      EXPECTED_TRY(
+          trapDataInvalid("invalid variant discriminant for result",
+                          ErrCode::Value::ComponentDiscriminantInvalid));
     }
     ResultVal RV;
     RV.IsOk = (Disc == 0u);
@@ -1400,8 +1417,7 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
   }
 
   if (T.isListTy()) {
-    // load_list (L2226-2243). with-len → load len elems in place at Ptr
-    // (load_list_from_valid_range); no separate begin/length header.
+    // with-len loads len elements in place at Ptr, with no header.
     if (T.getList().Len.has_value()) {
       return liftListFromRange(Cx, Ptr, *T.getList().Len, T.getList().ValTy);
     }
@@ -1418,7 +1434,8 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
       EXPECTED_TRY(trapDataInvalid("list byte length exceeds MAX"));
     }
     if (Begin != alignTo(Begin, ElemAlign)) {
-      EXPECTED_TRY(trapDataInvalid("list pointer misaligned"));
+      EXPECTED_TRY(trapDataInvalid("unaligned pointer for list",
+                                   ErrCode::Value::ComponentPtrUnaligned));
     }
     const uint32_t ByteLen = static_cast<uint32_t>(ByteLen64);
     if (Length > 0u && !Cx.Mem->checkAccessBound(Begin, ByteLen)) {
@@ -1460,24 +1477,26 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
     uint32_t Case = 0;
     EXPECTED_TRY(loadN<uint32_t>(*Cx.Mem, DiscSize, Case, Ptr));
     if (Case >= NumCases) {
-      EXPECTED_TRY(trapDataInvalid("enum case index out of range"));
+      EXPECTED_TRY(
+          trapDataInvalid("invalid variant discriminant for enum",
+                          ErrCode::Value::ComponentDiscriminantInvalid));
     }
-    return makeComponentVal(EnumVal{Case});
+    return makeComponentVal(EnumVal{Case, {}});
   }
 
-  // lift_own / lift_borrow (L2297-2303 / L2316-2322): resource-table
-  // interaction is not yet implemented; the raw handle is preserved verbatim
-  // so future support can pick it up.
+  // The value carries the representation; own leaves, borrow stays.
   if (T.isOwnTy()) {
     uint32_t H = 0;
     EXPECTED_TRY(Cx.Mem->loadValue<uint32_t>(H, Ptr));
-    return makeComponentVal(OwnVal{H});
+    EXPECTED_TRY(uint32_t Rep, liftOwnHandle(Cx, T.getOwn().Idx, H));
+    return makeComponentVal(OwnVal{Rep});
   }
 
   if (T.isBorrowTy()) {
     uint32_t H = 0;
     EXPECTED_TRY(Cx.Mem->loadValue<uint32_t>(H, Ptr));
-    return makeComponentVal(BorrowVal{H});
+    EXPECTED_TRY(uint32_t Rep, liftBorrowHandle(Cx, T.getBorrow().Idx, H));
+    return makeComponentVal(BorrowVal{Rep});
   }
 
   // stream / future are deferred.
@@ -1488,7 +1507,7 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
 
 namespace {
 
-Expect<void> storePrim(const CanonCtx &Cx, const ComponentValVariant &V,
+Expect<void> storePrim(const Context &Cx, const ComponentValVariant &V,
                        AST::Component::PrimValType PVT, uint32_t Ptr) noexcept {
   assuming(Cx.Mem != nullptr);
   using P = AST::Component::PrimValType;
@@ -1522,8 +1541,7 @@ Expect<void> storePrim(const CanonCtx &Cx, const ComponentValVariant &V,
   case P::U64:
     return Cx.Mem->storeValue<uint64_t>(std::get<uint64_t>(V), Ptr);
   case P::F32:
-    // encode_float_as_i32 (L1528, L1570): canonicalize NaN on store
-    // (DETERMINISTIC_PROFILE).
+    // Canonicalize NaN on store, per the deterministic profile.
     return Cx.Mem->storeValue<float>(canonicalizeNaN32(std::get<float>(V)),
                                      Ptr);
   case P::F64:
@@ -1536,9 +1554,7 @@ Expect<void> storePrim(const CanonCtx &Cx, const ComponentValVariant &V,
     return Cx.Mem->storeValue<uint32_t>(I, Ptr);
   }
   case P::String: {
-    // store_string (CanonicalABI.md L1587-1709): encode the host UTF-8 string
-    // per the canon string-encoding option, then store the (begin,
-    // tagged_code_units) pair at Ptr.
+    // Encode per the string option, then store (begin, tagged_code_units).
     EXPECTED_TRY(auto Enc, encodeString(Cx, std::get<std::string>(V)));
     EXPECTED_TRY(Cx.Mem->storeValue<uint32_t>(Enc.first, Ptr));
     EXPECTED_TRY(Cx.Mem->storeValue<uint32_t>(Enc.second, Ptr + 4u));
@@ -1559,7 +1575,7 @@ Expect<void> storePrim(const CanonCtx &Cx, const ComponentValVariant &V,
 
 } // namespace
 
-Expect<void> store(const CanonCtx &Cx, const ComponentValVariant &V,
+Expect<void> store(const Context &Cx, const ComponentValVariant &V,
                    const ComponentValType &T, uint32_t Ptr) noexcept {
   using TC = ComponentTypeCode;
   const TC Code = T.getCode();
@@ -1582,7 +1598,7 @@ Expect<void> store(const CanonCtx &Cx, const ComponentValVariant &V,
       Ptr);
 }
 
-Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
+Expect<void> storeDef(const Context &Cx, const ComponentValVariant &V,
                       const AST::Component::DefValType &T,
                       uint32_t Ptr) noexcept {
   if (T.isPrimValType()) {
@@ -1630,16 +1646,16 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
     assuming(VC);
     const auto &Vv = std::get<VariantVal>(VC->V);
     const auto &Vt = T.getVariant();
-    assuming(Vv.Case < Vt.Cases.size());
+    const uint32_t Case = resolveVariantCase(Vv, Vt);
+    assuming(Case < Vt.Cases.size());
     const uint32_t DiscSize =
         discriminantSize(static_cast<uint32_t>(Vt.Cases.size()));
-    EXPECTED_TRY(storeN<uint32_t>(*Cx.Mem, DiscSize, Vv.Case, Ptr));
-    if (Vt.Cases[Vv.Case].second.has_value()) {
+    EXPECTED_TRY(storeN<uint32_t>(*Cx.Mem, DiscSize, Case, Ptr));
+    if (Vt.Cases[Case].second.has_value()) {
       assuming(Vv.Payload.has_value());
       EXPECTED_TRY(auto MaxAlign, maxCaseAlignment(Cx, Vt.Cases));
       const uint32_t PayloadOff = alignTo(Ptr + DiscSize, MaxAlign);
-      EXPECTED_TRY(
-          store(Cx, *Vv.Payload, *Vt.Cases[Vv.Case].second, PayloadOff));
+      EXPECTED_TRY(store(Cx, *Vv.Payload, *Vt.Cases[Case].second, PayloadOff));
     }
     return {};
   }
@@ -1684,9 +1700,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
   }
 
   if (T.isListTy()) {
-    // store_list (CanonicalABI.md L2674-2694). with-len →
-    // store_list_into_valid_range: each element stored in place at Ptr, no
-    // realloc and no (begin, length) header.
+    // with-len stores each element in place at Ptr, with no header.
     if (T.getList().Len.has_value()) {
       const auto &L = T.getList();
       const uint32_t Len = *L.Len;
@@ -1712,16 +1726,14 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
         static_cast<uint64_t>(Length) * static_cast<uint64_t>(ElemSz);
     assuming(ByteLen64 <= static_cast<uint64_t>(kMaxCanonByteLength));
     const uint32_t ByteLen = static_cast<uint32_t>(ByteLen64);
-    uint32_t Begin = 0;
-    if (Length > 0u) {
-      EXPECTED_TRY(Begin, callRealloc(Cx, 0u, 0u, ElemAlign, ByteLen));
-      if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
-        EXPECTED_TRY(
-            trapMemoryOOB("list payload (post-realloc)", Begin, ByteLen));
-      }
-      for (uint32_t I = 0; I < Length; ++I) {
-        EXPECTED_TRY(store(Cx, Lv.Elements[I], ElemT, Begin + I * ElemSz));
-      }
+    // Realloc runs even for an empty list, so a bad one traps.
+    EXPECTED_TRY(uint32_t Begin, callRealloc(Cx, 0u, 0u, ElemAlign, ByteLen));
+    if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
+      EXPECTED_TRY(
+          trapMemoryOOB("list payload (post-realloc)", Begin, ByteLen));
+    }
+    for (uint32_t I = 0; I < Length; ++I) {
+      EXPECTED_TRY(store(Cx, Lv.Elements[I], ElemT, Begin + I * ElemSz));
     }
     EXPECTED_TRY(Cx.Mem->storeValue<uint32_t>(Begin, Ptr));
     EXPECTED_TRY(Cx.Mem->storeValue<uint32_t>(Length, Ptr + 4u));
@@ -1734,14 +1746,9 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
     assuming(VC);
     const auto &F = std::get<FlagsVal>(VC->V);
     const auto &Ft = T.getFlags();
-    assuming(F.Bits.size() == Ft.Labels.size());
+    assuming(F.Bits.empty() || F.Bits.size() == Ft.Labels.size());
     const uint32_t Bytes = static_cast<uint32_t>((Ft.Labels.size() + 7) / 8);
-    uint64_t Packed = 0;
-    for (size_t I = 0; I < F.Bits.size(); ++I) {
-      if (F.Bits[I]) {
-        Packed |= (1ull << I);
-      }
-    }
+    const uint64_t Packed = packFlags(F, Ft);
     if (Bytes > 0u) {
       assuming(Bytes <= 4u);
       EXPECTED_TRY(
@@ -1755,24 +1762,27 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
     assuming(VC);
     const auto &E = std::get<EnumVal>(VC->V);
     const auto &Et = T.getEnum();
-    assuming(E.Case < Et.Labels.size());
+    const uint32_t Case = resolveEnumCase(E, Et);
+    assuming(Case < Et.Labels.size());
     const uint32_t DiscSize =
         discriminantSize(static_cast<uint32_t>(Et.Labels.size()));
-    return storeN<uint32_t>(*Cx.Mem, DiscSize, E.Case, Ptr);
+    return storeN<uint32_t>(*Cx.Mem, DiscSize, Case, Ptr);
   }
 
   if (T.isOwnTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     assuming(VC);
     const auto &O = std::get<OwnVal>(VC->V);
-    return Cx.Mem->storeValue<uint32_t>(O.Handle, Ptr);
+    return Cx.Mem->storeValue<uint32_t>(
+        lowerHandle(Cx, T.getOwn().Idx, O.Handle, true), Ptr);
   }
 
   if (T.isBorrowTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     assuming(VC);
     const auto &B = std::get<BorrowVal>(VC->V);
-    return Cx.Mem->storeValue<uint32_t>(B.Handle, Ptr);
+    return Cx.Mem->storeValue<uint32_t>(
+        lowerHandle(Cx, T.getBorrow().Idx, B.Handle, false), Ptr);
   }
 
   spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
@@ -1782,12 +1792,9 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
 
 namespace {
 
-// Load a list payload at (Begin, Length) for element type ElemT.
-// Mirrors `load_list_from_range` (CanonicalABI.md L2233-2243) — used by
-// liftFlat for `list<T>` after reading the (ptr, len) pair from the
-// flat core values. Performs the spec trap_if checks.
+// Load a list payload at (Begin, Length), used by liftFlat.
 Expect<ComponentValVariant>
-liftListFromRange(const CanonCtx &Cx, uint32_t Begin, uint32_t Length,
+liftListFromRange(const Context &Cx, uint32_t Begin, uint32_t Length,
                   const ComponentValType &ElemT) noexcept {
   EXPECTED_TRY(auto ElemAlign, alignment(Cx, ElemT));
   EXPECTED_TRY(auto ElemSz, elemSize(Cx, ElemT));
@@ -1797,7 +1804,8 @@ liftListFromRange(const CanonCtx &Cx, uint32_t Begin, uint32_t Length,
     EXPECTED_TRY(trapDataInvalid("list byte length exceeds MAX"));
   }
   if (Begin != alignTo(Begin, ElemAlign)) {
-    EXPECTED_TRY(trapDataInvalid("list pointer misaligned"));
+    EXPECTED_TRY(trapDataInvalid("unaligned pointer for list",
+                                 ErrCode::Value::ComponentPtrUnaligned));
   }
   const uint32_t ByteLen = static_cast<uint32_t>(ByteLen64);
   if (Length > 0u && !Cx.Mem->checkAccessBound(Begin, ByteLen)) {
@@ -1812,9 +1820,7 @@ liftListFromRange(const CanonCtx &Cx, uint32_t Begin, uint32_t Length,
   return makeComponentVal(std::move(LV));
 }
 
-// Bit-pattern reinterpret helpers for variant payload coerce
-// (CanonicalABI.md L3047-3055 / L3168-3173). C++17 has no std::bit_cast,
-// so the conversion goes through std::memcpy on a same-sized scratch slot.
+// Bit-pattern reinterpret via memcpy; C++17 has no std::bit_cast.
 inline uint32_t bitsAsU32(float V) noexcept {
   uint32_t U = 0;
   std::memcpy(&U, &V, sizeof(U));
@@ -1842,11 +1848,7 @@ inline uint32_t wrapI64ToI32(uint64_t V) noexcept {
   return static_cast<uint32_t>(V);
 }
 
-// CoerceValueIter.next() (spec L3047-3055): read a `Have`-typed flat slot
-// from VI and reinterpret it into the `Want`-typed slot that the
-// variant's selected case expects. The (have, want) pairs are limited
-// to those produced by `joinFlat` (L2917-2920); other pairs are
-// unreachable.
+// Read a Have-typed flat slot and reinterpret it into the Want slot.
 Expect<ValVariant> coerceLiftSlot(FlatIter &VI, ValType Have,
                                   ValType Want) noexcept {
   auto Raw = VI.next();
@@ -1871,9 +1873,7 @@ Expect<ValVariant> coerceLiftSlot(FlatIter &VI, ValType Have,
   assumingUnreachable();
 }
 
-// Symmetric inverse of coerceLiftSlot (spec L3168-3173): widen / reinterpret
-// a lowered slot from its native flat type `Have` into the variant's joined
-// slot `Want`.
+// The inverse of coerceLiftSlot: widen a lowered slot into Want.
 ValVariant coerceLowerSlot(const ValVariant &Raw, ValType Have,
                            ValType Want) noexcept {
   const auto Hc = Have.getCode();
@@ -1885,8 +1885,7 @@ ValVariant coerceLowerSlot(const ValVariant &Raw, ValType Have,
     return ValVariant{bitsAsU32(Raw.get<float>())};
   }
   if (Hc == TypeCode::I32 && Wc == TypeCode::I64) {
-    // L3171: same numeric value, slot widened to occupy the joined i64 shape
-    // expected by the downstream core caller.
+    // Same numeric value, widened into the joined i64 slot.
     return ValVariant{static_cast<uint64_t>(Raw.get<uint32_t>())};
   }
   if (Hc == TypeCode::F32 && Wc == TypeCode::I64) {
@@ -1898,8 +1897,7 @@ ValVariant coerceLowerSlot(const ValVariant &Raw, ValType Have,
   assumingUnreachable();
 }
 
-// L3175-3176: tail-pad the lowered payload with a zero value typed to the
-// joined slot, so downstream consumers see slots of the expected shape.
+// Tail-pad the lowered payload with a zero typed to the joined slot.
 ValVariant zeroSlot(ValType Want) noexcept {
   switch (Want.getCode()) {
   case TypeCode::I32:
@@ -1947,7 +1945,7 @@ ComponentValVariant liftFlatSigned(uint32_t Width, uint64_t Raw) noexcept {
 }
 
 Expect<ComponentValVariant>
-liftFlatPrim(const CanonCtx &Cx, FlatIter &VI,
+liftFlatPrim(const Context &Cx, FlatIter &VI,
              AST::Component::PrimValType PVT) noexcept {
   using P = AST::Component::PrimValType;
   auto Next = VI.next();
@@ -1986,8 +1984,7 @@ liftFlatPrim(const CanonCtx &Cx, FlatIter &VI,
     return ComponentValVariant{I};
   }
   case P::String: {
-    // lift_flat string (L3010-3013): (ptr, tagged_code_units) from flat values,
-    // then decode per the canon string-encoding option.
+    // Take (ptr, tagged_code_units), then decode per the string encoding.
     assuming(Next.has_value());
     const uint32_t Ptr = Next->get<uint32_t>();
     auto LenV = VI.next();
@@ -2011,7 +2008,7 @@ liftFlatPrim(const CanonCtx &Cx, FlatIter &VI,
 
 } // namespace
 
-Expect<ComponentValVariant> liftFlat(const CanonCtx &Cx, FlatIter &VI,
+Expect<ComponentValVariant> liftFlat(const Context &Cx, FlatIter &VI,
                                      const ComponentValType &T) noexcept {
   using TC = ComponentTypeCode;
   const TC Code = T.getCode();
@@ -2033,7 +2030,7 @@ Expect<ComponentValVariant> liftFlat(const CanonCtx &Cx, FlatIter &VI,
 }
 
 Expect<ComponentValVariant>
-liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
+liftFlatDef(const Context &Cx, FlatIter &VI,
             const AST::Component::DefValType &T) noexcept {
   if (T.isPrimValType()) {
     return liftFlatPrim(Cx, VI, T.getPrimValType());
@@ -2059,8 +2056,7 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
   }
 
   if (T.isListTy()) {
-    // lift_flat_list (L3015-3026). with-len → lift len elements straight from
-    // the flat iterator (no ptr/len pair, no memory load).
+    // with-len lifts len elements straight from the flat iterator.
     if (T.getList().Len.has_value()) {
       const auto &L = T.getList();
       const uint32_t Len = *L.Len;
@@ -2100,27 +2096,31 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
     const uint32_t Case = Next->get<uint32_t>();
     const uint32_t NumCases = static_cast<uint32_t>(T.getEnum().Labels.size());
     if (Case >= NumCases) {
-      EXPECTED_TRY(trapDataInvalid("enum case index out of range"));
+      EXPECTED_TRY(
+          trapDataInvalid("invalid variant discriminant for enum",
+                          ErrCode::Value::ComponentDiscriminantInvalid));
     }
-    return makeComponentVal(EnumVal{Case});
+    return makeComponentVal(EnumVal{Case, {}});
   }
 
   if (T.isOwnTy()) {
     auto Next = VI.next();
     assuming(Next.has_value());
-    return makeComponentVal(OwnVal{Next->get<uint32_t>()});
+    EXPECTED_TRY(uint32_t Rep,
+                 liftOwnHandle(Cx, T.getOwn().Idx, Next->get<uint32_t>()));
+    return makeComponentVal(OwnVal{Rep});
   }
 
   if (T.isBorrowTy()) {
     auto Next = VI.next();
     assuming(Next.has_value());
-    return makeComponentVal(BorrowVal{Next->get<uint32_t>()});
+    EXPECTED_TRY(uint32_t Rep, liftBorrowHandle(Cx, T.getBorrow().Idx,
+                                                Next->get<uint32_t>()));
+    return makeComponentVal(BorrowVal{Rep});
   }
 
   if (T.isVariantTy() || T.isOptionTy() || T.isResultTy()) {
-    // lift_flat_variant (L3042-3072): read disc, then read the joined flat
-    // slots, coercing the prefix that belongs to the selected case into the
-    // case's native flat shape and draining the unused suffix.
+    // Read the disc, coerce the prefix, then drain the unused suffix.
     size_t NumCases = 0;
     std::optional<ComponentValType> CasePayloadTy;
     auto pickCase = [&](uint32_t Case) -> Expect<void> {
@@ -2128,13 +2128,17 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
         const auto &Vt = T.getVariant();
         NumCases = Vt.Cases.size();
         if (Case >= NumCases) {
-          EXPECTED_TRY(trapDataInvalid("variant case index out of range"));
+          EXPECTED_TRY(
+              trapDataInvalid("invalid variant discriminant",
+                              ErrCode::Value::ComponentDiscriminantInvalid));
         }
         CasePayloadTy = Vt.Cases[Case].second;
       } else if (T.isOptionTy()) {
         NumCases = 2;
         if (Case >= NumCases) {
-          EXPECTED_TRY(trapDataInvalid("variant case index out of range"));
+          EXPECTED_TRY(
+              trapDataInvalid("invalid variant discriminant",
+                              ErrCode::Value::ComponentDiscriminantInvalid));
         }
         if (Case == 1) {
           CasePayloadTy = T.getOption().ValTy;
@@ -2142,7 +2146,9 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
       } else {
         NumCases = 2;
         if (Case >= NumCases) {
-          EXPECTED_TRY(trapDataInvalid("variant case index out of range"));
+          EXPECTED_TRY(
+              trapDataInvalid("invalid variant discriminant",
+                              ErrCode::Value::ComponentDiscriminantInvalid));
         }
         const auto &Rt = T.getResult();
         CasePayloadTy = (Case == 0) ? Rt.ValTy : Rt.ErrTy;
@@ -2213,8 +2219,7 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
 
 namespace {
 
-// CanonicalABI.md L3118-3128 (`lower_flat_signed`): two's-complement reinterp
-// into the unsigned width, then bucketed to i32 or i64.
+// Two's-complement reinterpretation, bucketed to i32 or i64.
 std::vector<ValVariant> lowerSigned32(int32_t V) noexcept {
   return {ValVariant(static_cast<uint32_t>(V))};
 }
@@ -2223,7 +2228,7 @@ std::vector<ValVariant> lowerSigned64(int64_t V) noexcept {
 }
 
 Expect<std::vector<ValVariant>>
-lowerFlatPrim(const CanonCtx &Cx, const ComponentValVariant &V,
+lowerFlatPrim(const Context &Cx, const ComponentValVariant &V,
               AST::Component::PrimValType PVT) noexcept {
   using P = AST::Component::PrimValType;
   switch (PVT) {
@@ -2261,8 +2266,7 @@ lowerFlatPrim(const CanonCtx &Cx, const ComponentValVariant &V,
     return std::vector<ValVariant>{ValVariant(I)};
   }
   case P::String: {
-    // lower_flat string (L3130-3132): encode per the canon string-encoding
-    // option, push (ptr, tagged_code_units).
+    // Encode per the string option, then push (ptr, tagged_code_units).
     EXPECTED_TRY(auto Enc, encodeString(Cx, std::get<std::string>(V)));
     return std::vector<ValVariant>{ValVariant(Enc.first),
                                    ValVariant(Enc.second)};
@@ -2282,7 +2286,7 @@ lowerFlatPrim(const CanonCtx &Cx, const ComponentValVariant &V,
 
 } // namespace
 
-Expect<std::vector<ValVariant>> lowerFlat(const CanonCtx &Cx,
+Expect<std::vector<ValVariant>> lowerFlat(const Context &Cx,
                                           const ComponentValVariant &V,
                                           const ComponentValType &T) noexcept {
   using TC = ComponentTypeCode;
@@ -2305,7 +2309,7 @@ Expect<std::vector<ValVariant>> lowerFlat(const CanonCtx &Cx,
 }
 
 Expect<std::vector<ValVariant>>
-lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
+lowerFlatDef(const Context &Cx, const ComponentValVariant &V,
              const AST::Component::DefValType &T) noexcept {
   if (T.isPrimValType()) {
     return lowerFlatPrim(Cx, V, T.getPrimValType());
@@ -2342,8 +2346,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
   }
 
   if (T.isListTy()) {
-    // lower_flat_list (L3134-3145): no-len → realloc + store + push (ptr, len);
-    // with-len → concatenate per-element lowerings straight into flat values.
+    // no-len pushes (ptr, len); with-len concatenates the lowerings.
     if (T.getList().Len.has_value()) {
       const auto &L = T.getList();
       const uint32_t Len = *L.Len;
@@ -2369,16 +2372,14 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
         static_cast<uint64_t>(Length) * static_cast<uint64_t>(ElemSz);
     assuming(ByteLen64 <= static_cast<uint64_t>(kMaxCanonByteLength));
     const uint32_t ByteLen = static_cast<uint32_t>(ByteLen64);
-    uint32_t Begin = 0;
-    if (Length > 0u) {
-      EXPECTED_TRY(Begin, callRealloc(Cx, 0u, 0u, ElemAlign, ByteLen));
-      if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
-        EXPECTED_TRY(
-            trapMemoryOOB("list payload (post-realloc)", Begin, ByteLen));
-      }
-      for (uint32_t I = 0; I < Length; ++I) {
-        EXPECTED_TRY(store(Cx, Lv.Elements[I], ElemT, Begin + I * ElemSz));
-      }
+    // Realloc runs even for an empty list, so a bad one traps.
+    EXPECTED_TRY(uint32_t Begin, callRealloc(Cx, 0u, 0u, ElemAlign, ByteLen));
+    if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
+      EXPECTED_TRY(
+          trapMemoryOOB("list payload (post-realloc)", Begin, ByteLen));
+    }
+    for (uint32_t I = 0; I < Length; ++I) {
+      EXPECTED_TRY(store(Cx, Lv.Elements[I], ElemT, Begin + I * ElemSz));
     }
     return std::vector<ValVariant>{ValVariant(Begin), ValVariant(Length)};
   }
@@ -2389,13 +2390,8 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
     assuming(VC);
     const auto &F = std::get<FlagsVal>(VC->V);
     const auto &Ft = T.getFlags();
-    assuming(F.Bits.size() == Ft.Labels.size());
-    uint32_t Packed = 0;
-    for (size_t I = 0; I < F.Bits.size(); ++I) {
-      if (F.Bits[I]) {
-        Packed |= (1u << I);
-      }
-    }
+    assuming(F.Bits.empty() || F.Bits.size() == Ft.Labels.size());
+    const uint32_t Packed = static_cast<uint32_t>(packFlags(F, Ft));
     return std::vector<ValVariant>{ValVariant(Packed)};
   }
 
@@ -2403,28 +2399,29 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     assuming(VC);
     const auto &E = std::get<EnumVal>(VC->V);
-    assuming(E.Case < T.getEnum().Labels.size());
-    return std::vector<ValVariant>{ValVariant(E.Case)};
+    const uint32_t Case = resolveEnumCase(E, T.getEnum());
+    assuming(Case < T.getEnum().Labels.size());
+    return std::vector<ValVariant>{ValVariant(Case)};
   }
 
   if (T.isOwnTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     assuming(VC);
     const auto &O = std::get<OwnVal>(VC->V);
-    return std::vector<ValVariant>{ValVariant(O.Handle)};
+    return std::vector<ValVariant>{
+        ValVariant(lowerHandle(Cx, T.getOwn().Idx, O.Handle, true))};
   }
 
   if (T.isBorrowTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     assuming(VC);
     const auto &B = std::get<BorrowVal>(VC->V);
-    return std::vector<ValVariant>{ValVariant(B.Handle)};
+    return std::vector<ValVariant>{
+        ValVariant(lowerHandle(Cx, T.getBorrow().Idx, B.Handle, false))};
   }
 
   if (T.isVariantTy() || T.isOptionTy() || T.isResultTy()) {
-    // lower_flat_variant (L3158-3180): lower the selected case's payload to
-    // its native flat shape, then coerce each slot into the variant's joined
-    // flat shape and tail-pad zeros up to the joined length.
+    // Lower to the native flat shape, coerce each slot, then pad zeros.
     size_t NumCases = 0;
     uint32_t Case = 0;
     std::optional<ComponentValType> CasePayloadTy;
@@ -2433,7 +2430,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
       const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
       assuming(VC);
       const auto &Vv = std::get<VariantVal>(VC->V);
-      Case = Vv.Case;
+      Case = resolveVariantCase(Vv, T.getVariant());
       NumCases = T.getVariant().Cases.size();
       assuming(Case < NumCases);
       CasePayloadTy = T.getVariant().Cases[Case].second;
@@ -2503,8 +2500,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
 
 namespace {
 
-// Synthesize a TupleTy over a span of component types. Shared by the
-// indirect-path of lift_flat_values / lower_flat_values.
+// Synthesize a TupleTy over a span of types, shared by indirect paths.
 AST::Component::DefValType
 synthTupleType(Span<const ComponentValType> Types) noexcept {
   AST::Component::TupleTy Tup;
@@ -2517,7 +2513,7 @@ synthTupleType(Span<const ComponentValType> Types) noexcept {
 }
 
 // Compute total flat count over a span of component types.
-Expect<uint32_t> totalFlatCount(const CanonCtx &Cx,
+Expect<uint32_t> totalFlatCount(const Context &Cx,
                                 Span<const ComponentValType> Types) noexcept {
   uint32_t N = 0;
   for (const auto &T : Types) {
@@ -2530,7 +2526,7 @@ Expect<uint32_t> totalFlatCount(const CanonCtx &Cx,
 } // namespace
 
 Expect<std::vector<ComponentValVariant>>
-liftFlatValues(const CanonCtx &Cx, FlatIter &VI,
+liftFlatValues(const Context &Cx, FlatIter &VI,
                Span<const ComponentValType> Types, uint32_t MaxFlat) noexcept {
   EXPECTED_TRY(auto N, totalFlatCount(Cx, Types));
 
@@ -2543,7 +2539,8 @@ liftFlatValues(const CanonCtx &Cx, FlatIter &VI,
     EXPECTED_TRY(auto Align, alignmentDef(Cx, Td));
     EXPECTED_TRY(auto Sz, elemSizeDef(Cx, Td));
     if (Ptr != alignTo(Ptr, Align)) {
-      EXPECTED_TRY(trapDataInvalid("lift_flat_values: pointer misaligned"));
+      EXPECTED_TRY(trapDataInvalid("lift_flat_values: unaligned pointer",
+                                   ErrCode::Value::ComponentPtrUnaligned));
     }
     if (!Cx.Mem->checkAccessBound(Ptr, Sz)) {
       EXPECTED_TRY(trapMemoryOOB("lift_flat_values area", Ptr, Sz));
@@ -2571,7 +2568,7 @@ liftFlatValues(const CanonCtx &Cx, FlatIter &VI,
 }
 
 Expect<std::vector<ValVariant>>
-lowerFlatValues(const CanonCtx &Cx, Span<const ComponentValVariant> Values,
+lowerFlatValues(const Context &Cx, Span<const ComponentValVariant> Values,
                 Span<const ComponentValType> Types, uint32_t MaxFlat,
                 std::optional<uint32_t> OutParam) noexcept {
   assuming(Values.size() == Types.size());
@@ -2592,14 +2589,14 @@ lowerFlatValues(const CanonCtx &Cx, Span<const ComponentValVariant> Values,
       ReturnPtr = true;
     }
     if (Ptr != alignTo(Ptr, Align)) {
-      EXPECTED_TRY(trapDataInvalid("lower_flat_values: pointer misaligned"));
+      EXPECTED_TRY(trapDataInvalid("lower_flat_values: unaligned pointer",
+                                   ErrCode::Value::ComponentPtrUnaligned));
     }
     if (!Cx.Mem->checkAccessBound(Ptr, Sz)) {
       EXPECTED_TRY(trapMemoryOOB("lower_flat_values area", Ptr, Sz));
     }
 
-    // Walk the tuple layout in-line — matches the loop used by indirect-params
-    // in convValsToCoreWASM. Per-field alignment is honored.
+    // Walk the tuple layout in-line, honoring the per-field alignment.
     uint32_t Off = 0u;
     for (size_t I = 0; I < Types.size(); ++I) {
       EXPECTED_TRY(auto FA, alignment(Cx, Types[I]));
@@ -2627,5 +2624,6 @@ lowerFlatValues(const CanonCtx &Cx, Span<const ComponentValVariant> Values,
 }
 
 } // namespace CanonicalABI
+} // namespace Component
 } // namespace Executor
 } // namespace WasmEdge

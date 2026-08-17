@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "executor/component/lower_thunk.h"
+#include "executor/component/canonical_abi.h"
+#include "executor/component/executor.h"
 #include "executor/executor.h"
 
 #include "common/spdlog.h"
@@ -11,45 +12,40 @@
 
 namespace WasmEdge {
 namespace Executor {
+namespace Component {
 
 using namespace std::literals;
 
 CanonLowerHostFunc::CanonLowerHostFunc(
-    Executor *ExecIn, const CanonicalABI::FlatFuncType &FlatSig,
+    ComponentExecutor *ExecIn, AST::FunctionType FlatSig,
     Runtime::Instance::Component::FunctionInstance *CalleeIn,
-    Runtime::Instance::MemoryInstance *MemoryIn,
-    Runtime::Instance::FunctionInstance *ReallocIn,
-    const Runtime::Instance::ComponentInstance *CompInstIn,
-    StringEncoding EncIn) noexcept
+    const Runtime::Component::CanonOptions &OptsIn) noexcept
     : HostFunctionBase(/*FuncCost=*/0), Exec(ExecIn), Callee(CalleeIn),
-      Memory(MemoryIn), Realloc(ReallocIn), CompInst(CompInstIn),
-      // Lower side adds a trailing out-ptr when flat_results > MaxFlatResults;
-      // in that case FlatSig.Results is empty (spec L2829-2831) while the
-      // callee still has result types.
-      HasOutPtr(FlatSig.Results.empty() &&
-                !CalleeIn->getFuncType().getResultList().empty()),
-      Enc(EncIn) {
-  // Populate DefType from the pre-flighted flat ABI signature.
-  auto &FT = DefType.getCompositeType().getFuncType();
-  auto &Params = FT.getParamTypes();
-  auto &Returns = FT.getReturnTypes();
-  Params.reserve(FlatSig.Params.size());
-  Returns.reserve(FlatSig.Results.size());
-  for (const auto &P : FlatSig.Params) {
-    Params.push_back(P);
-  }
-  for (const auto &R : FlatSig.Results) {
-    Returns.push_back(R);
-  }
+      Opts(OptsIn),
+      // A trailing out-ptr exists when the flat results spill.
+      HasOutPtr(FlatSig.getReturnTypes().empty() &&
+                !CalleeIn->getFuncType().getResultList().empty()) {
+  DefType.getCompositeType().getFuncType() = std::move(FlatSig);
 }
 
 Expect<void> CanonLowerHostFunc::run(const Runtime::CallingFrame &,
                                      Span<const ValVariant> Args,
                                      Span<ValVariant> Rets) {
-  // Lower-direction CanonCtx: Memory/Realloc come from the canon lower
-  // options. Exec is needed by callRealloc inside lower_flat_values when
-  // nested strings/lists in results need their own buffer.
-  CanonicalABI::CanonCtx Cx{Exec, Memory, Realloc, CompInst, Enc};
+  // Lower-direction Context: memory and realloc come from the canon options.
+  std::vector<std::pair<const Runtime::Instance::ComponentInstance *, uint32_t>>
+      LiftedBorrows;
+  CanonicalABI::Context Cx{Opts, Exec};
+  Cx.LiftedBorrows = &LiftedBorrows;
+  // Callee type indices are its own; the handle tables stay with the caller.
+  if (const auto *CalleeComp = Callee->getComponentInstance();
+      CalleeComp != nullptr && CalleeComp != Opts.Inst) {
+    Cx.TypeResolver = [CalleeComp](uint32_t I) {
+      return CalleeComp->getType(I);
+    };
+    Cx.ResourceResolver = [CalleeComp](uint32_t I) {
+      return CalleeComp->getTypeResource(I);
+    };
+  }
 
   // Collect component-level param + result types from the callee.
   const auto &CFT = Callee->getFuncType();
@@ -64,14 +60,13 @@ Expect<void> CanonLowerHostFunc::run(const Runtime::CallingFrame &,
     ResultTypes.push_back(R.getValType());
   }
 
-  // Spec L2829-2831: if flat_results > MAX_FLAT_RESULTS, params += [ptr];
-  // results = []. The thunk's wasm caller passes the out-ptr as the last arg.
+  // A trailing out-ptr param appears when flat_results exceed the cap.
   std::optional<uint32_t> OutPtr;
   Span<const ValVariant> ParamArgs = Args;
   if (HasOutPtr) {
     if (Args.empty()) {
       spdlog::error(ErrCode::Value::FuncSigMismatch);
-      spdlog::error("    canon lower thunk: missing trailing out-ptr"sv);
+      spdlog::error("    canon lower: missing trailing out-ptr"sv);
       return Unexpect(ErrCode::Value::FuncSigMismatch);
     }
     OutPtr = Args.back().get<uint32_t>();
@@ -84,8 +79,15 @@ Expect<void> CanonLowerHostFunc::run(const Runtime::CallingFrame &,
                CanonicalABI::liftFlatValues(Cx, VI, ParamTypes,
                                             CanonicalABI::MaxFlatParams));
 
-  // Invoke the wrapped component function.
-  EXPECTED_TRY(auto CompRes, Exec->invoke(Callee, Params, ParamTypes));
+  // Invoke the callee, then release the lends taken by borrow arguments.
+  auto CompResOrErr = Exec->invoke(Callee, Params, ParamTypes);
+  for (const auto &[Inst, Idx] : LiftedBorrows) {
+    if (auto *Slot = Inst->handles().handleGet(Idx);
+        Slot != nullptr && Slot->Lends > 0) {
+      Slot->Lends -= 1;
+    }
+  }
+  EXPECTED_TRY(auto CompRes, std::move(CompResOrErr));
 
   std::vector<ComponentValVariant> ResultValues;
   ResultValues.reserve(CompRes.size());
@@ -98,12 +100,11 @@ Expect<void> CanonLowerHostFunc::run(const Runtime::CallingFrame &,
                                  Cx, ResultValues, ResultTypes,
                                  CanonicalABI::MaxFlatResults, OutPtr));
 
-  // Copy flat returns into the Rets span. When OutPtr is set, FlatRet is
-  // empty and Rets is empty too.
+  // Copy flat returns into Rets; with OutPtr both are empty.
   if (FlatRet.size() != Rets.size()) {
     spdlog::error(ErrCode::Value::FuncSigMismatch);
     spdlog::error(
-        "    canon lower thunk: flat result arity mismatch (got {}, expected {})"sv,
+        "    canon lower: flat result arity mismatch (got {}, expected {})"sv,
         FlatRet.size(), Rets.size());
     return Unexpect(ErrCode::Value::FuncSigMismatch);
   }
@@ -113,5 +114,6 @@ Expect<void> CanonLowerHostFunc::run(const Runtime::CallingFrame &,
   return {};
 }
 
+} // namespace Component
 } // namespace Executor
 } // namespace WasmEdge

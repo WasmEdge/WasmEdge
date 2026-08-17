@@ -12,18 +12,17 @@ namespace WasiCrypto {
 namespace Kx {
 
 namespace {
-template <typename T> struct DhTrait;
+template <typename Sk, typename Pk, typename = void>
+struct IsDhCompatible : std::false_type {};
 
-template <typename SkType, typename PkType>
-struct DhTrait<WasiCryptoExpect<SecretVec> (SkType::*)(const PkType &)
-                   const noexcept> {
-  using Pk = PkType;
-};
-template <typename T> using PkType = typename DhTrait<decltype(&T::dh)>::Pk;
+template <typename Sk, typename Pk>
+struct IsDhCompatible<
+    Sk, Pk, std::void_t<decltype(std::declval<const Sk &>().dh(std::declval<const Pk &>()))>>
+    : std::true_type {};
 
 // C++17 void_t SFINAE member-detection traits. Only algorithm classes that
 // implement a KEM (e.g. ML-KEM) expose encapsulate/decapsulate; DH classes
-// (X25519, Ecdsa) do not, so they fall through to NOT_IMPLEMENTED unchanged.
+// (X25519, Ecdsa) do not, so they fall through to UNSUPPORTED_FEATURE unchanged.
 template <typename T, typename = void>
 struct HasEncapsulateTrait : std::false_type {};
 template <typename T>
@@ -46,14 +45,14 @@ inline constexpr bool HasDecapsulate = HasDecapsulateTrait<T>::value;
 WasiCryptoExpect<SecretVec> dh(const PkVariant &PkVariant,
                                const SkVariant &SkVariant) noexcept {
   return std::visit(
-      [](const auto &Pk,
-         const auto &Sk) noexcept -> WasiCryptoExpect<SecretVec> {
-        using InPkType = std::decay_t<decltype(Pk)>;
-        using ExpectPkType = PkType<std::decay_t<decltype(Sk)>>;
-        if constexpr (std::is_same_v<InPkType, ExpectPkType>) {
+      [](const auto &Pk, const auto &Sk) -> WasiCryptoExpect<SecretVec> {
+        using PkType = std::decay_t<decltype(Pk)>;
+        using SkType = std::decay_t<decltype(Sk)>;
+
+        if constexpr (IsDhCompatible<SkType, PkType>::value) {
           return Sk.dh(Pk);
         } else {
-          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
+          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
         }
       },
       PkVariant, SkVariant);

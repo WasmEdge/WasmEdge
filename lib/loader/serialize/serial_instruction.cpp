@@ -18,7 +18,15 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     } else {
       serializeU32(Instr.getMemoryAlign(), OutVec);
     }
-    serializeU64(Instr.getMemoryOffset(), OutVec);
+    if (Conf.hasProposal(Proposal::Memory64)) {
+      serializeU64(Instr.getMemoryOffset(), OutVec);
+    } else {
+      if (Instr.getMemoryOffset() > std::numeric_limits<uint32_t>::max()) {
+        return logSerializeError(ErrCode::Value::IntegerTooLarge,
+                                ASTNodeAttr::Instruction);
+      }
+      serializeU32(static_cast<uint32_t>(Instr.getMemoryOffset()), OutVec);
+    }
     return {};
   };
 

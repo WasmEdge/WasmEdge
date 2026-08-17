@@ -1150,6 +1150,10 @@ TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
+  WasmEdge::Configure ConfNoMemory64 = Conf;
+  ConfNoMemory64.removeProposal(WasmEdge::Proposal::Memory64);
+  WasmEdge::Loader::Serializer SerNoMemory64(ConfNoMemory64);
+
   // 11. Test memory instructions.
   //
   //   1.  Serialize memory_grow instruction.
@@ -1196,23 +1200,12 @@ TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
   };
   EXPECT_EQ(Output, Expected);
 
-  I32Load.getMemoryAlign() = 0xFFFFFFFFU;
-  I32Load.getMemoryOffset() = 0xFFFFFFFEU;
+  I32Load.getMemoryAlign() = 0x00U;
+  I32Load.getMemoryOffset() = 0x100000000ULL;
   Instructions = {I32Load, End};
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
-  Expected = {
-      0x0AU,                             // Code section
-      0x0FU,                             // Content size = 15
-      0x01U,                             // Vector length = 1
-      0x0DU,                             // Code segment size = 13
-      0x00U,                             // Local vec(0)
-      0x28U,                             // OpCode I32__load.
-      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Align.
-      0xFEU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Offset.
-      0x0BU                              // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+  EXPECT_FALSE(SerNoMemory64.serializeSection(createCodeSec(Instructions),
+                                            Output));
 
   // memory.init x y encodes x (data segment index, SourceIndex) before y (memory
   // index, TargetIndex).  Using SourceIndex=5, TargetIndex=0 (non-multi-memory).

@@ -30,7 +30,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
             return E;
           }));
       // Pop result from the stack.
-      InitVals.push_back(StackMgr.pop().get<RefVariant>());
+      InitVals.push_back(StackMgr.pop<RefVariant>());
     }
 
     uint64_t Offset = 0;
@@ -47,7 +47,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       // Memory64 proposal is checked in validation phase.
       auto *TabInst = getTabInstByIdx(StackMgr.getModule(), ElemSeg.getIdx());
       assuming(TabInst);
-      Offset = extractAddr(StackMgr.pop(),
+      Offset = extractAddr(StackMgr.pop<ValVariant>(),
                            TabInst->getTableType().getLimit().getAddrType());
 
       // Check boundary unless ReferenceTypes or BulkMemoryOperations proposal

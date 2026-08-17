@@ -67,8 +67,7 @@ public:
       return {};
     }
 
-    if (Version == VERSION_LATEST || Version == VERSION_LATEST_ALT ||
-        Version == VERSION_UNSPECIFIED) {
+    if (Version == VERSION_LATEST || Version == VERSION_LATEST_ALT) {
       auto KpVer = getLatestKpVersionImpl(Id);
       auto SkVer = getLatestSkVersionImpl(Id);
       if (!KpVer && !SkVer) {
@@ -84,8 +83,9 @@ public:
     }
 
     KeyIdentifier Ident{Id, Version};
-    if (Ctx->KeyPairs.erase(Ident) == 0 &&
-        Ctx->SymmetricKeys.erase(Ident) == 0) {
+    const auto KpErased = Ctx->KeyPairs.erase(Ident);
+    const auto SkErased = Ctx->SymmetricKeys.erase(Ident);
+    if (KpErased == 0 && SkErased == 0) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_FOUND);
     }
     return {};
@@ -192,12 +192,13 @@ public:
     return *Res;
   }
 
-  WasiCryptoExpect<AsymmetricCommon::KpVariant>
-  getKp(Span<const uint8_t> KeyId, __wasi_version_t Version) noexcept {
+  WasiCryptoExpect<
+      std::pair<AsymmetricCommon::KpVariant, __wasi_version_t>>
+  getKpWithVersion(Span<const uint8_t> KeyId,
+                   __wasi_version_t Version) noexcept {
     std::shared_lock Lock(Ctx->Mutex);
     std::vector<uint8_t> Id(KeyId.begin(), KeyId.end());
-    if (Version == VERSION_LATEST || Version == VERSION_LATEST_ALT ||
-        Version == VERSION_UNSPECIFIED) {
+    if (Version == VERSION_LATEST || Version == VERSION_LATEST_ALT) {
       auto Latest = getLatestKpVersionImpl(Id);
       if (!Latest) {
         return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_FOUND);
@@ -209,15 +210,22 @@ public:
     if (It == Ctx->KeyPairs.end()) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_FOUND);
     }
-    return It->second;
+    return std::make_pair(It->second, Version);
   }
 
-  WasiCryptoExpect<Symmetric::KeyVariant>
-  getSk(Span<const uint8_t> KeyId, __wasi_version_t Version) noexcept {
+  WasiCryptoExpect<AsymmetricCommon::KpVariant>
+  getKp(Span<const uint8_t> KeyId, __wasi_version_t Version) noexcept {
+    return getKpWithVersion(KeyId, Version).map([](auto &&Pair) {
+      return Pair.first;
+    });
+  }
+
+  WasiCryptoExpect<std::pair<Symmetric::KeyVariant, __wasi_version_t>>
+  getSkWithVersion(Span<const uint8_t> KeyId,
+                   __wasi_version_t Version) noexcept {
     std::shared_lock Lock(Ctx->Mutex);
     std::vector<uint8_t> Id(KeyId.begin(), KeyId.end());
-    if (Version == VERSION_LATEST || Version == VERSION_LATEST_ALT ||
-        Version == VERSION_UNSPECIFIED) {
+    if (Version == VERSION_LATEST || Version == VERSION_LATEST_ALT) {
       auto Latest = getLatestSkVersionImpl(Id);
       if (!Latest) {
         return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_FOUND);
@@ -229,7 +237,14 @@ public:
     if (It == Ctx->SymmetricKeys.end()) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_FOUND);
     }
-    return It->second;
+    return std::make_pair(It->second, Version);
+  }
+
+  WasiCryptoExpect<Symmetric::KeyVariant>
+  getSk(Span<const uint8_t> KeyId, __wasi_version_t Version) noexcept {
+    return getSkWithVersion(KeyId, Version).map([](auto &&Pair) {
+      return Pair.first;
+    });
   }
 
 private:

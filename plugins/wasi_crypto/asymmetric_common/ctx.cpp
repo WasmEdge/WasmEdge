@@ -183,7 +183,8 @@ WasiCryptoExpect<__wasi_keypair_t> Context::keypairGenerateManaged(
         }
 
         std::vector<uint8_t> GeneratedId(32);
-        opensslCheck(RAND_bytes(GeneratedId.data(), 32));
+        ensureOrReturn(RAND_bytes(GeneratedId.data(), 32) == 1,
+                       __WASI_CRYPTO_ERRNO_RNG_ERROR);
 
         auto StoreResult = Sm.storeKp(GeneratedId, 0, *KpResult);
         if (!StoreResult) {
@@ -216,7 +217,8 @@ Context::keypairStoreManaged(__wasi_secrets_manager_t SecretsManagerHandle,
         return KeyPairManager.get(KpHandle).and_then(
             [&](auto &&Kp) noexcept -> WasiCryptoExpect<void> {
               std::vector<uint8_t> GeneratedId(32);
-              opensslCheck(RAND_bytes(GeneratedId.data(), 32));
+              ensureOrReturn(RAND_bytes(GeneratedId.data(), 32) == 1,
+                             __WASI_CRYPTO_ERRNO_RNG_ERROR);
 
               return Sm.storeKp(GeneratedId, 0, Kp)
                   .and_then([&](auto &&Version) {
@@ -264,9 +266,17 @@ Context::keypairReplaceManaged(__wasi_secrets_manager_t SecretsManagerHandle,
 
 WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>
 Context::keypairId(__wasi_keypair_t KpHandle, Span<uint8_t> KpId) noexcept {
-  return KeyPairManager.getId(KpHandle).and_then(
-      [&](auto &&Id) noexcept
+  return KeyPairManager.get(KpHandle).and_then(
+      [&](auto &&) noexcept
           -> WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>> {
+        auto ManagedIdRes = KeyPairManager.getId(KpHandle);
+        if (!ManagedIdRes) {
+          if (ManagedIdRes.error() == __WASI_CRYPTO_ERRNO_INVALID_OPERATION) {
+            return std::make_tuple(size_t{0}, Common::VERSION_UNSPECIFIED);
+          }
+          return WasiCryptoUnexpect(ManagedIdRes);
+        }
+        auto Id = *ManagedIdRes;
         ensureOrReturn(Id.size() <= KpId.size(), __WASI_CRYPTO_ERRNO_OVERFLOW);
         std::copy(Id.begin(), Id.end(), KpId.begin());
         return KeyPairManager.getManagedVersion(KpHandle).map(
@@ -282,14 +292,17 @@ Context::keypairFromId(__wasi_secrets_manager_t SecretsManagerHandle,
                        __wasi_version_t KpIdVersion) noexcept {
   return SecretsManagerManager.get(SecretsManagerHandle)
       .and_then([&](auto &&Sm) noexcept {
-        return Sm.getKp(KpId, KpIdVersion).and_then([&](auto &&Kp) noexcept {
-          return KeyPairManager.registerManager(std::move(Kp))
-              .and_then([&](auto &&KpHandle) noexcept {
-                return KeyPairManager
-                    .setManagedInfo(KpHandle, KpId, KpIdVersion)
-                    .map([KpHandle]() { return KpHandle; });
-              });
-        });
+        return Sm.getKpWithVersion(KpId, KpIdVersion)
+            .and_then([&](auto &&Res) noexcept {
+              auto Kp = std::move(Res.first);
+              auto ResolvedVersion = Res.second;
+              return KeyPairManager.registerManager(std::move(Kp))
+                  .and_then([&](auto &&KpHandle) noexcept {
+                    return KeyPairManager
+                        .setManagedInfo(KpHandle, KpId, ResolvedVersion)
+                        .map([KpHandle]() { return KpHandle; });
+                  });
+            });
       });
 }
 

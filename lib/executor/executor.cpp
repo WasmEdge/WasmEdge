@@ -102,32 +102,6 @@ Executor::registerModule(Runtime::StoreManager &StoreMgr,
   });
 }
 
-/// Instantiate a Component. See "include/executor/executor.h".
-Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
-Executor::instantiateComponent(Runtime::StoreManager &StoreMgr,
-                               const AST::Component::Component &Comp) {
-  return instantiate(StoreMgr, Comp);
-}
-
-/// Register a named Component. See "include/executor/executor.h".
-Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
-Executor::registerComponent(Runtime::StoreManager &StoreMgr,
-                            const AST::Component::Component &Comp,
-                            std::string_view Name) {
-  return instantiate(StoreMgr, Comp, Name);
-}
-
-/// Register an instantiated Component. See "include/executor/executor.h".
-Expect<void> Executor::registerComponent(
-    Runtime::StoreManager &StoreMgr,
-    const Runtime::Instance::ComponentInstance &CompInst) {
-  return StoreMgr.registerComponent(&CompInst).map_error([](auto E) {
-    spdlog::error(E);
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
-    return E;
-  });
-}
-
 /// Register a host function which will be invoked before calling a
 /// host function.
 Expect<void> Executor::registerPreHostFunction(
@@ -252,75 +226,6 @@ Executor::asyncInvoke(const Runtime::Instance::FunctionInstance *FuncInst,
       Span<const ValType>) = &Executor::invoke;
   return {FPtr, *this, FuncInst, std::vector(Params.begin(), Params.end()),
           std::vector(ParamTypes.begin(), ParamTypes.end())};
-}
-
-/// Invoke component function. See "include/executor/executor.h".
-Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
-Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
-                 Span<const ComponentValVariant> Params,
-                 Span<const ComponentValType> ParamTypes) {
-  if (unlikely(FuncInst == nullptr)) {
-    spdlog::error(ErrCode::Value::FuncNotFound);
-    return Unexpect(ErrCode::Value::FuncNotFound);
-  }
-
-  // Matching arguments and function type.
-  // TODO: COMPONENT - type matching.
-  const auto &ExpectedFuncType = FuncInst->getFuncType();
-  const size_t ExpectedArity = ExpectedFuncType.getParamList().size();
-  if (Params.size() != ParamTypes.size() || ParamTypes.size() < ExpectedArity) {
-    spdlog::error(ErrCode::Value::FuncSigMismatch);
-    spdlog::error("    expected {} argument(s), got {}"sv, ExpectedArity,
-                  ParamTypes.size());
-    return Unexpect(ErrCode::Value::FuncSigMismatch);
-  }
-
-  // Convert the component params into core WASM params.
-  auto *ReallocFuncInst = FuncInst->getAllocFunction();
-  auto *MemInst = FuncInst->getMemoryInstance();
-  EXPECTED_TRY(auto CoreWASMArgs,
-               convValsToCoreWASM(Params, ParamTypes, ReallocFuncInst, MemInst,
-                                  FuncInst->getComponentInstance(),
-                                  FuncInst->getStringEncoding()));
-
-  // Call runFunction.
-  auto *CoreFuncInst = FuncInst->getLowerFunction();
-  assuming(CoreFuncInst);
-  const auto &CoreFuncType = CoreFuncInst->getFuncType();
-  // TODO: COMPONENT - check the ABI types between core functype and args.
-  EXPECTED_TRY(auto CoreWASMReturns, invoke(CoreFuncInst, CoreWASMArgs,
-                                            CoreFuncType.getParamTypes()));
-
-  // Get return values.
-  std::vector<ComponentValType> ReturnTypes;
-  for (const auto &Type : FuncInst->getFuncType().getResultList()) {
-    ReturnTypes.push_back(Type.getValType());
-  }
-  EXPECTED_TRY(auto Returns,
-               convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst,
-                                   FuncInst->getComponentInstance(),
-                                   FuncInst->getStringEncoding()));
-  assuming(Returns.size() == ReturnTypes.size());
-
-  // CanonicalABI.md L3367-3372: after a sync lift completes (post
-  // task.return_), invoke the optional post-return with the ORIGINAL flat
-  // core return values as parameters. This is how Preview 2 components free
-  // buffers allocated for indirect-result / list / string returns.
-  //
-  // TODO: spec L3370 also gates this region with `may_leave = False`;
-  // WasmEdge doesn't model may_leave yet (deferred along with async).
-  // In practice sync Preview 2 post-return implementations don't re-enter.
-  if (auto *PostReturnInst = FuncInst->getPostReturnFunction()) {
-    std::vector<ValVariant> PRArgs;
-    PRArgs.reserve(CoreWASMReturns.size());
-    for (const auto &P : CoreWASMReturns) {
-      PRArgs.push_back(P.first);
-    }
-    EXPECTED_TRY(invoke(PostReturnInst, PRArgs,
-                        PostReturnInst->getFuncType().getParamTypes()));
-  }
-
-  return Returns;
 }
 
 } // namespace Executor

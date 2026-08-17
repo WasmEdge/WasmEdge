@@ -33,10 +33,10 @@
 namespace WasmEdge {
 namespace Executor {
 
-// Forward declaration: store / lowerFlat invoke the guest `realloc` through
-// Executor::invoke when allocating list / string return areas. Pulling in
-// executor/executor.h here would form a header cycle, so the call is routed
-// through this forward-declared pointer instead.
+namespace Component {
+
+// Forward-declared: store / lowerFlat reach the guest `realloc` through the
+// core executor, and including executor/executor.h here would cycle.
 class Executor;
 
 namespace CanonicalABI {
@@ -61,6 +61,16 @@ struct CanonCtx {
   /// but no ComponentInstance) reuse alignment / elemSize / flatten_* without
   /// duplicating the recursion. Takes precedence over CompInst when set.
   std::function<const AST::Component::DefType *(uint32_t)> TypeResolver;
+  /// Optional resolver for resource identities of own/borrow type indices.
+  /// Set together with TypeResolver when the function type belongs to a
+  /// different instance than the handle tables (host or cross-component
+  /// callees). Takes precedence over CompInst when set.
+  std::function<const Runtime::Instance::Component::ResourceTypeRT *(uint32_t)>
+      ResourceResolver;
+  /// When set, borrows lifted through this context are recorded so the
+  /// caller can release the lends after the call returns.
+  std::vector<std::pair<const Runtime::Instance::ComponentInstance *, uint32_t>>
+      *LiftedBorrows = nullptr;
   /// Guest string encoding for the canon function this context serves
   /// (CanonicalABI.md `string-encoding` option). Selects the byte layout used
   /// by load / store / lift_flat / lower_flat for `string` values. Defaults to
@@ -253,5 +263,6 @@ lowerFlatValues(const CanonCtx &Cx, Span<const ComponentValVariant> Values,
                 std::optional<uint32_t> OutParam = std::nullopt) noexcept;
 
 } // namespace CanonicalABI
+} // namespace Component
 } // namespace Executor
 } // namespace WasmEdge

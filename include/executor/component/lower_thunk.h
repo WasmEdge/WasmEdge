@@ -8,10 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// Synthesized core wasm function backing `canon lower` (CanonicalABI.md
-/// L3534-3640, sync branch). The thunk is a HostFunctionBase subclass whose
-/// run() lifts core wasm args to component values, invokes a wrapped
-/// Component::FunctionInstance, and lowers the result back.
+/// Synthesized core wasm function backing `canon lower`: it lifts core wasm
+/// args, invokes the wrapped component function, and lowers the result back.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -25,15 +23,14 @@
 
 namespace WasmEdge {
 namespace Executor {
+namespace Component {
 
 class Executor;
 
 class CanonLowerHostFunc : public Runtime::HostFunctionBase {
 public:
-  /// Construct a lower-side thunk. The flat ABI signature (already produced by
-  /// `flattenFuncType(IsLift=false)`) determines the core wasm signature
-  /// exposed to wasm callers; `Callee` is the component function being
-  /// adapted; `Memory` / `Realloc` come from the canon lower options.
+  /// Construct a lower-side thunk. `FlatSig` is the core wasm signature
+  /// exposed to callers; `Memory` / `Realloc` come from the canon options.
   CanonLowerHostFunc(Executor *Exec, const CanonicalABI::FlatFuncType &FlatSig,
                      Runtime::Instance::Component::FunctionInstance *Callee,
                      Runtime::Instance::MemoryInstance *Memory,
@@ -50,12 +47,13 @@ private:
   Runtime::Instance::MemoryInstance *Memory;
   Runtime::Instance::FunctionInstance *Realloc;
   const Runtime::Instance::ComponentInstance *CompInst;
-  // Cached at construction: true if lower added a trailing out-pointer
-  // (spec L2829-2831: flat_results > MAX_FLAT_RESULTS).
+  // Cached at construction: true if the signature carries a trailing
+  // out-pointer, which lower adds when flat_results exceeds MaxFlatResults.
   bool HasOutPtr;
   // Guest string encoding from the canon lower `string-encoding` option.
   StringEncoding Enc;
 };
 
+} // namespace Component
 } // namespace Executor
 } // namespace WasmEdge

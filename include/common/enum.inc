@@ -1364,6 +1364,28 @@ E(ResourceDropArgument, 0x1303,
 // Component model not implemented
 E(ComponentNotImplInstantiate, 0x1304,
   "component model (instantiation) not implemented")
+E(ComponentImportNotFound, 0x1305, "was not found")
+E(ComponentImportExpectedFunc, 0x1306, "expected function found instance")
+E(ComponentImportExpectedInstance, 0x1307, "expected instance found func")
+E(ComponentImportExpectedModule, 0x1308, "expected module found instance")
+E(ComponentHandleUnknown, 0x1309, "unknown handle index")
+E(ComponentHandleWrongType, 0x130A, "used with the wrong type")
+E(ComponentResourceBorrowed, 0x130B,
+  "cannot remove owned resource while borrowed")
+E(ComponentCharInvalid, 0x130C, "invalid `char` bit pattern")
+E(ComponentDiscriminantInvalid, 0x130D, "invalid variant discriminant")
+E(ComponentPtrUnaligned, 0x130E, "unaligned pointer")
+E(ComponentStrOOB, 0x130F, "string content out-of-bounds")
+E(ComponentReallocOOB, 0x1310, "realloc return: beyond end of memory")
+E(ComponentCoreModNotDefined, 0x1311, "not defined")
+E(ComponentCoreModWrongType, 0x1312, "has the wrong type")
+E(ComponentCoreModKindMismatch, 0x1313, "expected")
+E(ComponentResourceMismatched, 0x1314, "mismatched resource types")
+E(ComponentImportExpectedResource, 0x1315, "expected resource found func")
+E(ComponentCannotEnter, 0x1316, "cannot enter component instance")
+E(ComponentUTF8Invalid, 0x1317, "invalid utf-8")
+E(ComponentUTF8Incomplete, 0x1318, "incomplete utf-8 byte sequence")
+E(ComponentUnexpectedSort, 0x1319, "unexpected sort")
 // @}
 
 // Execution phase

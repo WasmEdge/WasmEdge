@@ -8,6 +8,7 @@
 #include "common/version.h"
 #include "driver/tool.h"
 #include "host/wasi/wasimodule.h"
+#include "vm/component_vm.h"
 #include "vm/vm.h"
 
 #include <algorithm>
@@ -15,6 +16,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -209,7 +211,7 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
 }
 
 static int
-ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
+ToolOnComponent(WasmEdge::VM::Component::VM &VM, const std::string &FuncName,
                 std::optional<std::chrono::system_clock::time_point> Timeout,
                 struct DriverToolOptions &Opt,
                 const AST::Component::FuncType &FuncType) noexcept {
@@ -318,7 +320,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     }
   }
 
-  auto AsyncResult = VM.asyncExecuteComponent(FuncName, FuncArgs, FuncArgTypes);
+  auto AsyncResult = VM.asyncExecute(FuncName, FuncArgs, FuncArgTypes);
   if (Timeout.has_value()) {
     if (!AsyncResult.waitUntil(*Timeout)) {
       AsyncResult.cancel();
@@ -440,6 +442,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
 
   // Create VM and get WASI module instance.
   VM::VM VM(Conf);
+  VM::Component::VM CompVM(Conf);
   Host::WasiModule *WasiMod = dynamic_cast<Host::WasiModule *>(
       VM.getImportModule(HostRegistration::Wasi));
 
@@ -460,15 +463,40 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     }
   }
 
-  // Load, validate, and instantiate WASM or Component.
-  if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
-    return EXIT_FAILURE;
+  // The wasm preamble carries a 2-byte layer after the version: it is zero
+  // for a core module and non-zero for a component. Each kind runs on its
+  // own VM.
+  bool IsComponent = false;
+  {
+    std::ifstream File(InputPath, std::ios::binary);
+    char Header[8] = {};
+    if (File.read(Header, sizeof(Header))) {
+      IsComponent = Header[0] == '\0' && Header[1] == 'a' && Header[2] == 's' &&
+                    Header[3] == 'm' && (Header[6] != 0 || Header[7] != 0);
+    }
   }
-  if (auto Result = VM.validate(); !Result) {
-    return EXIT_FAILURE;
-  }
-  if (auto Result = VM.instantiate(); !Result) {
-    return EXIT_FAILURE;
+
+  // Load, validate, and instantiate the WASM module or the component.
+  if (IsComponent) {
+    if (auto Result = CompVM.loadWasm(InputPath.u8string()); !Result) {
+      return EXIT_FAILURE;
+    }
+    if (auto Result = CompVM.validate(); !Result) {
+      return EXIT_FAILURE;
+    }
+    if (auto Result = CompVM.instantiate(); !Result) {
+      return EXIT_FAILURE;
+    }
+  } else {
+    if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
+      return EXIT_FAILURE;
+    }
+    if (auto Result = VM.validate(); !Result) {
+      return EXIT_FAILURE;
+    }
+    if (auto Result = VM.instantiate(); !Result) {
+      return EXIT_FAILURE;
+    }
   }
 
   auto HasValidCommandModStartFunc = [&]() {
@@ -575,12 +603,12 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
         }
       }
       return ToolOnModule(VM, FuncName, Timeout, Opt, *FuncType);
-    } else if (VM.holdsComponent()) {
+    } else if (IsComponent) {
       // Component case.
 
       // Check the exported function name and function type first.
       const AST::Component::FuncType *FuncType = nullptr;
-      for (const auto &Func : VM.getComponentFunctionList()) {
+      for (const auto &Func : CompVM.getFunctionList()) {
         if (Func.first == FuncName) {
           // Found the function to invoke.
           FuncType = &Func.second;
@@ -593,7 +621,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
             FuncName);
         return EXIT_FAILURE;
       }
-      return ToolOnComponent(VM, FuncName, Timeout, Opt, *FuncType);
+      return ToolOnComponent(CompVM, FuncName, Timeout, Opt, *FuncType);
     } else {
       // which means VM has neither instantiated module nor instantiated
       // component

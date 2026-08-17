@@ -2,7 +2,9 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/component/canonical_abi.h"
+#include "executor/component/executor.h"
 #include "executor/component/lower_thunk.h"
+#include "executor/component/resource_thunk.h"
 #include "executor/executor.h"
 
 #include "common/errinfo.h"
@@ -17,9 +19,7 @@ namespace Executor {
 using namespace std::literals;
 
 namespace {
-// Map a canon `string-encoding` option code to the runtime StringEncoding. The
-// three encoding option codes correspond 1:1; shared by the canon lift and
-// lower option loops so the mapping lives in one place.
+// Map a canon `string-encoding` option code to the runtime StringEncoding.
 StringEncoding toStringEncoding(ComponentCanonOptCode Code) noexcept {
   switch (Code) {
   case ComponentCanonOptCode::Encode_UTF16:
@@ -32,25 +32,27 @@ StringEncoding toStringEncoding(ComponentCanonOptCode Code) noexcept {
 }
 } // namespace
 
-Expect<std::vector<ValVariant>> Executor::convValsToCoreWASM(
+Expect<std::vector<ValVariant>> Component::Executor::convValsToCoreWASM(
     Span<const ComponentValVariant> Vals, Span<const ComponentValType> ValTypes,
     Runtime::Instance::FunctionInstance *RFuncInst,
     Runtime::Instance::MemoryInstance *MemInst,
     const Runtime::Instance::ComponentInstance *CompInst, StringEncoding Enc) {
   // Wrapper over the spec's lower_flat_values (CanonicalABI.md L3212-3232).
-  CanonicalABI::CanonCtx Cx{this, MemInst, RFuncInst, CompInst, {}, Enc};
+  CanonicalABI::CanonCtx Cx{this, MemInst, RFuncInst, CompInst,
+                            {},   {},      nullptr,   Enc};
   return CanonicalABI::lowerFlatValues(Cx, Vals, ValTypes,
                                        CanonicalABI::MaxFlatParams);
 }
 
 Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
-Executor::convValsToComponent(
+Component::Executor::convValsToComponent(
     Span<const std::pair<ValVariant, ValType>> CoreVals,
     Span<const ComponentValType> ValTypes,
     Runtime::Instance::MemoryInstance *MemInst,
     const Runtime::Instance::ComponentInstance *CompInst, StringEncoding Enc) {
   // Wrapper over the spec's lift_flat_values (CanonicalABI.md L3193-3202).
-  CanonicalABI::CanonCtx Cx{this, MemInst, nullptr, CompInst, {}, Enc};
+  CanonicalABI::CanonCtx Cx{this, MemInst, nullptr, CompInst,
+                            {},   {},      nullptr, Enc};
   CanonicalABI::FlatIter VI(CoreVals);
   EXPECTED_TRY(auto Lifted,
                CanonicalABI::liftFlatValues(Cx, VI, ValTypes,
@@ -64,8 +66,8 @@ Executor::convValsToComponent(
 }
 
 Expect<void>
-Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
-                      const AST::Component::CanonSection &CanonSec) {
+Component::Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
+                                 const AST::Component::CanonSection &CanonSec) {
   for (const auto &Canon : CanonSec.getContent()) {
     switch (Canon.getOpCode()) {
     case ComponentCanonOpCode::Lift: {
@@ -85,6 +87,13 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           break;
         case ComponentCanonOptCode::Memory:
           MemInst = CompInst.getCoreMemory(Opt.getIndex());
+          if (MemInst != nullptr &&
+              MemInst->getMemoryType().getLimit().is64()) {
+            spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+            spdlog::error(
+                "    canonical ABI over a 64-bit memory is not implemented"sv);
+            return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+          }
           break;
         case ComponentCanonOptCode::Realloc:
           ReallocFunc = CompInst.getCoreFunction(Opt.getIndex());
@@ -116,7 +125,8 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       // time rather than at call time. Captures FlatSig so the post-return
       // signature check can compare against flatten_functype({}, $ft,
       // 'lift').results (spec L3292).
-      CanonicalABI::CanonCtx PrefCx{nullptr, nullptr, nullptr, &CompInst, {}};
+      CanonicalABI::CanonCtx PrefCx{nullptr,   nullptr, nullptr,
+                                    &CompInst, {},      {}};
       EXPECTED_TRY(auto FlatSig,
                    CanonicalABI::flattenFuncType(PrefCx, DType->getFuncType(),
                                                  /*IsLift=*/true));
@@ -175,6 +185,13 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           break;
         case ComponentCanonOptCode::Memory:
           MemInst = CompInst.getCoreMemory(Opt.getIndex());
+          if (MemInst != nullptr &&
+              MemInst->getMemoryType().getLimit().is64()) {
+            spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+            spdlog::error(
+                "    canonical ABI over a 64-bit memory is not implemented"sv);
+            return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+          }
           break;
         case ComponentCanonOptCode::Realloc:
           ReallocFunc = CompInst.getCoreFunction(Opt.getIndex());
@@ -197,12 +214,29 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       }
 
       auto *Callee = CompInst.getFunction(Canon.getIndex());
+      if (Callee == nullptr) {
+        spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+        spdlog::error("    canon lower: function {} not found"sv,
+                      Canon.getIndex());
+        return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+      }
       const auto &CFT = Callee->getFuncType();
 
       // Pre-flight the lower-direction flat ABI so unsupported shapes (async,
       // gated types) fail at instantiation time. flattenFuncType doesn't need
-      // Mem / Realloc to compute the signature.
-      CanonicalABI::CanonCtx PrefCx{this, nullptr, nullptr, &CompInst, {}};
+      // Mem / Realloc to compute the signature. The callee's function type
+      // carries type indices of the callee's own instance.
+      CanonicalABI::CanonCtx PrefCx{this, nullptr, nullptr, &CompInst,
+                                    {},   {},      nullptr};
+      if (const auto *CalleeComp = Callee->getComponentInstance();
+          CalleeComp != nullptr && CalleeComp != &CompInst) {
+        PrefCx.TypeResolver = [CalleeComp](uint32_t I) {
+          return CalleeComp->getType(I);
+        };
+        PrefCx.ResourceResolver = [CalleeComp](uint32_t I) {
+          return CalleeComp->getTypeResource(I);
+        };
+      }
       EXPECTED_TRY(auto FlatSig,
                    CanonicalABI::flattenFuncType(PrefCx, CFT,
                                                  /*IsLift=*/false));
@@ -217,7 +251,35 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
     }
     case ComponentCanonOpCode::Resource__new:
     case ComponentCanonOpCode::Resource__drop:
-    case ComponentCanonOpCode::Resource__rep:
+    case ComponentCanonOpCode::Resource__rep: {
+      const auto *RT = CompInst.getTypeResource(Canon.getIndex());
+      if (RT == nullptr) {
+        spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+        spdlog::error("    canon resource built-in: type {} has no runtime "
+                      "resource"sv,
+                      Canon.getIndex());
+        return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+      }
+      std::unique_ptr<Runtime::HostFunctionBase> Thunk;
+      std::string_view Name;
+      switch (Canon.getOpCode()) {
+      case ComponentCanonOpCode::Resource__new:
+        Thunk = std::make_unique<CanonResourceNewHostFunc>(&CompInst, RT);
+        Name = "$resource-new"sv;
+        break;
+      case ComponentCanonOpCode::Resource__rep:
+        Thunk = std::make_unique<CanonResourceRepHostFunc>(&CompInst, RT);
+        Name = "$resource-rep"sv;
+        break;
+      default:
+        Thunk =
+            std::make_unique<CanonResourceDropHostFunc>(this, &CompInst, RT);
+        Name = "$resource-drop"sv;
+        break;
+      }
+      CompInst.addCoreHostFunction(std::move(Thunk), Name);
+      break;
+    }
     default:
       spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
       spdlog::error("    incomplete canonical"sv);

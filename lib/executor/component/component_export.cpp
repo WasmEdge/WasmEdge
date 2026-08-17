@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+#include "executor/component/executor.h"
 #include "executor/executor.h"
 
 #include "common/errinfo.h"
@@ -13,9 +14,9 @@ namespace Executor {
 
 using namespace std::literals;
 
-Expect<void>
-Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
-                      const AST::Component::ExportSection &ExportSec) {
+Expect<void> Component::Executor::instantiate(
+    Runtime::Instance::ComponentInstance &CompInst,
+    const AST::Component::ExportSection &ExportSec) {
   for (const auto &Export : ExportSec.getContent()) {
     auto Index = Export.getSortIndex().getIdx();
     const auto &Sort = Export.getSortIndex().getSort();
@@ -25,45 +26,56 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       case AST::Component::Sort::CoreSortType::Instance:
         CompInst.exportCoreModuleInstance(Export.getName(), Index);
         break;
+      case AST::Component::Sort::CoreSortType::Module:
+        CompInst.exportCoreModule(Export.getName(), Index);
+        if (const auto *Mod = CompInst.getModule(Index)) {
+          CompInst.addModule(*Mod);
+        }
+        break;
       case AST::Component::Sort::CoreSortType::Func:
       case AST::Component::Sort::CoreSortType::Table:
       case AST::Component::Sort::CoreSortType::Memory:
       case AST::Component::Sort::CoreSortType::Global:
       case AST::Component::Sort::CoreSortType::Type:
-      case AST::Component::Sort::CoreSortType::Module:
         // These cases are invalid.
       default:
         assumingUnreachable();
       }
     } else {
+      // Exports introduce a new index aliasing the exported definition, so
+      // later definitions resolve indices consistently with validation.
       switch (Sort.getSortType()) {
       case AST::Component::Sort::SortType::Func:
         // Each export also aliases the exported definition into a new index in
         // the component's own index space, mirroring the validator, so later
         // references to that index resolve in bounds.
         CompInst.exportFunction(Export.getName(), Index);
-        CompInst.addFunction(CompInst.getFunction(Index));
+        if (auto *Func = CompInst.getFunction(Index)) {
+          CompInst.addFunction(Func);
+        }
         break;
       case AST::Component::Sort::SortType::Instance:
         CompInst.exportComponentInstance(Export.getName(), Index);
-        CompInst.addComponentInstance(CompInst.getComponentInstance(Index));
+        if (const auto *Inst = CompInst.getComponentInstance(Index)) {
+          CompInst.addComponentInstance(Inst);
+        }
         break;
       case AST::Component::Sort::SortType::Type:
         // A type export introduces a new index aliasing the exported type,
         // so later definitions resolve indices as validation does.
         CompInst.exportType(Export.getName(), Index);
-        if (const auto *Ty = CompInst.getType(Index)) {
-          CompInst.addType(*Ty);
-        }
+        CompInst.addTypeWithResource(CompInst.getType(Index),
+                                     CompInst.getTypeResource(Index));
         break;
       case AST::Component::Sort::SortType::Component:
         CompInst.exportComponent(Export.getName(), Index);
+        CompInst.addComponentEntry(CompInst.getComponent(Index),
+                                   CompInst.getComponentEnv(Index));
         break;
       case AST::Component::Sort::SortType::Value:
-        // TODO: COMPONENT - complete the export instantiation.
-        spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-        spdlog::error("    incomplete export {}"sv, Export.getName());
-        return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+        CompInst.exportValue(Export.getName(), CompInst.getValue(Index));
+        CompInst.addValue(CompInst.getValue(Index));
+        break;
       default:
         assumingUnreachable();
       }

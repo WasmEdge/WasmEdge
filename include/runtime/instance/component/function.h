@@ -7,6 +7,7 @@
 #include "runtime/instance/function.h"
 #include "runtime/instance/memory.h"
 
+#include <functional>
 #include <memory>
 
 namespace WasmEdge {
@@ -18,17 +19,24 @@ class ComponentInstance; // forward decl for parent component pointer
 namespace Component {
 
 class FunctionInstance {
-  // The component function instance currently can only be instantiated by the
-  // `canon lift` operation. For the component host functions, the extension may
-  // be implemented in the future.
+  // A component function instance is either instantiated by `canon lift`
+  // (guest) or supplied by the embedder as a host function consuming and
+  // producing component-level values directly.
 public:
+  /// Host callback: component-level values in, (value, type) pairs out.
+  using HostFuncCallback = std::function<
+      Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>(
+          Span<const ComponentValVariant>)>;
+
   FunctionInstance() = delete;
   /// Move constructor.
   FunctionInstance(FunctionInstance &&Inst) noexcept
-      : FuncType(Inst.FuncType), LowerFunc(Inst.LowerFunc),
-        MemInst(Inst.MemInst), ReallocFunc(Inst.ReallocFunc),
-        PostReturnFunc(Inst.PostReturnFunc), ParentComp(Inst.ParentComp),
-        Enc(Inst.Enc) {}
+      : OwnedFuncType(std::move(Inst.OwnedFuncType)),
+        FuncType(OwnedFuncType ? *OwnedFuncType : Inst.FuncType),
+        LowerFunc(Inst.LowerFunc), MemInst(Inst.MemInst),
+        ReallocFunc(Inst.ReallocFunc), PostReturnFunc(Inst.PostReturnFunc),
+        ParentComp(Inst.ParentComp), Enc(Inst.Enc),
+        HostFunc(std::move(Inst.HostFunc)) {}
   /// Constructor for component native function. `PR` is the optional
   /// post-return core function (CanonicalABI.md L3367-3372); pass nullptr
   /// when the canon lift declared no post-return option.
@@ -41,6 +49,19 @@ public:
                    StringEncoding E = StringEncoding::UTF8) noexcept
       : FuncType(Type), LowerFunc(F), MemInst(M), ReallocFunc(R),
         PostReturnFunc(PR), ParentComp(P), Enc(E) {}
+  /// Constructor for a host component function. The function type is owned
+  /// by the instance; the callback runs on component-level values.
+  FunctionInstance(std::unique_ptr<AST::Component::FuncType> Type,
+                   HostFuncCallback &&Callback,
+                   const Runtime::Instance::ComponentInstance *P) noexcept
+      : OwnedFuncType(std::move(Type)), FuncType(*OwnedFuncType),
+        LowerFunc(nullptr), MemInst(nullptr), ReallocFunc(nullptr),
+        PostReturnFunc(nullptr), ParentComp(P), Enc(StringEncoding::UTF8),
+        HostFunc(std::move(Callback)) {}
+
+  /// Host function accessors.
+  bool isHostFunction() const noexcept { return static_cast<bool>(HostFunc); }
+  const HostFuncCallback &getHostFunc() const noexcept { return HostFunc; }
 
   /// Getter for component function type.
   const AST::Component::FuncType &getFuncType() const noexcept {
@@ -80,6 +101,7 @@ public:
   StringEncoding getStringEncoding() const noexcept { return Enc; }
 
 protected:
+  std::unique_ptr<AST::Component::FuncType> OwnedFuncType;
   const AST::Component::FuncType &FuncType;
   Runtime::Instance::FunctionInstance *LowerFunc;
   Runtime::Instance::MemoryInstance *MemInst;
@@ -87,6 +109,7 @@ protected:
   Runtime::Instance::FunctionInstance *PostReturnFunc;
   const Runtime::Instance::ComponentInstance *ParentComp;
   StringEncoding Enc;
+  HostFuncCallback HostFunc;
 };
 
 } // namespace Component

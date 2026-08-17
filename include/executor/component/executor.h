@@ -17,6 +17,7 @@
 #include "ast/component/component.h"
 #include "common/errcode.h"
 #include "common/types.h"
+#include "executor/component/async_runtime.h"
 #include "executor/component/instantiator.h"
 #include "runtime/component/storemgr.h"
 #include "runtime/instance/component/component.h"
@@ -67,6 +68,11 @@ public:
   invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
          Span<const ComponentValVariant> Params,
          Span<const ComponentValType> ParamTypes);
+
+  /// \name Component-model async task runtime.
+  /// @{
+  AsyncRuntime &getAsyncRuntime() noexcept { return AsyncRt; }
+  /// @}
 
 private:
   /// \name Functions for instantiation.
@@ -169,6 +175,8 @@ private:
 
   /// The core executor below this one.
   WasmEdge::Executor::Executor &Core;
+  /// Component-model async task runtime.
+  AsyncRuntime AsyncRt{*this};
 };
 
 } // namespace Component

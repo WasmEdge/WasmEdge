@@ -30,9 +30,9 @@ Expect<void> Component::Executor::instantiate(
       }
       const AST::Module *ModPtr = CompInst.getModule(Expr.getModuleIndex());
       if (ModPtr == nullptr) {
-        spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+        spdlog::error(ErrCode::Value::ComponentUnknownModule);
         spdlog::error("    core module {} not found"sv, Expr.getModuleIndex());
-        return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+        return Unexpect(ErrCode::Value::ComponentUnknownModule);
       }
       const AST::Module &Mod = *ModPtr;
       // A core module inside a component takes its imports from the arguments
@@ -185,9 +185,9 @@ Expect<void> Component::Executor::instantiate(
       const AST::Component::Component *CompPtr =
           CompInst.getComponent(Expr.getComponentIndex());
       if (CompPtr == nullptr) {
-        spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+        spdlog::error(ErrCode::Value::ComponentUnknownComponent);
         spdlog::error("    component {} not found"sv, Expr.getComponentIndex());
-        return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+        return Unexpect(ErrCode::Value::ComponentUnknownComponent);
       }
       const AST::Component::Component &Comp = *CompPtr;
       // The lexical parent is the component value's captured definition

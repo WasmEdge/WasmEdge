@@ -9,7 +9,7 @@
 ///
 /// \file
 /// Synthesized core wasm function backing `canon lower`: it lifts core wasm
-/// args, invokes the wrapped component function, and lowers the result back.
+/// args, drives the callee task, and lowers the result back.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -36,7 +36,8 @@ public:
                      Runtime::Instance::MemoryInstance *Memory,
                      Runtime::Instance::FunctionInstance *Realloc,
                      const Runtime::Instance::ComponentInstance *CompInst,
-                     StringEncoding Enc = StringEncoding::UTF8) noexcept;
+                     StringEncoding Enc = StringEncoding::UTF8,
+                     bool AsyncLower = false) noexcept;
 
   Expect<void> run(const Runtime::CallingFrame &Frame,
                    Span<const ValVariant> Args, Span<ValVariant> Rets) override;
@@ -48,10 +49,14 @@ private:
   Runtime::Instance::FunctionInstance *Realloc;
   const Runtime::Instance::ComponentInstance *CompInst;
   // Cached at construction: true if the signature carries a trailing
-  // out-pointer, which lower adds when flat_results exceeds MaxFlatResults.
+  // out-pointer. An async signature does so for any result.
   bool HasOutPtr;
+  // Number of leading flat argument slots holding the lowered parameters.
+  uint32_t ParamSlotCount;
   // Guest string encoding from the canon lower `string-encoding` option.
   StringEncoding Enc;
+  // The `async` canonical option.
+  bool AsyncLower;
 };
 
 } // namespace Component

@@ -18,6 +18,7 @@
 #include "ast/type.h"
 #include "common/errcode.h"
 #include "common/types.h"
+#include "runtime/instance/component/async.h"
 #include "runtime/instance/component/function.h"
 #include "runtime/instance/component/state.h"
 #include "runtime/instance/module.h"
@@ -46,7 +47,9 @@ namespace Component {
 struct ResourceTypeRT {
   const ComponentInstance *Impl = nullptr;
   Runtime::Instance::FunctionInstance *Dtor = nullptr;
-  std::function<void(uint32_t)> HostDtor;
+  std::function<void(uint64_t)> HostDtor;
+  // True when the resource is represented by i64 (memory64 proposal).
+  bool RepI64 = false;
 };
 
 class ImportManager {
@@ -247,6 +250,13 @@ class ComponentInstance {
   // the linking isolation of the module and component type declarations.
 public:
   ComponentInstance(std::string_view Name) : CompName(Name) {}
+  // The threads of this instance end here, before any member it holds goes
+  // away. The executor installs the hook when it spawns the first one.
+  ~ComponentInstance() noexcept {
+    if (Concurrency->OnDestroy) {
+      Concurrency->OnDestroy();
+    }
+  }
 
   // Getter for the component name.
   std::string_view getComponentName() const noexcept { return CompName; }
@@ -297,6 +307,20 @@ public:
   findFunction(std::string_view Name) const noexcept {
     return findExport(ExpFuncInsts, Name);
   }
+  // Find an exported function by the embedder-facing path: either a top-level
+  // export name, or `interface#func` reaching into an exported instance.
+  Component::FunctionInstance *
+  findExportedFunction(std::string_view Name) const noexcept {
+    if (auto *Func = findFunction(Name); Func != nullptr) {
+      return Func;
+    }
+    const auto Pos = Name.find('#');
+    if (Pos == std::string_view::npos) {
+      return nullptr;
+    }
+    const auto *Inst = findComponentInstance(Name.substr(0, Pos));
+    return Inst != nullptr ? Inst->findFunction(Name.substr(Pos + 1)) : nullptr;
+  }
   template <typename CallbackT>
   auto getFuncExports(CallbackT &&CallBack) const noexcept {
     return std::forward<CallbackT>(CallBack)(ExpFuncInsts);
@@ -316,7 +340,7 @@ public:
     return static_cast<uint32_t>(Types.size() - 1);
   }
   // Host-defined resource type with a host destructor.
-  uint32_t addHostResourceType(std::function<void(uint32_t)> Dtor) noexcept {
+  uint32_t addHostResourceType(std::function<void(uint64_t)> Dtor) noexcept {
     OwnedResourceTypes.push_back(std::make_unique<Component::ResourceTypeRT>());
     OwnedResourceTypes.back()->Impl = this;
     OwnedResourceTypes.back()->HostDtor = std::move(Dtor);
@@ -339,6 +363,8 @@ public:
     OwnedResourceTypes.push_back(std::make_unique<Component::ResourceTypeRT>());
     OwnedResourceTypes.back()->Impl = this;
     OwnedResourceTypes.back()->Dtor = Dtor;
+    OwnedResourceTypes.back()->RepI64 =
+        Ty.isResourceType() && Ty.getResourceType().isAddrI64();
     Types.emplace_back(&Ty);
     TypeResources.emplace_back(OwnedResourceTypes.back().get());
     return OwnedResourceTypes.back().get();
@@ -398,6 +424,10 @@ public:
   findComponentInstance(std::string_view Name) const noexcept {
     return findExport(ExpCompInsts, Name);
   }
+  template <typename CallbackT>
+  auto getComponentInstanceExports(CallbackT &&CallBack) const noexcept {
+    return std::forward<CallbackT>(CallBack)(ExpCompInsts);
+  }
 
   // Index space: component. (declaration for instantiation phase)
   // Lexical parent for outer-alias resolution during instantiation.
@@ -409,6 +439,33 @@ public:
   Component::HandleTable &handles() const noexcept { return *Handles; }
   Component::ConcurrencyState &concurrency() const noexcept {
     return *Concurrency;
+  }
+
+  // Root of the lexical instantiation tree (poisoning + host-entry checks).
+  const ComponentInstance *getRoot() const noexcept {
+    const ComponentInstance *R = this;
+    while (R->Parent != nullptr) {
+      R = R->Parent;
+    }
+    return R;
+  }
+  // True when callee and caller are the same instance or lexical relatives,
+  // for which an adapter call always traps.
+  bool isLinealRelativeOf(const ComponentInstance *Other) const noexcept {
+    if (Other == nullptr) {
+      return false;
+    }
+    for (const ComponentInstance *P = this; P != nullptr; P = P->Parent) {
+      if (P == Other) {
+        return true;
+      }
+    }
+    for (const ComponentInstance *P = Other; P != nullptr; P = P->Parent) {
+      if (P == this) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // A component index entry: the definition plus the lexical environment

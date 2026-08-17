@@ -27,10 +27,15 @@ Component::Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
   }
 
   // The start function is part of this instantiation, so it can enter the
-  // instance under construction.
+  // instance under construction, and the context task steps aside.
   Runtime::Instance::Component::ConcurrencyState::LeaveGuard LeaveG{
       CompInst.concurrency()};
+  Component::Task *SavedTask = AsyncRt.currentTask();
+  AsyncRt.popNestedTask();
   auto Res = invoke(FuncInst, Args, PTypes);
+  if (SavedTask != nullptr) {
+    AsyncRt.pushNestedTask(SavedTask);
+  }
   EXPECTED_TRY(auto ResultList, std::move(Res));
   // Start results append to the value index space in declaration order.
   for (uint32_t I = 0; I < Start.getResult() && I < ResultList.size(); ++I) {
@@ -43,8 +48,8 @@ Expect<void>
 Component::Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
                                  const AST::Component::ValueSection &ValSec) {
   for (const auto &Value : ValSec.getContent()) {
-    // The payloads decode during validation; an empty slot means this AST
-    // never passed the validator.
+    // The payloads decode during validation. An empty slot means that this
+    // AST never passed the validator.
     const auto &Cached = Value.getDecoded();
     if (!Cached.has_value()) {
       spdlog::error(ErrCode::Value::NotValidated);

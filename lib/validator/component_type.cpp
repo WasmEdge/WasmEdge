@@ -315,11 +315,6 @@ Validator::validate(const AST::Component::ResourceType &RT) noexcept {
         "    Resource types cannot be defined in component or instance types."sv);
     return Unexpect(ErrCode::Value::ComponentResourceOutsideComponent);
   }
-  if (RT.isAddrI64()) {
-    spdlog::error(ErrCode::Value::ComponentResourceRepI32);
-    spdlog::error("    Resources can only be represented by i32."sv);
-    return Unexpect(ErrCode::Value::ComponentResourceRepI32);
-  }
   if (RT.getDestructor().has_value()) {
     const uint32_t Idx = *RT.getDestructor();
     const auto *Dtor = CompCtx.top().getCoreFunc(Idx);

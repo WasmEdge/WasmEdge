@@ -15,8 +15,12 @@ wasmedge_add_library(wasmedgeExecutor
   component/component.cpp
   component/component_executor.cpp
   component/component_alias.cpp
+  component/component_async_runtime.cpp
+  component/component_async_thunk.cpp
   component/component_canon.cpp
-  component/component_canon_abi.cpp
+  component/component_canon_layout.cpp
+  component/component_canon_loadstore.cpp
+  component/component_canon_liftlower.cpp
   component/component_lower_thunk.cpp
   component/component_resource_thunk.cpp
   component/component_export.cpp

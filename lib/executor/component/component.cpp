@@ -13,6 +13,24 @@ namespace Executor {
 
 using namespace std::literals;
 
+namespace {
+// The instantiation context runs start functions and canon built-ins as an
+// implicit synchronous task, so a blocking operation traps.
+struct InstantiateTaskGuard {
+  InstantiateTaskGuard(Component::AsyncRuntime &RtIn,
+                       const Runtime::Instance::ComponentInstance *Inst)
+      : Rt(RtIn) {
+    Component::Task *T = Rt.newTask();
+    T->Inst = Inst;
+    T->CallerTask = Rt.currentTask();
+    T->St = Component::Task::State::Started;
+    Rt.pushNestedTask(T);
+  }
+  ~InstantiateTaskGuard() { Rt.popNestedTask(); }
+  Component::AsyncRuntime &Rt;
+};
+} // namespace
+
 // Walk the sections of one component. See
 // "include/executor/component/executor.h".
 Expect<void>
@@ -54,6 +72,7 @@ Component::Executor::instantiate(Runtime::Component::StoreManager &StoreMgr,
   // The instance cannot be entered until instantiation completes.
   Runtime::Instance::Component::ConcurrencyState::EnterGuard EnterG{
       CompInst->concurrency()};
+  InstantiateTaskGuard TaskGuard{AsyncRt, CompInst.get()};
 
   Component::Instantiator Ctx{StoreMgr, *CompInst};
   EXPECTED_TRY(instantiate(Ctx, Comp));
@@ -78,6 +97,7 @@ Component::Executor::instantiate(
   // The instance cannot be entered until instantiation completes.
   Runtime::Instance::Component::ConcurrencyState::EnterGuard EnterG{
       CompInst->concurrency()};
+  InstantiateTaskGuard TaskGuard{AsyncRt, CompInst.get()};
 
   Component::Instantiator Ctx{ImportMgr, *CompInst};
   EXPECTED_TRY(instantiate(Ctx, Comp));

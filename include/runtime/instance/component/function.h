@@ -14,14 +14,13 @@ namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
 
-class ComponentInstance; // forward decl for parent component pointer
+class ComponentInstance;
 
 namespace Component {
 
 class FunctionInstance {
-  // A component function instance is either instantiated by `canon lift`
-  // (guest) or supplied by the embedder as a host function consuming and
-  // producing component-level values directly.
+  // A component function instance comes either from `canon lift` or from an
+  // embedder host function over component-level values.
 public:
   /// Host callback: component-level values in, (value, type) pairs out.
   using HostFuncCallback = std::function<
@@ -35,11 +34,11 @@ public:
         FuncType(OwnedFuncType ? *OwnedFuncType : Inst.FuncType),
         LowerFunc(Inst.LowerFunc), MemInst(Inst.MemInst),
         ReallocFunc(Inst.ReallocFunc), PostReturnFunc(Inst.PostReturnFunc),
-        ParentComp(Inst.ParentComp), Enc(Inst.Enc),
+        CallbackFunc(Inst.CallbackFunc), ParentComp(Inst.ParentComp),
+        Enc(Inst.Enc), AsyncLifted(Inst.AsyncLifted),
         HostFunc(std::move(Inst.HostFunc)) {}
-  /// Constructor for component native function. `PR` is the optional
-  /// post-return core function (CanonicalABI.md L3367-3372); pass nullptr
-  /// when the canon lift declared no post-return option.
+  /// Constructor for a component native function. `PR` is the optional
+  /// post-return core function, or nullptr.
   FunctionInstance(const AST::Component::FuncType &Type,
                    Runtime::Instance::FunctionInstance *F,
                    Runtime::Instance::MemoryInstance *M,
@@ -49,8 +48,8 @@ public:
                    StringEncoding E = StringEncoding::UTF8) noexcept
       : FuncType(Type), LowerFunc(F), MemInst(M), ReallocFunc(R),
         PostReturnFunc(PR), ParentComp(P), Enc(E) {}
-  /// Constructor for a host component function. The function type is owned
-  /// by the instance; the callback runs on component-level values.
+  /// Constructor for a host component function. The instance owns the
+  /// function type. The callback runs on component-level values.
   FunctionInstance(std::unique_ptr<AST::Component::FuncType> Type,
                    HostFuncCallback &&Callback,
                    const Runtime::Instance::ComponentInstance *P) noexcept
@@ -91,7 +90,7 @@ public:
   }
 
   /// Getter for the post-return core function instance, or nullptr when the
-  /// canon lift declared no post-return option (CanonicalABI.md L3367-3372).
+  /// canon lift declared no post-return option.
   Runtime::Instance::FunctionInstance *getPostReturnFunction() const noexcept {
     return PostReturnFunc;
   }
@@ -100,6 +99,17 @@ public:
   /// `string-encoding` option (defaults to UTF-8).
   StringEncoding getStringEncoding() const noexcept { return Enc; }
 
+  /// Async lift options (`async`, `(callback f)`, `always-task-return`).
+  void setAsyncOptions(bool Async,
+                       Runtime::Instance::FunctionInstance *Callback) noexcept {
+    AsyncLifted = Async;
+    CallbackFunc = Callback;
+  }
+  bool isAsyncLifted() const noexcept { return AsyncLifted; }
+  Runtime::Instance::FunctionInstance *getCallbackFunction() const noexcept {
+    return CallbackFunc;
+  }
+
 protected:
   std::unique_ptr<AST::Component::FuncType> OwnedFuncType;
   const AST::Component::FuncType &FuncType;
@@ -107,8 +117,10 @@ protected:
   Runtime::Instance::MemoryInstance *MemInst;
   Runtime::Instance::FunctionInstance *ReallocFunc;
   Runtime::Instance::FunctionInstance *PostReturnFunc;
+  Runtime::Instance::FunctionInstance *CallbackFunc = nullptr;
   const Runtime::Instance::ComponentInstance *ParentComp;
   StringEncoding Enc;
+  bool AsyncLifted = false;
   HostFuncCallback HostFunc;
 };
 

@@ -71,66 +71,101 @@ Component::Executor::invoke(
     return FuncInst->getHostFunc()(Params);
   }
 
-  // Reentrance guard: the component model forbids sync reentrance, and this
-  // also rejects a call into an instance that is still instantiating.
   const auto *Parent = FuncInst->getComponentInstance();
-  if (Parent != nullptr && Parent->concurrency().entered()) {
+  // Poisoned instance tree: after any trap inside it, entries trap.
+  if (Parent != nullptr && Parent->getRoot()->concurrency().Poisoned) {
     spdlog::error(ErrCode::Value::ComponentCannotEnter);
     spdlog::error("    cannot enter component instance"sv);
     return Unexpect(ErrCode::Value::ComponentCannotEnter);
   }
-  std::optional<Runtime::Instance::Component::ConcurrencyState::EnterGuard>
-      EnterG;
-  if (Parent != nullptr) {
-    EnterG.emplace(Parent->concurrency());
+  // Host-entry reentrance. No task of the current chain can already belong
+  // to the same instance tree.
+  Component::Task *Caller = AsyncRt.currentTask();
+  for (Component::Task *C = Caller; C != nullptr; C = C->CallerTask) {
+    if (Parent != nullptr && C->Inst != nullptr &&
+        C->Inst->getRoot() == Parent->getRoot()) {
+      spdlog::error(ErrCode::Value::ComponentCannotEnter);
+      spdlog::error("    cannot enter component instance"sv);
+      return Unexpect(ErrCode::Value::ComponentCannotEnter);
+    }
   }
 
-  // Convert the component params into core WASM params.
-  auto *ReallocFuncInst = FuncInst->getAllocFunction();
-  auto *MemInst = FuncInst->getMemoryInstance();
-  EXPECTED_TRY(auto CoreWASMArgs,
-               convValsToCoreWASM(Params, ParamTypes, ReallocFuncInst, MemInst,
-                                  FuncInst->getComponentInstance(),
-                                  FuncInst->getStringEncoding()));
-
-  // Call runFunction.
-  auto *CoreFuncInst = FuncInst->getLowerFunction();
-  assuming(CoreFuncInst);
-  const auto &CoreFuncType = CoreFuncInst->getFuncType();
-  // TODO: COMPONENT - check the ABI types between core functype and args.
-  EXPECTED_TRY(
-      auto CoreWASMReturns,
-      core().invoke(CoreFuncInst, CoreWASMArgs, CoreFuncType.getParamTypes()));
-
-  // Get return values.
+  // Collect the argument and result plumbing for the task.
+  std::vector<ComponentValVariant> ArgVals(Params.begin(), Params.end());
   std::vector<ComponentValType> ReturnTypes;
-  for (const auto &Type : FuncInst->getFuncType().getResultList()) {
+  for (const auto &Type : ExpectedFuncType.getResultList()) {
     ReturnTypes.push_back(Type.getValType());
   }
-  EXPECTED_TRY(auto Returns,
-               convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst,
-                                   FuncInst->getComponentInstance(),
-                                   FuncInst->getStringEncoding()));
-  assuming(Returns.size() == ReturnTypes.size());
-
-  // CanonicalABI.md L3367-3372: after a sync lift completes (post
-  // task.return_), invoke the optional post-return with the ORIGINAL flat
-  // core return values as parameters. This is how Preview 2 components free
-  // buffers allocated for indirect-result / list / string returns.
-  //
-  // TODO: spec L3370 also gates this region with `may_leave = False`;
-  // WasmEdge doesn't model may_leave yet (deferred along with async).
-  // In practice sync Preview 2 post-return implementations don't re-enter.
-  if (auto *PostReturnInst = FuncInst->getPostReturnFunction()) {
-    std::vector<ValVariant> PRArgs;
-    PRArgs.reserve(CoreWASMReturns.size());
-    for (const auto &P : CoreWASMReturns) {
-      PRArgs.push_back(P.first);
+  auto Captured =
+      std::make_shared<std::optional<std::vector<ComponentValVariant>>>();
+  auto OnStart = [ArgVals = std::move(ArgVals)]() {
+    return Expect<std::vector<ComponentValVariant>>(ArgVals);
+  };
+  auto OnResolve =
+      [Captured](std::optional<std::vector<ComponentValVariant>> Results)
+      -> Expect<void> {
+    if (Results.has_value()) {
+      *Captured = std::move(*Results);
+    } else {
+      // A cancelled host call resolves with no values.
+      *Captured = std::vector<ComponentValVariant>{};
     }
-    EXPECTED_TRY(core().invoke(PostReturnInst, PRArgs,
-                               PostReturnInst->getFuncType().getParamTypes()));
+    return {};
+  };
+
+  // Teardown aborts the parked vehicles. Only the embedder thread can do it,
+  // because on a vehicle it joins its own thread.
+  const bool OnEmbedder = AsyncRt.currentVehicle() == nullptr;
+  AsyncRt.InvokeDepth += 1;
+  auto TaskOrErr = AsyncRt.liftCall(FuncInst, std::move(OnStart),
+                                    std::move(OnResolve), Caller);
+  if (!TaskOrErr) {
+    AsyncRt.InvokeDepth -= 1;
+    if (AsyncRt.InvokeDepth == 0 && OnEmbedder &&
+        AsyncRt.trapLatch().has_value()) {
+      const auto Err = *AsyncRt.trapLatch();
+      AsyncRt.teardown();
+      return Unexpect(Err);
+    }
+    return Unexpect(TaskOrErr.error());
+  }
+  Component::Task *T = *TaskOrErr;
+
+  // Async-typed exports: drive the scheduler until the task resolves.
+  if (T->FTAsync && T->St != Component::Task::State::Resolved) {
+    auto PumpRes = AsyncRt.pumpUntil(
+        [T]() { return T->St == Component::Task::State::Resolved; });
+    if (!PumpRes) {
+      AsyncRt.noteTrap(PumpRes.error(), Parent);
+      AsyncRt.InvokeDepth -= 1;
+      if (AsyncRt.InvokeDepth == 0 && OnEmbedder) {
+        const auto Err = AsyncRt.trapLatch().value_or(PumpRes.error());
+        AsyncRt.teardown();
+        return Unexpect(Err);
+      }
+      return Unexpect(PumpRes.error());
+    }
+  }
+  AsyncRt.InvokeDepth -= 1;
+  // At the outermost embedder invoke, drain the tasks and vehicles left
+  // behind, so none of them outlives the call and sees torn-down state. A
+  // thread parked by thread.suspend is the exception: it belongs to the
+  // component instance, not to the call, and a later call may resume it.
+  if (AsyncRt.InvokeDepth == 0 && OnEmbedder && !AsyncRt.hasParkedThreads()) {
+    AsyncRt.teardown();
   }
 
+  if (!Captured->has_value()) {
+    spdlog::error(ErrCode::Value::ComponentNoAsyncResult);
+    spdlog::error("    async-lifted export failed to produce a result"sv);
+    return Unexpect(ErrCode::Value::ComponentNoAsyncResult);
+  }
+  auto &Results = **Captured;
+  std::vector<std::pair<ComponentValVariant, ComponentValType>> Returns;
+  Returns.reserve(Results.size());
+  for (size_t I = 0; I < Results.size() && I < ReturnTypes.size(); ++I) {
+    Returns.emplace_back(std::move(Results[I]), ReturnTypes[I]);
+  }
   return Returns;
 }
 

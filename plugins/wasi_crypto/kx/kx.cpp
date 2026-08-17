@@ -8,20 +8,24 @@ namespace Host {
 namespace WasiCrypto {
 namespace Kx {
 
+namespace {
+template <typename Sk, typename Pk, typename = void>
+struct IsDhCompatible : std::false_type {};
+
+template <typename Sk, typename Pk>
+struct IsDhCompatible<
+    Sk, Pk, std::void_t<decltype(std::declval<const Sk &>().dh(std::declval<const Pk &>()))>>
+    : std::true_type {};
+} // namespace
+
 WasiCryptoExpect<SecretVec> dh(const PkVariant &PkVariant,
                                const SkVariant &SkVariant) noexcept {
   return std::visit(
       [](const auto &Pk, const auto &Sk) -> WasiCryptoExpect<SecretVec> {
         using PkType = std::decay_t<decltype(Pk)>;
         using SkType = std::decay_t<decltype(Sk)>;
-        if constexpr (std::is_same_v<PkType, X25519::PublicKey> &&
-                      std::is_same_v<SkType, X25519::SecretKey>) {
-          return Sk.dh(Pk);
-        } else if constexpr (std::is_same_v<PkType, EcdsaP256::PublicKey> &&
-                             std::is_same_v<SkType, EcdsaP256::SecretKey>) {
-          return Sk.dh(Pk);
-        } else if constexpr (std::is_same_v<PkType, EcdsaP384::PublicKey> &&
-                             std::is_same_v<SkType, EcdsaP384::SecretKey>) {
+
+        if constexpr (IsDhCompatible<SkType, PkType>::value) {
           return Sk.dh(Pk);
         } else {
           return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);

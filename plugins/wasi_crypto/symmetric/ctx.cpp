@@ -314,7 +314,8 @@ WasiCryptoExpect<__wasi_symmetric_key_t> Context::symmetricKeyGenerateManaged(
         }
 
         std::vector<uint8_t> GeneratedId(32);
-        opensslCheck(RAND_bytes(GeneratedId.data(), 32));
+        ensureOrReturn(RAND_bytes(GeneratedId.data(), 32) == 1,
+                       __WASI_CRYPTO_ERRNO_RNG_ERROR);
 
         auto StoreResult = Sm.storeSk(GeneratedId, 0, *KeyResult);
         if (!StoreResult) {
@@ -347,7 +348,8 @@ Context::symmetricKeyStoreManaged(__wasi_secrets_manager_t SecretsManagerHandle,
         return SymmetricKeyManager.get(KeyHandle).and_then(
             [&](auto &&Key) noexcept -> WasiCryptoExpect<void> {
               std::vector<uint8_t> GeneratedId(32);
-              opensslCheck(RAND_bytes(GeneratedId.data(), 32));
+              ensureOrReturn(RAND_bytes(GeneratedId.data(), 32) == 1,
+                             __WASI_CRYPTO_ERRNO_RNG_ERROR);
 
               return Sm.storeSk(GeneratedId, 0, Key)
                   .and_then([&](auto &&Version) {
@@ -398,9 +400,17 @@ WasiCryptoExpect<__wasi_version_t> Context::symmetricKeyReplaceManaged(
 WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>
 Context::symmetricKeyId(__wasi_symmetric_key_t KeyHandle,
                         Span<uint8_t> KeyId) noexcept {
-  return SymmetricKeyManager.getId(KeyHandle).and_then(
-      [&](auto &&Id) noexcept
+  return SymmetricKeyManager.get(KeyHandle).and_then(
+      [&](auto &&) noexcept
           -> WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>> {
+        auto ManagedIdRes = SymmetricKeyManager.getId(KeyHandle);
+        if (!ManagedIdRes) {
+          if (ManagedIdRes.error() == __WASI_CRYPTO_ERRNO_INVALID_OPERATION) {
+            return std::make_tuple(size_t{0}, Common::VERSION_UNSPECIFIED);
+          }
+          return WasiCryptoUnexpect(ManagedIdRes);
+        }
+        auto Id = *ManagedIdRes;
         ensureOrReturn(Id.size() <= KeyId.size(), __WASI_CRYPTO_ERRNO_OVERFLOW);
         std::copy(Id.begin(), Id.end(), KeyId.begin());
         return SymmetricKeyManager.getManagedVersion(KeyHandle).map(
@@ -416,14 +426,17 @@ Context::symmetricKeyFromId(__wasi_secrets_manager_t SecretsManagerHandle,
                             __wasi_version_t KeyVersion) noexcept {
   return SecretsManagerManager.get(SecretsManagerHandle)
       .and_then([&](auto &&Sm) noexcept {
-        return Sm.getSk(KeyId, KeyVersion).and_then([&](auto &&Key) noexcept {
-          return SymmetricKeyManager.registerManager(std::move(Key))
-              .and_then([&](auto &&KeyHandle) noexcept {
-                return SymmetricKeyManager
-                    .setManagedInfo(KeyHandle, KeyId, KeyVersion)
-                    .map([KeyHandle]() { return KeyHandle; });
-              });
-        });
+        return Sm.getSkWithVersion(KeyId, KeyVersion)
+            .and_then([&](auto &&Res) noexcept {
+              auto Key = std::move(Res.first);
+              auto ResolvedVersion = Res.second;
+              return SymmetricKeyManager.registerManager(std::move(Key))
+                  .and_then([&](auto &&KeyHandle) noexcept {
+                    return SymmetricKeyManager
+                        .setManagedInfo(KeyHandle, KeyId, ResolvedVersion)
+                        .map([KeyHandle]() { return KeyHandle; });
+                  });
+            });
       });
 }
 

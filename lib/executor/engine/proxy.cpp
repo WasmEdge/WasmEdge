@@ -31,9 +31,7 @@ Expect<void> callFromCompiled(Runtime::StackManager &StackMgr,
   }
   const uint32_t ReturnsSize =
       static_cast<uint32_t>(Func.getFuncType().getReturnTypes().size());
-  for (uint32_t I = 0; I < ReturnsSize; ++I) {
-    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
-  }
+  StackMgr.popSpan(Span<ValVariant>(Rets, ReturnsSize));
   return {};
 }
 

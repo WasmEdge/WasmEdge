@@ -10,20 +10,21 @@ namespace Executor {
 
 Expect<void> Executor::runLocalGetOp(Runtime::StackManager &StackMgr,
                                      uint32_t StackOffset) const noexcept {
-  StackMgr.push(StackMgr.getTopN(StackOffset));
+  StackMgr.push(StackMgr.peekTopN<ValVariant>(StackOffset));
   return {};
 }
 
 Expect<void> Executor::runLocalSetOp(Runtime::StackManager &StackMgr,
                                      uint32_t StackOffset) const noexcept {
-  StackMgr.getTopN(StackOffset - 1) = StackMgr.pop();
+  const ValVariant Val = StackMgr.pop<ValVariant>();
+  StackMgr.emplaceTopN(StackOffset - 1, Val);
   return {};
 }
 
 Expect<void> Executor::runLocalTeeOp(Runtime::StackManager &StackMgr,
                                      uint32_t StackOffset) const noexcept {
-  const ValVariant &Val = StackMgr.getTop();
-  StackMgr.getTopN(StackOffset) = Val;
+  const ValVariant Val = StackMgr.peekTop<ValVariant>();
+  StackMgr.emplaceTopN(StackOffset, Val);
   return {};
 }
 
@@ -39,7 +40,7 @@ Expect<void> Executor::runGlobalSetOp(Runtime::StackManager &StackMgr,
                                       uint32_t Idx) const noexcept {
   auto *GlobInst = getGlobInstByIdx(StackMgr.getModule(), Idx);
   assuming(GlobInst);
-  GlobInst->setValue(StackMgr.pop());
+  GlobInst->setValue(StackMgr.pop<ValVariant>());
   return {};
 }
 

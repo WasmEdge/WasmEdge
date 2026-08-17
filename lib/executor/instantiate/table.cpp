@@ -40,7 +40,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                          return E;
                        }));
       // Pop result from the stack.
-      RefVariant InitTabValue = StackMgr.pop().get<RefVariant>();
+      RefVariant InitTabValue = StackMgr.pop<RefVariant>();
       // Create and add the table instance to the module instance.
       ModInst.addTable(TabSeg.getTableType(), InitTabValue);
     } else {

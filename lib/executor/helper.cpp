@@ -147,9 +147,7 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
     }
 
     // Push returns back to the stack.
-    for (auto &R : Rets) {
-      StackMgr.push(std::move(R));
-    }
+    StackMgr.pushSpan(Rets);
 
     // A tail call pops the replaced caller's frame, whose `From` is one before
     // its resume point, so step it forward one instruction for `runCallOp`.
@@ -233,7 +231,7 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
       }
       auto &TagInst = *PendingExn.TagInst;
       const auto *ExnInst = PendingExn.Inst;
-      StackMgr.pushValVec(PendingExn.getPayload());
+      StackMgr.pushSpan(PendingExn.getPayload());
       PendingExn = {};
       EXPECTED_TRY(throwException(StackMgr, TagInst, ResumePC, ExnInst));
       return ResumePC + 1;

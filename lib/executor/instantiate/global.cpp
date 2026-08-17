@@ -34,7 +34,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                      }));
 
     // Pop result from the stack.
-    ValVariant InitValue = StackMgr.pop();
+    ValVariant InitValue = StackMgr.pop<ValVariant>();
 
     // Create and add the global instance to the module instance.
     ModInst.addGlobal(GlobSeg.getGlobalType(), InitValue);

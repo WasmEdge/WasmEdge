@@ -2,8 +2,11 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/executor.h"
+#include "runtime/instance/array.h"
+#include "runtime/instance/gc.h"
 #include "system/fault.h"
 
+#include <cstddef>
 #include <cstdint>
 
 namespace WasmEdge {
@@ -129,6 +132,10 @@ const Executable::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kThrow, proxyThrow),
     ENTRY(kThrowRef, proxyThrowRef),
     ENTRY(kCatchPop, proxyCatchPop),
+    ENTRY(kWriteBarrier, proxyWriteBarrier),
+    ENTRY(kGCSafepoint, proxyGCSafepoint),
+    ENTRY(kCoherentRefLoad, proxyCoherentRefLoad),
+    ENTRY(kCoherentRefStore, proxyCoherentRefStore),
 #undef ENTRY
 };
 
@@ -139,6 +146,38 @@ const Executable::IntrinsicsTable Executor::Intrinsics = {
 Expect<void> Executor::proxyTrap(Runtime::StackManager &,
                                  const uint32_t Code) noexcept {
   return Unexpect(static_cast<ErrCategory>(Code >> 24), Code);
+}
+
+Expect<void> Executor::proxyGCSafepoint(Runtime::StackManager &) noexcept {
+  // Reached only when generated code's inline poll observed the stop flag set.
+  // gcSafepoint self-scans this mutator's roots (incl. a conservative native
+  // scan capturing AOT register/stack refs) and parks until the collection
+  // releases. No error path: parking always succeeds or returns on teardown.
+  getController().gcSafepoint();
+  return {};
+}
+
+Expect<void> Executor::proxyCoherentRefLoad(Runtime::StackManager &,
+                                            const ValVariant *Slot,
+                                            ValVariant *Out) noexcept {
+  // Read the 128-bit (type, pointer) ref slot as one coherent transaction so a
+  // concurrent coherent store on another mutator can never yield a torn pair.
+  // Out is a caller-private buffer, so a plain store into it is fine.
+  *Out = GC::loadCoherent(*Slot);
+  return {};
+}
+
+Expect<void> Executor::proxyCoherentRefStore(Runtime::StackManager &,
+                                             ValVariant *Slot,
+                                             const ValVariant *Val) noexcept {
+  // Shade the overwritten and new references (SATB) -- writeBarrier reads the
+  // old pointer word with a relaxed atomic load -- then publish the new pair
+  // atomically. Mirrors GlobalInstance::setValue / table ref set for compiled
+  // code so the marker and a concurrent coherent reader never see a torn slot.
+  getAllocator().writeBarrier(*Slot);
+  getAllocator().writeBarrier(*Val);
+  GC::storeCoherent(*Slot, *Val);
+  return {};
 }
 
 Expect<void>
@@ -268,6 +307,12 @@ Executor::proxyStructNew(Runtime::StackManager &,
                          const Runtime::Instance::ModuleInstance *ModInst,
                          const uint32_t TypeIdx, const ValVariant *Args,
                          const uint32_t ArgSize) noexcept {
+  // AOT alloc intrinsic: request a native-stack scan (ScanNative == true). AOT
+  // code keeps operand-stack roots natively (register / native-stack slots), so
+  // the coordinator's self-scan must cover the native stack or a live ref could
+  // be swept. Auto cycle (Manual == false): the manual-GC toggle still gates
+  // it.
+  getController().collect(false, true);
   if (Args == nullptr) {
     return structNew(ModInst, TypeIdx);
   } else {
@@ -296,6 +341,8 @@ Expect<RefVariant> Executor::proxyArrayNew(
     Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
     const uint32_t TypeIdx, const uint32_t Length, const ValVariant *Args,
     const uint32_t ArgSize) noexcept {
+  getController().collect(false,
+                          true); // AOT: native-stack scan (see structNew)
   assuming(ArgSize == 0 || ArgSize == 1 || ArgSize == Length);
   if (ArgSize == 0) {
     return arrayNew(ModInst, TypeIdx, Length);
@@ -311,6 +358,8 @@ Expect<RefVariant> Executor::proxyArrayNewData(
     Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
     const uint32_t TypeIdx, const uint32_t DataIdx, const uint32_t Start,
     const uint32_t Length) noexcept {
+  getController().collect(false,
+                          true); // AOT: native-stack scan (see structNew)
   return arrayNewData(ModInst, TypeIdx, DataIdx, Start, Length);
 }
 
@@ -318,6 +367,8 @@ Expect<RefVariant> Executor::proxyArrayNewElem(
     Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
     const uint32_t TypeIdx, const uint32_t ElemIdx, const uint32_t Start,
     const uint32_t Length) noexcept {
+  getController().collect(false,
+                          true); // AOT: native-stack scan (see structNew)
   return arrayNewElem(ModInst, TypeIdx, ElemIdx, Start, Length);
 }
 
@@ -340,11 +391,12 @@ Executor::proxyArraySet(Runtime::StackManager &,
 
 Expect<uint32_t> Executor::proxyArrayLen(Runtime::StackManager &,
                                          const RefVariant Ref) noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
-  return Inst->getLength();
+  const Runtime::Instance::ArrayInstance Inst{Raw};
+  return Inst.getLength();
 }
 
 Expect<void> Executor::proxyArrayFill(
@@ -389,11 +441,13 @@ Executor::proxyRefTest(Runtime::StackManager &,
   assuming(ModInst);
   Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
   if (!VT.isAbsHeapType()) {
-    auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
-    // Reference must not be nullptr here because the null references are typed
-    // with the least abstract heap type.
-    if (Inst->getModule()) {
-      GotTypeList = Inst->getModule()->getTypeList();
+    // Resolve the defining module from the payload's leading
+    // `const ModuleInstance *` (see getInnerPtr). Null refs carry the least
+    // abstract heap type, so the payload is non-null.
+    const auto *RefMod =
+        Ref.getInnerPtr<const Runtime::Instance::ModuleInstance>();
+    if (RefMod) {
+      GotTypeList = RefMod->getTypeList();
     }
   }
 
@@ -417,11 +471,13 @@ Executor::proxyRefCast(Runtime::StackManager &,
   assuming(ModInst);
   Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
   if (!VT.isAbsHeapType()) {
-    auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
-    // Reference must not be nullptr here because the null references are typed
-    // with the least abstract heap type.
-    if (Inst->getModule()) {
-      GotTypeList = Inst->getModule()->getTypeList();
+    // Resolve the defining module from the payload's leading
+    // `const ModuleInstance *` (see getInnerPtr). Null refs carry the least
+    // abstract heap type, so the payload is non-null.
+    const auto *RefMod =
+        Ref.getInnerPtr<const Runtime::Instance::ModuleInstance>();
+    if (RefMod) {
+      GotTypeList = RefMod->getTypeList();
     }
   }
 
@@ -446,7 +502,9 @@ Expect<void> Executor::proxyTableInit(
   assuming(TabInst);
   auto *ElemInst = getElemInstByIdx(ModInst, ElemIdx);
   assuming(ElemInst);
-  return TabInst->setRefs(ElemInst->getRefs(), DstOff, SrcOff, Len);
+
+  EXPECTED_TRY(auto Refs, ElemInst->getRefs(SrcOff, Len));
+  return TabInst->setRefs(Refs, DstOff, 0, Len);
 }
 
 Expect<void>
@@ -468,8 +526,8 @@ Expect<void> Executor::proxyTableCopy(
   auto *TabInstSrc = getTabInstByIdx(ModInst, TableIdxSrc);
   assuming(TabInstSrc);
 
-  EXPECTED_TRY(auto Refs, TabInstSrc->getRefs(0, SrcOff + Len));
-  return TabInstDst->setRefs(Refs, DstOff, SrcOff, Len);
+  EXPECTED_TRY(auto Refs, TabInstSrc->getRefs(SrcOff, Len));
+  return TabInstDst->setRefs(Refs, DstOff, 0, Len);
 }
 
 Expect<uint64_t>
@@ -480,8 +538,11 @@ Executor::proxyTableGrow(Runtime::StackManager &,
   auto *TabInst = getTabInstByIdx(ModInst, TableIdx);
   assuming(TabInst);
   const auto AddrType = TabInst->getTableType().getLimit().getAddrType();
-  const uint64_t CurrTableSize = TabInst->getSize();
-  if (likely(TabInst->growTable(NewSize, Val))) {
+  // Read the pre-grow size INSIDE growTable's exclusive window (H-5): a
+  // controller-backed grow stops the world, so a size read out here could race a
+  // concurrent serialized grow.
+  uint64_t CurrTableSize = 0;
+  if (likely(TabInst->growTable(NewSize, Val, &CurrTableSize))) {
     return CurrTableSize;
   } else {
     switch (AddrType) {
@@ -557,6 +618,18 @@ Expect<void> Executor::proxyMemCopy(
   auto *MemInstSrc = getMemInstByIdx(ModInst, SrcMemIdx);
   assuming(MemInstSrc);
 
+  // Same memory: overlapping ranges need memmove (as runMemoryCopyOp);
+  // setBytes()'s std::copy corrupts a forward-overlapping copy (dst > src).
+  // Validate both ranges, then memmove.
+  if (MemInstSrc == MemInstDst) {
+    EXPECTED_TRY(MemInstSrc->getBytes(SrcOff, Len));
+    EXPECTED_TRY(MemInstDst->getBytes(DstOff, Len));
+    if (likely(Len > 0)) {
+      std::memmove(MemInstDst->getDataPtr() + DstOff,
+                   MemInstSrc->getDataPtr() + SrcOff, Len);
+    }
+    return {};
+  }
   EXPECTED_TRY(auto Data, MemInstSrc->getBytes(SrcOff, Len));
   return MemInstDst->setBytes(Data, DstOff, 0, Len);
 }
@@ -711,7 +784,7 @@ Executor::proxyThrow(Runtime::StackManager &,
   assuming(TagInst->getTagType().getAssocValSize() == Num);
   PendingExn.TagInst = TagInst;
   PendingExn.Inst = nullptr;
-  PendingExn.setPayload(Span<const ValVariant>(Vals, Num));
+  PendingExn.setPayload(getController(), Span<const ValVariant>(Vals, Num));
   return {};
 }
 
@@ -723,7 +796,7 @@ Expect<void> Executor::proxyThrowRef(Runtime::StackManager &,
   }
   PendingExn.TagInst = ExnInst->getTag();
   PendingExn.Inst = ExnInst;
-  PendingExn.setPayload(ExnInst->getPayload());
+  PendingExn.setPayload(getController(), ExnInst->getPayload());
   return {};
 }
 
@@ -745,11 +818,27 @@ Executor::proxyCatchPop(Runtime::StackManager &,
       assuming(ModInst);
       Inst = const_cast<Runtime::Instance::ModuleInstance *>(ModInst)
                  ->newException(
-                     TagInst, std::vector<ValVariant>(PendingExn.getPayload()));
+                     getAllocator(), TagInst,
+                     std::vector<ValVariant>(PendingExn.getPayload()));
     }
     Out[Idx] = RefVariant(ValType(TypeCode::Ref, TypeCode::ExnRef), Inst);
   }
-  PendingExn = {};
+  // Out points into the caller's compiled frame, so the copied refs are now
+  // covered by the conservative native scan this Running thread performs at its
+  // next safe point (selfScanInto). Dropping the aux roots afterwards is
+  // therefore safe -- and dropping them BEFORE the copy would not be.
+  PendingExn.clear(getController());
+  return {};
+}
+
+Expect<void> Executor::proxyWriteBarrier(Runtime::StackManager &,
+                                         const ValVariant *Val) noexcept {
+  // GC write barrier for compiled code: compiled stores of a ref slot (e.g.
+  // global.set) write the raw address directly, then call this to shade the
+  // reference so a concurrent collection does not miss an object reachable only
+  // through that slot. No-op while idle; matches the interpreter barriers in
+  // setValue()/structSet()/etc.
+  getAllocator().writeBarrier(*Val);
   return {};
 }
 

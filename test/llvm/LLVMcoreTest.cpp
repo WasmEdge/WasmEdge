@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "common/defines.h"
+#include "common/executable.h"
 #include "common/spdlog.h"
 #include "executor/executor.h"
 #include "loader/loader.h"
@@ -23,6 +24,15 @@
 #include "llvm/codegen.h"
 #include "llvm/compiler.h"
 #include "llvm/jit.h"
+// GCInstance::RawData, for deriving the expected GC byte totals from the real
+// allocation layout rather than hard-coding them (AOTGC.MemoryUsage).
+#include "runtime/instance/gc.h"
+
+// lib/llvm internals: Data::DataContext and LLVM::Module::unwrap().
+#include "data.h"
+
+#include <llvm-c/Core.h>
+#include <llvm-c/Target.h>
 
 #include "../spec/hostfunc.h"
 #include "../spec/spectest.h"
@@ -33,6 +43,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <map>
 #include <memory>
@@ -739,17 +750,20 @@ TEST(AOTCrossModule, CrossModuleStructNewOwnedByCallee) {
   ASSERT_TRUE(R);
   ASSERT_EQ(R->size(), 1u);
 
-  const auto *Inst = (*R)[0]
-                         .first.get<RefVariant>()
-                         .getPtr<Runtime::Instance::StructInstance>();
-  ASSERT_NE(Inst, nullptr);
-  EXPECT_EQ(Inst->getModule(), CalleeInst.get())
+  // Struct payloads live in the GC heap: the ref points at GCInstance::RawData,
+  // whose leading ModInst names the owning module.
+  const auto *Raw = (*R)[0]
+                        .first.get<RefVariant>()
+                        .getPtr<const Runtime::Instance::GCInstance::RawData>();
+  ASSERT_NE(Raw, nullptr);
+  EXPECT_EQ(Raw->ModInst, CalleeInst.get())
       << "the struct created by the callee's struct.new_default is not "
          "owned by the callee module";
-  EXPECT_NE(Inst->getModule(), CallerInst.get())
+  EXPECT_NE(Raw->ModInst, CallerInst.get())
       << "the struct is owned by the caller instead of the callee";
-  EXPECT_EQ(Inst->getField(0).get<uint32_t>(), 0u);
-  EXPECT_TRUE(Inst->getField(1).get<RefVariant>().isNull())
+  ASSERT_EQ(Raw->Length, 2u);
+  EXPECT_EQ(Raw->data()[0].get<uint32_t>(), 0u);
+  EXPECT_TRUE(Raw->data()[1].get<RefVariant>().isNull())
       << "the default-initialized concrete reference field did not resolve "
          "to a null bottom type through the callee's own type section";
 }
@@ -1917,6 +1931,329 @@ TEST(SIMDNaN, F32x4MaxNaNHandling) {
 
   VM.cleanup();
   EXPECT_NO_THROW(std::filesystem::remove(Path));
+}
+
+class Collect : public WasmEdge::Runtime::HostFunction<Collect> {
+public:
+  Expect<void> body(const WasmEdge::Runtime::CallingFrame &CF) {
+    auto &Allocator = CF.getExecutor()->getAllocator();
+    Allocator.manualCollect(true);
+    return {};
+  }
+};
+
+class Record : public WasmEdge::Runtime::HostFunction<Record> {
+public:
+  Expect<void> body(const WasmEdge::Runtime::CallingFrame &CF) {
+    MemoryUsageLog.push_back(CF.getExecutor()->getAllocator().getMemoryUsage());
+    return {};
+  }
+  Span<const uint64_t> getLog() const noexcept { return MemoryUsageLog; }
+
+private:
+  std::vector<uint64_t> MemoryUsageLog;
+};
+
+class GCModule : public WasmEdge::Runtime::Instance::ModuleInstance {
+public:
+  GCModule() : ModuleInstance("gc") {
+    addHostFunc("coll", std::make_unique<Collect>());
+    auto RP = std::make_unique<Record>();
+    R = RP.get();
+    addHostFunc("rec", std::move(RP));
+  }
+  Span<const uint64_t> getLog() const noexcept { return R->getLog(); }
+
+private:
+  Record *R = nullptr;
+};
+
+TEST(AOTGC, MemoryUsage) {
+  std::array<WasmEdge::Byte, 117> Wasm{
+      0x00, 0x61, 0x73, 0x6d,       // wasm magic
+      0x01, 0x00, 0x00, 0x00,       // module version
+      0x01,                         // type section
+      0x07,                         // section size
+      0x02,                         // type count
+      0x5e,                         // array type
+      0x7f, 0x01,                   // i32 mutable
+      0x60,                         // function type
+      0x00, 0x00,                   // 0 arguments 0 results
+      0x02,                         // import section
+      0x14,                         // section size
+      0x02,                         // import count
+      0x02, 0x67, 0x63,             // "gc"
+      0x04, 0x63, 0x6f, 0x6c, 0x6c, // "coll"
+      0x00,                         // import kind: function
+      0x01,                         // import type index: 1
+      0x02, 0x67, 0x63,             // "gc"
+      0x03, 0x72, 0x65, 0x63,       // "rec"
+      0x00,                         // import kind: function
+      0x01,                         // import type index: 1
+      0x03,                         // function section
+      0x02,                         // section size
+      0x01,                         // function count
+      0x01,                         // function type index: 1
+      0x07,                         // export section
+      0x06,                         // section size
+      0x01,                         // export count
+      0x02, 0x67, 0x63,             // export name "gc"
+      0x00,                         // export kind: function
+      0x02,                         // export index
+      0x0a,                         // code section
+      0x40,                         // section size
+      0x01,                         // function count
+      0x3e,                         // function size
+      0x00,                         // local size
+      0x10, 0x01,                   // call 1 (gc.rec) 0
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) 0
+      0x41, 0x04,                   // i32.const 4
+      0xfb, 0x07, 0x00,             // array.new_default 0
+      0x10, 0x01,                   // call 1 (gc.rec) Bytes4
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) Bytes4
+      0x1a,                         // drop
+      0x10, 0x01,                   // call 1 (gc.rec) Bytes4
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) <=Bytes4 (ranged: AOT)
+      0x41, 0x08,                   // i32.const 8
+      0xfb, 0x07, 0x00,             // array.new_default 0
+      0x1a,                         // drop
+      0x10, 0x01,                   // call 1 (gc.rec) >=Bytes8 (ranged: AOT)
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) >=Bytes8 (ranged: AOT)
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) <=Bytes4+8 (ranged: AOT)
+      0x41, 0x0c,                   // i32.const 12
+      0xfb, 0x07, 0x00,             // array.new_default 0
+      0x10, 0x01,                   // call 1 (gc.rec) >=Bytes12 (ranged: AOT)
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) >=Bytes12 (ranged: AOT)
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) >=Bytes12 (ranged: AOT)
+      0x1a,                         // drop
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) <=Bytes4+8+12 (ranged)
+      0x0b,                         // end
+  };
+
+  const auto Path =
+      std::filesystem::temp_directory_path() /
+      std::filesystem::u8path("AOTcoreTest" WASMEDGE_LIB_EXTENSION);
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::GC);
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Native);
+  {
+    WasmEdge::Loader::Loader Loader(Conf);
+    WasmEdge::Validator::Validator ValidatorEngine(Conf);
+    WasmEdge::LLVM::Compiler Compiler(Conf);
+    WasmEdge::LLVM::CodeGen CodeGen(Conf);
+    auto Module = *Loader.parseModule(Wasm);
+    ASSERT_TRUE(ValidatorEngine.validate(*Module));
+    auto Data = Compiler.compile(*Module);
+    ASSERT_TRUE(Data);
+    ASSERT_TRUE(CodeGen.codegen(Wasm, std::move(*Data), Path));
+  }
+
+  WasmEdge::VM::VM VM(Conf);
+  GCModule GCMod;
+  VM.registerModule(GCMod);
+  ASSERT_TRUE(VM.loadWasm(Path));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  // autoCollect off: only the wasm's explicit coll calls run, else a background
+  // native-stack cycle between rec snapshots widens the range asserts.
+  VM.getExecutor().getAllocator().setManualGC(true);
+  ASSERT_TRUE(VM.execute("gc"));
+  auto Result = GCMod.getLog();
+
+  // allocate() charges sizeof(Header) + Size, where Size = sizeof(RawData) +
+  // N * sizeof(ValVariant); derive the expected byte totals for the 4/8/12
+  // element arrays from that formula instead of hard-coding them, so a change
+  // to the GC header layout does not silently turn this into a false failure.
+  constexpr auto GCBytes = [](uint32_t N) constexpr {
+    return static_cast<uint32_t>(
+        sizeof(WasmEdge::GC::Allocator::Header) +
+        sizeof(WasmEdge::Runtime::Instance::GCInstance::RawData) +
+        static_cast<size_t>(N) * sizeof(WasmEdge::ValVariant));
+  };
+  const uint32_t Bytes4 = GCBytes(4);
+  const uint32_t Bytes8 = GCBytes(8);
+  const uint32_t Bytes12 = GCBytes(12);
+
+  ASSERT_EQ(Result.size(), 13);
+  EXPECT_EQ(Result[0], 0);
+  EXPECT_EQ(Result[1], 0);
+  EXPECT_EQ(Result[2], Bytes4);
+  EXPECT_EQ(Result[3], Bytes4);
+  EXPECT_EQ(Result[4], Bytes4);
+  // Only the 4-element array allocated so far, so usage cannot exceed it (upper
+  // bound, not exact 0, since conservative stack scanning may keep it alive).
+  EXPECT_LE(Result[5], Bytes4);
+  EXPECT_GE(Result[6], Bytes8);
+  EXPECT_GE(Result[7], Bytes8);
+  // At most the 4- and 8-element arrays have been allocated by this point.
+  EXPECT_LE(Result[8], Bytes4 + Bytes8);
+  EXPECT_GE(Result[9], Bytes12);
+  EXPECT_GE(Result[10], Bytes12);
+  // The 12-element array is still on the operand stack (drop happens after), so
+  // it must remain retained.
+  EXPECT_GE(Result[11], Bytes12);
+  // Final reading: at most the cumulative bytes of every array ever allocated.
+  EXPECT_LE(Result[12], Bytes4 + Bytes8 + Bytes12);
+
+  // Unload the AOT module before removing its shared library: on Windows the
+  // DLL (file lock) is held until cleanup. Matches the other AOT tests.
+  VM.cleanup();
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
+}
+
+// (module
+//   (table 1 externref)
+//   (func (export "f") (param externref)
+//     i32.const 0
+//     local.get 0
+//     table.set 0))
+const std::vector<uint8_t> TableSetWasm = {
+    0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+    0x60, 0x01, 0x6F, 0x00, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01,
+    0x6F, 0x00, 0x01, 0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x00, 0x0A,
+    0x0A, 0x01, 0x08, 0x00, 0x41, 0x00, 0x20, 0x00, 0x26, 0x00, 0x0B};
+
+// Negative control. Same shape, but table.get: a read, which the collector
+// does not barrier.
+// (module
+//   (table 1 externref)
+//   (func (export "f") (result externref)
+//     i32.const 0
+//     table.get 0))
+const std::vector<uint8_t> TableGetWasm = {
+    0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+    0x60, 0x00, 0x01, 0x6F, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01,
+    0x6F, 0x00, 0x01, 0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x00, 0x0A,
+    0x08, 0x01, 0x06, 0x00, 0x41, 0x00, 0x25, 0x00, 0x0B};
+
+// Strip away any bitcasts, which older LLVM inserts and opaque pointers elide.
+LLVMValueRef stripBitCasts(LLVMValueRef V) noexcept {
+  while (LLVMIsAInstruction(V) != nullptr &&
+         LLVMGetInstructionOpcode(V) == LLVMBitCast) {
+    V = LLVMGetOperand(V, 0);
+  }
+  return V;
+}
+
+// Count the calls made through the intrinsics table at slot Which.
+//
+// CompileContext::getIntrinsic lowers an intrinsic call to a GEP into the
+// intrinsics table, a load of that slot, and an indirect call of the loaded
+// pointer. Walking that shape is exact: it cannot be fooled by an unrelated
+// constant, and it survives any reformatting of the textual IR.
+uint32_t countIntrinsicCalls(LLVMModuleRef M,
+                             WasmEdge::Executable::Intrinsics Which) noexcept {
+  const auto Want = static_cast<unsigned long long>(Which);
+  // Take the pointer size from the module rather than the host, since the two
+  // need not agree.
+  const auto PointerSize = LLVMPointerSize(LLVMGetModuleDataLayout(M));
+  uint32_t Count = 0;
+  for (auto F = LLVMGetFirstFunction(M); F != nullptr;
+       F = LLVMGetNextFunction(F)) {
+    for (auto BB = LLVMGetFirstBasicBlock(F); BB != nullptr;
+         BB = LLVMGetNextBasicBlock(BB)) {
+      for (auto I = LLVMGetFirstInstruction(BB); I != nullptr;
+           I = LLVMGetNextInstruction(I)) {
+        if (LLVMGetInstructionOpcode(I) != LLVMCall) {
+          continue;
+        }
+        // The callee must be a load of an intrinsics-table slot.
+        auto Callee = stripBitCasts(LLVMGetCalledValue(I));
+        if (LLVMIsAInstruction(Callee) == nullptr ||
+            LLVMGetInstructionOpcode(Callee) != LLVMLoad) {
+          continue;
+        }
+        auto Slot = stripBitCasts(LLVMGetOperand(Callee, 0));
+        if (LLVMIsAInstruction(Slot) == nullptr ||
+            LLVMGetInstructionOpcode(Slot) != LLVMGetElementPtr) {
+          continue;
+        }
+        // The slot index is the GEP's last operand, and must be constant.
+        const auto NumOperands =
+            static_cast<unsigned>(LLVMGetNumOperands(Slot));
+        auto Index = LLVMGetOperand(Slot, NumOperands - 1U);
+        if (LLVMIsAConstantInt(Index) == nullptr) {
+          continue;
+        }
+        // The table is indexed either by the array GEP as emitted, whose
+        // operands are (table, 0, Index), or by the equivalent i8 byte offset
+        // Index * pointer size that the optimizer canonicalizes it into.
+        const auto Value = LLVMConstIntGetZExtValue(Index);
+        if (NumOperands == 3) {
+          Count += (Value == Want) ? 1U : 0U;
+        } else if (NumOperands == 2) {
+          Count += (Value == Want * PointerSize) ? 1U : 0U;
+        }
+      }
+    }
+  }
+  return Count;
+}
+
+// Compile Wasm to an LLVM module and count its kWriteBarrier calls. Data owns
+// the module, so it must outlive the walk. The result is returned via `Count`
+// (an out-parameter, not the return value) so that ASSERT_TRUE can be used on
+// a parse/compile failure instead of dereferencing an empty Expected: gtest's
+// ASSERT_* macros expand to a bare `return;` and so require a void-returning
+// function.
+void countBarrierCalls(const std::vector<uint8_t> &Wasm,
+                       WasmEdge::Executable::Intrinsics Intrinsic,
+                       uint32_t &Count) {
+  WasmEdge::Configure Conf;
+  WasmEdge::Loader::Loader Loader(Conf);
+  WasmEdge::Validator::Validator ValidatorEngine(Conf);
+  WasmEdge::LLVM::Compiler Compiler(Conf);
+
+  auto Module = Loader.parseModule(Wasm);
+  ASSERT_TRUE(Module);
+  EXPECT_TRUE(ValidatorEngine.validate(**Module));
+  auto Data = Compiler.compile(**Module);
+  ASSERT_TRUE(Data);
+
+  Count = countIntrinsicCalls(Data->extract().LLModule.unwrap(), Intrinsic);
+}
+
+TEST(AOTWriteBarrier, TableSetEmitsBarrier) {
+  // Upstream lowers table.set to a bare store, which never reaches the barrier
+  // in TableInstance::setRefs. This used to be covered by emitting two inlined
+  // kWriteBarrier calls (shade the overwritten reference, then the new one).
+  // The coherent-slot work replaced that with a single kCoherentRefStore, which
+  // performs BOTH shades and then publishes the 128-bit (type, pointer) pair
+  // atomically, so a concurrent marker or coherent reader cannot observe a torn
+  // slot -- see Executor::proxyCoherentRefStore. Barrier coverage is therefore
+  // unchanged; only the lowering moved into the helper.
+  uint32_t Count = 0;
+  ASSERT_NO_FATAL_FAILURE(countBarrierCalls(
+      TableSetWasm, WasmEdge::Executable::Intrinsics::kCoherentRefStore,
+      Count));
+  EXPECT_EQ(Count, 1U);
+}
+
+TEST(AOTWriteBarrier, TableGetEmitsNoBarrier) {
+  // table.get is a read, so it must lower to the load helper and never to the
+  // storing one. Asserting both directions keeps the positive test above from
+  // passing vacuously: a count of zero here has to mean "reads take the load
+  // path", not "this intrinsic is never emitted anywhere".
+  uint32_t StoreCount = 0;
+  ASSERT_NO_FATAL_FAILURE(countBarrierCalls(
+      TableGetWasm, WasmEdge::Executable::Intrinsics::kCoherentRefStore,
+      StoreCount));
+  EXPECT_EQ(StoreCount, 0U);
+
+  uint32_t LoadCount = 0;
+  ASSERT_NO_FATAL_FAILURE(countBarrierCalls(
+      TableGetWasm, WasmEdge::Executable::Intrinsics::kCoherentRefLoad,
+      LoadCount));
+  EXPECT_EQ(LoadCount, 1U);
 }
 
 } // namespace

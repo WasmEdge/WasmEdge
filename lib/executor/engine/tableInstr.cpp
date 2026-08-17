@@ -107,9 +107,29 @@ Executor::runTableGrowOp(Runtime::StackManager &StackMgr,
   uint64_t N = extractAddr(StackMgr.pop<ValVariant>(), AddrType);
   RefVariant Ref = StackMgr.pop<RefVariant>();
 
-  // Grow size and push result.
-  const uint64_t CurrSize = TabInst.getSize();
-  if (TabInst.growTable(N, Ref)) {
+  // Root the popped initializer across the whole grow window. Since E1.2 a
+  // controller-backed grow acquires the exclusive token via the BLOCKING
+  // beginExclusiveOp(OwnedGrowing), so a grow-loser can park (Blocked) through
+  // an entire concurrent collection before it owns the token and fills the new
+  // slots. Ref has just left the GC-scanned operand stack (the pop above) and is
+  // not yet in any table slot, so during that park it is an unrooted local: a
+  // collection whose stop-the-world root snapshot runs while we are parked would
+  // find it on no scanned stack and in no root set, sweep it, and growTable would
+  // then broadcast a dangling reference into the freshly grown slots. Pin it as a
+  // scoped boundary root -- the same mechanism the async parameter/return path
+  // uses (GC::BoundaryRoots / retainScopedRef) -- so this cycle's snapshot scans
+  // it; released (RAII) once growTable has published or failed. The pop above
+  // already shades Ref if a collection is already mid-mark (StackManager::pop's
+  // write barrier); this pin covers the complementary window where the snapshot
+  // itself lands during the park (Ref popped while the barrier was still quiet).
+  GC::BoundaryRoots GrowInitRoot(getAllocator());
+  GrowInitRoot.pin(Ref);
+
+  // Grow size and push result. The pre-grow size is read INSIDE growTable's
+  // exclusive window (H-5): a controller-backed grow now stops the world, so a
+  // size read out here could race a concurrent serialized grow.
+  uint64_t CurrSize = 0;
+  if (TabInst.growTable(N, Ref, &CurrSize)) {
     StackMgr.push(emplaceAddr(CurrSize, AddrType));
   } else {
     StackMgr.push(emplaceAddr(static_cast<uint64_t>(-1), AddrType));

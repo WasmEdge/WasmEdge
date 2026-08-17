@@ -1213,6 +1213,8 @@ E(CastFailed, 0x0418, "cast failure")
 E(UncaughtException, 0x0419, "uncaught exception")
 // Exception pending for propagating through the native frames
 E(PendingException, 0x041A, "pending exception")
+// GC allocation failed (heap threshold reached, or metadata OOM)
+E(GCAllocationFailed, 0x041B, "gc allocation failed")
 // @}
 
 #undef E

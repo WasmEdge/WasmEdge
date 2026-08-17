@@ -101,6 +101,15 @@ public:
     return *Version;
   }
 
+  /// Read the R7-M3 GC-capability marker. The compiler exports "gc.capable"
+  /// only when GC codegen is on, so an absent symbol means this library is not
+  /// GC-capable -- unambiguous, since libraries predating the marker are
+  /// already rejected by the kBinaryVersion check in parseWasmUnit.
+  bool isGCCapable() noexcept {
+    const auto Marker = get<uint32_t>("gc.capable");
+    return !!Marker && *Marker != UINT32_C(0);
+  }
+
   template <typename T> Symbol<T> get(const char *Name) {
     return createSymbol<T>(reinterpret_cast<T *>(getSymbolAddr(Name)));
   }

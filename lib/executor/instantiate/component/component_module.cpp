@@ -25,10 +25,26 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
 Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
                       const AST::Module &Mod) {
+  // Operation lease across instantiation: it registers a value stack (the
+  // start function may run guest code) and touches the allocator. Refused
+  // once the controller is closing -- same boundary contract as
+  // Executor::invoke.
+  auto OpLease = getController().acquireLease();
+  if (unlikely(!OpLease.valid())) {
+    spdlog::error(ErrCode::Value::Interrupted);
+    return Unexpect(ErrCode::Value::Interrupted);
+  }
+
   // Create the stack manager.
-  Runtime::StackManager StackMgr;
+  Runtime::StackManager StackMgr(getController());
 
   // Create the module instance.
+  //
+  // Intentionally NOT marked setDeferrableStorage(): a component-core module
+  // instance is unique_ptr / ~dtor-owned (OwnedCoreModInsts), not
+  // terminate()-managed. Marking it deferrable would let an async ModulePin
+  // outlive it and trip assuming(!Life.hasDependents()) (Debug abort / Release
+  // UAF). asyncInvoke's non-deferrable rejection is the correct behavior here.
   std::unique_ptr<Runtime::Instance::ModuleInstance> ModInst =
       std::make_unique<Runtime::Instance::ModuleInstance>("");
 
@@ -59,8 +75,18 @@ Executor::instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
   // Instantiate Functions in module. (FunctionSec, CodeSec)
   const AST::FunctionSection &FuncSec = Mod.getFunctionSection();
   const AST::CodeSection &CodeSec = Mod.getCodeSection();
-  // This function will always success.
-  instantiate(*ModInst, FuncSec, CodeSec);
+  // R7-M3 / E3.0: pass the core module's GC-capability so a GC-enabled
+  // executor falls a non-capable compiled core module back to
+  // interpreter-mode functions, mirroring the non-component instantiate path
+  // (lib/executor/instantiate/module.cpp). This can fail when the fallback is
+  // impossible (AOT-stripped bodies), so propagate.
+  EXPECTED_TRY(instantiate(*ModInst, FuncSec, CodeSec, Mod.getGCCompiled())
+                   .map_error(ReportError(ASTNodeAttr::Sec_Function)));
+  // E3.0 backstop: carry the capability on the instance too. The executor has
+  // already deopted if it needed to, but the instance can outlive that
+  // decision -- registerModule or a direct invoke can hand these function
+  // instances to a GC-enabled executor that never saw this module's AST.
+  ModInst->setGCCompiled(Mod.getGCCompiled());
 
   // Instantiate MemorySection (MemorySec)
   const AST::MemorySection &MemSec = Mod.getMemorySection();
@@ -73,7 +99,7 @@ Executor::instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
   instantiate(*ModInst, TagSec);
 
   // Push a new frame {ModInst, locals:none}
-  StackMgr.pushFrame(ModInst.get(), AST::InstrView::iterator(), 0, 0);
+  StackMgr.pushFrame(ModInst.get(), AST::InstrView::iterator());
 
   // Instantiate GlobalSection (GlobalSec)
   const AST::GlobalSection &GlobSec = Mod.getGlobalSection();

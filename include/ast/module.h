@@ -94,6 +94,17 @@ public:
   bool getIsValidated() const noexcept { return IsValidated; }
   void setIsValidated(bool V = true) noexcept { IsValidated = V; }
 
+  /// Getter and setter for the R7-M3 GC-capability flag: whether this module's
+  /// compiled code was emitted with GC support (cooperative safepoint polls +
+  /// shadow-root spill). Defaults to true so artifacts that never pass through
+  /// the in-process compiler (e.g. loaded universal-wasm/native AOT, whose
+  /// durable capability bit is a follow-up) keep their prior behavior. The
+  /// in-process JIT compile path stamps the actual value. A GC-enabled executor
+  /// refuses to run a non-capable module natively (Executor::instantiate falls
+  /// it back to the interpreter).
+  bool getGCCompiled() const noexcept { return GCCompiled; }
+  void setGCCompiled(bool V) noexcept { GCCompiled = V; }
+
 private:
   /// \name Data of Module node.
   /// @{
@@ -128,6 +139,11 @@ private:
   /// \name Validated flag.
   /// @{
   bool IsValidated = false;
+  /// @}
+
+  /// \name R7-M3 GC-capability flag (see getGCCompiled).
+  /// @{
+  bool GCCompiled = true;
   /// @}
 };
 

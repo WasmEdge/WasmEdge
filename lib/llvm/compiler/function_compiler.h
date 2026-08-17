@@ -17,9 +17,10 @@ class FunctionCompiler {
 
 public:
   FunctionCompiler(LLVM::Compiler::CompileContext &Context,
-                   LLVM::FunctionCallee F, Span<const ValType> Locals,
-                   bool Interruptible, bool InstructionCounting,
-                   bool GasMeasuring, bool IsLazyJIT) noexcept;
+                   LLVM::FunctionCallee F, Span<const ValType> ParamTypes,
+                   Span<const ValType> Locals, bool Interruptible,
+                   bool InstructionCounting, bool GasMeasuring,
+                   bool IsLazyJIT) noexcept;
 
   LLVM::BasicBlock getTrapBB(ErrCode::Value Error) noexcept;
 
@@ -221,6 +222,12 @@ private:
 
   void checkPendingException() noexcept;
 
+  // GC cooperative safepoint poll (round-2 A1). Emitted at loop headers: inline
+  // load of the controller stop flag (from the ExecCtx), and on a set flag a
+  // call to the kGCSafepoint intrinsic which parks this mutator so a concurrent
+  // collection's stop-the-world does not hang on a compute-only compiled loop.
+  void checkGCSafepoint() noexcept;
+
   void setUnreachable() noexcept;
 
   bool isUnreachable() const noexcept;
@@ -239,6 +246,15 @@ private:
   void stackPush(LLVM::Value Value) noexcept { Stack.push_back(Value); }
   LLVM::Value stackPop() noexcept;
 
+  // GC shadow-root spill (phase-1 prototype). Around a collection-capable call,
+  // spill every live ref LOCAL into the prologue-reserved shadow slots and
+  // publish a ShadowFrame on the thread's shadow-head chain, so a remote
+  // collector scanning this NativeRunning thread finds the refs. pushShadowFrame
+  // returns the previous head (to restore); popShadowFrame restores it. Both are
+  // no-ops when the function has no ref locals.
+  LLVM::Value pushShadowFrame() noexcept;
+  void popShadowFrame(LLVM::Value Prev) noexcept;
+
   LLVM::Value switchEndian(LLVM::Value Value);
 
   LLVM::Compiler::CompileContext &Context;
@@ -251,6 +267,13 @@ private:
   // Only entry-block allocas become static frame slots; one inside a loop body
   // grows the native stack on every iteration.
   LLVM::Value CalleeCtxSlot = nullptr;
+  // GC shadow-root spill state (phase-1). Indices into Local of ref-typed
+  // locals; prologue-reserved slot array + frame node. The thread always runs
+  // compiled code under a registered StackManager, so ExecCtx.ShadowHead is
+  // non-null (no runtime guard needed).
+  std::vector<uint32_t> RefLocalIndices;
+  LLVM::Value ShadowSlotsAlloca = nullptr;
+  LLVM::Value ShadowFrameAlloca = nullptr;
   std::unordered_map<ErrCode::Value, LLVM::BasicBlock> TrapBB;
   bool IsUnreachable = false;
   bool Interruptible = false;

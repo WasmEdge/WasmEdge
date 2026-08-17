@@ -76,8 +76,13 @@ std::vector<uint32_t> collectCallGraphBatch(
 }
 
 // Upgrade the function instance at GlobalFuncIdx of a bound module instance
-// to run the compiled code at Address. Shared by the fresh-batch path and the
-// re-instantiation restore path.
+// to run the compiled code at Address. Shared by the fresh-batch path
+// (compileOnDemand) and the re-instantiation restore path (registerInstance).
+// E3.1: every Address handled here names code produced by this engine's own
+// Compiler under the VM's Conf -- fresh in compileOnDemand, or the persisted
+// address of such a compile in the restore path -- never a foreign precompiled
+// artifact, so the code is GC-capable exactly when the executor is. No
+// capability check is needed at the upgrade point (see compileOnDemand).
 void upgradeToCompiled(
     Span<const Runtime::Instance::FunctionInstance *const> FuncInsts,
     size_t GlobalFuncIdx, JITLibrary &JITLib,
@@ -315,6 +320,18 @@ Expect<void> LazyJITEngine::compileOnDemand(
   // The configure was already validated by checkConfigure() in prepare(),
   // and a state only exists after a successful prepare, so re-validating
   // here would only repeat its per-proposal warnings once per batch.
+  //
+  // E3.1 pre-upgrade capability coverage: this batch compiles from the module's
+  // WASM bytes with the engine's Conf (== the VM's Conf, see the LazyJITEngine
+  // ctor). The compiler emits GC safepoint polls / shadow-root spills -- and
+  // the "gc.capable" marker -- iff GC is on in that Conf, so every function
+  // upgradeToCompiled()'d below is GC-capable exactly when the executor is
+  // GC-enabled. There is no path here that upgrades a FunctionInstance to
+  // NON-capable native code under a GC executor: the batch is always re-derived
+  // from source, never restored from a foreign precompiled artifact. Hence no
+  // pre-upgrade capability gate is required; the module's single-bool
+  // capability was stamped once at load time (vm.cpp unsafeLoadJITExecutable /
+  // unsafeRegisterModule) to match this compile.
   Compiler BatchCompiler(PImpl->Conf);
   EXPECTED_TRY(
       auto CompiledData,

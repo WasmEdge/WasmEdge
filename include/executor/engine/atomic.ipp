@@ -394,11 +394,33 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
 
   WaitingMemory.store(&MemInst, std::memory_order_release);
 
+  // GC blocked-wait registration. Register a wake token so
+  // controller teardown (beginClosing -> wakeAllBlocked) can lift this thread
+  // out of atomic.wait: it sets BlockedWake and notifies this waiter's
+  // condition variable, so the invocation unwinds and releases its launch lease
+  // instead of blocking teardown forever. Deregistered in the scope guard
+  // below.
+  auto &Ctrl = getController();
+  std::atomic<bool> BlockedWake{false};
+  GC::Controller::BlockedWaitToken BWToken{&WaiterIterator->second.Cond,
+                                           &BlockedWake,
+                                           &WaiterIterator->second.Mutex};
+  Ctrl.registerBlockedWait(&BWToken);
+
   cxx20::scope_exit ScopeExitHolder([&]() noexcept {
+    Ctrl.deregisterBlockedWait(&BWToken);
     WaitingMemory.store(nullptr, std::memory_order_release);
     std::unique_lock<std::mutex> Locker(WaiterMapMtx);
     WaiterMap.erase(WaiterIterator);
   });
+
+  // A thread blocked in atomic.wait has stable value stacks. Mark it
+  // NativeRunning for the duration so a concurrent collection scans its roots
+  // in place (scanNonRunningRoots) rather than waiting forever for an
+  // acknowledgement this parked thread can never deliver -- and so the scope's
+  // destructor routes it through gcSafepoint() on the way out, re-admitting it
+  // to any handshake that began while it was blocked.
+  GC::Controller::NativeScope BlockedNative(Ctrl);
 
   while (true) {
     std::unique_lock<decltype(WaiterIterator->second.Mutex)> Locker(
@@ -410,6 +432,13 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
     if (unlikely(StopToken.load(std::memory_order_acquire) != 0)) {
       return Unexpect(ErrCode::Value::Interrupted);
     }
+    // Controller teardown: abandon the wait so the invocation can unwind and
+    // release its launch lease. Checked under the waiter mutex, which
+    // wakeAllBlocked's notify pairs with, so no wakeup is lost.
+    if (unlikely(BlockedWake.load(std::memory_order_acquire) ||
+                 Ctrl.isClosing())) {
+      return Unexpect(ErrCode::Value::Interrupted);
+    }
     std::cv_status WaitResult = std::cv_status::no_timeout;
     if (!Until) {
       WaiterIterator->second.Cond.wait(Locker);
@@ -417,6 +446,11 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
       WaitResult = WaiterIterator->second.Cond.wait_until(Locker, *Until);
     }
     if (unlikely(StopToken.load(std::memory_order_relaxed) != 0)) {
+      return Unexpect(ErrCode::Value::Interrupted);
+    }
+    // Re-check teardown on every wake (notify, timeout, spurious).
+    if (unlikely(BlockedWake.load(std::memory_order_acquire) ||
+                 Ctrl.isClosing())) {
       return Unexpect(ErrCode::Value::Interrupted);
     }
     if (WaiterIterator->second.Notified) {

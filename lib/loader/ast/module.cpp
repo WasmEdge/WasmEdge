@@ -229,17 +229,34 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
 
 Expect<void> Loader::loadUniversalWASM(AST::Module &Mod) {
   if (Conf.getRuntimeConfigure().getRunMode() == RunMode::AOT) {
-    auto Exec = std::make_shared<AOTSection>();
-    if (auto Res = Exec->load(Mod.getAOTSection()); unlikely(!Res)) {
-      spdlog::warn("AOT was requested but loading the AOT section failed: "
-                   "{}, falling back to interpreter."sv,
-                   Res.error());
+    // R7-M3 capability admission: a GC-enabled runtime must not bind native
+    // code compiled without GC support -- it emits no cooperative safepoint
+    // poll and no shadow-root spill, so a concurrent collection would hang on
+    // it or miss its roots. Refuse it here rather than at instantiate: loading
+    // an AOT artifact SKIPS parsing the function bodies (see
+    // Loader::loadSegment), so a later deopt would have no instructions to fall
+    // back to. Declining the bind here takes the interpreter fallback below,
+    // which re-reads the skipped code section.
+    if (Conf.hasProposal(Proposal::GC) && !Mod.getAOTSection().getGCCapable()) {
+      spdlog::warn("AOT artifact was compiled without GC support but the GC "
+                   "proposal is enabled, falling back to interpreter."sv);
     } else {
-      if (loadExecutable(Mod, Exec)) {
-        return {};
+      auto Exec = std::make_shared<AOTSection>();
+      if (auto Res = Exec->load(Mod.getAOTSection()); unlikely(!Res)) {
+        spdlog::warn("AOT was requested but loading the AOT section failed: "
+                     "{}, falling back to interpreter."sv,
+                     Res.error());
+      } else {
+        if (loadExecutable(Mod, Exec)) {
+          // R7-M3 durable capability: the native code now bound to this module
+          // came from the AOT section, so its GC capability is whatever the
+          // compiler recorded there -- not the interpreter default.
+          Mod.setGCCompiled(Mod.getAOTSection().getGCCapable());
+          return {};
+        }
+        spdlog::warn("AOT was requested but linking the AOT executable failed, "
+                     "falling back to interpreter."sv);
       }
-      spdlog::warn("AOT was requested but linking the AOT executable failed, "
-                   "falling back to interpreter."sv);
     }
   }
 

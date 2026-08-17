@@ -67,7 +67,7 @@ encapsulate(PkVariant &PkVariant) noexcept {
         if constexpr (HasEncapsulate<InPkType>) {
           return Pk.encapsulate();
         } else {
-          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
         }
       },
       PkVariant);
@@ -82,7 +82,7 @@ decapsulate(SkVariant &SkVariant,
         if constexpr (HasDecapsulate<InSkType>) {
           return Sk.decapsulate(EncapsulatedSecret);
         } else {
-          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
         }
       },
       SkVariant);

@@ -16,7 +16,8 @@ using namespace std::literals;
 namespace WasmEdge::LLVM {
 
 Compiler::CompileContext::CompileContext(LLVM::Context C, LLVM::Module &M,
-                                         bool IsGenericBinary) noexcept
+                                         bool IsGenericBinary,
+                                         bool GCEnabledIn) noexcept
     : LLContext(C), LLModule(M),
       Cold(LLVM::Attribute::createEnum(C, LLVM::Core::Cold, 0)),
       NoAlias(LLVM::Attribute::createEnum(C, LLVM::Core::NoAlias, 0)),
@@ -42,23 +43,28 @@ Compiler::CompileContext::CompileContext(LLVM::Context C, LLVM::Module &M,
       Int8PtrTy(Int8Ty.getPointerTo()), Int32PtrTy(Int32Ty.getPointerTo()),
       Int64PtrTy(Int64Ty.getPointerTo()), Int128PtrTy(Int128Ty.getPointerTo()),
       Int8PtrPtrTy(Int8PtrTy.getPointerTo()),
+      ModCtxTy(
+          LLVM::Type::getStructType("ModCtx",
+                                    std::initializer_list<LLVM::Type>{
+                                        // MemoryPtrs
+                                        Int8PtrTy.getPointerTo(),
+                                        // MemorySizes
+                                        Int64PtrTy.getPointerTo(),
+                                        // TableRefs
+                                        Int64x2Ty.getPointerTo().getPointerTo(),
+                                        // TableSizes
+                                        Int64PtrTy.getPointerTo(),
+                                        // Globals
+                                        Int128PtrTy.getPointerTo(),
+                                        // ModuleInst
+                                        Int8PtrTy,
+                                        // Tags
+                                        Int8PtrPtrTy,
+                                    })),
+      ModCtxPtrTy(ModCtxTy.getPointerTo()),
       ExecCtxTy(LLVM::Type::getStructType(
           "ExecCtx",
           std::initializer_list<LLVM::Type>{
-              // MemoryPtrs
-              Int8PtrTy.getPointerTo(),
-              // MemorySizes
-              Int64PtrTy.getPointerTo(),
-              // TableRefs
-              Int64x2Ty.getPointerTo().getPointerTo(),
-              // TableSizes
-              Int64PtrTy.getPointerTo(),
-              // Globals
-              Int128PtrTy.getPointerTo(),
-              // Tags
-              Int8PtrPtrTy,
-              // PendingExnTagAddr
-              Int8PtrPtrTy,
               // InstrCount
               Int64PtrTy,
               // CostTable
@@ -69,10 +75,27 @@ Compiler::CompileContext::CompileContext(LLVM::Context C, LLVM::Module &M,
               Int64Ty,
               // StopToken
               Int32PtrTy,
-              // ModuleInst
+              // PendingExnTagAddr
+              Int8PtrPtrTy,
+              // ShadowHead (GC::Controller::ShadowHead*): stable per-thread
+              // shadow-root chain anchor, threaded so generated code can push
+              // spilled managed refs the collector must scan. Index 6 -- kept
+              // in lockstep with ExecutorContext in executor.h.
+              Int8PtrTy,
+              // GCStopFlag (std::atomic<bool>*): the controller's stop flag,
+              // polled at loop back-edges; when set, generated code calls the
+              // kGCSafepoint intrinsic to park. Index 7 -- lockstep with
+              // ExecutorContext in executor.h.
               Int8PtrTy,
           })),
       ExecCtxPtrTy(ExecCtxTy.getPointerTo()),
+      // ShadowFrame {ShadowFrame* Prev; uint32_t Count; ValVariant* Slots}.
+      // {ptr, i32, ptr} lays out Prev@0, Count@8, Slots@16 (i32 padded to 8) --
+      // matching GC::Controller::ShadowFrame on the LP64 ABI the scanner reads.
+      ShadowFrameTy(LLVM::Type::getStructType(
+          "ShadowFrame",
+          std::initializer_list<LLVM::Type>{Int8PtrTy, Int32Ty, Int8PtrTy})),
+      ShadowFramePtrTy(ShadowFrameTy.getPointerTo()),
       IntrinsicsTableTy(LLVM::Type::getArrayType(
           Int8Ty.getPointerTo(),
           static_cast<uint32_t>(Executable::Intrinsics::kIntrinsicMax))),
@@ -80,6 +103,10 @@ Compiler::CompileContext::CompileContext(LLVM::Context C, LLVM::Module &M,
       IntrinsicsTable(LLModule.get().addGlobal(IntrinsicsTablePtrTy, true,
                                                LLVMExternalLinkage,
                                                LLVM::Value(), "intrinsics")) {
+  // R7-M3 capability: record whether GC codegen (safepoint poll + shadow-root
+  // spill) is emitted for this artifact. Assigned in the body (not the init
+  // list) so the member keeps its header declaration order.
+  GCEnabled = GCEnabledIn;
   Trap.Ty = LLVM::Type::getFunctionType(VoidTy, {Int32Ty});
   Trap.Fn = LLModule.get().addFunction(Trap.Ty, LLVMPrivateLinkage, "trap");
   Trap.Fn.setDSOLocal(true);
@@ -178,10 +205,12 @@ toLLVMTypeVector(LLVM::Context LLContext,
 }
 
 std::vector<LLVM::Type> toLLVMArgsType(LLVM::Context LLContext,
+                                       LLVM::Type ModCtxPtrTy,
                                        LLVM::Type ExecCtxPtrTy,
                                        Span<const ValType> ValTypes) noexcept {
   auto Result = toLLVMTypeVector(LLContext, ValTypes);
   Result.insert(Result.begin(), ExecCtxPtrTy);
+  Result.insert(Result.begin(), ModCtxPtrTy);
   return Result;
 }
 
@@ -201,10 +230,11 @@ LLVM::Type toLLVMRetsType(LLVM::Context LLContext,
   return LLVM::Type::getStructType(Result);
 }
 
-LLVM::Type toLLVMType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
+LLVM::Type toLLVMType(LLVM::Context LLContext, LLVM::Type ModCtxPtrTy,
+                      LLVM::Type ExecCtxPtrTy,
                       const AST::FunctionType &FuncType) noexcept {
-  auto ArgsTy =
-      toLLVMArgsType(LLContext, ExecCtxPtrTy, FuncType.getParamTypes());
+  auto ArgsTy = toLLVMArgsType(LLContext, ModCtxPtrTy, ExecCtxPtrTy,
+                               FuncType.getParamTypes());
   auto RetTy = toLLVMRetsType(LLContext, FuncType.getReturnTypes());
   return LLVM::Type::getFunctionType(RetTy, ArgsTy);
 }

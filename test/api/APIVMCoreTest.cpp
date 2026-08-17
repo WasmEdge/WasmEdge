@@ -268,6 +268,22 @@ INSTANTIATE_TEST_SUITE_P(
     testing::ValuesIn(T.enumerate(SpecTest::TestMode::Interpreter,
                                   /* IncludeComponent */ false)));
 
+// GC module exporting `make (param i32) -> (ref $s)`,
+// `make_arr (param i32) -> (ref $a)`, and `drop_return_i31 () -> i31ref`.
+// Identical bytes to `HostRetentionWasm` in test/gc/GCTest.cpp.
+const std::array<WasmEdge::Byte, 127> GCRetWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x18, 0x05, 0x5f,
+    0x01, 0x7f, 0x01, 0x5e, 0x7f, 0x01, 0x60, 0x01, 0x7f, 0x01, 0x64, 0x00,
+    0x60, 0x01, 0x7f, 0x01, 0x64, 0x01, 0x60, 0x00, 0x01, 0x6c, 0x03, 0x04,
+    0x03, 0x02, 0x03, 0x04, 0x07, 0x25, 0x03, 0x04, 0x6d, 0x61, 0x6b, 0x65,
+    0x00, 0x00, 0x08, 0x6d, 0x61, 0x6b, 0x65, 0x5f, 0x61, 0x72, 0x72, 0x00,
+    0x01, 0x0f, 0x64, 0x72, 0x6f, 0x70, 0x5f, 0x72, 0x65, 0x74, 0x75, 0x72,
+    0x6e, 0x5f, 0x69, 0x33, 0x31, 0x00, 0x02, 0x0a, 0x1e, 0x03, 0x07, 0x00,
+    0x20, 0x00, 0xfb, 0x00, 0x00, 0x0b, 0x07, 0x00, 0x20, 0x00, 0xfb, 0x07,
+    0x01, 0x0b, 0x0c, 0x00, 0x41, 0x00, 0xfb, 0x00, 0x00, 0x1a, 0x41, 0x07,
+    0xfb, 0x1c, 0x0b, 0x00, 0x0e, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x04, 0x07,
+    0x02, 0x00, 0x01, 0x73, 0x01, 0x01, 0x61};
+
 std::array<WasmEdge::Byte, 46> AsyncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
     0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07,
@@ -376,6 +392,47 @@ TEST(WasmEdgeVM, DeleteInvalidInput) {
   WasmEdge_StringDelete(EmptyName);
   WasmEdge_VMDelete(VMCxt);
   WasmEdge_ConfigureDelete(Conf);
+}
+
+TEST(WasmEdgeVM, GCReleaseRef) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_GC);
+  WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_ConfigureDelete(Conf);
+
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBuffer(
+      VM, GCRetWasm.data(), static_cast<uint32_t>(GCRetWasm.size()))));
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VM)));
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VM)));
+
+  WasmEdge_Value Params[1] = {WasmEdge_ValueGenI32(42)};
+  WasmEdge_Value Returns[1];
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMExecute(
+      VM, WasmEdge_StringWrap("make", 4), Params, 1, Returns, 1)));
+
+  // Release through all three forms; none should crash and the VM stays usable.
+  WasmEdge_VMReleaseRef(VM, Returns[0]);
+  WasmEdge_VMReleaseRefs(VM, Returns, 1); // already released: safe no-op
+  WasmEdge_VMReleaseAllRefs(VM);
+
+  WasmEdge_Value Returns2[1];
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMExecute(
+      VM, WasmEdge_StringWrap("make", 4), Params, 1, Returns2, 1)));
+  WasmEdge_VMReleaseAllRefs(VM);
+
+  WasmEdge_VMDelete(VM);
+
+  // Invalid-input no-crash coverage for the release APIs.
+  WasmEdge_VMReleaseAllRefs(nullptr);
+  WasmEdge_VMReleaseRefs(nullptr, nullptr, 0);
+  WasmEdge_VMReleaseRef(nullptr, WasmEdge_ValueGenI32(0));
+  {
+    WasmEdge_VMContext *NullVM = WasmEdge_VMCreate(nullptr, nullptr);
+    WasmEdge_VMReleaseRef(NullVM, WasmEdge_ValueGenI32(0)); // non-ref value
+    WasmEdge_VMReleaseRefs(NullVM, nullptr, 5);             // null Refs, nonzero Len
+    WasmEdge_VMReleaseAllRefs(NullVM);
+    WasmEdge_VMDelete(NullVM);
+  }
 }
 
 } // namespace

@@ -145,10 +145,9 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
 
 #if LLVM_VERSION_MAJOR >= 13
   auto PBO = LLVM::PassBuilderOptions::create();
-  if (auto Error = PBO.runPasses(
-          LLModule,
-          toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
-          TM)) {
+  std::string Passes =
+      toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel());
+  if (auto Error = PBO.runPasses(LLModule, Passes.c_str(), TM)) {
     spdlog::error("{}"sv, Error.message().string_view());
   }
 #else
@@ -213,9 +212,11 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   auto &LLModule = D.extract().LLModule;
 
   CompileContext NewContext(LLContext, LLModule,
-                            Conf.getCompilerConfigure().isGenericBinary());
+                            Conf.getCompilerConfigure().isGenericBinary(),
+                            Conf.hasProposal(Proposal::GC));
   RAIICleanup Cleanup(Context, &NewContext);
   Context->addVersionGlobal();
+  Context->addGCCapableGlobal();
 
   // Compile all sections and the function declarations.
   compileSections(Module, false);
@@ -229,10 +230,19 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   // StartSection is not required for compilation.
 
   spdlog::info("verify start"sv);
-  LLModule.verify(LLVMPrintMessageAction);
+  if (LLVM::Message VerifyMsg; LLModule.hasVerificationError(VerifyMsg)) {
+    spdlog::error("LLVM module verification failed: {}"sv,
+                  VerifyMsg.string_view());
+    return Unexpect(ErrCode::Value::InvalidAOTConfigure);
+  }
 
   auto &TM = D.extract().TM;
   EXPECTED_TRY(optimize(LLModule, TM));
+  if (LLVM::Message VerifyMsg; LLModule.hasVerificationError(VerifyMsg)) {
+    spdlog::error("LLVM module verification failed after optimization: {}"sv,
+                  VerifyMsg.string_view());
+    return Unexpect(ErrCode::Value::InvalidAOTConfigure);
+  }
 
   // Set initializer for constant value
   Context->finalizeIntrinsicsTable();
@@ -241,11 +251,11 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
 
 void Compiler::compile(const AST::TypeSection &TypeSec,
                        bool DeclarationsOnly) noexcept {
-  auto WrapperTy =
-      LLVM::Type::getFunctionType(Context->VoidTy,
-                                  {Context->ExecCtxPtrTy, Context->Int8PtrTy,
-                                   Context->Int8PtrTy, Context->Int8PtrTy},
-                                  false);
+  auto WrapperTy = LLVM::Type::getFunctionType(
+      Context->VoidTy,
+      {Context->ModCtxPtrTy, Context->ExecCtxPtrTy, Context->Int8PtrTy,
+       Context->Int8PtrTy, Context->Int8PtrTy},
+      false);
   auto SubTypes = TypeSec.getContent();
   const auto Size = SubTypes.size();
   if (Size == 0) {
@@ -263,9 +273,11 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
     FDecl.addFnAttr(Context->UWTable);
     FDecl.addParamAttr(0, Context->ReadOnly);
     FDecl.addParamAttr(0, Context->NoAlias);
+    FDecl.addParamAttr(1, Context->ReadOnly);
     FDecl.addParamAttr(1, Context->NoAlias);
     FDecl.addParamAttr(2, Context->NoAlias);
     FDecl.addParamAttr(3, Context->NoAlias);
+    FDecl.addParamAttr(4, Context->NoAlias);
   };
 
   // Iterate and compile types.
@@ -318,14 +330,15 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
           Builder.positionAtEnd(
               LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
 
-          auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy,
-                                CompType.getFuncType());
+          auto FTy = toLLVMType(Context->LLContext, Context->ModCtxPtrTy,
+                                Context->ExecCtxPtrTy, CompType.getFuncType());
           auto RTy = FTy.getReturnType();
           std::vector<LLVM::Type> FPTy(FTy.getNumParams());
           FTy.getParamTypes(FPTy);
 
-          const size_t ArgCount = FPTy.size() - 1;
-          auto ExecCtxPtr = F.getFirstParam();
+          const size_t ArgCount = FPTy.size() - 2;
+          auto ModCtxPtr = F.getFirstParam();
+          auto ExecCtxPtr = ModCtxPtr.getNextParam();
           auto RawFunc = LLVM::FunctionCallee{
               FTy, Builder.createBitCast(ExecCtxPtr.getNextParam(),
                                          FTy.getPointerTo())};
@@ -334,10 +347,11 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
 
           std::vector<LLVM::Value> Args;
           Args.reserve(FTy.getNumParams());
+          Args.push_back(ModCtxPtr);
           Args.push_back(ExecCtxPtr);
           for (size_t J = 0; J < ArgCount; ++J) {
             Args.push_back(Builder.createValuePtrLoad(
-                FPTy[J + 1], RawArgs, Context->Int8Ty, J * LLVM::kValSize));
+                FPTy[J + 2], RawArgs, Context->Int8Ty, J * LLVM::kValSize));
           }
 
           auto Ret = Builder.createCall(RawFunc, Args);
@@ -391,8 +405,8 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       assuming(TypeIdx < Context->CompositeTypes.size());
       assuming(Context->CompositeTypes[TypeIdx]->isFunc());
       const auto &FuncType = Context->CompositeTypes[TypeIdx]->getFuncType();
-      auto FTy =
-          toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
+      auto FTy = toLLVMType(Context->LLContext, Context->ModCtxPtrTy,
+                            Context->ExecCtxPtrTy, FuncType);
       auto RTy = FTy.getReturnType();
       auto F =
           LLVM::FunctionCallee{FTy, Context->LLModule.get().addFunction(
@@ -416,7 +430,8 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
       LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
 
-      auto Arg = F.Fn.getFirstParam();
+      auto ModCtx = Builder.createLoad(Context->ModCtxTy, F.Fn.getFirstParam());
+      auto Arg = F.Fn.getFirstParam().getNextParam();
       for (unsigned I = 0; I < ArgSize; ++I) {
         Arg = Arg.getNextParam();
         Builder.createValuePtrStore(Arg, Args, Context->Int8Ty,
@@ -424,13 +439,14 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       }
 
       Builder.createCall(
-          Context->getIntrinsic(
-              Builder, Executable::Intrinsics::kCall,
-              LLVM::Type::getFunctionType(
-                  Context->VoidTy,
-                  {Context->Int32Ty, Context->Int8PtrTy, Context->Int8PtrTy},
-                  false)),
-          {Context->LLContext.getInt32(FuncID), Args, Rets});
+          Context->getIntrinsic(Builder, Executable::Intrinsics::kCall,
+                                LLVM::Type::getFunctionType(
+                                    Context->VoidTy,
+                                    {Context->Int8PtrTy, Context->Int32Ty,
+                                     Context->Int8PtrTy, Context->Int8PtrTy},
+                                    false)),
+          {Context->getModuleInst(Builder, ModCtx),
+           Context->LLContext.getInt32(FuncID), Args, Rets});
 
       if (RetSize == 0) {
         Builder.createRetVoid();
@@ -471,6 +487,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       const auto &ValType = GlobType.getValType();
       auto Type = toLLVMType(Context->LLContext, ValType);
       Context->Globals.push_back(Type);
+      Context->GlobalIsRef.push_back(ValType.isRefType());
       break;
     }
     case ExternalType::Tag: // Tag type
@@ -493,6 +510,7 @@ void Compiler::compile(const AST::GlobalSection &GlobalSec) noexcept {
     const auto &ValType = GlobalSeg.getGlobalType().getValType();
     auto Type = toLLVMType(Context->LLContext, ValType);
     Context->Globals.push_back(Type);
+    Context->GlobalIsRef.push_back(ValType.isRefType());
   }
 }
 
@@ -554,7 +572,8 @@ void Compiler::compileFunctionDeclarations(
     assuming(Context->CompositeTypes[TypeIdx]->isFunc());
     const auto &FuncType = Context->CompositeTypes[TypeIdx]->getFuncType();
     const auto FuncID = Context->Functions.size();
-    auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
+    auto FTy = toLLVMType(Context->LLContext, Context->ModCtxPtrTy,
+                          Context->ExecCtxPtrTy, FuncType);
     LLVM::FunctionCallee F = {FTy, Context->LLModule.get().addFunction(
                                        FTy, LLVMExternalLinkage,
                                        fmt::format("f{}"sv, FuncID).c_str())};
@@ -566,6 +585,8 @@ void Compiler::compileFunctionDeclarations(
     F.Fn.addFnAttr(Context->UWTable);
     F.Fn.addParamAttr(0, Context->ReadOnly);
     F.Fn.addParamAttr(0, Context->NoAlias);
+    F.Fn.addParamAttr(1, Context->ReadOnly);
+    F.Fn.addParamAttr(1, Context->NoAlias);
 
     Context->Functions.emplace_back(TypeIdx, F, &Code);
   }
@@ -603,12 +624,15 @@ Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
     }
   }
 
+  // Resolve the function signature up front so the compiler can classify
+  // ref-typed PARAMS (Type.first) for the GC shadow spill, not just locals.
+  auto Type = Context->resolveBlockType(T);
   FunctionCompiler FC(
-      *Context, F, Locals, Conf.getCompilerConfigure().isInterruptible(),
+      *Context, F, Type.first, Locals,
+      Conf.getCompilerConfigure().isInterruptible(),
       Conf.getStatisticsConfigure().isInstructionCounting(),
       Conf.getStatisticsConfigure().isCostMeasuring(),
       Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT);
-  auto Type = Context->resolveBlockType(T);
   EXPECTED_TRY(FC.compile(*Code, std::move(Type)));
   F.Fn.eliminateUnreachableBlocks();
 
@@ -631,9 +655,11 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module) noexcept {
   auto &LLModule = D.extract().LLModule;
 
   CompileContext NewContext(LLContext, LLModule,
-                            Conf.getCompilerConfigure().isGenericBinary());
+                            Conf.getCompilerConfigure().isGenericBinary(),
+                            Conf.hasProposal(Proposal::GC));
   RAIICleanup Cleanup(Context, &NewContext);
   Context->addVersionGlobal();
+  Context->addGCCapableGlobal();
 
   // Compile all sections and the function declarations without bodies.
   compileSections(Module, false);
@@ -642,7 +668,11 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module) noexcept {
 
   // Set initializer for constant value
   Context->finalizeIntrinsicsTable();
-  LLModule.verify(LLVMPrintMessageAction);
+  if (LLVM::Message VerifyMsg; LLModule.hasVerificationError(VerifyMsg)) {
+    spdlog::error("LLVM module verification failed: {}"sv,
+                  VerifyMsg.string_view());
+    return Unexpect(ErrCode::Value::InvalidAOTConfigure);
+  }
 
   spdlog::info("[lazy-jit]: infrastructure compilation done"sv);
 
@@ -679,7 +709,8 @@ Compiler::compileFunctions(Data &&LLData, const AST::Module &Module,
   auto &LLModule = LLData.extract().LLModule;
 
   CompileContext NewContext(LLContext, LLModule,
-                            Conf.getCompilerConfigure().isGenericBinary());
+                            Conf.getCompilerConfigure().isGenericBinary(),
+                            Conf.hasProposal(Proposal::GC));
   RAIICleanup Cleanup(Context, &NewContext);
 
   // Emit the type wrappers as external declarations resolved against the
@@ -692,11 +723,20 @@ Compiler::compileFunctions(Data &&LLData, const AST::Module &Module,
   }
 
   spdlog::info("[lazy-jit]: verify batch ({} funcs) start"sv, Sorted.size());
-  LLModule.verify(LLVMPrintMessageAction);
+  if (LLVM::Message VerifyMsg; LLModule.hasVerificationError(VerifyMsg)) {
+    spdlog::error("[lazy-jit]: batch verification failed: {}"sv,
+                  VerifyMsg.string_view());
+    return Unexpect(ErrCode::Value::InvalidAOTConfigure);
+  }
   spdlog::info("[lazy-jit]: verify batch ({} funcs) done"sv, Sorted.size());
 
   auto &TM = LLData.extract().TM;
   EXPECTED_TRY(optimize(LLModule, TM));
+  if (LLVM::Message VerifyMsg; LLModule.hasVerificationError(VerifyMsg)) {
+    spdlog::error("LLVM module verification failed after optimization: {}"sv,
+                  VerifyMsg.string_view());
+    return Unexpect(ErrCode::Value::InvalidAOTConfigure);
+  }
 
   spdlog::debug("[lazy-jit]: compile functions batch ({}) done"sv,
                 Sorted.size());

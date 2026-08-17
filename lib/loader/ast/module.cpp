@@ -5,6 +5,7 @@
 #include "loader/loader.h"
 #include "loader/shared_library.h"
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -199,8 +200,28 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
   // load or JIT compile). Patch the intrinsics-table pointer embedded in
   // the produced executable so the native code can call back into the
   // runtime.
+  //
+  // The slot lives in the executable's own data, and the OS maps an AOT shared
+  // library once per process: two threads loading the same file patch the very
+  // same word, and native code already bound to that library may be reading it
+  // meanwhile. Every loader publishes the one process-wide intrinsics table, so
+  // the writes agree on a value, but concurrent plain accesses to a single
+  // object are a data race regardless. A relaxed atomic store is the whole
+  // requirement: one pointer-sized word, idempotent, publishing nothing that
+  // needs ordering behind it -- the table it names is a constant built before
+  // any module is loaded. std::atomic_ref would say this directly; C++17 has to
+  // reach the slot through a matching atomic type instead.
   if (auto &Symbol = Mod.getSymbol()) {
-    *Symbol = IntrinsicsTable;
+    using IntrinsicsPtr = const Executable::IntrinsicsTable *;
+    using AtomicIntrinsicsPtr = std::atomic<IntrinsicsPtr>;
+    static_assert(sizeof(AtomicIntrinsicsPtr) == sizeof(IntrinsicsPtr) &&
+                      alignof(AtomicIntrinsicsPtr) == alignof(IntrinsicsPtr),
+                  "atomic intrinsics-table pointer must alias the plain one");
+    static_assert(AtomicIntrinsicsPtr::is_always_lock_free,
+                  "a locked atomic would not match the plain loads the "
+                  "generated code performs on this slot");
+    reinterpret_cast<AtomicIntrinsicsPtr *>(Symbol.get())
+        ->store(IntrinsicsTable, std::memory_order_relaxed);
   }
 
   return {};
@@ -208,17 +229,34 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
 
 Expect<void> Loader::loadUniversalWASM(AST::Module &Mod) {
   if (Conf.getRuntimeConfigure().getRunMode() == RunMode::AOT) {
-    auto Exec = std::make_shared<AOTSection>();
-    if (auto Res = Exec->load(Mod.getAOTSection()); unlikely(!Res)) {
-      spdlog::warn("AOT was requested but loading the AOT section failed: "
-                   "{}, falling back to interpreter."sv,
-                   Res.error());
+    // R7-M3 capability admission: a GC-enabled runtime must not bind native
+    // code compiled without GC support -- it emits no cooperative safepoint
+    // poll and no shadow-root spill, so a concurrent collection would hang on
+    // it or miss its roots. Refuse it here rather than at instantiate: loading
+    // an AOT artifact SKIPS parsing the function bodies (see
+    // Loader::loadSegment), so a later deopt would have no instructions to fall
+    // back to. Declining the bind here takes the interpreter fallback below,
+    // which re-reads the skipped code section.
+    if (Conf.hasProposal(Proposal::GC) && !Mod.getAOTSection().getGCCapable()) {
+      spdlog::warn("AOT artifact was compiled without GC support but the GC "
+                   "proposal is enabled, falling back to interpreter."sv);
     } else {
-      if (loadExecutable(Mod, Exec)) {
-        return {};
+      auto Exec = std::make_shared<AOTSection>();
+      if (auto Res = Exec->load(Mod.getAOTSection()); unlikely(!Res)) {
+        spdlog::warn("AOT was requested but loading the AOT section failed: "
+                     "{}, falling back to interpreter."sv,
+                     Res.error());
+      } else {
+        if (loadExecutable(Mod, Exec)) {
+          // R7-M3 durable capability: the native code now bound to this module
+          // came from the AOT section, so its GC capability is whatever the
+          // compiler recorded there -- not the interpreter default.
+          Mod.setGCCompiled(Mod.getAOTSection().getGCCapable());
+          return {};
+        }
+        spdlog::warn("AOT was requested but linking the AOT executable failed, "
+                     "falling back to interpreter."sv);
       }
-      spdlog::warn("AOT was requested but linking the AOT executable failed, "
-                   "falling back to interpreter."sv);
     }
   }
 

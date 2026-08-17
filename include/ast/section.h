@@ -257,6 +257,14 @@ public:
   uint8_t getArchType() const noexcept { return ArchType; }
   void setArchType(uint8_t Type) noexcept { ArchType = Type; }
 
+  /// Getter and setter for the R7-M3 GC-capability flag: whether the compiled
+  /// code in this section was emitted with GC codegen (cooperative safepoint
+  /// polls + shadow-root spill). Defaults to false so a section that fails to
+  /// carry the flag is treated as not GC-capable, which the instantiate gate
+  /// resolves by falling back to interpreter execution.
+  bool getGCCapable() const noexcept { return GCCapable; }
+  void setGCCapable(bool V) noexcept { GCCapable = V; }
+
   /// Getter and setter for version address.
   uint64_t getVersionAddress() const noexcept { return VersionAddress; }
   void setVersionAddress(uint64_t Addr) noexcept { VersionAddress = Addr; }
@@ -289,6 +297,7 @@ private:
   uint32_t Version;
   uint8_t OSType;
   uint8_t ArchType;
+  bool GCCapable = false;
   uint64_t VersionAddress;
   uint64_t IntrinsicsAddress;
   std::vector<uintptr_t> TypesAddress;

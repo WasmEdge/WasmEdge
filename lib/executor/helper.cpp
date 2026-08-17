@@ -4,10 +4,13 @@
 #include "executor/executor.h"
 
 #include "common/spdlog.h"
+#include "runtime/storemgr.h"
 #include "system/fault.h"
 #include "system/stacktrace.h"
 
 #include <cstdint>
+#include <shared_mutex>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -16,31 +19,30 @@ namespace Executor {
 
 Executor::SavedThreadLocal::SavedThreadLocal(
     Executor &Ex, Runtime::StackManager &StackMgr,
-    const Runtime::Instance::FunctionInstance &Func) noexcept {
+    [[maybe_unused]] const Runtime::Instance::FunctionInstance &Func) noexcept {
   // Prepare the execution context.
-  auto *ModInst =
-      const_cast<Runtime::Instance::ModuleInstance *>(Func.getModule());
   SavedThis = This;
   This = &Ex;
 
   SavedExecutionContext = ExecutionContext;
-  ExecutionContext.Memories = ModInst->MemoryPtrs.data();
-  ExecutionContext.MemorySizes = ModInst->MemorySizePtrs.data();
-  ExecutionContext.TableRefs = ModInst->TableRefPtrs.data();
-  ExecutionContext.TableSizes = ModInst->TableSizePtrs.data();
-  ExecutionContext.Globals = ModInst->GlobalPtrs.data();
-  ExecutionContext.Tags =
-      reinterpret_cast<void *const *>(ModInst->TagInsts.data());
+  ExecutionContext.StopToken = &Ex.StopToken;
   ExecutionContext.PendingExnTagAddr =
       reinterpret_cast<void *const *>(&PendingExn.TagInst);
+  // Thread this compiled thread's stable shadow-root anchor into the ExecCtx so
+  // generated code can publish spilled managed refs. Rebound on every compiled
+  // entry; nullptr if the thread has no registered stack (codegen skips the
+  // push in that case).
+  ExecutionContext.ShadowHead = Ex.getController().currentShadowHead();
+  // Thread the controller's stop flag so generated code can poll it inline at
+  // loop back-edges and call kGCSafepoint to park when a collection is stopping
+  // the world. Stable for the controller's lifetime.
+  ExecutionContext.GCStopFlag = Ex.getController().stopFlagPtr();
   if (Ex.Stat) {
     ExecutionContext.InstrCount = &Ex.Stat->getInstrCountRef();
     ExecutionContext.CostTable = Ex.Stat->getCostTable().data();
     ExecutionContext.Gas = &Ex.Stat->getTotalCostRef();
     ExecutionContext.GasLimit = Ex.Stat->getCostLimit();
   }
-  ExecutionContext.StopToken = &Ex.StopToken;
-  ExecutionContext.ModuleInst = ModInst;
 
   SavedCurrentStack = CurrentStack;
   CurrentStack = &StackMgr;
@@ -52,12 +54,16 @@ Executor::SavedThreadLocal::~SavedThreadLocal() noexcept {
   This = SavedThis;
 }
 
-Expect<AST::InstrView::iterator>
-Executor::enterFunction(Runtime::StackManager &StackMgr,
-                        const Runtime::Instance::FunctionInstance &Func,
-                        const AST::InstrView::iterator RetIt, bool IsTailCall,
-                        bool IsNativeEntry) {
+Expect<AST::InstrView::iterator> Executor::enterFunction(
+    Runtime::StackManager &StackMgr,
+    const Runtime::Instance::FunctionInstance &Func,
+    const AST::InstrView::iterator RetIt, bool IsTailCall, bool IsNativeEntry,
+    const Runtime::Instance::ModuleInstance *CallerModInst) {
   // RetIt: the return position when the entered function returns.
+
+  if (unlikely(getController().stopRequested())) {
+    getController().gcSafepoint();
+  }
 
   // Check whether interruption occurred.
   if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
@@ -91,7 +97,10 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     // Generate CallingFrame from current frame.
     // The module instance will be nullptr if current frame is a dummy frame.
     // For this case, use the module instance of this host function.
-    const auto *ModInst = StackMgr.getModule();
+    const auto *ModInst = CallerModInst;
+    if (ModInst == nullptr) {
+      ModInst = StackMgr.getModule();
+    }
     if (ModInst == nullptr) {
       ModInst = Func.getModule();
     }
@@ -118,10 +127,11 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       Stat->startRecordHost();
     }
 
-    // Call pre-host-function
-    HostFuncHelper.invokePreHostFunc();
-
-    // Run host function.
+    // Keep args on the (GC-rooted) value stack, not a detached buffer, so
+    // managed refs survive a collection during the call. cleanNumericVal
+    // mutates value-stack slots and so must run as Running (before the native
+    // scope below): a coordinator scanning a NativeRunning thread's stacks in
+    // place must never race a stack write.
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     for (uint32_t I = 0; I < ArgsN; I++) {
       // For the number type cases of the arguments, the unused bits should be
@@ -129,10 +139,48 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       cleanNumericVal(Args[I], FuncType.getParamTypes()[I]);
     }
     std::vector<ValVariant> Rets(RetsN);
-    auto Ret = HostFunc.run(CallFrame, std::move(Args), Rets);
-
-    // Call post-host-function
-    HostFuncHelper.invokePostHostFunc();
+    // Boundary roots: pin any managed reference the host produces into the
+    // detached Rets buffer as a host root BEFORE this call's native scope dtor
+    // may park at a re-entry safe point -- Rets is on no value stack, so a
+    // collection during that park would not otherwise see them. Released (RAII)
+    // after pushSpan transfers ownership to the GC-scanned value stack.
+    GC::BoundaryRoots RetRoots(getAllocator());
+    // Mark this thread NativeRunning for the duration of ALL
+    // externally-supplied callbacks -- the pre/post hooks as well as run(): a
+    // GC coordinator that starts a setup handshake while we are in native code
+    // must not wait for an ack we cannot deliver (native code reaches no safe
+    // point), and a blocking hook must not hang it; instead it scans our stable
+    // value stacks in place. The scope's dtor restores Running and performs a
+    // re-entry safe-point poll, so a handshake that began during the call is
+    // acknowledged before guest execution resumes. The surrounding stack
+    // mutations (cleanNumericVal above, pushSpan/popFrame below) stay outside
+    // as Running.
+    auto Ret = [&] {
+      GC::Controller::NativeScope Native(getController());
+      // Call pre-host-function
+      HostFuncHelper.invokePreHostFunc();
+      auto R = HostFunc.run(CallFrame, Args, Rets);
+      // Pin managed return refs while still NativeRunning and BEFORE the post
+      // hook. invokePostHostFunc() runs arbitrary user native code that may
+      // block or reenter the runtime, giving a concurrent collection a window
+      // in which a just-returned reference lives only in the unscanned Rets
+      // buffer (Rets is on no value stack, and this thread is NativeRunning, so
+      // the collector scans only its registered guest stacks). Rooting the
+      // returns first closes that window; the post hook and the scope dtor's
+      // re-entry safe point then both run with every managed return already
+      // published as a host root.
+      if (R) {
+        const auto &RTypes = FuncType.getReturnTypes();
+        for (uint32_t I = 0; I < RetsN; ++I) {
+          if (RTypes[I].isRefType()) {
+            RetRoots.pin(Rets[I].get<RefVariant>());
+          }
+        }
+      }
+      // Call post-host-function
+      HostFuncHelper.invokePostHostFunc();
+      return R;
+    }();
 
     // Do the statistics if the statistics turned on.
     if (Stat) {
@@ -151,9 +199,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     }
 
     // Push returns back to the stack.
-    for (auto &R : Rets) {
-      StackMgr.push(std::move(R));
-    }
+    StackMgr.pushSpan(Rets);
 
     // For host function case, the continuation will be the continuation from
     // the popped frame.
@@ -161,6 +207,28 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
   } else if (Func.isCompiledFunction()) {
     // Compiled function case: Execute the function and jump to the
     // continuation.
+
+    // R7-M3 backstop: refuse native code that was not compiled with GC support
+    // while this executor runs a collector. Such code polls no safepoint (a
+    // stop-the-world would wait forever on it) and spills no shadow roots (a
+    // collection that did proceed would miss its live references). The
+    // instantiate gate normally deopts these modules to the interpreter, but it
+    // only sees modules THIS executor instantiated: registerModule and a direct
+    // Executor::invoke can both present function instances that a GC-off
+    // executor bound to compiled code. Refuse rather than deopt -- a compiled
+    // FunctionInstance carries no instruction body to fall back to. Checked
+    // before pushFrame so the refusal leaves the stack untouched.
+    if (unlikely(GCEnabled)) {
+      const auto *ModInst = Func.getModule();
+      if (unlikely(ModInst != nullptr && !ModInst->isGCCompiled())) {
+        spdlog::error(ErrCode::Value::IllegalGrammar);
+        spdlog::error("    Calling compiled function of a module built without "
+                      "GC support while the GC proposal is enabled. Instantiate "
+                      "the module with this executor, or use a configuration "
+                      "matching the one it was compiled with.");
+        return Unexpect(ErrCode::Value::IllegalGrammar);
+      }
+    }
 
     // Push frame.
     StackMgr.pushFrame(Func.getModule(), // Module instance
@@ -171,7 +239,8 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
                        IsNativeEntry     // For native entry
     );
 
-    // Prepare arguments.
+    // Prepare arguments. Keep them on the (GC-rooted) value stack, not a
+    // detached buffer, so managed refs survive a collection during the call.
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
     SavedThreadLocal Saved(*this, StackMgr, Func);
@@ -180,8 +249,45 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     try {
       // Get symbol and execute the function.
       Fault FaultHandler;
+      // R7-M2: capture the entry's mutator state at this compiled boundary so
+      // the abnormal-fault recovery below can undo any NativeScope transition
+      // the longjmp skips (which would otherwise strand the entry in
+      // NativeRunning -- remotely scannable). Only meaningful when this thread
+      // holds a registered stack (else there is no entry). volatile: it is read
+      // after the setjmp returns non-zero.
+      volatile GC::Controller::MutatorState BoundaryState =
+          GC::Controller::MutatorState::Running;
+      // R7-M2: arm signal-safe shadow-head truncation. On an abnormal fault the
+      // longjmp below skips generated code's shadow-frame pops; reset the head
+      // to its value at this boundary so no scanner walks an abandoned compiled
+      // frame. The head cell's Head is a lock-free atomic<pointer>,
+      // layout-compatible with atomic<void*>; pass it type-erased to keep the
+      // system/ layer free of a gc/ dependency. Null head (no registered shadow
+      // stack) leaves truncation disabled.
+      if (ExecutionContext.ShadowHead != nullptr) {
+        BoundaryState = getController().currentMutatorState();
+        auto *Cell = static_cast<GC::Controller::ShadowHead *>(
+            ExecutionContext.ShadowHead);
+        static_assert(
+            sizeof(std::atomic<void *>) ==
+                    sizeof(std::atomic<GC::Controller::ShadowFrame *>) &&
+                alignof(std::atomic<void *>) ==
+                    alignof(std::atomic<GC::Controller::ShadowFrame *>),
+            "atomic pointer layout must match for the type-erased head store");
+        FaultHandler.armShadowRestore(
+            reinterpret_cast<std::atomic<void *> *>(&Cell->Head),
+            Cell->Head.load(std::memory_order_relaxed));
+      }
       uint32_t Code = PREPARE_FAULT(FaultHandler);
       if (Code != 0) {
+        // R7-M2: undo any NativeScope transition the longjmp skipped -- restore
+        // the entry to its boundary state (Running, unless this was a
+        // host->guest reentry) so it is not left stranded remotely-scannable.
+        // This runs in the normal post-longjmp context (locking/parking legal),
+        // distinct from the signal-safe head truncation done in emitFault.
+        if (ExecutionContext.ShadowHead != nullptr) {
+          getController().restoreStateAfterFault(BoundaryState);
+        }
         auto InnerStackTrace = FaultHandler.stacktrace();
         {
           std::array<void *, 256> Buffer;
@@ -193,13 +299,17 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
             OuterStackTrace = OuterStackTrace.first(OuterStackTrace.size() - 1);
           }
         }
+        auto LiveModules = collectLiveModules(StackMgr);
         StackTraceSize =
-            compiledStackTrace(StackMgr, InnerStackTrace, StackTrace).size();
+            compiledStackTrace(LiveModules, InnerStackTrace, StackTrace).size();
         Err = ErrCode(static_cast<ErrCategory>(Code >> 24), Code);
       } else {
         auto &Wrapper = FuncType.getSymbol();
-        Wrapper(&ExecutionContext, Func.getSymbol().get(), Args.data(),
-                Rets.data());
+        Wrapper(
+            &const_cast<Runtime::Instance::ModuleInstance *>(Func.getModule())
+                 ->ModCtx,
+            &ExecutionContext, Func.getSymbol().get(), Args.data(),
+            Rets.data());
       }
     } catch (const ErrCode &E) {
       Err = E;
@@ -210,7 +320,8 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       }
       StackTraceSize +=
           interpreterStackTrace(
-              StackMgr, Span<uint32_t>{StackTrace}.subspan(StackTraceSize))
+              StackMgr,
+              Span<StackTraceEntry>{StackTrace}.subspan(StackTraceSize))
               .size();
       return Unexpect(Err);
     }
@@ -231,8 +342,11 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       }
       auto &TagInst = *PendingExn.TagInst;
       const auto *ExnInst = PendingExn.Inst;
-      StackMgr.pushValVec(PendingExn.getPayload());
-      PendingExn = {};
+      StackMgr.pushSpan(PendingExn.getPayload());
+      // Cleared only after the payload is back on the (rooted) value stack, so
+      // its managed refs are never simultaneously off the stack and off the aux
+      // roots.
+      PendingExn.clear(getController());
       EXPECTED_TRY(throwException(StackMgr, TagInst, ResumePC, ExnInst));
       return ResumePC + 1;
     }
@@ -287,6 +401,52 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
   }
 }
 
+std::vector<const Runtime::Instance::ModuleInstance *>
+Executor::collectLiveModules(
+    const Runtime::StackManager &StackMgr) const noexcept {
+  std::vector<const Runtime::Instance::ModuleInstance *> Modules;
+  std::unordered_set<const Runtime::Instance::ModuleInstance *> Seen;
+  auto AddModule = [&](const Runtime::Instance::ModuleInstance *M) {
+    if (M != nullptr && Seen.insert(M).second) {
+      Modules.push_back(M);
+    }
+  };
+
+  for (const auto &Frame : StackMgr.getFramesSpan()) {
+    AddModule(Frame.Module);
+  }
+
+  std::unordered_set<Runtime::StoreManager *> Stores;
+  auto GatherStores = [&](const Runtime::Instance::ModuleInstance *M) {
+    if (M == nullptr) {
+      return;
+    }
+    std::shared_lock Lock(M->Mutex);
+    for (const auto &Entry : M->LinkedStore) {
+      Stores.insert(Entry.first.first);
+    }
+  };
+
+  const size_t SeedCount = Modules.size();
+  for (size_t I = 0; I < SeedCount; ++I) {
+    GatherStores(Modules[I]);
+    for (const auto *Func : Modules[I]->getFunctionInstances()) {
+      if (Func != nullptr) {
+        GatherStores(Func->getModule());
+      }
+    }
+  }
+
+  for (auto *Store : Stores) {
+    Store->getModuleList([&AddModule](const auto &NamedMod) {
+      for (const auto &Entry : NamedMod) {
+        AddModule(Entry.second);
+      }
+    });
+  }
+  return Modules;
+}
+
 Expect<void>
 Executor::branchToLabel(Runtime::StackManager &StackMgr,
                         const AST::Instruction::JumpDescriptor &JumpDesc,
@@ -323,7 +483,8 @@ Expect<void> Executor::throwException(
     }
     // Checking through the catch clause.
     for (const auto &C : Handler->CatchClause) {
-      if (!C.IsAll && getTagInstByIdx(StackMgr, C.TagIndex) != &TagInst) {
+      if (!C.IsAll &&
+          getTagInstByIdx(StackMgr.getModule(), C.TagIndex) != &TagInst) {
         // Specific-tag clauses require tag-address equivalence; skip the
         // ones that do not match.
         continue;
@@ -333,11 +494,16 @@ Expect<void> Executor::throwException(
         // reuse the one passed in by throw_ref to preserve exnref identity.
         const Runtime::Instance::ExceptionInstance *Inst = ExnInst;
         if (Inst == nullptr) {
+          // Copy the top AssocValSize payload without removing it: catch_ref
+          // leaves the payload in place and pushes the exnref above it. Copying
+          // via getTopSpan (not pop-then-push) also keeps the managed refs
+          // rooted, with no window for a concurrent collection to miss them.
           auto Payload = StackMgr.getTopSpan(AssocValSize);
           std::vector<ValVariant> Vec(Payload.begin(), Payload.end());
           auto *ModInst = const_cast<Runtime::Instance::ModuleInstance *>(
               StackMgr.getModule());
-          Inst = ModInst->newException(&TagInst, std::move(Vec));
+          Inst =
+              ModInst->newException(getAllocator(), &TagInst, std::move(Vec));
         }
         if (C.IsAll) {
           StackMgr.eraseValueStack(AssocValSize, 0);
@@ -359,7 +525,10 @@ Expect<void> Executor::throwException(
     // as pending and restore the stack; the native caller continues it.
     PendingExn.TagInst = &TagInst;
     PendingExn.Inst = ExnInst;
-    PendingExn.setPayload(StackMgr.getTopSpan(AssocValSize));
+    // Copied while the payload is still on the rooted value stack, and rooted
+    // as this thread's aux roots from the moment it lands -- the erase below
+    // therefore never leaves the managed refs unrooted.
+    PendingExn.setPayload(getController(), StackMgr.getTopSpan(AssocValSize));
     // Push the dummy results for popping the frame, then drop them because
     // the escaping exception produces no results.
     const uint32_t Arity = StackMgr.getFramesSpan().back().Arity;
@@ -397,9 +566,9 @@ Executor::checkOffsetOverflow(const Runtime::Instance::MemoryInstance &MemInst,
   return {};
 }
 
-const AST::SubType *Executor::getDefTypeByIdx(Runtime::StackManager &StackMgr,
-                                              const uint32_t Idx) const {
-  const auto *ModInst = StackMgr.getModule();
+const AST::SubType *
+Executor::getDefTypeByIdx(const Runtime::Instance::ModuleInstance *ModInst,
+                          const uint32_t Idx) const {
   // When the top frame is a dummy frame, the instance cannot be found.
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
@@ -407,37 +576,35 @@ const AST::SubType *Executor::getDefTypeByIdx(Runtime::StackManager &StackMgr,
   return ModInst->unsafeGetType(Idx);
 }
 
-const WasmEdge::AST::CompositeType &
-Executor::getCompositeTypeByIdx(Runtime::StackManager &StackMgr,
-                                const uint32_t Idx) const noexcept {
-  auto *DefType = getDefTypeByIdx(StackMgr, Idx);
+const WasmEdge::AST::CompositeType &Executor::getCompositeTypeByIdx(
+    const Runtime::Instance::ModuleInstance *ModInst,
+    const uint32_t Idx) const noexcept {
+  auto *DefType = getDefTypeByIdx(ModInst, Idx);
   assuming(DefType);
   const auto &CompType = DefType->getCompositeType();
   assuming(!CompType.isFunc());
   return CompType;
 }
 
-const ValType &
-Executor::getStructStorageTypeByIdx(Runtime::StackManager &StackMgr,
-                                    const uint32_t Idx,
-                                    const uint32_t Off) const noexcept {
-  const auto &CompType = getCompositeTypeByIdx(StackMgr, Idx);
+const ValType &Executor::getStructStorageTypeByIdx(
+    const Runtime::Instance::ModuleInstance *ModInst, const uint32_t Idx,
+    const uint32_t Off) const noexcept {
+  const auto &CompType = getCompositeTypeByIdx(ModInst, Idx);
   assuming(static_cast<uint32_t>(CompType.getFieldTypes().size()) > Off);
   return CompType.getFieldTypes()[Off].getStorageType();
 }
 
-const ValType &
-Executor::getArrayStorageTypeByIdx(Runtime::StackManager &StackMgr,
-                                   const uint32_t Idx) const noexcept {
-  const auto &CompType = getCompositeTypeByIdx(StackMgr, Idx);
+const ValType &Executor::getArrayStorageTypeByIdx(
+    const Runtime::Instance::ModuleInstance *ModInst,
+    const uint32_t Idx) const noexcept {
+  const auto &CompType = getCompositeTypeByIdx(ModInst, Idx);
   assuming(static_cast<uint32_t>(CompType.getFieldTypes().size()) == 1);
   return CompType.getFieldTypes()[0].getStorageType();
 }
 
 Runtime::Instance::FunctionInstance *
-Executor::getFuncInstByIdx(Runtime::StackManager &StackMgr,
+Executor::getFuncInstByIdx(const Runtime::Instance::ModuleInstance *ModInst,
                            const uint32_t Idx) const {
-  const auto *ModInst = StackMgr.getModule();
   // When the top frame is a dummy frame, the instance cannot be found.
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
@@ -446,9 +613,8 @@ Executor::getFuncInstByIdx(Runtime::StackManager &StackMgr,
 }
 
 Runtime::Instance::TableInstance *
-Executor::getTabInstByIdx(Runtime::StackManager &StackMgr,
+Executor::getTabInstByIdx(const Runtime::Instance::ModuleInstance *ModInst,
                           const uint32_t Idx) const {
-  const auto *ModInst = StackMgr.getModule();
   // When the top frame is a dummy frame, the instance cannot be found.
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
@@ -457,9 +623,8 @@ Executor::getTabInstByIdx(Runtime::StackManager &StackMgr,
 }
 
 Runtime::Instance::MemoryInstance *
-Executor::getMemInstByIdx(Runtime::StackManager &StackMgr,
+Executor::getMemInstByIdx(const Runtime::Instance::ModuleInstance *ModInst,
                           const uint32_t Idx) const {
-  const auto *ModInst = StackMgr.getModule();
   // When the top frame is a dummy frame, the instance cannot be found.
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
@@ -468,9 +633,8 @@ Executor::getMemInstByIdx(Runtime::StackManager &StackMgr,
 }
 
 Runtime::Instance::TagInstance *
-Executor::getTagInstByIdx(Runtime::StackManager &StackMgr,
+Executor::getTagInstByIdx(const Runtime::Instance::ModuleInstance *ModInst,
                           const uint32_t Idx) const {
-  const auto *ModInst = StackMgr.getModule();
   // When the top frame is a dummy frame, the instance cannot be found.
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
@@ -479,9 +643,8 @@ Executor::getTagInstByIdx(Runtime::StackManager &StackMgr,
 }
 
 Runtime::Instance::GlobalInstance *
-Executor::getGlobInstByIdx(Runtime::StackManager &StackMgr,
+Executor::getGlobInstByIdx(const Runtime::Instance::ModuleInstance *ModInst,
                            const uint32_t Idx) const {
-  const auto *ModInst = StackMgr.getModule();
   // When the top frame is a dummy frame, the instance cannot be found.
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
@@ -490,9 +653,8 @@ Executor::getGlobInstByIdx(Runtime::StackManager &StackMgr,
 }
 
 Runtime::Instance::ElementInstance *
-Executor::getElemInstByIdx(Runtime::StackManager &StackMgr,
+Executor::getElemInstByIdx(const Runtime::Instance::ModuleInstance *ModInst,
                            const uint32_t Idx) const {
-  const auto *ModInst = StackMgr.getModule();
   // When the top frame is a dummy frame, the instance cannot be found.
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
@@ -501,9 +663,8 @@ Executor::getElemInstByIdx(Runtime::StackManager &StackMgr,
 }
 
 Runtime::Instance::DataInstance *
-Executor::getDataInstByIdx(Runtime::StackManager &StackMgr,
+Executor::getDataInstByIdx(const Runtime::Instance::ModuleInstance *ModInst,
                            const uint32_t Idx) const {
-  const auto *ModInst = StackMgr.getModule();
   // When the top frame is a dummy frame, the instance cannot be found.
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
@@ -511,8 +672,9 @@ Executor::getDataInstByIdx(Runtime::StackManager &StackMgr,
   return ModInst->unsafeGetData(Idx);
 }
 
-TypeCode Executor::toBottomType(Runtime::StackManager &StackMgr,
-                                const ValType &Type) const {
+TypeCode
+Executor::toBottomType(const Runtime::Instance::ModuleInstance *ModInst,
+                       const ValType &Type) const {
   if (Type.isRefType()) {
     if (Type.isAbsHeapType()) {
       switch (Type.getHeapTypeCode()) {
@@ -536,9 +698,8 @@ TypeCode Executor::toBottomType(Runtime::StackManager &StackMgr,
         assumingUnreachable();
       }
     } else {
-      const auto &CompType = StackMgr.getModule()
-                                 ->unsafeGetType(Type.getTypeIndex())
-                                 ->getCompositeType();
+      const auto &CompType =
+          ModInst->unsafeGetType(Type.getTypeIndex())->getCompositeType();
       if (CompType.isFunc()) {
         return TypeCode::NullFuncRef;
       } else {

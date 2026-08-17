@@ -365,15 +365,19 @@ void FunctionCompiler::compileAtomicNotify(unsigned MemoryIndex,
     Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
   }
   compileAtomicCheckOffsetAlignment(Offset, Context.Int32Ty);
+  // The woken-count result is always i32, even on memory64; truncating to the
+  // memory address type would mis-type the operand stack with an i64.
   stackPush(Builder.createTrunc(
       Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kMemAtomicNotify,
-              LLVM::Type::getFunctionType(
-                  Context.Int64Ty,
-                  {Context.Int32Ty, Context.Int64Ty, Context.Int64Ty}, false)),
-          {LLContext.getInt32(MemoryIndex), Offset, Count}),
-      Context.MemoryAddrTypes[MemoryIndex]));
+              LLVM::Type::getFunctionType(Context.Int64Ty,
+                                          {Context.Int8PtrTy, Context.Int32Ty,
+                                           Context.Int64Ty, Context.Int64Ty},
+                                          false)),
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(MemoryIndex), Offset, Count}),
+      Context.Int32Ty));
 }
 
 void FunctionCompiler::compileAtomicWait(unsigned MemoryIndex,
@@ -392,13 +396,16 @@ void FunctionCompiler::compileAtomicWait(unsigned MemoryIndex,
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kMemAtomicWait,
               LLVM::Type::getFunctionType(Context.Int64Ty,
-                                          {Context.Int32Ty, Context.Int64Ty,
+                                          {Context.Int8PtrTy, Context.Int32Ty,
                                            Context.Int64Ty, Context.Int64Ty,
-                                           Context.Int32Ty},
+                                           Context.Int64Ty, Context.Int32Ty},
                                           false)),
-          {LLContext.getInt32(MemoryIndex), Offset, ExpectedValue, Timeout,
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(MemoryIndex), Offset, ExpectedValue, Timeout,
            LLContext.getInt32(BitWidth)}),
-      Context.MemoryAddrTypes[MemoryIndex]));
+      // atomic.wait32/64 returns i32 (0/1/2), even on memory64; truncating to
+      // the memory address type would mis-type the operand stack with an i64.
+      Context.Int32Ty));
 }
 
 void FunctionCompiler::compileAtomicLoad(unsigned MemoryIndex,
@@ -413,7 +420,7 @@ void FunctionCompiler::compileAtomicLoad(unsigned MemoryIndex,
   }
   compileAtomicCheckOffsetAlignment(Offset, TargetType);
   auto VPtr = Builder.createInBoundsGEP1(
-      Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Offset);
+      Context.Int8Ty, Context.getMemory(Builder, ModCtx, MemoryIndex), Offset);
 
   auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
   auto Load = switchEndian(Builder.createLoad(TargetType, Ptr, true));
@@ -446,7 +453,7 @@ void FunctionCompiler::compileAtomicStore(unsigned MemoryIndex,
   }
   compileAtomicCheckOffsetAlignment(Offset, TargetType);
   auto VPtr = Builder.createInBoundsGEP1(
-      Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Offset);
+      Context.Int8Ty, Context.getMemory(Builder, ModCtx, MemoryIndex), Offset);
   auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
   auto Store = Builder.createStore(V, Ptr, true);
   Store.setAlignment(1 << Alignment);
@@ -464,7 +471,7 @@ void FunctionCompiler::compileAtomicRMWOp(
   }
   compileAtomicCheckOffsetAlignment(Offset, TargetType);
   auto VPtr = Builder.createInBoundsGEP1(
-      Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Offset);
+      Context.Int8Ty, Context.getMemory(Builder, ModCtx, MemoryIndex), Offset);
   auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
 
   LLVM::Value Ret;
@@ -530,7 +537,7 @@ void FunctionCompiler::compileAtomicCompareExchange(
   }
   compileAtomicCheckOffsetAlignment(Offset, TargetType);
   auto VPtr = Builder.createInBoundsGEP1(
-      Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Offset);
+      Context.Int8Ty, Context.getMemory(Builder, ModCtx, MemoryIndex), Offset);
   auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
 
   auto Ret = Builder.createAtomicCmpXchg(

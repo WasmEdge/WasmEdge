@@ -47,6 +47,18 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           break;
         case AST::Component::Sort::CoreSortType::Table:
           Mod->importTable(CompInst.getCoreTable(Idx));
+          // Attach the GC allocator for an imported anyref/externref table.
+          // setAllocator centralizes the cross-controller safety check (spec
+          // 4.2): idempotent same-owner re-attach, first owner kept for a
+          // freely shareable fixed non-managed table, rejection of an unsafe
+          // managed-capable OR growable share.
+          if (auto Res = CompInst.getCoreTable(Idx)->setAllocator(getAllocator());
+              !Res) {
+            spdlog::error(ErrCode::Value::IncompatibleImportType);
+            spdlog::error("    cannot alias a GC reference table already owned "
+                          "by another module instance's GC allocator"sv);
+            return Unexpect(Res.error());
+          }
           Mod->exportTable(Exp.getName(), ExpIdx[1]);
           ExpIdx[1]++;
           break;
@@ -57,6 +69,19 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           break;
         case AST::Component::Sort::CoreSortType::Global:
           Mod->importGlobal(CompInst.getCoreGlobal(Idx));
+          // Attach the GC allocator for an imported anyref/externref global.
+          // setAllocator centralizes the cross-controller safety check (spec
+          // 4.2): idempotent same-owner re-attach, first owner kept for a
+          // freely shareable non-managed global, rejection of an unsafe
+          // managed-capable share.
+          if (auto Res =
+                  CompInst.getCoreGlobal(Idx)->setAllocator(getAllocator());
+              !Res) {
+            spdlog::error(ErrCode::Value::IncompatibleImportType);
+            spdlog::error("    cannot alias a GC reference global already owned "
+                          "by another module instance's GC allocator"sv);
+            return Unexpect(Res.error());
+          }
           Mod->exportGlobal(Exp.getName(), ExpIdx[3]);
           ExpIdx[3]++;
           break;

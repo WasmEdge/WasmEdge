@@ -25,7 +25,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
   for (uint32_t I = 0; I < ModInst.getTableNum(); ++I) {
     auto *TabInst = ModInst.unsafeGetTable(I);
     ModInst.TableSizePtrs[I] = TabInst->getSizePtr();
-    ModInst.TableRefPtrs[I] = &TabInst->getDataPtr();
+    ModInst.TableRefPtrs[I] = TabInst->getDataPtrAddr();
   }
 
   // Iterate through the table segments to instantiate and initialize table
@@ -39,23 +39,28 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                              ErrInfo::InfoAST(ASTNodeAttr::Expression));
                          return E;
                        }));
+      // Keep the init result on the (GC-rooted) value stack until addTable
+      // broadcasts it into the table's slots and registers that as a root.
+      // Popping first would leave a managed ref unrooted, reclaimable mid-GC.
+      EXPECTED_TRY(ModInst.addTable(getAllocator(), TabSeg.getTableType(),
+                                    StackMgr.peekTop<RefVariant>()));
       // Pop result from the stack.
-      RefVariant InitTabValue = StackMgr.pop().get<RefVariant>();
-      // Create and add the table instance to the module instance.
-      ModInst.addTable(TabSeg.getTableType(), InitTabValue);
+      StackMgr.pop<ValVariant>();
     } else {
       // No init expression case. Use the null reference to initialize.
       // Normalize the type to the bottom abstract heap type so that null
       // references always carry abstract types, as ref.cast/ref.test assume.
-      auto BotType = toBottomType(StackMgr, TabSeg.getTableType().getRefType());
+      auto BotType = toBottomType(StackMgr.getModule(),
+                                  TabSeg.getTableType().getRefType());
       RefVariant InitTabValue(ValType(TypeCode::RefNull, BotType));
-      ModInst.addTable(TabSeg.getTableType(), InitTabValue);
+      EXPECTED_TRY(
+          ModInst.addTable(getAllocator(), TabSeg.getTableType(), InitTabValue));
     }
     // Set the table pointers of the instantiated table.
     const auto Index = ModInst.getTableNum() - 1;
     auto *TabInst = ModInst.unsafeGetTable(Index);
     ModInst.TableSizePtrs[Index] = TabInst->getSizePtr();
-    ModInst.TableRefPtrs[Index] = &TabInst->getDataPtr();
+    ModInst.TableRefPtrs[Index] = TabInst->getDataPtrAddr();
   }
   return {};
 }

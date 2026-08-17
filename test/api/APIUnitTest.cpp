@@ -7,7 +7,10 @@
 #include "wasmedge/wasmedge.h"
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fmt/format.h>
@@ -15,6 +18,7 @@
 #include <gtest/gtest.h>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #if WASMEDGE_OS_WINDOWS
@@ -2620,6 +2624,358 @@ TEST(APICoreTest, Instance) {
   WasmEdge_GlobalInstanceDelete(GlobVCxt);
 }
 
+TEST(APICoreTest, GCManagedTableRejectsRawCApiMutation) {
+  // E2.2: the direct C-API table mutators refuse a raw mutation on a table a GC
+  // controller manages (provenance unprovable through the C-API), while a
+  // standalone (no-controller) table still mutates freely.
+  //
+  // The managed table is an exported anyref table of a GC module instantiated
+  // through the runtime, so its instantiation attaches it to the executor's GC
+  // allocator. `(module (table (export "mt") 1 4 anyref))`.
+  const std::vector<uint8_t> GCTableWasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x04, 0x05, 0x01, 0x6e,
+      0x01, 0x01, 0x04, 0x07, 0x06, 0x01, 0x02, 0x6d, 0x74, 0x01, 0x00};
+
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ReferenceTypes);
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_FunctionReferences);
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_GC);
+
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(Conf);
+  WasmEdge_ValidatorContext *Validator = WasmEdge_ValidatorCreate(Conf);
+  WasmEdge_ExecutorContext *Exec = WasmEdge_ExecutorCreate(Conf, nullptr);
+  WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
+
+  WasmEdge_ASTModuleContext *Mod = nullptr;
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
+      Loader, &Mod, GCTableWasm.data(),
+      static_cast<uint32_t>(GCTableWasm.size()))));
+  ASSERT_NE(Mod, nullptr);
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_ValidatorValidate(Validator, Mod)));
+  WasmEdge_ModuleInstanceContext *ModCxt = nullptr;
+  ASSERT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_ExecutorInstantiate(Exec, &ModCxt, Store, Mod)));
+  ASSERT_NE(ModCxt, nullptr);
+
+  WasmEdge_String TabName = WasmEdge_StringCreateByCString("mt");
+  WasmEdge_TableInstanceContext *ManagedTab =
+      WasmEdge_ModuleInstanceFindTable(ModCxt, TabName);
+  WasmEdge_StringDelete(TabName);
+  ASSERT_NE(ManagedTab, nullptr);
+
+  // A raw grow / set on the controller-owned managed table is rejected: the
+  // C-API cannot prove the caller's controller matches the owner.
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IncompatibleImportType,
+                         WasmEdge_TableInstanceGrow(ManagedTab, 1)));
+  WasmEdge_Value RefVal = WasmEdge_ValueGenExternRef(&Exec);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IncompatibleImportType,
+                         WasmEdge_TableInstanceSetData(ManagedTab, RefVal, 0)));
+
+  // A standalone (no-controller) externref table still mutates freely.
+  WasmEdge_LimitContext *TabLim = WasmEdge_LimitCreateWithMax(1, 4, false, false);
+  WasmEdge_TableTypeContext *TabType =
+      WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
+  WasmEdge_LimitDelete(TabLim);
+  WasmEdge_TableInstanceContext *StandaloneTab =
+      WasmEdge_TableInstanceCreate(TabType);
+  WasmEdge_TableTypeDelete(TabType);
+  ASSERT_NE(StandaloneTab, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_TableInstanceSetData(StandaloneTab, RefVal, 0)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_TableInstanceGrow(StandaloneTab, 1)));
+  WasmEdge_TableInstanceDelete(StandaloneTab);
+
+  WasmEdge_ModuleInstanceDelete(ModCxt);
+  WasmEdge_ASTModuleDelete(Mod);
+  WasmEdge_StoreDelete(Store);
+  WasmEdge_ExecutorDelete(Exec);
+  WasmEdge_ValidatorDelete(Validator);
+  WasmEdge_LoaderDelete(Loader);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
+TEST(APICoreTest, LegacyManagedRefGetterExclusionPaths) {
+  // E4.0 (spec 4.4): WasmEdge_GlobalInstanceGetValue / WasmEdge_TableInstanceGetData
+  // restrict a managed-ref slot's legacy BORROWED getter to a documented
+  // typed-null sentinel (see isRestrictedManagedRefGetterType,
+  // lib/api/wasmedge.cpp). This test drives the REAL exported C-API entry
+  // points -- not the GC suite's C++-only reimplementation (see
+  // GCThread.LegacyManagedRefGettersReturnSentinel in test/gc/GCTest.cpp,
+  // which cannot link libwasmedge) -- for every NON-managed exclusion path
+  // the C-API can construct: a numeric global, a funcref global holding a
+  // live function instance, and an externref global holding a known host
+  // pointer. All three must be completely unaffected: the getter must hand
+  // back the exact live value, never a sentinel.
+  //
+  // The managed (gated) path itself is deliberately NOT driven here: the
+  // C-API has no minting function for an internal GC ref (i31/struct/array/
+  // exn), so a managed-ref global/table cannot be constructed from pure
+  // C-API at all. That case is covered in C++ by
+  // GCThread.LegacyManagedRefGettersReturnSentinel, which constructs
+  // Runtime::Instance::GlobalInstance/TableInstance directly and asserts
+  // against the exact same isRestrictedManagedRefGetterType this C-API
+  // calls (shared via include/api/internal/managed_ref_getter.h). This is a
+  // documented split dictated by what each suite can construct, not
+  // coverage left on the table.
+
+  // (1) Numeric (i32) global: never managed (CanHoldManaged() is always
+  // false for a numeric type), so the gate cannot fire -- round-trips
+  // unchanged.
+  WasmEdge_GlobalTypeContext *I32GType = WasmEdge_GlobalTypeCreate(
+      WasmEdge_ValTypeGenI32(), WasmEdge_Mutability_Var);
+  WasmEdge_GlobalInstanceContext *I32GCxt =
+      WasmEdge_GlobalInstanceCreate(I32GType, WasmEdge_ValueGenI32(4242));
+  WasmEdge_GlobalTypeDelete(I32GType);
+  ASSERT_NE(I32GCxt, nullptr);
+  EXPECT_EQ(WasmEdge_ValueGetI32(WasmEdge_GlobalInstanceGetValue(I32GCxt)),
+            4242);
+  WasmEdge_GlobalInstanceDelete(I32GCxt);
+
+  // (2) funcref global holding a live function instance: CanHoldManaged()
+  // is resolved false for funcref at construction, so the gate never
+  // fires -- the getter must return the exact function pointer, not a
+  // sentinel.
+  WasmEdge_ValType FuncResult[1] = {WasmEdge_ValTypeGenI32()};
+  WasmEdge_FunctionTypeContext *HostFType =
+      WasmEdge_FunctionTypeCreate(nullptr, 0, FuncResult, 1);
+  WasmEdge_FunctionInstanceContext *HostFuncCxt =
+      WasmEdge_FunctionInstanceCreate(HostFType, externTerm, nullptr, 0);
+  WasmEdge_FunctionTypeDelete(HostFType);
+  ASSERT_NE(HostFuncCxt, nullptr);
+  WasmEdge_GlobalTypeContext *FuncGType = WasmEdge_GlobalTypeCreate(
+      WasmEdge_ValTypeGenFuncRef(), WasmEdge_Mutability_Var);
+  WasmEdge_GlobalInstanceContext *FuncGCxt = WasmEdge_GlobalInstanceCreate(
+      FuncGType, WasmEdge_ValueGenFuncRef(HostFuncCxt));
+  WasmEdge_GlobalTypeDelete(FuncGType);
+  ASSERT_NE(FuncGCxt, nullptr);
+  EXPECT_EQ(
+      WasmEdge_ValueGetFuncRef(WasmEdge_GlobalInstanceGetValue(FuncGCxt)),
+      HostFuncCxt)
+      << "funcref getter must return the exact live function pointer, not "
+         "a sentinel";
+  WasmEdge_GlobalInstanceDelete(FuncGCxt);
+  WasmEdge_FunctionInstanceDelete(HostFuncCxt);
+
+  // (3) externref global holding a known host pointer: canHoldManaged() IS
+  // true for externref (extern.convert_any can wrap a GC object), but the
+  // deliberate scoping exclusion (isRestrictedManagedRefGetterType) means
+  // the gate must NOT fire despite that -- the getter must return the
+  // exact host pointer, not a sentinel. (WasmEdge_TableInstanceGetData's
+  // externref round trip is already covered above in APICoreTest.Instance,
+  // including getter-side pointer identity; this covers the global side.)
+  int HostDummy = 0;
+  WasmEdge_GlobalTypeContext *ExternGType = WasmEdge_GlobalTypeCreate(
+      WasmEdge_ValTypeGenExternRef(), WasmEdge_Mutability_Var);
+  WasmEdge_GlobalInstanceContext *ExternGCxt = WasmEdge_GlobalInstanceCreate(
+      ExternGType, WasmEdge_ValueGenExternRef(&HostDummy));
+  WasmEdge_GlobalTypeDelete(ExternGType);
+  ASSERT_NE(ExternGCxt, nullptr);
+  EXPECT_EQ(
+      WasmEdge_ValueGetExternRef(WasmEdge_GlobalInstanceGetValue(ExternGCxt)),
+      &HostDummy)
+      << "externref getter must return the exact live host pointer, not a "
+         "sentinel (the E2.2/E4.0 exclusion)";
+  WasmEdge_GlobalInstanceDelete(ExternGCxt);
+}
+
+TEST(APICoreTest, RetainedManagedRefGettersRootAndRelease) {
+  // E4.1 (spec 4.4): WasmEdge_GlobalInstanceGetValueRetained /
+  // WasmEdge_TableInstanceGetDataRetained are the SAFE, producer-bearing
+  // alternatives to the legacy borrowed getters (which E4.0 restricts to a
+  // typed-null sentinel for managed-ref slots). Each takes the producer
+  // WasmEdge_ExecutorContext, and for a live GC-managed (struct/array)
+  // reference retains it as a host root of that executor's collector -- the
+  // exact machinery WasmEdge_ExecutorInvoke uses for returned refs
+  // (Allocator::retainResult) -- so a concurrent collection cannot reclaim it;
+  // the returned reference is releasable through the existing by-value path
+  // WasmEdge_ExecutorReleaseRef (matched by pointer identity + GC-ref type, no
+  // new C-API-side registry). An instance owned by a DIFFERENT executor's
+  // controller is rejected.
+  //
+  // This test drives the REAL exported C symbols. Coverage is SPLIT
+  // (documented, same architectural wall as E4.0): the C-API has no public
+  // force-collect, so the "the retained ref survives a real collection"
+  // property is proven separately in test/gc/GCTest.cpp
+  // (GCThread.RetainedManagedRefGetterSurvivesCollection), which drives the
+  // exact underlying Executor::getAllocator().retainResult(ref) call across a
+  // forced GC (the GC suite cannot link libwasmedge). Here we prove the
+  // exported getter (a) rejects a foreign controller, (b) retains a real
+  // managed ref obtained from a GC module instantiated through the C-API and
+  // round-trips it through WasmEdge_ExecutorReleaseRef /
+  // WasmEdge_ExecutorReleaseAllRefs with no abort, and (c) passes a
+  // non-managed slot through untouched.
+
+  // GC module (built with wasm-tools; see the E4.1 report): an exported global
+  // holding a live struct ref (constant struct.new init), an exported table of
+  // (ref null $s), and an "init" function that stores a struct ref into table
+  // slot 0 -- a managed GLOBAL and a managed TABLE element to drive both
+  // getters.
+  //   (type $s (struct (field i32)))
+  //   (global (export "g") (ref $s) (struct.new $s (i32.const 42)))
+  //   (table (export "t") 1 1 (ref null $s))
+  //   (func (export "init")
+  //     (table.set 0 (i32.const 0) (struct.new $s (i32.const 7))))
+  const std::vector<uint8_t> GCManagedWasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02,
+      0x5f, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x01,
+      0x04, 0x06, 0x01, 0x63, 0x00, 0x01, 0x01, 0x01, 0x06, 0x0a, 0x01,
+      0x64, 0x00, 0x00, 0x41, 0x2a, 0xfb, 0x00, 0x00, 0x0b, 0x07, 0x10,
+      0x03, 0x01, 0x67, 0x03, 0x00, 0x01, 0x74, 0x01, 0x00, 0x04, 0x69,
+      0x6e, 0x69, 0x74, 0x00, 0x00, 0x0a, 0x0d, 0x01, 0x0b, 0x00, 0x41,
+      0x00, 0x41, 0x07, 0xfb, 0x00, 0x00, 0x26, 0x00, 0x0b, 0x00, 0x0b,
+      0x04, 0x6e, 0x61, 0x6d, 0x65, 0x04, 0x04, 0x01, 0x00, 0x01, 0x73};
+
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ReferenceTypes);
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_FunctionReferences);
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_GC);
+
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(Conf);
+  WasmEdge_ValidatorContext *Validator = WasmEdge_ValidatorCreate(Conf);
+  WasmEdge_ExecutorContext *Exec = WasmEdge_ExecutorCreate(Conf, nullptr);
+  WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
+
+  WasmEdge_ASTModuleContext *Mod = nullptr;
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
+      Loader, &Mod, GCManagedWasm.data(),
+      static_cast<uint32_t>(GCManagedWasm.size()))));
+  ASSERT_NE(Mod, nullptr);
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_ValidatorValidate(Validator, Mod)));
+  WasmEdge_ModuleInstanceContext *ModCxt = nullptr;
+  ASSERT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorInstantiate(Exec, &ModCxt, Store, Mod)));
+  ASSERT_NE(ModCxt, nullptr);
+
+  // Populate table slot 0 with a live managed struct ref.
+  WasmEdge_String InitName = WasmEdge_StringCreateByCString("init");
+  WasmEdge_FunctionInstanceContext *InitFn =
+      WasmEdge_ModuleInstanceFindFunction(ModCxt, InitName);
+  WasmEdge_StringDelete(InitName);
+  ASSERT_NE(InitFn, nullptr);
+  ASSERT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorInvoke(Exec, InitFn, nullptr, 0, nullptr, 0)));
+
+  WasmEdge_String GName = WasmEdge_StringCreateByCString("g");
+  WasmEdge_GlobalInstanceContext *ManagedGlob =
+      WasmEdge_ModuleInstanceFindGlobal(ModCxt, GName);
+  WasmEdge_StringDelete(GName);
+  ASSERT_NE(ManagedGlob, nullptr);
+
+  WasmEdge_String TName = WasmEdge_StringCreateByCString("t");
+  WasmEdge_TableInstanceContext *ManagedTab =
+      WasmEdge_ModuleInstanceFindTable(ModCxt, TName);
+  WasmEdge_StringDelete(TName);
+  ASSERT_NE(ManagedTab, nullptr);
+
+  // (b) Retain -> release round-trip through the real exported getters. Each
+  // getter must return a live (non-null) reference typed as a GC ref so the
+  // by-value release path accepts it.
+  WasmEdge_Value GVal;
+  ASSERT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_GlobalInstanceGetValueRetained(Exec, ManagedGlob, &GVal)));
+  EXPECT_TRUE(WasmEdge_ValTypeIsRef(GVal.Type))
+      << "a managed global ref must come back typed as a reference";
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(GVal))
+      << "the struct.new global holds a live (non-null) managed ref";
+  WasmEdge_ExecutorReleaseRef(Exec, GVal);
+
+  WasmEdge_Value TVal;
+  ASSERT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_TableInstanceGetDataRetained(Exec, ManagedTab, &TVal, 0)));
+  EXPECT_TRUE(WasmEdge_ValTypeIsRef(TVal.Type));
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(TVal))
+      << "table slot 0 holds a live (non-null) managed ref after init";
+  WasmEdge_ExecutorReleaseRef(Exec, TVal);
+
+  // Retain both a second time and drop them together via releaseAllRefs --
+  // exercises the retain path again and the bulk-release path, no leak/abort.
+  ASSERT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_GlobalInstanceGetValueRetained(Exec, ManagedGlob, &GVal)));
+  ASSERT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_TableInstanceGetDataRetained(Exec, ManagedTab, &TVal, 0)));
+  WasmEdge_ExecutorReleaseAllRefs(Exec);
+
+  // (a) Foreign-controller rejection: a SECOND executor has its own
+  // controller/allocator, so the instances (attached to Exec) are foreign to
+  // it. Both retained getters must reject with a non-Ok result.
+  WasmEdge_ExecutorContext *ForeignExec =
+      WasmEdge_ExecutorCreate(Conf, nullptr);
+  ASSERT_NE(ForeignExec, nullptr);
+  WasmEdge_Value FVal = WasmEdge_ValueGenI32(0x5eed);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_IncompatibleImportType,
+      WasmEdge_GlobalInstanceGetValueRetained(ForeignExec, ManagedGlob, &FVal)))
+      << "a global owned by another controller must be rejected";
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_IncompatibleImportType,
+      WasmEdge_TableInstanceGetDataRetained(ForeignExec, ManagedTab, &FVal, 0)))
+      << "a table owned by another controller must be rejected";
+  // The rejected getters retained nothing on the foreign executor.
+  WasmEdge_ExecutorReleaseAllRefs(ForeignExec);
+  WasmEdge_ExecutorDelete(ForeignExec);
+
+  // Out-of-bounds offset on an owned table is still a normal error (not a
+  // crash, and distinct from foreign rejection).
+  WasmEdge_Value OobVal;
+  EXPECT_FALSE(WasmEdge_ResultOK(
+      WasmEdge_TableInstanceGetDataRetained(Exec, ManagedTab, &OobVal, 99)));
+
+  WasmEdge_ModuleInstanceDelete(ModCxt);
+  WasmEdge_ASTModuleDelete(Mod);
+  WasmEdge_StoreDelete(Store);
+  WasmEdge_ExecutorDelete(Exec);
+  WasmEdge_ValidatorDelete(Validator);
+  WasmEdge_LoaderDelete(Loader);
+  WasmEdge_ConfigureDelete(Conf);
+
+  // (c) Non-managed passthrough through the retained getters, on UNATTACHED
+  // standalone instances (Allocator == nullptr -> NOT foreign): the getter
+  // must return the exact live value with Ok and retain nothing. A default
+  // executor supplies the producer context.
+  WasmEdge_ExecutorContext *PassExec =
+      WasmEdge_ExecutorCreate(nullptr, nullptr);
+  ASSERT_NE(PassExec, nullptr);
+
+  //   (c1) numeric (i32) global -- no reference, returned as-is.
+  WasmEdge_GlobalTypeContext *I32GType = WasmEdge_GlobalTypeCreate(
+      WasmEdge_ValTypeGenI32(), WasmEdge_Mutability_Var);
+  WasmEdge_GlobalInstanceContext *I32GCxt =
+      WasmEdge_GlobalInstanceCreate(I32GType, WasmEdge_ValueGenI32(1234));
+  WasmEdge_GlobalTypeDelete(I32GType);
+  ASSERT_NE(I32GCxt, nullptr);
+  WasmEdge_Value NumVal;
+  ASSERT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_GlobalInstanceGetValueRetained(PassExec, I32GCxt, &NumVal)));
+  EXPECT_EQ(WasmEdge_ValueGetI32(NumVal), 1234)
+      << "numeric global returned untouched by the retained getter";
+  WasmEdge_GlobalInstanceDelete(I32GCxt);
+
+  //   (c2) externref table holding a known host pointer -- excluded from
+  //   retention (the host-facing primitive), returned as-is.
+  int HostDummy = 0;
+  WasmEdge_LimitContext *TabLim =
+      WasmEdge_LimitCreateWithMax(1, 1, false, false);
+  WasmEdge_TableTypeContext *ExtTType =
+      WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
+  WasmEdge_LimitDelete(TabLim);
+  WasmEdge_TableInstanceContext *ExtTab =
+      WasmEdge_TableInstanceCreate(ExtTType);
+  WasmEdge_TableTypeDelete(ExtTType);
+  ASSERT_NE(ExtTab, nullptr);
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_TableInstanceSetData(
+      ExtTab, WasmEdge_ValueGenExternRef(&HostDummy), 0)));
+  WasmEdge_Value ExtVal;
+  ASSERT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_TableInstanceGetDataRetained(PassExec, ExtTab, &ExtVal, 0)));
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(ExtVal), &HostDummy)
+      << "externref table element returned untouched by the retained getter";
+  WasmEdge_TableInstanceDelete(ExtTab);
+
+  // No managed ref was retained on PassExec; release-all must be a safe no-op.
+  WasmEdge_ExecutorReleaseAllRefs(PassExec);
+  WasmEdge_ExecutorDelete(PassExec);
+}
+
 TEST(APICoreTest, ModuleInstance) {
   WasmEdge_String HostName;
   WasmEdge_ConfigureContext *Conf = nullptr;
@@ -3390,6 +3746,115 @@ TEST(APICoreTest, Async) {
   WasmEdge_VMDelete(VM);
   WasmEdge_StoreDelete(Store);
   WasmEdge_ExecutorDelete(Exec);
+}
+
+TEST(APICoreTest, RefusedAsyncInvokeReturnsNullAndOpsAreSafe) {
+  // M1: a refused asyncInvoke produces an invalid Async (empty shared_future).
+  // The C wrapper must return nullptr, and every noexcept async op must
+  // tolerate an invalid handle without throwing future_error out of noexcept
+  // (terminate).
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_GC);
+  WasmEdge_ExecutorContext *Exec = WasmEdge_ExecutorCreate(Conf, nullptr);
+  WasmEdge_ConfigureDelete(Conf);
+  ASSERT_NE(Exec, nullptr);
+
+  // Standalone host function: null module -> asyncInvoke refuses (Task 4).
+  WasmEdge_FunctionTypeContext *FType =
+      WasmEdge_FunctionTypeCreate(nullptr, 0, nullptr, 0);
+  WasmEdge_FunctionInstanceContext *HostFn = WasmEdge_FunctionInstanceCreate(
+      FType,
+      [](void *, const WasmEdge_CallingFrameContext *, const WasmEdge_Value *,
+         WasmEdge_Value *) noexcept -> WasmEdge_Result {
+        return WasmEdge_Result_Success;
+      },
+      nullptr, 0);
+  WasmEdge_FunctionTypeDelete(FType);
+  ASSERT_NE(HostFn, nullptr);
+
+  WasmEdge_Async *Async =
+      WasmEdge_ExecutorAsyncInvoke(Exec, HostFn, nullptr, 0);
+  EXPECT_EQ(Async, nullptr); // refused invoke -> null handle, not an empty one
+
+  // Defensive: the async ops on a null handle are already documented safe;
+  // this also guards the invalid-but-non-null path if any future caller path
+  // constructs one.
+  WasmEdge_AsyncWait(Async);
+  EXPECT_FALSE(WasmEdge_AsyncWaitFor(Async, 1));
+  EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(Async), 0u);
+
+  WasmEdge_FunctionInstanceDelete(HostFn);
+  WasmEdge_ExecutorDelete(Exec);
+}
+
+TEST(APICoreTest, VMDeleteRejectedWithLiveAsyncHandle) {
+  // H5 regression: destroying the VM before deleting a live (completed) async
+  // handle on the SAME thread would block the teardown drain forever (the
+  // handle co-owns the result lease, releasable only by deleting the handle --
+  // which the blocked thread can no longer reach). WasmEdge_VMDelete must
+  // DETECT the outstanding handle and reject (fail-fast), not hang.
+  //
+  // HostRetentionWasm exports make_arr(i32)->(ref): the result carries a
+  // GC-managed reference retained into the handle's shared_future.
+  static const std::vector<uint8_t> HostRetentionWasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x18, 0x05, 0x5f,
+      0x01, 0x7f, 0x01, 0x5e, 0x7f, 0x01, 0x60, 0x01, 0x7f, 0x01, 0x64, 0x00,
+      0x60, 0x01, 0x7f, 0x01, 0x64, 0x01, 0x60, 0x00, 0x01, 0x6c, 0x03, 0x04,
+      0x03, 0x02, 0x03, 0x04, 0x07, 0x25, 0x03, 0x04, 0x6d, 0x61, 0x6b, 0x65,
+      0x00, 0x00, 0x08, 0x6d, 0x61, 0x6b, 0x65, 0x5f, 0x61, 0x72, 0x72, 0x00,
+      0x01, 0x0f, 0x64, 0x72, 0x6f, 0x70, 0x5f, 0x72, 0x65, 0x74, 0x75, 0x72,
+      0x6e, 0x5f, 0x69, 0x33, 0x31, 0x00, 0x02, 0x0a, 0x1e, 0x03, 0x07, 0x00,
+      0x20, 0x00, 0xfb, 0x00, 0x00, 0x0b, 0x07, 0x00, 0x20, 0x00, 0xfb, 0x07,
+      0x01, 0x0b, 0x0c, 0x00, 0x41, 0x00, 0xfb, 0x00, 0x00, 0x1a, 0x41, 0x07,
+      0xfb, 0x1c, 0x0b, 0x00, 0x0e, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x04, 0x07,
+      0x02, 0x00, 0x01, 0x73, 0x01, 0x01, 0x61};
+
+  // Hard watchdog: a drain deadlock becomes a FAILURE + hard-exit, never a
+  // hang.
+  std::atomic<bool> Done{false};
+  std::thread Watchdog([&]() {
+    const auto Deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(20);
+    while (!Done.load(std::memory_order_acquire)) {
+      if (std::chrono::steady_clock::now() > Deadline) {
+        ADD_FAILURE() << "VMDelete deadlocked with a live async handle (H5)";
+        std::fflush(stderr);
+        std::_Exit(2);
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+  });
+
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_GC);
+  WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_ConfigureDelete(Conf);
+  ASSERT_NE(VM, nullptr);
+
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBuffer(
+      VM, HostRetentionWasm.data(),
+      static_cast<uint32_t>(HostRetentionWasm.size()))));
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VM)));
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VM)));
+
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString("make_arr");
+  WasmEdge_Value P[1] = {WasmEdge_ValueGenI32(4)};
+  WasmEdge_Async *Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 1);
+  WasmEdge_StringDelete(FuncName);
+  ASSERT_NE(Async, nullptr);
+  WasmEdge_AsyncWait(Async); // worker completed; handle now co-owns the lease
+
+  // Same-thread misuse: delete the VM before the handle. Must be REJECTED
+  // (fail-fast), leaving the VM alive -- NOT a drain hang.
+  WasmEdge_VMDelete(VM); // rejected: logs + returns without deleting
+
+  // Correct order: delete the handle first, then the VM succeeds.
+  WasmEdge_AsyncDelete(Async);
+  WasmEdge_VMDelete(VM);
+
+  Done.store(true, std::memory_order_release);
+  Watchdog.join();
+  SUCCEED();
 }
 
 TEST(APICoreTest, VM) {
@@ -4984,6 +5449,8 @@ TEST(APICoreTest, ModuleDeletion) {
   WasmEdge_StringDelete(PName);
   WasmEdge_FunctionTypeDelete(FType);
   WasmEdge_ExecutorDelete(Exec);
+  WasmEdge_ValidatorDelete(Validator);
+  WasmEdge_LoaderDelete(Loader);
 }
 
 #if defined(WASMEDGE_BUILD_PLUGINS)
@@ -5047,6 +5514,64 @@ TEST(APICoreTest, Plugin) {
   WasmEdge_ModuleInstanceDelete(ModCxt);
 }
 #endif
+
+WasmEdge_Result SelfDeleteHostFunc(void *Data,
+                                   const WasmEdge_CallingFrameContext *,
+                                   const WasmEdge_Value *, WasmEdge_Value *) {
+  // Attempt to delete the VM this callback is running inside. R3: the delete
+  // must be REJECTED (no-op + error log), never performed -- performing it
+  // frees the executor/allocator under this callback's own stack.
+  WasmEdge_VMDelete(static_cast<WasmEdge_VMContext *>(Data));
+  return WasmEdge_Result_Success;
+}
+
+TEST(APIVMSelfDelete, RejectedInsideOwnHostCallback) {
+  // (module (import "host" "boom" (func)) (func (export "go") call 0))
+  static const uint8_t SelfDelWasm[] = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01,
+      0x60, 0x00, 0x00, 0x02, 0x0d, 0x01, 0x04, 0x68, 0x6f, 0x73, 0x74,
+      0x04, 0x62, 0x6f, 0x6f, 0x6d, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00,
+      0x07, 0x06, 0x01, 0x02, 0x67, 0x6f, 0x00, 0x01, 0x0a, 0x06, 0x01,
+      0x04, 0x00, 0x10, 0x00, 0x0b};
+
+  WasmEdge_VMContext *VM = WasmEdge_VMCreate(nullptr, nullptr);
+  ASSERT_NE(VM, nullptr);
+
+  WasmEdge_String HostName = WasmEdge_StringCreateByCString("host");
+  WasmEdge_ModuleInstanceContext *HostMod =
+      WasmEdge_ModuleInstanceCreate(HostName);
+  WasmEdge_StringDelete(HostName);
+  ASSERT_NE(HostMod, nullptr);
+  WasmEdge_FunctionTypeContext *FType =
+      WasmEdge_FunctionTypeCreate(nullptr, 0, nullptr, 0);
+  WasmEdge_FunctionInstanceContext *HostFunc =
+      WasmEdge_FunctionInstanceCreate(FType, SelfDeleteHostFunc, VM, 0);
+  WasmEdge_FunctionTypeDelete(FType);
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString("boom");
+  WasmEdge_ModuleInstanceAddFunction(HostMod, FuncName, HostFunc);
+  WasmEdge_StringDelete(FuncName);
+
+  ASSERT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VM, HostMod)));
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBytes(
+      VM, WasmEdge_BytesWrap(SelfDelWasm, sizeof(SelfDelWasm)))));
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VM)));
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VM)));
+
+  WasmEdge_String Go = WasmEdge_StringCreateByCString("go");
+  // The callback tries to delete the VM mid-invocation; the deletion must be
+  // rejected and the invocation must complete normally.
+  WasmEdge_Result Res = WasmEdge_VMExecute(VM, Go, nullptr, 0, nullptr, 0);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  // The VM survived and is still usable.
+  Res = WasmEdge_VMExecute(VM, Go, nullptr, 0, nullptr, 0);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  WasmEdge_StringDelete(Go);
+
+  // Outside any callback the delete proceeds normally.
+  WasmEdge_VMDelete(VM);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+}
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

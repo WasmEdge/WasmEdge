@@ -104,10 +104,26 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
 
     EXPECTED_TRY(auto Code, Library->getWasm().map_error(ReportError));
 
-    if (Conf.getRuntimeConfigure().getRunMode() != RunMode::AOT) {
+    // R7-M3 capability admission: refuse to bind native code compiled without
+    // GC support under a GC-enabled runtime -- it emits no cooperative
+    // safepoint poll and no shadow-root spill. This must be decided here
+    // rather than at instantiate, because loading in AOT run mode SKIPS
+    // parsing the function bodies (see Loader::loadSegment), leaving a later
+    // deopt with no instructions to fall back to. Re-parsing the embedded WASM
+    // below reads those bodies, so the module arrives fully interpretable.
+    const bool GCAdmissionFailed =
+        Conf.hasProposal(Proposal::GC) && !Library->isGCCapable();
+    if (GCAdmissionFailed) {
+      spdlog::warn(
+          "AOT shared library was compiled without GC support but "
+          "the GC proposal is enabled, falling back to interpreter."sv);
+    }
+    if (Conf.getRuntimeConfigure().getRunMode() != RunMode::AOT ||
+        GCAdmissionFailed) {
       // Non-AOT mode: drop the native handle now and re-parse the embedded
       // WASM bytes as plain WASM. No AOT function symbol from the shared
-      // library is resolved or called.
+      // library is resolved or called. parseWasmUnit sets WASMType to WASM, so
+      // the function bodies are parsed even in AOT run mode.
       Library.reset();
       return parseWasmUnit(Code);
     }
@@ -118,6 +134,10 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     if (auto Ptr = std::get_if<std::unique_ptr<AST::Module>>(&Unit);
         likely(!!Ptr)) {
       EXPECTED_TRY(loadExecutable(**Ptr, Library).map_error(ReportError));
+      // R7-M3 durable capability: the module is now bound to this library's
+      // native code, so its GC capability is the library's, not the
+      // interpreter default.
+      (*Ptr)->setGCCompiled(Library->isGCCapable());
     } else {
       spdlog::error("Component Module is not supported in AOT."sv);
       spdlog::error(ErrInfo::InfoFile(FilePath));

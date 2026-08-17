@@ -19,19 +19,26 @@
 
 namespace WasmEdge {
 
+namespace Runtime::Instance {
+class ModuleInstance;
+} // namespace Runtime::Instance
+
+/// One frame of a recorded stack trace: the function's defining module and its
+/// index within that module.
+struct StackTraceEntry {
+  const Runtime::Instance::ModuleInstance *Module;
+  uint32_t FuncIndex;
+};
+
 Span<void *const> stackTrace(Span<void *> Buffer) noexcept;
 
-Span<const uint32_t>
+Span<const StackTraceEntry>
 interpreterStackTrace(const Runtime::StackManager &StackMgr,
-                      Span<uint32_t> Buffer) noexcept;
+                      Span<StackTraceEntry> Buffer) noexcept;
 
-Span<const uint32_t> compiledStackTrace(const Runtime::StackManager &StackMgr,
-                                        Span<uint32_t> Buffer) noexcept;
-
-Span<const uint32_t> compiledStackTrace(const Runtime::StackManager &StackMgr,
-                                        Span<void *const> Stack,
-                                        Span<uint32_t> Buffer) noexcept;
-
-void dumpStackTrace(Span<const uint32_t>) noexcept;
+Span<const StackTraceEntry>
+compiledStackTrace(Span<const Runtime::Instance::ModuleInstance *const> Modules,
+                   Span<void *const> Stack,
+                   Span<StackTraceEntry> Buffer) noexcept;
 
 } // namespace WasmEdge

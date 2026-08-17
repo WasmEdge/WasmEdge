@@ -15,6 +15,7 @@ namespace WasmEdge {
 
 FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
                                    LLVM::FunctionCallee F,
+                                   Span<const ValType> ParamTypes,
                                    Span<const ValType> Locals,
                                    bool Interruptible, bool InstructionCounting,
                                    bool GasMeasuring, bool IsLazyJIT) noexcept
@@ -23,7 +24,9 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
       Builder(LLContext) {
   if (F.Fn) {
     Builder.positionAtEnd(LLVM::BasicBlock::create(LLContext, F.Fn, "entry"));
-    ExecCtx = Builder.createLoad(Context.ExecCtxTy, F.Fn.getFirstParam());
+    ModCtx = Builder.createLoad(Context.ModCtxTy, F.Fn.getFirstParam());
+    ExecCtx = Builder.createLoad(Context.ExecCtxTy,
+                                 F.Fn.getFirstParam().getNextParam());
 
     if (InstructionCounting) {
       LocalInstrCount = Builder.createAlloca(Context.Int64Ty);
@@ -35,8 +38,10 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
       Builder.createStore(LLContext.getInt64(0), LocalGas);
     }
 
-    for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam(); Arg;
-         Arg = Arg.getNextParam()) {
+    CalleeCtxSlot = Builder.createAlloca(Context.ModCtxPtrTy);
+
+    for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam().getNextParam();
+         Arg; Arg = Arg.getNextParam()) {
       LLVM::Type Ty = Arg.getType();
       LLVM::Value ArgPtr = Builder.createAlloca(Ty);
       Builder.createStore(Arg, ArgPtr);
@@ -50,7 +55,99 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
           toLLVMConstantZero(LLContext, Type, Context.CompositeTypes), ArgPtr);
       Local.emplace_back(Ty, ArgPtr);
     }
+
+    // GC shadow-root spill (phase-1): classify ref-typed PARAMS and DECLARED
+    // locals (static ValTypes known here). Params occupy Local[0..NumParams-1],
+    // declared locals follow. Reserve one shadow slot array + frame node in the
+    // prologue, reused at every call site. Refs and v128 both lower to
+    // Int64x2Ty, so LLVM type alone can't classify -- isRefType() on the source
+    // ValType is the oracle (mirrors the GlobalIsRef precedent).
+    //
+    // R7-M3 capability: only emit the shadow-root spill when the GC proposal is
+    // enabled. A GC-off compilation leaves RefLocalIndices empty, so
+    // pushShadowFrame/popShadowFrame become no-ops and no prologue slot array is
+    // reserved -- the artifact publishes no native roots and is therefore not
+    // GC-capable (the instantiate gate keeps it off the native path under a
+    // GC-enabled executor).
+    const size_t NumParams = ParamTypes.size();
+    if (Context.GCEnabled) {
+      for (size_t P = 0; P < NumParams; ++P) {
+        if (ParamTypes[P].isRefType()) {
+          RefLocalIndices.push_back(static_cast<uint32_t>(P));
+        }
+      }
+      for (size_t J = 0; J < Locals.size(); ++J) {
+        if (Locals[J].isRefType()) {
+          RefLocalIndices.push_back(static_cast<uint32_t>(NumParams + J));
+        }
+      }
+    }
+    if (!RefLocalIndices.empty()) {
+      auto SlotsArrTy = LLVM::Type::getArrayType(
+          Context.Int64x2Ty, static_cast<uint32_t>(RefLocalIndices.size()));
+      ShadowSlotsAlloca = Builder.createAlloca(SlotsArrTy);
+      ShadowFrameAlloca = Builder.createAlloca(Context.ShadowFrameTy);
+      // Frame.Count and Frame.Slots are invariant; set once here.
+      LLVM::Value CountPtr = Builder.createInBoundsGEP2(
+          Context.ShadowFrameTy, ShadowFrameAlloca, LLContext.getInt64(0),
+          LLContext.getInt32(1));
+      Builder.createStore(
+          LLContext.getInt32(static_cast<uint32_t>(RefLocalIndices.size())),
+          CountPtr);
+      LLVM::Value SlotsField = Builder.createInBoundsGEP2(
+          Context.ShadowFrameTy, ShadowFrameAlloca, LLContext.getInt64(0),
+          LLContext.getInt32(2));
+      Builder.createStore(
+          Builder.createBitCast(ShadowSlotsAlloca, Context.Int8PtrTy),
+          SlotsField);
+    }
   }
+}
+
+LLVM::Value FunctionCompiler::pushShadowFrame() noexcept {
+  if (RefLocalIndices.empty()) {
+    return LLVM::Value();
+  }
+  auto SlotsArrTy = LLVM::Type::getArrayType(
+      Context.Int64x2Ty, static_cast<uint32_t>(RefLocalIndices.size()));
+  // Spill current ref-local values into the reserved slots (plain stores,
+  // sequenced before the release publish below so the scanner -- which reaches
+  // the slots only after an acquire-load of Head -- sees fully written slots).
+  for (size_t K = 0; K < RefLocalIndices.size(); ++K) {
+    const auto &L = Local[RefLocalIndices[K]];
+    LLVM::Value V = Builder.createLoad(L.first, L.second);
+    LLVM::Value SlotPtr = Builder.createInBoundsGEP2(
+        SlotsArrTy, ShadowSlotsAlloca, LLContext.getInt64(0),
+        LLContext.getInt64(static_cast<uint64_t>(K)));
+    Builder.createStore(V, SlotPtr);
+  }
+  // Head is the atomic ShadowFrame* at offset 0 of the ShadowHead cell.
+  LLVM::Value HeadPP = Builder.createBitCast(
+      Context.getShadowHead(Builder, ExecCtx),
+      Context.ShadowFramePtrTy.getPointerTo());
+  LLVM::Value Prev = Builder.createLoad(Context.ShadowFramePtrTy, HeadPP);
+  LLVM::Value PrevField = Builder.createInBoundsGEP2(
+      Context.ShadowFrameTy, ShadowFrameAlloca, LLContext.getInt64(0),
+      LLContext.getInt32(0));
+  Builder.createStore(Prev, PrevField);
+  // Publish: *Head = &Frame, release so the remote scanner's acquire-load sees
+  // the slot writes above.
+  auto Pub = Builder.createStore(ShadowFrameAlloca, HeadPP);
+  Pub.setAlignment(8);
+  Pub.setOrdering(LLVMAtomicOrderingRelease);
+  return Prev;
+}
+
+void FunctionCompiler::popShadowFrame(LLVM::Value Prev) noexcept {
+  if (RefLocalIndices.empty() || !Prev) {
+    return;
+  }
+  LLVM::Value HeadPP = Builder.createBitCast(
+      Context.getShadowHead(Builder, ExecCtx),
+      Context.ShadowFramePtrTy.getPointerTo());
+  auto Pop = Builder.createStore(Prev, HeadPP);
+  Pop.setAlignment(8);
+  Pop.setOrdering(LLVMAtomicOrderingRelease);
 }
 
 LLVM::BasicBlock FunctionCompiler::getTrapBB(ErrCode::Value Error) noexcept {
@@ -156,6 +253,7 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       }
       enterBlock(Loop, EndLoop, {}, std::move(Args), std::move(Type));
       checkStop();
+      checkGCSafepoint();
       updateGas();
       return {};
     }
@@ -318,10 +416,11 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       auto IsRefTest = Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kRefTest,
-              LLVM::Type::getFunctionType(Context.Int32Ty,
-                                          {Context.Int64x2Ty, Context.Int64Ty},
-                                          false)),
-          {Ref, VType});
+              LLVM::Type::getFunctionType(
+                  Context.Int32Ty,
+                  {Context.Int8PtrTy, Context.Int64x2Ty, Context.Int64Ty},
+                  false)),
+          {Context.getModuleInst(Builder, ModCtx), Ref, VType});
       auto Cond = (Instr.getOpCode() == OpCode::Br_on_cast)
                       ? Builder.createICmpNE(IsRefTest, LLContext.getInt32(0))
                       : Builder.createICmpEQ(IsRefTest, LLContext.getInt32(0));
@@ -430,14 +529,48 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       break;
     case OpCode::Global__get: {
       const auto G =
-          Context.getGlobal(Builder, ExecCtx, Instr.getTargetIndex());
-      stackPush(Builder.createLoad(G.first, G.second));
+          Context.getGlobal(Builder, ModCtx, Instr.getTargetIndex());
+      if (Context.GlobalIsRef[Instr.getTargetIndex()]) {
+        // Reference-typed global (round-2 A2): read the 128-bit (type, pointer)
+        // slot coherently via the intrinsic, so a concurrent coherent store on
+        // another mutator can never hand back a torn pair. A plain inline load
+        // would tear; numeric globals keep the direct load below.
+        auto Load = Context.getIntrinsic(
+            Builder, Executable::Intrinsics::kCoherentRefLoad,
+            LLVM::Type::getFunctionType(
+                Context.VoidTy, {Context.Int8PtrTy, Context.Int8PtrTy}, false));
+        LLVM::Value Out = Builder.createAlloca(Context.Int64x2Ty);
+        Builder.createCall(Load, {G.second, Out});
+        stackPush(Builder.createLoad(Context.Int64x2Ty, Out));
+      } else {
+        stackPush(Builder.createLoad(G.first, G.second));
+      }
       break;
     }
     case OpCode::Global__set:
-      Builder.createStore(
-          stackPop(),
-          Context.getGlobal(Builder, ExecCtx, Instr.getTargetIndex()).second);
+      if (Context.GlobalIsRef[Instr.getTargetIndex()]) {
+        // Reference-typed global (round-2 A2): shade the overwritten and new
+        // references (SATB) and publish the new (type, pointer) pair atomically,
+        // all inside the coherent-store intrinsic -- mirrors
+        // GlobalInstance::setValue. The prior inline barrier + bare 128-bit
+        // store could be read torn by a concurrent coherent reader or the
+        // marker; the atomic publish closes that window.
+        auto Val = stackPop();
+        const auto G =
+            Context.getGlobal(Builder, ModCtx, Instr.getTargetIndex());
+        auto Store = Context.getIntrinsic(
+            Builder, Executable::Intrinsics::kCoherentRefStore,
+            LLVM::Type::getFunctionType(
+                Context.VoidTy, {Context.Int8PtrTy, Context.Int8PtrTy}, false));
+        LLVM::Value ValArg = Builder.createAlloca(Context.Int64x2Ty);
+        Builder.createValuePtrStore(Val, ValArg, Context.Int64x2Ty);
+        Builder.createCall(Store, {G.second, ValArg});
+      } else {
+        // Numeric global: never holds a managed reference, so store directly.
+        Builder.createStore(
+            stackPop(),
+            Context.getGlobal(Builder, ModCtx, Instr.getTargetIndex()).second);
+      }
       break;
 
     // Table Instructions
@@ -447,14 +580,21 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "t_get.ok");
       Builder.createCondBr(
           Builder.createLikely(Builder.createICmpULT(
-              Off, Context.getTableSize(Builder, ExecCtx, TableIndex))),
+              Off, Context.getTableSize(Builder, ModCtx, TableIndex))),
           OkBB, getTrapBB(ErrCode::Value::TableOutOfBounds));
       Builder.positionAtEnd(OkBB);
-      stackPush(Builder.createLoad(
-          Context.Int64x2Ty,
-          Builder.createInBoundsGEP1(
-              Context.Int64x2Ty, Context.getTable(Builder, ExecCtx, TableIndex),
-              Off)));
+      // Table elements are always managed refs; read the 128-bit slot coherently
+      // (round-2 A2) so a concurrent coherent store never yields a torn pair.
+      auto GetSlot = Builder.createInBoundsGEP1(
+          Context.Int64x2Ty, Context.getTable(Builder, ModCtx, TableIndex),
+          Off);
+      auto Load = Context.getIntrinsic(
+          Builder, Executable::Intrinsics::kCoherentRefLoad,
+          LLVM::Type::getFunctionType(
+              Context.VoidTy, {Context.Int8PtrTy, Context.Int8PtrTy}, false));
+      LLVM::Value GetOut = Builder.createAlloca(Context.Int64x2Ty);
+      Builder.createCall(Load, {GetSlot, GetOut});
+      stackPush(Builder.createLoad(Context.Int64x2Ty, GetOut));
       break;
     }
     case OpCode::Table__set: {
@@ -464,13 +604,25 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "t_set.ok");
       Builder.createCondBr(
           Builder.createLikely(Builder.createICmpULT(
-              Off, Context.getTableSize(Builder, ExecCtx, TableIndex))),
+              Off, Context.getTableSize(Builder, ModCtx, TableIndex))),
           OkBB, getTrapBB(ErrCode::Value::TableOutOfBounds));
       Builder.positionAtEnd(OkBB);
-      Builder.createStore(
-          Ref, Builder.createInBoundsGEP1(
-                   Context.Int64x2Ty,
-                   Context.getTable(Builder, ExecCtx, TableIndex), Off));
+      auto Slot = Builder.createInBoundsGEP1(
+          Context.Int64x2Ty, Context.getTable(Builder, ModCtx, TableIndex),
+          Off);
+
+      // Table slots are GC roots and always hold references (round-2 A2): shade
+      // the overwritten and new refs (SATB) and publish the new (type, pointer)
+      // pair atomically, all in the coherent-store intrinsic. The prior inline
+      // barrier + bare 128-bit store could be read torn by a concurrent coherent
+      // reader or the marker's atomic pointer-word load.
+      auto Store = Context.getIntrinsic(
+          Builder, Executable::Intrinsics::kCoherentRefStore,
+          LLVM::Type::getFunctionType(
+              Context.VoidTy, {Context.Int8PtrTy, Context.Int8PtrTy}, false));
+      LLVM::Value ValArg = Builder.createAlloca(Context.Int64x2Ty);
+      Builder.createValuePtrStore(Ref, ValArg, Context.Int64x2Ty);
+      Builder.createCall(Store, {Slot, ValArg});
       break;
     }
     case OpCode::Table__init: {
@@ -481,20 +633,23 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kTableInit,
               LLVM::Type::getFunctionType(Context.VoidTy,
-                                          {Context.Int32Ty, Context.Int32Ty,
-                                           Context.Int64Ty, Context.Int32Ty,
-                                           Context.Int32Ty},
+                                          {Context.Int8PtrTy, Context.Int32Ty,
+                                           Context.Int32Ty, Context.Int64Ty,
+                                           Context.Int32Ty, Context.Int32Ty},
                                           false)),
-          {LLContext.getInt32(Instr.getTargetIndex()),
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(Instr.getTargetIndex()),
            LLContext.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
       break;
     }
     case OpCode::Elem__drop: {
       Builder.createCall(
-          Context.getIntrinsic(Builder, Executable::Intrinsics::kElemDrop,
-                               LLVM::Type::getFunctionType(
-                                   Context.VoidTy, {Context.Int32Ty}, false)),
-          {LLContext.getInt32(Instr.getTargetIndex())});
+          Context.getIntrinsic(
+              Builder, Executable::Intrinsics::kElemDrop,
+              LLVM::Type::getFunctionType(
+                  Context.VoidTy, {Context.Int8PtrTy, Context.Int32Ty}, false)),
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(Instr.getTargetIndex())});
       break;
     }
     case OpCode::Table__copy: {
@@ -505,11 +660,12 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kTableCopy,
               LLVM::Type::getFunctionType(Context.VoidTy,
-                                          {Context.Int32Ty, Context.Int32Ty,
-                                           Context.Int64Ty, Context.Int64Ty,
-                                           Context.Int64Ty},
+                                          {Context.Int8PtrTy, Context.Int32Ty,
+                                           Context.Int32Ty, Context.Int64Ty,
+                                           Context.Int64Ty, Context.Int64Ty},
                                           false)),
-          {LLContext.getInt32(Instr.getTargetIndex()),
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(Instr.getTargetIndex()),
            LLContext.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
       break;
     }
@@ -518,19 +674,20 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       auto Val = stackPop();
       stackPush(Builder.createTrunc(
           Builder.createCall(
-              Context.getIntrinsic(
-                  Builder, Executable::Intrinsics::kTableGrow,
-                  LLVM::Type::getFunctionType(
-                      Context.Int64Ty,
-                      {Context.Int32Ty, Context.Int64x2Ty, Context.Int64Ty},
-                      false)),
-              {LLContext.getInt32(Instr.getTargetIndex()), Val, NewSize}),
+              Context.getIntrinsic(Builder, Executable::Intrinsics::kTableGrow,
+                                   LLVM::Type::getFunctionType(
+                                       Context.Int64Ty,
+                                       {Context.Int8PtrTy, Context.Int32Ty,
+                                        Context.Int64x2Ty, Context.Int64Ty},
+                                       false)),
+              {Context.getModuleInst(Builder, ModCtx),
+               LLContext.getInt32(Instr.getTargetIndex()), Val, NewSize}),
           Context.TableAddrTypes[Instr.getTargetIndex()]));
       break;
     }
     case OpCode::Table__size: {
       stackPush(Builder.createTrunc(
-          Context.getTableSize(Builder, ExecCtx, Instr.getTargetIndex()),
+          Context.getTableSize(Builder, ModCtx, Instr.getTargetIndex()),
           Context.TableAddrTypes[Instr.getTargetIndex()]));
       break;
     }
@@ -542,10 +699,12 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kTableFill,
               LLVM::Type::getFunctionType(Context.Int32Ty,
-                                          {Context.Int32Ty, Context.Int64Ty,
-                                           Context.Int64x2Ty, Context.Int64Ty},
+                                          {Context.Int8PtrTy, Context.Int32Ty,
+                                           Context.Int64Ty, Context.Int64x2Ty,
+                                           Context.Int64Ty},
                                           false)),
-          {LLContext.getInt32(Instr.getTargetIndex()), Off, Val, Len});
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(Instr.getTargetIndex()), Off, Val, Len});
       break;
     }
 
@@ -1226,7 +1385,7 @@ void FunctionCompiler::compileTryTableOp(
       auto NextBB =
           LLVM::BasicBlock::create(LLContext, F.Fn, "try.dispatch.next");
       auto IsMatch = Builder.createICmpEQ(
-          PendingTagInst, Context.getTag(Builder, ExecCtx, C.TagIndex));
+          PendingTagInst, Context.getTag(Builder, ModCtx, C.TagIndex));
       Builder.createCondBr(IsMatch, CaseBB, NextBB);
       Builder.positionAtEnd(NextBB);
     }
@@ -1249,11 +1408,12 @@ void FunctionCompiler::compileTryTableOp(
       Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kCatchPop,
-              LLVM::Type::getFunctionType(
-                  Context.VoidTy,
-                  {Context.Int8PtrTy, Context.Int32Ty, Context.Int32Ty},
-                  false)),
-          {Out, LLContext.getInt32(C->IsAll ? 0 : 1),
+              LLVM::Type::getFunctionType(Context.VoidTy,
+                                          {Context.Int8PtrTy, Context.Int8PtrTy,
+                                           Context.Int32Ty, Context.Int32Ty},
+                                          false)),
+          {Context.getModuleInst(Builder, ModCtx), Out,
+           LLContext.getInt32(C->IsAll ? 0 : 1),
            LLContext.getInt32(C->IsRef ? 1 : 0)});
 
       uint32_t OutIdx = 0;
@@ -1302,10 +1462,12 @@ void FunctionCompiler::compileThrowOp(const uint32_t TagIndex) noexcept {
   Builder.createCall(
       Context.getIntrinsic(
           Builder, Executable::Intrinsics::kThrow,
-          LLVM::Type::getFunctionType(
-              Context.VoidTy,
-              {Context.Int32Ty, Context.Int8PtrTy, Context.Int32Ty}, false)),
-      {LLContext.getInt32(TagIndex), Vals, LLContext.getInt32(Arity)});
+          LLVM::Type::getFunctionType(Context.VoidTy,
+                                      {Context.Int8PtrTy, Context.Int32Ty,
+                                       Context.Int8PtrTy, Context.Int32Ty},
+                                      false)),
+      {Context.getModuleInst(Builder, ModCtx), LLContext.getInt32(TagIndex),
+       Vals, LLContext.getInt32(Arity)});
 
   Builder.createBr(getEHDispatchTarget());
   setUnreachable();
@@ -1341,12 +1503,17 @@ void FunctionCompiler::compileCallOp(const unsigned int FuncIndex) noexcept {
   const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
   const auto &ParamTypes = FuncType.getParamTypes();
 
-  std::vector<LLVM::Value> Args(ParamTypes.size() + 1);
+  std::vector<LLVM::Value> Args(ParamTypes.size() + 2);
   Args[0] = F.Fn.getFirstParam();
+  Args[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ParamTypes.size(); ++I) {
     const size_t J = ParamTypes.size() - 1 - I;
-    Args[J + 1] = stackPop();
+    Args[J + 2] = stackPop();
   }
+
+  // Spill live ref locals across the call so a collection triggered inside the
+  // callee (which may take this thread NativeRunning) still sees them rooted.
+  LLVM::Value ShadowPrev = pushShadowFrame();
 
   LLVM::Value Ret;
   if (IsLazyJIT) {
@@ -1354,7 +1521,8 @@ void FunctionCompiler::compileCallOp(const unsigned int FuncIndex) noexcept {
     if (IsImport) {
       Ret = Builder.createCall(Function, Args);
     } else {
-      auto FTy = toLLVMType(LLContext, Context.ExecCtxPtrTy, FuncType);
+      auto FTy = toLLVMType(LLContext, Context.ModCtxPtrTy,
+                            Context.ExecCtxPtrTy, FuncType);
 
       if (Context.LazyJITCacheVars.size() <= FuncIndex) {
         Context.LazyJITCacheVars.resize(Context.Functions.size());
@@ -1384,9 +1552,11 @@ void FunctionCompiler::compileCallOp(const unsigned int FuncIndex) noexcept {
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kFuncGetFuncSymbol,
-              LLVM::Type::getFunctionType(FTy.getPointerTo(), {Context.Int32Ty},
+              LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                          {Context.Int8PtrTy, Context.Int32Ty},
                                           false)),
-          {LLContext.getInt32(FuncIndex)});
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(FuncIndex)});
       auto Store = Builder.createStore(FPtr, CacheVar);
       Store.setAlignment(8);
       Store.setOrdering(LLVMAtomicOrderingRelease);
@@ -1402,6 +1572,9 @@ void FunctionCompiler::compileCallOp(const unsigned int FuncIndex) noexcept {
   } else {
     Ret = Builder.createCall(Function, Args);
   }
+
+  // Call returned: this thread is Running again, unpublish the shadow frame.
+  popShadowFrame(ShadowPrev);
 
   auto Ty = Ret.getType();
   if (Ty.isVoidTy()) {
@@ -1429,7 +1602,8 @@ void FunctionCompiler::compileIndirectCallOp(
 
   LLVM::Value FuncIndex = stackPop();
   const auto &FuncType = Context.CompositeTypes[FuncTypeIndex]->getFuncType();
-  auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
+  auto FTy = toLLVMType(Context.LLContext, Context.ModCtxPtrTy,
+                        Context.ExecCtxPtrTy, FuncType);
   auto RTy = FTy.getReturnType();
   auto FPtrTy = FTy.getPointerTo();
   auto TableIdx = LLContext.getInt32(TableIndex);
@@ -1437,12 +1611,19 @@ void FunctionCompiler::compileIndirectCallOp(
 
   const size_t ArgSize = FuncType.getParamTypes().size();
   const size_t RetSize = RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-  std::vector<LLVM::Value> ArgsVec(ArgSize + 1, nullptr);
+  std::vector<LLVM::Value> ArgsVec(ArgSize + 2, nullptr);
   ArgsVec[0] = F.Fn.getFirstParam();
+  ArgsVec[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ArgSize; ++I) {
-    const size_t J = ArgSize - I;
+    const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
   }
+
+  // Spill live ref locals/params across the call_indirect (the fast, resolved
+  // pointer, and slow proxy paths may all take this thread NativeRunning).
+  // Pushed in the current block, which dominates every branch and the merge.
+  LLVM::Value ShadowPrev = pushShadowFrame();
+
   auto UnpackRets = [&](LLVM::Value Ret) -> std::vector<LLVM::Value> {
     if (RetSize == 0) {
       return {};
@@ -1461,14 +1642,14 @@ void FunctionCompiler::compileIndirectCallOp(
   {
     Builder.createCondBr(
         Builder.createLikely(Builder.createICmpULT(
-            Idx64, Context.getTableSize(Builder, ExecCtx, TableIndex))),
+            Idx64, Context.getTableSize(Builder, ModCtx, TableIndex))),
         TryFastBB, SlowBB);
     Builder.positionAtEnd(TryFastBB);
 
     auto FuncRef = Builder.createLoad(
         Context.Int64x2Ty,
         Builder.createInBoundsGEP1(
-            Context.Int64x2Ty, Context.getTable(Builder, ExecCtx, TableIndex),
+            Context.Int64x2Ty, Context.getTable(Builder, ModCtx, TableIndex),
             Idx64));
     auto FuncInstInt =
         Builder.createExtractElement(FuncRef, LLContext.getInt64(1));
@@ -1493,10 +1674,9 @@ void FunctionCompiler::compileIndirectCallOp(
     auto Code =
         LoadField(FunctionInstance::getCompiledCodeOffset(), Context.Int8PtrTy);
     auto Hit = Builder.createAnd(
-        Builder.createAnd(
-            Builder.createICmpEQ(DefModule,
-                                 Context.getModuleInst(Builder, ExecCtx)),
-            Builder.createICmpEQ(CalleeTypeIdx, TypeIdx)),
+        Builder.createAnd(Builder.createICmpEQ(DefModule, Context.getModuleInst(
+                                                              Builder, ModCtx)),
+                          Builder.createICmpEQ(CalleeTypeIdx, TypeIdx)),
         Builder.createNot(Builder.createIsNull(Code)));
     Builder.createCondBr(Builder.createLikely(Hit), FastBB, SlowBB);
 
@@ -1516,16 +1696,24 @@ void FunctionCompiler::compileIndirectCallOp(
     auto FPtr = Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kTableGetFuncSymbol,
-            LLVM::Type::getFunctionType(
-                FPtrTy, {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty},
-                false)),
-        {TableIdx, TypeIdx, FuncIndex});
+            LLVM::Type::getFunctionType(FPtrTy,
+                                        {Context.Int8PtrTy, Context.Int32Ty,
+                                         Context.Int32Ty, Context.Int64Ty,
+                                         Context.ModCtxPtrTy.getPointerTo()},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), TableIdx, TypeIdx, Idx64,
+         CalleeCtxSlot});
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
     Builder.positionAtEnd(NotNullBB);
 
-    auto FPtrRet = Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, ArgsVec);
+    auto Returned = Builder.createLoad(Context.ModCtxPtrTy, CalleeCtxSlot);
+    std::vector<LLVM::Value> SlowArgsVec = ArgsVec;
+    SlowArgsVec[0] = Builder.createSelect(Builder.createIsNull(Returned),
+                                          F.Fn.getFirstParam(), Returned);
+    auto FPtrRet =
+        Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, SlowArgsVec);
     FPtrRetsVec = UnpackRets(FPtrRet);
   }
 
@@ -1536,18 +1724,19 @@ void FunctionCompiler::compileIndirectCallOp(
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec).subspan(2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kCallIndirect,
             LLVM::Type::getFunctionType(Context.VoidTy,
-                                        {Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int32Ty, Context.Int8PtrTy,
-                                         Context.Int8PtrTy},
+                                        {Context.Int8PtrTy, Context.Int32Ty,
+                                         Context.Int32Ty, Context.Int64Ty,
+                                         Context.Int8PtrTy, Context.Int8PtrTy},
                                         false)),
-        {TableIdx, TypeIdx, FuncIndex, Args, Rets});
+        {Context.getModuleInst(Builder, ModCtx), TableIdx, TypeIdx, Idx64, Args,
+         Rets});
 
     if (RetSize == 0) {
       // nothing to do
@@ -1561,6 +1750,10 @@ void FunctionCompiler::compileIndirectCallOp(
     Builder.positionAtEnd(EndBB);
   }
 
+  // All call paths merged. The return PHIs must lead EndBB (PHI nodes must be
+  // grouped at the top of a basic block), so emit them BEFORE unpublishing the
+  // shadow frame -- popShadowFrame's store would otherwise precede the PHIs and
+  // produce invalid IR.
   for (unsigned I = 0; I < RetSize; ++I) {
     auto PHIRet = Builder.createPHI(FPtrRetsVec[I].getType());
     PHIRet.addIncoming(FastRetsVec[I], FastBB);
@@ -1568,6 +1761,10 @@ void FunctionCompiler::compileIndirectCallOp(
     PHIRet.addIncoming(RetsVec[I], IsNullBB);
     stackPush(PHIRet);
   }
+  // Unpublish the shadow frame before the pending-exception check: that check
+  // may branch to the EH dispatch target, and the pop must not be skipped on
+  // the unwinding path.
+  popShadowFrame(ShadowPrev);
 
   checkPendingException();
 }
@@ -1580,11 +1777,12 @@ void FunctionCompiler::compileReturnCallOp(
   const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
   const auto &ParamTypes = FuncType.getParamTypes();
 
-  std::vector<LLVM::Value> Args(ParamTypes.size() + 1);
+  std::vector<LLVM::Value> Args(ParamTypes.size() + 2);
   Args[0] = F.Fn.getFirstParam();
+  Args[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ParamTypes.size(); ++I) {
     const size_t J = ParamTypes.size() - 1 - I;
-    Args[J + 1] = stackPop();
+    Args[J + 2] = stackPop();
   }
 
   LLVM::Value Ret;
@@ -1593,7 +1791,8 @@ void FunctionCompiler::compileReturnCallOp(
     if (IsImport) {
       Ret = Builder.createCall(Function, Args);
     } else {
-      auto FTy = toLLVMType(LLContext, Context.ExecCtxPtrTy, FuncType);
+      auto FTy = toLLVMType(LLContext, Context.ModCtxPtrTy,
+                            Context.ExecCtxPtrTy, FuncType);
 
       if (Context.LazyJITCacheVars.size() <= FuncIndex) {
         Context.LazyJITCacheVars.resize(Context.Functions.size());
@@ -1623,9 +1822,11 @@ void FunctionCompiler::compileReturnCallOp(
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kFuncGetFuncSymbol,
-              LLVM::Type::getFunctionType(FTy.getPointerTo(), {Context.Int32Ty},
+              LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                          {Context.Int8PtrTy, Context.Int32Ty},
                                           false)),
-          {LLContext.getInt32(FuncIndex)});
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(FuncIndex)});
       auto Store = Builder.createStore(FPtr, CacheVar);
       Store.setAlignment(8);
       Store.setOrdering(LLVMAtomicOrderingRelease);
@@ -1642,7 +1843,14 @@ void FunctionCompiler::compileReturnCallOp(
     Ret = Builder.createCall(Function, Args);
   }
 
-  Ret.setMustTailCall();
+  // Known limitation: musttail is only valid when the caller and callee
+  // prototypes match. A differing signature falls back to the tail hint, which
+  // LLVM may decline, so such a tail call is not guaranteed constant-space.
+  if (Ret.getInstructionCalledFunctionType().unwrap() == F.Ty.unwrap()) {
+    Ret.setMustTailCall();
+  } else {
+    Ret.setTailCall();
+  }
   auto Ty = Ret.getType();
   if (Ty.isVoidTy()) {
     Builder.createRetVoid();
@@ -1657,16 +1865,19 @@ void FunctionCompiler::compileReturnIndirectCallOp(
   auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.is_null");
 
   LLVM::Value FuncIndex = stackPop();
+  auto Idx64 = Builder.createZExt(FuncIndex, Context.Int64Ty);
   const auto &FuncType = Context.CompositeTypes[FuncTypeIndex]->getFuncType();
-  auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
+  auto FTy = toLLVMType(Context.LLContext, Context.ModCtxPtrTy,
+                        Context.ExecCtxPtrTy, FuncType);
   auto RTy = FTy.getReturnType();
 
   const size_t ArgSize = FuncType.getParamTypes().size();
   const size_t RetSize = RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-  std::vector<LLVM::Value> ArgsVec(ArgSize + 1, nullptr);
+  std::vector<LLVM::Value> ArgsVec(ArgSize + 2, nullptr);
   ArgsVec[0] = F.Fn.getFirstParam();
+  ArgsVec[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ArgSize; ++I) {
-    const size_t J = ArgSize - I;
+    const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
   }
 
@@ -1674,18 +1885,31 @@ void FunctionCompiler::compileReturnIndirectCallOp(
     auto FPtr = Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kTableGetFuncSymbol,
-            LLVM::Type::getFunctionType(
-                FTy.getPointerTo(),
-                {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
-        {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
-         FuncIndex});
+            LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                        {Context.Int8PtrTy, Context.Int32Ty,
+                                         Context.Int32Ty, Context.Int64Ty,
+                                         Context.ModCtxPtrTy.getPointerTo()},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), LLContext.getInt32(TableIndex),
+         LLContext.getInt32(FuncTypeIndex), Idx64, CalleeCtxSlot});
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
     Builder.positionAtEnd(NotNullBB);
 
-    auto FPtrRet = Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), ArgsVec);
-    FPtrRet.setMustTailCall();
+    auto Returned = Builder.createLoad(Context.ModCtxPtrTy, CalleeCtxSlot);
+    std::vector<LLVM::Value> SlowArgsVec = ArgsVec;
+    SlowArgsVec[0] = Builder.createSelect(Builder.createIsNull(Returned),
+                                          F.Fn.getFirstParam(), Returned);
+    auto FPtrRet =
+        Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), SlowArgsVec);
+    // Known limitation: a mismatched prototype rules musttail out and the tail
+    // hint may be declined, so this tail call is not guaranteed constant-space.
+    if (FPtrRet.getInstructionCalledFunctionType().unwrap() == F.Ty.unwrap()) {
+      FPtrRet.setMustTailCall();
+    } else {
+      FPtrRet.setTailCall();
+    }
     if (RetSize == 0) {
       Builder.createRetVoid();
     } else {
@@ -1698,19 +1922,19 @@ void FunctionCompiler::compileReturnIndirectCallOp(
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec).subspan(2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kCallIndirect,
             LLVM::Type::getFunctionType(Context.VoidTy,
-                                        {Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int32Ty, Context.Int8PtrTy,
-                                         Context.Int8PtrTy},
+                                        {Context.Int8PtrTy, Context.Int32Ty,
+                                         Context.Int32Ty, Context.Int64Ty,
+                                         Context.Int8PtrTy, Context.Int8PtrTy},
                                         false)),
-        {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
-         FuncIndex, Args, Rets});
+        {Context.getModuleInst(Builder, ModCtx), LLContext.getInt32(TableIndex),
+         LLContext.getInt32(FuncTypeIndex), Idx64, Args, Rets});
 
     if (RetSize == 0) {
       Builder.createRetVoid();
@@ -1738,33 +1962,47 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
   Builder.positionAtEnd(OkBB);
 
   const auto &FuncType = Context.CompositeTypes[TypeIndex]->getFuncType();
-  auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
+  auto FTy = toLLVMType(Context.LLContext, Context.ModCtxPtrTy,
+                        Context.ExecCtxPtrTy, FuncType);
   auto RTy = FTy.getReturnType();
 
   const size_t ArgSize = FuncType.getParamTypes().size();
   const size_t RetSize = RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-  std::vector<LLVM::Value> ArgsVec(ArgSize + 1, nullptr);
+  std::vector<LLVM::Value> ArgsVec(ArgSize + 2, nullptr);
   ArgsVec[0] = F.Fn.getFirstParam();
+  ArgsVec[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ArgSize; ++I) {
-    const size_t J = ArgSize - I;
+    const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
   }
+
+  // Spill live ref locals/params across the call_ref (both the fast direct
+  // pointer path and the slow kCallRef proxy path may take this thread
+  // NativeRunning). Pushed here in OkBB, which dominates the merge (EndBB).
+  LLVM::Value ShadowPrev = pushShadowFrame();
 
   std::vector<LLVM::Value> FPtrRetsVec;
   FPtrRetsVec.reserve(RetSize);
   {
     auto FPtr = Builder.createCall(
-        Context.getIntrinsic(Builder, Executable::Intrinsics::kRefGetFuncSymbol,
-                             LLVM::Type::getFunctionType(FTy.getPointerTo(),
-                                                         {Context.Int64x2Ty},
-                                                         false)),
-        {Ref});
+        Context.getIntrinsic(
+            Builder, Executable::Intrinsics::kRefGetFuncSymbol,
+            LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                        {Context.Int8PtrTy, Context.Int64x2Ty,
+                                         Context.ModCtxPtrTy.getPointerTo()},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), Ref, CalleeCtxSlot});
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
     Builder.positionAtEnd(NotNullBB);
 
-    auto FPtrRet = Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, ArgsVec);
+    auto Returned = Builder.createLoad(Context.ModCtxPtrTy, CalleeCtxSlot);
+    std::vector<LLVM::Value> SlowArgsVec = ArgsVec;
+    SlowArgsVec[0] = Builder.createSelect(Builder.createIsNull(Returned),
+                                          F.Fn.getFirstParam(), Returned);
+    auto FPtrRet =
+        Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, SlowArgsVec);
     if (RetSize == 0) {
       // nothing to do
     } else if (RetSize == 1) {
@@ -1783,17 +2021,17 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec).subspan(2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kCallRef,
-            LLVM::Type::getFunctionType(
-                Context.VoidTy,
-                {Context.Int64x2Ty, Context.Int8PtrTy, Context.Int8PtrTy},
-                false)),
-        {Ref, Args, Rets});
+            LLVM::Type::getFunctionType(Context.VoidTy,
+                                        {Context.Int8PtrTy, Context.Int64x2Ty,
+                                         Context.Int8PtrTy, Context.Int8PtrTy},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), Ref, Args, Rets});
 
     if (RetSize == 0) {
       // nothing to do
@@ -1807,12 +2045,20 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
     Builder.positionAtEnd(EndBB);
   }
 
+  // Call returned on either path. Emit the return PHIs FIRST -- they must lead
+  // EndBB (PHIs grouped at the block top) -- then unpublish the shadow frame; a
+  // popShadowFrame store ahead of the PHIs would be invalid IR. ShadowPrev is
+  // available here because OkBB dominates EndBB.
   for (unsigned I = 0; I < RetSize; ++I) {
     auto PHIRet = Builder.createPHI(FPtrRetsVec[I].getType());
     PHIRet.addIncoming(FPtrRetsVec[I], NotNullBB);
     PHIRet.addIncoming(RetsVec[I], IsNullBB);
     stackPush(PHIRet);
   }
+  // Unpublish the shadow frame before the pending-exception check: that check
+  // may branch to the EH dispatch target, and the pop must not be skipped on
+  // the unwinding path.
+  popShadowFrame(ShadowPrev);
 
   checkPendingException();
 }
@@ -1832,32 +2078,47 @@ void FunctionCompiler::compileReturnCallRefOp(
   Builder.positionAtEnd(OkBB);
 
   const auto &FuncType = Context.CompositeTypes[TypeIndex]->getFuncType();
-  auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
+  auto FTy = toLLVMType(Context.LLContext, Context.ModCtxPtrTy,
+                        Context.ExecCtxPtrTy, FuncType);
   auto RTy = FTy.getReturnType();
 
   const size_t ArgSize = FuncType.getParamTypes().size();
   const size_t RetSize = RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-  std::vector<LLVM::Value> ArgsVec(ArgSize + 1, nullptr);
+  std::vector<LLVM::Value> ArgsVec(ArgSize + 2, nullptr);
   ArgsVec[0] = F.Fn.getFirstParam();
+  ArgsVec[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ArgSize; ++I) {
-    const size_t J = ArgSize - I;
+    const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
   }
 
   {
     auto FPtr = Builder.createCall(
-        Context.getIntrinsic(Builder, Executable::Intrinsics::kRefGetFuncSymbol,
-                             LLVM::Type::getFunctionType(FTy.getPointerTo(),
-                                                         {Context.Int64x2Ty},
-                                                         false)),
-        {Ref});
+        Context.getIntrinsic(
+            Builder, Executable::Intrinsics::kRefGetFuncSymbol,
+            LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                        {Context.Int8PtrTy, Context.Int64x2Ty,
+                                         Context.ModCtxPtrTy.getPointerTo()},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), Ref, CalleeCtxSlot});
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
     Builder.positionAtEnd(NotNullBB);
 
-    auto FPtrRet = Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), ArgsVec);
-    FPtrRet.setMustTailCall();
+    auto Returned = Builder.createLoad(Context.ModCtxPtrTy, CalleeCtxSlot);
+    std::vector<LLVM::Value> SlowArgsVec = ArgsVec;
+    SlowArgsVec[0] = Builder.createSelect(Builder.createIsNull(Returned),
+                                          F.Fn.getFirstParam(), Returned);
+    auto FPtrRet =
+        Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), SlowArgsVec);
+    // Known limitation: a mismatched prototype rules musttail out and the tail
+    // hint may be declined, so this tail call is not guaranteed constant-space.
+    if (FPtrRet.getInstructionCalledFunctionType().unwrap() == F.Ty.unwrap()) {
+      FPtrRet.setMustTailCall();
+    } else {
+      FPtrRet.setTailCall();
+    }
     if (RetSize == 0) {
       Builder.createRetVoid();
     } else {
@@ -1870,17 +2131,17 @@ void FunctionCompiler::compileReturnCallRefOp(
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec).subspan(2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kCallRef,
-            LLVM::Type::getFunctionType(
-                Context.VoidTy,
-                {Context.Int64x2Ty, Context.Int8PtrTy, Context.Int8PtrTy},
-                false)),
-        {Ref, Args, Rets});
+            LLVM::Type::getFunctionType(Context.VoidTy,
+                                        {Context.Int8PtrTy, Context.Int64x2Ty,
+                                         Context.Int8PtrTy, Context.Int8PtrTy},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), Ref, Args, Rets});
 
     if (RetSize == 0) {
       Builder.createRetVoid();
@@ -1961,6 +2222,43 @@ void FunctionCompiler::checkPendingException() noexcept {
   auto NotPending = Builder.createLikely(Builder.createIsNull(PendingTagInst));
   Builder.createCondBr(NotPending, NotPendingBB, getEHDispatchTarget());
   Builder.positionAtEnd(NotPendingBB);
+}
+
+void FunctionCompiler::checkGCSafepoint() noexcept {
+  // R7-M3 capability: emit the safepoint poll only when the GC proposal is
+  // enabled. A GC-off artifact never yields at a safepoint; the instantiate
+  // gate keeps it off the native path under a GC-enabled executor so a
+  // concurrent collection never waits on it.
+  if (!Context.GCEnabled) {
+    return;
+  }
+  // GC cooperative safepoint poll (round-2 A1). Without it, a compute-only
+  // compiled loop never yields and a concurrent collection's stop-the-world
+  // hangs on this mutator. Fast path: a relaxed atomic load of the controller
+  // stop flag (i8) + an unlikely branch -- cheap, like checkStop. Slow path:
+  // call the kGCSafepoint intrinsic, which parks this mutator (self-scanning its
+  // own roots, incl. a conservative native scan that finds AOT register/stack
+  // refs) until the collection releases, then resumes the loop. Relaxed order
+  // is sufficient: gcSafepoint re-reads the flag under the handshake lock, and
+  // the load must be atomic to pair race-free with the coordinator's stores.
+  auto ContBB = LLVM::BasicBlock::create(LLContext, F.Fn, "gcsp.cont");
+  auto ParkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "gcsp.park");
+  LLVM::Value FlagPtr = Context.getGCStopFlag(Builder, ExecCtx);
+  auto Flag = Builder.createLoad(Context.Int8Ty, FlagPtr);
+  Flag.setOrdering(LLVMAtomicOrderingMonotonic);
+  Flag.setAlignment(1);
+  auto NotSet =
+      Builder.createLikely(Builder.createICmpEQ(Flag, LLContext.getInt8(0)));
+  Builder.createCondBr(NotSet, ContBB, ParkBB);
+
+  Builder.positionAtEnd(ParkBB);
+  auto Safepoint = Context.getIntrinsic(
+      Builder, Executable::Intrinsics::kGCSafepoint,
+      LLVM::Type::getFunctionType(Context.VoidTy, {}, false));
+  Builder.createCall(Safepoint, {});
+  Builder.createBr(ContBB);
+
+  Builder.positionAtEnd(ContBB);
 }
 
 void FunctionCompiler::setUnreachable() noexcept {

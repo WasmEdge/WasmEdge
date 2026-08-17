@@ -201,7 +201,7 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
   // Get return values.
   std::vector<std::pair<ValVariant, ValType>> Returns(RTypes.size());
   for (uint32_t I = 0; I < RTypes.size(); ++I) {
-    auto Val = StackMgr.pop();
+    auto Val = StackMgr.pop<ValVariant>();
     const auto &RType = RTypes[RTypes.size() - I - 1];
     if (RType.isRefType()) {
       // For the reference type cases of the return values, they should be

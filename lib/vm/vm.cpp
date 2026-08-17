@@ -64,6 +64,8 @@ void VM::unsafeLoadBuiltInHosts() {
   if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
     std::unique_ptr<Runtime::Instance::ModuleInstance> WasiMod =
         std::make_unique<Host::WasiModule>();
+    // Torn down via terminate() in cleanupModInstContainer: async-pinnable.
+    WasiMod->setDeferrableStorage();
     BuiltInModInsts.insert({HostRegistration::Wasi, std::move(WasiMod)});
   }
 }
@@ -72,6 +74,10 @@ void VM::unsafeLoadPlugInHosts() {
   // Load the official plugin modules and mock them if not found.
   cleanupModInstContainer(PlugInModInsts);
   PlugInModInsts = loadOfficialPluginModules();
+  for (auto &M : PlugInModInsts) {
+    // Torn down via terminate() in cleanupModInstContainer: async-pinnable.
+    M->setDeferrableStorage();
+  }
 
   // Load the other non-official plugins.
   for (const auto &Plugin : Plugin::Plugin::plugins()) {
@@ -83,6 +89,8 @@ void VM::unsafeLoadPlugInHosts() {
     }
     for (const auto &Module : Plugin.modules()) {
       PlugInModInsts.push_back(Module.create());
+      // Torn down via terminate() in cleanupModInstContainer: pinnable.
+      PlugInModInsts.back()->setDeferrableStorage();
     }
     for (const auto &Component : Plugin.components()) {
       PlugInCompInsts.push_back(Component.create());
@@ -153,6 +161,17 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
   if (LazyEngine && !Module->getSymbol()) {
     EXPECTED_TRY(auto Exec, LazyEngine->prepare(Module));
     EXPECTED_TRY(LoaderEngine.loadExecutable(*Module, std::move(Exec)));
+    // Registered modules take the native path too, so stamp the
+    // LazyJIT-compiled code here as well. This branch only runs for a module
+    // with no pre-attached symbols, i.e. code just compiled with this VM's
+    // Conf, and the compiler emits the "gc.capable" marker iff GC is on in that
+    // Conf -- so the emitted code's capability equals Conf.hasProposal(GC) by
+    // construction. Precompiled native code never reaches here: the loader
+    // admission gate re-parses a non-capable artifact to interpreter and drops
+    // its symbols.
+    if (Module->getSymbol()) {
+      Module->setGCCompiled(Conf.hasProposal(Proposal::GC));
+    }
   }
 #endif
 
@@ -401,6 +420,15 @@ Expect<void> VM::unsafeLoadJITExecutable() {
   if (LazyEngine) {
     EXPECTED_TRY(auto Exec, LazyEngine->prepare(Mod));
     EXPECTED_TRY(LoaderEngine.loadExecutable(*Mod, std::move(Exec)));
+    // Same rule as the eager JIT below. LazyJIT compiles each body on demand
+    // but always with this VM's Conf, so capability is uniform across the
+    // module and stamped once here. Reached only for a module with no
+    // pre-attached symbols, so the compiled code's capability equals
+    // Conf.hasProposal(GC) by construction; a precompiled non-capable artifact
+    // is handled by the loader admission gate.
+    if (Mod->getSymbol()) {
+      Mod->setGCCompiled(Conf.hasProposal(Proposal::GC));
+    }
     return {};
   }
   LLVM::Compiler Compiler(Conf);
@@ -445,6 +473,15 @@ Expect<void> VM::unsafeLoadJITExecutable() {
         }
         return ErrCode::Value::Success;
       });
+  // If the compile + JIT load succeeded (the module now carries compiled
+  // symbols), record whether the emitted code is GC-capable. It was compiled
+  // with this VM's Conf, so its capability equals the GC proposal state. This
+  // eager path only compiles from source, so no precompiled artifact's stored
+  // capability can diverge from Conf. On fallback the flag is irrelevant --
+  // instantiate builds interpreter-mode functions regardless.
+  if (Mod->getSymbol()) {
+    Mod->setGCCompiled(Conf.hasProposal(Proposal::GC));
+  }
   return {};
 #else
   spdlog::warn("JIT was requested but WasmEdge was built without LLVM, "
@@ -591,10 +628,19 @@ VM::unsafeExecuteComponent(const Runtime::Instance::ComponentInstance *CompInst,
 Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 VM::asyncExecute(std::string_view Func, Span<const ValVariant> Params,
                  Span<const ValType> ParamTypes) {
+  // Pin managed ref parameters as host roots before detaching the worker,
+  // carried into the worker as the Async's keep-alive so they are released when
+  // the invocation completes (see Executor::asyncInvoke).
+  auto ParamRoots =
+      std::make_shared<GC::BoundaryRoots>(getController().getAllocator());
+  GC::pinParamRootsInto(*ParamRoots, Params, ParamTypes);
   Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
       std::string_view, Span<const ValVariant>, Span<const ValType>) =
       &VM::execute;
-  return {FPtr, *this, std::string(Func),
+  return {std::move(ParamRoots),
+          FPtr,
+          *this,
+          std::string(Func),
           std::vector(Params.begin(), Params.end()),
           std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
@@ -603,10 +649,14 @@ Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 VM::asyncExecute(std::string_view ModName, std::string_view Func,
                  Span<const ValVariant> Params,
                  Span<const ValType> ParamTypes) {
+  auto ParamRoots =
+      std::make_shared<GC::BoundaryRoots>(getController().getAllocator());
+  GC::pinParamRootsInto(*ParamRoots, Params, ParamTypes);
   Expect<std::vector<std::pair<ValVariant, ValType>>> (VM::*FPtr)(
       std::string_view, std::string_view, Span<const ValVariant>,
       Span<const ValType>) = &VM::execute;
-  return {FPtr,
+  return {std::move(ParamRoots),
+          FPtr,
           *this,
           std::string(ModName),
           std::string(Func),

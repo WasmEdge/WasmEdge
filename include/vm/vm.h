@@ -51,6 +51,23 @@ public:
   VM(const Configure &Conf);
   VM(const Configure &Conf, Runtime::StoreManager &S);
   ~VM() {
+    // Drain any detached async invocation (VM::asyncExecute) BEFORE tearing
+    // down VM storage. The GC controller lives inside ExecutorEngine, which is
+    // declared before the VM's module/store members -- so the drain in
+    // ~Controller alone would run too late, after ActiveModInst/Store (which
+    // the running guest still uses) were already freed. Block here until every
+    // launch lease is released while all VM state is still alive.
+    // beginClosing() is idempotent, so the later ~Controller invocation is a
+    // cheap no-op.
+    //
+    // NB: this is a cooperative DRAIN, not an interrupt -- it waits for the
+    // in-flight invocation to run to completion. We deliberately do NOT signal
+    // Executor::stop() here: interrupting a worker that is mid GC-collection
+    // currently deadlocks teardown (the abandoned cycle never wakes the
+    // coordinator, so its lease is never released). A caller that needs prompt
+    // cancellation of an unbounded async guest must cancel() it before
+    // destroying the VM.
+    ExecutorEngine.getController().beginClosing();
     if (ActiveModInst) {
       auto *RawMod = ActiveModInst.release();
       if (RawMod) {
@@ -192,6 +209,15 @@ public:
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   execute(std::string_view Func, Span<const ValVariant> Params = {},
           Span<const ValType> ParamTypes = {}) {
+    // Operation lease spanning the WHOLE public call, including
+    // unsafeExecute's error mapping and the Mutex unlock (constructed before
+    // the lock, so it is destroyed after it): the teardown drain cannot
+    // complete while any part of this call still runs against VM state.
+    // Refused once the controller is closing.
+    auto OpLease = ExecutorEngine.getController().acquireLease();
+    if (!OpLease.valid()) {
+      return Unexpect(ErrCode::Value::Interrupted);
+    }
     std::shared_lock Lock(Mutex);
     return unsafeExecute(Func, Params, ParamTypes);
   }
@@ -201,6 +227,11 @@ public:
   execute(std::string_view ModName, std::string_view Func,
           Span<const ValVariant> Params = {},
           Span<const ValType> ParamTypes = {}) {
+    // Operation lease before the lock -- see execute() above.
+    auto OpLease = ExecutorEngine.getController().acquireLease();
+    if (!OpLease.valid()) {
+      return Unexpect(ErrCode::Value::Interrupted);
+    }
     std::shared_lock Lock(Mutex);
     return unsafeExecute(ModName, Func, Params, ParamTypes);
   }
@@ -210,6 +241,11 @@ public:
   executeComponent(std::string_view Func,
                    Span<const ComponentValVariant> Params = {},
                    Span<const ComponentValType> ParamTypes = {}) {
+    // Operation lease before the lock -- see execute() above.
+    auto OpLease = ExecutorEngine.getController().acquireLease();
+    if (!OpLease.valid()) {
+      return Unexpect(ErrCode::Value::Interrupted);
+    }
     std::shared_lock Lock(Mutex);
     return unsafeExecuteComponent(Func, Params, ParamTypes);
   }
@@ -219,6 +255,11 @@ public:
   executeComponent(std::string_view CompName, std::string_view Func,
                    Span<const ComponentValVariant> Params = {},
                    Span<const ComponentValType> ParamTypes = {}) {
+    // Operation lease before the lock -- see execute() above.
+    auto OpLease = ExecutorEngine.getController().acquireLease();
+    if (!OpLease.valid()) {
+      return Unexpect(ErrCode::Value::Interrupted);
+    }
     std::shared_lock Lock(Mutex);
     return unsafeExecuteComponent(CompName, Func, Params, ParamTypes);
   }
@@ -299,6 +340,43 @@ public:
 
   /// Getter for the executor in the VM.
   Executor::Executor &getExecutor() noexcept { return ExecutorEngine; }
+
+  /// Getter for the GC controller (delegates to the owning Executor).
+  ///
+  /// Load-bearing for the async launch lease: VM::asyncExecute constructs the
+  /// detached worker with the VM as the target instance, so Async's lease trait
+  /// probes VM::getController(). Without this accessor the trait would SFINAE
+  /// to "no lease" and controller teardown could not drain a live async
+  /// execution.
+  GC::Controller &getController() noexcept {
+    return ExecutorEngine.getController();
+  }
+
+  /// Release a host-retained GC reference returned to the host.
+  ///
+  /// The release methods below intentionally skip the VM Mutex: the allocator
+  /// locks the GC host-root registry internally.
+  void releaseRef(const RefVariant &Ref) noexcept {
+    ExecutorEngine.releaseRef(Ref);
+  }
+
+  /// Release several host-retained GC references.
+  void releaseRefs(Span<const RefVariant> Refs) noexcept {
+    ExecutorEngine.releaseRefs(Refs);
+  }
+
+  /// Release a host-retained GC reference delivered as a component value.
+  void releaseRef(const ComponentValVariant &Val) noexcept {
+    ExecutorEngine.releaseRef(Val);
+  }
+
+  /// Release several host-retained GC references delivered as component values.
+  void releaseRefs(Span<const ComponentValVariant> Vals) noexcept {
+    ExecutorEngine.releaseRefs(Vals);
+  }
+
+  /// Release all host-retained GC references.
+  void releaseAllRefs() noexcept { ExecutorEngine.releaseAllRefs(); }
 
   /// Getter for statistics.
   Statistics::Statistics &getStatistics() noexcept { return Stat; }

@@ -245,6 +245,22 @@ Expect<void> Executor::instantiate(
       }
       // Set the matched table address in the module instance.
       ModInst.importTable(ImpInst);
+      // Attach this executor's GC allocator so an imported (e.g. host)
+      // anyref/externref table is scanned as a root with live write barriers.
+      // setAllocator centralizes the cross-controller safety check: it is
+      // idempotent for a same-owner re-attach, keeps the first owner for a
+      // freely shareable fixed non-managed table, and rejects sharing a
+      // managed-capable OR growable table across executors -- a ref this
+      // executor stores there would be invisible to the owning allocator's GC
+      // (swept while live), or a reallocating grow would free a buffer a peer
+      // reader still holds. Interim guard until cross-allocator roots exist.
+      if (auto Res = ImpInst->setAllocator(getAllocator()); !Res) {
+        spdlog::error(ErrCode::Value::IncompatibleImportType);
+        spdlog::error("    cannot import a GC reference table already owned by "
+                      "another module instance's GC allocator"sv);
+        spdlog::error(ErrInfo::InfoLinking(ModName, ExtName, ExtType));
+        return Unexpect(Res.error());
+      }
       break;
     }
     case ExternalType::Memory: {
@@ -313,6 +329,22 @@ Expect<void> Executor::instantiate(
       }
       // Set the matched global address in the module instance.
       ModInst.importGlobal(ImpInst);
+      // Attach this executor's GC allocator so an imported (e.g. host)
+      // anyref/externref global is scanned as a root with a live write barrier.
+      // setAllocator centralizes the cross-controller safety check: idempotent
+      // for a same-owner re-attach, keeps the first owner for a freely
+      // shareable non-managed global, and rejects sharing a managed-capable
+      // global across executors (a ref this executor stores there would be
+      // invisible to the owning allocator's GC and swept while live). Interim
+      // guard until cross-allocator roots exist.
+      if (auto Res = ImpInst->setAllocator(getAllocator()); !Res) {
+        spdlog::error(ErrCode::Value::IncompatibleImportType);
+        spdlog::error(
+            "    cannot import a GC reference global already owned by "
+            "another module instance's GC allocator"sv);
+        spdlog::error(ErrInfo::InfoLinking(ModName, ExtName, ExtType));
+        return Unexpect(Res.error());
+      }
       break;
     }
     default:

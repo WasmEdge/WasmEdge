@@ -286,7 +286,8 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
   // Create a function table and fill it with the callback function.
   auto funcTableInst =
       std::make_unique<WasmEdge::Runtime::Instance::TableInstance>(
-          WasmEdge::AST::TableType(WasmEdge::TypeCode::FuncRef, 1));
+          WasmEdge::AST::TableType(WasmEdge::TypeCode::FuncRef, 1),
+          /*CanHoldManaged=*/false); // funcref: not GC-managed
   EXPECT_TRUE(funcTableInst->setRefs(
       std::initializer_list<const WasmEdge::RefVariant>{callbackFuncInst}, 0, 0,
       1));

@@ -130,16 +130,26 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
   }
 #endif
 
-  // On RISC-V we use generic-rv64 as the CPU, so also use default
-  // features; host features under QEMU can be inconsistent (e.g.
-  // zvl*b without v) which LLVM >= 20 rejects.
-  TM = LLVM::TargetMachine::create(
-      TheTarget, Triple, CPUName.c_str(),
+  // On RISC-V we use generic-rv64 as the CPU, so also use default features;
+  // host features under QEMU can be inconsistent (e.g. zvl*b without v) which
+  // LLVM >= 20 rejects. The atomic extension is the one exception: without it
+  // the target is bare rv64i, where every atomic access lowers to an
+  // __atomic_* libcall, and the AOT loader maps sections without processing
+  // relocations, so such a call would jump to a wild address. Enabling it is
+  // safe -- the compiled code runs in this process, on the CPU that is already
+  // running this binary, and this binary was itself built with the extension.
 #if defined(__riscv) && __riscv_xlen == 64
-      "",
+#if defined(__riscv_atomic)
+  const char *const Features = "+a";
 #else
-      LLVM::getHostCPUFeatures().unwrap(),
+  const char *const Features = "";
 #endif
+#else
+  const auto HostFeatures = LLVM::getHostCPUFeatures();
+  const char *const Features = HostFeatures.unwrap();
+#endif
+  TM = LLVM::TargetMachine::create(
+      TheTarget, Triple, CPUName.c_str(), Features,
       toLLVMCodeGenLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
       LLVMRelocPIC, LLVMCodeModelDefault);
 
@@ -212,9 +222,11 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   auto &LLModule = D.extract().LLModule;
 
   CompileContext NewContext(LLContext, LLModule,
-                            Conf.getCompilerConfigure().isGenericBinary());
+                            Conf.getCompilerConfigure().isGenericBinary(),
+                            Conf.hasProposal(Proposal::GC));
   RAIICleanup Cleanup(Context, &NewContext);
   Context->addVersionGlobal();
+  Context->addGCCapableGlobal();
 
   // Compile all sections and the function declarations.
   compileSections(Module, false);
@@ -485,6 +497,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       const auto &ValType = GlobType.getValType();
       auto Type = toLLVMType(Context->LLContext, ValType);
       Context->Globals.push_back(Type);
+      Context->GlobalIsRef.push_back(ValType.isRefType());
       break;
     }
     case ExternalType::Tag: // Tag type
@@ -507,6 +520,7 @@ void Compiler::compile(const AST::GlobalSection &GlobalSec) noexcept {
     const auto &ValType = GlobalSeg.getGlobalType().getValType();
     auto Type = toLLVMType(Context->LLContext, ValType);
     Context->Globals.push_back(Type);
+    Context->GlobalIsRef.push_back(ValType.isRefType());
   }
 }
 
@@ -620,12 +634,15 @@ Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
     }
   }
 
-  FunctionCompiler FC(
-      *Context, F, Locals, Conf.getCompilerConfigure().isInterruptible(),
-      Conf.getStatisticsConfigure().isInstructionCounting(),
-      Conf.getStatisticsConfigure().isCostMeasuring(),
-      Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT);
+  // Resolve the function signature up front so the compiler can classify
+  // ref-typed PARAMS (Type.first) for the GC shadow spill, not just locals.
   auto Type = Context->resolveBlockType(T);
+  FunctionCompiler FC(*Context, F, Type.first, Locals,
+                      Conf.getCompilerConfigure().isInterruptible(),
+                      Conf.getStatisticsConfigure().isInstructionCounting(),
+                      Conf.getStatisticsConfigure().isCostMeasuring(),
+                      Conf.getRuntimeConfigure().getRunMode() ==
+                          RunMode::LazyJIT);
   EXPECTED_TRY(FC.compile(*Code, std::move(Type)));
   F.Fn.eliminateUnreachableBlocks();
 
@@ -648,9 +665,11 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module) noexcept {
   auto &LLModule = D.extract().LLModule;
 
   CompileContext NewContext(LLContext, LLModule,
-                            Conf.getCompilerConfigure().isGenericBinary());
+                            Conf.getCompilerConfigure().isGenericBinary(),
+                            Conf.hasProposal(Proposal::GC));
   RAIICleanup Cleanup(Context, &NewContext);
   Context->addVersionGlobal();
+  Context->addGCCapableGlobal();
 
   // Compile all sections and the function declarations without bodies.
   compileSections(Module, false);
@@ -700,7 +719,8 @@ Compiler::compileFunctions(Data &&LLData, const AST::Module &Module,
   auto &LLModule = LLData.extract().LLModule;
 
   CompileContext NewContext(LLContext, LLModule,
-                            Conf.getCompilerConfigure().isGenericBinary());
+                            Conf.getCompilerConfigure().isGenericBinary(),
+                            Conf.hasProposal(Proposal::GC));
   RAIICleanup Cleanup(Context, &NewContext);
 
   // Emit the type wrappers as external declarations resolved against the

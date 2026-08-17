@@ -126,6 +126,68 @@ TEST(ModuleInstanceTest, CascadeKeepsProviderPinnedUntilFinalizerCompletes) {
   EXPECT_EQ(Events[3], Event::Finalizer);
 }
 
+// A ModulePin taken before terminate() must defer the module's deletion until
+// the pin is released -- the lifetime guarantee Executor::asyncInvoke relies on
+// to keep an externally-owned module alive across a detached worker.
+TEST(ModuleInstanceTest, ModulePinDefersTerminateUntilReleased) {
+  std::vector<Event> Events;
+  auto *Mod = new TestModule("pinned", &Events, makeFinalizer());
+  {
+    Runtime::Instance::ModulePin Pin(Mod);
+    // Owner relinquishes ownership while the pin is live: deletion must defer.
+    Mod->terminate();
+    EXPECT_TRUE(Events.empty())
+        << "terminate() must not delete a module with a live pin";
+    // Pin drops here: last dependent after the owner released -> module
+    // deleted.
+  }
+  ASSERT_EQ(Events.size(), 2u)
+      << "releasing the last pin after terminate() must delete the module once";
+  EXPECT_EQ(Events[0], Event::DerivedDtor);
+  EXPECT_EQ(Events[1], Event::Finalizer);
+}
+
+// Releasing a pin on a module whose owner has NOT released must not delete it;
+// unpin() returns false and the owner remains responsible for teardown.
+TEST(ModuleInstanceTest, ModulePinReleaseOnOwnedModuleDoesNotDelete) {
+  std::vector<Event> Events;
+  auto Mod = std::make_unique<TestModule>("owned", &Events, makeFinalizer());
+  {
+    Runtime::Instance::ModulePin Pin(Mod.get());
+    // Pin released here while the unique_ptr still owns the module.
+  }
+  EXPECT_TRUE(Events.empty())
+      << "releasing a pin on a still-owned module must not delete it";
+  Mod.reset();
+  ASSERT_EQ(Events.size(), 2u);
+  EXPECT_EQ(Events[0], Event::DerivedDtor);
+  EXPECT_EQ(Events[1], Event::Finalizer);
+}
+
+// Moving a ModulePin transfers the sole pin: the moved-from pin releases
+// nothing, and exactly one deletion happens when the moved-to pin drops.
+TEST(ModuleInstanceTest, ModulePinMoveTransfersSolePin) {
+  std::vector<Event> Events;
+  auto *Mod = new TestModule("moved", &Events, makeFinalizer());
+  Runtime::Instance::ModulePin Src(Mod);
+  Mod->terminate(); // Owner released; the pin is now the sole keep-alive.
+  {
+    Runtime::Instance::ModulePin Dst(std::move(Src));
+    EXPECT_TRUE(Events.empty())
+        << "moved-from pin must not release; the module stays alive";
+    // Dst drops here -> single delete. Src (moved-from) dtor below is a no-op.
+  }
+  ASSERT_EQ(Events.size(), 2u) << "a moved pin must delete exactly once";
+  EXPECT_EQ(Events[0], Event::DerivedDtor);
+  EXPECT_EQ(Events[1], Event::Finalizer);
+}
+
+// A pin on a null target (an independent host function instance) is inert.
+TEST(ModuleInstanceTest, ModulePinNullTargetIsInert) {
+  Runtime::Instance::ModulePin Pin(nullptr);
+  SUCCEED();
+}
+
 TEST(ModuleInstanceTest, DeepCascadeDoesNotOverflowStack) {
   constexpr std::size_t N = 50000;
   std::vector<Event> Events;

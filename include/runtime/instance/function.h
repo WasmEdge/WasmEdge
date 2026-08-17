@@ -182,6 +182,14 @@ private:
   /// @}
 };
 
+// getInnerPtr reads a GC ref's payload as a leading `const ModuleInstance *`;
+// for funcrefs that requires CompositeBase::ModInst at offset 0 of
+// FunctionInstance. getModuleOffset() computes this from within the class
+// (where the protected base member is accessible, and where the compiler reads
+// it).
+static_assert(FunctionInstance::getModuleOffset() == 0,
+              "getInnerPtr requires ModInst at offset 0 of FunctionInstance");
+
 } // namespace Instance
 } // namespace Runtime
 } // namespace WasmEdge

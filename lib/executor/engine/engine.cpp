@@ -67,7 +67,7 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
     // and turn it into the uncaught exception error.
     assuming(PendingExn.TagInst != nullptr);
     spdlog::error(ErrCode::Value::UncaughtException);
-    PendingExn = {};
+    PendingExn.clear(getController());
     Res = Unexpect(ErrCode::Value::UncaughtException);
   }
 
@@ -263,16 +263,17 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return {};
     case OpCode::Select:
     case OpCode::Select_t: {
-      // Pop the i32 value and select values from the stack.
+      // Pop only the i32 condition; leave both candidates on the GC-rooted
+      // value stack and drop the unselected one in place. Popping into native
+      // locals would detach a possibly-ref survivor that a concurrent
+      // collection could reclaim. Stack (bottom..top): Val1, Val2, Cond.
       const uint32_t CondVal = StackMgr.pop<uint32_t>();
-      ValVariant Val2 = StackMgr.pop<ValVariant>();
-      ValVariant Val1 = StackMgr.pop<ValVariant>();
-
-      // Select the value.
       if (CondVal == 0) {
-        StackMgr.push(Val2);
+        // Result is Val2 (now the top); drop Val1 (the entry below it).
+        StackMgr.eraseValueStack(2, 1);
       } else {
-        StackMgr.push(Val1);
+        // Result is Val1; drop Val2 (the top).
+        StackMgr.pop<ValVariant>();
       }
       return {};
     }
@@ -1847,6 +1848,9 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
   };
 
   while (PC != PCEnd) {
+    if (unlikely(this->getController().stopRequested())) {
+      this->getController().gcSafepoint();
+    }
     if (Stat) {
       OpCode Code = PC->getOpCode();
       if (Conf.getStatisticsConfigure().isInstructionCounting()) {

@@ -3,6 +3,11 @@
 
 #include "executor/executor.h"
 
+#include "gc/coherent_slot.h"
+#include "runtime/instance/array.h"
+#include "runtime/instance/gc.h"
+#include "runtime/instance/struct.h"
+
 namespace WasmEdge {
 namespace Executor {
 
@@ -26,9 +31,13 @@ ErrCode logError(const ErrCode &Code, const AST::Instruction &Instr) noexcept {
 void logArrayOOB(const ErrCode &Code, const uint32_t Idx, const uint32_t Cnt,
                  const RefVariant &Ref) noexcept {
   if (Code == ErrCode::Value::ArrayOutOfBounds) {
-    const auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
+    // Payload is a GCInstance::RawData, not an ArrayInstance handle: wrap it
+    // rather than reinterpreting RawData as the handle (type-confusion UB --
+    // RawData::ModInst would be read as the handle's Data pointer).
+    const Runtime::Instance::ArrayInstance Inst{
+        Ref.getPtr<Runtime::Instance::GCInstance::RawData>()};
     spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx), Cnt,
-                                        Inst->getLength()));
+                                        Inst.getLength()));
   }
 }
 
@@ -37,23 +46,28 @@ void logDoubleArrayOOB(const ErrCode &Code, const uint32_t Idx1,
                        const uint32_t Idx2, const uint32_t Cnt2,
                        const RefVariant &Ref2) noexcept {
   if (Code == ErrCode::Value::ArrayOutOfBounds) {
-    const auto *Inst1 = Ref1.getPtr<Runtime::Instance::ArrayInstance>();
-    const auto *Inst2 = Ref2.getPtr<Runtime::Instance::ArrayInstance>();
+    // Wrap the RawData payloads in ArrayInstance handles rather than
+    // reinterpreting RawData as the handle class (type-confusion UB); see
+    // logArrayOOB.
+    const Runtime::Instance::ArrayInstance Inst1{
+        Ref1.getPtr<Runtime::Instance::GCInstance::RawData>()};
+    const Runtime::Instance::ArrayInstance Inst2{
+        Ref2.getPtr<Runtime::Instance::GCInstance::RawData>()};
     if (static_cast<uint64_t>(Idx1) + static_cast<uint64_t>(Cnt1) >
-        Inst1->getLength()) {
+        Inst1.getLength()) {
       spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx1), Cnt1,
-                                          Inst1->getLength()));
+                                          Inst1.getLength()));
     } else if (static_cast<uint64_t>(Idx2) + static_cast<uint64_t>(Cnt2) >
-               Inst2->getLength()) {
+               Inst2.getLength()) {
       spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx2), Cnt2,
-                                          Inst2->getLength()));
+                                          Inst2.getLength()));
     }
   }
 }
 
 void logMemoryOOB(const ErrCode &Code,
                   const Runtime::Instance::DataInstance &DataInst,
-                  const uint32_t Idx, const uint32_t Length) noexcept {
+                  const uint32_t Idx, const uint64_t Length) noexcept {
   if (Code == ErrCode::Value::MemoryOutOfBounds) {
     spdlog::error(ErrInfo::InfoBoundary(
         static_cast<uint64_t>(Idx), Length,
@@ -116,7 +130,8 @@ Executor::runRefAsNonNullOp(Runtime::StackManager &StackMgr,
 
 Expect<void> Executor::runStructNewOp(Runtime::StackManager &StackMgr,
                                       const uint32_t TypeIdx,
-                                      const bool IsDefault) const noexcept {
+                                      const bool IsDefault) noexcept {
+  getAllocator().autoCollect();
   if (IsDefault) {
     EXPECTED_TRY(auto Ref, structNew(StackMgr.getModule(), TypeIdx));
     StackMgr.push(std::move(Ref));
@@ -160,7 +175,8 @@ Executor::runStructSetOp(Runtime::StackManager &StackMgr,
 Expect<void> Executor::runArrayNewOp(Runtime::StackManager &StackMgr,
                                      const uint32_t TypeIdx,
                                      const uint32_t InitCnt,
-                                     uint32_t Length) const noexcept {
+                                     uint32_t Length) noexcept {
+  getAllocator().autoCollect();
   assuming(InitCnt == 0 || InitCnt == 1 || InitCnt == Length);
   if (InitCnt == 0) {
     EXPECTED_TRY(auto Ref, arrayNew(StackMgr.getModule(), TypeIdx, Length));
@@ -186,7 +202,8 @@ Expect<void> Executor::runArrayNewOp(Runtime::StackManager &StackMgr,
 Expect<void>
 Executor::runArrayNewDataOp(Runtime::StackManager &StackMgr,
                             const uint32_t TypeIdx, const uint32_t DataIdx,
-                            const AST::Instruction &Instr) const noexcept {
+                            const AST::Instruction &Instr) noexcept {
+  getAllocator().autoCollect();
   const uint32_t Length = StackMgr.pop<uint32_t>();
   const uint32_t Start = StackMgr.peekTop<uint32_t>();
   EXPECTED_TRY(
@@ -198,8 +215,11 @@ Executor::runArrayNewDataOp(Runtime::StackManager &StackMgr,
                 getArrayStorageTypeByIdx(StackMgr.getModule(), TypeIdx)
                     .getBitWidth() /
                 8;
+            // uint64_t so the logged size does not wrap; the 64-bit trap check
+            // is in arrayNewData.
             return logError(E, Instr, [&]() {
-              return logMemoryOOB(E, *DataInst, Start, BSize * Length);
+              return logMemoryOOB(E, *DataInst, Start,
+                                  static_cast<uint64_t>(BSize) * Length);
             });
           }));
   StackMgr.emplaceTop<RefVariant>(std::move(Ref));
@@ -209,7 +229,8 @@ Executor::runArrayNewDataOp(Runtime::StackManager &StackMgr,
 Expect<void>
 Executor::runArrayNewElemOp(Runtime::StackManager &StackMgr,
                             const uint32_t TypeIdx, const uint32_t ElemIdx,
-                            const AST::Instruction &Instr) const noexcept {
+                            const AST::Instruction &Instr) noexcept {
+  getAllocator().autoCollect();
   uint32_t Length, Start;
   std::tie(Length, Start) = StackMgr.popsPeekTop<uint32_t, uint32_t>();
   EXPECTED_TRY(
@@ -263,11 +284,12 @@ Expect<void>
 Executor::runArrayLenOp(Runtime::StackManager &StackMgr,
                         const AST::Instruction &Instr) const noexcept {
   const auto Ref = StackMgr.peekTop<RefVariant>();
-  const auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(logError(ErrCode::Value::AccessNullArray, Instr));
   }
-  StackMgr.emplaceTop<uint32_t>(Inst->getLength());
+  const Runtime::Instance::ArrayInstance Inst{Raw};
+  StackMgr.emplaceTop<uint32_t>(Inst.getLength());
   return {};
 }
 
@@ -334,7 +356,10 @@ Executor::runArrayInitDataOp(Runtime::StackManager &StackMgr,
             return logError(
                 E, Instr, [&]() { return logArrayOOB(E, DstIdx, Cnt, Ref); },
                 [&]() {
-                  return logMemoryOOB(E, *DataInst, SrcIdx, Cnt * BSize);
+                  // uint64_t so the logged size does not wrap; the 64-bit trap
+                  // check is in arrayInitData.
+                  return logMemoryOOB(E, *DataInst, SrcIdx,
+                                      static_cast<uint64_t>(Cnt) * BSize);
                 });
           }));
   return {};
@@ -375,12 +400,13 @@ Expect<void> Executor::runRefTestOp(Runtime::StackManager &StackMgr,
   }
   Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
   if (!VT.isAbsHeapType()) {
-    auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
-    // Reference must not be nullptr here because the null references are typed
-    // with the least abstract heap type.
-    assuming(Inst);
-    if (Inst->getModule()) {
-      GotTypeList = Inst->getModule()->getTypeList();
+    // Resolve the defining module from the payload's leading
+    // `const ModuleInstance *` (see getInnerPtr). Null refs carry the least
+    // abstract heap type, so the payload is non-null.
+    const auto *RefMod =
+        Ref.getInnerPtr<const Runtime::Instance::ModuleInstance>();
+    if (RefMod) {
+      GotTypeList = RefMod->getTypeList();
     }
   }
 
@@ -456,158 +482,237 @@ Expect<void> Executor::runI31GetOp(Runtime::StackManager &StackMgr,
 }
 
 Expect<RefVariant>
-Executor::structNew(const Runtime::Instance::ModuleInstance *ModInstArg,
+Executor::structNew(const Runtime::Instance::ModuleInstance *ModInst,
                     const uint32_t TypeIdx,
-                    Span<const ValVariant> Args) const noexcept {
-  /// TODO: The array and struct instances are currently owned by the module
-  /// instance because they refer to the defined types of the module instances.
-  /// This may be changed after applying the garbage collection mechanism.
-  const auto &CompType = getCompositeTypeByIdx(ModInstArg, TypeIdx);
+                    Span<const ValVariant> Args) noexcept {
+  // Struct/array instances are GC-allocator-owned and keep a pointer to their
+  // defining module to resolve the composite type for allocation and marking.
+  const auto &CompType = getCompositeTypeByIdx(ModInst, TypeIdx);
   uint32_t N = static_cast<uint32_t>(CompType.getFieldTypes().size());
-  auto *ModInst = const_cast<Runtime::Instance::ModuleInstance *>(ModInstArg);
-  std::vector<ValVariant> Vals(N);
-  for (uint32_t I = 0; I < N; I++) {
-    const auto &VType = CompType.getFieldTypes()[I].getStorageType();
-    if (Args.size() > 0) {
-      Vals[I] = packVal(VType, Args[I]);
-    } else {
-      Vals[I] = VType.isRefType()
-                    ? ValVariant(RefVariant(toBottomType(ModInstArg, VType)))
-                    : ValVariant(static_cast<uint128_t>(0U));
+  std::vector<ValVariant> Vals;
+  // N is validator-bounded, but guard the staging buffer anyway for parity
+  // with arrayNewData: a bad_alloc escaping this noexcept function would
+  // call std::terminate. Catch and trap instead; the guard also compiles
+  // under -fno-exceptions.
+#if defined(__EXCEPTIONS) || defined(__cpp_exceptions) || defined(_CPPUNWIND)
+  try {
+#endif
+    Vals.resize(N);
+    for (uint32_t I = 0; I < N; I++) {
+      const auto &VType = CompType.getFieldTypes()[I].getStorageType();
+      if (Args.size() > 0) {
+        Vals[I] = packVal(VType, Args[I]);
+      } else {
+        Vals[I] = VType.isRefType()
+                      ? ValVariant(RefVariant(toBottomType(ModInst, VType)))
+                      : ValVariant(static_cast<uint128_t>(0U));
+      }
     }
+#if defined(__EXCEPTIONS) || defined(__cpp_exceptions) || defined(_CPPUNWIND)
+  } catch (...) {
+    return Unexpect(ErrCode::Value::GCAllocationFailed);
   }
-  WasmEdge::Runtime::Instance::StructInstance *Inst =
-      ModInst->newStruct(TypeIdx, std::move(Vals));
-  return RefVariant(Inst->getDefType(), Inst);
+#endif
+  Runtime::Instance::StructInstance Inst(getAllocator(), ModInst, TypeIdx,
+                                         std::move(Vals));
+  if (Inst.getRaw() == nullptr) {
+    return Unexpect(ErrCode::Value::GCAllocationFailed);
+  }
+  return RefVariant(ValType(TypeCode::Ref, TypeIdx), Inst.getRaw());
 }
 
 Expect<ValVariant>
 Executor::structGet(const Runtime::Instance::ModuleInstance *ModInst,
                     const RefVariant Ref, const uint32_t TypeIdx,
                     const uint32_t Off, const bool IsSigned) const noexcept {
-  const auto *Inst = Ref.getPtr<Runtime::Instance::StructInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullStruct);
   }
+  const Runtime::Instance::StructInstance Inst{Raw};
   const auto &VType = getStructStorageTypeByIdx(ModInst, TypeIdx, Off);
-  return unpackVal(VType, Inst->getField(Off), IsSigned);
+  // Read the (type,pointer) pair coherently: a concurrent structSet on the same
+  // 128-bit slot must never surface a torn pair to unpackVal.
+  return unpackVal(VType, GC::loadCoherent(Inst.getField(Off)), IsSigned);
 }
 
 Expect<void>
 Executor::structSet(const Runtime::Instance::ModuleInstance *ModInst,
                     const RefVariant Ref, const ValVariant Val,
                     const uint32_t TypeIdx, const uint32_t Off) const noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::StructInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullStruct);
   }
+  Runtime::Instance::StructInstance Inst{Raw};
   const auto &VType = getStructStorageTypeByIdx(ModInst, TypeIdx, Off);
-  Inst->getField(Off) = packVal(VType, Val);
+  // Only reference fields need the write barrier; on a numeric field it would
+  // read an arbitrary word as a candidate pointer (harmless, but wasted work
+  // and slight false-retention).
+  if (VType.isRefType()) {
+    // Old value lives in the live slot a concurrent marker/writer may touch:
+    // read its pointer word atomically (see writeBarrierSlot). The new value is
+    // a local, so a plain writeBarrier is race-free.
+    getAllocator().writeBarrierSlot(Inst.getField(Off));
+    getAllocator().writeBarrier(Val);
+  }
+  // Publish both words as one coherent transaction (see structGet).
+  GC::storeCoherent(Inst.getField(Off), packVal(VType, Val));
   return {};
 }
 
 Expect<RefVariant>
-Executor::arrayNew(const Runtime::Instance::ModuleInstance *ModInstArg,
+Executor::arrayNew(const Runtime::Instance::ModuleInstance *ModInst,
                    const uint32_t TypeIdx, const uint32_t Length,
-                   Span<const ValVariant> Args) const noexcept {
-  /// TODO: The array and struct instances are currently owned by the module
-  /// instance because they refer to the defined types of the module instances.
-  /// This may be changed after applying the garbage collection mechanism.
-  const auto &VType = getArrayStorageTypeByIdx(ModInstArg, TypeIdx);
-  WasmEdge::Runtime::Instance::ArrayInstance *Inst = nullptr;
-  auto *ModInst = const_cast<Runtime::Instance::ModuleInstance *>(ModInstArg);
+                   Span<const ValVariant> Args) noexcept {
+  // Struct/array instances are GC-allocator-owned and keep a pointer to their
+  // defining module to resolve the composite type for allocation and marking.
+  Runtime::Instance::GCInstance::RawData *Raw = nullptr;
+  const auto &VType = getArrayStorageTypeByIdx(ModInst, TypeIdx);
   if (Args.size() == 0) {
     // New and fill with default values.
     auto InitVal = VType.isRefType()
-                       ? ValVariant(RefVariant(toBottomType(ModInstArg, VType)))
+                       ? ValVariant(RefVariant(toBottomType(ModInst, VType)))
                        : ValVariant(static_cast<uint128_t>(0U));
-    Inst = ModInst->newArray(TypeIdx, Length, InitVal);
+    Runtime::Instance::ArrayInstance Inst(getAllocator(), ModInst, TypeIdx,
+                                          Length, InitVal);
+    Raw = Inst.getRaw();
   } else if (Args.size() == 1) {
-    // Create and fill with the argument value.
-    Inst = ModInst->newArray(TypeIdx, Length, packVal(VType, Args[0]));
+    // New and fill with the arg value.
+    Runtime::Instance::ArrayInstance Inst(getAllocator(), ModInst, TypeIdx,
+                                          Length, packVal(VType, Args[0]));
+    Raw = Inst.getRaw();
   } else {
-    // Create with arguments.
-    Inst = ModInst->newArray(
-        TypeIdx,
-        packVals(VType, std::vector<ValVariant>(Args.begin(), Args.end())));
+    // New with args.
+    // Args.size() is validator-bounded, but guard the staging buffer anyway
+    // for parity with arrayNewData: a bad_alloc escaping this noexcept
+    // function would call std::terminate. Catch and trap instead; the guard
+    // also compiles under -fno-exceptions.
+    std::vector<ValVariant> ArgVals;
+#if defined(__EXCEPTIONS) || defined(__cpp_exceptions) || defined(_CPPUNWIND)
+    try {
+#endif
+      ArgVals.assign(Args.begin(), Args.end());
+#if defined(__EXCEPTIONS) || defined(__cpp_exceptions) || defined(_CPPUNWIND)
+    } catch (...) {
+      return Unexpect(ErrCode::Value::GCAllocationFailed);
+    }
+#endif
+    Runtime::Instance::ArrayInstance Inst(getAllocator(), ModInst, TypeIdx,
+                                          packVals(VType, std::move(ArgVals)));
+    Raw = Inst.getRaw();
   }
-  return RefVariant(Inst->getDefType(), Inst);
+  if (Raw == nullptr) {
+    return Unexpect(ErrCode::Value::GCAllocationFailed);
+  }
+  return RefVariant(ValType(TypeCode::Ref, TypeIdx), Raw);
 }
 
 Expect<RefVariant>
-Executor::arrayNewData(const Runtime::Instance::ModuleInstance *ModInstArg,
+Executor::arrayNewData(const Runtime::Instance::ModuleInstance *ModInst,
                        const uint32_t TypeIdx, const uint32_t DataIdx,
-                       const uint32_t Start,
-                       const uint32_t Length) const noexcept {
-  const auto &VType = getArrayStorageTypeByIdx(ModInstArg, TypeIdx);
+                       const uint32_t Start, const uint32_t Length) noexcept {
+  const auto &VType = getArrayStorageTypeByIdx(ModInst, TypeIdx);
   const uint32_t BSize = VType.getBitWidth() / 8;
-  auto *DataInst = getDataInstByIdx(ModInstArg, DataIdx);
+  auto *DataInst = getDataInstByIdx(ModInst, DataIdx);
   assuming(DataInst);
   if (static_cast<uint64_t>(Start) + static_cast<uint64_t>(Length) * BSize >
       DataInst->getData().size()) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  auto *ModInst = const_cast<Runtime::Instance::ModuleInstance *>(ModInstArg);
   std::vector<ValVariant> Args;
-  Args.reserve(Length);
-  for (uint32_t Idx = 0; Idx < Length; Idx++) {
-    // The value has been packed.
-    Args.push_back(DataInst->loadValue(Start + Idx * BSize, BSize));
+  // Length is guest-controlled; a bad_alloc/length_error from the staging
+  // buffer would escape this noexcept function and call std::terminate. Catch
+  // and trap instead; the guard also compiles under -fno-exceptions.
+#if defined(__EXCEPTIONS) || defined(__cpp_exceptions) || defined(_CPPUNWIND)
+  try {
+#endif
+    Args.reserve(Length);
+    for (uint32_t Idx = 0; Idx < Length; Idx++) {
+      // The value has been packed.
+      Args.push_back(DataInst->loadValue(Start + Idx * BSize, BSize));
+    }
+#if defined(__EXCEPTIONS) || defined(__cpp_exceptions) || defined(_CPPUNWIND)
+  } catch (...) {
+    return Unexpect(ErrCode::Value::GCAllocationFailed);
   }
-  WasmEdge::Runtime::Instance::ArrayInstance *Inst =
-      ModInst->newArray(TypeIdx, std::move(Args));
-  return RefVariant(Inst->getDefType(), Inst);
+#endif
+  Runtime::Instance::ArrayInstance Inst(getAllocator(), ModInst, TypeIdx,
+                                        std::move(Args));
+  if (Inst.getRaw() == nullptr) {
+    return Unexpect(ErrCode::Value::GCAllocationFailed);
+  }
+  return RefVariant(ValType(TypeCode::Ref, TypeIdx), Inst.getRaw());
 }
 
 Expect<RefVariant>
-Executor::arrayNewElem(const Runtime::Instance::ModuleInstance *ModInstArg,
+Executor::arrayNewElem(const Runtime::Instance::ModuleInstance *ModInst,
                        const uint32_t TypeIdx, const uint32_t ElemIdx,
-                       const uint32_t Start,
-                       const uint32_t Length) const noexcept {
-  const auto &VType = getArrayStorageTypeByIdx(ModInstArg, TypeIdx);
-  auto *ElemInst = getElemInstByIdx(ModInstArg, ElemIdx);
+                       const uint32_t Start, const uint32_t Length) noexcept {
+  const auto &VType = getArrayStorageTypeByIdx(ModInst, TypeIdx);
+  auto *ElemInst = getElemInstByIdx(ModInst, ElemIdx);
   assuming(ElemInst);
   auto ElemSrc = ElemInst->getRefs();
   if (static_cast<uint64_t>(Start) + static_cast<uint64_t>(Length) >
       ElemSrc.size()) {
     return Unexpect(ErrCode::Value::TableOutOfBounds);
   }
-  std::vector<ValVariant> Refs(ElemSrc.begin() + Start,
-                               ElemSrc.begin() + Start + Length);
-  auto *ModInst = const_cast<Runtime::Instance::ModuleInstance *>(ModInstArg);
-  WasmEdge::Runtime::Instance::ArrayInstance *Inst =
-      ModInst->newArray(TypeIdx, packVals(VType, std::move(Refs)));
-  return RefVariant(Inst->getDefType(), Inst);
+  // Length is guest-controlled; build the staging buffer under a guard so a
+  // bad_alloc cannot escape this noexcept function and terminate (see
+  // arrayNewData).
+  std::vector<ValVariant> Refs;
+#if defined(__EXCEPTIONS) || defined(__cpp_exceptions) || defined(_CPPUNWIND)
+  try {
+#endif
+    Refs.assign(ElemSrc.begin() + Start, ElemSrc.begin() + Start + Length);
+#if defined(__EXCEPTIONS) || defined(__cpp_exceptions) || defined(_CPPUNWIND)
+  } catch (...) {
+    return Unexpect(ErrCode::Value::GCAllocationFailed);
+  }
+#endif
+  Runtime::Instance::ArrayInstance Inst(getAllocator(), ModInst, TypeIdx,
+                                        packVals(VType, std::move(Refs)));
+  if (Inst.getRaw() == nullptr) {
+    return Unexpect(ErrCode::Value::GCAllocationFailed);
+  }
+  return RefVariant(ValType(TypeCode::Ref, TypeIdx), Inst.getRaw());
 }
 
 Expect<ValVariant>
 Executor::arrayGet(const Runtime::Instance::ModuleInstance *ModInst,
                    const RefVariant &Ref, const uint32_t TypeIdx,
                    const uint32_t Idx, const bool IsSigned) const noexcept {
-  const auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
-  if (Idx >= Inst->getLength()) {
+  Runtime::Instance::ArrayInstance Inst{Raw};
+  if (Idx >= Inst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   const auto &VType = getArrayStorageTypeByIdx(ModInst, TypeIdx);
-  return unpackVal(VType, Inst->getData(Idx), IsSigned);
+  return unpackVal(VType, GC::loadCoherent(Inst.getData(Idx)), IsSigned);
 }
 
 Expect<void>
 Executor::arraySet(const Runtime::Instance::ModuleInstance *ModInst,
                    const RefVariant &Ref, const ValVariant &Val,
                    const uint32_t TypeIdx, const uint32_t Idx) const noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
-  if (Idx >= Inst->getLength()) {
+  Runtime::Instance::ArrayInstance Inst{Raw};
+  if (Idx >= Inst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   const auto &VType = getArrayStorageTypeByIdx(ModInst, TypeIdx);
-  Inst->getData(Idx) = packVal(VType, Val);
+  // Only reference elements participate in the write barrier (see structSet).
+  if (VType.isRefType()) {
+    getAllocator().writeBarrierSlot(Inst.getData(Idx));
+    getAllocator().writeBarrier(Val);
+  }
+  GC::storeCoherent(Inst.getData(Idx), packVal(VType, Val));
   return {};
 }
 
@@ -616,17 +721,34 @@ Executor::arrayFill(const Runtime::Instance::ModuleInstance *ModInst,
                     const RefVariant &Ref, const ValVariant &Val,
                     const uint32_t TypeIdx, const uint32_t Idx,
                     const uint32_t Cnt) const noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
+  Runtime::Instance::ArrayInstance Inst{Raw};
   if (static_cast<uint64_t>(Idx) + static_cast<uint64_t>(Cnt) >
-      Inst->getLength()) {
+      Inst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
+  // A zero-count fill is a valid no-op even at Idx == Length; return before
+  // getData(Idx), whose precondition is Idx < Length (a one-past-end reference
+  // otherwise).
+  if (Cnt == 0) {
+    return {};
+  }
   const auto &VType = getArrayStorageTypeByIdx(ModInst, TypeIdx);
-  auto Arr = Inst->getArray();
-  std::fill(Arr.begin() + Idx, Arr.begin() + Idx + Cnt, packVal(VType, Val));
+  // Only reference elements participate in the write barrier (see structSet).
+  if (VType.isRefType()) {
+    getAllocator().bulkWriteBarrierSlots(
+        Span<const ValVariant>(&Inst.getData(Idx), Cnt));
+    getAllocator().writeBarrier(Val);
+  }
+  // Per-element coherent store (correctness first; bulk vectorization is a
+  // later plan). Each element slot may be read by the marker concurrently.
+  const ValVariant Packed = packVal(VType, Val);
+  for (uint32_t I = 0; I < Cnt; ++I) {
+    GC::storeCoherent(Inst.getData(Idx + I), Packed);
+  }
   return {};
 }
 
@@ -634,12 +756,13 @@ Expect<void> Executor::arrayInitData(
     const Runtime::Instance::ModuleInstance *ModInst, const RefVariant &Ref,
     const uint32_t TypeIdx, const uint32_t DataIdx, const uint32_t DstIdx,
     const uint32_t SrcIdx, const uint32_t Cnt) const noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
+  Runtime::Instance::ArrayInstance Inst{Raw};
   if (static_cast<uint64_t>(DstIdx) + static_cast<uint64_t>(Cnt) >
-      Inst->getLength()) {
+      Inst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   const auto &VType = getArrayStorageTypeByIdx(ModInst, TypeIdx);
@@ -651,10 +774,14 @@ Expect<void> Executor::arrayInitData(
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 
+  // array.init_data is numeric-only, so the destination is never ref-typed;
+  // no write barrier is needed (cf. arrayInitElem, which is ref-typed). The
+  // store is still coherent so it does not data-race the marker's atomic read
+  // of the element's pointer word (the marker scans numeric elements too).
   for (uint32_t Idx = 0; Idx < Cnt; Idx++) {
     // The value has been packed.
-    Inst->getData(DstIdx + Idx) =
-        DataInst->loadValue(SrcIdx + Idx * BSize, BSize);
+    GC::storeCoherent(Inst.getData(DstIdx + Idx),
+                      DataInst->loadValue(SrcIdx + Idx * BSize, BSize));
   }
   return {};
 }
@@ -663,12 +790,13 @@ Expect<void> Executor::arrayInitElem(
     const Runtime::Instance::ModuleInstance *ModInst, const RefVariant &Ref,
     const uint32_t TypeIdx, const uint32_t ElemIdx, const uint32_t DstIdx,
     const uint32_t SrcIdx, const uint32_t Cnt) const noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
+  Runtime::Instance::ArrayInstance Inst{Raw};
   if (static_cast<uint64_t>(DstIdx) + static_cast<uint64_t>(Cnt) >
-      Inst->getLength()) {
+      Inst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   const auto &VType = getArrayStorageTypeByIdx(ModInst, TypeIdx);
@@ -679,12 +807,23 @@ Expect<void> Executor::arrayInitElem(
       ElemSrc.size()) {
     return Unexpect(ErrCode::Value::TableOutOfBounds);
   }
+  // Zero-count init is a valid no-op even at DstIdx/SrcIdx == length; return
+  // before getData(DstIdx) forms a one-past-end reference.
+  if (Cnt == 0) {
+    return {};
+  }
 
-  auto Arr = Inst->getArray();
-  // The value has been packed.
-  std::transform(ElemSrc.begin() + SrcIdx, ElemSrc.begin() + SrcIdx + Cnt,
-                 Arr.begin() + DstIdx,
-                 [&](const RefVariant &V) { return packVal(VType, V); });
+  // The destination elements are live slots a concurrent writer may
+  // storeCoherent to (atomic old-value read); the element-segment source is
+  // stable, so a plain bulk barrier is race-free there.
+  getAllocator().bulkWriteBarrierSlots(
+      Span<const ValVariant>(&Inst.getData(DstIdx), Cnt));
+  getAllocator().bulkWriteBarrier(ElemSrc.subspan(SrcIdx, Cnt));
+  // The value has been packed. Per-element coherent store (see arrayFill).
+  for (uint32_t I = 0; I < Cnt; ++I) {
+    GC::storeCoherent(Inst.getData(DstIdx + I),
+                      packVal(VType, ElemSrc[SrcIdx + I]));
+  }
   return {};
 }
 
@@ -694,39 +833,54 @@ Executor::arrayCopy(const Runtime::Instance::ModuleInstance *ModInst,
                     const uint32_t DstIdx, const RefVariant &SrcRef,
                     const uint32_t SrcTypeIdx, const uint32_t SrcIdx,
                     const uint32_t Cnt) const noexcept {
-  auto *SrcInst = SrcRef.getPtr<Runtime::Instance::ArrayInstance>();
-  auto *DstInst = DstRef.getPtr<Runtime::Instance::ArrayInstance>();
-  if (SrcInst == nullptr) {
+  auto *SrcRaw = SrcRef.getPtr<Runtime::Instance::GCInstance::RawData>();
+  auto *DstRaw = DstRef.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (SrcRaw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
-  if (DstInst == nullptr) {
+  if (DstRaw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
+  const Runtime::Instance::ArrayInstance SrcInst{SrcRaw};
+  Runtime::Instance::ArrayInstance DstInst{DstRaw};
   if (static_cast<uint64_t>(SrcIdx) + static_cast<uint64_t>(Cnt) >
-      SrcInst->getLength()) {
+      SrcInst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   if (static_cast<uint64_t>(DstIdx) + static_cast<uint64_t>(Cnt) >
-      DstInst->getLength()) {
+      DstInst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
+  // Zero-count copy is a valid no-op even at DstIdx/SrcIdx == length; return
+  // before getData() forms a one-past-end reference.
+  if (Cnt == 0) {
+    return {};
+  }
 
-  auto SrcArr = SrcInst->getArray();
-  auto DstArr = DstInst->getArray();
   const auto &SrcVType = getArrayStorageTypeByIdx(ModInst, SrcTypeIdx);
   const auto &DstVType = getArrayStorageTypeByIdx(ModInst, DstTypeIdx);
+  // Both source and destination are live array slots a concurrent writer may
+  // storeCoherent to, so both old-value reads use the atomic slot barrier.
+  getAllocator().bulkWriteBarrierSlots(
+      Span<const ValVariant>(&DstInst.getData(DstIdx), Cnt));
+  getAllocator().bulkWriteBarrierSlots(
+      Span<const ValVariant>(&SrcInst.getData(SrcIdx), Cnt));
+  // Per-element coherent copy; the direction keeps overlapping same-array
+  // copies correct, reading each source slot before it can be overwritten (see
+  // arrayFill for why bulk transform is deferred).
+  auto CopyOne = [&](uint32_t I) noexcept {
+    const ValVariant V = GC::loadCoherent(SrcInst.getData(SrcIdx + I));
+    GC::storeCoherent(DstInst.getData(DstIdx + I),
+                      packVal(DstVType, unpackVal(SrcVType, V)));
+  };
   if (DstIdx <= SrcIdx) {
-    std::transform(SrcArr.begin() + SrcIdx, SrcArr.begin() + SrcIdx + Cnt,
-                   DstArr.begin() + DstIdx, [&](const ValVariant &V) {
-                     return packVal(DstVType, unpackVal(SrcVType, V));
-                   });
+    for (uint32_t I = 0; I < Cnt; ++I) {
+      CopyOne(I);
+    }
   } else {
-    std::transform(std::make_reverse_iterator(SrcArr.begin() + SrcIdx + Cnt),
-                   std::make_reverse_iterator(SrcArr.begin() + SrcIdx),
-                   std::make_reverse_iterator(DstArr.begin() + DstIdx + Cnt),
-                   [&](const ValVariant &V) {
-                     return packVal(DstVType, unpackVal(SrcVType, V));
-                   });
+    for (uint32_t I = Cnt; I-- > 0;) {
+      CopyOne(I);
+    }
   }
   return {};
 }

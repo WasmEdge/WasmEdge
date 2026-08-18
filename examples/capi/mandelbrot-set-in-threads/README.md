@@ -85,7 +85,12 @@ WasmEdge_String MemoryName = WasmEdge_StringCreateByCString("memory");
 WasmEdge_ModuleInstanceAddMemory(HostModCxt, MemoryName, HostMemory);
 ```
 
-After the AOT-compiled WASM `mandelbrot.so` being made, you can load the file and instantiate the WASM module with `WasmEdge_VMRegisterModuleFromFile`.
+After the AOT-compiled WASM `mandelbrot.so` being made, you can load the file and instantiate the WASM module with `WasmEdge_VMRegisterModuleFromFile`. Loading a native shared library requires the AOT run mode, which must be set on the configure context before `WasmEdge_VMCreate`.
+
+```c
+WasmEdge_ConfigureSetRunMode(ConfCxt, WasmEdge_RunMode_AOT);
+WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(ConfCxt, NULL);
+```
 
 ```c
 WasmEdge_String ModName = WasmEdge_StringCreateByCString("mandelbrot");

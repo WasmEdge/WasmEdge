@@ -1079,6 +1079,7 @@ TEST(AOTMemory64, BoundsCheck) {
   VM.cleanup();
   EXPECT_NO_THROW(std::filesystem::remove(Path));
 }
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

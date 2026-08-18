@@ -155,9 +155,10 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       StackMgr.push(std::move(R));
     }
 
-    // For host function case, the continuation will be the continuation from
-    // the popped frame.
-    return StackMgr.popFrame();
+    // A tail call pops the replaced caller's frame, whose `From` is one before
+    // its resume point, so step it forward one instruction for `runCallOp`.
+    const AST::InstrView::iterator Continuation = StackMgr.popFrame();
+    return IsTailCall ? Continuation + 1 : Continuation;
   } else if (Func.isCompiledFunction()) {
     // Compiled function case: Execute the function and jump to the
     // continuation.
@@ -242,9 +243,10 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       StackMgr.push(Rets[I]);
     }
 
-    // For compiled function case, the continuation will be the continuation
-    // from the popped frame.
-    return StackMgr.popFrame();
+    // As in the host case, step a tail-call continuation forward one
+    // instruction for `runCallOp`.
+    const AST::InstrView::iterator Continuation = StackMgr.popFrame();
+    return IsTailCall ? Continuation + 1 : Continuation;
   } else {
     // WASM interpreter case: Jump to the start of the function body.
 

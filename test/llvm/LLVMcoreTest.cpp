@@ -942,54 +942,55 @@ TEST(SIMDNaN, F32x4MaxNaNHandling) {
   EXPECT_NO_THROW(std::filesystem::remove(Path));
 }
 
-TEST(CodeGenOutput, NativeUnwritablePath) {
-  WasmEdge::Configure Conf;
-  Conf.getCompilerConfigure().setOutputFormat(
-      CompilerConfigure::OutputFormat::Native);
+TEST(CodeGenOutput, TemporaryObjectWriteFailure) {
+  const auto Path = std::filesystem::temp_directory_path() /
+                    std::filesystem::u8path("WasmEdgeNoSuchDir") /
+                    std::filesystem::u8path("out" WASMEDGE_LIB_EXTENSION);
 
-  WasmEdge::Loader::Loader Loader(Conf);
-  WasmEdge::Validator::Validator ValidatorEngine(Conf);
-  WasmEdge::LLVM::Compiler Compiler(Conf);
-  WasmEdge::LLVM::CodeGen CodeGen(Conf);
-
-  auto Path = std::filesystem::temp_directory_path() /
-              std::filesystem::u8path("WasmEdgeNoSuchDir") /
-              std::filesystem::u8path("out" WASMEDGE_LIB_EXTENSION);
   ASSERT_FALSE(std::filesystem::exists(Path.parent_path()));
 
-  auto Module = *Loader.parseModule(AsyncWasm);
-  ASSERT_TRUE(ValidatorEngine.validate(*Module));
-  auto Data = Compiler.compile(*Module);
-  ASSERT_TRUE(Data);
+  const std::array Formats{CompilerConfigure::OutputFormat::Native,
+                           CompilerConfigure::OutputFormat::Wasm};
 
-  auto Result = CodeGen.codegen(AsyncWasm, std::move(*Data), Path);
-  ASSERT_FALSE(Result);
-  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalPath);
-}
+  for (const auto Format : Formats) {
+    SCOPED_TRACE(Format == CompilerConfigure::OutputFormat::Native ? "Native"
+                                                                   : "Wasm");
 
-TEST(CodeGenOutput, WasmUnwritablePath) {
-  WasmEdge::Configure Conf;
-  Conf.getCompilerConfigure().setOutputFormat(
-      CompilerConfigure::OutputFormat::Wasm);
+    WasmEdge::Configure Conf;
+    Conf.getCompilerConfigure().setOutputFormat(Format);
 
-  WasmEdge::Loader::Loader Loader(Conf);
-  WasmEdge::Validator::Validator ValidatorEngine(Conf);
-  WasmEdge::LLVM::Compiler Compiler(Conf);
-  WasmEdge::LLVM::CodeGen CodeGen(Conf);
+    WasmEdge::Loader::Loader Loader(Conf);
+    WasmEdge::Validator::Validator ValidatorEngine(Conf);
+    WasmEdge::LLVM::Compiler Compiler(Conf);
+    WasmEdge::LLVM::CodeGen CodeGen(Conf);
 
-  auto Path = std::filesystem::temp_directory_path() /
-              std::filesystem::u8path("WasmEdgeNoSuchDir") /
-              std::filesystem::u8path("out" WASMEDGE_LIB_EXTENSION);
-  ASSERT_FALSE(std::filesystem::exists(Path.parent_path()));
+    auto Module = *Loader.parseModule(AsyncWasm);
+    ASSERT_TRUE(ValidatorEngine.validate(*Module));
 
-  auto Module = *Loader.parseModule(AsyncWasm);
-  ASSERT_TRUE(ValidatorEngine.validate(*Module));
-  auto Data = Compiler.compile(*Module);
-  ASSERT_TRUE(Data);
+    auto Data = Compiler.compile(*Module);
+    ASSERT_TRUE(Data);
 
-  auto Result = CodeGen.codegen(AsyncWasm, std::move(*Data), Path);
-  ASSERT_FALSE(Result);
-  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalPath);
+    std::string Diagnostic;
+    auto PreviousLogger = spdlog::default_logger();
+
+    WasmEdge::Log::setLoggingCallback(
+        [&](const spdlog::details::log_msg &Message) {
+          Diagnostic.append(Message.payload.data(), Message.payload.size());
+          Diagnostic.push_back('\n');
+        });
+
+    auto Result = CodeGen.codegen(AsyncWasm, std::move(*Data), Path);
+    spdlog::set_default_logger(std::move(PreviousLogger));
+
+    EXPECT_FALSE(Result);
+
+    if (!Result) {
+      EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalPath);
+    }
+
+    EXPECT_NE(Diagnostic.find("object file write failed:"), std::string::npos)
+        << Diagnostic;
+  }
 }
 } // namespace
 

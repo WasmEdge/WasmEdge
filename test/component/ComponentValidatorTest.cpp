@@ -3,8 +3,9 @@
 
 #include "ast/component/component.h"
 #include "ast/component/type.h"
+#include "validator/component_value_decode.h"
 #include "validator/validator.h"
-#include "vm/vm.h"
+#include "vm/component_vm.h"
 
 #include <gtest/gtest.h>
 
@@ -354,11 +355,17 @@ TEST(ComponentValidatorTest, FuncTypeBorrowInResultRejected) {
   TypeSec.getContent().emplace_back();
   TypeSec.getContent().back().setResourceType(AST::Component::ResourceType());
 
-  // Type 1: func with borrow in result
+  // Type 1: (borrow 0)
+  TypeSec.getContent().emplace_back();
+  AST::Component::DefValType BorrowDVT;
+  BorrowDVT.setBorrow(AST::Component::BorrowTy{0});
+  TypeSec.getContent().back().setDefValType(std::move(BorrowDVT));
+
+  // Type 2: func with borrow in result
   TypeSec.getContent().emplace_back();
   AST::Component::FuncType FT;
   std::vector<AST::Component::LabelValType> Results;
-  Results.emplace_back(ComponentValType(ComponentTypeCode::Borrow, 0));
+  Results.emplace_back(ComponentValType(1));
   FT.setResultList(std::move(Results));
   TypeSec.getContent().back().setFuncType(std::move(FT));
 
@@ -660,9 +667,10 @@ TEST(ComponentValidatorTest, InstanceTypeExportCaseFoldConflict) {
 
 TEST(ComponentValidatorTest, InstanceTypeExportConstructorPlainAllowed) {
   // (type (instance
-  //   (type (func))                         ;; type 0 for the exports below
-  //   (export "foo" (func (type 0)))
-  //   (export "[constructor]foo" (func (type 0)))  ;; OK: strongly-unique pair
+  //   (export "foo" (type (sub resource)))       ;; local type 0
+  //   (type (own 0))                             ;; local type 1
+  //   (type (func (result (own 0))))             ;; local type 2
+  //   (export "[constructor]foo" (func (type 2))) ;; OK: strongly-unique pair
   // ))
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
@@ -671,18 +679,36 @@ TEST(ComponentValidatorTest, InstanceTypeExportConstructorPlainAllowed) {
       std::get<AST::Component::TypeSection>(Comp.getSections().back());
 
   std::vector<AST::Component::InstanceDecl> Decls;
-  // Define a FuncType at the instancetype's local type idx 0.
+  {
+    AST::Component::ExportDecl Exp;
+    Exp.getName() = "foo";
+    Exp.getExternDesc().setTypeBound();
+    AST::Component::InstanceDecl D;
+    D.setExport(std::move(Exp));
+    Decls.push_back(std::move(D));
+  }
   {
     auto DT = std::make_unique<AST::Component::DefType>();
-    DT->setFuncType(AST::Component::FuncType{});
-    AST::Component::InstanceDecl FtDecl;
-    FtDecl.setType(std::move(DT));
-    Decls.push_back(std::move(FtDecl));
+    AST::Component::DefValType OwnDVT;
+    OwnDVT.setOwn(AST::Component::OwnTy{0});
+    DT->setDefValType(std::move(OwnDVT));
+    AST::Component::InstanceDecl D;
+    D.setType(std::move(DT));
+    Decls.push_back(std::move(D));
   }
-  for (const auto *N : {"foo", "[constructor]foo"}) {
+  {
+    auto DT = std::make_unique<AST::Component::DefType>();
+    AST::Component::FuncType FT;
+    FT.setResultList(ComponentValType(1));
+    DT->setFuncType(std::move(FT));
+    AST::Component::InstanceDecl D;
+    D.setType(std::move(DT));
+    Decls.push_back(std::move(D));
+  }
+  {
     AST::Component::ExportDecl Exp;
-    Exp.getName() = N;
-    Exp.getExternDesc().setFuncTypeIdx(0);
+    Exp.getName() = "[constructor]foo";
+    Exp.getExternDesc().setFuncTypeIdx(2);
     AST::Component::InstanceDecl D;
     D.setExport(std::move(Exp));
     Decls.push_back(std::move(D));
@@ -1297,7 +1323,7 @@ inline AST::Component::Component makeCompWithCoreFuncAndFuncType() {
   TypeSec.getContent().emplace_back();
   TypeSec.getContent().back().setResourceType(AST::Component::ResourceType{});
   // Type 1: FuncType (param "p" u32) (result u32). Its lift flattening
-  // (flatten_functype($opts, $ft, 'lift'), CanonicalABI.md L3562) is
+  // (flatten_functype($opts, $ft, 'lift'), CanonicalABI.md) is
   // [i32] -> [i32], matching the resource.new core func used as the lift
   // $callee below.
   AST::Component::FuncType FT;
@@ -1498,17 +1524,6 @@ TEST(ComponentValidatorTest, CanonResourceDrop_TypeIndexOutOfBounds_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonResourceDropAsync_OnLocalResource_Passes) {
-  auto Comp = makeCompWithLocalResource();
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Resource__drop_async);
-  C.setIndex(0);
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_TRUE(V.validate(Comp));
-}
-
 TEST(ComponentValidatorTest, CanonResourceNew_RejectsOptions) {
   auto Comp = makeCompWithLocalResource();
   auto &CanonSec = appendCanonSection(Comp);
@@ -1577,21 +1592,6 @@ TEST(ComponentValidatorTest, CanonLower_RejectsCallback) {
   // site-whitelist should still reject callback on Lower.
   C.setOptions({mkOpt(ComponentCanonOptCode::Async),
                 mkOpt(ComponentCanonOptCode::Callback, 0)});
-  CanonSec.getContent().emplace_back(std::move(C));
-  Validator::Validator V(Conf);
-  ASSERT_FALSE(V.validate(Comp));
-}
-
-TEST(ComponentValidatorTest, CanonLower_RejectsAlwaysTaskReturn) {
-  auto Comp = makeCompWithImportedFunc();
-  auto &CanonSec = appendCanonSection(Comp);
-  AST::Component::Canonical C;
-  C.setOpCode(ComponentCanonOpCode::Lower);
-  C.setIndex(0);
-  // Async included to satisfy structural rule;
-  // site-whitelist should still reject always-task-return on Lower.
-  C.setOptions({mkOpt(ComponentCanonOptCode::Async),
-                mkOpt(ComponentCanonOptCode::AlwaysTaskReturn)});
   CanonSec.getContent().emplace_back(std::move(C));
   Validator::Validator V(Conf);
   ASSERT_FALSE(V.validate(Comp));
@@ -1667,7 +1667,7 @@ TEST(ComponentValidatorTest, CanonLift_Valid_Passes) {
 
 TEST(ComponentValidatorTest, CanonLift_WithPostReturn_Passes) {
   // post-return is a Lift-only option; exercise the happy path. Target type 1
-  // lift-flattens to [i32] -> [i32], so spec L3564 requires post-return to have
+  // lift-flattens to [i32] -> [i32], so spec requires post-return to have
   // type (func (param i32)), i.e. [i32] -> []. resource.drop 0 produces exactly
   // such a core func at index 1.
   auto Comp = makeCompWithCoreFuncAndFuncType();
@@ -1826,28 +1826,41 @@ TEST(ComponentValidatorTest, AnnotatedNameMissingResourceRejected) {
 }
 
 TEST(ComponentValidatorTest, AnnotatedNameResourceInScopePasses) {
-  // type 0: FuncType
-  // import "r" (type (sub resource))    ;; resource "r" → type 1
-  // import "[method]r.f" (func (type 0)) ;; PASS — resource "r" is in scope
+  // import "r" (type (sub resource))          ;; resource "r" → type 0
+  // type 1: (borrow 0)
+  // type 2: (func (param "self" (borrow 0)))
+  // import "[method]r.f" (func (type 2))      ;; PASS — proper method shape
   AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::TypeSection>();
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::ImportSection>();
 
-  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
-  TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+  auto &ImpSec0 =
+      std::get<AST::Component::ImportSection>(Comp.getSections()[0]);
+  ImpSec0.getContent().emplace_back();
+  ImpSec0.getContent().back().getName() = "r";
+  ImpSec0.getContent().back().getDesc().setTypeBound();
 
-  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
-  // Resource import.
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "r";
-  ImpSec.getContent().back().getDesc().setTypeBound();
-  // Annotated method import referencing resource "r".
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "[method]r.f";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[1]);
+  TypeSec.getContent().emplace_back();
+  AST::Component::DefValType BorrowDVT;
+  BorrowDVT.setBorrow(AST::Component::BorrowTy{0});
+  TypeSec.getContent().back().setDefValType(std::move(BorrowDVT));
+  TypeSec.getContent().emplace_back();
+  AST::Component::FuncType MethodFT;
+  std::vector<AST::Component::LabelValType> Params;
+  Params.emplace_back("self"s, ComponentValType(1));
+  MethodFT.setParamList(std::move(Params));
+  TypeSec.getContent().back().setFuncType(std::move(MethodFT));
+
+  auto &ImpSec1 =
+      std::get<AST::Component::ImportSection>(Comp.getSections()[2]);
+  ImpSec1.getContent().emplace_back();
+  ImpSec1.getContent().back().getName() = "[method]r.f";
+  ImpSec1.getContent().back().getDesc().setFuncTypeIdx(2);
 
   Validator::Validator V(Conf);
   ASSERT_TRUE(V.validate(Comp));
@@ -2004,7 +2017,8 @@ TEST(ComponentValidatorTest, InstantiateImportedComponentMissingArgRejected) {
   // index in the inner component-type scope (which would otherwise need
   // cross-scope resolution to validate). The point of this test is to
   // exercise GAP-I-1: an instantiate of an imported component should
-  // surface MissingArgument from the ComponentType-derived import list.
+  // surface the missing-argument diagnostic from the ComponentType-derived
+  // import list.
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::TypeSection>();
@@ -2119,7 +2133,7 @@ TEST(ComponentValidatorTest, CoreInstanceMemoryIndexTypeMatchAccepted) {
 
 // Helper: build a Component whose type 1 is `(func (param "s" string))` —
 // triggers the spec's `lift(T)` and `lower(T)` realloc/memory rules
-// (CanonicalABI.md L3273-3277).
+// (CanonicalABI.md).
 inline AST::Component::Component makeCompWithStringParamFunc() {
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
@@ -2150,7 +2164,7 @@ inline AST::Component::Component makeCompWithStringParamFunc() {
 }
 
 TEST(ComponentValidatorTest, CanonLift_StringParamRequiresRealloc_Fails) {
-  // Spec L3293: `lift(param)` for a list/string-containing T requires
+  // spec: `lift(param)` for a list/string-containing T requires
   // 'realloc'. The lift below omits realloc and so must be rejected by the
   // validator (previously only caught at instantiate time).
   auto Comp = makeCompWithStringParamFunc();
@@ -2166,7 +2180,7 @@ TEST(ComponentValidatorTest, CanonLift_StringParamRequiresRealloc_Fails) {
 }
 
 TEST(ComponentValidatorTest, CanonLower_StringParamRequiresMemory_Fails) {
-  // Spec L3520: `lower(param)` for a list/string-containing T requires
+  // spec: `lower(param)` for a list/string-containing T requires
   // 'memory'. Set up an imported component func with a string param and
   // canon-lower it without supplying 'memory'.
   AST::Component::Component Comp;
@@ -2208,7 +2222,7 @@ TEST(ComponentValidatorTest, CanonLower_StringParamRequiresMemory_Fails) {
 // (component
 //   ;; (canon lift) with a result type that needs memory (tuple of two u32 →
 //   ;; indirect-return) but the lift omits the `(memory ...)` option. The
-//   ;; validator's flatten-derived check (component_validator.cpp L1412) must
+//   ;; validator's flatten-derived check in component_validator.cpp must
 //   ;; reject this with InvalidCanonOption.
 //   (core module $m
 //     (memory (export "mem") 1)
@@ -2283,14 +2297,14 @@ static const std::vector<uint8_t> validator_no_realloc_wasm = {
 // canon lift whose result spills into the return area but omits 'memory'.
 // The validator must reject this end-to-end.
 TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoMemoryRejected) {
-  VM::VM VM(Conf);
+  VM::Component::VM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(validator_no_memory_wasm));
   EXPECT_FALSE(VM.validate());
 }
 
 // canon lift whose string param forces a realloc but omits 'realloc'.
 TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoReallocRejected) {
-  VM::VM VM(Conf);
+  VM::Component::VM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(validator_no_realloc_wasm));
   EXPECT_FALSE(VM.validate());
 }
@@ -2674,6 +2688,576 @@ TEST(ComponentValidatorTest, StartArgumentValueIndexOutOfBounds) {
   auto Res = V.validate(Comp);
   EXPECT_FALSE(Res);
   EXPECT_EQ(Res.error(), ErrCode::Value::InvalidIndex);
+}
+
+// =============================================================================
+// Async canonical option rules
+// =============================================================================
+
+// Helper: build a Component whose core func 0 has the callback signature
+// [i32 i32 i32] -> [i32], obtained by lowering a (func (param u32 u32 u32)
+// (result u32)).
+inline AST::Component::Component makeCompWithCallbackShapedCoreFunc() {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  AST::Component::FuncType FT;
+  std::vector<AST::Component::LabelValType> Params;
+  Params.emplace_back("a", ComponentValType(ComponentTypeCode::U32));
+  Params.emplace_back("b", ComponentValType(ComponentTypeCode::U32));
+  Params.emplace_back("c", ComponentValType(ComponentTypeCode::U32));
+  FT.setParamList(std::move(Params));
+  FT.setResultList(ComponentValType(ComponentTypeCode::U32));
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(std::move(FT));
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "f";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical Lower;
+  Lower.setOpCode(ComponentCanonOpCode::Lower);
+  Lower.setIndex(0);
+  CanonSec.getContent().emplace_back(std::move(Lower));
+  return Comp;
+}
+
+TEST(ComponentValidatorTest, CanonLower_CallbackRejectedBySiteRule) {
+  // `callback` is only allowed on `canon lift`, so the site rule must fire
+  // before the core function index is even resolved.
+  auto Comp = makeCompWithImportedFunc();
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(ComponentCanonOpCode::Lower);
+  C.setIndex(0);
+  C.setOptions({mkOpt(ComponentCanonOptCode::Async),
+                mkOpt(ComponentCanonOptCode::Callback, 0)});
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::CanonCallbackOnLower);
+}
+
+TEST(ComponentValidatorTest, CanonLower_DuplicateAsyncRejected) {
+  auto Comp = makeCompWithImportedFunc();
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(ComponentCanonOpCode::Lower);
+  C.setIndex(0);
+  C.setOptions({mkOpt(ComponentCanonOptCode::Async),
+                mkOpt(ComponentCanonOptCode::Async)});
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::CanonAsyncDuplicated);
+}
+
+TEST(ComponentValidatorTest, CanonLift_DuplicateCallbackRejected) {
+  auto Comp = makeCompWithCallbackShapedCoreFunc();
+  auto &CanonSec =
+      std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical C;
+  C.setOpCode(ComponentCanonOpCode::Lift);
+  C.setIndex(0);       // core func 0
+  C.setTargetIndex(0); // functype 0
+  C.setOptions({mkOpt(ComponentCanonOptCode::Async),
+                mkOpt(ComponentCanonOptCode::Callback, 0),
+                mkOpt(ComponentCanonOptCode::Callback, 0)});
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::CanonCallbackDuplicated);
+}
+
+TEST(ComponentValidatorTest, CanonLift_CallbackWithoutAsyncRejected) {
+  auto Comp = makeCompWithCallbackShapedCoreFunc();
+  auto &CanonSec =
+      std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical C;
+  C.setOpCode(ComponentCanonOpCode::Lift);
+  C.setIndex(0);
+  C.setTargetIndex(0);
+  C.setOptions({mkOpt(ComponentCanonOptCode::Callback, 0)});
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::CanonCallbackRequiresAsync);
+}
+
+// =============================================================================
+// context.get / context.set slot immediate
+// =============================================================================
+
+// Helper: append a `context.get`/`context.set` naming the given slot and
+// type. The loader stores the slot immediate as the constant value, not as
+// an index.
+inline AST::Component::Component
+makeCompWithContextSlot(ComponentCanonOpCode C, uint32_t Slot,
+                        ValType Ty = ValType(TypeCode::I32)) {
+  AST::Component::Component Comp;
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical Canon;
+  Canon.setOpCode(C);
+  Canon.setConstVal(Slot);
+  Canon.setContextType(Ty);
+  CanonSec.getContent().emplace_back(std::move(Canon));
+  return Comp;
+}
+
+// Helper: append two context built-ins, so the shared-type rule can be
+// exercised across a whole component.
+inline AST::Component::Component makeCompWithTwoContexts(ValType First,
+                                                         ValType Second) {
+  AST::Component::Component Comp;
+  auto &CanonSec = appendCanonSection(Comp);
+  for (const auto &[Code, Ty] :
+       {std::pair{ComponentCanonOpCode::Context__get, First},
+        std::pair{ComponentCanonOpCode::Context__set, Second}}) {
+    AST::Component::Canonical Canon;
+    Canon.setOpCode(Code);
+    Canon.setConstVal(0);
+    Canon.setContextType(Ty);
+    CanonSec.getContent().emplace_back(std::move(Canon));
+  }
+  return Comp;
+}
+
+TEST(ComponentValidatorTest, CanonContextGet_SlotInBounds_Passes) {
+  auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__get, 1);
+  Validator::Validator V(Conf);
+  EXPECT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonContextGet_SlotOutOfBounds_Fails) {
+  auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__get, 7);
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextSlotOutOfBounds);
+}
+
+TEST(ComponentValidatorTest, CanonContextSet_SlotOutOfBounds_Fails) {
+  auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__set, 2);
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextSlotOutOfBounds);
+}
+
+TEST(ComponentValidatorTest, CanonContextGet_I64TypePasses) {
+  auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__get, 0,
+                                      ValType(TypeCode::I64));
+  Validator::Validator V(Conf);
+  EXPECT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonContextGet_I64NeedsMemory64) {
+  // A 64-bit slot is gated like a 64-bit resource rep. The default Configure
+  // enables Memory64, so this one has to turn it off explicitly.
+  Configure NoMemory64;
+  NoMemory64.addProposal(Proposal::Component);
+  NoMemory64.removeProposal(Proposal::Memory64);
+  auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__get, 0,
+                                      ValType(TypeCode::I64));
+  Validator::Validator V(NoMemory64);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextTypeInvalid);
+}
+
+TEST(ComponentValidatorTest, CanonContextSet_NonIntegerTypeFails) {
+  auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__set, 0,
+                                      ValType(TypeCode::F32));
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextTypeInvalid);
+}
+
+TEST(ComponentValidatorTest, CanonContext_SameTypeTwicePasses) {
+  auto Comp =
+      makeCompWithTwoContexts(ValType(TypeCode::I64), ValType(TypeCode::I64));
+  Validator::Validator V(Conf);
+  EXPECT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonContext_MixedTypesFail) {
+  auto Comp =
+      makeCompWithTwoContexts(ValType(TypeCode::I32), ValType(TypeCode::I64));
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextTypeMismatch);
+}
+
+// =============================================================================
+// Import and export name attributes
+// =============================================================================
+
+// Helper: import a func named "f" carrying the given `external-id` values.
+inline AST::Component::Component
+makeCompWithExternalIds(std::vector<std::string> Ids) {
+  auto Comp = makeCompWithImportedFunc();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().back().getExternalIds() = std::move(Ids);
+  return Comp;
+}
+
+TEST(ComponentValidatorTest, ImportSingleExternalIdPasses) {
+  auto Comp = makeCompWithExternalIds({"the-id"});
+  Validator::Validator V(Conf);
+  EXPECT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, ImportDuplicateExternalIdFails) {
+  auto Comp = makeCompWithExternalIds({"one", "two"});
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentExternalIdDuplicate);
+}
+
+// Helper: import a func under the given name, carrying the given
+// `versionsuffix` values.
+inline AST::Component::Component
+makeCompWithVersionSuffix(std::string Name, std::vector<std::string> Suffixes) {
+  auto Comp = makeCompWithImportedFunc();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().back().getName() = std::move(Name);
+  ImpSec.getContent().back().getVersionSuffixes() = std::move(Suffixes);
+  return Comp;
+}
+
+TEST(ComponentValidatorTest, VersionSuffixRestoresCanonVersion) {
+  // `@1` is the canonical version the suffix puts back: 1 ++ .2.3 = 1.2.3.
+  auto Comp = makeCompWithVersionSuffix("a:b/c@1", {".2.3"});
+  Validator::Validator V(Conf);
+  EXPECT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, VersionSuffixMustFormSemver) {
+  // 1 ++ -alpha is not a semver, because the minor and patch are missing.
+  auto Comp = makeCompWithVersionSuffix("a:b/c@1", {"-alpha"});
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixInvalid);
+}
+
+TEST(ComponentValidatorTest, VersionSuffixNeedsCanonVersion) {
+  // A full semver is not a canonversion, so nothing was stripped to restore.
+  auto Comp = makeCompWithVersionSuffix("a:b/c@1.0.0", {"-alpha"});
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixInvalid);
+}
+
+TEST(ComponentValidatorTest, VersionSuffixNeedsInterfaceVersion) {
+  auto Comp = makeCompWithVersionSuffix("f", {".2.3"});
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixInvalid);
+}
+
+TEST(ComponentValidatorTest, ImportDuplicateVersionSuffixFails) {
+  auto Comp = makeCompWithVersionSuffix("a:b/c@1", {".2.3", ".4.5"});
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixDuplicate);
+}
+
+TEST(ComponentValidatorTest, ImportDuplicateImplementsFails) {
+  auto Comp = makeCompWithImportedFunc();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().back().getImplements() = {"a:b/c", "a:b/d"};
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentImplementsDuplicate);
+}
+
+// =============================================================================
+// borrow inside a stream or future element type
+// =============================================================================
+
+// Helper: a resource at type 0, a borrow of it at type 1, and the element
+// wrapped in a stream or a future. Elem selects which type index the async
+// type carries, so a borrow can also be reached through a list.
+inline AST::Component::Component
+makeCompWithAsyncElem(bool IsFuture, bool ElemIsBorrow, bool ThroughList) {
+  auto Comp = makeCompWithLocalResource();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  // Type 1: (borrow 0) or (own 0).
+  TypeSec.getContent().emplace_back();
+  AST::Component::DefValType Handle;
+  if (ElemIsBorrow) {
+    Handle.setBorrow(AST::Component::BorrowTy{0});
+  } else {
+    Handle.setOwn(AST::Component::OwnTy{0});
+  }
+  TypeSec.getContent().back().setDefValType(std::move(Handle));
+  uint32_t Elem = 1;
+  if (ThroughList) {
+    // Type 2: (list 1).
+    TypeSec.getContent().emplace_back();
+    AST::Component::DefValType List;
+    List.setList(AST::Component::ListTy{ComponentValType(1), std::nullopt});
+    TypeSec.getContent().back().setDefValType(std::move(List));
+    Elem = 2;
+  }
+  TypeSec.getContent().emplace_back();
+  AST::Component::DefValType Async;
+  if (IsFuture) {
+    Async.setFuture(AST::Component::FutureTy{ComponentValType(Elem)});
+  } else {
+    Async.setStream(AST::Component::StreamTy{ComponentValType(Elem)});
+  }
+  TypeSec.getContent().back().setDefValType(std::move(Async));
+  return Comp;
+}
+
+TEST(ComponentValidatorTest, FutureOfBorrowRejected) {
+  auto Comp = makeCompWithAsyncElem(true, true, false);
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentStreamFutureBorrow);
+}
+
+TEST(ComponentValidatorTest, StreamOfBorrowRejected) {
+  auto Comp = makeCompWithAsyncElem(false, true, false);
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentStreamFutureBorrow);
+}
+
+TEST(ComponentValidatorTest, FutureOfListOfBorrowRejected) {
+  // The rule is transitive, so a borrow reached through a list still counts.
+  auto Comp = makeCompWithAsyncElem(true, true, true);
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentStreamFutureBorrow);
+}
+
+TEST(ComponentValidatorTest, FutureOfOwnPasses) {
+  auto Comp = makeCompWithAsyncElem(true, false, false);
+  Validator::Validator V(Conf);
+  EXPECT_TRUE(V.validate(Comp));
+}
+
+// =============================================================================
+// Value payload decoding
+// =============================================================================
+
+// Helper: decode a `val(t)` payload for a primitive type. No type index can
+// appear in these payloads, so the resolver always fails.
+inline Expect<ComponentValVariant> decodePrimValue(std::vector<Byte> Data,
+                                                   ComponentTypeCode Code) {
+  Validator::Component::ValueDecoder Dec(
+      Span<const Byte>(Data.data(), Data.size()),
+      [](uint32_t) -> const AST::Component::DefValType * { return nullptr; });
+  return Dec.decode(ComponentValType(Code));
+}
+
+TEST(ComponentValidatorTest, ValueDecodeSignedLEBRange) {
+  // The extremes of `s16` round-trip.
+  auto Min = decodePrimValue({0x80, 0x80, 0x7E}, ComponentTypeCode::S16);
+  ASSERT_TRUE(Min);
+  EXPECT_EQ(std::get<int16_t>(*Min), INT16_MIN);
+  auto Max = decodePrimValue({0xFF, 0xFF, 0x01}, ComponentTypeCode::S16);
+  ASSERT_TRUE(Max);
+  EXPECT_EQ(std::get<int16_t>(*Max), INT16_MAX);
+  // Out-of-range encodings are malformed instead of being truncated: this
+  // sequence decodes to -1048576, which truncates to 0 in `int16_t`.
+  EXPECT_FALSE(decodePrimValue({0x80, 0x80, 0x40}, ComponentTypeCode::S16));
+  // 32768 does not fit `s16` either.
+  EXPECT_FALSE(decodePrimValue({0x80, 0x80, 0x02}, ComponentTypeCode::S16));
+  // Too many bytes for the declared width.
+  EXPECT_FALSE(
+      decodePrimValue({0x80, 0x80, 0x80, 0x00}, ComponentTypeCode::S16));
+  // The same rules hold for `s32`.
+  auto S32 =
+      decodePrimValue({0xFF, 0xFF, 0xFF, 0xFF, 0x07}, ComponentTypeCode::S32);
+  ASSERT_TRUE(S32);
+  EXPECT_EQ(std::get<int32_t>(*S32), INT32_MAX);
+  EXPECT_FALSE(
+      decodePrimValue({0x80, 0x80, 0x80, 0x80, 0x40}, ComponentTypeCode::S32));
+}
+
+TEST(ComponentValidatorTest, ValueDecodeCharRejectsOverlong) {
+  auto Ok = decodePrimValue({0xC2, 0x80}, ComponentTypeCode::Char);
+  ASSERT_TRUE(Ok);
+  EXPECT_EQ(std::get<uint32_t>(*Ok), UINT32_C(0x80));
+  // U+0000 encoded in two bytes, U+0000 in three, and U+0800 in four.
+  EXPECT_FALSE(decodePrimValue({0xC0, 0x80}, ComponentTypeCode::Char));
+  EXPECT_FALSE(decodePrimValue({0xE0, 0x80, 0x80}, ComponentTypeCode::Char));
+  EXPECT_FALSE(
+      decodePrimValue({0xF0, 0x80, 0xA0, 0x80}, ComponentTypeCode::Char));
+  // Surrogates and out-of-range scalars stay rejected.
+  EXPECT_FALSE(decodePrimValue({0xED, 0xA0, 0x80}, ComponentTypeCode::Char));
+  EXPECT_FALSE(
+      decodePrimValue({0xF7, 0xBF, 0xBF, 0xBF}, ComponentTypeCode::Char));
+}
+
+TEST(ComponentValidatorTest, ValueDecodeStringRequiresUtf8) {
+  auto Ok =
+      decodePrimValue({0x03, 0x61, 0xC2, 0x80}, ComponentTypeCode::String);
+  ASSERT_TRUE(Ok);
+  EXPECT_EQ(std::get<std::string>(*Ok), "a\xC2\x80"s);
+  // A lone continuation byte, an overlong sequence, and a sequence truncated
+  // by the declared length are all malformed.
+  EXPECT_FALSE(decodePrimValue({0x01, 0x80}, ComponentTypeCode::String));
+  EXPECT_FALSE(decodePrimValue({0x02, 0xC0, 0x80}, ComponentTypeCode::String));
+  EXPECT_FALSE(decodePrimValue({0x01, 0xC2, 0x80}, ComponentTypeCode::String));
+}
+
+// =============================================================================
+// Canonical options on the option-bearing built-ins
+// =============================================================================
+
+// Helper: append a canonical definition carrying the given options.
+inline AST::Component::Component &
+appendCanonWithOptions(AST::Component::Component &Comp, ComponentCanonOpCode Op,
+                       std::vector<AST::Component::CanonOpt> Options) {
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(Op);
+  C.setOptions(std::move(Options));
+  CanonSec.getContent().emplace_back(std::move(C));
+  return Comp;
+}
+
+// Helper: build a Component whose type index 0 is `(stream t?)` or
+// `(future t?)`, ready for the stream/future built-ins to name.
+inline AST::Component::Component
+makeCompWithPayloadType(bool WantStream,
+                        std::optional<ComponentTypeCode> Elem) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  AST::Component::DefValType DVT;
+  std::optional<ComponentValType> ElemTy;
+  if (Elem.has_value()) {
+    ElemTy = ComponentValType(*Elem);
+  }
+  if (WantStream) {
+    DVT.setStream(AST::Component::StreamTy{ElemTy});
+  } else {
+    DVT.setFuture(AST::Component::FutureTy{ElemTy});
+  }
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setDefValType(std::move(DVT));
+  return Comp;
+}
+
+TEST(ComponentValidatorTest, CanonTaskReturn_MemoryIndexOutOfBounds_Fails) {
+  AST::Component::Component Comp;
+  appendCanonWithOptions(Comp, ComponentCanonOpCode::Task__return,
+                         {mkOpt(ComponentCanonOptCode::Memory, 0)});
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentMemoryIndexOutOfBounds);
+}
+
+TEST(ComponentValidatorTest, CanonTaskReturn_RejectsAsync) {
+  AST::Component::Component Comp;
+  appendCanonWithOptions(Comp, ComponentCanonOpCode::Task__return,
+                         {mkOpt(ComponentCanonOptCode::Async)});
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::CanonAsyncOnBuiltin);
+}
+
+TEST(ComponentValidatorTest, CanonTaskReturn_RejectsPostReturn) {
+  AST::Component::Component Comp;
+  appendCanonWithOptions(Comp, ComponentCanonOpCode::Task__return,
+                         {mkOpt(ComponentCanonOptCode::PostReturn, 0)});
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::CanonPostReturnOnLower);
+}
+
+TEST(ComponentValidatorTest, CanonTaskReturn_StringResultRequiresMemory) {
+  AST::Component::Component Comp;
+  auto &Sec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(ComponentCanonOpCode::Task__return);
+  C.setResultList(ComponentValType(ComponentTypeCode::String));
+  Sec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::CanonMemoryRequired);
+}
+
+TEST(ComponentValidatorTest, CanonStreamRead_MemoryIndexOutOfBounds_Fails) {
+  auto Comp = makeCompWithPayloadType(true, ComponentTypeCode::U32);
+  appendCanonWithOptions(Comp, ComponentCanonOpCode::Stream__read,
+                         {mkOpt(ComponentCanonOptCode::Memory, 0)});
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentMemoryIndexOutOfBounds);
+}
+
+TEST(ComponentValidatorTest, CanonStreamRead_PayloadRequiresMemory_Fails) {
+  auto Comp = makeCompWithPayloadType(true, ComponentTypeCode::U32);
+  appendCanonWithOptions(Comp, ComponentCanonOpCode::Stream__read, {});
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::CanonMemoryRequired);
+}
+
+TEST(ComponentValidatorTest, CanonStreamWrite_EmptyPayloadNeedsNoMemory) {
+  auto Comp = makeCompWithPayloadType(true, std::nullopt);
+  appendCanonWithOptions(Comp, ComponentCanonOpCode::Stream__write, {});
+  Validator::Validator V(Conf);
+  EXPECT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonFutureRead_RejectsCallback) {
+  auto Comp = makeCompWithPayloadType(false, std::nullopt);
+  appendCanonWithOptions(Comp, ComponentCanonOpCode::Future__read,
+                         {mkOpt(ComponentCanonOptCode::Callback, 0)});
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::CanonCallbackOnLower);
+}
+
+TEST(ComponentValidatorTest, CanonErrorContextNew_RequiresMemory_Fails) {
+  AST::Component::Component Comp;
+  appendCanonWithOptions(Comp, ComponentCanonOpCode::Error_context__new, {});
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::CanonMemoryRequired);
 }
 
 } // namespace

@@ -331,6 +331,60 @@ TEST(Coredump, generateCoredump) {
   }
   EXPECT_TRUE(FindCoredump);
 }
+TEST(Coredump, dataSectionRoundTrip) {
+  WasmEdge::Configure Conf;
+  Conf.getRuntimeConfigure().setEnableCoredump(true);
+  Conf.getRuntimeConfigure().setCoredumpWasmgdb(false);
+  WasmEdge::VM::VM VM(Conf);
+
+  // Same 70-byte module as generateCoredump, PLUS a real active data
+  // segment appended (id 0x0b = Data section):
+  //   flags=0x00 (active, memory 0)
+  //   offset expr: i32.const 0, end   -> 0x41 0x00 0x0b
+  //   vector length = 4               -> 0x04
+  //   payload bytes                   -> 0xDE 0xAD 0xBE 0xEF
+  std::array<WasmEdge::Byte, 82> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+      0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07,
+      0x1e, 0x02, 0x03, 0x6d, 0x65, 0x6d, 0x02, 0x00, 0x14, 0x61, 0x63, 0x63,
+      0x65, 0x73, 0x73, 0x5f, 0x6f, 0x75, 0x74, 0x5f, 0x6f, 0x66, 0x5f, 0x62,
+      0x6f, 0x75, 0x6e, 0x64, 0x73, 0x00, 0x00, 0x0a, 0x0d, 0x01, 0x0b, 0x00,
+      0x41, 0xf0, 0xa2, 0x04, 0x41, 0x00, 0x36, 0x02, 0x00, 0x0b,
+      // --- appended data section ---
+      0x0b, 0x0a, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x04, 0xde, 0xad, 0xbe, 0xef};
+
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  VM.execute("access_out_of_bounds");
+
+  // Find the coredump file the trap just generated.
+  std::filesystem::path CoredumpPath;
+  bool FindCoredump = false;
+  for (const auto &Entry : std::filesystem::directory_iterator("./")) {
+    if (Entry.path().string().find("coredump.") != std::string::npos) {
+      CoredumpPath = Entry.path();
+      FindCoredump = true;
+      break;
+    }
+  }
+  ASSERT_TRUE(FindCoredump);
+
+  // Parse the coredump binary back as a wasm module and check the
+  // data section round-tripped correctly.
+  WasmEdge::Loader::Loader Ldr(Conf);
+  auto CoredumpAST = Ldr.parseModule(CoredumpPath);
+  ASSERT_TRUE(CoredumpAST);
+
+  const auto &DataSecs = (*CoredumpAST)->getDataSection().getContent();
+  ASSERT_EQ(DataSecs.size(), 1u);
+
+  std::vector<WasmEdge::Byte> Expected = {0xde, 0xad, 0xbe, 0xef};
+  EXPECT_EQ(DataSecs[0].getData(), Expected);
+
+  // Clean up the generated coredump file.
+  std::filesystem::remove(CoredumpPath);
+}
 
 } // namespace
 

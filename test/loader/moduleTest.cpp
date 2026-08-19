@@ -13,13 +13,48 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "common/filesystem.h"
 #include "loader/loader.h"
 
 #include <cstdint>
+#include <fstream>
+#include <functional>
 #include <gtest/gtest.h>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <thread>
+#include <utility>
 #include <vector>
 
 namespace {
+
+using namespace std::literals;
+
+// Owns a uniquely named file under the system temporary directory and removes
+// it when the scope exits, including when an assertion returns early.
+class ScopedTempFile {
+public:
+  explicit ScopedTempFile(std::string_view Stem,
+                          std::string_view Extension = ""sv)
+      : Path(
+            std::filesystem::temp_directory_path() /
+            std::filesystem::u8path(std::string(Stem) + "-" +
+                                    std::to_string(std::hash<std::thread::id>{}(
+                                        std::this_thread::get_id())) +
+                                    std::string(Extension))) {}
+  ScopedTempFile(const ScopedTempFile &) = delete;
+  ScopedTempFile &operator=(const ScopedTempFile &) = delete;
+  ~ScopedTempFile() noexcept {
+    std::error_code EC;
+    std::filesystem::remove(Path, EC);
+  }
+
+  const std::filesystem::path &get() const noexcept { return Path; }
+
+private:
+  std::filesystem::path Path;
+};
 
 WasmEdge::Configure Conf;
 WasmEdge::Loader::Loader Ldr(Conf);
@@ -217,6 +252,34 @@ TEST(ModuleTest, LoadDupSecModule) {
       0x0CU, 0x01U, 0x00U         // Datacount section duplicated
   };
   EXPECT_FALSE(Ldr.parseModule(Vec));
+}
+
+TEST(ModuleTest, LoadNativeLibraryMagicNotInAOTMode) {
+  const std::vector<std::pair<std::string, std::vector<uint8_t>>> Cases = {
+      {"elf", {0x7FU, 0x45U, 0x4CU, 0x46U}},
+      {"dll", {0x4DU, 0x5AU}},
+      {"macho32", {0xCEU, 0xFAU, 0xEDU, 0xFEU}},
+      {"macho64", {0xCFU, 0xFAU, 0xEDU, 0xFEU}}};
+
+  for (const auto &[Name, Magic] : Cases) {
+    const ScopedTempFile Artifact("wasmedgeLoaderNativeMagic-" + Name);
+    const auto &Path = Artifact.get();
+    {
+      std::ofstream Fout(Path, std::ios::out | std::ios::binary);
+      ASSERT_TRUE(Fout) << Name;
+      const std::vector<uint8_t> Junk(64, 0x00U);
+      Fout.write(reinterpret_cast<const char *>(Magic.data()),
+                 static_cast<std::streamsize>(Magic.size()));
+      Fout.write(reinterpret_cast<const char *>(Junk.data()),
+                 static_cast<std::streamsize>(Junk.size()));
+    }
+
+    auto Res = Ldr.parseModule(Path);
+    EXPECT_FALSE(Res) << Name;
+    if (!Res) {
+      EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::MalformedMagic) << Name;
+    }
+  }
 }
 
 } // namespace

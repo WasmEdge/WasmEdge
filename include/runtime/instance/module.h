@@ -30,6 +30,7 @@
 #include "runtime/instance/tag.h"
 
 #include <atomic>
+#include <cstddef>
 #include <functional>
 #include <map>
 #include <memory>
@@ -522,10 +523,13 @@ protected:
     return WASIModInst;
   }
 
-  /// Unsafely import an instance into this module.
+  /// Unsafely import an instance into this module. Only valid before
+  /// finalization: buildContext() caches the instance vectors' buffers, which a
+  /// later push_back may reallocate.
   template <typename T>
   std::enable_if_t<IsEntityV<T>, void>
   unsafeImportInstance(std::vector<T *> &Vec, T *Ptr) {
+    assuming(!isInstantiateFinalized());
     Vec.push_back(Ptr);
   }
 
@@ -536,11 +540,14 @@ protected:
         ->setTypeIndex(static_cast<uint32_t>(Types.size()) - 1);
   }
 
-  /// Unsafely create and add the instance to this module.
+  /// Unsafely create and add the instance to this module. Only valid before
+  /// finalization: buildContext() caches the instance vectors' buffers, which a
+  /// later push_back may reallocate.
   template <typename T, typename... Args>
   std::enable_if_t<IsInstanceV<T>, void>
   unsafeAddInstance(std::vector<std::unique_ptr<T>> &OwnedInstsVec,
                     std::vector<T *> &InstsVec, Args &&...Values) {
+    assuming(!isInstantiateFinalized());
     OwnedInstsVec.push_back(std::make_unique<T>(std::forward<Args>(Values)...));
     InstsVec.push_back(OwnedInstsVec.back().get());
   }
@@ -582,6 +589,46 @@ protected:
   std::vector<RefVariant **> TableRefPtrs;
   std::vector<ValVariant *> GlobalPtrs;
   /// @}
+
+  struct ModuleContext {
+#if WASMEDGE_ALLOCATOR_IS_STABLE
+    uint8_t *const *Memories;
+#else
+    uint8_t **const *Memories;
+#endif
+    const uint64_t *const *MemorySizes;
+    RefVariant **const *TableRefs;
+    const uint64_t *const *TableSizes;
+    ValVariant *const *Globals;
+    const void *ModuleInst;
+    void *const *Tags;
+  };
+
+  /// Compiled code reads this struct by field index through the mirrored ModCtx
+  /// type built in lib/llvm/compiler/context.cpp. Keep both in the same order.
+  static_assert(sizeof(ModuleContext) == 7 * sizeof(void *));
+  static_assert(offsetof(ModuleContext, Memories) == 0 * sizeof(void *));
+  static_assert(offsetof(ModuleContext, MemorySizes) == 1 * sizeof(void *));
+  static_assert(offsetof(ModuleContext, TableRefs) == 2 * sizeof(void *));
+  static_assert(offsetof(ModuleContext, TableSizes) == 3 * sizeof(void *));
+  static_assert(offsetof(ModuleContext, Globals) == 4 * sizeof(void *));
+  static_assert(offsetof(ModuleContext, ModuleInst) == 5 * sizeof(void *));
+  static_assert(offsetof(ModuleContext, Tags) == 6 * sizeof(void *));
+
+  ModuleContext ModCtx{};
+
+  /// Snapshot the instance vectors' buffers for compiled code. Call once, after
+  /// the last instance is added and before the start function runs; adding an
+  /// instance afterwards may reallocate and leave the context dangling.
+  void buildContext() noexcept {
+    ModCtx.Memories = MemoryPtrs.data();
+    ModCtx.MemorySizes = MemorySizePtrs.data();
+    ModCtx.TableRefs = TableRefPtrs.data();
+    ModCtx.TableSizes = TableSizePtrs.data();
+    ModCtx.Globals = GlobalPtrs.data();
+    ModCtx.ModuleInst = this;
+    ModCtx.Tags = reinterpret_cast<void *const *>(TagInsts.data());
+  }
 
   friend class Runtime::StoreManager;
   using LinkedStoreKey = std::pair<StoreManager *, std::string>;

@@ -29,7 +29,7 @@ Expect<void> Executor::runLocalTeeOp(Runtime::StackManager &StackMgr,
 
 Expect<void> Executor::runGlobalGetOp(Runtime::StackManager &StackMgr,
                                       uint32_t Idx) const noexcept {
-  auto *GlobInst = getGlobInstByIdx(StackMgr, Idx);
+  auto *GlobInst = getGlobInstByIdx(StackMgr.getModule(), Idx);
   assuming(GlobInst);
   StackMgr.push(GlobInst->getValue());
   return {};
@@ -37,7 +37,7 @@ Expect<void> Executor::runGlobalGetOp(Runtime::StackManager &StackMgr,
 
 Expect<void> Executor::runGlobalSetOp(Runtime::StackManager &StackMgr,
                                       uint32_t Idx) const noexcept {
-  auto *GlobInst = getGlobInstByIdx(StackMgr, Idx);
+  auto *GlobInst = getGlobInstByIdx(StackMgr.getModule(), Idx);
   assuming(GlobInst);
   GlobInst->setValue(StackMgr.pop());
   return {};

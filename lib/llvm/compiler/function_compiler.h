@@ -91,6 +91,8 @@ private:
 
   void compileReturnCallRefOp(const unsigned int TypeIndex) noexcept;
 
+  void boundsCheckMemory64(unsigned MemoryIndex, LLVM::Value Addr,
+                           uint64_t Offset, uint64_t AccessSize) noexcept;
   void compileLoadOp(unsigned MemoryIndex, uint64_t Offset, unsigned Alignment,
                      LLVM::Type LoadTy) noexcept;
   void compileLoadOp(unsigned MemoryIndex, uint64_t Offset, unsigned Alignment,

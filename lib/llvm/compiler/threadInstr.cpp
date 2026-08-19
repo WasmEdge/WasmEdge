@@ -407,9 +407,12 @@ void FunctionCompiler::compileAtomicLoad(unsigned MemoryIndex,
                                          LLVM::Type TargetType,
                                          bool Signed) noexcept {
 
-  auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
+  auto Addr = Builder.createZExt(Stack.back(), Context.Int64Ty);
+  boundsCheckMemory64(MemoryIndex, Addr, MemoryOffset,
+                      TargetType.getPrimitiveSizeInBits() / 8);
+  auto Offset = Addr;
   if (MemoryOffset != 0) {
-    Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
+    Offset = Builder.createAdd(Addr, LLContext.getInt64(MemoryOffset));
   }
   compileAtomicCheckOffsetAlignment(Offset, TargetType);
   auto VPtr = Builder.createInBoundsGEP1(
@@ -440,9 +443,12 @@ void FunctionCompiler::compileAtomicStore(unsigned MemoryIndex,
     V = Builder.createZExtOrTrunc(V, TargetType);
   }
   V = switchEndian(V);
-  auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
+  auto Addr = Builder.createZExt(Stack.back(), Context.Int64Ty);
+  boundsCheckMemory64(MemoryIndex, Addr, MemoryOffset,
+                      TargetType.getPrimitiveSizeInBits() / 8);
+  auto Offset = Addr;
   if (MemoryOffset != 0) {
-    Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
+    Offset = Builder.createAdd(Addr, LLContext.getInt64(MemoryOffset));
   }
   compileAtomicCheckOffsetAlignment(Offset, TargetType);
   auto VPtr = Builder.createInBoundsGEP1(
@@ -458,9 +464,12 @@ void FunctionCompiler::compileAtomicRMWOp(
     [[maybe_unused]] unsigned Alignment, LLVMAtomicRMWBinOp BinOp,
     LLVM::Type IntType, LLVM::Type TargetType, bool Signed) noexcept {
   auto Value = Builder.createSExtOrTrunc(stackPop(), TargetType);
-  auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
+  auto Addr = Builder.createZExt(Stack.back(), Context.Int64Ty);
+  boundsCheckMemory64(MemoryIndex, Addr, MemoryOffset,
+                      TargetType.getPrimitiveSizeInBits() / 8);
+  auto Offset = Addr;
   if (MemoryOffset != 0) {
-    Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
+    Offset = Builder.createAdd(Addr, LLContext.getInt64(MemoryOffset));
   }
   compileAtomicCheckOffsetAlignment(Offset, TargetType);
   auto VPtr = Builder.createInBoundsGEP1(
@@ -524,9 +533,12 @@ void FunctionCompiler::compileAtomicCompareExchange(
 
   auto Replacement = Builder.createSExtOrTrunc(stackPop(), TargetType);
   auto Expected = Builder.createSExtOrTrunc(stackPop(), TargetType);
-  auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
+  auto Addr = Builder.createZExt(Stack.back(), Context.Int64Ty);
+  boundsCheckMemory64(MemoryIndex, Addr, MemoryOffset,
+                      TargetType.getPrimitiveSizeInBits() / 8);
+  auto Offset = Addr;
   if (MemoryOffset != 0) {
-    Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
+    Offset = Builder.createAdd(Addr, LLContext.getInt64(MemoryOffset));
   }
   compileAtomicCheckOffsetAlignment(Offset, TargetType);
   auto VPtr = Builder.createInBoundsGEP1(

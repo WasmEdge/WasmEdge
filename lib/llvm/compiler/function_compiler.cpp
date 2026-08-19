@@ -23,7 +23,9 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
       Builder(LLContext) {
   if (F.Fn) {
     Builder.positionAtEnd(LLVM::BasicBlock::create(LLContext, F.Fn, "entry"));
-    ExecCtx = Builder.createLoad(Context.ExecCtxTy, F.Fn.getFirstParam());
+    ModCtx = Builder.createLoad(Context.ModCtxTy, F.Fn.getFirstParam());
+    ExecCtx = Builder.createLoad(Context.ExecCtxTy,
+                                 F.Fn.getFirstParam().getNextParam());
 
     if (InstructionCounting) {
       LocalInstrCount = Builder.createAlloca(Context.Int64Ty);
@@ -35,8 +37,10 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
       Builder.createStore(LLContext.getInt64(0), LocalGas);
     }
 
-    for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam(); Arg;
-         Arg = Arg.getNextParam()) {
+    CalleeCtxSlot = Builder.createAlloca(Context.ModCtxPtrTy);
+
+    for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam().getNextParam();
+         Arg; Arg = Arg.getNextParam()) {
       LLVM::Type Ty = Arg.getType();
       LLVM::Value ArgPtr = Builder.createAlloca(Ty);
       Builder.createStore(Arg, ArgPtr);
@@ -318,10 +322,11 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       auto IsRefTest = Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kRefTest,
-              LLVM::Type::getFunctionType(Context.Int32Ty,
-                                          {Context.Int64x2Ty, Context.Int64Ty},
-                                          false)),
-          {Ref, VType});
+              LLVM::Type::getFunctionType(
+                  Context.Int32Ty,
+                  {Context.Int8PtrTy, Context.Int64x2Ty, Context.Int64Ty},
+                  false)),
+          {Context.getModuleInst(Builder, ModCtx), Ref, VType});
       auto Cond = (Instr.getOpCode() == OpCode::Br_on_cast)
                       ? Builder.createICmpNE(IsRefTest, LLContext.getInt32(0))
                       : Builder.createICmpEQ(IsRefTest, LLContext.getInt32(0));
@@ -429,15 +434,14 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       Builder.createStore(Stack.back(), Local[Instr.getTargetIndex()].second);
       break;
     case OpCode::Global__get: {
-      const auto G =
-          Context.getGlobal(Builder, ExecCtx, Instr.getTargetIndex());
+      const auto G = Context.getGlobal(Builder, ModCtx, Instr.getTargetIndex());
       stackPush(Builder.createLoad(G.first, G.second));
       break;
     }
     case OpCode::Global__set:
       Builder.createStore(
           stackPop(),
-          Context.getGlobal(Builder, ExecCtx, Instr.getTargetIndex()).second);
+          Context.getGlobal(Builder, ModCtx, Instr.getTargetIndex()).second);
       break;
 
     // Table Instructions
@@ -447,13 +451,13 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "t_get.ok");
       Builder.createCondBr(
           Builder.createLikely(Builder.createICmpULT(
-              Off, Context.getTableSize(Builder, ExecCtx, TableIndex))),
+              Off, Context.getTableSize(Builder, ModCtx, TableIndex))),
           OkBB, getTrapBB(ErrCode::Value::TableOutOfBounds));
       Builder.positionAtEnd(OkBB);
       stackPush(Builder.createLoad(
           Context.Int64x2Ty,
           Builder.createInBoundsGEP1(
-              Context.Int64x2Ty, Context.getTable(Builder, ExecCtx, TableIndex),
+              Context.Int64x2Ty, Context.getTable(Builder, ModCtx, TableIndex),
               Off)));
       break;
     }
@@ -464,13 +468,13 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "t_set.ok");
       Builder.createCondBr(
           Builder.createLikely(Builder.createICmpULT(
-              Off, Context.getTableSize(Builder, ExecCtx, TableIndex))),
+              Off, Context.getTableSize(Builder, ModCtx, TableIndex))),
           OkBB, getTrapBB(ErrCode::Value::TableOutOfBounds));
       Builder.positionAtEnd(OkBB);
       Builder.createStore(
           Ref, Builder.createInBoundsGEP1(
                    Context.Int64x2Ty,
-                   Context.getTable(Builder, ExecCtx, TableIndex), Off));
+                   Context.getTable(Builder, ModCtx, TableIndex), Off));
       break;
     }
     case OpCode::Table__init: {
@@ -481,20 +485,23 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kTableInit,
               LLVM::Type::getFunctionType(Context.VoidTy,
-                                          {Context.Int32Ty, Context.Int32Ty,
-                                           Context.Int64Ty, Context.Int32Ty,
-                                           Context.Int32Ty},
+                                          {Context.Int8PtrTy, Context.Int32Ty,
+                                           Context.Int32Ty, Context.Int64Ty,
+                                           Context.Int32Ty, Context.Int32Ty},
                                           false)),
-          {LLContext.getInt32(Instr.getTargetIndex()),
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(Instr.getTargetIndex()),
            LLContext.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
       break;
     }
     case OpCode::Elem__drop: {
       Builder.createCall(
-          Context.getIntrinsic(Builder, Executable::Intrinsics::kElemDrop,
-                               LLVM::Type::getFunctionType(
-                                   Context.VoidTy, {Context.Int32Ty}, false)),
-          {LLContext.getInt32(Instr.getTargetIndex())});
+          Context.getIntrinsic(
+              Builder, Executable::Intrinsics::kElemDrop,
+              LLVM::Type::getFunctionType(
+                  Context.VoidTy, {Context.Int8PtrTy, Context.Int32Ty}, false)),
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(Instr.getTargetIndex())});
       break;
     }
     case OpCode::Table__copy: {
@@ -505,11 +512,12 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kTableCopy,
               LLVM::Type::getFunctionType(Context.VoidTy,
-                                          {Context.Int32Ty, Context.Int32Ty,
-                                           Context.Int64Ty, Context.Int64Ty,
-                                           Context.Int64Ty},
+                                          {Context.Int8PtrTy, Context.Int32Ty,
+                                           Context.Int32Ty, Context.Int64Ty,
+                                           Context.Int64Ty, Context.Int64Ty},
                                           false)),
-          {LLContext.getInt32(Instr.getTargetIndex()),
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(Instr.getTargetIndex()),
            LLContext.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
       break;
     }
@@ -518,19 +526,20 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       auto Val = stackPop();
       stackPush(Builder.createTrunc(
           Builder.createCall(
-              Context.getIntrinsic(
-                  Builder, Executable::Intrinsics::kTableGrow,
-                  LLVM::Type::getFunctionType(
-                      Context.Int64Ty,
-                      {Context.Int32Ty, Context.Int64x2Ty, Context.Int64Ty},
-                      false)),
-              {LLContext.getInt32(Instr.getTargetIndex()), Val, NewSize}),
+              Context.getIntrinsic(Builder, Executable::Intrinsics::kTableGrow,
+                                   LLVM::Type::getFunctionType(
+                                       Context.Int64Ty,
+                                       {Context.Int8PtrTy, Context.Int32Ty,
+                                        Context.Int64x2Ty, Context.Int64Ty},
+                                       false)),
+              {Context.getModuleInst(Builder, ModCtx),
+               LLContext.getInt32(Instr.getTargetIndex()), Val, NewSize}),
           Context.TableAddrTypes[Instr.getTargetIndex()]));
       break;
     }
     case OpCode::Table__size: {
       stackPush(Builder.createTrunc(
-          Context.getTableSize(Builder, ExecCtx, Instr.getTargetIndex()),
+          Context.getTableSize(Builder, ModCtx, Instr.getTargetIndex()),
           Context.TableAddrTypes[Instr.getTargetIndex()]));
       break;
     }
@@ -542,10 +551,12 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kTableFill,
               LLVM::Type::getFunctionType(Context.Int32Ty,
-                                          {Context.Int32Ty, Context.Int64Ty,
-                                           Context.Int64x2Ty, Context.Int64Ty},
+                                          {Context.Int8PtrTy, Context.Int32Ty,
+                                           Context.Int64Ty, Context.Int64x2Ty,
+                                           Context.Int64Ty},
                                           false)),
-          {LLContext.getInt32(Instr.getTargetIndex()), Off, Val, Len});
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(Instr.getTargetIndex()), Off, Val, Len});
       break;
     }
 
@@ -1226,7 +1237,7 @@ void FunctionCompiler::compileTryTableOp(
       auto NextBB =
           LLVM::BasicBlock::create(LLContext, F.Fn, "try.dispatch.next");
       auto IsMatch = Builder.createICmpEQ(
-          PendingTagInst, Context.getTag(Builder, ExecCtx, C.TagIndex));
+          PendingTagInst, Context.getTag(Builder, ModCtx, C.TagIndex));
       Builder.createCondBr(IsMatch, CaseBB, NextBB);
       Builder.positionAtEnd(NextBB);
     }
@@ -1249,11 +1260,12 @@ void FunctionCompiler::compileTryTableOp(
       Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kCatchPop,
-              LLVM::Type::getFunctionType(
-                  Context.VoidTy,
-                  {Context.Int8PtrTy, Context.Int32Ty, Context.Int32Ty},
-                  false)),
-          {Out, LLContext.getInt32(C->IsAll ? 0 : 1),
+              LLVM::Type::getFunctionType(Context.VoidTy,
+                                          {Context.Int8PtrTy, Context.Int8PtrTy,
+                                           Context.Int32Ty, Context.Int32Ty},
+                                          false)),
+          {Context.getModuleInst(Builder, ModCtx), Out,
+           LLContext.getInt32(C->IsAll ? 0 : 1),
            LLContext.getInt32(C->IsRef ? 1 : 0)});
 
       uint32_t OutIdx = 0;
@@ -1302,10 +1314,12 @@ void FunctionCompiler::compileThrowOp(const uint32_t TagIndex) noexcept {
   Builder.createCall(
       Context.getIntrinsic(
           Builder, Executable::Intrinsics::kThrow,
-          LLVM::Type::getFunctionType(
-              Context.VoidTy,
-              {Context.Int32Ty, Context.Int8PtrTy, Context.Int32Ty}, false)),
-      {LLContext.getInt32(TagIndex), Vals, LLContext.getInt32(Arity)});
+          LLVM::Type::getFunctionType(Context.VoidTy,
+                                      {Context.Int8PtrTy, Context.Int32Ty,
+                                       Context.Int8PtrTy, Context.Int32Ty},
+                                      false)),
+      {Context.getModuleInst(Builder, ModCtx), LLContext.getInt32(TagIndex),
+       Vals, LLContext.getInt32(Arity)});
 
   Builder.createBr(getEHDispatchTarget());
   setUnreachable();
@@ -1341,11 +1355,12 @@ void FunctionCompiler::compileCallOp(const unsigned int FuncIndex) noexcept {
   const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
   const auto &ParamTypes = FuncType.getParamTypes();
 
-  std::vector<LLVM::Value> Args(ParamTypes.size() + 1);
+  std::vector<LLVM::Value> Args(ParamTypes.size() + 2);
   Args[0] = F.Fn.getFirstParam();
+  Args[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ParamTypes.size(); ++I) {
     const size_t J = ParamTypes.size() - 1 - I;
-    Args[J + 1] = stackPop();
+    Args[J + 2] = stackPop();
   }
 
   LLVM::Value Ret;
@@ -1354,7 +1369,8 @@ void FunctionCompiler::compileCallOp(const unsigned int FuncIndex) noexcept {
     if (IsImport) {
       Ret = Builder.createCall(Function, Args);
     } else {
-      auto FTy = toLLVMType(LLContext, Context.ExecCtxPtrTy, FuncType);
+      auto FTy = toLLVMType(LLContext, Context.ModCtxPtrTy,
+                            Context.ExecCtxPtrTy, FuncType);
 
       if (Context.LazyJITCacheVars.size() <= FuncIndex) {
         Context.LazyJITCacheVars.resize(Context.Functions.size());
@@ -1384,9 +1400,11 @@ void FunctionCompiler::compileCallOp(const unsigned int FuncIndex) noexcept {
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kFuncGetFuncSymbol,
-              LLVM::Type::getFunctionType(FTy.getPointerTo(), {Context.Int32Ty},
+              LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                          {Context.Int8PtrTy, Context.Int32Ty},
                                           false)),
-          {LLContext.getInt32(FuncIndex)});
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(FuncIndex)});
       auto Store = Builder.createStore(FPtr, CacheVar);
       Store.setAlignment(8);
       Store.setOrdering(LLVMAtomicOrderingRelease);
@@ -1429,7 +1447,8 @@ void FunctionCompiler::compileIndirectCallOp(
 
   LLVM::Value FuncIndex = stackPop();
   const auto &FuncType = Context.CompositeTypes[FuncTypeIndex]->getFuncType();
-  auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
+  auto FTy = toLLVMType(Context.LLContext, Context.ModCtxPtrTy,
+                        Context.ExecCtxPtrTy, FuncType);
   auto RTy = FTy.getReturnType();
   auto FPtrTy = FTy.getPointerTo();
   auto TableIdx = LLContext.getInt32(TableIndex);
@@ -1437,10 +1456,11 @@ void FunctionCompiler::compileIndirectCallOp(
 
   const size_t ArgSize = FuncType.getParamTypes().size();
   const size_t RetSize = RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-  std::vector<LLVM::Value> ArgsVec(ArgSize + 1, nullptr);
+  std::vector<LLVM::Value> ArgsVec(ArgSize + 2, nullptr);
   ArgsVec[0] = F.Fn.getFirstParam();
+  ArgsVec[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ArgSize; ++I) {
-    const size_t J = ArgSize - I;
+    const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
   }
   auto UnpackRets = [&](LLVM::Value Ret) -> std::vector<LLVM::Value> {
@@ -1461,14 +1481,14 @@ void FunctionCompiler::compileIndirectCallOp(
   {
     Builder.createCondBr(
         Builder.createLikely(Builder.createICmpULT(
-            Idx64, Context.getTableSize(Builder, ExecCtx, TableIndex))),
+            Idx64, Context.getTableSize(Builder, ModCtx, TableIndex))),
         TryFastBB, SlowBB);
     Builder.positionAtEnd(TryFastBB);
 
     auto FuncRef = Builder.createLoad(
         Context.Int64x2Ty,
         Builder.createInBoundsGEP1(
-            Context.Int64x2Ty, Context.getTable(Builder, ExecCtx, TableIndex),
+            Context.Int64x2Ty, Context.getTable(Builder, ModCtx, TableIndex),
             Idx64));
     auto FuncInstInt =
         Builder.createExtractElement(FuncRef, LLContext.getInt64(1));
@@ -1493,10 +1513,9 @@ void FunctionCompiler::compileIndirectCallOp(
     auto Code =
         LoadField(FunctionInstance::getCompiledCodeOffset(), Context.Int8PtrTy);
     auto Hit = Builder.createAnd(
-        Builder.createAnd(
-            Builder.createICmpEQ(DefModule,
-                                 Context.getModuleInst(Builder, ExecCtx)),
-            Builder.createICmpEQ(CalleeTypeIdx, TypeIdx)),
+        Builder.createAnd(Builder.createICmpEQ(DefModule, Context.getModuleInst(
+                                                              Builder, ModCtx)),
+                          Builder.createICmpEQ(CalleeTypeIdx, TypeIdx)),
         Builder.createNot(Builder.createIsNull(Code)));
     Builder.createCondBr(Builder.createLikely(Hit), FastBB, SlowBB);
 
@@ -1516,16 +1535,24 @@ void FunctionCompiler::compileIndirectCallOp(
     auto FPtr = Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kTableGetFuncSymbol,
-            LLVM::Type::getFunctionType(
-                FPtrTy, {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty},
-                false)),
-        {TableIdx, TypeIdx, FuncIndex});
+            LLVM::Type::getFunctionType(FPtrTy,
+                                        {Context.Int8PtrTy, Context.Int32Ty,
+                                         Context.Int32Ty, Context.Int64Ty,
+                                         Context.ModCtxPtrTy.getPointerTo()},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), TableIdx, TypeIdx, Idx64,
+         CalleeCtxSlot});
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
     Builder.positionAtEnd(NotNullBB);
 
-    auto FPtrRet = Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, ArgsVec);
+    auto Returned = Builder.createLoad(Context.ModCtxPtrTy, CalleeCtxSlot);
+    std::vector<LLVM::Value> SlowArgsVec = ArgsVec;
+    SlowArgsVec[0] = Builder.createSelect(Builder.createIsNull(Returned),
+                                          F.Fn.getFirstParam(), Returned);
+    auto FPtrRet =
+        Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, SlowArgsVec);
     FPtrRetsVec = UnpackRets(FPtrRet);
   }
 
@@ -1536,18 +1563,19 @@ void FunctionCompiler::compileIndirectCallOp(
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kCallIndirect,
             LLVM::Type::getFunctionType(Context.VoidTy,
-                                        {Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int32Ty, Context.Int8PtrTy,
-                                         Context.Int8PtrTy},
+                                        {Context.Int8PtrTy, Context.Int32Ty,
+                                         Context.Int32Ty, Context.Int64Ty,
+                                         Context.Int8PtrTy, Context.Int8PtrTy},
                                         false)),
-        {TableIdx, TypeIdx, FuncIndex, Args, Rets});
+        {Context.getModuleInst(Builder, ModCtx), TableIdx, TypeIdx, Idx64, Args,
+         Rets});
 
     if (RetSize == 0) {
       // nothing to do
@@ -1580,11 +1608,12 @@ void FunctionCompiler::compileReturnCallOp(
   const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
   const auto &ParamTypes = FuncType.getParamTypes();
 
-  std::vector<LLVM::Value> Args(ParamTypes.size() + 1);
+  std::vector<LLVM::Value> Args(ParamTypes.size() + 2);
   Args[0] = F.Fn.getFirstParam();
+  Args[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ParamTypes.size(); ++I) {
     const size_t J = ParamTypes.size() - 1 - I;
-    Args[J + 1] = stackPop();
+    Args[J + 2] = stackPop();
   }
 
   LLVM::Value Ret;
@@ -1593,7 +1622,8 @@ void FunctionCompiler::compileReturnCallOp(
     if (IsImport) {
       Ret = Builder.createCall(Function, Args);
     } else {
-      auto FTy = toLLVMType(LLContext, Context.ExecCtxPtrTy, FuncType);
+      auto FTy = toLLVMType(LLContext, Context.ModCtxPtrTy,
+                            Context.ExecCtxPtrTy, FuncType);
 
       if (Context.LazyJITCacheVars.size() <= FuncIndex) {
         Context.LazyJITCacheVars.resize(Context.Functions.size());
@@ -1623,9 +1653,11 @@ void FunctionCompiler::compileReturnCallOp(
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kFuncGetFuncSymbol,
-              LLVM::Type::getFunctionType(FTy.getPointerTo(), {Context.Int32Ty},
+              LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                          {Context.Int8PtrTy, Context.Int32Ty},
                                           false)),
-          {LLContext.getInt32(FuncIndex)});
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(FuncIndex)});
       auto Store = Builder.createStore(FPtr, CacheVar);
       Store.setAlignment(8);
       Store.setOrdering(LLVMAtomicOrderingRelease);
@@ -1642,7 +1674,14 @@ void FunctionCompiler::compileReturnCallOp(
     Ret = Builder.createCall(Function, Args);
   }
 
-  Ret.setMustTailCall();
+  // Known limitation: musttail is only valid when the caller and callee
+  // prototypes match. A differing signature falls back to the tail hint, which
+  // LLVM may decline, so such a tail call is not guaranteed constant-space.
+  if (Ret.getInstructionCalledFunctionType().unwrap() == F.Ty.unwrap()) {
+    Ret.setMustTailCall();
+  } else {
+    Ret.setTailCall();
+  }
   auto Ty = Ret.getType();
   if (Ty.isVoidTy()) {
     Builder.createRetVoid();
@@ -1657,16 +1696,19 @@ void FunctionCompiler::compileReturnIndirectCallOp(
   auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.is_null");
 
   LLVM::Value FuncIndex = stackPop();
+  auto Idx64 = Builder.createZExt(FuncIndex, Context.Int64Ty);
   const auto &FuncType = Context.CompositeTypes[FuncTypeIndex]->getFuncType();
-  auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
+  auto FTy = toLLVMType(Context.LLContext, Context.ModCtxPtrTy,
+                        Context.ExecCtxPtrTy, FuncType);
   auto RTy = FTy.getReturnType();
 
   const size_t ArgSize = FuncType.getParamTypes().size();
   const size_t RetSize = RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-  std::vector<LLVM::Value> ArgsVec(ArgSize + 1, nullptr);
+  std::vector<LLVM::Value> ArgsVec(ArgSize + 2, nullptr);
   ArgsVec[0] = F.Fn.getFirstParam();
+  ArgsVec[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ArgSize; ++I) {
-    const size_t J = ArgSize - I;
+    const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
   }
 
@@ -1674,18 +1716,31 @@ void FunctionCompiler::compileReturnIndirectCallOp(
     auto FPtr = Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kTableGetFuncSymbol,
-            LLVM::Type::getFunctionType(
-                FTy.getPointerTo(),
-                {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
-        {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
-         FuncIndex});
+            LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                        {Context.Int8PtrTy, Context.Int32Ty,
+                                         Context.Int32Ty, Context.Int64Ty,
+                                         Context.ModCtxPtrTy.getPointerTo()},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), LLContext.getInt32(TableIndex),
+         LLContext.getInt32(FuncTypeIndex), Idx64, CalleeCtxSlot});
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
     Builder.positionAtEnd(NotNullBB);
 
-    auto FPtrRet = Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), ArgsVec);
-    FPtrRet.setMustTailCall();
+    auto Returned = Builder.createLoad(Context.ModCtxPtrTy, CalleeCtxSlot);
+    std::vector<LLVM::Value> SlowArgsVec = ArgsVec;
+    SlowArgsVec[0] = Builder.createSelect(Builder.createIsNull(Returned),
+                                          F.Fn.getFirstParam(), Returned);
+    auto FPtrRet =
+        Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), SlowArgsVec);
+    // Known limitation: a mismatched prototype rules musttail out and the tail
+    // hint may be declined, so this tail call is not guaranteed constant-space.
+    if (FPtrRet.getInstructionCalledFunctionType().unwrap() == F.Ty.unwrap()) {
+      FPtrRet.setMustTailCall();
+    } else {
+      FPtrRet.setTailCall();
+    }
     if (RetSize == 0) {
       Builder.createRetVoid();
     } else {
@@ -1698,19 +1753,19 @@ void FunctionCompiler::compileReturnIndirectCallOp(
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kCallIndirect,
             LLVM::Type::getFunctionType(Context.VoidTy,
-                                        {Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int32Ty, Context.Int8PtrTy,
-                                         Context.Int8PtrTy},
+                                        {Context.Int8PtrTy, Context.Int32Ty,
+                                         Context.Int32Ty, Context.Int64Ty,
+                                         Context.Int8PtrTy, Context.Int8PtrTy},
                                         false)),
-        {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
-         FuncIndex, Args, Rets});
+        {Context.getModuleInst(Builder, ModCtx), LLContext.getInt32(TableIndex),
+         LLContext.getInt32(FuncTypeIndex), Idx64, Args, Rets});
 
     if (RetSize == 0) {
       Builder.createRetVoid();
@@ -1738,15 +1793,17 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
   Builder.positionAtEnd(OkBB);
 
   const auto &FuncType = Context.CompositeTypes[TypeIndex]->getFuncType();
-  auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
+  auto FTy = toLLVMType(Context.LLContext, Context.ModCtxPtrTy,
+                        Context.ExecCtxPtrTy, FuncType);
   auto RTy = FTy.getReturnType();
 
   const size_t ArgSize = FuncType.getParamTypes().size();
   const size_t RetSize = RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-  std::vector<LLVM::Value> ArgsVec(ArgSize + 1, nullptr);
+  std::vector<LLVM::Value> ArgsVec(ArgSize + 2, nullptr);
   ArgsVec[0] = F.Fn.getFirstParam();
+  ArgsVec[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ArgSize; ++I) {
-    const size_t J = ArgSize - I;
+    const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
   }
 
@@ -1754,17 +1811,24 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
   FPtrRetsVec.reserve(RetSize);
   {
     auto FPtr = Builder.createCall(
-        Context.getIntrinsic(Builder, Executable::Intrinsics::kRefGetFuncSymbol,
-                             LLVM::Type::getFunctionType(FTy.getPointerTo(),
-                                                         {Context.Int64x2Ty},
-                                                         false)),
-        {Ref});
+        Context.getIntrinsic(
+            Builder, Executable::Intrinsics::kRefGetFuncSymbol,
+            LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                        {Context.Int8PtrTy, Context.Int64x2Ty,
+                                         Context.ModCtxPtrTy.getPointerTo()},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), Ref, CalleeCtxSlot});
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
     Builder.positionAtEnd(NotNullBB);
 
-    auto FPtrRet = Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, ArgsVec);
+    auto Returned = Builder.createLoad(Context.ModCtxPtrTy, CalleeCtxSlot);
+    std::vector<LLVM::Value> SlowArgsVec = ArgsVec;
+    SlowArgsVec[0] = Builder.createSelect(Builder.createIsNull(Returned),
+                                          F.Fn.getFirstParam(), Returned);
+    auto FPtrRet =
+        Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, SlowArgsVec);
     if (RetSize == 0) {
       // nothing to do
     } else if (RetSize == 1) {
@@ -1783,17 +1847,17 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kCallRef,
-            LLVM::Type::getFunctionType(
-                Context.VoidTy,
-                {Context.Int64x2Ty, Context.Int8PtrTy, Context.Int8PtrTy},
-                false)),
-        {Ref, Args, Rets});
+            LLVM::Type::getFunctionType(Context.VoidTy,
+                                        {Context.Int8PtrTy, Context.Int64x2Ty,
+                                         Context.Int8PtrTy, Context.Int8PtrTy},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), Ref, Args, Rets});
 
     if (RetSize == 0) {
       // nothing to do
@@ -1832,32 +1896,47 @@ void FunctionCompiler::compileReturnCallRefOp(
   Builder.positionAtEnd(OkBB);
 
   const auto &FuncType = Context.CompositeTypes[TypeIndex]->getFuncType();
-  auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
+  auto FTy = toLLVMType(Context.LLContext, Context.ModCtxPtrTy,
+                        Context.ExecCtxPtrTy, FuncType);
   auto RTy = FTy.getReturnType();
 
   const size_t ArgSize = FuncType.getParamTypes().size();
   const size_t RetSize = RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
-  std::vector<LLVM::Value> ArgsVec(ArgSize + 1, nullptr);
+  std::vector<LLVM::Value> ArgsVec(ArgSize + 2, nullptr);
   ArgsVec[0] = F.Fn.getFirstParam();
+  ArgsVec[1] = F.Fn.getFirstParam().getNextParam();
   for (size_t I = 0; I < ArgSize; ++I) {
-    const size_t J = ArgSize - I;
+    const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
   }
 
   {
     auto FPtr = Builder.createCall(
-        Context.getIntrinsic(Builder, Executable::Intrinsics::kRefGetFuncSymbol,
-                             LLVM::Type::getFunctionType(FTy.getPointerTo(),
-                                                         {Context.Int64x2Ty},
-                                                         false)),
-        {Ref});
+        Context.getIntrinsic(
+            Builder, Executable::Intrinsics::kRefGetFuncSymbol,
+            LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                        {Context.Int8PtrTy, Context.Int64x2Ty,
+                                         Context.ModCtxPtrTy.getPointerTo()},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), Ref, CalleeCtxSlot});
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
     Builder.positionAtEnd(NotNullBB);
 
-    auto FPtrRet = Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), ArgsVec);
-    FPtrRet.setMustTailCall();
+    auto Returned = Builder.createLoad(Context.ModCtxPtrTy, CalleeCtxSlot);
+    std::vector<LLVM::Value> SlowArgsVec = ArgsVec;
+    SlowArgsVec[0] = Builder.createSelect(Builder.createIsNull(Returned),
+                                          F.Fn.getFirstParam(), Returned);
+    auto FPtrRet =
+        Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), SlowArgsVec);
+    // Known limitation: a mismatched prototype rules musttail out and the tail
+    // hint may be declined, so this tail call is not guaranteed constant-space.
+    if (FPtrRet.getInstructionCalledFunctionType().unwrap() == F.Ty.unwrap()) {
+      FPtrRet.setMustTailCall();
+    } else {
+      FPtrRet.setTailCall();
+    }
     if (RetSize == 0) {
       Builder.createRetVoid();
     } else {
@@ -1870,17 +1949,17 @@ void FunctionCompiler::compileReturnCallRefOp(
   {
     LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
     LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
-    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize),
+    Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
     Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kCallRef,
-            LLVM::Type::getFunctionType(
-                Context.VoidTy,
-                {Context.Int64x2Ty, Context.Int8PtrTy, Context.Int8PtrTy},
-                false)),
-        {Ref, Args, Rets});
+            LLVM::Type::getFunctionType(Context.VoidTy,
+                                        {Context.Int8PtrTy, Context.Int64x2Ty,
+                                         Context.Int8PtrTy, Context.Int8PtrTy},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), Ref, Args, Rets});
 
     if (RetSize == 0) {
       Builder.createRetVoid();

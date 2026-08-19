@@ -226,7 +226,7 @@ void FunctionCompiler::boundsCheckMemory64(unsigned MemoryIndex,
   // Addr + Offset + AccessSize <= SizeBytes with every term kept in 64 bits.
   const uint64_t OffsetAndSize = Offset + AccessSize;
   auto SizeBytes =
-      Builder.createShl(Context.getMemorySize(Builder, ExecCtx, MemoryIndex),
+      Builder.createShl(Context.getMemorySize(Builder, ModCtx, MemoryIndex),
                         LLContext.getInt64(16));
   auto Limit = Builder.createIntrinsic(
       LLVM::Core::USubSat, {Context.Int64Ty},

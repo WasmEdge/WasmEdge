@@ -89,10 +89,16 @@ wasmedge_add_library(wasmedgeCAPI OBJECT
   wasmedge.cpp
 )
 
+# The C API exposes WAT/WAST loading (the loader auto-detects text modules and
+# routes them through wasmedgeWat), so declare that dependency explicitly here
+# rather than relying on it arriving transitively through the loader. This lets
+# consumers of the API libraries pick up wasmedgeWat (and its tree-sitter object
+# library) automatically instead of having to list it by hand.
 target_link_libraries(wasmedgeCAPI
   PUBLIC
   wasmedgeVM
   wasmedgeDriver
+  wasmedgeWat
 )
 
 if(WASMEDGE_USE_LLVM)
@@ -165,6 +171,7 @@ if(WASMEDGE_BUILD_STATIC_LIB)
   wasmedge_add_static_lib_component_command(wasmedgePO)
   wasmedge_add_static_lib_component_command(wasmedgeLoaderFileMgr)
   wasmedge_add_static_lib_component_command(wasmedgeLoader)
+  wasmedge_add_static_lib_component_command(wasmedgeWat)
   wasmedge_add_static_lib_component_command(wasmedgeValidator)
   wasmedge_add_static_lib_component_command(wasmedgeExecutor)
   wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasi)
@@ -184,6 +191,9 @@ if(WASMEDGE_BUILD_STATIC_LIB)
     wasmedge_add_static_lib_component_command(wasmedgeLLVM)
   endif()
 
+  # The tree-sitter runtime objects are folded into wasmedgeWat (see
+  # lib/wat/CMakeLists.txt), which is already packaged as a static component
+  # above, so they no longer need to be added as a separate object dependency.
   if(CMAKE_AR_NAME STREQUAL "libtool")
     add_custom_command(OUTPUT "libwasmedge.a"
       COMMAND ${CMAKE_AR} -static -o libwasmedge.a ${WASMEDGE_STATIC_LIB_LIBTOOL_FILES} $<TARGET_OBJECTS:wasmedgeCAPI>

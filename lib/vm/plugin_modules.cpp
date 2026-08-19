@@ -10,7 +10,6 @@
 #include "host/mock/wasi_logging_module.h"
 #include "host/mock/wasi_nn_module.h"
 #include "host/mock/wasmedge_image_module.h"
-#include "host/mock/wasmedge_process_module.h"
 #include "host/mock/wasmedge_stablediffusion_module.h"
 #include "host/mock/wasmedge_tensorflow_module.h"
 #include "host/mock/wasmedge_tensorflowlite_module.h"
@@ -40,7 +39,7 @@ struct OfficialPluginEntry {
 
 /// One row per official plugin module. Both the load order of the mock-or-real
 /// instances and the official plugin name check derive from this table.
-constexpr std::array<OfficialPluginEntry, 12> OfficialPluginTable{{
+constexpr std::array<OfficialPluginEntry, 11> OfficialPluginTable{{
     {"wasi_nn"sv, "wasi_nn"sv, createMock<Host::WasiNNModuleMock>},
     {"wasi_crypto"sv, "wasi_crypto_common"sv,
      createMock<Host::WasiCryptoCommonModuleMock>},
@@ -52,8 +51,6 @@ constexpr std::array<OfficialPluginEntry, 12> OfficialPluginTable{{
      createMock<Host::WasiCryptoSignaturesModuleMock>},
     {"wasi_crypto"sv, "wasi_crypto_symmetric"sv,
      createMock<Host::WasiCryptoSymmetricModuleMock>},
-    {"wasmedge_process"sv, "wasmedge_process"sv,
-     createMock<Host::WasmEdgeProcessModuleMock>},
     {"wasi_logging"sv, "wasi:logging/logging"sv,
      createMock<Host::WasiLoggingModuleMock>},
     {"wasmedge_tensorflow"sv, "wasmedge_tensorflow"sv,

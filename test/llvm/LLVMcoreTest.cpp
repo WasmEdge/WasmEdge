@@ -33,6 +33,8 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <system_error>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -896,6 +898,81 @@ TEST(AOTMemory64, BoundsCheck) {
 
   VM.cleanup();
   EXPECT_NO_THROW(std::filesystem::remove(Path));
+}
+
+// Owns a uniquely named file under the system temporary directory and removes
+// it when the scope exits, including when an assertion returns early.
+class ScopedTempFile {
+public:
+  explicit ScopedTempFile(std::string_view Stem,
+                          std::string_view Extension = ""sv)
+      : Path(
+            std::filesystem::temp_directory_path() /
+            std::filesystem::u8path(std::string(Stem) + "-" +
+                                    std::to_string(std::hash<std::thread::id>{}(
+                                        std::this_thread::get_id())) +
+                                    std::string(Extension))) {}
+  ScopedTempFile(const ScopedTempFile &) = delete;
+  ScopedTempFile &operator=(const ScopedTempFile &) = delete;
+  ~ScopedTempFile() noexcept {
+    std::error_code EC;
+    std::filesystem::remove(Path, EC);
+  }
+
+  const std::filesystem::path &get() const noexcept { return Path; }
+
+private:
+  std::filesystem::path Path;
+};
+
+TEST(NativeRunMode, LoadSharedLibraryRequiresAOTMode) {
+  std::array<WasmEdge::Byte, 34> NativeRunModeWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+      0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01, 0x66,
+      0x00, 0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x2a, 0x0b};
+
+  const ScopedTempFile Artifact("NativeRunModeTest", WASMEDGE_LIB_EXTENSION);
+  const auto &Path = Artifact.get();
+
+  {
+    WasmEdge::Configure Conf;
+    Conf.getCompilerConfigure().setOutputFormat(
+        CompilerConfigure::OutputFormat::Native);
+    Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
+
+    WasmEdge::Loader::Loader Loader(Conf);
+    WasmEdge::Validator::Validator ValidatorEngine(Conf);
+    WasmEdge::LLVM::Compiler Compiler(Conf);
+    WasmEdge::LLVM::CodeGen CodeGen(Conf);
+
+    auto Module = Loader.parseModule(NativeRunModeWasm);
+    ASSERT_TRUE(Module);
+    ASSERT_TRUE(ValidatorEngine.validate(**Module));
+    auto Data = Compiler.compile(**Module);
+    ASSERT_TRUE(Data);
+    ASSERT_TRUE(CodeGen.codegen(NativeRunModeWasm, std::move(*Data), Path));
+  }
+
+  for (const auto Mode :
+       {WasmEdge::RunMode::Interpreter, WasmEdge::RunMode::JIT}) {
+    WasmEdge::Configure Conf;
+    Conf.getRuntimeConfigure().setRunMode(Mode);
+    WasmEdge::VM::VM VM(Conf);
+    auto Res = VM.loadWasm(Path);
+    EXPECT_FALSE(Res);
+    if (!Res) {
+      EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::MalformedMagic);
+    }
+    VM.cleanup();
+  }
+
+  {
+    WasmEdge::Configure Conf;
+    Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
+    WasmEdge::VM::VM VM(Conf);
+    EXPECT_TRUE(VM.loadWasm(Path));
+    VM.cleanup();
+  }
 }
 
 } // namespace

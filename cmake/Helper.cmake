@@ -504,51 +504,116 @@ function(wasmedge_setup_spdlog)
   if(TARGET spdlog::spdlog)
     return()
   endif()
-  # setup spdlog
-  find_package(spdlog QUIET)
-  if(spdlog_FOUND)
-    message(STATUS "spdlog found")
-    wasmedge_mark_system_includes(spdlog::spdlog)
+  # Static archive assembly extracts objects from fmt and spdlog with ar -x,
+  # which needs the pinned static builds rather than system packages.
+  if(NOT WASMEDGE_BUILD_STATIC_LIB)
+    find_package(spdlog QUIET)
+    if(NOT spdlog_FOUND AND APPLE AND NOT TARGET fmt::fmt)
+      # A package manager fmt without spdlog is common on macOS, where an
+      # injected -I/opt/homebrew/include otherwise shadows the fetched fmt
+      # headers with a different version than the one linked. Adopting the
+      # package keeps one fmt in play; elsewhere no such injection vector
+      # exists and the pinned pair is used as before.
+      find_package(fmt QUIET)
+    endif()
+  endif()
+  # Validate whichever fmt::fmt is in play now: one pulled in by the spdlog
+  # package, one found above, or one populated by an enclosing project. The
+  # loaded target itself is inspected, so every find_package entry point
+  # (fmt_DIR, fmt_ROOT, prefix paths, registries) is covered by construction.
+  if(TARGET fmt::fmt)
+    get_target_property(WASMEDGE_FMT_CONCRETE fmt::fmt ALIASED_TARGET)
+    if(NOT WASMEDGE_FMT_CONCRETE)
+      set(WASMEDGE_FMT_CONCRETE fmt::fmt)
+    endif()
+    get_target_property(WASMEDGE_FMT_TYPE ${WASMEDGE_FMT_CONCRETE} TYPE)
+    get_target_property(WASMEDGE_FMT_IMPORTED ${WASMEDGE_FMT_CONCRETE} IMPORTED)
+    if(WASMEDGE_BUILD_STATIC_LIB AND WASMEDGE_FMT_TYPE STREQUAL "SHARED_LIBRARY")
+      # The static archive assembly extracts fmt objects with ar -x, which a
+      # shared library cannot satisfy; master failed the same setup at build
+      # time inside the archive assembly step.
+      message(FATAL_ERROR "WASMEDGE_BUILD_STATIC_LIB needs a static fmt archive, but the fmt::fmt target is a shared library. Provide a static fmt or let WasmEdge fetch its pinned copy.")
+    endif()
+    if(NOT WASMEDGE_FMT_IMPORTED)
+      # A source fmt populated by an enclosing project must be position
+      # independent to link into the shared library outputs, matching the
+      # treatment the fetched copy receives from wasmedge_setup_target().
+      set_property(TARGET ${WASMEDGE_FMT_CONCRETE} PROPERTY
+        POSITION_INDEPENDENT_CODE ON)
+    else()
+      # A static archive is accepted as master did: package managers build
+      # them with PIC as a rule, and a non-PIC one fails at link with the
+      # linker naming the object and asking for -fPIC, which an imported
+      # target cannot predict at configure time.
+      include(CheckCXXSourceCompiles)
+      check_cxx_source_compiles(
+        "int main() { return static_cast<int>(sizeof(__int128)); }"
+        WASMEDGE_HAS_NATIVE_INT128)
+      if(NOT WASMEDGE_HAS_NATIVE_INT128 AND
+          (NOT fmt_VERSION OR NOT fmt_VERSION VERSION_LESS 12.2.0))
+        # fmt 12.2.0 cannot compile its 128-bit fallback without a native
+        # __int128 (see the pin below).
+        message(FATAL_ERROR "The fmt package (version '${fmt_VERSION}') needs a native __int128 which this toolchain lacks. Install fmt older than 12.2.0 or set -DCMAKE_DISABLE_FIND_PACKAGE_spdlog=ON -DCMAKE_DISABLE_FIND_PACKAGE_fmt=ON to use the pinned copies.")
+      endif()
+    endif()
+    message(STATUS "fmt found")
     wasmedge_mark_system_includes(fmt::fmt)
     wasmedge_mark_system_includes(fmt::fmt-header-only)
+  endif()
+  if(spdlog_FOUND)
+    # The sources include fmt headers directly, so a spdlog built against its
+    # bundled fmt neither provides the headers nor links the same fmt, and
+    # one binary would mix two fmt copies. An external-fmt package records
+    # SPDLOG_FMT_EXTERNAL in its interface and pulls fmt::fmt in through its
+    # own find_dependency call.
+    get_target_property(WASMEDGE_SPDLOG_DEFS spdlog::spdlog
+      INTERFACE_COMPILE_DEFINITIONS)
+    if(NOT TARGET fmt::fmt OR
+        NOT WASMEDGE_SPDLOG_DEFS MATCHES "SPDLOG_FMT_EXTERNAL")
+      message(FATAL_ERROR "The spdlog package was built against its bundled fmt, which cannot satisfy the direct fmt usage in the sources. Install a spdlog built with SPDLOG_FMT_EXTERNAL or set -DCMAKE_DISABLE_FIND_PACKAGE_spdlog=ON to use the pinned copies.")
+    endif()
+    message(STATUS "spdlog found")
+    wasmedge_mark_system_includes(spdlog::spdlog)
   else()
     include(FetchContent)
-    message(STATUS "Downloading fmt source")
-    # Held at 12.1.0. fmt 12.2.0 needs CMake 3.19 or later, which this project
-    # does not require: it sets VERSION, SOVERSION and DEBUG_POSTFIX on the
-    # fmt-header-only INTERFACE target, and CMake rejects non-whitelisted
-    # properties on INTERFACE libraries before 3.19. Debian bullseye, which
-    # builds the static release, carries CMake 3.18. fmt 12.2.0 also fails to
-    # compile its own 128-bit fallback in do_format_decimal, which every target
-    # without a native __int128 -- MSVC among them -- instantiates.
-    FetchContent_Declare(
-      fmt
-      GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-      GIT_TAG        407c905e45ad75fc29bf0f9bb7c5c2fd3475976f  # 12.1.0
-      GIT_SHALLOW    TRUE
-    )
-    set(FMT_INSTALL OFF CACHE BOOL "Generate the install target." FORCE)
-    set(FMT_SYSTEM_HEADERS ON CACHE BOOL "Expose headers with marking them as system." FORCE)
-    FetchContent_MakeAvailable(fmt)
-    message(STATUS "Downloading fmt source -- done")
-    wasmedge_setup_target(fmt)
-    wasmedge_mark_system_includes(fmt)
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-      target_compile_options(fmt
-        PRIVATE
-        -Wno-missing-noreturn
-        -Wno-sign-conversion
+    if(NOT TARGET fmt::fmt)
+      message(STATUS "Downloading fmt source")
+      # Held at 12.1.0. fmt 12.2.0 needs CMake 3.19 or later, which this project
+      # does not require: it sets VERSION, SOVERSION and DEBUG_POSTFIX on the
+      # fmt-header-only INTERFACE target, and CMake rejects non-whitelisted
+      # properties on INTERFACE libraries before 3.19. Debian bullseye, which
+      # builds the static release, carries CMake 3.18. fmt 12.2.0 also fails to
+      # compile its own 128-bit fallback in do_format_decimal, which every target
+      # without a native __int128 -- MSVC among them -- instantiates.
+      FetchContent_Declare(
+        fmt
+        GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+        GIT_TAG        407c905e45ad75fc29bf0f9bb7c5c2fd3475976f  # 12.1.0
+        GIT_SHALLOW    TRUE
       )
-    endif()
-    wasmedge_suppress_shadow_warnings(fmt)
-    if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-      target_compile_options(fmt
-        PRIVATE
-        -Wno-duplicate-enum
-        -Wno-padded
-        -Wno-error=unique-object-duplication
-        -Wno-error=nrvo
-      )
+      set(FMT_INSTALL OFF CACHE BOOL "Generate the install target." FORCE)
+      set(FMT_SYSTEM_HEADERS ON CACHE BOOL "Expose headers with marking them as system." FORCE)
+      FetchContent_MakeAvailable(fmt)
+      message(STATUS "Downloading fmt source -- done")
+      wasmedge_setup_target(fmt)
+      wasmedge_mark_system_includes(fmt)
+      if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        target_compile_options(fmt
+          PRIVATE
+          -Wno-missing-noreturn
+          -Wno-sign-conversion
+        )
+      endif()
+      wasmedge_suppress_shadow_warnings(fmt)
+      if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        target_compile_options(fmt
+          PRIVATE
+          -Wno-duplicate-enum
+          -Wno-padded
+          -Wno-error=unique-object-duplication
+          -Wno-error=nrvo
+        )
+      endif()
     endif()
 
     message(STATUS "Downloading spdlog source")

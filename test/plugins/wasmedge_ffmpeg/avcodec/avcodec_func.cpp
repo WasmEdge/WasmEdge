@@ -258,22 +258,6 @@ TEST_F(FFmpegTest, AVCodecFunc) {
     EXPECT_EQ(Result[0].get<int32_t>(), 0);
   }
 
-  // TODO: Need FormatCtxId to test this function.
-  //  FuncInst = AVCodecMod->findFuncExports(
-  //      "wasmedge_ffmpeg_avcodec_avcodec_parameters_copy");
-  //  EXPECT_NE(FuncInst, nullptr);
-  //  EXPECT_TRUE(FuncInst->isHostFunction());
-  //
-  //  auto &HostFuncAVCodecParametersCopy = dynamic_cast<
-  //      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecParametersCopy &>(
-  //      FuncInst->getHostFunc());
-  //
-  //   {
-  //     EXPECT_TRUE(HostFuncAVCodecParametersCopy.run(
-  //         CallFrame, std::initializer_list<WasmEdge::ValVariant>{}, Result));
-  //     EXPECT_EQ(Result[0].get<int32_t>(),
-  //     static_cast<int32_t>(ErrNo::Success));
-  //   }
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_version");
   ASSERT_NE(FuncInst, nullptr);

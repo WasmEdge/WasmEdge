@@ -7,36 +7,20 @@ namespace WasmEdge {
 namespace Loader {
 
 // Serialize instruction. See "include/loader/serialize.h".
-Expect<void>
-Serializer::serializeInstruction(const AST::Instruction &Instr,
-                                 std::vector<uint8_t> &OutVec) const noexcept {
-  auto serializeMemImmediate = [this, &Instr, &OutVec]() -> Expect<void> {
-    if (Conf.hasProposal(Proposal::MultiMemories) &&
-        Instr.getMemoryAlign() < 64 && Instr.getTargetIndex() != 0) {
-      serializeU32(Instr.getMemoryAlign() + 64, OutVec);
-      serializeU32(Instr.getTargetIndex(), OutVec);
+void Serializer::serializeInstruction(
+    const AST::Instruction &Instr,
+    std::vector<uint8_t> &OutVec) const noexcept {
+  auto serializeMemImmediate = [&Instr, &OutVec]() {
+    // The alignment flag form is required exactly when the memory index is
+    // not zero.
+    if (Instr.getTargetIndex() != 0) {
+      writeU32(Instr.getMemoryAlign() | 0x40U, OutVec);
+      writeU32(Instr.getTargetIndex(), OutVec);
     } else {
-      serializeU32(Instr.getMemoryAlign(), OutVec);
+      writeU32(Instr.getMemoryAlign(), OutVec);
     }
-    serializeU64(Instr.getMemoryOffset(), OutVec);
-    return {};
+    writeU64(Instr.getMemoryOffset(), OutVec);
   };
-
-  auto serializeCheckZero = [this, &OutVec](uint32_t C) -> Expect<void> {
-    if (C != 0) {
-      return logSerializeError(ErrCode::Value::ExpectedZeroByte,
-                               ASTNodeAttr::Instruction);
-    }
-    OutVec.push_back(0x00);
-    return {};
-  };
-
-  // Check with proposals.
-  if (auto Res = Conf.isInstrNeedProposal(Instr.getOpCode());
-      unlikely(Res.has_value())) {
-    return logNeedProposal(ErrCode::Value::IllegalOpCode, Res.value(),
-                           ASTNodeAttr::Instruction);
-  }
 
   // Serialize OpCode.
   switch (Instr.getOpCode()) {
@@ -48,22 +32,22 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
 #define Line_FB(NAME, STRING, PREFIX, EXTEND)                                  \
   case OpCode::NAME:                                                           \
     OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
-    serializeU32(EXTEND, OutVec);                                              \
+    writeU32(EXTEND, OutVec);                                                  \
     break;
 #define Line_FC(NAME, STRING, PREFIX, EXTEND)                                  \
   case OpCode::NAME:                                                           \
     OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
-    serializeU32(EXTEND, OutVec);                                              \
+    writeU32(EXTEND, OutVec);                                                  \
     break;
 #define Line_FD(NAME, STRING, PREFIX, EXTEND)                                  \
   case OpCode::NAME:                                                           \
     OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
-    serializeU32(EXTEND, OutVec);                                              \
+    writeU32(EXTEND, OutVec);                                                  \
     break;
 #define Line_FE(NAME, STRING, PREFIX, EXTEND)                                  \
   case OpCode::NAME:                                                           \
     OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
-    serializeU32(EXTEND, OutVec);                                              \
+    writeU32(EXTEND, OutVec);                                                  \
     break;
 #include "common/enum.inc"
 #undef Line
@@ -76,21 +60,14 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     assumingUnreachable();
   }
 
-  auto serializeBlockType = [this,
-                             &OutVec](const BlockType &Type) -> Expect<void> {
+  auto serializeBlockType = [this, &OutVec](const BlockType &Type) {
     if (Type.isEmpty()) {
       OutVec.push_back(static_cast<uint8_t>(TypeCode::Epsilon));
     } else if (Type.isValType()) {
-      EXPECTED_TRY(serializeValType(Type.getValType(), ASTNodeAttr::Instruction,
-                                    OutVec));
+      serializeValType(Type.getValType(), OutVec);
     } else {
-      if (unlikely(!Conf.hasProposal(Proposal::MultiValue))) {
-        return logNeedProposal(ErrCode::Value::MalformedValType,
-                               Proposal::MultiValue, ASTNodeAttr::Instruction);
-      }
-      serializeS33(static_cast<int64_t>(Type.getTypeIndex()), OutVec);
+      writeS33(static_cast<int64_t>(Type.getTypeIndex()), OutVec);
     }
-    return {};
   };
 
   // Serialize immediate.
@@ -102,7 +79,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Throw_ref:
   case OpCode::End:
   case OpCode::Else:
-    return {};
+    return;
 
   case OpCode::Block:
   case OpCode::Loop:
@@ -111,10 +88,10 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
 
   case OpCode::Try_table: {
     // Serialize the result type.
-    EXPECTED_TRY(serializeBlockType(Instr.getTryCatch().ResType));
+    serializeBlockType(Instr.getTryCatch().ResType);
     // Serialize the vector of catches.
     uint32_t VecCnt = static_cast<uint32_t>(Instr.getTryCatch().Catch.size());
-    serializeU32(VecCnt, OutVec);
+    writeU32(VecCnt, OutVec);
     for (auto Catch : Instr.getTryCatch().Catch) {
       // Read the catch flags.
       uint8_t Flags = 0;
@@ -127,54 +104,48 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
       OutVec.push_back(Flags);
       // Read the tag index.
       if (!Catch.IsAll) {
-        serializeU32(Catch.TagIndex, OutVec);
+        writeU32(Catch.TagIndex, OutVec);
       }
       // Read the label index.
-      serializeU32(Catch.LabelIndex, OutVec);
+      writeU32(Catch.LabelIndex, OutVec);
     }
-    return {};
+    return;
   }
 
   case OpCode::Throw:
-    serializeU32(Instr.getTargetIndex(), OutVec);
-    return {};
+    writeU32(Instr.getTargetIndex(), OutVec);
+    return;
 
   case OpCode::Br:
   case OpCode::Br_if:
   case OpCode::Br_on_null:
   case OpCode::Br_on_non_null:
-    serializeU32(Instr.getJump().TargetIndex, OutVec);
-    return {};
+    writeU32(Instr.getJump().TargetIndex, OutVec);
+    return;
 
   case OpCode::Br_table: {
     uint32_t VecCnt = static_cast<uint32_t>(Instr.getLabelList().size()) - 1;
-    serializeU32(VecCnt, OutVec);
+    writeU32(VecCnt, OutVec);
     for (auto &Label : Instr.getLabelList()) {
-      serializeU32(Label.TargetIndex, OutVec);
+      writeU32(Label.TargetIndex, OutVec);
     }
-    return {};
+    return;
   }
 
   case OpCode::Call:
   case OpCode::Return_call:
   case OpCode::Call_ref:
   case OpCode::Return_call_ref:
-    serializeU32(Instr.getTargetIndex(), OutVec);
-    return {};
+    writeU32(Instr.getTargetIndex(), OutVec);
+    return;
 
   case OpCode::Call_indirect:
   case OpCode::Return_call_indirect:
     // Serialize the type index.
-    serializeU32(Instr.getTargetIndex(), OutVec);
-    if (Instr.getSourceIndex() > 0 &&
-        !Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
-                             Proposal::ReferenceTypes,
-                             ASTNodeAttr::Instruction);
-    }
+    writeU32(Instr.getTargetIndex(), OutVec);
     // Serialize the table index.
-    serializeU32(Instr.getSourceIndex(), OutVec);
-    return {};
+    writeU32(Instr.getSourceIndex(), OutVec);
+    return;
 
   // Reference Instructions.
   case OpCode::Ref__null:
@@ -182,13 +153,12 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Ref__cast:
   case OpCode::Ref__test_null:
   case OpCode::Ref__cast_null:
-    EXPECTED_TRY(serializeHeapType(Instr.getValType(), ASTNodeAttr::Instruction,
-                                   OutVec));
-    return {};
+    serializeHeapType(Instr.getValType(), OutVec);
+    return;
   case OpCode::Ref__eq:
   case OpCode::Ref__is_null:
   case OpCode::Ref__as_non_null:
-    return {};
+    return;
   case OpCode::Ref__func:
   case OpCode::Struct__new:
   case OpCode::Struct__new_default:
@@ -199,8 +169,8 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Array__get_u:
   case OpCode::Array__set:
   case OpCode::Array__fill:
-    serializeU32(Instr.getTargetIndex(), OutVec);
-    return {};
+    writeU32(Instr.getTargetIndex(), OutVec);
+    return;
   case OpCode::Struct__get:
   case OpCode::Struct__get_s:
   case OpCode::Struct__get_u:
@@ -211,16 +181,16 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Array__copy:
   case OpCode::Array__init_data:
   case OpCode::Array__init_elem:
-    serializeU32(Instr.getTargetIndex(), OutVec);
-    serializeU32(Instr.getSourceIndex(), OutVec);
-    return {};
+    writeU32(Instr.getTargetIndex(), OutVec);
+    writeU32(Instr.getSourceIndex(), OutVec);
+    return;
   case OpCode::Array__len:
   case OpCode::Any__convert_extern:
   case OpCode::Extern__convert_any:
   case OpCode::Ref__i31:
   case OpCode::I31__get_s:
   case OpCode::I31__get_u:
-    return {};
+    return;
   case OpCode::Br_on_cast:
   case OpCode::Br_on_cast_fail: {
     // Flag
@@ -233,26 +203,24 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     }
     OutVec.push_back(Flags);
     // LabelIdx
-    serializeU32(Instr.getBrCast().Jump.TargetIndex, OutVec);
+    writeU32(Instr.getBrCast().Jump.TargetIndex, OutVec);
     // First RefType
-    EXPECTED_TRY(serializeHeapType(Instr.getBrCast().RType1,
-                                   ASTNodeAttr::Instruction, OutVec));
+    serializeHeapType(Instr.getBrCast().RType1, OutVec);
     // Second RefType.
-    EXPECTED_TRY(serializeHeapType(Instr.getBrCast().RType2,
-                                   ASTNodeAttr::Instruction, OutVec));
-    return {};
+    serializeHeapType(Instr.getBrCast().RType2, OutVec);
+    return;
   }
   // Parametric Instructions.
   case OpCode::Drop:
   case OpCode::Select:
-    return {};
+    return;
   case OpCode::Select_t: {
     uint32_t VecCnt = static_cast<uint32_t>(Instr.getValTypeList().size());
-    serializeU32(VecCnt, OutVec);
+    writeU32(VecCnt, OutVec);
     for (auto &VType : Instr.getValTypeList()) {
-      EXPECTED_TRY(serializeValType(VType, ASTNodeAttr::Instruction, OutVec));
+      serializeValType(VType, OutVec);
     }
-    return {};
+    return;
   }
 
   // Variable Instructions.
@@ -261,12 +229,12 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Local__tee:
   case OpCode::Global__get:
   case OpCode::Global__set:
-    serializeU32(Instr.getTargetIndex(), OutVec);
-    return {};
+    writeU32(Instr.getTargetIndex(), OutVec);
+    return;
 
   // Table Instructions.
   case OpCode::Table__init:
-    serializeU32(Instr.getSourceIndex(), OutVec);
+    writeU32(Instr.getSourceIndex(), OutVec);
     [[fallthrough]];
   case OpCode::Table__get:
   case OpCode::Table__set:
@@ -274,12 +242,12 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Table__size:
   case OpCode::Table__fill:
   case OpCode::Elem__drop:
-    serializeU32(Instr.getTargetIndex(), OutVec);
-    return {};
+    writeU32(Instr.getTargetIndex(), OutVec);
+    return;
   case OpCode::Table__copy:
-    serializeU32(Instr.getTargetIndex(), OutVec);
-    serializeU32(Instr.getSourceIndex(), OutVec);
-    return {};
+    writeU32(Instr.getTargetIndex(), OutVec);
+    writeU32(Instr.getSourceIndex(), OutVec);
+    return;
 
   // Memory Instructions.
   case OpCode::I32__load:
@@ -308,46 +276,37 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     return serializeMemImmediate();
 
   case OpCode::Memory__init:
-    serializeU32(Instr.getSourceIndex(), OutVec);
+    writeU32(Instr.getSourceIndex(), OutVec);
     [[fallthrough]];
   case OpCode::Memory__grow:
   case OpCode::Memory__size:
   case OpCode::Memory__fill:
-    if (Conf.hasProposal(Proposal::MultiMemories)) {
-      serializeU32(Instr.getTargetIndex(), OutVec);
-      return {};
-    } else {
-      return serializeCheckZero(Instr.getTargetIndex());
-    }
+    writeU32(Instr.getTargetIndex(), OutVec);
+    return;
 
   case OpCode::Memory__copy:
-    if (Conf.hasProposal(Proposal::MultiMemories)) {
-      serializeU32(Instr.getTargetIndex(), OutVec);
-      serializeU32(Instr.getSourceIndex(), OutVec);
-      return {};
-    } else {
-      EXPECTED_TRY(serializeCheckZero(Instr.getTargetIndex()));
-      return serializeCheckZero(Instr.getSourceIndex());
-    }
+    writeU32(Instr.getTargetIndex(), OutVec);
+    writeU32(Instr.getSourceIndex(), OutVec);
+    return;
 
   case OpCode::Data__drop:
-    serializeU32(Instr.getTargetIndex(), OutVec);
-    return {};
+    writeU32(Instr.getTargetIndex(), OutVec);
+    return;
 
   // Const Instructions.
   case OpCode::I32__const:
-    serializeS32(Instr.getNum().get<int32_t>(), OutVec);
-    return {};
+    writeS32(Instr.getNum().get<int32_t>(), OutVec);
+    return;
 
   case OpCode::I64__const:
-    serializeS64(Instr.getNum().get<int64_t>(), OutVec);
-    return {};
+    writeS64(Instr.getNum().get<int64_t>(), OutVec);
+    return;
   case OpCode::F32__const:
-    serializeF32(Instr.getNum().get<float>(), OutVec);
-    return {};
+    writeF32(Instr.getNum().get<float>(), OutVec);
+    return;
   case OpCode::F64__const:
-    serializeF64(Instr.getNum().get<double>(), OutVec);
-    return {};
+    writeF64(Instr.getNum().get<double>(), OutVec);
+    return;
 
   // Unary Numeric Instructions.
   case OpCode::I32__eqz:
@@ -489,7 +448,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::F64__min:
   case OpCode::F64__max:
   case OpCode::F64__copysign:
-    return {};
+    return;
 
   // SIMD Memory Instruction.
   case OpCode::V128__load:
@@ -515,9 +474,9 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::V128__store16_lane:
   case OpCode::V128__store32_lane:
   case OpCode::V128__store64_lane:
-    EXPECTED_TRY(serializeMemImmediate());
+    serializeMemImmediate();
     OutVec.push_back(Instr.getMemoryLane());
-    return {};
+    return;
 
   // SIMD Const Instruction.
   case OpCode::V128__const:
@@ -527,7 +486,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     for (uint32_t I = 0; I < 16; ++I) {
       OutVec.push_back(static_cast<uint8_t>(Value >> (I * 8)));
     }
-    return {};
+    return;
   }
 
   // SIMD Lane Instructions.
@@ -546,7 +505,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::F64x2__extract_lane:
   case OpCode::F64x2__replace_lane:
     OutVec.push_back(Instr.getMemoryLane());
-    return {};
+    return;
 
   // SIMD Numeric Instructions.
   case OpCode::I8x16__swizzle:
@@ -761,7 +720,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::F64x2__floor:
   case OpCode::F64x2__trunc:
   case OpCode::F64x2__nearest:
-    return {};
+    return;
 
   case OpCode::I8x16__relaxed_swizzle:
   case OpCode::I32x4__relaxed_trunc_f32x4_s:
@@ -783,11 +742,13 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::I16x8__relaxed_q15mulr_s:
   case OpCode::I16x8__relaxed_dot_i8x16_i7x16_s:
   case OpCode::I32x4__relaxed_dot_i8x16_i7x16_add_s:
-    return {};
+    return;
 
   // Atomic Memory Instructions.
   case OpCode::Atomic__fence:
-    return serializeCheckZero(Instr.getTargetIndex());
+    // The immediate is a reserved byte, not a LEB128 memory index.
+    OutVec.push_back(0x00U);
+    return;
 
   case OpCode::Memory__atomic__notify:
   case OpCode::Memory__atomic__wait32:

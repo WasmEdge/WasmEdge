@@ -293,6 +293,8 @@ inline constexpr __wasi_errno_t fromWSAError(int WSAError) noexcept {
     return __WASI_ERRNO_AIFAMILY;
   case ERROR_NOT_ENOUGH_MEMORY_:
     return __WASI_ERRNO_AIMEMORY;
+  case WSANO_DATA_:
+    return __WASI_ERRNO_AINODATA;
   case WSAHOST_NOT_FOUND_:
     return __WASI_ERRNO_AINONAME;
   case WSATYPE_NOT_FOUND_:

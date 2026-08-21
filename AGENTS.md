@@ -116,8 +116,7 @@ External plugin switches live in the root `CMakeLists.txt`. Most are boolean
 `WASMEDGE_PLUGIN_<NAME>` options and default to OFF:
 
 `WASI_CRYPTO`, `WASI_HTTP`, `WASI_POLL`, `WASM_BPF`, `FFMPEG`, `IMAGE`, `OCR`,
-`OPENCVMINI`, `PROCESS`, `STABLEDIFFUSION`, `TENSORFLOW`, `TENSORFLOWLITE`,
-`ZLIB`
+`OPENCVMINI`, `STABLEDIFFUSION`, `TENSORFLOW`, `TENSORFLOWLITE`, `ZLIB`
 
 Current special cases:
 
@@ -145,8 +144,9 @@ Current special cases:
   `WASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF`.
 - `WASMEDGE_FORCE_DOWNLOAD_SIMDJSON` controls the simdjson dependency for
   WASI-NN.
-- `WASMEDGE_PLUGIN_LLMC` is kept as a deprecated compatibility option and is
-  described as removed in the root `CMakeLists.txt`.
+- `WASMEDGE_PLUGIN_LLMC` and `WASMEDGE_PLUGIN_PROCESS` are kept as deprecated
+  compatibility options and are described as removed in the root
+  `CMakeLists.txt`.
 
 Build with a specific plugin enabled:
 
@@ -340,6 +340,6 @@ lineguard --config .lineguardrc -r .
 
 - **No inline comments**: Do not add comments explaining what changed — the commit message serves that purpose.
 - **Style configs are read-only**: Do not modify `.clang-format`, `.clang-tidy`, or `.lineguardrc`.
-- **Platform restrictions**: Some plugins only build on certain operating systems. Check `plugins/CMakeLists.txt` for guards (e.g., `wasm_bpf` and `wasmedge_process` are Linux-only).
+- **Platform restrictions**: Some plugins only build on certain operating systems. Check `plugins/CMakeLists.txt` for guards (e.g., `wasm_bpf` is Linux-only).
 - **spdlog `sv` suffix**: Always use `"text"sv` in spdlog format strings — omitting `sv` causes build warnings.
 - **macOS vs Linux core count**: Use `sysctl -n hw.logicalcpu` on macOS, `nproc` on Linux.

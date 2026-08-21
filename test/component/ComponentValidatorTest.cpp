@@ -2031,4 +2031,57 @@ TEST(ComponentValidatorTest, InstantiateImportedComponentMissingArgRejected) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
+TEST(ComponentValidatorTest, ResourceTypeInTypeScopeRejected) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+  std::vector<AST::Component::ComponentDecl> Decls;
+  AST::Component::ComponentDecl CD;
+  AST::Component::InstanceDecl Inst;
+  auto DT = std::make_unique<AST::Component::DefType>();
+  DT->setResourceType(AST::Component::ResourceType{});
+  Inst.setType(std::move(DT));
+  CD.setInstance(std::move(Inst));
+  Decls.push_back(std::move(CD));
+
+  AST::Component::ComponentType CT;
+  CT.setDecl(std::move(Decls));
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setComponentType(std::move(CT));
+
+  Validator::Validator V(Conf);
+  auto Result = V.validate(Comp);
+  EXPECT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::InvalidTypeReference);
+}
+
+TEST(ComponentValidatorTest, ResourceTypeInInstanceTypeScopeRejected) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+  std::vector<AST::Component::InstanceDecl> Decls;
+  AST::Component::InstanceDecl Inst;
+  auto DT = std::make_unique<AST::Component::DefType>();
+  DT->setResourceType(AST::Component::ResourceType{});
+  Inst.setType(std::move(DT));
+  Decls.push_back(std::move(Inst));
+
+  AST::Component::InstanceType IT;
+  IT.setDecl(std::move(Decls));
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setInstanceType(std::move(IT));
+
+  Validator::Validator V(Conf);
+  auto Result = V.validate(Comp);
+  EXPECT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::InvalidTypeReference);
+}
+
 } // namespace
+

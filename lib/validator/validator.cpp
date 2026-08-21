@@ -18,21 +18,6 @@ namespace Validator {
 
 namespace {
 
-// One-shot builder for the pre-defined core function SubTypes.
-AST::SubType makeCoreFuncType(std::initializer_list<TypeCode> Params,
-                              std::initializer_list<TypeCode> Results) {
-  AST::FunctionType FT;
-  for (auto T : Params) {
-    FT.getParamTypes().emplace_back(T);
-  }
-  for (auto T : Results) {
-    FT.getReturnTypes().emplace_back(T);
-  }
-  AST::SubType ST;
-  ST.getCompositeType().setFunctionType(std::move(FT));
-  return ST;
-}
-
 static constexpr uint32_t MaxSubtypeDepth = 63;
 static constexpr uint32_t Unvisited = UINT32_MAX;
 static constexpr uint32_t Visiting = UINT32_MAX - 1;
@@ -62,8 +47,15 @@ checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx, uint32_t Depth,
 
   DepthMap[TestIdx] = Visiting;
   uint32_t MaxDepth = 0;
-  const auto &TestType = *TypeVec[TestIdx];
-  for (const auto SuperIdx : TestType.getSuperTypeIndices()) {
+  // A component core:type index may name a module type, which is not a sub
+  // type and holds no place in the hierarchy.
+  const auto *TestType = TypeVec[TestIdx];
+  if (unlikely(TestType == nullptr)) {
+    spdlog::error(ErrCode::Value::InvalidSubType);
+    spdlog::error("    Type index {} does not refer to a sub type."sv, TestIdx);
+    return Unexpect(ErrCode::Value::InvalidSubType);
+  }
+  for (const auto SuperIdx : TestType->getSuperTypeIndices()) {
     if (unlikely(SuperIdx >= TypeVec.size())) {
       spdlog::error(ErrCode::Value::InvalidSubType);
       spdlog::error(ErrInfo::InfoForbidIndex(
@@ -95,12 +87,6 @@ checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx, uint32_t Depth,
 }
 
 } // namespace
-
-// Validator constructor. See "include/validator/validator.h".
-Validator::Validator(const Configure &Conf) noexcept
-    : Conf(Conf),
-      CoreFuncType_I32_I32(makeCoreFuncType({TypeCode::I32}, {TypeCode::I32})),
-      CoreFuncType_I32_Void(makeCoreFuncType({TypeCode::I32}, {})) {}
 
 // Validate Module. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::Module &Mod) {
@@ -215,16 +201,30 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
 }
 
 // Validate Sub type. See "include/validator/validator.h".
-Expect<void> Validator::validate(const AST::SubType &Type, uint32_t OwnTypeIdx,
-                                 std::vector<uint32_t> &SubTypeDepthMap) {
-  const auto &TypeVec = Checker.getTypes();
+Expect<void>
+Validator::validate(const AST::SubType &Type, uint32_t OwnTypeIdx,
+                    std::vector<uint32_t> &SubTypeDepthMap,
+                    const std::vector<const AST::SubType *> &TypeVec) {
   const auto &CompType = Type.getCompositeType();
+  // A concrete heap type reference must name a defined type of this space.
+  auto CheckValType = [&TypeVec](const ValType &VT) -> Expect<void> {
+    if (VT.isRefType() && VT.getHeapTypeCode() == TypeCode::TypeIndex &&
+        (VT.getTypeIndex() >= TypeVec.size() ||
+         TypeVec[VT.getTypeIndex()] == nullptr)) {
+      spdlog::error(ErrCode::Value::InvalidFuncTypeIdx);
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::FunctionType, VT.getTypeIndex(),
+          static_cast<uint32_t>(TypeVec.size())));
+      return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+    }
+    return {};
+  };
 
   // Check the validation of the composite type.
   if (CompType.isFunc()) {
     const auto &FType = CompType.getFuncType();
     for (auto &PType : FType.getParamTypes()) {
-      EXPECTED_TRY(Checker.validate(PType).map_error([](auto E) {
+      EXPECTED_TRY(CheckValType(PType).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Function));
         return E;
       }));
@@ -237,7 +237,7 @@ Expect<void> Validator::validate(const AST::SubType &Type, uint32_t OwnTypeIdx,
       return Unexpect(ErrCode::Value::InvalidResultArity);
     }
     for (auto &RType : FType.getReturnTypes()) {
-      EXPECTED_TRY(Checker.validate(RType).map_error([](auto E) {
+      EXPECTED_TRY(CheckValType(RType).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Function));
         return E;
       }));
@@ -245,7 +245,7 @@ Expect<void> Validator::validate(const AST::SubType &Type, uint32_t OwnTypeIdx,
   } else {
     const auto &FTypes = CompType.getFieldTypes();
     for (auto &FieldType : FTypes) {
-      EXPECTED_TRY(Checker.validate(FieldType.getStorageType()));
+      EXPECTED_TRY(CheckValType(FieldType.getStorageType()));
     }
   }
 
@@ -282,7 +282,7 @@ Expect<void> Validator::validate(const AST::SubType &Type, uint32_t OwnTypeIdx,
       return Unexpect(ErrCode::Value::InvalidSubType);
     }
     auto &SuperType = TypeVec[Index]->getCompositeType();
-    if (!AST::TypeMatcher::matchType(Checker.getTypes(), SuperType, CompType)) {
+    if (!AST::TypeMatcher::matchType(TypeVec, SuperType, CompType)) {
       spdlog::error(ErrCode::Value::InvalidSubType);
       spdlog::error("    Super type not matched."sv);
       return Unexpect(ErrCode::Value::InvalidSubType);
@@ -673,18 +673,20 @@ Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
         Checker.addType(STypeList[I]);
       }
       for (uint32_t I = Idx; I < Idx + RecSize; I++) {
-        EXPECTED_TRY(
-            validate(STypeList[I], BaseIdx + (I - Idx), SubTypeDepthMap)
-                .map_error([](auto E) {
-                  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Rec));
-                  return E;
-                }));
+        EXPECTED_TRY(validate(STypeList[I], BaseIdx + (I - Idx),
+                              SubTypeDepthMap, Checker.getTypes())
+                         .map_error([](auto E) {
+                           spdlog::error(
+                               ErrInfo::InfoAST(ASTNodeAttr::Type_Rec));
+                           return E;
+                         }));
       }
       Idx += RecSize;
     } else {
       // Without GC there are no rec groups: a type may reference only earlier
       // ones, so validate it before registering.
-      EXPECTED_TRY(validate(SType, BaseIdx, SubTypeDepthMap));
+      EXPECTED_TRY(
+          validate(SType, BaseIdx, SubTypeDepthMap, Checker.getTypes()));
       Checker.addType(SType);
       Idx++;
     }

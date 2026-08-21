@@ -96,11 +96,14 @@ Expect<void> Loader::loadInstance(AST::Component::Instance &Instance) {
 
   auto LoadInlineExp =
       [this](AST::Component::InlineExport &Exp) -> Expect<void> {
-    // inlineexport ::= n:<exportname> si:<sortidx> => (export n si)
-    EXPECTED_TRY(loadExternName(Exp.getName()).map_error([this](auto E) {
-      return logLoadError(E, FMgr.getLastOffset(),
-                          ASTNodeAttr::Comp_InlineExport);
-    }));
+    // inlineexport ::= na:<nameattributes> si:<sortidx> => (export na si)
+    EXPECTED_TRY(loadNameAttributes(Exp.getName(), Exp.getImplements(),
+                                    Exp.getExternalIds(),
+                                    Exp.getVersionSuffixes())
+                     .map_error([this](auto E) {
+                       return logLoadError(E, FMgr.getLastOffset(),
+                                           ASTNodeAttr::Comp_InlineExport);
+                     }));
     return loadSortIndex(Exp.getSortIdx()).map_error([](auto E) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_InlineExport));
       return E;

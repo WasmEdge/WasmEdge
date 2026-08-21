@@ -16,6 +16,7 @@
 #include "common/span.h"
 #include "common/types.h"
 
+#include <optional>
 #include <vector>
 
 namespace WasmEdge {
@@ -32,10 +33,19 @@ public:
   const ComponentValType &getType() const noexcept { return Type; }
   std::vector<Byte> &getData() noexcept { return Data; }
   Span<const Byte> getData() const noexcept { return Data; }
+  /// Payload decoded by the validator and consumed at instantiation. It is
+  /// mutable because validation walks a const AST.
+  const std::optional<ComponentValVariant> &getDecoded() const noexcept {
+    return Decoded;
+  }
+  void setDecoded(ComponentValVariant V) const noexcept {
+    Decoded.emplace(std::move(V));
+  }
 
 private:
   ComponentValType Type;
   std::vector<Byte> Data;
+  mutable std::optional<ComponentValVariant> Decoded;
 };
 
 } // namespace Component

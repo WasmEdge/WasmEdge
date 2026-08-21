@@ -486,8 +486,12 @@ private:
   Expect<void> loadType(AST::Component::BorrowTy &Ty);
   Expect<void> loadType(AST::Component::StreamTy &Ty);
   Expect<void> loadType(AST::Component::FutureTy &Ty);
+  Expect<void> loadType(AST::Component::MapTy &Ty);
   // helpers
-  Expect<void> loadExternName(std::string &Name);
+  Expect<void> loadNameAttributes(std::string &Name,
+                                  std::vector<std::string> &Implements,
+                                  std::vector<std::string> &ExternalIds,
+                                  std::vector<std::string> &VersionSuffixes);
   Expect<void> loadType(ComponentValType &Ty);
   Expect<void> loadType(AST::Component::LabelValType &Ty);
   template <typename ASTType, typename T>

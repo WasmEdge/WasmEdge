@@ -4022,9 +4022,12 @@ public:
                          unsigned Alignment, LLVM::Type IntType,
                          LLVM::Type TargetType, bool Signed = false) noexcept {
 
-    auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
+    auto Addr = Builder.createZExt(Stack.back(), Context.Int64Ty);
+    boundsCheckMemory64(MemoryIndex, Addr, MemoryOffset,
+                        TargetType.getPrimitiveSizeInBits() / 8);
+    auto Offset = Addr;
     if (MemoryOffset != 0) {
-      Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
+      Offset = Builder.createAdd(Addr, LLContext.getInt64(MemoryOffset));
     }
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
     auto VPtr = Builder.createInBoundsGEP1(
@@ -4053,9 +4056,12 @@ public:
       V = Builder.createZExtOrTrunc(V, TargetType);
     }
     V = switchEndian(V);
-    auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
+    auto Addr = Builder.createZExt(Stack.back(), Context.Int64Ty);
+    boundsCheckMemory64(MemoryIndex, Addr, MemoryOffset,
+                        TargetType.getPrimitiveSizeInBits() / 8);
+    auto Offset = Addr;
     if (MemoryOffset != 0) {
-      Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
+      Offset = Builder.createAdd(Addr, LLContext.getInt64(MemoryOffset));
     }
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
     auto VPtr = Builder.createInBoundsGEP1(
@@ -4072,9 +4078,12 @@ public:
                           LLVMAtomicRMWBinOp BinOp, LLVM::Type IntType,
                           LLVM::Type TargetType, bool Signed = false) noexcept {
     auto Value = Builder.createSExtOrTrunc(stackPop(), TargetType);
-    auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
+    auto Addr = Builder.createZExt(Stack.back(), Context.Int64Ty);
+    boundsCheckMemory64(MemoryIndex, Addr, MemoryOffset,
+                        TargetType.getPrimitiveSizeInBits() / 8);
+    auto Offset = Addr;
     if (MemoryOffset != 0) {
-      Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
+      Offset = Builder.createAdd(Addr, LLContext.getInt64(MemoryOffset));
     }
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
     auto VPtr = Builder.createInBoundsGEP1(
@@ -4138,9 +4147,12 @@ public:
 
     auto Replacement = Builder.createSExtOrTrunc(stackPop(), TargetType);
     auto Expected = Builder.createSExtOrTrunc(stackPop(), TargetType);
-    auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
+    auto Addr = Builder.createZExt(Stack.back(), Context.Int64Ty);
+    boundsCheckMemory64(MemoryIndex, Addr, MemoryOffset,
+                        TargetType.getPrimitiveSizeInBits() / 8);
+    auto Offset = Addr;
     if (MemoryOffset != 0) {
-      Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
+      Offset = Builder.createAdd(Addr, LLContext.getInt64(MemoryOffset));
     }
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
     auto VPtr = Builder.createInBoundsGEP1(
@@ -4645,12 +4657,49 @@ private:
     }
   }
 
+  // Memory32 cannot escape the reservation's guard region, so it keeps the
+  // guard-page fast path. Memory64 addresses are guest-controlled 64-bit
+  // values.
+  void boundsCheckMemory64(unsigned MemoryIndex, LLVM::Value Addr,
+                           uint64_t Offset, uint64_t AccessSize) noexcept {
+    if (Context.MemoryAddrTypes[MemoryIndex].getIntegerBitWidth() != 64) {
+      return;
+    }
+    if (Offset > std::numeric_limits<uint64_t>::max() - AccessSize) {
+      // No address can satisfy the access.
+      Builder.createBr(getTrapBB(ErrCode::Value::MemoryOutOfBounds));
+      Builder.positionAtEnd(
+          LLVM::BasicBlock::create(LLContext, F.Fn, "mem64.ok"));
+      return;
+    }
+    // Addr < usub_sat(SizeBytes, Offset + AccessSize - 1) is exactly
+    // Addr + Offset + AccessSize <= SizeBytes with every term kept in 64 bits.
+    const uint64_t OffsetAndSize = Offset + AccessSize;
+    auto SizeBytes = Builder.createShl(
+        Builder.createCall(Context.getIntrinsic(
+                               Builder, Executable::Intrinsics::kMemSize,
+                               LLVM::Type::getFunctionType(
+                                   Context.Int64Ty, {Context.Int32Ty}, false)),
+                           {LLContext.getInt32(MemoryIndex)}),
+        LLContext.getInt64(16));
+    auto Limit = Builder.createIntrinsic(
+        LLVM::Core::USubSat, {Context.Int64Ty},
+        {SizeBytes, LLContext.getInt64(OffsetAndSize - 1)});
+    auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "mem64.ok");
+    Builder.createCondBr(
+        Builder.createLikely(Builder.createICmpULT(Addr, Limit)), OkBB,
+        getTrapBB(ErrCode::Value::MemoryOutOfBounds));
+    Builder.positionAtEnd(OkBB);
+  }
+
   void compileLoadOp(unsigned MemoryIndex, uint64_t Offset, unsigned Alignment,
                      LLVM::Type LoadTy) noexcept {
     if constexpr (kForceUnalignment) {
       Alignment = 0;
     }
     auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
+    boundsCheckMemory64(MemoryIndex, Off, Offset,
+                        LoadTy.getPrimitiveSizeInBits() / 8);
     if (Offset != 0) {
       Off = Builder.createAdd(Off, LLContext.getInt64(Offset));
     }
@@ -4711,6 +4760,8 @@ private:
     }
     auto V = stackPop();
     auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
+    boundsCheckMemory64(MemoryIndex, Off, Offset,
+                        LoadTy.getPrimitiveSizeInBits() / 8);
     if (Offset != 0) {
       Off = Builder.createAdd(Off, LLContext.getInt64(Offset));
     }

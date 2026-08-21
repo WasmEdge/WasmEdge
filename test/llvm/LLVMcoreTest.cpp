@@ -811,6 +811,93 @@ TEST(SIMDNaN, F32x4MaxNaNHandling) {
   EXPECT_NO_THROW(std::filesystem::remove(Path));
 }
 
+TEST(AOTMemory64, BoundsCheck) {
+  // A full 64-bit index escapes the guard page that memory32 relies on, so
+  // check that a far out-of-bounds memory64 access traps rather than reaching
+  // host memory.
+  //
+  // (module
+  //   (memory $m1 (export "mem1") i64 1)
+  //   (func (export "peek") (param i64) (result i64)
+  //     (i64.load $m1 (local.get 0)))
+  //   (func (export "poke") (param i64 i64)
+  //     (i64.store $m1 (local.get 0) (local.get 1))))
+  std::array<WasmEdge::Byte, 90> Memory64Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0b, 0x02, 0x60,
+      0x01, 0x7e, 0x01, 0x7e, 0x60, 0x02, 0x7e, 0x7e, 0x00, 0x03, 0x03, 0x02,
+      0x00, 0x01, 0x05, 0x03, 0x01, 0x04, 0x01, 0x07, 0x16, 0x03, 0x04, 0x6d,
+      0x65, 0x6d, 0x31, 0x02, 0x00, 0x04, 0x70, 0x65, 0x65, 0x6b, 0x00, 0x00,
+      0x04, 0x70, 0x6f, 0x6b, 0x65, 0x00, 0x01, 0x0a, 0x13, 0x02, 0x07, 0x00,
+      0x20, 0x00, 0x29, 0x03, 0x00, 0x0b, 0x09, 0x00, 0x20, 0x00, 0x20, 0x01,
+      0x37, 0x03, 0x00, 0x0b, 0x00, 0x0c, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x06,
+      0x05, 0x01, 0x00, 0x02, 0x6d, 0x31};
+
+  WasmEdge::Configure Conf;
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Native);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
+
+  WasmEdge::VM::VM VM(Conf);
+  WasmEdge::Loader::Loader Loader(Conf);
+  WasmEdge::Validator::Validator ValidatorEngine(Conf);
+  WasmEdge::LLVM::Compiler Compiler(Conf);
+  WasmEdge::LLVM::CodeGen CodeGen(Conf);
+
+  auto Path = std::filesystem::temp_directory_path() /
+              std::filesystem::u8path("AOTMemory64Test" WASMEDGE_LIB_EXTENSION);
+
+  auto Module = *Loader.parseModule(Memory64Wasm);
+  ASSERT_TRUE(ValidatorEngine.validate(*Module));
+  auto Data = Compiler.compile(*Module);
+  ASSERT_TRUE(Data);
+  ASSERT_TRUE(CodeGen.codegen(Memory64Wasm, std::move(*Data), Path));
+
+  ASSERT_TRUE(VM.loadWasm(Path));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  const std::vector<WasmEdge::ValType> I64{
+      WasmEdge::ValType(WasmEdge::TypeCode::I64)};
+  const std::vector<WasmEdge::ValType> I64x2{
+      WasmEdge::ValType(WasmEdge::TypeCode::I64),
+      WasmEdge::ValType(WasmEdge::TypeCode::I64)};
+
+  // In-bounds store then load round-trips.
+  ASSERT_TRUE(VM.execute("poke",
+                         {WasmEdge::ValVariant(UINT64_C(8)),
+                          WasmEdge::ValVariant(UINT64_C(0x1234))},
+                         I64x2));
+  auto InBounds = VM.execute("peek", {WasmEdge::ValVariant(UINT64_C(8))}, I64);
+  ASSERT_TRUE(InBounds);
+  EXPECT_EQ((*InBounds)[0].first.get<uint64_t>(), UINT64_C(0x1234));
+
+  // Aim the index at an in-process heap buffer: a fixed huge constant would
+  // only fault into unmapped space, which proves nothing.
+  const auto *ModInst = VM.getActiveModule();
+  ASSERT_NE(ModInst, nullptr);
+  auto *MemInst = ModInst->findMemoryExports("mem1");
+  ASSERT_NE(MemInst, nullptr);
+  const uint8_t *Base = MemInst->getDataPtr();
+  auto Secret = std::make_unique<uint64_t>(UINT64_C(0xDEADBEEFCAFEBABE));
+  const uint64_t Off =
+      static_cast<uint64_t>(reinterpret_cast<uintptr_t>(Secret.get()) -
+                            reinterpret_cast<uintptr_t>(Base));
+  auto OobLoad = VM.execute("peek", {WasmEdge::ValVariant(Off)}, I64);
+  ASSERT_FALSE(OobLoad);
+  EXPECT_EQ(OobLoad.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  EXPECT_EQ(*Secret, UINT64_C(0xDEADBEEFCAFEBABE));
+
+  auto OobStore = VM.execute(
+      "poke", {WasmEdge::ValVariant(Off), WasmEdge::ValVariant(UINT64_C(0))},
+      I64x2);
+  ASSERT_FALSE(OobStore);
+  EXPECT_EQ(OobStore.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  EXPECT_EQ(*Secret, UINT64_C(0xDEADBEEFCAFEBABE));
+
+  VM.cleanup();
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

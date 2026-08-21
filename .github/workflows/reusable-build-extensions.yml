@@ -95,7 +95,6 @@ jobs:
           wasmedge_ffmpeg: ${{ steps.filter.outputs.wasmedge_ffmpeg }}
           wasmedge_image: ${{ steps.filter.outputs.wasmedge_image }}
           wasmedge_opencvmini: ${{ steps.filter.outputs.wasmedge_opencvmini }}
-          wasmedge_process: ${{ steps.filter.outputs.wasmedge_process }}
           wasmedge_stablediffusion: ${{ steps.filter.outputs.wasmedge_stablediffusion }}
           wasmedge_tensorflow: ${{ steps.filter.outputs.wasmedge_tensorflow }}
           wasmedge_tensorflowlite: ${{ steps.filter.outputs.wasmedge_tensorflowlite }}

@@ -44,6 +44,30 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
   }
   BinarySize = roundUpPageBoundary(BinarySize);
 
+  // The symbol addresses are offsets into the binary about to be mapped, and
+  // are dereferenced without any further check, so reject the out-of-range
+  // ones here.
+  if (!checkAccessBound(AOTSec.getIntrinsicsAddress(),
+                        sizeof(const IntrinsicsTable *))) {
+    spdlog::error(ErrCode::Value::IntegerTooLarge);
+    spdlog::error("    AOT intrinsics address out of range."sv);
+    return Unexpect(ErrCode::Value::IntegerTooLarge);
+  }
+  for (const auto Address : AOTSec.getTypesAddress()) {
+    if (!checkAccessBound(Address, 1)) {
+      spdlog::error(ErrCode::Value::IntegerTooLarge);
+      spdlog::error("    AOT type address out of range."sv);
+      return Unexpect(ErrCode::Value::IntegerTooLarge);
+    }
+  }
+  for (const auto Address : AOTSec.getCodesAddress()) {
+    if (!checkAccessBound(Address, 1)) {
+      spdlog::error(ErrCode::Value::IntegerTooLarge);
+      spdlog::error("    AOT code address out of range."sv);
+      return Unexpect(ErrCode::Value::IntegerTooLarge);
+    }
+  }
+
   Binary = Allocator::allocate_chunk(BinarySize);
   if (unlikely(!Binary)) {
     spdlog::error(ErrCode::Value::MemoryOutOfBounds);

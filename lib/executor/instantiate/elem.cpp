@@ -45,7 +45,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
               }));
       // Get table instance and address type.
       // Memory64 proposal is checked in validation phase.
-      auto *TabInst = getTabInstByIdx(StackMgr, ElemSeg.getIdx());
+      auto *TabInst = getTabInstByIdx(StackMgr.getModule(), ElemSeg.getIdx());
       assuming(TabInst);
       Offset = extractAddr(StackMgr.pop(),
                            TabInst->getTableType().getLimit().getAddrType());
@@ -76,11 +76,11 @@ Expect<void> Executor::initTable(Runtime::StackManager &StackMgr,
   uint32_t Idx = 0;
   for (const auto &ElemSeg : ElemSec.getContent()) {
     // Element index is checked in validation phase.
-    auto *ElemInst = getElemInstByIdx(StackMgr, Idx);
+    auto *ElemInst = getElemInstByIdx(StackMgr.getModule(), Idx);
     assuming(ElemInst);
     if (ElemSeg.getMode() == AST::ElementSegment::ElemMode::Active) {
       // Table index is checked in validation phase.
-      auto *TabInst = getTabInstByIdx(StackMgr, ElemSeg.getIdx());
+      auto *TabInst = getTabInstByIdx(StackMgr.getModule(), ElemSeg.getIdx());
       assuming(TabInst);
       const uint64_t Off = ElemInst->getOffset();
 

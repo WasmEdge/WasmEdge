@@ -1,164 +1,105 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-#include "loader/serialize.h"
+// Exhaustive byte-exact coverage of every opcode. The prefix comes from the
+// enum.inc macros and the immediate from the shape table below, so neither
+// expectation is taken from the serializer.
 
-namespace WasmEdge {
-namespace Loader {
+namespace {
 
-// Serialize instruction. See "include/loader/serialize.h".
-void Serializer::serializeInstruction(
-    const AST::Instruction &Instr,
-    std::vector<uint8_t> &OutVec) const noexcept {
-  auto serializeMemImmediate = [&Instr, &OutVec]() {
-    // The alignment flag form is required exactly when the memory index is
-    // not zero.
-    if (Instr.getTargetIndex() != 0) {
-      writeU32(Instr.getMemoryAlign() | 0x40U, OutVec);
-      writeU32(Instr.getTargetIndex(), OutVec);
-    } else {
-      writeU32(Instr.getMemoryAlign(), OutVec);
+using namespace WasmEdge;
+
+std::vector<uint8_t> leb(uint32_t N) {
+  std::vector<uint8_t> Out;
+  do {
+    uint8_t B = N & 0x7FU;
+    N >>= 7;
+    if (N) {
+      B |= 0x80U;
     }
-    writeU64(Instr.getMemoryOffset(), OutVec);
-  };
+    Out.push_back(B);
+  } while (N);
+  return Out;
+}
 
-  // Serialize OpCode.
-  switch (Instr.getOpCode()) {
-#define UseOpCode
-#define Line(NAME, STRING, PREFIX)                                             \
-  case OpCode::NAME:                                                           \
-    OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
-    break;
-#define Line_FB(NAME, STRING, PREFIX, EXTEND)                                  \
-  case OpCode::NAME:                                                           \
-    OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
-    writeU32(EXTEND, OutVec);                                                  \
-    break;
-#define Line_FC(NAME, STRING, PREFIX, EXTEND)                                  \
-  case OpCode::NAME:                                                           \
-    OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
-    writeU32(EXTEND, OutVec);                                                  \
-    break;
-#define Line_FD(NAME, STRING, PREFIX, EXTEND)                                  \
-  case OpCode::NAME:                                                           \
-    OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
-    writeU32(EXTEND, OutVec);                                                  \
-    break;
-#define Line_FE(NAME, STRING, PREFIX, EXTEND)                                  \
-  case OpCode::NAME:                                                           \
-    OutVec.push_back(static_cast<uint8_t>(PREFIX));                            \
-    writeU32(EXTEND, OutVec);                                                  \
-    break;
-#include "common/enum.inc"
-#undef Line
-#undef Line_FB
-#undef Line_FC
-#undef Line_FD
-#undef Line_FE
-#undef UseOpCode
-  default:
-    assumingUnreachable();
-  }
+std::vector<uint8_t> cat(std::vector<uint8_t> A,
+                         const std::vector<uint8_t> &B) {
+  A.insert(A.end(), B.begin(), B.end());
+  return A;
+}
 
-  auto serializeBlockType = [this, &OutVec](const BlockType &Type) {
-    if (Type.isEmpty()) {
-      OutVec.push_back(static_cast<uint8_t>(TypeCode::Epsilon));
-    } else if (Type.isValType()) {
-      serializeValType(Type.getValType(), OutVec);
-    } else {
-      writeS33(static_cast<int64_t>(Type.getTypeIndex()), OutVec);
-    }
-  };
+// The immediate shapes of the binary format. Each opcode maps to exactly one.
+enum class Imm {
+  None,
+  BlockType,    // blocktype
+  TryTable,     // blocktype + vec(catch)
+  LabelIdx,     // labelidx
+  LabelVec,     // vec(labelidx) + labelidx
+  TargetIdx,    // a single index
+  TargetSrcIdx, // two indices, target then source
+  SrcTargetIdx, // two indices, source then target
+  TypeTableIdx, // typeidx + tableidx
+  HeapType,     // heaptype
+  BrOnCast,     // castflags + labelidx + heaptype + heaptype
+  ValTypeVec,   // vec(valtype)
+  MemArg,       // memarg
+  MemArgLane,   // memarg + laneidx
+  MemIdx,       // a single memory index
+  MemIdxPair,   // two memory indices
+  ReservedZero, // a reserved byte that is always zero
+  I32Const,
+  I64Const,
+  F32Const,
+  F64Const,
+  V128Bytes, // 16 raw bytes
+  LaneIdx,   // laneidx
+};
 
-  // Serialize immediate.
-  switch (Instr.getOpCode()) {
-  // Control instructions.
+// Derived from the grammar the loader implements in loadInstruction, so a
+// disagreement between the two directions of the codec shows up here.
+Imm immShapeOf(OpCode Code) {
+  switch (Code) {
   case OpCode::Unreachable:
   case OpCode::Nop:
   case OpCode::Return:
   case OpCode::Throw_ref:
   case OpCode::End:
   case OpCode::Else:
-    return;
-
+    return Imm::None;
   case OpCode::Block:
   case OpCode::Loop:
   case OpCode::If:
-    return serializeBlockType(Instr.getBlockType());
-
-  case OpCode::Try_table: {
-    // Serialize the result type.
-    serializeBlockType(Instr.getTryCatch().ResType);
-    // Serialize the vector of catches.
-    uint32_t VecCnt = static_cast<uint32_t>(Instr.getTryCatch().Catch.size());
-    writeU32(VecCnt, OutVec);
-    for (auto Catch : Instr.getTryCatch().Catch) {
-      // Read the catch flags.
-      uint8_t Flags = 0;
-      if (Catch.IsRef) {
-        Flags |= 0x01U;
-      }
-      if (Catch.IsAll) {
-        Flags |= 0x02U;
-      }
-      OutVec.push_back(Flags);
-      // Read the tag index.
-      if (!Catch.IsAll) {
-        writeU32(Catch.TagIndex, OutVec);
-      }
-      // Read the label index.
-      writeU32(Catch.LabelIndex, OutVec);
-    }
-    return;
-  }
-
+    return Imm::BlockType;
+  case OpCode::Try_table:
+    return Imm::TryTable;
   case OpCode::Throw:
-    writeU32(Instr.getTargetIndex(), OutVec);
-    return;
-
+    return Imm::TargetIdx;
   case OpCode::Br:
   case OpCode::Br_if:
   case OpCode::Br_on_null:
   case OpCode::Br_on_non_null:
-    writeU32(Instr.getJump().TargetIndex, OutVec);
-    return;
-
-  case OpCode::Br_table: {
-    uint32_t VecCnt = static_cast<uint32_t>(Instr.getLabelList().size()) - 1;
-    writeU32(VecCnt, OutVec);
-    for (auto &Label : Instr.getLabelList()) {
-      writeU32(Label.TargetIndex, OutVec);
-    }
-    return;
-  }
-
+    return Imm::LabelIdx;
+  case OpCode::Br_table:
+    return Imm::LabelVec;
   case OpCode::Call:
   case OpCode::Return_call:
   case OpCode::Call_ref:
   case OpCode::Return_call_ref:
-    writeU32(Instr.getTargetIndex(), OutVec);
-    return;
-
+    return Imm::TargetIdx;
   case OpCode::Call_indirect:
   case OpCode::Return_call_indirect:
-    // Serialize the type index.
-    writeU32(Instr.getTargetIndex(), OutVec);
-    // Serialize the table index.
-    writeU32(Instr.getSourceIndex(), OutVec);
-    return;
-
-  // Reference Instructions.
+    return Imm::TypeTableIdx;
   case OpCode::Ref__null:
-  case OpCode::Ref__test:
-  case OpCode::Ref__cast:
   case OpCode::Ref__test_null:
   case OpCode::Ref__cast_null:
-    serializeHeapType(Instr.getValType(), OutVec);
-    return;
-  case OpCode::Ref__eq:
+    return Imm::HeapType;
+  case OpCode::Ref__test:
+  case OpCode::Ref__cast:
+    return Imm::HeapType;
   case OpCode::Ref__is_null:
+  case OpCode::Ref__eq:
   case OpCode::Ref__as_non_null:
-    return;
+    return Imm::None;
   case OpCode::Ref__func:
   case OpCode::Struct__new:
   case OpCode::Struct__new_default:
@@ -169,8 +110,7 @@ void Serializer::serializeInstruction(
   case OpCode::Array__get_u:
   case OpCode::Array__set:
   case OpCode::Array__fill:
-    writeU32(Instr.getTargetIndex(), OutVec);
-    return;
+    return Imm::TargetIdx;
   case OpCode::Struct__get:
   case OpCode::Struct__get_s:
   case OpCode::Struct__get_u:
@@ -181,75 +121,39 @@ void Serializer::serializeInstruction(
   case OpCode::Array__copy:
   case OpCode::Array__init_data:
   case OpCode::Array__init_elem:
-    writeU32(Instr.getTargetIndex(), OutVec);
-    writeU32(Instr.getSourceIndex(), OutVec);
-    return;
+    return Imm::TargetSrcIdx;
+  case OpCode::Br_on_cast:
+  case OpCode::Br_on_cast_fail:
+    return Imm::BrOnCast;
   case OpCode::Array__len:
   case OpCode::Any__convert_extern:
   case OpCode::Extern__convert_any:
   case OpCode::Ref__i31:
   case OpCode::I31__get_s:
   case OpCode::I31__get_u:
-    return;
-  case OpCode::Br_on_cast:
-  case OpCode::Br_on_cast_fail: {
-    // Flag
-    uint8_t Flags = 0U;
-    if (Instr.getBrCast().RType1.isNullableRefType()) {
-      Flags |= 0x01U;
-    }
-    if (Instr.getBrCast().RType2.isNullableRefType()) {
-      Flags |= 0x02U;
-    }
-    OutVec.push_back(Flags);
-    // LabelIdx
-    writeU32(Instr.getBrCast().Jump.TargetIndex, OutVec);
-    // First RefType
-    serializeHeapType(Instr.getBrCast().RType1, OutVec);
-    // Second RefType.
-    serializeHeapType(Instr.getBrCast().RType2, OutVec);
-    return;
-  }
-  // Parametric Instructions.
+    return Imm::None;
   case OpCode::Drop:
   case OpCode::Select:
-    return;
-  case OpCode::Select_t: {
-    uint32_t VecCnt = static_cast<uint32_t>(Instr.getValTypeList().size());
-    writeU32(VecCnt, OutVec);
-    for (auto &VType : Instr.getValTypeList()) {
-      serializeValType(VType, OutVec);
-    }
-    return;
-  }
-
-  // Variable Instructions.
+    return Imm::None;
+  case OpCode::Select_t:
+    return Imm::ValTypeVec;
   case OpCode::Local__get:
   case OpCode::Local__set:
   case OpCode::Local__tee:
   case OpCode::Global__get:
   case OpCode::Global__set:
-    writeU32(Instr.getTargetIndex(), OutVec);
-    return;
-
-  // Table Instructions.
+    return Imm::TargetIdx;
   case OpCode::Table__init:
-    writeU32(Instr.getSourceIndex(), OutVec);
-    [[fallthrough]];
+    return Imm::SrcTargetIdx;
   case OpCode::Table__get:
   case OpCode::Table__set:
   case OpCode::Table__grow:
   case OpCode::Table__size:
   case OpCode::Table__fill:
   case OpCode::Elem__drop:
-    writeU32(Instr.getTargetIndex(), OutVec);
-    return;
+    return Imm::TargetIdx;
   case OpCode::Table__copy:
-    writeU32(Instr.getTargetIndex(), OutVec);
-    writeU32(Instr.getSourceIndex(), OutVec);
-    return;
-
-  // Memory Instructions.
+    return Imm::TargetSrcIdx;
   case OpCode::I32__load:
   case OpCode::I64__load:
   case OpCode::F32__load:
@@ -273,42 +177,25 @@ void Serializer::serializeInstruction(
   case OpCode::I64__store8:
   case OpCode::I64__store16:
   case OpCode::I64__store32:
-    return serializeMemImmediate();
-
+    return Imm::MemArg;
   case OpCode::Memory__init:
-    writeU32(Instr.getSourceIndex(), OutVec);
-    [[fallthrough]];
+    return Imm::SrcTargetIdx;
   case OpCode::Memory__grow:
   case OpCode::Memory__size:
   case OpCode::Memory__fill:
-    writeU32(Instr.getTargetIndex(), OutVec);
-    return;
-
+    return Imm::MemIdx;
   case OpCode::Memory__copy:
-    writeU32(Instr.getTargetIndex(), OutVec);
-    writeU32(Instr.getSourceIndex(), OutVec);
-    return;
-
+    return Imm::MemIdxPair;
   case OpCode::Data__drop:
-    writeU32(Instr.getTargetIndex(), OutVec);
-    return;
-
-  // Const Instructions.
+    return Imm::TargetIdx;
   case OpCode::I32__const:
-    writeS32(Instr.getNum().get<int32_t>(), OutVec);
-    return;
-
+    return Imm::I32Const;
   case OpCode::I64__const:
-    writeS64(Instr.getNum().get<int64_t>(), OutVec);
-    return;
+    return Imm::I64Const;
   case OpCode::F32__const:
-    writeF32(Instr.getNum().get<float>(), OutVec);
-    return;
+    return Imm::F32Const;
   case OpCode::F64__const:
-    writeF64(Instr.getNum().get<double>(), OutVec);
-    return;
-
-  // Unary Numeric Instructions.
+    return Imm::F64Const;
   case OpCode::I32__eqz:
   case OpCode::I32__clz:
   case OpCode::I32__ctz:
@@ -369,8 +256,7 @@ void Serializer::serializeInstruction(
   case OpCode::I64__trunc_sat_f32_u:
   case OpCode::I64__trunc_sat_f64_s:
   case OpCode::I64__trunc_sat_f64_u:
-
-  // Binary Numeric Instructions.
+    return Imm::None;
   case OpCode::I32__eq:
   case OpCode::I32__ne:
   case OpCode::I32__lt_s:
@@ -403,7 +289,7 @@ void Serializer::serializeInstruction(
   case OpCode::F64__gt:
   case OpCode::F64__le:
   case OpCode::F64__ge:
-
+    return Imm::None;
   case OpCode::I32__add:
   case OpCode::I32__sub:
   case OpCode::I32__mul:
@@ -448,9 +334,7 @@ void Serializer::serializeInstruction(
   case OpCode::F64__min:
   case OpCode::F64__max:
   case OpCode::F64__copysign:
-    return;
-
-  // SIMD Memory Instruction.
+    return Imm::None;
   case OpCode::V128__load:
   case OpCode::V128__load8x8_s:
   case OpCode::V128__load8x8_u:
@@ -465,7 +349,7 @@ void Serializer::serializeInstruction(
   case OpCode::V128__load32_zero:
   case OpCode::V128__load64_zero:
   case OpCode::V128__store:
-    return serializeMemImmediate();
+    return Imm::MemArg;
   case OpCode::V128__load8_lane:
   case OpCode::V128__load16_lane:
   case OpCode::V128__load32_lane:
@@ -474,22 +358,11 @@ void Serializer::serializeInstruction(
   case OpCode::V128__store16_lane:
   case OpCode::V128__store32_lane:
   case OpCode::V128__store64_lane:
-    serializeMemImmediate();
-    OutVec.push_back(Instr.getMemoryLane());
-    return;
-
-  // SIMD Const Instruction.
+    return Imm::MemArgLane;
   case OpCode::V128__const:
-  // SIMD Shuffle Instruction.
-  case OpCode::I8x16__shuffle: {
-    uint128_t Value = Instr.getNum().get<uint128_t>();
-    for (uint32_t I = 0; I < 16; ++I) {
-      OutVec.push_back(static_cast<uint8_t>(Value >> (I * 8)));
-    }
-    return;
-  }
-
-  // SIMD Lane Instructions.
+    return Imm::V128Bytes;
+  case OpCode::I8x16__shuffle:
+    return Imm::V128Bytes;
   case OpCode::I8x16__extract_lane_s:
   case OpCode::I8x16__extract_lane_u:
   case OpCode::I8x16__replace_lane:
@@ -504,10 +377,7 @@ void Serializer::serializeInstruction(
   case OpCode::F32x4__replace_lane:
   case OpCode::F64x2__extract_lane:
   case OpCode::F64x2__replace_lane:
-    OutVec.push_back(Instr.getMemoryLane());
-    return;
-
-  // SIMD Numeric Instructions.
+    return Imm::LaneIdx;
   case OpCode::I8x16__swizzle:
   case OpCode::I8x16__splat:
   case OpCode::I16x8__splat:
@@ -515,7 +385,7 @@ void Serializer::serializeInstruction(
   case OpCode::I64x2__splat:
   case OpCode::F32x4__splat:
   case OpCode::F64x2__splat:
-
+    return Imm::None;
   case OpCode::I8x16__eq:
   case OpCode::I8x16__ne:
   case OpCode::I8x16__lt_s:
@@ -526,7 +396,7 @@ void Serializer::serializeInstruction(
   case OpCode::I8x16__le_u:
   case OpCode::I8x16__ge_s:
   case OpCode::I8x16__ge_u:
-
+    return Imm::None;
   case OpCode::I16x8__eq:
   case OpCode::I16x8__ne:
   case OpCode::I16x8__lt_s:
@@ -537,7 +407,7 @@ void Serializer::serializeInstruction(
   case OpCode::I16x8__le_u:
   case OpCode::I16x8__ge_s:
   case OpCode::I16x8__ge_u:
-
+    return Imm::None;
   case OpCode::I32x4__eq:
   case OpCode::I32x4__ne:
   case OpCode::I32x4__lt_s:
@@ -548,21 +418,21 @@ void Serializer::serializeInstruction(
   case OpCode::I32x4__le_u:
   case OpCode::I32x4__ge_s:
   case OpCode::I32x4__ge_u:
-
+    return Imm::None;
   case OpCode::F32x4__eq:
   case OpCode::F32x4__ne:
   case OpCode::F32x4__lt:
   case OpCode::F32x4__gt:
   case OpCode::F32x4__le:
   case OpCode::F32x4__ge:
-
+    return Imm::None;
   case OpCode::F64x2__eq:
   case OpCode::F64x2__ne:
   case OpCode::F64x2__lt:
   case OpCode::F64x2__gt:
   case OpCode::F64x2__le:
   case OpCode::F64x2__ge:
-
+    return Imm::None;
   case OpCode::V128__not:
   case OpCode::V128__and:
   case OpCode::V128__andnot:
@@ -570,7 +440,7 @@ void Serializer::serializeInstruction(
   case OpCode::V128__xor:
   case OpCode::V128__bitselect:
   case OpCode::V128__any_true:
-
+    return Imm::None;
   case OpCode::I8x16__abs:
   case OpCode::I8x16__neg:
   case OpCode::I8x16__popcnt:
@@ -592,7 +462,7 @@ void Serializer::serializeInstruction(
   case OpCode::I8x16__max_s:
   case OpCode::I8x16__max_u:
   case OpCode::I8x16__avgr_u:
-
+    return Imm::None;
   case OpCode::I16x8__abs:
   case OpCode::I16x8__neg:
   case OpCode::I16x8__all_true:
@@ -625,7 +495,7 @@ void Serializer::serializeInstruction(
   case OpCode::I16x8__q15mulr_sat_s:
   case OpCode::I16x8__extadd_pairwise_i8x16_s:
   case OpCode::I16x8__extadd_pairwise_i8x16_u:
-
+    return Imm::None;
   case OpCode::I32x4__abs:
   case OpCode::I32x4__neg:
   case OpCode::I32x4__all_true:
@@ -650,7 +520,7 @@ void Serializer::serializeInstruction(
   case OpCode::I32x4__extmul_high_i16x8_u:
   case OpCode::I32x4__extadd_pairwise_i16x8_s:
   case OpCode::I32x4__extadd_pairwise_i16x8_u:
-
+    return Imm::None;
   case OpCode::I64x2__abs:
   case OpCode::I64x2__neg:
   case OpCode::I64x2__bitmask:
@@ -675,7 +545,7 @@ void Serializer::serializeInstruction(
   case OpCode::I64x2__extmul_high_i32x4_s:
   case OpCode::I64x2__extmul_low_i32x4_u:
   case OpCode::I64x2__extmul_high_i32x4_u:
-
+    return Imm::None;
   case OpCode::F32x4__abs:
   case OpCode::F32x4__neg:
   case OpCode::F32x4__sqrt:
@@ -687,7 +557,7 @@ void Serializer::serializeInstruction(
   case OpCode::F32x4__max:
   case OpCode::F32x4__pmin:
   case OpCode::F32x4__pmax:
-
+    return Imm::None;
   case OpCode::F64x2__abs:
   case OpCode::F64x2__neg:
   case OpCode::F64x2__sqrt:
@@ -699,7 +569,7 @@ void Serializer::serializeInstruction(
   case OpCode::F64x2__max:
   case OpCode::F64x2__pmin:
   case OpCode::F64x2__pmax:
-
+    return Imm::None;
   case OpCode::I32x4__trunc_sat_f32x4_s:
   case OpCode::I32x4__trunc_sat_f32x4_u:
   case OpCode::F32x4__convert_i32x4_s:
@@ -710,7 +580,7 @@ void Serializer::serializeInstruction(
   case OpCode::F64x2__convert_low_i32x4_u:
   case OpCode::F32x4__demote_f64x2_zero:
   case OpCode::F64x2__promote_low_f32x4:
-
+    return Imm::None;
   case OpCode::I32x4__dot_i16x8_s:
   case OpCode::F32x4__ceil:
   case OpCode::F32x4__floor:
@@ -720,8 +590,7 @@ void Serializer::serializeInstruction(
   case OpCode::F64x2__floor:
   case OpCode::F64x2__trunc:
   case OpCode::F64x2__nearest:
-    return;
-
+    return Imm::None;
   case OpCode::I8x16__relaxed_swizzle:
   case OpCode::I32x4__relaxed_trunc_f32x4_s:
   case OpCode::I32x4__relaxed_trunc_f32x4_u:
@@ -742,18 +611,13 @@ void Serializer::serializeInstruction(
   case OpCode::I16x8__relaxed_q15mulr_s:
   case OpCode::I16x8__relaxed_dot_i8x16_i7x16_s:
   case OpCode::I32x4__relaxed_dot_i8x16_i7x16_add_s:
-    return;
-
-  // Atomic Memory Instructions.
+    return Imm::None;
   case OpCode::Atomic__fence:
-    // The immediate is a reserved byte, not a LEB128 memory index.
-    OutVec.push_back(0x00U);
-    return;
-
+    return Imm::ReservedZero;
   case OpCode::Memory__atomic__notify:
   case OpCode::Memory__atomic__wait32:
   case OpCode::Memory__atomic__wait64:
-
+    return Imm::MemArg;
   case OpCode::I32__atomic__load:
   case OpCode::I64__atomic__load:
   case OpCode::I32__atomic__load8_u:
@@ -817,12 +681,174 @@ void Serializer::serializeInstruction(
   case OpCode::I64__atomic__rmw8__cmpxchg_u:
   case OpCode::I64__atomic__rmw16__cmpxchg_u:
   case OpCode::I64__atomic__rmw32__cmpxchg_u:
-    return serializeMemImmediate();
-
+    return Imm::MemArg;
   default:
-    assumingUnreachable();
+    ADD_FAILURE() << "opcode has no immediate shape entry";
+    return Imm::None;
   }
 }
 
-} // namespace Loader
-} // namespace WasmEdge
+// Values chosen so that a mis-ordered or dropped field shows up in the bytes.
+constexpr uint32_t TargetIdxValue = 0x11U;
+constexpr uint32_t SourceIdxValue = 0x22U;
+constexpr uint32_t MemAlignValue = 0x03U;
+constexpr uint64_t MemOffsetValue = 0x44U;
+constexpr uint8_t LaneValue = 0x05U;
+
+struct Case {
+  AST::Instruction Instr;
+  std::vector<uint8_t> ImmBytes;
+};
+
+Case makeCase(OpCode Code) {
+  AST::Instruction Instr(Code);
+  std::vector<uint8_t> Imm;
+
+  switch (immShapeOf(Code)) {
+  case Imm::None:
+    break;
+
+  case Imm::BlockType:
+    Instr.getBlockType().setEmpty();
+    Imm = {0x40U};
+    break;
+
+  case Imm::TryTable: {
+    Instr.setTryCatch();
+    Instr.getTryCatch().ResType.setEmpty();
+    AST::Instruction::CatchDescriptor Catch;
+    Catch.IsAll = false;
+    Catch.IsRef = false;
+    Catch.TagIndex = 0x07U;
+    Catch.LabelIndex = 0x08U;
+    Instr.getTryCatch().Catch.push_back(Catch);
+    Imm = {0x40U, 0x01U, 0x00U, 0x07U, 0x08U};
+    break;
+  }
+
+  case Imm::LabelIdx:
+    Instr.getJump().TargetIndex = TargetIdxValue;
+    Imm = leb(TargetIdxValue);
+    break;
+
+  case Imm::LabelVec:
+    Instr.setLabelListSize(2);
+    Instr.getLabelList()[0].TargetIndex = 0x09U;
+    Instr.getLabelList()[1].TargetIndex = 0x0AU;
+    // The list holds the branch targets followed by the default label.
+    Imm = {0x01U, 0x09U, 0x0AU};
+    break;
+
+  case Imm::TargetIdx:
+    Instr.getTargetIndex() = TargetIdxValue;
+    Imm = leb(TargetIdxValue);
+    break;
+
+  case Imm::TargetSrcIdx:
+    Instr.getTargetIndex() = TargetIdxValue;
+    Instr.getSourceIndex() = SourceIdxValue;
+    Imm = cat(leb(TargetIdxValue), leb(SourceIdxValue));
+    break;
+
+  case Imm::SrcTargetIdx:
+    Instr.getTargetIndex() = TargetIdxValue;
+    Instr.getSourceIndex() = SourceIdxValue;
+    Imm = cat(leb(SourceIdxValue), leb(TargetIdxValue));
+    break;
+
+  case Imm::TypeTableIdx:
+    Instr.getTargetIndex() = TargetIdxValue;
+    Instr.getSourceIndex() = SourceIdxValue;
+    Imm = cat(leb(TargetIdxValue), leb(SourceIdxValue));
+    break;
+
+  case Imm::HeapType:
+    Instr.setValType(ValType(TypeCode::RefNull, TypeCode::FuncRef));
+    Imm = {0x70U};
+    break;
+
+  case Imm::BrOnCast:
+    Instr.setBrCast(TargetIdxValue);
+    Instr.getBrCast().RType1 = ValType(TypeCode::RefNull, TypeCode::FuncRef);
+    Instr.getBrCast().RType2 = ValType(TypeCode::Ref, TypeCode::FuncRef);
+    // Only the first reference type is nullable, so the flag byte is 0x01.
+    Imm = cat({0x01U}, cat(leb(TargetIdxValue), {0x70U, 0x70U}));
+    break;
+
+  case Imm::ValTypeVec:
+    Instr.setValTypeListSize(1);
+    Instr.getValTypeList()[0] = ValType(TypeCode::I32);
+    Imm = {0x01U, 0x7FU};
+    break;
+
+  case Imm::MemArg:
+    Instr.getMemoryAlign() = MemAlignValue;
+    Instr.getMemoryOffset() = MemOffsetValue;
+    Instr.getTargetIndex() = 0;
+    Imm = {static_cast<uint8_t>(MemAlignValue),
+           static_cast<uint8_t>(MemOffsetValue)};
+    break;
+
+  case Imm::MemArgLane:
+    Instr.getMemoryAlign() = MemAlignValue;
+    Instr.getMemoryOffset() = MemOffsetValue;
+    Instr.getTargetIndex() = 0;
+    Instr.getMemoryLane() = LaneValue;
+    Imm = {static_cast<uint8_t>(MemAlignValue),
+           static_cast<uint8_t>(MemOffsetValue), LaneValue};
+    break;
+
+  case Imm::MemIdx:
+    Instr.getTargetIndex() = TargetIdxValue;
+    Imm = leb(TargetIdxValue);
+    break;
+
+  case Imm::MemIdxPair:
+    Instr.getTargetIndex() = TargetIdxValue;
+    Instr.getSourceIndex() = SourceIdxValue;
+    Imm = cat(leb(TargetIdxValue), leb(SourceIdxValue));
+    break;
+
+  case Imm::ReservedZero:
+    Instr.getTargetIndex() = 0;
+    Imm = {0x00U};
+    break;
+
+  case Imm::I32Const:
+    Instr.setNum(static_cast<uint32_t>(1));
+    Imm = {0x01U};
+    break;
+
+  case Imm::I64Const:
+    Instr.setNum(static_cast<uint64_t>(1));
+    Imm = {0x01U};
+    break;
+
+  case Imm::F32Const:
+    Instr.setNum(1.0F);
+    Imm = {0x00U, 0x00U, 0x80U, 0x3FU};
+    break;
+
+  case Imm::F64Const:
+    Instr.setNum(1.0);
+    Imm = {0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0xF0U, 0x3FU};
+    break;
+
+  case Imm::V128Bytes:
+    // 1U is an exact match for uint128(unsigned int); a plain 1 is
+    // ambiguous where uint128_t is a class rather than a builtin.
+    Instr.setNum(static_cast<uint128_t>(1U));
+    Imm = {0x01U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U,
+           0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U};
+    break;
+
+  case Imm::LaneIdx:
+    Instr.getMemoryLane() = LaneValue;
+    Imm = {LaneValue};
+    break;
+  }
+
+  return {std::move(Instr), std::move(Imm)};
+}
+
+} // namespace

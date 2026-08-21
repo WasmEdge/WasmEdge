@@ -22,8 +22,7 @@ void generateCoredump(const Runtime::StackManager &StackMgr,
   }
   // Generate coredump.
   const auto *CurrentInstance = StackMgr.getModule();
-  const Configure Config;
-  Loader::Serializer Ser(Config);
+  Loader::Serializer Ser;
   AST::Module Module{};
   std::vector<Byte> &Magic = Module.getMagic();
   std::string MagicStr("\0asm", 4);

@@ -7,7 +7,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <zlib.h>
 
@@ -78,18 +80,116 @@ static_assert(sizeof(WasmGZHeader) == 52, "WasmGZHeader should be 52 bytes");
 namespace WasmEdge {
 namespace Host {
 
+enum class ZStreamKind { Deflate, Inflate, InflateBack };
+
+// RAII owner for a zlib stream: ends it exactly once, so dropping the map entry
+// (on an explicit *End, or at environment teardown) never leaks zlib's internal
+// state. The z_stream keeps a stable address because std::unordered_map never
+// relocates its nodes, so zlib's internal state->strm back-pointer stays valid.
+struct ZStreamEntry {
+  z_stream Z{};
+  ZStreamKind Kind;
+  /* wrap facts fixed by windowBits at init/reset2 time: whether the stream
+     carries a gzip wrapper (deflate windowBits 24..31; inflate 24..31 gzip or
+     40..47 auto-detect) and whether the stream is raw (negative windowBits).
+     inflateGetHeader accepts only gzip-capable inflate streams, and the
+     *SetDictionary state rejects depend on the wrapper, all decided before
+     zlib reads any caller memory. */
+  bool GzipWrap = false;
+  bool RawInflate = false;
+  bool RawDeflate = false;
+  /* true while zlib may be in DICT mode: entered only by an inflate() that
+     returned Z_NEED_DICT and left only inside a later inflate() call, so a
+     stale value can only over-validate, never pass unchecked guest memory. */
+  bool MayNeedDict = false;
+  /* true once a zlib-wrapped (wrap == 1) deflate stream has advanced past
+     INIT_STATE, which is exactly when deflateSetDictionary starts refusing a
+     preset dictionary. deflate() leaves INIT_STATE precisely when it first
+     returns Z_OK/Z_STREAM_END (an earlier avail_out == 0 call returns
+     Z_BUF_ERROR before writing the header), so this is set only on that success
+     and cleared on reset -- it can only over-reject an already-started stream,
+     never accept a mismatched buffer. Unused for raw deflate, whose reject
+     depends on live lookahead instead. */
+  bool DeflateStarted = false;
+  explicit ZStreamEntry(ZStreamKind K) noexcept : Kind(K) {
+    Z.zalloc = Z_NULL;
+    Z.zfree = Z_NULL;
+    Z.opaque = Z_NULL; // ignore opaque since zalloc and zfree are ignored
+  }
+  ZStreamEntry(const ZStreamEntry &) = delete;
+  ZStreamEntry &operator=(const ZStreamEntry &) = delete;
+  ~ZStreamEntry() {
+    // deflate/inflateEnd null out state on success, so a stream the guest
+    // already ended (or one whose init failed) is a no-op here -- never a
+    // double free. A copy that failed and left state aliasing another stream is
+    // detached (state = Z_NULL) by the caller before this runs.
+    if (Z.state == Z_NULL) {
+      return;
+    }
+    switch (Kind) {
+    case ZStreamKind::Deflate:
+      deflateEnd(&Z);
+      break;
+    case ZStreamKind::Inflate:
+      inflateEnd(&Z);
+      break;
+    case ZStreamKind::InflateBack:
+      inflateBackEnd(&Z);
+      break;
+    }
+  }
+};
+
 class WasmEdgeZlibEnvironment {
 public:
-  using GZFile = std::remove_pointer_t<gzFile>;
-
   struct GZStore {
     uint32_t WasmGZHeaderOffset;
+    /* true for inflateGetHeader (zlib writes the header buffers), false for
+       deflateSetHeader (zlib reads them) */
+    bool IsInflate;
     std::unique_ptr<gz_header> HostGZHeader;
+    /* host-owned snapshots of the deflateSetHeader fields; zlib emits name and
+       comment incrementally across deflate() calls, so the buffers must stay
+       stable rather than be re-read from guest memory each call */
+    std::vector<Bytef> Extra;
+    std::string Name;
+    std::string Comment;
   };
 
-  std::unordered_map<uint32_t, std::unique_ptr<z_stream>> ZStreamMap;
-  std::map<uint32_t, std::unique_ptr<GZFile>, std::greater<uint32_t>> GZFileMap;
-  std::unordered_map<uint32_t, GZStore> GZHeaderMap;
+  /* A gz handle keeps the WASI rights probed when its descriptor was bridged:
+     zlib operates on a duplicated native descriptor outside WASI's checks, so
+     seek/tell-shaped calls must be refused up here when the fd's rights were
+     narrowed via fd_fdstat_set_rights. Handles opened without WASI mediation
+     carry full rights. */
+  struct GZFileEntry {
+    gzFile GZ;
+    bool CanSeek;
+    bool CanTell;
+    bool RestoredAppendOffset;
+    /* true when the gz mode opened the stream for reading: only read handles
+       ever lseek the descriptor, so only they need FD_SEEK. Stays false on the
+       non-WASI fallbacks, whose CanSeek == true makes it irrelevant */
+    bool OpenedForRead = false;
+    /* guest WASI fd this handle owns, or -1: gzdopen's contract transfers the
+       guest's descriptor to the gzFile, so the gzclose that frees the handle
+       must also release the fd or a guest following the zlib documentation
+       leaks one fd table entry per open/close cycle */
+    int64_t OwnedWasiFd = -1;
+  };
+
+  WasmEdgeZlibEnvironment() = default;
+  WasmEdgeZlibEnvironment(const WasmEdgeZlibEnvironment &) = delete;
+  WasmEdgeZlibEnvironment &operator=(const WasmEdgeZlibEnvironment &) = delete;
+  ~WasmEdgeZlibEnvironment() {
+    for (const auto &[Handle, Entry] : GZFileMap) {
+      gzclose(Entry.GZ);
+    }
+  }
+
+  std::unordered_map<uint32_t, ZStreamEntry> ZStreamMap;
+  std::unordered_map<uint32_t, GZFileEntry> GZFileMap;
+  std::unordered_map<uint32_t, std::shared_ptr<GZStore>> GZHeaderMap;
+  uint32_t NextGZFile = sizeof(gzFile);
 };
 
 } // namespace Host

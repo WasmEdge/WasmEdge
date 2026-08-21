@@ -2110,6 +2110,162 @@ TEST(SerializeInstructionTest, SerializeMultiMemoryMemArgInstruction) {
   EXPECT_EQ(Output, Expected);
 }
 
+TEST(SerializeInstructionTest, SerializeTruncSatInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 23. Test saturating truncation instructions (0xFC prefix, no immediates).
+  //
+  //   1.  Serialize i32.trunc_sat_f32_s instruction.
+  //   2.  Serialize i32.trunc_sat_f32_u instruction.
+  //   3.  Serialize i32.trunc_sat_f64_s instruction.
+  //   4.  Serialize i32.trunc_sat_f64_u instruction.
+  //   5.  Serialize i64.trunc_sat_f32_s instruction.
+  //   6.  Serialize i64.trunc_sat_f32_u instruction.
+  //   7.  Serialize i64.trunc_sat_f64_s instruction.
+  //   8.  Serialize i64.trunc_sat_f64_u instruction.
+
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  WasmEdge::AST::Instruction I32TruncSatF32S(
+      WasmEdge::OpCode::I32__trunc_sat_f32_s);
+  WasmEdge::AST::Instruction I32TruncSatF32U(
+      WasmEdge::OpCode::I32__trunc_sat_f32_u);
+  WasmEdge::AST::Instruction I32TruncSatF64S(
+      WasmEdge::OpCode::I32__trunc_sat_f64_s);
+  WasmEdge::AST::Instruction I32TruncSatF64U(
+      WasmEdge::OpCode::I32__trunc_sat_f64_u);
+  WasmEdge::AST::Instruction I64TruncSatF32S(
+      WasmEdge::OpCode::I64__trunc_sat_f32_s);
+  WasmEdge::AST::Instruction I64TruncSatF32U(
+      WasmEdge::OpCode::I64__trunc_sat_f32_u);
+  WasmEdge::AST::Instruction I64TruncSatF64S(
+      WasmEdge::OpCode::I64__trunc_sat_f64_s);
+  WasmEdge::AST::Instruction I64TruncSatF64U(
+      WasmEdge::OpCode::I64__trunc_sat_f64_u);
+
+  // 1. i32.trunc_sat_f32_s
+  Instructions = {I32TruncSatF32S, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFCU, 0x00U, // OpCode I32__trunc_sat_f32_s.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // 2. i32.trunc_sat_f32_u
+  Instructions = {I32TruncSatF32U, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFCU, 0x01U, // OpCode I32__trunc_sat_f32_u.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // 3. i32.trunc_sat_f64_s
+  Instructions = {I32TruncSatF64S, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFCU, 0x02U, // OpCode I32__trunc_sat_f64_s.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // 4. i32.trunc_sat_f64_u
+  Instructions = {I32TruncSatF64U, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFCU, 0x03U, // OpCode I32__trunc_sat_f64_u.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // 5. i64.trunc_sat_f32_s
+  Instructions = {I64TruncSatF32S, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFCU, 0x04U, // OpCode I64__trunc_sat_f32_s.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // 6. i64.trunc_sat_f32_u
+  Instructions = {I64TruncSatF32U, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFCU, 0x05U, // OpCode I64__trunc_sat_f32_u.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // 7. i64.trunc_sat_f64_s
+  Instructions = {I64TruncSatF64S, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFCU, 0x06U, // OpCode I64__trunc_sat_f64_s.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // 8. i64.trunc_sat_f64_u
+  Instructions = {I64TruncSatF64U, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFCU, 0x07U, // OpCode I64__trunc_sat_f64_u.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+}
+
 TEST(SerializeInstructionTest, SerializeAtomicFenceAndWait64Instruction) {
   WasmEdge::Configure ConfThreads;
   ConfThreads.addProposal(WasmEdge::Proposal::Threads);

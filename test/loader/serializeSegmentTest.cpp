@@ -214,19 +214,21 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   //   2.  Serialize element segment with expression and function indices list.
   //   3.  Serialize element segment with element kind and function indices
   //       list.
-  //   4.  Serialize element segment with expression, element kind and function
+  //   4.  Serialize passive and declarative element segments with a non-zero
+  //       table index.
+  //   5.  Serialize element segment with expression, element kind and function
   //       indices list.
-  //   5.  Serialize element segment with element kind and function indices
+  //   6.  Serialize element segment with element kind and function indices
   //       list.
-  //   6.  Serialize element segment with offset expression and init expression
+  //   7.  Serialize element segment with offset expression and init expression
   //       list.
-  //   7.  Serialize element segment with reference type and init expression
+  //   8.  Serialize element segment with reference type and init expression
   //       list.
-  //   8.  Serialize element segment with table index, offset expression,
+  //   9.  Serialize element segment with table index, offset expression,
   //       reference type and init expression list.
-  //   9.  Serialize element segment with reference type and init expression
+  //   10. Serialize element segment with reference type and init expression
   //       list.
-  //   10. Serialize element segment with invalid checking byte without
+  //   11. Serialize element segment with invalid checking byte without
   //       Ref-Types proposal.
 
   WasmEdge::AST::ElementSection ElementSec;
@@ -296,6 +298,43 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
       0x0CU,                             // Content size = 12
       0x01U,                             // Vector length = 1
       0x01U,                             // Prefix checking byte
+      0x00U,                             // ElementKind
+      0x03U,                             // Vector length = 3
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // vec[0]
+      0x00U,                             // vec[1]
+      0xB9U, 0x60U                       // vec[2]
+  };
+  EXPECT_EQ(Output, Expected);
+
+  ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Passive);
+  ElementSeg.setIdx(0x01U);
+  ElementSec.getContent() = {ElementSeg};
+
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
+  Expected = {
+      0x09U,                             // Element section
+      0x0CU,                             // Content size = 12
+      0x01U,                             // Vector length = 1
+      0x01U,                             // Prefix checking byte
+      0x00U,                             // ElementKind
+      0x03U,                             // Vector length = 3
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // vec[0]
+      0x00U,                             // vec[1]
+      0xB9U, 0x60U                       // vec[2]
+  };
+  EXPECT_EQ(Output, Expected);
+
+  ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Declarative);
+  ElementSec.getContent() = {ElementSeg};
+
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
+  Expected = {
+      0x09U,                             // Element section
+      0x0CU,                             // Content size = 12
+      0x01U,                             // Vector length = 1
+      0x03U,                             // Prefix checking byte
       0x00U,                             // ElementKind
       0x03U,                             // Vector length = 3
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // vec[0]

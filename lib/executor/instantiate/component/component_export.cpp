@@ -38,13 +38,19 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
     } else {
       switch (Sort.getSortType()) {
       case AST::Component::Sort::SortType::Func:
+        // Each export also aliases the exported definition into a new index in
+        // the component's own index space, mirroring the validator, so later
+        // references to that index resolve in bounds.
         CompInst.exportFunction(Export.getName(), Index);
+        CompInst.addFunction(CompInst.getFunction(Index));
         break;
       case AST::Component::Sort::SortType::Instance:
         CompInst.exportComponentInstance(Export.getName(), Index);
+        CompInst.addComponentInstance(CompInst.getComponentInstance(Index));
         break;
       case AST::Component::Sort::SortType::Type:
         CompInst.exportType(Export.getName(), Index);
+        CompInst.addType(*CompInst.getType(Index));
         break;
       case AST::Component::Sort::SortType::Value:
       case AST::Component::Sort::SortType::Component:

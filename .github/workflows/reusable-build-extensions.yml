@@ -43,15 +43,15 @@ jobs:
       ubuntu_latest: ${{ steps.readfile.outputs.ubuntu_latest }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - id: filter
-        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           filters: '.github/extensions.paths-filter.yml'
       - id: readfile
@@ -181,8 +181,8 @@ jobs:
           - runner: 'macos-15-intel'
             asset_tag: 'darwin_24-x86_64'
             plugins: ${{ needs.prepare.outputs.macos_x86_64 }}
-          - runner: 'macos-14'
-            asset_tag: 'darwin_23-arm64'
+          - runner: 'macos-15'
+            asset_tag: 'darwin_24-arm64'
             plugins: ${{ needs.prepare.outputs.macos_arm64 }}
     name: ${{ matrix.asset_tag }}
     uses: ./.github/workflows/reusable-build-extensions-on-macos.yml

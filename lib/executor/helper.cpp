@@ -138,9 +138,10 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       StackMgr.push(std::move(R));
     }
 
-    // For host function case, the continuation will be the continuation from
-    // the popped frame.
-    return StackMgr.popFrame();
+    // A tail call pops the replaced caller's frame, whose `From` is one before
+    // its resume point, so step it forward one instruction for `runCallOp`.
+    const AST::InstrView::iterator Continuation = StackMgr.popFrame();
+    return IsTailCall ? Continuation + 1 : Continuation;
   } else if (Func.isCompiledFunction()) {
     // Compiled function case: Execute the function and jump to the
     // continuation.
@@ -202,9 +203,10 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       StackMgr.push(Rets[I]);
     }
 
-    // For compiled function case, the continuation will be the continuation
-    // from the popped frame.
-    return StackMgr.popFrame();
+    // As in the host case, step a tail-call continuation forward one
+    // instruction for `runCallOp`.
+    const AST::InstrView::iterator Continuation = StackMgr.popFrame();
+    return IsTailCall ? Continuation + 1 : Continuation;
   } else {
     // Native function case: Jump to the start of the function body.
 
@@ -259,6 +261,12 @@ Executor::branchToLabel(Runtime::StackManager &StackMgr,
   StackMgr.eraseValueStack(JumpDesc.StackEraseBegin, JumpDesc.StackEraseEnd);
   // PC needs -1 here because the PC will increase in the next iteration.
   PC += (JumpDesc.PCOffset - 1);
+  // A branch leaves the innermost blocks without running their `end`, so the
+  // handlers it strands are the top of the handler stack right now. Drop them
+  // here: once a later try_table is pushed on top they are indistinguishable
+  // from active handlers, and their stale VPos would invert the erase range in
+  // popTopHandler. PC + 1 is the instruction being branched to.
+  StackMgr.removeInactiveHandler(PC + 1);
   return {};
 }
 
@@ -292,8 +300,13 @@ Expect<void> Executor::throwException(
               StackMgr.getModule());
           Inst = ModInst->newException(&TagInst, std::move(Vec));
         }
+        if (C.IsAll) {
+          StackMgr.eraseValueStack(AssocValSize, 0);
+        }
         StackMgr.push(
             RefVariant(ValType(TypeCode::Ref, TypeCode::ExnRef), Inst));
+      } else if (C.IsAll) {
+        StackMgr.eraseValueStack(AssocValSize, 0);
       }
       // When an exception is caught, move the PC to the try block and branch to
       // the label.

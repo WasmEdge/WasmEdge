@@ -88,9 +88,17 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   case FileMgr::FileHeader::DLL:
   case FileMgr::FileHeader::MachO_32:
   case FileMgr::FileHeader::MachO_64: {
-    // Open the shared library long enough to validate its WasmEdge AOT
-    // version and extract the embedded WASM bytes. Whether the native
-    // handle stays alive depends on the configured RunMode.
+    if (Conf.getRuntimeConfigure().getRunMode() != RunMode::AOT) {
+      spdlog::error("Might an invalid wasm file"sv);
+      spdlog::error(ErrCode::Value::MalformedMagic);
+      spdlog::error(
+          "    The AOT compiled WASM shared library is only loadable in the "
+          "AOT run mode. Please use a normal WASM file, or set the run mode "
+          "to AOT."sv);
+      spdlog::error(ErrInfo::InfoFile(FilePath));
+      return Unexpect(ErrCode::Value::MalformedMagic);
+    }
+
     WASMType = InputType::SharedLibrary;
     FMgr.reset();
     std::shared_ptr<SharedLibrary> Library = std::make_shared<SharedLibrary>();
@@ -104,15 +112,7 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
 
     EXPECTED_TRY(auto Code, Library->getWasm().map_error(ReportError));
 
-    if (Conf.getRuntimeConfigure().getRunMode() != RunMode::AOT) {
-      // Non-AOT mode: drop the native handle now and re-parse the embedded
-      // WASM bytes as plain WASM. No AOT function symbol from the shared
-      // library is resolved or called.
-      Library.reset();
-      return parseWasmUnit(Code);
-    }
-
-    // AOT mode: keep the library alive and load executable symbols.
+    // Keep the library alive and load executable symbols.
     EXPECTED_TRY(FMgr.setCode(Code).map_error(ReportError));
     EXPECTED_TRY(auto Unit, loadUnit().map_error(ReportError));
     if (auto Ptr = std::get_if<std::unique_ptr<AST::Module>>(&Unit);
@@ -152,8 +152,8 @@ Loader::parseWasmUnit(Span<const uint8_t> Code) {
     spdlog::error(ErrCode::Value::MalformedMagic);
     spdlog::error(
         "    The AOT compiled WASM shared library is not supported for loading "
-        "from memory. Please use the universal WASM binary or pure WASM, or "
-        "load the AOT compiled WASM shared library from file."sv);
+        "from memory. Please use a normal WASM file, or load the AOT compiled "
+        "WASM shared library from file in the AOT run mode."sv);
     return Unexpect(ErrCode::Value::MalformedMagic);
   default:
     break;

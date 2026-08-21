@@ -169,8 +169,10 @@ public:
   /// Unsafe remove inactive handler.
   void removeInactiveHandler(AST::InstrView::iterator PC) noexcept {
     assuming(!FrameStack.empty());
-    // First pop the inactive handlers. Br instructions may cause the handlers
-    // in current frame becomes inactive.
+    // Pop the handlers the branch left behind. Callers must run this while the
+    // inactive handlers are still on top: a handler buried under a later
+    // try_table is indistinguishable from an active one here, so branchToLabel
+    // cleans up before any new handler can be pushed over the stale ones.
     auto &HandlerStack = FrameStack.back().HandlerStack;
     while (!HandlerStack.empty()) {
       auto &Handler = HandlerStack.back();

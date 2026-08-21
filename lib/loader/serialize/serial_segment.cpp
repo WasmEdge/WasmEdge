@@ -78,7 +78,8 @@ Serializer::serializeSegment(const AST::ElementSegment &Seg,
   };
 
   // Serialize idx.
-  if (Seg.getIdx() != 0) {
+  if (Seg.getMode() == AST::ElementSegment::ElemMode::Active &&
+      Seg.getIdx() != 0) {
     Mode |= 0x02;
     serializeU32(Seg.getIdx(), OutVec);
   }

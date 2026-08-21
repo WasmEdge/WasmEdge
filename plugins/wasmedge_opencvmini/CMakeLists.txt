@@ -1,7 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-find_package(OpenCV 4 REQUIRED)
+find_package(OpenCV 5 REQUIRED COMPONENTS core imgproc imgcodecs)
+
+if(NOT OpenCV_VERSION_MAJOR EQUAL 5)
+  message(FATAL_ERROR "OpenCVMini requires OpenCV major version 5")
+endif()
+
+message(STATUS "OpenCVMini: OpenCV version ${OpenCV_VERSION}")
 
 wasmedge_add_library(wasmedgePluginWasmEdgeOpenCVMini
   SHARED
@@ -19,7 +25,11 @@ target_include_directories(wasmedgePluginWasmEdgeOpenCVMini
   PUBLIC
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${OpenCV_INClUDE_DIRS}
+)
+
+target_include_directories(wasmedgePluginWasmEdgeOpenCVMini
+  SYSTEM PUBLIC
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 if(WASMEDGE_LINK_PLUGINS_STATIC)

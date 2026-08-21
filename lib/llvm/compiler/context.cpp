@@ -42,19 +42,28 @@ Compiler::CompileContext::CompileContext(LLVM::Context C, LLVM::Module &M,
       Int8PtrTy(Int8Ty.getPointerTo()), Int32PtrTy(Int32Ty.getPointerTo()),
       Int64PtrTy(Int64Ty.getPointerTo()), Int128PtrTy(Int128Ty.getPointerTo()),
       Int8PtrPtrTy(Int8PtrTy.getPointerTo()),
+      ModCtxTy(
+          LLVM::Type::getStructType("ModCtx",
+                                    std::initializer_list<LLVM::Type>{
+                                        // MemoryPtrs
+                                        Int8PtrTy.getPointerTo(),
+                                        // MemorySizes
+                                        Int64PtrTy.getPointerTo(),
+                                        // TableRefs
+                                        Int64x2Ty.getPointerTo().getPointerTo(),
+                                        // TableSizes
+                                        Int64PtrTy.getPointerTo(),
+                                        // Globals
+                                        Int128PtrTy.getPointerTo(),
+                                        // ModuleInst
+                                        Int8PtrTy,
+                                        // Tags
+                                        Int8PtrPtrTy,
+                                    })),
+      ModCtxPtrTy(ModCtxTy.getPointerTo()),
       ExecCtxTy(LLVM::Type::getStructType(
           "ExecCtx",
           std::initializer_list<LLVM::Type>{
-              // MemoryPtrs
-              Int8PtrTy.getPointerTo(),
-              // MemorySizes
-              Int64PtrTy.getPointerTo(),
-              // TableRefs
-              Int64x2Ty.getPointerTo().getPointerTo(),
-              // TableSizes
-              Int64PtrTy.getPointerTo(),
-              // Globals
-              Int128PtrTy.getPointerTo(),
               // InstrCount
               Int64PtrTy,
               // CostTable
@@ -65,8 +74,8 @@ Compiler::CompileContext::CompileContext(LLVM::Context C, LLVM::Module &M,
               Int64Ty,
               // StopToken
               Int32PtrTy,
-              // ModuleInst
-              Int8PtrTy,
+              // PendingExnTagAddr
+              Int8PtrPtrTy,
           })),
       ExecCtxPtrTy(ExecCtxTy.getPointerTo()),
       IntrinsicsTableTy(LLVM::Type::getArrayType(
@@ -174,10 +183,12 @@ toLLVMTypeVector(LLVM::Context LLContext,
 }
 
 std::vector<LLVM::Type> toLLVMArgsType(LLVM::Context LLContext,
+                                       LLVM::Type ModCtxPtrTy,
                                        LLVM::Type ExecCtxPtrTy,
                                        Span<const ValType> ValTypes) noexcept {
   auto Result = toLLVMTypeVector(LLContext, ValTypes);
   Result.insert(Result.begin(), ExecCtxPtrTy);
+  Result.insert(Result.begin(), ModCtxPtrTy);
   return Result;
 }
 
@@ -197,10 +208,11 @@ LLVM::Type toLLVMRetsType(LLVM::Context LLContext,
   return LLVM::Type::getStructType(Result);
 }
 
-LLVM::Type toLLVMType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
+LLVM::Type toLLVMType(LLVM::Context LLContext, LLVM::Type ModCtxPtrTy,
+                      LLVM::Type ExecCtxPtrTy,
                       const AST::FunctionType &FuncType) noexcept {
-  auto ArgsTy =
-      toLLVMArgsType(LLContext, ExecCtxPtrTy, FuncType.getParamTypes());
+  auto ArgsTy = toLLVMArgsType(LLContext, ModCtxPtrTy, ExecCtxPtrTy,
+                               FuncType.getParamTypes());
   auto RetTy = toLLVMRetsType(LLContext, FuncType.getReturnTypes());
   return LLVM::Type::getFunctionType(RetTy, ArgsTy);
 }

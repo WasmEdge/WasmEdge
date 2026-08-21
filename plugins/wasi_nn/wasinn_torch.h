@@ -59,7 +59,7 @@ class AOTInductor : public PyBaseModule {
   Expect<ErrNo> setDevice(Device Device) override;
 
 public:
-  AOTInductor();
+  AOTInductor() : TorchModel(nullptr) {}
   Expect<ErrNo> loadFromPath(const std::string &Path, Device Device) override;
   Expect<ErrNo> loadFromBinary(std::istream &In, Device Device) override;
   Expect<ErrNo> run(std::vector<at::Tensor> In,

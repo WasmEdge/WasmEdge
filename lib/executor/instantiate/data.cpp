@@ -32,7 +32,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                        }));
       // Get memory instance and address type.
       // Memory64 proposal is checked in validation phase.
-      auto *MemInst = getMemInstByIdx(StackMgr, DataSeg.getIdx());
+      auto *MemInst = getMemInstByIdx(StackMgr.getModule(), DataSeg.getIdx());
       assuming(MemInst);
       Offset = extractAddr(StackMgr.pop(),
                            MemInst->getMemoryType().getLimit().getAddrType());
@@ -65,9 +65,9 @@ Expect<void> Executor::initMemory(Runtime::StackManager &StackMgr,
     // Initialize memory if data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       // Memory and data indices are checked in the validation phase.
-      auto *MemInst = getMemInstByIdx(StackMgr, DataSeg.getIdx());
+      auto *MemInst = getMemInstByIdx(StackMgr.getModule(), DataSeg.getIdx());
       assuming(MemInst);
-      auto *DataInst = getDataInstByIdx(StackMgr, Idx);
+      auto *DataInst = getDataInstByIdx(StackMgr.getModule(), Idx);
       assuming(DataInst);
       const uint64_t Off = DataInst->getOffset();
 

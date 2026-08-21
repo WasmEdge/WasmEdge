@@ -511,6 +511,135 @@ TEST(WasmEdgeImageTest, LoadImage) {
   EXPECT_TRUE(std::fabs(OutSpanF32[Position * 3 + 2] - 0.0f) < 0.00001f);
 }
 
+TEST(WasmEdgeImageTest, InvalidParams) {
+  // Create the wasmedge_image module instance.
+  auto ImgMod = createModule();
+  ASSERT_TRUE(ImgMod);
+
+  // Create the calling frame with memory instance.
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  // Input payload offset.
+  uint32_t InOffset = 0;
+  // Input payload size.
+  uint32_t InSize = static_cast<uint32_t>(TestRedPNG.size());
+  // Output image data offset.
+  uint32_t OutOffset = 1024;
+  // Output buffer size for the 50x60 RGB u8 format.
+  uint32_t OutSize = 50 * 60 * 3;
+
+  // Get the function "load_image".
+  auto *FuncInst = ImgMod->findFuncExports("load_image");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInst = FuncInst->getHostFunc();
+
+  // Set the memory[0, 158] as the PNG image payload.
+  fillMemContent(MemInst, 0, 32768);
+  fillMemContent(MemInst, 0, TestRedPNG);
+
+  // Test: Zero output width should fail.
+  EXPECT_TRUE(HostFuncInst.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   InOffset,  // Payload offset.
+                                   InSize,    // Payload size.
+                                   0U, 60U,   // Target width and height.
+                                   0U,        // Target type: RGB8.
+                                   OutOffset, // Output buffer offset.
+                                   OutSize    // Output buffer size.
+                               },
+                               Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), static_cast<uint32_t>(ErrNo::Fail));
+
+  // Test: Zero output height should fail.
+  EXPECT_TRUE(HostFuncInst.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   InOffset,  // Payload offset.
+                                   InSize,    // Payload size.
+                                   50U, 0U,   // Target width and height.
+                                   1U,        // Target type: BGR8.
+                                   OutOffset, // Output buffer offset.
+                                   OutSize    // Output buffer size.
+                               },
+                               Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), static_cast<uint32_t>(ErrNo::Fail));
+
+  // Test: Output width with the row size exceeding INT32_MAX should fail
+  // because the resizer takes the dimensions and strides as int.
+  EXPECT_TRUE(HostFuncInst.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   InOffset,       // Payload offset.
+                                   InSize,         // Payload size.
+                                   800000000U, 1U, // Target width and height.
+                                   0U,             // Target type: RGB8.
+                                   OutOffset,      // Output buffer offset.
+                                   OutSize         // Output buffer size.
+                               },
+                               Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), static_cast<uint32_t>(ErrNo::Fail));
+
+  // Test: Output height exceeding INT32_MAX should fail because the resizer
+  // takes the dimensions as int.
+  EXPECT_TRUE(HostFuncInst.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   InOffset,        // Payload offset.
+                                   InSize,          // Payload size.
+                                   1U, 2147483648U, // Target width and height.
+                                   0U,              // Target type: RGB8.
+                                   OutOffset,       // Output buffer offset.
+                                   OutSize          // Output buffer size.
+                               },
+                               Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), static_cast<uint32_t>(ErrNo::Fail));
+
+  // Test: Insufficient output buffer should fail.
+  EXPECT_TRUE(HostFuncInst.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   InOffset,    // Payload offset.
+                                   InSize,      // Payload size.
+                                   50U, 60U,    // Target width and height.
+                                   0U,          // Target type: RGB8.
+                                   OutOffset,   // Output buffer offset.
+                                   OutSize - 1U // Output buffer size.
+                               },
+                               Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), static_cast<uint32_t>(ErrNo::Fail));
+
+  // Test: Unknown output data type should fail.
+  EXPECT_TRUE(HostFuncInst.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   InOffset,  // Payload offset.
+                                   InSize,    // Payload size.
+                                   50U, 60U,  // Target width and height.
+                                   4U,        // Target type: unknown.
+                                   OutOffset, // Output buffer offset.
+                                   OutSize    // Output buffer size.
+                               },
+                               Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), static_cast<uint32_t>(ErrNo::Fail));
+
+  // Test: Empty input payload should fail.
+  EXPECT_TRUE(HostFuncInst.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   InOffset,  // Payload offset.
+                                   0U,        // Payload size.
+                                   50U, 60U,  // Target width and height.
+                                   0U,        // Target type: RGB8.
+                                   OutOffset, // Output buffer offset.
+                                   OutSize    // Output buffer size.
+                               },
+                               Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), static_cast<uint32_t>(ErrNo::Fail));
+}
+
 GTEST_API_ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

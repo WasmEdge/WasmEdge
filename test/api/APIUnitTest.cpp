@@ -1488,14 +1488,13 @@ TEST(APICoreTest, Compiler) {
 // on all platforms.
 #ifndef __riscv
 TEST(APICoreTest, RunModes) {
-  // Exercise the WasmEdge_RunMode behaviours and fallback paths.
+  // Exercise the WasmEdge_RunMode behaviours.
   //
-  // Compile fib to a native shared library (.so / .dylib / .dll) and load it
-  // under each RunMode. In Interpreter and JIT modes the loader extracts the
-  // embedded WASM bytes and dlcloses the library before any AOT function
-  // symbol is resolved; in AOT mode the existing dlopen-and-link behaviour is
-  // kept. Then verify that AOT mode on a plain .wasm with no AOT section
-  // falls back to interpreter execution with a warning.
+  // Compile fib to a native shared library (.so / .dylib / .dll). In
+  // Interpreter and JIT modes, loading a native shared-library artifact is
+  // rejected with MalformedMagic. In AOT mode, the library loads and its
+  // compiled native code runs. Then verify that AOT mode on a plain .wasm
+  // with no AOT section falls back to interpreter execution with a warning.
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   WasmEdge_ConfigureCompilerSetOutputFormat(
       Conf, WasmEdge_CompilerOutputFormat_Native);
@@ -1510,24 +1509,22 @@ TEST(APICoreTest, RunModes) {
   WasmEdge_Value P[1] = {WasmEdge_ValueGenI32(20)};
   WasmEdge_Value R[1] = {WasmEdge_ValueGenI32(0)};
 
-  // Interpreter mode: dlopen → extract embedded WASM bytes → dlclose →
-  // interpret.
+  // Interpreter mode: native shared-library artifacts are rejected.
   WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_Interpreter);
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, nullptr);
   EXPECT_NE(VM, nullptr);
-  EXPECT_TRUE(WasmEdge_ResultOK(
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_MalformedMagic,
       WasmEdge_VMRunWasmFromFile(VM, SharedLibPath, FuncName, P, 1, R, 1)));
-  EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 10946);
   WasmEdge_VMDelete(VM);
 
-  // JIT mode: dlopen → extract bytes → dlclose → JIT-compile → run.
-  R[0] = WasmEdge_ValueGenI32(0);
+  // JIT mode: native shared-library artifacts are rejected.
   WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_JIT);
   VM = WasmEdge_VMCreate(Conf, nullptr);
   EXPECT_NE(VM, nullptr);
-  EXPECT_TRUE(WasmEdge_ResultOK(
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_MalformedMagic,
       WasmEdge_VMRunWasmFromFile(VM, SharedLibPath, FuncName, P, 1, R, 1)));
-  EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 10946);
   WasmEdge_VMDelete(VM);
 
   // AOT mode: keep library handle alive, run the embedded native code.

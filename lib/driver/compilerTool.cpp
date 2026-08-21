@@ -30,8 +30,6 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
 #ifdef WASMEDGE_USE_LLVM
 
   Configure Conf = createProposalConfigure(Opt);
-  // TODO: EXCEPTION - enable the option.
-  Conf.removeProposal(Proposal::ExceptionHandling);
 
   if (Opt.PropOptimizationLevel.value() == "0") {
     Conf.getCompilerConfigure().setOptimizationLevel(

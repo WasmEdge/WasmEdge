@@ -11,6 +11,7 @@
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include <stb_image_resize2.h>
 
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -42,6 +43,32 @@ bool decodeImgToSize(Span<const uint8_t> Buf, uint32_t W, uint32_t H,
     return false;
   }
 
+  // The stb loader and resizer take the buffer sizes, dimensions, and strides
+  // as int. Reject the values outside the int range before converting.
+  constexpr uint64_t MaxInt =
+      static_cast<uint64_t>(std::numeric_limits<int>::max());
+  if (unlikely(Buf.size() > MaxInt)) {
+    spdlog::error("[WasmEdge-Image] Input buffer size {} is too large."sv,
+                  Buf.size());
+    return false;
+  }
+  const uint64_t BytesPerPixel = 3 * (IsU8 ? sizeof(uint8_t) : sizeof(float));
+  const uint64_t NumPixels = static_cast<uint64_t>(W) * H;
+  if (unlikely(W == 0 || H == 0)) {
+    spdlog::error("[WasmEdge-Image] Output size {}x{} is invalid."sv, W, H);
+    return false;
+  }
+  if (unlikely(W > MaxInt / BytesPerPixel || H > MaxInt)) {
+    spdlog::error("[WasmEdge-Image] Output size {}x{} is too large."sv, W, H);
+    return false;
+  }
+  if (unlikely(DstBuf.size() / BytesPerPixel < NumPixels)) {
+    spdlog::error("[WasmEdge-Image] Output buffer size {} not enough. "sv
+                  "At least need {}x{}x{} bytes."sv,
+                  DstBuf.size(), W, H, BytesPerPixel);
+    return false;
+  }
+
   // Load and decode the image from buffer.
   union RawImagePtr {
     uint8_t *U8;
@@ -51,10 +78,11 @@ bool decodeImgToSize(Span<const uint8_t> Buf, uint32_t W, uint32_t H,
   RawImg.U8 = nullptr;
   int IW, IH, IC;
   if (IsU8) {
-    RawImg.U8 = stbi_load_from_memory(Buf.data(), Buf.size(), &IW, &IH, &IC, 3);
+    RawImg.U8 = stbi_load_from_memory(Buf.data(), static_cast<int>(Buf.size()),
+                                      &IW, &IH, &IC, 3);
   } else {
-    RawImg.F32 =
-        stbi_loadf_from_memory(Buf.data(), Buf.size(), &IW, &IH, &IC, 3);
+    RawImg.F32 = stbi_loadf_from_memory(
+        Buf.data(), static_cast<int>(Buf.size()), &IW, &IH, &IC, 3);
   }
   if (RawImg.U8 == nullptr) {
     spdlog::error("[WasmEdge-Image] Load image failed."sv);
@@ -62,39 +90,37 @@ bool decodeImgToSize(Span<const uint8_t> Buf, uint32_t W, uint32_t H,
   }
 
   // Resize.
-  const uint64_t BytesPerPixel = 3 * (IsU8 ? sizeof(uint8_t) : sizeof(float));
-  const uint64_t NumPixels = static_cast<uint64_t>(W) * H;
-  if (unlikely(DstBuf.size() / BytesPerPixel < NumPixels)) {
-    spdlog::error("[WasmEdge-Image] Output buffer size {} not enough. "sv
-                  "At least need {}x{}x{} bytes."sv,
-                  DstBuf.size(), W, H, BytesPerPixel);
-    return false;
-  }
+  bool Resized = false;
   if (IsU8) {
-    stbir_resize_uint8_linear(RawImg.U8, IW, IH, 0, DstBuf.data(),
-                              static_cast<int>(W), static_cast<int>(H), 0,
-                              STBIR_RGB);
+    Resized = stbir_resize_uint8_linear(
+                  RawImg.U8, IW, IH, 0, DstBuf.data(), static_cast<int>(W),
+                  static_cast<int>(H), 0, STBIR_RGB) != nullptr;
   } else {
-    stbir_resize_float_linear(
-        RawImg.F32, IW, IH, 0, reinterpret_cast<float *>(DstBuf.data()),
-        static_cast<int>(W), static_cast<int>(H), 0, STBIR_RGB);
+    Resized =
+        stbir_resize_float_linear(
+            RawImg.F32, IW, IH, 0, reinterpret_cast<float *>(DstBuf.data()),
+            static_cast<int>(W), static_cast<int>(H), 0, STBIR_RGB) != nullptr;
+  }
+  stbi_image_free(RawImg.U8);
+  if (unlikely(!Resized)) {
+    spdlog::error("[WasmEdge-Image] Resize image failed."sv);
+    return false;
   }
 
   // Handle BGR case.
   if (!IsRGB) {
     if (IsU8) {
-      for (uint32_t I = 0; I < W * H; I++) {
+      for (uint64_t I = 0; I < NumPixels; I++) {
         std::swap(DstBuf[I * 3], DstBuf[I * 3 + 2]);
       }
     } else {
       auto F32DstBuf = Span<float>(reinterpret_cast<float *>(DstBuf.data()),
                                    DstBuf.size() / sizeof(float));
-      for (uint32_t I = 0; I < W * H; I++) {
+      for (uint64_t I = 0; I < NumPixels; I++) {
         std::swap(F32DstBuf[I * 3], F32DstBuf[I * 3 + 2]);
       }
     }
   }
-  stbi_image_free(RawImg.U8);
   return true;
 }
 

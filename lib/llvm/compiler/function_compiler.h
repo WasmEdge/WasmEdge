@@ -71,6 +71,12 @@ public:
   void updateGasAtTrap() noexcept;
 
 private:
+  void compileTryTableOp(const AST::Instruction &Instr) noexcept;
+
+  void compileThrowOp(const uint32_t TagIndex) noexcept;
+
+  void compileThrowRefOp() noexcept;
+
   void compileCallOp(const unsigned int FuncIndex) noexcept;
 
   void compileIndirectCallOp(const uint32_t TableIndex,
@@ -85,6 +91,8 @@ private:
 
   void compileReturnCallRefOp(const unsigned int TypeIndex) noexcept;
 
+  void boundsCheckMemory64(unsigned MemoryIndex, LLVM::Value Addr,
+                           uint64_t Offset, uint64_t AccessSize) noexcept;
   void compileLoadOp(unsigned MemoryIndex, uint64_t Offset, unsigned Alignment,
                      LLVM::Type LoadTy) noexcept;
   void compileLoadOp(unsigned MemoryIndex, uint64_t Offset, unsigned Alignment,
@@ -213,6 +221,8 @@ private:
 
   void checkStop() noexcept;
 
+  void checkPendingException() noexcept;
+
   void setUnreachable() noexcept;
 
   bool isUnreachable() const noexcept;
@@ -226,6 +236,8 @@ private:
 
   LLVM::BasicBlock getLabel(unsigned int Index) const noexcept;
 
+  LLVM::BasicBlock getEHDispatchTarget() noexcept;
+
   void stackPush(LLVM::Value Value) noexcept { Stack.push_back(Value); }
   LLVM::Value stackPop() noexcept;
 
@@ -237,6 +249,10 @@ private:
   std::vector<LLVM::Value> Stack;
   LLVM::Value LocalInstrCount = nullptr;
   LLVM::Value LocalGas = nullptr;
+  // Entry-block slot reused by every call that resolves its callee at runtime.
+  // Only entry-block allocas become static frame slots; one inside a loop body
+  // grows the native stack on every iteration.
+  LLVM::Value CalleeCtxSlot = nullptr;
   std::unordered_map<ErrCode::Value, LLVM::BasicBlock> TrapBB;
   bool IsUnreachable = false;
   bool Interruptible = false;
@@ -246,6 +262,7 @@ private:
     LLVM::BasicBlock JumpBlock;
     LLVM::BasicBlock NextBlock;
     LLVM::BasicBlock ElseBlock;
+    LLVM::BasicBlock TryDispatchBB;
     std::vector<LLVM::Value> Args;
     std::pair<std::vector<ValType>, std::vector<ValType>> Type;
     std::vector<std::tuple<std::vector<LLVM::Value>, LLVM::BasicBlock>>
@@ -256,7 +273,7 @@ private:
             std::vector<std::tuple<std::vector<LLVM::Value>, LLVM::BasicBlock>>
                 R) noexcept
         : StackSize(S), Unreachable(U), JumpBlock(J), NextBlock(N),
-          ElseBlock(E), Args(std::move(A)), Type(std::move(T)),
+          ElseBlock(E), TryDispatchBB(), Args(std::move(A)), Type(std::move(T)),
           ReturnPHI(std::move(R)) {}
     Control(const Control &) = default;
     Control(Control &&) = default;
@@ -266,7 +283,9 @@ private:
   bool IsLazyJIT;
   std::vector<Control> ControlStack;
   LLVM::FunctionCallee F;
+  LLVM::Value ModCtx;
   LLVM::Value ExecCtx;
+  LLVM::BasicBlock UnwindBB;
   LLVM::Builder Builder;
 };
 

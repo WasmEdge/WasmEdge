@@ -1,0 +1,60 @@
+name: Assign issue checks
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/scripts/test_assign_issue.mjs'
+      - '.github/workflows/assign-issue-checks.yml'
+      - '.github/workflows/assign-issue.yml'
+  pull_request:
+    paths:
+      - '.github/scripts/test_assign_issue.mjs'
+      - '.github/workflows/assign-issue-checks.yml'
+      - '.github/workflows/assign-issue.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  assign-issue-checks:
+    name: assign issue checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden the runner (Block unauthorized outbound calls)
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+            objects.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Test issue assignment workflow
+        run: |
+          node --test .github/scripts/test_assign_issue.mjs
+      - name: Lint issue assignment workflows
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSfL -o "${archive}" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}"
+          echo "${ACTIONLINT_SHA256}  ${archive}" | sha256sum -c -
+          tar -xzf "${archive}" actionlint
+          # actionlint does not know the concurrency "queue" key that GitHub
+          # added on 2026-05-07; drop this once rhysd/actionlint#657 ships.
+          ./actionlint \
+            -ignore 'unexpected key "queue" for "concurrency" section' \
+            .github/workflows/assign-issue.yml \
+            .github/workflows/assign-issue-checks.yml

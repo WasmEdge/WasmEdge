@@ -74,12 +74,7 @@ endif()
 
 # WasmEdge plug-in: Process.
 if(WASMEDGE_PLUGIN_PROCESS)
-  # wasmedge_process is currently supported only on Linux systems.
-  if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-    add_subdirectory(wasmedge_process)
-  else()
-    message(WARNING "Only Linux platforms support WasmEdge_Process plug-in now.")
-  endif()
+  add_subdirectory(wasmedge_process)
 endif()
 
 # WasmEdge plug-in: Stable-diffusion.

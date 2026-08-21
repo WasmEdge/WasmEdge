@@ -177,22 +177,6 @@ WasmEdge_ModuleInstanceWASIGetNativeHandler(
     const WasmEdge_ModuleInstanceContext *Cxt, int32_t Fd,
     uint64_t *NativeHandler) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Initialize the WasmEdge_ModuleInstanceContext for the wasmedge_process
-/// specification.
-///
-/// This function will initialize the wasmedge_process host module with the
-/// parameters.
-///
-/// \param AllowedCmds the allowed command list. NULL if the
-/// length is 0.
-/// \param CmdsLen the length of the allowed command list.
-/// \param AllowAll the boolean value to allow all commands. `false` is
-/// recommended. If this value is `true`, the allowed command list will not
-/// be recorded and all commands can be executed by wasmedge_process.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceInitWasmEdgeProcess(
-    const char *const *AllowedCmds, const uint32_t CmdsLen,
-    const bool AllowAll) WASMEDGE_CAPI_NOEXCEPT;
-
 /// Get the export module name of a module instance.
 ///
 /// The returned string object is linked to the module name of the module

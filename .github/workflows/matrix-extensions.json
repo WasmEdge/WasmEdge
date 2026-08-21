@@ -216,20 +216,6 @@
             ]
         },
         {
-            "plugin": "wasmedge_process",
-            "bin": "libwasmedgePluginWasmEdgeProcess",
-            "dir": "wasmedge_process",
-            "target": "wasmedgePluginWasmEdgeProcess",
-            "testBin": "wasmedgeProcessTests",
-            "options": "-DWASMEDGE_PLUGIN_PROCESS=ON",
-            "platforms": [
-                "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64",
-                "ubuntu2004_x86_64",
-                "ubuntu_latest"
-            ]
-        },
-        {
             "plugin": "wasmedge_stablediffusion",
             "bin": "libwasmedgePluginWasmEdgeStableDiffusion",
             "dir": "wasmedge_stablediffusion",

@@ -14,11 +14,15 @@
 
 #include "common/spdlog.h"
 #include "common/types.h"
+#include "loader/loader.h"
 #include "vm/vm.h"
 
 #include <array>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <gtest/gtest.h>
+#include <string>
 #include <vector>
 
 namespace {
@@ -1283,6 +1287,139 @@ TEST(ExecutorRegression, TailCallToHostImport) {
     ASSERT_EQ(Args.size(), 1);
     EXPECT_EQ(Args[0], 7);
   }
+}
+
+/// Binary Wasm module used by the corestack serialization regression test.
+///
+/// (module
+///   (func (export "trap") (local i32)
+///     i32.const 42
+///     unreachable))
+std::array<WasmEdge::Byte, 39> CoredumpTrapWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+    0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07, 0x08,
+    0x01, 0x04, 0x74, 0x72, 0x61, 0x70, 0x00, 0x00, 0x0a, 0x09,
+    0x01, 0x07, 0x01, 0x01, 0x7f, 0x41, 0x2a, 0x00, 0x0b};
+
+/// Regression test for the corestack serialization in
+/// lib/executor/coredump.cpp.
+///
+/// The bug: `ValueBytes` for each local/stack value was allocated with
+/// `sizeof(uint32_t)` (4 bytes) but `std::memcpy` copied `sizeof(int64_t)`
+/// (8 bytes) into it, overflowing the buffer. The initial fix grew the
+/// buffer to 8 bytes to match the copy, which stopped the overflow but
+/// broke the file format: entries are tagged 0x7F (i32), so downstream
+/// readers expect exactly 4 value bytes per entry and would misalign by 4
+/// bytes on every entry.
+///
+/// The fix keeps both the buffer and the memcpy at sizeof(uint32_t), so the
+/// tag byte and the value width agree. This test parses the generated
+/// coredump's "corestack" custom section and walks it exactly as a
+/// consumer would: each local/stack entry must be a 0x7F tag followed by
+/// exactly 4 bytes, and the frame's declared local/stack counts must
+/// consume the section content with no leftover or missing bytes.
+TEST(ExecutorRegression, CoredumpCorestackValueWidth) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setEnableCoredump(true);
+  Conf.getRuntimeConfigure().setCoredumpWasmgdb(false);
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(CoredumpTrapWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  auto Result = VM.execute("trap");
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::Unreachable);
+
+  // The coredump filename has 1-second resolution, so a file from an
+  // earlier test in this binary may share the same name; pick the one
+  // most recently written instead of diffing directory listings.
+  std::string CoredumpPath;
+  std::filesystem::file_time_type LatestWriteTime;
+  for (const auto &Entry : std::filesystem::directory_iterator("./")) {
+    const std::string Path = Entry.path().string();
+    if (Path.find("coredump.") != std::string::npos) {
+      const auto WriteTime = Entry.last_write_time();
+      if (CoredumpPath.empty() || WriteTime > LatestWriteTime) {
+        CoredumpPath = Path;
+        LatestWriteTime = WriteTime;
+      }
+    }
+  }
+  ASSERT_FALSE(CoredumpPath.empty());
+
+  std::ifstream File(CoredumpPath, std::ios::binary);
+  ASSERT_TRUE(File.is_open());
+  std::vector<WasmEdge::Byte> CoredumpData(
+      (std::istreambuf_iterator<char>(File)), std::istreambuf_iterator<char>());
+  File.close();
+
+  Loader::Loader LoadEngine(Conf);
+  auto AST = LoadEngine.parseModule(CoredumpData);
+  ASSERT_TRUE(AST);
+
+  const AST::CustomSection *CoreStackSec = nullptr;
+  for (const auto &Sec : (*AST)->getCustomSections()) {
+    if (Sec.getName() == "corestack") {
+      CoreStackSec = &Sec;
+      break;
+    }
+  }
+  ASSERT_NE(CoreStackSec, nullptr);
+
+  const auto Content = CoreStackSec->getContent();
+  size_t Offset = 0;
+  auto DecodeU32 = [&]() -> uint32_t {
+    uint32_t Value = 0;
+    uint32_t Shift = 0;
+    uint8_t Byte;
+    do {
+      if (Offset >= Content.size()) {
+        ADD_FAILURE() << "corestack content truncated";
+        return Value;
+      }
+      Byte = Content[Offset++];
+      Value |= static_cast<uint32_t>(Byte & 0x7F) << Shift;
+      Shift += 7;
+    } while (Byte & 0x80);
+    return Value;
+  };
+
+  // thread-info type
+  ASSERT_LT(Offset, Content.size());
+  EXPECT_EQ(Content[Offset++], 0x00);
+
+  // thread name: LEB128 u32 length followed by the name bytes
+  uint32_t ThreadNameLen = DecodeU32();
+  EXPECT_EQ(ThreadNameLen, 4U);
+  ASSERT_LE(Offset + ThreadNameLen, Content.size());
+  EXPECT_EQ(std::string(Content.begin() + static_cast<std::ptrdiff_t>(Offset),
+                        Content.begin() + static_cast<std::ptrdiff_t>(
+                                              Offset + ThreadNameLen)),
+            "main");
+  Offset += ThreadNameLen;
+
+  uint32_t FramesSize = DecodeU32();
+  bool FoundNonEmptyFrame = false;
+  for (uint32_t I = 0; I < FramesSize; I++) {
+    ASSERT_LT(Offset, Content.size());
+    EXPECT_EQ(Content[Offset++], 0x00);
+    DecodeU32(); // Funcidx
+    DecodeU32(); // Codeoffset
+    uint32_t LocalsSize = DecodeU32();
+    uint32_t StackSize = DecodeU32();
+    if (LocalsSize + StackSize > 0) {
+      FoundNonEmptyFrame = true;
+    }
+    for (uint32_t V = 0; V < LocalsSize + StackSize; V++) {
+      ASSERT_LT(Offset, Content.size());
+      EXPECT_EQ(Content[Offset++], 0x7F);
+      ASSERT_LE(Offset + sizeof(uint32_t), Content.size());
+      Offset += sizeof(uint32_t);
+    }
+  }
+  EXPECT_TRUE(FoundNonEmptyFrame);
+  EXPECT_EQ(Offset, Content.size());
 }
 
 } // namespace

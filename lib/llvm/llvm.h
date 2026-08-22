@@ -364,7 +364,6 @@ public:
   inline Value getNamedFunction(const char *Name) noexcept;
   inline Message printModuleToFile(const char *File) noexcept;
   inline bool hasVerificationError(Message &OutMsg) noexcept;
-
   constexpr operator bool() const noexcept { return Ref != nullptr; }
   constexpr auto &unwrap() const noexcept { return Ref; }
   constexpr auto &unwrap() noexcept { return Ref; }

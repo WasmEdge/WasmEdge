@@ -52,13 +52,12 @@ jobs:
         install: |
           apt-get update -q -y
           apt-get install -q -y curl
-          # using lld versions < 18 causes a segfault.
           curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
           echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" | tee /etc/apt/sources.list.d/llvm.list
           apt-get update -q -y
           apt-get install -q -y git cmake g++ dpkg ninja-build
           apt-get install -q -y software-properties-common
-          apt-get install -q -y llvm-18-dev liblld-18-dev zlib1g-dev
+          apt-get install -q -y llvm-18-dev zlib1g-dev
           apt-get install -q -y wabt # For generating wasm
         run: |
           mkdir -p build && cd build

@@ -3,15 +3,6 @@
 ARG XX_VERSION=1.2.1
 ARG ALPINE_VERSION=3.23
 
-
-# ----------------------------------------------------
-# STAGE 1: Import Pre-Built LLD Libraries
-# ----------------------------------------------------
-FROM wasmedge/wasmedge:alpine-base-3.23 AS lld-artifact
-
-# ----------------------------------------------------
-# STAGE 2: Main WasmEdge Build
-# ----------------------------------------------------
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
 FROM --platform=$BUILDPLATFORM alpine:${ALPINE_VERSION} AS base
 COPY --from=xx / /
@@ -52,7 +43,6 @@ RUN apk add git llvm-dev
 RUN xx-apk add \
     g++ \
     llvm-dev llvm-static \
-    lld lld-dev \
     zlib-dev zlib-static \
     zstd-static
 
@@ -65,11 +55,6 @@ RUN for d in $(xx-info sysroot)usr/lib/llvm*/lib; do \
         ar rc "$d/$f"; \
       done \
     done
-
-# Inject the Native LLD libraries from Stage 1 (The Base Image)
-# Note: We changed the source path to /usr/local/lib because that's where we put them in the base image
-COPY --from=lld-artifact /usr/local/lib/liblld*.a /tmp/lld-libs/
-RUN cp /tmp/lld-libs/*.a $(xx-info sysroot)usr/lib/llvm*/lib/
 
 # Use the native version of llvm-config
 RUN ! xx-info is-cross || cp -f /usr/lib/llvm*/bin/llvm-config $(xx-info sysroot)usr/lib/llvm*/bin/llvm-config
@@ -96,7 +81,7 @@ RUN --mount=type=bind,target=/src,source=. \
         # Disable extra dependencies
         -DWASMEDGE_DISABLE_LIBTINFO=ON
 
-FROM  config AS build
+FROM config AS build
 RUN --mount=type=bind,target=/src,source=. \
     cmake --build /build -- install package
 

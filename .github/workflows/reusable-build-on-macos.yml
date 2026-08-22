@@ -135,6 +135,13 @@ jobs:
           export CXX=clang++
           rm -rf build output
           mkdir -p output
+          if [[ "$BUILD_TESTS" == "ON" ]]; then
+            EXPECTED_BACKENDS='X86_64;AARCH64;ARM;RISCV64;S390X'
+          elif [[ "${{ matrix.arch }}" == "x86_64" ]]; then
+            EXPECTED_BACKENDS=X86_64
+          else
+            EXPECTED_BACKENDS=AARCH64
+          fi
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DLLVM_DIR:PATH="$(brew --prefix)/opt/llvm/lib/cmake/llvm" \
             -DLLD_DIR:PATH="$(brew --prefix)/opt/${LLD_KEG}/lib/cmake/lld" \
@@ -142,6 +149,9 @@ jobs:
             -DWASMEDGE_LINK_LLVM_STATIC=ON \
             -DWASMEDGE_BUILD_PACKAGE="TGZ" \
             -DCMAKE_INSTALL_PREFIX:PATH=$GITHUB_WORKSPACE/output .
+          cmake -DWASMEDGE_SOURCE_DIR="$PWD" -DBUILD_DIR="$PWD/build" \
+            "-DEXPECTED_BACKENDS=$EXPECTED_BACKENDS" \
+            -P test/llvm/VerifyRelocationBackendConfig.cmake
           cmake --build build
       - name: Test WasmEdge
         run: |

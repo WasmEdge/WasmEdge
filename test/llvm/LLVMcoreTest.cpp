@@ -32,9 +32,11 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <fstream>
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -1590,6 +1592,91 @@ std::array<WasmEdge::Byte, 46> AsyncWasm{
     0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07,
     0x0a, 0x01, 0x06, 0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x00, 0x0a,
     0x09, 0x01, 0x07, 0x00, 0x03, 0x40, 0x0c, 0x00, 0x0b, 0x0b};
+
+class ScopedCurrentPath {
+public:
+  explicit ScopedCurrentPath(const std::filesystem::path &Path)
+      : Lock(Mutex), OriginalPath(std::filesystem::current_path()) {
+    std::filesystem::current_path(Path);
+  }
+
+  ~ScopedCurrentPath() { std::filesystem::current_path(OriginalPath); }
+
+private:
+  static std::mutex Mutex;
+  std::unique_lock<std::mutex> Lock;
+  std::filesystem::path OriginalPath;
+};
+
+std::mutex ScopedCurrentPath::Mutex;
+
+class CodeGenDumpTest : public testing::Test {
+protected:
+  void SetUp() override {
+    Path = std::filesystem::temp_directory_path() /
+           ("WasmEdgeCodeGenDump-" +
+            std::to_string(
+                std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directory(Path);
+  }
+
+  void TearDown() override { std::filesystem::remove_all(Path); }
+
+  Expect<void> codegen() {
+    WasmEdge::Configure Conf;
+    Conf.getCompilerConfigure().setDumpIR(true);
+    Conf.getCompilerConfigure().setOutputFormat(
+        CompilerConfigure::OutputFormat::Native);
+    WasmEdge::Loader::Loader Loader(Conf);
+    WasmEdge::Validator::Validator ValidatorEngine(Conf);
+    WasmEdge::LLVM::Compiler Compiler(Conf);
+    WasmEdge::LLVM::CodeGen CodeGen(Conf);
+    auto Module = Loader.parseModule(AsyncWasm);
+    if (!Module) {
+      return Unexpect(Module.error());
+    }
+    EXPECTED_TRY(ValidatorEngine.validate(**Module));
+    auto Data = Compiler.compile(**Module);
+    if (!Data) {
+      return Unexpect(Data.error());
+    }
+    ScopedCurrentPath CurrentPath(Path);
+    return CodeGen.codegen(AsyncWasm, std::move(*Data),
+                           Path / "output" WASMEDGE_LIB_EXTENSION);
+  }
+
+  std::filesystem::path Path;
+};
+
+TEST_F(CodeGenDumpTest, WritesObjectFile) {
+  ASSERT_TRUE(codegen());
+  const auto ObjectPath = Path / "wasm.o";
+  ASSERT_TRUE(std::filesystem::is_regular_file(ObjectPath));
+  EXPECT_GT(std::filesystem::file_size(ObjectPath), 4U);
+
+  std::ifstream Object(ObjectPath, std::ios_base::binary);
+  std::array<char, 4> Magic{};
+  ASSERT_TRUE(Object.read(Magic.data(), Magic.size()));
+#if WASMEDGE_OS_LINUX
+  EXPECT_EQ(Magic, (std::array<char, 4>{0x7F, 'E', 'L', 'F'}));
+#endif
+}
+
+TEST_F(CodeGenDumpTest, PropagatesObjectOpenFailure) {
+  std::filesystem::create_directory(Path / "wasm.o");
+  auto Result = codegen();
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::IllegalPath);
+}
+
+#if WASMEDGE_OS_LINUX
+TEST_F(CodeGenDumpTest, PropagatesObjectWriteFailure) {
+  std::filesystem::create_symlink("/dev/full", Path / "wasm.o");
+  auto Result = codegen();
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::IllegalPath);
+}
+#endif
 
 TEST(AsyncRunWsmFile, NativeInterruptTest) {
   WasmEdge::Configure Conf;

@@ -105,6 +105,9 @@ jobs:
             -DCMAKE_DISABLE_FIND_PACKAGE_spdlog=ON \
             -DWASMEDGE_BUILD_PACKAGE="TGZ" \
             -DCMAKE_INSTALL_PREFIX:PATH=$GITHUB_WORKSPACE/output .
+          cmake -DWASMEDGE_SOURCE_DIR="$PWD" -DBUILD_DIR="$PWD/build" \
+            -DEXPECTED_BACKENDS=AARCH64 \
+            -P test/llvm/VerifyRelocationBackendConfig.cmake
           cmake --build build
       - name: Verify static archive contents
         run: |

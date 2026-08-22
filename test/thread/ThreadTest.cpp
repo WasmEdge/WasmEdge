@@ -17,16 +17,22 @@
 #include "vm/vm.h"
 
 #ifdef WASMEDGE_USE_LLVM
+#include "../llvm/ScopedTempDirectory.h"
 #include "llvm/codegen.h"
 #include "llvm/compiler.h"
 #endif
 
 #include "gtest/gtest.h"
 
+#include <cstdlib>
+#include <filesystem>
 #include <fstream>
+#include <future>
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -1022,6 +1028,74 @@ TEST(AtomicWaitNotifyJIT, Memory64) {
     ASSERT_TRUE(Result);
     ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
     EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(1));
+  }
+}
+
+TEST(AOTCompile, IndependentCompilersRunConcurrently) {
+  const std::array<std::array<WasmEdge::Byte, 38>, 2> Modules{{
+      {0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+       0x01, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07,
+       0x09, 0x01, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x00, 0x00,
+       0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x0b, 0x0b},
+      {0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+       0x01, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07,
+       0x09, 0x01, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x00, 0x00,
+       0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x1d, 0x0b},
+  }};
+  constexpr std::array<uint32_t, 2> ExpectedValues{11, 29};
+  constexpr size_t Iterations = 8;
+  const WasmEdge::LLVM::Test::ScopedTempDirectory Root(
+      "wasmedge-concurrent-compiler-");
+  std::promise<void> Start;
+  const auto Ready = Start.get_future().share();
+  std::array<std::future<bool>, 2> Results;
+  for (size_t Thread = 0; Thread < Results.size(); ++Thread) {
+    Results[Thread] = std::async(std::launch::async, [&, Thread] {
+      Ready.wait();
+      for (size_t Iteration = 0; Iteration < Iterations; ++Iteration) {
+        WasmEdge::Configure Conf;
+        Conf.getCompilerConfigure().setOutputFormat(
+            WasmEdge::CompilerConfigure::OutputFormat::Native);
+        Conf.getCompilerConfigure().setOptimizationLevel(
+            WasmEdge::CompilerConfigure::OptimizationLevel::O0);
+        Conf.getCompilerConfigure().setNativeLinker(true);
+        Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
+        WasmEdge::Loader::Loader Loader(Conf);
+        WasmEdge::Validator::Validator Validator(Conf);
+        WasmEdge::LLVM::Compiler Compiler(Conf);
+        WasmEdge::LLVM::CodeGen CodeGen(Conf);
+        const auto Path =
+            Root.path() / ("output-" + std::to_string(Thread) + "-" +
+                           std::to_string(Iteration) + WASMEDGE_LIB_EXTENSION);
+        auto Module = Loader.parseModule(Modules[Thread]);
+        if (!Module || !Validator.validate(**Module))
+          return false;
+        auto Data = Compiler.compile(**Module);
+        if (!Data || !CodeGen.codegen(Modules[Thread], std::move(*Data), Path))
+          return false;
+        WasmEdge::VM::VM VM(Conf);
+        if (!VM.loadWasm(Path) || !VM.validate() || !VM.instantiate())
+          return false;
+        auto Result = VM.execute("value");
+        if (!Result || Result->size() != 1 ||
+            (*Result)[0].first.get<uint32_t>() != ExpectedValues[Thread])
+          return false;
+        VM.cleanup();
+        std::error_code Error;
+        if (!std::filesystem::remove(Path, Error) || Error)
+          return false;
+      }
+      return true;
+    });
+  }
+  Start.set_value();
+  for (auto &Result : Results) {
+    if (Result.wait_for(std::chrono::seconds(60)) !=
+        std::future_status::ready) {
+      std::cerr << "concurrent AOT compilation did not finish in 60 seconds\n";
+      std::_Exit(EXIT_FAILURE);
+    }
+    EXPECT_TRUE(Result.get());
   }
 }
 

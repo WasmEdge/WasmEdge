@@ -8,6 +8,8 @@ on:
         required: true
       release:
         type: boolean
+      native_linker:
+        type: boolean
 
 permissions:
   contents: read
@@ -107,7 +109,7 @@ jobs:
             "-P"
             "test/llvm/VerifyRelocationBackendConfig.cmake"
           )
-          cmake -Bbuild -GNinja -DCMAKE_SYSTEM_VERSION="$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_MT="$llvm_mt" -DLLVM_DIR="$llvm_dir" -DWASMEDGE_BUILD_TESTS="$Env:build_tests" -DWASMEDGE_BUILD_PACKAGE=ZIP .
+          cmake -Bbuild -GNinja -DCMAKE_SYSTEM_VERSION="$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_MT="$llvm_mt" -DLLVM_DIR="$llvm_dir" -DWASMEDGE_BUILD_TESTS="$Env:build_tests" -DWASMEDGE_USE_LLD=${{ inputs.native_linker && 'OFF' || 'ON' }} -DWASMEDGE_BUILD_PACKAGE=ZIP .
           cmake @verifyArgs
           cmake --build build
       - name: Test WasmEdge
@@ -134,13 +136,13 @@ jobs:
           . $Env:WIX\bin\light.exe -out build\WasmEdge-$Env:product_version-windows.msi build\wasmedge.wixobj
           echo product_version=$Env:product_version | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
       - name: Upload artifact
-        if: ${{ !inputs.release }}
+        if: ${{ !inputs.release && !inputs.native_linker }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: WasmEdge-${{ inputs.version }}-windows.zip
           path: build\\WasmEdge-${{ inputs.version }}-Windows.zip
       - name: Upload Windows installer
-        if: ${{ !inputs.release }}
+        if: ${{ !inputs.release && !inputs.native_linker }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: WasmEdge-${{ env.product_version }}-windows.msi

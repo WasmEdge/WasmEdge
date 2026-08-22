@@ -40,7 +40,7 @@ jobs:
           brew trust WasmEdge/llvm
       - name: Install Homebrew tools
         run: |
-          brew install llvm ninja
+          brew install llvm ninja zstd
       - name: Resolve matching lld formula
         id: resolve-lld
         run: |
@@ -86,6 +86,9 @@ jobs:
           fi
           brew link "${LLD_KEG}" || true
           brew link cmake || true
+      - name: Ensure static zstd
+        run: |
+          bash .github/scripts/ensure-static-zstd.sh
       - name: Build WasmEdge (static lib)
         env:
           LLD_KEG: ${{ steps.resolve-lld.outputs.lld_keg }}

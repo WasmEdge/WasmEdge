@@ -59,77 +59,34 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
-      - name: Setup build environment
-        run: |
-          echo "BREW_PREFIX=$(brew --prefix)" >> $GITHUB_ENV
-          brew uninstall cmake # conflict with the one used by WasmEdge/llvm/lld
-          brew tap WasmEdge/llvm
-          brew trust WasmEdge/llvm
       - name: Install Homebrew tools
         run: |
-          brew install llvm ninja wabt
+          brew install cmake llvm ninja wabt zstd
+      - name: Ensure static zstd
+        run: |
+          ZSTD_PREFIX="$(brew --prefix zstd)"
+          if [ ! -f "${ZSTD_PREFIX}/lib/libzstd.a" ]; then
+            ZSTD_SOURCE="$(mktemp -d)"
+            curl -L --fail --retry 3 https://github.com/facebook/zstd/archive/refs/tags/v1.5.7.tar.gz -o "${ZSTD_SOURCE}/zstd.tar.gz"
+            echo "37d7284556b20954e56e1ca85b80226768902e2edabd3b649e9e72c0c9012ee3  ${ZSTD_SOURCE}/zstd.tar.gz" | shasum -a 256 -c -
+            tar -xzf "${ZSTD_SOURCE}/zstd.tar.gz" -C "${ZSTD_SOURCE}"
+            cmake -S "${ZSTD_SOURCE}/zstd-1.5.7/build/cmake" -B "${ZSTD_SOURCE}/build" -GNinja \
+              -DZSTD_BUILD_STATIC=ON -DZSTD_BUILD_SHARED=OFF -DZSTD_BUILD_PROGRAMS=OFF
+            cmake --build "${ZSTD_SOURCE}/build" --target libzstd_static
+            cp "${ZSTD_SOURCE}/build/lib/libzstd.a" "${ZSTD_PREFIX}/lib/libzstd.a"
+            rm -rf "${ZSTD_SOURCE}"
+          fi
+          test -f "${ZSTD_PREFIX}/lib/libzstd.a"
       - name: Install grpc
         if: ${{ !inputs.release }}
         run: |
           brew install grpc
-      - name: Resolve matching lld formula
-        id: resolve-lld
-        run: |
-          LLVM_VERSION=$(brew info --json llvm | jq -r '.[0].versions.stable')
-          LLD_VERSION=$(brew info --json WasmEdge/llvm/lld | jq -r '.[0].versions.stable')
-          echo "Homebrew LLVM version: ${LLVM_VERSION}"
-          echo "WasmEdge/llvm/lld version: ${LLD_VERSION}"
-          if [ "${LLVM_VERSION}" = "${LLD_VERSION}" ]; then
-            LLD_FORMULA="WasmEdge/llvm/lld"
-            LLD_KEG="lld"
-            echo "Versions match: ${LLVM_VERSION}"
-          else
-            OLDER=$(printf '%s\n%s\n' "${LLVM_VERSION}" "${LLD_VERSION}" | sort -V | head -n1)
-            if [ "${OLDER}" = "${LLD_VERSION}" ]; then
-              echo "Homebrew LLVM (${LLVM_VERSION}) is newer than WasmEdge/llvm/lld (${LLD_VERSION}). Please update the WasmEdge/llvm/lld formula to match."
-              exit 1
-            fi
-            LLD_FORMULA="WasmEdge/llvm/lld@${LLVM_VERSION}"
-            LLD_KEG="lld@${LLVM_VERSION}"
-            echo "Homebrew LLVM (${LLVM_VERSION}) is older than WasmEdge/llvm/lld (${LLD_VERSION}); pinning to ${LLD_FORMULA}"
-          fi
-          echo "llvm_version=${LLVM_VERSION}" >> $GITHUB_OUTPUT
-          echo "lld_formula=${LLD_FORMULA}" >> $GITHUB_OUTPUT
-          echo "lld_keg=${LLD_KEG}" >> $GITHUB_OUTPUT
-      - name: Cache lld and cmake
-        id: cache-lld
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ${{ env.BREW_PREFIX }}/Cellar/${{ steps.resolve-lld.outputs.lld_keg }}
-            ${{ env.BREW_PREFIX }}/Cellar/cmake
-          key: homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.resolve-lld.outputs.llvm_version }}
-          restore-keys: |
-            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.resolve-lld.outputs.llvm_version }}
-      - name: Install or link lld and cmake
-        env:
-          LLD_FORMULA: ${{ steps.resolve-lld.outputs.lld_formula }}
-          LLD_KEG: ${{ steps.resolve-lld.outputs.lld_keg }}
-          CACHE_HIT: ${{ steps.cache-lld.outputs.cache-hit }}
-        run: |
-          if [ "${CACHE_HIT}" != "true" ]; then
-            # Prefer the prebuilt bottle; fall back to building from source
-            # if no bottle is published for this macOS/arch.
-            brew install "${LLD_FORMULA}" || brew install --build-from-source "${LLD_FORMULA}"
-            # cmake is only a build-time dep of lld, so pouring the bottle skips
-            # it; install it explicitly (WasmEdge needs cmake directly anyway).
-            brew install cmake
-          fi
-          brew link "${LLD_KEG}" || true
-          brew link cmake || true
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |
           echo "BUILD_TESTS=OFF" | tee -a $GITHUB_ENV
           echo "BUILD_TYPE=Release" | tee -a $GITHUB_ENV
       - name: Build WasmEdge
-        env:
-          LLD_KEG: ${{ steps.resolve-lld.outputs.lld_keg }}
         run: |
           export CC=clang
           export CXX=clang++
@@ -137,7 +94,6 @@ jobs:
           mkdir -p output
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DLLVM_DIR:PATH="$(brew --prefix)/opt/llvm/lib/cmake/llvm" \
-            -DLLD_DIR:PATH="$(brew --prefix)/opt/${LLD_KEG}/lib/cmake/lld" \
             -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS \
             -DWASMEDGE_LINK_LLVM_STATIC=ON \
             -DWASMEDGE_BUILD_PACKAGE="TGZ" \
@@ -147,7 +103,7 @@ jobs:
         run: |
           export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
           cd build
-          ctest
+          ctest --output-on-failure
       - name: Create package tarball
         run: |
           cmake --build build --target package

@@ -13,7 +13,6 @@ RUN apt update && apt upgrade -y \
 	git \
 	dpkg-dev \
 	llvm-12-dev \
-	liblld-12-dev \
 	gcc \
 	rpm \
 	g++

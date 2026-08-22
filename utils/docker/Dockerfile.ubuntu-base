@@ -27,7 +27,6 @@ RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - \
 
 RUN apt-get install -y \
         llvm-18-dev \
-        liblld-18-dev \
         libpolly-18-dev \
         clang-18
 
@@ -46,7 +45,6 @@ RUN apt-get install -y cmake
 
 RUN apt-get install -y \
         llvm-15-dev \
-        liblld-15-dev \
         clang-15
 
 RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 100 && \
@@ -63,7 +61,6 @@ RUN apt-get install -y cmake
 
 RUN apt-get install -y \
         llvm-18-dev \
-        liblld-18-dev \
         libpolly-18-dev \
         clang-18
 

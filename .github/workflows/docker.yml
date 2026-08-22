@@ -73,7 +73,6 @@ jobs:
 
     outputs: # Set outputs to true if not pull_request
       ci-image-base: ${{ github.event_name == 'pull_request' && steps.filter.outputs.ci-image-base || 'true' }}
-      alpine-base: ${{ github.event_name == 'pull_request' && steps.filter.outputs.alpine-base || 'true' }}
       manylinux: ${{ github.event_name == 'pull_request' && steps.filter.outputs.manylinux || 'true' }}
       ubuntu: ${{ github.event_name == 'pull_request' && steps.filter.outputs.ubuntu || 'true' }}
 
@@ -92,10 +91,6 @@ jobs:
               - '.github/workflows/docker.yml'
               - 'utils/docker/docker-bake.ci-image-base.hcl'
               - 'utils/docker/Dockerfile.ci-image-base'
-            alpine-base:
-              - '.github/workflows/docker.yml'
-              - 'utils/docker/docker-bake.alpine-base.hcl'
-              - 'utils/docker/Dockerfile.alpine-base'
             manylinux:
               - '.github/workflows/docker.yml'
               - 'utils/docker/docker-bake.manylinux.hcl'
@@ -144,47 +139,6 @@ jobs:
         with:
           files: utils/docker/docker-bake.ci-image-base.hcl
           push: ${{ github.event_name != 'pull_request' }}
-
-  build-alpine-base-images:
-    needs:
-      - prep
-      - paths-filter
-    # Only run if files changed or if it's a scheduled/merge build
-    if: ${{ needs.paths-filter.outputs.alpine-base == 'true' }}
-
-    name: Alpine Base (3.23)
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
-        with:
-          egress-policy: audit
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
-
-      - name: Login to DockerHub
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-
-      - name: Bake and Push
-        uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
-        with:
-          # Point to your new HCL file here
-          files: utils/docker/docker-bake.alpine-base.hcl
-          push: ${{ github.event_name != 'pull_request' }}
-          set: |
-            *.labels.org.opencontainers.image.title=${{ github.event.repository.name }}
-            *.labels.org.opencontainers.image.description=${{ github.event.repository.description }}
-            *.labels.org.opencontainers.image.url=${{ github.event.repository.html_url }}
-            *.labels.org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            *.labels.org.opencontainers.image.revision=${{ github.sha }}
-            *.labels.org.opencontainers.image.version=${{ needs.prep.outputs.version }}
-            *.labels.org.opencontainers.image.created=${{ needs.prep.outputs.created }}
 
   build-ubuntu-images:
     needs:

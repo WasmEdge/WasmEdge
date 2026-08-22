@@ -113,6 +113,9 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
     if (Opt.ConfGenericBinary.value()) {
       Conf.getCompilerConfigure().setGenericBinary(true);
     }
+    if (Opt.ConfNativeLinker.value()) {
+      Conf.getCompilerConfigure().setNativeLinker(true);
+    }
     if (u8string(OutputPath.extension()) == WASMEDGE_LIB_EXTENSION) {
       Conf.getCompilerConfigure().setOutputFormat(
           CompilerConfigure::OutputFormat::Native);

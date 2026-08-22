@@ -45,6 +45,8 @@ struct DriverCompilerOptions : public DriverProposalOptions {
   PO::Option<std::string> WasmName;
   PO::Option<std::string> SoName;
   PO::Option<PO::Toggle> ConfGenericBinary;
+  PO::Option<PO::Toggle> ConfNativeLinker{
+      PO::Description("Link with the native linker instead of lld."sv)};
   PO::Option<PO::Toggle> ConfDumpIR;
   PO::Option<PO::Toggle> ConfInterruptible;
   PO::Option<PO::Toggle> ConfEnableInstructionCounting;
@@ -63,6 +65,9 @@ struct DriverCompilerOptions : public DriverProposalOptions {
         .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
         .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
         .add_option("generic-binary"sv, ConfGenericBinary);
+#ifdef WASMEDGE_USE_LLD
+    Parser.add_option("enable-native-linker"sv, ConfNativeLinker);
+#endif
     addProposalOptions(Parser);
     Parser.add_option("optimize"sv, PropOptimizationLevel);
   }

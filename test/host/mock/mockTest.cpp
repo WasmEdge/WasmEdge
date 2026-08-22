@@ -5,7 +5,6 @@
 #include "host/mock/wasi_logging_module.h"
 #include "host/mock/wasi_nn_module.h"
 #include "host/mock/wasmedge_image_module.h"
-#include "host/mock/wasmedge_process_module.h"
 #include "host/mock/wasmedge_tensorflow_module.h"
 #include "host/mock/wasmedge_tensorflowlite_module.h"
 #include "runtime/instance/module.h"
@@ -461,47 +460,6 @@ TEST(HostMockTest, WasiNN) {
   WasmEdge::Host::WasiNNModuleMock WasiNNModule;
   EXPECT_EQ(WasiNNModule.getModuleName(), "wasi_ephemeral_nn");
   EXPECT_EQ(WasiNNModule.getFuncExportNum(), 5U);
-}
-
-TEST(HostMockTest, WasmEdgeProcess) {
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
-  std::array<WasmEdge::ValVariant, 1> Errno;
-
-  WasmEdge::Host::WasmEdgeProcessMock::SetProgName ProcessSetProgName;
-  WasmEdge::Host::WasmEdgeProcessMock::AddArg ProcessAddArg;
-  WasmEdge::Host::WasmEdgeProcessMock::AddEnv ProcessAddEnv;
-  WasmEdge::Host::WasmEdgeProcessMock::AddStdIn ProcessAddStdIn;
-  WasmEdge::Host::WasmEdgeProcessMock::SetTimeOut ProcessSetTimeOut;
-  WasmEdge::Host::WasmEdgeProcessMock::Run ProcessRun;
-  WasmEdge::Host::WasmEdgeProcessMock::GetExitCode ProcessGetExitCode;
-  WasmEdge::Host::WasmEdgeProcessMock::GetStdOutLen ProcessGetStdOutLen;
-  WasmEdge::Host::WasmEdgeProcessMock::GetStdOut ProcessGetStdOut;
-  WasmEdge::Host::WasmEdgeProcessMock::GetStdErrLen ProcessGetStdErrLen;
-  WasmEdge::Host::WasmEdgeProcessMock::GetStdErr ProcessGetStdErr;
-
-  EXPECT_FALSE(ProcessSetProgName.run(
-      CallFrame, std::array<WasmEdge::ValVariant, 2>{0, 0}, {}));
-  EXPECT_FALSE(ProcessAddArg.run(
-      CallFrame, std::array<WasmEdge::ValVariant, 2>{0, 0}, {}));
-  EXPECT_FALSE(ProcessAddEnv.run(
-      CallFrame, std::array<WasmEdge::ValVariant, 4>{0, 0, 0, 0}, {}));
-  EXPECT_FALSE(ProcessAddStdIn.run(
-      CallFrame, std::array<WasmEdge::ValVariant, 2>{0, 0}, {}));
-  EXPECT_FALSE(ProcessSetTimeOut.run(
-      CallFrame, std::array<WasmEdge::ValVariant, 1>{0}, {}));
-  EXPECT_FALSE(ProcessRun.run(CallFrame, {}, Errno));
-  EXPECT_FALSE(ProcessGetExitCode.run(CallFrame, {}, Errno));
-  EXPECT_FALSE(ProcessGetStdOutLen.run(CallFrame, {}, Errno));
-  EXPECT_FALSE(ProcessGetStdOut.run(
-      CallFrame, std::array<WasmEdge::ValVariant, 1>{0}, {}));
-  EXPECT_FALSE(ProcessGetStdErrLen.run(CallFrame, {}, Errno));
-  EXPECT_FALSE(ProcessGetStdErr.run(
-      CallFrame, std::array<WasmEdge::ValVariant, 1>{0}, {}));
-
-  WasmEdge::Host::WasmEdgeProcessModuleMock ProcessModule;
-  EXPECT_EQ(ProcessModule.getModuleName(), "wasmedge_process");
-  EXPECT_EQ(ProcessModule.getFuncExportNum(), 11U);
 }
 
 TEST(HostMockTest, WasiLogging) {

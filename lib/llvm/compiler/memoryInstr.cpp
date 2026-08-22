@@ -108,7 +108,7 @@ FunctionCompiler::compileMemoryOp(const AST::Instruction &Instr) noexcept {
     break;
   case OpCode::Memory__size:
     stackPush(Builder.createTrunc(
-        Context.getMemorySize(Builder, ExecCtx, Instr.getTargetIndex()),
+        Context.getMemorySize(Builder, ModCtx, Instr.getTargetIndex()),
         Context.MemoryAddrTypes[Instr.getTargetIndex()]));
     break;
   case OpCode::Memory__grow: {
@@ -117,10 +117,12 @@ FunctionCompiler::compileMemoryOp(const AST::Instruction &Instr) noexcept {
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kMemGrow,
-                LLVM::Type::getFunctionType(Context.Int64Ty,
-                                            {Context.Int32Ty, Context.Int64Ty},
-                                            false)),
-            {LLContext.getInt32(Instr.getTargetIndex()), NewPageSize}),
+                LLVM::Type::getFunctionType(
+                    Context.Int64Ty,
+                    {Context.Int8PtrTy, Context.Int32Ty, Context.Int64Ty},
+                    false)),
+            {Context.getModuleInst(Builder, ModCtx),
+             LLContext.getInt32(Instr.getTargetIndex()), NewPageSize}),
         Context.MemoryAddrTypes[Instr.getTargetIndex()]));
     break;
   }
@@ -132,20 +134,23 @@ FunctionCompiler::compileMemoryOp(const AST::Instruction &Instr) noexcept {
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kMemInit,
             LLVM::Type::getFunctionType(Context.VoidTy,
-                                        {Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int64Ty, Context.Int32Ty,
-                                         Context.Int32Ty},
+                                        {Context.Int8PtrTy, Context.Int32Ty,
+                                         Context.Int32Ty, Context.Int64Ty,
+                                         Context.Int32Ty, Context.Int32Ty},
                                         false)),
-        {LLContext.getInt32(Instr.getTargetIndex()),
+        {Context.getModuleInst(Builder, ModCtx),
+         LLContext.getInt32(Instr.getTargetIndex()),
          LLContext.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
     break;
   }
   case OpCode::Data__drop: {
     Builder.createCall(
-        Context.getIntrinsic(Builder, Executable::Intrinsics::kDataDrop,
-                             LLVM::Type::getFunctionType(
-                                 Context.VoidTy, {Context.Int32Ty}, false)),
-        {LLContext.getInt32(Instr.getTargetIndex())});
+        Context.getIntrinsic(
+            Builder, Executable::Intrinsics::kDataDrop,
+            LLVM::Type::getFunctionType(
+                Context.VoidTy, {Context.Int8PtrTy, Context.Int32Ty}, false)),
+        {Context.getModuleInst(Builder, ModCtx),
+         LLContext.getInt32(Instr.getTargetIndex())});
     break;
   }
   case OpCode::Memory__copy: {
@@ -156,11 +161,12 @@ FunctionCompiler::compileMemoryOp(const AST::Instruction &Instr) noexcept {
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kMemCopy,
             LLVM::Type::getFunctionType(Context.VoidTy,
-                                        {Context.Int32Ty, Context.Int32Ty,
-                                         Context.Int64Ty, Context.Int64Ty,
-                                         Context.Int64Ty},
+                                        {Context.Int8PtrTy, Context.Int32Ty,
+                                         Context.Int32Ty, Context.Int64Ty,
+                                         Context.Int64Ty, Context.Int64Ty},
                                         false)),
-        {LLContext.getInt32(Instr.getTargetIndex()),
+        {Context.getModuleInst(Builder, ModCtx),
+         LLContext.getInt32(Instr.getTargetIndex()),
          LLContext.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
     break;
   }
@@ -172,10 +178,12 @@ FunctionCompiler::compileMemoryOp(const AST::Instruction &Instr) noexcept {
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kMemFill,
             LLVM::Type::getFunctionType(Context.VoidTy,
-                                        {Context.Int32Ty, Context.Int64Ty,
-                                         Context.Int8Ty, Context.Int64Ty},
+                                        {Context.Int8PtrTy, Context.Int32Ty,
+                                         Context.Int64Ty, Context.Int8Ty,
+                                         Context.Int64Ty},
                                         false)),
-        {LLContext.getInt32(Instr.getTargetIndex()), Off, Val, Len});
+        {Context.getModuleInst(Builder, ModCtx),
+         LLContext.getInt32(Instr.getTargetIndex()), Off, Val, Len});
     break;
   }
 
@@ -218,7 +226,7 @@ void FunctionCompiler::boundsCheckMemory64(unsigned MemoryIndex,
   // Addr + Offset + AccessSize <= SizeBytes with every term kept in 64 bits.
   const uint64_t OffsetAndSize = Offset + AccessSize;
   auto SizeBytes =
-      Builder.createShl(Context.getMemorySize(Builder, ExecCtx, MemoryIndex),
+      Builder.createShl(Context.getMemorySize(Builder, ModCtx, MemoryIndex),
                         LLContext.getInt64(16));
   auto Limit = Builder.createIntrinsic(
       LLVM::Core::USubSat, {Context.Int64Ty},
@@ -243,7 +251,7 @@ void FunctionCompiler::compileLoadOp(unsigned MemoryIndex, uint64_t Offset,
   }
 
   auto VPtr = Builder.createInBoundsGEP1(
-      Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
+      Context.Int8Ty, Context.getMemory(Builder, ModCtx, MemoryIndex), Off);
   auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
   auto LoadInst = Builder.createLoad(LoadTy, Ptr, true);
   LoadInst.setAlignment(1 << Alignment);
@@ -284,7 +292,7 @@ void FunctionCompiler::compileStoreOp(uint32_t MemoryIndex, uint64_t Offset,
   }
   V = switchEndian(V);
   auto VPtr = Builder.createInBoundsGEP1(
-      Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
+      Context.Int8Ty, Context.getMemory(Builder, ModCtx, MemoryIndex), Off);
   auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
   auto StoreInst = Builder.createStore(V, Ptr, true);
   StoreInst.setAlignment(1 << Alignment);

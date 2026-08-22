@@ -203,6 +203,30 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureIsForceInterpreter(
 
 // <<<<<<<< WasmEdge Configure functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+// >>>>>>>> WasmEdge module instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Initialize the WasmEdge_ModuleInstanceContext for the wasmedge_process
+/// specification.
+///
+/// CAUTION: The wasmedge_process plug-in is removed. This function has no
+/// effect unless an external plug-in named `wasmedge_process` is loaded, and
+/// will be deleted in the future.
+///
+/// This function will initialize the wasmedge_process host module with the
+/// parameters.
+///
+/// \param AllowedCmds the allowed command list. NULL if the
+/// length is 0.
+/// \param CmdsLen the length of the allowed command list.
+/// \param AllowAll the boolean value to allow all commands. `false` is
+/// recommended. If this value is `true`, the allowed command list will not
+/// be recorded and all commands can be executed by wasmedge_process.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceInitWasmEdgeProcess(
+    const char *const *AllowedCmds, const uint32_t CmdsLen,
+    const bool AllowAll) WASMEDGE_CAPI_NOEXCEPT;
+
+// <<<<<<<< WasmEdge module instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 #ifdef __cplusplus
 } /// extern "C"
 #endif

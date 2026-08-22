@@ -4,10 +4,13 @@
 #include "executor/executor.h"
 
 #include "common/spdlog.h"
+#include "runtime/storemgr.h"
 #include "system/fault.h"
 #include "system/stacktrace.h"
 
 #include <cstdint>
+#include <shared_mutex>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -16,21 +19,13 @@ namespace Executor {
 
 Executor::SavedThreadLocal::SavedThreadLocal(
     Executor &Ex, Runtime::StackManager &StackMgr,
-    const Runtime::Instance::FunctionInstance &Func) noexcept {
+    [[maybe_unused]] const Runtime::Instance::FunctionInstance &Func) noexcept {
   // Prepare the execution context.
-  auto *ModInst =
-      const_cast<Runtime::Instance::ModuleInstance *>(Func.getModule());
   SavedThis = This;
   This = &Ex;
 
   SavedExecutionContext = ExecutionContext;
-  ExecutionContext.Memories = ModInst->MemoryPtrs.data();
-  ExecutionContext.MemorySizes = ModInst->MemorySizePtrs.data();
-  ExecutionContext.TableRefs = ModInst->TableRefPtrs.data();
-  ExecutionContext.TableSizes = ModInst->TableSizePtrs.data();
-  ExecutionContext.Globals = ModInst->GlobalPtrs.data();
-  ExecutionContext.Tags =
-      reinterpret_cast<void *const *>(ModInst->TagInsts.data());
+  ExecutionContext.StopToken = &Ex.StopToken;
   ExecutionContext.PendingExnTagAddr =
       reinterpret_cast<void *const *>(&PendingExn.TagInst);
   if (Ex.Stat) {
@@ -39,8 +34,6 @@ Executor::SavedThreadLocal::SavedThreadLocal(
     ExecutionContext.Gas = &Ex.Stat->getTotalCostRef();
     ExecutionContext.GasLimit = Ex.Stat->getCostLimit();
   }
-  ExecutionContext.StopToken = &Ex.StopToken;
-  ExecutionContext.ModuleInst = ModInst;
 
   SavedCurrentStack = CurrentStack;
   CurrentStack = &StackMgr;
@@ -52,11 +45,11 @@ Executor::SavedThreadLocal::~SavedThreadLocal() noexcept {
   This = SavedThis;
 }
 
-Expect<AST::InstrView::iterator>
-Executor::enterFunction(Runtime::StackManager &StackMgr,
-                        const Runtime::Instance::FunctionInstance &Func,
-                        const AST::InstrView::iterator RetIt, bool IsTailCall,
-                        bool IsNativeEntry) {
+Expect<AST::InstrView::iterator> Executor::enterFunction(
+    Runtime::StackManager &StackMgr,
+    const Runtime::Instance::FunctionInstance &Func,
+    const AST::InstrView::iterator RetIt, bool IsTailCall, bool IsNativeEntry,
+    const Runtime::Instance::ModuleInstance *CallerModInst) {
   // RetIt: the return position when the entered function returns.
 
   // Check whether interruption occurred.
@@ -91,7 +84,10 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     // Generate CallingFrame from current frame.
     // The module instance will be nullptr if current frame is a dummy frame.
     // For this case, use the module instance of this host function.
-    const auto *ModInst = StackMgr.getModule();
+    const auto *ModInst = CallerModInst;
+    if (ModInst == nullptr) {
+      ModInst = StackMgr.getModule();
+    }
     if (ModInst == nullptr) {
       ModInst = Func.getModule();
     }
@@ -194,13 +190,17 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
             OuterStackTrace = OuterStackTrace.first(OuterStackTrace.size() - 1);
           }
         }
+        auto LiveModules = collectLiveModules(StackMgr);
         StackTraceSize =
-            compiledStackTrace(StackMgr, InnerStackTrace, StackTrace).size();
+            compiledStackTrace(LiveModules, InnerStackTrace, StackTrace).size();
         Err = ErrCode(static_cast<ErrCategory>(Code >> 24), Code);
       } else {
         auto &Wrapper = FuncType.getSymbol();
-        Wrapper(&ExecutionContext, Func.getSymbol().get(), Args.data(),
-                Rets.data());
+        Wrapper(
+            &const_cast<Runtime::Instance::ModuleInstance *>(Func.getModule())
+                 ->ModCtx,
+            &ExecutionContext, Func.getSymbol().get(), Args.data(),
+            Rets.data());
       }
     } catch (const ErrCode &E) {
       Err = E;
@@ -211,7 +211,8 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       }
       StackTraceSize +=
           interpreterStackTrace(
-              StackMgr, Span<uint32_t>{StackTrace}.subspan(StackTraceSize))
+              StackMgr,
+              Span<StackTraceEntry>{StackTrace}.subspan(StackTraceSize))
               .size();
       return Unexpect(Err);
     }
@@ -289,6 +290,52 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
   }
 }
 
+std::vector<const Runtime::Instance::ModuleInstance *>
+Executor::collectLiveModules(
+    const Runtime::StackManager &StackMgr) const noexcept {
+  std::vector<const Runtime::Instance::ModuleInstance *> Modules;
+  std::unordered_set<const Runtime::Instance::ModuleInstance *> Seen;
+  auto AddModule = [&](const Runtime::Instance::ModuleInstance *M) {
+    if (M != nullptr && Seen.insert(M).second) {
+      Modules.push_back(M);
+    }
+  };
+
+  for (const auto &Frame : StackMgr.getFramesSpan()) {
+    AddModule(Frame.Module);
+  }
+
+  std::unordered_set<Runtime::StoreManager *> Stores;
+  auto GatherStores = [&](const Runtime::Instance::ModuleInstance *M) {
+    if (M == nullptr) {
+      return;
+    }
+    std::shared_lock Lock(M->Mutex);
+    for (const auto &Entry : M->LinkedStore) {
+      Stores.insert(Entry.first.first);
+    }
+  };
+
+  const size_t SeedCount = Modules.size();
+  for (size_t I = 0; I < SeedCount; ++I) {
+    GatherStores(Modules[I]);
+    for (const auto *Func : Modules[I]->getFunctionInstances()) {
+      if (Func != nullptr) {
+        GatherStores(Func->getModule());
+      }
+    }
+  }
+
+  for (auto *Store : Stores) {
+    Store->getModuleList([&AddModule](const auto &NamedMod) {
+      for (const auto &Entry : NamedMod) {
+        AddModule(Entry.second);
+      }
+    });
+  }
+  return Modules;
+}
+
 Expect<void>
 Executor::branchToLabel(Runtime::StackManager &StackMgr,
                         const AST::Instruction::JumpDescriptor &JumpDesc,
@@ -325,7 +372,8 @@ Expect<void> Executor::throwException(
     }
     // Checking through the catch clause.
     for (const auto &C : Handler->CatchClause) {
-      if (!C.IsAll && getTagInstByIdx(StackMgr, C.TagIndex) != &TagInst) {
+      if (!C.IsAll &&
+          getTagInstByIdx(StackMgr.getModule(), C.TagIndex) != &TagInst) {
         // Specific-tag clauses require tag-address equivalence; skip the
         // ones that do not match.
         continue;
@@ -399,9 +447,9 @@ Executor::checkOffsetOverflow(const Runtime::Instance::MemoryInstance &MemInst,
   return {};
 }
 
-const AST::SubType *Executor::getDefTypeByIdx(Runtime::StackManager &StackMgr,
-                                              const uint32_t Idx) const {
-  const auto *ModInst = StackMgr.getModule();
+const AST::SubType *
+Executor::getDefTypeByIdx(const Runtime::Instance::ModuleInstance *ModInst,
+                          const uint32_t Idx) const {
   // When the top frame is a dummy frame, the instance cannot be found.
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
@@ -409,37 +457,35 @@ const AST::SubType *Executor::getDefTypeByIdx(Runtime::StackManager &StackMgr,
   return ModInst->unsafeGetType(Idx);
 }
 
-const WasmEdge::AST::CompositeType &
-Executor::getCompositeTypeByIdx(Runtime::StackManager &StackMgr,
-                                const uint32_t Idx) const noexcept {
-  auto *DefType = getDefTypeByIdx(StackMgr, Idx);
+const WasmEdge::AST::CompositeType &Executor::getCompositeTypeByIdx(
+    const Runtime::Instance::ModuleInstance *ModInst,
+    const uint32_t Idx) const noexcept {
+  auto *DefType = getDefTypeByIdx(ModInst, Idx);
   assuming(DefType);
   const auto &CompType = DefType->getCompositeType();
   assuming(!CompType.isFunc());
   return CompType;
 }
 
-const ValType &
-Executor::getStructStorageTypeByIdx(Runtime::StackManager &StackMgr,
-                                    const uint32_t Idx,
-                                    const uint32_t Off) const noexcept {
-  const auto &CompType = getCompositeTypeByIdx(StackMgr, Idx);
+const ValType &Executor::getStructStorageTypeByIdx(
+    const Runtime::Instance::ModuleInstance *ModInst, const uint32_t Idx,
+    const uint32_t Off) const noexcept {
+  const auto &CompType = getCompositeTypeByIdx(ModInst, Idx);
   assuming(static_cast<uint32_t>(CompType.getFieldTypes().size()) > Off);
   return CompType.getFieldTypes()[Off].getStorageType();
 }
 
-const ValType &
-Executor::getArrayStorageTypeByIdx(Runtime::StackManager &StackMgr,
-                                   const uint32_t Idx) const noexcept {
-  const auto &CompType = getCompositeTypeByIdx(StackMgr, Idx);
+const ValType &Executor::getArrayStorageTypeByIdx(
+    const Runtime::Instance::ModuleInstance *ModInst,
+    const uint32_t Idx) const noexcept {
+  const auto &CompType = getCompositeTypeByIdx(ModInst, Idx);
   assuming(static_cast<uint32_t>(CompType.getFieldTypes().size()) == 1);
   return CompType.getFieldTypes()[0].getStorageType();
 }
 
 Runtime::Instance::FunctionInstance *
-Executor::getFuncInstByIdx(Runtime::StackManager &StackMgr,
+Executor::getFuncInstByIdx(const Runtime::Instance::ModuleInstance *ModInst,
                            const uint32_t Idx) const {
-  const auto *ModInst = StackMgr.getModule();
   // When the top frame is a dummy frame, the instance cannot be found.
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
@@ -448,9 +494,8 @@ Executor::getFuncInstByIdx(Runtime::StackManager &StackMgr,
 }
 
 Runtime::Instance::TableInstance *
-Executor::getTabInstByIdx(Runtime::StackManager &StackMgr,
+Executor::getTabInstByIdx(const Runtime::Instance::ModuleInstance *ModInst,
                           const uint32_t Idx) const {
-  const auto *ModInst = StackMgr.getModule();
   // When the top frame is a dummy frame, the instance cannot be found.
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
@@ -459,9 +504,8 @@ Executor::getTabInstByIdx(Runtime::StackManager &StackMgr,
 }
 
 Runtime::Instance::MemoryInstance *
-Executor::getMemInstByIdx(Runtime::StackManager &StackMgr,
+Executor::getMemInstByIdx(const Runtime::Instance::ModuleInstance *ModInst,
                           const uint32_t Idx) const {
-  const auto *ModInst = StackMgr.getModule();
   // When the top frame is a dummy frame, the instance cannot be found.
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
@@ -470,9 +514,8 @@ Executor::getMemInstByIdx(Runtime::StackManager &StackMgr,
 }
 
 Runtime::Instance::TagInstance *
-Executor::getTagInstByIdx(Runtime::StackManager &StackMgr,
+Executor::getTagInstByIdx(const Runtime::Instance::ModuleInstance *ModInst,
                           const uint32_t Idx) const {
-  const auto *ModInst = StackMgr.getModule();
   // When the top frame is a dummy frame, the instance cannot be found.
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
@@ -481,9 +524,8 @@ Executor::getTagInstByIdx(Runtime::StackManager &StackMgr,
 }
 
 Runtime::Instance::GlobalInstance *
-Executor::getGlobInstByIdx(Runtime::StackManager &StackMgr,
+Executor::getGlobInstByIdx(const Runtime::Instance::ModuleInstance *ModInst,
                            const uint32_t Idx) const {
-  const auto *ModInst = StackMgr.getModule();
   // When the top frame is a dummy frame, the instance cannot be found.
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
@@ -492,9 +534,8 @@ Executor::getGlobInstByIdx(Runtime::StackManager &StackMgr,
 }
 
 Runtime::Instance::ElementInstance *
-Executor::getElemInstByIdx(Runtime::StackManager &StackMgr,
+Executor::getElemInstByIdx(const Runtime::Instance::ModuleInstance *ModInst,
                            const uint32_t Idx) const {
-  const auto *ModInst = StackMgr.getModule();
   // When the top frame is a dummy frame, the instance cannot be found.
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
@@ -503,9 +544,8 @@ Executor::getElemInstByIdx(Runtime::StackManager &StackMgr,
 }
 
 Runtime::Instance::DataInstance *
-Executor::getDataInstByIdx(Runtime::StackManager &StackMgr,
+Executor::getDataInstByIdx(const Runtime::Instance::ModuleInstance *ModInst,
                            const uint32_t Idx) const {
-  const auto *ModInst = StackMgr.getModule();
   // When the top frame is a dummy frame, the instance cannot be found.
   if (unlikely(ModInst == nullptr)) {
     return nullptr;
@@ -513,8 +553,9 @@ Executor::getDataInstByIdx(Runtime::StackManager &StackMgr,
   return ModInst->unsafeGetData(Idx);
 }
 
-TypeCode Executor::toBottomType(Runtime::StackManager &StackMgr,
-                                const ValType &Type) const {
+TypeCode
+Executor::toBottomType(const Runtime::Instance::ModuleInstance *ModInst,
+                       const ValType &Type) const {
   if (Type.isRefType()) {
     if (Type.isAbsHeapType()) {
       switch (Type.getHeapTypeCode()) {
@@ -538,9 +579,8 @@ TypeCode Executor::toBottomType(Runtime::StackManager &StackMgr,
         assumingUnreachable();
       }
     } else {
-      const auto &CompType = StackMgr.getModule()
-                                 ->unsafeGetType(Type.getTypeIndex())
-                                 ->getCompositeType();
+      const auto &CompType =
+          ModInst->unsafeGetType(Type.getTypeIndex())->getCompositeType();
       if (CompType.isFunc()) {
         return TypeCode::NullFuncRef;
       } else {

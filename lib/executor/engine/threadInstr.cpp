@@ -49,8 +49,7 @@ Executor::atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
                        uint64_t Address, uint64_t Count) noexcept {
   // The error message should be handled by the caller, or the AOT mode will
   // produce the duplicated messages.
-  if (auto *AtomicObj = MemInst.getPointer<std::atomic<uint64_t> *>(Address);
-      !AtomicObj) {
+  if (!MemInst.checkAccessBound(Address, sizeof(uint32_t))) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 

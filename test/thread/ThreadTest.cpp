@@ -162,8 +162,48 @@ std::array<uint64_t, 4> Answers{
     UINT64_C(4446454406775736720),
     UINT64_C(9019442596657776185),
 };
+std::array<WasmEdge::Byte, 50> AtomicNotify{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06,
+    0x01, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00,
+    0x05, 0x04, 0x01, 0x03, 0x01, 0x01, 0x07, 0x08, 0x01, 0x04,
+    0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x0a, 0x0c, 0x01, 0x0a,
+    0x00, 0x20, 0x00, 0x41, 0x00, 0xfe, 0x00, 0x02, 0x00, 0x0b,
+};
 
 using namespace std::literals;
+
+void runAtomicNotifyTest(WasmEdge::RunMode Mode) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Threads);
+  Conf.getRuntimeConfigure().setRunMode(Mode);
+  WasmEdge::VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(AtomicNotify));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  for (const uint32_t Address : {UINT32_C(65528), UINT32_C(65532)}) {
+    SCOPED_TRACE(Address);
+    auto Result = VM.execute(
+        "test", std::initializer_list<WasmEdge::ValVariant>{Address},
+        {WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 1U);
+    EXPECT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(0));
+  }
+}
+
+TEST(AtomicNotify, BoundaryInterpreter) {
+  runAtomicNotifyTest(WasmEdge::RunMode::Interpreter);
+}
+
+#ifdef WASMEDGE_USE_LLVM
+
+TEST(AtomicNotify, BoundaryJIT) {
+  runAtomicNotifyTest(WasmEdge::RunMode::JIT);
+}
+
+#endif
 
 TEST(AsyncExecute, ThreadTest) {
   WasmEdge::Configure Conf;

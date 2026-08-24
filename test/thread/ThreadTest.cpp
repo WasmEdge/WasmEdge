@@ -183,9 +183,9 @@ void runAtomicNotifyTest(WasmEdge::RunMode Mode) {
 
   for (const uint32_t Address : {UINT32_C(65528), UINT32_C(65532)}) {
     SCOPED_TRACE(Address);
-    auto Result = VM.execute(
-        "test", std::initializer_list<WasmEdge::ValVariant>{Address},
-        {WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    auto Result =
+        VM.execute("test", std::initializer_list<WasmEdge::ValVariant>{Address},
+                   {WasmEdge::ValType(WasmEdge::TypeCode::I32)});
     ASSERT_TRUE(Result);
     ASSERT_EQ(Result->size(), 1U);
     EXPECT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
@@ -199,9 +199,7 @@ TEST(AtomicNotify, BoundaryInterpreter) {
 
 #ifdef WASMEDGE_USE_LLVM
 
-TEST(AtomicNotify, BoundaryJIT) {
-  runAtomicNotifyTest(WasmEdge::RunMode::JIT);
-}
+TEST(AtomicNotify, BoundaryJIT) { runAtomicNotifyTest(WasmEdge::RunMode::JIT); }
 
 #endif
 

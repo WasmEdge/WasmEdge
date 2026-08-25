@@ -1322,6 +1322,33 @@ TEST(APICoreTest, ExportType) {
                 WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[18])),
             WasmEdge_Mutability_Const);
 
+  WasmEdge_ASTModuleDelete(Mod);
+  const std::vector<uint8_t> ReexportedImportedTagWasm = {
+      0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+      0x60, 0x01, 0x7F, 0x00, 0x02, 0x08, 0x01, 0x01, 0x6D, 0x01, 0x74,
+      0x04, 0x00, 0x00, 0x07, 0x05, 0x01, 0x01, 0x74, 0x04, 0x00};
+  Mod = nullptr;
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBytes(
+      Loader, &Mod,
+      WasmEdge_BytesWrap(
+          ReexportedImportedTagWasm.data(),
+          static_cast<uint32_t>(ReexportedImportedTagWasm.size())))));
+
+  const WasmEdge_ExportTypeContext *ImportedTagExport = nullptr;
+  EXPECT_EQ(WasmEdge_ASTModuleListExportsLength(Mod), 1U);
+  EXPECT_EQ(WasmEdge_ASTModuleListExports(Mod, &ImportedTagExport, 1), 1U);
+  ASSERT_NE(ImportedTagExport, nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ImportedTagExport),
+            WasmEdge_ExternalType_Tag);
+  const WasmEdge_TagTypeContext *ImportedTagType =
+      WasmEdge_ExportTypeGetTagType(Mod, ImportedTagExport);
+  ASSERT_NE(ImportedTagType, nullptr);
+  const WasmEdge_FunctionTypeContext *ImportedTagFuncType =
+      WasmEdge_TagTypeGetFunctionType(ImportedTagType);
+  ASSERT_NE(ImportedTagFuncType, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParametersLength(ImportedTagFuncType), 1U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturnsLength(ImportedTagFuncType), 0U);
+
   WasmEdge_LoaderDelete(Loader);
   WasmEdge_ASTModuleDelete(Mod);
 }

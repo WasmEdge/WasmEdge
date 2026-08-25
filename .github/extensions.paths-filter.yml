@@ -39,9 +39,6 @@ wasmedge_image:
 wasmedge_opencvmini:
   - 'plugins/wasmedge_opencvmini/**'
   - 'test/plugins/wasmedge_opencvmini/**'
-wasmedge_process:
-  - 'plugins/wasmedge_process/**'
-  - 'test/plugins/wasmedge_process/**'
 wasmedge_stablediffusion:
   - 'plugins/wasmedge_stablediffusion/**'
   - 'test/plugins/wasmedge_stablediffusion/**'

@@ -36,8 +36,8 @@ public:
   virtual ~Executable() noexcept = default;
 
   /// Function type wrapper for symbols.
-  using Wrapper = void(void *ExecCtx, void *Function, const ValVariant *Args,
-                       ValVariant *Rets);
+  using Wrapper = void(void *ModCtx, void *ExecCtx, void *Function,
+                       const ValVariant *Args, ValVariant *Rets);
 
   enum class Intrinsics : uint32_t {
     kTrap,

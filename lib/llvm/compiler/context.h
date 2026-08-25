@@ -59,6 +59,8 @@ struct Compiler::CompileContext {
   LLVM::Type Int64PtrTy;
   LLVM::Type Int128PtrTy;
   LLVM::Type Int8PtrPtrTy;
+  LLVM::Type ModCtxTy;
+  LLVM::Type ModCtxPtrTy;
   LLVM::Type ExecCtxTy;
   LLVM::Type ExecCtxPtrTy;
   LLVM::Type IntrinsicsTableTy;
@@ -114,9 +116,9 @@ struct Compiler::CompileContext {
   LLVM::FunctionCallee Trap;
   CompileContext(LLVM::Context C, LLVM::Module &M,
                  bool IsGenericBinary) noexcept;
-  LLVM::Value getMemory(LLVM::Builder &Builder, LLVM::Value ExecCtx,
+  LLVM::Value getMemory(LLVM::Builder &Builder, LLVM::Value ModCtx,
                         uint32_t Index) noexcept {
-    auto Array = Builder.createExtractValue(ExecCtx, 0);
+    auto Array = Builder.createExtractValue(ModCtx, 0);
 #if WASMEDGE_ALLOCATOR_IS_STABLE
     auto VPtr = Builder.createLoad(
         Int8PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
@@ -135,9 +137,9 @@ struct Compiler::CompileContext {
 #endif
     return Builder.createBitCast(VPtr, Int8PtrTy);
   }
-  LLVM::Value getMemorySize(LLVM::Builder &Builder, LLVM::Value ExecCtx,
+  LLVM::Value getMemorySize(LLVM::Builder &Builder, LLVM::Value ModCtx,
                             uint32_t Index) noexcept {
-    auto Array = Builder.createExtractValue(ExecCtx, 1);
+    auto Array = Builder.createExtractValue(ModCtx, 1);
     auto VPtr = Builder.createLoad(
         Int64PtrTy, Builder.createInBoundsGEP1(Int64PtrTy, Array,
                                                LLContext.getInt64(Index)));
@@ -145,10 +147,10 @@ struct Compiler::CompileContext {
                      LLVM::Metadata(LLContext, {}));
     return Builder.createLoad(Int64Ty, VPtr);
   }
-  LLVM::Value getTable(LLVM::Builder &Builder, LLVM::Value ExecCtx,
+  LLVM::Value getTable(LLVM::Builder &Builder, LLVM::Value ModCtx,
                        uint32_t Index) noexcept {
     auto RefPtrTy = Int64x2Ty.getPointerTo();
-    auto Array = Builder.createExtractValue(ExecCtx, 2);
+    auto Array = Builder.createExtractValue(ModCtx, 2);
     auto VPtrPtr = Builder.createLoad(
         RefPtrTy.getPointerTo(),
         Builder.createInBoundsGEP1(RefPtrTy.getPointerTo(), Array,
@@ -159,9 +161,9 @@ struct Compiler::CompileContext {
         RefPtrTy,
         Builder.createInBoundsGEP1(RefPtrTy, VPtrPtr, LLContext.getInt64(0)));
   }
-  LLVM::Value getTableSize(LLVM::Builder &Builder, LLVM::Value ExecCtx,
+  LLVM::Value getTableSize(LLVM::Builder &Builder, LLVM::Value ModCtx,
                            uint32_t Index) noexcept {
-    auto Array = Builder.createExtractValue(ExecCtx, 3);
+    auto Array = Builder.createExtractValue(ModCtx, 3);
     auto VPtr = Builder.createLoad(
         Int64PtrTy, Builder.createInBoundsGEP1(Int64PtrTy, Array,
                                                LLContext.getInt64(Index)));
@@ -169,11 +171,15 @@ struct Compiler::CompileContext {
                      LLVM::Metadata(LLContext, {}));
     return Builder.createLoad(Int64Ty, VPtr);
   }
+  LLVM::Value getModuleInst(LLVM::Builder &Builder,
+                            LLVM::Value ModCtx) noexcept {
+    return Builder.createExtractValue(ModCtx, 5);
+  }
   std::pair<LLVM::Type, LLVM::Value> getGlobal(LLVM::Builder &Builder,
-                                               LLVM::Value ExecCtx,
+                                               LLVM::Value ModCtx,
                                                uint32_t Index) noexcept {
     auto Ty = Globals[Index];
-    auto Array = Builder.createExtractValue(ExecCtx, 4);
+    auto Array = Builder.createExtractValue(ModCtx, 4);
     auto VPtr = Builder.createLoad(
         Int128PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
                                                 LLContext.getInt64(Index)));
@@ -182,9 +188,9 @@ struct Compiler::CompileContext {
     auto Ptr = Builder.createBitCast(VPtr, Ty.getPointerTo());
     return {Ty, Ptr};
   }
-  LLVM::Value getTag(LLVM::Builder &Builder, LLVM::Value ExecCtx,
+  LLVM::Value getTag(LLVM::Builder &Builder, LLVM::Value ModCtx,
                      uint32_t Index) noexcept {
-    auto Array = Builder.createExtractValue(ExecCtx, 5);
+    auto Array = Builder.createExtractValue(ModCtx, 6);
     auto VPtr = Builder.createLoad(
         Int8PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
                                               LLContext.getInt64(Index)));
@@ -194,30 +200,26 @@ struct Compiler::CompileContext {
   }
   LLVM::Value getPendingExnTagAddr(LLVM::Builder &Builder,
                                    LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 6);
+    return Builder.createExtractValue(ExecCtx, 5);
   }
   LLVM::Value getInstrCount(LLVM::Builder &Builder,
                             LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 7);
+    return Builder.createExtractValue(ExecCtx, 0);
   }
   LLVM::Value getCostTable(LLVM::Builder &Builder,
                            LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 8);
+    return Builder.createExtractValue(ExecCtx, 1);
   }
   LLVM::Value getGas(LLVM::Builder &Builder, LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 9);
+    return Builder.createExtractValue(ExecCtx, 2);
   }
   LLVM::Value getGasLimit(LLVM::Builder &Builder,
                           LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 10);
+    return Builder.createExtractValue(ExecCtx, 3);
   }
   LLVM::Value getStopToken(LLVM::Builder &Builder,
                            LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 11);
-  }
-  LLVM::Value getModuleInst(LLVM::Builder &Builder,
-                            LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 12);
+    return Builder.createExtractValue(ExecCtx, 4);
   }
   LLVM::FunctionCallee getIntrinsic(LLVM::Builder &Builder,
                                     Executable::Intrinsics Index,
@@ -284,12 +286,14 @@ bool isVoidReturn(WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
 LLVM::Type toLLVMType(LLVM::Context LLContext,
                       const WasmEdge::ValType &ValType) noexcept;
 std::vector<LLVM::Type>
-toLLVMArgsType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
+toLLVMArgsType(LLVM::Context LLContext, LLVM::Type ModCtxPtrTy,
+               LLVM::Type ExecCtxPtrTy,
                WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
 LLVM::Type
 toLLVMRetsType(LLVM::Context LLContext,
                WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
-LLVM::Type toLLVMType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
+LLVM::Type toLLVMType(LLVM::Context LLContext, LLVM::Type ModCtxPtrTy,
+                      LLVM::Type ExecCtxPtrTy,
                       const WasmEdge::AST::FunctionType &FuncType) noexcept;
 LLVM::Value
 toLLVMConstantZero(LLVM::Context LLContext, const WasmEdge::ValType &ValType,

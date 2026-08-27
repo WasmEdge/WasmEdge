@@ -424,11 +424,19 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     Conf.getCompilerConfigure().setOptimizationLevel(
         WasmEdge::CompilerConfigure::OptimizationLevel::O1);
   }
-  if (Opt.ConfEnableCoredump.value()) {
-    Conf.getRuntimeConfigure().setEnableCoredump(true);
+  bool IsCoredumpEnabled =
+      Opt.ConfEnableCoredump.value() || Opt.ConfCoredumpWasmgdb.value();
+  if (IsCoredumpEnabled && RunModeFromFlag != RunMode::Interpreter) {
+    spdlog::warn("The coredump generation is supported by the interpreter "
+                 "only; the coredump is disabled. Use --run-mode=interpreter "
+                 "to generate a coredump."sv);
+    IsCoredumpEnabled = false;
   }
-  if (Opt.ConfCoredumpWasmgdb.value()) {
-    Conf.getRuntimeConfigure().setCoredumpWasmgdb(true);
+  if (IsCoredumpEnabled) {
+    Conf.getRuntimeConfigure().setEnableCoredump(true);
+    if (Opt.ConfCoredumpWasmgdb.value()) {
+      Conf.getRuntimeConfigure().setCoredumpWasmgdb(true);
+    }
   }
   if (Opt.ConfAFUNIX.value()) {
     Conf.getRuntimeConfigure().setAllowAFUNIX(true);

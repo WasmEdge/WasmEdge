@@ -1,32 +1,29 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
-#include "ast/section.h"
-#include "ast/type.h"
+#pragma once
+
+#include "ast/instruction.h"
 #include "common/errcode.h"
-#include "common/span.h"
-#include "loader/serialize.h"
-#include "runtime/instance/memory.h"
 #include "runtime/stackmgr.h"
+
+#include <string>
 
 namespace WasmEdge {
 namespace Coredump {
 
-void generateCoredump(const Runtime::StackManager &StackMgr,
-                      bool ForWasmgdb) noexcept;
-AST::CustomSection createCore();
-AST::CustomSection createCoremodules(
-    Loader::Serializer &Ser,
-    Span<const Runtime::Instance::ModuleInstance *const> ModuleInstances);
-AST::CustomSection createCorestack(
-    Loader::Serializer &Ser, Span<const Runtime::StackManager::Frame> Frames,
-    Span<const Runtime::StackManager::Value> ValueStack, bool ForWasmgdb);
-AST::CustomSection createCoreinstances(
-    Span<const Runtime::Instance::ModuleInstance *const> ModuleInstances);
-AST::MemorySection createMemory(
-    Span<const Runtime::Instance::MemoryInstance *const> MemoryInstances);
-AST::GlobalSection createGlobals(
-    Span<const Runtime::Instance::GlobalInstance *const> GlobalInstances);
-AST::DataSection
-createData(Span<const Runtime::Instance::DataInstance *const> DataInstances);
+/// Dump the current execution state into a coredump file.
+///
+/// \param StackMgr the stack manager of the trapping execution.
+/// \param PC the instruction which caused the trap. May be an empty iterator
+/// when the trapping instruction is unknown.
+/// \param ForWasmgdb generate a coredump consumable by the `wasmgdb` debugger.
+/// Its parser reads the size of the operand stack vector but not its content,
+/// therefore the operand stack is omitted in this mode.
+///
+/// \returns the path of the generated coredump file, or an error code.
+Expect<std::string> generateCoredump(const Runtime::StackManager &StackMgr,
+                                     AST::InstrView::iterator PC,
+                                     bool ForWasmgdb) noexcept;
+
 } // namespace Coredump
 } // namespace WasmEdge

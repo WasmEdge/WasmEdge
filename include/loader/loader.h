@@ -219,7 +219,7 @@ class Loader {
 public:
   Loader(const Configure &Conf,
          const Executable::IntrinsicsTable *IT = nullptr) noexcept
-      : Conf(Conf), Ser(Conf), IntrinsicsTable(IT) {}
+      : Conf(Conf), IntrinsicsTable(IT) {}
   ~Loader() noexcept = default;
 
   /// Load data from file path.

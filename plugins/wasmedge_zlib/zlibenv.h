@@ -7,7 +7,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <zlib.h>
 
@@ -78,18 +80,74 @@ static_assert(sizeof(WasmGZHeader) == 52, "WasmGZHeader should be 52 bytes");
 namespace WasmEdge {
 namespace Host {
 
+enum class ZStreamKind { Deflate, Inflate, InflateBack };
+
+struct ZStreamEntry {
+  z_stream Z{};
+  ZStreamKind Kind;
+  bool GzipWrap = false;
+  bool RawInflate = false;
+  bool RawDeflate = false;
+  bool MayNeedDict = false;
+  bool DeflateStarted = false;
+  explicit ZStreamEntry(ZStreamKind K) noexcept : Kind(K) {
+    Z.zalloc = Z_NULL;
+    Z.zfree = Z_NULL;
+    Z.opaque = Z_NULL;
+  }
+  ZStreamEntry(const ZStreamEntry &) = delete;
+  ZStreamEntry &operator=(const ZStreamEntry &) = delete;
+  ~ZStreamEntry() {
+    if (Z.state == Z_NULL) {
+      return;
+    }
+    switch (Kind) {
+    case ZStreamKind::Deflate:
+      deflateEnd(&Z);
+      break;
+    case ZStreamKind::Inflate:
+      inflateEnd(&Z);
+      break;
+    case ZStreamKind::InflateBack:
+      inflateBackEnd(&Z);
+      break;
+    }
+  }
+};
+
 class WasmEdgeZlibEnvironment {
 public:
-  using GZFile = std::remove_pointer_t<gzFile>;
-
   struct GZStore {
     uint32_t WasmGZHeaderOffset;
+    bool IsInflate;
     std::unique_ptr<gz_header> HostGZHeader;
+    std::vector<Bytef> Extra;
+    std::string Name;
+    std::string Comment;
   };
 
-  std::unordered_map<uint32_t, std::unique_ptr<z_stream>> ZStreamMap;
-  std::map<uint32_t, std::unique_ptr<GZFile>, std::greater<uint32_t>> GZFileMap;
-  std::unordered_map<uint32_t, GZStore> GZHeaderMap;
+  struct GZFileEntry {
+    gzFile GZ;
+    bool CanSeek;
+    bool CanTell;
+    bool RestoredAppendOffset;
+    bool OpenedForRead = false;
+    int64_t OwnedWasiFd = -1;
+  };
+
+  WasmEdgeZlibEnvironment() = default;
+  WasmEdgeZlibEnvironment(const WasmEdgeZlibEnvironment &) = delete;
+  WasmEdgeZlibEnvironment &operator=(const WasmEdgeZlibEnvironment &) = delete;
+  ~WasmEdgeZlibEnvironment() {
+    for (const auto &[Handle, Entry] : GZFileMap) {
+      gzclose(Entry.GZ);
+    }
+  }
+
+  std::unordered_map<uint32_t, ZStreamEntry> ZStreamMap;
+  std::unordered_map<uint32_t, GZFileEntry> GZFileMap;
+  std::unordered_map<uint32_t, std::shared_ptr<GZStore>> GZHeaderMap;
+  uint32_t NextGZFile = sizeof(gzFile);
 };
 
 } // namespace Host

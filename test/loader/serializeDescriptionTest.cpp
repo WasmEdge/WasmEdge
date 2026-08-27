@@ -9,8 +9,7 @@
 
 namespace {
 
-WasmEdge::Configure Conf;
-WasmEdge::Loader::Serializer Ser(Conf);
+WasmEdge::Loader::Serializer Ser;
 
 WasmEdge::AST::ImportSection createImportSec(WasmEdge::AST::ImportDesc &Desc) {
   WasmEdge::AST::ImportSection ImportSec;
@@ -29,14 +28,6 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  WasmEdge::Configure ConfNoImpMutGlob;
-  ConfNoImpMutGlob.setWASMStandard(WasmEdge::Standard::WASM_1);
-  ConfNoImpMutGlob.removeProposal(WasmEdge::Proposal::ImportExportMutGlobals);
-  WasmEdge::Loader::Serializer SerNoImpMutGlob(ConfNoImpMutGlob);
-  WasmEdge::Configure ConfWASM2;
-  ConfWASM2.setWASMStandard(WasmEdge::Standard::WASM_2);
-  WasmEdge::Loader::Serializer SerWASM2(ConfWASM2);
-
   // 1. Test serialize import description.
   //
   //   1.  Serialize import description with empty module and external name.
@@ -44,11 +35,7 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   //   3.  Serialize import description of table type.
   //   4.  Serialize import description of memory type.
   //   5.  Serialize import description of global type.
-  //   6.  Serialize invalid import description of global type without
-  //       Mut-Globals proposal.
-  //   7.  Serialize import description of tag type.
-  //   8.  Serialize import description of tag type without the exception
-  //   handling proposal.
+  //   6.  Serialize import description of tag type.
 
   Desc.setModuleName("");
   Desc.setExternalName("");
@@ -56,7 +43,7 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Desc.setExternalFuncTypeIdx(0x00U);
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
+  Ser.serializeSection(createImportSec(Desc), Output);
   Expected = {
       0x02U,       // Import section
       0x05U,       // Content size = 5
@@ -73,7 +60,7 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Desc.setExternalFuncTypeIdx(0x00U);
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
+  Ser.serializeSection(createImportSec(Desc), Output);
   Expected = {
       0x02U,                                           // Import section
       0x0FU,                                           // Content size = 15
@@ -92,7 +79,7 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
       WasmEdge::AST::Limit::LimitType::HasMinMax);
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
+  Ser.serializeSection(createImportSec(Desc), Output);
   Expected = {
       0x02U,                                           // Import section
       0x1AU,                                           // Content size = 26
@@ -114,7 +101,7 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
       WasmEdge::AST::Limit::LimitType::HasMinMax);
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
+  Ser.serializeSection(createImportSec(Desc), Output);
   Expected = {
       0x02U,                                           // Import section
       0x19U,                                           // Content size = 25
@@ -133,7 +120,7 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Desc.getExternalGlobalType().setValMut(WasmEdge::ValMut::Const);
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
+  Ser.serializeSection(createImportSec(Desc), Output);
   Expected = {
       0x02U,                                           // Import section
       0x10U,                                           // Content size = 16
@@ -146,12 +133,11 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   EXPECT_EQ(Output, Expected);
 
   Desc.getExternalGlobalType().setValMut(WasmEdge::ValMut::Var);
-  EXPECT_FALSE(SerNoImpMutGlob.serializeSection(createImportSec(Desc), Output));
 
   Desc.setExternalType(WasmEdge::ExternalType::Tag);
   Desc.getExternalTagType().setTypeIdx(0x02U);
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
+  Ser.serializeSection(createImportSec(Desc), Output);
   Expected = {
       0x02U,                                           // Import section
       0x10U,                                           // Content size = 16
@@ -162,9 +148,6 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
       0x00U, 0x02U                                     // TypeIdx value
   };
   EXPECT_EQ(Expected, Output);
-
-  Output = {};
-  EXPECT_FALSE(SerWASM2.serializeSection(createImportSec(Desc), Output));
 }
 
 TEST(SerializeDescriptionTest, SerializeExportDesc) {
@@ -172,25 +155,19 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  WasmEdge::Configure ConfWASM2;
-  ConfWASM2.setWASMStandard(WasmEdge::Standard::WASM_2);
-  WasmEdge::Loader::Serializer SerWASM2(ConfWASM2);
-
   // 2. Test serialize export description.
   //
   //   1.  Serialize export description with empty module name.
   //   2.  Serialize export description with non-empty module name.
   //   3.  Serialize export description of table type.
-  //   7.  Serialize export description of tag type.
-  //   8.  Serialize export description of tag type without the exception
-  //   handling proposal.
+  //   4.  Serialize export description of tag type.
 
   Desc.setExternalName("");
   Desc.setExternalType(WasmEdge::ExternalType::Function);
   Desc.setExternalIndex(0x00U);
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(createExportSec(Desc), Output));
+  Ser.serializeSection(createExportSec(Desc), Output);
   Expected = {
       0x07U,       // Export section
       0x04U,       // Content size = 4
@@ -205,7 +182,7 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   Desc.setExternalIndex(0x00U);
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(createExportSec(Desc), Output));
+  Ser.serializeSection(createExportSec(Desc), Output);
   Expected = {
       0x07U,                                           // Export section
       0x0AU,                                           // Content size = 10
@@ -220,7 +197,7 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   Desc.setExternalIndex(0xFFFFFFFFU);
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(createExportSec(Desc), Output));
+  Ser.serializeSection(createExportSec(Desc), Output);
   Expected = {
       0x07U,                                           // Export section
       0x0EU,                                           // Content size = 14
@@ -233,7 +210,7 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   Desc.setExternalType(WasmEdge::ExternalType::Tag);
   Desc.setExternalIndex(0x02U);
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(createExportSec(Desc), Output));
+  Ser.serializeSection(createExportSec(Desc), Output);
   Expected = {
       0x07U,                                           // Export section
       0x0AU,                                           // Content size = 10
@@ -243,8 +220,5 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
       0x02U                                            // TypeIdx value
   };
   EXPECT_EQ(Expected, Output);
-
-  Output = {};
-  EXPECT_FALSE(SerWASM2.serializeSection(createExportSec(Desc), Output));
 }
 } // namespace

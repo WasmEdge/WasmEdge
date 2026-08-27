@@ -2745,9 +2745,11 @@ WasmEdge_FunctionInstanceGetFunctionType(
 
 WASMEDGE_CAPI_EXPORT extern const void *WasmEdge_FunctionInstanceGetData(
     const WasmEdge_FunctionInstanceContext *Cxt) noexcept {
-  if (Cxt) {
-    return reinterpret_cast<CAPIHostFunc *>(&fromFuncCxt(Cxt)->getHostFunc())
-        ->getData();
+  if (Cxt && fromFuncCxt(Cxt)->isHostFunction()) {
+    if (auto *HostFunc =
+            dynamic_cast<CAPIHostFunc *>(&fromFuncCxt(Cxt)->getHostFunc())) {
+      return HostFunc->getData();
+    }
   }
   return nullptr;
 }

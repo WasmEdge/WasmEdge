@@ -2319,6 +2319,60 @@ TEST(APICoreTest, Instance) {
   WasmEdge_FunctionInstanceDelete(FuncCxt);
   EXPECT_TRUE(true);
 
+  // Get the host function data from a function instance.
+  uint32_t HostData = 0U;
+  FuncType = WasmEdge_FunctionTypeCreate(Param, 2, Result, 1);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, externAdd, &HostData, 0);
+  EXPECT_NE(FuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(FuncCxt), &HostData);
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  FuncCxt = WasmEdge_FunctionInstanceCreateBinding(
+      FuncType, externWrap, reinterpret_cast<void *>(externAdd), &HostData, 0);
+  EXPECT_NE(FuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(FuncCxt), &HostData);
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, externAdd, nullptr, 0);
+  EXPECT_NE(FuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(FuncCxt), nullptr);
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  WasmEdge_FunctionTypeDelete(FuncType);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(nullptr), nullptr);
+
+  // Get the host function data from the function instances not created by
+  // the C API.
+  hexToFile(TestWasm, TPath);
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
+  WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_TRUE(registerModule(Conf, Store, HostMod));
+  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
+  EXPECT_NE(Mod, nullptr);
+  EXPECT_TRUE(validateModule(Conf, Mod));
+  WasmEdge_ModuleInstanceContext *ModCxt = instantiateModule(Conf, Store, Mod);
+  EXPECT_NE(ModCxt, nullptr);
+  WasmEdge_ASTModuleDelete(Mod);
+  WasmEdge_String WasmFuncName = WasmEdge_StringCreateByCString("func-mul-2");
+  WasmEdge_FunctionInstanceContext *WasmFuncCxt =
+      WasmEdge_ModuleInstanceFindFunction(ModCxt, WasmFuncName);
+  WasmEdge_StringDelete(WasmFuncName);
+  EXPECT_NE(WasmFuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(WasmFuncCxt), nullptr);
+  WasmEdge_ModuleInstanceContext *WasiMod =
+      WasmEdge_ModuleInstanceCreateWASI(nullptr, 0, nullptr, 0, nullptr, 0);
+  EXPECT_NE(WasiMod, nullptr);
+  WasmEdge_String WasiFuncName = WasmEdge_StringCreateByCString("proc_exit");
+  WasmEdge_FunctionInstanceContext *WasiFuncCxt =
+      WasmEdge_ModuleInstanceFindFunction(WasiMod, WasiFuncName);
+  WasmEdge_StringDelete(WasiFuncName);
+  EXPECT_NE(WasiFuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(WasiFuncCxt), nullptr);
+  WasmEdge_ModuleInstanceDelete(ModCxt);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+  WasmEdge_ModuleInstanceDelete(WasiMod);
+  WasmEdge_StoreDelete(Store);
+  WasmEdge_ConfigureDelete(Conf);
+
   // Table instance
   WasmEdge_LimitContext *TabLim;
   WasmEdge_TableInstanceContext *TabCxt;

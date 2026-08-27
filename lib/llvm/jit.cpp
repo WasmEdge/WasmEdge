@@ -21,6 +21,46 @@ std::string errorToString(LLVM::Error &&E) noexcept {
   return std::string(Msg.string_view());
 }
 
+#if LLVM_VERSION_MAJOR >= 13 &&                                                \
+    (defined(__SANITIZE_THREAD__) ||                                           \
+     (defined(__has_feature) && __has_feature(thread_sanitizer)))
+// The host itself is built with ThreadSanitizer, so instrument the generated
+// code too: races INSIDE compiled code (e.g. a GC root-publish store) are
+// otherwise invisible, because -fsanitize=thread only instruments the C++ it
+// compiles, never the code LLVM emits at runtime. LLVM's TSan pass only touches
+// functions carrying the sanitize_thread attribute, so add it to every module
+// function, then run the function TSan pass. The module pass is deliberately
+// left out: it only appends a __tsan_init module constructor, which the host
+// has already run, and every JIT'd module carrying one collides on ORC's
+// generated initializer symbol.
+//
+// This belongs to the JIT path only. The emitted __tsan_* calls are undefined
+// symbols that ORC resolves against the libtsan already linked into this host.
+// An AOT artifact has no such resolution step: Loader::AOTSection copies the
+// linked object's raw sections into an anonymous mapping and never processes
+// relocations, so instrumented AOT code would call through an unrelocated
+// PLT/GOT slot and jump to a link-time address.
+void instrumentThreadSanitizer(LLVM::Module &LLModule) noexcept {
+  // Pure C API to avoid any Context-wrapper lifetime concern: the module's
+  // context is borrowed, not owned here.
+  LLVMContextRef Cx = LLVMGetModuleContext(LLModule.unwrap());
+  const unsigned int STKind =
+      LLVMGetEnumAttributeKindForName("sanitize_thread", 15);
+  LLVMAttributeRef STAttr = LLVMCreateEnumAttribute(Cx, STKind, 0);
+  for (auto Fn = LLModule.getFirstFunction(); Fn; Fn = Fn.getNextFunction()) {
+    LLVMAddAttributeAtIndex(
+        Fn.unwrap(),
+        static_cast<LLVMAttributeIndex>(LLVMAttributeFunctionIndex), STAttr);
+  }
+  auto PBO = LLVM::PassBuilderOptions::create();
+  if (auto Error = PBO.runPasses(LLModule, "function(tsan)")) {
+    spdlog::error("{}"sv, Error.message().string_view());
+  }
+}
+#else
+void instrumentThreadSanitizer(LLVM::Module &) noexcept {}
+#endif
+
 static WasmEdge::Expect<LLVM::OrcLLJIT> createTunedLazyLLJIT() noexcept {
   LLVMOrcLLJITBuilderRef Builder = LLVM::OrcLLJIT::getBuilder();
   if (!Builder) {
@@ -182,6 +222,8 @@ Expect<std::shared_ptr<Executable>> JIT::loadImpl(Data &D,
     }
   }
 
+  instrumentThreadSanitizer(LLModule);
+
   auto MainJD = LLJITInstance.getMainJITDylib();
   if (auto Err = LLJITInstance.addLLVMIRModule(
           MainJD, OrcThreadSafeModule(LLModule.release(), TSContext))) {
@@ -204,6 +246,8 @@ JIT::add(JITLibrary &Lib, Data &D,
 
   auto &LLModule = D.extract().LLModule;
   auto &TSContext = D.extract().getTSContext();
+
+  instrumentThreadSanitizer(LLModule);
 
   auto JD = Lib.J->getMainJITDylib();
   auto RT = JD.createResourceTracker();

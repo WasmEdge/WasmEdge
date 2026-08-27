@@ -22,6 +22,8 @@
 #include "common/errcode.h"
 #include "common/statistics.h"
 #include "common/types.h"
+#include "gc/allocator.h"
+#include "gc/controller.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/component/component.h"
 #include "runtime/instance/module.h"
@@ -41,6 +43,7 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace WasmEdge {
@@ -143,8 +146,11 @@ private:
 /// Executor flow control class.
 class Executor {
 public:
-  Executor(const Configure &Conf, Statistics::Statistics *S = nullptr) noexcept
-      : Conf(Conf) {
+  // Not noexcept: constructing the GC::Allocator member starts collector
+  // threads and allocates, which can throw; the C API create wrappers catch it,
+  // so let it propagate rather than terminate.
+  Executor(const Configure &Conf, Statistics::Statistics *S = nullptr)
+      : Conf(Conf), GCEnabled(Conf.hasProposal(Proposal::GC)) {
     if (Conf.getStatisticsConfigure().isInstructionCounting() ||
         Conf.getStatisticsConfigure().isCostMeasuring() ||
         Conf.getStatisticsConfigure().isTimeMeasuring()) {
@@ -155,10 +161,64 @@ public:
     if (Stat) {
       Stat->setCostLimit(Conf.getStatisticsConfigure().getCostLimit());
     }
+    // Root this thread's pending-exception payload for every mutator that
+    // registers a stack on this controller. Installed here -- before any
+    // mutator can exist -- so the provider is a plain, race-free read in
+    // registerStack.
+    Controller.setAuxRootProvider(&Executor::pendingExnRoots);
   }
 
   /// Getter for configuration.
   const Configure &getConfigure() const { return Conf; }
+
+  /// Getter for the GC allocator.
+  GC::Allocator &getAllocator() noexcept { return Controller.getAllocator(); }
+  const GC::Allocator &getAllocator() const noexcept {
+    return Controller.getAllocator();
+  }
+  /// Getter for the GC controller.
+  GC::Controller &getController() noexcept { return Controller; }
+  const GC::Controller &getController() const noexcept { return Controller; }
+
+  /// GC aux-root provider (GC::Controller::setAuxRootProvider): the CALLING
+  /// thread's pending-exception payload. While an exception propagates out
+  /// through the native frames, its payload has already been erased from the
+  /// value stack and the raising frame's shadow frame has been popped, so the
+  /// managed refs it carries are rooted nowhere else. PendingExn is a
+  /// thread_local, so this address is fixed for the thread's lifetime and the
+  /// controller can cache it once per stack registration instead of publishing
+  /// on every throw. Public so a test can assert the registry cached exactly
+  /// this vector.
+  static const std::vector<ValVariant> *pendingExnRoots() noexcept {
+    return &PendingExn.getPayload();
+  }
+
+  /// Resolve a GC reference's abstract heap ValType, expanding an opaque
+  /// concrete type index (as produced by struct.new / array.new) to its
+  /// composite kind via the reference's defining module's type list -- the same
+  /// normalization invoke() applies to a returned reference. A null reference
+  /// or an already-abstract heap type is returned unchanged. Exposed so the
+  /// C-API retained getters can decide GC retainability and hand back a
+  /// by-value-releasable value: Executor is a friend of ModuleInstance, whose
+  /// type list the C-API cannot otherwise reach.
+  ValType expandGCRefType(const RefVariant &Ref) const noexcept {
+    ValType RefType = Ref.getType();
+    if (Ref.isNull() || RefType.isAbsHeapType()) {
+      return RefType;
+    }
+    // The payload of a concrete-typed ref begins with its defining
+    // ModuleInstance (getInnerPtr); Ref is non-null here.
+    const auto *ModInst =
+        Ref.getInnerPtr<const Runtime::Instance::ModuleInstance>();
+    if (ModInst == nullptr) {
+      return RefType;
+    }
+    auto DefType = ModInst->getType(RefType.getTypeIndex());
+    if (!DefType) {
+      return RefType;
+    }
+    return ValType(RefType.getCode(), (*DefType)->getCompositeType().expand());
+  }
 
   /// Instantiate a WASM Module as an anonymous module instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
@@ -228,7 +288,60 @@ public:
     return Span<const StackTraceEntry>{StackTrace}.first(StackTraceSize);
   }
 
+  /// Release a host-retained GC reference returned to the host.
+  void releaseRef(const RefVariant &Ref) noexcept {
+    getAllocator().releaseRef(Ref);
+  }
+
+  /// Release several host-retained GC references.
+  void releaseRefs(Span<const RefVariant> Refs) noexcept {
+    getAllocator().releaseRefs(Refs);
+  }
+
+  /// Release a host-retained GC reference delivered as a component value.
+  ///
+  /// convValsToComponent wraps scalars and refs in the same ValVariant
+  /// alternative, so release only true struct/array roots (matching the C API's
+  /// genRetainedRef guard); treating a scalar's bits as a pointer could
+  /// drop an unrelated root. Two invariants prevent that: cleanNumericVal
+  /// zero-extends scalars (pointer word zero, non-ref getType()), and flatSize
+  /// excludes v128 from lifting, so no scalar fills both words. Extending
+  /// lifting to v128 would break this -- reject 128-bit payloads here then.
+  void releaseRef(const ComponentValVariant &Val) noexcept {
+    if (!std::holds_alternative<ValVariant>(Val)) {
+      return;
+    }
+    const RefVariant Ref = std::get<ValVariant>(Val).get<RefVariant>();
+    const ValType &VT = Ref.getType();
+    if (!VT.isRefType() || Ref.isNull()) {
+      return;
+    }
+    if (VT.isGCRefType()) {
+      getAllocator().releaseRef(Ref);
+    }
+  }
+
+  /// Release several host-retained GC references delivered as component values.
+  void releaseRefs(Span<const ComponentValVariant> Vals) noexcept {
+    for (const auto &Val : Vals) {
+      releaseRef(Val);
+    }
+  }
+
+  /// Release all host-retained GC references.
+  void releaseAllRefs() noexcept { getAllocator().releaseAllRefs(); }
+
   /// Asynchronous invoke a WASM function by function instance.
+  ///
+  /// Lifetime contract: `FuncInst` and its owning `StoreManager` are
+  /// externally owned. Unlike `VM::asyncExecute` (whose `~VM` drains the
+  /// invocation before the VM-owned store is destroyed), the GC launch
+  /// lease here only blocks Executor/Controller teardown -- it cannot pin
+  /// an externally-owned module. The caller MUST wait on (join) the
+  /// returned `Async` before destroying the store/module; destroying it
+  /// while the invocation is still running is undefined behavior
+  /// (use-after-free), exactly as for the synchronous
+  /// `invoke(FunctionInstance *)` overload above.
   Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
   asyncInvoke(const Runtime::Instance::FunctionInstance *FuncInst,
               Span<const ValVariant> Params, Span<const ValType> ParamTypes);
@@ -238,6 +351,14 @@ public:
     StopToken.store(1, std::memory_order_relaxed);
     atomicNotifyAll();
   }
+
+  // Test-only access to the private interpreter table.grow handler, used by the
+  // grow-initializer rooting regression. Declared as a friend free function so
+  // the test can drive runTableGrowOp without promoting it onto the public API;
+  // defined only in the test translation unit.
+  friend Expect<void>
+  gcTestRunTableGrowOp(Executor &Exe, Runtime::StackManager &StackMgr,
+                       Runtime::Instance::TableInstance &TabInst) noexcept;
 
 private:
   /// Run Wasm bytecode expression for initialization.
@@ -254,6 +375,90 @@ private:
                        const AST::InstrView::iterator Start,
                        const AST::InstrView::iterator End);
 
+  /// An RAII transaction over the GC roots a single registration newly claimed
+  /// for this executor's allocator. The claim is reversed on destruction unless
+  /// commit() is called, so it spans the whole registration rather than just
+  /// the attach walk: a registration failing AFTER the attach -- notably
+  /// StoreManager::registerModule rejecting a duplicate name -- must not leave
+  /// the module's tables and globals durably owned by this allocator. A leaked
+  /// claim is not memory-unsafe, but it would keep scanning a module that was
+  /// never published and make a later registration of the same module into a
+  /// different executor fail the foreign-hazard check, turning a recoverable
+  /// name conflict into a permanent cross-executor rejection.
+  class RegisteredRootsClaim {
+  public:
+    RegisteredRootsClaim() noexcept = default;
+    explicit RegisteredRootsClaim(GC::Allocator &A) noexcept : Alloc(&A) {}
+    RegisteredRootsClaim(const RegisteredRootsClaim &) = delete;
+    RegisteredRootsClaim &operator=(const RegisteredRootsClaim &) = delete;
+    RegisteredRootsClaim(RegisteredRootsClaim &&Other) noexcept
+        : Alloc(Other.Alloc), Tables(std::move(Other.Tables)),
+          Globals(std::move(Other.Globals)) {
+      // Disarm the source so the moved-from guard cannot double-detach.
+      Other.disarm();
+    }
+    RegisteredRootsClaim &operator=(RegisteredRootsClaim &&Other) noexcept {
+      if (this != &Other) {
+        rollback();
+        Alloc = Other.Alloc;
+        Tables = std::move(Other.Tables);
+        Globals = std::move(Other.Globals);
+        Other.disarm();
+      }
+      return *this;
+    }
+    ~RegisteredRootsClaim() noexcept { rollback(); }
+
+    /// Record a root this registration newly claimed (and must reverse on
+    /// failure). Same-owner and freely-shareable attaches are NOT recorded:
+    /// they left a prior owner in place, so there is nothing to roll back.
+    void recordTable(Runtime::Instance::TableInstance &T) noexcept {
+      Tables.push_back(&T);
+    }
+    void recordGlobal(Runtime::Instance::GlobalInstance &G) noexcept {
+      Globals.push_back(&G);
+    }
+
+    /// The registration completed: keep every claim permanently.
+    void commit() noexcept { disarm(); }
+
+  private:
+    void disarm() noexcept {
+      Alloc = nullptr;
+      Tables.clear();
+      Globals.clear();
+    }
+    void rollback() noexcept {
+      if (Alloc == nullptr) {
+        return;
+      }
+      for (auto *T : Tables) {
+        T->detachAllocator(*Alloc);
+      }
+      for (auto *G : Globals) {
+        G->detachAllocator(*Alloc);
+      }
+      disarm();
+    }
+    GC::Allocator *Alloc = nullptr;
+    std::vector<Runtime::Instance::TableInstance *> Tables;
+    std::vector<Runtime::Instance::GlobalInstance *> Globals;
+  };
+
+  /// Attach and validate the ownership of a prebuilt module's GC roots (owned
+  /// tables and globals) against this executor's allocator before the module is
+  /// published into a store. Preflight-all-then-commit with rollback: on the
+  /// first rejected foreign-hazard attach, reverse only the attaches THIS call
+  /// newly made and return the error without publishing. A non-GC executor
+  /// skips the walk entirely. Used by both registerModule(const ModuleInstance
+  /// &) overloads.
+  ///
+  /// On success returns the ARMED claim covering the roots newly attached; the
+  /// caller MUST call commit() on it once publication has actually succeeded,
+  /// or let it destruct to reverse the attach.
+  Expect<RegisteredRootsClaim> attachRegisteredModuleRoots(
+      const Runtime::Instance::ModuleInstance &ModInst) noexcept;
+
   /// \name Functions for instantiation.
   /// @{
   /// Instantiation of Module Instance.
@@ -269,9 +474,13 @@ private:
       const AST::ImportSection &ImportSec);
 
   /// Instantiation of Function Instances.
+  /// \param GCCompiled whether the module's compiled code is GC-capable. A
+  /// GC-enabled executor refuses to bind a non-capable module's compiled
+  /// symbols and builds interpreter-mode functions instead.
   Expect<void> instantiate(Runtime::Instance::ModuleInstance &ModInst,
                            const AST::FunctionSection &FuncSec,
-                           const AST::CodeSection &CodeSec);
+                           const AST::CodeSection &CodeSec,
+                           bool GCCompiled = true);
 
   /// Instantiation of Table Instances.
   Expect<void> instantiate(Runtime::StackManager &StackMgr,
@@ -440,7 +649,7 @@ private:
   /// @{
   Expect<RefVariant> structNew(const Runtime::Instance::ModuleInstance *ModInst,
                                const uint32_t TypeIdx,
-                               Span<const ValVariant> Args = {}) const noexcept;
+                               Span<const ValVariant> Args = {}) noexcept;
   Expect<ValVariant> structGet(const Runtime::Instance::ModuleInstance *ModInst,
                                const RefVariant Ref, const uint32_t TypeIdx,
                                const uint32_t Off,
@@ -451,15 +660,15 @@ private:
                          const uint32_t Off) const noexcept;
   Expect<RefVariant> arrayNew(const Runtime::Instance::ModuleInstance *ModInst,
                               const uint32_t TypeIdx, const uint32_t Length,
-                              Span<const ValVariant> Args = {}) const noexcept;
+                              Span<const ValVariant> Args = {}) noexcept;
   Expect<RefVariant>
   arrayNewData(const Runtime::Instance::ModuleInstance *ModInst,
                const uint32_t TypeIdx, const uint32_t DataIdx,
-               const uint32_t Start, const uint32_t Length) const noexcept;
+               const uint32_t Start, const uint32_t Length) noexcept;
   Expect<RefVariant>
   arrayNewElem(const Runtime::Instance::ModuleInstance *ModInst,
                const uint32_t TypeIdx, const uint32_t ElemIdx,
-               const uint32_t Start, const uint32_t Length) const noexcept;
+               const uint32_t Start, const uint32_t Length) noexcept;
   Expect<ValVariant> arrayGet(const Runtime::Instance::ModuleInstance *ModInst,
                               const RefVariant &Ref, const uint32_t TypeIdx,
                               const uint32_t Idx,
@@ -639,64 +848,63 @@ private:
   /// ======= Reference instructions =======
   Expect<void> runRefNullOp(Runtime::StackManager &StackMgr,
                             const ValType &Type) const noexcept;
-  Expect<void> runRefIsNullOp(ValVariant &Val) const noexcept;
+  Expect<void> runRefIsNullOp(Runtime::StackManager &StackMgr) const noexcept;
   Expect<void> runRefFuncOp(Runtime::StackManager &StackMgr,
                             uint32_t Idx) const noexcept;
-  Expect<void> runRefEqOp(ValVariant &Val1,
-                          const ValVariant &Val2) const noexcept;
-  Expect<void> runRefAsNonNullOp(RefVariant &Val,
+  Expect<void> runRefEqOp(Runtime::StackManager &StackMgr) const noexcept;
+  Expect<void> runRefAsNonNullOp(Runtime::StackManager &StackMgr,
                                  const AST::Instruction &Instr) const noexcept;
   Expect<void> runStructNewOp(Runtime::StackManager &StackMgr,
                               const uint32_t TypeIdx,
-                              const bool IsDefault = false) const noexcept;
+                              const bool IsDefault = false) noexcept;
   Expect<void> runStructGetOp(Runtime::StackManager &StackMgr,
                               const uint32_t TypeIdx, const uint32_t Off,
                               const AST::Instruction &Instr,
                               const bool IsSigned = false) const noexcept;
   Expect<void> runStructSetOp(Runtime::StackManager &StackMgr,
-                              const ValVariant &Val, const uint32_t TypeIdx,
-                              const uint32_t Off,
+                              const uint32_t TypeIdx, const uint32_t Off,
                               const AST::Instruction &Instr) const noexcept;
   Expect<void> runArrayNewOp(Runtime::StackManager &StackMgr,
                              const uint32_t TypeIdx, const uint32_t InitCnt,
-                             uint32_t Length) const noexcept;
+                             uint32_t Length) noexcept;
   Expect<void> runArrayNewDataOp(Runtime::StackManager &StackMgr,
                                  const uint32_t TypeIdx, const uint32_t DataIdx,
-                                 const AST::Instruction &Instr) const noexcept;
+                                 const AST::Instruction &Instr) noexcept;
   Expect<void> runArrayNewElemOp(Runtime::StackManager &StackMgr,
                                  const uint32_t TypeIdx, const uint32_t ElemIdx,
-                                 const AST::Instruction &Instr) const noexcept;
+                                 const AST::Instruction &Instr) noexcept;
   Expect<void> runArrayGetOp(Runtime::StackManager &StackMgr,
                              const uint32_t TypeIdx,
                              const AST::Instruction &Instr,
                              const bool IsSigned = false) const noexcept;
   Expect<void> runArraySetOp(Runtime::StackManager &StackMgr,
-                             const ValVariant &Val, const uint32_t TypeIdx,
+                             const uint32_t TypeIdx,
                              const AST::Instruction &Instr) const noexcept;
-  Expect<void> runArrayLenOp(ValVariant &Val,
+  Expect<void> runArrayLenOp(Runtime::StackManager &StackMgr,
                              const AST::Instruction &Instr) const noexcept;
   Expect<void> runArrayFillOp(Runtime::StackManager &StackMgr,
-                              const uint32_t Cnt, const ValVariant &Val,
                               const uint32_t TypeIdx,
                               const AST::Instruction &Instr) const noexcept;
   Expect<void> runArrayCopyOp(Runtime::StackManager &StackMgr,
-                              const uint32_t Cnt, const uint32_t DstTypeIdx,
+                              const uint32_t DstTypeIdx,
                               const uint32_t SrcTypeIdx,
                               const AST::Instruction &Instr) const noexcept;
   Expect<void> runArrayInitDataOp(Runtime::StackManager &StackMgr,
-                                  const uint32_t Cnt, const uint32_t TypeIdx,
+                                  const uint32_t TypeIdx,
                                   const uint32_t DataIdx,
                                   const AST::Instruction &Instr) const noexcept;
   Expect<void> runArrayInitElemOp(Runtime::StackManager &StackMgr,
-                                  const uint32_t Cnt, const uint32_t TypeIdx,
+                                  const uint32_t TypeIdx,
                                   const uint32_t ElemIdx,
                                   const AST::Instruction &Instr) const noexcept;
-  Expect<void> runRefTestOp(const Runtime::Instance::ModuleInstance *ModInst,
-                            ValVariant &Val, const AST::Instruction &Instr,
+  Expect<void> runRefTestOp(Runtime::StackManager &StackMgr,
+                            const AST::Instruction &Instr,
                             const bool IsCast = false) const noexcept;
-  Expect<void> runRefConvOp(RefVariant &Val, TypeCode TCode) const noexcept;
-  Expect<void> runRefI31Op(ValVariant &Val) const noexcept;
-  Expect<void> runI31GetOp(ValVariant &Val, const AST::Instruction &Instr,
+  Expect<void> runRefConvOp(Runtime::StackManager &StackMgr,
+                            TypeCode TCode) const noexcept;
+  Expect<void> runRefI31Op(Runtime::StackManager &StackMgr) const noexcept;
+  Expect<void> runI31GetOp(Runtime::StackManager &StackMgr,
+                           const AST::Instruction &Instr,
                            const bool IsSigned = false) const noexcept;
   /// ======= Table instructions =======
   Expect<void> runTableGetOp(Runtime::StackManager &StackMgr,
@@ -747,81 +955,96 @@ private:
                                Runtime::Instance::MemoryInstance &MemInst,
                                const AST::Instruction &Instr);
   /// ======= Test and Relation Numeric instructions =======
-  template <typename T> TypeU<T> runEqzOp(ValVariant &Val) const;
   template <typename T>
-  TypeT<T> runEqOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeU<T> runEqzOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeT<T> runNeOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeT<T> runEqOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeT<T> runLtOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeT<T> runNeOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeT<T> runGtOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeT<T> runLtOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeT<T> runLeOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeT<T> runGtOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeT<T> runGeOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeT<T> runLeOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeT<T> runGeOp(Runtime::StackManager &StackMgr) const noexcept;
   /// ======= Unary Numeric instructions =======
-  template <typename T> TypeU<T> runClzOp(ValVariant &Val) const;
-  template <typename T> TypeU<T> runCtzOp(ValVariant &Val) const;
-  template <typename T> TypeU<T> runPopcntOp(ValVariant &Val) const;
-  template <typename T> TypeF<T> runAbsOp(ValVariant &Val) const;
-  template <typename T> TypeF<T> runNegOp(ValVariant &Val) const;
-  template <typename T> TypeF<T> runCeilOp(ValVariant &Val) const;
-  template <typename T> TypeF<T> runFloorOp(ValVariant &Val) const;
-  template <typename T> TypeF<T> runTruncOp(ValVariant &Val) const;
-  template <typename T> TypeF<T> runNearestOp(ValVariant &Val) const;
-  template <typename T> TypeF<T> runSqrtOp(ValVariant &Val) const;
+  template <typename T>
+  TypeU<T> runClzOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeU<T> runCtzOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeU<T> runPopcntOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeF<T> runAbsOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeF<T> runNegOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeF<T> runCeilOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeF<T> runFloorOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeF<T> runTruncOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeF<T> runNearestOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  TypeF<T> runSqrtOp(Runtime::StackManager &StackMgr) const noexcept;
   /// ======= Binary Numeric instructions =======
   template <typename T>
-  TypeN<T> runAddOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeN<T> runAddOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeN<T> runSubOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeN<T> runSubOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeN<T> runMulOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeN<T> runMulOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeT<T> runDivOp(const AST::Instruction &Instr, ValVariant &Val1,
-                    const ValVariant &Val2) const;
+  TypeT<T> runDivOp(Runtime::StackManager &StackMgr,
+                    const AST::Instruction &Instr) const noexcept;
   template <typename T>
-  TypeI<T> runRemOp(const AST::Instruction &Instr, ValVariant &Val1,
-                    const ValVariant &Val2) const;
+  TypeI<T> runRemOp(Runtime::StackManager &StackMgr,
+                    const AST::Instruction &Instr) const noexcept;
   template <typename T>
-  TypeU<T> runAndOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeU<T> runAndOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeU<T> runOrOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeU<T> runOrOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeU<T> runXorOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeU<T> runXorOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeU<T> runShlOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeU<T> runShlOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeI<T> runShrOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeI<T> runShrOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeU<T> runRotlOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeU<T> runRotlOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeU<T> runRotrOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeU<T> runRotrOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeF<T> runMinOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeF<T> runMinOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeF<T> runMaxOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeF<T> runMaxOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  TypeF<T> runCopysignOp(ValVariant &Val1, const ValVariant &Val2) const;
+  TypeF<T> runCopysignOp(Runtime::StackManager &StackMgr) const noexcept;
   /// ======= Cast Numeric instructions =======
   template <typename TIn, typename TOut>
-  TypeUU<TIn, TOut> runWrapOp(ValVariant &Val) const;
+  TypeUU<TIn, TOut> runWrapOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  TypeFI<TIn, TOut> runTruncateOp(const AST::Instruction &Instr,
-                                  ValVariant &Val) const;
+  TypeFI<TIn, TOut> runTruncateOp(Runtime::StackManager &StackMgr,
+                                  const AST::Instruction &Instr) const noexcept;
   template <typename TIn, typename TOut>
-  TypeFI<TIn, TOut> runTruncateSatOp(ValVariant &Val) const;
+  TypeFI<TIn, TOut>
+  runTruncateSatOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut, size_t B = sizeof(TIn) * 8>
-  TypeIU<TIn, TOut> runExtendOp(ValVariant &Val) const;
+  TypeIU<TIn, TOut> runExtendOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  TypeIF<TIn, TOut> runConvertOp(ValVariant &Val) const;
+  TypeIF<TIn, TOut>
+  runConvertOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  TypeFF<TIn, TOut> runDemoteOp(ValVariant &Val) const;
+  TypeFF<TIn, TOut> runDemoteOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  TypeFF<TIn, TOut> runPromoteOp(ValVariant &Val) const;
+  TypeFF<TIn, TOut>
+  runPromoteOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  TypeNN<TIn, TOut> runReinterpretOp(ValVariant &Val) const;
+  TypeNN<TIn, TOut>
+  runReinterpretOp(Runtime::StackManager &StackMgr) const noexcept;
   /// ======= SIMD Memory instructions =======
   template <typename TIn, typename TOut>
   Expect<void> runLoadExpandOp(Runtime::StackManager &StackMgr,
@@ -841,143 +1064,167 @@ private:
                               const AST::Instruction &Instr);
   /// ======= SIMD Lane instructions =======
   template <typename TIn, typename TOut = TIn>
-  Expect<void> runExtractLaneOp(ValVariant &Val, const uint8_t Index) const;
+  Expect<void> runExtractLaneOp(Runtime::StackManager &StackMgr,
+                                const uint8_t Index) const noexcept;
   template <typename TIn, typename TOut = TIn>
-  Expect<void> runReplaceLaneOp(ValVariant &Val1, const ValVariant &Val2,
-                                const uint8_t Index) const;
+  Expect<void> runReplaceLaneOp(Runtime::StackManager &StackMgr,
+                                const uint8_t Index) const noexcept;
   /// ======= SIMD Numeric instructions =======
   template <typename TIn, typename TOut = TIn>
-  Expect<void> runSplatOp(ValVariant &Val) const;
+  Expect<void> runSplatOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorEqOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorEqOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorNeOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorNeOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorLtOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorLtOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorGtOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorGtOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorLeOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorLeOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorGeOp(ValVariant &Val1, const ValVariant &Val2) const;
-  template <typename T> Expect<void> runVectorAbsOp(ValVariant &Val) const;
-  template <typename T> Expect<void> runVectorNegOp(ValVariant &Val) const;
-  inline Expect<void> runVectorPopcntOp(ValVariant &Val) const;
-  template <typename T> Expect<void> runVectorSqrtOp(ValVariant &Val) const;
+  Expect<void> runVectorGeOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void> runVectorAbsOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void> runVectorNegOp(Runtime::StackManager &StackMgr) const noexcept;
+  inline Expect<void>
+  runVectorPopcntOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void> runVectorSqrtOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorTruncSatOp(ValVariant &Val) const;
+  Expect<void>
+  runVectorTruncSatOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorConvertOp(ValVariant &Val) const;
-  inline Expect<void> runVectorDemoteOp(ValVariant &Val) const;
-  inline Expect<void> runVectorPromoteOp(ValVariant &Val) const;
-  inline Expect<void> runVectorAnyTrueOp(ValVariant &Val) const;
-  template <typename T> Expect<void> runVectorAllTrueOp(ValVariant &Val) const;
-  template <typename T> Expect<void> runVectorBitMaskOp(ValVariant &Val) const;
+  Expect<void>
+  runVectorConvertOp(Runtime::StackManager &StackMgr) const noexcept;
+  inline Expect<void>
+  runVectorDemoteOp(Runtime::StackManager &StackMgr) const noexcept;
+  inline Expect<void>
+  runVectorPromoteOp(Runtime::StackManager &StackMgr) const noexcept;
+  inline Expect<void>
+  runVectorAnyTrueOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void>
+  runVectorAllTrueOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void>
+  runVectorBitMaskOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorNarrowOp(ValVariant &Val1,
-                                 const ValVariant &Val2) const;
+  Expect<void>
+  runVectorNarrowOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorExtendLowOp(ValVariant &Val) const;
+  Expect<void>
+  runVectorExtendLowOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorExtendHighOp(ValVariant &Val) const;
+  Expect<void>
+  runVectorExtendHighOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorExtAddPairwiseOp(ValVariant &Val) const;
+  Expect<void>
+  runVectorExtAddPairwiseOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorExtMulLowOp(ValVariant &Val1,
-                                    const ValVariant &Val2) const;
+  Expect<void>
+  runVectorExtMulLowOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename TIn, typename TOut>
-  Expect<void> runVectorExtMulHighOp(ValVariant &Val1,
-                                     const ValVariant &Val2) const;
-  inline Expect<void> runVectorQ15MulSatOp(ValVariant &Val1,
-                                           const ValVariant &Val2) const;
+  Expect<void>
+  runVectorExtMulHighOp(Runtime::StackManager &StackMgr) const noexcept;
+  inline Expect<void>
+  runVectorQ15MulSatOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorShlOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorShlOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorShrOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorShrOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorAddOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorAddOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorAddSatOp(ValVariant &Val1,
-                                 const ValVariant &Val2) const;
+  Expect<void>
+  runVectorAddSatOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorSubOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorSubOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorSubSatOp(ValVariant &Val1,
-                                 const ValVariant &Val2) const;
+  Expect<void>
+  runVectorSubSatOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorMulOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorMulOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorDivOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorDivOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorMinOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorMinOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorMaxOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorMaxOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorFMinOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorFMinOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T>
-  Expect<void> runVectorFMaxOp(ValVariant &Val1, const ValVariant &Val2) const;
+  Expect<void> runVectorFMaxOp(Runtime::StackManager &StackMgr) const noexcept;
   template <typename T, typename ET>
-  Expect<void> runVectorAvgrOp(ValVariant &Val1, const ValVariant &Val2) const;
-  template <typename T> Expect<void> runVectorCeilOp(ValVariant &Val) const;
-  template <typename T> Expect<void> runVectorFloorOp(ValVariant &Val) const;
-  template <typename T> Expect<void> runVectorTruncOp(ValVariant &Val) const;
-  template <typename T> Expect<void> runVectorNearestOp(ValVariant &Val) const;
+  Expect<void> runVectorAvgrOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void> runVectorCeilOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void> runVectorFloorOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void> runVectorTruncOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void>
+  runVectorNearestOp(Runtime::StackManager &StackMgr) const noexcept;
   /// ======= Relaxed SIMD instructions =======
   template <typename T>
-  Expect<void> runVectorRelaxedLaneselectOp(ValVariant &Val1,
-                                            const ValVariant &Val2,
-                                            const ValVariant &Mask) const;
-  inline Expect<void>
-  runVectorRelaxedIntegerDotProductOp(ValVariant &Val1,
-                                      const ValVariant &Val2) const;
+  Expect<void> runVectorMAddOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void> runVectorNMAddOp(Runtime::StackManager &StackMgr) const noexcept;
+  template <typename T>
+  Expect<void>
+  runVectorRelaxedLaneselectOp(Runtime::StackManager &StackMgr) const noexcept;
+  inline Expect<void> runVectorRelaxedIntegerDotProductOp(
+      Runtime::StackManager &StackMgr) const noexcept;
   inline Expect<void> runVectorRelaxedIntegerDotProductOpAdd(
-      ValVariant &Val1, const ValVariant &Val2, const ValVariant &C) const;
+      Runtime::StackManager &StackMgr) const noexcept;
   /// ======= Atomic instructions =======
   Expect<void> runAtomicNotifyOp(Runtime::StackManager &StackMgr,
                                  Runtime::Instance::MemoryInstance &MemInst,
-                                 const AST::Instruction &Instr);
+                                 const AST::Instruction &Instr) noexcept;
   Expect<void> runMemoryFenceOp();
   template <typename T>
   TypeT<T> runAtomicWaitOp(Runtime::StackManager &StackMgr,
                            Runtime::Instance::MemoryInstance &MemInst,
-                           const AST::Instruction &Instr);
+                           const AST::Instruction &Instr) noexcept;
   template <typename T, typename I>
   TypeT<T> runAtomicLoadOp(Runtime::StackManager &StackMgr,
                            Runtime::Instance::MemoryInstance &MemInst,
-                           const AST::Instruction &Instr);
+                           const AST::Instruction &Instr) noexcept;
   template <typename T, typename I>
   TypeT<T> runAtomicStoreOp(Runtime::StackManager &StackMgr,
                             Runtime::Instance::MemoryInstance &MemInst,
-                            const AST::Instruction &Instr);
+                            const AST::Instruction &Instr) noexcept;
   template <typename T, typename I>
   TypeT<T> runAtomicAddOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst,
-                          const AST::Instruction &Instr);
+                          const AST::Instruction &Instr) noexcept;
   template <typename T, typename I>
   TypeT<T> runAtomicSubOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst,
-                          const AST::Instruction &Instr);
+                          const AST::Instruction &Instr) noexcept;
   template <typename T, typename I>
   TypeT<T> runAtomicOrOp(Runtime::StackManager &StackMgr,
                          Runtime::Instance::MemoryInstance &MemInst,
-                         const AST::Instruction &Instr);
+                         const AST::Instruction &Instr) noexcept;
   template <typename T, typename I>
   TypeT<T> runAtomicAndOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst,
-                          const AST::Instruction &Instr);
+                          const AST::Instruction &Instr) noexcept;
   template <typename T, typename I>
   TypeT<T> runAtomicXorOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst,
-                          const AST::Instruction &Instr);
+                          const AST::Instruction &Instr) noexcept;
   template <typename T, typename I>
   TypeT<T> runAtomicExchangeOp(Runtime::StackManager &StackMgr,
                                Runtime::Instance::MemoryInstance &MemInst,
-                               const AST::Instruction &Instr);
+                               const AST::Instruction &Instr) noexcept;
   template <typename T, typename I>
   TypeT<T>
   runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
                              Runtime::Instance::MemoryInstance &MemInst,
-                             const AST::Instruction &Instr);
+                             const AST::Instruction &Instr) noexcept;
   /// @}
 
 public:
@@ -985,6 +1232,23 @@ public:
   /// @{
   Expect<void> proxyTrap(Runtime::StackManager &StackMgr,
                          const uint32_t Code) noexcept;
+  // GC cooperative safepoint: park this mutator at a safepoint when a
+  // collection has requested a stop-the-world. Called from generated code's
+  // loop-back-edge poll (kGCSafepoint intrinsic) so a compute-only compiled
+  // loop yields to a concurrent collection instead of hanging its handshake.
+  Expect<void> proxyGCSafepoint(Runtime::StackManager &StackMgr) noexcept;
+  // Coherent (type, pointer) ref-slot access for compiled code: read/publish a
+  // 128-bit managed-ref slot (global.get/set, table.get/set of a reference
+  // type) as one atomic transaction, so the marker's relaxed pointer-word load
+  // and a concurrent coherent reader never observe a torn pair. Load writes the
+  // result to a caller-private buffer; Store shades the overwritten and new
+  // references (SATB) before the atomic publish.
+  Expect<void> proxyCoherentRefLoad(Runtime::StackManager &StackMgr,
+                                    const ValVariant *Slot,
+                                    ValVariant *Out) noexcept;
+  Expect<void> proxyCoherentRefStore(Runtime::StackManager &StackMgr,
+                                     ValVariant *Slot,
+                                     const ValVariant *Val) noexcept;
   Expect<void> proxyCall(Runtime::StackManager &StackMgr,
                          const Runtime::Instance::ModuleInstance *ModInst,
                          const uint32_t FuncIdx, const ValVariant *Args,
@@ -1156,6 +1420,8 @@ public:
                              const Runtime::Instance::ModuleInstance *ModInst,
                              ValVariant *Out, const uint32_t PopPayload,
                              const uint32_t NeedRef) noexcept;
+  Expect<void> proxyWriteBarrier(Runtime::StackManager &StackMgr,
+                                 const ValVariant *Val) noexcept;
   /// @}
 
   /// Callbacks for compiled modules
@@ -1172,6 +1438,17 @@ private:
     uint64_t GasLimit;
     std::atomic_uint32_t *StopToken;
     void *const *PendingExnTagAddr;
+    // GC::Controller::ShadowHead* for the calling thread: the stable anchor of
+    // its shadow-root chain, into which compiled code spills managed refs held
+    // across calls so the collector can scan them. Index 6 -- kept in lockstep
+    // with the ExecCtxTy LLVM struct in lib/llvm/compiler/context.cpp.
+    void *ShadowHead;
+    // Pointer to the GC controller's stop flag (std::atomic<bool>). Generated
+    // code polls it at loop back-edges; when set, it calls the kGCSafepoint
+    // intrinsic to park at a cooperative safepoint until the collection
+    // releases. Index 7 -- lockstep with ExecCtxTy in
+    // lib/llvm/compiler/context.cpp.
+    void *GCStopFlag;
   };
 
   /// Compiled code reads this struct by field index through the mirrored
@@ -1188,6 +1465,10 @@ private:
                 offsetof(ExecutorContext, StopToken));
   static_assert(offsetof(ExecutorContext, StopToken) <
                 offsetof(ExecutorContext, PendingExnTagAddr));
+  static_assert(offsetof(ExecutorContext, PendingExnTagAddr) <
+                offsetof(ExecutorContext, ShadowHead));
+  static_assert(offsetof(ExecutorContext, ShadowHead) <
+                offsetof(ExecutorContext, GCStopFlag));
 
   /// Restores thread local VM reference after overwriting it.
   struct SavedThreadLocal {
@@ -1216,12 +1497,33 @@ private:
     /// to keep the exnref identity.
     const Runtime::Instance::ExceptionInstance *Inst = nullptr;
 
-    /// Getter and setter of the payload values.
+    /// Getter of the payload values.
     const std::vector<ValVariant> &getPayload() const noexcept {
       return Payload;
     }
-    void setPayload(Span<const ValVariant> Vals) noexcept {
+
+    /// Set the payload values. The payload is this thread's GC aux root while
+    /// the exception propagates (see pendingExnRoots), and every scan of it
+    /// runs under the controller's root lock -- so an assignment that may
+    /// reallocate the buffer must take that lock too, or a concurrent root scan
+    /// could iterate freed storage. Same discipline as StackManager::push's
+    /// growth path.
+    void setPayload(GC::Controller &Ctrl,
+                    Span<const ValVariant> Vals) noexcept {
+      auto Lock = Ctrl.lockStackRoots();
       Payload.assign(Vals.begin(), Vals.end());
+    }
+
+    /// Consume the pending record: no exception is pending afterwards. Empties
+    /// the payload under the root lock, but KEEPS the vector itself -- it stays
+    /// published as this thread's aux root for the whole thread lifetime, so it
+    /// must never be destroyed or swapped out (which assigning a fresh
+    /// PendingExnStruct would do).
+    void clear(GC::Controller &Ctrl) noexcept {
+      TagInst = nullptr;
+      Inst = nullptr;
+      auto Lock = Ctrl.lockStackRoots();
+      Payload.clear();
     }
 
   private:
@@ -1242,6 +1544,10 @@ private:
 
   /// WasmEdge configuration
   const Configure Conf;
+  /// Cached Conf.hasProposal(Proposal::GC). enterFunction consults this on
+  /// every compiled call, so keep it a plain load rather than a proposal-set
+  /// lookup.
+  const bool GCEnabled;
   /// Executor statistics
   Statistics::Statistics *Stat;
   /// Stop execution
@@ -1268,6 +1574,9 @@ private:
     }
     return {};
   }
+
+  /// GC protocol controller (owns the GC allocator).
+  GC::Controller Controller;
 };
 
 } // namespace Executor

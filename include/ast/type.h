@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/errcode.h"
 #include "common/executable.h"
 #include "common/fmt.h"
 #include "common/span.h"
@@ -451,6 +452,37 @@ public:
       }
     }
     return false;
+  }
+
+  /// True if a reference type can hold a GC-managed (struct/array) heap
+  /// object, directly or via any/eq/extern/exn. Used both to gate the
+  /// cross-executor import guard (funcref tables/globals carry only function
+  /// refs and stay freely shareable) and to resolve a table's immutable
+  /// can-hold-managed bit at construction. \p TypeList is the defining
+  /// module's type list, needed because a concrete heap-type index is
+  /// defining-module-relative.
+  static bool
+  refTypeCanHoldGCObject(const ValType &RT,
+                         Span<const SubType *const> TypeList) noexcept {
+    if (!RT.isRefType()) {
+      return false;
+    }
+    if (RT.isFuncRefType()) {
+      // Abstract funcref/nullfuncref never reference GC objects.
+      if (RT.isAbsHeapType()) {
+        return false;
+      }
+      // Concrete type index (also classified func-ref here): GC-capable only
+      // if it expands to a struct/array composite.
+      if (const uint32_t Idx = RT.getTypeIndex();
+          likely(Idx < TypeList.size())) {
+        return !TypeList[Idx]->getCompositeType().isFunc();
+      }
+      return false;
+    }
+    // any/eq/i31/struct/array/extern/exn may carry GC objects. i31 is not
+    // heap-allocated, but conservatively rejecting its sharing is harmless.
+    return true;
   }
 
 private:

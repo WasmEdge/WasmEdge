@@ -17,7 +17,6 @@
 #include "ast/module.h"
 #include "common/errcode.h"
 #include "runtime/hostfunc.h"
-#include "runtime/instance/array.h"
 #include "runtime/instance/data.h"
 #include "runtime/instance/elem.h"
 #include "runtime/instance/exception.h"
@@ -25,7 +24,6 @@
 #include "runtime/instance/global.h"
 #include "runtime/instance/memory.h"
 #include "runtime/instance/reflifetime.h"
-#include "runtime/instance/struct.h"
 #include "runtime/instance/table.h"
 #include "runtime/instance/tag.h"
 
@@ -106,6 +104,37 @@ public:
     }
   }
 
+  /// Pin this instance alive for one out-of-band user whose access may outlive
+  /// the pinning call -- e.g. a detached async invocation whose worker
+  /// dereferences a FunctionInstance from this module after the launch call
+  /// returns. Mirrors the importer dependency pin (addDependency): a heap
+  /// instance torn down via terminate() is not deleted while any such pin is
+  /// live. Balance each pin() with exactly one unpin(). const because a
+  /// lifetime pin does not alter logical module state; Life is a mutable
+  /// intrusive counter.
+  void pin() const noexcept { Life.addDependent(); }
+
+  /// Release one pin() taken earlier. Returns true iff this was the last
+  /// dependent and the owner has already released (terminate()), in which case
+  /// the caller MUST `delete` this instance now. A still-owned instance
+  /// (stack/member, or store-held before terminate()) always returns false.
+  [[nodiscard]] bool unpin() const noexcept { return Life.releaseDependent(); }
+
+  /// Storage-class marker for the async launch path. True iff this instance
+  /// is heap-allocated with a terminate()-managed deletion contract, so a
+  /// ModulePin taken by a detached async invocation can actually DEFER its
+  /// deletion. Set by the runtime instantiation paths, the C API creation
+  /// wrappers, and the VM's built-in/plugin registration; an
+  /// embedder-constructed (stack/member) module never gets it, and
+  /// Executor::asyncInvoke refuses such a target up front -- a pin on it
+  /// could only turn a racing teardown into an abort, never defer it.
+  void setDeferrableStorage() noexcept {
+    DeferrableStorage.store(true, std::memory_order_release);
+  }
+  bool isDeferrableStorage() const noexcept {
+    return DeferrableStorage.load(std::memory_order_acquire);
+  }
+
   /// Mark this module instance finalized (immutable). Idempotent, thread-safe.
   void finalizeInstantiation() const noexcept {
     if (InstantiateFinalized.load(std::memory_order_acquire)) {
@@ -119,6 +148,27 @@ public:
   bool isInstantiateFinalized() const noexcept {
     return InstantiateFinalized.load(std::memory_order_acquire);
   }
+
+  /// \name GC-capability flag, carried on the *instance*.
+  ///
+  /// AST::Module::getGCCompiled() says whether an artifact's native code was
+  /// built with GC support; Executor::instantiate consumes it and deopts a
+  /// non-capable module to the interpreter. That choke point only covers
+  /// modules this executor instantiated. A module instantiated by a GC-off
+  /// executor keeps its compiled functions bound, and registerModule or a
+  /// direct Executor::invoke can then hand those to a GC-enabled executor,
+  /// which would run native code that never polls a safepoint and publishes no
+  /// shadow roots. Copying the bit onto the instance lets enterFunction refuse
+  /// that at the call itself. Defaults to true so host modules, embedder-built
+  /// instances, and every interpreter path keep prior behavior.
+  /// @{
+  void setGCCompiled(bool V) noexcept {
+    GCCompiled.store(V, std::memory_order_release);
+  }
+  bool isGCCompiled() const noexcept {
+    return GCCompiled.load(std::memory_order_acquire);
+  }
+  /// @}
 
   std::string_view getModuleName() const noexcept {
     std::shared_lock Lock(Mutex);
@@ -304,9 +354,22 @@ protected:
     unsafeAddInstance(OwnedFuncInsts, FuncInsts, this,
                       std::forward<Args>(Values)...);
   }
-  template <typename... Args> void addTable(Args &&...Values) {
+  template <typename... Args>
+  Expect<void> addTable(GC::Allocator &A, const AST::TableType &TType,
+                        Args &&...Values) {
     std::unique_lock Lock(Mutex);
-    unsafeAddInstance(OwnedTabInsts, TabInsts, std::forward<Args>(Values)...);
+    // Resolve the table's immutable can-hold-managed bit here, at the one call
+    // site with both the table type and this module's type list: the heap-type
+    // index in TType is defining-module-relative, so TableInstance itself
+    // cannot compute it.
+    const bool CanHoldManaged = AST::TypeMatcher::refTypeCanHoldGCObject(
+        TType.getRefType(), getTypeList());
+    unsafeAddInstance(OwnedTabInsts, TabInsts, TType,
+                      std::forward<Args>(Values)..., CanHoldManaged);
+    // Fallible attach: a freshly created in-module table is unattached, so its
+    // first attach to this module's allocator always succeeds; propagate the
+    // result so every caller honors the contract.
+    return TabInsts.back()->setAllocator(A);
   }
   template <typename... Args> void addMemory(Args &&...Values) {
     std::unique_lock Lock(Mutex);
@@ -316,35 +379,34 @@ protected:
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedTagInsts, TagInsts, std::forward<Args>(Values)...);
   }
-  template <typename... Args> void addGlobal(Args &&...Values) {
+  template <typename... Args>
+  Expect<void> addGlobal(GC::Allocator &A, const AST::GlobalType &GType,
+                         Args &&...Values) {
     std::unique_lock Lock(Mutex);
-    unsafeAddInstance(OwnedGlobInsts, GlobInsts, std::forward<Args>(Values)...);
+    // Resolve the global's immutable can-hold-managed bit here, mirroring
+    // addTable: this is the one site with both the global type and this
+    // module's type list, needed to resolve a concrete heap-type index.
+    const bool CanHoldManaged = AST::TypeMatcher::refTypeCanHoldGCObject(
+        GType.getValType(), getTypeList());
+    unsafeAddInstance(OwnedGlobInsts, GlobInsts, GType, CanHoldManaged,
+                      std::forward<Args>(Values)...);
+    return GlobInsts.back()->setAllocator(A);
   }
-  template <typename... Args> void addElem(Args &&...Values) {
+  template <typename... Args> void addElem(GC::Allocator &A, Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedElemInsts, ElemInsts, std::forward<Args>(Values)...);
+    ElemInsts.back()->setAllocator(A);
   }
   template <typename... Args> void addData(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedDataInsts, DataInsts, std::forward<Args>(Values)...);
   }
-  template <typename... Args> ArrayInstance *newArray(Args &&...Values) {
-    std::unique_lock Lock(Mutex);
-    OwnedArrayInsts.push_back(
-        std::make_unique<ArrayInstance>(this, std::forward<Args>(Values)...));
-    return OwnedArrayInsts.back().get();
-  }
-  template <typename... Args> StructInstance *newStruct(Args &&...Values) {
-    std::unique_lock Lock(Mutex);
-    OwnedStructInsts.push_back(
-        std::make_unique<StructInstance>(this, std::forward<Args>(Values)...));
-    return OwnedStructInsts.back().get();
-  }
   template <typename... Args>
-  ExceptionInstance *newException(Args &&...Values) {
+  ExceptionInstance *newException(GC::Allocator &A, Args &&...Values) {
     std::unique_lock Lock(Mutex);
     OwnedExceptionInsts.push_back(
         std::make_unique<ExceptionInstance>(std::forward<Args>(Values)...));
+    OwnedExceptionInsts.back()->setAllocator(A);
     return OwnedExceptionInsts.back().get();
   }
 
@@ -719,8 +781,6 @@ protected:
   std::vector<std::unique_ptr<GlobalInstance>> OwnedGlobInsts;
   std::vector<std::unique_ptr<ElementInstance>> OwnedElemInsts;
   std::vector<std::unique_ptr<DataInstance>> OwnedDataInsts;
-  std::vector<std::unique_ptr<ArrayInstance>> OwnedArrayInsts;
-  std::vector<std::unique_ptr<StructInstance>> OwnedStructInsts;
   std::vector<std::unique_ptr<ExceptionInstance>> OwnedExceptionInsts;
 
   /// Imported and added instances in this module.
@@ -762,11 +822,62 @@ protected:
   mutable std::atomic<bool> InstantiateFinalized{false};
 
   /// Intrusive lifetime: owner flag plus importer count, packed into one
-  /// atomic.
-  RefLifetime Life;
+  /// atomic. Mutable so a lifetime pin (pin()/unpin(), addDependency) can be
+  /// taken through a `const ModuleInstance *` without implying logical
+  /// mutation.
+  mutable RefLifetime Life;
+  /// See setDeferrableStorage(). Atomic: set on the (single-threaded)
+  /// creation path but read by any thread launching an async invocation.
+  std::atomic<bool> DeferrableStorage{false};
+  /// See setGCCompiled(). Atomic: stamped once at instantiation but read on
+  /// every compiled call, potentially from another executor's threads.
+  std::atomic<bool> GCCompiled{true};
   /// Provider instances this module imported from; each holds one dependent
   /// pin, released when this module is destroyed.
   std::unordered_set<ModuleInstance *> Providers;
+};
+
+/// Move-only RAII pin on a module instance's dependency lifetime. Holds one
+/// pin() across its lifetime and releases it on destruction, deleting the
+/// module if that release was the deferred owner's last dependent. A null
+/// target (independent host function instance) is inert. Used to keep an
+/// externally-owned module carrying a FunctionInstance alive across a detached
+/// async invocation whose worker outlives the launching call.
+class ModulePin {
+public:
+  ModulePin() noexcept = default;
+  explicit ModulePin(const ModuleInstance *Mod) noexcept : Inst(Mod) {
+    if (Inst != nullptr) {
+      Inst->pin();
+    }
+  }
+  ModulePin(const ModulePin &) = delete;
+  ModulePin &operator=(const ModulePin &) = delete;
+  ModulePin(ModulePin &&Other) noexcept : Inst(Other.Inst) {
+    Other.Inst = nullptr;
+  }
+  ModulePin &operator=(ModulePin &&Other) noexcept {
+    if (this != &Other) {
+      release();
+      Inst = Other.Inst;
+      Other.Inst = nullptr;
+    }
+    return *this;
+  }
+  ~ModulePin() noexcept { release(); }
+
+private:
+  void release() noexcept {
+    if (Inst != nullptr) {
+      const ModuleInstance *Doomed = Inst;
+      Inst = nullptr;
+      if (Doomed->unpin()) {
+        delete Doomed;
+      }
+    }
+  }
+
+  const ModuleInstance *Inst = nullptr;
 };
 
 } // namespace Instance

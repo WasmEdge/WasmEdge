@@ -23,8 +23,18 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
     return Unexpect(ErrCode::Value::NotValidated);
   }
 
+  // Operation lease across instantiation: it registers a value stack (the
+  // start function may run guest code) and touches the allocator. Refused
+  // once the controller is closing -- same boundary contract as
+  // Executor::invoke.
+  auto OpLease = getController().acquireLease();
+  if (unlikely(!OpLease.valid())) {
+    spdlog::error(ErrCode::Value::Interrupted);
+    return Unexpect(ErrCode::Value::Interrupted);
+  }
+
   // Create the stack manager.
-  Runtime::StackManager StackMgr;
+  Runtime::StackManager StackMgr(getController());
 
   // Check whether the module name is duplicated during registration.
   if (Name.has_value()) {
@@ -43,6 +53,10 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   } else {
     ModInst = std::make_unique<Runtime::Instance::ModuleInstance>("");
   }
+  // Runtime-instantiated modules are heap and torn down via terminate()
+  // (VM cleanup / WasmEdge_ModuleInstanceDelete): an async ModulePin can
+  // defer their deletion.
+  ModInst->setDeferrableStorage();
 
   // Instantiate Function Types in Module Instance. (TypeSec)
   for (auto &SubType : Mod.getTypeSection().getContent()) {
@@ -88,8 +102,16 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // Instantiate Functions in module. (FunctionSec, CodeSec)
   const AST::FunctionSection &FuncSec = Mod.getFunctionSection();
   const AST::CodeSection &CodeSec = Mod.getCodeSection();
-  // This function will always success.
-  instantiate(*ModInst, FuncSec, CodeSec);
+  // Pass the module's GC-capability so a GC-enabled executor falls a
+  // non-capable compiled module back to interpreter-mode functions. This can
+  // fail when the fallback is impossible (AOT-stripped bodies), so propagate.
+  EXPECTED_TRY(instantiate(*ModInst, FuncSec, CodeSec, Mod.getGCCompiled())
+                   .map_error(ReportError(ASTNodeAttr::Sec_Function)));
+  // Backstop: carry the capability on the instance too. This executor has
+  // already deopted if it needed to, but the instance can outlive that decision
+  // -- registerModule or a direct invoke can hand these function instances to a
+  // GC-enabled executor that never saw this module's AST.
+  ModInst->setGCCompiled(Mod.getGCCompiled());
 
   // Instantiate MemorySection (MemorySec)
   const AST::MemorySection &MemSec = Mod.getMemorySection();
@@ -102,7 +124,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   instantiate(*ModInst, TagSec);
 
   // Push a new frame {ModInst, locals:none}
-  StackMgr.pushFrame(ModInst.get(), AST::InstrView::iterator(), 0, 0);
+  StackMgr.pushFrame(ModInst.get(), AST::InstrView::iterator());
 
   // Instantiate GlobalSection (GlobalSec)
   const AST::GlobalSection &GlobSec = Mod.getGlobalSection();

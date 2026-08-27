@@ -31,8 +31,12 @@ jobs:
           python3 -m venv ./venv
           source ./venv/bin/activate
           pip install codespell==2.4.1
+          # The contributor thank list of every changelog entry is proper names,
+          # not prose. Skip those lines only, so that a name cannot mask a real
+          # typo of the same word anywhere else.
+          THANK_LIST='Thank all the contributors who made this release possible!\n\n[^\n]*\n'
           # exclude files which may be synchronized from other places
-          git ls-files | grep -v "^thirdparty" | grep -v "/thirdparty/" | grep -v "/dist/" | xargs -t codespell --ignore-words .github/workflows/ignore_words 2>/dev/null
+          git ls-files | grep -v "^thirdparty" | grep -v "/thirdparty/" | grep -v "/dist/" | xargs -t codespell --ignore-words .github/workflows/ignore_words --ignore-multiline-regex "$THANK_LIST" 2>/dev/null
   lineguard:
     name: lineguard
     runs-on: ubuntu-latest

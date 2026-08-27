@@ -1,3 +1,256 @@
+### 0.18.0-alpha.1 (2026-08-28)
+
+Breaking changes:
+
+* [CAPI]
+  * The `WasmEdge_ModuleInstanceAddFunction()`, `WasmEdge_ModuleInstanceAddTable()`, `WasmEdge_ModuleInstanceAddMemory()`, and `WasmEdge_ModuleInstanceAddGlobal()` APIs return `WasmEdge_Result` instead of `void`.
+    * A module instance is mutable until its first use in execution, and becomes finalized (immutable) after that. Adding host instances into a finalized module instance fails with the `WrongVMWorkflow` error.
+    * On failure, the ownership of the added instance is __NOT__ taken, and the caller is still responsible for destroying it.
+  * The `libwasmedge` shared library exports versioned symbols now. (#4951)
+    * The `WASMEDGE_0.16`, `WASMEDGE_0.17`, and `WASMEDGE_0.18` symbol versions are provided with the backward-compatible shims, so that the applications linked against the previous WasmEdge shared libraries keep working without recompilation.
+  * The `WasmEdge_VMForceDeleteRegisteredModule()` API is deprecated.
+    * Use the `WasmEdge_VMDeleteRegisteredModule()` API instead, which respects the module dependency tree and destroys the module only when no other module depends on it.
+  * The `WasmEdge_ModuleInstanceInitWasmEdgeProcess()` API is moved into `wasmedge_deprecated.h`.
+    * This API has no effect after the `wasmedge_process` plug-in removal, unless an external plug-in named `wasmedge_process` is loaded.
+* [AOT]
+  * Bump the AOT binary version from `2` to `3`.
+    * The universal WASM and shared-library WASM artifacts compiled by the older versions are rejected and should be recompiled.
+* [Plugin]
+  * Removed the `wasmedge_process` plug-in (#5295), and deprecated the `wasmedge-llmc` plug-in (#4964).
+  * The `wasmedge_opencvmini` plug-in requires OpenCV 5 (`core`, `imgproc`, and `imgcodecs`) now.
+    * The HighGUI-backed `imshow` and `waitkey` exports are removed. The export count drops from 19 to 17.
+  * The `wasmedge_zlib` plug-in disables `gzdopen`.
+* [Tools]
+  * Removed the deprecated per-proposal enabling CLI options.
+    * The `--enable-tail-call`, `--enable-extended-const`, `--enable-function-reference`, `--enable-gc`, `--enable-multi-memory`, `--enable-relaxed-simd`, and `--enable-exception-handling` options are removed, because the WASM 3.0 standard already includes these proposals.
+* [Installer]
+  * Dropped the support of installing WasmEdge `0.12.x` and the older versions. (#5165)
+* [Build]
+  * The `WASMEDGE_USE_CXX11_ABI` CMake option is deprecated and has no effect.
+    * WasmEdge is always built with the cxx11 ABI now.
+
+Features:
+
+* [WASM C API]
+  * Implemented the WebAssembly C API proposal (`wasm.h`) as a new public interface of `libwasmedge`, provided in parallel with the existing `WasmEdge_*` C API.
+  * Vendored the `wasm.h` header from the upstream proposal, and exported both the C (`wasm_*`) and the C++ (`wasm::`) surfaces from the shared library.
+  * Supported the whole object model, including the engine, store, module (with the shared module, serialization, and deserialization), instance, function, global, table, memory, extern, trap, frame, and the type and value objects.
+  * Supported the module instantiation, the function invocation with the host functions, and the trap reporting.
+* [Exception Handling]
+  * Completed the WASM exception-handling proposal for the AOT, JIT, and lazy JIT modes. (#5168)
+  * Compiled the `try_table`, `throw`, and `throw_ref` instructions, and propagated the exceptions across the compiled and the interpreted frames.
+  * Before this release, compiling a module which contains these instructions failed with the `AOTNotImpl` error.
+* [Lazy JIT]
+  * Introduced the lazy JIT execution mode, which compiles every function on its first call instead of compiling the whole module in advance.
+  * Selected by the `--run-mode lazyjit` CLI option or the run mode configuration.
+* [Component Model]
+  * Validated the resource, start, extern descriptor, and tag definitions. (#4863)
+  * Validated the component instantiation and the instance type subtyping.
+  * Applied the strong-uniqueness rule to the export names. (#4878)
+  * Enumerated the exports of the imported and the aliased core modules. (#4915)
+* [Runtime]
+  * Module instances become finalized after their first use in execution, which removes the getter locks from the execution hot path. (#5052)
+  * Added the module dependency tree, so that unregistering a module destroys it only when no other module depends on it.
+  * Added the `RefLifetime` intrusive lifetime primitive for the reference-counted runtime instances.
+* [Tools]
+  * Added the `parse`, `validate`, and `instantiate` subcommands into the `wasmedge` CLI.
+  * The `parse` subcommand prints the table, memory, start, element, and data sections. (#4957)
+* [Installer]
+  * Added the `--no-modify-shell-profile` flag to skip modifying the shell login profiles. (#4956)
+* [Plugin]
+  * The `wasi_crypto` plug-in implements the managed keypair generation for EdDSA (#4776), and the public key verification for EdDSA and ECDSA (#4927, #4932).
+  * The `wasmedge_zlib` plug-in resolves the `gzopen` path through the WASI capability layer, so that the guests can no longer reach the host files outside their preopens.
+* [Misc]
+  * Enabled the `-Wshadow` and `-Wshadow-field` warnings for the whole code base.
+  * Added the component model fuzzer targets for OSS-Fuzz, and deprecated the older component fuzzer. (#5044, #5090)
+
+Performance:
+
+* [AOT]
+  * Inlined `memory.size`, `table.size`, `table.get`, and `table.set` into the compiled code, and dropped their intrinsic calls.
+  * Inlined the `call_indirect` dispatch from the function instance, and added a fast-path type check in the JIT mode. (#4613)
+  * Lowered the SIMD min, max, and abs operations onto the LLVM intrinsics. (#4847)
+* [Executor]
+  * Force-inlined the interpreter instruction dispatch. (#5051)
+* [Validator]
+  * Memoized the subtype depth computation of the GC type validation. (#5058)
+
+Fixed issues:
+
+* [Loader]
+  * Bounded the loader recursion depth of the nested components to prevent the stack overflow.
+  * Rejected the reserved flag values of the `br_on_cast` and `br_on_cast_fail` instructions. (#5264)
+  * Bound-checked the symbol offsets of the AOT custom sections. (#5255)
+  * Loaded the native shared-library WASM only in the AOT run mode. (#5292)
+  * Rejected the non-regular-file paths, such as the directories, before memory-mapping them.
+  * Initialized the memory lane immediate of the instructions.
+* [Serializer]
+  * Corrected the index encoding of the `table.copy`, `memory.init`, and `memory.copy` instructions.
+  * Corrected the immediate byte order of the `v128.const` and `i8x16.shuffle` instructions. (#4983)
+  * Emitted the `sub` prefix for the non-final GC subtypes which have no supertypes. (#5001)
+  * Emitted the `0x04` flag for the memory64 (i64) limits. (#5178)
+  * Emitted the correct flags for the passive element segments. (#5269)
+  * Stopped injecting an extra `0x00` attribute byte into the tag export descriptions. (#4965)
+* [Validator]
+  * Rejected the non-funcref tables and references in the `call_indirect` and `call_ref` instructions. (#4920)
+  * Rejected the subtypes which refer to a forward-declared supertype. (#5087)
+  * Rejected `ref.func` on the imported functions which are not declared. (#5314)
+* [Executor]
+  * Erased the exception payload on `catch_all` in the interpreter. (#5202)
+  * Dropped the stale `try_table` handlers at branch time, which caused an out-of-bounds write. (#5252)
+  * Corrected the `return_call` continuation of the tail calls into the host functions. (#5286)
+  * Applied the memmove semantics to the same-memory `memory.copy` in the compiled code. (#5010)
+  * Attributed the recorded stack frames and the cross-module traps to their own modules.
+* [AOT]
+  * Ran the compiled cross-module calls with the module context of the callee instead of the caller.
+  * Bound-checked the memory64 loads and stores, and read the bounds check size from the module context. (#5282, #5294)
+  * Widened the `call_indirect` table index to 64-bit for the table64 case.
+  * Lowered the tail calls of the mismatched prototypes by `tail` instead of `musttail`.
+  * Mangled the single-overload AArch64 NEON intrinsics correctly.
+  * Failed the compilation when the LLVM module verification reports an error.
+  * Corrected the lazy JIT state lifetime: kept it owned and rebindable across the instantiations, reset the LLVM module between the batches, restored the rebound functions from the persisted code addresses, and destroyed the engine after the executor.
+  * Included `<cstring>` in `llvm.h` for `std::memcpy`.
+* [Runtime]
+  * Corrected the module lookup after unregistering a module from the VM. (#4905)
+  * Cleared the named component map in `StoreManager::reset()`. (#4897)
+  * Snapshotted the linked store under the lock, drained the teardown iteratively, and pinned the import providers, which fixes the data races and the deep recursion during the store teardown.
+* [Component Model]
+  * Trapped on the out-of-bounds string lifting, and rejected the indirect return. (#4883)
+  * Grew the component index space on the exports to match the validator. (#5256)
+* [CAPI]
+  * `WasmEdge_FunctionInstanceGetData()` returns `NULL` for the function instances which are not created by the C API. (#5313)
+  * Corrected the `wasm::Module` member functions and the documentation comments of the WASM C API.
+* [WASI]
+  * Rejected the symlink targets which resolve outside the preopened root. (#4938)
+  * Trapped on the misaligned guest pointers of the WASI host functions, covering the arguments, environment, clock, file descriptor, path, poll, and socket entries. (#5089, #5229, #5263, #5301)
+  * Corrected the IPv6 address copy size in the Windows WASI `connect`. (#4860)
+  * Applied `F_SETFL` to the accepted socket instead of the listening socket. (#4670)
+  * Used the BSD-conventional `addrlen` for the `AF_UNIX` sockets. (#5124)
+  * Split the `fcntl` calls to prevent the FORTIFY crash on Android. (#4807)
+* [WASI-NN]
+  * Prevented the shell injection through the whisper audio input of the MLX backend. (#4902)
+  * Bounds-checked the `get_output` buffers across the local backends and the RPC client, and grew the RPC scratch memory to fit by bytes.
+  * Validated the name and config extents in `load_by_name`, the tensor field lengths in the MLX `fromBytes` (#4949), and reused the validated tensor data in the RPC `set_input` (#4942).
+  * Corrected the graph and context lifetime: made the `Detached` status terminal, folded the concurrent same-name builds onto one cached graph, rejected the null-context drains in the GGML and BitNet backends, flipped the graphs to `Detached` before dropping their table entries, gated the llama and whisper global log callbacks on the reference-counted tokens, and hardened the PyTorch model ownership and null guards.
+  * Serialized the MLX temporary model file names to prevent the load-by-name races.
+  * Added the missing `sv` suffix to the spdlog calls of the TensorFlow-Lite and PyTorch backends. (#5055)
+* [Plugin]
+  * Hardened the `wasmedge_zlib` plug-in against the out-of-bounds accesses and the use-after-free driven by the guest input, covering the gz-header handling and the stream lifecycle ownership.
+  * Bound-checked the guest buffer lengths in the `wasmedge_opencvmini` host functions (#4923), and required OpenCV 5 on macOS arm64 (#5280).
+  * Computed the output buffer size in 64-bit, and hardened the size handling and the error paths of `decodeImgToSize` in the `wasmedge_image` plug-in. (#4914, #5177)
+  * Validated the full string extent in `Log::body` of the `wasi_logging` plug-in (#5008), and kept its default logger alive across the module instances.
+  * Made the plug-in loading robust: skipped the already-processed shared libraries instead of re-`dlopen`ing them, rejected the duplicate C-API descriptors by name, and guarded the plug-in registry with a shared mutex.
+* [Common]
+  * Avoided the one-past-the-end dereference in the `DenseEnumMap` iterator (#5004), the span underflow in the rapidhash tail read (#5225), and the undefined behavior of `clz()` for the zero inputs (#5240).
+  * Corrected the display strings and the comments in `enum.inc`. (#5241)
+  * Restored the build against the wider fmt and spdlog version ranges, covering fmt 6 through 12.2 and spdlog without `callback_sink`, and preserved the format specs and the fill width in the `uint128` formatter fallback.
+  * Resolved the Clang compilation error of the `uint128_fallback` subtraction. (#4936)
+  * Added the missing `sv` suffix to the spdlog and fmt format strings across the code base. (#5098)
+* [Tools]
+  * Registered the `--run-mode` CLI option, and warned on an unknown value instead of ignoring it silently.
+  * Rejected an empty `instantiate` input before resolving it into an absolute path, which used to terminate the tool on some standard libraries.
+  * Corrected the coredump generation. (#5284)
+* [Misc]
+  * Kept the pinned fmt and the system fmt from mixing across the platforms. (#5270)
+  * Renamed the shadowed identifiers in the WASI host, the LLVM compiler, the Linux backtrace callback, the LLMC host functions, the WASI-NN MLX backend, and the zlib plug-in, and suppressed the `shadow-field-in-constructor` misfire on clang-cl.
+  * Added the missing `PropComponent` in the driver fuzzer. (#5035)
+  * Corrected the typo of the field id in the bug report issue template. (#5047)
+
+Tests:
+
+* Updated the spec test suite to the 2026/07/28 version. (#5279)
+* Added the unit tests, the examples, and the regression suites of the WASM C API.
+* Added the unit tests of the new `parse`, `validate`, and `instantiate` driver subcommands, and the characterization tests of the VM stage machine and the module registration.
+* Added the spec tests and the intrinsics table coverage of the lazy JIT mode, and the round-trip check in `APICoreTest.Configure`. (#5093)
+* Added the cross-module AOT coverage of the tail-indirect calls, the gas metering, the multi-instance cases, the host functions, and the GC operations.
+* Rebuilt the serializer test suite, and covered the instructions, the segments, the modules, the saturating truncation instructions, `atomic.fence`, `wait64`, and the shared limits. (#5006, #5223, #5285)
+* Added the unit tests of the core common utilities (#5029) and the spdlog logging API (#4874).
+* Added the tests of the module dependency tree, and consolidated the runtime instance suites into a single binary.
+* Pinned the WASI-NN graph lifetime behaviors, including the drain-after-unload, the handle non-reuse, and the concurrent guards, and kept the bundled llama and ggml archives out of the test binary exports.
+* Added the missing host function tests of the FFmpeg plug-in (#5233), and exercised an opencvmini host function through the plug-in boundary.
+* Removed the concrete types from the plug-in tests, so that the host function bindings stay observable instead of being devirtualized away. (#4910, #4913, #4940)
+* Corrected the test target builds, including the redundant libraries of `wasmedgeLazyJITTests` (#4922) and the MLX system include paths (#5277).
+* Shrank the CI test models, and downloaded them through a retrying helper.
+
+Refactored:
+
+* [AOT]
+  * Split the compiled execution context into a per-module `ModuleContext` and a per-executor `ExecutorContext`, and threaded both of them through the compiled ABI, so that the module-sensitive intrinsics resolve against the executing module.
+  * Split the monolithic `lib/llvm/compiler.cpp` into the focused compilation units. (#5101)
+  * Moved the lazy JIT orchestration into a dedicated engine, unified the eager, infrastructure, and batch compilation pipelines, and dropped the per-module symbol prefix mechanism.
+  * Removed the module-ID strings and the function instance map.
+* [Executor]
+  * Made the per-instance `ModuleContext` the authority of the module fields, and resolved the instance lookups, the type lookups, the GC operation delegates, and the host `CallingFrame` against an explicit module.
+  * Made the recorded stack traces module-qualified.
+  * Extracted the SIMD superinstruction primitives into a header. (#4802)
+* [VM]
+  * Deduplicated the WASM unit dispatch, unified the module container cleanup into one template, and extracted the instantiated-stage rollback, the JIT executable loading, and the official plug-in inventory.
+* [Runtime]
+  * Moved the module instance deletion onto `RefLifetime`, and handled the overlapping copies inside `setBytes()` and `setRefs()` with memmove. (#5111)
+* [Serializer]
+  * Removed the proposal guards from the serializer, and filled the encoding gaps which they used to hide.
+* [WASI-NN]
+  * Redesigned the graph and context lifetime around a shared-ownership `ResourceTable` of the opaque handles.
+* [Misc]
+  * Deduplicated the imported and the defined function counts into the `Module` accessors.
+  * Moved the fmt compatibility macros into a dedicated header, and unified the `ErrInfo` formatters onto the `FmtCtx` template pattern.
+  * Removed the legacy proposal enabling flags from the driver. (#5261)
+
+Misc:
+
+* [Dependencies]
+  * Upgraded fmt to 12.1.0, spdlog to v1.17.0, googletest to v1.17.0, simdjson to v4.6.4 (#5131), and stb_image to the newest version (#5175).
+  * Bumped the TensorFlow dependencies to TF-2.21.0-CC, and libtorch to the cxx11-abi 2.12.1 in the plug-in dependency images. (#5166)
+  * Pinned the `FetchContent` dependencies to the commit hashes, exposed the third-party headers as the system includes, and scoped their warning suppressions to their own sources. (#5145)
+* [Documentation]
+  * Updated the roadmap for Q3/2026. (#5099)
+  * Documented the ownership, lifetime, and concurrency design of WASI-NN.
+  * Explained which CI workflows run per change and how to handle the failures (#5027), and refined the contributor guide with the AI assistance disclosure checklist (#5013, #5025).
+  * Added the LFIDs of the maintainers into the owner list (#5138), and corrected the class description of the `codegen.h` header comment (#5200).
+  * Merged the 0.15.1 and the 0.16.4 release changelogs into `Changelog.md`. (#4502, #4970)
+  * Synchronized the Japanese and the Chinese READMEs, and corrected the stale links in the documentation and `GOVERNANCE.md`. (#4664, #4929, #5053, #5211, #5266)
+* [Chore]
+  * Updated the copyright to The WasmEdge Authors, and standardized the WasmEdge contact emails.
+  * Updated the bug report, community meeting, and LFX mentorship issue templates, and the pull request template. (#4911, #5050, #5102, #5159, #5184)
+  * Applied the clang-format 20 and 22 results across the code base.
+
+CI:
+
+* [Cache]
+  * Cached the compilation with sccache on the Ubuntu, Linux, macOS, Windows, and Windows-MSVC builds, and cached the LLVM archives, the Android NDK and CMake downloads, and the ML model fixtures.
+  * Saved the heavy caches only on the `master` branch, deleted the Actions caches of a pull request when it closes, and installed zstd in the Linux build images for the consistent cache compression.
+* [Runner]
+  * Added the static library build workflow for macOS arm64 (#4948), the fuzzer build into the Ubuntu matrix (#5036), and the wasm-c-api symbols into the `libwasmedge` symbol exposure check.
+  * Added the issue assignment command, and let the owners bypass the single open issue assignment limit. (#5244, #5253)
+  * Enabled the CI and the plug-in CI for the backward supporting branches. (#4976, #4980)
+  * Gated the extension, the WASI-NN GGML RPC, and the Windows WASI-NN jobs on the related path filters. (#5104, #5147)
+  * Pinned the clang-format linter to version 20, and then bumped it to version 22.
+  * Corrected the RISC-V64 cross-compilation, the macOS lld installation, the Fedora Rawhide package list, the ChatTTS installation of the Ubuntu 24.04 plug-in image, and the libtorch download failure handling. (#5069, #5114, #5119, #5134)
+  * Ignored the gcov negative-hit parse errors in the coverage build (#5062), and set the commitlint footer line length to the warning level (#5163).
+  * Trimmed the obsolete apt packages (#4646), corrected the clang-format version selection (#4892) and the Homebrew tap trust of `wasmedge/llvm` (#5079), and disabled the automatic CI triage of s390x and OpenWrt (#5107).
+* [dependabot]
+  * ci(dependabot): bump github/codeql-action from 4.35.4 to 4.37.8 (#4889, #4924, #4944, #5127, #5130, #5155, #5156, #5190, #5193, #5219, #5220, #5249, #5251, #5273, #5274, #5289, #5291, #5307, #5308)
+  * ci(dependabot): bump step-security/harden-runner from 2.19.1 to 2.21.0 (#4890, #4899, #5157, #5275, #5290)
+  * ci(dependabot): bump cachix/install-nix-action from 31.10.6 to 31.11.1 (#5158, #5191, #5288)
+  * ci(dependabot): bump actions/cache from 5.0.5 to 6.1.0 (#5083, #5084, #5085)
+  * ci(dependabot): bump actions/checkout from 6.0.2 to 7.0.1 (#4925, #5042, #5218)
+  * ci(dependabot): bump actions/labeler from 6.1.0 to 7.0.0 (#5154, #5221)
+  * ci(dependabot): bump actions/setup-python from 6.2.0 to 7.0.0 (#5082, #5192)
+  * ci(dependabot): bump codecov/codecov-action from 6.0.0 to 7.0.0 (#4888, #4943)
+  * ci(dependabot): bump dorny/paths-filter from 4.0.1 to 4.0.3 (#5129, #5272)
+  * ci(dependabot): bump mozilla-actions/sccache-action to 0.0.11 (#5128, #5250)
+  * ci(dependabot): bump docker/login-action from 4.4.0 to 4.6.0 (#5217, #5247)
+  * ci(dependabot): bump docker/setup-buildx-action from 4.2.0 to 4.3.0 (#5306)
+  * ci(dependabot): bump crazy-max/ghaction-chocolatey from 4.0.0 to 4.1.0 (#5081)
+  * ci(dependabot): bump vedantmgoyal9/winget-releaser from 7bd472b to b3a5dae (#5248)
+  * ci(dependabot): bump the docker group with 3 updates (#4898, #5126)
+
+Thank all the contributors who made this release possible!
+
+Aaron Chen, Abdelrahman Emad, Abhijit Das, ADITYA SWAROOP, aizu-m, Ankit Kumar Tiwari, Anusha Murthy, Arthur Chan, David laid, Divyansh Khatri, dm4, Gauarv Chaudhary, Han-Wen Tsao, Harsh, Harsh-6291, Harshita Yadav, hydai, Lia, Matt Hargett, Mohit Agarwal, nGimotty, Nico Braun, Parth Dagia, Pramila Kumari, Pranjal Kole, Prerak Tanwar, Priyanshu Bharti, ravindra-RKB, Shen-Ta Hsieh(BestSteve), SHIGRAF SALIK, Shivam Kumar, shivansh023023, sleepingeight, Sriram-B-Srivatsa, Suhrid Marwah, Taanvi Khevaria, uda18, utsav, Vishal Malyan, Wang-Yang Li, William-Mou, Yan-Hao Wang, Yashika, Yi, Yi Liu, Yi-Ying He
+
+If you want to build from source, please use WasmEdge-0.18.0-alpha.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.17.2-alpha.1 (2026-08-27)
 
 Fixed issues:

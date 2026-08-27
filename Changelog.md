@@ -1,3 +1,101 @@
+### 0.17.2-alpha.1 (2026-08-27)
+
+Fixed issues:
+
+* [Loader]
+  * fix(loader): load native shared-library WASM only in AOT run mode (#5292)
+  * fix(loader): bound-check AOT custom section symbol offsets (#5255)
+* [Executor]
+  * fix: erase exception payload on catch_all in interpreter (#5202)
+  * fix(executor): drop stale try_table handlers at branch time to stop OOB write (#5252)
+  * fix(executor): correct return_call continuation for host tail calls (#5286)
+* [AOT]
+  * fix(aot): bound-check memory64 loads and stores (#5282)
+* [Component Model]
+  * fix(executor): grow component index space on export to match validator (#5256)
+* [Common]
+  * fix(common): correct display strings and comments in enum.inc (#5241)
+* [Plugin]
+  * fix(plugins/opencvmini): require OpenCV 5 on macOS arm64 (#5280)
+* [Misc]
+  * fix(OSS-Fuzz): add the missing PropComponent in the driver fuzzer (#5035)
+
+CI:
+
+* [dependabot]
+  * ci(dependabot): bump github/codeql-action from 4.36.2 to 4.37.7 (#5127, #5130, #5155, #5156, #5190, #5193, #5219, #5220, #5249, #5251, #5273, #5274, #5289, #5291)
+  * ci(dependabot): bump step-security/harden-runner from 2.19.4 to 2.21.0 (#5157, #5275, #5290)
+  * ci(dependabot): bump cachix/install-nix-action from 31.10.6 to 31.11.1 (#5158, #5191, #5288)
+  * ci(dependabot): bump dorny/paths-filter from 4.0.1 to 4.0.3 (#5129, #5272)
+  * ci(dependabot): bump actions/labeler from 6.1.0 to 7.0.0 (#5154, #5221)
+  * ci(dependabot): bump docker/login-action from 4.4.0 to 4.6.0 (#5217, #5247)
+  * ci(dependabot): bump actions/checkout from 7.0.0 to 7.0.1 (#5218)
+  * ci(dependabot): bump actions/setup-python from 6.3.0 to 7.0.0 (#5192)
+  * ci(dependabot): bump vedantmgoyal9/winget-releaser from 7bd472b to b3a5dae (#5248)
+  * ci(dependabot): bump the docker group with 3 updates (#5126)
+
+Thank all the contributors who made this release possible!
+
+Anusha Murthy, Arthur Chan, Lia, Shen-Ta Hsieh(BestSteve), Yi-Ying He, hydai
+
+If you want to build from source, please use WasmEdge-0.17.2-alpha.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
+### 0.17.1 (2026-07-03)
+
+Features:
+
+* [CAPI]
+  * feat(api): version C ABI symbols for the 0.16 -> 0.17 limit change (#4951)
+
+Fixed issues:
+
+* [Validator]
+  * fix: reject non-funcref tables/refs in call_indirect and call_ref (#4920)
+* [WASI]
+  * fix(wasi): reject symlink targets that resolve outside the preopen root (#4938)
+* [WASI-Logging]
+  * fix(plugin/wasi-logging): keep the default logger alive across instances
+* [Common]
+  * fix(common): build against fmt 8 and spdlog without callback_sink
+  * fix(common): extend formatter compat to fmt 6 and spdlog 1.5
+  * fix(common): build against fmt 12.2 where uint128_fallback was renamed
+  * fix(common): honor format specs and preserve Char fill width in fmt<8 uint128 formatter fallback
+  * fix(common): guard `__has_include` probes and include `<utility>` for std::move
+
+Refactored:
+
+* [Common]
+  * refactor(common): move WASMEDGE_FMT_CONST to a dedicated fmt compat header
+  * refactor(common): unify ErrInfo fmt formatters on the FmtCtx template pattern
+
+CI:
+
+* feat(ci): add static-lib build workflow for macOS arm64 (#4948)
+* fix(ci): brew trust for wasmedge/llvm (#5079)
+* ci: ignore gcov negative-hit parse errors in coverage build (#5062)
+* ci: add fuzzer build to Ubuntu CI matrix (#5036)
+* ci: remove unused packages in fedora rawhide (#5069)
+* ci(linter): bump clang-format from 20 to 22
+* [dependabot]
+  * ci(dependabot): bump codecov/codecov-action from 6.0.1 to 7.0.0 (#4943)
+  * ci(dependabot): bump github/codeql-action from 4.36.1 to 4.36.2 (#4944)
+  * ci(dependabot): bump step-security/harden-runner from 2.19.1 to 2.19.4 (#4890, #4899)
+  * ci(dependabot): bump actions/checkout from 6.0.2 to 7.0.0 (#4925, #5042)
+  * ci(dependabot): bump the docker group with 3 updates (#4898)
+  * ci(dependabot): bump actions/cache from 5.0.5 to 6.1.0 (#5083, #5084, #5085)
+  * ci(dependabot): bump actions/setup-python from 6.2.0 to 6.3.0 (#5082)
+  * ci(dependabot): bump crazy-max/ghaction-chocolatey from 4.0.0 to 4.1.0 (#5081)
+
+Misc:
+
+* style: reformat int128.h and winapi.h with clang-format-22
+
+Thank all the contributors who made this release possible!
+
+Shen-Ta Hsieh(BestSteve), Yi-Ying He, dm4, hydai
+
+If you want to build from source, please use WasmEdge-0.17.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.17.0 (2026-05-18)
 
 Features:

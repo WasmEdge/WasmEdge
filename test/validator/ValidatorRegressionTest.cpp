@@ -444,6 +444,66 @@ TEST_F(ValidatorRegressionTest, RefCastAfterUnreachable) {
   EXPECT_TRUE(ValidationResult);
 }
 
+// Test that ref.func on an imported function is rejected when the function is
+// not declared. Imported functions are not part of the module's declared
+// function reference set, so they need an explicit declarative element segment
+// like any other function.
+TEST_F(ValidatorRegressionTest, UndeclaredRefFuncToImportedFunction) {
+  // Module: (module
+  //   (type (func))
+  //   (import "env" "f" (func (type 0)))
+  //   (func (type 0) ref.func 0 drop))
+  std::array<WasmEdge::Byte, 38> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 1 type (func)
+      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+      // Import section: 1 import "env" "f" as function of type 0
+      0x02, 0x09, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x01, 0x66, 0x00, 0x00,
+      // Function section: 1 function, type index 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: 1 body
+      // Body: ref.func 0 (0xd2 0x00), drop (0x1a), end (0x0b)
+      0x0a, 0x07, 0x01, 0x05, 0x00, 0xd2, 0x00, 0x1a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidRefIdx);
+}
+
+// Test that ref.func on an imported function passes validation once the
+// function is declared by a declarative element segment.
+TEST_F(ValidatorRegressionTest, DeclaredRefFuncToImportedFunction) {
+  // Module: (module
+  //   (type (func))
+  //   (import "env" "f" (func (type 0)))
+  //   (elem declare func 0)
+  //   (func (type 0) ref.func 0 drop))
+  std::array<WasmEdge::Byte, 45> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 1 type (func)
+      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+      // Import section: 1 import "env" "f" as function of type 0
+      0x02, 0x09, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x01, 0x66, 0x00, 0x00,
+      // Function section: 1 function, type index 0
+      0x03, 0x02, 0x01, 0x00,
+      // Element section: 1 declarative segment declaring function 0
+      0x09, 0x05, 0x01, 0x03, 0x00, 0x01, 0x00,
+      // Code section: 1 body
+      // Body: ref.func 0 (0xd2 0x00), drop (0x1a), end (0x0b)
+      0x0a, 0x07, 0x01, 0x05, 0x00, 0xd2, 0x00, 0x1a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

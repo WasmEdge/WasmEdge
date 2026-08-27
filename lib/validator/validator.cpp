@@ -535,7 +535,6 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
       spdlog::error("    Defined type index {} is not a function type."sv, TId);
       return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
     }
-    Checker.addRef(static_cast<uint32_t>(Checker.getFunctions().size()));
     Checker.addFunc(TId, true);
     return {};
   }

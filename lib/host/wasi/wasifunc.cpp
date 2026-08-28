@@ -2201,11 +2201,11 @@ Expect<uint32_t> WasiSockSendV1::body(const Runtime::CallingFrame &Frame,
                                       uint32_t /* Out */ SoDataLenPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_ciovec_t>(SiDataPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   if (unlikely(isMisaligned<__wasi_size_t>(SoDataLenPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // Check memory instance from module.
@@ -2275,15 +2275,15 @@ Expect<uint32_t> WasiSockSendToV1::body(const Runtime::CallingFrame &Frame,
                                         uint32_t /* Out */ SoDataLenPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_address_t>(AddressPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   if (unlikely(isMisaligned<__wasi_ciovec_t>(SiDataPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   if (unlikely(isMisaligned<__wasi_size_t>(SoDataLenPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // Check memory instance from module.
@@ -2441,13 +2441,13 @@ Expect<uint32_t> WasiSockGetAddrinfo::body(
   // true)
 
   if (unlikely(isMisaligned<__wasi_addrinfo_t>(HintsPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
   if (unlikely(isMisaligned<uint8_t_ptr>(ResPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
   if (unlikely(isMisaligned<__wasi_size_t>(ResLengthPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // Check memory instance from module.
@@ -3156,11 +3156,11 @@ Expect<uint32_t> WasiSockSendV2::body(const Runtime::CallingFrame &Frame,
                                       uint32_t /* Out */ SoDataLenPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_ciovec_t>(SiDataPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   if (unlikely(isMisaligned<__wasi_size_t>(SoDataLenPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // Check memory instance from module.
@@ -3230,15 +3230,15 @@ Expect<uint32_t> WasiSockSendToV2::body(const Runtime::CallingFrame &Frame,
                                         uint32_t /* Out */ SoDataLenPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_ciovec_t>(SiDataPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   if (unlikely(isMisaligned<__wasi_address_t>(AddressPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   if (unlikely(isMisaligned<__wasi_size_t>(SoDataLenPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   // Check memory instance from module.
@@ -3343,7 +3343,7 @@ Expect<uint32_t> WasiSockGetOpt::body(const Runtime::CallingFrame &Frame,
   // no alignment requirement for FlagPtr as it's a byte array
 
   if (unlikely(isMisaligned<uint32_t>(FlagSizePtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);

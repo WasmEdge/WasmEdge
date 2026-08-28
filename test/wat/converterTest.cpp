@@ -717,6 +717,56 @@ TEST(WatConverterTest, ImportAfterTag) {
 }
 
 //===----------------------------------------------------------------------===//
+// String escapes.
+//===----------------------------------------------------------------------===//
+
+// The escape decoder has one case for each escape that WAT permits. The spec
+// suite does not use the \r escape and the \' escape, so the two escapes need
+// a test here.
+TEST(WatConverterTest, StringEscapeForms) {
+  EXPECT_TRUE(ok("(module (memory 1) (data (i32.const 0) \"\\r\"))"));
+  EXPECT_TRUE(ok("(module (memory 1) (data (i32.const 0) \"\\'\"))"));
+}
+
+// The \u{...} escape encodes one scalar value as UTF-8. A scalar less than
+// U+0800 gives two bytes, and a scalar more than U+FFFF gives four bytes. The
+// decoder rejects a scalar that is more than U+10FFFF.
+TEST(WatConverterTest, UnicodeEscapeEncoding) {
+  EXPECT_TRUE(ok("(module (memory 1) (data (i32.const 0) \"\\u{a9}\"))"));
+  EXPECT_TRUE(ok("(module (memory 1) (data (i32.const 0) \"\\u{20ac}\"))"));
+  EXPECT_TRUE(ok("(module (memory 1) (data (i32.const 0) \"\\u{1f600}\"))"));
+  EXPECT_EQ(err("(module (memory 1) (data (i32.const 0) \"\\u{110000}\"))"),
+            ErrCode::Value::WatMalformedString);
+  // The hexnum inside the braces takes a '_' between two digits.
+  auto Mod = parse("(module (import \"m\" \"\\u{1_F600}\" (func)))");
+  ASSERT_EQ(Mod.getImportSection().getContent().size(), 1U);
+  EXPECT_EQ(Mod.getImportSection().getContent()[0].getExternalName(),
+            "\xF0\x9F\x98\x80");
+  EXPECT_FALSE(ok("(module (import \"m\" \"\\u{_1F600}\" (func)))"));
+  EXPECT_FALSE(ok("(module (import \"m\" \"\\u{1F600_}\" (func)))"));
+  EXPECT_FALSE(ok("(module (import \"m\" \"\\u{1__F600}\" (func)))"));
+}
+
+//===----------------------------------------------------------------------===//
+// Annotation ids.
+//===----------------------------------------------------------------------===//
+
+// A quoted annotation id holds UTF-8. The scanner accepts a sequence of two,
+// three, or four bytes. The scanner rejects a lead byte that is not valid,
+// and a continuation byte that is not valid. The scanner also rejects a \HH
+// escape that gives a byte value of more than 0x7F.
+TEST(WatConverterTest, AnnotationIdUtf8) {
+  EXPECT_TRUE(ok("(module (@\"\xC2\xA9\") (func))"));
+  EXPECT_TRUE(ok("(module (@\"\xE2\x82\xAC\") (func))"));
+  EXPECT_TRUE(ok("(module (@\"\xF0\x9F\x98\x80\") (func))"));
+  EXPECT_TRUE(ok("(module (@\"\\41\") (func))"));
+  EXPECT_EQ(err("(module (@\"\xFF\") (func))"), ErrCode::Value::MalformedUTF8);
+  EXPECT_EQ(err("(module (@\"\xC2\x41\") (func))"),
+            ErrCode::Value::MalformedUTF8);
+  EXPECT_EQ(err("(module (@\"\\80\") (func))"), ErrCode::Value::MalformedUTF8);
+}
+
+//===----------------------------------------------------------------------===//
 // The root of the text.
 //===----------------------------------------------------------------------===//
 
@@ -759,6 +809,187 @@ TEST(WatConverterTest, AnnotationIdScanIgnoresStringsAndComments) {
   EXPECT_EQ(err("(@)"), ErrCode::Value::WatEmptyAnnotationId);
   EXPECT_EQ(err("(@ x)"), ErrCode::Value::WatEmptyAnnotationId);
   EXPECT_EQ(err("(@(@a)x)"), ErrCode::Value::WatEmptyAnnotationId);
+}
+
+//===----------------------------------------------------------------------===//
+// Identifier and index references.
+//===----------------------------------------------------------------------===//
+
+// A struct field reference takes a name or a decimal index. The converter
+// rejects a name that the type does not declare, and it rejects a name on a
+// type that declares no field name. The converter accepts an underscore
+// separator, but it rejects a hex prefix.
+TEST(WatConverterTest, StructFieldReferenceForms) {
+  EXPECT_EQ(err("(module (type $s (struct (field $x i32))) "
+                "(func (param (ref $s)) (struct.get $s $y (local.get 0)) "
+                "drop))"),
+            ErrCode::Value::WatUnknownId);
+  EXPECT_EQ(err("(module (type $s (struct (field i32))) "
+                "(func (param (ref $s)) (struct.get $s $x (local.get 0)) "
+                "drop))"),
+            ErrCode::Value::WatUnknownId);
+  EXPECT_EQ(err("(module (type $s (struct (field i32))) "
+                "(func (param (ref $s)) (struct.get $s 0x0 (local.get 0)) "
+                "drop))"),
+            ErrCode::Value::WatUnknownId);
+  EXPECT_TRUE(ok("(module (type $s (struct (field i32) (field i32))) "
+                 "(func (param (ref $s)) (struct.get $s 0_1 (local.get 0)) "
+                 "drop))"));
+}
+
+// A bare type index is not a reftype. The grammar needs the (ref $t) form.
+// The other toolchains reject the bare form, so the converter rejects it too.
+TEST(WatConverterTest, BareTypeIndexRefType) {
+  EXPECT_EQ(err("(module (type $t (func)) (table 1 $t))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_TRUE(ok("(module (type $t (func)) (table 1 (ref $t)))"));
+  EXPECT_TRUE(ok("(module (type $t (func)) (table 1 (ref null $t)))"));
+}
+
+//===----------------------------------------------------------------------===//
+// SIMD lanes.
+//===----------------------------------------------------------------------===//
+
+// The i64x2 shape takes a lane that fills all 64 bits. The parser reads such a
+// lane as unsigned, and it does not reject the lane as a signed overflow.
+TEST(WatConverterTest, V128I64x2UnsignedLane) {
+  EXPECT_TRUE(ok("(module (func (result v128) "
+                 "(v128.const i64x2 0xffffffffffffffff 0)))"));
+}
+
+//===----------------------------------------------------------------------===//
+// Exception handling.
+//===----------------------------------------------------------------------===//
+
+// A try_table takes four kinds of catch clause. Each kind sets its own pair of
+// flags in the control metadata. A flat try_table also takes a label.
+TEST(WatConverterTest, TryTableCatchClauses) {
+  EXPECT_TRUE(
+      ok("(module (tag $e) (func block try_table (catch $e 0) end end))"));
+  EXPECT_TRUE(
+      ok("(module (tag $e) (func block try_table (catch_ref $e 0) end end))"));
+  EXPECT_TRUE(ok("(module (func block try_table (catch_all_ref 0) end end))"));
+  EXPECT_TRUE(ok("(module (func try_table $l end))"));
+}
+
+// A tag type must have no result. The validator reports the result, as it
+// does for a binary module, so the converter accepts the text.
+TEST(WatConverterTest, ImportedTagResultType) {
+  EXPECT_TRUE(ok("(module (type $t (func (result i32))) "
+                 "(tag (import \"m\" \"e\") (type $t)))"));
+  EXPECT_TRUE(ok("(module (tag (result i32)))"));
+}
+
+//===----------------------------------------------------------------------===//
+// The section abbreviations.
+//===----------------------------------------------------------------------===//
+
+// The inline data abbreviation of a memory is one (data ...) group. A bare
+// string and a second (data ...) group are malformed. The memory gets the
+// page count that holds the bytes.
+TEST(WatConverterTest, MemoryInlineDataForms) {
+  EXPECT_EQ(err("(module (memory \"abc\"))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (memory (data \"a\") (data \"b\")))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (memory (data \"a\") \"b\"))"),
+            ErrCode::Value::WatUnexpectedToken);
+  auto Mod = parse("(module (memory (data \"a\" \"b\")))");
+  ASSERT_EQ(Mod.getMemorySection().getContent().size(), 1U);
+  EXPECT_EQ(Mod.getMemorySection().getContent()[0].getLimit().getMin(), 1U);
+  ASSERT_EQ(Mod.getDataSection().getContent().size(), 1U);
+  EXPECT_EQ(Mod.getDataSection().getContent()[0].getData().size(), 2U);
+}
+
+//===----------------------------------------------------------------------===//
+// The inline import and export abbreviations.
+//===----------------------------------------------------------------------===//
+
+// An inline import takes two string names, and an inline export takes one
+// string name. The spec suite uses both abbreviations, but it does not give
+// them a token of the wrong kind or an extra token. If the converter accepts
+// such a field, the import descriptor gets an empty name.
+TEST(WatConverterTest, InlineImportExportGrammar) {
+  EXPECT_EQ(err("(module (func (import 0 \"b\")))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (func (import \"a\" 0)))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (func (import \"a\" \"b\" \"c\")))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (func (export 0)))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (func (export \"a\" \"b\")))"),
+            ErrCode::Value::WatUnexpectedToken);
+}
+
+//===----------------------------------------------------------------------===//
+// The malformed section fields.
+//===----------------------------------------------------------------------===//
+
+// Each section field has a fixed shape. The converter rejects a field that has
+// too few tokens or too many tokens. If the converter accepts such a field,
+// the indices of the fields that come after it are wrong.
+TEST(WatConverterTest, SectionFieldGrammar) {
+  EXPECT_EQ(err("(module (table))"), ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (table 1))"), ErrCode::Value::WatUnexpectedToken);
+  // A token after the table type is the start of an init expression.
+  EXPECT_EQ(err("(module (table 1 funcref funcref))"),
+            ErrCode::Value::WatUnknownOperator);
+  EXPECT_EQ(err("(module (table 1 funcref 1))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (global))"), ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (global (mut) (i32.const 0)))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (memory 1 2 3))"), ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (func) (start))"), ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (func) (start 0 0))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (memory 1) (data (memory) (i32.const 0) \"a\"))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (table 1 funcref) "
+                "(elem (table) (i32.const 0) func))"),
+            ErrCode::Value::WatUnexpectedToken);
+}
+
+// An export description names one kind of entity and one index. An unknown
+// keyword is an unknown operator, and a missing index is an unexpected token.
+TEST(WatConverterTest, ExportDescriptionGrammar) {
+  EXPECT_EQ(err("(module (export \"a\"))"), ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (func) (export \"a\" (func)))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (func) (export \"a\" (bogus 0)))"),
+            ErrCode::Value::WatUnknownOperator);
+}
+
+//===----------------------------------------------------------------------===//
+// The malformed instruction operands.
+//===----------------------------------------------------------------------===//
+
+// A plain instruction takes a fixed number of immediate operands. The
+// converter rejects a missing operand and an extra operand.
+TEST(WatConverterTest, InstructionOperandCount) {
+  EXPECT_EQ(err("(module (func (result i32) (i32.const 1 2)))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (func (param i32) (result i32) (local.get)))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (func) (func (call)))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (func (block (br))))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (func) (func (result funcref) (ref.func)))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (memory 1) (func (memory.copy 0 0 0)))"),
+            ErrCode::Value::WatUnexpectedToken);
+}
+
+// A v128.const takes a shape keyword that WAT knows, and each lane must be a
+// numeric literal. The spec suite covers the lane count, but it does not cover
+// these two forms.
+TEST(WatConverterTest, V128ConstShapeGrammar) {
+  EXPECT_EQ(err("(module (func (result v128) (v128.const i9x17 1)))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (func (result v128) (v128.const f32x4 a b c d)))"),
+            ErrCode::Value::WatUnknownOperator);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1266,6 +1497,24 @@ TEST(WatConverterTest, TrailingTokensInTagAndMut) {
             ErrCode::Value::WatUnexpectedToken);
   EXPECT_TRUE(ok("(module (tag (param i32)))"));
   EXPECT_TRUE(ok("(module (global (mut i32) (i32.const 0)))"));
+}
+
+//===----------------------------------------------------------------------===//
+// The malformed type fields.
+//===----------------------------------------------------------------------===//
+
+// A type field also has a fixed shape. A (ref ...) needs a heaptype, a (mut
+// ...) needs a valtype, and an arraytype needs a fieldtype.
+TEST(WatConverterTest, TypeFieldGrammar) {
+  EXPECT_EQ(err("(module (func (param (ref))))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (func (param (ref null bogus))))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (func (param bogus)))"),
+            ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (type (array)))"), ErrCode::Value::WatUnexpectedToken);
+  EXPECT_EQ(err("(module (type (struct (field (mut)))))"),
+            ErrCode::Value::WatUnexpectedToken);
 }
 
 } // namespace

@@ -441,6 +441,37 @@ TEST(WasiTest, Args) {
   Env.fini();
 }
 
+TEST(WasiTest, MemoryNotExported) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "not_memory",
+      std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+          WasmEdge::AST::MemoryType(1)));
+  ASSERT_TRUE(Mod.findMemoryExports("memory") == nullptr);
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  WasmEdge::Host::WasiArgsSizesGet WasiArgsSizesGet(Env);
+  WasmEdge::Host::WasiRandomGet WasiRandomGet(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  Env.init({}, "test"s, {}, {});
+  EXPECT_TRUE(WasiArgsSizesGet.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
+  Env.fini();
+
+  Env.init({}, "test"s, {}, {});
+  EXPECT_TRUE(WasiRandomGet.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(1)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
+  Env.fini();
+}
+
 TEST(WasiTest, Envs) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");

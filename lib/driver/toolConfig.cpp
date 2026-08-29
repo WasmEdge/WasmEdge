@@ -64,21 +64,6 @@ createProposalConfigure(const struct DriverProposalOptions &Opt) noexcept {
   if (Opt.PropMemory64.value()) {
     Conf.removeProposal(Proposal::Memory64);
   }
-  if (Opt.PropTailCallDeprecated.value()) {
-    Conf.addProposal(Proposal::TailCall);
-  }
-  if (Opt.PropExtendConstDeprecated.value()) {
-    Conf.addProposal(Proposal::ExtendedConst);
-  }
-  if (Opt.PropMultiMemDeprecated.value()) {
-    Conf.addProposal(Proposal::MultiMemories);
-  }
-  if (Opt.PropRelaxedSIMDDeprecated.value()) {
-    Conf.addProposal(Proposal::RelaxSIMD);
-  }
-  if (Opt.PropExceptionHandlingDeprecated.value()) {
-    Conf.addProposal(Proposal::ExceptionHandling);
-  }
 
   // Handle the proposal removal which has dependency.
   // The GC proposal depends on the func-ref proposal, and the func-ref proposal
@@ -94,12 +79,6 @@ createProposalConfigure(const struct DriverProposalOptions &Opt) noexcept {
     // This will automatically not work if the GC or func-ref proposal not
     // disabled.
     Conf.removeProposal(Proposal::ReferenceTypes);
-  }
-  if (Opt.PropFunctionReferenceDeprecated.value()) {
-    Conf.addProposal(Proposal::FunctionReferences);
-  }
-  if (Opt.PropGCDeprecated.value()) {
-    Conf.addProposal(Proposal::GC);
   }
 
   if (Opt.PropThreads.value()) {

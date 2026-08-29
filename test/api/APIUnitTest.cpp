@@ -1488,14 +1488,13 @@ TEST(APICoreTest, Compiler) {
 // on all platforms.
 #ifndef __riscv
 TEST(APICoreTest, RunModes) {
-  // Exercise the WasmEdge_RunMode behaviours and fallback paths.
+  // Exercise the WasmEdge_RunMode behaviours.
   //
-  // Compile fib to a native shared library (.so / .dylib / .dll) and load it
-  // under each RunMode. In Interpreter and JIT modes the loader extracts the
-  // embedded WASM bytes and dlcloses the library before any AOT function
-  // symbol is resolved; in AOT mode the existing dlopen-and-link behaviour is
-  // kept. Then verify that AOT mode on a plain .wasm with no AOT section
-  // falls back to interpreter execution with a warning.
+  // Compile fib to a native shared library (.so / .dylib / .dll). In
+  // Interpreter and JIT modes, loading a native shared-library artifact is
+  // rejected with MalformedMagic. In AOT mode, the library loads and its
+  // compiled native code runs. Then verify that AOT mode on a plain .wasm
+  // with no AOT section falls back to interpreter execution with a warning.
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   WasmEdge_ConfigureCompilerSetOutputFormat(
       Conf, WasmEdge_CompilerOutputFormat_Native);
@@ -1510,24 +1509,22 @@ TEST(APICoreTest, RunModes) {
   WasmEdge_Value P[1] = {WasmEdge_ValueGenI32(20)};
   WasmEdge_Value R[1] = {WasmEdge_ValueGenI32(0)};
 
-  // Interpreter mode: dlopen → extract embedded WASM bytes → dlclose →
-  // interpret.
+  // Interpreter mode: native shared-library artifacts are rejected.
   WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_Interpreter);
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, nullptr);
   EXPECT_NE(VM, nullptr);
-  EXPECT_TRUE(WasmEdge_ResultOK(
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_MalformedMagic,
       WasmEdge_VMRunWasmFromFile(VM, SharedLibPath, FuncName, P, 1, R, 1)));
-  EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 10946);
   WasmEdge_VMDelete(VM);
 
-  // JIT mode: dlopen → extract bytes → dlclose → JIT-compile → run.
-  R[0] = WasmEdge_ValueGenI32(0);
+  // JIT mode: native shared-library artifacts are rejected.
   WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_JIT);
   VM = WasmEdge_VMCreate(Conf, nullptr);
   EXPECT_NE(VM, nullptr);
-  EXPECT_TRUE(WasmEdge_ResultOK(
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_MalformedMagic,
       WasmEdge_VMRunWasmFromFile(VM, SharedLibPath, FuncName, P, 1, R, 1)));
-  EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 10946);
   WasmEdge_VMDelete(VM);
 
   // AOT mode: keep library handle alive, run the embedded native code.
@@ -2294,6 +2291,60 @@ TEST(APICoreTest, Instance) {
   EXPECT_TRUE(true);
   WasmEdge_FunctionInstanceDelete(FuncCxt);
   EXPECT_TRUE(true);
+
+  // Get the host function data from a function instance.
+  uint32_t HostData = 0U;
+  FuncType = WasmEdge_FunctionTypeCreate(Param, 2, Result, 1);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, externAdd, &HostData, 0);
+  EXPECT_NE(FuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(FuncCxt), &HostData);
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  FuncCxt = WasmEdge_FunctionInstanceCreateBinding(
+      FuncType, externWrap, reinterpret_cast<void *>(externAdd), &HostData, 0);
+  EXPECT_NE(FuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(FuncCxt), &HostData);
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, externAdd, nullptr, 0);
+  EXPECT_NE(FuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(FuncCxt), nullptr);
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  WasmEdge_FunctionTypeDelete(FuncType);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(nullptr), nullptr);
+
+  // Get the host function data from the function instances not created by
+  // the C API.
+  hexToFile(TestWasm, TPath);
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
+  WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_TRUE(registerModule(Conf, Store, HostMod));
+  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
+  EXPECT_NE(Mod, nullptr);
+  EXPECT_TRUE(validateModule(Conf, Mod));
+  WasmEdge_ModuleInstanceContext *ModCxt = instantiateModule(Conf, Store, Mod);
+  EXPECT_NE(ModCxt, nullptr);
+  WasmEdge_ASTModuleDelete(Mod);
+  WasmEdge_String WasmFuncName = WasmEdge_StringCreateByCString("func-mul-2");
+  WasmEdge_FunctionInstanceContext *WasmFuncCxt =
+      WasmEdge_ModuleInstanceFindFunction(ModCxt, WasmFuncName);
+  WasmEdge_StringDelete(WasmFuncName);
+  EXPECT_NE(WasmFuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(WasmFuncCxt), nullptr);
+  WasmEdge_ModuleInstanceContext *WasiMod =
+      WasmEdge_ModuleInstanceCreateWASI(nullptr, 0, nullptr, 0, nullptr, 0);
+  EXPECT_NE(WasiMod, nullptr);
+  WasmEdge_String WasiFuncName = WasmEdge_StringCreateByCString("proc_exit");
+  WasmEdge_FunctionInstanceContext *WasiFuncCxt =
+      WasmEdge_ModuleInstanceFindFunction(WasiMod, WasiFuncName);
+  WasmEdge_StringDelete(WasiFuncName);
+  EXPECT_NE(WasiFuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(WasiFuncCxt), nullptr);
+  WasmEdge_ModuleInstanceDelete(ModCxt);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+  WasmEdge_ModuleInstanceDelete(WasiMod);
+  WasmEdge_StoreDelete(Store);
+  WasmEdge_ConfigureDelete(Conf);
 
   // Table instance
   WasmEdge_LimitContext *TabLim;
@@ -3678,16 +3729,16 @@ TEST(APICoreTest, VM) {
       WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, P, 2, nullptr, 1)));
 
   // Get a registered module from the VM.
-  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM), 18U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM), 17U);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(nullptr), 0U);
   EXPECT_EQ(WasmEdge_VMListRegisteredModule(nullptr, Names, 20), 0U);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, nullptr, 20), 18U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, nullptr, 20), 17U);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 20);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 1), 18U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 1), 17U);
   EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
   EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), ""sv);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 20);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 20), 18U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 20), 17U);
   EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
   EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "reg-wasm-ast"sv);
   EXPECT_EQ(std::string_view(Names[2].Buf, Names[2].Length),

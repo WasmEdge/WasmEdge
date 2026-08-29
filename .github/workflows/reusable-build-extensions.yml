@@ -43,15 +43,15 @@ jobs:
       ubuntu_latest: ${{ steps.readfile.outputs.ubuntu_latest }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - id: filter
-        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           filters: '.github/extensions.paths-filter.yml'
       - id: readfile
@@ -95,7 +95,6 @@ jobs:
           wasmedge_ffmpeg: ${{ steps.filter.outputs.wasmedge_ffmpeg }}
           wasmedge_image: ${{ steps.filter.outputs.wasmedge_image }}
           wasmedge_opencvmini: ${{ steps.filter.outputs.wasmedge_opencvmini }}
-          wasmedge_process: ${{ steps.filter.outputs.wasmedge_process }}
           wasmedge_stablediffusion: ${{ steps.filter.outputs.wasmedge_stablediffusion }}
           wasmedge_tensorflow: ${{ steps.filter.outputs.wasmedge_tensorflow }}
           wasmedge_tensorflowlite: ${{ steps.filter.outputs.wasmedge_tensorflowlite }}
@@ -180,8 +179,8 @@ jobs:
           - runner: 'macos-15-intel'
             asset_tag: 'darwin_24-x86_64'
             plugins: ${{ needs.prepare.outputs.macos_x86_64 }}
-          - runner: 'macos-14'
-            asset_tag: 'darwin_23-arm64'
+          - runner: 'macos-15'
+            asset_tag: 'darwin_24-arm64'
             plugins: ${{ needs.prepare.outputs.macos_arm64 }}
     name: ${{ matrix.asset_tag }}
     uses: ./.github/workflows/reusable-build-extensions-on-macos.yml

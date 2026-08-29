@@ -52,6 +52,34 @@ private:
   Check *C = nullptr;
 };
 
+/// Host function that records its i32 argument and returns it incremented, so a
+/// caller can verify both the argument passed in and the value returned.
+class AddOne : public Runtime::HostFunction<AddOne> {
+public:
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t Value) {
+    Args.push_back(Value);
+    return Value + 1;
+  }
+  Span<const uint32_t> getArgs() const noexcept { return Args; }
+
+private:
+  std::vector<uint32_t> Args;
+};
+
+/// Module that provides the "add_one" host function under the "host" namespace.
+class TailCallHostModule : public Runtime::Instance::ModuleInstance {
+public:
+  TailCallHostModule() : ModuleInstance("host") {
+    auto FP = std::make_unique<AddOne>();
+    F = FP.get();
+    addHostFunc("add_one", std::move(FP));
+  }
+  Span<const uint32_t> getArgs() const noexcept { return F->getArgs(); }
+
+private:
+  AddOne *F = nullptr;
+};
+
 /// After instantiation, read the exported table "t" at index 0 and verify the
 /// null reference has been normalized to an abstract heap type. This catches
 /// the root cause of #4757 without executing wasm that would segfault if the
@@ -553,6 +581,96 @@ std::array<WasmEdge::Byte, 61> CatchAllRefPayloadNotLeakedWasm{
     0x00, 0x00, 0x0a, 0x15, 0x01, 0x13, 0x00, 0x41, 0x01, 0x02, 0x69, 0x1f,
     0x40, 0x01, 0x03, 0x00, 0x41, 0x2a, 0x08, 0x00, 0x0b, 0x00, 0x0b, 0x1a,
     0x0b};
+
+/// Binary Wasm module: a try_table handler left inactive by a br and then
+/// buried under a newer try_table.
+///
+/// (module
+///   (tag $tx)
+///   (tag $ty (param i32 i32))
+///   (func (export "go")
+///     (block $outer
+///       ;; raise the stack so try_table $A records a high VPos
+///       (i32.const 1) (i32.const 1) (i32.const 1) (i32.const 1)
+///       (try_table $A (catch $tx $outer)
+///         (br $outer))              ;; leave $A without running its end: stale
+///       unreachable)
+///     ;; the stack is low again; try_table $B buries the stale handler $A
+///     (try_table $B (catch $tx 0)
+///       (i32.const 7) (i32.const 8)
+///       (throw $ty))))              ;; uncaught: search reaches stale $A
+std::array<WasmEdge::Byte, 78> BuriedStaleHandlerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02, 0x60,
+    0x00, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0d,
+    0x05, 0x02, 0x00, 0x00, 0x00, 0x01, 0x07, 0x06, 0x01, 0x02, 0x67, 0x6f,
+    0x00, 0x00, 0x0a, 0x26, 0x01, 0x24, 0x00, 0x02, 0x40, 0x41, 0x01, 0x41,
+    0x01, 0x41, 0x01, 0x41, 0x01, 0x1f, 0x40, 0x01, 0x00, 0x00, 0x00, 0x0c,
+    0x01, 0x0b, 0x00, 0x0b, 0x1f, 0x40, 0x01, 0x00, 0x00, 0x00, 0x41, 0x07,
+    0x41, 0x08, 0x08, 0x01, 0x0b, 0x0b};
+
+/// Binary Wasm module: a loop that leaves a stale handler behind on every
+/// iteration, so the stale handlers pile up under one another before a newer
+/// try_table buries them.
+///
+/// (module
+///   (tag $tx)
+///   (tag $ty (param i32 i32))
+///   (func (export "go") (local $i i32)
+///     (loop $L
+///       (block $out
+///         ;; raise the stack so try_table $A records a high VPos
+///         (i32.const 1) (i32.const 1) (i32.const 1) (i32.const 1)
+///         (try_table $A (catch $tx $out)
+///           (br $out))            ;; leave $A without running its end: stale
+///         unreachable)
+///       ;; every iteration strands another handler, all sharing one Try
+///       (local.set $i (i32.add (local.get $i) (i32.const 1)))
+///       (br_if $L (i32.lt_u (local.get $i) (i32.const 3))))
+///     (try_table $B (catch $tx 0)
+///       (i32.const 7) (i32.const 8)
+///       (throw $ty))))            ;; uncaught: search reaches the stale pile
+std::array<WasmEdge::Byte, 97> StaleHandlerPileWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02, 0x60,
+    0x00, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0d,
+    0x05, 0x02, 0x00, 0x00, 0x00, 0x01, 0x07, 0x06, 0x01, 0x02, 0x67, 0x6f,
+    0x00, 0x00, 0x0a, 0x39, 0x01, 0x37, 0x01, 0x01, 0x7f, 0x03, 0x40, 0x02,
+    0x40, 0x41, 0x01, 0x41, 0x01, 0x41, 0x01, 0x41, 0x01, 0x1f, 0x40, 0x01,
+    0x00, 0x00, 0x00, 0x0c, 0x01, 0x0b, 0x00, 0x0b, 0x20, 0x00, 0x41, 0x01,
+    0x6a, 0x21, 0x00, 0x20, 0x00, 0x41, 0x03, 0x49, 0x0d, 0x00, 0x0b, 0x1f,
+    0x40, 0x01, 0x00, 0x00, 0x00, 0x41, 0x07, 0x41, 0x08, 0x08, 0x01, 0x0b,
+    0x0b};
+/// Binary Wasm module: a wasm function tail-calls an imported host function.
+/// $f2 has more params than the callee (the crashing shape) and $f1 has equal
+/// arity (the hanging shape); both return_call the host "add_one", whose
+/// result must propagate back to the exported caller.
+///
+/// (module
+///   (import "host" "add_one" (func $h (param i32) (result i32)))
+///   (func $f2 (param i32 i32) (result i32)
+///     local.get 0
+///     return_call $h)
+///   (func $f1 (param i32) (result i32)
+///     local.get 0
+///     return_call $h)
+///   (func (export "run_more") (result i32)
+///     i32.const 41
+///     i32.const 99
+///     call $f2)
+///   (func (export "run_eq") (result i32)
+///     i32.const 7
+///     call $f1))
+std::array<WasmEdge::Byte, 129> TailCallHostImportWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x10, 0x03, 0x60,
+    0x01, 0x7f, 0x01, 0x7f, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x60, 0x00,
+    0x01, 0x7f, 0x02, 0x10, 0x01, 0x04, 0x68, 0x6f, 0x73, 0x74, 0x07, 0x61,
+    0x64, 0x64, 0x5f, 0x6f, 0x6e, 0x65, 0x00, 0x00, 0x03, 0x05, 0x04, 0x01,
+    0x00, 0x02, 0x02, 0x07, 0x15, 0x02, 0x08, 0x72, 0x75, 0x6e, 0x5f, 0x6d,
+    0x6f, 0x72, 0x65, 0x00, 0x03, 0x06, 0x72, 0x75, 0x6e, 0x5f, 0x65, 0x71,
+    0x00, 0x04, 0x0a, 0x20, 0x04, 0x06, 0x00, 0x20, 0x00, 0x12, 0x00, 0x0b,
+    0x06, 0x00, 0x20, 0x00, 0x12, 0x00, 0x0b, 0x09, 0x00, 0x41, 0x29, 0x41,
+    0xe3, 0x00, 0x10, 0x01, 0x0b, 0x06, 0x00, 0x41, 0x07, 0x10, 0x02, 0x0b,
+    0x00, 0x13, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x0c, 0x03, 0x00, 0x01,
+    0x68, 0x01, 0x02, 0x66, 0x32, 0x02, 0x02, 0x66, 0x31};
 // clang-format on
 
 /// Regression test for ref.test on externalized nullable references.
@@ -1052,6 +1170,51 @@ TEST(ExecutorRegression, CatchAllPayloadNotLeaked) {
   }
 }
 
+/// Regression test for a try_table handler buried by a later try_table.
+///
+/// A br out of a try_table leaves its handler inactive without popping it, and
+/// a second try_table buries it. An uncaught throw then reached the buried
+/// handler, whose VPos was recorded above the current stack height, and
+/// popTopHandler erased the value stack with first > last, moving values past
+/// the end of the buffer -- a guest-controlled out-of-bounds write. Execution
+/// must instead report an orderly uncaught exception.
+///
+/// The write is only visible in a release build under one heap layout, so this
+/// case must be run with assertions enabled or under ASan, where it aborts in
+/// popTopHandler before returning.
+TEST(ExecutorRegression, BuriedStaleTryTableHandler) {
+  Configure Conf;
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(BuriedStaleHandlerWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  auto Result = VM.execute("go");
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::UncaughtException)
+      << "the buried stale handler must not corrupt the value stack";
+}
+
+/// Regression test for stale try_table handlers piling up across loop
+/// iterations.
+///
+/// A loop that branches out of a try_table strands one handler per iteration,
+/// all sharing the same Try pointer, so a scan looking for inactive handlers
+/// cannot tell them apart from an active one. The pile both grew without bound
+/// and left the oldest entries reachable with a stale VPos. Reaping at branch
+/// time keeps the stack bounded, so execution must report an orderly uncaught
+/// exception.
+TEST(ExecutorRegression, StaleTryTableHandlerPile) {
+  Configure Conf;
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(StaleHandlerPileWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  auto Result = VM.execute("go");
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::UncaughtException)
+      << "handlers stranded by a loop must not survive to corrupt the stack";
+}
+
 /// Regression test for call_indirect on a non-funcref table (type confusion).
 ///
 /// A table whose element type is a concrete struct reference is not a funcref
@@ -1071,6 +1234,55 @@ TEST(ExecutorRegression, CallIndirectNonFuncTable) {
   auto Result = VM.validate();
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), ErrCode::Value::TypeCheckFailed);
+}
+
+/// Regression test for return_call to an imported host function.
+///
+/// The bug: return_call to an imported host function popped the caller's frame
+/// but returned its continuation under the interpreter's `-1` convention while
+/// the host branch consumed it with the host convention, so execution resumed
+/// on the caller's call site instead of after it. Depending on the arity
+/// mismatch this crashed (caller has more params) or looped forever (equal
+/// arity), with a guest-controlled out-of-bounds access underneath.
+///
+/// The fix keeps the host branch returning after the caller's call site, so the
+/// host result propagates back to the exported caller as an ordinary return.
+TEST(ExecutorRegression, TailCallToHostImport) {
+  // --- Part 1: caller has more params than callee (was a crash) ---
+  {
+    Configure Conf;
+    TailCallHostModule HostMod;
+    VM::VM VM(Conf);
+    VM.registerModule(HostMod);
+    ASSERT_TRUE(VM.loadWasm(TailCallHostImportWasm));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+    auto Res = VM.execute("run_more");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1);
+    EXPECT_EQ(Res->at(0).first.get<uint32_t>(), 42);
+    auto Args = HostMod.getArgs();
+    ASSERT_EQ(Args.size(), 1);
+    EXPECT_EQ(Args[0], 41);
+  }
+
+  // --- Part 2: caller and callee have equal arity (was an infinite loop) ---
+  {
+    Configure Conf;
+    TailCallHostModule HostMod;
+    VM::VM VM(Conf);
+    VM.registerModule(HostMod);
+    ASSERT_TRUE(VM.loadWasm(TailCallHostImportWasm));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+    auto Res = VM.execute("run_eq");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1);
+    EXPECT_EQ(Res->at(0).first.get<uint32_t>(), 8);
+    auto Args = HostMod.getArgs();
+    ASSERT_EQ(Args.size(), 1);
+    EXPECT_EQ(Args[0], 7);
+  }
 }
 
 } // namespace

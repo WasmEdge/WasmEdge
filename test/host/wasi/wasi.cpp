@@ -4531,12 +4531,13 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_fdstat_t) * 3);
 
     // Test misaligned FdStatPtr
-    EXPECT_TRUE(WasiFdFdstatGet.run(CallFrame,
-                                    std::initializer_list<WasmEdge::ValVariant>{
-                                        static_cast<int32_t>(0), // stdin fd
-                                        MisalignedFdStatPtr},    // misaligned
-                                    Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    auto Res = WasiFdFdstatGet.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       static_cast<int32_t>(0), // stdin fd
+                                       MisalignedFdStatPtr},    // misaligned
+                                   Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned FdStatPtr (should succeed)
@@ -4558,13 +4559,14 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_filestat_t) * 3);
 
     // Test misaligned FilestatPtr
-    EXPECT_TRUE(
+    auto Res =
         WasiFdFilestatGet.run(CallFrame,
                               std::initializer_list<WasmEdge::ValVariant>{
                                   static_cast<int32_t>(0), // stdin fd
                                   MisalignedFilestatPtr},  // misaligned
-                              Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+                              Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned FilestatPtr (should succeed)
@@ -4590,26 +4592,28 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_size_t) * 4);
 
     // Test misaligned IOVsPtr
-    EXPECT_TRUE(WasiFdPread.run(CallFrame,
-                                std::initializer_list<WasmEdge::ValVariant>{
-                                    static_cast<int32_t>(0), // stdin fd
-                                    MisalignedIOVsPtr, // misaligned IOVsPtr
-                                    static_cast<uint32_t>(1), // IOVsLen
-                                    static_cast<uint64_t>(0), // Offset
-                                    AlignedNReadPtr}, // aligned NReadPtr
-                                Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    auto Res = WasiFdPread.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   static_cast<int32_t>(0), // stdin fd
+                                   MisalignedIOVsPtr, // misaligned IOVsPtr
+                                   static_cast<uint32_t>(1), // IOVsLen
+                                   static_cast<uint64_t>(0), // Offset
+                                   AlignedNReadPtr},         // aligned NReadPtr
+                               Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     // Test misaligned NReadPtr
-    EXPECT_TRUE(WasiFdPread.run(CallFrame,
-                                std::initializer_list<WasmEdge::ValVariant>{
-                                    static_cast<int32_t>(0),  // stdin fd
-                                    AlignedIOVsPtr,           // aligned IOVsPtr
-                                    static_cast<uint32_t>(1), // IOVsLen
-                                    static_cast<uint64_t>(0), // Offset
-                                    MisalignedNReadPtr}, // misaligned NReadPtr
-                                Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    Res = WasiFdPread.run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              static_cast<int32_t>(0),  // stdin fd
+                              AlignedIOVsPtr,           // aligned IOVsPtr
+                              static_cast<uint32_t>(1), // IOVsLen
+                              static_cast<uint64_t>(0), // Offset
+                              MisalignedNReadPtr},      // misaligned NReadPtr
+                          Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned pointers (should pass alignment but may fail on
@@ -4635,13 +4639,13 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_prestat_t) * 2);
 
     // Test misaligned PreStatPtr
-    EXPECT_TRUE(
-        WasiFdPrestatGet.run(CallFrame,
-                             std::initializer_list<WasmEdge::ValVariant>{
-                                 static_cast<int32_t>(3), // preopen fd
-                                 MisalignedPreStatPtr},   // misaligned
-                             Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    auto Res = WasiFdPrestatGet.run(CallFrame,
+                                    std::initializer_list<WasmEdge::ValVariant>{
+                                        static_cast<int32_t>(3), // preopen fd
+                                        MisalignedPreStatPtr},   // misaligned
+                                    Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned PreStatPtr (should succeed)
@@ -4667,27 +4671,28 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_ciovec_t) * 2);
 
     // Test misaligned IOVsPtr
-    EXPECT_TRUE(WasiFdPwrite.run(CallFrame,
-                                 std::initializer_list<WasmEdge::ValVariant>{
-                                     static_cast<int32_t>(1), // stdout fd
-                                     MisalignedIOVsPtr, // misaligned IOVsPtr
-                                     static_cast<uint32_t>(1), // IOVsLen
-                                     static_cast<uint64_t>(0), // Offset
-                                     AlignedNWrittenPtr}, // aligned NWrittenPtr
-                                 Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    auto Res = WasiFdPwrite.run(CallFrame,
+                                std::initializer_list<WasmEdge::ValVariant>{
+                                    static_cast<int32_t>(1), // stdout fd
+                                    MisalignedIOVsPtr, // misaligned IOVsPtr
+                                    static_cast<uint32_t>(1), // IOVsLen
+                                    static_cast<uint64_t>(0), // Offset
+                                    AlignedNWrittenPtr}, // aligned NWrittenPtr
+                                Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     // Test misaligned NWrittenPtr
-    EXPECT_TRUE(
-        WasiFdPwrite.run(CallFrame,
-                         std::initializer_list<WasmEdge::ValVariant>{
-                             static_cast<int32_t>(1),  // stdout fd
-                             AlignedIOVsPtr,           // aligned IOVsPtr
-                             static_cast<uint32_t>(1), // IOVsLen
-                             static_cast<uint64_t>(0), // Offset
-                             MisalignedNWrittenPtr},   // misaligned NWrittenPtr
-                         Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    Res = WasiFdPwrite.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               static_cast<int32_t>(1),  // stdout fd
+                               AlignedIOVsPtr,           // aligned IOVsPtr
+                               static_cast<uint32_t>(1), // IOVsLen
+                               static_cast<uint64_t>(0), // Offset
+                               MisalignedNWrittenPtr},   // misaligned NWrittenPtr
+                           Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned pointers (should pass alignment but may fail on
@@ -4716,24 +4721,26 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_size_t) * 2);
 
     // Test misaligned IOVsPtr
-    EXPECT_TRUE(WasiFdRead.run(CallFrame,
-                               std::initializer_list<WasmEdge::ValVariant>{
-                                   static_cast<int32_t>(0), // stdin fd
-                                   MisalignedIOVsPtr, // misaligned IOVsPtr
-                                   static_cast<uint32_t>(1), // IOVsLen
-                                   AlignedNReadPtr},         // aligned NReadPtr
-                               Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    auto Res = WasiFdRead.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  static_cast<int32_t>(0), // stdin fd
+                                  MisalignedIOVsPtr, // misaligned IOVsPtr
+                                  static_cast<uint32_t>(1), // IOVsLen
+                                  AlignedNReadPtr},         // aligned NReadPtr
+                              Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     // Test misaligned NReadPtr
-    EXPECT_TRUE(WasiFdRead.run(CallFrame,
-                               std::initializer_list<WasmEdge::ValVariant>{
-                                   static_cast<int32_t>(0),  // stdin fd
-                                   AlignedIOVsPtr,           // aligned IOVsPtr
-                                   static_cast<uint32_t>(1), // IOVsLen
-                                   MisalignedNReadPtr}, // misaligned NReadPtr
-                               Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    Res = WasiFdRead.run(CallFrame,
+                         std::initializer_list<WasmEdge::ValVariant>{
+                             static_cast<int32_t>(0),  // stdin fd
+                             AlignedIOVsPtr,           // aligned IOVsPtr
+                             static_cast<uint32_t>(1), // IOVsLen
+                             MisalignedNReadPtr},      // misaligned NReadPtr
+                         Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned pointers (should pass alignment but may fail on
@@ -4758,7 +4765,7 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_size_t) * 2);
 
     // Test misaligned NReadPtr
-    EXPECT_TRUE(WasiFdReadDir.run(
+    auto Res = WasiFdReadDir.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             static_cast<int32_t>(3),    // preopen directory fd
@@ -4766,8 +4773,9 @@ TEST(WasiTest, PointerAlignment) {
             static_cast<uint32_t>(256), // BufLen
             static_cast<uint64_t>(0),   // Cookie
             MisalignedNReadPtr},        // misaligned NReadPtr
-        Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+        Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned NReadPtr (should succeed)
@@ -4793,15 +4801,16 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_filesize_t) * 4);
 
     // Test misaligned NewOffsetPtr
-    EXPECT_TRUE(
+    auto Res =
         WasiFdSeek.run(CallFrame,
                        std::initializer_list<WasmEdge::ValVariant>{
                            static_cast<int32_t>(0),                  // stdin fd
                            static_cast<int64_t>(0),                  // Offset
                            static_cast<uint32_t>(__WASI_WHENCE_SET), // Whence
                            MisalignedNewOffsetPtr}, // misaligned NewOffsetPtr
-                       Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+                       Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned NewOffsetPtr (should pass alignment but may fail
@@ -4827,12 +4836,13 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_filesize_t) * 2);
 
     // Test misaligned OffsetPtr
-    EXPECT_TRUE(WasiFdTell.run(CallFrame,
-                               std::initializer_list<WasmEdge::ValVariant>{
-                                   static_cast<int32_t>(0), // stdin fd
-                                   MisalignedOffsetPtr}, // misaligned OffsetPtr
-                               Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    auto Res = WasiFdTell.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  static_cast<int32_t>(0), // stdin fd
+                                  MisalignedOffsetPtr}, // misaligned OffsetPtr
+                              Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned OffsetPtr (should pass alignment but may fail on
@@ -4906,7 +4916,7 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_filestat_t) * 2);
 
     // Test misaligned FilestatPtr
-    EXPECT_TRUE(WasiPathFilestatGet.run(
+    auto Res = WasiPathFilestatGet.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             static_cast<int32_t>(0),                                  // fd
@@ -4914,8 +4924,9 @@ TEST(WasiTest, PointerAlignment) {
             static_cast<uint32_t>(0), // path ptr
             static_cast<uint32_t>(4), // path len
             MisalignedFilestatPtr},   // misaligned FilestatPtr
-        Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+        Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned FilestatPtr (should not fail due to alignment)
@@ -4942,7 +4953,7 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_fd_t) * 4);
 
     // Test misaligned FdPtr
-    EXPECT_TRUE(
+    auto Res =
         WasiPathOpen.run(CallFrame,
                          std::initializer_list<WasmEdge::ValVariant>{
                              static_cast<int32_t>(0),  // DirFd
@@ -4954,8 +4965,9 @@ TEST(WasiTest, PointerAlignment) {
                              static_cast<uint64_t>(0), // FsRightsInheriting
                              static_cast<uint32_t>(0), // FsFlags
                              MisalignedFdPtr},         // misaligned FdPtr
-                         Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+                         Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned FdPtr (should not fail due to alignment)
@@ -4986,7 +4998,7 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_size_t) * 2);
 
     // Test misaligned NReadPtr
-    EXPECT_TRUE(
+    auto Res =
         WasiPathReadLink.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
                                  static_cast<int32_t>(0),  // Fd
@@ -4995,8 +5007,9 @@ TEST(WasiTest, PointerAlignment) {
                                  static_cast<uint32_t>(0), // BufPtr
                                  static_cast<uint32_t>(4), // BufLen
                                  MisalignedNReadPtr}, // misaligned NReadPtr
-                             Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+                             Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned NReadPtr (should not fail due to alignment)
@@ -5019,6 +5032,13 @@ TEST(WasiTest, PointerAlignment) {
   {
     Env.init({}, "test"s, {}, {});
 
+    const auto ExpectUnalignedTrap = [](const auto &Res) {
+      EXPECT_FALSE(Res);
+      if (!Res) {
+        EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
+      }
+    };
+
     // Test WasiSockOpenV1 RoFdPtr alignment
     {
       WasmEdge::Host::WasiSockOpenV1 WasiSockOpen(Env);
@@ -5027,14 +5047,13 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_fd_t) * 2);
 
       // Test misaligned RoFdPtr
-      EXPECT_TRUE(WasiSockOpen.run(
+      ExpectUnalignedTrap(WasiSockOpen.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               static_cast<uint32_t>(__WASI_ADDRESS_FAMILY_INET4),
               static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_STREAM),
               MisalignedRoFdPtr},
           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test properly aligned RoFdPtr (should succeed)
       EXPECT_TRUE(WasiSockOpen.run(
@@ -5066,13 +5085,12 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_address_t) * 2);
 
       // Test misaligned AddressPtr
-      EXPECT_TRUE(WasiSockBind.run(CallFrame,
-                                   std::initializer_list<WasmEdge::ValVariant>{
-                                       static_cast<int32_t>(3), // dummy fd
-                                       MisalignedAddressPtr,
-                                       static_cast<uint32_t>(8080)},
-                                   Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+      ExpectUnalignedTrap(WasiSockBind.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3), // dummy fd
+              MisalignedAddressPtr, static_cast<uint32_t>(8080)},
+          Errno));
 
       // Test properly aligned AddressPtr (should pass alignment check but
       // fail on invalid fd)
@@ -5093,13 +5111,12 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_fd_t) * 2);
 
       // Test misaligned RoFdPtr
-      EXPECT_TRUE(
+      ExpectUnalignedTrap(
           WasiSockAccept.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
                                  static_cast<int32_t>(3), // dummy fd
                                  MisalignedRoFdPtr},
                              Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test properly aligned RoFdPtr (should pass alignment check but fail
       // on invalid fd)
@@ -5120,14 +5137,13 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_fd_t) * 2);
 
       // Test misaligned RoFdPtr
-      EXPECT_TRUE(
+      ExpectUnalignedTrap(
           WasiSockAccept.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
                                  static_cast<int32_t>(3),  // dummy fd
                                  static_cast<uint32_t>(0), // flags
                                  MisalignedRoFdPtr},
                              Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test properly aligned RoFdPtr (should pass alignment check but fail
       // on invalid fd)
@@ -5149,13 +5165,12 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_address_t) * 2);
 
       // Test misaligned AddressPtr
-      EXPECT_TRUE(WasiSockConnect.run(
+      ExpectUnalignedTrap(WasiSockConnect.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               static_cast<int32_t>(3), // dummy fd
               MisalignedAddressPtr, static_cast<uint32_t>(8080)},
           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test properly aligned AddressPtr (should pass alignment check but
       // fail on invalid fd)
@@ -5182,39 +5197,34 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_roflags_t) * 4);
 
       // Test misaligned RiDataPtr
-      EXPECT_TRUE(WasiSockRecv.run(CallFrame,
-                                   std::initializer_list<WasmEdge::ValVariant>{
-                                       static_cast<int32_t>(3), // dummy fd
-                                       MisalignedRiDataPtr,
-                                       static_cast<uint32_t>(1), // RiDataLen
-                                       static_cast<uint32_t>(0), // RiFlags
-                                       AlignedRoDataLenPtr, AlignedRoFlagsPtr},
-                                   Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+      ExpectUnalignedTrap(WasiSockRecv.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3),                       // dummy fd
+              MisalignedRiDataPtr, static_cast<uint32_t>(1), // RiDataLen
+              static_cast<uint32_t>(0),                      // RiFlags
+              AlignedRoDataLenPtr, AlignedRoFlagsPtr},
+          Errno));
 
       // Test misaligned RoDataLenPtr
-      EXPECT_TRUE(
-          WasiSockRecv.run(CallFrame,
-                           std::initializer_list<WasmEdge::ValVariant>{
-                               static_cast<int32_t>(3), // dummy fd
-                               AlignedRiDataPtr,
-                               static_cast<uint32_t>(1), // RiDataLen
-                               static_cast<uint32_t>(0), // RiFlags
-                               MisalignedRoDataLenPtr, AlignedRoFlagsPtr},
-                           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+      ExpectUnalignedTrap(WasiSockRecv.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3),                    // dummy fd
+              AlignedRiDataPtr, static_cast<uint32_t>(1), // RiDataLen
+              static_cast<uint32_t>(0),                   // RiFlags
+              MisalignedRoDataLenPtr, AlignedRoFlagsPtr},
+          Errno));
 
       // Test misaligned RoFlagsPtr
-      EXPECT_TRUE(
-          WasiSockRecv.run(CallFrame,
-                           std::initializer_list<WasmEdge::ValVariant>{
-                               static_cast<int32_t>(3), // dummy fd
-                               AlignedRiDataPtr,
-                               static_cast<uint32_t>(1), // RiDataLen
-                               static_cast<uint32_t>(0), // RiFlags
-                               AlignedRoDataLenPtr, MisalignedRoFlagsPtr},
-                           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+      ExpectUnalignedTrap(WasiSockRecv.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3),                    // dummy fd
+              AlignedRiDataPtr, static_cast<uint32_t>(1), // RiDataLen
+              static_cast<uint32_t>(0),                   // RiFlags
+              AlignedRoDataLenPtr, MisalignedRoFlagsPtr},
+          Errno));
 
       // Test properly aligned parameters (should pass alignment but fail on
       // invalid fd)
@@ -5240,26 +5250,26 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_ciovec_t) * 2);
 
       // Test misaligned SiDataPtr
-      EXPECT_TRUE(WasiSockSend.run(CallFrame,
-                                   std::initializer_list<WasmEdge::ValVariant>{
-                                       static_cast<int32_t>(3), // dummy fd
-                                       MisalignedSiDataPtr,
-                                       static_cast<uint32_t>(1), // SiDataLen
-                                       static_cast<uint32_t>(0), // SiFlags
-                                       AlignedSoDataLenPtr},
-                                   Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+      ExpectUnalignedTrap(
+          WasiSockSend.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               static_cast<int32_t>(3), // dummy fd
+                               MisalignedSiDataPtr,
+                               static_cast<uint32_t>(1), // SiDataLen
+                               static_cast<uint32_t>(0), // SiFlags
+                               AlignedSoDataLenPtr},
+                           Errno));
 
       // Test misaligned SoDataLenPtr
-      EXPECT_TRUE(WasiSockSend.run(CallFrame,
-                                   std::initializer_list<WasmEdge::ValVariant>{
-                                       static_cast<int32_t>(3), // dummy fd
-                                       AlignedSiDataPtr,
-                                       static_cast<uint32_t>(1), // SiDataLen
-                                       static_cast<uint32_t>(0), // SiFlags
-                                       MisalignedSoDataLenPtr},
-                                   Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+      ExpectUnalignedTrap(
+          WasiSockSend.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               static_cast<int32_t>(3), // dummy fd
+                               AlignedSiDataPtr,
+                               static_cast<uint32_t>(1), // SiDataLen
+                               static_cast<uint32_t>(0), // SiFlags
+                               MisalignedSoDataLenPtr},
+                           Errno));
 
       // Test properly aligned parameters (should pass alignment but fail on
       // invalid fd)
@@ -5291,56 +5301,44 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_roflags_t) * 5);
 
       // Test misaligned AddressPtr
-      EXPECT_TRUE(
-          WasiSockRecvFrom.run(CallFrame,
-                               std::initializer_list<WasmEdge::ValVariant>{
-                                   static_cast<int32_t>(3), // dummy fd
-                                   AlignedRiDataPtr,
-                                   static_cast<uint32_t>(1), // RiDataLen
-                                   MisalignedAddressPtr,
-                                   static_cast<uint32_t>(0), // RiFlags
-                                   AlignedRoDataLenPtr, AlignedRoFlagsPtr},
-                               Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+      ExpectUnalignedTrap(WasiSockRecvFrom.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3),                        // dummy fd
+              AlignedRiDataPtr, static_cast<uint32_t>(1),     // RiDataLen
+              MisalignedAddressPtr, static_cast<uint32_t>(0), // RiFlags
+              AlignedRoDataLenPtr, AlignedRoFlagsPtr},
+          Errno));
 
       // Test misaligned RiDataPtr
-      EXPECT_TRUE(
-          WasiSockRecvFrom.run(CallFrame,
-                               std::initializer_list<WasmEdge::ValVariant>{
-                                   static_cast<int32_t>(3), // dummy fd
-                                   MisalignedRiDataPtr,
-                                   static_cast<uint32_t>(1), // RiDataLen
-                                   AlignedAddressPtr,
-                                   static_cast<uint32_t>(0), // RiFlags
-                                   AlignedRoDataLenPtr, AlignedRoFlagsPtr},
-                               Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+      ExpectUnalignedTrap(WasiSockRecvFrom.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3),                       // dummy fd
+              MisalignedRiDataPtr, static_cast<uint32_t>(1), // RiDataLen
+              AlignedAddressPtr, static_cast<uint32_t>(0),   // RiFlags
+              AlignedRoDataLenPtr, AlignedRoFlagsPtr},
+          Errno));
 
       // Test misaligned RoDataLenPtr
-      EXPECT_TRUE(
-          WasiSockRecvFrom.run(CallFrame,
-                               std::initializer_list<WasmEdge::ValVariant>{
-                                   static_cast<int32_t>(3), // dummy fd
-                                   AlignedRiDataPtr,
-                                   static_cast<uint32_t>(1), // RiDataLen
-                                   AlignedAddressPtr,
-                                   static_cast<uint32_t>(0), // RiFlags
-                                   MisalignedRoDataLenPtr, AlignedRoFlagsPtr},
-                               Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+      ExpectUnalignedTrap(WasiSockRecvFrom.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3),                     // dummy fd
+              AlignedRiDataPtr, static_cast<uint32_t>(1),  // RiDataLen
+              AlignedAddressPtr, static_cast<uint32_t>(0), // RiFlags
+              MisalignedRoDataLenPtr, AlignedRoFlagsPtr},
+          Errno));
 
       // Test misaligned RoFlagsPtr
-      EXPECT_TRUE(
-          WasiSockRecvFrom.run(CallFrame,
-                               std::initializer_list<WasmEdge::ValVariant>{
-                                   static_cast<int32_t>(3), // dummy fd
-                                   AlignedRiDataPtr,
-                                   static_cast<uint32_t>(1), // RiDataLen
-                                   AlignedAddressPtr,
-                                   static_cast<uint32_t>(0), // RiFlags
-                                   AlignedRoDataLenPtr, MisalignedRoFlagsPtr},
-                               Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+      ExpectUnalignedTrap(WasiSockRecvFrom.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3),                     // dummy fd
+              AlignedRiDataPtr, static_cast<uint32_t>(1),  // RiDataLen
+              AlignedAddressPtr, static_cast<uint32_t>(0), // RiFlags
+              AlignedRoDataLenPtr, MisalignedRoFlagsPtr},
+          Errno));
 
       // Test properly aligned parameters (should pass alignment but fail on
       // invalid fd)
@@ -5371,7 +5369,7 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_size_t) * 4);
 
       // Test misaligned AddressPtr
-      EXPECT_TRUE(
+      ExpectUnalignedTrap(
           WasiSockSendTo.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
                                  static_cast<int32_t>(3), // dummy fd
@@ -5382,10 +5380,9 @@ TEST(WasiTest, PointerAlignment) {
                                  static_cast<uint32_t>(0),   // SiFlags
                                  AlignedSoDataLenPtr},
                              Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test misaligned SiDataPtr
-      EXPECT_TRUE(
+      ExpectUnalignedTrap(
           WasiSockSendTo.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
                                  static_cast<int32_t>(3), // dummy fd
@@ -5396,10 +5393,9 @@ TEST(WasiTest, PointerAlignment) {
                                  static_cast<uint32_t>(0),   // SiFlags
                                  AlignedSoDataLenPtr},
                              Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test misaligned SoDataLenPtr
-      EXPECT_TRUE(
+      ExpectUnalignedTrap(
           WasiSockSendTo.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
                                  static_cast<int32_t>(3), // dummy fd
@@ -5410,7 +5406,6 @@ TEST(WasiTest, PointerAlignment) {
                                  static_cast<uint32_t>(0),   // SiFlags
                                  MisalignedSoDataLenPtr},
                              Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test properly aligned parameters (should pass alignment but fail on
       // invalid fd)
@@ -5442,7 +5437,7 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_size_t) * 4);
 
       // Test misaligned HintsPtr alignment
-      EXPECT_TRUE(
+      ExpectUnalignedTrap(
           WasiSockGetAddrinfo.run(CallFrame,
                                   std::initializer_list<WasmEdge::ValVariant>{
                                       static_cast<uint32_t>(0), // NodePtr
@@ -5453,10 +5448,9 @@ TEST(WasiTest, PointerAlignment) {
                                       static_cast<uint32_t>(1), // MaxResLength
                                       AlignedResLengthPtr},
                                   Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
-      // Test misaligned HintsPtr
-      EXPECT_TRUE(
+      // Test misaligned ResPtr
+      ExpectUnalignedTrap(
           WasiSockGetAddrinfo.run(CallFrame,
                                   std::initializer_list<WasmEdge::ValVariant>{
                                       static_cast<uint32_t>(0), // NodePtr
@@ -5467,10 +5461,9 @@ TEST(WasiTest, PointerAlignment) {
                                       static_cast<uint32_t>(1), // MaxResLength
                                       AlignedResLengthPtr},
                                   Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test misaligned ResLengthPtr
-      EXPECT_TRUE(
+      ExpectUnalignedTrap(
           WasiSockGetAddrinfo.run(CallFrame,
                                   std::initializer_list<WasmEdge::ValVariant>{
                                       static_cast<uint32_t>(0), // NodePtr
@@ -5481,7 +5474,6 @@ TEST(WasiTest, PointerAlignment) {
                                       static_cast<uint32_t>(1), // MaxResLength
                                       MisalignedResLengthPtr},
                                   Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test properly aligned parameters (should pass alignment but fail on
       // other validations)
@@ -5513,31 +5505,28 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(uint32_t) * 4);
 
       // Test misaligned AddressPtr
-      EXPECT_TRUE(WasiSockGetPeerAddr.run(
+      ExpectUnalignedTrap(WasiSockGetPeerAddr.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               static_cast<int32_t>(3), // dummy fd
               MisalignedAddressPtr, AlignedAddressTypePtr, AlignedPortPtr},
           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test misaligned AddressTypePtr
-      EXPECT_TRUE(WasiSockGetPeerAddr.run(
+      ExpectUnalignedTrap(WasiSockGetPeerAddr.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               static_cast<int32_t>(3), // dummy fd
               AlignedAddressPtr, MisalignedAddressTypePtr, AlignedPortPtr},
           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test misaligned PortPtr
-      EXPECT_TRUE(WasiSockGetPeerAddr.run(
+      ExpectUnalignedTrap(WasiSockGetPeerAddr.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               static_cast<int32_t>(3), // dummy fd
               AlignedAddressPtr, AlignedAddressTypePtr, MisalignedPortPtr},
           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test properly aligned parameters (should pass alignment but fail on
       // invalid fd)
@@ -5558,14 +5547,13 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_fd_t) * 2);
 
       // Test misaligned RoFdPtr
-      EXPECT_TRUE(WasiSockOpen.run(
+      ExpectUnalignedTrap(WasiSockOpen.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               static_cast<uint32_t>(__WASI_ADDRESS_FAMILY_INET4),
               static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_STREAM),
               MisalignedRoFdPtr},
           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test properly aligned RoFdPtr (should pass alignment but fail on
       // other validations)
@@ -5587,13 +5575,12 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_address_t) * 2);
 
       // Test misaligned AddressPtr
-      EXPECT_TRUE(WasiSockBind.run(CallFrame,
-                                   std::initializer_list<WasmEdge::ValVariant>{
-                                       static_cast<int32_t>(3), // dummy fd
-                                       MisalignedAddressPtr,
-                                       static_cast<uint32_t>(8080)},
-                                   Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+      ExpectUnalignedTrap(WasiSockBind.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3), // dummy fd
+              MisalignedAddressPtr, static_cast<uint32_t>(8080)},
+          Errno));
 
       // Test properly aligned AddressPtr (should pass alignment but fail on
       // invalid fd)
@@ -5614,13 +5601,12 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_address_t) * 2);
 
       // Test misaligned AddressPtr
-      EXPECT_TRUE(WasiSockConnect.run(
+      ExpectUnalignedTrap(WasiSockConnect.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               static_cast<int32_t>(3), // dummy fd
               MisalignedAddressPtr, static_cast<uint32_t>(8080)},
           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test properly aligned AddressPtr (should pass alignment but fail on
       // invalid fd)
@@ -5648,39 +5634,34 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_roflags_t) * 4);
 
       // Test misaligned RiDataPtr
-      EXPECT_TRUE(WasiSockRecv.run(CallFrame,
-                                   std::initializer_list<WasmEdge::ValVariant>{
-                                       static_cast<int32_t>(3), // dummy fd
-                                       MisalignedRiDataPtr,
-                                       static_cast<uint32_t>(1), // RiDataLen
-                                       static_cast<uint32_t>(0), // RiFlags
-                                       AlignedRoDataLenPtr, AlignedRoFlagsPtr},
-                                   Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+      ExpectUnalignedTrap(WasiSockRecv.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3),                       // dummy fd
+              MisalignedRiDataPtr, static_cast<uint32_t>(1), // RiDataLen
+              static_cast<uint32_t>(0),                      // RiFlags
+              AlignedRoDataLenPtr, AlignedRoFlagsPtr},
+          Errno));
 
       // Test misaligned RoDataLenPtr
-      EXPECT_TRUE(
-          WasiSockRecv.run(CallFrame,
-                           std::initializer_list<WasmEdge::ValVariant>{
-                               static_cast<int32_t>(3), // dummy fd
-                               AlignedRiDataPtr,
-                               static_cast<uint32_t>(1), // RiDataLen
-                               static_cast<uint32_t>(0), // RiFlags
-                               MisalignedRoDataLenPtr, AlignedRoFlagsPtr},
-                           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+      ExpectUnalignedTrap(WasiSockRecv.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3),                    // dummy fd
+              AlignedRiDataPtr, static_cast<uint32_t>(1), // RiDataLen
+              static_cast<uint32_t>(0),                   // RiFlags
+              MisalignedRoDataLenPtr, AlignedRoFlagsPtr},
+          Errno));
 
       // Test misaligned RoFlagsPtr
-      EXPECT_TRUE(
-          WasiSockRecv.run(CallFrame,
-                           std::initializer_list<WasmEdge::ValVariant>{
-                               static_cast<int32_t>(3), // dummy fd
-                               AlignedRiDataPtr,
-                               static_cast<uint32_t>(1), // RiDataLen
-                               static_cast<uint32_t>(0), // RiFlags
-                               AlignedRoDataLenPtr, MisalignedRoFlagsPtr},
-                           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+      ExpectUnalignedTrap(WasiSockRecv.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3),                    // dummy fd
+              AlignedRiDataPtr, static_cast<uint32_t>(1), // RiDataLen
+              static_cast<uint32_t>(0),                   // RiFlags
+              AlignedRoDataLenPtr, MisalignedRoFlagsPtr},
+          Errno));
 
       // Test properly aligned parameters (should pass alignment but fail on
       // invalid fd)
@@ -5715,69 +5696,54 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_roflags_t) * 6);
 
       // Test misaligned RiDataPtr
-      EXPECT_TRUE(WasiSockRecvFrom.run(
+      ExpectUnalignedTrap(WasiSockRecvFrom.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
-              static_cast<int32_t>(3), // dummy fd
-              MisalignedRiDataPtr,
-              static_cast<uint32_t>(1), // RiDataLen
-              AlignedAddressPtr,
-              static_cast<uint32_t>(0), // RiFlags
+              static_cast<int32_t>(3),                       // dummy fd
+              MisalignedRiDataPtr, static_cast<uint32_t>(1), // RiDataLen
+              AlignedAddressPtr, static_cast<uint32_t>(0),   // RiFlags
               AlignedPortPtr, AlignedRoDataLenPtr, AlignedRoFlagsPtr},
           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test misaligned AddressPtr
-      EXPECT_TRUE(WasiSockRecvFrom.run(
+      ExpectUnalignedTrap(WasiSockRecvFrom.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
-              static_cast<int32_t>(3), // dummy fd
-              AlignedRiDataPtr,
-              static_cast<uint32_t>(1), // RiDataLen
-              MisalignedAddressPtr,
-              static_cast<uint32_t>(0), // RiFlags
+              static_cast<int32_t>(3),                        // dummy fd
+              AlignedRiDataPtr, static_cast<uint32_t>(1),     // RiDataLen
+              MisalignedAddressPtr, static_cast<uint32_t>(0), // RiFlags
               AlignedPortPtr, AlignedRoDataLenPtr, AlignedRoFlagsPtr},
           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test misaligned PortPtr
-      EXPECT_TRUE(WasiSockRecvFrom.run(
+      ExpectUnalignedTrap(WasiSockRecvFrom.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
-              static_cast<int32_t>(3), // dummy fd
-              AlignedRiDataPtr,
-              static_cast<uint32_t>(1), // RiDataLen
-              AlignedAddressPtr,
-              static_cast<uint32_t>(0), // RiFlags
+              static_cast<int32_t>(3),                     // dummy fd
+              AlignedRiDataPtr, static_cast<uint32_t>(1),  // RiDataLen
+              AlignedAddressPtr, static_cast<uint32_t>(0), // RiFlags
               MisalignedPortPtr, AlignedRoDataLenPtr, AlignedRoFlagsPtr},
           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test misaligned RoDataLenPtr
-      EXPECT_TRUE(WasiSockRecvFrom.run(
+      ExpectUnalignedTrap(WasiSockRecvFrom.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
-              static_cast<int32_t>(3), // dummy fd
-              AlignedRiDataPtr,
-              static_cast<uint32_t>(1), // RiDataLen
-              AlignedAddressPtr,
-              static_cast<uint32_t>(0), // RiFlags
+              static_cast<int32_t>(3),                     // dummy fd
+              AlignedRiDataPtr, static_cast<uint32_t>(1),  // RiDataLen
+              AlignedAddressPtr, static_cast<uint32_t>(0), // RiFlags
               AlignedPortPtr, MisalignedRoDataLenPtr, AlignedRoFlagsPtr},
           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test misaligned RoFlagsPtr
-      EXPECT_TRUE(WasiSockRecvFrom.run(
+      ExpectUnalignedTrap(WasiSockRecvFrom.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
-              static_cast<int32_t>(3), // dummy fd
-              AlignedRiDataPtr,
-              static_cast<uint32_t>(1), // RiDataLen
-              AlignedAddressPtr,
-              static_cast<uint32_t>(0), // RiFlags
+              static_cast<int32_t>(3),                     // dummy fd
+              AlignedRiDataPtr, static_cast<uint32_t>(1),  // RiDataLen
+              AlignedAddressPtr, static_cast<uint32_t>(0), // RiFlags
               AlignedPortPtr, AlignedRoDataLenPtr, MisalignedRoFlagsPtr},
           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test properly aligned parameters (should pass alignment but fail on
       // invalid fd)
@@ -5805,26 +5771,26 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_size_t) * 3);
 
       // Test misaligned SiDataPtr
-      EXPECT_TRUE(WasiSockSend.run(CallFrame,
-                                   std::initializer_list<WasmEdge::ValVariant>{
-                                       static_cast<int32_t>(3), // dummy fd
-                                       MisalignedSiDataPtr,
-                                       static_cast<uint32_t>(1), // SiDataLen
-                                       static_cast<uint32_t>(0), // SiFlags
-                                       AlignedSoDataLenPtr},
-                                   Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+      ExpectUnalignedTrap(
+          WasiSockSend.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               static_cast<int32_t>(3), // dummy fd
+                               MisalignedSiDataPtr,
+                               static_cast<uint32_t>(1), // SiDataLen
+                               static_cast<uint32_t>(0), // SiFlags
+                               AlignedSoDataLenPtr},
+                           Errno));
 
       // Test misaligned SoDataLenPtr
-      EXPECT_TRUE(WasiSockSend.run(CallFrame,
-                                   std::initializer_list<WasmEdge::ValVariant>{
-                                       static_cast<int32_t>(3), // dummy fd
-                                       AlignedSiDataPtr,
-                                       static_cast<uint32_t>(1), // SiDataLen
-                                       static_cast<uint32_t>(0), // SiFlags
-                                       MisalignedSoDataLenPtr},
-                                   Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+      ExpectUnalignedTrap(
+          WasiSockSend.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               static_cast<int32_t>(3), // dummy fd
+                               AlignedSiDataPtr,
+                               static_cast<uint32_t>(1), // SiDataLen
+                               static_cast<uint32_t>(0), // SiFlags
+                               MisalignedSoDataLenPtr},
+                           Errno));
 
       // Test properly aligned parameters (should pass alignment but fail on
       // invalid fd)
@@ -5854,7 +5820,7 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_size_t) * 4);
 
       // Test misaligned SiDataPtr
-      EXPECT_TRUE(
+      ExpectUnalignedTrap(
           WasiSockSendTo.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
                                  static_cast<int32_t>(3), // dummy fd
@@ -5865,10 +5831,9 @@ TEST(WasiTest, PointerAlignment) {
                                  static_cast<uint32_t>(0),   // SiFlags
                                  AlignedSoDataLenPtr},
                              Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test misaligned AddressPtr
-      EXPECT_TRUE(
+      ExpectUnalignedTrap(
           WasiSockSendTo.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
                                  static_cast<int32_t>(3), // dummy fd
@@ -5879,10 +5844,9 @@ TEST(WasiTest, PointerAlignment) {
                                  static_cast<uint32_t>(0),   // SiFlags
                                  AlignedSoDataLenPtr},
                              Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test misaligned SoDataLenPtr
-      EXPECT_TRUE(
+      ExpectUnalignedTrap(
           WasiSockSendTo.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
                                  static_cast<int32_t>(3), // dummy fd
@@ -5893,7 +5857,6 @@ TEST(WasiTest, PointerAlignment) {
                                  static_cast<uint32_t>(0),   // SiFlags
                                  MisalignedSoDataLenPtr},
                              Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test properly aligned parameters (should pass alignment but fail on
       // invalid fd)
@@ -5911,6 +5874,33 @@ TEST(WasiTest, PointerAlignment) {
       EXPECT_NE(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
     }
 
+    {
+      WasmEdge::Host::WasiSockGetOpt WasiSockGetOpt(Env);
+      const uint32_t MisalignedFlagSizePtr = alignof(uint32_t) - 1;
+      const uint32_t AlignedFlagSizePtr =
+          static_cast<uint32_t>(alignof(uint32_t) * 4);
+      const uint32_t FlagPtr = 64;
+
+      ExpectUnalignedTrap(WasiSockGetOpt.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3),
+              static_cast<uint32_t>(__WASI_SOCK_OPT_LEVEL_SOL_SOCKET),
+              static_cast<uint32_t>(__WASI_SOCK_OPT_SO_TYPE), FlagPtr,
+              MisalignedFlagSizePtr},
+          Errno));
+
+      EXPECT_TRUE(WasiSockGetOpt.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3),
+              static_cast<uint32_t>(__WASI_SOCK_OPT_LEVEL_SOL_SOCKET),
+              static_cast<uint32_t>(__WASI_SOCK_OPT_SO_TYPE), FlagPtr,
+              AlignedFlagSizePtr},
+          Errno));
+      EXPECT_NE(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    }
+
     // Test WasiSockGetLocalAddrV2 alignment for multiple parameters
     {
       WasmEdge::Host::WasiSockGetLocalAddrV2 WasiSockGetLocalAddr(Env);
@@ -5923,22 +5913,20 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(uint32_t) * 3);
 
       // Test misaligned AddressPtr
-      EXPECT_TRUE(
+      ExpectUnalignedTrap(
           WasiSockGetLocalAddr.run(CallFrame,
                                    std::initializer_list<WasmEdge::ValVariant>{
                                        static_cast<int32_t>(3), // dummy fd
                                        MisalignedAddressPtr, AlignedPortPtr},
                                    Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test misaligned PortPtr
-      EXPECT_TRUE(
+      ExpectUnalignedTrap(
           WasiSockGetLocalAddr.run(CallFrame,
                                    std::initializer_list<WasmEdge::ValVariant>{
                                        static_cast<int32_t>(3), // dummy fd
                                        AlignedAddressPtr, MisalignedPortPtr},
                                    Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test properly aligned parameters (should pass alignment but fail on
       // invalid fd)
@@ -5962,22 +5950,20 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(uint32_t) * 3);
 
       // Test misaligned AddressPtr
-      EXPECT_TRUE(
+      ExpectUnalignedTrap(
           WasiSockGetPeerAddr.run(CallFrame,
                                   std::initializer_list<WasmEdge::ValVariant>{
                                       static_cast<int32_t>(3), // dummy fd
                                       MisalignedAddressPtr, AlignedPortPtr},
                                   Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test misaligned PortPtr
-      EXPECT_TRUE(
+      ExpectUnalignedTrap(
           WasiSockGetPeerAddr.run(CallFrame,
                                   std::initializer_list<WasmEdge::ValVariant>{
                                       static_cast<int32_t>(3), // dummy fd
                                       AlignedAddressPtr, MisalignedPortPtr},
                                   Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test properly aligned parameters (should pass alignment but fail on
       // invalid fd)
@@ -6004,31 +5990,28 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(uint32_t) * 3);
 
       // Test misaligned AddressPtr
-      EXPECT_TRUE(WasiSockGetLocalAddr.run(
+      ExpectUnalignedTrap(WasiSockGetLocalAddr.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               static_cast<int32_t>(3), // dummy fd
               MisalignedAddressPtr, AlignedAddressTypePtr, AlignedPortPtr},
           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test misaligned AddressTypePtr
-      EXPECT_TRUE(WasiSockGetLocalAddr.run(
+      ExpectUnalignedTrap(WasiSockGetLocalAddr.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               static_cast<int32_t>(3), // dummy fd
               AlignedAddressPtr, MisalignedAddressTypePtr, AlignedPortPtr},
           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test misaligned PortPtr
-      EXPECT_TRUE(WasiSockGetLocalAddr.run(
+      ExpectUnalignedTrap(WasiSockGetLocalAddr.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               static_cast<int32_t>(3), // dummy fd
               AlignedAddressPtr, AlignedAddressTypePtr, MisalignedPortPtr},
           Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
       // Test properly aligned parameters (should pass alignment but fail on
       // invalid fd)
@@ -6057,28 +6040,31 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_size_t) * 3);
 
       // Test misaligned InPtr
-      EXPECT_TRUE(WasiPollOneoff.run(
+      auto Res = WasiPollOneoff.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               MisalignedInPtr, AlignedOutPtr, Count, AlignedNEventsPtr},
-          Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+          Errno);
+      ASSERT_FALSE(Res);
+      EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
       // Test misaligned OutPtr
-      EXPECT_TRUE(WasiPollOneoff.run(
+      Res = WasiPollOneoff.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               AlignedInPtr, MisalignedOutPtr, Count, AlignedNEventsPtr},
-          Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+          Errno);
+      ASSERT_FALSE(Res);
+      EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
       // Test misaligned for NEventsPtr
-      EXPECT_TRUE(WasiPollOneoff.run(
+      Res = WasiPollOneoff.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               AlignedInPtr, AlignedOutPtr, Count, MisalignedNEventsPtr},
-          Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+          Errno);
+      ASSERT_FALSE(Res);
+      EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
       // Test properly aligned parameters (should pass alignment but may fail
       // on subscription validation)
@@ -6133,21 +6119,23 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_size_t) * 3);
 
     // Test misaligned ArgcPtr
-    EXPECT_TRUE(
-        WasiArgsSizesGet.run(CallFrame,
-                             std::initializer_list<WasmEdge::ValVariant>{
-                                 MisalignedArgcPtr, // misaligned
-                                 AlignedArgvBufSizePtr},
-                             Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    Res = WasiArgsSizesGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            MisalignedArgcPtr, // misaligned
+            AlignedArgvBufSizePtr},
+        Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     // Test misaligned ArgvBufSizePtr
-    EXPECT_TRUE(WasiArgsSizesGet.run(
+    Res = WasiArgsSizesGet.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             AlignedArgcPtr, MisalignedArgvBufSizePtr}, // misaligned
-        Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+        Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test properly aligned parameters (should succeed)
@@ -6172,12 +6160,14 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(uint8_t_ptr) * 3);
 
     // Test misaligned EnvPtr
-    EXPECT_TRUE(WasiEnvironGet.run(CallFrame,
-                                   std::initializer_list<WasmEdge::ValVariant>{
-                                       MisalignedEnvPtr, // misaligned
-                                       static_cast<uint32_t>(0)},
-                                   Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    auto Res =
+        WasiEnvironGet.run(CallFrame,
+                           std::initializer_list<WasmEdge::ValVariant>{
+                               MisalignedEnvPtr, // misaligned
+                               static_cast<uint32_t>(0)},
+                           Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned pointers (should succeed)
@@ -6201,21 +6191,23 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_size_t) * 5);
 
     // Test misaligned EnvCntPtr
-    EXPECT_TRUE(
-        WasiEnvironSizesGet.run(CallFrame,
-                                std::initializer_list<WasmEdge::ValVariant>{
-                                    MisalignedEnvCntPtr, // misaligned
-                                    AlignedEnvBufSizePtr},
-                                Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    Res = WasiEnvironSizesGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            MisalignedEnvCntPtr, // misaligned
+            AlignedEnvBufSizePtr},
+        Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     // Test misaligned EnvBufSizePtr
-    EXPECT_TRUE(WasiEnvironSizesGet.run(
+    Res = WasiEnvironSizesGet.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             AlignedEnvCntPtr, MisalignedEnvBufSizePtr}, // misaligned
-        Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+        Errno);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
     writeDummyMemoryContent(MemInst);
     // Test correctly aligned pointers (should succeed)
@@ -6240,13 +6232,14 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(uint64_t) * 2);
 
       // Test misaligned ResolutionPtr
-      EXPECT_TRUE(WasiClockResGet.run(
+      auto Res = WasiClockResGet.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               static_cast<uint32_t>(__WASI_CLOCKID_REALTIME),
               MisalignedResolutionPtr}, // misaligned
-          Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+          Errno);
+      ASSERT_FALSE(Res);
+      EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
       writeDummyMemoryContent(MemInst);
       // Test correctly aligned pointer (should succeed)
@@ -6274,13 +6267,14 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(uint64_t) * 3);
 
       // Test misaligned timestamp pointer
-      EXPECT_TRUE(WasiClockTimeGet.run(
+      auto Res = WasiClockTimeGet.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               static_cast<uint32_t>(__WASI_CLOCKID_REALTIME), UINT64_C(0),
               MisalignedTimePtr}, // misaligned
-          Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+          Errno);
+      ASSERT_FALSE(Res);
+      EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
       writeDummyMemoryContent(MemInst);
       // Test correctly aligned timestamp pointer (should succeed)
@@ -6315,13 +6309,14 @@ TEST(WasiTest, PointerAlignment) {
           static_cast<uint32_t>(alignof(__wasi_filestat_t));
 
       // Test misaligned filestat pointer
-      EXPECT_TRUE(WasiPathFilestatGet.run(
+      auto Res = WasiPathFilestatGet.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
               Fd, static_cast<uint32_t>(__WASI_LOOKUPFLAGS_SYMLINK_FOLLOW),
               PathPtr, PathSize, MisalignedFilestatPtr}, // misaligned
-          Errno));
-      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+          Errno);
+      ASSERT_FALSE(Res);
+      EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
       // Correctly aligned filestat pointer (should succeed)
       EXPECT_TRUE(WasiPathFilestatGet.run(

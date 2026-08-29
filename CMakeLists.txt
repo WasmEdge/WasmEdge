@@ -116,7 +116,7 @@ option(WASMEDGE_PLUGIN_OCR "Enable and build WasmEdge OCR plugin." OFF)
 #   WasmEdge plug-in: OpenCV-mini.
 option(WASMEDGE_PLUGIN_OPENCVMINI "Enable and build WasmEdge opencvmini plugin." OFF)
 #   WasmEdge plug-in: Process.
-option(WASMEDGE_PLUGIN_PROCESS "Enable and build WasmEdge process plugin." OFF)
+option(WASMEDGE_PLUGIN_PROCESS "Removed (deprecated option kept for compatibility): WasmEdge process plugin." OFF)
 #   WasmEdge plug-in: Stable-diffusion.
 option(WASMEDGE_PLUGIN_STABLEDIFFUSION "Enable and build WasmEdge stable-diffusion plugin." OFF)
 option(WASMEDGE_PLUGIN_STABLEDIFFUSION_CUDA "Enable CUDA in the stable-diffusion plugin." OFF)

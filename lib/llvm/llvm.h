@@ -363,7 +363,7 @@ public:
   inline Value getFirstFunction() noexcept;
   inline Value getNamedFunction(const char *Name) noexcept;
   inline Message printModuleToFile(const char *File) noexcept;
-  inline Message verify(LLVMVerifierFailureAction Action) noexcept;
+  inline bool hasVerificationError(Message &OutMsg) noexcept;
 
   constexpr operator bool() const noexcept { return Ref != nullptr; }
   constexpr auto &unwrap() const noexcept { return Ref; }
@@ -809,6 +809,10 @@ public:
   inline void setMetadata(Context &C, unsigned int KindID,
                           Metadata Node) noexcept;
   inline void setMustTailCall() noexcept;
+  inline void setTailCall() noexcept;
+  Type getInstructionCalledFunctionType() const noexcept {
+    return LLVMGetCalledFunctionType(Ref);
+  }
 
   Value getFirstParam() noexcept { return LLVMGetFirstParam(Ref); }
   Value getNextParam() noexcept { return LLVMGetNextParam(Ref); }
@@ -1002,10 +1006,8 @@ Message Module::printModuleToFile(const char *Filename) noexcept {
   return M;
 }
 
-Message Module::verify(LLVMVerifierFailureAction Action) noexcept {
-  Message M;
-  LLVMVerifyModule(Ref, Action, &M.unwrap());
-  return M;
+bool Module::hasVerificationError(Message &OutMsg) noexcept {
+  return LLVMVerifyModule(Ref, LLVMReturnStatusAction, &OutMsg.unwrap()) != 0;
 }
 
 Type Context::getVoidTy() noexcept { return LLVMVoidTypeInContext(Ref); }
@@ -1062,6 +1064,9 @@ void Value::setMetadata(Context &C, unsigned int KindID,
 
 void Value::setMustTailCall() noexcept {
   LLVMSetTailCallKind(Ref, LLVMTailCallKindMustTail);
+}
+void Value::setTailCall() noexcept {
+  LLVMSetTailCallKind(Ref, LLVMTailCallKindTail);
 }
 
 static inline Message getDefaultTargetTriple() noexcept {
@@ -1598,18 +1603,6 @@ public:
     }
     return createCall(C, {V}, Name);
   }
-  Value createBinaryIntrinsic(unsigned int ID, Value LHS, Value RHS,
-                              const char *Name = "") noexcept {
-    FunctionCallee C;
-    {
-      LLVMTypeRef ParamTypes[2] = {LHS.getType().unwrap(),
-                                   RHS.getType().unwrap()};
-      C.Fn = LLVMGetIntrinsicDeclaration(getMod(), ID, ParamTypes, 2);
-      C.Ty = LLVMIntrinsicGetType(getCtx(), ID, ParamTypes, 2);
-    }
-    return createCall(C, {LHS, RHS}, Name);
-  }
-
   Value createVectorSplat(unsigned int ElementCount, Value V,
                           const char *Name = "") noexcept {
     Value Zero = Value::getConstInt(LLVMInt32TypeInContext(getCtx()), 0);

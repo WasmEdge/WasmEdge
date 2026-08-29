@@ -18,11 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
@@ -31,8 +31,12 @@ jobs:
           python3 -m venv ./venv
           source ./venv/bin/activate
           pip install codespell==2.4.1
+          # The contributor thank list of every changelog entry is proper names,
+          # not prose. Skip those lines only, so that a name cannot mask a real
+          # typo of the same word anywhere else.
+          THANK_LIST='Thank all the contributors who made this release possible!\n\n[^\n]*\n'
           # exclude files which may be synchronized from other places
-          git ls-files | grep -v "^thirdparty" | grep -v "/thirdparty/" | grep -v "/dist/" | xargs -t codespell --ignore-words .github/workflows/ignore_words 2>/dev/null
+          git ls-files | grep -v "^thirdparty" | grep -v "/thirdparty/" | grep -v "/dist/" | xargs -t codespell --ignore-words .github/workflows/ignore_words --ignore-multiline-regex "$THANK_LIST" 2>/dev/null
   lineguard:
     name: lineguard
     runs-on: ubuntu-latest
@@ -40,12 +44,12 @@ jobs:
       contents: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
 
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Ensure git safe directory

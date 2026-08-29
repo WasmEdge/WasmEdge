@@ -671,6 +671,22 @@ std::array<WasmEdge::Byte, 129> TailCallHostImportWasm{
     0xe3, 0x00, 0x10, 0x01, 0x0b, 0x06, 0x00, 0x41, 0x07, 0x10, 0x02, 0x0b,
     0x00, 0x13, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x0c, 0x03, 0x00, 0x01,
     0x68, 0x01, 0x02, 0x66, 0x32, 0x02, 0x02, 0x66, 0x31};
+
+/// Binary Wasm module: Memory64 + Threads.
+///
+/// (module
+///   (memory $m i64 1 1 shared)
+///   (func (export "test")
+///     (memory.atomic.notify (i64.const 4) (i32.const 1))
+///     drop
+///   )
+/// )
+std::array<WasmEdge::Byte, 49> NotifyMemory64Wasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+    0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x04, 0x01, 0x07, 0x01, 0x01,
+    0x07, 0x08, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x0a, 0x0d,
+    0x01, 0x0b, 0x00, 0x42, 0x04, 0x41, 0x01, 0xfe, 0x00, 0x02, 0x00, 0x1a,
+    0x0b};
 // clang-format on
 
 /// Regression test for ref.test on externalized nullable references.
@@ -1283,6 +1299,21 @@ TEST(ExecutorRegression, TailCallToHostImport) {
     ASSERT_EQ(Args.size(), 1);
     EXPECT_EQ(Args[0], 7);
   }
+}
+
+/// Regression test for memory.atomic.notify with Memory64 (issue #5310).
+TEST(ExecutorRegression, MemoryAtomicNotifyMemory64) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Threads);
+  WasmEdge::VM::VM VM(Conf);
+
+  ASSERT_TRUE(VM.loadWasm(NotifyMemory64Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  // Offset 4 is 4-byte aligned. It should NOT trap even on Memory64 where AddrType is i64.
+  auto Result = VM.execute("test");
+  EXPECT_TRUE(Result) << "memory.atomic.notify should succeed with 4-byte alignment on Memory64";
 }
 
 } // namespace

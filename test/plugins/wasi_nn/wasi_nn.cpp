@@ -21,6 +21,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <set>
@@ -2546,7 +2547,106 @@ TEST(WasiNNTest, GGMLBackendWithRPC) {
     EXPECT_NE(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
 
-  // Test: get_output -- get output successfully.
+  // Test: get_output -- output buffer too small.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(0),
+                                                    StorePtr, 5, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::TooLarge));
+  }
+
+  // Test: get_output -- max_size is 0.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(0),
+                                                    StorePtr, 0, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output -- max_size > 16 MiB.
+  {
+    EXPECT_TRUE(
+        HostFuncGetOutput.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  UINT32_C(0), UINT32_C(0), StorePtr,
+                                  (16U * 1024U * 1024U) + 1, BuilderPtr},
+                              Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output -- max_size near overflow.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr,
+            std::numeric_limits<uint32_t>::max(), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output -- max_size = 4 (buffer layout size, still too small for
+  // output).
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(0),
+                                                    StorePtr, 4, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::TooLarge));
+  }
+
+  // Test: get_output -- max_size = 64 KiB - 4.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65536 - 4, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output -- max_size = 64 KiB.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65536, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output -- max_size = 64 KiB + 1.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65536 + 1, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output -- max_size = 16 MiB exactly.
+  {
+    EXPECT_TRUE(
+        HostFuncGetOutput.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  UINT32_C(0), UINT32_C(0), StorePtr,
+                                  16U * 1024U * 1024U, BuilderPtr},
+                              Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  uint32_t ExactSize = 0;
+  // Test: get_output -- get output successfully to find exact size.
+
   {
     EXPECT_TRUE(HostFuncGetOutput.run(
         CallFrame,
@@ -2557,6 +2657,38 @@ TEST(WasiNNTest, GGMLBackendWithRPC) {
     // Should output more than 50 bytes.
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     EXPECT_GE(BytesWritten, 50);
+    ExactSize = BytesWritten;
+  }
+
+  // Test: get_output -- exactly max_size = ExactSize.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, ExactSize, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output -- memory allocation failure.
+  {
+    WasmEdge::Runtime::Instance::ModuleInstance SmallMod("");
+    SmallMod.addHostMemory(
+        "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                      WasmEdge::AST::MemoryType(1, 1))); // Max 1 page = 64 KiB
+    auto *SmallMemInstPtr = SmallMod.findMemoryExports("memory");
+    ASSERT_TRUE(SmallMemInstPtr != nullptr);
+    WasmEdge::Runtime::CallingFrame SmallCallFrame(nullptr, &SmallMod);
+
+    // Requesting a 100 KiB output buffer with only 1 page (64 KiB) of guest
+    // memory should fail client-side before issuing the RPC.
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        SmallCallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), UINT32_C(0), 100 * 1024, UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 }
 
@@ -2755,6 +2887,145 @@ TEST(WasiNNTest, GGMLBackendComputeSingleWithRPC) {
             UINT32_C(0), UINT32_C(0), OutBoundPtr, 65532, BuilderPtr},
         Errno));
     EXPECT_NE(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output_single -- output buffer too small.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(0),
+                                                    StorePtr, 1, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::TooLarge));
+  }
+
+  // Test: get_output_single -- max_size is 0.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(0),
+                                                    StorePtr, 0, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output_single -- max_size > 16 MiB.
+  {
+    EXPECT_TRUE(
+        HostFuncGetOutputSingle.run(CallFrame,
+                                    std::initializer_list<WasmEdge::ValVariant>{
+                                        UINT32_C(0), UINT32_C(0), StorePtr,
+                                        (16U * 1024U * 1024U) + 1, BuilderPtr},
+                                    Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output_single -- max_size near overflow.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr,
+            std::numeric_limits<uint32_t>::max(), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output_single -- max_size = 4 (buffer layout size, still too
+  // small for output).
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(0),
+                                                    StorePtr, 4, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::TooLarge));
+  }
+
+  // Test: get_output_single -- max_size = 64 KiB - 4.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65536 - 4, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output_single -- max_size = 64 KiB.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65536, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output_single -- max_size = 64 KiB + 1.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65536 + 1, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output_single -- max_size = 16 MiB exactly.
+  {
+    EXPECT_TRUE(
+        HostFuncGetOutputSingle.run(CallFrame,
+                                    std::initializer_list<WasmEdge::ValVariant>{
+                                        UINT32_C(0), UINT32_C(0), StorePtr,
+                                        16U * 1024U * 1024U, BuilderPtr},
+                                    Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output_single -- exact buffer size.
+  {
+    uint32_t ExactSize = 0;
+    // Get the correct size first
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65536, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    ExactSize = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+
+    // Now request exactly that size
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, ExactSize, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output_single -- memory allocation failure.
+  {
+    WasmEdge::Runtime::Instance::ModuleInstance SmallMod("");
+    SmallMod.addHostMemory(
+        "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                      WasmEdge::AST::MemoryType(1, 1)));
+    auto *SmallMemInstPtr = SmallMod.findMemoryExports("memory");
+    ASSERT_TRUE(SmallMemInstPtr != nullptr);
+    WasmEdge::Runtime::CallingFrame SmallCallFrame(nullptr, &SmallMod);
+
+    // Requesting a 100 KiB output buffer with only 1 page (64 KiB) of guest
+    // memory should fail client-side before issuing the RPC.
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        SmallCallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), UINT32_C(0), 100 * 1024, UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 }
 

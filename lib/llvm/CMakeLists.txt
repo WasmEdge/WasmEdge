@@ -9,6 +9,7 @@ include(AddLLVM)
 set(LLVM_INCLUDE_DIR "${LLVM_INCLUDE_DIR}" PARENT_SCOPE)
 
 set(WASMEDGE_LLVM_SOURCES
+  arm_runtime_libcalls.cpp
   compiler.cpp
   compiler/context.cpp
   compiler/function_compiler.cpp

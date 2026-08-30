@@ -4254,13 +4254,21 @@ void expectELFPCRelativeRelocations(
 }
 
 TEST(LinkGraphTest, ClassifiesCanonicalARMELFPCRelativeRelocations) {
-  const std::array<std::pair<uint32_t, bool>, 4> Cases{{
+  const std::array<std::pair<uint32_t, bool>, 7> Cases{{
       {llvm::ELF::R_ARM_REL32, true},
       {llvm::ELF::R_ARM_THM_CALL, true},
+      {llvm::ELF::R_ARM_THM_JUMP24, true},
+      {llvm::ELF::R_ARM_CALL, true},
+      {llvm::ELF::R_ARM_JUMP24, true},
       {llvm::ELF::R_ARM_PREL31, true},
       {llvm::ELF::R_ARM_ABS32, false},
   }};
   expectELFPCRelativeRelocations(Target::ARM, Cases);
+  EXPECT_EQ(relocationPatchSize(ObjectFormat::ELF, Target::ARM,
+                                llvm::ELF::R_ARM_THM_JUMP24, 0),
+            4U);
+  EXPECT_FALSE(relocationPatchSize(ObjectFormat::ELF, Target::ARM,
+                                   llvm::ELF::R_ARM_THM_JUMP19, 4));
 }
 
 TEST(LinkGraphTest, ClassifiesCanonicalAArch64ELFPCRelativeRelocations) {
@@ -6054,17 +6062,137 @@ TEST(ARMRelocationTest, EncodesThumbCallBoundariesAndImplicitAddend) {
             UINT32_C(0xF800F000));
 }
 
+TEST(ARMRelocationTest, EncodesThumbJumpAndRejectsCrossStateTarget) {
+  REQUIRE_RELOCATION_HANDLER(Target::ARM);
+  constexpr uint32_t ThumbBW = UINT32_C(0xB800F000);
+  std::vector<WasmEdge::Byte> Bytes(16);
+  ASSERT_TRUE(
+      Internal::writeUnsigned(Bytes, 0, 4, Endianness::Little, ThumbBW));
+  auto SameState = makeELFRelocationGraph(Target::ARM, Endianness::Little,
+                                          llvm::ELF::R_ARM_THM_JUMP24, 4,
+                                          0x1004, 0x1000, 0, 0, false, Bytes);
+  setTargetThumb(SameState);
+  ASSERT_TRUE(applyRelocations(SameState));
+  EXPECT_EQ(*Internal::readUnsigned(SameState.sections()[0].Content, 0, 4,
+                                    Endianness::Little),
+            UINT32_C(0xB802F000));
+
+  auto CrossState = makeELFRelocationGraph(
+      Target::ARM, Endianness::Little, llvm::ELF::R_ARM_THM_JUMP24, 4, 0x1004,
+      0x1000, 0, 0, false, std::move(Bytes));
+  const auto Snapshot = CrossState;
+  auto Result = applyRelocations(CrossState);
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error().Kind, DiagnosticKind::Unsupported);
+  expectGraphStateEquals(CrossState, Snapshot);
+
+  constexpr uint64_t PatchAddress = UINT64_C(0x2000000);
+  for (const auto &[Delta, Accepted] : std::array<std::pair<int64_t, bool>, 6>{{
+           {-INT64_C(16777216), true},
+           {INT64_C(16777214), true},
+           {-INT64_C(16777218), false},
+           {INT64_C(16777216), false},
+           {-2, true},
+           {1, false},
+       }}) {
+    const uint64_t TargetAddress =
+        Delta < 0 ? PatchAddress - static_cast<uint64_t>(-Delta)
+                  : PatchAddress + static_cast<uint64_t>(Delta);
+    std::vector<WasmEdge::Byte> RangeBytes(16);
+    ASSERT_TRUE(
+        Internal::writeUnsigned(RangeBytes, 0, 4, Endianness::Little, ThumbBW));
+    auto Range = makeELFRelocationGraph(
+        Target::ARM, Endianness::Little, llvm::ELF::R_ARM_THM_JUMP24, 4,
+        TargetAddress, PatchAddress, 0, 0, false, std::move(RangeBytes));
+    setTargetThumb(Range);
+    const auto RangeSnapshot = Range;
+    EXPECT_EQ(static_cast<bool>(applyRelocations(Range)), Accepted);
+    if (!Accepted)
+      expectGraphStateEquals(Range, RangeSnapshot);
+  }
+}
+
+TEST(ARMRelocationTest, DecodesImplicitThumbJumpAddends) {
+  REQUIRE_RELOCATION_HANDLER(Target::ARM);
+  struct Case {
+    int64_t Addend;
+    uint32_t Input;
+    uint32_t Output;
+  };
+  const std::array<Case, 2> Cases{{
+      {6, UINT32_C(0xB803F000), UINT32_C(0xB883F000)},
+      {-6, UINT32_C(0xBFFDF7FF), UINT32_C(0xB87DF000)},
+  }};
+  for (const auto &Test : Cases) {
+    std::vector<WasmEdge::Byte> Bytes(16);
+    ASSERT_TRUE(
+        Internal::writeUnsigned(Bytes, 0, 4, Endianness::Little, Test.Input));
+    auto Graph = makeELFRelocationGraph(Target::ARM, Endianness::Little,
+                                        llvm::ELF::R_ARM_THM_JUMP24, 4, 0x1100,
+                                        0x1000, 0, 0, true, std::move(Bytes));
+    setTargetThumb(Graph);
+    ASSERT_EQ(Graph.relocations().size(), 1U);
+    EXPECT_TRUE(Graph.relocations()[0].AddendIsImplicit);
+    ASSERT_TRUE(applyRelocations(Graph));
+    const auto Encoded = Internal::readUnsigned(Graph.sections()[0].Content, 0,
+                                                4, Endianness::Little);
+    ASSERT_TRUE(Encoded);
+    EXPECT_EQ(*Encoded, Test.Output);
+
+    const uint16_t First = static_cast<uint16_t>(*Encoded);
+    const uint16_t Second = static_cast<uint16_t>(*Encoded >> 16);
+    const uint32_t Sign = (First >> 10) & 1;
+    const uint32_t I1 = !(((Second >> 13) & 1) ^ Sign);
+    const uint32_t I2 = !(((Second >> 11) & 1) ^ Sign);
+    uint32_t Displacement = (Sign << 24) | (I1 << 23) | (I2 << 22) |
+                            ((First & UINT16_C(0x03FF)) << 12) |
+                            ((Second & UINT16_C(0x07FF)) << 1);
+    if (Sign != 0)
+      Displacement |= UINT32_C(0xFE000000);
+    EXPECT_EQ(INT64_C(0x1000) + static_cast<int32_t>(Displacement),
+              INT64_C(0x1100) + Test.Addend);
+  }
+}
+
+TEST(ARMRelocationTest, RejectsMismatchedThumbBranchOpcodesAtomically) {
+  REQUIRE_RELOCATION_HANDLER(Target::ARM);
+  struct Case {
+    uint32_t Type;
+    uint32_t Instruction;
+  };
+  const std::array<Case, 3> Cases{{
+      {llvm::ELF::R_ARM_THM_JUMP24, UINT32_C(0xF800F000)},
+      {llvm::ELF::R_ARM_THM_JUMP24, UINT32_C(0xE800F000)},
+      {llvm::ELF::R_ARM_THM_CALL, UINT32_C(0xB800F000)},
+  }};
+  for (const auto &Test : Cases) {
+    std::vector<WasmEdge::Byte> Bytes(16);
+    ASSERT_TRUE(Internal::writeUnsigned(Bytes, 0, 4, Endianness::Little,
+                                        Test.Instruction));
+    auto Graph =
+        makeELFRelocationGraph(Target::ARM, Endianness::Little, Test.Type, 4,
+                               0x1004, 0x1000, 0, 0, false, std::move(Bytes));
+    setTargetThumb(Graph);
+    const auto Snapshot = Graph;
+    EXPECT_FALSE(applyRelocations(Graph));
+    expectGraphStateEquals(Graph, Snapshot);
+  }
+}
+
 TEST(ARMRelocationTest, RejectsMalformedThumbCallInstructionAtomically) {
   REQUIRE_RELOCATION_HANDLER(Target::ARM);
-  std::vector<WasmEdge::Byte> Bytes(16);
-  ASSERT_TRUE(Internal::writeUnsigned(Bytes, 0, 4, Endianness::Little,
-                                      UINT32_C(0x8000F000)));
-  auto Graph = makeELFRelocationGraph(Target::ARM, Endianness::Little,
-                                      llvm::ELF::R_ARM_THM_CALL, 4, 0x1004,
-                                      0x1000, 0, 0, false, std::move(Bytes));
-  const auto Snapshot = Graph;
-  EXPECT_FALSE(applyRelocations(Graph));
-  expectGraphStateEquals(Graph, Snapshot);
+  for (const uint32_t Instruction :
+       {UINT32_C(0x8000F000), UINT32_C(0xE801F000)}) {
+    std::vector<WasmEdge::Byte> Bytes(16);
+    ASSERT_TRUE(
+        Internal::writeUnsigned(Bytes, 0, 4, Endianness::Little, Instruction));
+    auto Graph = makeELFRelocationGraph(Target::ARM, Endianness::Little,
+                                        llvm::ELF::R_ARM_THM_CALL, 4, 0x1004,
+                                        0x1000, 0, 0, false, std::move(Bytes));
+    const auto Snapshot = Graph;
+    EXPECT_FALSE(applyRelocations(Graph));
+    expectGraphStateEquals(Graph, Snapshot);
+  }
 
   std::vector<WasmEdge::Byte> MisalignedBytes(16);
   ASSERT_TRUE(Internal::writeUnsigned(MisalignedBytes, 1, 4, Endianness::Little,
@@ -6075,6 +6203,49 @@ TEST(ARMRelocationTest, RejectsMalformedThumbCallInstructionAtomically) {
   const auto MisalignedSnapshot = Misaligned;
   EXPECT_FALSE(applyRelocations(Misaligned));
   expectGraphStateEquals(Misaligned, MisalignedSnapshot);
+}
+
+TEST(ARMRelocationTest, ReadsAndAppliesGeneratedThumbWideJump) {
+  REQUIRE_LLVM_TARGET("armv7-unknown-linux-gnueabi");
+  const auto ObjectBytes = makeAssemblyObject(
+      llvm::Triple("armv7-unknown-linux-gnueabi"), R"(.syntax unified
+.thumb
+.section .text.caller,"ax",%progbits
+.globl caller
+.thumb_func
+.type caller,%function
+caller:
+  b.w target
+.section .text.target,"ax",%progbits
+.globl target
+.hidden target
+.thumb_func
+.type target,%function
+target:
+  bx lr
+)",
+      "+thumb-mode");
+  auto Object =
+      llvm::object::ObjectFile::createObjectFile(llvm::MemoryBufferRef(
+          llvm::StringRef(reinterpret_cast<const char *>(ObjectBytes.data()),
+                          ObjectBytes.size()),
+          "thumb-wide-jump.o"));
+  ASSERT_TRUE(static_cast<bool>(Object));
+  std::vector<uint64_t> Types;
+  for (const auto &Section : (*Object)->sections())
+    for (const auto &Relocation : Section.relocations())
+      Types.push_back(Relocation.getType());
+  EXPECT_EQ(Types, (std::vector<uint64_t>{llvm::ELF::R_ARM_THM_JUMP24}));
+
+  auto Graph = ObjectReader::read(ObjectBytes, Target::ARM);
+  ASSERT_TRUE(Graph);
+  ASSERT_EQ(Graph->relocations().size(), 1U);
+  EXPECT_EQ(Graph->relocations()[0].Type, llvm::ELF::R_ARM_THM_JUMP24);
+  EXPECT_EQ(Graph->relocations()[0].PatchSize, 4U);
+  EXPECT_TRUE(Graph->relocations()[0].PCRelative);
+  EXPECT_TRUE(Graph->relocations()[0].AddendIsImplicit);
+  ASSERT_TRUE(layout(*Graph, 0x1000));
+  EXPECT_TRUE(applyRelocations(*Graph));
 }
 
 TEST(ARMRelocationTest, ReadsGeneratedThumbAndCantUnwindObject) {

@@ -346,6 +346,9 @@ public:
 
   const char *getTarget() noexcept { return LLVMGetTarget(Ref); }
   void setTarget(const char *Triple) noexcept { LLVMSetTarget(Ref, Triple); }
+  void setModuleInlineAsm(std::string_view Assembly) noexcept {
+    LLVMSetModuleInlineAsm2(Ref, Assembly.data(), Assembly.size());
+  }
   inline Value addFunction(Type Ty, LLVMLinkage Linkage,
                            const char *Name = "") noexcept;
   inline Value addGlobal(Type Ty, bool IsConstant, LLVMLinkage Linkage,

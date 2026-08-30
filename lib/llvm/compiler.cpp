@@ -6,6 +6,7 @@
 #include "compiler/context.h"
 #include "compiler/function_compiler.h"
 
+#include "arm_runtime_libcalls.h"
 #include "common/spdlog.h"
 #include "data.h"
 #include "llvm.h"
@@ -227,6 +228,8 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   // Compile ExportSection.
   compile(Module.getExportSection());
   // StartSection is not required for compilation.
+
+  EXPECTED_TRY(addARMRuntimeLibcalls(LLModule, hostARMRuntimeLibcallProfile()));
 
   spdlog::info("verify start"sv);
   if (LLVM::Message VerifyMsg; LLModule.hasVerificationError(VerifyMsg)) {

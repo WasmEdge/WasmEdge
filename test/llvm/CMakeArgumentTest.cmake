@@ -1,5 +1,10 @@
 include("${WASMEDGE_SOURCE_DIR}/cmake/LLVMRelocationBackends.cmake")
 
+file(READ "${WASMEDGE_SOURCE_DIR}/test/llvm/CMakeLists.txt" LLVMTestCMake)
+if(LLVMTestCMake MATCHES "\\$<LINK_LIBRARY:")
+  message(FATAL_ERROR "LLVM tests require a CMake 3.24 LINK_LIBRARY expression")
+endif()
+
 set(Value "path with space;segment\\;leaf")
 wasmedge_cmake_cache_argument(Argument ROUNDTRIP STRING "${Value}")
 set(Command "${CMAKE_COMMAND}")

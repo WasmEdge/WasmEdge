@@ -55,7 +55,9 @@ LinkExpect<RelocationResult> applyARM(const LinkGraph &Graph) {
     auto &Bytes = Result.Content[Rel.Section];
     auto Word =
         readUnsigned(Bytes, Rel.Offset, InstructionWidth, Endianness::Little);
-    const bool ThumbBranch = Rel.Type == llvm::ELF::R_ARM_THM_CALL;
+    const bool ThumbCall = Rel.Type == llvm::ELF::R_ARM_THM_CALL;
+    const bool ThumbJump = Rel.Type == llvm::ELF::R_ARM_THM_JUMP24;
+    const bool ThumbBranch = ThumbCall || ThumbJump;
     const uint64_t AlignmentMask =
         ThumbBranch ? UINT64_C(1) : InstructionAlignmentMask;
     if (!Word || (Rel.Offset & AlignmentMask) != 0) {
@@ -103,9 +105,12 @@ LinkExpect<RelocationResult> applyARM(const LinkGraph &Graph) {
       constexpr unsigned BranchImmediateShift = 1;
       constexpr uint16_t FirstOpcodeMask = UINT16_C(0xF800);
       constexpr uint16_t FirstOpcode = UINT16_C(0xF000);
-      constexpr uint16_t SecondOpcodeMask = UINT16_C(0xD000);
+      constexpr uint16_t SecondCallOpcodeMask = UINT16_C(0xD000);
       constexpr uint16_t SecondCallOpcode = UINT16_C(0xD000);
+      constexpr uint16_t SecondExchangeOpcodeMask = UINT16_C(0xD001);
       constexpr uint16_t SecondExchangeOpcode = UINT16_C(0xC000);
+      constexpr uint16_t SecondJumpOpcodeMask = UINT16_C(0xD000);
+      constexpr uint16_t SecondJumpOpcode = UINT16_C(0x9000);
       constexpr uint16_t SignMask = UINT16_C(0x0400);
       constexpr uint16_t Imm10Mask = UINT16_C(0x03FF);
       constexpr uint16_t J1Mask = UINT16_C(0x2000);
@@ -119,9 +124,12 @@ LinkExpect<RelocationResult> applyARM(const LinkGraph &Graph) {
       constexpr unsigned J2Shift = 11;
       const uint16_t First = static_cast<uint16_t>(*Word);
       const uint16_t Second = static_cast<uint16_t>(*Word >> 16);
+      const bool BL = (Second & SecondCallOpcodeMask) == SecondCallOpcode;
+      const bool BLX =
+          (Second & SecondExchangeOpcodeMask) == SecondExchangeOpcode;
+      const bool BW = (Second & SecondJumpOpcodeMask) == SecondJumpOpcode;
       if ((First & FirstOpcodeMask) != FirstOpcode ||
-          ((Second & SecondOpcodeMask) != SecondCallOpcode &&
-           (Second & SecondOpcodeMask) != SecondExchangeOpcode)) {
+          (ThumbCall ? !BL && !BLX : !BW)) {
         return fail(Rel, "invalid Thumb branch instruction");
       }
       if (Rel.AddendIsImplicit) {
@@ -140,6 +148,9 @@ LinkExpect<RelocationResult> applyARM(const LinkGraph &Graph) {
                      : static_cast<int64_t>(Encoded);
       }
       const bool CrossState = !Symbol.Thumb;
+      if (ThumbJump && CrossState)
+        return fail(Rel, "unsupported Thumb-to-ARM jump",
+                    DiagnosticKind::Unsupported);
       const int128_t BranchP = CrossState ? (P & ~int128_t(3)) : P;
       const int128_t Value = S + Addend - BranchP;
       const uint64_t ValueAlignmentMask =
@@ -163,7 +174,8 @@ LinkExpect<RelocationResult> applyARM(const LinkGraph &Graph) {
                                       (J2 << J2Shift) |
                                       ((Encoded >> 1) & UINT16_C(0x07FE)))
               : static_cast<uint16_t>(
-                    SecondCallOpcode | (J1 << J1Shift) | (J2 << J2Shift) |
+                    (ThumbCall ? SecondCallOpcode : SecondJumpOpcode) |
+                    (J1 << J1Shift) | (J2 << J2Shift) |
                     ((Encoded >> BranchImmediateShift) & Imm11Mask));
       if (!writeUnsigned(Bytes, Rel.Offset, InstructionWidth,
                          Endianness::Little,

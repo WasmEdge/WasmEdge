@@ -56,7 +56,9 @@ int compileModule(const Configure &Conf, Span<const Byte> Data,
     return EXIT_FAILURE;
   }
   LLVM::CodeGen CodeGen(Conf);
-  if (auto Res = Compiler.compile(*Module); !Res) {
+  if (auto Res = Compiler.compile(*Module,
+                                  WasmEdge::LLVM::Compiler::Consumer::CodeGen);
+      !Res) {
     const auto Err = static_cast<uint32_t>(Res.error());
     spdlog::error("Compilation failed. Error code: {}"sv, Err);
     return EXIT_FAILURE;

@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 wasmedge_add_executable(wasmedgeLLVMCoreTests
+  ARMRuntimeLibcallsTest.cpp
   LinkerTest.cpp
   LLVMcoreTest.cpp
   NativeWriterTest.cpp
@@ -56,6 +57,12 @@ if(NOT WASMEDGE_LINK_LLVM_STATIC)
   endif()
 endif()
 
+find_library(WASMEDGE_LLVM_MCJIT_LIBRARY LLVMMCJIT
+  HINTS ${LLVM_LIBRARY_DIRS})
+if(WASMEDGE_LLVM_MCJIT_LIBRARY)
+  target_link_libraries(wasmedgeLLVMCoreTests PRIVATE
+    ${WASMEDGE_LLVM_MCJIT_LIBRARY})
+endif()
 
 target_include_directories(wasmedgeLLVMCoreTests
   PRIVATE

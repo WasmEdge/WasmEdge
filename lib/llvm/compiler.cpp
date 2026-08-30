@@ -6,9 +6,11 @@
 #include "compiler/context.h"
 #include "compiler/function_compiler.h"
 
+#include "arm_runtime_libcalls.h"
 #include "common/spdlog.h"
 #include "data.h"
 #include "llvm.h"
+#include "llvm/codegen.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -231,7 +233,8 @@ static LLVM::Context initLLVMModule(LLVM::Data &D) noexcept {
   return LLContext;
 }
 
-Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
+Expect<Data> Compiler::compile(const AST::Module &Module,
+                               Consumer Destination) noexcept {
   // Check that the module is validated.
   if (unlikely(!Module.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
@@ -260,6 +263,11 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   // Compile ExportSection.
   compile(Module.getExportSection());
   // StartSection is not required for compilation.
+
+  if (Destination == Consumer::CodeGen && CodeGen::usesNativeLinker(Conf)) {
+    EXPECTED_TRY(
+        addARMRuntimeLibcalls(LLModule, hostARMRuntimeLibcallProfile()));
+  }
 
   spdlog::info("verify start"sv);
   if (LLVM::Message VerifyMsg; LLModule.hasVerificationError(VerifyMsg)) {

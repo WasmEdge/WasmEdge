@@ -3,6 +3,7 @@
 
 #include "llvm/codegen.h"
 
+#include "arm_runtime_libcalls.h"
 #include "common/defines.h"
 #include "data.h"
 #include "linker/native_linker.h"
@@ -32,6 +33,15 @@ std::pair<uint32_t, uint32_t> getSDKVersionPair() noexcept {
 
 namespace WasmEdge::LLVM {
 
+bool CodeGen::usesNativeLinker(
+    [[maybe_unused]] const Configure &Conf) noexcept {
+#ifdef WASMEDGE_USE_LLD
+  return Conf.getCompilerConfigure().isNativeLinker();
+#else
+  return true;
+#endif
+}
+
 Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
                               std::filesystem::path OutputPath) noexcept {
   // CompileFromBuffer skips the loader, so reject empty path here.
@@ -43,9 +53,9 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
   auto LLContext = D.extract().getLLContext();
   auto &LLModule = D.extract().LLModule;
   auto &TM = D.extract().TM;
+  const bool NativeLinker = usesNativeLinker(Conf);
 #ifdef WASMEDGE_USE_LLD
-  const bool UseLLD = !Conf.getCompilerConfigure().isNativeLinker();
-  if (UseLLD) {
+  if (!NativeLinker) {
     LLD::prepareModule(LLContext, LLModule);
   }
 #endif
@@ -115,6 +125,10 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
     }
   }
 
+  if (NativeLinker) {
+    EXPECTED_TRY(validateARMRuntimeLibcallsForNativeLinker(
+        hostARMRuntimeLibcallProfile()));
+  }
   auto [OSVec, ErrorMessage] = TM.emitToMemoryBuffer(LLModule, LLVMObjectFile);
   if (ErrorMessage) {
     // TODO:return error
@@ -137,7 +151,7 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
   }
 
 #ifdef WASMEDGE_USE_LLD
-  if (UseLLD) {
+  if (!NativeLinker) {
     if (Conf.getCompilerConfigure().getOutputFormat() ==
         CompilerConfigure::OutputFormat::Wasm) {
       return LLD::outputWasmLibrary(LLContext, OutputPath, WasmData, OSVec);

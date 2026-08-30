@@ -3,6 +3,7 @@
 
 #include "llvm/codegen.h"
 
+#include "arm_runtime_libcalls.h"
 #include "common/defines.h"
 #include "data.h"
 #include "linker/native_linker.h"
@@ -127,6 +128,8 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
     }
   }
 
+  EXPECTED_TRY(
+      validateARMRuntimeLibcallsForAOT(hostARMRuntimeLibcallProfile()));
   auto [OSVec, ErrorMessage] = TM.emitToMemoryBuffer(LLModule, LLVMObjectFile);
   if (ErrorMessage) {
     // TODO:return error

@@ -288,6 +288,7 @@ std::optional<uint8_t> relocationPatchSize(ObjectFormat Format,
     case llvm::ELF::R_ARM_ABS32:
     case llvm::ELF::R_ARM_REL32:
     case llvm::ELF::R_ARM_THM_CALL:
+    case llvm::ELF::R_ARM_THM_JUMP24:
     case llvm::ELF::R_ARM_CALL:
     case llvm::ELF::R_ARM_JUMP24:
     case llvm::ELF::R_ARM_PREL31:
@@ -389,8 +390,10 @@ bool relocationIsPCRelative(ObjectFormat Format, Target TargetValue,
            Type == llvm::ELF::R_X86_64_REX_GOTPCRELX;
   case Target::ARM:
     return Type == llvm::ELF::R_ARM_REL32 ||
-           Type == llvm::ELF::R_ARM_THM_CALL || Type == llvm::ELF::R_ARM_CALL ||
-           Type == llvm::ELF::R_ARM_JUMP24 || Type == llvm::ELF::R_ARM_PREL31;
+           Type == llvm::ELF::R_ARM_THM_CALL ||
+           Type == llvm::ELF::R_ARM_THM_JUMP24 ||
+           Type == llvm::ELF::R_ARM_CALL || Type == llvm::ELF::R_ARM_JUMP24 ||
+           Type == llvm::ELF::R_ARM_PREL31;
   case Target::AArch64:
     return Type == llvm::ELF::R_AARCH64_PREL64 ||
            Type == llvm::ELF::R_AARCH64_PREL32 ||

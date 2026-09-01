@@ -28,6 +28,7 @@ on:
       - master
       - "proposal/**"
       - "[0-9]+.[0-9]+.x"
+      - "dev/component"
     paths:
       - ".github/workflows/build.yml"
       - ".github/workflows/reusable-build-on-**"

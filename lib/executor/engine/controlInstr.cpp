@@ -21,9 +21,17 @@ Expect<void> Executor::runIfElseOp(Runtime::StackManager &StackMgr,
       PC += (Instr.getJumpEnd() - 1);
     } else {
       if (Stat) {
-        Stat->incInstrCount();
-        if (unlikely(!Stat->addInstrCost(OpCode::Else))) {
-          return Unexpect(ErrCode::Value::CostLimitExceeded);
+        if (Conf.getStatisticsConfigure().isInstructionCounting()) {
+          Stat->incInstrCount();
+        }
+        if (Conf.getStatisticsConfigure().isCostMeasuring()) {
+          if (unlikely(!Stat->addInstrCost(OpCode::Else))) {
+            const AST::Instruction &ElseInstr = *(PC + Instr.getJumpElse());
+            spdlog::error(ErrCode::Value::CostLimitExceeded);
+            spdlog::error(ErrInfo::InfoInstruction(ElseInstr.getOpCode(),
+                                                   ElseInstr.getOffset()));
+            return Unexpect(ErrCode::Value::CostLimitExceeded);
+          }
         }
       }
       // Else-statement case. Jump to the Else instruction to continue.

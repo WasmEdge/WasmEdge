@@ -136,6 +136,10 @@ inline ASTNodeAttr NodeAttrFromAST<AST::Component::ExportSection>() noexcept {
   return ASTNodeAttr::Comp_Sec_Export;
 }
 template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::ValueSection>() noexcept {
+  return ASTNodeAttr::Comp_Sec_Value;
+}
+template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::CoreInstance>() noexcept {
   return ASTNodeAttr::Comp_CoreInstance;
 }
@@ -427,6 +431,7 @@ private:
   Expect<void> loadSection(AST::Component::StartSection &Sec);
   Expect<void> loadSection(AST::Component::ImportSection &Sec);
   Expect<void> loadSection(AST::Component::ExportSection &Sec);
+  Expect<void> loadSection(AST::Component::ValueSection &Sec);
   // core:instance and instance
   Expect<void> loadCoreInstance(AST::Component::CoreInstance &Instance);
   Expect<void> loadInstance(AST::Component::Instance &Instance);
@@ -455,6 +460,8 @@ private:
   Expect<void> loadImport(AST::Component::Import &Im);
   // export
   Expect<void> loadExport(AST::Component::Export &Ex);
+  // value
+  Expect<void> loadValue(AST::Component::Value &V);
   // descs
   Expect<void> loadDesc(AST::Component::CoreImportDesc &Desc);
   Expect<void> loadDesc(AST::Component::ExternDesc &Desc);
@@ -479,8 +486,12 @@ private:
   Expect<void> loadType(AST::Component::BorrowTy &Ty);
   Expect<void> loadType(AST::Component::StreamTy &Ty);
   Expect<void> loadType(AST::Component::FutureTy &Ty);
+  Expect<void> loadType(AST::Component::MapTy &Ty);
   // helpers
-  Expect<void> loadExternName(std::string &Name);
+  Expect<void> loadNameAttributes(std::string &Name,
+                                  std::vector<std::string> &Implements,
+                                  std::vector<std::string> &ExternalIds,
+                                  std::vector<std::string> &VersionSuffixes);
   Expect<void> loadType(ComponentValType &Ty);
   Expect<void> loadType(AST::Component::LabelValType &Ty);
   template <typename ASTType, typename T>

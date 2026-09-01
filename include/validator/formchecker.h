@@ -35,7 +35,6 @@ static inline constexpr VType unreachableVType() { return VType(); }
 class FormChecker {
 public:
   FormChecker() = default;
-  ~FormChecker() = default;
 
   void reset(bool CleanGlobal = false);
   Expect<void> validate(AST::InstrView Instrs, Span<const ValType> RetVals);

@@ -34,17 +34,26 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       // Inline exports case.
       // Create a core module instance with the exports.
       auto Mod = std::make_unique<Runtime::Instance::ModuleInstance>("");
-      uint32_t ExpIdx[4] = {0, 0, 0, 0};
+      uint32_t ExpIdx[5] = {0, 0, 0, 0, 0};
 
       for (const auto &Exp : Expr.getInlineExports()) {
         const auto &SortIdx = Exp.getSortIdx();
         const uint32_t Idx = SortIdx.getIdx();
         switch (SortIdx.getSort().getCoreSortType()) {
-        case AST::Component::Sort::CoreSortType::Func:
-          Mod->importFunction(CompInst.getCoreFunction(Idx));
+        case AST::Component::Sort::CoreSortType::Func: {
+          // Host functions (e.g., canon lower thunks) need their defined type
+          // registered into the inline-instance's TypeList so that downstream
+          // import-time matchType lookups find it.
+          auto *FI = CompInst.getCoreFunction(Idx);
+          if (FI && FI->isHostFunction()) {
+            Mod->importHostFunction(FI);
+          } else {
+            Mod->importFunction(FI);
+          }
           Mod->exportFunction(Exp.getName(), ExpIdx[0]);
           ExpIdx[0]++;
           break;
+        }
         case AST::Component::Sort::CoreSortType::Table:
           Mod->importTable(CompInst.getCoreTable(Idx));
           Mod->exportTable(Exp.getName(), ExpIdx[1]);
@@ -59,6 +68,11 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           Mod->importGlobal(CompInst.getCoreGlobal(Idx));
           Mod->exportGlobal(Exp.getName(), ExpIdx[3]);
           ExpIdx[3]++;
+          break;
+        case AST::Component::Sort::CoreSortType::Tag:
+          Mod->importTag(CompInst.getCoreTag(Idx));
+          Mod->exportTag(Exp.getName(), ExpIdx[4]);
+          ExpIdx[4]++;
           break;
         case AST::Component::Sort::CoreSortType::Type:
         case AST::Component::Sort::CoreSortType::Module:
@@ -182,6 +196,11 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
             Comp->addCoreGlobal(CompInst.getCoreGlobal(Idx));
             Comp->exportCoreGlobal(Exp.getName(), CoreExpIdx[3]);
             CoreExpIdx[3]++;
+            break;
+          case AST::Component::Sort::CoreSortType::Tag:
+            Comp->addCoreTag(CompInst.getCoreTag(Idx));
+            Comp->exportCoreTag(Exp.getName(), CoreExpIdx[4]);
+            CoreExpIdx[4]++;
             break;
           case AST::Component::Sort::CoreSortType::Type:
           case AST::Component::Sort::CoreSortType::Module:

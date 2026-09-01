@@ -6,16 +6,43 @@
 namespace WasmEdge {
 namespace Loader {
 
-Expect<void> Loader::loadExternName(std::string &Name) {
-  // importname' ::= 0x00 len:<u32> in:<importname> => in (if len = |in|)
-  // exportname' ::= 0x00 len:<u32> en:<exportname> => en (if len = |en|)
+Expect<void>
+Loader::loadNameAttributes(std::string &Name,
+                           std::vector<std::string> &Implements,
+                           std::vector<std::string> &ExternalIds,
+                           std::vector<std::string> &VersionSuffixes) {
+  // nameattributes ::= 0x00 len:<u32> en:<externname> => en (if len = |en|)
+  //                  | 0x01 len:<u32> en:<externname> => en (if len = |en|)
+  //                  | 0x02 len:<u32> en:<externname> a*:vec(<attribute>)
+  // attribute      ::= 0x00 len:<u32> in:<interfacename> => (implements in)
+  //                  | 0x01 len:<u32> vs:<semversuffix>  => (versionsuffix vs)
+  //                  | 0x02 n:<name>                     => (external-id n)
 
   // Error messages will be handled in the parent scope.
   EXPECTED_TRY(auto B, FMgr.readByte());
-  if (B != 0x00) {
+  if (B > 0x02) {
     return Unexpect(ErrCode::Value::MalformedName);
   }
   EXPECTED_TRY(Name, FMgr.readName());
+  if (B == 0x02) {
+    EXPECTED_TRY(auto Cnt, FMgr.readU32());
+    for (uint32_t I = 0; I < Cnt; ++I) {
+      EXPECTED_TRY(auto Opt, FMgr.readByte());
+      if (Opt > 0x02) {
+        return Unexpect(ErrCode::Value::MalformedName);
+      }
+      EXPECTED_TRY(auto Value, FMgr.readName());
+      // Every kind keeps its values, so validation can hold each of them to
+      // at most one occurrence.
+      if (Opt == 0x00) {
+        Implements.push_back(std::move(Value));
+      } else if (Opt == 0x01) {
+        VersionSuffixes.push_back(std::move(Value));
+      } else {
+        ExternalIds.push_back(std::move(Value));
+      }
+    }
+  }
   return {};
 }
 

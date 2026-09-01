@@ -32,7 +32,9 @@ on:
       - "tools/wasmedge/wasi_nn_rpcserver.cpp"
       - "CMakeLists.txt"
       - "cmake/Helper.cmake"
+      - "cmake/TensorflowDeps.cmake"
       - "cmake/WASINNDeps.cmake"
+      - "cmake/wasi_nn/**"
   pull_request:
     branches:
       - master
@@ -61,7 +63,9 @@ on:
       - "tools/wasmedge/wasi_nn_rpcserver.cpp"
       - "CMakeLists.txt"
       - "cmake/Helper.cmake"
+      - "cmake/TensorflowDeps.cmake"
       - "cmake/WASINNDeps.cmake"
+      - "cmake/wasi_nn/**"
 
 permissions:
   contents: read
@@ -108,6 +112,7 @@ jobs:
       all: ${{ steps.filter.outputs.all }}
       shared_cmake: ${{ steps.filter.outputs.shared_cmake }}
       wasi_nn: ${{ steps.filter.outputs.wasi_nn }}
+      wasi_nn-ggml: ${{ steps.filter.outputs['wasi_nn-ggml'] }}
       wasi_nn_rpc: ${{ steps.filter.outputs.wasi_nn_rpc }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -143,6 +148,7 @@ jobs:
       ${{ needs.filter.outputs.all == 'true'
        || needs.filter.outputs.shared_cmake == 'true'
        || needs.filter.outputs.wasi_nn == 'true'
+       || needs.filter.outputs['wasi_nn-ggml'] == 'true'
        || needs.filter.outputs.wasi_nn_rpc == 'true' }}
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -222,7 +228,8 @@ jobs:
     if: >-
       ${{ needs.filter.outputs.all == 'true'
        || needs.filter.outputs.shared_cmake == 'true'
-       || needs.filter.outputs.wasi_nn == 'true' }}
+       || needs.filter.outputs.wasi_nn == 'true'
+       || needs.filter.outputs['wasi_nn-ggml'] == 'true' }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0

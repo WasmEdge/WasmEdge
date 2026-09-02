@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/component/canonical_abi.h"
 
@@ -10,6 +10,7 @@
 #include "common/component_variant.h"
 #include "common/errcode.h"
 #include "common/types.h"
+#include "runtime/instance/component/component.h"
 #include "runtime/instance/memory.h"
 
 #include <gtest/gtest.h>
@@ -19,7 +20,7 @@
 namespace {
 
 using namespace WasmEdge;
-using namespace WasmEdge::Executor::CanonicalABI;
+using namespace WasmEdge::Executor::Component;
 
 namespace ASTComp = AST::Component;
 
@@ -28,8 +29,8 @@ ComponentValType prim(ComponentTypeCode C) noexcept {
 }
 
 // Build a `DefValType` holding a record from the supplied component value
-// types. Labels are auto-generated since they're not consulted by the
-// alignment / elem_size paths.
+// types. The labels are auto-generated, because the alignment and elem_size
+// paths do not read them.
 ASTComp::DefValType makeRecord(std::initializer_list<ComponentValType> Types) {
   ASTComp::RecordTy R;
   uint32_t I = 0;
@@ -120,55 +121,70 @@ ASTComp::DefValType makeEnum(uint32_t N) {
 }
 
 uint32_t alignDef(const ASTComp::DefValType &D) {
-  Context Cx{};
-  auto Res = alignmentDef(Cx, D);
+  LiftLowerContext Ctx;
+  auto Res = Ctx.alignment(D);
   EXPECT_TRUE(Res.has_value()) << "alignmentDef returned an error";
   return Res.has_value() ? *Res : 0;
 }
 
 uint32_t alignVal(const ComponentValType &T) {
-  Context Cx{};
-  auto Res = alignment(Cx, T);
+  LiftLowerContext Ctx;
+  auto Res = Ctx.alignment(T);
   EXPECT_TRUE(Res.has_value()) << "alignment returned an error";
   return Res.has_value() ? *Res : 0;
 }
 
 uint32_t sizeDef(const ASTComp::DefValType &D) {
-  Context Cx{};
-  auto Res = elemSizeDef(Cx, D);
+  LiftLowerContext Ctx;
+  auto Res = Ctx.elemSize(D);
   EXPECT_TRUE(Res.has_value()) << "elemSizeDef returned an error";
   return Res.has_value() ? *Res : 0;
 }
 
 uint32_t sizeVal(const ComponentValType &T) {
-  Context Cx{};
-  auto Res = elemSize(Cx, T);
+  LiftLowerContext Ctx;
+  auto Res = Ctx.elemSize(T);
   EXPECT_TRUE(Res.has_value()) << "elemSize returned an error";
   return Res.has_value() ? *Res : 0;
 }
 
 // =============================================================================
-// discriminantSize — CanonicalABI.md L1951-1956
+// discriminantSize — CanonicalABI.md
 // =============================================================================
 
 TEST(ComponentCanonABI, DiscriminantSize) {
   // 1..256 → 1 byte
-  EXPECT_EQ(discriminantSize(1), 1u);
-  EXPECT_EQ(discriminantSize(2), 1u);
-  EXPECT_EQ(discriminantSize(256), 1u);
+  EXPECT_EQ(LiftLowerContext::discriminantSize(1), 1u);
+  EXPECT_EQ(LiftLowerContext::discriminantSize(2), 1u);
+  EXPECT_EQ(LiftLowerContext::discriminantSize(256), 1u);
   // 257..65536 → 2 bytes
-  EXPECT_EQ(discriminantSize(257), 2u);
-  EXPECT_EQ(discriminantSize(65536), 2u);
+  EXPECT_EQ(LiftLowerContext::discriminantSize(257), 2u);
+  EXPECT_EQ(LiftLowerContext::discriminantSize(65536), 2u);
   // 65537+ → 4 bytes
-  EXPECT_EQ(discriminantSize(65537), 4u);
+  EXPECT_EQ(LiftLowerContext::discriminantSize(65537), 4u);
 }
 
 // =============================================================================
-// alignment — CanonicalABI.md L1904-1985
+// mapEntryType — CanonicalABI.md despecialize: (map k v) ↦ (list (tuple k v))
+// =============================================================================
+
+TEST(ComponentCanonABI, MapEntryType) {
+  ASTComp::MapTy M;
+  M.KeyTy = prim(ComponentTypeCode::String);
+  M.ValTy = prim(ComponentTypeCode::U32);
+  const auto Entry = LiftLowerContext::mapEntryType(M);
+  ASSERT_TRUE(Entry.isTupleTy());
+  ASSERT_EQ(Entry.getTuple().Types.size(), 2u);
+  EXPECT_EQ(Entry.getTuple().Types[0], M.KeyTy);
+  EXPECT_EQ(Entry.getTuple().Types[1], M.ValTy);
+}
+
+// =============================================================================
+// alignment — CanonicalABI.md
 // =============================================================================
 
 TEST(ComponentCanonABI, AlignmentPrimitives) {
-  // CanonicalABI.md L1908-1926 table.
+  // CanonicalABI.md table.
   EXPECT_EQ(alignVal(prim(ComponentTypeCode::Bool)), 1u);
   EXPECT_EQ(alignVal(prim(ComponentTypeCode::S8)), 1u);
   EXPECT_EQ(alignVal(prim(ComponentTypeCode::U8)), 1u);
@@ -181,7 +197,7 @@ TEST(ComponentCanonABI, AlignmentPrimitives) {
   EXPECT_EQ(alignVal(prim(ComponentTypeCode::S64)), 8u);
   EXPECT_EQ(alignVal(prim(ComponentTypeCode::U64)), 8u);
   EXPECT_EQ(alignVal(prim(ComponentTypeCode::F64)), 8u);
-  // String alignment is the i32 ptr alignment (L1930).
+  // String alignment is the i32 ptr alignment.
   EXPECT_EQ(alignVal(prim(ComponentTypeCode::String)), 4u);
 }
 
@@ -247,7 +263,7 @@ TEST(ComponentCanonABI, AlignmentList) {
 }
 
 TEST(ComponentCanonABI, AlignmentFlags) {
-  // alignment_flags (L1971-1985): next_pow2(ceil(|labels|/8))
+  // alignment_flags: next_pow2(ceil(|labels|/8))
   EXPECT_EQ(alignDef(makeFlags(0)), 1u);  // empty → 1
   EXPECT_EQ(alignDef(makeFlags(1)), 1u);  // 1 byte
   EXPECT_EQ(alignDef(makeFlags(7)), 1u);  // 1 byte
@@ -266,7 +282,7 @@ TEST(ComponentCanonABI, AlignmentEnum) {
 }
 
 TEST(ComponentCanonABI, AlignmentFixedLengthList) {
-  // alignment_list (L1927-1933) with-len -> alignment(elem).
+  // alignment_list with-len -> alignment(elem).
   EXPECT_EQ(alignDef(makeListLen(prim(ComponentTypeCode::U32), 4)), 4u);
   EXPECT_EQ(alignDef(makeListLen(prim(ComponentTypeCode::U8), 4)), 1u);
   EXPECT_EQ(alignDef(makeListLen(prim(ComponentTypeCode::U64), 2)), 8u);
@@ -274,20 +290,26 @@ TEST(ComponentCanonABI, AlignmentFixedLengthList) {
   EXPECT_EQ(alignDef(makeListLen(prim(ComponentTypeCode::U16), 1)), 2u);
 }
 
-TEST(ComponentCanonABI, AlignmentErrorContextRejected) {
-  // Error-context is gated and must be rejected.
-  Context Cx{};
-  auto Res = alignment(Cx, prim(ComponentTypeCode::ErrContext));
-  ASSERT_FALSE(Res.has_value());
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentNotImplInstantiate);
+TEST(ComponentCanonABI, ErrorContextLayout) {
+  // An error-context travels as an i32 index into the handles table.
+  LiftLowerContext Ctx;
+  const auto T = prim(ComponentTypeCode::ErrContext);
+  auto Align = Ctx.alignment(T);
+  ASSERT_TRUE(Align);
+  EXPECT_EQ(*Align, 4u);
+  auto Size = Ctx.elemSize(T);
+  ASSERT_TRUE(Size);
+  EXPECT_EQ(*Size, 4u);
+  auto Flat = Ctx.flattenType(T);
+  EXPECT_EQ(*Flat, std::vector<ValType>{ValType(TypeCode::I32)});
 }
 
 // =============================================================================
-// elem_size — CanonicalABI.md L1990-2040
+// elem_size — CanonicalABI.md
 // =============================================================================
 
 TEST(ComponentCanonABI, ElemSizePrimitives) {
-  // CanonicalABI.md L1994-2008 table.
+  // CanonicalABI.md table.
   EXPECT_EQ(sizeVal(prim(ComponentTypeCode::Bool)), 1u);
   EXPECT_EQ(sizeVal(prim(ComponentTypeCode::S8)), 1u);
   EXPECT_EQ(sizeVal(prim(ComponentTypeCode::U8)), 1u);
@@ -300,7 +322,7 @@ TEST(ComponentCanonABI, ElemSizePrimitives) {
   EXPECT_EQ(sizeVal(prim(ComponentTypeCode::S64)), 8u);
   EXPECT_EQ(sizeVal(prim(ComponentTypeCode::U64)), 8u);
   EXPECT_EQ(sizeVal(prim(ComponentTypeCode::F64)), 8u);
-  // String is (ptr, len) → 8 bytes (L2009-2013).
+  // String is (ptr, len) → 8 bytes.
   EXPECT_EQ(sizeVal(prim(ComponentTypeCode::String)), 8u);
 }
 
@@ -330,8 +352,8 @@ TEST(ComponentCanonABI, ElemSizeTuple) {
 }
 
 TEST(ComponentCanonABI, ElemSizeVariant) {
-  // variant{u8 | u32}: disc 1B → s=1; align to max payload (4) → 4;
-  // + max payload (4) → 8; variant align 4 → 8.
+  // variant{u8 | u32}: disc 1 byte, align to payload 4, plus payload 4 = 8,
+  // and the variant alignment of 4 keeps 8.
   EXPECT_EQ(sizeDef(makeVariant(
                 {prim(ComponentTypeCode::U8), prim(ComponentTypeCode::U32)})),
             8u);
@@ -374,7 +396,7 @@ TEST(ComponentCanonABI, ElemSizeEnum) {
 }
 
 TEST(ComponentCanonABI, ElemSizeFixedLengthList) {
-  // elem_size_list (L2009-2013) with-len -> len * elem_size(elem).
+  // elem_size_list with-len -> len * elem_size(elem).
   EXPECT_EQ(sizeDef(makeListLen(prim(ComponentTypeCode::U32), 4)), 16u);
   EXPECT_EQ(sizeDef(makeListLen(prim(ComponentTypeCode::U8), 4)), 4u);
   EXPECT_EQ(sizeDef(makeListLen(prim(ComponentTypeCode::U64), 2)), 16u);
@@ -382,12 +404,12 @@ TEST(ComponentCanonABI, ElemSizeFixedLengthList) {
 }
 
 // =============================================================================
-// flatten_type — CanonicalABI.md L2860-2877
+// flatten_type — CanonicalABI.md
 // =============================================================================
 
 std::vector<TypeCode> flattenCodes(const ComponentValType &T) {
-  Context Cx{};
-  auto Res = flattenType(Cx, T);
+  LiftLowerContext Ctx;
+  auto Res = Ctx.flattenType(T);
   EXPECT_TRUE(Res.has_value());
   std::vector<TypeCode> Out;
   if (Res.has_value()) {
@@ -399,8 +421,8 @@ std::vector<TypeCode> flattenCodes(const ComponentValType &T) {
 }
 
 std::vector<TypeCode> flattenCodesDef(const ASTComp::DefValType &D) {
-  Context Cx{};
-  auto Res = flattenTypeDef(Cx, D);
+  LiftLowerContext Ctx;
+  auto Res = Ctx.flattenType(D);
   EXPECT_TRUE(Res.has_value());
   std::vector<TypeCode> Out;
   if (Res.has_value()) {
@@ -412,7 +434,7 @@ std::vector<TypeCode> flattenCodesDef(const ASTComp::DefValType &D) {
 }
 
 TEST(ComponentCanonABI, FlattenPrimitives) {
-  // CanonicalABI.md L2862-2870 table.
+  // CanonicalABI.md table.
   EXPECT_EQ(flattenCodes(prim(ComponentTypeCode::Bool)),
             (std::vector<TypeCode>{TypeCode::I32}));
   EXPECT_EQ(flattenCodes(prim(ComponentTypeCode::S8)),
@@ -454,7 +476,7 @@ TEST(ComponentCanonABI, FlattenVariantJoin) {
   EXPECT_EQ(flattenCodesDef(makeVariant(
                 {prim(ComponentTypeCode::U8), prim(ComponentTypeCode::U32)})),
             (std::vector<TypeCode>{TypeCode::I32, TypeCode::I32}));
-  // variant{f32 | s32} → disc + join(f32, i32) = [i32, i32] (per spec L2917)
+  // variant{f32 | s32} → disc + join(f32, i32) = [i32, i32]
   EXPECT_EQ(flattenCodesDef(makeVariant(
                 {prim(ComponentTypeCode::F32), prim(ComponentTypeCode::S32)})),
             (std::vector<TypeCode>{TypeCode::I32, TypeCode::I32}));
@@ -510,7 +532,7 @@ TEST(ComponentCanonABI, FlattenList) {
 }
 
 TEST(ComponentCanonABI, FlattenFixedLengthList) {
-  // flatten_list (L2882-2885) with-len -> flatten(elem) repeated len times.
+  // flatten_list with-len -> flatten(elem) repeated len times.
   EXPECT_EQ(
       flattenCodesDef(makeListLen(prim(ComponentTypeCode::U32), 3)),
       (std::vector<TypeCode>{TypeCode::I32, TypeCode::I32, TypeCode::I32}));
@@ -523,7 +545,7 @@ TEST(ComponentCanonABI, FlattenFixedLengthList) {
 }
 
 // =============================================================================
-// flatten_functype — CanonicalABI.md L2819-2832 (sync only)
+// flatten_functype — CanonicalABI.md (sync only)
 // =============================================================================
 
 ASTComp::FuncType makeFunc(std::vector<ComponentValType> Params,
@@ -542,93 +564,108 @@ ASTComp::FuncType makeFunc(std::vector<ComponentValType> Params,
 }
 
 TEST(ComponentCanonABI, FlattenFuncTypeDirect) {
-  Context Cx{};
-  auto FT =
+  LiftLowerContext Ctx;
+  auto FnType =
       makeFunc({prim(ComponentTypeCode::U32), prim(ComponentTypeCode::U64)},
                {prim(ComponentTypeCode::F32)});
-  auto Res = flattenFuncType(Cx, FT, /*IsLift=*/true);
+  auto Res = Ctx.flattenFuncType(FnType, /*IsLift=*/true);
   ASSERT_TRUE(Res.has_value());
-  EXPECT_EQ(Res->Params.size(), 2u);
-  EXPECT_EQ(Res->Params[0].getCode(), TypeCode::I32);
-  EXPECT_EQ(Res->Params[1].getCode(), TypeCode::I64);
-  ASSERT_EQ(Res->Results.size(), 1u);
-  EXPECT_EQ(Res->Results[0].getCode(), TypeCode::F32);
+  EXPECT_EQ(Res->getParamTypes().size(), 2u);
+  EXPECT_EQ(Res->getParamTypes()[0].getCode(), TypeCode::I32);
+  EXPECT_EQ(Res->getParamTypes()[1].getCode(), TypeCode::I64);
+  ASSERT_EQ(Res->getReturnTypes().size(), 1u);
+  EXPECT_EQ(Res->getReturnTypes()[0].getCode(), TypeCode::F32);
 }
 
 TEST(ComponentCanonABI, FlattenFuncTypeLiftIndirectResults) {
   // Two u32 results flatten to [i32, i32] — over MaxFlatResults (=1) — so
   // lift collapses to a single return-area pointer.
-  Context Cx{};
-  auto FT = makeFunc(
+  LiftLowerContext Ctx;
+  auto FnType = makeFunc(
       {}, {prim(ComponentTypeCode::U32), prim(ComponentTypeCode::U32)});
-  auto Res = flattenFuncType(Cx, FT, /*IsLift=*/true);
+  auto Res = Ctx.flattenFuncType(FnType, /*IsLift=*/true);
   ASSERT_TRUE(Res.has_value());
-  EXPECT_EQ(Res->Params.size(), 0u);
-  ASSERT_EQ(Res->Results.size(), 1u);
-  EXPECT_EQ(Res->Results[0].getCode(), TypeCode::I32);
+  EXPECT_EQ(Res->getParamTypes().size(), 0u);
+  ASSERT_EQ(Res->getReturnTypes().size(), 1u);
+  EXPECT_EQ(Res->getReturnTypes()[0].getCode(), TypeCode::I32);
 }
 
 TEST(ComponentCanonABI, FlattenFuncTypeLowerIndirectResultsAddsOutPtr) {
   // Lower side: results > MAX_FLAT_RESULTS (=1) collapses results=[] and
-  // appends a trailing out-pointer to params (CanonicalABI.md L2829-2831).
-  Context Cx{};
-  auto FT = makeFunc(
+  // appends a trailing out-pointer to params (CanonicalABI.md).
+  LiftLowerContext Ctx;
+  auto FnType = makeFunc(
       {}, {prim(ComponentTypeCode::U32), prim(ComponentTypeCode::U32)});
-  auto Res = flattenFuncType(Cx, FT, /*IsLift=*/false);
+  auto Res = Ctx.flattenFuncType(FnType, /*IsLift=*/false);
   ASSERT_TRUE(Res.has_value());
-  ASSERT_EQ(Res->Params.size(), 1u);
-  EXPECT_EQ(Res->Params[0].getCode(), TypeCode::I32);
-  EXPECT_TRUE(Res->Results.empty());
+  ASSERT_EQ(Res->getParamTypes().size(), 1u);
+  EXPECT_EQ(Res->getParamTypes()[0].getCode(), TypeCode::I32);
+  EXPECT_TRUE(Res->getReturnTypes().empty());
 }
 
 TEST(ComponentCanonABI, FlattenFuncTypeLowerIndirectResultsAppendsToParams) {
   // Params + out-pointer combine on lower direction.
-  Context Cx{};
-  auto FT =
+  LiftLowerContext Ctx;
+  auto FnType =
       makeFunc({prim(ComponentTypeCode::U32), prim(ComponentTypeCode::U32)},
                {prim(ComponentTypeCode::U32), prim(ComponentTypeCode::U32)});
-  auto Res = flattenFuncType(Cx, FT, /*IsLift=*/false);
+  auto Res = Ctx.flattenFuncType(FnType, /*IsLift=*/false);
   ASSERT_TRUE(Res.has_value());
-  ASSERT_EQ(Res->Params.size(), 3u);
-  EXPECT_EQ(Res->Params[0].getCode(), TypeCode::I32);
-  EXPECT_EQ(Res->Params[1].getCode(), TypeCode::I32);
-  EXPECT_EQ(Res->Params[2].getCode(), TypeCode::I32); // out-ptr
-  EXPECT_TRUE(Res->Results.empty());
+  ASSERT_EQ(Res->getParamTypes().size(), 3u);
+  EXPECT_EQ(Res->getParamTypes()[0].getCode(), TypeCode::I32);
+  EXPECT_EQ(Res->getParamTypes()[1].getCode(), TypeCode::I32);
+  EXPECT_EQ(Res->getParamTypes()[2].getCode(), TypeCode::I32); // out-ptr
+  EXPECT_TRUE(Res->getReturnTypes().empty());
 }
 
 TEST(ComponentCanonABI, FlattenFuncTypeTooManyParamsCollapses) {
   // 17 u32 params flatten to 17×i32 — over MaxFlatParams (=16). Indirect-params
-  // path collapses to a single i32 (CanonicalABI.md L2823-2824); applies to
+  // path collapses to a single i32 (CanonicalABI.md); applies to
   // both lift and lower.
-  Context Cx{};
+  LiftLowerContext Ctx;
   std::vector<ComponentValType> Ps(17, prim(ComponentTypeCode::U32));
-  auto FT = makeFunc(std::move(Ps), {prim(ComponentTypeCode::U32)});
-  auto Res = flattenFuncType(Cx, FT, /*IsLift=*/true);
+  auto FnType = makeFunc(std::move(Ps), {prim(ComponentTypeCode::U32)});
+  auto Res = Ctx.flattenFuncType(FnType, /*IsLift=*/true);
   ASSERT_TRUE(Res.has_value());
-  ASSERT_EQ(Res->Params.size(), 1u);
-  EXPECT_EQ(Res->Params[0].getCode(), TypeCode::I32);
-  ASSERT_EQ(Res->Results.size(), 1u);
-  EXPECT_EQ(Res->Results[0].getCode(), TypeCode::I32);
+  ASSERT_EQ(Res->getParamTypes().size(), 1u);
+  EXPECT_EQ(Res->getParamTypes()[0].getCode(), TypeCode::I32);
+  ASSERT_EQ(Res->getReturnTypes().size(), 1u);
+  EXPECT_EQ(Res->getReturnTypes()[0].getCode(), TypeCode::I32);
 }
 
-TEST(ComponentCanonABI, FlattenFuncTypeAsyncRejected) {
-  // 🔀 async deferred.
-  Context Cx{};
-  auto FT = makeFunc({}, {});
-  FT.setAsync(true);
-  auto Res = flattenFuncType(Cx, FT, /*IsLift=*/true);
-  ASSERT_FALSE(Res.has_value());
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentNotImplInstantiate);
+TEST(ComponentCanonABI, FlattenFuncTypeAsyncShapes) {
+  // 🔀 The flat shape follows the canon options, not the asyncness of the
+  // type. Async options select the callback or subtask shapes.
+  LiftLowerContext Ctx;
+  auto FnType =
+      makeFunc({prim(ComponentTypeCode::U32)}, {prim(ComponentTypeCode::U32)});
+  FnType.setAsync(true);
+  auto Sync = Ctx.flattenFuncType(FnType, /*IsLift=*/true);
+  ASSERT_TRUE(Sync.has_value());
+  ASSERT_EQ(Sync->getParamTypes().size(), 1u);
+  ASSERT_EQ(Sync->getReturnTypes().size(), 1u);
+  auto CbLift = Ctx.flattenFuncType(FnType, /*IsLift=*/true, true, true);
+  ASSERT_TRUE(CbLift.has_value());
+  ASSERT_EQ(CbLift->getReturnTypes().size(), 1u);
+  EXPECT_EQ(CbLift->getReturnTypes()[0].getCode(), TypeCode::I32);
+  auto StackfulLift = Ctx.flattenFuncType(FnType, /*IsLift=*/true, true);
+  ASSERT_TRUE(StackfulLift.has_value());
+  EXPECT_TRUE(StackfulLift->getReturnTypes().empty());
+  auto AsyncLower = Ctx.flattenFuncType(FnType, /*IsLift=*/false, true);
+  ASSERT_TRUE(AsyncLower.has_value());
+  // One lowered param plus the trailing return-buffer pointer.
+  ASSERT_EQ(AsyncLower->getParamTypes().size(), 2u);
+  ASSERT_EQ(AsyncLower->getReturnTypes().size(), 1u);
+  EXPECT_EQ(AsyncLower->getReturnTypes()[0].getCode(), TypeCode::I32);
 }
 
 // =============================================================================
-// load — CanonicalABI.md L2050-2288
+// load — CanonicalABI.md
 // =============================================================================
 
 class CanonABIMemFixture : public ::testing::Test {
 protected:
-  CanonABIMemFixture()
-      : MemType(1U), Mem(MemType), Cx{nullptr, &Mem, nullptr, nullptr, {}} {}
+  CanonABIMemFixture() : MemType(1U), Mem(MemType), Ctx{{nullptr, &Mem}} {}
 
   void writeBytes(uint32_t Off, const std::vector<uint8_t> &Bytes) {
     auto Res = Mem.setBytes(Bytes, Off, 0, Bytes.size());
@@ -641,19 +678,19 @@ protected:
 
   AST::MemoryType MemType;
   Runtime::Instance::MemoryInstance Mem;
-  Context Cx;
+  LiftLowerContext Ctx;
 };
 
 TEST_F(CanonABIMemFixture, LoadPrimU32) {
   writeLE<uint32_t>(16, 0xDEADBEEFu);
-  auto V = load(Cx, 16, prim(ComponentTypeCode::U32));
+  auto V = Ctx.load(16, prim(ComponentTypeCode::U32));
   ASSERT_TRUE(V.has_value());
   EXPECT_EQ(std::get<uint32_t>(*V), 0xDEADBEEFu);
 }
 
 TEST_F(CanonABIMemFixture, LoadPrimS8SignExtended) {
   writeBytes(8, {0xFF});
-  auto V = load(Cx, 8, prim(ComponentTypeCode::S8));
+  auto V = Ctx.load(8, prim(ComponentTypeCode::S8));
   ASSERT_TRUE(V.has_value());
   EXPECT_EQ(std::get<int8_t>(*V), -1);
 }
@@ -663,9 +700,9 @@ TEST_F(CanonABIMemFixture, LoadPrimBool) {
   writeBytes(5, {1});
   writeBytes(6, {42});
   // convert_int_to_bool: any non-zero → true.
-  auto V0 = load(Cx, 4, prim(ComponentTypeCode::Bool));
-  auto V1 = load(Cx, 5, prim(ComponentTypeCode::Bool));
-  auto V2 = load(Cx, 6, prim(ComponentTypeCode::Bool));
+  auto V0 = Ctx.load(4, prim(ComponentTypeCode::Bool));
+  auto V1 = Ctx.load(5, prim(ComponentTypeCode::Bool));
+  auto V2 = Ctx.load(6, prim(ComponentTypeCode::Bool));
   ASSERT_TRUE(V0.has_value());
   ASSERT_TRUE(V1.has_value());
   ASSERT_TRUE(V2.has_value());
@@ -676,23 +713,23 @@ TEST_F(CanonABIMemFixture, LoadPrimBool) {
 
 TEST_F(CanonABIMemFixture, LoadPrimCharValid) {
   writeLE<uint32_t>(12, 0x4A); // 'J'
-  auto V = load(Cx, 12, prim(ComponentTypeCode::Char));
+  auto V = Ctx.load(12, prim(ComponentTypeCode::Char));
   ASSERT_TRUE(V.has_value());
   EXPECT_EQ(std::get<uint32_t>(*V), 0x4Au);
 }
 
 TEST_F(CanonABIMemFixture, LoadPrimCharSurrogateTraps) {
   writeLE<uint32_t>(12, 0xD800); // UTF-16 surrogate
-  auto V = load(Cx, 12, prim(ComponentTypeCode::Char));
+  auto V = Ctx.load(12, prim(ComponentTypeCode::Char));
   ASSERT_FALSE(V.has_value());
-  EXPECT_EQ(V.error(), ErrCode::Value::ComponentTrap);
+  EXPECT_EQ(V.error(), ErrCode::Value::ComponentCharInvalid);
 }
 
 TEST_F(CanonABIMemFixture, LoadPrimCharOutOfRangeTraps) {
   writeLE<uint32_t>(12, 0x110000); // > 0x10FFFF
-  auto V = load(Cx, 12, prim(ComponentTypeCode::Char));
+  auto V = Ctx.load(12, prim(ComponentTypeCode::Char));
   ASSERT_FALSE(V.has_value());
-  EXPECT_EQ(V.error(), ErrCode::Value::ComponentTrap);
+  EXPECT_EQ(V.error(), ErrCode::Value::ComponentCharInvalid);
 }
 
 TEST_F(CanonABIMemFixture, LoadStringUTF8) {
@@ -700,7 +737,7 @@ TEST_F(CanonABIMemFixture, LoadStringUTF8) {
   writeBytes(64, std::vector<uint8_t>(Hello.begin(), Hello.end()));
   writeLE<uint32_t>(16, 64u);                                 // begin
   writeLE<uint32_t>(20, static_cast<uint32_t>(Hello.size())); // length
-  auto V = load(Cx, 16, prim(ComponentTypeCode::String));
+  auto V = Ctx.load(16, prim(ComponentTypeCode::String));
   ASSERT_TRUE(V.has_value());
   EXPECT_EQ(std::get<std::string>(*V), Hello);
 }
@@ -710,9 +747,9 @@ TEST_F(CanonABIMemFixture, LoadStringOOBTraps) {
   const uint64_t MemSize = Mem.getSize();
   writeLE<uint32_t>(16, static_cast<uint32_t>(MemSize - 2));
   writeLE<uint32_t>(20, 10u);
-  auto V = load(Cx, 16, prim(ComponentTypeCode::String));
+  auto V = Ctx.load(16, prim(ComponentTypeCode::String));
   ASSERT_FALSE(V.has_value());
-  EXPECT_EQ(V.error(), ErrCode::Value::MemoryOutOfBounds);
+  EXPECT_EQ(V.error(), ErrCode::Value::ComponentStrPtrLenOOB);
 }
 
 TEST_F(CanonABIMemFixture, LoadRecordU8U32WithPadding) {
@@ -721,28 +758,28 @@ TEST_F(CanonABIMemFixture, LoadRecordU8U32WithPadding) {
   writeLE<uint32_t>(36, 0x12345678u); // u32
   auto D =
       makeRecord({prim(ComponentTypeCode::U8), prim(ComponentTypeCode::U32)});
-  auto V = loadDef(Cx, 32, D);
+  auto V = Ctx.load(32, D);
   ASSERT_TRUE(V.has_value());
-  auto VC = std::get<std::shared_ptr<ValComp>>(*V);
-  ASSERT_TRUE(VC);
-  auto &R = std::get<RecordVal>(VC->V);
+  auto Aggregate = std::get<std::shared_ptr<ValComp>>(*V);
+  ASSERT_TRUE(Aggregate);
+  auto &R = std::get<RecordVal>(Aggregate->V);
   ASSERT_EQ(R.Fields.size(), 2u);
   EXPECT_EQ(std::get<uint8_t>(R.Fields[0].second), 0xABu);
   EXPECT_EQ(std::get<uint32_t>(R.Fields[1].second), 0x12345678u);
 }
 
 TEST_F(CanonABIMemFixture, LoadVariantWithPayload) {
-  // variant{u8 | u32}: disc 1B; max payload align 4 → payload @4..7.
+  // variant{u8 | u32}: disc 1 byte, payload alignment 4 puts it at 4..7.
   // Discriminant = 1 (second case → u32).
   writeBytes(48, {1, 0, 0, 0});       // disc + padding
   writeLE<uint32_t>(52, 0xCAFEBABEu); // u32 payload
   auto D =
       makeVariant({prim(ComponentTypeCode::U8), prim(ComponentTypeCode::U32)});
-  auto V = loadDef(Cx, 48, D);
+  auto V = Ctx.load(48, D);
   ASSERT_TRUE(V.has_value());
-  auto VC = std::get<std::shared_ptr<ValComp>>(*V);
-  ASSERT_TRUE(VC);
-  auto &Vt = std::get<VariantVal>(VC->V);
+  auto Aggregate = std::get<std::shared_ptr<ValComp>>(*V);
+  ASSERT_TRUE(Aggregate);
+  auto &Vt = std::get<VariantVal>(Aggregate->V);
   EXPECT_EQ(Vt.Case, 1u);
   ASSERT_TRUE(Vt.Payload.has_value());
   EXPECT_EQ(std::get<uint32_t>(*Vt.Payload), 0xCAFEBABEu);
@@ -752,9 +789,9 @@ TEST_F(CanonABIMemFixture, LoadVariantDiscOutOfRangeTraps) {
   writeBytes(48, {99, 0, 0, 0});
   auto D =
       makeVariant({prim(ComponentTypeCode::U8), prim(ComponentTypeCode::U32)});
-  auto V = loadDef(Cx, 48, D);
+  auto V = Ctx.load(48, D);
   ASSERT_FALSE(V.has_value());
-  EXPECT_EQ(V.error(), ErrCode::Value::ComponentTrap);
+  EXPECT_EQ(V.error(), ErrCode::Value::ComponentDiscriminantInvalid);
 }
 
 TEST_F(CanonABIMemFixture, LoadOptionSome) {
@@ -762,10 +799,10 @@ TEST_F(CanonABIMemFixture, LoadOptionSome) {
   writeBytes(96, {1, 0, 0, 0});
   writeLE<uint32_t>(100, 7u);
   auto D = makeOption(prim(ComponentTypeCode::U32));
-  auto V = loadDef(Cx, 96, D);
+  auto V = Ctx.load(96, D);
   ASSERT_TRUE(V.has_value());
-  auto VC = std::get<std::shared_ptr<ValComp>>(*V);
-  auto &O = std::get<OptionVal>(VC->V);
+  auto Aggregate = std::get<std::shared_ptr<ValComp>>(*V);
+  auto &O = std::get<OptionVal>(Aggregate->V);
   ASSERT_TRUE(O.Value.has_value());
   EXPECT_EQ(std::get<uint32_t>(*O.Value), 7u);
 }
@@ -773,10 +810,10 @@ TEST_F(CanonABIMemFixture, LoadOptionSome) {
 TEST_F(CanonABIMemFixture, LoadOptionNone) {
   writeBytes(96, {0, 0, 0, 0});
   auto D = makeOption(prim(ComponentTypeCode::U32));
-  auto V = loadDef(Cx, 96, D);
+  auto V = Ctx.load(96, D);
   ASSERT_TRUE(V.has_value());
-  auto VC = std::get<std::shared_ptr<ValComp>>(*V);
-  auto &O = std::get<OptionVal>(VC->V);
+  auto Aggregate = std::get<std::shared_ptr<ValComp>>(*V);
+  auto &O = std::get<OptionVal>(Aggregate->V);
   EXPECT_FALSE(O.Value.has_value());
 }
 
@@ -787,10 +824,10 @@ TEST_F(CanonABIMemFixture, LoadResultOk) {
   Mem.storeValue<uint64_t>(Big, 136);
   auto D =
       makeResult(prim(ComponentTypeCode::U64), prim(ComponentTypeCode::U8));
-  auto V = loadDef(Cx, 128, D);
+  auto V = Ctx.load(128, D);
   ASSERT_TRUE(V.has_value());
-  auto VC = std::get<std::shared_ptr<ValComp>>(*V);
-  auto &R = std::get<ResultVal>(VC->V);
+  auto Aggregate = std::get<std::shared_ptr<ValComp>>(*V);
+  auto &R = std::get<ResultVal>(Aggregate->V);
   EXPECT_TRUE(R.IsOk);
   ASSERT_TRUE(R.Payload.has_value());
   EXPECT_EQ(std::get<uint64_t>(*R.Payload), Big);
@@ -801,10 +838,10 @@ TEST_F(CanonABIMemFixture, LoadFlags17) {
   // We pack bits 0, 4, 16 → raw = 0x00010011.
   writeLE<uint32_t>(160, 0x00010011u);
   auto D = makeFlags(17);
-  auto V = loadDef(Cx, 160, D);
+  auto V = Ctx.load(160, D);
   ASSERT_TRUE(V.has_value());
-  auto VC = std::get<std::shared_ptr<ValComp>>(*V);
-  auto &F = std::get<FlagsVal>(VC->V);
+  auto Aggregate = std::get<std::shared_ptr<ValComp>>(*V);
+  auto &F = std::get<FlagsVal>(Aggregate->V);
   ASSERT_EQ(F.Bits.size(), 17u);
   EXPECT_TRUE(F.Bits[0]);
   EXPECT_FALSE(F.Bits[1]);
@@ -816,19 +853,19 @@ TEST_F(CanonABIMemFixture, LoadEnumValid) {
   // 3-case enum → disc 1B.
   writeBytes(176, {2});
   auto D = makeEnum(3);
-  auto V = loadDef(Cx, 176, D);
+  auto V = Ctx.load(176, D);
   ASSERT_TRUE(V.has_value());
-  auto VC = std::get<std::shared_ptr<ValComp>>(*V);
-  auto &E = std::get<EnumVal>(VC->V);
+  auto Aggregate = std::get<std::shared_ptr<ValComp>>(*V);
+  auto &E = std::get<EnumVal>(Aggregate->V);
   EXPECT_EQ(E.Case, 2u);
 }
 
 TEST_F(CanonABIMemFixture, LoadEnumOutOfRange) {
   writeBytes(176, {7});
   auto D = makeEnum(3);
-  auto V = loadDef(Cx, 176, D);
+  auto V = Ctx.load(176, D);
   ASSERT_FALSE(V.has_value());
-  EXPECT_EQ(V.error(), ErrCode::Value::ComponentTrap);
+  EXPECT_EQ(V.error(), ErrCode::Value::ComponentDiscriminantInvalid);
 }
 
 TEST_F(CanonABIMemFixture, LoadListU16) {
@@ -839,10 +876,10 @@ TEST_F(CanonABIMemFixture, LoadListU16) {
   Mem.storeValue<uint32_t, 2>(20u, 258);
   Mem.storeValue<uint32_t, 2>(30u, 260);
   auto D = makeListNoLen(prim(ComponentTypeCode::U16));
-  auto V = loadDef(Cx, 192, D);
+  auto V = Ctx.load(192, D);
   ASSERT_TRUE(V.has_value());
-  auto VC = std::get<std::shared_ptr<ValComp>>(*V);
-  auto &L = std::get<ListVal>(VC->V);
+  auto Aggregate = std::get<std::shared_ptr<ValComp>>(*V);
+  auto &L = std::get<ListVal>(Aggregate->V);
   ASSERT_EQ(L.Elements.size(), 3u);
   EXPECT_EQ(std::get<uint16_t>(L.Elements[0]), 10u);
   EXPECT_EQ(std::get<uint16_t>(L.Elements[1]), 20u);
@@ -853,43 +890,43 @@ TEST_F(CanonABIMemFixture, LoadListMisalignedTraps) {
   writeLE<uint32_t>(192, 257u); // misaligned for u16
   writeLE<uint32_t>(196, 3u);
   auto D = makeListNoLen(prim(ComponentTypeCode::U16));
-  auto V = loadDef(Cx, 192, D);
+  auto V = Ctx.load(192, D);
   ASSERT_FALSE(V.has_value());
-  EXPECT_EQ(V.error(), ErrCode::Value::ComponentTrap);
+  EXPECT_EQ(V.error(), ErrCode::Value::ComponentPtrUnaligned);
 }
 
 // =============================================================================
-// store / round-trip — CanonicalABI.md L2360-2735
+// store / round-trip — CanonicalABI.md
 // =============================================================================
 
 template <typename T>
-void roundTripPrim(Context &Cx, ComponentTypeCode TC, T Expected,
+void roundTripPrim(LiftLowerContext &Ctx, ComponentTypeCode TC, T Expected,
                    uint32_t Off) {
   auto Ty = prim(TC);
-  EXPECT_TRUE(store(Cx, ComponentValVariant{Expected}, Ty, Off).has_value())
+  EXPECT_TRUE(Ctx.store(ComponentValVariant{Expected}, Ty, Off).has_value())
       << "store " << static_cast<int>(TC);
-  auto R = load(Cx, Off, Ty);
+  auto R = Ctx.load(Off, Ty);
   ASSERT_TRUE(R.has_value()) << "load " << static_cast<int>(TC);
   EXPECT_EQ(std::get<T>(*R), Expected) << "round-trip " << static_cast<int>(TC);
 }
 
 TEST_F(CanonABIMemFixture, RoundTripPrimitivesAll) {
-  roundTripPrim<bool>(Cx, ComponentTypeCode::Bool, true, 0);
-  roundTripPrim<int8_t>(Cx, ComponentTypeCode::S8, -7, 8);
-  roundTripPrim<uint8_t>(Cx, ComponentTypeCode::U8, 200, 16);
-  roundTripPrim<int16_t>(Cx, ComponentTypeCode::S16, -12345, 24);
-  roundTripPrim<uint16_t>(Cx, ComponentTypeCode::U16, 60000, 32);
-  roundTripPrim<int32_t>(Cx, ComponentTypeCode::S32, -2000000000, 40);
-  roundTripPrim<uint32_t>(Cx, ComponentTypeCode::U32, 0xDEADBEEFu, 48);
+  roundTripPrim<bool>(Ctx, ComponentTypeCode::Bool, true, 0);
+  roundTripPrim<int8_t>(Ctx, ComponentTypeCode::S8, -7, 8);
+  roundTripPrim<uint8_t>(Ctx, ComponentTypeCode::U8, 200, 16);
+  roundTripPrim<int16_t>(Ctx, ComponentTypeCode::S16, -12345, 24);
+  roundTripPrim<uint16_t>(Ctx, ComponentTypeCode::U16, 60000, 32);
+  roundTripPrim<int32_t>(Ctx, ComponentTypeCode::S32, -2000000000, 40);
+  roundTripPrim<uint32_t>(Ctx, ComponentTypeCode::U32, 0xDEADBEEFu, 48);
   // -(1 << 40): use multiplication to avoid UB on shifting a negative literal.
   const int64_t BigNeg = -(int64_t{1} << 40);
-  roundTripPrim<int64_t>(Cx, ComponentTypeCode::S64, BigNeg, 56);
-  roundTripPrim<uint64_t>(Cx, ComponentTypeCode::U64,
+  roundTripPrim<int64_t>(Ctx, ComponentTypeCode::S64, BigNeg, 56);
+  roundTripPrim<uint64_t>(Ctx, ComponentTypeCode::U64,
                           uint64_t{0x0123456789ABCDEFull}, 64);
-  roundTripPrim<float>(Cx, ComponentTypeCode::F32, 3.14f, 72);
-  roundTripPrim<double>(Cx, ComponentTypeCode::F64, 2.718281828, 80);
+  roundTripPrim<float>(Ctx, ComponentTypeCode::F32, 3.14f, 72);
+  roundTripPrim<double>(Ctx, ComponentTypeCode::F64, 2.718281828, 80);
   // 😀 (U+1F600).
-  roundTripPrim<uint32_t>(Cx, ComponentTypeCode::Char, 0x1F600u, 88);
+  roundTripPrim<uint32_t>(Ctx, ComponentTypeCode::Char, 0x1F600u, 88);
 }
 
 TEST_F(CanonABIMemFixture, RoundTripRecord) {
@@ -899,11 +936,11 @@ TEST_F(CanonABIMemFixture, RoundTripRecord) {
   RecordVal R;
   R.Fields.emplace_back("f0", ComponentValVariant{static_cast<uint8_t>(0xAB)});
   R.Fields.emplace_back("f1", ComponentValVariant{uint32_t{0x12345678u}});
-  auto VC = std::make_shared<ValComp>();
-  VC->V = std::move(R);
-  ComponentValVariant CVV{std::move(VC)};
-  EXPECT_TRUE(storeDef(Cx, CVV, D, 32).has_value());
-  auto Loaded = loadDef(Cx, 32, D);
+  auto Aggregate = std::make_shared<ValComp>();
+  Aggregate->V = std::move(R);
+  ComponentValVariant CVV{std::move(Aggregate)};
+  EXPECT_TRUE(Ctx.store(CVV, D, 32).has_value());
+  auto Loaded = Ctx.load(32, D);
   ASSERT_TRUE(Loaded.has_value());
   auto &LR =
       std::get<RecordVal>(std::get<std::shared_ptr<ValComp>>(*Loaded)->V);
@@ -918,11 +955,11 @@ TEST_F(CanonABIMemFixture, RoundTripVariant) {
   VariantVal Vv;
   Vv.Case = 1;
   Vv.Payload = ComponentValVariant{uint32_t{0xCAFEBABEu}};
-  auto VC = std::make_shared<ValComp>();
-  VC->V = std::move(Vv);
-  ComponentValVariant CVV{std::move(VC)};
-  EXPECT_TRUE(storeDef(Cx, CVV, D, 48).has_value());
-  auto Loaded = loadDef(Cx, 48, D);
+  auto Aggregate = std::make_shared<ValComp>();
+  Aggregate->V = std::move(Vv);
+  ComponentValVariant CVV{std::move(Aggregate)};
+  EXPECT_TRUE(Ctx.store(CVV, D, 48).has_value());
+  auto Loaded = Ctx.load(48, D);
   ASSERT_TRUE(Loaded.has_value());
   auto &LV =
       std::get<VariantVal>(std::get<std::shared_ptr<ValComp>>(*Loaded)->V);
@@ -938,8 +975,8 @@ TEST_F(CanonABIMemFixture, RoundTripOptionResult) {
   auto OVC = std::make_shared<ValComp>();
   OVC->V = std::move(Ov);
   EXPECT_TRUE(
-      storeDef(Cx, ComponentValVariant{std::move(OVC)}, OD, 96).has_value());
-  auto OL = loadDef(Cx, 96, OD);
+      Ctx.store(ComponentValVariant{std::move(OVC)}, OD, 96).has_value());
+  auto OL = Ctx.load(96, OD);
   ASSERT_TRUE(OL.has_value());
   auto &OO = std::get<OptionVal>(std::get<std::shared_ptr<ValComp>>(*OL)->V);
   ASSERT_TRUE(OO.Value.has_value());
@@ -953,8 +990,8 @@ TEST_F(CanonABIMemFixture, RoundTripOptionResult) {
   auto RVC = std::make_shared<ValComp>();
   RVC->V = std::move(Rv);
   EXPECT_TRUE(
-      storeDef(Cx, ComponentValVariant{std::move(RVC)}, RD, 128).has_value());
-  auto RL = loadDef(Cx, 128, RD);
+      Ctx.store(ComponentValVariant{std::move(RVC)}, RD, 128).has_value());
+  auto RL = Ctx.load(128, RD);
   ASSERT_TRUE(RL.has_value());
   auto &RR = std::get<ResultVal>(std::get<std::shared_ptr<ValComp>>(*RL)->V);
   EXPECT_FALSE(RR.IsOk);
@@ -969,11 +1006,11 @@ TEST_F(CanonABIMemFixture, RoundTripFlags17) {
   F.Bits[0] = true;
   F.Bits[4] = true;
   F.Bits[16] = true;
-  auto VC = std::make_shared<ValComp>();
-  VC->V = std::move(F);
+  auto Aggregate = std::make_shared<ValComp>();
+  Aggregate->V = std::move(F);
   EXPECT_TRUE(
-      storeDef(Cx, ComponentValVariant{std::move(VC)}, D, 160).has_value());
-  auto L = loadDef(Cx, 160, D);
+      Ctx.store(ComponentValVariant{std::move(Aggregate)}, D, 160).has_value());
+  auto L = Ctx.load(160, D);
   ASSERT_TRUE(L.has_value());
   auto &LF = std::get<FlagsVal>(std::get<std::shared_ptr<ValComp>>(*L)->V);
   ASSERT_EQ(LF.Bits.size(), 17u);
@@ -983,56 +1020,44 @@ TEST_F(CanonABIMemFixture, RoundTripFlags17) {
   EXPECT_TRUE(LF.Bits[16]);
 }
 
-TEST_F(CanonABIMemFixture, StoreEmptyStringSkipsRealloc) {
-  // Empty string never invokes realloc — short-circuit lets us cover the
-  // store(String) path here without a real Executor. Expect (ptr=0, len=0)
-  // written at the target offset. CanonicalABI.md L2483-2487.
-  auto R = store(Cx, ComponentValVariant{std::string()},
-                 prim(ComponentTypeCode::String), 32);
-  ASSERT_TRUE(R.has_value());
-  uint32_t Ptr = 0xFFFFFFFFu;
-  uint32_t Len = 0xFFFFFFFFu;
-  ASSERT_TRUE(Mem.loadValue<uint32_t>(Ptr, 32).has_value());
-  ASSERT_TRUE(Mem.loadValue<uint32_t>(Len, 36).has_value());
-  EXPECT_EQ(Ptr, 0u);
-  EXPECT_EQ(Len, 0u);
+TEST_F(CanonABIMemFixture, StoreEmptyStringRequiresRealloc) {
+  // The spec calls realloc even for an empty string. Without a realloc
+  // function the store traps. It does not write (0, 0) silently.
+  auto R = Ctx.store(ComponentValVariant{std::string()},
+                     prim(ComponentTypeCode::String), 32);
+  ASSERT_FALSE(R.has_value());
 }
 
-TEST_F(CanonABIMemFixture, StoreEmptyListSkipsRealloc) {
-  // Same idea: zero-length list writes (ptr=0, len=0) without realloc.
+TEST_F(CanonABIMemFixture, StoreEmptyListRequiresRealloc) {
+  // Same as strings: empty lists still go through realloc, so without one
+  // the store traps.
   auto D = makeListNoLen(prim(ComponentTypeCode::U16));
   ListVal L;
-  auto VC = std::make_shared<ValComp>();
-  VC->V = std::move(L);
-  auto R = storeDef(Cx, ComponentValVariant{std::move(VC)}, D, 32);
-  ASSERT_TRUE(R.has_value());
-  uint32_t Ptr = 0xFFFFFFFFu;
-  uint32_t Len = 0xFFFFFFFFu;
-  ASSERT_TRUE(Mem.loadValue<uint32_t>(Ptr, 32).has_value());
-  ASSERT_TRUE(Mem.loadValue<uint32_t>(Len, 36).has_value());
-  EXPECT_EQ(Ptr, 0u);
-  EXPECT_EQ(Len, 0u);
+  auto Aggregate = std::make_shared<ValComp>();
+  Aggregate->V = std::move(L);
+  auto R = Ctx.store(ComponentValVariant{std::move(Aggregate)}, D, 32);
+  ASSERT_FALSE(R.has_value());
 }
 
 // =============================================================================
-// lift_flat — CanonicalABI.md L2957-3084
+// lift_flat — CanonicalABI.md
 // =============================================================================
 
 TEST_F(CanonABIMemFixture, LiftFlatPrimitiveU32) {
   // A single u32 → 1 i32 flat value.
   std::vector<ValVariant> Flat{ValVariant(uint32_t{0xCAFEBABEu})};
-  FlatIter It(Flat);
-  auto V = liftFlat(Cx, It, prim(ComponentTypeCode::U32));
+  size_t Pos = 0;
+  auto V = Ctx.lift(Flat, Pos, prim(ComponentTypeCode::U32));
   ASSERT_TRUE(V.has_value());
   EXPECT_EQ(std::get<uint32_t>(*V), 0xCAFEBABEu);
-  EXPECT_TRUE(It.done());
+  EXPECT_TRUE(Pos == Flat.size());
 }
 
 TEST_F(CanonABIMemFixture, LiftFlatPrimitiveS8FromI32) {
   // s8 flattens to i32; lift narrows back to int8_t with sign extension.
   std::vector<ValVariant> Flat{ValVariant(uint32_t{0x000000FFu})}; // -1 (s8)
-  FlatIter It(Flat);
-  auto V = liftFlat(Cx, It, prim(ComponentTypeCode::S8));
+  size_t Pos = 0;
+  auto V = Ctx.lift(Flat, Pos, prim(ComponentTypeCode::S8));
   ASSERT_TRUE(V.has_value());
   EXPECT_EQ(std::get<int8_t>(*V), -1);
 }
@@ -1041,10 +1066,10 @@ TEST_F(CanonABIMemFixture, LiftFlatPrimitiveBool) {
   std::vector<ValVariant> Flat{ValVariant(uint32_t{0u}),
                                ValVariant(uint32_t{1u}),
                                ValVariant(uint32_t{99u})};
-  FlatIter It(Flat);
-  auto V0 = liftFlat(Cx, It, prim(ComponentTypeCode::Bool));
-  auto V1 = liftFlat(Cx, It, prim(ComponentTypeCode::Bool));
-  auto V2 = liftFlat(Cx, It, prim(ComponentTypeCode::Bool));
+  size_t Pos = 0;
+  auto V0 = Ctx.lift(Flat, Pos, prim(ComponentTypeCode::Bool));
+  auto V1 = Ctx.lift(Flat, Pos, prim(ComponentTypeCode::Bool));
+  auto V2 = Ctx.lift(Flat, Pos, prim(ComponentTypeCode::Bool));
   ASSERT_TRUE(V0.has_value() && V1.has_value() && V2.has_value());
   EXPECT_FALSE(std::get<bool>(*V0));
   EXPECT_TRUE(std::get<bool>(*V1));
@@ -1058,8 +1083,8 @@ TEST_F(CanonABIMemFixture, LiftFlatString) {
   std::vector<ValVariant> Flat{
       ValVariant(uint32_t{256u}),
       ValVariant(uint32_t{static_cast<uint32_t>(Msg.size())})};
-  FlatIter It(Flat);
-  auto V = liftFlat(Cx, It, prim(ComponentTypeCode::String));
+  size_t Pos = 0;
+  auto V = Ctx.lift(Flat, Pos, prim(ComponentTypeCode::String));
   ASSERT_TRUE(V.has_value());
   EXPECT_EQ(std::get<std::string>(*V), Msg);
 }
@@ -1067,9 +1092,9 @@ TEST_F(CanonABIMemFixture, LiftFlatString) {
 TEST_F(CanonABIMemFixture, LiftFlatRecordU8) {
   // record{u8} → flat [i32].
   std::vector<ValVariant> Flat{ValVariant(uint32_t{0xABu})};
-  FlatIter It(Flat);
+  size_t Pos = 0;
   auto D = makeRecord({prim(ComponentTypeCode::U8)});
-  auto V = liftFlatDef(Cx, It, D);
+  auto V = Ctx.lift(Flat, Pos, D);
   ASSERT_TRUE(V.has_value());
   auto &R = std::get<RecordVal>(std::get<std::shared_ptr<ValComp>>(*V)->V);
   ASSERT_EQ(R.Fields.size(), 1u);
@@ -1078,9 +1103,9 @@ TEST_F(CanonABIMemFixture, LiftFlatRecordU8) {
 
 TEST_F(CanonABIMemFixture, LiftFlatFlags) {
   std::vector<ValVariant> Flat{ValVariant(uint32_t{0b10101u})};
-  FlatIter It(Flat);
+  size_t Pos = 0;
   auto D = makeFlags(5);
-  auto V = liftFlatDef(Cx, It, D);
+  auto V = Ctx.lift(Flat, Pos, D);
   ASSERT_TRUE(V.has_value());
   auto &F = std::get<FlagsVal>(std::get<std::shared_ptr<ValComp>>(*V)->V);
   EXPECT_TRUE(F.Bits[0]);
@@ -1092,9 +1117,9 @@ TEST_F(CanonABIMemFixture, LiftFlatFlags) {
 
 TEST_F(CanonABIMemFixture, LiftFlatEnum) {
   std::vector<ValVariant> Flat{ValVariant(uint32_t{2u})};
-  FlatIter It(Flat);
+  size_t Pos = 0;
   auto D = makeEnum(4);
-  auto V = liftFlatDef(Cx, It, D);
+  auto V = Ctx.lift(Flat, Pos, D);
   ASSERT_TRUE(V.has_value());
   auto &E = std::get<EnumVal>(std::get<std::shared_ptr<ValComp>>(*V)->V);
   EXPECT_EQ(E.Case, 2u);
@@ -1103,9 +1128,9 @@ TEST_F(CanonABIMemFixture, LiftFlatEnum) {
 TEST_F(CanonABIMemFixture, LiftFlatVariantNoPayloadCases) {
   // variant{a | b | c} (all-none payloads) → flat [i32] (disc only).
   std::vector<ValVariant> Flat{ValVariant(uint32_t{1u})};
-  FlatIter It(Flat);
+  size_t Pos = 0;
   auto D = makeVariant({std::nullopt, std::nullopt, std::nullopt});
-  auto V = liftFlatDef(Cx, It, D);
+  auto V = Ctx.lift(Flat, Pos, D);
   ASSERT_TRUE(V.has_value());
   auto &Vv = std::get<VariantVal>(std::get<std::shared_ptr<ValComp>>(*V)->V);
   EXPECT_EQ(Vv.Case, 1u);
@@ -1116,15 +1141,15 @@ TEST_F(CanonABIMemFixture, LiftFlatVariantWithPayloadU32) {
   // variant{a | u32}: flat = [i32 disc, i32 payload]. Case 1 + payload 42.
   std::vector<ValVariant> Flat{ValVariant(uint32_t{1u}),
                                ValVariant(uint32_t{42u})};
-  FlatIter It(Flat);
+  size_t Pos = 0;
   auto D = makeVariant({std::nullopt, prim(ComponentTypeCode::U32)});
-  auto V = liftFlatDef(Cx, It, D);
+  auto V = Ctx.lift(Flat, Pos, D);
   ASSERT_TRUE(V.has_value());
   auto &Vv = std::get<VariantVal>(std::get<std::shared_ptr<ValComp>>(*V)->V);
   EXPECT_EQ(Vv.Case, 1u);
   ASSERT_TRUE(Vv.Payload.has_value());
   EXPECT_EQ(std::get<uint32_t>(*Vv.Payload), 42u);
-  EXPECT_TRUE(It.done());
+  EXPECT_TRUE(Pos == Flat.size());
 }
 
 TEST_F(CanonABIMemFixture, LiftFlatVariantNoPayloadCaseDrainsPadding) {
@@ -1132,14 +1157,14 @@ TEST_F(CanonABIMemFixture, LiftFlatVariantNoPayloadCaseDrainsPadding) {
   // but the i64 join slot must still be drained.
   std::vector<ValVariant> Flat{ValVariant(uint32_t{0u}),
                                ValVariant(uint64_t{0xCAFEBABEDEADBEEFull})};
-  FlatIter It(Flat);
+  size_t Pos = 0;
   auto D = makeVariant({std::nullopt, prim(ComponentTypeCode::U64)});
-  auto V = liftFlatDef(Cx, It, D);
+  auto V = Ctx.lift(Flat, Pos, D);
   ASSERT_TRUE(V.has_value());
   auto &Vv = std::get<VariantVal>(std::get<std::shared_ptr<ValComp>>(*V)->V);
   EXPECT_EQ(Vv.Case, 0u);
   EXPECT_FALSE(Vv.Payload.has_value());
-  EXPECT_TRUE(It.done());
+  EXPECT_TRUE(Pos == Flat.size());
 }
 
 TEST_F(CanonABIMemFixture, LiftFlatVariantJoinI32F32ReadsAsF32) {
@@ -1149,10 +1174,10 @@ TEST_F(CanonABIMemFixture, LiftFlatVariantJoinI32F32ReadsAsF32) {
   uint32_t Bits = 0;
   std::memcpy(&Bits, &Pi, sizeof(Bits));
   std::vector<ValVariant> Flat{ValVariant(uint32_t{1u}), ValVariant(Bits)};
-  FlatIter It(Flat);
+  size_t Pos = 0;
   auto D =
       makeVariant({prim(ComponentTypeCode::U32), prim(ComponentTypeCode::F32)});
-  auto V = liftFlatDef(Cx, It, D);
+  auto V = Ctx.lift(Flat, Pos, D);
   ASSERT_TRUE(V.has_value());
   auto &Vv = std::get<VariantVal>(std::get<std::shared_ptr<ValComp>>(*V)->V);
   EXPECT_EQ(Vv.Case, 1u);
@@ -1162,13 +1187,13 @@ TEST_F(CanonABIMemFixture, LiftFlatVariantJoinI32F32ReadsAsF32) {
 
 TEST_F(CanonABIMemFixture, LiftFlatVariantJoinI64WrapsToI32) {
   // variant{u32 | u64}: join slot = i64 (i32 & i64 → i64). For case 0 (u32),
-  // the joined i64 slot is wrapped back to i32 by CoerceValueIter.
+  // the joined i64 slot is wrapped back to i32 by the join coercion.
   std::vector<ValVariant> Flat{ValVariant(uint32_t{0u}),
                                ValVariant(uint64_t{0x1122334455667788ull})};
-  FlatIter It(Flat);
+  size_t Pos = 0;
   auto D =
       makeVariant({prim(ComponentTypeCode::U32), prim(ComponentTypeCode::U64)});
-  auto V = liftFlatDef(Cx, It, D);
+  auto V = Ctx.lift(Flat, Pos, D);
   ASSERT_TRUE(V.has_value());
   auto &Vv = std::get<VariantVal>(std::get<std::shared_ptr<ValComp>>(*V)->V);
   EXPECT_EQ(Vv.Case, 0u);
@@ -1177,53 +1202,85 @@ TEST_F(CanonABIMemFixture, LiftFlatVariantJoinI64WrapsToI32) {
 }
 
 // =============================================================================
-// lower_flat (round-trip with lift_flat) — CanonicalABI.md L3086-3192
+// lower_flat (round-trip with lift_flat) — CanonicalABI.md
 // =============================================================================
 
-namespace {
-
-// Helper: round-trip `V` of type `T` through lowerFlat → liftFlat, asserting
+// Helper: round-trip `V` of type `T` through lower → lift, asserting
 // the holds_alternative and equality of the resulting ComponentValVariant.
 // Only valid for primitive shapes that don't need realloc (no string/list).
 template <typename T>
-void roundTripPrim(const Context &Cx, const ComponentValType &CT,
+void roundTripPrim(const LiftLowerContext &Ctx, const ComponentValType &CT,
                    const T &Original) {
   ComponentValVariant CV{Original};
-  auto Lowered = lowerFlat(Cx, CV, CT);
-  ASSERT_TRUE(Lowered.has_value());
-  FlatIter It(*Lowered);
-  auto Lifted = liftFlat(Cx, It, CT);
+  std::vector<ValVariant> Lowered;
+  ASSERT_TRUE(Ctx.lower(CV, CT, Lowered));
+  size_t Pos = 0;
+  auto Lifted = Ctx.lift(Lowered, Pos, CT);
   ASSERT_TRUE(Lifted.has_value());
   EXPECT_TRUE(std::holds_alternative<T>(*Lifted));
   EXPECT_EQ(std::get<T>(*Lifted), Original);
-  EXPECT_TRUE(It.done());
+  EXPECT_TRUE(Pos == Lowered.size());
 }
 
-} // namespace
+// =============================================================================
+// error-context — travels as an index into the instance's handles table.
+
+TEST_F(CanonABIMemFixture, ErrorContextStoreLoadRoundTrip) {
+  Runtime::Instance::ComponentInstance Inst("");
+  Ctx = LiftLowerContext({&Inst, &Mem});
+  const uint32_t Handle = Inst.addErrorContext("boom");
+  writeLE<uint32_t>(64, Handle);
+
+  // load lifts the handle into a value carrying the debug message.
+  auto V = Ctx.load(64, prim(ComponentTypeCode::ErrContext));
+  ASSERT_TRUE(V.has_value());
+  auto Aggregate = std::get<std::shared_ptr<ValComp>>(*V);
+  ASSERT_TRUE(Aggregate);
+  EXPECT_EQ(std::get<ErrorContextVal>(Aggregate->V).Message, "boom");
+
+  // store lowers it back, minting a fresh table entry.
+  ASSERT_TRUE(Ctx.store(*V, prim(ComponentTypeCode::ErrContext), 68));
+  uint32_t Lowered = 0;
+  ASSERT_TRUE(Mem.loadValue<uint32_t>(Lowered, 68));
+  EXPECT_NE(Lowered, Handle);
+  const auto *Obj = Inst.getErrorContext(Lowered);
+  ASSERT_NE(Obj, nullptr);
+  EXPECT_EQ(*Obj, "boom");
+}
+
+TEST_F(CanonABIMemFixture, ErrorContextWrongHandleTraps) {
+  Runtime::Instance::ComponentInstance Inst("");
+  Ctx = LiftLowerContext({&Inst, &Mem});
+  // Slot 0 is never live, so it is not an error-context.
+  writeLE<uint32_t>(64, 0u);
+  auto V = Ctx.load(64, prim(ComponentTypeCode::ErrContext));
+  ASSERT_FALSE(V.has_value());
+  EXPECT_EQ(V.error(), ErrCode::Value::ComponentHandleWrongType);
+}
 
 TEST_F(CanonABIMemFixture, LowerLiftRoundTripPrimitives) {
-  roundTripPrim<uint32_t>(Cx, prim(ComponentTypeCode::U32), 0xDEADBEEFu);
-  roundTripPrim<uint64_t>(Cx, prim(ComponentTypeCode::U64),
+  roundTripPrim<uint32_t>(Ctx, prim(ComponentTypeCode::U32), 0xDEADBEEFu);
+  roundTripPrim<uint64_t>(Ctx, prim(ComponentTypeCode::U64),
                           0xFEEDFACECAFEBEEFull);
-  roundTripPrim<int8_t>(Cx, prim(ComponentTypeCode::S8), -42);
-  roundTripPrim<int16_t>(Cx, prim(ComponentTypeCode::S16), -12345);
-  roundTripPrim<int32_t>(Cx, prim(ComponentTypeCode::S32), -1);
-  roundTripPrim<int64_t>(Cx, prim(ComponentTypeCode::S64),
+  roundTripPrim<int8_t>(Ctx, prim(ComponentTypeCode::S8), -42);
+  roundTripPrim<int16_t>(Ctx, prim(ComponentTypeCode::S16), -12345);
+  roundTripPrim<int32_t>(Ctx, prim(ComponentTypeCode::S32), -1);
+  roundTripPrim<int64_t>(Ctx, prim(ComponentTypeCode::S64),
                          -9000000000000000000ll);
-  roundTripPrim<float>(Cx, prim(ComponentTypeCode::F32), 3.14f);
-  roundTripPrim<double>(Cx, prim(ComponentTypeCode::F64), 2.718281828);
-  roundTripPrim<bool>(Cx, prim(ComponentTypeCode::Bool), true);
+  roundTripPrim<float>(Ctx, prim(ComponentTypeCode::F32), 3.14f);
+  roundTripPrim<double>(Ctx, prim(ComponentTypeCode::F64), 2.718281828);
+  roundTripPrim<bool>(Ctx, prim(ComponentTypeCode::Bool), true);
 }
 
 TEST_F(CanonABIMemFixture, LowerLiftRoundTripCharValid) {
   // U+1F600 (😀).
   uint32_t Code = 0x1F600u;
   ComponentValVariant CV{Code};
-  auto Lowered = lowerFlat(Cx, CV, prim(ComponentTypeCode::Char));
-  ASSERT_TRUE(Lowered.has_value());
-  ASSERT_EQ(Lowered->size(), 1u);
-  FlatIter It(*Lowered);
-  auto Lifted = liftFlat(Cx, It, prim(ComponentTypeCode::Char));
+  std::vector<ValVariant> Lowered;
+  ASSERT_TRUE(Ctx.lower(CV, prim(ComponentTypeCode::Char), Lowered));
+  ASSERT_EQ(Lowered.size(), 1u);
+  size_t Pos = 0;
+  auto Lifted = Ctx.lift(Lowered, Pos, prim(ComponentTypeCode::Char));
   ASSERT_TRUE(Lifted.has_value());
   EXPECT_EQ(std::get<uint32_t>(*Lifted), Code);
 }
@@ -1241,15 +1298,15 @@ TEST_F(CanonABIMemFixture, LowerLiftRoundTripTupleOfPrimitives) {
   Tv.Values.emplace_back(uint32_t{0xABCD1234u});
   Tv.Values.emplace_back(int16_t{-1000});
   Tv.Values.emplace_back(true);
-  auto VC = std::make_shared<ValComp>();
-  VC->V = std::move(Tv);
+  auto Aggregate = std::make_shared<ValComp>();
+  Aggregate->V = std::move(Tv);
 
-  auto Lowered = lowerFlatDef(Cx, ComponentValVariant{VC}, D);
-  ASSERT_TRUE(Lowered.has_value());
-  EXPECT_EQ(Lowered->size(), 3u); // three i32s
+  std::vector<ValVariant> Lowered;
+  ASSERT_TRUE(Ctx.lower(ComponentValVariant{Aggregate}, D, Lowered));
+  EXPECT_EQ(Lowered.size(), 3u); // three i32s
 
-  FlatIter It(*Lowered);
-  auto Lifted = liftFlatDef(Cx, It, D);
+  size_t Pos = 0;
+  auto Lifted = Ctx.lift(Lowered, Pos, D);
   ASSERT_TRUE(Lifted.has_value());
   auto &LiftedTup =
       std::get<TupleVal>(std::get<std::shared_ptr<ValComp>>(*Lifted)->V);
@@ -1273,16 +1330,16 @@ TEST_F(CanonABIMemFixture, LowerLiftRoundTripFlags17) {
   Fv.Bits[0] = true;
   Fv.Bits[5] = true;
   Fv.Bits[16] = true;
-  auto VC = std::make_shared<ValComp>();
-  VC->V = std::move(Fv);
+  auto Aggregate = std::make_shared<ValComp>();
+  Aggregate->V = std::move(Fv);
 
-  auto Lowered = lowerFlatDef(Cx, ComponentValVariant{VC}, D);
-  ASSERT_TRUE(Lowered.has_value());
-  ASSERT_EQ(Lowered->size(), 1u);
-  EXPECT_EQ(Lowered->at(0).get<uint32_t>(), (1u << 0) | (1u << 5) | (1u << 16));
+  std::vector<ValVariant> Lowered;
+  ASSERT_TRUE(Ctx.lower(ComponentValVariant{Aggregate}, D, Lowered));
+  ASSERT_EQ(Lowered.size(), 1u);
+  EXPECT_EQ(Lowered.at(0).get<uint32_t>(), (1u << 0) | (1u << 5) | (1u << 16));
 
-  FlatIter It(*Lowered);
-  auto Lifted = liftFlatDef(Cx, It, D);
+  size_t Pos = 0;
+  auto Lifted = Ctx.lift(Lowered, Pos, D);
   ASSERT_TRUE(Lifted.has_value());
   auto &LiftedF =
       std::get<FlagsVal>(std::get<std::shared_ptr<ValComp>>(*Lifted)->V);
@@ -1299,16 +1356,16 @@ TEST_F(CanonABIMemFixture, LowerLiftRoundTripEnum) {
   AST::Component::DefValType D;
   D.setEnum(std::move(E));
 
-  auto VC = std::make_shared<ValComp>();
-  VC->V = EnumVal{2u};
+  auto Aggregate = std::make_shared<ValComp>();
+  Aggregate->V = EnumVal{2u, {}};
 
-  auto Lowered = lowerFlatDef(Cx, ComponentValVariant{VC}, D);
-  ASSERT_TRUE(Lowered.has_value());
-  ASSERT_EQ(Lowered->size(), 1u);
-  EXPECT_EQ(Lowered->at(0).get<uint32_t>(), 2u);
+  std::vector<ValVariant> Lowered;
+  ASSERT_TRUE(Ctx.lower(ComponentValVariant{Aggregate}, D, Lowered));
+  ASSERT_EQ(Lowered.size(), 1u);
+  EXPECT_EQ(Lowered.at(0).get<uint32_t>(), 2u);
 
-  FlatIter It(*Lowered);
-  auto Lifted = liftFlatDef(Cx, It, D);
+  size_t Pos = 0;
+  auto Lifted = Ctx.lift(Lowered, Pos, D);
   ASSERT_TRUE(Lifted.has_value());
   EXPECT_EQ(
       std::get<EnumVal>(std::get<std::shared_ptr<ValComp>>(*Lifted)->V).Case,
@@ -1318,16 +1375,16 @@ TEST_F(CanonABIMemFixture, LowerLiftRoundTripEnum) {
 TEST_F(CanonABIMemFixture, LowerLiftRoundTripVariantWithPayload) {
   // variant{none | u32}: joined flat = [i32 disc, i32 payload].
   auto D = makeVariant({std::nullopt, prim(ComponentTypeCode::U32)});
-  auto VC = std::make_shared<ValComp>();
-  VC->V = VariantVal{1u, ComponentValVariant{uint32_t{99u}}};
-  auto Lowered = lowerFlatDef(Cx, ComponentValVariant{VC}, D);
-  ASSERT_TRUE(Lowered.has_value());
-  ASSERT_EQ(Lowered->size(), 2u);
-  EXPECT_EQ((*Lowered)[0].get<uint32_t>(), 1u);
-  EXPECT_EQ((*Lowered)[1].get<uint32_t>(), 99u);
+  auto Aggregate = std::make_shared<ValComp>();
+  Aggregate->V = VariantVal{1u, ComponentValVariant{uint32_t{99u}}, {}};
+  std::vector<ValVariant> Lowered;
+  ASSERT_TRUE(Ctx.lower(ComponentValVariant{Aggregate}, D, Lowered));
+  ASSERT_EQ(Lowered.size(), 2u);
+  EXPECT_EQ(Lowered[0].get<uint32_t>(), 1u);
+  EXPECT_EQ(Lowered[1].get<uint32_t>(), 99u);
 
-  FlatIter It(*Lowered);
-  auto Lifted = liftFlatDef(Cx, It, D);
+  size_t Pos = 0;
+  auto Lifted = Ctx.lift(Lowered, Pos, D);
   ASSERT_TRUE(Lifted.has_value());
   auto &Vv =
       std::get<VariantVal>(std::get<std::shared_ptr<ValComp>>(*Lifted)->V);
@@ -1337,19 +1394,19 @@ TEST_F(CanonABIMemFixture, LowerLiftRoundTripVariantWithPayload) {
 }
 
 TEST_F(CanonABIMemFixture, LowerLiftRoundTripVariantJoinI64) {
-  // variant{u32 | u64}: i32 widens to occupy the joined i64 slot (spec L3171).
+  // variant{u32 | u64}: i32 widens to occupy the joined i64 slot.
   auto D =
       makeVariant({prim(ComponentTypeCode::U32), prim(ComponentTypeCode::U64)});
-  auto VC = std::make_shared<ValComp>();
-  VC->V = VariantVal{0u, ComponentValVariant{uint32_t{0xCAFEu}}};
-  auto Lowered = lowerFlatDef(Cx, ComponentValVariant{VC}, D);
-  ASSERT_TRUE(Lowered.has_value());
-  ASSERT_EQ(Lowered->size(), 2u);
-  EXPECT_EQ((*Lowered)[0].get<uint32_t>(), 0u);
-  EXPECT_EQ((*Lowered)[1].get<uint64_t>(), 0xCAFEull);
+  auto Aggregate = std::make_shared<ValComp>();
+  Aggregate->V = VariantVal{0u, ComponentValVariant{uint32_t{0xCAFEu}}, {}};
+  std::vector<ValVariant> Lowered;
+  ASSERT_TRUE(Ctx.lower(ComponentValVariant{Aggregate}, D, Lowered));
+  ASSERT_EQ(Lowered.size(), 2u);
+  EXPECT_EQ(Lowered[0].get<uint32_t>(), 0u);
+  EXPECT_EQ(Lowered[1].get<uint64_t>(), 0xCAFEull);
 
-  FlatIter It(*Lowered);
-  auto Lifted = liftFlatDef(Cx, It, D);
+  size_t Pos = 0;
+  auto Lifted = Ctx.lift(Lowered, Pos, D);
   ASSERT_TRUE(Lifted.has_value());
   auto &Vv =
       std::get<VariantVal>(std::get<std::shared_ptr<ValComp>>(*Lifted)->V);
@@ -1359,22 +1416,22 @@ TEST_F(CanonABIMemFixture, LowerLiftRoundTripVariantJoinI64) {
 }
 
 TEST_F(CanonABIMemFixture, LowerLiftRoundTripVariantJoinF32AsI32) {
-  // variant{u32 | f32}: f32 reinterprets to i32 slot (spec L3170).
+  // variant{u32 | f32}: f32 reinterprets to i32 slot.
   auto D =
       makeVariant({prim(ComponentTypeCode::U32), prim(ComponentTypeCode::F32)});
-  auto VC = std::make_shared<ValComp>();
-  VC->V = VariantVal{1u, ComponentValVariant{1.5f}};
-  auto Lowered = lowerFlatDef(Cx, ComponentValVariant{VC}, D);
-  ASSERT_TRUE(Lowered.has_value());
-  ASSERT_EQ(Lowered->size(), 2u);
-  EXPECT_EQ((*Lowered)[0].get<uint32_t>(), 1u);
+  auto Aggregate = std::make_shared<ValComp>();
+  Aggregate->V = VariantVal{1u, ComponentValVariant{1.5f}, {}};
+  std::vector<ValVariant> Lowered;
+  ASSERT_TRUE(Ctx.lower(ComponentValVariant{Aggregate}, D, Lowered));
+  ASSERT_EQ(Lowered.size(), 2u);
+  EXPECT_EQ(Lowered[0].get<uint32_t>(), 1u);
   uint32_t Bits = 0;
   float V15 = 1.5f;
   std::memcpy(&Bits, &V15, sizeof(Bits));
-  EXPECT_EQ((*Lowered)[1].get<uint32_t>(), Bits);
+  EXPECT_EQ(Lowered[1].get<uint32_t>(), Bits);
 
-  FlatIter It(*Lowered);
-  auto Lifted = liftFlatDef(Cx, It, D);
+  size_t Pos = 0;
+  auto Lifted = Ctx.lift(Lowered, Pos, D);
   ASSERT_TRUE(Lifted.has_value());
   auto &Vv =
       std::get<VariantVal>(std::get<std::shared_ptr<ValComp>>(*Lifted)->V);
@@ -1387,16 +1444,16 @@ TEST_F(CanonABIMemFixture, LowerLiftRoundTripOptionF64) {
   // option<f64>: joined flat = [i32 disc, f64]. Lower some(2.71) → check f64
   // slot; roundtrip back to OptionVal{some}.
   auto D = makeOption(prim(ComponentTypeCode::F64));
-  auto VC = std::make_shared<ValComp>();
-  VC->V = OptionVal{ComponentValVariant{2.71828}};
-  auto Lowered = lowerFlatDef(Cx, ComponentValVariant{VC}, D);
-  ASSERT_TRUE(Lowered.has_value());
-  ASSERT_EQ(Lowered->size(), 2u);
-  EXPECT_EQ((*Lowered)[0].get<uint32_t>(), 1u);
-  EXPECT_EQ((*Lowered)[1].get<double>(), 2.71828);
+  auto Aggregate = std::make_shared<ValComp>();
+  Aggregate->V = OptionVal{ComponentValVariant{2.71828}};
+  std::vector<ValVariant> Lowered;
+  ASSERT_TRUE(Ctx.lower(ComponentValVariant{Aggregate}, D, Lowered));
+  ASSERT_EQ(Lowered.size(), 2u);
+  EXPECT_EQ(Lowered[0].get<uint32_t>(), 1u);
+  EXPECT_EQ(Lowered[1].get<double>(), 2.71828);
 
-  FlatIter It(*Lowered);
-  auto Lifted = liftFlatDef(Cx, It, D);
+  size_t Pos = 0;
+  auto Lifted = Ctx.lift(Lowered, Pos, D);
   ASSERT_TRUE(Lifted.has_value());
   auto &Ov =
       std::get<OptionVal>(std::get<std::shared_ptr<ValComp>>(*Lifted)->V);
@@ -1407,16 +1464,16 @@ TEST_F(CanonABIMemFixture, LowerLiftRoundTripOptionF64) {
 TEST_F(CanonABIMemFixture, LowerLiftRoundTripOptionNoneDrainsPadding) {
   // option<f64> with none — disc = 0, joined slot zero-padded to f64.
   auto D = makeOption(prim(ComponentTypeCode::F64));
-  auto VC = std::make_shared<ValComp>();
-  VC->V = OptionVal{};
-  auto Lowered = lowerFlatDef(Cx, ComponentValVariant{VC}, D);
-  ASSERT_TRUE(Lowered.has_value());
-  ASSERT_EQ(Lowered->size(), 2u);
-  EXPECT_EQ((*Lowered)[0].get<uint32_t>(), 0u);
-  EXPECT_EQ((*Lowered)[1].get<double>(), 0.);
+  auto Aggregate = std::make_shared<ValComp>();
+  Aggregate->V = OptionVal{};
+  std::vector<ValVariant> Lowered;
+  ASSERT_TRUE(Ctx.lower(ComponentValVariant{Aggregate}, D, Lowered));
+  ASSERT_EQ(Lowered.size(), 2u);
+  EXPECT_EQ(Lowered[0].get<uint32_t>(), 0u);
+  EXPECT_EQ(Lowered[1].get<double>(), 0.);
 
-  FlatIter It(*Lowered);
-  auto Lifted = liftFlatDef(Cx, It, D);
+  size_t Pos = 0;
+  auto Lifted = Ctx.lift(Lowered, Pos, D);
   ASSERT_TRUE(Lifted.has_value());
   auto &Ov =
       std::get<OptionVal>(std::get<std::shared_ptr<ValComp>>(*Lifted)->V);
@@ -1424,23 +1481,23 @@ TEST_F(CanonABIMemFixture, LowerLiftRoundTripOptionNoneDrainsPadding) {
 }
 
 TEST_F(CanonABIMemFixture, LowerLiftRoundTripResultOkErrAsymPayloads) {
-  // result<u8, u64>: ok payload u8 (flat [i32]) + err payload u64 (flat [i64]).
-  // Joined slot = i64. Ok path widens i32→i64; err path is a direct i64.
+  // result<u8, u64>: ok u8 (flat [i32]) + err u64 (flat [i64]).
+  // The joined slot is i64, so the ok path widens i32 to i64.
   auto D =
       makeResult(prim(ComponentTypeCode::U8), prim(ComponentTypeCode::U64));
   // Ok case
   {
-    auto VC = std::make_shared<ValComp>();
-    VC->V = ResultVal{/*IsOk=*/true,
-                      ComponentValVariant{static_cast<uint8_t>(0xAB)}};
-    auto Lowered = lowerFlatDef(Cx, ComponentValVariant{VC}, D);
-    ASSERT_TRUE(Lowered.has_value());
-    ASSERT_EQ(Lowered->size(), 2u);
-    EXPECT_EQ((*Lowered)[0].get<uint32_t>(), 0u);
-    EXPECT_EQ((*Lowered)[1].get<uint64_t>(), 0xABull);
+    auto Aggregate = std::make_shared<ValComp>();
+    Aggregate->V = ResultVal{/*IsOk=*/true,
+                             ComponentValVariant{static_cast<uint8_t>(0xAB)}};
+    std::vector<ValVariant> Lowered;
+    ASSERT_TRUE(Ctx.lower(ComponentValVariant{Aggregate}, D, Lowered));
+    ASSERT_EQ(Lowered.size(), 2u);
+    EXPECT_EQ(Lowered[0].get<uint32_t>(), 0u);
+    EXPECT_EQ(Lowered[1].get<uint64_t>(), 0xABull);
 
-    FlatIter It(*Lowered);
-    auto Lifted = liftFlatDef(Cx, It, D);
+    size_t Pos = 0;
+    auto Lifted = Ctx.lift(Lowered, Pos, D);
     ASSERT_TRUE(Lifted.has_value());
     auto &Rv =
         std::get<ResultVal>(std::get<std::shared_ptr<ValComp>>(*Lifted)->V);
@@ -1450,17 +1507,17 @@ TEST_F(CanonABIMemFixture, LowerLiftRoundTripResultOkErrAsymPayloads) {
   }
   // Err case
   {
-    auto VC = std::make_shared<ValComp>();
-    VC->V = ResultVal{/*IsOk=*/false,
-                      ComponentValVariant{uint64_t{0xDEADBEEF12345678ull}}};
-    auto Lowered = lowerFlatDef(Cx, ComponentValVariant{VC}, D);
-    ASSERT_TRUE(Lowered.has_value());
-    ASSERT_EQ(Lowered->size(), 2u);
-    EXPECT_EQ((*Lowered)[0].get<uint32_t>(), 1u);
-    EXPECT_EQ((*Lowered)[1].get<uint64_t>(), 0xDEADBEEF12345678ull);
+    auto Aggregate = std::make_shared<ValComp>();
+    Aggregate->V = ResultVal{
+        /*IsOk=*/false, ComponentValVariant{uint64_t{0xDEADBEEF12345678ull}}};
+    std::vector<ValVariant> Lowered;
+    ASSERT_TRUE(Ctx.lower(ComponentValVariant{Aggregate}, D, Lowered));
+    ASSERT_EQ(Lowered.size(), 2u);
+    EXPECT_EQ(Lowered[0].get<uint32_t>(), 1u);
+    EXPECT_EQ(Lowered[1].get<uint64_t>(), 0xDEADBEEF12345678ull);
 
-    FlatIter It(*Lowered);
-    auto Lifted = liftFlatDef(Cx, It, D);
+    size_t Pos = 0;
+    auto Lifted = Ctx.lift(Lowered, Pos, D);
     ASSERT_TRUE(Lifted.has_value());
     auto &Rv =
         std::get<ResultVal>(std::get<std::shared_ptr<ValComp>>(*Lifted)->V);
@@ -1471,22 +1528,20 @@ TEST_F(CanonABIMemFixture, LowerLiftRoundTripResultOkErrAsymPayloads) {
 }
 
 // =============================================================================
-// lift_flat_values / lower_flat_values — CanonicalABI.md L3193-3232
+// lift_flat_values / lower_flat_values — CanonicalABI.md
 // =============================================================================
 
 TEST_F(CanonABIMemFixture, LiftFlatValuesDirect) {
-  // 2 u32 types, MaxFlat=4 → direct path, both lifted from the iter.
+  // 2 u32 types, MaxFlat=4 → direct path, both lifted from the slots.
   std::vector<ValVariant> Flat{ValVariant(uint32_t{0xAAAAu}),
                                ValVariant(uint32_t{0xBBBBu})};
   std::vector<ComponentValType> Types{prim(ComponentTypeCode::U32),
                                       prim(ComponentTypeCode::U32)};
-  FlatIter It(Flat);
-  auto R = liftFlatValues(Cx, It, Types, /*MaxFlat=*/4u);
+  auto R = Ctx.liftValues(Flat, Types, /*MaxFlat=*/4u);
   ASSERT_TRUE(R.has_value());
   ASSERT_EQ(R->size(), 2u);
   EXPECT_EQ(std::get<uint32_t>((*R)[0]), 0xAAAAu);
   EXPECT_EQ(std::get<uint32_t>((*R)[1]), 0xBBBBu);
-  EXPECT_TRUE(It.done());
 }
 
 TEST_F(CanonABIMemFixture, LowerFlatValuesDirect) {
@@ -1495,7 +1550,7 @@ TEST_F(CanonABIMemFixture, LowerFlatValuesDirect) {
                                       ComponentValVariant{uint32_t{2u}}};
   std::vector<ComponentValType> Types{prim(ComponentTypeCode::U32),
                                       prim(ComponentTypeCode::U32)};
-  auto R = lowerFlatValues(Cx, Vs, Types, /*MaxFlat=*/4u);
+  auto R = Ctx.lowerValues(Vs, Types, /*MaxFlat=*/4u);
   ASSERT_TRUE(R.has_value());
   ASSERT_EQ(R->size(), 2u);
   EXPECT_EQ((*R)[0].get<uint32_t>(), 1u);
@@ -1510,8 +1565,7 @@ TEST_F(CanonABIMemFixture, LiftFlatValuesIndirectFromMemory) {
   std::vector<ValVariant> Flat{ValVariant(uint32_t{64u})};
   std::vector<ComponentValType> Types{prim(ComponentTypeCode::U32),
                                       prim(ComponentTypeCode::U32)};
-  FlatIter It(Flat);
-  auto R = liftFlatValues(Cx, It, Types, /*MaxFlat=*/1u);
+  auto R = Ctx.liftValues(Flat, Types, /*MaxFlat=*/1u);
   ASSERT_TRUE(R.has_value());
   ASSERT_EQ(R->size(), 2u);
   EXPECT_EQ(std::get<uint32_t>((*R)[0]), 0x11u);
@@ -1525,7 +1579,7 @@ TEST_F(CanonABIMemFixture, LowerFlatValuesIndirectWithOutParam) {
                                       ComponentValVariant{uint32_t{0x44u}}};
   std::vector<ComponentValType> Types{prim(ComponentTypeCode::U32),
                                       prim(ComponentTypeCode::U32)};
-  auto R = lowerFlatValues(Cx, Vs, Types, /*MaxFlat=*/1u,
+  auto R = Ctx.lowerValues(Vs, Types, /*MaxFlat=*/1u,
                            /*OutParam=*/std::optional<uint32_t>{128u});
   ASSERT_TRUE(R.has_value());
   EXPECT_TRUE(R->empty());
@@ -1534,6 +1588,169 @@ TEST_F(CanonABIMemFixture, LowerFlatValuesIndirectWithOutParam) {
   ASSERT_TRUE(Mem.loadValue<uint32_t>(V1, 132).has_value());
   EXPECT_EQ(V0, 0x33u);
   EXPECT_EQ(V1, 0x44u);
+}
+
+// ---------------------------------------------------------------------------
+// Flat slots: a primitive crosses its flat core slot as a bit pattern.
+
+TEST(ComponentCanonABI, FlatSlotsCarryNarrowAndSignedPrimitives) {
+  LiftLowerContext Ctx;
+  // s8 -5 lowers into the i32 slot as two's complement and lifts back.
+  std::vector<ValVariant> S8;
+  ASSERT_TRUE(Ctx.lower(ComponentValVariant{int8_t(-5)},
+                        prim(ComponentTypeCode::S8), S8));
+  ASSERT_EQ(S8.size(), 1u);
+  EXPECT_EQ(S8[0].get<uint32_t>(), 0xFFFFFFFBu);
+  size_t Pos = 0;
+  auto S8Back = Ctx.lift(S8, Pos, prim(ComponentTypeCode::S8));
+  ASSERT_TRUE(S8Back);
+  EXPECT_EQ(std::get<int8_t>(*S8Back), int8_t(-5));
+  EXPECT_TRUE(Pos == S8.size());
+
+  // s64 -1 fills the i64 slot.
+  std::vector<ValVariant> S64;
+  ASSERT_TRUE(Ctx.lower(ComponentValVariant{int64_t(-1)},
+                        prim(ComponentTypeCode::S64), S64));
+  EXPECT_EQ(S64[0].get<uint64_t>(), 0xFFFFFFFFFFFFFFFFu);
+
+  // u16 keeps its width both ways.
+  std::vector<ValVariant> U16;
+  ASSERT_TRUE(Ctx.lower(ComponentValVariant{uint16_t(65535)},
+                        prim(ComponentTypeCode::U16), U16));
+  EXPECT_EQ(U16[0].get<uint32_t>(), 65535u);
+
+  // A lifted u8 takes the low byte of its slot, and a bool is non-zero.
+  std::vector<ValVariant> Wide{ValVariant(uint32_t(0x1FF)),
+                               ValVariant(uint32_t(2))};
+  Pos = 0;
+  auto U8 = Ctx.lift(Wide, Pos, prim(ComponentTypeCode::U8));
+  ASSERT_TRUE(U8);
+  EXPECT_EQ(std::get<uint8_t>(*U8), 0xFFu);
+  auto B = Ctx.lift(Wide, Pos, prim(ComponentTypeCode::Bool));
+  ASSERT_TRUE(B);
+  EXPECT_TRUE(std::get<bool>(*B));
+  EXPECT_TRUE(Pos == Wide.size());
+
+  // Floats travel in their own slots.
+  std::vector<ValVariant> F32;
+  ASSERT_TRUE(
+      Ctx.lower(ComponentValVariant{1.5f}, prim(ComponentTypeCode::F32), F32));
+  EXPECT_EQ(F32[0].get<float>(), 1.5f);
+  std::vector<ValVariant> F64;
+  ASSERT_TRUE(
+      Ctx.lower(ComponentValVariant{-2.25}, prim(ComponentTypeCode::F64), F64));
+  EXPECT_EQ(F64[0].get<double>(), -2.25);
+}
+
+TEST(ComponentCanonABI, VariantPayloadKeepsItsBitsThroughTheJoinedSlot) {
+  LiftLowerContext Ctx;
+  // variant { c0(f32), c1(s64) } joins to [i32, i64]; the f32 case comes
+  // back with the same bits after widening into the i64 slot.
+  auto Ty =
+      makeVariant({prim(ComponentTypeCode::F32), prim(ComponentTypeCode::S64)});
+  VariantVal V;
+  V.Case = 0;
+  V.Payload = ComponentValVariant{-0.5f};
+  std::vector<ValVariant> Flat;
+  ASSERT_TRUE(Ctx.lower(makeComponentVal(std::move(V)), Ty, Flat));
+  ASSERT_EQ(Flat.size(), 2u);
+  EXPECT_EQ(Flat[0].get<uint32_t>(), 0u);
+  EXPECT_EQ(Flat[1].get<uint64_t>(), uint64_t(0xBF000000u));
+  size_t Pos = 0;
+  auto Back = Ctx.lift(Flat, Pos, Ty);
+  ASSERT_TRUE(Back);
+  const auto &Aggregate = std::get<std::shared_ptr<ValComp>>(*Back);
+  const auto &Vv = std::get<VariantVal>(Aggregate->V);
+  EXPECT_EQ(Vv.Case, 0u);
+  ASSERT_TRUE(Vv.Payload.has_value());
+  EXPECT_EQ(std::get<float>(*Vv.Payload), -0.5f);
+  EXPECT_TRUE(Pos == Flat.size());
+}
+
+// ---------------------------------------------------------------------------
+// checkValue: a host value must hold the alternatives its type lowers from.
+
+TEST(ComponentCanonABI, CheckValueMatchesPrimitiveArms) {
+  LiftLowerContext Ctx;
+  EXPECT_TRUE(Ctx.checkValue(ComponentValVariant{uint32_t(1)},
+                             prim(ComponentTypeCode::U32)));
+  EXPECT_TRUE(Ctx.checkValue(ComponentValVariant{uint32_t(0x41)},
+                             prim(ComponentTypeCode::Char)));
+  EXPECT_TRUE(Ctx.checkValue(ComponentValVariant{std::string("s")},
+                             prim(ComponentTypeCode::String)));
+  auto Signed = Ctx.checkValue(ComponentValVariant{int32_t(1)},
+                               prim(ComponentTypeCode::U32));
+  ASSERT_FALSE(Signed);
+  EXPECT_EQ(Signed.error(), ErrCode::Value::FuncSigMismatch);
+  EXPECT_FALSE(Ctx.checkValue(ComponentValVariant{std::string("1")},
+                              prim(ComponentTypeCode::U32)));
+  EXPECT_FALSE(Ctx.checkValue(ComponentValVariant{uint32_t(1)},
+                              prim(ComponentTypeCode::String)));
+  EXPECT_FALSE(
+      Ctx.checkValue(ComponentValVariant{1.0}, prim(ComponentTypeCode::F32)));
+}
+
+TEST(ComponentCanonABI, CheckValueWalksAggregates) {
+  LiftLowerContext Ctx;
+  auto Rec = makeRecord(
+      {prim(ComponentTypeCode::U32), prim(ComponentTypeCode::String)});
+  RecordVal Good;
+  Good.Fields.emplace_back("f0", ComponentValVariant{uint32_t(1)});
+  Good.Fields.emplace_back("f1", ComponentValVariant{std::string("x")});
+  EXPECT_TRUE(Ctx.checkValue(makeComponentVal(Good), Rec));
+  RecordVal Short;
+  Short.Fields.emplace_back("f0", ComponentValVariant{uint32_t(1)});
+  EXPECT_FALSE(Ctx.checkValue(makeComponentVal(Short), Rec));
+  RecordVal WrongArm = Good;
+  WrongArm.Fields[1].second = ComponentValVariant{uint32_t(2)};
+  EXPECT_FALSE(Ctx.checkValue(makeComponentVal(WrongArm), Rec));
+  EXPECT_FALSE(Ctx.checkValue(ComponentValVariant{uint32_t(1)}, Rec));
+  EXPECT_FALSE(Ctx.checkValue(makeComponentVal(TupleVal{}), Rec));
+
+  auto Var = makeVariant({std::nullopt, prim(ComponentTypeCode::U32)});
+  VariantVal NoPayload;
+  NoPayload.Case = 0;
+  EXPECT_TRUE(Ctx.checkValue(makeComponentVal(NoPayload), Var));
+  VariantVal Missing;
+  Missing.Case = 1;
+  EXPECT_FALSE(Ctx.checkValue(makeComponentVal(Missing), Var));
+  VariantVal OutOfRange;
+  OutOfRange.Case = 2;
+  EXPECT_FALSE(Ctx.checkValue(makeComponentVal(OutOfRange), Var));
+
+  auto Opt = makeOption(prim(ComponentTypeCode::U32));
+  EXPECT_TRUE(Ctx.checkValue(makeComponentVal(OptionVal{}), Opt));
+  EXPECT_TRUE(Ctx.checkValue(
+      makeComponentVal(OptionVal{ComponentValVariant{uint32_t(1)}}), Opt));
+  EXPECT_FALSE(Ctx.checkValue(
+      makeComponentVal(OptionVal{ComponentValVariant{int32_t(1)}}), Opt));
+
+  auto Res = makeResult(std::nullopt, prim(ComponentTypeCode::String));
+  EXPECT_TRUE(Ctx.checkValue(makeComponentVal(ResultVal{true, {}}), Res));
+  EXPECT_FALSE(Ctx.checkValue(makeComponentVal(ResultVal{false, {}}), Res));
+
+  auto Fixed = makeListLen(prim(ComponentTypeCode::U8), 2);
+  ListVal Two;
+  Two.Elements = {ComponentValVariant{uint8_t(1)},
+                  ComponentValVariant{uint8_t(2)}};
+  EXPECT_TRUE(Ctx.checkValue(makeComponentVal(Two), Fixed));
+  ListVal Three = Two;
+  Three.Elements.push_back(ComponentValVariant{uint8_t(3)});
+  EXPECT_FALSE(Ctx.checkValue(makeComponentVal(Three), Fixed));
+  ListVal Mixed = Two;
+  Mixed.Elements[1] = ComponentValVariant{uint32_t(2)};
+  EXPECT_FALSE(Ctx.checkValue(makeComponentVal(Mixed), Fixed));
+
+  auto En = makeEnum(2);
+  EXPECT_TRUE(Ctx.checkValue(makeComponentVal(EnumVal{1, {}}), En));
+  EXPECT_FALSE(Ctx.checkValue(makeComponentVal(EnumVal{2, {}}), En));
+  auto Fl = makeFlags(3);
+  FlagsVal Bits;
+  Bits.Bits = {true, false, true};
+  EXPECT_TRUE(Ctx.checkValue(makeComponentVal(Bits), Fl));
+  FlagsVal Narrow;
+  Narrow.Bits = {true};
+  EXPECT_FALSE(Ctx.checkValue(makeComponentVal(Narrow), Fl));
 }
 
 } // namespace

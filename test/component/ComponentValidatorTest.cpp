@@ -7,7 +7,7 @@
 #include "common/component_variant.h"
 #include "validator/component_value_decode.h"
 #include "validator/validator.h"
-#include "vm/vm.h"
+#include "vm/component_vm.h"
 
 #include <gtest/gtest.h>
 
@@ -314,12 +314,12 @@ TEST(ComponentValidatorTest, FuncTypeDuplicateParamName) {
       std::get<AST::Component::TypeSection>(Comp.getSections().back());
 
   TypeSec.getContent().emplace_back();
-  AST::Component::FuncType FT;
+  AST::Component::FuncType FnType;
   std::vector<AST::Component::LabelValType> Params;
   Params.emplace_back("x"s, ComponentValType(ComponentTypeCode::U32));
   Params.emplace_back("x"s, ComponentValType(ComponentTypeCode::U64));
-  FT.setParamList(std::move(Params));
-  TypeSec.getContent().back().setFuncType(std::move(FT));
+  FnType.setParamList(std::move(Params));
+  TypeSec.getContent().back().setFuncType(std::move(FnType));
 
   Validator::Validator V(Conf);
   ASSERT_FALSE(V.validate(Comp));
@@ -334,11 +334,11 @@ TEST(ComponentValidatorTest, FuncTypeParamNotKebabCase) {
       std::get<AST::Component::TypeSection>(Comp.getSections().back());
 
   TypeSec.getContent().emplace_back();
-  AST::Component::FuncType FT;
+  AST::Component::FuncType FnType;
   std::vector<AST::Component::LabelValType> Params;
   Params.emplace_back("NOT_KEBAB"s, ComponentValType(ComponentTypeCode::U32));
-  FT.setParamList(std::move(Params));
-  TypeSec.getContent().back().setFuncType(std::move(FT));
+  FnType.setParamList(std::move(Params));
+  TypeSec.getContent().back().setFuncType(std::move(FnType));
 
   Validator::Validator V(Conf);
   ASSERT_FALSE(V.validate(Comp));
@@ -365,11 +365,11 @@ TEST(ComponentValidatorTest, FuncTypeBorrowInResultRejected) {
 
   // Type 2: func with borrow in result
   TypeSec.getContent().emplace_back();
-  AST::Component::FuncType FT;
+  AST::Component::FuncType FnType;
   std::vector<AST::Component::LabelValType> Results;
   Results.emplace_back(ComponentValType(1));
-  FT.setResultList(std::move(Results));
-  TypeSec.getContent().back().setFuncType(std::move(FT));
+  FnType.setResultList(std::move(Results));
+  TypeSec.getContent().back().setFuncType(std::move(FnType));
 
   Validator::Validator V(Conf);
   ASSERT_FALSE(V.validate(Comp));
@@ -384,13 +384,13 @@ TEST(ComponentValidatorTest, FuncTypeValidParams) {
       std::get<AST::Component::TypeSection>(Comp.getSections().back());
 
   TypeSec.getContent().emplace_back();
-  AST::Component::FuncType FT;
+  AST::Component::FuncType FnType;
   std::vector<AST::Component::LabelValType> Params;
   Params.emplace_back("name"s, ComponentValType(ComponentTypeCode::U32));
   Params.emplace_back("age"s, ComponentValType(ComponentTypeCode::U64));
-  FT.setParamList(std::move(Params));
-  FT.setResultList(ComponentValType(ComponentTypeCode::U32));
-  TypeSec.getContent().back().setFuncType(std::move(FT));
+  FnType.setParamList(std::move(Params));
+  FnType.setResultList(ComponentValType(ComponentTypeCode::U32));
+  TypeSec.getContent().back().setFuncType(std::move(FnType));
 
   Validator::Validator V(Conf);
   ASSERT_TRUE(V.validate(Comp));
@@ -700,9 +700,9 @@ TEST(ComponentValidatorTest, InstanceTypeExportConstructorPlainAllowed) {
   }
   {
     auto DT = std::make_unique<AST::Component::DefType>();
-    AST::Component::FuncType FT;
-    FT.setResultList(ComponentValType(1));
-    DT->setFuncType(std::move(FT));
+    AST::Component::FuncType FnType;
+    FnType.setResultList(ComponentValType(1));
+    DT->setFuncType(std::move(FnType));
     AST::Component::InstanceDecl D;
     D.setType(std::move(DT));
     Decls.push_back(std::move(D));
@@ -1328,13 +1328,13 @@ inline AST::Component::Component makeCompWithCoreFuncAndFuncType() {
   // (flatten_functype($opts, $ft, 'lift'), CanonicalABI.md) is
   // [i32] -> [i32], matching the resource.new core func used as the lift
   // $callee below.
-  AST::Component::FuncType FT;
+  AST::Component::FuncType FnType;
   std::vector<AST::Component::LabelValType> Params;
   Params.emplace_back("p", ComponentValType(ComponentTypeCode::U32));
-  FT.setParamList(std::move(Params));
-  FT.setResultList(ComponentValType(ComponentTypeCode::U32));
+  FnType.setParamList(std::move(Params));
+  FnType.setResultList(ComponentValType(ComponentTypeCode::U32));
   TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setFuncType(std::move(FT));
+  TypeSec.getContent().back().setFuncType(std::move(FnType));
   // Canon section: allocate core func 0 via resource.new 0.
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::CanonSection>();
@@ -2065,7 +2065,6 @@ TEST(ComponentValidatorTest, InstantiateImportedComponentMissingArgRejected) {
 // Core instance memory index-type checking on instantiation (GAP-CI-1)
 // =============================================================================
 
-namespace {
 // Builds:
 //   (core module $A (import "" "" (memory 1)))   ;; imports a 32-bit memory
 //   (core module $B (memory (export "") <mem>))  ;; exports `Mem`
@@ -2117,7 +2116,6 @@ AST::Component::Component buildMemoryLinkComponent(const AST::MemoryType &Mem) {
   CoreInstSec.getContent().back().setInstantiateArgs(0U, {Arg});
   return Comp;
 }
-} // namespace
 
 TEST(ComponentValidatorTest, CoreInstanceMemoryIndexTypeMismatchRejected) {
   // Provide a 64-bit memory where a 32-bit memory is imported -> reject.
@@ -2146,12 +2144,12 @@ inline AST::Component::Component makeCompWithStringParamFunc() {
   TypeSec.getContent().emplace_back();
   TypeSec.getContent().back().setResourceType(AST::Component::ResourceType{});
   // Type 1: FuncType with a string param.
-  AST::Component::FuncType FT;
+  AST::Component::FuncType FnType;
   std::vector<AST::Component::LabelValType> Params;
   Params.emplace_back("s", ComponentValType(ComponentTypeCode::String));
-  FT.setParamList(std::move(Params));
+  FnType.setParamList(std::move(Params));
   TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setFuncType(std::move(FT));
+  TypeSec.getContent().back().setFuncType(std::move(FnType));
   // Canon section: register core func 0 via resource.new 0 so canon lift has
   // a target.
   Comp.getSections().emplace_back();
@@ -2190,12 +2188,12 @@ TEST(ComponentValidatorTest, CanonLower_StringParamRequiresMemory_Fails) {
   Comp.getSections().back().emplace<AST::Component::TypeSection>();
   auto &TypeSec =
       std::get<AST::Component::TypeSection>(Comp.getSections().back());
-  AST::Component::FuncType FT;
+  AST::Component::FuncType FnType;
   std::vector<AST::Component::LabelValType> Params;
   Params.emplace_back("s", ComponentValType(ComponentTypeCode::String));
-  FT.setParamList(std::move(Params));
+  FnType.setParamList(std::move(Params));
   TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setFuncType(std::move(FT));
+  TypeSec.getContent().back().setFuncType(std::move(FnType));
   // Import the func at index 0 so getFunc(0) returns the FuncType.
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::ImportSection>();
@@ -2299,14 +2297,14 @@ static const std::vector<uint8_t> validator_no_realloc_wasm = {
 // canon lift whose result spills into the return area but omits 'memory'.
 // The validator must reject this end-to-end.
 TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoMemoryRejected) {
-  VM::VM VM(Conf);
+  VM::ComponentVM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(validator_no_memory_wasm));
   EXPECT_FALSE(VM.validate());
 }
 
 // canon lift whose string param forces a realloc but omits 'realloc'.
 TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoReallocRejected) {
-  VM::VM VM(Conf);
+  VM::ComponentVM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(validator_no_realloc_wasm));
   EXPECT_FALSE(VM.validate());
 }
@@ -2318,7 +2316,6 @@ TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoReallocRejected) {
 // CoreModuleType (not an inline AST::Module).
 // =============================================================================
 
-namespace {
 // Builds a component that links two imported core modules by type:
 //   (core type (module (export "g" <ExpDesc>)))      ;; core:type 0 (provider)
 //   (core type (module (import "provider" "g" <ImpDesc>)))  ;; core:type 1
@@ -2412,7 +2409,6 @@ AST::Component::CoreImportDesc mkMemoryDesc(const AST::Limit &L) {
   D.setMemoryType(AST::MemoryType(L));
   return D;
 }
-} // namespace
 
 TEST(ComponentValidatorTest, CoreInstanceImportGlobalTypeMismatchRejected) {
   // Provider exports (global (mut i64)); consumer imports (global (mut i32)).
@@ -2568,10 +2564,10 @@ TEST(ComponentValidatorTest, ValueConsumedExactlyOnceByStart) {
   auto &TypeSec =
       std::get<AST::Component::TypeSection>(Comp.getSections().back());
   TypeSec.getContent().emplace_back();
-  AST::Component::FuncType FT;
-  FT.setParamList({AST::Component::LabelValType(
+  AST::Component::FuncType FnType;
+  FnType.setParamList({AST::Component::LabelValType(
       "arg0"s, ComponentValType(ComponentTypeCode::U32))});
-  TypeSec.getContent().back().setFuncType(std::move(FT));
+  TypeSec.getContent().back().setFuncType(std::move(FnType));
 
   // 2. Import section: first import the value, then the function using type 0
   Comp.getSections().emplace_back();
@@ -2614,12 +2610,12 @@ TEST(ComponentValidatorTest, StartConsumesSameValueTwice) {
   auto &TypeSec =
       std::get<AST::Component::TypeSection>(Comp.getSections().back());
   TypeSec.getContent().emplace_back();
-  AST::Component::FuncType FT;
-  FT.setParamList({AST::Component::LabelValType(
-                       "arg0"s, ComponentValType(ComponentTypeCode::U32)),
-                   AST::Component::LabelValType(
-                       "arg1"s, ComponentValType(ComponentTypeCode::U32))});
-  TypeSec.getContent().back().setFuncType(std::move(FT));
+  AST::Component::FuncType FnType;
+  FnType.setParamList({AST::Component::LabelValType(
+                           "arg0"s, ComponentValType(ComponentTypeCode::U32)),
+                       AST::Component::LabelValType(
+                           "arg1"s, ComponentValType(ComponentTypeCode::U32))});
+  TypeSec.getContent().back().setFuncType(std::move(FnType));
 
   // 2. Import section: first import the value, then the function using type 0
   Comp.getSections().emplace_back();
@@ -2662,10 +2658,10 @@ TEST(ComponentValidatorTest, StartArgumentValueIndexOutOfBounds) {
   auto &TypeSec =
       std::get<AST::Component::TypeSection>(Comp.getSections().back());
   TypeSec.getContent().emplace_back();
-  AST::Component::FuncType FT;
-  FT.setParamList({AST::Component::LabelValType(
+  AST::Component::FuncType FnType;
+  FnType.setParamList({AST::Component::LabelValType(
       "arg0"s, ComponentValType(ComponentTypeCode::U32))});
-  TypeSec.getContent().back().setFuncType(std::move(FT));
+  TypeSec.getContent().back().setFuncType(std::move(FnType));
 
   // 2. Import only the function (no value is imported, so the value index
   // space stays empty).
@@ -2705,15 +2701,15 @@ inline AST::Component::Component makeCompWithCallbackShapedCoreFunc() {
   Comp.getSections().back().emplace<AST::Component::TypeSection>();
   auto &TypeSec =
       std::get<AST::Component::TypeSection>(Comp.getSections().back());
-  AST::Component::FuncType FT;
+  AST::Component::FuncType FnType;
   std::vector<AST::Component::LabelValType> Params;
   Params.emplace_back("a", ComponentValType(ComponentTypeCode::U32));
   Params.emplace_back("b", ComponentValType(ComponentTypeCode::U32));
   Params.emplace_back("c", ComponentValType(ComponentTypeCode::U32));
-  FT.setParamList(std::move(Params));
-  FT.setResultList(ComponentValType(ComponentTypeCode::U32));
+  FnType.setParamList(std::move(Params));
+  FnType.setResultList(ComponentValType(ComponentTypeCode::U32));
   TypeSec.getContent().emplace_back();
-  TypeSec.getContent().back().setFuncType(std::move(FT));
+  TypeSec.getContent().back().setFuncType(std::move(FnType));
 
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::ImportSection>();
@@ -3288,9 +3284,9 @@ TEST(ComponentValidatorTest, CoreTypeSubTypeWithRefStillChecksSuperType) {
   std::vector<AST::SubType> ST1;
   ST1.emplace_back();
   ST1.back().getSuperTypeIndices().push_back(5);
-  AST::FunctionType FT;
-  FT.getParamTypes().push_back(ValType(TypeCode::RefNull, 0U));
-  ST1.back().getCompositeType().setFunctionType(std::move(FT));
+  AST::FunctionType FnType;
+  FnType.getParamTypes().push_back(ValType(TypeCode::RefNull, 0U));
+  ST1.back().getCompositeType().setFunctionType(std::move(FnType));
   CoreTypeSec.getContent().emplace_back();
   CoreTypeSec.getContent().back().setSubTypes(std::move(ST1));
 
@@ -3340,9 +3336,9 @@ TEST(ComponentValidatorTest, CoreTypeRecGroupResolvesForwardReference) {
 
   std::vector<AST::SubType> STs;
   STs.emplace_back();
-  AST::FunctionType FT;
-  FT.getParamTypes().push_back(ValType(TypeCode::RefNull, 1U));
-  STs.back().getCompositeType().setFunctionType(std::move(FT));
+  AST::FunctionType FnType;
+  FnType.getParamTypes().push_back(ValType(TypeCode::RefNull, 1U));
+  STs.back().getCompositeType().setFunctionType(std::move(FnType));
   STs.back().setRecursiveInfo(0, 2);
   STs.emplace_back();
   STs.back().getCompositeType().setFunctionType(AST::FunctionType());
@@ -3369,9 +3365,9 @@ TEST(ComponentValidatorTest, CoreTypeSubTypeRefToModuleTypeRejected) {
 
   std::vector<AST::SubType> STs;
   STs.emplace_back();
-  AST::FunctionType FT;
-  FT.getParamTypes().push_back(ValType(TypeCode::RefNull, 0U));
-  STs.back().getCompositeType().setFunctionType(std::move(FT));
+  AST::FunctionType FnType;
+  FnType.getParamTypes().push_back(ValType(TypeCode::RefNull, 0U));
+  STs.back().getCompositeType().setFunctionType(std::move(FnType));
   CoreTypeSec.getContent().emplace_back();
   CoreTypeSec.getContent().back().setSubTypes(std::move(STs));
 

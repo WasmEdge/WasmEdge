@@ -5,6 +5,12 @@ wasmedge_add_executable(wasiTests
   wasi.cpp
   linuxTest.cpp
   vfs_io.cpp
+  p3_clocks.cpp
+  p3_random.cpp
+  p3_cli.cpp
+  p3_filesystem.cpp
+  p3_sockets.cpp
+  p3_http.cpp
 )
 
 add_test(wasiTests wasiTests)

@@ -23,8 +23,6 @@
 
 #include "executor/component/executor.h"
 #include "executor/executor.h"
-#include "host/wasi/component/env.h"
-#include "host/wasi/p3/http.h"
 #include "loader/loader.h"
 #include "validator/validator.h"
 
@@ -40,6 +38,14 @@
 #include <vector>
 
 namespace WasmEdge {
+
+namespace Host {
+namespace WasiComponent {
+class Env;
+class WasiHosts;
+} // namespace WasiComponent
+} // namespace Host
+
 namespace VM {
 
 /// Component model execution flow class. It owns the core executor it runs
@@ -49,7 +55,7 @@ public:
   ComponentVM() = delete;
   ComponentVM(const Configure &Conf);
   ComponentVM(const Configure &Conf, Runtime::Component::StoreManager &S);
-  ~ComponentVM() = default;
+  ~ComponentVM();
 
   /// ======= Functions can be called before the instantiated stage. =======
   /// Register a component from a file path with the given name.
@@ -59,11 +65,24 @@ public:
     return unsafeRegisterComponent(Name, Path);
   }
 
-  /// Register an already-loaded and validated component with the given name.
+  /// Register a component from bytecode with the given name.
+  Expect<void> registerComponent(std::string_view Name, Span<const Byte> Code) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRegisterComponent(Name, Code);
+  }
+
+  /// Register a loaded component with the given name.
   Expect<void> registerComponent(std::string_view Name,
                                  const AST::Component::Component &CompAST) {
     std::unique_lock Lock(Mutex);
     return unsafeRegisterComponent(Name, CompAST);
+  }
+
+  /// Register an instantiated component under its own name.
+  Expect<void>
+  registerComponent(const Runtime::Instance::ComponentInstance &CompInst) {
+    std::unique_lock Lock(Mutex);
+    return ExecutorEngine.registerComponent(StoreRef, CompInst);
   }
 
   /// Load the given component file or bytecode.
@@ -121,7 +140,7 @@ public:
                Span<const ComponentValType> ParamTypes = {});
 
   /// Stop execution.
-  void stop() noexcept { CoreExecEngine.stop(); }
+  void stop() noexcept { CoreExecutorEngine.stop(); }
 
   /// ======= Functions which are stageless. =======
   /// Clean up the VM status.
@@ -143,8 +162,17 @@ public:
     return unsafeGetFunctionList();
   }
 
+  /// Getter for the active component instance.
+  const Runtime::Instance::ComponentInstance *getActiveComponent() const {
+    std::shared_lock Lock(Mutex);
+    return ActiveCompInst.get();
+  }
+
   /// Getter for the component store of this VM.
   Runtime::Component::StoreManager &getStoreManager() noexcept {
+    return StoreRef;
+  }
+  const Runtime::Component::StoreManager &getStoreManager() const noexcept {
     return StoreRef;
   }
 
@@ -155,21 +183,23 @@ public:
   Validator::Validator &getValidator() noexcept { return ValidatorEngine; }
 
   /// Getter for the component executor in the VM.
-  Executor::ComponentExecutor &getExecutor() noexcept { return ExecEngine; }
+  Executor::ComponentExecutor &getExecutor() noexcept { return ExecutorEngine; }
 
   /// Getter for the core executor the component executor runs on.
-  Executor::Executor &getCoreExecutor() noexcept { return CoreExecEngine; }
+  Executor::Executor &getCoreExecutor() noexcept { return CoreExecutorEngine; }
 
   /// Getter for statistics.
   Statistics::Statistics &getStatistics() noexcept { return Stat; }
 
   /// The WASI environment behind the built-in host components, when the
   /// configuration registers WASI.
-  Host::WasiComponent::Env *getWasiEnv() noexcept { return WasiEnv.get(); }
+  Host::WasiComponent::Env *getWasiEnv() noexcept;
 
 private:
   Expect<void> unsafeRegisterComponent(std::string_view Name,
                                        const std::filesystem::path &Path);
+  Expect<void> unsafeRegisterComponent(std::string_view Name,
+                                       Span<const Byte> Code);
   Expect<void>
   unsafeRegisterComponent(std::string_view Name,
                           const AST::Component::Component &CompAST);
@@ -199,10 +229,6 @@ private:
   std::vector<std::pair<std::string, const AST::Component::FuncType &>>
   unsafeGetFunctionList() const;
 
-  /// Take the component alternative out of a parsed wasm unit.
-  Expect<std::unique_ptr<AST::Component::Component>>
-  unsafeTakeComponent(const std::filesystem::path &Path);
-
   void unsafeInitVM();
   void unsafeLoadBuiltInHosts();
   void unsafeLoadPlugInHosts();
@@ -224,8 +250,8 @@ private:
   Loader::Loader LoaderEngine;
   Validator::Validator ValidatorEngine;
   /// The core executor below the component executor.
-  Executor::Executor CoreExecEngine;
-  Executor::ComponentExecutor ExecEngine{CoreExecEngine};
+  Executor::Executor CoreExecutorEngine;
+  Executor::ComponentExecutor ExecutorEngine{CoreExecutorEngine};
   /// @}
 
   /// \name VM storage.
@@ -234,16 +260,13 @@ private:
   std::unique_ptr<AST::Component::Component> Comp;
   /// Active component instance.
   std::unique_ptr<Runtime::Instance::ComponentInstance> ActiveCompInst;
-  /// Registered component instances and their owning ASTs.
+  /// Registered component instances.
   std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
       RegCompInsts;
-  std::vector<std::unique_ptr<AST::Component::Component>> RegCompASTs;
-  /// The WASI environment of the built-in hosts, which outlives them, and
-  /// the io state of the 0.2 hosts.
-  std::unique_ptr<Host::WasiComponent::Env> WasiEnv;
-  std::unique_ptr<Host::WasiP3::HttpHost> WasiHttp3;
-  /// Component instances of the built-in hosts: the WASI interfaces when the
-  /// configuration registers WASI.
+  /// The state behind the built-in WASI hosts, when the configuration
+  /// registers WASI; it outlives their component instances.
+  std::unique_ptr<Host::WasiComponent::WasiHosts> Wasi;
+  /// Component instances of the built-in hosts.
   std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
       BuiltInCompInsts;
   /// Component instances loaded from plug-ins.

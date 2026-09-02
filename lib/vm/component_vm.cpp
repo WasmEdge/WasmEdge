@@ -8,17 +8,11 @@
 #include "common/errcode.h"
 #include "common/errinfo.h"
 #include "common/spdlog.h"
-#include "host/wasi/p3/cli.h"
-#include "host/wasi/p3/clocks.h"
-#include "host/wasi/p3/filesystem.h"
-#include "host/wasi/p3/http.h"
-#include "host/wasi/p3/random.h"
-#include "host/wasi/p3/sockets.h"
+#include "host/wasi/component/hosts.h"
 #include "plugin/plugin.h"
 
 #include <memory>
 #include <utility>
-#include <variant>
 
 using namespace std::literals;
 
@@ -28,7 +22,7 @@ namespace VM {
 ComponentVM::ComponentVM(const Configure &Conf)
     : Conf(Conf), Stage(VMStage::Inited),
       LoaderEngine(Conf, &Executor::Executor::Intrinsics),
-      ValidatorEngine(Conf), CoreExecEngine(Conf, &Stat),
+      ValidatorEngine(Conf), CoreExecutorEngine(Conf, &Stat),
       Store(std::make_unique<Runtime::Component::StoreManager>()),
       StoreRef(*Store.get()) {
   unsafeInitVM();
@@ -38,8 +32,14 @@ ComponentVM::ComponentVM(const Configure &Conf,
                          Runtime::Component::StoreManager &S)
     : Conf(Conf), Stage(VMStage::Inited),
       LoaderEngine(Conf, &Executor::Executor::Intrinsics),
-      ValidatorEngine(Conf), CoreExecEngine(Conf, &Stat), StoreRef(S) {
+      ValidatorEngine(Conf), CoreExecutorEngine(Conf, &Stat), StoreRef(S) {
   unsafeInitVM();
+}
+
+ComponentVM::~ComponentVM() = default;
+
+Host::WasiComponent::Env *ComponentVM::getWasiEnv() noexcept {
+  return Wasi ? &Wasi->getEnv() : nullptr;
 }
 
 void ComponentVM::unsafeInitVM() {
@@ -51,38 +51,10 @@ void ComponentVM::unsafeInitVM() {
 
 void ComponentVM::unsafeLoadBuiltInHosts() {
   BuiltInCompInsts.clear();
-  WasiHttp3.reset();
-  WasiEnv.reset();
+  Wasi.reset();
   if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
-    WasiEnv = std::make_unique<Host::WasiComponent::Env>();
-    BuiltInCompInsts.push_back(
-        std::make_unique<Host::WasiP3::ClocksTypesInstance>());
-    BuiltInCompInsts.push_back(
-        std::make_unique<Host::WasiP3::MonotonicClockInstance>());
-    BuiltInCompInsts.push_back(
-        std::make_unique<Host::WasiP3::SystemClockInstance>());
-    for (auto &Inst : Host::WasiP3::makeRandomInstances()) {
-      BuiltInCompInsts.push_back(std::move(Inst));
-    }
-    for (auto &Inst : Host::WasiP3::makeCliInstances(*WasiEnv)) {
-      BuiltInCompInsts.push_back(std::move(Inst));
-    }
-    for (auto &Inst : Host::WasiP3::makeFilesystemInstances(*WasiEnv)) {
-      BuiltInCompInsts.push_back(std::move(Inst));
-    }
-    for (auto &Inst : Host::WasiP3::makeSocketsInstances()) {
-      BuiltInCompInsts.push_back(std::move(Inst));
-    }
-    WasiHttp3 = std::make_unique<Host::WasiP3::HttpHost>();
-    for (auto &Inst : Host::WasiP3::makeHttpInstances(*WasiHttp3)) {
-      BuiltInCompInsts.push_back(std::move(Inst));
-    }
-  }
-}
-
-void ComponentVM::unsafeRegisterBuiltInHosts() {
-  for (auto &It : BuiltInCompInsts) {
-    ExecEngine.registerComponent(StoreRef, *(It.get()));
+    Wasi = std::make_unique<Host::WasiComponent::WasiHosts>();
+    BuiltInCompInsts = Wasi->makeInstances();
   }
 }
 
@@ -98,62 +70,52 @@ void ComponentVM::unsafeLoadPlugInHosts() {
   }
 }
 
-void ComponentVM::unsafeRegisterPlugInHosts() {
-  for (auto &It : PlugInCompInsts) {
-    ExecEngine.registerComponent(StoreRef, *(It.get()));
+void ComponentVM::unsafeRegisterBuiltInHosts() {
+  for (auto &Inst : BuiltInCompInsts) {
+    ExecutorEngine.registerComponent(StoreRef, *Inst);
   }
 }
 
-Expect<std::unique_ptr<AST::Component::Component>>
-ComponentVM::unsafeTakeComponent(const std::filesystem::path &Path) {
-  EXPECTED_TRY(auto Unit, LoaderEngine.parseWasmUnit(Path));
-  if (!std::holds_alternative<std::unique_ptr<AST::Component::Component>>(
-          Unit)) {
-    spdlog::error(ErrCode::Value::MalformedVersion);
-    spdlog::error("    the given file is a core module, not a component"sv);
-    return Unexpect(ErrCode::Value::MalformedVersion);
+void ComponentVM::unsafeRegisterPlugInHosts() {
+  for (auto &Inst : PlugInCompInsts) {
+    ExecutorEngine.registerComponent(StoreRef, *Inst);
   }
-  return std::move(std::get<std::unique_ptr<AST::Component::Component>>(Unit));
 }
 
 Expect<void>
 ComponentVM::unsafeRegisterComponent(std::string_view Name,
                                      const std::filesystem::path &Path) {
-  EXPECTED_TRY(auto CompAST, unsafeTakeComponent(Path));
-  EXPECTED_TRY(ValidatorEngine.validate(*CompAST));
-  EXPECTED_TRY(auto Inst,
-               ExecEngine.registerComponent(StoreRef, *CompAST, Name));
-  RegCompASTs.push_back(std::move(CompAST));
-  RegCompInsts.push_back(std::move(Inst));
-  return {};
+  EXPECTED_TRY(auto CompAST, LoaderEngine.parseComponent(Path));
+  return unsafeRegisterComponent(Name, *CompAST);
+}
+
+Expect<void> ComponentVM::unsafeRegisterComponent(std::string_view Name,
+                                                  Span<const Byte> Code) {
+  EXPECTED_TRY(auto CompAST, LoaderEngine.parseComponent(Code));
+  return unsafeRegisterComponent(Name, *CompAST);
 }
 
 Expect<void>
 ComponentVM::unsafeRegisterComponent(std::string_view Name,
                                      const AST::Component::Component &CompAST) {
+  EXPECTED_TRY(ValidatorEngine.validate(CompAST));
   EXPECTED_TRY(auto Inst,
-               ExecEngine.registerComponent(StoreRef, CompAST, Name));
+               ExecutorEngine.registerComponent(StoreRef, CompAST, Name));
   RegCompInsts.push_back(std::move(Inst));
   return {};
 }
 
 Expect<void> ComponentVM::unsafeLoadWasm(const std::filesystem::path &Path) {
   // If loading does not succeed, the previous status is preserved.
-  EXPECTED_TRY(auto CompAST, unsafeTakeComponent(Path));
+  EXPECTED_TRY(auto CompAST, LoaderEngine.parseComponent(Path));
   Comp = std::move(CompAST);
   Stage = VMStage::Loaded;
   return {};
 }
 
 Expect<void> ComponentVM::unsafeLoadWasm(Span<const Byte> Code) {
-  EXPECTED_TRY(auto Unit, LoaderEngine.parseWasmUnit(Code));
-  if (!std::holds_alternative<std::unique_ptr<AST::Component::Component>>(
-          Unit)) {
-    spdlog::error(ErrCode::Value::MalformedVersion);
-    spdlog::error("    the given bytecode is a core module, not a component"sv);
-    return Unexpect(ErrCode::Value::MalformedVersion);
-  }
-  Comp = std::move(std::get<std::unique_ptr<AST::Component::Component>>(Unit));
+  EXPECTED_TRY(auto CompAST, LoaderEngine.parseComponent(Code));
+  Comp = std::move(CompAST);
   Stage = VMStage::Loaded;
   return {};
 }
@@ -183,8 +145,12 @@ Expect<void> ComponentVM::unsafeInstantiate() {
     spdlog::error(ErrCode::Value::WrongVMWorkflow);
     return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
+  if (Conf.getRuntimeConfigure().getRunMode() != RunMode::Interpreter) {
+    spdlog::warn("component model runs on the interpreter; the configured "
+                 "run mode is ignored."sv);
+  }
   EXPECTED_TRY(ActiveCompInst,
-               ExecEngine.instantiateComponent(StoreRef, *Comp));
+               ExecutorEngine.instantiateComponent(StoreRef, *Comp));
   Stage = VMStage::Instantiated;
   return {};
 }
@@ -223,19 +189,8 @@ ComponentVM::unsafeExecute(const Runtime::Instance::ComponentInstance *CompInst,
   // Find exported function by name, or by `interface#func` into an instance.
   Runtime::Instance::ComponentFunctionInstance *FuncInst =
       CompInst->findExportedFunction(Func);
-
-  // A caller that passes values without types, such as the spec-test
-  // harness, takes the parameter types from the own type of the function.
-  std::vector<ComponentValType> DerivedTypes;
-  if (FuncInst != nullptr && ParamTypes.empty() && !Params.empty()) {
-    for (const auto &P : FuncInst->getFuncType().getParamList()) {
-      DerivedTypes.push_back(P.getValType());
-    }
-    ParamTypes = DerivedTypes;
-  }
-
   // Execute function.
-  return ExecEngine.invoke(FuncInst, Params, ParamTypes)
+  return ExecutorEngine.invoke(FuncInst, Params, ParamTypes)
       .map_error([&CompInst, &Func](auto E) {
         if (E != ErrCode::Value::Terminated) {
           spdlog::error(
@@ -278,13 +233,9 @@ void ComponentVM::unsafeCleanup() {
   ActiveCompInst.reset();
   StoreRef.reset();
   RegCompInsts.clear();
-  RegCompASTs.clear();
-  BuiltInCompInsts.clear();
-  WasiHttp3.reset();
-  WasiEnv.reset();
-  PlugInCompInsts.clear();
   Stat.clear();
   unsafeInitVM();
+  LoaderEngine.reset();
   Stage = VMStage::Inited;
 }
 

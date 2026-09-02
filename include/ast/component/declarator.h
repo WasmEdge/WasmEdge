@@ -17,6 +17,7 @@
 #include "ast/component/descriptor.h"
 #include "common/span.h"
 
+#include <memory>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -72,6 +73,12 @@ private:
 /// AST Component::CoreModuleDecl node.
 class CoreModuleDecl {
 public:
+  CoreModuleDecl() = default;
+  CoreModuleDecl(const CoreModuleDecl &Other);
+  CoreModuleDecl(CoreModuleDecl &&) = default;
+  CoreModuleDecl &operator=(const CoreModuleDecl &Other);
+  CoreModuleDecl &operator=(CoreModuleDecl &&) = default;
+
   const CoreImportDecl &getImport() const noexcept {
     return *std::get_if<CoreImportDecl>(&Decl);
   }
@@ -164,6 +171,12 @@ class ExportDecl : public ExternDecl {};
 /// AST Component::InstanceDecl node.
 class InstanceDecl {
 public:
+  InstanceDecl() = default;
+  InstanceDecl(const InstanceDecl &Other);
+  InstanceDecl(InstanceDecl &&) = default;
+  InstanceDecl &operator=(const InstanceDecl &Other);
+  InstanceDecl &operator=(InstanceDecl &&) = default;
+
   const CoreDefType *getCoreType() const noexcept {
     return std::get_if<std::unique_ptr<CoreDefType>>(&Decl)->get();
   }

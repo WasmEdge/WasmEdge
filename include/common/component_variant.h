@@ -15,6 +15,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/errcode.h"
+
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -30,22 +32,16 @@ namespace WasmEdge {
 struct ValComp;
 
 using ComponentValVariant = std::variant<
-    // Primitive types in the Component Model value model. Held in typed arms
-    // directly (no ValVariant wrapping) so that aggregate-internal primitives
-    // and top-level primitives share a single representation. See
-    // CanonicalABI.md L2920+ — component values are the spec's typed Python
-    // values; core wasm ValVariants belong to the orthogonal Core layer and
-    // never appear inside a component value.
+    // Primitive types in the Component Model value model, held in typed arms
+    // so aggregate-internal and top-level primitives share one representation.
     uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t,
     float, double, bool, std::string,
-    // Aggregate types (record/variant/list/tuple/option/result/flags/enum/own/
-    // borrow). Held via shared_ptr because the variant is frequently copied and
-    // the contained ValComp recursively holds further ComponentValVariants.
+    // Aggregate types, held via shared_ptr because the variant is copied
+    // often and a ValComp recursively holds further component values.
     std::shared_ptr<ValComp>>;
 
-// Per-aggregate value structs. Labels for records/variants/flags/enums are
-// retained on the value side for easier round-trip debugging — the canonical
-// source of truth remains the DefValType.
+// Per-aggregate value structs. Labels are kept on the value side for
+// round-trip debugging; the DefValType stays the source of truth.
 struct RecordVal {
   std::vector<std::pair<std::string, ComponentValVariant>> Fields;
 };
@@ -55,8 +51,8 @@ struct TupleVal {
 struct VariantVal {
   uint32_t Case = 0;
   std::optional<ComponentValVariant> Payload;
-  // Case label recorded by the value decoder. TODO: resolve host-supplied
-  // values by label against the declared type at the lowering site.
+  // Case label recorded by the value decoder; a host-supplied value may
+  // carry the label alone, which the lowering resolves against the type.
   std::string Label{};
 };
 struct ListVal {
@@ -71,8 +67,8 @@ struct ResultVal {
 };
 struct FlagsVal {
   std::vector<bool> Bits;
-  // Set-label form recorded by the value decoder. TODO: resolve the bits
-  // against the declared flag labels at the lowering site.
+  // Set-label form recorded by the value decoder; a host-supplied value may
+  // carry the labels alone, which the lowering resolves against the type.
   std::vector<std::string> SetLabels{};
 };
 struct EnumVal {
@@ -81,15 +77,29 @@ struct EnumVal {
   std::string Label{};
 };
 struct OwnVal {
-  uint32_t Handle;
+  // The host side carries the resource representation, which the memory64
+  // proposal widens to 64 bits.
+  uint64_t Handle;
 };
 struct BorrowVal {
-  uint32_t Handle;
+  uint64_t Handle;
+};
+// An error-context value. Only the debug message is observable, so lifting
+// copies it out of the handles table rather than sharing the entry.
+struct ErrorContextVal {
+  std::string Message;
+};
+struct StreamFutureVal {
+  // A transferred stream/future end: the shared rendezvous object,
+  // type-erased to keep the value layer free of runtime headers.
+  std::shared_ptr<void> Shared;
+  bool IsStream = true;
 };
 
 struct ValComp {
   std::variant<RecordVal, TupleVal, VariantVal, ListVal, OptionVal, ResultVal,
-               FlagsVal, EnumVal, OwnVal, BorrowVal>
+               FlagsVal, EnumVal, OwnVal, BorrowVal, StreamFutureVal,
+               ErrorContextVal>
       V;
 };
 
@@ -97,9 +107,27 @@ struct ValComp {
 /// ComponentValVariant. Saves the make_shared + V= + variant-wrap dance at the
 /// many lift/load call sites.
 template <typename T> inline ComponentValVariant makeComponentVal(T &&Inner) {
-  auto VC = std::make_shared<ValComp>();
-  VC->V = std::forward<T>(Inner);
-  return ComponentValVariant{std::move(VC)};
+  auto Comp = std::make_shared<ValComp>();
+  Comp->V = std::forward<T>(Inner);
+  return ComponentValVariant{std::move(Comp)};
+}
+
+/// The aggregate of alternative T held by a component value. The caller
+/// establishes the alternative first, as checkValue does for host values.
+template <typename T>
+inline const T &getComponentVal(const ComponentValVariant &V) noexcept {
+  const auto *Comp = std::get_if<std::shared_ptr<ValComp>>(&V);
+  assuming(Comp != nullptr && *Comp);
+  const auto *Inner = std::get_if<T>(&(*Comp)->V);
+  assuming(Inner != nullptr);
+  return *Inner;
+}
+
+/// True when the component value holds an aggregate of alternative T.
+template <typename T>
+inline bool isComponentVal(const ComponentValVariant &V) noexcept {
+  const auto *Comp = std::get_if<std::shared_ptr<ValComp>>(&V);
+  return Comp != nullptr && *Comp && std::holds_alternative<T>((*Comp)->V);
 }
 
 } // namespace WasmEdge

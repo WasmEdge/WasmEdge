@@ -4,74 +4,72 @@
 #include "executor/component/executor.h"
 #include "executor/executor.h"
 
-#include "common/errinfo.h"
-#include "common/spdlog.h"
-
 #include <string_view>
 
 namespace WasmEdge {
 namespace Executor {
 
-using namespace std::literals;
-
+// Instantiate export section. See executor.h.
 Expect<void>
-ComponentExecutor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
+ComponentExecutor::instantiate(Component::Instantiator &Ctx,
                                const AST::Component::ExportSection &ExportSec) {
+  auto &CompInst = Ctx.getInstance();
   for (const auto &Export : ExportSec.getContent()) {
-    auto Index = Export.getSortIndex().getIdx();
+    const uint32_t Idx = Export.getSortIndex().getIdx();
     const auto &Sort = Export.getSortIndex().getSort();
+    const auto Name = Export.getName();
 
+    // An export aliases its definition into a new index, like validation.
     if (Sort.isCore()) {
       switch (Sort.getCoreSortType()) {
-      case AST::Component::Sort::CoreSortType::Instance:
-        CompInst.exportCoreModuleInstance(Export.getName(), Index);
+      case AST::Component::Sort::CoreSortType::Instance: {
+        EXPECTED_TRY(const auto *ModInst, Ctx.getCoreModuleInstance(Idx));
+        CompInst.exportCoreModuleInstance(Name, ModInst);
+        Ctx.importCoreModuleInstance(ModInst);
         break;
-      case AST::Component::Sort::CoreSortType::Module:
-        CompInst.exportCoreModule(Export.getName(), Index);
-        if (const auto *Mod = CompInst.getModule(Index)) {
-          CompInst.addModule(*Mod);
-        }
+      }
+      case AST::Component::Sort::CoreSortType::Module: {
+        EXPECTED_TRY(const auto *Mod, CompInst.getModule(Idx));
+        CompInst.exportCoreModule(Name, Idx);
+        CompInst.addModule(*Mod);
         break;
-      case AST::Component::Sort::CoreSortType::Func:
-      case AST::Component::Sort::CoreSortType::Table:
-      case AST::Component::Sort::CoreSortType::Memory:
-      case AST::Component::Sort::CoreSortType::Global:
-      case AST::Component::Sort::CoreSortType::Type:
-        // These cases are invalid.
+      }
       default:
+        // Validation admits no other core sort in an export.
         assumingUnreachable();
       }
     } else {
-      // An export aliases its definition into a new index, like validation.
       switch (Sort.getSortType()) {
-      case AST::Component::Sort::SortType::Func:
-        // Alias the exported definition into a new index, like the validator.
-        CompInst.exportFunction(Export.getName(), Index);
-        if (auto *Func = CompInst.getFunction(Index)) {
-          CompInst.addFunction(Func);
-        }
+      case AST::Component::Sort::SortType::Func: {
+        EXPECTED_TRY(auto *Func, Ctx.getFunction(Idx));
+        CompInst.exportFunction(Name, Func);
+        Ctx.importFunction(Func);
         break;
-      case AST::Component::Sort::SortType::Instance:
-        CompInst.exportComponentInstance(Export.getName(), Index);
-        if (const auto *Inst = CompInst.getComponentInstance(Index)) {
-          CompInst.addComponentInstance(Inst);
-        }
+      }
+      case AST::Component::Sort::SortType::Instance: {
+        EXPECTED_TRY(const auto *Inst, Ctx.getComponentInstance(Idx));
+        CompInst.exportComponentInstance(Name, Inst);
+        Ctx.importComponentInstance(Inst);
         break;
-      case AST::Component::Sort::SortType::Type:
-        // A type export aliases the exported type into a new index.
-        CompInst.exportType(Export.getName(), Index);
-        CompInst.addTypeWithResource(CompInst.getType(Index),
-                                     CompInst.getTypeResource(Index));
+      }
+      case AST::Component::Sort::SortType::Type: {
+        EXPECTED_TRY(const auto *TypeDef, CompInst.getTypeDefinition(Idx));
+        CompInst.exportType(Name, Idx);
+        CompInst.addTypeDefinition(*TypeDef);
         break;
-      case AST::Component::Sort::SortType::Component:
-        CompInst.exportComponent(Export.getName(), Index);
-        CompInst.addComponentEntry(CompInst.getComponent(Index),
-                                   CompInst.getComponentEnv(Index));
+      }
+      case AST::Component::Sort::SortType::Component: {
+        EXPECTED_TRY(const auto *CompDef, CompInst.getComponentDefinition(Idx));
+        CompInst.exportComponent(Name, Idx);
+        CompInst.addComponentDefinition(*CompDef);
         break;
-      case AST::Component::Sort::SortType::Value:
-        CompInst.exportValue(Export.getName(), CompInst.getValue(Index));
-        CompInst.addValue(CompInst.getValue(Index));
+      }
+      case AST::Component::Sort::SortType::Value: {
+        EXPECTED_TRY(const auto *Val, Ctx.getValue(Idx));
+        CompInst.exportValue(Name, *Val);
+        Ctx.addValue(*Val);
         break;
+      }
       default:
         assumingUnreachable();
       }

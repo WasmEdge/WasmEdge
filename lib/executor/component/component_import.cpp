@@ -7,150 +7,241 @@
 #include "common/errinfo.h"
 #include "common/spdlog.h"
 
+#include <map>
+#include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
+
+using namespace std::literals;
 
 namespace WasmEdge {
 namespace Executor {
 
 namespace {
-using namespace std::literals;
+
+// An import the embedder or the instantiation arguments do not satisfy.
+Expect<void> logImportError(ErrCode::Value Code, std::string_view Sort,
+                            std::string_view Name,
+                            std::string_view Provider = {}) noexcept {
+  spdlog::error(Code);
+  spdlog::error(ErrInfo::InfoComponentLinking(Sort, Name, Provider));
+  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+  return Unexpect(Code);
+}
 
 // Deep core-module shape check over the declared import and export types.
 Expect<void>
 matchModuleShape(const AST::Module &Actual,
                  Span<const AST::Component::CoreModuleDecl> Decls) {
-  // Local core function types declared inside the module type.
-  std::vector<const AST::FunctionType *> LocalFuncTypes;
+  // The core types declared inside the module type, and its imports and
+  // exports by name.
+  std::vector<const AST::SubType *> DeclTypes;
   struct DeclEntry {
     ExternalType Kind;
     const AST::Component::CoreImportDesc *Desc;
   };
   std::map<std::pair<std::string, std::string>, DeclEntry> DeclImports;
   std::vector<std::pair<std::string, DeclEntry>> DeclExports;
-  for (const auto &D : Decls) {
-    if (D.isType()) {
-      const auto *CT = D.getType();
-      if (CT != nullptr && CT->isRecType()) {
-        for (const auto &ST : CT->getSubTypes()) {
-          LocalFuncTypes.push_back(&ST.getCompositeType().getFuncType());
+  for (const auto &Decl : Decls) {
+    if (Decl.isType()) {
+      const auto *CoreType = Decl.getType();
+      if (CoreType != nullptr && CoreType->isRecType()) {
+        for (const auto &SubTy : CoreType->getSubTypes()) {
+          DeclTypes.push_back(&SubTy);
         }
       }
-    } else if (D.isImport()) {
-      const auto &ID = D.getImport();
-      DeclImports.emplace(
-          std::make_pair(std::string(ID.getModuleName()),
-                         std::string(ID.getName())),
-          DeclEntry{ID.getImportDesc().getExternalType(), &ID.getImportDesc()});
-    } else if (D.isExport()) {
-      const auto &ED = D.getExport();
+    } else if (Decl.isImport()) {
+      const auto &Import = Decl.getImport();
+      DeclImports.emplace(std::make_pair(std::string(Import.getModuleName()),
+                                         std::string(Import.getName())),
+                          DeclEntry{Import.getImportDesc().getExternalType(),
+                                    &Import.getImportDesc()});
+    } else if (Decl.isExport()) {
+      const auto &Export = Decl.getExport();
       DeclExports.emplace_back(
-          std::string(ED.getName()),
-          DeclEntry{ED.getImportDesc().getExternalType(), &ED.getImportDesc()});
+          std::string(Export.getName()),
+          DeclEntry{Export.getImportDesc().getExternalType(),
+                    &Export.getImportDesc()});
     }
   }
-  auto DeclFuncType = [&](const AST::Component::CoreImportDesc &D)
-      -> const AST::FunctionType * {
-    const uint32_t Idx = D.getTypeIndex();
-    return Idx < LocalFuncTypes.size() ? LocalFuncTypes[Idx] : nullptr;
-  };
 
-  // Resolve the actual module's typed view.
-  const auto &Types = Actual.getTypeSection().getContent();
-  auto ActualFuncType = [&](uint32_t TypeIdx) -> const AST::FunctionType * {
-    if (TypeIdx < Types.size()) {
-      return &Types[TypeIdx].getCompositeType().getFuncType();
-    }
-    return nullptr;
-  };
-  std::vector<const AST::FunctionType *> Funcs;
+  // The typed view of the actual module: its type section, then its imports
+  // followed by its definitions in every index space.
+  std::vector<const AST::SubType *> ActualTypes;
+  for (const auto &SubTy : Actual.getTypeSection().getContent()) {
+    ActualTypes.push_back(&SubTy);
+  }
+  std::vector<uint32_t> FuncTypeIdxs;
   std::vector<const AST::GlobalType *> Globals;
   std::vector<const AST::TableType *> Tables;
   std::vector<const AST::MemoryType *> Memories;
-  for (const auto &Imp : Actual.getImportSection().getContent()) {
-    // Every actual import must match a declared import's type.
-    auto It = DeclImports.find(std::make_pair(
-        std::string(Imp.getModuleName()), std::string(Imp.getExternalName())));
-    if (It == DeclImports.end()) {
-      spdlog::error(ErrCode::Value::ComponentCoreModNotDefined);
-      spdlog::error("    module import `{}::{}` not defined"sv,
-                    Imp.getModuleName(), Imp.getExternalName());
-      return Unexpect(ErrCode::Value::ComponentCoreModNotDefined);
-    }
-    if (It->second.Kind != Imp.getExternalType()) {
-      spdlog::error(ErrCode::Value::ComponentCoreModKindMismatch);
-      spdlog::error("    module import `{}::{}` kind mismatch"sv,
-                    Imp.getModuleName(), Imp.getExternalName());
-      return Unexpect(ErrCode::Value::ComponentCoreModKindMismatch);
-    }
-    bool TypeOk = true;
-    switch (Imp.getExternalType()) {
+  auto FuncTypeOf = [](Span<const AST::SubType *const> Types,
+                       uint32_t Idx) -> const AST::FunctionType * {
+    return Idx < Types.size() ? &Types[Idx]->getCompositeType().getFuncType()
+                              : nullptr;
+  };
+  auto LimitOf = [](const AST::Limit &Lim) {
+    return std::make_tuple(Lim.hasMax(), Lim.getMin(), Lim.getMax());
+  };
+
+  // Match a declared entry against the actual entry of its kind at Idx. A
+  // declared import matches contravariantly, a declared export covariantly.
+  auto MatchEntry = [&](const DeclEntry &Decl, uint32_t Idx,
+                        bool IsImport) -> bool {
+    switch (Decl.Kind) {
     case ExternalType::Function: {
-      const auto *DF = DeclFuncType(*It->second.Desc);
-      const auto *AF = ActualFuncType(Imp.getExternalFuncTypeIdx());
-      TypeOk = DF != nullptr && AF != nullptr &&
-               DF->getParamTypes() == AF->getParamTypes() &&
-               DF->getReturnTypes() == AF->getReturnTypes();
-      break;
+      const uint32_t DeclIdx = Decl.Desc->getTypeIndex();
+      const auto *DeclFunc = FuncTypeOf(DeclTypes, DeclIdx);
+      const auto *ActualFunc = Idx < FuncTypeIdxs.size()
+                                   ? FuncTypeOf(ActualTypes, FuncTypeIdxs[Idx])
+                                   : nullptr;
+      if (DeclFunc == nullptr || ActualFunc == nullptr) {
+        return false;
+      }
+      const bool Match =
+          IsImport ? AST::TypeMatcher::matchType(ActualTypes, FuncTypeIdxs[Idx],
+                                                 DeclTypes, DeclIdx)
+                   : AST::TypeMatcher::matchType(
+                         DeclTypes, DeclIdx, ActualTypes, FuncTypeIdxs[Idx]);
+      if (!Match) {
+        spdlog::error(ErrInfo::InfoMismatch(
+            DeclFunc->getParamTypes(), DeclFunc->getReturnTypes(),
+            ActualFunc->getParamTypes(), ActualFunc->getReturnTypes()));
+      }
+      return Match;
     }
     case ExternalType::Global: {
-      const auto &DG = It->second.Desc->getGlobalType();
-      const auto &AG = Imp.getExternalGlobalType();
-      TypeOk = DG.getValType() == AG.getValType() &&
-               DG.getValMut() == AG.getValMut();
-      break;
+      const auto &DeclGlob = Decl.Desc->getGlobalType();
+      const auto *ActualGlob = Idx < Globals.size() ? Globals[Idx] : nullptr;
+      if (ActualGlob == nullptr) {
+        return false;
+      }
+      const bool Match =
+          DeclGlob.getValMut() == ActualGlob->getValMut() &&
+          (IsImport
+               ? AST::TypeMatcher::matchType(ActualTypes,
+                                             ActualGlob->getValType(),
+                                             DeclTypes, DeclGlob.getValType())
+               : AST::TypeMatcher::matchType(DeclTypes, DeclGlob.getValType(),
+                                             ActualTypes,
+                                             ActualGlob->getValType()));
+      if (!Match) {
+        spdlog::error(ErrInfo::InfoMismatch(
+            DeclGlob.getValType(), DeclGlob.getValMut(),
+            ActualGlob->getValType(), ActualGlob->getValMut()));
+      }
+      return Match;
     }
     case ExternalType::Table: {
-      const auto &DTb = It->second.Desc->getTableType();
-      const auto &ATb = Imp.getExternalTableType();
-      TypeOk = DTb.getRefType() == ATb.getRefType() &&
-               AST::TypeMatcher::matchLimit(ATb.getLimit(), DTb.getLimit());
-      break;
+      const auto &DeclTab = Decl.Desc->getTableType();
+      const auto *ActualTab = Idx < Tables.size() ? Tables[Idx] : nullptr;
+      if (ActualTab == nullptr) {
+        return false;
+      }
+      const bool Match =
+          (IsImport
+               ? AST::TypeMatcher::matchType(ActualTypes,
+                                             ActualTab->getRefType(), DeclTypes,
+                                             DeclTab.getRefType()) &&
+                     AST::TypeMatcher::matchLimit(ActualTab->getLimit(),
+                                                  DeclTab.getLimit())
+               : AST::TypeMatcher::matchType(DeclTypes, DeclTab.getRefType(),
+                                             ActualTypes,
+                                             ActualTab->getRefType()) &&
+                     AST::TypeMatcher::matchLimit(DeclTab.getLimit(),
+                                                  ActualTab->getLimit()));
+      if (!Match) {
+        const auto [DeclHasMax, DeclMin, DeclMax] = LimitOf(DeclTab.getLimit());
+        const auto [ActualHasMax, ActualMin, ActualMax] =
+            LimitOf(ActualTab->getLimit());
+        spdlog::error(ErrInfo::InfoMismatch(
+            DeclTab.getRefType(), DeclHasMax, DeclMin, DeclMax,
+            ActualTab->getRefType(), ActualHasMax, ActualMin, ActualMax));
+      }
+      return Match;
     }
     case ExternalType::Memory: {
-      const auto &DMm = It->second.Desc->getMemoryType();
-      const auto &AMm = Imp.getExternalMemoryType();
-      TypeOk = AST::TypeMatcher::matchLimit(AMm.getLimit(), DMm.getLimit());
-      break;
+      const auto &DeclMem = Decl.Desc->getMemoryType();
+      const auto *ActualMem = Idx < Memories.size() ? Memories[Idx] : nullptr;
+      if (ActualMem == nullptr) {
+        return false;
+      }
+      const bool Match =
+          IsImport ? AST::TypeMatcher::matchLimit(ActualMem->getLimit(),
+                                                  DeclMem.getLimit())
+                   : AST::TypeMatcher::matchLimit(DeclMem.getLimit(),
+                                                  ActualMem->getLimit());
+      if (!Match) {
+        const auto [DeclHasMax, DeclMin, DeclMax] = LimitOf(DeclMem.getLimit());
+        const auto [ActualHasMax, ActualMin, ActualMax] =
+            LimitOf(ActualMem->getLimit());
+        spdlog::error(ErrInfo::InfoMismatch(
+            DeclHasMax, DeclMin, DeclMax, ActualHasMax, ActualMin, ActualMax));
+      }
+      return Match;
     }
     default:
-      break;
+      return true;
     }
-    if (!TypeOk) {
-      spdlog::error(ErrCode::Value::ComponentCoreModWrongType);
-      spdlog::error("    module import `{}::{}` has the wrong type"sv,
-                    Imp.getModuleName(), Imp.getExternalName());
-      return Unexpect(ErrCode::Value::ComponentCoreModWrongType);
-    }
+  };
+
+  // Every actual import must match a declared import's type.
+  for (const auto &Imp : Actual.getImportSection().getContent()) {
+    const std::string Name = std::string(Imp.getModuleName()) +
+                             "::" + std::string(Imp.getExternalName());
+    uint32_t Idx = 0;
     switch (Imp.getExternalType()) {
     case ExternalType::Function:
-      Funcs.push_back(ActualFuncType(Imp.getExternalFuncTypeIdx()));
+      Idx = static_cast<uint32_t>(FuncTypeIdxs.size());
+      FuncTypeIdxs.push_back(Imp.getExternalFuncTypeIdx());
       break;
     case ExternalType::Global:
+      Idx = static_cast<uint32_t>(Globals.size());
       Globals.push_back(&Imp.getExternalGlobalType());
       break;
     case ExternalType::Table:
+      Idx = static_cast<uint32_t>(Tables.size());
       Tables.push_back(&Imp.getExternalTableType());
       break;
     case ExternalType::Memory:
+      Idx = static_cast<uint32_t>(Memories.size());
       Memories.push_back(&Imp.getExternalMemoryType());
       break;
     default:
       break;
     }
+    auto Iter = DeclImports.find(std::make_pair(
+        std::string(Imp.getModuleName()), std::string(Imp.getExternalName())));
+    if (Iter == DeclImports.end()) {
+      return logImportError(ErrCode::Value::ComponentCoreModNotDefined,
+                            "core import"sv, Name);
+    }
+    if (Iter->second.Kind != Imp.getExternalType()) {
+      spdlog::error(
+          ErrInfo::InfoMismatch(Iter->second.Kind, Imp.getExternalType()));
+      return logImportError(ErrCode::Value::ComponentCoreModKindMismatch,
+                            "core import"sv, Name);
+    }
+    if (!MatchEntry(Iter->second, Idx, /*IsImport=*/true)) {
+      return logImportError(ErrCode::Value::ComponentCoreModWrongType,
+                            "core import"sv, Name);
+    }
   }
-  for (const auto &F : Actual.getFunctionSection().getContent()) {
-    Funcs.push_back(ActualFuncType(F));
+  for (const auto &Func : Actual.getFunctionSection().getContent()) {
+    FuncTypeIdxs.push_back(Func);
   }
-  for (const auto &G : Actual.getGlobalSection().getContent()) {
-    Globals.push_back(&G.getGlobalType());
+  for (const auto &Glob : Actual.getGlobalSection().getContent()) {
+    Globals.push_back(&Glob.getGlobalType());
   }
-  for (const auto &T : Actual.getTableSection().getContent()) {
-    Tables.push_back(&T.getTableType());
+  for (const auto &Tab : Actual.getTableSection().getContent()) {
+    Tables.push_back(&Tab.getTableType());
   }
-  for (const auto &M : Actual.getMemorySection().getContent()) {
-    Memories.push_back(&M);
+  for (const auto &Mem : Actual.getMemorySection().getContent()) {
+    Memories.push_back(&Mem);
   }
-  // Actual export table by name.
+
+  // Every declared export must be exported with a matching type.
   std::map<std::string, std::pair<ExternalType, uint32_t>> ActualExports;
   for (const auto &Exp : Actual.getExportSection().getContent()) {
     ActualExports.emplace(
@@ -158,73 +249,37 @@ matchModuleShape(const AST::Module &Actual,
         std::make_pair(Exp.getExternalType(), Exp.getExternalIndex()));
   }
   for (const auto &[Name, Decl] : DeclExports) {
-    auto It = ActualExports.find(Name);
-    if (It == ActualExports.end()) {
-      spdlog::error(ErrCode::Value::ComponentCoreModNotDefined);
-      spdlog::error("    module export `{}` not defined"sv, Name);
-      return Unexpect(ErrCode::Value::ComponentCoreModNotDefined);
+    auto Iter = ActualExports.find(Name);
+    if (Iter == ActualExports.end()) {
+      return logImportError(ErrCode::Value::ComponentCoreModNotDefined,
+                            "core export"sv, Name);
     }
-    if (It->second.first != Decl.Kind) {
-      spdlog::error(ErrCode::Value::ComponentCoreModKindMismatch);
-      spdlog::error("    module export `{}` kind mismatch"sv, Name);
-      return Unexpect(ErrCode::Value::ComponentCoreModKindMismatch);
+    if (Iter->second.first != Decl.Kind) {
+      spdlog::error(ErrInfo::InfoMismatch(Decl.Kind, Iter->second.first));
+      return logImportError(ErrCode::Value::ComponentCoreModKindMismatch,
+                            "core export"sv, Name);
     }
-    const uint32_t Idx = It->second.second;
-    bool TypeOk = true;
-    switch (Decl.Kind) {
-    case ExternalType::Function: {
-      const auto *DF = DeclFuncType(*Decl.Desc);
-      const auto *AF = Idx < Funcs.size() ? Funcs[Idx] : nullptr;
-      TypeOk = DF != nullptr && AF != nullptr &&
-               DF->getParamTypes() == AF->getParamTypes() &&
-               DF->getReturnTypes() == AF->getReturnTypes();
-      break;
-    }
-    case ExternalType::Global: {
-      const auto *AG = Idx < Globals.size() ? Globals[Idx] : nullptr;
-      const auto &DG = Decl.Desc->getGlobalType();
-      TypeOk = AG != nullptr && DG.getValType() == AG->getValType() &&
-               DG.getValMut() == AG->getValMut();
-      break;
-    }
-    case ExternalType::Table: {
-      const auto *AT = Idx < Tables.size() ? Tables[Idx] : nullptr;
-      const auto &DT = Decl.Desc->getTableType();
-      TypeOk = AT != nullptr && DT.getRefType() == AT->getRefType() &&
-               AST::TypeMatcher::matchLimit(DT.getLimit(), AT->getLimit());
-      break;
-    }
-    case ExternalType::Memory: {
-      const auto *AM = Idx < Memories.size() ? Memories[Idx] : nullptr;
-      const auto &DM = Decl.Desc->getMemoryType();
-      TypeOk = AM != nullptr &&
-               AST::TypeMatcher::matchLimit(DM.getLimit(), AM->getLimit());
-      break;
-    }
-    default:
-      break;
-    }
-    if (!TypeOk) {
-      spdlog::error(ErrCode::Value::ComponentCoreModWrongType);
-      spdlog::error("    module export `{}` has the wrong type"sv, Name);
-      return Unexpect(ErrCode::Value::ComponentCoreModWrongType);
+    if (!MatchEntry(Decl, Iter->second.second, /*IsImport=*/false)) {
+      return logImportError(ErrCode::Value::ComponentCoreModWrongType,
+                            "core export"sv, Name);
     }
   }
   return {};
 }
 
 // Runtime instance-shape check over exports, resources and module types.
-// NOLINTNEXTLINE(misc-no-recursion)
 Expect<void>
 matchInstanceShape(const Runtime::Instance::ComponentInstance &Provided,
                    const AST::Component::InstanceType &Shape,
                    const Runtime::Instance::ComponentInstance &Importing) {
   struct ShapeTy {
-    const AST::Component::DefType *DT = nullptr;
-    const Runtime::Instance::Component::ResourceTypeInstance *RT = nullptr;
+    const AST::Component::DefType *Def = nullptr;
+    const Runtime::Instance::Component::ResourceTypeInstance *Resource =
+        nullptr;
   };
   std::vector<ShapeTy> Local;
   std::vector<const AST::Component::CoreDefType *> LocalCore;
+  const auto Provider = Provided.getComponentName();
   for (const auto &Decl : Shape.getDecl()) {
     if (Decl.isCoreType()) {
       LocalCore.push_back(Decl.getCoreType());
@@ -235,22 +290,23 @@ matchInstanceShape(const Runtime::Instance::ComponentInstance &Provided,
       continue;
     }
     if (Decl.isAlias()) {
-      const auto &A = Decl.getAlias();
-      const auto &Sort = A.getSort();
+      const auto &Alias = Decl.getAlias();
+      const auto &Sort = Alias.getSort();
       if (!Sort.isCore() &&
           Sort.getSortType() == AST::Component::Sort::SortType::Type &&
-          A.getTargetType() == AST::Component::Alias::TargetType::Outer) {
-        const auto &Outer = A.getOuter();
+          Alias.getTargetType() == AST::Component::Alias::TargetType::Outer) {
+        const auto &Outer = Alias.getOuter();
         const Runtime::Instance::ComponentInstance *Target = &Importing;
         for (uint32_t I = 1; I < Outer.first && Target != nullptr; ++I) {
           Target = Target->getParent();
         }
+        ShapeTy Entry;
         if (Target != nullptr) {
-          Local.push_back({Target->getType(Outer.second),
-                           Target->getTypeResource(Outer.second)});
-        } else {
-          Local.push_back({});
+          if (auto TypeDef = Target->getTypeDefinition(Outer.second)) {
+            Entry = {(*TypeDef)->Def, (*TypeDef)->Resource};
+          }
         }
+        Local.push_back(Entry);
       } else if (!Sort.isCore() &&
                  Sort.getSortType() == AST::Component::Sort::SortType::Type) {
         Local.push_back({});
@@ -264,21 +320,19 @@ matchInstanceShape(const Runtime::Instance::ComponentInstance &Provided,
     if (!Decl.isExportDecl()) {
       continue;
     }
-    const auto &ED = Decl.getExport();
-    const auto Name = ED.getName();
-    const auto &Desc = ED.getExternDesc();
+    const auto &ExportDecl = Decl.getExport();
+    const auto Name = ExportDecl.getName();
+    const auto &Desc = ExportDecl.getExternDesc();
     switch (Desc.getDescType()) {
     case AST::Component::ExternDesc::DescType::FuncType:
       if (Provided.findFunction(Name) == nullptr) {
-        spdlog::error(ErrCode::Value::ComponentImportNotFound);
-        spdlog::error("    instance export `{}` was not found"sv, Name);
-        return Unexpect(ErrCode::Value::ComponentImportNotFound);
+        return logImportError(ErrCode::Value::ComponentImportNotFound,
+                              "function"sv, Name, Provider);
       }
       break;
     case AST::Component::ExternDesc::DescType::TypeBound: {
-      const auto *RT = Provided.findTypeResource(Name);
-      const auto *DT = Provided.findType(Name);
-      if (RT == nullptr && DT == nullptr) {
+      const auto *TypeDef = Provided.findTypeDefinition(Name);
+      if (TypeDef == nullptr) {
         if (Desc.isEqType()) {
           // An eq-constrained type export resolves through the constraint.
           const uint32_t Idx = Desc.getTypeIndex();
@@ -286,57 +340,47 @@ matchInstanceShape(const Runtime::Instance::ComponentInstance &Provided,
           break;
         }
         if (Provided.findFunction(Name) != nullptr) {
-          spdlog::error(ErrCode::Value::ComponentImportExpectedResource);
-          spdlog::error("    instance export `{}`: expected resource"sv, Name);
-          return Unexpect(ErrCode::Value::ComponentImportExpectedResource);
+          return logImportError(ErrCode::Value::ComponentImportExpectedResource,
+                                "resource"sv, Name, Provider);
         }
-        spdlog::error(ErrCode::Value::ComponentImportNotFound);
-        spdlog::error("    instance export `{}` was not found"sv, Name);
-        return Unexpect(ErrCode::Value::ComponentImportNotFound);
+        return logImportError(ErrCode::Value::ComponentImportNotFound, "type"sv,
+                              Name, Provider);
       }
       if (Desc.isEqType()) {
         const uint32_t Idx = Desc.getTypeIndex();
-        const ShapeTy Exp = Idx < Local.size() ? Local[Idx] : ShapeTy{};
-        if (Exp.RT != nullptr && RT != Exp.RT) {
-          spdlog::error(ErrCode::Value::ComponentResourceMismatched);
-          spdlog::error("    instance export `{}`: mismatched resource "
-                        "types"sv,
-                        Name);
-          return Unexpect(ErrCode::Value::ComponentResourceMismatched);
+        const ShapeTy Expected = Idx < Local.size() ? Local[Idx] : ShapeTy{};
+        if (Expected.Resource != nullptr &&
+            TypeDef->Resource != Expected.Resource) {
+          return logImportError(ErrCode::Value::ComponentResourceMismatched,
+                                "resource"sv, Name, Provider);
         }
       }
-      Local.push_back({DT, RT});
+      Local.push_back({TypeDef->Def, TypeDef->Resource});
       break;
     }
-    case AST::Component::ExternDesc::DescType::InstanceType: {
-      const auto *Nested = Provided.findComponentInstance(Name);
-      if (Nested == nullptr) {
-        spdlog::error(ErrCode::Value::ComponentImportNotFound);
-        spdlog::error("    instance export `{}` was not found"sv, Name);
-        return Unexpect(ErrCode::Value::ComponentImportNotFound);
+    case AST::Component::ExternDesc::DescType::InstanceType:
+      if (Provided.findComponentInstance(Name) == nullptr) {
+        return logImportError(ErrCode::Value::ComponentImportNotFound,
+                              "instance"sv, Name, Provider);
       }
-      // Resolve the nested shape index in the importing component's view.
       break;
-    }
     case AST::Component::ExternDesc::DescType::CoreType: {
       const auto *Mod = Provided.findCoreModule(Name);
       if (Mod == nullptr && Provided.findCoreModuleInstance(Name) == nullptr) {
-        spdlog::error(ErrCode::Value::ComponentImportNotFound);
-        spdlog::error("    instance export `{}` was not found"sv, Name);
-        return Unexpect(ErrCode::Value::ComponentImportNotFound);
+        return logImportError(ErrCode::Value::ComponentImportNotFound,
+                              "core module"sv, Name, Provider);
       }
       const uint32_t Idx = Desc.getTypeIndex();
-      const auto *CT = Idx < LocalCore.size() ? LocalCore[Idx] : nullptr;
-      if (Mod != nullptr && CT != nullptr && CT->isModuleType()) {
-        EXPECTED_TRY(matchModuleShape(*Mod, CT->getModuleType()));
+      const auto *CoreType = Idx < LocalCore.size() ? LocalCore[Idx] : nullptr;
+      if (Mod != nullptr && CoreType != nullptr && CoreType->isModuleType()) {
+        EXPECTED_TRY(matchModuleShape(*Mod, CoreType->getModuleType()));
       }
       break;
     }
     case AST::Component::ExternDesc::DescType::ComponentType:
-      if (Provided.findComponentEntry(Name) == nullptr) {
-        spdlog::error(ErrCode::Value::ComponentImportNotFound);
-        spdlog::error("    instance export `{}` was not found"sv, Name);
-        return Unexpect(ErrCode::Value::ComponentImportNotFound);
+      if (Provided.findComponentDefinition(Name) == nullptr) {
+        return logImportError(ErrCode::Value::ComponentImportNotFound,
+                              "component"sv, Name, Provider);
       }
       break;
     default:
@@ -345,92 +389,88 @@ matchInstanceShape(const Runtime::Instance::ComponentInstance &Provided,
   }
   return {};
 }
-} // namespace
 
-using namespace std::literals;
+} // namespace
 
 // Pick the resolution side; the two differ in sorts and diagnostics.
 Expect<void>
 ComponentExecutor::instantiate(Component::Instantiator &Ctx,
-                               const AST::Component::ImportSection &Sec) {
+                               const AST::Component::ImportSection &ImportSec) {
   if (Ctx.isRoot()) {
-    return instantiate(Ctx.store(), Ctx.inst(), Sec);
+    return instantiate(Ctx.getStore(), Ctx, ImportSec);
   }
-  return instantiate(Ctx.imports(), Ctx.inst(), Sec);
+  return instantiate(Ctx.getImportManager(), Ctx, ImportSec);
 }
 
+// Instantiate the import section from the store. See executor.h.
 Expect<void>
 ComponentExecutor::instantiate(Runtime::Component::StoreManager &StoreMgr,
-                               Runtime::Instance::ComponentInstance &CompInst,
+                               Component::Instantiator &Ctx,
                                const AST::Component::ImportSection &ImportSec) {
+  auto &CompInst = Ctx.getInstance();
   for (const auto &Import : ImportSec.getContent()) {
     const auto &Desc = Import.getDesc();
+    const auto Name = Import.getName();
     switch (Desc.getDescType()) {
-    case AST::Component::ExternDesc::DescType::TypeBound:
+    case AST::Component::ExternDesc::DescType::TypeBound: {
       // An abstract resource import mints a fresh opaque host identity.
       if (Desc.isEqType()) {
-        CompInst.addTypeWithResource(
-            CompInst.getType(Desc.getTypeIndex()),
-            CompInst.getTypeResource(Desc.getTypeIndex()));
+        EXPECTED_TRY(const auto *TypeDef,
+                     CompInst.getTypeDefinition(Desc.getTypeIndex()));
+        CompInst.addTypeDefinition(*TypeDef);
         break;
       }
       CompInst.addHostResourceType(nullptr);
       break;
+    }
     case AST::Component::ExternDesc::DescType::FuncType: {
-      if (auto *HostFunc = StoreMgr.findFunction(Import.getName())) {
-        CompInst.addFunction(HostFunc);
+      if (auto *HostFunc = StoreMgr.findFunction(Name)) {
+        Ctx.importFunction(HostFunc);
         break;
       }
-      if (StoreMgr.find(Import.getName()) != nullptr) {
-        spdlog::error(ErrCode::Value::ComponentImportExpectedFunc);
-        spdlog::error("    import name: {}"sv, Import.getName());
-        return Unexpect(ErrCode::Value::ComponentImportExpectedFunc);
+      if (StoreMgr.findInstance(Name) != nullptr) {
+        return logImportError(ErrCode::Value::ComponentImportExpectedFunc,
+                              "function"sv, Name);
       }
-      spdlog::error(ErrCode::Value::ComponentImportNotFound);
-      spdlog::error("    import `{}` was not found"sv, Import.getName());
-      return Unexpect(ErrCode::Value::ComponentImportNotFound);
+      return logImportError(ErrCode::Value::ComponentImportNotFound,
+                            "function"sv, Name);
     }
     case AST::Component::ExternDesc::DescType::CoreType:
-      if (StoreMgr.find(Import.getName()) != nullptr) {
-        spdlog::error(ErrCode::Value::ComponentImportExpectedModule);
-        spdlog::error("    import name: {}"sv, Import.getName());
-        return Unexpect(ErrCode::Value::ComponentImportExpectedModule);
+      if (StoreMgr.findInstance(Name) != nullptr) {
+        return logImportError(ErrCode::Value::ComponentImportExpectedModule,
+                              "core module"sv, Name);
       }
-      spdlog::error(ErrCode::Value::ComponentImportNotFound);
-      spdlog::error("    import `{}` was not found"sv, Import.getName());
-      return Unexpect(ErrCode::Value::ComponentImportNotFound);
+      return logImportError(ErrCode::Value::ComponentImportNotFound,
+                            "core module"sv, Name);
     case AST::Component::ExternDesc::DescType::ComponentType:
-      if (const auto *Def = StoreMgr.findDefinition(Import.getName())) {
+      if (const auto *Def = StoreMgr.findDefinition(Name)) {
         // A registered standalone definition closes over no environment.
-        CompInst.addComponentEntry(Def, nullptr);
+        CompInst.addComponentDefinition({Def, nullptr});
         break;
       }
-      [[fallthrough]];
+      return logImportError(ErrCode::Value::ComponentImportNotFound,
+                            "component"sv, Name);
     case AST::Component::ExternDesc::DescType::ValueBound:
-      // No host-side providers for these sorts.
-      spdlog::error(ErrCode::Value::ComponentImportNotFound);
-      spdlog::error("    import `{}` was not found"sv, Import.getName());
-      return Unexpect(ErrCode::Value::ComponentImportNotFound);
+      // No host-side providers for values.
+      return logImportError(ErrCode::Value::ComponentImportNotFound, "value"sv,
+                            Name);
     case AST::Component::ExternDesc::DescType::InstanceType: {
-      auto CompName = Import.getName();
-      const auto *ImportedCompInst = StoreMgr.find(CompName);
+      const auto *ImportedCompInst = StoreMgr.findInstance(Name);
       if (unlikely(ImportedCompInst == nullptr)) {
-        if (StoreMgr.findFunction(CompName) != nullptr) {
-          spdlog::error(ErrCode::Value::ComponentImportExpectedInstance);
-          spdlog::error("    import name: {}"sv, CompName);
-          return Unexpect(ErrCode::Value::ComponentImportExpectedInstance);
+        if (StoreMgr.findFunction(Name) != nullptr) {
+          return logImportError(ErrCode::Value::ComponentImportExpectedInstance,
+                                "instance"sv, Name);
         }
-        spdlog::error(ErrCode::Value::ComponentImportNotFound);
-        spdlog::error("    import `{}` was not found"sv, CompName);
-        return Unexpect(ErrCode::Value::ComponentImportNotFound);
+        return logImportError(ErrCode::Value::ComponentImportNotFound,
+                              "instance"sv, Name);
       }
       // Check the provided instance against the declared shape.
-      if (const auto *DT = CompInst.getType(Desc.getTypeIndex());
-          DT != nullptr && DT->isInstanceType()) {
+      EXPECTED_TRY(const auto *Def, CompInst.getType(Desc.getTypeIndex()));
+      if (Def != nullptr && Def->isInstanceType()) {
         EXPECTED_TRY(matchInstanceShape(*ImportedCompInst,
-                                        DT->getInstanceType(), CompInst));
+                                        Def->getInstanceType(), CompInst));
       }
-      CompInst.addComponentInstance(ImportedCompInst);
+      Ctx.importComponentInstance(ImportedCompInst);
       break;
     }
     default:
@@ -440,77 +480,79 @@ ComponentExecutor::instantiate(Runtime::Component::StoreManager &StoreMgr,
   return {};
 }
 
-Expect<void> ComponentExecutor::instantiate(
-    Runtime::Instance::Component::ImportManager &ImportMgr,
-    Runtime::Instance::ComponentInstance &CompInst,
-    const AST::Component::ImportSection &ImportSec) {
+// Instantiate the import section from the arguments. See executor.h.
+Expect<void>
+ComponentExecutor::instantiate(Runtime::Component::ImportManager &ImportMgr,
+                               Component::Instantiator &Ctx,
+                               const AST::Component::ImportSection &ImportSec) {
+  auto &CompInst = Ctx.getInstance();
   for (const auto &Import : ImportSec.getContent()) {
     const auto &Desc = Import.getDesc();
+    const auto Name = Import.getName();
     switch (Desc.getDescType()) {
     case AST::Component::ExternDesc::DescType::FuncType: {
-      auto *Func = ImportMgr.findFunction(Import.getName());
+      auto *Func = ImportMgr.findFunction(Name);
       if (unlikely(Func == nullptr)) {
-        spdlog::error(ErrCode::Value::UnknownImport);
-        spdlog::error("    function name: {}"sv, Import.getName());
-        return Unexpect(ErrCode::Value::UnknownImport);
+        return logImportError(ErrCode::Value::UnknownImport, "function"sv,
+                              Name);
       }
-      CompInst.addFunction(Func);
+      Ctx.importFunction(Func);
       break;
     }
     case AST::Component::ExternDesc::DescType::TypeBound: {
       // Type imports take the argument type, else the eq-bound target.
-      const auto *Ty = ImportMgr.findType(Import.getName());
-      const auto *RT = ImportMgr.findTypeResource(Import.getName());
-      if (Ty == nullptr && RT == nullptr && Desc.isEqType()) {
-        CompInst.addTypeWithResource(
-            CompInst.getType(Desc.getTypeIndex()),
-            CompInst.getTypeResource(Desc.getTypeIndex()));
-      } else {
-        CompInst.addTypeWithResource(Ty, RT);
+      if (const auto *TypeDef = ImportMgr.findTypeDefinition(Name)) {
+        CompInst.addTypeDefinition(*TypeDef);
+        break;
       }
+      if (Desc.isEqType()) {
+        EXPECTED_TRY(const auto *TypeDef,
+                     CompInst.getTypeDefinition(Desc.getTypeIndex()));
+        CompInst.addTypeDefinition(*TypeDef);
+        break;
+      }
+      CompInst.addTypeDefinition({});
       break;
     }
     case AST::Component::ExternDesc::DescType::ComponentType: {
-      if (ImportMgr.hasComponent(Import.getName())) {
-        CompInst.addComponentEntry(
-            ImportMgr.findComponent(Import.getName()),
-            ImportMgr.findComponentEnv(Import.getName()));
-        break;
+      const auto *CompDef = ImportMgr.findComponentDefinition(Name);
+      if (unlikely(CompDef == nullptr)) {
+        return logImportError(ErrCode::Value::UnknownImport, "component"sv,
+                              Name);
       }
-      spdlog::error(ErrCode::Value::UnknownImport);
-      spdlog::error("    component name: {}"sv, Import.getName());
-      return Unexpect(ErrCode::Value::UnknownImport);
+      CompInst.addComponentDefinition(*CompDef);
+      break;
     }
     case AST::Component::ExternDesc::DescType::CoreType: {
-      const auto *M = ImportMgr.findCoreModule(Import.getName());
-      if (unlikely(M == nullptr)) {
-        spdlog::error(ErrCode::Value::UnknownImport);
-        spdlog::error("    core module name: {}"sv, Import.getName());
-        return Unexpect(ErrCode::Value::UnknownImport);
+      const auto *Mod = ImportMgr.findCoreModule(Name);
+      if (unlikely(Mod == nullptr)) {
+        return logImportError(ErrCode::Value::UnknownImport, "core module"sv,
+                              Name);
       }
-      CompInst.addModule(*M);
+      CompInst.addModule(*Mod);
       break;
     }
     case AST::Component::ExternDesc::DescType::ValueBound: {
-      const auto *V = ImportMgr.findValue(Import.getName());
-      if (unlikely(V == nullptr)) {
-        spdlog::error(ErrCode::Value::UnknownImport);
-        spdlog::error("    value name: {}"sv, Import.getName());
-        return Unexpect(ErrCode::Value::UnknownImport);
+      const auto *Val = ImportMgr.findValue(Name);
+      if (unlikely(Val == nullptr)) {
+        return logImportError(ErrCode::Value::UnknownImport, "value"sv, Name);
       }
-      CompInst.addValue(*V);
+      Ctx.addValue(*Val);
       break;
     }
     case AST::Component::ExternDesc::DescType::InstanceType: {
-      // TODO: COMPONENT - type matching for the instance type.
-      auto CompName = Import.getName();
-      const auto *ImportedCompInst = ImportMgr.findComponentInstance(CompName);
+      const auto *ImportedCompInst = ImportMgr.findComponentInstance(Name);
       if (unlikely(ImportedCompInst == nullptr)) {
-        spdlog::error(ErrCode::Value::UnknownImport);
-        spdlog::error("    component name: {}"sv, CompName);
-        return Unexpect(ErrCode::Value::UnknownImport);
+        return logImportError(ErrCode::Value::UnknownImport, "instance"sv,
+                              Name);
       }
-      CompInst.addComponentInstance(ImportedCompInst);
+      // Check the provided instance against the declared shape.
+      EXPECTED_TRY(const auto *Def, CompInst.getType(Desc.getTypeIndex()));
+      if (Def != nullptr && Def->isInstanceType()) {
+        EXPECTED_TRY(matchInstanceShape(*ImportedCompInst,
+                                        Def->getInstanceType(), CompInst));
+      }
+      Ctx.importComponentInstance(ImportedCompInst);
       break;
     }
     default:

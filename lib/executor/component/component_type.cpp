@@ -9,24 +9,25 @@ namespace Executor {
 
 // Instantiate core type section. See executor.h.
 Expect<void> ComponentExecutor::instantiate(
-    Runtime::Instance::ComponentInstance &CompInst,
+    Component::Instantiator &Ctx,
     const AST::Component::CoreTypeSection &CoreTypeSec) {
   for (auto &Ty : CoreTypeSec.getContent()) {
-    CompInst.addCoreType(Ty);
+    Ctx.getInstance().addCoreType(Ty);
   }
   return {};
 }
 
 // Instantiate type section. See executor.h.
 Expect<void>
-ComponentExecutor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
+ComponentExecutor::instantiate(Component::Instantiator &Ctx,
                                const AST::Component::TypeSection &TypeSec) {
+  auto &CompInst = Ctx.getInstance();
   for (auto &Ty : TypeSec.getContent()) {
     if (Ty.isResourceType()) {
       // A locally-defined resource mints its runtime identity here.
       Runtime::Instance::FunctionInstance *Dtor = nullptr;
       if (auto DtorIdx = Ty.getResourceType().getDestructor()) {
-        EXPECTED_TRY(Dtor, CompInst.getCoreFunction(*DtorIdx));
+        EXPECTED_TRY(Dtor, Ctx.getCoreFunction(*DtorIdx));
       }
       CompInst.addResourceType(Ty, Dtor);
     } else {

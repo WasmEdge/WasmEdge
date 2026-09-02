@@ -9,94 +9,98 @@
 
 #include <string_view>
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Executor {
 
-using namespace std::literals;
+namespace {
+// An alias of an export the providing instance does not have.
+Expect<void> logExportNotFound(std::string_view Sort, std::string_view Name,
+                               std::string_view Provider) noexcept {
+  spdlog::error(ErrCode::Value::ComponentImportNotFound);
+  spdlog::error(ErrInfo::InfoComponentLinking(Sort, Name, Provider));
+  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Alias));
+  return Unexpect(ErrCode::Value::ComponentImportNotFound);
+}
+
+// A sort validation admits nowhere on this alias target.
+Expect<void> logUnexpectedSort() noexcept {
+  spdlog::error(ErrCode::Value::ComponentUnexpectedSort);
+  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Alias));
+  return Unexpect(ErrCode::Value::ComponentUnexpectedSort);
+}
+} // namespace
 
 Expect<void>
-ComponentExecutor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
+ComponentExecutor::instantiate(Component::Instantiator &Ctx,
                                const AST::Component::AliasSection &AliasSec) {
+  auto &CompInst = Ctx.getInstance();
   for (const auto &Alias : AliasSec.getContent()) {
     const auto &Sort = Alias.getSort();
     switch (Alias.getTargetType()) {
     case AST::Component::Alias::TargetType::Export: {
-      const auto &Export = Alias.getExport();
+      const std::string_view Name = Alias.getExport().second;
+      EXPECTED_TRY(const auto *Provider,
+                   Ctx.getComponentInstance(Alias.getExport().first));
       if (Sort.isCore()) {
         // Core-module exports of component instances.
-        if (Sort.getCoreSortType() ==
+        if (Sort.getCoreSortType() !=
             AST::Component::Sort::CoreSortType::Module) {
-          const auto *CInst = CompInst.getComponentInstance(Export.first);
-          const auto *Mod =
-              CInst != nullptr ? CInst->findCoreModule(Export.second) : nullptr;
-          if (Mod == nullptr) {
-            spdlog::error(ErrCode::Value::ComponentUnknownExport);
-            spdlog::error("    alias export core module '{}' not found"sv,
-                          Export.second);
-            return Unexpect(ErrCode::Value::ComponentUnknownExport);
-          }
-          CompInst.addModule(*Mod);
-          break;
+          return logUnexpectedSort();
         }
-        spdlog::error(ErrCode::Value::ComponentUnexpectedSort);
-        spdlog::error("    incomplete alias export core sort"sv);
-        return Unexpect(ErrCode::Value::ComponentUnexpectedSort);
+        const auto *Mod = Provider->findCoreModule(Name);
+        if (Mod == nullptr) {
+          return logExportNotFound("core module"sv, Name,
+                                   Provider->getComponentName());
+        }
+        CompInst.addModule(*Mod);
+        break;
       }
       switch (Sort.getSortType()) {
       case AST::Component::Sort::SortType::Func: {
-        const auto *CInst = CompInst.getComponentInstance(Export.first);
-        auto *FuncInst = CInst->findFunction(Export.second);
-        CompInst.addFunction(FuncInst);
+        auto *Func = Provider->findFunction(Name);
+        if (Func == nullptr) {
+          return logExportNotFound("function"sv, Name,
+                                   Provider->getComponentName());
+        }
+        Ctx.importFunction(Func);
         break;
       }
       case AST::Component::Sort::SortType::Type: {
-        const auto *CInst = CompInst.getComponentInstance(Export.first);
-        if (CInst == nullptr) {
-          spdlog::error(ErrCode::Value::ComponentInstanceIndexOutOfBounds);
-          spdlog::error("    alias export type: unknown instance"sv);
-          return Unexpect(ErrCode::Value::ComponentInstanceIndexOutOfBounds);
+        const auto *TypeDef = Provider->findTypeDefinition(Name);
+        if (TypeDef == nullptr) {
+          return logExportNotFound("type"sv, Name,
+                                   Provider->getComponentName());
         }
-        CompInst.addTypeWithResource(CInst->findType(Export.second),
-                                     CInst->findTypeResource(Export.second));
+        CompInst.addTypeDefinition(*TypeDef);
         break;
       }
       case AST::Component::Sort::SortType::Instance: {
-        const auto *CInst = CompInst.getComponentInstance(Export.first);
-        const auto *Nested = CInst->findComponentInstance(Export.second);
+        const auto *Nested = Provider->findComponentInstance(Name);
         if (Nested == nullptr) {
-          spdlog::error(ErrCode::Value::ComponentUnknownExport);
-          spdlog::error("    alias export instance '{}' not found"sv,
-                        Export.second);
-          return Unexpect(ErrCode::Value::ComponentUnknownExport);
+          return logExportNotFound("instance"sv, Name,
+                                   Provider->getComponentName());
         }
-        CompInst.addComponentInstance(Nested);
+        Ctx.importComponentInstance(Nested);
         break;
       }
       case AST::Component::Sort::SortType::Component: {
-        const auto *CInst = CompInst.getComponentInstance(Export.first);
-        const auto *Entry = CInst != nullptr
-                                ? CInst->findComponentEntry(Export.second)
-                                : nullptr;
-        if (Entry == nullptr) {
-          spdlog::error(ErrCode::Value::ComponentUnknownExport);
-          spdlog::error("    alias export component '{}' not found"sv,
-                        Export.second);
-          return Unexpect(ErrCode::Value::ComponentUnknownExport);
+        const auto *CompDef = Provider->findComponentDefinition(Name);
+        if (CompDef == nullptr) {
+          return logExportNotFound("component"sv, Name,
+                                   Provider->getComponentName());
         }
-        CompInst.addComponentEntry(Entry->Ast, Entry->Env);
+        CompInst.addComponentDefinition(*CompDef);
         break;
       }
       case AST::Component::Sort::SortType::Value: {
-        const auto *CInst = CompInst.getComponentInstance(Export.first);
-        const auto *V =
-            CInst != nullptr ? CInst->findValueExport(Export.second) : nullptr;
-        if (V == nullptr) {
-          spdlog::error(ErrCode::Value::ComponentUnknownExport);
-          spdlog::error("    alias export value '{}' not found"sv,
-                        Export.second);
-          return Unexpect(ErrCode::Value::ComponentUnknownExport);
+        const auto *Val = Provider->findValue(Name);
+        if (Val == nullptr) {
+          return logExportNotFound("value"sv, Name,
+                                   Provider->getComponentName());
         }
-        CompInst.addValue(*V);
+        Ctx.addValue(*Val);
         break;
       }
       default:
@@ -106,109 +110,78 @@ ComponentExecutor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
     }
     case AST::Component::Alias::TargetType::CoreExport: {
       assuming(Sort.isCore());
-      const auto &Export = Alias.getExport();
-      const auto *ModInst = CompInst.getCoreModuleInstance(Export.first);
+      const std::string_view Name = Alias.getExport().second;
+      EXPECTED_TRY(const auto *ModInst,
+                   Ctx.getCoreModuleInstance(Alias.getExport().first));
       auto FindExports = [&](const auto &Map) {
-        return ModInst->unsafeFindExports(Map, Export.second);
+        return ModInst->unsafeFindExports(Map, Name);
       };
       switch (Sort.getCoreSortType()) {
-      case AST::Component::Sort::CoreSortType::Func: {
-        auto *FuncInst = ModInst->getFuncExports(FindExports);
-        CompInst.addCoreFunction(FuncInst);
+      case AST::Component::Sort::CoreSortType::Func:
+        Ctx.importCoreFunction(ModInst->getFuncExports(FindExports));
         break;
-      }
-      case AST::Component::Sort::CoreSortType::Table: {
-        auto *TableInst = ModInst->getTableExports(FindExports);
-        CompInst.addCoreTable(TableInst);
+      case AST::Component::Sort::CoreSortType::Table:
+        Ctx.importCoreTable(ModInst->getTableExports(FindExports));
         break;
-      }
-      case AST::Component::Sort::CoreSortType::Memory: {
-        auto *MemInst = ModInst->getMemoryExports(FindExports);
-        CompInst.addCoreMemory(MemInst);
+      case AST::Component::Sort::CoreSortType::Memory:
+        Ctx.importCoreMemory(ModInst->getMemoryExports(FindExports));
         break;
-      }
-      case AST::Component::Sort::CoreSortType::Global: {
-        auto *GlobInst = ModInst->getGlobalExports(FindExports);
-        CompInst.addCoreGlobal(GlobInst);
+      case AST::Component::Sort::CoreSortType::Global:
+        Ctx.importCoreGlobal(ModInst->getGlobalExports(FindExports));
         break;
-      }
-      case AST::Component::Sort::CoreSortType::Tag: {
-        auto *TagInst = ModInst->getTagExports(FindExports);
-        CompInst.addCoreTag(TagInst);
+      case AST::Component::Sort::CoreSortType::Tag:
+        Ctx.importCoreTag(ModInst->getTagExports(FindExports));
         break;
-      }
       case AST::Component::Sort::CoreSortType::Type:
       case AST::Component::Sort::CoreSortType::Module:
       case AST::Component::Sort::CoreSortType::Instance:
         // Validation rejects these sorts on a core instance.
-        spdlog::error(ErrCode::Value::ComponentUnexpectedSort);
-        spdlog::error("    unexpected sort for an alias core:export"sv);
-        return Unexpect(ErrCode::Value::ComponentUnexpectedSort);
+        return logUnexpectedSort();
       default:
         assumingUnreachable();
       }
       break;
     }
     case AST::Component::Alias::TargetType::Outer: {
-      const auto &Outer = Alias.getOuter();
-      // Walk the lexical parent chain. Validation checked the depth.
+      const uint32_t Idx = Alias.getOuter().second;
+      // Walk the lexical parent chain; validation checked the depth.
       const auto *Target = &CompInst;
-      for (uint32_t I = 0; I < Outer.first && Target != nullptr; ++I) {
+      for (uint32_t I = 0; I < Alias.getOuter().first; ++I) {
         Target = Target->getParent();
-      }
-      if (Target == nullptr) {
-        spdlog::error(ErrCode::Value::ComponentInvalidOuterAliasCount);
-        spdlog::error("    outer alias exceeds the instantiation depth"sv);
-        return Unexpect(ErrCode::Value::ComponentInvalidOuterAliasCount);
+        assuming(Target != nullptr);
       }
       if (Sort.isCore()) {
         switch (Sort.getCoreSortType()) {
         case AST::Component::Sort::CoreSortType::Module: {
-          const auto *Mod = Target->getModule(Outer.second);
-          if (Mod == nullptr) {
-            spdlog::error(ErrCode::Value::ComponentUnknownModule);
-            spdlog::error("    outer core module {} not found"sv, Outer.second);
-            return Unexpect(ErrCode::Value::ComponentUnknownModule);
-          }
+          EXPECTED_TRY(const auto *Mod, Target->getModule(Idx));
           CompInst.addModule(*Mod);
           break;
         }
         case AST::Component::Sort::CoreSortType::Type: {
-          const auto *Ty = Target->getCoreType(Outer.second);
-          if (Ty == nullptr) {
-            spdlog::error(ErrCode::Value::InvalidTypeReference);
-            spdlog::error("    outer core type {} not found"sv, Outer.second);
-            return Unexpect(ErrCode::Value::InvalidTypeReference);
-          }
+          EXPECTED_TRY(const auto *Ty, Target->getCoreType(Idx));
           CompInst.addCoreType(*Ty);
           break;
         }
         default:
           // Validation only admits module / type outer aliases.
-          spdlog::error(ErrCode::Value::ComponentUnexpectedSort);
-          spdlog::error("    incomplete alias target outer: core:sort"sv);
-          return Unexpect(ErrCode::Value::ComponentUnexpectedSort);
+          return logUnexpectedSort();
         }
       } else {
         switch (Sort.getSortType()) {
-        case AST::Component::Sort::SortType::Type:
-          CompInst.addTypeWithResource(Target->getType(Outer.second),
-                                       Target->getTypeResource(Outer.second));
+        case AST::Component::Sort::SortType::Type: {
+          EXPECTED_TRY(const auto *TypeDef, Target->getTypeDefinition(Idx));
+          CompInst.addTypeDefinition(*TypeDef);
           break;
-        case AST::Component::Sort::SortType::Component:
-          if (Target->getComponent(Outer.second) == nullptr) {
-            spdlog::error(ErrCode::Value::ComponentUnknownComponent);
-            spdlog::error("    outer component {} not found"sv, Outer.second);
-            return Unexpect(ErrCode::Value::ComponentUnknownComponent);
-          }
-          CompInst.addComponentEntry(Target->getComponent(Outer.second),
-                                     Target->getComponentEnv(Outer.second));
+        }
+        case AST::Component::Sort::SortType::Component: {
+          EXPECTED_TRY(const auto *CompDef,
+                       Target->getComponentDefinition(Idx));
+          CompInst.addComponentDefinition(*CompDef);
           break;
+        }
         default:
           // Validation only admits type / component outer aliases.
-          spdlog::error(ErrCode::Value::ComponentUnexpectedSort);
-          spdlog::error("    incomplete alias target outer: sort"sv);
-          return Unexpect(ErrCode::Value::ComponentUnexpectedSort);
+          return logUnexpectedSort();
         }
       }
       break;

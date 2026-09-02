@@ -9,9 +9,9 @@ namespace Executor {
 
 // Instantiate core module section. See executor.h.
 Expect<void> ComponentExecutor::instantiate(
-    Runtime::Instance::ComponentInstance &CompInst,
+    Component::Instantiator &Ctx,
     const AST::Component::CoreModuleSection &CoreModSec) {
-  CompInst.addModule(CoreModSec.getContent());
+  Ctx.getInstance().addModule(CoreModSec.getContent());
   return {};
 }
 

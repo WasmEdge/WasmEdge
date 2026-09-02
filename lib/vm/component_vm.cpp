@@ -8,6 +8,12 @@
 #include "common/errcode.h"
 #include "common/errinfo.h"
 #include "common/spdlog.h"
+#include "host/wasi/p3/cli.h"
+#include "host/wasi/p3/clocks.h"
+#include "host/wasi/p3/filesystem.h"
+#include "host/wasi/p3/http.h"
+#include "host/wasi/p3/random.h"
+#include "host/wasi/p3/sockets.h"
 #include "plugin/plugin.h"
 
 #include <memory>
@@ -37,8 +43,47 @@ ComponentVM::ComponentVM(const Configure &Conf,
 }
 
 void ComponentVM::unsafeInitVM() {
+  unsafeLoadBuiltInHosts();
   unsafeLoadPlugInHosts();
+  unsafeRegisterBuiltInHosts();
   unsafeRegisterPlugInHosts();
+}
+
+void ComponentVM::unsafeLoadBuiltInHosts() {
+  BuiltInCompInsts.clear();
+  WasiHttp3.reset();
+  WasiEnv.reset();
+  if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
+    WasiEnv = std::make_unique<Host::WasiComponent::Env>();
+    BuiltInCompInsts.push_back(
+        std::make_unique<Host::WasiP3::ClocksTypesInstance>());
+    BuiltInCompInsts.push_back(
+        std::make_unique<Host::WasiP3::MonotonicClockInstance>());
+    BuiltInCompInsts.push_back(
+        std::make_unique<Host::WasiP3::SystemClockInstance>());
+    for (auto &Inst : Host::WasiP3::makeRandomInstances()) {
+      BuiltInCompInsts.push_back(std::move(Inst));
+    }
+    for (auto &Inst : Host::WasiP3::makeCliInstances(*WasiEnv)) {
+      BuiltInCompInsts.push_back(std::move(Inst));
+    }
+    for (auto &Inst : Host::WasiP3::makeFilesystemInstances(*WasiEnv)) {
+      BuiltInCompInsts.push_back(std::move(Inst));
+    }
+    for (auto &Inst : Host::WasiP3::makeSocketsInstances()) {
+      BuiltInCompInsts.push_back(std::move(Inst));
+    }
+    WasiHttp3 = std::make_unique<Host::WasiP3::HttpHost>();
+    for (auto &Inst : Host::WasiP3::makeHttpInstances(*WasiHttp3)) {
+      BuiltInCompInsts.push_back(std::move(Inst));
+    }
+  }
+}
+
+void ComponentVM::unsafeRegisterBuiltInHosts() {
+  for (auto &It : BuiltInCompInsts) {
+    ExecEngine.registerComponent(StoreRef, *(It.get()));
+  }
 }
 
 void ComponentVM::unsafeLoadPlugInHosts() {
@@ -234,6 +279,9 @@ void ComponentVM::unsafeCleanup() {
   StoreRef.reset();
   RegCompInsts.clear();
   RegCompASTs.clear();
+  BuiltInCompInsts.clear();
+  WasiHttp3.reset();
+  WasiEnv.reset();
   PlugInCompInsts.clear();
   Stat.clear();
   unsafeInitVM();

@@ -23,6 +23,8 @@
 
 #include "executor/component/executor.h"
 #include "executor/executor.h"
+#include "host/wasi/component/env.h"
+#include "host/wasi/p3/http.h"
 #include "loader/loader.h"
 #include "validator/validator.h"
 
@@ -161,6 +163,10 @@ public:
   /// Getter for statistics.
   Statistics::Statistics &getStatistics() noexcept { return Stat; }
 
+  /// The WASI environment behind the built-in host components, when the
+  /// configuration registers WASI.
+  Host::WasiComponent::Env *getWasiEnv() noexcept { return WasiEnv.get(); }
+
 private:
   Expect<void> unsafeRegisterComponent(std::string_view Name,
                                        const std::filesystem::path &Path);
@@ -198,7 +204,9 @@ private:
   unsafeTakeComponent(const std::filesystem::path &Path);
 
   void unsafeInitVM();
+  void unsafeLoadBuiltInHosts();
   void unsafeLoadPlugInHosts();
+  void unsafeRegisterBuiltInHosts();
   void unsafeRegisterPlugInHosts();
 
   enum class VMStage : uint8_t { Inited, Loaded, Validated, Instantiated };
@@ -230,6 +238,14 @@ private:
   std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
       RegCompInsts;
   std::vector<std::unique_ptr<AST::Component::Component>> RegCompASTs;
+  /// The WASI environment of the built-in hosts, which outlives them, and
+  /// the io state of the 0.2 hosts.
+  std::unique_ptr<Host::WasiComponent::Env> WasiEnv;
+  std::unique_ptr<Host::WasiP3::HttpHost> WasiHttp3;
+  /// Component instances of the built-in hosts: the WASI interfaces when the
+  /// configuration registers WASI.
+  std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+      BuiltInCompInsts;
   /// Component instances loaded from plug-ins.
   std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
       PlugInCompInsts;

@@ -9,6 +9,7 @@
 #include "common/types.h"
 #include "common/version.h"
 #include "driver/tool.h"
+#include "host/wasi/component/env.h"
 #include "host/wasi/wasimodule.h"
 #include "vm/component_vm.h"
 #include "vm/vm.h"
@@ -19,9 +20,11 @@
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 using namespace std::literals;
@@ -72,13 +75,32 @@ bool parseNumericArg(const std::string &Value, size_t ParamIndex,
     return false;
   }
 }
-} // namespace
 
-static int
-ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
-             std::optional<std::chrono::system_clock::time_point> Timeout,
-             struct DriverToolOptions &Opt,
-             const AST::FunctionType &FuncType) noexcept {
+// Wait for an asynchronous execution, cancelling it at the timeout.
+template <typename T>
+T waitResult(Async<T> &AsyncResult,
+             const std::optional<std::chrono::system_clock::time_point>
+                 &Timeout) noexcept {
+  if (Timeout.has_value() && !AsyncResult.waitUntil(*Timeout)) {
+    AsyncResult.cancel();
+  }
+  return AsyncResult.get();
+}
+
+// The wasm preamble carries a 2-byte layer after the version: it is zero
+// for a core module and non-zero for a component.
+bool isComponentFile(const std::filesystem::path &Path) noexcept {
+  std::ifstream File(Path, std::ios::binary);
+  char Header[8] = {};
+  return File.read(Header, sizeof(Header)) && Header[0] == '\0' &&
+         Header[1] == 'a' && Header[2] == 's' && Header[3] == 'm' &&
+         (Header[6] != 0 || Header[7] != 0);
+}
+
+int ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
+                 std::optional<std::chrono::system_clock::time_point> Timeout,
+                 struct DriverToolOptions &Opt,
+                 const AST::FunctionType &FuncType) noexcept {
   std::vector<ValVariant> FuncArgs;
   std::vector<ValType> FuncArgTypes;
 
@@ -157,12 +179,7 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
   }
 
   auto AsyncResult = VM.asyncExecute(FuncName, FuncArgs, FuncArgTypes);
-  if (Timeout.has_value()) {
-    if (!AsyncResult.waitUntil(*Timeout)) {
-      AsyncResult.cancel();
-    }
-  }
-  if (auto Result = AsyncResult.get()) {
+  if (auto Result = waitResult(AsyncResult, Timeout)) {
     // Print results.
     for (size_t I = 0; I < Result->size(); ++I) {
       switch ((*Result)[I].second.getCode()) {
@@ -212,11 +229,11 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
   }
 }
 
-static int
-ToolOnComponent(WasmEdge::VM::ComponentVM &VM, const std::string &FuncName,
-                std::optional<std::chrono::system_clock::time_point> Timeout,
-                struct DriverToolOptions &Opt,
-                const AST::Component::FuncType &FuncType) noexcept {
+int ToolOnComponent(
+    WasmEdge::VM::ComponentVM &VM, const std::string &FuncName,
+    std::optional<std::chrono::system_clock::time_point> Timeout,
+    struct DriverToolOptions &Opt,
+    const AST::Component::FuncType &FuncType) noexcept {
   std::vector<ComponentValVariant> FuncArgs;
   std::vector<ComponentValType> FuncArgTypes;
 
@@ -313,12 +330,7 @@ ToolOnComponent(WasmEdge::VM::ComponentVM &VM, const std::string &FuncName,
   }
 
   auto AsyncResult = VM.asyncExecute(FuncName, FuncArgs, FuncArgTypes);
-  if (Timeout.has_value()) {
-    if (!AsyncResult.waitUntil(*Timeout)) {
-      AsyncResult.cancel();
-    }
-  }
-  if (auto Result = AsyncResult.get()) {
+  if (auto Result = waitResult(AsyncResult, Timeout)) {
     // Print results.
     for (auto &&Val : *Result) {
       switch (Val.second.getCode()) {
@@ -349,11 +361,118 @@ ToolOnComponent(WasmEdge::VM::ComponentVM &VM, const std::string &FuncName,
     }
 
     return EXIT_SUCCESS;
+  } else if (Result.error() == ErrCode::Value::Terminated &&
+             VM.getWasiEnv() != nullptr) {
+    // `exit` recorded the code.
+    return static_cast<int>(VM.getWasiEnv()->getExitCode());
   } else {
     // It indicates that the execution of wasm has been aborted.
     return 128 + SIGABRT;
   }
 }
+
+// Run a component on its own VM: a command exports `run` of its
+// `wasi:cli/run` world, a reactor the named function.
+int runComponent(
+    const Configure &Conf, const std::filesystem::path &InputPath,
+    struct DriverToolOptions &Opt,
+    std::optional<std::chrono::system_clock::time_point> Timeout) noexcept {
+  VM::ComponentVM CompVM(Conf);
+
+  for (const auto &ModEntry : Opt.LinkedModules.value()) {
+    auto Pos = ModEntry.find(':');
+    if (Pos == std::string::npos) {
+      spdlog::error("Invalid --module format: \"{}\". Expected name:path."sv,
+                    ModEntry);
+      return EXIT_FAILURE;
+    }
+    auto Name = ModEntry.substr(0, Pos);
+    auto Path = std::filesystem::absolute(
+        std::filesystem::u8path(ModEntry.substr(Pos + 1)));
+    if (auto Result = CompVM.registerComponent(Name, Path); !Result) {
+      spdlog::error("Failed to register component \"{}\" from: {}"sv, Name,
+                    Path.u8string());
+      return EXIT_FAILURE;
+    }
+  }
+
+  // Load, validate, and instantiate the component.
+  if (auto Result = CompVM.loadWasm(InputPath.u8string()); !Result) {
+    return EXIT_FAILURE;
+  }
+  if (auto Result = CompVM.validate(); !Result) {
+    return EXIT_FAILURE;
+  }
+  if (auto Result = CompVM.instantiate(); !Result) {
+    return EXIT_FAILURE;
+  }
+
+  // A command component exports `run` of its `wasi:cli/run` world.
+  std::string RunName;
+  for (const auto &Func : CompVM.getFunctionList()) {
+    const std::string_view Name = Func.first;
+    if (Name.substr(0, 13) == "wasi:cli/run@"sv && Name.size() > 4 &&
+        Name.substr(Name.size() - 4) == "#run"sv) {
+      RunName = Func.first;
+    }
+  }
+  const bool EnterCommandMode = !Opt.Reactor.value() && !RunName.empty();
+
+  // Initialize the WASI environment.
+  const std::string ProgramName =
+      InputPath.filename()
+          .replace_extension(std::filesystem::u8path("wasm"sv))
+          .u8string();
+  if (auto *WasiEnv = CompVM.getWasiEnv(); WasiEnv != nullptr) {
+    WasiEnv->init(Opt.Dir.value(), ProgramName, Opt.Args.value(),
+                  Opt.Env.value());
+  }
+
+  if (EnterCommandMode) {
+    // `run` returns `result`, whose error is exit status 1; `exit`
+    // terminates with the recorded code.
+    auto AsyncResult = CompVM.asyncExecute(RunName);
+    auto Result = waitResult(AsyncResult, Timeout);
+    if (Result) {
+      if (!Result->empty()) {
+        const auto &Val = (*Result)[0].first;
+        if (isComponentVal<ResultVal>(Val) &&
+            !getComponentVal<ResultVal>(Val).IsOk) {
+          return EXIT_FAILURE;
+        }
+      }
+      return EXIT_SUCCESS;
+    }
+    if (Result.error() == ErrCode::Value::Terminated) {
+      return static_cast<int>(CompVM.getWasiEnv()->getExitCode());
+    }
+    // It indicates that the execution of wasm has been aborted.
+    return 128 + SIGABRT;
+  }
+
+  // reactor mode
+  if (Opt.Args.value().empty()) {
+    fmt::print(stderr,
+               "A function name is required when reactor mode is enabled.\n"sv);
+    return EXIT_FAILURE;
+  }
+  const auto &FuncName = Opt.Args.value().front();
+  const AST::Component::FuncType *FuncType = nullptr;
+  for (const auto &Func : CompVM.getFunctionList()) {
+    if (Func.first == FuncName) {
+      FuncType = &Func.second;
+    }
+  }
+  if (FuncType == nullptr) {
+    fmt::print(stderr,
+               "Function \"{}\" not found in the component export list.\n"sv,
+               FuncName);
+    return EXIT_FAILURE;
+  }
+  return ToolOnComponent(CompVM, FuncName, Timeout, Opt, *FuncType);
+}
+
+} // namespace
 
 int Tool(struct DriverToolOptions &Opt) noexcept {
   std::ios::sync_with_stdio(false);
@@ -440,9 +559,12 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   const auto InputPath =
       std::filesystem::absolute(std::filesystem::u8path(Opt.SoName.value()));
 
+  if (isComponentFile(InputPath)) {
+    return runComponent(Conf, InputPath, Opt, Timeout);
+  }
+
   // Create VM and get WASI module instance.
   VM::VM VM(Conf);
-  VM::ComponentVM CompVM(Conf);
   Host::WasiModule *WasiMod = dynamic_cast<Host::WasiModule *>(
       VM.getImportModule(HostRegistration::Wasi));
 
@@ -463,40 +585,15 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     }
   }
 
-  // The wasm preamble carries a 2-byte layer after the version: it is zero
-  // for a core module and non-zero for a component. Each kind runs on its
-  // own VM.
-  bool IsComponent = false;
-  {
-    std::ifstream File(InputPath, std::ios::binary);
-    char Header[8] = {};
-    if (File.read(Header, sizeof(Header))) {
-      IsComponent = Header[0] == '\0' && Header[1] == 'a' && Header[2] == 's' &&
-                    Header[3] == 'm' && (Header[6] != 0 || Header[7] != 0);
-    }
+  // Load, validate, and instantiate the WASM module.
+  if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
+    return EXIT_FAILURE;
   }
-
-  // Load, validate, and instantiate the WASM module or the component.
-  if (IsComponent) {
-    if (auto Result = CompVM.loadWasm(InputPath.u8string()); !Result) {
-      return EXIT_FAILURE;
-    }
-    if (auto Result = CompVM.validate(); !Result) {
-      return EXIT_FAILURE;
-    }
-    if (auto Result = CompVM.instantiate(); !Result) {
-      return EXIT_FAILURE;
-    }
-  } else {
-    if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
-      return EXIT_FAILURE;
-    }
-    if (auto Result = VM.validate(); !Result) {
-      return EXIT_FAILURE;
-    }
-    if (auto Result = VM.instantiate(); !Result) {
-      return EXIT_FAILURE;
-    }
+  if (auto Result = VM.validate(); !Result) {
+    return EXIT_FAILURE;
+  }
+  if (auto Result = VM.instantiate(); !Result) {
+    return EXIT_FAILURE;
   }
 
   auto HasValidCommandModStartFunc = [&]() {
@@ -523,111 +620,68 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
 
     return HasStart && Valid;
   };
-
-  // TODO: COMPONENT - does component start function named as "_start"?
-  bool EnterCommandMode = !Opt.Reactor.value() && HasValidCommandModStartFunc();
+  const bool EnterCommandMode =
+      !Opt.Reactor.value() && HasValidCommandModStartFunc();
 
   // Initialize WASI module.
-  WasiMod->init(Opt.Dir.value(),
-                InputPath.filename()
-                    .replace_extension(std::filesystem::u8path("wasm"sv))
-                    .u8string(),
-                Opt.Args.value(), Opt.Env.value());
+  const std::string ProgramName =
+      InputPath.filename()
+          .replace_extension(std::filesystem::u8path("wasm"sv))
+          .u8string();
+  WasiMod->init(Opt.Dir.value(), ProgramName, Opt.Args.value(),
+                Opt.Env.value());
 
   if (EnterCommandMode) {
     // command mode
-
-    // TODO: COMPONENT - currently not supported.
     auto AsyncResult = VM.asyncExecute("_start"sv);
-    if (Timeout.has_value()) {
-      if (!AsyncResult.waitUntil(*Timeout)) {
-        AsyncResult.cancel();
-      }
-    }
-    if (auto Result = AsyncResult.get();
+    if (auto Result = waitResult(AsyncResult, Timeout);
         Result || Result.error() == ErrCode::Value::Terminated) {
       return static_cast<int>(WasiMod->getExitCode());
-    } else {
+    }
+    // It indicates that the execution of wasm has been aborted.
+    return 128 + SIGABRT;
+  }
+
+  // reactor mode
+  if (Opt.Args.value().empty()) {
+    fmt::print(stderr,
+               "A function name is required when reactor mode is enabled.\n"sv);
+    return EXIT_FAILURE;
+  }
+  const auto &FuncName = Opt.Args.value().front();
+
+  // Check the exported function name and function type first.
+  const auto InitFunc = "_initialize"s;
+  bool HasInit = false;
+  const AST::FunctionType *FuncType = nullptr;
+  for (const auto &Func : VM.getFunctionList()) {
+    if (Func.first == InitFunc) {
+      // Found the init function.
+      HasInit = true;
+    }
+    if (Func.first == FuncName) {
+      // Found the function to invoke.
+      FuncType = &Func.second;
+    }
+  }
+
+  if (FuncType == nullptr) {
+    fmt::print(stderr,
+               "Function \"{}\" not found in the module export list.\n"sv,
+               FuncName);
+    return EXIT_FAILURE;
+  }
+
+  // If the initialize function was found and is not being called
+  // explicitly, invoke it first.
+  if (HasInit && FuncName != InitFunc) {
+    auto AsyncResult = VM.asyncExecute(InitFunc);
+    if (auto Result = waitResult(AsyncResult, Timeout); unlikely(!Result)) {
       // It indicates that the execution of wasm has been aborted.
       return 128 + SIGABRT;
     }
-  } else {
-    // reactor mode
-
-    // Get the function name to invoke.
-    if (Opt.Args.value().empty()) {
-      fmt::print(
-          stderr,
-          "A function name is required when reactor mode is enabled.\n"sv);
-      return EXIT_FAILURE;
-    }
-    const auto &FuncName = Opt.Args.value().front();
-
-    if (VM.holdsModule()) {
-      // WASM case.
-
-      // Check the exported function name and function type first.
-      const auto InitFunc = "_initialize"s;
-      bool HasInit = false;
-      const AST::FunctionType *FuncType = nullptr;
-      for (const auto &Func : VM.getFunctionList()) {
-        if (Func.first == InitFunc) {
-          // Found the init function.
-          HasInit = true;
-        }
-        if (Func.first == FuncName) {
-          // Found the function to invoke.
-          FuncType = &Func.second;
-        }
-      }
-
-      if (FuncType == nullptr) {
-        fmt::print(stderr,
-                   "Function \"{}\" not found in the module export list.\n"sv,
-                   FuncName);
-        return EXIT_FAILURE;
-      }
-
-      // If the initialize function was found and is not being called
-      // explicitly, invoke it first.
-      if (HasInit && FuncName != InitFunc) {
-        auto AsyncResult = VM.asyncExecute(InitFunc);
-        if (Timeout.has_value()) {
-          if (!AsyncResult.waitUntil(*Timeout)) {
-            AsyncResult.cancel();
-          }
-        }
-        if (auto Result = AsyncResult.get(); unlikely(!Result)) {
-          // It indicates that the execution of wasm has been aborted.
-          return 128 + SIGABRT;
-        }
-      }
-      return ToolOnModule(VM, FuncName, Timeout, Opt, *FuncType);
-    } else if (IsComponent) {
-      // Component case.
-
-      // Check the exported function name and function type first.
-      const AST::Component::FuncType *FuncType = nullptr;
-      for (const auto &Func : CompVM.getFunctionList()) {
-        if (Func.first == FuncName) {
-          // Found the function to invoke.
-          FuncType = &Func.second;
-        }
-      }
-      if (FuncType == nullptr) {
-        fmt::print(
-            stderr,
-            "Function \"{}\" not found in the component export list.\n"sv,
-            FuncName);
-        return EXIT_FAILURE;
-      }
-      return ToolOnComponent(CompVM, FuncName, Timeout, Opt, *FuncType);
-    } else {
-      // which means VM has neither instantiated module nor instantiated
-      // component
-      return 128 + SIGABRT;
-    }
   }
+  return ToolOnModule(VM, FuncName, Timeout, Opt, *FuncType);
 }
 
 } // namespace Driver

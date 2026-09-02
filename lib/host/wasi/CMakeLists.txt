@@ -15,6 +15,13 @@ wasmedge_add_library(wasmedgeHostModuleWasi
   wasifunc.cpp
   wasimodule.cpp
   vfs_io.cpp
+  component/env.cpp
+  p3/p3_clocks.cpp
+  p3/p3_random.cpp
+  p3/p3_cli.cpp
+  p3/p3_filesystem.cpp
+  p3/p3_sockets.cpp
+  p3/p3_http.cpp
   ${WASMEDGE_WASI_SRCS}
 )
 

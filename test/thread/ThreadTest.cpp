@@ -162,251 +162,263 @@ std::array<uint64_t, 4> Answers{
     UINT64_C(4446454406775736720),
     UINT64_C(9019442596657776185),
 };
-std::array<WasmEdge::Byte, 122> AtomicThreads32{
-    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x15, 0x03, 0x60,
-    0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x60, 0x03, 0x7f, 0x7f, 0x7e, 0x01, 0x7f,
-    0x60, 0x03, 0x7f, 0x7e, 0x7e, 0x01, 0x7f, 0x03, 0x04, 0x03, 0x00, 0x01,
-    0x02, 0x05, 0x04, 0x01, 0x03, 0x01, 0x01, 0x07, 0x25, 0x04, 0x06, 0x6d,
-    0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x06, 0x6e, 0x6f, 0x74, 0x69,
-    0x66, 0x79, 0x00, 0x00, 0x06, 0x77, 0x61, 0x69, 0x74, 0x33, 0x32, 0x00,
-    0x01, 0x06, 0x77, 0x61, 0x69, 0x74, 0x36, 0x34, 0x00, 0x02, 0x0a, 0x26,
-    0x03, 0x0a, 0x00, 0x20, 0x00, 0x20, 0x01, 0xfe, 0x00, 0x02, 0x00, 0x0b,
-    0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x01, 0x02, 0x00,
-    0x0b, 0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x02, 0x03,
-    0x00, 0x0b,
-};
-std::array<WasmEdge::Byte, 255> AtomicThreads64{
-    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x1a, 0x04, 0x60,
-    0x02, 0x7e, 0x7f, 0x01, 0x7f, 0x60, 0x01, 0x7e, 0x01, 0x7f, 0x60, 0x03,
-    0x7e, 0x7f, 0x7e, 0x01, 0x7f, 0x60, 0x03, 0x7e, 0x7e, 0x7e, 0x01, 0x7f,
-    0x03, 0x08, 0x07, 0x00, 0x00, 0x01, 0x02, 0x02, 0x03, 0x03, 0x05, 0x04,
-    0x01, 0x07, 0x01, 0x01, 0x07, 0x6c, 0x08, 0x06, 0x6d, 0x65, 0x6d, 0x6f,
-    0x72, 0x79, 0x02, 0x00, 0x06, 0x6e, 0x6f, 0x74, 0x69, 0x66, 0x79, 0x00,
-    0x00, 0x0d, 0x6e, 0x6f, 0x74, 0x69, 0x66, 0x79, 0x2d, 0x6f, 0x66, 0x66,
-    0x73, 0x65, 0x74, 0x00, 0x01, 0x14, 0x6e, 0x6f, 0x74, 0x69, 0x66, 0x79,
-    0x2d, 0x77, 0x72, 0x61, 0x70, 0x70, 0x65, 0x64, 0x2d, 0x63, 0x6f, 0x75,
-    0x6e, 0x74, 0x00, 0x02, 0x06, 0x77, 0x61, 0x69, 0x74, 0x33, 0x32, 0x00,
-    0x03, 0x0d, 0x77, 0x61, 0x69, 0x74, 0x33, 0x32, 0x2d, 0x6f, 0x66, 0x66,
-    0x73, 0x65, 0x74, 0x00, 0x04, 0x06, 0x77, 0x61, 0x69, 0x74, 0x36, 0x34,
-    0x00, 0x05, 0x0d, 0x77, 0x61, 0x69, 0x74, 0x36, 0x34, 0x2d, 0x6f, 0x66,
-    0x66, 0x73, 0x65, 0x74, 0x00, 0x06, 0x0a, 0x5b, 0x07, 0x0a, 0x00, 0x20,
-    0x00, 0x20, 0x01, 0xfe, 0x00, 0x02, 0x00, 0x0b, 0x0a, 0x00, 0x20, 0x00,
-    0x20, 0x01, 0xfe, 0x00, 0x02, 0x04, 0x0b, 0x0f, 0x00, 0x20, 0x00, 0x42,
-    0x81, 0x80, 0x80, 0x80, 0x20, 0xa7, 0xfe, 0x00, 0x02, 0x00, 0x0b, 0x0c,
-    0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x01, 0x02, 0x00, 0x0b,
-    0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x01, 0x02, 0x04,
-    0x0b, 0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x02, 0x03,
-    0x00, 0x0b, 0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x02,
-    0x03, 0x08, 0x0b,
-};
 
 using namespace std::literals;
 
-constexpr uint32_t WaitOk = UINT32_C(0);
-constexpr uint32_t WaitNotEqual = UINT32_C(1);
-constexpr uint32_t WaitTimedOut = UINT32_C(2);
+class AtomicWaitNotify : public ::testing::Test {
+protected:
+  static inline const std::array<WasmEdge::Byte, 122> Memory32Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x15, 0x03, 0x60,
+      0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x60, 0x03, 0x7f, 0x7f, 0x7e, 0x01, 0x7f,
+      0x60, 0x03, 0x7f, 0x7e, 0x7e, 0x01, 0x7f, 0x03, 0x04, 0x03, 0x00, 0x01,
+      0x02, 0x05, 0x04, 0x01, 0x03, 0x01, 0x01, 0x07, 0x25, 0x04, 0x06, 0x6d,
+      0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x06, 0x6e, 0x6f, 0x74, 0x69,
+      0x66, 0x79, 0x00, 0x00, 0x06, 0x77, 0x61, 0x69, 0x74, 0x33, 0x32, 0x00,
+      0x01, 0x06, 0x77, 0x61, 0x69, 0x74, 0x36, 0x34, 0x00, 0x02, 0x0a, 0x26,
+      0x03, 0x0a, 0x00, 0x20, 0x00, 0x20, 0x01, 0xfe, 0x00, 0x02, 0x00, 0x0b,
+      0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x01, 0x02, 0x00,
+      0x0b, 0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x02, 0x03,
+      0x00, 0x0b,
+  };
+  static inline const std::array<WasmEdge::Byte, 255> Memory64Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x1a, 0x04, 0x60,
+      0x02, 0x7e, 0x7f, 0x01, 0x7f, 0x60, 0x01, 0x7e, 0x01, 0x7f, 0x60, 0x03,
+      0x7e, 0x7f, 0x7e, 0x01, 0x7f, 0x60, 0x03, 0x7e, 0x7e, 0x7e, 0x01, 0x7f,
+      0x03, 0x08, 0x07, 0x00, 0x00, 0x01, 0x02, 0x02, 0x03, 0x03, 0x05, 0x04,
+      0x01, 0x07, 0x01, 0x01, 0x07, 0x6c, 0x08, 0x06, 0x6d, 0x65, 0x6d, 0x6f,
+      0x72, 0x79, 0x02, 0x00, 0x06, 0x6e, 0x6f, 0x74, 0x69, 0x66, 0x79, 0x00,
+      0x00, 0x0d, 0x6e, 0x6f, 0x74, 0x69, 0x66, 0x79, 0x2d, 0x6f, 0x66, 0x66,
+      0x73, 0x65, 0x74, 0x00, 0x01, 0x14, 0x6e, 0x6f, 0x74, 0x69, 0x66, 0x79,
+      0x2d, 0x77, 0x72, 0x61, 0x70, 0x70, 0x65, 0x64, 0x2d, 0x63, 0x6f, 0x75,
+      0x6e, 0x74, 0x00, 0x02, 0x06, 0x77, 0x61, 0x69, 0x74, 0x33, 0x32, 0x00,
+      0x03, 0x0d, 0x77, 0x61, 0x69, 0x74, 0x33, 0x32, 0x2d, 0x6f, 0x66, 0x66,
+      0x73, 0x65, 0x74, 0x00, 0x04, 0x06, 0x77, 0x61, 0x69, 0x74, 0x36, 0x34,
+      0x00, 0x05, 0x0d, 0x77, 0x61, 0x69, 0x74, 0x36, 0x34, 0x2d, 0x6f, 0x66,
+      0x66, 0x73, 0x65, 0x74, 0x00, 0x06, 0x0a, 0x5b, 0x07, 0x0a, 0x00, 0x20,
+      0x00, 0x20, 0x01, 0xfe, 0x00, 0x02, 0x00, 0x0b, 0x0a, 0x00, 0x20, 0x00,
+      0x20, 0x01, 0xfe, 0x00, 0x02, 0x04, 0x0b, 0x0f, 0x00, 0x20, 0x00, 0x42,
+      0x81, 0x80, 0x80, 0x80, 0x20, 0xa7, 0xfe, 0x00, 0x02, 0x00, 0x0b, 0x0c,
+      0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x01, 0x02, 0x00, 0x0b,
+      0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x01, 0x02, 0x04,
+      0x0b, 0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x02, 0x03,
+      0x00, 0x0b, 0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x02,
+      0x03, 0x08, 0x0b,
+  };
 
-const WasmEdge::ValType TyI32(WasmEdge::TypeCode::I32);
-const WasmEdge::ValType TyI64(WasmEdge::TypeCode::I64);
+  static constexpr uint32_t WaitNotEqual = UINT32_C(1);
+  static constexpr uint32_t WaitTimedOut = UINT32_C(2);
 
-void expectAtomicValue(WasmEdge::VM::VM &VM, std::string_view Func,
-                       std::initializer_list<WasmEdge::ValVariant> Params,
-                       std::initializer_list<WasmEdge::ValType> ParamTypes,
-                       uint32_t Want) {
-  auto Result = VM.execute(Func, Params, ParamTypes);
-  ASSERT_TRUE(Result);
-  ASSERT_EQ(Result->size(), 1U);
-  EXPECT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
-  EXPECT_EQ((*Result)[0].first.get<uint32_t>(), Want);
-}
+  const WasmEdge::ValType TyI32{WasmEdge::TypeCode::I32};
+  const WasmEdge::ValType TyI64{WasmEdge::TypeCode::I64};
 
-void expectAtomicTrap(WasmEdge::VM::VM &VM, std::string_view Func,
-                      std::initializer_list<WasmEdge::ValVariant> Params,
-                      std::initializer_list<WasmEdge::ValType> ParamTypes,
-                      WasmEdge::ErrCode::Value Want) {
-  auto Result = VM.execute(Func, Params, ParamTypes);
-  ASSERT_FALSE(Result);
-  EXPECT_EQ(Result.error(), Want);
-}
-
-void registerWaiters(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
-                     uint64_t Address, size_t Count) {
-  std::unique_lock<std::mutex> Locker(MemInst.getWaiterMapMutex());
-  auto &WaiterMap = MemInst.getWaiterMap();
-  for (size_t I = 0; I < Count; ++I) {
-    WaiterMap.emplace(std::piecewise_construct, std::forward_as_tuple(Address),
-                      std::forward_as_tuple());
+  static void
+  expectAtomicValue(WasmEdge::VM::VM &VM, std::string_view Func,
+                    std::initializer_list<WasmEdge::ValVariant> Params,
+                    std::initializer_list<WasmEdge::ValType> ParamTypes,
+                    uint32_t Want) {
+    auto Result = VM.execute(Func, Params, ParamTypes);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 1U);
+    EXPECT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), Want);
   }
-}
 
-void runAtomicThreads32Test(WasmEdge::RunMode Mode) {
-  WasmEdge::Configure Conf;
-  Conf.addProposal(WasmEdge::Proposal::Threads);
-  Conf.getRuntimeConfigure().setRunMode(Mode);
-  WasmEdge::VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(AtomicThreads32));
-  ASSERT_TRUE(VM.validate());
-  ASSERT_TRUE(VM.instantiate());
+  static void
+  expectAtomicTrap(WasmEdge::VM::VM &VM, std::string_view Func,
+                   std::initializer_list<WasmEdge::ValVariant> Params,
+                   std::initializer_list<WasmEdge::ValType> ParamTypes,
+                   WasmEdge::ErrCode::Value Want) {
+    auto Result = VM.execute(Func, Params, ParamTypes);
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), Want);
+  }
 
-  if (Mode == WasmEdge::RunMode::JIT) {
-    for (const auto Name : {"notify"sv, "wait32"sv, "wait64"sv}) {
-      SCOPED_TRACE(Name);
-      const auto *F = VM.getActiveModule()->findFuncExports(Name);
-      ASSERT_NE(F, nullptr);
-      EXPECT_TRUE(F->isCompiledFunction());
+  static void
+  registerWaiters(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
+                  uint64_t Address, size_t Count) {
+    std::unique_lock<std::mutex> Locker(MemInst.getWaiterMapMutex());
+    auto &WaiterMap = MemInst.getWaiterMap();
+    for (size_t I = 0; I < Count; ++I) {
+      WaiterMap.emplace(std::piecewise_construct,
+                        std::forward_as_tuple(Address),
+                        std::forward_as_tuple());
     }
   }
 
-  for (const uint32_t Address : {UINT32_C(4), UINT32_C(65532)}) {
-    SCOPED_TRACE(Address);
-    expectAtomicValue(VM, "notify"sv, {Address, UINT32_C(1)}, {TyI32, TyI32},
-                      UINT32_C(0));
-  }
-  for (const auto &[Address, Error] :
-       {std::pair{UINT32_C(65533),
-                  WasmEdge::ErrCode::Value::UnalignedAtomicAccess},
-        std::pair{UINT32_C(65536),
-                  WasmEdge::ErrCode::Value::MemoryOutOfBounds}}) {
-    SCOPED_TRACE(Address);
-    expectAtomicTrap(VM, "notify"sv, {Address, UINT32_C(1)}, {TyI32, TyI32},
-                     Error);
-  }
+  void runMemory32Cases(WasmEdge::RunMode Mode) {
+    WasmEdge::Configure Conf;
+    Conf.addProposal(WasmEdge::Proposal::Threads);
+    Conf.getRuntimeConfigure().setRunMode(Mode);
+    WasmEdge::VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(Memory32Wasm));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
 
-  expectAtomicValue(VM, "wait32"sv, {UINT32_C(65532), UINT32_C(1), UINT64_C(0)},
-                    {TyI32, TyI32, TyI64}, WaitNotEqual);
-  expectAtomicValue(VM, "wait32"sv, {UINT32_C(0), UINT32_C(0), UINT64_C(0)},
-                    {TyI32, TyI32, TyI64}, WaitTimedOut);
-  for (const auto &[Address, Error] :
-       {std::pair{UINT32_C(65533),
-                  WasmEdge::ErrCode::Value::UnalignedAtomicAccess},
-        std::pair{UINT32_C(65536),
-                  WasmEdge::ErrCode::Value::MemoryOutOfBounds}}) {
-    SCOPED_TRACE(Address);
-    expectAtomicTrap(VM, "wait32"sv, {Address, UINT32_C(1), UINT64_C(0)},
-                     {TyI32, TyI32, TyI64}, Error);
-  }
+    if (Mode == WasmEdge::RunMode::JIT) {
+      for (const auto Name : {"notify"sv, "wait32"sv, "wait64"sv}) {
+        SCOPED_TRACE(Name);
+        const auto *F = VM.getActiveModule()->findFuncExports(Name);
+        ASSERT_NE(F, nullptr);
+        EXPECT_TRUE(F->isCompiledFunction());
+      }
+    }
 
-  expectAtomicValue(VM, "wait64"sv, {UINT32_C(65528), UINT64_C(1), UINT64_C(0)},
-                    {TyI32, TyI64, TyI64}, WaitNotEqual);
-  for (const auto &[Address, Error] :
-       {std::pair{UINT32_C(65532),
-                  WasmEdge::ErrCode::Value::UnalignedAtomicAccess},
-        std::pair{UINT32_C(65536),
-                  WasmEdge::ErrCode::Value::MemoryOutOfBounds}}) {
-    SCOPED_TRACE(Address);
-    expectAtomicTrap(VM, "wait64"sv, {Address, UINT64_C(1), UINT64_C(0)},
-                     {TyI32, TyI64, TyI64}, Error);
-  }
-}
+    for (const uint32_t Address : {UINT32_C(4), UINT32_C(65532)}) {
+      SCOPED_TRACE(Address);
+      expectAtomicValue(VM, "notify"sv, {Address, UINT32_C(1)}, {TyI32, TyI32},
+                        UINT32_C(0));
+    }
+    for (const auto &[Address, Error] :
+         {std::pair{UINT32_C(65533),
+                    WasmEdge::ErrCode::Value::UnalignedAtomicAccess},
+          std::pair{UINT32_C(65536),
+                    WasmEdge::ErrCode::Value::MemoryOutOfBounds}}) {
+      SCOPED_TRACE(Address);
+      expectAtomicTrap(VM, "notify"sv, {Address, UINT32_C(1)}, {TyI32, TyI32},
+                       Error);
+    }
 
-void runAtomicThreads64Test(WasmEdge::RunMode Mode) {
-  WasmEdge::Configure Conf;
-  Conf.addProposal(WasmEdge::Proposal::Threads);
-  Conf.addProposal(WasmEdge::Proposal::Memory64);
-  Conf.getRuntimeConfigure().setRunMode(Mode);
-  WasmEdge::VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(AtomicThreads64));
-  ASSERT_TRUE(VM.validate());
-  ASSERT_TRUE(VM.instantiate());
+    expectAtomicValue(VM, "wait32"sv,
+                      {UINT32_C(65532), UINT32_C(1), UINT64_C(0)},
+                      {TyI32, TyI32, TyI64}, WaitNotEqual);
+    expectAtomicValue(VM, "wait32"sv, {UINT32_C(0), UINT32_C(0), UINT64_C(0)},
+                      {TyI32, TyI32, TyI64}, WaitTimedOut);
+    for (const auto &[Address, Error] :
+         {std::pair{UINT32_C(65533),
+                    WasmEdge::ErrCode::Value::UnalignedAtomicAccess},
+          std::pair{UINT32_C(65536),
+                    WasmEdge::ErrCode::Value::MemoryOutOfBounds}}) {
+      SCOPED_TRACE(Address);
+      expectAtomicTrap(VM, "wait32"sv, {Address, UINT32_C(1), UINT64_C(0)},
+                       {TyI32, TyI32, TyI64}, Error);
+    }
 
-  if (Mode == WasmEdge::RunMode::JIT) {
-    for (const auto Name : {"notify"sv, "notify-offset"sv, "wait32"sv,
-                            "wait32-offset"sv, "wait64"sv, "wait64-offset"sv}) {
-      SCOPED_TRACE(Name);
-      const auto *F = VM.getActiveModule()->findFuncExports(Name);
-      ASSERT_NE(F, nullptr);
-      EXPECT_TRUE(F->isCompiledFunction());
+    expectAtomicValue(VM, "wait64"sv,
+                      {UINT32_C(65528), UINT64_C(1), UINT64_C(0)},
+                      {TyI32, TyI64, TyI64}, WaitNotEqual);
+    for (const auto &[Address, Error] :
+         {std::pair{UINT32_C(65532),
+                    WasmEdge::ErrCode::Value::UnalignedAtomicAccess},
+          std::pair{UINT32_C(65536),
+                    WasmEdge::ErrCode::Value::MemoryOutOfBounds}}) {
+      SCOPED_TRACE(Address);
+      expectAtomicTrap(VM, "wait64"sv, {Address, UINT64_C(1), UINT64_C(0)},
+                       {TyI32, TyI64, TyI64}, Error);
     }
   }
 
-  for (const uint64_t Address : {UINT64_C(4), UINT64_C(65532)}) {
-    SCOPED_TRACE(Address);
-    expectAtomicValue(VM, "notify"sv, {Address, UINT32_C(1)}, {TyI64, TyI32},
-                      UINT32_C(0));
-  }
-  for (const auto &[Address, Error] :
-       {std::pair{UINT64_C(65533),
-                  WasmEdge::ErrCode::Value::UnalignedAtomicAccess},
-        std::pair{UINT64_C(65536),
-                  WasmEdge::ErrCode::Value::MemoryOutOfBounds}}) {
-    SCOPED_TRACE(Address);
-    expectAtomicTrap(VM, "notify"sv, {Address, UINT32_C(1)}, {TyI64, TyI32},
-                     Error);
-  }
+  void runMemory64Cases(WasmEdge::RunMode Mode) {
+    WasmEdge::Configure Conf;
+    Conf.addProposal(WasmEdge::Proposal::Threads);
+    Conf.addProposal(WasmEdge::Proposal::Memory64);
+    Conf.getRuntimeConfigure().setRunMode(Mode);
+    WasmEdge::VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(Memory64Wasm));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
 
-  expectAtomicValue(VM, "notify-offset"sv, {UINT64_C(65528), UINT32_C(1)},
-                    {TyI64, TyI32}, UINT32_C(0));
-  for (const uint64_t Address :
-       {UINT64_C(65532), UINT64_C(0xFFFFFFFFFFFFFFFC)}) {
-    SCOPED_TRACE(Address);
-    expectAtomicTrap(VM, "notify-offset"sv, {Address, UINT32_C(1)},
-                     {TyI64, TyI32},
-                     WasmEdge::ErrCode::Value::MemoryOutOfBounds);
-  }
+    if (Mode == WasmEdge::RunMode::JIT) {
+      for (const auto Name :
+           {"notify"sv, "notify-offset"sv, "wait32"sv, "wait32-offset"sv,
+            "wait64"sv, "wait64-offset"sv}) {
+        SCOPED_TRACE(Name);
+        const auto *F = VM.getActiveModule()->findFuncExports(Name);
+        ASSERT_NE(F, nullptr);
+        EXPECT_TRUE(F->isCompiledFunction());
+      }
+    }
 
-  expectAtomicValue(VM, "wait32"sv, {UINT64_C(65532), UINT32_C(1), UINT64_C(0)},
-                    {TyI64, TyI32, TyI64}, WaitNotEqual);
-  expectAtomicValue(VM, "wait32"sv, {UINT64_C(0), UINT32_C(0), UINT64_C(0)},
-                    {TyI64, TyI32, TyI64}, WaitTimedOut);
-  for (const auto &[Address, Error] :
-       {std::pair{UINT64_C(65533),
-                  WasmEdge::ErrCode::Value::UnalignedAtomicAccess},
-        std::pair{UINT64_C(65536),
-                  WasmEdge::ErrCode::Value::MemoryOutOfBounds}}) {
-    SCOPED_TRACE(Address);
-    expectAtomicTrap(VM, "wait32"sv, {Address, UINT32_C(1), UINT64_C(0)},
-                     {TyI64, TyI32, TyI64}, Error);
-  }
-  expectAtomicValue(VM, "wait32-offset"sv,
-                    {UINT64_C(65528), UINT32_C(1), UINT64_C(0)},
-                    {TyI64, TyI32, TyI64}, WaitNotEqual);
-  for (const uint64_t Address :
-       {UINT64_C(65532), UINT64_C(0xFFFFFFFFFFFFFFFC)}) {
-    SCOPED_TRACE(Address);
-    expectAtomicTrap(VM, "wait32-offset"sv, {Address, UINT32_C(1), UINT64_C(0)},
-                     {TyI64, TyI32, TyI64},
-                     WasmEdge::ErrCode::Value::MemoryOutOfBounds);
-  }
+    for (const uint64_t Address : {UINT64_C(4), UINT64_C(65532)}) {
+      SCOPED_TRACE(Address);
+      expectAtomicValue(VM, "notify"sv, {Address, UINT32_C(1)}, {TyI64, TyI32},
+                        UINT32_C(0));
+    }
+    for (const auto &[Address, Error] :
+         {std::pair{UINT64_C(65533),
+                    WasmEdge::ErrCode::Value::UnalignedAtomicAccess},
+          std::pair{UINT64_C(65536),
+                    WasmEdge::ErrCode::Value::MemoryOutOfBounds}}) {
+      SCOPED_TRACE(Address);
+      expectAtomicTrap(VM, "notify"sv, {Address, UINT32_C(1)}, {TyI64, TyI32},
+                       Error);
+    }
 
-  expectAtomicValue(VM, "wait64"sv, {UINT64_C(65528), UINT64_C(1), UINT64_C(0)},
-                    {TyI64, TyI64, TyI64}, WaitNotEqual);
-  for (const auto &[Address, Error] :
-       {std::pair{UINT64_C(65532),
-                  WasmEdge::ErrCode::Value::UnalignedAtomicAccess},
-        std::pair{UINT64_C(65536),
-                  WasmEdge::ErrCode::Value::MemoryOutOfBounds}}) {
-    SCOPED_TRACE(Address);
-    expectAtomicTrap(VM, "wait64"sv, {Address, UINT64_C(1), UINT64_C(0)},
-                     {TyI64, TyI64, TyI64}, Error);
-  }
-  expectAtomicValue(VM, "wait64-offset"sv,
-                    {UINT64_C(65520), UINT64_C(1), UINT64_C(0)},
-                    {TyI64, TyI64, TyI64}, WaitNotEqual);
-  for (const uint64_t Address :
-       {UINT64_C(65528), UINT64_C(0xFFFFFFFFFFFFFFF8)}) {
-    SCOPED_TRACE(Address);
-    expectAtomicTrap(VM, "wait64-offset"sv, {Address, UINT64_C(1), UINT64_C(0)},
-                     {TyI64, TyI64, TyI64},
-                     WasmEdge::ErrCode::Value::MemoryOutOfBounds);
-  }
+    expectAtomicValue(VM, "notify-offset"sv, {UINT64_C(65528), UINT32_C(1)},
+                      {TyI64, TyI32}, UINT32_C(0));
+    for (const uint64_t Address :
+         {UINT64_C(65532), UINT64_C(0xFFFFFFFFFFFFFFFC)}) {
+      SCOPED_TRACE(Address);
+      expectAtomicTrap(VM, "notify-offset"sv, {Address, UINT32_C(1)},
+                       {TyI64, TyI32},
+                       WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+    }
 
-  auto *MemInst = VM.getActiveModule()->findMemoryExports("memory"sv);
-  ASSERT_NE(MemInst, nullptr);
-  registerWaiters(*MemInst, UINT64_C(8), 2);
-  expectAtomicValue(VM, "notify-wrapped-count"sv, {UINT64_C(8)}, {TyI64},
-                    UINT32_C(1));
-}
+    expectAtomicValue(VM, "wait32"sv,
+                      {UINT64_C(65532), UINT32_C(1), UINT64_C(0)},
+                      {TyI64, TyI32, TyI64}, WaitNotEqual);
+    expectAtomicValue(VM, "wait32"sv, {UINT64_C(0), UINT32_C(0), UINT64_C(0)},
+                      {TyI64, TyI32, TyI64}, WaitTimedOut);
+    for (const auto &[Address, Error] :
+         {std::pair{UINT64_C(65533),
+                    WasmEdge::ErrCode::Value::UnalignedAtomicAccess},
+          std::pair{UINT64_C(65536),
+                    WasmEdge::ErrCode::Value::MemoryOutOfBounds}}) {
+      SCOPED_TRACE(Address);
+      expectAtomicTrap(VM, "wait32"sv, {Address, UINT32_C(1), UINT64_C(0)},
+                       {TyI64, TyI32, TyI64}, Error);
+    }
+    expectAtomicValue(VM, "wait32-offset"sv,
+                      {UINT64_C(65528), UINT32_C(1), UINT64_C(0)},
+                      {TyI64, TyI32, TyI64}, WaitNotEqual);
+    for (const uint64_t Address :
+         {UINT64_C(65532), UINT64_C(0xFFFFFFFFFFFFFFFC)}) {
+      SCOPED_TRACE(Address);
+      expectAtomicTrap(
+          VM, "wait32-offset"sv, {Address, UINT32_C(1), UINT64_C(0)},
+          {TyI64, TyI32, TyI64}, WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+    }
 
-TEST(AtomicWaitNotify, BoundaryInterpreter) {
-  runAtomicThreads32Test(WasmEdge::RunMode::Interpreter);
-  runAtomicThreads64Test(WasmEdge::RunMode::Interpreter);
+    expectAtomicValue(VM, "wait64"sv,
+                      {UINT64_C(65528), UINT64_C(1), UINT64_C(0)},
+                      {TyI64, TyI64, TyI64}, WaitNotEqual);
+    for (const auto &[Address, Error] :
+         {std::pair{UINT64_C(65532),
+                    WasmEdge::ErrCode::Value::UnalignedAtomicAccess},
+          std::pair{UINT64_C(65536),
+                    WasmEdge::ErrCode::Value::MemoryOutOfBounds}}) {
+      SCOPED_TRACE(Address);
+      expectAtomicTrap(VM, "wait64"sv, {Address, UINT64_C(1), UINT64_C(0)},
+                       {TyI64, TyI64, TyI64}, Error);
+    }
+    expectAtomicValue(VM, "wait64-offset"sv,
+                      {UINT64_C(65520), UINT64_C(1), UINT64_C(0)},
+                      {TyI64, TyI64, TyI64}, WaitNotEqual);
+    for (const uint64_t Address :
+         {UINT64_C(65528), UINT64_C(0xFFFFFFFFFFFFFFF8)}) {
+      SCOPED_TRACE(Address);
+      expectAtomicTrap(
+          VM, "wait64-offset"sv, {Address, UINT64_C(1), UINT64_C(0)},
+          {TyI64, TyI64, TyI64}, WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+    }
+
+    auto *MemInst = VM.getActiveModule()->findMemoryExports("memory"sv);
+    ASSERT_NE(MemInst, nullptr);
+    registerWaiters(*MemInst, UINT64_C(8), 2);
+    expectAtomicValue(VM, "notify-wrapped-count"sv, {UINT64_C(8)}, {TyI64},
+                      UINT32_C(1));
+  }
+};
+
+TEST_F(AtomicWaitNotify, BoundaryInterpreter) {
+  runMemory32Cases(WasmEdge::RunMode::Interpreter);
+  runMemory64Cases(WasmEdge::RunMode::Interpreter);
 }
 
 #ifdef WASMEDGE_USE_LLVM
 
-TEST(AtomicWaitNotify, BoundaryJIT) {
-  runAtomicThreads32Test(WasmEdge::RunMode::JIT);
-  runAtomicThreads64Test(WasmEdge::RunMode::JIT);
+TEST_F(AtomicWaitNotify, BoundaryJIT) {
+  runMemory32Cases(WasmEdge::RunMode::JIT);
+  runMemory64Cases(WasmEdge::RunMode::JIT);
 }
 
 #endif

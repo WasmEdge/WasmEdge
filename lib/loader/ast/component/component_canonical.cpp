@@ -16,16 +16,16 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   //           => (canon lower f opts (core func))
   //         | 0x02 rt:<typeidx>    => (canon resource.new rt (core func))
   //         | 0x03 rt:<typeidx>    => (canon resource.drop rt (core func))
-  //         | 0x07 rt:<typeidx>
-  //           => (canon resource.drop rt async (core func)) 🔀
   //         | 0x04 rt:<typeidx>    => (canon resource.rep rt (core func))
-  //         | 0x08                 => (canon backpressure.set (core func)) 🔀
   //         | 0x09 rs:<resultlist> opts:<opts>
   //           => (canon task.return rs opts (core func)) 🔀
   //         | 0x05                 => (canon task.cancel (core func)) 🔀
-  //         | 0x0a 0x7f i:<u32>    => (canon context.get i32 i (core func)) 🔀
-  //         | 0x0b 0x7f i:<u32>    => (canon context.set i32 i (core func)) 🔀
-  //         | 0x0c async?:<async>? => (canon yield async? (core func)) 🔀
+  //         | 0x0a t:<core:valtype> i:<u32>
+  //           => (canon context.get t i (core func)) 🔀
+  //         | 0x0b t:<core:valtype> i:<u32>
+  //           => (canon context.set t i (core func)) 🔀
+  //         | 0x0c cancel?:<cancel?>
+  //           => (canon thread.yield cancel? (core func)) 🔀
   //         | 0x06 async?:<async?>
   //           => (canon subtask.cancel async? (core func)) 🔀
   //         | 0x0d                 => (canon subtask.drop (core func)) 🔀
@@ -35,52 +35,83 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   //         | 0x10 t:<typeidx> opts:<opts>
   //           => (canon stream.write t opts (core func)) 🔀
   //         | 0x11 t:<typeidx> async?:<async?>
-  //           => (canon stream.cancel-read async? (core func)) 🔀
+  //           => (canon stream.cancel-read t async? (core func)) 🔀
   //         | 0x12 t:<typeidx> async?:<async?>
-  //           => (canon stream.cancel-write async? (core func)) 🔀
+  //           => (canon stream.cancel-write t async? (core func)) 🔀
   //         | 0x13 t:<typeidx>
-  //           => (canon stream.close-readable t (core func)) 🔀
+  //           => (canon stream.drop-readable t (core func)) 🔀
   //         | 0x14 t:<typeidx>
-  //           => (canon stream.close-writable t (core func)) 🔀
+  //           => (canon stream.drop-writable t (core func)) 🔀
   //         | 0x15 t:<typeidx> => (canon future.new t (core func)) 🔀
   //         | 0x16 t:<typeidx> opts:<opts>
   //           => (canon future.read t opts (core func)) 🔀
   //         | 0x17 t:<typeidx> opts:<opts>
   //           => (canon future.write t opts (core func)) 🔀
   //         | 0x18 t:<typeidx> async?:<async?>
-  //           => (canon future.cancel-read async? (core func)) 🔀
+  //           => (canon future.cancel-read t async? (core func)) 🔀
   //         | 0x19 t:<typeidx> async?:<async?>
-  //           => (canon future.cancel-write async? (core func)) 🔀
+  //           => (canon future.cancel-write t async? (core func)) 🔀
   //         | 0x1a t:<typeidx>
-  //           => (canon future.close-readable t (core func)) 🔀
+  //           => (canon future.drop-readable t (core func)) 🔀
   //         | 0x1b t:<typeidx>
-  //           => (canon future.close-writable t (core func)) 🔀
+  //           => (canon future.drop-writable t (core func)) 🔀
   //         | 0x1c opts:<opts> => (canon error-context.new opts (core func)) 📝
   //         | 0x1d opts:<opts>
   //           => (canon error-context.debug-message opts (core func)) 📝
   //         | 0x1e                => (canon error-context.drop (core func)) 📝
   //         | 0x1f                => (canon waitable-set.new (core func)) 🔀
-  //         | 0x20 async?:<async>? m:<core:memidx>
-  //           => (canon waitable-set.wait async? (memory m) (core func)) 🔀
-  //         | 0x21 async?:<async>? m:<core:memidx>
-  //           => (canon waitable-set.poll async? (memory m) (core func)) 🔀
+  //         | 0x20 cancel?:<cancel?> m:<core:memoryidx>
+  //           => (canon waitable-set.wait cancel? (memory m) (core func)) 🔀
+  //         | 0x21 cancel?:<cancel?> m:<core:memoryidx>
+  //           => (canon waitable-set.poll cancel? (memory m) (core func)) 🔀
   //         | 0x22                => (canon waitable-set.drop (core func)) 🔀
   //         | 0x23                => (canon waitable.join (core func)) 🔀
-  //         | 0x40 ft:<typeidx>   => (canon thread.spawn_ref ft (core func)) 🧵
-  //         | 0x41 ft:<typeidx> tbl:<core:tableidx>
-  //           => (canon thread.spawn_indirect ft tbl (core func)) 🧵
-  //         | 0x42 => (canon thread.available_parallelism (core func)) 🧵
-  // async? ::= 0x00 => ϵ
-  //          | 0x01 => async
+  //         | 0x24                => (canon backpressure.inc (core func)) 🔀
+  //         | 0x25                => (canon backpressure.dec (core func)) 🔀
+  //         | 0x26                => (canon thread.index (core func)) 🧵
+  //         | 0x27 ft:<core:typeidx> tbl:<core:tableidx>
+  //           => (canon thread.new-indirect ft tbl (core func)) 🧵
+  //         | 0x28                => (canon thread.resume-later (core func)) 🧵
+  //         | 0x29 cancel?:<cancel?>
+  //           => (canon thread.suspend cancel? (core func)) 🧵
+  //         | 0x2a cancel?:<cancel?>
+  //           => (canon thread.suspend-then-resume cancel? (core func)) 🧵
+  //         | 0x2b cancel?:<cancel?>
+  //           => (canon thread.yield-then-resume cancel? (core func)) 🧵
+  //         | 0x2c cancel?:<cancel?>
+  //           => (canon thread.suspend-then-promote cancel? (core func)) 🧵
+  //         | 0x2d cancel?:<cancel?>
+  //           => (canon thread.yield-then-promote cancel? (core func)) 🧵
+  //         | 0x40 shared?:<sh?> ft:<core:typeidx>
+  //           => (canon thread.spawn-ref shared? ft (core func)) 🧵②
+  //         | 0x41 shared?:<sh?> ft:<core:typeidx> tbl:<core:tableidx>
+  //           => (canon thread.spawn-indirect shared? ft tbl (core func)) 🧵②
+  //         | 0x42 shared?:<sh?>
+  //           => (canon thread.available-parallelism shared? (core func)) 🧵②
+  // async?  ::= 0x00 => ϵ
+  //           | 0x01 => async
+  // cancel? ::= 0x00 => ϵ
+  //           | 0x01 => cancellable
+  // sh?     ::= 0x00 => ϵ
+  //           | 0x01 => shared 🧵②
 
-  // Helper: load async? flag.
-  auto LoadAsync = [this, &ReportError, &C]() -> Expect<void> {
+  // Helper: load the async? / cancel? immediate. They share one encoding.
+  auto LoadFlagImm = [this, &ReportError, &C]() -> Expect<void> {
     EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error(ReportError));
     if (B == 0x00) {
-      C.setAsync(false);
+      C.setFlagImmediate(false);
     } else if (B == 0x01) {
-      C.setAsync(true);
+      C.setFlagImmediate(true);
     } else {
+      return ReportError(ErrCode::Value::MalformedCanonical);
+    }
+    return {};
+  };
+
+  // Helper: load the 🧵② shared? flag.
+  auto LoadShared = [this, &ReportError]() -> Expect<void> {
+    EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error(ReportError));
+    if (B > 0x01) {
       return ReportError(ErrCode::Value::MalformedCanonical);
     }
     return {};
@@ -130,29 +161,29 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   // typeidx-only opcodes
   case ComponentCanonOpCode::Resource__new:
   case ComponentCanonOpCode::Resource__drop:
-  case ComponentCanonOpCode::Resource__drop_async:
   case ComponentCanonOpCode::Resource__rep:
   case ComponentCanonOpCode::Stream__new:
-  case ComponentCanonOpCode::Stream__close_readable:
-  case ComponentCanonOpCode::Stream__close_writable:
+  case ComponentCanonOpCode::Stream__drop_readable:
+  case ComponentCanonOpCode::Stream__drop_writable:
   case ComponentCanonOpCode::Future__new:
-  case ComponentCanonOpCode::Future__close_readable:
-  case ComponentCanonOpCode::Future__close_writable:
-  case ComponentCanonOpCode::Thread__spawn_ref: {
+  case ComponentCanonOpCode::Future__drop_readable:
+  case ComponentCanonOpCode::Future__drop_writable: {
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
     C.setIndex(Idx);
     break;
   }
 
   // no-arg opcodes
-  case ComponentCanonOpCode::Backpressure__set:
+  case ComponentCanonOpCode::Backpressure__inc:
+  case ComponentCanonOpCode::Backpressure__dec:
+  case ComponentCanonOpCode::Thread__index:
+  case ComponentCanonOpCode::Thread__resume_later:
   case ComponentCanonOpCode::Task__cancel:
   case ComponentCanonOpCode::Subtask__drop:
   case ComponentCanonOpCode::Error_context__drop:
   case ComponentCanonOpCode::Waitable_set__new:
   case ComponentCanonOpCode::Waitable_set__drop:
   case ComponentCanonOpCode::Waitable__join:
-  case ComponentCanonOpCode::Thread__available_parallelism:
     break;
 
   // 0x09 rs:<resultlist> opts:<opts>
@@ -184,22 +215,25 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
     break;
   }
 
-  // 0x0a 0x7f i:<u32> and 0x0b 0x7f i:<u32>
+  // 0x0a t:<core:valtype> i:<u32> and 0x0b t:<core:valtype> i:<u32>
   case ComponentCanonOpCode::Context__get:
   case ComponentCanonOpCode::Context__set: {
-    EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error(ReportError));
-    if (unlikely(B != 0x7f)) {
-      return ReportError(ErrCode::Value::MalformedCanonical);
-    }
+    EXPECTED_TRY(ValType T, loadValType(ASTNodeAttr::Comp_Canonical));
+    C.setContextType(T);
     EXPECTED_TRY(uint32_t Val, FMgr.readU32().map_error(ReportError));
     C.setConstVal(Val);
     break;
   }
 
-  // async?-only opcodes
+  // async?/cancel?-only opcodes
   case ComponentCanonOpCode::Yield:
-  case ComponentCanonOpCode::Subtask__cancel: {
-    EXPECTED_TRY(LoadAsync());
+  case ComponentCanonOpCode::Subtask__cancel:
+  case ComponentCanonOpCode::Thread__suspend:
+  case ComponentCanonOpCode::Thread__suspend_then_resume:
+  case ComponentCanonOpCode::Thread__yield_then_resume:
+  case ComponentCanonOpCode::Thread__suspend_then_promote:
+  case ComponentCanonOpCode::Thread__yield_then_promote: {
+    EXPECTED_TRY(LoadFlagImm());
     break;
   }
 
@@ -221,7 +255,7 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   case ComponentCanonOpCode::Future__cancel_write: {
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
     C.setIndex(Idx);
-    EXPECTED_TRY(LoadAsync());
+    EXPECTED_TRY(LoadFlagImm());
     break;
   }
 
@@ -235,20 +269,41 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   // async? + memidx opcodes
   case ComponentCanonOpCode::Waitable_set__wait:
   case ComponentCanonOpCode::Waitable_set__poll: {
-    EXPECTED_TRY(LoadAsync());
+    EXPECTED_TRY(LoadFlagImm());
     EXPECTED_TRY(uint32_t MemIdx, FMgr.readU32().map_error(ReportError));
     C.setIndex(MemIdx);
     break;
   }
 
-  // 0x41 ft:<typeidx> tbl:<core:tableidx>
-  case ComponentCanonOpCode::Thread__spawn_indirect: {
+  // 0x27 ft:<core:typeidx> tbl:<core:tableidx>
+  case ComponentCanonOpCode::Thread__new_indirect: {
     EXPECTED_TRY(uint32_t TypeIdx, FMgr.readU32().map_error(ReportError));
     C.setIndex(TypeIdx);
     EXPECTED_TRY(uint32_t TblIdx, FMgr.readU32().map_error(ReportError));
     C.setTargetIndex(TblIdx);
     break;
   }
+
+  // 🧵② shared?-prefixed opcodes. The flag is parsed but not kept, because
+  // these built-ins belong to shared-everything-threads and are not
+  // instantiated.
+  case ComponentCanonOpCode::Thread__spawn_ref: {
+    EXPECTED_TRY(LoadShared());
+    EXPECTED_TRY(uint32_t TypeIdx, FMgr.readU32().map_error(ReportError));
+    C.setIndex(TypeIdx);
+    break;
+  }
+  case ComponentCanonOpCode::Thread__spawn_indirect: {
+    EXPECTED_TRY(LoadShared());
+    EXPECTED_TRY(uint32_t TypeIdx, FMgr.readU32().map_error(ReportError));
+    C.setIndex(TypeIdx);
+    EXPECTED_TRY(uint32_t TblIdx, FMgr.readU32().map_error(ReportError));
+    C.setTargetIndex(TblIdx);
+    break;
+  }
+  case ComponentCanonOpCode::Thread__available_parallelism:
+    EXPECTED_TRY(LoadShared());
+    break;
 
   default:
     return ReportError(ErrCode::Value::MalformedCanonical);
@@ -269,7 +324,6 @@ Expect<void> Loader::loadCanonicalOption(AST::Component::CanonOpt &Opt) {
   //            | 0x05 f:<core:funcidx> => (post-return f)
   //            | 0x06                  => async 🔀
   //            | 0x07 f:<core:funcidx> => (callback f) 🔀
-  //            | 0x08                  => always-task-return 🔀
 
   EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error(ReportError));
   switch (Flag) {
@@ -277,7 +331,6 @@ Expect<void> Loader::loadCanonicalOption(AST::Component::CanonOpt &Opt) {
   case 0x01:
   case 0x02:
   case 0x06:
-  case 0x08:
     break;
   case 0x03:
   case 0x04:

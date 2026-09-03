@@ -83,12 +83,15 @@ Expect<void> Loader::loadDecl(AST::Component::CoreModuleDecl &Decl) {
 }
 
 Expect<void> Loader::loadDecl(AST::Component::ImportDecl &Decl) {
-  // importdecl  ::= in:<importname'> ed:<externdesc> => (import in ed)
-  // importname' ::= 0x00 len:<u32> in:<importname>   => in (if len = |in|)
+  // importdecl ::= na:<nameattributes> et:<externtype> => (import na et)
 
-  EXPECTED_TRY(loadExternName(Decl.getName()).map_error([this](auto E) {
-    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Decl_Import);
-  }));
+  EXPECTED_TRY(loadNameAttributes(Decl.getName(), Decl.getImplements(),
+                                  Decl.getExternalIds(),
+                                  Decl.getVersionSuffixes())
+                   .map_error([this](auto E) {
+                     return logLoadError(E, FMgr.getLastOffset(),
+                                         ASTNodeAttr::Comp_Decl_Import);
+                   }));
   return loadDesc(Decl.getExternDesc()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Import));
     return E;
@@ -96,12 +99,15 @@ Expect<void> Loader::loadDecl(AST::Component::ImportDecl &Decl) {
 }
 
 Expect<void> Loader::loadDecl(AST::Component::ExportDecl &Decl) {
-  // exportdecl  ::= en:<exportname'> ed:<externdesc> => (export en ed)
-  // exportname' ::= 0x00 len:<u32> en:<exportname>   => en (if len = |en|)
+  // exportdecl ::= na:<nameattributes> et:<externtype> => (export na et)
 
-  EXPECTED_TRY(loadExternName(Decl.getName()).map_error([this](auto E) {
-    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Decl_Export);
-  }));
+  EXPECTED_TRY(loadNameAttributes(Decl.getName(), Decl.getImplements(),
+                                  Decl.getExternalIds(),
+                                  Decl.getVersionSuffixes())
+                   .map_error([this](auto E) {
+                     return logLoadError(E, FMgr.getLastOffset(),
+                                         ASTNodeAttr::Comp_Decl_Export);
+                   }));
   return loadDesc(Decl.getExternDesc()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Export));
     return E;

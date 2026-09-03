@@ -49,11 +49,19 @@ Two workflows further narrow their work *within* a run:
   by `dorny/paths-filter` against
   [`.github/extensions.paths-filter.yml`](../extensions.paths-filter.yml). For
   example, editing only `plugins/wasi_nn/**` builds the `wasi_nn` plugin but not
-  `wasmedge_ffmpeg`. Changes to shared plugin files (the `all` filter:
+  `wasmedge_ffmpeg`.
+  Per-backend WASI-NN dependency modules map to exact-name filters — e.g.
+  `cmake/wasi_nn/ggml.cmake` matches only the `wasi_nn-ggml` filter, so a
+  single-backend dependency bump rebuilds only that backend's matrix entries,
+  while `cmake/WASINNDeps.cmake` (the dispatcher) and `plugins/wasi_nn/**` still
+  rebuild every WASI-NN backend; `cmake/TensorflowDeps.cmake` maps to
+  `wasi_nn-tensorflowlite`, `wasmedge_tensorflow`, and `wasmedge_tensorflowlite`.
+  Changes to shared plugin files (the `all` filter:
   `.github/**`, the root `CMakeLists.txt`, `plugins/CMakeLists.txt`, or
   `test/plugins/CMakeLists.txt`) and release builds build **all** plugins. The
   `test_wasi_nn_ggml_rpc` and `build_windows_wasi_nn` jobs run only when the
-  `all`, `wasi_nn`, or `shared_cmake` (`cmake/Helper.cmake`) filters match;
+  `all`, `wasi_nn`, `wasi_nn-ggml`, or `shared_cmake` (`cmake/Helper.cmake`)
+  filters match;
   `test_wasi_nn_ggml_rpc` also runs when the `wasi_nn_rpc` filter matches —
   the RPC server sources and their CMake wiring, whose authoritative list is
   the `wasi_nn_rpc` entry in
@@ -70,9 +78,12 @@ the `Extensions` workflow to the plugins a change actually affects:
   `plugins/<name>/**` and `test/plugins/<name>/**` trees, plus shared files it
   provably uses — `thirdparty/wasi_crypto/**` is in the `wasi_crypto` key
   because the plugin's sources include `thirdparty/wasi_crypto/api.hpp`, and
-  `cmake/WASINNDeps.cmake` is in the `wasi_nn`, `wasmedge_tensorflow`, and
-  `wasmedge_tensorflowlite` keys because their CMake files include it. A path
-  enters a key only when the plugin consumes it directly.
+  `cmake/WASINNDeps.cmake` is in the `wasi_nn` key,
+  `cmake/TensorflowDeps.cmake` is in the `wasi_nn-tensorflowlite`,
+  `wasmedge_tensorflow`, and `wasmedge_tensorflowlite` keys because their
+  CMake files include it, and each `cmake/wasi_nn/<backend>.cmake` module is
+  in its exact-name `wasi_nn-<backend>` key. A path enters a key only when
+  the plugin consumes it directly.
 - The `all` key holds the files that affect every plugin (`.github/**`, the
   root `CMakeLists.txt`, `plugins/CMakeLists.txt`,
   `test/plugins/CMakeLists.txt`); matching it builds all plugins.
@@ -107,16 +118,17 @@ group watch slightly different subsets — for example, `IWYU checker` does not 
 [Workflow reference](#workflow-reference) for each one's exact paths.
 
 A few paths in this group also trigger **Extensions**: the root
-`CMakeLists.txt`, `cmake/Helper.cmake`, `cmake/WASINNDeps.cmake`,
-`thirdparty/wasi_crypto/`, and the WASI-NN RPC sources (the `wasi_nn_rpc`
-filter paths, including their `tools/` CMake wiring) are in
+`CMakeLists.txt`, `cmake/Helper.cmake`, `cmake/TensorflowDeps.cmake`,
+`cmake/WASINNDeps.cmake`, `cmake/wasi_nn/`, `thirdparty/wasi_crypto/`, and
+the WASI-NN RPC sources (the `wasi_nn_rpc` filter paths, including their
+`tools/` CMake wiring) are in
 `build-extensions.yml`'s path filter; see
 [Extensions path-filter design](#extensions-path-filter-design).
 
 | Workflow | What it does | If it fails |
 | -------- | ------------ | ----------- |
 | **Core** (`build.yml`) | The main build: clang-format gate, then build and unit tests across macOS, manylinux, Ubuntu (gcc/clang x Debug/Release), Windows (+MSVC), Android, Fedora, Debian, and Alpine (static). Its Ubuntu matrix also includes single-environment coverage and fuzzer-build checks; coverage uploads the **CodeCov** report. | Fix the build or unit-test failure on the reported platform. |
-| **Extensions** (`build-extensions.yml`) | Also triggered by the shared paths above (root `CMakeLists.txt`, `cmake/Helper.cmake`, `cmake/WASINNDeps.cmake`, `thirdparty/wasi_crypto/`, and the WASI-NN RPC sources); plugin matrix scope still follows the Extensions path filter. | Investigate like any triggered check; for failures clearly unrelated to your shared change, follow [Interpreting failures](#interpreting-failures). |
+| **Extensions** (`build-extensions.yml`) | Also triggered by the shared paths above (root `CMakeLists.txt`, `cmake/Helper.cmake`, `cmake/TensorflowDeps.cmake`, `cmake/WASINNDeps.cmake`, `cmake/wasi_nn/`, `thirdparty/wasi_crypto/`, and the WASI-NN RPC sources); plugin matrix scope still follows the Extensions path filter. | Investigate like any triggered check; for failures clearly unrelated to your shared change, follow [Interpreting failures](#interpreting-failures). |
 | **CodeQL** (`codeql-analysis.yml`) | Security analysis of C/C++ sources (excludes `docs/`, `.github/`, `utils/`); also runs weekly. | Address the flagged security finding. |
 | **IWYU checker** (`IWYU_scan.yml`) | Include-what-you-use scan on Fedora and macOS; reports header suggestions as logs/artifacts. | Review the log and tidy includes where applicable. |
 | **Static Code Analysis** (`static-code-analysis.yml`) | Meta **Infer** analysis; uploads a report artifact. | Review the report for genuine defects (e.g. null dereferences). |
@@ -132,7 +144,7 @@ Triggered by changes under `plugins/` or `test/plugins/`.
 
 | Workflow | What it does | If it fails |
 | -------- | ------------ | ----------- |
-| **Extensions** (`build-extensions.yml`) | Runs a path-filtered plugin build matrix for changed plugins; the WASI-NN GGML RPC and Windows WASI-NN jobs run only when the `all`, `shared_cmake`, `wasi_nn`, or (RPC job only) `wasi_nn_rpc` filters match. | Fix failures in changed plugin builds and in WASI-NN jobs when related to your change; for flaky or upstream failures, see [Interpreting failures](#interpreting-failures). |
+| **Extensions** (`build-extensions.yml`) | Runs a path-filtered plugin build matrix for changed plugins; the WASI-NN GGML RPC and Windows WASI-NN jobs run only when the `all`, `shared_cmake`, `wasi_nn`, `wasi_nn-ggml`, or (RPC job only) `wasi_nn_rpc` filters match. | Fix failures in changed plugin builds and in WASI-NN jobs when related to your change; for flaky or upstream failures, see [Interpreting failures](#interpreting-failures). |
 | **IWYU checker**, **Static Code Analysis**, **CodeQL** | Also triggered by plugin sources (see the Core engine table above). | As above. |
 
 Plugin-only changes do **not** trigger `Core`, `riscv64`, or `Nix`.
@@ -190,7 +202,7 @@ workflows are called by the entries below and are not listed here; see
 | Name | File | Triggers (events, branches, paths) | Notes |
 | ---- | ---- | ---------------------------------- | ----- |
 | Core | `build.yml` | `push` (`master`, `X.Y.x`), `pull_request` (`master`, `proposal/**`, `X.Y.x`); paths: core build workflows, `include/`, `lib/`, `test/` (not `test/plugins/`), `utils/docker/*static*`, `thirdparty/`, `tools/`, `cmake/`, `CMakeLists.txt` | clang-format gate, then cross-platform build/test; Ubuntu matrix includes coverage upload and fuzzer build |
-| Extensions | `build-extensions.yml` | same events/branches as Core; paths: extension build workflows + config, WASI-NN RPC sources (the `wasi_nn_rpc` filter paths), `plugins/`, `test/plugins/`, `thirdparty/wasi_crypto/`, `cmake/Helper.cmake`, `cmake/WASINNDeps.cmake`, `CMakeLists.txt` | clang-format gate; path-filters the plugin build matrix and the WASI-NN GGML RPC + Windows WASI-NN jobs |
+| Extensions | `build-extensions.yml` | same events/branches as Core; paths: extension build workflows + config, WASI-NN RPC sources (the `wasi_nn_rpc` filter paths), `plugins/`, `test/plugins/`, `thirdparty/wasi_crypto/`, `cmake/Helper.cmake`, `cmake/TensorflowDeps.cmake`, `cmake/WASINNDeps.cmake`, `cmake/wasi_nn/`, `CMakeLists.txt` | clang-format gate; path-filters the plugin build matrix and the WASI-NN GGML RPC + Windows WASI-NN jobs |
 | Commit Lint | `commitlint.yml` | `pull_request` (opened/synchronize/reopened/edited); no path filter | validates commit messages + PR title |
 | Misc linters | `misc-linters.yml` | `push`, `pull_request`; no path filter | codespell + lineguard |
 | CodeQL | `codeql-analysis.yml` | `push` (`master`), `pull_request` (`master`, `proposal/**`), weekly `schedule`; paths: C/C++ source globs, excluding `docs/`, `.github/`, `utils/` | clang-format gate, then CodeQL analysis |
@@ -228,7 +240,8 @@ workflows are called by the entries below and are not listed here; see
      [How CI is triggered](#how-ci-is-triggered)) or a release build caused
      **every** plugin to build. The WASI-NN GGML RPC and Windows WASI-NN jobs
      are gated the same way and appear only when the `all`, `shared_cmake`,
-     `wasi_nn`, or (for the RPC job) `wasi_nn_rpc` filters match your change.
+     `wasi_nn`, `wasi_nn-ggml`, or (for the RPC job) `wasi_nn_rpc` filters match
+     your change.
    - **Upstream breakage.** A job already failing on `master` because of an upstream
      issue (for example, a broken Fedora Rawhide package) cannot be fixed from a
      contributor PR until upstream is fixed.

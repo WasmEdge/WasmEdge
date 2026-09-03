@@ -20,6 +20,7 @@
 #include "ast/component/instance.h"
 #include "ast/component/start.h"
 #include "ast/component/type.h"
+#include "ast/component/value.h"
 #include "ast/module.h"
 #include "ast/section.h"
 
@@ -183,7 +184,19 @@ private:
   /// @}
 };
 
-// TODO: COMPONENT - AST Component::ValueSection node.
+/// AST Component::ValueSection node.
+class ValueSection : public Section {
+public:
+  /// Getter for content module.
+  Span<const Value> getContent() const noexcept { return Content; }
+  std::vector<Value> &getContent() noexcept { return Content; }
+
+private:
+  /// \name Data of ValueSection.
+  /// @{
+  std::vector<Value> Content;
+  /// @}
+};
 
 } // namespace Component
 } // namespace AST

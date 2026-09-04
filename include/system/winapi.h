@@ -1720,6 +1720,7 @@ static inline constexpr const DWORD_ WSATYPE_NOT_FOUND_ = WSABASEERR_ + 109;
 static inline constexpr const DWORD_ WSAHOST_NOT_FOUND_ = WSABASEERR_ + 1001;
 static inline constexpr const DWORD_ WSATRY_AGAIN_ = WSABASEERR_ + 1002;
 static inline constexpr const DWORD_ WSANO_RECOVERY_ = WSABASEERR_ + 1003;
+static inline constexpr const DWORD_ WSANO_DATA_ = WSABASEERR_ + 1004;
 } // namespace WasmEdge::winapi
 
 extern "C" {

@@ -26,11 +26,13 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <iterator>
 #include <map>
 #include <memory>
 #include <thread>
+#include <type_traits>
 #include <unordered_map>
 #include <variant>
 
@@ -365,6 +367,32 @@ bool checkComponentSupported(std::string_view Folder, WasmEdge::WasmPhase P) {
   }
 }
 
+// Checks the given floating-point value against an expected NaN pattern.
+// A canonical NaN carries a payload whose most significant bit is 1 and whose
+// other bits are all 0, while an arithmetic NaN only requires that most
+// significant bit to be 1 and leaves the remaining bits unspecified.
+template <typename T>
+static bool matchExpectedNaN(std::string_view Expected, T Value) {
+  using UT =
+      std::conditional_t<sizeof(T) == sizeof(uint32_t), uint32_t, uint64_t>;
+  if (!std::isnan(Value)) {
+    return false;
+  }
+  UT Bits = 0;
+  std::memcpy(&Bits, &Value, sizeof(T));
+  constexpr UT SignifBits = (sizeof(T) == sizeof(uint32_t)) ? 23U : 52U;
+  constexpr UT CanonPayload = static_cast<UT>(UT{1} << (SignifBits - UT{1}));
+  const UT Payload = Bits & static_cast<UT>((UT{1} << SignifBits) - UT{1});
+  if (Expected == "nan:canonical"sv) {
+    return Payload == CanonPayload;
+  }
+  if (Expected == "nan:arithmetic"sv) {
+    return (Payload & CanonPayload) != UT{0};
+  }
+  // Unspecified NaN pattern. Any NaN matches.
+  return true;
+}
+
 } // namespace
 
 namespace WasmEdge {
@@ -429,17 +457,16 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
   bool IsV128 = (std::string_view(TypeStr).substr(0, 4) == "v128"sv);
   if (!IsV128 && ValStr.substr(0, 4) == "nan:"sv) {
     // Handle NaN case
-    // TODO: nan:canonical and nan:arithmetic
     if (TypeStr == "f32"sv) {
       if (Got.second.getCode() != TypeCode::F32) {
         return false;
       }
-      return std::isnan(Got.first.get<float>());
+      return matchExpectedNaN(ValStr, Got.first.get<float>());
     } else if (TypeStr == "f64"sv) {
       if (Got.second.getCode() != TypeCode::F64) {
         return false;
       }
-      return std::isnan(Got.first.get<double>());
+      return matchExpectedNaN(ValStr, Got.first.get<double>());
     }
   } else if (TypeStr == "ref"sv) {
     // "ref" fits all reference types.
@@ -600,7 +627,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       }
       for (size_t I = 0; I < 4; ++I) {
         if (Parts[I].substr(0, 4) == "nan:"sv) {
-          if (!std::isnan(VF[I])) {
+          if (!matchExpectedNaN(Parts[I], VF[I])) {
             return false;
           }
         } else {
@@ -623,7 +650,7 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       }
       for (size_t I = 0; I < 2; ++I) {
         if (Parts[I].substr(0, 4) == "nan:"sv) {
-          if (!std::isnan(VF[I])) {
+          if (!matchExpectedNaN(Parts[I], VF[I])) {
             return false;
           }
         } else {

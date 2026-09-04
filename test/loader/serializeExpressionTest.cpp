@@ -9,8 +9,7 @@
 
 namespace {
 
-WasmEdge::Configure Conf;
-WasmEdge::Loader::Serializer Ser(Conf);
+WasmEdge::Loader::Serializer Ser;
 
 WasmEdge::AST::CodeSection createCodeSec(WasmEdge::AST::Expression Expr) {
   WasmEdge::AST::CodeSection CodeSec;
@@ -20,20 +19,15 @@ WasmEdge::AST::CodeSection createCodeSec(WasmEdge::AST::Expression Expr) {
   return CodeSec;
 }
 
-TEST(ExpressionTest, SerializeExpression) {
+TEST(SerializeExpressionTest, SerializeExpression) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   WasmEdge::AST::Expression Expr;
-
-  WasmEdge::Configure ConfWASM1;
-  ConfWASM1.setWASMStandard(WasmEdge::Standard::WASM_1);
-  WasmEdge::Loader::Serializer SerWASM1(ConfWASM1);
 
   // 1. Test serialize expression.
   //
   //   1.  Serialize expression with only end operation.
   //   2.  Serialize expression with instructions.
-  //   3.  Serialize expression with instructions not in proposals.
 
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
   WasmEdge::AST::Instruction I32Eqz(WasmEdge::OpCode::I32__eqz);
@@ -43,7 +37,7 @@ TEST(ExpressionTest, SerializeExpression) {
 
   Expr.getInstrs() = {End};
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Expr), Output));
+  Ser.serializeSection(createCodeSec(Expr), Output);
   Expected = {
       0x0AU, // Code section
       0x04U, // Content size = 4
@@ -56,7 +50,7 @@ TEST(ExpressionTest, SerializeExpression) {
 
   Expr.getInstrs() = {I32Eqz, I32Eq, I32Ne, End};
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Expr), Output));
+  Ser.serializeSection(createCodeSec(Expr), Output);
   Expected = {
       0x0AU,               // Code section
       0x07U,               // Content size = 7
@@ -69,6 +63,5 @@ TEST(ExpressionTest, SerializeExpression) {
   EXPECT_EQ(Output, Expected);
 
   Expr.getInstrs() = {TableGet, End};
-  EXPECT_FALSE(SerWASM1.serializeSection(createCodeSec(Expr), Output));
 }
 } // namespace

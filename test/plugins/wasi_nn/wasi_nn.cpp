@@ -2577,7 +2577,7 @@ TEST(WasiNNTest, GGMLBackendComputeSingleWithRPC) {
     GTEST_SKIP() << "WASI_NN_RPC_TEST_URI is unset";
   }
 
-  // Create the wasmedge_process module instance.
+  // Create the wasi_nn module instance.
   auto NNMod = createModule(NNRPCURI);
   ASSERT_TRUE(NNMod);
 
@@ -3004,7 +3004,7 @@ TEST(WasiNNTest, WhisperBackend) {
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
 TEST(WasiNNTest, PiperBackend) {
-  // Create the wasmedge_process module instance.
+  // Create the wasi_nn module instance.
   auto NNMod = createModule();
   ASSERT_TRUE(NNMod);
 
@@ -3377,7 +3377,7 @@ TEST(WasiNNTest, PiperBackend) {
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS
 TEST(WasiNNTest, ChatTTSBackend) {
-  // Create the wasmedge_process module instance.
+  // Create the wasi_nn module instance.
   auto NNMod = createModule();
   ASSERT_TRUE(NNMod);
 

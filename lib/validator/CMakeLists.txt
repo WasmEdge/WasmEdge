@@ -4,8 +4,11 @@
 wasmedge_add_library(wasmedgeValidator
   formchecker.cpp
   validator.cpp
+  component_types.cpp
   component_context.cpp
   component_validator.cpp
+  component_type.cpp
+  component_canon.cpp
   component_name.cpp
 )
 

@@ -23,15 +23,11 @@ namespace WasmEdge {
 namespace AST {
 namespace Component {
 
-// core:alias       ::= s:<core:sort> t:<core:aliastarget> => (alias t (s))
-// core:aliastarget ::= 0x01 ct:<u32> idx:<u32>            => outer ct idx
+// core:alias ::= 0x10 0x01 ct:<u32> idx:<u32> => (alias outer ct idx (type))
 
 /// AST Component::CoreAlias node.
 class CoreAlias {
 public:
-  Sort &getSort() noexcept { return S; }
-  const Sort &getSort() const noexcept { return S; }
-
   uint32_t getComponentJump() const noexcept { return CompJump; }
   void setComponentJump(const uint32_t Ct) noexcept { CompJump = Ct; }
 
@@ -39,15 +35,14 @@ public:
   void setIndex(const uint32_t Idx) noexcept { Index = Idx; }
 
 private:
-  Sort S;
   uint32_t CompJump;
   uint32_t Index;
 };
 
-// alias       ::= s:<sort> t:<aliastarget>                => (alias t (s))
-// aliastarget ::= 0x00 i:<instanceidx> n:<name>           => export i n
-//               | 0x01 i:<core:instanceidx> n:<core:name> => core export i n
-//               | 0x02 ct:<u32> idx:<u32>                 => outer ct idx
+// alias ::= s:<sort> 0x00 i:<instanceidx> n:<name>           => export i n
+//         | s:<sort> 0x01 i:<core:instanceidx> n:<core:name> => core export
+//         | s:<sort> 0x02 ct:<u32> idx:<u32>                 => outer ct idx
+//                                                (if s in outeraliassort)
 
 /// AST Component::Alias node.
 class Alias {

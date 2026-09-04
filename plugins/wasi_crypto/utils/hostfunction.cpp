@@ -3,6 +3,8 @@
 
 #include "utils/hostfunction.h"
 
+#include <openssl/opensslv.h>
+
 namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
@@ -62,6 +64,17 @@ WasiCryptoExpect<Kx::Algorithm> tryFrom(std::string_view RawAlgStr) noexcept {
   if (AlgStr == "P384-SHA384"sv) {
     return Algorithm{std::in_place_type<EcdsaP384>};
   }
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+  if (AlgStr == "ML-KEM-512"sv) {
+    return Algorithm{std::in_place_type<MlKem512>};
+  }
+  if (AlgStr == "ML-KEM-768"sv) {
+    return Algorithm{std::in_place_type<MlKem768>};
+  }
+  if (AlgStr == "ML-KEM-1024"sv) {
+    return Algorithm{std::in_place_type<MlKem1024>};
+  }
+#endif
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
 }
 

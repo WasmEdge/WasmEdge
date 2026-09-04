@@ -104,10 +104,7 @@ jobs:
           llvm-20-runtime:riscv64 \
           llvm-20-linker-tools:riscv64 \
           libllvm20:riscv64 \
-          libclang-cpp20:riscv64 \
-          liblld-20-dev:riscv64 \
-          liblld-20:riscv64 \
-          lld-20:riscv64
+          libclang-cpp20:riscv64
         for deb in *.deb; do
           dpkg-deb -x "$deb" /
         done
@@ -123,6 +120,9 @@ jobs:
           -DWASMEDGE_USE_LLVM=ON \
           -DLLVM_DIR=/usr/lib/riscv64-linux-gnu/cmake/llvm-20 \
           .
+        cmake -DWASMEDGE_SOURCE_DIR="$PWD" -DBUILD_DIR="$PWD/build" \
+          '-DEXPECTED_BACKENDS=X86_64;AARCH64;ARM;RISCV64;S390X' \
+          -P test/llvm/VerifyRelocationBackendConfig.cmake
         cmake --build build -j $(nproc)
 
     - name: Package build artifacts
@@ -184,7 +184,7 @@ jobs:
           libgcc-s1-riscv64-cross \
           libatomic1-riscv64-cross
 
-        # Install riscv64 LLVM/LLD runtime libraries and their dependency
+        # Install riscv64 LLVM runtime libraries and their dependency
         # closure via download+extract instead of apt-get install: libllvm20
         # depends on libedit2 -> libtinfo6, which hits the same noble-security
         # vs noble-ports Multi-Arch:same version skew as the cross_compile
@@ -194,7 +194,6 @@ jobs:
         mkdir -p /tmp/riscv64-debs && cd /tmp/riscv64-debs
         apt-get download \
           libllvm20:riscv64 \
-          liblld-20:riscv64 \
           libedit2:riscv64 \
           libbsd0:riscv64 \
           libmd0:riscv64 \

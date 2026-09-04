@@ -586,6 +586,26 @@ TEST(ComponentLoaderTest, ValueSection) {
   EXPECT_EQ(Sec.getContent()[0].getData()[0], 0x01);
 }
 
+TEST(ComponentLoaderTest, ValueSectionLengthExceedsInput) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // Value section declaring a value whose length exceeds the input:
+  //   0x0c = value section id (12), 0x00 = content size,
+  //   0x01 = vec count (1 value), 0x20 = valtype (type index 32),
+  //   0xffffffff0e = len (0xefffffff bytes).
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
+      0x0c, 0x00, 0x01, 0x20,                         // value section
+      0xff, 0xff, 0xff, 0xff, 0x0e,                   // value length
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error().getEnum(), WasmEdge::ErrCode::Value::UnexpectedEnd);
+}
+
 TEST(ComponentLoaderTest, MalformedResultList) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Component);

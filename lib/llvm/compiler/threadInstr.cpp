@@ -360,11 +360,13 @@ void FunctionCompiler::compileMemoryFence() noexcept {
 void FunctionCompiler::compileAtomicNotify(unsigned MemoryIndex,
                                            uint64_t MemoryOffset) noexcept {
   auto Count = Builder.createZExt(stackPop(), Context.Int64Ty);
-  auto Offset = Builder.createZExt(stackPop(), Context.Int64Ty);
+  auto Addr = Builder.createZExt(stackPop(), Context.Int64Ty);
+  auto Offset = Addr;
   if (MemoryOffset != 0) {
-    Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
+    Offset = Builder.createAdd(Addr, LLContext.getInt64(MemoryOffset));
   }
   compileAtomicCheckOffsetAlignment(Offset, Context.Int32Ty);
+  boundsCheckMemory64(MemoryIndex, Addr, MemoryOffset, sizeof(uint32_t));
   stackPush(Builder.createTrunc(
       Builder.createCall(
           Context.getIntrinsic(
@@ -375,7 +377,7 @@ void FunctionCompiler::compileAtomicNotify(unsigned MemoryIndex,
                                           false)),
           {Context.getModuleInst(Builder, ModCtx),
            LLContext.getInt32(MemoryIndex), Offset, Count}),
-      Context.MemoryAddrTypes[MemoryIndex]));
+      Context.Int32Ty));
 }
 
 void FunctionCompiler::compileAtomicWait(unsigned MemoryIndex,
@@ -384,11 +386,13 @@ void FunctionCompiler::compileAtomicWait(unsigned MemoryIndex,
                                          uint32_t BitWidth) noexcept {
   auto Timeout = stackPop();
   auto ExpectedValue = Builder.createZExtOrTrunc(stackPop(), Context.Int64Ty);
-  auto Offset = Builder.createZExt(stackPop(), Context.Int64Ty);
+  auto Addr = Builder.createZExt(stackPop(), Context.Int64Ty);
+  auto Offset = Addr;
   if (MemoryOffset != 0) {
-    Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
+    Offset = Builder.createAdd(Addr, LLContext.getInt64(MemoryOffset));
   }
   compileAtomicCheckOffsetAlignment(Offset, TargetType);
+  boundsCheckMemory64(MemoryIndex, Addr, MemoryOffset, BitWidth / 8);
   stackPush(Builder.createTrunc(
       Builder.createCall(
           Context.getIntrinsic(
@@ -401,7 +405,7 @@ void FunctionCompiler::compileAtomicWait(unsigned MemoryIndex,
           {Context.getModuleInst(Builder, ModCtx),
            LLContext.getInt32(MemoryIndex), Offset, ExpectedValue, Timeout,
            LLContext.getInt32(BitWidth)}),
-      Context.MemoryAddrTypes[MemoryIndex]));
+      Context.Int32Ty));
 }
 
 void FunctionCompiler::compileAtomicLoad(unsigned MemoryIndex,

@@ -11,11 +11,14 @@
 
 #include <lld/Common/Driver.h>
 
+#include <cerrno>
 #include <charconv>
+#include <cstring>
 #include <fstream>
 #include <mutex>
 #include <random>
 #include <sstream>
+#include <system_error>
 
 #if LLVM_VERSION_MAJOR >= 14
 #include <lld/Common/CommonLinkerContext.h>
@@ -177,29 +180,47 @@ std::filesystem::path createTemp(const std::filesystem::path Model) noexcept {
   }
 }
 
+Expect<std::filesystem::path>
+writeTemporaryObject(const std::filesystem::path &Model,
+                     std::string_view ObjectBytes) noexcept {
+  auto ObjectPath = createTemp(Model);
+  if (ObjectPath.empty()) {
+    spdlog::error("object file creation failed: {}"sv, Model.u8string());
+    return Unexpect(ErrCode::Value::IllegalPath);
+  }
+
+  std::ofstream OS(ObjectPath, std::ios_base::binary);
+  OS.write(ObjectBytes.data(),
+           static_cast<std::streamsize>(ObjectBytes.size()));
+  OS.close();
+
+  if (!OS) {
+    const int ErrorNumber = errno;
+    spdlog::error(
+        "object file write failed: {}: {}"sv, ObjectPath.u8string(),
+        std::error_code(ErrorNumber, std::generic_category()).message());
+
+    return Unexpect(ErrCode::Value::IllegalPath);
+  }
+
+  return ObjectPath;
+}
+
 // Write output object and link
 Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
                                  const LLVM::MemoryBuffer &OSVec) noexcept {
   spdlog::info("output start"sv);
-  std::filesystem::path ObjectName;
-  {
-    // tempfile
-    std::filesystem::path OPath(OutputPath);
+  // tempfile
+  std::filesystem::path OPath(OutputPath);
 #if WASMEDGE_OS_WINDOWS
-    OPath.replace_extension("%%%%%%%%%%.obj"sv);
+  OPath.replace_extension("%%%%%%%%%%.obj"sv);
 #else
-    OPath.replace_extension("%%%%%%%%%%.o"sv);
+  OPath.replace_extension("%%%%%%%%%%.o"sv);
 #endif
-    ObjectName = createTemp(OPath);
-    if (ObjectName.empty()) {
-      // TODO:return error
-      spdlog::error("so file creation failed:{}"sv, OPath.u8string());
-      return Unexpect(ErrCode::Value::IllegalPath);
-    }
-    std::ofstream OS(ObjectName, std::ios_base::binary);
-    OS.write(OSVec.data(), static_cast<std::streamsize>(OSVec.size()));
-    OS.close();
-  }
+
+  EXPECTED_TRY(auto ObjectName,
+               writeTemporaryObject(
+                   OPath, std::string_view(OSVec.data(), OSVec.size())));
 
   // link
   // Serialize LLD invocations: CommonLinkerContext is a global singleton, so
@@ -306,22 +327,13 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
                                const std::filesystem::path &OutputPath,
                                Span<const Byte> Data,
                                const LLVM::MemoryBuffer &OSVec) noexcept {
-  std::filesystem::path SharedObjectName;
-  {
-    // tempfile
-    std::filesystem::path SOPath(OutputPath);
-    SOPath.replace_extension("%%%%%%%%%%" WASMEDGE_LIB_EXTENSION);
-    SharedObjectName = createTemp(SOPath);
-    if (SharedObjectName.empty()) {
-      // TODO:return error
-      spdlog::error("so file creation failed:{}"sv, SOPath.u8string());
-      return Unexpect(ErrCode::Value::IllegalPath);
-    }
-    std::ofstream OS(SharedObjectName, std::ios_base::binary);
-    OS.write(OSVec.data(), static_cast<std::streamsize>(OSVec.size()));
-    OS.close();
-  }
+  // tempfile
+  std::filesystem::path SOPath(OutputPath);
+  SOPath.replace_extension("%%%%%%%%%%" WASMEDGE_LIB_EXTENSION);
 
+  EXPECTED_TRY(auto SharedObjectName,
+               writeTemporaryObject(
+                   SOPath, std::string_view(OSVec.data(), OSVec.size())));
   EXPECTED_TRY(outputNativeLibrary(SharedObjectName, OSVec));
 
   LLVM::MemoryBuffer SOFile;

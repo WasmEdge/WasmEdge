@@ -180,6 +180,11 @@ std::vector<uint8_t> ImportWasm = {
     0x2d, 0x31, 0x4,  0x5,  0x74, 0x61, 0x67, 0x2d, 0x32, 0x5,  0x5,  0x74,
     0x61, 0x67, 0x2d, 0x33};
 
+std::vector<uint8_t> ReexportedImportedTagWasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+    0x60, 0x01, 0x7f, 0x00, 0x02, 0x08, 0x01, 0x01, 0x6d, 0x01, 0x74,
+    0x04, 0x00, 0x00, 0x07, 0x05, 0x01, 0x01, 0x74, 0x04, 0x00};
+
 std::vector<uint8_t> FibonacciWasm = {
     0x0,  0x61, 0x73, 0x6d, 0x1,  0x0,  0x0,  0x0,  0x1,  0x6,  0x1,
     0x60, 0x1,  0x7f, 0x1,  0x7f, 0x3,  0x2,  0x1,  0x0,  0x7,  0x7,
@@ -1321,6 +1326,31 @@ TEST(APICoreTest, ExportType) {
   EXPECT_EQ(WasmEdge_GlobalTypeGetMutability(
                 WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[18])),
             WasmEdge_Mutability_Const);
+
+  // Test retrieving the type of a re-exported imported tag.
+  WasmEdge_ASTModuleDelete(Mod);
+  Mod = nullptr;
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBytes(
+      Loader, &Mod,
+      WasmEdge_BytesWrap(
+          ReexportedImportedTagWasm.data(),
+          static_cast<uint32_t>(ReexportedImportedTagWasm.size())))));
+  EXPECT_NE(Mod, nullptr);
+
+  const WasmEdge_ExportTypeContext *ImportedTagExport = nullptr;
+  EXPECT_EQ(WasmEdge_ASTModuleListExportsLength(Mod), 1U);
+  EXPECT_EQ(WasmEdge_ASTModuleListExports(Mod, &ImportedTagExport, 1), 1U);
+  ASSERT_NE(ImportedTagExport, nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ImportedTagExport),
+            WasmEdge_ExternalType_Tag);
+  const WasmEdge_TagTypeContext *ImportedTagType =
+      WasmEdge_ExportTypeGetTagType(Mod, ImportedTagExport);
+  ASSERT_NE(ImportedTagType, nullptr);
+  const WasmEdge_FunctionTypeContext *ImportedTagFuncType =
+      WasmEdge_TagTypeGetFunctionType(ImportedTagType);
+  ASSERT_NE(ImportedTagFuncType, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParametersLength(ImportedTagFuncType), 1U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturnsLength(ImportedTagFuncType), 0U);
 
   WasmEdge_LoaderDelete(Loader);
   WasmEdge_ASTModuleDelete(Mod);

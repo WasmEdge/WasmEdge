@@ -41,12 +41,18 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
         CompInst.addComponent(*Comp);
         break;
       }
-      case AST::Component::Sort::SortType::Value:
-      case AST::Component::Sort::SortType::Instance:
-        // TODO: COMPONENT - complete the alias instantiation.
-        spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-        spdlog::error("    incomplete alias export"sv);
-        return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+      case AST::Component::Sort::SortType::Value: {
+        const auto *CInst = CompInst.getComponentInstance(Export.first);
+        auto Value = CInst->findValue(Export.second);
+        CompInst.addValue(*Value);
+        break;
+      }
+      case AST::Component::Sort::SortType::Instance: {
+        const auto *CInst = CompInst.getComponentInstance(Export.first);
+        const auto *Instance = CInst->findComponentInstance(Export.second);
+        CompInst.addComponentInstance(Instance);
+        break;
+      }
       default:
         assumingUnreachable();
       }
@@ -99,10 +105,24 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
     }
     case AST::Component::Alias::TargetType::Outer: {
       if (Sort.isCore()) {
-        // TODO: COMPONENT - complete the alias instantiation.
-        spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-        spdlog::error("    incomplete alias target outer: core:sort"sv);
-        return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+        switch (Sort.getCoreSortType()) {
+        case AST::Component::Sort::CoreSortType::Type: {
+          const auto &Outer = Alias.getOuter();
+          const auto &Type = CompInst.getComponentInstance(Outer.first)
+                               ->getCoreType(Outer.second);
+          CompInst.addCoreType(Type);
+          break;
+        }
+        case AST::Component::Sort::CoreSortType::Module: {
+          const auto &Outer = Alias.getOuter();
+          const auto &Mod = CompInst.getComponentInstance(Outer.first)
+                               ->getModule(Outer.second);
+          CompInst.addModule(Mod);
+          break;
+        }
+        default:
+          assumingUnreachable();
+        }
       } else {
         switch (Sort.getSortType()) {
         case AST::Component::Sort::SortType::Func: {
@@ -112,14 +132,30 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           CompInst.addCoreFunction(FuncInst);
           break;
         }
-        case AST::Component::Sort::SortType::Value:
-        case AST::Component::Sort::SortType::Type:
-        case AST::Component::Sort::SortType::Component:
-        case AST::Component::Sort::SortType::Instance:
-          // TODO: COMPONENT - complete the alias instantiation.
-          spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-          spdlog::error("    incomplete alias target outer: sort"sv);
-          return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+        case AST::Component::Sort::SortType::Value: {
+          const auto &Outer = Alias.getOuter();
+          auto Value = CompInst.getComponentInstance(Outer.first)->getValue(Outer.second);
+          CompInst.addValue(Value);
+          break;
+        }
+        case AST::Component::Sort::SortType::Type: {
+          const auto &Outer = Alias.getOuter();
+          auto *Type = CompInst.getComponentInstance(Outer.first)->getType(Outer.second);
+          CompInst.addType(*Type);
+          break;
+        }
+        case AST::Component::Sort::SortType::Component: {
+          const auto &Outer = Alias.getOuter();
+          const auto &Comp = CompInst.getComponentInstance(Outer.first)->getComponent(Outer.second);
+          CompInst.addComponent(Comp);
+          break;
+        }
+        case AST::Component::Sort::SortType::Instance: {
+          const auto &Outer = Alias.getOuter();
+          auto *Instance = CompInst.getComponentInstance(Outer.first)->getComponentInstance(Outer.second);
+          CompInst.addComponentInstance(Instance);
+          break;
+        }
         default:
           assumingUnreachable();
         }

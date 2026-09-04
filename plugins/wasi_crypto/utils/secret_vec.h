@@ -23,6 +23,7 @@
 
 #include <climits>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {
@@ -39,6 +40,10 @@ public:
 
   SecretVec(Span<const uint8_t> Data) noexcept
       : Data(Data.begin(), Data.end()) {}
+
+  /// Take over the buffer instead of copying it through `Span`, so that only
+  /// one copy of the content exists and it is the cleansed one.
+  SecretVec(std::vector<uint8_t> &&Data) noexcept : Data(std::move(Data)) {}
 
   SecretVec(size_t Size) noexcept : Data(Size) {}
 

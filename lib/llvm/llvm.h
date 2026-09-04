@@ -154,9 +154,11 @@ public:
 #endif
 
   static inline unsigned int Cold = 0;
+  static inline unsigned int MinSize = 0;
   static inline unsigned int NoAlias = 0;
   static inline unsigned int NoInline = 0;
   static inline unsigned int NoReturn = 0;
+  static inline unsigned int OptimizeForSize = 0;
   static inline unsigned int ReadOnly = 0;
   static inline unsigned int StrictFP = 0;
   static inline unsigned int UWTable = 0;
@@ -246,9 +248,11 @@ private:
 #endif
 
     Cold = getEnumAttributeKind("cold"sv);
+    MinSize = getEnumAttributeKind("minsize"sv);
     NoAlias = getEnumAttributeKind("noalias"sv);
     NoInline = getEnumAttributeKind("noinline"sv);
     NoReturn = getEnumAttributeKind("noreturn"sv);
+    OptimizeForSize = getEnumAttributeKind("optsize"sv);
     ReadOnly = getEnumAttributeKind("readonly"sv);
     StrictFP = getEnumAttributeKind("strictfp"sv);
     UWTable = getEnumAttributeKind("uwtable"sv);
@@ -346,6 +350,7 @@ public:
 
   const char *getTarget() noexcept { return LLVMGetTarget(Ref); }
   void setTarget(const char *Triple) noexcept { LLVMSetTarget(Ref, Triple); }
+  Context getContext() const noexcept { return LLVMGetModuleContext(Ref); }
   inline Value addFunction(Type Ty, LLVMLinkage Linkage,
                            const char *Name = "") noexcept;
   inline Value addGlobal(Type Ty, bool IsConstant, LLVMLinkage Linkage,
@@ -818,6 +823,7 @@ public:
   Value getNextParam() noexcept { return LLVMGetNextParam(Ref); }
   Value getNextGlobal() noexcept { return LLVMGetNextGlobal(Ref); }
   Value getNextFunction() noexcept { return LLVMGetNextFunction(Ref); }
+  bool isDeclaration() const noexcept { return LLVMIsDeclaration(Ref) != 0; }
   unsigned int countBasicBlocks() noexcept { return LLVMCountBasicBlocks(Ref); }
 
   Type getType() const noexcept { return LLVMTypeOf(Ref); }

@@ -148,6 +148,28 @@ TEST(SecretVecTest, CopyFromLvalueVector) {
   EXPECT_TRUE(std::equal(Secret.begin(), Secret.end(), Data.begin()));
 }
 
+TEST(SecretVecTest, MoveAssignTransfersBuffer) {
+  SecretVec Secret(std::vector<uint8_t>(32, uint8_t{0xAB}));
+  SecretVec Other(std::vector<uint8_t>(64, uint8_t{0xCD}));
+  const uint8_t *const Buffer = Other.data();
+
+  Secret = std::move(Other);
+
+  EXPECT_EQ(Secret.data(), Buffer);
+  EXPECT_EQ(Secret.size(), 64U);
+}
+
+TEST(SecretVecTest, SelfAssignKeepsContent) {
+  SecretVec Secret(std::vector<uint8_t>(32, uint8_t{0xAB}));
+  SecretVec &Alias = Secret;
+
+  Secret = Alias;
+
+  EXPECT_EQ(Secret.size(), 32U);
+  EXPECT_TRUE(std::all_of(Secret.begin(), Secret.end(),
+                          [](uint8_t Byte) { return Byte == 0xAB; }));
+}
+
 } // namespace WasiCrypto
 } // namespace Host
 } // namespace WasmEdge

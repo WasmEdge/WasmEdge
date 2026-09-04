@@ -532,10 +532,8 @@ private:
 
 // >>>>>>>> Component Model Value definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-/// Canonical ABI string encoding (CanonicalABI.md `string-encoding` canon
-/// option). The host always represents component strings as a UTF-8
-/// std::string; this selects how the *guest* lays them out in linear memory, so
-/// lift decodes from it and lower encodes to it.
+/// The `string-encoding` canon option. The host always holds component
+/// strings as UTF-8; this selects the guest's linear-memory layout.
 enum class StringEncoding : uint8_t { UTF8, UTF16, Latin1UTF16 };
 
 /// Forward declaration of the aggregate component value container.
@@ -543,22 +541,16 @@ enum class StringEncoding : uint8_t { UTF8, UTF16, Latin1UTF16 };
 struct ValComp;
 
 using ComponentValVariant = std::variant<
-    // Primitive types in the Component Model value model. Held in typed arms
-    // directly (no ValVariant wrapping) so that aggregate-internal primitives
-    // and top-level primitives share a single representation. See
-    // CanonicalABI.md L2920+ — component values are the spec's typed Python
-    // values; core wasm ValVariants belong to the orthogonal Core layer and
-    // never appear inside a component value.
+    // Primitive types in the Component Model value model, held in typed arms
+    // so aggregate-internal and top-level primitives share one representation.
     uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t,
     float, double, bool, std::string,
-    // Aggregate types (record/variant/list/tuple/option/result/flags/enum/own/
-    // borrow). Held via shared_ptr because the variant is frequently copied and
-    // the contained ValComp recursively holds further ComponentValVariants.
+    // Aggregate types, held via shared_ptr because the variant is copied
+    // often and a ValComp recursively holds further component values.
     std::shared_ptr<ValComp>>;
 
-// Per-aggregate value structs. Labels for records/variants/flags/enums are
-// retained on the value side for easier round-trip debugging — the canonical
-// source of truth remains the DefValType.
+// Per-aggregate value structs. Labels are kept on the value side for
+// round-trip debugging; the DefValType stays the source of truth.
 struct RecordVal {
   std::vector<std::pair<std::string, ComponentValVariant>> Fields;
 };
@@ -594,15 +586,29 @@ struct EnumVal {
   std::string Label{};
 };
 struct OwnVal {
-  uint32_t Handle;
+  // The host side carries the resource representation, which the memory64
+  // proposal widens to 64 bits.
+  uint64_t Handle;
 };
 struct BorrowVal {
-  uint32_t Handle;
+  uint64_t Handle;
+};
+// An error-context value. Only the debug message is observable, so lifting
+// copies it out of the handles table rather than sharing the entry.
+struct ErrorContextVal {
+  std::string Message;
+};
+struct StreamFutureVal {
+  // A transferred stream/future end: the shared rendezvous object,
+  // type-erased to keep the value layer free of runtime headers.
+  std::shared_ptr<void> Shared;
+  bool IsStream = true;
 };
 
 struct ValComp {
   std::variant<RecordVal, TupleVal, VariantVal, ListVal, OptionVal, ResultVal,
-               FlagsVal, EnumVal, OwnVal, BorrowVal>
+               FlagsVal, EnumVal, OwnVal, BorrowVal, StreamFutureVal,
+               ErrorContextVal>
       V;
 };
 

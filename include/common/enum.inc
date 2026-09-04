@@ -1371,6 +1371,95 @@ E(ResourceDropArgument, 0x1303,
 // Component model not implemented
 E(ComponentNotImplInstantiate, 0x1304,
   "component model (instantiation) not implemented")
+E(ComponentImportNotFound, 0x1305, "was not found")
+E(ComponentImportExpectedFunc, 0x1306, "expected function found instance")
+E(ComponentImportExpectedInstance, 0x1307, "expected instance found func")
+E(ComponentImportExpectedModule, 0x1308, "expected module found instance")
+E(ComponentHandleUnknown, 0x1309, "unknown handle index")
+E(ComponentHandleWrongType, 0x130A, "used with the wrong type")
+E(ComponentResourceBorrowed, 0x130B,
+  "cannot remove owned resource while borrowed")
+E(ComponentCharInvalid, 0x130C, "invalid `char` bit pattern")
+E(ComponentDiscriminantInvalid, 0x130D, "invalid variant discriminant")
+E(ComponentPtrUnaligned, 0x130E, "unaligned pointer")
+E(ComponentStrOOB, 0x130F, "string content out-of-bounds")
+E(ComponentStrPtrLenOOB, 0x1310,
+  "string pointer/length out of bounds of memory")
+E(ComponentReallocOOB, 0x1311, "realloc return: beyond end of memory")
+E(ComponentCoreModNotDefined, 0x1312, "not defined")
+E(ComponentCoreModWrongType, 0x1313, "has the wrong type")
+E(ComponentCoreModKindMismatch, 0x1314, "expected")
+E(ComponentResourceMismatched, 0x1315, "mismatched resource types")
+E(ComponentImportExpectedResource, 0x1316, "expected resource found func")
+E(ComponentCannotEnter, 0x1317, "cannot enter component instance")
+E(ComponentUTF8Invalid, 0x1318, "invalid utf-8")
+E(ComponentUTF8Incomplete, 0x1319, "incomplete utf-8 byte sequence")
+E(ComponentCannotLeave, 0x131A, "cannot leave component instance")
+E(ComponentAsyncDeadlock, 0x131B,
+  "deadlock detected: event loop cannot make further progress")
+E(ComponentCannotBlockSync, 0x131C,
+  "cannot block a synchronous task before returning")
+E(ComponentBadCallbackCode, 0x131D, "unsupported callback code")
+E(ComponentNoAsyncResult, 0x131E,
+  "async-lifted export failed to produce a result")
+E(ComponentBorrowsRemain, 0x131F,
+  "borrow handles still remain at the end of the call")
+E(ComponentAsyncAborted, 0x1320, "async execution aborted")
+E(ComponentWaitableSetNotEmpty, 0x1321, "cannot drop waitable set with waiters")
+E(ComponentSubtaskNotResolved, 0x1322,
+  "cannot drop a subtask which has not yet resolved")
+E(ComponentStreamDropBusy, 0x1323, "cannot drop busy stream")
+E(ComponentFutureWriteEndNoValue, 0x1324,
+  "cannot drop future write end without first writing a value")
+E(ComponentCopyBusy, 0x1325,
+  "cannot have concurrent operations active on a future/stream")
+E(ComponentWaitableInSetSyncUse, 0x1326,
+  "waitable cannot be used synchronously while added to a waitable set")
+E(ComponentStreamReadAfterDrop, 0x1327,
+  "cannot read from stream after being notified that the writable end "
+  "dropped")
+E(ComponentStreamWriteAfterDrop, 0x1328,
+  "cannot write to stream after being notified that the readable end "
+  "dropped")
+E(ComponentFutureReadAfterSuccess, 0x1329,
+  "cannot read from future after previous read succeeded")
+E(ComponentFutureWriteAfterSuccess, 0x132A,
+  "cannot write to future after previous write succeeded")
+E(ComponentFutureWriteAfterSuccessOrDrop, 0x132B,
+  "cannot write to future after previous write succeeded or readable end "
+  "dropped")
+E(ComponentIntraCopy, 0x132C,
+  "cannot read from and write to intra-component future")
+E(ComponentStreamRemoveBusy, 0x132D, "cannot remove busy stream")
+E(ComponentStreamLiftInSet, 0x132E,
+  "cannot lift stream while it's in a waitable set")
+E(ComponentFutureLiftInSet, 0x132F,
+  "cannot lift future while it's in a waitable set")
+E(ComponentStreamLiftAfterDrop, 0x1330,
+  "cannot lift stream after being notified that the writable end dropped")
+E(ComponentFutureLiftAfterSuccess, 0x1331,
+  "cannot lift future after previous read succeeded")
+E(ComponentTaskNotCancelled, 0x1332,
+  "`task.cancel` called by task which has not been cancelled")
+E(ComponentTaskResolvedTwice, 0x1333,
+  "`task.return` or `task.cancel` called more than once for current task")
+E(ComponentSubtaskCancelTerminal, 0x1334,
+  "`subtask.cancel` called after terminal status delivered")
+E(ComponentTaskReturnInvalid, 0x1335,
+  "invalid `task.return` signature and/or options for current task")
+E(ComponentBackpressureOverflow, 0x1336, "backpressure counter overflow")
+E(ComponentStreamOpTooBig, 0x1337, "stream read/write count too large")
+E(ComponentCancelReadNotPending, 0x1338,
+  "stream or future read cancelled when no read is pending")
+E(ComponentCancelWriteNotPending, 0x1339,
+  "stream or future write cancelled when no write is pending")
+E(ComponentReadPtrUnaligned, 0x133A, "read pointer not aligned")
+E(ComponentWritePtrUnaligned, 0x133B, "write pointer not aligned")
+E(ComponentThreadNotSuspended, 0x133C,
+  "cannot resume thread which is not suspended")
+E(ComponentThreadStartInvalid, 0x133D,
+  "start function does not match expected type")
+E(ComponentUnexpectedSort, 0x133E, "unexpected sort")
 // @}
 
 // Execution phase

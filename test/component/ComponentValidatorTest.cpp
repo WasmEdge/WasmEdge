@@ -5,7 +5,7 @@
 #include "ast/component/type.h"
 #include "validator/component_value_decode.h"
 #include "validator/validator.h"
-#include "vm/vm.h"
+#include "vm/component_vm.h"
 
 #include <gtest/gtest.h>
 
@@ -2063,7 +2063,6 @@ TEST(ComponentValidatorTest, InstantiateImportedComponentMissingArgRejected) {
 // Core instance memory index-type checking on instantiation (GAP-CI-1)
 // =============================================================================
 
-namespace {
 // Builds:
 //   (core module $A (import "" "" (memory 1)))   ;; imports a 32-bit memory
 //   (core module $B (memory (export "") <mem>))  ;; exports `Mem`
@@ -2115,7 +2114,6 @@ AST::Component::Component buildMemoryLinkComponent(const AST::MemoryType &Mem) {
   CoreInstSec.getContent().back().setInstantiateArgs(0U, {Arg});
   return Comp;
 }
-} // namespace
 
 TEST(ComponentValidatorTest, CoreInstanceMemoryIndexTypeMismatchRejected) {
   // Provide a 64-bit memory where a 32-bit memory is imported -> reject.
@@ -2297,14 +2295,14 @@ static const std::vector<uint8_t> validator_no_realloc_wasm = {
 // canon lift whose result spills into the return area but omits 'memory'.
 // The validator must reject this end-to-end.
 TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoMemoryRejected) {
-  VM::VM VM(Conf);
+  VM::ComponentVM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(validator_no_memory_wasm));
   EXPECT_FALSE(VM.validate());
 }
 
 // canon lift whose string param forces a realloc but omits 'realloc'.
 TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoReallocRejected) {
-  VM::VM VM(Conf);
+  VM::ComponentVM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(validator_no_realloc_wasm));
   EXPECT_FALSE(VM.validate());
 }
@@ -2316,7 +2314,6 @@ TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoReallocRejected) {
 // CoreModuleType (not an inline AST::Module).
 // =============================================================================
 
-namespace {
 // Builds a component that links two imported core modules by type:
 //   (core type (module (export "g" <ExpDesc>)))      ;; core:type 0 (provider)
 //   (core type (module (import "provider" "g" <ImpDesc>)))  ;; core:type 1
@@ -2410,7 +2407,6 @@ AST::Component::CoreImportDesc mkMemoryDesc(const AST::Limit &L) {
   D.setMemoryType(AST::MemoryType(L));
   return D;
 }
-} // namespace
 
 TEST(ComponentValidatorTest, CoreInstanceImportGlobalTypeMismatchRejected) {
   // Provider exports (global (mut i64)); consumer imports (global (mut i32)).

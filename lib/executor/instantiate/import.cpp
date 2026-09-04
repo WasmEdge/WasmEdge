@@ -110,11 +110,9 @@ checkImportMatched(std::string_view ModName, std::string_view ExtName,
 } // namespace
 
 // Instantiate imports. See "include/executor/executor.h".
-Expect<void> Executor::instantiate(
-    std::function<const Runtime::Instance::ModuleInstance *(std::string_view)>
-        ModuleFinder,
-    Runtime::Instance::ModuleInstance &ModInst,
-    const AST::ImportSection &ImportSec) {
+Expect<void> Executor::instantiate(const CoreModuleFinder &ModuleFinder,
+                                   Runtime::Instance::ModuleInstance &ModInst,
+                                   const AST::ImportSection &ImportSec) {
   // Iterate and instantiate import descriptions.
   for (const auto &ImpDesc : ImportSec.getContent()) {
     // Get data from import description and find import module.
@@ -163,10 +161,19 @@ Expect<void> Executor::instantiate(
         return Inst->getModule() ? Inst->getModule()->getTypeList()
                                  : ImpModInst->getTypeList();
       };
-
-      if (!AST::TypeMatcher::matchType(ModInst.getTypeList(), TypeIdx,
-                                       GetImpTypeList(ImpInst),
-                                       ImpInst->getTypeIndex())) {
+      const auto ImpTypeList = GetImpTypeList(ImpInst);
+      bool FnTypeMatch = AST::TypeMatcher::matchType(
+          ModInst.getTypeList(), TypeIdx, ImpTypeList, ImpInst->getTypeIndex());
+      if (!FnTypeMatch && ImpInst->getTypeIndex() >= ImpTypeList.size()) {
+        // A function re-exported through a synthetic component instance
+        // loses its module type list, so compare the resolved types.
+        const auto &ExpFT =
+            (**ModInst.getType(TypeIdx)).getCompositeType().getFuncType();
+        const auto &GotFT = ImpInst->getFuncType();
+        FnTypeMatch = ExpFT.getParamTypes() == GotFT.getParamTypes() &&
+                      ExpFT.getReturnTypes() == GotFT.getReturnTypes();
+      }
+      if (!FnTypeMatch) {
         const auto &ExpDefType = **ModInst.getType(TypeIdx);
         bool IsMatchV2 = false;
         const auto &ExpFuncType = ExpDefType.getCompositeType().getFuncType();
@@ -273,9 +280,21 @@ Expect<void> Executor::instantiate(
       const auto &TagType = ImpDesc.getExternalTagType();
       // Import matching.
       auto *ImpInst = ImpModInst->findTagExports(ExtName);
-      if (!AST::TypeMatcher::matchType(
-              ModInst.getTypeList(), TagType.getTypeIdx(),
-              ImpModInst->getTypeList(), ImpInst->getTagType().getTypeIdx())) {
+      bool TagMatch = AST::TypeMatcher::matchType(
+          ModInst.getTypeList(), TagType.getTypeIdx(),
+          ImpModInst->getTypeList(), ImpInst->getTagType().getTypeIdx());
+      if (!TagMatch && ImpInst->getTagType().getTypeIdx() >=
+                           ImpModInst->getTypeList().size()) {
+        // A tag re-exported through a synthetic component instance loses its
+        // module type list, so compare the resolved types.
+        const auto &ExpFT =
+            TagType.getDefType().getCompositeType().getFuncType();
+        const auto &GotFT =
+            ImpInst->getTagType().getDefType().getCompositeType().getFuncType();
+        TagMatch = ExpFT.getParamTypes() == GotFT.getParamTypes() &&
+                   ExpFT.getReturnTypes() == GotFT.getReturnTypes();
+      }
+      if (!TagMatch) {
         const auto &ExpFuncType =
             TagType.getDefType().getCompositeType().getFuncType();
         const auto &ImpFuncType =

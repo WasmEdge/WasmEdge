@@ -12,11 +12,10 @@
 #include "GGML/metadata/metadata_parser.h"
 #include "wasinn_ggml_log.h"
 #include <base64.hpp>
+#include <build-info.h>
 #include <common.h>
 #include <cstdlib>
 #include <fmt/ranges.h>
-#include <json-partial.h>
-#include <json-schema-to-grammar.h>
 #include <llama.h>
 #include <mtmd-helper.h>
 #include <mtmd.h>
@@ -100,8 +99,8 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, WASINN::Graph &G,
 
   // Logging.
   LOG_DEBUG(GraphRef.EnableDebugLog, "load"sv)
-  LOG_INFO(GraphRef.EnableLog, "LLAMA_COMMIT {}"sv, LLAMA_COMMIT)
-  LOG_INFO(GraphRef.EnableLog, "LLAMA_BUILD_NUMBER {}"sv, LLAMA_BUILD_NUMBER)
+  LOG_INFO(GraphRef.EnableLog, "LLAMA_COMMIT {}"sv, llama_commit())
+  LOG_INFO(GraphRef.EnableLog, "LLAMA_BUILD_NUMBER {}"sv, llama_build_number())
 
   // Handle the model path.
   LOG_DEBUG(GraphRef.EnableDebugLog, "load: handling model path."sv)
@@ -172,7 +171,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, WASINN::Graph &G,
   // Initialize the TTS related model and context.
   if (GraphRef.TextToSpeech) {
     LOG_DEBUG(GraphRef.EnableDebugLog, "load: initialize TTS model."sv)
-    Params.model = GraphRef.Params.vocoder.model;
+    Params.model = GraphRef.VocoderModel;
     Params.embedding = true;
     llama_model_params TTSModelParams = common_model_params_to_llama(Params);
     GraphRef.TTSModel = llama_model_ptr(
@@ -208,8 +207,16 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &G,
   CxtRef.OutputBatch = allocBatch(1);
 
   // Allocate sampler.
-  CxtRef.LlamaSampler =
-      common_sampler_init(GraphRef.LlamaModel.get(), GraphRef.Params.sampling);
+  try {
+    CxtRef.LlamaSampler = common_sampler_init(GraphRef.LlamaModel.get(),
+                                              GraphRef.Params.sampling);
+  } catch (const std::exception &E) {
+    RET_ERROR(ErrNo::InvalidArgument,
+              "initExecCtx: unable to init sampler: {}"sv, E.what())
+  }
+  if (CxtRef.LlamaSampler == nullptr) {
+    RET_ERROR(ErrNo::InvalidArgument, "initExecCtx: unable to init sampler."sv)
+  }
 
   LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx...Done"sv)
   return ErrNo::Success;

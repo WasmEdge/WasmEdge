@@ -3,6 +3,7 @@
 
 #include "common/func.h"
 #include "helper.h"
+#include "utils/secret_vec.h"
 
 namespace {
 template <typename T, typename M>
@@ -122,6 +123,29 @@ TEST_F(WasiCryptoTest, Options) {
     // Close options.
     WASI_CRYPTO_EXPECT_TRUE(optionsClose(KxOptionsHandle));
   }
+}
+
+TEST(SecretVecTest, MoveFromVector) {
+  std::vector<uint8_t> Data(32, uint8_t{0xAB});
+  const uint8_t *const Buffer = Data.data();
+
+  SecretVec Secret(std::move(Data));
+
+  EXPECT_TRUE(Data.empty());
+  EXPECT_EQ(Secret.data(), Buffer);
+  EXPECT_EQ(Secret.size(), 32U);
+}
+
+TEST(SecretVecTest, CopyFromLvalueVector) {
+  std::vector<uint8_t> Data(32, uint8_t{0xAB});
+  const uint8_t *const Buffer = Data.data();
+
+  SecretVec Secret(Data);
+
+  EXPECT_EQ(Data.size(), 32U);
+  EXPECT_EQ(Data.data(), Buffer);
+  EXPECT_NE(Secret.data(), Buffer);
+  EXPECT_TRUE(std::equal(Secret.begin(), Secret.end(), Data.begin()));
 }
 
 } // namespace WasiCrypto

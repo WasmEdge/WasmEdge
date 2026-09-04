@@ -43,6 +43,9 @@ For known public security vulnerabilities, we will disclose the disclosure as so
 
 ## Supported Versions
 
+WasmEdge primarily releases updates for the latest `minor` version. Within the same `minor` version, the API remains stable without breaking changes. In the event of a security issue or critical bug, fixes are applied to the two most recent `minor` versions. Refer to the
+[backward support](./docs/RELEASE_POLICY.md#backward-support) section of our release policy for more information.
+
 Information regarding supported versions of WasmEdge are in the below table:
 
 | Version | Supported |

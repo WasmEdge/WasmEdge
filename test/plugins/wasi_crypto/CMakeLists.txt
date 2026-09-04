@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+set(OPENSSL_USE_STATIC_LIBS ON)
+find_package(OpenSSL REQUIRED)
+
 wasmedge_add_executable(wasiCryptoTests
   aeads.cpp
   asymmetric.cpp
@@ -32,6 +35,7 @@ target_include_directories(wasiCryptoTests
 target_link_libraries(wasiCryptoTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
+  OpenSSL::Crypto
 )
 # Link to the WasmEdge library
 if(WASMEDGE_LINK_PLUGINS_STATIC)

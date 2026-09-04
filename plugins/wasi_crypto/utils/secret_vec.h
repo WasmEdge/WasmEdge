@@ -23,6 +23,7 @@
 
 #include <climits>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {
@@ -33,16 +34,37 @@ namespace WasiCrypto {
 class SecretVec {
 public:
   SecretVec(const SecretVec &) = default;
-  SecretVec &operator=(const SecretVec &) = default;
-  SecretVec &operator=(SecretVec &&) noexcept = default;
+
+  /// Swipe the replaced content before releasing it, which the defaulted
+  /// assignment operators do not do.
+  SecretVec &operator=(const SecretVec &Rhs) {
+    if (this != &Rhs) {
+      cleanse();
+      Data = Rhs.Data;
+    }
+    return *this;
+  }
+
+  SecretVec &operator=(SecretVec &&Rhs) noexcept {
+    if (this != &Rhs) {
+      cleanse();
+      Data = std::move(Rhs.Data);
+    }
+    return *this;
+  }
+
   SecretVec(SecretVec &&) noexcept = default;
 
   SecretVec(Span<const uint8_t> Data) noexcept
       : Data(Data.begin(), Data.end()) {}
 
+  /// Take over the buffer instead of copying it through `Span`, so that only
+  /// one copy of the content exists and it is the cleansed one.
+  SecretVec(std::vector<uint8_t> &&Data) noexcept : Data(std::move(Data)) {}
+
   SecretVec(size_t Size) noexcept : Data(Size) {}
 
-  ~SecretVec() noexcept { OPENSSL_cleanse(Data.data(), Data.size()); }
+  ~SecretVec() noexcept { cleanse(); }
 
   auto begin() noexcept { return Data.begin(); }
   auto begin() const noexcept { return Data.begin(); }
@@ -71,6 +93,8 @@ public:
   }
 
 private:
+  void cleanse() noexcept { OPENSSL_cleanse(Data.data(), Data.size()); }
+
   std::vector<uint8_t> Data;
 };
 

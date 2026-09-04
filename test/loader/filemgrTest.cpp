@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstdint>
 #include <gtest/gtest.h>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -928,6 +929,16 @@ TEST(FileManagerTest, Vector__PeekByte) {
   Mgr.readByte();
   ASSERT_FALSE(PeekByte = Mgr.peekByte());
   EXPECT_EQ(10U, Mgr.getOffset());
+}
+
+TEST(FileManagerTest, Vector__ReadBytesOutOfBounds) {
+  // 19. Test unsigned char list reading in the out-of-bounds case.
+  WasmEdge::Expect<std::vector<uint8_t>> ReadBytes;
+  ASSERT_TRUE(Mgr.setCode(std::vector<uint8_t>{0x00, 0xFF, 0x1F, 0x2E}));
+  EXPECT_EQ(0U, Mgr.getOffset());
+  ASSERT_FALSE(ReadBytes = Mgr.readBytes(std::numeric_limits<size_t>::max()));
+  EXPECT_EQ(WasmEdge::ErrCode::Value::UnexpectedEnd, ReadBytes.error());
+  EXPECT_EQ(4U, Mgr.getOffset());
 }
 
 } // namespace

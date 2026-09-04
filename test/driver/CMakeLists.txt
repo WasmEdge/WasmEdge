@@ -15,3 +15,13 @@ target_link_libraries(wasmedgeDriverToolTests
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeDriver
 )
+
+if(WASMEDGE_USE_LLVM)
+  find_package(LLVM QUIET HINTS "${LLVM_CMAKE_PATH}" "${LLVM_DIR}")
+  if(LLVM_FOUND)
+    target_compile_definitions(wasmedgeDriverToolTests
+      PRIVATE
+      WASMEDGE_LLVM_VERSION_MAJOR=${LLVM_VERSION_MAJOR}
+    )
+  endif()
+endif()

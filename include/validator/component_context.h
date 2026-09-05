@@ -41,19 +41,15 @@ class Context {
 public:
   explicit Context(TypeSystem &Types) noexcept : Types(Types) {}
 
-  /// The type system these index spaces resolve against.
-  TypeSystem &types() noexcept { return Types; }
-
   // ==========================================================================
-  // The scope stack. Scopes stay in the arena after they pop; an unbalanced
-  // exit on an error path is harmless because validate() resets the stack.
+  // The scope stack. Scopes stay owned after they pop; validate() resets it.
   // ==========================================================================
 
-  Scope &enterScope(Scope::Kind K) noexcept {
+  Scope &enterScope(ScopeKind K) noexcept {
     const Scope *Parent = Stack.empty() ? nullptr : Stack.back();
-    ScopeArena.emplace_back(K, Parent);
-    Stack.push_back(&ScopeArena.back());
-    return ScopeArena.back();
+    OwnedScopes.emplace_back(K, Parent);
+    Stack.push_back(&OwnedScopes.back());
+    return OwnedScopes.back();
   }
 
   void exitScope() noexcept {
@@ -70,12 +66,7 @@ public:
     return *Stack.back();
   }
 
-  uint32_t depth() const noexcept {
-    return static_cast<uint32_t>(Stack.size());
-  }
-
-  /// The scope Levels hops up from the current one. Returns nullptr if Levels
-  /// is out of range.
+  /// The scope Levels hops up from the current one; nullptr if out of range.
   Scope *scopeUp(uint32_t Levels) noexcept {
     if (Levels >= Stack.size()) {
       return nullptr;
@@ -83,8 +74,7 @@ public:
     return Stack[Stack.size() - 1 - Levels];
   }
 
-  /// The scope one level inside the outer-alias target (Levels > 0): if it is
-  /// a real component, the alias crosses a component boundary.
+  /// The scope inside the outer-alias target; a component there is a crossing.
   const Scope *scopeInsideTarget(uint32_t Levels) const noexcept {
     if (Levels == 0 || Levels > Stack.size()) {
       return nullptr;
@@ -105,23 +95,18 @@ public:
   Expect<const CoreShape *> buildCoreShape(const AST::Module &Mod) noexcept;
 
   // ==========================================================================
-  // Naming: grammar, strong uniqueness, `implements`, annotated plainnames,
-  // and the named-types rule. This is the only writer of NameSide.
+  // Naming checks and the named-types rule; the only writer of NameSide.
   // ==========================================================================
 
-  /// Extern-name grammar and position checks. An export rejects the
-  /// import-only dep, url, and hash names.
+  /// Extern-name grammar checks; an export rejects the import-only name kinds.
   Expect<ExternName> parseExternName(std::string_view Name,
                                      bool IsImport) const noexcept;
   /// Build the comparison record for a parsed name.
   NameRecord makeNameRecord(const ExternName &Name) const noexcept;
-  /// Append N to Names, or diagnose the clash. An exact duplicate is always
-  /// a name conflict, a strong-uniqueness one names the declarator side.
+  /// Append N to Names, or diagnose the clash (exact or strong-uniqueness).
   Expect<void> addUniqueName(std::vector<NameRecord> &Names,
                              const NameRecord &N, bool IsImport) const noexcept;
-  /// The name attributes. Each kind may appear at most once. An
-  /// `implements` value must be an interface name, and the annotated name
-  /// must be plain and instance-typed.
+  /// Name attributes: each kind at most once, on a plain, instance-typed name.
   Expect<void> checkNameAttributes(const ExternName &CN,
                                    Span<const std::string> Impls,
                                    Span<const std::string> ExtIds,
@@ -134,25 +119,21 @@ public:
   /// Track plain resource labels for later annotated-name checks.
   void recordResourceLabel(const ExternName &Name, const ExternInfo &Info,
                            bool IsImport) noexcept;
-  /// Named-types rule. A preceding import or export must introduce every
-  /// flags, enum, record, variant, or resource that an extern refers to.
+  /// Named-types rule: an earlier extern must introduce each named type used.
   Expect<void> checkNamedTypesRule(const ExternInfo &Info,
                                    bool IsImport) noexcept;
 
   // ==========================================================================
-  // Declaring an import or an export. The export path is split so name
-  // errors precede ascription errors, so the checks above stay callable.
+  // Declaring an import or an export; name errors precede ascription errors.
   // ==========================================================================
 
-  /// Check an import's name and define the (already resolved) entity it
-  /// introduces.
+  /// Check an import's name and define the resolved entity it introduces.
   Expect<ExternInfo>
   defineImport(std::string_view Name, const ExternInfo &Resolved,
                Span<const std::string> Impls = {},
                Span<const std::string> ExtIds = {},
                Span<const std::string> VSuffixes = {}) noexcept;
-  /// Check and record the name of an export. defineExport then defines the
-  /// entity, with its optional ascription.
+  /// Check and record an export's name; defineExport then defines the entity.
   Expect<ExternName>
   registerExportName(std::string_view Name, bool IsInstance,
                      Span<const std::string> Impls = {},
@@ -163,66 +144,58 @@ public:
   defineExport(const ExternName &CN, const ExternInfo &Inferred,
                const std::optional<ExternInfo> &Ascribed) noexcept;
 
-  /// Mint fresh identities for the resources that the own declarations of an
-  /// instance shape introduced. The current scope owns them.
+  /// Mint fresh identities for the resources Inst declares; top() owns them.
   const Shape *freshenDeclaredResources(const Shape *Inst,
                                         bool FromImport) noexcept {
     return Types.freshenDeclaredResources(Inst, top(), FromImport);
   }
 
   // ==========================================================================
-  // Canonical options. The flattening they parameterize lives on
-  // TypeSystem; these resolve core index spaces, so they live here.
+  // Canonical options. They resolve core index spaces, so they live here.
   // ==========================================================================
 
-  /// True iff the canonical definition carries the given option.
-  static bool hasOption(const AST::Component::Canonical &Canon,
-                        ComponentCanonOptCode Code) noexcept;
-  /// True iff the canonical `memory` option selects a 64-bit memory.
-  bool canonMemoryIs64(const AST::Component::Canonical &Canon) const noexcept;
   /// The index type of the selected canonical memory.
-  ValType canonPtrType(const AST::Component::Canonical &Canon) const noexcept {
-    return ValType(canonMemoryIs64(Canon) ? TypeCode::I64 : TypeCode::I32);
-  }
-  /// canonopt structural rules: duplicates, index validity, the referenced
-  /// core function signatures, and the per-site option whitelist.
+  ValType
+  getCanonPtrType(const AST::Component::Canonical &Canon) const noexcept;
+  /// canonopt rules: duplicates, indices, core signatures, per-site whitelist.
   Expect<void> checkOptions(const AST::Component::Canonical &Canon,
                             bool IsLift) const noexcept;
+  /// The memory and realloc options a definition (What) needs.
+  Expect<void> requireOptions(const AST::Component::Canonical &Canon,
+                              bool NeedMemory, bool NeedRealloc,
+                              std::string_view What) const noexcept;
 
   // ==========================================================================
   // Instantiation.
   // ==========================================================================
 
-  /// Match args against CI.Imports, then produce the instance's export view
-  /// with substituted and freshened resource ids.
+  /// Match args against CI.Imports and produce the freshened export view.
   Expect<const Shape *> instantiateComponentShape(
       const Shape &CI,
       Span<const AST::Component::InstantiateArg<AST::Component::SortIndex>>
           Args) noexcept;
 
-  /// Core-module code sections deferred to the end of the root component,
-  /// each with the checker state captured at its definition.
+  /// Core-module code sections deferred to the end of the root component.
   std::vector<std::pair<const AST::Module *, FormChecker>> DeferredModules;
 
   void reset() noexcept {
     DeferredModules.clear();
     Stack.clear();
-    ScopeArena.clear();
+    OwnedScopes.clear();
     Types.reset();
   }
 
 private:
-  // Named-types rule. introduceExternTypes both checks (false if a referenced
-  // type was not introduced first) and records what it introduces.
+  // Named-types rule: introduceExternTypes checks (false if unmet) and records.
   bool introduceExternTypes(const ExternInfo &Info, bool IsImport) noexcept;
-  bool isValTypeIntroduced(const QualValType &Q, bool IsImport) noexcept;
-  bool isTypeEntryIntroduced(const TypeEntry &E, bool IsImport) noexcept;
+  bool isIntroduced(const QualValType &Q, bool IsImport) noexcept;
+  bool isIntroduced(const TypeEntry &E, bool IsImport) noexcept;
   // The immediate components of the type. The extern names the type itself.
   bool areInnerTypesIntroduced(const TypeEntry &E, bool IsImport) noexcept;
 
   TypeSystem &Types;
   std::vector<Scope *> Stack;
-  std::deque<Scope> ScopeArena;
+  std::deque<Scope> OwnedScopes;
 };
 
 } // namespace Component

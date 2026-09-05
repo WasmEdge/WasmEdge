@@ -326,16 +326,17 @@ Expect<void> Loader::loadCanonicalOption(AST::Component::CanonOpt &Opt) {
   //            | 0x07 f:<core:funcidx> => (callback f) 🔀
 
   EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error(ReportError));
-  switch (Flag) {
-  case 0x00:
-  case 0x01:
-  case 0x02:
-  case 0x06:
+  const auto Code = static_cast<ComponentCanonOptCode>(Flag);
+  switch (Code) {
+  case ComponentCanonOptCode::Encode_UTF8:
+  case ComponentCanonOptCode::Encode_UTF16:
+  case ComponentCanonOptCode::Encode_Latin1:
+  case ComponentCanonOptCode::Async:
     break;
-  case 0x03:
-  case 0x04:
-  case 0x05:
-  case 0x07: {
+  case ComponentCanonOptCode::Memory:
+  case ComponentCanonOptCode::Realloc:
+  case ComponentCanonOptCode::PostReturn:
+  case ComponentCanonOptCode::Callback: {
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
     Opt.setIndex(Idx);
     break;
@@ -343,7 +344,7 @@ Expect<void> Loader::loadCanonicalOption(AST::Component::CanonOpt &Opt) {
   default:
     return ReportError(ErrCode::Value::UnknownCanonicalOption);
   }
-  Opt.setCode(static_cast<ComponentCanonOptCode>(Flag));
+  Opt.setCode(Code);
   return {};
 }
 

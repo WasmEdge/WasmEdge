@@ -60,10 +60,9 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
         CompInst.exportComponent(Export.getName(), Index);
         break;
       case AST::Component::Sort::SortType::Value:
-        // TODO: COMPONENT - complete the export instantiation.
-        spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-        spdlog::error("    incomplete export {}"sv, Export.getName());
-        return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+        CompInst.exportValue(Export.getName(), Index);
+        CompInst.addValue(CompInst.getValue(Index));
+        break;
       default:
         assumingUnreachable();
       }

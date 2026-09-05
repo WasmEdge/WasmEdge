@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
+#include <optional>
 /// This file contains the component instance definition.
 ///
 //===----------------------------------------------------------------------===//
@@ -40,6 +41,12 @@ class ComponentImportManager {
   // The import manager is used to supply imports for locally instantiated child
   // components and core modules.
 public:
+  // Export a named component value to this import manager.
+  void exportValue(std::string_view Name,
+                   ComponentValVariant Val) noexcept {
+    NamedValue.emplace(Name, Val);
+  }
+
   // Export a named component func to this import manager.
   void exportFunction(std::string_view Name,
                       Component::FunctionInstance *Inst) noexcept {
@@ -98,6 +105,16 @@ public:
   void exportCoreModule(std::string_view Name,
                         const AST::Module *Mod) noexcept {
     NamedCoreMod.emplace(Name, Mod);
+  }
+
+  // Find component value by name.
+  std::optional<ComponentValVariant>
+  findValue(std::string_view Name) const noexcept {
+    auto Iter = NamedValue.find(Name);
+    if (likely(Iter != NamedValue.cend())) {
+      return Iter->second;
+    }
+    return std::nullopt;
   }
 
   // Find component func by name.
@@ -184,7 +201,7 @@ private:
 
   // Export with name for the index spaces.
   std::map<std::string, Component::FunctionInstance *, std::less<>> NamedFunc;
-  // TODO: NamedValue
+  std::map<std::string, ComponentValVariant, std::less<>> NamedValue;
   // TODO: NamedType
   std::map<std::string, const ComponentInstance *, std::less<>> NamedCompInst;
   std::map<std::string, const AST::Component::Component *, std::less<>>
@@ -227,6 +244,19 @@ public:
       ValueList.resize(Index + 1, 0U);
     }
     ValueList[Index] = V;
+  }
+  void addValue(ComponentValVariant V) noexcept {
+    ValueList.push_back(V);
+  }
+  void exportValue(std::string_view Name, uint32_t Idx) noexcept {
+    ExpValues.insert_or_assign(std::string(Name), ValueList[Idx]);
+  }
+  std::optional<ComponentValVariant> findValue(std::string_view Name) const noexcept {
+    auto Iter = ExpValues.find(Name);
+    if (likely(Iter != ExpValues.cend())) {
+      return Iter->second;
+    }
+    return std::nullopt;
   }
 
   // Index space: component function instance.
@@ -471,7 +501,7 @@ private:
   // Export alias.
   std::map<std::string, Component::FunctionInstance *, std::less<>>
       ExpFuncInsts;
-  // TODO: ExpValue
+  std::map<std::string, ComponentValVariant, std::less<>> ExpValues;
   std::map<std::string, const AST::Component::DefType *, std::less<>> ExpTypes;
   std::map<std::string, const ComponentInstance *, std::less<>> ExpCompInsts;
   std::map<std::string, const AST::Component::Component *, std::less<>>

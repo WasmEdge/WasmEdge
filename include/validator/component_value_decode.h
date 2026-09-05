@@ -19,6 +19,7 @@
 #include "ast/component/type.h"
 #include "common/errcode.h"
 #include "common/types.h"
+#include "validator/component_types.h"
 
 #include <cmath>
 #include <cstring>
@@ -29,15 +30,11 @@ namespace WasmEdge {
 namespace Validator {
 namespace Component {
 
-using AST::Component::DefValType;
-using AST::Component::PrimValType;
-
-/// Decoder over the payload bytes of one value definition. The resolver maps
-/// a type index to its defined value type, or nullptr.
-template <typename ResolverT> class ValueDecoder {
+/// Decoder over one value definition's payload, resolving types in its scope.
+class ValueDecoder {
 public:
-  ValueDecoder(Span<const Byte> D, ResolverT &&R) noexcept
-      : Data(D), Resolve(std::forward<ResolverT>(R)) {}
+  ValueDecoder(Span<const Byte> D, const Scope &S) noexcept
+      : Data(D), Types(S) {}
 
   Expect<ComponentValVariant> decode(const ComponentValType &Ty) noexcept {
     EXPECTED_TRY(auto V, decodeVal(Ty));
@@ -82,8 +79,7 @@ private:
       EXPECTED_TRY(auto B, readByte());
       Result |= static_cast<uint64_t>(B & 0x7FU) << Shift;
       if ((B & 0x80U) == 0) {
-        // On the final byte, every bit above the value width must repeat the
-        // sign bit.
+        // On the final byte, every bit above the value width repeats the sign.
         const uint32_t Rest = MaxBits - Shift;
         if (Rest <= 7) {
           const uint8_t Mask =
@@ -107,57 +103,60 @@ private:
 
   Expect<ComponentValVariant> decodeVal(const ComponentValType &Ty) noexcept {
     if (Ty.isPrimValType()) {
-      return decodePrim(static_cast<PrimValType>(Ty.getCode()));
+      return decodePrim(static_cast<AST::Component::PrimValType>(Ty.getCode()));
     }
-    const DefValType *D = Resolve(Ty.getTypeIndex());
+    const auto *Entry = Types.getType(Ty.getTypeIndex());
+    const AST::Component::DefValType *D =
+        Entry != nullptr ? Entry->getDefValType() : nullptr;
     if (D == nullptr) {
       return Unexpect(ErrCode::Value::ComponentMalformedValue);
     }
     return decodeDef(*D);
   }
 
-  Expect<ComponentValVariant> decodePrim(PrimValType P) noexcept {
+  Expect<ComponentValVariant>
+  decodePrim(AST::Component::PrimValType P) noexcept {
     switch (P) {
-    case PrimValType::Bool: {
+    case AST::Component::PrimValType::Bool: {
       EXPECTED_TRY(auto B, readByte());
       if (B > 1) {
         return Unexpect(ErrCode::Value::ComponentMalformedValue);
       }
       return ComponentValVariant{B != 0};
     }
-    case PrimValType::U8: {
+    case AST::Component::PrimValType::U8: {
       EXPECTED_TRY(auto B, readByte());
       return ComponentValVariant{static_cast<uint8_t>(B)};
     }
-    case PrimValType::S8: {
+    case AST::Component::PrimValType::S8: {
       EXPECTED_TRY(auto B, readByte());
       return ComponentValVariant{static_cast<int8_t>(B)};
     }
-    case PrimValType::U16: {
+    case AST::Component::PrimValType::U16: {
       EXPECTED_TRY(auto V, readULEB(16));
       return ComponentValVariant{static_cast<uint16_t>(V)};
     }
-    case PrimValType::S16: {
+    case AST::Component::PrimValType::S16: {
       EXPECTED_TRY(auto V, readSLEB(16));
       return ComponentValVariant{static_cast<int16_t>(V)};
     }
-    case PrimValType::U32: {
+    case AST::Component::PrimValType::U32: {
       EXPECTED_TRY(auto V, readULEB(32));
       return ComponentValVariant{static_cast<uint32_t>(V)};
     }
-    case PrimValType::S32: {
+    case AST::Component::PrimValType::S32: {
       EXPECTED_TRY(auto V, readSLEB(32));
       return ComponentValVariant{static_cast<int32_t>(V)};
     }
-    case PrimValType::U64: {
+    case AST::Component::PrimValType::U64: {
       EXPECTED_TRY(auto V, readULEB(64));
       return ComponentValVariant{V};
     }
-    case PrimValType::S64: {
+    case AST::Component::PrimValType::S64: {
       EXPECTED_TRY(auto V, readSLEB(64));
       return ComponentValVariant{V};
     }
-    case PrimValType::F32: {
+    case AST::Component::PrimValType::F32: {
       uint32_t Bits = 0;
       for (uint32_t I = 0; I < 4; ++I) {
         EXPECTED_TRY(auto B, readByte());
@@ -170,7 +169,7 @@ private:
       }
       return ComponentValVariant{F};
     }
-    case PrimValType::F64: {
+    case AST::Component::PrimValType::F64: {
       uint64_t Bits = 0;
       for (uint32_t I = 0; I < 8; ++I) {
         EXPECTED_TRY(auto B, readByte());
@@ -183,11 +182,11 @@ private:
       }
       return ComponentValVariant{D};
     }
-    case PrimValType::Char: {
+    case AST::Component::PrimValType::Char: {
       EXPECTED_TRY(auto CP, readUtf8Scalar());
       return ComponentValVariant{CP};
     }
-    case PrimValType::String: {
+    case AST::Component::PrimValType::String: {
       EXPECTED_TRY(auto Len, readULEB(32));
       if (Len > Data.size() - Off) {
         return Unexpect(ErrCode::Value::ComponentMalformedValue);
@@ -247,7 +246,8 @@ private:
     return CP;
   }
 
-  Expect<ComponentValVariant> decodeDef(const DefValType &D) noexcept {
+  Expect<ComponentValVariant>
+  decodeDef(const AST::Component::DefValType &D) noexcept {
     if (D.isPrimValType()) {
       return decodePrim(D.getPrimValType());
     }
@@ -365,7 +365,7 @@ private:
   }
 
   Span<const Byte> Data;
-  ResolverT Resolve;
+  const Scope &Types;
   size_t Off = 0;
 };
 

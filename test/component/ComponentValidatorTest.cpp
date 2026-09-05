@@ -3070,12 +3070,13 @@ TEST(ComponentValidatorTest, FutureOfOwnPasses) {
 // =============================================================================
 
 // Helper: decode a `val(t)` payload for a primitive type. No type index can
-// appear in these payloads, so the resolver always fails.
+// appear in these payloads, so an empty scope resolves none.
 inline Expect<ComponentValVariant> decodePrimValue(std::vector<Byte> Data,
                                                    ComponentTypeCode Code) {
+  const Validator::Component::Scope Empty(
+      Validator::Component::ScopeKind::Component, nullptr);
   Validator::Component::ValueDecoder Dec(
-      Span<const Byte>(Data.data(), Data.size()),
-      [](uint32_t) -> const AST::Component::DefValType * { return nullptr; });
+      Span<const Byte>(Data.data(), Data.size()), Empty);
   return Dec.decode(ComponentValType(Code));
 }
 
@@ -3719,6 +3720,22 @@ TEST(ComponentValidatorTest, AsyncFuncSatisfiesAsyncImport) {
   auto Comp = makeAsyncArgComponent(true, true);
   Validator::Validator V(Conf);
   ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, BuiltinCoreFuncTypeFollowsAddressType) {
+  const ValType I32(TypeCode::I32);
+  const ValType I64(TypeCode::I64);
+  const auto Read64 = AST::Component::Canonical::getBuiltinCoreFuncType(
+      ComponentCanonOpCode::Stream__read, I64);
+  EXPECT_EQ(Read64.first, (std::vector<ValType>{I32, I64, I64}));
+  EXPECT_EQ(Read64.second, (std::vector<ValType>{I64}));
+  const auto Wait32 = AST::Component::Canonical::getBuiltinCoreFuncType(
+      ComponentCanonOpCode::Waitable_set__wait, I32);
+  EXPECT_EQ(Wait32.first, (std::vector<ValType>{I32, I32}));
+  EXPECT_EQ(Wait32.second, (std::vector<ValType>{I32}));
+  const auto NewIndirect64 = AST::Component::Canonical::getBuiltinCoreFuncType(
+      ComponentCanonOpCode::Thread__new_indirect, I64);
+  EXPECT_EQ(NewIndirect64.first, (std::vector<ValType>{I64, I32}));
 }
 
 } // namespace

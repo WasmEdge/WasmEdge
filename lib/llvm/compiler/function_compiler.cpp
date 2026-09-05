@@ -2150,10 +2150,11 @@ LLVM::Value FunctionCompiler::switchEndian(LLVM::Value Value) {
       return Builder.createUnaryIntrinsic(LLVM::Core::Bswap, Value);
     }
     if (Type.isVectorTy()) {
-      LLVM::Type VecType = Type.getElementType().getIntegerBitWidth() == 128
-                               ? Context.Int128Ty
-                               : Context.Int64Ty;
-      Value = Builder.createBitCast(Value, VecType);
+      // Every Wasm vector type is 128-bit wide regardless of its lane shape,
+      // so bswap the whole value as a single 128-bit integer. Selecting the
+      // transit type by lane width would emit a bitcast between types of
+      // different bit widths for any shape other than <1 x i128>.
+      Value = Builder.createBitCast(Value, Context.Int128Ty);
       Value = Builder.createUnaryIntrinsic(LLVM::Core::Bswap, Value);
       return Builder.createBitCast(Value, Type);
     }

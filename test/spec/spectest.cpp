@@ -374,7 +374,8 @@ std::vector<std::string> SpecTest::enumerate(const SpecTest::TestMode Mode,
   std::vector<std::string> Cases;
   for (const auto &Proposal : TestsuiteProposals) {
     if (static_cast<uint8_t>(Proposal.Mode) & static_cast<uint8_t>(Mode)) {
-      if (!IncludeComponent && Proposal.Path == "component-model-wasm-tools"sv) {
+      if (!IncludeComponent &&
+          Proposal.Path == "component-model-wasm-tools"sv) {
         continue;
       }
       const std::filesystem::path ProposalRoot = TestsuiteRoot / Proposal.Path;

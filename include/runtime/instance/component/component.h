@@ -42,8 +42,7 @@ class ComponentImportManager {
   // components and core modules.
 public:
   // Export a named component value to this import manager.
-  void exportValue(std::string_view Name,
-                   ComponentValVariant Val) noexcept {
+  void exportValue(std::string_view Name, ComponentValVariant Val) noexcept {
     NamedValue.emplace(Name, Val);
   }
 
@@ -245,13 +244,12 @@ public:
     }
     ValueList[Index] = V;
   }
-  void addValue(ComponentValVariant V) noexcept {
-    ValueList.push_back(V);
-  }
+  void addValue(ComponentValVariant V) noexcept { ValueList.push_back(V); }
   void exportValue(std::string_view Name, uint32_t Idx) noexcept {
     ExpValues.insert_or_assign(std::string(Name), ValueList[Idx]);
   }
-  std::optional<ComponentValVariant> findValue(std::string_view Name) const noexcept {
+  std::optional<ComponentValVariant>
+  findValue(std::string_view Name) const noexcept {
     auto Iter = ExpValues.find(Name);
     if (likely(Iter != ExpValues.cend())) {
       return Iter->second;

@@ -43,10 +43,16 @@ toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
     return "default<O2>";
   case OL::O3:
     return "default<O3>";
+#if LLVM_VERSION_MAJOR >= 23
+  case OL::Os:
+  case OL::Oz:
+    return "default<O2>";
+#else
   case OL::Os:
     return "default<Os>";
   case OL::Oz:
     return "default<Oz>";
+#endif
   default:
     assumingUnreachable();
   }
@@ -144,6 +150,29 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
       LLVMRelocPIC, LLVMCodeModelDefault);
 
 #if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR >= 23
+  {
+    using OL = CompilerConfigure::OptimizationLevel;
+    const auto Level = Conf.getCompilerConfigure().getOptimizationLevel();
+    if (Level == OL::Os || Level == OL::Oz) {
+      auto LLContext = LLModule.getContext();
+      const auto OptSize = LLVM::Attribute::createEnum(
+          LLContext, LLVM::Core::OptimizeForSize, 0);
+      const auto MinSize =
+          LLVM::Attribute::createEnum(LLContext, LLVM::Core::MinSize, 0);
+      for (auto Fn = LLModule.getFirstFunction(); Fn;
+           Fn = Fn.getNextFunction()) {
+        if (Fn.isDeclaration()) {
+          continue;
+        }
+        Fn.addFnAttr(OptSize);
+        if (Level == OL::Oz) {
+          Fn.addFnAttr(MinSize);
+        }
+      }
+    }
+  }
+#endif
   auto PBO = LLVM::PassBuilderOptions::create();
   if (auto Error = PBO.runPasses(
           LLModule,

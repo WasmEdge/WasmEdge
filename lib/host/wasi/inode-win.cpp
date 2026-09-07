@@ -1546,11 +1546,20 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
 
     // process ai_canonname in addrinfo
     if (SysResItem->ai_canonname != nullptr) {
+      // The guest-declared capacity of the canonical-name buffer. It must not
+      // be exceeded: the destination points into the guest linear memory and
+      // was only validated to be in-bounds for this many bytes.
+      const __wasi_size_t CanonnameCap = CurAddrinfo->ai_canonname_len;
+      const size_t SysCanonnameLen = std::strlen(SysResItem->ai_canonname);
+      if (SysCanonnameLen + 1 > CanonnameCap) {
+        freeaddrinfo(SysResPtr);
+        return WasiUnexpect(__WASI_ERRNO_OVERFLOW);
+      }
       CurAddrinfo->ai_canonname_len =
-          static_cast<uint32_t>(std::strlen(SysResItem->ai_canonname));
+          static_cast<uint32_t>(SysCanonnameLen);
       auto &CurAiCanonname = AiCanonnameArray[Idx];
       std::memcpy(CurAiCanonname, SysResItem->ai_canonname,
-                  CurAddrinfo->ai_canonname_len + 1);
+                  SysCanonnameLen + 1);
     } else {
       CurAddrinfo->ai_canonname_len = 0;
     }
@@ -1558,6 +1567,10 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
     // process socket address
     if (SysResItem->ai_addrlen > 0) {
       auto &CurSockaddr = WasiSockaddrArray[Idx];
+      // The guest-declared capacity of the sa_data buffer. The destination
+      // points into the guest linear memory and was only validated to be
+      // in-bounds for this many bytes.
+      const __wasi_size_t SaDataCap = CurSockaddr->sa_data_len;
       CurSockaddr->sa_family =
           fromAddressFamily(SysResItem->ai_addr->sa_family);
 
@@ -1572,6 +1585,10 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
         break;
       default:
         continue;
+      }
+      if (SaSize > SaDataCap) {
+        freeaddrinfo(SysResPtr);
+        return WasiUnexpect(__WASI_ERRNO_OVERFLOW);
       }
       std::memcpy(AiAddrSaDataArray[Idx], SysResItem->ai_addr->sa_data, SaSize);
       CurSockaddr->sa_data_len = static_cast<__wasi_size_t>(SaSize);

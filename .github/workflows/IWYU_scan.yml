@@ -158,9 +158,11 @@ jobs:
         IWYU_VERSION: "0.26"
         IWYU_SHA256: "5247c0c9a59df9d14e8aa7408ffec4134c6a4aef12f590929111fbfeac930a08"
       run: |
-        brew install llvm@22 ninja
+        # lld is shipped as a separate keg-only formula since LLVM 22.
+        brew install llvm@22 lld@22 ninja
         # cmake is installed by local/pinned tap inside the macos runner image
-        export LLVM_DIR="$(brew --prefix llvm@22)/lib/cmake"
+        export LLVM_DIR="$(brew --prefix llvm@22)/lib/cmake/llvm"
+        export LLD_DIR="$(brew --prefix lld@22)/lib/cmake/lld"
         export Clang_DIR="$(brew --prefix llvm@22)/lib/cmake/clang"
         export IWYU_PREFIX="$(brew --prefix)/opt/iwyu"
         export CC=clang
@@ -191,7 +193,7 @@ jobs:
         cmake --build build-iwyu --target install
         cd WasmEdge/WasmEdge
 
-        cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DCMAKE_CXX_INCLUDE_WHAT_YOU_USE="xcrun;$IWYU_PREFIX/bin/include-what-you-use" -DWASMEDGE_BUILD_PACKAGE="TGZ" .
+        cmake -Bbuild -GNinja -DLLVM_DIR:PATH="$LLVM_DIR" -DLLD_DIR:PATH="$LLD_DIR" -DWASMEDGE_BUILD_TESTS=ON -DCMAKE_CXX_INCLUDE_WHAT_YOU_USE="xcrun;$IWYU_PREFIX/bin/include-what-you-use" -DWASMEDGE_BUILD_PACKAGE="TGZ" .
         cmake --build build > iwyu_macOS.log
 
     - name: Dump the result

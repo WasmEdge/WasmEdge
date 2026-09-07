@@ -3,6 +3,10 @@
 
 #include "ggml_core.h"
 
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+#include <build-info.h>
+#endif
+
 namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 namespace {
@@ -13,7 +17,7 @@ std::string buildOutputMetadata(Context &CxtRef) noexcept {
                      R"("llama_build_number": {}, )"
                      R"("llama_commit": "{}"}})"sv,
                      CxtRef.LlamaNInputs, CxtRef.LlamaOutputTokens.size(),
-                     LLAMA_BUILD_NUMBER, LLAMA_COMMIT);
+                     llama_build_number(), llama_commit());
 }
 } // namespace
 

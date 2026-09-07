@@ -1764,8 +1764,8 @@ void FunctionCompiler::compileVectorVectorQ15MulSat() noexcept {
 #if defined(__aarch64__)
         if (Context.SupportNEON) {
           assuming(LLVM::Core::AArch64NeonSQRDMulH != LLVM::Core::NotIntrinsic);
-          return Builder.createBinaryIntrinsic(LLVM::Core::AArch64NeonSQRDMulH,
-                                               LHS, RHS);
+          return Builder.createIntrinsic(LLVM::Core::AArch64NeonSQRDMulH,
+                                         {Context.Int16x8Ty}, {LHS, RHS});
         }
 #endif
 
@@ -1848,8 +1848,8 @@ void FunctionCompiler::compileVectorVectorUAvgr(LLVM::Type VectorTy) noexcept {
 #if defined(__aarch64__)
         if (Context.SupportNEON) {
           assuming(LLVM::Core::AArch64NeonURHAdd != LLVM::Core::NotIntrinsic);
-          return Builder.createBinaryIntrinsic(LLVM::Core::AArch64NeonURHAdd,
-                                               LHS, RHS);
+          return Builder.createIntrinsic(LLVM::Core::AArch64NeonURHAdd,
+                                         {VectorTy}, {LHS, RHS});
         }
 #endif
 

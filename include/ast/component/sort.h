@@ -70,12 +70,19 @@ public:
   SortType getSortType() const noexcept { return Type.S; }
   void setSortType(const SortType T) noexcept { Type.S = T; }
 
+  // outeraliassort ::= core module | core type | component | type
+  bool isOuterAliasSort() const noexcept {
+    return IsCore ? (Type.CS == CoreSortType::Module ||
+                     Type.CS == CoreSortType::Type)
+                  : (Type.S == SortType::Component || Type.S == SortType::Type);
+  }
+
 private:
   union {
     CoreSortType CS;
     SortType S;
-  } Type;
-  bool IsCore;
+  } Type = {CoreSortType::Func};
+  bool IsCore = false;
 };
 
 // core:sortidx ::= sort:<core:sort> idx:<u32> => (sort idx)

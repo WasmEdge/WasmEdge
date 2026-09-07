@@ -69,7 +69,6 @@ plugins/wasi_logging/                   @michael1017 @q82419
 plugins/wasi_nn/                        @dm4 @hydai
 plugins/wasmedge_image/                 @q82419
 plugins/wasmedge_opencvmini/            @dannypsnl
-plugins/wasmedge_process/               @q82419
 plugins/wasmedge_tensorflow/            @q82419
 plugins/wasmedge_tensorflowlite/        @q82419
 
@@ -99,7 +98,6 @@ test/plugins/wasm_bpf/                  @hydai
 test/plugins/wasmedge_ffmpeg/           @hydai
 test/plugins/wasmedge_image/            @q82419
 test/plugins/wasmedge_opencvmini/       @dannypsnl
-test/plugins/wasmedge_process/          @q82419
 test/plugins/wasmedge_tensorflow/       @q82419
 test/plugins/wasmedge_tensorflowlite/   @q82419
 test/plugins/wasmedge_zlib/             @hydai

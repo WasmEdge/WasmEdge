@@ -1,7 +1,7 @@
 remote-dependencies:
   - name: "GoogleTest"
-    version: "1.11.0"
-    url: "https://github.com/google/googletest/archive/refs/tags/release-1.11.0.tar.gz"
+    version: "1.17.0"
+    url: "https://github.com/google/googletest/archive/refs/tags/v1.17.0.tar.gz"
     metadata:
       homepage: "https://github.com/google/googletest"
   - name: "spdlog"

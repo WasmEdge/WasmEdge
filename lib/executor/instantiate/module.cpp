@@ -137,6 +137,8 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   EXPECTED_TRY(initMemory(StackMgr, DataSec)
                    .map_error(ReportError(ASTNodeAttr::Sec_Data)));
 
+  ModInst->buildContext();
+
   // Instantiate StartSection (StartSec)
   const AST::StartSection &StartSec = Mod.getStartSection();
   if (StartSec.getContent()) {

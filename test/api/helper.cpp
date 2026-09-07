@@ -52,6 +52,9 @@ WasmEdge_ConfigureContext *createConf(const Configure &Conf) {
       WasmEdge_ConfigureAddProposal(Cxt, static_cast<WasmEdge_Proposal>(I));
     }
   }
+  WasmEdge_ConfigureSetRunMode(
+      Cxt,
+      static_cast<WasmEdge_RunMode>(Conf.getRuntimeConfigure().getRunMode()));
   return Cxt;
 }
 

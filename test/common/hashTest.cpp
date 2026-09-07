@@ -107,4 +107,23 @@ TEST(HashTest, IntegralHash) {
   EXPECT_EQ(Seen.size(), 1000u);
 }
 
+// Tail read must stay in bounds when the >48-byte loop leaves a short
+// remainder; run under -fsanitize=undefined to detect the underflow.
+TEST(HashTest, TailReadAfterLoopIsInBounds) {
+  // Lengths where size % 48 falls in [1, 15], plus in-bounds controls.
+  const std::vector<size_t> Affected = {49, 50, 63, 97, 100, 145};
+  const std::vector<size_t> Controls = {17, 32, 48, 64, 96, 128};
+
+  std::unordered_set<uint64_t> Seen;
+  for (auto Size : Affected) {
+    std::string Input(Size, 'x');
+    Seen.insert(hashBytes(Input.data(), Input.size()));
+  }
+  for (auto Size : Controls) {
+    std::string Input(Size, 'x');
+    Seen.insert(hashBytes(Input.data(), Input.size()));
+  }
+  EXPECT_EQ(Seen.size(), Affected.size() + Controls.size());
+}
+
 } // namespace

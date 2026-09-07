@@ -5,10 +5,12 @@
 #include "common/defines.h"
 #include "common/errcode.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <opencv2/core/mat.hpp>
+#include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
-#include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
 
@@ -33,37 +35,6 @@ WasmEdgeOpenCVMiniImdecode::body(const Runtime::CallingFrame &Frame,
   cv::Mat Img = cv::imdecode(cv::InputArray(Content), cv::IMREAD_COLOR);
 
   return Env.insertMat(Img);
-}
-
-Expect<void> WasmEdgeOpenCVMiniImshow::body(const Runtime::CallingFrame &Frame,
-                                            uint32_t WindowNamePtr,
-                                            uint32_t WindowNameLen,
-                                            uint32_t MatKey) {
-  std::string WindowName;
-
-  // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-
-  auto Buf = MemInst->getSpan<char>(WindowNamePtr, WindowNameLen);
-  if (unlikely(Buf.size() != WindowNameLen)) {
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-  std::copy_n(Buf.data(), WindowNameLen, std::back_inserter(WindowName));
-
-  if (auto Img = Env.getMat(MatKey); Img) {
-    cv::imshow(WindowName.c_str(), *Img);
-  }
-
-  return {};
-}
-
-Expect<void> WasmEdgeOpenCVMiniWaitKey::body(const Runtime::CallingFrame &,
-                                             uint32_t Delay) {
-  cv::waitKey(static_cast<int>(Delay));
-  return {};
 }
 
 Expect<uint32_t> WasmEdgeOpenCVMiniBlur::body(const Runtime::CallingFrame &,

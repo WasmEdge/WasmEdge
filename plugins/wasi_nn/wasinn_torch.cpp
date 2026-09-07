@@ -77,15 +77,6 @@ Expect<ErrNo> TorchScript::run(std::vector<at::Tensor> In,
   return ErrNo::Success;
 }
 
-AOTInductor::AOTInductor() : TorchModel(nullptr) {
-#if defined(_GLIBCXX_USE_CXX11_ABI) && _GLIBCXX_USE_CXX11_ABI == 1
-  spdlog::warn(
-      "[WASI-NN] Torch: AOTInductor build by pip default is not supported in "
-      "_GLIBCXX_USE_CXX11_ABI=1. Please rebuild the WasmEdge with "
-      "_GLIBCXX_USE_CXX11_ABI=0."sv);
-#endif
-}
-
 Expect<ErrNo> AOTInductor::setDevice(Device Device) {
   if (Device == Device::CPU) {
     TorchDevice = at::kCPU;

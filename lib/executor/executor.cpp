@@ -5,12 +5,51 @@
 
 #include "common/errinfo.h"
 #include "common/spdlog.h"
+#include "runtime/instance/module.h"
 #include "system/stacktrace.h"
+
+#include <algorithm>
+#include <string>
+#include <string_view>
+#include <vector>
 
 using namespace std::literals;
 
 namespace WasmEdge {
 namespace Executor {
+
+namespace {
+
+/// Render a recorded stack trace as "module:index" frames. Modules without a
+/// registered name are numbered by their order of appearance in the trace.
+void dumpStackTrace(Span<const StackTraceEntry> Stack) noexcept {
+  std::vector<const Runtime::Instance::ModuleInstance *> Anonymous;
+  std::string Out;
+  for (size_t I = 0; I < Stack.size(); ++I) {
+    if (I != 0) {
+      Out += ", "sv;
+    }
+    const auto *Module = Stack[I].Module;
+    std::string_view Name =
+        Module ? Module->getModuleName() : std::string_view{};
+    if (!Name.empty()) {
+      Out += fmt::format("{}:{}"sv, Name, Stack[I].FuncIndex);
+    } else {
+      auto Iter = std::find(Anonymous.begin(), Anonymous.end(), Module);
+      size_t Ordinal;
+      if (Iter == Anonymous.end()) {
+        Ordinal = Anonymous.size();
+        Anonymous.push_back(Module);
+      } else {
+        Ordinal = static_cast<size_t>(Iter - Anonymous.begin());
+      }
+      Out += fmt::format("module[{}]:{}"sv, Ordinal, Stack[I].FuncIndex);
+    }
+  }
+  spdlog::error("calling stack:{}"sv, Out);
+}
+
+} // namespace
 
 /// Instantiate a WASM Module. See "include/executor/executor.h".
 Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
@@ -153,7 +192,8 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
   // Call runFunction.
   EXPECTED_TRY(runFunction(StackMgr, *FuncInst, Params).map_error([](auto E) {
     if (E != ErrCode::Value::Terminated) {
-      dumpStackTrace(Span<const uint32_t>{StackTrace}.first(StackTraceSize));
+      dumpStackTrace(
+          Span<const StackTraceEntry>{StackTrace}.first(StackTraceSize));
     }
     return E;
   }));
@@ -226,8 +266,6 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
 
   // Matching arguments and function type.
   // TODO: COMPONENT - type matching.
-  // const auto &FuncType = FuncInst->getFuncType();
-  // const auto PTypes = FuncType.getParamList();
   const auto &ExpectedFuncType = FuncInst->getFuncType();
   const size_t ExpectedArity = ExpectedFuncType.getParamList().size();
   if (Params.size() != ParamTypes.size() || ParamTypes.size() < ExpectedArity) {
@@ -240,8 +278,10 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
   // Convert the component params into core WASM params.
   auto *ReallocFuncInst = FuncInst->getAllocFunction();
   auto *MemInst = FuncInst->getMemoryInstance();
-  std::vector<ValVariant> CoreWASMArgs =
-      convValsToCoreWASM(Params, ParamTypes, ReallocFuncInst, MemInst);
+  EXPECTED_TRY(auto CoreWASMArgs,
+               convValsToCoreWASM(Params, ParamTypes, ReallocFuncInst, MemInst,
+                                  FuncInst->getComponentInstance(),
+                                  FuncInst->getStringEncoding()));
 
   // Call runFunction.
   auto *CoreFuncInst = FuncInst->getLowerFunction();
@@ -257,8 +297,29 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
     ReturnTypes.push_back(Type.getValType());
   }
   EXPECTED_TRY(auto Returns,
-               convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst));
+               convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst,
+                                   FuncInst->getComponentInstance(),
+                                   FuncInst->getStringEncoding()));
   assuming(Returns.size() == ReturnTypes.size());
+
+  // CanonicalABI.md L3367-3372: after a sync lift completes (post
+  // task.return_), invoke the optional post-return with the ORIGINAL flat
+  // core return values as parameters. This is how Preview 2 components free
+  // buffers allocated for indirect-result / list / string returns.
+  //
+  // TODO: spec L3370 also gates this region with `may_leave = False`;
+  // WasmEdge doesn't model may_leave yet (deferred along with async).
+  // In practice sync Preview 2 post-return implementations don't re-enter.
+  if (auto *PostReturnInst = FuncInst->getPostReturnFunction()) {
+    std::vector<ValVariant> PRArgs;
+    PRArgs.reserve(CoreWASMReturns.size());
+    for (const auto &P : CoreWASMReturns) {
+      PRArgs.push_back(P.first);
+    }
+    EXPECTED_TRY(invoke(PostReturnInst, PRArgs,
+                        PostReturnInst->getFuncType().getParamTypes()));
+  }
+
   return Returns;
 }
 

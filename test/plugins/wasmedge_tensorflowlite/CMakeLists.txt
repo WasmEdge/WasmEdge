@@ -9,7 +9,7 @@ add_dependencies(wasmedgeTensorflowLiteTests
   wasmedgePluginWasmEdgeTensorflowLite
 )
 
-include(WASINNDeps)
+include(TensorflowDeps)
 wasmedge_setup_tflite_target(wasmedgeTensorflowLiteTests)
 
 target_include_directories(wasmedgeTensorflowLiteTests

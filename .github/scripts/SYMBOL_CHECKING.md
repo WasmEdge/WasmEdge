@@ -9,6 +9,14 @@ Prevents unintended symbol exposure from `libwasmedge` by validating against a w
 - `check_symbols.sh` - simple script for symbol extraction and validation
 - `whitelist.symbols` - Approved exported symbols list
 
+## Scope
+
+The check covers three exported namespaces:
+
+- `WasmEdge_*` - WasmEdge C API, declared with `WASMEDGE_CAPI_EXPORT`.
+- `wasm_*` - wasm-c-api C functions (`thirdparty/wasm/wasm.h`).
+- `wasm::*` - wasm-c-api C++ classes (`thirdparty/wasm/wasm.hh`); demangled and normalized so the whitelist is toolchain-agnostic (libc++ `std::__1::` and libstdc++ `std::__cxx11::` inline namespaces are stripped to plain `std::`).
+
 ## Usage
 
 Run from project root after building
@@ -35,8 +43,10 @@ Static-only builds are detected and skipped.
 
 When adding new public API functions:
 
-1. Add the function to `include/api/wasmedge/wasmedge.h` with `WASMEDGE_CAPI_EXPORT`
-2. Add the symbol name to `whitelist.symbols` (keep alphabetical order)
+1. Add the function to the appropriate public header:
+   - `include/api/wasmedge/wasmedge.h` with `WASMEDGE_CAPI_EXPORT` for the `WasmEdge_*` namespace.
+   - `thirdparty/wasm/wasm.h` / `wasm.hh` for the wasm-c-api `wasm_*` / `wasm::*` namespaces.
+2. Add the symbol name to `whitelist.symbols` (keep alphabetical order). For `wasm::*` methods, use the demangled, normalized form (e.g. `wasm::Memory::data() const`) as produced by `check_symbols.sh --verbose`.
 3. Commit both changes together
 
 ## C API symbol versioning

@@ -20,6 +20,7 @@
 #include "common/types.h"
 #include "runtime/instance/component/function.h"
 #include "runtime/instance/module.h"
+#include "runtime/instance/tag.h"
 
 #include <atomic>
 #include <functional>
@@ -81,6 +82,24 @@ public:
     NamedCoreModInst.emplace(Name, Inst);
   }
 
+  // Export a named component to this import manager.
+  void exportComponent(std::string_view Name,
+                       const AST::Component::Component *Comp) noexcept {
+    NamedComp.emplace(Name, Comp);
+  }
+
+  // Export a named core type to this import manager.
+  void exportCoreType(std::string_view Name,
+                      const AST::Component::CoreDefType *Ty) noexcept {
+    NamedCoreType.emplace(Name, Ty);
+  }
+
+  // Export a named core module to this import manager.
+  void exportCoreModule(std::string_view Name,
+                        const AST::Module *Mod) noexcept {
+    NamedCoreMod.emplace(Name, Mod);
+  }
+
   // Find component func by name.
   Component::FunctionInstance *
   findFunction(std::string_view Name) const noexcept {
@@ -120,6 +139,23 @@ public:
     return findExport(NamedCoreModInst, Name);
   }
 
+  // Find component by name.
+  const AST::Component::Component *
+  findComponent(std::string_view Name) const noexcept {
+    return findExport(NamedComp, Name);
+  }
+
+  // Find core type by name.
+  const AST::Component::CoreDefType *
+  findCoreType(std::string_view Name) const noexcept {
+    return findExport(NamedCoreType, Name);
+  }
+
+  // Find core module by name.
+  const AST::Module *findCoreModule(std::string_view Name) const noexcept {
+    return findExport(NamedCoreMod, Name);
+  }
+
   // Reset the import manager.
   void reset() noexcept {
     NamedFunc.clear();
@@ -129,6 +165,9 @@ public:
     NamedCoreMemory.clear();
     NamedCoreGlobal.clear();
     NamedCoreModInst.clear();
+    NamedComp.clear();
+    NamedCoreType.clear();
+    NamedCoreMod.clear();
   }
 
 private:
@@ -148,14 +187,16 @@ private:
   // TODO: NamedValue
   // TODO: NamedType
   std::map<std::string, const ComponentInstance *, std::less<>> NamedCompInst;
-  // TODO: NamedComp
+  std::map<std::string, const AST::Component::Component *, std::less<>>
+      NamedComp;
   std::map<std::string, FunctionInstance *, std::less<>> NamedCoreFunc;
   std::map<std::string, TableInstance *, std::less<>> NamedCoreTable;
   std::map<std::string, MemoryInstance *, std::less<>> NamedCoreMemory;
   std::map<std::string, GlobalInstance *, std::less<>> NamedCoreGlobal;
-  // TODO: NamedCoreType
+  std::map<std::string, const AST::Component::CoreDefType *, std::less<>>
+      NamedCoreType;
   std::map<std::string, const ModuleInstance *, std::less<>> NamedCoreModInst;
-  // TODO: NamedCoreMod
+  std::map<std::string, const AST::Module *, std::less<>> NamedCoreMod;
 };
 
 class ComponentInstance {
@@ -255,6 +296,13 @@ public:
   const AST::Component::Component &getComponent(uint32_t Index) const noexcept {
     return *Comps[Index];
   }
+  void exportComponent(std::string_view Name, uint32_t Idx) noexcept {
+    ExpComps.insert_or_assign(std::string(Name), Comps[Idx]);
+  }
+  const AST::Component::Component *
+  findComponent(std::string_view Name) const noexcept {
+    return findExport(ExpComps, Name);
+  }
 
   // Index space: core function.
   void addCoreFunction(std::unique_ptr<FunctionInstance> &&Inst) noexcept {
@@ -263,6 +311,19 @@ public:
   }
   void addCoreFunction(FunctionInstance *Inst) noexcept {
     CoreFuncInsts.push_back(Inst);
+  }
+  /// Add a host function to the core function index space. The function is
+  /// owned by an auxiliary ModuleInstance (created here) whose only purpose
+  /// is to register the host function's defined type so that downstream
+  /// import matching (which walks ModInst::getTypeList()) succeeds. This is
+  /// used by canon lower to expose its thunk to core wasm.
+  void addCoreHostFunction(std::unique_ptr<Runtime::HostFunctionBase> &&Host,
+                           std::string_view Name = "$canon-lower") {
+    auto Mod = std::make_unique<ModuleInstance>("");
+    Mod->addHostFunc(std::string(Name), std::move(Host));
+    auto *FuncPtr = Mod->findFuncExports(std::string(Name));
+    CoreFuncInsts.push_back(FuncPtr);
+    OwnedAuxModInsts.push_back(std::move(Mod));
   }
   FunctionInstance *getCoreFunction(uint32_t Index) const noexcept {
     return CoreFuncInsts[Index];
@@ -316,6 +377,18 @@ public:
     return findExport(ExpCoreGlobInsts, Name);
   }
 
+  // Index space: core tag.
+  void addCoreTag(TagInstance *Inst) noexcept { CoreTagInsts.push_back(Inst); }
+  TagInstance *getCoreTag(uint32_t Index) const noexcept {
+    return CoreTagInsts[Index];
+  }
+  void exportCoreTag(std::string_view Name, uint32_t Idx) noexcept {
+    ExpCoreTagInsts.insert_or_assign(std::string(Name), CoreTagInsts[Idx]);
+  }
+  TagInstance *findCoreTag(std::string_view Name) const noexcept {
+    return findExport(ExpCoreTagInsts, Name);
+  }
+
   // Index space: core type.
   // TODO: deep copy the type
   void addCoreType(const AST::Component::CoreDefType &Ty) noexcept {
@@ -324,6 +397,13 @@ public:
   const AST::Component::CoreDefType &
   getCoreType(uint32_t Index) const noexcept {
     return *CoreTypes[Index];
+  }
+  void exportCoreType(std::string_view Name, uint32_t Idx) noexcept {
+    ExpCoreTypes.insert_or_assign(std::string(Name), CoreTypes[Idx]);
+  }
+  const AST::Component::CoreDefType *
+  findCoreType(std::string_view Name) const noexcept {
+    return findExport(ExpCoreTypes, Name);
   }
 
   // Index space: core module instance.
@@ -347,6 +427,12 @@ public:
   const AST::Module &getModule(uint32_t Index) const noexcept {
     return *CoreMods[Index];
   }
+  void exportCoreModule(std::string_view Name, uint32_t Idx) noexcept {
+    ExpCoreMods.insert_or_assign(std::string(Name), CoreMods[Idx]);
+  }
+  const AST::Module *findCoreModule(std::string_view Name) const noexcept {
+    return findExport(ExpCoreMods, Name);
+  }
 
 private:
   std::string CompName;
@@ -366,6 +452,7 @@ private:
   std::vector<MemoryInstance *> CoreMemInsts;
   std::vector<GlobalInstance *> CoreGlobInsts;
   std::vector<const AST::Component::CoreDefType *> CoreTypes;
+  std::vector<TagInstance *> CoreTagInsts;
   std::vector<const ModuleInstance *> CoreModInsts;
   std::vector<const AST::Module *> CoreMods;
 
@@ -376,6 +463,10 @@ private:
   std::vector<std::unique_ptr<FunctionInstance>> OwnedCoreFuncInsts;
   // std::vector<std::unique_ptr<AST::Component::CoreDefType>> OwnedCoreTypes;
   std::vector<std::unique_ptr<ModuleInstance>> OwnedCoreModInsts;
+  // Holder modules for synthesized host functions (e.g., canon lower thunks).
+  // Not visible in the core-module index space; only owns the host function
+  // and its registered SubType for matchType lookups.
+  std::vector<std::unique_ptr<ModuleInstance>> OwnedAuxModInsts;
 
   // Export alias.
   std::map<std::string, Component::FunctionInstance *, std::less<>>
@@ -383,14 +474,17 @@ private:
   // TODO: ExpValue
   std::map<std::string, const AST::Component::DefType *, std::less<>> ExpTypes;
   std::map<std::string, const ComponentInstance *, std::less<>> ExpCompInsts;
-  // TODO: ExpComps
+  std::map<std::string, const AST::Component::Component *, std::less<>>
+      ExpComps;
   std::map<std::string, FunctionInstance *, std::less<>> ExpCoreFuncInsts;
   std::map<std::string, TableInstance *, std::less<>> ExpCoreTabInsts;
   std::map<std::string, MemoryInstance *, std::less<>> ExpCoreMemInsts;
   std::map<std::string, GlobalInstance *, std::less<>> ExpCoreGlobInsts;
-  // TODO: ExpCoreTypes
+  std::map<std::string, TagInstance *, std::less<>> ExpCoreTagInsts;
+  std::map<std::string, const AST::Component::CoreDefType *, std::less<>>
+      ExpCoreTypes;
   std::map<std::string, const ModuleInstance *, std::less<>> ExpCoreModInsts;
-  // TODO: ExpCoreMods
+  std::map<std::string, const AST::Module *, std::less<>> ExpCoreMods;
 
   // Find export template.
   template <typename T>

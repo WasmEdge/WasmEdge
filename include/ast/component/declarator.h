@@ -15,10 +15,12 @@
 
 #include "ast/component/alias.h"
 #include "ast/component/descriptor.h"
+#include "common/span.h"
 
 #include <string>
 #include <string_view>
 #include <variant>
+#include <vector>
 
 namespace WasmEdge {
 namespace AST {
@@ -38,7 +40,7 @@ public:
   std::string &getModuleName() noexcept { return ModName; }
   std::string_view getName() const noexcept { return Name; }
   std::string &getName() noexcept { return Name; }
-  CoreImportDesc getImportDesc() const noexcept { return Desc; }
+  const CoreImportDesc &getImportDesc() const noexcept { return Desc; }
   CoreImportDesc &getImportDesc() noexcept { return Desc; }
 
 private:
@@ -54,7 +56,7 @@ class CoreExportDecl {
 public:
   std::string_view getName() const noexcept { return Name; }
   std::string &getName() noexcept { return Name; }
-  CoreImportDesc getImportDesc() const noexcept { return Desc; }
+  const CoreImportDesc &getImportDesc() const noexcept { return Desc; }
   CoreImportDesc &getImportDesc() noexcept { return Desc; }
 
 private:
@@ -117,10 +119,8 @@ private:
       Decl;
 };
 
-// exportdecl  ::= en:<exportname'> ed:<externdesc> => (export en ed)
-// exportname' ::= 0x00 len:<u32> en:<exportname>   => en (if len = |en|)
-// importdecl  ::= in:<importname'> ed:<externdesc> => (import in ed)
-// importname' ::= 0x00 len:<u32> in:<importname>   => in (if len = |in|)
+// importdecl ::= na:<nameattributes> et:<externtype> => (import na et)
+// exportdecl ::= na:<nameattributes> et:<externtype> => (export na et)
 
 /// Base class of Component::ImportDecl and Component::ExportDecl node.
 class ExternDecl {
@@ -129,10 +129,25 @@ public:
   std::string &getName() noexcept { return Name; }
   const ExternDesc &getExternDesc() const noexcept { return Desc; }
   ExternDesc &getExternDesc() noexcept { return Desc; }
+  std::vector<std::string> &getImplements() noexcept { return Implements; }
+  Span<const std::string> getImplements() const noexcept { return Implements; }
+  std::vector<std::string> &getExternalIds() noexcept { return ExternalIds; }
+  Span<const std::string> getExternalIds() const noexcept {
+    return ExternalIds;
+  }
+  std::vector<std::string> &getVersionSuffixes() noexcept {
+    return VersionSuffixes;
+  }
+  Span<const std::string> getVersionSuffixes() const noexcept {
+    return VersionSuffixes;
+  }
 
 private:
   std::string Name;
   ExternDesc Desc;
+  std::vector<std::string> Implements;
+  std::vector<std::string> ExternalIds;
+  std::vector<std::string> VersionSuffixes;
 };
 
 /// AST Component::ImportDecl node.

@@ -36,8 +36,10 @@ public:
 
   Symbol<const IntrinsicsTable *> getIntrinsics() noexcept override {
     if (Binary) {
-      return createSymbol<const IntrinsicsTable *>(
-          getPointer<const IntrinsicsTable *>(IntrinsicsAddress));
+      if (auto *const Pointer = getPointer<const IntrinsicsTable *>(
+              IntrinsicsAddress, sizeof(const IntrinsicsTable *))) {
+        return createSymbol<const IntrinsicsTable *>(Pointer);
+      }
     }
     return {};
   }
@@ -47,7 +49,11 @@ public:
     if (Binary) {
       Result.reserve(TypesAddress.size());
       for (const auto Address : TypesAddress) {
-        Result.push_back(createSymbol<Wrapper>(getPointer<Wrapper>(Address)));
+        auto *const Pointer = getPointer<Wrapper>(Address, 1);
+        if (!Pointer) {
+          return {};
+        }
+        Result.push_back(createSymbol<Wrapper>(Pointer));
       }
     }
     return Result;
@@ -58,7 +64,11 @@ public:
     if (Binary) {
       Result.reserve(CodesAddress.size());
       for (const auto Address : CodesAddress) {
-        Result.push_back(createSymbol<void>(getPointer<void>(Address)));
+        auto *const Pointer = getPointer<void>(Address, 1);
+        if (!Pointer) {
+          return {};
+        }
+        Result.push_back(createSymbol<void>(Pointer));
       }
     }
     return Result;
@@ -69,7 +79,16 @@ private:
     return reinterpret_cast<uintptr_t>(Binary);
   }
 
-  template <typename T> T *getPointer(uint64_t Address) const noexcept {
+  /// Check that [Offset, Offset + Length) stays inside the mapped binary.
+  bool checkAccessBound(uint64_t Offset, uint64_t Length) const noexcept {
+    return Offset <= BinarySize && Length <= BinarySize - Offset;
+  }
+
+  template <typename T>
+  T *getPointer(uint64_t Address, uint64_t Size) const noexcept {
+    if (!checkAccessBound(Address, Size)) {
+      return nullptr;
+    }
     return reinterpret_cast<T *>(getOffset() + Address);
   }
 

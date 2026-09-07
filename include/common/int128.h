@@ -29,29 +29,29 @@
 namespace WasmEdge {
 
 inline constexpr int clz(uint32_t V) noexcept {
-#if defined(_MSC_VER) && !defined(__clang__)
   if (V) {
+#if defined(_MSC_VER) && !defined(__clang__)
     unsigned long LeadingZero = 0;
     _BitScanReverse(&LeadingZero, V);
     return 31 ^ static_cast<int>(LeadingZero);
+#else
+    return __builtin_clz(V);
+#endif
   }
   return 32;
-#else
-  return __builtin_clz(V);
-#endif
 }
 
 inline constexpr int clz(uint64_t V) noexcept {
-#if defined(_MSC_VER) && !defined(__clang__)
   if (V) {
+#if defined(_MSC_VER) && !defined(__clang__)
     unsigned long LeadingZero = 0;
     _BitScanReverse64(&LeadingZero, V);
     return 63 ^ static_cast<int>(LeadingZero);
+#else
+    return __builtin_clzll(V);
+#endif
   }
   return 64;
-#else
-  return __builtin_clzll(V);
-#endif
 }
 
 inline auto udiv128by64to64(uint64_t U1, uint64_t U0, uint64_t V,

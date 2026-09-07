@@ -47,7 +47,8 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       // No init expression case. Use the null reference to initialize.
       // Normalize the type to the bottom abstract heap type so that null
       // references always carry abstract types, as ref.cast/ref.test assume.
-      auto BotType = toBottomType(StackMgr, TabSeg.getTableType().getRefType());
+      auto BotType = toBottomType(StackMgr.getModule(),
+                                  TabSeg.getTableType().getRefType());
       RefVariant InitTabValue(ValType(TypeCode::RefNull, BotType));
       ModInst.addTable(TabSeg.getTableType(), InitTabValue);
     }

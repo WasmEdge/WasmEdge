@@ -7,9 +7,8 @@ namespace WasmEdge {
 namespace Loader {
 
 // Serialize import description. See "include/loader/serialize.h".
-Expect<void>
-Serializer::serializeDesc(const AST::ImportDesc &Desc,
-                          std::vector<uint8_t> &OutVec) const noexcept {
+void Serializer::serializeDesc(const AST::ImportDesc &Desc,
+                               std::vector<uint8_t> &OutVec) const noexcept {
   // Import description: modname:vec(byte) + extname:vec(byte) + importdesc
   // Module name: vec(byte).
   serializeU32(static_cast<uint32_t>(Desc.getModuleName().size()), OutVec);
@@ -25,36 +24,23 @@ Serializer::serializeDesc(const AST::ImportDesc &Desc,
   switch (Desc.getExternalType()) {
   case ExternalType::Function:
     serializeU32(Desc.getExternalFuncTypeIdx(), OutVec);
-    break;
+    return;
   case ExternalType::Table:
     return serializeType(Desc.getExternalTableType(), OutVec);
   case ExternalType::Memory:
     return serializeType(Desc.getExternalMemoryType(), OutVec);
   case ExternalType::Global:
-    if (Desc.getExternalGlobalType().getValMut() == ValMut::Var &&
-        unlikely(!Conf.hasProposal(Proposal::ImportExportMutGlobals))) {
-      return logNeedProposal(ErrCode::Value::InvalidMut,
-                             Proposal::ImportExportMutGlobals,
-                             ASTNodeAttr::Desc_Import);
-    }
     return serializeType(Desc.getExternalGlobalType(), OutVec);
   case ExternalType::Tag:
-    if (!Conf.hasProposal(Proposal::ExceptionHandling)) {
-      return logNeedProposal(ErrCode::Value::MalformedImportKind,
-                             Proposal::ExceptionHandling, ASTNodeAttr::Module);
-    }
     return serializeType(Desc.getExternalTagType(), OutVec);
   default:
-    return logSerializeError(ErrCode::Value::Unreachable,
-                             ASTNodeAttr::Desc_Import);
+    assumingUnreachable();
   }
-  return {};
 }
 
 // Serialize export description. See "include/loader/serialize.h".
-Expect<void>
-Serializer::serializeDesc(const AST::ExportDesc &Desc,
-                          std::vector<uint8_t> &OutVec) const noexcept {
+void Serializer::serializeDesc(const AST::ExportDesc &Desc,
+                               std::vector<uint8_t> &OutVec) const noexcept {
   // Export description: extname:vec(byte) + exportdesc
   // External name: vec(byte).
   serializeU32(static_cast<uint32_t>(Desc.getExternalName().size()), OutVec);
@@ -62,15 +48,7 @@ Serializer::serializeDesc(const AST::ExportDesc &Desc,
                 Desc.getExternalName().end());
   // Export Desc: extern_type:byte + idx:u32.
   OutVec.push_back(static_cast<uint8_t>(Desc.getExternalType()));
-  // If the type is a Tag type, check for the exception handling proposal first.
-  if (Desc.getExternalType() == ExternalType::Tag) {
-    if (!Conf.hasProposal(Proposal::ExceptionHandling)) {
-      return logNeedProposal(ErrCode::Value::MalformedExportKind,
-                             Proposal::ExceptionHandling, ASTNodeAttr::Module);
-    }
-  }
   serializeU32(Desc.getExternalIndex(), OutVec);
-  return {};
 }
 
 } // namespace Loader

@@ -286,11 +286,11 @@ public:
 private:
   /// \name Data of AOTSection.
   /// @{
-  uint32_t Version;
-  uint8_t OSType;
-  uint8_t ArchType;
-  uint64_t VersionAddress;
-  uint64_t IntrinsicsAddress;
+  uint32_t Version = 0;
+  uint8_t OSType = 0;
+  uint8_t ArchType = 0;
+  uint64_t VersionAddress = 0;
+  uint64_t IntrinsicsAddress = 0;
   std::vector<uintptr_t> TypesAddress;
   std::vector<uintptr_t> CodesAddress;
   std::vector<std::tuple<uint8_t, uint64_t, uint64_t, std::vector<Byte>>>

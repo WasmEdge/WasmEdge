@@ -85,6 +85,9 @@ public:
                ? ErrCode::Value::UserDefError
                : static_cast<ErrCode::Value>(getCode());
   }
+  /// The phase is the low nibble of the second byte of the code, so the
+  /// component model ranges 0x1100 ~ 0x14FF report the same phases as their
+  /// core counterparts 0x0100 ~ 0x04FF.
   constexpr WasmPhase getErrCodePhase() const noexcept {
     return getCategory() != ErrCategory::WASM
                ? WasmPhase::UserDefined

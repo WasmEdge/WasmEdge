@@ -36,8 +36,8 @@ public:
   virtual ~Executable() noexcept = default;
 
   /// Function type wrapper for symbols.
-  using Wrapper = void(void *ExecCtx, void *Function, const ValVariant *Args,
-                       ValVariant *Rets);
+  using Wrapper = void(void *ModCtx, void *ExecCtx, void *Function,
+                       const ValVariant *Args, ValVariant *Rets);
 
   enum class Intrinsics : uint32_t {
     kTrap,
@@ -75,6 +75,9 @@ public:
     kTableGetFuncSymbol,
     kRefGetFuncSymbol,
     kFuncGetFuncSymbol,
+    kThrow,
+    kThrowRef,
+    kCatchPop,
     kIntrinsicMax,
   };
   using IntrinsicsTable = void * [uint32_t(Intrinsics::kIntrinsicMax)];

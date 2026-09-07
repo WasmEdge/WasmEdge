@@ -166,7 +166,7 @@ WASMEDGE_CAPI_EXPORT extern uint64_t WasmEdge_ConfigureGetMaxMemoryPage(
 /// (default), JIT, or AOT. Only `WasmEdge_RunMode_AOT` will load AOT custom
 /// sections from universal WASM, or `dlopen` shared-library WASM artifacts;
 /// in the other modes, AOT data is ignored, and shared-library inputs are
-/// re-loaded as plain WASM after extracting their embedded bytes.
+/// rejected.
 ///
 /// This function is thread-safe.
 ///

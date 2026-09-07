@@ -235,6 +235,7 @@ TEST(AOTAsyncExecute, ThreadTest) {
   Conf.getCompilerConfigure().setInterruptible(true);
   Conf.getCompilerConfigure().setOutputFormat(
       WasmEdge::CompilerConfigure::OutputFormat::Native);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
   const auto Path =
       std::filesystem::temp_directory_path() /
       std::filesystem::u8path("ThreadTest" WASMEDGE_LIB_EXTENSION);
@@ -289,6 +290,7 @@ TEST(AOTAsyncExecute, GasThreadTest) {
   Conf.getStatisticsConfigure().setTimeMeasuring(true);
   Conf.getCompilerConfigure().setOutputFormat(
       WasmEdge::CompilerConfigure::OutputFormat::Native);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
   auto Path = std::filesystem::temp_directory_path() /
               std::filesystem::u8path("AOTGasTest" WASMEDGE_LIB_EXTENSION);
 

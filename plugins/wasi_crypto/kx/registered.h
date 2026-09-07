@@ -16,7 +16,10 @@
 
 #include "kx/dh/ecdsa.h"
 #include "kx/dh/x25519.h"
+#include "kx/kem/mlkem.h"
 #include "utils/error.h"
+
+#include <openssl/opensslv.h>
 
 #include <variant>
 
@@ -32,7 +35,12 @@ template <typename... T> struct Registered {
   using Variant = std::variant<T...>;
 };
 
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+using RegistedAlg =
+    Registered<X25519, EcdsaP256, EcdsaP384, MlKem512, MlKem768, MlKem1024>;
+#else
 using RegistedAlg = Registered<X25519, EcdsaP256, EcdsaP384>;
+#endif
 
 using Algorithm = RegistedAlg::Variant;
 

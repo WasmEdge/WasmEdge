@@ -36,7 +36,7 @@ Expect<void> Executor::runIfElseOp(Runtime::StackManager &StackMgr,
 Expect<void> Executor::runThrowOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr,
                                   AST::InstrView::iterator &PC) noexcept {
-  auto *TagInst = getTagInstByIdx(StackMgr, Instr.getTargetIndex());
+  auto *TagInst = getTagInstByIdx(StackMgr.getModule(), Instr.getTargetIndex());
   // The arguments will be popped from the stack in the throw function.
   return throwException(StackMgr, *TagInst, PC);
 }
@@ -160,7 +160,8 @@ Expect<void> Executor::runCallOp(Runtime::StackManager &StackMgr,
                                  AST::InstrView::iterator &PC,
                                  bool IsTailCall) noexcept {
   // Get Function address.
-  const auto *FuncInst = getFuncInstByIdx(StackMgr, Instr.getTargetIndex());
+  const auto *FuncInst =
+      getFuncInstByIdx(StackMgr.getModule(), Instr.getTargetIndex());
   EXPECTED_TRY(auto NextPC,
                enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall));
   PC = NextPC - 1;
@@ -192,7 +193,8 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
                                          AST::InstrView::iterator &PC,
                                          bool IsTailCall) noexcept {
   // Get Table Instance.
-  const auto *TabInst = getTabInstByIdx(StackMgr, Instr.getSourceIndex());
+  const auto *TabInst =
+      getTabInstByIdx(StackMgr.getModule(), Instr.getSourceIndex());
 
   // Get function type at index x.
   const auto *ModInst = StackMgr.getModule();

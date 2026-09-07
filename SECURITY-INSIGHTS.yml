@@ -1,10 +1,10 @@
 header:
-  schema-version: 0.13.4
-  last-updated: '2023-09-05'
-  last-reviewed: '2023-09-05'
-  expiration-date: '2024-09-05T01:00:00.000Z'
+  schema-version: 1.0.0
+  last-updated: '2026-08-03'
+  last-reviewed: '2026-08-03'
+  expiration-date: '2027-08-03T01:00:00.000Z'
   project-url: https://github.com/WasmEdge/WasmEdge
-  project-release: '0.13.4'
+  project-release: '0.17.1'
 project-lifecycle:
   status: active
   roadmap: https://github.com/WasmEdge/WasmEdge/blob/master/docs/ROADMAP.md

@@ -16,6 +16,9 @@
 
 #include <algorithm>
 #include <array>
+#include <functional>
+#include <iterator>
+#include <memory>
 #include <string_view>
 #include <tuple>
 #include <type_traits>

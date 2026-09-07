@@ -11,38 +11,32 @@
 namespace {
 
 WasmEdge::Configure Conf;
-WasmEdge::Loader::Serializer Ser(Conf);
+WasmEdge::Loader::Serializer Ser;
 
 WasmEdge::AST::Module createPopulatedModule() {
   WasmEdge::AST::Module Module;
   Module.getMagic() = {0x00U, 0x61U, 0x73U, 0x6DU};
   Module.getVersion() = {0x01U, 0x00U, 0x00U, 0x00U};
 
-  // The serializer emits sections in ascending start-offset order (see
-  // Serializer::serializeModule, which std::sorts sections by getStartOffset()).
-  // The ascending offsets below therefore pin the section order that the
-  // Expected byte sequences assume: type, function, memory, export, code.
+  // Known sections are emitted in the order the binary format requires:
+  // type, function, memory, export, code.
 
   WasmEdge::AST::FunctionType FuncType;
   FuncType.getReturnTypes() = {WasmEdge::TypeCode::I32};
   Module.getTypeSection().getContent() = {FuncType};
-  Module.getTypeSection().setStartOffset(1);
 
   Module.getFunctionSection().getContent() = {0x00U};
-  Module.getFunctionSection().setStartOffset(2);
 
   WasmEdge::AST::MemoryType MemoryType;
   MemoryType.getLimit().setType(WasmEdge::AST::Limit::LimitType::HasMin);
   MemoryType.getLimit().setMin(1);
   Module.getMemorySection().getContent() = {MemoryType};
-  Module.getMemorySection().setStartOffset(3);
 
   WasmEdge::AST::ExportDesc ExportDesc;
   ExportDesc.setExternalName("main");
   ExportDesc.setExternalType(WasmEdge::ExternalType::Function);
   ExportDesc.setExternalIndex(0x00U);
   Module.getExportSection().getContent() = {ExportDesc};
-  Module.getExportSection().setStartOffset(4);
 
   WasmEdge::AST::Instruction I32Const(WasmEdge::OpCode::I32__const);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
@@ -50,12 +44,11 @@ WasmEdge::AST::Module createPopulatedModule() {
   WasmEdge::AST::CodeSegment CodeSeg;
   CodeSeg.getExpr().getInstrs() = {I32Const, End};
   Module.getCodeSection().getContent() = {CodeSeg};
-  Module.getCodeSection().setStartOffset(5);
 
   return Module;
 }
 
-TEST(serializeModuleTest, SerializeModule) {
+TEST(SerializeModuleTest, SerializeModule) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
@@ -97,7 +90,7 @@ TEST(serializeModuleTest, SerializeModule) {
   EXPECT_EQ(Output, Expected);
 }
 
-TEST(serializeModuleTest, PopulatedMultiSectionModule) {
+TEST(SerializeModuleTest, PopulatedMultiSectionModule) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
@@ -112,21 +105,79 @@ TEST(serializeModuleTest, PopulatedMultiSectionModule) {
   ASSERT_TRUE(SerRes);
   Output = *SerRes;
   Expected = {
-      0x00U, 0x61U, 0x73U, 0x6DU,                     // Magic
-      0x01U, 0x00U, 0x00U, 0x00U,                     // Version
+      0x00U, 0x61U, 0x73U, 0x6DU,                      // Magic
+      0x01U, 0x00U, 0x00U, 0x00U,                      // Version
       0x01U, 0x05U, 0x01U, 0x60U, 0x00U, 0x01U, 0x7FU, // Type section
-      0x03U, 0x02U, 0x01U, 0x00U,                     // Function section
-      0x05U, 0x03U, 0x01U, 0x00U, 0x01U,              // Memory section
+      0x03U, 0x02U, 0x01U, 0x00U,                      // Function section
+      0x05U, 0x03U, 0x01U, 0x00U, 0x01U,               // Memory section
       0x07U, 0x08U, 0x01U, 0x04U, 0x6DU, 0x61U, 0x69U,
-      0x6EU, 0x00U, 0x00U,                            // Export section
+      0x6EU, 0x00U, 0x00U, // Export section
       0x0AU, 0x06U, 0x01U, 0x04U, 0x00U, 0x41U, 0x2AU,
-      0x0BU,                                          // Code section
+      0x0BU, // Code section
   };
   EXPECT_EQ(Output, Expected);
 }
 
-TEST(serializeModuleTest, ModuleRoundTrip) {
-  // 3. Test that serialize -> load -> serialize is lossless.
+TEST(SerializeModuleTest, HandBuiltSectionOrder) {
+  // 3. Test that a module built without the loader is emitted in the section
+  //    order the binary format requires.
+  //
+  //   1.  The tag section (id 13) must precede the global section (id 6).
+
+  WasmEdge::AST::Module Module;
+  Module.getMagic() = {0x00U, 0x61U, 0x73U, 0x6DU};
+  Module.getVersion() = {0x01U, 0x00U, 0x00U, 0x00U};
+
+  WasmEdge::AST::FunctionType FuncType;
+  Module.getTypeSection().getContent() = {FuncType};
+
+  WasmEdge::AST::TagType TagType;
+  TagType.setTypeIdx(0);
+  Module.getTagSection().getContent() = {TagType};
+
+  WasmEdge::AST::GlobalSegment GlobalSeg;
+  GlobalSeg.getGlobalType().setValType(WasmEdge::TypeCode::I32);
+  GlobalSeg.getGlobalType().setValMut(WasmEdge::ValMut::Const);
+  WasmEdge::AST::Instruction I32Const(WasmEdge::OpCode::I32__const);
+  I32Const.setNum(static_cast<uint32_t>(0));
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+  GlobalSeg.getExpr().getInstrs() = {I32Const, End};
+  Module.getGlobalSection().getContent() = {GlobalSeg};
+
+  auto SerRes = Ser.serializeModule(Module);
+  ASSERT_TRUE(SerRes);
+
+  WasmEdge::Loader::Loader Ldr(Conf);
+  EXPECT_TRUE(Ldr.parseModule(*SerRes));
+}
+
+TEST(SerializeModuleTest, CustomSectionPositionPreserved) {
+  // 4. Test that a custom section keeps its position across a load and a
+  //    serialize.
+  //
+  //   1.  A custom section sitting between the type and function sections must
+  //       come back out in the same place.
+
+  const std::vector<uint8_t> Input = {
+      0x00U, 0x61U, 0x73U, 0x6DU,               // Magic
+      0x01U, 0x00U, 0x00U, 0x00U,               // Version
+      0x01U, 0x04U, 0x01U, 0x60U, 0x00U, 0x00U, // Type section
+      0x00U, 0x03U, 0x02U, 0x68U, 0x69U,        // Custom section "hi"
+      0x03U, 0x02U, 0x01U, 0x00U,               // Function section
+      0x0AU, 0x04U, 0x01U, 0x02U, 0x00U, 0x0BU  // Code section
+  };
+
+  WasmEdge::Loader::Loader Ldr(Conf);
+  auto Res = Ldr.parseModule(Input);
+  ASSERT_TRUE(Res);
+
+  auto SerRes = Ser.serializeModule(**Res);
+  ASSERT_TRUE(SerRes);
+  EXPECT_EQ(*SerRes, Input);
+}
+
+TEST(SerializeModuleTest, ModuleRoundTrip) {
+  // 5. Test that serialize -> load -> serialize is lossless.
   //
   //   1.  Serialize a module to bytes, parse those bytes back via the Loader,
   //       serialize the loaded module again, and assert both byte sequences
@@ -148,4 +199,5 @@ TEST(serializeModuleTest, ModuleRoundTrip) {
   std::vector<uint8_t> Bytes2 = *SerRes2;
   EXPECT_EQ(Bytes1, Bytes2);
 }
+
 } // namespace

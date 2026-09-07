@@ -1188,6 +1188,15 @@ public:
     return Node->getNativeHandler();
   }
 
+  /// Test whether a file descriptor has the requested rights.
+  bool canFd(__wasi_fd_t Fd, __wasi_rights_t Rights) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return false;
+    }
+    return Node->can(Rights);
+  }
+
   static std::string randomFilename() noexcept {
     using namespace std::literals;
     static constexpr const auto Charset =

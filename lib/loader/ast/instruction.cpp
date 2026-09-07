@@ -456,6 +456,10 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     // Read the flag.
     uint8_t Flag = 0U;
     EXPECTED_TRY(readU8(Flag).map_error(ReportError));
+    if (unlikely(Flag > 0x03U)) {
+      return logLoadError(ErrCode::Value::MalformedCastFlags,
+                          FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+    }
     // Read the label index.
     uint32_t LabelIdx = 0U;
     EXPECTED_TRY(readU32(LabelIdx).map_error(ReportError));

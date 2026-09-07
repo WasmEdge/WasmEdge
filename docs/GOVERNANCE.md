@@ -44,7 +44,7 @@ The WasmEdge project and its leadership embrace the following values:
 There are three levels of maintainers for WasmEdge. The WasmEdge maintainers oversee the overall
 project and its health. Committers focus on a single codebase, a group of related
 codebases, a service (e.g., a website), or project to support the other projects (e.g., marketing or
-community management). Reviewers help review the GitHub issues and PRs. See the [Contributor Ladder](./CONTRIBUTION_LADDER.md) for more detailed information on responsibilities.
+community management). Reviewers help review the GitHub issues and PRs. See the [Contributor Ladder](./CONTRIBUTOR_LADDER.md) for more detailed information on responsibilities.
 
 ## Adding new projects
 
@@ -72,7 +72,7 @@ See more details in [Code of Conduct](CODE_OF_CONDUCT.md) document.
 
 The Maintainers will appoint a Security Response Team to handle security reports. This committee may simply consist of the Maintainer Council themselves. If this responsibility is delegated, the Maintainers will appoint a team of at least two contributors to handle it. The Maintainers will review who is assigned to this at least once a year.
 
-The Security Response Team is responsible for handling all reports of security holes and breaches according to the [security policy](./SECURITY.md).
+The Security Response Team is responsible for handling all reports of security holes and breaches according to the [security policy](../SECURITY.md).
 
 
 ## Voting

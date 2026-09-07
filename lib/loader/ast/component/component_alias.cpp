@@ -6,14 +6,17 @@
 namespace WasmEdge {
 namespace Loader {
 
-Expect<void> Loader::loadCoreAlias(AST::Component::CoreAlias &Alias) {
+Expect<void> Loader::loadAlias(AST::Component::CoreAlias &Alias) {
   auto ReportError = [this](auto E) {
     return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Alias);
   };
-  // core:alias       ::= s:<core:sort> t:<core:aliastarget> => (alias t (s))
-  // core:aliastarget ::= 0x01 ct:<u32> idx:<u32>            => outer ct idx
+  // core:alias ::= 0x10 0x01 ct:<u32> idx:<u32> => (alias outer ct idx (type))
 
-  EXPECTED_TRY(loadCoreSort(Alias.getSort()).map_error(ReportError));
+  EXPECTED_TRY(uint8_t Sort, FMgr.readByte().map_error(ReportError));
+  if (Sort != 0x10) {
+    return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
+                        ASTNodeAttr::Comp_Alias);
+  }
   EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error(ReportError));
   if (Flag != 0x01) {
     return logLoadError(ErrCode::Value::MalformedAliasTarget,
@@ -30,22 +33,28 @@ Expect<void> Loader::loadAlias(AST::Component::Alias &Alias) {
   auto ReportError = [this](auto E) {
     return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Alias);
   };
-  // alias       ::= s:<sort> t:<aliastarget>                => (alias t (s))
-  // aliastarget ::= 0x00 i:<instanceidx> n:<string>         => export i n
-  //               | 0x01 i:<core:instanceidx> n:<core:name> => core export i n
-  //               | 0x02 ct:<u32> idx:<u32>                 => outer ct idx
+  // alias ::= s:<sort> 0x00 i:<instanceidx> n:<string>         => export i n
+  //         | s:<sort> 0x01 i:<core:instanceidx> n:<core:name> => core export
+  //         | s:<sort> 0x02 ct:<u32> idx:<u32>                 => outer ct idx
+  //                                                (if s in outeraliassort)
+  // outeraliassort ::= core module | core type | component | type
 
   EXPECTED_TRY(loadSort(Alias.getSort()).map_error(ReportError));
   EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error(ReportError));
-  switch (Flag) {
-  case 0x00:
-  case 0x01: {
+  const auto Target = static_cast<AST::Component::Alias::TargetType>(Flag);
+  switch (Target) {
+  case AST::Component::Alias::TargetType::Export:
+  case AST::Component::Alias::TargetType::CoreExport: {
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
     EXPECTED_TRY(std::string Name, FMgr.readName().map_error(ReportError));
     Alias.setExport(Idx, Name);
     break;
   }
-  case 0x02: {
+  case AST::Component::Alias::TargetType::Outer: {
+    if (!Alias.getSort().isOuterAliasSort()) {
+      return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
+                          ASTNodeAttr::Comp_Alias);
+    }
     EXPECTED_TRY(uint32_t Ct, FMgr.readU32().map_error(ReportError));
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
     Alias.setOuter(Ct, Idx);
@@ -55,7 +64,7 @@ Expect<void> Loader::loadAlias(AST::Component::Alias &Alias) {
     return logLoadError(ErrCode::Value::MalformedAliasTarget,
                         FMgr.getLastOffset(), ASTNodeAttr::Comp_Alias);
   }
-  Alias.setTargetType(static_cast<AST::Component::Alias::TargetType>(Flag));
+  Alias.setTargetType(Target);
   return {};
 }
 

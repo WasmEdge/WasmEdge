@@ -71,8 +71,8 @@ Expect<void> Loader::loadDesc(AST::Component::ExternDesc &Desc) {
   //              | 0x01                       => (sub resource)
 
   EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error(ReportError));
-  switch (Flag) {
-  case 0x00: {
+  switch (static_cast<AST::Component::ExternDesc::DescType>(Flag)) {
+  case AST::Component::ExternDesc::DescType::CoreType: {
     EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error(ReportError));
     if (B != 0x11U) {
       return ReportError(ErrCode::Value::IntegerTooLong);
@@ -81,12 +81,12 @@ Expect<void> Loader::loadDesc(AST::Component::ExternDesc &Desc) {
     Desc.setCoreTypeIdx(Idx);
     return {};
   }
-  case 0x01: {
+  case AST::Component::ExternDesc::DescType::FuncType: {
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
     Desc.setFuncTypeIdx(Idx);
     return {};
   }
-  case 0x02: {
+  case AST::Component::ExternDesc::DescType::ValueBound: {
     EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error(ReportError));
     if (B == 0x00) {
       EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
@@ -100,7 +100,7 @@ Expect<void> Loader::loadDesc(AST::Component::ExternDesc &Desc) {
     }
     return {};
   }
-  case 0x03: {
+  case AST::Component::ExternDesc::DescType::TypeBound: {
     EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error(ReportError));
     if (B == 0x00) {
       EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
@@ -112,12 +112,12 @@ Expect<void> Loader::loadDesc(AST::Component::ExternDesc &Desc) {
     }
     return {};
   }
-  case 0x04: {
+  case AST::Component::ExternDesc::DescType::ComponentType: {
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
     Desc.setComponentTypeIdx(Idx);
     return {};
   }
-  case 0x05: {
+  case AST::Component::ExternDesc::DescType::InstanceType: {
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
     Desc.setInstanceTypeIdx(Idx);
     return {};

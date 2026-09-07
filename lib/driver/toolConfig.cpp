@@ -58,20 +58,11 @@ createProposalConfigure(const struct DriverProposalOptions &Opt) noexcept {
   if (Opt.PropRelaxedSIMD.value()) {
     Conf.removeProposal(Proposal::RelaxSIMD);
   }
+  if (Opt.PropExceptionHandling.value()) {
+    Conf.removeProposal(Proposal::ExceptionHandling);
+  }
   if (Opt.PropMemory64.value()) {
     Conf.removeProposal(Proposal::Memory64);
-  }
-  if (Opt.PropTailCallDeprecated.value()) {
-    Conf.addProposal(Proposal::TailCall);
-  }
-  if (Opt.PropExtendConstDeprecated.value()) {
-    Conf.addProposal(Proposal::ExtendedConst);
-  }
-  if (Opt.PropMultiMemDeprecated.value()) {
-    Conf.addProposal(Proposal::MultiMemories);
-  }
-  if (Opt.PropRelaxedSIMDDeprecated.value()) {
-    Conf.addProposal(Proposal::RelaxSIMD);
   }
 
   // Handle the proposal removal which has dependency.
@@ -88,12 +79,6 @@ createProposalConfigure(const struct DriverProposalOptions &Opt) noexcept {
     // This will automatically not work if the GC or func-ref proposal not
     // disabled.
     Conf.removeProposal(Proposal::ReferenceTypes);
-  }
-  if (Opt.PropFunctionReferenceDeprecated.value()) {
-    Conf.addProposal(Proposal::FunctionReferences);
-  }
-  if (Opt.PropGCDeprecated.value()) {
-    Conf.addProposal(Proposal::GC);
   }
 
   if (Opt.PropThreads.value()) {
@@ -120,12 +105,6 @@ Configure createConfigure(const struct DriverToolOptions &Opt) noexcept {
 
   Configure Conf = createProposalConfigure(Opt);
 
-  if (Opt.PropExceptionHandling.value()) {
-    Conf.removeProposal(Proposal::ExceptionHandling);
-  }
-  if (Opt.PropExceptionHandlingDeprecated.value()) {
-    Conf.addProposal(Proposal::ExceptionHandling);
-  }
   if (Opt.PropComponent.value()) {
     Conf.addProposal(Proposal::Component);
     spdlog::warn("component model is enabled, this is experimental."sv);

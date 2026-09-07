@@ -23,6 +23,7 @@ int main(int argc, char **argv) {
   WasmEdge_ConfigureAddProposal(ConfCxt, WasmEdge_Proposal_MultiMemories);
   WasmEdge_ConfigureRemoveProposal(ConfCxt, WasmEdge_Proposal_ReferenceTypes);
   WasmEdge_ConfigureAddProposal(ConfCxt, WasmEdge_Proposal_Threads);
+  WasmEdge_ConfigureSetRunMode(ConfCxt, WasmEdge_RunMode_AOT);
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(ConfCxt, NULL);
 
   WasmEdge_Result Res;

@@ -44,14 +44,6 @@ struct DriverToolOptions : public DriverProposalOptions {
                 "Environ variables. Each variable can be specified as --env "
                 "`NAME=VALUE`."sv),
             PO::MetaVar("ENVS"sv)),
-        // TODO: Move PropExceptionHandling into addProposalOptions after
-        // AOT mode of exception handling proposal is ready.
-        PropExceptionHandling(
-            PO::Description("Disable Exception handling proposal"sv)),
-        PropExceptionHandlingDeprecated(PO::Description(
-            "(DEPRECATED) Enable Exception handling proposal. WASM 3.0 "
-            "includes this proposal, and this option will be removed in the "
-            "future."sv)),
         PropComponent(PO::Description(
             "Enable Component Model proposal, this is experimental"sv)),
         ConfEnableInstructionCounting(PO::Description(
@@ -66,9 +58,12 @@ struct DriverToolOptions : public DriverProposalOptions {
         ConfEnableJIT(
             PO::Description("Enable Just-In-Time compiler for running WASM"sv)),
         ConfEnableCoredump(PO::Description(
-            "Enable coredump when WebAssembly enters a trap"sv)),
+            "Enable coredump when WebAssembly enters a trap. Requires the "
+            "interpreter run mode, otherwise it is disabled"sv)),
         ConfCoredumpWasmgdb(
-            PO::Description("Enable coredump for wasm-gdb to debug"sv)),
+            PO::Description("Enable coredump in the format expected by the "
+                            "wasmgdb debugger, which differs from the one of "
+                            "the WebAssembly tool conventions"sv)),
         ConfForceInterpreter(
             PO::Description("Forcibly run WASM in interpreter mode."sv)),
         ConfRunMode(PO::Description("Set execution mode. Valid values: "
@@ -111,8 +106,6 @@ struct DriverToolOptions : public DriverProposalOptions {
   PO::Option<PO::Toggle> Reactor;
   PO::List<std::string> Dir;
   PO::List<std::string> Env;
-  PO::Option<PO::Toggle> PropExceptionHandling;
-  PO::Option<PO::Toggle> PropExceptionHandlingDeprecated;
   PO::Option<PO::Toggle> PropComponent;
   PO::Option<PO::Toggle> ConfEnableInstructionCounting;
   PO::Option<PO::Toggle> ConfEnableGasMeasuring;
@@ -141,11 +134,7 @@ public:
   void addParserOptions(PO::ArgumentParser &Parser) noexcept {
     addGlobalOptions(Parser);
     addProposalOptions(Parser);
-    Parser.add_option("disable-exception-handling"sv, PropExceptionHandling)
-        .add_option("enable-exception-handling"sv,
-                    PropExceptionHandlingDeprecated)
-        .add_option("enable-component"sv, PropComponent)
-        .add_option(SoName);
+    Parser.add_option("enable-component"sv, PropComponent).add_option(SoName);
   }
 
   void addLinkerOptions(PO::ArgumentParser &Parser) noexcept {

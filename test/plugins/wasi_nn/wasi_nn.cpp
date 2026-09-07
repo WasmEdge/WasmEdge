@@ -1487,6 +1487,57 @@ TEST(WasiNNTest, GGMLBackend) {
   }
 
   // GGML WASI-NN set_input tests.
+  {
+    auto Graph = NNMod->getEnv().NNGraph.get(0);
+    ASSERT_NE(Graph, nullptr);
+    const auto &Params =
+        Graph->get<WasmEdge::Host::WASINN::GGML::Graph>().Params;
+    struct LoadModeCase {
+      std::string_view Metadata;
+      llama_load_mode Expected;
+    };
+    const LoadModeCase Cases[] = {
+        {R"({"use-mmap":false})", LLAMA_LOAD_MODE_NONE},
+        {R"({"use-mlock":true})", LLAMA_LOAD_MODE_MLOCK},
+        {R"({})", LLAMA_LOAD_MODE_MLOCK},
+        {R"({"use-mmap":true})", LLAMA_LOAD_MODE_MMAP_MLOCK},
+        {R"({"use-mlock":false})", LLAMA_LOAD_MODE_MMAP},
+        {R"({"use-mlock":true})", LLAMA_LOAD_MODE_MMAP_MLOCK},
+        {R"({"use-mmap":false})", LLAMA_LOAD_MODE_MLOCK},
+        {R"({"use-mlock":false})", LLAMA_LOAD_MODE_NONE},
+        {R"({"load-mode":"mmap+mlock"})", LLAMA_LOAD_MODE_MMAP_MLOCK},
+        {R"({"use-mmap":false})", LLAMA_LOAD_MODE_MLOCK},
+        {R"({"load-mode":"auto"})", LLAMA_LOAD_MODE_AUTO},
+        {R"({})", LLAMA_LOAD_MODE_AUTO},
+        {R"({"use-mlock":true})", LLAMA_LOAD_MODE_MMAP_MLOCK},
+        {R"({"load-mode":"dio"})", LLAMA_LOAD_MODE_DIRECT_IO},
+        {R"({})", LLAMA_LOAD_MODE_DIRECT_IO},
+        {R"({"use-mlock":true})", LLAMA_LOAD_MODE_MLOCK},
+        {R"({"use-mmap":true,"use-mlock":false,"load-mode":"none"})",
+         LLAMA_LOAD_MODE_NONE},
+        {R"({"load-mode":"auto"})", LLAMA_LOAD_MODE_AUTO},
+    };
+    for (const auto &Case : Cases) {
+      SCOPED_TRACE(Case.Metadata);
+      std::vector<uint8_t> MetadataData(Case.Metadata.begin(),
+                                        Case.Metadata.end());
+      uint32_t EntryPtr = BuilderPtr;
+      writeFatPointer(MemInst, StorePtr, UINT32_C(1), EntryPtr);
+      writeUInt32(MemInst, static_cast<uint32_t>(TensorType::U8), EntryPtr);
+      writeFatPointer(MemInst, StorePtr + UINT32_C(4),
+                      static_cast<uint32_t>(MetadataData.size()), EntryPtr);
+      writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+      writeBinaries<uint8_t>(MemInst, MetadataData, StorePtr + UINT32_C(4));
+      ASSERT_TRUE(
+          HostFuncSetInput.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   UINT32_C(0), UINT32_C(1), BuilderPtr},
+                               Errno));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.load_mode, Case.Expected);
+    }
+  }
+
   SetInputEntryPtr = BuilderPtr;
   writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
                   BuilderPtr);

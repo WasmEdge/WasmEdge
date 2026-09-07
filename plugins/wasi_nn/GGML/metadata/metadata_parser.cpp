@@ -413,11 +413,13 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonAuto<bool>(Doc, "ctx-shift", GraphRef.Params.ctx_shift);
     parseJsonAuto<bool>(Doc, "input-prefix-bos",
                         GraphRef.Params.input_prefix_bos);
-    // llama.cpp merged the mmap and mlock switches into the load-mode
-    // parameter. Map the legacy boolean keys onto it for compatibility.
     {
-      bool UseMmap = true;
-      bool UseMlock = false;
+      const auto LoadMode = GraphRef.Params.load_mode;
+      bool UseMmap = LoadMode == LLAMA_LOAD_MODE_AUTO ||
+                     LoadMode == LLAMA_LOAD_MODE_MMAP ||
+                     LoadMode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+      bool UseMlock = LoadMode == LLAMA_LOAD_MODE_MLOCK ||
+                      LoadMode == LLAMA_LOAD_MODE_MMAP_MLOCK;
       bool LegacyLoadKeyUsed = false;
       parseJsonWithProcessorAuto<bool>(
           Doc, "use-mlock", [&UseMlock, &LegacyLoadKeyUsed](const bool &Value) {

@@ -1389,12 +1389,34 @@ opposite_mode_caller:
       case ARMOptimization::O3:
         return llvm::OptimizationLevel::O3;
       case ARMOptimization::Os:
+#if LLVM_VERSION_MAJOR >= 23
+        return llvm::OptimizationLevel::O2;
+#else
         return llvm::OptimizationLevel::Os;
+#endif
       case ARMOptimization::Oz:
+#if LLVM_VERSION_MAJOR >= 23
+        return llvm::OptimizationLevel::O2;
+#else
         return llvm::OptimizationLevel::Oz;
+#endif
       }
       return llvm::OptimizationLevel::O0;
     }();
+#if LLVM_VERSION_MAJOR >= 23
+    if (Config.Optimization == ARMOptimization::Os ||
+        Config.Optimization == ARMOptimization::Oz) {
+      for (auto &Function : Module) {
+        if (Function.isDeclaration()) {
+          continue;
+        }
+        Function.addFnAttr(llvm::Attribute::OptimizeForSize);
+        if (Config.Optimization == ARMOptimization::Oz) {
+          Function.addFnAttr(llvm::Attribute::MinSize);
+        }
+      }
+    }
+#endif
     auto Optimizer = Pipeline.buildPerModuleDefaultPipeline(Level);
     Optimizer.run(Module, ModuleAnalyses);
 #else

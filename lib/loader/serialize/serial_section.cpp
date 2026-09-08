@@ -75,7 +75,7 @@ Serializer::serializeSection(const AST::ImportSection &Sec,
   // Import section: 0x02 + size:u32 + content:vec(importdesc).
   return serializeSectionContent(
       Sec, 0x02U, OutVec,
-      [=](const AST::ImportDesc &R, std::vector<uint8_t> &V) {
+      [this](const AST::ImportDesc &R, std::vector<uint8_t> &V) {
         return serializeDesc(R, V);
       });
 }
@@ -87,7 +87,7 @@ Serializer::serializeSection(const AST::FunctionSection &Sec,
   // Function section: 0x03 + size:u32 + content:vec(u32).
   return serializeSectionContent(
       Sec, 0x03U, OutVec,
-      [=](const uint32_t &R, std::vector<uint8_t> &V) -> Expect<void> {
+      [this](const uint32_t &R, std::vector<uint8_t> &V) -> Expect<void> {
         serializeU32(R, V);
         return {};
       });
@@ -100,7 +100,7 @@ Serializer::serializeSection(const AST::TableSection &Sec,
   // Table section: 0x04 + size:u32 + content:vec(tabletype).
   return serializeSectionContent(
       Sec, 0x04U, OutVec,
-      [=](const AST::TableSegment &R, std::vector<uint8_t> &V) {
+      [this](const AST::TableSegment &R, std::vector<uint8_t> &V) {
         return serializeSegment(R, V);
       });
 }
@@ -112,7 +112,7 @@ Serializer::serializeSection(const AST::MemorySection &Sec,
   // Memory section: 0x05 + size:u32 + content:vec(memorytype).
   return serializeSectionContent(
       Sec, 0x05U, OutVec,
-      [=](const AST::MemoryType &R, std::vector<uint8_t> &V) {
+      [this](const AST::MemoryType &R, std::vector<uint8_t> &V) {
         return serializeType(R, V);
       });
 }
@@ -124,7 +124,7 @@ Serializer::serializeSection(const AST::GlobalSection &Sec,
   // Global section: 0x06 + size:u32 + content:vec(globaltype).
   return serializeSectionContent(
       Sec, 0x06U, OutVec,
-      [=](const AST::GlobalSegment &R, std::vector<uint8_t> &V) {
+      [this](const AST::GlobalSegment &R, std::vector<uint8_t> &V) {
         return serializeSegment(R, V);
       });
 }
@@ -136,7 +136,7 @@ Serializer::serializeSection(const AST::ExportSection &Sec,
   // Export section: 0x07 + size:u32 + content:vec(exportdesc).
   return serializeSectionContent(
       Sec, 0x07U, OutVec,
-      [=](const AST::ExportDesc &R, std::vector<uint8_t> &V) {
+      [this](const AST::ExportDesc &R, std::vector<uint8_t> &V) {
         return serializeDesc(R, V);
       });
 }
@@ -166,7 +166,7 @@ Serializer::serializeSection(const AST::ElementSection &Sec,
   // Element section: 0x09 + size:u32 + content:vec(elemseg).
   return serializeSectionContent(
       Sec, 0x09U, OutVec,
-      [=](const AST::ElementSegment &R, std::vector<uint8_t> &V) {
+      [this](const AST::ElementSegment &R, std::vector<uint8_t> &V) {
         return serializeSegment(R, V);
       });
 }
@@ -178,7 +178,7 @@ Serializer::serializeSection(const AST::CodeSection &Sec,
   // Code section: 0x0A + size:u32 + content:vec(codeseg).
   return serializeSectionContent(
       Sec, 0x0AU, OutVec,
-      [=](const AST::CodeSegment &R, std::vector<uint8_t> &V) {
+      [this](const AST::CodeSegment &R, std::vector<uint8_t> &V) {
         return serializeSegment(R, V);
       });
 }
@@ -190,7 +190,7 @@ Serializer::serializeSection(const AST::DataSection &Sec,
   // Data section: 0x0B + size:u32 + content:vec(dataseg).
   return serializeSectionContent(
       Sec, 0x0BU, OutVec,
-      [=](const AST::DataSegment &R, std::vector<uint8_t> &V) {
+      [this](const AST::DataSegment &R, std::vector<uint8_t> &V) {
         return serializeSegment(R, V);
       });
 }
@@ -226,7 +226,8 @@ Serializer::serializeSection(const AST::TagSection &Sec,
                              std::vector<uint8_t> &OutVec) const noexcept {
   // Tag section: 0x0D + size:u32 + content:vec(tag)
   return serializeSectionContent(
-      Sec, 0x0DU, OutVec, [=](const AST::TagType &R, std::vector<uint8_t> &V) {
+      Sec, 0x0DU, OutVec,
+      [this](const AST::TagType &R, std::vector<uint8_t> &V) {
         return serializeType(R, V);
       });
 }

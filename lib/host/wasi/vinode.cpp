@@ -172,13 +172,6 @@ VINode::pathOpen(std::shared_ptr<VINode> Fd, std::string_view Path,
   }
 
   __wasi_rights_t RequiredRights = __WASI_RIGHTS_PATH_OPEN;
-  __wasi_rights_t RequiredInheritingRights = FsRightsBase | FsRightsInheriting;
-  const bool Read =
-      (FsRightsBase & (__WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_READDIR)) != 0;
-  const bool Write =
-      (FsRightsBase &
-       (__WASI_RIGHTS_FD_DATASYNC | __WASI_RIGHTS_FD_WRITE |
-        __WASI_RIGHTS_FD_ALLOCATE | __WASI_RIGHTS_FD_FILESTAT_SET_SIZE)) != 0;
 
   if (OpenFlags & __WASI_OFLAGS_CREAT) {
     RequiredRights |= __WASI_RIGHTS_PATH_CREATE_FILE;
@@ -186,16 +179,31 @@ VINode::pathOpen(std::shared_ptr<VINode> Fd, std::string_view Path,
   if (OpenFlags & __WASI_OFLAGS_TRUNC) {
     RequiredRights |= __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE;
   }
-  if (FdFlags & __WASI_FDFLAGS_RSYNC) {
-    RequiredInheritingRights |= __WASI_RIGHTS_FD_SYNC;
-  }
-  if (FdFlags & __WASI_FDFLAGS_DSYNC) {
-    RequiredInheritingRights |= __WASI_RIGHTS_FD_DATASYNC;
-  }
 
-  if (!Fd->can(RequiredRights, RequiredInheritingRights)) {
+  if (!Fd->can(RequiredRights)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
   }
+  const auto InheritingRights = imply(Fd->fsRightsInheriting());
+  FsRightsBase &= InheritingRights;
+  FsRightsInheriting &= InheritingRights;
+  __wasi_rights_t RequiredFlagRights = static_cast<__wasi_rights_t>(0);
+  if (FdFlags & __WASI_FDFLAGS_APPEND) {
+    RequiredFlagRights |= __WASI_RIGHTS_FD_WRITE;
+  }
+  if (FdFlags & __WASI_FDFLAGS_DSYNC) {
+    RequiredFlagRights |= __WASI_RIGHTS_FD_DATASYNC;
+  }
+  if (FdFlags & (__WASI_FDFLAGS_RSYNC | __WASI_FDFLAGS_SYNC)) {
+    RequiredFlagRights |= __WASI_RIGHTS_FD_SYNC;
+  }
+  if ((InheritingRights & RequiredFlagRights) != RequiredFlagRights) {
+    return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
+  }
+  const bool Read =
+      (FsRightsBase & (__WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_READDIR)) != 0;
+  const bool Write =
+      (FsRightsBase & (__WASI_RIGHTS_FD_WRITE | __WASI_RIGHTS_FD_ALLOCATE |
+                       __WASI_RIGHTS_FD_FILESTAT_SET_SIZE)) != 0;
   EXPECTED_TRY(auto Buffer, resolvePath(Fd, Path, LookupFlags));
   VFS::Flags VFSFlags = static_cast<VFS::Flags>(0);
   if (Read) {

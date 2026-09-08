@@ -80,7 +80,7 @@ FunctionCompiler::compileVectorOp(const AST::Instruction &Instr) noexcept {
     break;
   case OpCode::V128__store:
     compileStoreOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
-                   Instr.getMemoryAlign(), Context.Int128x1Ty, false, true);
+                   Instr.getMemoryAlign(), Context.Int64x2Ty, false, true);
     break;
   case OpCode::V128__load8_lane:
     compileLoadLaneOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),

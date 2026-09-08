@@ -410,8 +410,12 @@ public:
     uint32_t MaxSize = RPCRequest->max_size();
     uint32_t BytesWrittenPtr = UINT32_C(0);
     uint32_t BufPtr = BytesWrittenPtr + UINT32_C(4);
-    uint32_t BufMaxSize =
-        MaxSize == 0 ? (UINT32_C(65536) - UINT32_C(4)) : MaxSize;
+    uint32_t BufMaxSize = MaxSize;
+    static constexpr uint32_t LegacyDefaultMaxSize =
+        UINT32_C(65536) - UINT32_C(4);
+    if (BufMaxSize == 0 || BufMaxSize < LegacyDefaultMaxSize) {
+      BufMaxSize = LegacyDefaultMaxSize;
+    }
 
     auto ValidationStatus = validateMaxSize(BufMaxSize, BufPtr, RPCContext);
     if (!ValidationStatus.ok()) {

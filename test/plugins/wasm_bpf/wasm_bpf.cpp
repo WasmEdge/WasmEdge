@@ -3,6 +3,7 @@
 
 #include "ast/type.h"
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "executor/executor.h"
 #include "func-attach-bpf-program.h"
 #include "func-bpf-buffer-poll.h"
@@ -42,8 +43,8 @@ inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
 std::unique_ptr<WasmEdge::Host::WasmBpfModule> createModule() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(
-      std::filesystem::u8path("../../../plugins/wasm_bpf/" WASMEDGE_LIB_PREFIX
-                              "wasmedgePluginWasmBpf" WASMEDGE_LIB_EXTENSION));
+      WasmEdge::u8path("../../../plugins/wasm_bpf/" WASMEDGE_LIB_PREFIX
+                       "wasmedgePluginWasmBpf" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasm_bpf"sv)) {
     if (const auto *Module = Plugin->findModule("wasm_bpf"sv)) {
       return dynamicPointerCast<WasmEdge::Host::WasmBpfModule>(

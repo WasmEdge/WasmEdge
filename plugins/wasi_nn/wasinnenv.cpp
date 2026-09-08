@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasinnenv.h"
+#include "common/filesystem.h"
 #include "wasinnmodule.h"
 #include "wasinntypes.h"
 
@@ -137,7 +138,7 @@ WasiNNEnvironment::WasiNNEnvironment() noexcept {
       } else {
         for (const std::string &P : Paths) {
           std::vector<uint8_t> Model;
-          if (load(std::filesystem::u8path(P), Model)) {
+          if (load(u8path(P), Model)) {
             Models.push_back(std::move(Model));
           }
         }

@@ -1,4 +1,5 @@
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "runtime/instance/module.h"
 #include "sd_func.h"
 #include "sd_module.h"
@@ -27,7 +28,7 @@ inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
 
 std::unique_ptr<WasmEdge::Host::SDModule> createModule() {
   using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
+  WasmEdge::Plugin::Plugin::load(WasmEdge::u8path(
       "../../../plugins/wasmedge_stablediffusion/" WASMEDGE_LIB_PREFIX
       "wasmedgePluginWasmEdgeStableDiffusion" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin =

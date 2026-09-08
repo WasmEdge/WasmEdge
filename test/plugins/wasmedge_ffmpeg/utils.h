@@ -7,6 +7,7 @@
 #include "avfilter/module.h"
 #include "avformat/module.h"
 #include "avutil/module.h"
+#include "common/filesystem.h"
 #include "swresample/module.h"
 #include "swscale/module.h"
 
@@ -76,7 +77,7 @@ public:
     MemInst = Mod.findMemoryExports("memory");
 
     using namespace std::literals::string_view_literals;
-    WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
+    WasmEdge::Plugin::Plugin::load(WasmEdge::u8path(
         "../../../plugins/wasmedge_ffmpeg/" WASMEDGE_LIB_PREFIX
         "wasmedgePluginWasmEdgeFFmpeg" WASMEDGE_LIB_EXTENSION));
     if (const auto *Plugin =

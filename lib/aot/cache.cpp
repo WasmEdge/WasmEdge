@@ -6,6 +6,7 @@
 #include "aot/blake3.h"
 #include "common/config.h"
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "common/hexstr.h"
 #include "system/path.h"
 
@@ -20,7 +21,7 @@ namespace {
 std::filesystem::path getRoot(Cache::StorageScope Scope) {
   switch (Scope) {
   case Cache::StorageScope::Global:
-    return std::filesystem::u8path(kCacheRoot);
+    return u8path(kCacheRoot);
   case Cache::StorageScope::Local: {
     if (const auto Home = Path::home(); !Home.empty()) {
       return Home / "cache"sv;
@@ -38,7 +39,7 @@ Expect<std::filesystem::path> Cache::getPath(Span<const Byte> Data,
                                              std::string_view Key) {
   auto Root = getRoot(Scope);
   if (!Key.empty()) {
-    Root /= std::filesystem::u8path(Key);
+    Root /= u8path(Key);
   }
 
   Blake3 Hasher;
@@ -54,7 +55,7 @@ Expect<std::filesystem::path> Cache::getPath(Span<const Byte> Data,
 void Cache::clear(Cache::StorageScope Scope, std::string_view Key) {
   auto Root = getRoot(Scope);
   if (!Key.empty()) {
-    Root /= std::filesystem::u8path(Key);
+    Root /= u8path(Key);
   }
   std::error_code ErrCode;
   std::filesystem::remove_all(Root, ErrCode);

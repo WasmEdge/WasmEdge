@@ -3,6 +3,7 @@
 
 #include "wasinn_piper.h"
 #include "common/errcode.h"
+#include "common/filesystem.h"
 #include "common/span.h"
 #include "wasinnenv.h"
 #include "wasinntypes.h"
@@ -165,7 +166,7 @@ WASINN::ErrNo parseRunConfig(RunConfig &RunConfig,
   }
   // Verify model file exists
   if (ModelPath) {
-    auto Path = std::filesystem::u8path(ModelPath.value());
+    auto Path = u8path(ModelPath.value());
     if (!std::filesystem::exists(Path)) {
       spdlog::error("[WASI-NN] Piper backend: Model file doesn't exist"sv);
       return WASINN::ErrNo::InvalidArgument;
@@ -183,8 +184,7 @@ WASINN::ErrNo parseRunConfig(RunConfig &RunConfig,
     return Err;
   }
   if (ModelConfigPath) {
-    RunConfig.ModelConfigPath =
-        std::filesystem::u8path(ModelConfigPath.value());
+    RunConfig.ModelConfigPath = u8path(ModelConfigPath.value());
   } else {
     RunConfig.ModelConfigPath = RunConfig.ModelPath;
     RunConfig.ModelConfigPath += ".json";
@@ -206,7 +206,7 @@ WASINN::ErrNo parseRunConfig(RunConfig &RunConfig,
       return Err;
     }
     if (Path) {
-      RunConfig.ESpeakDataPath = std::filesystem::u8path(Path.value());
+      RunConfig.ESpeakDataPath = u8path(Path.value());
     }
   }
   if (auto Err =

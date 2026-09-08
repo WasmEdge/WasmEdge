@@ -9,7 +9,7 @@
 ///
 /// \file
 /// This file contains std::filesystem linkage handling for various
-/// compilers.
+/// compilers and the UTF-8 path conversion helpers.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -51,3 +51,29 @@ namespace filesystem = experimental::filesystem;
 #endif
 
 #undef EXPERIMENTAL
+
+#include <string>
+#include <string_view>
+
+namespace WasmEdge {
+
+/// Build a path from UTF-8 encoded text.
+inline std::filesystem::path u8path(std::string_view Source) {
+#if defined(__cpp_lib_char8_t)
+  return std::filesystem::path(std::u8string(Source.begin(), Source.end()));
+#else
+  return std::filesystem::u8path(Source);
+#endif
+}
+
+/// Return the UTF-8 encoded text of a path.
+inline std::string u8string(const std::filesystem::path &Path) {
+#if defined(__cpp_lib_char8_t)
+  const auto Str = Path.u8string();
+  return std::string(Str.begin(), Str.end());
+#else
+  return Path.u8string();
+#endif
+}
+
+} // namespace WasmEdge

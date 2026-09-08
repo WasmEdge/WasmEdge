@@ -5,6 +5,7 @@
 
 #include "aot/version.h"
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "common/hash.h"
 #include "data.h"
 #include "llvm.h"
@@ -193,7 +194,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
     ObjectName = createTemp(OPath);
     if (ObjectName.empty()) {
       // TODO:return error
-      spdlog::error("so file creation failed:{}"sv, OPath.u8string());
+      spdlog::error("so file creation failed:{}"sv, u8string(OPath));
       return Unexpect(ErrCode::Value::IllegalPath);
     }
     std::ofstream OS(ObjectName, std::ios_base::binary);
@@ -237,19 +238,19 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #endif
           "-dylib", "-demangle", "-macosx_version_min", OSVersion.c_str(),
           "-syslibroot", "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-          ObjectName.u8string().c_str(), "-o", OutputPath.u8string().c_str()},
+          u8string(ObjectName).c_str(), "-o", u8string(OutputPath).c_str()},
 #elif WASMEDGE_OS_LINUX
   LinkResult = lld::elf::link(
       std::initializer_list<const char *>{"ld.lld", "--eh-frame-hdr",
                                           "--shared", "--gc-sections",
                                           "--discard-all", ObjectName.c_str(),
-                                          "-o", OutputPath.u8string().c_str()},
+                                          "-o", u8string(OutputPath).c_str()},
 #elif WASMEDGE_OS_WINDOWS
   LinkResult = lld::coff::link(
       std::initializer_list<const char *>{
           "lld-link", "-dll", "-base:0", "-nologo",
-          ObjectName.u8string().c_str(),
-          ("-out:" + OutputPath.u8string()).c_str()},
+          u8string(ObjectName).c_str(),
+          ("-out:" + u8string(OutputPath)).c_str()},
 #endif
 
 #if LLVM_VERSION_MAJOR >= 14
@@ -287,7 +288,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
       spdlog::error("codesign error on fork:{}"sv, std::strerror(errno));
     } else if (PID == 0) {
       execlp("/usr/bin/codesign", "codesign", "-s", "-",
-             OutputPath.u8string().c_str(), nullptr);
+             u8string(OutputPath).c_str(), nullptr);
       std::exit(256);
     } else {
       int ChildStat;
@@ -314,7 +315,7 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
     SharedObjectName = createTemp(SOPath);
     if (SharedObjectName.empty()) {
       // TODO:return error
-      spdlog::error("so file creation failed:{}"sv, SOPath.u8string());
+      spdlog::error("so file creation failed:{}"sv, u8string(SOPath));
       return Unexpect(ErrCode::Value::IllegalPath);
     }
     std::ofstream OS(SharedObjectName, std::ios_base::binary);
@@ -326,7 +327,7 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
 
   LLVM::MemoryBuffer SOFile;
   if (auto [Res, ErrorMessage] =
-          LLVM::MemoryBuffer::getFile(SharedObjectName.u8string().c_str());
+          LLVM::MemoryBuffer::getFile(u8string(SharedObjectName).c_str());
       unlikely(ErrorMessage)) {
     spdlog::error("object file open error:{}"sv, ErrorMessage.string_view());
     return Unexpect(ErrCode::Value::IllegalPath);

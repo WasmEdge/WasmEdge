@@ -14,6 +14,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "common/filesystem.h"
 #include "common/spdlog.h"
 #include "vm/vm.h"
 
@@ -40,7 +41,7 @@ namespace {
 
 using namespace std::literals;
 using namespace WasmEdge;
-static SpecTest T(std::filesystem::u8path("../spec/testSuites"sv));
+static SpecTest T(u8path("../spec/testSuites"sv));
 
 // Parameterized testing class.
 class CoreTest : public testing::TestWithParam<std::string> {};
@@ -477,9 +478,9 @@ std::array<WasmEdge::Byte, 147> CoredumpWasm{
 
 // Trap the module in an empty directory and parse the generated coredump.
 void runCoredump(bool ForWasmgdb, AST::Module &Output) {
-  const auto TempDir = std::filesystem::temp_directory_path() /
-                       std::filesystem::u8path("wasmedge-coredump-"s +
-                                               std::to_string(ForWasmgdb));
+  const auto TempDir =
+      std::filesystem::temp_directory_path() /
+      u8path("wasmedge-coredump-"s + std::to_string(ForWasmgdb));
   std::error_code Error;
   std::filesystem::remove_all(TempDir, Error);
   ASSERT_TRUE(std::filesystem::create_directories(TempDir, Error));
@@ -509,7 +510,7 @@ void runCoredump(bool ForWasmgdb, AST::Module &Output) {
   // The coredump must be a well-formed WASM module.
   WasmEdge::Configure LoadConf;
   WasmEdge::Loader::Loader LoadEngine(LoadConf);
-  auto Mod = LoadEngine.parseModule(Dumps[0].u8string());
+  auto Mod = LoadEngine.parseModule(u8string(Dumps[0]));
   ASSERT_TRUE(Mod);
   Output = std::move(**Mod);
   std::filesystem::remove_all(TempDir, Error);

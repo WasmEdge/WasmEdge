@@ -4,6 +4,7 @@
 #pragma once
 
 #include "asymmetric_common/module.h"
+#include "common/filesystem.h"
 #include "common/module.h"
 #include "ctx.h"
 #include "helper.h"
@@ -73,9 +74,9 @@ public:
     MemInst = Mod.findMemoryExports("memory");
 
     using namespace std::literals::string_view_literals;
-    Plugin::Plugin::load(std::filesystem::u8path(
-        "../../../plugins/wasi_crypto/" WASMEDGE_LIB_PREFIX
-        "wasmedgePluginWasiCrypto" WASMEDGE_LIB_EXTENSION));
+    Plugin::Plugin::load(
+        WasmEdge::u8path("../../../plugins/wasi_crypto/" WASMEDGE_LIB_PREFIX
+                         "wasmedgePluginWasiCrypto" WASMEDGE_LIB_EXTENSION));
     if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_crypto"sv)) {
       if (const auto *Module =
               Plugin->findModule("wasi_crypto_asymmetric_common"sv)) {

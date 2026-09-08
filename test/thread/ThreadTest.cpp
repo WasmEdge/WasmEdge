@@ -12,6 +12,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "common/filesystem.h"
 #include "common/spdlog.h"
 #include "vm/vm.h"
 
@@ -236,9 +237,8 @@ TEST(AOTAsyncExecute, ThreadTest) {
   Conf.getCompilerConfigure().setOutputFormat(
       WasmEdge::CompilerConfigure::OutputFormat::Native);
   Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
-  const auto Path =
-      std::filesystem::temp_directory_path() /
-      std::filesystem::u8path("ThreadTest" WASMEDGE_LIB_EXTENSION);
+  const auto Path = std::filesystem::temp_directory_path() /
+                    WasmEdge::u8path("ThreadTest" WASMEDGE_LIB_EXTENSION);
   {
     WasmEdge::Loader::Loader Loader(Conf);
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
@@ -292,7 +292,7 @@ TEST(AOTAsyncExecute, GasThreadTest) {
       WasmEdge::CompilerConfigure::OutputFormat::Native);
   Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
   auto Path = std::filesystem::temp_directory_path() /
-              std::filesystem::u8path("AOTGasTest" WASMEDGE_LIB_EXTENSION);
+              WasmEdge::u8path("AOTGasTest" WASMEDGE_LIB_EXTENSION);
 
   {
     WasmEdge::Loader::Loader Loader(Conf);

@@ -148,9 +148,9 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
   Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::Interpreter);
 
   std::filesystem::path InputPath =
-      std::filesystem::absolute(std::filesystem::u8path(Opt.WasmName.value()));
+      std::filesystem::absolute(u8path(Opt.WasmName.value()));
   std::filesystem::path OutputPath =
-      std::filesystem::absolute(std::filesystem::u8path(Opt.SoName.value()));
+      std::filesystem::absolute(u8path(Opt.SoName.value()));
   Loader::Loader Loader(Conf);
 
   std::vector<Byte> Data;
@@ -205,7 +205,7 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
     if (Opt.ConfGenericBinary.value()) {
       Conf.getCompilerConfigure().setGenericBinary(true);
     }
-    if (OutputPath.extension().u8string() == WASMEDGE_LIB_EXTENSION) {
+    if (u8string(OutputPath.extension()) == WASMEDGE_LIB_EXTENSION) {
       Conf.getCompilerConfigure().setOutputFormat(
           CompilerConfigure::OutputFormat::Native);
     }

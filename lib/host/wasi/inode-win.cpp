@@ -5,6 +5,7 @@
 #if WASMEDGE_OS_WINDOWS
 
 #include "common/errcode.h"
+#include "common/filesystem.h"
 #include "common/variant.h"
 #include "host/wasi/clock.h"
 #include "host/wasi/environ.h"
@@ -289,7 +290,7 @@ getRelativePath(HANDLE_ Handle, std::string_view Path) noexcept {
   EXPECTED_TRY(auto FullPath, getHandlePath(Handle));
 
   // Append the paths together
-  FullPath /= std::filesystem::u8path(Path);
+  FullPath /= u8path(Path);
   return FullPath;
 }
 
@@ -583,7 +584,7 @@ WasiExpect<void> FindHolder::doLoadDirent() noexcept {
   const std::filesystem::path Filename(
       std::wstring_view(Info.FileName, Info.FileNameLength / sizeof(wchar_t)));
 
-  std::string UTF8FileName = Filename.u8string();
+  std::string UTF8FileName = u8string(Filename);
   resizeBuffer(sizeof(__wasi_dirent_t) + UTF8FileName.size());
   __wasi_dirent_t *const Dirent =
       reinterpret_cast<__wasi_dirent_t *>(getBuffer().data());
@@ -651,7 +652,7 @@ WasiExpect<void> FindHolder::doLoadDirent() noexcept {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
   }
 
-  std::string UTF8FileName = Filename.u8string();
+  std::string UTF8FileName = u8string(Filename);
   resizeBuffer(sizeof(__wasi_dirent_t) + UTF8FileName.size());
   __wasi_dirent_t *const Dirent =
       reinterpret_cast<__wasi_dirent_t *>(getBuffer().data());
@@ -690,7 +691,7 @@ WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
   EXPECTED_TRY(auto Pack, getOpenFlags(OpenFlags, FdFlags, VFSFlags));
   const auto [AttributeFlags, AccessFlags, CreationDisposition] = Pack;
   const DWORD_ ShareFlags = FILE_SHARE_VALID_FLAGS_;
-  const auto FullPath = std::filesystem::u8path(Path);
+  const auto FullPath = u8path(Path);
 
   INode Result(FullPath, AccessFlags, ShareFlags, CreationDisposition,
                AttributeFlags);
@@ -1388,7 +1389,7 @@ WasiExpect<void> INode::pathReadlink(std::string Path, Span<char> Buffer,
     return WasiUnexpect(__WASI_ERRNO_NOSYS);
   }
 
-  const auto U8Data = std::filesystem::path{Data}.u8string();
+  const auto U8Data = u8string(std::filesystem::path{Data});
   NRead = static_cast<uint32_t>(std::min(Buffer.size(), U8Data.size()));
   std::copy_n(U8Data.begin(), NRead, Buffer.begin());
 
@@ -1472,7 +1473,7 @@ WasiExpect<void> INode::pathSymlink(std::string OldPath,
     return WasiUnexpect(__WASI_ERRNO_EXIST);
   }
 
-  const std::filesystem::path OldU8Path = std::filesystem::u8path(OldPath);
+  const std::filesystem::path OldU8Path = u8path(OldPath);
 
   DWORD_ TargetType = SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE_;
   if (OldU8Path.filename().empty()) {

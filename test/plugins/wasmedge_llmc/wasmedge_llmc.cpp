@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "common/filesystem.h"
 #include "llmc_func.h"
 #include "llmc_module.h"
 
@@ -35,9 +36,9 @@ inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
 
 std::unique_ptr<WasmEdge::Host::WasmEdgeLLMCModule> createModule() {
   using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "../../../plugins/wasmedge_llmc/" WASMEDGE_LIB_PREFIX
-      "wasmedgePluginWasmEdgeLLMC" WASMEDGE_LIB_EXTENSION));
+  WasmEdge::Plugin::Plugin::load(
+      WasmEdge::u8path("../../../plugins/wasmedge_llmc/" WASMEDGE_LIB_PREFIX
+                       "wasmedgePluginWasmEdgeLLMC" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasmedge_llmc"sv)) {
     if (const auto *Module = Plugin->findModule("wasmedge_llmc"sv)) {
       return dynamicPointerCast<WasmEdge::Host::WasmEdgeLLMCModule>(

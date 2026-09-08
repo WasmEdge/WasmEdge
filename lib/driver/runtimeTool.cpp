@@ -525,8 +525,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   }
 
   Conf.addHostRegistration(HostRegistration::Wasi);
-  const auto InputPath =
-      std::filesystem::absolute(std::filesystem::u8path(Opt.SoName.value()));
+  const auto InputPath = std::filesystem::absolute(u8path(Opt.SoName.value()));
 
   // Create VM and get WASI module instance.
   VM::VM VM(Conf);
@@ -534,7 +533,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       VM.getImportModule(HostRegistration::Wasi));
 
   // Load, validate, and instantiate WASM or Component.
-  if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
+  if (auto Result = VM.loadWasm(u8string(InputPath)); !Result) {
     return EXIT_FAILURE;
   }
   if (auto Result = VM.validate(); !Result) {
@@ -573,11 +572,10 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   bool EnterCommandMode = !Opt.Reactor.value() && HasValidCommandModStartFunc();
 
   // Initialize WASI module.
-  WasiMod->init(Opt.Dir.value(),
-                InputPath.filename()
-                    .replace_extension(std::filesystem::u8path("wasm"sv))
-                    .u8string(),
-                Opt.Args.value(), Opt.Env.value());
+  WasiMod->init(
+      Opt.Dir.value(),
+      u8string(InputPath.filename().replace_extension(u8path("wasm"sv))),
+      Opt.Args.value(), Opt.Env.value());
 
   if (EnterCommandMode) {
     // command mode

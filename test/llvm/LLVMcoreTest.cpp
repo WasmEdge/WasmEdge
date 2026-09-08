@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "common/spdlog.h"
 #include "vm/vm.h"
 #include "llvm/codegen.h"
@@ -43,7 +44,7 @@ namespace {
 
 using namespace std::literals;
 using namespace WasmEdge;
-static SpecTest T(std::filesystem::u8path("../spec/testSuites"sv));
+static SpecTest T(u8path("../spec/testSuites"sv));
 
 // Parameterized testing class.
 class NativeCoreTest : public testing::TestWithParam<std::string> {};
@@ -77,9 +78,9 @@ TEST_P(NativeCoreTest, TestSuites) {
       CopyConf.getCompilerConfigure().setDumpIR(true);
       WasmEdge::LLVM::Compiler Compiler(CopyConf);
       WasmEdge::LLVM::CodeGen CodeGen(CopyConf);
-      auto Path = std::filesystem::u8path(FileName);
-      Path.replace_extension(std::filesystem::u8path(WASMEDGE_LIB_EXTENSION));
-      const auto SOPath = Path.u8string();
+      auto Path = u8path(FileName);
+      Path.replace_extension(u8path(WASMEDGE_LIB_EXTENSION));
+      const auto SOPath = u8string(Path);
       std::vector<WasmEdge::Byte> Data;
       std::unique_ptr<WasmEdge::AST::Module> Module;
       return Loader.loadFile(FileName)
@@ -251,9 +252,9 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
       CopyConf.getCompilerConfigure().setDumpIR(true);
       WasmEdge::LLVM::Compiler Compiler(CopyConf);
       WasmEdge::LLVM::CodeGen CodeGen(CopyConf);
-      auto Path = std::filesystem::u8path(FileName);
-      Path.replace_extension(std::filesystem::u8path(".aot.wasm"));
-      const auto SOPath = Path.u8string();
+      auto Path = u8path(FileName);
+      Path.replace_extension(u8path(".aot.wasm"));
+      const auto SOPath = u8string(Path);
       std::vector<WasmEdge::Byte> Data;
       std::unique_ptr<WasmEdge::AST::Module> Module;
       return Loader.loadFile(FileName)
@@ -557,7 +558,7 @@ TEST(AsyncRunWsmFile, NativeInterruptTest) {
   WasmEdge::LLVM::Compiler Compiler(Conf);
   WasmEdge::LLVM::CodeGen CodeGen(Conf);
   auto Path = std::filesystem::temp_directory_path() /
-              std::filesystem::u8path("AOTcoreTest" WASMEDGE_LIB_EXTENSION);
+              u8path("AOTcoreTest" WASMEDGE_LIB_EXTENSION);
   auto Module = *Loader.parseModule(AsyncWasm);
   ASSERT_TRUE(ValidatorEngine.validate(*Module));
   auto Data = Compiler.compile(*Module);
@@ -599,7 +600,7 @@ TEST(AsyncExecute, NativeInterruptTest) {
   WasmEdge::LLVM::Compiler Compiler(Conf);
   WasmEdge::LLVM::CodeGen CodeGen(Conf);
   auto Path = std::filesystem::temp_directory_path() /
-              std::filesystem::u8path("AOTcoreTest" WASMEDGE_LIB_EXTENSION);
+              u8path("AOTcoreTest" WASMEDGE_LIB_EXTENSION);
   auto Module = *Loader.parseModule(AsyncWasm);
   ASSERT_TRUE(ValidatorEngine.validate(*Module));
   auto Data = Compiler.compile(*Module);
@@ -643,8 +644,8 @@ TEST(AsyncRunWsmFile, CustomWasmInterruptTest) {
   WasmEdge::Validator::Validator ValidatorEngine(Conf);
   WasmEdge::LLVM::Compiler Compiler(Conf);
   WasmEdge::LLVM::CodeGen CodeGen(Conf);
-  auto Path = std::filesystem::temp_directory_path() /
-              std::filesystem::u8path("AOTcoreTest.aot.wasm");
+  auto Path =
+      std::filesystem::temp_directory_path() / u8path("AOTcoreTest.aot.wasm");
   auto Module = *Loader.parseModule(AsyncWasm);
   ASSERT_TRUE(ValidatorEngine.validate(*Module));
   auto Data = Compiler.compile(*Module);
@@ -685,8 +686,8 @@ TEST(AsyncExecute, CustomWasmInterruptTest) {
   WasmEdge::Validator::Validator ValidatorEngine(Conf);
   WasmEdge::LLVM::Compiler Compiler(Conf);
   WasmEdge::LLVM::CodeGen CodeGen(Conf);
-  auto Path = std::filesystem::temp_directory_path() /
-              std::filesystem::u8path("AOTcoreTest.aot.wasm");
+  auto Path =
+      std::filesystem::temp_directory_path() / u8path("AOTcoreTest.aot.wasm");
   auto Module = *Loader.parseModule(AsyncWasm);
   ASSERT_TRUE(ValidatorEngine.validate(*Module));
   auto Data = Compiler.compile(*Module);
@@ -773,7 +774,7 @@ TEST(SIMDNaN, F32x4MaxNaNHandling) {
   WasmEdge::LLVM::CodeGen CodeGen(Conf);
 
   auto Path = std::filesystem::temp_directory_path() /
-              std::filesystem::u8path("SIMDNaNTest" WASMEDGE_LIB_EXTENSION);
+              u8path("SIMDNaNTest" WASMEDGE_LIB_EXTENSION);
 
   auto Module = *Loader.parseModule(SIMDNaNTestWasm);
   ASSERT_TRUE(ValidatorEngine.validate(*Module));
@@ -846,7 +847,7 @@ TEST(AOTMemory64, BoundsCheck) {
   WasmEdge::LLVM::CodeGen CodeGen(Conf);
 
   auto Path = std::filesystem::temp_directory_path() /
-              std::filesystem::u8path("AOTMemory64Test" WASMEDGE_LIB_EXTENSION);
+              u8path("AOTMemory64Test" WASMEDGE_LIB_EXTENSION);
 
   auto Module = *Loader.parseModule(Memory64Wasm);
   ASSERT_TRUE(ValidatorEngine.validate(*Module));
@@ -906,12 +907,11 @@ class ScopedTempFile {
 public:
   explicit ScopedTempFile(std::string_view Stem,
                           std::string_view Extension = ""sv)
-      : Path(
-            std::filesystem::temp_directory_path() /
-            std::filesystem::u8path(std::string(Stem) + "-" +
-                                    std::to_string(std::hash<std::thread::id>{}(
-                                        std::this_thread::get_id())) +
-                                    std::string(Extension))) {}
+      : Path(std::filesystem::temp_directory_path() /
+             u8path(std::string(Stem) + "-" +
+                    std::to_string(std::hash<std::thread::id>{}(
+                        std::this_thread::get_id())) +
+                    std::string(Extension))) {}
   ScopedTempFile(const ScopedTempFile &) = delete;
   ScopedTempFile &operator=(const ScopedTempFile &) = delete;
   ~ScopedTempFile() noexcept {

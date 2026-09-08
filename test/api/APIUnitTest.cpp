@@ -224,7 +224,7 @@ char *Preopens[] = {&PreopensVec[0], &PreopensVec[12], &PreopensVec[21],
 char TPath[] = "apiTestData/test.wasm";
 
 void hexToFile(cxx20::span<const uint8_t> Wasm, const char *Path) {
-  std::ofstream TFile(std::filesystem::u8path(Path), std::ios_base::binary);
+  std::ofstream TFile(WasmEdge::u8path(Path), std::ios_base::binary);
   TFile.write(reinterpret_cast<const char *>(Wasm.data()),
               static_cast<std::streamsize>(Wasm.size()));
   TFile.close();
@@ -1351,7 +1351,7 @@ TEST(APICoreTest, Compiler) {
 
   // Compile file for shared library output format from buffer
   std::error_code EC;
-  auto TPathFS = std::filesystem::u8path(TPath);
+  auto TPathFS = WasmEdge::u8path(TPath);
   size_t FileSize = std::filesystem::file_size(TPathFS, EC);
   EXPECT_FALSE(EC);
   std::ifstream Fin(TPathFS, std::ios::in | std::ios::binary);

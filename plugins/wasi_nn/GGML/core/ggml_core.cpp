@@ -3,6 +3,7 @@
 
 #include "ggml_core.h"
 #include "GGML/utils.h"
+#include "common/filesystem.h"
 #include "common/types.h"
 #include "host/wasi/vfs_io.h"
 #include "wasinnenv.h"
@@ -146,8 +147,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   LOG_DEBUG(GraphRef.EnableDebugLog, "load: handling model path...Done"sv)
 
   // Check if the model exists.
-  if (!std::filesystem::exists(
-          std::filesystem::u8path(GraphRef.Params.model.path))) {
+  if (!std::filesystem::exists(u8path(GraphRef.Params.model.path))) {
     Env.deleteGraph(GId.raw());
     RET_ERROR(ErrNo::ModelNotFound, "load: model file not found."sv)
   }

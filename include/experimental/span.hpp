@@ -43,7 +43,7 @@ template <class T> constexpr auto to_address(const T &p) noexcept {
   if constexpr (detail::defined_to_address<T>::value) {
     return pointer_traits<T>::to_address(p);
   } else {
-    return to_address(p.operator->());
+    return cxx20::to_address(p.operator->());
   }
 }
 
@@ -77,7 +77,7 @@ static inline constexpr bool is_compatible_element_v =
     is_compatible_element<T, U>::value;
 template <class T, class It>
 static inline constexpr bool is_compatible_iterator_v = is_compatible_element_v<
-    T, remove_pointer_t<decltype(to_address(declval<It>()))>>;
+    T, remove_pointer_t<decltype(cxx20::to_address(declval<It>()))>>;
 template <class T, class R>
 static inline constexpr bool is_compatible_range_v = is_compatible_element_v<
     T, typename contiguous_range_element<remove_cv_t<R>>::type>;
@@ -146,10 +146,10 @@ struct span : public detail::span_storage<T, Extent> {
   template <class It,
             enable_if_t<detail::is_compatible_iterator_v<T, It>> * = nullptr>
   constexpr span(It first, size_t count) noexcept
-      : base(to_address(first), count) {}
+      : base(cxx20::to_address(first), count) {}
   template <class It, enable_if_t<detail::is_compatible_iterator_v<T, It>>>
   constexpr span(It first, It last) noexcept
-      : base(to_address(first), last - first) {}
+      : base(cxx20::to_address(first), last - first) {}
   template <size_t N>
   constexpr span(T (&arr)[N]) noexcept : base(std::data(arr), N) {}
   template <class U, size_t N,
@@ -230,7 +230,7 @@ struct span : public detail::span_storage<T, Extent> {
 
 template <class It, class EndOrSize>
 span(It, EndOrSize)
-    -> span<remove_pointer_t<decltype(to_address(declval<It>()))>>;
+    -> span<remove_pointer_t<decltype(cxx20::to_address(declval<It>()))>>;
 template <class T, size_t N> span(T (&)[N]) -> span<T, N>;
 template <class T, size_t N> span(array<T, N> &) -> span<T, N>;
 template <class T, size_t N> span(const array<T, N> &) -> span<const T, N>;

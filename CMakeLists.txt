@@ -226,7 +226,6 @@ if(WASMEDGE_BUILD_PLUGINS AND (WASMEDGE_BUILD_STATIC_LIB OR WASMEDGE_BUILD_SHARE
   endif()
   add_subdirectory(plugins)
 endif()
-add_subdirectory(thirdparty)
 if(WASMEDGE_BUILD_TOOLS OR WASMEDGE_BUILD_FUZZING)
   add_subdirectory(tools)
 endif()

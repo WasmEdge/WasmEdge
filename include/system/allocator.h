@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/config.h"
 #include "common/defines.h"
 #include <cstdint>
 

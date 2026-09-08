@@ -16,6 +16,7 @@
 #include "common/spdlog.h"
 #include "common/types.h"
 #include "runtime/instance/memory.h"
+#include "system/allocator.h"
 #include "vm/vm.h"
 
 #include <array>
@@ -64,6 +65,28 @@ TEST(MemInstanceTest, Limit__Pages) {
   MemInst Inst6(WasmEdge::AST::MemoryType(1),
                 Conf.getRuntimeConfigure().getMaxMemoryPage());
   ASSERT_FALSE(Inst6.growPage(0xFFFFFFFF));
+}
+
+// ---------------------------------------------------------------------------
+// Allocator stability regression test.
+// ---------------------------------------------------------------------------
+
+TEST(MemInstanceTest, DataPtrStabilityMatchesAllocator) {
+  // WASMEDGE_ALLOCATOR_IS_STABLE tells the AOT/JIT code generator whether the
+  // linear memory base pointer may be cached directly in the module context.
+  // It is computed in "system/allocator.h" from HAVE_MMAP, which is only
+  // defined by the generated "common/config.h"; when that header is not
+  // included the macro silently degrades to 0 and every compiled memory access
+  // reloads the base pointer through an extra indirection. Assert the macro
+  // against what Allocator::resize() actually does instead of recomputing the
+  // platform predicate, so the two can never drift apart again.
+  using MemInst = WasmEdge::Runtime::Instance::MemoryInstance;
+
+  MemInst Inst(WasmEdge::AST::MemoryType(1));
+  uint8_t *const BeforeGrow = Inst.getDataPtr();
+  ASSERT_FALSE(BeforeGrow == nullptr);
+  ASSERT_TRUE(Inst.growPage(1));
+  EXPECT_EQ(Inst.getDataPtr() == BeforeGrow, WASMEDGE_ALLOCATOR_IS_STABLE != 0);
 }
 
 // ---------------------------------------------------------------------------

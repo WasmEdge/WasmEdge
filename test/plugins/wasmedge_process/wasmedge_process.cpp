@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "processfunc.h"
 #include "processmodule.h"
 #include "runtime/instance/module.h"
@@ -33,9 +34,9 @@ inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
 
 std::unique_ptr<WasmEdge::Host::WasmEdgeProcessModule> createModule() {
   using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "../../../plugins/wasmedge_process/" WASMEDGE_LIB_PREFIX
-      "wasmedgePluginWasmEdgeProcess" WASMEDGE_LIB_EXTENSION));
+  WasmEdge::Plugin::Plugin::load(
+      WasmEdge::u8path("../../../plugins/wasmedge_process/" WASMEDGE_LIB_PREFIX
+                       "wasmedgePluginWasmEdgeProcess" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin =
           WasmEdge::Plugin::Plugin::find("wasmedge_process"sv)) {
     if (const auto *Module = Plugin->findModule("wasmedge_process"sv)) {

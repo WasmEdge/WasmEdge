@@ -31,7 +31,7 @@ TEST(CacheTest, GlobalEmpty) {
       {}, WasmEdge::AOT::Cache::StorageScope::Global);
   EXPECT_TRUE(Path);
   auto Root = *Path;
-  while (Root.filename().u8string() != "wasmedge"sv) {
+  while (WasmEdge::u8string(Root.filename()) != "wasmedge"sv) {
     ASSERT_TRUE(Root.has_parent_path());
     Root = Root.parent_path();
   }
@@ -39,7 +39,7 @@ TEST(CacheTest, GlobalEmpty) {
   const auto Part = std::filesystem::proximate(*Path, Root, ErrCode);
   EXPECT_FALSE(ErrCode);
   EXPECT_EQ(
-      Part.u8string(),
+      WasmEdge::u8string(Part),
       "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"s);
 }
 
@@ -48,7 +48,7 @@ TEST(CacheTest, LocalEmpty) {
       {}, WasmEdge::AOT::Cache::StorageScope::Local);
   EXPECT_TRUE(Path);
   auto Root = *Path;
-  while (Root.filename().u8string() != ".wasmedge"sv) {
+  while (WasmEdge::u8string(Root.filename()) != ".wasmedge"sv) {
     ASSERT_TRUE(Root.has_parent_path());
     Root = Root.parent_path();
   }
@@ -57,7 +57,7 @@ TEST(CacheTest, LocalEmpty) {
   const auto Part = std::filesystem::proximate(*Path, Root, ErrCode);
   EXPECT_FALSE(ErrCode);
   EXPECT_EQ(
-      Part.u8string(),
+      WasmEdge::u8string(Part),
       "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"s);
 }
 
@@ -66,7 +66,7 @@ TEST(CacheTest, GlobalKey) {
       {}, WasmEdge::AOT::Cache::StorageScope::Global, "key"s);
   EXPECT_TRUE(Path);
   auto Root = *Path;
-  while (Root.filename().u8string() != "wasmedge"sv) {
+  while (WasmEdge::u8string(Root.filename()) != "wasmedge"sv) {
     ASSERT_TRUE(Root.has_parent_path());
     Root = Root.parent_path();
   }
@@ -74,9 +74,9 @@ TEST(CacheTest, GlobalKey) {
   const auto Part = std::filesystem::proximate(*Path, Root, ErrCode);
   EXPECT_FALSE(ErrCode);
   EXPECT_EQ(
-      Part.filename().u8string(),
+      WasmEdge::u8string(Part.filename()),
       "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"s);
-  EXPECT_EQ(Part.parent_path().filename().u8string(), "key"s);
+  EXPECT_EQ(WasmEdge::u8string(Part.parent_path().filename()), "key"s);
 }
 
 TEST(CacheTest, LocalKey) {
@@ -84,8 +84,8 @@ TEST(CacheTest, LocalKey) {
       {}, WasmEdge::AOT::Cache::StorageScope::Local, "key"s);
   EXPECT_TRUE(Path);
   auto Root = *Path;
-  while (Root.filename().u8string() != ".wasmedge"sv &&
-         Root.filename().u8string() != "wasmedge"sv) {
+  while (WasmEdge::u8string(Root.filename()) != ".wasmedge"sv &&
+         WasmEdge::u8string(Root.filename()) != "wasmedge"sv) {
     ASSERT_TRUE(Root.has_parent_path());
     Root = Root.parent_path();
   }
@@ -94,9 +94,9 @@ TEST(CacheTest, LocalKey) {
   const auto Part = std::filesystem::proximate(*Path, Root, ErrCode);
   EXPECT_FALSE(ErrCode);
   EXPECT_EQ(
-      Part.filename().u8string(),
+      WasmEdge::u8string(Part.filename()),
       "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"s);
-  EXPECT_EQ(Part.parent_path().filename().u8string(), "key"s);
+  EXPECT_EQ(WasmEdge::u8string(Part.parent_path().filename()), "key"s);
 }
 
 } // namespace

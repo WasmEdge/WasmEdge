@@ -4621,7 +4621,7 @@ namespace {
 namespace fs = std::filesystem;
 int openFileForWrite(const fs::path &Filename) {
   int Fd = -1;
-  const std::string PathStr = Filename.u8string();
+  const std::string PathStr = WasmEdge::u8string(Filename);
 #if WASMEDGE_OS_WINDOWS
   if (_sopen_s(&Fd, PathStr.c_str(),
                _O_WRONLY | _O_CREAT | _O_TRUNC | _O_BINARY, _SH_DENYNO,
@@ -4636,7 +4636,7 @@ int openFileForWrite(const fs::path &Filename) {
 
 int openFileForRead(const fs::path &Filename) {
   int Fd = -1;
-  const std::string PathStr = Filename.u8string();
+  const std::string PathStr = WasmEdge::u8string(Filename);
 #if WASMEDGE_OS_WINDOWS
   if (_sopen_s(&Fd, PathStr.c_str(), _O_RDONLY | _O_BINARY, _SH_DENYNO, 0) !=
       0) {
@@ -4691,7 +4691,7 @@ TEST(WasiTest, CustomFds) {
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
   std::array<WasmEdge::ValVariant, 1> Errno;
-  const fs::path TempPath = fs::u8path("wasi_custom_fd_test.tmp");
+  const fs::path TempPath = WasmEdge::u8path("wasi_custom_fd_test.tmp");
 
   auto SetupTestFile = [&](const std::string_view &TestString,
                            bool ForRead) -> int {
@@ -4880,7 +4880,7 @@ TEST(WasiTest, PointerAlignment) {
   std::array<WasmEdge::ValVariant, 1> Errno;
 
   // CustomFds pointer alignment tests
-  const fs::path TempPath = fs::u8path("wasi_custom_fd_test.tmp");
+  const fs::path TempPath = WasmEdge::u8path("wasi_custom_fd_test.tmp");
 
   // Test WasiFdFdstatGet alignment checks
   {

@@ -16,6 +16,7 @@
 
 #include "spectest.h"
 #include "common/errcode.h"
+#include "common/filesystem.h"
 #include "common/hash.h"
 #include "common/spdlog.h"
 
@@ -381,7 +382,7 @@ std::vector<std::string> SpecTest::enumerate(const SpecTest::TestMode Mode,
       for (const auto &Subdir :
            std::filesystem::directory_iterator(ProposalRoot)) {
         const auto SubdirPath = Subdir.path();
-        const auto UnitName = SubdirPath.filename().u8string();
+        const auto UnitName = u8string(SubdirPath.filename());
         const auto UnitJson = UnitName + ".json"s;
         if (std::filesystem::is_regular_file(SubdirPath / UnitJson)) {
           Cases.push_back(std::string(Proposal.Path) + ' ' + UnitName);
@@ -951,7 +952,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         }
         std::string_view FileName = Cmd["filename"];
         const auto FilePath =
-            (TestsuiteRoot / Proposal / UnitName / FileName).u8string();
+            u8string(TestsuiteRoot / Proposal / UnitName / FileName);
         const uint64_t LineNumber = Cmd["line"];
         // Reset the flag for each module command to avoid stale state
         // from prior test entries.
@@ -999,7 +1000,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         std::string_view ASTName;
         std::string_view FileName = Cmd["filename"];
         const auto FilePath =
-            (TestsuiteRoot / Proposal / UnitName / FileName).u8string();
+            u8string(TestsuiteRoot / Proposal / UnitName / FileName);
         const uint64_t LineNumber = Cmd["line"];
         if (IsComponent &&
             !checkComponentSupported(UnitName, WasmPhase::Loading)) {
@@ -1099,7 +1100,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         }
         const std::string_view Name = Cmd["filename"];
         const auto Filename =
-            (TestsuiteRoot / Proposal / UnitName / Name).u8string();
+            u8string(TestsuiteRoot / Proposal / UnitName / Name);
         const std::string_view Text = Cmd["text"];
         TrapLoad(Filename, std::string(Text));
         return;
@@ -1112,7 +1113,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         }
         const std::string_view Name = Cmd["filename"];
         const auto Filename =
-            (TestsuiteRoot / Proposal / UnitName / Name).u8string();
+            u8string(TestsuiteRoot / Proposal / UnitName / Name);
         const std::string_view Text = Cmd["text"];
         TrapValidate(Filename, std::string(Text));
         return;
@@ -1121,7 +1122,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
       case CommandID::AssertUninstantiable: {
         const std::string_view Name = Cmd["filename"];
         const auto Filename =
-            (TestsuiteRoot / Proposal / UnitName / Name).u8string();
+            u8string(TestsuiteRoot / Proposal / UnitName / Name);
         const std::string_view Text = Cmd["text"];
         TrapInstantiate(Filename, std::string(Text));
         return;

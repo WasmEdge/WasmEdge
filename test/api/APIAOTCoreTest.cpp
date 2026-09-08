@@ -14,6 +14,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "common/filesystem.h"
 #include "helper.h"
 #include "hostfunc_c.h"
 #include "wasmedge/wasmedge.h"
@@ -35,7 +36,7 @@
 namespace {
 using namespace std::literals;
 using namespace WasmEdge;
-static SpecTest T(std::filesystem::u8path("../spec/testSuites"sv));
+static SpecTest T(u8path("../spec/testSuites"sv));
 
 // Parameterized testing class.
 class CoreCompileTest : public testing::TestWithParam<std::string> {};
@@ -71,9 +72,9 @@ TEST_P(CoreCompileTest, TestSuites) {
       WasmEdge_CompilerDelete(CompilerCxt);
     }
     Expect<std::string> compile(const std::string &FileName) {
-      auto Path = std::filesystem::u8path(FileName);
-      Path.replace_extension(std::filesystem::u8path(WASMEDGE_LIB_EXTENSION));
-      const auto SOPath = Path.u8string();
+      auto Path = u8path(FileName);
+      Path.replace_extension(u8path(WASMEDGE_LIB_EXTENSION));
+      const auto SOPath = u8string(Path);
       WasmEdge_Result Res = WasmEdge_CompilerCompile(
           CompilerCxt, FileName.c_str(), SOPath.c_str());
       if (!WasmEdge_ResultOK(Res)) {

@@ -1,4 +1,5 @@
 #include "wasinn_bitnet.h"
+#include "common/filesystem.h"
 #include "wasinnenv.h"
 #include <cstdint>
 
@@ -1958,8 +1959,7 @@ Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &G,
   LOG_DEBUG(GraphRef.EnableDebugLog, "load: handling model path...Done"sv)
 
   // Check if the model exists.
-  if (!std::filesystem::exists(
-          std::filesystem::u8path(GraphRef.Params.model))) {
+  if (!std::filesystem::exists(u8path(GraphRef.Params.model))) {
     RET_ERROR(ErrNo::ModelNotFound,
               "load: Model file not found at path: '{}'."sv,
               GraphRef.Params.model)

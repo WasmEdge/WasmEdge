@@ -34,8 +34,7 @@ int InstantiateTool(struct DriverToolOptions &Opt) noexcept {
     spdlog::error("No input wasm file provided."sv);
     return EXIT_FAILURE;
   }
-  const auto InputPath =
-      std::filesystem::absolute(std::filesystem::u8path(Opt.SoName.value()));
+  const auto InputPath = std::filesystem::absolute(u8path(Opt.SoName.value()));
 
   VM::VM VM(Conf);
 
@@ -47,16 +46,15 @@ int InstantiateTool(struct DriverToolOptions &Opt) noexcept {
       return EXIT_FAILURE;
     }
     auto Name = ModEntry.substr(0, Pos);
-    auto Path = std::filesystem::absolute(
-        std::filesystem::u8path(ModEntry.substr(Pos + 1)));
+    auto Path = std::filesystem::absolute(u8path(ModEntry.substr(Pos + 1)));
     if (auto Result = VM.registerModule(Name, Path); !Result) {
       spdlog::error("Failed to register module \"{}\" from: {}"sv, Name,
-                    Path.u8string());
+                    u8string(Path));
       return EXIT_FAILURE;
     }
   }
 
-  if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
+  if (auto Result = VM.loadWasm(u8string(InputPath)); !Result) {
     return EXIT_FAILURE;
   }
   if (auto Result = VM.validate(); !Result) {

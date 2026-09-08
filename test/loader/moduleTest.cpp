@@ -37,12 +37,11 @@ class ScopedTempFile {
 public:
   explicit ScopedTempFile(std::string_view Stem,
                           std::string_view Extension = ""sv)
-      : Path(
-            std::filesystem::temp_directory_path() /
-            std::filesystem::u8path(std::string(Stem) + "-" +
-                                    std::to_string(std::hash<std::thread::id>{}(
-                                        std::this_thread::get_id())) +
-                                    std::string(Extension))) {}
+      : Path(std::filesystem::temp_directory_path() /
+             WasmEdge::u8path(std::string(Stem) + "-" +
+                              std::to_string(std::hash<std::thread::id>{}(
+                                  std::this_thread::get_id())) +
+                              std::string(Extension))) {}
   ScopedTempFile(const ScopedTempFile &) = delete;
   ScopedTempFile &operator=(const ScopedTempFile &) = delete;
   ~ScopedTempFile() noexcept {

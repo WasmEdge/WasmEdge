@@ -5,6 +5,7 @@
 
 #include "common/config.h"
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include <string_view>
 
 #if defined(HAVE_PWD_H)
@@ -23,7 +24,7 @@ std::filesystem::path Path::home() noexcept {
 #if defined(HAVE_PWD_H)
   {
     const struct passwd *PassWd = getpwuid(getuid());
-    Home = std::filesystem::u8path(PassWd->pw_dir);
+    Home = u8path(PassWd->pw_dir);
   }
 #elif WASMEDGE_OS_WINDOWS
   {
@@ -48,7 +49,7 @@ std::filesystem::path Path::home() noexcept {
   }
 #endif
   if (!Home.empty()) {
-    return Home / std::filesystem::u8path(".wasmedge"sv);
+    return Home / u8path(".wasmedge"sv);
   }
   return {};
 }

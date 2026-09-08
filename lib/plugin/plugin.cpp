@@ -3,6 +3,7 @@
 
 #include "plugin/plugin.h"
 #include "common/errcode.h"
+#include "common/filesystem.h"
 #include "common/version.h"
 #include "wasmedge/wasmedge.h"
 
@@ -264,11 +265,11 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
     std::string_view ExtraEnvStr = ExtraEnv;
     for (auto Sep = ExtraEnvStr.find(':'); Sep != std::string_view::npos;
          Sep = ExtraEnvStr.find(':')) {
-      Result.push_back(std::filesystem::u8path(ExtraEnvStr.substr(0, Sep)));
+      Result.push_back(u8path(ExtraEnvStr.substr(0, Sep)));
       const auto Next = ExtraEnvStr.find_first_not_of(':', Sep);
       ExtraEnvStr = ExtraEnvStr.substr(Next);
     }
-    Result.push_back(std::filesystem::u8path(ExtraEnvStr));
+    Result.push_back(u8path(ExtraEnvStr));
   }
 
   // Plugin directory for the WasmEdge installation.
@@ -283,9 +284,7 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
           "within the object. dli_fname is null."sv);
       return std::vector<std::filesystem::path>();
     }
-    auto LibPath = std::filesystem::u8path(DLInfo.dli_fname)
-                       .parent_path()
-                       .lexically_normal();
+    auto LibPath = u8path(DLInfo.dli_fname).parent_path().lexically_normal();
     const auto UsrStr = "/usr"sv;
     const auto LibStr = "/lib"sv;
     const auto &PathStr = LibPath.native();
@@ -297,12 +296,11 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
       // Plug-in path will be in "LIB_PATH/wasmedge".
       // If the installation path is under "/usr/lib" or "/usr/lib64", the
       // traced library path will be "/lib" or "/lib64".
-      Result.push_back(LibPath / std::filesystem::u8path("wasmedge"sv));
+      Result.push_back(LibPath / u8path("wasmedge"sv));
     } else {
       // The installation path of the WasmEdge library is not under "/usr", such
       // as "$HOME/.wasmedge". Plug-in path will be in "LIB_PATH/../plugin".
-      Result.push_back(LibPath / std::filesystem::u8path(".."sv) /
-                       std::filesystem::u8path("plugin"sv));
+      Result.push_back(LibPath / u8path(".."sv) / u8path("plugin"sv));
     }
   } else {
     spdlog::error(ErrCode::Value::NonNullRequired);
@@ -323,7 +321,7 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
   // Local home plugin directory.
   std::filesystem::path Home;
   if (const auto HomeEnv = ::getenv("USERPROFILE")) {
-    Home = std::filesystem::u8path(HomeEnv);
+    Home = u8path(HomeEnv);
   } else {
 #if NTDDI_VERSION >= NTDDI_VISTA
     wchar_t *Path = nullptr;
@@ -342,8 +340,7 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
     }
 #endif
   }
-  Result.push_back(Home / std::filesystem::u8path(".wasmedge"sv) /
-                   std::filesystem::u8path("plugin"sv));
+  Result.push_back(Home / u8path(".wasmedge"sv) / u8path("plugin"sv));
 #endif
 
   return Result;
@@ -360,13 +357,13 @@ WASMEDGE_EXPORT bool Plugin::load(const std::filesystem::path &Path) noexcept {
                Error)) {
         const auto &EntryPath = Entry.path();
         if (Entry.is_regular_file(Error) &&
-            EntryPath.extension().u8string() == WASMEDGE_LIB_EXTENSION) {
+            u8string(EntryPath.extension()) == WASMEDGE_LIB_EXTENSION) {
           Result |= loadFile(EntryPath);
         }
       }
       return Result;
     } else if (std::filesystem::is_regular_file(Status) &&
-               Path.extension().u8string() == WASMEDGE_LIB_EXTENSION) {
+               u8string(Path.extension()) == WASMEDGE_LIB_EXTENSION) {
       return loadFile(Path);
     }
   }
@@ -418,7 +415,7 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
 
   // A library already loaded in this process stays available: report success
   // without re-dlopen'ing or re-registering it.
-  const std::string FileKey = Path.u8string();
+  const std::string FileKey = u8string(Path);
   if (LoadedFiles.find(FileKey) != LoadedFiles.end()) {
     return true;
   }

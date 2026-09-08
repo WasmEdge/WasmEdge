@@ -369,6 +369,57 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
   endif()
 endif()
 
+# Re-export a target's interface include directories as system includes, so that
+# consumers reach its headers through -isystem / -external:I instead of -I and
+# never compile them with the project warning flags. The SYSTEM target property
+# would do this directly, but it needs CMake 3.25 and the floor here is 3.18.
+function(wasmedge_mark_system_includes target)
+  if(NOT TARGET ${target})
+    return()
+  endif()
+  get_target_property(WASMEDGE_ALIASED ${target} ALIASED_TARGET)
+  if(WASMEDGE_ALIASED)
+    set(target ${WASMEDGE_ALIASED})
+  endif()
+  get_target_property(WASMEDGE_INCLUDE_DIRS
+    ${target} INTERFACE_INCLUDE_DIRECTORIES)
+  if(NOT WASMEDGE_INCLUDE_DIRS)
+    return()
+  endif()
+  get_target_property(WASMEDGE_SYSTEM_INCLUDE_DIRS
+    ${target} INTERFACE_SYSTEM_INCLUDE_DIRECTORIES)
+  if(NOT WASMEDGE_SYSTEM_INCLUDE_DIRS)
+    set(WASMEDGE_SYSTEM_INCLUDE_DIRS)
+  endif()
+  list(APPEND WASMEDGE_SYSTEM_INCLUDE_DIRS ${WASMEDGE_INCLUDE_DIRS})
+  list(REMOVE_DUPLICATES WASMEDGE_SYSTEM_INCLUDE_DIRS)
+  set_property(TARGET ${target} PROPERTY
+    INTERFACE_SYSTEM_INCLUDE_DIRECTORIES ${WASMEDGE_SYSTEM_INCLUDE_DIRS})
+endfunction()
+
+function(wasmedge_setup_blake3)
+  # Static archive assembly extracts objects from blake3 with ar -x, so those
+  # builds need the vendored static library even when a package preexists.
+  if(NOT WASMEDGE_BUILD_STATIC_LIB)
+    if(TARGET BLAKE3::blake3)
+      set(WASMEDGE_BLAKE3_TARGET BLAKE3::blake3 PARENT_SCOPE)
+      return()
+    endif()
+    find_package(blake3 CONFIG QUIET)
+    if(blake3_FOUND)
+      message(STATUS "blake3 found")
+      wasmedge_mark_system_includes(BLAKE3::blake3)
+      set(WASMEDGE_BLAKE3_TARGET BLAKE3::blake3 PARENT_SCOPE)
+      return()
+    endif()
+  endif()
+  if(NOT TARGET utilBlake3)
+    add_subdirectory(${PROJECT_SOURCE_DIR}/thirdparty/blake3
+      ${PROJECT_BINARY_DIR}/thirdparty/blake3)
+  endif()
+  set(WASMEDGE_BLAKE3_TARGET utilBlake3 PARENT_SCOPE)
+endfunction()
+
 function(wasmedge_setup_simdjson)
   if(TARGET simdjson::simdjson)
     return()

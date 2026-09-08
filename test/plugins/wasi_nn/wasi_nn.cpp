@@ -2945,7 +2945,7 @@ TEST(WasiNNTest, GGMLBackendComputeSingleWithRPC) {
   {
     EXPECT_TRUE(HostFuncGetOutputSingle.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(0),
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(1),
                                                     StorePtr, 1, BuilderPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::TooLarge));
@@ -2991,7 +2991,7 @@ TEST(WasiNNTest, GGMLBackendComputeSingleWithRPC) {
   {
     EXPECT_TRUE(HostFuncGetOutputSingle.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(0),
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(1),
                                                     StorePtr, 4, BuilderPtr},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::TooLarge));

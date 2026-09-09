@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1.5-labs
 
-ARG XX_VERSION=1.2.1
-ARG DEBIAN_VERSION=bullseye
-ARG LLVM_VERSION=16
+ARG XX_VERSION=1.9.0
+ARG DEBIAN_VERSION=bookworm
+ARG LLVM_VERSION=23
 
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
 FROM --platform=$BUILDPLATFORM debian:${DEBIAN_VERSION} AS base
@@ -10,7 +10,7 @@ COPY --from=xx / /
 
 # Install host dependencies
 RUN apt-get update -y && apt-get install --no-install-recommends -y \
-    lsb-release software-properties-common curl wget gnupg \
+    lsb-release ca-certificates curl wget gnupg \
     cmake ninja-build git clang xz-utils
 
 # Set up llvm's apt repo
@@ -18,7 +18,7 @@ ARG LLVM_VERSION
 RUN /bin/bash <<EOT
     set -ex
     curl -sSfL https://apt.llvm.org/llvm-snapshot.gpg.key > /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-    add-apt-repository "deb http://apt.llvm.org/$(lsb_release -sc)/  llvm-toolchain-$(lsb_release -sc)-${LLVM_VERSION} main"
+    echo "deb http://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-${LLVM_VERSION} main" > /etc/apt/sources.list.d/llvm.list
     apt-get update -y
 EOT
 
@@ -47,7 +47,7 @@ EOT
 RUN xx-apt-get install --no-install-recommends -y \
     xx-cxx-essentials \
     liblld-${LLVM_VERSION}-dev libpolly-${LLVM_VERSION}-dev \
-    libncurses5-dev zlib1g-dev
+    libncurses-dev zlib1g-dev libzstd-dev
 
 # Make a cmake toolchain file
 RUN cat <<EOT > /toolchain.cmake

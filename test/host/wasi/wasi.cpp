@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "common/types.h"
 #include "host/wasi/wasibase.h"
 #include "host/wasi/wasifunc.h"
@@ -10,16 +11,20 @@
 #include <algorithm>
 #include <array>
 #include <cerrno>
+#include <chrono>
 #include <condition_variable>
 #include <cstdint>
 #include <cstring>
 #include <ctime>
 #include <fcntl.h>
+#include <fstream>
 #include <gtest/gtest.h>
+#include <iterator>
 #include <mutex>
 #include <string>
 #include <string_view>
 #include <thread>
+#include <utility>
 
 using namespace std::literals;
 
@@ -3855,6 +3860,361 @@ TEST(WasiTest, Random) {
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   Env.fini();
+}
+
+TEST(WasiTest, ReadOnlyPreopenReducesChildRights) {
+  namespace fs = std::filesystem;
+
+  const auto Root = fs::path(
+      "wasmedge-wasi-readonly-" +
+      std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count()));
+  struct RootCleanup {
+    fs::path Path;
+    ~RootCleanup() {
+      std::error_code Error;
+      fs::remove_all(Path, Error);
+    }
+  } Cleanup{Root};
+  std::error_code Error;
+  fs::remove_all(Root, Error);
+  Error.clear();
+  ASSERT_TRUE(fs::create_directories(Root / "sub" / "empty", Error));
+  ASSERT_FALSE(Error);
+  {
+    std::ofstream Data(Root / "sub" / "data.txt", std::ios::binary);
+    ASSERT_TRUE(Data);
+    Data << "read-only data";
+  }
+  {
+    std::ofstream Unlink(Root / "sub" / "unlink.txt", std::ios::binary);
+    ASSERT_TRUE(Unlink);
+    Unlink << "keep this file";
+  }
+  const auto DataWriteTime =
+      fs::last_write_time(Root / "sub" / "data.txt", Error);
+  ASSERT_FALSE(Error);
+
+  WasmEdge::Host::WASI::Environ Env;
+  Env.init({"/:" + Root.string() + ":readonly"}, "test"s, {}, {});
+
+  auto CanRead = Env.pathCanRead("sub/data.txt");
+  ASSERT_TRUE(CanRead);
+  EXPECT_TRUE(*CanRead);
+  auto CanWrite = Env.pathCanWrite("sub/data.txt");
+  ASSERT_TRUE(CanWrite);
+  EXPECT_FALSE(*CanWrite);
+
+  constexpr __wasi_fd_t RootFd = 3;
+  constexpr __wasi_rights_t CompatibleRequestedRights =
+      __WASI_RIGHTS_FD_DATASYNC | __WASI_RIGHTS_FD_READ |
+      __WASI_RIGHTS_FD_SEEK | __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS |
+      __WASI_RIGHTS_FD_SYNC | __WASI_RIGHTS_FD_TELL | __WASI_RIGHTS_FD_ADVISE |
+      __WASI_RIGHTS_PATH_CREATE_DIRECTORY | __WASI_RIGHTS_PATH_CREATE_FILE |
+      __WASI_RIGHTS_PATH_LINK_SOURCE | __WASI_RIGHTS_PATH_LINK_TARGET |
+      __WASI_RIGHTS_PATH_OPEN | __WASI_RIGHTS_FD_READDIR |
+      __WASI_RIGHTS_PATH_READLINK | __WASI_RIGHTS_PATH_RENAME_SOURCE |
+      __WASI_RIGHTS_PATH_RENAME_TARGET | __WASI_RIGHTS_PATH_FILESTAT_GET |
+      __WASI_RIGHTS_FD_FILESTAT_GET | __WASI_RIGHTS_FD_FILESTAT_SET_TIMES |
+      __WASI_RIGHTS_PATH_SYMLINK | __WASI_RIGHTS_PATH_REMOVE_DIRECTORY |
+      __WASI_RIGHTS_PATH_UNLINK_FILE | __WASI_RIGHTS_POLL_FD_READWRITE;
+  constexpr __wasi_rights_t MutationRights =
+      __WASI_RIGHTS_FD_WRITE | __WASI_RIGHTS_FD_ALLOCATE |
+      __WASI_RIGHTS_FD_FILESTAT_SET_SIZE | __WASI_RIGHTS_FD_FILESTAT_SET_TIMES |
+      __WASI_RIGHTS_PATH_CREATE_DIRECTORY | __WASI_RIGHTS_PATH_CREATE_FILE |
+      __WASI_RIGHTS_PATH_LINK_SOURCE | __WASI_RIGHTS_PATH_LINK_TARGET |
+      __WASI_RIGHTS_PATH_RENAME_SOURCE | __WASI_RIGHTS_PATH_RENAME_TARGET |
+      __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE |
+      __WASI_RIGHTS_PATH_FILESTAT_SET_TIMES | __WASI_RIGHTS_PATH_SYMLINK |
+      __WASI_RIGHTS_PATH_REMOVE_DIRECTORY | __WASI_RIGHTS_PATH_UNLINK_FILE;
+  constexpr __wasi_rights_t CompatibleDirectoryBaseRights =
+      __WASI_RIGHTS_PATH_CREATE_DIRECTORY | __WASI_RIGHTS_PATH_CREATE_FILE |
+      __WASI_RIGHTS_PATH_LINK_SOURCE | __WASI_RIGHTS_PATH_LINK_TARGET |
+      __WASI_RIGHTS_PATH_OPEN | __WASI_RIGHTS_FD_READDIR |
+      __WASI_RIGHTS_PATH_READLINK | __WASI_RIGHTS_PATH_RENAME_SOURCE |
+      __WASI_RIGHTS_PATH_RENAME_TARGET | __WASI_RIGHTS_PATH_FILESTAT_GET |
+      __WASI_RIGHTS_FD_FILESTAT_GET | __WASI_RIGHTS_FD_FILESTAT_SET_TIMES |
+      __WASI_RIGHTS_PATH_SYMLINK | __WASI_RIGHTS_PATH_REMOVE_DIRECTORY |
+      __WASI_RIGHTS_PATH_UNLINK_FILE;
+  constexpr __wasi_rights_t RequestedRights =
+      CompatibleRequestedRights | __WASI_RIGHTS_FD_WRITE |
+      __WASI_RIGHTS_FD_ALLOCATE | __WASI_RIGHTS_FD_FILESTAT_SET_SIZE |
+      __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE |
+      __WASI_RIGHTS_PATH_FILESTAT_SET_TIMES;
+  constexpr __wasi_rights_t DirectoryBaseRights =
+      CompatibleDirectoryBaseRights | __WASI_RIGHTS_PATH_FILESTAT_SET_SIZE |
+      __WASI_RIGHTS_PATH_FILESTAT_SET_TIMES;
+
+  auto BroadDirResult =
+      Env.pathOpen(RootFd, "sub", static_cast<__wasi_lookupflags_t>(0),
+                   __WASI_OFLAGS_DIRECTORY, DirectoryBaseRights,
+                   RequestedRights, static_cast<__wasi_fdflags_t>(0));
+  EXPECT_TRUE(BroadDirResult);
+
+  auto DirResult =
+      Env.pathOpen(RootFd, "sub", static_cast<__wasi_lookupflags_t>(0),
+                   __WASI_OFLAGS_DIRECTORY, CompatibleDirectoryBaseRights,
+                   CompatibleRequestedRights, static_cast<__wasi_fdflags_t>(0));
+  ASSERT_TRUE(DirResult);
+  const auto DirFd = *DirResult;
+
+  __wasi_fdstat_t DirStat{};
+  ASSERT_TRUE(Env.fdFdstatGet(DirFd, DirStat));
+  const auto DirBase = WasmEdge::EndianValue(DirStat.fs_rights_base).le();
+  const auto DirInheriting =
+      WasmEdge::EndianValue(DirStat.fs_rights_inheriting).le();
+  EXPECT_EQ(DirBase & MutationRights, UINT64_C(0));
+  EXPECT_EQ(DirInheriting & MutationRights, UINT64_C(0));
+
+  std::array<uint8_t, 1024> DirectoryBuffer{};
+  __wasi_size_t DirectorySize = 0;
+  ASSERT_TRUE(Env.fdReaddir(DirFd, DirectoryBuffer, 0, DirectorySize));
+  EXPECT_GT(DirectorySize, UINT32_C(0));
+
+  auto FileResult =
+      Env.pathOpen(DirFd, "data.txt", static_cast<__wasi_lookupflags_t>(0),
+                   static_cast<__wasi_oflags_t>(0), CompatibleRequestedRights,
+                   CompatibleRequestedRights, static_cast<__wasi_fdflags_t>(0));
+  ASSERT_TRUE(FileResult);
+  const auto FileFd = *FileResult;
+
+  __wasi_fdstat_t FileStat{};
+  ASSERT_TRUE(Env.fdFdstatGet(FileFd, FileStat));
+  const auto FileBase = WasmEdge::EndianValue(FileStat.fs_rights_base).le();
+  const auto FileInheriting =
+      WasmEdge::EndianValue(FileStat.fs_rights_inheriting).le();
+  EXPECT_EQ(FileBase & MutationRights, UINT64_C(0));
+  EXPECT_EQ(FileInheriting & MutationRights, UINT64_C(0));
+
+  std::array<uint8_t, 32> ReadBuffer{};
+  std::array<WasmEdge::Span<uint8_t>, 1> ReadIOVs = {ReadBuffer};
+  __wasi_size_t NRead = 0;
+  ASSERT_TRUE(Env.fdRead(FileFd, ReadIOVs, NRead));
+  EXPECT_EQ(std::string(ReadBuffer.begin(), ReadBuffer.begin() + NRead),
+            "read-only data");
+
+  const auto ExpectNotCapable = [](std::string_view Operation,
+                                   const auto &Result) {
+    SCOPED_TRACE(Operation);
+    EXPECT_FALSE(Result);
+    if (!Result) {
+      EXPECT_EQ(Result.error(), __WASI_ERRNO_NOTCAPABLE);
+    }
+  };
+  const std::array<uint8_t, 7> Replacement = {'c', 'h', 'a', 'n',
+                                              'g', 'e', 'd'};
+  std::array<WasmEdge::Span<const uint8_t>, 1> WriteIOVs = {Replacement};
+  __wasi_size_t NWritten = 0;
+  ExpectNotCapable("fdFilestatSetTimes",
+                   Env.fdFilestatSetTimes(FileFd, 0, 0, __WASI_FSTFLAGS_MTIM));
+
+  ExpectNotCapable(
+      "pathOpen append",
+      Env.pathOpen(DirFd, "data.txt", static_cast<__wasi_lookupflags_t>(0),
+                   static_cast<__wasi_oflags_t>(0), __WASI_RIGHTS_FD_READ,
+                   static_cast<__wasi_rights_t>(0), __WASI_FDFLAGS_APPEND));
+  for (const auto &[Name, Flag] :
+       std::array<std::pair<std::string_view, __wasi_fdflags_t>, 3>{
+           {{"pathOpen dsync", __WASI_FDFLAGS_DSYNC},
+            {"pathOpen rsync", __WASI_FDFLAGS_RSYNC},
+            {"pathOpen sync", __WASI_FDFLAGS_SYNC}}}) {
+    SCOPED_TRACE(Name);
+    auto SyncResult =
+        Env.pathOpen(DirFd, "data.txt", static_cast<__wasi_lookupflags_t>(0),
+                     static_cast<__wasi_oflags_t>(0), __WASI_RIGHTS_FD_READ,
+                     static_cast<__wasi_rights_t>(0), Flag);
+    ASSERT_TRUE(SyncResult);
+    __wasi_fdstat_t SyncStat{};
+    ASSERT_TRUE(Env.fdFdstatGet(*SyncResult, SyncStat));
+    EXPECT_EQ(WasmEdge::EndianValue(SyncStat.fs_rights_base).le(),
+              __WASI_RIGHTS_FD_READ);
+    EXPECT_TRUE(Env.fdClose(*SyncResult));
+  }
+
+  auto ImpliedDirResult =
+      Env.pathOpen(RootFd, "sub", static_cast<__wasi_lookupflags_t>(0),
+                   __WASI_OFLAGS_DIRECTORY,
+                   __WASI_RIGHTS_PATH_OPEN | __WASI_RIGHTS_FD_READDIR,
+                   __WASI_RIGHTS_FD_SEEK | __WASI_RIGHTS_FD_SYNC,
+                   static_cast<__wasi_fdflags_t>(0));
+  ASSERT_TRUE(ImpliedDirResult);
+  auto ImpliedFileResult = Env.pathOpen(
+      *ImpliedDirResult, "data.txt", static_cast<__wasi_lookupflags_t>(0),
+      static_cast<__wasi_oflags_t>(0),
+      __WASI_RIGHTS_FD_TELL | __WASI_RIGHTS_FD_DATASYNC,
+      static_cast<__wasi_rights_t>(0), static_cast<__wasi_fdflags_t>(0));
+  ASSERT_TRUE(ImpliedFileResult);
+  __wasi_fdstat_t ImpliedFileStat{};
+  ASSERT_TRUE(Env.fdFdstatGet(*ImpliedFileResult, ImpliedFileStat));
+  EXPECT_EQ(WasmEdge::EndianValue(ImpliedFileStat.fs_rights_base).le(),
+            __WASI_RIGHTS_FD_TELL | __WASI_RIGHTS_FD_DATASYNC);
+
+  if (BroadDirResult) {
+    const auto BroadDirFd = *BroadDirResult;
+    __wasi_fdstat_t BroadDirStat{};
+    ASSERT_TRUE(Env.fdFdstatGet(BroadDirFd, BroadDirStat));
+    EXPECT_EQ(WasmEdge::EndianValue(BroadDirStat.fs_rights_base).le() &
+                  MutationRights,
+              UINT64_C(0));
+    EXPECT_EQ(WasmEdge::EndianValue(BroadDirStat.fs_rights_inheriting).le() &
+                  MutationRights,
+              UINT64_C(0));
+    auto BroadFileResult = Env.pathOpen(
+        BroadDirFd, "data.txt", static_cast<__wasi_lookupflags_t>(0),
+        static_cast<__wasi_oflags_t>(0), RequestedRights, RequestedRights,
+        static_cast<__wasi_fdflags_t>(0));
+    ASSERT_TRUE(BroadFileResult);
+    const auto BroadFileFd = *BroadFileResult;
+    __wasi_fdstat_t BroadFileStat{};
+    ASSERT_TRUE(Env.fdFdstatGet(BroadFileFd, BroadFileStat));
+    EXPECT_EQ(WasmEdge::EndianValue(BroadFileStat.fs_rights_base).le() &
+                  MutationRights,
+              UINT64_C(0));
+    EXPECT_EQ(WasmEdge::EndianValue(BroadFileStat.fs_rights_inheriting).le() &
+                  MutationRights,
+              UINT64_C(0));
+    ExpectNotCapable("fdWrite", Env.fdWrite(BroadFileFd, WriteIOVs, NWritten));
+    ExpectNotCapable("fdAllocate", Env.fdAllocate(BroadFileFd, 0, 64));
+    ExpectNotCapable("fdFilestatSetSize",
+                     Env.fdFilestatSetSize(BroadFileFd, 1));
+  }
+
+  auto CreateResult = Env.pathOpen(
+      DirFd, "created.txt", static_cast<__wasi_lookupflags_t>(0),
+      __WASI_OFLAGS_CREAT, __WASI_RIGHTS_FD_READ,
+      static_cast<__wasi_rights_t>(0), static_cast<__wasi_fdflags_t>(0));
+  ExpectNotCapable("pathOpen create", CreateResult);
+  if (CreateResult) {
+    EXPECT_TRUE(Env.fdClose(*CreateResult));
+  }
+  auto TruncateResult = Env.pathOpen(
+      DirFd, "data.txt", static_cast<__wasi_lookupflags_t>(0),
+      __WASI_OFLAGS_TRUNC, __WASI_RIGHTS_FD_READ,
+      static_cast<__wasi_rights_t>(0), static_cast<__wasi_fdflags_t>(0));
+  ExpectNotCapable("pathOpen truncate", TruncateResult);
+  if (TruncateResult) {
+    EXPECT_TRUE(Env.fdClose(*TruncateResult));
+  }
+  ExpectNotCapable("pathCreateDirectory",
+                   Env.pathCreateDirectory(DirFd, "created-dir"));
+  ExpectNotCapable("pathFilestatSetTimes",
+                   Env.pathFilestatSetTimes(
+                       DirFd, "data.txt", static_cast<__wasi_lookupflags_t>(0),
+                       0, 0, __WASI_FSTFLAGS_MTIM));
+  Error.clear();
+  const auto DataWriteTimeAfter =
+      fs::last_write_time(Root / "sub" / "data.txt", Error);
+  EXPECT_FALSE(Error);
+  if (!Error) {
+    EXPECT_EQ(DataWriteTimeAfter, DataWriteTime);
+  }
+  ExpectNotCapable("pathLink",
+                   Env.pathLink(DirFd, "data.txt", DirFd, "linked.txt",
+                                static_cast<__wasi_lookupflags_t>(0)));
+  ExpectNotCapable("pathSymlink",
+                   Env.pathSymlink("data.txt", DirFd, "symlink.txt"));
+  ExpectNotCapable("pathRename",
+                   Env.pathRename(DirFd, "data.txt", DirFd, "renamed.txt"));
+  ExpectNotCapable("pathUnlinkFile", Env.pathUnlinkFile(DirFd, "unlink.txt"));
+  ExpectNotCapable("pathRemoveDirectory",
+                   Env.pathRemoveDirectory(DirFd, "empty"));
+
+  EXPECT_TRUE(fs::is_directory(Root / "sub" / "empty"));
+  EXPECT_TRUE(fs::is_regular_file(Root / "sub" / "data.txt"));
+  EXPECT_TRUE(fs::is_regular_file(Root / "sub" / "unlink.txt"));
+  EXPECT_FALSE(fs::exists(Root / "sub" / "created.txt"));
+  EXPECT_FALSE(fs::exists(Root / "sub" / "created-dir"));
+  EXPECT_FALSE(fs::exists(Root / "sub" / "renamed.txt"));
+  EXPECT_FALSE(fs::exists(Root / "sub" / "linked.txt"));
+  EXPECT_FALSE(fs::exists(Root / "sub" / "symlink.txt"));
+  {
+    std::ifstream Data(Root / "sub" / "data.txt", std::ios::binary);
+    const std::string Content((std::istreambuf_iterator<char>(Data)),
+                              std::istreambuf_iterator<char>());
+    EXPECT_EQ(Content, "read-only data");
+  }
+
+  Env.fini();
+}
+
+TEST(WasiTest, ReadWritePreopenKeepsChildRights) {
+  namespace fs = std::filesystem;
+
+  const auto Root = fs::path(
+      "wasmedge-wasi-readwrite-" +
+      std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count()));
+  struct RootCleanup {
+    fs::path Path;
+    ~RootCleanup() {
+      std::error_code Error;
+      fs::remove_all(Path, Error);
+    }
+  } Cleanup{Root};
+  std::error_code Error;
+  fs::remove_all(Root, Error);
+  Error.clear();
+  ASSERT_TRUE(fs::create_directories(Root / "sub", Error));
+  ASSERT_FALSE(Error);
+  {
+    std::ofstream Data(Root / "sub" / "data.txt", std::ios::binary);
+    ASSERT_TRUE(Data);
+    Data << "read-write data";
+  }
+
+  WasmEdge::Host::WASI::Environ Env;
+  struct EnvCleanup {
+    WasmEdge::Host::WASI::Environ &Env;
+    ~EnvCleanup() { Env.fini(); }
+  } EnvGuard{Env};
+  Env.init({"/:" + Root.string()}, "test"s, {}, {});
+
+  auto CanWrite = Env.pathCanWrite("sub/data.txt");
+  ASSERT_TRUE(CanWrite);
+  EXPECT_TRUE(*CanWrite);
+
+  constexpr __wasi_fd_t RootFd = 3;
+  constexpr __wasi_rights_t RequestedRights =
+      __WASI_RIGHTS_PATH_OPEN | __WASI_RIGHTS_FD_READDIR |
+      __WASI_RIGHTS_PATH_CREATE_DIRECTORY | __WASI_RIGHTS_PATH_REMOVE_DIRECTORY;
+  auto DirResult =
+      Env.pathOpen(RootFd, "sub", static_cast<__wasi_lookupflags_t>(0),
+                   __WASI_OFLAGS_DIRECTORY, RequestedRights, RequestedRights,
+                   static_cast<__wasi_fdflags_t>(0));
+  ASSERT_TRUE(DirResult);
+  const auto DirFd = *DirResult;
+
+  __wasi_fdstat_t DirStat{};
+  ASSERT_TRUE(Env.fdFdstatGet(DirFd, DirStat));
+  const auto DirBase = WasmEdge::EndianValue(DirStat.fs_rights_base).le();
+  const auto DirInheriting =
+      WasmEdge::EndianValue(DirStat.fs_rights_inheriting).le();
+  EXPECT_EQ(DirBase & RequestedRights, RequestedRights);
+  EXPECT_EQ(DirInheriting & RequestedRights, RequestedRights);
+
+  for (const auto &[Name, Flag] :
+       std::array<std::pair<std::string_view, __wasi_fdflags_t>, 4>{
+           {{"pathOpen append", __WASI_FDFLAGS_APPEND},
+            {"pathOpen dsync", __WASI_FDFLAGS_DSYNC},
+            {"pathOpen rsync", __WASI_FDFLAGS_RSYNC},
+            {"pathOpen sync", __WASI_FDFLAGS_SYNC}}}) {
+    SCOPED_TRACE(Name);
+    auto FlagResult = Env.pathOpen(
+        RootFd, "sub/data.txt", static_cast<__wasi_lookupflags_t>(0),
+        static_cast<__wasi_oflags_t>(0), __WASI_RIGHTS_FD_READ,
+        static_cast<__wasi_rights_t>(0), Flag);
+    ASSERT_TRUE(FlagResult);
+    __wasi_fdstat_t FlagStat{};
+    ASSERT_TRUE(Env.fdFdstatGet(*FlagResult, FlagStat));
+    EXPECT_EQ(WasmEdge::EndianValue(FlagStat.fs_rights_base).le(),
+              __WASI_RIGHTS_FD_READ);
+    EXPECT_TRUE(Env.fdClose(*FlagResult));
+  }
+
+  ASSERT_TRUE(Env.pathCreateDirectory(DirFd, "created-dir"));
+  EXPECT_TRUE(fs::is_directory(Root / "sub" / "created-dir"));
+  ASSERT_TRUE(Env.pathRemoveDirectory(DirFd, "created-dir"));
+  EXPECT_FALSE(fs::exists(Root / "sub" / "created-dir"));
 }
 
 TEST(WasiTest, Directory) {

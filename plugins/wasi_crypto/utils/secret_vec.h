@@ -35,8 +35,8 @@ class SecretVec {
 public:
   SecretVec(const SecretVec &) = default;
 
-  /// Wipe the replaced content before releasing it, which the defaulted
-  /// assignment operators do not do.
+  /// Assigning over a live vector releases its buffer, so wipe the replaced
+  /// content first.
   SecretVec &operator=(const SecretVec &Rhs) {
     if (this != &Rhs) {
       cleanse();
@@ -45,10 +45,11 @@ public:
     return *this;
   }
 
+  /// The wiped buffer is handed to `Rhs`, which releases it on destruction.
   SecretVec &operator=(SecretVec &&Rhs) noexcept {
     if (this != &Rhs) {
       cleanse();
-      Data = std::move(Rhs.Data);
+      Data.swap(Rhs.Data);
     }
     return *this;
   }

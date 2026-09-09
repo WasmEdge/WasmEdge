@@ -147,30 +147,34 @@ TEST(SecretVecTest, CopyFromLvalueVector) {
   EXPECT_TRUE(std::equal(Secret.begin(), Secret.end(), Data.begin()));
 }
 
-TEST(SecretVecTest, MoveAssignTransfersBuffer) {
+TEST(SecretVecTest, MoveAssignWipesReplacedBuffer) {
   SecretVec Secret(std::vector<uint8_t>(32, uint8_t{0xAB}));
   SecretVec Other(std::vector<uint8_t>(64, uint8_t{0xCD}));
-  const uint8_t *const Buffer = Other.data();
+  const uint8_t *const Taken = Other.data();
+  const uint8_t *const Replaced = Secret.data();
 
   Secret = std::move(Other);
 
-  EXPECT_EQ(Secret.data(), Buffer);
+  EXPECT_EQ(Secret.data(), Taken);
   EXPECT_EQ(Secret.size(), 64U);
+
+  // The replaced buffer is handed to `Other`, where it stays a live vector of
+  // the original size and its content can be read back.
+  EXPECT_EQ(Other.data(), Replaced);
+  ASSERT_EQ(Other.size(), 32U);
+  EXPECT_TRUE(std::all_of(Other.begin(), Other.end(),
+                          [](uint8_t Byte) { return Byte == 0; }));
 }
 
-TEST(SecretVecTest, CopyAssignWipesReplacedContent) {
+TEST(SecretVecTest, CopyAssignReplacesContent) {
   SecretVec Secret(std::vector<uint8_t>(32, uint8_t{0xAB}));
-  const uint8_t *const Buffer = Secret.data();
   const SecretVec Other(std::vector<uint8_t>(8, uint8_t{0xCD}));
 
   Secret = Other;
 
-  if (Secret.data() != Buffer) {
-    GTEST_SKIP() << "the assignment reallocated, the replaced buffer is gone";
-  }
   ASSERT_EQ(Secret.size(), 8U);
-  EXPECT_TRUE(std::all_of(Buffer + Secret.size(), Buffer + 32,
-                          [](uint8_t Byte) { return Byte == 0; }));
+  EXPECT_TRUE(std::all_of(Secret.begin(), Secret.end(),
+                          [](uint8_t Byte) { return Byte == 0xCD; }));
 }
 
 TEST(SecretVecTest, SelfAssignKeepsContent) {

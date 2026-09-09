@@ -1860,6 +1860,57 @@ TEST(SIMDNaN, F32x4MaxNaNHandling) {
   EXPECT_NO_THROW(std::filesystem::remove(Path));
 }
 
+TEST(CodeGenOutput, TemporaryObjectWriteFailure) {
+  const auto Path = std::filesystem::temp_directory_path() /
+                    std::filesystem::u8path("WasmEdgeNoSuchDir") /
+                    std::filesystem::u8path("out" WASMEDGE_LIB_EXTENSION);
+
+  ASSERT_FALSE(std::filesystem::exists(Path.parent_path()));
+
+  const std::array Formats{CompilerConfigure::OutputFormat::Native,
+                           CompilerConfigure::OutputFormat::Wasm};
+
+  for (const auto Format : Formats) {
+    SCOPED_TRACE(Format == CompilerConfigure::OutputFormat::Native ? "Native"
+                                                                   : "Wasm");
+
+    WasmEdge::Configure Conf;
+    Conf.getCompilerConfigure().setOutputFormat(Format);
+
+    WasmEdge::Loader::Loader Loader(Conf);
+    WasmEdge::Validator::Validator ValidatorEngine(Conf);
+    WasmEdge::LLVM::Compiler Compiler(Conf);
+    WasmEdge::LLVM::CodeGen CodeGen(Conf);
+
+    auto Module = *Loader.parseModule(AsyncWasm);
+    ASSERT_TRUE(ValidatorEngine.validate(*Module));
+
+    auto Data = Compiler.compile(*Module);
+    ASSERT_TRUE(Data);
+
+    std::string Diagnostic;
+    auto PreviousLogger = spdlog::default_logger();
+
+    WasmEdge::Log::setLoggingCallback(
+        [&](const spdlog::details::log_msg &Message) {
+          Diagnostic.append(Message.payload.data(), Message.payload.size());
+          Diagnostic.push_back('\n');
+        });
+
+    auto Result = CodeGen.codegen(AsyncWasm, std::move(*Data), Path);
+    spdlog::set_default_logger(std::move(PreviousLogger));
+
+    EXPECT_FALSE(Result);
+
+    if (!Result) {
+      EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalPath);
+    }
+
+    EXPECT_NE(Diagnostic.find("object file write failed:"), std::string::npos)
+        << Diagnostic;
+  }
+}
+
 TEST(AOTMemory64, BoundsCheck) {
   // A full 64-bit index escapes the guard page that memory32 relies on, so
   // check that a far out-of-bounds memory64 access traps rather than reaching

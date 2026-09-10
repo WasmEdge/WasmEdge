@@ -411,10 +411,9 @@ public:
     uint32_t BytesWrittenPtr = UINT32_C(0);
     uint32_t BufPtr = BytesWrittenPtr + UINT32_C(4);
     uint32_t BufMaxSize = MaxSize;
-    static constexpr uint32_t LegacyDefaultMaxSize =
-        UINT32_C(65536) - UINT32_C(4);
-    if (BufMaxSize == 0 || BufMaxSize < LegacyDefaultMaxSize) {
-      BufMaxSize = LegacyDefaultMaxSize;
+    if (BufMaxSize == 0) {
+      return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                          "max_size must be greater than 0"s);
     }
 
     auto ValidationStatus = validateMaxSize(BufMaxSize, BufPtr, RPCContext);

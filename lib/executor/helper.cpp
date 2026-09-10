@@ -253,15 +253,10 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
 
     // Push local variables into the stack.
     for (auto &Def : Func.getLocals()) {
-      if (Def.second.isRefType() && !Def.second.isAbsHeapType()) {
-        // For non-abstract heap types (concrete type indices), convert the
-        // null ref to the abstract heap type so that ref.cast/ref.test won't
-        // dereference a null pointer when checking the type.
-        const auto &CompType = Func.getModule()
-                                   ->unsafeGetType(Def.second.getTypeIndex())
-                                   ->getCompositeType();
-        auto BotTypeCode =
-            CompType.isFunc() ? TypeCode::NullFuncRef : TypeCode::NullRef;
+      if (Def.second.isRefType()) {
+        // Type the null refs with the bottom heap type of their hierarchy so
+        // that ref.test/ref.cast match them against the concrete types.
+        const auto BotTypeCode = toBottomType(Func.getModule(), Def.second);
         RefVariant InitVal(ValType(TypeCode::RefNull, BotTypeCode));
         for (uint32_t I = 0; I < Def.first; I++) {
           StackMgr.push(InitVal);

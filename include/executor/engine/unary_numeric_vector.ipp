@@ -159,6 +159,7 @@ Expect<void> Executor::runVectorTruncSatOp(ValVariant &Val) const {
     const VTOut2 IMax = VTOut2{} + std::numeric_limits<TOut>::max();
     VTIn X = {std::trunc(V[0]), std::trunc(V[1])};
     VTOut2 Y = __builtin_convertvector(X, VTOut2);
+    Y = detail::vectorSelect(X == X, Y, VTOut2{});
     Y = detail::vectorSelect(X <= FMin, IMin, Y);
     Y = detail::vectorSelect(X >= FMax, IMax, Y);
     using VTOut22 [[gnu::vector_size(32)]] = TOut2;

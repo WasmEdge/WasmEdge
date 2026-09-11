@@ -672,7 +672,8 @@ public:
               const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
               Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
               Span<__wasi_sockaddr_t *> WasiSockaddrArray,
-              Span<char *> AiAddrSaDataArray, Span<char *> AiCanonnameArray,
+              Span<Span<char>> AiAddrSaDataArray,
+              Span<Span<char>> AiCanonnameArray,
               /*Out*/ __wasi_size_t &ResLength) noexcept;
 
   static WasiExpect<INode> sockOpen(__wasi_address_family_t SysDomain,

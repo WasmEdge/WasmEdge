@@ -33,6 +33,7 @@ namespace WASI {
 
 inline namespace detail {
 inline constexpr const int32_t kIOVMax = 1024;
+inline constexpr const uint32_t kAddrinfoMax = 1024;
 // Large enough to store SaData in sockaddr_in6
 // = sizeof(sockaddr_in6) - sizeof(sockaddr_in6::sin6_family)
 inline constexpr const int32_t kMaxSaDataLen = 26;
@@ -74,8 +75,8 @@ public:
                                uint32_t MaxResLength,
                                Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
                                Span<__wasi_sockaddr_t *> WasiSockaddrArray,
-                               Span<char *> AiAddrSaDataArray,
-                               Span<char *> AiCanonnameArray,
+                               Span<Span<char>> AiAddrSaDataArray,
+                               Span<Span<char>> AiCanonnameArray,
                                /*Out*/ __wasi_size_t &ResLength) {
     return VINode::getAddrinfo(Node, Service, Hint, MaxResLength,
                                WasiAddrinfoArray, WasiSockaddrArray,

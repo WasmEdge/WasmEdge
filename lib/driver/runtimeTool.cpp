@@ -6,6 +6,7 @@
 #include "common/spdlog.h"
 #include "common/types.h"
 #include "common/version.h"
+#include "componentValueParser.h"
 #include "driver/tool.h"
 #include "host/wasi/wasimodule.h"
 #include "vm/vm.h"
@@ -227,82 +228,16 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
   for (size_t I = 0;
        I < FuncType.getParamList().size() && I + 1 < Opt.Args.value().size();
        ++I) {
-    const auto TCode = FuncType.getParamList()[I].getValType().getCode();
-    const auto &ArgValue = Opt.Args.value()[I + 1];
-
-    switch (TCode) {
-    case ComponentTypeCode::S32: {
-      if (!parseNumericArg(
-              ArgValue, I, "s32"sv,
-              [](const std::string &S) {
-                return static_cast<int32_t>(std::stol(S));
-              },
-              FuncArgs, FuncArgTypes, TCode)) {
-        return EXIT_FAILURE;
-      }
-      break;
+    const auto &ValTy = FuncType.getParamList()[I].getValType();
+    std::string_view ArgInput = Opt.Args.value()[I + 1];
+    auto ValOpt = parseComponentValue(ArgInput, ValTy, VM.getActiveComponent());
+    if (!ValOpt) {
+      spdlog::error("failed to parse argument {} for function `{}`"sv, I + 1,
+                    FuncName);
+      return EXIT_FAILURE;
     }
-    case ComponentTypeCode::U32: {
-      if (!parseNumericArg(
-              ArgValue, I, "u32"sv,
-              [](const std::string &S) {
-                return static_cast<uint32_t>(std::stoul(S));
-              },
-              FuncArgs, FuncArgTypes, TCode)) {
-        return EXIT_FAILURE;
-      }
-      break;
-    }
-    case ComponentTypeCode::S64: {
-      if (!parseNumericArg(
-              ArgValue, I, "s64"sv,
-              [](const std::string &S) {
-                return static_cast<int64_t>(std::stoll(S));
-              },
-              FuncArgs, FuncArgTypes, TCode)) {
-        return EXIT_FAILURE;
-      }
-      break;
-    }
-    case ComponentTypeCode::U64: {
-      if (!parseNumericArg(
-              ArgValue, I, "u64"sv,
-              [](const std::string &S) {
-                return static_cast<uint64_t>(std::stoull(S));
-              },
-              FuncArgs, FuncArgTypes, TCode)) {
-        return EXIT_FAILURE;
-      }
-      break;
-    }
-    case ComponentTypeCode::F32: {
-      if (!parseNumericArg(
-              ArgValue, I, "f32"sv,
-              [](const std::string &S) { return std::stof(S); }, FuncArgs,
-              FuncArgTypes, TCode)) {
-        return EXIT_FAILURE;
-      }
-      break;
-    }
-    case ComponentTypeCode::F64: {
-      if (!parseNumericArg(
-              ArgValue, I, "f64"sv,
-              [](const std::string &S) { return std::stod(S); }, FuncArgs,
-              FuncArgTypes, TCode)) {
-        return EXIT_FAILURE;
-      }
-      break;
-    }
-    case ComponentTypeCode::String: {
-      const std::string Value = Opt.Args.value()[I + 1];
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
-      break;
-    }
-    // TODO: COMPONENT - other types.
-    default:
-      break;
-    }
+    FuncArgs.emplace_back(std::move(*ValOpt));
+    FuncArgTypes.emplace_back(ValTy);
   }
   if (FuncType.getParamList().size() + 1 < Opt.Args.value().size()) {
     for (size_t I = FuncType.getParamList().size() + 1;
@@ -327,31 +262,8 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
   if (auto Result = AsyncResult.get()) {
     // Print results.
     for (auto &&Val : *Result) {
-      switch (Val.second.getCode()) {
-      case ComponentTypeCode::S32:
-        fmt::print("{}\n"sv, std::get<int32_t>(Val.first));
-        break;
-      case ComponentTypeCode::U32:
-        fmt::print("{}\n"sv, std::get<uint32_t>(Val.first));
-        break;
-      case ComponentTypeCode::S64:
-        fmt::print("{}\n"sv, std::get<int64_t>(Val.first));
-        break;
-      case ComponentTypeCode::U64:
-        fmt::print("{}\n"sv, std::get<uint64_t>(Val.first));
-        break;
-      case ComponentTypeCode::F32:
-        fmt::print("{}\n"sv, std::get<float>(Val.first));
-        break;
-      case ComponentTypeCode::F64:
-        fmt::print("{}\n"sv, std::get<double>(Val.first));
-        break;
-      case ComponentTypeCode::String:
-        fmt::print("{}\n"sv, std::get<std::string>(Val.first));
-        break;
-      default:
-        break;
-      }
+      printComponentValue(Val.first, Val.second, VM.getActiveComponent());
+      fmt::print("\n"sv);
     }
 
     return EXIT_SUCCESS;

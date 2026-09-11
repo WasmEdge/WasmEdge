@@ -62,6 +62,11 @@ public:
     cleanupModInstContainer(PlugInModInsts);
   }
 
+  const Runtime::Instance::ComponentInstance *
+  getActiveComponent() const noexcept {
+    return ActiveCompInst.get();
+  }
+
   /// ======= Functions can be called before the instantiated stage. =======
   /// Register wasm modules and host modules.
   Expect<void> registerModule(std::string_view Name,

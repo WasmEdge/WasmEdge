@@ -24,7 +24,7 @@ Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
-  uint64_t Count = extractAddr(RawCount, AddrType);
+  uint64_t Count = extractAddr(RawCount, AddressType::I32);
   EXPECTED_TRY(
       auto Total,
       atomicNotify(MemInst, Address, Count).map_error([&Instr](auto E) {
@@ -33,7 +33,7 @@ Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return E;
       }));
-  RawAddress = emplaceAddr(Total, AddrType);
+  RawAddress = emplaceAddr(Total, AddressType::I32);
   return {};
 }
 
@@ -47,8 +47,7 @@ Executor::atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
                        uint64_t Address, uint64_t Count) noexcept {
   // The error message should be handled by the caller, or the AOT mode will
   // produce the duplicated messages.
-  if (auto *AtomicObj = MemInst.getPointer<std::atomic<uint64_t> *>(Address);
-      !AtomicObj) {
+  if (!MemInst.checkAccessBound(Address, sizeof(uint32_t))) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 

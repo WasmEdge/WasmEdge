@@ -24,6 +24,7 @@
 
 #include <fstream>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -162,8 +163,399 @@ std::array<uint64_t, 4> Answers{
     UINT64_C(4446454406775736720),
     UINT64_C(9019442596657776185),
 };
+std::array<WasmEdge::Byte, 122> AtomicThreads32{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x15, 0x03, 0x60,
+    0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x60, 0x03, 0x7f, 0x7f, 0x7e, 0x01, 0x7f,
+    0x60, 0x03, 0x7f, 0x7e, 0x7e, 0x01, 0x7f, 0x03, 0x04, 0x03, 0x00, 0x01,
+    0x02, 0x05, 0x04, 0x01, 0x03, 0x01, 0x01, 0x07, 0x25, 0x04, 0x06, 0x6d,
+    0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x06, 0x6e, 0x6f, 0x74, 0x69,
+    0x66, 0x79, 0x00, 0x00, 0x06, 0x77, 0x61, 0x69, 0x74, 0x33, 0x32, 0x00,
+    0x01, 0x06, 0x77, 0x61, 0x69, 0x74, 0x36, 0x34, 0x00, 0x02, 0x0a, 0x26,
+    0x03, 0x0a, 0x00, 0x20, 0x00, 0x20, 0x01, 0xfe, 0x00, 0x02, 0x00, 0x0b,
+    0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x01, 0x02, 0x00,
+    0x0b, 0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x02, 0x03,
+    0x00, 0x0b,
+};
+std::array<WasmEdge::Byte, 255> AtomicThreads64{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x1a, 0x04, 0x60,
+    0x02, 0x7e, 0x7f, 0x01, 0x7f, 0x60, 0x01, 0x7e, 0x01, 0x7f, 0x60, 0x03,
+    0x7e, 0x7f, 0x7e, 0x01, 0x7f, 0x60, 0x03, 0x7e, 0x7e, 0x7e, 0x01, 0x7f,
+    0x03, 0x08, 0x07, 0x00, 0x00, 0x01, 0x02, 0x02, 0x03, 0x03, 0x05, 0x04,
+    0x01, 0x07, 0x01, 0x01, 0x07, 0x6c, 0x08, 0x06, 0x6d, 0x65, 0x6d, 0x6f,
+    0x72, 0x79, 0x02, 0x00, 0x06, 0x6e, 0x6f, 0x74, 0x69, 0x66, 0x79, 0x00,
+    0x00, 0x0d, 0x6e, 0x6f, 0x74, 0x69, 0x66, 0x79, 0x2d, 0x6f, 0x66, 0x66,
+    0x73, 0x65, 0x74, 0x00, 0x01, 0x14, 0x6e, 0x6f, 0x74, 0x69, 0x66, 0x79,
+    0x2d, 0x77, 0x72, 0x61, 0x70, 0x70, 0x65, 0x64, 0x2d, 0x63, 0x6f, 0x75,
+    0x6e, 0x74, 0x00, 0x02, 0x06, 0x77, 0x61, 0x69, 0x74, 0x33, 0x32, 0x00,
+    0x03, 0x0d, 0x77, 0x61, 0x69, 0x74, 0x33, 0x32, 0x2d, 0x6f, 0x66, 0x66,
+    0x73, 0x65, 0x74, 0x00, 0x04, 0x06, 0x77, 0x61, 0x69, 0x74, 0x36, 0x34,
+    0x00, 0x05, 0x0d, 0x77, 0x61, 0x69, 0x74, 0x36, 0x34, 0x2d, 0x6f, 0x66,
+    0x66, 0x73, 0x65, 0x74, 0x00, 0x06, 0x0a, 0x5b, 0x07, 0x0a, 0x00, 0x20,
+    0x00, 0x20, 0x01, 0xfe, 0x00, 0x02, 0x00, 0x0b, 0x0a, 0x00, 0x20, 0x00,
+    0x20, 0x01, 0xfe, 0x00, 0x02, 0x04, 0x0b, 0x0f, 0x00, 0x20, 0x00, 0x42,
+    0x81, 0x80, 0x80, 0x80, 0x20, 0xa7, 0xfe, 0x00, 0x02, 0x00, 0x0b, 0x0c,
+    0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x01, 0x02, 0x00, 0x0b,
+    0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x01, 0x02, 0x04,
+    0x0b, 0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x02, 0x03,
+    0x00, 0x0b, 0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x02,
+    0x03, 0x08, 0x0b,
+};
 
 using namespace std::literals;
+
+TEST(AtomicWaitNotify, Memory32) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Threads);
+  WasmEdge::VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(AtomicThreads32));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  {
+    auto Result = VM.execute(
+        "notify",
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(4), UINT32_C(1)},
+        {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+         WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(0));
+  }
+  {
+    auto Result = VM.execute("notify",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65532), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(0));
+  }
+  {
+    auto Result = VM.execute("notify",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65533), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
+  }
+  {
+    auto Result = VM.execute("notify",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65536), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result = VM.execute("wait32",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65532), UINT32_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(1));
+  }
+  {
+    auto Result = VM.execute("wait32",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(0), UINT32_C(0), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(2));
+  }
+  {
+    auto Result = VM.execute("wait32",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65533), UINT32_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
+  }
+  {
+    auto Result = VM.execute("wait32",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65536), UINT32_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result = VM.execute("wait64",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65528), UINT64_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(1));
+  }
+  {
+    auto Result = VM.execute("wait64",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65532), UINT64_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
+  }
+  {
+    auto Result = VM.execute("wait64",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65536), UINT64_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+}
+
+TEST(AtomicWaitNotify, Memory64) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Threads);
+  Conf.addProposal(WasmEdge::Proposal::Memory64);
+  WasmEdge::VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(AtomicThreads64));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  {
+    auto Result = VM.execute(
+        "notify",
+        std::initializer_list<WasmEdge::ValVariant>{UINT64_C(4), UINT32_C(1)},
+        {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+         WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(0));
+  }
+  {
+    auto Result = VM.execute("notify",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65532), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(0));
+  }
+  {
+    auto Result = VM.execute("notify",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65533), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
+  }
+  {
+    auto Result = VM.execute("notify",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65536), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result = VM.execute("notify-offset",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65528), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(0));
+  }
+  {
+    auto Result = VM.execute("notify-offset",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65532), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result = VM.execute("notify-offset",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(0xFFFFFFFFFFFFFFFC), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result = VM.execute("wait32",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65532), UINT32_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(1));
+  }
+  {
+    auto Result = VM.execute("wait32",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(0), UINT32_C(0), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(2));
+  }
+  {
+    auto Result = VM.execute("wait32",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65533), UINT32_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
+  }
+  {
+    auto Result = VM.execute("wait32",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65536), UINT32_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result = VM.execute("wait32-offset",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65528), UINT32_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(1));
+  }
+  {
+    auto Result = VM.execute("wait32-offset",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65532), UINT32_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result =
+        VM.execute("wait32-offset",
+                   std::initializer_list<WasmEdge::ValVariant>{
+                       UINT64_C(0xFFFFFFFFFFFFFFFC), UINT32_C(1), UINT64_C(0)},
+                   {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                    WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                    WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result = VM.execute("wait64",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65528), UINT64_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(1));
+  }
+  {
+    auto Result = VM.execute("wait64",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65532), UINT64_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
+  }
+  {
+    auto Result = VM.execute("wait64",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65536), UINT64_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result = VM.execute("wait64-offset",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65520), UINT64_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(1));
+  }
+  {
+    auto Result = VM.execute("wait64-offset",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65528), UINT64_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result =
+        VM.execute("wait64-offset",
+                   std::initializer_list<WasmEdge::ValVariant>{
+                       UINT64_C(0xFFFFFFFFFFFFFFF8), UINT64_C(1), UINT64_C(0)},
+                   {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                    WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                    WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  auto *MemInst = VM.getActiveModule()->findMemoryExports("memory");
+  ASSERT_NE(MemInst, nullptr);
+  {
+    std::unique_lock<std::mutex> Locker(MemInst->getWaiterMapMutex());
+    auto &WaiterMap = MemInst->getWaiterMap();
+    WaiterMap.emplace(std::piecewise_construct,
+                      std::forward_as_tuple(UINT64_C(8)),
+                      std::forward_as_tuple());
+    WaiterMap.emplace(std::piecewise_construct,
+                      std::forward_as_tuple(UINT64_C(8)),
+                      std::forward_as_tuple());
+  }
+  {
+    auto Result =
+        VM.execute("notify-wrapped-count",
+                   std::initializer_list<WasmEdge::ValVariant>{UINT64_C(8)},
+                   {WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(1));
+  }
+}
 
 TEST(AsyncExecute, ThreadTest) {
   WasmEdge::Configure Conf;
@@ -229,6 +621,410 @@ TEST(AsyncExecute, GasThreadTest) {
 }
 
 #ifdef WASMEDGE_USE_LLVM
+
+TEST(AtomicWaitNotifyJIT, Memory32) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Threads);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::JIT);
+  WasmEdge::VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(AtomicThreads32));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  {
+    const auto *FuncInst = VM.getActiveModule()->findFuncExports("notify");
+    ASSERT_NE(FuncInst, nullptr);
+    EXPECT_TRUE(FuncInst->isCompiledFunction());
+  }
+  {
+    const auto *FuncInst = VM.getActiveModule()->findFuncExports("wait32");
+    ASSERT_NE(FuncInst, nullptr);
+    EXPECT_TRUE(FuncInst->isCompiledFunction());
+  }
+  {
+    const auto *FuncInst = VM.getActiveModule()->findFuncExports("wait64");
+    ASSERT_NE(FuncInst, nullptr);
+    EXPECT_TRUE(FuncInst->isCompiledFunction());
+  }
+  {
+    auto Result = VM.execute(
+        "notify",
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(4), UINT32_C(1)},
+        {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+         WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(0));
+  }
+  {
+    auto Result = VM.execute("notify",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65532), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(0));
+  }
+  {
+    auto Result = VM.execute("notify",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65533), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
+  }
+  {
+    auto Result = VM.execute("notify",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65536), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result = VM.execute("wait32",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65532), UINT32_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(1));
+  }
+  {
+    auto Result = VM.execute("wait32",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(0), UINT32_C(0), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(2));
+  }
+  {
+    auto Result = VM.execute("wait32",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65533), UINT32_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
+  }
+  {
+    auto Result = VM.execute("wait32",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65536), UINT32_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result = VM.execute("wait64",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65528), UINT64_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(1));
+  }
+  {
+    auto Result = VM.execute("wait64",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65532), UINT64_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
+  }
+  {
+    auto Result = VM.execute("wait64",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(65536), UINT64_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+}
+
+TEST(AtomicWaitNotifyJIT, Memory64) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Threads);
+  Conf.addProposal(WasmEdge::Proposal::Memory64);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::JIT);
+  WasmEdge::VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(AtomicThreads64));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  {
+    const auto *FuncInst = VM.getActiveModule()->findFuncExports("notify");
+    ASSERT_NE(FuncInst, nullptr);
+    EXPECT_TRUE(FuncInst->isCompiledFunction());
+  }
+  {
+    const auto *FuncInst =
+        VM.getActiveModule()->findFuncExports("notify-offset");
+    ASSERT_NE(FuncInst, nullptr);
+    EXPECT_TRUE(FuncInst->isCompiledFunction());
+  }
+  {
+    const auto *FuncInst = VM.getActiveModule()->findFuncExports("wait32");
+    ASSERT_NE(FuncInst, nullptr);
+    EXPECT_TRUE(FuncInst->isCompiledFunction());
+  }
+  {
+    const auto *FuncInst =
+        VM.getActiveModule()->findFuncExports("wait32-offset");
+    ASSERT_NE(FuncInst, nullptr);
+    EXPECT_TRUE(FuncInst->isCompiledFunction());
+  }
+  {
+    const auto *FuncInst = VM.getActiveModule()->findFuncExports("wait64");
+    ASSERT_NE(FuncInst, nullptr);
+    EXPECT_TRUE(FuncInst->isCompiledFunction());
+  }
+  {
+    const auto *FuncInst =
+        VM.getActiveModule()->findFuncExports("wait64-offset");
+    ASSERT_NE(FuncInst, nullptr);
+    EXPECT_TRUE(FuncInst->isCompiledFunction());
+  }
+  {
+    auto Result = VM.execute(
+        "notify",
+        std::initializer_list<WasmEdge::ValVariant>{UINT64_C(4), UINT32_C(1)},
+        {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+         WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(0));
+  }
+  {
+    auto Result = VM.execute("notify",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65532), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(0));
+  }
+  {
+    auto Result = VM.execute("notify",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65533), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
+  }
+  {
+    auto Result = VM.execute("notify",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65536), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result = VM.execute("notify-offset",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65528), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(0));
+  }
+  {
+    auto Result = VM.execute("notify-offset",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65532), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result = VM.execute("notify-offset",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(0xFFFFFFFFFFFFFFFC), UINT32_C(1)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result = VM.execute("wait32",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65532), UINT32_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(1));
+  }
+  {
+    auto Result = VM.execute("wait32",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(0), UINT32_C(0), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(2));
+  }
+  {
+    auto Result = VM.execute("wait32",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65533), UINT32_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
+  }
+  {
+    auto Result = VM.execute("wait32",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65536), UINT32_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result = VM.execute("wait32-offset",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65528), UINT32_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(1));
+  }
+  {
+    auto Result = VM.execute("wait32-offset",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65532), UINT32_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result =
+        VM.execute("wait32-offset",
+                   std::initializer_list<WasmEdge::ValVariant>{
+                       UINT64_C(0xFFFFFFFFFFFFFFFC), UINT32_C(1), UINT64_C(0)},
+                   {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                    WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                    WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result = VM.execute("wait64",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65528), UINT64_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(1));
+  }
+  {
+    auto Result = VM.execute("wait64",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65532), UINT64_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
+  }
+  {
+    auto Result = VM.execute("wait64",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65536), UINT64_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result = VM.execute("wait64-offset",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65520), UINT64_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(1));
+  }
+  {
+    auto Result = VM.execute("wait64-offset",
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT64_C(65528), UINT64_C(1), UINT64_C(0)},
+                             {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                              WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  {
+    auto Result =
+        VM.execute("wait64-offset",
+                   std::initializer_list<WasmEdge::ValVariant>{
+                       UINT64_C(0xFFFFFFFFFFFFFFF8), UINT64_C(1), UINT64_C(0)},
+                   {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                    WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                    WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::MemoryOutOfBounds);
+  }
+  auto *MemInst = VM.getActiveModule()->findMemoryExports("memory");
+  ASSERT_NE(MemInst, nullptr);
+  {
+    std::unique_lock<std::mutex> Locker(MemInst->getWaiterMapMutex());
+    auto &WaiterMap = MemInst->getWaiterMap();
+    WaiterMap.emplace(std::piecewise_construct,
+                      std::forward_as_tuple(UINT64_C(8)),
+                      std::forward_as_tuple());
+    WaiterMap.emplace(std::piecewise_construct,
+                      std::forward_as_tuple(UINT64_C(8)),
+                      std::forward_as_tuple());
+  }
+  {
+    auto Result =
+        VM.execute("notify-wrapped-count",
+                   std::initializer_list<WasmEdge::ValVariant>{UINT64_C(8)},
+                   {WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result)[0].second.getCode(), WasmEdge::TypeCode::I32);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(1));
+  }
+}
 
 TEST(AOTAsyncExecute, ThreadTest) {
   WasmEdge::Configure Conf;

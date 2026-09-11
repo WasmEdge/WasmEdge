@@ -120,8 +120,11 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
       return WASINN::ErrNo::InvalidArgument;
     }
 
-    ov::CompiledModel CompiledModel =
-        Env.OpenVINOCore.compile_model(GraphRef.OpenVINOModel, Device);
+    // Without an explicit hint OpenVINO infers in bf16 or f16 on CPUs that
+    // support them, so the same F32 model would produce host-dependent output.
+    ov::CompiledModel CompiledModel = Env.OpenVINOCore.compile_model(
+        GraphRef.OpenVINOModel, Device,
+        ov::hint::inference_precision(ov::element::f32));
     CxtRef.OpenVINOInferRequest = CompiledModel.create_infer_request();
     CxtRef.OpenVINOInferRequest.set_input_tensor(Index, InputTensor);
   } catch (const std::exception &EX) {

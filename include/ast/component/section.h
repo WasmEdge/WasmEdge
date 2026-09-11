@@ -75,6 +75,12 @@ class Component;
 /// AST Component::ComponentSection node.
 class ComponentSection : public Section {
 public:
+  ComponentSection() = default;
+  ComponentSection(const ComponentSection &Other);
+  ComponentSection(ComponentSection &&) = default;
+  ComponentSection &operator=(const ComponentSection &Other);
+  ComponentSection &operator=(ComponentSection &&) = default;
+
   /// Getter for content.
   const Component &getContent() const noexcept { return *Content; }
   std::unique_ptr<Component> &getContent() noexcept { return Content; }

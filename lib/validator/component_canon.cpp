@@ -18,8 +18,7 @@ namespace Validator {
 
 using namespace std::literals;
 
-// canon ::= lift | lower | resource.* | async built-in. One switch covers
-// every opcode; checks shared between opcodes are lambdas over this scope.
+// canon ::= lift | lower | resource.* | async built-in, one switch per opcode.
 Expect<void>
 Validator::validate(const AST::Component::Canonical &Canon) noexcept {
   auto &S = CompCtx.top();
@@ -29,16 +28,18 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
   // Defines the core function a canonical definition lowers to.
   auto PushCoreFunc = [&](std::vector<ValType> Params,
                           std::vector<ValType> Results) -> Expect<void> {
-    S.CoreFuncs.push_back(CompTypes.makeCoreFuncType(Params, Results));
+    S.addCoreFunc(CompTypes.addCoreFuncType(Params, Results));
     return {};
   };
-
-  auto HasOpt = [&Canon](ComponentCanonOptCode Code) noexcept {
-    return Component::Context::hasOption(Canon, Code);
+  // A built-in takes its core type from the shared table, keyed on Addr.
+  auto PushBuiltin = [&](const ValType &Addr) -> Expect<void> {
+    auto [Params, Results] = AST::Component::Canonical::getBuiltinCoreFuncType(
+        Canon.getOpCode(), Addr);
+    return PushCoreFunc(std::move(Params), std::move(Results));
   };
 
   // The resource built-ins take no options and name a resource type.
-  auto ResourceEntryAt =
+  auto GetResourceEntry =
       [&](std::string_view What) -> Expect<const Component::TypeEntry *> {
     if (!Canon.getOptions().empty()) {
       spdlog::error(ErrCode::Value::CanonOptionOnBuiltin);
@@ -52,7 +53,7 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
                     Canon.getIndex());
       return Unexpect(ErrCode::Value::ComponentTypeIndexOutOfBounds);
     }
-    if (!Entry->ResourceId.has_value()) {
+    if (!Entry->isResource()) {
       spdlog::error(ErrCode::Value::ComponentNotResourceType);
       spdlog::error("    {} type index {} is not a resource."sv, What,
                     Canon.getIndex());
@@ -61,10 +62,9 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     return Entry;
   };
 
-  // resource.new / resource.rep additionally need the resource to be defined
-  // here, and derive their core signature from its representation.
+  // resource.new / resource.rep need a locally-defined resource and its rep.
   auto LocalResourceRep = [&](std::string_view What) -> Expect<ValType> {
-    EXPECTED_TRY(const auto *Entry, ResourceEntryAt(What));
+    EXPECTED_TRY(const auto *Entry, GetResourceEntry(What));
     const auto &Res = CompTypes.getResource(*Entry->ResourceId);
     if (Res.RT == nullptr || Res.Origin != &S) {
       spdlog::error(ErrCode::Value::ComponentNotLocalResource);
@@ -78,10 +78,9 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
   auto CheckTypeImmediate =
       [&](bool WantStream) -> Expect<const Component::TypeEntry *> {
     const auto *Entry = S.getType(Canon.getIndex());
-    const bool Ok = Entry != nullptr && Entry->DT != nullptr &&
-                    Entry->DT->isDefValType() &&
-                    (WantStream ? Entry->DT->getDefValType().isStreamTy()
-                                : Entry->DT->getDefValType().isFutureTy());
+    const auto *Def = Entry != nullptr ? Entry->getDefValType() : nullptr;
+    const bool Ok =
+        Def != nullptr && (WantStream ? Def->isStreamTy() : Def->isFutureTy());
     if (!Ok) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error("    Built-in type index {} does not refer to a {} "
@@ -92,29 +91,16 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     return Entry;
   };
 
-  // The option-bearing built-ins are all lowerings, so post-return and
-  // callback are rejected; memory and realloc are required only where the
-  // Explainer's built-in table demands them.
+  // Option-bearing built-ins are lowerings: no post-return or callback.
   auto BuiltinOptions = [&](bool NeedMemory, bool NeedRealloc) -> Expect<void> {
     EXPECTED_TRY(CompCtx.checkOptions(Canon, false));
-    if (NeedMemory && !HasOpt(ComponentCanonOptCode::Memory)) {
-      spdlog::error(ErrCode::Value::CanonMemoryRequired);
-      spdlog::error("    this canonical built-in requires the memory "
-                    "option."sv);
-      return Unexpect(ErrCode::Value::CanonMemoryRequired);
-    }
-    if (NeedRealloc && !HasOpt(ComponentCanonOptCode::Realloc)) {
-      spdlog::error(ErrCode::Value::CanonReallocRequired);
-      spdlog::error("    this canonical built-in requires the realloc "
-                    "option."sv);
-      return Unexpect(ErrCode::Value::CanonReallocRequired);
-    }
-    return {};
+    return CompCtx.requireOptions(Canon, NeedMemory, NeedRealloc,
+                                  "this canonical built-in"sv);
   };
 
   // Built-ins the spec restricts to synchronous use.
   auto RequireSync = [&]() -> Expect<void> {
-    if (HasOpt(ComponentCanonOptCode::Async)) {
+    if (Canon.hasOption(ComponentCanonOptCode::Async)) {
       spdlog::error(ErrCode::Value::CanonAsyncOnBuiltin);
       spdlog::error("    this canonical built-in is always synchronous."sv);
       return Unexpect(ErrCode::Value::CanonAsyncOnBuiltin);
@@ -133,34 +119,34 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
                     Canon.getTargetIndex());
       return Unexpect(ErrCode::Value::ComponentTypeIndexOutOfBounds);
     }
-    if (Entry->DT == nullptr || !Entry->DT->isFuncType()) {
+    if (Entry->getFuncType() == nullptr) {
       spdlog::error(ErrCode::Value::ComponentNotFunctionType);
       spdlog::error("    canon lift type index {} is not a function type."sv,
                     Canon.getTargetIndex());
       return Unexpect(ErrCode::Value::ComponentNotFunctionType);
     }
-    const Component::FuncInfo FI{&Entry->DT->getFuncType(), Entry->Home,
+    const Component::FuncInfo FI{Entry->getFuncType(), Entry->Home,
                                  Entry->Remap};
     EXPECTED_TRY(CompCtx.checkOptions(Canon, true));
-    const bool AsyncOpt = HasOpt(ComponentCanonOptCode::Async);
+    const bool AsyncOpt = Canon.hasOption(ComponentCanonOptCode::Async);
     if (AsyncOpt && !FI.FT->isAsync()) {
       spdlog::error(ErrCode::Value::CanonAsyncRequiresAsyncType);
       spdlog::error("    canon lift with `async` needs `(func async ...)`."sv);
       return Unexpect(ErrCode::Value::CanonAsyncRequiresAsyncType);
     }
-    if (HasOpt(ComponentCanonOptCode::Callback) && !AsyncOpt) {
+    if (Canon.hasOption(ComponentCanonOptCode::Callback) && !AsyncOpt) {
       spdlog::error(ErrCode::Value::CanonCallbackRequiresAsync);
       spdlog::error("    the `callback` option requires the `async` option."sv);
       return Unexpect(ErrCode::Value::CanonCallbackRequiresAsync);
     }
-    if (AsyncOpt && HasOpt(ComponentCanonOptCode::PostReturn)) {
+    if (AsyncOpt && Canon.hasOption(ComponentCanonOptCode::PostReturn)) {
       spdlog::error(ErrCode::Value::CanonPostReturnWithAsync);
       spdlog::error("    cannot specify post-return function in combination "
                     "with async."sv);
       return Unexpect(ErrCode::Value::CanonPostReturnWithAsync);
     }
 
-    const ValType Ptr = CompCtx.canonPtrType(Canon);
+    const ValType Ptr = CompCtx.getCanonPtrType(Canon);
     EXPECTED_TRY(auto Sig, CompTypes.flattenFuncType(FI, Ptr, ParamsNeedMemory,
                                                      ResultsNeedMemory));
     const bool ParamsIndirect =
@@ -171,29 +157,20 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
       Sig.getParamTypes().assign(1, Ptr);
     }
     if (AsyncOpt) {
-      // Async lift. The core function returns the packed callback code, or
-      // nothing when stackful. The results flow through task.return.
+      // Async lift returns the packed callback code, or nothing when stackful.
       Sig.getReturnTypes().clear();
-      if (HasOpt(ComponentCanonOptCode::Callback)) {
+      if (Canon.hasOption(ComponentCanonOptCode::Callback)) {
         Sig.getReturnTypes().push_back(I32V);
       }
     } else if (ResultsIndirect) {
       Sig.getReturnTypes().assign(1, Ptr);
     }
     // Required options: lifting params lowers them into the callee's memory.
-    if ((ParamsNeedMemory || ParamsIndirect ||
-         (!AsyncOpt && (ResultsNeedMemory || ResultsIndirect))) &&
-        !HasOpt(ComponentCanonOptCode::Memory)) {
-      spdlog::error(ErrCode::Value::CanonMemoryRequired);
-      spdlog::error("    canon lift requires the memory option."sv);
-      return Unexpect(ErrCode::Value::CanonMemoryRequired);
-    }
-    if ((ParamsNeedMemory || ParamsIndirect) &&
-        !HasOpt(ComponentCanonOptCode::Realloc)) {
-      spdlog::error(ErrCode::Value::CanonReallocRequired);
-      spdlog::error("    canon lift requires the realloc option."sv);
-      return Unexpect(ErrCode::Value::CanonReallocRequired);
-    }
+    EXPECTED_TRY(CompCtx.requireOptions(
+        Canon,
+        ParamsNeedMemory || ParamsIndirect ||
+            (!AsyncOpt && (ResultsNeedMemory || ResultsIndirect)),
+        ParamsNeedMemory || ParamsIndirect, "canon lift"sv));
 
     // The callee must have exactly the flattened core type.
     const auto *Callee = S.getCoreFunc(Canon.getIndex());
@@ -242,7 +219,7 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
       }
     }
 
-    S.Funcs.push_back(FI);
+    S.addFunc(FI);
     return {};
   }
 
@@ -255,7 +232,7 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
       return Unexpect(ErrCode::Value::ComponentFunctionIndexOutOfBounds);
     }
     EXPECTED_TRY(CompCtx.checkOptions(Canon, false));
-    const bool AsyncOpt = HasOpt(ComponentCanonOptCode::Async);
+    const bool AsyncOpt = Canon.hasOption(ComponentCanonOptCode::Async);
     if (FI->FT == nullptr) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       return Unexpect(ErrCode::Value::InvalidTypeReference);
@@ -266,7 +243,7 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
       return Unexpect(ErrCode::Value::CanonAsyncRequiresAsyncType);
     }
 
-    const ValType Ptr = CompCtx.canonPtrType(Canon);
+    const ValType Ptr = CompCtx.getCanonPtrType(Canon);
     EXPECTED_TRY(auto Sig, CompTypes.flattenFuncType(*FI, Ptr, ParamsNeedMemory,
                                                      ResultsNeedMemory));
     const bool ParamsIndirect =
@@ -289,18 +266,10 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
       // Async lower: the core function returns the packed subtask state.
       Sig.getReturnTypes().assign(1, I32V);
     }
-    if ((ParamsNeedMemory || ResultsNeedMemory || ParamsIndirect ||
-         ResultsIndirect) &&
-        !HasOpt(ComponentCanonOptCode::Memory)) {
-      spdlog::error(ErrCode::Value::CanonMemoryRequired);
-      spdlog::error("    canon lower requires the memory option."sv);
-      return Unexpect(ErrCode::Value::CanonMemoryRequired);
-    }
-    if (ResultsNeedMemory && !HasOpt(ComponentCanonOptCode::Realloc)) {
-      spdlog::error(ErrCode::Value::CanonReallocRequired);
-      spdlog::error("    canon lower requires the realloc option."sv);
-      return Unexpect(ErrCode::Value::CanonReallocRequired);
-    }
+    EXPECTED_TRY(CompCtx.requireOptions(Canon,
+                                        ParamsNeedMemory || ResultsNeedMemory ||
+                                            ParamsIndirect || ResultsIndirect,
+                                        ResultsNeedMemory, "canon lower"sv));
     return PushCoreFunc(Sig.getParamTypes(), Sig.getReturnTypes());
   }
 
@@ -313,27 +282,25 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     return PushCoreFunc({I32V}, {Rep});
   }
   case ComponentCanonOpCode::Resource__drop:
-    EXPECTED_TRY(ResourceEntryAt("resource.drop"sv));
+    EXPECTED_TRY(GetResourceEntry("resource.drop"sv));
     return PushCoreFunc({I32V}, {});
 
-  // Async built-ins: type immediates and the core signatures derived from the
-  // Explainer's canonical built-in tables.
+  // Async built-ins take their core signatures from the shared table.
   case ComponentCanonOpCode::Backpressure__inc:
   case ComponentCanonOpCode::Backpressure__dec:
-    return PushCoreFunc({}, {});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Thread__index:
-    return PushCoreFunc({}, {I32V});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Task__return: {
-    // The declared results lower as the core parameters. The caller owns the
-    // storage they are read from, so task.return never reallocates.
+    // The results lower as the core parameters; task.return never reallocates.
     EXPECTED_TRY(CompCtx.checkOptions(Canon, false));
-    if (HasOpt(ComponentCanonOptCode::Realloc)) {
+    if (Canon.hasOption(ComponentCanonOptCode::Realloc)) {
       spdlog::error(ErrCode::Value::CanonReallocOnBuiltin);
       spdlog::error("    realloc cannot be specified for task.return."sv);
       return Unexpect(ErrCode::Value::CanonReallocOnBuiltin);
     }
     EXPECTED_TRY(RequireSync());
-    const ValType Ptr = CompCtx.canonPtrType(Canon);
+    const ValType Ptr = CompCtx.getCanonPtrType(Canon);
     std::vector<ValType> Params;
     for (const auto &R : Canon.getResultList()) {
       const Component::QualValType Q{R.getValType(), &S, nullptr};
@@ -347,21 +314,17 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
       Params.assign(1, Ptr);
       ParamsNeedMemory = true;
     }
-    if (ParamsNeedMemory && !HasOpt(ComponentCanonOptCode::Memory)) {
-      spdlog::error(ErrCode::Value::CanonMemoryRequired);
-      spdlog::error("    task.return requires the memory option."sv);
-      return Unexpect(ErrCode::Value::CanonMemoryRequired);
-    }
+    EXPECTED_TRY(CompCtx.requireOptions(Canon, ParamsNeedMemory, false,
+                                        "task.return"sv));
     return PushCoreFunc(std::move(Params), {});
   }
   case ComponentCanonOpCode::Task__cancel:
-    return PushCoreFunc({}, {});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Context__get:
   case ComponentCanonOpCode::Context__set: {
     const bool IsGet = Canon.getOpCode() == ComponentCanonOpCode::Context__get;
     const std::string_view Name = IsGet ? "context.get"sv : "context.set"sv;
-    // The spec restricts the thread-local slot to be less than 2. The loader
-    // stores the slot immediate as the constant value, not as an index.
+    // The slot immediate is stored as the constant value, not as an index.
     if (Canon.getConstVal() >= Component::TypeSystem::MaxContextSlots) {
       spdlog::error(ErrCode::Value::ComponentContextSlotOutOfBounds);
       spdlog::error(
@@ -396,69 +359,69 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     return PushCoreFunc({Ty}, {});
   }
   case ComponentCanonOpCode::Yield:
-    return PushCoreFunc({}, {I32V});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Subtask__cancel:
-    return PushCoreFunc({I32V}, {I32V});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Subtask__drop:
-    return PushCoreFunc({I32V}, {});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Stream__new:
     EXPECTED_TRY(CheckTypeImmediate(true));
-    return PushCoreFunc({}, {I64V});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Stream__read:
   case ComponentCanonOpCode::Stream__write: {
     EXPECTED_TRY(const auto *Entry, CheckTypeImmediate(true));
-    const auto &Elem = Entry->DT->getDefValType().getStream().ValTy;
+    const auto &Elem = Entry->getDefValType()->getStream().ValTy;
     // Reading a payload that allocates needs realloc; writing never does.
     const bool NeedRealloc =
         Canon.getOpCode() == ComponentCanonOpCode::Stream__read &&
         Elem.has_value() &&
         CompTypes.needsMemory({*Elem, Entry->Home, Entry->Remap});
     EXPECTED_TRY(BuiltinOptions(Elem.has_value(), NeedRealloc));
-    return PushCoreFunc({I32V, I32V, I32V}, {I32V});
+    return PushBuiltin(CompCtx.getCanonPtrType(Canon));
   }
   case ComponentCanonOpCode::Stream__cancel_read:
   case ComponentCanonOpCode::Stream__cancel_write:
     EXPECTED_TRY(CheckTypeImmediate(true));
-    return PushCoreFunc({I32V}, {I32V});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Stream__drop_readable:
   case ComponentCanonOpCode::Stream__drop_writable:
     EXPECTED_TRY(CheckTypeImmediate(true));
-    return PushCoreFunc({I32V}, {});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Future__new:
     EXPECTED_TRY(CheckTypeImmediate(false));
-    return PushCoreFunc({}, {I64V});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Future__read:
   case ComponentCanonOpCode::Future__write: {
     EXPECTED_TRY(const auto *Entry, CheckTypeImmediate(false));
-    const auto &Elem = Entry->DT->getDefValType().getFuture().ValTy;
+    const auto &Elem = Entry->getDefValType()->getFuture().ValTy;
     // Reading a payload that allocates needs realloc; writing never does.
     const bool NeedRealloc =
         Canon.getOpCode() == ComponentCanonOpCode::Future__read &&
         Elem.has_value() &&
         CompTypes.needsMemory({*Elem, Entry->Home, Entry->Remap});
     EXPECTED_TRY(BuiltinOptions(Elem.has_value(), NeedRealloc));
-    return PushCoreFunc({I32V, I32V}, {I32V});
+    return PushBuiltin(CompCtx.getCanonPtrType(Canon));
   }
   case ComponentCanonOpCode::Future__cancel_read:
   case ComponentCanonOpCode::Future__cancel_write:
     EXPECTED_TRY(CheckTypeImmediate(false));
-    return PushCoreFunc({I32V}, {I32V});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Future__drop_readable:
   case ComponentCanonOpCode::Future__drop_writable:
     EXPECTED_TRY(CheckTypeImmediate(false));
-    return PushCoreFunc({I32V}, {});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Error_context__new:
     EXPECTED_TRY(BuiltinOptions(true, false));
     EXPECTED_TRY(RequireSync());
-    return PushCoreFunc({I32V, I32V}, {I32V});
+    return PushBuiltin(CompCtx.getCanonPtrType(Canon));
   case ComponentCanonOpCode::Error_context__debug_message:
     EXPECTED_TRY(BuiltinOptions(true, true));
     EXPECTED_TRY(RequireSync());
-    return PushCoreFunc({I32V, I32V}, {});
+    return PushBuiltin(CompCtx.getCanonPtrType(Canon));
   case ComponentCanonOpCode::Error_context__drop:
-    return PushCoreFunc({I32V}, {});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Waitable_set__new:
-    return PushCoreFunc({}, {I32V});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Waitable_set__wait:
   case ComponentCanonOpCode::Waitable_set__poll: {
     if (Canon.getIndex() >= S.CoreMemories.size()) {
@@ -472,15 +435,14 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     const ValType Addr =
         ValType(Mem != nullptr && Mem->getLimit().is64() ? TypeCode::I64
                                                          : TypeCode::I32);
-    return PushCoreFunc({I32V, Addr}, {I32V});
+    return PushBuiltin(Addr);
   }
   case ComponentCanonOpCode::Waitable_set__drop:
-    return PushCoreFunc({I32V}, {});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Waitable__join:
-    return PushCoreFunc({I32V, I32V}, {});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Thread__new_indirect: {
-    // The type immediate must be a core (func (param i32)) shape and the
-    // target a core table.
+    // The start type must be (func (param i32)) and the target a core table.
     const auto *CT = S.getCoreType(Canon.getIndex());
     const bool TypeOk =
         CT != nullptr && CT->Func != nullptr &&
@@ -500,17 +462,21 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
                     Canon.getTargetIndex());
       return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
     }
-    return PushCoreFunc({I32V, I32V}, {I32V});
+    // The thread index carries the address type of the table.
+    const auto *Tab = S.CoreTables[Canon.getTargetIndex()];
+    return PushBuiltin(ValType(Tab != nullptr && Tab->getLimit().is64()
+                                   ? TypeCode::I64
+                                   : TypeCode::I32));
   }
   case ComponentCanonOpCode::Thread__resume_later:
-    return PushCoreFunc({I32V}, {});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Thread__suspend:
-    return PushCoreFunc({}, {I32V});
+    return PushBuiltin(I32V);
   case ComponentCanonOpCode::Thread__suspend_then_resume:
   case ComponentCanonOpCode::Thread__yield_then_resume:
   case ComponentCanonOpCode::Thread__suspend_then_promote:
   case ComponentCanonOpCode::Thread__yield_then_promote:
-    return PushCoreFunc({I32V}, {I32V});
+    return PushBuiltin(I32V);
   default:
     spdlog::error(ErrCode::Value::ComponentNotImplValidator);
     spdlog::error("    canonical built-in {} is not supported yet."sv,

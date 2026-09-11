@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/component_valtype.h"
 #include "common/enum_ast.hpp"
 #include "common/enum_configure.hpp"
 #include "common/enum_errcode.hpp"
@@ -117,6 +118,17 @@ struct InfoLinking {
   ExternalType ExtType;
 };
 
+struct InfoComponentLinking {
+  InfoComponentLinking() = delete;
+  InfoComponentLinking(std::string_view Sort, std::string_view Ext,
+                       std::string_view Provider = {}) noexcept
+      : SortName(Sort), ExtName(Ext), ProviderName(Provider) {}
+
+  std::string SortName;
+  std::string ExtName;
+  std::string ProviderName;
+};
+
 struct InfoExecuting {
   InfoExecuting() = delete;
   InfoExecuting(std::string_view Mod, std::string_view Func) noexcept
@@ -204,6 +216,12 @@ struct InfoMismatch {
       : Category(MismatchCategory::Version), ExpVersion(ExpV),
         GotVersion(GotV) {}
 
+  /// Case 11: unexpected component value type list
+  InfoMismatch(const std::vector<ComponentValType> &ExpV,
+               const std::vector<ComponentValType> &GotV) noexcept
+      : Category(MismatchCategory::CompFunctionType), ExpCompTypes(ExpV),
+        GotCompTypes(GotV) {}
+
   /// Mismatched category
   MismatchCategory Category;
 
@@ -233,6 +251,9 @@ struct InfoMismatch {
 
   /// Case 10: unexpected version
   uint32_t ExpVersion, GotVersion;
+
+  /// Case 11: unexpected component value type list
+  std::vector<ComponentValType> ExpCompTypes, GotCompTypes;
 };
 
 struct InfoInstruction {
@@ -414,6 +435,24 @@ struct fmt::formatter<WasmEdge::ErrInfo::InfoLinking>
   }
 };
 template <>
+struct fmt::formatter<WasmEdge::ErrInfo::InfoComponentLinking>
+    : fmt::formatter<std::string_view> {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::ErrInfo::InfoComponentLinking &Info,
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
+    using namespace std::literals;
+    fmt::memory_buffer Buffer;
+    auto Iter = fmt::format_to(std::back_inserter(Buffer),
+                               "    When linking component: {} name: \"{}\""sv,
+                               Info.SortName, Info.ExtName);
+    if (!Info.ProviderName.empty()) {
+      fmt::format_to(Iter, " , from instance: \"{}\""sv, Info.ProviderName);
+    }
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoExecuting>
     : fmt::formatter<std::string_view> {
   template <typename FmtCtx>
@@ -518,6 +557,11 @@ struct fmt::formatter<WasmEdge::ErrInfo::InfoMismatch>
     case WasmEdge::ErrInfo::MismatchCategory::Version:
       fmt::format_to(Iter, "Expected: {} , Got: {}"sv, Info.ExpVersion,
                      Info.GotVersion);
+      break;
+    case WasmEdge::ErrInfo::MismatchCategory::CompFunctionType:
+      fmt::format_to(Iter, "Expected: types{{{}}} , Got: types{{{}}}"sv,
+                     fmt::join(Info.ExpCompTypes, " , "sv),
+                     fmt::join(Info.GotCompTypes, " , "sv));
       break;
     default:
       break;

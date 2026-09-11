@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "executor/component/executor.h"
+#include "executor/executor.h"
+
+namespace WasmEdge {
+namespace Executor {
+
+// Instantiate core type section. See executor.h.
+Expect<void> ComponentExecutor::instantiate(
+    Component::Instantiator &Ctx,
+    const AST::Component::CoreTypeSection &CoreTypeSec) {
+  for (auto &Ty : CoreTypeSec.getContent()) {
+    Ctx.getInstance().addCoreType(Ty);
+  }
+  return {};
+}
+
+// Instantiate type section. See executor.h.
+Expect<void>
+ComponentExecutor::instantiate(Component::Instantiator &Ctx,
+                               const AST::Component::TypeSection &TypeSec) {
+  auto &CompInst = Ctx.getInstance();
+  for (auto &Ty : TypeSec.getContent()) {
+    if (Ty.isResourceType()) {
+      // A locally-defined resource mints its runtime identity here.
+      Runtime::Instance::FunctionInstance *Dtor = nullptr;
+      if (auto DtorIdx = Ty.getResourceType().getDestructor()) {
+        EXPECTED_TRY(Dtor, Ctx.getCoreFunction(*DtorIdx));
+      }
+      CompInst.addResourceType(Ty, Dtor);
+    } else {
+      CompInst.addType(Ty);
+    }
+  }
+  return {};
+}
+
+} // namespace Executor
+} // namespace WasmEdge

@@ -14,7 +14,6 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/component/component.h"
 #include "ast/module.h"
 #include "common/async.h"
 #include "common/configure.h"
@@ -23,7 +22,6 @@
 #include "common/statistics.h"
 #include "common/types.h"
 #include "runtime/callingframe.h"
-#include "runtime/instance/component/component.h"
 #include "runtime/instance/module.h"
 #include "runtime/stackmgr.h"
 #include "runtime/storemgr.h"
@@ -160,9 +158,21 @@ public:
   /// Getter for configuration.
   const Configure &getConfigure() const { return Conf; }
 
+  /// Resolve the imports of a core module by module name.
+  using CoreModuleFinder =
+      std::function<const Runtime::Instance::ModuleInstance *(
+          std::string_view)>;
+
   /// Instantiate a WASM Module as an anonymous module instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
   instantiateModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod);
+
+  /// Instantiate the sections of a core module into the given module instance.
+  /// Imports resolve through Finder. The caller owns the instance, so it stays
+  /// alive after a failed instantiation.
+  Expect<void> instantiateModule(const CoreModuleFinder &Finder,
+                                 Runtime::Instance::ModuleInstance &ModInst,
+                                 const AST::Module &Mod);
 
   /// Instantiate and register a WASM module as a named module instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
@@ -177,22 +187,6 @@ public:
   Expect<void> registerModule(Runtime::StoreManager &StoreMgr,
                               const Runtime::Instance::ModuleInstance &ModInst,
                               std::string_view Name);
-
-  /// Instantiate a Component as an anonymous component instance.
-  Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
-  instantiateComponent(Runtime::StoreManager &StoreMgr,
-                       const AST::Component::Component &Comp);
-
-  /// Instantiate and register a Component as a named component instance.
-  Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
-  registerComponent(Runtime::StoreManager &StoreMgr,
-                    const AST::Component::Component &Comp,
-                    std::string_view Name);
-
-  /// Register an instantiated component into a named component instance.
-  Expect<void>
-  registerComponent(Runtime::StoreManager &StoreMgr,
-                    const Runtime::Instance::ComponentInstance &CompInst);
 
   /// Register a host function which will be invoked before calling a
   /// host function.
@@ -215,12 +209,6 @@ public:
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   invoke(const Runtime::Instance::FunctionInstance *FuncInst,
          Span<const ValVariant> Params, Span<const ValType> ParamTypes);
-
-  /// Invoke a Component function by function instance.
-  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
-  invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
-         Span<const ComponentValVariant> Params,
-         Span<const ComponentValType> ParamTypes);
 
   /// Module-qualified stack trace of the most recent failed invocation on this
   /// thread. Valid right after an invocation returns an error, else stale.
@@ -262,11 +250,9 @@ private:
               std::optional<std::string_view> Name = std::nullopt);
 
   /// Instantiation of Imports.
-  Expect<void> instantiate(
-      std::function<const Runtime::Instance::ModuleInstance *(std::string_view)>
-          ModuleFinder,
-      Runtime::Instance::ModuleInstance &ModInst,
-      const AST::ImportSection &ImportSec);
+  Expect<void> instantiate(const CoreModuleFinder &ModuleFinder,
+                           Runtime::Instance::ModuleInstance &ModInst,
+                           const AST::ImportSection &ImportSec);
 
   /// Instantiation of Function Instances.
   Expect<void> instantiate(Runtime::Instance::ModuleInstance &ModInst,
@@ -312,94 +298,6 @@ private:
   /// Instantiation of Exports.
   Expect<void> instantiate(Runtime::Instance::ModuleInstance &ModInst,
                            const AST::ExportSection &ExportSec);
-  /// @}
-
-  /// \name Functions for instantiation of component model.
-  /// @{
-  /// Instantiation of Component Instance.
-  Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
-  instantiate(Runtime::StoreManager &StoreMgr,
-              const AST::Component::Component &Comp,
-              std::optional<std::string_view> Name = std::nullopt);
-
-  /// Instantiation of Child Component Instance.
-  Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
-  instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
-              const AST::Component::Component &Comp);
-
-  /// Instantiation of Child Core Module Instance.
-  Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
-  instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
-              const AST::Module &Mod);
-
-  /// Instantiation of Core Module Section.
-  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
-                           const AST::Component::CoreModuleSection &CoreModSec);
-
-  /// Instantiation of Core Instance Section.
-  Expect<void>
-  instantiate(Runtime::Instance::ComponentInstance &CompInst,
-              const AST::Component::CoreInstanceSection &CoreInstSec);
-
-  /// Instantiation of Core Type Section.
-  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
-                           const AST::Component::CoreTypeSection &CoreTypeSec);
-
-  /// Instantiation of Component Section.
-  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
-                           const AST::Component::ComponentSection &CompSec);
-
-  /// Instantiation of Instance Section.
-  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
-                           const AST::Component::InstanceSection &InstSec);
-
-  /// Instantiation of Alias Section.
-  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
-                           const AST::Component::AliasSection &AliasSec);
-
-  /// Instantiation of Type Section.
-  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
-                           const AST::Component::TypeSection &TypeSec);
-
-  /// Instantiation of Canonical Section.
-  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
-                           const AST::Component::CanonSection &CanonSec);
-
-  /// Instantiation of Start Section.
-  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
-                           const AST::Component::StartSection &StartSec);
-
-  /// Instantiation of Import Section.
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::Instance::ComponentInstance &CompInst,
-                           const AST::Component::ImportSection &ImportSec);
-
-  /// Instantiation of Import Section in the child component instance.
-  Expect<void> instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
-                           Runtime::Instance::ComponentInstance &CompInst,
-                           const AST::Component::ImportSection &ImportSec);
-
-  /// Instantiation of Export Section.
-  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
-                           const AST::Component::ExportSection &ExportSec);
-  /// @}
-
-  /// \name Helper Functions for canonical ABI
-  /// @{
-  Expect<std::vector<ValVariant>>
-  convValsToCoreWASM(Span<const ComponentValVariant> Vals,
-                     Span<const ComponentValType> ValTypes,
-                     Runtime::Instance::FunctionInstance *RFuncInst,
-                     Runtime::Instance::MemoryInstance *MemInst,
-                     const Runtime::Instance::ComponentInstance *CompInst,
-                     StringEncoding Enc = StringEncoding::UTF8);
-
-  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
-  convValsToComponent(Span<const std::pair<ValVariant, ValType>> CoreVals,
-                      Span<const ComponentValType> ValTypes,
-                      Runtime::Instance::MemoryInstance *MemInst,
-                      const Runtime::Instance::ComponentInstance *CompInst,
-                      StringEncoding Enc = StringEncoding::UTF8);
   /// @}
 
   /// \name Helper Functions for block controls.

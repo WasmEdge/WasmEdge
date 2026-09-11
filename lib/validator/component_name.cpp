@@ -15,13 +15,7 @@ namespace Component {
 
 using namespace std::literals;
 
-// label          ::= <first-fragment> ( '-' <fragment> )*
-// first-fragment ::= <first-word> | <first-acronym>
-// first-word     ::= [a-z] [0-9a-z]*
-// first-acronym  ::= [A-Z] [0-9A-Z]*
-// fragment       ::= <word> | <acronym>
-// word           ::= [0-9a-z]+
-// acronym        ::= [0-9A-Z]+
+// label ::= <first-fragment> ( '-' <fragment> )*, each a word or an acronym.
 bool ExternName::isKebabString(std::string_view Input) noexcept {
   bool IsFirstPart = true;
   bool Uppercase = false;
@@ -127,10 +121,7 @@ std::string_view ExternName::readLabelChars() noexcept {
   return Output;
 }
 
-// plainname ::= <label>
-//             | '[constructor]' <label>
-//             | '[method]' <label> '.' <label>
-//             | '[static]' <label> '.' <label>
+// plainname ::= <label> | '[constructor|method|static]' <label> ('.' <label>)?
 Expect<void> ExternName::parsePlainName() noexcept {
   if (tryRead("[constructor]"sv)) {
     if (!isKebabString(Rest)) {
@@ -145,9 +136,8 @@ Expect<void> ExternName::parsePlainName() noexcept {
     return {};
   }
 
-  // Once a '[method]' or '[static]' tag matched, the name must contain a
-  // '.' separating two kebab labels.
-  auto readResourceAndLabel = [this](std::string_view &Resource,
+  // A '[method]' or '[static]' name needs a '.' between two kebab labels.
+  auto ReadResourceAndLabel = [this](std::string_view &Resource,
                                      std::string_view &Label) -> Expect<void> {
     NoTagName = Rest;
     if (!readUntil('.', Resource)) {
@@ -173,7 +163,7 @@ Expect<void> ExternName::parsePlainName() noexcept {
 
   if (tryRead("[method]"sv)) {
     std::string_view Resource, Label;
-    EXPECTED_TRY(readResourceAndLabel(Resource, Label));
+    EXPECTED_TRY(ReadResourceAndLabel(Resource, Label));
     NameDetail.Resource = Resource;
     NameDetail.Method = Label;
     NameKind = Kind::Method;
@@ -182,7 +172,7 @@ Expect<void> ExternName::parsePlainName() noexcept {
 
   if (tryRead("[static]"sv)) {
     std::string_view Resource, Label;
-    EXPECTED_TRY(readResourceAndLabel(Resource, Label));
+    EXPECTED_TRY(ReadResourceAndLabel(Resource, Label));
     NameDetail.Resource = Resource;
     NameDetail.Method = Label;
     NameKind = Kind::Static;
@@ -205,10 +195,7 @@ Expect<void> ExternName::parsePlainName() noexcept {
   return {};
 }
 
-// depname      ::= 'unlocked-dep=<' <pkgnamequery> '>'
-// pkgnamequery ::= <pkgpath> <verrange>?
-// verrange     ::= '@*' | '@{' <verlower> '}' | '@{' <verupper> '}'
-//                | '@{' <verlower> ' ' <verupper> '}'
+// depname ::= 'unlocked-dep=<' <pkgpath> <verrange>? '>'
 Expect<void> ExternName::parseUnlockedDep() noexcept {
   if (!tryRead("<"sv)) {
     spdlog::error(ErrCode::Value::NameExpectedOpenAngle);
@@ -216,7 +203,7 @@ Expect<void> ExternName::parseUnlockedDep() noexcept {
     return Unexpect(ErrCode::Value::NameExpectedOpenAngle);
   }
 
-  EXPECTED_TRY(auto Path, parsePkgPath("@>"sv));
+  EXPECTED_TRY(parsePkgPath("@>"sv));
 
   std::string_view VersionRange;
   if (!Rest.empty() && Rest[0] == '@') {
@@ -256,15 +243,12 @@ Expect<void> ExternName::parseUnlockedDep() noexcept {
     return Unexpect(ErrCode::Value::NameTrailingCharacters);
   }
 
-  NameDetail.Namespace = Path.Namespace;
-  NameDetail.Package = Path.Package;
   NameDetail.VersionRange = VersionRange;
   NameKind = Kind::UnlockedDep;
   return {};
 }
 
 // depname ::= 'locked-dep=<' <pkgname> '>' ( ',' <hashname> )?
-// pkgname ::= <pkgpath> ( '@' <valid semver> )?
 Expect<void> ExternName::parseLockedDep() noexcept {
   if (!tryRead("<"sv)) {
     spdlog::error(ErrCode::Value::NameExpectedOpenAngle);
@@ -272,7 +256,7 @@ Expect<void> ExternName::parseLockedDep() noexcept {
     return Unexpect(ErrCode::Value::NameExpectedOpenAngle);
   }
 
-  EXPECTED_TRY(auto Path, parsePkgPath("@>"sv));
+  EXPECTED_TRY(parsePkgPath("@>"sv));
 
   std::string_view Version;
   if (!Rest.empty() && Rest[0] == '@') {
@@ -303,16 +287,13 @@ Expect<void> ExternName::parseLockedDep() noexcept {
 
   EXPECTED_TRY(auto Integrity, parseIntegritySuffix());
 
-  NameDetail.Namespace = Path.Namespace;
-  NameDetail.Package = Path.Package;
   NameDetail.Version = Version;
   NameDetail.Integrity = Integrity;
   NameKind = Kind::LockedDep;
   return {};
 }
 
-// urlname     ::= 'url=<' <nonbrackets> '>' ( ',' <hashname> )?
-// nonbrackets ::= [^<>]*
+// urlname ::= 'url=<' <nonbrackets> '>' ( ',' <hashname> )?
 Expect<void> ExternName::parseUrlName() noexcept {
   if (!tryRead("<"sv)) {
     spdlog::error(ErrCode::Value::NameExpectedOpenAngle);
@@ -358,10 +339,7 @@ Expect<void> ExternName::parseHashName() noexcept {
   return {};
 }
 
-// interfacename    ::= <namespace> <label> <projection> <interfaceversion>?
-// namespace        ::= <words> ':'
-// projection       ::= '/' <label>
-// interfaceversion ::= '@' <valid semver> | '@' <canonversion>
+// interfacename ::= <words> ':' <label> '/' <label> <interfaceversion>?
 Expect<void> ExternName::parseInterfaceName() noexcept {
   size_t ColonPos = Rest.find(':');
   std::string_view Namespace = Rest.substr(0, ColonPos);
@@ -371,8 +349,7 @@ Expect<void> ExternName::parseInterfaceName() noexcept {
   std::string_view Package = readLabelChars();
   EXPECTED_TRY(checkWordsLabel(Package, "package"sv));
 
-  // Nested namespaces (`a:b:c/d`) are feature-gated. Only a projection can
-  // follow the package name.
+  // Nested namespaces (`a:b:c/d`) are feature-gated; only a projection follows.
   if (Rest.empty() || Rest[0] != '/') {
     spdlog::error(ErrCode::Value::NameExpectedSlashAfterPackage);
     spdlog::error("    Component name: expected `/` after package name"sv);
@@ -388,8 +365,7 @@ Expect<void> ExternName::parseInterfaceName() noexcept {
     return Unexpect(ErrCode::Value::ComponentNameNotKebab);
   }
 
-  // Nested projections (`a:b/c/d`) are feature-gated. Only a version can
-  // follow the projection label.
+  // Nested projections (`a:b/c/d`) are feature-gated; only a version follows.
   if (!Rest.empty() && Rest[0] != '@') {
     spdlog::error(ErrCode::Value::NameTrailingCharacters);
     spdlog::error(
@@ -419,14 +395,12 @@ Expect<void> ExternName::parseInterfaceName() noexcept {
   return {};
 }
 
-// Parses 'namespace:package', stopping at the delimiters in StopChars.
-Expect<ExternName::PkgPath>
-ExternName::parsePkgPath(std::string_view StopChars) noexcept {
+// Parses 'namespace:package' into NameDetail, stopping at StopChars.
+Expect<void> ExternName::parsePkgPath(std::string_view StopChars) noexcept {
   size_t ColonPos = Rest.find(':');
   size_t StopPos = Rest.find_first_of(StopChars);
   if (ColonPos == Rest.npos || (StopPos != Rest.npos && StopPos < ColonPos)) {
-    // No namespace delimiter: diagnose the leading label run. This catches
-    // inputs like `<`, `<>`, or a stray label without `:`.
+    // No namespace delimiter: diagnose the leading label run first.
     std::string_view Label = readLabelChars();
     EXPECTED_TRY(checkWordsLabel(Label, "namespace"sv));
     spdlog::error(ErrCode::Value::ComponentInvalidName);
@@ -450,11 +424,12 @@ ExternName::parsePkgPath(std::string_view StopChars) noexcept {
     return Unexpect(ErrCode::Value::NameExpectedCloseAngle);
   }
 
-  return PkgPath{Namespace, Package};
+  NameDetail.Namespace = Namespace;
+  NameDetail.Package = Package;
+  return {};
 }
 
-// Parses the `<integrity-metadata> '>'` body, which must end the name, and
-// returns the metadata.
+// Parses the `<integrity-metadata> '>'` body, which must end the name.
 Expect<std::string_view> ExternName::parseIntegrityBody() noexcept {
   std::string_view Data;
   if (!readUntil('>', Data)) {
@@ -472,8 +447,7 @@ Expect<std::string_view> ExternName::parseIntegrityBody() noexcept {
   return Data;
 }
 
-// Parse the optional ',' <hashname> suffix. An exhausted input gives no
-// integrity metadata.
+// Parses the optional ',' <hashname> suffix; an exhausted input yields none.
 Expect<std::string_view> ExternName::parseIntegritySuffix() noexcept {
   if (Rest.empty()) {
     return std::string_view{};
@@ -492,9 +466,7 @@ Expect<std::string_view> ExternName::parseIntegritySuffix() noexcept {
   return parseIntegrityBody();
 }
 
-// words ::= <first-word> ( '-' <word> )*
-// Validate a namespace or package label. A non-kebab label is "not in kebab
-// case". A kebab label with uppercase is "not lowercase".
+// words ::= <first-word> ( '-' <word> )*: a kebab label that is all lowercase.
 Expect<void> ExternName::checkWordsLabel(std::string_view Label,
                                          std::string_view What) const noexcept {
   if (!isKebabString(Label)) {
@@ -516,8 +488,6 @@ Expect<void> ExternName::checkWordsLabel(std::string_view Label,
 }
 
 // verrange body ::= <verlower> | <verupper> | <verlower> ' ' <verupper>
-// verlower      ::= '>=' <valid semver>
-// verupper      ::= '<' <valid semver>
 Expect<void>
 ExternName::checkVersionRange(std::string_view Body) const noexcept {
   if (Body.substr(0, 2) == ">="sv) {
@@ -571,7 +541,7 @@ ExternName::checkVersionRange(std::string_view Body) const noexcept {
   return Unexpect(ErrCode::Value::NameExpectedVersionRangeOp);
 }
 
-// semversuffix ::= [0-9A-Za-z.+-]* 🔗
+// semversuffix ::= [0-9A-Za-z.+-]*
 Expect<void>
 ExternName::checkVersionSuffix(std::string_view Suffix) const noexcept {
   for (char C : Suffix) {
@@ -600,9 +570,7 @@ ExternName::checkVersionSuffix(std::string_view Suffix) const noexcept {
   return {};
 }
 
-// canonversion ::= [1-9] [0-9]*
-//                | '0.' [1-9] [0-9]*
-//                | '0.0.' [1-9] [0-9]*
+// canonversion ::= [1-9] [0-9]* | '0.' [1-9] [0-9]* | '0.0.' [1-9] [0-9]*
 bool ExternName::isCanonVersion(std::string_view V) const noexcept {
   if (V.substr(0, 4) == "0.0."sv) {
     V.remove_prefix(4);
@@ -620,8 +588,7 @@ bool ExternName::isCanonVersion(std::string_view V) const noexcept {
   return true;
 }
 
-// MAJOR.MINOR.PATCH[-prerelease][+build] per semver.org 2.0. The unlogged
-// granular code reaches an interface version, but not a dep or range bound.
+// Scans MAJOR.MINOR.PATCH[-prerelease][+build] per semver.org 2.0, unlogged.
 Expect<void> ExternName::scanSemver(std::string_view V) const noexcept {
   if (V.empty()) {
     return Unexpect(ErrCode::Value::NameEmptyString);
@@ -675,8 +642,7 @@ Expect<void> ExternName::scanSemver(std::string_view V) const noexcept {
   return scanSemverIdentifiers(V, false);
 }
 
-// Scans a dot-separated pre-release or build identifier list. Identifiers are
-// [0-9A-Za-z-]+ and, for pre-release, numeric ones have no leading zeros.
+// Scans a dot-separated identifier list, rejecting leading zeros when asked.
 Expect<void>
 ExternName::scanSemverIdentifiers(std::string_view Idents,
                                   bool CheckLeadingZeros) const noexcept {
@@ -708,15 +674,11 @@ ExternName::scanSemverIdentifiers(std::string_view Idents,
   }
 }
 
-// integrity-metadata ::= *WSP hash-with-options *(1*WSP hash-with-options) *WSP
-// hash-with-options  ::= hash-expression *("?" option-expression)
-// hash-expression    ::= hash-algorithm "-" base64-value
-// hash-algorithm     ::= "sha256" / "sha384" / "sha512"
+// integrity-metadata ::= WSP-separated (sha256|sha384|sha512) '-' base64-value.
 Expect<void>
 ExternName::checkIntegrityMetadata(std::string_view Input) const noexcept {
-  // base64-value ::= [A-Za-z0-9+/]+ ( '=' | '==' )?
-  // Non-empty, with `=` padding only at the end.
-  auto isBase64 = [](std::string_view S) noexcept {
+  // base64-value ::= [A-Za-z0-9+/]+ ( '=' | '==' )?, padded only at the end.
+  auto IsBase64 = [](std::string_view S) noexcept {
     if (S.empty()) {
       return false;
     }
@@ -779,7 +741,7 @@ ExternName::checkIntegrityMetadata(std::string_view Input) const noexcept {
                     Algo);
       return Unexpect(ErrCode::Value::NameUnknownHashAlgorithm);
     }
-    if (!isBase64(HashExpr.substr(DashPos + 1))) {
+    if (!IsBase64(HashExpr.substr(DashPos + 1))) {
       spdlog::error(ErrCode::Value::NameInvalidBase64);
       spdlog::error("    Component name: hash value is not valid base64"sv);
       return Unexpect(ErrCode::Value::NameInvalidBase64);

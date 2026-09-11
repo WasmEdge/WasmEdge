@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 #include "validator/component_context.h"
 
+#include "common/component_valtype.h"
 #include "common/errinfo.h"
 #include "common/spdlog.h"
 
@@ -30,24 +31,24 @@ using namespace std::literals;
 
 void Context::defineExtern(const ExternInfo &Info) noexcept {
   auto &S = top();
-  switch (Info.K) {
+  switch (Info.Kind) {
   case ExternKind::CoreType:
-    S.CoreModules.push_back(Info.CoreMod);
+    S.addCoreModule(Info.CoreMod);
     break;
   case ExternKind::FuncType:
-    S.Funcs.push_back(Info.Func);
+    S.addFunc(Info.Func);
     break;
   case ExternKind::ValueBound:
-    S.Values.push_back({Info.Value, false});
+    S.addValue(Info.Value);
     break;
   case ExternKind::TypeBound:
-    S.Types.push_back(Info.Type);
+    S.addType(Info.Type);
     break;
   case ExternKind::InstanceType:
-    S.Instances.push_back(Info.Shape);
+    S.addInstance(Info.Shape);
     break;
   case ExternKind::ComponentType:
-    S.Components.push_back(Info.Shape);
+    S.addComponent(Info.Shape);
     break;
   }
 }
@@ -67,7 +68,7 @@ Context::resolveSortIndex(const AST::Component::SortIndex &SI) noexcept {
                       Idx, S.CoreModules.size());
         return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
       }
-      Info.K = ExternKind::CoreType;
+      Info.Kind = ExternKind::CoreType;
       Info.CoreMod = Mod;
       return Info;
     }
@@ -85,7 +86,7 @@ Context::resolveSortIndex(const AST::Component::SortIndex &SI) noexcept {
                     S.Funcs.size());
       return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
     }
-    Info.K = ExternKind::FuncType;
+    Info.Kind = ExternKind::FuncType;
     Info.Func = *F;
     return Info;
   }
@@ -96,7 +97,7 @@ Context::resolveSortIndex(const AST::Component::SortIndex &SI) noexcept {
                     S.Values.size());
       return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
     }
-    Info.K = ExternKind::ValueBound;
+    Info.Kind = ExternKind::ValueBound;
     Info.Value = S.Values[Idx].Type;
     return Info;
   }
@@ -108,7 +109,7 @@ Context::resolveSortIndex(const AST::Component::SortIndex &SI) noexcept {
                     S.Types.size());
       return Unexpect(ErrCode::Value::ComponentTypeIndexOutOfBounds);
     }
-    Info.K = ExternKind::TypeBound;
+    Info.Kind = ExternKind::TypeBound;
     Info.Type = *E;
     return Info;
   }
@@ -120,7 +121,7 @@ Context::resolveSortIndex(const AST::Component::SortIndex &SI) noexcept {
                     S.Components.size());
       return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
     }
-    Info.K = ExternKind::ComponentType;
+    Info.Kind = ExternKind::ComponentType;
     Info.Shape = C;
     return Info;
   }
@@ -132,7 +133,7 @@ Context::resolveSortIndex(const AST::Component::SortIndex &SI) noexcept {
                     S.Instances.size());
       return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
     }
-    Info.K = ExternKind::InstanceType;
+    Info.Kind = ExternKind::InstanceType;
     Info.Shape = I;
     return Info;
   }
@@ -142,14 +143,13 @@ Context::resolveSortIndex(const AST::Component::SortIndex &SI) noexcept {
   }
 }
 
-// External view of an inline core module: its imports in order and the
-// resolved types of its exports.
+// External view of an inline core module: its imports and export types.
 Expect<const CoreShape *>
 Context::buildCoreShape(const AST::Module &Mod) noexcept {
-  auto *Info = Types.newCoreShape();
+  auto *Info = Types.addCoreShape();
   const auto &ModTypes = Mod.getTypeSection().getContent();
 
-  auto TypeAt = [&ModTypes](uint32_t Idx) noexcept -> const AST::SubType * {
+  auto GetSubType = [&ModTypes](uint32_t Idx) noexcept -> const AST::SubType * {
     return Idx < ModTypes.size() ? &ModTypes[Idx] : nullptr;
   };
 
@@ -159,28 +159,25 @@ Context::buildCoreShape(const AST::Module &Mod) noexcept {
     CoreExternInfo Ext;
     switch (Imp.getExternalType()) {
     case ExternalType::Function:
-      Ext = {ExternalType::Function, TypeAt(Imp.getExternalFuncTypeIdx()),
-             nullptr, nullptr, nullptr};
+      Ext = CoreExternInfo(ExternalType::Function,
+                           GetSubType(Imp.getExternalFuncTypeIdx()));
       Funcs.push_back(Ext);
       break;
     case ExternalType::Table:
-      Ext = {ExternalType::Table, nullptr, &Imp.getExternalTableType(), nullptr,
-             nullptr};
+      Ext = CoreExternInfo(&Imp.getExternalTableType());
       Tables.push_back(Ext);
       break;
     case ExternalType::Memory:
-      Ext = {ExternalType::Memory, nullptr, nullptr,
-             &Imp.getExternalMemoryType(), nullptr};
+      Ext = CoreExternInfo(&Imp.getExternalMemoryType());
       Memories.push_back(Ext);
       break;
     case ExternalType::Global:
-      Ext = {ExternalType::Global, nullptr, nullptr, nullptr,
-             &Imp.getExternalGlobalType()};
+      Ext = CoreExternInfo(&Imp.getExternalGlobalType());
       Globals.push_back(Ext);
       break;
     case ExternalType::Tag:
-      Ext = {ExternalType::Tag, TypeAt(Imp.getExternalTagType().getTypeIdx()),
-             nullptr, nullptr, nullptr};
+      Ext = CoreExternInfo(ExternalType::Tag,
+                           GetSubType(Imp.getExternalTagType().getTypeIdx()));
       Tags.push_back(Ext);
       break;
     default:
@@ -198,23 +195,19 @@ Context::buildCoreShape(const AST::Module &Mod) noexcept {
                                std::string(Imp.getExternalName()), Ext);
   }
   for (const auto TIdx : Mod.getFunctionSection().getContent()) {
-    Funcs.push_back(
-        {ExternalType::Function, TypeAt(TIdx), nullptr, nullptr, nullptr});
+    Funcs.emplace_back(ExternalType::Function, GetSubType(TIdx));
   }
   for (const auto &Seg : Mod.getTableSection().getContent()) {
-    Tables.push_back(
-        {ExternalType::Table, nullptr, &Seg.getTableType(), nullptr, nullptr});
+    Tables.emplace_back(&Seg.getTableType());
   }
   for (const auto &MT : Mod.getMemorySection().getContent()) {
-    Memories.push_back({ExternalType::Memory, nullptr, nullptr, &MT, nullptr});
+    Memories.emplace_back(&MT);
   }
   for (const auto &Seg : Mod.getGlobalSection().getContent()) {
-    Globals.push_back({ExternalType::Global, nullptr, nullptr, nullptr,
-                       &Seg.getGlobalType()});
+    Globals.emplace_back(&Seg.getGlobalType());
   }
   for (const auto &TT : Mod.getTagSection().getContent()) {
-    Tags.push_back({ExternalType::Tag, TypeAt(TT.getTypeIdx()), nullptr,
-                    nullptr, nullptr});
+    Tags.emplace_back(ExternalType::Tag, GetSubType(TT.getTypeIdx()));
   }
 
   for (const auto &Exp : Mod.getExportSection().getContent()) {
@@ -263,28 +256,20 @@ Context::buildCoreShape(const AST::Module &Mod) noexcept {
 // Canonical options.
 // ---------------------------------------------------------------------------
 
-bool Context::hasOption(const AST::Component::Canonical &Canon,
-                        ComponentCanonOptCode Code) noexcept {
-  for (const auto &Opt : Canon.getOptions()) {
-    if (Opt.getCode() == Code) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool Context::canonMemoryIs64(
+ValType Context::getCanonPtrType(
     const AST::Component::Canonical &Canon) const noexcept {
   for (const auto &Opt : Canon.getOptions()) {
     if (Opt.getCode() == ComponentCanonOptCode::Memory) {
       const uint32_t Idx = Opt.getIndex();
       if (Idx < top().CoreMemories.size()) {
         const auto *Mem = top().CoreMemories[Idx];
-        return Mem != nullptr && Mem->getLimit().is64();
+        return ValType(Mem != nullptr && Mem->getLimit().is64()
+                           ? TypeCode::I64
+                           : TypeCode::I32);
       }
     }
   }
-  return false;
+  return ValType(TypeCode::I32);
 }
 
 Expect<void> Context::checkOptions(const AST::Component::Canonical &Canon,
@@ -294,7 +279,7 @@ Expect<void> Context::checkOptions(const AST::Component::Canonical &Canon,
   bool SeenEncoding = false, SeenMemory = false, SeenRealloc = false,
        SeenPostReturn = false, SeenAsync = false, SeenCallback = false;
   // The pointer width of realloc follows the selected memory.
-  const ValType Ptr = canonPtrType(Canon);
+  const ValType Ptr = getCanonPtrType(Canon);
   for (const auto &Opt : Canon.getOptions()) {
     switch (Opt.getCode()) {
     case ComponentCanonOptCode::Encode_UTF8:
@@ -338,8 +323,7 @@ Expect<void> Context::checkOptions(const AST::Component::Canonical &Canon,
             Opt.getIndex());
         return Unexpect(ErrCode::Value::InvalidIndex);
       }
-      // realloc must have type [ptr ptr ptr ptr] -> [ptr], where ptr is the
-      // index type of the selected memory.
+      // realloc has type [ptr ptr ptr ptr] -> [ptr] for the selected memory.
       const std::vector<ValType> ReallocParams(4, Ptr);
       const std::vector<ValType> ReallocResults(1, Ptr);
       const auto &CT = Func->getCompositeType();
@@ -420,6 +404,22 @@ Expect<void> Context::checkOptions(const AST::Component::Canonical &Canon,
   return {};
 }
 
+Expect<void> Context::requireOptions(const AST::Component::Canonical &Canon,
+                                     bool NeedMemory, bool NeedRealloc,
+                                     std::string_view What) const noexcept {
+  if (NeedMemory && !Canon.hasOption(ComponentCanonOptCode::Memory)) {
+    spdlog::error(ErrCode::Value::CanonMemoryRequired);
+    spdlog::error("    {} requires the memory option."sv, What);
+    return Unexpect(ErrCode::Value::CanonMemoryRequired);
+  }
+  if (NeedRealloc && !Canon.hasOption(ComponentCanonOptCode::Realloc)) {
+    spdlog::error(ErrCode::Value::CanonReallocRequired);
+    spdlog::error("    {} requires the realloc option."sv, What);
+    return Unexpect(ErrCode::Value::CanonReallocRequired);
+  }
+  return {};
+}
+
 // ---------------------------------------------------------------------------
 // Name grammar and strong uniqueness.
 // ---------------------------------------------------------------------------
@@ -483,8 +483,7 @@ NameRecord Context::makeNameRecord(const ExternName &Name) const noexcept {
     R.StrippedExact = std::string(Name.getOriginalName());
     break;
   }
-  // Case-folding models the acronym rule, which applies only to labels and
-  // interface names. Dep, url, and integrity names compare exactly.
+  // Dep, url, and integrity names compare exactly; the rest case-fold.
   switch (Name.getKind()) {
   case ExternName::Kind::LockedDep:
   case ExternName::Kind::UnlockedDep:
@@ -505,16 +504,15 @@ NameRecord Context::makeNameRecord(const ExternName &Name) const noexcept {
 Expect<void> Context::addUniqueName(std::vector<NameRecord> &Names,
                                     const NameRecord &N,
                                     bool IsImport) const noexcept {
-  // A strong-uniqueness violation inside a declarator carries a side-specific
-  // code. An exact duplicate is a plain name conflict everywhere.
+  // Declarator clashes carry their own code; exact duplicates never do.
   const auto SideCode = IsImport ? ErrCode::Value::ComponentImportNameConflict
                                  : ErrCode::Value::ComponentExportNameConflict;
   const auto ConflictCode =
-      top().K == Scope::Kind::Component
+      top().Kind == ScopeKind::Component
           ? SideCode
           : (IsImport ? ErrCode::Value::ComponentDeclImportNameConflict
                       : ErrCode::Value::ComponentDeclExportNameConflict);
-  auto reportClash = [&](ErrCode::Value Code) noexcept {
+  auto ReportClash = [&](ErrCode::Value Code) noexcept {
     spdlog::error(Code);
     spdlog::error("    {} name '{}' is not strongly-unique."sv,
                   IsImport ? "Import"sv : "Export"sv, N.Original);
@@ -522,16 +520,15 @@ Expect<void> Context::addUniqueName(std::vector<NameRecord> &Names,
   };
   for (const auto &E : Names) {
     if (E.Original == N.Original) {
-      return reportClash(SideCode);
+      return ReportClash(SideCode);
     }
     if (E.Stripped == N.Stripped) {
-      // `l` and `[constructor]l` (for the *same* label) are the one
-      // strongly-unique annotated pair.
+      // `l` and `[constructor]l` of the same label are the one allowed pair.
       const bool CtorException = ((E.IsConstructor && N.IsPlainLabel) ||
                                   (N.IsConstructor && E.IsPlainLabel)) &&
                                  E.StrippedExact == N.StrippedExact;
       if (!CtorException) {
-        return reportClash(ConflictCode);
+        return ReportClash(ConflictCode);
       }
       continue;
     }
@@ -540,7 +537,7 @@ Expect<void> Context::addUniqueName(std::vector<NameRecord> &Names,
          E.DottedFirst == N.StrippedExact) ||
         (E.IsPlainLabel && N.IsDottedSame &&
          N.DottedFirst == E.StrippedExact)) {
-      return reportClash(ConflictCode);
+      return ReportClash(ConflictCode);
     }
   }
   Names.push_back(N);
@@ -615,15 +612,14 @@ Context::defineImport(std::string_view Name, const ExternInfo &Resolved,
                       Span<const std::string> Impls,
                       Span<const std::string> ExtIds,
                       Span<const std::string> VSuffixes) noexcept {
-  // Each instance import mints fresh identities for the resources the
-  // instance type itself declares (two imports of one shape differ).
+  // Each instance import mints fresh identities for its declared resources.
   ExternInfo Info = Resolved;
-  if (Info.K == ExternKind::InstanceType) {
+  if (Info.Kind == ExternKind::InstanceType) {
     Info.Shape = freshenDeclaredResources(Info.Shape, true);
   }
   EXPECTED_TRY(ExternName CN, parseExternName(Name, true));
   EXPECTED_TRY(checkNameAttributes(CN, Impls, ExtIds, VSuffixes,
-                                   Info.K == ExternKind::InstanceType));
+                                   Info.Kind == ExternKind::InstanceType));
   EXPECTED_TRY(addUniqueName(top().ImportSide.Names, makeNameRecord(CN), true));
   defineExtern(Info);
   EXPECTED_TRY(checkNamedTypesRule(Info, true));
@@ -660,12 +656,11 @@ Context::defineExport(const ExternName &CN, const ExternInfo &Inferred,
     }
     Result = *Ascribed;
   }
-  // An export of a type re-introduces it under a fresh naming identity. The
-  // underlying resource or structural identity stays, for matching.
-  if (Result.K == ExternKind::TypeBound) {
-    Result.Type.NameId = Types.newNameId();
+  // An export of a type re-introduces it under a fresh naming identity.
+  if (Result.Kind == ExternKind::TypeBound) {
+    Result.Type.NameId = Types.nextNameId();
   }
-  if (Result.K == ExternKind::InstanceType) {
+  if (Result.Kind == ExternKind::InstanceType) {
     Result.Shape = freshenDeclaredResources(Result.Shape, false);
   }
   defineExtern(Result);
@@ -687,7 +682,7 @@ Expect<void> Context::checkAnnotatedName(const ExternName &Name,
       Kind != ExternName::Kind::Method && Kind != ExternName::Kind::Static) {
     return {};
   }
-  if (Info.K != ExternKind::FuncType || Info.Func.FT == nullptr) {
+  if (Info.Kind != ExternKind::FuncType || Info.Func.FT == nullptr) {
     spdlog::error(ErrCode::Value::ComponentIsNotFunc);
     spdlog::error(
         "    Annotated name '{}' is only allowed on function imports/exports."sv,
@@ -696,11 +691,10 @@ Expect<void> Context::checkAnnotatedName(const ExternName &Name,
   }
   const std::string_view ResourceLabel = Name.getDetail().Resource;
   auto &S = top();
-  const auto &Labels = S.nameSide(IsImport).ResourceLabels;
-  const auto &Names = S.nameSide(IsImport).ResourceNames;
+  const auto &Labels = S.getNameSide(IsImport).ResourceLabels;
+  const auto &Names = S.getNameSide(IsImport).ResourceNames;
   const auto &FT = *Info.Func.FT;
-  // The resource reached through the signature must carry a name on this side
-  // which matches the annotation's first label.
+  // The signature's resource must be named here as the annotation's label.
   auto CheckTarget = [&](uint32_t Target) noexcept -> Expect<void> {
     auto NameIt = Names.find(Target);
     if (NameIt == Names.end()) {
@@ -719,17 +713,16 @@ Expect<void> Context::checkAnnotatedName(const ExternName &Name,
     return {};
   };
 
-  // Resolve a valtype to an own or borrow of a resource. Id filters when the
-  // caller sets it.
+  // Resolve a valtype to the resource behind its own or borrow handle.
   auto HandleOf = [this](const QualValType &Q,
                          bool WantOwn) noexcept -> std::optional<uint32_t> {
     TypeEntry Storage;
     const auto *Entry = Types.resolveQualType(Q, Storage);
-    if (Entry == nullptr || Entry->DT == nullptr ||
-        !Entry->DT->isDefValType()) {
+    const auto *Def = Entry != nullptr ? Entry->getDefValType() : nullptr;
+    if (Def == nullptr) {
       return std::nullopt;
     }
-    const auto &DVT = Entry->DT->getDefValType();
+    const auto &DVT = *Def;
     uint32_t HandleIdx = 0;
     if (WantOwn && DVT.isOwnTy()) {
       HandleIdx = DVT.getOwn().Idx;
@@ -739,7 +732,7 @@ Expect<void> Context::checkAnnotatedName(const ExternName &Name,
       return std::nullopt;
     }
     const auto *Res = Entry->Home->getType(HandleIdx);
-    if (Res == nullptr || !Res->ResourceId.has_value()) {
+    if (Res == nullptr || !Res->isResource()) {
       return std::nullopt;
     }
     return Types.applyRemap(Entry->Remap, *Res->ResourceId);
@@ -760,10 +753,9 @@ Expect<void> Context::checkAnnotatedName(const ExternName &Name,
       // Unwrap (result (own T) e?).
       TypeEntry Storage;
       const auto *Entry = Types.resolveQualType(Q, Storage);
-      if (Entry != nullptr && Entry->DT != nullptr &&
-          Entry->DT->isDefValType() &&
-          Entry->DT->getDefValType().isResultTy()) {
-        const auto &Res = Entry->DT->getDefValType().getResult();
+      const auto *Def = Entry != nullptr ? Entry->getDefValType() : nullptr;
+      if (Def != nullptr && Def->isResultTy()) {
+        const auto &Res = Def->getResult();
         if (Res.ValTy.has_value()) {
           Target = HandleOf({*Res.ValTy, Entry->Home, Entry->Remap}, true);
         }
@@ -818,22 +810,20 @@ void Context::recordResourceLabel(const ExternName &Name,
                                   const ExternInfo &Info,
                                   bool IsImport) noexcept {
   if (Name.getKind() == ExternName::Kind::Label &&
-      Info.K == ExternKind::TypeBound && Info.Type.ResourceId.has_value()) {
+      Info.Kind == ExternKind::TypeBound && Info.Type.isResource()) {
     auto &S = top();
-    auto &Labels = S.nameSide(IsImport).ResourceLabels;
-    auto &Names = S.nameSide(IsImport).ResourceNames;
+    auto &Labels = S.getNameSide(IsImport).ResourceLabels;
+    auto &Names = S.getNameSide(IsImport).ResourceNames;
     Labels.emplace(std::string(Name.getOriginalName()), *Info.Type.ResourceId);
     Names.emplace(*Info.Type.ResourceId, std::string(Name.getOriginalName()));
   }
 }
 
 // ---------------------------------------------------------------------------
-// The named-types rule. Flags, enums, records, variants, and resources are
-// never anonymous. Tuples, lists, options, and results can be.
+// The named-types rule: flags, enums, records, variants, resources are named.
 // ---------------------------------------------------------------------------
 
-bool Context::isValTypeIntroduced(const QualValType &Q,
-                                  bool IsImport) noexcept {
+bool Context::isIntroduced(const QualValType &Q, bool IsImport) noexcept {
   if (Q.VT.isPrimValType() || Q.Home == nullptr) {
     return true;
   }
@@ -842,28 +832,27 @@ bool Context::isValTypeIntroduced(const QualValType &Q,
   if (Entry == nullptr) {
     return true;
   }
-  return isTypeEntryIntroduced(*Entry, IsImport);
+  return isIntroduced(*Entry, IsImport);
 }
 
-bool Context::isTypeEntryIntroduced(const TypeEntry &E,
-                                    bool IsImport) noexcept {
+bool Context::isIntroduced(const TypeEntry &E, bool IsImport) noexcept {
   auto &S = top();
-  const auto &NamedTys = S.nameSide(IsImport).NamedTypes;
-  const auto &NamedRes = S.nameSide(IsImport).NamedResources;
-  if (E.ResourceId.has_value()) {
+  const auto &NamedTys = S.getNameSide(IsImport).NamedTypes;
+  const auto &NamedRes = S.getNameSide(IsImport).NamedResources;
+  if (E.isResource()) {
     return E.NameId.has_value() && NamedRes.count(*E.NameId) != 0;
   }
-  if (E.DT == nullptr || !E.DT->isDefValType()) {
+  const auto *Def = E.getDefValType();
+  if (Def == nullptr) {
     return true;
   }
-  const auto &D = E.DT->getDefValType();
+  const auto &D = *Def;
   if (D.isPrimValType()) {
     return true;
   }
-  // A local reference must name the introduced identity. A foreign entry
-  // accepts a structurally equal named type.
+  // Local: the introduced identity. Foreign: a structurally equal named type.
   if (D.isFlagsTy() || D.isEnumTy() || D.isRecordTy() || D.isVariantTy()) {
-    const auto &NamedIds = S.nameSide(IsImport).NamedIds;
+    const auto &NamedIds = S.getNameSide(IsImport).NamedIds;
     if (E.Home == &S) {
       return E.NameId.has_value() && NamedIds.count(*E.NameId) != 0;
     }
@@ -879,8 +868,7 @@ bool Context::isTypeEntryIntroduced(const TypeEntry &E,
         Probe.DT = Named;
         Probe.Home = Home;
         Matcher M(Types);
-        if (M.matchNormalVal(Types.normalizeEntry(E),
-                             Types.normalizeEntry(Probe))) {
+        if (M.matchValType(E, Probe)) {
           return true;
         }
       }
@@ -888,30 +876,8 @@ bool Context::isTypeEntryIntroduced(const TypeEntry &E,
     return false;
   }
   auto Sub = [&](const ComponentValType &VT) noexcept {
-    return isValTypeIntroduced({VT, E.Home, E.Remap}, IsImport);
+    return isIntroduced({VT, E.Home, E.Remap}, IsImport);
   };
-  if (D.isTupleTy()) {
-    for (const auto &Ty : D.getTuple().Types) {
-      if (!Sub(Ty)) {
-        return false;
-      }
-    }
-    return true;
-  }
-  if (D.isListTy()) {
-    return Sub(D.getList().ValTy);
-  }
-  if (D.isMapTy()) {
-    return Sub(D.getMap().KeyTy) && Sub(D.getMap().ValTy);
-  }
-  if (D.isOptionTy()) {
-    return Sub(D.getOption().ValTy);
-  }
-  if (D.isResultTy()) {
-    const auto &R = D.getResult();
-    return (!R.ValTy.has_value() || Sub(*R.ValTy)) &&
-           (!R.ErrTy.has_value() || Sub(*R.ErrTy));
-  }
   if (D.isStreamTy() || D.isFutureTy()) {
     const auto &Elem =
         D.isStreamTy() ? D.getStream().ValTy : D.getFuture().ValTy;
@@ -920,7 +886,7 @@ bool Context::isTypeEntryIntroduced(const TypeEntry &E,
   if (D.isOwnTy() || D.isBorrowTy()) {
     const uint32_t Idx = D.isOwnTy() ? D.getOwn().Idx : D.getBorrow().Idx;
     const auto *Res = E.Home->getType(Idx);
-    if (Res == nullptr || !Res->ResourceId.has_value()) {
+    if (Res == nullptr || !Res->isResource()) {
       return true;
     }
     const uint32_t Eff = Types.applyRemap(E.Remap, *Res->ResourceId);
@@ -930,14 +896,16 @@ bool Context::isTypeEntryIntroduced(const TypeEntry &E,
             : Res->NameId.value_or(Types.getResource(Eff).NameId);
     return NamedRes.count(NameId) != 0;
   }
-  return true;
+  bool All = true;
+  Types.forEachValType(
+      D, [&](const ComponentValType &VT) noexcept { All = All && Sub(VT); });
+  return All;
 }
 
-// Checks the type being introduced itself: its immediate components must be
-// named, while the type itself is exempt (the extern names it).
+// The introduced type is exempt; its immediate components must be named.
 bool Context::areInnerTypesIntroduced(const TypeEntry &E,
                                       bool IsImport) noexcept {
-  if (E.ResourceId.has_value()) {
+  if (E.isResource()) {
     return true;
   }
   if (E.Comp != nullptr) {
@@ -951,81 +919,40 @@ bool Context::areInnerTypesIntroduced(const TypeEntry &E,
     }
     return true;
   }
-  if (E.DT == nullptr) {
-    return true;
-  }
-  if (E.DT->isFuncType()) {
-    const auto &FT = E.DT->getFuncType();
-    for (const auto &P : FT.getParamList()) {
-      if (!isValTypeIntroduced({P.getValType(), E.Home, E.Remap}, IsImport)) {
+  if (const auto *FT = E.getFuncType()) {
+    for (const auto &P : FT->getParamList()) {
+      if (!isIntroduced({P.getValType(), E.Home, E.Remap}, IsImport)) {
         return false;
       }
     }
-    for (const auto &R : FT.getResultList()) {
-      if (!isValTypeIntroduced({R.getValType(), E.Home, E.Remap}, IsImport)) {
+    for (const auto &R : FT->getResultList()) {
+      if (!isIntroduced({R.getValType(), E.Home, E.Remap}, IsImport)) {
         return false;
       }
     }
     return true;
   }
-  if (!E.DT->isDefValType()) {
+  const auto *Def = E.getDefValType();
+  if (Def == nullptr) {
     return true;
   }
-  const auto &D = E.DT->getDefValType();
+  const auto &D = *Def;
   if (D.isPrimValType() || D.isFlagsTy() || D.isEnumTy()) {
     return true;
   }
   auto Sub = [&](const ComponentValType &VT) noexcept {
-    return isValTypeIntroduced({VT, E.Home, E.Remap}, IsImport);
+    return isIntroduced({VT, E.Home, E.Remap}, IsImport);
   };
-  if (D.isRecordTy()) {
-    for (const auto &LT : D.getRecord().LabelTypes) {
-      if (!Sub(LT.getValType())) {
-        return false;
-      }
-    }
-    return true;
-  }
-  if (D.isVariantTy()) {
-    for (const auto &[Label, Ty] : D.getVariant().Cases) {
-      if (Ty.has_value() && !Sub(*Ty)) {
-        return false;
-      }
-    }
-    return true;
-  }
-  if (D.isTupleTy()) {
-    for (const auto &Ty : D.getTuple().Types) {
-      if (!Sub(Ty)) {
-        return false;
-      }
-    }
-    return true;
-  }
-  if (D.isListTy()) {
-    return Sub(D.getList().ValTy);
-  }
-  if (D.isMapTy()) {
-    return Sub(D.getMap().KeyTy) && Sub(D.getMap().ValTy);
-  }
-  if (D.isOptionTy()) {
-    return Sub(D.getOption().ValTy);
-  }
-  if (D.isResultTy()) {
-    const auto &R = D.getResult();
-    return (!R.ValTy.has_value() || Sub(*R.ValTy)) &&
-           (!R.ErrTy.has_value() || Sub(*R.ErrTy));
-  }
   if (D.isStreamTy() || D.isFutureTy()) {
     const auto &Elem =
         D.isStreamTy() ? D.getStream().ValTy : D.getFuture().ValTy;
     return !Elem.has_value() || Sub(*Elem);
   }
   if (D.isOwnTy() || D.isBorrowTy()) {
-    const auto &NamedRes = top().nameSide(IsImport).NamedResources;
+    const auto &NamedRes = top().getNameSide(IsImport).NamedResources;
     const uint32_t Idx = D.isOwnTy() ? D.getOwn().Idx : D.getBorrow().Idx;
     const auto *Res = E.Home->getType(Idx);
-    if (Res == nullptr || !Res->ResourceId.has_value()) {
+    if (Res == nullptr || !Res->isResource()) {
       return true;
     }
     const uint32_t Eff = Types.applyRemap(E.Remap, *Res->ResourceId);
@@ -1035,15 +962,17 @@ bool Context::areInnerTypesIntroduced(const TypeEntry &E,
             : Res->NameId.value_or(Types.getResource(Eff).NameId);
     return NamedRes.count(NameId) != 0;
   }
-  return true;
+  bool All = true;
+  Types.forEachValType(
+      D, [&](const ComponentValType &VT) noexcept { All = All && Sub(VT); });
+  return All;
 }
 
-// Validate and register an extern for the named-types rule. An instance
-// extern recurses and introduces its exports in declaration order.
+// Validate and register an extern for the named-types rule.
 bool Context::introduceExternTypes(const ExternInfo &Info,
                                    bool IsImport) noexcept {
   auto &S = top();
-  switch (Info.K) {
+  switch (Info.Kind) {
   case ExternKind::CoreType:
   case ExternKind::ComponentType:
     return true;
@@ -1052,14 +981,14 @@ bool Context::introduceExternTypes(const ExternInfo &Info,
       return false;
     }
     // Introduce: imported types are usable by exports as well.
-    if (Info.Type.ResourceId.has_value() && Info.Type.NameId.has_value()) {
+    if (Info.Type.isResource() && Info.Type.NameId.has_value()) {
       if (IsImport) {
         S.ImportSide.NamedResources.insert(*Info.Type.NameId);
         S.ExportSide.NamedResources.insert(*Info.Type.NameId);
       } else {
         S.ExportSide.NamedResources.insert(*Info.Type.NameId);
       }
-    } else if (Info.Type.DT != nullptr && Info.Type.DT->isDefValType()) {
+    } else if (Info.Type.getDefValType() != nullptr) {
       if (IsImport) {
         S.ImportSide.NamedTypes.emplace(Info.Type.DT, Info.Type.Home);
         S.ExportSide.NamedTypes.emplace(Info.Type.DT, Info.Type.Home);
@@ -1104,37 +1033,36 @@ bool Context::introduceExternTypes(const ExternInfo &Info,
       return true;
     }
     for (const auto &P : Info.Func.FT->getParamList()) {
-      if (!isValTypeIntroduced(
-              {P.getValType(), Info.Func.Home, Info.Func.Remap}, IsImport)) {
+      if (!isIntroduced({P.getValType(), Info.Func.Home, Info.Func.Remap},
+                        IsImport)) {
         return false;
       }
     }
     for (const auto &R : Info.Func.FT->getResultList()) {
-      if (!isValTypeIntroduced(
-              {R.getValType(), Info.Func.Home, Info.Func.Remap}, IsImport)) {
+      if (!isIntroduced({R.getValType(), Info.Func.Home, Info.Func.Remap},
+                        IsImport)) {
         return false;
       }
     }
     return true;
   }
   case ExternKind::ValueBound:
-    return isValTypeIntroduced(Info.Value, IsImport);
+    return isIntroduced(Info.Value, IsImport);
   }
   return true;
 }
 
 Expect<void> Context::checkNamedTypesRule(const ExternInfo &Info,
                                           bool IsImport) noexcept {
-  // Instance-type declarations do not enforce the named-types rule. An
-  // import or an export checks their shapes again.
-  if (top().K == Scope::Kind::InstanceType) {
+  // Instance-type declarations do not enforce the named-types rule.
+  if (top().Kind == ScopeKind::InstanceType) {
     return {};
   }
   if (introduceExternTypes(Info, IsImport)) {
     return {};
   }
   ErrCode::Value Code;
-  switch (Info.K) {
+  switch (Info.Kind) {
   case ExternKind::FuncType:
     Code = IsImport ? ErrCode::Value::ComponentFuncNotValidImport
                     : ErrCode::Value::ComponentFuncNotValidExport;
@@ -1178,12 +1106,7 @@ Expect<const Shape *> Context::instantiateComponentShape(
     if (!Arg.getIndex().getSort().isCore() &&
         Arg.getIndex().getSort().getSortType() ==
             AST::Component::Sort::SortType::Value) {
-      auto &VE = top().Values[Arg.getIndex().getIdx()];
-      if (VE.Consumed) {
-        spdlog::error(ErrCode::Value::ComponentValueAlreadyConsumed);
-        return Unexpect(ErrCode::Value::ComponentValueAlreadyConsumed);
-      }
-      VE.Consumed = true;
+      EXPECTED_TRY(top().consumeValue(Arg.getIndex().getIdx()));
     }
   }
   // Match every import. The matcher accumulates the resource substitution.
@@ -1212,7 +1135,7 @@ Expect<const Shape *> Context::instantiateComponentShape(
   for (const auto &[Name, E] : CI.Exports) {
     Types.collectResources(E, Reachable);
   }
-  auto *Node = Types.newResourceMap();
+  auto *Node = Types.addResourceMap();
   Node->Map = M.getSubst().Map;
   for (const uint32_t Id : Reachable) {
     if (Node->Map.count(Id) != 0) {
@@ -1221,15 +1144,14 @@ Expect<const Shape *> Context::instantiateComponentShape(
     const auto &Entry = Types.getResource(Id);
     if (!Entry.FromImport && CI.DeclScope != nullptr &&
         Types.originatesIn(Id, *CI.DeclScope)) {
-      // Freshened ids carry no definition body: the fresh resource belongs to
-      // the created instance, so it is never canon-local here.
+      // A fresh resource belongs to the created instance: no definition body.
       Node->Map.emplace(Id, Types.addResource(nullptr, &top(), false));
     }
   }
 
   const auto *Result = Types.rebuildInstanceExports(CI, Node);
   ExternInfo Probe;
-  Probe.K = ExternKind::InstanceType;
+  Probe.Kind = ExternKind::InstanceType;
   Probe.Shape = Result;
   EXPECTED_TRY(Types.checkTypeLimits(Probe));
   return Result;

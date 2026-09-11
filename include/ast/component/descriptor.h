@@ -14,6 +14,7 @@
 #pragma once
 
 #include "ast/type.h"
+#include "common/component_valtype.h"
 
 #include <variant>
 
@@ -63,19 +64,22 @@ public:
     Type.emplace<TagType>(std::move(TT));
   }
 
-  bool isFunc() const noexcept {
-    return std::holds_alternative<uint32_t>(Type);
+  /// The kind of core extern the descriptor describes.
+  ExternalType getExternalType() const noexcept {
+    if (std::holds_alternative<TableType>(Type)) {
+      return ExternalType::Table;
+    }
+    if (std::holds_alternative<MemoryType>(Type)) {
+      return ExternalType::Memory;
+    }
+    if (std::holds_alternative<GlobalType>(Type)) {
+      return ExternalType::Global;
+    }
+    if (std::holds_alternative<TagType>(Type)) {
+      return ExternalType::Tag;
+    }
+    return ExternalType::Function;
   }
-  bool isTable() const noexcept {
-    return std::holds_alternative<TableType>(Type);
-  }
-  bool isMemory() const noexcept {
-    return std::holds_alternative<MemoryType>(Type);
-  }
-  bool isGlobal() const noexcept {
-    return std::holds_alternative<GlobalType>(Type);
-  }
-  bool isTag() const noexcept { return std::holds_alternative<TagType>(Type); }
 
 private:
   std::variant<uint32_t, TableType, MemoryType, GlobalType, TagType> Type;

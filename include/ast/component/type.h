@@ -15,8 +15,9 @@
 
 #include "ast/component/declarator.h"
 #include "ast/component/valtype.h"
-#include "common/types.h"
+#include "common/component_valtype.h"
 
+#include <memory>
 #include <optional>
 #include <variant>
 #include <vector>
@@ -378,11 +379,29 @@ public:
       : ParamList(std::move(P)), ResultList(std::move(R)) {}
 
   Span<const LabelValType> getParamList() const noexcept { return ParamList; }
+  /// The value types of the parameters, in order.
+  std::vector<ComponentValType> getParamValTypes() const noexcept {
+    std::vector<ComponentValType> Types;
+    Types.reserve(ParamList.size());
+    for (const auto &P : ParamList) {
+      Types.push_back(P.getValType());
+    }
+    return Types;
+  }
   void setParamList(std::vector<LabelValType> &&P) noexcept {
     ParamList = std::move(P);
   }
 
   Span<const LabelValType> getResultList() const noexcept { return ResultList; }
+  /// The value types of the results, in order.
+  std::vector<ComponentValType> getResultValTypes() const noexcept {
+    std::vector<ComponentValType> Types;
+    Types.reserve(ResultList.size());
+    for (const auto &R : ResultList) {
+      Types.push_back(R.getValType());
+    }
+    return Types;
+  }
   void setResultList(std::vector<LabelValType> &&R) noexcept {
     ResultList = std::move(R);
   }
@@ -531,6 +550,41 @@ private:
   std::variant<DefValType, FuncType, ComponentType, InstanceType, ResourceType>
       Type;
 };
+
+inline CoreModuleDecl::CoreModuleDecl(const CoreModuleDecl &Other) {
+  if (Other.isType()) {
+    Decl.emplace<std::unique_ptr<CoreDefType>>(
+        std::make_unique<CoreDefType>(*Other.getType()));
+  } else if (Other.isImport()) {
+    Decl.emplace<CoreImportDecl>(Other.getImport());
+  } else if (Other.isAlias()) {
+    Decl.emplace<CoreAlias>(Other.getAlias());
+  } else {
+    Decl.emplace<CoreExportDecl>(Other.getExport());
+  }
+}
+
+inline CoreModuleDecl &CoreModuleDecl::operator=(const CoreModuleDecl &Other) {
+  return *this = CoreModuleDecl(Other);
+}
+
+inline InstanceDecl::InstanceDecl(const InstanceDecl &Other) {
+  if (Other.isCoreType()) {
+    Decl.emplace<std::unique_ptr<CoreDefType>>(
+        std::make_unique<CoreDefType>(*Other.getCoreType()));
+  } else if (Other.isType()) {
+    Decl.emplace<std::unique_ptr<DefType>>(
+        std::make_unique<DefType>(*Other.getType()));
+  } else if (Other.isAlias()) {
+    Decl.emplace<Alias>(Other.getAlias());
+  } else {
+    Decl.emplace<ExportDecl>(Other.getExport());
+  }
+}
+
+inline InstanceDecl &InstanceDecl::operator=(const InstanceDecl &Other) {
+  return *this = InstanceDecl(Other);
+}
 
 } // namespace Component
 } // namespace AST

@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 #include "validator/component_types.h"
 
+#include "common/component_valtype.h"
 #include "common/errinfo.h"
 #include "common/spdlog.h"
 
@@ -22,7 +23,21 @@ namespace Component {
 using namespace std::literals;
 
 // ---------------------------------------------------------------------------
-// Type view normalization.
+// Scope.
+// ---------------------------------------------------------------------------
+
+Expect<void> Scope::consumeValue(uint32_t Idx) noexcept {
+  auto &Entry = Values[Idx];
+  if (Entry.Consumed) {
+    spdlog::error(ErrCode::Value::ComponentValueAlreadyConsumed);
+    return Unexpect(ErrCode::Value::ComponentValueAlreadyConsumed);
+  }
+  Entry.Consumed = true;
+  return {};
+}
+
+// ---------------------------------------------------------------------------
+// Type view resolution.
 // ---------------------------------------------------------------------------
 
 const TypeEntry *TypeSystem::resolveQualType(const QualValType &Q,
@@ -35,7 +50,7 @@ const TypeEntry *TypeSystem::resolveQualType(const QualValType &Q,
     return nullptr;
   }
   Storage = *Entry;
-  if (Entry->ResourceId.has_value()) {
+  if (Entry->isResource()) {
     Storage.ResourceId = applyRemap(Q.Remap, *Entry->ResourceId);
   }
   Storage.Remap = composeRemap(Q.Remap, Entry->Remap);
@@ -49,35 +64,25 @@ TypeSystem::resolveResourceId(const Scope *Home, const ResourceMap *Remap,
     return std::nullopt;
   }
   const auto *Entry = Home->getType(Idx);
-  if (Entry == nullptr || !Entry->ResourceId.has_value()) {
+  if (Entry == nullptr || !Entry->isResource()) {
     return std::nullopt;
   }
   return applyRemap(Remap, *Entry->ResourceId);
 }
 
-// Resolves through type-index and prim-alias indirections.
-NormalVal TypeSystem::normalizeValType(const QualValType &Q) noexcept {
+// The primitive behind a valtype, through prim-alias indirections.
+std::optional<PrimValType>
+TypeSystem::resolvePrimValType(const QualValType &Q) noexcept {
   if (Q.VT.isPrimValType()) {
-    return {Q.VT.getCode(), nullptr, nullptr, nullptr, true};
+    return Q.VT.getPrimValType();
   }
   TypeEntry Storage;
   const auto *Entry = resolveQualType(Q, Storage);
-  if (Entry == nullptr) {
-    return {};
+  const auto *Def = Entry != nullptr ? Entry->getDefValType() : nullptr;
+  if (Def == nullptr || !Def->isPrimValType()) {
+    return std::nullopt;
   }
-  return normalizeEntry(*Entry);
-}
-
-NormalVal TypeSystem::normalizeEntry(const TypeEntry &E) const noexcept {
-  if (E.DT == nullptr || !E.DT->isDefValType()) {
-    return {};
-  }
-  const auto &DVT = E.DT->getDefValType();
-  if (DVT.isPrimValType()) {
-    return {static_cast<ComponentTypeCode>(DVT.getPrimValType()), nullptr,
-            nullptr, nullptr, true};
-  }
-  return {ComponentTypeCode::TypeIndex, &DVT, E.Home, E.Remap, true};
+  return Def->getPrimValType();
 }
 
 // ---------------------------------------------------------------------------
@@ -85,123 +90,64 @@ NormalVal TypeSystem::normalizeEntry(const TypeEntry &E) const noexcept {
 // ---------------------------------------------------------------------------
 
 bool TypeSystem::containsBorrow(const QualValType &Q) noexcept {
-  const auto N = normalizeValType(Q);
-  if (!N.Valid || N.DVT == nullptr) {
+  TypeEntry Storage;
+  const auto *Entry = resolveQualType(Q, Storage);
+  const auto *Def = Entry != nullptr ? Entry->getDefValType() : nullptr;
+  if (Def == nullptr || Def->isPrimValType()) {
     return false;
   }
-  const auto &D = *N.DVT;
-  auto Sub = [&](const ComponentValType &VT) noexcept {
-    return containsBorrow({VT, N.Home, N.Remap});
-  };
+  const auto &D = *Def;
   if (D.isBorrowTy()) {
     return true;
   }
-  if (D.isRecordTy()) {
-    for (const auto &LT : D.getRecord().LabelTypes) {
-      if (Sub(LT.getValType())) {
-        return true;
-      }
-    }
-    return false;
-  }
-  if (D.isVariantTy()) {
-    for (const auto &[Label, Ty] : D.getVariant().Cases) {
-      if (Ty.has_value() && Sub(*Ty)) {
-        return true;
-      }
-    }
-    return false;
-  }
-  if (D.isListTy()) {
-    return Sub(D.getList().ValTy);
-  }
-  if (D.isTupleTy()) {
-    for (const auto &Ty : D.getTuple().Types) {
-      if (Sub(Ty)) {
-        return true;
-      }
-    }
-    return false;
-  }
-  if (D.isMapTy()) {
-    return Sub(D.getMap().KeyTy) || Sub(D.getMap().ValTy);
-  }
-  if (D.isOptionTy()) {
-    return Sub(D.getOption().ValTy);
-  }
-  if (D.isResultTy()) {
-    const auto &R = D.getResult();
-    return (R.ValTy.has_value() && Sub(*R.ValTy)) ||
-           (R.ErrTy.has_value() && Sub(*R.ErrTy));
-  }
-  // stream and future do not recurse: their element type is borrow-free by
-  // construction, since defining one rejects a borrow in its payload.
-  return false;
+  // Stream and future payloads are borrow-free, so the containers suffice.
+  bool Found = false;
+  forEachValType(D, [&](const ComponentValType &VT) noexcept {
+    Found = Found || containsBorrow({VT, Entry->Home, Entry->Remap});
+  });
+  return Found;
 }
 
 void TypeSystem::collectResources(const QualValType &Q,
                                   std::unordered_set<uint32_t> &Out) noexcept {
-  collectNormalValResources(normalizeValType(Q), Out);
+  TypeEntry Storage;
+  if (const auto *Entry = resolveQualType(Q, Storage)) {
+    collectResources(*Entry, Out);
+  }
 }
 
-void TypeSystem::collectNormalValResources(
-    const NormalVal &N, std::unordered_set<uint32_t> &Out) noexcept {
-  if (!N.Valid || N.DVT == nullptr) {
+void TypeSystem::collectResources(const TypeEntry &E,
+                                  std::unordered_set<uint32_t> &Out) noexcept {
+  const auto *Def = E.getDefValType();
+  if (Def == nullptr || Def->isPrimValType()) {
     return;
   }
-  const auto &D = *N.DVT;
+  const auto &D = *Def;
   auto Sub = [&](const ComponentValType &VT) noexcept {
-    collectResources({VT, N.Home, N.Remap}, Out);
+    collectResources({VT, E.Home, E.Remap}, Out);
   };
   if (D.isOwnTy() || D.isBorrowTy()) {
     const uint32_t Idx = D.isOwnTy() ? D.getOwn().Idx : D.getBorrow().Idx;
-    if (auto Id = resolveResourceId(N.Home, N.Remap, Idx)) {
+    if (auto Id = resolveResourceId(E.Home, E.Remap, Idx)) {
       Out.insert(*Id);
     }
     return;
   }
-  if (D.isRecordTy()) {
-    for (const auto &LT : D.getRecord().LabelTypes) {
-      Sub(LT.getValType());
+  // A stream or future payload can reach a resource too.
+  if (D.isStreamTy() || D.isFutureTy()) {
+    const auto &Elem =
+        D.isStreamTy() ? D.getStream().ValTy : D.getFuture().ValTy;
+    if (Elem.has_value()) {
+      Sub(*Elem);
     }
-  } else if (D.isVariantTy()) {
-    for (const auto &[Label, Ty] : D.getVariant().Cases) {
-      if (Ty.has_value()) {
-        Sub(*Ty);
-      }
-    }
-  } else if (D.isListTy()) {
-    Sub(D.getList().ValTy);
-  } else if (D.isTupleTy()) {
-    for (const auto &Ty : D.getTuple().Types) {
-      Sub(Ty);
-    }
-  } else if (D.isMapTy()) {
-    Sub(D.getMap().KeyTy);
-    Sub(D.getMap().ValTy);
-  } else if (D.isOptionTy()) {
-    Sub(D.getOption().ValTy);
-  } else if (D.isResultTy()) {
-    if (D.getResult().ValTy.has_value()) {
-      Sub(*D.getResult().ValTy);
-    }
-    if (D.getResult().ErrTy.has_value()) {
-      Sub(*D.getResult().ErrTy);
-    }
-  } else if (D.isStreamTy()) {
-    if (D.getStream().ValTy.has_value()) {
-      Sub(*D.getStream().ValTy);
-    }
-  } else if (D.isFutureTy()) {
-    if (D.getFuture().ValTy.has_value()) {
-      Sub(*D.getFuture().ValTy);
-    }
+    return;
   }
+  forEachValType(D, Sub);
 }
 
 void TypeSystem::collectResources(const ExternInfo &Info,
                                   std::unordered_set<uint32_t> &Out) noexcept {
-  switch (Info.K) {
+  switch (Info.Kind) {
   case ExternKind::CoreType:
     return;
   case ExternKind::FuncType: {
@@ -221,7 +167,7 @@ void TypeSystem::collectResources(const ExternInfo &Info,
     return;
   case ExternKind::TypeBound: {
     const auto &E = Info.Type;
-    if (E.ResourceId.has_value()) {
+    if (E.isResource()) {
       Out.insert(*E.ResourceId);
       return;
     }
@@ -240,15 +186,15 @@ void TypeSystem::collectResources(const ExternInfo &Info,
       }
       return;
     }
-    if (E.DT != nullptr && E.DT->isDefValType()) {
-      collectNormalValResources(normalizeEntry(E), Out);
+    if (E.getDefValType() != nullptr) {
+      collectResources(E, Out);
       return;
     }
-    if (E.DT != nullptr && E.DT->isFuncType()) {
-      for (const auto &P : E.DT->getFuncType().getParamList()) {
+    if (const auto *FT = E.getFuncType()) {
+      for (const auto &P : FT->getParamList()) {
         collectResources({P.getValType(), E.Home, E.Remap}, Out);
       }
-      for (const auto &R : E.DT->getFuncType().getResultList()) {
+      for (const auto &R : FT->getResultList()) {
         collectResources({R.getValType(), E.Home, E.Remap}, Out);
       }
     }
@@ -283,67 +229,46 @@ bool TypeSystem::originatesIn(uint32_t Id, const Scope &S) const noexcept {
 // Effective type-size and nesting-depth limits.
 // ---------------------------------------------------------------------------
 
-// Effective size of a value type. This is the metric of the spec limit, and
-// it is memoized per node.
-uint64_t TypeSystem::sizeOfValType(const QualValType &Q) noexcept {
-  return sizeOfNormalVal(normalizeValType(Q));
+// Effective size of a value type (the spec limit metric), memoized per node.
+uint64_t TypeSystem::getTypeSize(const QualValType &Q) noexcept {
+  TypeEntry Storage;
+  const auto *Entry = resolveQualType(Q, Storage);
+  return Entry != nullptr ? getTypeSize(*Entry) : 1;
 }
 
-uint64_t TypeSystem::sizeOfNormalVal(const NormalVal &N) noexcept {
-  if (!N.Valid || N.DVT == nullptr) {
+uint64_t TypeSystem::getTypeSize(const TypeEntry &E) noexcept {
+  const auto *Def = E.getDefValType();
+  if (Def == nullptr || Def->isPrimValType()) {
     return 1;
   }
-  auto It = TypeSizeMemo.find(N.DVT);
+  auto It = TypeSizeMemo.find(Def);
   if (It != TypeSizeMemo.end()) {
     return It->second;
   }
-  TypeSizeMemo.emplace(N.DVT, 1); // Break cycles defensively.
-  const auto &D = *N.DVT;
+  TypeSizeMemo.emplace(Def, 1); // Break cycles defensively.
+  const auto &D = *Def;
   uint64_t Size = 1;
-  auto Add = [&](const ComponentValType &VT) noexcept {
-    Size += sizeOfValType({VT, N.Home, N.Remap});
-  };
-  if (D.isRecordTy()) {
-    for (const auto &LT : D.getRecord().LabelTypes) {
-      Add(LT.getValType());
-    }
-  } else if (D.isVariantTy()) {
+  // A payload-less variant case and every flags or enum label count one.
+  if (D.isVariantTy()) {
     for (const auto &[Label, Ty] : D.getVariant().Cases) {
-      if (Ty.has_value()) {
-        Add(*Ty);
-      } else {
+      if (!Ty.has_value()) {
         Size += 1;
       }
-    }
-  } else if (D.isListTy()) {
-    Add(D.getList().ValTy);
-  } else if (D.isTupleTy()) {
-    for (const auto &Ty : D.getTuple().Types) {
-      Add(Ty);
-    }
-  } else if (D.isMapTy()) {
-    Add(D.getMap().KeyTy);
-    Add(D.getMap().ValTy);
-  } else if (D.isOptionTy()) {
-    Add(D.getOption().ValTy);
-  } else if (D.isResultTy()) {
-    if (D.getResult().ValTy.has_value()) {
-      Add(*D.getResult().ValTy);
-    }
-    if (D.getResult().ErrTy.has_value()) {
-      Add(*D.getResult().ErrTy);
     }
   } else if (D.isFlagsTy()) {
     Size += D.getFlags().Labels.size();
   } else if (D.isEnumTy()) {
     Size += D.getEnum().Labels.size();
   }
-  TypeSizeMemo[N.DVT] = Size;
+  forEachValType(D, [&](const ComponentValType &VT) noexcept {
+    Size += getTypeSize({VT, E.Home, E.Remap});
+  });
+  TypeSizeMemo[Def] = Size;
   return Size;
 }
 
-uint64_t TypeSystem::sizeOfExtern(const ExternInfo &Info) noexcept {
-  switch (Info.K) {
+uint64_t TypeSystem::getTypeSize(const ExternInfo &Info) noexcept {
+  switch (Info.Kind) {
   case ExternKind::CoreType:
     return Info.CoreMod != nullptr
                ? 1 + Info.CoreMod->Imports.size() + Info.CoreMod->Exports.size()
@@ -358,19 +283,19 @@ uint64_t TypeSystem::sizeOfExtern(const ExternInfo &Info) noexcept {
     }
     uint64_t Size = 1;
     for (const auto &P : Info.Func.FT->getParamList()) {
-      Size += sizeOfValType({P.getValType(), Info.Func.Home, Info.Func.Remap});
+      Size += getTypeSize({P.getValType(), Info.Func.Home, Info.Func.Remap});
     }
     for (const auto &R : Info.Func.FT->getResultList()) {
-      Size += sizeOfValType({R.getValType(), Info.Func.Home, Info.Func.Remap});
+      Size += getTypeSize({R.getValType(), Info.Func.Home, Info.Func.Remap});
     }
     TypeSizeMemo.emplace(Info.Func.FT, Size);
     return Size;
   }
   case ExternKind::ValueBound:
-    return 1 + sizeOfValType(Info.Value);
+    return 1 + getTypeSize(Info.Value);
   case ExternKind::TypeBound: {
     const auto &E = Info.Type;
-    if (E.ResourceId.has_value()) {
+    if (E.isResource()) {
       return 1;
     }
     if (E.Inst != nullptr || E.Comp != nullptr) {
@@ -384,27 +309,27 @@ uint64_t TypeSystem::sizeOfExtern(const ExternInfo &Info) noexcept {
       uint64_t Size = 1;
       if (E.Inst != nullptr) {
         for (const auto &[Name, Sub] : E.Inst->Exports) {
-          Size += 1 + sizeOfExtern(Sub);
+          Size += 1 + getTypeSize(Sub);
         }
       } else {
         for (const auto &[Name, Sub] : E.Comp->Imports) {
-          Size += 1 + sizeOfExtern(Sub);
+          Size += 1 + getTypeSize(Sub);
         }
         for (const auto &[Name, Sub] : E.Comp->Exports) {
-          Size += 1 + sizeOfExtern(Sub);
+          Size += 1 + getTypeSize(Sub);
         }
       }
       TypeSizeMemo[Key] = Size;
       return Size;
     }
-    if (E.DT != nullptr && E.DT->isDefValType()) {
-      return sizeOfNormalVal(normalizeEntry(E));
+    if (E.getDefValType() != nullptr) {
+      return getTypeSize(E);
     }
-    if (E.DT != nullptr && E.DT->isFuncType()) {
+    if (E.getFuncType() != nullptr) {
       ExternInfo FI;
-      FI.K = ExternKind::FuncType;
-      FI.Func = {&E.DT->getFuncType(), E.Home, E.Remap};
-      return sizeOfExtern(FI);
+      FI.Kind = ExternKind::FuncType;
+      FI.Func = {E.getFuncType(), E.Home, E.Remap};
+      return getTypeSize(FI);
     }
     return 1;
   }
@@ -421,10 +346,10 @@ uint64_t TypeSystem::sizeOfExtern(const ExternInfo &Info) noexcept {
     TypeSizeMemo.emplace(Info.Shape, 1);
     uint64_t Size = 1;
     for (const auto &[Name, Sub] : Info.Shape->Imports) {
-      Size += 1 + sizeOfExtern(Sub);
+      Size += 1 + getTypeSize(Sub);
     }
     for (const auto &[Name, Sub] : Info.Shape->Exports) {
-      Size += 1 + sizeOfExtern(Sub);
+      Size += 1 + getTypeSize(Sub);
     }
     TypeSizeMemo[Info.Shape] = Size;
     return Size;
@@ -433,72 +358,45 @@ uint64_t TypeSystem::sizeOfExtern(const ExternInfo &Info) noexcept {
   return 1;
 }
 
-// Depth of a value type: leaves count 1, wrappers add 1. Guards the recursive
-// canonical-ABI walkers.
-uint64_t TypeSystem::depthOfValType(const QualValType &Q) noexcept {
-  return depthOfNormalVal(normalizeValType(Q));
+// Depth of a value type: leaves count 1, wrappers add 1.
+uint64_t TypeSystem::getTypeDepth(const QualValType &Q) noexcept {
+  TypeEntry Storage;
+  const auto *Entry = resolveQualType(Q, Storage);
+  return Entry != nullptr ? getTypeDepth(*Entry) : 1;
 }
 
-uint64_t TypeSystem::depthOfNormalVal(const NormalVal &N) noexcept {
-  if (!N.Valid || N.DVT == nullptr) {
+uint64_t TypeSystem::getTypeDepth(const TypeEntry &E) noexcept {
+  const auto *Def = E.getDefValType();
+  if (Def == nullptr || Def->isPrimValType()) {
     return 1;
   }
-  auto It = TypeDepthMemo.find(N.DVT);
+  auto It = TypeDepthMemo.find(Def);
   if (It != TypeDepthMemo.end()) {
     return It->second;
   }
-  TypeDepthMemo.emplace(N.DVT, 1); // Break cycles defensively.
-  const auto &D = *N.DVT;
+  TypeDepthMemo.emplace(Def, 1); // Break cycles defensively.
+  const auto &D = *Def;
   uint64_t Max = 0;
-  auto Sub = [&](const ComponentValType &VT) noexcept {
-    Max = std::max(Max, depthOfValType({VT, N.Home, N.Remap}));
-  };
-  if (D.isRecordTy()) {
-    for (const auto &LT : D.getRecord().LabelTypes) {
-      Sub(LT.getValType());
-    }
-  } else if (D.isVariantTy()) {
-    for (const auto &[Name, VT] : D.getVariant().Cases) {
-      if (VT.has_value()) {
-        Sub(*VT);
-      }
-    }
-  } else if (D.isListTy()) {
-    Sub(D.getList().ValTy);
-  } else if (D.isTupleTy()) {
-    for (const auto &VT : D.getTuple().Types) {
-      Sub(VT);
-    }
-  } else if (D.isMapTy()) {
-    Sub(D.getMap().KeyTy);
-    Sub(D.getMap().ValTy);
-  } else if (D.isOptionTy()) {
-    Sub(D.getOption().ValTy);
-  } else if (D.isResultTy()) {
-    if (D.getResult().ValTy.has_value()) {
-      Sub(*D.getResult().ValTy);
-    }
-    if (D.getResult().ErrTy.has_value()) {
-      Sub(*D.getResult().ErrTy);
-    }
-  }
+  forEachValType(D, [&](const ComponentValType &VT) noexcept {
+    Max = std::max(Max, getTypeDepth({VT, E.Home, E.Remap}));
+  });
   const uint64_t Depth = Max + 1;
-  TypeDepthMemo[N.DVT] = Depth;
+  TypeDepthMemo[Def] = Depth;
   return Depth;
 }
 
-uint64_t TypeSystem::depthOfExtern(const ExternInfo &Info) noexcept {
+uint64_t TypeSystem::getTypeDepth(const ExternInfo &Info) noexcept {
   uint64_t Max = 0;
-  switch (Info.K) {
+  switch (Info.Kind) {
   case ExternKind::FuncType:
     if (Info.Func.FT != nullptr) {
       for (const auto &P : Info.Func.FT->getParamList()) {
-        Max = std::max(Max, depthOfValType({P.getValType(), Info.Func.Home,
-                                            Info.Func.Remap}));
+        Max = std::max(Max, getTypeDepth({P.getValType(), Info.Func.Home,
+                                          Info.Func.Remap}));
       }
       for (const auto &R : Info.Func.FT->getResultList()) {
-        Max = std::max(Max, depthOfValType({R.getValType(), Info.Func.Home,
-                                            Info.Func.Remap}));
+        Max = std::max(Max, getTypeDepth({R.getValType(), Info.Func.Home,
+                                          Info.Func.Remap}));
       }
     }
     break;
@@ -506,27 +404,26 @@ uint64_t TypeSystem::depthOfExtern(const ExternInfo &Info) noexcept {
     const auto &E = Info.Type;
     if (E.Inst != nullptr || E.Comp != nullptr) {
       ExternInfo Probe;
-      Probe.K = E.Inst != nullptr ? ExternKind::InstanceType
-                                  : ExternKind::ComponentType;
+      Probe.Kind = E.Inst != nullptr ? ExternKind::InstanceType
+                                     : ExternKind::ComponentType;
       Probe.Shape = E.Inst != nullptr ? E.Inst : E.Comp;
-      Max = depthOfExtern(Probe);
-    } else if (E.DT != nullptr && E.DT->isDefValType()) {
-      Max = depthOfNormalVal(normalizeEntry(E));
-    } else if (E.DT != nullptr && E.DT->isFuncType()) {
+      Max = getTypeDepth(Probe);
+    } else if (E.getDefValType() != nullptr) {
+      Max = getTypeDepth(E);
+    } else if (E.getFuncType() != nullptr) {
       ExternInfo Probe;
-      Probe.K = ExternKind::FuncType;
-      Probe.Func = {&E.DT->getFuncType(), E.Home, E.Remap};
-      Max = depthOfExtern(Probe);
+      Probe.Kind = ExternKind::FuncType;
+      Probe.Func = {E.getFuncType(), E.Home, E.Remap};
+      Max = getTypeDepth(Probe);
     }
     break;
   }
   case ExternKind::ValueBound:
-    Max = depthOfValType(Info.Value);
+    Max = getTypeDepth(Info.Value);
     break;
   case ExternKind::InstanceType:
   case ExternKind::ComponentType: {
-    // A shape is one nesting level of its own. Instances carry no imports, so
-    // one walk covers both shapes.
+    // A shape is one nesting level; one walk covers both shapes.
     if (Info.Shape == nullptr) {
       return 1;
     }
@@ -536,10 +433,10 @@ uint64_t TypeSystem::depthOfExtern(const ExternInfo &Info) noexcept {
     }
     TypeDepthMemo.emplace(Info.Shape, 1); // Break cycles defensively.
     for (const auto &[Name, E] : Info.Shape->Imports) {
-      Max = std::max(Max, depthOfExtern(E));
+      Max = std::max(Max, getTypeDepth(E));
     }
     for (const auto &[Name, E] : Info.Shape->Exports) {
-      Max = std::max(Max, depthOfExtern(E));
+      Max = std::max(Max, getTypeDepth(E));
     }
     TypeDepthMemo[Info.Shape] = Max + 1;
     return Max + 1;
@@ -551,19 +448,16 @@ uint64_t TypeSystem::depthOfExtern(const ExternInfo &Info) noexcept {
   return Max;
 }
 
-Expect<void> TypeSystem::checkTypeSize(uint64_t Size) const noexcept {
+Expect<void> TypeSystem::checkTypeLimits(const ExternInfo &Info) noexcept {
+  const uint64_t Size = getTypeSize(Info);
   if (Size >= MaxTypeSize) {
     spdlog::error(ErrCode::Value::ComponentTypeSizeLimit);
     spdlog::error("    Effective type size {} exceeds the limit of {}."sv, Size,
                   MaxTypeSize);
     return Unexpect(ErrCode::Value::ComponentTypeSizeLimit);
   }
-  return {};
-}
-
-Expect<void> TypeSystem::checkTypeDepth(uint64_t Depth) const noexcept {
-  // The reference engine bounds value-type nesting at 100.
-  if (Depth > 100) {
+  const uint64_t Depth = getTypeDepth(Info);
+  if (Depth > MaxTypeDepth) {
     spdlog::error(ErrCode::Value::ComponentTypeNestingDepth);
     spdlog::error("    Value type nesting depth {} exceeds the limit."sv,
                   Depth);
@@ -572,63 +466,58 @@ Expect<void> TypeSystem::checkTypeDepth(uint64_t Depth) const noexcept {
   return {};
 }
 
-Expect<void> TypeSystem::checkTypeLimits(const ExternInfo &Info) noexcept {
-  EXPECTED_TRY(checkTypeSize(sizeOfExtern(Info)));
-  EXPECTED_TRY(checkTypeDepth(depthOfExtern(Info)));
-  return {};
-}
-
 // ---------------------------------------------------------------------------
 // Canonical ABI flattening (spec `flatten_functype`).
 // ---------------------------------------------------------------------------
 
-// Spec flatten_type: appends the flat core types of Q. Returns false for
-// types that cannot be flattened (async-gated ones).
+// Spec flatten_type: appends the flat core types of Q; false if unflattenable.
 bool TypeSystem::flattenValType(const QualValType &Q, std::vector<ValType> &Out,
                                 const ValType &Ptr) noexcept {
   if (Out.size() > MaxFlatExpand) {
     return true;
   }
-  const auto N = normalizeValType(Q);
-  if (!N.Valid) {
-    return false;
-  }
-  if (N.DVT == nullptr) {
-    switch (N.Prim) {
-    case ComponentTypeCode::Bool:
-    case ComponentTypeCode::S8:
-    case ComponentTypeCode::U8:
-    case ComponentTypeCode::S16:
-    case ComponentTypeCode::U16:
-    case ComponentTypeCode::S32:
-    case ComponentTypeCode::U32:
-    case ComponentTypeCode::Char:
+  if (const auto Prim = resolvePrimValType(Q)) {
+    switch (*Prim) {
+    case PrimValType::Bool:
+    case PrimValType::S8:
+    case PrimValType::U8:
+    case PrimValType::S16:
+    case PrimValType::U16:
+    case PrimValType::S32:
+    case PrimValType::U32:
+    case PrimValType::Char:
       Out.push_back(ValType(TypeCode::I32));
       return true;
-    case ComponentTypeCode::S64:
-    case ComponentTypeCode::U64:
+    case PrimValType::S64:
+    case PrimValType::U64:
       Out.push_back(ValType(TypeCode::I64));
       return true;
-    case ComponentTypeCode::F32:
+    case PrimValType::F32:
       Out.push_back(ValType(TypeCode::F32));
       return true;
-    case ComponentTypeCode::F64:
+    case PrimValType::F64:
       Out.push_back(ValType(TypeCode::F64));
       return true;
-    case ComponentTypeCode::String:
+    case PrimValType::String:
       Out.push_back(Ptr);
       Out.push_back(Ptr);
       return true;
-    case ComponentTypeCode::ErrContext:
+    case PrimValType::ErrorContext:
       Out.push_back(ValType(TypeCode::I32));
       return true;
     default:
       return false;
     }
   }
-  const auto &D = *N.DVT;
+  TypeEntry Storage;
+  const auto *Entry = resolveQualType(Q, Storage);
+  const auto *Def = Entry != nullptr ? Entry->getDefValType() : nullptr;
+  if (Def == nullptr) {
+    return false;
+  }
+  const auto &D = *Def;
   auto Sub = [&](const ComponentValType &VT) noexcept {
-    return flattenValType({VT, N.Home, N.Remap}, Out, Ptr);
+    return flattenValType({VT, Entry->Home, Entry->Remap}, Out, Ptr);
   };
   if (D.isRecordTy()) {
     for (const auto &LT : D.getRecord().LabelTypes) {
@@ -649,8 +538,7 @@ bool TypeSystem::flattenValType(const QualValType &Q, std::vector<ValType> &Out,
   if (D.isListTy()) {
     const auto &L = D.getList();
     if (L.Len.has_value()) {
-      // Fixed-length lists flatten to Len copies of the element. Every copy
-      // widens Out, so the ceiling also bounds the iteration count.
+      // Fixed-length lists flatten to Len copies of the element.
       for (uint32_t I = 0; I < *L.Len && Out.size() <= MaxFlatExpand; ++I) {
         if (!Sub(L.ValTy)) {
           return false;
@@ -710,7 +598,7 @@ bool TypeSystem::flattenValType(const QualValType &Q, std::vector<ValType> &Out,
     for (const auto &Payload : Payloads) {
       std::vector<ValType> Flat;
       for (const auto &Ty : Payload) {
-        if (!flattenValType({Ty, N.Home, N.Remap}, Flat, Ptr)) {
+        if (!flattenValType({Ty, Entry->Home, Entry->Remap}, Flat, Ptr)) {
           return false;
         }
       }
@@ -729,59 +617,26 @@ bool TypeSystem::flattenValType(const QualValType &Q, std::vector<ValType> &Out,
   return false;
 }
 
-// True iff the type transitively contains a list or string (drives the memory
-// / realloc option requirements).
+// True iff the type transitively contains a list, map, or string.
 bool TypeSystem::needsMemory(const QualValType &Q) noexcept {
-  const auto N = normalizeValType(Q);
-  if (!N.Valid) {
+  if (const auto Prim = resolvePrimValType(Q)) {
+    return *Prim == PrimValType::String;
+  }
+  TypeEntry Storage;
+  const auto *Entry = resolveQualType(Q, Storage);
+  const auto *Def = Entry != nullptr ? Entry->getDefValType() : nullptr;
+  if (Def == nullptr) {
     return false;
   }
-  if (N.DVT == nullptr) {
-    return N.Prim == ComponentTypeCode::String;
-  }
-  const auto &D = *N.DVT;
-  auto Sub = [&](const ComponentValType &VT) noexcept {
-    return needsMemory({VT, N.Home, N.Remap});
-  };
-  if (D.isListTy()) {
+  const auto &D = *Def;
+  if (D.isListTy() || D.isMapTy()) {
     return true;
   }
-  if (D.isRecordTy()) {
-    for (const auto &LT : D.getRecord().LabelTypes) {
-      if (Sub(LT.getValType())) {
-        return true;
-      }
-    }
-    return false;
-  }
-  if (D.isVariantTy()) {
-    for (const auto &[Label, Ty] : D.getVariant().Cases) {
-      if (Ty.has_value() && Sub(*Ty)) {
-        return true;
-      }
-    }
-    return false;
-  }
-  if (D.isTupleTy()) {
-    for (const auto &Ty : D.getTuple().Types) {
-      if (Sub(Ty)) {
-        return true;
-      }
-    }
-    return false;
-  }
-  if (D.isMapTy()) {
-    return true;
-  }
-  if (D.isOptionTy()) {
-    return Sub(D.getOption().ValTy);
-  }
-  if (D.isResultTy()) {
-    const auto &R = D.getResult();
-    return (R.ValTy.has_value() && Sub(*R.ValTy)) ||
-           (R.ErrTy.has_value() && Sub(*R.ErrTy));
-  }
-  return false;
+  bool Found = false;
+  forEachValType(D, [&](const ComponentValType &VT) noexcept {
+    Found = Found || needsMemory({VT, Entry->Home, Entry->Remap});
+  });
+  return Found;
 }
 
 Expect<AST::FunctionType>
@@ -818,13 +673,12 @@ TypeSystem::flattenFuncType(const FuncInfo &FI, const ValType &Ptr,
 // Instantiation-time substitution.
 // ---------------------------------------------------------------------------
 
-// Rebuild a view across an instantiation boundary. Node is the combined
-// substitution and freshening, and Memo keeps shape identity.
+// Rebuild a view across an instantiation boundary under the Node remap.
 ExternInfo TypeSystem::rebuildExtern(const ExternInfo &E,
                                      const ResourceMap *Node,
                                      ShapeMemo &Memo) noexcept {
   ExternInfo R = E;
-  switch (E.K) {
+  switch (E.Kind) {
   case ExternKind::CoreType:
     break;
   case ExternKind::FuncType:
@@ -848,7 +702,7 @@ TypeEntry TypeSystem::rebuildTypeEntry(const TypeEntry &E,
                                        const ResourceMap *Node,
                                        ShapeMemo &Memo) noexcept {
   TypeEntry R = E;
-  if (E.ResourceId.has_value()) {
+  if (E.isResource()) {
     R.ResourceId = Node->apply(*E.ResourceId);
     if (*R.ResourceId != *E.ResourceId) {
       R.NameId = getResource(*R.ResourceId).NameId;
@@ -864,8 +718,7 @@ TypeEntry TypeSystem::rebuildTypeEntry(const TypeEntry &E,
   return R;
 }
 
-// One walk for both shapes: instances have no imports, components no
-// declaration order, so each loop is a no-op for the other kind.
+// One walk for both shapes; each loop is a no-op for the other kind.
 const Shape *TypeSystem::rebuildShape(const Shape *S, const ResourceMap *Node,
                                       ShapeMemo &Memo) noexcept {
   if (S == nullptr) {
@@ -875,7 +728,7 @@ const Shape *TypeSystem::rebuildShape(const Shape *S, const ResourceMap *Node,
   if (It != Memo.end()) {
     return It->second;
   }
-  auto *R = newShape();
+  auto *R = addShape();
   Memo.emplace(S, R);
   R->DeclScope = S->DeclScope;
   R->ExportOrder = S->ExportOrder;
@@ -891,18 +744,17 @@ const Shape *TypeSystem::rebuildShape(const Shape *S, const ResourceMap *Node,
 const Shape *TypeSystem::freshenDeclaredResources(const Shape *Inst,
                                                   const Scope &Origin,
                                                   bool FromImport) noexcept {
-  // Only declaration-built shapes carry their own declared resources. The
-  // resources of a concrete instance belong to the enclosing component.
+  // Only declaration-built shapes carry their own declared resources.
   if (Inst == nullptr || Inst->DeclScope == nullptr ||
-      Inst->DeclScope->K != Scope::Kind::InstanceType) {
+      Inst->DeclScope->Kind != ScopeKind::InstanceType) {
     return Inst;
   }
   std::unordered_set<uint32_t> Ids;
   ExternInfo Probe;
-  Probe.K = ExternKind::InstanceType;
+  Probe.Kind = ExternKind::InstanceType;
   Probe.Shape = Inst;
   collectResources(Probe, Ids);
-  auto *Node = newResourceMap();
+  auto *Node = addResourceMap();
   for (const uint32_t Id : Ids) {
     if (originatesIn(Id, *Inst->DeclScope)) {
       Node->Map.emplace(Id, addResource(nullptr, &Origin, FromImport));
@@ -919,7 +771,7 @@ const Shape *
 TypeSystem::rebuildInstanceExports(const Shape &CI,
                                    const ResourceMap *Node) noexcept {
   ShapeMemo Memo;
-  auto *Result = newShape();
+  auto *Result = addShape();
   Result->DeclScope = CI.DeclScope;
   for (const auto &[Name, E] : CI.Exports) {
     Result->Exports.emplace(Name, rebuildExtern(E, Node, Memo));
@@ -934,36 +786,46 @@ TypeSystem::rebuildInstanceExports(const Shape &CI,
 
 bool Matcher::matchValType(const QualValType &Sub,
                            const QualValType &Sup) noexcept {
-  return matchNormalVal(Types.normalizeValType(Sub),
-                        Types.normalizeValType(Sup));
+  const auto PSub = Types.resolvePrimValType(Sub);
+  const auto PSup = Types.resolvePrimValType(Sup);
+  if (PSub.has_value() || PSup.has_value()) {
+    return PSub.has_value() && PSup.has_value() &&
+           matchPrimValType(*PSub, *PSup);
+  }
+  TypeEntry SubStorage, SupStorage;
+  const auto *SubEntry = Types.resolveQualType(Sub, SubStorage);
+  const auto *SupEntry = Types.resolveQualType(Sup, SupStorage);
+  return SubEntry != nullptr && SupEntry != nullptr &&
+         matchValType(*SubEntry, *SupEntry);
 }
 
-bool Matcher::matchNormalVal(const NormalVal &NSub,
-                             const NormalVal &NSup) noexcept {
-  if (!NSub.Valid || !NSup.Valid) {
-    return false;
-  }
-  if (NSub.DVT == nullptr && NSup.DVT == nullptr) {
-    if (NSub.Prim != NSup.Prim) {
-      // Only a class-level difference names the primitive. A
-      // scalar-against-scalar mismatch keeps the positional diagnostic.
-      if ((NSub.Prim == ComponentTypeCode::String) !=
-          (NSup.Prim == ComponentTypeCode::String)) {
-        FailCode = ErrCode::Value::ComponentPrimitiveMismatch;
-      }
-      return false;
+bool Matcher::matchPrimValType(PrimValType Sub, PrimValType Sup) noexcept {
+  if (Sub != Sup) {
+    // Only a class-level difference names the primitive.
+    if ((Sub == PrimValType::String) != (Sup == PrimValType::String)) {
+      FailCode = ErrCode::Value::ComponentPrimitiveMismatch;
     }
-    return true;
-  }
-  if (NSub.DVT == nullptr || NSup.DVT == nullptr) {
     return false;
   }
-  const auto &A = *NSub.DVT;
-  const auto &B = *NSup.DVT;
+  return true;
+}
+
+bool Matcher::matchValType(const TypeEntry &Sub,
+                           const TypeEntry &Sup) noexcept {
+  const auto *ADef = Sub.getDefValType();
+  const auto *BDef = Sup.getDefValType();
+  if (ADef == nullptr || BDef == nullptr) {
+    return false;
+  }
+  if (ADef->isPrimValType() || BDef->isPrimValType()) {
+    return ADef->isPrimValType() && BDef->isPrimValType() &&
+           matchPrimValType(ADef->getPrimValType(), BDef->getPrimValType());
+  }
+  const auto &A = *ADef;
+  const auto &B = *BDef;
   auto MatchSub = [&](const ComponentValType &VA,
                       const ComponentValType &VB) noexcept {
-    return matchValType({VA, NSub.Home, NSub.Remap},
-                        {VB, NSup.Home, NSup.Remap});
+    return matchValType({VA, Sub.Home, Sub.Remap}, {VB, Sup.Home, Sup.Remap});
   };
   auto MatchOpt = [&](const std::optional<ComponentValType> &VA,
                       const std::optional<ComponentValType> &VB) noexcept {
@@ -1065,8 +927,8 @@ bool Matcher::matchNormalVal(const NormalVal &NSub,
   if ((A.isOwnTy() && B.isOwnTy()) || (A.isBorrowTy() && B.isBorrowTy())) {
     const uint32_t IA = A.isOwnTy() ? A.getOwn().Idx : A.getBorrow().Idx;
     const uint32_t IB = B.isOwnTy() ? B.getOwn().Idx : B.getBorrow().Idx;
-    const auto RA = Types.resolveResourceId(NSub.Home, NSub.Remap, IA);
-    const auto RB = Types.resolveResourceId(NSup.Home, NSup.Remap, IB);
+    const auto RA = Types.resolveResourceId(Sub.Home, Sub.Remap, IA);
+    const auto RB = Types.resolveResourceId(Sup.Home, Sup.Remap, IB);
     if (!RA.has_value() || !RB.has_value()) {
       return false;
     }
@@ -1122,8 +984,8 @@ bool Matcher::matchFunc(const FuncInfo &Sub, const FuncInfo &Sup) noexcept {
 bool Matcher::matchTypeEntry(const TypeEntry &Sub,
                              const TypeEntry &Sup) noexcept {
   // Abstract resource supertype: binds (or re-checks) the substitution.
-  if (Sup.ResourceId.has_value() && Sup.DT == nullptr) {
-    if (!Sub.ResourceId.has_value()) {
+  if (Sup.isResource() && Sup.DT == nullptr) {
+    if (!Sub.isResource()) {
       FailCode = ErrCode::Value::ComponentExpectedResource;
       return false;
     }
@@ -1132,15 +994,14 @@ bool Matcher::matchTypeEntry(const TypeEntry &Sub,
       FailCode = ErrCode::Value::ComponentResourceMismatch;
       return false;
     }
-    // Abstract-to-abstract bindings work in both directions (component
-    // shapes are matched contravariantly on imports).
+    // Abstract-to-abstract bindings work in both directions.
     if (Sub.DT == nullptr) {
       Subst.Map.emplace(*Sub.ResourceId, *Sup.ResourceId);
     }
     return true;
   }
-  if (Sup.ResourceId.has_value()) {
-    if (!Sub.ResourceId.has_value()) {
+  if (Sup.isResource()) {
+    if (!Sub.isResource()) {
       FailCode = ErrCode::Value::ComponentExpectedResource;
       return false;
     }
@@ -1151,8 +1012,8 @@ bool Matcher::matchTypeEntry(const TypeEntry &Sub,
     }
     return *Sub.ResourceId == SupId;
   }
-  if (Sub.ResourceId.has_value()) {
-    if (Sup.DT != nullptr && Sup.DT->isDefValType()) {
+  if (Sub.isResource()) {
+    if (Sup.getDefValType() != nullptr) {
       FailCode = ErrCode::Value::ComponentExpectedDefinedType;
     }
     return false;
@@ -1163,27 +1024,20 @@ bool Matcher::matchTypeEntry(const TypeEntry &Sub,
   if (Sup.Comp != nullptr) {
     return Sub.Comp != nullptr && matchComponentShape(*Sub.Comp, *Sup.Comp);
   }
-  if (Sup.DT == nullptr || Sub.DT == nullptr) {
-    return false;
-  }
-  if (Sup.DT->isFuncType()) {
-    if (!Sub.DT->isFuncType()) {
+  if (Sup.getFuncType() != nullptr) {
+    if (Sub.getFuncType() == nullptr) {
       return false;
     }
-    return matchFunc({&Sub.DT->getFuncType(), Sub.Home, Sub.Remap},
-                     {&Sup.DT->getFuncType(), Sup.Home, Sup.Remap});
+    return matchFunc({Sub.getFuncType(), Sub.Home, Sub.Remap},
+                     {Sup.getFuncType(), Sup.Home, Sup.Remap});
   }
-  if (Sup.DT->isDefValType()) {
-    if (!Sub.DT->isDefValType()) {
-      return false;
-    }
-    return matchNormalVal(Types.normalizeEntry(Sub), Types.normalizeEntry(Sup));
+  if (Sup.getDefValType() != nullptr) {
+    return matchValType(Sub, Sup);
   }
   return false;
 }
 
-// Positional diagnostics ("type mismatch in instance export") beat leaf
-// reasons when the failure is nested inside an instance/component shape.
+// Positional diagnostics beat leaf reasons nested inside a shape.
 void Matcher::clearLeafFailCode() noexcept {
   switch (FailCode) {
   case ErrCode::Value::InstanceMissingExpectedExport:
@@ -1201,8 +1055,7 @@ void Matcher::clearLeafFailCode() noexcept {
 }
 
 bool Matcher::matchInstanceShape(const Shape &Sub, const Shape &Sup) noexcept {
-  // Walk expected exports in declaration order: abstract resources must
-  // bind before the functions that reference them.
+  // Declaration order: abstract resources bind before their functions.
   auto MatchOne = [&](const std::string &Name,
                       const ExternInfo &SupE) noexcept {
     auto It = Sub.Exports.find(Name);
@@ -1234,8 +1087,7 @@ bool Matcher::matchInstanceShape(const Shape &Sub, const Shape &Sup) noexcept {
 }
 
 bool Matcher::matchComponentShape(const Shape &Sub, const Shape &Sup) noexcept {
-  // Imports contravariant: everything Sub requires, Sup must require
-  // compatibly (so args satisfying Sup satisfy Sub).
+  // Imports are contravariant: whatever Sub requires, Sup must require.
   for (const auto &[Name, SubImp] : Sub.Imports) {
     const ExternInfo *SupImp = nullptr;
     for (const auto &[SupName, E] : Sup.Imports) {
@@ -1270,15 +1122,15 @@ bool Matcher::matchComponentShape(const Shape &Sub, const Shape &Sup) noexcept {
 
 bool Matcher::matchExtern(const ExternInfo &Sub,
                           const ExternInfo &Sup) noexcept {
-  if (Sub.K != Sup.K) {
-    if (Sup.K == ExternKind::FuncType) {
+  if (Sub.Kind != Sup.Kind) {
+    if (Sup.Kind == ExternKind::FuncType) {
       FailCode = ErrCode::Value::ComponentExpectedFunc;
-    } else if (Sup.K == ExternKind::ComponentType) {
+    } else if (Sup.Kind == ExternKind::ComponentType) {
       FailCode = ErrCode::Value::ComponentExpectedComponent;
     }
     return false;
   }
-  switch (Sup.K) {
+  switch (Sup.Kind) {
   case ExternKind::CoreType: {
     if (Sub.CoreMod == nullptr || Sup.CoreMod == nullptr) {
       return false;
@@ -1316,8 +1168,7 @@ bool Matcher::matchExtern(const ExternInfo &Sub,
     if (matchFunc(Sub.Func, Sup.Func)) {
       return true;
     }
-    // A value-leaf reason stays internal to a function signature. The
-    // diagnostic names the parameter or result position instead.
+    // A value-leaf reason stays internal to a function signature.
     if (FailCode == ErrCode::Value::ComponentPrimitiveMismatch ||
         FailCode == ErrCode::Value::ComponentEnumMismatch ||
         FailCode == ErrCode::Value::ComponentExpectedNoOkType ||
@@ -1340,48 +1191,34 @@ bool Matcher::matchExtern(const ExternInfo &Sub,
   return false;
 }
 
-bool Matcher::matchCoreFuncType(const AST::SubType *Sub,
-                                const AST::SubType *Sup) const noexcept {
-  if (Sub == nullptr || Sup == nullptr) {
-    return false;
-  }
-  const auto &CA = Sub->getCompositeType();
-  const auto &CB = Sup->getCompositeType();
-  if (!CA.isFunc() || !CB.isFunc()) {
-    return false;
-  }
-  return CA.getFuncType().getParamTypes() == CB.getFuncType().getParamTypes() &&
-         CA.getFuncType().getReturnTypes() == CB.getFuncType().getReturnTypes();
-}
-
 bool Matcher::matchCoreExtern(const CoreExternInfo &Sub,
                               const CoreExternInfo &Sup) const noexcept {
   if (Sub.Kind != Sup.Kind) {
     return false;
   }
-  auto MatchLimits = [](const AST::Limit &LA, const AST::Limit &LB) noexcept {
-    if (LA.is64() != LB.is64() || LA.isShared() != LB.isShared()) {
-      return false;
-    }
-    if (LA.getMin() < LB.getMin()) {
-      return false;
-    }
-    if (LB.hasMax()) {
-      return LA.hasMax() && LA.getMax() <= LB.getMax();
-    }
-    return true;
-  };
   switch (Sup.Kind) {
   case ExternalType::Function:
-  case ExternalType::Tag:
-    return matchCoreFuncType(Sub.Func, Sup.Func);
+  case ExternalType::Tag: {
+    if (Sub.Func == nullptr || Sup.Func == nullptr) {
+      return false;
+    }
+    const auto &CA = Sub.Func->getCompositeType();
+    const auto &CB = Sup.Func->getCompositeType();
+    return CA.isFunc() && CB.isFunc() &&
+           CA.getFuncType().getParamTypes() ==
+               CB.getFuncType().getParamTypes() &&
+           CA.getFuncType().getReturnTypes() ==
+               CB.getFuncType().getReturnTypes();
+  }
   case ExternalType::Table:
     return Sub.Table != nullptr && Sup.Table != nullptr &&
            Sub.Table->getRefType() == Sup.Table->getRefType() &&
-           MatchLimits(Sub.Table->getLimit(), Sup.Table->getLimit());
+           AST::TypeMatcher::matchLimit(Sup.Table->getLimit(),
+                                        Sub.Table->getLimit());
   case ExternalType::Memory:
     return Sub.Memory != nullptr && Sup.Memory != nullptr &&
-           MatchLimits(Sub.Memory->getLimit(), Sup.Memory->getLimit());
+           AST::TypeMatcher::matchLimit(Sup.Memory->getLimit(),
+                                        Sub.Memory->getLimit());
   case ExternalType::Global:
     return Sub.Global != nullptr && Sup.Global != nullptr &&
            Sub.Global->getValType() == Sup.Global->getValType() &&

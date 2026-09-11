@@ -17,6 +17,7 @@
 #include "ast/component/section.h"
 #include "common/span.h"
 
+#include <memory>
 #include <variant>
 #include <vector>
 
@@ -85,6 +86,18 @@ private:
   bool IsValidated = false;
   /// @}
 };
+
+inline ComponentSection::ComponentSection(const ComponentSection &Other)
+    : Section(Other) {
+  if (Other.Content != nullptr) {
+    Content = std::make_unique<Component>(*Other.Content);
+  }
+}
+
+inline ComponentSection &
+ComponentSection::operator=(const ComponentSection &Other) {
+  return *this = ComponentSection(Other);
+}
 
 } // namespace Component
 } // namespace AST

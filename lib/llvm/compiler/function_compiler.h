@@ -191,6 +191,7 @@ private:
   void compileVectorVectorFDiv(LLVM::Type VectorTy) noexcept;
   void compileVectorVectorFMin(LLVM::Type VectorTy) noexcept;
   void compileVectorVectorFMax(LLVM::Type VectorTy) noexcept;
+  LLVM::Value compileVectorQuietNaN(LLVM::Value Vector) noexcept;
   void compileVectorVectorFPMin(LLVM::Type VectorTy) noexcept;
   void compileVectorVectorFPMax(LLVM::Type VectorTy) noexcept;
   void compileVectorTruncSatS32(LLVM::Type VectorTy, bool PadZero) noexcept;

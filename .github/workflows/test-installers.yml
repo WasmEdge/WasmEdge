@@ -168,6 +168,24 @@ jobs:
         verify_plugin "libwasmedgePluginWasiNN.so"
         bash utils/uninstall.sh -q -V
 
+        # Test uninstallation with duplicate env entries
+        printf "\n=== Test 5: Uninstall with duplicate env entries ===\n"
+        bash utils/install.sh -D
+        echo "export DUMMY_VAR=1" >> ~/.bashrc
+        echo ". \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
+        echo "alias dummy=ls" >> ~/.bashrc
+        echo ". \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
+        bash utils/uninstall.sh -q -V
+        if grep -qF ". \"${HOME}/.wasmedge/env\"" ~/.bashrc; then
+          echo "[FAIL] Duplicate env entries were not removed from ~/.bashrc"
+          exit 1
+        fi
+        if ! grep -qF "export DUMMY_VAR=1" ~/.bashrc || ! grep -qF "alias dummy=ls" ~/.bashrc; then
+          echo "[FAIL] Unrelated content in ~/.bashrc was corrupted"
+          exit 1
+        fi
+        echo "[PASS] Duplicate env entries removed and unrelated content preserved"
+
   # Test install.sh on macOS
   test-install-sh-macos:
     needs: get-latest-version
@@ -244,6 +262,30 @@ jobs:
         source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
         verify_version "${TEST_228_VERSION}"
         bash utils/uninstall.sh -q -V
+
+        # Test uninstallation with duplicate env entries
+        printf "\n=== Test 5: Uninstall with duplicate env entries ===\n"
+        bash utils/install.sh -D
+        for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          [ -f "$rc_file" ] || continue
+          echo "export DUMMY_VAR=1" >> "$rc_file"
+          echo ". \"${HOME}/.wasmedge/env\"" >> "$rc_file"
+          echo "alias dummy=ls" >> "$rc_file"
+          echo ". \"${HOME}/.wasmedge/env\"" >> "$rc_file"
+        done
+        bash utils/uninstall.sh -q -V
+        for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          [ -f "$rc_file" ] || continue
+          if grep -qF ". \"${HOME}/.wasmedge/env\"" "$rc_file"; then
+            echo "[FAIL] Duplicate env entries were not removed from $rc_file"
+            exit 1
+          fi
+          if ! grep -qF "export DUMMY_VAR=1" "$rc_file" || ! grep -qF "alias dummy=ls" "$rc_file"; then
+            echo "[FAIL] Unrelated content in $rc_file was corrupted"
+            exit 1
+          fi
+        done
+        echo "[PASS] Duplicate env entries removed and unrelated content preserved"
 
         # Test if the environment variable was removed
         IPATH="$HOME/.wasmedge"
@@ -338,6 +380,24 @@ jobs:
 
         # Test uninstallation
         bash utils/uninstall.sh -q -V
+
+        # Test uninstallation with duplicate env entries
+        printf "\n=== Test 5: Uninstall with duplicate env entries ===\n"
+        bash utils/install_v2.sh -V
+        echo "export DUMMY_VAR=1" >> ~/.bashrc
+        echo ". \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
+        echo "alias dummy=ls" >> ~/.bashrc
+        echo ". \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
+        bash utils/uninstall.sh -q -V
+        if grep -qF ". \"${HOME}/.wasmedge/env\"" ~/.bashrc; then
+          echo "[FAIL] Duplicate env entries were not removed from ~/.bashrc"
+          exit 1
+        fi
+        if ! grep -qF "export DUMMY_VAR=1" ~/.bashrc || ! grep -qF "alias dummy=ls" ~/.bashrc; then
+          echo "[FAIL] Unrelated content in ~/.bashrc was corrupted"
+          exit 1
+        fi
+        echo "[PASS] Duplicate env entries removed and unrelated content preserved"
 
     - name: Test NoAVX Installation
       if: ${{ matrix.test_noavx }}
@@ -447,6 +507,31 @@ jobs:
         verify_plugin "libwasmedgePluginWasiNN.dylib"
 
         bash utils/uninstall.sh -q -V
+
+        # Test uninstallation with duplicate env entries
+        printf "\n=== Test 5: Uninstall with duplicate env entries ===\n"
+        bash utils/install_v2.sh -V
+        for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          [ -f "$rc_file" ] || continue
+          echo "export DUMMY_VAR=1" >> "$rc_file"
+          echo ". \"${HOME}/.wasmedge/env\"" >> "$rc_file"
+          echo "alias dummy=ls" >> "$rc_file"
+          echo ". \"${HOME}/.wasmedge/env\"" >> "$rc_file"
+        done
+        bash utils/uninstall.sh -q -V
+        for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          [ -f "$rc_file" ] || continue
+          if grep -qF ". \"${HOME}/.wasmedge/env\"" "$rc_file"; then
+            echo "[FAIL] Duplicate env entries were not removed from $rc_file"
+            exit 1
+          fi
+          if ! grep -qF "export DUMMY_VAR=1" "$rc_file" || ! grep -qF "alias dummy=ls" "$rc_file"; then
+            echo "[FAIL] Unrelated content in $rc_file was corrupted"
+            exit 1
+          fi
+        done
+        echo "[PASS] Duplicate env entries removed and unrelated content preserved"
+
         # Test if the environment variable was removed
         IPATH="$HOME/.wasmedge"
         for file in "$HOME/.zshrc" "$HOME/.bash_profile"; do

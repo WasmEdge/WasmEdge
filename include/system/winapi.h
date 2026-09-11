@@ -1119,6 +1119,12 @@ using PROC_ = int(WASMEDGE_WINAPI_WINAPI_CC *)();
 using CONTEXT_ = struct _CONTEXT;
 using PCONTEXT_ = CONTEXT_ *;
 
+#if defined(_M_ARM64) || defined(__aarch64__)
+using RUNTIME_FUNCTION_ = struct _IMAGE_ARM64_RUNTIME_FUNCTION_ENTRY {
+  DWORD_ BeginAddress;
+  DWORD_ UnwindData;
+};
+#else
 using RUNTIME_FUNCTION_ = struct _IMAGE_RUNTIME_FUNCTION_ENTRY {
   DWORD_ BeginAddress;
   DWORD_ EndAddress;
@@ -1127,7 +1133,13 @@ using RUNTIME_FUNCTION_ = struct _IMAGE_RUNTIME_FUNCTION_ENTRY {
     DWORD_ UnwindData;
   } DUMMYUNIONNAME;
 };
+#endif
 using PRUNTIME_FUNCTION_ = RUNTIME_FUNCTION_ *;
+#if defined(_M_ARM64) || defined(__aarch64__)
+static_assert(sizeof(RUNTIME_FUNCTION_) == 8);
+#else
+static_assert(sizeof(RUNTIME_FUNCTION_) == 12);
+#endif
 
 using SYMBOL_INFOW_ = struct _SYMBOL_INFOW {
   ULONG_ SizeOfStruct;

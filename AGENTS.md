@@ -46,7 +46,7 @@ implementation-only areas such as `lib/wasi_nn_rpc/`.
 
 - CMake 3.18+
 - C++17 compiler (GCC 11+, Clang 13+, or MSVC 19.29+)
-- Optional: LLVM/LLD development packages for AOT/JIT when
+- Optional: LLVM development packages for AOT/JIT when
   `WASMEDGE_USE_LLVM=ON`; use the version configured by the relevant CI or
   Docker image for the target platform.
 

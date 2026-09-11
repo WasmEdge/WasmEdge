@@ -453,6 +453,21 @@ public:
     return false;
   }
 
+  /// Matcher: Match two limits.
+  static bool matchLimit(const Limit &Exp, const Limit &Got) noexcept {
+    if (Exp.getAddrType() != Got.getAddrType() ||
+        Exp.isShared() != Got.isShared()) {
+      return false;
+    }
+    if (Got.getMin() < Exp.getMin()) {
+      return false;
+    }
+    if (Exp.hasMax()) {
+      return Got.hasMax() && Got.getMax() <= Exp.getMax();
+    }
+    return true;
+  }
+
 private:
   /// Matcher: Helper for checking the equivalence of two defined types.
   static bool isDefTypeEqual(Span<const SubType *const> LHSList,

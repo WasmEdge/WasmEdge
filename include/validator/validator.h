@@ -118,8 +118,7 @@ private:
                         Component::Shape &Out) noexcept;
   Expect<void> validate(const AST::Component::Export &Ex,
                         Component::Shape &Out) noexcept;
-  // Resolve + validate descriptors into typed views. Sub-resource type
-  // bounds allocate a fresh abstract resource id (import- or export-side).
+  // Resolve descriptors into typed views; a sub-resource bound gets a fresh id.
   Expect<void> validate(const AST::Component::CoreImportDesc &Desc,
                         Component::CoreExternInfo &Out) noexcept;
   Expect<void> validate(const AST::Component::ExternDesc &Desc, bool IsImport,

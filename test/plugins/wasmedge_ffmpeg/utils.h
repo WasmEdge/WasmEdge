@@ -4,6 +4,7 @@
 #pragma once
 
 #include "avcodec/module.h"
+#include "avdevice/module.h"
 #include "avfilter/module.h"
 #include "avformat/module.h"
 #include "avutil/module.h"
@@ -122,6 +123,13 @@ public:
                                    WasmEdgeFFmpegAVFilterModule>(
                 Module->create());
       }
+      if (const auto *Module =
+              Plugin->findModule("wasmedge_ffmpeg_avdevice"sv)) {
+        AVDeviceMod =
+            dynamicPointerCast<WasmEdge::Host::WasmEdgeFFmpeg::AVDevice::
+                                   WasmEdgeFFmpegAVDeviceModule>(
+                Module->create());
+      }
     }
   }
 
@@ -166,6 +174,9 @@ protected:
   std::unique_ptr<
       WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::WasmEdgeFFmpegAVFilterModule>
       AVFilterMod;
+  std::unique_ptr<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVDevice::WasmEdgeFFmpegAVDeviceModule>
+      AVDeviceMod;
 };
 
 } // namespace WasmEdgeFFmpeg

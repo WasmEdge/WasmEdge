@@ -25,6 +25,10 @@ SwsGetContext::body(const Runtime::CallingFrame &Frame, uint32_t SwsCtxPtr,
   FFMPEG_PTR_FETCH(SwsCtx, *SwsCtxId, SwsContext)
   FFMPEG_PTR_FETCH(SrcSwsFilter, SrcFilterId, SwsFilter)
   FFMPEG_PTR_FETCH(DesSwsFilter, DesFilterId, SwsFilter)
+  FFMPEG_PTR_CHECK_NONZERO(SrcSwsFilter, SrcFilterId,
+                           static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK_NONZERO(DesSwsFilter, DesFilterId,
+                           static_cast<int32_t>(ErrNo::InternalError));
 
   AVPixelFormat const SrcPixelFormat =
       FFmpegUtils::PixFmt::intoAVPixFmt(SrcPixFormatId);
@@ -34,6 +38,9 @@ SwsGetContext::body(const Runtime::CallingFrame &Frame, uint32_t SwsCtxPtr,
                           DestPixelFormat, Flags, SrcSwsFilter, DesSwsFilter,
                           nullptr); // Not using param anywhere in Rust SDK.
   if (SwsCtx == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] SwsGetContext: sws_getContext failed "
+                  "({}x{} format id {} -> {}x{} format id {})"sv,
+                  SrcW, SrcH, SrcPixFormatId, DesW, DesH, DesPixFormatId);
     return static_cast<int32_t>(ErrNo::InternalError);
   }
   FFMPEG_PTR_STORE(SwsCtx, SwsCtxId);
@@ -43,8 +50,10 @@ SwsGetContext::body(const Runtime::CallingFrame &Frame, uint32_t SwsCtxPtr,
 Expect<int32_t> SwsFreeContext::body(const Runtime::CallingFrame &,
                                      uint32_t SwsCtxId) {
   FFMPEG_PTR_FETCH(SwsCtx, SwsCtxId, SwsContext)
+  FFMPEG_PTR_CHECK_FREE(SwsCtx, SwsCtxId,
+                        static_cast<int32_t>(ErrNo::InternalError));
   sws_freeContext(SwsCtx);
-  FFMPEG_PTR_DELETE(SwsCtxId);
+  Env.get()->deallocByValue(SwsCtx);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -54,6 +63,9 @@ Expect<int32_t> SwsScale::body(const Runtime::CallingFrame &, uint32_t SwsCtxId,
   FFMPEG_PTR_FETCH(SwsCtx, SwsCtxId, SwsContext);
   FFMPEG_PTR_FETCH(InputFrame, InputFrameId, AVFrame);
   FFMPEG_PTR_FETCH(OutputFrame, OutputFrameId, AVFrame);
+  FFMPEG_PTR_CHECK(SwsCtx, static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK(InputFrame, static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK(OutputFrame, static_cast<int32_t>(ErrNo::InternalError));
   return sws_scale(SwsCtx, InputFrame->data, InputFrame->linesize, SrcSliceY,
                    SrcSliceH, OutputFrame->data, OutputFrame->linesize);
 }
@@ -66,22 +78,37 @@ Expect<int32_t> SwsGetCachedContext::body(
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(SwsCachedCtxId, MemInst, uint32_t, SwsCachedCtxPtr, "")
 
-  FFMPEG_PTR_FETCH(SwsCachedCtx, *SwsCachedCtxId, SwsContext);
   FFMPEG_PTR_FETCH(SwsCtx, SwsCtxId, SwsContext);
   FFMPEG_PTR_FETCH(SrcSwsFilter, SrcFilterId, SwsFilter)
   FFMPEG_PTR_FETCH(DesSwsFilter, DesFilterId, SwsFilter)
+  FFMPEG_PTR_CHECK_NONZERO(SwsCtx, SwsCtxId,
+                           static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK_NONZERO(SrcSwsFilter, SrcFilterId,
+                           static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK_NONZERO(DesSwsFilter, DesFilterId,
+                           static_cast<int32_t>(ErrNo::InternalError));
 
   AVPixelFormat const SrcPixelFormat =
       FFmpegUtils::PixFmt::intoAVPixFmt(SrcPixFormatId);
   AVPixelFormat const DestPixelFormat =
       FFmpegUtils::PixFmt::intoAVPixFmt(DesPixFormatId);
-  SwsCachedCtx = sws_getCachedContext(SwsCtx, SrcW, SrcH, SrcPixelFormat, DesW,
-                                      DesH, DestPixelFormat, Flags,
-                                      SrcSwsFilter, DesSwsFilter, nullptr);
+  SwsContext *const PrevSwsCtx = SwsCtx;
+  SwsContext *SwsCachedCtx = sws_getCachedContext(
+      SwsCtx, SrcW, SrcH, SrcPixelFormat, DesW, DesH, DestPixelFormat, Flags,
+      SrcSwsFilter, DesSwsFilter, nullptr);
   if (SwsCachedCtx == nullptr) {
+    Env.get()->deallocByValue(PrevSwsCtx);
+    *SwsCachedCtxId = 0;
+    spdlog::error("[WasmEdge-FFmpeg] SwsGetCachedContext: "
+                  "sws_getCachedContext failed ({}x{} format id {} -> {}x{} "
+                  "format id {})"sv,
+                  SrcW, SrcH, SrcPixFormatId, DesW, DesH, DesPixFormatId);
     return static_cast<int32_t>(ErrNo::InternalError);
   }
 
+  if (SwsCachedCtx != PrevSwsCtx) {
+    Env.get()->deallocByValue(PrevSwsCtx);
+  }
   FFMPEG_PTR_STORE(SwsCachedCtx, SwsCachedCtxId);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -119,6 +146,8 @@ Expect<int32_t> SwsGetDefaultFilter::body(
       sws_getDefaultFilter(LumaGBlur, ChromaGBlur, LumaSharpen, ChromaSharpen,
                            ChromaHShift, ChromaVShift, Verbose);
   if (Filter == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] SwsGetDefaultFilter: "
+                  "sws_getDefaultFilter failed"sv);
     return static_cast<int32_t>(ErrNo::InternalError);
   }
   FFMPEG_PTR_STORE(Filter, SwsFilterId);
@@ -130,6 +159,7 @@ Expect<int32_t> SwsGetLumaH::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(SwsVectorId, MemInst, uint32_t, SwsVectorPtr, "")
   FFMPEG_PTR_FETCH(Filter, SwsFilterId, SwsFilter);
+  FFMPEG_PTR_CHECK(Filter, static_cast<int32_t>(ErrNo::InternalError));
 
   SwsVector *Vector = Filter->lumH;
   FFMPEG_PTR_STORE(Vector, SwsVectorId);
@@ -141,6 +171,7 @@ Expect<int32_t> SwsGetLumaV::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(SwsVectorId, MemInst, uint32_t, SwsVectorPtr, "")
   FFMPEG_PTR_FETCH(Filter, SwsFilterId, SwsFilter);
+  FFMPEG_PTR_CHECK(Filter, static_cast<int32_t>(ErrNo::InternalError));
 
   SwsVector *Vector = Filter->lumV;
   FFMPEG_PTR_STORE(Vector, SwsVectorId);
@@ -153,6 +184,7 @@ Expect<int32_t> SwsGetChromaH::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(SwsVectorId, MemInst, uint32_t, SwsVectorPtr, "")
   FFMPEG_PTR_FETCH(Filter, SwsFilterId, SwsFilter);
+  FFMPEG_PTR_CHECK(Filter, static_cast<int32_t>(ErrNo::InternalError));
 
   SwsVector *Vector = Filter->chrH;
   FFMPEG_PTR_STORE(Vector, SwsVectorId);
@@ -165,6 +197,7 @@ Expect<int32_t> SwsGetChromaV::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(SwsVectorId, MemInst, uint32_t, SwsVectorPtr, "")
   FFMPEG_PTR_FETCH(Filter, SwsFilterId, SwsFilter);
+  FFMPEG_PTR_CHECK(Filter, static_cast<int32_t>(ErrNo::InternalError));
 
   SwsVector *Vector = Filter->chrV;
   FFMPEG_PTR_STORE(Vector, SwsVectorId);
@@ -174,6 +207,8 @@ Expect<int32_t> SwsGetChromaV::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> SwsFreeFilter::body(const Runtime::CallingFrame &,
                                     uint32_t SwsFilterId) {
   FFMPEG_PTR_FETCH(Filter, SwsFilterId, SwsFilter);
+  FFMPEG_PTR_CHECK_FREE(Filter, SwsFilterId,
+                        static_cast<int32_t>(ErrNo::InternalError));
   sws_freeFilter(Filter);
   FFMPEG_PTR_DELETE(SwsFilterId);
   return static_cast<int32_t>(ErrNo::Success);
@@ -203,6 +238,7 @@ Expect<int32_t> SwsGetGaussianVec::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> SwsScaleVec::body(const Runtime::CallingFrame &,
                                   uint32_t SwsVectorId, double Scalar) {
   FFMPEG_PTR_FETCH(Vector, SwsVectorId, SwsVector);
+  FFMPEG_PTR_CHECK(Vector, static_cast<int32_t>(ErrNo::InternalError));
   sws_scaleVec(Vector, Scalar);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -210,6 +246,7 @@ Expect<int32_t> SwsScaleVec::body(const Runtime::CallingFrame &,
 Expect<int32_t> SwsNormalizeVec::body(const Runtime::CallingFrame &,
                                       uint32_t SwsVectorId, double Height) {
   FFMPEG_PTR_FETCH(Vector, SwsVectorId, SwsVector);
+  FFMPEG_PTR_CHECK(Vector, static_cast<int32_t>(ErrNo::InternalError));
   sws_normalizeVec(Vector, Height);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -217,6 +254,7 @@ Expect<int32_t> SwsNormalizeVec::body(const Runtime::CallingFrame &,
 Expect<int32_t> SwsGetCoeffVecLength::body(const Runtime::CallingFrame &,
                                            uint32_t SwsVectorId) {
   FFMPEG_PTR_FETCH(Vector, SwsVectorId, SwsVector);
+  FFMPEG_PTR_CHECK(Vector, 0);
   return Vector->length *
          sizeof(double); // Getting the size in uint_8* (Cuz Passing uint8_t*
                          // array from Rust SDK).
@@ -229,14 +267,29 @@ Expect<int32_t> SwsGetCoeff::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(Buffer, MemInst, uint8_t, CoeffBufPtr, Len, "");
   FFMPEG_PTR_FETCH(Vector, SwsVectorId, SwsVector);
 
-  double *Coeff = Vector->coeff;
-  std::copy_n(Coeff, Len, Buffer.data());
+  if (Vector == nullptr || Vector->coeff == nullptr || Vector->length < 0) {
+    spdlog::error("[WasmEdge-FFmpeg] SwsGetCoeff: invalid scaler vector id "
+                  "{} or vector has no coefficients"sv,
+                  SwsVectorId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  size_t const Available = static_cast<size_t>(Vector->length) * sizeof(double);
+  if (Available < static_cast<size_t>(Len)) {
+    spdlog::error("[WasmEdge-FFmpeg] SwsGetCoeff: requested {} bytes from "
+                  "scaler vector id {}, but only {} bytes are readable"sv,
+                  Len, SwsVectorId, Available);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  std::copy_n(reinterpret_cast<const uint8_t *>(Vector->coeff), Len,
+              Buffer.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<int32_t> SwsFreeVec::body(const Runtime::CallingFrame &,
                                  uint32_t SwsVectorId) {
   FFMPEG_PTR_FETCH(Vector, SwsVectorId, SwsVector);
+  FFMPEG_PTR_CHECK_FREE(Vector, SwsVectorId,
+                        static_cast<int32_t>(ErrNo::InternalError));
   sws_freeVec(Vector);
   FFMPEG_PTR_DELETE(SwsVectorId);
   return static_cast<int32_t>(ErrNo::Success);
@@ -259,9 +312,7 @@ Expect<int32_t> SwscaleConfiguration::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
 
   const char *Config = swscale_configuration();
-  auto Actual = std::strlen(Config);
-  auto N = std::min<uint32_t>(ConfigLen, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(Config, N, ConfigBuf.data());
+  copyCStringToBuffer(ConfigBuf.data(), ConfigLen, Config);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -276,9 +327,7 @@ Expect<int32_t> SwscaleLicense::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
 
   const char *License = swscale_license();
-  auto Actual = std::strlen(License);
-  auto N = std::min<uint32_t>(LicenseLen, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(License, N, LicenseBuf.data());
+  copyCStringToBuffer(LicenseBuf.data(), LicenseLen, License);
   return static_cast<int32_t>(ErrNo::Success);
 }
 

@@ -20,6 +20,8 @@ Expect<int32_t> AVCodecAllocContext3::body(const Runtime::CallingFrame &Frame,
   MEM_PTR_CHECK(AvCodecCtxId, MemInst, uint32_t, AvCodecCtxPtr,
                 "Failed when accessing the return AVCodecContext Memory"sv);
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, AVCodec);
+  FFMPEG_PTR_CHECK_NONZERO(AvCodec, AvCodecId,
+                           static_cast<int32_t>(ErrNo::InternalError));
 
   AVCodecContext *AvCodecCtx = avcodec_alloc_context3(AvCodec);
   FFMPEG_PTR_STORE(AvCodecCtx, AvCodecCtxId);
@@ -32,14 +34,20 @@ AVCodecParametersFromContext::body(const Runtime::CallingFrame &,
                                    uint32_t AvCodecCtxId) {
   FFMPEG_PTR_FETCH(AvCodecParam, AvCodecParamId, AVCodecParameters);
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  FFMPEG_PTR_CHECK(AvCodecParam, static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK(AvCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
   return avcodec_parameters_from_context(AvCodecParam, AvCodecCtx);
 }
 
 Expect<int32_t> AVCodecParametersFree::body(const Runtime::CallingFrame &,
                                             uint32_t AvCodecParamId) {
   FFMPEG_PTR_FETCH(AvCodecParam, AvCodecParamId, AVCodecParameters);
+  FFMPEG_PTR_CHECK_FREE(AvCodecParam, AvCodecParamId,
+                        static_cast<int32_t>(ErrNo::InternalError));
 
-  avcodec_parameters_free(&AvCodecParam);
+  if (!Env.get()->isBorrowed(AvCodecParamId)) {
+    avcodec_parameters_free(&AvCodecParam);
+  }
   FFMPEG_PTR_DELETE(AvCodecParamId);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -47,6 +55,8 @@ Expect<int32_t> AVCodecParametersFree::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVCodecFreeContext::body(const Runtime::CallingFrame &,
                                          uint32_t AvCodecCtxId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  FFMPEG_PTR_CHECK_FREE(AvCodecCtx, AvCodecCtxId,
+                        static_cast<int32_t>(ErrNo::InternalError));
 
   avcodec_free_context(&AvCodecCtx);
   FFMPEG_PTR_DELETE(AvCodecCtxId);
@@ -79,6 +89,11 @@ Expect<int32_t> AVCodecOpen2::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   FFMPEG_PTR_FETCH(AvDictionary, AvDictionaryId, AVDictionary *);
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, AVCodec);
+  FFMPEG_PTR_CHECK(AvCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK_NONZERO(AvDictionary, AvDictionaryId,
+                           static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK_NONZERO(AvCodec, AvCodecId,
+                           static_cast<int32_t>(ErrNo::InternalError));
   return avcodec_open2(AvCodecCtx, AvCodec, AvDictionary);
 }
 
@@ -117,6 +132,8 @@ Expect<int32_t> AVCodecIsDecoder::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVCodecClose::body(const Runtime::CallingFrame &,
                                    uint32_t AvCodecCtxId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  FFMPEG_PTR_CHECK_FREE(AvCodecCtx, AvCodecCtxId,
+                        static_cast<int32_t>(ErrNo::InternalError));
   int Res = avcodec_close(AvCodecCtx);
   FFMPEG_PTR_DELETE(AvCodecCtxId);
   return Res;
@@ -127,6 +144,8 @@ Expect<int32_t> AVCodecParametersToContext::body(const Runtime::CallingFrame &,
                                                  uint32_t AvCodecParamId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   FFMPEG_PTR_FETCH(AvCodecParam, AvCodecParamId, AVCodecParameters);
+  FFMPEG_PTR_CHECK(AvCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK(AvCodecParam, static_cast<int32_t>(ErrNo::InternalError));
 
   return avcodec_parameters_to_context(AvCodecCtx, AvCodecParam);
 }
@@ -136,6 +155,8 @@ Expect<int32_t> AVCodecReceiveFrame::body(const Runtime::CallingFrame &,
                                           uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
   return avcodec_receive_frame(AvCodecCtx, AvFrame);
 }
 
@@ -145,6 +166,9 @@ Expect<int32_t> AVCodecSendPacket::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AVCodecCtx, AvCodecCtxId, AVCodecContext);
   FFMPEG_PTR_FETCH(AvPacket, PacketId,
                    AVPacket); // Can send Null AVPacket, to close the stream.
+  FFMPEG_PTR_CHECK(AVCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK_NONZERO(AvPacket, PacketId,
+                           static_cast<int32_t>(ErrNo::InternalError));
   return avcodec_send_packet(AVCodecCtx, AvPacket);
 }
 
@@ -173,6 +197,8 @@ Expect<int32_t> AVCodecReceivePacket::body(const Runtime::CallingFrame &,
                                            uint32_t PacketId) {
   FFMPEG_PTR_FETCH(AVCodecCtx, AVCodecCtxId, AVCodecContext);
   FFMPEG_PTR_FETCH(AvPacket, PacketId, AVPacket);
+  FFMPEG_PTR_CHECK(AVCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK(AvPacket, static_cast<int32_t>(ErrNo::InternalError));
   return avcodec_receive_packet(AVCodecCtx, AvPacket);
 }
 
@@ -181,6 +207,9 @@ Expect<int32_t> AVCodecSendFrame::body(const Runtime::CallingFrame &,
                                        uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AVCodecCtx, AVCodecCtxId, AVCodecContext);
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AVCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK_NONZERO(AvFrame, FrameId,
+                           static_cast<int32_t>(ErrNo::InternalError));
   return avcodec_send_frame(AVCodecCtx, AvFrame);
 }
 
@@ -191,11 +220,10 @@ AVCodecFindDecoderByName::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(AVCodecId, MemInst, uint32_t, AVCodecPtr,
                 "Failed when accessing the return AVCodec Memory"sv);
-  MEM_PTR_CHECK(NameId, MemInst, char, NamePtr,
-                "Failed when accessing the return URL memory"sv);
+  MEM_SPAN_CHECK(NameId, MemInst, char, NamePtr, NameLen,
+                 "Failed when accessing the return URL memory"sv);
 
-  std::string Name;
-  std::copy_n(NameId, NameLen, std::back_inserter(Name));
+  std::string Name(NameId.data(), NameLen);
 
   AVCodec const *AvCodec = avcodec_find_decoder_by_name(Name.c_str());
 
@@ -215,11 +243,10 @@ AVCodecFindEncoderByName::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(AVCodecId, MemInst, uint32_t, AVCodecPtr,
                 "Failed when accessing the return AVCodec Memory"sv);
-  MEM_PTR_CHECK(NameId, MemInst, char, NamePtr,
-                "Failed when accessing the return URL memory"sv);
+  MEM_SPAN_CHECK(NameId, MemInst, char, NamePtr, NameLen,
+                 "Failed when accessing the return URL memory"sv);
 
-  std::string Name;
-  std::copy_n(NameId, NameLen, std::back_inserter(Name));
+  std::string Name(NameId.data(), NameLen);
 
   AVCodec const *AvCodec = avcodec_find_encoder_by_name(Name.c_str());
 
@@ -237,6 +264,7 @@ Expect<int32_t> AVPacketRescaleTs::body(const Runtime::CallingFrame &,
                                         int32_t SrcDen, int32_t DestNum,
                                         int32_t DestDen) {
   FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  FFMPEG_PTR_CHECK(AvPacket, static_cast<int32_t>(ErrNo::InternalError));
   AVRational const Src = av_make_q(SrcNum, SrcDen);
   AVRational const Dest = av_make_q(DestNum, DestDen);
 
@@ -247,6 +275,7 @@ Expect<int32_t> AVPacketRescaleTs::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVPacketMakeWritable::body(const Runtime::CallingFrame &,
                                            uint32_t AVPacketId) {
   FFMPEG_PTR_FETCH(AvPacket, AVPacketId, AVPacket);
+  FFMPEG_PTR_CHECK(AvPacket, static_cast<int32_t>(ErrNo::InternalError));
   return av_packet_make_writable(AvPacket);
 }
 
@@ -257,13 +286,21 @@ Expect<int32_t> AVCodecParametersCopy::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
   FFMPEG_PTR_FETCH(AvCodecParam, AVCodecParamId, AVCodecParameters);
 
-  AVStream **AvStream = AvFormatCtx->streams;
+  if (AvFormatCtx == nullptr || AvCodecParam == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVCodecParametersCopy: invalid format "
+                  "context id {} or codec parameters id {}"sv,
+                  AvFormatCtxId, AVCodecParamId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
 
-  // No check here (Check)
-  // Raw Pointer Iteration.
-  for (unsigned int I = 1; I <= StreamIdx; I++)
-    AvStream++;
-
+  AVStream **AvStream = checkedArraySlot(AvFormatCtx->streams,
+                                         AvFormatCtx->nb_streams, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVCodecParametersCopy: invalid stream "
+                  "index {} (nb_streams={})"sv,
+                  StreamIdx, AvFormatCtx->nb_streams);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return avcodec_parameters_copy((*AvStream)->codecpar, AvCodecParam);
 }
 
@@ -274,6 +311,7 @@ Expect<uint32_t> AVCodecVersion::body(const Runtime::CallingFrame &) {
 Expect<int32_t> AVCodecFlushBuffers::body(const Runtime::CallingFrame &,
                                           uint32_t AVCodecCtxId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AVCodecCtxId, AVCodecContext);
+  FFMPEG_PTR_CHECK(AvCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
   avcodec_flush_buffers(AvCodecCtx);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -291,9 +329,7 @@ Expect<int32_t> AVCodecConfiguration::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
 
   const char *Config = avcodec_configuration();
-  auto Actual = std::strlen(Config);
-  auto N = std::min<uint32_t>(ConfigLen, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(Config, N, ConfigBuf.data());
+  copyCStringToBuffer(ConfigBuf.data(), ConfigLen, Config);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -308,9 +344,7 @@ Expect<int32_t> AVCodecLicense::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
 
   const char *License = avcodec_license();
-  auto Actual = std::strlen(License);
-  auto N = std::min<uint32_t>(LicenseLen, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(License, N, LicenseBuf.data());
+  copyCStringToBuffer(LicenseBuf.data(), LicenseLen, License);
   return static_cast<int32_t>(ErrNo::Success);
 }
 

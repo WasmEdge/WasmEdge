@@ -5,10 +5,17 @@
 
 #include "ffmpeg_base.h"
 
+struct AVFilterPad;
+
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVFilter {
+
+struct FilterPadView {
+  const AVFilterPad *Pads;
+  unsigned NbPads;
+};
 
 class AVFilterNameLength : public HostFunction<AVFilterNameLength> {
 public:

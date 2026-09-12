@@ -778,6 +778,23 @@ WasmEdge_TableInstanceGetTableType(const WasmEdge_TableInstanceContext *Cxt)
 
 /// Get the reference value in a table instance.
 ///
+/// This is a legacy BORROWED getter: for a slot that can hold a GC-managed
+/// object (any GC proposal internal ref type -- any/eq/i31/struct/array/exn
+/// or a concrete type index resolving to a struct/array, but NOT externref or
+/// funcref), the returned reference is not added to the host's root set, so a
+/// concurrent collection could reclaim it while the host still holds the
+/// value. To avoid handing out such an unretained reference, this function
+/// instead returns a documented typed-null sentinel (a null reference of the
+/// slot's declared type) and logs a warning. Non-managed slots (externref,
+/// funcref, and numeric types) are unaffected and still return the live
+/// value as before. The sentinel is a non-round-trippable error indicator,
+/// not a usable value: for a non-nullable managed-ref slot there is no valid
+/// non-null sentinel (a live managed object cannot be fabricated), so feeding
+/// it back into a table/global creation function for a non-nullable type is
+/// caller misuse. To obtain a rooted, live managed reference instead, use a
+/// retained getter that roots the reference for the host (see the API
+/// documentation).
+///
 /// \param Cxt the WasmEdge_TableInstanceContext.
 /// \param [out] Data the result reference value.
 /// \param Offset the reference value offset (index) in the table instance.
@@ -788,6 +805,37 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_TableInstanceGetData(const WasmEdge_TableInstanceContext *Cxt,
                               WasmEdge_Value *Data,
                               const uint64_t Offset) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get a HOST-ROOTED reference value from a table instance (the safe
+/// alternative to `WasmEdge_TableInstanceGetData` for GC-managed slots).
+///
+/// Unlike the legacy borrowed getter, this getter takes an explicit producer
+/// `ExecCxt` and, for a live GC-managed (struct/array) element, retains the
+/// reference as a host root of that executor's collector -- the exact
+/// machinery `WasmEdge_ExecutorInvoke` uses for returned references -- so a
+/// concurrent collection cannot reclaim it. Release the returned reference
+/// with `WasmEdge_ExecutorReleaseRef` (or `WasmEdge_ExecutorReleaseAllRefs`)
+/// on the SAME `ExecCxt`; each successful retained get must be matched by one
+/// release. A non-managed element (externref/funcref), a null reference, and
+/// a numeric value are returned as-is with no retention (nothing to release).
+///
+/// The producer must own the instance: querying a table attached to a
+/// DIFFERENT executor's controller is rejected with an error (a cross-
+/// controller reference cannot be rooted here). A standalone (unattached)
+/// table is not foreign and returns its value normally.
+///
+/// \param ExecCxt the producer WasmEdge_ExecutorContext that will root the
+/// reference (and through which it is later released).
+/// \param Cxt the WasmEdge_TableInstanceContext.
+/// \param [out] Data the result reference value.
+/// \param Offset the reference value offset (index) in the table instance.
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_TableInstanceGetDataRetained(
+    WasmEdge_ExecutorContext *ExecCxt, const WasmEdge_TableInstanceContext *Cxt,
+    WasmEdge_Value *Data, const uint64_t Offset) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the reference value in a table instance.
 ///
@@ -998,11 +1046,60 @@ WasmEdge_GlobalInstanceGetGlobalType(const WasmEdge_GlobalInstanceContext *Cxt)
 
 /// Get the value from a global instance.
 ///
+/// This is a legacy BORROWED getter: for a global that can hold a GC-managed
+/// object (any GC proposal internal ref type -- any/eq/i31/struct/array/exn
+/// or a concrete type index resolving to a struct/array, but NOT externref or
+/// funcref), the returned reference is not added to the host's root set, so a
+/// concurrent collection could reclaim it while the host still holds the
+/// value. To avoid handing out such an unretained reference, this function
+/// instead returns a documented typed-null sentinel (a null reference of the
+/// global's declared type) and logs a warning. Non-managed globals
+/// (externref, funcref, and numeric types) are unaffected and still return
+/// the live value as before. The sentinel is a non-round-trippable error
+/// indicator, not a usable value: for a non-nullable managed-ref global there
+/// is no valid non-null sentinel (a live managed object cannot be
+/// fabricated), so feeding it back into a table/global creation function for
+/// a non-nullable type is caller misuse. To obtain a rooted, live managed
+/// reference instead, use a retained getter that roots the reference for the
+/// host (see the API documentation).
+///
 /// \param Cxt the WasmEdge_GlobalInstanceContext.
 ///
 /// \returns the current value of the global instance.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Value WasmEdge_GlobalInstanceGetValue(
     const WasmEdge_GlobalInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get a HOST-ROOTED value from a global instance (the safe alternative to
+/// `WasmEdge_GlobalInstanceGetValue` for GC-managed slots).
+///
+/// Unlike the legacy borrowed getter, this getter takes an explicit producer
+/// `ExecCxt` and, for a live GC-managed (struct/array) reference, retains it
+/// as a host root of that executor's collector -- the exact machinery
+/// `WasmEdge_ExecutorInvoke` uses for returned references -- so a concurrent
+/// collection cannot reclaim it. Release the returned reference with
+/// `WasmEdge_ExecutorReleaseRef` (or `WasmEdge_ExecutorReleaseAllRefs`) on the
+/// SAME `ExecCxt`; each successful retained get must be matched by one
+/// release. A non-managed value (externref/funcref reference, or a numeric
+/// value) and a null reference are returned as-is with no retention (nothing
+/// to release).
+///
+/// The producer must own the instance: querying a global attached to a
+/// DIFFERENT executor's controller is rejected with an error (a cross-
+/// controller reference cannot be rooted here). A standalone (unattached)
+/// global is not foreign and returns its value normally.
+///
+/// \param ExecCxt the producer WasmEdge_ExecutorContext that will root the
+/// reference (and through which it is later released).
+/// \param Cxt the WasmEdge_GlobalInstanceContext.
+/// \param [out] Value the result value.
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_GlobalInstanceGetValueRetained(
+    WasmEdge_ExecutorContext *ExecCxt,
+    const WasmEdge_GlobalInstanceContext *Cxt,
+    WasmEdge_Value *Value) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the value in a global instance.
 ///

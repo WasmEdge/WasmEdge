@@ -8,6 +8,7 @@
 #include "common/errcode.h"
 #include "common/span.h"
 
+#include "api/internal/managed_ref_getter.h"
 #include "ast/module.h"
 #include "executor/executor.h"
 #include "loader/loader.h"
@@ -749,6 +750,9 @@ struct wasm_global_t : public wasm::Global,
             WasmEdge::AST::GlobalType(
                 conv_valtype_to_wasmedge(gt.content()->kind()),
                 conv_valmut_to_wasmedge(gt.mutability())),
+            // No owning module here (see the WasmEdge C-API counterpart).
+            WasmEdge::resolveCanHoldManagedNoTypeList(
+                conv_valtype_to_wasmedge(gt.content()->kind())),
             conv_cppval_to_wasmedge(v))) {}
   // Non-owning view (wasm_instance_exports).
   wasm_global_t(wasm::Store *s,
@@ -775,7 +779,10 @@ struct wasm_table_t : public wasm::Table, public wasm_ref_base_t<wasm_table_t> {
         inst(new WasmEdge::Runtime::Instance::TableInstance(
             WasmEdge::AST::TableType(
                 conv_reftype_to_wasmedge(tt.element()->kind()), tt.limits().min,
-                tt.limits().max))) {
+                tt.limits().max),
+            // No owning module here (see the WasmEdge C-API counterpart).
+            WasmEdge::resolveCanHoldManagedNoTypeList(
+                conv_reftype_to_wasmedge(tt.element()->kind())))) {
     if (inst->getTableType().getRefType().isFuncRefType()) {
       if (r && static_cast<const wasm_ref_t *>(r)->category ==
                    wasm_category_enum::FUNC) {
@@ -2842,7 +2849,9 @@ void wasm::Global::set(const wasm::Val &val) {
   // will help to keep the reference count.
   auto *global = static_cast<wasm_global_t *>(this);
   global->keepval = val.copy();
-  global->inst->getValue() = conv_cppval_to_wasmedge(val);
+  // getValue() returns a copy (a coherent read of the GC-root slot); store
+  // through setValue() so the write barrier and the coherent store apply.
+  global->inst->setValue(conv_cppval_to_wasmedge(val));
 }
 
 // <<<<<<<< wasm::Global functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

@@ -173,15 +173,20 @@ jobs:
         bash utils/install.sh -D
         echo "export DUMMY_VAR=1" >> ~/.bashrc
         echo ". \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
+        echo "# comment mentioning . \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
         echo "alias dummy=ls" >> ~/.bashrc
         echo ". \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
         bash utils/uninstall.sh -q -V
-        if grep -qF ". \"${HOME}/.wasmedge/env\"" ~/.bashrc; then
+        if grep -qFx ". \"${HOME}/.wasmedge/env\"" ~/.bashrc; then
           echo "[FAIL] Duplicate env entries were not removed from ~/.bashrc"
           exit 1
         fi
         if ! grep -qF "export DUMMY_VAR=1" ~/.bashrc || ! grep -qF "alias dummy=ls" ~/.bashrc; then
           echo "[FAIL] Unrelated content in ~/.bashrc was corrupted"
+          exit 1
+        fi
+        if ! grep -qF "# comment mentioning" ~/.bashrc; then
+          echo "[FAIL] Comment line containing env path was incorrectly removed"
           exit 1
         fi
         echo "[PASS] Duplicate env entries removed and unrelated content preserved"
@@ -270,18 +275,23 @@ jobs:
           [ -f "$rc_file" ] || continue
           echo "export DUMMY_VAR=1" >> "$rc_file"
           echo ". \"${HOME}/.wasmedge/env\"" >> "$rc_file"
+          echo "# comment mentioning . \"${HOME}/.wasmedge/env\"" >> "$rc_file"
           echo "alias dummy=ls" >> "$rc_file"
           echo ". \"${HOME}/.wasmedge/env\"" >> "$rc_file"
         done
         bash utils/uninstall.sh -q -V
         for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
           [ -f "$rc_file" ] || continue
-          if grep -qF ". \"${HOME}/.wasmedge/env\"" "$rc_file"; then
+          if grep -qFx ". \"${HOME}/.wasmedge/env\"" "$rc_file"; then
             echo "[FAIL] Duplicate env entries were not removed from $rc_file"
             exit 1
           fi
           if ! grep -qF "export DUMMY_VAR=1" "$rc_file" || ! grep -qF "alias dummy=ls" "$rc_file"; then
             echo "[FAIL] Unrelated content in $rc_file was corrupted"
+            exit 1
+          fi
+          if ! grep -qF "# comment mentioning" "$rc_file"; then
+            echo "[FAIL] Comment line containing env path was incorrectly removed"
             exit 1
           fi
         done
@@ -386,15 +396,20 @@ jobs:
         bash utils/install_v2.sh -V
         echo "export DUMMY_VAR=1" >> ~/.bashrc
         echo ". \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
+        echo "# comment mentioning . \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
         echo "alias dummy=ls" >> ~/.bashrc
         echo ". \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
         bash utils/uninstall.sh -q -V
-        if grep -qF ". \"${HOME}/.wasmedge/env\"" ~/.bashrc; then
+        if grep -qFx ". \"${HOME}/.wasmedge/env\"" ~/.bashrc; then
           echo "[FAIL] Duplicate env entries were not removed from ~/.bashrc"
           exit 1
         fi
         if ! grep -qF "export DUMMY_VAR=1" ~/.bashrc || ! grep -qF "alias dummy=ls" ~/.bashrc; then
           echo "[FAIL] Unrelated content in ~/.bashrc was corrupted"
+          exit 1
+        fi
+        if ! grep -qF "# comment mentioning" ~/.bashrc; then
+          echo "[FAIL] Comment line containing env path was incorrectly removed"
           exit 1
         fi
         echo "[PASS] Duplicate env entries removed and unrelated content preserved"
@@ -515,18 +530,23 @@ jobs:
           [ -f "$rc_file" ] || continue
           echo "export DUMMY_VAR=1" >> "$rc_file"
           echo ". \"${HOME}/.wasmedge/env\"" >> "$rc_file"
+          echo "# comment mentioning . \"${HOME}/.wasmedge/env\"" >> "$rc_file"
           echo "alias dummy=ls" >> "$rc_file"
           echo ". \"${HOME}/.wasmedge/env\"" >> "$rc_file"
         done
         bash utils/uninstall.sh -q -V
         for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
           [ -f "$rc_file" ] || continue
-          if grep -qF ". \"${HOME}/.wasmedge/env\"" "$rc_file"; then
+          if grep -qFx ". \"${HOME}/.wasmedge/env\"" "$rc_file"; then
             echo "[FAIL] Duplicate env entries were not removed from $rc_file"
             exit 1
           fi
           if ! grep -qF "export DUMMY_VAR=1" "$rc_file" || ! grep -qF "alias dummy=ls" "$rc_file"; then
             echo "[FAIL] Unrelated content in $rc_file was corrupted"
+            exit 1
+          fi
+          if ! grep -qF "# comment mentioning" "$rc_file"; then
+            echo "[FAIL] Comment line containing env path was incorrectly removed"
             exit 1
           fi
         done

@@ -212,15 +212,10 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
 
     // Push local variables into the stack.
     for (auto &Def : Func.getLocals()) {
-      if (Def.second.isRefType() && !Def.second.isAbsHeapType()) {
-        // For non-abstract heap types (concrete type indices), convert the
-        // null ref to the abstract heap type so that ref.cast/ref.test won't
-        // dereference a null pointer when checking the type.
-        const auto &CompType =
-            (*Func.getModule()->getType(Def.second.getTypeIndex()))
-                ->getCompositeType();
-        auto BotTypeCode =
-            CompType.isFunc() ? TypeCode::NullFuncRef : TypeCode::NullRef;
+      if (Def.second.isRefType()) {
+        // Type the null refs with the bottom heap type of their hierarchy so
+        // that ref.test/ref.cast match them against the concrete types.
+        const auto BotTypeCode = toBottomType(Func.getModule(), Def.second);
         RefVariant InitVal(ValType(TypeCode::RefNull, BotTypeCode));
         for (uint32_t I = 0; I < Def.first; I++) {
           StackMgr.push(InitVal);
@@ -456,8 +451,9 @@ Executor::getDataInstByIdx(Runtime::StackManager &StackMgr,
   return ModInst->unsafeGetData(Idx);
 }
 
-TypeCode Executor::toBottomType(Runtime::StackManager &StackMgr,
-                                const ValType &Type) const {
+TypeCode
+Executor::toBottomType(const Runtime::Instance::ModuleInstance *ModInst,
+                       const ValType &Type) const {
   if (Type.isRefType()) {
     if (Type.isAbsHeapType()) {
       switch (Type.getHeapTypeCode()) {
@@ -482,8 +478,7 @@ TypeCode Executor::toBottomType(Runtime::StackManager &StackMgr,
       }
     } else {
       const auto &CompType =
-          (*StackMgr.getModule()->getType(Type.getTypeIndex()))
-              ->getCompositeType();
+          (*ModInst->getType(Type.getTypeIndex()))->getCompositeType();
       if (CompType.isFunc()) {
         return TypeCode::NullFuncRef;
       } else {

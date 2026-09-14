@@ -76,7 +76,7 @@ void logTableOOB(const ErrCode &Code,
 Expect<void> Executor::runRefNullOp(Runtime::StackManager &StackMgr,
                                     const ValType &Type) const noexcept {
   // A null reference is typed with the least type in its respective hierarchy.
-  StackMgr.push(RefVariant(toBottomType(StackMgr, Type)));
+  StackMgr.push(RefVariant(toBottomType(StackMgr.getModule(), Type)));
   return {};
 }
 
@@ -426,7 +426,8 @@ Executor::structNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
       Vals[I] = packVal(VType, Args[I]);
     } else {
       Vals[I] = VType.isRefType()
-                    ? ValVariant(RefVariant(toBottomType(StackMgr, VType)))
+                    ? ValVariant(
+                          RefVariant(toBottomType(StackMgr.getModule(), VType)))
                     : ValVariant(static_cast<uint128_t>(0U));
     }
   }
@@ -474,9 +475,10 @@ Executor::arrayNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
       const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
   if (Args.size() == 0) {
     // New and fill with default values.
-    auto InitVal = VType.isRefType()
-                       ? ValVariant(RefVariant(toBottomType(StackMgr, VType)))
-                       : ValVariant(static_cast<uint128_t>(0U));
+    auto InitVal =
+        VType.isRefType()
+            ? ValVariant(RefVariant(toBottomType(StackMgr.getModule(), VType)))
+            : ValVariant(static_cast<uint128_t>(0U));
     Inst = ModInst->newArray(TypeIdx, Length, InitVal);
   } else if (Args.size() == 1) {
     // Create and fill with the argument value.

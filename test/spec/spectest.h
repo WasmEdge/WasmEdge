@@ -8,7 +8,9 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file parses and runs tests of Wasm test suites extracted by wast2json.
+/// This file parses and runs the Wasm test suites. The suites come from the
+/// JSON that wast2json extracts, or directly from the .wast scripts through
+/// the WAST parser of tree-sitter.
 /// Test Suites: https://github.com/WebAssembly/spec/tree/master/test/core
 /// wast2json: https://webassembly.github.io/wabt/doc/wast2json.1.html
 ///
@@ -21,7 +23,9 @@
 #include "common/configure.h"
 #include "common/errcode.h"
 #include "common/filesystem.h"
+#include "common/span.h"
 #include "common/types.h"
+#include "wast.h"
 
 #include <functional>
 #include <string>
@@ -64,68 +68,62 @@ public:
     All = 0x07U,
   };
 
+  enum class ParserMode { Json, Wast };
+
   explicit SpecTest(std::filesystem::path Root)
       : TestsuiteRoot(std::move(Root)) {}
 
-  std::vector<std::string> enumerate(const TestMode Mode,
+  std::vector<std::string> enumerate(const TestMode Modes,
                                      bool IncludeComponent = true) const;
   std::tuple<std::string_view, WasmEdge::Configure, std::string>
   resolve(std::string_view Params) const;
-  bool compare(const std::pair<std::string, std::string> &Expected,
-               const std::pair<ValVariant, ValType> &Got) const;
+  bool compareResult(const Wast::Result &Expected,
+                     const std::pair<ValVariant, ValType> &Got) const;
   bool
-  compares(const std::vector<std::pair<std::string, std::string>> &Expected,
-           const std::vector<std::pair<ValVariant, ValType>> &Got) const;
+  compareResults(const std::vector<Wast::ResultOrEither> &Expected,
+                 const std::vector<std::pair<ValVariant, ValType>> &Got) const;
   bool stringContains(std::string_view Expected, std::string_view Got) const;
 
   void run(std::string_view Proposal, std::string_view UnitName);
 
-  // Opaque handle to an execution context (VM, Executor, etc.)
-  // The concrete test harness defines the pointed-to type.
+  // This is an opaque handle to an execution context, such as a VM or an
+  // Executor. Each test harness defines the type behind the pointer.
   using ContextHandle = void *;
 
-  // Create a new execution context.
-  //   Parent: parent context (nullptr for root context)
-  //   SharedModules: pairs of (export_name, alias_name) for modules
-  //     accessible in this context. The harness should find each module by
-  //     the first name in the parent store and register it under the second
-  //     name in the child store.
+  // Make a new execution context.
+  //   Parent: The parent context. For the root context it is nullptr.
+  //   SharedModules: The pairs of (export_name, alias_name) for the modules
+  //     that this context can use. The harness must find each module by the
+  //     first name in the parent store. Then it must register the module
+  //     under the second name in the child store.
   using InitCallback = ContextHandle(
       ContextHandle Parent,
       const std::vector<std::pair<std::string, std::string>> &SharedModules);
   std::function<InitCallback> onInit;
 
-  // Destroy an execution context and release its resources.
+  // Destroy an execution context and free its resources.
   using FiniCallback = void(ContextHandle Ctx);
   std::function<FiniCallback> onFini;
-
-  using ModuleCallback = Expect<void>(ContextHandle Ctx,
-                                      const std::string &Modname,
-                                      const std::string &FileName);
-  std::function<ModuleCallback> onModule;
-
-  using LoadCallback = Expect<void>(ContextHandle Ctx,
-                                    const std::string &FileName);
-  std::function<LoadCallback> onLoad;
-
-  using ValidateCallback = Expect<void>(ContextHandle Ctx,
-                                        const std::string &FileName);
-  std::function<ValidateCallback> onValidate;
 
   using WasmUnit = std::variant<std::unique_ptr<AST::Component::Component>,
                                 std::unique_ptr<AST::Module>>;
 
-  using ModuleDefineCallback = Expect<WasmUnit>(ContextHandle Ctx,
-                                                const std::string &FileName);
-  std::function<ModuleDefineCallback> onModuleDefine;
+  // Parse the source into a WasmUnit. The source is WAT text, binary bytes, or
+  // a file path.
+  using ParseCallback = Expect<WasmUnit>(ContextHandle Ctx,
+                                         std::string_view Source,
+                                         Wast::ModuleType Type,
+                                         const Configure &Conf);
+  std::function<ParseCallback> onParse;
 
-  using InstanceFromDefCallback = Expect<void>(ContextHandle Ctx,
-                                               const std::string &ModName,
-                                               const AST::Module &ASTMod);
-  std::function<InstanceFromDefCallback> onInstanceFromDef;
+  // Validate a WasmUnit that the parser made.
+  using ValidateCallback = Expect<void>(ContextHandle Ctx, WasmUnit &Unit);
+  std::function<ValidateCallback> onValidate;
 
+  // Instantiate a WasmUnit. The caller can also register it under ModName.
   using InstantiateCallback = Expect<void>(ContextHandle Ctx,
-                                           const std::string &FileName);
+                                           const std::string &ModName,
+                                           const WasmUnit &Unit);
   std::function<InstantiateCallback> onInstantiate;
 
   using InvokeCallback = Expect<std::vector<std::pair<ValVariant, ValType>>>(
@@ -138,15 +136,19 @@ public:
       ContextHandle Ctx, const std::string &ModName, const std::string &Field);
   std::function<GetCallback> onGet;
 
-  // Set by the spec test runner before calling onModule to indicate that
-  // component validation should be skipped. Only used in spec tests and will
-  // be removed when component-model is fully supported.
+  ParserMode Mode = ParserMode::Json;
+
+  // If this flag is true, the callbacks mark a component as validated. The
+  // instantiation can then continue without validation support. The flag is
+  // thread_local, so that two concurrent spec-test threads do not overwrite
+  // each other. Remove this flag after the component model is complete.
   static thread_local bool SkipComponentValidation;
 
 private:
-  // Processes the command array for a given context.
-  void processCommands(ContextHandle Ctx, std::string_view Proposal,
-                       std::string_view UnitName, void *CmdArrayPtr);
+  // Run the WAST commands or JSON commands of the parser on a context.
+  void executeCommands(Span<const Wast::ScriptCommand> Commands,
+                       const Configure &Conf, bool IsComponent,
+                       ContextHandle RootCtx, std::string TestFile);
 
   std::filesystem::path TestsuiteRoot;
 };

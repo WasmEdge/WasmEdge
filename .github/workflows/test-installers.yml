@@ -10,6 +10,8 @@ on:
       - master
     paths:
       - '.github/workflows/test-installers.yml'
+      - '.github/scripts/installer-test-helpers.sh'
+      - '.github/scripts/test-fish-shell-detection.sh'
       - 'utils/install.sh'
       - 'utils/install_v2.sh'
       - 'utils/install.py'
@@ -19,6 +21,8 @@ on:
       - master
     paths:
       - '.github/workflows/test-installers.yml'
+      - '.github/scripts/installer-test-helpers.sh'
+      - '.github/scripts/test-fish-shell-detection.sh'
       - 'utils/install.sh'
       - 'utils/install_v2.sh'
       - 'utils/install.py'
@@ -686,3 +690,33 @@ jobs:
         verify_version "${TEST_2014_VERSION}"
         verify_plugin "libwasmedgePluginWasmEdgeTensorflow.dylib"
         bash utils/uninstall.sh -q -V
+
+  # Test fish shell env.fish generation and cleanup
+  test-fish-shell-detection:
+    name: fish shell env detection
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:22.04
+
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      with:
+        egress-policy: audit
+
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+
+    - name: Install System Dependencies
+      run: |
+        apt-get update -y
+        apt-get install -y curl fish python3 ca-certificates
+
+    - name: Test Fish Shell Detection
+      shell: bash
+      env:
+        TEST_VERSION: ${{ env.TEST_VERSION }}
+      run: |
+        bash .github/scripts/test-fish-shell-detection.sh

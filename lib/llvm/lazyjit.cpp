@@ -76,8 +76,12 @@ std::vector<uint32_t> collectCallGraphBatch(
 }
 
 // Upgrade the function instance at GlobalFuncIdx of a bound module instance
-// to run the compiled code at Address. Shared by the fresh-batch path and the
-// re-instantiation restore path.
+// to run the compiled code at Address. Shared by the fresh-batch path
+// (compileOnDemand) and the re-instantiation restore path (registerInstance).
+// Every Address handled here names code produced by this engine's own
+// Compiler under the VM's Conf -- never a foreign precompiled artifact -- so
+// the code is GC-capable exactly when the executor is, and no capability check
+// is needed at the upgrade point (see compileOnDemand).
 void upgradeToCompiled(
     Span<const Runtime::Instance::FunctionInstance *const> FuncInsts,
     size_t GlobalFuncIdx, JITLibrary &JITLib,
@@ -315,6 +319,14 @@ Expect<void> LazyJITEngine::compileOnDemand(
   // The configure was already validated by checkConfigure() in prepare(),
   // and a state only exists after a successful prepare, so re-validating
   // here would only repeat its per-proposal warnings once per batch.
+  //
+  // This batch compiles from the module's WASM bytes with the engine's Conf
+  // (== the VM's Conf). The compiler emits GC safepoint polls, shadow-root
+  // spills, and the "gc.capable" marker iff GC is on in that Conf, so every
+  // function upgraded below is GC-capable exactly when the executor is. The
+  // batch is always re-derived from source, never restored from a foreign
+  // precompiled artifact, so no pre-upgrade capability gate is required; the
+  // module's capability was stamped once at load time to match this compile.
   Compiler BatchCompiler(PImpl->Conf);
   EXPECTED_TRY(
       auto CompiledData,

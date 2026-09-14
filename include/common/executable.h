@@ -78,6 +78,10 @@ public:
     kThrow,
     kThrowRef,
     kCatchPop,
+    kWriteBarrier,
+    kGCSafepoint,
+    kCoherentRefLoad,
+    kCoherentRefStore,
     kIntrinsicMax,
   };
   using IntrinsicsTable = void * [uint32_t(Intrinsics::kIntrinsicMax)];

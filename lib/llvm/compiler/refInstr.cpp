@@ -12,49 +12,10 @@ Expect<void>
 FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
   switch (Instr.getOpCode()) {
   case OpCode::Ref__null: {
-    std::array<uint8_t, 16> Buf = {0};
     // For null references, dynamic type downscaling is needed.
-    ValType VType;
-    if (Instr.getValType().isAbsHeapType()) {
-      switch (Instr.getValType().getHeapTypeCode()) {
-      case TypeCode::NullFuncRef:
-      case TypeCode::FuncRef:
-        VType = TypeCode::NullFuncRef;
-        break;
-      case TypeCode::NullExternRef:
-      case TypeCode::ExternRef:
-        VType = TypeCode::NullExternRef;
-        break;
-      case TypeCode::NullExnRef:
-      case TypeCode::ExnRef:
-        VType = TypeCode::NullExnRef;
-        break;
-      case TypeCode::NullRef:
-      case TypeCode::AnyRef:
-      case TypeCode::EqRef:
-      case TypeCode::I31Ref:
-      case TypeCode::StructRef:
-      case TypeCode::ArrayRef:
-        VType = TypeCode::NullRef;
-        break;
-      default:
-        assumingUnreachable();
-      }
-    } else {
-      assuming(Instr.getValType().getTypeIndex() <
-               Context.CompositeTypes.size());
-      const auto *CompType =
-          Context.CompositeTypes[Instr.getValType().getTypeIndex()];
-      assuming(CompType != nullptr);
-      if (CompType->isFunc()) {
-        VType = TypeCode::NullFuncRef;
-      } else {
-        VType = TypeCode::NullRef;
-      }
-    }
-    std::copy_n(VType.getRawData().cbegin(), 8, Buf.begin());
-    stackPush(Builder.createBitCast(
-        LLVM::Value::getConstVector8(LLContext, Buf), Context.Int64x2Ty));
+    auto NullVal = toLLVMConstantZero(LLContext, Instr.getValType(),
+                                      Context.CompositeTypes);
+    stackPush(Builder.createBitCast(NullVal, Context.Int64x2Ty));
     break;
   }
   case OpCode::Ref__is_null:

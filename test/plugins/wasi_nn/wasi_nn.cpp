@@ -5,6 +5,7 @@
 #include "wasinnfunc.h"
 #include "wasinnmodule.h"
 
+#include "common/filesystem.h"
 #include "common/types.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
@@ -58,8 +59,8 @@ inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
 std::unique_ptr<WasmEdge::Host::WasiNNModule>
 createModule(std::string_view NNRPCURI = "") {
   WasmEdge::Plugin::Plugin::load(
-      std::filesystem::u8path("../../../plugins/wasi_nn/" WASMEDGE_LIB_PREFIX
-                              "wasmedgePluginWasiNN" WASMEDGE_LIB_EXTENSION));
+      WasmEdge::u8path("../../../plugins/wasi_nn/" WASMEDGE_LIB_PREFIX
+                       "wasmedgePluginWasiNN" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_nn"sv)) {
     WasmEdge::PO::ArgumentParser Parser;
     Plugin->registerOptions(Parser);

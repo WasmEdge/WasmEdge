@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "driver/tool.h"
 #include "driver/unitool.h"
 #include "po/argument_parser.h"
@@ -331,9 +332,8 @@ std::string trapPath() {
 // coredumps, because the coredump is written into the working directory.
 size_t countCoredumpsOf(std::initializer_list<const char *> Args,
                         const std::string &Name) {
-  const auto TempDir =
-      std::filesystem::temp_directory_path() /
-      std::filesystem::u8path("wasmedge-driver-coredump-" + Name);
+  const auto TempDir = std::filesystem::temp_directory_path() /
+                       WasmEdge::u8path("wasmedge-driver-coredump-" + Name);
   std::error_code Error;
   std::filesystem::remove_all(TempDir, Error);
   if (!std::filesystem::create_directories(TempDir, Error)) {

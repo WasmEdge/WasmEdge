@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "host/wasi/wasimodule.h"
 #include "runtime/instance/module.h"
 #include "zlibfunc.h"
@@ -39,9 +40,9 @@ inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
 
 std::unique_ptr<WasmEdge::Host::WasmEdgeZlibModule> createModule() {
   using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "../../../plugins/wasmedge_zlib/" WASMEDGE_LIB_PREFIX
-      "wasmedgePluginWasmEdgeZlib" WASMEDGE_LIB_EXTENSION));
+  WasmEdge::Plugin::Plugin::load(
+      WasmEdge::u8path("../../../plugins/wasmedge_zlib/" WASMEDGE_LIB_PREFIX
+                       "wasmedgePluginWasmEdgeZlib" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasmedge_zlib"sv)) {
     if (const auto *Module = Plugin->findModule("wasmedge_zlib"sv)) {
       return dynamicPointerCast<WasmEdge::Host::WasmEdgeZlibModule>(

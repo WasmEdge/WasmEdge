@@ -431,6 +431,61 @@ std::array<WasmEdge::Byte, 106> NullGlobalStructWasm{
     0x01, 0x08, 0x01, 0x00, 0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x04, 0x04,
     0x01, 0x00, 0x01, 0x73, 0x07, 0x04, 0x01, 0x00, 0x01, 0x67};
 
+/// Binary Wasm module: ref.test and ref.cast on default-initialized locals
+/// with abstract ref types (issue #5343).
+///
+/// (module
+///   (type $t (struct (field (mut structref))))
+///   (type $a (array i32))
+///   (type $f (func))
+///   (type $r (func (result i32)))
+///   (func (export "test_struct") (type $r) (local structref)
+///     local.get 0 ref.test (ref null $t))
+///   (func (export "test_struct_nonnull") (type $r) (local structref)
+///     local.get 0 ref.test (ref $t))
+///   (func (export "cast_struct") (type $r) (local structref)
+///     local.get 0 ref.cast (ref null $t) drop i32.const 7)
+///   (func (export "test_any") (type $r) (local anyref)
+///     local.get 0 ref.test (ref null $t))
+///   (func (export "test_i31") (type $r) (local i31ref)
+///     local.get 0 ref.test (ref null $t))
+///   (func (export "test_array") (type $r) (local arrayref)
+///     local.get 0 ref.test (ref null $a))
+///   (func (export "test_func") (type $r) (local funcref)
+///     local.get 0 ref.test (ref null $f))
+///   (func (export "test_func_nonnull") (type $r) (local funcref)
+///     local.get 0 ref.test (ref $f))
+///   (func (export "cast_func") (type $r) (local funcref)
+///     local.get 0 ref.cast (ref null $f) drop i32.const 7)
+///   (func (export "test_extern") (type $r) (local externref)
+///     local.get 0 ref.test (ref null noextern)))
+std::array<WasmEdge::Byte, 294> NullLocalAbstractWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0f, 0x04, 0x5f,
+    0x01, 0x6b, 0x01, 0x5e, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x60, 0x00, 0x01,
+    0x7f, 0x03, 0x0b, 0x0a, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03,
+    0x03, 0x03, 0x07, 0x90, 0x01, 0x0a, 0x0b, 0x74, 0x65, 0x73, 0x74, 0x5f,
+    0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x00, 0x00, 0x13, 0x74, 0x65, 0x73,
+    0x74, 0x5f, 0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x5f, 0x6e, 0x6f, 0x6e,
+    0x6e, 0x75, 0x6c, 0x6c, 0x00, 0x01, 0x0b, 0x63, 0x61, 0x73, 0x74, 0x5f,
+    0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x00, 0x02, 0x08, 0x74, 0x65, 0x73,
+    0x74, 0x5f, 0x61, 0x6e, 0x79, 0x00, 0x03, 0x08, 0x74, 0x65, 0x73, 0x74,
+    0x5f, 0x69, 0x33, 0x31, 0x00, 0x04, 0x0a, 0x74, 0x65, 0x73, 0x74, 0x5f,
+    0x61, 0x72, 0x72, 0x61, 0x79, 0x00, 0x05, 0x09, 0x74, 0x65, 0x73, 0x74,
+    0x5f, 0x66, 0x75, 0x6e, 0x63, 0x00, 0x06, 0x11, 0x74, 0x65, 0x73, 0x74,
+    0x5f, 0x66, 0x75, 0x6e, 0x63, 0x5f, 0x6e, 0x6f, 0x6e, 0x6e, 0x75, 0x6c,
+    0x6c, 0x00, 0x07, 0x09, 0x63, 0x61, 0x73, 0x74, 0x5f, 0x66, 0x75, 0x6e,
+    0x63, 0x00, 0x08, 0x0b, 0x74, 0x65, 0x73, 0x74, 0x5f, 0x65, 0x78, 0x74,
+    0x65, 0x72, 0x6e, 0x00, 0x09, 0x0a, 0x6b, 0x0a, 0x09, 0x01, 0x01, 0x6b,
+    0x20, 0x00, 0xfb, 0x15, 0x00, 0x0b, 0x09, 0x01, 0x01, 0x6b, 0x20, 0x00,
+    0xfb, 0x14, 0x00, 0x0b, 0x0c, 0x01, 0x01, 0x6b, 0x20, 0x00, 0xfb, 0x17,
+    0x00, 0x1a, 0x41, 0x07, 0x0b, 0x09, 0x01, 0x01, 0x6e, 0x20, 0x00, 0xfb,
+    0x15, 0x00, 0x0b, 0x09, 0x01, 0x01, 0x6c, 0x20, 0x00, 0xfb, 0x15, 0x00,
+    0x0b, 0x09, 0x01, 0x01, 0x6a, 0x20, 0x00, 0xfb, 0x15, 0x01, 0x0b, 0x09,
+    0x01, 0x01, 0x70, 0x20, 0x00, 0xfb, 0x15, 0x02, 0x0b, 0x09, 0x01, 0x01,
+    0x70, 0x20, 0x00, 0xfb, 0x14, 0x02, 0x0b, 0x0c, 0x01, 0x01, 0x70, 0x20,
+    0x00, 0xfb, 0x17, 0x02, 0x1a, 0x41, 0x07, 0x0b, 0x09, 0x01, 0x01, 0x6f,
+    0x20, 0x00, 0xfb, 0x15, 0x72, 0x0b};
+
 /// Binary Wasm module: throw_ref with null (ref null $point) payload;
 /// struct.get on the surfaced value must trap on the null reference.
 ///
@@ -1110,6 +1165,72 @@ TEST(ExecutorRegression, NullLocalConcreteType) {
   }
 }
 
+/// Regression test for issue #5343: the null locals of the abstract ref types
+/// must be bottom-typed so that ref.test/ref.cast match a concrete type.
+TEST(ExecutorRegression, NullLocalAbstractType) {
+  Configure Conf;
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(NullLocalAbstractWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  // A null structref local bottoms out at none: it matches (ref null $t) but
+  // not (ref $t), and ref.cast to (ref null $t) must not trap.
+  auto RTestStruct = VM.execute("test_struct");
+  ASSERT_TRUE(RTestStruct);
+  ASSERT_EQ(RTestStruct->size(), 1U);
+  EXPECT_EQ((*RTestStruct)[0].first.get<uint32_t>(), 1U);
+
+  auto RTestStructNonNull = VM.execute("test_struct_nonnull");
+  ASSERT_TRUE(RTestStructNonNull);
+  ASSERT_EQ(RTestStructNonNull->size(), 1U);
+  EXPECT_EQ((*RTestStructNonNull)[0].first.get<uint32_t>(), 0U);
+
+  auto RCastStruct = VM.execute("cast_struct");
+  ASSERT_TRUE(RCastStruct) << "ref.cast trapped on a null structref local";
+  ASSERT_EQ(RCastStruct->size(), 1U);
+  EXPECT_EQ((*RCastStruct)[0].first.get<uint32_t>(), 7U);
+
+  // The anyref, i31ref, and arrayref null locals bottom out at none as well.
+  auto RTestAny = VM.execute("test_any");
+  ASSERT_TRUE(RTestAny);
+  ASSERT_EQ(RTestAny->size(), 1U);
+  EXPECT_EQ((*RTestAny)[0].first.get<uint32_t>(), 1U);
+
+  auto RTestI31 = VM.execute("test_i31");
+  ASSERT_TRUE(RTestI31);
+  ASSERT_EQ(RTestI31->size(), 1U);
+  EXPECT_EQ((*RTestI31)[0].first.get<uint32_t>(), 1U);
+
+  auto RTestArray = VM.execute("test_array");
+  ASSERT_TRUE(RTestArray);
+  ASSERT_EQ(RTestArray->size(), 1U);
+  EXPECT_EQ((*RTestArray)[0].first.get<uint32_t>(), 1U);
+
+  // A null funcref local bottoms out at nofunc: it matches (ref null $f) but
+  // not (ref $f), and ref.cast to (ref null $f) must not trap.
+  auto RTestFunc = VM.execute("test_func");
+  ASSERT_TRUE(RTestFunc);
+  ASSERT_EQ(RTestFunc->size(), 1U);
+  EXPECT_EQ((*RTestFunc)[0].first.get<uint32_t>(), 1U);
+
+  auto RTestFuncNonNull = VM.execute("test_func_nonnull");
+  ASSERT_TRUE(RTestFuncNonNull);
+  ASSERT_EQ(RTestFuncNonNull->size(), 1U);
+  EXPECT_EQ((*RTestFuncNonNull)[0].first.get<uint32_t>(), 0U);
+
+  auto RCastFunc = VM.execute("cast_func");
+  ASSERT_TRUE(RCastFunc) << "ref.cast trapped on a null funcref local";
+  ASSERT_EQ(RCastFunc->size(), 1U);
+  EXPECT_EQ((*RCastFunc)[0].first.get<uint32_t>(), 7U);
+
+  // A null externref local bottoms out at noextern.
+  auto RTestExtern = VM.execute("test_extern");
+  ASSERT_TRUE(RTestExtern);
+  ASSERT_EQ(RTestExtern->size(), 1U);
+  EXPECT_EQ((*RTestExtern)[0].first.get<uint32_t>(), 1U);
+}
+
 /// Regression test for throw_ref payload preservation.
 ///
 /// The bug: exnref stored only a TagInstance*, dropping the captured payload.
@@ -1311,9 +1432,11 @@ TEST(ExecutorRegression, MemoryAtomicNotifyMemory64) {
   ASSERT_TRUE(VM.validate());
   ASSERT_TRUE(VM.instantiate());
 
-  // Offset 4 is 4-byte aligned. It should NOT trap even on Memory64 where AddrType is i64.
+  // Offset 4 is 4-byte aligned. It should NOT trap even on Memory64 where
+  // AddrType is i64.
   auto Result = VM.execute("test");
-  EXPECT_TRUE(Result) << "memory.atomic.notify should succeed with 4-byte alignment on Memory64";
+  EXPECT_TRUE(Result) << "memory.atomic.notify should succeed with 4-byte "
+                         "alignment on Memory64";
 }
 
 } // namespace

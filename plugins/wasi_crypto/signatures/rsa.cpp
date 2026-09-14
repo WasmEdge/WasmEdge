@@ -5,6 +5,11 @@
 
 #include <mutex>
 
+#include <openssl/opensslv.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/core_names.h>
+#endif
+
 namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
@@ -52,8 +57,37 @@ Rsa<PadMode, KeyBits, ShaNid>::PublicKey::checkValid(EvpPkeyPtr Ctx) noexcept {
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<void>
 Rsa<PadMode, KeyBits, ShaNid>::PublicKey::verify() const noexcept {
-  ensureOrReturn(RSA_check_key(EVP_PKEY_get0_RSA(Ctx.get())),
-                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  EvpPkeyCtxPtr CheckCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
+  ensureOrReturn(CheckCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  int Ret = EVP_PKEY_public_check(CheckCtx.get());
+  if (Ret == -2) {
+    // Fallback for older OpenSSL versions where public_check is not supported
+    // for RSA
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    BIGNUM *N = nullptr;
+    BIGNUM *E = nullptr;
+    int RetN = EVP_PKEY_get_bn_param(Ctx.get(), OSSL_PKEY_PARAM_RSA_N, &N);
+    int RetE = EVP_PKEY_get_bn_param(Ctx.get(), OSSL_PKEY_PARAM_RSA_E, &E);
+    if (N != nullptr) {
+      BN_free(N);
+    }
+    if (E != nullptr) {
+      BN_free(E);
+    }
+    ensureOrReturn(RetN > 0 && RetE > 0, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+#else
+    const RSA *RsaKey = EVP_PKEY_get0_RSA(Ctx.get());
+    ensureOrReturn(RsaKey, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+    const BIGNUM *N, *E;
+    RSA_get0_key(RsaKey, &N, &E, nullptr);
+    ensureOrReturn(N != nullptr && E != nullptr,
+                   __WASI_CRYPTO_ERRNO_INVALID_KEY);
+#endif
+  } else if (Ret == 0) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
+  } else {
+    ensureOrReturn(Ret == 1, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  }
   return {};
 }
 

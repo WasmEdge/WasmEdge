@@ -176,8 +176,7 @@ WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
                                    __wasi_filesize_t Len) const noexcept {
   constexpr auto MaxFileSize =
       static_cast<__wasi_filesize_t>(std::numeric_limits<int64_t>::max());
-  if (Offset > MaxFileSize || Len > MaxFileSize ||
-      Offset > MaxFileSize - Len) {
+  if (Offset > MaxFileSize || Len > MaxFileSize || Offset > MaxFileSize - Len) {
     return WasiUnexpect(__WASI_ERRNO_INVAL);
   };
   const auto OldOffset = ::lseek(Fd, 0, SEEK_CUR);

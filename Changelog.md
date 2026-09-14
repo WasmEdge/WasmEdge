@@ -1,30 +1,47 @@
-### 0.17.2-rc.1 (2026-08-28)
+### 0.17.2-rc.2 (2026-09-14)
+
+Features:
+
+* [CMake]
+  * feat(cmake): use the system blake3 when available (#5339)
 
 Fixed issues:
 
 * [Loader]
   * fix(loader): load native shared-library WASM only in AOT run mode (#5292)
   * fix(loader): bound-check AOT custom section symbol offsets (#5255)
+  * fix(loader): check the size bound before allocating the read buffer (#5325)
 * [Executor]
   * fix: erase exception payload on catch_all in interpreter (#5202)
   * fix(executor): drop stale try_table handlers at branch time to stop OOB write (#5252)
   * fix(executor): correct return_call continuation for host tail calls (#5286)
+  * fix(executor): type the null locals of the abstract ref types with the bottom type (#5347)
 * [AOT]
   * fix(aot): bound-check memory64 loads and stores (#5282)
+* [LLVM]
+  * fix(llvm): map the Os and Oz levels to O2 with size attributes on LLVM 23 (#5328)
 * [Component Model]
   * fix(executor): grow component index space on export to match validator (#5256)
+* [WASI]
+  * fix(wasi): enforce read-only preopen rights (#5340)
+  * fix(wasi): validate getaddrinfo output buffer bounds (#5344)
 * [Common]
   * fix(common): correct display strings and comments in enum.inc (#5241)
 * [Plugin]
   * fix(plugins/opencvmini): require OpenCV 5 on macOS arm64 (#5280)
+  * fix(wasi_nn): pin the OpenVINO CPU inference precision to f32 (#5348)
 * [Misc]
   * fix(OSS-Fuzz): add the missing PropComponent in the driver fuzzer (#5035)
+  * fix: make the sources compile as C++20 (#5338)
 
 CI:
 
+* ci(iwyu): move the IWYU scan to LLVM 22 with IWYU 0.26 (#5335)
+* ci: bump lineguard to 0.2.0 (#5336)
+* ci: upgrade Debian static build to Bookworm (#5333)
 * [dependabot]
-  * ci(dependabot): bump github/codeql-action from 4.36.2 to 4.37.8 (#5127, #5130, #5155, #5156, #5190, #5193, #5219, #5220, #5249, #5251, #5273, #5274, #5289, #5291, #5307, #5308)
-  * ci(dependabot): bump step-security/harden-runner from 2.19.4 to 2.21.0 (#5157, #5275, #5290)
+  * ci(dependabot): bump github/codeql-action from 4.36.2 to 4.37.9 (#5127, #5130, #5155, #5156, #5190, #5193, #5219, #5220, #5249, #5251, #5273, #5274, #5289, #5291, #5307, #5308, #5321, #5322)
+  * ci(dependabot): bump step-security/harden-runner from 2.19.4 to 2.21.1 (#5157, #5275, #5290, #5334)
   * ci(dependabot): bump cachix/install-nix-action from 31.10.6 to 31.11.1 (#5158, #5191, #5288)
   * ci(dependabot): bump dorny/paths-filter from 4.0.1 to 4.0.3 (#5129, #5272)
   * ci(dependabot): bump actions/labeler from 6.1.0 to 7.0.0 (#5154, #5221)
@@ -39,7 +56,7 @@ Thank all the contributors who made this release possible!
 
 Anusha Murthy, Arthur Chan, Lia, Shen-Ta Hsieh(BestSteve), Yi-Ying He, hydai
 
-If you want to build from source, please use WasmEdge-0.17.2-rc.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.17.2-rc.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.17.1 (2026-07-03)
 

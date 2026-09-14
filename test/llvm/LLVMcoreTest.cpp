@@ -975,6 +975,172 @@ TEST(NativeRunMode, LoadSharedLibraryRequiresAOTMode) {
   }
 }
 
+TEST(AOTNullLocal, AbstractRefTypeIsBottomTyped) {
+  // The compiled null locals of the abstract ref types must be bottom-typed,
+  // as in the interpreter, or ref.test/ref.cast fail on them (issue #5343).
+  //
+  // (module
+  //   (type $t (struct (field (mut structref))))
+  //   (type $a (array i32))
+  //   (type $f (func))
+  //   (type $r (func (result i32)))
+  //   (func (export "test_struct") (type $r) (local structref)
+  //     local.get 0 ref.test (ref null $t))
+  //   (func (export "test_struct_nonnull") (type $r) (local structref)
+  //     local.get 0 ref.test (ref $t))
+  //   (func (export "cast_struct") (type $r) (local structref)
+  //     local.get 0 ref.cast (ref null $t) drop i32.const 7)
+  //   (func (export "test_any") (type $r) (local anyref)
+  //     local.get 0 ref.test (ref null $t))
+  //   (func (export "test_i31") (type $r) (local i31ref)
+  //     local.get 0 ref.test (ref null $t))
+  //   (func (export "test_array") (type $r) (local arrayref)
+  //     local.get 0 ref.test (ref null $a))
+  //   (func (export "test_func") (type $r) (local funcref)
+  //     local.get 0 ref.test (ref null $f))
+  //   (func (export "test_func_nonnull") (type $r) (local funcref)
+  //     local.get 0 ref.test (ref $f))
+  //   (func (export "cast_func") (type $r) (local funcref)
+  //     local.get 0 ref.cast (ref null $f) drop i32.const 7)
+  //   (func (export "test_extern") (type $r) (local externref)
+  //     local.get 0 ref.test (ref null noextern)))
+  std::array<WasmEdge::Byte, 294> NullLocalAbstractWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0f, 0x04, 0x5f,
+      0x01, 0x6b, 0x01, 0x5e, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x60, 0x00, 0x01,
+      0x7f, 0x03, 0x0b, 0x0a, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03,
+      0x03, 0x03, 0x07, 0x90, 0x01, 0x0a, 0x0b, 0x74, 0x65, 0x73, 0x74, 0x5f,
+      0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x00, 0x00, 0x13, 0x74, 0x65, 0x73,
+      0x74, 0x5f, 0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x5f, 0x6e, 0x6f, 0x6e,
+      0x6e, 0x75, 0x6c, 0x6c, 0x00, 0x01, 0x0b, 0x63, 0x61, 0x73, 0x74, 0x5f,
+      0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x00, 0x02, 0x08, 0x74, 0x65, 0x73,
+      0x74, 0x5f, 0x61, 0x6e, 0x79, 0x00, 0x03, 0x08, 0x74, 0x65, 0x73, 0x74,
+      0x5f, 0x69, 0x33, 0x31, 0x00, 0x04, 0x0a, 0x74, 0x65, 0x73, 0x74, 0x5f,
+      0x61, 0x72, 0x72, 0x61, 0x79, 0x00, 0x05, 0x09, 0x74, 0x65, 0x73, 0x74,
+      0x5f, 0x66, 0x75, 0x6e, 0x63, 0x00, 0x06, 0x11, 0x74, 0x65, 0x73, 0x74,
+      0x5f, 0x66, 0x75, 0x6e, 0x63, 0x5f, 0x6e, 0x6f, 0x6e, 0x6e, 0x75, 0x6c,
+      0x6c, 0x00, 0x07, 0x09, 0x63, 0x61, 0x73, 0x74, 0x5f, 0x66, 0x75, 0x6e,
+      0x63, 0x00, 0x08, 0x0b, 0x74, 0x65, 0x73, 0x74, 0x5f, 0x65, 0x78, 0x74,
+      0x65, 0x72, 0x6e, 0x00, 0x09, 0x0a, 0x6b, 0x0a, 0x09, 0x01, 0x01, 0x6b,
+      0x20, 0x00, 0xfb, 0x15, 0x00, 0x0b, 0x09, 0x01, 0x01, 0x6b, 0x20, 0x00,
+      0xfb, 0x14, 0x00, 0x0b, 0x0c, 0x01, 0x01, 0x6b, 0x20, 0x00, 0xfb, 0x17,
+      0x00, 0x1a, 0x41, 0x07, 0x0b, 0x09, 0x01, 0x01, 0x6e, 0x20, 0x00, 0xfb,
+      0x15, 0x00, 0x0b, 0x09, 0x01, 0x01, 0x6c, 0x20, 0x00, 0xfb, 0x15, 0x00,
+      0x0b, 0x09, 0x01, 0x01, 0x6a, 0x20, 0x00, 0xfb, 0x15, 0x01, 0x0b, 0x09,
+      0x01, 0x01, 0x70, 0x20, 0x00, 0xfb, 0x15, 0x02, 0x0b, 0x09, 0x01, 0x01,
+      0x70, 0x20, 0x00, 0xfb, 0x14, 0x02, 0x0b, 0x0c, 0x01, 0x01, 0x70, 0x20,
+      0x00, 0xfb, 0x17, 0x02, 0x1a, 0x41, 0x07, 0x0b, 0x09, 0x01, 0x01, 0x6f,
+      0x20, 0x00, 0xfb, 0x15, 0x72, 0x0b};
+
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::JIT);
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(NullLocalAbstractWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  const auto *ModInst = VM.getActiveModule();
+  ASSERT_NE(ModInst, nullptr);
+
+  // A null structref local bottoms out at none: it matches (ref null $t) but
+  // not (ref $t), and ref.cast to (ref null $t) must not trap.
+  {
+    const auto *Func = ModInst->findFuncExports("test_struct");
+    ASSERT_NE(Func, nullptr);
+    ASSERT_TRUE(Func->isCompiledFunction());
+    auto Res = VM.execute("test_struct");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1u);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 1u);
+  }
+  {
+    const auto *Func = ModInst->findFuncExports("test_struct_nonnull");
+    ASSERT_NE(Func, nullptr);
+    ASSERT_TRUE(Func->isCompiledFunction());
+    auto Res = VM.execute("test_struct_nonnull");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1u);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 0u);
+  }
+  {
+    const auto *Func = ModInst->findFuncExports("cast_struct");
+    ASSERT_NE(Func, nullptr);
+    ASSERT_TRUE(Func->isCompiledFunction());
+    auto Res = VM.execute("cast_struct");
+    ASSERT_TRUE(Res) << "ref.cast trapped on a null structref local";
+    ASSERT_EQ(Res->size(), 1u);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7u);
+  }
+
+  // The anyref, i31ref, and arrayref null locals bottom out at none as well.
+  {
+    const auto *Func = ModInst->findFuncExports("test_any");
+    ASSERT_NE(Func, nullptr);
+    ASSERT_TRUE(Func->isCompiledFunction());
+    auto Res = VM.execute("test_any");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1u);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 1u);
+  }
+  {
+    const auto *Func = ModInst->findFuncExports("test_i31");
+    ASSERT_NE(Func, nullptr);
+    ASSERT_TRUE(Func->isCompiledFunction());
+    auto Res = VM.execute("test_i31");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1u);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 1u);
+  }
+  {
+    const auto *Func = ModInst->findFuncExports("test_array");
+    ASSERT_NE(Func, nullptr);
+    ASSERT_TRUE(Func->isCompiledFunction());
+    auto Res = VM.execute("test_array");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1u);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 1u);
+  }
+
+  // A null funcref local bottoms out at nofunc: it matches (ref null $f) but
+  // not (ref $f), and ref.cast to (ref null $f) must not trap.
+  {
+    const auto *Func = ModInst->findFuncExports("test_func");
+    ASSERT_NE(Func, nullptr);
+    ASSERT_TRUE(Func->isCompiledFunction());
+    auto Res = VM.execute("test_func");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1u);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 1u);
+  }
+  {
+    const auto *Func = ModInst->findFuncExports("test_func_nonnull");
+    ASSERT_NE(Func, nullptr);
+    ASSERT_TRUE(Func->isCompiledFunction());
+    auto Res = VM.execute("test_func_nonnull");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1u);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 0u);
+  }
+  {
+    const auto *Func = ModInst->findFuncExports("cast_func");
+    ASSERT_NE(Func, nullptr);
+    ASSERT_TRUE(Func->isCompiledFunction());
+    auto Res = VM.execute("cast_func");
+    ASSERT_TRUE(Res) << "ref.cast trapped on a null funcref local";
+    ASSERT_EQ(Res->size(), 1u);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7u);
+  }
+
+  // A null externref local bottoms out at noextern.
+  {
+    const auto *Func = ModInst->findFuncExports("test_extern");
+    ASSERT_NE(Func, nullptr);
+    ASSERT_TRUE(Func->isCompiledFunction());
+    auto Res = VM.execute("test_extern");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1u);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 1u);
+  }
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

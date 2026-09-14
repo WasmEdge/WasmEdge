@@ -522,7 +522,7 @@ private:
   getDataInstByIdx(Runtime::StackManager &StackMgr, const uint32_t Idx) const;
 
   /// Helper function for converting into bottom abstract heap type.
-  TypeCode toBottomType(Runtime::StackManager &StackMgr,
+  TypeCode toBottomType(const Runtime::Instance::ModuleInstance *ModInst,
                         const ValType &Type) const;
 
   /// Helper function for cleaning unused bits of numeric values in ValVariant.

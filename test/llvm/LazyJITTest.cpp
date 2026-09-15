@@ -24,8 +24,14 @@
 #include "vm/vm.h"
 #include "llvm/compiler.h"
 #include "llvm/jit.h"
+#include <csignal>
+#include <cstring>
 #include <gtest/gtest.h>
 #include <thread>
+
+#if defined(SA_SIGINFO)
+#include <pthread.h>
+#endif
 
 namespace {
 
@@ -107,6 +113,44 @@ std::vector<uint8_t> IntrinsicsWasm = {
     0x04, 0x74, 0x72, 0x61, 0x70, 0x00, 0x00, 0x04, 0x67, 0x72, 0x6f,
     0x77, 0x00, 0x01, 0x0a, 0x0c, 0x02, 0x03, 0x00, 0x00, 0x0b, 0x06,
     0x00, 0x20, 0x00, 0x40, 0x00, 0x0b};
+
+std::vector<uint8_t> OutOfBoundsLoadWasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01,
+    0x07, 0x08, 0x01, 0x04, 0x6c, 0x6f, 0x61, 0x64, 0x00, 0x00, 0x0a, 0x0b,
+    0x01, 0x09, 0x00, 0x41, 0x80, 0x80, 0x04, 0x28, 0x02, 0x00, 0x0b};
+
+#if defined(SA_SIGINFO) && defined(SA_ONSTACK)
+
+class AlternateSignalStackGuard {
+public:
+  AlternateSignalStackGuard() : Buffer(64 * 1024) {
+    if (sigaltstack(nullptr, &Original) != 0) {
+      return;
+    }
+
+    stack_t Stack{};
+    Stack.ss_sp = Buffer.data();
+    Stack.ss_size = Buffer.size();
+    Stack.ss_flags = 0;
+    Valid = sigaltstack(&Stack, nullptr) == 0;
+  }
+
+  ~AlternateSignalStackGuard() {
+    if (Valid) {
+      sigaltstack(&Original, nullptr);
+    }
+  }
+
+  bool valid() const noexcept { return Valid; }
+
+private:
+  std::vector<uint8_t> Buffer;
+  stack_t Original{};
+  bool Valid = false;
+};
+
+#endif
 
 class HostAdd : public Runtime::HostFunction<HostAdd> {
 public:
@@ -680,6 +724,41 @@ TEST_F(LazyJITTest, LazyJITIntrinsicsReachableFromCompiledCode) {
 
   EXPECT_EQ(VM->getLazyCompiledFuncCount(), 2U);
 }
+
+#if defined(SA_SIGINFO) && defined(SA_ONSTACK)
+
+TEST_F(LazyJITTest, RepeatedFaultsPreserveAlternateSignalState) {
+  AlternateSignalStackGuard AlternateStack;
+  ASSERT_TRUE(AlternateStack.valid());
+
+  stack_t ExpectedStack{};
+  ASSERT_EQ(sigaltstack(nullptr, &ExpectedStack), 0);
+  sigset_t ExpectedMask;
+  ASSERT_EQ(pthread_sigmask(SIG_SETMASK, nullptr, &ExpectedMask), 0);
+
+  auto VM = createEagerJITVM();
+  ASSERT_TRUE(VM->loadWasm(OutOfBoundsLoadWasm));
+  ASSERT_TRUE(VM->validate());
+  ASSERT_TRUE(VM->instantiate());
+
+  for (uint32_t I = 0; I < 2; ++I) {
+    auto Result = VM->execute("load");
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), ErrCode::Value::MemoryOutOfBounds);
+
+    stack_t CurrentStack{};
+    ASSERT_EQ(sigaltstack(nullptr, &CurrentStack), 0);
+    EXPECT_EQ(CurrentStack.ss_sp, ExpectedStack.ss_sp);
+    EXPECT_EQ(CurrentStack.ss_size, ExpectedStack.ss_size);
+    EXPECT_EQ(CurrentStack.ss_flags, ExpectedStack.ss_flags);
+
+    sigset_t CurrentMask;
+    ASSERT_EQ(pthread_sigmask(SIG_SETMASK, nullptr, &CurrentMask), 0);
+    EXPECT_EQ(std::memcmp(&CurrentMask, &ExpectedMask, sizeof(sigset_t)), 0);
+  }
+}
+
+#endif
 
 TEST_F(LazyJITTest, LazyJITConcurrentSameFunction) {
   auto VM = createLazyJITVM();

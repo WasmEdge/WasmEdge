@@ -1837,8 +1837,8 @@ TEST(SIMDNaN, F32x4MaxNaNHandling) {
 
 TEST(CodeGenOutput, TemporaryObjectWriteFailure) {
   const auto Path = std::filesystem::temp_directory_path() /
-                    std::filesystem::u8path("WasmEdgeNoSuchDir") /
-                    std::filesystem::u8path("out" WASMEDGE_LIB_EXTENSION);
+                    u8path("WasmEdgeNoSuchDir") /
+                    u8path("out" WASMEDGE_LIB_EXTENSION);
 
   ASSERT_FALSE(std::filesystem::exists(Path.parent_path()));
 

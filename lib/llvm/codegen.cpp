@@ -186,7 +186,7 @@ writeTemporaryObject(const std::filesystem::path &Model,
                      std::string_view ObjectBytes) noexcept {
   auto ObjectPath = createTemp(Model);
   if (ObjectPath.empty()) {
-    spdlog::error("object file creation failed: {}"sv, Model.u8string());
+    spdlog::error("object file creation failed: {}"sv, u8string(Model));
     return Unexpect(ErrCode::Value::IllegalPath);
   }
 
@@ -198,7 +198,7 @@ writeTemporaryObject(const std::filesystem::path &Model,
   if (!OS) {
     const int ErrorNumber = errno;
     spdlog::error(
-        "object file write failed: {}: {}"sv, ObjectPath.u8string(),
+        "object file write failed: {}: {}"sv, u8string(ObjectPath),
         std::make_error_code(static_cast<std::errc>(ErrorNumber)).message());
 
     return Unexpect(ErrCode::Value::IllegalPath);
@@ -222,7 +222,6 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
   EXPECTED_TRY(auto ObjectName,
                writeTemporaryObject(
                    OPath, std::string_view(OSVec.data(), OSVec.size())));
-
   // link
   // Serialize LLD invocations: CommonLinkerContext is a global singleton, so
   // concurrent link() calls from multiple threads would corrupt it.

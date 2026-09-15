@@ -193,7 +193,7 @@ TEST(ComponentNameParserTest, KebabLabel) {
 TEST(ComponentNameParserTest, StronglyUniqueBasicCases) {
   Validator::Component::TypeSystem Types;
   Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::Scope::Kind::Component);
+  Ctx.enterScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
@@ -220,7 +220,7 @@ TEST(ComponentNameParserTest, StronglyUniqueBasicCases) {
 TEST(ComponentNameParserTest, StronglyUnique) {
   Validator::Component::TypeSystem Types;
   Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::Scope::Kind::Component);
+  Ctx.enterScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
@@ -246,7 +246,7 @@ TEST(ComponentNameParserTest, StronglyUniqueExportBasicCases) {
   // name sets (Explainer §Import and Export Definitions).
   Validator::Component::TypeSystem Types;
   Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::Scope::Kind::Component);
+  Ctx.enterScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
@@ -273,7 +273,7 @@ TEST(ComponentNameParserTest, StronglyUniqueExportBasicCases) {
 TEST(ComponentNameParserTest, StronglyUniqueExport) {
   Validator::Component::TypeSystem Types;
   Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::Scope::Kind::Component);
+  Ctx.enterScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
@@ -298,7 +298,7 @@ TEST(ComponentNameParserTest, StronglyUniqueImportExportIndependence) {
   // and an export sharing a name is not a strong-uniqueness violation.
   Validator::Component::TypeSystem Types;
   Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::Scope::Kind::Component);
+  Ctx.enterScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Imports, Exports;
 
   auto add = [&Ctx](std::vector<Validator::Component::NameRecord> &Names,
@@ -511,7 +511,7 @@ TEST(ComponentNameParserTest, SpecExamples) {
 TEST(ComponentNameParserTest, StronglyUniqueWithNewKinds) {
   Validator::Component::TypeSystem Types;
   Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::Scope::Kind::Component);
+  Ctx.enterScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {

@@ -299,3 +299,430 @@ WasmEdge_VersionGet
 WasmEdge_VersionGetMajor
 WasmEdge_VersionGetMinor
 WasmEdge_VersionGetPatch
+wasm::Config::destroy()
+wasm::Config::make()
+wasm::Engine::destroy()
+wasm::Engine::make(std::unique_ptr<wasm::Config, wasm::destroyer>&&)
+wasm::ExportType::copy() const
+wasm::ExportType::destroy()
+wasm::ExportType::make(wasm::vec<char>&&, std::unique_ptr<wasm::ExternType, wasm::destroyer>&&)
+wasm::ExportType::name() const
+wasm::ExportType::type() const
+wasm::Extern::copy() const
+wasm::Extern::destroy()
+wasm::Extern::func()
+wasm::Extern::func() const
+wasm::Extern::global()
+wasm::Extern::global() const
+wasm::Extern::kind() const
+wasm::Extern::memory()
+wasm::Extern::memory() const
+wasm::Extern::table()
+wasm::Extern::table() const
+wasm::Extern::type() const
+wasm::ExternType::copy() const
+wasm::ExternType::destroy()
+wasm::ExternType::func()
+wasm::ExternType::func() const
+wasm::ExternType::global()
+wasm::ExternType::global() const
+wasm::ExternType::kind() const
+wasm::ExternType::memory()
+wasm::ExternType::memory() const
+wasm::ExternType::table()
+wasm::ExternType::table() const
+wasm::ExternType::tag()
+wasm::ExternType::tag() const
+wasm::Foreign::copy() const
+wasm::Foreign::destroy()
+wasm::Foreign::make(wasm::Store*)
+wasm::Frame::copy() const
+wasm::Frame::destroy()
+wasm::Frame::func_index() const
+wasm::Frame::func_offset() const
+wasm::Frame::instance() const
+wasm::Frame::module_offset() const
+wasm::Func::call(wasm::vec<wasm::Val> const&, wasm::vec<wasm::Val>&) const
+wasm::Func::copy() const
+wasm::Func::destroy()
+wasm::Func::make(wasm::Store*, wasm::FuncType const*, std::unique_ptr<wasm::Trap, wasm::destroyer> (*)(void*, wasm::vec<wasm::Val> const&, wasm::vec<wasm::Val>&), void*, void (*)(void*))
+wasm::Func::make(wasm::Store*, wasm::FuncType const*, std::unique_ptr<wasm::Trap, wasm::destroyer> (*)(wasm::vec<wasm::Val> const&, wasm::vec<wasm::Val>&))
+wasm::Func::param_arity() const
+wasm::Func::result_arity() const
+wasm::Func::type() const
+wasm::FuncType::copy() const
+wasm::FuncType::destroy()
+wasm::FuncType::make(wasm::vec<std::unique_ptr<wasm::ValType, wasm::destroyer>>&&, wasm::vec<std::unique_ptr<wasm::ValType, wasm::destroyer>>&&)
+wasm::FuncType::params() const
+wasm::FuncType::results() const
+wasm::Global::copy() const
+wasm::Global::destroy()
+wasm::Global::get() const
+wasm::Global::make(wasm::Store*, wasm::GlobalType const*, wasm::Val const&)
+wasm::Global::set(wasm::Val const&)
+wasm::Global::type() const
+wasm::GlobalType::content() const
+wasm::GlobalType::copy() const
+wasm::GlobalType::destroy()
+wasm::GlobalType::make(std::unique_ptr<wasm::ValType, wasm::destroyer>&&, wasm::Mutability)
+wasm::GlobalType::mutability() const
+wasm::ImportType::copy() const
+wasm::ImportType::destroy()
+wasm::ImportType::make(wasm::vec<char>&&, wasm::vec<char>&&, std::unique_ptr<wasm::ExternType, wasm::destroyer>&&)
+wasm::ImportType::module() const
+wasm::ImportType::name() const
+wasm::ImportType::type() const
+wasm::Instance::copy() const
+wasm::Instance::destroy()
+wasm::Instance::exports() const
+wasm::Instance::make(wasm::Store*, wasm::Module const*, wasm::vec<wasm::Extern*> const&, std::unique_ptr<wasm::Trap, wasm::destroyer>*)
+wasm::Memory::copy() const
+wasm::Memory::data() const
+wasm::Memory::data_size() const
+wasm::Memory::destroy()
+wasm::Memory::grow(unsigned int)
+wasm::Memory::make(wasm::Store*, wasm::MemoryType const*)
+wasm::Memory::size() const
+wasm::Memory::type() const
+wasm::MemoryType::copy() const
+wasm::MemoryType::destroy()
+wasm::MemoryType::limits() const
+wasm::MemoryType::make(wasm::Limits)
+wasm::Module::copy() const
+wasm::Module::deserialize(wasm::Store*, wasm::vec<char> const&)
+wasm::Module::destroy()
+wasm::Module::exports() const
+wasm::Module::imports() const
+wasm::Module::make(wasm::Store*, wasm::vec<char> const&)
+wasm::Module::obtain(wasm::Store*, wasm::Shared<wasm::Module> const*)
+wasm::Module::serialize() const
+wasm::Module::share() const
+wasm::Module::validate(wasm::Store*, wasm::vec<char> const&)
+wasm::Ref::copy() const
+wasm::Ref::destroy()
+wasm::Ref::get_host_info() const
+wasm::Ref::same(wasm::Ref const*) const
+wasm::Ref::set_host_info(void*, void (*)(void*))
+wasm::Shared<wasm::Module>::destroy()
+wasm::Store::destroy()
+wasm::Store::make(wasm::Engine*)
+wasm::Table::copy() const
+wasm::Table::destroy()
+wasm::Table::get(unsigned int) const
+wasm::Table::grow(unsigned int, wasm::Ref const*)
+wasm::Table::make(wasm::Store*, wasm::TableType const*, wasm::Ref const*)
+wasm::Table::set(unsigned int, wasm::Ref const*)
+wasm::Table::size() const
+wasm::Table::type() const
+wasm::TableType::copy() const
+wasm::TableType::destroy()
+wasm::TableType::element() const
+wasm::TableType::limits() const
+wasm::TableType::make(std::unique_ptr<wasm::ValType, wasm::destroyer>&&, wasm::Limits)
+wasm::TagType::copy() const
+wasm::TagType::destroy()
+wasm::TagType::functype() const
+wasm::TagType::make(std::unique_ptr<wasm::FuncType, wasm::destroyer>&&)
+wasm::Trap::copy() const
+wasm::Trap::destroy()
+wasm::Trap::make(wasm::Store*, wasm::vec<char> const&)
+wasm::Trap::message() const
+wasm::Trap::origin() const
+wasm::Trap::trace() const
+wasm::ValType::copy() const
+wasm::ValType::destroy()
+wasm::ValType::kind() const
+wasm::ValType::make(wasm::ValKind)
+wasm_byte_vec_copy
+wasm_byte_vec_delete
+wasm_byte_vec_new
+wasm_byte_vec_new_empty
+wasm_byte_vec_new_uninitialized
+wasm_config_delete
+wasm_config_new
+wasm_engine_delete
+wasm_engine_new
+wasm_engine_new_with_config
+wasm_exporttype_copy
+wasm_exporttype_delete
+wasm_exporttype_name
+wasm_exporttype_new
+wasm_exporttype_type
+wasm_exporttype_vec_copy
+wasm_exporttype_vec_delete
+wasm_exporttype_vec_new
+wasm_exporttype_vec_new_empty
+wasm_exporttype_vec_new_uninitialized
+wasm_extern_as_func
+wasm_extern_as_func_const
+wasm_extern_as_global
+wasm_extern_as_global_const
+wasm_extern_as_memory
+wasm_extern_as_memory_const
+wasm_extern_as_ref
+wasm_extern_as_ref_const
+wasm_extern_as_table
+wasm_extern_as_table_const
+wasm_extern_copy
+wasm_extern_delete
+wasm_extern_get_host_info
+wasm_extern_kind
+wasm_extern_same
+wasm_extern_set_host_info
+wasm_extern_set_host_info_with_finalizer
+wasm_extern_type
+wasm_extern_vec_copy
+wasm_extern_vec_delete
+wasm_extern_vec_new
+wasm_extern_vec_new_empty
+wasm_extern_vec_new_uninitialized
+wasm_externtype_as_functype
+wasm_externtype_as_functype_const
+wasm_externtype_as_globaltype
+wasm_externtype_as_globaltype_const
+wasm_externtype_as_memorytype
+wasm_externtype_as_memorytype_const
+wasm_externtype_as_tabletype
+wasm_externtype_as_tabletype_const
+wasm_externtype_as_tagtype
+wasm_externtype_as_tagtype_const
+wasm_externtype_copy
+wasm_externtype_delete
+wasm_externtype_kind
+wasm_externtype_vec_copy
+wasm_externtype_vec_delete
+wasm_externtype_vec_new
+wasm_externtype_vec_new_empty
+wasm_externtype_vec_new_uninitialized
+wasm_foreign_as_ref
+wasm_foreign_as_ref_const
+wasm_foreign_copy
+wasm_foreign_delete
+wasm_foreign_get_host_info
+wasm_foreign_new
+wasm_foreign_same
+wasm_foreign_set_host_info
+wasm_foreign_set_host_info_with_finalizer
+wasm_frame_copy
+wasm_frame_delete
+wasm_frame_func_index
+wasm_frame_func_offset
+wasm_frame_instance
+wasm_frame_module_offset
+wasm_frame_vec_copy
+wasm_frame_vec_delete
+wasm_frame_vec_new
+wasm_frame_vec_new_empty
+wasm_frame_vec_new_uninitialized
+wasm_func_as_extern
+wasm_func_as_extern_const
+wasm_func_as_ref
+wasm_func_as_ref_const
+wasm_func_call
+wasm_func_copy
+wasm_func_delete
+wasm_func_get_host_info
+wasm_func_new
+wasm_func_new_with_env
+wasm_func_param_arity
+wasm_func_result_arity
+wasm_func_same
+wasm_func_set_host_info
+wasm_func_set_host_info_with_finalizer
+wasm_func_type
+wasm_functype_as_externtype
+wasm_functype_as_externtype_const
+wasm_functype_copy
+wasm_functype_delete
+wasm_functype_new
+wasm_functype_params
+wasm_functype_results
+wasm_functype_vec_copy
+wasm_functype_vec_delete
+wasm_functype_vec_new
+wasm_functype_vec_new_empty
+wasm_functype_vec_new_uninitialized
+wasm_global_as_extern
+wasm_global_as_extern_const
+wasm_global_as_ref
+wasm_global_as_ref_const
+wasm_global_copy
+wasm_global_delete
+wasm_global_get
+wasm_global_get_host_info
+wasm_global_new
+wasm_global_same
+wasm_global_set
+wasm_global_set_host_info
+wasm_global_set_host_info_with_finalizer
+wasm_global_type
+wasm_globaltype_as_externtype
+wasm_globaltype_as_externtype_const
+wasm_globaltype_content
+wasm_globaltype_copy
+wasm_globaltype_delete
+wasm_globaltype_mutability
+wasm_globaltype_new
+wasm_globaltype_vec_copy
+wasm_globaltype_vec_delete
+wasm_globaltype_vec_new
+wasm_globaltype_vec_new_empty
+wasm_globaltype_vec_new_uninitialized
+wasm_importtype_copy
+wasm_importtype_delete
+wasm_importtype_module
+wasm_importtype_name
+wasm_importtype_new
+wasm_importtype_type
+wasm_importtype_vec_copy
+wasm_importtype_vec_delete
+wasm_importtype_vec_new
+wasm_importtype_vec_new_empty
+wasm_importtype_vec_new_uninitialized
+wasm_instance_as_ref
+wasm_instance_as_ref_const
+wasm_instance_copy
+wasm_instance_delete
+wasm_instance_exports
+wasm_instance_get_host_info
+wasm_instance_new
+wasm_instance_same
+wasm_instance_set_host_info
+wasm_instance_set_host_info_with_finalizer
+wasm_memory_as_extern
+wasm_memory_as_extern_const
+wasm_memory_as_ref
+wasm_memory_as_ref_const
+wasm_memory_copy
+wasm_memory_data
+wasm_memory_data_size
+wasm_memory_delete
+wasm_memory_get_host_info
+wasm_memory_grow
+wasm_memory_new
+wasm_memory_same
+wasm_memory_set_host_info
+wasm_memory_set_host_info_with_finalizer
+wasm_memory_size
+wasm_memory_type
+wasm_memorytype_as_externtype
+wasm_memorytype_as_externtype_const
+wasm_memorytype_copy
+wasm_memorytype_delete
+wasm_memorytype_limits
+wasm_memorytype_new
+wasm_memorytype_vec_copy
+wasm_memorytype_vec_delete
+wasm_memorytype_vec_new
+wasm_memorytype_vec_new_empty
+wasm_memorytype_vec_new_uninitialized
+wasm_module_as_ref
+wasm_module_as_ref_const
+wasm_module_copy
+wasm_module_delete
+wasm_module_deserialize
+wasm_module_exports
+wasm_module_get_host_info
+wasm_module_imports
+wasm_module_new
+wasm_module_obtain
+wasm_module_same
+wasm_module_serialize
+wasm_module_set_host_info
+wasm_module_set_host_info_with_finalizer
+wasm_module_share
+wasm_module_validate
+wasm_ref_as_extern
+wasm_ref_as_extern_const
+wasm_ref_as_foreign
+wasm_ref_as_foreign_const
+wasm_ref_as_func
+wasm_ref_as_func_const
+wasm_ref_as_global
+wasm_ref_as_global_const
+wasm_ref_as_instance
+wasm_ref_as_instance_const
+wasm_ref_as_memory
+wasm_ref_as_memory_const
+wasm_ref_as_module
+wasm_ref_as_module_const
+wasm_ref_as_table
+wasm_ref_as_table_const
+wasm_ref_as_trap
+wasm_ref_as_trap_const
+wasm_ref_copy
+wasm_ref_delete
+wasm_ref_get_host_info
+wasm_ref_same
+wasm_ref_set_host_info
+wasm_ref_set_host_info_with_finalizer
+wasm_shared_module_delete
+wasm_store_delete
+wasm_store_new
+wasm_table_as_extern
+wasm_table_as_extern_const
+wasm_table_as_ref
+wasm_table_as_ref_const
+wasm_table_copy
+wasm_table_delete
+wasm_table_get
+wasm_table_get_host_info
+wasm_table_grow
+wasm_table_new
+wasm_table_same
+wasm_table_set
+wasm_table_set_host_info
+wasm_table_set_host_info_with_finalizer
+wasm_table_size
+wasm_table_type
+wasm_tabletype_as_externtype
+wasm_tabletype_as_externtype_const
+wasm_tabletype_copy
+wasm_tabletype_delete
+wasm_tabletype_element
+wasm_tabletype_limits
+wasm_tabletype_new
+wasm_tabletype_vec_copy
+wasm_tabletype_vec_delete
+wasm_tabletype_vec_new
+wasm_tabletype_vec_new_empty
+wasm_tabletype_vec_new_uninitialized
+wasm_tagtype_as_externtype
+wasm_tagtype_as_externtype_const
+wasm_tagtype_copy
+wasm_tagtype_delete
+wasm_tagtype_functype
+wasm_tagtype_new
+wasm_tagtype_vec_copy
+wasm_tagtype_vec_delete
+wasm_tagtype_vec_new
+wasm_tagtype_vec_new_empty
+wasm_tagtype_vec_new_uninitialized
+wasm_trap_as_ref
+wasm_trap_as_ref_const
+wasm_trap_copy
+wasm_trap_delete
+wasm_trap_get_host_info
+wasm_trap_message
+wasm_trap_new
+wasm_trap_origin
+wasm_trap_same
+wasm_trap_set_host_info
+wasm_trap_set_host_info_with_finalizer
+wasm_trap_trace
+wasm_val_copy
+wasm_val_delete
+wasm_val_vec_copy
+wasm_val_vec_delete
+wasm_val_vec_new
+wasm_val_vec_new_empty
+wasm_val_vec_new_uninitialized
+wasm_valtype_copy
+wasm_valtype_delete
+wasm_valtype_kind
+wasm_valtype_new
+wasm_valtype_vec_copy
+wasm_valtype_vec_delete
+wasm_valtype_vec_new
+wasm_valtype_vec_new_empty
+wasm_valtype_vec_new_uninitialized

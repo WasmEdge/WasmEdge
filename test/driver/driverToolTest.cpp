@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "driver/tool.h"
 #include "driver/unitool.h"
 #include "po/argument_parser.h"
@@ -11,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
+#include <iterator>
 #include <string>
 #if !WASMEDGE_OS_WINDOWS
 #include <unistd.h>
@@ -262,6 +264,14 @@ static const std::array<uint8_t, 44> ConsumerWasm{
     0x72, 0x6f, 0x76, 0x69, 0x64, 0x65, 0x72, 0x03, 0x61, 0x64, 0x64,
     0x00, 0x00, 0x07, 0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00};
 
+// trap.wasm: exports "_start" which traps on an integer division by zero.
+static const std::array<uint8_t, 53> TrapWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01,
+    0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00,
+    0x01, 0x07, 0x10, 0x02, 0x03, 0x6d, 0x65, 0x6d, 0x02, 0x00, 0x06,
+    0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x00, 0x0a, 0x0a, 0x01,
+    0x08, 0x00, 0x41, 0x01, 0x41, 0x00, 0x6d, 0x1a, 0x0b};
+
 std::string simplePath() {
   static std::string Path;
   if (Path.empty()) {
@@ -304,6 +314,44 @@ std::string consumerPath() {
                            "consumer.wasm");
   }
   return Path;
+}
+
+std::string trapPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    // The coredump is written into the working directory, hence the tests
+    // change it and the module must be addressed by an absolute path.
+    Path = std::filesystem::absolute(
+               writeWasmToFile(TrapWasm.data(), TrapWasm.size(), "trap.wasm"))
+               .string();
+  }
+  return Path;
+}
+
+// Run in a dedicated directory and report the number of the generated
+// coredumps, because the coredump is written into the working directory.
+size_t countCoredumpsOf(std::initializer_list<const char *> Args,
+                        const std::string &Name) {
+  const auto TempDir = std::filesystem::temp_directory_path() /
+                       WasmEdge::u8path("wasmedge-driver-coredump-" + Name);
+  std::error_code Error;
+  std::filesystem::remove_all(TempDir, Error);
+  if (!std::filesystem::create_directories(TempDir, Error)) {
+    return static_cast<size_t>(-1);
+  }
+  const auto Origin = std::filesystem::current_path();
+  std::filesystem::current_path(TempDir);
+  callRun(Args);
+  std::filesystem::current_path(Origin, Error);
+
+  size_t Count = 0;
+  for (const auto &Entry : std::filesystem::directory_iterator(TempDir)) {
+    if (Entry.path().filename().string().rfind("coredump.", 0) == 0) {
+      Count++;
+    }
+  }
+  std::filesystem::remove_all(TempDir, Error);
+  return Count;
 }
 
 std::string sectionsTestPath() {
@@ -753,6 +801,35 @@ TEST(CompileSubcommand, CompilerSpecificFlags) {
             EXIT_SUCCESS);
   std::filesystem::remove(Output.c_str());
 
+#if defined(WASMEDGE_LLVM_VERSION_MAJOR) && WASMEDGE_LLVM_VERSION_MAJOR >= 23
+  auto ReadOptimizedIR = []() {
+    std::ifstream Ifs("wasm-opt.ll");
+    return std::string(std::istreambuf_iterator<char>(Ifs),
+                       std::istreambuf_iterator<char>());
+  };
+  auto RemoveDumpedIR = []() {
+    std::filesystem::remove("wasm.ll");
+    std::filesystem::remove("wasm-opt.ll");
+  };
+
+  RemoveDumpedIR();
+  EXPECT_EQ(callCompile({"--optimize", "s", "--dump", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+  const std::string IROptSize = ReadOptimizedIR();
+  EXPECT_NE(IROptSize.find("optsize"), std::string::npos);
+  EXPECT_EQ(IROptSize.find("minsize"), std::string::npos);
+  RemoveDumpedIR();
+
+  EXPECT_EQ(callCompile({"--optimize", "z", "--dump", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+  const std::string IRMinSize = ReadOptimizedIR();
+  EXPECT_NE(IRMinSize.find("optsize"), std::string::npos);
+  EXPECT_NE(IRMinSize.find("minsize"), std::string::npos);
+  RemoveDumpedIR();
+#endif
+
   EXPECT_EQ(callCompile({"--optimize", "invalid", Path, Output.c_str()}),
             EXIT_SUCCESS);
   std::filesystem::remove(Output.c_str());
@@ -977,6 +1054,41 @@ TEST(RunSubcommand, LinkedModules) {
   EXPECT_EQ(callRun({"--reactor", "--module", "provider:nonexist.wasm",
                      ConsPath.c_str(), "add", "1", "2"}),
             EXIT_FAILURE);
+}
+
+TEST(RunSubcommand, CoredumpRequiresInterpreter) {
+  std::string PathStr = trapPath();
+  const char *Path = PathStr.c_str();
+
+  // The interpreter is the default run mode, hence the coredump is generated.
+  EXPECT_EQ(countCoredumpsOf({"--enable-coredump", Path}, "default"), 1U);
+  EXPECT_EQ(countCoredumpsOf({"--coredump-for-wasmgdb", Path}, "wasmgdb"), 1U);
+  EXPECT_EQ(
+      countCoredumpsOf({"--run-mode=interpreter", "--enable-coredump", Path},
+                       "interpreter"),
+      1U);
+
+  // An explicitly requested run mode takes precedence over the coredump, so
+  // no coredump is generated and the run mode is kept.
+  EXPECT_EQ(
+      countCoredumpsOf({"--run-mode=jit", "--enable-coredump", Path}, "jit"),
+      0U);
+  EXPECT_EQ(
+      countCoredumpsOf({"--run-mode=aot", "--enable-coredump", Path}, "aot"),
+      0U);
+  EXPECT_EQ(
+      countCoredumpsOf({"--run-mode=lazyjit", "--coredump-for-wasmgdb", Path},
+                       "lazyjit"),
+      0U);
+
+  // The decision follows the requested run mode, not the effective one, hence
+  // it is deterministic on the builds without LLVM as well.
+  EXPECT_EQ(countCoredumpsOf({"--enable-jit", "--enable-coredump", Path},
+                             "deprecated-jit"),
+            0U);
+  EXPECT_EQ(countCoredumpsOf({"--force-interpreter", "--enable-coredump", Path},
+                             "deprecated-interpreter"),
+            1U);
 }
 
 TEST(RunSubcommand, GlobalFlags) {

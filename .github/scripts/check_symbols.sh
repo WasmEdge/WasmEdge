@@ -99,17 +99,43 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 
 info "Extracting symbols from library..."
 
+# Symbols extracted here cover three exported namespaces:
+#   - WasmEdge_* : WasmEdge C API (declared with WASMEDGE_CAPI_EXPORT).
+#   - wasm_*     : wasm-c-api C functions (C-API spec).
+#   - wasm::*    : wasm-c-api C++ classes (C++-API spec); demangled and
+#                  normalized so the whitelist is toolchain-agnostic:
+#                  libc++ std::__1:: / libstdc++ std::__cxx11:: inline
+#                  namespaces stripped; libstdc++'s "> >" between
+#                  consecutive template brackets collapsed to ">>"
+#                  (Xcode/libc++ produces the C++11+ no-space form).
+# The awk pass also DROPs entries whose function lives in libstdc++
+# internals (std::__): those leak as default-visibility instantiations
+# whose template args touch wasm:: types, but the helpers themselves
+# aren't part of our API.
+NORMALIZE_AND_FILTER='
+{
+  while (gsub(/> >/, ">>") > 0) {}
+  gsub(/std::__1::/, "std::")
+  gsub(/std::__cxx11::/, "std::")
+  if (/^(WasmEdge_|wasm_|wasm::)/ && !/std::__/) print
+}'
+
 if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+    # wasm_* are dllexport'ed here too (see lib/api/wasm_c.cpp), so they are
+    # filtered in alongside WasmEdge_*. The wasm::* C++ exports keep their MSVC
+    # decoration in this branch and cannot be matched against the demangled
+    # whitelist, so they only surface as "missing" warnings.
     # //EXPORTS instead of /EXPORTS due to shell escaping in CI
     if command -v dumpbin >/dev/null 2>&1; then
         dumpbin //EXPORTS "$LIB_PATH" 2>/dev/null | \
             awk '/^[[:space:]]*[0-9]+[[:space:]]+[0-9A-Fa-f]+[[:space:]]+[0-9A-Fa-f]+[[:space:]]+/ {print $4}' | \
-            grep -E "^WasmEdge" | sort > "$TEMP_DIR/extracted.symbols"
+            grep -E "^(WasmEdge|wasm_)" | sort > "$TEMP_DIR/extracted.symbols"
     elif command -v objdump >/dev/null 2>&1; then
         info "dumpbin not found, using objdump as fallback..."
         objdump -p "$LIB_PATH" 2>/dev/null | \
             grep -E "^\s*\[[[:space:]]*[0-9]+\]" | \
-            grep "WasmEdge" | awk '{print $NF}' | sort > "$TEMP_DIR/extracted.symbols"
+            awk '{print $NF}' | \
+            grep -E "^(WasmEdge|wasm_)" | sort > "$TEMP_DIR/extracted.symbols"
     else
         error "Neither dumpbin nor objdump found. Make sure Visual Studio tools are in PATH or MinGW is installed"
         exit 1
@@ -119,15 +145,28 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
         error "nm not found. Make sure Xcode Command Line Tools are installed"
         exit 1
     fi
+    if ! command -v c++filt >/dev/null 2>&1; then
+        error "c++filt not found. Make sure Xcode Command Line Tools are installed"
+        exit 1
+    fi
 
     debug "Extracting symbols from macOS dylib..."
-    # macOS symbols have underscore prefix, so we strip it
+    # nm emits Mach-O symbols with a leading underscore (C names) or double
+    # underscore (mangled C++). c++filt eats the leading "__" while demangling
+    # C++; the trailing sed strips the surviving single "_" on C symbols.
     nm -g "$LIB_PATH" 2>/dev/null | \
-        awk '/^[0-9a-fA-F]+ [TBDWS] _WasmEdge/ {print substr($3,2)}' | \
-        sort > "$TEMP_DIR/extracted.symbols"
+        awk '/^[0-9a-fA-F]+ [TBDWS] / {print $3}' | \
+        c++filt | \
+        sed -e 's/^_//' | \
+        awk "$NORMALIZE_AND_FILTER" | \
+        sort -u > "$TEMP_DIR/extracted.symbols"
 else
     if ! command -v nm >/dev/null 2>&1; then
         error "nm not found. Install binutils package"
+        exit 1
+    fi
+    if ! command -v c++filt >/dev/null 2>&1; then
+        error "c++filt not found. Install binutils package"
         exit 1
     fi
 
@@ -136,7 +175,9 @@ else
     # then de-duplicate the default and compat aliases of the same name.
     nm -D --defined-only "$LIB_PATH" 2>/dev/null | \
         awk '/^[0-9a-fA-F]+ [TBDW] / {sub(/@.*/, "", $3); print $3}' | \
-        grep -E "^WasmEdge" | sort -u > "$TEMP_DIR/extracted.symbols"
+        c++filt | \
+        awk "$NORMALIZE_AND_FILTER" | \
+        sort -u > "$TEMP_DIR/extracted.symbols"
 fi
 
 if [ ! -s "$TEMP_DIR/extracted.symbols" ]; then

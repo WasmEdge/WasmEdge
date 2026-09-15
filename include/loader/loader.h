@@ -136,6 +136,10 @@ inline ASTNodeAttr NodeAttrFromAST<AST::Component::ExportSection>() noexcept {
   return ASTNodeAttr::Comp_Sec_Export;
 }
 template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::ValueSection>() noexcept {
+  return ASTNodeAttr::Comp_Sec_Value;
+}
+template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::CoreInstance>() noexcept {
   return ASTNodeAttr::Comp_CoreInstance;
 }
@@ -219,7 +223,7 @@ class Loader {
 public:
   Loader(const Configure &Conf,
          const Executable::IntrinsicsTable *IT = nullptr) noexcept
-      : Conf(Conf), Ser(Conf), IntrinsicsTable(IT) {}
+      : Conf(Conf), IntrinsicsTable(IT) {}
   ~Loader() noexcept = default;
 
   /// Load data from file path.
@@ -427,8 +431,9 @@ private:
   Expect<void> loadSection(AST::Component::StartSection &Sec);
   Expect<void> loadSection(AST::Component::ImportSection &Sec);
   Expect<void> loadSection(AST::Component::ExportSection &Sec);
+  Expect<void> loadSection(AST::Component::ValueSection &Sec);
   // core:instance and instance
-  Expect<void> loadCoreInstance(AST::Component::CoreInstance &Instance);
+  Expect<void> loadInstance(AST::Component::CoreInstance &Instance);
   Expect<void> loadInstance(AST::Component::Instance &Instance);
   // core:sort and sort
   Expect<void> loadCoreSort(AST::Component::Sort &Sort);
@@ -436,7 +441,7 @@ private:
   Expect<void> loadSortIndex(AST::Component::SortIndex &SortIdx,
                              const bool IsCore = false);
   // core:alias and alias
-  Expect<void> loadCoreAlias(AST::Component::CoreAlias &Alias);
+  Expect<void> loadAlias(AST::Component::CoreAlias &Alias);
   Expect<void> loadAlias(AST::Component::Alias &Alias);
   // core:deftype and deftype
   Expect<void> loadType(AST::Component::CoreDefType &Ty);
@@ -455,6 +460,8 @@ private:
   Expect<void> loadImport(AST::Component::Import &Im);
   // export
   Expect<void> loadExport(AST::Component::Export &Ex);
+  // value
+  Expect<void> loadValue(AST::Component::Value &V);
   // descs
   Expect<void> loadDesc(AST::Component::CoreImportDesc &Desc);
   Expect<void> loadDesc(AST::Component::ExternDesc &Desc);
@@ -479,8 +486,12 @@ private:
   Expect<void> loadType(AST::Component::BorrowTy &Ty);
   Expect<void> loadType(AST::Component::StreamTy &Ty);
   Expect<void> loadType(AST::Component::FutureTy &Ty);
+  Expect<void> loadType(AST::Component::MapTy &Ty);
   // helpers
-  Expect<void> loadExternName(std::string &Name);
+  Expect<void> loadNameAttributes(std::string &Name,
+                                  std::vector<std::string> &Implements,
+                                  std::vector<std::string> &ExternalIds,
+                                  std::vector<std::string> &VersionSuffixes);
   Expect<void> loadType(ComponentValType &Ty);
   Expect<void> loadType(AST::Component::LabelValType &Ty);
   template <typename ASTType, typename T>

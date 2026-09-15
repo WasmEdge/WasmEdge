@@ -16,10 +16,8 @@ Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
   uint64_t Address = extractAddr(RawAddress, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(uint32_t)));
   Address += Instr.getMemoryOffset();
-  uint32_t Align =
-      AddrType == AddressType::I32 ? sizeof(uint32_t) : sizeof(uint64_t);
 
-  if (Address % Align != 0) {
+  if (Address % sizeof(uint32_t) != 0) {
     spdlog::error(ErrCode::Value::UnalignedAtomicAccess);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));

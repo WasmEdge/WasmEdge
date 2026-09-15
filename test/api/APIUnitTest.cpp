@@ -180,6 +180,11 @@ std::vector<uint8_t> ImportWasm = {
     0x2d, 0x31, 0x4,  0x5,  0x74, 0x61, 0x67, 0x2d, 0x32, 0x5,  0x5,  0x74,
     0x61, 0x67, 0x2d, 0x33};
 
+std::vector<uint8_t> ReexportedImportedTagWasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+    0x60, 0x01, 0x7f, 0x00, 0x02, 0x08, 0x01, 0x01, 0x6d, 0x01, 0x74,
+    0x04, 0x00, 0x00, 0x07, 0x05, 0x01, 0x01, 0x74, 0x04, 0x00};
+
 std::vector<uint8_t> FibonacciWasm = {
     0x0,  0x61, 0x73, 0x6d, 0x1,  0x0,  0x0,  0x0,  0x1,  0x6,  0x1,
     0x60, 0x1,  0x7f, 0x1,  0x7f, 0x3,  0x2,  0x1,  0x0,  0x7,  0x7,
@@ -277,7 +282,7 @@ std::vector<uint8_t> ConsumerWasm = {
     0x01, 0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b};
 
 void hexToFile(cxx20::span<const uint8_t> Wasm, const char *Path) {
-  std::ofstream TFile(std::filesystem::u8path(Path), std::ios_base::binary);
+  std::ofstream TFile(WasmEdge::u8path(Path), std::ios_base::binary);
   TFile.write(reinterpret_cast<const char *>(Wasm.data()),
               static_cast<std::streamsize>(Wasm.size()));
   TFile.close();
@@ -1322,6 +1327,31 @@ TEST(APICoreTest, ExportType) {
                 WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[18])),
             WasmEdge_Mutability_Const);
 
+  // Test retrieving the type of a re-exported imported tag.
+  WasmEdge_ASTModuleDelete(Mod);
+  Mod = nullptr;
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBytes(
+      Loader, &Mod,
+      WasmEdge_BytesWrap(
+          ReexportedImportedTagWasm.data(),
+          static_cast<uint32_t>(ReexportedImportedTagWasm.size())))));
+  EXPECT_NE(Mod, nullptr);
+
+  const WasmEdge_ExportTypeContext *ImportedTagExport = nullptr;
+  EXPECT_EQ(WasmEdge_ASTModuleListExportsLength(Mod), 1U);
+  EXPECT_EQ(WasmEdge_ASTModuleListExports(Mod, &ImportedTagExport, 1), 1U);
+  ASSERT_NE(ImportedTagExport, nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ImportedTagExport),
+            WasmEdge_ExternalType_Tag);
+  const WasmEdge_TagTypeContext *ImportedTagType =
+      WasmEdge_ExportTypeGetTagType(Mod, ImportedTagExport);
+  ASSERT_NE(ImportedTagType, nullptr);
+  const WasmEdge_FunctionTypeContext *ImportedTagFuncType =
+      WasmEdge_TagTypeGetFunctionType(ImportedTagType);
+  ASSERT_NE(ImportedTagFuncType, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParametersLength(ImportedTagFuncType), 1U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturnsLength(ImportedTagFuncType), 0U);
+
   WasmEdge_LoaderDelete(Loader);
   WasmEdge_ASTModuleDelete(Mod);
 }
@@ -1405,7 +1435,7 @@ TEST(APICoreTest, Compiler) {
 
   // Compile file for shared library output format from buffer
   std::error_code EC;
-  auto TPathFS = std::filesystem::u8path(TPath);
+  auto TPathFS = WasmEdge::u8path(TPath);
   size_t FileSize = std::filesystem::file_size(TPathFS, EC);
   EXPECT_FALSE(EC);
   std::ifstream Fin(TPathFS, std::ios::in | std::ios::binary);
@@ -2291,6 +2321,60 @@ TEST(APICoreTest, Instance) {
   EXPECT_TRUE(true);
   WasmEdge_FunctionInstanceDelete(FuncCxt);
   EXPECT_TRUE(true);
+
+  // Get the host function data from a function instance.
+  uint32_t HostData = 0U;
+  FuncType = WasmEdge_FunctionTypeCreate(Param, 2, Result, 1);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, externAdd, &HostData, 0);
+  EXPECT_NE(FuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(FuncCxt), &HostData);
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  FuncCxt = WasmEdge_FunctionInstanceCreateBinding(
+      FuncType, externWrap, reinterpret_cast<void *>(externAdd), &HostData, 0);
+  EXPECT_NE(FuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(FuncCxt), &HostData);
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, externAdd, nullptr, 0);
+  EXPECT_NE(FuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(FuncCxt), nullptr);
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  WasmEdge_FunctionTypeDelete(FuncType);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(nullptr), nullptr);
+
+  // Get the host function data from the function instances not created by
+  // the C API.
+  hexToFile(TestWasm, TPath);
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
+  WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_TRUE(registerModule(Conf, Store, HostMod));
+  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
+  EXPECT_NE(Mod, nullptr);
+  EXPECT_TRUE(validateModule(Conf, Mod));
+  WasmEdge_ModuleInstanceContext *ModCxt = instantiateModule(Conf, Store, Mod);
+  EXPECT_NE(ModCxt, nullptr);
+  WasmEdge_ASTModuleDelete(Mod);
+  WasmEdge_String WasmFuncName = WasmEdge_StringCreateByCString("func-mul-2");
+  WasmEdge_FunctionInstanceContext *WasmFuncCxt =
+      WasmEdge_ModuleInstanceFindFunction(ModCxt, WasmFuncName);
+  WasmEdge_StringDelete(WasmFuncName);
+  EXPECT_NE(WasmFuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(WasmFuncCxt), nullptr);
+  WasmEdge_ModuleInstanceContext *WasiMod =
+      WasmEdge_ModuleInstanceCreateWASI(nullptr, 0, nullptr, 0, nullptr, 0);
+  EXPECT_NE(WasiMod, nullptr);
+  WasmEdge_String WasiFuncName = WasmEdge_StringCreateByCString("proc_exit");
+  WasmEdge_FunctionInstanceContext *WasiFuncCxt =
+      WasmEdge_ModuleInstanceFindFunction(WasiMod, WasiFuncName);
+  WasmEdge_StringDelete(WasiFuncName);
+  EXPECT_NE(WasiFuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(WasiFuncCxt), nullptr);
+  WasmEdge_ModuleInstanceDelete(ModCxt);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+  WasmEdge_ModuleInstanceDelete(WasiMod);
+  WasmEdge_StoreDelete(Store);
+  WasmEdge_ConfigureDelete(Conf);
 
   // Table instance
   WasmEdge_LimitContext *TabLim;

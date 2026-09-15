@@ -685,11 +685,14 @@ WasmEdge_FunctionInstanceCreateBinding(
 
 /// Get the function data field of the function instance.
 ///
-/// The function data is passed during FunctionInstance creation.
+/// The function data is the `Data` argument of the
+/// `WasmEdge_FunctionInstanceCreate()` or
+/// `WasmEdge_FunctionInstanceCreateBinding()` calls.
 ///
 /// \param Cxt the WasmEdge_FunctionInstanceContext.
 ///
-/// \returns pointer to Data, NULL if failed.
+/// \returns pointer to Data, NULL if the function instance is not created by
+/// the C API.
 WASMEDGE_CAPI_EXPORT extern const void *WasmEdge_FunctionInstanceGetData(
     const WasmEdge_FunctionInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 

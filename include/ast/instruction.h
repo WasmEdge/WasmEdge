@@ -338,7 +338,7 @@ private:
   OpCode Code = OpCode::End;
   struct {
     // Memory lane data for memory instructions.
-    uint8_t MemLane;
+    uint8_t MemLane = 0;
     // Flags of if allocating something in this instance.
     bool IsAllocLabelList : 1;
     bool IsAllocValTypeList : 1;

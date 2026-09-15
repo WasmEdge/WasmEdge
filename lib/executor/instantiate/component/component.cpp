@@ -3,8 +3,14 @@
 
 #include "executor/executor.h"
 
+#include "common/spdlog.h"
+
+#include <string_view>
+
 namespace WasmEdge {
 namespace Executor {
+
+using namespace std::literals;
 
 // Instantiate component module instance. See "include/executor/Executor.h".
 Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
@@ -19,6 +25,10 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       using T = std::decay_t<decltype(Sec)>;
       if constexpr (std::is_same_v<T, AST::CustomSection>) {
         // Do nothing to custom section.
+      } else if constexpr (std::is_same_v<T, AST::Component::ValueSection>) {
+        // TODO: COMPONENT - instantiate component value section.
+        spdlog::warn("component value section is not yet supported during "
+                     "instantiation; its values will be ignored."sv);
       } else if constexpr (std::is_same_v<T, AST::Component::ImportSection>) {
         EXPECTED_TRY(
             instantiate(StoreMgr, *CompInst, Sec).map_error([](auto E) {
@@ -53,6 +63,10 @@ Executor::instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
       using T = std::decay_t<decltype(Sec)>;
       if constexpr (std::is_same_v<T, AST::CustomSection>) {
         // Do nothing to custom section.
+      } else if constexpr (std::is_same_v<T, AST::Component::ValueSection>) {
+        // TODO: COMPONENT - instantiate component value section.
+        spdlog::warn("component value section is not yet supported during "
+                     "instantiation; its values will be ignored."sv);
       } else if constexpr (std::is_same_v<T, AST::Component::ImportSection>) {
         EXPECTED_TRY(
             instantiate(ImportMgr, *CompInst, Sec).map_error([](auto E) {

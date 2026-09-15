@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "opencvmini_module.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
@@ -30,7 +31,7 @@ inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
 
 std::unique_ptr<WasmEdge::Host::WasmEdgeOpenCVMiniModule> createModule() {
   using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
+  WasmEdge::Plugin::Plugin::load(WasmEdge::u8path(
       "../../../plugins/wasmedge_opencvmini/" WASMEDGE_LIB_PREFIX
       "wasmedgePluginWasmEdgeOpenCVMini" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin =

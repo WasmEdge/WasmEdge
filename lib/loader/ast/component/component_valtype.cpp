@@ -6,16 +6,43 @@
 namespace WasmEdge {
 namespace Loader {
 
-Expect<void> Loader::loadExternName(std::string &Name) {
-  // importname' ::= 0x00 len:<u32> in:<importname> => in (if len = |in|)
-  // exportname' ::= 0x00 len:<u32> en:<exportname> => en (if len = |en|)
+Expect<void>
+Loader::loadNameAttributes(std::string &Name,
+                           std::vector<std::string> &Implements,
+                           std::vector<std::string> &ExternalIds,
+                           std::vector<std::string> &VersionSuffixes) {
+  // nameattributes ::= 0x00 len:<u32> en:<externname> => en (if len = |en|)
+  //                  | 0x01 len:<u32> en:<externname> => en (if len = |en|)
+  //                  | 0x02 len:<u32> en:<externname> a*:vec(<attribute>)
+  // attribute      ::= 0x00 len:<u32> in:<interfacename> => (implements in)
+  //                  | 0x01 len:<u32> vs:<semversuffix>  => (versionsuffix vs)
+  //                  | 0x02 n:<name>                     => (external-id n)
 
   // Error messages will be handled in the parent scope.
   EXPECTED_TRY(auto B, FMgr.readByte());
-  if (B != 0x00) {
+  if (B > 0x02) {
     return Unexpect(ErrCode::Value::MalformedName);
   }
   EXPECTED_TRY(Name, FMgr.readName());
+  if (B == 0x02) {
+    EXPECTED_TRY(auto Cnt, FMgr.readU32());
+    for (uint32_t I = 0; I < Cnt; ++I) {
+      EXPECTED_TRY(auto Opt, FMgr.readByte());
+      if (Opt > 0x02) {
+        return Unexpect(ErrCode::Value::MalformedName);
+      }
+      EXPECTED_TRY(auto Value, FMgr.readName());
+      // Every kind keeps its values, so validation can hold each of them to
+      // at most one occurrence.
+      if (Opt == 0x00) {
+        Implements.push_back(std::move(Value));
+      } else if (Opt == 0x01) {
+        VersionSuffixes.push_back(std::move(Value));
+      } else {
+        ExternalIds.push_back(std::move(Value));
+      }
+    }
+  }
   return {};
 }
 
@@ -33,24 +60,23 @@ Expect<void> Loader::loadType(ComponentValType &Ty) {
       return logLoadError(ErrCode::Value::MalformedValType,
                           FMgr.getLastOffset(), ASTNodeAttr::Comp_ValueType);
     }
-    AST::Component::PrimValType PVT = static_cast<AST::Component::PrimValType>(
-        static_cast<uint8_t>(Val & INT64_C(0x7F)));
-    switch (PVT) {
-    case AST::Component::PrimValType::Bool:
-    case AST::Component::PrimValType::S8:
-    case AST::Component::PrimValType::U8:
-    case AST::Component::PrimValType::S16:
-    case AST::Component::PrimValType::U16:
-    case AST::Component::PrimValType::S32:
-    case AST::Component::PrimValType::U32:
-    case AST::Component::PrimValType::S64:
-    case AST::Component::PrimValType::U64:
-    case AST::Component::PrimValType::F32:
-    case AST::Component::PrimValType::F64:
-    case AST::Component::PrimValType::Char:
-    case AST::Component::PrimValType::String:
-    case AST::Component::PrimValType::ErrorContext:
-      Ty.setCode(static_cast<ComponentTypeCode>(PVT));
+    const auto Code = static_cast<ComponentTypeCode>(Val & INT64_C(0x7F));
+    switch (Code) {
+    case ComponentTypeCode::Bool:
+    case ComponentTypeCode::S8:
+    case ComponentTypeCode::U8:
+    case ComponentTypeCode::S16:
+    case ComponentTypeCode::U16:
+    case ComponentTypeCode::S32:
+    case ComponentTypeCode::U32:
+    case ComponentTypeCode::S64:
+    case ComponentTypeCode::U64:
+    case ComponentTypeCode::F32:
+    case ComponentTypeCode::F64:
+    case ComponentTypeCode::Char:
+    case ComponentTypeCode::String:
+    case ComponentTypeCode::ErrContext:
+      Ty.setCode(Code);
       break;
     default:
       return logLoadError(ErrCode::Value::MalformedValType,

@@ -16,6 +16,7 @@
 
 #include "kx/registered.h"
 #include "utils/error.h"
+#include "utils/secret_vec.h"
 
 #include <cstdint>
 #include <type_traits>
@@ -42,12 +43,12 @@ WasiCryptoExpect<SecretVec> dh(const PkVariant &PkVariant,
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#key-encapsulation-mechanisms
 struct EncapsulatedSecret {
   std::vector<uint8_t> EncapsulatedSecretData;
-  std::vector<uint8_t> Secret;
+  SecretVec Secret;
 };
 
 WasiCryptoExpect<EncapsulatedSecret> encapsulate(PkVariant &PkVariant) noexcept;
 
-WasiCryptoExpect<std::vector<uint8_t>>
+WasiCryptoExpect<SecretVec>
 decapsulate(SkVariant &SkVariant,
             Span<const uint8_t> EncapsulatedSecret) noexcept;
 

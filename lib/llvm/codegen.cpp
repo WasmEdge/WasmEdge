@@ -198,7 +198,7 @@ writeTemporaryObject(const std::filesystem::path &Model,
     const int ErrorNumber = errno;
     spdlog::error(
         "object file write failed: {}: {}"sv, ObjectPath.u8string(),
-        std::error_code(ErrorNumber, std::generic_category()).message());
+        std::make_error_code(static_cast<std::errc>(ErrorNumber)).message());
 
     return Unexpect(ErrCode::Value::IllegalPath);
   }

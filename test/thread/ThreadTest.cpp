@@ -326,7 +326,6 @@ TEST(AtomicWaitNotify, Memory32) {
 TEST(AtomicWaitNotify, Memory64) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Threads);
-  Conf.addProposal(WasmEdge::Proposal::Memory64);
   WasmEdge::VM::VM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(AtomicThreads64));
   ASSERT_TRUE(VM.validate());
@@ -761,7 +760,6 @@ TEST(AtomicWaitNotifyJIT, Memory32) {
 TEST(AtomicWaitNotifyJIT, Memory64) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Threads);
-  Conf.addProposal(WasmEdge::Proposal::Memory64);
   Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::JIT);
   WasmEdge::VM::VM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(AtomicThreads64));

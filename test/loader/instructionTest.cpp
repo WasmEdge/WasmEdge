@@ -14,6 +14,7 @@
 
 #include "loader/loader.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <vector>
@@ -34,6 +35,95 @@ std::vector<uint8_t> prefixedVec(const std::vector<uint8_t> &Vec) {
   PrefixVec.reserve(PrefixVec.size() + Vec.size());
   PrefixVec.insert(PrefixVec.end(), Vec.begin(), Vec.end());
   return PrefixVec;
+}
+
+TEST(InstructionTest, LoadMiscOpcodeULEB32) {
+  WasmEdge::Configure LocalConf;
+  WasmEdge::Loader::Loader LocalLdr(LocalConf);
+  const std::vector<std::vector<uint8_t>> Encodings = {
+      {0x00U},
+      {0x80U, 0x00U},
+      {0x80U, 0x80U, 0x00U},
+      {0x80U, 0x80U, 0x80U, 0x00U},
+      {0x80U, 0x80U, 0x80U, 0x80U, 0x00U},
+  };
+  for (const auto &Encoding : Encodings) {
+    SCOPED_TRACE(::testing::PrintToString(Encoding));
+    std::vector<uint8_t> Vec = {
+        0x0AU, static_cast<uint8_t>(Encoding.size() + 5U),
+        0x01U, static_cast<uint8_t>(Encoding.size() + 3U),
+        0x00U, 0xFCU,
+    };
+    Vec.insert(Vec.end(), Encoding.begin(), Encoding.end());
+    Vec.push_back(0x0BU);
+    auto Result = LocalLdr.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(Result);
+    const auto &Codes = (*Result)->getCodeSection().getContent();
+    ASSERT_EQ(Codes.size(), 1U);
+    const auto Instrs = Codes[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I32__trunc_sat_f32_s);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
+}
+
+TEST(InstructionTest, RejectMalformedMiscOpcodeULEB32) {
+  WasmEdge::Configure LocalConf;
+  WasmEdge::Loader::Loader LocalLdr(LocalConf);
+  struct TestCase {
+    std::vector<uint8_t> Encoding;
+    WasmEdge::ErrCode::Value Error;
+  };
+  const std::vector<TestCase> Cases = {
+      {{}, WasmEdge::ErrCode::Value::UnexpectedEnd},
+      {{0x80U}, WasmEdge::ErrCode::Value::UnexpectedEnd},
+      {{0x80U, 0x80U, 0x80U, 0x80U, 0x10U},
+       WasmEdge::ErrCode::Value::IntegerTooLarge},
+      {{0x80U, 0x80U, 0x80U, 0x80U, 0x80U, 0x00U},
+       WasmEdge::ErrCode::Value::IntegerTooLong},
+      {{0x80U, 0x02U}, WasmEdge::ErrCode::Value::IllegalOpCode},
+      {{0x93U, 0x02U}, WasmEdge::ErrCode::Value::IllegalOpCode},
+  };
+  for (const auto &Case : Cases) {
+    SCOPED_TRACE(::testing::PrintToString(Case.Encoding));
+    std::vector<uint8_t> Vec = {
+        0x0AU, static_cast<uint8_t>(Case.Encoding.size() + 4U),
+        0x01U, static_cast<uint8_t>(Case.Encoding.size() + 2U),
+        0x00U, 0xFCU,
+    };
+    Vec.insert(Vec.end(), Case.Encoding.begin(), Case.Encoding.end());
+    auto Result = LocalLdr.parseModule(prefixedVec(Vec));
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), Case.Error);
+  }
+}
+
+TEST(InstructionTest, RejectWideArithmeticOpcodesByDefault) {
+  WasmEdge::Configure LocalConf;
+  WasmEdge::Loader::Loader LocalLdr(LocalConf);
+  for (const uint8_t Opcode : {0x13U, 0x14U, 0x15U, 0x16U}) {
+    for (const size_t Width : {1U, 2U, 3U, 4U, 5U}) {
+      SCOPED_TRACE(::testing::Message()
+                   << "Subopcode: " << static_cast<unsigned>(Opcode)
+                   << ", ULEB32 width: " << Width);
+      std::vector<uint8_t> Vec = {
+          0x0AU, static_cast<uint8_t>(Width + 5U),
+          0x01U, static_cast<uint8_t>(Width + 3U),
+          0x00U, 0xFCU,
+      };
+      if (Width == 1U) {
+        Vec.push_back(Opcode);
+      } else {
+        Vec.push_back(Opcode | 0x80U);
+        Vec.insert(Vec.end(), Width - 2U, 0x80U);
+        Vec.push_back(0x00U);
+      }
+      Vec.push_back(0x0BU);
+      auto Result = LocalLdr.parseModule(prefixedVec(Vec));
+      ASSERT_FALSE(Result);
+      EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+    }
+  }
 }
 
 TEST(InstructionTest, LoadBlockControlInstruction) {

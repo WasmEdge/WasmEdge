@@ -3,6 +3,7 @@
 
 #include "common/func.h"
 #include "helper.h"
+#include "utils/secret_vec.h"
 
 namespace {
 template <typename T, typename M>
@@ -122,6 +123,69 @@ TEST_F(WasiCryptoTest, Options) {
     // Close options.
     WASI_CRYPTO_EXPECT_TRUE(optionsClose(KxOptionsHandle));
   }
+}
+
+TEST(SecretVecTest, MoveFromVector) {
+  std::vector<uint8_t> Data(32, uint8_t{0xAB});
+  const uint8_t *const Buffer = Data.data();
+
+  SecretVec Secret(std::move(Data));
+
+  EXPECT_EQ(Secret.data(), Buffer);
+  EXPECT_EQ(Secret.size(), 32U);
+}
+
+TEST(SecretVecTest, CopyFromLvalueVector) {
+  std::vector<uint8_t> Data(32, uint8_t{0xAB});
+  const uint8_t *const Buffer = Data.data();
+
+  SecretVec Secret(Data);
+
+  EXPECT_EQ(Data.size(), 32U);
+  EXPECT_EQ(Data.data(), Buffer);
+  EXPECT_NE(Secret.data(), Buffer);
+  EXPECT_TRUE(std::equal(Secret.begin(), Secret.end(), Data.begin()));
+}
+
+TEST(SecretVecTest, MoveAssignWipesReplacedBuffer) {
+  SecretVec Secret(std::vector<uint8_t>(32, uint8_t{0xAB}));
+  SecretVec Other(std::vector<uint8_t>(64, uint8_t{0xCD}));
+  const uint8_t *const Taken = Other.data();
+  const uint8_t *const Replaced = Secret.data();
+
+  Secret = std::move(Other);
+
+  EXPECT_EQ(Secret.data(), Taken);
+  EXPECT_EQ(Secret.size(), 64U);
+
+  // The replaced buffer is handed to `Other`, where it stays a live vector of
+  // the original size and its content can be read back.
+  EXPECT_EQ(Other.data(), Replaced);
+  ASSERT_EQ(Other.size(), 32U);
+  EXPECT_TRUE(std::all_of(Other.begin(), Other.end(),
+                          [](uint8_t Byte) { return Byte == 0; }));
+}
+
+TEST(SecretVecTest, CopyAssignReplacesContent) {
+  SecretVec Secret(std::vector<uint8_t>(32, uint8_t{0xAB}));
+  const SecretVec Other(std::vector<uint8_t>(8, uint8_t{0xCD}));
+
+  Secret = Other;
+
+  ASSERT_EQ(Secret.size(), 8U);
+  EXPECT_TRUE(std::all_of(Secret.begin(), Secret.end(),
+                          [](uint8_t Byte) { return Byte == 0xCD; }));
+}
+
+TEST(SecretVecTest, SelfAssignKeepsContent) {
+  SecretVec Secret(std::vector<uint8_t>(32, uint8_t{0xAB}));
+  SecretVec &Alias = Secret;
+
+  Secret = Alias;
+
+  EXPECT_EQ(Secret.size(), 32U);
+  EXPECT_TRUE(std::all_of(Secret.begin(), Secret.end(),
+                          [](uint8_t Byte) { return Byte == 0xAB; }));
 }
 
 } // namespace WasiCrypto

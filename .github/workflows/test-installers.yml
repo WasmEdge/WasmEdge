@@ -271,6 +271,8 @@ jobs:
         # Test uninstallation with duplicate env entries
         printf "\n=== Test 5: Uninstall with duplicate env entries ===\n"
         bash utils/install.sh -D
+        # Ensure .bash_profile symlink target exists so the test is exercised
+        [ -e ~/.dummy_bash_source ] || touch ~/.dummy_bash_source
         for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
           [ -f "$rc_file" ] || continue
           echo "export DUMMY_VAR=1" >> "$rc_file"
@@ -300,12 +302,12 @@ jobs:
         # Test if the environment variable was removed
         IPATH="$HOME/.wasmedge"
         for file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
-        [ -f "$file" ] || continue
-        if grep -q ". \"$IPATH/env\"" "$file"; then
-          echo "[FAIL] Found WasmEdge source line in: $file"
-          echo "[FAIL] Uninstallation failed"
-          exit 1
-        fi
+          [ -f "$file" ] || continue
+          if grep -qFx -e ". \"$IPATH/env\"" -e "source \"$IPATH/env\"" "$file"; then
+            echo "[FAIL] Found WasmEdge source line in: $file"
+            echo "[FAIL] Uninstallation failed"
+            exit 1
+          fi
         done
 
   # Test install_v2.sh
@@ -526,6 +528,8 @@ jobs:
         # Test uninstallation with duplicate env entries
         printf "\n=== Test 5: Uninstall with duplicate env entries ===\n"
         bash utils/install_v2.sh -V
+        # Ensure .bash_profile symlink target exists so the test is exercised
+        [ -e ~/.dummy_bash_source ] || touch ~/.dummy_bash_source
         for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
           [ -f "$rc_file" ] || continue
           echo "export DUMMY_VAR=1" >> "$rc_file"
@@ -556,7 +560,7 @@ jobs:
         IPATH="$HOME/.wasmedge"
         for file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
           [ -f "$file" ] || continue
-          if grep -q ". \"$IPATH/env\"" "$file"; then
+          if grep -qFx -e ". \"$IPATH/env\"" -e "source \"$IPATH/env\"" "$file"; then
             echo "[FAIL] Found WasmEdge source line in: $file"
             echo "[FAIL] Uninstallation failed"
             exit 1

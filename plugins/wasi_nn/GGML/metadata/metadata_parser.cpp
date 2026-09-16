@@ -103,15 +103,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonWithCastAuto<int64_t>(Doc, "n-gpu-layers",
                                    GraphRef.Params.n_gpu_layers);
 
-    parseJsonWithProcessorAuto<bool>(Doc, "cpu-moe",
-                                     [&GraphRef](const bool &CpuMoe) -> bool {
-                                       if (CpuMoe) {
-                                         GraphRef.TensorBuftOverrides.push_back(
-                                             "\\.ffn_(up|down|gate)_exps");
-                                       }
-                                       return true;
-                                     });
-
+    parseJsonAuto<bool>(Doc, "cpu-moe", GraphRef.CpuMoe);
     parseJsonWithProcessorAuto<int64_t>(
         Doc, "n-cpu-moe", [&GraphRef](const int64_t &NCpuMoe) -> bool {
           if (NCpuMoe < 0 || NCpuMoe > MaxCpuMoeLayers) {
@@ -119,10 +111,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                       MaxCpuMoeLayers)
             return false;
           }
-          for (int64_t I = 0; I < NCpuMoe; I++) {
-            GraphRef.TensorBuftOverrides.push_back(
-                fmt::format("blk\\.{}\\.ffn_(up|down|gate)_exps"sv, I));
-          }
+          GraphRef.NCpuMoe = NCpuMoe;
           return true;
         });
     parseJsonWithProcessorAuto<std::string_view>(
@@ -700,7 +689,17 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
               "metadata: unexpected exception while applying options: {}"sv,
               E.what())
   }
-  // The tensor buffer overrides should be terminated with an empty pattern.
+  // The override table is derived from the current MoE settings as a whole;
+  // llama.cpp reads it up to the terminating empty pattern.
+  GraphRef.Params.tensor_buft_overrides.clear();
+  GraphRef.TensorBuftOverrides.clear();
+  if (GraphRef.CpuMoe) {
+    GraphRef.TensorBuftOverrides.push_back("\\.ffn_(up|down|gate)_exps");
+  }
+  for (int64_t I = 0; I < GraphRef.NCpuMoe; I++) {
+    GraphRef.TensorBuftOverrides.push_back(
+        fmt::format("blk\\.{}\\.ffn_(up|down|gate)_exps"sv, I));
+  }
   if (!GraphRef.TensorBuftOverrides.empty()) {
     for (const std::string &Override : GraphRef.TensorBuftOverrides) {
       GraphRef.Params.tensor_buft_overrides.push_back(

@@ -1630,6 +1630,39 @@ TEST(WasiNNTest, GGMLBackend) {
       EXPECT_EQ(Params.pooling_type, PrevPoolingType);
     }
 
+    // Test: set_input -- the MoE CPU overrides follow the latest metadata
+    // pass instead of accumulating behind the terminating empty pattern.
+    {
+      ASSERT_TRUE(SetMetadata(R"({"cpu-moe":true,"n-cpu-moe":2})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(GGMLGraph.TensorBuftOverrides.size(), 3U);
+      ASSERT_EQ(Params.tensor_buft_overrides.size(), 4U);
+      EXPECT_STREQ(Params.tensor_buft_overrides[0].pattern,
+                   "\\.ffn_(up|down|gate)_exps");
+      EXPECT_STREQ(Params.tensor_buft_overrides[1].pattern,
+                   "blk\\.0\\.ffn_(up|down|gate)_exps");
+      EXPECT_STREQ(Params.tensor_buft_overrides[2].pattern,
+                   "blk\\.1\\.ffn_(up|down|gate)_exps");
+      EXPECT_EQ(Params.tensor_buft_overrides[3].pattern, nullptr);
+      // A pass without the keys keeps the previous overrides.
+      ASSERT_TRUE(SetMetadata(R"({})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(GGMLGraph.TensorBuftOverrides.size(), 3U);
+      EXPECT_EQ(Params.tensor_buft_overrides.size(), 4U);
+      // A pass that changes them replaces the whole table.
+      ASSERT_TRUE(SetMetadata(R"({"cpu-moe":false,"n-cpu-moe":1})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(GGMLGraph.TensorBuftOverrides.size(), 1U);
+      ASSERT_EQ(Params.tensor_buft_overrides.size(), 2U);
+      EXPECT_STREQ(Params.tensor_buft_overrides[0].pattern,
+                   "blk\\.0\\.ffn_(up|down|gate)_exps");
+      EXPECT_EQ(Params.tensor_buft_overrides[1].pattern, nullptr);
+      ASSERT_TRUE(SetMetadata(R"({"n-cpu-moe":0})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_TRUE(GGMLGraph.TensorBuftOverrides.empty());
+      EXPECT_TRUE(Params.tensor_buft_overrides.empty());
+    }
+
     // Test: set_input -- a valid tensor-split is applied and zero-padded,
     // with separators and surrounding whitespace tolerated.
     {

@@ -4,14 +4,58 @@
 #include "metadata_parser.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+#include <algorithm>
+#include <array>
 #include <common.h>
 #include <fmt/ranges.h>
 #include <json-schema-to-grammar.h>
+#include <limits>
+#include <sstream>
 #endif
 
 namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 namespace {
+
+// llama.cpp caps model depth at LLAMA_MAX_LAYERS (512, llama-hparams.h), so
+// more per-layer MoE overrides than that can never match a tensor.
+constexpr int64_t MaxCpuMoeLayers = 512;
+
+// The KV cache types llama.cpp accepts for -ctk/-ctv (common/arg.cpp). Other
+// ggml_type values are deprecated (zero block size) or unsupported by the
+// cache and abort inside ggml.
+constexpr std::array<ggml_type, 9> KVCacheTypes = {
+    GGML_TYPE_F32,    GGML_TYPE_F16,  GGML_TYPE_BF16,
+    GGML_TYPE_Q8_0,   GGML_TYPE_Q4_0, GGML_TYPE_Q4_1,
+    GGML_TYPE_IQ4_NL, GGML_TYPE_Q5_0, GGML_TYPE_Q5_1};
+
+bool parseKVCacheType(std::string_view Key, int64_t Value,
+                      ggml_type &Type) noexcept {
+  for (ggml_type Candidate : KVCacheTypes) {
+    if (Value == static_cast<int64_t>(Candidate)) {
+      Type = Candidate;
+      return true;
+    }
+  }
+  std::string Allowed;
+  for (ggml_type Candidate : KVCacheTypes) {
+    Allowed +=
+        fmt::format("{}{} ({})"sv, Allowed.empty() ? ""sv : ", "sv,
+                    ggml_type_name(Candidate), static_cast<int>(Candidate));
+  }
+  LOG_ERROR("{} must be one of the KV cache types: {}."sv, Key, Allowed)
+  return false;
+}
+
+bool parseThreads(std::string_view Key, int64_t Value, int &Threads) noexcept {
+  // -1 lets llama.cpp pick the thread count.
+  if (Value < -1 || Value > GGML_MAX_N_THREADS) {
+    LOG_ERROR("{} should be in range [-1, {}]."sv, Key, GGML_MAX_N_THREADS)
+    return false;
+  }
+  Threads = static_cast<int>(Value);
+  return true;
+}
 
 // Warn about options removed from llama.cpp instead of silently ignoring
 // them.
@@ -70,13 +114,14 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
 
     parseJsonWithProcessorAuto<int64_t>(
         Doc, "n-cpu-moe", [&GraphRef](const int64_t &NCpuMoe) -> bool {
-          if (NCpuMoe < 0) {
-            spdlog::error("[WASI-NN] GGML backend: Invalid n-cpu-moe value."sv);
+          if (NCpuMoe < 0 || NCpuMoe > MaxCpuMoeLayers) {
+            LOG_ERROR("n-cpu-moe should be in range [0, {}]."sv,
+                      MaxCpuMoeLayers)
             return false;
           }
-          for (int I = 0; I < NCpuMoe; I++) {
+          for (int64_t I = 0; I < NCpuMoe; I++) {
             GraphRef.TensorBuftOverrides.push_back(
-                string_format("blk\\.%d\\.ffn_(up|down|gate)_exps", I));
+                fmt::format("blk\\.{}\\.ffn_(up|down|gate)_exps"sv, I));
           }
           return true;
         });
@@ -87,24 +132,40 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
           std::string TS(TSV);
           std::replace(TS.begin(), TS.end(), ',', ' ');
           std::stringstream SS(TS);
-          std::memset(GraphRef.Params.tensor_split, 0,
-                      sizeof(GraphRef.Params.tensor_split));
-          uint32_t TensorSplitSize = 0;
-          while (SS.good()) {
-            float TmpTensor;
-            SS >> TmpTensor;
-            GraphRef.Params.tensor_split[TensorSplitSize++] = TmpTensor;
+          constexpr size_t TensorSplitCapacity =
+              sizeof(GraphRef.Params.tensor_split) /
+              sizeof(GraphRef.Params.tensor_split[0]);
+          const size_t NDevices = llama_max_devices();
+          if (NDevices > TensorSplitCapacity) {
+            LOG_ERROR("Number of MaxDevices ({}) is larger than tensor-split "sv
+                      "capacity ({})."sv,
+                      NDevices, TensorSplitCapacity)
+            throw ErrNo(ErrNo::RuntimeError);
           }
-          size_t NDevices = llama_max_devices();
-          if (TensorSplitSize > NDevices) {
-            spdlog::error(
-                "[WASI-NN] GGML backend: Number of Tensor-Split is larger than "
-                "MaxDevices, please reduce the size of tensor-split."sv);
+          std::array<float, TensorSplitCapacity> TensorSplit;
+          TensorSplit.fill(0.0f);
+          size_t TensorSplitSize = 0;
+          // Skip separators first so only a genuine end of input ends the
+          // loop; an extraction that fails then, even at EOF, is an error.
+          for (SS >> std::ws; !SS.eof(); SS >> std::ws) {
+            float TmpTensor;
+            if (!(SS >> TmpTensor)) {
+              LOG_ERROR("Invalid value in the tensor-split option."sv)
+              return false;
+            }
+            if (TensorSplitSize >= NDevices) {
+              LOG_ERROR("Number of Tensor-Split is larger than MaxDevices, "sv
+                        "please reduce the size of tensor-split."sv)
+              return false;
+            }
+            TensorSplit[TensorSplitSize++] = TmpTensor;
+          }
+          if (TensorSplitSize == 0) {
+            LOG_ERROR("The tensor-split option needs at least one value."sv)
             return false;
           }
-          for (size_t Idx = TensorSplitSize; Idx < NDevices; Idx++) {
-            GraphRef.Params.tensor_split[TensorSplitSize++] = 0.0f;
-          }
+          std::copy(TensorSplit.begin(), TensorSplit.end(),
+                    GraphRef.Params.tensor_split);
           return true;
         });
     parseJsonAuto<bool>(Doc, "embedding", GraphRef.Params.embedding);
@@ -139,9 +200,31 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
 
     // The context parameters
     parseJsonWithCastAuto<int64_t>(Doc, "ctx-size", GraphRef.Params.n_ctx);
-    parseJsonWithCastAuto<int64_t>(Doc, "batch-size", GraphRef.Params.n_batch);
-    parseJsonWithCastAuto<int64_t>(Doc, "ubatch-size",
-                                   GraphRef.Params.n_ubatch);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "batch-size", [&GraphRef](const int64_t &BatchSize) -> bool {
+          if (BatchSize <= 0 ||
+              BatchSize >
+                  static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
+            LOG_ERROR("batch-size should be in range [1, {}]."sv,
+                      std::numeric_limits<int32_t>::max())
+            return false;
+          }
+          GraphRef.Params.n_batch = static_cast<int32_t>(BatchSize);
+          return true;
+        });
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "ubatch-size", [&GraphRef](const int64_t &UBatchSize) -> bool {
+          // llama.cpp treats 0 as "same as batch-size".
+          if (UBatchSize < 0 ||
+              UBatchSize >
+                  static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
+            LOG_ERROR("ubatch-size should be in range [0, {}]."sv,
+                      std::numeric_limits<int32_t>::max())
+            return false;
+          }
+          GraphRef.Params.n_ubatch = static_cast<int32_t>(UBatchSize);
+          return true;
+        });
     parseJsonWithCastAuto<int64_t>(Doc, "n-keep", GraphRef.Params.n_keep);
     parseJsonWithCastAuto<int64_t>(Doc, "n-chunks", GraphRef.Params.n_chunks);
     parseJsonWithCastAuto<int64_t>(Doc, "n-parallel",
@@ -191,17 +274,33 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
 
     parseJsonWithCastAuto<int64_t>(Doc, "rope-scaling-type",
                                    GraphRef.Params.rope_scaling_type);
-    parseJsonWithCastAuto<int64_t>(Doc, "pooling-type",
-                                   GraphRef.Params.pooling_type);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "pooling-type", [&GraphRef](const int64_t &PoolingType) -> bool {
+          // Unknown pooling types make llama.cpp abort when building the
+          // embedding graph.
+          if (PoolingType < LLAMA_POOLING_TYPE_UNSPECIFIED ||
+              PoolingType > LLAMA_POOLING_TYPE_RANK) {
+            LOG_ERROR("pooling-type should be in range [{}, {}]."sv,
+                      static_cast<int>(LLAMA_POOLING_TYPE_UNSPECIFIED),
+                      static_cast<int>(LLAMA_POOLING_TYPE_RANK))
+            return false;
+          }
+          GraphRef.Params.pooling_type =
+              static_cast<enum llama_pooling_type>(PoolingType);
+          return true;
+        });
     parseJsonWithCastAuto<int64_t>(Doc, "attention-type",
                                    GraphRef.Params.attention_type);
     parseJsonWithProcessorAuto<int64_t>(
         Doc, "threads", [&GraphRef](const int64_t &NThreads) -> bool {
-          GraphRef.Params.cpuparams.n_threads = static_cast<int32_t>(NThreads);
-          return true;
+          return parseThreads("threads"sv, NThreads,
+                              GraphRef.Params.cpuparams.n_threads);
         });
-    parseJsonWithCastAuto<int64_t>(Doc, "threads-batch",
-                                   GraphRef.Params.cpuparams_batch.n_threads);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "threads-batch", [&GraphRef](const int64_t &NThreads) -> bool {
+          return parseThreads("threads-batch"sv, NThreads,
+                              GraphRef.Params.cpuparams_batch.n_threads);
+        });
     parseJsonWithCastAuto<int64_t>(Doc, "n-prev",
                                    GraphRef.Params.sampling.n_prev);
     parseJsonWithCastAuto<int64_t>(Doc, "n-probs",
@@ -471,10 +570,16 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonAuto<bool>(Doc, "no-kv-offload", GraphRef.Params.no_kv_offload);
     parseJsonAuto<bool>(Doc, "warmup", GraphRef.Params.warmup);
     parseJsonAuto<bool>(Doc, "check-tensors", GraphRef.Params.check_tensors);
-    parseJsonWithCastAuto<int64_t>(Doc, "cache-type-k",
-                                   GraphRef.Params.cache_type_k);
-    parseJsonWithCastAuto<int64_t>(Doc, "cache-type-v",
-                                   GraphRef.Params.cache_type_v);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "cache-type-k", [&GraphRef](const int64_t &CacheType) -> bool {
+          return parseKVCacheType("cache-type-k"sv, CacheType,
+                                  GraphRef.Params.cache_type_k);
+        });
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "cache-type-v", [&GraphRef](const int64_t &CacheType) -> bool {
+          return parseKVCacheType("cache-type-v"sv, CacheType,
+                                  GraphRef.Params.cache_type_v);
+        });
 
     parseJsonWithCastAuto<int64_t>(Doc, "embd-normalize",
                                    GraphRef.Params.embd_normalize);

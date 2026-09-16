@@ -130,6 +130,42 @@ TEST_F(WasiCryptoTest, KxDh) {
   NewKxDhTest("P384-SHA384"sv);
 }
 
+TEST_F(WasiCryptoTest, KxX25519KeypairAndVerify) {
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      Kp1Handle,
+      keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, "X25519"sv,
+                      std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      Kp2Handle,
+      keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, "X25519"sv,
+                      std::nullopt));
+
+  WASI_CRYPTO_EXPECT_SUCCESS(Pk1Handle, keypairPublickey(Kp1Handle));
+  WASI_CRYPTO_EXPECT_SUCCESS(Sk1Handle, keypairSecretkey(Kp1Handle));
+  WASI_CRYPTO_EXPECT_SUCCESS(Pk2Handle, keypairPublickey(Kp2Handle));
+  WASI_CRYPTO_EXPECT_SUCCESS(Sk2Handle, keypairSecretkey(Kp2Handle));
+
+  // Verify public key validity.
+  WASI_CRYPTO_EXPECT_TRUE(publickeyVerify(Pk1Handle));
+  WASI_CRYPTO_EXPECT_TRUE(publickeyVerify(Pk2Handle));
+
+  // Construct KeyPair from matching Public and Secret keys.
+  WASI_CRYPTO_EXPECT_SUCCESS(KpReconstructed,
+                             keypairFromPkAndSk(Pk1Handle, Sk1Handle));
+  WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpReconstructed));
+
+  // Construct KeyPair from mismatched Public and Secret keys must fail.
+  WASI_CRYPTO_EXPECT_FAILURE(keypairFromPkAndSk(Pk2Handle, Sk1Handle),
+                             __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+  WASI_CRYPTO_EXPECT_TRUE(publickeyClose(Pk1Handle));
+  WASI_CRYPTO_EXPECT_TRUE(publickeyClose(Pk2Handle));
+  WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(Sk1Handle));
+  WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(Sk2Handle));
+  WASI_CRYPTO_EXPECT_TRUE(keypairClose(Kp1Handle));
+  WASI_CRYPTO_EXPECT_TRUE(keypairClose(Kp2Handle));
+}
+
 #if OPENSSL_VERSION_NUMBER >= 0x30500000L
 TEST_F(WasiCryptoTest, KxMlKemKeypairGenerate) {
   auto MlKemGenerateTest = [this](std::string_view Alg, size_t PkSize) {

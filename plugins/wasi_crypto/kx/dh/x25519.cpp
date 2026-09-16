@@ -33,7 +33,15 @@ WasiCryptoExpect<std::vector<uint8_t>> X25519::PublicKey::exportData(
 }
 
 WasiCryptoExpect<void> X25519::PublicKey::verify() const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  EvpPkeyCtxPtr CheckCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
+  ensureOrReturn(CheckCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  // EVP_PKEY_public_check() returns 1 for a valid key and 0 for an invalid
+  // one. A negative value means the check is unsupported for this key type
+  // (e.g. X25519 on OpenSSL 1.1.1), so only an explicit 0 is treated as
+  // invalid.
+  ensureOrReturn(EVP_PKEY_public_check(CheckCtx.get()) != 0,
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  return {};
 }
 
 WasiCryptoExpect<SecretVec> X25519::SecretKey::exportData(
@@ -79,8 +87,20 @@ X25519::SecretKey::dh(const PublicKey &Pk) const noexcept {
 }
 
 WasiCryptoExpect<X25519::KeyPair>
-X25519::SecretKey::toKeyPair(const PublicKey &) const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+X25519::SecretKey::toKeyPair(const PublicKey &Pk) const noexcept {
+  auto ExportedPk = Pk.exportData(__WASI_PUBLICKEY_ENCODING_RAW);
+  if (!ExportedPk) {
+    return WasiCryptoUnexpect(ExportedPk);
+  }
+
+  std::vector<uint8_t> SkPk(PkSize);
+  size_t Size = PkSize;
+  opensslCheck(EVP_PKEY_get_raw_public_key(Ctx.get(), SkPk.data(), &Size));
+  ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  ensureOrReturn(SkPk == *ExportedPk, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+  return Ctx;
 }
 
 WasiCryptoExpect<X25519::PublicKey>

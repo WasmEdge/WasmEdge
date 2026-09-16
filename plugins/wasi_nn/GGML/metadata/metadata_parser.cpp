@@ -95,6 +95,43 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       common_grammar_value(GraphRef.Params.sampling.grammar);
   uint32_t PrevSeed = GraphRef.Params.sampling.seed;
 
+  // Snapshot everything the options below may modify, so a rejected metadata
+  // object leaves the graph and the context config exactly as they were.
+  struct MetadataSnapshot {
+    bool EnableLog;
+    bool EnableDebugLog;
+    bool CpuMoe;
+    int64_t NCpuMoe;
+    bool TextToSpeech;
+    std::string TTSOutputFilePath;
+    std::string TTSSpeakerFilePath;
+    common_params_model VocoderModel;
+    common_params Params;
+    LocalConfig Conf;
+  };
+  const MetadataSnapshot Saved{GraphRef.EnableLog,
+                               GraphRef.EnableDebugLog,
+                               GraphRef.CpuMoe,
+                               GraphRef.NCpuMoe,
+                               GraphRef.TextToSpeech,
+                               GraphRef.TTSOutputFilePath,
+                               GraphRef.TTSSpeakerFilePath,
+                               GraphRef.VocoderModel,
+                               GraphRef.Params,
+                               ConfRef};
+  auto Restore = [&]() {
+    GraphRef.EnableLog = Saved.EnableLog;
+    GraphRef.EnableDebugLog = Saved.EnableDebugLog;
+    GraphRef.CpuMoe = Saved.CpuMoe;
+    GraphRef.NCpuMoe = Saved.NCpuMoe;
+    GraphRef.TextToSpeech = Saved.TextToSpeech;
+    GraphRef.TTSOutputFilePath = Saved.TTSOutputFilePath;
+    GraphRef.TTSSpeakerFilePath = Saved.TTSSpeakerFilePath;
+    GraphRef.VocoderModel = Saved.VocoderModel;
+    GraphRef.Params = Saved.Params;
+    ConfRef = Saved.Conf;
+  };
+
   try {
     parseJsonAuto(Doc, "enable-log", GraphRef.EnableLog);
     parseJsonAuto(Doc, "enable-debug-log", GraphRef.EnableDebugLog);
@@ -696,8 +733,10 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonAuto<bool>(Doc, "batched-bench-output-jsonl",
                         GraphRef.Params.batched_bench_output_jsonl);
   } catch (const ErrNo &Error) {
+    Restore();
     return Error;
   } catch (const std::exception &E) {
+    Restore();
     RET_ERROR(ErrNo::InvalidArgument,
               "metadata: unexpected exception while applying options: {}"sv,
               E.what())

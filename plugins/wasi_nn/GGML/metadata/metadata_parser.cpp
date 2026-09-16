@@ -570,8 +570,21 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                                   GraphRef.Params.cache_type_v);
         });
 
-    parseJsonWithCastAuto<int64_t>(Doc, "embd-normalize",
-                                   GraphRef.Params.embd_normalize);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "embd-normalize",
+        [&ConfRef](const int64_t &EmbdNormalize) -> bool {
+          // -1 disables normalization, 0 is max-absolute, 2 is euclidean,
+          // and any other value is the p of a p-norm in common_embd_normalize.
+          if (EmbdNormalize < -1 ||
+              EmbdNormalize >
+                  static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
+            LOG_ERROR("embd-normalize should be in range [-1, {}]."sv,
+                      std::numeric_limits<int32_t>::max())
+            return false;
+          }
+          ConfRef.EmbdNormalize = static_cast<EmbdNormalizeType>(EmbdNormalize);
+          return true;
+        });
     parseJsonWithCastAuto<std::string_view>(Doc, "embd-out",
                                             GraphRef.Params.embd_out);
 

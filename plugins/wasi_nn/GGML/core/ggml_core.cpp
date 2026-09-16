@@ -157,10 +157,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
             "load: initialize ggml model with given parameters."sv)
 
   common_params Params = GraphRef.Params;
-  Params.cpuparams.n_threads =
-      static_cast<int32_t>(GraphRef.Params.cpuparams.n_threads);
-  Params.cpuparams_batch.n_threads =
-      static_cast<int32_t>(GraphRef.Params.cpuparams.n_threads);
   llama_backend_init();
   llama_numa_init(Params.numa);
 

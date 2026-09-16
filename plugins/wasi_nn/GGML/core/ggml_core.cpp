@@ -219,12 +219,24 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
            llama_print_system_info())
 
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  // Allocate the batch for input string prompt tokens.
+  // Allocate the batch for input string prompt tokens. On failure drop the
+  // context after freeing whatever was allocated.
   CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
+  if (CxtRef.LlamaBatch.token == nullptr) {
+    Env.deleteContext(ContextId);
+    RET_ERROR(ErrNo::RuntimeError,
+              "initExecCtx: unable to allocate llama_batch."sv)
+  }
   CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
 
   // Allocate the batch for output sampling. The batch size is always 1.
   CxtRef.OutputBatch = allocBatch(1);
+  if (CxtRef.OutputBatch.token == nullptr) {
+    llama_batch_free(CxtRef.LlamaBatch);
+    Env.deleteContext(ContextId);
+    RET_ERROR(ErrNo::RuntimeError,
+              "initExecCtx: unable to allocate output batch."sv)
+  }
 
   // Allocate sampler.
   try {

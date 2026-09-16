@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "runtime/instance/module.h"
 #include "tensorflow_func.h"
 #include "tensorflow_module.h"
@@ -28,7 +29,7 @@ inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
 
 std::unique_ptr<WasmEdge::Host::WasmEdgeTensorflowModule> createModule() {
   using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
+  WasmEdge::Plugin::Plugin::load(WasmEdge::u8path(
       "../../../plugins/wasmedge_tensorflow/" WASMEDGE_LIB_PREFIX
       "wasmedgePluginWasmEdgeTensorflow" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin =

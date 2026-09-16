@@ -5,6 +5,7 @@
 #if WASMEDGE_OS_WINDOWS
 
 #include "common/errcode.h"
+#include "common/filesystem.h"
 #include "common/variant.h"
 #include "host/wasi/clock.h"
 #include "host/wasi/environ.h"
@@ -12,7 +13,9 @@
 #include "host/wasi/vfs.h"
 #include "win.h"
 #include <algorithm>
+#include <array>
 #include <cstddef>
+#include <memory>
 #include <new>
 #include <numeric>
 #include <vector>
@@ -33,16 +36,6 @@ inline constexpr uint64_t combineHighLow(uint32_t HighPart,
   return Temp.QuadPart;
 }
 #endif
-
-inline constexpr __wasi_size_t
-calculateAddrinfoLinkedListSize(struct addrinfo *const Addrinfo) noexcept {
-  __wasi_size_t Length = 0;
-  for (struct addrinfo *TmpPointer = Addrinfo; TmpPointer != nullptr;
-       TmpPointer = TmpPointer->ai_next) {
-    Length++;
-  }
-  return Length;
-};
 
 union UniversalAddress {
   struct {
@@ -289,7 +282,7 @@ getRelativePath(HANDLE_ Handle, std::string_view Path) noexcept {
   EXPECTED_TRY(auto FullPath, getHandlePath(Handle));
 
   // Append the paths together
-  FullPath /= std::filesystem::u8path(Path);
+  FullPath /= u8path(Path);
   return FullPath;
 }
 
@@ -583,7 +576,7 @@ WasiExpect<void> FindHolder::doLoadDirent() noexcept {
   const std::filesystem::path Filename(
       std::wstring_view(Info.FileName, Info.FileNameLength / sizeof(wchar_t)));
 
-  std::string UTF8FileName = Filename.u8string();
+  std::string UTF8FileName = u8string(Filename);
   resizeBuffer(sizeof(__wasi_dirent_t) + UTF8FileName.size());
   __wasi_dirent_t *const Dirent =
       reinterpret_cast<__wasi_dirent_t *>(getBuffer().data());
@@ -651,7 +644,7 @@ WasiExpect<void> FindHolder::doLoadDirent() noexcept {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
   }
 
-  std::string UTF8FileName = Filename.u8string();
+  std::string UTF8FileName = u8string(Filename);
   resizeBuffer(sizeof(__wasi_dirent_t) + UTF8FileName.size());
   __wasi_dirent_t *const Dirent =
       reinterpret_cast<__wasi_dirent_t *>(getBuffer().data());
@@ -690,7 +683,7 @@ WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
   EXPECTED_TRY(auto Pack, getOpenFlags(OpenFlags, FdFlags, VFSFlags));
   const auto [AttributeFlags, AccessFlags, CreationDisposition] = Pack;
   const DWORD_ ShareFlags = FILE_SHARE_VALID_FLAGS_;
-  const auto FullPath = std::filesystem::u8path(Path);
+  const auto FullPath = u8path(Path);
 
   INode Result(FullPath, AccessFlags, ShareFlags, CreationDisposition,
                AttributeFlags);
@@ -1388,7 +1381,7 @@ WasiExpect<void> INode::pathReadlink(std::string Path, Span<char> Buffer,
     return WasiUnexpect(__WASI_ERRNO_NOSYS);
   }
 
-  const auto U8Data = std::filesystem::path{Data}.u8string();
+  const auto U8Data = u8string(std::filesystem::path{Data});
   NRead = static_cast<uint32_t>(std::min(Buffer.size(), U8Data.size()));
   std::copy_n(U8Data.begin(), NRead, Buffer.begin());
 
@@ -1472,7 +1465,7 @@ WasiExpect<void> INode::pathSymlink(std::string OldPath,
     return WasiUnexpect(__WASI_ERRNO_EXIST);
   }
 
-  const std::filesystem::path OldU8Path = std::filesystem::u8path(OldPath);
+  const std::filesystem::path OldU8Path = u8path(OldPath);
 
   DWORD_ TargetType = SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE_;
   if (OldU8Path.filename().empty()) {
@@ -1508,9 +1501,11 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
                                     uint32_t MaxResLength,
                                     Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
                                     Span<__wasi_sockaddr_t *> WasiSockaddrArray,
-                                    Span<char *> AiAddrSaDataArray,
-                                    Span<char *> AiCanonnameArray,
+                                    Span<Span<char>> AiAddrSaDataArray,
+                                    Span<Span<char>> AiCanonnameArray,
                                     /*Out*/ __wasi_size_t &ResLength) noexcept {
+  EXPECTED_TRY(detail::ensureWSAStartup());
+
   struct addrinfo SysHint;
   SysHint.ai_flags = toAIFlags(Hint.ai_flags);
   SysHint.ai_family = toAddressFamily(Hint.ai_family);
@@ -1524,19 +1519,82 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
   const auto [NodeCStr, NodeBuf] = createNullTerminatedString(Node);
   const auto [ServiceCStr, ServiceBuf] = createNullTerminatedString(Service);
 
-  struct addrinfo *SysResPtr = nullptr;
-  if (auto Res = getaddrinfo(NodeCStr, ServiceCStr, &SysHint, &SysResPtr);
-      unlikely(Res != 0)) {
+  using AddrinfoPtr = std::unique_ptr<struct addrinfo, decltype(&freeaddrinfo)>;
+  struct addrinfo *Result = nullptr;
+  const int Res = getaddrinfo(NodeCStr, ServiceCStr, &SysHint, &Result);
+  if (unlikely(Res != 0)) {
     return WasiUnexpect(fromWSAError(Res));
   }
-  // calculate ResLength
-  if (ResLength = calculateAddrinfoLinkedListSize(SysResPtr);
-      ResLength > MaxResLength) {
-    ResLength = MaxResLength;
+  AddrinfoPtr SysResPtr(Result, &freeaddrinfo);
+
+  std::array<struct addrinfo *, kAddrinfoMax> Selected{};
+  __wasi_size_t SelectedLength = 0;
+  const __wasi_size_t SelectionLimit =
+      std::min(MaxResLength, static_cast<__wasi_size_t>(Selected.size()));
+  for (struct addrinfo *SysResItem = SysResPtr.get();
+       SysResItem != nullptr && SelectedLength < SelectionLimit;
+       SysResItem = SysResItem->ai_next) {
+    if (SysResItem->ai_family != AF_INET && SysResItem->ai_family != AF_INET6) {
+      continue;
+    }
+    if (SysResItem->ai_socktype != 0 && SysResItem->ai_socktype != SOCK_DGRAM &&
+        SysResItem->ai_socktype != SOCK_STREAM) {
+      continue;
+    }
+    if (SysResItem->ai_protocol != IPPROTO_IP &&
+        SysResItem->ai_protocol != IPPROTO_TCP &&
+        SysResItem->ai_protocol != IPPROTO_UDP) {
+      continue;
+    }
+    Selected[SelectedLength++] = SysResItem;
+  }
+  if (WasiAddrinfoArray.size() < SelectedLength ||
+      WasiSockaddrArray.size() < SelectedLength ||
+      AiAddrSaDataArray.size() < SelectedLength ||
+      AiCanonnameArray.size() < SelectedLength) {
+    return WasiUnexpect(__WASI_ERRNO_FAULT);
   }
 
-  struct addrinfo *SysResItem = SysResPtr;
-  for (uint32_t Idx = 0; Idx < ResLength; Idx++) {
+  for (uint32_t Idx = 0; Idx < SelectedLength; Idx++) {
+    const auto *SysResItem = Selected[Idx];
+    const size_t CanonnameSize =
+        SysResItem->ai_canonname == nullptr
+            ? 0
+            : std::strlen(SysResItem->ai_canonname) + 1;
+    if (CanonnameSize > AiCanonnameArray[Idx].size()) {
+      return WasiUnexpect(__WASI_ERRNO_FAULT);
+    }
+    AiCanonnameArray[Idx] = AiCanonnameArray[Idx].first(CanonnameSize);
+
+    if (SysResItem->ai_addr == nullptr ||
+        SysResItem->ai_addrlen < offsetof(sockaddr, sa_data)) {
+      return WasiUnexpect(__WASI_ERRNO_FAULT);
+    }
+    size_t SaSize;
+    switch (SysResItem->ai_addr->sa_family) {
+    case AF_INET:
+      SaSize = sizeof(sockaddr_in) - offsetof(sockaddr_in, sin_port);
+      if (SysResItem->ai_addrlen < sizeof(sockaddr_in)) {
+        return WasiUnexpect(__WASI_ERRNO_FAULT);
+      }
+      break;
+    case AF_INET6:
+      SaSize = sizeof(sockaddr_in6) - offsetof(sockaddr_in6, sin6_port);
+      if (SysResItem->ai_addrlen < sizeof(sockaddr_in6)) {
+        return WasiUnexpect(__WASI_ERRNO_FAULT);
+      }
+      break;
+    default:
+      return WasiUnexpect(__WASI_ERRNO_FAULT);
+    }
+    if (SaSize > AiAddrSaDataArray[Idx].size()) {
+      return WasiUnexpect(__WASI_ERRNO_FAULT);
+    }
+    AiAddrSaDataArray[Idx] = AiAddrSaDataArray[Idx].first(SaSize);
+  }
+
+  for (uint32_t Idx = 0; Idx < SelectedLength; Idx++) {
+    const auto *SysResItem = Selected[Idx];
     auto &CurAddrinfo = WasiAddrinfoArray[Idx];
     CurAddrinfo->ai_flags = fromAIFlags(SysResItem->ai_flags);
     CurAddrinfo->ai_socktype = fromSockType(SysResItem->ai_socktype);
@@ -1545,43 +1603,24 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
     CurAddrinfo->ai_addrlen = static_cast<uint32_t>(SysResItem->ai_addrlen);
 
     // process ai_canonname in addrinfo
-    if (SysResItem->ai_canonname != nullptr) {
-      CurAddrinfo->ai_canonname_len =
-          static_cast<uint32_t>(std::strlen(SysResItem->ai_canonname));
-      auto &CurAiCanonname = AiCanonnameArray[Idx];
-      std::memcpy(CurAiCanonname, SysResItem->ai_canonname,
-                  CurAddrinfo->ai_canonname_len + 1);
-    } else {
-      CurAddrinfo->ai_canonname_len = 0;
+    const auto &CurAiCanonname = AiCanonnameArray[Idx];
+    CurAddrinfo->ai_canonname_len = static_cast<uint32_t>(
+        CurAiCanonname.empty() ? 0 : CurAiCanonname.size() - 1);
+    if (!CurAiCanonname.empty()) {
+      std::memcpy(CurAiCanonname.data(), SysResItem->ai_canonname,
+                  CurAiCanonname.size());
     }
 
     // process socket address
-    if (SysResItem->ai_addrlen > 0) {
-      auto &CurSockaddr = WasiSockaddrArray[Idx];
-      CurSockaddr->sa_family =
-          fromAddressFamily(SysResItem->ai_addr->sa_family);
-
-      // process sa_data in socket address
-      size_t SaSize = 0;
-      switch (CurSockaddr->sa_family) {
-      case __WASI_ADDRESS_FAMILY_INET4:
-        SaSize = sizeof(sockaddr_in) - offsetof(sockaddr_in, sin_port);
-        break;
-      case __WASI_ADDRESS_FAMILY_INET6:
-        SaSize = sizeof(sockaddr_in6) - offsetof(sockaddr_in6, sin6_port);
-        break;
-      default:
-        continue;
-      }
-      std::memcpy(AiAddrSaDataArray[Idx], SysResItem->ai_addr->sa_data, SaSize);
-      CurSockaddr->sa_data_len = static_cast<__wasi_size_t>(SaSize);
-      CurSockaddr->sa_family =
-          fromAddressFamily(SysResItem->ai_addr->sa_family);
-    }
-    // process ai_next in addrinfo
-    SysResItem = SysResItem->ai_next;
+    auto &CurSockaddr = WasiSockaddrArray[Idx];
+    const auto &CurAiAddrSaData = AiAddrSaDataArray[Idx];
+    std::memcpy(CurAiAddrSaData.data(), SysResItem->ai_addr->sa_data,
+                CurAiAddrSaData.size());
+    CurSockaddr->sa_data_len =
+        static_cast<__wasi_size_t>(CurAiAddrSaData.size());
+    CurSockaddr->sa_family = fromAddressFamily(SysResItem->ai_addr->sa_family);
   }
-  freeaddrinfo(SysResPtr);
+  ResLength = SelectedLength;
 
   return {};
 }

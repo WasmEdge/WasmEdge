@@ -1680,6 +1680,28 @@ TEST(WasiNNTest, GGMLBackend) {
       EXPECT_TRUE(Params.tensor_buft_overrides.empty());
     }
 
+    // Test: set_input -- embd-normalize reaches the context config that the
+    // embedding path reads, and out-of-range values are rejected.
+    {
+      using WasmEdge::Host::WASINN::GGML::EmbdNormalizeType;
+      auto Context = NNMod->getEnv().NNContext.get(0);
+      ASSERT_NE(Context, nullptr);
+      const auto &Conf =
+          Context->get<WasmEdge::Host::WASINN::GGML::Context>().Conf;
+      const EmbdNormalizeType PrevEmbdNormalize = Conf.EmbdNormalize;
+      EXPECT_EQ(PrevEmbdNormalize, EmbdNormalizeType::Euclidean);
+      ASSERT_TRUE(SetMetadata(R"({"embd-normalize":-2})"));
+      EXPECT_EQ(Errno[0].get<int32_t>(),
+                static_cast<uint32_t>(ErrNo::InvalidArgument));
+      EXPECT_EQ(Conf.EmbdNormalize, PrevEmbdNormalize);
+      ASSERT_TRUE(SetMetadata(R"({"embd-normalize":1})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Conf.EmbdNormalize, EmbdNormalizeType::Taxicab);
+      ASSERT_TRUE(SetMetadata(R"({"embd-normalize":2})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Conf.EmbdNormalize, PrevEmbdNormalize);
+    }
+
     // Test: set_input -- a valid tensor-split is applied and zero-padded,
     // with separators and surrounding whitespace tolerated.
     {
@@ -2064,6 +2086,43 @@ TEST(WasiNNTest, GGMLBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     EXPECT_TRUE(HostFuncFinalize.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{FreshCtx},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: load -- metadata passed at load time reaches the llama context and
+  // the graph config: threads-batch is no longer overwritten by threads, and
+  // embd-normalize is applied to the config contexts inherit.
+  {
+    using WasmEdge::Host::WASINN::GGML::EmbdNormalizeType;
+    const std::string LoadMetadata =
+        R"({"threads":2,"threads-batch":3,"embd-normalize":0})";
+    std::vector<uint8_t> LoadMetadataData(LoadMetadata.begin(),
+                                          LoadMetadata.end());
+    // The weights fat pointer is still at LoadEntryPtr; append the metadata
+    // fat pointer behind it.
+    uint32_t EntryPtr = LoadEntryPtr + UINT32_C(8);
+    writeFatPointer(MemInst, StorePtr,
+                    static_cast<uint32_t>(LoadMetadataData.size()), EntryPtr);
+    writeBinaries<uint8_t>(MemInst, LoadMetadataData, StorePtr);
+    EXPECT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, UINT32_C(2), static_cast<uint32_t>(Backend::GGML),
+            static_cast<uint32_t>(Device::CPU), BuilderPtr},
+        Errno));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    const uint32_t MetaGraphId = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    auto MetaGraph = NNMod->getEnv().NNGraph.get(MetaGraphId);
+    ASSERT_NE(MetaGraph, nullptr);
+    const auto &MetaGGMLGraph =
+        MetaGraph->get<WasmEdge::Host::WASINN::GGML::Graph>();
+    ASSERT_NE(MetaGGMLGraph.LlamaContext, nullptr);
+    EXPECT_EQ(llama_n_threads(MetaGGMLGraph.LlamaContext.get()), 2);
+    EXPECT_EQ(llama_n_threads_batch(MetaGGMLGraph.LlamaContext.get()), 3);
+    EXPECT_EQ(MetaGGMLGraph.Conf.EmbdNormalize, EmbdNormalizeType::MaxAbsolute);
+    EXPECT_TRUE(HostFuncUnload.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{MetaGraphId},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }

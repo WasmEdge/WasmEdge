@@ -1720,6 +1720,32 @@ TEST(WasiNNTest, GGMLBackend) {
       EXPECT_FLOAT_EQ(Params.tensor_split[0], 0.0f);
       EXPECT_FLOAT_EQ(Params.tensor_split[1], 0.0f);
     }
+
+    // Test: set_input -- a rejected metadata object is applied atomically:
+    // the valid options that precede the invalid one are rolled back on the
+    // graph parameters, the graph settings, and the context config.
+    {
+      using WasmEdge::Host::WASINN::GGML::EmbdNormalizeType;
+      const auto &Conf = NNMod->getEnv()
+                             .NNContext.get(0)
+                             ->get<WasmEdge::Host::WASINN::GGML::Context>()
+                             .Conf;
+      const float PrevTemp = Params.sampling.temp;
+      const int64_t PrevNPredict = Conf.NPredict;
+      const EmbdNormalizeType PrevEmbdNormalize = Conf.EmbdNormalize;
+      const bool PrevCpuMoe = GGMLGraph.CpuMoe;
+      const int32_t PrevNBatch = Params.n_batch;
+      ASSERT_TRUE(SetMetadata(R"({"temp":0.3,"n-predict":7,"embd-normalize":0,)"
+                              R"("cpu-moe":true,"batch-size":0})"));
+      EXPECT_EQ(Errno[0].get<int32_t>(),
+                static_cast<uint32_t>(ErrNo::InvalidArgument));
+      EXPECT_FLOAT_EQ(Params.sampling.temp, PrevTemp);
+      EXPECT_EQ(Conf.NPredict, PrevNPredict);
+      EXPECT_EQ(Conf.EmbdNormalize, PrevEmbdNormalize);
+      EXPECT_EQ(GGMLGraph.CpuMoe, PrevCpuMoe);
+      EXPECT_EQ(Params.n_batch, PrevNBatch);
+      EXPECT_TRUE(Params.tensor_buft_overrides.empty());
+    }
   }
 
   SetInputEntryPtr = BuilderPtr;

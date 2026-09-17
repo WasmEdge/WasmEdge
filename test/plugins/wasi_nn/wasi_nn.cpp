@@ -1803,6 +1803,22 @@ TEST(WasiNNTest, GGMLBackend) {
     EXPECT_GE(BytesWritten, 50);
   }
 
+  // Test: unload -- release graph 0 so the reload below does not race the
+  // still-open backing file. The GGML backend writes the model into a fixed
+  // "ggml-model.bin" tmpfile; on Windows a second load cannot recreate that
+  // file while the previous graph still holds it open.
+  {
+    FuncInst = NNMod->findFuncExports("unload");
+    EXPECT_NE(FuncInst, nullptr);
+    EXPECT_TRUE(FuncInst->isHostFunction());
+    auto &HostFuncUnload =
+        dynamic_cast<WasmEdge::Host::WasiNNUnload &>(FuncInst->getHostFunc());
+    EXPECT_TRUE(HostFuncUnload.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
   // Test: load -- metadata passed at load time reaches the graph: both thread
   // counts are kept in the graph parameters, and embd-normalize is applied to
   // the config contexts inherit.

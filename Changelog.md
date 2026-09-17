@@ -1,9 +1,11 @@
-### 0.17.2-rc.2 (2026-09-14)
+### 0.17.2-rc.3 (2026-09-17)
 
 Features:
 
 * [CMake]
   * feat(cmake): use the system blake3 when available (#5339)
+* [Plugin]
+  * feat(wasi-nn,ggml): upgrade llama.cpp version to v0.4.1 (#5188, #5356)
 
 Fixed issues:
 
@@ -30,6 +32,11 @@ Fixed issues:
 * [Plugin]
   * fix(plugins/opencvmini): require OpenCV 5 on macOS arm64 (#5280)
   * fix(wasi_nn): pin the OpenVINO CPU inference precision to f32 (#5348)
+  * fix(wasi-nn): preserve incremental GGML load-mode metadata (#5188)
+  * fix(wasi-nn,ggml): validate GGML WASI-NN metadata (#5356)
+  * fix(wasi-nn,ggml): rebuild MoE tensor overrides on every metadata pass (#5356)
+  * fix(wasi-nn,ggml): apply embd-normalize and threads-batch metadata (#5356)
+  * fix(wasi-nn,ggml): roll back metadata when an option is rejected (#5356)
 * [Misc]
   * fix(OSS-Fuzz): add the missing PropComponent in the driver fuzzer (#5035)
   * fix: make the sources compile as C++20 (#5338)
@@ -39,8 +46,9 @@ CI:
 * ci(iwyu): move the IWYU scan to LLVM 22 with IWYU 0.26 (#5335)
 * ci: bump lineguard to 0.2.0 (#5336)
 * ci: upgrade Debian static build to Bookworm (#5333)
+* ci(macos): gate the test step on the matrix tests flag (#5353)
 * [dependabot]
-  * ci(dependabot): bump github/codeql-action from 4.36.2 to 4.37.9 (#5127, #5130, #5155, #5156, #5190, #5193, #5219, #5220, #5249, #5251, #5273, #5274, #5289, #5291, #5307, #5308, #5321, #5322)
+  * ci(dependabot): bump github/codeql-action from 4.36.2 to 4.38.0 (#5127, #5130, #5155, #5156, #5190, #5193, #5219, #5220, #5249, #5251, #5273, #5274, #5289, #5291, #5307, #5308, #5321, #5322, #5351, #5352)
   * ci(dependabot): bump step-security/harden-runner from 2.19.4 to 2.21.1 (#5157, #5275, #5290, #5334)
   * ci(dependabot): bump cachix/install-nix-action from 31.10.6 to 31.11.1 (#5158, #5191, #5288)
   * ci(dependabot): bump dorny/paths-filter from 4.0.1 to 4.0.3 (#5129, #5272)
@@ -56,7 +64,7 @@ Thank all the contributors who made this release possible!
 
 Anusha Murthy, Arthur Chan, Lia, Shen-Ta Hsieh(BestSteve), Yi-Ying He, hydai
 
-If you want to build from source, please use WasmEdge-0.17.2-rc.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.17.2-rc.3-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.17.1 (2026-07-03)
 

@@ -1,10 +1,13 @@
 #pragma once
 
+#include "common/spdlog.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 #include "wasi_ephemeral_nn.grpc.pb.h"
-
+#include <algorithm>
 #include <grpc/grpc.h>
+#include <limits>
+#include <string>
 #include <string_view>
 
 using namespace std::literals;
@@ -51,13 +54,18 @@ void writeBinaries(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 class HostFuncCaller {
 public:
   HostFuncCaller(const Runtime::Instance::ModuleInstance &NNM,
-                 std::string_view FuncName, uint32_t MemorySize) noexcept
+                 std::string_view FuncName, uint64_t MemoryBytes) noexcept
       : FuncInst(NNM.findFuncExports(FuncName)), FuncName(FuncName), Mod(""),
         Frame(nullptr, &Mod) {
+    const uint64_t PageSize = Runtime::Instance::MemoryInstance::kPageSize;
+    const uint64_t Pages = (MemoryBytes + PageSize - 1) / PageSize;
+    spdlog::debug(
+        "[WASI-NN-RPCSERVER] HostFuncCaller: function={}, bytes={}, pages={}"sv,
+        FuncName, MemoryBytes, Pages);
     Mod.addHostMemory(
         "memory"sv,
         std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-            WasmEdge::AST::MemoryType(MemorySize)));
+            WasmEdge::AST::MemoryType(Pages)));
   }
 
   Runtime::Instance::MemoryInstance &getMemInst(void) {
@@ -307,6 +315,27 @@ public:
     return grpc::Status::OK;
   }
 
+  static grpc::Status validateMaxSize(uint32_t MaxSize, uint32_t BufPtr,
+                                      grpc::ServerContext *RPCContext) {
+    static constexpr uint32_t MaxOutputBytesLimit = 16U * 1024U * 1024U;
+    if (MaxSize == 0) {
+      RPCContext->AddTrailingMetadata("errno", "1");
+      return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                          "max_size must be greater than 0");
+    }
+    if (MaxSize > MaxOutputBytesLimit) {
+      RPCContext->AddTrailingMetadata("errno", "1");
+      return grpc::Status(
+          grpc::StatusCode::INVALID_ARGUMENT,
+          fmt::format("max_size must be in 1..{} bytes", MaxOutputBytesLimit));
+    }
+    if (MaxSize > std::numeric_limits<uint32_t>::max() - BufPtr) {
+      RPCContext->AddTrailingMetadata("errno", "1");
+      return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                          "max_size causes overflow");
+    }
+    return grpc::Status::OK;
+  }
   /*
     Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
                             uint32_t Index, Span<uint8_t> OutBuffer,
@@ -317,29 +346,7 @@ public:
             const wasi_ephemeral_nn::GetOutputRequest *RPCRequest,
             wasi_ephemeral_nn::GetOutputResult *RPCResult) {
     std::string_view FuncName = "get_output"sv;
-    uint32_t ResourceHandle = RPCRequest->resource_handle();
-    uint32_t Index = RPCRequest->index();
-    uint32_t MemorySize = UINT32_C(65536); // FIXME
-    uint32_t BytesWrittenPtr = UINT32_C(0);
-    uint32_t BufPtr = BytesWrittenPtr + UINT32_C(4);
-    uint32_t BufMaxSize = MemorySize - BufPtr;
-    HostFuncCaller HostFuncCaller(NNMod, FuncName, MemorySize);
-    auto &MemInst = HostFuncCaller.getMemInst();
-    uint32_t Errno = HostFuncCaller.call(
-        {ResourceHandle, Index, BufPtr, BufMaxSize, BytesWrittenPtr});
-    if (Errno != 0) {
-      return createRPCStatusFromErrno(RPCContext, FuncName, Errno);
-    }
-    /* clang-format off */
-    /**
-       0                    : BytesWritten
-       4                    : Buf
-    */
-    /* clang-format on */
-    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
-    auto *Buf = MemInst.getPointer<char *>(BufPtr);
-    RPCResult->set_data(Buf, BytesWritten);
-    return grpc::Status::OK;
+    return callGetOutput(FuncName, RPCContext, RPCRequest, RPCResult);
   }
 
   /*
@@ -352,17 +359,47 @@ public:
                   const wasi_ephemeral_nn::GetOutputRequest *RPCRequest,
                   wasi_ephemeral_nn::GetOutputResult *RPCResult) {
     std::string_view FuncName = "get_output_single"sv;
+    return callGetOutput(FuncName, RPCContext, RPCRequest, RPCResult);
+  }
+
+  grpc::Status
+  callGetOutput(std::string_view FuncName, grpc::ServerContext *RPCContext,
+                const wasi_ephemeral_nn::GetOutputRequest *RPCRequest,
+                wasi_ephemeral_nn::GetOutputResult *RPCResult) {
     uint32_t ResourceHandle = RPCRequest->resource_handle();
     uint32_t Index = RPCRequest->index();
-    uint32_t MemorySize = UINT32_C(65536); // FIXME
+    uint32_t MaxSize = RPCRequest->max_size();
     uint32_t BytesWrittenPtr = UINT32_C(0);
     uint32_t BufPtr = BytesWrittenPtr + UINT32_C(4);
-    uint32_t BufMaxSize = MemorySize - BufPtr;
+    uint32_t BufMaxSize = MaxSize;
+    if (BufMaxSize == 0) {
+      return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                          "max_size must be greater than 0"s);
+    }
+
+    auto ValidationStatus = validateMaxSize(BufMaxSize, BufPtr, RPCContext);
+    if (!ValidationStatus.ok()) {
+      return ValidationStatus;
+    }
+    uint32_t MemorySize = BufPtr + BufMaxSize;
     HostFuncCaller HostFuncCaller(NNMod, FuncName, MemorySize);
     auto &MemInst = HostFuncCaller.getMemInst();
     uint32_t Errno = HostFuncCaller.call(
         {ResourceHandle, Index, BufPtr, BufMaxSize, BytesWrittenPtr});
     if (Errno != 0) {
+      if (Errno == UINT32_C(7)) {
+        auto *Needed = MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
+        RPCContext->AddTrailingMetadata("errno", std::to_string(Errno));
+        if (Needed != nullptr) {
+          RPCContext->AddTrailingMetadata("required_size",
+                                          std::to_string(*Needed));
+          return grpc::Status(
+              grpc::StatusCode::RESOURCE_EXHAUSTED,
+              fmt::format("output buffer too small, need {} bytes"sv, *Needed));
+        }
+        return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                            "output buffer too small"s);
+      }
       return createRPCStatusFromErrno(RPCContext, FuncName, Errno);
     }
     /* clang-format off */
@@ -371,8 +408,33 @@ public:
        4                    : Buf
     */
     /* clang-format on */
-    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
+    auto *BytesWrittenInMem = MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
+    if (BytesWrittenInMem == nullptr) {
+      spdlog::error(
+          "[WASI-NN-RPCSERVER] {}: failed to allocate output buffer for BytesWritten"sv,
+          FuncName);
+      RPCContext->AddTrailingMetadata("errno", "5");
+      return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                          "failed to allocate output buffer for BytesWritten"s);
+    }
+    auto BytesWritten = *BytesWrittenInMem;
+    if (BytesWritten > BufMaxSize) {
+      spdlog::error(
+          "[WASI-NN-RPCSERVER] {}: host function wrote more bytes ({}) than BufMaxSize ({})"sv,
+          FuncName, BytesWritten, BufMaxSize);
+      RPCContext->AddTrailingMetadata("errno", "7");
+      return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                          "output buffer too small"s);
+    }
     auto *Buf = MemInst.getPointer<char *>(BufPtr);
+    if (Buf == nullptr) {
+      spdlog::error(
+          "[WASI-NN-RPCSERVER] {}: failed to allocate output buffer for Buf"sv,
+          FuncName);
+      RPCContext->AddTrailingMetadata("errno", "5");
+      return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                          "failed to allocate output buffer for Buf"s);
+    }
     RPCResult->set_data(Buf, BytesWritten);
     return grpc::Status::OK;
   }

@@ -5064,6 +5064,8 @@ TEST(APICoreTest, ModuleDeletion) {
   WasmEdge_StringDelete(CName1);
   WasmEdge_StringDelete(PName);
   WasmEdge_FunctionTypeDelete(FType);
+  WasmEdge_ValidatorDelete(Validator);
+  WasmEdge_LoaderDelete(Loader);
   WasmEdge_ExecutorDelete(Exec);
 }
 

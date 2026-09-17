@@ -49,6 +49,7 @@ TEST(InstructionTest, LoadMiscOpcodeULEB32) {
   };
   for (const auto &Encoding : Encodings) {
     SCOPED_TRACE(::testing::PrintToString(Encoding));
+    ASSERT_LE(Encoding.size(), 0x7FU - 5U);
     std::vector<uint8_t> Vec = {
         0x0AU, static_cast<uint8_t>(Encoding.size() + 5U),
         0x01U, static_cast<uint8_t>(Encoding.size() + 3U),
@@ -86,6 +87,7 @@ TEST(InstructionTest, RejectMalformedMiscOpcodeULEB32) {
   };
   for (const auto &Case : Cases) {
     SCOPED_TRACE(::testing::PrintToString(Case.Encoding));
+    ASSERT_LE(Case.Encoding.size(), 0x7FU - 4U);
     std::vector<uint8_t> Vec = {
         0x0AU, static_cast<uint8_t>(Case.Encoding.size() + 4U),
         0x01U, static_cast<uint8_t>(Case.Encoding.size() + 2U),
@@ -101,11 +103,15 @@ TEST(InstructionTest, RejectMalformedMiscOpcodeULEB32) {
 TEST(InstructionTest, RejectWideArithmeticOpcodesByDefault) {
   WasmEdge::Configure LocalConf;
   WasmEdge::Loader::Loader LocalLdr(LocalConf);
-  for (const uint8_t Opcode : {0x13U, 0x14U, 0x15U, 0x16U}) {
+  constexpr uint8_t Opcodes[] = {0x13U, 0x14U, 0x15U, 0x16U};
+  for (const uint8_t Opcode : Opcodes) {
     for (const size_t Width : {1U, 2U, 3U, 4U, 5U}) {
       SCOPED_TRACE(::testing::Message()
                    << "Subopcode: " << static_cast<unsigned>(Opcode)
                    << ", ULEB32 width: " << Width);
+      ASSERT_LE(Opcode, 0x7FU);
+      ASSERT_GE(Width, 1U);
+      ASSERT_LE(Width, 5U);
       std::vector<uint8_t> Vec = {
           0x0AU, static_cast<uint8_t>(Width + 5U),
           0x01U, static_cast<uint8_t>(Width + 3U),
@@ -114,7 +120,7 @@ TEST(InstructionTest, RejectWideArithmeticOpcodesByDefault) {
       if (Width == 1U) {
         Vec.push_back(Opcode);
       } else {
-        Vec.push_back(Opcode | 0x80U);
+        Vec.push_back(static_cast<uint8_t>(Opcode | 0x80U));
         Vec.insert(Vec.end(), Width - 2U, 0x80U);
         Vec.push_back(0x00U);
       }

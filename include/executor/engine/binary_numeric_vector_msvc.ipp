@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+#include "common/roundeven.h"
 #include "executor/executor.h"
 
 namespace WasmEdge {
@@ -386,6 +387,7 @@ Expect<void> Executor::runVectorFMinOp(ValVariant &Val1,
         V1[I] = V2[I];
       }
     }
+    V1[I] = quietNaN(V1[I]);
   }
 
   return {};
@@ -410,6 +412,7 @@ Expect<void> Executor::runVectorFMaxOp(ValVariant &Val1,
         V1[I] = V2[I];
       }
     }
+    V1[I] = quietNaN(V1[I]);
   }
 
   return {};

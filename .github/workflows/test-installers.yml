@@ -144,6 +144,10 @@ jobs:
         verify_version "${LATEST_VERSION}"
         bash utils/uninstall.sh -q -V
 
+        # Test uninstall with duplicate env configurations (PR #5140)
+        printf "\n=== Test: Uninstall duplicate env configs ===\n"
+        verify_uninstall_duplicate_env
+
         # Test plugin installation
         printf "\n=== Test 2: Specific version with plugin ===\n"
         bash utils/install.sh -v ${TEST_VERSION} --plugins wasi_nn-ggml -D

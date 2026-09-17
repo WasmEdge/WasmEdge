@@ -54,3 +54,24 @@ verify_shell_config() {
     echo "✓ --no-modify-shell-profile works"
   fi
 }
+
+# Verify uninstaller successfully handles duplicate env configurations
+verify_uninstall_duplicate_env() {
+  local config_file="$HOME/.bashrc"
+  
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    config_file="$HOME/.bash_profile"
+  fi
+
+  bash utils/install.sh -D
+  echo ". \"$HOME/.wasmedge/env\"" >> "$config_file"
+  echo ". \"$HOME/.wasmedge/env\"" >> "$config_file"
+  bash utils/uninstall.sh -q -V
+  
+  if [ -f "$config_file" ] && grep -q ". \"$HOME/.wasmedge/env\"" "$config_file"; then
+    echo "✗ Duplicate entries were not successfully removed from $config_file"
+    exit 1
+  else
+    echo "✓ Duplicate entries removed successfully from $config_file"
+  fi
+}

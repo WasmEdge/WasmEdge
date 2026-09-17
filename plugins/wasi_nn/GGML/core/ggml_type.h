@@ -51,6 +51,10 @@ struct Graph {
   // This graph's unit in the shared llama log gate.
   LlamaLogToken LlamaLog;
   common_params Params;
+  // MoE weights kept on the CPU: all experts, and the first NCpuMoe layers.
+  // The regex patterns derived from them are rebuilt on every metadata pass.
+  bool CpuMoe = false;
+  int64_t NCpuMoe = 0;
   std::list<std::string> TensorBuftOverrides;
   // Model context:
   llama_model_ptr LlamaModel = nullptr;

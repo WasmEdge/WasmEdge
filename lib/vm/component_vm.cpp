@@ -5,6 +5,7 @@
 
 #include "common/errinfo.h"
 #include "common/spdlog.h"
+#include "host/wasi/component/hosts.h"
 #include "plugin/plugin.h"
 
 #include <memory>
@@ -32,15 +33,38 @@ ComponentVM::ComponentVM(const Configure &Conf,
   unsafeInitVM();
 }
 
-ComponentVM::~ComponentVM() { unsafeCleanup(); }
+ComponentVM::~ComponentVM() = default;
+
+Runtime::Instance::ComponentInstance *ComponentVM::unsafeGetImportComponent(
+    const HostRegistration Type) const noexcept {
+  if (auto Iter = BuiltInHostInsts.find(Type);
+      Iter != BuiltInHostInsts.cend()) {
+    return Iter->second.get();
+  }
+  return nullptr;
+}
 
 void ComponentVM::unsafeInitVM() {
+  unsafeLoadBuiltInHosts();
   unsafeLoadPlugInHosts();
+  unsafeRegisterBuiltInHosts();
   unsafeRegisterPlugInHosts();
+}
+
+void ComponentVM::unsafeLoadBuiltInHosts() {
+  // The WASI hosts of one VM share one environment.
+  BuiltInCompInsts.clear();
+  BuiltInHostInsts.clear();
+  if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
+    auto Hosts = std::make_unique<Host::WasiComponent::WasiHosts>();
+    BuiltInCompInsts = Hosts->newInstances();
+    BuiltInHostInsts.insert_or_assign(HostRegistration::Wasi, std::move(Hosts));
+  }
 }
 
 void ComponentVM::unsafeLoadPlugInHosts() {
   // Load the component instances of the plug-ins.
+  PlugInCompInsts.clear();
   for (const auto &Plugin : Plugin::Plugin::plugins()) {
     if (Conf.isForbiddenPlugins(Plugin.name())) {
       continue;
@@ -51,9 +75,15 @@ void ComponentVM::unsafeLoadPlugInHosts() {
   }
 }
 
+void ComponentVM::unsafeRegisterBuiltInHosts() {
+  for (auto &It : BuiltInCompInsts) {
+    ExecutorEngine.registerComponent(StoreRef, *It);
+  }
+}
+
 void ComponentVM::unsafeRegisterPlugInHosts() {
   for (auto &It : PlugInCompInsts) {
-    static_cast<void>(ExecutorEngine.registerComponent(StoreRef, *It));
+    ExecutorEngine.registerComponent(StoreRef, *It);
   }
 }
 
@@ -86,6 +116,11 @@ ComponentVM::unsafeRegisterComponent(std::string_view Name,
   return {};
 }
 
+Expect<void> ComponentVM::unsafeRegisterComponent(
+    const Runtime::Instance::ComponentInstance &CompInst) {
+  return ExecutorEngine.registerComponent(StoreRef, CompInst);
+}
+
 Expect<void> ComponentVM::unsafeLoadWasm(const std::filesystem::path &Path) {
   EXPECTED_TRY(auto CompAST, LoaderEngine.parseComponent(Path));
   return unsafeLoadWasm(std::move(CompAST));
@@ -96,10 +131,10 @@ Expect<void> ComponentVM::unsafeLoadWasm(Span<const Byte> Code) {
   return unsafeLoadWasm(std::move(CompAST));
 }
 
-Expect<void>
-ComponentVM::unsafeLoadWasm(std::unique_ptr<AST::Component::Component> C) {
+Expect<void> ComponentVM::unsafeLoadWasm(
+    std::unique_ptr<AST::Component::Component> CompAST) {
   // The previous active component stays alive for its instance.
-  Comps.push_back(std::move(C));
+  Comps.push_back(std::move(CompAST));
   Comp = Comps.back().get();
   Stage = VMStage::Loaded;
   return {};
@@ -202,15 +237,18 @@ ComponentVM::asyncExecute(std::string_view CompName, std::string_view Func,
 
 void ComponentVM::unsafeCleanup() {
   ActiveCompInst.reset();
+  StoreRef.reset();
   RegCompInsts.clear();
-  if (Store) {
-    StoreRef.reset();
-  }
+  // The components go after the store entries naming them.
   Comp = nullptr;
   Comps.clear();
   Stat.clear();
-  Stage = VMStage::Inited;
+  unsafeLoadBuiltInHosts();
+  unsafeLoadPlugInHosts();
+  unsafeRegisterBuiltInHosts();
   unsafeRegisterPlugInHosts();
+  LoaderEngine.reset();
+  Stage = VMStage::Inited;
 }
 
 std::vector<std::pair<std::string, const AST::Component::FuncType &>>
@@ -236,6 +274,11 @@ ComponentVM::unsafeGetFunctionList() const {
     });
   }
   return Map;
+}
+
+const Runtime::Instance::ComponentInstance *
+ComponentVM::unsafeGetActiveComponent() const {
+  return ActiveCompInst.get();
 }
 
 } // namespace VM

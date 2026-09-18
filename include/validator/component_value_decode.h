@@ -256,7 +256,7 @@ private:
       RecordVal R;
       for (const auto &LT : D.getRecord().LabelTypes) {
         EXPECTED_TRY(auto V, decodeVal(LT.getValType()));
-        R.Fields.emplace_back(std::string(LT.getLabel()), std::move(V));
+        R.Fields.push_back(std::move(V));
       }
       return makeComponentVal(std::move(R));
     }
@@ -268,7 +268,6 @@ private:
       }
       VariantVal V;
       V.Case = static_cast<uint32_t>(Idx);
-      V.Label = Cases[V.Case].first;
       if (Cases[V.Case].second.has_value()) {
         EXPECTED_TRY(auto P, decodeVal(*Cases[V.Case].second));
         V.Payload = std::move(P);
@@ -334,7 +333,7 @@ private:
       if (Idx >= Labels.size()) {
         return Unexpect(ErrCode::Value::ComponentMalformedValue);
       }
-      return makeComponentVal(EnumVal{static_cast<uint32_t>(Idx), Labels[Idx]});
+      return makeComponentVal(EnumVal{static_cast<uint32_t>(Idx)});
     }
     if (D.isOptionTy()) {
       EXPECTED_TRY(auto Disc, readByte());

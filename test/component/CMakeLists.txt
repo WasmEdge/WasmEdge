@@ -6,6 +6,7 @@ wasmedge_setup_simdjson()
 wasmedge_add_executable(wasmedgeComponentRegressionTests
   ComponentLoaderTest.cpp
   ComponentValidatorTest.cpp
+  ComponentWasiTest.cpp
 )
 
 add_test(wasmedgeComponentRegressionTests wasmedgeComponentRegressionTests)

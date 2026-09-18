@@ -170,6 +170,7 @@ jobs:
 
         # Test uninstallation with duplicate env entries
         printf "\n=== Test 5: Uninstall with duplicate env entries ===\n"
+        [ -f ~/.bashrc ] && cp ~/.bashrc ~/.bashrc.bak
         bash utils/install.sh -D
         echo "export DUMMY_VAR=1" >> ~/.bashrc
         echo ". \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
@@ -190,6 +191,7 @@ jobs:
           exit 1
         fi
         echo "[PASS] Duplicate env entries removed and unrelated content preserved"
+        if [ -f ~/.bashrc.bak ]; then cp ~/.bashrc.bak ~/.bashrc; rm ~/.bashrc.bak; fi
 
   # Test install.sh on macOS
   test-install-sh-macos:
@@ -270,6 +272,9 @@ jobs:
 
         # Test uninstallation with duplicate env entries
         printf "\n=== Test 5: Uninstall with duplicate env entries ===\n"
+        for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          [ -f "$rc_file" ] && cp "$rc_file" "${rc_file}.bak"
+        done
         bash utils/install.sh -D
         # Ensure .bash_profile symlink target exists so the test is exercised
         [ -e ~/.dummy_bash_source ] || touch ~/.dummy_bash_source
@@ -298,6 +303,9 @@ jobs:
           fi
         done
         echo "[PASS] Duplicate env entries removed and unrelated content preserved"
+        for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          if [ -f "${rc_file}.bak" ]; then cp "${rc_file}.bak" "$rc_file"; rm "${rc_file}.bak"; fi
+        done
 
         # Test if the environment variable was removed
         IPATH="$HOME/.wasmedge"
@@ -395,6 +403,7 @@ jobs:
 
         # Test uninstallation with duplicate env entries
         printf "\n=== Test 5: Uninstall with duplicate env entries ===\n"
+        [ -f ~/.bashrc ] && cp ~/.bashrc ~/.bashrc.bak
         bash utils/install_v2.sh -V
         echo "export DUMMY_VAR=1" >> ~/.bashrc
         echo "source \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
@@ -415,6 +424,7 @@ jobs:
           exit 1
         fi
         echo "[PASS] Duplicate env entries removed and unrelated content preserved"
+        if [ -f ~/.bashrc.bak ]; then cp ~/.bashrc.bak ~/.bashrc; rm ~/.bashrc.bak; fi
 
     - name: Test NoAVX Installation
       if: ${{ matrix.test_noavx }}
@@ -527,6 +537,9 @@ jobs:
 
         # Test uninstallation with duplicate env entries
         printf "\n=== Test 5: Uninstall with duplicate env entries ===\n"
+        for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          [ -f "$rc_file" ] && cp "$rc_file" "${rc_file}.bak"
+        done
         bash utils/install_v2.sh -V
         # Ensure .bash_profile symlink target exists so the test is exercised
         [ -e ~/.dummy_bash_source ] || touch ~/.dummy_bash_source
@@ -555,6 +568,9 @@ jobs:
           fi
         done
         echo "[PASS] Duplicate env entries removed and unrelated content preserved"
+        for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          if [ -f "${rc_file}.bak" ]; then cp "${rc_file}.bak" "$rc_file"; rm "${rc_file}.bak"; fi
+        done
 
         # Test if the environment variable was removed
         IPATH="$HOME/.wasmedge"

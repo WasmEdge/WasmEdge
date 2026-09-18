@@ -1175,6 +1175,15 @@ public:
     return Node->getNativeHandler();
   }
 
+  /// The node behind a file descriptor, or null when it is not open.
+  std::shared_ptr<VINode> getNodeOrNull(__wasi_fd_t Fd) const {
+    std::shared_lock Lock(FdMutex);
+    if (auto It = FdMap.find(Fd); It != FdMap.end()) {
+      return It->second;
+    }
+    return {};
+  }
+
   /// Test whether a file descriptor has the requested rights.
   bool canFd(__wasi_fd_t Fd, __wasi_rights_t Rights) const noexcept {
     auto Node = getNodeOrNull(Fd);
@@ -1210,14 +1219,6 @@ private:
 
   mutable std::shared_mutex FdMutex; ///< Protect FdMap
   std::unordered_map<__wasi_fd_t, std::shared_ptr<VINode>> FdMap;
-
-  std::shared_ptr<VINode> getNodeOrNull(__wasi_fd_t Fd) const {
-    std::shared_lock Lock(FdMutex);
-    if (auto It = FdMap.find(Fd); It != FdMap.end()) {
-      return It->second;
-    }
-    return {};
-  }
 
   /// Find the preopened directory which the guest path is under, as the WASI
   /// libc does, and leave the path relative to it.

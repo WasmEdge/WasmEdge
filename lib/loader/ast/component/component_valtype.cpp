@@ -60,24 +60,23 @@ Expect<void> Loader::loadType(ComponentValType &Ty) {
       return logLoadError(ErrCode::Value::MalformedValType,
                           FMgr.getLastOffset(), ASTNodeAttr::Comp_ValueType);
     }
-    AST::Component::PrimValType PVT = static_cast<AST::Component::PrimValType>(
-        static_cast<uint8_t>(Val & INT64_C(0x7F)));
-    switch (PVT) {
-    case AST::Component::PrimValType::Bool:
-    case AST::Component::PrimValType::S8:
-    case AST::Component::PrimValType::U8:
-    case AST::Component::PrimValType::S16:
-    case AST::Component::PrimValType::U16:
-    case AST::Component::PrimValType::S32:
-    case AST::Component::PrimValType::U32:
-    case AST::Component::PrimValType::S64:
-    case AST::Component::PrimValType::U64:
-    case AST::Component::PrimValType::F32:
-    case AST::Component::PrimValType::F64:
-    case AST::Component::PrimValType::Char:
-    case AST::Component::PrimValType::String:
-    case AST::Component::PrimValType::ErrorContext:
-      Ty.setCode(static_cast<ComponentTypeCode>(PVT));
+    const auto Code = static_cast<ComponentTypeCode>(Val & INT64_C(0x7F));
+    switch (Code) {
+    case ComponentTypeCode::Bool:
+    case ComponentTypeCode::S8:
+    case ComponentTypeCode::U8:
+    case ComponentTypeCode::S16:
+    case ComponentTypeCode::U16:
+    case ComponentTypeCode::S32:
+    case ComponentTypeCode::U32:
+    case ComponentTypeCode::S64:
+    case ComponentTypeCode::U64:
+    case ComponentTypeCode::F32:
+    case ComponentTypeCode::F64:
+    case ComponentTypeCode::Char:
+    case ComponentTypeCode::String:
+    case ComponentTypeCode::ErrContext:
+      Ty.setCode(Code);
       break;
     default:
       return logLoadError(ErrCode::Value::MalformedValType,

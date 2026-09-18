@@ -66,7 +66,7 @@ Expect<void> Loader::loadDecl(AST::Component::CoreModuleDecl &Decl) {
   }
   case 0x02: {
     AST::Component::CoreAlias Alias;
-    EXPECTED_TRY(loadCoreAlias(Alias).map_error(ReportError));
+    EXPECTED_TRY(loadAlias(Alias).map_error(ReportError));
     Decl.setAlias(std::move(Alias));
     return {};
   }

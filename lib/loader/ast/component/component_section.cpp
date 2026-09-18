@@ -43,7 +43,7 @@ Expect<void> Loader::loadSection(AST::Component::CoreInstanceSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(
         Sec, [this](AST::Component::CoreInstance &Instance) {
-          return loadCoreInstance(Instance);
+          return loadInstance(Instance);
         });
   });
 }

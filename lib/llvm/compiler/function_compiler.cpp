@@ -2150,10 +2150,9 @@ LLVM::Value FunctionCompiler::switchEndian(LLVM::Value Value) {
       return Builder.createUnaryIntrinsic(LLVM::Core::Bswap, Value);
     }
     if (Type.isVectorTy()) {
-      LLVM::Type VecType = Type.getElementType().getIntegerBitWidth() == 128
-                               ? Context.Int128Ty
-                               : Context.Int64Ty;
-      Value = Builder.createBitCast(Value, VecType);
+      // Bswap operates on the total vector width, not the lane width.
+      Value = Builder.createBitCast(
+          Value, LLContext.getIntNTy(Type.getPrimitiveSizeInBits()));
       Value = Builder.createUnaryIntrinsic(LLVM::Core::Bswap, Value);
       return Builder.createBitCast(Value, Type);
     }

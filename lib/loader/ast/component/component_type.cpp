@@ -3,8 +3,6 @@
 
 #include "loader/loader.h"
 
-using namespace std::literals;
-
 namespace WasmEdge {
 namespace Loader {
 
@@ -166,7 +164,8 @@ Expect<void> Loader::loadType(AST::Component::DefValType &Ty, uint8_t Code) {
   //              | 0x65 t?:<valtype>?         => (future t?) 🔀
   //              | 0x63 k:<valtype> v:<valtype> => (map k v) 🗺️
 
-  switch (static_cast<ComponentTypeCode>(Code)) {
+  const auto TC = static_cast<ComponentTypeCode>(Code);
+  switch (TC) {
   case ComponentTypeCode::Bool:
   case ComponentTypeCode::S8:
   case ComponentTypeCode::U8:
@@ -181,7 +180,7 @@ Expect<void> Loader::loadType(AST::Component::DefValType &Ty, uint8_t Code) {
   case ComponentTypeCode::Char:
   case ComponentTypeCode::String:
   case ComponentTypeCode::ErrContext:
-    Ty.setPrimValType(static_cast<AST::Component::PrimValType>(Code));
+    Ty.setPrimValType(static_cast<AST::Component::PrimValType>(TC));
     return {};
   case ComponentTypeCode::Record: {
     AST::Component::RecordTy RTy;
@@ -198,7 +197,8 @@ Expect<void> Loader::loadType(AST::Component::DefValType &Ty, uint8_t Code) {
   case ComponentTypeCode::List:
   case ComponentTypeCode::ListLen: {
     AST::Component::ListTy LTy;
-    EXPECTED_TRY(loadType(LTy, Code == 0x67).map_error(ReportError));
+    EXPECTED_TRY(
+        loadType(LTy, TC == ComponentTypeCode::ListLen).map_error(ReportError));
     Ty.setList(std::move(LTy));
     return {};
   }

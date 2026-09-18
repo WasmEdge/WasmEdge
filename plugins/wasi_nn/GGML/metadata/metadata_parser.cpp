@@ -4,14 +4,72 @@
 #include "metadata_parser.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+#include <algorithm>
+#include <array>
 #include <common.h>
 #include <fmt/ranges.h>
-#include <json-partial.h>
 #include <json-schema-to-grammar.h>
+#include <limits>
+#include <sstream>
 #endif
 
 namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+namespace {
+
+// llama.cpp caps model depth at LLAMA_MAX_LAYERS (512, llama-hparams.h), so
+// more per-layer MoE overrides than that can never match a tensor.
+constexpr int64_t MaxCpuMoeLayers = 512;
+
+// The KV cache types llama.cpp accepts for -ctk/-ctv (common/arg.cpp). Other
+// ggml_type values are deprecated (zero block size) or unsupported by the
+// cache and abort inside ggml.
+constexpr std::array<ggml_type, 9> KVCacheTypes = {
+    GGML_TYPE_F32,    GGML_TYPE_F16,  GGML_TYPE_BF16,
+    GGML_TYPE_Q8_0,   GGML_TYPE_Q4_0, GGML_TYPE_Q4_1,
+    GGML_TYPE_IQ4_NL, GGML_TYPE_Q5_0, GGML_TYPE_Q5_1};
+
+bool parseKVCacheType(std::string_view Key, int64_t Value,
+                      ggml_type &Type) noexcept {
+  for (ggml_type Candidate : KVCacheTypes) {
+    if (Value == static_cast<int64_t>(Candidate)) {
+      Type = Candidate;
+      return true;
+    }
+  }
+  std::string Allowed;
+  for (ggml_type Candidate : KVCacheTypes) {
+    Allowed +=
+        fmt::format("{}{} ({})"sv, Allowed.empty() ? ""sv : ", "sv,
+                    ggml_type_name(Candidate), static_cast<int>(Candidate));
+  }
+  LOG_ERROR("{} must be one of the KV cache types: {}."sv, Key, Allowed)
+  return false;
+}
+
+bool parseThreads(std::string_view Key, int64_t Value, int &Threads) noexcept {
+  // -1 lets llama.cpp pick the thread count.
+  if (Value < -1 || Value > GGML_MAX_N_THREADS) {
+    LOG_ERROR("{} should be in range [-1, {}]."sv, Key, GGML_MAX_N_THREADS)
+    return false;
+  }
+  Threads = static_cast<int>(Value);
+  return true;
+}
+
+// Warn about options removed from llama.cpp instead of silently ignoring
+// them.
+void warnRemovedKey(const simdjson::dom::element &Doc, std::string_view Key) {
+  if (Doc.at_key(Key).error() == simdjson::SUCCESS) {
+    LOG_WARN(
+        "metadata: the \"{}\" option is no longer supported by llama.cpp "sv
+        "and is ignored."sv,
+        Key)
+  }
+}
+
+} // namespace
+
 // Parse metadata from JSON.
 ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                     const std::string &Metadata, bool *IsModelUpdated,
@@ -37,6 +95,43 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       common_grammar_value(GraphRef.Params.sampling.grammar);
   uint32_t PrevSeed = GraphRef.Params.sampling.seed;
 
+  // Snapshot everything the options below may modify, so a rejected metadata
+  // object leaves the graph and the context config exactly as they were.
+  struct MetadataSnapshot {
+    bool EnableLog;
+    bool EnableDebugLog;
+    bool CpuMoe;
+    int64_t NCpuMoe;
+    bool TextToSpeech;
+    std::string TTSOutputFilePath;
+    std::string TTSSpeakerFilePath;
+    common_params_model VocoderModel;
+    common_params Params;
+    LocalConfig Conf;
+  };
+  const MetadataSnapshot Saved{GraphRef.EnableLog,
+                               GraphRef.EnableDebugLog,
+                               GraphRef.CpuMoe,
+                               GraphRef.NCpuMoe,
+                               GraphRef.TextToSpeech,
+                               GraphRef.TTSOutputFilePath,
+                               GraphRef.TTSSpeakerFilePath,
+                               GraphRef.VocoderModel,
+                               GraphRef.Params,
+                               ConfRef};
+  auto Restore = [&]() {
+    GraphRef.EnableLog = Saved.EnableLog;
+    GraphRef.EnableDebugLog = Saved.EnableDebugLog;
+    GraphRef.CpuMoe = Saved.CpuMoe;
+    GraphRef.NCpuMoe = Saved.NCpuMoe;
+    GraphRef.TextToSpeech = Saved.TextToSpeech;
+    GraphRef.TTSOutputFilePath = Saved.TTSOutputFilePath;
+    GraphRef.TTSSpeakerFilePath = Saved.TTSSpeakerFilePath;
+    GraphRef.VocoderModel = Saved.VocoderModel;
+    GraphRef.Params = Saved.Params;
+    ConfRef = Saved.Conf;
+  };
+
   try {
     parseJsonAuto(Doc, "enable-log", GraphRef.EnableLog);
     parseJsonAuto(Doc, "enable-debug-log", GraphRef.EnableDebugLog);
@@ -45,25 +140,15 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonWithCastAuto<int64_t>(Doc, "n-gpu-layers",
                                    GraphRef.Params.n_gpu_layers);
 
-    parseJsonWithProcessorAuto<bool>(Doc, "cpu-moe",
-                                     [&GraphRef](const bool &CpuMoe) -> bool {
-                                       if (CpuMoe) {
-                                         GraphRef.TensorBuftOverrides.push_back(
-                                             "\\.ffn_(up|down|gate)_exps");
-                                       }
-                                       return true;
-                                     });
-
+    parseJsonAuto<bool>(Doc, "cpu-moe", GraphRef.CpuMoe);
     parseJsonWithProcessorAuto<int64_t>(
         Doc, "n-cpu-moe", [&GraphRef](const int64_t &NCpuMoe) -> bool {
-          if (NCpuMoe < 0) {
-            spdlog::error("[WASI-NN] GGML backend: Invalid n-cpu-moe value."sv);
+          if (NCpuMoe < 0 || NCpuMoe > MaxCpuMoeLayers) {
+            LOG_ERROR("n-cpu-moe should be in range [0, {}]."sv,
+                      MaxCpuMoeLayers)
             return false;
           }
-          for (int I = 0; I < NCpuMoe; I++) {
-            GraphRef.TensorBuftOverrides.push_back(
-                string_format("blk\\.%d\\.ffn_(up|down|gate)_exps", I));
-          }
+          GraphRef.NCpuMoe = NCpuMoe;
           return true;
         });
     parseJsonWithProcessorAuto<std::string_view>(
@@ -73,24 +158,40 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
           std::string TS(TSV);
           std::replace(TS.begin(), TS.end(), ',', ' ');
           std::stringstream SS(TS);
-          std::memset(GraphRef.Params.tensor_split, 0,
-                      sizeof(GraphRef.Params.tensor_split));
-          uint32_t TensorSplitSize = 0;
-          while (SS.good()) {
-            float TmpTensor;
-            SS >> TmpTensor;
-            GraphRef.Params.tensor_split[TensorSplitSize++] = TmpTensor;
+          constexpr size_t TensorSplitCapacity =
+              sizeof(GraphRef.Params.tensor_split) /
+              sizeof(GraphRef.Params.tensor_split[0]);
+          const size_t NDevices = llama_max_devices();
+          if (NDevices > TensorSplitCapacity) {
+            LOG_ERROR("Number of MaxDevices ({}) is larger than tensor-split "sv
+                      "capacity ({})."sv,
+                      NDevices, TensorSplitCapacity)
+            throw ErrNo(ErrNo::RuntimeError);
           }
-          size_t NDevices = llama_max_devices();
-          if (TensorSplitSize > NDevices) {
-            spdlog::error(
-                "[WASI-NN] GGML backend: Number of Tensor-Split is larger than "
-                "MaxDevices, please reduce the size of tensor-split."sv);
+          std::array<float, TensorSplitCapacity> TensorSplit;
+          TensorSplit.fill(0.0f);
+          size_t TensorSplitSize = 0;
+          // Skip separators first so only a genuine end of input ends the
+          // loop; an extraction that fails then, even at EOF, is an error.
+          for (SS >> std::ws; !SS.eof(); SS >> std::ws) {
+            float TmpTensor;
+            if (!(SS >> TmpTensor)) {
+              LOG_ERROR("Invalid value in the tensor-split option."sv)
+              return false;
+            }
+            if (TensorSplitSize >= NDevices) {
+              LOG_ERROR("Number of Tensor-Split is larger than MaxDevices, "sv
+                        "please reduce the size of tensor-split."sv)
+              return false;
+            }
+            TensorSplit[TensorSplitSize++] = TmpTensor;
+          }
+          if (TensorSplitSize == 0) {
+            LOG_ERROR("The tensor-split option needs at least one value."sv)
             return false;
           }
-          for (size_t Idx = TensorSplitSize; Idx < NDevices; Idx++) {
-            GraphRef.Params.tensor_split[TensorSplitSize++] = 0.0f;
-          }
+          std::copy(TensorSplit.begin(), TensorSplit.end(),
+                    GraphRef.Params.tensor_split);
           return true;
         });
     parseJsonAuto<bool>(Doc, "embedding", GraphRef.Params.embedding);
@@ -116,7 +217,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     // The TTS parameters using macros
     parseJsonAuto<bool>(Doc, "tts", GraphRef.TextToSpeech);
     parseJsonWithCastAuto<std::string_view>(Doc, "model-vocoder",
-                                            GraphRef.Params.vocoder.model.path);
+                                            GraphRef.VocoderModel.path);
     parseJsonWithCastAuto<std::string_view>(Doc, "tts-output-file",
                                             GraphRef.TTSOutputFilePath);
 
@@ -125,9 +226,31 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
 
     // The context parameters
     parseJsonWithCastAuto<int64_t>(Doc, "ctx-size", GraphRef.Params.n_ctx);
-    parseJsonWithCastAuto<int64_t>(Doc, "batch-size", GraphRef.Params.n_batch);
-    parseJsonWithCastAuto<int64_t>(Doc, "ubatch-size",
-                                   GraphRef.Params.n_ubatch);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "batch-size", [&GraphRef](const int64_t &BatchSize) -> bool {
+          if (BatchSize <= 0 ||
+              BatchSize >
+                  static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
+            LOG_ERROR("batch-size should be in range [1, {}]."sv,
+                      std::numeric_limits<int32_t>::max())
+            return false;
+          }
+          GraphRef.Params.n_batch = static_cast<int32_t>(BatchSize);
+          return true;
+        });
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "ubatch-size", [&GraphRef](const int64_t &UBatchSize) -> bool {
+          // llama.cpp treats 0 as "same as batch-size".
+          if (UBatchSize < 0 ||
+              UBatchSize >
+                  static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
+            LOG_ERROR("ubatch-size should be in range [0, {}]."sv,
+                      std::numeric_limits<int32_t>::max())
+            return false;
+          }
+          GraphRef.Params.n_ubatch = static_cast<int32_t>(UBatchSize);
+          return true;
+        });
     parseJsonWithCastAuto<int64_t>(Doc, "n-keep", GraphRef.Params.n_keep);
     parseJsonWithCastAuto<int64_t>(Doc, "n-chunks", GraphRef.Params.n_chunks);
     parseJsonWithCastAuto<int64_t>(Doc, "n-parallel",
@@ -177,17 +300,33 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
 
     parseJsonWithCastAuto<int64_t>(Doc, "rope-scaling-type",
                                    GraphRef.Params.rope_scaling_type);
-    parseJsonWithCastAuto<int64_t>(Doc, "pooling-type",
-                                   GraphRef.Params.pooling_type);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "pooling-type", [&GraphRef](const int64_t &PoolingType) -> bool {
+          // Unknown pooling types make llama.cpp abort when building the
+          // embedding graph.
+          if (PoolingType < LLAMA_POOLING_TYPE_UNSPECIFIED ||
+              PoolingType > LLAMA_POOLING_TYPE_RANK) {
+            LOG_ERROR("pooling-type should be in range [{}, {}]."sv,
+                      static_cast<int>(LLAMA_POOLING_TYPE_UNSPECIFIED),
+                      static_cast<int>(LLAMA_POOLING_TYPE_RANK))
+            return false;
+          }
+          GraphRef.Params.pooling_type =
+              static_cast<enum llama_pooling_type>(PoolingType);
+          return true;
+        });
     parseJsonWithCastAuto<int64_t>(Doc, "attention-type",
                                    GraphRef.Params.attention_type);
     parseJsonWithProcessorAuto<int64_t>(
         Doc, "threads", [&GraphRef](const int64_t &NThreads) -> bool {
-          GraphRef.Params.cpuparams.n_threads = static_cast<int32_t>(NThreads);
-          return true;
+          return parseThreads("threads"sv, NThreads,
+                              GraphRef.Params.cpuparams.n_threads);
         });
-    parseJsonWithCastAuto<int64_t>(Doc, "threads-batch",
-                                   GraphRef.Params.cpuparams_batch.n_threads);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "threads-batch", [&GraphRef](const int64_t &NThreads) -> bool {
+          return parseThreads("threads-batch"sv, NThreads,
+                              GraphRef.Params.cpuparams_batch.n_threads);
+        });
     parseJsonWithCastAuto<int64_t>(Doc, "n-prev",
                                    GraphRef.Params.sampling.n_prev);
     parseJsonWithCastAuto<int64_t>(Doc, "n-probs",
@@ -269,34 +408,39 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonWithProcessorAuto<std::string_view>(
         Doc, "json-schema",
         [&GraphRef](const std::string_view &JsonSchema) -> bool {
-          GraphRef.Params.sampling.grammar =
-              common_grammar(COMMON_GRAMMAR_TYPE_OUTPUT_FORMAT,
-                             json_schema_to_grammar(
-                                 nlohmann::ordered_json::parse(JsonSchema)));
+          try {
+            GraphRef.Params.sampling.grammar =
+                common_grammar(COMMON_GRAMMAR_TYPE_OUTPUT_FORMAT,
+                               json_schema_to_grammar(common_json::parse(
+                                   std::string(JsonSchema))));
+          } catch (const std::exception &E) {
+            LOG_ERROR("Invalid json-schema option: {}"sv, E.what())
+            return false;
+          }
           return true;
         });
     parseJsonWithCastAuto<int64_t>(Doc, "seed", GraphRef.Params.sampling.seed);
 
     // The speculative parameters.
-    parseJsonWithCastAuto<int64_t>(Doc, "n-ctx-speculative",
-                                   GraphRef.Params.speculative.n_ctx);
+    warnRemovedKey(Doc, "n-ctx-speculative"sv);
     parseJsonWithCastAuto<int64_t>(Doc, "n-max-speculative",
-                                   GraphRef.Params.speculative.n_max);
+                                   GraphRef.Params.speculative.draft.n_max);
     parseJsonWithCastAuto<int64_t>(Doc, "n-min-speculative",
-                                   GraphRef.Params.speculative.n_min);
-    parseJsonWithCastAuto<int64_t>(Doc, "n-gpu-layers-speculative",
-                                   GraphRef.Params.speculative.n_gpu_layers);
+                                   GraphRef.Params.speculative.draft.n_min);
+    parseJsonWithCastAuto<int64_t>(
+        Doc, "n-gpu-layers-speculative",
+        GraphRef.Params.speculative.draft.n_gpu_layers);
     parseJsonWithCastAuto<double>(Doc, "p-split-speculative",
-                                  GraphRef.Params.speculative.p_split);
+                                  GraphRef.Params.speculative.draft.p_split);
     parseJsonWithCastAuto<double>(Doc, "p-min-speculative",
-                                  GraphRef.Params.speculative.p_min);
+                                  GraphRef.Params.speculative.draft.p_min);
     // The vocoder parameters.
-    parseJsonWithCastAuto<std::string_view>(
-        Doc, "hf-repo-vocoder", GraphRef.Params.vocoder.model.hf_repo);
-    parseJsonWithCastAuto<std::string_view>(
-        Doc, "hf-file-vocoder", GraphRef.Params.vocoder.model.hf_file);
+    parseJsonWithCastAuto<std::string_view>(Doc, "hf-repo-vocoder",
+                                            GraphRef.VocoderModel.hf_repo);
+    parseJsonWithCastAuto<std::string_view>(Doc, "hf-file-vocoder",
+                                            GraphRef.VocoderModel.hf_file);
     parseJsonWithCastAuto<std::string_view>(Doc, "model-url-vocoder",
-                                            GraphRef.Params.vocoder.model.url);
+                                            GraphRef.VocoderModel.url);
 
     // The config parameters.
     parseJsonAuto<bool>(Doc, "stream-stdout", ConfRef.StreamStdout);
@@ -330,10 +474,10 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                                             GraphRef.Params.input_suffix);
     parseJsonWithCastAuto<std::string_view>(
         Doc, "lookup-cache-static",
-        GraphRef.Params.speculative.lookup_cache_static);
+        GraphRef.Params.speculative.ngram_cache.lookup_cache_static);
     parseJsonWithCastAuto<std::string_view>(
         Doc, "lookup-cache-dynamic",
-        GraphRef.Params.speculative.lookup_cache_dynamic);
+        GraphRef.Params.speculative.ngram_cache.lookup_cache_dynamic);
     parseJsonWithCastAuto<std::string_view>(Doc, "logits-file",
                                             GraphRef.Params.logits_file);
     parseJsonAuto<bool>(Doc, "lora-init-without-apply",
@@ -394,20 +538,90 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonAuto<bool>(Doc, "ctx-shift", GraphRef.Params.ctx_shift);
     parseJsonAuto<bool>(Doc, "input-prefix-bos",
                         GraphRef.Params.input_prefix_bos);
-    parseJsonAuto<bool>(Doc, "use-mlock", GraphRef.Params.use_mlock);
-    parseJsonAuto<bool>(Doc, "use-mmap", GraphRef.Params.use_mmap);
+    {
+      const auto LoadMode = GraphRef.Params.load_mode;
+      bool UseMmap = LoadMode == LLAMA_LOAD_MODE_AUTO ||
+                     LoadMode == LLAMA_LOAD_MODE_MMAP ||
+                     LoadMode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+      bool UseMlock = LoadMode == LLAMA_LOAD_MODE_MLOCK ||
+                      LoadMode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+      bool LegacyLoadKeyUsed = false;
+      parseJsonWithProcessorAuto<bool>(
+          Doc, "use-mlock", [&UseMlock, &LegacyLoadKeyUsed](const bool &Value) {
+            UseMlock = Value;
+            LegacyLoadKeyUsed = true;
+            return true;
+          });
+      parseJsonWithProcessorAuto<bool>(
+          Doc, "use-mmap", [&UseMmap, &LegacyLoadKeyUsed](const bool &Value) {
+            UseMmap = Value;
+            LegacyLoadKeyUsed = true;
+            return true;
+          });
+      if (LegacyLoadKeyUsed) {
+        if (UseMlock) {
+          GraphRef.Params.load_mode =
+              UseMmap ? LLAMA_LOAD_MODE_MMAP_MLOCK : LLAMA_LOAD_MODE_MLOCK;
+        } else {
+          GraphRef.Params.load_mode =
+              UseMmap ? LLAMA_LOAD_MODE_MMAP : LLAMA_LOAD_MODE_NONE;
+        }
+      }
+    }
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "load-mode",
+        [&GraphRef](const std::string_view &LoadMode) -> bool {
+          if (LoadMode == "auto"sv) {
+            GraphRef.Params.load_mode = LLAMA_LOAD_MODE_AUTO;
+          } else if (LoadMode == "none"sv) {
+            GraphRef.Params.load_mode = LLAMA_LOAD_MODE_NONE;
+          } else if (LoadMode == "mmap"sv) {
+            GraphRef.Params.load_mode = LLAMA_LOAD_MODE_MMAP;
+          } else if (LoadMode == "mlock"sv) {
+            GraphRef.Params.load_mode = LLAMA_LOAD_MODE_MLOCK;
+          } else if (LoadMode == "mmap+mlock"sv) {
+            GraphRef.Params.load_mode = LLAMA_LOAD_MODE_MMAP_MLOCK;
+          } else if (LoadMode == "dio"sv) {
+            GraphRef.Params.load_mode = LLAMA_LOAD_MODE_DIRECT_IO;
+          } else {
+            spdlog::error(
+                "[WASI-NN] GGML backend: The load-mode option must be "
+                "one of: auto, none, mmap, mlock, mmap+mlock, dio."sv);
+            return false;
+          }
+          return true;
+        });
     parseJsonAuto<bool>(Doc, "verbose-prompt", GraphRef.Params.verbose_prompt);
     parseJsonAuto<bool>(Doc, "display-prompt", GraphRef.Params.display_prompt);
     parseJsonAuto<bool>(Doc, "no-kv-offload", GraphRef.Params.no_kv_offload);
     parseJsonAuto<bool>(Doc, "warmup", GraphRef.Params.warmup);
     parseJsonAuto<bool>(Doc, "check-tensors", GraphRef.Params.check_tensors);
-    parseJsonWithCastAuto<int64_t>(Doc, "cache-type-k",
-                                   GraphRef.Params.cache_type_k);
-    parseJsonWithCastAuto<int64_t>(Doc, "cache-type-v",
-                                   GraphRef.Params.cache_type_v);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "cache-type-k", [&GraphRef](const int64_t &CacheType) -> bool {
+          return parseKVCacheType("cache-type-k"sv, CacheType,
+                                  GraphRef.Params.cache_type_k);
+        });
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "cache-type-v", [&GraphRef](const int64_t &CacheType) -> bool {
+          return parseKVCacheType("cache-type-v"sv, CacheType,
+                                  GraphRef.Params.cache_type_v);
+        });
 
-    parseJsonWithCastAuto<int64_t>(Doc, "embd-normalize",
-                                   GraphRef.Params.embd_normalize);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "embd-normalize",
+        [&ConfRef](const int64_t &EmbdNormalize) -> bool {
+          // -1 disables normalization, 0 is max-absolute, 2 is euclidean,
+          // and any other value is the p of a p-norm in common_embd_normalize.
+          if (EmbdNormalize < -1 ||
+              EmbdNormalize >
+                  static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
+            LOG_ERROR("embd-normalize should be in range [-1, {}]."sv,
+                      std::numeric_limits<int32_t>::max())
+            return false;
+          }
+          ConfRef.EmbdNormalize = static_cast<EmbdNormalizeType>(EmbdNormalize);
+          return true;
+        });
     parseJsonWithCastAuto<std::string_view>(Doc, "embd-out",
                                             GraphRef.Params.embd_out);
 
@@ -440,7 +654,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                                             GraphRef.Params.ssl_file_key);
     parseJsonWithCastAuto<std::string_view>(Doc, "ssl-file-cert",
                                             GraphRef.Params.ssl_file_cert);
-    parseJsonAuto<bool>(Doc, "webui", GraphRef.Params.webui);
+    parseJsonAuto<bool>(Doc, "webui", GraphRef.Params.ui);
     parseJsonAuto<bool>(Doc, "endpoint-slots", GraphRef.Params.endpoint_slots);
     parseJsonAuto<bool>(Doc, "endpoint-props", GraphRef.Params.endpoint_props);
     parseJsonAuto<bool>(Doc, "endpoint-metrics",
@@ -519,9 +733,25 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonAuto<bool>(Doc, "batched-bench-output-jsonl",
                         GraphRef.Params.batched_bench_output_jsonl);
   } catch (const ErrNo &Error) {
+    Restore();
     return Error;
+  } catch (const std::exception &E) {
+    Restore();
+    RET_ERROR(ErrNo::InvalidArgument,
+              "metadata: unexpected exception while applying options: {}"sv,
+              E.what())
   }
-  // The tensor buffer overrides should be terminated with an empty pattern.
+  // The override table is derived from the current MoE settings as a whole;
+  // llama.cpp reads it up to the terminating empty pattern.
+  GraphRef.Params.tensor_buft_overrides.clear();
+  GraphRef.TensorBuftOverrides.clear();
+  if (GraphRef.CpuMoe) {
+    GraphRef.TensorBuftOverrides.push_back("\\.ffn_(up|down|gate)_exps");
+  }
+  for (int64_t I = 0; I < GraphRef.NCpuMoe; I++) {
+    GraphRef.TensorBuftOverrides.push_back(
+        fmt::format("blk\\.{}\\.ffn_(up|down|gate)_exps"sv, I));
+  }
   if (!GraphRef.TensorBuftOverrides.empty()) {
     for (const std::string &Override : GraphRef.TensorBuftOverrides) {
       GraphRef.Params.tensor_buft_overrides.push_back(

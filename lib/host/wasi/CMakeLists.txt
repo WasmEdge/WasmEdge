@@ -23,6 +23,13 @@ wasmedge_add_library(wasmedgeHostModuleWasi
   p3/p3_filesystem.cpp
   p3/p3_sockets.cpp
   p3/p3_http.cpp
+  p2/p2_io.cpp
+  p2/p2_clocks.cpp
+  p2/p2_random.cpp
+  p2/p2_cli.cpp
+  p2/p2_filesystem.cpp
+  p2/p2_sockets.cpp
+  p2/p2_http.cpp
   ${WASMEDGE_WASI_SRCS}
 )
 
@@ -35,6 +42,7 @@ target_link_libraries(wasmedgeHostModuleWasi
   PUBLIC
   Threads::Threads
   wasmedgeSystem
+  wasmedgeExecutor
 )
 
 if(NOT APPLE AND NOT WIN32 AND NOT ANDROID)

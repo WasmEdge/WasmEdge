@@ -36,11 +36,11 @@ set(WASMEDGE_SPECTEST_FOLDERS
   "wasm-3.0-relaxed-simd"
   "wasm-3.0-simd"
   "threads"
-  "component-model-async"
   "component-model-binary"
-  "component-model-linking"
-  "component-model-resources"
   "component-model-validation"
+  "component-model-resources"
+  "component-model-linking"
+  "component-model-async"
   "component-model-values"
 )
 

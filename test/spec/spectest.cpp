@@ -35,9 +35,7 @@
 #include <unordered_map>
 #include <variant>
 
-namespace WasmEdge {
-thread_local bool SpecTest::SkipComponentValidation = false;
-}
+namespace WasmEdge {}
 
 namespace {
 
@@ -288,32 +286,7 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"wasm-3.0-simd"sv, WasmEdge::Standard::WASM_3},
     {"threads"sv, WasmEdge::Standard::WASM_2, {Proposal::Threads}},
     // Currently, the component model supports only interpreter mode.
-    {"component-model-async"sv,
-     WasmEdge::Standard::WASM_3,
-     {Proposal::Component, Proposal::Threads},
-     {},
-     WasmEdge::SpecTest::TestMode::Interpreter},
-    {"component-model-binary"sv,
-     WasmEdge::Standard::WASM_3,
-     {Proposal::Component, Proposal::Threads},
-     {},
-     WasmEdge::SpecTest::TestMode::Interpreter},
-    {"component-model-linking"sv,
-     WasmEdge::Standard::WASM_3,
-     {Proposal::Component, Proposal::Threads},
-     {},
-     WasmEdge::SpecTest::TestMode::Interpreter},
-    {"component-model-resources"sv,
-     WasmEdge::Standard::WASM_3,
-     {Proposal::Component, Proposal::Threads},
-     {},
-     WasmEdge::SpecTest::TestMode::Interpreter},
-    {"component-model-validation"sv,
-     WasmEdge::Standard::WASM_3,
-     {Proposal::Component, Proposal::Threads},
-     {},
-     WasmEdge::SpecTest::TestMode::Interpreter},
-    {"component-model-values"sv,
+    {"component-model-wasm-tools"sv,
      WasmEdge::Standard::WASM_3,
      {Proposal::Component, Proposal::Threads},
      {},
@@ -329,102 +302,51 @@ struct ComponentModelSupport {
   bool Execute;
 };
 
-// Whether the folder holds component-model suites.
-bool isComponentModel(std::string_view Proposal) {
-  return Proposal.substr(0, 16) == "component-model-"sv;
-}
-
 // clang-format off
-// Labels the component model support status of each test suite.
+// Labels the component model support status of each test folder.
 // Will be deleted when component model is fully supported.
 std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
-    // | Suite | Test table: {load, validate, instantiate, execute} |
+    // | Folder | Test table: {load, validate, instantiate, execute} |
     // ---------------------------------------------------------------
-    // Suite: the folder name without the `component-model-` prefix, then the
-    //        directory name of the test.
+    // Folder: the directory name of tests.
     // Test table: the testing status of load, validate, instantiate, and execute.
-    {"async/async-calls-sync",                                   {true, true, false, false}},
-    {"async/big-interleaving-test",                              {true, true, false, false}},
-    {"async/builtin-trap-poisons-instance",                      {true, true, false, false}},
-    {"async/cancel-and-exclusive-lock",                          {true, true, false, false}},
-    {"async/cancel-delivery",                                    {true, true, false, false}},
-    {"async/cancel-not-delivered",                               {true, true, false, false}},
-    {"async/cancel-resumed-callback-switch",                     {true, true, false, false}},
-    {"async/cancel-stream",                                      {true, true, false, false}},
-    {"async/cancel-subtask",                                     {true, true, false, false}},
-    {"async/cancel-targeted-resume",                             {true, true, false, false}},
-    {"async/closed-stream",                                      {true, true, false, false}},
-    {"async/cross-abi-calls",                                    {true, true, false, false}},
-    {"async/cross-task-future",                                  {true, true, false, false}},
-    {"async/deadlock",                                           {true, true, false, false}},
-    {"async/dont-block-start",                                   {true, true, false, false}},
-    {"async/drop-cross-task-borrow",                             {true, true, false, false}},
-    {"async/drop-stream",                                        {true, true, false, false}},
-    {"async/drop-subtask",                                       {true, true, false, false}},
-    {"async/drop-waitable-set",                                  {true, true, false, false}},
-    {"async/during-sync-call-exclusive-resume",                  {true, true, false, false}},
-    {"async/during-sync-call-may-block-if-other-ready-threads",  {true, true, false, false}},
-    {"async/during-sync-call-no-sibling-resume",                 {true, true, false, false}},
-    {"async/during-sync-scheduling-candidates",                  {true, true, false, false}},
-    {"async/empty-wait",                                         {true, true, false, false}},
-    {"async/forward",                                            {true, true, false, false}},
-    {"async/future-completion-order",                            {true, true, false, false}},
-    {"async/futures-must-write",                                 {true, true, false, false}},
-    {"async/idle-drop",                                          {true, true, false, false}},
-    {"async/partial-stream-copies",                              {true, true, false, false}},
-    {"async/passing-resources",                                  {true, true, false, false}},
-    {"async/reentrance",                                         {true, true, false, false}},
-    {"async/same-component-stream-future",                       {true, true, false, false}},
-    {"async/self-switch-traps",                                  {true, true, false, false}},
-    {"async/switch-to-ready-callback",                           {true, true, false, false}},
-    {"async/sync-barges-in",                                     {true, true, false, false}},
-    {"async/sync-streams",                                       {true, true, false, false}},
-    {"async/trap-if-block-and-sync",                             {true, true, false, false}},
-    {"async/trap-if-done",                                       {true, true, false, false}},
-    {"async/trap-if-sync-and-waitable-set",                      {true, true, false, false}},
-    {"async/trap-if-transfer-in-waitable-set",                   {true, true, false, false}},
-    {"async/validate-no-async-abi-for-sync-type",                {true, true, true, true}},
-    {"async/validate-no-stream-char",                            {true, true, true, true}},
-    {"async/wait-during-callback",                               {true, true, false, false}},
-    {"async/zero-length",                                        {true, true, false, false}},
-    {"binary/binary",                                            {true, true, false, false}},
-    {"linking/link-time-virtualization",                         {true, true, false, false}},
-    {"linking/shared-everything-dynamic-linking",                {true, true, false, false}},
-    {"linking/tags",                                             {true, true, false, false}},
-    {"linking/unit",                                             {true, true, false, false}},
-    {"resources/borrows",                                        {true, true, false, false}},
-    {"resources/handle-table",                                   {true, true, false, false}},
-    {"resources/multiple-resources",                             {true, true, false, false}},
-    {"validation/abi",                                           {true, true, true, true}},
-    {"validation/annotated-names",                               {true, true, true, true}},
-    {"validation/attributes",                                    {true, true, true, true}},
-    {"validation/core-modules",                                  {true, true, true, true}},
-    {"validation/defined-types",                                 {true, true, true, true}},
-    {"validation/extern-names",                                  {true, true, true, true}},
-    {"validation/external-visibility",                           {true, true, true, true}},
-    {"validation/indicies",                                      {true, true, true, true}},
-    {"validation/instantiation",                                 {true, true, false, false}},
-    {"validation/kebab",                                         {true, true, true, true}},
-    {"validation/max-value-size",                                {true, true, true, true}},
-    {"validation/outer-alias",                                   {true, true, true, true}},
-    {"validation/resources",                                     {true, true, false, false}},
-    {"values/alignment",                                         {true, true, false, false}},
-    {"values/concat",                                            {true, true, false, false}},
-    {"values/numerics",                                          {true, true, false, false}},
-    {"values/post-return",                                       {true, true, false, false}},
-    {"values/realloc",                                           {true, true, false, false}},
-    {"values/strings",                                           {true, true, true, false}},
-    {"values/transcode",                                         {true, true, false, false}},
-    {"values/variants",                                          {true, true, false, false}},
+    {"adapt",                    {true, true, false, false}},
+    {"alias",                    {true, true, false, false}},
+    {"big",                      {true, true, false, false}},
+    {"definedtypes",             {true, true, true, false}},
+    {"empty",                    {true, true, true, false}},
+    {"example",                  {true, true, true, false}},
+    {"export",                   {true, true, false, false}},
+    {"export-ascription",        {true, true, false, false}},
+    {"export-introduces-alias",  {true, true, true, false}},
+    {"func",                     {true, true, true, true}},
+    {"import",                   {true, true, false, false}},
+    {"imports-exports",          {true, true, false, false}},
+    {"inline-exports",           {true, true, true, false}},
+    {"instance-type",            {true, true, true, false}},
+    {"instantiate",              {true, true, false, false}},
+    {"invalid",                  {true, true, false, false}},
+    {"link",                     {true, true, true, false}},
+    {"lots-of-aliases",          {true, true, true, false}},
+    {"lower",                    {true, true, false, false}},
+    {"memory64",                 {true, true, false, false}},
+    {"module-link",              {true, true, false, false}},
+    {"more-flags",               {true, true, true, false}},
+    {"naming",                   {true, true, false, false}},
+    {"nested-modules",           {true, true, false, false}},
+    {"resources",                {true, true, false, false}},
+    {"tags",                     {true, true, true, true}},
+    {"type-export-restrictions", {true, true, false, false}},
+    {"types",                    {true, true, false, false}},
+    {"very-nested",              {true, true, false, false}},
+    {"virtualize",               {true, true, false, false}},
 };
 // clang-format on
 
 // Gets the component model support status of each test folder.
 // Will be deleted when component model is fully supported.
-bool checkComponentSupported(std::string_view Proposal, std::string_view Unit,
-                             WasmEdge::WasmPhase P) {
-  auto It = ComponentModelFolders.find(std::string(Proposal.substr(16)) + '/' +
-                                       std::string(Unit));
+bool checkComponentSupported(std::string_view Folder, WasmEdge::WasmPhase P) {
+  auto It = ComponentModelFolders.find(std::string(Folder));
   if (It == ComponentModelFolders.end()) {
     return false;
   }
@@ -451,7 +373,8 @@ std::vector<std::string> SpecTest::enumerate(const SpecTest::TestMode Mode,
   std::vector<std::string> Cases;
   for (const auto &Proposal : TestsuiteProposals) {
     if (static_cast<uint8_t>(Proposal.Mode) & static_cast<uint8_t>(Mode)) {
-      if (!IncludeComponent && isComponentModel(Proposal.Path)) {
+      if (!IncludeComponent &&
+          Proposal.Path == "component-model-wasm-tools"sv) {
         continue;
       }
       const std::filesystem::path ProposalRoot = TestsuiteRoot / Proposal.Path;
@@ -820,7 +743,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
                                std::string_view UnitName, void *CmdArrayPtr) {
   simdjson::dom::array CmdArray =
       *static_cast<simdjson::dom::array *>(CmdArrayPtr);
-  const bool IsComponent = isComponentModel(Proposal);
+  const bool IsComponent = (Proposal == "component-model-wasm-tools"sv);
 
   std::map<std::string, std::string> Alias;
   std::map<std::string, SpecTest::WasmUnit> ASTMap;
@@ -916,8 +839,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
 
   // Helper function to check trap on loading.
   auto TrapLoad = [&](const std::string &FileName, const std::string &Text) {
-    if (IsComponent &&
-        !checkComponentSupported(Proposal, UnitName, WasmPhase::Loading)) {
+    if (IsComponent && !checkComponentSupported(UnitName, WasmPhase::Loading)) {
       return;
     }
     if (auto Res = onLoad(Ctx, FileName)) {
@@ -934,7 +856,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
   auto TrapValidate = [&](const std::string &FileName,
                           const std::string &Text) {
     if (IsComponent &&
-        !checkComponentSupported(Proposal, UnitName, WasmPhase::Validation)) {
+        !checkComponentSupported(UnitName, WasmPhase::Validation)) {
       return;
     }
     if (auto Res = onValidate(Ctx, FileName); Res) {
@@ -950,8 +872,8 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
   // Helper function to check trap on instantiation.
   auto TrapInstantiate = [&](const std::string &FileName,
                              const std::string &Text) {
-    if (IsComponent && !checkComponentSupported(Proposal, UnitName,
-                                                WasmPhase::Instantiation)) {
+    if (IsComponent &&
+        !checkComponentSupported(UnitName, WasmPhase::Instantiation)) {
       return;
     }
     if (auto Res = onInstantiate(Ctx, FileName); Res) {
@@ -969,7 +891,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
   auto TrapInvoke = [&](const simdjson::dom::object &Action,
                         const std::string &Text, uint64_t LineNumber) {
     if (IsComponent &&
-        !checkComponentSupported(Proposal, UnitName, WasmPhase::Execution)) {
+        !checkComponentSupported(UnitName, WasmPhase::Execution)) {
       // TODO: Component model invocation not yet supported.
       return;
     }
@@ -993,7 +915,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
   auto ExhaustionInvoke = [&](const simdjson::dom::object &Action,
                               uint64_t LineNumber) {
     if (IsComponent &&
-        !checkComponentSupported(Proposal, UnitName, WasmPhase::Execution)) {
+        !checkComponentSupported(UnitName, WasmPhase::Execution)) {
       // TODO: Component model invocation not yet supported.
       return;
     }
@@ -1054,26 +976,20 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         const uint64_t LineNumber = Cmd["line"];
         // Reset the flag for each module command to avoid stale state
         // from prior test entries.
-        SkipComponentValidation = false;
         if (IsComponent) {
-          if (!checkComponentSupported(Proposal, UnitName,
-                                       WasmPhase::Instantiation)) {
-            if (checkComponentSupported(Proposal, UnitName,
-                                        WasmPhase::Validation)) {
+          if (!checkComponentSupported(UnitName, WasmPhase::Instantiation)) {
+            if (checkComponentSupported(UnitName, WasmPhase::Validation)) {
               if (!onValidate(Ctx, FilePath)) {
                 EXPECT_NE(LineNumber, LineNumber);
               }
-            } else if (checkComponentSupported(Proposal, UnitName,
-                                               WasmPhase::Loading)) {
+            } else if (checkComponentSupported(UnitName, WasmPhase::Loading)) {
               if (!onLoad(Ctx, FilePath)) {
                 EXPECT_NE(LineNumber, LineNumber);
               }
             }
             return;
           }
-          if (!checkComponentSupported(Proposal, UnitName,
-                                       WasmPhase::Validation)) {
-            SkipComponentValidation = true;
+          if (!checkComponentSupported(UnitName, WasmPhase::Validation)) {
           }
         }
         std::string LineStr = std::to_string(LineNumber);
@@ -1105,13 +1021,10 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
             u8string(TestsuiteRoot / Proposal / UnitName / FileName);
         const uint64_t LineNumber = Cmd["line"];
         if (IsComponent &&
-            !checkComponentSupported(Proposal, UnitName, WasmPhase::Loading)) {
+            !checkComponentSupported(UnitName, WasmPhase::Loading)) {
           // Skip loading for unsupported component model tests.
           return;
         }
-        SkipComponentValidation =
-            IsComponent &&
-            !checkComponentSupported(Proposal, UnitName, WasmPhase::Validation);
         if (auto Res = onModuleDefine(Ctx, std::string(FilePath)); Res) {
           if (!Cmd["name"].get(ASTName)) {
             ASTMap.emplace(std::string(ASTName), std::move(*Res));
@@ -1123,20 +1036,15 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         return;
       }
       case CommandID::ModuleInstance: {
+        std::string_view ModName = Cmd["name"];
+        std::string_view ASTName = Cmd["definition"];
         const uint64_t LineNumber = Cmd["line"];
         if (IsComponent) {
-          // Instantiating a component from a definition is not supported yet:
-          // skip it unless the suite expects instantiation to work. The
-          // component form of the command may carry no name.
-          if (!checkComponentSupported(Proposal, UnitName,
-                                       WasmPhase::Instantiation)) {
-            return;
-          }
+          // The component model spec tests currently do not have
+          // module_instance commands. Fail explicitly if one is encountered.
           EXPECT_NE(LineNumber, LineNumber);
           return;
         }
-        std::string_view ModName = Cmd["name"];
-        std::string_view ASTName = Cmd["definition"];
         auto ASTDef = ASTMap.find(std::string(ASTName));
         if (ASTDef == ASTMap.end()) {
           EXPECT_NE(LineNumber, LineNumber);
@@ -1154,11 +1062,6 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         return;
       }
       case CommandID::Action: {
-        if (IsComponent) {
-          // Component model invocation not yet supported; the component form
-          // of the command carries no expected results.
-          return;
-        }
         const simdjson::dom::object &Action = Cmd["action"];
         const simdjson::dom::array &Expected = Cmd["expected"];
         const uint64_t LineNumber = Cmd["line"];

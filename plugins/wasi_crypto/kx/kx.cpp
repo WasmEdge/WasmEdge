@@ -22,7 +22,7 @@ struct IsDhCompatible<
 
 // C++17 void_t SFINAE member-detection traits. Only algorithm classes that
 // implement a KEM (e.g. ML-KEM) expose encapsulate/decapsulate; DH classes
-// (X25519, Ecdsa) do not, so they fall through to UNSUPPORTED_FEATURE unchanged.
+// (X25519, Ecdsa) do not, so they fall through to NOT_IMPLEMENTED unchanged.
 template <typename T, typename = void>
 struct HasEncapsulateTrait : std::false_type {};
 template <typename T>
@@ -66,7 +66,7 @@ encapsulate(PkVariant &PkVariant) noexcept {
         if constexpr (HasEncapsulate<InPkType>) {
           return Pk.encapsulate();
         } else {
-          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
+          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
         }
       },
       PkVariant);
@@ -81,7 +81,7 @@ decapsulate(SkVariant &SkVariant,
         if constexpr (HasDecapsulate<InSkType>) {
           return Sk.decapsulate(EncapsulatedSecret);
         } else {
-          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
+          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
         }
       },
       SkVariant);

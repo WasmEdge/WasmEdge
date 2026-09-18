@@ -22,7 +22,6 @@ RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-buil
         https://github.com/Kitware/CMake/releases/download/v3.31.2/cmake-v3.31.2.tar.gz \
         https://github.com/ninja-build/ninja/archive/refs/tags/v1.12.1.tar.gz \
         https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.5/llvm-19.1.5.src.tar.xz \
-        https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.5/lld-19.1.5.src.tar.xz \
         https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.5/libunwind-19.1.5.src.tar.xz \
         https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.5/cmake-19.1.5.src.tar.xz \
         https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.5/third-party-19.1.5.src.tar.xz \
@@ -32,7 +31,6 @@ RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-buil
     gzip -dc cmake-v3.31.2.tar.gz | tar -xf - && \
     gzip -dc v1.12.1.tar.gz | tar -xf - && \
     xz -dc llvm-19.1.5.src.tar.xz | tar -xf - && \
-    xz -dc lld-19.1.5.src.tar.xz | tar -xf - && \
     xz -dc libunwind-19.1.5.src.tar.xz | tar -xf - && \
     xz -dc cmake-19.1.5.src.tar.xz | tar -xf - && \
     xz -dc third-party-19.1.5.src.tar.xz | tar -xf - && \
@@ -46,7 +44,6 @@ RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-buil
     mkdir build && cd build && ../cmake-v3.31.2/configure --prefix=/opt/rh/devtoolset-10/root/usr \
         --parallel=$CPU && make -s -j $CPU && make -s install && cd - && rm -rf build && \
     mv -v llvm-19.1.5.src llvm && \
-    mv -v lld-19.1.5.src lld && \
     mv -v libunwind-19.1.5.src libunwind && \
     mv -v cmake-19.1.5.src cmake && \
     mv -v third-party-19.1.5.src third-party && \
@@ -54,7 +51,7 @@ RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-buil
     cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/opt/rh/devtoolset-10/root/usr \
         -DPython3_ROOT_DIR=/opt/python/cp311-cp311 -DLLVM_LIBDIR_SUFFIX=64 \
-        -DLLVM_TARGETS_TO_BUILD="AArch64;BPF" -DLLVM_ENABLE_PROJECTS="lld;clang" \
+        -DLLVM_TARGETS_TO_BUILD="AArch64;BPF" -DLLVM_ENABLE_PROJECTS="clang" \
         -DLLVM_DEFAULT_TARGET_TRIPLE="aarch64-redhat-linux-gnu" \
         -DBUILD_SHARED_LIBS=OFF llvm && \
     cmake --build build --target install && \

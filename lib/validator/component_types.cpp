@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 #include "validator/component_types.h"
 
+#include "common/component_valtype.h"
 #include "common/errinfo.h"
 #include "common/spdlog.h"
 
@@ -70,10 +71,10 @@ TypeSystem::resolveResourceId(const Scope *Home, const ResourceMap *Remap,
 }
 
 // The primitive behind a valtype, through prim-alias indirections.
-std::optional<AST::Component::PrimValType>
+std::optional<PrimValType>
 TypeSystem::resolvePrimValType(const QualValType &Q) noexcept {
   if (Q.VT.isPrimValType()) {
-    return static_cast<AST::Component::PrimValType>(Q.VT.getCode());
+    return Q.VT.getPrimValType();
   }
   TypeEntry Storage;
   const auto *Entry = resolveQualType(Q, Storage);
@@ -477,31 +478,31 @@ bool TypeSystem::flattenValType(const QualValType &Q, std::vector<ValType> &Out,
   }
   if (const auto Prim = resolvePrimValType(Q)) {
     switch (*Prim) {
-    case AST::Component::PrimValType::Bool:
-    case AST::Component::PrimValType::S8:
-    case AST::Component::PrimValType::U8:
-    case AST::Component::PrimValType::S16:
-    case AST::Component::PrimValType::U16:
-    case AST::Component::PrimValType::S32:
-    case AST::Component::PrimValType::U32:
-    case AST::Component::PrimValType::Char:
+    case PrimValType::Bool:
+    case PrimValType::S8:
+    case PrimValType::U8:
+    case PrimValType::S16:
+    case PrimValType::U16:
+    case PrimValType::S32:
+    case PrimValType::U32:
+    case PrimValType::Char:
       Out.push_back(ValType(TypeCode::I32));
       return true;
-    case AST::Component::PrimValType::S64:
-    case AST::Component::PrimValType::U64:
+    case PrimValType::S64:
+    case PrimValType::U64:
       Out.push_back(ValType(TypeCode::I64));
       return true;
-    case AST::Component::PrimValType::F32:
+    case PrimValType::F32:
       Out.push_back(ValType(TypeCode::F32));
       return true;
-    case AST::Component::PrimValType::F64:
+    case PrimValType::F64:
       Out.push_back(ValType(TypeCode::F64));
       return true;
-    case AST::Component::PrimValType::String:
+    case PrimValType::String:
       Out.push_back(Ptr);
       Out.push_back(Ptr);
       return true;
-    case AST::Component::PrimValType::ErrorContext:
+    case PrimValType::ErrorContext:
       Out.push_back(ValType(TypeCode::I32));
       return true;
     default:
@@ -619,7 +620,7 @@ bool TypeSystem::flattenValType(const QualValType &Q, std::vector<ValType> &Out,
 // True iff the type transitively contains a list, map, or string.
 bool TypeSystem::needsMemory(const QualValType &Q) noexcept {
   if (const auto Prim = resolvePrimValType(Q)) {
-    return *Prim == AST::Component::PrimValType::String;
+    return *Prim == PrimValType::String;
   }
   TypeEntry Storage;
   const auto *Entry = resolveQualType(Q, Storage);
@@ -798,12 +799,10 @@ bool Matcher::matchValType(const QualValType &Sub,
          matchValType(*SubEntry, *SupEntry);
 }
 
-bool Matcher::matchPrimValType(AST::Component::PrimValType Sub,
-                               AST::Component::PrimValType Sup) noexcept {
+bool Matcher::matchPrimValType(PrimValType Sub, PrimValType Sup) noexcept {
   if (Sub != Sup) {
     // Only a class-level difference names the primitive.
-    if ((Sub == AST::Component::PrimValType::String) !=
-        (Sup == AST::Component::PrimValType::String)) {
+    if ((Sub == PrimValType::String) != (Sup == PrimValType::String)) {
       FailCode = ErrCode::Value::ComponentPrimitiveMismatch;
     }
     return false;

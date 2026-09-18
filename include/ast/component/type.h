@@ -15,7 +15,7 @@
 
 #include "ast/component/declarator.h"
 #include "ast/component/valtype.h"
-#include "common/types.h"
+#include "common/component_valtype.h"
 
 #include <optional>
 #include <variant>
@@ -378,11 +378,29 @@ public:
       : ParamList(std::move(P)), ResultList(std::move(R)) {}
 
   Span<const LabelValType> getParamList() const noexcept { return ParamList; }
+  /// The value types of the parameters, in order.
+  std::vector<ComponentValType> getParamValTypes() const noexcept {
+    std::vector<ComponentValType> Types;
+    Types.reserve(ParamList.size());
+    for (const auto &P : ParamList) {
+      Types.push_back(P.getValType());
+    }
+    return Types;
+  }
   void setParamList(std::vector<LabelValType> &&P) noexcept {
     ParamList = std::move(P);
   }
 
   Span<const LabelValType> getResultList() const noexcept { return ResultList; }
+  /// The value types of the results, in order.
+  std::vector<ComponentValType> getResultValTypes() const noexcept {
+    std::vector<ComponentValType> Types;
+    Types.reserve(ResultList.size());
+    for (const auto &R : ResultList) {
+      Types.push_back(R.getValType());
+    }
+    return Types;
+  }
   void setResultList(std::vector<LabelValType> &&R) noexcept {
     ResultList = std::move(R);
   }

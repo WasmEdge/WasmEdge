@@ -11,6 +11,11 @@ wasmedge_add_executable(wasiTests
   p3_filesystem.cpp
   p3_sockets.cpp
   p3_http.cpp
+  p2_io.cpp
+  p2_cli.cpp
+  p2_filesystem.cpp
+  p2_sockets.cpp
+  p2_http.cpp
 )
 
 add_test(wasiTests wasiTests)
@@ -18,9 +23,9 @@ add_test(wasiTests wasiTests)
 target_link_libraries(wasiTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
+  wasmedgeHostModuleWasi
   wasmedgeExecutor
   wasmedgeLoader
-  wasmedgeHostModuleWasi
 )
 
 if(WASMEDGE_BUILD_COVERAGE)

@@ -94,17 +94,9 @@ TEST_P(CoreTest, TestSuites) {
         return {};
       }
     }
-    if (T.SkipComponentValidation) {
-      // For component-model tests where validation is not yet supported,
-      // skip validation by force-setting the stage as validated.
-      return VM.loadWasm(FileName)
-          .and_then([&VM]() { return VM.forceValidateForComponent(); })
-          .and_then([&VM]() { return VM.instantiate(); });
-    } else {
-      return VM.loadWasm(FileName)
-          .and_then([&VM]() { return VM.validate(); })
-          .and_then([&VM]() { return VM.instantiate(); });
-    }
+    return VM.loadWasm(FileName)
+        .and_then([&VM]() { return VM.validate(); })
+        .and_then([&VM]() { return VM.instantiate(); });
   };
   T.onLoad = [](SpecTest::ContextHandle Ctx,
                 const std::string &FileName) -> Expect<void> {
@@ -126,7 +118,7 @@ TEST_P(CoreTest, TestSuites) {
     if (std::holds_alternative<std::unique_ptr<AST::Module>>(ASTUnit)) {
       auto &ASTMod = std::get<std::unique_ptr<AST::Module>>(ASTUnit);
       EXPECTED_TRY(Validator.validate(*ASTMod.get()));
-    } else if (!T.SkipComponentValidation) {
+    } else {
       auto &ASTComp =
           std::get<std::unique_ptr<AST::Component::Component>>(ASTUnit);
       EXPECTED_TRY(Validator.validate(*ASTComp.get()));

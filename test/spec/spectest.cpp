@@ -35,9 +35,7 @@
 #include <unordered_map>
 #include <variant>
 
-namespace WasmEdge {
-thread_local bool SpecTest::SkipComponentValidation = false;
-}
+namespace WasmEdge {}
 
 namespace {
 
@@ -375,7 +373,8 @@ std::vector<std::string> SpecTest::enumerate(const SpecTest::TestMode Mode,
   std::vector<std::string> Cases;
   for (const auto &Proposal : TestsuiteProposals) {
     if (static_cast<uint8_t>(Proposal.Mode) & static_cast<uint8_t>(Mode)) {
-      if (!IncludeComponent && Proposal.Path == "component-model-wasm-tools"sv) {
+      if (!IncludeComponent &&
+          Proposal.Path == "component-model-wasm-tools"sv) {
         continue;
       }
       const std::filesystem::path ProposalRoot = TestsuiteRoot / Proposal.Path;
@@ -956,7 +955,6 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         const uint64_t LineNumber = Cmd["line"];
         // Reset the flag for each module command to avoid stale state
         // from prior test entries.
-        SkipComponentValidation = false;
         if (IsComponent) {
           if (!checkComponentSupported(UnitName, WasmPhase::Instantiation)) {
             if (checkComponentSupported(UnitName, WasmPhase::Validation)) {
@@ -971,7 +969,6 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
             return;
           }
           if (!checkComponentSupported(UnitName, WasmPhase::Validation)) {
-            SkipComponentValidation = true;
           }
         }
         std::string LineStr = std::to_string(LineNumber);
@@ -1007,9 +1004,6 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
           // Skip loading for unsupported component model tests.
           return;
         }
-        SkipComponentValidation =
-            IsComponent &&
-            !checkComponentSupported(UnitName, WasmPhase::Validation);
         if (auto Res = onModuleDefine(Ctx, std::string(FilePath)); Res) {
           if (!Cmd["name"].get(ASTName)) {
             ASTMap.emplace(std::string(ASTName), std::move(*Res));

@@ -3,9 +3,9 @@
 
 #include "ast/component/component.h"
 #include "ast/component/type.h"
+#include "loader/loader.h"
 #include "validator/component_value_decode.h"
 #include "validator/validator.h"
-#include "vm/vm.h"
 
 #include <gtest/gtest.h>
 
@@ -2295,16 +2295,22 @@ static const std::vector<uint8_t> validator_no_realloc_wasm = {
 // canon lift whose result spills into the return area but omits 'memory'.
 // The validator must reject this end-to-end.
 TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoMemoryRejected) {
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(validator_no_memory_wasm));
-  EXPECT_FALSE(VM.validate());
+  Loader::Loader Loader(Conf);
+  auto Unit = Loader.parseWasmUnit(validator_no_memory_wasm);
+  ASSERT_TRUE(Unit);
+  auto &Comp = std::get<std::unique_ptr<AST::Component::Component>>(*Unit);
+  Validator::Validator V(Conf);
+  EXPECT_FALSE(V.validate(*Comp));
 }
 
 // canon lift whose string param forces a realloc but omits 'realloc'.
 TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoReallocRejected) {
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(validator_no_realloc_wasm));
-  EXPECT_FALSE(VM.validate());
+  Loader::Loader Loader(Conf);
+  auto Unit = Loader.parseWasmUnit(validator_no_realloc_wasm);
+  ASSERT_TRUE(Unit);
+  auto &Comp = std::get<std::unique_ptr<AST::Component::Component>>(*Unit);
+  Validator::Validator V(Conf);
+  EXPECT_FALSE(V.validate(*Comp));
 }
 
 // =============================================================================

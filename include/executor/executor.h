@@ -158,9 +158,19 @@ public:
   /// Getter for configuration.
   const Configure &getConfigure() const { return Conf; }
 
+  /// Resolve the imports of a core module by module name.
+  using CoreModuleFinder =
+      std::function<const Runtime::Instance::ModuleInstance *(
+          std::string_view)>;
+
   /// Instantiate a WASM Module as an anonymous module instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
   instantiateModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod);
+
+  /// Instantiate the sections of a core module into a caller-owned instance.
+  Expect<void> instantiateModule(const CoreModuleFinder &ModuleFinder,
+                                 Runtime::Instance::ModuleInstance &ModInst,
+                                 const AST::Module &Mod);
 
   /// Instantiate and register a WASM module as a named module instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
@@ -238,11 +248,9 @@ private:
               std::optional<std::string_view> Name = std::nullopt);
 
   /// Instantiation of Imports.
-  Expect<void> instantiate(
-      std::function<const Runtime::Instance::ModuleInstance *(std::string_view)>
-          ModuleFinder,
-      Runtime::Instance::ModuleInstance &ModInst,
-      const AST::ImportSection &ImportSec);
+  Expect<void> instantiate(const CoreModuleFinder &ModuleFinder,
+                           Runtime::Instance::ModuleInstance &ModInst,
+                           const AST::ImportSection &ImportSec);
 
   /// Instantiation of Function Instances.
   Expect<void> instantiate(Runtime::Instance::ModuleInstance &ModInst,

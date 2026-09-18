@@ -18,6 +18,8 @@
 
 #include "ast/component/component.h"
 #include "ast/module.h"
+#include "common/component_valtype.h"
+#include "common/component_variant.h"
 #include "common/configure.h"
 #include "common/errcode.h"
 #include "common/filesystem.h"
@@ -133,6 +135,21 @@ public:
       const std::vector<ValVariant> &Params,
       const std::vector<ValType> &ParamTypes);
   std::function<InvokeCallback> onInvoke;
+
+  // Invoke a component function with component-level values. The parameter
+  // types come from the own type of the function.
+  using CompInvokeCallback =
+      Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>(
+          ContextHandle Ctx, const std::string &ModName,
+          const std::string &Field,
+          const std::vector<ComponentValVariant> &Params);
+  std::function<CompInvokeCallback> onCompInvoke;
+
+  // Instantiate a stored component definition and register it by name.
+  using CompInstanceFromDefCallback =
+      Expect<void>(ContextHandle Ctx, const std::string &ModName,
+                   const AST::Component::Component &Comp);
+  std::function<CompInstanceFromDefCallback> onCompInstanceFromDef;
 
   using GetCallback = Expect<std::pair<ValVariant, ValType>>(
       ContextHandle Ctx, const std::string &ModName, const std::string &Field);

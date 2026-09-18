@@ -14,6 +14,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "common/component_variant.h"
 #include "common/defines.h"
 #include "common/spdlog.h"
 #include "executor/executor.h"

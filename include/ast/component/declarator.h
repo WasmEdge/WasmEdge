@@ -17,6 +17,7 @@
 #include "ast/component/descriptor.h"
 #include "common/span.h"
 
+#include <memory>
 #include <string>
 #include <string_view>
 #include <variant>

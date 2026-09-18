@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-//===-- wasmedge/runtime/instance/component.h - Component Instance definition //
+//===-- wasmedge/runtime/instance/component/component.h - Instance --------===//
 //
 // Part of the WasmEdge Project.
 //
@@ -15,478 +15,730 @@
 
 #include "ast/component/component.h"
 #include "ast/module.h"
-#include "ast/type.h"
+#include "common/component_variant.h"
 #include "common/errcode.h"
-#include "common/types.h"
+#include "common/span.h"
+#include "runtime/component/hostfunc.h"
+#include "runtime/component/thread.h"
 #include "runtime/instance/component/function.h"
+#include "runtime/instance/component/resource.h"
+#include "runtime/instance/component/stream.h"
 #include "runtime/instance/module.h"
-#include "runtime/instance/tag.h"
 
-#include <atomic>
+#include <cstdint>
+#include <deque>
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
-#include <type_traits>
+#include <string_view>
+#include <typeindex>
+#include <utility>
+#include <variant>
 #include <vector>
 
 namespace WasmEdge {
+
+namespace Executor {
+class ComponentExecutor;
+} // namespace Executor
+
 namespace Runtime {
+namespace Component {
+class Task;
+} // namespace Component
+
 namespace Instance {
 
-class ComponentInstance;
-
-class ComponentImportManager {
-  // The import manager is used to supply imports for locally instantiated child
-  // components and core modules.
+/// The runtime state of one component instantiation: the index spaces, the
+/// owned runtime objects, and the exports. A root instance owns the copy of
+/// the component AST its index spaces point into; a nested one points into
+/// the copy of the instance it belongs to.
+class ComponentInstance {
 public:
-  // Export a named component func to this import manager.
-  void exportFunction(std::string_view Name,
-                      Component::FunctionInstance *Inst) noexcept {
-    NamedFunc.emplace(Name, Inst);
+  /// A component definition plus the lexical environment it closed over.
+  struct ComponentDefinition {
+    const AST::Component::Component *Comp = nullptr;
+    ComponentInstance *Env = nullptr;
+  };
+
+  /// A resource entry of the `handles` table. The table keeps it at a stable
+  /// address, so a lending subtask may hold a pointer to it.
+  struct ResourceHandle {
+    const Component::ResourceTypeInstance *ResType = nullptr;
+    uint64_t Rep = 0;
+    bool Own = true;
+    uint32_t NumLends = 0;
+    /// The task that received this borrow; null for own and host handles.
+    Runtime::Component::Task *BorrowScope = nullptr;
+  };
+
+  /// A stream or future end entry of the `handles` table.
+  using StreamEnd =
+      std::pair<std::shared_ptr<Component::Stream>, Component::Stream::End>;
+
+  /// One slot of the `handles` table; the monostate marks a free slot.
+  using HandleSlot =
+      std::variant<std::monostate, ResourceHandle,
+                   std::shared_ptr<Runtime::Component::Task>,
+                   std::vector<uint32_t>, StreamEnd, std::string>;
+
+  /// A type definition, the runtime identity of a resource type, and the
+  /// instance whose index space the nested type indices belong to.
+  struct TypeDefinition {
+    const AST::Component::DefType *Def = nullptr;
+    const Component::ResourceTypeInstance *Resource = nullptr;
+    const ComponentInstance *Owner = nullptr;
+  };
+
+  /// Constructor. The lexical parent of a nested instance is what its outer
+  /// aliases resolve through during instantiation.
+  ComponentInstance(std::string_view Name,
+                    ComponentInstance *ParentInst = nullptr)
+      : CompName(Name), Parent(ParentInst),
+        Root(ParentInst != nullptr ? ParentInst->Root : this) {}
+  /// The threads of this instance end with it: a parked one unwinds now,
+  /// before any member it may still read goes away.
+  virtual ~ComponentInstance() noexcept {
+    for (auto *Entry : Threads) {
+      if (Entry == nullptr) {
+        continue;
+      }
+      if (!Entry->isEnded() && Entry->getInnermost() == Entry &&
+          !Entry->isRunning()) {
+        Entry->onResume(Runtime::Component::Thread::Reason::Abort);
+      }
+      Entry->setIndex(0);
+    }
+    Threads.clear();
+  }
+  ComponentInstance(const ComponentInstance &) = delete;
+  ComponentInstance &operator=(const ComponentInstance &) = delete;
+
+  /// Getter for the component name.
+  std::string_view getComponentName() const noexcept { return CompName; }
+
+  /// Getter for the lexical parent.
+  ComponentInstance *getParent() noexcept { return Parent; }
+  const ComponentInstance *getParent() const noexcept { return Parent; }
+
+  /// Take the copy of the component this instance is instantiated from. A
+  /// root instance walks this copy, so its index spaces never point into an
+  /// AST its embedder may free.
+  const AST::Component::Component &
+  ownComponent(std::unique_ptr<AST::Component::Component> &&CompAST) noexcept {
+    OwnedComp = std::move(CompAST);
+    return *OwnedComp;
   }
 
-  // Export a named component instance to this import manager.
-  void exportComponentInstance(std::string_view Name,
-                               const ComponentInstance *Inst) noexcept {
-    NamedCompInst.emplace(Name, Inst);
+  /// Root of the lexical instantiation tree (poisoning + host-entry checks).
+  const ComponentInstance *getRoot() const noexcept { return Root; }
+
+  /// True when callee and caller are the same instance or lexical relatives,
+  /// for which an adapter call always traps.
+  bool isLinealRelative(const ComponentInstance *Other) const noexcept {
+    if (Other == nullptr) {
+      return false;
+    }
+    for (const ComponentInstance *Inst = this; Inst != nullptr;
+         Inst = Inst->Parent) {
+      if (Inst == Other) {
+        return true;
+      }
+    }
+    for (const ComponentInstance *Inst = Other; Inst != nullptr;
+         Inst = Inst->Parent) {
+      if (Inst == this) {
+        return true;
+      }
+    }
+    return false;
   }
 
-  // Export a named core function instance to this import manager.
-  void exportCoreFunctionInstance(std::string_view Name,
-                                  FunctionInstance *Inst) noexcept {
-    NamedCoreFunc.emplace(Name, Inst);
+  /// \name The canonical `handles` table, one index space for every kind.
+  /// @{
+  /// The live slot at an index, whatever kind it holds. Error logging needs
+  /// to be handled by the caller.
+  Expect<const HandleSlot *> getHandleSlot(uint32_t Idx) const noexcept {
+    if (!isSlotLive(Idx)) {
+      return Unexpect(ErrCode::Value::ComponentHandleUnknown);
+    }
+    return &Handles[Idx];
   }
 
-  // Export a named core table instance to this import manager.
-  void exportCoreTableInstance(std::string_view Name,
-                               TableInstance *Inst) noexcept {
-    NamedCoreTable.emplace(Name, Inst);
+  /// Resource entries.
+  ResourceHandle *findHandle(uint32_t Idx) const noexcept {
+    if (!isSlotLive(Idx)) {
+      return nullptr;
+    }
+    return std::get_if<ResourceHandle>(&Handles[Idx]);
   }
 
-  // Export a named core memory instance to this import manager.
-  void exportCoreMemoryInstance(std::string_view Name,
-                                MemoryInstance *Inst) noexcept {
-    NamedCoreMemory.emplace(Name, Inst);
-  }
-
-  // Export a named core global instance to this import manager.
-  void exportCoreGlobalInstance(std::string_view Name,
-                                GlobalInstance *Inst) noexcept {
-    NamedCoreGlobal.emplace(Name, Inst);
-  }
-
-  // Export a named core module instance to this import manager.
-  void exportCoreModuleInstance(std::string_view Name,
-                                const ModuleInstance *Inst) noexcept {
-    NamedCoreModInst.emplace(Name, Inst);
-  }
-
-  // Export a named component to this import manager.
-  void exportComponent(std::string_view Name,
-                       const AST::Component::Component *Comp) noexcept {
-    NamedComp.emplace(Name, Comp);
-  }
-
-  // Export a named core type to this import manager.
-  void exportCoreType(std::string_view Name,
-                      const AST::Component::CoreDefType *Ty) noexcept {
-    NamedCoreType.emplace(Name, Ty);
-  }
-
-  // Export a named core module to this import manager.
-  void exportCoreModule(std::string_view Name,
-                        const AST::Module *Mod) noexcept {
-    NamedCoreMod.emplace(Name, Mod);
-  }
-
-  // Find component func by name.
-  Component::FunctionInstance *
-  findFunction(std::string_view Name) const noexcept {
-    return findExport(NamedFunc, Name);
-  }
-
-  // Find component instance by name.
-  const ComponentInstance *
-  findComponentInstance(std::string_view Name) const noexcept {
-    return findExport(NamedCompInst, Name);
-  }
-
-  // Find core function instance by name.
-  FunctionInstance *
-  findCoreFunctionInstance(std::string_view Name) const noexcept {
-    return findExport(NamedCoreFunc, Name);
-  }
-
-  // Find core table instance by name.
-  TableInstance *findCoreTableInstance(std::string_view Name) const noexcept {
-    return findExport(NamedCoreTable, Name);
-  }
-
-  // Find core memory instance by name.
-  MemoryInstance *findCoreMemoryInstance(std::string_view Name) const noexcept {
-    return findExport(NamedCoreMemory, Name);
-  }
-
-  // Find core global instance by name.
-  GlobalInstance *findCoreGlobalInstance(std::string_view Name) const noexcept {
-    return findExport(NamedCoreGlobal, Name);
-  }
-
-  // Find core module instance by name.
-  const ModuleInstance *
-  findCoreModuleInstance(std::string_view Name) const noexcept {
-    return findExport(NamedCoreModInst, Name);
-  }
-
-  // Find component by name.
-  const AST::Component::Component *
-  findComponent(std::string_view Name) const noexcept {
-    return findExport(NamedComp, Name);
-  }
-
-  // Find core type by name.
-  const AST::Component::CoreDefType *
-  findCoreType(std::string_view Name) const noexcept {
-    return findExport(NamedCoreType, Name);
-  }
-
-  // Find core module by name.
-  const AST::Module *findCoreModule(std::string_view Name) const noexcept {
-    return findExport(NamedCoreMod, Name);
-  }
-
-  // Reset the import manager.
-  void reset() noexcept {
-    NamedFunc.clear();
-    NamedCompInst.clear();
-    NamedCoreFunc.clear();
-    NamedCoreTable.clear();
-    NamedCoreMemory.clear();
-    NamedCoreGlobal.clear();
-    NamedCoreModInst.clear();
-    NamedComp.clear();
-    NamedCoreType.clear();
-    NamedCoreMod.clear();
-  }
-
-private:
-  // Find export template.
-  template <typename T>
-  T *findExport(const std::map<std::string, T *, std::less<>> &Map,
-                std::string_view ExtName) const noexcept {
-    auto Iter = Map.find(ExtName);
-    if (likely(Iter != Map.cend())) {
-      return Iter->second;
+  /// Subtask entries: the callee task itself.
+  Runtime::Component::Task *findSubtask(uint32_t Idx) const noexcept {
+    if (!isSlotLive(Idx)) {
+      return nullptr;
+    }
+    if (auto *TaskPtr = std::get_if<std::shared_ptr<Runtime::Component::Task>>(
+            &Handles[Idx])) {
+      return TaskPtr->get();
     }
     return nullptr;
   }
 
-  // Export with name for the index spaces.
-  std::map<std::string, Component::FunctionInstance *, std::less<>> NamedFunc;
-  // TODO: NamedValue
-  // TODO: NamedType
-  std::map<std::string, const ComponentInstance *, std::less<>> NamedCompInst;
-  std::map<std::string, const AST::Component::Component *, std::less<>>
-      NamedComp;
-  std::map<std::string, FunctionInstance *, std::less<>> NamedCoreFunc;
-  std::map<std::string, TableInstance *, std::less<>> NamedCoreTable;
-  std::map<std::string, MemoryInstance *, std::less<>> NamedCoreMemory;
-  std::map<std::string, GlobalInstance *, std::less<>> NamedCoreGlobal;
-  std::map<std::string, const AST::Component::CoreDefType *, std::less<>>
-      NamedCoreType;
-  std::map<std::string, const ModuleInstance *, std::less<>> NamedCoreModInst;
-  std::map<std::string, const AST::Module *, std::less<>> NamedCoreMod;
-};
-
-class ComponentInstance {
-  // The component instance class is used not only for the runtime data
-  // structure but also for the instantiation context according to the linking
-  // isolation and the module and component type declarations.
-public:
-  ComponentInstance(std::string_view Name) : CompName(Name) {}
-
-  // Getter for the component name.
-  std::string_view getComponentName() const noexcept { return CompName; }
-
-  // Instantiation finalizer. Should clean up all instantiation time data.
-  void finishInstantiation() noexcept {
-    Comps.clear();
-    CoreMods.clear();
-  }
-
-  // values stored in component instance
-  ComponentValVariant getValue(uint32_t Index) const noexcept {
-    if (ValueList.size() > Index) {
-      return ValueList[Index];
+  /// Stream and future end entries.
+  const StreamEnd *findStreamEnd(uint32_t Idx) const noexcept {
+    if (!isSlotLive(Idx)) {
+      return nullptr;
     }
-    return 0;
-  }
-  void setValue(uint32_t Index, ComponentValVariant V) noexcept {
-    if (ValueList.size() <= Index) {
-      ValueList.resize(Index + 1, 0U);
-    }
-    ValueList[Index] = V;
+    return std::get_if<StreamEnd>(&Handles[Idx]);
   }
 
-  // Index space: component function instance.
-  void
-  addFunction(std::unique_ptr<Component::FunctionInstance> &&Inst) noexcept {
-    OwnedFuncInsts.push_back(std::move(Inst));
-    FuncInsts.push_back(OwnedFuncInsts.back().get());
+  /// Waitable-set entries: the waitables that joined, in join order.
+  std::vector<uint32_t> *findWaitableSet(uint32_t Idx) const noexcept {
+    if (!isSlotLive(Idx)) {
+      return nullptr;
+    }
+    return std::get_if<std::vector<uint32_t>>(&Handles[Idx]);
   }
-  void addFunction(Component::FunctionInstance *Inst) noexcept {
-    FuncInsts.push_back(Inst);
+
+  /// Error-context entries.
+  std::string *findErrorContext(uint32_t Idx) const noexcept {
+    if (!isSlotLive(Idx)) {
+      return nullptr;
+    }
+    return std::get_if<std::string>(&Handles[Idx]);
   }
-  Component::FunctionInstance *getFunction(uint32_t Index) const noexcept {
-    return FuncInsts[Index];
+  /// @}
+
+  /// \name The concurrency state of the instance.
+  /// @{
+  /// True while the instance is executing or still instantiating.
+  bool isEntered() const noexcept { return Entered; }
+
+  /// Getter for the no-leave region flag.
+  bool mayLeave() const noexcept { return MayLeave; }
+
+  /// Getter for the backpressure counter.
+  int64_t getBackpressure() const noexcept { return Backpressure; }
+
+  /// Getter for the number of tasks blocked at the entry gate.
+  uint32_t getNumWaitingToEnter() const noexcept { return NumWaitingToEnter; }
+
+  /// Getter for the thread holding the instance exclusively.
+  Runtime::Component::Thread *getExclusiveThread() const noexcept {
+    return ExclusiveThread;
   }
-  void exportFunction(std::string_view Name, uint32_t Idx) noexcept {
-    ExpFuncInsts.insert_or_assign(std::string(Name), FuncInsts[Idx]);
+
+  /// A trapped instance tree rejects every further entry.
+  bool isPoisoned() const noexcept { return Poisoned; }
+
+  /// Getter for a thread of the per-instance thread table.
+  Runtime::Component::Thread *findThread(uint32_t Idx) const noexcept {
+    return Idx != 0 && Idx < Threads.size() ? Threads[Idx] : nullptr;
   }
-  Component::FunctionInstance *
+  /// Every registered thread; the dead slot 0 included as null.
+  Span<Runtime::Component::Thread *const> getThreads() const noexcept {
+    return Threads;
+  }
+  /// @}
+
+  /// \name Exports: value and component function.
+  /// @{
+  const ComponentValVariant *findValue(std::string_view Name) const noexcept {
+    auto Iter = ExpValues.find(Name);
+    return Iter != ExpValues.end() ? &Iter->second : nullptr;
+  }
+  /// Register a host component function under an export name; it declares
+  /// its type into the type index space of this instance.
+  void addHostFunc(
+      std::string_view Name,
+      std::unique_ptr<Runtime::Component::HostFunctionBase> &&Host) noexcept {
+    Host->declare(getTypeMinter());
+    exportFunction(Name,
+                   addFunction(std::make_unique<ComponentFunctionInstance>(
+                       std::move(Host), this)));
+  }
+  /// The minter of host-declared types into the type index space.
+  Runtime::Component::TypeMinter getTypeMinter() noexcept {
+    return Runtime::Component::TypeMinter(
+        [this](AST::Component::DefType &&Ty) { return addType(std::move(Ty)); },
+        [this](std::type_index Tag) {
+          auto Iter = HostResourceTags.find(Tag);
+          assuming(Iter != HostResourceTags.end());
+          return Iter->second;
+        });
+  }
+  ComponentFunctionInstance *
   findFunction(std::string_view Name) const noexcept {
     return findExport(ExpFuncInsts, Name);
+  }
+  /// Find an exported function by the embedder-facing path: either a top-level
+  /// export name, or `interface#func` reaching into an exported instance.
+  ComponentFunctionInstance *
+  findExportedFunction(std::string_view Name) const noexcept {
+    if (auto *Func = findFunction(Name); Func != nullptr) {
+      return Func;
+    }
+    const auto Pos = Name.find('#');
+    if (Pos == std::string_view::npos) {
+      return nullptr;
+    }
+    const auto *Inst = findComponentInstance(Name.substr(0, Pos));
+    return Inst != nullptr ? Inst->findFunction(Name.substr(Pos + 1)) : nullptr;
   }
   template <typename CallbackT>
   auto getFuncExports(CallbackT &&CallBack) const noexcept {
     return std::forward<CallbackT>(CallBack)(ExpFuncInsts);
   }
+  /// @}
 
-  // Index space: type.
-  // TODO: deep copy the type
-  void addType(const AST::Component::DefType &Ty) noexcept {
-    Types.emplace_back(&Ty);
+  /// \name Index space: type.
+  /// @{
+  /// A host-built type; the instance owns the definition.
+  uint32_t addType(AST::Component::DefType &&Ty) noexcept {
+    OwnedTypes.push_back(
+        std::make_unique<AST::Component::DefType>(std::move(Ty)));
+    Types.push_back({OwnedTypes.back().get(), nullptr, this});
+    return static_cast<uint32_t>(Types.size() - 1);
   }
-  const AST::Component::DefType *getType(uint32_t Index) const noexcept {
-    return Types[Index];
+  /// Host-defined resource type with a host destructor.
+  uint32_t addHostResourceType(std::function<void(uint64_t)> Dtor) noexcept {
+    OwnedResourceTypes.push_back(
+        std::make_unique<Component::ResourceTypeInstance>(
+            this, nullptr, std::move(Dtor), false));
+    Types.push_back({nullptr, OwnedResourceTypes.back().get(), this});
+    return static_cast<uint32_t>(Types.size() - 1);
+  }
+  /// Host-defined resource type registered under the C++ tag R, which
+  /// `Own<R>` and `Borrow<R>` in host function types resolve to.
+  template <typename R>
+  uint32_t addHostResourceType(std::function<void(uint64_t)> Dtor) noexcept {
+    const uint32_t Idx = addHostResourceType(std::move(Dtor));
+    HostResourceTags.insert_or_assign(std::type_index(typeid(R)), Idx);
+    return Idx;
+  }
+  /// A resource type another host instance defined, shared under the tag R.
+  template <typename R>
+  uint32_t addSharedResourceType(
+      const Component::ResourceTypeInstance *Resource) noexcept {
+    addTypeDefinition({nullptr, Resource, nullptr});
+    const uint32_t Idx = static_cast<uint32_t>(Types.size() - 1);
+    HostResourceTags.insert_or_assign(std::type_index(typeid(R)), Idx);
+    return Idx;
+  }
+  Expect<const TypeDefinition *>
+  getTypeDefinition(uint32_t Idx) const noexcept {
+    if (unlikely(Idx >= Types.size())) {
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
+    }
+    return &Types[Idx];
+  }
+  /// The definition behind a type index; null for a host resource type.
+  Expect<const AST::Component::DefType *> getType(uint32_t Idx) const noexcept {
+    EXPECTED_TRY(const auto *TypeDef, getTypeDefinition(Idx));
+    return TypeDef->Def;
+  }
+  /// The resource identity behind a type index; null for a value type.
+  Expect<const Component::ResourceTypeInstance *>
+  getTypeResource(uint32_t Idx) const noexcept {
+    EXPECTED_TRY(const auto *TypeDef, getTypeDefinition(Idx));
+    return TypeDef->Resource;
   }
   void exportType(std::string_view Name, uint32_t Idx) noexcept {
+    assuming(Idx < Types.size());
     ExpTypes.insert_or_assign(std::string(Name), Types[Idx]);
+  }
+  const TypeDefinition *
+  findTypeDefinition(std::string_view Name) const noexcept {
+    auto Iter = ExpTypes.find(Name);
+    return Iter != ExpTypes.end() ? &Iter->second : nullptr;
   }
   const AST::Component::DefType *
   findType(std::string_view Name) const noexcept {
-    return findExport(ExpTypes, Name);
+    const auto *TypeDef = findTypeDefinition(Name);
+    return TypeDef != nullptr ? TypeDef->Def : nullptr;
   }
+  const Component::ResourceTypeInstance *
+  findTypeResource(std::string_view Name) const noexcept {
+    const auto *TypeDef = findTypeDefinition(Name);
+    return TypeDef != nullptr ? TypeDef->Resource : nullptr;
+  }
+  /// @}
 
-  // Index space: component instance.
-  void
+  /// \name Index space and exports: component instance.
+  /// @{
+  /// A nested instance this instance owns.
+  const ComponentInstance *
   addComponentInstance(std::unique_ptr<ComponentInstance> &&Inst) noexcept {
     OwnedCompInsts.push_back(std::move(Inst));
     CompInsts.push_back(OwnedCompInsts.back().get());
+    return OwnedCompInsts.back().get();
   }
-  void addComponentInstance(const ComponentInstance *Inst) noexcept {
-    CompInsts.push_back(Inst);
+  Expect<const ComponentInstance *>
+  getComponentInstance(uint32_t Idx) const noexcept {
+    if (unlikely(Idx >= CompInsts.size())) {
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
+    }
+    return CompInsts[Idx];
   }
-  const ComponentInstance *getComponentInstance(uint32_t Index) const noexcept {
-    return CompInsts[Index];
-  }
-  void exportComponentInstance(std::string_view Name, uint32_t Idx) noexcept {
-    ExpCompInsts.insert_or_assign(std::string(Name), CompInsts[Idx]);
+  void exportComponentInstance(std::string_view Name,
+                               const ComponentInstance *Inst) noexcept {
+    ExpCompInsts.insert_or_assign(std::string(Name), Inst);
   }
   const ComponentInstance *
   findComponentInstance(std::string_view Name) const noexcept {
     return findExport(ExpCompInsts, Name);
   }
+  template <typename CallbackT>
+  auto getComponentInstanceExports(CallbackT &&CallBack) const noexcept {
+    return std::forward<CallbackT>(CallBack)(ExpCompInsts);
+  }
+  /// @}
 
-  // Index space: component. (declaration for instantiation phase)
-  void addComponent(const AST::Component::Component &C) noexcept {
-    Comps.emplace_back(&C);
+  /// \name Index space and exports: component.
+  /// @{
+  Expect<const ComponentDefinition *>
+  getComponentDefinition(uint32_t Idx) const noexcept {
+    if (unlikely(Idx >= Comps.size())) {
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
+    }
+    return &Comps[Idx];
   }
-  const AST::Component::Component &getComponent(uint32_t Index) const noexcept {
-    return *Comps[Index];
+  const ComponentDefinition *
+  findComponentDefinition(std::string_view Name) const noexcept {
+    auto Iter = ExpComps.find(Name);
+    return Iter != ExpComps.end() ? &Iter->second : nullptr;
   }
-  void exportComponent(std::string_view Name, uint32_t Idx) noexcept {
-    ExpComps.insert_or_assign(std::string(Name), Comps[Idx]);
-  }
-  const AST::Component::Component *
-  findComponent(std::string_view Name) const noexcept {
-    return findExport(ExpComps, Name);
-  }
+  /// @}
 
-  // Index space: core function.
-  void addCoreFunction(std::unique_ptr<FunctionInstance> &&Inst) noexcept {
-    OwnedCoreFuncInsts.push_back(std::move(Inst));
-    CoreFuncInsts.push_back(OwnedCoreFuncInsts.back().get());
+  /// \name Index space: core type.
+  /// @{
+  Expect<const AST::Component::CoreDefType *>
+  getCoreType(uint32_t Idx) const noexcept {
+    if (unlikely(Idx >= CoreTypes.size())) {
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
+    }
+    return CoreTypes[Idx];
   }
-  void addCoreFunction(FunctionInstance *Inst) noexcept {
-    CoreFuncInsts.push_back(Inst);
-  }
-  /// Add a host function to the core function index space. The function is
-  /// owned by an auxiliary ModuleInstance (created here) whose only purpose
-  /// is to register the host function's defined type so that downstream
-  /// import matching (which walks ModInst::getTypeList()) succeeds. This is
-  /// used by canon lower to expose its thunk to core wasm.
-  void addCoreHostFunction(std::unique_ptr<Runtime::HostFunctionBase> &&Host,
-                           std::string_view Name = "$canon-lower") {
-    auto Mod = std::make_unique<ModuleInstance>("");
-    Mod->addHostFunc(std::string(Name), std::move(Host));
-    auto *FuncPtr = Mod->findFuncExports(std::string(Name));
-    CoreFuncInsts.push_back(FuncPtr);
-    OwnedAuxModInsts.push_back(std::move(Mod));
-  }
-  FunctionInstance *getCoreFunction(uint32_t Index) const noexcept {
-    return CoreFuncInsts[Index];
-  }
-  void exportCoreFunction(std::string_view Name, uint32_t Idx) noexcept {
-    ExpCoreFuncInsts.insert_or_assign(std::string(Name), CoreFuncInsts[Idx]);
-  }
-  FunctionInstance *findCoreFunction(std::string_view Name) const noexcept {
-    return findExport(ExpCoreFuncInsts, Name);
-  }
+  /// @}
 
-  // Index space: core table.
-  void addCoreTable(TableInstance *Inst) noexcept {
-    CoreTabInsts.push_back(Inst);
-  }
-  TableInstance *getCoreTable(uint32_t Index) const noexcept {
-    return CoreTabInsts[Index];
-  }
-  void exportCoreTable(std::string_view Name, uint32_t Idx) noexcept {
-    ExpCoreTabInsts.insert_or_assign(std::string(Name), CoreTabInsts[Idx]);
-  }
-  TableInstance *findCoreTable(std::string_view Name) const noexcept {
-    return findExport(ExpCoreTabInsts, Name);
-  }
-
-  // Index space: core memory.
-  void addCoreMemory(MemoryInstance *Inst) noexcept {
-    CoreMemInsts.push_back(Inst);
-  }
-  MemoryInstance *getCoreMemory(uint32_t Index) const noexcept {
-    return CoreMemInsts[Index];
-  }
-  void exportCoreMemory(std::string_view Name, uint32_t Idx) noexcept {
-    ExpCoreMemInsts.insert_or_assign(std::string(Name), CoreMemInsts[Idx]);
-  }
-  MemoryInstance *findCoreMemory(std::string_view Name) const noexcept {
-    return findExport(ExpCoreMemInsts, Name);
-  }
-
-  // Index space: core glocal.
-  void addCoreGlobal(GlobalInstance *Inst) noexcept {
-    CoreGlobInsts.push_back(Inst);
-  }
-  GlobalInstance *getCoreGlobal(uint32_t Index) const noexcept {
-    return CoreGlobInsts[Index];
-  }
-  void exportCoreGlobal(std::string_view Name, uint32_t Idx) noexcept {
-    ExpCoreGlobInsts.insert_or_assign(std::string(Name), CoreGlobInsts[Idx]);
-  }
-  GlobalInstance *findCoreGlobal(std::string_view Name) const noexcept {
-    return findExport(ExpCoreGlobInsts, Name);
-  }
-
-  // Index space: core tag.
-  void addCoreTag(TagInstance *Inst) noexcept { CoreTagInsts.push_back(Inst); }
-  TagInstance *getCoreTag(uint32_t Index) const noexcept {
-    return CoreTagInsts[Index];
-  }
-  void exportCoreTag(std::string_view Name, uint32_t Idx) noexcept {
-    ExpCoreTagInsts.insert_or_assign(std::string(Name), CoreTagInsts[Idx]);
-  }
-  TagInstance *findCoreTag(std::string_view Name) const noexcept {
-    return findExport(ExpCoreTagInsts, Name);
-  }
-
-  // Index space: core type.
-  // TODO: deep copy the type
-  void addCoreType(const AST::Component::CoreDefType &Ty) noexcept {
-    CoreTypes.emplace_back(&Ty);
-  }
-  const AST::Component::CoreDefType &
-  getCoreType(uint32_t Index) const noexcept {
-    return *CoreTypes[Index];
-  }
-  void exportCoreType(std::string_view Name, uint32_t Idx) noexcept {
-    ExpCoreTypes.insert_or_assign(std::string(Name), CoreTypes[Idx]);
-  }
-  const AST::Component::CoreDefType *
-  findCoreType(std::string_view Name) const noexcept {
-    return findExport(ExpCoreTypes, Name);
-  }
-
-  // Index space: core module instance.
-  void addCoreModuleInstance(std::unique_ptr<ModuleInstance> &&Inst) noexcept {
-    OwnedCoreModInsts.push_back(std::move(Inst));
-    CoreModInsts.push_back(OwnedCoreModInsts.back().get());
-  }
-  const ModuleInstance *getCoreModuleInstance(uint32_t Index) const noexcept {
-    return CoreModInsts[Index];
-  }
-  void exportCoreModuleInstance(std::string_view Name, uint32_t Idx) noexcept {
-    ExpCoreModInsts.insert_or_assign(std::string(Name), CoreModInsts[Idx]);
-  }
-  const ModuleInstance *
-  findCoreModuleInstance(std::string_view Name) const noexcept {
-    return findExport(ExpCoreModInsts, Name);
-  }
-
-  // Index space: module. (declaration for instantiation phase)
-  void addModule(const AST::Module &M) noexcept { CoreMods.emplace_back(&M); }
-  const AST::Module &getModule(uint32_t Index) const noexcept {
-    return *CoreMods[Index];
+  /// \name Index space and exports: core module.
+  /// @{
+  /// A core module definition; a host instance exports the ones it offers.
+  void addModule(const AST::Module &Mod) noexcept { CoreMods.push_back(&Mod); }
+  Expect<const AST::Module *> getModule(uint32_t Idx) const noexcept {
+    if (unlikely(Idx >= CoreMods.size())) {
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
+    }
+    return CoreMods[Idx];
   }
   void exportCoreModule(std::string_view Name, uint32_t Idx) noexcept {
+    assuming(Idx < CoreMods.size());
     ExpCoreMods.insert_or_assign(std::string(Name), CoreMods[Idx]);
   }
   const AST::Module *findCoreModule(std::string_view Name) const noexcept {
     return findExport(ExpCoreMods, Name);
   }
+  /// @}
+
+  /// \name Index space and exports: core module instance.
+  /// @{
+  Expect<const ModuleInstance *>
+  getCoreModuleInstance(uint32_t Idx) const noexcept {
+    if (unlikely(Idx >= CoreModInsts.size())) {
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
+    }
+    return CoreModInsts[Idx];
+  }
+  /// @}
+
+  /// \name Index spaces: core function, table, memory, global, and tag.
+  /// @{
+  Expect<FunctionInstance *> getCoreFunction(uint32_t Idx) const noexcept {
+    if (unlikely(Idx >= CoreFuncInsts.size())) {
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
+    }
+    return CoreFuncInsts[Idx];
+  }
+  Expect<TableInstance *> getCoreTable(uint32_t Idx) const noexcept {
+    if (unlikely(Idx >= CoreTabInsts.size())) {
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
+    }
+    return CoreTabInsts[Idx];
+  }
+  Expect<MemoryInstance *> getCoreMemory(uint32_t Idx) const noexcept {
+    if (unlikely(Idx >= CoreMemInsts.size())) {
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
+    }
+    return CoreMemInsts[Idx];
+  }
+  Expect<GlobalInstance *> getCoreGlobal(uint32_t Idx) const noexcept {
+    if (unlikely(Idx >= CoreGlobInsts.size())) {
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
+    }
+    return CoreGlobInsts[Idx];
+  }
+  Expect<TagInstance *> getCoreTag(uint32_t Idx) const noexcept {
+    if (unlikely(Idx >= CoreTagInsts.size())) {
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
+    }
+    return CoreTagInsts[Idx];
+  }
+  /// @}
+
+  /// \name Index spaces: component function and value.
+  /// @{
+  Expect<ComponentFunctionInstance *> getFunction(uint32_t Idx) const noexcept {
+    if (unlikely(Idx >= FuncInsts.size())) {
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
+    }
+    return FuncInsts[Idx];
+  }
+  Expect<const ComponentValVariant *> getValue(uint32_t Idx) const noexcept {
+    if (unlikely(Idx >= Values.size())) {
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
+    }
+    return &Values[Idx];
+  }
+  /// @}
+
+protected:
+  friend class Executor::ComponentExecutor;
+  friend class Runtime::Component::Task;
+
+  /// \name Mutators for the `handles` table.
+  /// @{
+  uint32_t
+  addHandle(const Component::ResourceTypeInstance *ResType, uint64_t Rep,
+            bool Own,
+            Runtime::Component::Task *BorrowScope = nullptr) const noexcept {
+    return addSlot(
+        HandleSlot{ResourceHandle{ResType, Rep, Own, 0, BorrowScope}});
+  }
+  std::optional<ResourceHandle> removeHandle(uint32_t Idx) const noexcept {
+    auto *Slot = findHandle(Idx);
+    if (Slot == nullptr) {
+      return std::nullopt;
+    }
+    ResourceHandle Out = *Slot;
+    removeSlot(Idx);
+    return Out;
+  }
+
+  uint32_t
+  addSubtask(std::shared_ptr<Runtime::Component::Task> T) const noexcept {
+    return addSlot(HandleSlot{std::move(T)});
+  }
+  std::shared_ptr<Runtime::Component::Task>
+  removeSubtask(uint32_t Idx) const noexcept {
+    if (auto *TaskPtr = std::get_if<std::shared_ptr<Runtime::Component::Task>>(
+            isSlotLive(Idx) ? &Handles[Idx] : nullptr)) {
+      auto Out = std::move(*TaskPtr);
+      removeSlot(Idx);
+      return Out;
+    }
+    return nullptr;
+  }
+
+  uint32_t addStreamEnd(std::shared_ptr<Component::Stream> Shared,
+                        Component::Stream::End End) const noexcept {
+    return addSlot(HandleSlot{StreamEnd{std::move(Shared), End}});
+  }
+  std::shared_ptr<Component::Stream>
+  removeStreamEnd(uint32_t Idx) const noexcept {
+    if (auto *EndPtr =
+            std::get_if<StreamEnd>(isSlotLive(Idx) ? &Handles[Idx] : nullptr)) {
+      auto Out = std::move(EndPtr->first);
+      removeSlot(Idx);
+      return Out;
+    }
+    return nullptr;
+  }
+
+  uint32_t addWaitableSet() const noexcept {
+    return addSlot(HandleSlot{std::vector<uint32_t>{}});
+  }
+  bool removeWaitableSet(uint32_t Idx) const noexcept {
+    if (findWaitableSet(Idx) == nullptr) {
+      return false;
+    }
+    removeSlot(Idx);
+    return true;
+  }
+
+  uint32_t addErrorContext(std::string Msg) const noexcept {
+    return addSlot(HandleSlot{std::move(Msg)});
+  }
+  bool removeErrorContext(uint32_t Idx) const noexcept {
+    if (findErrorContext(Idx) == nullptr) {
+      return false;
+    }
+    removeSlot(Idx);
+    return true;
+  }
+  /// @}
+
+  /// \name Mutators for the concurrency state.
+  /// @{
+  void setEntered(bool Flag) const noexcept { Entered = Flag; }
+  void setMayLeave(bool Flag) const noexcept { MayLeave = Flag; }
+
+  /// Raise the backpressure counter; false on overflow.
+  bool incBackpressure() const noexcept {
+    Backpressure += 1;
+    return Backpressure != MaxBackpressure;
+  }
+  /// Lower the backpressure counter; false on underflow.
+  bool decBackpressure() const noexcept {
+    Backpressure -= 1;
+    return Backpressure >= 0;
+  }
+
+  void incWaitingToEnter() const noexcept { NumWaitingToEnter += 1; }
+  void decWaitingToEnter() const noexcept { NumWaitingToEnter -= 1; }
+
+  void setExclusiveThread(Runtime::Component::Thread *Thread) const noexcept {
+    ExclusiveThread = Thread;
+  }
+  void setPoisoned() const noexcept { Poisoned = true; }
+
+  /// Register a thread activation; index 0 stays unused.
+  uint32_t addThread(Runtime::Component::Thread *Thread) const noexcept {
+    if (Threads.empty()) {
+      Threads.push_back(nullptr);
+    }
+    if (!FreeThreads.empty()) {
+      const uint32_t Idx = FreeThreads.back();
+      FreeThreads.pop_back();
+      Threads[Idx] = Thread;
+      return Idx;
+    }
+    Threads.push_back(Thread);
+    return static_cast<uint32_t>(Threads.size() - 1);
+  }
+  void removeThread(uint32_t Idx) const noexcept {
+    if (Idx != 0 && Idx < Threads.size()) {
+      Threads[Idx] = nullptr;
+      FreeThreads.push_back(Idx);
+    }
+  }
+  /// @}
+
+  /// \name Mutators for instantiation.
+  /// @{
+  void exportValue(std::string_view Name, ComponentValVariant Val) noexcept {
+    ExpValues.insert_or_assign(std::string(Name), std::move(Val));
+  }
+  void addValue(ComponentValVariant Val) noexcept {
+    Values.push_back(std::move(Val));
+  }
+
+  ComponentFunctionInstance *
+  addFunction(std::unique_ptr<ComponentFunctionInstance> &&Inst) noexcept {
+    OwnedFuncInsts.push_back(std::move(Inst));
+    FuncInsts.push_back(OwnedFuncInsts.back().get());
+    return OwnedFuncInsts.back().get();
+  }
+  void addFunction(ComponentFunctionInstance *Func) noexcept {
+    FuncInsts.push_back(Func);
+  }
+  void exportFunction(std::string_view Name,
+                      ComponentFunctionInstance *Func) noexcept {
+    ExpFuncInsts.insert_or_assign(std::string(Name), Func);
+  }
+
+  /// A locally-defined type.
+  void addType(const AST::Component::DefType &Ty) noexcept {
+    Types.push_back({&Ty, nullptr, this});
+  }
+  /// A locally-defined resource type: mints the runtime identity.
+  const Component::ResourceTypeInstance *
+  addResourceType(const AST::Component::DefType &Ty,
+                  FunctionInstance *Dtor) noexcept {
+    OwnedResourceTypes.push_back(
+        std::make_unique<Component::ResourceTypeInstance>(
+            this, Dtor, nullptr,
+            Ty.isResourceType() && Ty.getResourceType().isAddrI64()));
+    Types.push_back({&Ty, OwnedResourceTypes.back().get(), this});
+    return OwnedResourceTypes.back().get();
+  }
+  /// An imported or aliased type; an absent owner means this instance.
+  void addTypeDefinition(const TypeDefinition &Def) noexcept {
+    Types.push_back(
+        {Def.Def, Def.Resource, Def.Owner != nullptr ? Def.Owner : this});
+  }
+  void exportType(std::string_view Name, const TypeDefinition &Def) noexcept {
+    ExpTypes.insert_or_assign(std::string(Name), Def);
+  }
+
+  /// A component definition closing over this instance as its environment.
+  void addComponent(const AST::Component::Component &Comp) noexcept {
+    Comps.push_back({&Comp, this});
+  }
+  void addComponentDefinition(const ComponentDefinition &Def) noexcept {
+    Comps.push_back(Def);
+  }
+  void exportComponent(std::string_view Name, uint32_t Idx) noexcept {
+    assuming(Idx < Comps.size());
+    ExpComps.insert_or_assign(std::string(Name), Comps[Idx]);
+  }
+  void exportComponent(std::string_view Name,
+                       const ComponentDefinition &Def) noexcept {
+    ExpComps.insert_or_assign(std::string(Name), Def);
+  }
+
+  /// An imported or aliased instance.
+  void addComponentInstance(const ComponentInstance *Inst) noexcept {
+    CompInsts.push_back(Inst);
+  }
+
+  /// A synthesized host function in the core function index space; the core
+  /// module importing it registers its type.
+  FunctionInstance *
+  addCoreHostFunction(std::unique_ptr<HostFunctionBase> &&Host) noexcept {
+    OwnedCoreFuncInsts.push_back(
+        std::make_unique<FunctionInstance>(std::move(Host)));
+    CoreFuncInsts.push_back(OwnedCoreFuncInsts.back().get());
+    return OwnedCoreFuncInsts.back().get();
+  }
+  void addCoreFunction(FunctionInstance *Func) noexcept {
+    CoreFuncInsts.push_back(Func);
+  }
+  void addCoreTable(TableInstance *Tab) noexcept {
+    CoreTabInsts.push_back(Tab);
+  }
+  void addCoreMemory(MemoryInstance *Mem) noexcept {
+    CoreMemInsts.push_back(Mem);
+  }
+  void addCoreGlobal(GlobalInstance *Glob) noexcept {
+    CoreGlobInsts.push_back(Glob);
+  }
+  void addCoreTag(TagInstance *Tag) noexcept { CoreTagInsts.push_back(Tag); }
+  /// A locally-defined core type.
+  void addCoreType(const AST::Component::CoreDefType &Ty) noexcept {
+    CoreTypes.push_back(&Ty);
+  }
+  void exportCoreModule(std::string_view Name,
+                        const AST::Module &Mod) noexcept {
+    ExpCoreMods.insert_or_assign(std::string(Name), &Mod);
+  }
+  /// A core module instance this instance owns.
+  const ModuleInstance *
+  addCoreModuleInstance(std::unique_ptr<ModuleInstance> &&Inst) noexcept {
+    OwnedCoreModInsts.push_back(std::move(Inst));
+    CoreModInsts.push_back(OwnedCoreModInsts.back().get());
+    return OwnedCoreModInsts.back().get();
+  }
+  /// An imported or aliased core module instance.
+  void addCoreModuleInstance(const ModuleInstance *Inst) noexcept {
+    CoreModInsts.push_back(Inst);
+  }
+  /// @}
 
 private:
-  std::string CompName;
-
-  // value
-  std::vector<ComponentValVariant> ValueList;
-
-  // Index spaces.
-  // The index spaces of AST should be cleaned after instantiation.
-  std::vector<Component::FunctionInstance *> FuncInsts;
-  // TODO: values
-  std::vector<const AST::Component::DefType *> Types;
-  std::vector<const ComponentInstance *> CompInsts;
-  std::vector<const AST::Component::Component *> Comps;
-  std::vector<FunctionInstance *> CoreFuncInsts;
-  std::vector<TableInstance *> CoreTabInsts;
-  std::vector<MemoryInstance *> CoreMemInsts;
-  std::vector<GlobalInstance *> CoreGlobInsts;
-  std::vector<const AST::Component::CoreDefType *> CoreTypes;
-  std::vector<TagInstance *> CoreTagInsts;
-  std::vector<const ModuleInstance *> CoreModInsts;
-  std::vector<const AST::Module *> CoreMods;
-
-  // Storage of index spaces.
-  std::vector<std::unique_ptr<Component::FunctionInstance>> OwnedFuncInsts;
-  // std::vector<std::unique_ptr<AST::Component::DefType>> OwnedTypes;
-  std::vector<std::unique_ptr<ComponentInstance>> OwnedCompInsts;
-  std::vector<std::unique_ptr<FunctionInstance>> OwnedCoreFuncInsts;
-  // std::vector<std::unique_ptr<AST::Component::CoreDefType>> OwnedCoreTypes;
-  std::vector<std::unique_ptr<ModuleInstance>> OwnedCoreModInsts;
-  // Holder modules for synthesized host functions (e.g., canon lower thunks).
-  // Not visible in the core-module index space; only owns the host function
-  // and its registered SubType for matchType lookups.
-  std::vector<std::unique_ptr<ModuleInstance>> OwnedAuxModInsts;
-
-  // Export alias.
-  std::map<std::string, Component::FunctionInstance *, std::less<>>
-      ExpFuncInsts;
-  // TODO: ExpValue
-  std::map<std::string, const AST::Component::DefType *, std::less<>> ExpTypes;
-  std::map<std::string, const ComponentInstance *, std::less<>> ExpCompInsts;
-  std::map<std::string, const AST::Component::Component *, std::less<>>
-      ExpComps;
-  std::map<std::string, FunctionInstance *, std::less<>> ExpCoreFuncInsts;
-  std::map<std::string, TableInstance *, std::less<>> ExpCoreTabInsts;
-  std::map<std::string, MemoryInstance *, std::less<>> ExpCoreMemInsts;
-  std::map<std::string, GlobalInstance *, std::less<>> ExpCoreGlobInsts;
-  std::map<std::string, TagInstance *, std::less<>> ExpCoreTagInsts;
-  std::map<std::string, const AST::Component::CoreDefType *, std::less<>>
-      ExpCoreTypes;
-  std::map<std::string, const ModuleInstance *, std::less<>> ExpCoreModInsts;
-  std::map<std::string, const AST::Module *, std::less<>> ExpCoreMods;
-
-  // Find export template.
+  /// Find export template.
   template <typename T>
   T *findExport(const std::map<std::string, T *, std::less<>> &Map,
                 std::string_view ExtName) const noexcept {
@@ -496,6 +748,89 @@ private:
     }
     return nullptr;
   }
+
+  /// The backpressure counter overflows at this value.
+  static inline constexpr const int64_t MaxBackpressure = INT64_C(1) << 16;
+
+  /// Index 0 stays unused, and a removed slot returns through the LIFO list.
+  uint32_t addSlot(HandleSlot &&Slot) const noexcept {
+    if (Handles.empty()) {
+      Handles.emplace_back();
+    }
+    if (!FreeSlots.empty()) {
+      const uint32_t Idx = FreeSlots.back();
+      FreeSlots.pop_back();
+      Handles[Idx] = std::move(Slot);
+      return Idx;
+    }
+    Handles.push_back(std::move(Slot));
+    return static_cast<uint32_t>(Handles.size() - 1);
+  }
+  bool isSlotLive(uint32_t Idx) const noexcept {
+    return Idx != 0 && Idx < Handles.size() &&
+           !std::holds_alternative<std::monostate>(Handles[Idx]);
+  }
+  void removeSlot(uint32_t Idx) const noexcept {
+    Handles[Idx] = std::monostate{};
+    FreeSlots.push_back(Idx);
+  }
+
+  /// \name Data of component instance.
+  /// @{
+  const std::string CompName;
+  ComponentInstance *const Parent;
+  /// The root of the lexical instantiation tree.
+  ComponentInstance *const Root;
+
+  /// The call-time state, mutable behind the const instance of the canon
+  /// options. A deque keeps the entries at stable addresses.
+  mutable std::deque<HandleSlot> Handles;
+  mutable std::vector<uint32_t> FreeSlots;
+  mutable bool MayLeave = true;
+  mutable int64_t Backpressure = 0;
+  mutable uint32_t NumWaitingToEnter = 0;
+  mutable Runtime::Component::Thread *ExclusiveThread = nullptr;
+  mutable bool Poisoned = false;
+  mutable bool Entered = false;
+  mutable std::vector<Runtime::Component::Thread *> Threads;
+  mutable std::vector<uint32_t> FreeThreads;
+
+  /// The index spaces.
+  std::vector<TypeDefinition> Types;
+  /// Host resource types by the C++ tag they were registered under.
+  std::map<std::type_index, uint32_t> HostResourceTags;
+  std::vector<ComponentDefinition> Comps;
+  std::vector<const ComponentInstance *> CompInsts;
+  std::vector<ComponentFunctionInstance *> FuncInsts;
+  std::vector<ComponentValVariant> Values;
+  std::vector<const AST::Component::CoreDefType *> CoreTypes;
+  std::vector<const AST::Module *> CoreMods;
+  std::vector<const ModuleInstance *> CoreModInsts;
+  std::vector<FunctionInstance *> CoreFuncInsts;
+  std::vector<TableInstance *> CoreTabInsts;
+  std::vector<MemoryInstance *> CoreMemInsts;
+  std::vector<GlobalInstance *> CoreGlobInsts;
+  std::vector<TagInstance *> CoreTagInsts;
+
+  /// Owned definitions and runtime objects.
+  std::unique_ptr<AST::Component::Component> OwnedComp;
+  std::vector<std::unique_ptr<AST::Component::DefType>> OwnedTypes;
+  std::vector<std::unique_ptr<Component::ResourceTypeInstance>>
+      OwnedResourceTypes;
+  std::vector<std::unique_ptr<ComponentFunctionInstance>> OwnedFuncInsts;
+  std::vector<std::unique_ptr<ComponentInstance>> OwnedCompInsts;
+  std::vector<std::unique_ptr<ModuleInstance>> OwnedCoreModInsts;
+  /// The synthesized host functions of the canon section.
+  std::vector<std::unique_ptr<FunctionInstance>> OwnedCoreFuncInsts;
+
+  /// Exported name maps.
+  std::map<std::string, ComponentValVariant, std::less<>> ExpValues;
+  std::map<std::string, ComponentFunctionInstance *, std::less<>> ExpFuncInsts;
+  std::map<std::string, TypeDefinition, std::less<>> ExpTypes;
+  std::map<std::string, const ComponentInstance *, std::less<>> ExpCompInsts;
+  std::map<std::string, ComponentDefinition, std::less<>> ExpComps;
+  std::map<std::string, const AST::Module *, std::less<>> ExpCoreMods;
+  /// @}
 };
 
 } // namespace Instance

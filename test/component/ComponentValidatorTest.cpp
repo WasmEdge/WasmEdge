@@ -3,9 +3,9 @@
 
 #include "ast/component/component.h"
 #include "ast/component/type.h"
+#include "loader/loader.h"
 #include "validator/component_value_decode.h"
 #include "validator/validator.h"
-#include "vm/vm.h"
 
 #include <gtest/gtest.h>
 
@@ -2297,16 +2297,22 @@ static const std::vector<uint8_t> validator_no_realloc_wasm = {
 // canon lift whose result spills into the return area but omits 'memory'.
 // The validator must reject this end-to-end.
 TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoMemoryRejected) {
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(validator_no_memory_wasm));
-  EXPECT_FALSE(VM.validate());
+  Loader::Loader Loader(Conf);
+  auto Unit = Loader.parseWasmUnit(validator_no_memory_wasm);
+  ASSERT_TRUE(Unit);
+  auto &Comp = std::get<std::unique_ptr<AST::Component::Component>>(*Unit);
+  Validator::Validator V(Conf);
+  EXPECT_FALSE(V.validate(*Comp));
 }
 
 // canon lift whose string param forces a realloc but omits 'realloc'.
 TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoReallocRejected) {
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(validator_no_realloc_wasm));
-  EXPECT_FALSE(VM.validate());
+  Loader::Loader Loader(Conf);
+  auto Unit = Loader.parseWasmUnit(validator_no_realloc_wasm);
+  ASSERT_TRUE(Unit);
+  auto &Comp = std::get<std::unique_ptr<AST::Component::Component>>(*Unit);
+  Validator::Validator V(Conf);
+  EXPECT_FALSE(V.validate(*Comp));
 }
 
 // =============================================================================
@@ -3070,12 +3076,13 @@ TEST(ComponentValidatorTest, FutureOfOwnPasses) {
 // =============================================================================
 
 // Helper: decode a `val(t)` payload for a primitive type. No type index can
-// appear in these payloads, so the resolver always fails.
+// appear in these payloads, so an empty scope resolves none.
 inline Expect<ComponentValVariant> decodePrimValue(std::vector<Byte> Data,
                                                    ComponentTypeCode Code) {
+  const Validator::Component::Scope Empty(
+      Validator::Component::ScopeKind::Component, nullptr);
   Validator::Component::ValueDecoder Dec(
-      Span<const Byte>(Data.data(), Data.size()),
-      [](uint32_t) -> const AST::Component::DefValType * { return nullptr; });
+      Span<const Byte>(Data.data(), Data.size()), Empty);
   return Dec.decode(ComponentValType(Code));
 }
 
@@ -3719,6 +3726,22 @@ TEST(ComponentValidatorTest, AsyncFuncSatisfiesAsyncImport) {
   auto Comp = makeAsyncArgComponent(true, true);
   Validator::Validator V(Conf);
   ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, BuiltinCoreFuncTypeFollowsAddressType) {
+  const ValType I32(TypeCode::I32);
+  const ValType I64(TypeCode::I64);
+  const auto Read64 = AST::Component::Canonical::getBuiltinCoreFuncType(
+      ComponentCanonOpCode::Stream__read, I64);
+  EXPECT_EQ(Read64.first, (std::vector<ValType>{I32, I64, I64}));
+  EXPECT_EQ(Read64.second, (std::vector<ValType>{I64}));
+  const auto Wait32 = AST::Component::Canonical::getBuiltinCoreFuncType(
+      ComponentCanonOpCode::Waitable_set__wait, I32);
+  EXPECT_EQ(Wait32.first, (std::vector<ValType>{I32, I32}));
+  EXPECT_EQ(Wait32.second, (std::vector<ValType>{I32}));
+  const auto NewIndirect64 = AST::Component::Canonical::getBuiltinCoreFuncType(
+      ComponentCanonOpCode::Thread__new_indirect, I64);
+  EXPECT_EQ(NewIndirect64.first, (std::vector<ValType>{I64, I32}));
 }
 
 } // namespace

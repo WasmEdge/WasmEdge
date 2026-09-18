@@ -20,6 +20,7 @@
 #include "common/symbol.h"
 #include "common/types.h"
 
+#include <initializer_list>
 #include <optional>
 #include <vector>
 
@@ -103,6 +104,9 @@ public:
   FunctionType() noexcept = default;
   FunctionType(Span<const ValType> P, Span<const ValType> R) noexcept
       : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()) {}
+  FunctionType(std::initializer_list<ValType> P,
+               std::initializer_list<ValType> R) noexcept
+      : ParamTypes(P), ReturnTypes(R) {}
   FunctionType(Span<const ValType> P, Span<const ValType> R,
                Symbol<Executable::Wrapper> S) noexcept
       : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()),
@@ -451,6 +455,21 @@ public:
       }
     }
     return false;
+  }
+
+  /// Matcher: Match two limits.
+  static bool matchLimit(const Limit &Exp, const Limit &Got) noexcept {
+    if (Exp.getAddrType() != Got.getAddrType() ||
+        Exp.isShared() != Got.isShared()) {
+      return false;
+    }
+    if (Got.getMin() < Exp.getMin()) {
+      return false;
+    }
+    if (Exp.hasMax()) {
+      return Got.hasMax() && Got.getMax() <= Exp.getMax();
+    }
+    return true;
   }
 
 private:

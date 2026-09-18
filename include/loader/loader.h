@@ -248,6 +248,14 @@ public:
   /// Parse module from byte code.
   Expect<std::unique_ptr<AST::Module>> parseModule(Span<const uint8_t> Code);
 
+  /// Parse component from file path.
+  Expect<std::unique_ptr<AST::Component::Component>>
+  parseComponent(const std::filesystem::path &FilePath);
+
+  /// Parse component from byte code.
+  Expect<std::unique_ptr<AST::Component::Component>>
+  parseComponent(Span<const uint8_t> Code);
+
   /// Serialize module into byte code.
   Expect<std::vector<Byte>> serializeModule(const AST::Module &Mod);
 

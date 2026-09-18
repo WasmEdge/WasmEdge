@@ -1385,6 +1385,20 @@ E(InvalidCanonOption, 0x1300, "invalid canonical option")
 // Component model not implemented
 E(ComponentNotImplInstantiate, 0x1301,
   "component model (instantiation) not implemented")
+E(ComponentImportNotFound, 0x1302, "was not found")
+E(ComponentImportExpectedFunc, 0x1303, "expected function found instance")
+E(ComponentImportExpectedInstance, 0x1304, "expected instance found func")
+E(ComponentImportExpectedModule, 0x1305, "expected module found instance")
+E(ComponentCoreModNotDefined, 0x1306, "not defined")
+E(ComponentCoreModWrongType, 0x1307, "has the wrong type")
+E(ComponentCoreModKindMismatch, 0x1308, "expected")
+E(ComponentResourceMismatched, 0x1309, "mismatched resource types")
+E(ComponentImportExpectedResource, 0x130A, "expected resource found func")
+E(ComponentUnexpectedSort, 0x130B, "unexpected sort")
+// Registering a name the component store already holds
+E(ComponentRegistrationConflict, 0x130C, "component registration name conflict")
+// A type index names a definition of an unexpected kind
+E(ComponentUnexpectedType, 0x130D, "unexpected type")
 // @}
 
 // Execution phase
@@ -1584,6 +1598,7 @@ M(Memory, "memory")              // Memory instance
 M(Global, "global")              // Global instance
 M(Version, "version")            // Versions
 M(CompFunctionType, "component function type") // (Component) Function type
+M(Count, "count")                              // Number of values
 
 #undef M
 #endif // UseMismatchCategory

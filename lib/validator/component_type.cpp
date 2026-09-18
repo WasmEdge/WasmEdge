@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "common/component_valtype.h"
 #include "common/errinfo.h"
 #include "common/spdlog.h"
 #include "validator/validator.h"
@@ -58,8 +59,7 @@ Expect<void>
 Validator::validate(const AST::Component::DefValType &DVT) noexcept {
   std::unordered_set<std::string> Seen;
   if (DVT.isPrimValType()) {
-    return CompCtx.validate(
-        ComponentValType(static_cast<ComponentTypeCode>(DVT.getPrimValType())));
+    return CompCtx.validate(ComponentValType(DVT.getPrimValType()));
   }
   if (DVT.isRecordTy()) {
     const auto &Rec = DVT.getRecord();
@@ -190,7 +190,7 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
     const auto &S = DVT.getStream();
     if (S.ValTy.has_value()) {
       if (S.ValTy->isPrimValType() &&
-          S.ValTy->getCode() == ComponentTypeCode::Char) {
+          S.ValTy->getPrimValType() == PrimValType::Char) {
         // Temporary spec limitation (component-model PR #607).
         spdlog::error(ErrCode::Value::ComponentStreamCharInvalid);
         spdlog::error("    The stream element type cannot be `char`."sv);
@@ -280,11 +280,6 @@ Validator::validate(const AST::Component::ResourceType &RT) noexcept {
     spdlog::error(
         "    Resource types cannot be defined in component or instance types."sv);
     return Unexpect(ErrCode::Value::ComponentResourceOutsideComponent);
-  }
-  if (RT.isAddrI64()) {
-    spdlog::error(ErrCode::Value::ComponentResourceRepI32);
-    spdlog::error("    Resources can only be represented by i32."sv);
-    return Unexpect(ErrCode::Value::ComponentResourceRepI32);
   }
   if (RT.getDestructor().has_value()) {
     const uint32_t Idx = *RT.getDestructor();

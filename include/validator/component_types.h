@@ -20,6 +20,7 @@
 #include "ast/component/sort.h"
 #include "ast/component/type.h"
 #include "ast/type.h"
+#include "common/component_valtype.h"
 #include "common/errcode.h"
 #include "common/span.h"
 #include "validator/component_name.h"
@@ -351,9 +352,8 @@ private:
   static Expect<void> matchComponentShape(Context &Ctx, const Shape &Sub,
                                           const Shape &Sup,
                                           ResourceMap &Subst) noexcept;
-  static Expect<void>
-  matchPrimValType(AST::Component::PrimValType Sub,
-                   AST::Component::PrimValType Sup) noexcept;
+  static Expect<void> matchPrimValType(PrimValType Sub,
+                                       PrimValType Sup) noexcept;
   // A nested failure reports its position; a leaf reason inside a shape drops.
   static ErrCode getNestedFailCode(ErrCode Code) noexcept;
 };

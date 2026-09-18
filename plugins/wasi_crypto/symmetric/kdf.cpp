@@ -65,6 +65,10 @@ Hkdf<ShaNid>::Expand::State::absorb(Span<const uint8_t> Data) noexcept {
 template <int ShaNid>
 WasiCryptoExpect<void>
 Hkdf<ShaNid>::Expand::State::squeeze(Span<uint8_t> Out) noexcept {
+  if (Out.empty()) {
+    return {};
+  }
+
   std::scoped_lock Lock{Ctx->Mutex};
   size_t OutLen = Out.size();
 

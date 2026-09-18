@@ -183,6 +183,28 @@ Loader::parseModule(Span<const uint8_t> Code) {
   return Unexpect(ErrCode::Value::MalformedVersion);
 }
 
+// Parse component from file path. See "include/loader/loader.h".
+Expect<std::unique_ptr<AST::Component::Component>>
+Loader::parseComponent(const std::filesystem::path &FilePath) {
+  EXPECTED_TRY(auto ComponentOrModule, parseWasmUnit(FilePath));
+  if (auto Comp = std::get_if<std::unique_ptr<AST::Component::Component>>(
+          &ComponentOrModule)) {
+    return std::move(*Comp);
+  }
+  return Unexpect(ErrCode::Value::MalformedVersion);
+}
+
+// Parse component from byte code. See "include/loader/loader.h".
+Expect<std::unique_ptr<AST::Component::Component>>
+Loader::parseComponent(Span<const uint8_t> Code) {
+  EXPECTED_TRY(auto ComponentOrModule, parseWasmUnit(Code));
+  if (auto Comp = std::get_if<std::unique_ptr<AST::Component::Component>>(
+          &ComponentOrModule)) {
+    return std::move(*Comp);
+  }
+  return Unexpect(ErrCode::Value::MalformedVersion);
+}
+
 // Load module or component unit. See "include/loader/loader.h".
 Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                     std::unique_ptr<AST::Module>>>

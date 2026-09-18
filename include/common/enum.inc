@@ -1358,15 +1358,8 @@ E(ElemSegDoesNotFit, 0x0304, "elements segment does not fit")
 
 // Component model instantiation phase
 // @{
-// Invalid core sort for component export
-E(InvalidCoreSort, 0x1300, "invalid core sort")
 // Canonical option lifting failed
 E(InvalidCanonOption, 0x1301, "invalid canonical option")
-// Invalid export core exports
-E(CoreInvalidExport, 0x1302, "invalid export in core module")
-// Invalid resource.drop args
-E(ResourceDropArgument, 0x1303,
-  "invalid argument been used to invoke resource.drop")
 // Component model not implemented
 E(ComponentNotImplInstantiate, 0x1304,
   "component model (instantiation) not implemented")

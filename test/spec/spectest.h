@@ -18,6 +18,8 @@
 
 #include "ast/component/component.h"
 #include "ast/module.h"
+#include "common/component_valtype.h"
+#include "common/component_variant.h"
 #include "common/configure.h"
 #include "common/errcode.h"
 #include "common/filesystem.h"
@@ -76,6 +78,14 @@ public:
   bool
   compares(const std::vector<std::pair<std::string, std::string>> &Expected,
            const std::vector<std::pair<ValVariant, ValType>> &Got) const;
+  bool compare(const ComponentValVariant &Expected,
+               const ComponentValVariant &Got) const;
+  bool compares(const std::vector<ComponentValVariant> &Expected,
+                const std::vector<ComponentValVariant> &Got) const;
+  bool
+  compares(const std::vector<ComponentValVariant> &Expected,
+           const std::vector<std::pair<ComponentValVariant, ComponentValType>>
+               &Got) const;
   bool stringContains(std::string_view Expected, std::string_view Got) const;
 
   void run(std::string_view Proposal, std::string_view UnitName);
@@ -103,14 +113,17 @@ public:
                                       const std::string &Modname,
                                       const std::string &FileName);
   std::function<ModuleCallback> onModule;
+  std::function<ModuleCallback> onCompModule;
 
   using LoadCallback = Expect<void>(ContextHandle Ctx,
                                     const std::string &FileName);
   std::function<LoadCallback> onLoad;
+  std::function<LoadCallback> onCompLoad;
 
   using ValidateCallback = Expect<void>(ContextHandle Ctx,
                                         const std::string &FileName);
   std::function<ValidateCallback> onValidate;
+  std::function<ValidateCallback> onCompValidate;
 
   using WasmUnit = std::variant<std::unique_ptr<AST::Component::Component>,
                                 std::unique_ptr<AST::Module>>;
@@ -123,16 +136,30 @@ public:
                                                const std::string &ModName,
                                                const AST::Module &ASTMod);
   std::function<InstanceFromDefCallback> onInstanceFromDef;
+  using CompInstanceFromDefCallback =
+      Expect<void>(ContextHandle Ctx, const std::string &ModName,
+                   const AST::Component::Component &Comp);
+  std::function<CompInstanceFromDefCallback> onCompInstanceFromDef;
 
   using InstantiateCallback = Expect<void>(ContextHandle Ctx,
                                            const std::string &FileName);
   std::function<InstantiateCallback> onInstantiate;
+  std::function<InstantiateCallback> onCompInstantiate;
 
   using InvokeCallback = Expect<std::vector<std::pair<ValVariant, ValType>>>(
       ContextHandle Ctx, const std::string &ModName, const std::string &Field,
       const std::vector<ValVariant> &Params,
       const std::vector<ValType> &ParamTypes);
   std::function<InvokeCallback> onInvoke;
+
+  // Invoke a component function with component-level values. The parameter
+  // types come from the own type of the function.
+  using CompInvokeCallback =
+      Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>(
+          ContextHandle Ctx, const std::string &ModName,
+          const std::string &Field,
+          const std::vector<ComponentValVariant> &Params);
+  std::function<CompInvokeCallback> onCompInvoke;
 
   using GetCallback = Expect<std::pair<ValVariant, ValType>>(
       ContextHandle Ctx, const std::string &ModName, const std::string &Field);

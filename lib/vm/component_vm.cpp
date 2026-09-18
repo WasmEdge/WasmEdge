@@ -5,6 +5,7 @@
 
 #include "common/errinfo.h"
 #include "common/spdlog.h"
+#include "host/wasi/component/hosts.h"
 #include "plugin/plugin.h"
 
 #include <algorithm>
@@ -40,12 +41,36 @@ void ComponentVM::unsafeTerminateInstances() {
     CompInst->terminate();
   }
   cleanupCompInstContainer(RegCompInsts);
+  cleanupCompInstContainer(BuiltInCompInsts);
   cleanupCompInstContainer(PlugInCompInsts);
+  cleanupCompInstContainer(BuiltInHostInsts);
+}
+
+Runtime::Instance::ComponentInstance *ComponentVM::unsafeGetImportComponent(
+    const HostRegistration Type) const noexcept {
+  if (auto Iter = BuiltInHostInsts.find(Type);
+      Iter != BuiltInHostInsts.cend()) {
+    return Iter->second.get();
+  }
+  return nullptr;
 }
 
 void ComponentVM::unsafeInitVM() {
+  unsafeLoadBuiltInHosts();
   unsafeLoadPlugInHosts();
+  unsafeRegisterBuiltInHosts();
   unsafeRegisterPlugInHosts();
+}
+
+void ComponentVM::unsafeLoadBuiltInHosts() {
+  // The WASI hosts of one VM share one environment.
+  cleanupCompInstContainer(BuiltInCompInsts);
+  cleanupCompInstContainer(BuiltInHostInsts);
+  if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
+    auto Hosts = std::make_unique<Host::WasiComponent::WasiHosts>();
+    BuiltInCompInsts = Hosts->newInstances();
+    BuiltInHostInsts.insert_or_assign(HostRegistration::Wasi, std::move(Hosts));
+  }
 }
 
 void ComponentVM::unsafeLoadPlugInHosts() {
@@ -58,6 +83,12 @@ void ComponentVM::unsafeLoadPlugInHosts() {
     for (const auto &Component : Plugin.components()) {
       PlugInCompInsts.push_back(Component.create());
     }
+  }
+}
+
+void ComponentVM::unsafeRegisterBuiltInHosts() {
+  for (auto &It : BuiltInCompInsts) {
+    ExecutorEngine.registerComponent(StoreRef, *It);
   }
 }
 
@@ -245,7 +276,9 @@ void ComponentVM::unsafeCleanup() {
   Comp = nullptr;
   Comps.clear();
   Stat.clear();
+  unsafeLoadBuiltInHosts();
   unsafeLoadPlugInHosts();
+  unsafeRegisterBuiltInHosts();
   unsafeRegisterPlugInHosts();
   LoaderEngine.reset();
   Stage = VMStage::Inited;

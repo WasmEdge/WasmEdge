@@ -257,6 +257,13 @@ public:
   uint8_t getArchType() const noexcept { return ArchType; }
   void setArchType(uint8_t Type) noexcept { ArchType = Type; }
 
+  /// Getter and setter for the GC-capability flag: whether the compiled code in
+  /// this section was emitted with GC codegen (safepoint polls + shadow-root
+  /// spill). Defaults to false, so a section missing the flag falls back to
+  /// interpreter execution.
+  bool getGCCapable() const noexcept { return GCCapable; }
+  void setGCCapable(bool V) noexcept { GCCapable = V; }
+
   /// Getter and setter for version address.
   uint64_t getVersionAddress() const noexcept { return VersionAddress; }
   void setVersionAddress(uint64_t Addr) noexcept { VersionAddress = Addr; }
@@ -289,6 +296,7 @@ private:
   uint32_t Version = 0;
   uint8_t OSType = 0;
   uint8_t ArchType = 0;
+  bool GCCapable = false;
   uint64_t VersionAddress = 0;
   uint64_t IntrinsicsAddress = 0;
   std::vector<uintptr_t> TypesAddress;

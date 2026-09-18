@@ -12,6 +12,26 @@ wasmedge_add_library(wasmedgeExecutor
   instantiate/export.cpp
   instantiate/tag.cpp
   instantiate/module.cpp
+  component/component_executor.cpp
+  component/component_task.cpp
+  component/component_module.cpp
+  component/component_import.cpp
+  component/component_export.cpp
+  component/component_alias.cpp
+  component/component_type.cpp
+  component/component_instance.cpp
+  component/component_start.cpp
+  component/component_value.cpp
+  component/component_canon.cpp
+  component/component_canon_layout.cpp
+  component/component_canon_loadstore.cpp
+  component/component_canon_string.cpp
+  component/component_canon_liftlower.cpp
+  component/component_canon_handle.cpp
+  component/component_canon_lower.cpp
+  component/component_canon_resource.cpp
+  component/component_canon_async.cpp
+  component/component_host.cpp
   engine/proxy.cpp
   engine/controlInstr.cpp
   engine/tableInstr.cpp

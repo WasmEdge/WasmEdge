@@ -165,7 +165,9 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
 
   // Call runFunction.
   EXPECTED_TRY(runFunction(StackMgr, *FuncInst, Params).map_error([](auto E) {
-    if (E != ErrCode::Value::Terminated) {
+    // An unwinding component thread is not a failure of the call.
+    if (E != ErrCode::Value::Terminated &&
+        E != ErrCode::Value::ComponentAsyncAborted) {
       dumpStackTrace(
           Span<const StackTraceEntry>{StackTrace}.first(StackTraceSize));
     }

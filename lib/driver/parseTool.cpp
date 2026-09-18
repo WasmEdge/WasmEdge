@@ -126,8 +126,7 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
   std::ios::sync_with_stdio(false);
 
   Configure Conf = createConfigure(Opt);
-  const auto InputPath =
-      std::filesystem::absolute(std::filesystem::u8path(Opt.SoName.value()));
+  const auto InputPath = std::filesystem::absolute(u8path(Opt.SoName.value()));
 
   Loader::Loader Loader(Conf);
   auto Res = Loader.parseModule(InputPath);

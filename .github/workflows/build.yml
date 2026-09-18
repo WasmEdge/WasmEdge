@@ -96,8 +96,8 @@ jobs:
     uses: ./.github/workflows/reusable-build-on-macos.yml
     with:
       version: ${{ needs.get_version.outputs.version }}
-      matrix: "[{'name':'MacOS 15 (x86_64)','runner':'macos-15-intel','darwin_version':24,'arch':'x86_64'},
-                {'name':'MacOS 15 (arm64)','runner':'macos-15','darwin_version':24,'arch':'arm64'}]"
+      matrix: "[{'name':'MacOS 15 (x86_64)','runner':'macos-15-intel','darwin_version':24,'arch':'x86_64','tests':true},
+                {'name':'MacOS 15 (arm64)','runner':'macos-15','darwin_version':24,'arch':'arm64','tests':true}]"
 
   build_on_macos_static:
     permissions:

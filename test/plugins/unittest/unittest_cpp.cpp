@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "plugin/plugin.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
@@ -18,9 +19,9 @@ namespace {
 
 std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance> createModuleC() {
   using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "./" WASMEDGE_LIB_PREFIX
-      "wasmedgePluginTestModuleC" WASMEDGE_LIB_EXTENSION));
+  WasmEdge::Plugin::Plugin::load(
+      WasmEdge::u8path("./" WASMEDGE_LIB_PREFIX
+                       "wasmedgePluginTestModuleC" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin =
           WasmEdge::Plugin::Plugin::find("wasmedge_plugintest_c"sv)) {
     if (const auto *Module =
@@ -33,9 +34,9 @@ std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance> createModuleC() {
 
 std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance> createModuleCPP() {
   using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "./" WASMEDGE_LIB_PREFIX
-      "wasmedgePluginTestModuleCPP" WASMEDGE_LIB_EXTENSION));
+  WasmEdge::Plugin::Plugin::load(
+      WasmEdge::u8path("./" WASMEDGE_LIB_PREFIX
+                       "wasmedgePluginTestModuleCPP" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin =
           WasmEdge::Plugin::Plugin::find("wasmedge_plugintest_cpp"sv)) {
     WasmEdge::PO::ArgumentParser Parser;

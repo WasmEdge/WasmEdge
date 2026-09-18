@@ -58,6 +58,12 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   }
 }
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
+constexpr uint32_t MaxOutputBytesLimit = 16U * 1024U * 1024U;
+
+inline bool isValidOutputBufferSize(uint32_t Size) noexcept {
+  return Size > 0 && Size <= MaxOutputBytesLimit;
+}
+
 WASINN::ErrNo metadataToErrNo(
     const std::multimap<grpc::string_ref, grpc::string_ref> &Metadata) {
   const auto It = Metadata.find("errno");
@@ -453,12 +459,16 @@ WasiNNGetOutput::bodyImpl(const Runtime::CallingFrame &Frame,
 
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
+    if (!isValidOutputBufferSize(OutBufferMaxSize)) {
+      return WASINN::ErrNo::InvalidArgument;
+    }
     auto Stub = wasi_ephemeral_nn::GraphExecutionContextResource::NewStub(
         Env.NNRPCChannel);
     grpc::ClientContext ClientContext;
     wasi_ephemeral_nn::GetOutputRequest Req;
     Req.set_resource_handle(ContextId);
     Req.set_index(Index);
+    Req.set_max_size(OutBufferMaxSize);
     wasi_ephemeral_nn::GetOutputResult Res;
     auto Status = Stub->GetOutput(&ClientContext, Req, &Res);
     if (!Status.ok()) {
@@ -519,12 +529,16 @@ Expect<WASINN::ErrNo> WasiNNGetOutputSingle::bodyImpl(
 
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
+    if (!isValidOutputBufferSize(OutBufferMaxSize)) {
+      return WASINN::ErrNo::InvalidArgument;
+    }
     auto Stub = wasi_ephemeral_nn::GraphExecutionContextResource::NewStub(
         Env.NNRPCChannel);
     grpc::ClientContext ClientContext;
     wasi_ephemeral_nn::GetOutputRequest Req;
     Req.set_resource_handle(ContextId);
     Req.set_index(Index);
+    Req.set_max_size(OutBufferMaxSize);
     wasi_ephemeral_nn::GetOutputResult Res;
     auto Status = Stub->GetOutputSingle(&ClientContext, Req, &Res);
     if (!Status.ok()) {

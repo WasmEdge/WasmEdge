@@ -15,10 +15,13 @@
 
 #include "common/enum_types.hpp"
 #include "common/errcode.h"
+#include "common/fmt.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <iterator>
+#include <string_view>
 
 namespace WasmEdge {
 
@@ -123,3 +126,23 @@ private:
 };
 
 } // namespace WasmEdge
+
+template <>
+struct fmt::formatter<WasmEdge::ComponentValType>
+    : fmt::formatter<std::string_view> {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::ComponentValType &Type,
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
+    using namespace std::literals;
+    fmt::memory_buffer Buffer;
+    if (Type.isPrimValType()) {
+      fmt::format_to(std::back_inserter(Buffer), "{}"sv,
+                     WasmEdge::ComponentTypeCodeStr[Type.getCode()]);
+    } else {
+      fmt::format_to(std::back_inserter(Buffer), "type[{}]"sv,
+                     Type.getTypeIndex());
+    }
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};

@@ -28,6 +28,7 @@ TEST_F(WasiCryptoTest, Kdf) {
     std::vector<uint8_t> SqueezeKey(KeySize);
     WASI_CRYPTO_EXPECT_TRUE(
         symmetricStateSqueeze(ExpandStateHandle, SqueezeKey));
+    WASI_CRYPTO_EXPECT_TRUE(symmetricStateSqueeze(ExpandStateHandle, {}));
     WASI_CRYPTO_EXPECT_TRUE(symmetricStateAbsorb(ExpandStateHandle, Info));
 
     auto BothInvalid = [this](std::string_view Name,

@@ -9,6 +9,7 @@ wasmedge_add_executable(wasmedgeComponentRegressionTests
   ComponentValidatorTest.cpp
   ComponentCanonInvokeTest.cpp
   ComponentHostFunctionTest.cpp
+  ComponentWasiTest.cpp
 )
 
 add_test(wasmedgeComponentRegressionTests wasmedgeComponentRegressionTests)

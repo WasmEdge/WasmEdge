@@ -4,6 +4,12 @@
 wasmedge_add_executable(wasiTests
   wasi.cpp
   linuxTest.cpp
+  p3_clocks.cpp
+  p3_random.cpp
+  p3_cli.cpp
+  p3_filesystem.cpp
+  p3_sockets.cpp
+  p3_http.cpp
 )
 
 add_test(wasiTests wasiTests)
@@ -11,6 +17,8 @@ add_test(wasiTests wasiTests)
 target_link_libraries(wasiTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
+  wasmedgeExecutor
+  wasmedgeLoader
   wasmedgeHostModuleWasi
 )
 

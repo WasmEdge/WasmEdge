@@ -35,17 +35,16 @@ class SecretVec {
 public:
   SecretVec(const SecretVec &) = default;
 
-  /// Assigning over a live vector releases its buffer, so wipe the replaced
-  /// content first.
-  SecretVec &operator=(const SecretVec &Rhs) {
-    if (this != &Rhs) {
-      cleanse();
-      Data = Rhs.Data;
-    }
-    return *this;
-  }
+  /// Copy first, then reuse the move assignment, so the replaced content goes
+  /// through the single wipe below and self assignment needs no guard. Defined
+  /// after the class because building a `SecretVec` before `data()` is declared
+  /// makes `Span` treat the class as a non-contiguous range for the rest of the
+  /// translation unit.
+  SecretVec &operator=(const SecretVec &Rhs);
 
-  /// The wiped buffer is handed to `Rhs`, which releases it on destruction.
+  /// Assigning over a live vector releases its buffer, so wipe the replaced
+  /// content first. The wiped buffer is handed to `Rhs`, which releases it on
+  /// destruction.
   SecretVec &operator=(SecretVec &&Rhs) noexcept {
     if (this != &Rhs) {
       cleanse();
@@ -98,6 +97,10 @@ private:
 
   std::vector<uint8_t> Data;
 };
+
+inline SecretVec &SecretVec::operator=(const SecretVec &Rhs) {
+  return *this = SecretVec(Rhs);
+}
 
 } // namespace WasiCrypto
 } // namespace Host

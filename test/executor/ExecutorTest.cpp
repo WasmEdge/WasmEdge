@@ -16,6 +16,7 @@
 
 #include "common/filesystem.h"
 #include "common/spdlog.h"
+#include "vm/component_vm.h"
 #include "vm/vm.h"
 
 #include "../spec/hostfunc.h"
@@ -35,6 +36,7 @@
 #include <system_error>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace {
@@ -52,10 +54,71 @@ TEST_P(CoreTest, TestSuites) {
 
   // Define context structure
   struct TestContext {
-    WasmEdge::SpecTestModule SpecTestMod;
+    SpecTestModule SpecTestMod;
     WasmEdge::VM::VM VM;
-    TestContext(const WasmEdge::Configure &C) : VM(C) {
+    // A component-model unit runs on the component VM, over a core executor
+    // of its own; the configuration spawns the strict VMs of the unlinkable
+    // and uninstantiable checks.
+    WasmEdge::VM::ComponentVM CompVM;
+    Configure StrictConf;
+    std::unique_ptr<SpecTestComponent> SpecTestComp;
+    SpecTestU64Component SpecTestU64Comp;
+    SpecTestTypesComponent SpecTestTypesComp;
+    SpecTestEmptyExportComponent SpecTestEmptyExportComp;
+    SpecTestFuncsComponent SpecTestFuncsComp;
+    std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+        SpecTestEmptyComps;
+    std::vector<std::unique_ptr<AST::Component::Component>> SpecTestCompDefs;
+    // The host of the component-model suites. The core module of the "host"
+    // instance: f() -> 101, g = 100. The component definitions "a" (empty)
+    // and "x" (defines and exports the resource type "x").
+    void registerSpecTestComponents() {
+      static const std::vector<Byte> SimpleModuleWasm = {
+          0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+          0x01, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x06,
+          0x07, 0x01, 0x7f, 0x00, 0x41, 0xe4, 0x00, 0x0b, 0x07, 0x09,
+          0x02, 0x01, 0x66, 0x00, 0x00, 0x01, 0x67, 0x03, 0x00, 0x0a,
+          0x07, 0x01, 0x05, 0x00, 0x41, 0xe5, 0x00, 0x0b};
+      static const std::vector<Byte> ComponentAWasm = {0x00, 0x61, 0x73, 0x6d,
+                                                       0x0d, 0x00, 0x01, 0x00};
+      static const std::vector<Byte> ComponentXWasm = {
+          0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+          0x07, 0x04, 0x01, 0x3f, 0x7f, 0x00, 0x0b, 0x07,
+          0x01, 0x00, 0x01, 0x78, 0x03, 0x00, 0x00};
+      auto &Store = CompVM.getStoreManager();
+      if (auto Res = CompVM.getLoader().parseModule(SimpleModuleWasm)) {
+        SpecTestComp = std::make_unique<SpecTestComponent>(std::move(*Res));
+        CompVM.registerComponent(*SpecTestComp);
+      }
+      CompVM.registerComponent(SpecTestU64Comp);
+      CompVM.registerComponent(SpecTestTypesComp);
+      CompVM.registerComponent(SpecTestEmptyExportComp);
+      Store.registerFunction("host-return-two",
+                             SpecTestFuncsComp.findFunction("host-return-two"));
+      Store.registerFunction("f", SpecTestFuncsComp.findFunction("f"));
+      for (const auto *Name :
+           {"wasi", "a:b/c", "a1:b1/c", "r", "not-provided-by-the-host"}) {
+        SpecTestEmptyComps.push_back(
+            std::make_unique<Runtime::Instance::ComponentInstance>(Name));
+        CompVM.registerComponent(*SpecTestEmptyComps.back());
+      }
+      for (const auto &[Name, Wasm] : {std::make_pair("a", &ComponentAWasm),
+                                       std::make_pair("x", &ComponentXWasm)}) {
+        if (auto Res = CompVM.getLoader().parseWasmUnit(*Wasm)) {
+          auto &Comp =
+              std::get<std::unique_ptr<AST::Component::Component>>(*Res);
+          if (CompVM.getValidator().validate(*Comp)) {
+            Store.registerDefinition(Name, Comp.get());
+            SpecTestCompDefs.push_back(std::move(Comp));
+          }
+        }
+      }
+    }
+    TestContext(const Configure &C) : VM(C), CompVM(C), StrictConf(C) {
       VM.registerModule(SpecTestMod);
+      if (C.hasProposal(Proposal::Component)) {
+        registerSpecTestComponents();
+      }
     }
   };
 
@@ -87,26 +150,45 @@ TEST_P(CoreTest, TestSuites) {
                   const std::string &FileName) -> Expect<void> {
     auto &VM = static_cast<TestContext *>(Ctx)->VM;
     if (!ModName.empty()) {
-      // registerModule only supports core wasm modules. If it fails (e.g.
-      // because the file is a component), fall back to
-      // load/validate/instantiate.
-      if (auto Res = VM.registerModule(ModName, FileName); Res) {
-        return {};
-      }
+      return VM.registerModule(ModName, FileName);
     }
     return VM.loadWasm(FileName)
         .and_then([&VM]() { return VM.validate(); })
         .and_then([&VM]() { return VM.instantiate(); });
+  };
+  T.onCompModule = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+                      const std::string &FileName) -> Expect<void> {
+    auto &CompVM = static_cast<TestContext *>(Ctx)->CompVM;
+    // A named component registers under its name, and stays the active unit
+    // for the anonymous invokes that follow.
+    if (!ModName.empty()) {
+      static_cast<void>(CompVM.unregisterComponent(ModName));
+      EXPECTED_TRY(CompVM.registerComponent(ModName, FileName));
+    }
+    return CompVM.loadWasm(FileName)
+        .and_then([&CompVM]() { return CompVM.validate(); })
+        .and_then([&CompVM]() { return CompVM.instantiate(); });
   };
   T.onLoad = [](SpecTest::ContextHandle Ctx,
                 const std::string &FileName) -> Expect<void> {
     auto &VM = static_cast<TestContext *>(Ctx)->VM;
     return VM.loadWasm(FileName);
   };
+  T.onCompLoad = [](SpecTest::ContextHandle Ctx,
+                    const std::string &FileName) -> Expect<void> {
+    auto &CompVM = static_cast<TestContext *>(Ctx)->CompVM;
+    return CompVM.loadWasm(FileName);
+  };
   T.onValidate = [](SpecTest::ContextHandle Ctx,
                     const std::string &FileName) -> Expect<void> {
     auto &VM = static_cast<TestContext *>(Ctx)->VM;
     return VM.loadWasm(FileName).and_then([&VM]() { return VM.validate(); });
+  };
+  T.onCompValidate = [](SpecTest::ContextHandle Ctx,
+                        const std::string &FileName) -> Expect<void> {
+    auto &CompVM = static_cast<TestContext *>(Ctx)->CompVM;
+    return CompVM.loadWasm(FileName).and_then(
+        [&CompVM]() { return CompVM.validate(); });
   };
   T.onModuleDefine =
       [](SpecTest::ContextHandle Ctx,
@@ -131,12 +213,43 @@ TEST_P(CoreTest, TestSuites) {
     auto &VM = static_cast<TestContext *>(Ctx)->VM;
     return VM.registerModule(ModName, ASTMod);
   };
+  // An unlinkable or uninstantiable check runs on a strict VM over the shared
+  // store, so a missing import fails.
   T.onInstantiate = [](SpecTest::ContextHandle Ctx,
                        const std::string &FileName) -> Expect<void> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    return VM.loadWasm(FileName)
-        .and_then([&VM]() { return VM.validate(); })
-        .and_then([&VM]() { return VM.instantiate(); });
+    auto *TestCtx = static_cast<TestContext *>(Ctx);
+    WasmEdge::VM::VM StrictVM(TestCtx->StrictConf,
+                              TestCtx->VM.getStoreManager());
+    return StrictVM.loadWasm(FileName)
+        .and_then([&StrictVM]() { return StrictVM.validate(); })
+        .and_then([&StrictVM]() { return StrictVM.instantiate(); });
+  };
+  T.onCompInstantiate = [](SpecTest::ContextHandle Ctx,
+                           const std::string &FileName) -> Expect<void> {
+    auto *TestCtx = static_cast<TestContext *>(Ctx);
+    WasmEdge::VM::ComponentVM StrictVM(TestCtx->StrictConf,
+                                       TestCtx->CompVM.getStoreManager());
+    return StrictVM.loadWasm(FileName)
+        .and_then([&StrictVM]() { return StrictVM.validate(); })
+        .and_then([&StrictVM]() { return StrictVM.instantiate(); });
+  };
+  T.onCompInvoke = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+                      const std::string &Field,
+                      const std::vector<ComponentValVariant> &Params)
+      -> Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>> {
+    auto &CompVM = static_cast<TestContext *>(Ctx)->CompVM;
+    if (!ModName.empty()) {
+      return CompVM.execute(ModName, Field, Params);
+    } else {
+      return CompVM.execute(Field, Params);
+    }
+  };
+  T.onCompInstanceFromDef =
+      [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+         const AST::Component::Component &Comp) -> Expect<void> {
+    auto &CompVM = static_cast<TestContext *>(Ctx)->CompVM;
+    static_cast<void>(CompVM.unregisterComponent(ModName));
+    return CompVM.registerComponent(ModName, Comp);
   };
   // Helper function to call functions.
   T.onInvoke = [](SpecTest::ContextHandle Ctx, const std::string &ModName,

@@ -457,7 +457,9 @@ void FunctionCompiler::compileAtomicStore(unsigned MemoryIndex,
     V = Builder.createZExtOrTrunc(V, TargetType);
   }
   V = switchEndian(V);
-  auto Addr = Builder.createZExt(Stack.back(), Context.Int64Ty);
+  // A store produces nothing: pop the address too (the load/RMW variants peek
+  // it because they overwrite that slot with their result).
+  auto Addr = Builder.createZExt(stackPop(), Context.Int64Ty);
   boundsCheckMemory64(MemoryIndex, Addr, MemoryOffset,
                       TargetType.getPrimitiveSizeInBits() / 8);
   auto Offset = Addr;

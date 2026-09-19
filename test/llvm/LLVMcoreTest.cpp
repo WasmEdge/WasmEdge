@@ -2789,6 +2789,42 @@ TEST(AOTWriteBarrier, TableGetEmitsNoBarrier) {
   EXPECT_EQ(LoadCount, 1U);
 }
 
+// An atomic store must consume both its operands. The compiled
+// compileAtomicStore popped the value but only peeked the address, leaving a
+// phantom entry on the compiler's operand stack; anything below it (the 7
+// here) was then shadowed by the address, so `7 + 1` compiled to `4 + 1`.
+// The interpreter has always returned 8.
+// (module (memory 1 1 shared)
+//   (func (export "run") (result i32)
+//     (i32.const 7)
+//     (i32.atomic.store (i32.const 4) (i32.const 1))
+//     (i32.const 1) (i32.add)))
+const std::vector<uint8_t> AtomicStoreStackWasm = {
+    0, 97, 115, 109, 1, 0,  0, 0,  1, 5,   1,  96,  0,   1,   127, 3,   2,  1,
+    0, 5,  4,   1,   3, 1,  1, 7,  7, 1,   3,  114, 117, 110, 0,   0,   10, 17,
+    1, 15, 0,   65,  7, 65, 4, 65, 1, 254, 23, 2,   0,   65,  1,   106, 11};
+
+TEST(AOTCodegen, AtomicStorePopsItsAddressOperand) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Threads);
+  auto Mod = compileToJIT(Conf, AtomicStoreStackWasm);
+  ASSERT_NE(Mod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+  auto InstOrErr = ExecEngine.instantiateModule(Store, *Mod);
+  ASSERT_TRUE(InstOrErr);
+  auto Inst = std::move(*InstOrErr);
+  const auto *RunFn = Inst->findFuncExports("run");
+  ASSERT_NE(RunFn, nullptr);
+  ASSERT_TRUE(RunFn->isCompiledFunction());
+  auto R = ExecEngine.invoke(RunFn, {}, {});
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 8u)
+      << "the atomic store's address operand leaked onto the operand stack";
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

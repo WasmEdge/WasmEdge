@@ -107,6 +107,8 @@ public:
 
     WasiCryptoExpect<VerificationState> openVerificationState() const noexcept;
 
+    const auto &raw() const { return Ctx; }
+
   private:
     SharedEvpPkey Ctx;
   };
@@ -127,6 +129,8 @@ public:
 
     WasiCryptoExpect<SecretVec>
     exportData(__wasi_secretkey_encoding_e_t Encoding) const noexcept;
+
+    const auto &raw() const { return Ctx; }
 
   private:
     SharedEvpPkey Ctx;

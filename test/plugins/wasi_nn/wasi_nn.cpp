@@ -4132,6 +4132,34 @@ TEST(WasiNNTest, BitNetBackend) {
       ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
       EXPECT_EQ(Conf.EmbdNormalize, PrevEmbdNormalize);
     }
+
+    // Test: set_input -- a rejected metadata object is applied atomically:
+    // the valid options that precede the invalid one are rolled back on the
+    // graph settings, the graph parameters, and the context config.
+    {
+      using WasmEdge::Host::WASINN::BitNet::EmbdNormalizeType;
+      const auto &Conf = BitNetContext.Conf;
+      const bool PrevEnableLog = BitNetGraph.EnableLog;
+      const int32_t PrevNCtx = Params.n_ctx;
+      const int32_t PrevNBatch = Params.n_batch;
+      const float PrevTemp = Params.sparams.temp;
+      const int64_t PrevNPredict = Conf.NPredict;
+      const EmbdNormalizeType PrevEmbdNormalize = Conf.EmbdNormalize;
+      ASSERT_TRUE(SetMetadata(R"({"enable-log":true,"tensor-split":"3,2",)"
+                              R"("ctx-size":1024,"temp":0.3,"n-predict":7,)"
+                              R"("embd-normalize":0,"batch-size":0})"));
+      EXPECT_EQ(Errno[0].get<int32_t>(),
+                static_cast<uint32_t>(ErrNo::InvalidArgument));
+      EXPECT_EQ(BitNetGraph.EnableLog, PrevEnableLog);
+      for (float Split : Params.tensor_split) {
+        EXPECT_FLOAT_EQ(Split, 0.0f);
+      }
+      EXPECT_EQ(Params.n_ctx, PrevNCtx);
+      EXPECT_EQ(Params.n_batch, PrevNBatch);
+      EXPECT_FLOAT_EQ(Params.sparams.temp, PrevTemp);
+      EXPECT_EQ(Conf.NPredict, PrevNPredict);
+      EXPECT_EQ(Conf.EmbdNormalize, PrevEmbdNormalize);
+    }
   }
 
   // BitNet WASI-NN set_input tests

@@ -1551,6 +1551,7 @@ TEST(WasiNNTest, GGMLBackend) {
       const ggml_type PrevCacheTypeK = Params.cache_type_k;
       const ggml_type PrevCacheTypeV = Params.cache_type_v;
       const enum llama_pooling_type PrevPoolingType = Params.pooling_type;
+      const int32_t PrevMirostat = Params.sampling.mirostat;
       const size_t PrevNOverrides = GGMLGraph.TensorBuftOverrides.size();
       std::string TooManySplits = R"({"tensor-split":")";
       for (size_t I = 0; I < 256; I++) {
@@ -1580,6 +1581,9 @@ TEST(WasiNNTest, GGMLBackend) {
           R"({"cache-type-v":1000})",
           R"({"pooling-type":-2})",
           R"({"pooling-type":99})",
+          // common_sampler_init asserts on unknown mirostat versions.
+          R"({"mirostat":-1})",
+          R"({"mirostat":3})",
       };
       for (const auto &Metadata : InvalidCases) {
         SCOPED_TRACE(Metadata);
@@ -1594,6 +1598,7 @@ TEST(WasiNNTest, GGMLBackend) {
       EXPECT_EQ(Params.cache_type_k, PrevCacheTypeK);
       EXPECT_EQ(Params.cache_type_v, PrevCacheTypeV);
       EXPECT_EQ(Params.pooling_type, PrevPoolingType);
+      EXPECT_EQ(Params.sampling.mirostat, PrevMirostat);
       EXPECT_EQ(GGMLGraph.TensorBuftOverrides.size(), PrevNOverrides);
       for (float Split : Params.tensor_split) {
         EXPECT_FLOAT_EQ(Split, 0.0f);
@@ -1617,35 +1622,39 @@ TEST(WasiNNTest, GGMLBackend) {
       EXPECT_EQ(Params.n_ubatch, PrevNUBatch);
     }
 
-    // Test: set_input -- in-range thread counts, KV cache types, and pooling
-    // types are applied and restored afterwards.
+    // Test: set_input -- in-range thread counts, KV cache types, pooling
+    // types, and mirostat versions are applied and restored afterwards.
     {
       const int PrevNThreads = Params.cpuparams.n_threads;
       const int PrevNThreadsBatch = Params.cpuparams_batch.n_threads;
       const ggml_type PrevCacheTypeK = Params.cache_type_k;
       const ggml_type PrevCacheTypeV = Params.cache_type_v;
       const enum llama_pooling_type PrevPoolingType = Params.pooling_type;
+      const int32_t PrevMirostat = Params.sampling.mirostat;
       ASSERT_TRUE(SetMetadata(R"({"threads":2,"threads-batch":3,)"
                               R"("cache-type-k":8,"cache-type-v":2,)"
-                              R"("pooling-type":1})"));
+                              R"("pooling-type":1,"mirostat":2})"));
       ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
       EXPECT_EQ(Params.cpuparams.n_threads, 2);
       EXPECT_EQ(Params.cpuparams_batch.n_threads, 3);
       EXPECT_EQ(Params.cache_type_k, GGML_TYPE_Q8_0);
       EXPECT_EQ(Params.cache_type_v, GGML_TYPE_Q4_0);
       EXPECT_EQ(Params.pooling_type, LLAMA_POOLING_TYPE_MEAN);
+      EXPECT_EQ(Params.sampling.mirostat, 2);
       ASSERT_TRUE(SetMetadata(
           R"({"threads":)" + std::to_string(PrevNThreads) +
           R"(,"threads-batch":)" + std::to_string(PrevNThreadsBatch) +
           R"(,"cache-type-k":)" + std::to_string(PrevCacheTypeK) +
           R"(,"cache-type-v":)" + std::to_string(PrevCacheTypeV) +
-          R"(,"pooling-type":)" + std::to_string(PrevPoolingType) + "}"));
+          R"(,"pooling-type":)" + std::to_string(PrevPoolingType) +
+          R"(,"mirostat":)" + std::to_string(PrevMirostat) + "}"));
       ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
       EXPECT_EQ(Params.cpuparams.n_threads, PrevNThreads);
       EXPECT_EQ(Params.cpuparams_batch.n_threads, PrevNThreadsBatch);
       EXPECT_EQ(Params.cache_type_k, PrevCacheTypeK);
       EXPECT_EQ(Params.cache_type_v, PrevCacheTypeV);
       EXPECT_EQ(Params.pooling_type, PrevPoolingType);
+      EXPECT_EQ(Params.sampling.mirostat, PrevMirostat);
     }
 
     // Test: set_input -- the MoE CPU overrides follow the latest metadata

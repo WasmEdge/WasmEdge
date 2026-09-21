@@ -3776,6 +3776,8 @@ TEST(WasiNNTest, BitNetBackend) {
   const std::string ModelPath = "./wasinn_bitnet_fixtures/ggml-model-i2_s.gguf";
   const std::string ModelPreloadStr = "preload:" + ModelPath;
   const std::string MetadataStr = R"({"n-predict": 128})";
+  const std::string InvalidBatchSizeMetadataStr =
+      R"({"batch-size": 4294967295})";
   const std::string Prompt = "Once upon a time, ";
 
   uint32_t BuilderPtr = 0;
@@ -3786,6 +3788,19 @@ TEST(WasiNNTest, BitNetBackend) {
   std::array<WasmEdge::ValVariant, 1> Errno = {0};
   uint32_t GraphId = 0;
   uint32_t CtxId = 0;
+
+  auto WriteLoadBuilders = [&](const std::string &Metadata) {
+    std::vector<uint8_t> ModelPreloadVec(ModelPreloadStr.begin(),
+                                         ModelPreloadStr.end());
+    std::vector<uint8_t> MetadataVec(Metadata.begin(), Metadata.end());
+    BuilderPtr = LoadEntryPtr;
+    writeFatPointer(MemInst, StorePtr, ModelPreloadVec.size(), BuilderPtr);
+    writeFatPointer(MemInst, StorePtr + ModelPreloadVec.size(),
+                    MetadataVec.size(), BuilderPtr);
+    writeBinaries<uint8_t>(MemInst, ModelPreloadVec, StorePtr);
+    writeBinaries<uint8_t>(MemInst, MetadataVec,
+                           StorePtr + ModelPreloadVec.size());
+  };
 
   // BitNet WASI-NN load tests
   // Test: load -- empty builder array.
@@ -3846,19 +3861,43 @@ TEST(WasiNNTest, BitNetBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidEncoding));
   }
+  // Test: load -- invalid batch-size metadata.
+  {
+    WriteLoadBuilders(InvalidBatchSizeMetadataStr);
+    EXPECT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, 2, static_cast<uint32_t>(Backend::BitNet),
+            static_cast<uint32_t>(Device::CPU), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+  // Test: load -- invalid tensor-split metadata.
+  {
+    std::string TensorSplitMetadataStr = R"({"tensor-split": ")";
+    constexpr size_t TooManyTensorSplits = 256;
+    for (size_t I = 0; I < TooManyTensorSplits; I++) {
+      if (I > 0) {
+        TensorSplitMetadataStr += ",";
+      }
+      TensorSplitMetadataStr += "1";
+    }
+    TensorSplitMetadataStr += R"("})";
+    WriteLoadBuilders(TensorSplitMetadataStr);
+    EXPECT_TRUE(HostFuncLoad.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, 2, static_cast<uint32_t>(Backend::BitNet),
+            static_cast<uint32_t>(Device::CPU), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
   // Test: load -- load successfully.
   {
-    std::vector<uint8_t> ModelPreloadVec(ModelPreloadStr.begin(),
-                                         ModelPreloadStr.end());
-    std::vector<uint8_t> MetadataVec(MetadataStr.begin(), MetadataStr.end());
-    BuilderPtr = LoadEntryPtr;
-    writeFatPointer(MemInst, StorePtr, ModelPreloadVec.size(), BuilderPtr);
-    writeFatPointer(MemInst, StorePtr + ModelPreloadVec.size(),
-                    MetadataVec.size(), BuilderPtr);
-    writeBinaries<uint8_t>(MemInst, ModelPreloadVec, StorePtr);
-    writeBinaries<uint8_t>(MemInst, MetadataVec,
-                           StorePtr + ModelPreloadVec.size());
-    StorePtr += ModelPreloadVec.size() + MetadataVec.size();
+    WriteLoadBuilders(MetadataStr);
+    StorePtr += ModelPreloadStr.size() + MetadataStr.size();
     ASSERT_TRUE(HostFuncLoad.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
@@ -3889,6 +3928,191 @@ TEST(WasiNNTest, BitNetBackend) {
     ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     CtxId = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     BuilderPtr += 4;
+  }
+
+  // BitNet WASI-NN set_input metadata tests
+  {
+    ASSERT_LT(GraphId, NNMod->getEnv().NNGraph.size());
+    const auto &BitNetGraph = NNMod->getEnv()
+                                  .NNGraph[GraphId]
+                                  .get<WasmEdge::Host::WASINN::BitNet::Graph>();
+    const auto &Params = BitNetGraph.Params;
+    ASSERT_LT(CtxId, NNMod->getEnv().NNContext.size());
+    const auto &BitNetContext =
+        NNMod->getEnv()
+            .NNContext[CtxId]
+            .get<WasmEdge::Host::WASINN::BitNet::Context>();
+    const std::vector<uint32_t> MetadataDim = {1};
+    auto SetMetadata = [&](std::string_view Metadata) {
+      std::vector<uint8_t> MetadataData(Metadata.begin(), Metadata.end());
+      uint32_t EntryPtr = BuilderPtr;
+      writeFatPointer(MemInst, StorePtr, UINT32_C(1), EntryPtr);
+      writeUInt32(MemInst, static_cast<uint32_t>(TensorType::U8), EntryPtr);
+      writeFatPointer(MemInst, StorePtr + UINT32_C(4),
+                      static_cast<uint32_t>(MetadataData.size()), EntryPtr);
+      writeBinaries<uint32_t>(MemInst, MetadataDim, StorePtr);
+      writeBinaries<uint8_t>(MemInst, MetadataData, StorePtr + UINT32_C(4));
+      return HostFuncSetInput.run(CallFrame,
+                                  std::initializer_list<WasmEdge::ValVariant>{
+                                      CtxId, UINT32_C(1), BuilderPtr},
+                                  Errno);
+    };
+
+    // Test: set_input -- metadata that would overflow the fixed tensor-split
+    // array, truncate n_batch / n_ubatch, or hand the bundled llama.cpp a
+    // value it throws or aborts on is rejected and leaves the parameters
+    // untouched.
+    {
+      const int32_t PrevNBatch = Params.n_batch;
+      const int32_t PrevNUBatch = Params.n_ubatch;
+      const int PrevNThreads = Params.cpuparams.n_threads;
+      const int PrevNThreadsBatch = Params.cpuparams_batch.n_threads;
+      const std::string PrevCacheTypeK = Params.cache_type_k;
+      const std::string PrevCacheTypeV = Params.cache_type_v;
+      const enum llama_pooling_type PrevPoolingType = Params.pooling_type;
+      const int32_t PrevMirostat = Params.sparams.mirostat;
+      std::string TooManySplits = R"({"tensor-split":")";
+      for (size_t I = 0; I < 256; I++) {
+        TooManySplits += I == 0 ? "1" : ",1";
+      }
+      TooManySplits += R"("})";
+      const std::string InvalidCases[] = {
+          TooManySplits,
+          R"({"tensor-split":"1,abc"})",
+          // Out of range for float: fails with eofbit also set.
+          R"({"tensor-split":"1e100"})",
+          R"({"tensor-split":"1,1e100"})",
+          R"({"tensor-split":""})",
+          R"({"batch-size":0})",
+          R"({"batch-size":4294967295})",
+          R"({"ubatch-size":-1})",
+          R"({"ubatch-size":4294967296})",
+          // llama_decode asserts n_threads > 0; -1 is not automatic here.
+          R"({"threads":0})",
+          R"({"threads":-1})",
+          R"({"threads":513})",
+          R"({"threads-batch":0})",
+          R"({"threads-batch":-2})",
+          R"({"threads-batch":513})",
+          // kv_cache_type_from_str throws on anything but its own list.
+          R"({"cache-type-k":"bf16"})",
+          R"({"cache-type-k":"q4_k"})",
+          R"({"cache-type-v":"abc"})",
+          R"({"pooling-type":-2})",
+          R"({"pooling-type":99})",
+          // common_sampler_init asserts on unknown mirostat versions.
+          R"({"mirostat":-1})",
+          R"({"mirostat":3})",
+      };
+      for (const auto &Metadata : InvalidCases) {
+        SCOPED_TRACE(Metadata);
+        ASSERT_TRUE(SetMetadata(Metadata));
+        EXPECT_EQ(Errno[0].get<int32_t>(),
+                  static_cast<uint32_t>(ErrNo::InvalidArgument));
+      }
+      EXPECT_EQ(Params.n_batch, PrevNBatch);
+      EXPECT_EQ(Params.n_ubatch, PrevNUBatch);
+      EXPECT_EQ(Params.cpuparams.n_threads, PrevNThreads);
+      EXPECT_EQ(Params.cpuparams_batch.n_threads, PrevNThreadsBatch);
+      EXPECT_EQ(Params.cache_type_k, PrevCacheTypeK);
+      EXPECT_EQ(Params.cache_type_v, PrevCacheTypeV);
+      EXPECT_EQ(Params.pooling_type, PrevPoolingType);
+      EXPECT_EQ(Params.sparams.mirostat, PrevMirostat);
+      for (float Split : Params.tensor_split) {
+        EXPECT_FLOAT_EQ(Split, 0.0f);
+      }
+    }
+
+    // Test: set_input -- valid batch sizes are applied (the prompt batch is
+    // reallocated on the change) and restored afterwards.
+    {
+      const int32_t PrevNBatch = Params.n_batch;
+      const int32_t PrevNUBatch = Params.n_ubatch;
+      ASSERT_TRUE(SetMetadata(R"({"batch-size":64,"ubatch-size":0})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.n_batch, 64);
+      EXPECT_EQ(Params.n_ubatch, 0);
+      EXPECT_EQ(BitNetContext.CurrentBatchSize, 64);
+      EXPECT_NE(BitNetContext.LlamaBatch.token, nullptr);
+      ASSERT_TRUE(SetMetadata(R"({"batch-size":)" + std::to_string(PrevNBatch) +
+                              R"(,"ubatch-size":)" +
+                              std::to_string(PrevNUBatch) + "}"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.n_batch, PrevNBatch);
+      EXPECT_EQ(Params.n_ubatch, PrevNUBatch);
+      EXPECT_EQ(BitNetContext.CurrentBatchSize, PrevNBatch);
+    }
+
+    // Test: set_input -- in-range KV cache types, pooling types, and mirostat
+    // versions are applied and restored afterwards. None of them reloads the
+    // llama context, so a V cache type that needs flash attention is fine.
+    {
+      const std::string PrevCacheTypeK = Params.cache_type_k;
+      const std::string PrevCacheTypeV = Params.cache_type_v;
+      const enum llama_pooling_type PrevPoolingType = Params.pooling_type;
+      const int32_t PrevMirostat = Params.sparams.mirostat;
+      ASSERT_TRUE(SetMetadata(R"({"cache-type-k":"q8_0","cache-type-v":"q4_0",)"
+                              R"("pooling-type":1,"mirostat":2})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.cache_type_k, "q8_0");
+      EXPECT_EQ(Params.cache_type_v, "q4_0");
+      EXPECT_EQ(Params.pooling_type, LLAMA_POOLING_TYPE_MEAN);
+      EXPECT_EQ(Params.sparams.mirostat, 2);
+      ASSERT_TRUE(
+          SetMetadata(R"({"cache-type-k":")" + PrevCacheTypeK +
+                      R"(","cache-type-v":")" + PrevCacheTypeV +
+                      R"(","pooling-type":)" + std::to_string(PrevPoolingType) +
+                      R"(,"mirostat":)" + std::to_string(PrevMirostat) + "}"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.cache_type_k, PrevCacheTypeK);
+      EXPECT_EQ(Params.cache_type_v, PrevCacheTypeV);
+      EXPECT_EQ(Params.pooling_type, PrevPoolingType);
+      EXPECT_EQ(Params.sparams.mirostat, PrevMirostat);
+    }
+
+    // Test: set_input -- in-range thread counts, including the threads-batch
+    // -1 fallback, are applied through a successful llama context reload and
+    // restored afterwards.
+    {
+      const int PrevNThreads = Params.cpuparams.n_threads;
+      const int PrevNThreadsBatch = Params.cpuparams_batch.n_threads;
+      ASSERT_TRUE(SetMetadata(R"({"threads":2,"threads-batch":-1})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.cpuparams.n_threads, 2);
+      EXPECT_EQ(Params.cpuparams_batch.n_threads, -1);
+      ASSERT_NE(BitNetGraph.LlamaContext, nullptr);
+      ASSERT_TRUE(SetMetadata(R"({"threads":3,"threads-batch":1})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.cpuparams.n_threads, 3);
+      EXPECT_EQ(Params.cpuparams_batch.n_threads, 1);
+      ASSERT_NE(BitNetGraph.LlamaContext, nullptr);
+      ASSERT_TRUE(SetMetadata(R"({"threads":)" + std::to_string(PrevNThreads) +
+                              R"(,"threads-batch":)" +
+                              std::to_string(PrevNThreadsBatch) + "}"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.cpuparams.n_threads, PrevNThreads);
+      EXPECT_EQ(Params.cpuparams_batch.n_threads, PrevNThreadsBatch);
+      ASSERT_NE(BitNetGraph.LlamaContext, nullptr);
+    }
+
+    // Test: set_input -- a valid tensor-split is applied and zero-padded,
+    // with separators and surrounding whitespace tolerated.
+    {
+      ASSERT_TRUE(SetMetadata(R"({"tensor-split":"3,2"})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_FLOAT_EQ(Params.tensor_split[0], 3.0f);
+      EXPECT_FLOAT_EQ(Params.tensor_split[1], 2.0f);
+      EXPECT_FLOAT_EQ(Params.tensor_split[2], 0.0f);
+      ASSERT_TRUE(SetMetadata(R"({"tensor-split":" 1.5 , 0.5, "})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_FLOAT_EQ(Params.tensor_split[0], 1.5f);
+      EXPECT_FLOAT_EQ(Params.tensor_split[1], 0.5f);
+      EXPECT_FLOAT_EQ(Params.tensor_split[2], 0.0f);
+      ASSERT_TRUE(SetMetadata(R"({"tensor-split":"0"})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_FLOAT_EQ(Params.tensor_split[0], 0.0f);
+      EXPECT_FLOAT_EQ(Params.tensor_split[1], 0.0f);
+    }
   }
 
   // BitNet WASI-NN set_input tests

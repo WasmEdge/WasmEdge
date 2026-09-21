@@ -9,8 +9,7 @@
 
 namespace {
 
-WasmEdge::Configure Conf;
-WasmEdge::Loader::Serializer Ser(Conf);
+WasmEdge::Loader::Serializer Ser;
 
 TEST(SerializeSectionTest, SerializeCustomSection) {
   WasmEdge::AST::CustomSection CustomSec;
@@ -18,7 +17,7 @@ TEST(SerializeSectionTest, SerializeCustomSection) {
   CustomSec.getContent() = {0x01U, 0x02U, 0x03U, 0x04U, 0x05U};
 
   std::vector<uint8_t> Output;
-  EXPECT_TRUE(Ser.serializeSection(CustomSec, Output));
+  Ser.serializeSection(CustomSec, Output);
   std::vector<uint8_t> Expected = {
       0x00U,                            // Section ID
       0x0AU,                            // Content size = 10
@@ -46,7 +45,7 @@ TEST(SerializeSectionTest, SerializeTypeSection) {
   TypeSec.getContent().push_back(FT3);
 
   std::vector<uint8_t> Output;
-  EXPECT_TRUE(Ser.serializeSection(TypeSec, Output));
+  Ser.serializeSection(TypeSec, Output);
   std::vector<uint8_t> Expected = {
       0x01U,                                    // section ID
       0x10U,                                    // Content size = 16
@@ -87,7 +86,7 @@ TEST(SerializeSectionTest, SerializeImportSection) {
   ImpSec.getContent().push_back(ID3);
 
   std::vector<uint8_t> Output;
-  EXPECT_TRUE(Ser.serializeSection(ImpSec, Output));
+  Ser.serializeSection(ImpSec, Output);
   std::vector<uint8_t> Expected = {
       0x02U, // section ID
       0x31U, // Content size = 49
@@ -116,7 +115,7 @@ TEST(SerializeSectionTest, SerializeFunctionSection) {
   FuncSec.getContent() = {1, 2, 1, 1};
 
   std::vector<uint8_t> Output;
-  EXPECT_TRUE(Ser.serializeSection(FuncSec, Output));
+  Ser.serializeSection(FuncSec, Output);
   std::vector<uint8_t> Expected = {
       0x03U,                     // section ID
       0x05U,                     // Content size = 5
@@ -138,7 +137,7 @@ TEST(SerializeSectionTest, SerializeTableSection) {
   TableSec.getContent().push_back(TS2);
 
   std::vector<uint8_t> Output;
-  EXPECT_TRUE(Ser.serializeSection(TableSec, Output));
+  Ser.serializeSection(TableSec, Output);
   std::vector<uint8_t> Expected = {
       0x04U,                      // section ID
       0x09U,                      // Content size = 9
@@ -159,8 +158,7 @@ TEST(SerializeSectionTest, SerializeMemorySection) {
   MemSec.getContent().push_back(MT3);
 
   std::vector<uint8_t> Output;
-  Conf.addProposal(WasmEdge::Proposal::Threads);
-  EXPECT_TRUE(Ser.serializeSection(MemSec, Output));
+  Ser.serializeSection(MemSec, Output);
   std::vector<uint8_t> Expected = {
       0x05U,               // section ID
       0x09U,               // Content size = 9
@@ -169,7 +167,6 @@ TEST(SerializeSectionTest, SerializeMemorySection) {
       0x01U, 0x00U, 0x0EU, // vec[1]
       0x03U, 0x00U, 0x0DU  // vec[2]
   };
-  Conf.removeProposal(WasmEdge::Proposal::Threads);
   EXPECT_EQ(Output, Expected);
 }
 
@@ -194,7 +191,7 @@ TEST(SerializeSectionTest, SerializeGlobalSection) {
   GlobalSec.getContent().push_back(GlobalSeg2);
 
   std::vector<uint8_t> Output;
-  EXPECT_TRUE(Ser.serializeSection(GlobalSec, Output));
+  Ser.serializeSection(GlobalSec, Output);
   std::vector<uint8_t> Expected = {
       0x06U,                      // Global section
       0x08U,                      // Content size = 8
@@ -221,7 +218,7 @@ TEST(SerializeSectionTest, SerializeExportSection) {
   ExpSec.getContent().push_back(ED2);
 
   std::vector<uint8_t> Output;
-  EXPECT_TRUE(Ser.serializeSection(ExpSec, Output));
+  Ser.serializeSection(ExpSec, Output);
   std::vector<uint8_t> Expected = {
       0x07U, // section ID
       0x14U, // Content size = 20
@@ -241,7 +238,7 @@ TEST(SerializeSectionTest, SerializeStartSection) {
   StartSec.setContent(717936);
 
   std::vector<uint8_t> Output;
-  EXPECT_TRUE(Ser.serializeSection(StartSec, Output));
+  Ser.serializeSection(StartSec, Output);
   std::vector<uint8_t> Expected = {
       0x08U,              // section ID
       0x03U,              // Content size = 3
@@ -283,7 +280,7 @@ TEST(SerializeSectionTest, SerializeElementSection) {
   ElementSec.getContent() = {ElementSeg};
 
   std::vector<uint8_t> Output;
-  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
+  Ser.serializeSection(ElementSec, Output);
   std::vector<uint8_t> Expected = {
       0x09U,                      // Element section
       0x0AU,                      // Content size = 10
@@ -309,7 +306,7 @@ TEST(SerializeSectionTest, SerializeCodeSection) {
   CodeSec.getContent().push_back(CodeSeg);
 
   std::vector<uint8_t> Output;
-  EXPECT_TRUE(Ser.serializeSection(CodeSec, Output));
+  Ser.serializeSection(CodeSec, Output);
   std::vector<uint8_t> Expected = {
       0x0AU,              // Code section
       0x0AU,              // Content size = 10
@@ -337,7 +334,7 @@ TEST(SerializeSectionTest, SerializeDataSection) {
   DataSec.getContent().push_back(DataSeg);
 
   std::vector<uint8_t> Output;
-  EXPECT_TRUE(Ser.serializeSection(DataSec, Output));
+  Ser.serializeSection(DataSec, Output);
   std::vector<uint8_t> Expected = {
       0x0BU,                            // Data section
       0x0BU,                            // Content size = 11
@@ -354,7 +351,7 @@ TEST(SerializeSectionTest, SerializeDataCountSection) {
   DataCntSec.setContent(4279234575);
 
   std::vector<uint8_t> Output;
-  EXPECT_TRUE(Ser.serializeSection(DataCntSec, Output));
+  Ser.serializeSection(DataCntSec, Output);
   std::vector<uint8_t> Expected = {
       0x0CU,                            // section ID
       0x05U,                            // Content size = 5
@@ -373,7 +370,7 @@ TEST(SerializeSectionTest, SerializeTagSection) {
   TagSec.getContent()[2].setTypeIdx(0x02U);
 
   std::vector<uint8_t> Output;
-  EXPECT_TRUE(Ser.serializeSection(TagSec, Output));
+  Ser.serializeSection(TagSec, Output);
   std::vector<uint8_t> Expected = {
       0x0DU,        // section ID
       0x07U,        // Content size = 10

@@ -235,7 +235,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
       if (!parseNumericArg(
               ArgValue, I, "s32"sv,
               [](const std::string &S) {
-                return ValVariant(static_cast<uint32_t>(std::stol(S)));
+                return static_cast<int32_t>(std::stol(S));
               },
               FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
@@ -246,7 +246,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
       if (!parseNumericArg(
               ArgValue, I, "u32"sv,
               [](const std::string &S) {
-                return ValVariant(static_cast<uint32_t>(std::stol(S)));
+                return static_cast<uint32_t>(std::stoul(S));
               },
               FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
@@ -257,7 +257,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
       if (!parseNumericArg(
               ArgValue, I, "s64"sv,
               [](const std::string &S) {
-                return ValVariant(static_cast<uint64_t>(std::stoll(S)));
+                return static_cast<int64_t>(std::stoll(S));
               },
               FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
@@ -268,7 +268,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
       if (!parseNumericArg(
               ArgValue, I, "u64"sv,
               [](const std::string &S) {
-                return ValVariant(static_cast<uint64_t>(std::stoll(S)));
+                return static_cast<uint64_t>(std::stoull(S));
               },
               FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
@@ -278,8 +278,8 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case ComponentTypeCode::F32: {
       if (!parseNumericArg(
               ArgValue, I, "f32"sv,
-              [](const std::string &S) { return ValVariant(std::stof(S)); },
-              FuncArgs, FuncArgTypes, TCode)) {
+              [](const std::string &S) { return std::stof(S); }, FuncArgs,
+              FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
       break;
@@ -287,8 +287,8 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case ComponentTypeCode::F64: {
       if (!parseNumericArg(
               ArgValue, I, "f64"sv,
-              [](const std::string &S) { return ValVariant(std::stod(S)); },
-              FuncArgs, FuncArgTypes, TCode)) {
+              [](const std::string &S) { return std::stod(S); }, FuncArgs,
+              FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
       break;
@@ -310,7 +310,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
       if (!parseNumericArg(
               Opt.Args.value()[I], I, "u64"sv,
               [](const std::string &S) {
-                return ValVariant(static_cast<uint64_t>(std::stoll(S)));
+                return static_cast<uint64_t>(std::stoull(S));
               },
               FuncArgs, FuncArgTypes, ComponentTypeCode::U64)) {
         return EXIT_FAILURE;
@@ -329,22 +329,22 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     for (auto &&Val : *Result) {
       switch (Val.second.getCode()) {
       case ComponentTypeCode::S32:
-        fmt::print("{}\n"sv, std::get<ValVariant>(Val.first).get<int32_t>());
+        fmt::print("{}\n"sv, std::get<int32_t>(Val.first));
         break;
       case ComponentTypeCode::U32:
-        fmt::print("{}\n"sv, std::get<ValVariant>(Val.first).get<uint32_t>());
+        fmt::print("{}\n"sv, std::get<uint32_t>(Val.first));
         break;
       case ComponentTypeCode::S64:
-        fmt::print("{}\n"sv, std::get<ValVariant>(Val.first).get<int64_t>());
+        fmt::print("{}\n"sv, std::get<int64_t>(Val.first));
         break;
       case ComponentTypeCode::U64:
-        fmt::print("{}\n"sv, std::get<ValVariant>(Val.first).get<uint64_t>());
+        fmt::print("{}\n"sv, std::get<uint64_t>(Val.first));
         break;
       case ComponentTypeCode::F32:
-        fmt::print("{}\n"sv, std::get<ValVariant>(Val.first).get<float>());
+        fmt::print("{}\n"sv, std::get<float>(Val.first));
         break;
       case ComponentTypeCode::F64:
-        fmt::print("{}\n"sv, std::get<ValVariant>(Val.first).get<double>());
+        fmt::print("{}\n"sv, std::get<double>(Val.first));
         break;
       case ComponentTypeCode::String:
         fmt::print("{}\n"sv, std::get<std::string>(Val.first));
@@ -424,19 +424,26 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     Conf.getCompilerConfigure().setOptimizationLevel(
         WasmEdge::CompilerConfigure::OptimizationLevel::O1);
   }
-  if (Opt.ConfEnableCoredump.value()) {
-    Conf.getRuntimeConfigure().setEnableCoredump(true);
+  bool IsCoredumpEnabled =
+      Opt.ConfEnableCoredump.value() || Opt.ConfCoredumpWasmgdb.value();
+  if (IsCoredumpEnabled && RunModeFromFlag != RunMode::Interpreter) {
+    spdlog::warn("The coredump generation is supported by the interpreter "
+                 "only; the coredump is disabled. Use --run-mode=interpreter "
+                 "to generate a coredump."sv);
+    IsCoredumpEnabled = false;
   }
-  if (Opt.ConfCoredumpWasmgdb.value()) {
-    Conf.getRuntimeConfigure().setCoredumpWasmgdb(true);
+  if (IsCoredumpEnabled) {
+    Conf.getRuntimeConfigure().setEnableCoredump(true);
+    if (Opt.ConfCoredumpWasmgdb.value()) {
+      Conf.getRuntimeConfigure().setCoredumpWasmgdb(true);
+    }
   }
   if (Opt.ConfAFUNIX.value()) {
     Conf.getRuntimeConfigure().setAllowAFUNIX(true);
   }
 
   Conf.addHostRegistration(HostRegistration::Wasi);
-  const auto InputPath =
-      std::filesystem::absolute(std::filesystem::u8path(Opt.SoName.value()));
+  const auto InputPath = std::filesystem::absolute(u8path(Opt.SoName.value()));
 
   // Create VM and get WASI module instance.
   VM::VM VM(Conf);
@@ -451,17 +458,16 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       return EXIT_FAILURE;
     }
     auto Name = ModEntry.substr(0, Pos);
-    auto Path = std::filesystem::absolute(
-        std::filesystem::u8path(ModEntry.substr(Pos + 1)));
+    auto Path = std::filesystem::absolute(u8path(ModEntry.substr(Pos + 1)));
     if (auto Result = VM.registerModule(Name, Path); !Result) {
       spdlog::error("Failed to register module \"{}\" from: {}"sv, Name,
-                    Path.u8string());
+                    u8string(Path));
       return EXIT_FAILURE;
     }
   }
 
   // Load, validate, and instantiate WASM or Component.
-  if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
+  if (auto Result = VM.loadWasm(u8string(InputPath)); !Result) {
     return EXIT_FAILURE;
   }
   if (auto Result = VM.validate(); !Result) {
@@ -500,11 +506,10 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   bool EnterCommandMode = !Opt.Reactor.value() && HasValidCommandModStartFunc();
 
   // Initialize WASI module.
-  WasiMod->init(Opt.Dir.value(),
-                InputPath.filename()
-                    .replace_extension(std::filesystem::u8path("wasm"sv))
-                    .u8string(),
-                Opt.Args.value(), Opt.Env.value());
+  WasiMod->init(
+      Opt.Dir.value(),
+      u8string(InputPath.filename().replace_extension(u8path("wasm"sv))),
+      Opt.Args.value(), Opt.Env.value());
 
   if (EnterCommandMode) {
     // command mode

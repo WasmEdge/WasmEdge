@@ -53,7 +53,7 @@ WasmEdge 及其執行的 Wasm 應用程式可以作為新應用程序或以現�
 
 * [在應用程式中嵌入 WasmEdge](https://wasmedge.org/docs/zh-tw/embed/overview)
 * [使用容器工具管理和編排 WasmEdge 實例](https://wasmedge.org/docs/zh-tw/category/deploy-wasmedge-apps-in-kubernetes)
-* [從 WasmEdge 呼叫原生 host 函式](docs/integrations.md#call-native-host-functions-from-wasmedge)
+* [從 WasmEdge 呼叫原生 host 函式](https://wasmedge.org/docs/embed/c/host_function)
 
 ## 社群
 

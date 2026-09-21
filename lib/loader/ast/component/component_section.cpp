@@ -43,7 +43,7 @@ Expect<void> Loader::loadSection(AST::Component::CoreInstanceSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(
         Sec, [this](AST::Component::CoreInstance &Instance) {
-          return loadCoreInstance(Instance);
+          return loadInstance(Instance);
         });
   });
 }
@@ -152,7 +152,13 @@ Expect<void> Loader::loadSection(AST::Component::ExportSection &Sec) {
   });
 }
 
-// TODO: COMPONENT - Load component value section.
+// Load component value section. See "include/loader/loader.h".
+Expect<void> Loader::loadSection(AST::Component::ValueSection &Sec) {
+  return loadSectionContent(Sec, [this, &Sec]() {
+    return loadSectionContentVec(
+        Sec, [this](AST::Component::Value &C) { return loadValue(C); });
+  });
+}
 
 } // namespace Loader
 } // namespace WasmEdge

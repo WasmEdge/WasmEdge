@@ -31,7 +31,7 @@ else()
   )
 endif()
 
-include(WASINNDeps)
+include(TensorflowDeps)
 wasmedge_setup_tf_target(wasmedgePluginWasmEdgeTensorflow)
 
 install(

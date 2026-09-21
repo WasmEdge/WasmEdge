@@ -14,6 +14,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "common/filesystem.h"
 #include "helper.h"
 #include "hostfunc_c.h"
 #include "wasmedge/wasmedge.h"
@@ -33,7 +34,7 @@
 namespace {
 using namespace std::literals;
 using namespace WasmEdge;
-static SpecTest T(std::filesystem::u8path("../spec/testSuites"sv));
+static SpecTest T(u8path("../spec/testSuites"sv));
 
 // Parameterized testing class.
 class CoreTest : public testing::TestWithParam<std::string> {};

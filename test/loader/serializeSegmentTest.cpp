@@ -9,88 +9,21 @@
 
 namespace {
 
-WasmEdge::Configure Conf;
-WasmEdge::Loader::Serializer Ser(Conf);
-
-TEST(SerializeSegmentTest, SerializeGlobalSegment) {
-  std::vector<uint8_t> Expected;
-  std::vector<uint8_t> Output;
-
-  // 1. Test serialize global segment.
-  //
-  //   1.  Serialize global segment with expression of only End operation.
-  //   2.  Serialize global segment with non-empty expression.
-
-  WasmEdge::AST::GlobalSection GlobalSec;
-  WasmEdge::AST::GlobalSegment GlobalSeg;
-
-  GlobalSeg.getGlobalType() = WasmEdge::AST::GlobalType(
-      WasmEdge::TypeCode::I32, WasmEdge::ValMut::Const);
-  GlobalSeg.getExpr().getInstrs() = {
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
-  GlobalSec.getContent() = {GlobalSeg};
-
-  Output = {};
-  EXPECT_TRUE(Ser.serializeSection(GlobalSec, Output));
-  Expected = {
-      0x06U,       // Global section
-      0x04U,       // Content size = 4
-      0x01U,       // Vector length = 1
-      0x7FU, 0x00, // Global type
-      0x0BU        // Expression
-  };
-  EXPECT_EQ(Output, Expected);
-
-  GlobalSeg.getGlobalType() = WasmEdge::AST::GlobalType(
-      WasmEdge::TypeCode::I32, WasmEdge::ValMut::Const);
-  GlobalSeg.getExpr().getInstrs() = {
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__ne),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
-  GlobalSec.getContent() = {GlobalSeg};
-
-  Output = {};
-  EXPECT_TRUE(Ser.serializeSection(GlobalSec, Output));
-  Expected = {
-      0x06U,                     // Global section
-      0x07U,                     // Content size = 7
-      0x01U,                     // Vector length = 1
-      0x7FU, 0x00U,              // Global type
-      0x45U, 0x46U, 0x47U, 0x0BU // Expression
-  };
-  EXPECT_EQ(Output, Expected);
-}
+WasmEdge::Loader::Serializer Ser;
 
 TEST(SerializeSegmentTest, SerializeTableSegment) {
-  // The init-expression (0x40) table form is gated on the FunctionReferences
-  // proposal. Use a serializer that explicitly enables it for the positive
-  // init-expr cases, and one under WASM 2.0 (which lacks it) for the negative
-  // case, so the gate is exercised from both sides without relying on the
-  // ambient default configuration.
-  WasmEdge::Configure ConfFuncRef;
-  ConfFuncRef.addProposal(WasmEdge::Proposal::FunctionReferences);
-  WasmEdge::Loader::Serializer SerFuncRef(ConfFuncRef);
-
-  WasmEdge::Configure ConfWASM2;
-  ConfWASM2.setWASMStandard(WasmEdge::Standard::WASM_2);
-  WasmEdge::Loader::Serializer SerWASM2(ConfWASM2);
-
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  // Test serialize table segment.
+  // 1. Test serialize table segment.
   //
-  //   1. Serialize plain table type (MVP form) with min-max limit.
-  //   2. Serialize plain table type (MVP form) with min-only limit and a
-  //      different reference type.
-  //   3. Serialize table segment with init expression (the 0x40 0x00 form from
-  //      the FunctionReferences proposal) using an expression of only the End
-  //      operation.
-  //   4. Serialize table segment with init expression carrying a non-empty
-  //      ref.func initializer.
-  //   5. Serialize table segment with init expression without the
-  //      FunctionReferences proposal (negative).
+  //   1.  Serialize plain table type (MVP form) with min-max limit.
+  //   2.  Serialize plain table type (MVP form) with min-only limit and a
+  //       different reference type.
+  //   3.  Serialize table segment with init expression (the 0x40 0x00 form)
+  //       using an expression of only the End operation.
+  //   4.  Serialize table segment with init expression carrying a non-empty
+  //       ref.func initializer.
 
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
   WasmEdge::AST::Instruction RefFunc(WasmEdge::OpCode::Ref__func);
@@ -105,7 +38,7 @@ TEST(SerializeSegmentTest, SerializeTableSegment) {
     TableSec.getContent() = {TableSeg};
 
     Output = {};
-    EXPECT_TRUE(Ser.serializeSection(TableSec, Output));
+    Ser.serializeSection(TableSec, Output);
     Expected = {
         0x04U,                     // Table section
         0x05U,                     // Content size = 5
@@ -125,7 +58,7 @@ TEST(SerializeSegmentTest, SerializeTableSegment) {
     TableSec.getContent() = {TableSeg};
 
     Output = {};
-    EXPECT_TRUE(Ser.serializeSection(TableSec, Output));
+    Ser.serializeSection(TableSec, Output);
     Expected = {
         0x04U,              // Table section
         0x04U,              // Content size = 4
@@ -135,7 +68,7 @@ TEST(SerializeSegmentTest, SerializeTableSegment) {
     EXPECT_EQ(Output, Expected);
   }
 
-  // 3. Table segment with init expression (FunctionReferences proposal). A
+  // 3. Table segment with init expression. A
   //    non-empty expression triggers the 0x40 0x00 prefix followed by the table
   //    type and the expression.
   {
@@ -147,14 +80,14 @@ TEST(SerializeSegmentTest, SerializeTableSegment) {
     TableSec.getContent() = {TableSeg};
 
     Output = {};
-    EXPECT_TRUE(SerFuncRef.serializeSection(TableSec, Output));
+    Ser.serializeSection(TableSec, Output);
     Expected = {
-        0x04U,              // Table section
-        0x07U,              // Content size = 7
-        0x01U,              // Vector length = 1
-        0x40U, 0x00U,       // Init-expression form prefix
+        0x04U,               // Table section
+        0x07U,               // Content size = 7
+        0x01U,               // Vector length = 1
+        0x40U, 0x00U,        // Init-expression form prefix
         0x70U, 0x00U, 0x00U, // Table type: funcref + limit [0]
-        0x0BU               // Expression
+        0x0BU                // Expression
     };
     EXPECT_EQ(Output, Expected);
   }
@@ -171,7 +104,7 @@ TEST(SerializeSegmentTest, SerializeTableSegment) {
     TableSec.getContent() = {TableSeg};
 
     Output = {};
-    EXPECT_TRUE(SerFuncRef.serializeSection(TableSec, Output));
+    Ser.serializeSection(TableSec, Output);
     Expected = {
         0x04U,                      // Table section
         0x0AU,                      // Content size = 10
@@ -183,31 +116,64 @@ TEST(SerializeSegmentTest, SerializeTableSegment) {
     };
     EXPECT_EQ(Output, Expected);
   }
+}
 
-  // 5. The init-expression (0x40) form requires the FunctionReferences proposal.
-  //    Serializing it under WASM 2.0 (which lacks the proposal) must fail.
-  {
-    WasmEdge::AST::TableSection TableSec;
-    WasmEdge::AST::TableSegment TableSeg;
-    TableSeg.getTableType() =
-        WasmEdge::AST::TableType(WasmEdge::TypeCode::FuncRef, 0);
-    TableSeg.getExpr().getInstrs() = {End};
-    TableSec.getContent() = {TableSeg};
+TEST(SerializeSegmentTest, SerializeGlobalSegment) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
 
-    Output = {};
-    EXPECT_FALSE(SerWASM2.serializeSection(TableSec, Output));
-  }
+  // 2. Test serialize global segment.
+  //
+  //   1.  Serialize global segment with expression of only End operation.
+  //   2.  Serialize global segment with non-empty expression.
+
+  WasmEdge::AST::GlobalSection GlobalSec;
+  WasmEdge::AST::GlobalSegment GlobalSeg;
+
+  GlobalSeg.getGlobalType() = WasmEdge::AST::GlobalType(
+      WasmEdge::TypeCode::I32, WasmEdge::ValMut::Const);
+  GlobalSeg.getExpr().getInstrs() = {
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
+  GlobalSec.getContent() = {GlobalSeg};
+
+  Output = {};
+  Ser.serializeSection(GlobalSec, Output);
+  Expected = {
+      0x06U,       // Global section
+      0x04U,       // Content size = 4
+      0x01U,       // Vector length = 1
+      0x7FU, 0x00, // Global type
+      0x0BU        // Expression
+  };
+  EXPECT_EQ(Output, Expected);
+
+  GlobalSeg.getGlobalType() = WasmEdge::AST::GlobalType(
+      WasmEdge::TypeCode::I32, WasmEdge::ValMut::Const);
+  GlobalSeg.getExpr().getInstrs() = {
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__ne),
+      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
+  GlobalSec.getContent() = {GlobalSeg};
+
+  Output = {};
+  Ser.serializeSection(GlobalSec, Output);
+  Expected = {
+      0x06U,                     // Global section
+      0x07U,                     // Content size = 7
+      0x01U,                     // Vector length = 1
+      0x7FU, 0x00U,              // Global type
+      0x45U, 0x46U, 0x47U, 0x0BU // Expression
+  };
+  EXPECT_EQ(Output, Expected);
 }
 
 TEST(SerializeSegmentTest, SerializeElementSegment) {
-  WasmEdge::Configure ConfWASM1;
-  ConfWASM1.setWASMStandard(WasmEdge::Standard::WASM_1);
-  WasmEdge::Loader::Serializer SerWASM1(ConfWASM1);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  // 2. Test serialize element segment.
+  // 3. Test serialize element segment.
   //
   //   1.  Serialize element segment with expression of only End operation and
   //       empty function indices list.
@@ -226,10 +192,8 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   //       list.
   //   9.  Serialize element segment with table index, offset expression,
   //       reference type and init expression list.
-  //   10. Serialize element segment with reference type and init expression
+  //   10.  Serialize element segment with reference type and init expression
   //       list.
-  //   11. Serialize element segment with invalid checking byte without
-  //       Ref-Types proposal.
 
   WasmEdge::AST::ElementSection ElementSec;
   WasmEdge::AST::ElementSegment ElementSeg;
@@ -245,7 +209,7 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSec.getContent() = {ElementSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
+  Ser.serializeSection(ElementSec, Output);
   Expected = {
       0x09U, // Element section
       0x04U, // Content size = 4
@@ -273,7 +237,7 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSec.getContent() = {ElementSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
+  Ser.serializeSection(ElementSec, Output);
   Expected = {
       0x09U,                             // Element section
       0x0FU,                             // Content size = 15
@@ -292,7 +256,7 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSec.getContent() = {ElementSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
+  Ser.serializeSection(ElementSec, Output);
   Expected = {
       0x09U,                             // Element section
       0x0CU,                             // Content size = 12
@@ -311,7 +275,7 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSec.getContent() = {ElementSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
+  Ser.serializeSection(ElementSec, Output);
   Expected = {
       0x09U,                             // Element section
       0x0CU,                             // Content size = 12
@@ -329,7 +293,7 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSec.getContent() = {ElementSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
+  Ser.serializeSection(ElementSec, Output);
   Expected = {
       0x09U,                             // Element section
       0x0CU,                             // Content size = 12
@@ -349,7 +313,7 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSec.getContent() = {ElementSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
+  Ser.serializeSection(ElementSec, Output);
   Expected = {
       0x09U,                             // Element section
       0x11U,                             // Content size = 17
@@ -371,7 +335,7 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSec.getContent() = {ElementSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
+  Ser.serializeSection(ElementSec, Output);
   Expected = {
       0x09U,                             // Element section
       0x0CU,                             // Content size = 12
@@ -391,7 +355,7 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSec.getContent() = {ElementSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
+  Ser.serializeSection(ElementSec, Output);
   Expected = {
       0x09U,                             // Element section
       0x0CU,                             // Content size = 12
@@ -413,7 +377,7 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSec.getContent() = {ElementSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
+  Ser.serializeSection(ElementSec, Output);
   Expected = {
       0x09U,                      // Element section
       0x0BU,                      // Content size = 11
@@ -431,7 +395,7 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSec.getContent() = {ElementSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
+  Ser.serializeSection(ElementSec, Output);
   Expected = {
       0x09U,                      // Element section
       0x08U,                      // Content size = 8
@@ -449,7 +413,7 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSec.getContent() = {ElementSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
+  Ser.serializeSection(ElementSec, Output);
   Expected = {
       0x09U,                      // Element section
       0x0DU,                      // Content size = 13
@@ -469,7 +433,7 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSec.getContent() = {ElementSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
+  Ser.serializeSection(ElementSec, Output);
   Expected = {
       0x09U,                      // Element section
       0x08U,                      // Content size = 8
@@ -480,25 +444,181 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
       0x45U, 0x46U, 0x47U, 0x0BU, // Vec[0]
   };
   EXPECT_EQ(Output, Expected);
+}
 
-  EXPECT_FALSE(SerWASM1.serializeSection(ElementSec, Output));
+TEST(SerializeSegmentTest, SerializeElementSegmentAllModes) {
+  // 4. Pin every element segment mode. Modes 0x00 to 0x04 only express a
+  // nullable funcref element type, and 0x00 and 0x04 also imply table index 0.
+
+  const WasmEdge::ValType FuncRef(WasmEdge::TypeCode::RefNull,
+                                  WasmEdge::TypeCode::FuncRef);
+  const WasmEdge::ValType ExternRef(WasmEdge::TypeCode::RefNull,
+                                    WasmEdge::TypeCode::ExternRef);
+
+  auto refFunc = [](uint32_t Idx) {
+    WasmEdge::AST::Expression Expr;
+    WasmEdge::AST::Instruction RefFunc(WasmEdge::OpCode::Ref__func);
+    RefFunc.getTargetIndex() = Idx;
+    Expr.getInstrs() = {RefFunc,
+                        WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
+    return Expr;
+  };
+  auto refNull = [](const WasmEdge::ValType &VType) {
+    WasmEdge::AST::Expression Expr;
+    WasmEdge::AST::Instruction RefNull(WasmEdge::OpCode::Ref__null);
+    RefNull.setValType(VType);
+    Expr.getInstrs() = {RefNull,
+                        WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
+    return Expr;
+  };
+  auto offset = []() {
+    WasmEdge::AST::Expression Expr;
+    WasmEdge::AST::Instruction I32Const(WasmEdge::OpCode::I32__const);
+    I32Const.setNum(static_cast<uint32_t>(0));
+    Expr.getInstrs() = {I32Const,
+                        WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
+    return Expr;
+  };
+
+  auto serialize = [](const WasmEdge::AST::ElementSegment &Seg) {
+    WasmEdge::AST::ElementSection Sec;
+    Sec.getContent() = {Seg};
+    std::vector<uint8_t> Output;
+    Ser.serializeSection(Sec, Output);
+    // Drop the section id, section size and vector length.
+    return std::vector<uint8_t>(Output.begin() + 3, Output.end());
+  };
+
+  using ElemMode = WasmEdge::AST::ElementSegment::ElemMode;
+
+  // Mode 0x00: active on table 0, funcref, ref.func initialisers.
+  {
+    WasmEdge::AST::ElementSegment Seg;
+    Seg.setMode(ElemMode::Active);
+    Seg.setIdx(0);
+    Seg.setRefType(FuncRef);
+    Seg.getExpr() = offset();
+    Seg.getInitExprs() = {refFunc(1)};
+    EXPECT_EQ(serialize(Seg),
+              std::vector<uint8_t>({0x00U, 0x41U, 0x00U, 0x0BU, 0x01U, 0x01U}));
+  }
+  // Mode 0x01: passive, funcref, ref.func initialisers.
+  {
+    WasmEdge::AST::ElementSegment Seg;
+    Seg.setMode(ElemMode::Passive);
+    Seg.setRefType(FuncRef);
+    Seg.getInitExprs() = {refFunc(1)};
+    EXPECT_EQ(serialize(Seg),
+              std::vector<uint8_t>({0x01U, 0x00U, 0x01U, 0x01U}));
+  }
+  // Mode 0x02: active on a table other than 0.
+  {
+    WasmEdge::AST::ElementSegment Seg;
+    Seg.setMode(ElemMode::Active);
+    Seg.setIdx(2);
+    Seg.setRefType(FuncRef);
+    Seg.getExpr() = offset();
+    Seg.getInitExprs() = {refFunc(1)};
+    EXPECT_EQ(serialize(Seg),
+              std::vector<uint8_t>(
+                  {0x02U, 0x02U, 0x41U, 0x00U, 0x0BU, 0x00U, 0x01U, 0x01U}));
+  }
+  // Mode 0x03: declarative, funcref, ref.func initialisers.
+  {
+    WasmEdge::AST::ElementSegment Seg;
+    Seg.setMode(ElemMode::Declarative);
+    Seg.setRefType(FuncRef);
+    Seg.getInitExprs() = {refFunc(1)};
+    EXPECT_EQ(serialize(Seg),
+              std::vector<uint8_t>({0x03U, 0x00U, 0x01U, 0x01U}));
+  }
+  // Mode 0x04: active on table 0, funcref, expression initialisers.
+  {
+    WasmEdge::AST::ElementSegment Seg;
+    Seg.setMode(ElemMode::Active);
+    Seg.setIdx(0);
+    Seg.setRefType(FuncRef);
+    Seg.getExpr() = offset();
+    Seg.getInitExprs() = {refNull(FuncRef)};
+    EXPECT_EQ(serialize(Seg),
+              std::vector<uint8_t>(
+                  {0x04U, 0x41U, 0x00U, 0x0BU, 0x01U, 0xD0U, 0x70U, 0x0BU}));
+  }
+  // Mode 0x05: passive with an explicit reference type.
+  {
+    WasmEdge::AST::ElementSegment Seg;
+    Seg.setMode(ElemMode::Passive);
+    Seg.setRefType(ExternRef);
+    Seg.getInitExprs() = {refNull(ExternRef)};
+    EXPECT_EQ(serialize(Seg),
+              std::vector<uint8_t>({0x05U, 0x6FU, 0x01U, 0xD0U, 0x6FU, 0x0BU}));
+  }
+  // Mode 0x06: active with an explicit reference type.
+  {
+    WasmEdge::AST::ElementSegment Seg;
+    Seg.setMode(ElemMode::Active);
+    Seg.setIdx(2);
+    Seg.setRefType(ExternRef);
+    Seg.getExpr() = offset();
+    Seg.getInitExprs() = {refNull(ExternRef)};
+    EXPECT_EQ(serialize(Seg),
+              std::vector<uint8_t>({0x06U, 0x02U, 0x41U, 0x00U, 0x0BU, 0x6FU,
+                                    0x01U, 0xD0U, 0x6FU, 0x0BU}));
+  }
+  // Mode 0x07: declarative with an explicit reference type.
+  {
+    WasmEdge::AST::ElementSegment Seg;
+    Seg.setMode(ElemMode::Declarative);
+    Seg.setRefType(ExternRef);
+    Seg.getInitExprs() = {refNull(ExternRef)};
+    EXPECT_EQ(serialize(Seg),
+              std::vector<uint8_t>({0x07U, 0x6FU, 0x01U, 0xD0U, 0x6FU, 0x0BU}));
+  }
+
+  // An empty externref segment must keep its element type instead of being
+  // written as elemkind 0x00, which means funcref.
+  {
+    WasmEdge::AST::ElementSegment Seg;
+    Seg.setMode(ElemMode::Passive);
+    Seg.setRefType(ExternRef);
+    EXPECT_EQ(serialize(Seg), std::vector<uint8_t>({0x05U, 0x6FU, 0x00U}));
+  }
+  // An active externref segment on table 0 cannot use mode 0x04, whose element
+  // type is funcref, so it falls back to mode 0x06 with an explicit index.
+  {
+    WasmEdge::AST::ElementSegment Seg;
+    Seg.setMode(ElemMode::Active);
+    Seg.setIdx(0);
+    Seg.setRefType(ExternRef);
+    Seg.getExpr() = offset();
+    Seg.getInitExprs() = {refNull(ExternRef)};
+    EXPECT_EQ(serialize(Seg),
+              std::vector<uint8_t>({0x06U, 0x00U, 0x41U, 0x00U, 0x0BU, 0x6FU,
+                                    0x01U, 0xD0U, 0x6FU, 0x0BU}));
+  }
+  // A non-nullable (ref func) segment whose initialisers are all ref.func must
+  // not be degraded to elemkind, which would lose the nullability.
+  {
+    WasmEdge::AST::ElementSegment Seg;
+    Seg.setMode(ElemMode::Passive);
+    Seg.setRefType(WasmEdge::ValType(WasmEdge::TypeCode::Ref,
+                                     WasmEdge::TypeCode::FuncRef));
+    Seg.getInitExprs() = {refFunc(1)};
+    EXPECT_EQ(serialize(Seg), std::vector<uint8_t>({0x05U, 0x64U, 0x70U, 0x01U,
+                                                    0xD2U, 0x01U, 0x0BU}));
+  }
 }
 
 TEST(SerializeSegmentTest, SerializeCodeSegment) {
-  WasmEdge::Configure ConfWASM1;
-  ConfWASM1.setWASMStandard(WasmEdge::Standard::WASM_1);
-  WasmEdge::Loader::Serializer SerWASM1(ConfWASM1);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  // 3. Test serialize code segment.
+  // 5. Test serialize code segment.
   //
   //   1.  Serialize code segment of empty locals and expression with only End
   //       operation.
   //   2.  Serialize code segment with expression and local lists.
-  //   3.  Serialize code segment with invalid local number type without
-  //       Ref-Types proposal.
 
   WasmEdge::AST::CodeSection CodeSec;
   WasmEdge::AST::CodeSegment CodeSeg;
@@ -513,7 +633,7 @@ TEST(SerializeSegmentTest, SerializeCodeSegment) {
   CodeSec.getContent() = {CodeSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(CodeSec, Output));
+  Ser.serializeSection(CodeSec, Output);
   Expected = {
       0x0AU, // Code section
       0x04U, // Content size = 4
@@ -533,7 +653,7 @@ TEST(SerializeSegmentTest, SerializeCodeSegment) {
   CodeSec.getContent() = {CodeSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(CodeSec, Output));
+  Ser.serializeSection(CodeSec, Output);
   Expected = {
       0x0AU,                             // Code section
       0x15U,                             // Content size = 21
@@ -550,25 +670,18 @@ TEST(SerializeSegmentTest, SerializeCodeSegment) {
 
   CodeSeg.getLocals() = {{0x01U, WasmEdge::TypeCode::ExternRef}};
   CodeSec.getContent() = {CodeSeg};
-  EXPECT_FALSE(SerWASM1.serializeSection(CodeSec, Output));
 }
 
 TEST(SerializeSegmentTest, SerializeDataSegment) {
-  WasmEdge::Configure ConfWASM1;
-  ConfWASM1.setWASMStandard(WasmEdge::Standard::WASM_1);
-  WasmEdge::Loader::Serializer SerWASM1(ConfWASM1);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  // 4. Test serialize data segment.
+  // 6. Test serialize data segment.
   //
   //   1.  Serialize data segment of expression with only End operation and
-  //       empty
-  //       initialization data.
+  //       empty initialization data.
   //   2.  Serialize data segment with expression and initialization data.
-  //   3.  Serialize data segment with invalid checking byte without Bulk-Mem
-  //       proposal.
 
   WasmEdge::AST::DataSection DataSec;
   WasmEdge::AST::DataSegment DataSeg;
@@ -583,7 +696,7 @@ TEST(SerializeSegmentTest, SerializeDataSegment) {
   DataSec.getContent() = {DataSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(DataSec, Output));
+  Ser.serializeSection(DataSec, Output);
   Expected = {
       0x0BU, // Data section
       0x04U, // Content size = 4
@@ -600,7 +713,7 @@ TEST(SerializeSegmentTest, SerializeDataSegment) {
   DataSec.getContent() = {DataSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(DataSec, Output));
+  Ser.serializeSection(DataSec, Output);
   Expected = {
       0x0BU,                            // Data section
       0x0BU,                            // Content size = 11
@@ -616,7 +729,7 @@ TEST(SerializeSegmentTest, SerializeDataSegment) {
   DataSec.getContent() = {DataSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(DataSec, Output));
+  Ser.serializeSection(DataSec, Output);
   Expected = {
       0x0BU,                            // Data section
       0x07U,                            // Content size = 7
@@ -632,7 +745,7 @@ TEST(SerializeSegmentTest, SerializeDataSegment) {
   DataSec.getContent() = {DataSeg};
 
   Output = {};
-  EXPECT_TRUE(Ser.serializeSection(DataSec, Output));
+  Ser.serializeSection(DataSec, Output);
   Expected = {
       0x0BU,                            // Data section
       0x0CU,                            // Content size = 12
@@ -643,7 +756,6 @@ TEST(SerializeSegmentTest, SerializeDataSegment) {
       0x04U, 0x74U, 0x65U, 0x73U, 0x74U // Vector length = 4, "test"
   };
   EXPECT_EQ(Output, Expected);
-
-  EXPECT_FALSE(SerWASM1.serializeSection(DataSec, Output));
 }
+
 } // namespace

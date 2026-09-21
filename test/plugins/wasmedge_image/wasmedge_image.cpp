@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "image_module.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
@@ -30,9 +31,9 @@ inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
 
 std::unique_ptr<WasmEdge::Host::WasmEdgeImageModule> createModule() {
   using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
-      "../../../plugins/wasmedge_image/" WASMEDGE_LIB_PREFIX
-      "wasmedgePluginWasmEdgeImage" WASMEDGE_LIB_EXTENSION));
+  WasmEdge::Plugin::Plugin::load(
+      WasmEdge::u8path("../../../plugins/wasmedge_image/" WASMEDGE_LIB_PREFIX
+                       "wasmedgePluginWasmEdgeImage" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasmedge_image"sv)) {
     if (const auto *Module = Plugin->findModule("wasmedge_image"sv)) {
       return dynamicPointerCast<WasmEdge::Host::WasmEdgeImageModule>(

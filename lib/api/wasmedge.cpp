@@ -1835,12 +1835,14 @@ WasmEdge_ExportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
                               const WasmEdge_ExportTypeContext *Cxt) noexcept {
   if (ASTCxt && Cxt &&
       fromExpTypeCxt(Cxt)->getExternalType() == WasmEdge::ExternalType::Tag) {
-    // `external_index` = `tag_type_index` + `import_tag_nums`
     uint32_t ExtIdx = fromExpTypeCxt(Cxt)->getExternalIndex();
     const auto &ImpDescs =
         fromASTModCxt(ASTCxt)->getImportSection().getContent();
     for (auto &&ImpDesc : ImpDescs) {
       if (ImpDesc.getExternalType() == WasmEdge::ExternalType::Tag) {
+        if (ExtIdx == 0) {
+          return toTagTypeCxt(&ImpDesc.getExternalTagType());
+        }
         ExtIdx--;
       }
     }
@@ -2743,9 +2745,11 @@ WasmEdge_FunctionInstanceGetFunctionType(
 
 WASMEDGE_CAPI_EXPORT extern const void *WasmEdge_FunctionInstanceGetData(
     const WasmEdge_FunctionInstanceContext *Cxt) noexcept {
-  if (Cxt) {
-    return reinterpret_cast<CAPIHostFunc *>(&fromFuncCxt(Cxt)->getHostFunc())
-        ->getData();
+  if (Cxt && fromFuncCxt(Cxt)->isHostFunction()) {
+    if (auto *HostFunc =
+            dynamic_cast<CAPIHostFunc *>(&fromFuncCxt(Cxt)->getHostFunc())) {
+      return HostFunc->getData();
+    }
   }
   return nullptr;
 }

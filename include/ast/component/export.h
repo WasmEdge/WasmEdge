@@ -15,18 +15,18 @@
 
 #include "ast/component/sort.h"
 #include "ast/component/type.h"
+#include "common/span.h"
 
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace WasmEdge {
 namespace AST {
 namespace Component {
 
-// export      ::= en:<exportname'> si:<sortidx> ed?:<externdesc>?
-//               => (export en si ed?)
-// exportname' ::= 0x00 len:<u32> en:<exportname>
-//               => en  (if len = |en|)
+// export ::= na:<nameattributes> si:<sortidx> et?:<externtype>?
+//          => (export na si et?)
 
 /// AST Component::Export node.
 class Export {
@@ -37,11 +37,26 @@ public:
   const SortIndex &getSortIndex() const noexcept { return SortIdx; }
   std::optional<ExternDesc> &getDesc() noexcept { return Desc; }
   const std::optional<ExternDesc> &getDesc() const noexcept { return Desc; }
+  std::vector<std::string> &getImplements() noexcept { return Implements; }
+  Span<const std::string> getImplements() const noexcept { return Implements; }
+  std::vector<std::string> &getExternalIds() noexcept { return ExternalIds; }
+  Span<const std::string> getExternalIds() const noexcept {
+    return ExternalIds;
+  }
+  std::vector<std::string> &getVersionSuffixes() noexcept {
+    return VersionSuffixes;
+  }
+  Span<const std::string> getVersionSuffixes() const noexcept {
+    return VersionSuffixes;
+  }
 
 private:
   std::string Name;
   SortIndex SortIdx;
   std::optional<ExternDesc> Desc;
+  std::vector<std::string> Implements;
+  std::vector<std::string> ExternalIds;
+  std::vector<std::string> VersionSuffixes;
 };
 
 } // namespace Component

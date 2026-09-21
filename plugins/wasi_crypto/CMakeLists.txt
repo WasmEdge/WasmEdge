@@ -21,6 +21,7 @@ wasmedge_add_library(wasmedgePluginWasiCrypto
   kx/ctx.cpp
   kx/dh/ecdsa.cpp
   kx/dh/x25519.cpp
+  kx/kem/mlkem.cpp
   kx/func.cpp
   kx/kx.cpp
   kx/module.cpp

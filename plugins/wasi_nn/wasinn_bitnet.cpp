@@ -1217,7 +1217,16 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the embd-normalize option."sv)
     }
-    GraphRef.Params.embd_normalize = static_cast<int32_t>(EmbdNormalize);
+    // -1 disables normalization, 0 is max-absolute, 2 is euclidean, and any
+    // other value is the p of a p-norm in common_embd_normalize.
+    if (EmbdNormalize < -1 ||
+        EmbdNormalize >
+            static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "embd-normalize should be in range [-1, {}]."sv,
+                std::numeric_limits<int32_t>::max())
+    }
+    ConfRef.EmbdNormalize = static_cast<EmbdNormalizeType>(EmbdNormalize);
   }
   if (Doc.at_key("embd-out").error() == simdjson::SUCCESS) {
     std::string_view EmbdOut;

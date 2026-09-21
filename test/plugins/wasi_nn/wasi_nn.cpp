@@ -4851,6 +4851,25 @@ TEST(WasiNNTest, BitNetBackend) {
       EXPECT_FLOAT_EQ(Params.tensor_split[0], 0.0f);
       EXPECT_FLOAT_EQ(Params.tensor_split[1], 0.0f);
     }
+
+    // Test: set_input -- embd-normalize reaches the context config that the
+    // embedding path reads, and out-of-range values are rejected.
+    {
+      using WasmEdge::Host::WASINN::BitNet::EmbdNormalizeType;
+      const auto &Conf = BitNetContext.Conf;
+      const EmbdNormalizeType PrevEmbdNormalize = Conf.EmbdNormalize;
+      EXPECT_EQ(PrevEmbdNormalize, EmbdNormalizeType::Euclidean);
+      ASSERT_TRUE(SetMetadata(R"({"embd-normalize":-2})"));
+      EXPECT_EQ(Errno[0].get<int32_t>(),
+                static_cast<uint32_t>(ErrNo::InvalidArgument));
+      EXPECT_EQ(Conf.EmbdNormalize, PrevEmbdNormalize);
+      ASSERT_TRUE(SetMetadata(R"({"embd-normalize":1})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Conf.EmbdNormalize, EmbdNormalizeType::Taxicab);
+      ASSERT_TRUE(SetMetadata(R"({"embd-normalize":2})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Conf.EmbdNormalize, PrevEmbdNormalize);
+    }
   }
 
   // BitNet WASI-NN set_input tests

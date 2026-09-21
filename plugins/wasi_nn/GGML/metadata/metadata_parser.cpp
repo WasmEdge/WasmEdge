@@ -389,8 +389,16 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                                    GraphRef.Params.sampling.dry_allowed_length);
     parseJsonWithCastAuto<int64_t>(Doc, "dry-last-n-penalty",
                                    GraphRef.Params.sampling.penalty_last_n);
-    parseJsonWithCastAuto<int64_t>(Doc, "mirostat",
-                                   GraphRef.Params.sampling.mirostat);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "mirostat", [&GraphRef](const int64_t &Mirostat) -> bool {
+          // common_sampler_init asserts on any other mirostat version.
+          if (Mirostat < 0 || Mirostat > 2) {
+            LOG_ERROR("mirostat should be in range [0, 2]."sv)
+            return false;
+          }
+          GraphRef.Params.sampling.mirostat = static_cast<int32_t>(Mirostat);
+          return true;
+        });
     parseJsonWithCastAuto<double>(Doc, "mirostat-eta",
                                   GraphRef.Params.sampling.mirostat_eta);
     parseJsonAuto<bool>(Doc, "ignore-eos", GraphRef.Params.sampling.ignore_eos);

@@ -90,35 +90,11 @@ bool isKVCacheType(std::string_view Type) noexcept {
          KVCacheTypes.end();
 }
 
-// Parse metadata from JSON.
-ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
-                    const std::string &Metadata, bool *IsModelUpdated = nullptr,
-                    bool *IsContextUpdated = nullptr,
-                    bool *IsSamplerUpdated = nullptr) noexcept {
-  // Parse metadata from the json.
-  simdjson::dom::parser Parser;
-  simdjson::dom::element Doc;
-  auto ParseError = Parser.parse(Metadata).get(Doc);
-  if (ParseError) {
-    RET_ERROR(ErrNo::InvalidEncoding, "parse metadata error."sv)
-  }
-
-  // Get the current llama parameters.
-  int64_t PrevNGPULayers = GraphRef.Params.n_gpu_layers;
-  int64_t PrevMainGpu = GraphRef.Params.main_gpu;
-  int64_t PrevThreads = GraphRef.Params.cpuparams.n_threads;
-  bool PrevFlashAttn = GraphRef.Params.flash_attn;
-  int64_t PrevCtxSize = GraphRef.Params.n_ctx;
-  bool PrevEmbedding = GraphRef.Params.embedding;
-  // Get the current sampler parameters.
-  double PrevTemp = GraphRef.Params.sparams.temp;
-  double PrevTopP = GraphRef.Params.sparams.top_p;
-  double PrevRepeatPenalty = GraphRef.Params.sparams.penalty_repeat;
-  double PrevPresencePenalty = GraphRef.Params.sparams.penalty_present;
-  double PrevFrequencyPenalty = GraphRef.Params.sparams.penalty_freq;
-  std::string PrevGrammar = GraphRef.Params.sparams.grammar;
-  uint64_t PrevSeed = GraphRef.Params.sparams.seed;
-
+// Apply the metadata options to the graph and the context config. Options are
+// applied as they are parsed; parseMetadata rolls the whole object back when
+// one of them is rejected.
+ErrNo applyMetadata(Graph &GraphRef, LocalConfig &ConfRef,
+                    const simdjson::dom::element &Doc) noexcept {
   // The plugin parameters.
   if (Doc.at_key("enable-log").error() == simdjson::SUCCESS) {
     auto Err = Doc["enable-log"].get<bool>().get(GraphRef.EnableLog);
@@ -1619,29 +1595,66 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     }
   }
 
+  return ErrNo::Success;
+}
+
+// Parse metadata from JSON.
+ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
+                    const std::string &Metadata, bool *IsModelUpdated = nullptr,
+                    bool *IsContextUpdated = nullptr,
+                    bool *IsSamplerUpdated = nullptr) noexcept {
+  // Parse metadata from the json.
+  simdjson::dom::parser Parser;
+  simdjson::dom::element Doc;
+  auto ParseError = Parser.parse(Metadata).get(Doc);
+  if (ParseError) {
+    RET_ERROR(ErrNo::InvalidEncoding, "parse metadata error."sv)
+  }
+
+  // Snapshot everything the options may modify, so a rejected metadata object
+  // leaves the graph and the context config exactly as they were.
+  const bool PrevEnableLog = GraphRef.EnableLog;
+  const bool PrevEnableDebugLog = GraphRef.EnableDebugLog;
+  const common_params PrevParams = GraphRef.Params;
+  const LocalConfig PrevConf = ConfRef;
+
+  auto Res = applyMetadata(GraphRef, ConfRef, Doc);
+  if (Res != ErrNo::Success) {
+    GraphRef.EnableLog = PrevEnableLog;
+    GraphRef.EnableDebugLog = PrevEnableDebugLog;
+    GraphRef.Params = PrevParams;
+    ConfRef = PrevConf;
+    return Res;
+  }
+
   // Check if the model parameters are updated.
-  if (IsModelUpdated && (PrevNGPULayers != GraphRef.Params.n_gpu_layers ||
-                         PrevMainGpu != GraphRef.Params.main_gpu)) {
+  if (IsModelUpdated &&
+      (PrevParams.n_gpu_layers != GraphRef.Params.n_gpu_layers ||
+       PrevParams.main_gpu != GraphRef.Params.main_gpu)) {
     *IsModelUpdated = true;
   }
 
   // Check if the context parameters are updated.
-  if (IsContextUpdated && (PrevCtxSize != GraphRef.Params.n_ctx ||
-                           PrevThreads != GraphRef.Params.cpuparams.n_threads ||
-                           PrevFlashAttn != GraphRef.Params.flash_attn ||
-                           PrevEmbedding != GraphRef.Params.embedding)) {
+  if (IsContextUpdated &&
+      (PrevParams.n_ctx != GraphRef.Params.n_ctx ||
+       PrevParams.cpuparams.n_threads != GraphRef.Params.cpuparams.n_threads ||
+       PrevParams.flash_attn != GraphRef.Params.flash_attn ||
+       PrevParams.embedding != GraphRef.Params.embedding)) {
     *IsContextUpdated = true;
   }
 
   // Check if the sampler parameters are updated.
   if (IsSamplerUpdated &&
-      (PrevTemp != GraphRef.Params.sparams.temp ||
-       PrevTopP != GraphRef.Params.sparams.top_p ||
-       PrevRepeatPenalty != GraphRef.Params.sparams.penalty_repeat ||
-       PrevPresencePenalty != GraphRef.Params.sparams.penalty_present ||
-       PrevFrequencyPenalty != GraphRef.Params.sparams.penalty_freq ||
-       PrevGrammar != GraphRef.Params.sparams.grammar ||
-       PrevSeed != GraphRef.Params.sparams.seed)) {
+      (PrevParams.sparams.temp != GraphRef.Params.sparams.temp ||
+       PrevParams.sparams.top_p != GraphRef.Params.sparams.top_p ||
+       PrevParams.sparams.penalty_repeat !=
+           GraphRef.Params.sparams.penalty_repeat ||
+       PrevParams.sparams.penalty_present !=
+           GraphRef.Params.sparams.penalty_present ||
+       PrevParams.sparams.penalty_freq !=
+           GraphRef.Params.sparams.penalty_freq ||
+       PrevParams.sparams.grammar != GraphRef.Params.sparams.grammar ||
+       PrevParams.sparams.seed != GraphRef.Params.sparams.seed)) {
     *IsSamplerUpdated = true;
   }
 

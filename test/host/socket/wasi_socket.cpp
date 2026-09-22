@@ -785,6 +785,90 @@ TEST(WasiSockTest, SocketUDP_6) {
   }
 }
 
+TEST(WasiSockTest, SockConnectRefused_4) {
+  // A loopback port nothing listens on: bind to an ephemeral one and close it.
+#if WASMEDGE_OS_WINDOWS
+  WSADATA_ WSAData;
+  WSAStartup(0x0202, &WSAData);
+  const SOCKET_ ErrFd = INVALID_SOCKET_;
+  SOCKET_ ProbeFd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+#else
+  const int ErrFd = -1;
+  int ProbeFd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+#endif
+  ASSERT_NE(ProbeFd, ErrFd);
+  sockaddr_in ProbeAddr{};
+  ProbeAddr.sin_family = AF_INET;
+  ProbeAddr.sin_port = htons(0);
+  ProbeAddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  ASSERT_EQ(bind(ProbeFd, reinterpret_cast<sockaddr *>(&ProbeAddr),
+                 sizeof(ProbeAddr)),
+            0);
+#if WASMEDGE_OS_WINDOWS
+  int ProbeLen = sizeof(ProbeAddr);
+#else
+  socklen_t ProbeLen = sizeof(ProbeAddr);
+#endif
+  ASSERT_EQ(
+      getsockname(ProbeFd, reinterpret_cast<sockaddr *>(&ProbeAddr), &ProbeLen),
+      0);
+  const uint16_t Port = ntohs(ProbeAddr.sin_port);
+#if WASMEDGE_OS_WINDOWS
+  closesocket(ProbeFd);
+#else
+  close(ProbeFd);
+#endif
+
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  WasmEdge::Host::WasiSockOpenV1 WasiSockOpen(Env);
+  WasmEdge::Host::WasiSockConnectV1 WasiSockConnect(Env);
+  WasmEdge::Host::WasiFdClose WasiFdClose(Env);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+  const uint32_t FdPtr = 0;
+  const uint32_t AddrPtr = 16;
+  const uint32_t AddrBufPtr = 64;
+
+  Env.init({}, "test"s, {}, {});
+
+  EXPECT_TRUE(WasiSockOpen.run(
+      CallFrame,
+      std::array<WasmEdge::ValVariant, 3>{
+          static_cast<uint32_t>(__WASI_ADDRESS_FAMILY_INET4),
+          static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_STREAM), FdPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  int32_t Fd =
+      WasmEdge::EndianValue(*MemInst.getPointer<const int32_t *>(FdPtr)).le();
+
+  auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
+  *MemInst.getPointer<uint32_t *>(AddrBufPtr) = htonl(INADDR_LOOPBACK);
+  Addr->buf = WasmEdge::EndianValue(AddrBufPtr).le();
+  Addr->buf_len =
+      WasmEdge::EndianValue(static_cast<__wasi_size_t>(sizeof(uint32_t))).le();
+
+  EXPECT_TRUE(WasiSockConnect.run(CallFrame,
+                                  std::array<WasmEdge::ValVariant, 3>{
+                                      Fd, AddrPtr, static_cast<uint32_t>(Port)},
+                                  Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_CONNREFUSED);
+
+  WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{Fd}, Errno);
+  Env.fini();
+#if WASMEDGE_OS_WINDOWS
+  WSACleanup();
+#endif
+}
+
 TEST(WasiSockTest, SocketUDP_4_Fallback) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");

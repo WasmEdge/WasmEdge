@@ -1696,18 +1696,37 @@ static inline constexpr const int SD_BOTH = 0x2;
 
 static inline constexpr const DWORD_ WSABASEERR_ = 10000;
 static inline constexpr const DWORD_ WSAEINTR_ = WSABASEERR_ + 4;
+static inline constexpr const DWORD_ WSAEACCES_ = WSABASEERR_ + 13;
 static inline constexpr const DWORD_ WSAEFAULT_ = WSABASEERR_ + 14;
 static inline constexpr const DWORD_ WSAEINVAL_ = WSABASEERR_ + 22;
 static inline constexpr const DWORD_ WSAEMFILE_ = WSABASEERR_ + 24;
 static inline constexpr const DWORD_ WSAEWOULDBLOCK_ = WSABASEERR_ + 35;
 static inline constexpr const DWORD_ WSAEINPROGRESS_ = WSABASEERR_ + 36;
+static inline constexpr const DWORD_ WSAEALREADY_ = WSABASEERR_ + 37;
 static inline constexpr const DWORD_ WSAENOTSOCK_ = WSABASEERR_ + 38;
+static inline constexpr const DWORD_ WSAEDESTADDRREQ_ = WSABASEERR_ + 39;
+static inline constexpr const DWORD_ WSAEMSGSIZE_ = WSABASEERR_ + 40;
 static inline constexpr const DWORD_ WSAEPROTOTYPE_ = WSABASEERR_ + 41;
+static inline constexpr const DWORD_ WSAENOPROTOOPT_ = WSABASEERR_ + 42;
 static inline constexpr const DWORD_ WSAEPROTONOSUPPORT_ = WSABASEERR_ + 43;
 static inline constexpr const DWORD_ WSAESOCKTNOSUPPORT_ = WSABASEERR_ + 44;
+static inline constexpr const DWORD_ WSAEOPNOTSUPP_ = WSABASEERR_ + 45;
 static inline constexpr const DWORD_ WSAEAFNOSUPPORT_ = WSABASEERR_ + 47;
+static inline constexpr const DWORD_ WSAEADDRINUSE_ = WSABASEERR_ + 48;
+static inline constexpr const DWORD_ WSAEADDRNOTAVAIL_ = WSABASEERR_ + 49;
 static inline constexpr const DWORD_ WSAENETDOWN_ = WSABASEERR_ + 50;
+static inline constexpr const DWORD_ WSAENETUNREACH_ = WSABASEERR_ + 51;
+static inline constexpr const DWORD_ WSAENETRESET_ = WSABASEERR_ + 52;
+static inline constexpr const DWORD_ WSAECONNABORTED_ = WSABASEERR_ + 53;
+static inline constexpr const DWORD_ WSAECONNRESET_ = WSABASEERR_ + 54;
 static inline constexpr const DWORD_ WSAENOBUFS_ = WSABASEERR_ + 55;
+static inline constexpr const DWORD_ WSAEISCONN_ = WSABASEERR_ + 56;
+static inline constexpr const DWORD_ WSAENOTCONN_ = WSABASEERR_ + 57;
+static inline constexpr const DWORD_ WSAESHUTDOWN_ = WSABASEERR_ + 58;
+static inline constexpr const DWORD_ WSAETIMEDOUT_ = WSABASEERR_ + 60;
+static inline constexpr const DWORD_ WSAECONNREFUSED_ = WSABASEERR_ + 61;
+static inline constexpr const DWORD_ WSAEHOSTDOWN_ = WSABASEERR_ + 64;
+static inline constexpr const DWORD_ WSAEHOSTUNREACH_ = WSABASEERR_ + 65;
 static inline constexpr const DWORD_ WSAEPROCLIM_ = WSABASEERR_ + 67;
 static inline constexpr const DWORD_ WSASYSNOTREADY_ = WSABASEERR_ + 91;
 static inline constexpr const DWORD_ WSAVERNOTSUPPORTED_ = WSABASEERR_ + 92;
@@ -1720,6 +1739,7 @@ static inline constexpr const DWORD_ WSATYPE_NOT_FOUND_ = WSABASEERR_ + 109;
 static inline constexpr const DWORD_ WSAHOST_NOT_FOUND_ = WSABASEERR_ + 1001;
 static inline constexpr const DWORD_ WSATRY_AGAIN_ = WSABASEERR_ + 1002;
 static inline constexpr const DWORD_ WSANO_RECOVERY_ = WSABASEERR_ + 1003;
+static inline constexpr const DWORD_ WSANO_DATA_ = WSABASEERR_ + 1004;
 } // namespace WasmEdge::winapi
 
 extern "C" {

@@ -1843,6 +1843,11 @@ void Poller::wait() noexcept {
     }
   }
 
+  // Nothing is subscribed: epoll_wait rejects an empty event buffer.
+  if (Events.empty()) {
+    return;
+  }
+
   EPollEvents.resize(Events.size());
   const int Count =
       ::epoll_wait(Fd, EPollEvents.data(), EPollEvents.size(), -1);

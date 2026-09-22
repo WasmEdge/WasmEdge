@@ -1620,6 +1620,28 @@ TEST(InstructionTest, Proposals) {
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
   EXPECT_TRUE(LdrThreads.parseModule(prefixedVec(Vec)));
 
+  // The four atomic instructions before i32.atomic.load in the opcode order
+  // need the threads proposal too.
+  for (const auto &Instr : std::vector<std::vector<uint8_t>>{
+           {0xFEU, 0x00U, 0x00U, 0x00U}, // OpCode Memory__atomic__notify.
+           {0xFEU, 0x01U, 0x00U, 0x00U}, // OpCode Memory__atomic__wait32.
+           {0xFEU, 0x02U, 0x00U, 0x00U}, // OpCode Memory__atomic__wait64.
+           {0xFEU, 0x03U, 0x00U},        // OpCode Atomic__fence.
+       }) {
+    const auto SegSize = static_cast<uint8_t>(Instr.size() + 2U);
+    Vec = {
+        0x0AU,                              // Code section
+        static_cast<uint8_t>(SegSize + 2U), // Content size
+        0x01U,                              // Vector length = 1
+        SegSize,                            // Code segment size
+        0x00U,                              // Local vec(0)
+    };
+    Vec.insert(Vec.end(), Instr.begin(), Instr.end());
+    Vec.push_back(0x0BU); // Expression End.
+    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec))) << int(Instr[1]);
+    EXPECT_TRUE(LdrThreads.parseModule(prefixedVec(Vec))) << int(Instr[1]);
+  }
+
   Vec = {
       0x0AU,        // Code section
       0x06U,        // Content size = 6

@@ -21,6 +21,8 @@
 #include <vector>
 #include <zlib.h>
 
+using namespace std::literals;
+
 namespace WasmEdge::Host::WASINN::MLX {
 namespace whisper {
 
@@ -97,8 +99,7 @@ mx::array stft(const mx::array &X, const mx::array &Window, int NPerseg = 256,
 mx::array melFilters(int NMels) {
   // Load precomputed mel filters from a file.
   if (NMels != 80 && NMels != 128) {
-    spdlog::error("Unsupported number of mel filters: " +
-                  std::to_string(NMels));
+    spdlog::error("Unsupported number of mel filters: {}"sv, NMels);
     assumingUnreachable();
   }
   std::string FileName = "assets/mel_filters_" + std::to_string(NMels) + ".npy";

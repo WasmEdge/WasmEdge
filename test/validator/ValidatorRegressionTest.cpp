@@ -17,6 +17,7 @@
 #include "common/spdlog.h"
 #include "vm/vm.h"
 
+#include <cstdint>
 #include <gtest/gtest.h>
 #include <vector>
 
@@ -502,6 +503,135 @@ TEST_F(ValidatorRegressionTest, DeclaredRefFuncToImportedFunction) {
 
   auto ValidationResult = ValidEngine->validate(**Result);
   EXPECT_TRUE(ValidationResult);
+}
+
+struct WideArithmeticEncoding {
+  uint8_t Subopcode;
+  bool IsAddOrSub;
+};
+
+constexpr WideArithmeticEncoding WideArithmeticEncodings[] = {
+    {0x13U, true}, {0x14U, true}, {0x15U, false}, {0x16U, false}};
+
+static std::vector<Byte>
+makeWideArithmeticFunction(const WideArithmeticEncoding &Encoding,
+                           bool Unreachable = false) {
+  std::vector<Byte> Body = {0x00};
+  if (Unreachable) {
+    Body.push_back(0x00);
+  }
+  const uint32_t OperandCount = Encoding.IsAddOrSub ? 4U : 2U;
+  for (uint32_t I = 0; I < OperandCount; ++I) {
+    Body.insert(Body.end(), {0x42, 0x01});
+  }
+  Body.insert(Body.end(), {0xFC, Encoding.Subopcode, 0x1A, 0x1A, 0x0B});
+
+  std::vector<Byte> Wasm = {0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00,
+                            0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+                            0x03, 0x02, 0x01, 0x00, 0x07, 0x07, 0x01,
+                            0x03, 0x72, 0x75, 0x6E, 0x00, 0x00, 0x0A};
+  Wasm.push_back(static_cast<Byte>(Body.size() + 2U));
+  Wasm.push_back(0x01);
+  Wasm.push_back(static_cast<Byte>(Body.size()));
+  Wasm.insert(Wasm.end(), Body.begin(), Body.end());
+  return Wasm;
+}
+
+TEST_F(ValidatorRegressionTest, RejectWideArithmeticFunctionsPendingSupport) {
+  Conf->addProposal(Proposal::WideArithmetic);
+  Loader::Loader EnabledLoader(*Conf);
+  Validator::Validator EnabledValidator(*Conf);
+  for (const auto &Encoding : WideArithmeticEncodings) {
+    SCOPED_TRACE(static_cast<unsigned>(Encoding.Subopcode));
+    for (const bool Unreachable : {false, true}) {
+      SCOPED_TRACE(Unreachable);
+      auto Module = EnabledLoader.parseModule(
+          makeWideArithmeticFunction(Encoding, Unreachable));
+      ASSERT_TRUE(Module);
+      EXPECT_FALSE((*Module)->getIsValidated());
+
+      auto Result = EnabledValidator.validate(**Module);
+      ASSERT_FALSE(Result);
+      EXPECT_EQ(Result.error(), ErrCode::Value::IllegalOpCode);
+      EXPECT_FALSE((*Module)->getIsValidated());
+
+      Runtime::StoreManager Store;
+      Executor::Executor Executor(*Conf);
+      auto Instance = Executor.instantiateModule(Store, **Module);
+      ASSERT_FALSE(Instance);
+      EXPECT_EQ(Instance.error(), ErrCode::Value::NotValidated);
+    }
+  }
+}
+
+TEST_F(ValidatorRegressionTest, RejectWideArithmeticConstantExpressions) {
+  Conf->addProposal(Proposal::WideArithmetic);
+  Conf->addProposal(Proposal::ExtendedConst);
+  Loader::Loader EnabledLoader(*Conf);
+  Validator::Validator EnabledValidator(*Conf);
+  for (const auto &Encoding : WideArithmeticEncodings) {
+    SCOPED_TRACE(static_cast<unsigned>(Encoding.Subopcode));
+    std::vector<Byte> Global = {0x01, 0x7E, 0x00};
+    const uint32_t OperandCount = Encoding.IsAddOrSub ? 4U : 2U;
+    for (uint32_t I = 0; I < OperandCount; ++I) {
+      Global.insert(Global.end(), {0x42, 0x01});
+    }
+    Global.insert(Global.end(), {0xFC, Encoding.Subopcode, 0x7C, 0x0B});
+    std::vector<Byte> Wasm = {0x00, 0x61, 0x73, 0x6D, 0x01,
+                              0x00, 0x00, 0x00, 0x06};
+    Wasm.push_back(static_cast<Byte>(Global.size()));
+    Wasm.insert(Wasm.end(), Global.begin(), Global.end());
+    auto Module = EnabledLoader.parseModule(Wasm);
+    ASSERT_TRUE(Module);
+
+    auto Result = EnabledValidator.validate(**Module);
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), ErrCode::Value::ConstExprRequired);
+    EXPECT_FALSE((*Module)->getIsValidated());
+  }
+}
+
+TEST_F(ValidatorRegressionTest, RejectWideArithmeticVMWorkflowPendingSupport) {
+  Conf->addProposal(Proposal::WideArithmetic);
+  for (const auto Mode :
+       {RunMode::Interpreter, RunMode::JIT, RunMode::LazyJIT}) {
+    SCOPED_TRACE(static_cast<unsigned>(Mode));
+    Conf->getRuntimeConfigure().setRunMode(Mode);
+    for (const auto &Encoding : WideArithmeticEncodings) {
+      SCOPED_TRACE(static_cast<unsigned>(Encoding.Subopcode));
+      const auto Wasm = makeWideArithmeticFunction(Encoding);
+      VM::VM VM(*Conf);
+      ASSERT_TRUE(VM.loadWasm(Wasm));
+      auto Validation = VM.validate();
+      ASSERT_FALSE(Validation);
+      EXPECT_EQ(Validation.error(), ErrCode::Value::IllegalOpCode);
+
+      auto Instance = VM.instantiate();
+      ASSERT_FALSE(Instance);
+      EXPECT_EQ(Instance.error(), ErrCode::Value::WrongVMWorkflow);
+
+      auto Execution = VM.runWasmFile(Wasm, "run");
+      ASSERT_FALSE(Execution);
+      EXPECT_EQ(Execution.error(), ErrCode::Value::IllegalOpCode);
+    }
+  }
+}
+
+TEST_F(ValidatorRegressionTest,
+       RunExistingArithmeticWithWideArithmeticEnabled) {
+  Conf->addProposal(Proposal::WideArithmetic);
+  Conf->getRuntimeConfigure().setRunMode(RunMode::Interpreter);
+  const std::vector<Byte> Wasm = {
+      0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+      0x01, 0x60, 0x00, 0x01, 0x7E, 0x03, 0x02, 0x01, 0x00, 0x07,
+      0x07, 0x01, 0x03, 0x72, 0x75, 0x6E, 0x00, 0x00, 0x0A, 0x09,
+      0x01, 0x07, 0x00, 0x42, 0x01, 0x42, 0x02, 0x7C, 0x0B};
+  VM::VM VM(*Conf);
+  auto Result = VM.runWasmFile(Wasm, "run");
+  ASSERT_TRUE(Result);
+  ASSERT_EQ(Result->size(), 1U);
+  EXPECT_EQ((*Result)[0].second, ValType(TypeCode::I64));
+  EXPECT_EQ((*Result)[0].first.get<uint64_t>(), 3U);
 }
 
 } // namespace

@@ -356,6 +356,10 @@ public:
 
   /// Helper function for checking instruction proposals.
   std::optional<Proposal> isInstrNeedProposal(OpCode Code) const noexcept {
+    if (Code >= OpCode::I64__add128 && Code <= OpCode::I64__mul_wide_u &&
+        !hasProposal(Proposal::WideArithmetic)) {
+      return Proposal::WideArithmetic;
+    }
     if (Code >= OpCode::I32__trunc_sat_f32_s &&
         Code <= OpCode::I64__trunc_sat_f64_u) {
       // These instructions are for NonTrapFloatToIntConversions proposal.

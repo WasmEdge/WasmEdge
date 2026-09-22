@@ -776,6 +776,12 @@ OFE(I64__atomic__rmw8__cmpxchg_u, "i64.atomic.rmw8.cmpxchg_u", 0xFE, 76)
 OFE(I64__atomic__rmw16__cmpxchg_u, "i64.atomic.rmw16.cmpxchg_u", 0xFE, 77)
 OFE(I64__atomic__rmw32__cmpxchg_u, "i64.atomic.rmw32.cmpxchg_u", 0xFE, 78)
 
+// 0xFC prefix - Wide Arithmetic Instructions
+OFC(I64__add128, "i64.add128", 0xFC, 19)
+OFC(I64__sub128, "i64.sub128", 0xFC, 20)
+OFC(I64__mul_wide_s, "i64.mul_wide_s", 0xFC, 21)
+OFC(I64__mul_wide_u, "i64.mul_wide_u", 0xFC, 22)
+
 #undef O
 #undef OFB
 #undef OFC
@@ -818,6 +824,8 @@ P(Memory64, "Memory64")
 P(Threads, "Threads")
 // Phase 1 proposals
 P(Component, "Component Model")
+// Phase 3 proposals
+P(WideArithmetic, "Wide Arithmetic")
 #undef P
 #endif // UseProposal
 

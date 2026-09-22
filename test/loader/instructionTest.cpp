@@ -14,7 +14,6 @@
 
 #include "loader/loader.h"
 
-#include <cstddef>
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <vector>
@@ -35,98 +34,6 @@ std::vector<uint8_t> prefixedVec(const std::vector<uint8_t> &Vec) {
   PrefixVec.reserve(PrefixVec.size() + Vec.size());
   PrefixVec.insert(PrefixVec.end(), Vec.begin(), Vec.end());
   return PrefixVec;
-}
-
-TEST(InstructionTest, LoadMiscOpcodeULEB32) {
-  WasmEdge::Configure LocalConf;
-  WasmEdge::Loader::Loader LocalLdr(LocalConf);
-  const std::vector<std::vector<uint8_t>> Encodings = {
-      {0x00U},
-      {0x80U, 0x00U},
-      {0x80U, 0x80U, 0x00U},
-      {0x80U, 0x80U, 0x80U, 0x00U},
-      {0x80U, 0x80U, 0x80U, 0x80U, 0x00U},
-  };
-  for (const auto &Encoding : Encodings) {
-    SCOPED_TRACE(::testing::PrintToString(Encoding));
-    ASSERT_LE(Encoding.size(), 0x7FU - 5U);
-    std::vector<uint8_t> Vec = {
-        0x0AU, static_cast<uint8_t>(Encoding.size() + 5U),
-        0x01U, static_cast<uint8_t>(Encoding.size() + 3U),
-        0x00U, 0xFCU,
-    };
-    Vec.insert(Vec.end(), Encoding.begin(), Encoding.end());
-    Vec.push_back(0x0BU);
-    auto Result = LocalLdr.parseModule(prefixedVec(Vec));
-    ASSERT_TRUE(Result);
-    const auto &Codes = (*Result)->getCodeSection().getContent();
-    ASSERT_EQ(Codes.size(), 1U);
-    const auto Instrs = Codes[0].getExpr().getInstrs();
-    ASSERT_EQ(Instrs.size(), 2U);
-    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I32__trunc_sat_f32_s);
-    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-  }
-}
-
-TEST(InstructionTest, RejectMalformedMiscOpcodeULEB32) {
-  WasmEdge::Configure LocalConf;
-  WasmEdge::Loader::Loader LocalLdr(LocalConf);
-  struct TestCase {
-    std::vector<uint8_t> Encoding;
-    WasmEdge::ErrCode::Value Error;
-  };
-  const std::vector<TestCase> Cases = {
-      {{}, WasmEdge::ErrCode::Value::UnexpectedEnd},
-      {{0x80U}, WasmEdge::ErrCode::Value::UnexpectedEnd},
-      {{0x80U, 0x80U, 0x80U, 0x80U, 0x10U},
-       WasmEdge::ErrCode::Value::IntegerTooLarge},
-      {{0x80U, 0x80U, 0x80U, 0x80U, 0x80U, 0x00U},
-       WasmEdge::ErrCode::Value::IntegerTooLong},
-      {{0x80U, 0x02U}, WasmEdge::ErrCode::Value::IllegalOpCode},
-      {{0x93U, 0x02U}, WasmEdge::ErrCode::Value::IllegalOpCode},
-  };
-  for (const auto &Case : Cases) {
-    SCOPED_TRACE(::testing::PrintToString(Case.Encoding));
-    ASSERT_LE(Case.Encoding.size(), 0x7FU - 4U);
-    std::vector<uint8_t> Vec = {
-        0x0AU, static_cast<uint8_t>(Case.Encoding.size() + 4U),
-        0x01U, static_cast<uint8_t>(Case.Encoding.size() + 2U),
-        0x00U, 0xFCU,
-    };
-    Vec.insert(Vec.end(), Case.Encoding.begin(), Case.Encoding.end());
-    auto Result = LocalLdr.parseModule(prefixedVec(Vec));
-    ASSERT_FALSE(Result);
-    EXPECT_EQ(Result.error(), Case.Error);
-  }
-}
-
-TEST(InstructionTest, RejectWideArithmeticOpcodesByDefault) {
-  WasmEdge::Configure LocalConf;
-  WasmEdge::Loader::Loader LocalLdr(LocalConf);
-  constexpr uint8_t Opcodes[] = {0x13U, 0x14U, 0x15U, 0x16U};
-  for (const uint8_t Opcode : Opcodes) {
-    for (const size_t Width : {1U, 2U, 3U, 4U, 5U}) {
-      SCOPED_TRACE(::testing::Message()
-                   << "Subopcode: " << static_cast<unsigned>(Opcode)
-                   << ", ULEB32 width: " << Width);
-      std::vector<uint8_t> Vec = {
-          0x0AU, static_cast<uint8_t>(Width + 5U),
-          0x01U, static_cast<uint8_t>(Width + 3U),
-          0x00U, 0xFCU,
-      };
-      if (Width == 1U) {
-        Vec.push_back(Opcode);
-      } else {
-        Vec.push_back(static_cast<uint8_t>(Opcode | 0x80U));
-        Vec.insert(Vec.end(), Width - 2U, 0x80U);
-        Vec.push_back(0x00U);
-      }
-      Vec.push_back(0x0BU);
-      auto Result = LocalLdr.parseModule(prefixedVec(Vec));
-      ASSERT_FALSE(Result);
-      EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
-    }
-  }
 }
 
 TEST(InstructionTest, LoadBlockControlInstruction) {
@@ -966,6 +873,311 @@ TEST(InstructionTest, LoadConstInstruction) {
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
 
+TEST(InstructionTest, LoadMiscInstruction) {
+  std::vector<uint8_t> Vec;
+
+  // 12. Test miscellaneous instruction opcodes.
+  //
+  //   1.  Load I32__trunc_sat_f32_s with one- to five-byte ULEB32 opcodes.
+  //   2.  Load invalid empty opcode after the miscellaneous prefix.
+  //   3.  Load invalid opcode with an incomplete ULEB32 encoding.
+  //   4.  Load invalid opcode with a value exceeding ULEB32.
+  //   5.  Load invalid opcode with a ULEB32 encoding longer than five bytes.
+  //   6.  Load invalid unknown miscellaneous opcodes 0x100 and 0x113.
+  //   7.  Load invalid wide arithmetic opcodes 0x13-0x16 with one- to five-byte
+  //       ULEB32 encodings.
+
+  Vec = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFCU, 0x00U, // OpCode I32__trunc_sat_f32_s.
+      0x0BU         // Expression End.
+  };
+  {
+    auto Result = Ldr.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(Result);
+    const auto &Codes = (*Result)->getCodeSection().getContent();
+    ASSERT_EQ(Codes.size(), 1U);
+    const auto Instrs = Codes[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I32__trunc_sat_f32_s);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
+
+  Vec = {
+      0x0AU,               // Code section
+      0x07U,               // Content size = 7
+      0x01U,               // Vector length = 1
+      0x05U,               // Code segment size = 5
+      0x00U,               // Local vec(0)
+      0xFCU, 0x80U, 0x00U, // OpCode I32__trunc_sat_f32_s.
+      0x0BU                // Expression End.
+  };
+  {
+    auto Result = Ldr.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(Result);
+    const auto &Codes = (*Result)->getCodeSection().getContent();
+    ASSERT_EQ(Codes.size(), 1U);
+    const auto Instrs = Codes[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I32__trunc_sat_f32_s);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
+
+  Vec = {
+      0x0AU,                      // Code section
+      0x08U,                      // Content size = 8
+      0x01U,                      // Vector length = 1
+      0x06U,                      // Code segment size = 6
+      0x00U,                      // Local vec(0)
+      0xFCU, 0x80U, 0x80U, 0x00U, // OpCode I32__trunc_sat_f32_s.
+      0x0BU                       // Expression End.
+  };
+  {
+    auto Result = Ldr.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(Result);
+    const auto &Codes = (*Result)->getCodeSection().getContent();
+    ASSERT_EQ(Codes.size(), 1U);
+    const auto Instrs = Codes[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I32__trunc_sat_f32_s);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
+
+  Vec = {
+      0x0AU,                             // Code section
+      0x09U,                             // Content size = 9
+      0x01U,                             // Vector length = 1
+      0x07U,                             // Code segment size = 7
+      0x00U,                             // Local vec(0)
+      0xFCU, 0x80U, 0x80U, 0x80U, 0x00U, // OpCode I32__trunc_sat_f32_s.
+      0x0BU                              // Expression End.
+  };
+  {
+    auto Result = Ldr.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(Result);
+    const auto &Codes = (*Result)->getCodeSection().getContent();
+    ASSERT_EQ(Codes.size(), 1U);
+    const auto Instrs = Codes[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I32__trunc_sat_f32_s);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
+
+  Vec = {
+      0x0AU,                                    // Code section
+      0x0AU,                                    // Content size = 10
+      0x01U,                                    // Vector length = 1
+      0x08U,                                    // Code segment size = 8
+      0x00U,                                    // Local vec(0)
+      0xFCU, 0x80U, 0x80U, 0x80U, 0x80U, 0x00U, // OpCode I32__trunc_sat_f32_s.
+      0x0BU                                     // Expression End.
+  };
+  {
+    auto Result = Ldr.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(Result);
+    const auto &Codes = (*Result)->getCodeSection().getContent();
+    ASSERT_EQ(Codes.size(), 1U);
+    const auto Instrs = Codes[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I32__trunc_sat_f32_s);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
+
+  Vec = {
+      0x0AU, // Code section
+      0x04U, // Content size = 4
+      0x01U, // Vector length = 1
+      0x02U, // Code segment size = 2
+      0x00U, // Local vec(0)
+      0xFCU  // Miscellaneous prefix without an opcode.
+  };
+  auto Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::UnexpectedEnd);
+
+  Vec = {
+      0x0AU,       // Code section
+      0x05U,       // Content size = 5
+      0x01U,       // Vector length = 1
+      0x03U,       // Code segment size = 3
+      0x00U,       // Local vec(0)
+      0xFCU, 0x80U // Incomplete ULEB32 opcode.
+  };
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::UnexpectedEnd);
+
+  Vec = {
+      0x0AU,                                   // Code section
+      0x09U,                                   // Content size = 9
+      0x01U,                                   // Vector length = 1
+      0x07U,                                   // Code segment size = 7
+      0x00U,                                   // Local vec(0)
+      0xFCU, 0x80U, 0x80U, 0x80U, 0x80U, 0x10U // Opcode value exceeds ULEB32.
+  };
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IntegerTooLarge);
+
+  Vec = {
+      0x0AU, // Code section
+      0x0AU, // Content size = 10
+      0x01U, // Vector length = 1
+      0x08U, // Code segment size = 8
+      0x00U, // Local vec(0)
+      0xFCU, 0x80U, 0x80U, 0x80U,
+      0x80U, 0x80U, 0x00U // ULEB32 opcode encoding exceeds five bytes.
+  };
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IntegerTooLong);
+
+  Vec = {
+      0x0AU,              // Code section
+      0x06U,              // Content size = 6
+      0x01U,              // Vector length = 1
+      0x04U,              // Code segment size = 4
+      0x00U,              // Local vec(0)
+      0xFCU, 0x80U, 0x02U // Unknown miscellaneous opcode 0x100.
+  };
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  Vec[6] = 0x93U; // Unknown miscellaneous opcode 0x113.
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+
+  Vec = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFCU, 0x13U, // Wide arithmetic opcode 0x13.
+      0x0BU         // Expression End.
+  };
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  Vec[6] = 0x14U; // Wide arithmetic opcode 0x14.
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  Vec[6] = 0x15U; // Wide arithmetic opcode 0x15.
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  Vec[6] = 0x16U; // Wide arithmetic opcode 0x16.
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+
+  Vec = {
+      0x0AU,               // Code section
+      0x07U,               // Content size = 7
+      0x01U,               // Vector length = 1
+      0x05U,               // Code segment size = 5
+      0x00U,               // Local vec(0)
+      0xFCU, 0x93U, 0x00U, // Wide arithmetic opcode 0x13.
+      0x0BU                // Expression End.
+  };
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  Vec[6] = 0x94U; // Wide arithmetic opcode 0x14.
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  Vec[6] = 0x95U; // Wide arithmetic opcode 0x15.
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  Vec[6] = 0x96U; // Wide arithmetic opcode 0x16.
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+
+  Vec = {
+      0x0AU,                      // Code section
+      0x08U,                      // Content size = 8
+      0x01U,                      // Vector length = 1
+      0x06U,                      // Code segment size = 6
+      0x00U,                      // Local vec(0)
+      0xFCU, 0x93U, 0x80U, 0x00U, // Wide arithmetic opcode 0x13.
+      0x0BU                       // Expression End.
+  };
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  Vec[6] = 0x94U; // Wide arithmetic opcode 0x14.
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  Vec[6] = 0x95U; // Wide arithmetic opcode 0x15.
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  Vec[6] = 0x96U; // Wide arithmetic opcode 0x16.
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+
+  Vec = {
+      0x0AU,                             // Code section
+      0x09U,                             // Content size = 9
+      0x01U,                             // Vector length = 1
+      0x07U,                             // Code segment size = 7
+      0x00U,                             // Local vec(0)
+      0xFCU, 0x93U, 0x80U, 0x80U, 0x00U, // Wide arithmetic opcode 0x13.
+      0x0BU                              // Expression End.
+  };
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  Vec[6] = 0x94U; // Wide arithmetic opcode 0x14.
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  Vec[6] = 0x95U; // Wide arithmetic opcode 0x15.
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  Vec[6] = 0x96U; // Wide arithmetic opcode 0x16.
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+
+  Vec = {
+      0x0AU,                                    // Code section
+      0x0AU,                                    // Content size = 10
+      0x01U,                                    // Vector length = 1
+      0x08U,                                    // Code segment size = 8
+      0x00U,                                    // Local vec(0)
+      0xFCU, 0x93U, 0x80U, 0x80U, 0x80U, 0x00U, // Wide arithmetic opcode 0x13.
+      0x0BU                                     // Expression End.
+  };
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  Vec[6] = 0x94U; // Wide arithmetic opcode 0x14.
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  Vec[6] = 0x95U; // Wide arithmetic opcode 0x15.
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  Vec[6] = 0x96U; // Wide arithmetic opcode 0x16.
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+}
+
 TEST(InstructionTest, Proposals) {
   std::vector<uint8_t> Vec;
 
@@ -980,7 +1192,7 @@ TEST(InstructionTest, Proposals) {
   WasmEdge::Loader::Loader LdrThreads(Conf);
   Conf.removeProposal(WasmEdge::Proposal::Threads);
 
-  // 12. Test ValTypes and instructions with disabled proposals
+  // 13. Test ValTypes and instructions with disabled proposals
   //
   //   1.  Load if instruction with/without SIMD proposal.
   //   2.  Load if instruction with reference instructions with/without
@@ -1181,7 +1393,7 @@ TEST(InstructionTest, Proposals) {
 TEST(InstructionTest, LoadSIMDInstruction) {
   std::vector<uint8_t> Vec;
 
-  // 13. Test SIMD instructions.
+  // 14. Test SIMD instructions.
   //
   //   1.  Load invalid V128__load with unexpected end of memory align.
   //   2.  Load invalid V128__load with unexpected end of memory offset.
@@ -1279,7 +1491,7 @@ TEST(InstructionTest, LoadSIMDInstruction) {
 TEST(InstructionTest, LoadTryTable) {
   std::vector<uint8_t> Vec;
 
-  // 14. Test try_table instructions.
+  // 15. Test try_table instructions.
   //
   //   1.  Load try_table with all valid catch flags (0x00-0x03).
   //   2.  Load try_table with invalid catch flag 0x04.
@@ -1403,7 +1615,7 @@ TEST(InstructionTest, LoadTryTable) {
 TEST(InstructionTest, LoadBrOnCastFlags) {
   std::vector<uint8_t> Vec;
 
-  // 15. Test br_on_cast and br_on_cast_fail flags.
+  // 16. Test br_on_cast and br_on_cast_fail flags.
   //
   //   1.  Load both instructions with all valid flags (0x00-0x03).
   //   2.  Load br_on_cast with invalid flag 0x04.

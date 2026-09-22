@@ -402,9 +402,11 @@ public:
       if (unlikely(!hasProposal(Proposal::TailCall))) {
         return Proposal::TailCall;
       }
-    } else if (Code >= OpCode::I32__atomic__load &&
+    } else if (Code >= OpCode::Memory__atomic__notify &&
                Code <= OpCode::I64__atomic__rmw32__cmpxchg_u) {
-      // These instructions are for Thread proposal.
+      // These instructions are for Thread proposal. The range starts at
+      // memory.atomic.notify, so that it also covers memory.atomic.wait32,
+      // memory.atomic.wait64, and atomic.fence.
       if (!hasProposal(Proposal::Threads)) {
         return Proposal::Threads;
       }

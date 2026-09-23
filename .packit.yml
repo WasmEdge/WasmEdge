@@ -1,0 +1,19 @@
+specfile_path: utils/packit/wasmedge.spec
+
+files_to_sync:
+  - utils/packit/wasmedge.spec
+  - .packit.yml
+
+upstream_package_name: wasmedge
+downstream_package_name: wasmedge
+
+jobs:
+- job: copr_build
+  trigger: pull_request
+  targets:
+    - fedora-all
+
+- job: propose_downstream
+  trigger: release
+  dist_git_branches:
+    - fedora-all

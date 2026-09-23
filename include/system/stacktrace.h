@@ -17,6 +17,9 @@
 #include "common/span.h"
 #include "runtime/stackmgr.h"
 
+#include <cstdint>
+#include <utility>
+
 namespace WasmEdge {
 
 namespace Runtime::Instance {
@@ -31,6 +34,10 @@ struct StackTraceEntry {
 };
 
 Span<void *const> stackTrace(Span<void *> Buffer) noexcept;
+
+/// Lowest and highest addresses of the current thread's stack, or {0, 0} when
+/// the platform cannot tell.
+std::pair<uintptr_t, uintptr_t> getThreadStackBounds() noexcept;
 
 Span<const StackTraceEntry>
 interpreterStackTrace(const Runtime::StackManager &StackMgr,

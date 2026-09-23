@@ -221,6 +221,10 @@ struct Compiler::CompileContext {
                            LLVM::Value ExecCtx) noexcept {
     return Builder.createExtractValue(ExecCtx, 4);
   }
+  LLVM::Value getStackLimit(LLVM::Builder &Builder,
+                            LLVM::Value ExecCtx) noexcept {
+    return Builder.createExtractValue(ExecCtx, 6);
+  }
   LLVM::FunctionCallee getIntrinsic(LLVM::Builder &Builder,
                                     Executable::Intrinsics Index,
                                     LLVM::Type Ty) noexcept {

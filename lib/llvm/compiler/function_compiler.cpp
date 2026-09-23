@@ -17,7 +17,8 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
                                    LLVM::FunctionCallee F,
                                    Span<const ValType> Locals,
                                    bool Interruptible, bool InstructionCounting,
-                                   bool GasMeasuring, bool IsLazyJIT) noexcept
+                                   bool GasMeasuring, bool IsLazyJIT,
+                                   bool StackCheck) noexcept
     : Context(Context), LLContext(Context.LLContext),
       Interruptible(Interruptible), IsLazyJIT(IsLazyJIT), F(F),
       Builder(LLContext) {
@@ -27,32 +28,44 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
     ExecCtx = Builder.createLoad(Context.ExecCtxTy,
                                  F.Fn.getFirstParam().getNextParam());
 
+    // Create every frame slot first so nothing writes the frame before the
+    // stack check.
     if (InstructionCounting) {
       LocalInstrCount = Builder.createAlloca(Context.Int64Ty);
-      Builder.createStore(LLContext.getInt64(0), LocalInstrCount);
     }
-
     if (GasMeasuring) {
       LocalGas = Builder.createAlloca(Context.Int64Ty);
-      Builder.createStore(LLContext.getInt64(0), LocalGas);
     }
-
     CalleeCtxSlot = Builder.createAlloca(Context.ModCtxPtrTy);
-
     for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam().getNextParam();
          Arg; Arg = Arg.getNextParam()) {
       LLVM::Type Ty = Arg.getType();
-      LLVM::Value ArgPtr = Builder.createAlloca(Ty);
-      Builder.createStore(Arg, ArgPtr);
-      Local.emplace_back(Ty, ArgPtr);
+      Local.emplace_back(Ty, Builder.createAlloca(Ty));
     }
-
     for (const auto &Type : Locals) {
       LLVM::Type Ty = toLLVMType(LLContext, Type);
-      LLVM::Value ArgPtr = Builder.createAlloca(Ty);
+      Local.emplace_back(Ty, Builder.createAlloca(Ty));
+    }
+
+    if (StackCheck) {
+      checkStackLimit();
+    }
+
+    if (LocalInstrCount) {
+      Builder.createStore(LLContext.getInt64(0), LocalInstrCount);
+    }
+    if (LocalGas) {
+      Builder.createStore(LLContext.getInt64(0), LocalGas);
+    }
+    auto LocalIt = Local.begin();
+    for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam().getNextParam();
+         Arg; Arg = Arg.getNextParam()) {
+      Builder.createStore(Arg, (LocalIt++)->second);
+    }
+    for (const auto &Type : Locals) {
       Builder.createStore(
-          toLLVMConstantZero(LLContext, Type, Context.CompositeTypes), ArgPtr);
-      Local.emplace_back(Ty, ArgPtr);
+          toLLVMConstantZero(LLContext, Type, Context.CompositeTypes),
+          (LocalIt++)->second);
     }
   }
 }
@@ -1109,6 +1122,19 @@ void FunctionCompiler::compileReturn() noexcept {
   }
 }
 
+void FunctionCompiler::checkStackLimit() noexcept {
+  // Trap if the allocated but not yet written frame reaches below the limit.
+  auto SP = Builder.createPtrToInt(Builder.createStackSave(Context.Int8PtrTy),
+                                   Context.Int64Ty);
+  auto Limit = Builder.createPtrToInt(Context.getStackLimit(Builder, ExecCtx),
+                                      Context.Int64Ty);
+  auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "stack_ok");
+  auto IsOk = Builder.createLikely(Builder.createICmpULE(Limit, SP));
+  Builder.createCondBr(IsOk, OkBB,
+                       getTrapBB(ErrCode::Value::CallStackExhausted));
+  Builder.positionAtEnd(OkBB);
+}
+
 void FunctionCompiler::updateInstrCount() noexcept {
   if (LocalInstrCount) {
     auto Store [[maybe_unused]] = Builder.createAtomicRMW(
@@ -1420,6 +1446,9 @@ void FunctionCompiler::compileCallOp(const unsigned int FuncIndex) noexcept {
   } else {
     Ret = Builder.createCall(Function, Args);
   }
+  // A wasm call keeps its frame, so LLVM cannot turn recursion into a loop that
+  // never exhausts the stack.
+  Ret.setNoTailCall();
 
   auto Ty = Ret.getType();
   if (Ty.isVoidTy()) {
@@ -1523,6 +1552,7 @@ void FunctionCompiler::compileIndirectCallOp(
     auto FastRet = Builder.createCall(
         LLVM::FunctionCallee{FTy, Builder.createBitCast(Code, FPtrTy)},
         ArgsVec);
+    FastRet.setNoTailCall();
     FastRetsVec = UnpackRets(FastRet);
     Builder.createBr(EndBB);
   }
@@ -1553,6 +1583,7 @@ void FunctionCompiler::compileIndirectCallOp(
                                           F.Fn.getFirstParam(), Returned);
     auto FPtrRet =
         Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, SlowArgsVec);
+    FPtrRet.setNoTailCall();
     FPtrRetsVec = UnpackRets(FPtrRet);
   }
 
@@ -1829,6 +1860,7 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
                                           F.Fn.getFirstParam(), Returned);
     auto FPtrRet =
         Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, SlowArgsVec);
+    FPtrRet.setNoTailCall();
     if (RetSize == 0) {
       // nothing to do
     } else if (RetSize == 1) {

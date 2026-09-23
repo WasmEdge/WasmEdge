@@ -25,9 +25,8 @@ using namespace std::literals;
 Expect<void>
 Validator::validate(const AST::Component::Component &Comp) noexcept {
   CompCtx.reset();
-  EXPECTED_TRY(validate(Comp, *CompTypes.newShape()));
-  // Deferred function-body validation of all nested core modules, resumed
-  // on the checker state captured at each definition.
+  EXPECTED_TRY(validate(Comp, *CompTypes.addShape()));
+  // Deferred function-body validation on the checker state saved per module.
   for (auto &[Mod, Saved] : CompCtx.DeferredModules) {
     Checker = std::move(Saved);
     EXPECTED_TRY(validate(Mod->getCodeSection()).map_error([](auto E) {
@@ -45,9 +44,8 @@ Validator::validate(const AST::Component::Component &Comp) noexcept {
 
 Expect<void> Validator::validate(const AST::Component::Component &Comp,
                                  Component::Shape &Out) noexcept {
-  // Walk the sections in binary order, in a fresh scope. The index spaces
-  // grow as definitions validate, so a reference sees only earlier entries.
-  auto &S = CompCtx.enterScope(Component::Scope::Kind::Component);
+  // Walk the sections in binary order; a reference sees only earlier entries.
+  auto &S = CompCtx.enterScope(Component::ScopeKind::Component);
   Out.DeclScope = &S;
 
   auto ReportError = [](auto E) {
@@ -87,8 +85,7 @@ Expect<void> Validator::validate(const AST::Component::Component &Comp,
 
 Expect<void>
 Validator::validate(const AST::Component::CoreModuleSection &ModSec) noexcept {
-  // Validate the sections except the function bodies, which defer to the end
-  // of the root component, matching the reference validator's ordering.
+  // Validate every section but the function bodies, which defer to the end.
   const auto &Mod = ModSec.getContent();
   Checker.reset(true);
   auto ReportError = [](ASTNodeAttr Attr) {
@@ -139,7 +136,7 @@ Validator::validate(const AST::Component::CoreModuleSection &ModSec) noexcept {
   }
   CompCtx.DeferredModules.emplace_back(&Mod, Checker);
   EXPECTED_TRY(const auto *Shape, CompCtx.buildCoreShape(Mod));
-  CompCtx.top().CoreModules.push_back(Shape);
+  CompCtx.top().addCoreModule(Shape);
   return {};
 }
 
@@ -216,8 +213,7 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
         ErrCode::Value Code = ErrCode::Value::ArgTypeMismatch;
         switch (Required.Kind) {
         case ExternalType::Function:
-          // The message prints the expected signature; a trivial one is
-          // reported as `expected: (func)`.
+          // A trivial expected signature is reported as `expected: (func)`.
           if (Required.Func != nullptr &&
               Required.Func->getCompositeType().isFunc() &&
               Required.Func->getCompositeType()
@@ -264,15 +260,14 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
       }
     }
     // The new core instance exposes the module's exports.
-    auto *Result = CompTypes.newCoreShape();
+    auto *Result = CompTypes.addCoreShape();
     Result->Exports = Mod->Exports;
-    S.CoreInstances.push_back(Result);
+    S.addCoreInstance(Result);
     return {};
   }
 
-  // Inline exports: project current index-space entries into a fresh
-  // core instance.
-  auto *Result = CompTypes.newCoreShape();
+  // Inline exports project index-space entries into a fresh core instance.
+  auto *Result = CompTypes.addCoreShape();
   for (const auto &Exp : Inst.getInlineExports()) {
     const auto &SI = Exp.getSortIdx();
     const uint32_t Idx = SI.getIdx();
@@ -289,7 +284,7 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
         spdlog::error("    Core function index {} out of bounds."sv, Idx);
         return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
       }
-      Ext = {ExternalType::Function, F, nullptr, nullptr, nullptr};
+      Ext = Component::CoreExternInfo(ExternalType::Function, F);
       break;
     }
     case AST::Component::Sort::CoreSortType::Table: {
@@ -298,7 +293,7 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
         spdlog::error("    Core table index {} out of bounds."sv, Idx);
         return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
       }
-      Ext = {ExternalType::Table, nullptr, S.CoreTables[Idx], nullptr, nullptr};
+      Ext = Component::CoreExternInfo(S.CoreTables[Idx]);
       break;
     }
     case AST::Component::Sort::CoreSortType::Memory: {
@@ -307,8 +302,7 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
         spdlog::error("    Core memory index {} out of bounds."sv, Idx);
         return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
       }
-      Ext = {ExternalType::Memory, nullptr, nullptr, S.CoreMemories[Idx],
-             nullptr};
+      Ext = Component::CoreExternInfo(S.CoreMemories[Idx]);
       break;
     }
     case AST::Component::Sort::CoreSortType::Global: {
@@ -317,8 +311,7 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
         spdlog::error("    Core global index {} out of bounds."sv, Idx);
         return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
       }
-      Ext = {ExternalType::Global, nullptr, nullptr, nullptr,
-             S.CoreGlobals[Idx]};
+      Ext = Component::CoreExternInfo(S.CoreGlobals[Idx]);
       break;
     }
     case AST::Component::Sort::CoreSortType::Tag: {
@@ -327,7 +320,7 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
         spdlog::error("    Core tag index {} out of bounds."sv, Idx);
         return Unexpect(ErrCode::Value::UnknownCoreTag);
       }
-      Ext = {ExternalType::Tag, S.CoreTags[Idx], nullptr, nullptr, nullptr};
+      Ext = Component::CoreExternInfo(ExternalType::Tag, S.CoreTags[Idx]);
       break;
     }
     default:
@@ -343,7 +336,7 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
       return Unexpect(ErrCode::Value::DupExportName);
     }
   }
-  S.CoreInstances.push_back(Result);
+  S.addCoreInstance(Result);
   return {};
 }
 
@@ -360,12 +353,12 @@ Validator::validate(const AST::Component::CoreTypeSection &TypeSec) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::ComponentSection &CompSec) noexcept {
-  auto *Shape = CompTypes.newShape();
+  auto *Shape = CompTypes.addShape();
   EXPECTED_TRY(validate(CompSec.getContent(), *Shape).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Component));
     return E;
   }));
-  CompCtx.top().Components.push_back(Shape);
+  CompCtx.top().addComponent(Shape);
   return {};
 }
 
@@ -393,12 +386,12 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
     }
     EXPECTED_TRY(const auto *Result, CompCtx.instantiateComponentShape(
                                          *CI, Inst.getInstantiateArgs()));
-    CompCtx.top().Instances.push_back(Result);
+    CompCtx.top().addInstance(Result);
     return {};
   }
 
   // Inline exports. Index validity is checked before the export name.
-  auto *Result = CompTypes.newShape();
+  auto *Result = CompTypes.addShape();
   Result->DeclScope = &S;
   std::vector<Component::NameRecord> Names;
   for (const auto &Exp : Inst.getInlineExports()) {
@@ -420,27 +413,21 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
     EXPECTED_TRY(CompCtx.checkAnnotatedName(CN, Info, false));
     EXPECTED_TRY(CompCtx.checkNameAttributes(
         CN, Exp.getImplements(), Exp.getExternalIds(), Exp.getVersionSuffixes(),
-        Info.K == Component::ExternKind::InstanceType));
+        Info.Kind == Component::ExternKind::InstanceType));
     if (!Exp.getSortIdx().getSort().isCore() &&
         Exp.getSortIdx().getSort().getSortType() ==
             AST::Component::Sort::SortType::Value) {
-      auto &VE = CompCtx.top().Values[Exp.getSortIdx().getIdx()];
-      if (VE.Consumed) {
-        spdlog::error(ErrCode::Value::ComponentValueAlreadyConsumed);
-        return Unexpect(ErrCode::Value::ComponentValueAlreadyConsumed);
-      }
-      VE.Consumed = true;
+      EXPECTED_TRY(CompCtx.top().consumeValue(Exp.getSortIdx().getIdx()));
     }
     Result->Exports.emplace(std::string(Exp.getName()), Info);
     Result->ExportOrder.emplace_back(Exp.getName());
   }
-  // An inline instance nests the shapes it re-exports, so it is bounded like
-  // any other declared type.
+  // An inline instance nests re-exported shapes, so it is bounded like a type.
   Component::ExternInfo Probe;
-  Probe.K = Component::ExternKind::InstanceType;
+  Probe.Kind = Component::ExternKind::InstanceType;
   Probe.Shape = Result;
   EXPECTED_TRY(CompTypes.checkTypeLimits(Probe));
-  CompCtx.top().Instances.push_back(Result);
+  CompCtx.top().addInstance(Result);
   return {};
 }
 
@@ -458,8 +445,8 @@ Validator::validate(const AST::Component::AliasSection &AliasSec) noexcept {
 Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
   auto &S = CompCtx.top();
   const auto &Sort = Alias.getSort();
-  const bool InTypeDecl = S.K == Component::Scope::Kind::ComponentType ||
-                          S.K == Component::Scope::Kind::InstanceType;
+  const bool InTypeDecl = S.Kind == Component::ScopeKind::ComponentType ||
+                          S.Kind == Component::ScopeKind::InstanceType;
 
   switch (Alias.getTargetType()) {
   case AST::Component::Alias::TargetType::Export: {
@@ -490,7 +477,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
     if (WantCoreModule) {
       // Core-module exports of component instances.
       if (It == Inst->Exports.end() ||
-          It->second.K != Component::ExternKind::CoreType) {
+          It->second.Kind != Component::ExternKind::CoreType) {
         spdlog::error(ErrCode::Value::ComponentExportNotAModule);
         spdlog::error("    Export '{}' of instance {} is not a core module."sv,
                       Name, InstIdx);
@@ -508,15 +495,15 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
     const auto ST = Sort.getSortType();
     const auto &Info = It->second;
     const bool KindOk = (ST == AST::Component::Sort::SortType::Func &&
-                         Info.K == Component::ExternKind::FuncType) ||
+                         Info.Kind == Component::ExternKind::FuncType) ||
                         (ST == AST::Component::Sort::SortType::Value &&
-                         Info.K == Component::ExternKind::ValueBound) ||
+                         Info.Kind == Component::ExternKind::ValueBound) ||
                         (ST == AST::Component::Sort::SortType::Type &&
-                         Info.K == Component::ExternKind::TypeBound) ||
+                         Info.Kind == Component::ExternKind::TypeBound) ||
                         (ST == AST::Component::Sort::SortType::Component &&
-                         Info.K == Component::ExternKind::ComponentType) ||
+                         Info.Kind == Component::ExternKind::ComponentType) ||
                         (ST == AST::Component::Sort::SortType::Instance &&
-                         Info.K == Component::ExternKind::InstanceType);
+                         Info.Kind == Component::ExternKind::InstanceType);
     if (!KindOk) {
       spdlog::error(ErrCode::Value::ComponentUnknownExport);
       spdlog::error("    Export '{}' of instance {} does not match the "
@@ -558,26 +545,17 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       return Unexpect(Code);
     }
     const auto &Ext = It->second;
-    auto KindMatches = [&](ExternalType ET,
-                           AST::Component::Sort::CoreSortType Want) noexcept {
-      return Ext.Kind == ET && CS == Want;
-    };
-    if (KindMatches(ExternalType::Function,
-                    AST::Component::Sort::CoreSortType::Func)) {
-      S.CoreFuncs.push_back(Ext.Func);
-    } else if (KindMatches(ExternalType::Table,
-                           AST::Component::Sort::CoreSortType::Table)) {
-      S.CoreTables.push_back(Ext.Table);
-    } else if (KindMatches(ExternalType::Memory,
-                           AST::Component::Sort::CoreSortType::Memory)) {
-      S.CoreMemories.push_back(Ext.Memory);
-    } else if (KindMatches(ExternalType::Global,
-                           AST::Component::Sort::CoreSortType::Global)) {
-      S.CoreGlobals.push_back(Ext.Global);
-    } else if (KindMatches(ExternalType::Tag,
-                           AST::Component::Sort::CoreSortType::Tag)) {
-      S.CoreTags.push_back(Ext.Func);
-    } else {
+    const bool KindOk = (CS == AST::Component::Sort::CoreSortType::Func &&
+                         Ext.Kind == ExternalType::Function) ||
+                        (CS == AST::Component::Sort::CoreSortType::Table &&
+                         Ext.Kind == ExternalType::Table) ||
+                        (CS == AST::Component::Sort::CoreSortType::Memory &&
+                         Ext.Kind == ExternalType::Memory) ||
+                        (CS == AST::Component::Sort::CoreSortType::Global &&
+                         Ext.Kind == ExternalType::Global) ||
+                        (CS == AST::Component::Sort::CoreSortType::Tag &&
+                         Ext.Kind == ExternalType::Tag);
+    if (!KindOk) {
       const auto Code = CS == AST::Component::Sort::CoreSortType::Tag
                             ? ErrCode::Value::UnknownCoreTag
                             : ErrCode::Value::InvalidTypeReference;
@@ -586,6 +564,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
                     Name);
       return Unexpect(Code);
     }
+    S.addCoreExtern(Ext);
     return {};
   }
   case AST::Component::Alias::TargetType::Outer: {
@@ -612,7 +591,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
                         Idx);
           return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
         }
-        S.CoreModules.push_back(Mod);
+        S.addCoreModule(Mod);
         return {};
       }
       case AST::Component::Sort::CoreSortType::Type: {
@@ -622,7 +601,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
           spdlog::error("    Aliased core type index {} out of bounds."sv, Idx);
           return Unexpect(ErrCode::Value::ComponentTypeIndexOutOfBounds);
         }
-        S.CoreTypes.push_back(*Entry);
+        S.addCoreType(*Entry);
         return {};
       }
       default:
@@ -640,13 +619,13 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
         spdlog::error("    Aliased type index {} out of bounds."sv, Idx);
         return Unexpect(ErrCode::Value::ComponentTypeIndexOutOfBounds);
       }
-      // A type that crosses a component boundary must carry no free resource
-      // identity. A free identity leaks generativity.
+      // A type crossing a component boundary must carry no free resource id.
       const auto *Inside = CompCtx.scopeInsideTarget(Ct);
-      if (Inside != nullptr && Inside->K == Component::Scope::Kind::Component) {
+      if (Inside != nullptr &&
+          Inside->Kind == Component::ScopeKind::Component) {
         std::unordered_set<uint32_t> Ids;
         Component::ExternInfo Probe;
-        Probe.K = Component::ExternKind::TypeBound;
+        Probe.Kind = Component::ExternKind::TypeBound;
         Probe.Type = *Entry;
         CompTypes.collectResources(Probe, Ids);
         // Ids bound by the aliased type itself are not free.
@@ -671,7 +650,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
           return Unexpect(ErrCode::Value::ComponentAliasResourceLeak);
         }
       }
-      S.Types.push_back(*Entry);
+      S.addType(*Entry);
       return {};
     }
     case AST::Component::Sort::SortType::Component: {
@@ -687,7 +666,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
         spdlog::error("    Aliased component index {} out of bounds."sv, Idx);
         return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
       }
-      S.Components.push_back(Comp);
+      S.addComponent(Comp);
       return {};
     }
     default:
@@ -756,13 +735,12 @@ Validator::validate(const AST::Component::StartSection &StartSec) noexcept {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Start));
       return Unexpect(ErrCode::Value::InvalidIndex);
     }
-    if (S.Values[ValIdx].Consumed) {
-      spdlog::error(ErrCode::Value::ComponentValueAlreadyConsumed);
+    EXPECTED_TRY(S.consumeValue(ValIdx).map_error([ValIdx](auto E) {
       spdlog::error("    Start argument value {} was already consumed."sv,
                     ValIdx);
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Start));
-      return Unexpect(ErrCode::Value::ComponentValueAlreadyConsumed);
-    }
+      return E;
+    }));
     if (!Component::Matcher(CompTypes).matchValType(
             S.Values[ValIdx].Type,
             {Params[I].getValType(), FI->Home, FI->Remap})) {
@@ -771,7 +749,6 @@ Validator::validate(const AST::Component::StartSection &StartSec) noexcept {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Start));
       return Unexpect(ErrCode::Value::ArgTypeMismatch);
     }
-    S.Values[ValIdx].Consumed = true;
   }
   const auto Results = FI->FT->getResultList();
   if (Start.getResult() != Results.size()) {
@@ -782,7 +759,7 @@ Validator::validate(const AST::Component::StartSection &StartSec) noexcept {
     return Unexpect(ErrCode::Value::ArgTypeMismatch);
   }
   for (const auto &R : Results) {
-    S.Values.push_back({{R.getValType(), FI->Home, FI->Remap}, false});
+    S.addValue({R.getValType(), FI->Home, FI->Remap});
   }
   return {};
 }
@@ -824,8 +801,7 @@ Expect<void> Validator::validate(const AST::Component::ExportSection &ExpSec,
 Expect<void> Validator::validate(const AST::Component::Export &Ex,
                                  Component::Shape &Out) noexcept {
   auto &S = CompCtx.top();
-  // The index bounds are diagnosed before the export name. A valid name
-  // upgrades a bounds error to a per-sort code.
+  // Index bounds are diagnosed before the name; a valid name refines the code.
   {
     const auto &SI = Ex.getSortIndex();
     Component::ExternName CN;
@@ -875,16 +851,13 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex,
   if (!Ex.getSortIndex().getSort().isCore() &&
       Ex.getSortIndex().getSort().getSortType() ==
           AST::Component::Sort::SortType::Value) {
-    auto &VE = S.Values[Ex.getSortIndex().getIdx()];
-    if (VE.Consumed) {
-      spdlog::error(ErrCode::Value::ComponentValueAlreadyConsumed);
-      spdlog::error("    Exported value {} was already consumed."sv,
-                    Ex.getSortIndex().getIdx());
-      return Unexpect(ErrCode::Value::ComponentValueAlreadyConsumed);
-    }
-    VE.Consumed = true;
+    const uint32_t ValIdx = Ex.getSortIndex().getIdx();
+    EXPECTED_TRY(S.consumeValue(ValIdx).map_error([ValIdx](auto E) {
+      spdlog::error("    Exported value {} was already consumed."sv, ValIdx);
+      return E;
+    }));
     // Exported values must not transitively contain borrow handles.
-    if (CompTypes.containsBorrow(VE.Type)) {
+    if (CompTypes.containsBorrow(S.Values[ValIdx].Type)) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error("    Exported value types cannot contain borrows."sv);
       return Unexpect(ErrCode::Value::InvalidTypeReference);
@@ -893,7 +866,7 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex,
   EXPECTED_TRY(
       Component::ExternName CN,
       CompCtx.registerExportName(
-          Ex.getName(), Inferred.K == Component::ExternKind::InstanceType,
+          Ex.getName(), Inferred.Kind == Component::ExternKind::InstanceType,
           Ex.getImplements(), Ex.getExternalIds(), Ex.getVersionSuffixes()));
   std::optional<Component::ExternInfo> Ascribed;
   if (Ex.getDesc().has_value()) {
@@ -901,7 +874,7 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex,
   }
   EXPECTED_TRY(auto Result, CompCtx.defineExport(CN, Inferred, Ascribed));
   // The re-exported value index is born consumed.
-  if (Result.K == Component::ExternKind::ValueBound) {
+  if (Result.Kind == Component::ExternKind::ValueBound) {
     CompCtx.top().Values.back().Consumed = true;
   }
   Out.Exports.emplace(std::string(Ex.getName()), Result);
@@ -915,15 +888,7 @@ Validator::validate(const AST::Component::ValueSection &ValSec) noexcept {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Value));
       return E;
     }));
-    auto Resolver = [this](uint32_t Idx) -> const AST::Component::DefValType * {
-      const auto *Entry = CompCtx.top().getType(Idx);
-      return Entry != nullptr && Entry->DT != nullptr &&
-                     Entry->DT->isDefValType()
-                 ? &Entry->DT->getDefValType()
-                 : nullptr;
-    };
-    Component::ValueDecoder<decltype(Resolver)> Decoder(Value.getData(),
-                                                        std::move(Resolver));
+    Component::ValueDecoder Decoder(Value.getData(), CompCtx.top());
     auto Decoded = Decoder.decode(Value.getType());
     if (!Decoded) {
       spdlog::error(ErrCode::Value::ComponentMalformedValue);
@@ -932,8 +897,7 @@ Validator::validate(const AST::Component::ValueSection &ValSec) noexcept {
       return Unexpect(ErrCode::Value::ComponentMalformedValue);
     }
     Value.setDecoded(std::move(*Decoded));
-    CompCtx.top().Values.push_back(
-        {{Value.getType(), &CompCtx.top(), nullptr}, false});
+    CompCtx.top().addValue({Value.getType(), &CompCtx.top(), nullptr});
   }
   return {};
 }

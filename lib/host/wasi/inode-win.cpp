@@ -1524,7 +1524,7 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
   struct addrinfo *Result = nullptr;
   const int Res = getaddrinfo(NodeCStr, ServiceCStr, &SysHint, &Result);
   if (unlikely(Res != 0)) {
-    return WasiUnexpect(fromWSAError(Res));
+    return WasiUnexpect(fromEAIErrNo(Res));
   }
   AddrinfoPtr SysResPtr(Result, &freeaddrinfo);
 
@@ -2009,7 +2009,7 @@ WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
     assuming(Size == sizeof(int));
     Flag = Flag.first(static_cast<size_t>(Size));
     auto &Error = *reinterpret_cast<int *>(Flag.data());
-    Error = static_cast<int>(fromErrNo(Error));
+    Error = static_cast<int>(fromWSAErrNo(Error));
     break;
   }
   case __WASI_SOCK_OPT_SO_TYPE: {

@@ -7,10 +7,12 @@
 #include "simdjson.h"
 #include "wasinn_ggml_log.h"
 #include <algorithm>
+#include <array>
 #include <common.h>
 #include <filesystem>
 #include <fmt/ranges.h>
 #include <fstream>
+#include <limits>
 #include <llama.h>
 #include <mutex>
 #include <sampling.h>
@@ -77,35 +79,22 @@ void stringToList(const std::string &Raw, std::vector<int> &Out) {
   }
 }
 
-// Parse metadata from JSON.
-ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
-                    const std::string &Metadata, bool *IsModelUpdated = nullptr,
-                    bool *IsContextUpdated = nullptr,
-                    bool *IsSamplerUpdated = nullptr) noexcept {
-  // Parse metadata from the json.
-  simdjson::dom::parser Parser;
-  simdjson::dom::element Doc;
-  auto ParseError = Parser.parse(Metadata).get(Doc);
-  if (ParseError) {
-    RET_ERROR(ErrNo::InvalidEncoding, "parse metadata error."sv)
-  }
+// The KV cache types kv_cache_type_from_str() accepts in the bundled
+// llama.cpp (common/common.cpp); any other string makes it throw from inside
+// common_context_params_to_llama().
+constexpr std::array<std::string_view, 8> KVCacheTypes = {
+    "f32", "f16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1"};
 
-  // Get the current llama parameters.
-  int64_t PrevNGPULayers = GraphRef.Params.n_gpu_layers;
-  int64_t PrevMainGpu = GraphRef.Params.main_gpu;
-  int64_t PrevThreads = GraphRef.Params.cpuparams.n_threads;
-  bool PrevFlashAttn = GraphRef.Params.flash_attn;
-  int64_t PrevCtxSize = GraphRef.Params.n_ctx;
-  bool PrevEmbedding = GraphRef.Params.embedding;
-  // Get the current sampler parameters.
-  double PrevTemp = GraphRef.Params.sparams.temp;
-  double PrevTopP = GraphRef.Params.sparams.top_p;
-  double PrevRepeatPenalty = GraphRef.Params.sparams.penalty_repeat;
-  double PrevPresencePenalty = GraphRef.Params.sparams.penalty_present;
-  double PrevFrequencyPenalty = GraphRef.Params.sparams.penalty_freq;
-  std::string PrevGrammar = GraphRef.Params.sparams.grammar;
-  uint64_t PrevSeed = GraphRef.Params.sparams.seed;
+bool isKVCacheType(std::string_view Type) noexcept {
+  return std::find(KVCacheTypes.begin(), KVCacheTypes.end(), Type) !=
+         KVCacheTypes.end();
+}
 
+// Apply the metadata options to the graph and the context config. Options are
+// applied as they are parsed; parseMetadata rolls the whole object back when
+// one of them is rejected.
+ErrNo applyMetadata(Graph &GraphRef, LocalConfig &ConfRef,
+                    const simdjson::dom::element &Doc) noexcept {
   // The plugin parameters.
   if (Doc.at_key("enable-log").error() == simdjson::SUCCESS) {
     auto Err = Doc["enable-log"].get<bool>().get(GraphRef.EnableLog);
@@ -156,24 +145,41 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     std::string TS(TSV);
     std::replace(TS.begin(), TS.end(), ',', ' ');
     std::stringstream SS(TS);
-    std::memset(GraphRef.Params.tensor_split, 0,
-                sizeof(GraphRef.Params.tensor_split));
-    uint32_t TensorSplitSize = 0;
-    while (SS.good()) {
+    constexpr size_t TensorSplitCapacity =
+        sizeof(GraphRef.Params.tensor_split) /
+        sizeof(GraphRef.Params.tensor_split[0]);
+    const size_t NDevices = llama_max_devices();
+    if (NDevices > TensorSplitCapacity) {
+      RET_ERROR(ErrNo::RuntimeError,
+                "Number of MaxDevices ({}) is larger than tensor-split "sv
+                "capacity ({})."sv,
+                NDevices, TensorSplitCapacity)
+    }
+    std::array<float, TensorSplitCapacity> TensorSplit;
+    TensorSplit.fill(0.0f);
+    size_t TensorSplitSize = 0;
+    // Skip separators first so only a genuine end of input ends the loop; an
+    // extraction that fails then, even at EOF, is an error.
+    for (SS >> std::ws; !SS.eof(); SS >> std::ws) {
       float TmpTensor;
-      SS >> TmpTensor;
-      GraphRef.Params.tensor_split[TensorSplitSize++] = TmpTensor;
+      if (!(SS >> TmpTensor)) {
+        RET_ERROR(ErrNo::InvalidArgument,
+                  "Invalid value in the tensor-split option."sv)
+      }
+      if (TensorSplitSize >= NDevices) {
+        RET_ERROR(
+            ErrNo::InvalidArgument,
+            "Number of Tensor-Split is larger than MaxDevices, please reduce "sv
+            "the size of tensor-split."sv)
+      }
+      TensorSplit[TensorSplitSize++] = TmpTensor;
     }
-    size_t NDevices = llama_max_devices();
-    if (TensorSplitSize > NDevices) {
-      RET_ERROR(
-          ErrNo::InvalidArgument,
-          "Number of Tensor-Split is larger than MaxDevices, please reduce "sv
-          "the size of tensor-split."sv)
+    if (TensorSplitSize == 0) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "The tensor-split option needs at least one value."sv)
     }
-    for (size_t Idx = TensorSplitSize; Idx < NDevices; Idx++) {
-      GraphRef.Params.tensor_split[TensorSplitSize++] = 0.0f;
-    }
+    std::copy(TensorSplit.begin(), TensorSplit.end(),
+              GraphRef.Params.tensor_split);
   }
   if (Doc.at_key("embedding").error() == simdjson::SUCCESS) {
     auto Err = Doc["embedding"].get<bool>().get(GraphRef.Params.embedding);
@@ -218,6 +224,12 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the batch-size option."sv)
     }
+    if (BatchSize <= 0 ||
+        BatchSize > static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "batch-size should be in range [1, {}]."sv,
+                std::numeric_limits<int32_t>::max())
+    }
     GraphRef.Params.n_batch = static_cast<int32_t>(BatchSize);
   }
   if (Doc.at_key("ubatch-size").error() == simdjson::SUCCESS) {
@@ -226,6 +238,14 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the ubatch-size option."sv)
+    }
+    // llama.cpp treats 0 as "same as batch-size".
+    if (UBatchSize < 0 ||
+        UBatchSize >
+            static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "ubatch-size should be in range [0, {}]."sv,
+                std::numeric_limits<int32_t>::max())
     }
     GraphRef.Params.n_ubatch = static_cast<int32_t>(UBatchSize);
   }
@@ -458,6 +478,14 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the pooling-type option."sv)
     }
+    // Unknown pooling types make llama.cpp abort when building the graph.
+    if (PoolingType < LLAMA_POOLING_TYPE_UNSPECIFIED ||
+        PoolingType > LLAMA_POOLING_TYPE_RANK) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "pooling-type should be in range [{}, {}]."sv,
+                static_cast<int>(LLAMA_POOLING_TYPE_UNSPECIFIED),
+                static_cast<int>(LLAMA_POOLING_TYPE_RANK))
+    }
     GraphRef.Params.pooling_type =
         static_cast<enum llama_pooling_type>(PoolingType);
   }
@@ -478,6 +506,12 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the threads option."sv)
     }
+    // The bundled llama_decode asserts n_threads > 0; there is no automatic
+    // thread count in this llama.cpp.
+    if (NThreads < 1 || NThreads > GGML_MAX_N_THREADS) {
+      RET_ERROR(ErrNo::InvalidArgument, "threads should be in range [1, {}]."sv,
+                GGML_MAX_N_THREADS)
+    }
     GraphRef.Params.cpuparams.n_threads = static_cast<int32_t>(NThreads);
   }
   if (Doc.at_key("threads-batch").error() == simdjson::SUCCESS) {
@@ -486,6 +520,13 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the threads-batch option."sv)
+    }
+    // -1 reuses the threads value.
+    if (NThreadsBatch < -1 || NThreadsBatch == 0 ||
+        NThreadsBatch > GGML_MAX_N_THREADS) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "threads-batch should be -1 or in range [1, {}]."sv,
+                GGML_MAX_N_THREADS)
     }
     GraphRef.Params.cpuparams_batch.n_threads =
         static_cast<int32_t>(NThreadsBatch);
@@ -625,6 +666,10 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the mirostat option."sv)
+    }
+    // common_sampler_init asserts on any other mirostat version.
+    if (Mirostat < 0 || Mirostat > 2) {
+      RET_ERROR(ErrNo::InvalidArgument, "mirostat should be in range [0, 2]."sv)
     }
     GraphRef.Params.sparams.mirostat = static_cast<int32_t>(Mirostat);
   }
@@ -1120,6 +1165,11 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the cache-type-k option."sv)
     }
+    if (!isKVCacheType(CacheTypeK)) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "cache-type-k must be one of the KV cache types: {}."sv,
+                fmt::join(KVCacheTypes, ", "sv))
+    }
     GraphRef.Params.cache_type_k = CacheTypeK;
   }
   if (Doc.at_key("cache-type-v").error() == simdjson::SUCCESS) {
@@ -1128,6 +1178,11 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the cache-type-v option."sv)
+    }
+    if (!isKVCacheType(CacheTypeV)) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "cache-type-v must be one of the KV cache types: {}."sv,
+                fmt::join(KVCacheTypes, ", "sv))
     }
     GraphRef.Params.cache_type_v = CacheTypeV;
   }
@@ -1138,7 +1193,16 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the embd-normalize option."sv)
     }
-    GraphRef.Params.embd_normalize = static_cast<int32_t>(EmbdNormalize);
+    // -1 disables normalization, 0 is max-absolute, 2 is euclidean, and any
+    // other value is the p of a p-norm in common_embd_normalize.
+    if (EmbdNormalize < -1 ||
+        EmbdNormalize >
+            static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "embd-normalize should be in range [-1, {}]."sv,
+                std::numeric_limits<int32_t>::max())
+    }
+    ConfRef.EmbdNormalize = static_cast<EmbdNormalizeType>(EmbdNormalize);
   }
   if (Doc.at_key("embd-out").error() == simdjson::SUCCESS) {
     std::string_view EmbdOut;
@@ -1531,29 +1595,66 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     }
   }
 
+  return ErrNo::Success;
+}
+
+// Parse metadata from JSON.
+ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
+                    const std::string &Metadata, bool *IsModelUpdated = nullptr,
+                    bool *IsContextUpdated = nullptr,
+                    bool *IsSamplerUpdated = nullptr) noexcept {
+  // Parse metadata from the json.
+  simdjson::dom::parser Parser;
+  simdjson::dom::element Doc;
+  auto ParseError = Parser.parse(Metadata).get(Doc);
+  if (ParseError) {
+    RET_ERROR(ErrNo::InvalidEncoding, "parse metadata error."sv)
+  }
+
+  // Snapshot everything the options may modify, so a rejected metadata object
+  // leaves the graph and the context config exactly as they were.
+  const bool PrevEnableLog = GraphRef.EnableLog;
+  const bool PrevEnableDebugLog = GraphRef.EnableDebugLog;
+  const common_params PrevParams = GraphRef.Params;
+  const LocalConfig PrevConf = ConfRef;
+
+  auto Res = applyMetadata(GraphRef, ConfRef, Doc);
+  if (Res != ErrNo::Success) {
+    GraphRef.EnableLog = PrevEnableLog;
+    GraphRef.EnableDebugLog = PrevEnableDebugLog;
+    GraphRef.Params = PrevParams;
+    ConfRef = PrevConf;
+    return Res;
+  }
+
   // Check if the model parameters are updated.
-  if (IsModelUpdated && (PrevNGPULayers != GraphRef.Params.n_gpu_layers ||
-                         PrevMainGpu != GraphRef.Params.main_gpu)) {
+  if (IsModelUpdated &&
+      (PrevParams.n_gpu_layers != GraphRef.Params.n_gpu_layers ||
+       PrevParams.main_gpu != GraphRef.Params.main_gpu)) {
     *IsModelUpdated = true;
   }
 
   // Check if the context parameters are updated.
-  if (IsContextUpdated && (PrevCtxSize != GraphRef.Params.n_ctx ||
-                           PrevThreads != GraphRef.Params.cpuparams.n_threads ||
-                           PrevFlashAttn != GraphRef.Params.flash_attn ||
-                           PrevEmbedding != GraphRef.Params.embedding)) {
+  if (IsContextUpdated &&
+      (PrevParams.n_ctx != GraphRef.Params.n_ctx ||
+       PrevParams.cpuparams.n_threads != GraphRef.Params.cpuparams.n_threads ||
+       PrevParams.flash_attn != GraphRef.Params.flash_attn ||
+       PrevParams.embedding != GraphRef.Params.embedding)) {
     *IsContextUpdated = true;
   }
 
   // Check if the sampler parameters are updated.
   if (IsSamplerUpdated &&
-      (PrevTemp != GraphRef.Params.sparams.temp ||
-       PrevTopP != GraphRef.Params.sparams.top_p ||
-       PrevRepeatPenalty != GraphRef.Params.sparams.penalty_repeat ||
-       PrevPresencePenalty != GraphRef.Params.sparams.penalty_present ||
-       PrevFrequencyPenalty != GraphRef.Params.sparams.penalty_freq ||
-       PrevGrammar != GraphRef.Params.sparams.grammar ||
-       PrevSeed != GraphRef.Params.sparams.seed)) {
+      (PrevParams.sparams.temp != GraphRef.Params.sparams.temp ||
+       PrevParams.sparams.top_p != GraphRef.Params.sparams.top_p ||
+       PrevParams.sparams.penalty_repeat !=
+           GraphRef.Params.sparams.penalty_repeat ||
+       PrevParams.sparams.penalty_present !=
+           GraphRef.Params.sparams.penalty_present ||
+       PrevParams.sparams.penalty_freq !=
+           GraphRef.Params.sparams.penalty_freq ||
+       PrevParams.sparams.grammar != GraphRef.Params.sparams.grammar ||
+       PrevParams.sparams.seed != GraphRef.Params.sparams.seed)) {
     *IsSamplerUpdated = true;
   }
 
@@ -1597,16 +1698,35 @@ void buildOutputEmbedding(std::string &Embedding, int32_t NEmbd,
 
 // >>>>>>>> Compute related functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-// Helper to initialize a llama batch.
+// Helper to initialize a llama batch. Returns a value-initialized batch when
+// the arguments do not fit llama_batch_init or an allocation fails, so the
+// caller can detect the failure and llama_batch_free stays a no-op.
 struct llama_batch allocBatch(int64_t NTokens, int64_t Embd = 0,
                               int32_t NSeqMax = 1) noexcept {
+  constexpr auto Int32Max =
+      static_cast<int64_t>(std::numeric_limits<int32_t>::max());
+  if (NTokens <= 0 || NTokens > Int32Max || Embd < 0 || Embd > Int32Max ||
+      NSeqMax <= 0) {
+    return {};
+  }
   struct llama_batch Batch = llama_batch_init(
       /* n_tokens_alloc */ static_cast<int32_t>(NTokens),
       /* embd */ static_cast<int32_t>(Embd),
       /* n_seq_max */ static_cast<int32_t>(NSeqMax));
+  const bool HasData =
+      Embd > 0 ? Batch.embd != nullptr : Batch.token != nullptr;
+  if (!HasData || !Batch.pos || !Batch.n_seq_id || !Batch.seq_id ||
+      !Batch.logits) {
+    llama_batch_free(Batch);
+    return {};
+  }
   std::fill(Batch.n_seq_id, Batch.n_seq_id + NTokens,
             static_cast<int32_t>(NSeqMax));
   for (int64_t I = 0; I < NTokens; I++) {
+    if (!Batch.seq_id[I]) {
+      llama_batch_free(Batch);
+      return {};
+    }
     std::fill(Batch.seq_id[I], Batch.seq_id[I] + NSeqMax, 0);
   }
   std::fill(Batch.logits, Batch.logits + NTokens, false);
@@ -2003,12 +2123,21 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &G,
   LOG_INFO(GraphRef.EnableLog, "llama_system_info: {}"sv,
            llama_print_system_info())
 
-  // Allocate the batch for input string prompt tokens.
+  // Allocate the batch for input string prompt tokens. On failure the caller
+  // drops the context, whose destructor frees whatever was allocated.
   CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
+  if (CxtRef.LlamaBatch.token == nullptr) {
+    RET_ERROR(ErrNo::RuntimeError,
+              "initExecCtx: unable to allocate llama_batch."sv)
+  }
   CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
 
   // Allocate the batch for single-token output sampling.
   CxtRef.OutputBatch = allocBatch(1);
+  if (CxtRef.OutputBatch.token == nullptr) {
+    RET_ERROR(ErrNo::RuntimeError,
+              "initExecCtx: unable to allocate output batch."sv)
+  }
 
   // Allocate the sampler
   CxtRef.LlamaSampler.reset(
@@ -2108,11 +2237,16 @@ Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
     // Re-allocate batch if the batch size changed.
     if (CxtRef.CurrentBatchSize != GraphRef.Params.n_batch) {
       LOG_INFO(GraphRef.EnableLog,
-               "Re-allocating batch due to n_batch change.");
+               "Re-allocating batch due to n_batch change."sv);
       llama_batch_free(CxtRef.LlamaBatch);
       CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
-      if (!CxtRef.LlamaBatch.token) {
-        RET_ERROR(ErrNo::InvalidArgument, "Failed to re-allocate llama_batch.");
+      if (CxtRef.LlamaBatch.token == nullptr) {
+        // Force a reallocation on the next metadata pass and keep compute
+        // away from the empty batch until then.
+        CxtRef.CurrentBatchSize = 0;
+        G.setInvalid();
+        RET_ERROR(ErrNo::RuntimeError,
+                  "setInput: unable to allocate llama_batch."sv)
       }
       CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
     }
@@ -2151,9 +2285,14 @@ Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &G,
   const std::string Prompt(reinterpret_cast<const char *>(Tensor.Tensor.data()),
                            Tensor.Tensor.size());
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize text prompt"sv)
-  CxtRef.LlamaInputs =
-      common_tokenize(GraphRef.LlamaContext.get(), Prompt,
-                      llama_add_bos_token(GraphRef.LlamaModel.get()), true);
+  try {
+    CxtRef.LlamaInputs =
+        common_tokenize(GraphRef.LlamaContext.get(), Prompt,
+                        llama_add_bos_token(GraphRef.LlamaModel.get()), true);
+  } catch (const std::exception &E) {
+    RET_ERROR(ErrNo::InvalidArgument,
+              "setInput: unable to tokenize the prompt: {}"sv, E.what())
+  }
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize text prompt...Done"sv)
 
   // Get the number of input tokens for the metadata.

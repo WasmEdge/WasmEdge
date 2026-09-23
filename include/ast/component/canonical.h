@@ -18,6 +18,7 @@
 #include "common/span.h"
 
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {
@@ -164,6 +165,15 @@ public:
   void setContextType(const ValType T) noexcept { CtxType = T; }
 
   Span<const CanonOpt> getOptions() const noexcept { return Opts; }
+  /// True when the definition carries the option OptCode.
+  bool hasOption(ComponentCanonOptCode OptCode) const noexcept {
+    for (const auto &Opt : Opts) {
+      if (Opt.getCode() == OptCode) {
+        return true;
+      }
+    }
+    return false;
+  }
   void setOptions(std::vector<CanonOpt> &&List) noexcept {
     Opts = std::move(List);
   }
@@ -175,6 +185,70 @@ public:
   void setResultList(const ComponentValType &VT) noexcept {
     ResultList.clear();
     ResultList.emplace_back(VT);
+  }
+
+  /// The core function type of the canonical built-in Code, as the Explainer's
+  /// synopsis tables give it, with AddrType for the address type of the memory
+  /// the definition names, or of the table for thread.new-indirect.
+  /// context.get and context.set take the context slot type, and task.return
+  /// the lowered results, so their callers form those types themselves.
+  static std::pair<std::vector<ValType>, std::vector<ValType>>
+  getBuiltinCoreFuncType(ComponentCanonOpCode Code,
+                         const ValType &AddrType) noexcept {
+    const ValType I32(TypeCode::I32);
+    const ValType I64(TypeCode::I64);
+    switch (Code) {
+    case ComponentCanonOpCode::Backpressure__inc:
+    case ComponentCanonOpCode::Backpressure__dec:
+    case ComponentCanonOpCode::Task__cancel:
+      return {{}, {}};
+    case ComponentCanonOpCode::Yield:
+    case ComponentCanonOpCode::Waitable_set__new:
+    case ComponentCanonOpCode::Thread__index:
+    case ComponentCanonOpCode::Thread__suspend:
+      return {{}, {I32}};
+    case ComponentCanonOpCode::Waitable_set__wait:
+    case ComponentCanonOpCode::Waitable_set__poll:
+      return {{I32, AddrType}, {I32}};
+    case ComponentCanonOpCode::Waitable_set__drop:
+    case ComponentCanonOpCode::Subtask__drop:
+    case ComponentCanonOpCode::Stream__drop_readable:
+    case ComponentCanonOpCode::Stream__drop_writable:
+    case ComponentCanonOpCode::Future__drop_readable:
+    case ComponentCanonOpCode::Future__drop_writable:
+    case ComponentCanonOpCode::Error_context__drop:
+    case ComponentCanonOpCode::Thread__resume_later:
+      return {{I32}, {}};
+    case ComponentCanonOpCode::Waitable__join:
+      return {{I32, I32}, {}};
+    case ComponentCanonOpCode::Subtask__cancel:
+    case ComponentCanonOpCode::Stream__cancel_read:
+    case ComponentCanonOpCode::Stream__cancel_write:
+    case ComponentCanonOpCode::Future__cancel_read:
+    case ComponentCanonOpCode::Future__cancel_write:
+    case ComponentCanonOpCode::Thread__yield_then_resume:
+    case ComponentCanonOpCode::Thread__suspend_then_resume:
+    case ComponentCanonOpCode::Thread__yield_then_promote:
+    case ComponentCanonOpCode::Thread__suspend_then_promote:
+      return {{I32}, {I32}};
+    case ComponentCanonOpCode::Stream__new:
+    case ComponentCanonOpCode::Future__new:
+      return {{}, {I64}};
+    case ComponentCanonOpCode::Stream__read:
+    case ComponentCanonOpCode::Stream__write:
+      return {{I32, AddrType, AddrType}, {AddrType}};
+    case ComponentCanonOpCode::Future__read:
+    case ComponentCanonOpCode::Future__write:
+      return {{I32, AddrType}, {I32}};
+    case ComponentCanonOpCode::Error_context__new:
+      return {{AddrType, AddrType}, {I32}};
+    case ComponentCanonOpCode::Error_context__debug_message:
+      return {{I32, AddrType}, {}};
+    case ComponentCanonOpCode::Thread__new_indirect:
+      return {{AddrType, I32}, {I32}};
+    default:
+      assumingUnreachable();
+    }
   }
 
 private:

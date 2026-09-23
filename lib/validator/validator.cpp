@@ -251,9 +251,8 @@ Validator::validate(const AST::SubType &Type, uint32_t OwnTypeIdx,
 
   // In the current version, the length of the type index vector will be <= 1.
   if (Type.getSuperTypeIndices().size() > 1) {
-    spdlog::error(ErrCode::Value::InvalidSubType);
-    spdlog::error("    Accepts only one super type currently."sv);
-    return Unexpect(ErrCode::Value::InvalidSubType);
+    spdlog::error(ErrCode::Value::MultipleSuperTypes);
+    return Unexpect(ErrCode::Value::MultipleSuperTypes);
   }
 
   for (const auto &Index : Type.getSuperTypeIndices()) {

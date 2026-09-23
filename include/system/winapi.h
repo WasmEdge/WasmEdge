@@ -181,6 +181,7 @@ using ULONG64_ = uint64_t;
 using INT_PTR_ = intptr_t;
 using UINT_PTR_ = uintptr_t;
 using ULONG_PTR_ = uintptr_t;
+using PULONG_PTR_ = ULONG_PTR_ *;
 
 using SIZE_T_ = size_t;
 
@@ -1446,6 +1447,12 @@ WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::HANDLE_
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::HANDLE_
     WASMEDGE_WINAPI_WINAPI_CC GetCurrentThread(WasmEdge::winapi::VOID_);
 
+#if NTDDI_VERSION >= NTDDI_WIN8
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::VOID_ WASMEDGE_WINAPI_WINAPI_CC
+GetCurrentThreadStackLimits(WasmEdge::winapi::PULONG_PTR_ LowLimit,
+                            WasmEdge::winapi::PULONG_PTR_ HighLimit);
+#endif
+
 WASMEDGE_WINAPI_SYMBOL_IMPORT
 WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
 GetProcessTimes(WasmEdge::winapi::HANDLE_ hProcess,
@@ -1484,6 +1491,9 @@ namespace WasmEdge::winapi {
 using ::AdjustTokenPrivileges;
 using ::GetCurrentProcess;
 using ::GetCurrentThread;
+#if NTDDI_VERSION >= NTDDI_WIN8
+using ::GetCurrentThreadStackLimits;
+#endif
 using ::GetProcessTimes;
 using ::GetThreadTimes;
 using ::LookupPrivilegeValueW;

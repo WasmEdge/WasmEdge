@@ -12,9 +12,11 @@
 #if WASMEDGE_OS_WINDOWS
 #include "system/winapi.h"
 #elif WASMEDGE_OS_LINUX
+#include <pthread.h>
 #include <unwind.h>
 #elif WASMEDGE_OS_MACOS
 #include <execinfo.h>
+#include <pthread.h>
 #endif
 
 namespace WasmEdge {
@@ -73,6 +75,42 @@ Span<void *const> stackTrace(Span<void *> Buffer) noexcept {
 #elif WASMEDGE_OS_MACOS
   const auto Depth = backtrace(Buffer.data(), Buffer.size());
   return Buffer.first(Depth);
+#endif
+}
+
+std::pair<uintptr_t, uintptr_t> getThreadStackBounds() noexcept {
+#if WASMEDGE_OS_WINDOWS
+#if NTDDI_VERSION >= NTDDI_WIN8
+  winapi::ULONG_PTR_ Low = 0;
+  winapi::ULONG_PTR_ High = 0;
+  winapi::GetCurrentThreadStackLimits(&Low, &High);
+  return {Low, High};
+#else
+  return {0, 0};
+#endif
+#elif WASMEDGE_OS_LINUX
+  // pthread_getattr_np scans /proc/self/maps for the main thread, so query it
+  // once per thread.
+  thread_local const std::pair<uintptr_t, uintptr_t> Bounds = []() noexcept {
+    pthread_attr_t Attr;
+    if (pthread_getattr_np(pthread_self(), &Attr) != 0) {
+      return std::pair<uintptr_t, uintptr_t>{0, 0};
+    }
+    void *Addr = nullptr;
+    size_t Size = 0;
+    const bool HasStack = pthread_attr_getstack(&Attr, &Addr, &Size) == 0;
+    pthread_attr_destroy(&Attr);
+    if (!HasStack) {
+      return std::pair<uintptr_t, uintptr_t>{0, 0};
+    }
+    const auto Low = reinterpret_cast<uintptr_t>(Addr);
+    return std::pair<uintptr_t, uintptr_t>{Low, Low + Size};
+  }();
+  return Bounds;
+#elif WASMEDGE_OS_MACOS
+  const pthread_t Self = pthread_self();
+  const auto High = reinterpret_cast<uintptr_t>(pthread_get_stackaddr_np(Self));
+  return {High - pthread_get_stacksize_np(Self), High};
 #endif
 }
 

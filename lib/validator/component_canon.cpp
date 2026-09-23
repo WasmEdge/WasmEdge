@@ -82,11 +82,14 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     const bool Ok =
         Def != nullptr && (WantStream ? Def->isStreamTy() : Def->isFutureTy());
     if (!Ok) {
-      spdlog::error(ErrCode::Value::InvalidTypeReference);
-      spdlog::error("    Built-in type index {} does not refer to a {} "
-                    "type."sv,
-                    Canon.getIndex(), WantStream ? "stream" : "future");
-      return Unexpect(ErrCode::Value::InvalidTypeReference);
+      const auto Code = WantStream
+                            ? ErrCode::Value::ComponentStreamTypeRequired
+                            : ErrCode::Value::ComponentFutureTypeRequired;
+      spdlog::error(Code);
+      spdlog::error("    `{}` type index {} does not refer to a {} type."sv,
+                    ComponentCanonOpCodeStr[Canon.getOpCode()],
+                    Canon.getIndex(), WantStream ? "stream"sv : "future"sv);
+      return Unexpect(Code);
     }
     return Entry;
   };
@@ -302,8 +305,8 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     EXPECTED_TRY(RequireSync());
     const ValType Ptr = CompCtx.getCanonPtrType(Canon);
     std::vector<ValType> Params;
-    for (const auto &R : Canon.getResultList()) {
-      const Component::QualValType Q{R.getValType(), &S, nullptr};
+    if (const auto &R = Canon.getResult(); R.has_value()) {
+      const Component::QualValType Q{*R, &S, nullptr};
       if (!CompTypes.flattenValType(Q, Params, Ptr)) {
         spdlog::error(ErrCode::Value::InvalidTypeReference);
         return Unexpect(ErrCode::Value::InvalidTypeReference);
@@ -358,7 +361,7 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     }
     return PushCoreFunc({Ty}, {});
   }
-  case ComponentCanonOpCode::Yield:
+  case ComponentCanonOpCode::Thread__yield:
     return PushBuiltin(I32V);
   case ComponentCanonOpCode::Subtask__cancel:
     return PushBuiltin(I32V);

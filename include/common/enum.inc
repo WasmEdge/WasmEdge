@@ -1345,6 +1345,12 @@ E(CanonOptionOnBuiltin, 0x1298,
 E(CanonCallbackSignature, 0x1299,
   "canonical option `callback` uses a core function with an incorrect "
   "signature")
+// The Canonical ABI element size of a defvaltype reaches 2^28 bytes
+E(ComponentValueSizeTooLarge, 0x129A, "exceeds maximum byte size")
+// The type immediate of a stream built-in is not a stream type
+E(ComponentStreamTypeRequired, 0x129B, "requires a stream type")
+// The type immediate of a future built-in is not a future type
+E(ComponentFutureTypeRequired, 0x129C, "requires a future type")
 // @}
 
 // Instantiation phase
@@ -1616,24 +1622,24 @@ T(Subtask__cancel, 0x06, "subtask.cancel")
 T(Task__return, 0x09, "task.return")
 T(Context__get, 0x0A, "context.get")
 T(Context__set, 0x0B, "context.set")
-T(Yield, 0x0C, "yield")
+T(Thread__yield, 0x0C, "thread.yield")
 T(Subtask__drop, 0x0D, "subtask.drop")
 T(Stream__new, 0x0E, "stream.new")
 T(Stream__read, 0x0F, "stream.read")
 T(Stream__write, 0x10, "stream.write")
-T(Stream__cancel_read, 0x11, "stream.cancel_read")
-T(Stream__cancel_write, 0x12, "stream.cancel_write")
+T(Stream__cancel_read, 0x11, "stream.cancel-read")
+T(Stream__cancel_write, 0x12, "stream.cancel-write")
 T(Stream__drop_readable, 0x13, "stream.drop-readable")
 T(Stream__drop_writable, 0x14, "stream.drop-writable")
 T(Future__new, 0x15, "future.new")
 T(Future__read, 0x16, "future.read")
 T(Future__write, 0x17, "future.write")
-T(Future__cancel_read, 0x18, "future.cancel_read")
-T(Future__cancel_write, 0x19, "future.cancel_write")
+T(Future__cancel_read, 0x18, "future.cancel-read")
+T(Future__cancel_write, 0x19, "future.cancel-write")
 T(Future__drop_readable, 0x1A, "future.drop-readable")
 T(Future__drop_writable, 0x1B, "future.drop-writable")
 T(Error_context__new, 0x1C, "error-context.new")
-T(Error_context__debug_message, 0x1D, "error-context.debug_message")
+T(Error_context__debug_message, 0x1D, "error-context.debug-message")
 T(Error_context__drop, 0x1E, "error-context.drop")
 T(Waitable_set__new, 0x1F, "waitable-set.new")
 T(Waitable_set__wait, 0x20, "waitable-set.wait")
@@ -1652,9 +1658,9 @@ T(Thread__suspend_then_promote, 0x2C, "thread.suspend-then-promote")
 T(Thread__yield_then_promote, 0x2D, "thread.yield-then-promote")
 T(Stream__forward, 0x2E, "stream.forward")
 T(Future__forward, 0x2F, "future.forward")
-T(Thread__spawn_ref, 0x40, "thread.spawn_ref")
-T(Thread__spawn_indirect, 0x41, "thread.spawn_indirect")
-T(Thread__available_parallelism, 0x42, "thread.available_parallelism")
+T(Thread__spawn_ref, 0x40, "thread.spawn-ref")
+T(Thread__spawn_indirect, 0x41, "thread.spawn-indirect")
+T(Thread__available_parallelism, 0x42, "thread.available-parallelism")
 
 #undef T
 #endif // UseComponentCanonOpCode

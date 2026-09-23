@@ -385,6 +385,7 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     return PushBuiltin(I32V);
   case ComponentCanonOpCode::Stream__drop_readable:
   case ComponentCanonOpCode::Stream__drop_writable:
+  case ComponentCanonOpCode::Stream__forward:
     EXPECTED_TRY(CheckTypeImmediate(true));
     return PushBuiltin(I32V);
   case ComponentCanonOpCode::Future__new:
@@ -408,6 +409,7 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     return PushBuiltin(I32V);
   case ComponentCanonOpCode::Future__drop_readable:
   case ComponentCanonOpCode::Future__drop_writable:
+  case ComponentCanonOpCode::Future__forward:
     EXPECTED_TRY(CheckTypeImmediate(false));
     return PushBuiltin(I32V);
   case ComponentCanonOpCode::Error_context__new:

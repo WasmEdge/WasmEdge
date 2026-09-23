@@ -726,6 +726,16 @@ std::array<WasmEdge::Byte, 129> TailCallHostImportWasm{
     0xe3, 0x00, 0x10, 0x01, 0x0b, 0x06, 0x00, 0x41, 0x07, 0x10, 0x02, 0x0b,
     0x00, 0x13, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x0c, 0x03, 0x00, 0x01,
     0x68, 0x01, 0x02, 0x66, 0x32, 0x02, 0x02, 0x66, 0x31};
+
+/// Self-recursive f(n) = n ? f(n-1) : 0 (no tail-call); recursing deeper than
+/// the interpreter stack budget must trap with CallStackExhausted, not complete.
+std::array<WasmEdge::Byte, 70> RecurseWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+    0x01, 0x7e, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+    0x66, 0x00, 0x00, 0x0a, 0x14, 0x01, 0x12, 0x00, 0x20, 0x00, 0x50, 0x04,
+    0x7e, 0x42, 0x00, 0x05, 0x20, 0x00, 0x42, 0x01, 0x7d, 0x10, 0x00, 0x0b,
+    0x0b, 0x00, 0x13, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x04, 0x01, 0x00,
+    0x01, 0x66, 0x02, 0x06, 0x01, 0x00, 0x01, 0x00, 0x01, 0x6e};
 // clang-format on
 
 /// Regression test for ref.test on externalized nullable references.
@@ -1404,6 +1414,27 @@ TEST(ExecutorRegression, TailCallToHostImport) {
     ASSERT_EQ(Args.size(), 1);
     EXPECT_EQ(Args[0], 7);
   }
+}
+
+/// Deep recursion within the 8 MiB interpreter stack budget completes, and
+/// runaway recursion traps with CallStackExhausted instead of growing the heap
+/// without bound.
+TEST(ExecutorRegression, CallStackExhaustion) {
+  Configure Conf;
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(RecurseWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  const std::vector<ValType> ParamTypes = {ValType(TypeCode::I64)};
+  const std::vector<ValVariant> DeepParams = {ValVariant(UINT64_C(20000))};
+  EXPECT_TRUE(VM.execute("f", DeepParams, ParamTypes));
+  const std::vector<ValVariant> RunawayParams = {
+      ValVariant(UINT64_C(100000000))};
+  auto Result = VM.execute("f", RunawayParams, ParamTypes);
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::CallStackExhausted);
+  EXPECT_EQ(Result.error().getErrCodePhase(), WasmPhase::Execution);
 }
 
 } // namespace

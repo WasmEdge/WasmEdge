@@ -544,12 +544,6 @@ Validator::validate(Span<const AST::Component::CoreModuleDecl> Decls,
         spdlog::error(ErrCode::Value::InvalidTypeReference);
         return Unexpect(ErrCode::Value::InvalidTypeReference);
       }
-      // MVP: module types cannot define nested module types.
-      if (T->isModuleType()) {
-        spdlog::error(ErrCode::Value::InvalidTypeReference);
-        spdlog::error("    Module types cannot define nested module types."sv);
-        return Unexpect(ErrCode::Value::InvalidTypeReference);
-      }
       EXPECTED_TRY(validate(*T));
     } else if (Decl.isAlias()) {
       EXPECTED_TRY(validate(Decl.getAlias()));
@@ -659,7 +653,7 @@ Expect<void> Validator::validate(const AST::Component::InstanceDecl &Decl,
     EXPECTED_TRY(CompCtx.checkNamedTypesRule(Info, false));
     EXPECTED_TRY(CompCtx.checkAnnotatedName(CN, Info, false));
     EXPECTED_TRY(CompCtx.checkNameAttributes(
-        CN, ED.getImplements(), ED.getExternalIds(), ED.getVersionSuffixes(),
+        CN, ED.getImplements(), ED.getVersionSuffixes(),
         Info.Kind == Component::ExternKind::InstanceType));
     CompCtx.recordResourceLabel(CN, Info, false);
     Exports.emplace(std::string(ED.getName()), Info);
@@ -675,9 +669,9 @@ Expect<void> Validator::validate(const AST::Component::ComponentDecl &Decl,
     const auto &ID = Decl.getImport();
     Component::ExternInfo Resolved;
     EXPECTED_TRY(validate(ID.getExternDesc(), true, Resolved));
-    EXPECTED_TRY(auto Ext, CompCtx.defineImport(
-                               ID.getName(), Resolved, ID.getImplements(),
-                               ID.getExternalIds(), ID.getVersionSuffixes()));
+    EXPECTED_TRY(auto Ext, CompCtx.defineImport(ID.getName(), Resolved,
+                                                ID.getImplements(),
+                                                ID.getVersionSuffixes()));
     Out.Imports.emplace_back(std::string(ID.getName()), Ext);
     return {};
   }

@@ -412,7 +412,7 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
         CompCtx.addUniqueName(Names, CompCtx.makeNameRecord(CN), false));
     EXPECTED_TRY(CompCtx.checkAnnotatedName(CN, Info, false));
     EXPECTED_TRY(CompCtx.checkNameAttributes(
-        CN, Exp.getImplements(), Exp.getExternalIds(), Exp.getVersionSuffixes(),
+        CN, Exp.getImplements(), Exp.getVersionSuffixes(),
         Info.Kind == Component::ExternKind::InstanceType));
     if (!Exp.getSortIdx().getSort().isCore() &&
         Exp.getSortIdx().getSort().getSortType() ==
@@ -750,16 +750,16 @@ Validator::validate(const AST::Component::StartSection &StartSec) noexcept {
       return Unexpect(ErrCode::Value::ArgTypeMismatch);
     }
   }
-  const auto Results = FI->FT->getResultList();
-  if (Start.getResult() != Results.size()) {
+  const auto &Result = FI->FT->getResult();
+  if (Start.getResult() != FI->FT->getResultArity()) {
     spdlog::error(ErrCode::Value::ArgTypeMismatch);
     spdlog::error("    Start declares {} results but the function has {}."sv,
-                  Start.getResult(), Results.size());
+                  Start.getResult(), FI->FT->getResultArity());
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Start));
     return Unexpect(ErrCode::Value::ArgTypeMismatch);
   }
-  for (const auto &R : Results) {
-    S.addValue({R.getValType(), FI->Home, FI->Remap});
+  if (Result.has_value()) {
+    S.addValue({*Result, FI->Home, FI->Remap});
   }
   return {};
 }
@@ -780,9 +780,9 @@ Expect<void> Validator::validate(const AST::Component::Import &Im,
   // The descriptor is checked before the import name.
   Component::ExternInfo Resolved;
   EXPECTED_TRY(validate(Im.getDesc(), true, Resolved));
-  EXPECTED_TRY(auto Info, CompCtx.defineImport(
-                              Im.getName(), Resolved, Im.getImplements(),
-                              Im.getExternalIds(), Im.getVersionSuffixes()));
+  EXPECTED_TRY(auto Info,
+               CompCtx.defineImport(Im.getName(), Resolved, Im.getImplements(),
+                                    Im.getVersionSuffixes()));
   Out.Imports.emplace_back(std::string(Im.getName()), Info);
   return {};
 }
@@ -863,11 +863,11 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex,
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
   }
-  EXPECTED_TRY(
-      Component::ExternName CN,
-      CompCtx.registerExportName(
-          Ex.getName(), Inferred.Kind == Component::ExternKind::InstanceType,
-          Ex.getImplements(), Ex.getExternalIds(), Ex.getVersionSuffixes()));
+  EXPECTED_TRY(Component::ExternName CN,
+               CompCtx.registerExportName(
+                   Ex.getName(),
+                   Inferred.Kind == Component::ExternKind::InstanceType,
+                   Ex.getImplements(), Ex.getVersionSuffixes()));
   std::optional<Component::ExternInfo> Ascribed;
   if (Ex.getDesc().has_value()) {
     EXPECTED_TRY(validate(*Ex.getDesc(), false, Ascribed.emplace()));

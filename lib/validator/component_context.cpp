@@ -545,27 +545,8 @@ Expect<void> Context::addUniqueName(std::vector<NameRecord> &Names,
 
 Expect<void> Context::checkNameAttributes(const ExternName &CN,
                                           Span<const std::string> Impls,
-                                          Span<const std::string> ExtIds,
                                           Span<const std::string> VSuffixes,
                                           bool IsInstance) const noexcept {
-  if (Impls.size() > 1) {
-    spdlog::error(ErrCode::Value::ComponentImplementsDuplicate);
-    spdlog::error("    name `{}` has more than one `implements`"sv,
-                  CN.getOriginalName());
-    return Unexpect(ErrCode::Value::ComponentImplementsDuplicate);
-  }
-  if (ExtIds.size() > 1) {
-    spdlog::error(ErrCode::Value::ComponentExternalIdDuplicate);
-    spdlog::error("    name `{}` has more than one `external-id`"sv,
-                  CN.getOriginalName());
-    return Unexpect(ErrCode::Value::ComponentExternalIdDuplicate);
-  }
-  if (VSuffixes.size() > 1) {
-    spdlog::error(ErrCode::Value::ComponentVersionSuffixDuplicate);
-    spdlog::error("    name `{}` has more than one `versionsuffix`"sv,
-                  CN.getOriginalName());
-    return Unexpect(ErrCode::Value::ComponentVersionSuffixDuplicate);
-  }
   for (const auto &V : VSuffixes) {
     EXPECTED_TRY(CN.checkVersionSuffix(V));
   }
@@ -609,7 +590,6 @@ Expect<void> Context::checkNameAttributes(const ExternName &CN,
 Expect<ExternInfo>
 Context::defineImport(std::string_view Name, const ExternInfo &Resolved,
                       Span<const std::string> Impls,
-                      Span<const std::string> ExtIds,
                       Span<const std::string> VSuffixes) noexcept {
   // Each instance import mints fresh identities for its declared resources.
   ExternInfo Info = Resolved;
@@ -617,7 +597,7 @@ Context::defineImport(std::string_view Name, const ExternInfo &Resolved,
     Info.Shape = freshenDeclaredResources(Info.Shape, true);
   }
   EXPECTED_TRY(ExternName CN, parseExternName(Name, true));
-  EXPECTED_TRY(checkNameAttributes(CN, Impls, ExtIds, VSuffixes,
+  EXPECTED_TRY(checkNameAttributes(CN, Impls, VSuffixes,
                                    Info.Kind == ExternKind::InstanceType));
   EXPECTED_TRY(addUniqueName(top().ImportSide.Names, makeNameRecord(CN), true));
   defineExtern(Info);
@@ -630,10 +610,9 @@ Context::defineImport(std::string_view Name, const ExternInfo &Resolved,
 Expect<ExternName>
 Context::registerExportName(std::string_view Name, bool IsInstance,
                             Span<const std::string> Impls,
-                            Span<const std::string> ExtIds,
                             Span<const std::string> VSuffixes) noexcept {
   EXPECTED_TRY(ExternName CN, parseExternName(Name, false));
-  EXPECTED_TRY(checkNameAttributes(CN, Impls, ExtIds, VSuffixes, IsInstance));
+  EXPECTED_TRY(checkNameAttributes(CN, Impls, VSuffixes, IsInstance));
   EXPECTED_TRY(
       addUniqueName(top().ExportSide.Names, makeNameRecord(CN), false));
   return CN;

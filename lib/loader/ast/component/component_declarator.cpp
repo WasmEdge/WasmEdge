@@ -59,6 +59,16 @@ Expect<void> Loader::loadDecl(AST::Component::CoreModuleDecl &Decl) {
     return {};
   }
   case 0x01: {
+    // A module type cannot declare a nested module type.
+    EXPECTED_TRY(uint8_t B, FMgr.peekByte().map_error([this](auto E) {
+      return logLoadError(E, FMgr.getLastOffset(),
+                          ASTNodeAttr::Comp_Decl_CoreModule);
+    }));
+    if (B == 0x50) {
+      return logLoadError(ErrCode::Value::MalformedModuleType,
+                          FMgr.getLastOffset(),
+                          ASTNodeAttr::Comp_Decl_CoreModule);
+    }
     auto DefType = std::make_unique<AST::Component::CoreDefType>();
     EXPECTED_TRY(loadType(*DefType).map_error(ReportError));
     Decl.setType(std::move(DefType));

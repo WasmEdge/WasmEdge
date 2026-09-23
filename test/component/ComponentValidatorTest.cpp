@@ -2921,14 +2921,6 @@ TEST(ComponentValidatorTest, ImportSingleExternalIdPasses) {
   EXPECT_TRUE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, ImportDuplicateExternalIdFails) {
-  auto Comp = makeCompWithExternalIds({"one", "two"});
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentExternalIdDuplicate);
-}
-
 // Helper: import a func under the given name, carrying the given
 // `versionsuffix` values.
 inline AST::Component::Component
@@ -2972,25 +2964,6 @@ TEST(ComponentValidatorTest, VersionSuffixNeedsInterfaceVersion) {
   auto Res = V.validate(Comp);
   EXPECT_FALSE(Res);
   EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixInvalid);
-}
-
-TEST(ComponentValidatorTest, ImportDuplicateVersionSuffixFails) {
-  auto Comp = makeCompWithVersionSuffix("a:b/c@1", {".2.3", ".4.5"});
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixDuplicate);
-}
-
-TEST(ComponentValidatorTest, ImportDuplicateImplementsFails) {
-  auto Comp = makeCompWithImportedFunc();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-  ImpSec.getContent().back().getImplements() = {"a:b/c", "a:b/d"};
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentImplementsDuplicate);
 }
 
 // =============================================================================

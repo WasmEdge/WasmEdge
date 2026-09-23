@@ -106,10 +106,10 @@ public:
   /// Append N to Names, or diagnose the clash (exact or strong-uniqueness).
   Expect<void> addUniqueName(std::vector<NameRecord> &Names,
                              const NameRecord &N, bool IsImport) const noexcept;
-  /// Name attributes: each kind at most once, on a plain, instance-typed name.
+  /// Name attributes: a valid versionsuffix, and `implements` only on a
+  /// plain, instance-typed name.
   Expect<void> checkNameAttributes(const ExternName &CN,
                                    Span<const std::string> Impls,
-                                   Span<const std::string> ExtIds,
                                    Span<const std::string> VSuffixes,
                                    bool IsInstance) const noexcept;
   /// Annotated plainname rules ([constructor]/[method]/[static]).
@@ -131,13 +131,11 @@ public:
   Expect<ExternInfo>
   defineImport(std::string_view Name, const ExternInfo &Resolved,
                Span<const std::string> Impls = {},
-               Span<const std::string> ExtIds = {},
                Span<const std::string> VSuffixes = {}) noexcept;
   /// Check and record an export's name; defineExport then defines the entity.
   Expect<ExternName>
   registerExportName(std::string_view Name, bool IsInstance,
                      Span<const std::string> Impls = {},
-                     Span<const std::string> ExtIds = {},
                      Span<const std::string> VSuffixes = {}) noexcept;
   /// Apply the optional ascription and define the re-exported index.
   Expect<ExternInfo>

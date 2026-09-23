@@ -212,9 +212,11 @@ TEST(ComponentNameParserTest, StronglyUniqueBasicCases) {
 
   EXPECT_FALSE(add("foo"sv));
   EXPECT_FALSE(add("foo-BAR"sv));
-  EXPECT_FALSE(add("[constructor]foo-BAR"sv));
+  EXPECT_FALSE(add("foobar"sv));
+  EXPECT_FALSE(add("[constructor]FOO"sv));
   EXPECT_FALSE(add("[method]foo.foo"sv));
   EXPECT_FALSE(add("[method]foo.BAR"sv));
+  EXPECT_FALSE(add("[static]foo-bar.FOOB-ar"sv));
 }
 
 TEST(ComponentNameParserTest, StronglyUnique) {
@@ -265,9 +267,11 @@ TEST(ComponentNameParserTest, StronglyUniqueExportBasicCases) {
 
   EXPECT_FALSE(add("foo"sv));
   EXPECT_FALSE(add("foo-BAR"sv));
-  EXPECT_FALSE(add("[constructor]foo-BAR"sv));
+  EXPECT_FALSE(add("foobar"sv));
+  EXPECT_FALSE(add("[constructor]FOO"sv));
   EXPECT_FALSE(add("[method]foo.foo"sv));
   EXPECT_FALSE(add("[method]foo.BAR"sv));
+  EXPECT_FALSE(add("[static]foo-bar.FOOB-ar"sv));
 }
 
 TEST(ComponentNameParserTest, StronglyUniqueExport) {
@@ -621,6 +625,23 @@ TEST(ComponentLoaderTest, MalformedResultList) {
   auto Res = Loader.parseWasmUnit(Vec);
   ASSERT_FALSE(Res);
   EXPECT_EQ(Res.error().getEnum(), WasmEdge::ErrCode::Value::MalformedDefType);
+}
+
+TEST(ComponentLoaderTest, MalformedTaskReturnResultList) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // task.return takes the functype resultlist: after 0x01 only 0x00 follows.
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
+      0x08, 0x04, 0x01, 0x09, 0x01, 0x01,             // canon section
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error().getEnum(),
+            WasmEdge::ErrCode::Value::MalformedCanonical);
 }
 
 TEST(ComponentLoaderTest, ContextTypeIsACoreValType) {

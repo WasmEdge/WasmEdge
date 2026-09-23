@@ -283,20 +283,9 @@ Expect<void> Validator::validate(const AST::Component::FuncType &FT) noexcept {
                             ErrCode::Value::FuncParamNameConflict));
     EXPECTED_TRY(validate(Param.getValType()));
   }
-  if (FT.getResultList().size() > 1) {
-    spdlog::error(ErrCode::Value::InvalidTypeReference);
-    spdlog::error("    Function types may have at most one result."sv);
-    return Unexpect(ErrCode::Value::InvalidTypeReference);
-  }
-  for (const auto &Result : FT.getResultList()) {
-    if (!Result.getLabel().empty()) {
-      spdlog::error(ErrCode::Value::InvalidTypeReference);
-      spdlog::error("    Function results cannot be named."sv);
-      return Unexpect(ErrCode::Value::InvalidTypeReference);
-    }
-    EXPECTED_TRY(validate(Result.getValType()));
-    if (CompTypes.containsBorrow(
-            {Result.getValType(), &CompCtx.top(), nullptr})) {
+  if (const auto &Result = FT.getResult(); Result.has_value()) {
+    EXPECTED_TRY(validate(*Result));
+    if (CompTypes.containsBorrow({*Result, &CompCtx.top(), nullptr})) {
       spdlog::error(ErrCode::Value::FuncResultContainsBorrow);
       spdlog::error("    Function results cannot contain borrow handles."sv);
       return Unexpect(ErrCode::Value::FuncResultContainsBorrow);
@@ -415,6 +404,15 @@ Validator::validate(const AST::Component::DefType &DType) noexcept {
   if (DType.isDefValType()) {
     EXPECTED_TRY(validate(DType.getDefValType()));
     auto &S = CompCtx.top();
+    // The Canonical ABI bounds the element size of every defvaltype.
+    const uint64_t Size =
+        CompTypes.getElemLayout(DType.getDefValType(), &S, nullptr).first;
+    if (Size >= Component::TypeSystem::MaxElemSize) {
+      spdlog::error(ErrCode::Value::ComponentValueSizeTooLarge);
+      spdlog::error("    Value type of {} bytes reaches the limit of {}."sv,
+                    Size, Component::TypeSystem::MaxElemSize);
+      return Unexpect(ErrCode::Value::ComponentValueSizeTooLarge);
+    }
     Component::TypeEntry Entry{&DType, &S};
     Entry.NameId = CompTypes.nextNameId();
     S.addType(Entry);

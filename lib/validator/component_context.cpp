@@ -457,45 +457,37 @@ Expect<ExternName> Context::parseExternName(std::string_view Name,
 NameRecord Context::makeNameRecord(const ExternName &Name) const noexcept {
   NameRecord R;
   R.Original = std::string(Name.getOriginalName());
-  switch (Name.getKind()) {
-  case ExternName::Kind::Constructor:
-    R.HasAnnotation = true;
-    R.IsConstructor = true;
-    R.StrippedExact = std::string(Name.getNoTagName());
-    break;
-  case ExternName::Kind::Method:
-  case ExternName::Kind::Static: {
-    R.HasAnnotation = true;
-    R.StrippedExact = std::string(Name.getNoTagName());
-    auto Dot = R.StrippedExact.find('.');
-    if (Dot != std::string::npos) {
-      R.DottedFirst = R.StrippedExact.substr(0, Dot);
-      R.IsDottedSame = (R.DottedFirst == R.StrippedExact.substr(Dot + 1));
-    }
-    break;
-  }
-  case ExternName::Kind::Label:
-    R.IsPlainLabel = true;
-    R.StrippedExact = std::string(Name.getOriginalName());
-    break;
-  default:
-    R.StrippedExact = std::string(Name.getOriginalName());
-    break;
-  }
-  // Dep, url, and integrity names compare exactly; the rest case-fold.
+  // Dep, url, and integrity names compare exactly.
   switch (Name.getKind()) {
   case ExternName::Kind::LockedDep:
   case ExternName::Kind::UnlockedDep:
   case ExternName::Kind::Url:
   case ExternName::Kind::Integrity:
-    R.Stripped = R.StrippedExact;
-    break;
+    R.Canonical = R.Original;
+    return R;
   default:
-    R.Stripped = R.StrippedExact;
-    std::transform(
-        R.Stripped.begin(), R.Stripped.end(), R.Stripped.begin(),
-        [](unsigned char C) { return static_cast<char>(std::tolower(C)); });
     break;
+  }
+  // Remove the hyphens and lowercase the acronyms, then strip the annotation
+  // except `[constructor]`, and reduce `[*]l.l` to `l`.
+  const bool Annotated = Name.getKind() == ExternName::Kind::Constructor ||
+                         Name.getKind() == ExternName::Kind::Method ||
+                         Name.getKind() == ExternName::Kind::Static;
+  for (const char C : Annotated ? Name.getNoTagName() : R.Original) {
+    if (C != '-') {
+      R.Canonical.push_back(
+          static_cast<char>(std::tolower(static_cast<unsigned char>(C))));
+    }
+  }
+  if (Name.getKind() == ExternName::Kind::Constructor) {
+    R.Canonical.insert(0, "[constructor]"sv);
+  } else if (Annotated) {
+    const auto Dot = R.Canonical.find('.');
+    if (Dot != std::string::npos &&
+        std::string_view(R.Canonical).substr(0, Dot) ==
+            std::string_view(R.Canonical).substr(Dot + 1)) {
+      R.Canonical.resize(Dot);
+    }
   }
   return R;
 }
@@ -521,21 +513,7 @@ Expect<void> Context::addUniqueName(std::vector<NameRecord> &Names,
     if (E.Original == N.Original) {
       return ReportClash(SideCode);
     }
-    if (E.Stripped == N.Stripped) {
-      // `l` and `[constructor]l` of the same label are the one allowed pair.
-      const bool CtorException = ((E.IsConstructor && N.IsPlainLabel) ||
-                                  (N.IsConstructor && E.IsPlainLabel)) &&
-                                 E.StrippedExact == N.StrippedExact;
-      if (!CtorException) {
-        return ReportClash(ConflictCode);
-      }
-      continue;
-    }
-    // `l` clashes with `[method]l.l` / `[static]l.l` for the same label.
-    if ((N.IsPlainLabel && E.IsDottedSame &&
-         E.DottedFirst == N.StrippedExact) ||
-        (E.IsPlainLabel && N.IsDottedSame &&
-         N.DottedFirst == E.StrippedExact)) {
+    if (E.Canonical == N.Canonical) {
       return ReportClash(ConflictCode);
     }
   }
@@ -718,14 +696,13 @@ Expect<void> Context::checkAnnotatedName(const ExternName &Name,
 
   if (Kind == ExternName::Kind::Constructor) {
     // Signature first: exactly one result of (own T) or (result (own T) e?).
-    if (FT.getResultList().size() != 1) {
+    if (!FT.getResult().has_value()) {
       spdlog::error(ErrCode::Value::AnnotatedCtorReturnOne);
       spdlog::error("    Constructor '{}' should return one value."sv,
                     Name.getOriginalName());
       return Unexpect(ErrCode::Value::AnnotatedCtorReturnOne);
     }
-    QualValType Q{FT.getResultList()[0].getValType(), Info.Func.Home,
-                  Info.Func.Remap};
+    QualValType Q{*FT.getResult(), Info.Func.Home, Info.Func.Remap};
     auto Target = HandleOf(Q, true);
     if (!Target.has_value()) {
       // Unwrap (result (own T) e?).
@@ -904,10 +881,9 @@ bool Context::areInnerTypesIntroduced(const TypeEntry &E,
         return false;
       }
     }
-    for (const auto &R : FT->getResultList()) {
-      if (!isIntroduced({R.getValType(), E.Home, E.Remap}, IsImport)) {
-        return false;
-      }
+    if (const auto &R = FT->getResult();
+        R.has_value() && !isIntroduced({*R, E.Home, E.Remap}, IsImport)) {
+      return false;
     }
     return true;
   }
@@ -1017,11 +993,10 @@ bool Context::introduceExternTypes(const ExternInfo &Info,
         return false;
       }
     }
-    for (const auto &R : Info.Func.FT->getResultList()) {
-      if (!isIntroduced({R.getValType(), Info.Func.Home, Info.Func.Remap},
-                        IsImport)) {
-        return false;
-      }
+    if (const auto &R = Info.Func.FT->getResult();
+        R.has_value() &&
+        !isIntroduced({*R, Info.Func.Home, Info.Func.Remap}, IsImport)) {
+      return false;
     }
     return true;
   }

@@ -4185,6 +4185,9 @@ TEST(WasiNNTest, BitNetBackend) {
     writeBinaries<uint32_t>(MemInst, PromptDim, StorePtr);
     writeBinaries<uint8_t>(MemInst, PromptData,
                            StorePtr + PromptDim.size() * 4);
+    // The compute_single tests set this prompt again after get_output has
+    // written into StorePtr, so keep the tensor out of the output region.
+    StorePtr += static_cast<uint32_t>(PromptDim.size() * 4 + PromptData.size());
   }
   // Test: set_input -- invalid context id.
   {

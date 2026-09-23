@@ -2304,9 +2304,14 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   const std::string Prompt(reinterpret_cast<const char *>(Tensor.Tensor.data()),
                            Tensor.Tensor.size());
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize text prompt"sv)
-  CxtRef.LlamaInputs =
-      common_tokenize(GraphRef.LlamaContext.get(), Prompt,
-                      llama_add_bos_token(GraphRef.LlamaModel.get()), true);
+  try {
+    CxtRef.LlamaInputs =
+        common_tokenize(GraphRef.LlamaContext.get(), Prompt,
+                        llama_add_bos_token(GraphRef.LlamaModel.get()), true);
+  } catch (const std::exception &E) {
+    RET_ERROR(ErrNo::InvalidArgument,
+              "setInput: unable to tokenize the prompt: {}"sv, E.what())
+  }
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize text prompt...Done"sv)
 
   // Get the number of input tokens for the metadata.

@@ -4207,6 +4207,28 @@ TEST(WasiNNTest, BitNetBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
+  // Test: set_input -- a prompt that is not valid UTF-8 is rejected instead of
+  // escaping from the BPE tokenizer as std::invalid_argument.
+  {
+    const std::string BadPrompt = "Once upon a time, \xE2\x80";
+    std::vector<uint8_t> BadPromptData(BadPrompt.begin(), BadPrompt.end());
+    std::vector<uint32_t> BadPromptDim = {
+        static_cast<uint32_t>(BadPromptData.size())};
+    uint32_t EntryPtr = BuilderPtr;
+    writeFatPointer(MemInst, StorePtr, BadPromptDim.size(), EntryPtr);
+    writeUInt32(MemInst, static_cast<uint32_t>(TensorType::U8), EntryPtr);
+    writeFatPointer(MemInst, StorePtr + BadPromptDim.size() * 4,
+                    BadPromptData.size(), EntryPtr);
+    writeBinaries<uint32_t>(MemInst, BadPromptDim, StorePtr);
+    writeBinaries<uint8_t>(MemInst, BadPromptData,
+                           StorePtr + BadPromptDim.size() * 4);
+    EXPECT_TRUE(HostFuncSetInput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{CtxId, 0, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
   // Test: set_input -- set input successfully.
   {
     ASSERT_TRUE(HostFuncSetInput.run(

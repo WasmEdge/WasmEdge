@@ -56,6 +56,24 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::Interrupted);
   }
 
+  // Bound the interpreter's heap stack, counting the frame and locals about to
+  // be pushed; a tail call reuses the frame.
+  if (!IsTailCall) {
+    const uint64_t LocalBytes =
+        Func.isWasmFunction()
+            ? static_cast<uint64_t>(Func.getLocalNum()) * sizeof(ValVariant)
+            : UINT64_C(0);
+    const uint64_t StackSizeNeeded =
+        static_cast<uint64_t>(StackMgr.size()) * sizeof(ValVariant) +
+        static_cast<uint64_t>(StackMgr.getFramesSpan().size() + 1) *
+            sizeof(Runtime::StackManager::Frame) +
+        LocalBytes;
+    if (unlikely(StackSizeNeeded > MaxStackSize)) {
+      spdlog::error(ErrCode::Value::CallStackExhausted);
+      return Unexpect(ErrCode::Value::CallStackExhausted);
+    }
+  }
+
   // Get the function type for the parameter and return counts.
   const auto &FuncType = Func.getFuncType();
   const uint32_t ArgsN = static_cast<uint32_t>(FuncType.getParamTypes().size());

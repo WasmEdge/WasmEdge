@@ -1119,6 +1119,10 @@ private:
     ExecutionContextStruct SavedExecutionContext;
   };
 
+  /// Interpreter heap stack budget in bytes; exceeding it traps with
+  /// CallStackExhausted.
+  static constexpr uint64_t MaxStackSize = UINT64_C(8) << 20;
+
   /// Pointer to current object.
   static thread_local Executor *This;
   /// Stack passed into compiled functions

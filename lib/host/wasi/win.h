@@ -239,8 +239,8 @@ static constexpr FILETIME_ toFiletime(__wasi_timestamp_t TimeStamp) noexcept {
                    /* dwHighDateTime */ Temp.HighPart};
 }
 
-inline __wasi_errno_t fromWSALastError() noexcept {
-  switch (WSAGetLastError()) {
+inline constexpr __wasi_errno_t fromWSAErrNo(int WSAErrNo) noexcept {
+  switch (WSAErrNo) {
   case WSASYSNOTREADY_: // WSAStartup
   case WSAEWOULDBLOCK_: // closesocket
     return __WASI_ERRNO_AGAIN;
@@ -272,6 +272,43 @@ inline __wasi_errno_t fromWSALastError() noexcept {
     return __WASI_ERRNO_PROTOTYPE;
   case WSAESOCKTNOSUPPORT_: // socket
     return __WASI_ERRNO_AISOCKTYPE;
+  case WSAEACCES_:
+    return __WASI_ERRNO_ACCES;
+  case WSAEALREADY_:
+    return __WASI_ERRNO_ALREADY;
+  case WSAEDESTADDRREQ_:
+    return __WASI_ERRNO_DESTADDRREQ;
+  case WSAEMSGSIZE_:
+    return __WASI_ERRNO_MSGSIZE;
+  case WSAENOPROTOOPT_:
+    return __WASI_ERRNO_NOPROTOOPT;
+  case WSAEOPNOTSUPP_:
+    return __WASI_ERRNO_NOTSUP;
+  case WSAEADDRINUSE_:
+    return __WASI_ERRNO_ADDRINUSE;
+  case WSAEADDRNOTAVAIL_:
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  case WSAENETUNREACH_:
+    return __WASI_ERRNO_NETUNREACH;
+  case WSAENETRESET_:
+    return __WASI_ERRNO_NETRESET;
+  case WSAECONNABORTED_:
+    return __WASI_ERRNO_CONNABORTED;
+  case WSAECONNRESET_:
+    return __WASI_ERRNO_CONNRESET;
+  case WSAEISCONN_:
+    return __WASI_ERRNO_ISCONN;
+  case WSAENOTCONN_:
+    return __WASI_ERRNO_NOTCONN;
+  case WSAESHUTDOWN_:
+    return __WASI_ERRNO_PIPE;
+  case WSAETIMEDOUT_:
+    return __WASI_ERRNO_TIMEDOUT;
+  case WSAECONNREFUSED_:
+    return __WASI_ERRNO_CONNREFUSED;
+  case WSAEHOSTDOWN_:
+  case WSAEHOSTUNREACH_:
+    return __WASI_ERRNO_HOSTUNREACH;
   case WSAEINVALIDPROCTABLE_:   // socket
   case WSAEINVALIDPROVIDER_:    // socket
   case WSAEPROVIDERFAILEDINIT_: // socket
@@ -281,8 +318,12 @@ inline __wasi_errno_t fromWSALastError() noexcept {
   }
 }
 
-inline constexpr __wasi_errno_t fromWSAError(int WSAError) noexcept {
-  switch (WSAError) {
+inline __wasi_errno_t fromWSALastError() noexcept {
+  return fromWSAErrNo(WSAGetLastError());
+}
+
+inline constexpr __wasi_errno_t fromEAIErrNo(int ErrNo) noexcept {
+  switch (ErrNo) {
   case WSATRY_AGAIN_:
     return __WASI_ERRNO_AIAGAIN;
   case WSAEINVAL_:
@@ -293,6 +334,8 @@ inline constexpr __wasi_errno_t fromWSAError(int WSAError) noexcept {
     return __WASI_ERRNO_AIFAMILY;
   case ERROR_NOT_ENOUGH_MEMORY_:
     return __WASI_ERRNO_AIMEMORY;
+  case WSANO_DATA_:
+    return __WASI_ERRNO_AINODATA;
   case WSAHOST_NOT_FOUND_:
     return __WASI_ERRNO_AINONAME;
   case WSATYPE_NOT_FOUND_:
@@ -300,7 +343,7 @@ inline constexpr __wasi_errno_t fromWSAError(int WSAError) noexcept {
   case WSAESOCKTNOSUPPORT_:
     return __WASI_ERRNO_AISOCKTYPE;
   default:
-    assumingUnreachable();
+    return fromWSAErrNo(ErrNo);
   }
 }
 

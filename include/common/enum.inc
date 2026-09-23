@@ -1064,16 +1064,18 @@ E(ArrayTypesMismatch, 0x0223, "array types do not match")
 E(ArrayTypesNumtypeRequired, 0x0224, "array type is not numeric or vector")
 // Sub type matching or validation failed
 E(InvalidSubType, 0x0225, "sub type")
+// Sub type declares more than one super type
+E(MultipleSuperTypes, 0x0226, "multiple supertypes")
 // Invalid Tag type
-E(InvalidTagResultType, 0x0226, "non-empty tag result type")
+E(InvalidTagResultType, 0x0227, "non-empty tag result type")
 // Shared memory must have max
-E(SharedMemoryNoMax, 0x0227, "shared memory must have maximum")
+E(SharedMemoryNoMax, 0x0228, "shared memory must have maximum")
 // Memory pages > 2^32 (Mem64 proposal)
-E(InvalidMemPages64, 0x0228, "memory size")
+E(InvalidMemPages64, 0x0229, "memory size")
 // Table size > addr_type::max (Mem64 proposal)
-E(InvalidTableSize64, 0x0229, "table size")
+E(InvalidTableSize64, 0x022A, "table size")
 // Offset out of range (Mem64 proposal)
-E(InvalidOffset, 0x022A, "offset out of range")
+E(InvalidOffset, 0x022B, "offset out of range")
 // @}
 
 // Component model validation phase

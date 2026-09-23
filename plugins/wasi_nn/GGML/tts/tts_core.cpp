@@ -421,25 +421,32 @@ std::vector<llama_token> processTTSPrompt(WasiNNEnvironment &Env,
   }
   std::string ProcessedPrompt = processTTSPromptText(Prompt);
   std::vector<llama_token> Result, TmpTokens;
-  Result = common_tokenize(GraphRef.LlamaContext.get(), "<|im_start|>\n",
-                           /* add_special */ true,
-                           /* parse_special */ true);
-  TmpTokens = common_tokenize(GraphRef.LlamaContext.get(), SpeakerProfile.Text,
-                              /* add_special */ false,
-                              /* parse_special */ true);
-  Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
-  TmpTokens = common_tokenize(GraphRef.LlamaContext.get(), ProcessedPrompt,
-                              /* add_special */ false,
-                              /* parse_special */ true);
-  Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
-  TmpTokens = common_tokenize(GraphRef.LlamaContext.get(), "<|text_end|>\n",
-                              /* add_special */ false,
-                              /* parse_special */ true);
-  Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
-  TmpTokens = common_tokenize(GraphRef.LlamaContext.get(), SpeakerProfile.Data,
-                              /* add_special */ false,
-                              /* parse_special */ true);
-  Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
+  try {
+    Result = common_tokenize(GraphRef.LlamaContext.get(), "<|im_start|>\n",
+                             /* add_special */ true,
+                             /* parse_special */ true);
+    TmpTokens =
+        common_tokenize(GraphRef.LlamaContext.get(), SpeakerProfile.Text,
+                        /* add_special */ false,
+                        /* parse_special */ true);
+    Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
+    TmpTokens = common_tokenize(GraphRef.LlamaContext.get(), ProcessedPrompt,
+                                /* add_special */ false,
+                                /* parse_special */ true);
+    Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
+    TmpTokens = common_tokenize(GraphRef.LlamaContext.get(), "<|text_end|>\n",
+                                /* add_special */ false,
+                                /* parse_special */ true);
+    Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
+    TmpTokens =
+        common_tokenize(GraphRef.LlamaContext.get(), SpeakerProfile.Data,
+                        /* add_special */ false,
+                        /* parse_special */ true);
+    Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
+  } catch (const std::exception &E) {
+    RET_ERROR({}, "processTTSPrompt: unable to tokenize the prompt: {}"sv,
+              E.what())
+  }
 
   return Result;
 }

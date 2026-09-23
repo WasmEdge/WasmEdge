@@ -304,8 +304,13 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   } else {
     // Text only prompt.
     LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize text prompt"sv)
-    CxtRef.LlamaInputs = common_tokenize(GraphRef.LlamaContext.get(), Prompt,
-                                         AddSpecial, ParseSpecial);
+    try {
+      CxtRef.LlamaInputs = common_tokenize(GraphRef.LlamaContext.get(), Prompt,
+                                           AddSpecial, ParseSpecial);
+    } catch (const std::exception &E) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "setInput: unable to tokenize the prompt: {}"sv, E.what())
+    }
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "setInput: tokenize text prompt...Done"sv)
 

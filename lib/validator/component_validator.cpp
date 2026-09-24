@@ -25,9 +25,10 @@ using namespace std::literals;
 Expect<void>
 Validator::validate(const AST::Component::Component &Comp) noexcept {
   CompCtx.reset();
-  EXPECTED_TRY(validate(Comp, *CompTypes.addShape()));
+  DeferredModules.clear();
+  EXPECTED_TRY(validate(Comp, *CompCtx.addShape()));
   // Deferred function-body validation on the checker state saved per module.
-  for (auto &[Mod, Saved] : CompCtx.DeferredModules) {
+  for (auto &[Mod, Saved] : DeferredModules) {
     Checker = std::move(Saved);
     EXPECTED_TRY(validate(Mod->getCodeSection()).map_error([](auto E) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Code));
@@ -45,7 +46,7 @@ Validator::validate(const AST::Component::Component &Comp) noexcept {
 Expect<void> Validator::validate(const AST::Component::Component &Comp,
                                  Component::Shape &Out) noexcept {
   // Walk the sections in binary order; a reference sees only earlier entries.
-  auto &S = CompCtx.enterScope(Component::ScopeKind::Component);
+  auto &S = CompCtx.pushScope(Component::ScopeKind::Component);
   Out.DeclScope = &S;
 
   auto ReportError = [](auto E) {
@@ -79,7 +80,7 @@ Expect<void> Validator::validate(const AST::Component::Component &Comp,
       return Unexpect(ErrCode::Value::ComponentValueNotConsumed);
     }
   }
-  CompCtx.exitScope();
+  CompCtx.popScope();
   return {};
 }
 
@@ -134,9 +135,118 @@ Validator::validate(const AST::Component::CoreModuleSection &ModSec) noexcept {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_CoreMod));
     return Unexpect(ErrCode::Value::MultiMemories);
   }
-  CompCtx.DeferredModules.emplace_back(&Mod, Checker);
-  EXPECTED_TRY(const auto *Shape, CompCtx.buildCoreShape(Mod));
-  CompCtx.top().addCoreModule(Shape);
+  DeferredModules.emplace_back(&Mod, Checker);
+  auto *Shape = CompCtx.addCoreShape();
+  EXPECTED_TRY(validate(Mod, *Shape));
+  CompCtx.getTop().addCoreModule(Shape);
+  return {};
+}
+
+// External view of an inline core module: its imports and export types.
+Expect<void> Validator::validate(const AST::Module &Mod,
+                                 Component::CoreShape &Out) noexcept {
+  const auto &ModTypes = Mod.getTypeSection().getContent();
+
+  auto GetSubType = [&ModTypes](uint32_t Idx) noexcept -> const AST::SubType * {
+    return Idx < ModTypes.size() ? &ModTypes[Idx] : nullptr;
+  };
+
+  // Core index spaces: imports first, then definitions.
+  std::vector<Component::CoreExternInfo> Funcs, Tables, Memories, Globals, Tags;
+  for (const auto &Imp : Mod.getImportSection().getContent()) {
+    Component::CoreExternInfo Ext;
+    switch (Imp.getExternalType()) {
+    case ExternalType::Function:
+      Ext = Component::CoreExternInfo(ExternalType::Function,
+                                      GetSubType(Imp.getExternalFuncTypeIdx()));
+      Funcs.push_back(Ext);
+      break;
+    case ExternalType::Table:
+      Ext = Component::CoreExternInfo(&Imp.getExternalTableType());
+      Tables.push_back(Ext);
+      break;
+    case ExternalType::Memory:
+      Ext = Component::CoreExternInfo(&Imp.getExternalMemoryType());
+      Memories.push_back(Ext);
+      break;
+    case ExternalType::Global:
+      Ext = Component::CoreExternInfo(&Imp.getExternalGlobalType());
+      Globals.push_back(Ext);
+      break;
+    case ExternalType::Tag:
+      Ext = Component::CoreExternInfo(
+          ExternalType::Tag, GetSubType(Imp.getExternalTagType().getTypeIdx()));
+      Tags.push_back(Ext);
+      break;
+    default:
+      break;
+    }
+    for (const auto &[ModName, Name, Prev] : Out.Imports) {
+      if (ModName == Imp.getModuleName() && Name == Imp.getExternalName()) {
+        spdlog::error(ErrCode::Value::ComponentDuplicateImportName);
+        spdlog::error("    Module import '{}'.'{}' name conflict."sv, ModName,
+                      Name);
+        return Unexpect(ErrCode::Value::ComponentDuplicateImportName);
+      }
+    }
+    Out.Imports.emplace_back(std::string(Imp.getModuleName()),
+                             std::string(Imp.getExternalName()), Ext);
+  }
+  for (const auto TIdx : Mod.getFunctionSection().getContent()) {
+    Funcs.emplace_back(ExternalType::Function, GetSubType(TIdx));
+  }
+  for (const auto &Seg : Mod.getTableSection().getContent()) {
+    Tables.emplace_back(&Seg.getTableType());
+  }
+  for (const auto &MT : Mod.getMemorySection().getContent()) {
+    Memories.emplace_back(&MT);
+  }
+  for (const auto &Seg : Mod.getGlobalSection().getContent()) {
+    Globals.emplace_back(&Seg.getGlobalType());
+  }
+  for (const auto &TT : Mod.getTagSection().getContent()) {
+    Tags.emplace_back(ExternalType::Tag, GetSubType(TT.getTypeIdx()));
+  }
+
+  for (const auto &Exp : Mod.getExportSection().getContent()) {
+    const uint32_t Idx = Exp.getExternalIndex();
+    Component::CoreExternInfo Ext;
+    switch (Exp.getExternalType()) {
+    case ExternalType::Function:
+      if (Idx >= Funcs.size()) {
+        continue;
+      }
+      Ext = Funcs[Idx];
+      break;
+    case ExternalType::Table:
+      if (Idx >= Tables.size()) {
+        continue;
+      }
+      Ext = Tables[Idx];
+      break;
+    case ExternalType::Memory:
+      if (Idx >= Memories.size()) {
+        continue;
+      }
+      Ext = Memories[Idx];
+      break;
+    case ExternalType::Global:
+      if (Idx >= Globals.size()) {
+        continue;
+      }
+      Ext = Globals[Idx];
+      break;
+    case ExternalType::Tag:
+      if (Idx >= Tags.size()) {
+        continue;
+      }
+      Ext = Tags[Idx];
+      break;
+    default:
+      continue;
+    }
+    Out.Exports.emplace(std::string(Exp.getExternalName()), Ext);
+  }
   return {};
 }
 
@@ -153,7 +263,7 @@ Expect<void> Validator::validate(
 
 Expect<void>
 Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
-  auto &S = CompCtx.top();
+  auto &S = CompCtx.getTop();
   if (Inst.isInstantiateModule()) {
     const auto *Mod = S.getCoreModule(Inst.getModuleIndex());
     if (Mod == nullptr) {
@@ -208,7 +318,7 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
         spdlog::error("    Import '{}'.'{}' kind mismatch."sv, ModName, Name);
         return Unexpect(Code);
       }
-      if (!Component::Matcher(CompTypes).matchCoreExtern(Provided, Required)) {
+      if (!Component::Matcher::matchCoreExtern(Provided, Required)) {
         // Distinguish the mismatch class for diagnostics.
         ErrCode::Value Code = ErrCode::Value::ArgTypeMismatch;
         switch (Required.Kind) {
@@ -260,14 +370,14 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
       }
     }
     // The new core instance exposes the module's exports.
-    auto *Result = CompTypes.addCoreShape();
+    auto *Result = CompCtx.addCoreShape();
     Result->Exports = Mod->Exports;
     S.addCoreInstance(Result);
     return {};
   }
 
   // Inline exports project index-space entries into a fresh core instance.
-  auto *Result = CompTypes.addCoreShape();
+  auto *Result = CompCtx.addCoreShape();
   for (const auto &Exp : Inst.getInlineExports()) {
     const auto &SI = Exp.getSortIdx();
     const uint32_t Idx = SI.getIdx();
@@ -353,12 +463,12 @@ Validator::validate(const AST::Component::CoreTypeSection &TypeSec) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::ComponentSection &CompSec) noexcept {
-  auto *Shape = CompTypes.addShape();
+  auto *Shape = CompCtx.addShape();
   EXPECTED_TRY(validate(CompSec.getContent(), *Shape).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Component));
     return E;
   }));
-  CompCtx.top().addComponent(Shape);
+  CompCtx.getTop().addComponent(Shape);
   return {};
 }
 
@@ -375,7 +485,7 @@ Validator::validate(const AST::Component::InstanceSection &InstSec) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::Instance &Inst) noexcept {
-  auto &S = CompCtx.top();
+  auto &S = CompCtx.getTop();
   if (Inst.isInstantiateModule()) {
     const auto *CI = S.getComponent(Inst.getComponentIndex());
     if (CI == nullptr) {
@@ -386,12 +496,12 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
     }
     EXPECTED_TRY(const auto *Result, CompCtx.instantiateComponentShape(
                                          *CI, Inst.getInstantiateArgs()));
-    CompCtx.top().addInstance(Result);
+    CompCtx.getTop().addInstance(Result);
     return {};
   }
 
   // Inline exports. Index validity is checked before the export name.
-  auto *Result = CompTypes.addShape();
+  auto *Result = CompCtx.addShape();
   Result->DeclScope = &S;
   std::vector<Component::NameRecord> Names;
   for (const auto &Exp : Inst.getInlineExports()) {
@@ -405,19 +515,19 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
                     Exp.getSortIdx().getIdx(), S.Funcs.size());
       return Unexpect(ErrCode::Value::ComponentFunctionIndexOutOfBounds);
     }
-    EXPECTED_TRY(auto Info, CompCtx.resolveSortIndex(Exp.getSortIdx()));
+    EXPECTED_TRY(auto Info, CompCtx.getExtern(Exp.getSortIdx()));
     EXPECTED_TRY(Component::ExternName CN,
                  CompCtx.parseExternName(Exp.getName(), false));
     EXPECTED_TRY(
-        CompCtx.addUniqueName(Names, CompCtx.makeNameRecord(CN), false));
+        CompCtx.addUniqueName(Names, Component::NameRecord(CN), false));
     EXPECTED_TRY(CompCtx.checkAnnotatedName(CN, Info, false));
     EXPECTED_TRY(CompCtx.checkNameAttributes(
-        CN, Exp.getImplements(), Exp.getExternalIds(), Exp.getVersionSuffixes(),
+        CN, Exp.getImplements(), Exp.getVersionSuffixes(),
         Info.Kind == Component::ExternKind::InstanceType));
     if (!Exp.getSortIdx().getSort().isCore() &&
         Exp.getSortIdx().getSort().getSortType() ==
             AST::Component::Sort::SortType::Value) {
-      EXPECTED_TRY(CompCtx.top().consumeValue(Exp.getSortIdx().getIdx()));
+      EXPECTED_TRY(CompCtx.getTop().consumeValue(Exp.getSortIdx().getIdx()));
     }
     Result->Exports.emplace(std::string(Exp.getName()), Info);
     Result->ExportOrder.emplace_back(Exp.getName());
@@ -426,8 +536,8 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
   Component::ExternInfo Probe;
   Probe.Kind = Component::ExternKind::InstanceType;
   Probe.Shape = Result;
-  EXPECTED_TRY(CompTypes.checkTypeLimits(Probe));
-  CompCtx.top().addInstance(Result);
+  EXPECTED_TRY(CompCtx.checkTypeLimits(Probe));
+  CompCtx.getTop().addInstance(Result);
   return {};
 }
 
@@ -443,7 +553,7 @@ Validator::validate(const AST::Component::AliasSection &AliasSec) noexcept {
 }
 
 Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
-  auto &S = CompCtx.top();
+  auto &S = CompCtx.getTop();
   const auto &Sort = Alias.getSort();
   const bool InTypeDecl = S.Kind == Component::ScopeKind::ComponentType ||
                           S.Kind == Component::ScopeKind::InstanceType;
@@ -483,7 +593,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
                       Name, InstIdx);
         return Unexpect(ErrCode::Value::ComponentExportNotAModule);
       }
-      CompCtx.defineExtern(It->second);
+      CompCtx.addExtern(It->second);
       return {};
     }
     if (It == Inst->Exports.end()) {
@@ -511,7 +621,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
                     Name, InstIdx);
       return Unexpect(ErrCode::Value::ComponentUnknownExport);
     }
-    CompCtx.defineExtern(Info);
+    CompCtx.addExtern(Info);
     return {};
   }
   case AST::Component::Alias::TargetType::CoreExport: {
@@ -569,7 +679,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
   }
   case AST::Component::Alias::TargetType::Outer: {
     const auto &[Ct, Idx] = Alias.getOuter();
-    auto *Target = CompCtx.scopeUp(Ct);
+    auto *Target = CompCtx.getScope(Ct);
     if (Target == nullptr) {
       spdlog::error(ErrCode::Value::ComponentInvalidOuterAliasCount);
       spdlog::error("    Outer alias count {} exceeds enclosing scopes."sv, Ct);
@@ -620,14 +730,14 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
         return Unexpect(ErrCode::Value::ComponentTypeIndexOutOfBounds);
       }
       // A type crossing a component boundary must carry no free resource id.
-      const auto *Inside = CompCtx.scopeInsideTarget(Ct);
+      const auto *Inside = Ct == 0 ? nullptr : CompCtx.getScope(Ct - 1);
       if (Inside != nullptr &&
           Inside->Kind == Component::ScopeKind::Component) {
         std::unordered_set<uint32_t> Ids;
         Component::ExternInfo Probe;
         Probe.Kind = Component::ExternKind::TypeBound;
         Probe.Type = *Entry;
-        CompTypes.collectResources(Probe, Ids);
+        CompCtx.collectResources(Probe, Ids);
         // Ids bound by the aliased type itself are not free.
         const Component::Scope *Binder = nullptr;
         if (Entry->Inst != nullptr) {
@@ -637,7 +747,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
         }
         bool HasFree = false;
         for (const uint32_t Id : Ids) {
-          if (Binder == nullptr || !CompTypes.originatesIn(Id, *Binder)) {
+          if (Binder == nullptr || !CompCtx.isDeclaredIn(Id, *Binder)) {
             HasFree = true;
             break;
           }
@@ -707,7 +817,7 @@ Validator::validate(const AST::Component::CanonSection &CanonSec) noexcept {
 Expect<void>
 Validator::validate(const AST::Component::StartSection &StartSec) noexcept {
   const auto &Start = StartSec.getContent();
-  auto &S = CompCtx.top();
+  auto &S = CompCtx.getTop();
   const auto *FI = S.getFunc(Start.getFunctionIndex());
   if (FI == nullptr || FI->FT == nullptr) {
     spdlog::error(ErrCode::Value::ComponentFunctionIndexOutOfBounds);
@@ -741,25 +851,26 @@ Validator::validate(const AST::Component::StartSection &StartSec) noexcept {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Start));
       return E;
     }));
-    if (!Component::Matcher(CompTypes).matchValType(
-            S.Values[ValIdx].Type,
-            {Params[I].getValType(), FI->Home, FI->Remap})) {
+    Component::ResourceMap Subst;
+    if (!Component::Matcher::matchValType(
+            CompCtx, S.Values[ValIdx].Type,
+            {Params[I].getValType(), FI->Home, FI->Remap}, Subst)) {
       spdlog::error(ErrCode::Value::ArgTypeMismatch);
       spdlog::error("    Start argument {} type mismatch."sv, I);
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Start));
       return Unexpect(ErrCode::Value::ArgTypeMismatch);
     }
   }
-  const auto Results = FI->FT->getResultList();
-  if (Start.getResult() != Results.size()) {
+  const auto &Result = FI->FT->getResult();
+  if (Start.getResult() != FI->FT->getResultArity()) {
     spdlog::error(ErrCode::Value::ArgTypeMismatch);
     spdlog::error("    Start declares {} results but the function has {}."sv,
-                  Start.getResult(), Results.size());
+                  Start.getResult(), FI->FT->getResultArity());
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Start));
     return Unexpect(ErrCode::Value::ArgTypeMismatch);
   }
-  for (const auto &R : Results) {
-    S.addValue({R.getValType(), FI->Home, FI->Remap});
+  if (Result.has_value()) {
+    S.addValue({*Result, FI->Home, FI->Remap});
   }
   return {};
 }
@@ -780,9 +891,9 @@ Expect<void> Validator::validate(const AST::Component::Import &Im,
   // The descriptor is checked before the import name.
   Component::ExternInfo Resolved;
   EXPECTED_TRY(validate(Im.getDesc(), true, Resolved));
-  EXPECTED_TRY(auto Info, CompCtx.defineImport(
-                              Im.getName(), Resolved, Im.getImplements(),
-                              Im.getExternalIds(), Im.getVersionSuffixes()));
+  EXPECTED_TRY(auto Info,
+               CompCtx.addImport(Im.getName(), Resolved, Im.getImplements(),
+                                 Im.getVersionSuffixes()));
   Out.Imports.emplace_back(std::string(Im.getName()), Info);
   return {};
 }
@@ -800,7 +911,7 @@ Expect<void> Validator::validate(const AST::Component::ExportSection &ExpSec,
 
 Expect<void> Validator::validate(const AST::Component::Export &Ex,
                                  Component::Shape &Out) noexcept {
-  auto &S = CompCtx.top();
+  auto &S = CompCtx.getTop();
   // Index bounds are diagnosed before the name; a valid name refines the code.
   {
     const auto &SI = Ex.getSortIndex();
@@ -846,7 +957,7 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex,
       return Unexpect(Code);
     }
   }
-  EXPECTED_TRY(auto Inferred, CompCtx.resolveSortIndex(Ex.getSortIndex()));
+  EXPECTED_TRY(auto Inferred, CompCtx.getExtern(Ex.getSortIndex()));
   // Exporting a value consumes it.
   if (!Ex.getSortIndex().getSort().isCore() &&
       Ex.getSortIndex().getSort().getSortType() ==
@@ -857,25 +968,25 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex,
       return E;
     }));
     // Exported values must not transitively contain borrow handles.
-    if (CompTypes.containsBorrow(S.Values[ValIdx].Type)) {
+    if (CompCtx.hasBorrow(S.Values[ValIdx].Type)) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error("    Exported value types cannot contain borrows."sv);
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
   }
-  EXPECTED_TRY(
-      Component::ExternName CN,
-      CompCtx.registerExportName(
-          Ex.getName(), Inferred.Kind == Component::ExternKind::InstanceType,
-          Ex.getImplements(), Ex.getExternalIds(), Ex.getVersionSuffixes()));
+  EXPECTED_TRY(Component::ExternName CN,
+               CompCtx.registerExportName(
+                   Ex.getName(),
+                   Inferred.Kind == Component::ExternKind::InstanceType,
+                   Ex.getImplements(), Ex.getVersionSuffixes()));
   std::optional<Component::ExternInfo> Ascribed;
   if (Ex.getDesc().has_value()) {
     EXPECTED_TRY(validate(*Ex.getDesc(), false, Ascribed.emplace()));
   }
-  EXPECTED_TRY(auto Result, CompCtx.defineExport(CN, Inferred, Ascribed));
+  EXPECTED_TRY(auto Result, CompCtx.addExport(CN, Inferred, Ascribed));
   // The re-exported value index is born consumed.
   if (Result.Kind == Component::ExternKind::ValueBound) {
-    CompCtx.top().Values.back().Consumed = true;
+    CompCtx.getTop().Values.back().Consumed = true;
   }
   Out.Exports.emplace(std::string(Ex.getName()), Result);
   return {};
@@ -884,11 +995,11 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex,
 Expect<void>
 Validator::validate(const AST::Component::ValueSection &ValSec) noexcept {
   for (const auto &Value : ValSec.getContent()) {
-    EXPECTED_TRY(validate(Value.getType()).map_error([](auto E) {
+    EXPECTED_TRY(CompCtx.validate(Value.getType()).map_error([](auto E) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Value));
       return E;
     }));
-    Component::ValueDecoder Decoder(Value.getData(), CompCtx.top());
+    Component::ValueDecoder Decoder(Value.getData(), CompCtx.getTop());
     auto Decoded = Decoder.decode(Value.getType());
     if (!Decoded) {
       spdlog::error(ErrCode::Value::ComponentMalformedValue);
@@ -897,7 +1008,7 @@ Validator::validate(const AST::Component::ValueSection &ValSec) noexcept {
       return Unexpect(ErrCode::Value::ComponentMalformedValue);
     }
     Value.setDecoded(std::move(*Decoded));
-    CompCtx.top().addValue({Value.getType(), &CompCtx.top(), nullptr});
+    CompCtx.getTop().addValue({Value.getType(), &CompCtx.getTop(), nullptr});
   }
   return {};
 }

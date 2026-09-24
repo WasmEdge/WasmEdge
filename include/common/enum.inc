@@ -984,6 +984,16 @@ E(MalformedName, 0x110C, "malformed name")
 E(ComponentNotImplLoader, 0x110D, "component model (loader) not implemented")
 // Component model nesting level exceeded
 E(ComponentNestLevelExceeded, 0x110E, "component nesting level exceeded")
+// Non-zero reserved byte in a canonical definition
+E(NonZeroReservedByte, 0x110F, "non-zero reserved byte")
+// More than one `implements` attribute on the same extern name
+E(ComponentImplementsDuplicate, 0x1110, "duplicate 'implements' option in name")
+// More than one `versionsuffix` attribute on the same extern name
+E(ComponentVersionSuffixDuplicate, 0x1111,
+  "duplicate 'versionsuffix' option in name")
+// More than one `external-id` attribute on the same extern name
+E(ComponentExternalIdDuplicate, 0x1112,
+  "duplicate 'external-id' option in name")
 // @}
 
 // Validation phase
@@ -1146,203 +1156,188 @@ E(NameEmptyString, 0x121C, "empty string")
 E(NameEmptyIdentifierSegment, 0x121D, "empty identifier segment")
 E(NameExpectedSlashAfterPackage, 0x121E, "expected `/` after package name")
 E(NameTrailingCharacters, 0x121F, "trailing characters found")
-E(NameExpectedOpenAngle, 0x1220, "expected `<`")
-E(NameExpectedCloseAngle, 0x1221, "expected `>`")
-E(NameExpectedOpenBrace, 0x1222, "expected `{`")
-E(NameExpectedVersionRangeOp, 0x1223,
-  "expected `>=` or `<` at start of version range")
-E(NameNotValidSemver, 0x1224, "not a valid semver")
-E(NameExpectedIntegrity, 0x1225, "expected `integrity=<`")
-E(NameFailedToFindCloseAngle, 0x1226, "failed to find `>`")
-E(NameUrlContainsOpenAngle, 0x1227, "url cannot contain `<`")
-E(NameIntegrityEmpty, 0x1228, "integrity hash cannot be empty")
-E(NameExpectedDashAfterHash, 0x1229, "expected `-` after hash algorithm")
-E(NameInvalidBase64, 0x122A, "not valid base64")
-E(NameUnknownHashAlgorithm, 0x122B, "unrecognized hash algorithm")
-E(NameFailedToFindDot, 0x122C, "failed to find `.` character")
+E(NameFailedToFindDot, 0x1220, "failed to find `.` character")
 // Component import/export name uniqueness diagnostics
-E(ComponentDuplicateImportName, 0x122D, "duplicate import name")
-E(ComponentNameConflict, 0x122E, "conflicts with previous name")
-E(ComponentDeclImportNameConflict, 0x122F,
+E(ComponentDuplicateImportName, 0x1221, "duplicate import name")
+E(ComponentNameConflict, 0x1222, "conflicts with previous name")
+E(ComponentDeclImportNameConflict, 0x1223,
   "conflicts with previous import name")
-E(ComponentDeclExportNameConflict, 0x1230,
+E(ComponentDeclExportNameConflict, 0x1224,
   "conflicts with previous export name")
 // Component type-reference diagnostics
-E(ComponentUnknownFunctionType, 0x1231, "unknown function type")
-E(ComponentUnknownInstanceType, 0x1232, "unknown instance type")
-E(ComponentNotFunctionType, 0x1233, "not a function type")
-E(ComponentNotModuleType, 0x1234, "not a module type")
-E(ComponentNotInstanceType, 0x1235, "not an instance type")
-E(ComponentNotResourceType, 0x1236, "not a resource type")
-E(ComponentNotLocalResource, 0x1237, "not a local resource")
-E(ComponentExpectedDefinedType, 0x1238, "expected defined type")
-E(ComponentExpectedResource, 0x1239, "expected resource")
-E(ComponentExpectedComponent, 0x123A, "expected component")
-E(ComponentFunctionIndexOutOfBounds, 0x123B, "function index out of bounds")
-E(ComponentMemoryIndexOutOfBounds, 0x123C, "memory index out of bounds")
-E(ComponentInstanceIndexOutOfBounds, 0x123D, "instance index out of bounds")
-E(ComponentModuleIndexOutOfBounds, 0x123E, "module index out of bounds")
-E(ComponentUnknownModule, 0x123F, "unknown module")
-E(ComponentUnknownComponent, 0x1240, "unknown component")
+E(ComponentUnknownFunctionType, 0x1225, "unknown function type")
+E(ComponentUnknownInstanceType, 0x1226, "unknown instance type")
+E(ComponentNotFunctionType, 0x1227, "not a function type")
+E(ComponentNotModuleType, 0x1228, "not a module type")
+E(ComponentNotInstanceType, 0x1229, "not an instance type")
+E(ComponentNotResourceType, 0x122A, "not a resource type")
+E(ComponentNotLocalResource, 0x122B, "not a local resource")
+E(ComponentExpectedDefinedType, 0x122C, "expected defined type")
+E(ComponentExpectedResource, 0x122D, "expected resource")
+E(ComponentExpectedComponent, 0x122E, "expected component")
+E(ComponentFunctionIndexOutOfBounds, 0x122F, "function index out of bounds")
+E(ComponentMemoryIndexOutOfBounds, 0x1230, "memory index out of bounds")
+E(ComponentInstanceIndexOutOfBounds, 0x1231, "instance index out of bounds")
+E(ComponentModuleIndexOutOfBounds, 0x1232, "module index out of bounds")
+E(ComponentUnknownModule, 0x1233, "unknown module")
+E(ComponentUnknownComponent, 0x1234, "unknown component")
 // Canonical option diagnostics
-E(CanonEncodingConflict, 0x1241, "canonical encoding option conflicts")
-E(CanonMemoryRequired, 0x1242, "canonical option `memory` is required")
-E(CanonMemoryDuplicated, 0x1243,
+E(CanonEncodingConflict, 0x1235, "canonical encoding option conflicts")
+E(CanonMemoryRequired, 0x1236, "canonical option `memory` is required")
+E(CanonMemoryDuplicated, 0x1237,
   "canonical option `memory` is specified more than once")
-E(CanonReallocRequired, 0x1244, "canonical option `realloc` is required")
-E(CanonReallocDuplicated, 0x1245,
+E(CanonReallocRequired, 0x1238, "canonical option `realloc` is required")
+E(CanonReallocDuplicated, 0x1239,
   "canonical option `realloc` is specified more than once")
-E(CanonReallocSignature, 0x1246,
+E(CanonReallocSignature, 0x123A,
   "canonical option `realloc` uses a core function with an incorrect "
   "signature")
-E(CanonPostReturnOnLower, 0x1247,
+E(CanonPostReturnOnLower, 0x123B,
   "canonical option `post-return` cannot be specified for lowerings")
-E(CanonPostReturnDuplicated, 0x1248,
+E(CanonPostReturnDuplicated, 0x123C,
   "canonical option `post-return` is specified more than once")
-E(CanonPostReturnSignature, 0x1249,
+E(CanonPostReturnSignature, 0x123D,
   "canonical option `post-return` uses a core function with an incorrect "
   "signature")
-E(CanonLoweredParamsMismatch, 0x124A,
+E(CanonLoweredParamsMismatch, 0x123E,
   "lowered parameter types do not match parameter types")
-E(CanonLoweredResultsMismatch, 0x124B,
+E(CanonLoweredResultsMismatch, 0x123F,
   "lowered result types do not match result types")
 // Alias diagnostics
-E(ComponentInvalidOuterAliasCount, 0x124C, "invalid outer alias count")
-E(ComponentAliasResourceLeak, 0x124D,
+E(ComponentInvalidOuterAliasCount, 0x1240, "invalid outer alias count")
+E(ComponentAliasResourceLeak, 0x1241,
   "refers to resources not defined in the current component")
 // Instantiation-argument diagnostics
-E(ComponentMissingImport, 0x124E, "missing import")
-E(ComponentMissingExpectedImport, 0x124F, "missing expected import")
-E(ComponentMissingModuleArg, 0x1250, "missing module instantiation argument")
-E(ComponentDuplicateModuleArg, 0x1251,
+E(ComponentMissingImport, 0x1242, "missing import")
+E(ComponentMissingExpectedImport, 0x1243, "missing expected import")
+E(ComponentMissingModuleArg, 0x1244, "missing module instantiation argument")
+E(ComponentDuplicateModuleArg, 0x1245,
   "duplicate module instantiation argument")
-E(ComponentDuplicateArg, 0x1252,
+E(ComponentDuplicateArg, 0x1246,
   "instantiation argument conflicts with previous argument")
-E(ComponentMemoryLimitsMismatch, 0x1253, "mismatch in memory limits")
-E(ComponentMemorySharedMismatch, 0x1254,
+E(ComponentMemoryLimitsMismatch, 0x1247, "mismatch in memory limits")
+E(ComponentMemorySharedMismatch, 0x1248,
   "mismatch in the shared flag for memories")
-E(ComponentPrimitiveMismatch, 0x1255, "primitive mismatch")
-E(ComponentEnumMismatch, 0x1256, "mismatch in enum elements")
-E(ComponentResourceMismatch, 0x1257, "resource types are not the same")
-E(ComponentExpectedFunc, 0x1258, "expected func")
-E(ComponentExpectedFuncParen, 0x1259, "expected: (func)")
-E(ComponentExpectedGlobal, 0x125A, "expected global")
-E(ComponentExpectedResult, 0x125B, "expected a result")
-E(ComponentExpectedNoOkType, 0x125C, "expected ok type to not be present")
-E(ComponentExpectedNoErrType, 0x125D, "expected err type to not be present")
-E(ComponentIsNotFunc, 0x125E, "is not a func")
+E(ComponentPrimitiveMismatch, 0x1249, "primitive mismatch")
+E(ComponentEnumMismatch, 0x124A, "mismatch in enum elements")
+E(ComponentResourceMismatch, 0x124B, "resource types are not the same")
+E(ComponentExpectedFunc, 0x124C, "expected func")
+E(ComponentExpectedFuncParen, 0x124D, "expected: (func)")
+E(ComponentExpectedGlobal, 0x124E, "expected global")
+E(ComponentExpectedResult, 0x124F, "expected a result")
+E(ComponentExpectedNoOkType, 0x1250, "expected ok type to not be present")
+E(ComponentExpectedNoErrType, 0x1251, "expected err type to not be present")
+E(ComponentIsNotFunc, 0x1252, "is not a func")
 // Resource and annotated-name diagnostics
-E(ComponentResourceOutsideComponent, 0x125F,
+E(ComponentResourceOutsideComponent, 0x1253,
   "resources can only be defined within a concrete component")
-E(ComponentResourceRepI32, 0x1260, "resources can only be represented by `i32`")
-E(ComponentDtorSignature, 0x1261, "wrong signature for a destructor")
-E(AnnotatedMethodSelf, 0x1262, "should have a first argument called `self`")
-E(AnnotatedMethodBorrow, 0x1263,
+E(ComponentResourceRepI32, 0x1254, "resources can only be represented by `i32`")
+E(ComponentDtorSignature, 0x1255, "wrong signature for a destructor")
+E(AnnotatedMethodSelf, 0x1256, "should have a first argument called `self`")
+E(AnnotatedMethodBorrow, 0x1257,
   "should take a first argument of `(borrow $T)`")
-E(AnnotatedMethodArgs, 0x1264, "should have at least one argument")
-E(AnnotatedCtorReturn, 0x1265,
+E(AnnotatedMethodArgs, 0x1258, "should have at least one argument")
+E(AnnotatedCtorReturn, 0x1259,
   "function should return `(own $T)` or `(result (own $T))`")
-E(AnnotatedCtorReturnOne, 0x1266, "should return one value")
-E(AnnotatedFuncResourceName, 0x1267,
+E(AnnotatedCtorReturnOne, 0x125A, "should return one value")
+E(AnnotatedFuncResourceName, 0x125B,
   "function does not match expected resource name")
-E(AnnotatedStaticUnknown, 0x1268,
+E(AnnotatedStaticUnknown, 0x125C,
   "static resource name is not known in this context")
-E(ComponentResourceNotNamed, 0x1269,
+E(ComponentResourceNotNamed, 0x125D,
   "resource used in function does not have a name in this context")
 // Extern-position restrictions (resources must be introduced first)
-E(ComponentFuncNotValidExport, 0x126A, "func not valid to be used as export")
-E(ComponentFuncNotValidImport, 0x126B, "func not valid to be used as import")
-E(ComponentTypeNotValidExport, 0x126C, "type not valid to be used as export")
-E(ComponentTypeNotValidImport, 0x126D, "type not valid to be used as import")
-E(ComponentInstanceNotValidExport, 0x126E,
+E(ComponentFuncNotValidExport, 0x125E, "func not valid to be used as export")
+E(ComponentFuncNotValidImport, 0x125F, "func not valid to be used as import")
+E(ComponentTypeNotValidExport, 0x1260, "type not valid to be used as export")
+E(ComponentTypeNotValidImport, 0x1261, "type not valid to be used as import")
+E(ComponentInstanceNotValidExport, 0x1262,
   "instance not valid to be used as export")
-E(ComponentInstanceNotValidImport, 0x126F,
+E(ComponentInstanceNotValidImport, 0x1263,
   "instance not valid to be used as import")
-E(ComponentTypeSizeLimit, 0x1270, "effective type size exceeds the limit")
-E(ComponentTypeNestingDepth, 0x1271, "type nesting is too deep")
-E(ComponentImplementsInterface, 0x1272, "must be an interface")
-E(ComponentImplementsName, 0x1273, "`implements` name is not a valid name")
-E(ComponentImplementsInstance, 0x1274,
+E(ComponentTypeSizeLimit, 0x1264, "effective type size exceeds the limit")
+E(ComponentTypeNestingDepth, 0x1265, "type nesting is too deep")
+E(ComponentImplementsInterface, 0x1266, "must be an interface")
+E(ComponentImplementsName, 0x1267, "`implements` name is not a valid name")
+E(ComponentImplementsInstance, 0x1268,
   "only instances can have an `implements`")
-E(ComponentImplementsPlain, 0x1275, "is not valid with `implements`")
-E(ComponentExpectedOwn, 0x1276, "expected own")
-E(ComponentExpectedBorrow, 0x1277, "expected borrow")
+E(ComponentImplementsPlain, 0x1269, "is not valid with `implements`")
+E(ComponentExpectedOwn, 0x126A, "expected own")
+E(ComponentExpectedBorrow, 0x126B, "expected borrow")
 // Empty composite type diagnostics
-E(RecordMustHaveField, 0x1278, "record type must have at least one field")
-E(EnumMustHaveVariant, 0x1279, "enum type must have at least one variant")
-E(FlagsMustHaveEntry, 0x127A, "flags must have at least one entry")
-E(TupleMustHaveType, 0x127B, "tuple type must have at least one type")
-E(FuncResultContainsBorrow, 0x127C,
+E(RecordMustHaveField, 0x126C, "record type must have at least one field")
+E(EnumMustHaveVariant, 0x126D, "enum type must have at least one variant")
+E(FlagsMustHaveEntry, 0x126E, "flags must have at least one entry")
+E(TupleMustHaveType, 0x126F, "tuple type must have at least one type")
+E(FuncResultContainsBorrow, 0x1270,
   "function result cannot contain a `borrow` type")
-E(FuncParamNameConflict, 0x127D,
+E(FuncParamNameConflict, 0x1271,
   "function parameter name conflicts with previous parameter name")
 // Async and stream type diagnostics
-E(ComponentStreamCharInvalid, 0x127E, "`stream<char>` is not valid")
-E(CanonAsyncRequiresAsyncType, 0x127F,
+E(ComponentStreamCharInvalid, 0x1272, "`stream<char>` is not valid")
+E(CanonAsyncRequiresAsyncType, 0x1273,
   "the `async` canonical option requires an async function type")
 // Index-space and label diagnostics that the reference validator reports
 // per index space and per label kind
-E(ComponentTypeIndexOutOfBounds, 0x1280, "type index out of bounds")
-E(ComponentExportNotAModule, 0x1281, "export is not a module")
-E(ComponentImportNameConflict, 0x1282,
+E(ComponentTypeIndexOutOfBounds, 0x1274, "type index out of bounds")
+E(ComponentExportNotAModule, 0x1275, "export is not a module")
+E(ComponentImportNameConflict, 0x1276,
   "import name conflicts with previous name")
-E(ComponentExportNameConflict, 0x1283,
+E(ComponentExportNameConflict, 0x1277,
   "export name conflicts with previous name")
-E(RecordFieldNameEmpty, 0x1284, "record field name cannot be empty")
-E(VariantCaseNameEmpty, 0x1285, "variant case name cannot be empty")
-E(FlagNameEmpty, 0x1286, "flag name cannot be empty")
-E(EnumTagNameEmpty, 0x1287, "enum tag name cannot be empty")
-E(FuncParamNameEmpty, 0x1288, "function parameter name cannot be empty")
+E(RecordFieldNameEmpty, 0x1278, "record field name cannot be empty")
+E(VariantCaseNameEmpty, 0x1279, "variant case name cannot be empty")
+E(FlagNameEmpty, 0x127A, "flag name cannot be empty")
+E(EnumTagNameEmpty, 0x127B, "enum tag name cannot be empty")
+E(FuncParamNameEmpty, 0x127C, "function parameter name cannot be empty")
 // Fixed-length list declares more elements than the limit
-E(ComponentFixedListTooLarge, 0x1289,
+E(ComponentFixedListTooLarge, 0x127D,
   "fixed-length list element count exceeds limit")
 // Context slot index of context.get/context.set out of bounds
-E(ComponentContextSlotOutOfBounds, 0x128A, "context slot out of bounds")
-// More than one `implements` attribute on the same extern name
-E(ComponentImplementsDuplicate, 0x128B, "duplicate 'implements' option in name")
+E(ComponentContextSlotOutOfBounds, 0x127E, "context slot out of bounds")
 // The key of a map type is outside the `keytype` subset
-E(ComponentMapKeyType, 0x128C, "invalid map key type")
+E(ComponentMapKeyType, 0x127F, "invalid map key type")
 // The payload of a value definition does not decode against its declared type
-E(ComponentMalformedValue, 0x128D, "malformed value")
+E(ComponentMalformedValue, 0x1280, "malformed value")
 // The `callback` canonical option is only allowed on `canon lift`
-E(CanonCallbackOnLower, 0x128E,
+E(CanonCallbackOnLower, 0x1281,
   "canonical option `callback` cannot be specified for lowerings")
-E(CanonCallbackDuplicated, 0x128F,
+E(CanonCallbackDuplicated, 0x1282,
   "canonical option `callback` is specified more than once")
-E(CanonAsyncDuplicated, 0x1290,
+E(CanonAsyncDuplicated, 0x1283,
   "canonical option `async` is specified more than once")
-E(CanonCallbackRequiresAsync, 0x1291,
+E(CanonCallbackRequiresAsync, 0x1284,
   "canonical option `callback` requires the `async` option")
-E(CanonPostReturnWithAsync, 0x1292,
+E(CanonPostReturnWithAsync, 0x1285,
   "canonical option `post-return` cannot be specified together with `async`")
 // The canonical built-in never allocates, so `realloc` is not applicable
-E(CanonReallocOnBuiltin, 0x1293,
+E(CanonReallocOnBuiltin, 0x1286,
   "canonical option `realloc` cannot be specified for this built-in")
 // The canonical built-in is synchronous, so `async` is not applicable
-E(CanonAsyncOnBuiltin, 0x1294,
+E(CanonAsyncOnBuiltin, 0x1287,
   "canonical option `async` cannot be specified for this built-in")
-// More than one `external-id` attribute on the same extern name
-E(ComponentExternalIdDuplicate, 0x1295,
-  "duplicate 'external-id' option in name")
 // The context.get/context.set type immediate is neither `i32` nor `i64`
-E(ComponentContextTypeInvalid, 0x1296, "only supports `i32` or `i64`")
+E(ComponentContextTypeInvalid, 0x1288, "only supports `i32` or `i64`")
 // Two context built-ins of one component declare different types
-E(ComponentContextTypeMismatch, 0x1297, "type must match previous context type")
+E(ComponentContextTypeMismatch, 0x1289, "type must match previous context type")
 // A stream or future element type transitively contains a borrow handle
-E(ComponentStreamFutureBorrow, 0x1298,
+E(ComponentStreamFutureBorrow, 0x128A,
   "stream or future element type cannot contain a `borrow` type")
-// More than one `versionsuffix` attribute on the same extern name
-E(ComponentVersionSuffixDuplicate, 0x1299,
-  "duplicate 'versionsuffix' option in name")
 // The versionsuffix does not extend a canonical version into a valid semver
-E(ComponentVersionSuffixInvalid, 0x129A, "invalid `versionsuffix`")
+E(ComponentVersionSuffixInvalid, 0x128B, "invalid `versionsuffix`")
 // The canonical built-in accepts no options at all
-E(CanonOptionOnBuiltin, 0x129B,
+E(CanonOptionOnBuiltin, 0x128C,
   "canonical options cannot be specified for this built-in")
 // The `callback` core function does not have type [i32 i32 i32] -> [i32]
-E(CanonCallbackSignature, 0x129C,
+E(CanonCallbackSignature, 0x128D,
   "canonical option `callback` uses a core function with an incorrect "
   "signature")
+// The Canonical ABI element size of a defvaltype reaches 2^28 bytes
+E(ComponentValueSizeTooLarge, 0x128E, "exceeds maximum byte size")
+// The type immediate of a stream built-in is not a stream type
+E(ComponentStreamTypeRequired, 0x128F, "requires a stream type")
+// The type immediate of a future built-in is not a future type
+E(ComponentFutureTypeRequired, 0x1290, "requires a future type")
 // @}
 
 // Instantiation phase
@@ -1361,18 +1356,26 @@ E(ElemSegDoesNotFit, 0x0304, "elements segment does not fit")
 
 // Component model instantiation phase
 // @{
-// Invalid core sort for component export
-E(InvalidCoreSort, 0x1300, "invalid core sort")
 // Canonical option lifting failed
-E(InvalidCanonOption, 0x1301, "invalid canonical option")
+E(InvalidCanonOption, 0x1300, "invalid canonical option")
 // Invalid export core exports
-E(CoreInvalidExport, 0x1302, "invalid export in core module")
-// Invalid resource.drop args
-E(ResourceDropArgument, 0x1303,
-  "invalid argument been used to invoke resource.drop")
 // Component model not implemented
-E(ComponentNotImplInstantiate, 0x1304,
+E(ComponentNotImplInstantiate, 0x1302,
   "component model (instantiation) not implemented")
+E(ComponentImportNotFound, 0x1303, "was not found")
+E(ComponentImportExpectedFunc, 0x1304, "expected function found instance")
+E(ComponentImportExpectedInstance, 0x1305, "expected instance found func")
+E(ComponentImportExpectedModule, 0x1306, "expected module found instance")
+E(ComponentCoreModNotDefined, 0x1307, "not defined")
+E(ComponentCoreModWrongType, 0x1308, "has the wrong type")
+E(ComponentCoreModKindMismatch, 0x1309, "expected")
+E(ComponentResourceMismatched, 0x130A, "mismatched resource types")
+E(ComponentImportExpectedResource, 0x130B, "expected resource found func")
+E(ComponentUnexpectedSort, 0x130C, "unexpected sort")
+// Registering a name the component store already holds
+E(ComponentRegistrationConflict, 0x130D, "component registration name conflict")
+// A type index names a definition of an unexpected kind
+E(ComponentUnexpectedType, 0x130E, "unexpected type")
 // @}
 
 // Execution phase
@@ -1437,6 +1440,96 @@ E(PendingException, 0x041A, "pending exception")
 // @{
 // Component model canonical ABI trap (guest-observable)
 E(ComponentTrap, 0x1400, "component canonical ABI trap")
+E(ComponentHandleUnknown, 0x1401, "unknown handle index")
+E(ComponentHandleWrongType, 0x1402, "used with the wrong type")
+E(ComponentResourceBorrowed, 0x1403,
+  "cannot remove owned resource while borrowed")
+E(ComponentCharInvalid, 0x1404, "invalid `char` bit pattern")
+E(ComponentDiscriminantInvalid, 0x1405, "invalid variant discriminant")
+E(ComponentPtrUnaligned, 0x1406, "unaligned pointer")
+E(ComponentStrOOB, 0x1407, "string content out-of-bounds")
+E(ComponentStrPtrLenOOB, 0x1408,
+  "string pointer/length out of bounds of memory")
+E(ComponentReallocOOB, 0x1409, "realloc return: beyond end of memory")
+E(ComponentCannotEnter, 0x140A, "cannot enter component instance")
+E(ComponentUTF8Invalid, 0x140B, "invalid utf-8")
+E(ComponentUTF8Incomplete, 0x140C, "incomplete utf-8 byte sequence")
+E(ComponentCannotLeave, 0x140D, "cannot leave component instance")
+E(ComponentAsyncDeadlock, 0x140E,
+  "deadlock detected: event loop cannot make further progress")
+E(ComponentCannotBlockSync, 0x140F,
+  "cannot block a synchronous task before returning")
+E(ComponentBadCallbackCode, 0x1410, "unsupported callback code")
+E(ComponentNoAsyncResult, 0x1411,
+  "async-lifted export failed to produce a result")
+E(ComponentBorrowsRemain, 0x1412,
+  "borrow handles still remain at the end of the call")
+E(ComponentAsyncAborted, 0x1413, "async execution aborted")
+E(ComponentWaitableSetNotEmpty, 0x1414, "cannot drop waitable set with waiters")
+E(ComponentSubtaskNotResolved, 0x1415,
+  "cannot drop a subtask which has not yet resolved")
+E(ComponentStreamDropBusy, 0x1416, "cannot drop busy stream")
+E(ComponentFutureWriteEndNoValue, 0x1417,
+  "cannot drop future write end without first writing a value")
+E(ComponentCopyBusy, 0x1418,
+  "cannot have concurrent operations active on a future/stream")
+E(ComponentWaitableInSetSyncUse, 0x1419,
+  "waitable cannot be used synchronously while added to a waitable set")
+E(ComponentStreamReadAfterDrop, 0x141A,
+  "cannot read from stream after being notified that the writable end "
+  "dropped")
+E(ComponentStreamWriteAfterDrop, 0x141B,
+  "cannot write to stream after being notified that the readable end "
+  "dropped")
+E(ComponentFutureReadAfterSuccess, 0x141C,
+  "cannot read from future after previous read succeeded")
+E(ComponentFutureWriteAfterSuccess, 0x141D,
+  "cannot write to future after previous write succeeded")
+E(ComponentFutureWriteAfterSuccessOrDrop, 0x141E,
+  "cannot write to future after previous write succeeded or readable end "
+  "dropped")
+E(ComponentIntraCopy, 0x141F,
+  "cannot read from and write to intra-component future")
+E(ComponentStreamRemoveBusy, 0x1420, "cannot remove busy stream")
+E(ComponentStreamLiftInSet, 0x1421,
+  "cannot lift stream while it's in a waitable set")
+E(ComponentFutureLiftInSet, 0x1422,
+  "cannot lift future while it's in a waitable set")
+E(ComponentStreamLiftAfterDrop, 0x1423,
+  "cannot lift stream after being notified that the writable end dropped")
+E(ComponentFutureLiftAfterSuccess, 0x1424,
+  "cannot lift future after previous read succeeded")
+E(ComponentTaskNotCancelled, 0x1425,
+  "`task.cancel` called by task which has not been cancelled")
+E(ComponentTaskResolvedTwice, 0x1426,
+  "`task.return` or `task.cancel` called more than once for current task")
+E(ComponentSubtaskCancelTerminal, 0x1427,
+  "`subtask.cancel` called after terminal status delivered")
+E(ComponentTaskReturnInvalid, 0x1428,
+  "invalid `task.return` signature and/or options for current task")
+E(ComponentBackpressureOverflow, 0x1429, "backpressure counter overflow")
+E(ComponentStreamOpTooBig, 0x142A, "stream read/write count too large")
+E(ComponentCancelReadNotPending, 0x142B,
+  "stream or future read cancelled when no read is pending")
+E(ComponentCancelWriteNotPending, 0x142C,
+  "stream or future write cancelled when no write is pending")
+E(ComponentThreadNotSuspended, 0x142D,
+  "cannot resume thread which is not suspended")
+E(ComponentThreadStartInvalid, 0x142E,
+  "start function does not match expected type")
+E(ComponentUTF16Invalid, 0x142F, "invalid utf-16")
+E(ComponentStreamForwardBusy, 0x1430, "cannot forward busy stream")
+E(ComponentFutureForwardBusy, 0x1431, "cannot forward busy future")
+E(ComponentStreamForwardInSet, 0x1432,
+  "cannot forward stream while it's in a waitable set")
+E(ComponentFutureForwardInSet, 0x1433,
+  "cannot forward future while it's in a waitable set")
+E(ComponentStreamForwardAfterWriterDrop, 0x1434,
+  "cannot forward stream after being notified that the writable end dropped")
+E(ComponentStreamForwardAfterReaderDrop, 0x1435,
+  "cannot forward stream after being notified that the readable end dropped")
+E(ComponentFutureForwardAfterDone, 0x1436,
+  "cannot forward future after it completed")
 // @}
 
 #undef E
@@ -1480,6 +1573,7 @@ M(Memory, "memory")              // Memory instance
 M(Global, "global")              // Global instance
 M(Version, "version")            // Versions
 M(CompFunctionType, "component function type") // (Component) Function type
+M(Count, "count")                              // Number of values
 
 #undef M
 #endif // UseMismatchCategory
@@ -1609,6 +1703,35 @@ T(Lower, 0x01, "lower")
 T(Resource__new, 0x02, "resource.new")
 T(Resource__drop, 0x03, "resource.drop")
 T(Resource__rep, 0x04, "resource.rep")
+T(Task__cancel, 0x05, "task.cancel")
+T(Subtask__cancel, 0x06, "subtask.cancel")
+T(Task__return, 0x09, "task.return")
+T(Context__get, 0x0A, "context.get")
+T(Context__set, 0x0B, "context.set")
+T(Thread__yield, 0x0C, "thread.yield")
+T(Subtask__drop, 0x0D, "subtask.drop")
+T(Stream__new, 0x0E, "stream.new")
+T(Stream__read, 0x0F, "stream.read")
+T(Stream__write, 0x10, "stream.write")
+T(Stream__cancel_read, 0x11, "stream.cancel-read")
+T(Stream__cancel_write, 0x12, "stream.cancel-write")
+T(Stream__drop_readable, 0x13, "stream.drop-readable")
+T(Stream__drop_writable, 0x14, "stream.drop-writable")
+T(Future__new, 0x15, "future.new")
+T(Future__read, 0x16, "future.read")
+T(Future__write, 0x17, "future.write")
+T(Future__cancel_read, 0x18, "future.cancel-read")
+T(Future__cancel_write, 0x19, "future.cancel-write")
+T(Future__drop_readable, 0x1A, "future.drop-readable")
+T(Future__drop_writable, 0x1B, "future.drop-writable")
+T(Error_context__new, 0x1C, "error-context.new")
+T(Error_context__debug_message, 0x1D, "error-context.debug-message")
+T(Error_context__drop, 0x1E, "error-context.drop")
+T(Waitable_set__new, 0x1F, "waitable-set.new")
+T(Waitable_set__wait, 0x20, "waitable-set.wait")
+T(Waitable_set__poll, 0x21, "waitable-set.poll")
+T(Waitable_set__drop, 0x22, "waitable-set.drop")
+T(Waitable__join, 0x23, "waitable.join")
 T(Backpressure__inc, 0x24, "backpressure.inc")
 T(Backpressure__dec, 0x25, "backpressure.dec")
 T(Thread__index, 0x26, "thread.index")
@@ -1619,38 +1742,11 @@ T(Thread__suspend_then_resume, 0x2A, "thread.suspend-then-resume")
 T(Thread__yield_then_resume, 0x2B, "thread.yield-then-resume")
 T(Thread__suspend_then_promote, 0x2C, "thread.suspend-then-promote")
 T(Thread__yield_then_promote, 0x2D, "thread.yield-then-promote")
-T(Task__return, 0x09, "task.return")
-T(Task__cancel, 0x05, "task.cancel")
-T(Context__get, 0x0A, "context.get")
-T(Context__set, 0x0B, "context.set")
-T(Yield, 0x0C, "yield")
-T(Subtask__cancel, 0x06, "subtask.cancel")
-T(Subtask__drop, 0x0D, "subtask.drop")
-T(Stream__new, 0x0E, "stream.new")
-T(Stream__read, 0x0F, "stream.read")
-T(Stream__write, 0x10, "stream.write")
-T(Stream__cancel_read, 0x11, "stream.cancel_read")
-T(Stream__cancel_write, 0x12, "stream.cancel_write")
-T(Stream__drop_readable, 0x13, "stream.drop-readable")
-T(Stream__drop_writable, 0x14, "stream.drop-writable")
-T(Future__new, 0x15, "future.new")
-T(Future__read, 0x16, "future.read")
-T(Future__write, 0x17, "future.write")
-T(Future__cancel_read, 0x18, "future.cancel_read")
-T(Future__cancel_write, 0x19, "future.cancel_write")
-T(Future__drop_readable, 0x1A, "future.drop-readable")
-T(Future__drop_writable, 0x1B, "future.drop-writable")
-T(Error_context__new, 0x1C, "error-context.new")
-T(Error_context__debug_message, 0x1D, "error-context.debug_message")
-T(Error_context__drop, 0x1E, "error-context.drop")
-T(Waitable_set__new, 0x1F, "waitable-set.new")
-T(Waitable_set__wait, 0x20, "waitable-set.wait")
-T(Waitable_set__poll, 0x21, "waitable-set.poll")
-T(Waitable_set__drop, 0x22, "waitable-set.drop")
-T(Waitable__join, 0x23, "waitable.join")
-T(Thread__spawn_ref, 0x40, "thread.spawn_ref")
-T(Thread__spawn_indirect, 0x41, "thread.spawn_indirect")
-T(Thread__available_parallelism, 0x42, "thread.available_parallelism")
+T(Stream__forward, 0x2E, "stream.forward")
+T(Future__forward, 0x2F, "future.forward")
+T(Thread__spawn_ref, 0x40, "thread.spawn-ref")
+T(Thread__spawn_indirect, 0x41, "thread.spawn-indirect")
+T(Thread__available_parallelism, 0x42, "thread.available-parallelism")
 
 #undef T
 #endif // UseComponentCanonOpCode

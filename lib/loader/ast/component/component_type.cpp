@@ -3,6 +3,8 @@
 
 #include "loader/loader.h"
 
+#include "common/component_valtype.h"
+
 namespace WasmEdge {
 namespace Loader {
 
@@ -180,7 +182,7 @@ Expect<void> Loader::loadType(AST::Component::DefValType &Ty, uint8_t Code) {
   case ComponentTypeCode::Char:
   case ComponentTypeCode::String:
   case ComponentTypeCode::ErrContext:
-    Ty.setPrimValType(static_cast<AST::Component::PrimValType>(TC));
+    Ty.setPrimValType(static_cast<PrimValType>(TC));
     return {};
   case ComponentTypeCode::Record: {
     AST::Component::RecordTy RTy;
@@ -269,20 +271,6 @@ Expect<void> Loader::loadType(AST::Component::DefValType &Ty, uint8_t Code) {
 }
 
 Expect<void> Loader::loadType(AST::Component::FuncType &Ty) {
-  /// FROM:
-  /// https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md#flattening
-  ///
-  /// The number of flattened results is currently limited to 1 due to various
-  /// parts of the toolchain (notably the C ABI) not yet being able to express
-  /// multi-value returns. Hopefully this limitation is temporary and can be
-  /// lifted before the Component Model is fully standardized.
-  ///
-  /// NOTE:
-  /// The original resultlist grammar:
-  ///
-  /// resultlist ::= 0x00 t:<valtype>             => (result t)
-  ///              | 0x01 lt*:vec(<labelvaltype>) => (result lt)*
-
   // functype   ::= 0x40 ps:<paramlist> rs:<resultlist> => (func ps rs)
   //              | 0x43 ps:<paramlist> rs:<resultlist> => (func async ps rs)
   // paramlist  ::= lt*:vec(<labelvaltype>)             => (param lt)*
@@ -309,20 +297,10 @@ Expect<void> Loader::loadType(AST::Component::FuncType &Ty) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_FuncType));
       return E;
     }));
-    Ty.setResultList(VT);
+    Ty.setResult(VT);
     return {};
   }
   case 0x01: {
-    // Original multi-return grammar (reserved for future extension):
-    //   std::vector<AST::Component::LabelValType> ResultList;
-    //   EXPECTED_TRY(loadVec<AST::Component::FuncType>(
-    //       ResultList,
-    //       [this](AST::Component::LabelValType &LV) { return loadType(LV);
-    //       }));
-    //   Ty.setResultList(std::move(ResultList));
-    //   return {};
-
-    // Current spec: resultlist ::= 0x01 0x00 => ε
     EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error([this](auto E) {
       return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_FuncType);
     }));
@@ -330,7 +308,7 @@ Expect<void> Loader::loadType(AST::Component::FuncType &Ty) {
       return logLoadError(ErrCode::Value::MalformedDefType,
                           FMgr.getLastOffset(), ASTNodeAttr::Comp_FuncType);
     }
-    Ty.setResultList(std::vector<AST::Component::LabelValType>{});
+    Ty.setResult(std::nullopt);
     return {};
   }
   default:

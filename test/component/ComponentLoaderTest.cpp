@@ -191,9 +191,8 @@ TEST(ComponentNameParserTest, KebabLabel) {
 }
 
 TEST(ComponentNameParserTest, StronglyUniqueBasicCases) {
-  Validator::Component::TypeSystem Types;
-  Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::ScopeKind::Component);
+  Validator::Component::Context Ctx;
+  Ctx.pushScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
@@ -201,7 +200,9 @@ TEST(ComponentNameParserTest, StronglyUniqueBasicCases) {
     if (!CN.has_value()) {
       return false;
     }
-    return Ctx.addUniqueName(Names, Ctx.makeNameRecord(*CN), false).has_value();
+    return Ctx
+        .addUniqueName(Names, Validator::Component::NameRecord(*CN), false)
+        .has_value();
   };
 
   EXPECT_TRUE(add("foo"sv));
@@ -212,15 +213,16 @@ TEST(ComponentNameParserTest, StronglyUniqueBasicCases) {
 
   EXPECT_FALSE(add("foo"sv));
   EXPECT_FALSE(add("foo-BAR"sv));
-  EXPECT_FALSE(add("[constructor]foo-BAR"sv));
+  EXPECT_FALSE(add("foobar"sv));
+  EXPECT_FALSE(add("[constructor]FOO"sv));
   EXPECT_FALSE(add("[method]foo.foo"sv));
   EXPECT_FALSE(add("[method]foo.BAR"sv));
+  EXPECT_FALSE(add("[static]foo-bar.FOOB-ar"sv));
 }
 
 TEST(ComponentNameParserTest, StronglyUnique) {
-  Validator::Component::TypeSystem Types;
-  Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::ScopeKind::Component);
+  Validator::Component::Context Ctx;
+  Ctx.pushScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
@@ -228,7 +230,9 @@ TEST(ComponentNameParserTest, StronglyUnique) {
     if (!CN.has_value()) {
       return false;
     }
-    return Ctx.addUniqueName(Names, Ctx.makeNameRecord(*CN), false).has_value();
+    return Ctx
+        .addUniqueName(Names, Validator::Component::NameRecord(*CN), false)
+        .has_value();
   };
 
   EXPECT_TRUE(add("[method]foo.abc"sv));
@@ -244,9 +248,8 @@ TEST(ComponentNameParserTest, StronglyUniqueExportBasicCases) {
   // Mirrors StronglyUniqueBasicCases on the export-side name set: the
   // strong-uniqueness rule must apply symmetrically to import and export
   // name sets (Explainer §Import and Export Definitions).
-  Validator::Component::TypeSystem Types;
-  Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::ScopeKind::Component);
+  Validator::Component::Context Ctx;
+  Ctx.pushScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
@@ -254,7 +257,9 @@ TEST(ComponentNameParserTest, StronglyUniqueExportBasicCases) {
     if (!CN.has_value()) {
       return false;
     }
-    return Ctx.addUniqueName(Names, Ctx.makeNameRecord(*CN), false).has_value();
+    return Ctx
+        .addUniqueName(Names, Validator::Component::NameRecord(*CN), false)
+        .has_value();
   };
 
   EXPECT_TRUE(add("foo"sv));
@@ -265,15 +270,16 @@ TEST(ComponentNameParserTest, StronglyUniqueExportBasicCases) {
 
   EXPECT_FALSE(add("foo"sv));
   EXPECT_FALSE(add("foo-BAR"sv));
-  EXPECT_FALSE(add("[constructor]foo-BAR"sv));
+  EXPECT_FALSE(add("foobar"sv));
+  EXPECT_FALSE(add("[constructor]FOO"sv));
   EXPECT_FALSE(add("[method]foo.foo"sv));
   EXPECT_FALSE(add("[method]foo.BAR"sv));
+  EXPECT_FALSE(add("[static]foo-bar.FOOB-ar"sv));
 }
 
 TEST(ComponentNameParserTest, StronglyUniqueExport) {
-  Validator::Component::TypeSystem Types;
-  Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::ScopeKind::Component);
+  Validator::Component::Context Ctx;
+  Ctx.pushScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
@@ -281,7 +287,9 @@ TEST(ComponentNameParserTest, StronglyUniqueExport) {
     if (!CN.has_value()) {
       return false;
     }
-    return Ctx.addUniqueName(Names, Ctx.makeNameRecord(*CN), false).has_value();
+    return Ctx
+        .addUniqueName(Names, Validator::Component::NameRecord(*CN), false)
+        .has_value();
   };
 
   EXPECT_TRUE(add("[method]foo.abc"sv));
@@ -293,17 +301,27 @@ TEST(ComponentNameParserTest, StronglyUniqueExport) {
   EXPECT_FALSE(add("[static]foo.abc"sv));
 }
 
+TEST(ComponentNameParserTest, OnlyPlainAndInterfaceNames) {
+  // externname ::= <plainname> | <interfacename>: the former dependency, url
+  // and integrity forms are not extern names.
+  EXPECT_FALSE(parseName("locked-dep=<my-registry:sqlite>"sv));
+  EXPECT_FALSE(parseName("unlocked-dep=<my-registry:sqlite@*>"sv));
+  EXPECT_FALSE(parseName("url=<https://mycdn.com/my-component.wasm>"sv));
+  EXPECT_FALSE(parseName("integrity=<sha256-H8BRh8j>"sv));
+}
+
 TEST(ComponentNameParserTest, StronglyUniqueImportExportIndependence) {
   // Spec: import and export name sets are checked *separately* — an import
   // and an export sharing a name is not a strong-uniqueness violation.
-  Validator::Component::TypeSystem Types;
-  Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::ScopeKind::Component);
+  Validator::Component::Context Ctx;
+  Ctx.pushScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Imports, Exports;
 
   auto add = [&Ctx](std::vector<Validator::Component::NameRecord> &Names,
                     std::string_view S) {
-    return Ctx.addUniqueName(Names, Ctx.makeNameRecord(*parseName(S)), false)
+    return Ctx
+        .addUniqueName(Names, Validator::Component::NameRecord(*parseName(S)),
+                       false)
         .has_value();
   };
 
@@ -311,152 +329,6 @@ TEST(ComponentNameParserTest, StronglyUniqueImportExportIndependence) {
   EXPECT_TRUE(add(Exports, "foo"sv));
   EXPECT_FALSE(add(Imports, "foo"sv));
   EXPECT_FALSE(add(Exports, "foo"sv));
-}
-
-TEST(ComponentNameParserTest, LockedDep) {
-  // Valid: no version, no integrity.
-  {
-    auto CName = parseName("locked-dep=<my-registry:sqlite>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(),
-              Validator::Component::ExternName::Kind::LockedDep);
-    auto &D = CName->getDetail();
-    EXPECT_EQ(D.Namespace, "my-registry"sv);
-    EXPECT_EQ(D.Package, "sqlite"sv);
-    EXPECT_EQ(D.Version, ""sv);
-    EXPECT_EQ(D.Integrity, ""sv);
-  }
-  // Valid: with version.
-  {
-    auto CName = parseName("locked-dep=<my-registry:sqlite@1.2.3>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(),
-              Validator::Component::ExternName::Kind::LockedDep);
-    auto &D = CName->getDetail();
-    EXPECT_EQ(D.Namespace, "my-registry"sv);
-    EXPECT_EQ(D.Package, "sqlite"sv);
-    EXPECT_EQ(D.Version, "1.2.3"sv);
-    EXPECT_EQ(D.Integrity, ""sv);
-  }
-  // Valid: with version and integrity.
-  {
-    auto CName = parseName(
-        "locked-dep=<my-registry:sqlite@1.2.3>,integrity=<sha256-H8BRh8j>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(),
-              Validator::Component::ExternName::Kind::LockedDep);
-    auto &D = CName->getDetail();
-    EXPECT_EQ(D.Namespace, "my-registry"sv);
-    EXPECT_EQ(D.Package, "sqlite"sv);
-    EXPECT_EQ(D.Version, "1.2.3"sv);
-    EXPECT_EQ(D.Integrity, "sha256-H8BRh8j"sv);
-  }
-  // Invalid cases.
-  EXPECT_FALSE(parseName("locked-dep=my-registry:sqlite"sv));
-  EXPECT_FALSE(parseName("locked-dep=<MY-REG:sqlite>"sv));
-  EXPECT_FALSE(parseName("locked-dep=<:sqlite>"sv));
-  EXPECT_FALSE(parseName("locked-dep=<my-registry:>"sv));
-  EXPECT_FALSE(
-      parseName("locked-dep=<my-registry:sqlite>,integrity=<md5-abc>"sv));
-}
-
-TEST(ComponentNameParserTest, UnlockedDep) {
-  // Valid: no verrange.
-  {
-    auto CName = parseName("unlocked-dep=<my-registry:sqlite>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(),
-              Validator::Component::ExternName::Kind::UnlockedDep);
-    auto &D = CName->getDetail();
-    EXPECT_EQ(D.Namespace, "my-registry"sv);
-    EXPECT_EQ(D.Package, "sqlite"sv);
-    EXPECT_EQ(D.VersionRange, ""sv);
-  }
-  // Valid: wildcard verrange.
-  {
-    auto CName = parseName("unlocked-dep=<my-registry:sqlite@*>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(),
-              Validator::Component::ExternName::Kind::UnlockedDep);
-    auto &D = CName->getDetail();
-    EXPECT_EQ(D.Package, "sqlite"sv);
-  }
-  // Valid: lower bound.
-  {
-    auto CName =
-        parseName("unlocked-dep=<my-registry:imagemagick@{>=1.0.0}>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(),
-              Validator::Component::ExternName::Kind::UnlockedDep);
-  }
-  // Valid: upper bound.
-  {
-    auto CName = parseName("unlocked-dep=<my-registry:imagemagick@{<2.0.0}>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(),
-              Validator::Component::ExternName::Kind::UnlockedDep);
-  }
-  // Valid: both bounds.
-  {
-    auto CName =
-        parseName("unlocked-dep=<my-registry:imagemagick@{>=1.0.0 <2.0.0}>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(),
-              Validator::Component::ExternName::Kind::UnlockedDep);
-  }
-  // Invalid cases.
-  EXPECT_FALSE(parseName("unlocked-dep=<MY-REG:sqlite>"sv));
-  EXPECT_FALSE(parseName("unlocked-dep=my-registry:sqlite"sv));
-  EXPECT_FALSE(parseName("unlocked-dep=<:sqlite>"sv));
-  EXPECT_FALSE(parseName("unlocked-dep=<my-registry:>"sv));
-  EXPECT_FALSE(parseName("unlocked-dep=<my-registry:sqlite@{>=bad}>"sv));
-}
-
-TEST(ComponentNameParserTest, UrlName) {
-  // Valid: simple URL.
-  {
-    auto CName = parseName("url=<https://mycdn.com/my-component.wasm>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), Validator::Component::ExternName::Kind::Url);
-    auto &D = CName->getDetail();
-    EXPECT_EQ(D.Url, "https://mycdn.com/my-component.wasm"sv);
-    EXPECT_EQ(D.Integrity, ""sv);
-  }
-  // Valid: URL with integrity.
-  {
-    auto CName =
-        parseName("url=<./other-component.wasm>,integrity=<sha256-X9ArH3k>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), Validator::Component::ExternName::Kind::Url);
-    auto &D = CName->getDetail();
-    EXPECT_EQ(D.Url, "./other-component.wasm"sv);
-    EXPECT_EQ(D.Integrity, "sha256-X9ArH3k"sv);
-  }
-  // Valid: empty URL (nonbrackets = [^<>]*).
-  {
-    auto CName = parseName("url=<>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), Validator::Component::ExternName::Kind::Url);
-  }
-  // Invalid: no angle brackets.
-  EXPECT_FALSE(parseName("url=https://example.com"sv));
-  // Invalid: bad integrity.
-  EXPECT_FALSE(parseName("url=<https://example.com>,integrity=<md5-abc>"sv));
-}
-
-TEST(ComponentNameParserTest, IntegrityName) {
-  // Valid.
-  {
-    auto CName = parseName("integrity=<sha256-abc123>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(),
-              Validator::Component::ExternName::Kind::Integrity);
-    EXPECT_EQ(CName->getDetail().Integrity, "sha256-abc123"sv);
-  }
-  // Invalid: unsupported algorithm.
-  EXPECT_FALSE(parseName("integrity=<md5-abc>"sv));
-  // Invalid: empty.
-  EXPECT_FALSE(parseName("integrity=<>"sv));
 }
 
 TEST(ComponentNameParserTest, Semver) {
@@ -488,46 +360,8 @@ TEST(ComponentNameParserTest, SpecExamples) {
             Validator::Component::ExternName::Kind::Label);
   EXPECT_EQ(parseName("wasi:http/handler"sv)->getKind(),
             Validator::Component::ExternName::Kind::InterfaceType);
-  EXPECT_EQ(parseName("url=<https://mycdn.com/my-component.wasm>"sv)->getKind(),
-            Validator::Component::ExternName::Kind::Url);
-  EXPECT_EQ(
-      parseName("url=<./other-component.wasm>,integrity=<sha256-X9ArH3k>"sv)
-          ->getKind(),
-      Validator::Component::ExternName::Kind::Url);
-  EXPECT_EQ(
-      parseName(
-          "locked-dep=<my-registry:sqlite@1.2.3>,integrity=<sha256-H8BRh8j>"sv)
-          ->getKind(),
-      Validator::Component::ExternName::Kind::LockedDep);
-  EXPECT_EQ(parseName("unlocked-dep=<my-registry:imagemagick@{>=1.0.0}>"sv)
-                ->getKind(),
-            Validator::Component::ExternName::Kind::UnlockedDep);
-  EXPECT_EQ(parseName("integrity=<sha256-Y3BsI4l>"sv)->getKind(),
-            Validator::Component::ExternName::Kind::Integrity);
   EXPECT_EQ(parseName("get-JSON"sv)->getKind(),
             Validator::Component::ExternName::Kind::Label);
-}
-
-TEST(ComponentNameParserTest, StronglyUniqueWithNewKinds) {
-  Validator::Component::TypeSystem Types;
-  Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::ScopeKind::Component);
-  std::vector<Validator::Component::NameRecord> Names;
-
-  auto add = [&](std::string_view S) -> bool {
-    auto CN = parseName(S);
-    if (!CN.has_value()) {
-      return false;
-    }
-    return Ctx.addUniqueName(Names, Ctx.makeNameRecord(*CN), false).has_value();
-  };
-
-  EXPECT_TRUE(add("foo"sv));
-  EXPECT_TRUE(add("locked-dep=<my-registry:sqlite@1.2.3>"sv));
-  EXPECT_TRUE(add("unlocked-dep=<my-registry:imagemagick@{>=1.0.0}>"sv));
-  EXPECT_TRUE(add("url=<https://example.com/pkg.wasm>"sv));
-  EXPECT_TRUE(add("integrity=<sha256-abc123>"sv));
-  EXPECT_TRUE(add("wasi:http/handler"sv));
 }
 
 TEST(ComponentLoaderTest, AsyncFuncType) {
@@ -623,6 +457,23 @@ TEST(ComponentLoaderTest, MalformedResultList) {
   EXPECT_EQ(Res.error().getEnum(), WasmEdge::ErrCode::Value::MalformedDefType);
 }
 
+TEST(ComponentLoaderTest, MalformedTaskReturnResultList) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // task.return takes the functype resultlist: after 0x01 only 0x00 follows.
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
+      0x08, 0x04, 0x01, 0x09, 0x01, 0x01,             // canon section
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error().getEnum(),
+            WasmEdge::ErrCode::Value::MalformedCanonical);
+}
+
 TEST(ComponentLoaderTest, ContextTypeIsACoreValType) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Component);
@@ -652,33 +503,35 @@ TEST(ComponentLoaderTest, ContextTypeIsACoreValType) {
             WasmEdge::ValType(WasmEdge::TypeCode::F32));
 }
 
-TEST(ComponentLoaderTest, NameAttributesKeepEveryExternalId) {
+TEST(ComponentLoaderTest, NameAttributesRejectDuplicateKinds) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Component);
   WasmEdge::Loader::Loader Loader(Conf);
 
-  // Component importing a func named "f" with two external-id attributes.
-  // Both are kept so that the at-most-once rule can be validated.
-  std::vector<uint8_t> Vec = {
-      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
-      0x07, 0x05, 0x01, 0x40, 0x00, 0x01, 0x00,       // functype at index 0
-      0x0a, 0x0d, 0x01, 0x02, 0x01, 0x66, 0x02, 0x02, // import section
-      0x01, 0x61, 0x02, 0x01, 0x62, 0x01, 0x00,
+  // Component importing a func named "f" with two attributes of the given
+  // kind: 0x00 implements, 0x01 versionsuffix, 0x02 external-id.
+  auto Load = [&Loader](uint8_t Kind) {
+    std::vector<uint8_t> Vec = {
+        0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
+        0x07, 0x05, 0x01, 0x40, 0x00, 0x01, 0x00,       // functype at index 0
+        0x0a, 0x0d, 0x01, 0x02, 0x01, 0x66, 0x02, Kind, // import section
+        0x01, 0x61, Kind, 0x01, 0x62, 0x01, 0x00,
+    };
+    return Loader.parseWasmUnit(Vec);
   };
 
-  auto Res = Loader.parseWasmUnit(Vec);
-  ASSERT_TRUE(Res);
-  auto *Comp =
-      std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res);
-  ASSERT_NE(Comp, nullptr);
-  ASSERT_EQ((*Comp)->getSections().size(), 2U);
-  const auto &Sec = std::get<WasmEdge::AST::Component::ImportSection>(
-      (*Comp)->getSections()[1]);
-  ASSERT_EQ(Sec.getContent().size(), 1U);
-  EXPECT_EQ(Sec.getContent()[0].getName(), "f"sv);
-  ASSERT_EQ(Sec.getContent()[0].getExternalIds().size(), 2U);
-  EXPECT_EQ(Sec.getContent()[0].getExternalIds()[0], "a"sv);
-  EXPECT_EQ(Sec.getContent()[0].getExternalIds()[1], "b"sv);
+  auto Res = Load(0x00);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(),
+            WasmEdge::ErrCode::Value::ComponentImplementsDuplicate);
+  Res = Load(0x01);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(),
+            WasmEdge::ErrCode::Value::ComponentVersionSuffixDuplicate);
+  Res = Load(0x02);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(),
+            WasmEdge::ErrCode::Value::ComponentExternalIdDuplicate);
 }
 
 TEST(ComponentLoaderTest, I64ResourceRepNeedsMemory64) {
@@ -770,16 +623,16 @@ TEST(ComponentLoaderTest, ModeratelyNestedComponentTypeAccepted) {
       nullptr);
 }
 
-TEST(ComponentLoaderTest, DeeplyNestedCoreModuleTypeRejected) {
+TEST(ComponentLoaderTest, NestedCoreModuleTypeRejected) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Component);
   WasmEdge::Loader::Loader Loader(Conf);
 
-  // Core module types share the guard.
-  auto Res = Loader.parseWasmUnit(makeNestedCoreModuleType(1000));
+  // A module type cannot declare a nested module type.
+  auto Res = Loader.parseWasmUnit(makeNestedCoreModuleType(2));
   ASSERT_FALSE(Res);
   EXPECT_EQ(Res.error().getEnum(),
-            WasmEdge::ErrCode::Value::ComponentNestLevelExceeded);
+            WasmEdge::ErrCode::Value::MalformedModuleType);
 }
 
 TEST(ComponentLoaderTest, DeeplyNestedComponentRejected) {

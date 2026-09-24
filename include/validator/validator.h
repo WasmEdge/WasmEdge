@@ -21,6 +21,7 @@
 #include "validator/formchecker.h"
 
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {
@@ -123,6 +124,9 @@ private:
                         Component::CoreExternInfo &Out) noexcept;
   Expect<void> validate(const AST::Component::ExternDesc &Desc, bool IsImport,
                         Component::ExternInfo &Out) noexcept;
+  // The external type of an inline core module, into the caller's shape.
+  Expect<void> validate(const AST::Module &Mod,
+                        Component::CoreShape &Out) noexcept;
   // Validate type declaration bodies into the caller-provided shape.
   Expect<void> validate(Span<const AST::Component::CoreModuleDecl> Decls,
                         Component::CoreShape &Out) noexcept;
@@ -136,7 +140,6 @@ private:
   Expect<void> validate(const AST::Component::ComponentDecl &Decl,
                         Component::Shape &Out) noexcept;
   // Validate component value types and type definitions
-  Expect<void> validate(const ComponentValType &VT) noexcept;
   Expect<void> validate(const AST::Component::DefValType &DVT) noexcept;
   Expect<void> validate(const AST::Component::FuncType &FT) noexcept;
   Expect<void> validate(const AST::Component::ResourceType &RT) noexcept;
@@ -149,10 +152,10 @@ private:
   const Configure Conf;
   /// Formal checker
   FormChecker Checker;
-  /// Type system for Component validation
-  Component::TypeSystem CompTypes;
-  /// Per-component state for Component validation
-  Component::Context CompCtx{CompTypes};
+  /// Core-module code sections deferred to the end of the root component.
+  std::vector<std::pair<const AST::Module *, FormChecker>> DeferredModules;
+  /// Checker for Component validation
+  Component::Context CompCtx;
 };
 
 } // namespace Validator

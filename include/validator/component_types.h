@@ -8,9 +8,9 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the component-model type system: the views resolved
-/// over the AST and every operation that is a pure function of a type.
-/// Context is the counterpart and depends on this file, never the reverse.
+/// This file contains the component-model type views resolved over the AST,
+/// the scope holding one component's index spaces, and the subtype relation.
+/// Context is the checker that owns them and depends on this file.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -20,13 +20,13 @@
 #include "ast/component/sort.h"
 #include "ast/component/type.h"
 #include "ast/type.h"
+#include "common/component_valtype.h"
 #include "common/errcode.h"
 #include "common/span.h"
+#include "validator/component_name.h"
 
 #include <cstdint>
-#include <deque>
 #include <map>
-#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -176,14 +176,11 @@ struct ResourceEntry {
 
 /// Import/export name record for the strong-uniqueness rule.
 struct NameRecord {
-  std::string Original;      // the full name as written
-  std::string Stripped;      // annotation removed, acronyms lowercased
-  std::string StrippedExact; // annotation removed, case preserved
-  std::string DottedFirst;   // first label of a dotted annotated name
-  bool HasAnnotation = false;
-  bool IsConstructor = false;
-  bool IsPlainLabel = false;
-  bool IsDottedSame = false; // [*]l.l with the same label twice
+  /// The record of a parsed name: as written, and canonicalized to compare.
+  explicit NameRecord(const ExternName &Name) noexcept;
+
+  std::string Original;  // the full name as written
+  std::string Canonical; // the canonicalized name the rule compares
 };
 
 // ===========================================================================
@@ -318,264 +315,47 @@ struct Scope {
 };
 
 // ===========================================================================
-// The type system: owned storage, the resource registry, and type operations.
+// The subtype relation, resolving its views through the checker.
 // ===========================================================================
 
-class TypeSystem {
-public:
-  // -------------------------------------------------------------------------
-  // Resource registry: index is the identity.
-  // -------------------------------------------------------------------------
-
-  uint32_t nextNameId() noexcept { return NextNameId++; }
-
-  uint32_t addResource(const AST::Component::ResourceType *RT,
-                       const Scope *Origin, bool FromImport) noexcept {
-    uint32_t Id = static_cast<uint32_t>(Resources.size());
-    Resources.push_back({RT, Origin, FromImport, nextNameId()});
-    return Id;
-  }
-
-  const ResourceEntry &getResource(uint32_t Id) const noexcept {
-    assuming(Id < Resources.size());
-    return Resources[Id];
-  }
-
-  // -------------------------------------------------------------------------
-  // Storage the type system owns. Every view holds raw pointers into it.
-  // -------------------------------------------------------------------------
-
-  /// Compose two remaps, Inner first; a leaf table is filled before composed.
-  const ResourceMap *composeRemap(const ResourceMap *Outer,
-                                  const ResourceMap *Inner) noexcept {
-    if (Outer == nullptr) {
-      return Inner;
-    }
-    if (Inner == nullptr) {
-      return Outer;
-    }
-    auto Key = std::make_pair(Outer, Inner);
-    auto It = RemapCompose.find(Key);
-    if (It != RemapCompose.end()) {
-      return It->second;
-    }
-    auto *Node = &OwnedRemaps.emplace_back();
-    // Inner's moves land on their Outer image; Outer-only entries keep theirs.
-    for (const auto &[From, To] : Inner->Map) {
-      Node->Map.emplace(From, Outer->apply(To));
-    }
-    for (const auto &[From, To] : Outer->Map) {
-      Node->Map.emplace(From, To);
-    }
-    RemapCompose.emplace(Key, Node);
-    return Node;
-  }
-
-  /// Resource id denoted by M. If M is absent, Id denotes itself.
-  uint32_t applyRemap(const ResourceMap *M, uint32_t Id) const noexcept {
-    return M != nullptr ? M->apply(Id) : Id;
-  }
-
-  CoreShape *addCoreShape() noexcept { return &OwnedCoreShapes.emplace_back(); }
-  Shape *addShape() noexcept { return &OwnedShapes.emplace_back(); }
-  ResourceMap *addResourceMap() noexcept { return &OwnedRemaps.emplace_back(); }
-
-  /// An owned core function type for canon lower and resource built-in funcs.
-  const AST::SubType *addCoreFuncType(Span<const ValType> Params,
-                                      Span<const ValType> Results) noexcept {
-    OwnedCoreTypes.push_back(
-        std::make_unique<AST::SubType>(AST::FunctionType(Params, Results)));
-    return OwnedCoreTypes.back().get();
-  }
-
-  // -------------------------------------------------------------------------
-  // Resolution: the shared substrate of every walk below.
-  // -------------------------------------------------------------------------
-
-  /// Resolve a valtype's type index to its entry in Storage, nullptr if none.
-  const TypeEntry *resolveQualType(const QualValType &Q,
-                                   TypeEntry &Storage) noexcept;
-  /// The primitive a valtype denotes through aliases; nullopt for composites.
-  std::optional<AST::Component::PrimValType>
-  resolvePrimValType(const QualValType &Q) noexcept;
-  /// Effective resource id behind an own/borrow handle index.
-  std::optional<uint32_t> resolveResourceId(const Scope *Home,
-                                            const ResourceMap *Remap,
-                                            uint32_t Idx) const noexcept;
-
-  /// Calls Func on each nested value type; stream and future payloads excluded.
-  template <typename F>
-  void forEachValType(const AST::Component::DefValType &D, F &&Func) const {
-    if (D.isRecordTy()) {
-      for (const auto &LT : D.getRecord().LabelTypes) {
-        Func(LT.getValType());
-      }
-    } else if (D.isVariantTy()) {
-      for (const auto &[Label, Ty] : D.getVariant().Cases) {
-        if (Ty.has_value()) {
-          Func(*Ty);
-        }
-      }
-    } else if (D.isListTy()) {
-      Func(D.getList().ValTy);
-    } else if (D.isTupleTy()) {
-      for (const auto &Ty : D.getTuple().Types) {
-        Func(Ty);
-      }
-    } else if (D.isMapTy()) {
-      Func(D.getMap().KeyTy);
-      Func(D.getMap().ValTy);
-    } else if (D.isOptionTy()) {
-      Func(D.getOption().ValTy);
-    } else if (D.isResultTy()) {
-      const auto &R = D.getResult();
-      if (R.ValTy.has_value()) {
-        Func(*R.ValTy);
-      }
-      if (R.ErrTy.has_value()) {
-        Func(*R.ErrTy);
-      }
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Resource-id walks.
-  // -------------------------------------------------------------------------
-
-  /// Transitive borrow check on value types.
-  bool containsBorrow(const QualValType &Q) noexcept;
-  /// Collect resource ids reachable from a view (for free-variable rules).
-  void collectResources(const ExternInfo &Info,
-                        std::unordered_set<uint32_t> &Out) noexcept;
-  void collectResources(const QualValType &Q,
-                        std::unordered_set<uint32_t> &Out) noexcept;
-  /// True iff the id originates in S or one of its descendants.
-  bool originatesIn(uint32_t Id, const Scope &S) const noexcept;
-
-  // -------------------------------------------------------------------------
-  // Effective type size and nesting depth.
-  // -------------------------------------------------------------------------
-
-  static inline constexpr const uint64_t MaxTypeSize = 1000000;
-  /// The reference engine bounds value-type nesting at 100.
-  static inline constexpr const uint64_t MaxTypeDepth = 100;
-  uint64_t getTypeSize(const ExternInfo &Info) noexcept;
-  uint64_t getTypeDepth(const ExternInfo &Info) noexcept;
-  /// Both limits over one extern, the pairing every call site needs.
-  Expect<void> checkTypeLimits(const ExternInfo &Info) noexcept;
-
-  // -------------------------------------------------------------------------
-  // Canonical ABI flattening (spec `flatten_functype`).
-  // -------------------------------------------------------------------------
-
-  static inline constexpr const uint32_t MaxFlatParams = 16;
-  static inline constexpr const uint32_t MaxFlatAsyncParams = 4;
-  static inline constexpr const uint32_t MaxFlatResults = 1;
-  /// Flattening ceiling; past the largest limit every consumer replaces it.
-  static inline constexpr const uint32_t MaxFlatExpand = MaxFlatParams + 1;
-  /// Thread-local slots addressable by context.get/context.set.
-  static inline constexpr const uint32_t MaxContextSlots = 2;
-  /// Elements a fixed-length list may declare, as the reference validator.
-  static inline constexpr const uint32_t MaxFixedListElems = 1U << 30;
-
-  /// Appends Q's flat core types to Out, false if invalid; Ptr indexes memory.
-  bool flattenValType(const QualValType &Q, std::vector<ValType> &Out,
-                      const ValType &Ptr) noexcept;
-  /// True iff the type transitively contains a list or string.
-  bool needsMemory(const QualValType &Q) noexcept;
-  /// Flatten a function type; the flags report which side needs a memory.
-  Expect<AST::FunctionType> flattenFuncType(const FuncInfo &FI,
-                                            const ValType &Ptr,
-                                            bool &ParamsNeedMemory,
-                                            bool &ResultsNeedMemory) noexcept;
-
-  // -------------------------------------------------------------------------
-  // Instantiation-time substitution; the instantiation itself lives on Context.
-  // -------------------------------------------------------------------------
-
-  /// Rebuild an instance view with fresh Origin-owned ids for its resources.
-  const Shape *freshenDeclaredResources(const Shape *Inst, const Scope &Origin,
-                                        bool FromImport) noexcept;
-  /// The export view an instantiation produces: CI's exports rebuilt via Node.
-  const Shape *rebuildInstanceExports(const Shape &CI,
-                                      const ResourceMap *Node) noexcept;
-
-  void reset() noexcept {
-    NextNameId = 0;
-    Resources.clear();
-    OwnedCoreShapes.clear();
-    OwnedShapes.clear();
-    OwnedRemaps.clear();
-    RemapCompose.clear();
-    OwnedCoreTypes.clear();
-    TypeSizeMemo.clear();
-    TypeDepthMemo.clear();
-  }
-
-private:
-  void collectResources(const TypeEntry &E,
-                        std::unordered_set<uint32_t> &Out) noexcept;
-  uint64_t getTypeSize(const QualValType &Q) noexcept;
-  uint64_t getTypeSize(const TypeEntry &E) noexcept;
-  uint64_t getTypeDepth(const QualValType &Q) noexcept;
-  uint64_t getTypeDepth(const TypeEntry &E) noexcept;
-  // Memo keeping shape identity within one rebuild; threaded, never stored.
-  using ShapeMemo = std::unordered_map<const Shape *, const Shape *>;
-  ExternInfo rebuildExtern(const ExternInfo &E, const ResourceMap *Node,
-                           ShapeMemo &Memo) noexcept;
-  TypeEntry rebuildTypeEntry(const TypeEntry &E, const ResourceMap *Node,
-                             ShapeMemo &Memo) noexcept;
-  const Shape *rebuildShape(const Shape *S, const ResourceMap *Node,
-                            ShapeMemo &Memo) noexcept;
-
-  uint32_t NextNameId = 0;
-  std::vector<ResourceEntry> Resources;
-  std::deque<CoreShape> OwnedCoreShapes;
-  std::deque<Shape> OwnedShapes;
-  std::deque<ResourceMap> OwnedRemaps;
-  std::map<std::pair<const ResourceMap *, const ResourceMap *>,
-           const ResourceMap *>
-      RemapCompose;
-  std::vector<std::unique_ptr<AST::SubType>> OwnedCoreTypes;
-  std::unordered_map<const void *, uint64_t> TypeSizeMemo;
-  std::unordered_map<const void *, uint64_t> TypeDepthMemo;
-};
-
-// ===========================================================================
-// The subtype relation; one matcher per match, then read substitution/reason.
-// ===========================================================================
+class Context;
 
 class Matcher {
 public:
-  explicit Matcher(TypeSystem &Types) noexcept : Types(Types) {}
-
-  /// MVP subtype relation: structural equality modulo resource identity.
-  bool matchValType(const QualValType &Sub, const QualValType &Sup) noexcept;
-  bool matchValType(const TypeEntry &Sub, const TypeEntry &Sup) noexcept;
-  bool matchExtern(const ExternInfo &Sub, const ExternInfo &Sup) noexcept;
+  /// MVP subtype relation: structural equality modulo resource identity. The
+  /// error is the most specific reason, ArgTypeMismatch when none applies.
+  static Expect<void> matchValType(Context &Ctx, const QualValType &Sub,
+                                   const QualValType &Sup,
+                                   ResourceMap &Subst) noexcept;
+  static Expect<void> matchValType(Context &Ctx, const TypeEntry &Sub,
+                                   const TypeEntry &Sup,
+                                   ResourceMap &Subst) noexcept;
+  /// Subst collects the subtype ids the supertype's abstract resources bind to.
+  static Expect<void> matchExtern(Context &Ctx, const ExternInfo &Sub,
+                                  const ExternInfo &Sup,
+                                  ResourceMap &Subst) noexcept;
   /// Core externs carry no resource identity, so no substitution or reason.
-  bool matchCoreExtern(const CoreExternInfo &Sub,
-                       const CoreExternInfo &Sup) const noexcept;
-
-  /// Most specific reason recorded; a site falls back to its own mismatch code.
-  ErrCode::Value getFailCode() const noexcept { return FailCode; }
-  /// Supertype-side abstract resource ids bound to subtype ids by the match.
-  const ResourceMap &getSubst() const noexcept { return Subst; }
+  static bool matchCoreExtern(const CoreExternInfo &Sub,
+                              const CoreExternInfo &Sup) noexcept;
 
 private:
-  bool matchFunc(const FuncInfo &Sub, const FuncInfo &Sup) noexcept;
-  bool matchTypeEntry(const TypeEntry &Sub, const TypeEntry &Sup) noexcept;
+  static Expect<void> matchFunc(Context &Ctx, const FuncInfo &Sub,
+                                const FuncInfo &Sup,
+                                ResourceMap &Subst) noexcept;
+  static Expect<void> matchTypeEntry(Context &Ctx, const TypeEntry &Sub,
+                                     const TypeEntry &Sup,
+                                     ResourceMap &Subst) noexcept;
   // Instances match on exports only; components match imports contravariantly.
-  bool matchInstanceShape(const Shape &Sub, const Shape &Sup) noexcept;
-  bool matchComponentShape(const Shape &Sub, const Shape &Sup) noexcept;
-  bool matchPrimValType(AST::Component::PrimValType Sub,
-                        AST::Component::PrimValType Sup) noexcept;
-  // Drop a leaf reason. A nested failure reports its position instead.
-  void clearLeafFailCode() noexcept;
-
-  TypeSystem &Types;
-  ResourceMap Subst;
-  ErrCode::Value FailCode = ErrCode::Value::Success;
+  static Expect<void> matchInstanceShape(Context &Ctx, const Shape &Sub,
+                                         const Shape &Sup,
+                                         ResourceMap &Subst) noexcept;
+  static Expect<void> matchComponentShape(Context &Ctx, const Shape &Sub,
+                                          const Shape &Sup,
+                                          ResourceMap &Subst) noexcept;
+  static Expect<void> matchPrimValType(PrimValType Sub,
+                                       PrimValType Sup) noexcept;
+  // A nested failure reports its position; a leaf reason inside a shape drops.
+  static ErrCode getNestedFailCode(ErrCode Code) noexcept;
 };
 
 } // namespace Component

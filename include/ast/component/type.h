@@ -15,7 +15,7 @@
 
 #include "ast/component/declarator.h"
 #include "ast/component/valtype.h"
-#include "common/types.h"
+#include "common/component_valtype.h"
 
 #include <optional>
 #include <variant>
@@ -341,20 +341,6 @@ private:
 // Part 3: FuncType definition.
 // =============================================================================
 
-/// FROM:
-/// https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md#flattening
-///
-/// The number of flattened results is currently limited to 1 due to various
-/// parts of the toolchain (notably the C ABI) not yet being able to express
-/// multi-value returns. Hopefully this limitation is temporary and can be
-/// lifted before the Component Model is fully standardized.
-///
-/// NOTE:
-/// The original resultlist grammar:
-///
-/// resultlist ::= 0x00 t:<valtype>             => (result t)
-///              | 0x01 lt*:vec(<labelvaltype>) => (result lt)*
-
 // functype   ::= 0x40 ps:<paramlist> rs:<resultlist> => (func ps rs)
 //              | 0x43 ps:<paramlist> rs:<resultlist> => (func async ps rs)
 // paramlist  ::= lt*:vec(<labelvaltype>)             => (param lt)*
@@ -365,41 +351,47 @@ private:
 class FuncType {
 public:
   FuncType() noexcept = default;
-  FuncType(const std::vector<LabelValType> &P,
-           const ComponentValType &R) noexcept
-      : ParamList(P), ResultList({R}) {}
-  FuncType(std::vector<LabelValType> &&P, const ComponentValType &R) noexcept
-      : ParamList(std::move(P)), ResultList({R}) {}
-  FuncType(const std::vector<LabelValType> &P,
-           const std::vector<LabelValType> &R) noexcept
-      : ParamList(P), ResultList(R) {}
   FuncType(std::vector<LabelValType> &&P,
-           std::vector<LabelValType> &&R) noexcept
-      : ParamList(std::move(P)), ResultList(std::move(R)) {}
+           std::optional<ComponentValType> R) noexcept
+      : ParamList(std::move(P)), Result(R) {}
 
   Span<const LabelValType> getParamList() const noexcept { return ParamList; }
+  /// The value types of the parameters, in order.
+  std::vector<ComponentValType> getParamValTypes() const noexcept {
+    std::vector<ComponentValType> Types;
+    Types.reserve(ParamList.size());
+    for (const auto &P : ParamList) {
+      Types.push_back(P.getValType());
+    }
+    return Types;
+  }
   void setParamList(std::vector<LabelValType> &&P) noexcept {
     ParamList = std::move(P);
   }
 
-  Span<const LabelValType> getResultList() const noexcept { return ResultList; }
-  void setResultList(std::vector<LabelValType> &&R) noexcept {
-    ResultList = std::move(R);
+  const std::optional<ComponentValType> &getResult() const noexcept {
+    return Result;
   }
-  void setResultList(const ComponentValType &VT) noexcept {
-    ResultList.clear();
-    ResultList.push_back(VT);
+  /// The value type of the result as a list; empty for none.
+  std::vector<ComponentValType> getResultValTypes() const noexcept {
+    std::vector<ComponentValType> Types;
+    if (Result.has_value()) {
+      Types.push_back(*Result);
+    }
+    return Types;
   }
+  void setResult(std::optional<ComponentValType> R) noexcept { Result = R; }
 
   uint32_t getResultArity() const noexcept {
-    return static_cast<uint32_t>(ResultList.size());
+    return Result.has_value() ? UINT32_C(1) : UINT32_C(0);
   }
 
   bool isAsync() const noexcept { return IsAsync; }
   void setAsync(bool A) noexcept { IsAsync = A; }
 
 private:
-  std::vector<LabelValType> ParamList, ResultList;
+  std::vector<LabelValType> ParamList;
+  std::optional<ComponentValType> Result;
   bool IsAsync = false;
 };
 

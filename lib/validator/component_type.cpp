@@ -54,32 +54,11 @@ Expect<void> checkLabel(std::string_view Label,
 
 } // namespace
 
-// valtype ::= i:<typeidx> | pvt:<primvaltype>; the index must be a defvaltype.
-Expect<void> Validator::validate(const ComponentValType &VT) noexcept {
-  if (VT.isPrimValType()) {
-    return {};
-  }
-  const auto *Entry = CompCtx.top().getType(VT.getTypeIndex());
-  if (Entry == nullptr) {
-    spdlog::error(ErrCode::Value::ComponentTypeIndexOutOfBounds);
-    spdlog::error("    Value type index {} out of bounds (size {})."sv,
-                  VT.getTypeIndex(), CompCtx.top().Types.size());
-    return Unexpect(ErrCode::Value::ComponentTypeIndexOutOfBounds);
-  }
-  if (Entry->getDefValType() == nullptr) {
-    spdlog::error(ErrCode::Value::NotADefinedType);
-    spdlog::error("    Value type index {} does not refer to a value type."sv,
-                  VT.getTypeIndex());
-    return Unexpect(ErrCode::Value::NotADefinedType);
-  }
-  return {};
-}
-
 Expect<void>
 Validator::validate(const AST::Component::DefValType &DVT) noexcept {
   std::unordered_set<std::string> Seen;
   if (DVT.isPrimValType()) {
-    return validate(
+    return CompCtx.validate(
         ComponentValType(static_cast<ComponentTypeCode>(DVT.getPrimValType())));
   }
   if (DVT.isRecordTy()) {
@@ -93,7 +72,7 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
       EXPECTED_TRY(checkLabel(LT.getLabel(), Seen, "Record field"sv,
                               ErrCode::Value::RecordFieldNameEmpty,
                               ErrCode::Value::RecordFieldNameConflicts));
-      EXPECTED_TRY(validate(LT.getValType()));
+      EXPECTED_TRY(CompCtx.validate(LT.getValType()));
     }
     return {};
   }
@@ -109,7 +88,7 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
                               ErrCode::Value::VariantCaseNameEmpty,
                               ErrCode::Value::VariantCaseNameConflicts));
       if (Ty.has_value()) {
-        EXPECTED_TRY(validate(*Ty));
+        EXPECTED_TRY(CompCtx.validate(*Ty));
       }
     }
     return {};
@@ -122,14 +101,14 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
     if (List.Len.has_value() &&
-        *List.Len > Component::TypeSystem::MaxFixedListElems) {
+        *List.Len > Component::Context::MaxFixedListElems) {
       spdlog::error(ErrCode::Value::ComponentFixedListTooLarge);
       spdlog::error("    Fixed-length list of {} elements exceeds the limit "
                     "of {}."sv,
-                    *List.Len, Component::TypeSystem::MaxFixedListElems);
+                    *List.Len, Component::Context::MaxFixedListElems);
       return Unexpect(ErrCode::Value::ComponentFixedListTooLarge);
     }
-    return validate(List.ValTy);
+    return CompCtx.validate(List.ValTy);
   }
   if (DVT.isTupleTy()) {
     const auto &Tup = DVT.getTuple();
@@ -139,7 +118,7 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
       return Unexpect(ErrCode::Value::TupleMustHaveType);
     }
     for (const auto &Ty : Tup.Types) {
-      EXPECTED_TRY(validate(Ty));
+      EXPECTED_TRY(CompCtx.validate(Ty));
     }
     return {};
   }
@@ -177,25 +156,25 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
     return {};
   }
   if (DVT.isOptionTy()) {
-    return validate(DVT.getOption().ValTy);
+    return CompCtx.validate(DVT.getOption().ValTy);
   }
   if (DVT.isResultTy()) {
     const auto &Res = DVT.getResult();
     if (Res.ValTy.has_value()) {
-      EXPECTED_TRY(validate(*Res.ValTy));
+      EXPECTED_TRY(CompCtx.validate(*Res.ValTy));
     }
     if (Res.ErrTy.has_value()) {
-      EXPECTED_TRY(validate(*Res.ErrTy));
+      EXPECTED_TRY(CompCtx.validate(*Res.ErrTy));
     }
     return {};
   }
   if (DVT.isOwnTy() || DVT.isBorrowTy()) {
     const uint32_t Idx = DVT.isOwnTy() ? DVT.getOwn().Idx : DVT.getBorrow().Idx;
-    const auto *Entry = CompCtx.top().getType(Idx);
+    const auto *Entry = CompCtx.getTop().getType(Idx);
     if (Entry == nullptr) {
       spdlog::error(ErrCode::Value::ComponentTypeIndexOutOfBounds);
       spdlog::error("    own/borrow type index {} out of bounds (size {})."sv,
-                    Idx, CompCtx.top().Types.size());
+                    Idx, CompCtx.getTop().Types.size());
       return Unexpect(ErrCode::Value::ComponentTypeIndexOutOfBounds);
     }
     if (!Entry->isResource()) {
@@ -217,9 +196,9 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
         spdlog::error("    The stream element type cannot be `char`."sv);
         return Unexpect(ErrCode::Value::ComponentStreamCharInvalid);
       }
-      EXPECTED_TRY(validate(*S.ValTy));
+      EXPECTED_TRY(CompCtx.validate(*S.ValTy));
       // A borrow outlives no call once it is carried by a stream.
-      if (CompTypes.containsBorrow({*S.ValTy, &CompCtx.top(), nullptr})) {
+      if (CompCtx.hasBorrow({*S.ValTy, &CompCtx.getTop(), nullptr})) {
         spdlog::error(ErrCode::Value::ComponentStreamFutureBorrow);
         spdlog::error(
             "    The stream element type cannot contain a `borrow`."sv);
@@ -231,8 +210,8 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
   if (DVT.isFutureTy()) {
     const auto &F = DVT.getFuture();
     if (F.ValTy.has_value()) {
-      EXPECTED_TRY(validate(*F.ValTy));
-      if (CompTypes.containsBorrow({*F.ValTy, &CompCtx.top(), nullptr})) {
+      EXPECTED_TRY(CompCtx.validate(*F.ValTy));
+      if (CompCtx.hasBorrow({*F.ValTy, &CompCtx.getTop(), nullptr})) {
         spdlog::error(ErrCode::Value::ComponentStreamFutureBorrow);
         spdlog::error(
             "    The future element type cannot contain a `borrow`."sv);
@@ -262,8 +241,8 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
       spdlog::error("    Map key type is not one of the key types."sv);
       return Unexpect(ErrCode::Value::ComponentMapKeyType);
     }
-    EXPECTED_TRY(validate(Map.KeyTy));
-    return validate(Map.ValTy);
+    EXPECTED_TRY(CompCtx.validate(Map.KeyTy));
+    return CompCtx.validate(Map.ValTy);
   }
   spdlog::error(ErrCode::Value::ComponentNotImplValidator);
   spdlog::error("    This defined value type is not supported yet."sv);
@@ -281,11 +260,11 @@ Expect<void> Validator::validate(const AST::Component::FuncType &FT) noexcept {
     EXPECTED_TRY(checkLabel(Param.getLabel(), Seen, "Function parameter"sv,
                             ErrCode::Value::FuncParamNameEmpty,
                             ErrCode::Value::FuncParamNameConflict));
-    EXPECTED_TRY(validate(Param.getValType()));
+    EXPECTED_TRY(CompCtx.validate(Param.getValType()));
   }
   if (const auto &Result = FT.getResult(); Result.has_value()) {
-    EXPECTED_TRY(validate(*Result));
-    if (CompTypes.containsBorrow({*Result, &CompCtx.top(), nullptr})) {
+    EXPECTED_TRY(CompCtx.validate(*Result));
+    if (CompCtx.hasBorrow({*Result, &CompCtx.getTop(), nullptr})) {
       spdlog::error(ErrCode::Value::FuncResultContainsBorrow);
       spdlog::error("    Function results cannot contain borrow handles."sv);
       return Unexpect(ErrCode::Value::FuncResultContainsBorrow);
@@ -296,7 +275,7 @@ Expect<void> Validator::validate(const AST::Component::FuncType &FT) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::ResourceType &RT) noexcept {
-  if (CompCtx.top().Kind != Component::ScopeKind::Component) {
+  if (CompCtx.getTop().Kind != Component::ScopeKind::Component) {
     spdlog::error(ErrCode::Value::ComponentResourceOutsideComponent);
     spdlog::error(
         "    Resource types cannot be defined in component or instance types."sv);
@@ -309,7 +288,7 @@ Validator::validate(const AST::Component::ResourceType &RT) noexcept {
   }
   if (RT.getDestructor().has_value()) {
     const uint32_t Idx = *RT.getDestructor();
-    const auto *Dtor = CompCtx.top().getCoreFunc(Idx);
+    const auto *Dtor = CompCtx.getTop().getCoreFunc(Idx);
     if (Dtor == nullptr) {
       spdlog::error(ErrCode::Value::ComponentFunctionIndexOutOfBounds);
       spdlog::error("    Destructor core function index {} out of bounds."sv,
@@ -336,7 +315,7 @@ Validator::validate(const AST::Component::ResourceType &RT) noexcept {
 Expect<void>
 Validator::validate(const AST::Component::CoreDefType &DType) noexcept {
   if (DType.isRecType()) {
-    auto &S = CompCtx.top();
+    auto &S = CompCtx.getTop();
     const auto STypes = DType.getSubTypes();
     const uint32_t BaseIdx = static_cast<uint32_t>(S.CoreTypes.size());
     // The whole group is added first so its members may reference each other.
@@ -393,9 +372,9 @@ Validator::validate(const AST::Component::CoreDefType &DType) noexcept {
     }
     return {};
   }
-  auto *Shape = CompTypes.addCoreShape();
+  auto *Shape = CompCtx.addCoreShape();
   EXPECTED_TRY(validate(DType.getModuleType(), *Shape));
-  CompCtx.top().addCoreType({nullptr, Shape});
+  CompCtx.getTop().addCoreType({nullptr, Shape});
   return {};
 }
 
@@ -403,54 +382,54 @@ Expect<void>
 Validator::validate(const AST::Component::DefType &DType) noexcept {
   if (DType.isDefValType()) {
     EXPECTED_TRY(validate(DType.getDefValType()));
-    auto &S = CompCtx.top();
+    auto &S = CompCtx.getTop();
     // The Canonical ABI bounds the element size of every defvaltype.
     const uint64_t Size =
-        CompTypes.getElemLayout(DType.getDefValType(), &S, nullptr).first;
-    if (Size >= Component::TypeSystem::MaxElemSize) {
+        CompCtx.getElemLayout(DType.getDefValType(), &S, nullptr).first;
+    if (Size >= Component::Context::MaxElemSize) {
       spdlog::error(ErrCode::Value::ComponentValueSizeTooLarge);
       spdlog::error("    Value type of {} bytes reaches the limit of {}."sv,
-                    Size, Component::TypeSystem::MaxElemSize);
+                    Size, Component::Context::MaxElemSize);
       return Unexpect(ErrCode::Value::ComponentValueSizeTooLarge);
     }
     Component::TypeEntry Entry{&DType, &S};
-    Entry.NameId = CompTypes.nextNameId();
+    Entry.NameId = CompCtx.nextNameId();
     S.addType(Entry);
   } else if (DType.isFuncType()) {
     EXPECTED_TRY(validate(DType.getFuncType()));
-    auto &S = CompCtx.top();
+    auto &S = CompCtx.getTop();
     S.addType({&DType, &S});
   } else if (DType.isResourceType()) {
     EXPECTED_TRY(validate(DType.getResourceType()));
-    auto &S = CompCtx.top();
+    auto &S = CompCtx.getTop();
     const uint32_t Id =
-        CompTypes.addResource(&DType.getResourceType(), &S, false);
+        CompCtx.addResource(&DType.getResourceType(), &S, false);
     Component::TypeEntry Entry{&DType, &S};
     Entry.ResourceId = Id;
-    Entry.NameId = CompTypes.getResource(Id).NameId;
+    Entry.NameId = CompCtx.getResource(Id).NameId;
     S.addType(Entry);
   } else if (DType.isInstanceType()) {
-    auto *Shape = CompTypes.addShape();
+    auto *Shape = CompCtx.addShape();
     EXPECTED_TRY(validate(DType.getInstanceType(), *Shape));
-    auto &S = CompCtx.top();
+    auto &S = CompCtx.getTop();
     Component::TypeEntry Entry{&DType, &S};
     Entry.Inst = Shape;
     S.addType(Entry);
   } else if (DType.isComponentType()) {
-    auto *Shape = CompTypes.addShape();
+    auto *Shape = CompCtx.addShape();
     EXPECTED_TRY(validate(DType.getComponentType(), *Shape));
-    auto &S = CompCtx.top();
+    auto &S = CompCtx.getTop();
     Component::TypeEntry Entry{&DType, &S};
     Entry.Comp = Shape;
     S.addType(Entry);
   }
   // Effective type-size limit on the freshly defined entry.
   {
-    auto &S = CompCtx.top();
+    auto &S = CompCtx.getTop();
     Component::ExternInfo Probe;
     Probe.Kind = Component::ExternKind::TypeBound;
     Probe.Type = S.Types.back();
-    EXPECTED_TRY(CompTypes.checkTypeLimits(Probe));
+    EXPECTED_TRY(CompCtx.checkTypeLimits(Probe));
   }
   return {};
 }
@@ -461,11 +440,11 @@ Expect<void> Validator::validate(const AST::Component::CoreImportDesc &Desc,
   Out.Kind = Desc.getExternalType();
   switch (Out.Kind) {
   case ExternalType::Function: {
-    const auto *Entry = CompCtx.top().getCoreType(Desc.getTypeIndex());
+    const auto *Entry = CompCtx.getTop().getCoreType(Desc.getTypeIndex());
     if (Entry == nullptr) {
       spdlog::error(ErrCode::Value::ComponentTypeIndexOutOfBounds);
       spdlog::error("    Core type index {} out of bounds (size {})."sv,
-                    Desc.getTypeIndex(), CompCtx.top().CoreTypes.size());
+                    Desc.getTypeIndex(), CompCtx.getTop().CoreTypes.size());
       return Unexpect(ErrCode::Value::ComponentTypeIndexOutOfBounds);
     }
     if (Entry->Func == nullptr || !Entry->Func->getCompositeType().isFunc()) {
@@ -494,7 +473,7 @@ Expect<void> Validator::validate(const AST::Component::CoreImportDesc &Desc,
   }
   case ExternalType::Tag: {
     const uint32_t Idx = Desc.getTagType().getTypeIdx();
-    const auto *Entry = CompCtx.top().getCoreType(Idx);
+    const auto *Entry = CompCtx.getTop().getCoreType(Idx);
     if (Entry == nullptr) {
       spdlog::error(ErrCode::Value::DefTypeIndexOutOfBounds);
       spdlog::error("    Tag type index {} out of bounds."sv, Idx);
@@ -520,7 +499,7 @@ Expect<void> Validator::validate(const AST::Component::CoreImportDesc &Desc,
 Expect<void>
 Validator::validate(Span<const AST::Component::CoreModuleDecl> Decls,
                     Component::CoreShape &Out) noexcept {
-  CompCtx.enterScope(Component::ScopeKind::ModuleType);
+  CompCtx.pushScope(Component::ScopeKind::ModuleType);
   for (const auto &Decl : Decls) {
     if (Decl.isImport()) {
       const auto &Imp = Decl.getImport();
@@ -557,14 +536,14 @@ Validator::validate(Span<const AST::Component::CoreModuleDecl> Decls,
       }
     }
   }
-  CompCtx.exitScope();
+  CompCtx.popScope();
   return {};
 }
 
 // core:alias in a moduletype: an outer alias of a non-module core type.
 Expect<void>
 Validator::validate(const AST::Component::CoreAlias &Alias) noexcept {
-  const auto *Target = CompCtx.scopeUp(Alias.getComponentJump());
+  const auto *Target = CompCtx.getScope(Alias.getComponentJump());
   if (Target == nullptr) {
     spdlog::error(ErrCode::Value::InvalidIndex);
     spdlog::error("    Outer alias count {} exceeds enclosing scopes."sv,
@@ -583,13 +562,13 @@ Validator::validate(const AST::Component::CoreAlias &Alias) noexcept {
     spdlog::error("    Module types cannot be aliased into module types."sv);
     return Unexpect(ErrCode::Value::InvalidTypeReference);
   }
-  CompCtx.top().addCoreType(*Entry);
+  CompCtx.getTop().addCoreType(*Entry);
   return {};
 }
 
 Expect<void> Validator::validate(const AST::Component::InstanceType &IT,
                                  Component::Shape &Out) noexcept {
-  auto &S = CompCtx.enterScope(Component::ScopeKind::InstanceType);
+  auto &S = CompCtx.pushScope(Component::ScopeKind::InstanceType);
   Out.DeclScope = &S;
   for (const auto &Decl : IT.getDecl()) {
     const auto Before = Out.Exports.size();
@@ -598,18 +577,18 @@ Expect<void> Validator::validate(const AST::Component::InstanceType &IT,
       Out.ExportOrder.emplace_back(Decl.getExport().getName());
     }
   }
-  CompCtx.exitScope();
+  CompCtx.popScope();
   return {};
 }
 
 Expect<void> Validator::validate(const AST::Component::ComponentType &CT,
                                  Component::Shape &Out) noexcept {
-  auto &S = CompCtx.enterScope(Component::ScopeKind::ComponentType);
+  auto &S = CompCtx.pushScope(Component::ScopeKind::ComponentType);
   Out.DeclScope = &S;
   for (const auto &Decl : CT.getDecl()) {
     EXPECTED_TRY(validate(Decl, Out));
   }
-  CompCtx.exitScope();
+  CompCtx.popScope();
   return {};
 }
 
@@ -641,19 +620,19 @@ Expect<void> Validator::validate(const AST::Component::InstanceDecl &Decl,
     Component::ExternInfo Info;
     EXPECTED_TRY(validate(ED.getExternDesc(), false, Info));
     if (Info.Kind == Component::ExternKind::InstanceType) {
-      Info.Shape = CompCtx.freshenDeclaredResources(Info.Shape, false);
+      Info.Shape = CompCtx.copyDeclaredResources(Info.Shape, false);
     }
     EXPECTED_TRY(Component::ExternName CN,
                  CompCtx.parseExternName(ED.getName(), false));
-    EXPECTED_TRY(CompCtx.addUniqueName(CompCtx.top().ExportSide.Names,
-                                       CompCtx.makeNameRecord(CN), false));
-    CompCtx.defineExtern(Info);
+    EXPECTED_TRY(CompCtx.addUniqueName(CompCtx.getTop().ExportSide.Names,
+                                       Component::NameRecord(CN), false));
+    CompCtx.addExtern(Info);
     EXPECTED_TRY(CompCtx.checkNamedTypesRule(Info, false));
     EXPECTED_TRY(CompCtx.checkAnnotatedName(CN, Info, false));
     EXPECTED_TRY(CompCtx.checkNameAttributes(
         CN, ED.getImplements(), ED.getVersionSuffixes(),
         Info.Kind == Component::ExternKind::InstanceType));
-    CompCtx.recordResourceLabel(CN, Info, false);
+    CompCtx.addResourceLabel(CN, Info, false);
     Exports.emplace(std::string(ED.getName()), Info);
     return {};
   }
@@ -667,9 +646,9 @@ Expect<void> Validator::validate(const AST::Component::ComponentDecl &Decl,
     const auto &ID = Decl.getImport();
     Component::ExternInfo Resolved;
     EXPECTED_TRY(validate(ID.getExternDesc(), true, Resolved));
-    EXPECTED_TRY(auto Ext, CompCtx.defineImport(ID.getName(), Resolved,
-                                                ID.getImplements(),
-                                                ID.getVersionSuffixes()));
+    EXPECTED_TRY(auto Ext,
+                 CompCtx.addImport(ID.getName(), Resolved, ID.getImplements(),
+                                   ID.getVersionSuffixes()));
     Out.Imports.emplace_back(std::string(ID.getName()), Ext);
     return {};
   }
@@ -681,7 +660,7 @@ Expect<void> Validator::validate(const AST::Component::ExternDesc &Desc,
                                  bool IsImport,
                                  Component::ExternInfo &Out) noexcept {
   Out.Kind = Desc.getDescType();
-  auto &S = CompCtx.top();
+  auto &S = CompCtx.getTop();
   switch (Out.Kind) {
   case AST::Component::ExternDesc::DescType::CoreType: {
     const auto *Entry = S.getCoreType(Desc.getTypeIndex());
@@ -733,7 +712,7 @@ Expect<void> Validator::validate(const AST::Component::ExternDesc &Desc,
       Out.Value = S.Values[Idx].Type;
       return {};
     }
-    EXPECTED_TRY(validate(Desc.getValType()));
+    EXPECTED_TRY(CompCtx.validate(Desc.getValType()));
     Out.Value = {Desc.getValType(), &S, nullptr};
     return {};
   }
@@ -748,15 +727,15 @@ Expect<void> Validator::validate(const AST::Component::ExternDesc &Desc,
       }
       Out.Type = *Entry;
       // The created index carries a fresh naming identity.
-      Out.Type.NameId = CompTypes.nextNameId();
+      Out.Type.NameId = CompCtx.nextNameId();
       return {};
     }
     // (sub resource): fresh abstract resource type.
-    const uint32_t Id = CompTypes.addResource(nullptr, &S, IsImport);
+    const uint32_t Id = CompCtx.addResource(nullptr, &S, IsImport);
     Component::TypeEntry Bound;
     Bound.Home = &S;
     Bound.ResourceId = Id;
-    Bound.NameId = CompTypes.getResource(Id).NameId;
+    Bound.NameId = CompCtx.getResource(Id).NameId;
     Out.Type = Bound;
     return {};
   }

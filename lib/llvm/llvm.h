@@ -827,6 +827,10 @@ public:
   unsigned int countBasicBlocks() noexcept { return LLVMCountBasicBlocks(Ref); }
 
   Type getType() const noexcept { return LLVMTypeOf(Ref); }
+  void replaceAllUsesWith(Value NewVal) noexcept {
+    LLVMReplaceAllUsesWith(Ref, NewVal.unwrap());
+  }
+  void eraseFromParent() noexcept { LLVMInstructionEraseFromParent(Ref); }
   Value getInitializer() noexcept { return LLVMGetInitializer(Ref); }
   void setInitializer(Value ConstantVal) noexcept {
     LLVMSetInitializer(Ref, ConstantVal.unwrap());
@@ -1168,6 +1172,9 @@ public:
 
   void positionAtEnd(BasicBlock B) noexcept {
     LLVMPositionBuilderAtEnd(Ref, B.unwrap());
+  }
+  void positionBefore(Value Instr) noexcept {
+    LLVMPositionBuilderBefore(Ref, Instr.unwrap());
   }
   BasicBlock getInsertBlock() noexcept { return LLVMGetInsertBlock(Ref); }
 

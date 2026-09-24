@@ -71,7 +71,7 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
       for (size_t I = 0; I < ArgSize; ++I) {
         ArgsVec[ArgSize - I - 1] = stackPop();
       }
-      Args = Builder.createArray(ArgSize, LLVM::kValSize);
+      Args = getTmpValues(ArgSize);
       Builder.createArrayPtrStore(ArgsVec, Args, Context.Int8Ty,
                                   LLVM::kValSize);
     } else {
@@ -104,7 +104,7 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
     auto IsSigned = (Instr.getOpCode() == OpCode::Struct__get_s)
                         ? LLContext.getInt8(1)
                         : LLContext.getInt8(0);
-    LLVM::Value Ret = Builder.createAlloca(Context.Int64x2Ty);
+    LLVM::Value Ret = getTmpValues(1);
     Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kStructGet,
@@ -155,7 +155,7 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
   case OpCode::Struct__set: {
     auto Val = stackPop();
     auto Ref = stackPop();
-    LLVM::Value Arg = Builder.createAlloca(Context.Int64x2Ty);
+    LLVM::Value Arg = getTmpValues(1);
     Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
     Builder.createCall(
         Context.getIntrinsic(
@@ -173,7 +173,7 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
   case OpCode::Array__new: {
     auto Length = stackPop();
     auto Val = stackPop();
-    LLVM::Value Arg = Builder.createAlloca(Context.Int64x2Ty);
+    LLVM::Value Arg = getTmpValues(1);
     Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
     stackPush(Builder.createCall(
         Context.getIntrinsic(
@@ -210,7 +210,7 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
     for (size_t I = 0; I < ArgSize; ++I) {
       ArgsVec[ArgSize - I - 1] = stackPop();
     }
-    LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
+    LLVM::Value Args = getTmpValues(ArgSize);
     Builder.createArrayPtrStore(ArgsVec, Args, Context.Int8Ty, LLVM::kValSize);
     stackPush(Builder.createCall(
         Context.getIntrinsic(
@@ -259,7 +259,7 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
     auto IsSigned = (Instr.getOpCode() == OpCode::Array__get_s)
                         ? LLContext.getInt8(1)
                         : LLContext.getInt8(0);
-    LLVM::Value Ret = Builder.createAlloca(Context.Int64x2Ty);
+    LLVM::Value Ret = getTmpValues(1);
     Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kArrayGet,
@@ -310,7 +310,7 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
     auto Val = stackPop();
     auto Idx = stackPop();
     auto Ref = stackPop();
-    LLVM::Value Arg = Builder.createAlloca(Context.Int64x2Ty);
+    LLVM::Value Arg = getTmpValues(1);
     Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
     Builder.createCall(
         Context.getIntrinsic(
@@ -338,7 +338,7 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
     auto Val = stackPop();
     auto Off = stackPop();
     auto Ref = stackPop();
-    LLVM::Value Arg = Builder.createAlloca(Context.Int64x2Ty);
+    LLVM::Value Arg = getTmpValues(1);
     Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
     Builder.createCall(
         Context.getIntrinsic(

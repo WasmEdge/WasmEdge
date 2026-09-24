@@ -238,6 +238,8 @@ private:
 
   LLVM::BasicBlock getEHDispatchTarget() noexcept;
 
+  LLVM::Value getTmpValues(size_t Num) noexcept;
+
   void stackPush(LLVM::Value Value) noexcept { Stack.push_back(Value); }
   LLVM::Value stackPop() noexcept;
 
@@ -253,6 +255,9 @@ private:
   // Only entry-block allocas become static frame slots; one inside a loop body
   // grows the native stack on every iteration.
   LLVM::Value CalleeCtxSlot = nullptr;
+  // Entry-block buffer for the temporary values passed to or from the runtime.
+  LLVM::Value TmpValues = nullptr;
+  size_t TmpValuesSize = 0;
   std::unordered_map<ErrCode::Value, LLVM::BasicBlock> TrapBB;
   bool IsUnreachable = false;
   bool Interruptible = false;

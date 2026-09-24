@@ -658,8 +658,8 @@ Expect<FlatFuncType> flattenFuncType(const CanonCtx &Cx,
   }
 
   // Flatten results.
-  for (const auto &R : FT.getResultList()) {
-    EXPECTED_TRY(auto Sub, flattenType(Cx, R.getValType()));
+  if (const auto &R = FT.getResult(); R.has_value()) {
+    EXPECTED_TRY(auto Sub, flattenType(Cx, *R));
     F.Results.insert(F.Results.end(), Sub.begin(), Sub.end());
   }
 

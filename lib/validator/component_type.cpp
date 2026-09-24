@@ -283,20 +283,9 @@ Expect<void> Validator::validate(const AST::Component::FuncType &FT) noexcept {
                             ErrCode::Value::FuncParamNameConflict));
     EXPECTED_TRY(validate(Param.getValType()));
   }
-  if (FT.getResultList().size() > 1) {
-    spdlog::error(ErrCode::Value::InvalidTypeReference);
-    spdlog::error("    Function types may have at most one result."sv);
-    return Unexpect(ErrCode::Value::InvalidTypeReference);
-  }
-  for (const auto &Result : FT.getResultList()) {
-    if (!Result.getLabel().empty()) {
-      spdlog::error(ErrCode::Value::InvalidTypeReference);
-      spdlog::error("    Function results cannot be named."sv);
-      return Unexpect(ErrCode::Value::InvalidTypeReference);
-    }
-    EXPECTED_TRY(validate(Result.getValType()));
-    if (CompTypes.containsBorrow(
-            {Result.getValType(), &CompCtx.top(), nullptr})) {
+  if (const auto &Result = FT.getResult(); Result.has_value()) {
+    EXPECTED_TRY(validate(*Result));
+    if (CompTypes.containsBorrow({*Result, &CompCtx.top(), nullptr})) {
       spdlog::error(ErrCode::Value::FuncResultContainsBorrow);
       spdlog::error("    Function results cannot contain borrow handles."sv);
       return Unexpect(ErrCode::Value::FuncResultContainsBorrow);
@@ -415,6 +404,15 @@ Validator::validate(const AST::Component::DefType &DType) noexcept {
   if (DType.isDefValType()) {
     EXPECTED_TRY(validate(DType.getDefValType()));
     auto &S = CompCtx.top();
+    // The Canonical ABI bounds the element size of every defvaltype.
+    const uint64_t Size =
+        CompTypes.getElemLayout(DType.getDefValType(), &S, nullptr).first;
+    if (Size >= Component::TypeSystem::MaxElemSize) {
+      spdlog::error(ErrCode::Value::ComponentValueSizeTooLarge);
+      spdlog::error("    Value type of {} bytes reaches the limit of {}."sv,
+                    Size, Component::TypeSystem::MaxElemSize);
+      return Unexpect(ErrCode::Value::ComponentValueSizeTooLarge);
+    }
     Component::TypeEntry Entry{&DType, &S};
     Entry.NameId = CompTypes.nextNameId();
     S.addType(Entry);
@@ -544,12 +542,6 @@ Validator::validate(Span<const AST::Component::CoreModuleDecl> Decls,
         spdlog::error(ErrCode::Value::InvalidTypeReference);
         return Unexpect(ErrCode::Value::InvalidTypeReference);
       }
-      // MVP: module types cannot define nested module types.
-      if (T->isModuleType()) {
-        spdlog::error(ErrCode::Value::InvalidTypeReference);
-        spdlog::error("    Module types cannot define nested module types."sv);
-        return Unexpect(ErrCode::Value::InvalidTypeReference);
-      }
       EXPECTED_TRY(validate(*T));
     } else if (Decl.isAlias()) {
       EXPECTED_TRY(validate(Decl.getAlias()));
@@ -659,7 +651,7 @@ Expect<void> Validator::validate(const AST::Component::InstanceDecl &Decl,
     EXPECTED_TRY(CompCtx.checkNamedTypesRule(Info, false));
     EXPECTED_TRY(CompCtx.checkAnnotatedName(CN, Info, false));
     EXPECTED_TRY(CompCtx.checkNameAttributes(
-        CN, ED.getImplements(), ED.getExternalIds(), ED.getVersionSuffixes(),
+        CN, ED.getImplements(), ED.getVersionSuffixes(),
         Info.Kind == Component::ExternKind::InstanceType));
     CompCtx.recordResourceLabel(CN, Info, false);
     Exports.emplace(std::string(ED.getName()), Info);
@@ -675,9 +667,9 @@ Expect<void> Validator::validate(const AST::Component::ComponentDecl &Decl,
     const auto &ID = Decl.getImport();
     Component::ExternInfo Resolved;
     EXPECTED_TRY(validate(ID.getExternDesc(), true, Resolved));
-    EXPECTED_TRY(auto Ext, CompCtx.defineImport(
-                               ID.getName(), Resolved, ID.getImplements(),
-                               ID.getExternalIds(), ID.getVersionSuffixes()));
+    EXPECTED_TRY(auto Ext, CompCtx.defineImport(ID.getName(), Resolved,
+                                                ID.getImplements(),
+                                                ID.getVersionSuffixes()));
     Out.Imports.emplace_back(std::string(ID.getName()), Ext);
     return {};
   }

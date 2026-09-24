@@ -27,7 +27,7 @@ CanonLowerHostFunc::CanonLowerHostFunc(
       // in that case FlatSig.Results is empty (spec L2829-2831) while the
       // callee still has result types.
       HasOutPtr(FlatSig.Results.empty() &&
-                !CalleeIn->getFuncType().getResultList().empty()),
+                CalleeIn->getFuncType().getResult().has_value()),
       Enc(EncIn) {
   // Populate DefType from the pre-flighted flat ABI signature.
   auto &FT = DefType.getCompositeType().getFuncType();
@@ -59,9 +59,8 @@ Expect<void> CanonLowerHostFunc::run(const Runtime::CallingFrame &,
     ParamTypes.push_back(P.getValType());
   }
   std::vector<ComponentValType> ResultTypes;
-  ResultTypes.reserve(CFT.getResultList().size());
-  for (const auto &R : CFT.getResultList()) {
-    ResultTypes.push_back(R.getValType());
+  if (const auto &R = CFT.getResult(); R.has_value()) {
+    ResultTypes.push_back(*R);
   }
 
   // Spec L2829-2831: if flat_results > MAX_FLAT_RESULTS, params += [ptr];

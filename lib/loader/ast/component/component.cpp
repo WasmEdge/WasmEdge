@@ -12,7 +12,7 @@ Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> Loader::loadPreamble() {
   // component ::= <preamble> s*:<section>* => (component flatten(s*))
   // preamble  ::= <magic> <version> <layer>
   // magic     ::= 0x00 0x61 0x73 0x6D
-  // version   ::= 0x0a 0x00
+  // version   ::= 0x0d 0x00
   // layer     ::= 0x01 0x00
 
   // The combination of version and layer corresponds to the version of core

@@ -176,14 +176,8 @@ struct ResourceEntry {
 
 /// Import/export name record for the strong-uniqueness rule.
 struct NameRecord {
-  std::string Original;      // the full name as written
-  std::string Stripped;      // annotation removed, acronyms lowercased
-  std::string StrippedExact; // annotation removed, case preserved
-  std::string DottedFirst;   // first label of a dotted annotated name
-  bool HasAnnotation = false;
-  bool IsConstructor = false;
-  bool IsPlainLabel = false;
-  bool IsDottedSame = false; // [*]l.l with the same label twice
+  std::string Original;  // the full name as written
+  std::string Canonical; // the canonicalized name the rule compares
 };
 
 // ===========================================================================
@@ -465,6 +459,18 @@ public:
   Expect<void> checkTypeLimits(const ExternInfo &Info) noexcept;
 
   // -------------------------------------------------------------------------
+  // Canonical ABI layout (spec `elem_size` and `alignment`, 64-bit pointers).
+  // -------------------------------------------------------------------------
+
+  /// Every defvaltype's element size must stay below this bound.
+  static inline constexpr const uint64_t MaxElemSize = UINT64_C(1) << 28;
+  /// The element size and alignment of a value type.
+  std::pair<uint64_t, uint64_t> getElemLayout(const QualValType &Q) noexcept;
+  std::pair<uint64_t, uint64_t>
+  getElemLayout(const AST::Component::DefValType &D, const Scope *Home,
+                const ResourceMap *Remap) noexcept;
+
+  // -------------------------------------------------------------------------
   // Canonical ABI flattening (spec `flatten_functype`).
   // -------------------------------------------------------------------------
 
@@ -510,6 +516,7 @@ public:
     OwnedCoreTypes.clear();
     TypeSizeMemo.clear();
     TypeDepthMemo.clear();
+    ElemLayoutMemo.clear();
   }
 
 private:
@@ -539,6 +546,8 @@ private:
   std::vector<std::unique_ptr<AST::SubType>> OwnedCoreTypes;
   std::unordered_map<const void *, uint64_t> TypeSizeMemo;
   std::unordered_map<const void *, uint64_t> TypeDepthMemo;
+  std::unordered_map<const void *, std::pair<uint64_t, uint64_t>>
+      ElemLayoutMemo;
 };
 
 // ===========================================================================

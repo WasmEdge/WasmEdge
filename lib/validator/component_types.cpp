@@ -156,8 +156,8 @@ void TypeSystem::collectResources(const ExternInfo &Info,
     for (const auto &P : Info.Func.FT->getParamList()) {
       collectResources({P.getValType(), Info.Func.Home, Info.Func.Remap}, Out);
     }
-    for (const auto &R : Info.Func.FT->getResultList()) {
-      collectResources({R.getValType(), Info.Func.Home, Info.Func.Remap}, Out);
+    if (const auto &R = Info.Func.FT->getResult(); R.has_value()) {
+      collectResources({*R, Info.Func.Home, Info.Func.Remap}, Out);
     }
     return;
   }
@@ -193,8 +193,8 @@ void TypeSystem::collectResources(const ExternInfo &Info,
       for (const auto &P : FT->getParamList()) {
         collectResources({P.getValType(), E.Home, E.Remap}, Out);
       }
-      for (const auto &R : FT->getResultList()) {
-        collectResources({R.getValType(), E.Home, E.Remap}, Out);
+      if (const auto &R = FT->getResult(); R.has_value()) {
+        collectResources({*R, E.Home, E.Remap}, Out);
       }
     }
     return;
@@ -284,8 +284,8 @@ uint64_t TypeSystem::getTypeSize(const ExternInfo &Info) noexcept {
     for (const auto &P : Info.Func.FT->getParamList()) {
       Size += getTypeSize({P.getValType(), Info.Func.Home, Info.Func.Remap});
     }
-    for (const auto &R : Info.Func.FT->getResultList()) {
-      Size += getTypeSize({R.getValType(), Info.Func.Home, Info.Func.Remap});
+    if (const auto &R = Info.Func.FT->getResult(); R.has_value()) {
+      Size += getTypeSize({*R, Info.Func.Home, Info.Func.Remap});
     }
     TypeSizeMemo.emplace(Info.Func.FT, Size);
     return Size;
@@ -357,6 +357,133 @@ uint64_t TypeSystem::getTypeSize(const ExternInfo &Info) noexcept {
   return 1;
 }
 
+// Element size and alignment of a value type, as the Canonical ABI lays it
+// out in a 64-bit memory.
+std::pair<uint64_t, uint64_t>
+TypeSystem::getElemLayout(const QualValType &Q) noexcept {
+  if (Q.VT.isPrimValType()) {
+    switch (static_cast<AST::Component::PrimValType>(Q.VT.getCode())) {
+    case AST::Component::PrimValType::Bool:
+    case AST::Component::PrimValType::S8:
+    case AST::Component::PrimValType::U8:
+      return {1, 1};
+    case AST::Component::PrimValType::S16:
+    case AST::Component::PrimValType::U16:
+      return {2, 2};
+    case AST::Component::PrimValType::S64:
+    case AST::Component::PrimValType::U64:
+    case AST::Component::PrimValType::F64:
+      return {8, 8};
+    case AST::Component::PrimValType::String:
+      return {16, 8};
+    default:
+      return {4, 4};
+    }
+  }
+  TypeEntry Storage;
+  const auto *Entry = resolveQualType(Q, Storage);
+  const auto *Def = Entry != nullptr ? Entry->getDefValType() : nullptr;
+  if (Def == nullptr) {
+    return {4, 4};
+  }
+  return getElemLayout(*Def, Entry->Home, Entry->Remap);
+}
+
+std::pair<uint64_t, uint64_t>
+TypeSystem::getElemLayout(const AST::Component::DefValType &D,
+                          const Scope *Home,
+                          const ResourceMap *Remap) noexcept {
+  if (D.isPrimValType()) {
+    return getElemLayout(
+        {ComponentValType(static_cast<ComponentTypeCode>(D.getPrimValType())),
+         Home, Remap});
+  }
+  auto It = ElemLayoutMemo.find(&D);
+  if (It != ElemLayoutMemo.end()) {
+    return It->second;
+  }
+  auto AlignTo = [](uint64_t Ptr, uint64_t Align) noexcept {
+    return (Ptr + Align - 1) / Align * Align;
+  };
+  auto Layout = [&](const ComponentValType &VT) noexcept {
+    return getElemLayout({VT, Home, Remap});
+  };
+  // A record lays its fields out in order.
+  auto RecordLayout = [&](const auto &Fields) noexcept {
+    uint64_t Size = 0;
+    uint64_t Align = 1;
+    for (const auto &VT : Fields) {
+      const auto [FSize, FAlign] = Layout(VT);
+      Size = AlignTo(Size, FAlign) + FSize;
+      Align = std::max(Align, FAlign);
+    }
+    return std::make_pair(AlignTo(Size, Align), Align);
+  };
+  // A variant is a discriminant followed by the largest payload.
+  auto VariantLayout = [&](size_t NumCases, const auto &Payloads) noexcept {
+    const uint64_t Disc = NumCases <= (UINT64_C(1) << 8)    ? 1
+                          : NumCases <= (UINT64_C(1) << 16) ? 2
+                                                            : 4;
+    uint64_t CaseSize = 0;
+    uint64_t Align = Disc;
+    for (const auto &VT : Payloads) {
+      const auto [PSize, PAlign] = Layout(VT);
+      CaseSize = std::max(CaseSize, PSize);
+      Align = std::max(Align, PAlign);
+    }
+    return std::make_pair(AlignTo(AlignTo(Disc, Align) + CaseSize, Align),
+                          Align);
+  };
+  std::pair<uint64_t, uint64_t> Res{4, 4};
+  if (D.isRecordTy()) {
+    std::vector<ComponentValType> Fields;
+    for (const auto &LT : D.getRecord().LabelTypes) {
+      Fields.push_back(LT.getValType());
+    }
+    Res = RecordLayout(Fields);
+  } else if (D.isTupleTy()) {
+    Res = RecordLayout(D.getTuple().Types);
+  } else if (D.isVariantTy()) {
+    std::vector<ComponentValType> Payloads;
+    for (const auto &[Label, Ty] : D.getVariant().Cases) {
+      if (Ty.has_value()) {
+        Payloads.push_back(*Ty);
+      }
+    }
+    Res = VariantLayout(D.getVariant().Cases.size(), Payloads);
+  } else if (D.isEnumTy()) {
+    Res = VariantLayout(D.getEnum().Labels.size(),
+                        std::vector<ComponentValType>{});
+  } else if (D.isOptionTy()) {
+    Res = VariantLayout(2, std::vector{D.getOption().ValTy});
+  } else if (D.isResultTy()) {
+    std::vector<ComponentValType> Payloads;
+    if (D.getResult().ValTy.has_value()) {
+      Payloads.push_back(*D.getResult().ValTy);
+    }
+    if (D.getResult().ErrTy.has_value()) {
+      Payloads.push_back(*D.getResult().ErrTy);
+    }
+    Res = VariantLayout(2, Payloads);
+  } else if (D.isFlagsTy()) {
+    const size_t N = D.getFlags().Labels.size();
+    const uint64_t Size = N <= 8 ? 1 : N <= 16 ? 2 : 4;
+    Res = {Size, Size};
+  } else if (D.isListTy()) {
+    const auto &List = D.getList();
+    if (List.Len.has_value()) {
+      const auto [ESize, EAlign] = Layout(List.ValTy);
+      Res = {*List.Len * ESize, EAlign};
+    } else {
+      Res = {16, 8};
+    }
+  } else if (D.isMapTy()) {
+    Res = {16, 8};
+  }
+  ElemLayoutMemo.emplace(&D, Res);
+  return Res;
+}
+
 // Depth of a value type: leaves count 1, wrappers add 1.
 uint64_t TypeSystem::getTypeDepth(const QualValType &Q) noexcept {
   TypeEntry Storage;
@@ -393,9 +520,9 @@ uint64_t TypeSystem::getTypeDepth(const ExternInfo &Info) noexcept {
         Max = std::max(Max, getTypeDepth({P.getValType(), Info.Func.Home,
                                           Info.Func.Remap}));
       }
-      for (const auto &R : Info.Func.FT->getResultList()) {
-        Max = std::max(Max, getTypeDepth({R.getValType(), Info.Func.Home,
-                                          Info.Func.Remap}));
+      if (const auto &R = Info.Func.FT->getResult(); R.has_value()) {
+        Max =
+            std::max(Max, getTypeDepth({*R, Info.Func.Home, Info.Func.Remap}));
       }
     }
     break;
@@ -657,8 +784,8 @@ TypeSystem::flattenFuncType(const FuncInfo &FI, const ValType &Ptr,
     }
     ParamsNeedMemory = ParamsNeedMemory || needsMemory(Q);
   }
-  for (const auto &R : FI.FT->getResultList()) {
-    const QualValType Q{R.getValType(), FI.Home, FI.Remap};
+  if (const auto &R = FI.FT->getResult(); R.has_value()) {
+    const QualValType Q{*R, FI.Home, FI.Remap};
     if (!flattenValType(Q, Sig.getReturnTypes(), Ptr)) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       return Unexpect(ErrCode::Value::InvalidTypeReference);
@@ -967,17 +1094,15 @@ bool Matcher::matchFunc(const FuncInfo &Sub, const FuncInfo &Sup) noexcept {
       return false;
     }
   }
-  const auto RA = Sub.FT->getResultList();
-  const auto RB = Sup.FT->getResultList();
-  if (RA.size() != RB.size()) {
+  const auto &RA = Sub.FT->getResult();
+  const auto &RB = Sup.FT->getResult();
+  if (RA.has_value() != RB.has_value()) {
     FailCode = ErrCode::Value::ComponentExpectedResult;
     return false;
   }
-  for (size_t I = 0; I < RA.size(); ++I) {
-    if (!matchValType({RA[I].getValType(), Sub.Home, Sub.Remap},
-                      {RB[I].getValType(), Sup.Home, Sup.Remap})) {
-      return false;
-    }
+  if (RA.has_value() &&
+      !matchValType({*RA, Sub.Home, Sub.Remap}, {*RB, Sup.Home, Sup.Remap})) {
+    return false;
   }
   return true;
 }

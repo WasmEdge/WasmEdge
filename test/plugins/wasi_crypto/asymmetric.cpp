@@ -9,14 +9,17 @@ namespace WasiCrypto {
 using namespace std::literals;
 
 TEST_F(WasiCryptoTest, Asymmetric) {
+  WASI_CRYPTO_EXPECT_SUCCESS(SmHandle, secretsManagerOpen(std::nullopt));
+
   auto EncodingCheck =
-      [this](std::string_view Alg, __wasi_algorithm_type_e_t AlgType,
-             std::map<__wasi_publickey_encoding_e_t, std::vector<uint8_t>>
-                 SupportPk,
-             std::map<__wasi_secretkey_encoding_e_t, std::vector<uint8_t>>
-                 SupportSk,
-             std::map<__wasi_keypair_encoding_e_t, std::vector<uint8_t>>
-                 SupportKp) {
+      [this,
+       SmHandle](std::string_view Alg, __wasi_algorithm_type_e_t AlgType,
+                 std::map<__wasi_publickey_encoding_e_t, std::vector<uint8_t>>
+                     SupportPk,
+                 std::map<__wasi_secretkey_encoding_e_t, std::vector<uint8_t>>
+                     SupportSk,
+                 std::map<__wasi_keypair_encoding_e_t, std::vector<uint8_t>>
+                     SupportKp) {
         SCOPED_TRACE(Alg);
 
         // Function checking.
@@ -29,20 +32,14 @@ TEST_F(WasiCryptoTest, Asymmetric) {
           WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
           WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkHandle));
 
-          if (Alg == "Ed25519"sv) {
-            WASI_CRYPTO_EXPECT_SUCCESS(
-                KpMHandle,
-                keypairGenerateManaged(1, AlgType, Alg, std::nullopt));
-            WASI_CRYPTO_EXPECT_SUCCESS(PkMHandle, keypairPublickey(KpMHandle));
-            WASI_CRYPTO_EXPECT_SUCCESS(SkMHandle, keypairSecretkey(KpMHandle));
-            WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpMHandle));
-            WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkMHandle));
-            WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkMHandle));
-          } else {
-            WASI_CRYPTO_EXPECT_FAILURE(
-                keypairGenerateManaged(1, AlgType, Alg, std::nullopt),
-                __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-          }
+          WASI_CRYPTO_EXPECT_SUCCESS(
+              KpMHandle,
+              keypairGenerateManaged(SmHandle, AlgType, Alg, std::nullopt));
+          WASI_CRYPTO_EXPECT_SUCCESS(PkMHandle, keypairPublickey(KpMHandle));
+          WASI_CRYPTO_EXPECT_SUCCESS(SkMHandle, keypairSecretkey(KpMHandle));
+          WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpMHandle));
+          WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkMHandle));
+          WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkMHandle));
         }
 
         // Encoding checking.
@@ -215,12 +212,11 @@ TEST_F(WasiCryptoTest, Asymmetric) {
         }
       };
 
-  auto ManagedNegativeCheck = [this](
-                                  __wasi_secrets_manager_t SmHandle,
-                                  __wasi_algorithm_type_e_t AlgType,
-                                  std::string_view Alg,
-                                  std::optional<__wasi_options_t> OptOptions,
-                                  __wasi_crypto_errno_e_t ExpectedError) {
+  auto ManagedNegativeCheck = [this](__wasi_secrets_manager_t SmHandle,
+                                     __wasi_algorithm_type_e_t AlgType,
+                                     std::string_view Alg,
+                                     std::optional<__wasi_options_t> OptOptions,
+                                     __wasi_crypto_errno_e_t ExpectedError) {
     SCOPED_TRACE(Alg);
     WASI_CRYPTO_EXPECT_FAILURE(
         keypairGenerateManaged(SmHandle, AlgType, Alg, OptOptions),
@@ -628,13 +624,15 @@ TEST_F(WasiCryptoTest, Asymmetric) {
         "ef61d9529f"_u8v}},
       {});
 
-  ManagedNegativeCheck(1, __WASI_ALGORITHM_TYPE_SYMMETRIC, "Ed25519"sv,
+  ManagedNegativeCheck(SmHandle, __WASI_ALGORITHM_TYPE_SYMMETRIC, "Ed25519"sv,
                        std::nullopt, __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-  ManagedNegativeCheck(1, __WASI_ALGORITHM_TYPE_SIGNATURES, "FooBar"sv,
+  ManagedNegativeCheck(SmHandle, __WASI_ALGORITHM_TYPE_SIGNATURES, "FooBar"sv,
                        std::nullopt, __WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
-  ManagedNegativeCheck(1, __WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv,
+  ManagedNegativeCheck(SmHandle, __WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv,
                        static_cast<__wasi_options_t>(InvaildHandle),
                        __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+
+  WASI_CRYPTO_EXPECT_TRUE(secretsManagerClose(SmHandle));
 }
 
 } // namespace WasiCrypto

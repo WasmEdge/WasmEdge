@@ -67,19 +67,29 @@ Context::optionsSetGuestBuffer(__wasi_options_t OptionsHandle,
 }
 
 WasiCryptoExpect<__wasi_secrets_manager_t>
-Context::secretsManagerOpen(__wasi_opt_options_t) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Context::secretsManagerOpen(__wasi_opt_options_t OptOptionsHandle) noexcept {
+  auto OptOptionsResult = mapAndTransposeOptional(
+      OptOptionsHandle, [this](__wasi_options_t OptionsHandle) noexcept {
+        return OptionsManager.get(OptionsHandle);
+      });
+  if (!OptOptionsResult) {
+    return WasiCryptoUnexpect(OptOptionsResult);
+  }
+  return SecretsManagerManager.registerManager(Common::SecretsManager{});
+}
+
+WasiCryptoExpect<void> Context::secretsManagerClose(
+    __wasi_secrets_manager_t SecretsManagerHandle) noexcept {
+  return SecretsManagerManager.close(SecretsManagerHandle);
 }
 
 WasiCryptoExpect<void>
-Context::secretsManagerClose(__wasi_secrets_manager_t) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-}
-
-WasiCryptoExpect<void>
-Context::secretsManagerInvalidate(__wasi_secrets_manager_t, Span<const uint8_t>,
-                                  __wasi_version_t) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Context::secretsManagerInvalidate(__wasi_secrets_manager_t SecretsManagerHandle,
+                                  Span<const uint8_t> KeyId,
+                                  __wasi_version_t Version) noexcept {
+  return SecretsManagerManager.get(SecretsManagerHandle)
+      .and_then(
+          [&](auto &&Sm) noexcept { return Sm.invalidate(KeyId, Version); });
 }
 
 } // namespace WasiCrypto

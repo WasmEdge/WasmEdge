@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "ctx.h"
+#include <openssl/rand.h>
 
 namespace WasmEdge {
 namespace Host {
@@ -163,35 +164,146 @@ Context::secretkeyImport(AsymmetricCommon::Algorithm Alg,
 }
 
 WasiCryptoExpect<__wasi_keypair_t> Context::keypairGenerateManaged(
-    __wasi_secrets_manager_t, AsymmetricCommon::Algorithm Alg,
+    __wasi_secrets_manager_t SecretsManagerHandle,
+    AsymmetricCommon::Algorithm Alg,
     __wasi_opt_options_t OptOptionsHandle) noexcept {
-  if (std::holds_alternative<Signatures::Eddsa>(Alg)) {
-    return keypairGenerate(Alg, OptOptionsHandle);
-  }
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  return SecretsManagerManager.get(SecretsManagerHandle)
+      .and_then([&](auto &&Sm) noexcept -> WasiCryptoExpect<__wasi_keypair_t> {
+        auto OptOptionsResult = mapAndTransposeOptional(
+            OptOptionsHandle, [this](__wasi_options_t OptionsHandle) noexcept {
+              return OptionsManager.get(OptionsHandle);
+            });
+        if (!OptOptionsResult) {
+          return WasiCryptoUnexpect(OptOptionsResult);
+        }
+        auto KpResult =
+            AsymmetricCommon::generateKp(Alg, asOptionalRef(*OptOptionsResult));
+        if (!KpResult) {
+          return WasiCryptoUnexpect(KpResult);
+        }
+
+        std::vector<uint8_t> GeneratedId(32);
+        ensureOrReturn(RAND_bytes(GeneratedId.data(), 32) == 1,
+                       __WASI_CRYPTO_ERRNO_RNG_ERROR);
+
+        auto StoreResult = Sm.storeKp(GeneratedId, 0, *KpResult);
+        if (!StoreResult) {
+          return WasiCryptoUnexpect(StoreResult);
+        }
+
+        auto HandleResult =
+            KeyPairManager.registerManager(std::move(*KpResult));
+        if (!HandleResult) {
+          return WasiCryptoUnexpect(HandleResult);
+        }
+
+        auto ManagedResult =
+            KeyPairManager.setManagedInfo(*HandleResult, GeneratedId, 0);
+        if (!ManagedResult) {
+          return WasiCryptoUnexpect(ManagedResult);
+        }
+
+        return *HandleResult;
+      });
 }
 
-WasiCryptoExpect<void> Context::keypairStoreManaged(__wasi_secrets_manager_t,
-                                                    __wasi_keypair_t,
-                                                    Span<uint8_t>) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+WasiCryptoExpect<void>
+Context::keypairStoreManaged(__wasi_secrets_manager_t SecretsManagerHandle,
+                             __wasi_keypair_t KpHandle,
+                             Span<uint8_t> KpId) noexcept {
+  ensureOrReturn(KpId.size() >= 32, __WASI_CRYPTO_ERRNO_OVERFLOW);
+  return SecretsManagerManager.get(SecretsManagerHandle)
+      .and_then([&](auto &&Sm) noexcept -> WasiCryptoExpect<void> {
+        return KeyPairManager.get(KpHandle).and_then(
+            [&](auto &&Kp) noexcept -> WasiCryptoExpect<void> {
+              std::vector<uint8_t> GeneratedId(32);
+              ensureOrReturn(RAND_bytes(GeneratedId.data(), 32) == 1,
+                             __WASI_CRYPTO_ERRNO_RNG_ERROR);
+
+              return Sm.storeKp(GeneratedId, 0, Kp)
+                  .and_then([&](auto &&Version) {
+                    return KeyPairManager
+                        .setManagedInfo(KpHandle, GeneratedId, Version)
+                        .map([&]() {
+                          std::copy(GeneratedId.begin(), GeneratedId.end(),
+                                    KpId.begin());
+                        });
+                  });
+            });
+      });
 }
 
 WasiCryptoExpect<__wasi_version_t>
-Context::keypairReplaceManaged(__wasi_secrets_manager_t, __wasi_keypair_t,
-                               __wasi_keypair_t) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Context::keypairReplaceManaged(__wasi_secrets_manager_t SecretsManagerHandle,
+                               __wasi_keypair_t OldKpHandle,
+                               __wasi_keypair_t NewKpHandle) noexcept {
+  auto OldKp = KeyPairManager.get(OldKpHandle);
+  if (!OldKp) {
+    return WasiCryptoUnexpect(OldKp);
+  }
+  auto NewKp = KeyPairManager.get(NewKpHandle);
+  if (!NewKp) {
+    return WasiCryptoUnexpect(NewKp);
+  }
+  ensureOrReturn(OldKp->index() == NewKp->index(),
+                 __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
+
+  return SecretsManagerManager.get(SecretsManagerHandle)
+      .and_then([&](auto &&Sm) noexcept -> WasiCryptoExpect<__wasi_version_t> {
+        return KeyPairManager.getId(OldKpHandle)
+            .and_then([&](auto &&KpId) noexcept
+                          -> WasiCryptoExpect<__wasi_version_t> {
+              return Sm.replaceKp(KpId, *NewKp).and_then([&](auto NextVersion) {
+                return KeyPairManager
+                    .setManagedInfo(NewKpHandle, KpId, NextVersion)
+                    .and_then(
+                        [&]() { return KeyPairManager.close(OldKpHandle); })
+                    .map([NextVersion]() { return NextVersion; });
+              });
+            });
+      });
 }
 
 WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>
-Context::keypairId(__wasi_keypair_t, Span<uint8_t>) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Context::keypairId(__wasi_keypair_t KpHandle, Span<uint8_t> KpId) noexcept {
+  return KeyPairManager.get(KpHandle).and_then(
+      [&](auto &&) noexcept
+          -> WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>> {
+        auto ManagedIdRes = KeyPairManager.getId(KpHandle);
+        if (!ManagedIdRes) {
+          if (ManagedIdRes.error() == __WASI_CRYPTO_ERRNO_INVALID_OPERATION) {
+            return std::make_tuple(size_t{0}, Common::VERSION_UNSPECIFIED);
+          }
+          return WasiCryptoUnexpect(ManagedIdRes);
+        }
+        auto Id = *ManagedIdRes;
+        ensureOrReturn(Id.size() <= KpId.size(), __WASI_CRYPTO_ERRNO_OVERFLOW);
+        std::copy(Id.begin(), Id.end(), KpId.begin());
+        return KeyPairManager.getManagedVersion(KpHandle).map(
+            [&Id](auto Version) {
+              return std::make_tuple(Id.size(), Version);
+            });
+      });
 }
 
 WasiCryptoExpect<__wasi_keypair_t>
-Context::keypairFromId(__wasi_secrets_manager_t, Span<const uint8_t>,
-                       __wasi_version_t) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Context::keypairFromId(__wasi_secrets_manager_t SecretsManagerHandle,
+                       Span<const uint8_t> KpId,
+                       __wasi_version_t KpIdVersion) noexcept {
+  return SecretsManagerManager.get(SecretsManagerHandle)
+      .and_then([&](auto &&Sm) noexcept {
+        return Sm.getKpWithVersion(KpId, KpIdVersion)
+            .and_then([&](auto &&Res) noexcept {
+              auto Kp = std::move(Res.first);
+              auto ResolvedVersion = Res.second;
+              return KeyPairManager.registerManager(std::move(Kp))
+                  .and_then([&](auto &&KpHandle) noexcept {
+                    return KeyPairManager
+                        .setManagedInfo(KpHandle, KpId, ResolvedVersion)
+                        .map([KpHandle]() { return KpHandle; });
+                  });
+            });
+      });
 }
 
 } // namespace WasiCrypto

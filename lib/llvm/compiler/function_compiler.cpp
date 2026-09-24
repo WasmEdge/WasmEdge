@@ -38,6 +38,8 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
     }
 
     CalleeCtxSlot = Builder.createAlloca(Context.ModCtxPtrTy);
+    TmpValues = Builder.createArray(1, LLVM::kValSize);
+    TmpValuesSize = 1;
 
     for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam().getNextParam();
          Arg; Arg = Arg.getNextParam()) {
@@ -64,6 +66,19 @@ LLVM::BasicBlock FunctionCompiler::getTrapBB(ErrCode::Value Error) noexcept {
   auto BB = LLVM::BasicBlock::create(LLContext, F.Fn, "trap");
   TrapBB.emplace(Error, BB);
   return BB;
+}
+
+LLVM::Value FunctionCompiler::getTmpValues(size_t Num) noexcept {
+  if (Num > TmpValuesSize) {
+    LLVM::Builder EntryBuilder(LLContext);
+    EntryBuilder.positionBefore(TmpValues);
+    auto Values = EntryBuilder.createArray(Num, LLVM::kValSize);
+    TmpValues.replaceAllUsesWith(Values);
+    TmpValues.eraseFromParent();
+    TmpValues = Values;
+    TmpValuesSize = Num;
+  }
+  return TmpValues;
 }
 
 Expect<void> FunctionCompiler::compile(
@@ -1256,7 +1271,7 @@ void FunctionCompiler::compileTryTableOp(
         PayloadNum = static_cast<uint32_t>(TagFuncType.getParamTypes().size());
       }
       const uint32_t OutNum = PayloadNum + (C->IsRef ? 1U : 0U);
-      LLVM::Value Out = Builder.createArray(OutNum, LLVM::kValSize);
+      LLVM::Value Out = getTmpValues(OutNum);
       Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kCatchPop,
@@ -1308,7 +1323,7 @@ void FunctionCompiler::compileThrowOp(const uint32_t TagIndex) noexcept {
   for (uint32_t I = 0; I < Arity; ++I) {
     Payload[Arity - 1 - I] = stackPop();
   }
-  LLVM::Value Vals = Builder.createArray(Arity, LLVM::kValSize);
+  LLVM::Value Vals = getTmpValues(Arity);
   Builder.createArrayPtrStore(Payload, Vals, Context.Int8Ty, LLVM::kValSize);
 
   Builder.createCall(
@@ -1561,8 +1576,9 @@ void FunctionCompiler::compileIndirectCallOp(
 
   std::vector<LLVM::Value> RetsVec;
   {
-    LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
-    LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
+    LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+    LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
+        Context.Int8Ty, Args, ArgSize * LLVM::kValSize);
     Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
@@ -1751,8 +1767,9 @@ void FunctionCompiler::compileReturnIndirectCallOp(
   Builder.positionAtEnd(IsNullBB);
 
   {
-    LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
-    LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
+    LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+    LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
+        Context.Int8Ty, Args, ArgSize * LLVM::kValSize);
     Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
@@ -1845,8 +1862,9 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
 
   std::vector<LLVM::Value> RetsVec;
   {
-    LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
-    LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
+    LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+    LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
+        Context.Int8Ty, Args, ArgSize * LLVM::kValSize);
     Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
@@ -1947,8 +1965,9 @@ void FunctionCompiler::compileReturnCallRefOp(
   Builder.positionAtEnd(IsNullBB);
 
   {
-    LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
-    LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
+    LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+    LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
+        Context.Int8Ty, Args, ArgSize * LLVM::kValSize);
     Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 

@@ -1537,7 +1537,7 @@ void FunctionCompiler::compileVectorSwizzle() noexcept {
   // then fallback to this.
   auto IsOver = Builder.createICmpUGT(Index, Mask);
   auto InboundIndex = Builder.createAnd(Index, Mask);
-  auto Array = Builder.createArray(16, 1);
+  auto Array = getTmpValues(1);
   for (size_t I = 0; I < 16; ++I) {
     Builder.createStore(
         Builder.createExtractElement(Vector, LLContext.getInt64(I)),

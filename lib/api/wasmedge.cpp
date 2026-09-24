@@ -986,6 +986,22 @@ WASMEDGE_CAPI_EXPORT uint64_t WasmEdge_ConfigureGetMaxMemoryPage(
 }
 
 WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureSetMaxStackSize(WasmEdge_ConfigureContext *Cxt,
+                                  const uint64_t Size) noexcept {
+  if (Cxt) {
+    Cxt->Conf.getRuntimeConfigure().setMaxStackSize(Size);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT uint64_t WasmEdge_ConfigureGetMaxStackSize(
+    const WasmEdge_ConfigureContext *Cxt) noexcept {
+  if (Cxt) {
+    return Cxt->Conf.getRuntimeConfigure().getMaxStackSize();
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureSetRunMode(WasmEdge_ConfigureContext *Cxt,
                              const enum WasmEdge_RunMode Mode) noexcept {
   if (Cxt) {

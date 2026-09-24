@@ -117,6 +117,7 @@ public:
   static inline unsigned int SAddSat = 0;
   static inline unsigned int Sqrt = 0;
   static inline unsigned int SSubSat = 0;
+  static inline unsigned int StackSave = 0;
   static inline unsigned int Trunc = 0;
   static inline unsigned int UAddSat = 0;
   static inline unsigned int USubSat = 0;
@@ -210,6 +211,7 @@ private:
     SAddSat = getIntrinsicID("llvm.sadd.sat"sv);
     Sqrt = getIntrinsicID("llvm.sqrt"sv);
     SSubSat = getIntrinsicID("llvm.ssub.sat"sv);
+    StackSave = getIntrinsicID("llvm.stacksave"sv);
     Trunc = getIntrinsicID("llvm.trunc"sv);
     UAddSat = getIntrinsicID("llvm.uadd.sat"sv);
     USubSat = getIntrinsicID("llvm.usub.sat"sv);
@@ -815,6 +817,7 @@ public:
                           Metadata Node) noexcept;
   inline void setMustTailCall() noexcept;
   inline void setTailCall() noexcept;
+  inline void setNoTailCall() noexcept;
   Type getInstructionCalledFunctionType() const noexcept {
     return LLVMGetCalledFunctionType(Ref);
   }
@@ -1073,6 +1076,9 @@ void Value::setMustTailCall() noexcept {
 }
 void Value::setTailCall() noexcept {
   LLVMSetTailCallKind(Ref, LLVMTailCallKindTail);
+}
+void Value::setNoTailCall() noexcept {
+  LLVMSetTailCallKind(Ref, LLVMTailCallKindNoTail);
 }
 
 static inline Message getDefaultTargetTriple() noexcept {
@@ -1623,6 +1629,13 @@ public:
     Type Int1Ty = LLVMInt1TypeInContext(getCtx());
     return createIntrinsic(LLVM::Core::Expect, {Int1Ty},
                            {V, Value::getConstInt(Int1Ty, 1)});
+  }
+  Value createStackSave(Type PtrTy) noexcept {
+    // Newer LLVM overloads llvm.stacksave on the returned pointer type.
+    const size_t TypeCount =
+        LLVMIntrinsicIsOverloaded(LLVM::Core::StackSave) ? 1 : 0;
+    return createIntrinsic(LLVM::Core::StackSave,
+                           Span<const Type>(&PtrTy, TypeCount), {});
   }
 
   Value getConstrainedFPRounding() noexcept {

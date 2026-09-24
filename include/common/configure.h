@@ -112,9 +112,15 @@ private:
 
 class RuntimeConfigure {
 public:
+  /// Stack budgets used when MaxStackSize is 0: the interpreter's heap stack
+  /// and the native stack of compiled code.
+  static constexpr uint64_t DefaultInterpreterStackSize = UINT64_C(8) << 20;
+  static constexpr uint64_t DefaultCompiledStackSize = UINT64_C(512) << 10;
+
   RuntimeConfigure() noexcept = default;
   RuntimeConfigure(const RuntimeConfigure &RHS) noexcept
       : MaxMemPage(RHS.MaxMemPage.load(std::memory_order_relaxed)),
+        MaxStackSize(RHS.MaxStackSize.load(std::memory_order_relaxed)),
         Mode(RHS.Mode.load(std::memory_order_relaxed)),
         EnableCoredump(RHS.EnableCoredump.load(std::memory_order_relaxed)),
         CoredumpWasmgdb(RHS.CoredumpWasmgdb.load(std::memory_order_relaxed)),
@@ -126,6 +132,14 @@ public:
 
   uint64_t getMaxMemoryPage() const noexcept {
     return MaxMemPage.load(std::memory_order_relaxed);
+  }
+
+  void setMaxStackSize(const uint64_t Size) noexcept {
+    MaxStackSize.store(Size, std::memory_order_relaxed);
+  }
+
+  uint64_t getMaxStackSize() const noexcept {
+    return MaxStackSize.load(std::memory_order_relaxed);
   }
 
   void setRunMode(RunMode M) noexcept {
@@ -162,6 +176,9 @@ public:
 
 private:
   std::atomic<uint64_t> MaxMemPage = 65536;
+  // Max stack bytes per execution: heap stack (interpreter) or native stack
+  // (compiled). 0 selects the engine default.
+  std::atomic<uint64_t> MaxStackSize = 0;
   std::atomic<RunMode> Mode = RunMode::Interpreter;
   std::atomic<bool> EnableCoredump = false;
   std::atomic<bool> CoredumpWasmgdb = false;

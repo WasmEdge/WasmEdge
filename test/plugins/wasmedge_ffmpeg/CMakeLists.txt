@@ -10,6 +10,8 @@ wasmedge_add_executable(wasmedgeFFmpegTests
   avcodec/avPacket.cpp
   avcodec/avCodecCtx.cpp
 
+  avdevice/avDevice.cpp
+
   avfilter/avfilter_func.cpp
   avfilter/avfilter.cpp
 

@@ -3,6 +3,7 @@
 
 #include "avcodec/module.h"
 #include "avdevice/module.h"
+#include "avfilter/avFilter.h"
 #include "avfilter/module.h"
 #include "avformat/module.h"
 #include "avutil/module.h"
@@ -106,6 +107,14 @@ Plugin::Plugin::PluginDescriptor Descriptor{
 EXPORT_GET_DESCRIPTOR(Descriptor)
 
 } // namespace
+
+WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::~WasmEdgeFFmpegEnv() {
+  for (const auto &Pair : FfmpegPtrMap) {
+    if (Pair.second.Tag == detail::handleTag<AVFilter::FilterPadView>()) {
+      delete static_cast<AVFilter::FilterPadView *>(Pair.second.Ptr);
+    }
+  }
+}
 
 std::weak_ptr<WasmEdgeFFmpeg::WasmEdgeFFmpegEnv>
     WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::Instance =

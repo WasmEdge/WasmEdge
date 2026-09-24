@@ -3671,6 +3671,25 @@ public:
     return Channel;
   }
 
+  static AVChannel channelFromMask(uint64_t ChannelMask) {
+    if (ChannelMask == 0) {
+      return AV_CHAN_NONE;
+    }
+    unsigned Index = 0;
+    while ((ChannelMask & 1ULL) == 0ULL) {
+      ChannelMask >>= 1;
+      ++Index;
+    }
+    return static_cast<AVChannel>(Index);
+  }
+
+  static uint64_t intoChannelLayoutID(const AVChannelLayout &ChLayout) {
+    if (ChLayout.order != AV_CHANNEL_ORDER_NATIVE) {
+      return 0;
+    }
+    return intoChannelLayoutID(ChLayout.u.mask);
+  }
+
   // Perfect Logic :)
   static uint64_t intoChannelLayoutID(uint64_t ChannelLayout) {
     uint64_t Channel = 0;

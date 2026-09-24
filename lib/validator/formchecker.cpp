@@ -2022,6 +2022,13 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                                {ValType(TypeCode::I64), ValType(TypeCode::I64)},
                                {ValType(TypeCode::I64)});
 
+  case OpCode::I64__add128:
+  case OpCode::I64__sub128:
+  case OpCode::I64__mul_wide_s:
+  case OpCode::I64__mul_wide_u:
+    spdlog::error(ErrCode::Value::IllegalOpCode);
+    return Unexpect(ErrCode::Value::IllegalOpCode);
+
   default:
     assumingUnreachable();
   }

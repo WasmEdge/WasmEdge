@@ -276,10 +276,10 @@ Expect<void> Executor::runVectorCeilOp(ValVariant &Val) const {
   using VT = SIMDArray<T, 16>;
   VT &Result = Val.get<VT>();
   if constexpr (sizeof(T) == 4) {
-    Result = VT{std::ceil(Result[0]), std::ceil(Result[1]),
-                std::ceil(Result[2]), std::ceil(Result[3])};
+    Result = VT{quietNaN(std::ceil(Result[0])), quietNaN(std::ceil(Result[1])),
+                quietNaN(std::ceil(Result[2])), quietNaN(std::ceil(Result[3]))};
   } else if constexpr (sizeof(T) == 8) {
-    Result = VT{std::ceil(Result[0]), std::ceil(Result[1])};
+    Result = VT{quietNaN(std::ceil(Result[0])), quietNaN(std::ceil(Result[1]))};
   }
   return {};
 }
@@ -289,10 +289,12 @@ Expect<void> Executor::runVectorFloorOp(ValVariant &Val) const {
   using VT = SIMDArray<T, 16>;
   VT &Result = Val.get<VT>();
   if constexpr (sizeof(T) == 4) {
-    Result = VT{std::floor(Result[0]), std::floor(Result[1]),
-                std::floor(Result[2]), std::floor(Result[3])};
+    Result =
+        VT{quietNaN(std::floor(Result[0])), quietNaN(std::floor(Result[1])),
+           quietNaN(std::floor(Result[2])), quietNaN(std::floor(Result[3]))};
   } else if constexpr (sizeof(T) == 8) {
-    Result = VT{std::floor(Result[0]), std::floor(Result[1])};
+    Result =
+        VT{quietNaN(std::floor(Result[0])), quietNaN(std::floor(Result[1]))};
   }
   return {};
 }
@@ -302,10 +304,12 @@ Expect<void> Executor::runVectorTruncOp(ValVariant &Val) const {
   using VT = SIMDArray<T, 16>;
   VT &Result = Val.get<VT>();
   if constexpr (sizeof(T) == 4) {
-    Result = VT{std::trunc(Result[0]), std::trunc(Result[1]),
-                std::trunc(Result[2]), std::trunc(Result[3])};
+    Result =
+        VT{quietNaN(std::trunc(Result[0])), quietNaN(std::trunc(Result[1])),
+           quietNaN(std::trunc(Result[2])), quietNaN(std::trunc(Result[3]))};
   } else if constexpr (sizeof(T) == 8) {
-    Result = VT{std::trunc(Result[0]), std::trunc(Result[1])};
+    Result =
+        VT{quietNaN(std::trunc(Result[0])), quietNaN(std::trunc(Result[1]))};
   }
   return {};
 }

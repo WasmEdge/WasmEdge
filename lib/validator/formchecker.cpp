@@ -370,35 +370,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   // Helper lambda for downcasting into the top heap type.
   auto toTopHeapType = [this](const ValType &T) -> ValType {
     assuming(T.isRefType());
-    if (T.isAbsHeapType()) {
-      switch (T.getHeapTypeCode()) {
-      case TypeCode::NullFuncRef:
-      case TypeCode::FuncRef:
-        return TypeCode::FuncRef;
-      case TypeCode::NullExternRef:
-      case TypeCode::ExternRef:
-        return TypeCode::ExternRef;
-      case TypeCode::NullExnRef:
-      case TypeCode::ExnRef:
-        return TypeCode::ExnRef;
-      case TypeCode::NullRef:
-      case TypeCode::AnyRef:
-      case TypeCode::EqRef:
-      case TypeCode::I31Ref:
-      case TypeCode::StructRef:
-      case TypeCode::ArrayRef:
-        return TypeCode::AnyRef;
-      default:
-        assumingUnreachable();
-      }
-    } else {
-      const auto &CompType = Types[T.getTypeIndex()]->getCompositeType();
-      if (CompType.isFunc()) {
-        return TypeCode::FuncRef;
-      } else {
-        return TypeCode::AnyRef;
-      }
-    }
+    return AST::TypeMatcher::getTopHeapType(
+        T.isAbsHeapType()
+            ? T.getHeapTypeCode()
+            : Types[T.getTypeIndex()]->getCompositeType().expand());
   };
 
   switch (Instr.getOpCode()) {

@@ -229,40 +229,15 @@ LLVM::Value toLLVMConstantZero(
   case TypeCode::RefNull: {
     // Type the null refs with the bottom heap type of their hierarchy so that
     // ref.test/ref.cast match them against the concrete types.
-    TypeCode BotTypeCode = TypeCode::NullRef;
-    if (ValType.isAbsHeapType()) {
-      switch (ValType.getHeapTypeCode()) {
-      case TypeCode::NullFuncRef:
-      case TypeCode::FuncRef:
-        BotTypeCode = TypeCode::NullFuncRef;
-        break;
-      case TypeCode::NullExternRef:
-      case TypeCode::ExternRef:
-        BotTypeCode = TypeCode::NullExternRef;
-        break;
-      case TypeCode::NullExnRef:
-      case TypeCode::ExnRef:
-        BotTypeCode = TypeCode::NullExnRef;
-        break;
-      case TypeCode::NullRef:
-      case TypeCode::AnyRef:
-      case TypeCode::EqRef:
-      case TypeCode::I31Ref:
-      case TypeCode::StructRef:
-      case TypeCode::ArrayRef:
-        BotTypeCode = TypeCode::NullRef;
-        break;
-      default:
-        assumingUnreachable();
-      }
-    } else {
+    TypeCode HTCode = ValType.getHeapTypeCode();
+    if (!ValType.isAbsHeapType()) {
       assuming(ValType.getTypeIndex() < CompositeTypes.size());
       const auto *CompType = CompositeTypes[ValType.getTypeIndex()];
       assuming(CompType != nullptr);
-      BotTypeCode =
-          CompType->isFunc() ? TypeCode::NullFuncRef : TypeCode::NullRef;
+      HTCode = CompType->expand();
     }
-    const WasmEdge::ValType VType(TypeCode::RefNull, BotTypeCode);
+    const WasmEdge::ValType VType(TypeCode::RefNull,
+                                  AST::TypeMatcher::getBottomHeapType(HTCode));
     std::array<uint8_t, 16> Data{};
     std::copy_n(VType.getRawData().cbegin(), 8, Data.begin());
     return LLVM::Value::getConstVector8(LLContext, Data);

@@ -80,6 +80,12 @@ private:
   AddOne *F = nullptr;
 };
 
+/// Host function that does nothing.
+class Nop : public Runtime::HostFunction<Nop> {
+public:
+  Expect<void> body(const Runtime::CallingFrame &) { return {}; }
+};
+
 /// After instantiation, read the exported table "t" at index 0 and verify the
 /// null reference has been normalized to an abstract heap type. This catches
 /// the root cause of #4757 without executing wasm that would segfault if the
@@ -742,6 +748,130 @@ std::array<WasmEdge::Byte, 49> NotifyMemory64Wasm{
     0x07, 0x08, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x0a, 0x0d,
     0x01, 0x0b, 0x00, 0x42, 0x04, 0x41, 0x01, 0xfe, 0x00, 0x02, 0x00, 0x1a,
     0x0b};
+
+/// Binary Wasm module: exports a tag whose type has a super type.
+///
+/// (module
+///   (type $super (sub (func)))
+///   (type $sub (sub $super (func)))
+///   (tag (export "t") (type $sub)))
+std::array<WasmEdge::Byte, 34> TagSubTypeExportWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0c, 0x02, 0x50,
+    0x00, 0x60, 0x00, 0x00, 0x50, 0x01, 0x00, 0x60, 0x00, 0x00, 0x0d, 0x03,
+    0x01, 0x00, 0x01, 0x07, 0x05, 0x01, 0x01, 0x74, 0x04, 0x00};
+
+/// Binary Wasm module: imports the tag with its super type.
+///
+/// (module
+///   (type $super (sub (func)))
+///   (import "M" "t" (tag (type $super))))
+std::array<WasmEdge::Byte, 26> TagSuperTypeImportWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x50,
+    0x00, 0x60, 0x00, 0x00, 0x02, 0x08, 0x01, 0x01, 0x4d, 0x01, 0x74, 0x04,
+    0x00, 0x00};
+
+/// Binary Wasm module: imports the tag with an equivalent type.
+///
+/// (module
+///   (type $super (sub (func)))
+///   (type $sub (sub $super (func)))
+///   (import "M" "t" (tag (type $sub))))
+std::array<WasmEdge::Byte, 32> TagSubTypeImportWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0c, 0x02, 0x50,
+    0x00, 0x60, 0x00, 0x00, 0x50, 0x01, 0x00, 0x60, 0x00, 0x00, 0x02, 0x08,
+    0x01, 0x01, 0x4d, 0x01, 0x74, 0x04, 0x00, 0x01};
+
+/// Binary Wasm module: defines and exports a global, a table, and a tag.
+///
+/// (module
+///   (type $s (struct (field i32)))
+///   (type $ft (func (param i32)))
+///   (global (export "g") (ref null $s) (ref.null $s))
+///   (table (export "t") 1 (ref null $s))
+///   (tag (export "e") (type $ft)))
+std::array<WasmEdge::Byte, 55> ReExportDefineWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02, 0x5f,
+    0x01, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x04, 0x05, 0x01, 0x63, 0x00,
+    0x00, 0x01, 0x0d, 0x03, 0x01, 0x00, 0x01, 0x06, 0x07, 0x01, 0x63, 0x00,
+    0x00, 0xd0, 0x00, 0x0b, 0x07, 0x0d, 0x03, 0x01, 0x67, 0x03, 0x00, 0x01,
+    0x74, 0x01, 0x00, 0x01, 0x65, 0x04, 0x00};
+
+/// Binary Wasm module: re-exports them with its type indices shifted by one.
+///
+/// (module
+///   (type $f (func))
+///   (type $s (struct (field i32)))
+///   (type $ft (func (param i32)))
+///   (import "A" "g" (global (ref null $s)))
+///   (import "A" "t" (table 1 (ref null $s)))
+///   (import "A" "e" (tag (type $ft)))
+///   (export "g" (global 0))
+///   (export "t" (table 0))
+///   (export "e" (tag 0)))
+std::array<WasmEdge::Byte, 64> ReExportForwardWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0c, 0x03, 0x60,
+    0x00, 0x00, 0x5f, 0x01, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x02, 0x19,
+    0x03, 0x01, 0x41, 0x01, 0x67, 0x03, 0x63, 0x01, 0x00, 0x01, 0x41, 0x01,
+    0x74, 0x01, 0x63, 0x01, 0x00, 0x01, 0x01, 0x41, 0x01, 0x65, 0x04, 0x00,
+    0x02, 0x07, 0x0d, 0x03, 0x01, 0x67, 0x03, 0x00, 0x01, 0x74, 0x01, 0x00,
+    0x01, 0x65, 0x04, 0x00};
+
+/// Binary Wasm module: imports the re-exported global.
+///
+/// (module
+///   (type $s (struct (field i32)))
+///   (type $ft (func (param i32)))
+///   (import "B" "g" (global (ref null $s))))
+std::array<WasmEdge::Byte, 30> ReExportGlobalImportWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02, 0x5f,
+    0x01, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x02, 0x09, 0x01, 0x01, 0x42,
+    0x01, 0x67, 0x03, 0x63, 0x00, 0x00};
+
+/// Binary Wasm module: imports the re-exported table.
+///
+/// (module
+///   (type $s (struct (field i32)))
+///   (type $ft (func (param i32)))
+///   (import "B" "t" (table 1 (ref null $s))))
+std::array<WasmEdge::Byte, 31> ReExportTableImportWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02, 0x5f,
+    0x01, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x02, 0x0a, 0x01, 0x01, 0x42,
+    0x01, 0x74, 0x01, 0x63, 0x00, 0x00, 0x01};
+
+/// Binary Wasm module: imports the re-exported tag.
+///
+/// (module
+///   (type $s (struct (field i32)))
+///   (type $ft (func (param i32)))
+///   (import "B" "e" (tag (type $ft))))
+std::array<WasmEdge::Byte, 29> ReExportTagImportWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02, 0x5f,
+    0x01, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x02, 0x08, 0x01, 0x01, 0x42,
+    0x01, 0x65, 0x04, 0x00, 0x01};
+
+/// Binary Wasm module: calls and tests the function in its table.
+///
+/// (module
+///   (type $f (func))
+///   (type $g (sub (func)))
+///   (table (export "tab") 1 funcref)
+///   (func (export "call_f") (call_indirect (type $f) (i32.const 0)))
+///   (func (export "call_g") (call_indirect (type $g) (i32.const 0)))
+///   (func (export "test_f") (result i32)
+///     (ref.test (ref $f) (table.get 0 (i32.const 0))))
+///   (func (export "test_g") (result i32)
+///     (ref.test (ref $g) (table.get 0 (i32.const 0)))))
+std::array<WasmEdge::Byte, 120> HostFuncTableWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x03, 0x60,
+    0x00, 0x00, 0x50, 0x00, 0x60, 0x00, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x03,
+    0x05, 0x04, 0x00, 0x00, 0x02, 0x02, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01,
+    0x07, 0x2b, 0x05, 0x03, 0x74, 0x61, 0x62, 0x01, 0x00, 0x06, 0x63, 0x61,
+    0x6c, 0x6c, 0x5f, 0x66, 0x00, 0x00, 0x06, 0x63, 0x61, 0x6c, 0x6c, 0x5f,
+    0x67, 0x00, 0x01, 0x06, 0x74, 0x65, 0x73, 0x74, 0x5f, 0x66, 0x00, 0x02,
+    0x06, 0x74, 0x65, 0x73, 0x74, 0x5f, 0x67, 0x00, 0x03, 0x0a, 0x25, 0x04,
+    0x07, 0x00, 0x41, 0x00, 0x11, 0x00, 0x00, 0x0b, 0x07, 0x00, 0x41, 0x00,
+    0x11, 0x01, 0x00, 0x0b, 0x09, 0x00, 0x41, 0x00, 0x25, 0x00, 0xfb, 0x14,
+    0x00, 0x0b, 0x09, 0x00, 0x41, 0x00, 0x25, 0x00, 0xfb, 0x14, 0x01, 0x0b};
 // clang-format on
 
 /// Regression test for ref.test on externalized nullable references.
@@ -1437,6 +1567,74 @@ TEST(ExecutorRegression, MemoryAtomicNotifyMemory64) {
   auto Result = VM.execute("test");
   EXPECT_TRUE(Result) << "memory.atomic.notify should succeed with 4-byte "
                          "alignment on Memory64";
+}
+
+/// Regression test for tag imports, whose types must match both ways.
+TEST(ExecutorRegression, TagImportMatchesBothWays) {
+  // --- Part 1: the import declares the super type (must not link) ---
+  {
+    Configure Conf;
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.registerModule("M", TagSubTypeExportWasm));
+    ASSERT_TRUE(VM.loadWasm(TagSuperTypeImportWasm));
+    ASSERT_TRUE(VM.validate());
+    auto Res = VM.instantiate();
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::IncompatibleImportType);
+  }
+
+  // --- Part 2: the import declares an equivalent type (links) ---
+  {
+    Configure Conf;
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.registerModule("M", TagSubTypeExportWasm));
+    ASSERT_TRUE(VM.loadWasm(TagSubTypeImportWasm));
+    ASSERT_TRUE(VM.validate());
+    EXPECT_TRUE(VM.instantiate());
+  }
+}
+
+/// Regression test for re-exported imports, typed by their defining module.
+TEST(ExecutorRegression, ReExportedImportsMatch) {
+  for (auto Wasm : {Span<const Byte>(ReExportGlobalImportWasm),
+                    Span<const Byte>(ReExportTableImportWasm),
+                    Span<const Byte>(ReExportTagImportWasm)}) {
+    Configure Conf;
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.registerModule("A", ReExportDefineWasm));
+    ASSERT_TRUE(VM.registerModule("B", ReExportForwardWasm));
+    ASSERT_TRUE(VM.loadWasm(Wasm));
+    ASSERT_TRUE(VM.validate());
+    EXPECT_TRUE(VM.instantiate());
+  }
+}
+
+/// Regression test for a host function out of any module, typed as the final
+/// `(func)`: it matches `$f` but not the non-final `$g`.
+TEST(ExecutorRegression, HostFuncMatchesItsDefinedType) {
+  Runtime::Instance::FunctionInstance HostFunc(std::make_unique<Nop>());
+  Configure Conf;
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(HostFuncTableWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  auto *TabInst = VM.getActiveModule()->findTableExports("tab");
+  ASSERT_NE(TabInst, nullptr);
+  ASSERT_TRUE(TabInst->setRefAddr(0, RefVariant(&HostFunc)));
+
+  EXPECT_TRUE(VM.execute("call_f"));
+  auto CallRes = VM.execute("call_g");
+  ASSERT_FALSE(CallRes);
+  EXPECT_EQ(CallRes.error(), ErrCode::Value::IndirectCallTypeMismatch);
+
+  auto TestRes = VM.execute("test_f");
+  ASSERT_TRUE(TestRes);
+  ASSERT_EQ(TestRes->size(), 1U);
+  EXPECT_EQ(TestRes->at(0).first.get<uint32_t>(), 1U);
+  TestRes = VM.execute("test_g");
+  ASSERT_TRUE(TestRes);
+  ASSERT_EQ(TestRes->size(), 1U);
+  EXPECT_EQ(TestRes->at(0).first.get<uint32_t>(), 0U);
 }
 
 } // namespace

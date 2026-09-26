@@ -842,6 +842,32 @@ TEST(Component, InstanceTypeWithCoreModuleExportDoesNotCrashValidation) {
   ASSERT_TRUE(VM.validate());
 }
 
+TEST(Component, CoreRecTypeCyclicSupertypeRejected) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
+
+  // (core rec
+  //   (type $a (sub (func (result (ref null $a)))))
+  //   (type (sub $a (func (result (ref null $c)))))
+  //   (type $c (sub $c (func))))
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      // Core type section: 1 rec group of 3 sub types
+      0x03, 0x18, 0x01, 0x4e, 0x03,
+      0x50, 0x00, 0x60, 0x00, 0x01, 0x63, 0x00,
+      0x50, 0x01, 0x00, 0x60, 0x00, 0x01, 0x63, 0x02,
+      0x50, 0x01, 0x02, 0x60, 0x00, 0x00,
+  };
+  // clang-format on
+
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  auto Res = VM.validate();
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::InvalidSubType);
+}
+
 TEST(Component, ExportAscriptionInstanceMissingExportRejected) {
   // (component
   //   (type (instance (export "a" (func)) (export "b" (func))))  ;; type[0]

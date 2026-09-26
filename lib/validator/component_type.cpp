@@ -400,9 +400,8 @@ Validator::validate(const AST::Component::CoreDefType &DType) noexcept {
       for (const uint32_t Idx : STypes[I].getSuperTypeIndices()) {
         EXPECTED_TRY(CheckIdx(Idx));
       }
-      EXPECTED_TRY(validate(STypes[I], BaseIdx + I, SubTypeDepthMap, TypeVec));
     }
-    return {};
+    return validate(STypes, BaseIdx, SubTypeDepthMap, TypeVec);
   }
   auto *Shape = CompTypes.addCoreShape();
   EXPECTED_TRY(validate(DType.getModuleType(), *Shape));

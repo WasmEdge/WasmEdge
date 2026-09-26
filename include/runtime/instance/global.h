@@ -19,6 +19,8 @@ namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
 
+class ModuleInstance;
+
 class GlobalInstance {
 public:
   GlobalInstance() = delete;
@@ -29,6 +31,15 @@ public:
              GType.getValType().isNullableRefType() ||
              !Val.get<RefVariant>().isNull());
   }
+  /// Constructor for a global instance defined by a module.
+  GlobalInstance(const ModuleInstance *Mod, const AST::GlobalType &GType,
+                 ValVariant Val) noexcept
+      : GlobalInstance(GType, Val) {
+    ModInst = Mod;
+  }
+
+  /// Getter for the defining module instance, if any.
+  const ModuleInstance *getModule() const noexcept { return ModInst; }
 
   /// Getter for global type.
   const AST::GlobalType &getGlobalType() const noexcept { return GlobType; }
@@ -43,6 +54,7 @@ public:
 private:
   /// \name Data of global instance.
   /// @{
+  const ModuleInstance *ModInst = nullptr;
   AST::GlobalType GlobType;
   alignas(16) ValVariant Value;
   /// @}

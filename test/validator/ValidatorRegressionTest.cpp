@@ -229,6 +229,75 @@ TEST_F(ValidatorRegressionTest, ForwardSupertypeInRecGroup) {
   EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
 }
 
+TEST_F(ValidatorRegressionTest, CyclicSupertypeInRecGroup) {
+  // Module: (module
+  //   (rec
+  //     (type $a (sub (func (result (ref null $a)))))
+  //     (type (sub $a (func (result (ref null $c)))))
+  //     (type $c (sub $c (func)))))
+  //
+  // Matching type 1 walks the super types of $c, which names itself, so
+  // validation must reject $c before matching instead of recursing forever.
+  std::array<WasmEdge::Byte, 34> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one rec group of 3 sub types
+      0x01, 0x18, 0x01, 0x4e, 0x03,
+      // type 0 ($a): (sub (func (result (ref null 0))))
+      0x50, 0x00, 0x60, 0x00, 0x01, 0x63, 0x00,
+      // type 1: (sub 0 (func (result (ref null 2))))
+      0x50, 0x01, 0x00, 0x60, 0x00, 0x01, 0x63, 0x02,
+      // type 2 ($c): (sub 2 (func))  -- its own supertype
+      0x50, 0x01, 0x02, 0x60, 0x00, 0x00};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
+TEST_F(ValidatorRegressionTest, CanonicalTypeIndices) {
+  // Module: (module
+  //   (type $a (func (param i32)))
+  //   (type $b (func (param i32)))
+  //   (type $c (struct (field (ref $a))))
+  //   (type $d (struct (field (ref $b))))
+  //   (rec (type $e (struct (field (ref $f)))) (type $f (struct)))
+  //   (rec (type $g (struct (field (ref $h)))) (type $h (struct)))
+  //   (type $i (sub (func (param i32)))))
+  //
+  // Equal types take the first one's canonical index; non-final $i differs.
+  std::array<WasmEdge::Byte, 53> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 7 recursive types of 9 sub types
+      0x01, 0x2b, 0x07,
+      // types 0 and 1 ($a, $b): (func (param i32))
+      0x60, 0x01, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x00,
+      // types 2 and 3 ($c, $d): (struct (field (ref 0 and 1)))
+      0x5f, 0x01, 0x64, 0x00, 0x00, 0x5f, 0x01, 0x64, 0x01, 0x00,
+      // types 4 and 5: (rec (struct (field (ref 5))) (struct))
+      0x4e, 0x02, 0x5f, 0x01, 0x64, 0x05, 0x00, 0x5f, 0x00,
+      // types 6 and 7: (rec (struct (field (ref 7))) (struct))
+      0x4e, 0x02, 0x5f, 0x01, 0x64, 0x07, 0x00, 0x5f, 0x00,
+      // type 8 ($i): (sub (func (param i32)))
+      0x50, 0x00, 0x60, 0x01, 0x7f, 0x00};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+  ASSERT_TRUE(ValidEngine->validate(**Result));
+
+  const auto Types = (*Result)->getTypeSection().getContent();
+  const std::array<uint32_t, 9> Expected = {0, 0, 2, 2, 4, 5, 4, 5, 8};
+  ASSERT_EQ(Types.size(), Expected.size());
+  for (uint32_t I = 0; I < Types.size(); I++) {
+    EXPECT_EQ(Types[I].getCanonicalIndex().value_or(UINT32_MAX), Expected[I])
+        << "type " << I;
+  }
+}
+
 TEST_F(ValidatorRegressionTest, ErrorPropagationRecursive) {
   std::array<WasmEdge::Byte, 255> Wasm = {
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x27, 0x02, 0x4e,

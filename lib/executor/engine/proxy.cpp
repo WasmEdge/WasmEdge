@@ -188,25 +188,12 @@ Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
   }
 
   assuming(ModInst);
-  const auto &ExpDefType = *ModInst->unsafeGetType(FuncTypeIdx);
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
 
   EXPECTED_TRY(checkLazyCompilation(FuncInst));
 
-  bool IsMatch = false;
-  if (FuncInst->getModule()) {
-    IsMatch = AST::TypeMatcher::matchType(
-        ModInst->getTypeList(), *ExpDefType.getTypeIndex(),
-        FuncInst->getModule()->getTypeList(), FuncInst->getTypeIndex());
-  } else {
-    // Independent host module instance case. Matching the composite type
-    // directly.
-    IsMatch = AST::TypeMatcher::matchType(
-        ModInst->getTypeList(), ExpDefType.getCompositeType(),
-        FuncInst->getHostFunc().getDefinedType().getCompositeType());
-  }
-  if (!IsMatch) {
+  if (!matchRef(ModInst, ValType(TypeCode::Ref, FuncTypeIdx), *Ref)) {
     return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
@@ -383,52 +370,16 @@ Expect<uint32_t>
 Executor::proxyRefTest(Runtime::StackManager &,
                        const Runtime::Instance::ModuleInstance *ModInst,
                        const RefVariant Ref, ValType VTTest) noexcept {
-  // Copy the value type here due to handling the externalized case.
-  auto VT = Ref.getType();
-  if (VT.isExternalized()) {
-    VT = ValType(TypeCode::Ref, TypeCode::ExternRef);
-  }
   assuming(ModInst);
-  Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
-  if (!VT.isAbsHeapType()) {
-    auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
-    // Reference must not be nullptr here because the null references are typed
-    // with the least abstract heap type.
-    if (Inst->getModule()) {
-      GotTypeList = Inst->getModule()->getTypeList();
-    }
-  }
-
-  if (AST::TypeMatcher::matchType(ModInst->getTypeList(), VTTest, GotTypeList,
-                                  VT)) {
-    return static_cast<uint32_t>(1);
-  } else {
-    return static_cast<uint32_t>(0);
-  }
+  return static_cast<uint32_t>(matchRef(ModInst, VTTest, Ref) ? 1 : 0);
 }
 
 Expect<RefVariant>
 Executor::proxyRefCast(Runtime::StackManager &,
                        const Runtime::Instance::ModuleInstance *ModInst,
                        const RefVariant Ref, ValType VTCast) noexcept {
-  // Copy the value type here due to handling the externalized case.
-  auto VT = Ref.getType();
-  if (VT.isExternalized()) {
-    VT = ValType(TypeCode::Ref, TypeCode::ExternRef);
-  }
   assuming(ModInst);
-  Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
-  if (!VT.isAbsHeapType()) {
-    auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
-    // Reference must not be nullptr here because the null references are typed
-    // with the least abstract heap type.
-    if (Inst->getModule()) {
-      GotTypeList = Inst->getModule()->getTypeList();
-    }
-  }
-
-  if (!AST::TypeMatcher::matchType(ModInst->getTypeList(), VTCast, GotTypeList,
-                                   VT)) {
+  if (!matchRef(ModInst, VTCast, Ref)) {
     return Unexpect(ErrCode::Value::CastFailed);
   }
   return Ref;
@@ -617,32 +568,12 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
     return Unexpect(ErrCode::Value::UninitializedElement);
   }
 
-  const auto &ExpDefType = *ModInst->unsafeGetType(FuncTypeIdx);
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
-  bool IsMatch = false;
-  // Check if the function type matches the expected type.
-  if (FuncInst->getModule() == ModInst &&
-      *ExpDefType.getTypeIndex() == FuncInst->getTypeIndex()) {
-    // Fast path: If the function instance is in the same module instance, we
-    // can bypass the expensive structural type matching (O(N)) by checking the
-    // type index directly (O(1)).
-    IsMatch = true;
-  } else if (FuncInst->getModule()) {
-    // If the type index is not the same, we still need to check the type
-    // structure. This is because the type alias may have different type
-    // indices but the same type structure.
-    IsMatch = AST::TypeMatcher::matchType(
-        ModInst->getTypeList(), *ExpDefType.getTypeIndex(),
-        FuncInst->getModule()->getTypeList(), FuncInst->getTypeIndex());
-  } else {
-    // Independent host module instance case. Matching the composite type
-    // directly.
-    IsMatch = AST::TypeMatcher::matchType(
-        ModInst->getTypeList(), ExpDefType.getCompositeType(),
-        FuncInst->getHostFunc().getDefinedType().getCompositeType());
-  }
-  if (!IsMatch) {
+  // Check the function type; the same module and type index need no matching.
+  if ((FuncInst->getModule() != ModInst ||
+       FuncInst->getTypeIndex() != FuncTypeIdx) &&
+      !matchRef(ModInst, ValType(TypeCode::Ref, FuncTypeIdx), *Ref)) {
     return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 

@@ -551,40 +551,47 @@ Executor::getDataInstByIdx(const Runtime::Instance::ModuleInstance *ModInst,
 TypeCode
 Executor::toBottomType(const Runtime::Instance::ModuleInstance *ModInst,
                        const ValType &Type) const {
-  if (Type.isRefType()) {
-    if (Type.isAbsHeapType()) {
-      switch (Type.getHeapTypeCode()) {
-      case TypeCode::NullFuncRef:
-      case TypeCode::FuncRef:
-        return TypeCode::NullFuncRef;
-      case TypeCode::NullExternRef:
-      case TypeCode::ExternRef:
-        return TypeCode::NullExternRef;
-      case TypeCode::NullRef:
-      case TypeCode::AnyRef:
-      case TypeCode::EqRef:
-      case TypeCode::I31Ref:
-      case TypeCode::StructRef:
-      case TypeCode::ArrayRef:
-        return TypeCode::NullRef;
-      case TypeCode::NullExnRef:
-      case TypeCode::ExnRef:
-        return TypeCode::NullExnRef;
-      default:
-        assumingUnreachable();
-      }
-    } else {
-      const auto &CompType =
-          ModInst->unsafeGetType(Type.getTypeIndex())->getCompositeType();
-      if (CompType.isFunc()) {
-        return TypeCode::NullFuncRef;
-      } else {
-        return TypeCode::NullRef;
-      }
-    }
-  } else {
+  if (!Type.isRefType()) {
     return Type.getCode();
   }
+  return AST::TypeMatcher::getBottomHeapType(
+      Type.isAbsHeapType() ? Type.getHeapTypeCode()
+                           : ModInst->unsafeGetType(Type.getTypeIndex())
+                                 ->getCompositeType()
+                                 .expand());
+}
+
+bool Executor::matchRef(const Runtime::Instance::ModuleInstance *ModInst,
+                        const ValType &Exp,
+                        const RefVariant &Ref) const noexcept {
+  // Match the own type of the referenced instance.
+  auto VT = Ref.getType();
+  Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
+  const AST::SubType *HostType = nullptr;
+  if (VT.isExternalized()) {
+    VT = ValType(VT.isNullableRefType() ? TypeCode::RefNull : TypeCode::Ref,
+                 TypeCode::ExternRef);
+  } else if (!VT.isAbsHeapType()) {
+    // Null references have abstract heap types.
+    const auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
+    assuming(Inst);
+    if (Inst->getModule()) {
+      GotTypeList = Inst->getModule()->getTypeList();
+    }
+  } else if (VT.getHeapTypeCode() == TypeCode::FuncRef && !Ref.isNull()) {
+    const auto *FuncInst = retrieveFuncRef(Ref);
+    if (FuncInst->getModule()) {
+      GotTypeList = FuncInst->getModule()->getTypeList();
+      VT = ValType(TypeCode::Ref, FuncInst->getTypeIndex());
+    } else {
+      // A host function out of any module is a type list of its own.
+      HostType = &FuncInst->getHostFunc().getDefinedType();
+      GotTypeList = Span<const AST::SubType *const>(&HostType, 1);
+      VT = ValType(TypeCode::Ref, 0U);
+    }
+  }
+  return AST::TypeMatcher::matchType(ModInst->getTypeList(), Exp, GotTypeList,
+                                     VT);
 }
 
 void Executor::cleanNumericVal(ValVariant &Val,

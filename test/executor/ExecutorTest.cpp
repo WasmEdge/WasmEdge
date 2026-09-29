@@ -16,6 +16,7 @@
 
 #include "common/filesystem.h"
 #include "common/spdlog.h"
+#include "loader/serialize.h"
 #include "vm/vm.h"
 
 #include "../common/wideArithmetic.h"
@@ -222,7 +223,10 @@ TEST(WideArithmetic, ExecutionSupport) {
           Body.insert(Body.begin(), AST::Instruction(OpCode::Unreachable));
         }
         VM::VM VM(Conf);
-        ASSERT_TRUE(VM.loadWasm(Module));
+        Loader::Serializer Serializer;
+        auto Bytes = Serializer.serializeModule(Module);
+        ASSERT_TRUE(Bytes);
+        ASSERT_TRUE(VM.loadWasm(*Bytes));
         ASSERT_TRUE(VM.validate());
         ASSERT_TRUE(VM.instantiate());
 

@@ -677,22 +677,44 @@ TEST_F(ValidatorRegressionTest, RejectWideArithmeticASTWithProposalDisabled) {
 static std::vector<Byte>
 makeWideArithmeticFunction(const WideArithmeticEncoding &Encoding,
                            bool Unreachable = false) {
-  std::vector<Byte> Body = {0x00};
+  // Add/sub module (use i64.sub128 for subtraction):
+  // (module
+  //   (type (func))
+  //   (func (export "run") (type 0)
+  //     i64.const 1 i64.const 1 i64.const 1 i64.const 1
+  //     i64.add128 drop drop))
+  // Multiplication module (use i64.mul_wide_u for unsigned multiplication):
+  // (module
+  //   (type (func))
+  //   (func (export "run") (type 0)
+  //     i64.const 1 i64.const 1
+  //     i64.mul_wide_s drop drop))
+  // The unreachable variant inserts unreachable before the first constant.
+  std::vector<Byte> Body = {0x00}; // Local declarations: empty vector.
   if (Unreachable) {
-    Body.push_back(0x00);
+    Body.push_back(0x00); // OpCode Unreachable.
   }
   const uint32_t OperandCount = Encoding.IsAddOrSub ? 4U : 2U;
   for (uint32_t I = 0; I < OperandCount; ++I) {
-    Body.insert(Body.end(), {0x42, 0x01});
+    Body.insert(Body.end(), {0x42, 0x01}); // OpCode I64__const, value 1.
   }
+  // Wide opcode, drop both i64 results, expression end.
   Body.insert(Body.end(), {0xFC, Encoding.Subopcode, 0x1A, 0x1A, 0x0B});
 
-  std::vector<Byte> Wasm = {0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00,
-                            0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
-                            0x03, 0x02, 0x01, 0x00, 0x07, 0x07, 0x01,
-                            0x03, 0x72, 0x75, 0x6E, 0x00, 0x00, 0x0A};
+  std::vector<Byte> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 1 type (func)
+      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+      // Function section: 1 function, type index 0
+      0x03, 0x02, 0x01, 0x00,
+      // Export section: 1 function export named "run", function index 0
+      0x07, 0x07, 0x01, 0x03, 0x72, 0x75, 0x6E, 0x00, 0x00,
+      // Code section
+      0x0A};
+  // Content size includes the function count and the one-byte body size.
   Wasm.push_back(static_cast<Byte>(Body.size() + 2U));
-  Wasm.push_back(0x01);
+  Wasm.push_back(0x01); // Function count.
   Wasm.push_back(static_cast<Byte>(Body.size()));
   Wasm.insert(Wasm.end(), Body.begin(), Body.end());
   return Wasm;
@@ -719,20 +741,37 @@ TEST_F(ValidatorRegressionTest, ValidateWideArithmeticFunctions) {
 }
 
 TEST_F(ValidatorRegressionTest, RejectWideArithmeticConstantExpressions) {
+  // Add/sub module (use i64.sub128 for subtraction):
+  // (module
+  //   (global i64
+  //     i64.const 1 i64.const 1 i64.const 1 i64.const 1
+  //     i64.add128 i64.add))
+  // Multiplication module (use i64.mul_wide_u for unsigned multiplication):
+  // (module
+  //   (global i64
+  //     i64.const 1 i64.const 1
+  //     i64.mul_wide_s i64.add))
+  // The final i64.add reduces the two wide results to one initializer value.
+  // Wide instructions are not permitted in constant expressions.
   Conf->addProposal(Proposal::WideArithmetic);
   Conf->addProposal(Proposal::ExtendedConst);
   Loader::Loader EnabledLoader(*Conf);
   Validator::Validator EnabledValidator(*Conf);
   for (const auto &Encoding : WideArithmeticEncodings) {
     SCOPED_TRACE(static_cast<unsigned>(Encoding.Subopcode));
+    // One immutable i64 global.
     std::vector<Byte> Global = {0x01, 0x7E, 0x00};
     const uint32_t OperandCount = Encoding.IsAddOrSub ? 4U : 2U;
     for (uint32_t I = 0; I < OperandCount; ++I) {
-      Global.insert(Global.end(), {0x42, 0x01});
+      Global.insert(Global.end(), {0x42, 0x01}); // OpCode I64__const, value 1.
     }
+    // Wide opcode, i64.add, expression end.
     Global.insert(Global.end(), {0xFC, Encoding.Subopcode, 0x7C, 0x0B});
-    std::vector<Byte> Wasm = {0x00, 0x61, 0x73, 0x6D, 0x01,
-                              0x00, 0x00, 0x00, 0x06};
+    std::vector<Byte> Wasm = {// Preamble
+                              0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00,
+                              // Global section
+                              0x06};
+    // Content size: global count, type and initializer expression.
     Wasm.push_back(static_cast<Byte>(Global.size()));
     Wasm.insert(Wasm.end(), Global.begin(), Global.end());
     auto Module = EnabledLoader.parseModule(Wasm);

@@ -411,6 +411,12 @@ OFC(Table__grow, "table.grow", 0xFC, 15)
 OFC(Table__size, "table.size", 0xFC, 16)
 OFC(Table__fill, "table.fill", 0xFC, 17)
 
+// 0xFC prefix - Wide Arithmetic Instructions
+OFC(I64__add128, "i64.add128", 0xFC, 19)
+OFC(I64__sub128, "i64.sub128", 0xFC, 20)
+OFC(I64__mul_wide_s, "i64.mul_wide_s", 0xFC, 21)
+OFC(I64__mul_wide_u, "i64.mul_wide_u", 0xFC, 22)
+
 // 0xFD prefix - Vector Memory Instructions (part 1)
 OFD(V128__load, "v128.load", 0xFD, 0)
 OFD(V128__load8x8_s, "v128.load8x8_s", 0xFD, 1)
@@ -776,12 +782,6 @@ OFE(I64__atomic__rmw8__cmpxchg_u, "i64.atomic.rmw8.cmpxchg_u", 0xFE, 76)
 OFE(I64__atomic__rmw16__cmpxchg_u, "i64.atomic.rmw16.cmpxchg_u", 0xFE, 77)
 OFE(I64__atomic__rmw32__cmpxchg_u, "i64.atomic.rmw32.cmpxchg_u", 0xFE, 78)
 
-// 0xFC prefix - Wide Arithmetic Instructions
-OFC(I64__add128, "i64.add128", 0xFC, 19)
-OFC(I64__sub128, "i64.sub128", 0xFC, 20)
-OFC(I64__mul_wide_s, "i64.mul_wide_s", 0xFC, 21)
-OFC(I64__mul_wide_u, "i64.mul_wide_u", 0xFC, 22)
-
 #undef O
 #undef OFB
 #undef OFC
@@ -822,10 +822,10 @@ P(ExceptionHandling, "Exception Handling")
 P(Memory64, "Memory64")
 // Phase 4 proposals
 P(Threads, "Threads")
-// Phase 1 proposals
-P(Component, "Component Model")
 // Phase 3 proposals
 P(WideArithmetic, "Wide Arithmetic")
+// Phase 1 proposals
+P(Component, "Component Model")
 #undef P
 #endif // UseProposal
 

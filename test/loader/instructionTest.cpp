@@ -1724,6 +1724,21 @@ TEST(InstructionTest, Proposals) {
   WasmEdge::Loader::Loader LdrThreads(Conf);
   Conf.removeProposal(WasmEdge::Proposal::Threads);
 
+  WasmEdge::Configure WideConf;
+  WideConf.addProposal(WasmEdge::Proposal::WideArithmetic);
+  WasmEdge::Loader::Loader LdrWideArithmetic(WideConf);
+  WideConf.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Loader LdrWideWASM1(WideConf);
+  WideConf.addProposal(WasmEdge::Proposal::WideArithmetic);
+  WideConf.setWASMStandard(WasmEdge::Standard::WASM_2);
+  WasmEdge::Loader::Loader LdrWideWASM2(WideConf);
+  WideConf.addProposal(WasmEdge::Proposal::WideArithmetic);
+  WideConf.setWASMStandard(WasmEdge::Standard::WASM_3);
+  WasmEdge::Loader::Loader LdrWideWASM3(WideConf);
+  WideConf.addProposal(WasmEdge::Proposal::WideArithmetic);
+  WideConf.removeProposal(WasmEdge::Proposal::WideArithmetic);
+  WasmEdge::Loader::Loader LdrWithoutWideArithmetic(WideConf);
+
   // 13. Test ValTypes and instructions with disabled proposals
   //
   //   1.  Load if instruction with/without SIMD proposal.
@@ -1742,6 +1757,8 @@ TEST(InstructionTest, Proposals) {
   //   10. Load reference instructions with/without typed function reference
   //       proposal.
   //   11. Load Return_call_ref instruction with/without tail-call proposal.
+  //   12. Load wide arithmetic instructions with/without the proposal and
+  //       after resetting the WebAssembly standard.
 
   Vec = {
       0x0AU,                      // Code section
@@ -1920,34 +1937,25 @@ TEST(InstructionTest, Proposals) {
   };
   EXPECT_FALSE(LdrWASM2.parseModule(prefixedVec(Vec)));
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
-}
 
-TEST(InstructionTest, WideArithmeticConfiguration) {
-  EXPECT_EQ(static_cast<uint32_t>(WasmEdge::OpCode::V128__load), 243U);
-  EXPECT_EQ(static_cast<uint32_t>(WasmEdge::OpCode::Memory__atomic__notify),
-            499U);
-  EXPECT_EQ(
-      static_cast<uint32_t>(WasmEdge::OpCode::I64__atomic__rmw32__cmpxchg_u),
-      565U);
-  WasmEdge::Configure LocalConf;
-  EXPECT_FALSE(LocalConf.hasProposal(WasmEdge::Proposal::WideArithmetic));
-  for (const auto Standard :
-       {WasmEdge::Standard::WASM_1, WasmEdge::Standard::WASM_2,
-        WasmEdge::Standard::WASM_3}) {
-    LocalConf.addProposal(WasmEdge::Proposal::WideArithmetic);
-    LocalConf.setWASMStandard(Standard);
-    EXPECT_FALSE(LocalConf.hasProposal(WasmEdge::Proposal::WideArithmetic));
-    for (const auto Opcode :
-         {WasmEdge::OpCode::I64__add128, WasmEdge::OpCode::I64__sub128,
-          WasmEdge::OpCode::I64__mul_wide_s,
-          WasmEdge::OpCode::I64__mul_wide_u}) {
-      EXPECT_EQ(LocalConf.isInstrNeedProposal(Opcode),
-                WasmEdge::Proposal::WideArithmetic);
-      LocalConf.addProposal(WasmEdge::Proposal::WideArithmetic);
-      EXPECT_FALSE(LocalConf.isInstrNeedProposal(Opcode));
-      LocalConf.removeProposal(WasmEdge::Proposal::WideArithmetic);
-    }
-  }
+  Vec = {
+      0x0AU,        // Code section
+      0x0CU,        // Content size = 12
+      0x01U,        // Vector length = 1
+      0x0AU,        // Code segment size = 10
+      0x00U,        // Local vec(0)
+      0xFCU, 0x13U, // OpCode I64__add128.
+      0xFCU, 0x14U, // OpCode I64__sub128.
+      0xFCU, 0x15U, // OpCode I64__mul_wide_s.
+      0xFCU, 0x16U, // OpCode I64__mul_wide_u.
+      0x0BU         // Expression End.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWideWASM1.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWideWASM2.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWideWASM3.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWithoutWideArithmetic.parseModule(prefixedVec(Vec)));
 }
 
 TEST(InstructionTest, LoadSIMDInstruction) {

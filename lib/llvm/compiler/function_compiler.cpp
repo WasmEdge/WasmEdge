@@ -38,6 +38,8 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
     }
 
     CalleeCtxSlot = Builder.createAlloca(Context.ModCtxPtrTy);
+    TmpValues = Builder.createArray(1, LLVM::kValSize);
+    TmpValuesSize = 1;
 
     for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam().getNextParam();
          Arg; Arg = Arg.getNextParam()) {
@@ -64,6 +66,25 @@ LLVM::BasicBlock FunctionCompiler::getTrapBB(ErrCode::Value Error) noexcept {
   auto BB = LLVM::BasicBlock::create(LLContext, F.Fn, "trap");
   TrapBB.emplace(Error, BB);
   return BB;
+}
+
+LLVM::Value FunctionCompiler::getTmpValues(size_t Num) noexcept {
+  if (Num > TmpValuesSize) {
+    LLVM::Builder EntryBuilder(LLContext);
+    EntryBuilder.positionBefore(TmpValues);
+    auto Values = EntryBuilder.createArray(Num, LLVM::kValSize);
+    TmpValues.replaceAllUsesWith(Values);
+    TmpValues.eraseFromParent();
+    TmpValues = Values;
+    TmpValuesSize = Num;
+  }
+  TmpValuesUsed = static_cast<uint64_t>(Num) * LLVM::kValSize;
+  Builder.createLifetimeStart(TmpValues, TmpValuesUsed);
+  return TmpValues;
+}
+
+void FunctionCompiler::endTmpValues() noexcept {
+  Builder.createLifetimeEnd(TmpValues, TmpValuesUsed);
 }
 
 Expect<void> FunctionCompiler::compile(
@@ -1256,7 +1277,7 @@ void FunctionCompiler::compileTryTableOp(
         PayloadNum = static_cast<uint32_t>(TagFuncType.getParamTypes().size());
       }
       const uint32_t OutNum = PayloadNum + (C->IsRef ? 1U : 0U);
-      LLVM::Value Out = Builder.createArray(OutNum, LLVM::kValSize);
+      LLVM::Value Out = getTmpValues(OutNum);
       Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kCatchPop,
@@ -1284,6 +1305,7 @@ void FunctionCompiler::compileTryTableOp(
             Context.Int64x2Ty, Out, Context.Int8Ty,
             static_cast<uint64_t>(OutIdx) * LLVM::kValSize));
       }
+      endTmpValues();
       setLableJumpPHI(C->LabelIndex);
       Builder.createBr(getLabel(C->LabelIndex));
       Stack.erase(Stack.begin() + static_cast<int64_t>(StackSizeBefore),
@@ -1308,7 +1330,7 @@ void FunctionCompiler::compileThrowOp(const uint32_t TagIndex) noexcept {
   for (uint32_t I = 0; I < Arity; ++I) {
     Payload[Arity - 1 - I] = stackPop();
   }
-  LLVM::Value Vals = Builder.createArray(Arity, LLVM::kValSize);
+  LLVM::Value Vals = getTmpValues(Arity);
   Builder.createArrayPtrStore(Payload, Vals, Context.Int8Ty, LLVM::kValSize);
 
   Builder.createCall(
@@ -1320,6 +1342,7 @@ void FunctionCompiler::compileThrowOp(const uint32_t TagIndex) noexcept {
                                       false)),
       {Context.getModuleInst(Builder, ModCtx), LLContext.getInt32(TagIndex),
        Vals, LLContext.getInt32(Arity)});
+  endTmpValues();
 
   Builder.createBr(getEHDispatchTarget());
   setUnreachable();
@@ -1561,8 +1584,9 @@ void FunctionCompiler::compileIndirectCallOp(
 
   std::vector<LLVM::Value> RetsVec;
   {
-    LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
-    LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
+    LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+    LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
+        Context.Int8Ty, Args, ArgSize * LLVM::kValSize);
     Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
@@ -1585,6 +1609,7 @@ void FunctionCompiler::compileIndirectCallOp(
       RetsVec = Builder.createArrayPtrLoad(RetSize, RTy, Rets, Context.Int8Ty,
                                            LLVM::kValSize);
     }
+    endTmpValues();
     Builder.createBr(EndBB);
     Builder.positionAtEnd(EndBB);
   }
@@ -1751,8 +1776,9 @@ void FunctionCompiler::compileReturnIndirectCallOp(
   Builder.positionAtEnd(IsNullBB);
 
   {
-    LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
-    LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
+    LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+    LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
+        Context.Int8Ty, Args, ArgSize * LLVM::kValSize);
     Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
@@ -1768,12 +1794,17 @@ void FunctionCompiler::compileReturnIndirectCallOp(
          LLContext.getInt32(FuncTypeIndex), Idx64, Args, Rets});
 
     if (RetSize == 0) {
+      endTmpValues();
       Builder.createRetVoid();
     } else if (RetSize == 1) {
-      Builder.createRet(Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
+      auto Ret = Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty);
+      endTmpValues();
+      Builder.createRet(Ret);
     } else {
-      Builder.createAggregateRet(Builder.createArrayPtrLoad(
-          RetSize, RTy, Rets, Context.Int8Ty, LLVM::kValSize));
+      auto Ret = Builder.createArrayPtrLoad(RetSize, RTy, Rets, Context.Int8Ty,
+                                            LLVM::kValSize);
+      endTmpValues();
+      Builder.createAggregateRet(Ret);
     }
   }
 }
@@ -1845,8 +1876,9 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
 
   std::vector<LLVM::Value> RetsVec;
   {
-    LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
-    LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
+    LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+    LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
+        Context.Int8Ty, Args, ArgSize * LLVM::kValSize);
     Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
@@ -1867,6 +1899,7 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
       RetsVec = Builder.createArrayPtrLoad(RetSize, RTy, Rets, Context.Int8Ty,
                                            LLVM::kValSize);
     }
+    endTmpValues();
     Builder.createBr(EndBB);
     Builder.positionAtEnd(EndBB);
   }
@@ -1947,8 +1980,9 @@ void FunctionCompiler::compileReturnCallRefOp(
   Builder.positionAtEnd(IsNullBB);
 
   {
-    LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
-    LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
+    LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+    LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
+        Context.Int8Ty, Args, ArgSize * LLVM::kValSize);
     Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
@@ -1962,12 +1996,17 @@ void FunctionCompiler::compileReturnCallRefOp(
         {Context.getModuleInst(Builder, ModCtx), Ref, Args, Rets});
 
     if (RetSize == 0) {
+      endTmpValues();
       Builder.createRetVoid();
     } else if (RetSize == 1) {
-      Builder.createRet(Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
+      auto Ret = Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty);
+      endTmpValues();
+      Builder.createRet(Ret);
     } else {
-      Builder.createAggregateRet(Builder.createArrayPtrLoad(
-          RetSize, RTy, Rets, Context.Int8Ty, LLVM::kValSize));
+      auto Ret = Builder.createArrayPtrLoad(RetSize, RTy, Rets, Context.Int8Ty,
+                                            LLVM::kValSize);
+      endTmpValues();
+      Builder.createAggregateRet(Ret);
     }
   }
 }

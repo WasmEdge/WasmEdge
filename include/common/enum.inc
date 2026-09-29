@@ -822,7 +822,6 @@ P(ExceptionHandling, "Exception Handling")
 P(Memory64, "Memory64")
 // Phase 4 proposals
 P(Threads, "Threads")
-// Phase 3 proposals
 P(WideArithmetic, "Wide Arithmetic")
 // Phase 1 proposals
 P(Component, "Component Model")

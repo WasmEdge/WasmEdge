@@ -377,6 +377,10 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
         static_cast<uint32_t>(Opt.GasLim.value().back()));
   }
   if (Opt.MemLim.value().size() > 0) {
+    if (Opt.MemLim.value().back() < 0) {
+      spdlog::error("Memory page limit cannot be negative."sv);
+      return EXIT_FAILURE;
+    }
     Conf.getRuntimeConfigure().setMaxMemoryPage(
         static_cast<uint32_t>(Opt.MemLim.value().back()));
   }

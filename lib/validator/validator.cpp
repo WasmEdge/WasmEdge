@@ -242,11 +242,26 @@ Expect<void> Validator::validate(const AST::SubType &Type) {
       spdlog::error("    Super type should not be final."sv);
       return Unexpect(ErrCode::Value::InvalidSubType);
     }
-    auto &SuperType = TypeVec[Index]->getCompositeType();
-    if (!AST::TypeMatcher::matchType(Checker.getTypes(), SuperType, CompType)) {
-      spdlog::error(ErrCode::Value::InvalidSubType);
-      spdlog::error("    Super type not matched."sv);
-      return Unexpect(ErrCode::Value::InvalidSubType);
+  }
+  return {};
+}
+
+// Validate Rec type. See "include/validator/validator.h".
+Expect<void> Validator::validate(Span<const AST::SubType> RecType) {
+  const auto &TypeVec = Checker.getTypes();
+  // Check all the members before matching, which walks their super types.
+  for (const auto &Type : RecType) {
+    EXPECTED_TRY(validate(Type));
+  }
+  for (const auto &Type : RecType) {
+    for (const auto &Index : Type.getSuperTypeIndices()) {
+      if (!AST::TypeMatcher::matchType(TypeVec,
+                                       TypeVec[Index]->getCompositeType(),
+                                       Type.getCompositeType())) {
+        spdlog::error(ErrCode::Value::InvalidSubType);
+        spdlog::error("    Super type not matched."sv);
+        return Unexpect(ErrCode::Value::InvalidSubType);
+      }
     }
   }
   return {};
@@ -627,12 +642,11 @@ Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
       for (uint32_t I = Idx; I < Idx + RecSize; I++) {
         Checker.addType(STypeList[I]);
       }
-      for (uint32_t I = Idx; I < Idx + RecSize; I++) {
-        EXPECTED_TRY(validate(STypeList[I]).map_error([](auto E) {
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Rec));
-          return E;
-        }));
-      }
+      EXPECTED_TRY(
+          validate(STypeList.subspan(Idx, RecSize)).map_error([](auto E) {
+            spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Rec));
+            return E;
+          }));
       Idx += RecSize;
     } else {
       // SubType case.
@@ -640,7 +654,7 @@ Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
         // For the GC proposal, the subtype is treated as a self-recursive type.
         // Add types first for recursive references.
         Checker.addType(SType);
-        EXPECTED_TRY(validate(*Checker.getTypes().back()));
+        EXPECTED_TRY(validate(STypeList.subspan(Idx, 1)));
       } else {
         // Validating first.
         EXPECTED_TRY(validate(SType));

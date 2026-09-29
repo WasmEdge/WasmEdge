@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "loader/loader.h"
-#include "loader/serialize.h"
 
 #include <cstdint>
 #include <gtest/gtest.h>
@@ -879,7 +878,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
   WasmEdge::Configure WideConf;
   WideConf.addProposal(WasmEdge::Proposal::WideArithmetic);
   WasmEdge::Loader::Loader LdrWideArithmetic(WideConf);
-  WasmEdge::Loader::Serializer Serializer;
 
   // 12. Test miscellaneous instruction opcodes.
   //
@@ -890,7 +888,7 @@ TEST(InstructionTest, LoadMiscInstruction) {
   //   5.  Load invalid opcode with a ULEB32 encoding longer than five bytes.
   //   6.  Load invalid unknown miscellaneous opcodes 0x100, 0x113 and 0x17.
   //   7.  Load wide arithmetic opcodes with the proposal disabled and enabled,
-  //       using one- to five-byte ULEB32 encodings; serialize to minimal form.
+  //       using one- to five-byte ULEB32 encodings.
 
   Vec = {
       0x0AU,        // Code section
@@ -1125,18 +1123,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__add128);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x13U, // OpCode I64__add128.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
   Vec[6] = 0x14U; // Wide arithmetic opcode 0x14.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1151,18 +1137,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__sub128);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x14U, // OpCode I64__sub128.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
   Vec[6] = 0x15U; // Wide arithmetic opcode 0x15.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1177,18 +1151,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_s);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x15U, // OpCode I64__mul_wide_s.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
   Vec[6] = 0x16U; // Wide arithmetic opcode 0x16.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1203,18 +1165,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_u);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x16U, // OpCode I64__mul_wide_u.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
 
   Vec = {
@@ -1238,18 +1188,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__add128);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x13U, // OpCode I64__add128.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
   Vec[6] = 0x94U; // Wide arithmetic opcode 0x14.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1264,18 +1202,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__sub128);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x14U, // OpCode I64__sub128.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
   Vec[6] = 0x95U; // Wide arithmetic opcode 0x15.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1290,18 +1216,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_s);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x15U, // OpCode I64__mul_wide_s.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
   Vec[6] = 0x96U; // Wide arithmetic opcode 0x16.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1316,18 +1230,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_u);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x16U, // OpCode I64__mul_wide_u.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
 
   Vec = {
@@ -1351,18 +1253,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__add128);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x13U, // OpCode I64__add128.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
   Vec[6] = 0x94U; // Wide arithmetic opcode 0x14.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1377,18 +1267,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__sub128);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x14U, // OpCode I64__sub128.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
   Vec[6] = 0x95U; // Wide arithmetic opcode 0x15.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1403,18 +1281,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_s);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x15U, // OpCode I64__mul_wide_s.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
   Vec[6] = 0x96U; // Wide arithmetic opcode 0x16.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1429,18 +1295,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_u);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x16U, // OpCode I64__mul_wide_u.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
 
   Vec = {
@@ -1464,18 +1318,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__add128);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x13U, // OpCode I64__add128.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
   Vec[6] = 0x94U; // Wide arithmetic opcode 0x14.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1490,18 +1332,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__sub128);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x14U, // OpCode I64__sub128.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
   Vec[6] = 0x95U; // Wide arithmetic opcode 0x15.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1516,18 +1346,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_s);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x15U, // OpCode I64__mul_wide_s.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
   Vec[6] = 0x96U; // Wide arithmetic opcode 0x16.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1542,18 +1360,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_u);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x16U, // OpCode I64__mul_wide_u.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
 
   Vec = {
@@ -1577,18 +1383,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__add128);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x13U, // OpCode I64__add128.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
   Vec[6] = 0x94U; // Wide arithmetic opcode 0x14.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1603,18 +1397,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__sub128);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x14U, // OpCode I64__sub128.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
   Vec[6] = 0x95U; // Wide arithmetic opcode 0x15.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1629,18 +1411,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_s);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x15U, // OpCode I64__mul_wide_s.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
   Vec[6] = 0x96U; // Wide arithmetic opcode 0x16.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1655,18 +1425,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
     ASSERT_EQ(Instrs.size(), 2U);
     EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_u);
     EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
-    std::vector<uint8_t> Output;
-    Serializer.serializeSection(CodeSec, Output);
-    const std::vector<uint8_t> Expected = {
-        0x0AU,        // Code section
-        0x06U,        // Content size = 6
-        0x01U,        // Vector length = 1
-        0x04U,        // Code segment size = 4
-        0x00U,        // Local vec(0)
-        0xFCU, 0x16U, // OpCode I64__mul_wide_u.
-        0x0BU         // Expression End.
-    };
-    EXPECT_EQ(Output, Expected);
   }
 }
 

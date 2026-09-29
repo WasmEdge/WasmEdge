@@ -215,7 +215,7 @@ TEST(WideArithmetic, ExecutionSupport) {
       const std::vector<ValVariant> Values(Types.size(), uint64_t{1});
       for (const bool Unreachable : {false, true}) {
         SCOPED_TRACE(Unreachable);
-        auto Module = Test::makeWideArithmeticModule(Opcode, Types);
+        auto Module = WasmEdge::Test::makeWideArithmeticModule(Opcode, Types);
         if (Unreachable) {
           auto &Body =
               Module.getCodeSection().getContent()[0].getExpr().getInstrs();

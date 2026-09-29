@@ -241,6 +241,8 @@ static constexpr FILETIME_ toFiletime(__wasi_timestamp_t TimeStamp) noexcept {
 
 inline constexpr __wasi_errno_t fromWSAErrNo(int WSAErrNo) noexcept {
   switch (WSAErrNo) {
+  case 0:
+    return __WASI_ERRNO_SUCCESS;
   case WSASYSNOTREADY_: // WSAStartup
   case WSAEWOULDBLOCK_: // closesocket
     return __WASI_ERRNO_AGAIN;

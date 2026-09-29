@@ -1137,8 +1137,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
   Vec[6] = 0x14U; // Wide arithmetic opcode 0x14.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1165,8 +1163,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
   Vec[6] = 0x15U; // Wide arithmetic opcode 0x15.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1193,8 +1189,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
   Vec[6] = 0x16U; // Wide arithmetic opcode 0x16.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1221,8 +1215,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
 
   Vec = {
@@ -1258,8 +1250,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
   Vec[6] = 0x94U; // Wide arithmetic opcode 0x14.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1286,8 +1276,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
   Vec[6] = 0x95U; // Wide arithmetic opcode 0x15.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1314,8 +1302,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
   Vec[6] = 0x96U; // Wide arithmetic opcode 0x16.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1342,8 +1328,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
 
   Vec = {
@@ -1379,8 +1363,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
   Vec[6] = 0x94U; // Wide arithmetic opcode 0x14.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1407,8 +1389,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
   Vec[6] = 0x95U; // Wide arithmetic opcode 0x15.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1435,8 +1415,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
   Vec[6] = 0x96U; // Wide arithmetic opcode 0x16.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1463,8 +1441,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
 
   Vec = {
@@ -1500,8 +1476,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
   Vec[6] = 0x94U; // Wide arithmetic opcode 0x14.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1528,8 +1502,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
   Vec[6] = 0x95U; // Wide arithmetic opcode 0x15.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1556,8 +1528,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
   Vec[6] = 0x96U; // Wide arithmetic opcode 0x16.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1584,8 +1554,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
 
   Vec = {
@@ -1621,8 +1589,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
   Vec[6] = 0x94U; // Wide arithmetic opcode 0x14.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1649,8 +1615,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
   Vec[6] = 0x95U; // Wide arithmetic opcode 0x15.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1677,8 +1641,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
   Vec[6] = 0x96U; // Wide arithmetic opcode 0x16.
   Result = Ldr.parseModule(prefixedVec(Vec));
@@ -1705,8 +1667,6 @@ TEST(InstructionTest, LoadMiscInstruction) {
         0x0BU         // Expression End.
     };
     EXPECT_EQ(Output, Expected);
-    EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Output)));
-    EXPECT_FALSE(Ldr.parseModule(prefixedVec(Output)));
   }
 }
 

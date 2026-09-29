@@ -18,6 +18,7 @@
 #include "common/spdlog.h"
 #include "vm/vm.h"
 
+#include "../common/wideArithmetic.h"
 #include "../spec/hostfunc.h"
 #include "../spec/spectest.h"
 
@@ -196,6 +197,49 @@ TEST_P(CoreTest, TestSuites) {
 INSTANTIATE_TEST_SUITE_P(
     TestUnit, CoreTest,
     testing::ValuesIn(T.enumerate(SpecTest::TestMode::Interpreter)));
+
+TEST(WideArithmetic, ExecutionSupport) {
+  for (const auto Mode :
+       {RunMode::Interpreter, RunMode::JIT, RunMode::LazyJIT}) {
+    SCOPED_TRACE(static_cast<unsigned>(Mode));
+    Configure Conf;
+    Conf.addProposal(Proposal::WideArithmetic);
+    Conf.getRuntimeConfigure().setRunMode(Mode);
+    for (const auto Opcode :
+         {OpCode::I64__add128, OpCode::I64__sub128, OpCode::I64__mul_wide_s,
+          OpCode::I64__mul_wide_u}) {
+      SCOPED_TRACE(static_cast<unsigned>(Opcode));
+      const bool IsAddOrSub =
+          Opcode == OpCode::I64__add128 || Opcode == OpCode::I64__sub128;
+      const std::vector<ValType> Types(IsAddOrSub ? 4U : 2U, TypeCode::I64);
+      const std::vector<ValVariant> Values(Types.size(), uint64_t{1});
+      for (const bool Unreachable : {false, true}) {
+        SCOPED_TRACE(Unreachable);
+        auto Module = Test::makeWideArithmeticModule(Opcode, Types);
+        if (Unreachable) {
+          auto &Body =
+              Module.getCodeSection().getContent()[0].getExpr().getInstrs();
+          Body.insert(Body.begin(), AST::Instruction(OpCode::Unreachable));
+        }
+        VM::VM VM(Conf);
+        ASSERT_TRUE(VM.loadWasm(Module));
+        ASSERT_TRUE(VM.validate());
+        ASSERT_TRUE(VM.instantiate());
+
+        auto ExpectedError = Unreachable ? ErrCode::Value::Unreachable
+                                         : ErrCode::Value::RuntimeError;
+#ifdef WASMEDGE_USE_LLVM
+        if (Mode == RunMode::LazyJIT) {
+          ExpectedError = ErrCode::Value::AOTNotImpl;
+        }
+#endif
+        auto Result = VM.execute("wide", Values, Types);
+        ASSERT_FALSE(Result);
+        EXPECT_EQ(Result.error(), ExpectedError);
+      }
+    }
+  }
+}
 
 std::array<WasmEdge::Byte, 46> AsyncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,

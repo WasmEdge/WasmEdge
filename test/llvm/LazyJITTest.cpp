@@ -24,8 +24,12 @@
 #include "vm/vm.h"
 #include "llvm/compiler.h"
 #include "llvm/jit.h"
+#include <array>
+#include <cstdint>
 #include <gtest/gtest.h>
 #include <thread>
+#include <utility>
+#include <vector>
 
 namespace {
 
@@ -685,6 +689,58 @@ TEST_F(LazyJITTest, JITAddLookupFailure) {
   auto AddResult = JIT.add(*JITLib, *FuncCompileRes, InvalidIndices);
   EXPECT_FALSE(AddResult);
   EXPECT_EQ(AddResult.error(), ErrCode::Value::LazyCompilationError);
+}
+
+TEST(WideArithmeticCompiler, RejectUntilLoweringIsImplemented) {
+  Configure Conf;
+  Conf.addProposal(Proposal::WideArithmetic);
+  Validator::Validator Validator(Conf);
+  LLVM::Compiler Compiler(Conf);
+  ASSERT_TRUE(Compiler.checkConfigure());
+  Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+  LLVM::Compiler LazyCompiler(Conf);
+  ASSERT_TRUE(LazyCompiler.checkConfigure());
+
+  for (const auto Opcode : {OpCode::I64__add128, OpCode::I64__sub128,
+                            OpCode::I64__mul_wide_s, OpCode::I64__mul_wide_u}) {
+    SCOPED_TRACE(static_cast<unsigned>(Opcode));
+    for (const bool Unreachable : {false, true}) {
+      SCOPED_TRACE(Unreachable);
+      AST::Module Module;
+      AST::FunctionType Type;
+      Type.getReturnTypes() = {TypeCode::I64, TypeCode::I64};
+      Module.getTypeSection().getContent().emplace_back(Type);
+      Module.getFunctionSection().getContent().push_back(0U);
+      AST::CodeSegment Code;
+      auto &Instructions = Code.getExpr().getInstrs();
+      if (Unreachable) {
+        Instructions.emplace_back(OpCode::Unreachable);
+      }
+      const uint32_t OperandCount =
+          Opcode == OpCode::I64__add128 || Opcode == OpCode::I64__sub128 ? 4U
+                                                                         : 2U;
+      for (uint32_t I = 0; I < OperandCount; ++I) {
+        Instructions.emplace_back(OpCode::I64__const);
+        Instructions.back().setNum(uint64_t{1});
+      }
+      Instructions.emplace_back(Opcode);
+      Instructions.emplace_back(OpCode::End);
+      Module.getCodeSection().getContent().push_back(std::move(Code));
+      ASSERT_TRUE(Validator.validate(Module));
+
+      auto Full = Compiler.compile(Module);
+      ASSERT_FALSE(Full);
+      EXPECT_EQ(Full.error(), ErrCode::Value::AOTNotImpl);
+
+      auto Infrastructure = LazyCompiler.compileInfrastructure(Module);
+      ASSERT_TRUE(Infrastructure);
+      const std::array<uint32_t, 1> Functions = {0U};
+      auto Lazy = LazyCompiler.compileFunctions(std::move(*Infrastructure),
+                                                Module, Functions);
+      ASSERT_FALSE(Lazy);
+      EXPECT_EQ(Lazy.error(), ErrCode::Value::AOTNotImpl);
+    }
+  }
 }
 
 TEST_F(LazyJITTest, LazyJITIntrinsicsReachableFromCompiledCode) {

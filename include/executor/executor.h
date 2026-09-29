@@ -566,6 +566,10 @@ private:
   TypeCode toBottomType(const Runtime::Instance::ModuleInstance *ModInst,
                         const ValType &Type) const;
 
+  /// Helper function for matching a reference against a reference type.
+  bool matchRef(const Runtime::Instance::ModuleInstance *ModInst,
+                const ValType &Exp, const RefVariant &Ref) const noexcept;
+
   /// Helper function for cleaning unused bits of numeric values in ValVariant.
   void cleanNumericVal(ValVariant &Val, const ValType &Type) const noexcept;
 

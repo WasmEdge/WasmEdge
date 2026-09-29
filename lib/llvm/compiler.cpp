@@ -589,6 +589,9 @@ public:
         Builder.createStore(LLContext.getInt64(0), LocalGas);
       }
 
+      TmpValues = Builder.createArray(1, kValSize);
+      TmpValuesSize = 1;
+
       for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam(); Arg;
            Arg = Arg.getNextParam()) {
         LLVM::Type Ty = Arg.getType();
@@ -615,6 +618,25 @@ public:
     auto BB = LLVM::BasicBlock::create(LLContext, F.Fn, "trap");
     TrapBB.emplace(Error, BB);
     return BB;
+  }
+
+  LLVM::Value getTmpValues(size_t Num) noexcept {
+    if (Num > TmpValuesSize) {
+      LLVM::Builder EntryBuilder(LLContext);
+      EntryBuilder.positionBefore(TmpValues);
+      auto Values = EntryBuilder.createArray(Num, kValSize);
+      TmpValues.replaceAllUsesWith(Values);
+      TmpValues.eraseFromParent();
+      TmpValues = Values;
+      TmpValuesSize = Num;
+    }
+    TmpValuesUsed = static_cast<uint64_t>(Num) * kValSize;
+    Builder.createLifetimeStart(TmpValues, TmpValuesUsed);
+    return TmpValues;
+  }
+
+  void endTmpValues() noexcept {
+    Builder.createLifetimeEnd(TmpValues, TmpValuesUsed);
   }
 
   Expect<void>
@@ -979,7 +1001,7 @@ public:
           for (size_t I = 0; I < ArgSize; ++I) {
             ArgsVec[ArgSize - I - 1] = stackPop();
           }
-          Args = Builder.createArray(ArgSize, kValSize);
+          Args = getTmpValues(ArgSize);
           Builder.createArrayPtrStore(ArgsVec, Args, Context.Int8Ty, kValSize);
         } else {
           ArgSize = 0;
@@ -993,6 +1015,9 @@ public:
                     false)),
             {LLContext.getInt32(Instr.getTargetIndex()), Args,
              LLContext.getInt32(static_cast<uint32_t>(ArgSize))}));
+        if (Instr.getOpCode() == OpCode::Struct__new) {
+          endTmpValues();
+        }
         break;
       }
       case OpCode::Struct__get:
@@ -1010,7 +1035,7 @@ public:
         auto IsSigned = (Instr.getOpCode() == OpCode::Struct__get_s)
                             ? LLContext.getInt8(1)
                             : LLContext.getInt8(0);
-        LLVM::Value Ret = Builder.createAlloca(Context.Int64x2Ty);
+        LLVM::Value Ret = getTmpValues(1);
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kStructGet,
@@ -1055,12 +1080,13 @@ public:
         default:
           assumingUnreachable();
         }
+        endTmpValues();
         break;
       }
       case OpCode::Struct__set: {
         auto Val = stackPop();
         auto Ref = stackPop();
-        LLVM::Value Arg = Builder.createAlloca(Context.Int64x2Ty);
+        LLVM::Value Arg = getTmpValues(1);
         Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
         Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kStructSet,
@@ -1071,12 +1097,13 @@ public:
                                      false)),
             {Ref, LLContext.getInt32(Instr.getTargetIndex()),
              LLContext.getInt32(Instr.getSourceIndex()), Arg});
+        endTmpValues();
         break;
       }
       case OpCode::Array__new: {
         auto Length = stackPop();
         auto Val = stackPop();
-        LLVM::Value Arg = Builder.createAlloca(Context.Int64x2Ty);
+        LLVM::Value Arg = getTmpValues(1);
         Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
         stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kArrayNew,
@@ -1087,6 +1114,7 @@ public:
                                      false)),
             {LLContext.getInt32(Instr.getTargetIndex()), Length, Arg,
              LLContext.getInt32(1)}));
+        endTmpValues();
         break;
       }
       case OpCode::Array__new_default: {
@@ -1109,7 +1137,7 @@ public:
         for (size_t I = 0; I < ArgSize; ++I) {
           ArgsVec[ArgSize - I - 1] = stackPop();
         }
-        LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
+        LLVM::Value Args = getTmpValues(ArgSize);
         Builder.createArrayPtrStore(ArgsVec, Args, Context.Int8Ty, kValSize);
         stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kArrayNew,
@@ -1120,6 +1148,7 @@ public:
                                      false)),
             {LLContext.getInt32(Instr.getTargetIndex()),
              LLContext.getInt32(ArgSize), Args, LLContext.getInt32(ArgSize)}));
+        endTmpValues();
         break;
       }
       case OpCode::Array__new_data:
@@ -1154,7 +1183,7 @@ public:
         auto IsSigned = (Instr.getOpCode() == OpCode::Array__get_s)
                             ? LLContext.getInt8(1)
                             : LLContext.getInt8(0);
-        LLVM::Value Ret = Builder.createAlloca(Context.Int64x2Ty);
+        LLVM::Value Ret = getTmpValues(1);
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kArrayGet,
@@ -1199,13 +1228,14 @@ public:
         default:
           assumingUnreachable();
         }
+        endTmpValues();
         break;
       }
       case OpCode::Array__set: {
         auto Val = stackPop();
         auto Idx = stackPop();
         auto Ref = stackPop();
-        LLVM::Value Arg = Builder.createAlloca(Context.Int64x2Ty);
+        LLVM::Value Arg = getTmpValues(1);
         Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
         Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kArraySet,
@@ -1215,6 +1245,7 @@ public:
                                       Context.Int32Ty, Context.Int8PtrTy},
                                      false)),
             {Ref, LLContext.getInt32(Instr.getTargetIndex()), Idx, Arg});
+        endTmpValues();
         break;
       }
       case OpCode::Array__len: {
@@ -1232,7 +1263,7 @@ public:
         auto Val = stackPop();
         auto Off = stackPop();
         auto Ref = stackPop();
-        LLVM::Value Arg = Builder.createAlloca(Context.Int64x2Ty);
+        LLVM::Value Arg = getTmpValues(1);
         Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
         Builder.createCall(
             Context.getIntrinsic(
@@ -1243,6 +1274,7 @@ public:
                                              Context.Int8PtrTy},
                                             false)),
             {Ref, LLContext.getInt32(Instr.getTargetIndex()), Off, Cnt, Arg});
+        endTmpValues();
         break;
       }
       case OpCode::Array__copy: {
@@ -4336,8 +4368,9 @@ private:
 
     std::vector<LLVM::Value> RetsVec;
     {
-      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
-      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
+      LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+      LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
+          Context.Int8Ty, Args, ArgSize * kValSize);
       Builder.createArrayPtrStore(
           Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
           kValSize);
@@ -4362,6 +4395,7 @@ private:
         RetsVec = Builder.createArrayPtrLoad(RetSize, RTy, Rets, Context.Int8Ty,
                                              kValSize);
       }
+      endTmpValues();
       Builder.createBr(EndBB);
       Builder.positionAtEnd(EndBB);
     }
@@ -4443,8 +4477,9 @@ private:
     Builder.positionAtEnd(IsNullBB);
 
     {
-      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
-      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
+      LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+      LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
+          Context.Int8Ty, Args, ArgSize * kValSize);
       Builder.createArrayPtrStore(
           Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
           kValSize);
@@ -4461,13 +4496,17 @@ private:
            FuncIndex, Args, Rets});
 
       if (RetSize == 0) {
+        endTmpValues();
         Builder.createRetVoid();
       } else if (RetSize == 1) {
-        Builder.createRet(
-            Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
+        auto Ret = Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty);
+        endTmpValues();
+        Builder.createRet(Ret);
       } else {
-        Builder.createAggregateRet(Builder.createArrayPtrLoad(
-            RetSize, RTy, Rets, Context.Int8Ty, kValSize));
+        auto Ret = Builder.createArrayPtrLoad(RetSize, RTy, Rets,
+                                              Context.Int8Ty, kValSize);
+        endTmpValues();
+        Builder.createAggregateRet(Ret);
       }
     }
   }
@@ -4532,8 +4571,9 @@ private:
 
     std::vector<LLVM::Value> RetsVec;
     {
-      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
-      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
+      LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+      LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
+          Context.Int8Ty, Args, ArgSize * kValSize);
       Builder.createArrayPtrStore(
           Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
           kValSize);
@@ -4556,6 +4596,7 @@ private:
         RetsVec = Builder.createArrayPtrLoad(RetSize, RTy, Rets, Context.Int8Ty,
                                              kValSize);
       }
+      endTmpValues();
       Builder.createBr(EndBB);
       Builder.positionAtEnd(EndBB);
     }
@@ -4619,8 +4660,9 @@ private:
     Builder.positionAtEnd(IsNullBB);
 
     {
-      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
-      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
+      LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+      LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
+          Context.Int8Ty, Args, ArgSize * kValSize);
       Builder.createArrayPtrStore(
           Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
           kValSize);
@@ -4635,13 +4677,17 @@ private:
           {Ref, Args, Rets});
 
       if (RetSize == 0) {
+        endTmpValues();
         Builder.createRetVoid();
       } else if (RetSize == 1) {
-        Builder.createRet(
-            Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
+        auto Ret = Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty);
+        endTmpValues();
+        Builder.createRet(Ret);
       } else {
-        Builder.createAggregateRet(Builder.createArrayPtrLoad(
-            RetSize, RTy, Rets, Context.Int8Ty, kValSize));
+        auto Ret = Builder.createArrayPtrLoad(RetSize, RTy, Rets,
+                                              Context.Int8Ty, kValSize);
+        endTmpValues();
+        Builder.createAggregateRet(Ret);
       }
     }
   }
@@ -5005,7 +5051,7 @@ private:
     // then fallback to this.
     auto IsOver = Builder.createICmpUGT(Index, Mask);
     auto InboundIndex = Builder.createAnd(Index, Mask);
-    auto Array = Builder.createArray(16, 1);
+    auto Array = getTmpValues(1);
     for (size_t I = 0; I < 16; ++I) {
       Builder.createStore(
           Builder.createExtractElement(Vector, LLContext.getInt64(I)),
@@ -5021,6 +5067,7 @@ private:
           Builder.createInBoundsGEP1(Context.Int8Ty, Array, Idx));
       Ret = Builder.createInsertElement(Ret, Value, LLContext.getInt64(I));
     }
+    endTmpValues();
     Ret = Builder.createSelect(IsOver, Zero, Ret);
     stackPush(Builder.createBitCast(Ret, Context.Int64x2Ty));
   }
@@ -5868,6 +5915,10 @@ private:
   std::vector<LLVM::Value> Stack;
   LLVM::Value LocalInstrCount = nullptr;
   LLVM::Value LocalGas = nullptr;
+  // Entry-block buffer for the temporary values passed to or from the runtime.
+  LLVM::Value TmpValues = nullptr;
+  size_t TmpValuesSize = 0;
+  uint64_t TmpValuesUsed = 0;
   std::unordered_map<ErrCode::Value, LLVM::BasicBlock> TrapBB;
   bool IsUnreachable = false;
   bool Interruptible = false;

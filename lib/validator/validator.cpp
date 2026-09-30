@@ -464,6 +464,8 @@ Expect<void> Validator::validate(const AST::CodeSegment &CodeSeg,
           Instr.getOpCode() <= OpCode::I64__mul_wide_u) {
         spdlog::error(ErrCode::Value::IllegalOpCode);
         spdlog::error(ErrInfo::InfoProposal(Proposal::WideArithmetic));
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return Unexpect(ErrCode::Value::IllegalOpCode);
       }
     }

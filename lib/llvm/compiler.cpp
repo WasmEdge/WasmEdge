@@ -252,9 +252,11 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   auto &LLModule = D.extract().LLModule;
 
   CompileContext NewContext(LLContext, LLModule,
-                            Conf.getCompilerConfigure().isGenericBinary());
+                            Conf.getCompilerConfigure().isGenericBinary(),
+                            Conf.hasProposal(Proposal::GC));
   RAIICleanup Cleanup(Context, &NewContext);
   Context->addVersionGlobal();
+  Context->addGCCapableGlobal();
 
   // Compile all sections and the function declarations.
   compileSections(Module, false);
@@ -525,6 +527,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       const auto &ValType = GlobType.getValType();
       auto Type = toLLVMType(Context->LLContext, ValType);
       Context->Globals.push_back(Type);
+      Context->GlobalIsRef.push_back(ValType.isRefType());
       break;
     }
     case ExternalType::Tag: // Tag type
@@ -547,6 +550,7 @@ void Compiler::compile(const AST::GlobalSection &GlobalSec) noexcept {
     const auto &ValType = GlobalSeg.getGlobalType().getValType();
     auto Type = toLLVMType(Context->LLContext, ValType);
     Context->Globals.push_back(Type);
+    Context->GlobalIsRef.push_back(ValType.isRefType());
   }
 }
 
@@ -660,6 +664,8 @@ Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
     }
   }
 
+  // Resolve the function signature up front so the compiler can classify
+  // ref-typed params (Type.first) for the GC shadow spill, not just locals.
   auto Type = Context->resolveBlockType(T);
   // A small leaf cannot recurse and its frame fits in the stack margin kept
   // below the limit, so it skips the stack limit check.
@@ -680,12 +686,13 @@ Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
                                             return false;
                                           }
                                         });
-  FunctionCompiler FC(
-      *Context, F, Locals, Conf.getCompilerConfigure().isInterruptible(),
-      Conf.getStatisticsConfigure().isInstructionCounting(),
-      Conf.getStatisticsConfigure().isCostMeasuring(),
-      Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT,
-      !IsSmallLeaf);
+  FunctionCompiler FC(*Context, F, Type.first, Locals,
+                      Conf.getCompilerConfigure().isInterruptible(),
+                      Conf.getStatisticsConfigure().isInstructionCounting(),
+                      Conf.getStatisticsConfigure().isCostMeasuring(),
+                      Conf.getRuntimeConfigure().getRunMode() ==
+                          RunMode::LazyJIT,
+                      !IsSmallLeaf);
   EXPECTED_TRY(FC.compile(*Code, std::move(Type)));
   F.Fn.eliminateUnreachableBlocks();
 
@@ -708,9 +715,11 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module) noexcept {
   auto &LLModule = D.extract().LLModule;
 
   CompileContext NewContext(LLContext, LLModule,
-                            Conf.getCompilerConfigure().isGenericBinary());
+                            Conf.getCompilerConfigure().isGenericBinary(),
+                            Conf.hasProposal(Proposal::GC));
   RAIICleanup Cleanup(Context, &NewContext);
   Context->addVersionGlobal();
+  Context->addGCCapableGlobal();
 
   // Compile all sections and the function declarations without bodies.
   compileSections(Module, false);
@@ -760,7 +769,8 @@ Compiler::compileFunctions(Data &&LLData, const AST::Module &Module,
   auto &LLModule = LLData.extract().LLModule;
 
   CompileContext NewContext(LLContext, LLModule,
-                            Conf.getCompilerConfigure().isGenericBinary());
+                            Conf.getCompilerConfigure().isGenericBinary(),
+                            Conf.hasProposal(Proposal::GC));
   RAIICleanup Cleanup(Context, &NewContext);
 
   // Emit the type wrappers as external declarations resolved against the

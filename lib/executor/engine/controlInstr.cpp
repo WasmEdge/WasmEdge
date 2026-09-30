@@ -118,11 +118,10 @@ Expect<void> Executor::runBrOnCastOp(Runtime::StackManager &StackMgr,
   const auto &VT = Val.getType();
   Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
   if (!VT.isAbsHeapType()) {
-    auto *Inst = Val.getPtr<Runtime::Instance::CompositeBase>();
-    // Reference must not be nullptr here because the null references are typed
-    // with the least abstract heap type.
-    if (Inst->getModule()) {
-      GotTypeList = Inst->getModule()->getTypeList();
+    // Null refs carry the least abstract heap type, so Val is non-null here.
+    const auto *RefMod = definingModule(Val);
+    if (RefMod) {
+      GotTypeList = RefMod->getTypeList();
     }
   }
 

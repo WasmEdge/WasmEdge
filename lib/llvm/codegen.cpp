@@ -432,6 +432,11 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
     }
 #endif
     uint64_t VersionAddress = 0, IntrinsicsAddress = 0;
+    // Durable capability: the compiler emits the "gc.capable" marker global
+    // only when GC codegen is on. A universal WASM is loaded by mapping
+    // recorded addresses rather than by symbol lookup, so record the marker's
+    // presence as a flag byte the loader can read back directly.
+    bool GCCapable = false;
     std::vector<uint64_t> Types;
     std::vector<uint64_t> Codes;
     uint64_t CodesMin = std::numeric_limits<uint64_t>::max();
@@ -440,6 +445,8 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
         VersionAddress = Address;
       } else if (Name == SYMBOL("intrinsics"sv)) {
         IntrinsicsAddress = Address;
+      } else if (Name == SYMBOL("gc.capable"sv)) {
+        GCCapable = true;
       } else if (startsWith(Name, SYMBOL("t"sv))) {
         uint64_t Index = 0;
         std::from_chars(Name.data() + SYMBOL("t"sv).size(),
@@ -463,6 +470,7 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
       Codes.erase(Codes.begin(),
                   Codes.begin() + static_cast<int64_t>(CodesMin));
     }
+    WriteByte(OS, GCCapable ? UINT8_C(1) : UINT8_C(0));
     WriteU64(OS, VersionAddress);
     WriteU64(OS, IntrinsicsAddress);
     WriteU64(OS, Types.size());

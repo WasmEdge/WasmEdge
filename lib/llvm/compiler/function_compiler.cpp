@@ -15,6 +15,7 @@ namespace WasmEdge {
 
 FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
                                    LLVM::FunctionCallee F,
+                                   Span<const ValType> ParamTypes,
                                    Span<const ValType> Locals,
                                    bool Interruptible, bool InstructionCounting,
                                    bool GasMeasuring, bool IsLazyJIT,
@@ -39,6 +40,7 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
     CalleeCtxSlot = Builder.createAlloca(Context.ModCtxPtrTy);
     TmpValues = Builder.createArray(1, LLVM::kValSize);
     TmpValuesSize = 1;
+    CoherentSlotAlloca = Builder.createAlloca(Context.Int64x2Ty);
     for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam().getNextParam();
          Arg; Arg = Arg.getNextParam()) {
       LLVM::Type Ty = Arg.getType();
@@ -47,6 +49,42 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
     for (const auto &Type : Locals) {
       LLVM::Type Ty = toLLVMType(LLContext, Type);
       Local.emplace_back(Ty, Builder.createAlloca(Ty));
+    }
+
+    // GC shadow-root spill: classify ref-typed params and declared locals
+    // (static ValTypes known here). Params occupy Local[0..NumParams-1],
+    // declared locals follow. Reserve one shadow slot array + frame node in the
+    // prologue, reused at every spill site. Refs and v128 both lower to
+    // Int64x2Ty, so LLVM type alone can't classify a local -- isRefType() on
+    // the source ValType is the oracle (mirrors the GlobalIsRef precedent).
+    // Operand-stack entries have no source type here; pushShadowFrame spills
+    // every Int64x2Ty entry (a v128 is harmless: the collector validates each
+    // spilled word against its object index).
+    //
+    // Only emit the shadow-root spill when the GC proposal is enabled. A
+    // GC-off compilation reserves nothing and pushShadowFrame/popShadowFrame
+    // become no-ops -- the artifact publishes no native roots and is therefore
+    // not GC-capable (the instantiate gate keeps it off the native path under
+    // a GC-enabled executor).
+    const size_t NumParams = ParamTypes.size();
+    if (Context.GCEnabled) {
+      for (size_t P = 0; P < NumParams; ++P) {
+        if (ParamTypes[P].isRefType()) {
+          RefLocalIndices.push_back(static_cast<uint32_t>(P));
+        }
+      }
+      for (size_t J = 0; J < Locals.size(); ++J) {
+        if (Locals[J].isRefType()) {
+          RefLocalIndices.push_back(static_cast<uint32_t>(NumParams + J));
+        }
+      }
+      // The array alloca's element count is a constant operand, patched to
+      // MaxShadowSlots after the body is compiled (see compile()). A function
+      // that never spills leaves it unused and the optimizer drops it.
+      MaxShadowSlots = static_cast<uint32_t>(RefLocalIndices.size());
+      ShadowSlotsAlloca = Builder.createArrayAlloca(
+          Context.Int64x2Ty, LLContext.getInt32(std::max(MaxShadowSlots, 1U)));
+      ShadowFrameAlloca = Builder.createAlloca(Context.ShadowFrameTy);
     }
 
     if (StackCheck) {
@@ -69,7 +107,85 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
           toLLVMConstantZero(LLContext, Type, Context.CompositeTypes),
           (LocalIt++)->second);
     }
+
+    // Frame.Slots is invariant; set once here. Frame.Count varies per spill
+    // site (operand-stack depth) and is stored by pushShadowFrame.
+    if (ShadowFrameAlloca) {
+      LLVM::Value SlotsField = Builder.createInBoundsGEP2(
+          Context.ShadowFrameTy, ShadowFrameAlloca, LLContext.getInt64(0),
+          LLContext.getInt32(2));
+      Builder.createStore(
+          Builder.createBitCast(ShadowSlotsAlloca, Context.Int8PtrTy),
+          SlotsField);
+    }
   }
+}
+
+LLVM::Value FunctionCompiler::pushShadowFrame() noexcept {
+  if (!ShadowSlotsAlloca) {
+    return LLVM::Value(); // GC-off compilation
+  }
+  // What is live at this site: every ref local/param, plus every ref-typed
+  // operand-stack entry (an LLVM SSA value the remote scanner cannot see). The
+  // operand stack holds only i32/i64/f32/f64 and Int64x2Ty (refs and v128);
+  // v128 entries are spilled too -- the collector validates each word against
+  // its object index, so a stray v128 is at worst one over-retained object.
+  std::vector<LLVM::Value> Live;
+  Live.reserve(RefLocalIndices.size() + Stack.size());
+  for (const uint32_t Idx : RefLocalIndices) {
+    const auto &L = Local[Idx];
+    Live.push_back(Builder.createLoad(L.first, L.second));
+  }
+  for (const LLVM::Value &V : Stack) {
+    if (V.getType().unwrap() == Context.Int64x2Ty.unwrap()) {
+      Live.push_back(V);
+    }
+  }
+  if (Live.empty()) {
+    return LLVM::Value(); // nothing to root at this site
+  }
+  const auto Count = static_cast<uint32_t>(Live.size());
+  MaxShadowSlots = std::max(MaxShadowSlots, Count);
+  // Spill into the reserved slots (plain stores, sequenced before the release
+  // publish below so the scanner -- which reaches the slots only after an
+  // acquire-load of Head -- sees fully written slots), then record how many
+  // this site filled.
+  for (uint32_t K = 0; K < Count; ++K) {
+    LLVM::Value SlotPtr = Builder.createInBoundsGEP1(
+        Context.Int64x2Ty, ShadowSlotsAlloca, LLContext.getInt64(K));
+    Builder.createStore(Live[K], SlotPtr);
+  }
+  LLVM::Value CountPtr =
+      Builder.createInBoundsGEP2(Context.ShadowFrameTy, ShadowFrameAlloca,
+                                 LLContext.getInt64(0), LLContext.getInt32(1));
+  Builder.createStore(LLContext.getInt32(Count), CountPtr);
+  // Head is the atomic ShadowFrame* at offset 0 of the ShadowHead cell.
+  LLVM::Value HeadPP =
+      Builder.createBitCast(Context.getShadowHead(Builder, ExecCtx),
+                            Context.ShadowFramePtrTy.getPointerTo());
+  LLVM::Value Prev = Builder.createLoad(Context.ShadowFramePtrTy, HeadPP);
+  LLVM::Value PrevField =
+      Builder.createInBoundsGEP2(Context.ShadowFrameTy, ShadowFrameAlloca,
+                                 LLContext.getInt64(0), LLContext.getInt32(0));
+  Builder.createStore(Prev, PrevField);
+  // Publish: *Head = &Frame, release so the remote scanner's acquire-load sees
+  // the slot writes above.
+  auto Pub = Builder.createStore(ShadowFrameAlloca, HeadPP);
+  Pub.setAlignment(8);
+  Pub.setOrdering(LLVMAtomicOrderingRelease);
+  return Prev;
+}
+
+void FunctionCompiler::popShadowFrame(LLVM::Value Prev) noexcept {
+  if (!Prev) {
+    return; // no frame was pushed at this site
+  }
+  LLVM::Value HeadPP =
+      Builder.createBitCast(Context.getShadowHead(Builder, ExecCtx),
+                            Context.ShadowFramePtrTy.getPointerTo());
+  auto Pop = Builder.createStore(Prev, HeadPP);
+  Pop.setAlignment(8);
+  Pop.setOrdering(LLVMAtomicOrderingRelease);
 }
 
 LLVM::BasicBlock FunctionCompiler::getTrapBB(ErrCode::Value Error) noexcept {
@@ -106,9 +222,23 @@ Expect<void> FunctionCompiler::compile(
   auto RetBB = LLVM::BasicBlock::create(LLContext, F.Fn, "ret");
   Type.first.clear();
   enterBlock(RetBB, {}, {}, {}, std::move(Type));
+  // Function-entry safepoint poll. Loop back-edges alone bound a
+  // stop-the-world only for code that loops: a loop-free deep recursion
+  // (direct calls only) would otherwise keep a collection -- and every mutator
+  // already parked for it -- waiting until it unwound to the executor. The
+  // interpreter polls on every function entry; mirror it here. One relaxed
+  // byte load plus an unlikely branch per call.
+  checkGCSafepoint();
   EXPECTED_TRY(compile(Code.getExpr().getInstrs()));
   assuming(ControlStack.empty());
   compileReturn();
+  if (ShadowSlotsAlloca) {
+    // Size the prologue slot array for the deepest spill site now that every
+    // site has been emitted (operand 0 of an array alloca is its constant
+    // element count).
+    ShadowSlotsAlloca.setOperand(
+        0, LLContext.getInt32(std::max(MaxShadowSlots, 1U)));
+  }
 
   for (auto &[Error, BB] : TrapBB) {
     Builder.positionAtEnd(BB);
@@ -194,6 +324,7 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       }
       enterBlock(Loop, EndLoop, {}, std::move(Args), std::move(Type));
       checkStop();
+      checkGCSafepoint();
       updateGas();
       return {};
     }
@@ -469,13 +600,34 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       break;
     case OpCode::Global__get: {
       const auto G = Context.getGlobal(Builder, ModCtx, Instr.getTargetIndex());
-      stackPush(Builder.createLoad(G.first, G.second));
+      if (Context.GlobalIsRef[Instr.getTargetIndex()]) {
+        // Reference-typed global: read the 128-bit (type, pointer) slot
+        // coherently via the intrinsic, so a concurrent coherent store on
+        // another mutator can never hand back a torn pair. A plain inline load
+        // would tear; numeric globals keep the direct load below.
+        stackPush(emitCoherentRefLoad(G.second));
+      } else {
+        stackPush(Builder.createLoad(G.first, G.second));
+      }
       break;
     }
     case OpCode::Global__set:
-      Builder.createStore(
-          stackPop(),
-          Context.getGlobal(Builder, ModCtx, Instr.getTargetIndex()).second);
+      if (Context.GlobalIsRef[Instr.getTargetIndex()]) {
+        // Reference-typed global: shade the overwritten and new references
+        // (SATB) and publish the new (type, pointer) pair atomically, all
+        // inside the coherent-store intrinsic -- mirrors
+        // GlobalInstance::setValue. The atomic publish means a concurrent
+        // coherent reader or the marker never sees a torn pair.
+        auto Val = stackPop();
+        const auto G =
+            Context.getGlobal(Builder, ModCtx, Instr.getTargetIndex());
+        emitCoherentRefStore(G.second, Val);
+      } else {
+        // Numeric global: never holds a managed reference, so store directly.
+        Builder.createStore(
+            stackPop(),
+            Context.getGlobal(Builder, ModCtx, Instr.getTargetIndex()).second);
+      }
       break;
 
     // Table Instructions
@@ -488,11 +640,12 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
               Off, Context.getTableSize(Builder, ModCtx, TableIndex))),
           OkBB, getTrapBB(ErrCode::Value::TableOutOfBounds));
       Builder.positionAtEnd(OkBB);
-      stackPush(Builder.createLoad(
-          Context.Int64x2Ty,
-          Builder.createInBoundsGEP1(
-              Context.Int64x2Ty, Context.getTable(Builder, ModCtx, TableIndex),
-              Off)));
+      // Table elements are always managed refs; read the 128-bit slot
+      // coherently so a concurrent coherent store never yields a torn pair.
+      auto GetSlot = Builder.createInBoundsGEP1(
+          Context.Int64x2Ty, Context.getTable(Builder, ModCtx, TableIndex),
+          Off);
+      stackPush(emitCoherentRefLoad(GetSlot));
       break;
     }
     case OpCode::Table__set: {
@@ -505,10 +658,16 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
               Off, Context.getTableSize(Builder, ModCtx, TableIndex))),
           OkBB, getTrapBB(ErrCode::Value::TableOutOfBounds));
       Builder.positionAtEnd(OkBB);
-      Builder.createStore(
-          Ref, Builder.createInBoundsGEP1(
-                   Context.Int64x2Ty,
-                   Context.getTable(Builder, ModCtx, TableIndex), Off));
+      auto Slot = Builder.createInBoundsGEP1(
+          Context.Int64x2Ty, Context.getTable(Builder, ModCtx, TableIndex),
+          Off);
+
+      // Table slots are GC roots and always hold references: shade the
+      // overwritten and new refs (SATB) and publish the new (type, pointer)
+      // pair atomically, all in the coherent-store intrinsic. A concurrent
+      // coherent reader or the marker's atomic pointer-word load never sees a
+      // torn pair.
+      emitCoherentRefStore(Slot, Ref);
       break;
     }
     case OpCode::Table__init: {
@@ -558,17 +717,23 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
     case OpCode::Table__grow: {
       auto NewSize = Builder.createZExt(stackPop(), Context.Int64Ty);
       auto Val = stackPop();
+      // A grow is an exclusive stop-the-world operation: the proxy may park
+      // this thread Blocked behind a running collection, whose remote scan
+      // then sees only the shadow chain. Spill the live refs around it; the
+      // init value, already popped, is pinned by proxyTableGrow itself.
+      LLVM::Value ShadowPrev = pushShadowFrame();
+      auto Grown = Builder.createCall(
+          Context.getIntrinsic(
+              Builder, Executable::Intrinsics::kTableGrow,
+              LLVM::Type::getFunctionType(Context.Int64Ty,
+                                          {Context.Int8PtrTy, Context.Int32Ty,
+                                           Context.Int64x2Ty, Context.Int64Ty},
+                                          false)),
+          {Context.getModuleInst(Builder, ModCtx),
+           LLContext.getInt32(Instr.getTargetIndex()), Val, NewSize});
+      popShadowFrame(ShadowPrev);
       stackPush(Builder.createTrunc(
-          Builder.createCall(
-              Context.getIntrinsic(Builder, Executable::Intrinsics::kTableGrow,
-                                   LLVM::Type::getFunctionType(
-                                       Context.Int64Ty,
-                                       {Context.Int8PtrTy, Context.Int32Ty,
-                                        Context.Int64x2Ty, Context.Int64Ty},
-                                       false)),
-              {Context.getModuleInst(Builder, ModCtx),
-               LLContext.getInt32(Instr.getTargetIndex()), Val, NewSize}),
-          Context.TableAddrTypes[Instr.getTargetIndex()]));
+          Grown, Context.TableAddrTypes[Instr.getTargetIndex()]));
       break;
     }
     case OpCode::Table__size: {
@@ -1412,6 +1577,10 @@ void FunctionCompiler::compileCallOp(const unsigned int FuncIndex) noexcept {
     Args[J + 2] = stackPop();
   }
 
+  // Spill live ref locals across the call so a collection triggered inside the
+  // callee (which may take this thread NativeRunning) still sees them rooted.
+  LLVM::Value ShadowPrev = pushShadowFrame();
+
   LLVM::Value Ret;
   if (IsLazyJIT) {
     bool IsImport = std::get<2>(Context.Functions[FuncIndex]) == nullptr;
@@ -1473,6 +1642,9 @@ void FunctionCompiler::compileCallOp(const unsigned int FuncIndex) noexcept {
   // never exhausts the stack.
   Ret.setNoTailCall();
 
+  // Call returned: this thread is Running again, unpublish the shadow frame.
+  popShadowFrame(ShadowPrev);
+
   auto Ty = Ret.getType();
   if (Ty.isVoidTy()) {
     // nothing to do
@@ -1515,6 +1687,12 @@ void FunctionCompiler::compileIndirectCallOp(
     const size_t J = ArgSize - I + 1;
     ArgsVec[J] = stackPop();
   }
+
+  // Spill live ref locals/params across the call_indirect (the fast, resolved
+  // pointer, and slow proxy paths may all take this thread NativeRunning).
+  // Pushed in the current block, which dominates every branch and the merge.
+  LLVM::Value ShadowPrev = pushShadowFrame();
+
   auto UnpackRets = [&](LLVM::Value Ret) -> std::vector<LLVM::Value> {
     if (RetSize == 0) {
       return {};
@@ -1645,6 +1823,10 @@ void FunctionCompiler::compileIndirectCallOp(
     Builder.positionAtEnd(EndBB);
   }
 
+  // All call paths merged. The return PHIs must lead EndBB (PHI nodes must be
+  // grouped at the top of a basic block), so emit them before unpublishing the
+  // shadow frame -- popShadowFrame's store would otherwise precede the PHIs and
+  // produce invalid IR.
   for (unsigned I = 0; I < RetSize; ++I) {
     auto PHIRet = Builder.createPHI(FPtrRetsVec[I].getType());
     PHIRet.addIncoming(FastRetsVec[I], FastBB);
@@ -1652,6 +1834,10 @@ void FunctionCompiler::compileIndirectCallOp(
     PHIRet.addIncoming(RetsVec[I], IsNullBB);
     stackPush(PHIRet);
   }
+  // Unpublish the shadow frame before the pending-exception check: that check
+  // may branch to the EH dispatch target, and the pop must not be skipped on
+  // the unwinding path.
+  popShadowFrame(ShadowPrev);
 
   checkPendingException();
 }
@@ -1869,6 +2055,11 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
     ArgsVec[J] = stackPop();
   }
 
+  // Spill live ref locals/params across the call_ref (both the fast direct
+  // pointer path and the slow kCallRef proxy path may take this thread
+  // NativeRunning). Pushed here in OkBB, which dominates the merge (EndBB).
+  LLVM::Value ShadowPrev = pushShadowFrame();
+
   std::vector<LLVM::Value> FPtrRetsVec;
   FPtrRetsVec.reserve(RetSize);
   {
@@ -1936,12 +2127,17 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
     Builder.positionAtEnd(EndBB);
   }
 
+  // Call returned on either path. Emit the return PHIs, then unpublish the
+  // shadow frame and check for a pending exception, in the order that
+  // compileIndirectCallOp explains. ShadowPrev is available here because OkBB
+  // dominates EndBB.
   for (unsigned I = 0; I < RetSize; ++I) {
     auto PHIRet = Builder.createPHI(FPtrRetsVec[I].getType());
     PHIRet.addIncoming(FPtrRetsVec[I], NotNullBB);
     PHIRet.addIncoming(RetsVec[I], IsNullBB);
     stackPush(PHIRet);
   }
+  popShadowFrame(ShadowPrev);
 
   checkPendingException();
 }
@@ -2111,6 +2307,64 @@ void FunctionCompiler::checkPendingException() noexcept {
   auto NotPending = Builder.createLikely(Builder.createIsNull(PendingTagInst));
   Builder.createCondBr(NotPending, NotPendingBB, getEHDispatchTarget());
   Builder.positionAtEnd(NotPendingBB);
+}
+
+LLVM::Value
+FunctionCompiler::emitCoherentRefLoad(LLVM::Value SlotPtr) noexcept {
+  auto Load = Context.getIntrinsic(
+      Builder, Executable::Intrinsics::kCoherentRefLoad,
+      LLVM::Type::getFunctionType(
+          Context.VoidTy, {Context.Int8PtrTy, Context.Int8PtrTy}, false));
+  Builder.createCall(Load, {SlotPtr, CoherentSlotAlloca});
+  return Builder.createLoad(Context.Int64x2Ty, CoherentSlotAlloca);
+}
+
+void FunctionCompiler::emitCoherentRefStore(LLVM::Value SlotPtr,
+                                            LLVM::Value Val) noexcept {
+  auto Store = Context.getIntrinsic(
+      Builder, Executable::Intrinsics::kCoherentRefStore,
+      LLVM::Type::getFunctionType(
+          Context.VoidTy, {Context.Int8PtrTy, Context.Int8PtrTy}, false));
+  Builder.createValuePtrStore(Val, CoherentSlotAlloca, Context.Int64x2Ty);
+  Builder.createCall(Store, {SlotPtr, CoherentSlotAlloca});
+}
+
+void FunctionCompiler::checkGCSafepoint() noexcept {
+  // Emit the safepoint poll only when the GC proposal is enabled. A GC-off
+  // artifact never yields at a safepoint; the instantiate gate keeps it off the
+  // native path under a GC-enabled executor so a concurrent collection never
+  // waits on it.
+  if (!Context.GCEnabled) {
+    return;
+  }
+  // GC cooperative safepoint poll, emitted at every function entry and loop
+  // back-edge. Without it, a compute-only compiled loop (or a loop-free deep
+  // recursion) never yields and a concurrent collection's stop-the-world hangs
+  // on this mutator. Fast path: a relaxed atomic load of the stop flag (i8)
+  // + an unlikely branch -- cheap, like checkStop. Slow path: call the
+  // kGCSafepoint intrinsic, which parks this mutator (self-scanning its own
+  // roots, incl. a conservative native scan that finds AOT register/stack refs)
+  // until the collection releases, then resumes the loop. Relaxed order is
+  // sufficient: gcSafepoint re-reads the flag under the handshake lock, and the
+  // load must be atomic to pair race-free with the coordinator's stores.
+  auto ContBB = LLVM::BasicBlock::create(LLContext, F.Fn, "gcsp.cont");
+  auto ParkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "gcsp.park");
+  LLVM::Value FlagPtr = Context.getGCStopFlag(Builder, ExecCtx);
+  auto Flag = Builder.createLoad(Context.Int8Ty, FlagPtr);
+  Flag.setOrdering(LLVMAtomicOrderingMonotonic);
+  Flag.setAlignment(1);
+  auto NotSet =
+      Builder.createLikely(Builder.createICmpEQ(Flag, LLContext.getInt8(0)));
+  Builder.createCondBr(NotSet, ContBB, ParkBB);
+
+  Builder.positionAtEnd(ParkBB);
+  auto Safepoint = Context.getIntrinsic(
+      Builder, Executable::Intrinsics::kGCSafepoint,
+      LLVM::Type::getFunctionType(Context.VoidTy, {}, false));
+  Builder.createCall(Safepoint, {});
+  Builder.createBr(ContBB);
+
+  Builder.positionAtEnd(ContBB);
 }
 
 void FunctionCompiler::setUnreachable() noexcept {

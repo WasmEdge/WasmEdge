@@ -264,6 +264,11 @@ WasmEdge_ExecutorRegisterImportWithAlias(
 /// context from the module instance. Then developers can invoke the function
 /// through this API.
 ///
+/// The executor keeps returned GC references alive until the host releases
+/// them; see `WasmEdge_ExecutorReleaseRef`. If the `Returns` buffer is too
+/// small, the discarded GC references are released automatically, except the
+/// externref values described in `WasmEdge_ExecutorReleaseRef`.
+///
 /// \param Cxt the WasmEdge_ExecutorContext.
 /// \param FuncCxt the function instance context to invoke.
 /// \param Params the WasmEdge_Value buffer with the parameter values.
@@ -299,10 +304,66 @@ WasmEdge_ExecutorAsyncInvoke(WasmEdge_ExecutorContext *Cxt,
                              const WasmEdge_Value *Params,
                              const uint32_t ParamLen) WASMEDGE_CAPI_NOEXCEPT;
 
+/// Release a GC reference that the executor returned to the host.
+///
+/// The executor keeps each struct or array reference that it returns to the
+/// host alive until the host releases it. This applies to the results of
+/// `WasmEdge_ExecutorInvoke`, `WasmEdge_ExecutorAsyncInvoke`,
+/// `WasmEdge_TableInstanceGetDataRetained`, and
+/// `WasmEdge_GlobalInstanceGetValueRetained`. If an executor never releases
+/// these references, they stay alive until the executor is deleted. If the
+/// same reference was returned N times, release it N times. Values that the
+/// executor does not keep alive (funcref, externref, i31ref, null, and numeric
+/// values) are ignored.
+///
+/// A struct or array reference that the Wasm code converted with
+/// `extern.convert_any` is returned as an externref. The executor keeps it
+/// alive, but this function ignores it because of its type. Use
+/// `WasmEdge_ExecutorReleaseAllRefs` to release it.
+///
+/// \param Cxt the WasmEdge_ExecutorContext.
+/// \param Ref the WasmEdge_Value GC reference to release one retention of.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ExecutorReleaseRef(WasmEdge_ExecutorContext *Cxt,
+                            const WasmEdge_Value Ref) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Release one retention of each of the given GC references.
+///
+/// Null `Refs` or zero `Len` is a no-op. Same as a call to
+/// `WasmEdge_ExecutorReleaseRef` for each element.
+///
+/// \param Cxt the WasmEdge_ExecutorContext.
+/// \param Refs the WasmEdge_Value buffer of GC references to release.
+/// \param Len the buffer length.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ExecutorReleaseRefs(WasmEdge_ExecutorContext *Cxt,
+                             const WasmEdge_Value *Refs,
+                             const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Release all GC references that the executor keeps alive for the host.
+///
+/// Use this function also for references that the host cannot give to
+/// `WasmEdge_ExecutorReleaseRef`: an externref from `extern.convert_any`, or a
+/// reference that did not fit in the buffer of `WasmEdge_AsyncGet`.
+///
+/// \param Cxt the WasmEdge_ExecutorContext.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ExecutorReleaseAllRefs(
+    WasmEdge_ExecutorContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
 /// Deletion of the WasmEdge_ExecutorContext.
 ///
 /// After calling this function, the context will be destroyed and should
 /// __NOT__ be used.
+///
+/// Call `WasmEdge_AsyncDelete` for each async handle from
+/// `WasmEdge_ExecutorAsyncInvoke` before this function, because the result of
+/// a handle can hold references into the executor. If a handle still exists,
+/// this function logs an error and does not delete the executor.
+///
+/// This function also logs an error and does not delete the executor if it is
+/// called from a host function that this executor runs. In both cases, the
+/// caller still owns the executor. Delete it after all of its invocations
+/// return.
 ///
 /// \param Cxt the WasmEdge_ExecutorContext to destroy.
 WASMEDGE_CAPI_EXPORT extern void
@@ -477,7 +538,13 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_AsyncGetReturnsLength(
 /// This function will wait until the execution finishes and return the
 /// execution status and the return values.
 /// If the `Returns` buffer length is smaller than the arity of the function,
-/// the overflowed return values will be discarded.
+/// the overflowed return values will be discarded. Unlike the synchronous
+/// functions, this function does not release a discarded GC reference,
+/// because you can call it again with a larger buffer to get all values.
+/// Release the returned references as described in `WasmEdge_VMReleaseRef` or
+/// `WasmEdge_ExecutorReleaseRef`. To release a discarded reference, call this
+/// function again with a larger buffer, or call `WasmEdge_VMReleaseAllRefs` or
+/// `WasmEdge_ExecutorReleaseAllRefs`.
 ///
 /// \param Cxt the WasmEdge_Async.
 /// \param [out] Returns the WasmEdge_Value buffer to fill the return values.

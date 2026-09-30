@@ -116,6 +116,40 @@ Fault::~Fault() noexcept {
 
 [[noreturn]] void Fault::emitFault(ErrCode Error) {
   assuming(localHandler != nullptr);
+  // Signal-safe shadow-root truncation. Before the longjmp abandons the
+  // compiled frames, reset the thread's shadow-root head to its value at the
+  // compiled-call boundary, so a concurrent collector never walks a ShadowFrame
+  // in the stack we are about to unwind. A lock-free atomic store is
+  // async-signal-safe; no lock is taken and nothing is allocated here.
+  static_assert(
+      std::atomic<void *>::is_always_lock_free,
+      "shadow-head truncation must be a lock-free (async-signal-safe) "
+      "atomic store");
+  if (localHandler->ShadowHeadCell != nullptr) {
+    localHandler->ShadowHeadCell->store(localHandler->ShadowHeadBoundary,
+                                        std::memory_order_seq_cst);
+    // A remote walker that loaded the head BEFORE the store above still reads
+    // the frames the longjmp is about to abandon, and the recovery code then
+    // pushes new C++ frames over them. Wait it out: a walk is a short,
+    // lock-free-for-us loop (its holder never needs this thread), so a busy
+    // spin on the atomic counter is bounded and remains async-signal-safe (no
+    // locks, no allocation, no blocking syscalls). A walk that starts after
+    // the store sees the truncated head and never touches those frames.
+    //
+    // seq_cst on both the store and the load, matching the walker's
+    // (increment Walkers, then load Head): this is the store-then-load-other
+    // (Dekker) pattern, and release/acquire alone lets each side's own store
+    // stay buffered past its later load, so both could read the other's old
+    // value -- the walker the untruncated head, this thread Walkers == 0 --
+    // and the spin would miss a walk already reading the abandoned frames.
+    // With every one of the four operations in the single total order at
+    // least one side sees the other's write.
+    if (localHandler->ShadowWalkers != nullptr) {
+      while (localHandler->ShadowWalkers->load(std::memory_order_seq_cst) !=
+             0) {
+      }
+    }
+  }
   auto Buffer = stackTrace(localHandler->StackTraceBuffer);
   localHandler->StackTraceSize = Buffer.size();
   longjmp(localHandler->Buffer, static_cast<int>(Error.operator uint32_t()));

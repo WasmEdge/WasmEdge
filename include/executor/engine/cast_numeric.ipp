@@ -56,12 +56,14 @@ Executor::runTruncateOp(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::IntegerOverflow);
   }
   // If trunc(val) is out of range of target type, then the result is undefined.
-  Val = std::trunc(Val);
+  // Keep Val as the guest pushed it so the diagnostics below show the original
+  // operand, not its truncation.
+  const TIn Z = std::trunc(Val);
   TIn ValTOutMin = static_cast<TIn>(std::numeric_limits<TOut>::min());
   TIn ValTOutMax = static_cast<TIn>(std::numeric_limits<TOut>::max());
   if constexpr (sizeof(TIn) > sizeof(TOut)) {
     // Floating precision is better than integer case.
-    if (Val < ValTOutMin || Val > ValTOutMax) {
+    if (Z < ValTOutMin || Z > ValTOutMax) {
       spdlog::error(ErrCode::Value::IntegerOverflow);
       spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
                                              Instr.getOffset(), {Val},
@@ -70,7 +72,7 @@ Executor::runTruncateOp(Runtime::StackManager &StackMgr,
     }
   } else {
     // Floating precision is worse than integer case.
-    if (Val < ValTOutMin || Val >= ValTOutMax) {
+    if (Z < ValTOutMin || Z >= ValTOutMax) {
       spdlog::error(ErrCode::Value::IntegerOverflow);
       spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
                                              Instr.getOffset(), {Val},
@@ -79,7 +81,7 @@ Executor::runTruncateOp(Runtime::StackManager &StackMgr,
     }
   }
   // Else, return trunc(val). Signed case handled.
-  StackMgr.emplaceTop(static_cast<TOut>(Val));
+  StackMgr.emplaceTop(static_cast<TOut>(Z));
   return {};
 }
 

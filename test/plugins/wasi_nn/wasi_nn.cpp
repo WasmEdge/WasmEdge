@@ -1731,6 +1731,22 @@ TEST(WasiNNTest, GGMLBackend) {
       EXPECT_FLOAT_EQ(Params.tensor_split[1], 0.0f);
     }
 
+    // Test: set_input -- hostname keeps its single-address meaning and is
+    // stored verbatim as the sole entry of the hostnames list.
+    {
+      const std::vector<std::string> PrevHostnames = Params.hostnames;
+      EXPECT_EQ(PrevHostnames, std::vector<std::string>{"127.0.0.1"});
+      ASSERT_TRUE(SetMetadata(R"({"hostname":"0.0.0.0"})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.hostnames, std::vector<std::string>{"0.0.0.0"});
+      ASSERT_TRUE(SetMetadata(R"({"hostname":"/tmp/a,b.sock"})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.hostnames, std::vector<std::string>{"/tmp/a,b.sock"});
+      ASSERT_TRUE(SetMetadata(R"({"hostname":"127.0.0.1"})"));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+      EXPECT_EQ(Params.hostnames, PrevHostnames);
+    }
+
     // Test: set_input -- a rejected metadata object is applied atomically:
     // the valid options that precede the invalid one are rolled back on the
     // graph parameters, the graph settings, and the context config.

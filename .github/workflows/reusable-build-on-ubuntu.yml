@@ -142,6 +142,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./build/codecov.xml
+          disable_search: true
           name: codecov-wasmedge
           fail_ci_if_error: true
           verbose: true

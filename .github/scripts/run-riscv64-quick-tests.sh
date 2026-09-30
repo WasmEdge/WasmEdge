@@ -62,7 +62,7 @@ QUICK_TESTS="
   wasmedgeLoaderFileMgrTests
   wasmedgeLoaderASTTests
   wasmedgeLoaderSerializerTests
-  wasmedgeValidatorSubtypeTests
+  wasmedgeValidatorRegressionTests
   wasmedgeRuntimeInstanceTests
   wasmedgeExternrefTests
   wasmedgeHostMockTests
@@ -73,7 +73,7 @@ QUICK_TESTS="
 # --- Group 2: Time-consuming (disabled) ---
 # wasmedgeExecutorCoreTests, wasmedgeAPIVMCoreTests, wasmedgeAPIStepsCoreTests,
 # wasmedgeAPIAOTCoreTests, wasmedgeAPIAOTNestedVMTests, wasmedgeLLVMCoreTests,
-# wasmedgeAOTCacheTests, wasmedgeMixcallTests, componentTests
+# wasmedgeAOTCacheTests, wasmedgeMixcallTests, wasmedgeComponentRegressionTests
 
 # --- Group 3: Expected-to-fail under QEMU (disabled) ---
 # wasmedgeThreadTests, wasiTests, wasiSocketTests

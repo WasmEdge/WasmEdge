@@ -6,7 +6,7 @@
 
 using namespace WasmEdge::Host::WASI::detail;
 
-TEST(linuxTest, fromErrNo) {
+TEST(LinuxTest, fromErrNo) {
 
   EXPECT_EQ(fromErrNo(0), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(fromErrNo(E2BIG), __WASI_ERRNO_2BIG);
@@ -161,7 +161,7 @@ TEST(LinuxTest, toAdvice) {
   EXPECT_EQ(toAdvice(__WASI_ADVICE_NOREUSE), POSIX_FADV_NOREUSE);
 }
 
-TEST(LiuxTest, fromFileType) {
+TEST(LinuxTest, fromFileTypeMode) {
   EXPECT_EQ(fromFileType(static_cast<mode_t>(S_IFBLK)),
             __WASI_FILETYPE_BLOCK_DEVICE);
   EXPECT_EQ(fromFileType(static_cast<mode_t>(S_IFCHR)),

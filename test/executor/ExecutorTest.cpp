@@ -19,9 +19,9 @@
 #include "loader/serialize.h"
 #include "vm/vm.h"
 
-#include "../common/wideArithmetic.h"
 #include "../spec/hostfunc.h"
 #include "../spec/spectest.h"
+#include "wideArithmetic.h"
 
 #include <gtest/gtest.h>
 

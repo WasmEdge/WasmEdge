@@ -416,7 +416,8 @@ private:
                               std::optional<uint64_t> SizeBound = std::nullopt);
   Expect<OpCode> loadOpCode();
   Expect<AST::InstrVec> loadInstrSeq(std::optional<uint64_t> SizeBound);
-  Expect<void> loadInstruction(AST::Instruction &Instr);
+  Expect<uint32_t> loadInstruction(OpCode Op, uint32_t Offset,
+                                   AST::InstrVec &Instrs);
   /// @}
 
   /// \name Load AST nodes functions for component model

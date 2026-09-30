@@ -127,14 +127,14 @@ public:
           Height(F.Height), InitedLocal(F.InitedLocal),
           IsUnreachable(F.IsUnreachable), Code(F.Code) {}
     CtrlFrame(Span<const ValType> In, Span<const ValType> Out,
-              const AST::Instruction *J, size_t H, size_t LocalH,
+              AST::InstrView::iterator J, size_t H, size_t LocalH,
               OpCode Op = OpCode::Unreachable)
         : StartTypes(In.begin(), In.end()), EndTypes(Out.begin(), Out.end()),
           Jump(J), Height(H), InitedLocal(LocalH), IsUnreachable(false),
           Code(Op) {}
     std::vector<ValType> StartTypes;
     std::vector<ValType> EndTypes;
-    const AST::Instruction *Jump;
+    AST::InstrView::iterator Jump;
     size_t Height;
     size_t InitedLocal;
     bool IsUnreachable;
@@ -166,7 +166,7 @@ private:
   Expect<VType> popType(const ValType &E);
   Expect<void> popTypes(Span<const ValType> Input);
   void pushCtrl(Span<const ValType> In, Span<const ValType> Out,
-                const AST::Instruction *Jump,
+                AST::InstrView::iterator Jump,
                 OpCode Code = OpCode::Unreachable);
   Expect<CtrlFrame> popCtrl();
   Span<const ValType> getLabelTypes(const CtrlFrame &F);

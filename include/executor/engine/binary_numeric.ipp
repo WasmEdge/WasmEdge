@@ -34,7 +34,7 @@ TypeN<T> Executor::runMulOp(ValVariant &Val1, const ValVariant &Val2) const {
 }
 
 template <typename T>
-TypeT<T> Executor::runDivOp(const AST::Instruction &Instr, ValVariant &Val1,
+TypeT<T> Executor::runDivOp(const AST::Instruction Instr, ValVariant &Val1,
                             const ValVariant &Val2) const {
   T &V1 = Val1.get<T>();
   const T &V2 = Val2.get<T>();
@@ -68,7 +68,7 @@ TypeT<T> Executor::runDivOp(const AST::Instruction &Instr, ValVariant &Val1,
 }
 
 template <typename T>
-TypeI<T> Executor::runRemOp(const AST::Instruction &Instr, ValVariant &Val1,
+TypeI<T> Executor::runRemOp(const AST::Instruction Instr, ValVariant &Val1,
                             const ValVariant &Val2) const {
   T &I1 = Val1.get<T>();
   const T &I2 = Val2.get<T>();

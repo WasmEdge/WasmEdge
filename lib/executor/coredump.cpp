@@ -302,7 +302,7 @@ public:
   resolve(const ModuleInstance *Mod,
           AST::InstrView::iterator It) const noexcept {
     const auto ModIter = Ranges.find(Mod);
-    if (ModIter == Ranges.end() || It == nullptr) {
+    if (ModIter == Ranges.end() || !It) {
       return {0U, nullptr};
     }
     const auto &Map = ModIter->second;
@@ -355,13 +355,24 @@ collectFrames(const StackManager &StackMgr, AST::InstrView::iterator PC,
     }
     FrameInfo Info;
     Info.InstanceIdx = Spaces.getModuleIdx(Frame.Module);
-    // The `From` of the callee frame points to the call instruction in this
-    // frame, and the innermost frame is executing the trapping instruction.
-    const auto *const It = (Idx < FrameNum) ? Frames[Idx].From : PC;
+    // The `From` of the callee frame is the continuation after the call
+    // instruction in this frame, and the innermost frame is executing the
+    // trapping instruction.
+    const auto It = (Idx < FrameNum) ? Frames[Idx].From : PC;
     std::tie(Info.FuncIdx, Info.Func) = Resolver.resolve(Frame.Module, It);
     if (Info.Func != nullptr) {
+      const auto Instrs = Info.Func->getInstrs();
+      // Locate the call instruction preceding the continuation of the callee
+      // frame by walking the records of this function.
+      auto Cur = It;
+      if (Idx < FrameNum) {
+        for (auto Next = Instrs.begin(); Next != It && Next != Instrs.end();
+             ++Next) {
+          Cur = Next;
+        }
+      }
       // The code offset is relative to the start of the function body.
-      Info.CodeOffset = It->getOffset() - Info.Func->getInstrs()[0].getOffset();
+      Info.CodeOffset = Cur->getOffset() - Instrs.begin()->getOffset();
     }
 
     // The locals of this frame are the values below its stack base, and its
@@ -620,10 +631,10 @@ AST::DataSection createData(const IndexSpaces &Spaces,
       AST::DataSegment Seg;
       Seg.setMode(AST::DataSegment::DataMode::Active);
       Seg.setIdx(I);
-      AST::Instruction OffsetInstr(Is64 ? OpCode::I64__const
-                                        : OpCode::I32__const);
-      OffsetInstr.setNum(static_cast<uint128_t>(Offset));
-      Seg.getExpr().getInstrs() = {OffsetInstr, AST::Instruction(OpCode::End)};
+      auto &Instrs = Seg.getExpr().getInstrs();
+      Instrs.appendNum(Is64 ? OpCode::I64__const : OpCode::I32__const,
+                       static_cast<uint128_t>(Offset));
+      Instrs.appendEnd();
       Seg.getData().assign(Chunk.begin(), Chunk.end());
       Content.push_back(std::move(Seg));
     };
@@ -663,33 +674,28 @@ AST::GlobalSection createGlobals(const IndexSpaces &Spaces,
             : OriginalType;
     AST::GlobalSegment Seg;
     Seg.getGlobalType() = AST::GlobalType(Type, ValMut::Const);
-    AST::Instruction Init(OpCode::Ref__null);
+    auto &Instrs = Seg.getExpr().getInstrs();
     switch (Type.getCode()) {
     case TypeCode::I32:
-      Init = AST::Instruction(OpCode::I32__const);
-      Init.setNum(Glob->getValue());
+      Instrs.appendNum(OpCode::I32__const, Glob->getValue());
       break;
     case TypeCode::I64:
-      Init = AST::Instruction(OpCode::I64__const);
-      Init.setNum(Glob->getValue());
+      Instrs.appendNum(OpCode::I64__const, Glob->getValue());
       break;
     case TypeCode::F32:
-      Init = AST::Instruction(OpCode::F32__const);
-      Init.setNum(Glob->getValue());
+      Instrs.appendNum(OpCode::F32__const, Glob->getValue());
       break;
     case TypeCode::F64:
-      Init = AST::Instruction(OpCode::F64__const);
-      Init.setNum(Glob->getValue());
+      Instrs.appendNum(OpCode::F64__const, Glob->getValue());
       break;
     case TypeCode::V128:
-      Init = AST::Instruction(OpCode::V128__const);
-      Init.setNum(Glob->getValue());
+      Instrs.appendNum(OpCode::V128__const, Glob->getValue());
       break;
     default:
-      Init.setValType(Type);
+      Instrs.appendValType(OpCode::Ref__null, Type);
       break;
     }
-    Seg.getExpr().getInstrs() = {Init, AST::Instruction(OpCode::End)};
+    Instrs.appendEnd();
     Content.push_back(std::move(Seg));
   }
   return Globals;

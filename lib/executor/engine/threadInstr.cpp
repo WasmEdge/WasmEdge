@@ -9,7 +9,7 @@ namespace Executor {
 Expect<void>
 Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
                             Runtime::Instance::MemoryInstance &MemInst,
-                            const AST::Instruction &Instr) {
+                            const AST::Instruction Instr) {
   ValVariant RawCount = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();

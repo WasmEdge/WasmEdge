@@ -103,12 +103,14 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
 
   // Force the per-instruction dispatch inline; otherwise the compiler may emit
   // this switch out-of-line as one call per instruction (MSVC: see use site).
-  auto Dispatch = [this, &PC, &StackMgr]()
+  // The PC has been advanced to the next record when dispatching `Instr`. The
+  // view is passed by value and the control handlers return the continuation,
+  // which keeps both in registers.
+  auto Dispatch = [this, &PC, &StackMgr](const AST::Instruction Instr)
 #if defined(__GNUC__) || defined(__clang__)
                       __attribute__((always_inline))
 #endif
   -> Expect<void> {
-    const AST::Instruction &Instr = *PC;
     switch (Instr.getOpCode()) {
     // Control instructions
     case OpCode::Unreachable:
@@ -122,8 +124,10 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return {};
     case OpCode::Loop:
       return {};
-    case OpCode::If:
-      return runIfElseOp(StackMgr, Instr, PC);
+    case OpCode::If: {
+      EXPECTED_TRY(PC, runIfElseOp(StackMgr, Instr, PC));
+      return {};
+    }
     case OpCode::Else:
       if (Stat && Conf.getStatisticsConfigure().isCostMeasuring()) {
         // Reach here means end of if-statement.
@@ -140,45 +144,77 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
           return Unexpect(ErrCode::Value::CostLimitExceeded);
         }
       }
-      PC += PC->getJumpEnd() - 1;
+      PC = Instr.getIterator() + Instr.getJumpEnd();
       return {};
     case OpCode::End:
-      PC = StackMgr.maybePopFrameOrHandler(PC);
+      PC = StackMgr.maybePopFrameOrHandler(Instr, PC);
       return {};
-    case OpCode::Throw:
-      return runThrowOp(StackMgr, Instr, PC);
-    case OpCode::Throw_ref:
-      return runThrowRefOp(StackMgr, Instr, PC);
-    case OpCode::Br:
-      return runBrOp(StackMgr, Instr, PC);
-    case OpCode::Br_if:
-      return runBrIfOp(StackMgr, Instr, PC);
-    case OpCode::Br_table:
-      return runBrTableOp(StackMgr, Instr, PC);
-    case OpCode::Br_on_null:
-      return runBrOnNullOp(StackMgr, Instr, PC);
-    case OpCode::Br_on_non_null:
-      return runBrOnNonNullOp(StackMgr, Instr, PC);
-    case OpCode::Br_on_cast:
-      return runBrOnCastOp(StackMgr, Instr, PC);
-    case OpCode::Br_on_cast_fail:
-      return runBrOnCastOp(StackMgr, Instr, PC, true);
-    case OpCode::Return:
-      return runReturnOp(StackMgr, PC);
-    case OpCode::Call:
-      return runCallOp(StackMgr, Instr, PC);
-    case OpCode::Call_indirect:
-      return runCallIndirectOp(StackMgr, Instr, PC);
-    case OpCode::Return_call:
-      return runCallOp(StackMgr, Instr, PC, true);
-    case OpCode::Return_call_indirect:
-      return runCallIndirectOp(StackMgr, Instr, PC, true);
-    case OpCode::Call_ref:
-      return runCallRefOp(StackMgr, Instr, PC);
-    case OpCode::Return_call_ref:
-      return runCallRefOp(StackMgr, Instr, PC, true);
+    case OpCode::Throw: {
+      EXPECTED_TRY(PC, runThrowOp(StackMgr, Instr, PC));
+      return {};
+    }
+    case OpCode::Throw_ref: {
+      EXPECTED_TRY(PC, runThrowRefOp(StackMgr, Instr, PC));
+      return {};
+    }
+    case OpCode::Br: {
+      EXPECTED_TRY(PC, runBrOp(StackMgr, Instr));
+      return {};
+    }
+    case OpCode::Br_if: {
+      EXPECTED_TRY(PC, runBrIfOp(StackMgr, Instr, PC));
+      return {};
+    }
+    case OpCode::Br_table: {
+      EXPECTED_TRY(PC, runBrTableOp(StackMgr, Instr));
+      return {};
+    }
+    case OpCode::Br_on_null: {
+      EXPECTED_TRY(PC, runBrOnNullOp(StackMgr, Instr, PC));
+      return {};
+    }
+    case OpCode::Br_on_non_null: {
+      EXPECTED_TRY(PC, runBrOnNonNullOp(StackMgr, Instr, PC));
+      return {};
+    }
+    case OpCode::Br_on_cast: {
+      EXPECTED_TRY(PC, runBrOnCastOp(StackMgr, Instr, PC));
+      return {};
+    }
+    case OpCode::Br_on_cast_fail: {
+      EXPECTED_TRY(PC, runBrOnCastOp(StackMgr, Instr, PC, true));
+      return {};
+    }
+    case OpCode::Return: {
+      EXPECTED_TRY(PC, runReturnOp(StackMgr));
+      return {};
+    }
+    case OpCode::Call: {
+      EXPECTED_TRY(PC, runCallOp(StackMgr, Instr, PC));
+      return {};
+    }
+    case OpCode::Call_indirect: {
+      EXPECTED_TRY(PC, runCallIndirectOp(StackMgr, Instr, PC));
+      return {};
+    }
+    case OpCode::Return_call: {
+      EXPECTED_TRY(PC, runCallOp(StackMgr, Instr, PC, true));
+      return {};
+    }
+    case OpCode::Return_call_indirect: {
+      EXPECTED_TRY(PC, runCallIndirectOp(StackMgr, Instr, PC, true));
+      return {};
+    }
+    case OpCode::Call_ref: {
+      EXPECTED_TRY(PC, runCallRefOp(StackMgr, Instr, PC));
+      return {};
+    }
+    case OpCode::Return_call_ref: {
+      EXPECTED_TRY(PC, runCallRefOp(StackMgr, Instr, PC, true));
+      return {};
+    }
     case OpCode::Try_table:
-      return runTryTableOp(StackMgr, Instr, PC);
+      return runTryTableOp(StackMgr, Instr);
 
     // Reference Instructions
     case OpCode::Ref__null:
@@ -2257,32 +2293,33 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       Stat && Conf.getStatisticsConfigure().isCostMeasuring();
 
   while (PC != PCEnd) {
+    const AST::Instruction Instr = *PC;
     if (unlikely(IsCounting || IsCostMeasuring)) {
       if (IsCounting) {
         Stat->incInstrCount();
       }
       // Add cost. Note: if-else cases should be processed additionally.
-      if (IsCostMeasuring && unlikely(!Stat->addInstrCost(PC->getOpCode()))) {
-        const AST::Instruction &Instr = *PC;
+      if (IsCostMeasuring && unlikely(!Stat->addInstrCost(Instr.getOpCode()))) {
         spdlog::error(
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return Unexpect(ErrCode::Value::CostLimitExceeded);
       }
     }
+    ++PC;
 #if defined(_MSC_VER) && !defined(__clang__) &&                                \
     __has_cpp_attribute(msvc::forceinline_calls)
     [[msvc::forceinline_calls]]
 #endif
-    if (auto Res = Dispatch(); unlikely(!Res)) {
+    if (auto Res = Dispatch(Instr); unlikely(!Res)) {
       StackTraceSize = interpreterStackTrace(StackMgr, StackTrace).size();
       if (Conf.getRuntimeConfigure().isEnableCoredump() &&
           Res.error().getErrCodePhase() == WasmPhase::Execution) {
         Coredump::generateCoredump(
-            StackMgr, PC, Conf.getRuntimeConfigure().isCoredumpWasmgdb());
+            StackMgr, Instr.getIterator(),
+            Conf.getRuntimeConfigure().isCoredumpWasmgdb());
       }
       return Unexpect(Res.error());
     }
-    PC++;
   }
   return {};
 }

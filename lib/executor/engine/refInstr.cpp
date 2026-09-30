@@ -12,7 +12,7 @@ namespace Executor {
 namespace {
 
 template <typename... T>
-ErrCode logError(const ErrCode &Code, const AST::Instruction &Instr,
+ErrCode logError(const ErrCode &Code, const AST::Instruction Instr,
                  T &&...F) noexcept {
   spdlog::error(Code);
   (F(), ...);
@@ -20,7 +20,7 @@ ErrCode logError(const ErrCode &Code, const AST::Instruction &Instr,
   return Code;
 }
 
-ErrCode logError(const ErrCode &Code, const AST::Instruction &Instr) noexcept {
+ErrCode logError(const ErrCode &Code, const AST::Instruction Instr) noexcept {
   spdlog::error(Code);
   spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
   return Code;
@@ -106,7 +106,7 @@ Expect<void> Executor::runRefEqOp(ValVariant &Val1,
 
 Expect<void>
 Executor::runRefAsNonNullOp(RefVariant &Ref,
-                            const AST::Instruction &Instr) const noexcept {
+                            const AST::Instruction Instr) const noexcept {
   if (Ref.isNull()) {
     return Unexpect(logError(ErrCode::Value::CastNullToNonNull, Instr));
   }
@@ -132,7 +132,7 @@ Expect<void> Executor::runStructNewOp(Runtime::StackManager &StackMgr,
 Expect<void> Executor::runStructGetOp(Runtime::StackManager &StackMgr,
                                       const uint32_t TypeIdx,
                                       const uint32_t Off,
-                                      const AST::Instruction &Instr,
+                                      const AST::Instruction Instr,
                                       const bool IsSigned) const noexcept {
   const RefVariant Ref = StackMgr.getTop().get<RefVariant>();
   EXPECTED_TRY(auto Val,
@@ -145,7 +145,7 @@ Expect<void> Executor::runStructGetOp(Runtime::StackManager &StackMgr,
 Expect<void>
 Executor::runStructSetOp(Runtime::StackManager &StackMgr, const ValVariant &Val,
                          const uint32_t TypeIdx, const uint32_t Off,
-                         const AST::Instruction &Instr) const noexcept {
+                         const AST::Instruction Instr) const noexcept {
   const RefVariant Ref = StackMgr.pop().get<RefVariant>();
   EXPECTED_TRY(structSet(StackMgr.getModule(), Ref, Val, TypeIdx, Off)
                    .map_error([&](auto E) { return logError(E, Instr); }));
@@ -155,7 +155,7 @@ Executor::runStructSetOp(Runtime::StackManager &StackMgr, const ValVariant &Val,
 Expect<void>
 Executor::runArrayNewOp(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
                         const uint32_t InitCnt, uint32_t Length,
-                        const AST::Instruction &Instr) const noexcept {
+                        const AST::Instruction Instr) const noexcept {
   assuming(InitCnt == 0 || InitCnt == 1 || InitCnt == Length);
   auto Report = [&](auto E) { return logError(E, Instr); };
   if (InitCnt == 0) {
@@ -180,7 +180,7 @@ Executor::runArrayNewOp(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
 Expect<void>
 Executor::runArrayNewDataOp(Runtime::StackManager &StackMgr,
                             const uint32_t TypeIdx, const uint32_t DataIdx,
-                            const AST::Instruction &Instr) const noexcept {
+                            const AST::Instruction Instr) const noexcept {
   const uint32_t Length = StackMgr.pop().get<uint32_t>();
   const uint32_t Start = StackMgr.getTop().get<uint32_t>();
   EXPECTED_TRY(
@@ -203,7 +203,7 @@ Executor::runArrayNewDataOp(Runtime::StackManager &StackMgr,
 Expect<void>
 Executor::runArrayNewElemOp(Runtime::StackManager &StackMgr,
                             const uint32_t TypeIdx, const uint32_t ElemIdx,
-                            const AST::Instruction &Instr) const noexcept {
+                            const AST::Instruction Instr) const noexcept {
   const uint32_t Length = StackMgr.pop().get<uint32_t>();
   const uint32_t Start = StackMgr.getTop().get<uint32_t>();
   EXPECTED_TRY(
@@ -221,7 +221,7 @@ Executor::runArrayNewElemOp(Runtime::StackManager &StackMgr,
 
 Expect<void> Executor::runArrayGetOp(Runtime::StackManager &StackMgr,
                                      const uint32_t TypeIdx,
-                                     const AST::Instruction &Instr,
+                                     const AST::Instruction Instr,
                                      const bool IsSigned) const noexcept {
   const uint32_t Idx = StackMgr.pop().get<uint32_t>();
   const RefVariant Ref = StackMgr.getTop().get<RefVariant>();
@@ -239,7 +239,7 @@ Expect<void> Executor::runArrayGetOp(Runtime::StackManager &StackMgr,
 Expect<void>
 Executor::runArraySetOp(Runtime::StackManager &StackMgr, const ValVariant &Val,
                         const uint32_t TypeIdx,
-                        const AST::Instruction &Instr) const noexcept {
+                        const AST::Instruction Instr) const noexcept {
   const uint32_t Idx = StackMgr.pop().get<uint32_t>();
   const RefVariant Ref = StackMgr.pop().get<RefVariant>();
   EXPECTED_TRY(arraySet(StackMgr.getModule(), Ref, Val, TypeIdx, Idx)
@@ -253,7 +253,7 @@ Executor::runArraySetOp(Runtime::StackManager &StackMgr, const ValVariant &Val,
 
 Expect<void>
 Executor::runArrayLenOp(ValVariant &Val,
-                        const AST::Instruction &Instr) const noexcept {
+                        const AST::Instruction Instr) const noexcept {
   const auto *Inst =
       Val.get<RefVariant>().getPtr<Runtime::Instance::ArrayInstance>();
   if (Inst == nullptr) {
@@ -266,7 +266,7 @@ Executor::runArrayLenOp(ValVariant &Val,
 Expect<void>
 Executor::runArrayFillOp(Runtime::StackManager &StackMgr, const uint32_t Cnt,
                          const ValVariant &Val, const uint32_t TypeIdx,
-                         const AST::Instruction &Instr) const noexcept {
+                         const AST::Instruction Instr) const noexcept {
   const uint32_t Idx = StackMgr.pop().get<uint32_t>();
   const RefVariant Ref = StackMgr.pop().get<RefVariant>();
   EXPECTED_TRY(arrayFill(StackMgr.getModule(), Ref, Val, TypeIdx, Idx, Cnt)
@@ -281,7 +281,7 @@ Executor::runArrayFillOp(Runtime::StackManager &StackMgr, const uint32_t Cnt,
 Expect<void>
 Executor::runArrayCopyOp(Runtime::StackManager &StackMgr, const uint32_t Cnt,
                          const uint32_t DstTypeIdx, const uint32_t SrcTypeIdx,
-                         const AST::Instruction &Instr) const noexcept {
+                         const AST::Instruction Instr) const noexcept {
   const uint32_t SrcIdx = StackMgr.pop().get<uint32_t>();
   const RefVariant SrcRef = StackMgr.pop().get<RefVariant>();
   const uint32_t DstIdx = StackMgr.pop().get<uint32_t>();
@@ -299,7 +299,7 @@ Executor::runArrayCopyOp(Runtime::StackManager &StackMgr, const uint32_t Cnt,
 
 Expect<void> Executor::runArrayInitDataOp(
     Runtime::StackManager &StackMgr, const uint32_t Cnt, const uint32_t TypeIdx,
-    const uint32_t DataIdx, const AST::Instruction &Instr) const noexcept {
+    const uint32_t DataIdx, const AST::Instruction Instr) const noexcept {
   const uint32_t SrcIdx = StackMgr.pop().get<uint32_t>();
   const uint32_t DstIdx = StackMgr.pop().get<uint32_t>();
   const RefVariant Ref = StackMgr.pop().get<RefVariant>();
@@ -323,7 +323,7 @@ Expect<void> Executor::runArrayInitDataOp(
 
 Expect<void> Executor::runArrayInitElemOp(
     Runtime::StackManager &StackMgr, const uint32_t Cnt, const uint32_t TypeIdx,
-    const uint32_t ElemIdx, const AST::Instruction &Instr) const noexcept {
+    const uint32_t ElemIdx, const AST::Instruction Instr) const noexcept {
   const uint32_t SrcIdx = StackMgr.pop().get<uint32_t>();
   const uint32_t DstIdx = StackMgr.pop().get<uint32_t>();
   const RefVariant Ref = StackMgr.pop().get<RefVariant>();
@@ -341,7 +341,7 @@ Expect<void> Executor::runArrayInitElemOp(
 
 Expect<void>
 Executor::runRefTestOp(const Runtime::Instance::ModuleInstance *ModInst,
-                       ValVariant &Val, const AST::Instruction &Instr,
+                       ValVariant &Val, const AST::Instruction Instr,
                        const bool IsCast) const noexcept {
   if (matchRef(ModInst, Instr.getValType(), Val.get<RefVariant>())) {
     if (!IsCast) {
@@ -399,7 +399,7 @@ Expect<void> Executor::runRefI31Op(ValVariant &Val) const noexcept {
 }
 
 Expect<void> Executor::runI31GetOp(ValVariant &Val,
-                                   const AST::Instruction &Instr,
+                                   const AST::Instruction Instr,
                                    const bool IsSigned) const noexcept {
   uint32_t RefNum = static_cast<uint32_t>(
       reinterpret_cast<uintptr_t>(Val.get<RefVariant>().getPtr<void>()));

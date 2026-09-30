@@ -4,6 +4,7 @@
 #include "loader/loader.h"
 
 #include <utility>
+#include <vector>
 
 using namespace std::literals;
 
@@ -126,7 +127,6 @@ Expect<OpCode> Loader::loadOpCode() {
 Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
   AST::InstrVec Instrs;
   std::vector<std::pair<OpCode, uint32_t>> BlockStack;
-  uint32_t Cnt = 0;
   bool IsReachEnd = false;
   // Read opcode until the End code of the top block.
   do {
@@ -153,65 +153,68 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
       }
     };
 
-    // Process the instruction that contains a block.
+    // Check the position of the Else instruction.
+    if (Code == OpCode::Else) {
+      if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::If) {
+        // An Else instruction appeared outside the If-block.
+        return logIllegalOpCode();
+      }
+      if (Instrs.getInstr(BlockStack.back().second).getJumpElse() > 0) {
+        // An Else instruction appeared before in this If-block.
+        return logIllegalOpCode();
+      }
+    }
+
+    // Load the instruction record.
+    EXPECTED_TRY(uint32_t Pos,
+                 loadInstruction(Code, static_cast<uint32_t>(Offset), Instrs));
+    if (unlikely(Pos == AST::InstrVec::InvalidPos)) {
+      // The expression exceeds the size limit of the instruction buffer.
+      return logLoadError(ErrCode::Value::LengthOutOfBounds, Offset,
+                          ASTNodeAttr::Instruction);
+    }
+
+    // Process the block structure with the record positions.
     switch (Code) {
     case OpCode::Block:
     case OpCode::Loop:
     case OpCode::If:
     case OpCode::Try_table:
-      BlockStack.emplace_back(Code, Cnt);
+      BlockStack.emplace_back(Code, Pos);
       break;
-    case OpCode::Else: {
-      if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::If) {
-        // An Else instruction appeared outside the If-block.
-        return logIllegalOpCode();
-      }
-      uint32_t Pos = BlockStack.back().second;
-      if (Instrs[Pos].getJumpElse() > 0) {
-        // An Else instruction appeared before in this If-block.
-        return logIllegalOpCode();
-      }
-      Instrs[Pos].setJumpElse(Cnt - Pos);
+    case OpCode::Else:
+      Instrs.getInstr(BlockStack.back().second)
+          .setJumpElse(Pos - BlockStack.back().second);
       break;
-    }
-    default:
-      break;
-    }
-
-    // Create the instruction node and load contents.
-    Instrs.emplace_back(Code, static_cast<uint32_t>(Offset));
-    EXPECTED_TRY(loadInstruction(Instrs.back()));
-
-    if (Code == OpCode::End) {
-      // Post process the End instruction.
+    case OpCode::End:
       if (BlockStack.size() > 0) {
-        Instrs.back().setExprLast(false);
-        const auto &[BackOp, Pos] = BlockStack.back();
-        if (BackOp == OpCode::Block || BackOp == OpCode::Loop ||
-            BackOp == OpCode::If) {
-          Instrs.back().setTryBlockLast(false);
-          Instrs[Pos].setJumpEnd(Cnt - Pos);
+        const auto [BackOp, BlockPos] = BlockStack.back();
+        if (BackOp == OpCode::Try_table) {
+          Instrs.getInstr(Pos).setTryBlockLast();
+          Instrs.getInstr(BlockPos).getTryCatch().JumpEnd = Pos - BlockPos;
+        } else {
+          auto Block = Instrs.getInstr(BlockPos);
+          Block.setJumpEnd(Pos - BlockPos);
           if (BackOp == OpCode::If) {
-            if (Instrs[Pos].getJumpElse() == 0) {
+            if (Block.getJumpElse() == 0) {
               // For an if block without an else branch, set the else jump to
               // the end jump.
-              Instrs[Pos].setJumpElse(Cnt - Pos);
+              Block.setJumpElse(Pos - BlockPos);
             } else {
-              const uint32_t ElsePos = Pos + Instrs[Pos].getJumpElse();
-              Instrs[ElsePos].setJumpEnd(Cnt - ElsePos);
+              const uint32_t ElsePos = BlockPos + Block.getJumpElse();
+              Instrs.getInstr(ElsePos).setJumpEnd(Pos - ElsePos);
             }
           }
-        } else if (BackOp == OpCode::Try_table) {
-          Instrs.back().setTryBlockLast(true);
-          Instrs[Pos].getTryCatch().JumpEnd = Cnt - Pos;
         }
         BlockStack.pop_back();
       } else {
-        Instrs.back().setExprLast(true);
+        Instrs.getInstr(Pos).setExprLast();
         IsReachEnd = true;
       }
+      break;
+    default:
+      break;
     }
-    Cnt++;
   } while (!IsReachEnd);
 
   // Check the loaded offset should match the segment boundary.
@@ -229,7 +232,8 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
 }
 
 // Load instruction node. See "include/loader/loader.h".
-Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
+Expect<uint32_t> Loader::loadInstruction(OpCode Op, uint32_t Offset,
+                                         AST::InstrVec &Instrs) {
   // Node: The instruction has checked for the proposals. Need to check their
   // immediates.
 
@@ -252,37 +256,36 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   };
 
-  auto readMemImmediate = [this, readU32, readU64, &Instr]() -> Expect<void> {
-    Instr.getTargetIndex() = 0;
-    EXPECTED_TRY(readU32(Instr.getMemoryAlign()));
-    if (Conf.hasProposal(Proposal::MultiMemories) &&
-        Instr.getMemoryAlign() >= 64) {
-      Instr.getMemoryAlign() -= 64;
-      EXPECTED_TRY(readU32(Instr.getTargetIndex()));
+  auto readMemImmediate = [this, readU32,
+                           readU64](uint32_t &MemIdx, uint32_t &Align,
+                                    uint64_t &MemOffset) -> Expect<void> {
+    EXPECTED_TRY(readU32(Align));
+    if (Conf.hasProposal(Proposal::MultiMemories) && Align >= 64) {
+      Align -= 64;
+      EXPECTED_TRY(readU32(MemIdx));
     }
     uint32_t MaxAlign = Conf.hasProposal(Proposal::Memory64) ? 64U : 32U;
-    if (unlikely(Instr.getMemoryAlign() >= MaxAlign)) {
+    if (unlikely(Align >= MaxAlign)) {
       return logLoadError(ErrCode::Value::MalformedMemoryOpFlags,
                           FMgr.getLastOffset(), ASTNodeAttr::Instruction);
     }
     if (Conf.hasProposal(Proposal::Memory64)) {
-      EXPECTED_TRY(readU64(Instr.getMemoryOffset()));
+      EXPECTED_TRY(readU64(MemOffset));
     } else {
-      uint32_t Offset;
-      EXPECTED_TRY(readU32(Offset));
-      Instr.getMemoryOffset() = static_cast<uint64_t>(Offset);
+      uint32_t Off32;
+      EXPECTED_TRY(readU32(Off32));
+      MemOffset = static_cast<uint64_t>(Off32);
     }
     return {};
   };
 
-  auto readCheckZero = [this, readU8](uint32_t &Dst) -> Expect<void> {
+  auto readCheckZero = [this, readU8]() -> Expect<void> {
     uint8_t C = 0;
     EXPECTED_TRY(readU8(C));
     if (C != UINT8_C(0)) {
       return logLoadError(ErrCode::Value::ExpectedZeroByte,
                           FMgr.getLastOffset(), ASTNodeAttr::Instruction);
     }
-    Dst = 0;
     return {};
   };
 
@@ -321,29 +324,35 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   };
 
-  switch (Instr.getOpCode()) {
+  switch (Op) {
   // Control instructions.
   case OpCode::Unreachable:
   case OpCode::Nop:
   case OpCode::Return:
   case OpCode::Throw_ref:
+    return Instrs.append(Op, Offset);
   case OpCode::End:
+    return Instrs.appendEnd(Offset);
   case OpCode::Else:
-    return {};
+    return Instrs.appendElse(Offset);
 
   case OpCode::Block:
   case OpCode::Loop:
-  case OpCode::If:
-    return readBlockType(Instr.getBlockType());
+  case OpCode::If: {
+    BlockType Type = BlockType();
+    EXPECTED_TRY(readBlockType(Type));
+    return Instrs.appendBlock(Op, Type, Offset);
+  }
 
   case OpCode::Try_table: {
-    Instr.setTryCatch();
     // Read the result type.
-    EXPECTED_TRY(readBlockType(Instr.getTryCatch().ResType));
+    BlockType Type = BlockType();
+    EXPECTED_TRY(readBlockType(Type));
+    // Read the catch clauses.
     EXPECTED_TRY(uint32_t VecCnt, loadVecCnt().map_error(ReportError));
-    Instr.getTryCatch().Catch.resize(VecCnt);
+    std::vector<AST::Instruction::CatchDescriptor> Catch(VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {
-      auto &Desc = Instr.getTryCatch().Catch[I];
+      auto &Desc = Catch[I];
       // Read the catch flag.
       EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error(ReportError));
       if (unlikely(Flag > 0x03U)) {
@@ -359,49 +368,58 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       // Read the label index.
       EXPECTED_TRY(readU32(Desc.LabelIndex));
     }
-    return {};
+    return Instrs.appendTryTable(Type, Catch, Offset);
   }
 
-  case OpCode::Throw:
-    return readU32(Instr.getTargetIndex());
+  case OpCode::Throw: {
+    uint32_t TagIdx = 0;
+    EXPECTED_TRY(readU32(TagIdx));
+    return Instrs.appendIndex(Op, TagIdx, Offset);
+  }
 
   case OpCode::Br:
   case OpCode::Br_if:
   case OpCode::Br_on_null:
-  case OpCode::Br_on_non_null:
-    return readU32(Instr.getJump().TargetIndex);
+  case OpCode::Br_on_non_null: {
+    uint32_t LabelIdx = 0;
+    EXPECTED_TRY(readU32(LabelIdx));
+    return Instrs.appendJump(Op, LabelIdx, Offset);
+  }
 
   case OpCode::Br_table: {
-    // Read the vector of labels.
+    // Read the vector of labels and the default label.
     EXPECTED_TRY(uint32_t VecCnt, loadVecCnt().map_error(ReportError));
-    Instr.setLabelListSize(VecCnt + 1);
-    for (uint32_t I = 0; I < VecCnt; ++I) {
-      EXPECTED_TRY(readU32(Instr.getLabelList()[I].TargetIndex));
+    std::vector<uint32_t> Labels(VecCnt + 1);
+    for (uint32_t I = 0; I <= VecCnt; ++I) {
+      EXPECTED_TRY(readU32(Labels[I]));
     }
-    // Read default label.
-    return readU32(Instr.getLabelList()[VecCnt].TargetIndex);
+    return Instrs.appendBrTable(Labels, Offset);
   }
 
   case OpCode::Call:
   case OpCode::Return_call:
   case OpCode::Call_ref:
-  case OpCode::Return_call_ref:
-    return readU32(Instr.getTargetIndex());
+  case OpCode::Return_call_ref: {
+    uint32_t FuncIdx = 0;
+    EXPECTED_TRY(readU32(FuncIdx));
+    return Instrs.appendIndex(Op, FuncIdx, Offset);
+  }
 
   case OpCode::Call_indirect:
   case OpCode::Return_call_indirect: {
     // Read the type index.
-    EXPECTED_TRY(readU32(Instr.getTargetIndex()));
+    uint32_t TypeIdx = 0, TableIdx = 0;
+    EXPECTED_TRY(readU32(TypeIdx));
     uint64_t SrcIdxOffset = FMgr.getOffset();
     // Read the table index.
-    EXPECTED_TRY(readU32(Instr.getSourceIndex()));
-    if ((Instr.getSourceIndex() > 0 || FMgr.getOffset() - SrcIdxOffset > 1) &&
+    EXPECTED_TRY(readU32(TableIdx));
+    if ((TableIdx > 0 || FMgr.getOffset() - SrcIdxOffset > 1) &&
         !Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
                              Proposal::ReferenceTypes, FMgr.getLastOffset(),
                              ASTNodeAttr::Instruction);
     }
-    return {};
+    return Instrs.appendIndices(Op, TypeIdx, TableIdx, Offset);
   }
 
   // Reference Instructions.
@@ -411,21 +429,19 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     // The AST node information is handled.
     EXPECTED_TRY(auto Type,
                  loadHeapType(TypeCode::RefNull, ASTNodeAttr::Instruction));
-    Instr.setValType(Type);
-    return {};
+    return Instrs.appendValType(Op, Type, Offset);
   }
   case OpCode::Ref__test:
   case OpCode::Ref__cast: {
     // The AST node information is handled.
     EXPECTED_TRY(auto Type,
                  loadHeapType(TypeCode::Ref, ASTNodeAttr::Instruction));
-    Instr.setValType(Type);
-    return {};
+    return Instrs.appendValType(Op, Type, Offset);
   }
   case OpCode::Ref__is_null:
   case OpCode::Ref__eq:
   case OpCode::Ref__as_non_null:
-    return {};
+    return Instrs.append(Op, Offset);
   case OpCode::Ref__func:
   case OpCode::Struct__new:
   case OpCode::Struct__new_default:
@@ -435,8 +451,11 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Array__get_s:
   case OpCode::Array__get_u:
   case OpCode::Array__set:
-  case OpCode::Array__fill:
-    return readU32(Instr.getTargetIndex());
+  case OpCode::Array__fill: {
+    uint32_t TargetIdx = 0;
+    EXPECTED_TRY(readU32(TargetIdx));
+    return Instrs.appendIndex(Op, TargetIdx, Offset);
+  }
   case OpCode::Struct__get:
   case OpCode::Struct__get_s:
   case OpCode::Struct__get_u:
@@ -446,9 +465,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Array__new_elem:
   case OpCode::Array__copy:
   case OpCode::Array__init_data:
-  case OpCode::Array__init_elem:
-    EXPECTED_TRY(readU32(Instr.getTargetIndex()));
-    return readU32(Instr.getSourceIndex());
+  case OpCode::Array__init_elem: {
+    uint32_t TargetIdx = 0, SourceIdx = 0;
+    EXPECTED_TRY(readU32(TargetIdx));
+    EXPECTED_TRY(readU32(SourceIdx));
+    return Instrs.appendIndices(Op, TargetIdx, SourceIdx, Offset);
+  }
   case OpCode::Br_on_cast:
   case OpCode::Br_on_cast_fail: {
     // Read the flag.
@@ -462,16 +484,15 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     uint32_t LabelIdx = 0U;
     EXPECTED_TRY(readU32(LabelIdx).map_error(ReportError));
     // Read the heap types.
-    Instr.setBrCast(LabelIdx);
     TypeCode TC = ((Flag & 0x01U) ? TypeCode::RefNull : TypeCode::Ref);
     EXPECTED_TRY(
-        Instr.getBrCast().RType1,
+        ValType RType1,
         loadHeapType(TC, ASTNodeAttr::Instruction).map_error(ReportError));
     TC = ((Flag & 0x02U) ? TypeCode::RefNull : TypeCode::Ref);
     EXPECTED_TRY(
-        Instr.getBrCast().RType2,
+        ValType RType2,
         loadHeapType(TC, ASTNodeAttr::Instruction).map_error(ReportError));
-    return {};
+    return Instrs.appendBrCast(Op, LabelIdx, RType1, RType2, Offset);
   }
   case OpCode::Array__len:
   case OpCode::Any__convert_extern:
@@ -479,46 +500,62 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Ref__i31:
   case OpCode::I31__get_s:
   case OpCode::I31__get_u:
-    return {};
+    return Instrs.append(Op, Offset);
 
   // Parametric Instructions.
   case OpCode::Drop:
   case OpCode::Select:
-    return {};
+    return Instrs.append(Op, Offset);
   case OpCode::Select_t: {
     // Read the vector of value types.
     EXPECTED_TRY(uint32_t VecCnt, loadVecCnt().map_error(ReportError));
-    Instr.setValTypeListSize(VecCnt);
+    std::vector<ValType> Types(VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {
       // The AST node information is handled.
-      EXPECTED_TRY(Instr.getValTypeList()[I],
-                   loadValType(ASTNodeAttr::Instruction));
+      EXPECTED_TRY(Types[I], loadValType(ASTNodeAttr::Instruction));
     }
-    return {};
+    return Instrs.appendSelectT(Types, Offset);
   }
 
   // Variable Instructions.
   case OpCode::Local__get:
   case OpCode::Local__set:
-  case OpCode::Local__tee:
+  case OpCode::Local__tee: {
+    // The second index is the stack offset patched in validation.
+    uint32_t LocalIdx = 0;
+    EXPECTED_TRY(readU32(LocalIdx));
+    return Instrs.appendIndices(Op, LocalIdx, 0, Offset);
+  }
   case OpCode::Global__get:
-  case OpCode::Global__set:
-    return readU32(Instr.getTargetIndex());
+  case OpCode::Global__set: {
+    uint32_t GlobalIdx = 0;
+    EXPECTED_TRY(readU32(GlobalIdx));
+    return Instrs.appendIndex(Op, GlobalIdx, Offset);
+  }
 
   // Table Instructions.
-  case OpCode::Table__init:
-    EXPECTED_TRY(readU32(Instr.getSourceIndex()));
-    [[fallthrough]];
+  case OpCode::Table__init: {
+    uint32_t ElemIdx = 0, TableIdx = 0;
+    EXPECTED_TRY(readU32(ElemIdx));
+    EXPECTED_TRY(readU32(TableIdx));
+    return Instrs.appendIndices(Op, TableIdx, ElemIdx, Offset);
+  }
   case OpCode::Table__get:
   case OpCode::Table__set:
   case OpCode::Table__grow:
   case OpCode::Table__size:
   case OpCode::Table__fill:
-  case OpCode::Elem__drop:
-    return readU32(Instr.getTargetIndex());
-  case OpCode::Table__copy:
-    EXPECTED_TRY(readU32(Instr.getTargetIndex()));
-    return readU32(Instr.getSourceIndex());
+  case OpCode::Elem__drop: {
+    uint32_t TableIdx = 0;
+    EXPECTED_TRY(readU32(TableIdx));
+    return Instrs.appendIndex(Op, TableIdx, Offset);
+  }
+  case OpCode::Table__copy: {
+    uint32_t DstIdx = 0, SrcIdx = 0;
+    EXPECTED_TRY(readU32(DstIdx));
+    EXPECTED_TRY(readU32(SrcIdx));
+    return Instrs.appendIndices(Op, DstIdx, SrcIdx, Offset);
+  }
 
   // Memory Instructions.
   case OpCode::I32__load:
@@ -543,62 +580,76 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::I32__store16:
   case OpCode::I64__store8:
   case OpCode::I64__store16:
-  case OpCode::I64__store32:
-    return readMemImmediate();
+  case OpCode::I64__store32: {
+    uint32_t MemIdx = 0, Align = 0;
+    uint64_t MemOffset = 0;
+    EXPECTED_TRY(readMemImmediate(MemIdx, Align, MemOffset));
+    return Instrs.appendMemory(Op, MemIdx, Align, MemOffset, Offset);
+  }
 
-  case OpCode::Memory__init:
+  case OpCode::Memory__init: {
     if (!HasDataSection) {
-      return logLoadError(ErrCode::Value::DataCountRequired, Instr.getOffset(),
+      return logLoadError(ErrCode::Value::DataCountRequired, Offset,
                           ASTNodeAttr::Instruction);
     }
-    EXPECTED_TRY(readU32(Instr.getSourceIndex()));
-    [[fallthrough]];
+    uint32_t DataIdx = 0, MemIdx = 0;
+    EXPECTED_TRY(readU32(DataIdx));
+    if (Conf.hasProposal(Proposal::MultiMemories)) {
+      EXPECTED_TRY(readU32(MemIdx));
+    } else {
+      EXPECTED_TRY(readCheckZero());
+    }
+    return Instrs.appendIndices(Op, MemIdx, DataIdx, Offset);
+  }
   case OpCode::Memory__grow:
   case OpCode::Memory__size:
-  case OpCode::Memory__fill:
+  case OpCode::Memory__fill: {
+    uint32_t MemIdx = 0;
     if (Conf.hasProposal(Proposal::MultiMemories)) {
-      return readU32(Instr.getTargetIndex());
+      EXPECTED_TRY(readU32(MemIdx));
+    } else {
+      EXPECTED_TRY(readCheckZero());
     }
-    return readCheckZero(Instr.getTargetIndex());
-  case OpCode::Memory__copy:
+    return Instrs.appendIndex(Op, MemIdx, Offset);
+  }
+  case OpCode::Memory__copy: {
+    uint32_t DstIdx = 0, SrcIdx = 0;
     if (Conf.hasProposal(Proposal::MultiMemories)) {
-      EXPECTED_TRY(readU32(Instr.getTargetIndex()));
-      return readU32(Instr.getSourceIndex());
+      EXPECTED_TRY(readU32(DstIdx));
+      EXPECTED_TRY(readU32(SrcIdx));
+    } else {
+      EXPECTED_TRY(readCheckZero());
+      EXPECTED_TRY(readCheckZero());
     }
-    EXPECTED_TRY(readCheckZero(Instr.getTargetIndex()));
-    return readCheckZero(Instr.getSourceIndex());
-  case OpCode::Data__drop:
+    return Instrs.appendIndices(Op, DstIdx, SrcIdx, Offset);
+  }
+  case OpCode::Data__drop: {
     if (!HasDataSection) {
-      return logLoadError(ErrCode::Value::DataCountRequired, Instr.getOffset(),
+      return logLoadError(ErrCode::Value::DataCountRequired, Offset,
                           ASTNodeAttr::Instruction);
     }
-    return readU32(Instr.getTargetIndex());
+    uint32_t DataIdx = 0;
+    EXPECTED_TRY(readU32(DataIdx));
+    return Instrs.appendIndex(Op, DataIdx, Offset);
+  }
 
   // Const Instructions.
-  case OpCode::I32__const:
-    EXPECTED_TRY(FMgr.readS32().map_error(ReportError).map([&](int32_t Num) {
-      // Should clear the higher bits.
-      Instr.setNum(static_cast<uint128_t>(0U));
-      Instr.setNum(static_cast<uint32_t>(Num));
-    }));
-    return {};
-  case OpCode::I64__const:
-    EXPECTED_TRY(FMgr.readS64().map_error(ReportError).map([&](int64_t Num) {
-      // Should clear the higher bits.
-      Instr.setNum(static_cast<uint128_t>(0U));
-      Instr.setNum(static_cast<uint64_t>(Num));
-    }));
-    return {};
-  case OpCode::F32__const:
-    EXPECTED_TRY(FMgr.readF32().map_error(ReportError).map([&](float Num) {
-      Instr.setNum(Num);
-    }));
-    return {};
-  case OpCode::F64__const:
-    EXPECTED_TRY(FMgr.readF64().map_error(ReportError).map([&](double Num) {
-      Instr.setNum(Num);
-    }));
-    return {};
+  case OpCode::I32__const: {
+    EXPECTED_TRY(int32_t Num, FMgr.readS32().map_error(ReportError));
+    return Instrs.appendNum(Op, static_cast<uint32_t>(Num), Offset);
+  }
+  case OpCode::I64__const: {
+    EXPECTED_TRY(int64_t Num, FMgr.readS64().map_error(ReportError));
+    return Instrs.appendNum(Op, static_cast<uint64_t>(Num), Offset);
+  }
+  case OpCode::F32__const: {
+    EXPECTED_TRY(float Num, FMgr.readF32().map_error(ReportError));
+    return Instrs.appendNum(Op, Num, Offset);
+  }
+  case OpCode::F64__const: {
+    EXPECTED_TRY(double Num, FMgr.readF64().map_error(ReportError));
+    return Instrs.appendNum(Op, Num, Offset);
+  }
 
   // Unary Numeric Instructions.
   case OpCode::I32__eqz:
@@ -740,7 +791,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::F64__min:
   case OpCode::F64__max:
   case OpCode::F64__copysign:
-    return {};
+    return Instrs.append(Op, Offset);
 
   // SIMD Memory Instruction.
   case OpCode::V128__load:
@@ -756,8 +807,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::V128__load64_splat:
   case OpCode::V128__load32_zero:
   case OpCode::V128__load64_zero:
-  case OpCode::V128__store:
-    return readMemImmediate();
+  case OpCode::V128__store: {
+    uint32_t MemIdx = 0, Align = 0;
+    uint64_t MemOffset = 0;
+    EXPECTED_TRY(readMemImmediate(MemIdx, Align, MemOffset));
+    return Instrs.appendMemory(Op, MemIdx, Align, MemOffset, Offset);
+  }
   case OpCode::V128__load8_lane:
   case OpCode::V128__load16_lane:
   case OpCode::V128__load32_lane:
@@ -765,11 +820,16 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::V128__store8_lane:
   case OpCode::V128__store16_lane:
   case OpCode::V128__store32_lane:
-  case OpCode::V128__store64_lane:
+  case OpCode::V128__store64_lane: {
     // Read memory immediate.
-    EXPECTED_TRY(readMemImmediate());
+    uint32_t MemIdx = 0, Align = 0;
+    uint64_t MemOffset = 0;
+    EXPECTED_TRY(readMemImmediate(MemIdx, Align, MemOffset));
     // Read lane index.
-    return readU8(Instr.getMemoryLane());
+    uint8_t Lane = 0;
+    EXPECTED_TRY(readU8(Lane));
+    return Instrs.appendMemoryLane(Op, MemIdx, Align, MemOffset, Lane, Offset);
+  }
 
   // SIMD Const Instruction.
   case OpCode::V128__const:
@@ -782,8 +842,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
         Value |= static_cast<uint128_t>(static_cast<uint32_t>(B)) << (I * 8U);
       }));
     }
-    Instr.setNum(Value);
-    return {};
+    return Instrs.appendNum(Op, Value, Offset);
   }
 
   // SIMD Lane Instructions.
@@ -800,9 +859,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::F32x4__extract_lane:
   case OpCode::F32x4__replace_lane:
   case OpCode::F64x2__extract_lane:
-  case OpCode::F64x2__replace_lane:
+  case OpCode::F64x2__replace_lane: {
     // Read lane index.
-    return readU8(Instr.getMemoryLane());
+    uint8_t Lane = 0;
+    EXPECTED_TRY(readU8(Lane));
+    return Instrs.appendLane(Op, Lane, Offset);
+  }
 
   // SIMD Numeric Instructions.
   case OpCode::I8x16__swizzle:
@@ -1017,7 +1079,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::F64x2__floor:
   case OpCode::F64x2__trunc:
   case OpCode::F64x2__nearest:
-    return {};
+    return Instrs.append(Op, Offset);
 
   case OpCode::I8x16__relaxed_swizzle:
   case OpCode::I32x4__relaxed_trunc_f32x4_s:
@@ -1039,11 +1101,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::I16x8__relaxed_q15mulr_s:
   case OpCode::I16x8__relaxed_dot_i8x16_i7x16_s:
   case OpCode::I32x4__relaxed_dot_i8x16_i7x16_add_s:
-    return {};
+    return Instrs.append(Op, Offset);
 
   // Atomic Memory Instructions.
   case OpCode::Atomic__fence:
-    return readCheckZero(Instr.getTargetIndex());
+    EXPECTED_TRY(readCheckZero());
+    return Instrs.appendIndex(Op, 0, Offset);
 
   case OpCode::Memory__atomic__notify:
   case OpCode::Memory__atomic__wait32:
@@ -1111,15 +1174,19 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::I32__atomic__rmw16__cmpxchg_u:
   case OpCode::I64__atomic__rmw8__cmpxchg_u:
   case OpCode::I64__atomic__rmw16__cmpxchg_u:
-  case OpCode::I64__atomic__rmw32__cmpxchg_u:
-    return readMemImmediate();
+  case OpCode::I64__atomic__rmw32__cmpxchg_u: {
+    uint32_t MemIdx = 0, Align = 0;
+    uint64_t MemOffset = 0;
+    EXPECTED_TRY(readMemImmediate(MemIdx, Align, MemOffset));
+    return Instrs.appendMemory(Op, MemIdx, Align, MemOffset, Offset);
+  }
 
   // Wide-arithmetic instructions.
   case OpCode::I64__add128:
   case OpCode::I64__sub128:
   case OpCode::I64__mul_wide_s:
   case OpCode::I64__mul_wide_u:
-    return {};
+    return Instrs.append(Op, Offset);
 
   default:
     assumingUnreachable();

@@ -29,13 +29,8 @@ TEST(SerializeExpressionTest, SerializeExpression) {
   //   1.  Serialize expression with only end operation.
   //   2.  Serialize expression with instructions.
 
-  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
-  WasmEdge::AST::Instruction I32Eqz(WasmEdge::OpCode::I32__eqz);
-  WasmEdge::AST::Instruction I32Eq(WasmEdge::OpCode::I32__eq);
-  WasmEdge::AST::Instruction I32Ne(WasmEdge::OpCode::I32__ne);
-  WasmEdge::AST::Instruction TableGet(WasmEdge::OpCode::Table__get);
-
-  Expr.getInstrs() = {End};
+  Expr.getInstrs() = {};
+  Expr.getInstrs().appendEnd();
   Output = {};
   Ser.serializeSection(createCodeSec(Expr), Output);
   Expected = {
@@ -48,7 +43,11 @@ TEST(SerializeExpressionTest, SerializeExpression) {
   };
   EXPECT_EQ(Output, Expected);
 
-  Expr.getInstrs() = {I32Eqz, I32Eq, I32Ne, End};
+  Expr.getInstrs() = {};
+  Expr.getInstrs().append(WasmEdge::OpCode::I32__eqz);
+  Expr.getInstrs().append(WasmEdge::OpCode::I32__eq);
+  Expr.getInstrs().append(WasmEdge::OpCode::I32__ne);
+  Expr.getInstrs().appendEnd();
   Output = {};
   Ser.serializeSection(createCodeSec(Expr), Output);
   Expected = {
@@ -61,7 +60,5 @@ TEST(SerializeExpressionTest, SerializeExpression) {
       0x0BU                // OpCode End.
   };
   EXPECT_EQ(Output, Expected);
-
-  Expr.getInstrs() = {TableGet, End};
 }
 } // namespace

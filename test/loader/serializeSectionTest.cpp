@@ -176,16 +176,14 @@ TEST(SerializeSectionTest, SerializeGlobalSection) {
   WasmEdge::AST::GlobalType GlobalType1(WasmEdge::TypeCode::F64,
                                         WasmEdge::ValMut::Const);
   GlobalSeg1.getGlobalType() = GlobalType1;
-  GlobalSeg1.getExpr().getInstrs() = {
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
+  GlobalSeg1.getExpr().getInstrs().appendEnd();
 
   WasmEdge::AST::GlobalSegment GlobalSeg2;
   WasmEdge::AST::GlobalType GlobalType2(WasmEdge::TypeCode::F32,
                                         WasmEdge::ValMut::Const);
   GlobalSeg2.getGlobalType() = GlobalType2;
-  GlobalSeg2.getExpr().getInstrs() = {
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
+  GlobalSeg2.getExpr().getInstrs().append(WasmEdge::OpCode::I32__eqz);
+  GlobalSeg2.getExpr().getInstrs().appendEnd();
 
   GlobalSec.getContent().push_back(GlobalSeg1);
   GlobalSec.getContent().push_back(GlobalSeg2);
@@ -255,26 +253,21 @@ TEST(SerializeSectionTest, SerializeElementSection) {
   ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Active);
 
   WasmEdge::AST::Expression Expr;
-  Expr.getInstrs() = {WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
-                      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
-                      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__ne),
-                      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
+  Expr.getInstrs().append(WasmEdge::OpCode::I32__eqz);
+  Expr.getInstrs().append(WasmEdge::OpCode::I32__eq);
+  Expr.getInstrs().append(WasmEdge::OpCode::I32__ne);
+  Expr.getInstrs().appendEnd();
   ElementSeg.getExpr() = Expr;
 
-  auto RefFunc1 = WasmEdge::AST::Instruction(WasmEdge::OpCode::Ref__func);
-  RefFunc1.getTargetIndex() = 0x0A;
-  auto RefFunc2 = WasmEdge::AST::Instruction(WasmEdge::OpCode::Ref__func);
-  RefFunc2.getTargetIndex() = 0x0B;
-  auto RefFunc3 = WasmEdge::AST::Instruction(WasmEdge::OpCode::Ref__func);
-  RefFunc3.getTargetIndex() = 0x0C;
-  auto End = WasmEdge::AST::Instruction(WasmEdge::OpCode::End);
-
   WasmEdge::AST::Expression InitExpr1;
-  InitExpr1.getInstrs() = {RefFunc1, End};
+  InitExpr1.getInstrs().appendIndex(WasmEdge::OpCode::Ref__func, 0x0A);
+  InitExpr1.getInstrs().appendEnd();
   WasmEdge::AST::Expression InitExpr2;
-  InitExpr2.getInstrs() = {RefFunc2, End};
+  InitExpr2.getInstrs().appendIndex(WasmEdge::OpCode::Ref__func, 0x0B);
+  InitExpr2.getInstrs().appendEnd();
   WasmEdge::AST::Expression InitExpr3;
-  InitExpr3.getInstrs() = {RefFunc3, End};
+  InitExpr3.getInstrs().appendIndex(WasmEdge::OpCode::Ref__func, 0x0C);
+  InitExpr3.getInstrs().appendEnd();
   ElementSeg.getInitExprs() = {InitExpr1, InitExpr2, InitExpr3};
 
   ElementSec.getContent() = {ElementSeg};
@@ -299,9 +292,9 @@ TEST(SerializeSectionTest, SerializeCodeSection) {
   CodeSeg.getLocals() = {{1, WasmEdge::TypeCode::F64},
                          {3, WasmEdge::TypeCode::F32}};
   WasmEdge::AST::Expression Expr;
-  Expr.getInstrs() = {WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
-                      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
-                      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
+  Expr.getInstrs().append(WasmEdge::OpCode::I32__eqz);
+  Expr.getInstrs().append(WasmEdge::OpCode::I32__eq);
+  Expr.getInstrs().appendEnd();
   CodeSeg.getExpr() = Expr;
   CodeSec.getContent().push_back(CodeSeg);
 
@@ -324,10 +317,10 @@ TEST(SerializeSectionTest, SerializeDataSection) {
   WasmEdge::AST::DataSection DataSec;
   WasmEdge::AST::DataSegment DataSeg;
   WasmEdge::AST::Expression Expr;
-  Expr.getInstrs() = {WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),
-                      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eq),
-                      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__ne),
-                      WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
+  Expr.getInstrs().append(WasmEdge::OpCode::I32__eqz);
+  Expr.getInstrs().append(WasmEdge::OpCode::I32__eq);
+  Expr.getInstrs().append(WasmEdge::OpCode::I32__ne);
+  Expr.getInstrs().appendEnd();
   DataSeg.setMode(WasmEdge::AST::DataSegment::DataMode::Active);
   DataSeg.getExpr() = Expr;
   DataSeg.getData() = {'t', 'e', 's', 't'};

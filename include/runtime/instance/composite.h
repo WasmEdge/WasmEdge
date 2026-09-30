@@ -17,6 +17,7 @@
 #include "ast/type.h"
 #include "common/types.h"
 
+#include <cstddef>
 #include <vector>
 
 namespace WasmEdge {
@@ -36,7 +37,14 @@ public:
   }
 
   /// Getter for the module instance of this instance.
-  const ModuleInstance *getModule() const noexcept { return ModInst; }
+  const ModuleInstance *getModule() const noexcept {
+    // RefVariant::getInnerPtr reads a function reference's payload (a
+    // FunctionInstance, whose sole base is CompositeBase) as its leading
+    // `const ModuleInstance *` without the concrete type; keep ModInst first.
+    static_assert(offsetof(CompositeBase, ModInst) == 0,
+                  "CompositeBase must begin with the ModInst pointer");
+    return ModInst;
+  }
 
   /// Getter for the closed type index of this instance in the module.
   uint32_t getTypeIndex() const noexcept { return TypeIdx; }

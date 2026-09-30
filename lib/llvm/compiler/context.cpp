@@ -16,7 +16,8 @@ using namespace std::literals;
 namespace WasmEdge::LLVM {
 
 Compiler::CompileContext::CompileContext(LLVM::Context C, LLVM::Module &M,
-                                         bool IsGenericBinary) noexcept
+                                         bool IsGenericBinary,
+                                         bool GCEnabledIn) noexcept
     : LLContext(C), LLModule(M),
       Cold(LLVM::Attribute::createEnum(C, LLVM::Core::Cold, 0)),
       NoAlias(LLVM::Attribute::createEnum(C, LLVM::Core::NoAlias, 0)),
@@ -78,15 +79,31 @@ Compiler::CompileContext::CompileContext(LLVM::Context C, LLVM::Module &M,
               Int8PtrPtrTy,
               // StackLimit
               Int8PtrTy,
+              // ShadowHead (GC::Controller::ShadowHead*): stable per-thread
+              // shadow-root chain anchor, threaded so generated code can push
+              // spilled managed refs the collector must scan.
+              Int8PtrTy,
+              // GCStopFlag (std::atomic<bool>*): the controller's stop flag,
+              // polled at loop back-edges; when set, generated code calls the
+              // kGCSafepoint intrinsic to park.
+              Int8PtrTy,
           })),
       ExecCtxPtrTy(ExecCtxTy.getPointerTo()),
+      // ShadowFrame {ShadowFrame* Prev; uint32_t Count; ValVariant* Slots}.
+      // {ptr, i32, ptr} lays out Prev@0, Count@8, Slots@16 (i32 padded to 8) --
+      // matching GC::Controller::ShadowFrame on the LP64 ABI the scanner reads.
+      ShadowFrameTy(LLVM::Type::getStructType(
+          "ShadowFrame",
+          std::initializer_list<LLVM::Type>{Int8PtrTy, Int32Ty, Int8PtrTy})),
+      ShadowFramePtrTy(ShadowFrameTy.getPointerTo()),
       IntrinsicsTableTy(LLVM::Type::getArrayType(
           Int8Ty.getPointerTo(),
           static_cast<uint32_t>(Executable::Intrinsics::kIntrinsicMax))),
       IntrinsicsTablePtrTy(IntrinsicsTableTy.getPointerTo()),
       IntrinsicsTable(LLModule.get().addGlobal(IntrinsicsTablePtrTy, true,
                                                LLVMExternalLinkage,
-                                               LLVM::Value(), "intrinsics")) {
+                                               LLVM::Value(), "intrinsics")),
+      GCEnabled(GCEnabledIn) {
   Trap.Ty = LLVM::Type::getFunctionType(VoidTy, {Int32Ty});
   Trap.Fn = LLModule.get().addFunction(Trap.Ty, LLVMPrivateLinkage, "trap");
   Trap.Fn.setDSOLocal(true);

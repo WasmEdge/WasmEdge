@@ -107,9 +107,19 @@ Executor::runTableGrowOp(Runtime::StackManager &StackMgr,
   uint64_t N = extractAddr(StackMgr.pop<ValVariant>(), AddrType);
   RefVariant Ref = StackMgr.pop<RefVariant>();
 
-  // Grow size and push result.
-  const uint64_t CurrSize = TabInst.getSize();
-  if (TabInst.growTable(N, Ref)) {
+  // Root the popped initializer across the whole grow window. A grow that
+  // loses the exclusive token parks (Blocked) through a whole concurrent
+  // collection, while Ref is on no scanned stack and in no table slot. Without
+  // this pin it could be swept and then written, dangling, into the new slots.
+  // The pop's write barrier covers only a collection already mid-mark.
+  GC::BoundaryRoots GrowInitRoot(getAllocator());
+  GrowInitRoot.pin(Ref);
+
+  // Grow size and push result. The pre-grow size is read inside growTable's
+  // exclusive window: a controller-backed grow stops the world, so a size read
+  // out here could race a concurrent serialized grow.
+  uint64_t CurrSize = 0;
+  if (TabInst.growTable(N, Ref, &CurrSize)) {
     StackMgr.push(emplaceAddr(CurrSize, AddrType));
   } else {
     StackMgr.push(emplaceAddr(static_cast<uint64_t>(-1), AddrType));

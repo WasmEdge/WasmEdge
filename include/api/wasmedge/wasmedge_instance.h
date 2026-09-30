@@ -778,6 +778,15 @@ WasmEdge_TableInstanceGetTableType(const WasmEdge_TableInstanceContext *Cxt)
 
 /// Get the reference value in a table instance.
 ///
+/// This function cannot keep a returned GC reference alive for the host. Thus,
+/// for a table that can hold GC objects (anyref, eqref, i31ref, structref,
+/// arrayref, exnref, or a concrete struct or array type), it returns a null
+/// reference of the table's type and logs a warning. Use
+/// `WasmEdge_TableInstanceGetDataRetained` to get the stored reference. This
+/// null reference is only an error value: do not use it to create a table or
+/// global of a non-nullable type. externref and funcref tables are not
+/// affected.
+///
 /// \param Cxt the WasmEdge_TableInstanceContext.
 /// \param [out] Data the result reference value.
 /// \param Offset the reference value offset (index) in the table instance.
@@ -789,7 +798,36 @@ WasmEdge_TableInstanceGetData(const WasmEdge_TableInstanceContext *Cxt,
                               WasmEdge_Value *Data,
                               const uint64_t Offset) WASMEDGE_CAPI_NOEXCEPT;
 
+/// Get the reference value in a table instance, and keep a GC reference alive
+/// for the host.
+///
+/// Use this function instead of `WasmEdge_TableInstanceGetData` for a table
+/// that can hold GC objects. The executor `ExecCxt` keeps a returned struct or
+/// array reference alive until the host releases it; see
+/// `WasmEdge_ExecutorReleaseRef`. Other values (funcref, externref, and null)
+/// are returned without this retention.
+///
+/// If a different executor owns the table, this function returns an error. A
+/// table that no executor owns yet is accepted.
+///
+/// \param ExecCxt the WasmEdge_ExecutorContext that keeps the reference alive.
+/// \param Cxt the WasmEdge_TableInstanceContext.
+/// \param [out] Data the result reference value.
+/// \param Offset the reference value offset (index) in the table instance.
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_TableInstanceGetDataRetained(
+    WasmEdge_ExecutorContext *ExecCxt, const WasmEdge_TableInstanceContext *Cxt,
+    WasmEdge_Value *Data, const uint64_t Offset) WASMEDGE_CAPI_NOEXCEPT;
+
 /// Set the reference value in a table instance.
+///
+/// This function returns an error for a table that can hold GC objects and that
+/// an executor with the GC proposal owns, because this function cannot update
+/// the executor's garbage collector. externref, funcref, and standalone tables
+/// are not affected.
 ///
 /// \param Cxt the WasmEdge_TableInstanceContext.
 /// \param Data the reference value to set in the table instance.
@@ -811,6 +849,9 @@ WASMEDGE_CAPI_EXPORT extern uint64_t WasmEdge_TableInstanceGetSize(
     const WasmEdge_TableInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Grow a table instance with a size.
+///
+/// This function returns an error for the same tables as
+/// `WasmEdge_TableInstanceSetData`.
 ///
 /// \param Cxt the WasmEdge_TableInstanceContext.
 /// \param Size the count of reference values to grow in the table instance.
@@ -998,16 +1039,45 @@ WasmEdge_GlobalInstanceGetGlobalType(const WasmEdge_GlobalInstanceContext *Cxt)
 
 /// Get the value from a global instance.
 ///
+/// This function cannot keep a returned GC reference alive for the host. Thus,
+/// for a global that can hold GC objects, it returns a null reference of the
+/// global's type and logs a warning, as `WasmEdge_TableInstanceGetData` does.
+/// Use `WasmEdge_GlobalInstanceGetValueRetained` to get the stored reference.
+/// externref, funcref, and numeric globals are not affected.
+///
 /// \param Cxt the WasmEdge_GlobalInstanceContext.
 ///
 /// \returns the current value of the global instance.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Value WasmEdge_GlobalInstanceGetValue(
     const WasmEdge_GlobalInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
+/// Get the value from a global instance, and keep a GC reference alive for
+/// the host.
+///
+/// Use this function instead of `WasmEdge_GlobalInstanceGetValue` for a global
+/// that can hold GC objects. Retention, release, and ownership rules are the
+/// same as for `WasmEdge_TableInstanceGetDataRetained`. Numeric values are
+/// returned as they are.
+///
+/// \param ExecCxt the WasmEdge_ExecutorContext that keeps the reference alive.
+/// \param Cxt the WasmEdge_GlobalInstanceContext.
+/// \param [out] Value the result value.
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_GlobalInstanceGetValueRetained(
+    WasmEdge_ExecutorContext *ExecCxt,
+    const WasmEdge_GlobalInstanceContext *Cxt,
+    WasmEdge_Value *Value) WASMEDGE_CAPI_NOEXCEPT;
+
 /// Set the value in a global instance.
 ///
 /// This function will return an error if the global context is set as the
-/// `Const` mutation or the value type does not match.
+/// `Const` mutation or the value type does not match. It also returns an error
+/// for a global that can hold GC objects and that an executor with the GC
+/// proposal owns, as `WasmEdge_TableInstanceSetData` does. externref, numeric,
+/// and standalone globals are not affected.
 ///
 /// \param Cxt the WasmEdge_GlobalInstanceContext.
 /// \param Value the value to set in the global context.

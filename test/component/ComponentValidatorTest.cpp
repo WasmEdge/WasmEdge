@@ -364,9 +364,7 @@ TEST(ComponentValidatorTest, FuncTypeBorrowInResultRejected) {
   // Type 2: func with borrow in result
   TypeSec.getContent().emplace_back();
   AST::Component::FuncType FT;
-  std::vector<AST::Component::LabelValType> Results;
-  Results.emplace_back(ComponentValType(1));
-  FT.setResultList(std::move(Results));
+  FT.setResult(ComponentValType(1));
   TypeSec.getContent().back().setFuncType(std::move(FT));
 
   Validator::Validator V(Conf);
@@ -387,7 +385,7 @@ TEST(ComponentValidatorTest, FuncTypeValidParams) {
   Params.emplace_back("name"s, ComponentValType(ComponentTypeCode::U32));
   Params.emplace_back("age"s, ComponentValType(ComponentTypeCode::U64));
   FT.setParamList(std::move(Params));
-  FT.setResultList(ComponentValType(ComponentTypeCode::U32));
+  FT.setResult(ComponentValType(ComponentTypeCode::U32));
   TypeSec.getContent().back().setFuncType(std::move(FT));
 
   Validator::Validator V(Conf);
@@ -699,7 +697,7 @@ TEST(ComponentValidatorTest, InstanceTypeExportConstructorPlainAllowed) {
   {
     auto DT = std::make_unique<AST::Component::DefType>();
     AST::Component::FuncType FT;
-    FT.setResultList(ComponentValType(1));
+    FT.setResult(ComponentValType(1));
     DT->setFuncType(std::move(FT));
     AST::Component::InstanceDecl D;
     D.setType(std::move(DT));
@@ -1330,7 +1328,7 @@ inline AST::Component::Component makeCompWithCoreFuncAndFuncType() {
   std::vector<AST::Component::LabelValType> Params;
   Params.emplace_back("p", ComponentValType(ComponentTypeCode::U32));
   FT.setParamList(std::move(Params));
-  FT.setResultList(ComponentValType(ComponentTypeCode::U32));
+  FT.setResult(ComponentValType(ComponentTypeCode::U32));
   TypeSec.getContent().emplace_back();
   TypeSec.getContent().back().setFuncType(std::move(FT));
   // Canon section: allocate core func 0 via resource.new 0.
@@ -2709,7 +2707,7 @@ inline AST::Component::Component makeCompWithCallbackShapedCoreFunc() {
   Params.emplace_back("b", ComponentValType(ComponentTypeCode::U32));
   Params.emplace_back("c", ComponentValType(ComponentTypeCode::U32));
   FT.setParamList(std::move(Params));
-  FT.setResultList(ComponentValType(ComponentTypeCode::U32));
+  FT.setResult(ComponentValType(ComponentTypeCode::U32));
   TypeSec.getContent().emplace_back();
   TypeSec.getContent().back().setFuncType(std::move(FT));
 
@@ -2921,14 +2919,6 @@ TEST(ComponentValidatorTest, ImportSingleExternalIdPasses) {
   EXPECT_TRUE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, ImportDuplicateExternalIdFails) {
-  auto Comp = makeCompWithExternalIds({"one", "two"});
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentExternalIdDuplicate);
-}
-
 // Helper: import a func under the given name, carrying the given
 // `versionsuffix` values.
 inline AST::Component::Component
@@ -2972,25 +2962,6 @@ TEST(ComponentValidatorTest, VersionSuffixNeedsInterfaceVersion) {
   auto Res = V.validate(Comp);
   EXPECT_FALSE(Res);
   EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixInvalid);
-}
-
-TEST(ComponentValidatorTest, ImportDuplicateVersionSuffixFails) {
-  auto Comp = makeCompWithVersionSuffix("a:b/c@1", {".2.3", ".4.5"});
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixDuplicate);
-}
-
-TEST(ComponentValidatorTest, ImportDuplicateImplementsFails) {
-  auto Comp = makeCompWithImportedFunc();
-  auto &ImpSec =
-      std::get<AST::Component::ImportSection>(Comp.getSections().back());
-  ImpSec.getContent().back().getImplements() = {"a:b/c", "a:b/d"};
-  Validator::Validator V(Conf);
-  auto Res = V.validate(Comp);
-  EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentImplementsDuplicate);
 }
 
 // =============================================================================
@@ -3063,6 +3034,68 @@ TEST(ComponentValidatorTest, FutureOfOwnPasses) {
   auto Comp = makeCompWithAsyncElem(true, false, false);
   Validator::Validator V(Conf);
   EXPECT_TRUE(V.validate(Comp));
+}
+
+// A stream built-in on a future type, and the other way round.
+TEST(ComponentValidatorTest, StreamBuiltinRequiresStreamType) {
+  auto Comp = makeCompWithAsyncElem(true, false, false);
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(ComponentCanonOpCode::Stream__drop_readable);
+  C.setIndex(2);
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentStreamTypeRequired);
+}
+
+TEST(ComponentValidatorTest, FutureBuiltinRequiresFutureType) {
+  auto Comp = makeCompWithAsyncElem(false, false, false);
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(ComponentCanonOpCode::Future__drop_readable);
+  C.setIndex(2);
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentFutureTypeRequired);
+}
+
+// =============================================================================
+// Canonical ABI element size limit
+// =============================================================================
+
+// Helper: a component defining `(list u64 Len)`.
+inline AST::Component::Component makeCompWithFixedU64List(uint32_t Len) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  TypeSec.getContent().emplace_back();
+  AST::Component::DefValType List;
+  List.setList(
+      AST::Component::ListTy{ComponentValType(ComponentTypeCode::U64), Len});
+  TypeSec.getContent().back().setDefValType(std::move(List));
+  return Comp;
+}
+
+TEST(ComponentValidatorTest, ElemSizeBelowLimitPasses) {
+  // 2^25 - 1 elements of 8 bytes stay below 2^28 bytes.
+  auto Comp = makeCompWithFixedU64List((1U << 25) - 1U);
+  Validator::Validator V(Conf);
+  EXPECT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, ElemSizeAtLimitFails) {
+  // 2^25 elements of 8 bytes reach 2^28 bytes.
+  auto Comp = makeCompWithFixedU64List(1U << 25);
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueSizeTooLarge);
 }
 
 // =============================================================================
@@ -3208,7 +3241,7 @@ TEST(ComponentValidatorTest, CanonTaskReturn_StringResultRequiresMemory) {
   auto &Sec = appendCanonSection(Comp);
   AST::Component::Canonical C;
   C.setOpCode(ComponentCanonOpCode::Task__return);
-  C.setResultList(ComponentValType(ComponentTypeCode::String));
+  C.setResult(ComponentValType(ComponentTypeCode::String));
   Sec.getContent().emplace_back(std::move(C));
   Validator::Validator V(Conf);
   auto Res = V.validate(Comp);

@@ -457,6 +457,7 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
 // Validate Code segment. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::CodeSegment &CodeSeg,
                                  const uint32_t TypeIdx) {
+  // Enforce the proposal for ASTs supplied directly without loader checks.
   if (!Conf.hasProposal(Proposal::WideArithmetic)) {
     for (const auto &Instr : CodeSeg.getExpr().getInstrs()) {
       if (Instr.getOpCode() >= OpCode::I64__add128 &&

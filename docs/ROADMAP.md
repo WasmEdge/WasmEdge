@@ -29,24 +29,22 @@ WasmEdge roadmap will be updated quarterly with the following steps.
 
 ## Current Roadmap
 
-Last Updated: Q3 / 2026
+Last Updated: Q4 / 2026
 
 | Theme    | Description | Timeline | Assignee |
 | ---      | ----------- | -------- | -------- |
-| Proposal | [Component Model completion](https://github.com/WasmEdge/WasmEdge/issues/4236) | Q3 / 2026 | [@q82419](https://github.com/q82419) |
-| Proposal | [Component Model canonical section refactoring](https://github.com/WasmEdge/WasmEdge/issues/4334) | Q3 / 2026 | [@q82419](https://github.com/q82419) |
-| Proposal | [WASI preview2 as plugins](https://github.com/WasmEdge/WasmEdge/issues/4236) | Q3 / 2026 | [@q82419](https://github.com/q82419) |
-| Feature | [WAT supporting](https://github.com/WasmEdge/WasmEdge/pull/4708) | Q3 / 2026 | [@ibmibmibm](https://github.com/ibmibmibm) |
-| Proposal | [Runtime GC support in WasmEdge](https://github.com/WasmEdge/WasmEdge/pull/4156) | Q3 / 2026 | [@ibmibmibm](https://github.com/ibmibmibm) |
-| Language Binding | Move Go binding back into WasmEdge org | Q3 / 2026 | [@q82419](https://github.com/q82419) |
-| Proposal | [WASM C API proposal](https://github.com/WasmEdge/WasmEdge/pull/346) | Q3 / 2026 | [@q82419](https://github.com/q82419) |
-| Feature | [LFX (2026/term2) Memory alignment in WASM instructions](https://github.com/WasmEdge/WasmEdge/issues/4960) | Q3 / 2026 | [@nailo2c](https://github.com/nailo2c) |
-| Feature | WasmEdge tool convention and configure refactoring | Q3 / 2026 | [@q82419](https://github.com/q82419) |
-| Feature | `assert_exhausted` test case supporting | Q3 / 2026 | [@q82419](https://github.com/q82419) |
-| Feature | Refine the WASM instruction structure in WasmEdge | Q3 / 2026 | [@q82419](https://github.com/q82419) |
-| Feature | Enable `cxx11-abi` on all platforms in release | Q3 / 2026 | [@q82419](https://github.com/q82419) |
-| Proposal | WASI-NN GGML plugin with MTP, DiffusionGemma, and other new models | Q3 / 2026 | [@hydai](https://github.com/hydai) |
-| Proposal | Update WASI-crypto to use openSSL 3.5 | Q3 / 2026 | [@parthdagia05](https://github.com/parthdagia05) |
+| Proposal | [Component Model completion](https://github.com/WasmEdge/WasmEdge/issues/4236) | Q4 / 2026 | [@q82419](https://github.com/q82419) |
+| Proposal | [WASI preview2 as plugins](https://github.com/WasmEdge/WasmEdge/issues/4236) | Q4 / 2026 | [@q82419](https://github.com/q82419) |
+| Proposal | [Runtime GC support in WasmEdge](https://github.com/WasmEdge/WasmEdge/pull/4156) | Q4 / 2026 | [@ibmibmibm](https://github.com/ibmibmibm) |
+| Language Binding | Move Go binding back into WasmEdge org | Q4 / 2026 | [@q82419](https://github.com/q82419) |
+| Feature | WasmEdge tool convention and configure refactoring | Q4 / 2026 | [@q82419](https://github.com/q82419) |
+| Feature | Refine the WASM instruction structure in WasmEdge | Q4 / 2026 | [@q82419](https://github.com/q82419) |
+| Feature | [WAT supporting](https://github.com/WasmEdge/WasmEdge/pull/4708) | Q4 / 2026 | [@ibmibmibm](https://github.com/ibmibmibm) |
+| Feature | Refactor the architecture of WasmEdge tests | Q4 / 2026 | [@q82419](https://github.com/q82419) |
+| Proposal | [LFX (2026/term3) Support for the Wide Arithmetic Proposal](https://github.com/WasmEdge/WasmEdge/issues/5331) | Q4 / 2026 | [@Lewis-panda](https://github.com/Lewis-panda) |
+| Proposal | Support for the Custom Page Sizes Proposal | Q4 / 2026 | [@parthdagia05](https://github.com/parthdagia05) |
+| Feature | [OpenCV 5 plugin (OpenCV mini plugin revival as a good first issue pathway)](https://github.com/WasmEdge/WasmEdge/issues/5185) | Q4 / 2026 | [@hydai](https://github.com/hydai) |
+| Feature | Resume the [devcontainer](https://github.com/WasmEdge/devcontainer) work: split the Dockerfiles and images out of WasmEdge | Q4 / 2026 | [@0yi0](https://github.com/0yi0) |
 
 ## Inactive Roadmap
 
@@ -73,6 +71,19 @@ Last Updated: Q3 / 2026
 | Document | WasmEdge documentation refactoring |
 
 ## Previous Roadmap
+
+### Q3/2026
+
+| Theme | Description | Timeline | Assignee | Status |
+| --- | --- | --- | --- | --- |
+| Proposal | [Component Model canonical section refactoring](https://github.com/WasmEdge/WasmEdge/issues/4334) | Q3 / 2026 | [@q82419](https://github.com/q82419) | Completed |
+| Proposal | [WASM C API proposal](https://github.com/WasmEdge/WasmEdge/pull/346) | Q3 / 2026 | [@q82419](https://github.com/q82419) | Completed |
+| Feature | [LFX (2026/term2) Memory alignment in WASM instructions](https://github.com/WasmEdge/WasmEdge/issues/4960) | Q3 / 2026 | [@aaron-y-chen](https://github.com/aaron-y-chen) | Completed |
+| Feature | Enable `cxx11-abi` on all platforms in release ([PR #5142](https://github.com/WasmEdge/WasmEdge/pull/5142), [PR #5166](https://github.com/WasmEdge/WasmEdge/pull/5166)) | Q3 / 2026 | [@q82419](https://github.com/q82419) | Completed |
+| Proposal | Component model validator re-design ([PR #5276](https://github.com/WasmEdge/WasmEdge/pull/5276), [PR #5323](https://github.com/WasmEdge/WasmEdge/pull/5323)) | Q3 / 2026 | [@q82419](https://github.com/q82419) | Completed |
+| Proposal | Update WASI-crypto to use openSSL 3.5 (ML-KEM support) | Q3 / 2026 | [@parthdagia05](https://github.com/parthdagia05) | Completed |
+| Proposal | WASI-NN GGML plugin with MTP, DiffusionGemma, and other new models | Q3 / 2026 | [@hydai](https://github.com/hydai) | Completed |
+| Feature | `assert_exhausted` test case supporting | Q3 / 2026 | [@q82419](https://github.com/q82419) | Completed |
 
 ### Q2/2026
 

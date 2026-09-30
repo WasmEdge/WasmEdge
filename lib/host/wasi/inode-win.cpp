@@ -18,6 +18,7 @@
 #include <memory>
 #include <new>
 #include <numeric>
+#include <thread>
 #include <vector>
 
 using namespace WasmEdge::winapi;
@@ -1523,7 +1524,7 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
   struct addrinfo *Result = nullptr;
   const int Res = getaddrinfo(NodeCStr, ServiceCStr, &SysHint, &Result);
   if (unlikely(Res != 0)) {
-    return WasiUnexpect(fromWSAError(Res));
+    return WasiUnexpect(fromEAIErrNo(Res));
   }
   AddrinfoPtr SysResPtr(Result, &freeaddrinfo);
 
@@ -2008,7 +2009,7 @@ WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
     assuming(Size == sizeof(int));
     Flag = Flag.first(static_cast<size_t>(Size));
     auto &Error = *reinterpret_cast<int *>(Flag.data());
-    Error = static_cast<int>(fromErrNo(Error));
+    Error = static_cast<int>(fromWSAErrNo(Error));
     break;
   }
   case __WASI_SOCK_OPT_SO_TYPE: {
@@ -2430,10 +2431,11 @@ void Poller::wait() noexcept {
     assuming(ReadFds.fd_count == 0 && WriteFds.fd_count == 0);
     DWORD_ Timeout = INFINITE_;
     if (TimeoutEvent != nullptr) {
-      const std::chrono::microseconds MicroSecs =
+      const auto MilliSecs = std::chrono::ceil<std::chrono::milliseconds>(
           std::chrono::seconds(MinimumTimeout.tv_sec) +
-          std::chrono::microseconds(MinimumTimeout.tv_sec);
-      Timeout = static_cast<DWORD_>(MicroSecs.count());
+          std::chrono::microseconds(MinimumTimeout.tv_usec));
+      Timeout = static_cast<DWORD_>(std::min<std::chrono::milliseconds::rep>(
+          MilliSecs.count(), INFINITE_ - 1));
     }
     std::vector<HANDLE_> Handles;
     DWORD_ Count = std::min(static_cast<DWORD_>(ConsoleReadEvent.size()),
@@ -2461,7 +2463,7 @@ void Poller::wait() noexcept {
       case WAIT_FAILED_:
       default: {
         const auto Error = detail::fromLastError(GetLastError());
-        for (const auto &[NodeHandle, Event] : ConsoleWriteEvent) {
+        for (const auto &[NodeHandle, Event] : ConsoleReadEvent) {
           Event->Valid = true;
           Event->error = Error;
         }
@@ -2474,10 +2476,24 @@ void Poller::wait() noexcept {
     TimeoutEvent = nullptr;
     return;
   }
-  if (const int Count =
-          select(0, &ReadFds, &WriteFds, nullptr,
-                 TimeoutEvent != nullptr ? &MinimumTimeout : nullptr);
-      Count == 0) {
+  if (ReadFds.fd_count == 0 && WriteFds.fd_count == 0) {
+    if (TimeoutEvent) {
+      std::this_thread::sleep_for(
+          std::chrono::seconds(MinimumTimeout.tv_sec) +
+          std::chrono::microseconds(MinimumTimeout.tv_usec));
+      TimeoutEvent->Valid = true;
+      TimeoutEvent->error = __WASI_ERRNO_SUCCESS;
+    }
+  } else if (const int Count =
+                 select(0, &ReadFds, &WriteFds, nullptr,
+                        TimeoutEvent != nullptr ? &MinimumTimeout : nullptr);
+             unlikely(Count == SOCKET_ERROR_)) {
+    const auto Error = detail::fromWSALastError();
+    for (auto &Event : Events) {
+      Event.Valid = true;
+      Event.error = Error;
+    }
+  } else if (Count == 0) {
     if (TimeoutEvent) {
       TimeoutEvent->Valid = true;
       TimeoutEvent->error = __WASI_ERRNO_SUCCESS;

@@ -389,8 +389,16 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                                    GraphRef.Params.sampling.dry_allowed_length);
     parseJsonWithCastAuto<int64_t>(Doc, "dry-last-n-penalty",
                                    GraphRef.Params.sampling.penalty_last_n);
-    parseJsonWithCastAuto<int64_t>(Doc, "mirostat",
-                                   GraphRef.Params.sampling.mirostat);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "mirostat", [&GraphRef](const int64_t &Mirostat) -> bool {
+          // common_sampler_init asserts on any other mirostat version.
+          if (Mirostat < 0 || Mirostat > 2) {
+            LOG_ERROR("mirostat should be in range [0, 2]."sv)
+            return false;
+          }
+          GraphRef.Params.sampling.mirostat = static_cast<int32_t>(Mirostat);
+          return true;
+        });
     parseJsonWithCastAuto<double>(Doc, "mirostat-eta",
                                   GraphRef.Params.sampling.mirostat_eta);
     parseJsonAuto<bool>(Doc, "ignore-eos", GraphRef.Params.sampling.ignore_eos);
@@ -642,8 +650,11 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                                    GraphRef.Params.n_threads_http);
     parseJsonWithCastAuto<int64_t>(Doc, "n-cache-reuse",
                                    GraphRef.Params.n_cache_reuse);
-    parseJsonWithCastAuto<std::string_view>(Doc, "hostname",
-                                            GraphRef.Params.hostname);
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "hostname", [&GraphRef](const std::string_view &Hostname) -> bool {
+          GraphRef.Params.hostnames = {std::string(Hostname)};
+          return true;
+        });
     parseJsonWithCastAuto<std::string_view>(Doc, "public-path",
                                             GraphRef.Params.public_path);
     parseJsonWithCastAuto<std::string_view>(Doc, "chat-template",

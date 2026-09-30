@@ -19,7 +19,7 @@ public:
   FunctionCompiler(LLVM::Compiler::CompileContext &Context,
                    LLVM::FunctionCallee F, Span<const ValType> Locals,
                    bool Interruptible, bool InstructionCounting,
-                   bool GasMeasuring, bool IsLazyJIT) noexcept;
+                   bool GasMeasuring, bool IsLazyJIT, bool StackCheck) noexcept;
 
   LLVM::BasicBlock getTrapBB(ErrCode::Value Error) noexcept;
 
@@ -63,6 +63,8 @@ public:
                                     bool Signed = false) noexcept;
 
   void compileReturn() noexcept;
+
+  void checkStackLimit() noexcept;
 
   void updateInstrCount() noexcept;
 

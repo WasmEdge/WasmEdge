@@ -942,6 +942,75 @@ TEST(AOTCrossModule, CompiledFramelessTrapAttributedToCallee) {
       << "frameless cross-module trap was not attributed to the callee module";
 }
 
+// Cross-module recursion re-enters compiled code through the call proxy, so the
+// hops share one budget: 300 round trips exceed 256 KiB though each hop fits.
+//   callee: (type $t (func (param i64) (result i64)))
+//           (table (export "tab") 1 funcref)
+//           (func (export "g") (type $t)
+//             (call_indirect (type $t) (local.get 0) (i32.const 0)))
+//   caller: (import "callee" "g" (func $g (type $t)))
+//           (import "callee" "tab" (table 1 funcref))
+//           (elem (i32.const 0) func $f)
+//           (func $f (export "f") (type $t)
+//             (if (result i64) (i64.eqz (local.get 0)) (then (i64.const 0))
+//               (else (i64.add (call $g (i64.sub (local.get 0) (i64.const 1)))
+//                              (i64.const 1)))))
+const std::array<WasmEdge::Byte, 65> CrossModuleRecurseCalleeWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
+    0x60, 0x01, 0x7e, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04,
+    0x01, 0x70, 0x00, 0x01, 0x07, 0x0b, 0x02, 0x03, 0x74, 0x61, 0x62,
+    0x01, 0x00, 0x01, 0x67, 0x00, 0x00, 0x0a, 0x0b, 0x01, 0x09, 0x00,
+    0x20, 0x00, 0x41, 0x00, 0x11, 0x00, 0x00, 0x0b, 0x00, 0x0b, 0x04,
+    0x6e, 0x61, 0x6d, 0x65, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74};
+
+const std::array<WasmEdge::Byte, 112> CrossModuleRecurseCallerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+    0x01, 0x7e, 0x01, 0x7e, 0x02, 0x1b, 0x02, 0x06, 0x63, 0x61, 0x6c, 0x6c,
+    0x65, 0x65, 0x01, 0x67, 0x00, 0x00, 0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65,
+    0x65, 0x03, 0x74, 0x61, 0x62, 0x01, 0x70, 0x00, 0x01, 0x03, 0x02, 0x01,
+    0x00, 0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x01, 0x09, 0x07, 0x01, 0x00,
+    0x41, 0x00, 0x0b, 0x01, 0x01, 0x0a, 0x17, 0x01, 0x15, 0x00, 0x20, 0x00,
+    0x50, 0x04, 0x7e, 0x42, 0x00, 0x05, 0x20, 0x00, 0x42, 0x01, 0x7d, 0x10,
+    0x00, 0x42, 0x01, 0x7c, 0x0b, 0x0b, 0x00, 0x14, 0x04, 0x6e, 0x61, 0x6d,
+    0x65, 0x01, 0x07, 0x02, 0x00, 0x01, 0x67, 0x01, 0x01, 0x66, 0x04, 0x04,
+    0x01, 0x00, 0x01, 0x74};
+
+TEST(AOTCrossModule, CrossModuleRecursionSharesStackLimit) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setMaxStackSize(UINT64_C(256) << 10);
+
+  auto CalleeMod = compileToJIT(Conf, CrossModuleRecurseCalleeWasm);
+  ASSERT_NE(CalleeMod, nullptr);
+  auto CallerMod = compileToJIT(Conf, CrossModuleRecurseCallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+
+  auto CalleeInstOrErr = ExecEngine.registerModule(Store, *CalleeMod, "callee");
+  ASSERT_TRUE(CalleeInstOrErr);
+  auto CalleeInst = std::move(*CalleeInstOrErr);
+
+  auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+  ASSERT_TRUE(CallerInstOrErr);
+  auto CallerInst = std::move(*CallerInstOrErr);
+
+  const auto *F = CallerInst->findFuncExports("f");
+  ASSERT_NE(F, nullptr);
+  ASSERT_TRUE(F->isCompiledFunction());
+
+  const std::array<ValType, 1> ArgTypes{ValType(TypeCode::I64)};
+  const std::array<ValVariant, 1> ShallowArgs{ValVariant(UINT64_C(5))};
+  auto Shallow = ExecEngine.invoke(F, ShallowArgs, ArgTypes);
+  ASSERT_TRUE(Shallow);
+  EXPECT_EQ((*Shallow)[0].first.get<uint64_t>(), UINT64_C(5));
+
+  const std::array<ValVariant, 1> DeepArgs{ValVariant(UINT64_C(300))};
+  auto Deep = ExecEngine.invoke(F, DeepArgs, ArgTypes);
+  ASSERT_FALSE(Deep);
+  EXPECT_EQ(Deep.error(), ErrCode::Value::CallStackExhausted);
+}
+
 TEST_P(NativeCoreTest, TestSuites) {
   auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
   // Native AOT spec test: explicitly opt into RunMode::AOT so the runtime

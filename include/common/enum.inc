@@ -984,6 +984,16 @@ E(MalformedName, 0x110C, "malformed name")
 E(ComponentNotImplLoader, 0x110D, "component model (loader) not implemented")
 // Component model nesting level exceeded
 E(ComponentNestLevelExceeded, 0x110E, "component nesting level exceeded")
+// Non-zero reserved byte in a canonical definition
+E(NonZeroReservedByte, 0x110F, "non-zero reserved byte")
+// More than one `implements` attribute on the same extern name
+E(ComponentImplementsDuplicate, 0x1110, "duplicate 'implements' option in name")
+// More than one `versionsuffix` attribute on the same extern name
+E(ComponentVersionSuffixDuplicate, 0x1111,
+  "duplicate 'versionsuffix' option in name")
+// More than one `external-id` attribute on the same extern name
+E(ComponentExternalIdDuplicate, 0x1112,
+  "duplicate 'external-id' option in name")
 // @}
 
 // Validation phase
@@ -1298,51 +1308,49 @@ E(ComponentFixedListTooLarge, 0x1289,
   "fixed-length list element count exceeds limit")
 // Context slot index of context.get/context.set out of bounds
 E(ComponentContextSlotOutOfBounds, 0x128A, "context slot out of bounds")
-// More than one `implements` attribute on the same extern name
-E(ComponentImplementsDuplicate, 0x128B, "duplicate 'implements' option in name")
 // The key of a map type is outside the `keytype` subset
-E(ComponentMapKeyType, 0x128C, "invalid map key type")
+E(ComponentMapKeyType, 0x128B, "invalid map key type")
 // The payload of a value definition does not decode against its declared type
-E(ComponentMalformedValue, 0x128D, "malformed value")
+E(ComponentMalformedValue, 0x128C, "malformed value")
 // The `callback` canonical option is only allowed on `canon lift`
-E(CanonCallbackOnLower, 0x128E,
+E(CanonCallbackOnLower, 0x128D,
   "canonical option `callback` cannot be specified for lowerings")
-E(CanonCallbackDuplicated, 0x128F,
+E(CanonCallbackDuplicated, 0x128E,
   "canonical option `callback` is specified more than once")
-E(CanonAsyncDuplicated, 0x1290,
+E(CanonAsyncDuplicated, 0x128F,
   "canonical option `async` is specified more than once")
-E(CanonCallbackRequiresAsync, 0x1291,
+E(CanonCallbackRequiresAsync, 0x1290,
   "canonical option `callback` requires the `async` option")
-E(CanonPostReturnWithAsync, 0x1292,
+E(CanonPostReturnWithAsync, 0x1291,
   "canonical option `post-return` cannot be specified together with `async`")
 // The canonical built-in never allocates, so `realloc` is not applicable
-E(CanonReallocOnBuiltin, 0x1293,
+E(CanonReallocOnBuiltin, 0x1292,
   "canonical option `realloc` cannot be specified for this built-in")
 // The canonical built-in is synchronous, so `async` is not applicable
-E(CanonAsyncOnBuiltin, 0x1294,
+E(CanonAsyncOnBuiltin, 0x1293,
   "canonical option `async` cannot be specified for this built-in")
-// More than one `external-id` attribute on the same extern name
-E(ComponentExternalIdDuplicate, 0x1295,
-  "duplicate 'external-id' option in name")
 // The context.get/context.set type immediate is neither `i32` nor `i64`
-E(ComponentContextTypeInvalid, 0x1296, "only supports `i32` or `i64`")
+E(ComponentContextTypeInvalid, 0x1294, "only supports `i32` or `i64`")
 // Two context built-ins of one component declare different types
-E(ComponentContextTypeMismatch, 0x1297, "type must match previous context type")
+E(ComponentContextTypeMismatch, 0x1295, "type must match previous context type")
 // A stream or future element type transitively contains a borrow handle
-E(ComponentStreamFutureBorrow, 0x1298,
+E(ComponentStreamFutureBorrow, 0x1296,
   "stream or future element type cannot contain a `borrow` type")
-// More than one `versionsuffix` attribute on the same extern name
-E(ComponentVersionSuffixDuplicate, 0x1299,
-  "duplicate 'versionsuffix' option in name")
 // The versionsuffix does not extend a canonical version into a valid semver
-E(ComponentVersionSuffixInvalid, 0x129A, "invalid `versionsuffix`")
+E(ComponentVersionSuffixInvalid, 0x1297, "invalid `versionsuffix`")
 // The canonical built-in accepts no options at all
-E(CanonOptionOnBuiltin, 0x129B,
+E(CanonOptionOnBuiltin, 0x1298,
   "canonical options cannot be specified for this built-in")
 // The `callback` core function does not have type [i32 i32 i32] -> [i32]
-E(CanonCallbackSignature, 0x129C,
+E(CanonCallbackSignature, 0x1299,
   "canonical option `callback` uses a core function with an incorrect "
   "signature")
+// The Canonical ABI element size of a defvaltype reaches 2^28 bytes
+E(ComponentValueSizeTooLarge, 0x129A, "exceeds maximum byte size")
+// The type immediate of a stream built-in is not a stream type
+E(ComponentStreamTypeRequired, 0x129B, "requires a stream type")
+// The type immediate of a future built-in is not a future type
+E(ComponentFutureTypeRequired, 0x129C, "requires a future type")
 // @}
 
 // Instantiation phase
@@ -1609,6 +1617,35 @@ T(Lower, 0x01, "lower")
 T(Resource__new, 0x02, "resource.new")
 T(Resource__drop, 0x03, "resource.drop")
 T(Resource__rep, 0x04, "resource.rep")
+T(Task__cancel, 0x05, "task.cancel")
+T(Subtask__cancel, 0x06, "subtask.cancel")
+T(Task__return, 0x09, "task.return")
+T(Context__get, 0x0A, "context.get")
+T(Context__set, 0x0B, "context.set")
+T(Thread__yield, 0x0C, "thread.yield")
+T(Subtask__drop, 0x0D, "subtask.drop")
+T(Stream__new, 0x0E, "stream.new")
+T(Stream__read, 0x0F, "stream.read")
+T(Stream__write, 0x10, "stream.write")
+T(Stream__cancel_read, 0x11, "stream.cancel-read")
+T(Stream__cancel_write, 0x12, "stream.cancel-write")
+T(Stream__drop_readable, 0x13, "stream.drop-readable")
+T(Stream__drop_writable, 0x14, "stream.drop-writable")
+T(Future__new, 0x15, "future.new")
+T(Future__read, 0x16, "future.read")
+T(Future__write, 0x17, "future.write")
+T(Future__cancel_read, 0x18, "future.cancel-read")
+T(Future__cancel_write, 0x19, "future.cancel-write")
+T(Future__drop_readable, 0x1A, "future.drop-readable")
+T(Future__drop_writable, 0x1B, "future.drop-writable")
+T(Error_context__new, 0x1C, "error-context.new")
+T(Error_context__debug_message, 0x1D, "error-context.debug-message")
+T(Error_context__drop, 0x1E, "error-context.drop")
+T(Waitable_set__new, 0x1F, "waitable-set.new")
+T(Waitable_set__wait, 0x20, "waitable-set.wait")
+T(Waitable_set__poll, 0x21, "waitable-set.poll")
+T(Waitable_set__drop, 0x22, "waitable-set.drop")
+T(Waitable__join, 0x23, "waitable.join")
 T(Backpressure__inc, 0x24, "backpressure.inc")
 T(Backpressure__dec, 0x25, "backpressure.dec")
 T(Thread__index, 0x26, "thread.index")
@@ -1619,38 +1656,11 @@ T(Thread__suspend_then_resume, 0x2A, "thread.suspend-then-resume")
 T(Thread__yield_then_resume, 0x2B, "thread.yield-then-resume")
 T(Thread__suspend_then_promote, 0x2C, "thread.suspend-then-promote")
 T(Thread__yield_then_promote, 0x2D, "thread.yield-then-promote")
-T(Task__return, 0x09, "task.return")
-T(Task__cancel, 0x05, "task.cancel")
-T(Context__get, 0x0A, "context.get")
-T(Context__set, 0x0B, "context.set")
-T(Yield, 0x0C, "yield")
-T(Subtask__cancel, 0x06, "subtask.cancel")
-T(Subtask__drop, 0x0D, "subtask.drop")
-T(Stream__new, 0x0E, "stream.new")
-T(Stream__read, 0x0F, "stream.read")
-T(Stream__write, 0x10, "stream.write")
-T(Stream__cancel_read, 0x11, "stream.cancel_read")
-T(Stream__cancel_write, 0x12, "stream.cancel_write")
-T(Stream__drop_readable, 0x13, "stream.drop-readable")
-T(Stream__drop_writable, 0x14, "stream.drop-writable")
-T(Future__new, 0x15, "future.new")
-T(Future__read, 0x16, "future.read")
-T(Future__write, 0x17, "future.write")
-T(Future__cancel_read, 0x18, "future.cancel_read")
-T(Future__cancel_write, 0x19, "future.cancel_write")
-T(Future__drop_readable, 0x1A, "future.drop-readable")
-T(Future__drop_writable, 0x1B, "future.drop-writable")
-T(Error_context__new, 0x1C, "error-context.new")
-T(Error_context__debug_message, 0x1D, "error-context.debug_message")
-T(Error_context__drop, 0x1E, "error-context.drop")
-T(Waitable_set__new, 0x1F, "waitable-set.new")
-T(Waitable_set__wait, 0x20, "waitable-set.wait")
-T(Waitable_set__poll, 0x21, "waitable-set.poll")
-T(Waitable_set__drop, 0x22, "waitable-set.drop")
-T(Waitable__join, 0x23, "waitable.join")
-T(Thread__spawn_ref, 0x40, "thread.spawn_ref")
-T(Thread__spawn_indirect, 0x41, "thread.spawn_indirect")
-T(Thread__available_parallelism, 0x42, "thread.available_parallelism")
+T(Stream__forward, 0x2E, "stream.forward")
+T(Future__forward, 0x2F, "future.forward")
+T(Thread__spawn_ref, 0x40, "thread.spawn-ref")
+T(Thread__spawn_indirect, 0x41, "thread.spawn-indirect")
+T(Thread__available_parallelism, 0x42, "thread.available-parallelism")
 
 #undef T
 #endif // UseComponentCanonOpCode

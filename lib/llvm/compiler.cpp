@@ -136,16 +136,26 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
   }
 #endif
 
-  // On RISC-V we use generic-rv64 as the CPU, so also use default
-  // features; host features under QEMU can be inconsistent (e.g.
-  // zvl*b without v) which LLVM >= 20 rejects.
-  TM = LLVM::TargetMachine::create(
-      TheTarget, Triple, CPUName.c_str(),
+  // On RISC-V we use generic-rv64 as the CPU, so also use default features;
+  // host features under QEMU can be inconsistent (e.g. zvl*b without v) which
+  // LLVM >= 20 rejects. The atomic extension is the one exception: without it
+  // the target is bare rv64i, where every atomic access lowers to an
+  // __atomic_* libcall, and the AOT loader maps sections without processing
+  // relocations, so such a call would jump to a wild address. Enabling it is
+  // safe -- the compiled code runs in this process, on the CPU that is already
+  // running this binary, and this binary was itself built with the extension.
 #if defined(__riscv) && __riscv_xlen == 64
-      "",
+#if defined(__riscv_atomic)
+  const char *const Features = "+a";
 #else
-      LLVM::getHostCPUFeatures().unwrap(),
+  const char *const Features = "";
 #endif
+#else
+  const auto HostFeatures = LLVM::getHostCPUFeatures();
+  const char *const Features = HostFeatures.unwrap();
+#endif
+  TM = LLVM::TargetMachine::create(
+      TheTarget, Triple, CPUName.c_str(), Features,
       toLLVMCodeGenLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
       LLVMRelocPIC, LLVMCodeModelDefault);
 

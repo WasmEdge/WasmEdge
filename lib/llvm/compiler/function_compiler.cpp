@@ -217,6 +217,7 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
                  std::move(Entry.Type), std::move(Entry.ReturnPHI));
       return {};
     }
+    // Reject unsupported wide arithmetic even in unreachable code.
     case OpCode::I64__add128:
     case OpCode::I64__sub128:
     case OpCode::I64__mul_wide_s:

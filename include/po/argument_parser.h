@@ -76,7 +76,7 @@ private:
   public:
     SubCommandDescriptor() noexcept
         : HelpOpt(std::make_unique<Option<Toggle>>(
-              Description("Show this help messages"sv))) {
+              Description("Show this help message"sv))) {
       add_option("h"sv, *HelpOpt);
       add_option("help"sv, *HelpOpt);
     }
@@ -196,8 +196,8 @@ private:
 #else
     static inline constexpr std::string_view YELLOW_COLOR = "\x1b[33m"sv;
 #endif
-    static inline constexpr std::string_view GREEN_COLOR = "\x1b[32m";
-    static inline constexpr std::string_view RESET_COLOR = "\x1b[0m";
+    static inline constexpr std::string_view GREEN_COLOR = "\x1b[32m"sv;
+    static inline constexpr std::string_view RESET_COLOR = "\x1b[0m"sv;
   };
 
 public:

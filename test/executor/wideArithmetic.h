@@ -9,15 +9,14 @@
 
 namespace WasmEdge::Test {
 
-inline AST::Module makeWideArithmeticModule(
-    OpCode Opcode, const std::vector<ValType> &Params,
-    const std::vector<ValType> &Returns = {TypeCode::I64, TypeCode::I64}) {
+inline AST::Module
+makeWideArithmeticModule(OpCode Opcode, const std::vector<ValType> &Params) {
   AST::Module Mod;
   Mod.getMagic() = {0x00U, 0x61U, 0x73U, 0x6DU};
   Mod.getVersion() = {0x01U, 0x00U, 0x00U, 0x00U};
   AST::FunctionType Type;
   Type.getParamTypes() = Params;
-  Type.getReturnTypes() = Returns;
+  Type.getReturnTypes() = {TypeCode::I64, TypeCode::I64};
   Mod.getTypeSection().getContent().emplace_back(Type);
   Mod.getFunctionSection().getContent().push_back(0U);
   AST::ExportDesc Export;

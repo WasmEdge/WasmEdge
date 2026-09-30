@@ -375,7 +375,8 @@ std::vector<std::string> SpecTest::enumerate(const SpecTest::TestMode Mode,
   std::vector<std::string> Cases;
   for (const auto &Proposal : TestsuiteProposals) {
     if (static_cast<uint8_t>(Proposal.Mode) & static_cast<uint8_t>(Mode)) {
-      if (!IncludeComponent && Proposal.Path == "component-model-wasm-tools"sv) {
+      if (!IncludeComponent &&
+          Proposal.Path == "component-model-wasm-tools"sv) {
         continue;
       }
       const std::filesystem::path ProposalRoot = TestsuiteRoot / Proposal.Path;
@@ -912,6 +913,27 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
     }
   };
 
+  // Helper function to check call stack exhaustion on invocation.
+  auto ExhaustionInvoke = [&](const simdjson::dom::object &Action,
+                              uint64_t LineNumber) {
+    if (IsComponent &&
+        !checkComponentSupported(UnitName, WasmPhase::Execution)) {
+      // TODO: Component model invocation not yet supported.
+      return;
+    }
+    const auto ModName = GetModuleName(Action);
+    const std::string_view Field = Action["field"];
+    simdjson::dom::array Args = Action["args"];
+    const auto Params = parseValueList(Args);
+
+    if (auto Res = onInvoke(Ctx, ModName, std::string(Field), Params.first,
+                            Params.second)) {
+      EXPECT_NE(LineNumber, LineNumber);
+    } else {
+      EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::CallStackExhausted);
+    }
+  };
+
   // Helper function to check exception on invocation.
   auto ExceptionInvoke = [&](const simdjson::dom::object &Action,
                              uint64_t LineNumber) {
@@ -1089,7 +1111,9 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         return;
       }
       case CommandID::AssertExhaustion: {
-        // TODO: Add stack overflow mechanism.
+        const simdjson::dom::object &Action = Cmd["action"];
+        const uint64_t LineNumber = Cmd["line"];
+        ExhaustionInvoke(Action, LineNumber);
         return;
       }
       case CommandID::AssertMalformed: {

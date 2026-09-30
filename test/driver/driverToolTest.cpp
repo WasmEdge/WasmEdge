@@ -1038,6 +1038,9 @@ TEST(RunSubcommand, RunSpecificFlags) {
   EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "256", Path, "add",
                      "1", "2"}),
             EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--stack-size-limit", "1048576", Path, "add",
+                     "1", "2"}),
+            EXIT_SUCCESS);
 }
 
 TEST(RunSubcommand, LinkedModules) {

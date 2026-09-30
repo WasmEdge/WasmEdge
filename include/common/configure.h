@@ -356,10 +356,6 @@ public:
 
   /// Helper function for checking instruction proposals.
   std::optional<Proposal> isInstrNeedProposal(OpCode Code) const noexcept {
-    if (Code >= OpCode::I64__add128 && Code <= OpCode::I64__mul_wide_u &&
-        !hasProposal(Proposal::WideArithmetic)) {
-      return Proposal::WideArithmetic;
-    }
     if (Code >= OpCode::I32__trunc_sat_f32_s &&
         Code <= OpCode::I64__trunc_sat_f64_u) {
       // These instructions are for NonTrapFloatToIntConversions proposal.
@@ -371,6 +367,11 @@ public:
       // These instructions are for SignExtensionOperators proposal.
       if (unlikely(!hasProposal(Proposal::SignExtensionOperators))) {
         return Proposal::SignExtensionOperators;
+      }
+    } else if (Code >= OpCode::I64__add128 && Code <= OpCode::I64__mul_wide_u) {
+      // These instructions are for WideArithmetic proposal.
+      if (unlikely(!hasProposal(Proposal::WideArithmetic))) {
+        return Proposal::WideArithmetic;
       }
     } else if ((Code >= OpCode::Ref__null && Code <= OpCode::Ref__func) ||
                (Code >= OpCode::Table__init && Code <= OpCode::Table__copy) ||

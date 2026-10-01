@@ -5136,6 +5136,73 @@ TEST(APICoreTest, Plugin) {
   WasmEdge_ModuleInstanceDelete(ModCxt);
 }
 #endif
+TEST(WasmEdgeVM, DeleteRegisteredModule) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
+
+  uint32_t originalCount = WasmEdge_VMListRegisteredModuleLength(VMCxt);
+
+  WasmEdge_String ModuleName = WasmEdge_StringCreateByCString("test_module");
+  WasmEdge_ModuleInstanceContext *ModInst =
+      WasmEdge_ModuleInstanceCreate(ModuleName);
+
+  WasmEdge_Result Res = WasmEdge_VMRegisterModuleFromImport(VMCxt, ModInst);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount + 1);
+
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, ModuleName);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount);
+
+  // Added check to ensure module is no longer accessible
+  WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(VMCxt);
+  const WasmEdge_ModuleInstanceContext *FindResult =
+      WasmEdge_StoreFindModule(StoreCxt, ModuleName);
+  EXPECT_EQ(FindResult, nullptr);
+
+  // Cleanup
+  WasmEdge_StringDelete(ModuleName);
+  WasmEdge_VMDelete(VMCxt);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
+TEST(WasmEdgeVM, DeleteNonExistentModule) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
+  uint32_t originalCount = WasmEdge_VMListRegisteredModuleLength(VMCxt);
+  WasmEdge_String ModuleName =
+      WasmEdge_StringCreateByCString("nonexistent_module");
+
+  // Try deleting a module that doesn’t exist — should not crash
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, ModuleName);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt),
+            originalCount); // No change
+
+  // Cleanup
+  WasmEdge_StringDelete(ModuleName);
+  WasmEdge_VMDelete(VMCxt);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
+TEST(WasmEdgeVM, DeleteInvalidInput) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_String ModuleName = WasmEdge_StringCreateByCString("test_module");
+  WasmEdge_String EmptyName = WasmEdge_StringCreateByCString("");
+
+  // Test null VM context, should not crash
+  WasmEdge_VMDeleteRegisteredModule(nullptr, ModuleName);
+  // Test empty module name, should not crash
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, EmptyName);
+  uint32_t originalCount = WasmEdge_VMListRegisteredModuleLength(VMCxt);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount);
+
+  // Cleanup
+  WasmEdge_StringDelete(ModuleName);
+  WasmEdge_StringDelete(EmptyName);
+  WasmEdge_VMDelete(VMCxt);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

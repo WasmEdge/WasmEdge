@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 wasmedge_add_executable(wasmedgeHostMockTests
-  mockTest.cpp
+  MockTest.cpp
 )
 
 add_test(wasmedgeHostMockTests wasmedgeHostMockTests)

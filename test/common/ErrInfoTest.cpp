@@ -12,32 +12,32 @@ using namespace std::literals;
 
 namespace {
 
-TEST(ErrInfoTest, Info__File) {
+TEST(ErrInfoTest, InfoFile) {
   WasmEdge::ErrInfo::InfoFile Info1("file.txt");
   fmt::print("{}\n"sv, Info1);
   EXPECT_TRUE(true);
 }
 
-TEST(ErrInfoTest, Info__Loading) {
+TEST(ErrInfoTest, InfoLoading) {
   WasmEdge::ErrInfo::InfoLoading Info1(30);
   fmt::print("{}\n"sv, Info1);
   EXPECT_TRUE(true);
 }
 
-TEST(ErrInfoTest, Info__AST) {
+TEST(ErrInfoTest, InfoAST) {
   WasmEdge::ErrInfo::InfoAST Info1(WasmEdge::ASTNodeAttr::Module);
   fmt::print("{}\n"sv, Info1);
   EXPECT_TRUE(true);
 }
 
-TEST(ErrInfoTest, Info__InstanceBound) {
+TEST(ErrInfoTest, InfoInstanceBound) {
   WasmEdge::ErrInfo::InfoInstanceBound Info1(WasmEdge::ExternalType::Memory, 2,
                                              1);
   fmt::print("{}\n"sv, Info1);
   EXPECT_TRUE(true);
 }
 
-TEST(ErrInfoTest, Info__ForbidIndex) {
+TEST(ErrInfoTest, InfoForbidIndex) {
   WasmEdge::ErrInfo::InfoForbidIndex Info1(
       WasmEdge::ErrInfo::IndexCategory::FunctionType, 2, 1);
   fmt::print("{}\n"sv, Info1);
@@ -47,13 +47,13 @@ TEST(ErrInfoTest, Info__ForbidIndex) {
   EXPECT_TRUE(true);
 }
 
-TEST(ErrInfoTest, Info__Exporting) {
+TEST(ErrInfoTest, InfoExporting) {
   WasmEdge::ErrInfo::InfoExporting Info1("export");
   fmt::print("{}\n"sv, Info1);
   EXPECT_TRUE(true);
 }
 
-TEST(ErrInfoTest, Info__Limit) {
+TEST(ErrInfoTest, InfoLimit) {
   WasmEdge::ErrInfo::InfoLimit Info1(true, 10, 20);
   fmt::print("{}\n"sv, Info1);
   WasmEdge::ErrInfo::InfoLimit Info2(false, 30);
@@ -61,19 +61,19 @@ TEST(ErrInfoTest, Info__Limit) {
   EXPECT_TRUE(true);
 }
 
-TEST(ErrInfoTest, Info__Registering) {
+TEST(ErrInfoTest, InfoRegistering) {
   WasmEdge::ErrInfo::InfoRegistering Info1("host_func");
   fmt::print("{}\n"sv, Info1);
   EXPECT_TRUE(true);
 }
 
-TEST(ErrInfoTest, Info__Linking) {
+TEST(ErrInfoTest, InfoLinking) {
   WasmEdge::ErrInfo::InfoLinking Info1("module", "func");
   fmt::print("{}\n"sv, Info1);
   EXPECT_TRUE(true);
 }
 
-TEST(ErrInfoTest, Info__Executing) {
+TEST(ErrInfoTest, InfoExecuting) {
   WasmEdge::ErrInfo::InfoExecuting Info1("", "func");
   fmt::print("{}\n"sv, Info1);
   WasmEdge::ErrInfo::InfoExecuting Info2("module", "func");
@@ -81,7 +81,7 @@ TEST(ErrInfoTest, Info__Executing) {
   EXPECT_TRUE(true);
 }
 
-TEST(ErrInfoTest, Info__Mismatch) {
+TEST(ErrInfoTest, InfoMismatch) {
   WasmEdge::ErrInfo::InfoMismatch Info1(static_cast<uint8_t>(16), 8888);
   fmt::print("{}\n"sv, Info1);
   WasmEdge::ErrInfo::InfoMismatch Info2(WasmEdge::TypeCode::ExternRef,
@@ -127,7 +127,7 @@ TEST(ErrInfoTest, Info__Mismatch) {
   EXPECT_TRUE(true);
 }
 
-TEST(ErrInfoTest, Info__Instruction) {
+TEST(ErrInfoTest, InfoInstruction) {
   std::vector<WasmEdge::ValVariant> Args = {
       0, 1000,
       WasmEdge::RefVariant(
@@ -176,7 +176,7 @@ TEST(ErrInfoTest, Info__Instruction) {
   EXPECT_TRUE(true);
 }
 
-TEST(ErrInfoTest, Info__Boundary) {
+TEST(ErrInfoTest, InfoBoundary) {
   WasmEdge::ErrInfo::InfoBoundary Info1(3, 5, 2);
   fmt::print("{}\n"sv, Info1);
   WasmEdge::ErrInfo::InfoBoundary Info2(3, 0, 2);
@@ -184,7 +184,7 @@ TEST(ErrInfoTest, Info__Boundary) {
   EXPECT_TRUE(true);
 }
 
-TEST(ErrInfoTest, Info__Proposal) {
+TEST(ErrInfoTest, InfoProposal) {
   WasmEdge::ErrInfo::InfoProposal Info1(WasmEdge::Proposal::SIMD);
   fmt::print("{}\n"sv, Info1);
   WasmEdge::ErrInfo::InfoProposal Info2(static_cast<WasmEdge::Proposal>(250U));

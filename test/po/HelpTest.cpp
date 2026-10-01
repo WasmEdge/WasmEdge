@@ -14,7 +14,7 @@
 using namespace WasmEdge::PO;
 using namespace std::literals;
 
-TEST(Version, Simple1) {
+TEST(HelpTest, Version) {
   SubCommand S1(Description("s1"sv));
   SubCommand S2(Description("s2"sv));
   Option<Toggle> A(Description("a"sv));
@@ -32,7 +32,7 @@ TEST(Version, Simple1) {
   EXPECT_FALSE(Parser.isHelp());
 }
 
-TEST(Help, Simple1) {
+TEST(HelpTest, HelpSimple1) {
   SubCommand S1(Description("s1"sv));
   SubCommand S2(Description("s2"sv));
   Option<Toggle> A;
@@ -50,7 +50,7 @@ TEST(Help, Simple1) {
   EXPECT_TRUE(Parser.isHelp());
 }
 
-TEST(Help, Simple2) {
+TEST(HelpTest, HelpSimple2) {
   SubCommand S1(Description("s1"sv));
   SubCommand S2(Description("s2"sv));
   Option<Toggle> A;
@@ -68,7 +68,7 @@ TEST(Help, Simple2) {
   EXPECT_TRUE(Parser.isHelp());
 }
 
-TEST(Help, OptionFormatting) {
+TEST(HelpTest, OptionFormatting) {
   Option<Toggle> A(Description("option a description"sv));
   ArgumentParser Parser;
   Parser.add_option("opt-a"sv, A);
@@ -92,7 +92,7 @@ TEST(Help, OptionFormatting) {
   EXPECT_NE(Out.find("Show this help message\n"), std::string::npos);
 }
 
-TEST(Help, WrapLongWord) {
+TEST(HelpTest, WrapLongWord) {
   const std::string LongWord(100, 'x');
   Option<Toggle> A{Description(LongWord)};
   ArgumentParser Parser;

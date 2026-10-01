@@ -23,6 +23,39 @@ char Module1Path[] = "mixcallTestData/module1.wasm";
 char Module1UniPath[] = "mixcallTestData/module1-uni.wasm";
 char Module2Path[] = "mixcallTestData/module2.wasm";
 char Module2UniPath[] = "mixcallTestData/module2-uni.wasm";
+
+// (module
+//   (type $type0 (;0;) (func (param i32 i32)))
+//   (type $type1 (;1;) (func (param f64 f64)))
+//   (type $type2 (;2;) (func (param i32)))
+//   (type $type3 (;3;) (func (param f64)))
+//   (import "module" "impl_printAdd" (func $impl_printAdd (;0;) (type $type0)))
+//   (import "module" "impl_printDiv" (func $impl_printDiv (;1;) (type $type1)))
+//   (import "host" "host_printI32" (func $host_printI32 (;2;) (type $type2)))
+//   (import "host" "host_printF64" (func $host_printF64 (;3;) (type $type3)))
+//   (export "printAdd" (func 4))
+//   (export "printDiv" (func 5))
+//   (export "printI32" (func 6))
+//   (export "printF64" (func 7))
+//   (func (;4;) (type $type0) (param i32 i32)
+//     local.get 0
+//     local.get 1
+//     call $impl_printAdd
+//   )
+//   (func (;5;) (type $type1) (param f64 f64)
+//     local.get 0
+//     local.get 1
+//     call $impl_printDiv
+//   )
+//   (func (;6;) (type $type2) (param i32)
+//     local.get 0
+//     call $host_printI32
+//   )
+//   (func (;7;) (type $type3) (param f64)
+//     local.get 0
+//     call $host_printF64
+//   )
+// )
 std::vector<uint8_t> Module1Wasm = {
     0x0,  0x61, 0x73, 0x6d, 0x1,  0x0,  0x0,  0x0,  0x1,  0x13, 0x4,  0x60,
     0x2,  0x7f, 0x7f, 0x0,  0x60, 0x2,  0x7c, 0x7c, 0x0,  0x60, 0x1,  0x7f,
@@ -54,6 +87,29 @@ std::vector<uint8_t> Module1Wasm = {
     0x1d, 0x4,  0x0,  0x5,  0x74, 0x79, 0x70, 0x65, 0x30, 0x1,  0x5,  0x74,
     0x79, 0x70, 0x65, 0x31, 0x2,  0x5,  0x74, 0x79, 0x70, 0x65, 0x32, 0x3,
     0x5,  0x74, 0x79, 0x70, 0x65, 0x33};
+
+// (module
+//   (type $type0 (;0;) (func (param i32)))
+//   (type $type1 (;1;) (func (param f64)))
+//   (type (;2;) (func (param i32 i32)))
+//   (type (;3;) (func (param f64 f64)))
+//   (import "host" "host_printI32" (func $host_printI32 (;0;) (type $type0)))
+//   (import "host" "host_printF64" (func $host_printF64 (;1;) (type $type1)))
+//   (export "impl_printAdd" (func 2))
+//   (export "impl_printDiv" (func 3))
+//   (func (;2;) (type 2) (param i32 i32)
+//     local.get 0
+//     local.get 1
+//     i32.add
+//     call $host_printI32
+//   )
+//   (func (;3;) (type 3) (param f64 f64)
+//     local.get 0
+//     local.get 1
+//     f64.div
+//     call $host_printF64
+//   )
+// )
 std::vector<uint8_t> Module2Wasm = {
     0x0,  0x61, 0x73, 0x6d, 0x1,  0x0,  0x0,  0x0,  0x1,  0x13, 0x4,  0x60,
     0x1,  0x7f, 0x0,  0x60, 0x1,  0x7c, 0x0,  0x60, 0x2,  0x7f, 0x7f, 0x0,
@@ -137,7 +193,7 @@ bool compileModule(const WasmEdge::Configure &Conf, std::string_view InPath,
       .has_value();
 }
 
-TEST(MixCallTest, Call__InterpCallAOT) {
+TEST(MixCallTest, InterpCallAOT) {
   WasmEdge::Configure Conf;
   HostModule HostMod;
   WasmEdge::VM::VM VM(Conf);
@@ -196,7 +252,7 @@ TEST(MixCallTest, Call__InterpCallAOT) {
   EXPECT_EQ((*Ret).size(), 0);
 }
 
-TEST(MixCallTest, Call__AOTCallInterp) {
+TEST(MixCallTest, AOTCallInterp) {
   WasmEdge::Configure Conf;
   HostModule HostMod;
   WasmEdge::VM::VM VM(Conf);

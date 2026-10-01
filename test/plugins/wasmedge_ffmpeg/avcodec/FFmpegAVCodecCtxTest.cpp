@@ -1,0 +1,1888 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "avcodec/avCodecContext.h"
+#include "avcodec/module.h"
+
+#include "utils.h"
+
+#include <gtest/gtest.h>
+
+// Testing all AVCodecCtxstruct
+namespace WasmEdge {
+namespace Host {
+namespace WasmEdgeFFmpeg {
+
+using FFmpegAVCodecCtxTest = FFmpegTest;
+
+TEST_F(FFmpegAVCodecCtxTest, AVCodecCtx) {
+  ASSERT_TRUE(AVCodecMod != nullptr);
+
+  uint32_t AVCodecCtxPtr = UINT32_C(64);
+
+  std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
+  initFFmpegStructs(UINT32_C(20), UINT32_C(24), UINT32_C(28), FileName,
+                    UINT32_C(60), AVCodecCtxPtr, UINT32_C(68), UINT32_C(72));
+  uint32_t NumPtr = UINT32_C(76);
+  uint32_t DenPtr = UINT32_C(80);
+  uint32_t AVCodecPtr = UINT32_C(84);
+
+  uint32_t AVCodecCtxId = readUInt32(MemInst, AVCodecCtxPtr);
+
+  uint32_t ScratchCtxPtr = UINT32_C(88);
+  {
+    auto *AllocInst = AVCodecMod->findFuncExports(
+        "wasmedge_ffmpeg_avcodec_avcodec_alloc_context3");
+    ASSERT_NE(AllocInst, nullptr);
+    EXPECT_TRUE(AllocInst->getHostFunc().run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), ScratchCtxPtr},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+  uint32_t ScratchCtxId = readUInt32(MemInst, ScratchCtxPtr);
+  ASSERT_TRUE(ScratchCtxId > 0);
+
+  auto *FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_codec_id");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxCodecID = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxCodecID.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<uint32_t>(), 27); // H264
+  }
+
+  int32_t CodecType = 0; // MediaType Video
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_codec_type");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetCodecType = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetCodecType.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, CodecType},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_codec_type");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxCodecType = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxCodecType.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), CodecType); // MediaType Video
+  }
+
+  int32_t Num = 5;
+  int32_t Den = 10;
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_time_base");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetTimebase = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetTimebase.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, Num, Den},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_time_base");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxTimeBase = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxTimeBase.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, NumPtr,
+                                                    DenPtr},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    int32_t Numerator = readSInt32(MemInst, NumPtr);
+    int32_t Denominator = readSInt32(MemInst, DenPtr);
+    EXPECT_EQ(Numerator, Num);
+    EXPECT_EQ(Denominator, Den);
+  }
+
+  int32_t Dimension = 200;
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_width");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetWidth = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetWidth.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, Dimension},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_width");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxWidth = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxWidth.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), Dimension);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_height");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetHeight = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetHeight.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, Dimension},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_height");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxHeight = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxHeight.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), Dimension);
+  }
+
+  Num = 10;
+  Den = 20;
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_aspect_ratio");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetSampleAspectRatio = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetSampleAspectRatio.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, Num, Den},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_sample_aspect_ratio");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSampleAspectRatio = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSampleAspectRatio.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, NumPtr,
+                                                    DenPtr},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+    int32_t Numerator = readSInt32(MemInst, NumPtr);
+    int32_t Denominator = readSInt32(MemInst, DenPtr);
+    EXPECT_EQ(Numerator, Num);
+    EXPECT_EQ(Denominator, Den);
+  }
+
+  uint64_t ChannelLayoutId = 1; // FRONT_LEFT;
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channel_layout");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetChannelLayout = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetChannelLayout.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId,
+                                                    ChannelLayoutId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_channel_layout");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxChannelLayout = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxChannelLayout.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<uint64_t>(), ChannelLayoutId);
+  }
+
+  uint32_t PixFormatId = 1; // YUV420P
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_pix_fmt");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetPixFormat = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetPixFormat.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, PixFormatId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_pix_fmt");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxPixFormat = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxPixFormat.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), PixFormatId);
+  }
+
+  uint32_t SampleFmtId = 1; // SAMPLE_FMT_U8
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_format");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetSampleFormat = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetSampleFormat.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, SampleFmtId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_sample_format");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSampleFormat = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSampleFormat.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), SampleFmtId);
+  }
+
+  int32_t SampleRate = 500;
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_rate");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetSampleRate = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetSampleRate.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, SampleRate},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_sample_rate");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSampleRate = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSampleRate.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), SampleRate);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_gop_size");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetGopSize = FuncInst->getHostFunc();
+
+  {
+    int32_t GopSize = 20;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetGopSize.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, GopSize},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_max_b_frames");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetMaxBFrames = FuncInst->getHostFunc();
+
+  {
+    int32_t MaxBFrames = 30;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetMaxBFrames.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, MaxBFrames},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_b_quant_factor");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetBQuantFactor = FuncInst->getHostFunc();
+
+  {
+    float BQuantFactor = 12.32;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetBQuantFactor.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, BQuantFactor},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_b_quant_offset");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetBQuantOffset = FuncInst->getHostFunc();
+
+  {
+    float BQuantOffset = 3.53;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetBQuantOffset.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, BQuantOffset},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_i_quant_factor");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetIQuantFactor = FuncInst->getHostFunc();
+
+  {
+    float IQuantFactor = 3.435;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetIQuantFactor.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, IQuantFactor},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_i_quant_offset");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetIQuantOffset = FuncInst->getHostFunc();
+
+  {
+    float IQuantOffset = 6.322;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetIQuantOffset.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, IQuantOffset},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_lumi_masking");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetLumiMasking = FuncInst->getHostFunc();
+
+  {
+    float LumiMasking = 54.32432;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetLumiMasking.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, LumiMasking},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_temporal_cplx_masking");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetTemporalCplxMasking = FuncInst->getHostFunc();
+
+  {
+    float TemporialCplxMasking = 642.32;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetTemporalCplxMasking.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId,
+                                                    TemporialCplxMasking},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_spatial_cplx_masking");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetSpatialCplxMasking = FuncInst->getHostFunc();
+
+  {
+    float SpatialCplxMasking = 324.32;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetSpatialCplxMasking.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId,
+                                                    SpatialCplxMasking},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_p_masking");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetPMasking = FuncInst->getHostFunc();
+
+  {
+    float PMasking = 65.3245;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetPMasking.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, PMasking},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_dark_masking");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetDarkMasking = FuncInst->getHostFunc();
+
+  {
+    float DarkMasking = 83.32;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetDarkMasking.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, DarkMasking},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_cmp");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetMeCmp = FuncInst->getHostFunc();
+
+  {
+    int32_t MeCmp = 532;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetMeCmp.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, MeCmp},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_sub_cmp");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetMeSubCmp = FuncInst->getHostFunc();
+
+  {
+    int32_t MeSubCmp = 321;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetMeSubCmp.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, MeSubCmp},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_mb_cmp");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetMbCmp = FuncInst->getHostFunc();
+
+  {
+    int32_t MbCmp = 243;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetMbCmp.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, MbCmp},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_ildct_cmp");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetIldctCmp = FuncInst->getHostFunc();
+
+  {
+    int32_t IldctCmp = 3;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetIldctCmp.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, IldctCmp},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_dia_size");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetDiaSize = FuncInst->getHostFunc();
+
+  {
+    int32_t DiaSize = 9;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetDiaSize.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, DiaSize},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_last_predictor_count");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetLastPredictorsCount = FuncInst->getHostFunc();
+
+  {
+    int32_t LastPredictorCount = 21;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetLastPredictorsCount.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId,
+                                                    LastPredictorCount},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_pre_cmp");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetMePreCmp = FuncInst->getHostFunc();
+
+  {
+    int32_t MePreCmp = 53;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetMePreCmp.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, MePreCmp},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_pre_dia_size");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetPreDiaSize = FuncInst->getHostFunc();
+
+  {
+    int32_t PreDiaSize = 74;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetPreDiaSize.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, PreDiaSize},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_subpel_quality");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetMeSubpelQuality = FuncInst->getHostFunc();
+
+  {
+    int32_t MeSubpelQuality = 8;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetMeSubpelQuality.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId,
+                                                    MeSubpelQuality},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_range");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetMeRange = FuncInst->getHostFunc();
+
+  {
+    int32_t SetMeRange = 31;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetMeRange.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, SetMeRange},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_mb_decision");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetMbDecision = FuncInst->getHostFunc();
+
+  {
+    int32_t MbDecision = 78;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetMbDecision.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, MbDecision},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_mb_lmin");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetMbLMin = FuncInst->getHostFunc();
+
+  {
+    int32_t MbLMin = 11;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetMbLMin.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, MbLMin},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_mb_lmax");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetMbLMax = FuncInst->getHostFunc();
+
+  {
+    int32_t MbLMax = 18;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetMbLMax.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, MbLMax},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_intra_dc_precision");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  int32_t IntraDcPrecision = 323;
+  auto &HostFuncAVCodecCtxSetIntraDcPrecision = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetIntraDcPrecision.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId,
+                                                    IntraDcPrecision},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_intra_dc_precision");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxIntraDcPrecision = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxIntraDcPrecision.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), IntraDcPrecision);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_qmin");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetQMin = FuncInst->getHostFunc();
+
+  {
+    int32_t QMin = 10;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetQMin.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, QMin},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_qmax");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetQMax = FuncInst->getHostFunc();
+
+  {
+    int32_t QMax = 20;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetQMax.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, QMax},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_global_quality");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetGlobalQuality = FuncInst->getHostFunc();
+
+  {
+    int32_t GlobalQuality = 93;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetGlobalQuality.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId,
+                                                    GlobalQuality},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_colorspace");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetColorspace = FuncInst->getHostFunc();
+
+  int32_t ColorspaceId = 1; // AVCOL_SPC_BT709
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetColorspace.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, ColorspaceId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_colorspace");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxColorspace = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxColorspace.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), ColorspaceId);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_color_range");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetColorRange = FuncInst->getHostFunc();
+
+  int32_t ColorRangeId = 1; // MPEG
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetColorRange.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, ColorRangeId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_color_range");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxColorRange = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxColorRange.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), ColorRangeId);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_frame_size");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxFrameSize = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxFrameSize.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), 0);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_bit_rate");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetBitRate = FuncInst->getHostFunc();
+
+  int64_t BitRate = 9932;
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetBitRate.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, BitRate},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_bit_rate");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxBitRate = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxBitRate.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), BitRate);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_rc_max_rate");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  int64_t RcMaxRate = 3245;
+  auto &HostFuncAVCodecCtxSetRcMaxRate = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetRcMaxRate.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, RcMaxRate},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_rc_max_rate");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxRcMaxRate = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxRcMaxRate.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), RcMaxRate);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_bit_rate_tolerance");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetBitRateTolerance = FuncInst->getHostFunc();
+
+  {
+    int32_t BitRateTolerance = 9543;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetBitRateTolerance.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId,
+                                                    BitRateTolerance},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_compression_level");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetCompressionLevel = FuncInst->getHostFunc();
+
+  {
+    int32_t CompressionLevel = 934;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetCompressionLevel.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId,
+                                                    CompressionLevel},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_framerate");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  Num = 20;
+  Den = 30;
+  auto &HostFuncAVCodecCtxSetFrameRate = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetFrameRate.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, Num, Den},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_framerate");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxFrameRate = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxFrameRate.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, NumPtr,
+                                                    DenPtr},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    int32_t Numerator = readSInt32(MemInst, NumPtr);
+    int32_t Denominator = readSInt32(MemInst, DenPtr);
+    EXPECT_EQ(Numerator, Num);
+    EXPECT_EQ(Denominator, Den);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_flags");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetFlags = FuncInst->getHostFunc();
+
+  {
+    int32_t Flags = 3;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetFlags.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, Flags},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_strict_std_compliance");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetStrictStdCompliance = FuncInst->getHostFunc();
+
+  {
+    int32_t ComplianceId = 3;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetStrictStdCompliance.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, ComplianceId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_debug");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetDebug = FuncInst->getHostFunc();
+
+  {
+    int32_t Debug = 50;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetDebug.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, Debug},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_codec");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxCodec = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxCodec.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, AVCodecPtr},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    ASSERT_TRUE(readUInt32(MemInst, AVCodecPtr) > 0);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channels");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetChannels = FuncInst->getHostFunc();
+
+  int32_t Channels = 10;
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetChannels.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, Channels},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_channels");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxChannels = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxChannels.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), Channels);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_skip_loop_filter");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetSkipLoopFilter = FuncInst->getHostFunc();
+
+  int32_t DiscardId = 16; // Bidirectional
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetSkipLoopFilter.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, DiscardId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_skip_frame");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetSkipFrame = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetSkipFrame.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, DiscardId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_skip_idct");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetSkipIdct = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetSkipIdct.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, DiscardId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_error_concealment");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetErrorConcealment = FuncInst->getHostFunc();
+
+  {
+    int32_t ErrorConcealment = 99;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetErrorConcealment.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId,
+                                                    ErrorConcealment},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_err_recognition");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetErrorRecognition = FuncInst->getHostFunc();
+
+  {
+    int32_t ErrorRecognition = 88;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetErrorRecognition.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId,
+                                                    ErrorRecognition},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_delay");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxDelay = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxDelay.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), 0);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_skip_top");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetSkipTop = FuncInst->getHostFunc();
+
+  {
+    int32_t Value = 50;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetSkipTop.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, Value},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_skip_bottom");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetSkipBottom = FuncInst->getHostFunc();
+
+  {
+    int32_t Value = 60;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetSkipBottom.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, Value},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_refs");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxRefs = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxRefs.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), 4);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_slice_flags");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetSliceFlags = FuncInst->getHostFunc();
+
+  {
+    int32_t Value = 70;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetSliceFlags.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, Value},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_slice_count");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetSliceCount = FuncInst->getHostFunc();
+
+  {
+    int32_t Value = 100;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetSliceCount.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, Value},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_field_order");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetFieldOrder = FuncInst->getHostFunc();
+
+  {
+    int32_t Value = 200;
+    EXPECT_TRUE(HostFuncAVCodecCtxSetFieldOrder.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, Value},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_color_trc");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxColorTrc = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxColorTrc.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), 2);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_chroma_sample_location");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxChromaSampleLocation = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxChromaSampleLocation.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        Result));
+    ASSERT_TRUE(Result[0].get<int32_t>() >= 0);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_frame_number");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxFrameNumber = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxFrameNumber.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), 1);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_block_align");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxBlockAlign = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxBlockAlign.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), 0);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_request_sample_fmt");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetRequestSampleFmt = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetRequestSampleFmt.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, SampleFmtId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_audio_service_type");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxAudioServiceType = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxAudioServiceType.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        Result));
+    ASSERT_TRUE(Result[0].get<int32_t>() >= 0);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_has_b_frames");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxHasBFrames = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxHasBFrames.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        Result));
+    ASSERT_TRUE(Result[0].get<int32_t>() > 0);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_active_thread_type");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxActiveThreadType = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxActiveThreadType.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        Result));
+    ASSERT_TRUE(Result[0].get<int32_t>() >= 0);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_thread_type");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetThreadType = FuncInst->getHostFunc();
+
+  {
+    int32_t ThreadType = 1; // Frame
+    EXPECT_TRUE(HostFuncAVCodecCtxSetThreadType.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, ThreadType},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_thread_count");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxSetThreadCount = FuncInst->getHostFunc();
+
+  int32_t ThreadCount = 50;
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxSetThreadCount.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, ThreadCount},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_thread_count");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxThreadCount = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxThreadCount.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), ThreadCount);
+  }
+
+  FuncInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_color_primaries");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+
+  auto &HostFuncAVCodecCtxColorPrimaries = FuncInst->getHostFunc();
+
+  {
+    EXPECT_TRUE(HostFuncAVCodecCtxColorPrimaries.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        Result));
+    ASSERT_TRUE(Result[0].get<int32_t>() >= 0);
+  }
+
+  {
+    auto *FreeInst = AVCodecMod->findFuncExports(
+        "wasmedge_ffmpeg_avcodec_avcodec_free_context");
+    ASSERT_NE(FreeInst, nullptr);
+    EXPECT_TRUE(FreeInst->getHostFunc().run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+}
+
+TEST_F(FFmpegAVCodecCtxTest, AVCodecCtxRejectsFormatChangesAfterOpen) {
+  ASSERT_TRUE(AVCodecMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+  uint32_t CodecPtr = UINT32_C(4);
+  uint32_t CtxPtr = UINT32_C(8);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_find_encoder",
+                {UINT32_C(216), CodecPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t CodecId = readUInt32(MemInst, CodecPtr);
+  ASSERT_TRUE(CodecId > 0);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_alloc_context3",
+                {CodecId, CtxPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t CtxId = readUInt32(MemInst, CtxPtr);
+  ASSERT_TRUE(CtxId > 0);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_format",
+                {CtxId, UINT32_C(2)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_rate",
+                {CtxId, INT32_C(48000)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channel_layout",
+                {CtxId, UINT64_C(3)}),
+            static_cast<int32_t>(ErrNo::Success));
+  ASSERT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_avcodec_open2",
+                {CtxId, CodecId, UINT32_C(0)}),
+            0);
+
+  uint32_t ParamPtr = UINT32_C(12);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_parameters_alloc", {ParamPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t ParamId = readUInt32(MemInst, ParamPtr);
+  ASSERT_TRUE(ParamId > 0);
+
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_format",
+                {CtxId, UINT32_C(1)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_rate",
+                {CtxId, INT32_C(8000)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channel_layout",
+                {CtxId, UINT64_C(1)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channels",
+                {CtxId, INT32_C(64)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_width",
+                {CtxId, INT32_C(64)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_height",
+                {CtxId, INT32_C(64)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_pix_fmt",
+                {CtxId, UINT32_C(1)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  // Every other field that libavcodec reads at avcodec_open2, or sizes its
+  // state from, is frozen too; only the decoder knobs FFmpeg documents as
+  // adjustable while decoding stay writable.
+  auto RunV = [&](const char *Name,
+                  const std::vector<WasmEdge::ValVariant> &Args) {
+    auto *Inst = AVCodecMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr) << Name;
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result)) << Name;
+    return Result[0].get<int32_t>();
+  };
+  struct SetterCall {
+    const char *Name;
+    std::vector<WasmEdge::ValVariant> Args;
+  };
+  const std::vector<SetterCall> Frozen = {
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_time_base",
+       {CtxId, INT32_C(1), INT32_C(25)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_aspect_ratio",
+       {CtxId, INT32_C(1), INT32_C(1)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_gop_size",
+       {CtxId, INT32_C(12)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_max_b_frames",
+       {CtxId, INT32_C(2)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_b_quant_factor",
+       {CtxId, 1.25F}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_b_quant_offset",
+       {CtxId, 1.25F}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_i_quant_factor",
+       {CtxId, 0.71F}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_i_quant_offset",
+       {CtxId, 0.0F}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_lumi_masking",
+       {CtxId, 0.0F}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_temporal_cplx_masking",
+       {CtxId, 0.0F}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_spatial_cplx_masking",
+       {CtxId, 0.0F}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_p_masking", {CtxId, 0.0F}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_dark_masking",
+       {CtxId, 0.0F}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_cmp",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_sub_cmp",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_mb_cmp",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_ildct_cmp",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_dia_size",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_last_predictor_count",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_pre_cmp",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_pre_dia_size",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_subpel_quality",
+       {CtxId, INT32_C(8)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_range",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_mb_decision",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_mb_lmin",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_mb_lmax",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_intra_dc_precision",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_qmin", {CtxId, INT32_C(2)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_qmax", {CtxId, INT32_C(31)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_global_quality",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_colorspace",
+       {CtxId, INT32_C(2)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_color_range",
+       {CtxId, INT32_C(1)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_bit_rate",
+       {CtxId, INT64_C(128000)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_rc_max_rate",
+       {CtxId, INT64_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_bit_rate_tolerance",
+       {CtxId, INT32_C(4000000)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_compression_level",
+       {CtxId, INT32_C(-1)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_framerate",
+       {CtxId, INT32_C(25), INT32_C(1)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_flags", {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_strict_std_compliance",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_slice_count",
+       {CtxId, INT32_C(1)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_field_order",
+       {CtxId, INT32_C(1)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_request_sample_fmt",
+       {CtxId, UINT32_C(2)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_thread_type",
+       {CtxId, INT32_C(1)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_thread_count",
+       {CtxId, INT32_C(2)}},
+  };
+  for (const auto &Call : Frozen) {
+    EXPECT_EQ(RunV(Call.Name, Call.Args),
+              static_cast<int32_t>(ErrNo::InternalError))
+        << Call.Name;
+  }
+  const std::vector<SetterCall> Adjustable = {
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_debug", {CtxId, INT32_C(1)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_skip_loop_filter",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_skip_frame",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_skip_idct",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_error_concealment",
+       {CtxId, INT32_C(3)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_err_recognition",
+       {CtxId, INT32_C(1)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_skip_top",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_skip_bottom",
+       {CtxId, INT32_C(0)}},
+      {"wasmedge_ffmpeg_avcodec_avcodeccontext_set_slice_flags",
+       {CtxId, INT32_C(0)}},
+  };
+  for (const auto &Call : Adjustable) {
+    EXPECT_EQ(RunV(Call.Name, Call.Args), static_cast<int32_t>(ErrNo::Success))
+        << Call.Name;
+  }
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_thread_count", {CtxId}),
+            1);
+
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_parameters_to_context",
+                {CtxId, ParamId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  // Parameters that describe the open codec are accepted as a no-op, which is
+  // what the SDK's transcode example relies on; any other set is rejected.
+  EXPECT_GE(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_parameters_from_context",
+                {ParamId, CtxId}),
+            0);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_parameters_to_context",
+                {CtxId, ParamId}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t OtherCtxPtr = UINT32_C(16);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_alloc_context3",
+                {CodecId, OtherCtxPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t OtherCtxId = readUInt32(MemInst, OtherCtxPtr);
+  ASSERT_TRUE(OtherCtxId > 0);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_format",
+                {OtherCtxId, UINT32_C(2)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_rate",
+                {OtherCtxId, INT32_C(8000)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channel_layout",
+                {OtherCtxId, UINT64_C(3)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_GE(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_parameters_from_context",
+                {ParamId, OtherCtxId}),
+            0);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_parameters_to_context",
+                {CtxId, ParamId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_free_context", {OtherCtxId}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_codec_type",
+                {CtxId, INT32_C(2)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_codec_type", {CtxId}),
+            1);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_sample_rate", {CtxId}),
+            48000);
+
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_parameters_free", {ParamId}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_free_context", {CtxId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegAVCodecCtxTest, AVCodecCtxSetChannelsBuildsDefaultLayout) {
+  ASSERT_TRUE(AVCodecMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  uint32_t CtxPtr = UINT32_C(4);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_alloc_context3",
+                {UINT32_C(0), CtxPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t CtxId = readUInt32(MemInst, CtxPtr);
+  ASSERT_TRUE(CtxId > 0);
+
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channels",
+                {CtxId, INT32_C(2)}),
+            static_cast<int32_t>(ErrNo::Success));
+  {
+    auto *Inst = AVCodecMod->findFuncExports(
+        "wasmedge_ffmpeg_avcodec_avcodeccontext_channel_layout");
+    ASSERT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{CtxId}, Result));
+    EXPECT_EQ(Result[0].get<uint64_t>(), UINT64_C(134217731));
+  }
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channels",
+                {CtxId, INT32_C(-1)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_free_context", {CtxId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegAVCodecCtxTest, AVCodecCtxSetChannelsKeepsMatchingLayout) {
+  ASSERT_TRUE(AVCodecMod != nullptr);
+
+  auto Run = [&](const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = AVCodecMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+  auto ChannelLayout = [&](uint32_t CtxId) {
+    auto *Inst = AVCodecMod->findFuncExports(
+        "wasmedge_ffmpeg_avcodec_avcodeccontext_channel_layout");
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{CtxId}, Result));
+    return Result[0].get<uint64_t>();
+  };
+
+  uint32_t CtxPtr = UINT32_C(4);
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avcodec_avcodec_alloc_context3",
+                {UINT32_C(0), CtxPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t CtxId = readUInt32(MemInst, CtxPtr);
+  ASSERT_TRUE(CtxId > 0);
+
+  uint64_t const SideLayoutId = UINT64_C(1) << 37;
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avcodec_avcodeccontext_set_channel_layout",
+                {CtxId, SideLayoutId}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint64_t const SideLayout = ChannelLayout(CtxId);
+  EXPECT_NE(SideLayout, UINT64_C(0));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avcodec_avcodeccontext_channels", {CtxId}), 6);
+
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avcodec_avcodeccontext_set_channels",
+                {CtxId, INT32_C(6)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(ChannelLayout(CtxId), SideLayout);
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avcodec_avcodeccontext_channels", {CtxId}), 6);
+
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avcodec_avcodeccontext_set_channels",
+                {CtxId, INT32_C(2)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(ChannelLayout(CtxId), UINT64_C(134217731));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avcodec_avcodeccontext_channels", {CtxId}), 2);
+
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avcodec_avcodec_free_context", {CtxId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegAVCodecCtxTest, AVCodecCtxBoundsMotionEstimationParameters) {
+  ASSERT_TRUE(AVCodecMod != nullptr);
+
+  auto Run = [&](const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = AVCodecMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+  const char *const SetRange =
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_range";
+  const char *const SetSubpel =
+      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_me_subpel_quality";
+  int32_t const Rejected = static_cast<int32_t>(ErrNo::InternalError);
+  int32_t const Accepted = static_cast<int32_t>(ErrNo::Success);
+
+  uint32_t CtxPtr = UINT32_C(4);
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avcodec_avcodec_alloc_context3",
+                {UINT32_C(0), CtxPtr}),
+            Accepted);
+  uint32_t CtxId = readUInt32(MemInst, CtxPtr);
+  ASSERT_TRUE(CtxId > 0);
+
+  // libavcodec never validates either field, so the wrapper has to.
+  EXPECT_EQ(Run(SetRange, {CtxId, INT32_C(-1)}), Rejected);
+  EXPECT_EQ(Run(SetRange, {CtxId, INT32_C(0)}), Accepted);
+  EXPECT_EQ(Run(SetRange, {CtxId, INT32_C(1023)}), Accepted);
+  EXPECT_EQ(Run(SetSubpel, {CtxId, INT32_C(-1)}), Rejected);
+  EXPECT_EQ(Run(SetSubpel, {CtxId, INT32_C(9)}), Rejected);
+  EXPECT_EQ(Run(SetSubpel, {CtxId, INT32_C(0)}), Accepted);
+  EXPECT_EQ(Run(SetSubpel, {CtxId, INT32_C(8)}), Accepted);
+
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avcodec_avcodec_free_context", {CtxId}),
+            Accepted);
+}
+
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

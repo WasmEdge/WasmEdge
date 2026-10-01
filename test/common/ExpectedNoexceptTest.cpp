@@ -4,7 +4,7 @@
 #include <type_traits>
 #include <utility>
 
-TEST(NoExceptTest, NoThrow) {
+TEST(ExpectedNoexceptTest, NoThrow) {
   using T = cxx20::expected<int, int>;
   EXPECT_TRUE(std::is_nothrow_default_constructible_v<T>);
   EXPECT_TRUE((std::is_nothrow_constructible_v<T, const int &>));
@@ -24,7 +24,7 @@ TEST(NoExceptTest, NoThrow) {
   EXPECT_TRUE(std::is_nothrow_swappable_v<T>);
 }
 
-TEST(NoExceptTest, ThrowAll) {
+TEST(ExpectedNoexceptTest, ThrowAll) {
   struct throw_all {
     [[noreturn]] [[maybe_unused]] throw_all() noexcept(false) { throw 0; }
     [[noreturn]] throw_all(const throw_all &) noexcept(false) { throw 0; }
@@ -33,7 +33,7 @@ TEST(NoExceptTest, ThrowAll) {
     }
 #if defined(_MSC_VER)
 #pragma warning(push)
-#pragma warning(disable:4722)
+#pragma warning(disable : 4722)
 #endif
     [[noreturn]] ~throw_all() noexcept(false) { throw 0; }
 #if defined(_MSC_VER)
@@ -74,7 +74,7 @@ TEST(NoExceptTest, ThrowAll) {
   EXPECT_FALSE(std::is_nothrow_swappable_v<T>);
 }
 
-TEST(NoExceptTest, ThrowCopy) {
+TEST(ExpectedNoexceptTest, ThrowCopy) {
   struct throw_copy {
     [[maybe_unused]] throw_copy() noexcept {}
     [[noreturn]] throw_copy(const throw_copy &) noexcept(false) { throw 0; }
@@ -107,7 +107,7 @@ TEST(NoExceptTest, ThrowCopy) {
   EXPECT_TRUE(std::is_nothrow_swappable_v<T>);
 }
 
-TEST(NoExceptTest, ThrowMove) {
+TEST(ExpectedNoexceptTest, ThrowMove) {
   struct throw_move {
     [[maybe_unused]] throw_move() noexcept {}
     throw_move(const throw_move &) noexcept {}
@@ -141,7 +141,7 @@ TEST(NoExceptTest, ThrowMove) {
   EXPECT_FALSE(std::is_nothrow_swappable_v<T>);
 }
 
-TEST(NoExceptTest, ThrowCopyMove) {
+TEST(ExpectedNoexceptTest, ThrowCopyMove) {
   struct throw_copy_move {
     [[maybe_unused]] throw_copy_move() noexcept {}
     [[noreturn]] throw_copy_move(const throw_copy_move &) noexcept(false) {

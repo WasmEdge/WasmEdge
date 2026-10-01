@@ -1,6 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+//===-- wasmedge/test/driver/DriverToolTest.cpp - Driver tool tests -------===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Tests of the wasmedge driver subcommands: parse, validate, compile,
+/// instantiate, and run.
+///
+//===----------------------------------------------------------------------===//
+
 #include "common/defines.h"
 #include "common/filesystem.h"
 #include "common/spdlog.h"
@@ -124,8 +136,25 @@ containsNone(const std::string &Output,
 }
 #endif
 
-// simple.wasm: self-contained module exporting add, sub, memory, counter.
-// Has types, functions, memory, mutable global, name section.
+// (module
+//   (type (;0;) (func (param i32 i32) (result i32)))
+//   (memory (;0;) 1)
+//   (global $counter (;0;) (mut i32) i32.const 0)
+//   (export "add" (func $add))
+//   (export "sub" (func $sub))
+//   (export "memory" (memory 0))
+//   (export "counter" (global $counter))
+//   (func $add (;0;) (type 0) (param i32 i32) (result i32)
+//     local.get 0
+//     local.get 1
+//     i32.add
+//   )
+//   (func $sub (;1;) (type 0) (param i32 i32) (result i32)
+//     local.get 0
+//     local.get 1
+//     i32.sub
+//   )
+// )
 static const std::array<uint8_t, 127> SimpleWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
     0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x03, 0x02, 0x00, 0x00, 0x05, 0x03,
@@ -139,8 +168,23 @@ static const std::array<uint8_t, 127> SimpleWasm{
     0x02, 0x05, 0x02, 0x00, 0x00, 0x01, 0x00, 0x07, 0x0a, 0x01, 0x00, 0x07,
     0x63, 0x6f, 0x75, 0x6e, 0x74, 0x65, 0x72};
 
-// numeric.wasm: exports add64 (param i64 i64) (result i64) and
-// addf (param f32 f64) (result f64).
+// (module
+//   (type (;0;) (func (param i64 i64) (result i64)))
+//   (type (;1;) (func (param f32 f64) (result f64)))
+//   (export "add64" (func 0))
+//   (export "addf" (func 1))
+//   (func (;0;) (type 0) (param i64 i64) (result i64)
+//     local.get 0
+//     local.get 1
+//     i64.add
+//   )
+//   (func (;1;) (type 1) (param f32 f64) (result f64)
+//     local.get 0
+//     f64.promote_f32
+//     local.get 1
+//     f64.add
+//   )
+// )
 static const std::array<uint8_t, 66> NumericWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x02,
     0x60, 0x02, 0x7e, 0x7e, 0x01, 0x7e, 0x60, 0x02, 0x7d, 0x7c, 0x01,
@@ -149,14 +193,19 @@ static const std::array<uint8_t, 66> NumericWasm{
     0x00, 0x01, 0x0a, 0x12, 0x02, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01,
     0x7c, 0x0b, 0x08, 0x00, 0x20, 0x00, 0xbb, 0x20, 0x01, 0xa0, 0x0b};
 
-// invalid.wasm: declares (func (result i32)) but body pushes two i32 values
-// without consuming the extra one, causing a type mismatch during validation.
+// (module
+//   (type (;0;) (func (result i32)))
+//   (func (;0;) (type 0) (result i32)
+//     i32.const 1
+//     i32.const 2
+//   )
+// )
 static const std::array<uint8_t, 29> InvalidWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
     0x01, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x0a,
     0x08, 0x01, 0x06, 0x00, 0x41, 0x01, 0x41, 0x02, 0x0b};
 
-// Truncated wasm: valid magic + version, then garbage bytes.
+// Truncated module: a valid preamble followed by garbage bytes.
 static const std::array<uint8_t, 12> TruncatedWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF};
 
@@ -164,14 +213,55 @@ static const std::array<uint8_t, 12> TruncatedWasm{
 static const std::array<uint8_t, 8> NotWasmBytes{0x7f, 0x45, 0x4c, 0x46,
                                                  0x00, 0x00, 0x00, 0x00};
 
-// Minimal valid wasm: just the magic number and version, no sections.
+// (module)
 static const std::array<uint8_t, 8> MinimalWasm{0x00, 0x61, 0x73, 0x6d,
                                                 0x01, 0x00, 0x00, 0x00};
 
-// parse_test.wasm: compiled from parse_test.wat with --debug-names.
-// Contains: 4 types, 5 imports (func, memory, table, 2 globals),
-// 4 functions, 6 globals (various types + init exprs), 12 exports,
-// name section with function and global names.
+// (module
+//   (type $swap_type (;0;) (func (param i32 i32) (result i32 i32)))
+//   (type (;1;) (func (param i32)))
+//   (type (;2;) (func))
+//   (type (;3;) (func (param i32 i32) (result i32)))
+//   (import "env" "log" (func $imported_func (;0;) (type 1)))
+//   (import "env" "memory" (memory (;0;) 1 10))
+//   (import "env" "table" (table (;0;) 1 funcref))
+//   (import "env" "g_mut" (global $imported_g_mut (;0;) (mut i32)))
+//   (import "env" "g_const" (global $imported_g_const (;1;) i32))
+//   (global $g_i32 (;2;) i32 i32.const 42)
+//   (global $g_i64 (;3;) i64 i64.const 100)
+//   (global $g_f32 (;4;) f32 f32.const 0x1.91eb86p+1 (;=3.14;))
+//   (global $g_f64 (;5;) f64 f64.const 0x1.5be76c8b43958p+1 (;=2.718;))
+//   (global $g_mut_local (;6;) (mut i32) i32.const 0)
+//   (global $g_from_import (;7;) i32 global.get $imported_g_const)
+//   (export "g_i32" (global $g_i32))
+//   (export "g_i64" (global $g_i64))
+//   (export "g_f32" (global $g_f32))
+//   (export "g_f64" (global $g_f64))
+//   (export "g_mut_local" (global $g_mut_local))
+//   (export "nop_func" (func $nop_func))
+//   (export "add_func" (func $add_func))
+//   (export "swap_func" (func $swap_func))
+//   (export "call_import" (func $call_import))
+//   (export "memory" (memory 0))
+//   (export "table" (table 0))
+//   (export "g_from_import" (global $g_from_import))
+//   (func $nop_func (;1;) (type 2)
+//     nop
+//   )
+//   (func $add_func (;2;) (type 3) (param i32 i32) (result i32)
+//     local.get 0
+//     local.get 1
+//     i32.add
+//   )
+//   (func $swap_func (;3;) (type $swap_type) (param i32 i32) (result i32 i32)
+//     local.get 1
+//     local.get 0
+//   )
+//   (func $call_import (;4;) (type 1) (param i32)
+//     local.get 0
+//     call $imported_func
+//   )
+// )
 static const std::array<uint8_t, 502> ParseTestWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x15, 0x04, 0x60,
     0x02, 0x7f, 0x7f, 0x02, 0x7f, 0x7f, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00,
@@ -216,16 +306,17 @@ static const std::array<uint8_t, 502> ParseTestWasm{
     0x74, 0x5f, 0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x07, 0x0d, 0x67, 0x5f, 0x66,
     0x72, 0x6f, 0x6d, 0x5f, 0x69, 0x6d, 0x70, 0x6f, 0x72, 0x74};
 
-// mem_no_max.wasm: imports env.memory with min=1, no max limit.
-static const std::array<uint8_t, 25> MemNoMaxWasm{
-    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x02,
-    0x0f, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x06, 0x6d, 0x65,
-    0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x01};
-
-// sections_test.wasm: compiled from sections_test.wat.
-// Defines its own table (funcref, min=2 max=3), memory (min=1 max=2), a
-// nullary start function, an active and a passive element segment (both
-// referencing the start function), an active and a passive data segment.
+// (module
+//   (type (;0;) (func))
+//   (table (;0;) 2 3 funcref)
+//   (memory (;0;) 1 2)
+//   (start 0)
+//   (elem (;0;) (i32.const 0) func 0)
+//   (elem (;1;) func 0)
+//   (func (;0;) (type 0))
+//   (data (;0;) (i32.const 0) "ab")
+//   (data (;1;) "cd")
+// )
 static const std::array<uint8_t, 70> SectionsTestWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
     0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x04, 0x05, 0x01, 0x70, 0x01, 0x02,
@@ -234,34 +325,61 @@ static const std::array<uint8_t, 70> SectionsTestWasm{
     0x01, 0x02, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b, 0x0b, 0x0c, 0x02, 0x00,
     0x41, 0x00, 0x0b, 0x02, 0x61, 0x62, 0x01, 0x02, 0x63, 0x64};
 
-// tag_import_test.wasm: compiled from tag_import_test.wat.
-// Imports a tag "env"."tag" whose signature is type[0] (func (param i32)).
+// (module
+//   (type (;0;) (func (param i32)))
+//   (import "env" "tag" (tag (;0;) (type 0) (param i32)))
+// )
 static const std::array<uint8_t, 29> TagImportTestWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
     0x01, 0x60, 0x01, 0x7f, 0x00, 0x02, 0x0c, 0x01, 0x03, 0x65,
     0x6e, 0x76, 0x03, 0x74, 0x61, 0x67, 0x04, 0x00, 0x00};
 
-// tag_section_test.wasm: compiled from tag_section_test.wat.
-// Defines a tag whose signature is type[0] (func (param i32)).
+// (module
+//   (type (;0;) (func (param i32)))
+//   (tag (;0;) (type 0) (param i32))
+// )
 static const std::array<uint8_t, 20> TagSectionTestWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
     0x01, 0x60, 0x01, 0x7f, 0x00, 0x0d, 0x03, 0x01, 0x00, 0x00};
 
-// provider.wasm: exports function "add" (i32, i32) -> i32.
+// (module
+//   (type (;0;) (func (param i32 i32) (result i32)))
+//   (export "add" (func 0))
+//   (func (;0;) (type 0) (param i32 i32) (result i32)
+//     local.get 0
+//     local.get 1
+//     i32.add
+//   )
+// )
 static const std::array<uint8_t, 41> ProviderWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
     0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07,
     0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x0a, 0x09, 0x01,
     0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b};
 
-// consumer.wasm: imports "provider"."add" and re-exports it.
+// (module
+//   (type (;0;) (func (param i32 i32) (result i32)))
+//   (import "provider" "add" (func (;0;) (type 0)))
+//   (export "add" (func 0))
+// )
 static const std::array<uint8_t, 44> ConsumerWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
     0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02, 0x10, 0x01, 0x08, 0x70,
     0x72, 0x6f, 0x76, 0x69, 0x64, 0x65, 0x72, 0x03, 0x61, 0x64, 0x64,
     0x00, 0x00, 0x07, 0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00};
 
-// trap.wasm: exports "_start" which traps on an integer division by zero.
+// (module
+//   (type (;0;) (func))
+//   (memory (;0;) 1)
+//   (export "mem" (memory 0))
+//   (export "_start" (func 0))
+//   (func (;0;) (type 0)
+//     i32.const 1
+//     i32.const 0
+//     i32.div_s
+//     drop
+//   )
+// )
 static const std::array<uint8_t, 53> TrapWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01,
     0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00,
@@ -269,8 +387,17 @@ static const std::array<uint8_t, 53> TrapWasm{
     0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x00, 0x0a, 0x0a, 0x01,
     0x08, 0x00, 0x41, 0x01, 0x41, 0x00, 0x6d, 0x1a, 0x0b};
 
-// wide_add128.wasm: exports "wide" (i64, i64, i64, i64) -> (i64, i64).
-// The body loads the four parameters and applies i64.add128.
+// (module
+//   (type (;0;) (func (param i64 i64 i64 i64) (result i64 i64)))
+//   (export "wide" (func 0))
+//   (func (;0;) (type 0) (param i64 i64 i64 i64) (result i64 i64)
+//     local.get 0
+//     local.get 1
+//     local.get 2
+//     local.get 3
+//     i64.add128
+//   )
+// )
 static const std::array<uint8_t, 50> Add128Wasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a,
     0x01, 0x60, 0x04, 0x7e, 0x7e, 0x7e, 0x7e, 0x02, 0x7e, 0x7e,
@@ -407,11 +534,7 @@ std::string add128Path() {
 
 std::string nonExistPath() { return TestDataPath + "/nonexist.wasm"; }
 
-// ---------------------------------------------------------------------------
-// ParseSubcommand tests
-// ---------------------------------------------------------------------------
-
-TEST(ParseSubcommand, ErrorHandling) {
+TEST(DriverToolTest, ParseErrorHandling) {
   EXPECT_NE(callParse({}), EXIT_SUCCESS);
   EXPECT_NE(callParse({""}), EXIT_SUCCESS);
 
@@ -434,7 +557,7 @@ TEST(ParseSubcommand, ErrorHandling) {
   EXPECT_NE(callParse({parseTestPath().c_str(), "extra-arg"}), EXIT_SUCCESS);
 }
 
-TEST(ParseSubcommand, ValidModules) {
+TEST(DriverToolTest, ParseValidModules) {
   EXPECT_EQ(callParse({parseTestPath().c_str()}), EXIT_SUCCESS);
 
   std::string MinPath =
@@ -442,13 +565,20 @@ TEST(ParseSubcommand, ValidModules) {
   EXPECT_EQ(callParse({MinPath.c_str()}), EXIT_SUCCESS);
   std::filesystem::remove(MinPath.c_str());
 
+  // (module
+  //   (import "env" "memory" (memory (;0;) 1))
+  // )
+  std::array<uint8_t, 25> MemNoMaxWasm{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00,
+                                       0x00, 0x02, 0x0f, 0x01, 0x03, 0x65, 0x6e,
+                                       0x76, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72,
+                                       0x79, 0x02, 0x00, 0x01};
   std::string MemPath = writeWasmToFile(MemNoMaxWasm.data(),
                                         MemNoMaxWasm.size(), "memnomax.wasm");
   EXPECT_EQ(callParse({MemPath.c_str()}), EXIT_SUCCESS);
   std::filesystem::remove(MemPath.c_str());
 }
 
-TEST(ParseSubcommand, DisableProposalFlags) {
+TEST(DriverToolTest, ParseDisableProposalFlags) {
   std::string PathStr = parseTestPath();
   const char *Path = PathStr.c_str();
 
@@ -478,7 +608,7 @@ TEST(ParseSubcommand, DisableProposalFlags) {
             EXIT_SUCCESS);
 }
 
-TEST(ParseSubcommand, EnableProposalFlags) {
+TEST(DriverToolTest, ParseEnableProposalFlags) {
   std::string PathStr = parseTestPath();
   const char *Path = PathStr.c_str();
 
@@ -492,7 +622,7 @@ TEST(ParseSubcommand, EnableProposalFlags) {
             EXIT_SUCCESS);
 }
 
-TEST(ParseSubcommand, WasmStandardFlags) {
+TEST(DriverToolTest, ParseWasmStandardFlags) {
   std::string PathStr = parseTestPath();
   const char *Path = PathStr.c_str();
 
@@ -501,7 +631,7 @@ TEST(ParseSubcommand, WasmStandardFlags) {
   EXPECT_EQ(callParse({"--wasm-3", Path}), EXIT_SUCCESS);
 }
 
-TEST(ParseSubcommand, CombinedFlags) {
+TEST(DriverToolTest, ParseCombinedFlags) {
   std::string PathStr = parseTestPath();
   const char *Path = PathStr.c_str();
 
@@ -513,7 +643,7 @@ TEST(ParseSubcommand, CombinedFlags) {
   EXPECT_EQ(callParse({"--wasm-2", "--disable-simd", Path}), EXIT_SUCCESS);
 }
 
-TEST(ParseSubcommand, ForbiddenPluginFlag) {
+TEST(DriverToolTest, ParseForbiddenPluginFlag) {
   std::string PathStr = parseTestPath();
   const char *Path = PathStr.c_str();
 
@@ -524,13 +654,13 @@ TEST(ParseSubcommand, ForbiddenPluginFlag) {
             EXIT_SUCCESS);
 }
 
-TEST(ParseSubcommand, ExtraSectionModules) {
+TEST(DriverToolTest, ParseExtraSectionModules) {
   EXPECT_EQ(callParse({sectionsTestPath().c_str()}), EXIT_SUCCESS);
   EXPECT_EQ(callParse({tagImportTestPath().c_str()}), EXIT_SUCCESS);
   EXPECT_EQ(callParse({tagSectionTestPath().c_str()}), EXIT_SUCCESS);
 }
 
-TEST(ParseSubcommand, MalformedNameSection) {
+TEST(DriverToolTest, ParseMalformedNameSection) {
   // (module) with a name section whose function name count is a 6-byte LEB128.
   std::array<uint8_t, 23> Overlong{
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x00, 0x0d, 0x04, 0x6e,
@@ -569,7 +699,7 @@ TEST(ParseSubcommand, MalformedNameSection) {
 }
 
 #if !WASMEDGE_OS_WINDOWS
-TEST(ParseSubcommand, OutputSectionHeaders) {
+TEST(DriverToolTest, ParseOutputSectionHeaders) {
   auto R = callParseCaptureStdout({parseTestPath().c_str()});
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
   EXPECT_TRUE(containsAll(
@@ -578,7 +708,7 @@ TEST(ParseSubcommand, OutputSectionHeaders) {
        "Function[4]:", "Global[6]:", "Export[12]:", "Code[4]:", "Custom:"}));
 }
 
-TEST(ParseSubcommand, OutputNameAnnotations) {
+TEST(DriverToolTest, ParseOutputNameAnnotations) {
   auto R = callParseCaptureStdout({parseTestPath().c_str()});
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
   EXPECT_TRUE(containsAll(
@@ -587,7 +717,7 @@ TEST(ParseSubcommand, OutputNameAnnotations) {
                  "<g_i32>", "<g_f64>", "<g_mut_local>", "- name: \"name\""}));
 }
 
-TEST(ParseSubcommand, OutputImportsAndExports) {
+TEST(DriverToolTest, ParseOutputImportsAndExports) {
   auto R = callParseCaptureStdout({parseTestPath().c_str()});
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
   EXPECT_TRUE(containsAll(
@@ -597,14 +727,14 @@ TEST(ParseSubcommand, OutputImportsAndExports) {
                  "-> \"table\"", "-> \"g_i32\""}));
 }
 
-TEST(ParseSubcommand, OutputGlobalInitExpressions) {
+TEST(DriverToolTest, ParseOutputGlobalInitExpressions) {
   auto R = callParseCaptureStdout({parseTestPath().c_str()});
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
   EXPECT_TRUE(containsAll(R.Stdout, {"init i32=42", "init i64=100", "init f32=",
                                      "init f64=", "init global.get 1"}));
 }
 
-TEST(ParseSubcommand, MinimalModuleEmptyCounts) {
+TEST(DriverToolTest, ParseMinimalModuleEmptyCounts) {
   std::string Path = writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(),
                                      "minimal_out.wasm");
   auto R = callParseCaptureStdout({Path.c_str()});
@@ -618,7 +748,7 @@ TEST(ParseSubcommand, MinimalModuleEmptyCounts) {
                                       "DataCount section", "Data[", "Tag["}));
 }
 
-TEST(ParseSubcommand, OutputTableMemoryStartElementData) {
+TEST(DriverToolTest, ParseOutputTableMemoryStartElementData) {
   auto R = callParseCaptureStdout({sectionsTestPath().c_str()});
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
   EXPECT_TRUE(containsAll(
@@ -637,14 +767,14 @@ TEST(ParseSubcommand, OutputTableMemoryStartElementData) {
                  " - segment[1] passive size=2"}));
 }
 
-TEST(ParseSubcommand, OutputImportedTagType) {
+TEST(DriverToolTest, ParseOutputImportedTagType) {
   auto R = callParseCaptureStdout({tagImportTestPath().c_str()});
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
   EXPECT_TRUE(
       containsAll(R.Stdout, {"Import[1]:", " - tag[0] sig=0 <- env.tag"}));
 }
 
-TEST(ParseSubcommand, OutputTagSection) {
+TEST(DriverToolTest, ParseOutputTagSection) {
   auto R = callParseCaptureStdout({tagSectionTestPath().c_str()});
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
   EXPECT_TRUE(containsAll(R.Stdout, {"Tag[1]:", " - tag[0] sig=0"}));
@@ -653,11 +783,7 @@ TEST(ParseSubcommand, OutputTagSection) {
 }
 #endif
 
-// ---------------------------------------------------------------------------
-// ValidateSubcommand tests
-// ---------------------------------------------------------------------------
-
-TEST(ValidateSubcommand, ErrorHandling) {
+TEST(DriverToolTest, ValidateErrorHandling) {
   EXPECT_NE(callValidate({}), EXIT_SUCCESS);
   EXPECT_NE(callValidate({""}), EXIT_SUCCESS);
   EXPECT_NE(callValidate({nonExistPath().c_str()}), EXIT_SUCCESS);
@@ -678,7 +804,7 @@ TEST(ValidateSubcommand, ErrorHandling) {
   EXPECT_NE(callValidate({simplePath().c_str(), "extra-arg"}), EXIT_SUCCESS);
 }
 
-TEST(ValidateSubcommand, ValidAndInvalidModules) {
+TEST(DriverToolTest, ValidateValidAndInvalidModules) {
   EXPECT_EQ(callValidate({simplePath().c_str()}), EXIT_SUCCESS);
   EXPECT_EQ(callValidate({invalidPath().c_str()}), EXIT_FAILURE);
 
@@ -690,7 +816,7 @@ TEST(ValidateSubcommand, ValidAndInvalidModules) {
   EXPECT_EQ(callValidate({parseTestPath().c_str()}), EXIT_SUCCESS);
 }
 
-TEST(ValidateSubcommand, DisableProposalFlags) {
+TEST(DriverToolTest, ValidateDisableProposalFlags) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
 
@@ -718,7 +844,7 @@ TEST(ValidateSubcommand, DisableProposalFlags) {
             EXIT_SUCCESS);
 }
 
-TEST(ValidateSubcommand, EnableProposalFlags) {
+TEST(DriverToolTest, ValidateEnableProposalFlags) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
 
@@ -733,7 +859,7 @@ TEST(ValidateSubcommand, EnableProposalFlags) {
   EXPECT_EQ(callValidate({"--enable-all", WidePath.c_str()}), EXIT_SUCCESS);
 }
 
-TEST(ValidateSubcommand, WasmStandardFlags) {
+TEST(DriverToolTest, ValidateWasmStandardFlags) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
 
@@ -742,7 +868,7 @@ TEST(ValidateSubcommand, WasmStandardFlags) {
   EXPECT_EQ(callValidate({"--wasm-3", Path}), EXIT_SUCCESS);
 }
 
-TEST(ValidateSubcommand, CombinedFlags) {
+TEST(DriverToolTest, ValidateCombinedFlags) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
 
@@ -753,17 +879,13 @@ TEST(ValidateSubcommand, CombinedFlags) {
   EXPECT_EQ(callValidate({"--wasm-2", "--disable-simd", Path}), EXIT_SUCCESS);
 }
 
-TEST(ValidateSubcommand, ForbiddenPluginFlag) {
+TEST(DriverToolTest, ValidateForbiddenPluginFlag) {
   EXPECT_EQ(
       callValidate({"--forbidden-plugin", "someplugin", simplePath().c_str()}),
       EXIT_SUCCESS);
 }
 
-// ---------------------------------------------------------------------------
-// CompileSubcommand tests
-// ---------------------------------------------------------------------------
-
-TEST(CompileSubcommand, ErrorHandling) {
+TEST(DriverToolTest, CompileErrorHandling) {
   std::string Output = TestDataPath + "/err_out.wasm";
 
   EXPECT_NE(callCompile({}), EXIT_SUCCESS);
@@ -791,7 +913,7 @@ TEST(CompileSubcommand, ErrorHandling) {
 }
 
 #ifdef WASMEDGE_USE_LLVM
-TEST(CompileSubcommand, ValidAndInvalidModules) {
+TEST(DriverToolTest, CompileValidAndInvalidModules) {
   std::string Output = TestDataPath + "/simple_aot.wasm";
   EXPECT_EQ(callCompile({simplePath().c_str(), Output.c_str()}), EXIT_SUCCESS);
   std::filesystem::remove(Output.c_str());
@@ -802,7 +924,7 @@ TEST(CompileSubcommand, ValidAndInvalidModules) {
   std::filesystem::remove(BadOutput.c_str());
 }
 
-TEST(CompileSubcommand, ProposalFlags) {
+TEST(DriverToolTest, CompileProposalFlags) {
   std::string Output = TestDataPath + "/proposal_out.wasm";
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
@@ -831,7 +953,7 @@ TEST(CompileSubcommand, ProposalFlags) {
   std::filesystem::remove(Output.c_str());
 }
 
-TEST(CompileSubcommand, CompilerSpecificFlags) {
+TEST(DriverToolTest, CompileCompilerSpecificFlags) {
   std::string Output = TestDataPath + "/compiler_out.wasm";
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
@@ -921,7 +1043,7 @@ TEST(CompileSubcommand, CompilerSpecificFlags) {
   std::filesystem::remove(Output.c_str());
 }
 
-TEST(CompileSubcommand, OutputFormat) {
+TEST(DriverToolTest, CompileOutputFormat) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
 
@@ -935,7 +1057,7 @@ TEST(CompileSubcommand, OutputFormat) {
 }
 #endif // WASMEDGE_USE_LLVM
 
-TEST(RunSubcommand, RunModeFlagParses) {
+TEST(DriverToolTest, RunModeFlagParses) {
   WasmEdge::Driver::DriverToolOptions Opt;
   WasmEdge::PO::ArgumentParser Parser;
   Opt.addOptions(Parser);
@@ -947,7 +1069,7 @@ TEST(RunSubcommand, RunModeFlagParses) {
   EXPECT_EQ(Opt.ConfRunMode.value(), "jit");
 }
 
-TEST(RunSubcommand, ParseRunModeArg) {
+TEST(DriverToolTest, RunParseRunModeArg) {
   EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("interpreter"),
             WasmEdge::RunMode::Interpreter);
   EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("jit"), WasmEdge::RunMode::JIT);
@@ -959,11 +1081,7 @@ TEST(RunSubcommand, ParseRunModeArg) {
   EXPECT_FALSE(WasmEdge::Driver::parseRunModeArg("").has_value());
 }
 
-// ---------------------------------------------------------------------------
-// InstantiateSubcommand tests
-// ---------------------------------------------------------------------------
-
-TEST(InstantiateSubcommand, ErrorHandling) {
+TEST(DriverToolTest, InstantiateErrorHandling) {
   EXPECT_NE(callInstantiate({}), EXIT_SUCCESS);
   EXPECT_NE(callInstantiate({""}), EXIT_SUCCESS);
   EXPECT_NE(callInstantiate({nonExistPath().c_str()}), EXIT_SUCCESS);
@@ -984,7 +1102,7 @@ TEST(InstantiateSubcommand, ErrorHandling) {
   EXPECT_NE(callInstantiate({simplePath().c_str(), "extra-arg"}), EXIT_SUCCESS);
 }
 
-TEST(InstantiateSubcommand, ValidAndInvalidModules) {
+TEST(DriverToolTest, InstantiateValidAndInvalidModules) {
   EXPECT_EQ(callInstantiate({simplePath().c_str()}), EXIT_SUCCESS);
   EXPECT_EQ(callInstantiate({invalidPath().c_str()}), EXIT_FAILURE);
 
@@ -996,7 +1114,7 @@ TEST(InstantiateSubcommand, ValidAndInvalidModules) {
   EXPECT_NE(callInstantiate({parseTestPath().c_str()}), EXIT_SUCCESS);
 }
 
-TEST(InstantiateSubcommand, ProposalFlags) {
+TEST(DriverToolTest, InstantiateProposalFlags) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
 
@@ -1007,7 +1125,7 @@ TEST(InstantiateSubcommand, ProposalFlags) {
             EXIT_SUCCESS);
 }
 
-TEST(InstantiateSubcommand, LinkerFlags) {
+TEST(DriverToolTest, InstantiateLinkerFlags) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
 
@@ -1021,7 +1139,7 @@ TEST(InstantiateSubcommand, LinkerFlags) {
             EXIT_SUCCESS);
 }
 
-TEST(InstantiateSubcommand, LinkedModules) {
+TEST(DriverToolTest, InstantiateLinkedModules) {
   std::string ProvPath = providerPath();
   std::string ConsPath = consumerPath();
   std::string ModArg = "provider:" + ProvPath;
@@ -1041,17 +1159,13 @@ TEST(InstantiateSubcommand, LinkedModules) {
   EXPECT_NE(callInstantiate({ConsPath.c_str()}), EXIT_SUCCESS);
 }
 
-TEST(InstantiateSubcommand, ForbiddenPluginFlag) {
+TEST(DriverToolTest, InstantiateForbiddenPluginFlag) {
   EXPECT_EQ(callInstantiate(
                 {"--forbidden-plugin", "someplugin", simplePath().c_str()}),
             EXIT_SUCCESS);
 }
 
-// ---------------------------------------------------------------------------
-// RunSubcommand tests
-// ---------------------------------------------------------------------------
-
-TEST(RunSubcommand, ErrorHandling) {
+TEST(DriverToolTest, RunErrorHandling) {
   EXPECT_NE(callRun({}), EXIT_SUCCESS);
   EXPECT_NE(callRun({""}), EXIT_SUCCESS);
   EXPECT_NE(callRun({nonExistPath().c_str()}), EXIT_SUCCESS);
@@ -1069,7 +1183,7 @@ TEST(RunSubcommand, ErrorHandling) {
   EXPECT_NE(callRun({"--no-such-flag", simplePath().c_str()}), EXIT_SUCCESS);
 }
 
-TEST(RunSubcommand, ReactorMode) {
+TEST(DriverToolTest, RunReactorMode) {
   EXPECT_EQ(callRun({"--reactor", simplePath().c_str(), "add", "3", "5"}),
             EXIT_SUCCESS);
   EXPECT_EQ(callRun({"--reactor", simplePath().c_str(), "sub", "10", "4"}),
@@ -1079,7 +1193,7 @@ TEST(RunSubcommand, ReactorMode) {
   EXPECT_NE(callRun({"--reactor", simplePath().c_str()}), EXIT_SUCCESS);
 }
 
-TEST(RunSubcommand, ProposalFlags) {
+TEST(DriverToolTest, RunProposalFlags) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
 
@@ -1091,7 +1205,7 @@ TEST(RunSubcommand, ProposalFlags) {
             EXIT_SUCCESS);
 }
 
-TEST(RunSubcommand, RunSpecificFlags) {
+TEST(DriverToolTest, RunSpecificFlags) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
 
@@ -1140,7 +1254,7 @@ TEST(RunSubcommand, RunSpecificFlags) {
             EXIT_SUCCESS);
 }
 
-TEST(RunSubcommand, LimitFlagRanges) {
+TEST(DriverToolTest, RunLimitFlagRanges) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
 
@@ -1162,7 +1276,7 @@ TEST(RunSubcommand, LimitFlagRanges) {
       EXIT_SUCCESS);
 }
 
-TEST(RunSubcommand, ArgumentRanges) {
+TEST(DriverToolTest, RunArgumentRanges) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
 
@@ -1192,7 +1306,7 @@ TEST(RunSubcommand, ArgumentRanges) {
   EXPECT_NE(callRun({"--reactor", NumPath, "addf", "1e39", "1"}), EXIT_SUCCESS);
 }
 
-TEST(RunSubcommand, LinkedModules) {
+TEST(DriverToolTest, RunLinkedModules) {
   std::string ProvPath = providerPath();
   std::string ConsPath = consumerPath();
   std::string ModArg = "provider:" + ProvPath;
@@ -1208,7 +1322,7 @@ TEST(RunSubcommand, LinkedModules) {
             EXIT_FAILURE);
 }
 
-TEST(RunSubcommand, CoredumpRequiresInterpreter) {
+TEST(DriverToolTest, RunCoredumpRequiresInterpreter) {
   std::string PathStr = trapPath();
   const char *Path = PathStr.c_str();
 
@@ -1243,7 +1357,7 @@ TEST(RunSubcommand, CoredumpRequiresInterpreter) {
             1U);
 }
 
-TEST(RunSubcommand, GlobalFlags) {
+TEST(DriverToolTest, RunGlobalFlags) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
 
@@ -1258,7 +1372,7 @@ TEST(RunSubcommand, GlobalFlags) {
             EXIT_SUCCESS);
 }
 
-TEST(NoSubcommand, FallbackToRun) {
+TEST(DriverToolTest, NoSubcommandFallbackToRun) {
   EXPECT_EQ(
       callUniToolAll({"--reactor", simplePath().c_str(), "add", "3", "5"}),
       EXIT_SUCCESS);
@@ -1268,7 +1382,7 @@ TEST(NoSubcommand, FallbackToRun) {
             EXIT_SUCCESS);
 }
 
-TEST(NoSubcommand, GlobalFlagsBeforeSubcommand) {
+TEST(DriverToolTest, NoSubcommandGlobalFlagsBeforeSubcommand) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
   std::string OutPath = TestDataPath + "/log_level.wasm";
@@ -1295,7 +1409,7 @@ TEST(NoSubcommand, GlobalFlagsBeforeSubcommand) {
   spdlog::set_level(spdlog::level::info);
 }
 
-TEST(NoSubcommand, InvalidLogLevel) {
+TEST(DriverToolTest, NoSubcommandInvalidLogLevel) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
 

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+#include "po/option.h"
 #include "po/argument_parser.h"
 #include "po/list.h"
-#include "po/option.h"
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
@@ -29,9 +29,9 @@ struct Param {
   Param(bool R, std::vector<const char *> Args) : R(R), Args(std::move(Args)) {}
 };
 
-class GeneralOptions : public ::testing::TestWithParam<Param> {
+class OptionTest : public ::testing::TestWithParam<Param> {
 public:
-  GeneralOptions()
+  OptionTest()
       : A(Description("a option"sv)),
         B(Description("b option"sv), DefaultValue<int>(-1)),
         C(Description("c option"sv), DefaultValue<int>(0), ZeroOrMore()),
@@ -51,7 +51,7 @@ public:
   ArgumentParser Parser;
 };
 
-TEST(UnsignedOptions, RejectNegative) {
+TEST(OptionTest, RejectNegative) {
   Option<uint64_t> N(Description("n option"sv), DefaultValue<uint64_t>(0));
   ArgumentParser Parser;
   Parser.add_option("n"sv, N);
@@ -64,7 +64,7 @@ TEST(UnsignedOptions, RejectNegative) {
       Parser.parse(stdout, static_cast<int>(Negative.size()), Negative.data()));
 }
 
-TEST(RequiredOptions, RejectMissingValue) {
+TEST(OptionTest, RejectMissingValue) {
   Option<std::string> N(Description("n option"sv));
   Option<Toggle> A(Description("a option"sv));
   ArgumentParser Parser;
@@ -89,7 +89,7 @@ TEST(RequiredOptions, RejectMissingValue) {
   EXPECT_TRUE(A.value());
 }
 
-TEST_P(GeneralOptions, Test) {
+TEST_P(OptionTest, GeneralOptions) {
   auto P = GetParam();
   EXPECT_EQ(P.R, Parser.parse(stdout, static_cast<int>(P.Args.size()),
                               P.Args.data()));
@@ -111,7 +111,7 @@ TEST_P(GeneralOptions, Test) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    InstantiationName, GeneralOptions,
+    InstantiationName, OptionTest,
     testing::Values(
         Param(true, false, 0, {}, {}, {"test", "--"}),
         Param(true, false, 0, {}, {"-a"}, {"test", "--", "-a"}),
@@ -141,7 +141,7 @@ INSTANTIATE_TEST_SUITE_P(
         Param(false, {"test", "-c", "42xyz"}),
         Param(false, {"test", "--b=99999999999999999999"}),
         Param(false, {"test", "--b="})),
-    [](const testing::TestParamInfo<GeneralOptions::ParamType> &Info) {
+    [](const testing::TestParamInfo<OptionTest::ParamType> &Info) {
       std::string Name;
       for (const auto &Arg : Info.param.Args) {
         Name += Arg;

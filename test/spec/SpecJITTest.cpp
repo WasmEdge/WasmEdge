@@ -10,7 +10,6 @@
 /// \file
 /// This file contains tests of Wasm test suites extracted by wast2json.
 /// Test Suites: https://github.com/WebAssembly/spec/tree/master/test/core
-/// wast2json: https://webassembly.github.io/wabt/doc/wast2json.1.html
 ///
 //===----------------------------------------------------------------------===//
 
@@ -51,10 +50,9 @@ using namespace WasmEdge;
 static SpecTest T(u8path("testSuites"sv));
 
 // Parameterized testing class.
-class JITCoreTest : public testing::TestWithParam<std::string> {};
-class LazyJITCoreTest : public testing::TestWithParam<std::string> {};
+class SpecJITTest : public testing::TestWithParam<std::string> {};
 
-TEST_P(JITCoreTest, TestSuites) {
+TEST_P(SpecJITTest, JIT) {
   auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
   Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::JIT);
   Conf.getCompilerConfigure().setOptimizationLevel(
@@ -181,7 +179,7 @@ TEST_P(JITCoreTest, TestSuites) {
   T.run(Proposal, UnitName);
 }
 
-TEST_P(LazyJITCoreTest, TestSuites) {
+TEST_P(SpecJITTest, LazyJIT) {
   const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
   const auto &ConfRef = Conf;
 
@@ -310,10 +308,7 @@ TEST_P(LazyJITCoreTest, TestSuites) {
 
 // Initiate test suite.
 INSTANTIATE_TEST_SUITE_P(
-    TestUnit, JITCoreTest,
-    testing::ValuesIn(T.enumerate(SpecTest::TestMode::JIT)));
-INSTANTIATE_TEST_SUITE_P(
-    TestUnit, LazyJITCoreTest,
+    TestUnit, SpecJITTest,
     testing::ValuesIn(T.enumerate(SpecTest::TestMode::JIT)));
 
 } // namespace

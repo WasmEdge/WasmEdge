@@ -2,6 +2,6 @@
 #include <experimental/expected.hpp>
 #include <gtest/gtest.h>
 
-TEST(RelationOperatorsTest, RelationOperators) {
+TEST(ExpectedRelopsTest, RelationOperators) {
   // TODO
 }

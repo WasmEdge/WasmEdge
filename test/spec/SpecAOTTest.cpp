@@ -10,7 +10,6 @@
 /// \file
 /// This file contains tests of Wasm test suites extracted by wast2json.
 /// Test Suites: https://github.com/WebAssembly/spec/tree/master/test/core
-/// wast2json: https://webassembly.github.io/wabt/doc/wast2json.1.html
 ///
 //===----------------------------------------------------------------------===//
 
@@ -51,14 +50,12 @@ using namespace WasmEdge;
 static SpecTest T(u8path("testSuites"sv));
 
 // Parameterized testing class.
-class NativeCoreTest : public testing::TestWithParam<std::string> {};
-class CustomWasmCoreTest : public testing::TestWithParam<std::string> {};
+class SpecAOTTest : public testing::TestWithParam<std::string> {};
 
-TEST_P(NativeCoreTest, TestSuites) {
+TEST_P(SpecAOTTest, Native) {
   auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
-  // Native AOT spec test: explicitly opt into RunMode::AOT so the runtime
-  // load step uses the produced .so as AOT, instead of falling back to
-  // interpreter under the new default mode.
+  // Opt into RunMode::AOT so the produced shared library is loaded as AOT
+  // instead of falling back to the interpreter.
   Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
   const auto &ConfRef = Conf;
 
@@ -230,11 +227,10 @@ TEST_P(NativeCoreTest, TestSuites) {
   T.run(Proposal, UnitName);
 }
 
-TEST_P(CustomWasmCoreTest, TestSuites) {
+TEST_P(SpecAOTTest, CustomWasm) {
   auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
-  // Universal-WASM AOT spec test: produced files are .aot.wasm (universal
-  // WASM with an AOT custom section). Opt into RunMode::AOT so the
-  // runtime load step actually loads the AOT section.
+  // Opt into RunMode::AOT so the AOT section of the produced universal wasm
+  // (.aot.wasm) is loaded.
   Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
   const auto &ConfRef = Conf;
 
@@ -406,10 +402,7 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
 
 // Initiate test suite.
 INSTANTIATE_TEST_SUITE_P(
-    TestUnit, NativeCoreTest,
-    testing::ValuesIn(T.enumerate(SpecTest::TestMode::AOT)));
-INSTANTIATE_TEST_SUITE_P(
-    TestUnit, CustomWasmCoreTest,
+    TestUnit, SpecAOTTest,
     testing::ValuesIn(T.enumerate(SpecTest::TestMode::AOT)));
 
 } // namespace

@@ -5,13 +5,13 @@
 
 #include "gtest/gtest.h"
 
+#include <array>
 #include <string>
 
 namespace {
 
-// wasm.h's WASM_*_VAL macros use C99-style designated initializers, which
-// MSVC rejects under /std:c++17. Inline helpers do the same construction
-// in plain field assignment.
+// wasm.h's WASM_*_VAL macros use designated initializers, which MSVC rejects
+// under /std:c++17.
 [[maybe_unused]] inline wasm_val_t initVal() {
   wasm_val_t v{};
   v.kind = WASM_EXTERNREF;
@@ -169,7 +169,7 @@ extern void recordingFinalizer(void *env);
     WASM_DECLARE_OWN_TEST(shared_##name, sh_##name)                            \
   }
 
-TEST(APIWasmCTest, Byte) {
+TEST(APIWasmCUnitTest, Byte) {
   wasm_byte_t bytes[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
   wasm_byte_vec_t out, copy;
   WASM_DECLARE_VEC_TEST(byte, 10, bytes, out, copy)
@@ -177,7 +177,7 @@ TEST(APIWasmCTest, Byte) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, Store) {
+TEST(APIWasmCUnitTest, Store) {
   wasm_config_t *conf = wasm_config_new();
   WASM_DECLARE_OWN_TEST(config, conf)
   conf = wasm_config_new();
@@ -192,7 +192,7 @@ TEST(APIWasmCTest, Store) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, ValType) {
+TEST(APIWasmCUnitTest, ValType) {
   wasm_valtype_t *valtypes[6] = {
       wasm_valtype_new(WASM_I32),       wasm_valtype_new(WASM_I64),
       wasm_valtype_new(WASM_F32),       wasm_valtype_new(WASM_F64),
@@ -217,7 +217,7 @@ TEST(APIWasmCTest, ValType) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, FuncType) {
+TEST(APIWasmCUnitTest, FuncType) {
   wasm_valtype_vec_t vt[8];
   wasm_valtype_t *valtypes[4] = {
       wasm_valtype_new(WASM_I32), wasm_valtype_new(WASM_I64),
@@ -260,7 +260,7 @@ TEST(APIWasmCTest, FuncType) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, GlobalType) {
+TEST(APIWasmCUnitTest, GlobalType) {
   wasm_valtype_t *valtypes[6] = {
       wasm_valtype_new(WASM_I32),       wasm_valtype_new(WASM_I64),
       wasm_valtype_new(WASM_F32),       wasm_valtype_new(WASM_F64),
@@ -296,7 +296,7 @@ TEST(APIWasmCTest, GlobalType) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, TableType) {
+TEST(APIWasmCUnitTest, TableType) {
   wasm_valtype_t *valtypes[3] = {wasm_valtype_new(WASM_EXTERNREF),
                                  wasm_valtype_new(WASM_FUNCREF),
                                  wasm_valtype_new(WASM_FUNCREF)};
@@ -328,7 +328,7 @@ TEST(APIWasmCTest, TableType) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, MemoryType) {
+TEST(APIWasmCUnitTest, MemoryType) {
   wasm_limits_t limits = {10, 20};
   wasm_memorytype_t *memorytypes[3] = {wasm_memorytype_new(&limits),
                                        wasm_memorytype_new(&limits),
@@ -347,7 +347,7 @@ TEST(APIWasmCTest, MemoryType) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, TagType) {
+TEST(APIWasmCUnitTest, TagType) {
   auto makeTagFunctype = [](wasm_valkind_t kind) {
     wasm_valtype_t *vs[1] = {wasm_valtype_new(kind)};
     wasm_valtype_vec_t params, results;
@@ -384,7 +384,7 @@ TEST(APIWasmCTest, TagType) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, ExternType) {
+TEST(APIWasmCUnitTest, ExternType) {
   // Create functype
   wasm_valtype_vec_t params, results;
   wasm_valtype_t *valtypes[4] = {
@@ -487,7 +487,7 @@ TEST(APIWasmCTest, ExternType) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, ImportType) {
+TEST(APIWasmCUnitTest, ImportType) {
   // Create globaltype
   wasm_globaltype_t *globaltypes[3] = {
       wasm_globaltype_new(wasm_valtype_new(WASM_I32), WASM_CONST),
@@ -556,7 +556,7 @@ TEST(APIWasmCTest, ImportType) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, ExportType) {
+TEST(APIWasmCUnitTest, ExportType) {
   // Create globaltype
   wasm_globaltype_t *globaltypes[3] = {
       wasm_globaltype_new(wasm_valtype_new(WASM_I32), WASM_CONST),
@@ -609,9 +609,9 @@ TEST(APIWasmCTest, ExportType) {
   EXPECT_TRUE(true);
 }
 
-// Minimal valid WebAssembly module binary: (module) with no contents.
-const wasm_byte_t MinimalModuleBin[8] = {0x00, 0x61, 0x73, 0x6d,
-                                         0x01, 0x00, 0x00, 0x00};
+// (module)
+const std::array<wasm_byte_t, 8> MinimalModuleBin{0x00, 0x61, 0x73, 0x6d,
+                                                  0x01, 0x00, 0x00, 0x00};
 
 // A trivial host function callback used by Func / Extern tests.
 wasm_trap_t *trivialCallback(const wasm_val_vec_t *, wasm_val_vec_t *) {
@@ -626,7 +626,7 @@ void recordingFinalizer(void *env) {
   }
 }
 
-TEST(APIWasmCTest, Frame) {
+TEST(APIWasmCUnitTest, Frame) {
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);
 
@@ -678,7 +678,7 @@ TEST(APIWasmCTest, Frame) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, Trap) {
+TEST(APIWasmCUnitTest, Trap) {
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);
 
@@ -739,7 +739,7 @@ TEST(APIWasmCTest, Trap) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, Foreign) {
+TEST(APIWasmCUnitTest, Foreign) {
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);
 
@@ -761,12 +761,12 @@ TEST(APIWasmCTest, Foreign) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, Module) {
+TEST(APIWasmCUnitTest, Module) {
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);
 
   wasm_byte_vec_t bin;
-  wasm_byte_vec_new(&bin, sizeof(MinimalModuleBin), MinimalModuleBin);
+  wasm_byte_vec_new(&bin, MinimalModuleBin.size(), MinimalModuleBin.data());
 
   // wasm_module_validate null guards + happy path.
   EXPECT_FALSE(wasm_module_validate(nullptr, &bin));
@@ -832,7 +832,7 @@ TEST(APIWasmCTest, Module) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, Func) {
+TEST(APIWasmCUnitTest, Func) {
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);
 
@@ -921,7 +921,7 @@ TEST(APIWasmCTest, Func) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, Global) {
+TEST(APIWasmCUnitTest, Global) {
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);
 
@@ -984,7 +984,7 @@ TEST(APIWasmCTest, Global) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, Table) {
+TEST(APIWasmCUnitTest, Table) {
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);
 
@@ -1049,7 +1049,7 @@ TEST(APIWasmCTest, Table) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, Memory) {
+TEST(APIWasmCUnitTest, Memory) {
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);
 
@@ -1105,12 +1105,12 @@ TEST(APIWasmCTest, Memory) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, Instance) {
+TEST(APIWasmCUnitTest, Instance) {
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);
 
   wasm_byte_vec_t bin;
-  wasm_byte_vec_new(&bin, sizeof(MinimalModuleBin), MinimalModuleBin);
+  wasm_byte_vec_new(&bin, MinimalModuleBin.size(), MinimalModuleBin.data());
   wasm_module_t *module = wasm_module_new(store, &bin);
   wasm_byte_vec_delete(&bin);
   ASSERT_NE(nullptr, module);
@@ -1156,7 +1156,7 @@ TEST(APIWasmCTest, Instance) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, Extern) {
+TEST(APIWasmCUnitTest, Extern) {
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);
 
@@ -1244,9 +1244,8 @@ TEST(APIWasmCTest, Extern) {
   WASM_DECLARE_REF_TEST(extern, ef, ef_fin)
   EXPECT_EQ(nullptr, wasm_extern_type(nullptr));
 
-  // Vec ops over a mixed wasm_extern_t * array. WASM_DECLARE_VEC_TEST takes
-  // ownership of vals[i], so reborrow each X via wasm_X_copy first to avoid
-  // double-frees against the original f/g/t/m.
+  // WASM_DECLARE_VEC_TEST takes ownership of vals[i], so pass copies to avoid
+  // double-freeing f/g/t/m.
   wasm_extern_t *exts[4] = {wasm_func_as_extern(wasm_func_copy(f)),
                             wasm_global_as_extern(wasm_global_copy(g)),
                             wasm_table_as_extern(wasm_table_copy(t)),
@@ -1265,7 +1264,7 @@ TEST(APIWasmCTest, Extern) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, Ref) {
+TEST(APIWasmCUnitTest, Ref) {
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);
 
@@ -1290,13 +1289,13 @@ TEST(APIWasmCTest, Ref) {
   EXPECT_TRUE(true);
 }
 
-TEST(APIWasmCTest, UnsupportedType) {
+TEST(APIWasmCUnitTest, UnsupportedType) {
   // (module
   //   (func (export "f") (result v128) (v128.const i64x2 0 0))
   //   (global (export "g") (mut v128) (v128.const i64x2 0 0))
   //   (table (export "t") 1 anyref)
   //   (func (export "ok") (result i32) (i32.const 1)))
-  const uint8_t wasm[] = {
+  const std::array<uint8_t, 103> wasm{
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02, 0x60,
       0x00, 0x01, 0x7b, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x03, 0x02, 0x00, 0x01,
       0x04, 0x04, 0x01, 0x6e, 0x00, 0x01, 0x06, 0x16, 0x01, 0x7b, 0x01, 0xfd,
@@ -1331,8 +1330,8 @@ TEST(APIWasmCTest, UnsupportedType) {
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);
   wasm_byte_vec_t bin;
-  wasm_byte_vec_new(&bin, sizeof(wasm),
-                    reinterpret_cast<const wasm_byte_t *>(wasm));
+  wasm_byte_vec_new(&bin, wasm.size(),
+                    reinterpret_cast<const wasm_byte_t *>(wasm.data()));
   wasm_module_t *module = wasm_module_new(store, &bin);
   wasm_byte_vec_delete(&bin);
   ASSERT_NE(nullptr, module);
@@ -1398,7 +1397,7 @@ TEST(APIWasmCTest, UnsupportedType) {
   wasm_engine_delete(engine);
 }
 
-TEST(APIWasmCTest, Val) {
+TEST(APIWasmCUnitTest, Val) {
   wasm_val_t vals[4] = {
       i32Val(42),
       i64Val(123456789LL),

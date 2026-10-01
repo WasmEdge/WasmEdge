@@ -22,13 +22,23 @@
 
 namespace {
 
+// (module
+//   (type (;0;) (func))
+//   (memory (;0;) 1)
+//   (export "_start" (func 0))
+//   (func (;0;) (type 0)
+//     loop ;; label = @1
+//       br 0 (;@1;)
+//     end
+//   )
+// )
 std::array<uint8_t, 46> AsyncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
     0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07,
     0x0a, 0x01, 0x06, 0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x00, 0x0a,
     0x09, 0x01, 0x07, 0x00, 0x03, 0x40, 0x0c, 0x00, 0x0b, 0x0b};
 
-TEST(AsyncRunWsmFile, InterruptTest) {
+TEST(APIInterruptTest, VMAsyncRunWasmFromBuffer) {
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(nullptr, nullptr);
   {
     WasmEdge_Async *AsyncCxt = WasmEdge_VMAsyncRunWasmFromBuffer(
@@ -45,7 +55,7 @@ TEST(AsyncRunWsmFile, InterruptTest) {
   WasmEdge_VMDelete(VM);
 }
 
-TEST(AsyncExecute, InterruptTest) {
+TEST(APIInterruptTest, VMAsyncExecute) {
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(nullptr, nullptr);
   ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBuffer(
       VM, AsyncWasm.data(), static_cast<uint32_t>(AsyncWasm.size()))));
@@ -65,7 +75,7 @@ TEST(AsyncExecute, InterruptTest) {
   WasmEdge_VMDelete(VM);
 }
 
-TEST(AsyncInvoke, InterruptTest) {
+TEST(APIInterruptTest, ExecutorAsyncInvoke) {
   WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(nullptr);
   WasmEdge_ValidatorContext *Validator = WasmEdge_ValidatorCreate(nullptr);
   WasmEdge_ExecutorContext *Executor =

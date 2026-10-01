@@ -15,16 +15,6 @@ TEST(SerializeSegmentTest, SerializeTableSegment) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  // 1. Test serialize table segment.
-  //
-  //   1.  Serialize plain table type (MVP form) with min-max limit.
-  //   2.  Serialize plain table type (MVP form) with min-only limit and a
-  //       different reference type.
-  //   3.  Serialize table segment with init expression (the 0x40 0x00 form)
-  //       using an expression of only the End operation.
-  //   4.  Serialize table segment with init expression carrying a non-empty
-  //       ref.func initializer.
-
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
   WasmEdge::AST::Instruction RefFunc(WasmEdge::OpCode::Ref__func);
 
@@ -68,9 +58,8 @@ TEST(SerializeSegmentTest, SerializeTableSegment) {
     EXPECT_EQ(Output, Expected);
   }
 
-  // 3. Table segment with init expression. A
-  //    non-empty expression triggers the 0x40 0x00 prefix followed by the table
-  //    type and the expression.
+  // Table segment with init expression: a non-empty expression emits the
+  // 0x40 0x00 prefix, then the table type and the expression.
   {
     WasmEdge::AST::TableSection TableSec;
     WasmEdge::AST::TableSegment TableSeg;
@@ -122,11 +111,6 @@ TEST(SerializeSegmentTest, SerializeGlobalSegment) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  // 2. Test serialize global segment.
-  //
-  //   1.  Serialize global segment with expression of only End operation.
-  //   2.  Serialize global segment with non-empty expression.
-
   WasmEdge::AST::GlobalSection GlobalSec;
   WasmEdge::AST::GlobalSegment GlobalSeg;
 
@@ -172,28 +156,6 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
-
-  // 3. Test serialize element segment.
-  //
-  //   1.  Serialize element segment with expression of only End operation and
-  //       empty function indices list.
-  //   2.  Serialize element segment with expression and function indices list.
-  //   3.  Serialize element segment with element kind and function indices
-  //       list.
-  //   4.  Serialize passive and declarative element segments with a non-zero
-  //       table index.
-  //   5.  Serialize element segment with expression, element kind and function
-  //       indices list.
-  //   6.  Serialize element segment with element kind and function indices
-  //       list.
-  //   7.  Serialize element segment with offset expression and init expression
-  //       list.
-  //   8.  Serialize element segment with reference type and init expression
-  //       list.
-  //   9.  Serialize element segment with table index, offset expression,
-  //       reference type and init expression list.
-  //   10.  Serialize element segment with reference type and init expression
-  //       list.
 
   WasmEdge::AST::ElementSection ElementSec;
   WasmEdge::AST::ElementSegment ElementSeg;
@@ -614,12 +576,6 @@ TEST(SerializeSegmentTest, SerializeCodeSegment) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  // 5. Test serialize code segment.
-  //
-  //   1.  Serialize code segment of empty locals and expression with only End
-  //       operation.
-  //   2.  Serialize code segment with expression and local lists.
-
   WasmEdge::AST::CodeSection CodeSec;
   WasmEdge::AST::CodeSegment CodeSeg;
 
@@ -676,12 +632,6 @@ TEST(SerializeSegmentTest, SerializeDataSegment) {
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
-
-  // 6. Test serialize data segment.
-  //
-  //   1.  Serialize data segment of expression with only End operation and
-  //       empty initialization data.
-  //   2.  Serialize data segment with expression and initialization data.
 
   WasmEdge::AST::DataSection DataSec;
   WasmEdge::AST::DataSegment DataSeg;

@@ -8,9 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// Tests for RefLifetime: the packed owner-flag + dependent-count state machine
-/// and the concurrent owner/last-dependent release that must delete exactly
-/// once.
+/// Tests for RefLifetime: the owner-flag + dependent-count state machine and
+/// concurrent releases that must delete exactly once.
 ///
 //===----------------------------------------------------------------------===//
 

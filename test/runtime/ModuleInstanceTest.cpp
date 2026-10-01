@@ -8,9 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// Tests for ModuleInstance teardown: the subclass destructor must run before
-/// the HostDataFinalizer on both the direct and cascade paths, and a deep
-/// dependency chain must tear down iteratively without overflowing the stack.
+/// Tests for ModuleInstance teardown order (subclass dtor before finalizer)
+/// and iterative teardown of deep dependency chains.
 ///
 //===----------------------------------------------------------------------===//
 

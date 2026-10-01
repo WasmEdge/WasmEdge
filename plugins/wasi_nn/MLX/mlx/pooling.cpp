@@ -70,8 +70,8 @@ mx::array slidingWindows(const mx::array &X,
   if (X.ndim() < 3) {
     spdlog::error(
         "To extract sliding windows at least 1 spatial dimension (3 total) is "
-        "needed but the input only has " +
-        std::to_string(X.ndim()) + " dimensions.");
+        "needed but the input only has {} dimensions."sv,
+        X.ndim());
     assumingUnreachable();
   }
   std::vector<int> Shape = X.shape();

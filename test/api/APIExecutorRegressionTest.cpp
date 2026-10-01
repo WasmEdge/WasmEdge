@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-#include "common/filesystem.h"
-#include "experimental/span.hpp"
 #include "wasmedge/wasmedge.h"
 
 #include <array>
 #include <cstdint>
 #include <fmt/format.h>
-#include <fstream>
 #include <gtest/gtest.h>
 #include <iostream>
 #include <map>
@@ -18,13 +15,6 @@
 #include <vector>
 
 namespace {
-
-void HexToFile(cxx20::span<const uint8_t> Wasm, const char *Path) {
-  std::ofstream TFile(WasmEdge::u8path(Path), std::ios_base::binary);
-  TFile.write(reinterpret_cast<const char *>(Wasm.data()),
-              static_cast<std::streamsize>(Wasm.size()));
-  TFile.close();
-}
 
 // The following are the functions and class definitions passed as references.
 
@@ -309,7 +299,7 @@ WasmEdge_ModuleInstanceContext *createExternModule() {
   return HostMod;
 }
 
-TEST(ExternrefTest, ExternRef) {
+TEST(APIExecutorRegressionTest, ExternRef) {
   // Test externref arguments.
   //
   //   1.  Host functions and class objects.
@@ -395,10 +385,8 @@ TEST(ExternrefTest, ExternRef) {
 
     EXPECT_TRUE(
         WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VMCxt, HostMod)));
-    char FuncsPath[] = "externrefTestData/funcs.wasm";
-    HexToFile(Wasm, FuncsPath);
-    EXPECT_TRUE(
-        WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromFile(VMCxt, FuncsPath)));
+    EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBuffer(
+        VMCxt, Wasm.data(), static_cast<uint32_t>(Wasm.size()))));
     EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VMCxt)));
     EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VMCxt)));
 
@@ -457,8 +445,79 @@ TEST(ExternrefTest, ExternRef) {
 
   // STL streams and containers.
   {
-    // A module importing the extern_module STL host functions and exporting a
-    // call_* wrapper for each of them.
+    // (module
+    //   (type (;0;) (func (param externref externref)))
+    //   (type (;1;) (func (param externref i32)))
+    //   (type (;2;) (func (param externref externref externref)))
+    //   (type (;3;) (func (param externref externref) (result i32)))
+    //   (import "extern_module" "stl_ostream_str"
+    //     (func $stl_ostream_str (;0;) (type 0)))
+    //   (import "extern_module" "stl_ostream_u32"
+    //     (func $stl_ostream_u32 (;1;) (type 1)))
+    //   (import "extern_module" "stl_map_insert"
+    //     (func $stl_map_insert (;2;) (type 2)))
+    //   (import "extern_module" "stl_map_erase"
+    //     (func $stl_map_erase (;3;) (type 0)))
+    //   (import "extern_module" "stl_set_insert"
+    //     (func $stl_set_insert (;4;) (type 1)))
+    //   (import "extern_module" "stl_set_erase"
+    //     (func $stl_set_erase (;5;) (type 1)))
+    //   (import "extern_module" "stl_vector_push"
+    //     (func $stl_vector_push (;6;) (type 1)))
+    //   (import "extern_module" "stl_vector_sum"
+    //     (func $stl_vector_sum (;7;) (type 3)))
+    //   (memory (;0;) 1)
+    //   (export "memory" (memory 0))
+    //   (export "call_ostream_str" (func 8))
+    //   (export "call_ostream_u32" (func 9))
+    //   (export "call_map_insert" (func 10))
+    //   (export "call_map_erase" (func 11))
+    //   (export "call_set_insert" (func 12))
+    //   (export "call_set_erase" (func 13))
+    //   (export "call_vector_push" (func 14))
+    //   (export "call_vector_sum" (func 15))
+    //   (func (;8;) (type 0) (param externref externref)
+    //     local.get 0
+    //     local.get 1
+    //     call $stl_ostream_str
+    //   )
+    //   (func (;9;) (type 1) (param externref i32)
+    //     local.get 0
+    //     local.get 1
+    //     call $stl_ostream_u32
+    //   )
+    //   (func (;10;) (type 2) (param externref externref externref)
+    //     local.get 0
+    //     local.get 1
+    //     local.get 2
+    //     call $stl_map_insert
+    //   )
+    //   (func (;11;) (type 0) (param externref externref)
+    //     local.get 0
+    //     local.get 1
+    //     call $stl_map_erase
+    //   )
+    //   (func (;12;) (type 1) (param externref i32)
+    //     local.get 0
+    //     local.get 1
+    //     call $stl_set_insert
+    //   )
+    //   (func (;13;) (type 1) (param externref i32)
+    //     local.get 0
+    //     local.get 1
+    //     call $stl_set_erase
+    //   )
+    //   (func (;14;) (type 1) (param externref i32)
+    //     local.get 0
+    //     local.get 1
+    //     call $stl_vector_push
+    //   )
+    //   (func (;15;) (type 3) (param externref externref) (result i32)
+    //     local.get 0
+    //     local.get 1
+    //     call $stl_vector_sum
+    //   )
+    // )
     std::array<uint8_t, 781> Wasm{
         0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x17, 0x04, 0x60,
         0x02, 0x6f, 0x6f, 0x00, 0x60, 0x02, 0x6f, 0x7f, 0x00, 0x60, 0x03, 0x6f,
@@ -534,9 +593,8 @@ TEST(ExternrefTest, ExternRef) {
 
     EXPECT_TRUE(
         WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VMCxt, HostMod)));
-    char STLPath[] = "externrefTestData/stl.wasm";
-    HexToFile(Wasm, STLPath);
-    EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromFile(VMCxt, STLPath)));
+    EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBuffer(
+        VMCxt, Wasm.data(), static_cast<uint32_t>(Wasm.size()))));
     EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VMCxt)));
     EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VMCxt)));
 
@@ -637,7 +695,7 @@ TEST(ExternrefTest, ExternRef) {
   }
 }
 
-TEST(ExternrefTest, ExternConvertAnyWithBrOnCast) {
+TEST(APIExecutorRegressionTest, ExternConvertAnyWithBrOnCast) {
   // (module
   //   (type $0 (;0;) (func (result f32 externref)))
   //   (export "main" (func $0))
@@ -668,11 +726,8 @@ TEST(ExternrefTest, ExternConvertAnyWithBrOnCast) {
   WasmEdge_Value R[2];
   WasmEdge_String FuncName;
 
-  char ExternConvertPath[] = "externrefTestData/externconvert.wasm";
-  HexToFile(Wasm, ExternConvertPath);
-
-  EXPECT_TRUE(
-      WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromFile(VMCxt, ExternConvertPath)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBuffer(
+      VMCxt, Wasm.data(), static_cast<uint32_t>(Wasm.size()))));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VMCxt)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VMCxt)));
 

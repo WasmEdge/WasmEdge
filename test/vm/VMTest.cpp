@@ -54,21 +54,6 @@ const std::array<WasmEdge::Byte, 34> ConstFuncWasm{
 const std::array<WasmEdge::Byte, 8> EmptyComponentWasm{0x00, 0x61, 0x73, 0x6d,
                                                        0x0d, 0x00, 0x01, 0x00};
 
-// Load, validate, and instantiate the constant function module.
-void instantiateFixture(VM::VM &TestVM) {
-  ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
-  ASSERT_TRUE(TestVM.validate());
-  ASSERT_TRUE(TestVM.instantiate());
-}
-
-// Execute "f" and expect the constant result.
-void expectConstResult(VM::VM &TestVM, uint32_t Expected) {
-  auto Res = TestVM.execute("f");
-  ASSERT_TRUE(Res);
-  ASSERT_EQ(Res->size(), 1U);
-  EXPECT_EQ((*Res)[0].first.get<uint32_t>(), Expected);
-}
-
 TEST(VMTest, WorkflowOrder) {
   // Test the workflow order.
   //
@@ -116,9 +101,14 @@ TEST(VMTest, WorkflowOrder) {
     Configure Conf;
     VM::VM TestVM(Conf);
     EXPECT_FALSE(TestVM.holdsModule());
-    instantiateFixture(TestVM);
+    ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+    ASSERT_TRUE(TestVM.validate());
+    ASSERT_TRUE(TestVM.instantiate());
     EXPECT_TRUE(TestVM.holdsModule());
-    expectConstResult(TestVM, 7U);
+    auto Res = TestVM.execute("f");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1U);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
 
     auto FnList = TestVM.getFunctionList();
     ASSERT_EQ(FnList.size(), 1U);
@@ -129,10 +119,15 @@ TEST(VMTest, WorkflowOrder) {
   {
     Configure Conf;
     VM::VM TestVM(Conf);
-    instantiateFixture(TestVM);
+    ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+    ASSERT_TRUE(TestVM.validate());
+    ASSERT_TRUE(TestVM.instantiate());
     ASSERT_TRUE(TestVM.registerModule("ext", ConstFuncWasm));
     ASSERT_TRUE(TestVM.instantiate());
-    expectConstResult(TestVM, 7U);
+    auto Res = TestVM.execute("f");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1U);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
   }
 }
 
@@ -175,7 +170,10 @@ TEST(VMTest, LoadReplacesPreviousUnit) {
     EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
     ASSERT_TRUE(TestVM.validate());
     ASSERT_TRUE(TestVM.instantiate());
-    expectConstResult(TestVM, 7U);
+    auto ExecRes = TestVM.execute("f");
+    ASSERT_TRUE(ExecRes);
+    ASSERT_EQ(ExecRes->size(), 1U);
+    EXPECT_EQ((*ExecRes)[0].first.get<uint32_t>(), 7U);
   }
 
   // Load AST module replaces component.
@@ -192,7 +190,10 @@ TEST(VMTest, LoadReplacesPreviousUnit) {
     EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
     ASSERT_TRUE(TestVM.validate());
     ASSERT_TRUE(TestVM.instantiate());
-    expectConstResult(TestVM, 7U);
+    auto ExecRes = TestVM.execute("f");
+    ASSERT_TRUE(ExecRes);
+    ASSERT_EQ(ExecRes->size(), 1U);
+    EXPECT_EQ((*ExecRes)[0].first.get<uint32_t>(), 7U);
   }
 
   // Reload component releases instance.
@@ -220,14 +221,19 @@ TEST(VMTest, LoadReplacesPreviousUnit) {
     Configure Conf;
     Conf.addProposal(Proposal::Component);
     VM::VM TestVM(Conf);
-    instantiateFixture(TestVM);
+    ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+    ASSERT_TRUE(TestVM.validate());
+    ASSERT_TRUE(TestVM.instantiate());
     ASSERT_TRUE(TestVM.loadWasm(EmptyComponentWasm));
     ASSERT_TRUE(TestVM.validate());
-    expectConstResult(TestVM, 7U);
+    auto Res = TestVM.execute("f");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1U);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
     ASSERT_TRUE(TestVM.instantiate());
     EXPECT_TRUE(TestVM.holdsComponent());
     EXPECT_FALSE(TestVM.holdsModule());
-    auto Res = TestVM.execute("f");
+    Res = TestVM.execute("f");
     ASSERT_FALSE(Res);
     EXPECT_EQ(Res.error(), ErrCode::Value::WrongInstanceAddress);
   }
@@ -250,27 +256,46 @@ TEST(VMTest, RunWasmFile) {
     VM::VM FreshVM(Conf);
     ASSERT_TRUE(FreshVM.runWasmFile(OtherConstFuncWasm, "f"));
     EXPECT_TRUE(FreshVM.instantiate());
-    expectConstResult(FreshVM, 9U);
-
-    VM::VM TestVM(Conf);
-    instantiateFixture(TestVM);
-    auto Res = TestVM.runWasmFile(OtherConstFuncWasm, "f");
+    auto Res = FreshVM.execute("f");
     ASSERT_TRUE(Res);
     ASSERT_EQ(Res->size(), 1U);
     EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 9U);
-    expectConstResult(TestVM, 9U);
+
+    VM::VM TestVM(Conf);
+    ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+    ASSERT_TRUE(TestVM.validate());
+    ASSERT_TRUE(TestVM.instantiate());
+    Res = TestVM.runWasmFile(OtherConstFuncWasm, "f");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1U);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 9U);
+    Res = TestVM.execute("f");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1U);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 9U);
     EXPECT_TRUE(TestVM.validate());
     EXPECT_TRUE(TestVM.instantiate());
-    expectConstResult(TestVM, 9U);
+    Res = TestVM.execute("f");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1U);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 9U);
 
     VM::VM FailedVM(Conf);
-    instantiateFixture(FailedVM);
+    ASSERT_TRUE(FailedVM.loadWasm(ConstFuncWasm));
+    ASSERT_TRUE(FailedVM.validate());
+    ASSERT_TRUE(FailedVM.instantiate());
     auto FailedRes = FailedVM.runWasmFile(OtherConstFuncWasm, "no-such-func");
     ASSERT_FALSE(FailedRes);
     EXPECT_EQ(FailedRes.error(), ErrCode::Value::FuncNotFound);
-    expectConstResult(FailedVM, 9U);
+    Res = FailedVM.execute("f");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1U);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 9U);
     EXPECT_TRUE(FailedVM.instantiate());
-    expectConstResult(FailedVM, 9U);
+    Res = FailedVM.execute("f");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1U);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 9U);
   }
 
   // From AST keeps stage.
@@ -280,15 +305,23 @@ TEST(VMTest, RunWasmFile) {
     auto Module = TestVM.getLoader().parseModule(ConstFuncWasm);
     ASSERT_TRUE(Module);
     ASSERT_TRUE(TestVM.runWasmFile(**Module, "f"));
-    expectConstResult(TestVM, 7U);
+    auto ExecRes = TestVM.execute("f");
+    ASSERT_TRUE(ExecRes);
+    ASSERT_EQ(ExecRes->size(), 1U);
+    EXPECT_EQ((*ExecRes)[0].first.get<uint32_t>(), 7U);
     auto Res = TestVM.validate();
     ASSERT_FALSE(Res);
     EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
 
-    instantiateFixture(TestVM);
+    ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+    ASSERT_TRUE(TestVM.validate());
+    ASSERT_TRUE(TestVM.instantiate());
     ASSERT_TRUE(TestVM.runWasmFile(**Module, "f"));
     EXPECT_TRUE(TestVM.instantiate());
-    expectConstResult(TestVM, 7U);
+    ExecRes = TestVM.execute("f");
+    ASSERT_TRUE(ExecRes);
+    ASSERT_EQ(ExecRes->size(), 1U);
+    EXPECT_EQ((*ExecRes)[0].first.get<uint32_t>(), 7U);
   }
 
   {
@@ -301,9 +334,14 @@ TEST(VMTest, RunWasmFile) {
     Configure Conf;
     Conf.addProposal(Proposal::Component);
     VM::VM TestVM(Conf);
-    instantiateFixture(TestVM);
+    ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+    ASSERT_TRUE(TestVM.validate());
+    ASSERT_TRUE(TestVM.instantiate());
     ASSERT_FALSE(TestVM.runWasmFile(InvalidWasm, "f"));
-    expectConstResult(TestVM, 7U);
+    auto ExecRes = TestVM.execute("f");
+    ASSERT_TRUE(ExecRes);
+    ASSERT_EQ(ExecRes->size(), 1U);
+    EXPECT_EQ((*ExecRes)[0].first.get<uint32_t>(), 7U);
     auto Res = TestVM.instantiate();
     ASSERT_FALSE(Res);
     EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
@@ -352,11 +390,16 @@ TEST(VMTest, RunWasmFile) {
     Configure Conf;
     Conf.addProposal(Proposal::Component);
     VM::VM TestVM(Conf);
-    instantiateFixture(TestVM);
+    ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+    ASSERT_TRUE(TestVM.validate());
+    ASSERT_TRUE(TestVM.instantiate());
     auto Res = TestVM.runWasmFile(Path, "f");
     ASSERT_FALSE(Res);
     EXPECT_EQ(Res.error(), ErrCode::Value::RuntimeError);
-    expectConstResult(TestVM, 7U);
+    Res = TestVM.execute("f");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1U);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
     ASSERT_TRUE(TestVM.instantiate());
     EXPECT_TRUE(TestVM.holdsComponent());
     EXPECT_FALSE(TestVM.holdsModule());
@@ -489,7 +532,9 @@ TEST(VMTest, WasiImport) {
                   .getFileSystem(),
               WasiFS);
 
-    instantiateFixture(TestVM);
+    ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+    ASSERT_TRUE(TestVM.validate());
+    ASSERT_TRUE(TestVM.instantiate());
     ASSERT_NE(TestVM.getActiveModule(), nullptr);
     EXPECT_EQ(Runtime::CallingFrame(nullptr, TestVM.getActiveModule())
                   .getFileSystem(),
@@ -508,16 +553,26 @@ TEST(VMTest, Cleanup) {
   {
     Configure Conf;
     VM::VM TestVM(Conf);
-    instantiateFixture(TestVM);
-    expectConstResult(TestVM, 7U);
+    ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+    ASSERT_TRUE(TestVM.validate());
+    ASSERT_TRUE(TestVM.instantiate());
+    auto Res = TestVM.execute("f");
+    ASSERT_TRUE(Res);
+    ASSERT_EQ(Res->size(), 1U);
+    EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
 
     TestVM.cleanup();
-    auto Res = TestVM.execute("f");
-    ASSERT_FALSE(Res);
-    EXPECT_EQ(Res.error(), ErrCode::Value::WrongInstanceAddress);
+    auto AfterCleanup = TestVM.execute("f");
+    ASSERT_FALSE(AfterCleanup);
+    EXPECT_EQ(AfterCleanup.error(), ErrCode::Value::WrongInstanceAddress);
 
-    instantiateFixture(TestVM);
-    expectConstResult(TestVM, 7U);
+    ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+    ASSERT_TRUE(TestVM.validate());
+    ASSERT_TRUE(TestVM.instantiate());
+    auto AfterReuse = TestVM.execute("f");
+    ASSERT_TRUE(AfterReuse);
+    ASSERT_EQ(AfterReuse->size(), 1U);
+    EXPECT_EQ((*AfterReuse)[0].first.get<uint32_t>(), 7U);
   }
 
   // Releases component instance.
@@ -536,8 +591,13 @@ TEST(VMTest, Cleanup) {
     ASSERT_FALSE(Res);
     EXPECT_EQ(Res.error(), ErrCode::Value::WrongVMWorkflow);
 
-    instantiateFixture(TestVM);
-    expectConstResult(TestVM, 7U);
+    ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+    ASSERT_TRUE(TestVM.validate());
+    ASSERT_TRUE(TestVM.instantiate());
+    auto ExecRes = TestVM.execute("f");
+    ASSERT_TRUE(ExecRes);
+    ASSERT_EQ(ExecRes->size(), 1U);
+    EXPECT_EQ((*ExecRes)[0].first.get<uint32_t>(), 7U);
   }
 
   // Restores builtin hosts.
@@ -654,30 +714,19 @@ TEST(VMTest, Snapshot) {
         std::filesystem::remove_all(Path, EC);
       }
     } Guard{Dir};
-    for (unsigned Mode = 0; Mode <
+    std::vector<RunMode> Modes{RunMode::Interpreter};
 #ifdef WASMEDGE_USE_LLVM
-                            4
-#else
-                            1
+    Modes.insert(Modes.end(), {RunMode::AOT, RunMode::JIT, RunMode::LazyJIT});
 #endif
-         ;
-         ++Mode) {
-      SCOPED_TRACE(Mode);
+    for (const auto Mode : Modes) {
+      SCOPED_TRACE(static_cast<unsigned>(Mode));
       Configure Conf;
       Conf.addHostRegistration(HostRegistration::Wasi);
-      if (Mode == 1) {
-        Conf.getRuntimeConfigure().setRunMode(RunMode::AOT);
-      }
-      if (Mode == 2) {
-        Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
-      }
-      if (Mode == 3) {
-        Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
-      }
+      Conf.getRuntimeConfigure().setRunMode(Mode);
       VM::VM TestVM(Conf);
       std::vector<Byte> Code(Wasm.begin(), Wasm.end());
 #ifdef WASMEDGE_USE_LLVM
-      if (Mode == 1) {
+      if (Mode == RunMode::AOT) {
         auto Module = TestVM.getLoader().parseModule(Code);
         ASSERT_TRUE(Module);
         ASSERT_TRUE(TestVM.getValidator().validate(**Module));
@@ -699,7 +748,7 @@ TEST(VMTest, Snapshot) {
       ASSERT_TRUE(TestVM.loadWasm(Code));
       ASSERT_TRUE(TestVM.validate());
       ASSERT_TRUE(TestVM.instantiate());
-      if (Mode == 1) {
+      if (Mode == RunMode::AOT) {
         ASSERT_TRUE(TestVM.getActiveModule()
                         ->findFuncExports("f")
                         ->isCompiledFunction());

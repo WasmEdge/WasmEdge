@@ -10,34 +10,22 @@ endif()
 
 file(COPY
   ${CMAKE_CURRENT_SOURCE_DIR}/apiTestData
-  ${CMAKE_CURRENT_SOURCE_DIR}/externrefTestData
   DESTINATION
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-wasmedge_add_library(wasmedgeAPITestHelpers
-  hostfunc_c.c
-  helper.cpp
-)
-
-target_link_libraries(wasmedgeAPITestHelpers
-  PUBLIC
-  wasmedge_shared
-  wasmedgeTestSpec
-)
-
 wasmedge_add_executable(wasmedgeAPITests
+  APIExecutorRegressionTest.cpp
   APIInterruptTest.cpp
   APIUnitTest.cpp
-  ExternrefTest.cpp
 )
 
 add_test(wasmedgeAPITests wasmedgeAPITests)
 
 target_link_libraries(wasmedgeAPITests
   PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
   std::filesystem
-  wasmedgeAPITestHelpers
   wasmedge_shared
 )
 
@@ -74,7 +62,7 @@ if(WASMEDGE_USE_LLVM)
 
   target_link_libraries(wasmedgeAPIAOTTests
     PRIVATE
-    wasmedgeAPITestHelpers
+    ${GTEST_BOTH_LIBRARIES}
     wasmedge_shared
   )
 endif()

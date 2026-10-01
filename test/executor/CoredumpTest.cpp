@@ -580,11 +580,6 @@ public:
     std::filesystem::remove_all(Dir, Error);
   }
 
-  void instantiate() {
-    ASSERT_TRUE(VM->validate());
-    ASSERT_TRUE(VM->instantiate());
-  }
-
   // Dump the modules of Req to a new file, since the loader keeps the previous
   // dump mapped and Windows refuses to rewrite a mapped file, then parse it.
   void generate(Coredump::Request Req, AST::Module &Output) {
@@ -621,7 +616,8 @@ TEST(CoredumpTest, Modules) {
     CoredumpState State;
     ASSERT_TRUE(State.VM->registerModule("B"sv, CoredumpModuleB));
     ASSERT_TRUE(State.VM->loadWasm(CoredumpWasm));
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     const auto *Active = State.VM->getActiveModule();
     ASSERT_NE(Active, nullptr);
     const std::array Modules{Active};
@@ -679,7 +675,8 @@ TEST(CoredumpTest, Modules) {
     CoredumpState State;
     ASSERT_TRUE(State.VM->registerModule("B"sv, CoredumpModuleB));
     ASSERT_TRUE(State.VM->loadWasm(CoredumpWasm));
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     const auto *Active = State.VM->getActiveModule();
     const auto *B = State.VM->getStoreManager().findModule("B"sv);
     ASSERT_NE(Active, nullptr);
@@ -770,7 +767,8 @@ TEST(CoredumpTest, Modules) {
     EXPECT_EQ(Result.error(), ErrCode::Value::IllegalPath);
     EXPECT_FALSE(std::filesystem::exists(State.Path));
 
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     const auto *Active = State.VM->getActiveModule();
     const std::array<const Runtime::Instance::ModuleInstance *, 3> Modules{
         nullptr, Active, Active};
@@ -794,7 +792,8 @@ TEST(CoredumpTest, Modules) {
     CoredumpState State;
     ASSERT_TRUE(State.VM->registerModule("B"sv, CoredumpModuleB));
     ASSERT_TRUE(State.VM->loadWasm(CoredumpWasm));
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     const auto *Active = State.VM->getActiveModule();
     const auto *B = State.VM->getStoreManager().findModule("B"sv);
     const std::array Modules{B};
@@ -852,7 +851,8 @@ TEST(CoredumpTest, Modules) {
     for (const bool Instantiate : {false, true}) {
       SCOPED_TRACE(Instantiate);
       if (Instantiate) {
-        ASSERT_NO_FATAL_FAILURE(State.instantiate());
+        ASSERT_TRUE(State.VM->validate());
+        ASSERT_TRUE(State.VM->instantiate());
         Modules.insert(Modules.begin(), State.VM->getActiveModule());
       }
       Coredump::Request Req;
@@ -877,7 +877,8 @@ TEST(CoredumpTest, InvalidPath) {
   CoredumpState State;
   ASSERT_TRUE(State.VM->registerModule("B"sv, CoredumpModuleB));
   ASSERT_TRUE(State.VM->loadWasm(CoredumpWasm));
-  ASSERT_NO_FATAL_FAILURE(State.instantiate());
+  ASSERT_TRUE(State.VM->validate());
+  ASSERT_TRUE(State.VM->instantiate());
   const std::array Modules{State.VM->getActiveModule()};
   Coredump::Request Req;
   Req.Modules = Modules;
@@ -925,7 +926,8 @@ TEST(CoredumpTest, Tables) {
         0x00, 0xfc, 0x0d, 0x02, 0xfc, 0x09, 0x01, 0x0b, 0x0b, 0x09, 0x02, 0x01,
         0x02, 0x61, 0x62, 0x01, 0x02, 0x63, 0x64};
     ASSERT_TRUE(State.VM->loadWasm(Wasm));
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     ASSERT_TRUE(State.VM->execute("setup"sv));
     const std::array Modules{State.VM->getActiveModule()};
     Coredump::Request Req;
@@ -1003,7 +1005,8 @@ TEST(CoredumpTest, Tables) {
         0x02, 0x00, 0x0b, 0x08, 0x00, 0x41, 0x00, 0xd2, 0x00, 0x26, 0x00, 0x0b};
     ASSERT_TRUE(State.VM->registerModule("tables"sv, B));
     ASSERT_TRUE(State.VM->loadWasm(A));
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     ASSERT_TRUE(State.VM->execute("setup"sv));
     const std::array Modules{
         State.VM->getActiveModule(),
@@ -1089,7 +1092,8 @@ TEST(CoredumpTest, Tables) {
         0x01, 0x08, 0x00, 0xfc, 0x09, 0x00, 0xfc, 0x0d, 0x00, 0x0b, 0x0b, 0x08,
         0x02, 0x01, 0x00, 0x00, 0x41, 0x00, 0x0b, 0x00};
     ASSERT_TRUE(State.VM->loadWasm(Wasm));
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     const std::array Modules{State.VM->getActiveModule()};
     for (const bool Setup : {false, true}) {
       if (Setup) {
@@ -1148,7 +1152,8 @@ TEST(CoredumpTest, References) {
     State.VM = std::make_unique<WasmEdge::VM::VM>(State.Conf);
     ASSERT_TRUE(State.VM->registerModule(Spectest));
     ASSERT_TRUE(State.VM->loadWasm(Wasm));
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     ASSERT_TRUE(State.VM->execute("setup"sv));
     const auto *Active = State.VM->getActiveModule();
     const auto Functions = Spectest.getFunctionInstances();
@@ -1217,7 +1222,8 @@ TEST(CoredumpTest, References) {
         0x05, 0x01, 0x03, 0x00, 0x01, 0x00, 0x0a, 0x0b, 0x02, 0x02, 0x00,
         0x0b, 0x06, 0x00, 0xd2, 0x00, 0x24, 0x00, 0x0b};
     ASSERT_TRUE(State.VM->loadWasm(Wasm));
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     const std::array Modules{State.VM->getActiveModule()};
     for (const bool Setup : {false, true}) {
       if (Setup) {
@@ -1272,7 +1278,8 @@ TEST(CoredumpTest, References) {
                                      0x04, 0x05, 0x01, 0x63, 0x00, 0x00, 0x01};
     ASSERT_TRUE(State.VM->registerModule("typed-b"sv, B));
     ASSERT_TRUE(State.VM->loadWasm(Wasm));
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     const auto *Active = State.VM->getActiveModule();
     const auto *Other = State.VM->getStoreManager().findModule("typed-b"sv);
     ASSERT_NE(Other, nullptr);
@@ -1442,7 +1449,8 @@ TEST(CoredumpTest, References) {
         0x00, 0x0a, 0x11, 0x01, 0x0f, 0x00, 0x41, 0x07, 0xfb, 0x00, 0x00, 0x24,
         0x00, 0x41, 0x00, 0x23, 0x00, 0x26, 0x00, 0x0b};
     ASSERT_TRUE(State.VM->loadWasm(Wasm));
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     ASSERT_TRUE(State.VM->execute("setup"sv));
     const auto *Active = State.VM->getActiveModule();
     const std::array Modules{Active};
@@ -1509,7 +1517,8 @@ TEST(CoredumpTest, References) {
     State.VM = std::make_unique<WasmEdge::VM::VM>(State.Conf);
     ASSERT_TRUE(State.VM->registerModule("owner", CoredumpTypeOwnerWasm));
     ASSERT_TRUE(State.VM->loadWasm(CoredumpTypeImporterWasm));
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     ASSERT_TRUE(State.VM->snapshot(State.Path));
     const auto Dump = State.VM->getLoader().parseModule(State.Path);
     ASSERT_TRUE(Dump);
@@ -1527,7 +1536,8 @@ TEST(CoredumpTest, References) {
 TEST(CoredumpTest, ReadBack) {
   CoredumpState State;
   ASSERT_TRUE(State.VM->loadWasm(CoredumpReadBackWasm));
-  ASSERT_NO_FATAL_FAILURE(State.instantiate());
+  ASSERT_TRUE(State.VM->validate());
+  ASSERT_TRUE(State.VM->instantiate());
   const auto *Active = State.VM->getActiveModule();
   const std::array Modules{Active};
   for (const bool Setup : {false, true}) {
@@ -1666,7 +1676,8 @@ TEST(CoredumpTest, Restore) {
   {
     CoredumpState State;
     ASSERT_TRUE(State.VM->loadWasm(CoredumpReadBackWasm));
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     ASSERT_TRUE(State.VM->execute("setup"sv));
     auto *Active = const_cast<Runtime::Instance::ModuleInstance *>(
         State.VM->getActiveModule());
@@ -1703,7 +1714,8 @@ TEST(CoredumpTest, Restore) {
   {
     CoredumpState State;
     ASSERT_TRUE(State.VM->loadWasm(CoredumpReadBackWasm));
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     ASSERT_TRUE(State.VM->execute("setup"sv));
     auto *Active = const_cast<Runtime::Instance::ModuleInstance *>(
         State.VM->getActiveModule());
@@ -1749,7 +1761,8 @@ TEST(CoredumpTest, Restore) {
   {
     CoredumpState State;
     ASSERT_TRUE(State.VM->loadWasm(CoredumpReadBackWasm));
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     ASSERT_TRUE(State.VM->execute("setup"sv));
     auto *Active = const_cast<Runtime::Instance::ModuleInstance *>(
         State.VM->getActiveModule());
@@ -1857,7 +1870,8 @@ TEST(CoredumpTest, Restore) {
   {
     CoredumpState State;
     ASSERT_TRUE(State.VM->loadWasm(CoredumpReadBackWasm));
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     auto *Active = const_cast<Runtime::Instance::ModuleInstance *>(
         State.VM->getActiveModule());
     const std::array Modules{Active};
@@ -2052,7 +2066,8 @@ TEST(CoredumpTest, Restore) {
     State.VM = std::make_unique<WasmEdge::VM::VM>(State.Conf);
     ASSERT_TRUE(State.VM->registerModule("owner", CoredumpTypeOwnerWasm));
     ASSERT_TRUE(State.VM->loadWasm(CoredumpTypeImporterWasm));
-    ASSERT_NO_FATAL_FAILURE(State.instantiate());
+    ASSERT_TRUE(State.VM->validate());
+    ASSERT_TRUE(State.VM->instantiate());
     const auto NullPath = State.Dir / "null.core";
     ASSERT_TRUE(State.VM->snapshot(NullPath));
     ASSERT_TRUE(State.VM->execute("owner", "setup"));

@@ -3769,16 +3769,16 @@ TEST(APIUnitTest, VM) {
       WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, P, 2, nullptr, 1)));
 
   // Get a registered module from the VM.
-  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM), 17U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM), 6U);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(nullptr), 0U);
   EXPECT_EQ(WasmEdge_VMListRegisteredModule(nullptr, Names, 20), 0U);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, nullptr, 20), 17U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, nullptr, 20), 6U);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 20);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 1), 17U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 1), 6U);
   EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
   EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), ""sv);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 20);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 20), 17U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 20), 6U);
   EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
   EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "reg-wasm-ast"sv);
   EXPECT_EQ(std::string_view(Names[2].Buf, Names[2].Length),
@@ -4048,12 +4048,12 @@ TEST(APIUnitTest, VM) {
                                               WasmEdge_HostRegistration_Wasi),
             nullptr);
 
-  // Get a registered plug-in module from the VM.
-  ModName = WasmEdge_StringCreateByCString("wasi_ephemeral_nn");
+  // Get a registered module from the VM.
+  ModName = WasmEdge_StringCreateByCString("wasi_snapshot_preview1");
   EXPECT_NE(WasmEdge_VMGetRegisteredModule(VM, ModName), nullptr);
   EXPECT_EQ(WasmEdge_VMGetRegisteredModule(nullptr, ModName), nullptr);
   WasmEdge_StringDelete(ModName);
-  ModName = WasmEdge_StringCreateByCString("no-such-plugin");
+  ModName = WasmEdge_StringCreateByCString("no-such-module");
   EXPECT_EQ(WasmEdge_VMGetRegisteredModule(VM, ModName), nullptr);
   WasmEdge_StringDelete(ModName);
 

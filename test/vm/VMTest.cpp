@@ -138,12 +138,6 @@ TEST(VMTest, UnregisterUnknownNameSucceeds) {
   EXPECT_TRUE(TestVM.unregisterModule("no-such-module"));
 }
 
-TEST(VMTest, PluginMockModulesRegistered) {
-  Configure Conf;
-  VM::VM TestVM(Conf);
-  EXPECT_NE(TestVM.getStoreManager().findModule("wasi_ephemeral_nn"), nullptr);
-}
-
 TEST(VMTest, PluginWasiImportModulePresence) {
   Configure ConfWithWasi;
   ConfWithWasi.addHostRegistration(HostRegistration::Wasi);
@@ -187,7 +181,8 @@ TEST(VMTest, CleanupRestoresBuiltinHosts) {
   ASSERT_NE(TestVM.getImportModule(HostRegistration::Wasi), nullptr);
   TestVM.cleanup();
   EXPECT_NE(TestVM.getImportModule(HostRegistration::Wasi), nullptr);
-  EXPECT_NE(TestVM.getStoreManager().findModule("wasi_ephemeral_nn"), nullptr);
+  // No module stands in for an uninstalled plugin in the store.
+  EXPECT_EQ(TestVM.getStoreManager().findModule("wasi_ephemeral_nn"), nullptr);
 }
 
 TEST(VMTest, MultipleVM) {

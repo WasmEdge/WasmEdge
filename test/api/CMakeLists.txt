@@ -10,59 +10,9 @@ endif()
 
 file(COPY
   ${CMAKE_CURRENT_SOURCE_DIR}/apiTestData
+  ${CMAKE_CURRENT_SOURCE_DIR}/externrefTestData
   DESTINATION
   ${CMAKE_CURRENT_BINARY_DIR}
-)
-
-wasmedge_add_executable(wasmedgeAPIWasmCUnitTests
-  APIWasmCUnitTest.cpp
-)
-
-add_test(wasmedgeAPIWasmCUnitTests wasmedgeAPIWasmCUnitTests)
-
-target_include_directories(wasmedgeAPIWasmCUnitTests
-  PUBLIC
-  ${PROJECT_SOURCE_DIR}/thirdparty/wasm
-)
-
-target_link_libraries(wasmedgeAPIWasmCUnitTests
-  PRIVATE
-  ${GTEST_BOTH_LIBRARIES}
-  wasmedge_shared
-)
-
-wasmedge_add_executable(wasmedgeAPIWasmCExampleTests
-  APIWasmCExampleTest.cpp
-)
-
-add_test(wasmedgeAPIWasmCExampleTests wasmedgeAPIWasmCExampleTests)
-
-target_include_directories(wasmedgeAPIWasmCExampleTests
-  PUBLIC
-  ${PROJECT_SOURCE_DIR}/thirdparty/wasm
-)
-
-target_link_libraries(wasmedgeAPIWasmCExampleTests
-  PRIVATE
-  ${GTEST_BOTH_LIBRARIES}
-  wasmedge_shared
-)
-
-wasmedge_add_executable(wasmedgeAPIWasmCRegressionTests
-  APIWasmCRegressionTest.cpp
-)
-
-add_test(wasmedgeAPIWasmCRegressionTests wasmedgeAPIWasmCRegressionTests)
-
-target_include_directories(wasmedgeAPIWasmCRegressionTests
-  PUBLIC
-  ${PROJECT_SOURCE_DIR}/thirdparty/wasm
-)
-
-target_link_libraries(wasmedgeAPIWasmCRegressionTests
-  PRIVATE
-  ${GTEST_BOTH_LIBRARIES}
-  wasmedge_shared
 )
 
 wasmedge_add_library(wasmedgeAPITestHelpers
@@ -76,67 +26,53 @@ target_link_libraries(wasmedgeAPITestHelpers
   wasmedgeTestSpec
 )
 
-wasmedge_add_executable(wasmedgeAPIUnitTests
+wasmedge_add_executable(wasmedgeAPITests
+  APIInterruptTest.cpp
   APIUnitTest.cpp
+  ExternrefTest.cpp
 )
 
-add_test(wasmedgeAPIUnitTests wasmedgeAPIUnitTests)
+add_test(wasmedgeAPITests wasmedgeAPITests)
 
-target_link_libraries(wasmedgeAPIUnitTests
+target_link_libraries(wasmedgeAPITests
   PRIVATE
+  std::filesystem
   wasmedgeAPITestHelpers
   wasmedge_shared
 )
 
-target_include_directories(wasmedgeAPIUnitTests
+target_include_directories(wasmedgeAPITests
   PRIVATE
-  ${CMAKE_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/include
 )
 
-wasmedge_add_executable(wasmedgeAPIVMCoreTests
-  APIVMCoreTest.cpp
+wasmedge_add_executable(wasmedgeAPIWasmCTests
+  APIWasmCExampleTest.cpp
+  APIWasmCRegressionTest.cpp
+  APIWasmCUnitTest.cpp
 )
 
-add_test(wasmedgeAPIVMCoreTests wasmedgeAPIVMCoreTests)
+add_test(wasmedgeAPIWasmCTests wasmedgeAPIWasmCTests)
 
-target_link_libraries(wasmedgeAPIVMCoreTests
+target_include_directories(wasmedgeAPIWasmCTests
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/thirdparty/wasm
+)
+
+target_link_libraries(wasmedgeAPIWasmCTests
   PRIVATE
-  wasmedgeAPITestHelpers
-  wasmedge_shared
-)
-
-wasmedge_add_executable(wasmedgeAPIStepsCoreTests
-  APIStepsCoreTest.cpp
-)
-
-add_test(wasmedgeAPIStepsCoreTests wasmedgeAPIStepsCoreTests)
-
-target_link_libraries(wasmedgeAPIStepsCoreTests
-  PRIVATE
-  wasmedgeAPITestHelpers
+  ${GTEST_BOTH_LIBRARIES}
   wasmedge_shared
 )
 
 if(WASMEDGE_USE_LLVM)
-  wasmedge_add_executable(wasmedgeAPIAOTCoreTests
-    APIAOTCoreTest.cpp
-  )
-
-  add_test(wasmedgeAPIAOTCoreTests wasmedgeAPIAOTCoreTests)
-
-  target_link_libraries(wasmedgeAPIAOTCoreTests
-    PRIVATE
-    wasmedgeAPITestHelpers
-    wasmedge_shared
-  )
-
-  wasmedge_add_executable(wasmedgeAPIAOTNestedVMTests
+  wasmedge_add_executable(wasmedgeAPIAOTTests
     APIAOTNestedVMTest.cpp
   )
 
-  add_test(wasmedgeAPIAOTNestedVMTests wasmedgeAPIAOTNestedVMTests)
+  add_test(wasmedgeAPIAOTTests wasmedgeAPIAOTTests)
 
-  target_link_libraries(wasmedgeAPIAOTNestedVMTests
+  target_link_libraries(wasmedgeAPIAOTTests
     PRIVATE
     wasmedgeAPITestHelpers
     wasmedge_shared

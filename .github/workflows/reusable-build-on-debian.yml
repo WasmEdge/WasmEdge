@@ -67,7 +67,7 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
           cd build
           ./tools/wasmedge/wasmedge -v
-          ldd test/aot/wasmedgeAOTBlake3Tests | grep libblake3
+          ldd test/llvm/wasmedgeAOTTests | grep libblake3
           ctest
           cd -
       - name: Create package tarball

@@ -877,9 +877,3 @@ TEST_F(LazyJITTest, JITCallStackExhaustionOnAsyncThread) {
 }
 
 } // namespace
-
-GTEST_API_ int main(int argc, char **argv) {
-  WasmEdge::Log::setErrorLoggingLevel();
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}

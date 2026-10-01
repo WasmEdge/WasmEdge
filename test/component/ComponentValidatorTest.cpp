@@ -1925,7 +1925,6 @@ TEST(ComponentValidatorTest, CoreAliasCoreExportTagPasses) {
   // (alias core export $i "t" (core tag $t))   ;; PASS
   Configure ConfTag;
   ConfTag.addProposal(Proposal::Component);
-  ConfTag.addProposal(Proposal::ExceptionHandling);
 
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();

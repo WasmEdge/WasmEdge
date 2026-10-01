@@ -80,29 +80,6 @@ private:
   AddOne *F = nullptr;
 };
 
-// Checks that the null in exported table "t" has an abstract heap type, which
-// catches issue #4757 without running wasm that would segfault.
-bool checkNullTableEntry(VM::VM &VMInst) {
-  const auto *ModInst = VMInst.getActiveModule();
-  if (!ModInst) {
-    return false;
-  }
-  auto *TabInst = ModInst->findTableExports("t");
-  if (!TabInst) {
-    return false;
-  }
-  auto RefRes = TabInst->getRefAddr(0);
-  if (!RefRes) {
-    return false;
-  }
-  auto Ref = *RefRes;
-  EXPECT_TRUE(Ref.isNull());
-  EXPECT_TRUE(Ref.getType().isAbsHeapType())
-      << "Null reference in concrete-typed table must be normalized to an "
-         "abstract heap type (issue #4757)";
-  return Ref.isNull() && Ref.getType().isAbsHeapType();
-}
-
 // ref.test on externalized refs must keep the nullability of the source.
 TEST(ExecutorRegressionTest, RefTestExternalizedNullability) {
   // (module
@@ -373,7 +350,18 @@ TEST(ExecutorRegressionTest, NullFromConcreteTable) {
   ASSERT_TRUE(VM.loadWasm(Wasm));
   ASSERT_TRUE(VM.validate());
   ASSERT_TRUE(VM.instantiate());
-  ASSERT_TRUE(checkNullTableEntry(VM));
+  // The null in exported table "t" must have an abstract heap type, which
+  // catches issue #4757 without running wasm that would segfault.
+  const auto *ModInst = VM.getActiveModule();
+  ASSERT_NE(ModInst, nullptr);
+  auto *TabInst = ModInst->findTableExports("t");
+  ASSERT_NE(TabInst, nullptr);
+  auto RefRes = TabInst->getRefAddr(0);
+  ASSERT_TRUE(RefRes);
+  ASSERT_TRUE(RefRes->isNull());
+  ASSERT_TRUE(RefRes->getType().isAbsHeapType())
+      << "Null reference in concrete-typed table must be normalized to an "
+         "abstract heap type (issue #4757)";
 
   // The null matches eqref but not (ref $s), also when returned by a call.
   ASSERT_TRUE(VM.execute("ref_test"));

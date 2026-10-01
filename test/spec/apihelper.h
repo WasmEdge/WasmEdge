@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-//===-- wasmedge/test/api/helper.h - Spec test helpers for C API ----------===//
+//===-- wasmedge/test/spec/apihelper.h - Spec test helpers for C API ------===//
 //
 // Part of the WasmEdge Project.
 //
@@ -14,8 +14,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "../spec/spectest.h"
 #include "common/int128.h"
+#include "spectest.h"
 #include "wasmedge/wasmedge.h"
 #include <utility>
 #include <vector>

@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-#include "common/filesystem.h"
-#include "experimental/span.hpp"
 #include "wasmedge/wasmedge.h"
 
 #include <array>
 #include <cstdint>
 #include <fmt/format.h>
-#include <fstream>
 #include <gtest/gtest.h>
 #include <iostream>
 #include <map>
@@ -18,13 +15,6 @@
 #include <vector>
 
 namespace {
-
-void HexToFile(cxx20::span<const uint8_t> Wasm, const char *Path) {
-  std::ofstream TFile(WasmEdge::u8path(Path), std::ios_base::binary);
-  TFile.write(reinterpret_cast<const char *>(Wasm.data()),
-              static_cast<std::streamsize>(Wasm.size()));
-  TFile.close();
-}
 
 // The following are the functions and class definitions passed as references.
 
@@ -309,7 +299,7 @@ WasmEdge_ModuleInstanceContext *createExternModule() {
   return HostMod;
 }
 
-TEST(ExternrefTest, Functions) {
+TEST(APIExecutorRegressionTest, Functions) {
   // (module
   //   (type (;0;) (func (param externref i32) (result i32)))
   //   (type (;1;) (func (param externref i32 i32) (result i32)))
@@ -387,9 +377,8 @@ TEST(ExternrefTest, Functions) {
 
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VMCxt, HostMod)));
-  char FuncsPath[] = "externrefTestData/funcs.wasm";
-  HexToFile(Wasm, FuncsPath);
-  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromFile(VMCxt, FuncsPath)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBuffer(
+      VMCxt, Wasm.data(), static_cast<uint32_t>(Wasm.size()))));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VMCxt)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VMCxt)));
 
@@ -446,7 +435,7 @@ TEST(ExternrefTest, Functions) {
   WasmEdge_ModuleInstanceDelete(HostMod);
 }
 
-TEST(ExternrefTest, ExternConvertAnyWithBrOnCast) {
+TEST(APIExecutorRegressionTest, ExternConvertAnyWithBrOnCast) {
   // (module
   //   (type $0 (;0;) (func (result f32 externref)))
   //   (export "main" (func $0))
@@ -477,11 +466,8 @@ TEST(ExternrefTest, ExternConvertAnyWithBrOnCast) {
   WasmEdge_Value R[2];
   WasmEdge_String FuncName;
 
-  char ExternConvertPath[] = "externrefTestData/externconvert.wasm";
-  HexToFile(Wasm, ExternConvertPath);
-
-  EXPECT_TRUE(
-      WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromFile(VMCxt, ExternConvertPath)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBuffer(
+      VMCxt, Wasm.data(), static_cast<uint32_t>(Wasm.size()))));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VMCxt)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VMCxt)));
 
@@ -501,7 +487,7 @@ TEST(ExternrefTest, ExternConvertAnyWithBrOnCast) {
   WasmEdge_VMDelete(VMCxt);
 }
 
-TEST(ExternrefTest, STL) {
+TEST(APIExecutorRegressionTest, STL) {
   // A module importing the extern_module STL host functions and exporting a
   // call_* wrapper for each of them.
   std::array<uint8_t, 781> Wasm{
@@ -579,9 +565,8 @@ TEST(ExternrefTest, STL) {
 
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VMCxt, HostMod)));
-  char STLPath[] = "externrefTestData/stl.wasm";
-  HexToFile(Wasm, STLPath);
-  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromFile(VMCxt, STLPath)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBuffer(
+      VMCxt, Wasm.data(), static_cast<uint32_t>(Wasm.size()))));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VMCxt)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VMCxt)));
 

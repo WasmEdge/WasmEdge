@@ -21,14 +21,14 @@ using namespace std::literals;
 // canon ::= lift | lower | resource.* | async built-in, one switch per opcode.
 Expect<void>
 Validator::validate(const AST::Component::Canonical &Canon) noexcept {
-  auto &S = CompCtx.top();
+  auto &S = CompCtx.getTop();
   const ValType I32V{TypeCode::I32};
   const ValType I64V{TypeCode::I64};
 
   // Defines the core function a canonical definition lowers to.
   auto PushCoreFunc = [&](std::vector<ValType> Params,
                           std::vector<ValType> Results) -> Expect<void> {
-    S.addCoreFunc(CompTypes.addCoreFuncType(Params, Results));
+    S.addCoreFunc(CompCtx.addCoreFuncType(Params, Results));
     return {};
   };
   // A built-in takes its core type from the shared table, keyed on Addr.
@@ -65,7 +65,7 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
   // resource.new / resource.rep need a locally-defined resource and its rep.
   auto LocalResourceRep = [&](std::string_view What) -> Expect<ValType> {
     EXPECTED_TRY(const auto *Entry, GetResourceEntry(What));
-    const auto &Res = CompTypes.getResource(*Entry->ResourceId);
+    const auto &Res = CompCtx.getResource(*Entry->ResourceId);
     if (Res.RT == nullptr || Res.Origin != &S) {
       spdlog::error(ErrCode::Value::ComponentNotLocalResource);
       spdlog::error("    {} requires a locally-defined resource type."sv, What);
@@ -97,8 +97,8 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
   // Option-bearing built-ins are lowerings: no post-return or callback.
   auto BuiltinOptions = [&](bool NeedMemory, bool NeedRealloc) -> Expect<void> {
     EXPECTED_TRY(CompCtx.checkOptions(Canon, false));
-    return CompCtx.requireOptions(Canon, NeedMemory, NeedRealloc,
-                                  "this canonical built-in"sv);
+    return CompCtx.checkRequiredOptions(Canon, NeedMemory, NeedRealloc,
+                                        "this canonical built-in"sv);
   };
 
   // Built-ins the spec restricts to synchronous use.
@@ -150,12 +150,12 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     }
 
     const ValType Ptr = CompCtx.getCanonPtrType(Canon);
-    EXPECTED_TRY(auto Sig, CompTypes.flattenFuncType(FI, Ptr, ParamsNeedMemory,
-                                                     ResultsNeedMemory));
+    EXPECTED_TRY(auto Sig, CompCtx.flattenFuncType(FI, Ptr, ParamsNeedMemory,
+                                                   ResultsNeedMemory));
     const bool ParamsIndirect =
-        Sig.getParamTypes().size() > Component::TypeSystem::MaxFlatParams;
+        Sig.getParamTypes().size() > Component::Context::MaxFlatParams;
     const bool ResultsIndirect =
-        Sig.getReturnTypes().size() > Component::TypeSystem::MaxFlatResults;
+        Sig.getReturnTypes().size() > Component::Context::MaxFlatResults;
     if (ParamsIndirect) {
       Sig.getParamTypes().assign(1, Ptr);
     }
@@ -169,7 +169,7 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
       Sig.getReturnTypes().assign(1, Ptr);
     }
     // Required options: lifting params lowers them into the callee's memory.
-    EXPECTED_TRY(CompCtx.requireOptions(
+    EXPECTED_TRY(CompCtx.checkRequiredOptions(
         Canon,
         ParamsNeedMemory || ParamsIndirect ||
             (!AsyncOpt && (ResultsNeedMemory || ResultsIndirect)),
@@ -247,16 +247,16 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     }
 
     const ValType Ptr = CompCtx.getCanonPtrType(Canon);
-    EXPECTED_TRY(auto Sig, CompTypes.flattenFuncType(*FI, Ptr, ParamsNeedMemory,
-                                                     ResultsNeedMemory));
+    EXPECTED_TRY(auto Sig, CompCtx.flattenFuncType(*FI, Ptr, ParamsNeedMemory,
+                                                   ResultsNeedMemory));
     const bool ParamsIndirect =
         Sig.getParamTypes().size() >
-        (AsyncOpt ? Component::TypeSystem::MaxFlatAsyncParams
-                  : Component::TypeSystem::MaxFlatParams);
+        (AsyncOpt ? Component::Context::MaxFlatAsyncParams
+                  : Component::Context::MaxFlatParams);
     const bool ResultsIndirect =
-        AsyncOpt ? !Sig.getReturnTypes().empty()
-                 : Sig.getReturnTypes().size() >
-                       Component::TypeSystem::MaxFlatResults;
+        AsyncOpt
+            ? !Sig.getReturnTypes().empty()
+            : Sig.getReturnTypes().size() > Component::Context::MaxFlatResults;
     if (ParamsIndirect) {
       Sig.getParamTypes().assign(1, Ptr);
     }
@@ -269,10 +269,11 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
       // Async lower: the core function returns the packed subtask state.
       Sig.getReturnTypes().assign(1, I32V);
     }
-    EXPECTED_TRY(CompCtx.requireOptions(Canon,
-                                        ParamsNeedMemory || ResultsNeedMemory ||
-                                            ParamsIndirect || ResultsIndirect,
-                                        ResultsNeedMemory, "canon lower"sv));
+    EXPECTED_TRY(
+        CompCtx.checkRequiredOptions(Canon,
+                                     ParamsNeedMemory || ResultsNeedMemory ||
+                                         ParamsIndirect || ResultsIndirect,
+                                     ResultsNeedMemory, "canon lower"sv));
     return PushCoreFunc(Sig.getParamTypes(), Sig.getReturnTypes());
   }
 
@@ -307,18 +308,18 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     std::vector<ValType> Params;
     if (const auto &R = Canon.getResult(); R.has_value()) {
       const Component::QualValType Q{*R, &S, nullptr};
-      if (!CompTypes.flattenValType(Q, Params, Ptr)) {
+      if (!CompCtx.flattenValType(Q, Params, Ptr)) {
         spdlog::error(ErrCode::Value::InvalidTypeReference);
         return Unexpect(ErrCode::Value::InvalidTypeReference);
       }
-      ParamsNeedMemory = ParamsNeedMemory || CompTypes.needsMemory(Q);
+      ParamsNeedMemory = ParamsNeedMemory || CompCtx.needsMemory(Q);
     }
-    if (Params.size() > Component::TypeSystem::MaxFlatParams) {
+    if (Params.size() > Component::Context::MaxFlatParams) {
       Params.assign(1, Ptr);
       ParamsNeedMemory = true;
     }
-    EXPECTED_TRY(CompCtx.requireOptions(Canon, ParamsNeedMemory, false,
-                                        "task.return"sv));
+    EXPECTED_TRY(CompCtx.checkRequiredOptions(Canon, ParamsNeedMemory, false,
+                                              "task.return"sv));
     return PushCoreFunc(std::move(Params), {});
   }
   case ComponentCanonOpCode::Task__cancel:
@@ -328,11 +329,11 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     const bool IsGet = Canon.getOpCode() == ComponentCanonOpCode::Context__get;
     const std::string_view Name = IsGet ? "context.get"sv : "context.set"sv;
     // The slot immediate is stored as the constant value, not as an index.
-    if (Canon.getConstVal() >= Component::TypeSystem::MaxContextSlots) {
+    if (Canon.getConstVal() >= Component::Context::MaxContextSlots) {
       spdlog::error(ErrCode::Value::ComponentContextSlotOutOfBounds);
       spdlog::error(
           "    Context slot {} out of bounds, must be less than {}."sv,
-          Canon.getConstVal(), Component::TypeSystem::MaxContextSlots);
+          Canon.getConstVal(), Component::Context::MaxContextSlots);
       return Unexpect(ErrCode::Value::ComponentContextSlotOutOfBounds);
     }
     const ValType Ty = Canon.getContextType();
@@ -349,7 +350,7 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
       return Unexpect(ErrCode::Value::ComponentContextTypeInvalid);
     }
     // The whole component shares one thread-local slot type.
-    auto &Shared = CompCtx.top().ContextType;
+    auto &Shared = CompCtx.getTop().ContextType;
     if (Shared.has_value() && *Shared != Ty) {
       spdlog::error(ErrCode::Value::ComponentContextTypeMismatch);
       spdlog::error("    `{}` type must match previous context type."sv, Name);
@@ -378,7 +379,7 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     const bool NeedRealloc =
         Canon.getOpCode() == ComponentCanonOpCode::Stream__read &&
         Elem.has_value() &&
-        CompTypes.needsMemory({*Elem, Entry->Home, Entry->Remap});
+        CompCtx.needsMemory({*Elem, Entry->Home, Entry->Remap});
     EXPECTED_TRY(BuiltinOptions(Elem.has_value(), NeedRealloc));
     return PushBuiltin(CompCtx.getCanonPtrType(Canon));
   }
@@ -402,7 +403,7 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     const bool NeedRealloc =
         Canon.getOpCode() == ComponentCanonOpCode::Future__read &&
         Elem.has_value() &&
-        CompTypes.needsMemory({*Elem, Entry->Home, Entry->Remap});
+        CompCtx.needsMemory({*Elem, Entry->Home, Entry->Remap});
     EXPECTED_TRY(BuiltinOptions(Elem.has_value(), NeedRealloc));
     return PushBuiltin(CompCtx.getCanonPtrType(Canon));
   }

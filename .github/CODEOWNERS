@@ -74,21 +74,15 @@ plugins/wasmedge_tensorflowlite/        @q82419
 
 # Tests
 test/                                   @q82419 @ibmibmibm
-test/aot/                               @ibmibmibm
 test/api/                               @q82419
 test/common/                            @ibmibmibm
-test/errinfo/                           @q82419
 test/executor/                          @q82419
-test/expected/                          @ibmibmibm
-test/externref/                         @q82419
 test/host/                              @q82419 @ibmibmibm
 test/host/mock/                         @q82419
-test/host/socket/                       @ibmibmibm
 test/host/wasi/                         @ibmibmibm
 test/llvm/                              @ibmibmibm
 test/loader/                            @q82419 @dannypsnl
 test/memlimit/                          @q82419
-test/mixcall/                           @q82419
 test/plugins/                           @hydai
 test/plugins/unittest/                  @q82419
 test/plugins/wasi_crypto/               @sonder-joker @hydai
@@ -102,9 +96,7 @@ test/plugins/wasmedge_tensorflow/       @q82419
 test/plugins/wasmedge_tensorflowlite/   @q82419
 test/plugins/wasmedge_zlib/             @hydai
 test/po/                                @ibmibmibm
-test/span/                              @ibmibmibm
 test/spec/                              @q82419
-test/thread/                            @ibmibmibm
 
 # Thirdparty Libraries
 thirdparty/                             @ibmibmibm

@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+set_property(DIRECTORY PROPERTY LABELS plugin)
+
 # WASI plug-in: WASI-Crypto proposal.
 if(WASMEDGE_PLUGIN_WASI_CRYPTO)
   add_subdirectory(wasi_crypto)

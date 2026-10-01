@@ -388,9 +388,6 @@ WasiCryptoExpect<__wasi_version_t> Context::symmetricKeyReplaceManaged(
                   .and_then([&](auto NextVersion) {
                     return SymmetricKeyManager
                         .setManagedInfo(NewKeyHandle, KeyId, NextVersion)
-                        .and_then([&]() {
-                          return SymmetricKeyManager.close(OldKeyHandle);
-                        })
                         .map([NextVersion]() { return NextVersion; });
                   });
             });

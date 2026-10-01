@@ -459,61 +459,6 @@ WasmEdge_ModuleInstanceContext *createExternModule
   return HostMod;
 }
 
-// Helper function to load wasm file into AST module.
-WasmEdge_ASTModuleContext *loadModule(const WasmEdge_ConfigureContext *Conf,
-                                      const char *Path) {
-  WasmEdge_ASTModuleContext *Mod = nullptr;
-  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(Conf);
-  WasmEdge_LoaderParseFromFile(Loader, &Mod, Path);
-  WasmEdge_LoaderDelete(Loader);
-  return Mod;
-}
-
-// Helper function to validate wasm module.
-bool validateModule(const WasmEdge_ConfigureContext *Conf,
-                    const WasmEdge_ASTModuleContext *Mod) {
-  WasmEdge_ValidatorContext *Validator = WasmEdge_ValidatorCreate(Conf);
-  WasmEdge_Result Res = WasmEdge_ValidatorValidate(Validator, Mod);
-  WasmEdge_ValidatorDelete(Validator);
-  return WasmEdge_ResultOK(Res);
-}
-
-// Helper function to register AST module.
-WasmEdge_ModuleInstanceContext *
-registerModule(const WasmEdge_ConfigureContext *Conf,
-               WasmEdge_StoreContext *Store,
-               const WasmEdge_ASTModuleContext *Mod, std::string_view Name) {
-  WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(Conf, nullptr);
-  WasmEdge_String ModName =
-      WasmEdge_StringWrap(Name.data(), static_cast<uint32_t>(Name.length()));
-  WasmEdge_ModuleInstanceContext *ResMod = nullptr;
-  WasmEdge_ExecutorRegister(ExecCxt, &ResMod, Store, Mod, ModName);
-  WasmEdge_ExecutorDelete(ExecCxt);
-  return ResMod;
-}
-
-// Helper function to register existing host module.
-bool registerModule(const WasmEdge_ConfigureContext *Conf,
-                    WasmEdge_StoreContext *Store,
-                    WasmEdge_ModuleInstanceContext *ImpMod) {
-  WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(Conf, nullptr);
-  auto Res = WasmEdge_ExecutorRegisterImport(ExecCxt, Store, ImpMod);
-  WasmEdge_ExecutorDelete(ExecCxt);
-  return WasmEdge_ResultOK(Res);
-}
-
-// Helper function to instantiate module.
-WasmEdge_ModuleInstanceContext *
-instantiateModule(const WasmEdge_ConfigureContext *Conf,
-                  WasmEdge_StoreContext *Store,
-                  const WasmEdge_ASTModuleContext *Mod) {
-  WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(Conf, nullptr);
-  WasmEdge_ModuleInstanceContext *ResMod = nullptr;
-  WasmEdge_ExecutorInstantiate(ExecCxt, &ResMod, Store, Mod);
-  WasmEdge_ExecutorDelete(ExecCxt);
-  return ResMod;
-}
-
 // Helper function to read file into a buffer.
 bool readToVector(const char *Path, std::vector<uint8_t> &Buf) {
   std::ifstream F(Path, std::ios::binary | std::ios::ate);
@@ -973,7 +918,6 @@ TEST(APIUnitTest, ImportType) {
   WasmEdge_LimitContext *Lim = nullptr;
   WasmEdge_String Name;
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
-  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ExceptionHandling);
   WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(Conf);
   WasmEdge_ConfigureDelete(Conf);
 
@@ -1206,7 +1150,6 @@ TEST(APIUnitTest, ExportType) {
   WasmEdge_LimitContext *Lim = nullptr;
   WasmEdge_String Name;
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
-  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ExceptionHandling);
   WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(Conf);
   WasmEdge_ConfigureDelete(Conf);
 
@@ -1724,7 +1667,11 @@ TEST(APIUnitTest, Validator) {
   // Prepare TPath.
   hexToFile(TestWasm, TPath);
   // Load and parse file
-  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(Conf);
+  WasmEdge_ASTModuleContext *Mod = nullptr;
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_LoaderParseFromFile(Loader, &Mod, TPath)));
+  WasmEdge_LoaderDelete(Loader);
   EXPECT_NE(Mod, nullptr);
 
   // Validation
@@ -1754,9 +1701,15 @@ TEST(APIUnitTest, ExecutorWithStatistics) {
   // Prepare TPath.
   hexToFile(TestWasm, TPath);
   // Load and validate file
-  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(Conf);
+  WasmEdge_ASTModuleContext *Mod = nullptr;
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_LoaderParseFromFile(Loader, &Mod, TPath)));
+  WasmEdge_LoaderDelete(Loader);
   EXPECT_NE(Mod, nullptr);
-  EXPECT_TRUE(validateModule(Conf, Mod));
+  WasmEdge_ValidatorContext *Validator = WasmEdge_ValidatorCreate(Conf);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_ValidatorValidate(Validator, Mod)));
+  WasmEdge_ValidatorDelete(Validator);
 
   // Statistics creation and deletion
   WasmEdge_StatisticsContext *Stat = WasmEdge_StatisticsCreate();
@@ -1881,7 +1834,11 @@ TEST(APIUnitTest, ExecutorWithStatistics) {
       WasmEdge_ExecutorRegister(ExecCxt, &ModRegCxt, Store, Mod, ModName2)));
   EXPECT_EQ(ModRegCxt, nullptr);
   // Hasn't validated yet
-  WasmEdge_ASTModuleContext *ModNotValid = loadModule(Conf, TPath);
+  WasmEdge_LoaderContext *LoaderNotValid = WasmEdge_LoaderCreate(Conf);
+  WasmEdge_ASTModuleContext *ModNotValid = nullptr;
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_LoaderParseFromFile(LoaderNotValid, &ModNotValid, TPath)));
+  WasmEdge_LoaderDelete(LoaderNotValid);
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_NotValidated,
                          WasmEdge_ExecutorRegister(ExecCxt, &ModRegCxt, Store,
                                                    ModNotValid, ModName)));
@@ -2168,15 +2125,27 @@ TEST(APIUnitTest, Store) {
   // Register host module and instantiate wasm module
   WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
   EXPECT_NE(HostMod, nullptr);
-  EXPECT_TRUE(registerModule(Conf, Store, HostMod));
-  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
+  WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(Conf, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorRegisterImport(ExecCxt, Store, HostMod)));
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(Conf);
+  WasmEdge_ASTModuleContext *Mod = nullptr;
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_LoaderParseFromFile(Loader, &Mod, TPath)));
+  WasmEdge_LoaderDelete(Loader);
   EXPECT_NE(Mod, nullptr);
-  EXPECT_TRUE(validateModule(Conf, Mod));
-  WasmEdge_ModuleInstanceContext *ModRegCxt =
-      registerModule(Conf, Store, Mod, "module");
+  WasmEdge_ValidatorContext *Validator = WasmEdge_ValidatorCreate(Conf);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_ValidatorValidate(Validator, Mod)));
+  WasmEdge_ValidatorDelete(Validator);
+  WasmEdge_ModuleInstanceContext *ModRegCxt = nullptr;
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorRegister(ExecCxt, &ModRegCxt, Store, Mod, ModName[0])));
   EXPECT_NE(ModRegCxt, nullptr);
-  WasmEdge_ModuleInstanceContext *ModCxt = instantiateModule(Conf, Store, Mod);
+  WasmEdge_ModuleInstanceContext *ModCxt = nullptr;
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorInstantiate(ExecCxt, &ModCxt, Store, Mod)));
   EXPECT_NE(ModCxt, nullptr);
+  WasmEdge_ExecutorDelete(ExecCxt);
   WasmEdge_ASTModuleDelete(Mod);
   WasmEdge_ConfigureDelete(Conf);
 
@@ -2394,12 +2363,23 @@ TEST(APIUnitTest, Instance) {
   WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
   WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
   EXPECT_NE(HostMod, nullptr);
-  EXPECT_TRUE(registerModule(Conf, Store, HostMod));
-  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
+  WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(Conf, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorRegisterImport(ExecCxt, Store, HostMod)));
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(Conf);
+  WasmEdge_ASTModuleContext *Mod = nullptr;
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_LoaderParseFromFile(Loader, &Mod, TPath)));
+  WasmEdge_LoaderDelete(Loader);
   EXPECT_NE(Mod, nullptr);
-  EXPECT_TRUE(validateModule(Conf, Mod));
-  WasmEdge_ModuleInstanceContext *ModCxt = instantiateModule(Conf, Store, Mod);
+  WasmEdge_ValidatorContext *Validator = WasmEdge_ValidatorCreate(Conf);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_ValidatorValidate(Validator, Mod)));
+  WasmEdge_ValidatorDelete(Validator);
+  WasmEdge_ModuleInstanceContext *ModCxt = nullptr;
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorInstantiate(ExecCxt, &ModCxt, Store, Mod)));
   EXPECT_NE(ModCxt, nullptr);
+  WasmEdge_ExecutorDelete(ExecCxt);
   WasmEdge_ASTModuleDelete(Mod);
   WasmEdge_String WasmFuncName = WasmEdge_StringCreateByCString("func-mul-2");
   WasmEdge_FunctionInstanceContext *WasmFuncCxt =
@@ -3036,9 +3016,15 @@ TEST(APIUnitTest, Async) {
   EXPECT_TRUE(readToVector(TPath, Buf));
 
   // Load and validate to a Wasm AST.
-  WasmEdge_ASTModuleContext *Mod = loadModule(nullptr, TPath);
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(nullptr);
+  WasmEdge_ASTModuleContext *Mod = nullptr;
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_LoaderParseFromFile(Loader, &Mod, TPath)));
+  WasmEdge_LoaderDelete(Loader);
   EXPECT_NE(Mod, nullptr);
-  EXPECT_TRUE(validateModule(nullptr, Mod));
+  WasmEdge_ValidatorContext *Validator = WasmEdge_ValidatorCreate(nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_ValidatorValidate(Validator, Mod)));
+  WasmEdge_ValidatorDelete(Validator);
 
   // Async deletion
   WasmEdge_AsyncDelete(nullptr);
@@ -3581,9 +3567,15 @@ TEST(APIUnitTest, VM) {
   EXPECT_TRUE(readToVector(TPath, Buf));
 
   // Load and validate to a Wasm AST.
-  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(Conf);
+  WasmEdge_ASTModuleContext *Mod = nullptr;
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_LoaderParseFromFile(Loader, &Mod, TPath)));
+  WasmEdge_LoaderDelete(Loader);
   EXPECT_NE(Mod, nullptr);
-  EXPECT_TRUE(validateModule(Conf, Mod));
+  WasmEdge_ValidatorContext *Validator = WasmEdge_ValidatorCreate(Conf);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_ValidatorValidate(Validator, Mod)));
+  WasmEdge_ValidatorDelete(Validator);
 
   // VM creation and deletion
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(nullptr, nullptr);

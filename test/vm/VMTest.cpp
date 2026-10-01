@@ -477,12 +477,6 @@ TEST(VMTest, RegisterModule) {
   }
 }
 
-TEST(VMTest, PluginMockModulesRegistered) {
-  Configure Conf;
-  VM::VM TestVM(Conf);
-  EXPECT_NE(TestVM.getStoreManager().findModule("wasi_ephemeral_nn"), nullptr);
-}
-
 TEST(VMTest, WasiImport) {
   // Test the WASI import module.
   //
@@ -608,7 +602,8 @@ TEST(VMTest, Cleanup) {
     ASSERT_NE(TestVM.getImportModule(HostRegistration::Wasi), nullptr);
     TestVM.cleanup();
     EXPECT_NE(TestVM.getImportModule(HostRegistration::Wasi), nullptr);
-    EXPECT_NE(TestVM.getStoreManager().findModule("wasi_ephemeral_nn"),
+    // No module stands in for an uninstalled plugin in the store.
+    EXPECT_EQ(TestVM.getStoreManager().findModule("wasi_ephemeral_nn"),
               nullptr);
   }
 }

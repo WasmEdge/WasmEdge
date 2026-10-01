@@ -241,11 +241,8 @@ convertFiletime(WasmEdge::winapi::FILETIME_ FileTime) noexcept {
 }
 #endif
 
-// The following code includes a sleep to prevent a possible delay when sending
-// and recving data. There is a chance that PollOneoff may not immediately get
-// the read event when it is called right after the server has sent the data.
-// Without the sleep, there is a risk that the unit test may not pass. We found
-// this problem on macOS and Windows.
+// PollOneoff may miss a read event right after the server sends data on macOS
+// and Windows, so give the data time to arrive.
 void sleepForMacWin() noexcept {
 #if WASMEDGE_OS_MACOS || WASMEDGE_OS_WINDOWS
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -261,8 +258,7 @@ enum class ServerAction {
 };
 
 void requestAction(std::atomic<ServerAction> &Action, ServerAction Act,
-                   std::condition_variable &ActionRequested,
-                   std::mutex &Mutex,
+                   std::condition_variable &ActionRequested, std::mutex &Mutex,
                    std::condition_variable &ActionProcessed,
                    std::atomic_bool &ActionDone) noexcept {
   Action.store(Act);
@@ -4492,9 +4488,8 @@ TEST(WasiTest, SymbolicLink) {
     Env.fini();
   }
 
-  // Symlink targets resolving outside the preopen root are rejected; in-bounds
-  // targets are stored verbatim. Use spaced buffers so the targets and link
-  // names do not overlap in guest memory.
+  // Targets outside the preopen root are rejected, in-bounds targets are kept
+  // verbatim. The buffers are spaced so targets and link names do not overlap.
   OldPathPtr = 0;
   NewPathPtr = 64;
   const auto makeSymlink = [&](std::string_view OldPath,
@@ -4594,9 +4589,8 @@ TEST(WasiTest, SymbolicLink) {
     Env.fini();
   }
 
-  // the new path's trailing component is not followed: creating a link where
-  // one already exists fails with EEXIST instead of being created at the
-  // existing link's target
+  // The new path's trailing link is not followed: linking onto an existing
+  // link fails with EEXIST.
   {
     Env.init({"/:."s}, "test"s, {}, {});
     EXPECT_EQ(makeSymlink("target_x"sv, "existing_link"sv),
@@ -5049,7 +5043,7 @@ TEST(WasiTest, PointerAlignment) {
                                AlignedIOVsPtr,           // aligned IOVsPtr
                                static_cast<uint32_t>(1), // IOVsLen
                                static_cast<uint64_t>(0), // Offset
-                               MisalignedNWrittenPtr},   // misaligned NWrittenPtr
+                               MisalignedNWrittenPtr}, // misaligned NWrittenPtr
                            Errno);
     ASSERT_FALSE(Res);
     EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
@@ -5084,7 +5078,7 @@ TEST(WasiTest, PointerAlignment) {
     auto Res = WasiFdRead.run(CallFrame,
                               std::initializer_list<WasmEdge::ValVariant>{
                                   static_cast<int32_t>(0), // stdin fd
-                                  MisalignedIOVsPtr, // misaligned IOVsPtr
+                                  MisalignedIOVsPtr,       // misaligned IOVsPtr
                                   static_cast<uint32_t>(1), // IOVsLen
                                   AlignedNReadPtr},         // aligned NReadPtr
                               Errno);
@@ -6479,12 +6473,11 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_size_t) * 3);
 
     // Test misaligned ArgcPtr
-    Res = WasiArgsSizesGet.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{
-            MisalignedArgcPtr, // misaligned
-            AlignedArgvBufSizePtr},
-        Errno);
+    Res = WasiArgsSizesGet.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   MisalignedArgcPtr, // misaligned
+                                   AlignedArgvBufSizePtr},
+                               Errno);
     ASSERT_FALSE(Res);
     EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
@@ -6520,12 +6513,11 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(uint8_t_ptr) * 3);
 
     // Test misaligned EnvPtr
-    auto Res =
-        WasiEnvironGet.run(CallFrame,
-                           std::initializer_list<WasmEdge::ValVariant>{
-                               MisalignedEnvPtr, // misaligned
-                               static_cast<uint32_t>(0)},
-                           Errno);
+    auto Res = WasiEnvironGet.run(CallFrame,
+                                  std::initializer_list<WasmEdge::ValVariant>{
+                                      MisalignedEnvPtr, // misaligned
+                                      static_cast<uint32_t>(0)},
+                                  Errno);
     ASSERT_FALSE(Res);
     EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
@@ -6551,12 +6543,11 @@ TEST(WasiTest, PointerAlignment) {
         static_cast<uint32_t>(alignof(__wasi_size_t) * 5);
 
     // Test misaligned EnvCntPtr
-    Res = WasiEnvironSizesGet.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{
-            MisalignedEnvCntPtr, // misaligned
-            AlignedEnvBufSizePtr},
-        Errno);
+    Res = WasiEnvironSizesGet.run(CallFrame,
+                                  std::initializer_list<WasmEdge::ValVariant>{
+                                      MisalignedEnvCntPtr, // misaligned
+                                      AlignedEnvBufSizePtr},
+                                  Errno);
     ASSERT_FALSE(Res);
     EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnalignedAtomicAccess);
 
@@ -6691,10 +6682,8 @@ TEST(WasiTest, PointerAlignment) {
   }
 }
 
-// Test that sock_accept with NONBLOCK flag sets the flag on the accepted
-// socket (not the listening socket). This is a regression test for the bug
-// where fcntl(Fd, F_SETFL, ...) was called on the listening socket fd instead
-// of fcntl(NewFd, F_SETFL, ...) on the newly accepted socket fd.
+// sock_accept with NONBLOCK must set the flag on the accepted socket, not on
+// the listening socket.
 TEST(WasiTest, SockAcceptNonblockFlag) {
   std::atomic_bool ServerReady(false);
   std::atomic_bool ServerDone(false);

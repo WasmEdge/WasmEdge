@@ -40,18 +40,6 @@ TEST(DescriptionTest, LoadImportDesc) {
   Conf.removeProposal(WasmEdge::Proposal::ImportExportMutGlobals);
   WasmEdge::Loader::Loader LdrNoImpMutGlob(Conf);
 
-  // 1. Test load import description.
-  //
-  //   1.  Load invalid empty import description.
-  //   2.  Load import description with empty module and external name.
-  //   3.  Load import description with module and external names.
-  //   4.  Load import description with invalid external type.
-  //   5.  Load import description of table type.
-  //   6.  Load import description of memory type.
-  //   7.  Load import description of global type.
-  //   8.  Load invalid import description of global type without Mut-Globals
-  //       proposal.
-
   Vec = {
       0x02U, // Import section
       0x01U, // Content size = 1
@@ -141,14 +129,6 @@ TEST(DescriptionTest, LoadImportDesc) {
 
 TEST(DescriptionTest, LoadExportDesc) {
   std::vector<uint8_t> Vec;
-
-  // 2. Test load export description.
-  //
-  //   1.  Load invalid empty export description.
-  //   2.  Load export description with empty module name.
-  //   3.  Load export description with non-empty module name.
-  //   4.  Load export description with invalid external type.
-  //   5.  Load export description of table type.
 
   Vec = {
       0x07U, // Export section

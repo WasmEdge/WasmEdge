@@ -12,9 +12,8 @@
 
 namespace {
 
-// wasm.h's WASM_*_VAL macros use C99-style designated initializers, which
-// MSVC rejects under /std:c++17. Inline helpers do the same construction
-// in plain field assignment.
+// wasm.h's WASM_*_VAL macros use designated initializers, which MSVC rejects
+// under /std:c++17.
 [[maybe_unused]] inline wasm_val_t initVal() {
   wasm_val_t v{};
   v.kind = WASM_EXTERNREF;
@@ -46,36 +45,33 @@ namespace {
   return v;
 }
 
-// Test fixture for ReuseHostFuncAsImport (hello.c module): import a host
-// "hello" function and export a "run" that calls it.
-//
-// (module
-//   (func $hello (import "" "hello"))
-//   (func (export "run") (call $hello))
-// )
-const std::array<uint8_t, 47> HelloWasm{
-    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
-    0x00, 0x00, 0x02, 0x0a, 0x01, 0x00, 0x05, 0x68, 0x65, 0x6c, 0x6c, 0x6f,
-    0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75,
-    0x6e, 0x00, 0x01, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x10, 0x00, 0x0b};
-
 int HelloCallCount = 0;
 wasm_trap_t *helloCallback(const wasm_val_vec_t *, wasm_val_vec_t *) {
   HelloCallCount += 1;
   return nullptr;
 }
 
-// Regression test: the same host wasm_func_t must be reusable as an import to
-// multiple instances (spec semantics — imports are borrowed, not consumed).
+// The same host wasm_func_t must be reusable as an import to several
+// instances: imports are borrowed, not consumed.
 TEST(APIWasmCRegressionTest, ReuseHostFuncAsImport) {
+  // (module
+  //   (func $hello (import "" "hello"))
+  //   (func (export "run") (call $hello))
+  // )
+  std::array<uint8_t, 47> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+      0x00, 0x00, 0x02, 0x0a, 0x01, 0x00, 0x05, 0x68, 0x65, 0x6c, 0x6c, 0x6f,
+      0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75,
+      0x6e, 0x00, 0x01, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x10, 0x00, 0x0b};
+
   HelloCallCount = 0;
 
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);
 
   wasm_byte_vec_t binary;
-  wasm_byte_vec_new_uninitialized(&binary, HelloWasm.size());
-  std::copy(HelloWasm.begin(), HelloWasm.end(), binary.data);
+  wasm_byte_vec_new_uninitialized(&binary, Wasm.size());
+  std::copy(Wasm.begin(), Wasm.end(), binary.data);
   wasm_module_t *module = wasm_module_new(store, &binary);
   wasm_byte_vec_delete(&binary);
   ASSERT_NE(nullptr, module);
@@ -123,41 +119,35 @@ TEST(APIWasmCRegressionTest, ReuseHostFuncAsImport) {
   wasm_engine_delete(engine);
 }
 
-// Regression test: a native-wasm function exported from one instance must be
-// usable as an import to another instance. This exercises the alias path for
-// non-host targets — the wrapper dispatches via Executor::invoke at call
-// time.
-//
-// Provider:
-//   (module (func (export "add") (param i32 i32) (result i32)
-//     (i32.add (local.get 0) (local.get 1))))
-const std::array<uint8_t, 41> PassthroughProviderWasm{
-    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
-    0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07,
-    0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x0a, 0x09, 0x01,
-    0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b};
-
-// Consumer:
-//   (module
-//     (import "" "add" (func $add (param i32 i32) (result i32)))
-//     (func (export "call_add") (param i32 i32) (result i32)
-//       (call $add (local.get 0) (local.get 1))))
-const std::array<uint8_t, 57> PassthroughConsumerWasm{
-    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
-    0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02, 0x08, 0x01, 0x00, 0x03, 0x61, 0x64,
-    0x64, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07, 0x0c, 0x01, 0x08, 0x63,
-    0x61, 0x6c, 0x6c, 0x5f, 0x61, 0x64, 0x64, 0x00, 0x01, 0x0a, 0x0a, 0x01,
-    0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b};
-
+// A wasm function exported from one instance must be usable as an import of
+// another one (the wrapper dispatches via Executor::invoke).
 TEST(APIWasmCRegressionTest, NativeFuncAsImport) {
+  // (module (func (export "add") (param i32 i32) (result i32)
+  //   (i32.add (local.get 0) (local.get 1))))
+  std::array<uint8_t, 41> ProviderWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
+      0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07,
+      0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x0a, 0x09, 0x01,
+      0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b};
+
+  // (module
+  //   (import "" "add" (func $add (param i32 i32) (result i32)))
+  //   (func (export "call_add") (param i32 i32) (result i32)
+  //     (call $add (local.get 0) (local.get 1))))
+  std::array<uint8_t, 57> ConsumerWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
+      0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02, 0x08, 0x01, 0x00, 0x03, 0x61, 0x64,
+      0x64, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07, 0x0c, 0x01, 0x08, 0x63,
+      0x61, 0x6c, 0x6c, 0x5f, 0x61, 0x64, 0x64, 0x00, 0x01, 0x0a, 0x0a, 0x01,
+      0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b};
+
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);
 
   // Instantiate provider; pick up its exported "add".
   wasm_byte_vec_t prov_bin;
-  wasm_byte_vec_new_uninitialized(&prov_bin, PassthroughProviderWasm.size());
-  std::copy(PassthroughProviderWasm.begin(), PassthroughProviderWasm.end(),
-            prov_bin.data);
+  wasm_byte_vec_new_uninitialized(&prov_bin, ProviderWasm.size());
+  std::copy(ProviderWasm.begin(), ProviderWasm.end(), prov_bin.data);
   wasm_module_t *prov_mod = wasm_module_new(store, &prov_bin);
   wasm_byte_vec_delete(&prov_bin);
   ASSERT_NE(nullptr, prov_mod);
@@ -176,9 +166,8 @@ TEST(APIWasmCRegressionTest, NativeFuncAsImport) {
 
   // Instantiate consumer, passing the provider's "add" as its import.
   wasm_byte_vec_t cons_bin;
-  wasm_byte_vec_new_uninitialized(&cons_bin, PassthroughConsumerWasm.size());
-  std::copy(PassthroughConsumerWasm.begin(), PassthroughConsumerWasm.end(),
-            cons_bin.data);
+  wasm_byte_vec_new_uninitialized(&cons_bin, ConsumerWasm.size());
+  std::copy(ConsumerWasm.begin(), ConsumerWasm.end(), cons_bin.data);
   wasm_module_t *cons_mod = wasm_module_new(store, &cons_bin);
   wasm_byte_vec_delete(&cons_bin);
   ASSERT_NE(nullptr, cons_mod);
@@ -211,26 +200,6 @@ TEST(APIWasmCRegressionTest, NativeFuncAsImport) {
   wasm_engine_delete(engine);
 }
 
-// Regression test: a wasm module that imports from non-"" module names must
-// resolve correctly. Spec semantics: imports are a flat positional vec, but
-// the engine must honor whatever (module-name, ext-name) pairs the wasm
-// module itself declares.
-//
-// (module
-//   (import "env" "log" (func $log (param i32)))
-//   (import "math" "add" (func $add (param i32 i32) (result i32)))
-//   (func (export "run") (param i32 i32) (result i32)
-//     (call $log (local.get 0))
-//     (call $add (local.get 0) (local.get 1))))
-const std::array<uint8_t, 74> NamedImportsWasm{
-    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0b, 0x02,
-    0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02,
-    0x16, 0x02, 0x03, 0x65, 0x6e, 0x76, 0x03, 0x6c, 0x6f, 0x67, 0x00,
-    0x00, 0x04, 0x6d, 0x61, 0x74, 0x68, 0x03, 0x61, 0x64, 0x64, 0x00,
-    0x01, 0x03, 0x02, 0x01, 0x01, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75,
-    0x6e, 0x00, 0x02, 0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x20, 0x00, 0x10,
-    0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x01, 0x0b};
-
 int LogCallCount = 0;
 int32_t LogLastArg = 0;
 wasm_trap_t *logCallback(const wasm_val_vec_t *args, wasm_val_vec_t *) {
@@ -244,15 +213,32 @@ wasm_trap_t *addCallback(const wasm_val_vec_t *args, wasm_val_vec_t *results) {
   return nullptr;
 }
 
+// Imports are positional, but the engine must honor the (module, name) pairs
+// the module declares, including non-"" module names.
 TEST(APIWasmCRegressionTest, NamedModuleImports) {
+  // (module
+  //   (import "env" "log" (func $log (param i32)))
+  //   (import "math" "add" (func $add (param i32 i32) (result i32)))
+  //   (func (export "run") (param i32 i32) (result i32)
+  //     (call $log (local.get 0))
+  //     (call $add (local.get 0) (local.get 1))))
+  std::array<uint8_t, 74> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0b, 0x02,
+      0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02,
+      0x16, 0x02, 0x03, 0x65, 0x6e, 0x76, 0x03, 0x6c, 0x6f, 0x67, 0x00,
+      0x00, 0x04, 0x6d, 0x61, 0x74, 0x68, 0x03, 0x61, 0x64, 0x64, 0x00,
+      0x01, 0x03, 0x02, 0x01, 0x01, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75,
+      0x6e, 0x00, 0x02, 0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x20, 0x00, 0x10,
+      0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x01, 0x0b};
+
   LogCallCount = 0;
 
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);
 
   wasm_byte_vec_t binary;
-  wasm_byte_vec_new_uninitialized(&binary, NamedImportsWasm.size());
-  std::copy(NamedImportsWasm.begin(), NamedImportsWasm.end(), binary.data);
+  wasm_byte_vec_new_uninitialized(&binary, Wasm.size());
+  std::copy(Wasm.begin(), Wasm.end(), binary.data);
   wasm_module_t *module = wasm_module_new(store, &binary);
   wasm_byte_vec_delete(&binary);
   ASSERT_NE(nullptr, module);
@@ -299,23 +285,6 @@ TEST(APIWasmCRegressionTest, NamedModuleImports) {
   wasm_engine_delete(engine);
 }
 
-// Reentrancy: a host callback invoked from wasm calls wasm_func_call on
-// another wasm export.
-//
-// (module
-//   (import "" "cb" (func $cb))
-//   (func $inner (export "inner") (result i32) (i32.const 42))
-//   (func (export "outer") (result i32)
-//     (call $cb)
-//     (call $inner)))
-const std::array<uint8_t, 66> ReentrantWasm{
-    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02,
-    0x60, 0x00, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x02, 0x07, 0x01, 0x00,
-    0x02, 0x63, 0x62, 0x00, 0x00, 0x03, 0x03, 0x02, 0x01, 0x01, 0x07,
-    0x11, 0x02, 0x05, 0x69, 0x6e, 0x6e, 0x65, 0x72, 0x00, 0x01, 0x05,
-    0x6f, 0x75, 0x74, 0x65, 0x72, 0x00, 0x02, 0x0a, 0x0d, 0x02, 0x04,
-    0x00, 0x41, 0x2a, 0x0b, 0x06, 0x00, 0x10, 0x00, 0x10, 0x01, 0x0b};
-
 wasm_func_t *ReentrantInner = nullptr;
 int ReentrantCbCount = 0;
 int32_t ReentrantInnerResult = 0;
@@ -332,7 +301,22 @@ wasm_trap_t *reentrantCallback(const wasm_val_vec_t *, wasm_val_vec_t *) {
   return nullptr;
 }
 
+// A host callback invoked from wasm calls wasm_func_call on another export.
 TEST(APIWasmCRegressionTest, HostfuncReentrancy) {
+  // (module
+  //   (import "" "cb" (func $cb))
+  //   (func $inner (export "inner") (result i32) (i32.const 42))
+  //   (func (export "outer") (result i32)
+  //     (call $cb)
+  //     (call $inner)))
+  std::array<uint8_t, 66> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02,
+      0x60, 0x00, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x02, 0x07, 0x01, 0x00,
+      0x02, 0x63, 0x62, 0x00, 0x00, 0x03, 0x03, 0x02, 0x01, 0x01, 0x07,
+      0x11, 0x02, 0x05, 0x69, 0x6e, 0x6e, 0x65, 0x72, 0x00, 0x01, 0x05,
+      0x6f, 0x75, 0x74, 0x65, 0x72, 0x00, 0x02, 0x0a, 0x0d, 0x02, 0x04,
+      0x00, 0x41, 0x2a, 0x0b, 0x06, 0x00, 0x10, 0x00, 0x10, 0x01, 0x0b};
+
   ReentrantInner = nullptr;
   ReentrantCbCount = 0;
   ReentrantInnerResult = 0;
@@ -341,8 +325,8 @@ TEST(APIWasmCRegressionTest, HostfuncReentrancy) {
   wasm_store_t *store = wasm_store_new(engine);
 
   wasm_byte_vec_t binary;
-  wasm_byte_vec_new_uninitialized(&binary, ReentrantWasm.size());
-  std::copy(ReentrantWasm.begin(), ReentrantWasm.end(), binary.data);
+  wasm_byte_vec_new_uninitialized(&binary, Wasm.size());
+  std::copy(Wasm.begin(), Wasm.end(), binary.data);
   wasm_module_t *module = wasm_module_new(store, &binary);
   wasm_byte_vec_delete(&binary);
   ASSERT_NE(nullptr, module);

@@ -36,13 +36,6 @@ std::vector<uint8_t> prefixedVec(const std::vector<uint8_t> &Vec) {
 TEST(SectionTest, LoadCustomSection) {
   std::vector<uint8_t> Vec;
 
-  // 1. Test load custom section.
-  //
-  //   1.  Load invalid empty section.
-  //   2.  Load invalid custom section without contents.
-  //   3.  Load custom section with 0-length name.
-  //   4.  Load custom section with contents.
-
   Vec = {0x00U};
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -70,13 +63,6 @@ TEST(SectionTest, LoadCustomSection) {
 
 TEST(SectionTest, LoadTypeSection) {
   std::vector<uint8_t> Vec;
-
-  // 2. Test load type section.
-  //
-  //   1.  Load invalid empty section.
-  //   2.  Load type section without contents.
-  //   3.  Load type section with zero vector length.
-  //   4.  Load type section with contents.
 
   Vec = {0x01U};
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
@@ -107,13 +93,6 @@ TEST(SectionTest, LoadTypeSection) {
 
 TEST(SectionTest, LoadImportSection) {
   std::vector<uint8_t> Vec;
-
-  // 3. Test load import section.
-  //
-  //   1.  Load invalid empty section.
-  //   2.  Load import section without contents.
-  //   3.  Load import section with zero vector length.
-  //   4.  Load import section with contents.
 
   Vec = {0x02U};
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
@@ -153,14 +132,6 @@ TEST(SectionTest, LoadImportSection) {
 
 TEST(SectionTest, LoadFunctionSection) {
   std::vector<uint8_t> Vec;
-
-  // 4. Test load function section.
-  //
-  //   1.  Load invalid empty section.
-  //   2.  Load function section without contents.
-  //   3.  Load function section with zero vector length.
-  //   4.  Load function section with contents.
-  //   5.  Load function section with contents that do not match section size.
 
   Vec = {0x03U};
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
@@ -214,13 +185,6 @@ TEST(SectionTest, LoadFunctionSection) {
 TEST(SectionTest, LoadTableSection) {
   std::vector<uint8_t> Vec;
 
-  // 5. Test load table section.
-  //
-  //   1.  Load invalid empty section.
-  //   2.  Load table section without contents.
-  //   3.  Load table section with zero vector length.
-  //   4.  Load table section with contents.
-
   Vec = {0x04U};
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -250,13 +214,6 @@ TEST(SectionTest, LoadTableSection) {
 
 TEST(SectionTest, LoadMemorySection) {
   std::vector<uint8_t> Vec;
-
-  // 6. Test load memory section.
-  //
-  //   1.  Load invalid empty section.
-  //   2.  Load memory section without contents.
-  //   3.  Load memory section with zero vector length.
-  //   4.  Load memory section with contents.
 
   Vec = {0x05U};
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
@@ -288,13 +245,6 @@ TEST(SectionTest, LoadMemorySection) {
 TEST(SectionTest, LoadGlobalSection) {
   std::vector<uint8_t> Vec;
 
-  // 7. Test load global section.
-  //
-  //   1.  Load invalid empty section.
-  //   2.  Load global section without contents.
-  //   3.  Load global section with zero vector length.
-  //   4.  Load global section with contents.
-
   Vec = {0x06U};
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -324,13 +274,6 @@ TEST(SectionTest, LoadGlobalSection) {
 
 TEST(SectionTest, LoadExportSection) {
   std::vector<uint8_t> Vec;
-
-  // 8. Test load export section.
-  //
-  //   1.  Load invalid empty section.
-  //   2.  Load export section without contents.
-  //   3.  Load export section with zero vector length.
-  //   4.  Load export section with contents.
 
   Vec = {0x07U};
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
@@ -368,13 +311,6 @@ TEST(SectionTest, LoadExportSection) {
 TEST(SectionTest, LoadStartSection) {
   std::vector<uint8_t> Vec;
 
-  // 9. Test load start section.
-  //
-  //   1.  Load invalid empty section.
-  //   2.  Load start section without contents.
-  //   3.  Load start section with contents.
-  //   4.  Load start section with contents that do not match section size.
-
   Vec = {0x08U};
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -401,13 +337,6 @@ TEST(SectionTest, LoadStartSection) {
 
 TEST(SectionTest, LoadElementSection) {
   std::vector<uint8_t> Vec;
-
-  // 10. Test load element section.
-  //
-  //   1.  Load invalid empty section.
-  //   2.  Load element section without contents.
-  //   3.  Load element section with zero vector length.
-  //   4.  Load element section with contents.
 
   Vec = {0x09U};
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
@@ -450,13 +379,6 @@ TEST(SectionTest, LoadElementSection) {
 
 TEST(SectionTest, LoadCodeSection) {
   std::vector<uint8_t> Vec;
-
-  // 11. Test load code section.
-  //
-  //   1.  Load invalid empty section.
-  //   2.  Load code section without contents.
-  //   3.  Load code section with zero vector length.
-  //   4.  Load code section with contents.
 
   Vec = {0x0AU};
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
@@ -503,13 +425,6 @@ TEST(SectionTest, LoadCodeSection) {
 TEST(SectionTest, LoadDataSection) {
   std::vector<uint8_t> Vec;
 
-  // 12. Test load data section.
-  //
-  //   1.  Load invalid empty section.
-  //   2.  Load data section without contents.
-  //   3.  Load data section with zero vector length.
-  //   4.  Load data section with contents.
-
   Vec = {0x0BU};
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -554,14 +469,6 @@ TEST(SectionTest, LoadDataCountSection) {
   Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
   WasmEdge::Loader::Loader LdrWASM1(Conf);
 
-  // 13. Test load datacount section.
-  //
-  //   1.  Load invalid empty section.
-  //   2.  Load datacount section without contents.
-  //   3.  Load datacount section with contents.
-  //   4.  Load datacount section with contents that do not match section size.
-  //   5.  Load datacount section without Ref-Types proposal.
-
   Vec = {0x0CU};
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -599,10 +506,8 @@ TEST(SectionTest, LoadDataCountSection) {
 }
 
 TEST(SectionTest, LoadAOTSectionSymbolAddress) {
-  // The AOT symbol addresses are offsets into the code chunk about to be
-  // mapped, and are turned into pointers without any bound check. Loading an
-  // out-of-range one gives an arbitrary write at load time, so they must be
-  // rejected.
+  // AOT symbol addresses are unchecked offsets into the code chunk, so
+  // out-of-range ones must be rejected at load time.
   auto CraftAOTSection = []() {
     WasmEdge::AST::AOTSection Sec;
     Sec.setIntrinsicsAddress(0);

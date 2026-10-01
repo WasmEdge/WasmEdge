@@ -42,14 +42,6 @@ TEST(ExpressionTest, LoadExpression) {
   Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
   WasmEdge::Loader::Loader LdrWASM1(Conf);
 
-  // 1. Test load limit.
-  //
-  //   1.  Load invalid empty expression.
-  //   2.  Load expression with only end operation.
-  //   3.  Load expression with invalid operations.
-  //   4.  Load expression with instructions.
-  //   5.  Load expression with instructions not in proposals.
-
   Vec = {
       0x0AU, // Code section
       0x03U, // Content size = 3

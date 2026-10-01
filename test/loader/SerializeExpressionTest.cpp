@@ -24,11 +24,6 @@ TEST(SerializeExpressionTest, SerializeExpression) {
   std::vector<uint8_t> Output;
   WasmEdge::AST::Expression Expr;
 
-  // 1. Test serialize expression.
-  //
-  //   1.  Serialize expression with only end operation.
-  //   2.  Serialize expression with instructions.
-
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
   WasmEdge::AST::Instruction I32Eqz(WasmEdge::OpCode::I32__eqz);
   WasmEdge::AST::Instruction I32Eq(WasmEdge::OpCode::I32__eq);

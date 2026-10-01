@@ -12,24 +12,10 @@ namespace {
 using namespace WasmEdge;
 using namespace std::literals;
 
-// Loads a component, which must succeed, then validates and optionally
-// instantiates it.
-ErrCode::Value validateComponent(Span<const Byte> Wasm,
-                                 bool Instantiate = false) {
-  Configure Conf;
-  Conf.addProposal(Proposal::Component);
-  VM::VM VM(Conf);
-  auto Res = VM.loadWasm(Wasm);
-  EXPECT_TRUE(Res) << "the component failed to load";
-  Res = Res.and_then([&]() { return VM.validate(); });
-  if (Instantiate) {
-    Res = Res.and_then([&]() { return VM.instantiate(); });
-  }
-  return Res ? ErrCode::Value::Success : Res.error().getEnum();
-}
-
 // Sample components load, and validate or are rejected as expected.
 TEST(ComponentRegressionTest, SampleBinaries) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
   // (component
   //   (type (;0;)
   //     (instance
@@ -79,9 +65,132 @@ TEST(ComponentRegressionTest, SampleBinaries) {
       0x65, 0x73, 0x73, 0x65, 0x64, 0x2d, 0x62, 0x79, 0x01, 0x0d, 0x77, 0x69,
       0x74, 0x2d, 0x63, 0x6f, 0x6d, 0x70, 0x6f, 0x6e, 0x65, 0x6e, 0x74, 0x07,
       0x30, 0x2e, 0x32, 0x32, 0x37, 0x2e, 0x31};
-  EXPECT_EQ(validateComponent(TestWasm), ErrCode::Value::Success);
+  VM::VM TestVM(Conf);
+  ASSERT_TRUE(TestVM.loadWasm(TestWasm));
+  EXPECT_TRUE(TestVM.validate());
 
   // A component importing wasi:http/test and lowering its http-get.
+  // (component
+  //   (core module $Libc (;0;)
+  //     (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
+  //     (memory (;0;) 1)
+  //     (global $last (;0;) (mut i32) i32.const 8)
+  //     (export "mem" (memory 0))
+  //     (export "realloc" (func $realloc))
+  //     (func $realloc (;0;) (type 0) (param $old_ptr i32)
+  //       (param $old_size i32) (param $align i32) (param $new_size i32)
+  //       (result i32)
+  //       (local $ret i32)
+  //       local.get $old_ptr
+  //       if ;; label = @1
+  //         local.get $old_size
+  //         local.get $new_size
+  //         i32.gt_u
+  //         if ;; label = @2
+  //           local.get $old_ptr
+  //           return
+  //         end
+  //       end
+  //       global.get $last
+  //       local.get $align
+  //       i32.const -1
+  //       i32.add
+  //       i32.add
+  //       local.get $align
+  //       i32.const -1
+  //       i32.add
+  //       i32.const -1
+  //       i32.xor
+  //       i32.and
+  //       global.set $last
+  //       global.get $last
+  //       local.set $ret
+  //       global.get $last
+  //       local.get $new_size
+  //       i32.add
+  //       global.set $last
+  //       loop $loop
+  //         memory.size
+  //         i32.const 65536
+  //         i32.mul
+  //         global.get $last
+  //         i32.lt_u
+  //         if ;; label = @2
+  //           i32.const 1
+  //           memory.grow
+  //           i32.const -1
+  //           i32.eq
+  //           if ;; label = @3
+  //             unreachable
+  //           end
+  //           br $loop
+  //         end
+  //       end
+  //       local.get $ret
+  //       i32.const 222
+  //       local.get $new_size
+  //       memory.fill
+  //       local.get $old_ptr
+  //       if ;; label = @1
+  //         local.get $ret
+  //         local.get $old_ptr
+  //         local.get $old_size
+  //         memory.copy
+  //       end
+  //       local.get $ret
+  //     )
+  //   )
+  //   (core instance $libc (;0;) (instantiate $Libc))
+  //   (type (;0;)
+  //     (instance
+  //       (type (;0;) (func (param "uri" string) (result string)))
+  //       (export (;0;) "http-get" (func (type 0)))
+  //       (type (;1;) (func (param "text" string)))
+  //       (export (;1;) "print" (func (type 1)))
+  //     )
+  //   )
+  //   (import "wasi:http/test" (instance $http (;0;) (type 0)))
+  //   (alias export $http "http-get" (func (;0;)))
+  //   (alias core export $libc "mem" (core memory (;0;)))
+  //   (alias core export $libc "realloc" (core func (;0;)))
+  //   (core func $http-get (;1;) (canon lower (func 0) (memory 0) (realloc 0)))
+  //   (alias export $http "print" (func (;1;)))
+  //   (alias core export $libc "mem" (core memory (;1;)))
+  //   (alias core export $libc "realloc" (core func (;2;)))
+  //   (core func $print (;3;) (canon lower (func 1) (memory 1) (realloc 2)))
+  //   (core module $M (;1;)
+  //     (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
+  //     (type (;1;) (func (param i32 i32) (result i32 i32)))
+  //     (type (;2;) (func (param i32 i32)))
+  //     (import "libc" "mem" (memory (;0;) 1))
+  //     (import "libc" "realloc" (func (;0;) (type 0)))
+  //     (import "http" "http-get" (func $get (;1;) (type 1)))
+  //     (import "http" "print" (func $print (;2;) (type 2)))
+  //     (export "run" (func 3))
+  //     (func (;3;) (type 2) (param i32 i32)
+  //       local.get 0
+  //       local.get 1
+  //       call $get
+  //       call $print
+  //     )
+  //   )
+  //   (core instance (;1;)
+  //     (export "http-get" (func $http-get))
+  //     (export "print" (func $print))
+  //   )
+  //   (core instance $main (;2;) (instantiate $M
+  //       (with "libc" (instance $libc))
+  //       (with "http" (instance 1))
+  //     )
+  //   )
+  //   (type (;1;) (func (param "uri" string)))
+  //   (alias core export $main "run" (core func (;4;)))
+  //   (alias core export $libc "mem" (core memory (;2;)))
+  //   (alias core export $libc "realloc" (core func (;5;)))
+  //   (func $run (;2;) (type 1) (canon lift (core func 4) (memory 2)
+  //     (realloc 5)))
+  //   (export (;3;) "run" (func $run))
+  // )
   std::array<WasmEdge::Byte, 775> HttpWasm{
 
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x81, 0x02, 0x00,
@@ -215,9 +324,329 @@ TEST(ComponentRegressionTest, SampleBinaries) {
       0x01, 0x00, 0x04, 0x68, 0x74, 0x74, 0x70};
   // http-get is lowered with a multi-value core result, which the canonical
   // ABI never produces; wasm-tools rejects it too.
-  EXPECT_NE(validateComponent(HttpWasm), ErrCode::Value::Success);
+  VM::VM HttpVM(Conf);
+  ASSERT_TRUE(HttpVM.loadWasm(HttpWasm));
+  EXPECT_FALSE(HttpVM.validate());
 
   // Component $C exports resources R1 and R2; component $D imports them.
+  // (component
+  //   (component $C (;0;)
+  //     (core module $Indirect (;0;)
+  //       (type $FT (;0;) (func (param i32)))
+  //       (table (;0;) 2 funcref)
+  //       (export "ftbl" (table 0))
+  //       (export "R1-dtor" (func 0))
+  //       (export "R2-dtor" (func 1))
+  //       (func (;0;) (type $FT) (param i32)
+  //         local.get 0
+  //         i32.const 0
+  //         call_indirect (type $FT)
+  //       )
+  //       (func (;1;) (type $FT) (param i32)
+  //         local.get 0
+  //         i32.const 1
+  //         call_indirect (type $FT)
+  //       )
+  //     )
+  //     (core instance $indirect (;0;) (instantiate $Indirect))
+  //     (alias core export $indirect "R1-dtor" (core func (;0;)))
+  //     (type $R1' (;0;) (resource (rep i32) (dtor (func 0))))
+  //     (alias core export $indirect "R2-dtor" (core func (;1;)))
+  //     (type $R2' (;1;) (resource (rep i32) (dtor (func 1))))
+  //     (export $R1 (;2;) "R1" (type $R1'))
+  //     (export $R2 (;3;) "R2" (type $R2'))
+  //     (core func $R1.resource.new (;2;) (canon resource.new $R1'))
+  //     (core func $R2.resource.new (;3;) (canon resource.new $R2'))
+  //     (core module $CM (;1;)
+  //       (type (;0;) (func (param i32) (result i32)))
+  //       (type (;1;) (func (result i32)))
+  //       (type (;2;) (func (param i32)))
+  //       (import "" "ftbl" (table (;0;) 1 funcref))
+  //       (import "" "R1.resource.new" (func $R1.resource.new (;0;) (type 0)))
+  //       (import "" "R2.resource.new" (func $R2.resource.new (;1;) (type 0)))
+  //       (memory (;0;) 1)
+  //       (global $num-live-R1 (;0;) (mut i32) i32.const 0)
+  //       (global $num-live-R2 (;1;) (mut i32) i32.const 0)
+  //       (export "make-R1" (func $make-R1))
+  //       (export "make-R2" (func $make-R2))
+  //       (export "get-rep-R1" (func $get-rep-R1))
+  //       (export "get-rep-R2" (func $get-rep-R2))
+  //       (export "num-live" (func $num-live))
+  //       (elem (;0;) (i32.const 0) func $R1-dtor $R2-dtor)
+  //       (func $make-R1 (;2;) (type 1) (result i32)
+  //         (local $h i32)
+  //         global.get $num-live-R1
+  //         i32.const 1
+  //         i32.add
+  //         global.set $num-live-R1
+  //         i32.const 64
+  //         global.get $num-live-R1
+  //         i32.add
+  //         call $R1.resource.new
+  //       )
+  //       (func $make-R2 (;3;) (type 1) (result i32)
+  //         (local $h i32)
+  //         global.get $num-live-R2
+  //         i32.const 1
+  //         i32.add
+  //         global.set $num-live-R2
+  //         i32.const 128
+  //         global.get $num-live-R2
+  //         i32.add
+  //         call $R2.resource.new
+  //       )
+  //       (func $get-rep-R1 (;4;) (type 0) (param $rep i32) (result i32)
+  //         local.get $rep
+  //       )
+  //       (func $get-rep-R2 (;5;) (type 0) (param $rep i32) (result i32)
+  //         local.get $rep
+  //       )
+  //       (func $R1-dtor (;6;) (type 2) (param $rep i32)
+  //         local.get $rep
+  //         i32.const 65
+  //         i32.lt_u
+  //         local.get $rep
+  //         i32.const 66
+  //         i32.gt_u
+  //         i32.or
+  //         if ;; label = @1
+  //           unreachable
+  //         end
+  //         global.get $num-live-R1
+  //         i32.eqz
+  //         if ;; label = @1
+  //           unreachable
+  //         end
+  //         global.get $num-live-R1
+  //         i32.const 1
+  //         i32.sub
+  //         global.set $num-live-R1
+  //       )
+  //       (func $R2-dtor (;7;) (type 2) (param $rep i32)
+  //         local.get $rep
+  //         i32.const 129
+  //         i32.lt_u
+  //         local.get $rep
+  //         i32.const 130
+  //         i32.gt_u
+  //         i32.or
+  //         if ;; label = @1
+  //           unreachable
+  //         end
+  //         global.get $num-live-R2
+  //         i32.eqz
+  //         if ;; label = @1
+  //           unreachable
+  //         end
+  //         global.get $num-live-R2
+  //         i32.const 1
+  //         i32.sub
+  //         global.set $num-live-R2
+  //       )
+  //       (func $num-live (;8;) (type 1) (result i32)
+  //         global.get $num-live-R1
+  //         global.get $num-live-R2
+  //         i32.add
+  //       )
+  //     )
+  //     (alias core export $indirect "ftbl" (core table (;0;)))
+  //     (core instance (;1;)
+  //       (export "ftbl" (table 0))
+  //       (export "R1.resource.new" (func $R1.resource.new))
+  //       (export "R2.resource.new" (func $R2.resource.new))
+  //     )
+  //     (core instance $cm (;2;) (instantiate $CM
+  //         (with "" (instance 1))
+  //       )
+  //     )
+  //     (type (;4;) (own $R1))
+  //     (type (;5;) (func (result 4)))
+  //     (alias core export $cm "make-R1" (core func (;4;)))
+  //     (func $make-R1 (;0;) (type 5) (canon lift (core func 4)))
+  //     (type (;6;) (own $R2))
+  //     (type (;7;) (func (result 6)))
+  //     (alias core export $cm "make-R2" (core func (;5;)))
+  //     (func $make-R2 (;1;) (type 7) (canon lift (core func 5)))
+  //     (type (;8;) (borrow $R1))
+  //     (type (;9;) (func (param "r" 8) (result u32)))
+  //     (alias core export $cm "get-rep-R1" (core func (;6;)))
+  //     (func $get-rep-R1 (;2;) (type 9) (canon lift (core func 6)))
+  //     (type (;10;) (borrow $R2))
+  //     (type (;11;) (func (param "r" 10) (result u32)))
+  //     (alias core export $cm "get-rep-R2" (core func (;7;)))
+  //     (func $get-rep-R2 (;3;) (type 11) (canon lift (core func 7)))
+  //     (type (;12;) (func (result u32)))
+  //     (alias core export $cm "num-live" (core func (;8;)))
+  //     (func (;4;) (type 12) (canon lift (core func 8)))
+  //     (export (;5;) "make-R1" (func $make-R1))
+  //     (export (;6;) "make-R2" (func $make-R2))
+  //     (export (;7;) "get-rep-R1" (func $get-rep-R1))
+  //     (export (;8;) "get-rep-R2" (func $get-rep-R2))
+  //     (export (;9;) "num-live" (func 4))
+  //   )
+  //   (component $D (;1;)
+  //     (type (;0;)
+  //       (instance
+  //         (export (;0;) "R1" (type (sub resource)))
+  //         (export (;1;) "R2" (type (sub resource)))
+  //         (type (;2;) (own 0))
+  //         (type (;3;) (func (result 2)))
+  //         (export (;0;) "make-R1" (func (type 3)))
+  //         (type (;4;) (own 1))
+  //         (type (;5;) (func (result 4)))
+  //         (export (;1;) "make-R2" (func (type 5)))
+  //         (type (;6;) (borrow 0))
+  //         (type (;7;) (func (param "r" 6) (result u32)))
+  //         (export (;2;) "get-rep-R1" (func (type 7)))
+  //         (type (;8;) (borrow 1))
+  //         (type (;9;) (func (param "r" 8) (result u32)))
+  //         (export (;3;) "get-rep-R2" (func (type 9)))
+  //         (type (;10;) (func (result u32)))
+  //         (export (;4;) "num-live" (func (type 10)))
+  //       )
+  //     )
+  //     (import "c" (instance $c (;0;) (type 0)))
+  //     (core module $DM (;0;)
+  //       (type (;0;) (func (param i32)))
+  //       (type (;1;) (func (result i32)))
+  //       (type (;2;) (func (param i32) (result i32)))
+  //       (import "" "R1.resource.drop" (func $R1.resource.drop (;0;)
+  //         (type 0)))
+  //       (import "" "R2.resource.drop" (func $R2.resource.drop (;1;)
+  //         (type 0)))
+  //       (import "" "make-R1" (func $make-R1 (;2;) (type 1)))
+  //       (import "" "make-R2" (func $make-R2 (;3;) (type 1)))
+  //       (import "" "get-rep-R1" (func $get-rep-R1 (;4;) (type 2)))
+  //       (import "" "get-rep-R2" (func $get-rep-R2 (;5;) (type 2)))
+  //       (import "" "num-live" (func $num-live (;6;) (type 1)))
+  //       (memory (;0;) 1)
+  //       (export "run" (func $run))
+  //       (func $run (;7;) (type 1) (result i32)
+  //         (local $ret i32) (local $h1 i32) (local $h2 i32) (local $h3 i32)
+  //           (local $h4 i32)
+  //         call $make-R1
+  //         local.set $h1
+  //         i32.const 1
+  //         local.get $h1
+  //         i32.ne
+  //         if ;; label = @1
+  //           unreachable
+  //         end
+  //         call $make-R2
+  //         local.set $h2
+  //         i32.const 2
+  //         local.get $h2
+  //         i32.ne
+  //         if ;; label = @1
+  //           unreachable
+  //         end
+  //         call $make-R1
+  //         local.set $h3
+  //         i32.const 3
+  //         local.get $h3
+  //         i32.ne
+  //         if ;; label = @1
+  //           unreachable
+  //         end
+  //         call $make-R2
+  //         local.set $h4
+  //         i32.const 4
+  //         local.get $h4
+  //         i32.ne
+  //         if ;; label = @1
+  //           unreachable
+  //         end
+  //         i32.const 4
+  //         call $num-live
+  //         i32.ne
+  //         if ;; label = @1
+  //           unreachable
+  //         end
+  //         i32.const 129
+  //         local.get $h2
+  //         call $get-rep-R2
+  //         i32.ne
+  //         if ;; label = @1
+  //           unreachable
+  //         end
+  //         local.get $h2
+  //         call $R2.resource.drop
+  //         i32.const 65
+  //         local.get $h1
+  //         call $get-rep-R1
+  //         i32.ne
+  //         if ;; label = @1
+  //           unreachable
+  //         end
+  //         local.get $h1
+  //         call $R1.resource.drop
+  //         i32.const 130
+  //         local.get $h4
+  //         call $get-rep-R2
+  //         i32.ne
+  //         if ;; label = @1
+  //           unreachable
+  //         end
+  //         local.get $h4
+  //         call $R2.resource.drop
+  //         i32.const 66
+  //         local.get $h3
+  //         call $get-rep-R1
+  //         i32.ne
+  //         if ;; label = @1
+  //           unreachable
+  //         end
+  //         local.get $h3
+  //         call $R1.resource.drop
+  //         i32.const 0
+  //         call $num-live
+  //         i32.ne
+  //         if ;; label = @1
+  //           unreachable
+  //         end
+  //         i32.const 42
+  //       )
+  //     )
+  //     (alias export $c "R1" (type $R1 (;1;)))
+  //     (alias export $c "R2" (type $R2 (;2;)))
+  //     (core func $R1.resource.drop (;0;) (canon resource.drop $R1))
+  //     (core func $R2.resource.drop (;1;) (canon resource.drop $R2))
+  //     (alias export $c "make-R1" (func (;0;)))
+  //     (core func $make-R1' (;2;) (canon lower (func 0)))
+  //     (alias export $c "make-R2" (func (;1;)))
+  //     (core func $make-R2' (;3;) (canon lower (func 1)))
+  //     (alias export $c "get-rep-R1" (func (;2;)))
+  //     (core func $get-rep-R1' (;4;) (canon lower (func 2)))
+  //     (alias export $c "get-rep-R2" (func (;3;)))
+  //     (core func $get-rep-R2' (;5;) (canon lower (func 3)))
+  //     (alias export $c "num-live" (func (;4;)))
+  //     (core func $num-live' (;6;) (canon lower (func 4)))
+  //     (core instance (;0;)
+  //       (export "R1.resource.drop" (func $R1.resource.drop))
+  //       (export "R2.resource.drop" (func $R2.resource.drop))
+  //       (export "make-R1" (func $make-R1'))
+  //       (export "make-R2" (func $make-R2'))
+  //       (export "get-rep-R1" (func $get-rep-R1'))
+  //       (export "get-rep-R2" (func $get-rep-R2'))
+  //       (export "num-live" (func $num-live'))
+  //     )
+  //     (core instance $dm (;1;) (instantiate $DM
+  //         (with "" (instance 0))
+  //       )
+  //     )
+  //     (type (;3;) (func (result u32)))
+  //     (alias core export $dm "run" (core func (;7;)))
+  //     (func (;5;) (type 3) (canon lift (core func 7)))
+  //     (export (;6;) "run" (func 5))
+  //   )
+  //   (instance $c (;0;) (instantiate $C))
+  //   (instance $d (;1;) (instantiate $D
+  //       (with "c" (instance $c))
+  //     )
+  //   )
+  //   (alias export $d "run" (func (;0;)))
+  //   (export (;1;) "run" (func 0))
+  // )
   std::array<WasmEdge::Byte, 2252> MultiComponentWasm{
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x04, 0x85, 0x09, 0x00,
       0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x68, 0x00, 0x61, 0x73,
@@ -408,7 +837,9 @@ TEST(ComponentRegressionTest, SampleBinaries) {
       0x01, 0x08, 0x04, 0x02, 0x00, 0x01, 0x43, 0x01, 0x01, 0x44, 0x01, 0x08,
       0x05, 0x02, 0x00, 0x01, 0x63, 0x01, 0x01, 0x64};
   // Instantiation needs canonical built-ins that are not implemented yet.
-  EXPECT_EQ(validateComponent(MultiComponentWasm), ErrCode::Value::Success);
+  VM::VM MultiComponentVM(Conf);
+  ASSERT_TRUE(MultiComponentVM.loadWasm(MultiComponentWasm));
+  EXPECT_TRUE(MultiComponentVM.validate());
 }
 
 TEST(ComponentRegressionTest, LoadAndRunSimpleBinary) {
@@ -475,6 +906,8 @@ TEST(ComponentRegressionTest, LoadAndRunSimpleBinary) {
 
 // Component and instance export aliases resolve and grow their index spaces.
 TEST(ComponentRegressionTest, AliasIndexSpace) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
   // Component exports and aliases of sort component are instantiated.
   // (component
   //   (component $c
@@ -502,8 +935,10 @@ TEST(ComponentRegressionTest, AliasIndexSpace) {
       0x63, 0x01, 0x0c, 0x6e, 0x65, 0x73, 0x74, 0x65, 0x64, 0x5f, 0x61, 0x6c,
       0x69, 0x61, 0x73, 0x01, 0x08, 0x05, 0x01, 0x00, 0x04, 0x69, 0x6e, 0x73,
       0x74};
-  EXPECT_EQ(validateComponent(ComponentAliasWasm, true),
-            ErrCode::Value::Success);
+  VM::VM ComponentAliasVM(Conf);
+  ASSERT_TRUE(ComponentAliasVM.loadWasm(ComponentAliasWasm));
+  EXPECT_TRUE(ComponentAliasVM.validate());
+  EXPECT_TRUE(ComponentAliasVM.instantiate());
 
   // An export alias through a chain of instances resolves.
   // (component
@@ -522,7 +957,9 @@ TEST(ComponentRegressionTest, AliasIndexSpace) {
       0x01, 0x01, 0x00, 0x01, 0x69, 0x05, 0x00, 0x06, 0x0b, 0x02, 0x05,
       0x00, 0x01, 0x01, 0x69, 0x01, 0x00, 0x02, 0x01, 0x78, 0x0b, 0x09,
       0x01, 0x00, 0x03, 0x6f, 0x75, 0x74, 0x01, 0x01, 0x00};
-  EXPECT_EQ(validateComponent(InstanceChainWasm), ErrCode::Value::Success);
+  VM::VM InstanceChainVM(Conf);
+  ASSERT_TRUE(InstanceChainVM.loadWasm(InstanceChainWasm));
+  EXPECT_TRUE(InstanceChainVM.validate());
 
   // Each export adds a func index; the runtime index space must grow to match
   // the validator so canon lower of the last export alias stays in bounds.
@@ -573,11 +1010,16 @@ TEST(ComponentRegressionTest, AliasIndexSpace) {
       0x01, 0x01, 0x00, 0x06, 0x6c, 0x69, 0x66, 0x74, 0x65, 0x64, 0x01, 0x06,
 
       0x03, 0x01, 0x00, 0x02, 0x66, 0x74};
-  EXPECT_EQ(validateComponent(FuncAliasWasm, true), ErrCode::Value::Success);
+  VM::VM FuncAliasVM(Conf);
+  ASSERT_TRUE(FuncAliasVM.loadWasm(FuncAliasWasm));
+  EXPECT_TRUE(FuncAliasVM.validate());
+  EXPECT_TRUE(FuncAliasVM.instantiate());
 }
 
 // Exports and imports must land in the index space of their own sort.
 TEST(ComponentRegressionTest, SortIndexSpace) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
   // (component
   //   (type (;0;) (func))
   //   (import "f" (func (;0;) (type 0)))
@@ -589,7 +1031,9 @@ TEST(ComponentRegressionTest, SortIndexSpace) {
       0x00, 0x01, 0x00, 0x0a, 0x06, 0x01, 0x00, 0x01, 0x66, 0x01, 0x00, 0x0b,
       0x09, 0x01, 0x00, 0x01, 0x78, 0x01, 0x00, 0x01, 0x01, 0x00, 0x0b, 0x09,
       0x01, 0x00, 0x01, 0x79, 0x01, 0x02, 0x01, 0x01, 0x00};
-  EXPECT_NE(validateComponent(AscribedExportWasm), ErrCode::Value::Success);
+  VM::VM AscribedExportVM(Conf);
+  ASSERT_TRUE(AscribedExportVM.loadWasm(AscribedExportWasm));
+  EXPECT_FALSE(AscribedExportVM.validate());
 
   // (component
   //   (core type (;0;)
@@ -602,11 +1046,15 @@ TEST(ComponentRegressionTest, SortIndexSpace) {
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x03, 0x03,
       0x01, 0x50, 0x00, 0x0a, 0x07, 0x01, 0x00, 0x01, 0x6d, 0x00,
       0x11, 0x00, 0x02, 0x04, 0x01, 0x00, 0x00, 0x00};
-  EXPECT_EQ(validateComponent(CoreModuleImportWasm), ErrCode::Value::Success);
+  VM::VM CoreModuleImportVM(Conf);
+  ASSERT_TRUE(CoreModuleImportVM.loadWasm(CoreModuleImportWasm));
+  EXPECT_TRUE(CoreModuleImportVM.validate());
 }
 
 // Export ascriptions and instantiate arguments must match the expected type.
 TEST(ComponentRegressionTest, TypeMismatchRejected) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
   // An export ascribed an instance type with a missing export is rejected.
   // (component
   //   (type (instance (export "a" (func)) (export "b" (func))))  ;; type[0]
@@ -621,7 +1069,9 @@ TEST(ComponentRegressionTest, TypeMismatchRejected) {
       0x02, 0x01, 0x40, 0x00, 0x01, 0x00, 0x04, 0x00, 0x01, 0x61, 0x01, 0x00,
       0x0a, 0x06, 0x01, 0x00, 0x01, 0x69, 0x05, 0x01, 0x0b, 0x09, 0x01, 0x00,
       0x01, 0x65, 0x05, 0x00, 0x01, 0x05, 0x00};
-  EXPECT_NE(validateComponent(MissingExportWasm), ErrCode::Value::Success);
+  VM::VM MissingExportVM(Conf);
+  ASSERT_TRUE(MissingExportVM.loadWasm(MissingExportWasm));
+  EXPECT_FALSE(MissingExportVM.validate());
 
   // An export ascribed a descriptor of a different sort is rejected.
   // (component
@@ -635,7 +1085,9 @@ TEST(ComponentRegressionTest, TypeMismatchRejected) {
       0x02, 0x40, 0x00, 0x01, 0x00, 0x42, 0x00, 0x0a, 0x06, 0x01,
       0x00, 0x01, 0x66, 0x01, 0x00, 0x0b, 0x0b, 0x01, 0x00, 0x03,
       0x62, 0x61, 0x64, 0x01, 0x00, 0x01, 0x05, 0x01};
-  EXPECT_NE(validateComponent(SortMismatchWasm), ErrCode::Value::Success);
+  VM::VM SortMismatchVM(Conf);
+  ASSERT_TRUE(SortMismatchVM.loadWasm(SortMismatchWasm));
+  EXPECT_FALSE(SortMismatchVM.validate());
 
   // An instantiate argument missing an export required by the import fails.
   // (component
@@ -659,11 +1111,15 @@ TEST(ComponentRegressionTest, TypeMismatchRejected) {
       0x65, 0x6e, 0x74, 0x2d, 0x6e, 0x61, 0x6d, 0x65, 0x00, 0x06, 0x05,
       0x63, 0x68, 0x69, 0x6c, 0x64, 0x05, 0x0f, 0x02, 0x01, 0x01, 0x00,
       0x01, 0x61, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x69, 0x05, 0x00};
-  EXPECT_NE(validateComponent(MissingArgExportWasm), ErrCode::Value::Success);
+  VM::VM MissingArgExportVM(Conf);
+  ASSERT_TRUE(MissingArgExportVM.loadWasm(MissingArgExportWasm));
+  EXPECT_FALSE(MissingArgExportVM.validate());
 }
 
 // Core types inside components are validated like core module types.
 TEST(ComponentRegressionTest, CoreTypes) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
   // (component
   //   (type (;0;)
   //     (instance
@@ -679,7 +1135,9 @@ TEST(ComponentRegressionTest, CoreTypes) {
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x0d, 0x01,
       0x42, 0x02, 0x00, 0x50, 0x00, 0x04, 0x00, 0x01, 0x6d, 0x00, 0x11,
       0x00, 0x0a, 0x06, 0x01, 0x00, 0x01, 0x69, 0x05, 0x00};
-  EXPECT_EQ(validateComponent(CoreModuleExportWasm), ErrCode::Value::Success);
+  VM::VM CoreModuleExportVM(Conf);
+  ASSERT_TRUE(CoreModuleExportVM.loadWasm(CoreModuleExportWasm));
+  EXPECT_TRUE(CoreModuleExportVM.validate());
 
   // (component
   //   (core rec
@@ -692,10 +1150,93 @@ TEST(ComponentRegressionTest, CoreTypes) {
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x03, 0x18, 0x01, 0x4e,
       0x03, 0x50, 0x00, 0x60, 0x00, 0x01, 0x63, 0x00, 0x50, 0x01, 0x00, 0x60,
       0x00, 0x01, 0x63, 0x02, 0x50, 0x01, 0x02, 0x60, 0x00, 0x00};
-  EXPECT_EQ(validateComponent(CyclicWasm), ErrCode::Value::InvalidSubType);
+  VM::VM CyclicVM(Conf);
+  ASSERT_TRUE(CyclicVM.loadWasm(CyclicWasm));
+  auto CyclicRes = CyclicVM.validate();
+  ASSERT_FALSE(CyclicRes);
+  EXPECT_EQ(CyclicRes.error(), ErrCode::Value::InvalidSubType);
 
   // A core module with a rec group of 31 sub types; type 8 returns
   // (ref null 9) and type 9 names itself as its super type.
+  // (module
+  //   (rec
+  //     (type (;0;) (struct (field (mut nullfuncref)) (field (mut nullfuncref))
+  //       (field i8) (field i8) (field (mut nullfuncref)) (field
+  //       (mut nullfuncref)) (field (mut nullfuncref)) (field
+  //       (mut nullfuncref)) (field i8) (field i8) (field (mut nullfuncref))
+  //       (field (mut nullfuncref)) (field (mut nullfuncref)) (field
+  //       (mut nullfuncref)) (field f64) (field i8) (field (mut f64))
+  //       (field v128) (field (mut i8)) (field (mut i8))))
+  //     (type (;1;) (struct (field (mut nullfuncref)) (field (mut v128))
+  //       (field i8) (field (mut i8)) (field (mut i64)) (field i16) (field
+  //       (mut i8)) (field f64) (field i8) (field (mut f64)) (field (mut v128))
+  //       (field (mut f64)) (field (mut nullfuncref)) (field (mut nullfuncref))
+  //       (field (mut nullfuncref)) (field (mut nullfuncref)) (field
+  //       (mut nullfuncref)) (field (mut nullfuncref)) (field funcref)
+  //       (field i16)))
+  //     (type (;2;) (sub (func (result (ref null 1) (ref null 1)
+  //       (ref null 1)))))
+  //     (type (;3;) (array (mut (ref null 1))))
+  //     (type (;4;) (struct (field nullfuncref) (field (mut i8)) (field
+  //       (mut i16)) (field (mut (ref null 1))) (field (mut (ref null 1)))
+  //       (field (mut v128)) (field (mut i16)) (field i8) (field i8) (field
+  //       (mut f64)) (field v128) (field (mut i8)) (field (mut i8)) (field (mut
+  //       (ref null 1))) (field (mut (ref null 1))) (field (mut i16))
+  //       (field i8) (field (mut i8)) (field (mut i64)) (field i16)))
+  //     (type (;5;) (struct (field (mut i8)) (field (mut f32)) (field i8)))
+  //     (type (;6;) (sub (func)))
+  //     (type (;7;) (struct (field (mut (ref null 1))) (field i16) (field i8)
+  //       (field i8) (field i8) (field i8) (field i8) (field i8) (field i8)
+  //       (field i8) (field i8) (field i8) (field i8) (field i8) (field i8)
+  //       (field i8) (field i8) (field i8) (field i8) (field i8)))
+  //     (type (;8;) (sub 2 (func (result (ref null 1) (ref null 1)
+  //       (ref null 9)))))
+  //     (type (;9;) (sub 9 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;10;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;11;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;12;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;13;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;14;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;15;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;16;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;17;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;18;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;19;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;20;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;21;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;22;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;23;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;24;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;25;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;26;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;27;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;28;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;29;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //     (type (;30;) (sub 32 (func (result (ref null 4223) (ref null 4223)
+  //       (ref null 4223)))))
+  //   )
+  // )
   std::array<WasmEdge::Byte, 557> SelfSuperWasm{
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0xa2, 0x04, 0x01,
       0x4e, 0x1f, 0x5f, 0x14, 0x73, 0x01, 0x73, 0x01, 0x78, 0x00, 0x78, 0x00,
@@ -744,13 +1285,18 @@ TEST(ComponentRegressionTest, CoreTypes) {
       0x01, 0x20, 0x60, 0x00, 0x03, 0x63, 0xff, 0x20, 0x63, 0xff, 0x20, 0x63,
       0xff, 0x20, 0x50, 0x01, 0x20, 0x60, 0x00, 0x03, 0x63, 0xff, 0x20, 0x63,
       0xff, 0x20, 0x63, 0xff, 0x20};
-  EXPECT_EQ(validateComponent(SelfSuperWasm),
-            ErrCode::Value::InvalidFuncTypeIdx);
+  VM::VM SelfSuperVM(Conf);
+  ASSERT_TRUE(SelfSuperVM.loadWasm(SelfSuperWasm));
+  auto SelfSuperRes = SelfSuperVM.validate();
+  ASSERT_FALSE(SelfSuperRes);
+  EXPECT_EQ(SelfSuperRes.error(), ErrCode::Value::InvalidFuncTypeIdx);
 }
 
 // An outer-aliased resource type keeps its identity, so it may be exported with
 // (eq 0) and used in (borrow 0).
 TEST(ComponentRegressionTest, OuterAliasResourceType) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
   // (component
   //   (type
   //     (component
@@ -785,7 +1331,9 @@ TEST(ComponentRegressionTest, OuterAliasResourceType) {
       0x03, 0x02, 0x03, 0x02, 0x01, 0x01, 0x01, 0x68, 0x00, 0x01, 0x40, 0x01,
       0x01, 0x78, 0x01, 0x01, 0x00, 0x04, 0x00, 0x05, 0x61, 0x3a, 0x62, 0x2f,
       0x64, 0x05, 0x02};
-  EXPECT_EQ(validateComponent(Wasm), ErrCode::Value::Success);
+  VM::VM ComponentVM(Conf);
+  ASSERT_TRUE(ComponentVM.loadWasm(Wasm));
+  EXPECT_TRUE(ComponentVM.validate());
 }
 
 } // namespace

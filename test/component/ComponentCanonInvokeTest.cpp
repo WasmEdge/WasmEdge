@@ -326,6 +326,54 @@ TEST(ComponentCanonInvokeTest, LowerRoundtripAddU32) {
   VM::VM VM(Conf);
 
   // A component lifting core add, lowering it back, and re-lifting a caller.
+  // (component
+  //   (core module $m1 (;0;)
+  //     (type (;0;) (func (param i32 i32) (result i32)))
+  //     (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
+  //     (memory (;0;) 1)
+  //     (export "mem" (memory 0))
+  //     (export "add" (func 0))
+  //     (export "realloc" (func 1))
+  //     (func (;0;) (type 0) (param i32 i32) (result i32)
+  //       local.get 0
+  //       local.get 1
+  //       i32.add
+  //     )
+  //     (func (;1;) (type 1) (param i32 i32 i32 i32) (result i32)
+  //       i32.const 256
+  //     )
+  //   )
+  //   (core instance $i1 (;0;) (instantiate $m1))
+  //   (alias core export $i1 "mem" (core memory $mem1 (;0;)))
+  //   (alias core export $i1 "realloc" (core func $r1 (;0;)))
+  //   (alias core export $i1 "add" (core func $core-add (;1;)))
+  //   (type $ft (;0;) (func (param "a" u32) (param "b" u32) (result u32)))
+  //   (func $comp-add (;0;) (type $ft) (canon lift (core func $core-add)
+  //     (memory $mem1) (realloc $r1)))
+  //   (core func $core-add-rt (;2;) (canon lower (func $comp-add)
+  //     (memory $mem1) (realloc $r1)))
+  //   (core module $m2 (;1;)
+  //     (type (;0;) (func (param i32 i32) (result i32)))
+  //     (import "" "add" (func $add (;0;) (type 0)))
+  //     (export "call-add" (func 1))
+  //     (func (;1;) (type 0) (param i32 i32) (result i32)
+  //       local.get 0
+  //       local.get 1
+  //       call $add
+  //     )
+  //   )
+  //   (core instance (;1;)
+  //     (export "add" (func $core-add-rt))
+  //   )
+  //   (core instance $i2 (;2;) (instantiate $m2
+  //       (with "" (instance 1))
+  //     )
+  //   )
+  //   (alias core export $i2 "call-add" (core func $call-rt (;3;)))
+  //   (func (;1;) (type $ft) (canon lift (core func $call-rt) (memory $mem1)
+  //     (realloc $r1)))
+  //   (export (;2;) "add-via-roundtrip" (func 1))
+  // )
   std::array<WasmEdge::Byte, 435> Wasm{
 
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x59, 0x00, 0x61,
@@ -426,6 +474,49 @@ TEST(ComponentCanonInvokeTest, LiftPostReturnIndirectResult) {
   VM::VM VM(Conf);
 
   // A component lifting get-pair with a post-return, plus read-sentinel.
+  // (component
+  //   (core module $m (;0;)
+  //     (type (;0;) (func (result i32)))
+  //     (type (;1;) (func (param i32)))
+  //     (type (;2;) (func (param i32 i32 i32 i32) (result i32)))
+  //     (memory (;0;) 1)
+  //     (export "mem" (memory 0))
+  //     (export "get-pair" (func 0))
+  //     (export "drop-pair" (func 1))
+  //     (export "realloc" (func 2))
+  //     (export "read-sentinel" (func 3))
+  //     (func (;0;) (type 0) (result i32)
+  //       i32.const 16
+  //     )
+  //     (func (;1;) (type 1) (param i32)
+  //       i32.const 0
+  //       local.get 0
+  //       i32.store
+  //     )
+  //     (func (;2;) (type 2) (param i32 i32 i32 i32) (result i32)
+  //       i32.const 256
+  //     )
+  //     (func (;3;) (type 0) (result i32)
+  //       i32.const 0
+  //       i32.load
+  //     )
+  //     (data (;0;) (i32.const 16) "*\00\00\009\05\00\00")
+  //   )
+  //   (core instance $i (;0;) (instantiate $m))
+  //   (alias core export $i "mem" (core memory $mem (;0;)))
+  //   (alias core export $i "realloc" (core func $r (;0;)))
+  //   (alias core export $i "get-pair" (core func $f (;1;)))
+  //   (alias core export $i "drop-pair" (core func $pr (;2;)))
+  //   (alias core export $i "read-sentinel" (core func $rs (;3;)))
+  //   (type (;0;) (tuple u32 u32))
+  //   (type $ft (;1;) (func (result 0)))
+  //   (type $ft2 (;2;) (func (result u32)))
+  //   (func (;0;) (type $ft) (canon lift (core func $f) (memory $mem)
+  //     (realloc $r) (post-return $pr)))
+  //   (func (;1;) (type $ft2) (canon lift (core func $rs)))
+  //   (export (;2;) "get-pair" (func 0))
+  //   (export (;3;) "read-sentinel" (func 1))
+  // )
   std::array<WasmEdge::Byte, 384> Wasm{
 
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x9c, 0x01, 0x00,
@@ -628,15 +719,11 @@ TEST(ComponentCanonInvokeTest, LiftPostReturnDirectResult) {
   EXPECT_EQ(std::get<uint32_t>((*Sentinel)[0].first), 0xCAFEu);
 }
 
-static VM::VM makeComponentVM() {
-  Configure Conf;
-  Conf.addProposal(Proposal::Component);
-  return VM::VM(Conf);
-}
-
 // A misaligned indirect-return pointer traps.
 TEST(ComponentCanonInvokeTest, IndirectReturnMisalignedPtrTraps) {
-  auto VM = makeComponentVM();
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
   // (component
   //   (core module $m
@@ -683,7 +770,9 @@ TEST(ComponentCanonInvokeTest, IndirectReturnMisalignedPtrTraps) {
 
 // An indirect-return tuple crossing the end of memory traps.
 TEST(ComponentCanonInvokeTest, IndirectReturnOOBPtrTraps) {
-  auto VM = makeComponentVM();
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
   // (component
   //   (core module $m
@@ -732,7 +821,9 @@ TEST(ComponentCanonInvokeTest, IndirectReturnOOBPtrTraps) {
 
 // load_tuple honours per-field alignment: u8@0, u64@8, u8@16, u32@20.
 TEST(ComponentCanonInvokeTest, IndirectReturnMixedAlignTuple) {
-  auto VM = makeComponentVM();
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
   // (component
   //   (core module $m
@@ -802,7 +893,9 @@ TEST(ComponentCanonInvokeTest, IndirectReturnMixedAlignTuple) {
 
 // Indirect params written through a realloc that returns 0 must not crash.
 TEST(ComponentCanonInvokeTest, IndirectParamReallocReturnsZero) {
-  auto VM = makeComponentVM();
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
   // (component
   //   (core module $m
@@ -872,7 +965,9 @@ TEST(ComponentCanonInvokeTest, IndirectParamReallocReturnsZero) {
 
 // A string field followed by a u32 in the indirect-return area.
 TEST(ComponentCanonInvokeTest, IndirectReturnStringInTuple) {
-  auto VM = makeComponentVM();
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
   // (component
   //   (core module $m
@@ -936,7 +1031,9 @@ TEST(ComponentCanonInvokeTest, IndirectReturnStringInTuple) {
 
 // A string length above MAX_STRING_BYTE_LENGTH traps in load_string.
 TEST(ComponentCanonInvokeTest, IndirectReturnStringLenTooLargeTraps) {
-  auto VM = makeComponentVM();
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
   // (component
   //   (core module $m
@@ -990,7 +1087,9 @@ TEST(ComponentCanonInvokeTest, IndirectReturnStringLenTooLargeTraps) {
 
 // load_variant reads the f32 case of variant<s64, f32> from the joined slot.
 TEST(ComponentCanonInvokeTest, IndirectReturnVariantJoinCoerce) {
-  auto VM = makeComponentVM();
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
   // (component
   //   (core module $m
@@ -2507,6 +2606,53 @@ TEST(ComponentCanonInvokeTest, StringEncodingUtf16) {
   VM::VM VM(Conf);
 
   // A component exporting roundtrip and cu lifted with string-encoding=utf16.
+  // (component
+  //   (core module $m (;0;)
+  //     (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
+  //     (type (;1;) (func (param i32 i32) (result i32)))
+  //     (memory (;0;) 1)
+  //     (global $next (;0;) (mut i32) i32.const 8)
+  //     (export "mem" (memory 0))
+  //     (export "realloc" (func 0))
+  //     (export "id" (func 1))
+  //     (export "cu" (func 2))
+  //     (func (;0;) (type 0) (param i32 i32 i32 i32) (result i32)
+  //       (local $r i32)
+  //       global.get $next
+  //       local.set $r
+  //       global.get $next
+  //       local.get 3
+  //       i32.add
+  //       global.set $next
+  //       local.get $r
+  //     )
+  //     (func (;1;) (type 1) (param $ptr i32) (param $tag i32) (result i32)
+  //       i32.const 0
+  //       local.get $ptr
+  //       i32.store
+  //       i32.const 4
+  //       local.get $tag
+  //       i32.store
+  //       i32.const 0
+  //     )
+  //     (func (;2;) (type 1) (param $ptr i32) (param $tag i32) (result i32)
+  //       local.get $tag
+  //     )
+  //   )
+  //   (core instance $i (;0;) (instantiate $m))
+  //   (alias core export $i "mem" (core memory $mem (;0;)))
+  //   (alias core export $i "realloc" (core func $r (;0;)))
+  //   (alias core export $i "id" (core func $fid (;1;)))
+  //   (alias core export $i "cu" (core func $fcu (;2;)))
+  //   (type $id-ty (;0;) (func (param "s" string) (result string)))
+  //   (type $cu-ty (;1;) (func (param "s" string) (result u32)))
+  //   (func (;0;) (type $id-ty) (canon lift (core func $fid) (memory $mem)
+  //     (realloc $r) string-encoding=utf16))
+  //   (func (;1;) (type $cu-ty) (canon lift (core func $fcu) (memory $mem)
+  //     (realloc $r) string-encoding=utf16))
+  //   (export (;2;) "roundtrip" (func 0))
+  //   (export (;3;) "cu" (func 1))
+  // )
   std::array<WasmEdge::Byte, 367> Wasm{
 
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0xaa, 0x01, 0x00,
@@ -2604,6 +2750,53 @@ TEST(ComponentCanonInvokeTest, StringEncodingLatin1Utf16) {
   VM::VM VM(Conf);
 
   // A component exporting roundtrip and cu with string-encoding=latin1+utf16.
+  // (component
+  //   (core module $m (;0;)
+  //     (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
+  //     (type (;1;) (func (param i32 i32) (result i32)))
+  //     (memory (;0;) 1)
+  //     (global $next (;0;) (mut i32) i32.const 8)
+  //     (export "mem" (memory 0))
+  //     (export "realloc" (func 0))
+  //     (export "id" (func 1))
+  //     (export "cu" (func 2))
+  //     (func (;0;) (type 0) (param i32 i32 i32 i32) (result i32)
+  //       (local $r i32)
+  //       global.get $next
+  //       local.set $r
+  //       global.get $next
+  //       local.get 3
+  //       i32.add
+  //       global.set $next
+  //       local.get $r
+  //     )
+  //     (func (;1;) (type 1) (param $ptr i32) (param $tag i32) (result i32)
+  //       i32.const 0
+  //       local.get $ptr
+  //       i32.store
+  //       i32.const 4
+  //       local.get $tag
+  //       i32.store
+  //       i32.const 0
+  //     )
+  //     (func (;2;) (type 1) (param $ptr i32) (param $tag i32) (result i32)
+  //       local.get $tag
+  //     )
+  //   )
+  //   (core instance $i (;0;) (instantiate $m))
+  //   (alias core export $i "mem" (core memory $mem (;0;)))
+  //   (alias core export $i "realloc" (core func $r (;0;)))
+  //   (alias core export $i "id" (core func $fid (;1;)))
+  //   (alias core export $i "cu" (core func $fcu (;2;)))
+  //   (type $id-ty (;0;) (func (param "s" string) (result string)))
+  //   (type $cu-ty (;1;) (func (param "s" string) (result u32)))
+  //   (func (;0;) (type $id-ty) (canon lift (core func $fid) (memory $mem)
+  //     (realloc $r) string-encoding=latin1+utf16))
+  //   (func (;1;) (type $cu-ty) (canon lift (core func $fcu) (memory $mem)
+  //     (realloc $r) string-encoding=latin1+utf16))
+  //   (export (;2;) "roundtrip" (func 0))
+  //   (export (;3;) "cu" (func 1))
+  // )
   std::array<WasmEdge::Byte, 367> Wasm{
 
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0xaa, 0x01, 0x00,

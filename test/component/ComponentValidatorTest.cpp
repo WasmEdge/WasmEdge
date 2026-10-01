@@ -3,7 +3,6 @@
 
 #include "ast/component/component.h"
 #include "ast/component/type.h"
-#include "loader/loader.h"
 #include "validator/component_value_decode.h"
 #include "validator/validator.h"
 #include "vm/vm.h"
@@ -1926,7 +1925,6 @@ TEST(ComponentValidatorTest, CoreAliasCoreExportTagPasses) {
   // (alias core export $i "t" (core tag $t))   ;; PASS
   Configure ConfTag;
   ConfTag.addProposal(Proposal::Component);
-  ConfTag.addProposal(Proposal::ExceptionHandling);
 
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
@@ -3189,23 +3187,23 @@ TEST(ComponentValidatorTest, BorrowCountsEightBytesTowardsTheSizeLimit) {
       0x7f, 0x00, 0x68, 0x00, 0x67, 0x01, 0x80, 0x80, 0x80, 0x10, 0x00, 0x16,
       0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f, 0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e,
       0x61, 0x6d, 0x65, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x72};
+  {
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(AtLimitWasm));
+    auto Res = VM.validate();
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueSizeTooLarge);
+  }
+
   // The same list with one element fewer.
   std::array<WasmEdge::Byte, 46> BelowLimitWasm{
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x0c, 0x03, 0x3f,
       0x7f, 0x00, 0x68, 0x00, 0x67, 0x01, 0xff, 0xff, 0xff, 0x0f, 0x00, 0x16,
       0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f, 0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e,
       0x61, 0x6d, 0x65, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x72};
-  auto Validate = [](Span<const Byte> Wasm) -> Expect<void> {
-    Loader::Loader Loader(Conf);
-    EXPECTED_TRY(auto Unit, Loader.parseWasmUnit(Wasm));
-    Validator::Validator V(Conf);
-    return V.validate(
-        *std::get<std::unique_ptr<AST::Component::Component>>(Unit));
-  };
-  auto Res = Validate(AtLimitWasm);
-  ASSERT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueSizeTooLarge);
-  EXPECT_TRUE(Validate(BelowLimitWasm));
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(BelowLimitWasm));
+  EXPECT_TRUE(VM.validate());
 }
 
 // Value payload decoding

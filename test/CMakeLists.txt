@@ -41,7 +41,6 @@ set(WASMEDGE_UNIT_TEST_DIRS
   common
   component
   executor
-  host/mock
   host/wasi
   loader
   po

@@ -150,32 +150,37 @@ generateWasmWithSubtypeChain(int NumTotalTypes) {
   return WasmBytes;
 }
 
-// Loads and validates a module with the GC proposal enabled.
-ErrCode::Value validateModule(Span<const Byte> Wasm) {
-  Configure Conf;
-  Conf.addProposal(Proposal::GC);
-  Loader::Loader LoadEngine(Conf);
-  Validator::Validator ValidEngine(Conf);
-  auto Res = LoadEngine.parseModule(Wasm).and_then(
-      [&](auto Mod) { return ValidEngine.validate(*Mod); });
-  return Res ? ErrCode::Value::Success : Res.error().getEnum();
-}
-
 // The subtype depth is limited to 63, so a chain of 64 types is the maximum.
 TEST(ValidatorRegressionTest, SubtypeDepthLimit) {
-  EXPECT_EQ(validateModule(generateWasmWithSubtypeChain(64)),
-            ErrCode::Value::Success);
-  EXPECT_EQ(validateModule(generateWasmWithSubtypeChain(65)),
-            ErrCode::Value::InvalidSubType);
+  Configure Conf;
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
+  auto MaxDepthWasm = generateWasmWithSubtypeChain(64);
+  auto MaxDepth = LoadEngine.parseModule(MaxDepthWasm);
+  ASSERT_TRUE(MaxDepth);
+  EXPECT_TRUE(ValidEngine.validate(**MaxDepth));
+  auto TooDeepWasm = generateWasmWithSubtypeChain(65);
+  auto TooDeep = LoadEngine.parseModule(TooDeepWasm);
+  ASSERT_TRUE(TooDeep);
+  auto TooDeepRes = ValidEngine.validate(**TooDeep);
+  ASSERT_FALSE(TooDeepRes);
+  EXPECT_EQ(TooDeepRes.error(), ErrCode::Value::InvalidSubType);
 }
 
 // A declared supertype must have a smaller type index than its sub type.
 TEST(ValidatorRegressionTest, SupertypeIndexMustPrecedeSubtype) {
+  Configure Conf;
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
   // (module (type (func)) (type (sub 4294967295 (func))))
   std::array<WasmEdge::Byte, 24> OutOfRangeWasm{
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0E, 0x02, 0x60,
       0x00, 0x00, 0x50, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 0x60, 0x00, 0x00};
-  EXPECT_EQ(validateModule(OutOfRangeWasm), ErrCode::Value::InvalidSubType);
+  auto OutOfRange = LoadEngine.parseModule(OutOfRangeWasm);
+  ASSERT_TRUE(OutOfRange);
+  auto OutOfRangeRes = ValidEngine.validate(**OutOfRange);
+  ASSERT_FALSE(OutOfRangeRes);
+  EXPECT_EQ(OutOfRangeRes.error(), ErrCode::Value::InvalidSubType);
 
   // (module
   //   (rec
@@ -185,7 +190,11 @@ TEST(ValidatorRegressionTest, SupertypeIndexMustPrecedeSubtype) {
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01,
       0x10, 0x01, 0x4e, 0x02, 0x50, 0x01, 0x01, 0x60, 0x00,
       0x01, 0x7f, 0x50, 0x00, 0x60, 0x00, 0x01, 0x7f};
-  EXPECT_EQ(validateModule(ForwardWasm), ErrCode::Value::InvalidSubType);
+  auto Forward = LoadEngine.parseModule(ForwardWasm);
+  ASSERT_TRUE(Forward);
+  auto ForwardRes = ValidEngine.validate(**Forward);
+  ASSERT_FALSE(ForwardRes);
+  EXPECT_EQ(ForwardRes.error(), ErrCode::Value::InvalidSubType);
 
   // $c names itself as supertype; it must be rejected before matching type 1
   // walks its supertypes forever.
@@ -198,16 +207,18 @@ TEST(ValidatorRegressionTest, SupertypeIndexMustPrecedeSubtype) {
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x18, 0x01, 0x4e,
       0x03, 0x50, 0x00, 0x60, 0x00, 0x01, 0x63, 0x00, 0x50, 0x01, 0x00, 0x60,
       0x00, 0x01, 0x63, 0x02, 0x50, 0x01, 0x02, 0x60, 0x00, 0x00};
-  EXPECT_EQ(validateModule(CyclicWasm), ErrCode::Value::InvalidSubType);
+  auto Cyclic = LoadEngine.parseModule(CyclicWasm);
+  ASSERT_TRUE(Cyclic);
+  auto CyclicRes = ValidEngine.validate(**Cyclic);
+  ASSERT_FALSE(CyclicRes);
+  EXPECT_EQ(CyclicRes.error(), ErrCode::Value::InvalidSubType);
 }
 
 // Equal types take the first one's canonical index; the non-final $i differs.
 TEST(ValidatorRegressionTest, CanonicalTypeIndices) {
   Configure Conf;
-  Conf.addProposal(Proposal::GC);
   Loader::Loader LoadEngine(Conf);
   Validator::Validator ValidEngine(Conf);
-
   // (module
   //   (type $a (func (param i32)))
   //   (type $b (func (param i32)))
@@ -216,18 +227,16 @@ TEST(ValidatorRegressionTest, CanonicalTypeIndices) {
   //   (rec (type $e (struct (field (ref $f)))) (type $f (struct)))
   //   (rec (type $g (struct (field (ref $h)))) (type $h (struct)))
   //   (type $i (sub (func (param i32)))))
-  std::array<WasmEdge::Byte, 53> Wasm = {
+  std::array<WasmEdge::Byte, 53> Wasm{
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x2b, 0x07,
       0x60, 0x01, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x5f, 0x01, 0x64,
       0x00, 0x00, 0x5f, 0x01, 0x64, 0x01, 0x00, 0x4e, 0x02, 0x5f, 0x01,
       0x64, 0x05, 0x00, 0x5f, 0x00, 0x4e, 0x02, 0x5f, 0x01, 0x64, 0x07,
       0x00, 0x5f, 0x00, 0x50, 0x00, 0x60, 0x01, 0x7f, 0x00};
-
-  auto Result = LoadEngine.parseModule(Wasm);
-  ASSERT_TRUE(Result);
-  ASSERT_TRUE(ValidEngine.validate(**Result));
-
-  const auto Types = (*Result)->getTypeSection().getContent();
+  auto Mod = LoadEngine.parseModule(Wasm);
+  ASSERT_TRUE(Mod);
+  ASSERT_TRUE(ValidEngine.validate(**Mod));
+  const auto Types = (*Mod)->getTypeSection().getContent();
   const std::array<uint32_t, 9> Expected = {0, 0, 2, 2, 4, 5, 4, 5, 8};
   ASSERT_EQ(Types.size(), Expected.size());
   for (uint32_t I = 0; I < Types.size(); I++) {
@@ -238,6 +247,9 @@ TEST(ValidatorRegressionTest, CanonicalTypeIndices) {
 
 // An active element segment type must match the table element type.
 TEST(ValidatorRegressionTest, ActiveElemTypeMismatch) {
+  Configure Conf;
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
   // The segment type (ref $t0) is a supertype, not a subtype, of the table
   // element type (ref null $t1).
   // (module
@@ -252,7 +264,11 @@ TEST(ValidatorRegressionTest, ActiveElemTypeMismatch) {
       0x02, 0x09, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x01, 0x66, 0x00, 0x00,
       0x04, 0x05, 0x01, 0x63, 0x01, 0x00, 0x01, 0x09, 0x0c, 0x01, 0x06,
       0x00, 0x41, 0x00, 0x0b, 0x64, 0x00, 0x01, 0xd2, 0x00, 0x0b};
-  EXPECT_EQ(validateModule(ConcreteWasm), ErrCode::Value::TypeCheckFailed);
+  auto Concrete = LoadEngine.parseModule(ConcreteWasm);
+  ASSERT_TRUE(Concrete);
+  auto ConcreteRes = ValidEngine.validate(**Concrete);
+  ASSERT_FALSE(ConcreteRes);
+  EXPECT_EQ(ConcreteRes.error(), ErrCode::Value::TypeCheckFailed);
 
   // (module
   //   (type $t0 (func (param i32)))
@@ -272,12 +288,19 @@ TEST(ValidatorRegressionTest, ActiveElemTypeMismatch) {
       0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x01, 0x0a, 0x13,
       0x03, 0x02, 0x00, 0x0b, 0x05, 0x00, 0x20, 0x00, 0x1a, 0x0b, 0x08,
       0x00, 0x41, 0x00, 0x25, 0x00, 0x14, 0x01, 0x0b};
-  EXPECT_EQ(validateModule(FuncrefWasm), ErrCode::Value::TypeCheckFailed);
+  auto Funcref = LoadEngine.parseModule(FuncrefWasm);
+  ASSERT_TRUE(Funcref);
+  auto FuncrefRes = ValidEngine.validate(**Funcref);
+  ASSERT_FALSE(FuncrefRes);
+  EXPECT_EQ(FuncrefRes.error(), ErrCode::Value::TypeCheckFailed);
 }
 
 // call_indirect on a struct-typed table must fail validation instead of
 // reinterpreting the struct reference as a function.
 TEST(ValidatorRegressionTest, CallIndirectNonFuncTable) {
+  Configure Conf;
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
   // (module
   //   (type $f (func))
   //   (type $s (struct (field v128)))
@@ -297,11 +320,18 @@ TEST(ValidatorRegressionTest, CallIndirectNonFuncTable) {
       0x20, 0x00, 0x41, 0x00, 0xfd, 0x0c, 0x41, 0x41, 0x41, 0x41, 0x41,
       0x41, 0x41, 0x41, 0x49, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
       0xfb, 0x00, 0x01, 0x26, 0x00, 0x41, 0x00, 0x11, 0x00, 0x00, 0x0b};
-  EXPECT_EQ(validateModule(Wasm), ErrCode::Value::TypeCheckFailed);
+  auto Mod = LoadEngine.parseModule(Wasm);
+  ASSERT_TRUE(Mod);
+  auto Res = ValidEngine.validate(**Mod);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::TypeCheckFailed);
 }
 
 // ref.test and ref.cast must accept the bottom type left by unreachable.
 TEST(ValidatorRegressionTest, RefTestAndCastAfterUnreachable) {
+  Configure Conf;
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
   // (module
   //   (type (func))
   //   (func (type 0) unreachable ref.test (ref func) drop)
@@ -311,11 +341,16 @@ TEST(ValidatorRegressionTest, RefTestAndCastAfterUnreachable) {
       0x01, 0x60, 0x00, 0x00, 0x03, 0x03, 0x02, 0x00, 0x00, 0x0a,
       0x11, 0x02, 0x07, 0x00, 0x00, 0xfb, 0x14, 0x70, 0x1a, 0x0b,
       0x07, 0x00, 0x00, 0xfb, 0x17, 0x70, 0x1a, 0x0b};
-  EXPECT_EQ(validateModule(Wasm), ErrCode::Value::Success);
+  auto Mod = LoadEngine.parseModule(Wasm);
+  ASSERT_TRUE(Mod);
+  EXPECT_TRUE(ValidEngine.validate(**Mod));
 }
 
 // ref.func on an imported function needs a declarative element segment.
 TEST(ValidatorRegressionTest, RefFuncToImportedFunction) {
+  Configure Conf;
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
   // (module
   //   (type (func))
   //   (import "env" "f" (func (type 0)))
@@ -325,7 +360,11 @@ TEST(ValidatorRegressionTest, RefFuncToImportedFunction) {
       0x01, 0x60, 0x00, 0x00, 0x02, 0x09, 0x01, 0x03, 0x65, 0x6e,
       0x76, 0x01, 0x66, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0a,
       0x07, 0x01, 0x05, 0x00, 0xd2, 0x00, 0x1a, 0x0b};
-  EXPECT_EQ(validateModule(UndeclaredWasm), ErrCode::Value::InvalidRefIdx);
+  auto Undeclared = LoadEngine.parseModule(UndeclaredWasm);
+  ASSERT_TRUE(Undeclared);
+  auto UndeclaredRes = ValidEngine.validate(**Undeclared);
+  ASSERT_FALSE(UndeclaredRes);
+  EXPECT_EQ(UndeclaredRes.error(), ErrCode::Value::InvalidRefIdx);
 
   // (module
   //   (type (func))
@@ -337,13 +376,18 @@ TEST(ValidatorRegressionTest, RefFuncToImportedFunction) {
       0x00, 0x00, 0x02, 0x09, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x01, 0x66, 0x00,
       0x00, 0x03, 0x02, 0x01, 0x00, 0x09, 0x05, 0x01, 0x03, 0x00, 0x01, 0x00,
       0x0a, 0x07, 0x01, 0x05, 0x00, 0xd2, 0x00, 0x1a, 0x0b};
-  EXPECT_EQ(validateModule(DeclaredWasm), ErrCode::Value::Success);
+  auto Declared = LoadEngine.parseModule(DeclaredWasm);
+  ASSERT_TRUE(Declared);
+  EXPECT_TRUE(ValidEngine.validate(**Declared));
 }
 
 // br_table after unreachable must check the operand types pushed after the
 // unreachable against every label, and keep a bottom value pushed by select as
 // bottom for every label.
 TEST(ValidatorRegressionTest, BrTableAfterUnreachable) {
+  Configure Conf;
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
   // (module
   //   (type (func))
   //   (func (type 0)
@@ -357,7 +401,11 @@ TEST(ValidatorRegressionTest, BrTableAfterUnreachable) {
       0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x1a, 0x01, 0x18, 0x00, 0x02,
       0x7d, 0x02, 0x7f, 0x00, 0x41, 0x00, 0x41, 0x00, 0x0e, 0x01, 0x00, 0x01,
       0x0b, 0x1a, 0x43, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x1a, 0x0b};
-  EXPECT_EQ(validateModule(MismatchWasm), ErrCode::Value::TypeCheckFailed);
+  auto Mismatch = LoadEngine.parseModule(MismatchWasm);
+  ASSERT_TRUE(Mismatch);
+  auto MismatchRes = ValidEngine.validate(**Mismatch);
+  ASSERT_FALSE(MismatchRes);
+  EXPECT_EQ(MismatchRes.error(), ErrCode::Value::TypeCheckFailed);
 
   // (module
   //   (type (func))
@@ -372,12 +420,17 @@ TEST(ValidatorRegressionTest, BrTableAfterUnreachable) {
       0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x19, 0x01, 0x17, 0x00, 0x02,
       0x7d, 0x02, 0x7f, 0x00, 0x1b, 0x41, 0x00, 0x0e, 0x01, 0x00, 0x01, 0x0b,
       0x1a, 0x43, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x1a, 0x0b};
-  EXPECT_EQ(validateModule(BottomWasm), ErrCode::Value::Success);
+  auto Bottom = LoadEngine.parseModule(BottomWasm);
+  ASSERT_TRUE(Bottom);
+  EXPECT_TRUE(ValidEngine.validate(**Bottom));
 }
 
 // A huge array.new_fixed operand count must fail with a stack underflow, pass
 // after unreachable, and still check the operands it can see.
 TEST(ValidatorRegressionTest, ArrayNewFixedHugeCount) {
+  Configure Conf;
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
   // (module
   //   (type (array i32))
   //   (type (func))
@@ -386,7 +439,11 @@ TEST(ValidatorRegressionTest, ArrayNewFixedHugeCount) {
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x02, 0x5e,
       0x7f, 0x00, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x01, 0x0a, 0x0d, 0x01,
       0x0b, 0x00, 0xfb, 0x08, 0x00, 0xff, 0xff, 0xff, 0xff, 0x0f, 0x1a, 0x0b};
-  EXPECT_EQ(validateModule(UnderflowWasm), ErrCode::Value::TypeCheckFailed);
+  auto Underflow = LoadEngine.parseModule(UnderflowWasm);
+  ASSERT_TRUE(Underflow);
+  auto UnderflowRes = ValidEngine.validate(**Underflow);
+  ASSERT_FALSE(UnderflowRes);
+  EXPECT_EQ(UnderflowRes.error(), ErrCode::Value::TypeCheckFailed);
 
   // (module
   //   (type (array i32))
@@ -397,7 +454,9 @@ TEST(ValidatorRegressionTest, ArrayNewFixedHugeCount) {
       0x02, 0x5e, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01,
       0x01, 0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x00, 0xfb, 0x08, 0x00,
       0xff, 0xff, 0xff, 0xff, 0x0f, 0x1a, 0x0b};
-  EXPECT_EQ(validateModule(UnreachableWasm), ErrCode::Value::Success);
+  auto Unreachable = LoadEngine.parseModule(UnreachableWasm);
+  ASSERT_TRUE(Unreachable);
+  EXPECT_TRUE(ValidEngine.validate(**Unreachable));
 
   // (module
   //   (type (array i32))
@@ -409,7 +468,11 @@ TEST(ValidatorRegressionTest, ArrayNewFixedHugeCount) {
       0x02, 0x5e, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01,
       0x01, 0x0a, 0x10, 0x01, 0x0e, 0x00, 0x00, 0x42, 0x00, 0xfb,
       0x08, 0x00, 0xff, 0xff, 0xff, 0xff, 0x0f, 0x1a, 0x0b};
-  EXPECT_EQ(validateModule(MismatchWasm), ErrCode::Value::TypeCheckFailed);
+  auto Mismatch = LoadEngine.parseModule(MismatchWasm);
+  ASSERT_TRUE(Mismatch);
+  auto MismatchRes = ValidEngine.validate(**Mismatch);
+  ASSERT_FALSE(MismatchRes);
+  EXPECT_EQ(MismatchRes.error(), ErrCode::Value::TypeCheckFailed);
 }
 
 } // namespace

@@ -13,9 +13,9 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "../api/helper.h"
-#include "../api/hostfunc_c.h"
+#include "apihelper.h"
 #include "common/filesystem.h"
+#include "hostfunc_c.h"
 #include "wasmedge/wasmedge.h"
 
 #include "spectest.h"

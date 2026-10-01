@@ -628,15 +628,11 @@ TEST(ComponentCanonInvokeTest, LiftPostReturnDirectResult) {
   EXPECT_EQ(std::get<uint32_t>((*Sentinel)[0].first), 0xCAFEu);
 }
 
-static VM::VM makeComponentVM() {
-  Configure Conf;
-  Conf.addProposal(Proposal::Component);
-  return VM::VM(Conf);
-}
-
 // A misaligned indirect-return pointer traps.
 TEST(ComponentCanonInvokeTest, IndirectReturnMisalignedPtrTraps) {
-  auto VM = makeComponentVM();
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
   // (component
   //   (core module $m
@@ -683,7 +679,9 @@ TEST(ComponentCanonInvokeTest, IndirectReturnMisalignedPtrTraps) {
 
 // An indirect-return tuple crossing the end of memory traps.
 TEST(ComponentCanonInvokeTest, IndirectReturnOOBPtrTraps) {
-  auto VM = makeComponentVM();
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
   // (component
   //   (core module $m
@@ -732,7 +730,9 @@ TEST(ComponentCanonInvokeTest, IndirectReturnOOBPtrTraps) {
 
 // load_tuple honours per-field alignment: u8@0, u64@8, u8@16, u32@20.
 TEST(ComponentCanonInvokeTest, IndirectReturnMixedAlignTuple) {
-  auto VM = makeComponentVM();
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
   // (component
   //   (core module $m
@@ -802,7 +802,9 @@ TEST(ComponentCanonInvokeTest, IndirectReturnMixedAlignTuple) {
 
 // Indirect params written through a realloc that returns 0 must not crash.
 TEST(ComponentCanonInvokeTest, IndirectParamReallocReturnsZero) {
-  auto VM = makeComponentVM();
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
   // (component
   //   (core module $m
@@ -872,7 +874,9 @@ TEST(ComponentCanonInvokeTest, IndirectParamReallocReturnsZero) {
 
 // A string field followed by a u32 in the indirect-return area.
 TEST(ComponentCanonInvokeTest, IndirectReturnStringInTuple) {
-  auto VM = makeComponentVM();
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
   // (component
   //   (core module $m
@@ -936,7 +940,9 @@ TEST(ComponentCanonInvokeTest, IndirectReturnStringInTuple) {
 
 // A string length above MAX_STRING_BYTE_LENGTH traps in load_string.
 TEST(ComponentCanonInvokeTest, IndirectReturnStringLenTooLargeTraps) {
-  auto VM = makeComponentVM();
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
   // (component
   //   (core module $m
@@ -990,7 +996,9 @@ TEST(ComponentCanonInvokeTest, IndirectReturnStringLenTooLargeTraps) {
 
 // load_variant reads the f32 case of variant<s64, f32> from the joined slot.
 TEST(ComponentCanonInvokeTest, IndirectReturnVariantJoinCoerce) {
-  auto VM = makeComponentVM();
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
   // (component
   //   (core module $m

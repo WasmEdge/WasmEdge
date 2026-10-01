@@ -12,24 +12,10 @@ namespace {
 using namespace WasmEdge;
 using namespace std::literals;
 
-// Loads a component, which must succeed, then validates and optionally
-// instantiates it.
-ErrCode::Value validateComponent(Span<const Byte> Wasm,
-                                 bool Instantiate = false) {
-  Configure Conf;
-  Conf.addProposal(Proposal::Component);
-  VM::VM VM(Conf);
-  auto Res = VM.loadWasm(Wasm);
-  EXPECT_TRUE(Res) << "the component failed to load";
-  Res = Res.and_then([&]() { return VM.validate(); });
-  if (Instantiate) {
-    Res = Res.and_then([&]() { return VM.instantiate(); });
-  }
-  return Res ? ErrCode::Value::Success : Res.error().getEnum();
-}
-
 // Sample components load, and validate or are rejected as expected.
 TEST(ComponentRegressionTest, SampleBinaries) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
   // (component
   //   (type (;0;)
   //     (instance
@@ -79,7 +65,9 @@ TEST(ComponentRegressionTest, SampleBinaries) {
       0x65, 0x73, 0x73, 0x65, 0x64, 0x2d, 0x62, 0x79, 0x01, 0x0d, 0x77, 0x69,
       0x74, 0x2d, 0x63, 0x6f, 0x6d, 0x70, 0x6f, 0x6e, 0x65, 0x6e, 0x74, 0x07,
       0x30, 0x2e, 0x32, 0x32, 0x37, 0x2e, 0x31};
-  EXPECT_EQ(validateComponent(TestWasm), ErrCode::Value::Success);
+  VM::VM TestVM(Conf);
+  ASSERT_TRUE(TestVM.loadWasm(TestWasm));
+  EXPECT_TRUE(TestVM.validate());
 
   // A component importing wasi:http/test and lowering its http-get.
   std::array<WasmEdge::Byte, 775> HttpWasm{
@@ -215,7 +203,10 @@ TEST(ComponentRegressionTest, SampleBinaries) {
       0x01, 0x00, 0x04, 0x68, 0x74, 0x74, 0x70};
   // http-get is lowered with a multi-value core result, which the canonical
   // ABI never produces; wasm-tools rejects it too.
-  EXPECT_NE(validateComponent(HttpWasm), ErrCode::Value::Success);
+  VM::VM HttpVM(Conf);
+  ASSERT_TRUE(HttpVM.loadWasm(HttpWasm));
+  auto HttpRes = HttpVM.validate();
+  ASSERT_FALSE(HttpRes);
 
   // Component $C exports resources R1 and R2; component $D imports them.
   std::array<WasmEdge::Byte, 2252> MultiComponentWasm{
@@ -408,7 +399,9 @@ TEST(ComponentRegressionTest, SampleBinaries) {
       0x01, 0x08, 0x04, 0x02, 0x00, 0x01, 0x43, 0x01, 0x01, 0x44, 0x01, 0x08,
       0x05, 0x02, 0x00, 0x01, 0x63, 0x01, 0x01, 0x64};
   // Instantiation needs canonical built-ins that are not implemented yet.
-  EXPECT_EQ(validateComponent(MultiComponentWasm), ErrCode::Value::Success);
+  VM::VM MultiComponentVM(Conf);
+  ASSERT_TRUE(MultiComponentVM.loadWasm(MultiComponentWasm));
+  EXPECT_TRUE(MultiComponentVM.validate());
 }
 
 TEST(ComponentRegressionTest, LoadAndRunSimpleBinary) {
@@ -475,6 +468,8 @@ TEST(ComponentRegressionTest, LoadAndRunSimpleBinary) {
 
 // Component and instance export aliases resolve and grow their index spaces.
 TEST(ComponentRegressionTest, AliasIndexSpace) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
   // Component exports and aliases of sort component are instantiated.
   // (component
   //   (component $c
@@ -502,8 +497,10 @@ TEST(ComponentRegressionTest, AliasIndexSpace) {
       0x63, 0x01, 0x0c, 0x6e, 0x65, 0x73, 0x74, 0x65, 0x64, 0x5f, 0x61, 0x6c,
       0x69, 0x61, 0x73, 0x01, 0x08, 0x05, 0x01, 0x00, 0x04, 0x69, 0x6e, 0x73,
       0x74};
-  EXPECT_EQ(validateComponent(ComponentAliasWasm, true),
-            ErrCode::Value::Success);
+  VM::VM ComponentAliasVM(Conf);
+  ASSERT_TRUE(ComponentAliasVM.loadWasm(ComponentAliasWasm));
+  EXPECT_TRUE(ComponentAliasVM.validate());
+  EXPECT_TRUE(ComponentAliasVM.instantiate());
 
   // An export alias through a chain of instances resolves.
   // (component
@@ -522,7 +519,9 @@ TEST(ComponentRegressionTest, AliasIndexSpace) {
       0x01, 0x01, 0x00, 0x01, 0x69, 0x05, 0x00, 0x06, 0x0b, 0x02, 0x05,
       0x00, 0x01, 0x01, 0x69, 0x01, 0x00, 0x02, 0x01, 0x78, 0x0b, 0x09,
       0x01, 0x00, 0x03, 0x6f, 0x75, 0x74, 0x01, 0x01, 0x00};
-  EXPECT_EQ(validateComponent(InstanceChainWasm), ErrCode::Value::Success);
+  VM::VM InstanceChainVM(Conf);
+  ASSERT_TRUE(InstanceChainVM.loadWasm(InstanceChainWasm));
+  EXPECT_TRUE(InstanceChainVM.validate());
 
   // Each export adds a func index; the runtime index space must grow to match
   // the validator so canon lower of the last export alias stays in bounds.
@@ -573,11 +572,16 @@ TEST(ComponentRegressionTest, AliasIndexSpace) {
       0x01, 0x01, 0x00, 0x06, 0x6c, 0x69, 0x66, 0x74, 0x65, 0x64, 0x01, 0x06,
 
       0x03, 0x01, 0x00, 0x02, 0x66, 0x74};
-  EXPECT_EQ(validateComponent(FuncAliasWasm, true), ErrCode::Value::Success);
+  VM::VM FuncAliasVM(Conf);
+  ASSERT_TRUE(FuncAliasVM.loadWasm(FuncAliasWasm));
+  EXPECT_TRUE(FuncAliasVM.validate());
+  EXPECT_TRUE(FuncAliasVM.instantiate());
 }
 
 // Exports and imports must land in the index space of their own sort.
 TEST(ComponentRegressionTest, SortIndexSpace) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
   // (component
   //   (type (;0;) (func))
   //   (import "f" (func (;0;) (type 0)))
@@ -589,7 +593,10 @@ TEST(ComponentRegressionTest, SortIndexSpace) {
       0x00, 0x01, 0x00, 0x0a, 0x06, 0x01, 0x00, 0x01, 0x66, 0x01, 0x00, 0x0b,
       0x09, 0x01, 0x00, 0x01, 0x78, 0x01, 0x00, 0x01, 0x01, 0x00, 0x0b, 0x09,
       0x01, 0x00, 0x01, 0x79, 0x01, 0x02, 0x01, 0x01, 0x00};
-  EXPECT_NE(validateComponent(AscribedExportWasm), ErrCode::Value::Success);
+  VM::VM AscribedExportVM(Conf);
+  ASSERT_TRUE(AscribedExportVM.loadWasm(AscribedExportWasm));
+  auto AscribedExportRes = AscribedExportVM.validate();
+  ASSERT_FALSE(AscribedExportRes);
 
   // (component
   //   (core type (;0;)
@@ -602,11 +609,15 @@ TEST(ComponentRegressionTest, SortIndexSpace) {
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x03, 0x03,
       0x01, 0x50, 0x00, 0x0a, 0x07, 0x01, 0x00, 0x01, 0x6d, 0x00,
       0x11, 0x00, 0x02, 0x04, 0x01, 0x00, 0x00, 0x00};
-  EXPECT_EQ(validateComponent(CoreModuleImportWasm), ErrCode::Value::Success);
+  VM::VM CoreModuleImportVM(Conf);
+  ASSERT_TRUE(CoreModuleImportVM.loadWasm(CoreModuleImportWasm));
+  EXPECT_TRUE(CoreModuleImportVM.validate());
 }
 
 // Export ascriptions and instantiate arguments must match the expected type.
 TEST(ComponentRegressionTest, TypeMismatchRejected) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
   // An export ascribed an instance type with a missing export is rejected.
   // (component
   //   (type (instance (export "a" (func)) (export "b" (func))))  ;; type[0]
@@ -621,7 +632,10 @@ TEST(ComponentRegressionTest, TypeMismatchRejected) {
       0x02, 0x01, 0x40, 0x00, 0x01, 0x00, 0x04, 0x00, 0x01, 0x61, 0x01, 0x00,
       0x0a, 0x06, 0x01, 0x00, 0x01, 0x69, 0x05, 0x01, 0x0b, 0x09, 0x01, 0x00,
       0x01, 0x65, 0x05, 0x00, 0x01, 0x05, 0x00};
-  EXPECT_NE(validateComponent(MissingExportWasm), ErrCode::Value::Success);
+  VM::VM MissingExportVM(Conf);
+  ASSERT_TRUE(MissingExportVM.loadWasm(MissingExportWasm));
+  auto MissingExportRes = MissingExportVM.validate();
+  ASSERT_FALSE(MissingExportRes);
 
   // An export ascribed a descriptor of a different sort is rejected.
   // (component
@@ -635,7 +649,10 @@ TEST(ComponentRegressionTest, TypeMismatchRejected) {
       0x02, 0x40, 0x00, 0x01, 0x00, 0x42, 0x00, 0x0a, 0x06, 0x01,
       0x00, 0x01, 0x66, 0x01, 0x00, 0x0b, 0x0b, 0x01, 0x00, 0x03,
       0x62, 0x61, 0x64, 0x01, 0x00, 0x01, 0x05, 0x01};
-  EXPECT_NE(validateComponent(SortMismatchWasm), ErrCode::Value::Success);
+  VM::VM SortMismatchVM(Conf);
+  ASSERT_TRUE(SortMismatchVM.loadWasm(SortMismatchWasm));
+  auto SortMismatchRes = SortMismatchVM.validate();
+  ASSERT_FALSE(SortMismatchRes);
 
   // An instantiate argument missing an export required by the import fails.
   // (component
@@ -659,11 +676,16 @@ TEST(ComponentRegressionTest, TypeMismatchRejected) {
       0x65, 0x6e, 0x74, 0x2d, 0x6e, 0x61, 0x6d, 0x65, 0x00, 0x06, 0x05,
       0x63, 0x68, 0x69, 0x6c, 0x64, 0x05, 0x0f, 0x02, 0x01, 0x01, 0x00,
       0x01, 0x61, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x69, 0x05, 0x00};
-  EXPECT_NE(validateComponent(MissingArgExportWasm), ErrCode::Value::Success);
+  VM::VM MissingArgExportVM(Conf);
+  ASSERT_TRUE(MissingArgExportVM.loadWasm(MissingArgExportWasm));
+  auto MissingArgExportRes = MissingArgExportVM.validate();
+  ASSERT_FALSE(MissingArgExportRes);
 }
 
 // Core types inside components are validated like core module types.
 TEST(ComponentRegressionTest, CoreTypes) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
   // (component
   //   (type (;0;)
   //     (instance
@@ -679,7 +701,9 @@ TEST(ComponentRegressionTest, CoreTypes) {
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x0d, 0x01,
       0x42, 0x02, 0x00, 0x50, 0x00, 0x04, 0x00, 0x01, 0x6d, 0x00, 0x11,
       0x00, 0x0a, 0x06, 0x01, 0x00, 0x01, 0x69, 0x05, 0x00};
-  EXPECT_EQ(validateComponent(CoreModuleExportWasm), ErrCode::Value::Success);
+  VM::VM CoreModuleExportVM(Conf);
+  ASSERT_TRUE(CoreModuleExportVM.loadWasm(CoreModuleExportWasm));
+  EXPECT_TRUE(CoreModuleExportVM.validate());
 
   // (component
   //   (core rec
@@ -692,7 +716,11 @@ TEST(ComponentRegressionTest, CoreTypes) {
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x03, 0x18, 0x01, 0x4e,
       0x03, 0x50, 0x00, 0x60, 0x00, 0x01, 0x63, 0x00, 0x50, 0x01, 0x00, 0x60,
       0x00, 0x01, 0x63, 0x02, 0x50, 0x01, 0x02, 0x60, 0x00, 0x00};
-  EXPECT_EQ(validateComponent(CyclicWasm), ErrCode::Value::InvalidSubType);
+  VM::VM CyclicVM(Conf);
+  ASSERT_TRUE(CyclicVM.loadWasm(CyclicWasm));
+  auto CyclicRes = CyclicVM.validate();
+  ASSERT_FALSE(CyclicRes);
+  EXPECT_EQ(CyclicRes.error(), ErrCode::Value::InvalidSubType);
 
   // A core module with a rec group of 31 sub types; type 8 returns
   // (ref null 9) and type 9 names itself as its super type.
@@ -738,13 +766,18 @@ TEST(ComponentRegressionTest, CoreTypes) {
       0x01, 0x20, 0x60, 0x00, 0x03, 0xff, 0x20, 0xff, 0x20, 0xff, 0x20, 0x50,
       0x01, 0x20, 0x60, 0x00, 0x03, 0xff, 0x20, 0xff, 0x20, 0xff, 0x20, 0x50,
       0x01, 0x20, 0x60, 0x00, 0x03, 0xff, 0x20, 0xff, 0x20, 0xff, 0x20};
-  EXPECT_EQ(validateComponent(SelfSuperWasm),
-            ErrCode::Value::InvalidFuncTypeIdx);
+  VM::VM SelfSuperVM(Conf);
+  ASSERT_TRUE(SelfSuperVM.loadWasm(SelfSuperWasm));
+  auto SelfSuperRes = SelfSuperVM.validate();
+  ASSERT_FALSE(SelfSuperRes);
+  EXPECT_EQ(SelfSuperRes.error(), ErrCode::Value::InvalidFuncTypeIdx);
 }
 
 // An outer-aliased resource type keeps its identity, so it may be exported with
 // (eq 0) and used in (borrow 0).
 TEST(ComponentRegressionTest, OuterAliasResourceType) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
   // (component
   //   (type
   //     (component
@@ -779,7 +812,9 @@ TEST(ComponentRegressionTest, OuterAliasResourceType) {
       0x03, 0x02, 0x03, 0x02, 0x01, 0x01, 0x01, 0x68, 0x00, 0x01, 0x40, 0x01,
       0x01, 0x78, 0x01, 0x01, 0x00, 0x04, 0x00, 0x05, 0x61, 0x3a, 0x62, 0x2f,
       0x64, 0x05, 0x02};
-  EXPECT_EQ(validateComponent(Wasm), ErrCode::Value::Success);
+  VM::VM ComponentVM(Conf);
+  ASSERT_TRUE(ComponentVM.loadWasm(Wasm));
+  EXPECT_TRUE(ComponentVM.validate());
 }
 
 } // namespace

@@ -29,6 +29,7 @@
 
 namespace {
 
+using namespace std::literals;
 using namespace WasmEdge;
 
 // Host function that records i32 values for later inspection.
@@ -91,6 +92,38 @@ public:
   Expect<void> body(const Runtime::CallingFrame &) { return {}; }
 };
 
+// Packs the bit patterns of float lanes into a v128, Wasm lane 0 first.
+template <typename T>
+uint128_t v128Of(std::initializer_list<FloatBits<T>> Lanes) {
+  uint128_t V = 0U;
+  unsigned int Shift = 0;
+  for (const auto Lane : Lanes) {
+    V |= uint128_t(Lane) << Shift;
+    Shift += sizeof(T) * 8;
+  }
+  return V;
+}
+
+// Expects each lane of Got to match Want. A NaN in Want accepts only an
+// arithmetic NaN, which is a NaN with the quiet bit set.
+template <typename T>
+void expectLanes(std::string_view Mode, std::string_view Op, uint128_t Got,
+                 std::initializer_list<FloatBits<T>> Want) {
+  unsigned int Shift = 0;
+  for (const auto WantBits : Want) {
+    const auto GotBits =
+        static_cast<FloatBits<T>>(static_cast<uint64_t>(Got >> Shift));
+    if (std::isnan(cxx20::bit_cast<T>(WantBits))) {
+      EXPECT_TRUE(std::isnan(cxx20::bit_cast<T>(GotBits)) &&
+                  (GotBits & QuietBit<T>) != 0)
+          << Mode << ' ' << Op << " lane bits " << std::hex << GotBits;
+    } else {
+      EXPECT_EQ(GotBits, WantBits) << Mode << ' ' << Op;
+    }
+    Shift += sizeof(T) * 8;
+  }
+}
+
 // Checks that the null in exported table "t" has an abstract heap type, which
 // catches issue #4757 without running wasm that would segfault.
 bool checkNullTableEntry(VM::VM &VMInst) {
@@ -114,33 +147,8 @@ bool checkNullTableEntry(VM::VM &VMInst) {
   return Ref.isNull() && Ref.getType().isAbsHeapType();
 }
 
-// f(n) = n ? f(n-1) : 0 without tail calls.
-// (module
-//   (type (;0;) (func (param i64) (result i64)))
-//   (export "f" (func $f))
-//   (func $f (;0;) (type 0) (param $n i64) (result i64)
-//     local.get $n
-//     i64.eqz
-//     if (result i64) ;; label = @1
-//       i64.const 0
-//     else
-//       local.get $n
-//       i64.const 1
-//       i64.sub
-//       call $f
-//     end
-//   )
-// )
-std::array<WasmEdge::Byte, 70> RecurseWasm{
-    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
-    0x01, 0x7e, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
-    0x66, 0x00, 0x00, 0x0a, 0x14, 0x01, 0x12, 0x00, 0x20, 0x00, 0x50, 0x04,
-    0x7e, 0x42, 0x00, 0x05, 0x20, 0x00, 0x42, 0x01, 0x7d, 0x10, 0x00, 0x0b,
-    0x0b, 0x00, 0x13, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x04, 0x01, 0x00,
-    0x01, 0x66, 0x02, 0x06, 0x01, 0x00, 0x01, 0x00, 0x01, 0x6e};
-
 // ref.test on externalized refs must keep the nullability of the source.
-TEST(ExecutorRegressionTest, RefTestNullAbility) {
+TEST(ExecutorRegressionTest, RefTestExternalizedNullability) {
   // (module
   //   (type (;0;) (func (param anyref) (result i32)))
   //   (type (;1;) (func (param externref) (result i32)))
@@ -313,263 +321,55 @@ TEST(ExecutorRegressionTest, RefTestNullAbility) {
           << "Null round-trip externref should NOT match (ref extern)";
     }
   }
-
-  // The nullability normalization of runRefTestOp on ValType directly.
-  {
-    // Simulate a nullable externalized type (ref null any) + externalized flag.
-    ValType NullableAny(TypeCode::RefNull, TypeCode::AnyRef);
-    NullableAny.setExternalized();
-
-    ASSERT_TRUE(NullableAny.isExternalized());
-    ASSERT_TRUE(NullableAny.isNullableRefType());
-
-    // The fix: construct the normalized type preserving nullability.
-    ValType NormalizedNullable(
-        NullableAny.isNullableRefType() ? TypeCode::RefNull : TypeCode::Ref,
-        TypeCode::ExternRef);
-    EXPECT_TRUE(NormalizedNullable.isNullableRefType())
-        << "Normalized type should preserve nullable from source";
-    EXPECT_FALSE(NormalizedNullable.isExternalized())
-        << "Normalized type should not have externalize flag";
-
-    // Simulate a non-nullable externalized type (ref any) + externalized flag.
-    ValType NonNullableAny(TypeCode::Ref, TypeCode::AnyRef);
-    NonNullableAny.setExternalized();
-
-    ASSERT_TRUE(NonNullableAny.isExternalized());
-    ASSERT_FALSE(NonNullableAny.isNullableRefType());
-
-    // The fix: non-nullable should remain non-nullable.
-    ValType NormalizedNonNullable(
-        NonNullableAny.isNullableRefType() ? TypeCode::RefNull : TypeCode::Ref,
-        TypeCode::ExternRef);
-    EXPECT_FALSE(NormalizedNonNullable.isNullableRefType())
-        << "Normalized type should preserve non-nullable from source";
-
-    // Old code (the bug) would always use TypeCode::Ref:
-    ValType OldBugResult(TypeCode::Ref, TypeCode::ExternRef);
-    EXPECT_FALSE(OldBugResult.isNullableRefType())
-        << "Old code always produced non-nullable";
-
-    // Verify the difference: for a nullable input, old and new code differ.
-    EXPECT_NE(NormalizedNullable.isNullableRefType(),
-              OldBugResult.isNullableRefType())
-        << "Fix should produce different result than bug for nullable input";
-
-    // Verify: for a non-nullable input, old and new code agree.
-    EXPECT_EQ(NormalizedNonNullable.isNullableRefType(),
-              OldBugResult.isNullableRefType())
-        << "Fix should produce same result as bug for non-nullable input";
-  }
-
-  // ref.test on a null from a concrete-typed table must not dereference the
-  // null object (issue #4757).
-  {
-    // (module
-    //   (type $s (struct))
-    //   (import "gc" "check" (func $check (param i32)))
-    //   (table (export "t") 1 (ref null $s))
-    //   (func (export "test")
-    //     i32.const 0
-    //     table.get 0
-    //     ref.test eqref
-    //     call $check
-    //     i32.const 0
-    //     table.get 0
-    //     ref.test (ref $s)
-    //     call $check))
-    std::array<WasmEdge::Byte, 106> NullRefTestWasm{
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x03, 0x5f,
-        0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x0c, 0x01, 0x02,
-        0x67, 0x63, 0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x00, 0x01, 0x03, 0x02,
-        0x01, 0x02, 0x04, 0x05, 0x01, 0x63, 0x00, 0x00, 0x01, 0x07, 0x0c, 0x02,
-        0x01, 0x74, 0x01, 0x00, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x01, 0x0a,
-        0x16, 0x01, 0x14, 0x00, 0x41, 0x00, 0x25, 0x00, 0xfb, 0x15, 0x6d, 0x10,
-        0x00, 0x41, 0x00, 0x25, 0x00, 0xfb, 0x14, 0x00, 0x10, 0x00, 0x0b, 0x00,
-        0x15, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x08, 0x01, 0x00, 0x05, 0x63,
-        0x68, 0x65, 0x63, 0x6b, 0x04, 0x04, 0x01, 0x00, 0x01, 0x73};
-
-    Configure Conf6;
-    GCCheckModule GCMod;
-    VM::VM VM6(Conf6);
-    VM6.registerModule(GCMod);
-    ASSERT_TRUE(VM6.loadWasm(NullRefTestWasm));
-    ASSERT_TRUE(VM6.validate());
-    ASSERT_TRUE(VM6.instantiate());
-    ASSERT_TRUE(checkNullTableEntry(VM6));
-    VM6.execute("test");
-    auto Values = GCMod.getValues();
-    ASSERT_EQ(Values.size(), 2);
-    EXPECT_EQ(Values[0], 1); // null matches nullable eqref
-    EXPECT_EQ(Values[1], 0); // null doesn't match non-nullable (ref $s)
-  }
-
-  // A function returning a null ref of a concrete type.
-  {
-    // (module
-    //   (type $s (struct))
-    //   (import "gc" "check" (func $check (param i32)))
-    //   (table (export "t") 1 (ref null $s))
-    //   (func $get_null (result (ref null $s))
-    //     i32.const 0
-    //     table.get 0)
-    //   (func (export "test")
-    //     call $get_null
-    //     ref.test eqref
-    //     call $check))
-    std::array<WasmEdge::Byte, 118> NullReturnConcreteWasm{
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0f, 0x04, 0x5f,
-        0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x01, 0x63, 0x00, 0x60, 0x00,
-        0x00, 0x02, 0x0c, 0x01, 0x02, 0x67, 0x63, 0x05, 0x63, 0x68, 0x65, 0x63,
-        0x6b, 0x00, 0x01, 0x03, 0x03, 0x02, 0x02, 0x03, 0x04, 0x05, 0x01, 0x63,
-        0x00, 0x00, 0x01, 0x07, 0x0c, 0x02, 0x01, 0x74, 0x01, 0x00, 0x04, 0x74,
-        0x65, 0x73, 0x74, 0x00, 0x02, 0x0a, 0x12, 0x02, 0x06, 0x00, 0x41, 0x00,
-        0x25, 0x00, 0x0b, 0x09, 0x00, 0x10, 0x01, 0xfb, 0x15, 0x6d, 0x10, 0x00,
-        0x0b, 0x00, 0x1f, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x12, 0x02, 0x00,
-        0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x01, 0x08, 0x67, 0x65, 0x74, 0x5f,
-        0x6e, 0x75, 0x6c, 0x6c, 0x04, 0x04, 0x01, 0x00, 0x01, 0x73};
-
-    Configure Conf7;
-    GCCheckModule GCMod;
-    VM::VM VM7(Conf7);
-    VM7.registerModule(GCMod);
-    ASSERT_TRUE(VM7.loadWasm(NullReturnConcreteWasm));
-    ASSERT_TRUE(VM7.validate());
-    ASSERT_TRUE(VM7.instantiate());
-    ASSERT_TRUE(checkNullTableEntry(VM7));
-    VM7.execute("test");
-    auto Values = GCMod.getValues();
-    ASSERT_EQ(Values.size(), 1);
-    EXPECT_EQ(Values[0], 1); // null from concrete return matches eqref
-  }
-
-  // table.grow creates null entries, then ref.cast.
-  {
-    // (module
-    //   (type $s (struct))
-    //   (import "gc" "check" (func $check (param i32)))
-    //   (table $t (export "t") 0 (ref null $s))
-    //   (func (export "test")
-    //     ref.null $s
-    //     i32.const 1
-    //     table.grow $t
-    //     drop
-    //     i32.const 0
-    //     table.get $t
-    //     ref.cast eqref
-    //     ref.is_null
-    //     call $check))
-    std::array<WasmEdge::Byte, 112> NullTableGrowWasm{
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x03, 0x5f,
-        0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x0c, 0x01, 0x02,
-        0x67, 0x63, 0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x00, 0x01, 0x03, 0x02,
-        0x01, 0x02, 0x04, 0x05, 0x01, 0x63, 0x00, 0x00, 0x00, 0x07, 0x0c, 0x02,
-        0x01, 0x74, 0x01, 0x00, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x01, 0x0a,
-        0x16, 0x01, 0x14, 0x00, 0xd0, 0x00, 0x41, 0x01, 0xfc, 0x0f, 0x00, 0x1a,
-        0x41, 0x00, 0x25, 0x00, 0xfb, 0x17, 0x6d, 0xd1, 0x10, 0x00, 0x0b, 0x00,
-        0x1b, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x08, 0x01, 0x00, 0x05, 0x63,
-        0x68, 0x65, 0x63, 0x6b, 0x04, 0x04, 0x01, 0x00, 0x01, 0x73, 0x05, 0x04,
-        0x01, 0x00, 0x01, 0x74};
-
-    Configure Conf8;
-    GCCheckModule GCMod;
-    VM::VM VM8(Conf8);
-    VM8.registerModule(GCMod);
-    ASSERT_TRUE(VM8.loadWasm(NullTableGrowWasm));
-    ASSERT_TRUE(VM8.validate());
-    ASSERT_TRUE(VM8.instantiate());
-    VM8.execute("test");
-    auto Values = GCMod.getValues();
-    ASSERT_EQ(Values.size(), 1);
-    EXPECT_EQ(Values[0], 1); // null from grown slot passed through cast
-  }
 }
 
-// ref.cast on a null ref from a concrete-typed table must not dereference the
-// null object (issue #4757).
-TEST(ExecutorRegressionTest, RefCastNullAbility) {
-  // ref.cast eqref on null passes through.
-  {
-    // (module
-    //   (type $s (struct))
-    //   (import "gc" "check" (func $check (param i32)))
-    //   (table (export "t") 1 (ref null $s))
-    //   (func (export "test")
-    //     i32.const 0
-    //     table.get 0
-    //     ref.cast eqref
-    //     ref.is_null
-    //     call $check))
-    std::array<WasmEdge::Byte, 98> NullRefCastWasm{
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x03,
-        0x5f, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x0c,
-        0x01, 0x02, 0x67, 0x63, 0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x00,
-        0x01, 0x03, 0x02, 0x01, 0x02, 0x04, 0x05, 0x01, 0x63, 0x00, 0x00,
-        0x01, 0x07, 0x0c, 0x02, 0x01, 0x74, 0x01, 0x00, 0x04, 0x74, 0x65,
-        0x73, 0x74, 0x00, 0x01, 0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x41, 0x00,
-        0x25, 0x00, 0xfb, 0x17, 0x6d, 0xd1, 0x10, 0x00, 0x0b, 0x00, 0x15,
-        0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x08, 0x01, 0x00, 0x05, 0x63,
-        0x68, 0x65, 0x63, 0x6b, 0x04, 0x04, 0x01, 0x00, 0x01, 0x73};
-
-    Configure Conf;
-    GCCheckModule GCMod;
-    VM::VM VM(Conf);
-    VM.registerModule(GCMod);
-    ASSERT_TRUE(VM.loadWasm(NullRefCastWasm));
-    ASSERT_TRUE(VM.validate());
-    ASSERT_TRUE(VM.instantiate());
-    ASSERT_TRUE(checkNullTableEntry(VM));
-    VM.execute("test");
-    auto Values = GCMod.getValues();
-    ASSERT_EQ(Values.size(), 1);
-    EXPECT_EQ(Values[0], 1); // null passed through nullable cast
-  }
-
-  // ref.cast (ref eq) on null traps.
-  {
-    // (module
-    //   (type $s (struct))
-    //   (import "gc" "check" (func $check (param i32)))
-    //   (table (export "t") 1 (ref null $s))
-    //   (func (export "test")
-    //     i32.const 0
-    //     table.get 0
-    //     ref.cast (ref eq)
-    //     drop))
-    std::array<WasmEdge::Byte, 96> NullRefCastNonNullWasm{
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x03, 0x5f,
-        0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x0c, 0x01, 0x02,
-        0x67, 0x63, 0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x00, 0x01, 0x03, 0x02,
-        0x01, 0x02, 0x04, 0x05, 0x01, 0x63, 0x00, 0x00, 0x01, 0x07, 0x0c, 0x02,
-        0x01, 0x74, 0x01, 0x00, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x01, 0x0a,
-        0x0c, 0x01, 0x0a, 0x00, 0x41, 0x00, 0x25, 0x00, 0xfb, 0x16, 0x6d, 0x1a,
-        0x0b, 0x00, 0x15, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x08, 0x01, 0x00,
-        0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x04, 0x04, 0x01, 0x00, 0x01, 0x73};
-
-    Configure Conf;
-    GCCheckModule GCMod;
-    VM::VM VM(Conf);
-    VM.registerModule(GCMod);
-    ASSERT_TRUE(VM.loadWasm(NullRefCastNonNullWasm));
-    ASSERT_TRUE(VM.validate());
-    ASSERT_TRUE(VM.instantiate());
-    ASSERT_TRUE(checkNullTableEntry(VM));
-    auto Result = VM.execute("test");
-    EXPECT_FALSE(Result); // should trap with CastFailed
-  }
-}
-
-// br_on_cast and br_on_cast_fail on a null ref from a concrete-typed table
-// (issue #4757).
-TEST(ExecutorRegressionTest, BrOnCastNullAbility) {
+// ref.test, ref.cast, and br_on_cast on a null from a concrete-typed table
+// must not dereference the null object (issue #4757).
+TEST(ExecutorRegressionTest, NullFromConcreteTable) {
   // (module
   //   (type $s (struct))
   //   (import "gc" "check" (func $check (param i32)))
-  //   (table (export "t") 1 (ref null $s))
-  //   (func (export "test")
+  //   (table $t (export "t") 1 (ref null $s))
+  //   (table $g 0 (ref null $s))
+  //   (func $get_null (result (ref null $s))
+  //     i32.const 0
+  //     table.get $t)
+  //   (func (export "ref_test")
+  //     i32.const 0
+  //     table.get $t
+  //     ref.test eqref
+  //     call $check
+  //     i32.const 0
+  //     table.get $t
+  //     ref.test (ref $s)
+  //     call $check
+  //     call $get_null
+  //     ref.test eqref
+  //     call $check)
+  //   (func (export "ref_cast")
+  //     i32.const 0
+  //     table.get $t
+  //     ref.cast eqref
+  //     ref.is_null
+  //     call $check
+  //     ref.null $s
+  //     i32.const 1
+  //     table.grow $g
+  //     drop
+  //     i32.const 0
+  //     table.get $g
+  //     ref.cast eqref
+  //     ref.is_null
+  //     call $check)
+  //   (func (export "ref_cast_non_null")
+  //     i32.const 0
+  //     table.get $t
+  //     ref.cast (ref eq)
+  //     drop)
+  //   (func (export "br_on_cast")
   //     (block $taken (result eqref)
   //       i32.const 0
-  //       table.get 0
+  //       table.get $t
   //       br_on_cast $taken eqref eqref
   //       drop
   //       i32.const 0
@@ -579,7 +379,7 @@ TEST(ExecutorRegressionTest, BrOnCastNullAbility) {
   //     call $check
   //     (block $fail_taken (result eqref)
   //       i32.const 0
-  //       table.get 0
+  //       table.get $t
   //       br_on_cast_fail $fail_taken eqref (ref eq)
   //       drop
   //       i32.const 0
@@ -587,20 +387,28 @@ TEST(ExecutorRegressionTest, BrOnCastNullAbility) {
   //       return)
   //     ref.is_null
   //     call $check))
-  std::array<WasmEdge::Byte, 156> Wasm{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x03, 0x5f,
-      0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x0c, 0x01, 0x02,
-      0x67, 0x63, 0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x00, 0x01, 0x03, 0x02,
-      0x01, 0x02, 0x04, 0x05, 0x01, 0x63, 0x00, 0x00, 0x01, 0x07, 0x0c, 0x02,
-      0x01, 0x74, 0x01, 0x00, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x01, 0x0a,
-      0x30, 0x01, 0x2e, 0x00, 0x02, 0x6d, 0x41, 0x00, 0x25, 0x00, 0xfb, 0x18,
-      0x03, 0x00, 0x6d, 0x6d, 0x1a, 0x41, 0x00, 0x10, 0x00, 0x0f, 0x0b, 0xd1,
-      0x10, 0x00, 0x02, 0x6d, 0x41, 0x00, 0x25, 0x00, 0xfb, 0x19, 0x01, 0x00,
-      0x6d, 0x6d, 0x1a, 0x41, 0x00, 0x10, 0x00, 0x0f, 0x0b, 0xd1, 0x10, 0x00,
-      0x0b, 0x00, 0x2d, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x08, 0x01, 0x00,
-      0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x03, 0x16, 0x01, 0x01, 0x02, 0x00,
-      0x05, 0x74, 0x61, 0x6b, 0x65, 0x6e, 0x01, 0x0a, 0x66, 0x61, 0x69, 0x6c,
-      0x5f, 0x74, 0x61, 0x6b, 0x65, 0x6e, 0x04, 0x04, 0x01, 0x00, 0x01, 0x73};
+  std::array<WasmEdge::Byte, 247> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0f, 0x04, 0x5f,
+      0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x01, 0x63, 0x00, 0x60, 0x00,
+      0x00, 0x02, 0x0c, 0x01, 0x02, 0x67, 0x63, 0x05, 0x63, 0x68, 0x65, 0x63,
+      0x6b, 0x00, 0x01, 0x03, 0x06, 0x05, 0x02, 0x03, 0x03, 0x03, 0x03, 0x04,
+      0x09, 0x02, 0x63, 0x00, 0x00, 0x01, 0x63, 0x00, 0x00, 0x00, 0x07, 0x3c,
+      0x05, 0x01, 0x74, 0x01, 0x00, 0x08, 0x72, 0x65, 0x66, 0x5f, 0x74, 0x65,
+      0x73, 0x74, 0x00, 0x02, 0x08, 0x72, 0x65, 0x66, 0x5f, 0x63, 0x61, 0x73,
+      0x74, 0x00, 0x03, 0x11, 0x72, 0x65, 0x66, 0x5f, 0x63, 0x61, 0x73, 0x74,
+      0x5f, 0x6e, 0x6f, 0x6e, 0x5f, 0x6e, 0x75, 0x6c, 0x6c, 0x00, 0x04, 0x0a,
+      0x62, 0x72, 0x5f, 0x6f, 0x6e, 0x5f, 0x63, 0x61, 0x73, 0x74, 0x00, 0x05,
+      0x0a, 0x7d, 0x05, 0x06, 0x00, 0x41, 0x00, 0x25, 0x00, 0x0b, 0x1b, 0x00,
+      0x41, 0x00, 0x25, 0x00, 0xfb, 0x15, 0x6d, 0x10, 0x00, 0x41, 0x00, 0x25,
+      0x00, 0xfb, 0x14, 0x00, 0x10, 0x00, 0x10, 0x01, 0xfb, 0x15, 0x6d, 0x10,
+      0x00, 0x0b, 0x1e, 0x00, 0x41, 0x00, 0x25, 0x00, 0xfb, 0x17, 0x6d, 0xd1,
+      0x10, 0x00, 0xd0, 0x00, 0x41, 0x01, 0xfc, 0x0f, 0x01, 0x1a, 0x41, 0x00,
+      0x25, 0x01, 0xfb, 0x17, 0x6d, 0xd1, 0x10, 0x00, 0x0b, 0x0a, 0x00, 0x41,
+      0x00, 0x25, 0x00, 0xfb, 0x16, 0x6d, 0x1a, 0x0b, 0x2e, 0x00, 0x02, 0x6d,
+      0x41, 0x00, 0x25, 0x00, 0xfb, 0x18, 0x03, 0x00, 0x6d, 0x6d, 0x1a, 0x41,
+      0x00, 0x10, 0x00, 0x0f, 0x0b, 0xd1, 0x10, 0x00, 0x02, 0x6d, 0x41, 0x00,
+      0x25, 0x00, 0xfb, 0x19, 0x01, 0x00, 0x6d, 0x6d, 0x1a, 0x41, 0x00, 0x10,
+      0x00, 0x0f, 0x0b, 0xd1, 0x10, 0x00, 0x0b};
 
   Configure Conf;
   GCCheckModule GCMod;
@@ -610,174 +418,104 @@ TEST(ExecutorRegressionTest, BrOnCastNullAbility) {
   ASSERT_TRUE(VM.validate());
   ASSERT_TRUE(VM.instantiate());
   ASSERT_TRUE(checkNullTableEntry(VM));
-  VM.execute("test");
+
+  // The null matches eqref but not (ref $s), also when returned by a call.
+  ASSERT_TRUE(VM.execute("ref_test"));
+  // ref.cast eqref passes the null through, also from a table.grow slot.
+  ASSERT_TRUE(VM.execute("ref_cast"));
+  // br_on_cast is taken for eqref, br_on_cast_fail is taken for (ref eq).
+  ASSERT_TRUE(VM.execute("br_on_cast"));
   auto Values = GCMod.getValues();
-  ASSERT_EQ(Values.size(), 2);
-  EXPECT_EQ(Values[0], 1); // br_on_cast taken for nullable match
-  EXPECT_EQ(Values[1], 1); // br_on_cast_fail taken for non-nullable mismatch
+  ASSERT_EQ(Values.size(), 7U);
+  EXPECT_EQ(Values[0], 1U);
+  EXPECT_EQ(Values[1], 0U);
+  EXPECT_EQ(Values[2], 1U);
+  EXPECT_EQ(Values[3], 1U);
+  EXPECT_EQ(Values[4], 1U);
+  EXPECT_EQ(Values[5], 1U);
+  EXPECT_EQ(Values[6], 1U);
+
+  // ref.cast (ref eq) on the null traps.
+  auto Result = VM.execute("ref_cast_non_null");
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::CastFailed);
 }
 
-// Null locals of concrete ref types must carry the abstract bottom type
-// (issue #4768).
-TEST(ExecutorRegressionTest, NullLocalConcreteType) {
-  // local (ref null $s) where $s is a struct type.
-  {
-    // (module
-    //   (type $s (struct))
-    //   (import "gc" "check" (func $check (param i32)))
-    //   (func (export "test")
-    //     (local (ref null $s))
-    //     local.get 0
-    //     ref.test (ref null $s)
-    //     call $check
-    //     local.get 0
-    //     ref.test eqref
-    //     call $check
-    //     local.get 0
-    //     ref.test (ref $s)
-    //     call $check))
-    std::array<WasmEdge::Byte, 101> NullLocalStructWasm{
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x03, 0x5f,
-        0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x0c, 0x01, 0x02,
-        0x67, 0x63, 0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x00, 0x01, 0x03, 0x02,
-        0x01, 0x02, 0x07, 0x08, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x01,
-        0x0a, 0x1c, 0x01, 0x1a, 0x01, 0x01, 0x63, 0x00, 0x20, 0x00, 0xfb, 0x15,
-        0x00, 0x10, 0x00, 0x20, 0x00, 0xfb, 0x15, 0x6d, 0x10, 0x00, 0x20, 0x00,
-        0xfb, 0x14, 0x00, 0x10, 0x00, 0x0b, 0x00, 0x15, 0x04, 0x6e, 0x61, 0x6d,
-        0x65, 0x01, 0x08, 0x01, 0x00, 0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x04,
-        0x04, 0x01, 0x00, 0x01, 0x73};
+// Null locals and globals of concrete (issue #4768) and abstract (issue #5343)
+// ref types must be bottom-typed so that ref.test and ref.cast match.
+TEST(ExecutorRegressionTest, NullLocalIsBottomTyped) {
+  // (module
+  //   (type $s (struct))
+  //   (type $f (func))
+  //   (type $a (array i32))
+  //   (import "gc" "check" (func $check (param i32)))
+  //   (global $g (ref null $s) ref.null $s)
+  //   (func (export "struct_local") (local (ref null $s))
+  //     local.get 0
+  //     ref.test (ref null $s)
+  //     call $check
+  //     local.get 0
+  //     ref.test eqref
+  //     call $check
+  //     local.get 0
+  //     ref.test (ref $s)
+  //     call $check)
+  //   (func (export "func_local") (local (ref null $f))
+  //     local.get 0
+  //     ref.test (ref null func)
+  //     call $check
+  //     local.get 0
+  //     ref.test (ref $f)
+  //     call $check)
+  //   (func (export "array_local") (local (ref null $a))
+  //     local.get 0
+  //     ref.test eqref
+  //     call $check
+  //     local.get 0
+  //     ref.test (ref $a)
+  //     call $check)
+  //   (func (export "struct_global")
+  //     global.get $g
+  //     ref.test eqref
+  //     call $check
+  //     global.get $g
+  //     ref.test (ref $s)
+  //     call $check))
+  std::array<WasmEdge::Byte, 201> ConcreteWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x04, 0x5f,
+      0x00, 0x60, 0x00, 0x00, 0x5e, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x02,
+      0x0c, 0x01, 0x02, 0x67, 0x63, 0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x00,
+      0x03, 0x03, 0x05, 0x04, 0x01, 0x01, 0x01, 0x01, 0x06, 0x07, 0x01, 0x63,
+      0x00, 0x00, 0xd0, 0x00, 0x0b, 0x07, 0x3b, 0x04, 0x0c, 0x73, 0x74, 0x72,
+      0x75, 0x63, 0x74, 0x5f, 0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x00, 0x01, 0x0a,
+      0x66, 0x75, 0x6e, 0x63, 0x5f, 0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x00, 0x02,
+      0x0b, 0x61, 0x72, 0x72, 0x61, 0x79, 0x5f, 0x6c, 0x6f, 0x63, 0x61, 0x6c,
+      0x00, 0x03, 0x0d, 0x73, 0x74, 0x72, 0x75, 0x63, 0x74, 0x5f, 0x67, 0x6c,
+      0x6f, 0x62, 0x61, 0x6c, 0x00, 0x04, 0x0a, 0x55, 0x04, 0x1a, 0x01, 0x01,
+      0x63, 0x00, 0x20, 0x00, 0xfb, 0x15, 0x00, 0x10, 0x00, 0x20, 0x00, 0xfb,
+      0x15, 0x6d, 0x10, 0x00, 0x20, 0x00, 0xfb, 0x14, 0x00, 0x10, 0x00, 0x0b,
+      0x13, 0x01, 0x01, 0x63, 0x01, 0x20, 0x00, 0xfb, 0x15, 0x70, 0x10, 0x00,
+      0x20, 0x00, 0xfb, 0x14, 0x01, 0x10, 0x00, 0x0b, 0x13, 0x01, 0x01, 0x63,
+      0x02, 0x20, 0x00, 0xfb, 0x15, 0x6d, 0x10, 0x00, 0x20, 0x00, 0xfb, 0x14,
+      0x02, 0x10, 0x00, 0x0b, 0x10, 0x00, 0x23, 0x00, 0xfb, 0x15, 0x6d, 0x10,
+      0x00, 0x23, 0x00, 0xfb, 0x14, 0x00, 0x10, 0x00, 0x0b};
 
-    Configure Conf;
-    GCCheckModule GCMod;
-    VM::VM VM(Conf);
-    VM.registerModule(GCMod);
-    ASSERT_TRUE(VM.loadWasm(NullLocalStructWasm));
-    ASSERT_TRUE(VM.validate());
-    ASSERT_TRUE(VM.instantiate());
-    VM.execute("test");
-    auto Values = GCMod.getValues();
-    ASSERT_EQ(Values.size(), 3);
-    EXPECT_EQ(Values[0], 1); // null matches nullable (ref null $s)
-    EXPECT_EQ(Values[1], 1); // null matches nullable eqref
-    EXPECT_EQ(Values[2], 0); // null doesn't match non-nullable (ref $s)
-  }
+  Configure Conf;
+  GCCheckModule GCMod;
+  VM::VM VM(Conf);
+  VM.registerModule(GCMod);
+  ASSERT_TRUE(VM.loadWasm(ConcreteWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  ASSERT_TRUE(VM.execute("struct_local"));
+  ASSERT_TRUE(VM.execute("func_local"));
+  ASSERT_TRUE(VM.execute("array_local"));
+  ASSERT_TRUE(VM.execute("struct_global"));
+  // Each null matches the nullable target but not the non-nullable one.
+  auto Values = GCMod.getValues();
+  const std::vector<uint32_t> Expected = {1, 1, 0, 1, 0, 1, 0, 1, 0};
+  EXPECT_EQ(std::vector<uint32_t>(Values.begin(), Values.end()), Expected);
 
-  // local (ref null $f) where $f is a func type.
-  {
-    // (module
-    //   (type $f (func))
-    //   (import "gc" "check" (func $check (param i32)))
-    //   (func (export "test")
-    //     (local (ref null $f))
-    //     local.get 0
-    //     ref.test (ref null func)
-    //     call $check
-    //     local.get 0
-    //     ref.test (ref $f)
-    //     call $check))
-    std::array<WasmEdge::Byte, 92> NullLocalFuncWasm{
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x60,
-        0x00, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x02, 0x0c, 0x01, 0x02, 0x67, 0x63,
-        0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x00, 0x01, 0x03, 0x02, 0x01, 0x00,
-        0x07, 0x08, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x01, 0x0a, 0x15,
-        0x01, 0x13, 0x01, 0x01, 0x63, 0x00, 0x20, 0x00, 0xfb, 0x15, 0x70, 0x10,
-        0x00, 0x20, 0x00, 0xfb, 0x14, 0x00, 0x10, 0x00, 0x0b, 0x00, 0x15, 0x04,
-        0x6e, 0x61, 0x6d, 0x65, 0x01, 0x08, 0x01, 0x00, 0x05, 0x63, 0x68, 0x65,
-        0x63, 0x6b, 0x04, 0x04, 0x01, 0x00, 0x01, 0x66};
-
-    Configure Conf;
-    GCCheckModule GCMod;
-    VM::VM VM(Conf);
-    VM.registerModule(GCMod);
-    ASSERT_TRUE(VM.loadWasm(NullLocalFuncWasm));
-    ASSERT_TRUE(VM.validate());
-    ASSERT_TRUE(VM.instantiate());
-    VM.execute("test");
-    auto Values = GCMod.getValues();
-    ASSERT_EQ(Values.size(), 2);
-    EXPECT_EQ(Values[0], 1); // null matches nullable (ref null func)
-    EXPECT_EQ(Values[1], 0); // null doesn't match non-nullable (ref $f)
-  }
-
-  // local (ref null $a) where $a is an array type.
-  {
-    // (module
-    //   (type $a (array i32))
-    //   (import "gc" "check" (func $check (param i32)))
-    //   (func (export "test")
-    //     (local (ref null $a))
-    //     local.get 0
-    //     ref.test eqref
-    //     call $check
-    //     local.get 0
-    //     ref.test (ref $a)
-    //     call $check))
-    std::array<WasmEdge::Byte, 95> NullLocalArrayWasm{
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0b, 0x03, 0x5e,
-        0x7f, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x0c, 0x01,
-        0x02, 0x67, 0x63, 0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x00, 0x01, 0x03,
-        0x02, 0x01, 0x02, 0x07, 0x08, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00,
-        0x01, 0x0a, 0x15, 0x01, 0x13, 0x01, 0x01, 0x63, 0x00, 0x20, 0x00, 0xfb,
-        0x15, 0x6d, 0x10, 0x00, 0x20, 0x00, 0xfb, 0x14, 0x00, 0x10, 0x00, 0x0b,
-        0x00, 0x15, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x08, 0x01, 0x00, 0x05,
-        0x63, 0x68, 0x65, 0x63, 0x6b, 0x04, 0x04, 0x01, 0x00, 0x01, 0x61};
-
-    Configure Conf;
-    GCCheckModule GCMod;
-    VM::VM VM(Conf);
-    VM.registerModule(GCMod);
-    ASSERT_TRUE(VM.loadWasm(NullLocalArrayWasm));
-    ASSERT_TRUE(VM.validate());
-    ASSERT_TRUE(VM.instantiate());
-    VM.execute("test");
-    auto Values = GCMod.getValues();
-    ASSERT_EQ(Values.size(), 2);
-    EXPECT_EQ(Values[0], 1); // null matches nullable eqref
-    EXPECT_EQ(Values[1], 0); // null doesn't match non-nullable (ref $a)
-  }
-
-  // global (ref null $s) initialized with ref.null $s.
-  {
-    // (module
-    //   (type $s (struct))
-    //   (import "gc" "check" (func $check (param i32)))
-    //   (global $g (ref null $s) ref.null $s)
-    //   (func (export "test")
-    //     global.get $g
-    //     ref.test eqref
-    //     call $check
-    //     global.get $g
-    //     ref.test (ref $s)
-    //     call $check))
-    std::array<WasmEdge::Byte, 106> NullGlobalStructWasm{
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x03, 0x5f,
-        0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x0c, 0x01, 0x02,
-        0x67, 0x63, 0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x00, 0x01, 0x03, 0x02,
-        0x01, 0x02, 0x06, 0x07, 0x01, 0x63, 0x00, 0x00, 0xd0, 0x00, 0x0b, 0x07,
-        0x08, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x01, 0x0a, 0x12, 0x01,
-        0x10, 0x00, 0x23, 0x00, 0xfb, 0x15, 0x6d, 0x10, 0x00, 0x23, 0x00, 0xfb,
-        0x14, 0x00, 0x10, 0x00, 0x0b, 0x00, 0x1b, 0x04, 0x6e, 0x61, 0x6d, 0x65,
-        0x01, 0x08, 0x01, 0x00, 0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x04, 0x04,
-        0x01, 0x00, 0x01, 0x73, 0x07, 0x04, 0x01, 0x00, 0x01, 0x67};
-
-    Configure Conf;
-    GCCheckModule GCMod;
-    VM::VM VM(Conf);
-    VM.registerModule(GCMod);
-    ASSERT_TRUE(VM.loadWasm(NullGlobalStructWasm));
-    ASSERT_TRUE(VM.validate());
-    ASSERT_TRUE(VM.instantiate());
-    VM.execute("test");
-    auto Values = GCMod.getValues();
-    ASSERT_EQ(Values.size(), 2);
-    EXPECT_EQ(Values[0], 1); // null matches nullable eqref
-    EXPECT_EQ(Values[1], 0); // null doesn't match non-nullable (ref $s)
-  }
-}
-
-// Null locals of abstract ref types must be bottom-typed so that
-// ref.test/ref.cast match a concrete type (issue #5343).
-TEST(ExecutorRegressionTest, NullLocalAbstractType) {
   // (module
   //   (type $t (struct (field (mut structref))))
   //   (type $a (array i32))
@@ -803,7 +541,7 @@ TEST(ExecutorRegressionTest, NullLocalAbstractType) {
   //     local.get 0 ref.cast (ref null $f) drop i32.const 7)
   //   (func (export "test_extern") (type $r) (local externref)
   //     local.get 0 ref.test (ref null noextern)))
-  std::array<WasmEdge::Byte, 294> Wasm{
+  std::array<WasmEdge::Byte, 294> AbstractWasm{
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0f, 0x04, 0x5f,
       0x01, 0x6b, 0x01, 0x5e, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x60, 0x00, 0x01,
       0x7f, 0x03, 0x0b, 0x0a, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03,
@@ -830,345 +568,231 @@ TEST(ExecutorRegressionTest, NullLocalAbstractType) {
       0x00, 0xfb, 0x17, 0x02, 0x1a, 0x41, 0x07, 0x0b, 0x09, 0x01, 0x01, 0x6f,
       0x20, 0x00, 0xfb, 0x15, 0x72, 0x0b};
 
-  Configure Conf;
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(Wasm));
-  ASSERT_TRUE(VM.validate());
-  ASSERT_TRUE(VM.instantiate());
+  VM::VM AbstractVM(Conf);
+  ASSERT_TRUE(AbstractVM.loadWasm(AbstractWasm));
+  ASSERT_TRUE(AbstractVM.validate());
+  ASSERT_TRUE(AbstractVM.instantiate());
 
   // A null structref local bottoms out at none: it matches (ref null $t) but
   // not (ref $t), and ref.cast to (ref null $t) must not trap.
-  auto RTestStruct = VM.execute("test_struct");
+  auto RTestStruct = AbstractVM.execute("test_struct");
   ASSERT_TRUE(RTestStruct);
   ASSERT_EQ(RTestStruct->size(), 1U);
   EXPECT_EQ((*RTestStruct)[0].first.get<uint32_t>(), 1U);
 
-  auto RTestStructNonNull = VM.execute("test_struct_nonnull");
+  auto RTestStructNonNull = AbstractVM.execute("test_struct_nonnull");
   ASSERT_TRUE(RTestStructNonNull);
   ASSERT_EQ(RTestStructNonNull->size(), 1U);
   EXPECT_EQ((*RTestStructNonNull)[0].first.get<uint32_t>(), 0U);
 
-  auto RCastStruct = VM.execute("cast_struct");
+  auto RCastStruct = AbstractVM.execute("cast_struct");
   ASSERT_TRUE(RCastStruct) << "ref.cast trapped on a null structref local";
   ASSERT_EQ(RCastStruct->size(), 1U);
   EXPECT_EQ((*RCastStruct)[0].first.get<uint32_t>(), 7U);
 
   // The anyref, i31ref, and arrayref null locals bottom out at none as well.
-  auto RTestAny = VM.execute("test_any");
+  auto RTestAny = AbstractVM.execute("test_any");
   ASSERT_TRUE(RTestAny);
   ASSERT_EQ(RTestAny->size(), 1U);
   EXPECT_EQ((*RTestAny)[0].first.get<uint32_t>(), 1U);
 
-  auto RTestI31 = VM.execute("test_i31");
+  auto RTestI31 = AbstractVM.execute("test_i31");
   ASSERT_TRUE(RTestI31);
   ASSERT_EQ(RTestI31->size(), 1U);
   EXPECT_EQ((*RTestI31)[0].first.get<uint32_t>(), 1U);
 
-  auto RTestArray = VM.execute("test_array");
+  auto RTestArray = AbstractVM.execute("test_array");
   ASSERT_TRUE(RTestArray);
   ASSERT_EQ(RTestArray->size(), 1U);
   EXPECT_EQ((*RTestArray)[0].first.get<uint32_t>(), 1U);
 
   // A null funcref local bottoms out at nofunc: it matches (ref null $f) but
   // not (ref $f), and ref.cast to (ref null $f) must not trap.
-  auto RTestFunc = VM.execute("test_func");
+  auto RTestFunc = AbstractVM.execute("test_func");
   ASSERT_TRUE(RTestFunc);
   ASSERT_EQ(RTestFunc->size(), 1U);
   EXPECT_EQ((*RTestFunc)[0].first.get<uint32_t>(), 1U);
 
-  auto RTestFuncNonNull = VM.execute("test_func_nonnull");
+  auto RTestFuncNonNull = AbstractVM.execute("test_func_nonnull");
   ASSERT_TRUE(RTestFuncNonNull);
   ASSERT_EQ(RTestFuncNonNull->size(), 1U);
   EXPECT_EQ((*RTestFuncNonNull)[0].first.get<uint32_t>(), 0U);
 
-  auto RCastFunc = VM.execute("cast_func");
+  auto RCastFunc = AbstractVM.execute("cast_func");
   ASSERT_TRUE(RCastFunc) << "ref.cast trapped on a null funcref local";
   ASSERT_EQ(RCastFunc->size(), 1U);
   EXPECT_EQ((*RCastFunc)[0].first.get<uint32_t>(), 7U);
 
   // A null externref local bottoms out at noextern.
-  auto RTestExtern = VM.execute("test_extern");
+  auto RTestExtern = AbstractVM.execute("test_extern");
   ASSERT_TRUE(RTestExtern);
   ASSERT_EQ(RTestExtern->size(), 1U);
   EXPECT_EQ((*RTestExtern)[0].first.get<uint32_t>(), 1U);
 }
 
-// throw_ref must rethrow the captured payload, not garbage from the stack.
-TEST(ExecutorRegressionTest, ThrowRefPreservesPayload) {
-  // throw_ref of (ref null $point) must trap at struct.get.
-  {
-    // (module
-    //   (type $point (struct (field i32)))
-    //   (tag $e (param (ref null $point)))
-    //   (func (export "main") (result i32)
-    //     (local $exn exnref)
-    //     block $h (result (ref null $point) exnref)
-    //       try_table (catch_ref $e $h)
-    //         ref.null $point
-    //         throw $e
-    //       end
-    //       unreachable
-    //     end
-    //     local.set $exn
-    //     drop
-    //     block $h2 (result (ref null $point))
-    //       try_table (catch $e $h2)
-    //         local.get $exn
-    //         throw_ref
-    //       end
-    //       unreachable
-    //     end
-    //     struct.get $point 0))
-    std::array<WasmEdge::Byte, 139> ThrowRefNullPayloadWasm{
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x14, 0x04, 0x5f,
-        0x01, 0x7f, 0x00, 0x60, 0x01, 0x63, 0x00, 0x00, 0x60, 0x00, 0x01, 0x7f,
-        0x60, 0x00, 0x02, 0x63, 0x00, 0x69, 0x03, 0x02, 0x01, 0x02, 0x0d, 0x03,
-        0x01, 0x00, 0x01, 0x07, 0x08, 0x01, 0x04, 0x6d, 0x61, 0x69, 0x6e, 0x00,
-        0x00, 0x0a, 0x2b, 0x01, 0x29, 0x01, 0x01, 0x69, 0x02, 0x03, 0x1f, 0x40,
-        0x01, 0x01, 0x00, 0x00, 0xd0, 0x00, 0x08, 0x00, 0x0b, 0x00, 0x0b, 0x21,
-        0x00, 0x1a, 0x02, 0x63, 0x00, 0x1f, 0x40, 0x01, 0x00, 0x00, 0x00, 0x20,
-        0x00, 0x0a, 0x0b, 0x00, 0x0b, 0xfb, 0x02, 0x00, 0x00, 0x0b, 0x00, 0x2b,
-        0x04, 0x6e, 0x61, 0x6d, 0x65, 0x02, 0x08, 0x01, 0x00, 0x01, 0x00, 0x03,
-        0x65, 0x78, 0x6e, 0x03, 0x0a, 0x01, 0x00, 0x02, 0x00, 0x01, 0x68, 0x02,
-        0x02, 0x68, 0x32, 0x04, 0x08, 0x01, 0x00, 0x05, 0x70, 0x6f, 0x69, 0x6e,
-        0x74, 0x0b, 0x04, 0x01, 0x00, 0x01, 0x65};
+// throw_ref must rethrow the captured payload, and catch_all and
+// catch_all_ref must drop it, leaving only the value pushed before the throw.
+TEST(ExecutorRegressionTest, ExceptionPayload) {
+  // (module
+  //   (type $point (struct (field i32)))
+  //   (tag $null (param (ref null $point)))
+  //   (tag $pair (param i32 i64))
+  //   (tag $one (param i32))
+  //   (func (export "throw_ref_null") (result i32)
+  //     (local $exn exnref)
+  //     (block $h (result (ref null $point) exnref)
+  //       (try_table (catch_ref $null $h)
+  //         ref.null $point
+  //         throw $null)
+  //       unreachable)
+  //     local.set $exn
+  //     drop
+  //     (block $h2 (result (ref null $point))
+  //       (try_table (catch $null $h2)
+  //         local.get $exn
+  //         throw_ref)
+  //       unreachable)
+  //     struct.get $point 0)
+  //   (func (export "throw_ref_pair") (result i32)
+  //     (local $exn exnref)
+  //     (block $h1 (result i32 i64 exnref)
+  //       (try_table (catch_ref $pair $h1)
+  //         i32.const 7
+  //         i64.const 1000
+  //         throw $pair)
+  //       unreachable)
+  //     local.set $exn
+  //     drop
+  //     drop
+  //     (block $h2 (result i32 i64)
+  //       (try_table (catch $pair $h2)
+  //         local.get $exn
+  //         throw_ref)
+  //       unreachable)
+  //     i32.wrap_i64
+  //     i32.add)
+  //   (func (export "catch_all") (result i32)
+  //     i32.const 1
+  //     (block $l
+  //       (try_table (catch_all $l)
+  //         i32.const 42
+  //         throw $one)
+  //       unreachable))
+  //   (func (export "catch_all_ref") (result i32)
+  //     i32.const 1
+  //     (block $l (result exnref)
+  //       (try_table (catch_all_ref $l)
+  //         i32.const 42
+  //         throw $one)
+  //       unreachable)
+  //     drop))
+  std::array<WasmEdge::Byte, 258> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x28, 0x08, 0x5f,
+      0x01, 0x7f, 0x00, 0x60, 0x01, 0x63, 0x00, 0x00, 0x60, 0x02, 0x7f, 0x7e,
+      0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x60, 0x00, 0x02,
+      0x63, 0x00, 0x69, 0x60, 0x00, 0x03, 0x7f, 0x7e, 0x69, 0x60, 0x00, 0x02,
+      0x7f, 0x7e, 0x03, 0x05, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0d, 0x07, 0x03,
+      0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x07, 0x3f, 0x04, 0x0e, 0x74, 0x68,
+      0x72, 0x6f, 0x77, 0x5f, 0x72, 0x65, 0x66, 0x5f, 0x6e, 0x75, 0x6c, 0x6c,
+      0x00, 0x00, 0x0e, 0x74, 0x68, 0x72, 0x6f, 0x77, 0x5f, 0x72, 0x65, 0x66,
+      0x5f, 0x70, 0x61, 0x69, 0x72, 0x00, 0x01, 0x09, 0x63, 0x61, 0x74, 0x63,
+      0x68, 0x5f, 0x61, 0x6c, 0x6c, 0x00, 0x02, 0x0d, 0x63, 0x61, 0x74, 0x63,
+      0x68, 0x5f, 0x61, 0x6c, 0x6c, 0x5f, 0x72, 0x65, 0x66, 0x00, 0x03, 0x0a,
+      0x7d, 0x04, 0x29, 0x01, 0x01, 0x69, 0x02, 0x05, 0x1f, 0x40, 0x01, 0x01,
+      0x00, 0x00, 0xd0, 0x00, 0x08, 0x00, 0x0b, 0x00, 0x0b, 0x21, 0x00, 0x1a,
+      0x02, 0x63, 0x00, 0x1f, 0x40, 0x01, 0x00, 0x00, 0x00, 0x20, 0x00, 0x0a,
+      0x0b, 0x00, 0x0b, 0xfb, 0x02, 0x00, 0x00, 0x0b, 0x2a, 0x01, 0x01, 0x69,
+      0x02, 0x06, 0x1f, 0x40, 0x01, 0x01, 0x01, 0x00, 0x41, 0x07, 0x42, 0xe8,
+      0x07, 0x08, 0x01, 0x0b, 0x00, 0x0b, 0x21, 0x00, 0x1a, 0x1a, 0x02, 0x07,
+      0x1f, 0x40, 0x01, 0x00, 0x01, 0x00, 0x20, 0x00, 0x0a, 0x0b, 0x00, 0x0b,
+      0xa7, 0x6a, 0x0b, 0x12, 0x00, 0x41, 0x01, 0x02, 0x40, 0x1f, 0x40, 0x01,
+      0x02, 0x00, 0x41, 0x2a, 0x08, 0x02, 0x0b, 0x00, 0x0b, 0x0b, 0x13, 0x00,
+      0x41, 0x01, 0x02, 0x69, 0x1f, 0x40, 0x01, 0x03, 0x00, 0x41, 0x2a, 0x08,
+      0x02, 0x0b, 0x00, 0x0b, 0x1a, 0x0b};
 
-    Configure Conf;
-    VM::VM VM(Conf);
-    ASSERT_TRUE(VM.loadWasm(ThrowRefNullPayloadWasm));
-    ASSERT_TRUE(VM.validate());
-    ASSERT_TRUE(VM.instantiate());
-    auto Result = VM.execute("main");
-    ASSERT_FALSE(Result);
-    EXPECT_EQ(Result.error(), ErrCode::Value::AccessNullStruct);
-  }
+  Configure Conf;
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
 
-  // A multi-param (i32 i64) round-trip yields 7 + 1000.
-  {
-    // (module
-    //   (tag $err (param i32 i64))
-    //   (func (export "main") (result i32)
-    //     (local $exn exnref)
-    //     block $h1 (result i32 i64 exnref)
-    //       try_table (catch_ref $err $h1)
-    //         i32.const 7
-    //         i64.const 1000
-    //         throw $err
-    //       end
-    //       unreachable
-    //     end
-    //     local.set $exn
-    //     drop
-    //     drop
-    //     block $h2 (result i32 i64)
-    //       try_table (catch $err $h2)
-    //         local.get $exn
-    //         throw_ref
-    //       end
-    //       unreachable
-    //     end
-    //     i32.wrap_i64
-    //     i32.add))
-    std::array<WasmEdge::Byte, 134> ThrowRefMultiParamWasm{
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x15, 0x04, 0x60,
-        0x02, 0x7f, 0x7e, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x60, 0x00, 0x03, 0x7f,
-        0x7e, 0x69, 0x60, 0x00, 0x02, 0x7f, 0x7e, 0x03, 0x02, 0x01, 0x01, 0x0d,
-        0x03, 0x01, 0x00, 0x00, 0x07, 0x08, 0x01, 0x04, 0x6d, 0x61, 0x69, 0x6e,
-        0x00, 0x00, 0x0a, 0x2c, 0x01, 0x2a, 0x01, 0x01, 0x69, 0x02, 0x02, 0x1f,
-        0x40, 0x01, 0x01, 0x00, 0x00, 0x41, 0x07, 0x42, 0xe8, 0x07, 0x08, 0x00,
-        0x0b, 0x00, 0x0b, 0x21, 0x00, 0x1a, 0x1a, 0x02, 0x03, 0x1f, 0x40, 0x01,
-        0x00, 0x00, 0x00, 0x20, 0x00, 0x0a, 0x0b, 0x00, 0x0b, 0xa7, 0x6a, 0x0b,
-        0x00, 0x24, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x02, 0x08, 0x01, 0x00, 0x01,
-        0x00, 0x03, 0x65, 0x78, 0x6e, 0x03, 0x0b, 0x01, 0x00, 0x02, 0x00, 0x02,
-        0x68, 0x31, 0x02, 0x02, 0x68, 0x32, 0x0b, 0x06, 0x01, 0x00, 0x03, 0x65,
-        0x72, 0x72};
-
-    Configure Conf;
-    VM::VM VM(Conf);
-    ASSERT_TRUE(VM.loadWasm(ThrowRefMultiParamWasm));
-    ASSERT_TRUE(VM.validate());
-    ASSERT_TRUE(VM.instantiate());
-    auto Result = VM.execute("main");
-    ASSERT_TRUE(Result);
-    ASSERT_EQ((*Result).size(), 1U);
-    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 1007U);
-  }
-}
-
-// catch_all and catch_all_ref must drop the throw payload, leaving only the
-// value pushed before the throw.
-TEST(ExecutorRegressionTest, CatchAllPayloadNotLeaked) {
-  // catch_all must discard the payload.
-  {
-    // (module
-    //   (tag $e (param i32))
-    //   (func (export "test") (result i32)
-    //     (i32.const 1)
-    //     (block $L
-    //       (try_table (catch_all $L)
-    //         (i32.const 42)
-    //         (throw $e))
-    //       unreachable)))
-    std::array<WasmEdge::Byte, 60> CatchAllPayloadNotLeakedWasm{
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02, 0x60,
-        0x01, 0x7f, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x01, 0x0d,
-        0x03, 0x01, 0x00, 0x00, 0x07, 0x08, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74,
-        0x00, 0x00, 0x0a, 0x14, 0x01, 0x12, 0x00, 0x41, 0x01, 0x02, 0x40, 0x1f,
-        0x40, 0x01, 0x02, 0x00, 0x41, 0x2a, 0x08, 0x00, 0x0b, 0x00, 0x0b, 0x0b};
-
-    Configure Conf;
-    VM::VM VM(Conf);
-    ASSERT_TRUE(VM.loadWasm(CatchAllPayloadNotLeakedWasm));
-    ASSERT_TRUE(VM.validate());
-    ASSERT_TRUE(VM.instantiate());
-    auto Result = VM.execute("test");
-    ASSERT_TRUE(Result);
-    ASSERT_EQ((*Result).size(), 1U);
-    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 1U)
-        << "catch_all must not leak the throw payload onto the value stack";
-  }
-
-  // catch_all_ref must discard the payload; the exnref is dropped.
-  {
-    // (module
-    //   (tag $e (param i32))
-    //   (func (export "test") (result i32)
-    //     (i32.const 1)
-    //     (block $L (result exnref)
-    //       (try_table (catch_all_ref $L)
-    //         (i32.const 42)
-    //         (throw $e))
-    //       unreachable)
-    //     drop))
-    std::array<WasmEdge::Byte, 61> CatchAllRefPayloadNotLeakedWasm{
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02,
-        0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01,
-        0x01, 0x0d, 0x03, 0x01, 0x00, 0x00, 0x07, 0x08, 0x01, 0x04, 0x74,
-        0x65, 0x73, 0x74, 0x00, 0x00, 0x0a, 0x15, 0x01, 0x13, 0x00, 0x41,
-        0x01, 0x02, 0x69, 0x1f, 0x40, 0x01, 0x03, 0x00, 0x41, 0x2a, 0x08,
-        0x00, 0x0b, 0x00, 0x0b, 0x1a, 0x0b};
-
-    Configure Conf;
-    VM::VM VM(Conf);
-    ASSERT_TRUE(VM.loadWasm(CatchAllRefPayloadNotLeakedWasm));
-    ASSERT_TRUE(VM.validate());
-    ASSERT_TRUE(VM.instantiate());
-    auto Result = VM.execute("test");
-    ASSERT_TRUE(Result);
-    ASSERT_EQ((*Result).size(), 1U);
-    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 1U)
-        << "catch_all_ref must not leak the throw payload alongside the exnref";
+  // The rethrown null payload traps at struct.get.
+  auto NullPayload = VM.execute("throw_ref_null");
+  ASSERT_FALSE(NullPayload);
+  EXPECT_EQ(NullPayload.error(), ErrCode::Value::AccessNullStruct);
+  // The rethrown (i32 i64) payload yields 7 + 1000.
+  auto Pair = VM.execute("throw_ref_pair");
+  ASSERT_TRUE(Pair);
+  ASSERT_EQ(Pair->size(), 1U);
+  EXPECT_EQ((*Pair)[0].first.get<uint32_t>(), 1007U);
+  for (const auto Name : {"catch_all"sv, "catch_all_ref"sv}) {
+    auto Result = VM.execute(Name);
+    ASSERT_TRUE(Result) << Name;
+    ASSERT_EQ(Result->size(), 1U) << Name;
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 1U) << Name;
   }
 }
 
-// A throw reaching a stale try_table handler buried by a later try_table must
-// not corrupt the value stack; run with assertions or ASan to see the bug.
-TEST(ExecutorRegressionTest, BuriedStaleTryTableHandler) {
+// A throw reaching stale try_table handlers, buried by a later try_table or
+// piled up by a loop, must not corrupt the value stack (use ASan to see it).
+TEST(ExecutorRegressionTest, StaleTryTableHandlers) {
   // (module
   //   (tag $tx)
   //   (tag $ty (param i32 i32))
-  //   (func (export "go")
+  //   (func (export "buried")
   //     (block $outer
-  //       ;; raise the stack so try_table $A records a high VPos
-  //       (i32.const 1) (i32.const 1) (i32.const 1) (i32.const 1)
-  //       (try_table $A (catch $tx $outer)
-  //         (br $outer))            ;; leave $A without running its end: stale
+  //       i32.const 1
+  //       i32.const 1
+  //       i32.const 1
+  //       i32.const 1
+  //       (try_table (catch $tx $outer)
+  //         br $outer)
   //       unreachable)
-  //     ;; the stack is low again; try_table $B buries the stale handler $A
-  //     (try_table $B (catch $tx 0)
-  //       (i32.const 7) (i32.const 8)
-  //       (throw $ty))))            ;; uncaught: search reaches stale $A
-  std::array<WasmEdge::Byte, 78> Wasm{
+  //     (try_table (catch $tx 0)
+  //       i32.const 7
+  //       i32.const 8
+  //       throw $ty))
+  //   (func (export "pile") (local $i i32)
+  //     (loop $l
+  //       (block $out
+  //         i32.const 1
+  //         i32.const 1
+  //         i32.const 1
+  //         i32.const 1
+  //         (try_table (catch $tx $out)
+  //           br $out)
+  //         unreachable)
+  //       (local.set $i (i32.add (local.get $i) (i32.const 1)))
+  //       (br_if $l (i32.lt_u (local.get $i) (i32.const 3))))
+  //     (try_table (catch $tx 0)
+  //       i32.const 7
+  //       i32.const 8
+  //       throw $ty)))
+  std::array<WasmEdge::Byte, 146> Wasm{
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02, 0x60,
-      0x00, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0d,
-      0x05, 0x02, 0x00, 0x00, 0x00, 0x01, 0x07, 0x06, 0x01, 0x02, 0x67, 0x6f,
-      0x00, 0x00, 0x0a, 0x26, 0x01, 0x24, 0x00, 0x02, 0x40, 0x41, 0x01, 0x41,
+      0x00, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x03, 0x03, 0x02, 0x00, 0x00,
+      0x0d, 0x05, 0x02, 0x00, 0x00, 0x00, 0x01, 0x07, 0x11, 0x02, 0x06, 0x62,
+      0x75, 0x72, 0x69, 0x65, 0x64, 0x00, 0x00, 0x04, 0x70, 0x69, 0x6c, 0x65,
+      0x00, 0x01, 0x0a, 0x5e, 0x02, 0x24, 0x00, 0x02, 0x40, 0x41, 0x01, 0x41,
       0x01, 0x41, 0x01, 0x41, 0x01, 0x1f, 0x40, 0x01, 0x00, 0x00, 0x00, 0x0c,
       0x01, 0x0b, 0x00, 0x0b, 0x1f, 0x40, 0x01, 0x00, 0x00, 0x00, 0x41, 0x07,
-      0x41, 0x08, 0x08, 0x01, 0x0b, 0x0b};
+      0x41, 0x08, 0x08, 0x01, 0x0b, 0x0b, 0x37, 0x01, 0x01, 0x7f, 0x03, 0x40,
+      0x02, 0x40, 0x41, 0x01, 0x41, 0x01, 0x41, 0x01, 0x41, 0x01, 0x1f, 0x40,
+      0x01, 0x00, 0x00, 0x00, 0x0c, 0x01, 0x0b, 0x00, 0x0b, 0x20, 0x00, 0x41,
+      0x01, 0x6a, 0x21, 0x00, 0x20, 0x00, 0x41, 0x03, 0x49, 0x0d, 0x00, 0x0b,
+      0x1f, 0x40, 0x01, 0x00, 0x00, 0x00, 0x41, 0x07, 0x41, 0x08, 0x08, 0x01,
+      0x0b, 0x0b};
 
   Configure Conf;
   VM::VM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(Wasm));
   ASSERT_TRUE(VM.validate());
   ASSERT_TRUE(VM.instantiate());
-  auto Result = VM.execute("go");
-  ASSERT_FALSE(Result);
-  EXPECT_EQ(Result.error(), ErrCode::Value::UncaughtException)
-      << "the buried stale handler must not corrupt the value stack";
-}
-
-// Stale try_table handlers stranded by a loop must not pile up and corrupt
-// the value stack.
-TEST(ExecutorRegressionTest, StaleTryTableHandlerPile) {
-  // (module
-  //   (tag $tx)
-  //   (tag $ty (param i32 i32))
-  //   (func (export "go") (local $i i32)
-  //     (loop $L
-  //       (block $out
-  //         ;; raise the stack so try_table $A records a high VPos
-  //         (i32.const 1) (i32.const 1) (i32.const 1) (i32.const 1)
-  //         (try_table $A (catch $tx $out)
-  //           (br $out))            ;; leave $A without running its end: stale
-  //         unreachable)
-  //       ;; every iteration strands another handler, all sharing one Try
-  //       (local.set $i (i32.add (local.get $i) (i32.const 1)))
-  //       (br_if $L (i32.lt_u (local.get $i) (i32.const 3))))
-  //     (try_table $B (catch $tx 0)
-  //       (i32.const 7) (i32.const 8)
-  //       (throw $ty))))            ;; uncaught: search reaches the stale pile
-  std::array<WasmEdge::Byte, 97> Wasm{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02,
-      0x60, 0x00, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x03, 0x02, 0x01,
-      0x00, 0x0d, 0x05, 0x02, 0x00, 0x00, 0x00, 0x01, 0x07, 0x06, 0x01,
-      0x02, 0x67, 0x6f, 0x00, 0x00, 0x0a, 0x39, 0x01, 0x37, 0x01, 0x01,
-      0x7f, 0x03, 0x40, 0x02, 0x40, 0x41, 0x01, 0x41, 0x01, 0x41, 0x01,
-      0x41, 0x01, 0x1f, 0x40, 0x01, 0x00, 0x00, 0x00, 0x0c, 0x01, 0x0b,
-      0x00, 0x0b, 0x20, 0x00, 0x41, 0x01, 0x6a, 0x21, 0x00, 0x20, 0x00,
-      0x41, 0x03, 0x49, 0x0d, 0x00, 0x0b, 0x1f, 0x40, 0x01, 0x00, 0x00,
-      0x00, 0x41, 0x07, 0x41, 0x08, 0x08, 0x01, 0x0b, 0x0b};
-
-  Configure Conf;
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(Wasm));
-  ASSERT_TRUE(VM.validate());
-  ASSERT_TRUE(VM.instantiate());
-  auto Result = VM.execute("go");
-  ASSERT_FALSE(Result);
-  EXPECT_EQ(Result.error(), ErrCode::Value::UncaughtException)
-      << "handlers stranded by a loop must not survive to corrupt the stack";
-}
-
-// call_indirect on a struct-typed table must fail validation instead of
-// reinterpreting the struct reference as a function.
-TEST(ExecutorRegressionTest, CallIndirectNonFuncTable) {
-  // (module
-  //   (type $f (func))
-  //   (type $s (struct (field v128)))
-  //   (table 1 (ref null $s))
-  //   (func (export "_start")
-  //     i32.const 0
-  //     v128.const i32x4 0x41414141 0x41414141 0x41414149 0x41414141
-  //     struct.new $s
-  //     table.set 0
-  //     i32.const 0
-  //     call_indirect (type $f)))
-  std::array<WasmEdge::Byte, 77> Wasm{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02,
-      0x60, 0x00, 0x00, 0x5f, 0x01, 0x7b, 0x00, 0x03, 0x02, 0x01, 0x00,
-      0x04, 0x05, 0x01, 0x63, 0x01, 0x00, 0x01, 0x07, 0x0a, 0x01, 0x06,
-      0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x00, 0x0a, 0x22, 0x01,
-      0x20, 0x00, 0x41, 0x00, 0xfd, 0x0c, 0x41, 0x41, 0x41, 0x41, 0x41,
-      0x41, 0x41, 0x41, 0x49, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
-      0xfb, 0x00, 0x01, 0x26, 0x00, 0x41, 0x00, 0x11, 0x00, 0x00, 0x0b};
-
-  Configure Conf;
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(Wasm));
-  auto Result = VM.validate();
-  ASSERT_FALSE(Result);
-  EXPECT_EQ(Result.error(), ErrCode::Value::TypeCheckFailed);
+  for (const auto Name : {"buried"sv, "pile"sv}) {
+    auto Result = VM.execute(Name);
+    ASSERT_FALSE(Result) << Name;
+    EXPECT_EQ(Result.error(), ErrCode::Value::UncaughtException) << Name;
+  }
 }
 
 // return_call to an imported host function must return to the caller's
@@ -1239,72 +863,61 @@ TEST(ExecutorRegressionTest, TailCallToHostImport) {
   }
 }
 
-// memory.atomic.notify with Memory64 (issue #5310).
-TEST(ExecutorRegressionTest, MemoryAtomicNotifyMemory64) {
+// Deep recursion must trap with CallStackExhausted instead of overflowing the
+// host stack, both with MaxStackSize set and with the default limit.
+TEST(ExecutorRegressionTest, CallStackLimit) {
+  // f(n) = n ? f(n-1) : 0 without tail calls.
   // (module
-  //   (memory $m i64 1 1 shared)
-  //   (func (export "test")
-  //     (memory.atomic.notify (i64.const 4) (i32.const 1))
-  //     drop
+  //   (type (;0;) (func (param i64) (result i64)))
+  //   (export "f" (func $f))
+  //   (func $f (;0;) (type 0) (param $n i64) (result i64)
+  //     local.get $n
+  //     i64.eqz
+  //     if (result i64) ;; label = @1
+  //       i64.const 0
+  //     else
+  //       local.get $n
+  //       i64.const 1
+  //       i64.sub
+  //       call $f
+  //     end
   //   )
   // )
-  std::array<WasmEdge::Byte, 49> Wasm{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
-      0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x04,
-      0x01, 0x07, 0x01, 0x01, 0x07, 0x08, 0x01, 0x04, 0x74, 0x65,
-      0x73, 0x74, 0x00, 0x00, 0x0a, 0x0d, 0x01, 0x0b, 0x00, 0x42,
-      0x04, 0x41, 0x01, 0xfe, 0x00, 0x02, 0x00, 0x1a, 0x0b};
-
-  WasmEdge::Configure Conf;
-  Conf.addProposal(WasmEdge::Proposal::Threads);
-  WasmEdge::VM::VM VM(Conf);
-
-  ASSERT_TRUE(VM.loadWasm(Wasm));
-  ASSERT_TRUE(VM.validate());
-  ASSERT_TRUE(VM.instantiate());
-
-  // Offset 4 is 4-byte aligned. It should NOT trap even on Memory64 where
-  // AddrType is i64.
-  auto Result = VM.execute("test");
-  EXPECT_TRUE(Result) << "memory.atomic.notify should succeed with 4-byte "
-                         "alignment on Memory64";
-}
-
-// Deep recursion must trap with CallStackExhausted once MaxStackSize is
-// exceeded, instead of overflowing the host stack.
-TEST(ExecutorRegressionTest, CallStackExhaustion) {
-  Configure Conf;
-  Conf.getRuntimeConfigure().setMaxStackSize(UINT64_C(64) << 10);
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(RecurseWasm));
-  ASSERT_TRUE(VM.validate());
-  ASSERT_TRUE(VM.instantiate());
-
-  const std::vector<ValVariant> Params = {ValVariant(UINT64_C(5000))};
-  const std::vector<ValType> ParamTypes = {ValType(TypeCode::I64)};
-  auto Result = VM.execute("f", Params, ParamTypes);
-  ASSERT_FALSE(Result);
-  EXPECT_EQ(Result.error(), ErrCode::Value::CallStackExhausted);
-  EXPECT_EQ(Result.error().getErrCodePhase(), WasmPhase::Execution);
-}
-
-// The default MaxStackSize of 0 lets the interpreter recurse deeper than the
-// compiled-code default allows, but runaway recursion still traps.
-TEST(ExecutorRegressionTest, CallStackDefaultLimit) {
-  Configure Conf;
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(RecurseWasm));
-  ASSERT_TRUE(VM.validate());
-  ASSERT_TRUE(VM.instantiate());
+  std::array<WasmEdge::Byte, 70> RecurseWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+      0x01, 0x7e, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+      0x66, 0x00, 0x00, 0x0a, 0x14, 0x01, 0x12, 0x00, 0x20, 0x00, 0x50, 0x04,
+      0x7e, 0x42, 0x00, 0x05, 0x20, 0x00, 0x42, 0x01, 0x7d, 0x10, 0x00, 0x0b,
+      0x0b, 0x00, 0x13, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x04, 0x01, 0x00,
+      0x01, 0x66, 0x02, 0x06, 0x01, 0x00, 0x01, 0x00, 0x01, 0x6e};
 
   const std::vector<ValType> ParamTypes = {ValType(TypeCode::I64)};
-  const std::vector<ValVariant> DeepParams = {ValVariant(UINT64_C(20000))};
-  EXPECT_TRUE(VM.execute("f", DeepParams, ParamTypes));
-  const std::vector<ValVariant> RunawayParams = {
-      ValVariant(UINT64_C(100000000))};
-  auto Result = VM.execute("f", RunawayParams, ParamTypes);
-  ASSERT_FALSE(Result);
-  EXPECT_EQ(Result.error(), ErrCode::Value::CallStackExhausted);
+  {
+    Configure Conf;
+    Conf.getRuntimeConfigure().setMaxStackSize(UINT64_C(64) << 10);
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(RecurseWasm));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+    auto Result = VM.execute("f", {ValVariant(UINT64_C(5000))}, ParamTypes);
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), ErrCode::Value::CallStackExhausted);
+    EXPECT_EQ(Result.error().getErrCodePhase(), WasmPhase::Execution);
+  }
+  // The default MaxStackSize of 0 recurses deeper than the compiled-code
+  // default allows, but runaway recursion still traps.
+  {
+    Configure Conf;
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(RecurseWasm));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+    EXPECT_TRUE(VM.execute("f", {ValVariant(UINT64_C(20000))}, ParamTypes));
+    auto Result =
+        VM.execute("f", {ValVariant(UINT64_C(100000000))}, ParamTypes);
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), ErrCode::Value::CallStackExhausted);
+  }
 }
 
 // A tag import must match the type of the exported tag both ways.
@@ -1480,641 +1093,321 @@ TEST(ExecutorRegressionTest, HostFuncMatchesItsDefinedType) {
   EXPECT_EQ(TestRes->at(0).first.get<uint32_t>(), 0U);
 }
 
-// (module
-//   (func (export "f32x4.min") (param v128 v128) (result v128)
-//     (f32x4.min (local.get 0) (local.get 1)))
-//   (func (export "f32x4.max") (param v128 v128) (result v128)
-//     (f32x4.max (local.get 0) (local.get 1)))
-//   (func (export "f64x2.min") (param v128 v128) (result v128)
-//     (f64x2.min (local.get 0) (local.get 1)))
-//   (func (export "f64x2.max") (param v128 v128) (result v128)
-//     (f64x2.max (local.get 0) (local.get 1)))
-//   (func (export "f32x4.ceil") (param v128) (result v128)
-//     (f32x4.ceil (local.get 0)))
-//   (func (export "f32x4.floor") (param v128) (result v128)
-//     (f32x4.floor (local.get 0)))
-//   (func (export "f32x4.trunc") (param v128) (result v128)
-//     (f32x4.trunc (local.get 0)))
-//   (func (export "f32x4.nearest") (param v128) (result v128)
-//     (f32x4.nearest (local.get 0)))
-//   (func (export "f64x2.ceil") (param v128) (result v128)
-//     (f64x2.ceil (local.get 0)))
-//   (func (export "f64x2.floor") (param v128) (result v128)
-//     (f64x2.floor (local.get 0)))
-//   (func (export "f64x2.trunc") (param v128) (result v128)
-//     (f64x2.trunc (local.get 0)))
-//   (func (export "f64x2.nearest") (param v128) (result v128)
-//     (f64x2.nearest (local.get 0))))
-std::array<WasmEdge::Byte, 303> SimdNaNWasm{
-    0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0C, 0x02, 0x60,
-    0x02, 0x7B, 0x7B, 0x01, 0x7B, 0x60, 0x01, 0x7B, 0x01, 0x7B, 0x03, 0x0D,
-    0x0C, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
-    0x01, 0x07, 0xA3, 0x01, 0x0C, 0x09, 0x66, 0x33, 0x32, 0x78, 0x34, 0x2E,
-    0x6D, 0x69, 0x6E, 0x00, 0x00, 0x09, 0x66, 0x33, 0x32, 0x78, 0x34, 0x2E,
-    0x6D, 0x61, 0x78, 0x00, 0x01, 0x09, 0x66, 0x36, 0x34, 0x78, 0x32, 0x2E,
-    0x6D, 0x69, 0x6E, 0x00, 0x02, 0x09, 0x66, 0x36, 0x34, 0x78, 0x32, 0x2E,
-    0x6D, 0x61, 0x78, 0x00, 0x03, 0x0A, 0x66, 0x33, 0x32, 0x78, 0x34, 0x2E,
-    0x63, 0x65, 0x69, 0x6C, 0x00, 0x04, 0x0B, 0x66, 0x33, 0x32, 0x78, 0x34,
-    0x2E, 0x66, 0x6C, 0x6F, 0x6F, 0x72, 0x00, 0x05, 0x0B, 0x66, 0x33, 0x32,
-    0x78, 0x34, 0x2E, 0x74, 0x72, 0x75, 0x6E, 0x63, 0x00, 0x06, 0x0D, 0x66,
-    0x33, 0x32, 0x78, 0x34, 0x2E, 0x6E, 0x65, 0x61, 0x72, 0x65, 0x73, 0x74,
-    0x00, 0x07, 0x0A, 0x66, 0x36, 0x34, 0x78, 0x32, 0x2E, 0x63, 0x65, 0x69,
-    0x6C, 0x00, 0x08, 0x0B, 0x66, 0x36, 0x34, 0x78, 0x32, 0x2E, 0x66, 0x6C,
-    0x6F, 0x6F, 0x72, 0x00, 0x09, 0x0B, 0x66, 0x36, 0x34, 0x78, 0x32, 0x2E,
-    0x74, 0x72, 0x75, 0x6E, 0x63, 0x00, 0x0A, 0x0D, 0x66, 0x36, 0x34, 0x78,
-    0x32, 0x2E, 0x6E, 0x65, 0x61, 0x72, 0x65, 0x73, 0x74, 0x00, 0x0B, 0x0A,
-    0x62, 0x0C, 0x09, 0x00, 0x20, 0x00, 0x20, 0x01, 0xFD, 0xE8, 0x01, 0x0B,
-    0x09, 0x00, 0x20, 0x00, 0x20, 0x01, 0xFD, 0xE9, 0x01, 0x0B, 0x09, 0x00,
-    0x20, 0x00, 0x20, 0x01, 0xFD, 0xF4, 0x01, 0x0B, 0x09, 0x00, 0x20, 0x00,
-    0x20, 0x01, 0xFD, 0xF5, 0x01, 0x0B, 0x06, 0x00, 0x20, 0x00, 0xFD, 0x67,
-    0x0B, 0x06, 0x00, 0x20, 0x00, 0xFD, 0x68, 0x0B, 0x06, 0x00, 0x20, 0x00,
-    0xFD, 0x69, 0x0B, 0x06, 0x00, 0x20, 0x00, 0xFD, 0x6A, 0x0B, 0x06, 0x00,
-    0x20, 0x00, 0xFD, 0x74, 0x0B, 0x06, 0x00, 0x20, 0x00, 0xFD, 0x75, 0x0B,
-    0x06, 0x00, 0x20, 0x00, 0xFD, 0x7A, 0x0B, 0x07, 0x00, 0x20, 0x00, 0xFD,
-    0x94, 0x01, 0x0B};
-
-// Packs the bit patterns of float lanes into a v128, Wasm lane 0 first.
-template <typename T>
-uint128_t v128Of(std::initializer_list<FloatBits<T>> Lanes) {
-  uint128_t V = 0U;
-  unsigned int Shift = 0;
-  for (const auto Lane : Lanes) {
-    V |= uint128_t(Lane) << Shift;
-    Shift += sizeof(T) * 8;
-  }
-  return V;
-}
-
-// Expects each lane of Got to match Want. A NaN in Want accepts only an
-// arithmetic NaN, which is a NaN with the quiet bit set.
-template <typename T>
-void expectLanes(std::string_view Op, uint128_t Got,
-                 std::initializer_list<FloatBits<T>> Want) {
-  unsigned int Shift = 0;
-  for (const auto WantBits : Want) {
-    const auto GotBits =
-        static_cast<FloatBits<T>>(static_cast<uint64_t>(Got >> Shift));
-    if (std::isnan(cxx20::bit_cast<T>(WantBits))) {
-      EXPECT_TRUE(std::isnan(cxx20::bit_cast<T>(GotBits)) &&
-                  (GotBits & QuietBit<T>) != 0)
-          << Op << " lane bits " << std::hex << GotBits;
-    } else {
-      EXPECT_EQ(GotBits, WantBits) << Op;
-    }
-    Shift += sizeof(T) * 8;
-  }
-}
-
-// Vector min, max, and rounding must return an arithmetic NaN for a NaN
-// operand, including a signaling one. The spec test harness accepts any NaN,
-// so it cannot catch a signaling NaN that passes through unchanged.
-void checkSimdNaNResults(const Configure &Conf) {
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(SimdNaNWasm));
-  ASSERT_TRUE(VM.validate());
-  ASSERT_TRUE(VM.instantiate());
-  const auto Run = [&VM](std::string_view Name,
-                         std::vector<ValVariant> Args) -> uint128_t {
-    const std::vector<ValType> Types(Args.size(), ValType(TypeCode::V128));
-    auto Result = VM.execute(Name, Args, Types);
-    EXPECT_TRUE(Result) << Name;
-    return Result ? (*Result)[0].first.get<uint128_t>() : uint128_t(0U);
-  };
-
-  constexpr uint32_t NaN32 = UINT32_C(0x7FC00000);
-  // Lanes: +sNaN, -1.5, -sNaN, 2.5 and 1.0, +sNaN, -sNaN, 3.0.
-  const auto A32 = v128Of<float>({UINT32_C(0x7FA00000), UINT32_C(0xBFC00000),
-                                  UINT32_C(0xFFA00001), UINT32_C(0x40200000)});
-  const auto B32 = v128Of<float>({UINT32_C(0x3F800000), UINT32_C(0x7F800001),
-                                  UINT32_C(0xFF800002), UINT32_C(0x40400000)});
-  for (const auto &[L, R] : {std::pair{A32, B32}, std::pair{B32, A32}}) {
-    expectLanes<float>("f32x4.min", Run("f32x4.min", {L, R}),
-                       {NaN32, NaN32, NaN32, UINT32_C(0x40200000)});
-    expectLanes<float>("f32x4.max", Run("f32x4.max", {L, R}),
-                       {NaN32, NaN32, NaN32, UINT32_C(0x40400000)});
-  }
-  expectLanes<float>(
-      "f32x4.ceil", Run("f32x4.ceil", {A32}),
-      {NaN32, UINT32_C(0xBF800000), NaN32, UINT32_C(0x40400000)});
-  expectLanes<float>(
-      "f32x4.floor", Run("f32x4.floor", {A32}),
-      {NaN32, UINT32_C(0xC0000000), NaN32, UINT32_C(0x40000000)});
-  expectLanes<float>(
-      "f32x4.trunc", Run("f32x4.trunc", {A32}),
-      {NaN32, UINT32_C(0xBF800000), NaN32, UINT32_C(0x40000000)});
-  expectLanes<float>(
-      "f32x4.nearest", Run("f32x4.nearest", {A32}),
-      {NaN32, UINT32_C(0xC0000000), NaN32, UINT32_C(0x40000000)});
-
-  constexpr uint64_t NaN64 = UINT64_C(0x7FF8000000000000);
-  // Lanes: +sNaN, -1.5 and 1.0, -sNaN.
-  const auto A64 = v128Of<double>(
-      {UINT64_C(0x7FF4000000000000), UINT64_C(0xBFF8000000000000)});
-  const auto B64 = v128Of<double>(
-      {UINT64_C(0x3FF0000000000000), UINT64_C(0xFFF0000000000001)});
-  for (const auto &[L, R] : {std::pair{A64, B64}, std::pair{B64, A64}}) {
-    expectLanes<double>("f64x2.min", Run("f64x2.min", {L, R}), {NaN64, NaN64});
-    expectLanes<double>("f64x2.max", Run("f64x2.max", {L, R}), {NaN64, NaN64});
-  }
-  expectLanes<double>("f64x2.ceil", Run("f64x2.ceil", {A64}),
-                      {NaN64, UINT64_C(0xBFF0000000000000)});
-  expectLanes<double>("f64x2.floor", Run("f64x2.floor", {B64}),
-                      {UINT64_C(0x3FF0000000000000), NaN64});
-  expectLanes<double>("f64x2.trunc", Run("f64x2.trunc", {A64}),
-                      {NaN64, UINT64_C(0xBFF0000000000000)});
-  expectLanes<double>("f64x2.nearest", Run("f64x2.nearest", {A64}),
-                      {NaN64, UINT64_C(0xC000000000000000)});
-}
-
-TEST(ExecutorRegressionTest, SimdNaNResultsAreArithmetic) {
-  checkSimdNaNResults(Configure());
-}
-
-#ifdef WASMEDGE_USE_LLVM
-TEST(ExecutorRegressionTest, SimdNaNResultsAreArithmeticJIT) {
-  Configure Conf;
-  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
-  checkSimdNaNResults(Conf);
-}
-#endif
-
-// (module
-//   (func (export "f32.ceil") (param i32) (result i32)
-//     (i32.reinterpret_f32 (f32.ceil (f32.reinterpret_i32 (local.get 0)))))
-//   (func (export "f32.floor") (param i32) (result i32)
-//     (i32.reinterpret_f32 (f32.floor (f32.reinterpret_i32 (local.get 0)))))
-//   (func (export "f32.trunc") (param i32) (result i32)
-//     (i32.reinterpret_f32 (f32.trunc (f32.reinterpret_i32 (local.get 0)))))
-//   (func (export "f32.nearest") (param i32) (result i32)
-//     (i32.reinterpret_f32 (f32.nearest (f32.reinterpret_i32 (local.get 0)))))
-//   (func (export "f64.ceil") (param i64) (result i64)
-//     (i64.reinterpret_f64 (f64.ceil (f64.reinterpret_i64 (local.get 0)))))
-//   (func (export "f64.floor") (param i64) (result i64)
-//     (i64.reinterpret_f64 (f64.floor (f64.reinterpret_i64 (local.get 0)))))
-//   (func (export "f64.trunc") (param i64) (result i64)
-//     (i64.reinterpret_f64 (f64.trunc (f64.reinterpret_i64 (local.get 0)))))
-//   (func (export "f64.nearest") (param i64) (result i64)
-//     (i64.reinterpret_f64 (f64.nearest (f64.reinterpret_i64 (local.get 0))))))
-std::array<WasmEdge::Byte, 200> ScalarNaNWasm{
-    0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0B, 0x02, 0x60,
-    0x01, 0x7F, 0x01, 0x7F, 0x60, 0x01, 0x7E, 0x01, 0x7E, 0x03, 0x09, 0x08,
-    0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x07, 0x63, 0x08, 0x08,
-    0x66, 0x33, 0x32, 0x2E, 0x63, 0x65, 0x69, 0x6C, 0x00, 0x00, 0x09, 0x66,
-    0x33, 0x32, 0x2E, 0x66, 0x6C, 0x6F, 0x6F, 0x72, 0x00, 0x01, 0x09, 0x66,
-    0x33, 0x32, 0x2E, 0x74, 0x72, 0x75, 0x6E, 0x63, 0x00, 0x02, 0x0B, 0x66,
-    0x33, 0x32, 0x2E, 0x6E, 0x65, 0x61, 0x72, 0x65, 0x73, 0x74, 0x00, 0x03,
-    0x08, 0x66, 0x36, 0x34, 0x2E, 0x63, 0x65, 0x69, 0x6C, 0x00, 0x04, 0x09,
-    0x66, 0x36, 0x34, 0x2E, 0x66, 0x6C, 0x6F, 0x6F, 0x72, 0x00, 0x05, 0x09,
-    0x66, 0x36, 0x34, 0x2E, 0x74, 0x72, 0x75, 0x6E, 0x63, 0x00, 0x06, 0x0B,
-    0x66, 0x36, 0x34, 0x2E, 0x6E, 0x65, 0x61, 0x72, 0x65, 0x73, 0x74, 0x00,
-    0x07, 0x0A, 0x41, 0x08, 0x07, 0x00, 0x20, 0x00, 0xBE, 0x8D, 0xBC, 0x0B,
-    0x07, 0x00, 0x20, 0x00, 0xBE, 0x8E, 0xBC, 0x0B, 0x07, 0x00, 0x20, 0x00,
-    0xBE, 0x8F, 0xBC, 0x0B, 0x07, 0x00, 0x20, 0x00, 0xBE, 0x90, 0xBC, 0x0B,
-    0x07, 0x00, 0x20, 0x00, 0xBF, 0x9B, 0xBD, 0x0B, 0x07, 0x00, 0x20, 0x00,
-    0xBF, 0x9C, 0xBD, 0x0B, 0x07, 0x00, 0x20, 0x00, 0xBF, 0x9D, 0xBD, 0x0B,
-    0x07, 0x00, 0x20, 0x00, 0xBF, 0x9E, 0xBD, 0x0B};
-
-// Scalar rounding must also return an arithmetic NaN for a signaling NaN.
-void checkScalarNaNResults(const Configure &Conf) {
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(ScalarNaNWasm));
-  ASSERT_TRUE(VM.validate());
-  ASSERT_TRUE(VM.instantiate());
-
-  for (const auto Name :
-       {"f32.ceil", "f32.floor", "f32.trunc", "f32.nearest"}) {
-    for (const uint32_t In : {UINT32_C(0x7FA00000), UINT32_C(0xFFA00001)}) {
-      auto Result =
-          VM.execute(Name, {ValVariant(In)}, {ValType(TypeCode::I32)});
-      ASSERT_TRUE(Result) << Name;
-      const auto Got = (*Result)[0].first.get<uint32_t>();
-      EXPECT_TRUE(std::isnan(cxx20::bit_cast<float>(Got)) &&
-                  (Got & QuietBit<float>) != 0)
-          << Name << " bits " << std::hex << Got;
-    }
-  }
-  for (const auto Name :
-       {"f64.ceil", "f64.floor", "f64.trunc", "f64.nearest"}) {
-    for (const uint64_t In :
-         {UINT64_C(0x7FF4000000000000), UINT64_C(0xFFF0000000000001)}) {
-      auto Result =
-          VM.execute(Name, {ValVariant(In)}, {ValType(TypeCode::I64)});
-      ASSERT_TRUE(Result) << Name;
-      const auto Got = (*Result)[0].first.get<uint64_t>();
-      EXPECT_TRUE(std::isnan(cxx20::bit_cast<double>(Got)) &&
-                  (Got & QuietBit<double>) != 0)
-          << Name << " bits " << std::hex << Got;
-    }
-  }
-}
-
-TEST(ExecutorRegressionTest, ScalarNaNResultsAreArithmetic) {
-  checkScalarNaNResults(Configure());
-}
-
-#ifdef WASMEDGE_USE_LLVM
-TEST(ExecutorRegressionTest, ScalarNaNResultsAreArithmeticJIT) {
-  Configure Conf;
-  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
-  checkScalarNaNResults(Conf);
-}
-#endif
-
-TEST(ExecutorRegressionTest, WideArithmeticAdd128) {
+// The wide arithmetic instructions take their i64 operand pairs from under the
+// rest of the stack and return the low and the high half of the result.
+TEST(ExecutorRegressionTest, WideArithmetic) {
   // (module
-  //   (func (export "wide") (param i64 i64 i64 i64)
-  //         (result i64 i64 i64)
+  //   (func (export "add128") (param i64 i64 i64 i64) (result i64 i64 i64)
   //     i64.const 0x9e3779b97f4a7c15
-  //     local.get 0
-  //     local.get 1
-  //     local.get 2
-  //     local.get 3
-  //     i64.add128))
-  std::array<WasmEdge::Byte, 62> Wasm{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0b, 0x01,
-      0x60, 0x04, 0x7e, 0x7e, 0x7e, 0x7e, 0x03, 0x7e, 0x7e, 0x7e, 0x03,
-      0x02, 0x01, 0x00, 0x07, 0x08, 0x01, 0x04, 0x77, 0x69, 0x64, 0x65,
-      0x00, 0x00, 0x0a, 0x19, 0x01, 0x17, 0x00, 0x42, 0x95, 0xf8, 0xa9,
-      0xfa, 0x97, 0xb7, 0xde, 0x9b, 0x9e, 0x7f, 0x20, 0x00, 0x20, 0x01,
-      0x20, 0x02, 0x20, 0x03, 0xfc, 0x13, 0x0b};
+  //     local.get 0 local.get 1 local.get 2 local.get 3
+  //     i64.add128)
+  //   (func (export "sub128") (param i64 i64 i64 i64) (result i64 i64 i64)
+  //     i64.const 0x9e3779b97f4a7c15
+  //     local.get 0 local.get 1 local.get 2 local.get 3
+  //     i64.sub128)
+  //   (func (export "mul_wide_s") (param i64 i64) (result i64 i64 i64)
+  //     i64.const 0x9e3779b97f4a7c15
+  //     local.get 0 local.get 1
+  //     i64.mul_wide_s)
+  //   (func (export "mul_wide_u") (param i64 i64) (result i64 i64 i64)
+  //     i64.const 0x9e3779b97f4a7c15
+  //     local.get 0 local.get 1
+  //     i64.mul_wide_u))
+  std::array<WasmEdge::Byte, 174> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x13, 0x02, 0x60,
+      0x04, 0x7e, 0x7e, 0x7e, 0x7e, 0x03, 0x7e, 0x7e, 0x7e, 0x60, 0x02, 0x7e,
+      0x7e, 0x03, 0x7e, 0x7e, 0x7e, 0x03, 0x05, 0x04, 0x00, 0x00, 0x01, 0x01,
+      0x07, 0x2d, 0x04, 0x06, 0x61, 0x64, 0x64, 0x31, 0x32, 0x38, 0x00, 0x00,
+      0x06, 0x73, 0x75, 0x62, 0x31, 0x32, 0x38, 0x00, 0x01, 0x0a, 0x6d, 0x75,
+      0x6c, 0x5f, 0x77, 0x69, 0x64, 0x65, 0x5f, 0x73, 0x00, 0x02, 0x0a, 0x6d,
+      0x75, 0x6c, 0x5f, 0x77, 0x69, 0x64, 0x65, 0x5f, 0x75, 0x00, 0x03, 0x0a,
+      0x59, 0x04, 0x17, 0x00, 0x42, 0x95, 0xf8, 0xa9, 0xfa, 0x97, 0xb7, 0xde,
+      0x9b, 0x9e, 0x7f, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0x20, 0x03, 0xfc,
+      0x13, 0x0b, 0x17, 0x00, 0x42, 0x95, 0xf8, 0xa9, 0xfa, 0x97, 0xb7, 0xde,
+      0x9b, 0x9e, 0x7f, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0x20, 0x03, 0xfc,
+      0x14, 0x0b, 0x13, 0x00, 0x42, 0x95, 0xf8, 0xa9, 0xfa, 0x97, 0xb7, 0xde,
+      0x9b, 0x9e, 0x7f, 0x20, 0x00, 0x20, 0x01, 0xfc, 0x15, 0x0b, 0x13, 0x00,
+      0x42, 0x95, 0xf8, 0xa9, 0xfa, 0x97, 0xb7, 0xde, 0x9b, 0x9e, 0x7f, 0x20,
+      0x00, 0x20, 0x01, 0xfc, 0x16, 0x0b};
   Configure Conf;
   Conf.addProposal(Proposal::WideArithmetic);
   VM::VM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(Wasm));
   ASSERT_TRUE(VM.validate());
   ASSERT_TRUE(VM.instantiate());
-  std::vector<ValType> ParamTypes = {
-      ValType(TypeCode::I64), ValType(TypeCode::I64), ValType(TypeCode::I64),
-      ValType(TypeCode::I64)};
-  // Operands are lhs low/high followed by rhs low/high. The function returns
-  // the preceding stack value and the result low/high.
+
+  // Each export returns the sentinel it pushed under the operands, then the
+  // low and the high half of the result.
   constexpr uint64_t Sentinel = UINT64_C(0x9e3779b97f4a7c15);
+  auto Check = [&](std::string_view Name, std::vector<ValVariant> Params,
+                   uint64_t Low, uint64_t High) {
+    const std::vector<ValType> Types(Params.size(), ValType(TypeCode::I64));
+    auto Result = VM.execute(Name, Params, Types);
+    ASSERT_TRUE(Result) << Name;
+    ASSERT_EQ(Result->size(), 3U) << Name;
+    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel) << Name;
+    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), Low) << Name;
+    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), High) << Name;
+  };
+  constexpr uint64_t Max = UINT64_MAX;
+  constexpr uint64_t SignBit = UINT64_C(0x8000000000000000);
+  constexpr uint64_t SignedMax = UINT64_C(0x7fffffffffffffff);
 
   // Carry from the low half.
-  {
-    std::vector<ValVariant> Params = {UINT64_MAX, UINT64_C(0), UINT64_C(1),
-                                      UINT64_C(0)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 0U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 1U);
-  }
+  Check("add128", {Max, UINT64_C(0), UINT64_C(1), UINT64_C(0)}, UINT64_C(0),
+        UINT64_C(1));
   // Carry wraps the full 128-bit result.
-  {
-    std::vector<ValVariant> Params = {UINT64_MAX, UINT64_MAX, UINT64_C(1),
-                                      UINT64_C(0)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 0U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 0U);
-  }
+  Check("add128", {Max, Max, UINT64_C(1), UINT64_C(0)}, UINT64_C(0),
+        UINT64_C(0));
   // Add both halves without a carry.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(2), UINT64_C(3), UINT64_C(5),
-                                      UINT64_C(7)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 7U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 10U);
-  }
+  Check("add128", {UINT64_C(2), UINT64_C(3), UINT64_C(5), UINT64_C(7)},
+        UINT64_C(7), UINT64_C(10));
   // Adding the carry to the rhs high half also wraps.
-  {
-    std::vector<ValVariant> Params = {UINT64_MAX, UINT64_MAX, UINT64_MAX,
-                                      UINT64_MAX};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_MAX - 1U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_MAX);
-  }
+  Check("add128", {Max, Max, Max, Max}, Max - 1U, Max);
   // The high half wraps without a low-half carry.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(0), UINT64_MAX, UINT64_C(0),
-                                      UINT64_C(1)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 0U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 0U);
-  }
+  Check("add128", {UINT64_C(0), Max, UINT64_C(0), UINT64_C(1)}, UINT64_C(0),
+        UINT64_C(0));
   // Crossing bit 63 does not carry into the high half.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(0x7fffffffffffffff), UINT64_C(3),
-                                      UINT64_C(1), UINT64_C(7)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_C(0x8000000000000000));
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 10U);
-  }
-}
-
-TEST(ExecutorRegressionTest, WideArithmeticSub128) {
-  // (module
-  //   (func (export "wide") (param i64 i64 i64 i64)
-  //         (result i64 i64 i64)
-  //     i64.const 0x9e3779b97f4a7c15
-  //     local.get 0
-  //     local.get 1
-  //     local.get 2
-  //     local.get 3
-  //     i64.sub128))
-  std::array<WasmEdge::Byte, 62> Wasm{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0b, 0x01,
-      0x60, 0x04, 0x7e, 0x7e, 0x7e, 0x7e, 0x03, 0x7e, 0x7e, 0x7e, 0x03,
-      0x02, 0x01, 0x00, 0x07, 0x08, 0x01, 0x04, 0x77, 0x69, 0x64, 0x65,
-      0x00, 0x00, 0x0a, 0x19, 0x01, 0x17, 0x00, 0x42, 0x95, 0xf8, 0xa9,
-      0xfa, 0x97, 0xb7, 0xde, 0x9b, 0x9e, 0x7f, 0x20, 0x00, 0x20, 0x01,
-      0x20, 0x02, 0x20, 0x03, 0xfc, 0x14, 0x0b};
-  Configure Conf;
-  Conf.addProposal(Proposal::WideArithmetic);
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(Wasm));
-  ASSERT_TRUE(VM.validate());
-  ASSERT_TRUE(VM.instantiate());
-  std::vector<ValType> ParamTypes = {
-      ValType(TypeCode::I64), ValType(TypeCode::I64), ValType(TypeCode::I64),
-      ValType(TypeCode::I64)};
-  // Operands are lhs low/high followed by rhs low/high. The function returns
-  // the preceding stack value and the result low/high.
-  constexpr uint64_t Sentinel = UINT64_C(0x9e3779b97f4a7c15);
+  Check("add128", {SignedMax, UINT64_C(3), UINT64_C(1), UINT64_C(7)}, SignBit,
+        UINT64_C(10));
 
   // Borrow from the high half.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(0), UINT64_C(1), UINT64_C(1),
-                                      UINT64_C(0)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_MAX);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 0U);
-  }
+  Check("sub128", {UINT64_C(0), UINT64_C(1), UINT64_C(1), UINT64_C(0)}, Max,
+        UINT64_C(0));
   // Borrow wraps the full 128-bit result.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(0), UINT64_C(0), UINT64_C(1),
-                                      UINT64_C(0)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_MAX);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_MAX);
-  }
+  Check("sub128", {UINT64_C(0), UINT64_C(0), UINT64_C(1), UINT64_C(0)}, Max,
+        Max);
   // Subtract both halves without a borrow.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(9), UINT64_C(7), UINT64_C(2),
-                                      UINT64_C(3)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 7U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 4U);
-  }
+  Check("sub128", {UINT64_C(9), UINT64_C(7), UINT64_C(2), UINT64_C(3)},
+        UINT64_C(7), UINT64_C(4));
   // Adding the borrow to the rhs high half also wraps.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(0), UINT64_C(0), UINT64_MAX,
-                                      UINT64_MAX};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 1U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 0U);
-  }
+  Check("sub128", {UINT64_C(0), UINT64_C(0), Max, Max}, UINT64_C(1),
+        UINT64_C(0));
   // The high half wraps without a low-half borrow.
-  {
-    std::vector<ValVariant> Params = {UINT64_MAX, UINT64_C(0), UINT64_MAX,
-                                      UINT64_C(1)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 0U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_MAX);
-  }
+  Check("sub128", {Max, UINT64_C(0), Max, UINT64_C(1)}, UINT64_C(0), Max);
   // Crossing bit 63 does not borrow from the high half.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(0x8000000000000000), UINT64_C(7),
-                                      UINT64_C(1), UINT64_C(3)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_C(0x7fffffffffffffff));
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 4U);
-  }
-}
-
-TEST(ExecutorRegressionTest, WideArithmeticMulWideS) {
-  // (module
-  //   (func (export "wide") (param i64 i64)
-  //         (result i64 i64 i64)
-  //     i64.const 0x9e3779b97f4a7c15
-  //     local.get 0
-  //     local.get 1
-  //     i64.mul_wide_s))
-  std::array<WasmEdge::Byte, 56> Wasm{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x01, 0x60,
-      0x02, 0x7e, 0x7e, 0x03, 0x7e, 0x7e, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07,
-      0x08, 0x01, 0x04, 0x77, 0x69, 0x64, 0x65, 0x00, 0x00, 0x0a, 0x15, 0x01,
-      0x13, 0x00, 0x42, 0x95, 0xf8, 0xa9, 0xfa, 0x97, 0xb7, 0xde, 0x9b, 0x9e,
-      0x7f, 0x20, 0x00, 0x20, 0x01, 0xfc, 0x15, 0x0b};
-  Configure Conf;
-  Conf.addProposal(Proposal::WideArithmetic);
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(Wasm));
-  ASSERT_TRUE(VM.validate());
-  ASSERT_TRUE(VM.instantiate());
-  std::vector<ValType> ParamTypes = {ValType(TypeCode::I64),
-                                     ValType(TypeCode::I64)};
-  // The function returns the preceding stack value and the result low/high.
-  constexpr uint64_t Sentinel = UINT64_C(0x9e3779b97f4a7c15);
+  Check("sub128", {SignBit, UINT64_C(7), UINT64_C(1), UINT64_C(3)}, SignedMax,
+        UINT64_C(4));
 
   // Multiplying minus one by two preserves the negative high half.
-  {
-    std::vector<ValVariant> Params = {UINT64_MAX, UINT64_C(2)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_MAX - 1U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_MAX);
-  }
+  Check("mul_wide_s", {Max, UINT64_C(2)}, Max - 1U, Max);
   // Multiplying two negative operands produces a positive result.
-  {
-    std::vector<ValVariant> Params = {UINT64_MAX, UINT64_MAX};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 1U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 0U);
-  }
+  Check("mul_wide_s", {Max, Max}, UINT64_C(1), UINT64_C(0));
   // Negating the minimum signed value produces a zero high half.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(0x8000000000000000), UINT64_MAX};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_C(0x8000000000000000));
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 0U);
-  }
+  Check("mul_wide_s", {SignBit, Max}, SignBit, UINT64_C(0));
   // Multiplying two minimum signed values produces a positive high half.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(0x8000000000000000),
-                                      UINT64_C(0x8000000000000000)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 0U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_C(0x4000000000000000));
-  }
+  Check("mul_wide_s", {SignBit, SignBit}, UINT64_C(0),
+        UINT64_C(0x4000000000000000));
   // Zero times a negative operand produces zero.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(0),
-                                      UINT64_C(0x8000000000000000)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 0U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 0U);
-  }
+  Check("mul_wide_s", {UINT64_C(0), SignBit}, UINT64_C(0), UINT64_C(0));
   // The left negative operand is sign-extended.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(0x8000000000000000),
-                                      UINT64_C(1)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_C(0x8000000000000000));
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_MAX);
-  }
+  Check("mul_wide_s", {SignBit, UINT64_C(1)}, SignBit, Max);
   // The right negative operand is sign-extended.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(1),
-                                      UINT64_C(0x8000000000000000)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_C(0x8000000000000000));
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_MAX);
-  }
+  Check("mul_wide_s", {UINT64_C(1), SignBit}, SignBit, Max);
   // Doubling the minimum signed value clears the low half.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(0x8000000000000000),
-                                      UINT64_C(2)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 0U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_MAX);
-  }
+  Check("mul_wide_s", {SignBit, UINT64_C(2)}, UINT64_C(0), Max);
   // Multiplying two maximum signed values fills both result halves.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(0x7fffffffffffffff),
-                                      UINT64_C(0x7fffffffffffffff)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 1U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_C(0x3fffffffffffffff));
-  }
+  Check("mul_wide_s", {SignedMax, SignedMax}, UINT64_C(1),
+        UINT64_C(0x3fffffffffffffff));
   // Multiplying opposite signed extremes produces a negative result.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(0x7fffffffffffffff),
-                                      UINT64_C(0x8000000000000000)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_C(0x8000000000000000));
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_C(0xc000000000000000));
-  }
-}
-
-TEST(ExecutorRegressionTest, WideArithmeticMulWideU) {
-  // (module
-  //   (func (export "wide") (param i64 i64)
-  //         (result i64 i64 i64)
-  //     i64.const 0x9e3779b97f4a7c15
-  //     local.get 0
-  //     local.get 1
-  //     i64.mul_wide_u))
-  std::array<WasmEdge::Byte, 56> Wasm{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x01, 0x60,
-      0x02, 0x7e, 0x7e, 0x03, 0x7e, 0x7e, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07,
-      0x08, 0x01, 0x04, 0x77, 0x69, 0x64, 0x65, 0x00, 0x00, 0x0a, 0x15, 0x01,
-      0x13, 0x00, 0x42, 0x95, 0xf8, 0xa9, 0xfa, 0x97, 0xb7, 0xde, 0x9b, 0x9e,
-      0x7f, 0x20, 0x00, 0x20, 0x01, 0xfc, 0x16, 0x0b};
-  Configure Conf;
-  Conf.addProposal(Proposal::WideArithmetic);
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(Wasm));
-  ASSERT_TRUE(VM.validate());
-  ASSERT_TRUE(VM.instantiate());
-  std::vector<ValType> ParamTypes = {ValType(TypeCode::I64),
-                                     ValType(TypeCode::I64)};
-  // The function returns the preceding stack value and the result low/high.
-  constexpr uint64_t Sentinel = UINT64_C(0x9e3779b97f4a7c15);
+  Check("mul_wide_s", {SignedMax, SignBit}, SignBit,
+        UINT64_C(0xc000000000000000));
 
   // Multiplying the maximum unsigned value by two carries into the high half.
-  {
-    std::vector<ValVariant> Params = {UINT64_MAX, UINT64_C(2)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_MAX - 1U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 1U);
-  }
+  Check("mul_wide_u", {Max, UINT64_C(2)}, Max - 1U, UINT64_C(1));
   // Multiplying two maximum unsigned values fills both result halves.
-  {
-    std::vector<ValVariant> Params = {UINT64_MAX, UINT64_MAX};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 1U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_MAX - 1U);
-  }
+  Check("mul_wide_u", {Max, Max}, UINT64_C(1), Max - 1U);
   // Bit 63 is part of each unsigned operand's magnitude.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(0x8000000000000000),
-                                      UINT64_C(0x8000000000000000)};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 0U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_C(0x4000000000000000));
-  }
+  Check("mul_wide_u", {SignBit, SignBit}, UINT64_C(0),
+        UINT64_C(0x4000000000000000));
   // Zero times the maximum unsigned value produces zero.
-  {
-    std::vector<ValVariant> Params = {UINT64_C(0), UINT64_MAX};
-    auto Result = VM.execute("wide", Params, ParamTypes);
-    ASSERT_TRUE(Result);
-    ASSERT_EQ(Result->size(), 3U);
-    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
-    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 0U);
-    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 0U);
+  Check("mul_wide_u", {UINT64_C(0), Max}, UINT64_C(0), UINT64_C(0));
+}
+
+// Rounding, min, and max must return an arithmetic NaN for a NaN operand,
+// including a signaling one, which the spec tests accept any NaN for.
+TEST(ExecutorRegressionTest, NaNResultsAreArithmetic) {
+  // (module
+  //   (func (export "f32.ceil") (param i32) (result i32)
+  //     (i32.reinterpret_f32 (f32.ceil (f32.reinterpret_i32 (local.get 0)))))
+  //   (func (export "f32.floor") (param i32) (result i32)
+  //     (i32.reinterpret_f32 (f32.floor (f32.reinterpret_i32 (local.get 0)))))
+  //   (func (export "f32.trunc") (param i32) (result i32)
+  //     (i32.reinterpret_f32 (f32.trunc (f32.reinterpret_i32 (local.get 0)))))
+  //   (func (export "f32.nearest") (param i32) (result i32)
+  //     (i32.reinterpret_f32 (f32.nearest (f32.reinterpret_i32 (local.get
+  //     0)))))
+  //   (func (export "f64.ceil") (param i64) (result i64)
+  //     (i64.reinterpret_f64 (f64.ceil (f64.reinterpret_i64 (local.get 0)))))
+  //   (func (export "f64.floor") (param i64) (result i64)
+  //     (i64.reinterpret_f64 (f64.floor (f64.reinterpret_i64 (local.get 0)))))
+  //   (func (export "f64.trunc") (param i64) (result i64)
+  //     (i64.reinterpret_f64 (f64.trunc (f64.reinterpret_i64 (local.get 0)))))
+  //   (func (export "f64.nearest") (param i64) (result i64)
+  //     (i64.reinterpret_f64 (f64.nearest (f64.reinterpret_i64 (local.get
+  //     0)))))
+  //   (func (export "f32x4.min") (param v128 v128) (result v128)
+  //     (f32x4.min (local.get 0) (local.get 1)))
+  //   (func (export "f32x4.max") (param v128 v128) (result v128)
+  //     (f32x4.max (local.get 0) (local.get 1)))
+  //   (func (export "f64x2.min") (param v128 v128) (result v128)
+  //     (f64x2.min (local.get 0) (local.get 1)))
+  //   (func (export "f64x2.max") (param v128 v128) (result v128)
+  //     (f64x2.max (local.get 0) (local.get 1)))
+  //   (func (export "f32x4.ceil") (param v128) (result v128)
+  //     (f32x4.ceil (local.get 0)))
+  //   (func (export "f32x4.floor") (param v128) (result v128)
+  //     (f32x4.floor (local.get 0)))
+  //   (func (export "f32x4.trunc") (param v128) (result v128)
+  //     (f32x4.trunc (local.get 0)))
+  //   (func (export "f32x4.nearest") (param v128) (result v128)
+  //     (f32x4.nearest (local.get 0)))
+  //   (func (export "f64x2.ceil") (param v128) (result v128)
+  //     (f64x2.ceil (local.get 0)))
+  //   (func (export "f64x2.floor") (param v128) (result v128)
+  //     (f64x2.floor (local.get 0)))
+  //   (func (export "f64x2.trunc") (param v128) (result v128)
+  //     (f64x2.trunc (local.get 0)))
+  //   (func (export "f64x2.nearest") (param v128) (result v128)
+  //     (f64x2.nearest (local.get 0))))
+  std::array<WasmEdge::Byte, 484> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x16, 0x04, 0x60,
+      0x01, 0x7f, 0x01, 0x7f, 0x60, 0x01, 0x7e, 0x01, 0x7e, 0x60, 0x02, 0x7b,
+      0x7b, 0x01, 0x7b, 0x60, 0x01, 0x7b, 0x01, 0x7b, 0x03, 0x15, 0x14, 0x00,
+      0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x02, 0x02, 0x03,
+      0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x07, 0x85, 0x02, 0x14, 0x08,
+      0x66, 0x33, 0x32, 0x2e, 0x63, 0x65, 0x69, 0x6c, 0x00, 0x00, 0x09, 0x66,
+      0x33, 0x32, 0x2e, 0x66, 0x6c, 0x6f, 0x6f, 0x72, 0x00, 0x01, 0x09, 0x66,
+      0x33, 0x32, 0x2e, 0x74, 0x72, 0x75, 0x6e, 0x63, 0x00, 0x02, 0x0b, 0x66,
+      0x33, 0x32, 0x2e, 0x6e, 0x65, 0x61, 0x72, 0x65, 0x73, 0x74, 0x00, 0x03,
+      0x08, 0x66, 0x36, 0x34, 0x2e, 0x63, 0x65, 0x69, 0x6c, 0x00, 0x04, 0x09,
+      0x66, 0x36, 0x34, 0x2e, 0x66, 0x6c, 0x6f, 0x6f, 0x72, 0x00, 0x05, 0x09,
+      0x66, 0x36, 0x34, 0x2e, 0x74, 0x72, 0x75, 0x6e, 0x63, 0x00, 0x06, 0x0b,
+      0x66, 0x36, 0x34, 0x2e, 0x6e, 0x65, 0x61, 0x72, 0x65, 0x73, 0x74, 0x00,
+      0x07, 0x09, 0x66, 0x33, 0x32, 0x78, 0x34, 0x2e, 0x6d, 0x69, 0x6e, 0x00,
+      0x08, 0x09, 0x66, 0x33, 0x32, 0x78, 0x34, 0x2e, 0x6d, 0x61, 0x78, 0x00,
+      0x09, 0x09, 0x66, 0x36, 0x34, 0x78, 0x32, 0x2e, 0x6d, 0x69, 0x6e, 0x00,
+      0x0a, 0x09, 0x66, 0x36, 0x34, 0x78, 0x32, 0x2e, 0x6d, 0x61, 0x78, 0x00,
+      0x0b, 0x0a, 0x66, 0x33, 0x32, 0x78, 0x34, 0x2e, 0x63, 0x65, 0x69, 0x6c,
+      0x00, 0x0c, 0x0b, 0x66, 0x33, 0x32, 0x78, 0x34, 0x2e, 0x66, 0x6c, 0x6f,
+      0x6f, 0x72, 0x00, 0x0d, 0x0b, 0x66, 0x33, 0x32, 0x78, 0x34, 0x2e, 0x74,
+      0x72, 0x75, 0x6e, 0x63, 0x00, 0x0e, 0x0d, 0x66, 0x33, 0x32, 0x78, 0x34,
+      0x2e, 0x6e, 0x65, 0x61, 0x72, 0x65, 0x73, 0x74, 0x00, 0x0f, 0x0a, 0x66,
+      0x36, 0x34, 0x78, 0x32, 0x2e, 0x63, 0x65, 0x69, 0x6c, 0x00, 0x10, 0x0b,
+      0x66, 0x36, 0x34, 0x78, 0x32, 0x2e, 0x66, 0x6c, 0x6f, 0x6f, 0x72, 0x00,
+      0x11, 0x0b, 0x66, 0x36, 0x34, 0x78, 0x32, 0x2e, 0x74, 0x72, 0x75, 0x6e,
+      0x63, 0x00, 0x12, 0x0d, 0x66, 0x36, 0x34, 0x78, 0x32, 0x2e, 0x6e, 0x65,
+      0x61, 0x72, 0x65, 0x73, 0x74, 0x00, 0x13, 0x0a, 0xa2, 0x01, 0x14, 0x07,
+      0x00, 0x20, 0x00, 0xbe, 0x8d, 0xbc, 0x0b, 0x07, 0x00, 0x20, 0x00, 0xbe,
+      0x8e, 0xbc, 0x0b, 0x07, 0x00, 0x20, 0x00, 0xbe, 0x8f, 0xbc, 0x0b, 0x07,
+      0x00, 0x20, 0x00, 0xbe, 0x90, 0xbc, 0x0b, 0x07, 0x00, 0x20, 0x00, 0xbf,
+      0x9b, 0xbd, 0x0b, 0x07, 0x00, 0x20, 0x00, 0xbf, 0x9c, 0xbd, 0x0b, 0x07,
+      0x00, 0x20, 0x00, 0xbf, 0x9d, 0xbd, 0x0b, 0x07, 0x00, 0x20, 0x00, 0xbf,
+      0x9e, 0xbd, 0x0b, 0x09, 0x00, 0x20, 0x00, 0x20, 0x01, 0xfd, 0xe8, 0x01,
+      0x0b, 0x09, 0x00, 0x20, 0x00, 0x20, 0x01, 0xfd, 0xe9, 0x01, 0x0b, 0x09,
+      0x00, 0x20, 0x00, 0x20, 0x01, 0xfd, 0xf4, 0x01, 0x0b, 0x09, 0x00, 0x20,
+      0x00, 0x20, 0x01, 0xfd, 0xf5, 0x01, 0x0b, 0x06, 0x00, 0x20, 0x00, 0xfd,
+      0x67, 0x0b, 0x06, 0x00, 0x20, 0x00, 0xfd, 0x68, 0x0b, 0x06, 0x00, 0x20,
+      0x00, 0xfd, 0x69, 0x0b, 0x06, 0x00, 0x20, 0x00, 0xfd, 0x6a, 0x0b, 0x06,
+      0x00, 0x20, 0x00, 0xfd, 0x74, 0x0b, 0x06, 0x00, 0x20, 0x00, 0xfd, 0x75,
+      0x0b, 0x06, 0x00, 0x20, 0x00, 0xfd, 0x7a, 0x0b, 0x07, 0x00, 0x20, 0x00,
+      0xfd, 0x94, 0x01, 0x0b};
+  std::vector<RunMode> Modes{RunMode::Interpreter};
+#ifdef WASMEDGE_USE_LLVM
+  Modes.push_back(RunMode::JIT);
+#endif
+  for (const auto Mode : Modes) {
+    const std::string_view ModeName =
+        Mode == RunMode::JIT ? "JIT"sv : "interpreter"sv;
+    Configure Conf;
+    Conf.getRuntimeConfigure().setRunMode(Mode);
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(Wasm));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+
+    // The scalar exports take and return the bit pattern of their float.
+    for (const auto Name :
+         {"f32.ceil", "f32.floor", "f32.trunc", "f32.nearest"}) {
+      for (const uint32_t In : {UINT32_C(0x7FA00000), UINT32_C(0xFFA00001)}) {
+        auto Result =
+            VM.execute(Name, {ValVariant(In)}, {ValType(TypeCode::I32)});
+        ASSERT_TRUE(Result) << ModeName << ' ' << Name;
+        const auto Got = (*Result)[0].first.get<uint32_t>();
+        EXPECT_TRUE(std::isnan(cxx20::bit_cast<float>(Got)) &&
+                    (Got & QuietBit<float>) != 0)
+            << ModeName << ' ' << Name << " bits " << std::hex << Got;
+      }
+    }
+    for (const auto Name :
+         {"f64.ceil", "f64.floor", "f64.trunc", "f64.nearest"}) {
+      for (const uint64_t In :
+           {UINT64_C(0x7FF4000000000000), UINT64_C(0xFFF0000000000001)}) {
+        auto Result =
+            VM.execute(Name, {ValVariant(In)}, {ValType(TypeCode::I64)});
+        ASSERT_TRUE(Result) << ModeName << ' ' << Name;
+        const auto Got = (*Result)[0].first.get<uint64_t>();
+        EXPECT_TRUE(std::isnan(cxx20::bit_cast<double>(Got)) &&
+                    (Got & QuietBit<double>) != 0)
+            << ModeName << ' ' << Name << " bits " << std::hex << Got;
+      }
+    }
+
+    const auto Run = [&](std::string_view Name,
+                         std::vector<ValVariant> Args) -> uint128_t {
+      const std::vector<ValType> Types(Args.size(), ValType(TypeCode::V128));
+      auto Result = VM.execute(Name, Args, Types);
+      EXPECT_TRUE(Result) << ModeName << ' ' << Name;
+      return Result ? (*Result)[0].first.get<uint128_t>() : uint128_t(0U);
+    };
+
+    constexpr uint32_t NaN32 = UINT32_C(0x7FC00000);
+    // Lanes: +sNaN, -1.5, -sNaN, 2.5 and 1.0, +sNaN, -sNaN, 3.0.
+    const auto A32 =
+        v128Of<float>({UINT32_C(0x7FA00000), UINT32_C(0xBFC00000),
+                       UINT32_C(0xFFA00001), UINT32_C(0x40200000)});
+    const auto B32 =
+        v128Of<float>({UINT32_C(0x3F800000), UINT32_C(0x7F800001),
+                       UINT32_C(0xFF800002), UINT32_C(0x40400000)});
+    for (const auto &[L, R] : {std::pair{A32, B32}, std::pair{B32, A32}}) {
+      expectLanes<float>(ModeName, "f32x4.min", Run("f32x4.min", {L, R}),
+                         {NaN32, NaN32, NaN32, UINT32_C(0x40200000)});
+      expectLanes<float>(ModeName, "f32x4.max", Run("f32x4.max", {L, R}),
+                         {NaN32, NaN32, NaN32, UINT32_C(0x40400000)});
+    }
+    expectLanes<float>(
+        ModeName, "f32x4.ceil", Run("f32x4.ceil", {A32}),
+        {NaN32, UINT32_C(0xBF800000), NaN32, UINT32_C(0x40400000)});
+    expectLanes<float>(
+        ModeName, "f32x4.floor", Run("f32x4.floor", {A32}),
+        {NaN32, UINT32_C(0xC0000000), NaN32, UINT32_C(0x40000000)});
+    expectLanes<float>(
+        ModeName, "f32x4.trunc", Run("f32x4.trunc", {A32}),
+        {NaN32, UINT32_C(0xBF800000), NaN32, UINT32_C(0x40000000)});
+    expectLanes<float>(
+        ModeName, "f32x4.nearest", Run("f32x4.nearest", {A32}),
+        {NaN32, UINT32_C(0xC0000000), NaN32, UINT32_C(0x40000000)});
+
+    constexpr uint64_t NaN64 = UINT64_C(0x7FF8000000000000);
+    // Lanes: +sNaN, -1.5 and 1.0, -sNaN.
+    const auto A64 = v128Of<double>(
+        {UINT64_C(0x7FF4000000000000), UINT64_C(0xBFF8000000000000)});
+    const auto B64 = v128Of<double>(
+        {UINT64_C(0x3FF0000000000000), UINT64_C(0xFFF0000000000001)});
+    for (const auto &[L, R] : {std::pair{A64, B64}, std::pair{B64, A64}}) {
+      expectLanes<double>(ModeName, "f64x2.min", Run("f64x2.min", {L, R}),
+                          {NaN64, NaN64});
+      expectLanes<double>(ModeName, "f64x2.max", Run("f64x2.max", {L, R}),
+                          {NaN64, NaN64});
+    }
+    expectLanes<double>(ModeName, "f64x2.ceil", Run("f64x2.ceil", {A64}),
+                        {NaN64, UINT64_C(0xBFF0000000000000)});
+    expectLanes<double>(ModeName, "f64x2.floor", Run("f64x2.floor", {B64}),
+                        {UINT64_C(0x3FF0000000000000), NaN64});
+    expectLanes<double>(ModeName, "f64x2.trunc", Run("f64x2.trunc", {A64}),
+                        {NaN64, UINT64_C(0xBFF0000000000000)});
+    expectLanes<double>(ModeName, "f64x2.nearest", Run("f64x2.nearest", {A64}),
+                        {NaN64, UINT64_C(0xC000000000000000)});
   }
 }
 

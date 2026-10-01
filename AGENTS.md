@@ -229,6 +229,7 @@ Plugin tests live in `test/plugins/`. Every test carries a `unit`, `spec`, or
 - Only create a new test target when the work introduces a genuinely new component or test category with no suitable existing home; when you do, justify it and register it in the directory's `CMakeLists.txt` following the surrounding pattern.
 - **Naming**: test files are `<Topic>Test.cpp` with one suite per file named after the file (`TEST(ExpressionTest, LoadExpression)` in `ExpressionTest.cpp`); test names are PascalCase without underscores.
 - **Wasm binaries**: tests that load wasm binaries use plain `TEST()`, not `TEST_F`. Declare the byte array inside the test that uses it (at file scope only when several tests share it), with the module text as a `//` comment right above it and the bytes as one plain list, as in `test/validator/ValidatorRegressionTest.cpp`.
+- **Grouping**: put related cases in one `TEST()`. Cases whose modules are all valid share one module with an export per case; invalid modules stay separate arrays, since validation stops at the first error.
 - **Comments**: apart from the module text, keep each comment to one or two lines.
 
 ## Plugin System

@@ -182,113 +182,64 @@ TEST(ComponentLoaderTest, NameKebabLabel) {
 }
 
 TEST(ComponentLoaderTest, NameStronglyUniqueBasicCases) {
-  Validator::Component::Context Ctx;
-  Ctx.pushScope(Validator::Component::ScopeKind::Component);
-  std::vector<Validator::Component::NameRecord> Names;
+  // Strong uniqueness applies to the import and the export name sets alike.
+  for (const bool IsImport : {true, false}) {
+    SCOPED_TRACE(IsImport ? "import"sv : "export"sv);
+    Validator::Component::Context Ctx;
+    Ctx.pushScope(Validator::Component::ScopeKind::Component);
+    std::vector<Validator::Component::NameRecord> Names;
 
-  auto add = [&](std::string_view S) -> bool {
-    auto CN = parseName(S);
-    if (!CN.has_value()) {
-      return false;
-    }
-    return Ctx
-        .addUniqueName(Names, Validator::Component::NameRecord(*CN), false)
-        .has_value();
-  };
+    auto add = [&](std::string_view S) -> bool {
+      auto CN = parseName(S);
+      if (!CN.has_value()) {
+        return false;
+      }
+      return Ctx
+          .addUniqueName(Names, Validator::Component::NameRecord(*CN), IsImport)
+          .has_value();
+    };
 
-  EXPECT_TRUE(add("foo"sv));
-  EXPECT_TRUE(add("foo-bar"sv));
-  EXPECT_TRUE(add("[constructor]foo"sv));
-  EXPECT_TRUE(add("[method]foo.bar"sv));
-  EXPECT_TRUE(add("[method]foo.baz"sv));
+    EXPECT_TRUE(add("foo"sv));
+    EXPECT_TRUE(add("foo-bar"sv));
+    EXPECT_TRUE(add("[constructor]foo"sv));
+    EXPECT_TRUE(add("[method]foo.bar"sv));
+    EXPECT_TRUE(add("[method]foo.baz"sv));
 
-  EXPECT_FALSE(add("foo"sv));
-  EXPECT_FALSE(add("foo-BAR"sv));
-  EXPECT_FALSE(add("foobar"sv));
-  EXPECT_FALSE(add("[constructor]FOO"sv));
-  EXPECT_FALSE(add("[method]foo.foo"sv));
-  EXPECT_FALSE(add("[method]foo.BAR"sv));
-  EXPECT_FALSE(add("[static]foo-bar.FOOB-ar"sv));
+    EXPECT_FALSE(add("foo"sv));
+    EXPECT_FALSE(add("foo-BAR"sv));
+    EXPECT_FALSE(add("foobar"sv));
+    EXPECT_FALSE(add("[constructor]FOO"sv));
+    EXPECT_FALSE(add("[method]foo.foo"sv));
+    EXPECT_FALSE(add("[method]foo.BAR"sv));
+    EXPECT_FALSE(add("[static]foo-bar.FOOB-ar"sv));
+  }
 }
 
 TEST(ComponentLoaderTest, NameStronglyUnique) {
-  Validator::Component::Context Ctx;
-  Ctx.pushScope(Validator::Component::ScopeKind::Component);
-  std::vector<Validator::Component::NameRecord> Names;
+  for (const bool IsImport : {true, false}) {
+    SCOPED_TRACE(IsImport ? "import"sv : "export"sv);
+    Validator::Component::Context Ctx;
+    Ctx.pushScope(Validator::Component::ScopeKind::Component);
+    std::vector<Validator::Component::NameRecord> Names;
 
-  auto add = [&](std::string_view S) -> bool {
-    auto CN = parseName(S);
-    if (!CN.has_value()) {
-      return false;
-    }
-    return Ctx
-        .addUniqueName(Names, Validator::Component::NameRecord(*CN), false)
-        .has_value();
-  };
+    auto add = [&](std::string_view S) -> bool {
+      auto CN = parseName(S);
+      if (!CN.has_value()) {
+        return false;
+      }
+      return Ctx
+          .addUniqueName(Names, Validator::Component::NameRecord(*CN), IsImport)
+          .has_value();
+    };
 
-  EXPECT_TRUE(add("[method]foo.abc"sv));
-  EXPECT_TRUE(add("[constructor]foo"sv));
-  EXPECT_TRUE(add("foo-bar"sv));
-  EXPECT_TRUE(add("foo"sv));
+    EXPECT_TRUE(add("[method]foo.abc"sv));
+    EXPECT_TRUE(add("[constructor]foo"sv));
+    EXPECT_TRUE(add("foo-bar"sv));
+    EXPECT_TRUE(add("foo"sv));
 
-  EXPECT_FALSE(add("[method]foo"sv));
-  EXPECT_FALSE(add("[static]foo.abc"sv));
-}
-
-TEST(ComponentLoaderTest, NameStronglyUniqueExportBasicCases) {
-  // NameStronglyUniqueBasicCases on the export-side name set: strong
-  // uniqueness applies to import and export name sets alike.
-  Validator::Component::Context Ctx;
-  Ctx.pushScope(Validator::Component::ScopeKind::Component);
-  std::vector<Validator::Component::NameRecord> Names;
-
-  auto add = [&](std::string_view S) -> bool {
-    auto CN = parseName(S);
-    if (!CN.has_value()) {
-      return false;
-    }
-    return Ctx
-        .addUniqueName(Names, Validator::Component::NameRecord(*CN), false)
-        .has_value();
-  };
-
-  EXPECT_TRUE(add("foo"sv));
-  EXPECT_TRUE(add("foo-bar"sv));
-  EXPECT_TRUE(add("[constructor]foo"sv));
-  EXPECT_TRUE(add("[method]foo.bar"sv));
-  EXPECT_TRUE(add("[method]foo.baz"sv));
-
-  EXPECT_FALSE(add("foo"sv));
-  EXPECT_FALSE(add("foo-BAR"sv));
-  EXPECT_FALSE(add("foobar"sv));
-  EXPECT_FALSE(add("[constructor]FOO"sv));
-  EXPECT_FALSE(add("[method]foo.foo"sv));
-  EXPECT_FALSE(add("[method]foo.BAR"sv));
-  EXPECT_FALSE(add("[static]foo-bar.FOOB-ar"sv));
-}
-
-TEST(ComponentLoaderTest, NameStronglyUniqueExport) {
-  Validator::Component::Context Ctx;
-  Ctx.pushScope(Validator::Component::ScopeKind::Component);
-  std::vector<Validator::Component::NameRecord> Names;
-
-  auto add = [&](std::string_view S) -> bool {
-    auto CN = parseName(S);
-    if (!CN.has_value()) {
-      return false;
-    }
-    return Ctx
-        .addUniqueName(Names, Validator::Component::NameRecord(*CN), false)
-        .has_value();
-  };
-
-  EXPECT_TRUE(add("[method]foo.abc"sv));
-  EXPECT_TRUE(add("[constructor]foo"sv));
-  EXPECT_TRUE(add("foo-bar"sv));
-  EXPECT_TRUE(add("foo"sv));
-
-  EXPECT_FALSE(add("[method]foo"sv));
-  EXPECT_FALSE(add("[static]foo.abc"sv));
+    EXPECT_FALSE(add("[method]foo"sv));
+    EXPECT_FALSE(add("[static]foo.abc"sv));
+  }
 }
 
 TEST(ComponentLoaderTest, NameOnlyPlainAndInterfaceNames) {

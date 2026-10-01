@@ -1802,95 +1802,105 @@ TEST(WasiSocketTest, GetAddrinfo) {
   }
 }
 
-TEST(WasiSocketTest, GetAddrinfoRejectsShortSocketAddressBuffer) {
-  WasmEdge::Host::WASI::Environ Env;
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  Mod.addHostMemory(
-      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-                    WasmEdge::AST::MemoryType(1)));
-  auto *MemInstPtr = Mod.findMemoryExports("memory");
-  ASSERT_NE(MemInstPtr, nullptr);
-  auto &MemInst = *MemInstPtr;
-  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
-  WasmEdge::Host::WasiSockGetAddrinfo WasiGetAddrinfo(Env);
-  std::array<WasmEdge::ValVariant, 1> Errno;
+TEST(WasiSocketTest, GetAddrinfoRejectsShortSockAddr) {
+  // Test getaddrinfo with a short sockaddr buffer.
+  //
+  //   1.  IPv4.
+  //   2.  IPv6.
 
-  auto Initial =
-      prepareAddrinfoTest(MemInst, 1, 0, __WASI_AIFLAGS_AI_NUMERICHOST);
-  Initial.Sockaddr.sa_data =
-      WasmEdge::Runtime::Instance::MemoryInstance::kPageSize - 1;
-  std::memcpy(
-      MemInst.getPointer<__wasi_sockaddr_t *>(AddrinfoTestData::SockaddrPtr),
-      &Initial.Sockaddr, sizeof(Initial.Sockaddr));
-  constexpr uint8_t Canary = 0xa5;
-  *MemInst.getPointer<uint8_t *>(Initial.Sockaddr.sa_data) = Canary;
+  // IPv4.
+  {
+    WasmEdge::Host::WASI::Environ Env;
+    WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+    Mod.addHostMemory(
+        "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                      WasmEdge::AST::MemoryType(1)));
+    auto *MemInstPtr = Mod.findMemoryExports("memory");
+    ASSERT_NE(MemInstPtr, nullptr);
+    auto &MemInst = *MemInstPtr;
+    WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+    WasmEdge::Host::WasiSockGetAddrinfo WasiGetAddrinfo(Env);
+    std::array<WasmEdge::ValVariant, 1> Errno;
 
-  Env.init({}, "test"s, {}, {});
-  EXPECT_TRUE(WasiGetAddrinfo.run(
-      CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{
-          AddrinfoTestData::NodePtr, 9, AddrinfoTestData::ServicePtr, 2,
-          AddrinfoTestData::HintsPtr, AddrinfoTestData::ResultPtr, 1,
-          AddrinfoTestData::ResultLengthPtr},
-      Errno));
+    auto Initial =
+        prepareAddrinfoTest(MemInst, 1, 0, __WASI_AIFLAGS_AI_NUMERICHOST);
+    Initial.Sockaddr.sa_data =
+        WasmEdge::Runtime::Instance::MemoryInstance::kPageSize - 1;
+    std::memcpy(
+        MemInst.getPointer<__wasi_sockaddr_t *>(AddrinfoTestData::SockaddrPtr),
+        &Initial.Sockaddr, sizeof(Initial.Sockaddr));
+    constexpr uint8_t Canary = 0xa5;
+    *MemInst.getPointer<uint8_t *>(Initial.Sockaddr.sa_data) = Canary;
 
-  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
-  expectAddrinfoFieldsEqual(*MemInst.getPointer<const __wasi_addrinfo_t *>(
-                                AddrinfoTestData::AddrinfoPtr),
-                            Initial.Addrinfo);
-  expectSockaddrFieldsEqual(*MemInst.getPointer<const __wasi_sockaddr_t *>(
-                                AddrinfoTestData::SockaddrPtr),
-                            Initial.Sockaddr);
-  EXPECT_EQ(*MemInst.getPointer<const uint8_t *>(Initial.Sockaddr.sa_data),
-            Canary);
-  EXPECT_EQ(
-      *MemInst.getPointer<const uint32_t *>(AddrinfoTestData::ResultLengthPtr),
-      AddrinfoTestData::InitialResultLength);
-}
+    Env.init({}, "test"s, {}, {});
+    EXPECT_TRUE(WasiGetAddrinfo.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            AddrinfoTestData::NodePtr, 9, AddrinfoTestData::ServicePtr, 2,
+            AddrinfoTestData::HintsPtr, AddrinfoTestData::ResultPtr, 1,
+            AddrinfoTestData::ResultLengthPtr},
+        Errno));
 
-TEST(WasiSocketTest, GetAddrinfoRejectsShortIPv6SocketAddressBuffer) {
-  WasmEdge::Host::WASI::Environ Env;
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  Mod.addHostMemory(
-      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-                    WasmEdge::AST::MemoryType(1)));
-  auto *MemInstPtr = Mod.findMemoryExports("memory");
-  ASSERT_NE(MemInstPtr, nullptr);
-  auto &MemInst = *MemInstPtr;
-  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
-  WasmEdge::Host::WasiSockGetAddrinfo WasiGetAddrinfo(Env);
-  std::array<WasmEdge::ValVariant, 1> Errno;
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
+    expectAddrinfoFieldsEqual(*MemInst.getPointer<const __wasi_addrinfo_t *>(
+                                  AddrinfoTestData::AddrinfoPtr),
+                              Initial.Addrinfo);
+    expectSockaddrFieldsEqual(*MemInst.getPointer<const __wasi_sockaddr_t *>(
+                                  AddrinfoTestData::SockaddrPtr),
+                              Initial.Sockaddr);
+    EXPECT_EQ(*MemInst.getPointer<const uint8_t *>(Initial.Sockaddr.sa_data),
+              Canary);
+    EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(
+                  AddrinfoTestData::ResultLengthPtr),
+              AddrinfoTestData::InitialResultLength);
+  }
 
-  const auto Initial = prepareAddrinfoTest(
-      MemInst, WasmEdge::Host::WASI::kMaxSaDataLen - 1, 0,
-      __WASI_AIFLAGS_AI_NUMERICHOST, "::1", __WASI_ADDRESS_FAMILY_INET6);
-  constexpr uint8_t Canary = 0xa5;
-  std::fill_n(MemInst.getPointer<uint8_t *>(AddrinfoTestData::SocketDataPtr),
-              WasmEdge::Host::WASI::kMaxSaDataLen, Canary);
+  // IPv6.
+  {
+    WasmEdge::Host::WASI::Environ Env;
+    WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+    Mod.addHostMemory(
+        "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                      WasmEdge::AST::MemoryType(1)));
+    auto *MemInstPtr = Mod.findMemoryExports("memory");
+    ASSERT_NE(MemInstPtr, nullptr);
+    auto &MemInst = *MemInstPtr;
+    WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+    WasmEdge::Host::WasiSockGetAddrinfo WasiGetAddrinfo(Env);
+    std::array<WasmEdge::ValVariant, 1> Errno;
 
-  Env.init({}, "test"s, {}, {});
-  EXPECT_TRUE(WasiGetAddrinfo.run(
-      CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{
-          AddrinfoTestData::NodePtr, 3, AddrinfoTestData::ServicePtr, 2,
-          AddrinfoTestData::HintsPtr, AddrinfoTestData::ResultPtr, 1,
-          AddrinfoTestData::ResultLengthPtr},
-      Errno));
+    const auto Initial = prepareAddrinfoTest(
+        MemInst, WasmEdge::Host::WASI::kMaxSaDataLen - 1, 0,
+        __WASI_AIFLAGS_AI_NUMERICHOST, "::1", __WASI_ADDRESS_FAMILY_INET6);
+    constexpr uint8_t Canary = 0xa5;
+    std::fill_n(MemInst.getPointer<uint8_t *>(AddrinfoTestData::SocketDataPtr),
+                WasmEdge::Host::WASI::kMaxSaDataLen, Canary);
 
-  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
-  expectAddrinfoFieldsEqual(*MemInst.getPointer<const __wasi_addrinfo_t *>(
-                                AddrinfoTestData::AddrinfoPtr),
-                            Initial.Addrinfo);
-  expectSockaddrFieldsEqual(*MemInst.getPointer<const __wasi_sockaddr_t *>(
-                                AddrinfoTestData::SockaddrPtr),
-                            Initial.Sockaddr);
-  const auto SocketData = MemInst.getSpan<const uint8_t>(
-      AddrinfoTestData::SocketDataPtr, WasmEdge::Host::WASI::kMaxSaDataLen);
-  EXPECT_TRUE(std::all_of(SocketData.begin(), SocketData.end(),
-                          [](uint8_t Byte) { return Byte == UINT8_C(0xa5); }));
-  EXPECT_EQ(
-      *MemInst.getPointer<const uint32_t *>(AddrinfoTestData::ResultLengthPtr),
-      AddrinfoTestData::InitialResultLength);
+    Env.init({}, "test"s, {}, {});
+    EXPECT_TRUE(WasiGetAddrinfo.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            AddrinfoTestData::NodePtr, 3, AddrinfoTestData::ServicePtr, 2,
+            AddrinfoTestData::HintsPtr, AddrinfoTestData::ResultPtr, 1,
+            AddrinfoTestData::ResultLengthPtr},
+        Errno));
+
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
+    expectAddrinfoFieldsEqual(*MemInst.getPointer<const __wasi_addrinfo_t *>(
+                                  AddrinfoTestData::AddrinfoPtr),
+                              Initial.Addrinfo);
+    expectSockaddrFieldsEqual(*MemInst.getPointer<const __wasi_sockaddr_t *>(
+                                  AddrinfoTestData::SockaddrPtr),
+                              Initial.Sockaddr);
+    const auto SocketData = MemInst.getSpan<const uint8_t>(
+        AddrinfoTestData::SocketDataPtr, WasmEdge::Host::WASI::kMaxSaDataLen);
+    EXPECT_TRUE(
+        std::all_of(SocketData.begin(), SocketData.end(),
+                    [](uint8_t Byte) { return Byte == UINT8_C(0xa5); }));
+    EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(
+                  AddrinfoTestData::ResultLengthPtr),
+              AddrinfoTestData::InitialResultLength);
+  }
 }
 
 TEST(WasiSocketTest, GetAddrinfoRejectsShortCanonName) {

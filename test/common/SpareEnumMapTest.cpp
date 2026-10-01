@@ -29,15 +29,22 @@ constexpr WasmEdge::SpareEnumMap OpMap(OpArr);
 static_assert(OpMap.end() - OpMap.begin() == 5,
               "SpareEnumMap end() - begin() must equal Size");
 
-TEST(SpareEnumMapTest, FindPresentKey) {
-  auto It = OpMap.find(Op::Add);
-  ASSERT_NE(It, OpMap.end());
-  EXPECT_EQ(It->second, "add"sv);
-  EXPECT_EQ(OpMap.find(Op::Nop)->second, "nop"sv);
-  EXPECT_EQ(OpMap.find(Op::End)->second, "end"sv);
-}
+TEST(SpareEnumMapTest, Find) {
+  // Test find.
+  //
+  //   1.  Present key.
+  //   2.  Absent key returns end.
 
-TEST(SpareEnumMapTest, FindAbsentKeyReturnsEnd) {
+  // Present key.
+  {
+    auto It = OpMap.find(Op::Add);
+    ASSERT_NE(It, OpMap.end());
+    EXPECT_EQ(It->second, "add"sv);
+    EXPECT_EQ(OpMap.find(Op::Nop)->second, "nop"sv);
+    EXPECT_EQ(OpMap.find(Op::End)->second, "end"sv);
+  }
+
+  // Absent key returns end.
   EXPECT_EQ(OpMap.find(static_cast<Op>(0x00)), OpMap.end());
   EXPECT_EQ(OpMap.find(static_cast<Op>(0x47)), OpMap.end());
   EXPECT_EQ(OpMap.find(static_cast<Op>(0xfe)), OpMap.end());

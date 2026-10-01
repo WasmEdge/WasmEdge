@@ -1247,294 +1247,297 @@ TEST(SerializeInstructionTest, SerializeTableInstruction) {
 }
 
 TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
-  std::vector<uint8_t> Expected;
-  std::vector<uint8_t> Output;
-  std::vector<WasmEdge::AST::Instruction> Instructions;
+  {
+    std::vector<uint8_t> Expected;
+    std::vector<uint8_t> Output;
+    std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 11. Test memory instructions.
-  //
-  //   1.  Serialize memory_grow instruction.
-  //   2.  Serialize i32_load instruction.
-  //   3.  Serialize memory_init with a non-zero data segment index.
-  //   4.  Serialize memory_copy with both memory indices zero.
+    // 11. Test memory instructions.
+    //
+    //   1.  Serialize memory_grow instruction.
+    //   2.  Serialize i32_load instruction.
+    //   3.  Serialize memory_init with a non-zero data segment index.
+    //   4.  Serialize memory_copy with both memory indices zero.
 
-  WasmEdge::AST::Instruction MemoryGrow(WasmEdge::OpCode::Memory__grow);
-  WasmEdge::AST::Instruction I32Load(WasmEdge::OpCode::I32__load);
-  WasmEdge::AST::Instruction MemoryInit(WasmEdge::OpCode::Memory__init);
-  WasmEdge::AST::Instruction MemoryCopy(WasmEdge::OpCode::Memory__copy);
-  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+    WasmEdge::AST::Instruction MemoryGrow(WasmEdge::OpCode::Memory__grow);
+    WasmEdge::AST::Instruction I32Load(WasmEdge::OpCode::I32__load);
+    WasmEdge::AST::Instruction MemoryInit(WasmEdge::OpCode::Memory__init);
+    WasmEdge::AST::Instruction MemoryCopy(WasmEdge::OpCode::Memory__copy);
+    WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
-  Instructions = {MemoryGrow, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU, // Code section
-      0x06U, // Content size = 6
-      0x01U, // Vector length = 1
-      0x04U, // Code segment size = 4
-      0x00U, // Local vec(0)
-      0x40U, // OpCode Memory__grow.
-      0x00U, // Checking byte
-      0x0BU  // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    Instructions = {MemoryGrow, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU, // Code section
+        0x06U, // Content size = 6
+        0x01U, // Vector length = 1
+        0x04U, // Code segment size = 4
+        0x00U, // Local vec(0)
+        0x40U, // OpCode Memory__grow.
+        0x00U, // Checking byte
+        0x0BU  // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  I32Load.getMemoryAlign() = 0xFFFFFFFFU;
-  I32Load.getMemoryOffset() = 0xFFFFFFFEU;
-  Instructions = {I32Load, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU,                             // Code section
-      0x0FU,                             // Content size = 15
-      0x01U,                             // Vector length = 1
-      0x0DU,                             // Code segment size = 13
-      0x00U,                             // Local vec(0)
-      0x28U,                             // OpCode I32__load.
-      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Align.
-      0xFEU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Offset.
-      0x0BU                              // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    I32Load.getMemoryAlign() = 0xFFFFFFFFU;
+    I32Load.getMemoryOffset() = 0xFFFFFFFEU;
+    Instructions = {I32Load, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU,                             // Code section
+        0x0FU,                             // Content size = 15
+        0x01U,                             // Vector length = 1
+        0x0DU,                             // Code segment size = 13
+        0x00U,                             // Local vec(0)
+        0x28U,                             // OpCode I32__load.
+        0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Align.
+        0xFEU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Offset.
+        0x0BU                              // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  I32Load.getMemoryAlign() = 0xFFFFFFFFU;
-  I32Load.getMemoryOffset() = 0xFFFFFFFEU;
-  Instructions = {I32Load, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU,                             // Code section
-      0x0FU,                             // Content size = 15
-      0x01U,                             // Vector length = 1
-      0x0DU,                             // Code segment size = 13
-      0x00U,                             // Local vec(0)
-      0x28U,                             // OpCode I32__load.
-      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Align.
-      0xFEU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Offset.
-      0x0BU                              // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    I32Load.getMemoryAlign() = 0xFFFFFFFFU;
+    I32Load.getMemoryOffset() = 0xFFFFFFFEU;
+    Instructions = {I32Load, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU,                             // Code section
+        0x0FU,                             // Content size = 15
+        0x01U,                             // Vector length = 1
+        0x0DU,                             // Code segment size = 13
+        0x00U,                             // Local vec(0)
+        0x28U,                             // OpCode I32__load.
+        0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Align.
+        0xFEU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Offset.
+        0x0BU                              // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  // memory.init x y encodes the data segment index before the memory index.
-  MemoryInit.getSourceIndex() = 0x05U;
-  MemoryInit.getTargetIndex() = 0x00U;
-  Instructions = {MemoryInit, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU,        // Code section
-      0x08U,        // Content size = 8
-      0x01U,        // Vector length = 1
-      0x06U,        // Code segment size = 6
-      0x00U,        // Local vec(0)
-      0xFCU, 0x08U, // OpCode Memory__init.
-      0x05U,        // Data segment index (SourceIndex).
-      0x00U,        // Memory index (TargetIndex, must be 0x00).
-      0x0BU         // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    // memory.init x y encodes the data segment index before the memory index.
+    MemoryInit.getSourceIndex() = 0x05U;
+    MemoryInit.getTargetIndex() = 0x00U;
+    Instructions = {MemoryInit, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU,        // Code section
+        0x08U,        // Content size = 8
+        0x01U,        // Vector length = 1
+        0x06U,        // Code segment size = 6
+        0x00U,        // Local vec(0)
+        0xFCU, 0x08U, // OpCode Memory__init.
+        0x05U,        // Data segment index (SourceIndex).
+        0x00U,        // Memory index (TargetIndex, must be 0x00).
+        0x0BU         // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  // memory.copy (non-multi-memory) encodes both memory indices as 0x00.
-  MemoryCopy.getTargetIndex() = 0x00U;
-  MemoryCopy.getSourceIndex() = 0x00U;
-  Instructions = {MemoryCopy, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU,        // Code section
-      0x08U,        // Content size = 8
-      0x01U,        // Vector length = 1
-      0x06U,        // Code segment size = 6
-      0x00U,        // Local vec(0)
-      0xFCU, 0x0AU, // OpCode Memory__copy.
-      0x00U,        // Destination memory index (TargetIndex, must be 0x00).
-      0x00U,        // Source memory index (SourceIndex, must be 0x00).
-      0x0BU         // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
-  // The offset is a u64, so only a value past the 32-bit range tells the two
-  // encodings apart.
-  I32Load.getMemoryAlign() = 0x02U;
-  I32Load.getMemoryOffset() = 0x1FF3F1F0FULL;
-  I32Load.getTargetIndex() = 0x00U;
-  Instructions = {I32Load, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU,                             // Code section
-      0x0BU,                             // Content size = 11
-      0x01U,                             // Vector length = 1
-      0x09U,                             // Code segment size = 9
-      0x00U,                             // Local vec(0)
-      0x28U,                             // OpCode I32__load.
-      0x02U,                             // Align.
-      0x8FU, 0xBEU, 0xFCU, 0xF9U, 0x1FU, // Offset = 0x1FF3F1F0F.
-      0x0BU                              // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    // memory.copy (non-multi-memory) encodes both memory indices as 0x00.
+    MemoryCopy.getTargetIndex() = 0x00U;
+    MemoryCopy.getSourceIndex() = 0x00U;
+    Instructions = {MemoryCopy, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU,        // Code section
+        0x08U,        // Content size = 8
+        0x01U,        // Vector length = 1
+        0x06U,        // Code segment size = 6
+        0x00U,        // Local vec(0)
+        0xFCU, 0x0AU, // OpCode Memory__copy.
+        0x00U,        // Destination memory index (TargetIndex, must be 0x00).
+        0x00U,        // Source memory index (SourceIndex, must be 0x00).
+        0x0BU         // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
+    // The offset is a u64, so only a value past the 32-bit range tells the two
+    // encodings apart.
+    I32Load.getMemoryAlign() = 0x02U;
+    I32Load.getMemoryOffset() = 0x1FF3F1F0FULL;
+    I32Load.getTargetIndex() = 0x00U;
+    Instructions = {I32Load, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU,                             // Code section
+        0x0BU,                             // Content size = 11
+        0x01U,                             // Vector length = 1
+        0x09U,                             // Code segment size = 9
+        0x00U,                             // Local vec(0)
+        0x28U,                             // OpCode I32__load.
+        0x02U,                             // Align.
+        0x8FU, 0xBEU, 0xFCU, 0xF9U, 0x1FU, // Offset = 0x1FF3F1F0F.
+        0x0BU                              // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  // The remaining opcodes of this group, with their immediates zeroed.
-  // The cases above cover the non-zero values.
+    // The remaining opcodes of this group, with their immediates zeroed.
+    // The cases above cover the non-zero values.
 
-  Instructions = {WasmEdge::AST::Instruction(WasmEdge::OpCode::Data__drop),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::F32__load),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::F32__store),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::F64__load),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::F64__store),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__load16_s),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__load16_u),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__load8_s),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__load8_u),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__store16),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__store8),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__load),
-                  End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU, 0x28U, 0x01U, 0x26U, 0x00U, // Framing.
-      0xFCU, 0x09U, 0x00U,               // Data__drop.
-      0x2AU, 0x00U, 0x00U,               // F32__load.
-      0x38U, 0x00U, 0x00U,               // F32__store.
-      0x2BU, 0x00U, 0x00U,               // F64__load.
-      0x39U, 0x00U, 0x00U,               // F64__store.
-      0x2EU, 0x00U, 0x00U,               // I32__load16_s.
-      0x2FU, 0x00U, 0x00U,               // I32__load16_u.
-      0x2CU, 0x00U, 0x00U,               // I32__load8_s.
-      0x2DU, 0x00U, 0x00U,               // I32__load8_u.
-      0x3BU, 0x00U, 0x00U,               // I32__store16.
-      0x3AU, 0x00U, 0x00U,               // I32__store8.
-      0x29U, 0x00U, 0x00U,               // I64__load.
-      0x0BU                              // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    Instructions = {WasmEdge::AST::Instruction(WasmEdge::OpCode::Data__drop),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::F32__load),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::F32__store),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::F64__load),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::F64__store),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__load16_s),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__load16_u),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__load8_s),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__load8_u),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__store16),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__store8),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__load),
+                    End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU, 0x28U, 0x01U, 0x26U, 0x00U, // Framing.
+        0xFCU, 0x09U, 0x00U,               // Data__drop.
+        0x2AU, 0x00U, 0x00U,               // F32__load.
+        0x38U, 0x00U, 0x00U,               // F32__store.
+        0x2BU, 0x00U, 0x00U,               // F64__load.
+        0x39U, 0x00U, 0x00U,               // F64__store.
+        0x2EU, 0x00U, 0x00U,               // I32__load16_s.
+        0x2FU, 0x00U, 0x00U,               // I32__load16_u.
+        0x2CU, 0x00U, 0x00U,               // I32__load8_s.
+        0x2DU, 0x00U, 0x00U,               // I32__load8_u.
+        0x3BU, 0x00U, 0x00U,               // I32__store16.
+        0x3AU, 0x00U, 0x00U,               // I32__store8.
+        0x29U, 0x00U, 0x00U,               // I64__load.
+        0x0BU                              // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__load16_s),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__load16_u),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__load32_s),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__load32_u),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__load8_s),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__load8_u),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__store),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__store16),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__store32),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__store8),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::Memory__fill),
-                  WasmEdge::AST::Instruction(WasmEdge::OpCode::Memory__size),
-                  End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU, 0x27U, 0x01U, 0x25U, 0x00U, // Framing.
-      0x32U, 0x00U, 0x00U,               // I64__load16_s.
-      0x33U, 0x00U, 0x00U,               // I64__load16_u.
-      0x34U, 0x00U, 0x00U,               // I64__load32_s.
-      0x35U, 0x00U, 0x00U,               // I64__load32_u.
-      0x30U, 0x00U, 0x00U,               // I64__load8_s.
-      0x31U, 0x00U, 0x00U,               // I64__load8_u.
-      0x37U, 0x00U, 0x00U,               // I64__store.
-      0x3DU, 0x00U, 0x00U,               // I64__store16.
-      0x3EU, 0x00U, 0x00U,               // I64__store32.
-      0x3CU, 0x00U, 0x00U,               // I64__store8.
-      0xFCU, 0x0BU, 0x00U,               // Memory__fill.
-      0x3FU, 0x00U,                      // Memory__size.
-      0x0BU                              // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
-}
+    Instructions = {WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__load16_s),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__load16_u),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__load32_s),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__load32_u),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__load8_s),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__load8_u),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__store),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__store16),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__store32),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__store8),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::Memory__fill),
+                    WasmEdge::AST::Instruction(WasmEdge::OpCode::Memory__size),
+                    End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU, 0x27U, 0x01U, 0x25U, 0x00U, // Framing.
+        0x32U, 0x00U, 0x00U,               // I64__load16_s.
+        0x33U, 0x00U, 0x00U,               // I64__load16_u.
+        0x34U, 0x00U, 0x00U,               // I64__load32_s.
+        0x35U, 0x00U, 0x00U,               // I64__load32_u.
+        0x30U, 0x00U, 0x00U,               // I64__load8_s.
+        0x31U, 0x00U, 0x00U,               // I64__load8_u.
+        0x37U, 0x00U, 0x00U,               // I64__store.
+        0x3DU, 0x00U, 0x00U,               // I64__store16.
+        0x3EU, 0x00U, 0x00U,               // I64__store32.
+        0x3CU, 0x00U, 0x00U,               // I64__store8.
+        0xFCU, 0x0BU, 0x00U,               // Memory__fill.
+        0x3FU, 0x00U,                      // Memory__size.
+        0x0BU                              // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
+  }
 
-TEST(SerializeInstructionTest, SerializeMultiMemoryMemArgInstruction) {
-  std::vector<uint8_t> Expected;
-  std::vector<uint8_t> Output;
-  std::vector<WasmEdge::AST::Instruction> Instructions;
+  // Multi memory mem arg.
+  {
+    std::vector<uint8_t> Expected;
+    std::vector<uint8_t> Output;
+    std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 12. Test multi-memory memarg encoding.
-  //
-  //   1.  Serialize i32_load with a non-zero memory index.
-  //   2.  Serialize i32_store with a non-zero memory index.
-  //   3.  Serialize i32_load with memory index 0 (single-memory encoding).
-  //   4.  Serialize i32_load with a non-zero memory index again.
+    // 12. Test multi-memory memarg encoding.
+    //
+    //   1.  Serialize i32_load with a non-zero memory index.
+    //   2.  Serialize i32_store with a non-zero memory index.
+    //   3.  Serialize i32_load with memory index 0 (single-memory encoding).
+    //   4.  Serialize i32_load with a non-zero memory index again.
 
-  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+    WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
-  WasmEdge::AST::Instruction I32Load(WasmEdge::OpCode::I32__load);
-  I32Load.getMemoryAlign() = 0x02U;
-  I32Load.getTargetIndex() = 0x03U;
-  I32Load.getMemoryOffset() = 0x10U;
-  Instructions = {I32Load, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU, // Code section
-      0x08U, // Content size = 8
-      0x01U, // Vector length = 1
-      0x06U, // Code segment size = 6
-      0x00U, // Local vec(0)
-      0x28U, // OpCode I32__load.
-      0x42U, // Align with multi-memory flag (0x02 + 0x40).
-      0x03U, // Memory index.
-      0x10U, // Offset.
-      0x0BU  // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    WasmEdge::AST::Instruction I32Load(WasmEdge::OpCode::I32__load);
+    I32Load.getMemoryAlign() = 0x02U;
+    I32Load.getTargetIndex() = 0x03U;
+    I32Load.getMemoryOffset() = 0x10U;
+    Instructions = {I32Load, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU, // Code section
+        0x08U, // Content size = 8
+        0x01U, // Vector length = 1
+        0x06U, // Code segment size = 6
+        0x00U, // Local vec(0)
+        0x28U, // OpCode I32__load.
+        0x42U, // Align with multi-memory flag (0x02 + 0x40).
+        0x03U, // Memory index.
+        0x10U, // Offset.
+        0x0BU  // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  WasmEdge::AST::Instruction I32Store(WasmEdge::OpCode::I32__store);
-  I32Store.getMemoryAlign() = 0x02U;
-  I32Store.getTargetIndex() = 0x03U;
-  I32Store.getMemoryOffset() = 0x10U;
-  Instructions = {I32Store, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU, // Code section
-      0x08U, // Content size = 8
-      0x01U, // Vector length = 1
-      0x06U, // Code segment size = 6
-      0x00U, // Local vec(0)
-      0x36U, // OpCode I32__store.
-      0x42U, // Align with multi-memory flag (0x02 + 0x40).
-      0x03U, // Memory index.
-      0x10U, // Offset.
-      0x0BU  // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    WasmEdge::AST::Instruction I32Store(WasmEdge::OpCode::I32__store);
+    I32Store.getMemoryAlign() = 0x02U;
+    I32Store.getTargetIndex() = 0x03U;
+    I32Store.getMemoryOffset() = 0x10U;
+    Instructions = {I32Store, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU, // Code section
+        0x08U, // Content size = 8
+        0x01U, // Vector length = 1
+        0x06U, // Code segment size = 6
+        0x00U, // Local vec(0)
+        0x36U, // OpCode I32__store.
+        0x42U, // Align with multi-memory flag (0x02 + 0x40).
+        0x03U, // Memory index.
+        0x10U, // Offset.
+        0x0BU  // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  WasmEdge::AST::Instruction I32LoadMem0(WasmEdge::OpCode::I32__load);
-  I32LoadMem0.getMemoryAlign() = 0x02U;
-  I32LoadMem0.getTargetIndex() = 0x00U;
-  I32LoadMem0.getMemoryOffset() = 0x10U;
-  Instructions = {I32LoadMem0, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU, // Code section
-      0x07U, // Content size = 7
-      0x01U, // Vector length = 1
-      0x05U, // Code segment size = 5
-      0x00U, // Local vec(0)
-      0x28U, // OpCode I32__load.
-      0x02U, // Align (no multi-memory flag, memory index 0).
-      0x10U, // Offset.
-      0x0BU  // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    WasmEdge::AST::Instruction I32LoadMem0(WasmEdge::OpCode::I32__load);
+    I32LoadMem0.getMemoryAlign() = 0x02U;
+    I32LoadMem0.getTargetIndex() = 0x00U;
+    I32LoadMem0.getMemoryOffset() = 0x10U;
+    Instructions = {I32LoadMem0, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU, // Code section
+        0x07U, // Content size = 7
+        0x01U, // Vector length = 1
+        0x05U, // Code segment size = 5
+        0x00U, // Local vec(0)
+        0x28U, // OpCode I32__load.
+        0x02U, // Align (no multi-memory flag, memory index 0).
+        0x10U, // Offset.
+        0x0BU  // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {I32Load, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU, // Code section
-      0x08U, // Content size = 8
-      0x01U, // Vector length = 1
-      0x06U, // Code segment size = 6
-      0x00U, // Local vec(0)
-      0x28U, // OpCode I32__load.
-      0x42U, // Align with the memory index flag (0x02 | 0x40).
-      0x03U, // Memory index.
-      0x10U, // Offset.
-      0x0BU  // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    Instructions = {I32Load, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU, // Code section
+        0x08U, // Content size = 8
+        0x01U, // Vector length = 1
+        0x06U, // Code segment size = 6
+        0x00U, // Local vec(0)
+        0x28U, // OpCode I32__load.
+        0x42U, // Align with the memory index flag (0x02 | 0x40).
+        0x03U, // Memory index.
+        0x10U, // Offset.
+        0x0BU  // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
+  }
 }
 
 TEST(SerializeInstructionTest, SerializeConstInstruction) {
@@ -3140,667 +3143,684 @@ TEST(SerializeInstructionTest, SerializeSIMDNumericInstruction) {
   EXPECT_EQ(Output, Expected);
 }
 
-TEST(SerializeInstructionTest, SerializeSwizzleInstruction) {
-  std::vector<uint8_t> Expected;
-  std::vector<uint8_t> Output;
-  std::vector<WasmEdge::AST::Instruction> Instructions;
+TEST(SerializeInstructionTest, SerializeRelaxedSIMDInstruction) {
+  // Swizzle.
+  {
+    std::vector<uint8_t> Expected;
+    std::vector<uint8_t> Output;
+    std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 19. Test swizzle instruction.
-  //
-  //   1.  Serialize I8x16__relaxed_swizzle instruction.
+    // 19. Test swizzle instruction.
+    //
+    //   1.  Serialize I8x16__relaxed_swizzle instruction.
 
-  WasmEdge::AST::Instruction I8x16RelaxedSwizzle(
-      WasmEdge::OpCode::I8x16__relaxed_swizzle);
-  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+    WasmEdge::AST::Instruction I8x16RelaxedSwizzle(
+        WasmEdge::OpCode::I8x16__relaxed_swizzle);
+    WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
-  Instructions = {I8x16RelaxedSwizzle, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU,        // Code section
-      0x07U,        // Content size = 7
-      0x01U,        // Vector length = 1
-      0x05U,        // Code segment size = 5
-      0x00U,        // Local vec(0)
-      0xFDU,        // SIMD/relaxed-SIMD prefix.
-      0x80U, 0x02U, // OpCode I8x16__relaxed_swizzle.
-      0x0BU         // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    Instructions = {I8x16RelaxedSwizzle, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU,        // Code section
+        0x07U,        // Content size = 7
+        0x01U,        // Vector length = 1
+        0x05U,        // Code segment size = 5
+        0x00U,        // Local vec(0)
+        0xFDU,        // SIMD/relaxed-SIMD prefix.
+        0x80U, 0x02U, // OpCode I8x16__relaxed_swizzle.
+        0x0BU         // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  Output = {};
-  Instructions = {I8x16RelaxedSwizzle, End};
-}
+    Output = {};
+    Instructions = {I8x16RelaxedSwizzle, End};
+  }
 
-TEST(SerializeInstructionTest, SerializeTruncInstruction) {
-  std::vector<uint8_t> Expected;
-  std::vector<uint8_t> Output;
-  std::vector<WasmEdge::AST::Instruction> Instructions;
+  // Trunc.
+  {
+    std::vector<uint8_t> Expected;
+    std::vector<uint8_t> Output;
+    std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 20. Test trunc instruction.
-  //
-  //   1.  Serialize I32x4__relaxed_trunc_f32x4_s instruction.
-  //   2.  Serialize I32x4__relaxed_trunc_f32x4_u instruction.
-  //   3.  Serialize I32x4__relaxed_trunc_f64x2_s_zero instruction.
-  //   4.  Serialize I32x4__relaxed_trunc_f64x2_u_zero instruction.
+    // 20. Test trunc instruction.
+    //
+    //   1.  Serialize I32x4__relaxed_trunc_f32x4_s instruction.
+    //   2.  Serialize I32x4__relaxed_trunc_f32x4_u instruction.
+    //   3.  Serialize I32x4__relaxed_trunc_f64x2_s_zero instruction.
+    //   4.  Serialize I32x4__relaxed_trunc_f64x2_u_zero instruction.
 
-  WasmEdge::AST::Instruction I8x16RelaxedTruncF32x4S(
-      WasmEdge::OpCode::I32x4__relaxed_trunc_f32x4_s);
-  WasmEdge::AST::Instruction I8x16RelaxedTruncF32x4U(
-      WasmEdge::OpCode::I32x4__relaxed_trunc_f32x4_u);
-  WasmEdge::AST::Instruction I32x4RelaxedTruncF64x2SZero(
-      WasmEdge::OpCode::I32x4__relaxed_trunc_f64x2_s_zero);
-  WasmEdge::AST::Instruction I32x4RelaxedTruncF64x2UZero(
-      WasmEdge::OpCode::I32x4__relaxed_trunc_f64x2_u_zero);
-  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+    WasmEdge::AST::Instruction I8x16RelaxedTruncF32x4S(
+        WasmEdge::OpCode::I32x4__relaxed_trunc_f32x4_s);
+    WasmEdge::AST::Instruction I8x16RelaxedTruncF32x4U(
+        WasmEdge::OpCode::I32x4__relaxed_trunc_f32x4_u);
+    WasmEdge::AST::Instruction I32x4RelaxedTruncF64x2SZero(
+        WasmEdge::OpCode::I32x4__relaxed_trunc_f64x2_s_zero);
+    WasmEdge::AST::Instruction I32x4RelaxedTruncF64x2UZero(
+        WasmEdge::OpCode::I32x4__relaxed_trunc_f64x2_u_zero);
+    WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
-  Instructions = {I8x16RelaxedTruncF32x4S, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU,        // Code section
-      0x07U,        // Content size = 7
-      0x01U,        // Vector length = 1
-      0x05U,        // Code segment size = 5
-      0x00U,        // Local vec(0)
-      0xFDU,        // SIMD/relaxed-SIMD prefix.
-      0x81U, 0x02U, // OpCode I32x4__relaxed_trunc_f32x4_s.
-      0x0BU         // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    Instructions = {I8x16RelaxedTruncF32x4S, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU,        // Code section
+        0x07U,        // Content size = 7
+        0x01U,        // Vector length = 1
+        0x05U,        // Code segment size = 5
+        0x00U,        // Local vec(0)
+        0xFDU,        // SIMD/relaxed-SIMD prefix.
+        0x81U, 0x02U, // OpCode I32x4__relaxed_trunc_f32x4_s.
+        0x0BU         // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {I8x16RelaxedTruncF32x4U, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x82U; // OpCode I32x4__relaxed_trunc_f32x4_u
-  EXPECT_EQ(Output, Expected);
+    Instructions = {I8x16RelaxedTruncF32x4U, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x82U; // OpCode I32x4__relaxed_trunc_f32x4_u
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {I32x4RelaxedTruncF64x2SZero, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x83U; // OpCode I32x4__relaxed_trunc_f64x2_s_zero
-  EXPECT_EQ(Output, Expected);
+    Instructions = {I32x4RelaxedTruncF64x2SZero, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x83U; // OpCode I32x4__relaxed_trunc_f64x2_s_zero
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {I32x4RelaxedTruncF64x2UZero, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x84U; // OpCode I32x4__relaxed_trunc_f64x2_u_zero
-  EXPECT_EQ(Output, Expected);
+    Instructions = {I32x4RelaxedTruncF64x2UZero, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x84U; // OpCode I32x4__relaxed_trunc_f64x2_u_zero
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {I32x4RelaxedTruncF64x2UZero, End};
-  Output = {};
-}
+    Instructions = {I32x4RelaxedTruncF64x2UZero, End};
+    Output = {};
+  }
 
-TEST(SerializeInstructionTest, SerializeMulAddInstruction) {
-  std::vector<uint8_t> Expected;
-  std::vector<uint8_t> Output;
-  std::vector<WasmEdge::AST::Instruction> Instructions;
+  // Mul add.
+  {
+    std::vector<uint8_t> Expected;
+    std::vector<uint8_t> Output;
+    std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 21. Test multiply-add instruction.
-  //
-  //   1.  Serialize F32x4__relaxed_madd instruction.
-  //   2.  Serialize F32x4__relaxed_nmadd instruction.
-  //   3.  Serialize F64x2__relaxed_madd instruction.
-  //   4.  Serialize F64x2__relaxed_nmadd instruction.
+    // 21. Test multiply-add instruction.
+    //
+    //   1.  Serialize F32x4__relaxed_madd instruction.
+    //   2.  Serialize F32x4__relaxed_nmadd instruction.
+    //   3.  Serialize F64x2__relaxed_madd instruction.
+    //   4.  Serialize F64x2__relaxed_nmadd instruction.
 
-  WasmEdge::AST::Instruction F32x4RelaxedMadd(
-      WasmEdge::OpCode::F32x4__relaxed_madd);
-  WasmEdge::AST::Instruction F32x4RelaxedNMadd(
-      WasmEdge::OpCode::F32x4__relaxed_nmadd);
-  WasmEdge::AST::Instruction F64x2RelaxedMadd(
-      WasmEdge::OpCode::F64x2__relaxed_madd);
-  WasmEdge::AST::Instruction F64x2RelaxedNMadd(
-      WasmEdge::OpCode::F64x2__relaxed_nmadd);
-  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+    WasmEdge::AST::Instruction F32x4RelaxedMadd(
+        WasmEdge::OpCode::F32x4__relaxed_madd);
+    WasmEdge::AST::Instruction F32x4RelaxedNMadd(
+        WasmEdge::OpCode::F32x4__relaxed_nmadd);
+    WasmEdge::AST::Instruction F64x2RelaxedMadd(
+        WasmEdge::OpCode::F64x2__relaxed_madd);
+    WasmEdge::AST::Instruction F64x2RelaxedNMadd(
+        WasmEdge::OpCode::F64x2__relaxed_nmadd);
+    WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
-  Instructions = {F32x4RelaxedMadd, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU,        // Code section
-      0x07U,        // Content size = 7
-      0x01U,        // Vector length = 1
-      0x05U,        // Code segment size = 5
-      0x00U,        // Local vec(0)
-      0xFDU,        // SIMD/relaxed-SIMD prefix.
-      0x85U, 0x02U, // OpCode F32x4__relaxed_madd.
-      0x0BU         // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    Instructions = {F32x4RelaxedMadd, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU,        // Code section
+        0x07U,        // Content size = 7
+        0x01U,        // Vector length = 1
+        0x05U,        // Code segment size = 5
+        0x00U,        // Local vec(0)
+        0xFDU,        // SIMD/relaxed-SIMD prefix.
+        0x85U, 0x02U, // OpCode F32x4__relaxed_madd.
+        0x0BU         // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {F32x4RelaxedNMadd, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x86U; // OpCode F32x4__relaxed_nmadd.
-  EXPECT_EQ(Output, Expected);
+    Instructions = {F32x4RelaxedNMadd, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x86U; // OpCode F32x4__relaxed_nmadd.
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {F64x2RelaxedMadd, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x87U; // OpCode F64x2__relaxed_madd.
-  EXPECT_EQ(Output, Expected);
+    Instructions = {F64x2RelaxedMadd, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x87U; // OpCode F64x2__relaxed_madd.
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {F64x2RelaxedNMadd, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x88U; // OpCode F64x2__relaxed_nmadd.
-  EXPECT_EQ(Output, Expected);
+    Instructions = {F64x2RelaxedNMadd, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x88U; // OpCode F64x2__relaxed_nmadd.
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {F64x2RelaxedNMadd, End};
-  Output = {};
-}
+    Instructions = {F64x2RelaxedNMadd, End};
+    Output = {};
+  }
 
-TEST(SerializeInstructionTest, SerializeLaneSelectInstruction) {
-  std::vector<uint8_t> Expected;
-  std::vector<uint8_t> Output;
-  std::vector<WasmEdge::AST::Instruction> Instructions;
+  // Lane select.
+  {
+    std::vector<uint8_t> Expected;
+    std::vector<uint8_t> Output;
+    std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 22. Test laneselect instruction.
-  //
-  //   1.  Serialize I8x16__relaxed_laneselect instruction.
-  //   2.  Serialize I16x8__relaxed_laneselect instruction.
-  //   3.  Serialize I32x4__relaxed_laneselect instruction.
-  //   4.  Serialize I64x2__relaxed_laneselect instruction.
+    // 22. Test laneselect instruction.
+    //
+    //   1.  Serialize I8x16__relaxed_laneselect instruction.
+    //   2.  Serialize I16x8__relaxed_laneselect instruction.
+    //   3.  Serialize I32x4__relaxed_laneselect instruction.
+    //   4.  Serialize I64x2__relaxed_laneselect instruction.
 
-  WasmEdge::AST::Instruction I8x16RelaxedLaneSelect(
-      WasmEdge::OpCode::I8x16__relaxed_laneselect);
-  WasmEdge::AST::Instruction I16x8RelaxedLaneSelect(
-      WasmEdge::OpCode::I16x8__relaxed_laneselect);
-  WasmEdge::AST::Instruction I32x4RelaxedLaneSelect(
-      WasmEdge::OpCode::I32x4__relaxed_laneselect);
-  WasmEdge::AST::Instruction I64x2RelaxedLaneSelect(
-      WasmEdge::OpCode::I64x2__relaxed_laneselect);
-  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+    WasmEdge::AST::Instruction I8x16RelaxedLaneSelect(
+        WasmEdge::OpCode::I8x16__relaxed_laneselect);
+    WasmEdge::AST::Instruction I16x8RelaxedLaneSelect(
+        WasmEdge::OpCode::I16x8__relaxed_laneselect);
+    WasmEdge::AST::Instruction I32x4RelaxedLaneSelect(
+        WasmEdge::OpCode::I32x4__relaxed_laneselect);
+    WasmEdge::AST::Instruction I64x2RelaxedLaneSelect(
+        WasmEdge::OpCode::I64x2__relaxed_laneselect);
+    WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
-  Instructions = {I8x16RelaxedLaneSelect, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU,        // Code section
-      0x07U,        // Content size = 7
-      0x01U,        // Vector length = 1
-      0x05U,        // Code segment size = 5
-      0x00U,        // Local vec(0)
-      0xFDU,        // SIMD/relaxed-SIMD prefix.
-      0x89U, 0x02U, // OpCode I8x16__relaxed_laneselect.
-      0x0BU         // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    Instructions = {I8x16RelaxedLaneSelect, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU,        // Code section
+        0x07U,        // Content size = 7
+        0x01U,        // Vector length = 1
+        0x05U,        // Code segment size = 5
+        0x00U,        // Local vec(0)
+        0xFDU,        // SIMD/relaxed-SIMD prefix.
+        0x89U, 0x02U, // OpCode I8x16__relaxed_laneselect.
+        0x0BU         // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {I16x8RelaxedLaneSelect, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x8AU; // OpCode I16x8__relaxed_laneselect.
-  EXPECT_EQ(Output, Expected);
+    Instructions = {I16x8RelaxedLaneSelect, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x8AU; // OpCode I16x8__relaxed_laneselect.
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {I32x4RelaxedLaneSelect, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x8BU; // OpCode I32x4__relaxed_laneselect.
-  EXPECT_EQ(Output, Expected);
+    Instructions = {I32x4RelaxedLaneSelect, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x8BU; // OpCode I32x4__relaxed_laneselect.
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {I64x2RelaxedLaneSelect, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x8CU; // OpCode I64x2__relaxed_laneselect.
+    Instructions = {I64x2RelaxedLaneSelect, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x8CU; // OpCode I64x2__relaxed_laneselect.
 
-  Instructions = {I64x2RelaxedLaneSelect, End};
-  Output = {};
-}
+    Instructions = {I64x2RelaxedLaneSelect, End};
+    Output = {};
+  }
 
-TEST(SerializeInstructionTest, SerializeMinMaxInstruction) {
-  std::vector<uint8_t> Expected;
-  std::vector<uint8_t> Output;
-  std::vector<WasmEdge::AST::Instruction> Instructions;
+  // Min max.
+  {
+    std::vector<uint8_t> Expected;
+    std::vector<uint8_t> Output;
+    std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 23. Test laneselect instruction.
-  //
-  //   1.  Serialize F32x4__relaxed_min instruction.
-  //   2.  Serialize F32x4__relaxed_max instruction.
-  //   3.  Serialize F64x2__relaxed_min instruction.
-  //   4.  Serialize F64x2__relaxed_max instruction.
+    // 23. Test laneselect instruction.
+    //
+    //   1.  Serialize F32x4__relaxed_min instruction.
+    //   2.  Serialize F32x4__relaxed_max instruction.
+    //   3.  Serialize F64x2__relaxed_min instruction.
+    //   4.  Serialize F64x2__relaxed_max instruction.
 
-  WasmEdge::AST::Instruction F32x4RelaxedMin(
-      WasmEdge::OpCode::F32x4__relaxed_min);
-  WasmEdge::AST::Instruction F32x4RelaxedMax(
-      WasmEdge::OpCode::F32x4__relaxed_max);
-  WasmEdge::AST::Instruction F64x2RelaxedMin(
-      WasmEdge::OpCode::F64x2__relaxed_min);
-  WasmEdge::AST::Instruction F64x2RelaxedMax(
-      WasmEdge::OpCode::F64x2__relaxed_max);
-  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+    WasmEdge::AST::Instruction F32x4RelaxedMin(
+        WasmEdge::OpCode::F32x4__relaxed_min);
+    WasmEdge::AST::Instruction F32x4RelaxedMax(
+        WasmEdge::OpCode::F32x4__relaxed_max);
+    WasmEdge::AST::Instruction F64x2RelaxedMin(
+        WasmEdge::OpCode::F64x2__relaxed_min);
+    WasmEdge::AST::Instruction F64x2RelaxedMax(
+        WasmEdge::OpCode::F64x2__relaxed_max);
+    WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
-  Instructions = {F32x4RelaxedMin, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU,        // Code section
-      0x07U,        // Content size = 7
-      0x01U,        // Vector length = 1
-      0x05U,        // Code segment size = 5
-      0x00U,        // Local vec(0)
-      0xFDU,        // SIMD/relaxed-SIMD prefix.
-      0x8DU, 0x02U, // OpCode F32x4__relaxed_min.
-      0x0BU         // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    Instructions = {F32x4RelaxedMin, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU,        // Code section
+        0x07U,        // Content size = 7
+        0x01U,        // Vector length = 1
+        0x05U,        // Code segment size = 5
+        0x00U,        // Local vec(0)
+        0xFDU,        // SIMD/relaxed-SIMD prefix.
+        0x8DU, 0x02U, // OpCode F32x4__relaxed_min.
+        0x0BU         // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {F32x4RelaxedMax, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x8EU; // OpCode F32x4__relaxed_max.
-  EXPECT_EQ(Output, Expected);
+    Instructions = {F32x4RelaxedMax, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x8EU; // OpCode F32x4__relaxed_max.
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {F64x2RelaxedMin, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x8FU; // OpCode F64x2__relaxed_min.
-  EXPECT_EQ(Output, Expected);
+    Instructions = {F64x2RelaxedMin, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x8FU; // OpCode F64x2__relaxed_min.
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {F64x2RelaxedMax, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x90U; // OpCode F64x2__relaxed_max.
-  EXPECT_EQ(Output, Expected);
+    Instructions = {F64x2RelaxedMax, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x90U; // OpCode F64x2__relaxed_max.
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {F64x2RelaxedMax, End};
-  Output = {};
-}
+    Instructions = {F64x2RelaxedMax, End};
+    Output = {};
+  }
 
-TEST(SerializeInstructionTest, SerializeQ15MulRInstruction) {
-  std::vector<uint8_t> Expected;
-  std::vector<uint8_t> Output;
-  std::vector<WasmEdge::AST::Instruction> Instructions;
+  // Q15mulr.
+  {
+    std::vector<uint8_t> Expected;
+    std::vector<uint8_t> Output;
+    std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 24. Test rounding Q-format multiplication instruction.
-  //
-  //   1.  Serialize I16x8__relaxed_q15mulr_s instruction.
+    // 24. Test rounding Q-format multiplication instruction.
+    //
+    //   1.  Serialize I16x8__relaxed_q15mulr_s instruction.
 
-  WasmEdge::AST::Instruction I16x8RelaxedQ15MulRS(
-      WasmEdge::OpCode::I16x8__relaxed_q15mulr_s);
-  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+    WasmEdge::AST::Instruction I16x8RelaxedQ15MulRS(
+        WasmEdge::OpCode::I16x8__relaxed_q15mulr_s);
+    WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
-  Instructions = {I16x8RelaxedQ15MulRS, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU,        // Code section
-      0x07U,        // Content size = 7
-      0x01U,        // Vector length = 1
-      0x05U,        // Code segment size = 5
-      0x00U,        // Local vec(0)
-      0xFDU,        // SIMD/relaxed-SIMD prefix.
-      0x91U, 0x02U, // OpCode I16x8__relaxed_q15mulr_s.
-      0x0BU         // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    Instructions = {I16x8RelaxedQ15MulRS, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU,        // Code section
+        0x07U,        // Content size = 7
+        0x01U,        // Vector length = 1
+        0x05U,        // Code segment size = 5
+        0x00U,        // Local vec(0)
+        0xFDU,        // SIMD/relaxed-SIMD prefix.
+        0x91U, 0x02U, // OpCode I16x8__relaxed_q15mulr_s.
+        0x0BU         // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {I16x8RelaxedQ15MulRS, End};
-  Output = {};
-}
+    Instructions = {I16x8RelaxedQ15MulRS, End};
+    Output = {};
+  }
 
-TEST(SerializeInstructionTest, SerializeDotProductInstruction) {
-  std::vector<uint8_t> Expected;
-  std::vector<uint8_t> Output;
-  std::vector<WasmEdge::AST::Instruction> Instructions;
+  // Dot product.
+  {
+    std::vector<uint8_t> Expected;
+    std::vector<uint8_t> Output;
+    std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 25. Test dot product instruction.
-  //
-  //   1.  Serialize I16x8__relaxed_dot_i8x16_i7x16_s instruction.
-  //   2.  Serialize I32x4__relaxed_dot_i8x16_i7x16_add_s instruction.
+    // 25. Test dot product instruction.
+    //
+    //   1.  Serialize I16x8__relaxed_dot_i8x16_i7x16_s instruction.
+    //   2.  Serialize I32x4__relaxed_dot_i8x16_i7x16_add_s instruction.
 
-  WasmEdge::AST::Instruction I16x8RelaxedDotI8x16i7x16S(
-      WasmEdge::OpCode::I16x8__relaxed_dot_i8x16_i7x16_s);
-  WasmEdge::AST::Instruction I16x8RelaxedDotI8x16i7x16AddS(
-      WasmEdge::OpCode::I32x4__relaxed_dot_i8x16_i7x16_add_s);
-  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+    WasmEdge::AST::Instruction I16x8RelaxedDotI8x16i7x16S(
+        WasmEdge::OpCode::I16x8__relaxed_dot_i8x16_i7x16_s);
+    WasmEdge::AST::Instruction I16x8RelaxedDotI8x16i7x16AddS(
+        WasmEdge::OpCode::I32x4__relaxed_dot_i8x16_i7x16_add_s);
+    WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
-  Instructions = {I16x8RelaxedDotI8x16i7x16S, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU,        // Code section
-      0x07U,        // Content size = 7
-      0x01U,        // Vector length = 1
-      0x05U,        // Code segment size = 5
-      0x00U,        // Local vec(0)
-      0xFDU,        // SIMD/relaxed-SIMD prefix.
-      0x92U, 0x02U, // OpCode I16x8__relaxed_dot_i8x16_i7x16_s.
-      0x0BU         // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    Instructions = {I16x8RelaxedDotI8x16i7x16S, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU,        // Code section
+        0x07U,        // Content size = 7
+        0x01U,        // Vector length = 1
+        0x05U,        // Code segment size = 5
+        0x00U,        // Local vec(0)
+        0xFDU,        // SIMD/relaxed-SIMD prefix.
+        0x92U, 0x02U, // OpCode I16x8__relaxed_dot_i8x16_i7x16_s.
+        0x0BU         // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {I16x8RelaxedDotI8x16i7x16AddS, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x93U; // OpCode I32x4__relaxed_dot_i8x16_i7x16_add_s.
-  EXPECT_EQ(Output, Expected);
+    Instructions = {I16x8RelaxedDotI8x16i7x16AddS, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x93U; // OpCode I32x4__relaxed_dot_i8x16_i7x16_add_s.
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {I16x8RelaxedDotI8x16i7x16AddS, End};
-  Output = {};
+    Instructions = {I16x8RelaxedDotI8x16i7x16AddS, End};
+    Output = {};
+  }
 }
 
 TEST(SerializeInstructionTest, SerializeAtomicInstruction) {
+  {
 
-  std::vector<uint8_t> Expected;
-  std::vector<uint8_t> Output;
-  std::vector<WasmEdge::AST::Instruction> Instructions;
+    std::vector<uint8_t> Expected;
+    std::vector<uint8_t> Output;
+    std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 26. Test atomic instructions.
-  //
-  //   1.  Serialize memory_atomic_notify instruction with memarg.
-  //   2.  Serialize memory_atomic_wait32 instruction with memarg.
-  //   3.  Serialize i32_atomic_load instruction with memarg.
-  //   4.  Serialize i32_atomic_store instruction with memarg.
-  //   5.  Serialize i32_atomic_rmw_add instruction with memarg.
+    // 26. Test atomic instructions.
+    //
+    //   1.  Serialize memory_atomic_notify instruction with memarg.
+    //   2.  Serialize memory_atomic_wait32 instruction with memarg.
+    //   3.  Serialize i32_atomic_load instruction with memarg.
+    //   4.  Serialize i32_atomic_store instruction with memarg.
+    //   5.  Serialize i32_atomic_rmw_add instruction with memarg.
 
-  WasmEdge::AST::Instruction MemoryAtomicNotify(
-      WasmEdge::OpCode::Memory__atomic__notify);
-  WasmEdge::AST::Instruction MemoryAtomicWait32(
-      WasmEdge::OpCode::Memory__atomic__wait32);
-  WasmEdge::AST::Instruction I32AtomicLoad(WasmEdge::OpCode::I32__atomic__load);
-  WasmEdge::AST::Instruction I32AtomicStore(
-      WasmEdge::OpCode::I32__atomic__store);
-  WasmEdge::AST::Instruction I32AtomicRmwAdd(
-      WasmEdge::OpCode::I32__atomic__rmw__add);
-  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+    WasmEdge::AST::Instruction MemoryAtomicNotify(
+        WasmEdge::OpCode::Memory__atomic__notify);
+    WasmEdge::AST::Instruction MemoryAtomicWait32(
+        WasmEdge::OpCode::Memory__atomic__wait32);
+    WasmEdge::AST::Instruction I32AtomicLoad(
+        WasmEdge::OpCode::I32__atomic__load);
+    WasmEdge::AST::Instruction I32AtomicStore(
+        WasmEdge::OpCode::I32__atomic__store);
+    WasmEdge::AST::Instruction I32AtomicRmwAdd(
+        WasmEdge::OpCode::I32__atomic__rmw__add);
+    WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
-  MemoryAtomicNotify.getMemoryAlign() = 0x02U;
-  MemoryAtomicNotify.getMemoryOffset() = 0x08U;
-  Instructions = {MemoryAtomicNotify, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU,        // Code section
-      0x08U,        // Content size = 8
-      0x01U,        // Vector length = 1
-      0x06U,        // Code segment size = 6
-      0x00U,        // Local vec(0)
-      0xFEU, 0x00U, // OpCode Memory__atomic__notify.
-      0x02U,        // Align.
-      0x08U,        // Offset.
-      0x0BU         // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    MemoryAtomicNotify.getMemoryAlign() = 0x02U;
+    MemoryAtomicNotify.getMemoryOffset() = 0x08U;
+    Instructions = {MemoryAtomicNotify, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU,        // Code section
+        0x08U,        // Content size = 8
+        0x01U,        // Vector length = 1
+        0x06U,        // Code segment size = 6
+        0x00U,        // Local vec(0)
+        0xFEU, 0x00U, // OpCode Memory__atomic__notify.
+        0x02U,        // Align.
+        0x08U,        // Offset.
+        0x0BU         // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  MemoryAtomicWait32.getMemoryAlign() = 0x02U;
-  MemoryAtomicWait32.getMemoryOffset() = 0x08U;
-  Instructions = {MemoryAtomicWait32, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x01U; // OpCode Memory__atomic__wait32.
-  EXPECT_EQ(Output, Expected);
+    MemoryAtomicWait32.getMemoryAlign() = 0x02U;
+    MemoryAtomicWait32.getMemoryOffset() = 0x08U;
+    Instructions = {MemoryAtomicWait32, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x01U; // OpCode Memory__atomic__wait32.
+    EXPECT_EQ(Output, Expected);
 
-  I32AtomicLoad.getMemoryAlign() = 0x02U;
-  I32AtomicLoad.getMemoryOffset() = 0x08U;
-  Instructions = {I32AtomicLoad, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x10U; // OpCode I32__atomic__load.
-  EXPECT_EQ(Output, Expected);
+    I32AtomicLoad.getMemoryAlign() = 0x02U;
+    I32AtomicLoad.getMemoryOffset() = 0x08U;
+    Instructions = {I32AtomicLoad, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x10U; // OpCode I32__atomic__load.
+    EXPECT_EQ(Output, Expected);
 
-  I32AtomicStore.getMemoryAlign() = 0x02U;
-  I32AtomicStore.getMemoryOffset() = 0x08U;
-  Instructions = {I32AtomicStore, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x17U; // OpCode I32__atomic__store.
-  EXPECT_EQ(Output, Expected);
+    I32AtomicStore.getMemoryAlign() = 0x02U;
+    I32AtomicStore.getMemoryOffset() = 0x08U;
+    Instructions = {I32AtomicStore, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x17U; // OpCode I32__atomic__store.
+    EXPECT_EQ(Output, Expected);
 
-  I32AtomicRmwAdd.getMemoryAlign() = 0x02U;
-  I32AtomicRmwAdd.getMemoryOffset() = 0x08U;
-  Instructions = {I32AtomicRmwAdd, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected[6] = 0x1EU; // OpCode I32__atomic__rmw__add.
-  EXPECT_EQ(Output, Expected);
+    I32AtomicRmwAdd.getMemoryAlign() = 0x02U;
+    I32AtomicRmwAdd.getMemoryOffset() = 0x08U;
+    Instructions = {I32AtomicRmwAdd, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected[6] = 0x1EU; // OpCode I32__atomic__rmw__add.
+    EXPECT_EQ(Output, Expected);
 
-  // The remaining opcodes of this group, with their immediates zeroed.
-  // The cases above cover the non-zero values.
+    // The remaining opcodes of this group, with their immediates zeroed.
+    // The cases above cover the non-zero values.
 
-  Instructions = {
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__load16_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__load8_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw16__add_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw16__and_u),
-      WasmEdge::AST::Instruction(
-          WasmEdge::OpCode::I32__atomic__rmw16__cmpxchg_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw16__or_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw16__sub_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw16__xchg_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw16__xor_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw8__add_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw8__and_u),
-      WasmEdge::AST::Instruction(
-          WasmEdge::OpCode::I32__atomic__rmw8__cmpxchg_u),
-      End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU, 0x34U, 0x01U, 0x32U, 0x00U, // Framing.
-      0xFEU, 0x13U, 0x00U, 0x00U,        // I32__atomic__load16_u.
-      0xFEU, 0x12U, 0x00U, 0x00U,        // I32__atomic__load8_u.
-      0xFEU, 0x21U, 0x00U, 0x00U,        // I32__atomic__rmw16__add_u.
-      0xFEU, 0x2FU, 0x00U, 0x00U,        // I32__atomic__rmw16__and_u.
-      0xFEU, 0x4BU, 0x00U, 0x00U,        // I32__atomic__rmw16__cmpxchg_u.
-      0xFEU, 0x36U, 0x00U, 0x00U,        // I32__atomic__rmw16__or_u.
-      0xFEU, 0x28U, 0x00U, 0x00U,        // I32__atomic__rmw16__sub_u.
-      0xFEU, 0x44U, 0x00U, 0x00U,        // I32__atomic__rmw16__xchg_u.
-      0xFEU, 0x3DU, 0x00U, 0x00U,        // I32__atomic__rmw16__xor_u.
-      0xFEU, 0x20U, 0x00U, 0x00U,        // I32__atomic__rmw8__add_u.
-      0xFEU, 0x2EU, 0x00U, 0x00U,        // I32__atomic__rmw8__and_u.
-      0xFEU, 0x4AU, 0x00U, 0x00U,        // I32__atomic__rmw8__cmpxchg_u.
-      0x0BU                              // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    Instructions = {
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__load16_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__load8_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw16__add_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw16__and_u),
+        WasmEdge::AST::Instruction(
+            WasmEdge::OpCode::I32__atomic__rmw16__cmpxchg_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw16__or_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw16__sub_u),
+        WasmEdge::AST::Instruction(
+            WasmEdge::OpCode::I32__atomic__rmw16__xchg_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw16__xor_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw8__add_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw8__and_u),
+        WasmEdge::AST::Instruction(
+            WasmEdge::OpCode::I32__atomic__rmw8__cmpxchg_u),
+        End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU, 0x34U, 0x01U, 0x32U, 0x00U, // Framing.
+        0xFEU, 0x13U, 0x00U, 0x00U,        // I32__atomic__load16_u.
+        0xFEU, 0x12U, 0x00U, 0x00U,        // I32__atomic__load8_u.
+        0xFEU, 0x21U, 0x00U, 0x00U,        // I32__atomic__rmw16__add_u.
+        0xFEU, 0x2FU, 0x00U, 0x00U,        // I32__atomic__rmw16__and_u.
+        0xFEU, 0x4BU, 0x00U, 0x00U,        // I32__atomic__rmw16__cmpxchg_u.
+        0xFEU, 0x36U, 0x00U, 0x00U,        // I32__atomic__rmw16__or_u.
+        0xFEU, 0x28U, 0x00U, 0x00U,        // I32__atomic__rmw16__sub_u.
+        0xFEU, 0x44U, 0x00U, 0x00U,        // I32__atomic__rmw16__xchg_u.
+        0xFEU, 0x3DU, 0x00U, 0x00U,        // I32__atomic__rmw16__xor_u.
+        0xFEU, 0x20U, 0x00U, 0x00U,        // I32__atomic__rmw8__add_u.
+        0xFEU, 0x2EU, 0x00U, 0x00U,        // I32__atomic__rmw8__and_u.
+        0xFEU, 0x4AU, 0x00U, 0x00U,        // I32__atomic__rmw8__cmpxchg_u.
+        0x0BU                              // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw8__or_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw8__sub_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw8__xchg_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw8__xor_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw__and),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw__cmpxchg),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw__or),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw__sub),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw__xchg),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw__xor),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__store16),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__store8),
-      End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU, 0x34U, 0x01U, 0x32U, 0x00U, // Framing.
-      0xFEU, 0x35U, 0x00U, 0x00U,        // I32__atomic__rmw8__or_u.
-      0xFEU, 0x27U, 0x00U, 0x00U,        // I32__atomic__rmw8__sub_u.
-      0xFEU, 0x43U, 0x00U, 0x00U,        // I32__atomic__rmw8__xchg_u.
-      0xFEU, 0x3CU, 0x00U, 0x00U,        // I32__atomic__rmw8__xor_u.
-      0xFEU, 0x2CU, 0x00U, 0x00U,        // I32__atomic__rmw__and.
-      0xFEU, 0x48U, 0x00U, 0x00U,        // I32__atomic__rmw__cmpxchg.
-      0xFEU, 0x33U, 0x00U, 0x00U,        // I32__atomic__rmw__or.
-      0xFEU, 0x25U, 0x00U, 0x00U,        // I32__atomic__rmw__sub.
-      0xFEU, 0x41U, 0x00U, 0x00U,        // I32__atomic__rmw__xchg.
-      0xFEU, 0x3AU, 0x00U, 0x00U,        // I32__atomic__rmw__xor.
-      0xFEU, 0x1AU, 0x00U, 0x00U,        // I32__atomic__store16.
-      0xFEU, 0x19U, 0x00U, 0x00U,        // I32__atomic__store8.
-      0x0BU                              // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    Instructions = {
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw8__or_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw8__sub_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw8__xchg_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw8__xor_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw__and),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw__cmpxchg),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw__or),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw__sub),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw__xchg),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__rmw__xor),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__store16),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__atomic__store8),
+        End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU, 0x34U, 0x01U, 0x32U, 0x00U, // Framing.
+        0xFEU, 0x35U, 0x00U, 0x00U,        // I32__atomic__rmw8__or_u.
+        0xFEU, 0x27U, 0x00U, 0x00U,        // I32__atomic__rmw8__sub_u.
+        0xFEU, 0x43U, 0x00U, 0x00U,        // I32__atomic__rmw8__xchg_u.
+        0xFEU, 0x3CU, 0x00U, 0x00U,        // I32__atomic__rmw8__xor_u.
+        0xFEU, 0x2CU, 0x00U, 0x00U,        // I32__atomic__rmw__and.
+        0xFEU, 0x48U, 0x00U, 0x00U,        // I32__atomic__rmw__cmpxchg.
+        0xFEU, 0x33U, 0x00U, 0x00U,        // I32__atomic__rmw__or.
+        0xFEU, 0x25U, 0x00U, 0x00U,        // I32__atomic__rmw__sub.
+        0xFEU, 0x41U, 0x00U, 0x00U,        // I32__atomic__rmw__xchg.
+        0xFEU, 0x3AU, 0x00U, 0x00U,        // I32__atomic__rmw__xor.
+        0xFEU, 0x1AU, 0x00U, 0x00U,        // I32__atomic__store16.
+        0xFEU, 0x19U, 0x00U, 0x00U,        // I32__atomic__store8.
+        0x0BU                              // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__load16_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__load32_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__load8_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw16__add_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw16__and_u),
-      WasmEdge::AST::Instruction(
-          WasmEdge::OpCode::I64__atomic__rmw16__cmpxchg_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw16__or_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw16__sub_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw16__xchg_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw16__xor_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw32__add_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw32__and_u),
-      End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU, 0x34U, 0x01U, 0x32U, 0x00U, // Framing.
-      0xFEU, 0x15U, 0x00U, 0x00U,        // I64__atomic__load16_u.
-      0xFEU, 0x16U, 0x00U, 0x00U,        // I64__atomic__load32_u.
-      0xFEU, 0x14U, 0x00U, 0x00U,        // I64__atomic__load8_u.
-      0xFEU, 0x23U, 0x00U, 0x00U,        // I64__atomic__rmw16__add_u.
-      0xFEU, 0x31U, 0x00U, 0x00U,        // I64__atomic__rmw16__and_u.
-      0xFEU, 0x4DU, 0x00U, 0x00U,        // I64__atomic__rmw16__cmpxchg_u.
-      0xFEU, 0x38U, 0x00U, 0x00U,        // I64__atomic__rmw16__or_u.
-      0xFEU, 0x2AU, 0x00U, 0x00U,        // I64__atomic__rmw16__sub_u.
-      0xFEU, 0x46U, 0x00U, 0x00U,        // I64__atomic__rmw16__xchg_u.
-      0xFEU, 0x3FU, 0x00U, 0x00U,        // I64__atomic__rmw16__xor_u.
-      0xFEU, 0x24U, 0x00U, 0x00U,        // I64__atomic__rmw32__add_u.
-      0xFEU, 0x32U, 0x00U, 0x00U,        // I64__atomic__rmw32__and_u.
-      0x0BU                              // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    Instructions = {
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__load16_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__load32_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__load8_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw16__add_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw16__and_u),
+        WasmEdge::AST::Instruction(
+            WasmEdge::OpCode::I64__atomic__rmw16__cmpxchg_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw16__or_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw16__sub_u),
+        WasmEdge::AST::Instruction(
+            WasmEdge::OpCode::I64__atomic__rmw16__xchg_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw16__xor_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw32__add_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw32__and_u),
+        End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU, 0x34U, 0x01U, 0x32U, 0x00U, // Framing.
+        0xFEU, 0x15U, 0x00U, 0x00U,        // I64__atomic__load16_u.
+        0xFEU, 0x16U, 0x00U, 0x00U,        // I64__atomic__load32_u.
+        0xFEU, 0x14U, 0x00U, 0x00U,        // I64__atomic__load8_u.
+        0xFEU, 0x23U, 0x00U, 0x00U,        // I64__atomic__rmw16__add_u.
+        0xFEU, 0x31U, 0x00U, 0x00U,        // I64__atomic__rmw16__and_u.
+        0xFEU, 0x4DU, 0x00U, 0x00U,        // I64__atomic__rmw16__cmpxchg_u.
+        0xFEU, 0x38U, 0x00U, 0x00U,        // I64__atomic__rmw16__or_u.
+        0xFEU, 0x2AU, 0x00U, 0x00U,        // I64__atomic__rmw16__sub_u.
+        0xFEU, 0x46U, 0x00U, 0x00U,        // I64__atomic__rmw16__xchg_u.
+        0xFEU, 0x3FU, 0x00U, 0x00U,        // I64__atomic__rmw16__xor_u.
+        0xFEU, 0x24U, 0x00U, 0x00U,        // I64__atomic__rmw32__add_u.
+        0xFEU, 0x32U, 0x00U, 0x00U,        // I64__atomic__rmw32__and_u.
+        0x0BU                              // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {
-      WasmEdge::AST::Instruction(
-          WasmEdge::OpCode::I64__atomic__rmw32__cmpxchg_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw32__or_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw32__sub_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw32__xchg_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw32__xor_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw8__add_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw8__and_u),
-      WasmEdge::AST::Instruction(
-          WasmEdge::OpCode::I64__atomic__rmw8__cmpxchg_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw8__or_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw8__sub_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw8__xchg_u),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw8__xor_u),
-      End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU, 0x34U, 0x01U, 0x32U, 0x00U, // Framing.
-      0xFEU, 0x4EU, 0x00U, 0x00U,        // I64__atomic__rmw32__cmpxchg_u.
-      0xFEU, 0x39U, 0x00U, 0x00U,        // I64__atomic__rmw32__or_u.
-      0xFEU, 0x2BU, 0x00U, 0x00U,        // I64__atomic__rmw32__sub_u.
-      0xFEU, 0x47U, 0x00U, 0x00U,        // I64__atomic__rmw32__xchg_u.
-      0xFEU, 0x40U, 0x00U, 0x00U,        // I64__atomic__rmw32__xor_u.
-      0xFEU, 0x22U, 0x00U, 0x00U,        // I64__atomic__rmw8__add_u.
-      0xFEU, 0x30U, 0x00U, 0x00U,        // I64__atomic__rmw8__and_u.
-      0xFEU, 0x4CU, 0x00U, 0x00U,        // I64__atomic__rmw8__cmpxchg_u.
-      0xFEU, 0x37U, 0x00U, 0x00U,        // I64__atomic__rmw8__or_u.
-      0xFEU, 0x29U, 0x00U, 0x00U,        // I64__atomic__rmw8__sub_u.
-      0xFEU, 0x45U, 0x00U, 0x00U,        // I64__atomic__rmw8__xchg_u.
-      0xFEU, 0x3EU, 0x00U, 0x00U,        // I64__atomic__rmw8__xor_u.
-      0x0BU                              // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    Instructions = {
+        WasmEdge::AST::Instruction(
+            WasmEdge::OpCode::I64__atomic__rmw32__cmpxchg_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw32__or_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw32__sub_u),
+        WasmEdge::AST::Instruction(
+            WasmEdge::OpCode::I64__atomic__rmw32__xchg_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw32__xor_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw8__add_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw8__and_u),
+        WasmEdge::AST::Instruction(
+            WasmEdge::OpCode::I64__atomic__rmw8__cmpxchg_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw8__or_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw8__sub_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw8__xchg_u),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw8__xor_u),
+        End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU, 0x34U, 0x01U, 0x32U, 0x00U, // Framing.
+        0xFEU, 0x4EU, 0x00U, 0x00U,        // I64__atomic__rmw32__cmpxchg_u.
+        0xFEU, 0x39U, 0x00U, 0x00U,        // I64__atomic__rmw32__or_u.
+        0xFEU, 0x2BU, 0x00U, 0x00U,        // I64__atomic__rmw32__sub_u.
+        0xFEU, 0x47U, 0x00U, 0x00U,        // I64__atomic__rmw32__xchg_u.
+        0xFEU, 0x40U, 0x00U, 0x00U,        // I64__atomic__rmw32__xor_u.
+        0xFEU, 0x22U, 0x00U, 0x00U,        // I64__atomic__rmw8__add_u.
+        0xFEU, 0x30U, 0x00U, 0x00U,        // I64__atomic__rmw8__and_u.
+        0xFEU, 0x4CU, 0x00U, 0x00U,        // I64__atomic__rmw8__cmpxchg_u.
+        0xFEU, 0x37U, 0x00U, 0x00U,        // I64__atomic__rmw8__or_u.
+        0xFEU, 0x29U, 0x00U, 0x00U,        // I64__atomic__rmw8__sub_u.
+        0xFEU, 0x45U, 0x00U, 0x00U,        // I64__atomic__rmw8__xchg_u.
+        0xFEU, 0x3EU, 0x00U, 0x00U,        // I64__atomic__rmw8__xor_u.
+        0x0BU                              // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  Instructions = {
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw__add),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw__and),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw__cmpxchg),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw__or),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw__sub),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw__xchg),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw__xor),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__store),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__store16),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__store32),
-      WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__store8),
-      End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU, 0x30U, 0x01U, 0x2EU, 0x00U, // Framing.
-      0xFEU, 0x1FU, 0x00U, 0x00U,        // I64__atomic__rmw__add.
-      0xFEU, 0x2DU, 0x00U, 0x00U,        // I64__atomic__rmw__and.
-      0xFEU, 0x49U, 0x00U, 0x00U,        // I64__atomic__rmw__cmpxchg.
-      0xFEU, 0x34U, 0x00U, 0x00U,        // I64__atomic__rmw__or.
-      0xFEU, 0x26U, 0x00U, 0x00U,        // I64__atomic__rmw__sub.
-      0xFEU, 0x42U, 0x00U, 0x00U,        // I64__atomic__rmw__xchg.
-      0xFEU, 0x3BU, 0x00U, 0x00U,        // I64__atomic__rmw__xor.
-      0xFEU, 0x18U, 0x00U, 0x00U,        // I64__atomic__store.
-      0xFEU, 0x1CU, 0x00U, 0x00U,        // I64__atomic__store16.
-      0xFEU, 0x1DU, 0x00U, 0x00U,        // I64__atomic__store32.
-      0xFEU, 0x1BU, 0x00U, 0x00U,        // I64__atomic__store8.
-      0x0BU                              // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
-}
+    Instructions = {
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw__add),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw__and),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw__cmpxchg),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw__or),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw__sub),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw__xchg),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__rmw__xor),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__store),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__store16),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__store32),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::I64__atomic__store8),
+        End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU, 0x30U, 0x01U, 0x2EU, 0x00U, // Framing.
+        0xFEU, 0x1FU, 0x00U, 0x00U,        // I64__atomic__rmw__add.
+        0xFEU, 0x2DU, 0x00U, 0x00U,        // I64__atomic__rmw__and.
+        0xFEU, 0x49U, 0x00U, 0x00U,        // I64__atomic__rmw__cmpxchg.
+        0xFEU, 0x34U, 0x00U, 0x00U,        // I64__atomic__rmw__or.
+        0xFEU, 0x26U, 0x00U, 0x00U,        // I64__atomic__rmw__sub.
+        0xFEU, 0x42U, 0x00U, 0x00U,        // I64__atomic__rmw__xchg.
+        0xFEU, 0x3BU, 0x00U, 0x00U,        // I64__atomic__rmw__xor.
+        0xFEU, 0x18U, 0x00U, 0x00U,        // I64__atomic__store.
+        0xFEU, 0x1CU, 0x00U, 0x00U,        // I64__atomic__store16.
+        0xFEU, 0x1DU, 0x00U, 0x00U,        // I64__atomic__store32.
+        0xFEU, 0x1BU, 0x00U, 0x00U,        // I64__atomic__store8.
+        0x0BU                              // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
+  }
 
-TEST(SerializeInstructionTest, SerializeAtomicFenceAndWait64Instruction) {
+  // Fence and wait64.
+  {
 
-  std::vector<uint8_t> Expected;
-  std::vector<uint8_t> Output;
-  std::vector<WasmEdge::AST::Instruction> Instructions;
+    std::vector<uint8_t> Expected;
+    std::vector<uint8_t> Output;
+    std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 27. Test atomic.fence and memory.atomic.wait64 serialization.
-  //
-  //   1.  Serialize atomic.fence (a reserved byte immediate, not a memarg).
-  //   2.  Serialize memory.atomic.wait64 with memarg.
-  //   3.  Serialize i64.atomic.load with memarg.
+    // 27. Test atomic.fence and memory.atomic.wait64 serialization.
+    //
+    //   1.  Serialize atomic.fence (a reserved byte immediate, not a memarg).
+    //   2.  Serialize memory.atomic.wait64 with memarg.
+    //   3.  Serialize i64.atomic.load with memarg.
 
-  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+    WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
-  WasmEdge::AST::Instruction AtomicFence(WasmEdge::OpCode::Atomic__fence);
-  AtomicFence.getTargetIndex() = 0x00U;
-  Instructions = {AtomicFence, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU,        // Code section
-      0x07U,        // Content size = 7
-      0x01U,        // Vector length = 1
-      0x05U,        // Code segment size = 5
-      0x00U,        // Local vec(0)
-      0xFEU, 0x03U, // OpCode Atomic__fence.
-      0x00U,        // Reserved zero byte.
-      0x0BU         // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    WasmEdge::AST::Instruction AtomicFence(WasmEdge::OpCode::Atomic__fence);
+    AtomicFence.getTargetIndex() = 0x00U;
+    Instructions = {AtomicFence, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU,        // Code section
+        0x07U,        // Content size = 7
+        0x01U,        // Vector length = 1
+        0x05U,        // Code segment size = 5
+        0x00U,        // Local vec(0)
+        0xFEU, 0x03U, // OpCode Atomic__fence.
+        0x00U,        // Reserved zero byte.
+        0x0BU         // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  WasmEdge::AST::Instruction MemoryAtomicWait64(
-      WasmEdge::OpCode::Memory__atomic__wait64);
-  MemoryAtomicWait64.getMemoryAlign() = 0x03U;
-  MemoryAtomicWait64.getMemoryOffset() = 0x10U;
-  Instructions = {MemoryAtomicWait64, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU,        // Code section
-      0x08U,        // Content size = 8
-      0x01U,        // Vector length = 1
-      0x06U,        // Code segment size = 6
-      0x00U,        // Local vec(0)
-      0xFEU, 0x02U, // OpCode Memory__atomic__wait64.
-      0x03U,        // Align.
-      0x10U,        // Offset.
-      0x0BU         // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    WasmEdge::AST::Instruction MemoryAtomicWait64(
+        WasmEdge::OpCode::Memory__atomic__wait64);
+    MemoryAtomicWait64.getMemoryAlign() = 0x03U;
+    MemoryAtomicWait64.getMemoryOffset() = 0x10U;
+    Instructions = {MemoryAtomicWait64, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU,        // Code section
+        0x08U,        // Content size = 8
+        0x01U,        // Vector length = 1
+        0x06U,        // Code segment size = 6
+        0x00U,        // Local vec(0)
+        0xFEU, 0x02U, // OpCode Memory__atomic__wait64.
+        0x03U,        // Align.
+        0x10U,        // Offset.
+        0x0BU         // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
 
-  WasmEdge::AST::Instruction I64AtomicLoad(WasmEdge::OpCode::I64__atomic__load);
-  I64AtomicLoad.getMemoryAlign() = 0x03U;
-  I64AtomicLoad.getMemoryOffset() = 0x08U;
-  Instructions = {I64AtomicLoad, End};
-  Output = {};
-  Ser.serializeSection(createCodeSec(Instructions), Output);
-  Expected = {
-      0x0AU,        // Code section
-      0x08U,        // Content size = 8
-      0x01U,        // Vector length = 1
-      0x06U,        // Code segment size = 6
-      0x00U,        // Local vec(0)
-      0xFEU, 0x11U, // OpCode I64__atomic__load.
-      0x03U,        // Align.
-      0x08U,        // Offset.
-      0x0BU         // Expression End.
-  };
-  EXPECT_EQ(Output, Expected);
+    WasmEdge::AST::Instruction I64AtomicLoad(
+        WasmEdge::OpCode::I64__atomic__load);
+    I64AtomicLoad.getMemoryAlign() = 0x03U;
+    I64AtomicLoad.getMemoryOffset() = 0x08U;
+    Instructions = {I64AtomicLoad, End};
+    Output = {};
+    Ser.serializeSection(createCodeSec(Instructions), Output);
+    Expected = {
+        0x0AU,        // Code section
+        0x08U,        // Content size = 8
+        0x01U,        // Vector length = 1
+        0x06U,        // Code segment size = 6
+        0x00U,        // Local vec(0)
+        0xFEU, 0x11U, // OpCode I64__atomic__load.
+        0x03U,        // Align.
+        0x08U,        // Offset.
+        0x0BU         // Expression End.
+    };
+    EXPECT_EQ(Output, Expected);
+  }
 }
 
 } // namespace

@@ -27,23 +27,201 @@ static_assert(std::is_default_constructible_v<cxx20::span<int, 0>>);
 static_assert(!std::is_default_constructible_v<cxx20::span<int, 1>>);
 
 TEST(SpanTest, Constructors) {
-  cxx20::span<int> S;
-  EXPECT_EQ(S.size(), 0U);
-  EXPECT_EQ(S.data(), nullptr);
+  // Test the constructors.
+  //
+  //   1.  Default.
+  //   2.  With extent.
+  //   3.  From pointer and size.
+  //   4.  From const pointer and size.
+  //   5.  From array.
+  //   6.  From const array.
+  //   7.  From std array.
+  //   8.  From const std array.
+  //   9.  From std vector.
+  //   10. From const std vector.
+  //   11. From std string.
+  //   12. From const std string.
+  //   13. From std string view.
 
-  cxx20::span<const int> CS;
-  EXPECT_EQ(CS.size(), 0U);
-  EXPECT_EQ(CS.data(), nullptr);
-}
+  // Default.
+  {
+    cxx20::span<int> S;
+    EXPECT_EQ(S.size(), 0U);
+    EXPECT_EQ(S.data(), nullptr);
 
-TEST(SpanTest, ConstructorsWithExtent) {
-  cxx20::span<int, 0> S;
-  EXPECT_EQ(S.size(), 0U);
-  EXPECT_EQ(S.data(), nullptr);
+    cxx20::span<const int> CS;
+    EXPECT_EQ(CS.size(), 0U);
+    EXPECT_EQ(CS.data(), nullptr);
+  }
 
-  cxx20::span<const int, 0> CS;
-  EXPECT_EQ(CS.size(), 0U);
-  EXPECT_EQ(CS.data(), nullptr);
+  // With extent.
+  {
+    cxx20::span<int, 0> S;
+    EXPECT_EQ(S.size(), 0U);
+    EXPECT_EQ(S.data(), nullptr);
+
+    cxx20::span<const int, 0> CS;
+    EXPECT_EQ(CS.size(), 0U);
+    EXPECT_EQ(CS.data(), nullptr);
+  }
+
+  // From pointer and size.
+  {
+    int Array[4] = {1, 2, 3, 4};
+    for (std::size_t Offset = 0; Offset < std::size(Array) - 1; ++Offset) {
+      for (std::size_t Size = 1; Size < std::size(Array) - Offset; ++Size) {
+        cxx20::span S(std::data(Array) + Offset, Size);
+        EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, int>));
+        EXPECT_EQ(S.size(), Size);
+        EXPECT_EQ(S.data(), std::data(Array) + Offset);
+        EXPECT_EQ(S.empty(), Size == 0);
+        for (std::size_t I = 0; I < Size; ++I) {
+          EXPECT_EQ(Array[Offset + I], S[I]);
+        }
+        int Temp = 5;
+        std::swap(Temp, S[0]);
+        EXPECT_EQ(Array[Offset], S[0]);
+        std::swap(Temp, S[0]);
+      }
+      EXPECT_EQ(Array[Offset], int(Offset) + 1);
+    }
+  }
+
+  // From const pointer and size.
+  {
+    const int Array[4] = {1, 2, 3, 4};
+    for (std::size_t Offset = 0; Offset < std::size(Array) - 1; ++Offset) {
+      for (std::size_t Size = 1; Size < std::size(Array) - Offset; ++Size) {
+        cxx20::span S(std::data(Array) + Offset, Size);
+        EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const int>));
+        EXPECT_EQ(S.size(), Size);
+        EXPECT_EQ(S.data(), std::data(Array) + Offset);
+        EXPECT_EQ(S.empty(), Size == 0);
+        for (std::size_t I = 0; I < Size; ++I) {
+          EXPECT_EQ(Array[Offset + I], S[I]);
+        }
+      }
+    }
+  }
+
+  // From array.
+  {
+    int Array[] = {1, 2, 3, 4};
+    cxx20::span S(Array);
+    EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, int>));
+    EXPECT_EQ(S.size(), std::size(Array));
+    EXPECT_EQ(S.data(), std::data(Array));
+    for (std::size_t I = 0; I < std::size(Array); ++I) {
+      EXPECT_EQ(Array[I], S[I]);
+    }
+    S[0] = 5;
+    EXPECT_EQ(Array[0], 5);
+  }
+
+  // From const array.
+  {
+    const int Array[] = {1, 2, 3, 4};
+    cxx20::span S(Array);
+    EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const int>));
+    EXPECT_EQ(S.size(), std::size(Array));
+    EXPECT_EQ(S.data(), std::data(Array));
+    for (std::size_t I = 0; I < std::size(Array); ++I) {
+      EXPECT_EQ(Array[I], S[I]);
+    }
+  }
+
+  // From std array.
+  {
+    std::array Array = {1, 2, 3, 4};
+    cxx20::span S(Array);
+    EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, int>));
+    EXPECT_EQ(S.size(), std::size(Array));
+    EXPECT_EQ(S.data(), std::data(Array));
+    for (std::size_t I = 0; I < std::size(Array); ++I) {
+      EXPECT_EQ(Array[I], S[I]);
+    }
+    S[0] = 5;
+    EXPECT_EQ(Array[0], 5);
+  }
+
+  // From const std array.
+  {
+    const std::array Array = {1, 2, 3, 4};
+    cxx20::span S(Array);
+    EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const int>));
+    EXPECT_EQ(S.size(), std::size(Array));
+    EXPECT_EQ(S.data(), std::data(Array));
+    for (std::size_t I = 0; I < std::size(Array); ++I) {
+      EXPECT_EQ(Array[I], S[I]);
+    }
+  }
+
+  // From std vector.
+  {
+    std::vector Vector = {1, 2, 3, 4};
+    cxx20::span S(Vector);
+    EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, int>));
+    EXPECT_EQ(S.size(), std::size(Vector));
+    EXPECT_EQ(S.data(), std::data(Vector));
+    for (std::size_t I = 0; I < std::size(Vector); ++I) {
+      EXPECT_EQ(Vector[I], S[I]);
+    }
+    S[0] = 5;
+    EXPECT_EQ(Vector[0], 5);
+  }
+
+  // From const std vector.
+  {
+    const std::vector Vector = {1, 2, 3, 4};
+    cxx20::span S(Vector);
+    EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const int>));
+    EXPECT_EQ(S.size(), std::size(Vector));
+    EXPECT_EQ(S.data(), std::data(Vector));
+    for (std::size_t I = 0; I < std::size(Vector); ++I) {
+      EXPECT_EQ(Vector[I], S[I]);
+    }
+  }
+
+  // From std string.
+  {
+    using namespace std::literals;
+    std::string String = "hello world"s;
+    cxx20::span S(String);
+    EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, char>));
+    EXPECT_EQ(S.size(), std::size(String));
+    EXPECT_EQ(S.data(), std::data(String));
+    for (std::size_t I = 0; I < std::size(String); ++I) {
+      EXPECT_EQ(String[I], S[I]);
+    }
+    S[0] = 'X';
+    EXPECT_EQ(String[0], 'X');
+  }
+
+  // From const std string.
+  {
+    using namespace std::literals;
+    const std::string String = "hello world"s;
+    cxx20::span S(String);
+    EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const char>));
+    EXPECT_EQ(S.size(), std::size(String));
+    EXPECT_EQ(S.data(), std::data(String));
+    for (std::size_t I = 0; I < std::size(String); ++I) {
+      EXPECT_EQ(String[I], S[I]);
+    }
+  }
+
+  // From std string view.
+  {
+    using namespace std::literals;
+    std::string_view String = "hello world"sv;
+    cxx20::span S(String);
+    EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const char>));
+    EXPECT_EQ(S.size(), std::size(String));
+    EXPECT_EQ(S.data(), std::data(String));
+    for (std::size_t I = 0; I < std::size(String); ++I) {
+      EXPECT_EQ(String[I], S[I]);
+    }
+  }
 }
 
 TEST(SpanTest, Size) {
@@ -56,153 +234,6 @@ TEST(SpanTest, Size) {
 
   cxx20::span<int, 0> S3;
   EXPECT_EQ(sizeof(S3), sizeof(int *));
-}
-
-TEST(SpanTest, ConstructorsFromPointerAndSize) {
-  int Array[4] = {1, 2, 3, 4};
-  for (std::size_t Offset = 0; Offset < std::size(Array) - 1; ++Offset) {
-    for (std::size_t Size = 1; Size < std::size(Array) - Offset; ++Size) {
-      cxx20::span S(std::data(Array) + Offset, Size);
-      EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, int>));
-      EXPECT_EQ(S.size(), Size);
-      EXPECT_EQ(S.data(), std::data(Array) + Offset);
-      EXPECT_EQ(S.empty(), Size == 0);
-      for (std::size_t I = 0; I < Size; ++I) {
-        EXPECT_EQ(Array[Offset + I], S[I]);
-      }
-      int Temp = 5;
-      std::swap(Temp, S[0]);
-      EXPECT_EQ(Array[Offset], S[0]);
-      std::swap(Temp, S[0]);
-    }
-    EXPECT_EQ(Array[Offset], int(Offset) + 1);
-  }
-}
-
-TEST(SpanTest, ConstructorsFromConstPointerAndSize) {
-  const int Array[4] = {1, 2, 3, 4};
-  for (std::size_t Offset = 0; Offset < std::size(Array) - 1; ++Offset) {
-    for (std::size_t Size = 1; Size < std::size(Array) - Offset; ++Size) {
-      cxx20::span S(std::data(Array) + Offset, Size);
-      EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const int>));
-      EXPECT_EQ(S.size(), Size);
-      EXPECT_EQ(S.data(), std::data(Array) + Offset);
-      EXPECT_EQ(S.empty(), Size == 0);
-      for (std::size_t I = 0; I < Size; ++I) {
-        EXPECT_EQ(Array[Offset + I], S[I]);
-      }
-    }
-  }
-}
-
-TEST(SpanTest, ConstructorsFromArray) {
-  int Array[] = {1, 2, 3, 4};
-  cxx20::span S(Array);
-  EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, int>));
-  EXPECT_EQ(S.size(), std::size(Array));
-  EXPECT_EQ(S.data(), std::data(Array));
-  for (std::size_t I = 0; I < std::size(Array); ++I) {
-    EXPECT_EQ(Array[I], S[I]);
-  }
-  S[0] = 5;
-  EXPECT_EQ(Array[0], 5);
-}
-
-TEST(SpanTest, ConstructorsFromConstArray) {
-  const int Array[] = {1, 2, 3, 4};
-  cxx20::span S(Array);
-  EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const int>));
-  EXPECT_EQ(S.size(), std::size(Array));
-  EXPECT_EQ(S.data(), std::data(Array));
-  for (std::size_t I = 0; I < std::size(Array); ++I) {
-    EXPECT_EQ(Array[I], S[I]);
-  }
-}
-
-TEST(SpanTest, ConstructorsFromStdArray) {
-  std::array Array = {1, 2, 3, 4};
-  cxx20::span S(Array);
-  EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, int>));
-  EXPECT_EQ(S.size(), std::size(Array));
-  EXPECT_EQ(S.data(), std::data(Array));
-  for (std::size_t I = 0; I < std::size(Array); ++I) {
-    EXPECT_EQ(Array[I], S[I]);
-  }
-  S[0] = 5;
-  EXPECT_EQ(Array[0], 5);
-}
-
-TEST(SpanTest, ConstructorsFromConstStdArray) {
-  const std::array Array = {1, 2, 3, 4};
-  cxx20::span S(Array);
-  EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const int>));
-  EXPECT_EQ(S.size(), std::size(Array));
-  EXPECT_EQ(S.data(), std::data(Array));
-  for (std::size_t I = 0; I < std::size(Array); ++I) {
-    EXPECT_EQ(Array[I], S[I]);
-  }
-}
-
-TEST(SpanTest, ConstructorsFromStdVector) {
-  std::vector Vector = {1, 2, 3, 4};
-  cxx20::span S(Vector);
-  EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, int>));
-  EXPECT_EQ(S.size(), std::size(Vector));
-  EXPECT_EQ(S.data(), std::data(Vector));
-  for (std::size_t I = 0; I < std::size(Vector); ++I) {
-    EXPECT_EQ(Vector[I], S[I]);
-  }
-  S[0] = 5;
-  EXPECT_EQ(Vector[0], 5);
-}
-
-TEST(SpanTest, ConstructorsFromConstStdVector) {
-  const std::vector Vector = {1, 2, 3, 4};
-  cxx20::span S(Vector);
-  EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const int>));
-  EXPECT_EQ(S.size(), std::size(Vector));
-  EXPECT_EQ(S.data(), std::data(Vector));
-  for (std::size_t I = 0; I < std::size(Vector); ++I) {
-    EXPECT_EQ(Vector[I], S[I]);
-  }
-}
-
-TEST(SpanTest, ConstructorsFromStdString) {
-  using namespace std::literals;
-  std::string String = "hello world"s;
-  cxx20::span S(String);
-  EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, char>));
-  EXPECT_EQ(S.size(), std::size(String));
-  EXPECT_EQ(S.data(), std::data(String));
-  for (std::size_t I = 0; I < std::size(String); ++I) {
-    EXPECT_EQ(String[I], S[I]);
-  }
-  S[0] = 'X';
-  EXPECT_EQ(String[0], 'X');
-}
-
-TEST(SpanTest, ConstructorsFromConstStdString) {
-  using namespace std::literals;
-  const std::string String = "hello world"s;
-  cxx20::span S(String);
-  EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const char>));
-  EXPECT_EQ(S.size(), std::size(String));
-  EXPECT_EQ(S.data(), std::data(String));
-  for (std::size_t I = 0; I < std::size(String); ++I) {
-    EXPECT_EQ(String[I], S[I]);
-  }
-}
-
-TEST(SpanTest, ConstructorsFromStdStringView) {
-  using namespace std::literals;
-  std::string_view String = "hello world"sv;
-  cxx20::span S(String);
-  EXPECT_TRUE((std::is_same_v<decltype(S)::element_type, const char>));
-  EXPECT_EQ(S.size(), std::size(String));
-  EXPECT_EQ(S.data(), std::data(String));
-  for (std::size_t I = 0; I < std::size(String); ++I) {
-    EXPECT_EQ(String[I], S[I]);
-  }
 }
 
 TEST(SpanTest, Convertible) {

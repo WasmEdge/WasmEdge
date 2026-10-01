@@ -684,151 +684,156 @@ TEST(SerializeTypeTest, SerializeMemoryType) {
   EXPECT_EQ(Output, Expected);
 }
 
-TEST(SerializeTypeTest, SerializeLimitAllFlags) {
-  // 7. Pin all eight limit flag encodings. The flag is derived from the limit
-  // alone: bit 0 is a maximum, bit 1 is shared, bit 2 is a 64-bit index.
-  using LimitType = WasmEdge::AST::Limit::LimitType;
+TEST(SerializeTypeTest, SerializeLimit) {
+  {
+    // 7. Pin all eight limit flag encodings. The flag is derived from the limit
+    // alone: bit 0 is a maximum, bit 1 is shared, bit 2 is a 64-bit index.
+    using LimitType = WasmEdge::AST::Limit::LimitType;
 
-  auto serialize = [](LimitType Type, uint64_t Min, uint64_t Max) {
-    WasmEdge::AST::MemoryType MemType;
-    MemType.getLimit().setType(Type);
-    MemType.getLimit().setMin(Min);
-    MemType.getLimit().setMax(Max);
-    WasmEdge::AST::MemorySection Sec;
-    Sec.getContent() = {MemType};
+    auto serialize = [](LimitType Type, uint64_t Min, uint64_t Max) {
+      WasmEdge::AST::MemoryType MemType;
+      MemType.getLimit().setType(Type);
+      MemType.getLimit().setMin(Min);
+      MemType.getLimit().setMax(Max);
+      WasmEdge::AST::MemorySection Sec;
+      Sec.getContent() = {MemType};
+      std::vector<uint8_t> Output;
+      Ser.serializeSection(Sec, Output);
+      // Drop the section id, section size and vector length.
+      return std::vector<uint8_t>(Output.begin() + 3, Output.end());
+    };
+
+    EXPECT_EQ(serialize(LimitType::HasMin, 1, 0),
+              std::vector<uint8_t>({0x00U, 0x01U}));
+    EXPECT_EQ(serialize(LimitType::HasMinMax, 1, 2),
+              std::vector<uint8_t>({0x01U, 0x01U, 0x02U}));
+    EXPECT_EQ(serialize(LimitType::SharedNoMax, 1, 0),
+              std::vector<uint8_t>({0x02U, 0x01U}));
+    EXPECT_EQ(serialize(LimitType::Shared, 1, 2),
+              std::vector<uint8_t>({0x03U, 0x01U, 0x02U}));
+    EXPECT_EQ(serialize(LimitType::I64HasMin, 1, 0),
+              std::vector<uint8_t>({0x04U, 0x01U}));
+    EXPECT_EQ(serialize(LimitType::I64HasMinMax, 1, 2),
+              std::vector<uint8_t>({0x05U, 0x01U, 0x02U}));
+    EXPECT_EQ(serialize(LimitType::I64SharedNoMax, 1, 0),
+              std::vector<uint8_t>({0x06U, 0x01U}));
+    EXPECT_EQ(serialize(LimitType::I64Shared, 1, 2),
+              std::vector<uint8_t>({0x07U, 0x01U, 0x02U}));
+  }
+
+  // Serialize memory64 and shared limit.
+  {
+    std::vector<uint8_t> Expected;
     std::vector<uint8_t> Output;
-    Ser.serializeSection(Sec, Output);
-    // Drop the section id, section size and vector length.
-    return std::vector<uint8_t>(Output.begin() + 3, Output.end());
-  };
 
-  EXPECT_EQ(serialize(LimitType::HasMin, 1, 0),
-            std::vector<uint8_t>({0x00U, 0x01U}));
-  EXPECT_EQ(serialize(LimitType::HasMinMax, 1, 2),
-            std::vector<uint8_t>({0x01U, 0x01U, 0x02U}));
-  EXPECT_EQ(serialize(LimitType::SharedNoMax, 1, 0),
-            std::vector<uint8_t>({0x02U, 0x01U}));
-  EXPECT_EQ(serialize(LimitType::Shared, 1, 2),
-            std::vector<uint8_t>({0x03U, 0x01U, 0x02U}));
-  EXPECT_EQ(serialize(LimitType::I64HasMin, 1, 0),
-            std::vector<uint8_t>({0x04U, 0x01U}));
-  EXPECT_EQ(serialize(LimitType::I64HasMinMax, 1, 2),
-            std::vector<uint8_t>({0x05U, 0x01U, 0x02U}));
-  EXPECT_EQ(serialize(LimitType::I64SharedNoMax, 1, 0),
-            std::vector<uint8_t>({0x06U, 0x01U}));
-  EXPECT_EQ(serialize(LimitType::I64Shared, 1, 2),
-            std::vector<uint8_t>({0x07U, 0x01U, 0x02U}));
-}
+    // 8. Test serialize memory64 (i64) and shared limits.
+    //
+    //   1.  Serialize i64 memory limit with only min (flag 0x04).
+    //   2.  Serialize i64 memory limit with min and max (flag 0x05).
+    //   3.  Serialize i64 table limit with min and max (flag 0x05).
+    //   4.  Serialize shared limit with min and max (flag 0x03).
 
-TEST(SerializeTypeTest, SerializeMemory64AndSharedLimit) {
-  std::vector<uint8_t> Expected;
-  std::vector<uint8_t> Output;
+    WasmEdge::AST::MemoryType MemoryType;
 
-  // 8. Test serialize memory64 (i64) and shared limits.
-  //
-  //   1.  Serialize i64 memory limit with only min (flag 0x04).
-  //   2.  Serialize i64 memory limit with min and max (flag 0x05).
-  //   3.  Serialize i64 table limit with min and max (flag 0x05).
-  //   4.  Serialize shared limit with min and max (flag 0x03).
+    MemoryType.getLimit().setType(WasmEdge::AST::Limit::LimitType::I64HasMin);
+    MemoryType.getLimit().setMin(4294967296);
+    Output = {};
+    Ser.serializeSection(createMemorySec(MemoryType), Output);
+    Expected = {
+        0x05U,                            // Memory section
+        0x07U,                            // Content size = 7
+        0x01U,                            // Vector length = 1
+        0x04U,                            // I64 only has min
+        0x80U, 0x80U, 0x80U, 0x80U, 0x10U // Min = 4294967296
+    };
+    EXPECT_EQ(Output, Expected);
 
-  WasmEdge::AST::MemoryType MemoryType;
+    MemoryType.getLimit().setType(
+        WasmEdge::AST::Limit::LimitType::I64HasMinMax);
+    MemoryType.getLimit().setMin(4294967296);
+    MemoryType.getLimit().setMax(8589934592);
+    Output = {};
+    Ser.serializeSection(createMemorySec(MemoryType), Output);
+    Expected = {
+        0x05U,                             // Memory section
+        0x0CU,                             // Content size = 12
+        0x01U,                             // Vector length = 1
+        0x05U,                             // I64 has min and max
+        0x80U, 0x80U, 0x80U, 0x80U, 0x10U, // Min = 4294967296
+        0x80U, 0x80U, 0x80U, 0x80U, 0x20U  // Max = 8589934592
+    };
+    EXPECT_EQ(Output, Expected);
 
-  MemoryType.getLimit().setType(WasmEdge::AST::Limit::LimitType::I64HasMin);
-  MemoryType.getLimit().setMin(4294967296);
-  Output = {};
-  Ser.serializeSection(createMemorySec(MemoryType), Output);
-  Expected = {
-      0x05U,                            // Memory section
-      0x07U,                            // Content size = 7
-      0x01U,                            // Vector length = 1
-      0x04U,                            // I64 only has min
-      0x80U, 0x80U, 0x80U, 0x80U, 0x10U // Min = 4294967296
-  };
-  EXPECT_EQ(Output, Expected);
+    // The same limit path is used for table64; check the ref type and framing.
+    WasmEdge::AST::TableType TableType;
+    TableType.setRefType(WasmEdge::TypeCode::FuncRef);
+    TableType.getLimit().setType(WasmEdge::AST::Limit::LimitType::I64HasMinMax);
+    TableType.getLimit().setMin(4294967296);
+    TableType.getLimit().setMax(8589934592);
+    Output = {};
+    Ser.serializeSection(createTableSec(TableType), Output);
+    Expected = {
+        0x04U,                             // Table section
+        0x0DU,                             // Content size = 13
+        0x01U,                             // Vector length = 1
+        0x70U,                             // FuncRef type
+        0x05U,                             // I64 has min and max
+        0x80U, 0x80U, 0x80U, 0x80U, 0x10U, // Min = 4294967296
+        0x80U, 0x80U, 0x80U, 0x80U, 0x20U  // Max = 8589934592
+    };
+    EXPECT_EQ(Output, Expected);
 
-  MemoryType.getLimit().setType(WasmEdge::AST::Limit::LimitType::I64HasMinMax);
-  MemoryType.getLimit().setMin(4294967296);
-  MemoryType.getLimit().setMax(8589934592);
-  Output = {};
-  Ser.serializeSection(createMemorySec(MemoryType), Output);
-  Expected = {
-      0x05U,                             // Memory section
-      0x0CU,                             // Content size = 12
-      0x01U,                             // Vector length = 1
-      0x05U,                             // I64 has min and max
-      0x80U, 0x80U, 0x80U, 0x80U, 0x10U, // Min = 4294967296
-      0x80U, 0x80U, 0x80U, 0x80U, 0x20U  // Max = 8589934592
-  };
-  EXPECT_EQ(Output, Expected);
+    MemoryType.getLimit().setType(WasmEdge::AST::Limit::LimitType::Shared);
+    MemoryType.getLimit().setMin(4294967281);
+    MemoryType.getLimit().setMax(4294967295);
+    Output = {};
+    Ser.serializeSection(createMemorySec(MemoryType), Output);
+    Expected = {
+        0x05U,                             // Memory section
+        0x0CU,                             // Content size = 12
+        0x01U,                             // Vector length = 1
+        0x03U,                             // Shared with min and max
+        0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Min = 4294967281
+        0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  // Max = 4294967295
+    };
+    EXPECT_EQ(Output, Expected);
 
-  // The same limit path is used for table64; check the ref type and framing.
-  WasmEdge::AST::TableType TableType;
-  TableType.setRefType(WasmEdge::TypeCode::FuncRef);
-  TableType.getLimit().setType(WasmEdge::AST::Limit::LimitType::I64HasMinMax);
-  TableType.getLimit().setMin(4294967296);
-  TableType.getLimit().setMax(8589934592);
-  Output = {};
-  Ser.serializeSection(createTableSec(TableType), Output);
-  Expected = {
-      0x04U,                             // Table section
-      0x0DU,                             // Content size = 13
-      0x01U,                             // Vector length = 1
-      0x70U,                             // FuncRef type
-      0x05U,                             // I64 has min and max
-      0x80U, 0x80U, 0x80U, 0x80U, 0x10U, // Min = 4294967296
-      0x80U, 0x80U, 0x80U, 0x80U, 0x20U  // Max = 8589934592
-  };
-  EXPECT_EQ(Output, Expected);
+    Output = {};
+  }
 
-  MemoryType.getLimit().setType(WasmEdge::AST::Limit::LimitType::Shared);
-  MemoryType.getLimit().setMin(4294967281);
-  MemoryType.getLimit().setMax(4294967295);
-  Output = {};
-  Ser.serializeSection(createMemorySec(MemoryType), Output);
-  Expected = {
-      0x05U,                             // Memory section
-      0x0CU,                             // Content size = 12
-      0x01U,                             // Vector length = 1
-      0x03U,                             // Shared with min and max
-      0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Min = 4294967281
-      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  // Max = 4294967295
-  };
-  EXPECT_EQ(Output, Expected);
+  // Serialize memory type shared limits.
+  {
+    std::vector<uint8_t> Expected;
+    std::vector<uint8_t> Output;
 
-  Output = {};
-}
+    // 9. Test serialize memory type with shared limits.
+    //
+    //   1.  Serialize shared limit (0x03).
 
-TEST(SerializeTypeTest, SerializeMemoryTypeSharedLimits) {
-  std::vector<uint8_t> Expected;
-  std::vector<uint8_t> Output;
+    WasmEdge::AST::MemoryType MemType;
+    MemType.getLimit().setMin(0);
+    MemType.getLimit().setMax(65536);
+    MemType.getLimit().setType(WasmEdge::AST::Limit::LimitType::Shared);
 
-  // 9. Test serialize memory type with shared limits.
-  //
-  //   1.  Serialize shared limit (0x03).
+    Output = {};
+    Ser.serializeSection(createMemorySec(MemType), Output);
+    Expected = {
+        0x05U,              // Memory section
+        0x06U,              // Content size = 6
+        0x01U,              // Vector length = 1
+        0x03U,              // Shared flag (0x03)
+        0x00U,              // Min = 0
+        0x80U, 0x80U, 0x04U // Max = 65536
+    };
+    EXPECT_EQ(Output, Expected);
 
-  WasmEdge::AST::MemoryType MemType;
-  MemType.getLimit().setMin(0);
-  MemType.getLimit().setMax(65536);
-  MemType.getLimit().setType(WasmEdge::AST::Limit::LimitType::Shared);
+    Output = {};
 
-  Output = {};
-  Ser.serializeSection(createMemorySec(MemType), Output);
-  Expected = {
-      0x05U,              // Memory section
-      0x06U,              // Content size = 6
-      0x01U,              // Vector length = 1
-      0x03U,              // Shared flag (0x03)
-      0x00U,              // Min = 0
-      0x80U, 0x80U, 0x04U // Max = 65536
-  };
-  EXPECT_EQ(Output, Expected);
-
-  Output = {};
-
-  WasmEdge::AST::MemoryType MemTypeSharedNoMax;
-  MemTypeSharedNoMax.getLimit().setMin(10);
-  MemTypeSharedNoMax.getLimit().setType(
-      WasmEdge::AST::Limit::LimitType::SharedNoMax);
+    WasmEdge::AST::MemoryType MemTypeSharedNoMax;
+    MemTypeSharedNoMax.getLimit().setMin(10);
+    MemTypeSharedNoMax.getLimit().setType(
+        WasmEdge::AST::Limit::LimitType::SharedNoMax);
+  }
 }
 
 TEST(SerializeTypeTest, SerializeGlobalType) {

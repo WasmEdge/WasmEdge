@@ -51,42 +51,51 @@ public:
   ArgumentParser Parser;
 };
 
-TEST(OptionTest, RejectNegative) {
-  Option<uint64_t> N(Description("n option"sv), DefaultValue<uint64_t>(0));
-  ArgumentParser Parser;
-  Parser.add_option("n"sv, N);
+TEST(OptionTest, RejectInvalidValue) {
+  // Test rejecting invalid values.
+  //
+  //   1.  A negative value.
+  //   2.  A missing value.
 
-  std::vector<const char *> Max = {"test", "--n=18446744073709551615"};
-  EXPECT_TRUE(Parser.parse(stdout, static_cast<int>(Max.size()), Max.data()));
-  EXPECT_EQ(N.value(), UINT64_MAX);
-  std::vector<const char *> Negative = {"test", "--n=-1"};
-  EXPECT_FALSE(
-      Parser.parse(stdout, static_cast<int>(Negative.size()), Negative.data()));
-}
+  // A negative value.
+  {
+    Option<uint64_t> N(Description("n option"sv), DefaultValue<uint64_t>(0));
+    ArgumentParser Parser;
+    Parser.add_option("n"sv, N);
 
-TEST(OptionTest, RejectMissingValue) {
-  Option<std::string> N(Description("n option"sv));
-  Option<Toggle> A(Description("a option"sv));
-  ArgumentParser Parser;
-  Parser.add_option("n"sv, N).add_option("name"sv, N).add_option("a"sv, A);
+    std::vector<const char *> Max = {"test", "--n=18446744073709551615"};
+    EXPECT_TRUE(Parser.parse(stdout, static_cast<int>(Max.size()), Max.data()));
+    EXPECT_EQ(N.value(), UINT64_MAX);
+    std::vector<const char *> Negative = {"test", "--n=-1"};
+    EXPECT_FALSE(Parser.parse(stdout, static_cast<int>(Negative.size()),
+                              Negative.data()));
+  }
 
-  std::vector<const char *> AtEnd = {"test", "--name"};
-  EXPECT_FALSE(
-      Parser.parse(stdout, static_cast<int>(AtEnd.size()), AtEnd.data()));
-  std::vector<const char *> BeforeLong = {"test", "--name", "--a"};
-  EXPECT_FALSE(Parser.parse(stdout, static_cast<int>(BeforeLong.size()),
-                            BeforeLong.data()));
-  std::vector<const char *> BeforeShort = {"test", "-n", "-a"};
-  EXPECT_FALSE(Parser.parse(stdout, static_cast<int>(BeforeShort.size()),
-                            BeforeShort.data()));
-  std::vector<const char *> Combined = {"test", "-na"};
-  EXPECT_FALSE(
-      Parser.parse(stdout, static_cast<int>(Combined.size()), Combined.data()));
-  std::vector<const char *> Given = {"test", "--name", "x", "-a"};
-  EXPECT_TRUE(
-      Parser.parse(stdout, static_cast<int>(Given.size()), Given.data()));
-  EXPECT_EQ(N.value(), "x");
-  EXPECT_TRUE(A.value());
+  // A missing value.
+  {
+    Option<std::string> N(Description("n option"sv));
+    Option<Toggle> A(Description("a option"sv));
+    ArgumentParser Parser;
+    Parser.add_option("n"sv, N).add_option("name"sv, N).add_option("a"sv, A);
+
+    std::vector<const char *> AtEnd = {"test", "--name"};
+    EXPECT_FALSE(
+        Parser.parse(stdout, static_cast<int>(AtEnd.size()), AtEnd.data()));
+    std::vector<const char *> BeforeLong = {"test", "--name", "--a"};
+    EXPECT_FALSE(Parser.parse(stdout, static_cast<int>(BeforeLong.size()),
+                              BeforeLong.data()));
+    std::vector<const char *> BeforeShort = {"test", "-n", "-a"};
+    EXPECT_FALSE(Parser.parse(stdout, static_cast<int>(BeforeShort.size()),
+                              BeforeShort.data()));
+    std::vector<const char *> Combined = {"test", "-na"};
+    EXPECT_FALSE(Parser.parse(stdout, static_cast<int>(Combined.size()),
+                              Combined.data()));
+    std::vector<const char *> Given = {"test", "--name", "x", "-a"};
+    EXPECT_TRUE(
+        Parser.parse(stdout, static_cast<int>(Given.size()), Given.data()));
+    EXPECT_EQ(N.value(), "x");
+    EXPECT_TRUE(A.value());
+  }
 }
 
 TEST_P(OptionTest, GeneralOptions) {

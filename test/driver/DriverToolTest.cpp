@@ -535,435 +535,504 @@ std::string add128Path() {
 
 std::string nonExistPath() { return TestDataPath + "/nonexist.wasm"; }
 
-TEST(DriverToolTest, ParseErrorHandling) {
-  EXPECT_NE(callParse({}), EXIT_SUCCESS);
-  EXPECT_NE(callParse({""}), EXIT_SUCCESS);
+TEST(DriverToolTest, Parse) {
+  // Test the parse subcommand.
+  //
+  //   1.  Error handling.
+  //   2.  Valid modules.
+  //   3.  Disable proposal flags.
+  //   4.  Enable proposal flags.
+  //   5.  Wasm standard flags.
+  //   6.  Combined flags.
+  //   7.  Forbidden plugin flag.
+  //   8.  Extra section modules.
+  //   9.  Malformed name section.
 
-  std::string NonExist = TestDataPath + "/nonexist.wasm";
-  EXPECT_NE(callParse({NonExist.c_str()}), EXIT_SUCCESS);
-  EXPECT_NE(callParse({TestDataPath.c_str()}), EXIT_SUCCESS);
+  // Error handling.
+  {
+    EXPECT_NE(callParse({}), EXIT_SUCCESS);
+    EXPECT_NE(callParse({""}), EXIT_SUCCESS);
 
-  std::string InvalidPath =
-      writeWasmToFile(TruncatedWasm.data(), TruncatedWasm.size(), "trunc.wasm");
-  EXPECT_NE(callParse({InvalidPath.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(InvalidPath.c_str());
+    std::string NonExist = TestDataPath + "/nonexist.wasm";
+    EXPECT_NE(callParse({NonExist.c_str()}), EXIT_SUCCESS);
+    EXPECT_NE(callParse({TestDataPath.c_str()}), EXIT_SUCCESS);
 
-  std::string ElfPath =
-      writeWasmToFile(NotWasmBytes.data(), NotWasmBytes.size(), "elf.wasm");
-  EXPECT_NE(callParse({ElfPath.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(ElfPath.c_str());
+    std::string InvalidPath = writeWasmToFile(
+        TruncatedWasm.data(), TruncatedWasm.size(), "trunc.wasm");
+    EXPECT_NE(callParse({InvalidPath.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(InvalidPath.c_str());
 
-  EXPECT_NE(callParse({"--no-such-flag", parseTestPath().c_str()}),
-            EXIT_SUCCESS);
-  EXPECT_NE(callParse({parseTestPath().c_str(), "extra-arg"}), EXIT_SUCCESS);
-}
+    std::string ElfPath =
+        writeWasmToFile(NotWasmBytes.data(), NotWasmBytes.size(), "elf.wasm");
+    EXPECT_NE(callParse({ElfPath.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(ElfPath.c_str());
 
-TEST(DriverToolTest, ParseValidModules) {
-  EXPECT_EQ(callParse({parseTestPath().c_str()}), EXIT_SUCCESS);
+    EXPECT_NE(callParse({"--no-such-flag", parseTestPath().c_str()}),
+              EXIT_SUCCESS);
+    EXPECT_NE(callParse({parseTestPath().c_str(), "extra-arg"}), EXIT_SUCCESS);
+  }
 
-  std::string MinPath =
-      writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(), "minimal.wasm");
-  EXPECT_EQ(callParse({MinPath.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(MinPath.c_str());
+  // Valid modules.
+  {
+    EXPECT_EQ(callParse({parseTestPath().c_str()}), EXIT_SUCCESS);
 
-  // (module
-  //   (import "env" "memory" (memory (;0;) 1))
-  // )
-  std::array<uint8_t, 25> MemNoMaxWasm{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00,
-                                       0x00, 0x02, 0x0f, 0x01, 0x03, 0x65, 0x6e,
-                                       0x76, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72,
-                                       0x79, 0x02, 0x00, 0x01};
-  std::string MemPath = writeWasmToFile(MemNoMaxWasm.data(),
-                                        MemNoMaxWasm.size(), "memnomax.wasm");
-  EXPECT_EQ(callParse({MemPath.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(MemPath.c_str());
-}
+    std::string MinPath =
+        writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(), "minimal.wasm");
+    EXPECT_EQ(callParse({MinPath.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(MinPath.c_str());
 
-TEST(DriverToolTest, ParseDisableProposalFlags) {
-  std::string PathStr = parseTestPath();
-  const char *Path = PathStr.c_str();
+    // (module
+    //   (import "env" "memory" (memory (;0;) 1))
+    // )
+    std::array<uint8_t, 25> MemNoMaxWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x02,
+        0x0f, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x06, 0x6d, 0x65,
+        0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x01};
+    std::string MemPath = writeWasmToFile(MemNoMaxWasm.data(),
+                                          MemNoMaxWasm.size(), "memnomax.wasm");
+    EXPECT_EQ(callParse({MemPath.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(MemPath.c_str());
+  }
 
-  EXPECT_EQ(callParse({"--disable-simd", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--disable-bulk-memory", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--disable-reference-types", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--disable-multi-value", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--disable-non-trap-float-to-int", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--disable-sign-extension-operators", Path}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--disable-tail-call", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--disable-extended-const", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--disable-multi-memory", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--disable-relaxed-simd", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--disable-memory64", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--disable-gc", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--disable-function-reference", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--disable-exception-handling", Path}), EXIT_SUCCESS);
+  // Disable proposal flags.
+  {
+    std::string PathStr = parseTestPath();
+    const char *Path = PathStr.c_str();
 
-  std::string MinPath =
-      writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(), "min_mg.wasm");
-  EXPECT_EQ(callParse({"--disable-import-export-mut-globals", MinPath.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(MinPath.c_str());
+    EXPECT_EQ(callParse({"--disable-simd", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--disable-bulk-memory", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--disable-reference-types", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--disable-multi-value", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--disable-non-trap-float-to-int", Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--disable-sign-extension-operators", Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--disable-tail-call", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--disable-extended-const", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--disable-multi-memory", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--disable-relaxed-simd", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--disable-memory64", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--disable-gc", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--disable-function-reference", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--disable-exception-handling", Path}), EXIT_SUCCESS);
 
-  EXPECT_NE(callParse({"--disable-import-export-mut-globals", Path}),
-            EXIT_SUCCESS);
-}
+    std::string MinPath =
+        writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(), "min_mg.wasm");
+    EXPECT_EQ(
+        callParse({"--disable-import-export-mut-globals", MinPath.c_str()}),
+        EXIT_SUCCESS);
+    std::filesystem::remove(MinPath.c_str());
 
-TEST(DriverToolTest, ParseEnableProposalFlags) {
-  std::string PathStr = parseTestPath();
-  const char *Path = PathStr.c_str();
+    EXPECT_NE(callParse({"--disable-import-export-mut-globals", Path}),
+              EXIT_SUCCESS);
+  }
 
-  EXPECT_EQ(callParse({"--enable-all", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--enable-threads", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--enable-component", Path}), EXIT_SUCCESS);
+  // Enable proposal flags.
+  {
+    std::string PathStr = parseTestPath();
+    const char *Path = PathStr.c_str();
 
-  std::string WidePath = add128Path();
-  EXPECT_NE(callParse({WidePath.c_str()}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--enable-wide-arithmetic", WidePath.c_str()}),
-            EXIT_SUCCESS);
-}
+    EXPECT_EQ(callParse({"--enable-all", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--enable-threads", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--enable-component", Path}), EXIT_SUCCESS);
 
-TEST(DriverToolTest, ParseWasmStandardFlags) {
-  std::string PathStr = parseTestPath();
-  const char *Path = PathStr.c_str();
+    std::string WidePath = add128Path();
+    EXPECT_NE(callParse({WidePath.c_str()}), EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--enable-wide-arithmetic", WidePath.c_str()}),
+              EXIT_SUCCESS);
+  }
 
-  EXPECT_EQ(callParse({"--wasm-1", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--wasm-2", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--wasm-3", Path}), EXIT_SUCCESS);
-}
+  // Wasm standard flags.
+  {
+    std::string PathStr = parseTestPath();
+    const char *Path = PathStr.c_str();
 
-TEST(DriverToolTest, ParseCombinedFlags) {
-  std::string PathStr = parseTestPath();
-  const char *Path = PathStr.c_str();
+    EXPECT_EQ(callParse({"--wasm-1", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--wasm-2", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--wasm-3", Path}), EXIT_SUCCESS);
+  }
 
-  EXPECT_EQ(callParse({"--disable-simd", "--disable-bulk-memory",
-                       "--disable-multi-value", Path}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--disable-simd", "--enable-threads", Path}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--wasm-2", "--disable-simd", Path}), EXIT_SUCCESS);
-}
+  // Combined flags.
+  {
+    std::string PathStr = parseTestPath();
+    const char *Path = PathStr.c_str();
 
-TEST(DriverToolTest, ParseForbiddenPluginFlag) {
-  std::string PathStr = parseTestPath();
-  const char *Path = PathStr.c_str();
+    EXPECT_EQ(callParse({"--disable-simd", "--disable-bulk-memory",
+                         "--disable-multi-value", Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--disable-simd", "--enable-threads", Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--wasm-2", "--disable-simd", Path}), EXIT_SUCCESS);
+  }
 
-  EXPECT_EQ(callParse({"--forbidden-plugin", "someplugin", Path}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callParse({"--forbidden-plugin", "plugA", "--forbidden-plugin",
-                       "plugB", Path}),
-            EXIT_SUCCESS);
-}
+  // Forbidden plugin flag.
+  {
+    std::string PathStr = parseTestPath();
+    const char *Path = PathStr.c_str();
 
-TEST(DriverToolTest, ParseExtraSectionModules) {
+    EXPECT_EQ(callParse({"--forbidden-plugin", "someplugin", Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callParse({"--forbidden-plugin", "plugA", "--forbidden-plugin",
+                         "plugB", Path}),
+              EXIT_SUCCESS);
+  }
+
+  // Extra section modules.
   EXPECT_EQ(callParse({sectionsTestPath().c_str()}), EXIT_SUCCESS);
   EXPECT_EQ(callParse({tagImportTestPath().c_str()}), EXIT_SUCCESS);
   EXPECT_EQ(callParse({tagSectionTestPath().c_str()}), EXIT_SUCCESS);
-}
 
-TEST(DriverToolTest, ParseMalformedNameSection) {
-  // (module) with a name section whose function name count is a 6-byte LEB128.
-  std::array<uint8_t, 23> Overlong{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x00, 0x0d, 0x04, 0x6e,
-      0x61, 0x6d, 0x65, 0x01, 0x06, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00};
-  std::string OverlongPath =
-      writeWasmToFile(Overlong.data(), Overlong.size(), "name_overlong.wasm");
-  EXPECT_EQ(callParse({OverlongPath.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(OverlongPath);
+  {
+    // (module) with a name section whose function name count is a 6-byte
+    // LEB128.
+    std::array<uint8_t, 23> Overlong{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x00, 0x0d, 0x04, 0x6e,
+        0x61, 0x6d, 0x65, 0x01, 0x06, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00};
+    std::string OverlongPath =
+        writeWasmToFile(Overlong.data(), Overlong.size(), "name_overlong.wasm");
+    EXPECT_EQ(callParse({OverlongPath.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(OverlongPath);
 
-  // (module) with a name section of 1000 function names whose first name
-  // claims 50 bytes but has 2.
-  std::array<uint8_t, 23> Truncated{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x00, 0x0d, 0x04, 0x6e,
-      0x61, 0x6d, 0x65, 0x01, 0x06, 0xe8, 0x07, 0x00, 0x32, 0x78, 0x79};
-  std::string TruncatedPath = writeWasmToFile(
-      Truncated.data(), Truncated.size(), "name_truncated.wasm");
-  EXPECT_EQ(callParse({TruncatedPath.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(TruncatedPath);
+    // (module) with a name section of 1000 function names whose first name
+    // claims 50 bytes but has 2.
+    std::array<uint8_t, 23> Truncated{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x00, 0x0d, 0x04, 0x6e,
+        0x61, 0x6d, 0x65, 0x01, 0x06, 0xe8, 0x07, 0x00, 0x32, 0x78, 0x79};
+    std::string TruncatedPath = writeWasmToFile(
+        Truncated.data(), Truncated.size(), "name_truncated.wasm");
+    EXPECT_EQ(callParse({TruncatedPath.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(TruncatedPath);
 
-  // (module (func $f)) with a name section whose global name subsection
-  // claims 127 bytes after the function names.
-  std::array<uint8_t, 39> Oversized{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
-      0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x04,
-      0x01, 0x02, 0x00, 0x0b, 0x00, 0x0d, 0x04, 0x6e, 0x61, 0x6d,
-      0x65, 0x01, 0x04, 0x01, 0x00, 0x01, 0x66, 0x07, 0x7f};
-  std::string OversizedPath = writeWasmToFile(
-      Oversized.data(), Oversized.size(), "name_oversized.wasm");
-  EXPECT_EQ(callParse({OversizedPath.c_str()}), EXIT_SUCCESS);
+    // (module (func $f)) with a name section whose global name subsection
+    // claims 127 bytes after the function names.
+    std::array<uint8_t, 39> Oversized{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+        0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x04,
+        0x01, 0x02, 0x00, 0x0b, 0x00, 0x0d, 0x04, 0x6e, 0x61, 0x6d,
+        0x65, 0x01, 0x04, 0x01, 0x00, 0x01, 0x66, 0x07, 0x7f};
+    std::string OversizedPath = writeWasmToFile(
+        Oversized.data(), Oversized.size(), "name_oversized.wasm");
+    EXPECT_EQ(callParse({OversizedPath.c_str()}), EXIT_SUCCESS);
 #if !WASMEDGE_OS_WINDOWS
-  auto R = callParseCaptureStdout({OversizedPath.c_str()});
-  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
-  EXPECT_TRUE(containsAll(R.Stdout, {"func[0] size=2 <f>"}));
+    auto R = callParseCaptureStdout({OversizedPath.c_str()});
+    ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+    EXPECT_TRUE(containsAll(R.Stdout, {"func[0] size=2 <f>"}));
 #endif
-  std::filesystem::remove(OversizedPath);
-}
-
-#if !WASMEDGE_OS_WINDOWS
-TEST(DriverToolTest, ParseOutputSectionHeaders) {
-  auto R = callParseCaptureStdout({parseTestPath().c_str()});
-  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
-  EXPECT_TRUE(containsAll(
-      R.Stdout,
-      {"file format wasm 0x1", "Section Details:", "Type[4]:", "Import[5]:",
-       "Function[4]:", "Global[6]:", "Export[12]:", "Code[4]:", "Custom:"}));
-}
-
-TEST(DriverToolTest, ParseOutputNameAnnotations) {
-  auto R = callParseCaptureStdout({parseTestPath().c_str()});
-  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
-  EXPECT_TRUE(containsAll(
-      R.Stdout, {"<imported_func>", "<nop_func>", "<add_func>", "<swap_func>",
-                 "<call_import>", "<imported_g_mut>", "<imported_g_const>",
-                 "<g_i32>", "<g_f64>", "<g_mut_local>", "- name: \"name\""}));
-}
-
-TEST(DriverToolTest, ParseOutputImportsAndExports) {
-  auto R = callParseCaptureStdout({parseTestPath().c_str()});
-  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
-  EXPECT_TRUE(containsAll(
-      R.Stdout, {"<- env.log", "<- env.memory", "<- env.table", "<- env.g_mut",
-                 "<- env.g_const", "-> \"nop_func\"", "-> \"add_func\"",
-                 "-> \"swap_func\"", "-> \"call_import\"", "-> \"memory\"",
-                 "-> \"table\"", "-> \"g_i32\""}));
-}
-
-TEST(DriverToolTest, ParseOutputGlobalInitExpressions) {
-  auto R = callParseCaptureStdout({parseTestPath().c_str()});
-  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
-  EXPECT_TRUE(containsAll(R.Stdout, {"init i32=42", "init i64=100", "init f32=",
-                                     "init f64=", "init global.get 1"}));
-}
-
-TEST(DriverToolTest, ParseMinimalModuleEmptyCounts) {
-  std::string Path = writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(),
-                                     "minimal_out.wasm");
-  auto R = callParseCaptureStdout({Path.c_str()});
-  std::filesystem::remove(Path.c_str());
-  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
-  EXPECT_TRUE(
-      containsAll(R.Stdout, {"file format wasm 0x1", "Section Details:"}));
-  EXPECT_TRUE(containsNone(R.Stdout, {"Type[", "Import[", "Function[",
-                                      "Global[", "Export[", "Code[", "Table[",
-                                      "Memory[", "Start:", "Element[",
-                                      "DataCount section", "Data[", "Tag["}));
-}
-
-TEST(DriverToolTest, ParseOutputTableMemoryStartElementData) {
-  auto R = callParseCaptureStdout({sectionsTestPath().c_str()});
-  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
-  EXPECT_TRUE(containsAll(
-      R.Stdout, {"Table[1]:", " - table[0] type=ref_null func initial=2 max=3",
-                 "Memory[1]:", " - memory[0] pages: initial=1 max=2",
-                 "Start:", " - func[0]"}));
-  EXPECT_TRUE(containsAll(
-      R.Stdout, {"Element[2]:",
-                 " - segment[0] flags=0 table=0 type=ref func count=1"
-                 " - init i32=0",
-                 "  - elem[0] = func[0]",
-                 " - segment[1] flags=1 passive type=ref func count=1",
-                 "DataCount section: 2"}));
-  EXPECT_TRUE(containsAll(
-      R.Stdout, {"Data[2]:", " - segment[0] memory=0 size=2 - init i32=0",
-                 " - segment[1] passive size=2"}));
-}
-
-TEST(DriverToolTest, ParseOutputImportedTagType) {
-  auto R = callParseCaptureStdout({tagImportTestPath().c_str()});
-  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
-  EXPECT_TRUE(
-      containsAll(R.Stdout, {"Import[1]:", " - tag[0] sig=0 <- env.tag"}));
-}
-
-TEST(DriverToolTest, ParseOutputTagSection) {
-  auto R = callParseCaptureStdout({tagSectionTestPath().c_str()});
-  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
-  EXPECT_TRUE(containsAll(R.Stdout, {"Tag[1]:", " - tag[0] sig=0"}));
-  EXPECT_TRUE(containsNone(R.Stdout, {"Table[", "Memory[", "Start:", "Element[",
-                                      "DataCount section", "Data["}));
-}
-#endif
-
-TEST(DriverToolTest, ValidateErrorHandling) {
-  EXPECT_NE(callValidate({}), EXIT_SUCCESS);
-  EXPECT_NE(callValidate({""}), EXIT_SUCCESS);
-  EXPECT_NE(callValidate({nonExistPath().c_str()}), EXIT_SUCCESS);
-  EXPECT_NE(callValidate({TestDataPath.c_str()}), EXIT_SUCCESS);
-
-  std::string TruncPath =
-      writeWasmToFile(TruncatedWasm.data(), TruncatedWasm.size(), "trunc.wasm");
-  EXPECT_NE(callValidate({TruncPath.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(TruncPath.c_str());
-
-  std::string ElfPath =
-      writeWasmToFile(NotWasmBytes.data(), NotWasmBytes.size(), "elf.wasm");
-  EXPECT_NE(callValidate({ElfPath.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(ElfPath.c_str());
-
-  EXPECT_NE(callValidate({"--no-such-flag", simplePath().c_str()}),
-            EXIT_SUCCESS);
-  EXPECT_NE(callValidate({simplePath().c_str(), "extra-arg"}), EXIT_SUCCESS);
-}
-
-TEST(DriverToolTest, ValidateValidAndInvalidModules) {
-  EXPECT_EQ(callValidate({simplePath().c_str()}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({invalidPath().c_str()}), EXIT_FAILURE);
-
-  std::string MinPath =
-      writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(), "minimal.wasm");
-  EXPECT_EQ(callValidate({MinPath.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(MinPath.c_str());
-
-  EXPECT_EQ(callValidate({parseTestPath().c_str()}), EXIT_SUCCESS);
-}
-
-TEST(DriverToolTest, ValidateDisableProposalFlags) {
-  std::string PathStr = simplePath();
-  const char *Path = PathStr.c_str();
-
-  EXPECT_EQ(callValidate({"--disable-simd", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--disable-bulk-memory", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--disable-reference-types", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--disable-multi-value", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--disable-non-trap-float-to-int", Path}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--disable-sign-extension-operators", Path}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--disable-tail-call", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--disable-extended-const", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--disable-multi-memory", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--disable-relaxed-simd", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--disable-memory64", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--disable-gc", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--disable-function-reference", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--disable-exception-handling", Path}), EXIT_SUCCESS);
-
-  EXPECT_NE(callValidate({"--disable-import-export-mut-globals", Path}),
-            EXIT_SUCCESS);
-  EXPECT_NE(callValidate({"--disable-import-export-mut-globals",
-                          parseTestPath().c_str()}),
-            EXIT_SUCCESS);
-}
-
-TEST(DriverToolTest, ValidateProposalDependencies) {
-  // (module
-  //   (memory 1)
-  //   (func i32.const 0 i32.const 0 i32.const 0 memory.copy))
-  const std::array<uint8_t, 39> BulkWasm{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
-      0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03,
-      0x01, 0x00, 0x01, 0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x41, 0x00,
-      0x41, 0x00, 0x41, 0x00, 0xfc, 0x0a, 0x00, 0x00, 0x0b};
-  // (module (func (param externref)))
-  const std::array<uint8_t, 25> RefTypesWasm{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01,
-      0x05, 0x01, 0x60, 0x01, 0x6f, 0x00, 0x03, 0x02, 0x01,
-      0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
-  // (module (type (func)) (func (param (ref null 0))))
-  const std::array<uint8_t, 29> FuncRefWasm{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09,
-      0x02, 0x60, 0x00, 0x00, 0x60, 0x01, 0x63, 0x00, 0x00, 0x03,
-      0x02, 0x01, 0x01, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
-  // (module (func (param anyref)))
-  const std::array<uint8_t, 25> GCWasm{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00,
-                                       0x00, 0x01, 0x05, 0x01, 0x60, 0x01, 0x6e,
-                                       0x00, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x04,
-                                       0x01, 0x02, 0x00, 0x0b};
-  // (module (func (param exnref)))
-  const std::array<uint8_t, 25> ExceptionWasm{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01,
-      0x05, 0x01, 0x60, 0x01, 0x69, 0x00, 0x03, 0x02, 0x01,
-      0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
-  // (module (func (param v128)))
-  const std::array<uint8_t, 25> SIMDWasm{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01,
-      0x05, 0x01, 0x60, 0x01, 0x7b, 0x00, 0x03, 0x02, 0x01,
-      0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
-  // (module (func unreachable i8x16.relaxed_swizzle drop))
-  const std::array<uint8_t, 29> RelaxSIMDWasm{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
-      0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x09,
-      0x01, 0x07, 0x00, 0x00, 0xfd, 0x80, 0x02, 0x1a, 0x0b};
-
-  const std::vector<std::string> Paths{
-      writeWasmToFile(BulkWasm.data(), BulkWasm.size(), "dep_bulk.wasm"),
-      writeWasmToFile(RefTypesWasm.data(), RefTypesWasm.size(), "dep_ref.wasm"),
-      writeWasmToFile(FuncRefWasm.data(), FuncRefWasm.size(), "dep_func.wasm"),
-      writeWasmToFile(GCWasm.data(), GCWasm.size(), "dep_gc.wasm"),
-      writeWasmToFile(ExceptionWasm.data(), ExceptionWasm.size(),
-                      "dep_exn.wasm"),
-      writeWasmToFile(SIMDWasm.data(), SIMDWasm.size(), "dep_simd.wasm"),
-      writeWasmToFile(RelaxSIMDWasm.data(), RelaxSIMDWasm.size(),
-                      "dep_relax.wasm")};
-
-  // Each flag rejects the modules, by index in Paths, of its proposal and of
-  // the proposals depending on it.
-  const std::vector<std::pair<const char *, std::vector<size_t>>> Cases{
-      {"--disable-bulk-memory", {0, 1, 2, 3, 4}},
-      {"--disable-reference-types", {1, 2, 3, 4}},
-      {"--disable-function-reference", {2, 3}},
-      {"--disable-gc", {3}},
-      {"--disable-exception-handling", {4}},
-      {"--disable-simd", {5, 6}},
-      {"--disable-relaxed-simd", {6}}};
-
-  for (const auto &Path : Paths) {
-    EXPECT_EQ(callValidate({Path.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(OversizedPath);
   }
-  for (const auto &[Flag, Rejected] : Cases) {
-    SCOPED_TRACE(Flag);
-    for (size_t I = 0; I < Paths.size(); I++) {
-      SCOPED_TRACE(Paths[I]);
-      const bool IsRejected =
-          std::find(Rejected.begin(), Rejected.end(), I) != Rejected.end();
-      EXPECT_EQ(callValidate({Flag, Paths[I].c_str()}) != EXIT_SUCCESS,
-                IsRejected);
-      EXPECT_EQ(callValidate({"--enable-all", Flag, Paths[I].c_str()}) !=
-                    EXIT_SUCCESS,
-                IsRejected);
+}
+
+#if !WASMEDGE_OS_WINDOWS
+TEST(DriverToolTest, ParseOutput) {
+  // Test the output of the parse subcommand.
+  //
+  //   1.  Section headers.
+  //   2.  Name annotations.
+  //   3.  Imports and exports.
+  //   4.  Global init expressions.
+  //   5.  Minimal module empty counts.
+  //   6.  Table memory start element data.
+  //   7.  Imported tag type.
+  //   8.  Tag section.
+
+  // Section headers.
+  {
+    auto R = callParseCaptureStdout({parseTestPath().c_str()});
+    ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+    EXPECT_TRUE(containsAll(
+        R.Stdout,
+        {"file format wasm 0x1", "Section Details:", "Type[4]:", "Import[5]:",
+         "Function[4]:", "Global[6]:", "Export[12]:", "Code[4]:", "Custom:"}));
+  }
+
+  // Name annotations.
+  {
+    auto R = callParseCaptureStdout({parseTestPath().c_str()});
+    ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+    EXPECT_TRUE(containsAll(
+        R.Stdout, {"<imported_func>", "<nop_func>", "<add_func>", "<swap_func>",
+                   "<call_import>", "<imported_g_mut>", "<imported_g_const>",
+                   "<g_i32>", "<g_f64>", "<g_mut_local>", "- name: \"name\""}));
+  }
+
+  // Imports and exports.
+  {
+    auto R = callParseCaptureStdout({parseTestPath().c_str()});
+    ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+    EXPECT_TRUE(containsAll(
+        R.Stdout, {"<- env.log", "<- env.memory", "<- env.table",
+                   "<- env.g_mut", "<- env.g_const", "-> \"nop_func\"",
+                   "-> \"add_func\"", "-> \"swap_func\"", "-> \"call_import\"",
+                   "-> \"memory\"", "-> \"table\"", "-> \"g_i32\""}));
+  }
+
+  // Global init expressions.
+  {
+    auto R = callParseCaptureStdout({parseTestPath().c_str()});
+    ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+    EXPECT_TRUE(
+        containsAll(R.Stdout, {"init i32=42", "init i64=100",
+                               "init f32=", "init f64=", "init global.get 1"}));
+  }
+
+  // Minimal module empty counts.
+  {
+    std::string Path = writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(),
+                                       "minimal_out.wasm");
+    auto R = callParseCaptureStdout({Path.c_str()});
+    std::filesystem::remove(Path.c_str());
+    ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+    EXPECT_TRUE(
+        containsAll(R.Stdout, {"file format wasm 0x1", "Section Details:"}));
+    EXPECT_TRUE(containsNone(R.Stdout, {"Type[", "Import[", "Function[",
+                                        "Global[", "Export[", "Code[", "Table[",
+                                        "Memory[", "Start:", "Element[",
+                                        "DataCount section", "Data[", "Tag["}));
+  }
+
+  // Table memory start element data.
+  {
+    auto R = callParseCaptureStdout({sectionsTestPath().c_str()});
+    ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+    EXPECT_TRUE(containsAll(
+        R.Stdout,
+        {"Table[1]:", " - table[0] type=ref_null func initial=2 max=3",
+         "Memory[1]:", " - memory[0] pages: initial=1 max=2",
+         "Start:", " - func[0]"}));
+    EXPECT_TRUE(containsAll(
+        R.Stdout, {"Element[2]:",
+                   " - segment[0] flags=0 table=0 type=ref func count=1"
+                   " - init i32=0",
+                   "  - elem[0] = func[0]",
+                   " - segment[1] flags=1 passive type=ref func count=1",
+                   "DataCount section: 2"}));
+    EXPECT_TRUE(containsAll(
+        R.Stdout, {"Data[2]:", " - segment[0] memory=0 size=2 - init i32=0",
+                   " - segment[1] passive size=2"}));
+  }
+
+  // Imported tag type.
+  {
+    auto R = callParseCaptureStdout({tagImportTestPath().c_str()});
+    ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+    EXPECT_TRUE(
+        containsAll(R.Stdout, {"Import[1]:", " - tag[0] sig=0 <- env.tag"}));
+  }
+
+  // Tag section.
+  {
+    auto R = callParseCaptureStdout({tagSectionTestPath().c_str()});
+    ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+    EXPECT_TRUE(containsAll(R.Stdout, {"Tag[1]:", " - tag[0] sig=0"}));
+    EXPECT_TRUE(
+        containsNone(R.Stdout, {"Table[", "Memory[", "Start:", "Element[",
+                                "DataCount section", "Data["}));
+  }
+}
+#endif
+
+TEST(DriverToolTest, Validate) {
+  // Test the validate subcommand.
+  //
+  //   1.  Error handling.
+  //   2.  Valid and invalid modules.
+  //   3.  Disable proposal flags.
+  //   4.  Proposal dependencies.
+  //   5.  Enable proposal flags.
+  //   6.  Wasm standard flags.
+  //   7.  Combined flags.
+  //   8.  Forbidden plugin flag.
+
+  // Error handling.
+  {
+    EXPECT_NE(callValidate({}), EXIT_SUCCESS);
+    EXPECT_NE(callValidate({""}), EXIT_SUCCESS);
+    EXPECT_NE(callValidate({nonExistPath().c_str()}), EXIT_SUCCESS);
+    EXPECT_NE(callValidate({TestDataPath.c_str()}), EXIT_SUCCESS);
+
+    std::string TruncPath = writeWasmToFile(TruncatedWasm.data(),
+                                            TruncatedWasm.size(), "trunc.wasm");
+    EXPECT_NE(callValidate({TruncPath.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(TruncPath.c_str());
+
+    std::string ElfPath =
+        writeWasmToFile(NotWasmBytes.data(), NotWasmBytes.size(), "elf.wasm");
+    EXPECT_NE(callValidate({ElfPath.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(ElfPath.c_str());
+
+    EXPECT_NE(callValidate({"--no-such-flag", simplePath().c_str()}),
+              EXIT_SUCCESS);
+    EXPECT_NE(callValidate({simplePath().c_str(), "extra-arg"}), EXIT_SUCCESS);
+  }
+
+  // Valid and invalid modules.
+  {
+    EXPECT_EQ(callValidate({simplePath().c_str()}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({invalidPath().c_str()}), EXIT_FAILURE);
+
+    std::string MinPath =
+        writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(), "minimal.wasm");
+    EXPECT_EQ(callValidate({MinPath.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(MinPath.c_str());
+
+    EXPECT_EQ(callValidate({parseTestPath().c_str()}), EXIT_SUCCESS);
+  }
+
+  // Disable proposal flags.
+  {
+    std::string PathStr = simplePath();
+    const char *Path = PathStr.c_str();
+
+    EXPECT_EQ(callValidate({"--disable-simd", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--disable-bulk-memory", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--disable-reference-types", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--disable-multi-value", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--disable-non-trap-float-to-int", Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--disable-sign-extension-operators", Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--disable-tail-call", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--disable-extended-const", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--disable-multi-memory", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--disable-relaxed-simd", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--disable-memory64", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--disable-gc", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--disable-function-reference", Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--disable-exception-handling", Path}),
+              EXIT_SUCCESS);
+
+    EXPECT_NE(callValidate({"--disable-import-export-mut-globals", Path}),
+              EXIT_SUCCESS);
+    EXPECT_NE(callValidate({"--disable-import-export-mut-globals",
+                            parseTestPath().c_str()}),
+              EXIT_SUCCESS);
+  }
+
+  {
+    // (module
+    //   (memory 1)
+    //   (func i32.const 0 i32.const 0 i32.const 0 memory.copy))
+    const std::array<uint8_t, 39> BulkWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+        0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03,
+        0x01, 0x00, 0x01, 0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x41, 0x00,
+        0x41, 0x00, 0x41, 0x00, 0xfc, 0x0a, 0x00, 0x00, 0x0b};
+    // (module (func (param externref)))
+    const std::array<uint8_t, 25> RefTypesWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x05, 0x01, 0x60, 0x01, 0x6f, 0x00, 0x03, 0x02, 0x01,
+        0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
+    // (module (type (func)) (func (param (ref null 0))))
+    const std::array<uint8_t, 29> FuncRefWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09,
+        0x02, 0x60, 0x00, 0x00, 0x60, 0x01, 0x63, 0x00, 0x00, 0x03,
+        0x02, 0x01, 0x01, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
+    // (module (func (param anyref)))
+    const std::array<uint8_t, 25> GCWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x05, 0x01, 0x60, 0x01, 0x6e, 0x00, 0x03, 0x02, 0x01,
+        0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
+    // (module (func (param exnref)))
+    const std::array<uint8_t, 25> ExceptionWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x05, 0x01, 0x60, 0x01, 0x69, 0x00, 0x03, 0x02, 0x01,
+        0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
+    // (module (func (param v128)))
+    const std::array<uint8_t, 25> SIMDWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x05, 0x01, 0x60, 0x01, 0x7b, 0x00, 0x03, 0x02, 0x01,
+        0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
+    // (module (func unreachable i8x16.relaxed_swizzle drop))
+    const std::array<uint8_t, 29> RelaxSIMDWasm{
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+        0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x09,
+        0x01, 0x07, 0x00, 0x00, 0xfd, 0x80, 0x02, 0x1a, 0x0b};
+
+    const std::vector<std::string> Paths{
+        writeWasmToFile(BulkWasm.data(), BulkWasm.size(), "dep_bulk.wasm"),
+        writeWasmToFile(RefTypesWasm.data(), RefTypesWasm.size(),
+                        "dep_ref.wasm"),
+        writeWasmToFile(FuncRefWasm.data(), FuncRefWasm.size(),
+                        "dep_func.wasm"),
+        writeWasmToFile(GCWasm.data(), GCWasm.size(), "dep_gc.wasm"),
+        writeWasmToFile(ExceptionWasm.data(), ExceptionWasm.size(),
+                        "dep_exn.wasm"),
+        writeWasmToFile(SIMDWasm.data(), SIMDWasm.size(), "dep_simd.wasm"),
+        writeWasmToFile(RelaxSIMDWasm.data(), RelaxSIMDWasm.size(),
+                        "dep_relax.wasm")};
+
+    // Each flag rejects the modules, by index in Paths, of its proposal and of
+    // the proposals depending on it.
+    const std::vector<std::pair<const char *, std::vector<size_t>>> Cases{
+        {"--disable-bulk-memory", {0, 1, 2, 3, 4}},
+        {"--disable-reference-types", {1, 2, 3, 4}},
+        {"--disable-function-reference", {2, 3}},
+        {"--disable-gc", {3}},
+        {"--disable-exception-handling", {4}},
+        {"--disable-simd", {5, 6}},
+        {"--disable-relaxed-simd", {6}}};
+
+    for (const auto &Path : Paths) {
+      EXPECT_EQ(callValidate({Path.c_str()}), EXIT_SUCCESS);
+    }
+    for (const auto &[Flag, Rejected] : Cases) {
+      SCOPED_TRACE(Flag);
+      for (size_t I = 0; I < Paths.size(); I++) {
+        SCOPED_TRACE(Paths[I]);
+        const bool IsRejected =
+            std::find(Rejected.begin(), Rejected.end(), I) != Rejected.end();
+        EXPECT_EQ(callValidate({Flag, Paths[I].c_str()}) != EXIT_SUCCESS,
+                  IsRejected);
+        EXPECT_EQ(callValidate({"--enable-all", Flag, Paths[I].c_str()}) !=
+                      EXIT_SUCCESS,
+                  IsRejected);
+      }
+    }
+    for (const auto &Path : Paths) {
+      std::filesystem::remove(Path);
     }
   }
-  for (const auto &Path : Paths) {
-    std::filesystem::remove(Path);
+
+  // Enable proposal flags.
+  {
+    std::string PathStr = simplePath();
+    const char *Path = PathStr.c_str();
+
+    EXPECT_EQ(callValidate({"--enable-all", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--enable-threads", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--enable-component", Path}), EXIT_SUCCESS);
+
+    std::string WidePath = add128Path();
+    EXPECT_NE(callValidate({WidePath.c_str()}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--enable-wide-arithmetic", WidePath.c_str()}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--enable-all", WidePath.c_str()}), EXIT_SUCCESS);
   }
-}
 
-TEST(DriverToolTest, ValidateEnableProposalFlags) {
-  std::string PathStr = simplePath();
-  const char *Path = PathStr.c_str();
+  // Wasm standard flags.
+  {
+    std::string PathStr = simplePath();
+    const char *Path = PathStr.c_str();
 
-  EXPECT_EQ(callValidate({"--enable-all", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--enable-threads", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--enable-component", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--wasm-1", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--wasm-2", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--wasm-3", Path}), EXIT_SUCCESS);
+  }
 
-  std::string WidePath = add128Path();
-  EXPECT_NE(callValidate({WidePath.c_str()}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--enable-wide-arithmetic", WidePath.c_str()}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--enable-all", WidePath.c_str()}), EXIT_SUCCESS);
-}
+  // Combined flags.
+  {
+    std::string PathStr = simplePath();
+    const char *Path = PathStr.c_str();
 
-TEST(DriverToolTest, ValidateWasmStandardFlags) {
-  std::string PathStr = simplePath();
-  const char *Path = PathStr.c_str();
+    EXPECT_EQ(callValidate({"--disable-simd", "--disable-bulk-memory", Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--disable-simd", "--enable-threads", Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callValidate({"--wasm-2", "--disable-simd", Path}), EXIT_SUCCESS);
+  }
 
-  EXPECT_EQ(callValidate({"--wasm-1", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--wasm-2", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--wasm-3", Path}), EXIT_SUCCESS);
-}
-
-TEST(DriverToolTest, ValidateCombinedFlags) {
-  std::string PathStr = simplePath();
-  const char *Path = PathStr.c_str();
-
-  EXPECT_EQ(callValidate({"--disable-simd", "--disable-bulk-memory", Path}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--disable-simd", "--enable-threads", Path}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callValidate({"--wasm-2", "--disable-simd", Path}), EXIT_SUCCESS);
-}
-
-TEST(DriverToolTest, ValidateForbiddenPluginFlag) {
+  // Forbidden plugin flag.
   EXPECT_EQ(
       callValidate({"--forbidden-plugin", "someplugin", simplePath().c_str()}),
       EXIT_SUCCESS);
@@ -997,163 +1066,185 @@ TEST(DriverToolTest, CompileErrorHandling) {
 }
 
 #ifdef WASMEDGE_USE_LLVM
-TEST(DriverToolTest, CompileValidAndInvalidModules) {
-  std::string Output = TestDataPath + "/simple_aot.wasm";
-  EXPECT_EQ(callCompile({simplePath().c_str(), Output.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+TEST(DriverToolTest, Compile) {
+  // Test the compile subcommand.
+  //
+  //   1.  Valid and invalid modules.
+  //   2.  Proposal flags.
+  //   3.  Compiler specific flags.
+  //   4.  Output format.
 
-  std::string BadOutput = TestDataPath + "/invalid_aot.wasm";
-  EXPECT_NE(callCompile({invalidPath().c_str(), BadOutput.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(BadOutput.c_str());
-}
+  // Valid and invalid modules.
+  {
+    std::string Output = TestDataPath + "/simple_aot.wasm";
+    EXPECT_EQ(callCompile({simplePath().c_str(), Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
-TEST(DriverToolTest, CompileProposalFlags) {
-  std::string Output = TestDataPath + "/proposal_out.wasm";
-  std::string PathStr = simplePath();
-  const char *Path = PathStr.c_str();
+    std::string BadOutput = TestDataPath + "/invalid_aot.wasm";
+    EXPECT_NE(callCompile({invalidPath().c_str(), BadOutput.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(BadOutput.c_str());
+  }
 
-  EXPECT_EQ(callCompile({"--disable-simd", Path, Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+  // Proposal flags.
+  {
+    std::string Output = TestDataPath + "/proposal_out.wasm";
+    std::string PathStr = simplePath();
+    const char *Path = PathStr.c_str();
 
-  EXPECT_EQ(callCompile({"--enable-all", Path, Output.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+    EXPECT_EQ(callCompile({"--disable-simd", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
-  EXPECT_EQ(callCompile({"--wasm-2", Path, Output.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+    EXPECT_EQ(callCompile({"--enable-all", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
-  EXPECT_EQ(
-      callCompile({"--disable-simd", "--enable-threads", Path, Output.c_str()}),
-      EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+    EXPECT_EQ(callCompile({"--wasm-2", Path, Output.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
-  std::string WidePath = add128Path();
-  EXPECT_NE(callCompile({WidePath.c_str(), Output.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
-  EXPECT_EQ(callCompile(
-                {"--enable-wide-arithmetic", WidePath.c_str(), Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
-}
+    EXPECT_EQ(callCompile(
+                  {"--disable-simd", "--enable-threads", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
-TEST(DriverToolTest, CompileCompilerSpecificFlags) {
-  std::string Output = TestDataPath + "/compiler_out.wasm";
-  std::string PathStr = simplePath();
-  const char *Path = PathStr.c_str();
+    std::string WidePath = add128Path();
+    EXPECT_NE(callCompile({WidePath.c_str(), Output.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
+    EXPECT_EQ(callCompile({"--enable-wide-arithmetic", WidePath.c_str(),
+                           Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
+  }
 
-  EXPECT_EQ(callCompile({"--generic-binary", Path, Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+  // Compiler specific flags.
+  {
+    std::string Output = TestDataPath + "/compiler_out.wasm";
+    std::string PathStr = simplePath();
+    const char *Path = PathStr.c_str();
 
-  EXPECT_EQ(callCompile({"--interruptible", Path, Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+    EXPECT_EQ(callCompile({"--generic-binary", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
-  EXPECT_EQ(callCompile({"--dump", Path, Output.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+    EXPECT_EQ(callCompile({"--interruptible", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
-  EXPECT_EQ(callCompile({"--enable-instruction-count", Path, Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+    EXPECT_EQ(callCompile({"--dump", Path, Output.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
-  EXPECT_EQ(callCompile({"--enable-gas-measuring", Path, Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+    EXPECT_EQ(callCompile({"--enable-instruction-count", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
-  EXPECT_EQ(callCompile({"--enable-time-measuring", Path, Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+    EXPECT_EQ(callCompile({"--enable-gas-measuring", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
-  EXPECT_EQ(callCompile({"--enable-all-statistics", Path, Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+    EXPECT_EQ(callCompile({"--enable-time-measuring", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
-  EXPECT_EQ(callCompile({"--optimize", "0", Path, Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+    EXPECT_EQ(callCompile({"--enable-all-statistics", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
-  EXPECT_EQ(callCompile({"--optimize", "1", Path, Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+    EXPECT_EQ(callCompile({"--optimize", "0", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
-  EXPECT_EQ(callCompile({"--optimize", "2", Path, Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+    EXPECT_EQ(callCompile({"--optimize", "1", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
-  EXPECT_EQ(callCompile({"--optimize", "3", Path, Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+    EXPECT_EQ(callCompile({"--optimize", "2", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
-  EXPECT_EQ(callCompile({"--optimize", "s", Path, Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+    EXPECT_EQ(callCompile({"--optimize", "3", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
-  EXPECT_EQ(callCompile({"--optimize", "z", Path, Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
+    EXPECT_EQ(callCompile({"--optimize", "s", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
+
+    EXPECT_EQ(callCompile({"--optimize", "z", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
 
 #if defined(WASMEDGE_LLVM_VERSION_MAJOR) && WASMEDGE_LLVM_VERSION_MAJOR >= 23
-  auto ReadOptimizedIR = []() {
-    std::ifstream Ifs("wasm-opt.ll");
-    return std::string(std::istreambuf_iterator<char>(Ifs),
-                       std::istreambuf_iterator<char>());
-  };
-  auto RemoveDumpedIR = []() {
-    std::filesystem::remove("wasm.ll");
-    std::filesystem::remove("wasm-opt.ll");
-  };
+    auto ReadOptimizedIR = []() {
+      std::ifstream Ifs("wasm-opt.ll");
+      return std::string(std::istreambuf_iterator<char>(Ifs),
+                         std::istreambuf_iterator<char>());
+    };
+    auto RemoveDumpedIR = []() {
+      std::filesystem::remove("wasm.ll");
+      std::filesystem::remove("wasm-opt.ll");
+    };
 
-  RemoveDumpedIR();
-  EXPECT_EQ(callCompile({"--optimize", "s", "--dump", Path, Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
-  const std::string IROptSize = ReadOptimizedIR();
-  EXPECT_NE(IROptSize.find("optsize"), std::string::npos);
-  EXPECT_EQ(IROptSize.find("minsize"), std::string::npos);
-  RemoveDumpedIR();
+    RemoveDumpedIR();
+    EXPECT_EQ(callCompile({"--optimize", "s", "--dump", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
+    const std::string IROptSize = ReadOptimizedIR();
+    EXPECT_NE(IROptSize.find("optsize"), std::string::npos);
+    EXPECT_EQ(IROptSize.find("minsize"), std::string::npos);
+    RemoveDumpedIR();
 
-  EXPECT_EQ(callCompile({"--optimize", "z", "--dump", Path, Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
-  const std::string IRMinSize = ReadOptimizedIR();
-  EXPECT_NE(IRMinSize.find("optsize"), std::string::npos);
-  EXPECT_NE(IRMinSize.find("minsize"), std::string::npos);
-  RemoveDumpedIR();
+    EXPECT_EQ(callCompile({"--optimize", "z", "--dump", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
+    const std::string IRMinSize = ReadOptimizedIR();
+    EXPECT_NE(IRMinSize.find("optsize"), std::string::npos);
+    EXPECT_NE(IRMinSize.find("minsize"), std::string::npos);
+    RemoveDumpedIR();
 #endif
 
-  EXPECT_EQ(callCompile({"--optimize", "invalid", Path, Output.c_str()}),
-            EXIT_SUCCESS);
-  std::filesystem::remove(Output.c_str());
-}
+    EXPECT_EQ(callCompile({"--optimize", "invalid", Path, Output.c_str()}),
+              EXIT_SUCCESS);
+    std::filesystem::remove(Output.c_str());
+  }
 
-TEST(DriverToolTest, CompileOutputFormat) {
-  std::string PathStr = simplePath();
-  const char *Path = PathStr.c_str();
+  // Output format.
+  {
+    std::string PathStr = simplePath();
+    const char *Path = PathStr.c_str();
 
-  std::string WasmOutput = TestDataPath + "/fmt_out.wasm";
-  EXPECT_EQ(callCompile({Path, WasmOutput.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(WasmOutput.c_str());
+    std::string WasmOutput = TestDataPath + "/fmt_out.wasm";
+    EXPECT_EQ(callCompile({Path, WasmOutput.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(WasmOutput.c_str());
 
-  std::string NativeOutput = TestDataPath + "/fmt_out" WASMEDGE_LIB_EXTENSION;
-  EXPECT_EQ(callCompile({Path, NativeOutput.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(NativeOutput.c_str());
+    std::string NativeOutput = TestDataPath + "/fmt_out" WASMEDGE_LIB_EXTENSION;
+    EXPECT_EQ(callCompile({Path, NativeOutput.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(NativeOutput.c_str());
+  }
 }
 #endif // WASMEDGE_USE_LLVM
 
-TEST(DriverToolTest, RunModeFlagParses) {
-  WasmEdge::Driver::DriverToolOptions Opt;
-  WasmEdge::PO::ArgumentParser Parser;
-  Opt.addOptions(Parser);
+TEST(DriverToolTest, RunMode) {
+  // Test the run mode options.
+  //
+  //   1.  Flag parses.
+  //   2.  Arg values.
 
-  const char *Argv[] = {"wasmedge", "--enable-jit", "--run-mode=jit",
-                        "dummy.wasm"};
-  EXPECT_TRUE(Parser.parse(stdout, 4, Argv));
-  EXPECT_TRUE(Opt.ConfEnableJIT.value());
-  EXPECT_EQ(Opt.ConfRunMode.value(), "jit");
-}
+  // Flag parses.
+  {
+    WasmEdge::Driver::DriverToolOptions Opt;
+    WasmEdge::PO::ArgumentParser Parser;
+    Opt.addOptions(Parser);
 
-TEST(DriverToolTest, RunParseRunModeArg) {
+    const char *Argv[] = {"wasmedge", "--enable-jit", "--run-mode=jit",
+                          "dummy.wasm"};
+    EXPECT_TRUE(Parser.parse(stdout, 4, Argv));
+    EXPECT_TRUE(Opt.ConfEnableJIT.value());
+    EXPECT_EQ(Opt.ConfRunMode.value(), "jit");
+  }
+
+  // Arg values.
   EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("interpreter"),
             WasmEdge::RunMode::Interpreter);
   EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("jit"), WasmEdge::RunMode::JIT);
@@ -1165,109 +1256,140 @@ TEST(DriverToolTest, RunParseRunModeArg) {
   EXPECT_FALSE(WasmEdge::Driver::parseRunModeArg("").has_value());
 }
 
-TEST(DriverToolTest, InstantiateErrorHandling) {
-  EXPECT_NE(callInstantiate({}), EXIT_SUCCESS);
-  EXPECT_NE(callInstantiate({""}), EXIT_SUCCESS);
-  EXPECT_NE(callInstantiate({nonExistPath().c_str()}), EXIT_SUCCESS);
-  EXPECT_NE(callInstantiate({TestDataPath.c_str()}), EXIT_SUCCESS);
+TEST(DriverToolTest, Instantiate) {
+  // Test the instantiate subcommand.
+  //
+  //   1.  Error handling.
+  //   2.  Valid and invalid modules.
+  //   3.  Proposal flags.
+  //   4.  Linker flags.
+  //   5.  Linked modules.
+  //   6.  Forbidden plugin flag.
 
-  std::string TruncPath =
-      writeWasmToFile(TruncatedWasm.data(), TruncatedWasm.size(), "trunc.wasm");
-  EXPECT_NE(callInstantiate({TruncPath.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(TruncPath.c_str());
+  // Error handling.
+  {
+    EXPECT_NE(callInstantiate({}), EXIT_SUCCESS);
+    EXPECT_NE(callInstantiate({""}), EXIT_SUCCESS);
+    EXPECT_NE(callInstantiate({nonExistPath().c_str()}), EXIT_SUCCESS);
+    EXPECT_NE(callInstantiate({TestDataPath.c_str()}), EXIT_SUCCESS);
 
-  std::string ElfPath =
-      writeWasmToFile(NotWasmBytes.data(), NotWasmBytes.size(), "elf.wasm");
-  EXPECT_NE(callInstantiate({ElfPath.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(ElfPath.c_str());
+    std::string TruncPath = writeWasmToFile(TruncatedWasm.data(),
+                                            TruncatedWasm.size(), "trunc.wasm");
+    EXPECT_NE(callInstantiate({TruncPath.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(TruncPath.c_str());
 
-  EXPECT_NE(callInstantiate({"--no-such-flag", simplePath().c_str()}),
-            EXIT_SUCCESS);
-  EXPECT_NE(callInstantiate({simplePath().c_str(), "extra-arg"}), EXIT_SUCCESS);
-}
+    std::string ElfPath =
+        writeWasmToFile(NotWasmBytes.data(), NotWasmBytes.size(), "elf.wasm");
+    EXPECT_NE(callInstantiate({ElfPath.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(ElfPath.c_str());
 
-TEST(DriverToolTest, InstantiateValidAndInvalidModules) {
-  EXPECT_EQ(callInstantiate({simplePath().c_str()}), EXIT_SUCCESS);
-  EXPECT_EQ(callInstantiate({invalidPath().c_str()}), EXIT_FAILURE);
+    EXPECT_NE(callInstantiate({"--no-such-flag", simplePath().c_str()}),
+              EXIT_SUCCESS);
+    EXPECT_NE(callInstantiate({simplePath().c_str(), "extra-arg"}),
+              EXIT_SUCCESS);
+  }
 
-  std::string MinPath =
-      writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(), "minimal.wasm");
-  EXPECT_EQ(callInstantiate({MinPath.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(MinPath.c_str());
+  // Valid and invalid modules.
+  {
+    EXPECT_EQ(callInstantiate({simplePath().c_str()}), EXIT_SUCCESS);
+    EXPECT_EQ(callInstantiate({invalidPath().c_str()}), EXIT_FAILURE);
 
-  EXPECT_NE(callInstantiate({parseTestPath().c_str()}), EXIT_SUCCESS);
-}
+    std::string MinPath =
+        writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(), "minimal.wasm");
+    EXPECT_EQ(callInstantiate({MinPath.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(MinPath.c_str());
 
-TEST(DriverToolTest, InstantiateProposalFlags) {
-  std::string PathStr = simplePath();
-  const char *Path = PathStr.c_str();
+    EXPECT_NE(callInstantiate({parseTestPath().c_str()}), EXIT_SUCCESS);
+  }
 
-  EXPECT_EQ(callInstantiate({"--disable-simd", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callInstantiate({"--enable-all", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callInstantiate({"--wasm-2", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callInstantiate({"--disable-simd", "--enable-threads", Path}),
-            EXIT_SUCCESS);
-}
+  // Proposal flags.
+  {
+    std::string PathStr = simplePath();
+    const char *Path = PathStr.c_str();
 
-TEST(DriverToolTest, InstantiateLinkerFlags) {
-  std::string PathStr = simplePath();
-  const char *Path = PathStr.c_str();
+    EXPECT_EQ(callInstantiate({"--disable-simd", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callInstantiate({"--enable-all", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callInstantiate({"--wasm-2", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callInstantiate({"--disable-simd", "--enable-threads", Path}),
+              EXIT_SUCCESS);
+  }
 
-  EXPECT_EQ(callInstantiate({"--dir", ".:.", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callInstantiate({"--env", "HOME=/tmp", Path}), EXIT_SUCCESS);
-  EXPECT_EQ(callInstantiate({"--memory-page-limit", "256", Path}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callInstantiate({"--memory-page-limit", "-1", Path}), EXIT_FAILURE);
-  EXPECT_EQ(callInstantiate({"--dir", ".:.", "--env", "HOME=/tmp",
-                             "--memory-page-limit", "256", Path}),
-            EXIT_SUCCESS);
-}
+  // Linker flags.
+  {
+    std::string PathStr = simplePath();
+    const char *Path = PathStr.c_str();
 
-TEST(DriverToolTest, InstantiateLinkedModules) {
-  std::string ProvPath = providerPath();
-  std::string ConsPath = consumerPath();
-  std::string ModArg = "provider:" + ProvPath;
+    EXPECT_EQ(callInstantiate({"--dir", ".:.", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callInstantiate({"--env", "HOME=/tmp", Path}), EXIT_SUCCESS);
+    EXPECT_EQ(callInstantiate({"--memory-page-limit", "256", Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callInstantiate({"--memory-page-limit", "-1", Path}),
+              EXIT_FAILURE);
+    EXPECT_EQ(callInstantiate({"--dir", ".:.", "--env", "HOME=/tmp",
+                               "--memory-page-limit", "256", Path}),
+              EXIT_SUCCESS);
+  }
 
-  EXPECT_EQ(callInstantiate({"--module", ModArg.c_str(), ConsPath.c_str()}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callInstantiate({"--module", "badformat", ConsPath.c_str()}),
-            EXIT_FAILURE);
-  EXPECT_EQ(callInstantiate({"--module", "provider:", ConsPath.c_str()}),
-            EXIT_FAILURE);
-  std::string NoName = ":" + ProvPath;
-  EXPECT_EQ(callInstantiate({"--module", NoName.c_str(), ConsPath.c_str()}),
-            EXIT_FAILURE);
-  EXPECT_EQ(
-      callInstantiate({"--module", "provider:nonexist.wasm", ConsPath.c_str()}),
-      EXIT_FAILURE);
-  EXPECT_NE(callInstantiate({ConsPath.c_str()}), EXIT_SUCCESS);
-}
+  // Linked modules.
+  {
+    std::string ProvPath = providerPath();
+    std::string ConsPath = consumerPath();
+    std::string ModArg = "provider:" + ProvPath;
 
-TEST(DriverToolTest, InstantiateForbiddenPluginFlag) {
+    EXPECT_EQ(callInstantiate({"--module", ModArg.c_str(), ConsPath.c_str()}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callInstantiate({"--module", "badformat", ConsPath.c_str()}),
+              EXIT_FAILURE);
+    EXPECT_EQ(callInstantiate({"--module", "provider:", ConsPath.c_str()}),
+              EXIT_FAILURE);
+    std::string NoName = ":" + ProvPath;
+    EXPECT_EQ(callInstantiate({"--module", NoName.c_str(), ConsPath.c_str()}),
+              EXIT_FAILURE);
+    EXPECT_EQ(callInstantiate(
+                  {"--module", "provider:nonexist.wasm", ConsPath.c_str()}),
+              EXIT_FAILURE);
+    EXPECT_NE(callInstantiate({ConsPath.c_str()}), EXIT_SUCCESS);
+  }
+
+  // Forbidden plugin flag.
   EXPECT_EQ(callInstantiate(
                 {"--forbidden-plugin", "someplugin", simplePath().c_str()}),
             EXIT_SUCCESS);
 }
 
-TEST(DriverToolTest, RunErrorHandling) {
-  EXPECT_NE(callRun({}), EXIT_SUCCESS);
-  EXPECT_NE(callRun({""}), EXIT_SUCCESS);
-  EXPECT_NE(callRun({nonExistPath().c_str()}), EXIT_SUCCESS);
+TEST(DriverToolTest, Run) {
+  // Test the run subcommand.
+  //
+  //   1.  Error handling.
+  //   2.  Reactor mode.
+  //   3.  Proposal flags.
+  //   4.  Specific flags.
+  //   5.  Limit flag ranges.
+  //   6.  Argument ranges.
+  //   7.  Linked modules.
+  //   8.  Coredump requires interpreter.
+  //   9.  Global flags.
 
-  std::string TruncPath =
-      writeWasmToFile(TruncatedWasm.data(), TruncatedWasm.size(), "trunc.wasm");
-  EXPECT_NE(callRun({TruncPath.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(TruncPath.c_str());
+  // Error handling.
+  {
+    EXPECT_NE(callRun({}), EXIT_SUCCESS);
+    EXPECT_NE(callRun({""}), EXIT_SUCCESS);
+    EXPECT_NE(callRun({nonExistPath().c_str()}), EXIT_SUCCESS);
 
-  std::string ElfPath =
-      writeWasmToFile(NotWasmBytes.data(), NotWasmBytes.size(), "elf.wasm");
-  EXPECT_NE(callRun({ElfPath.c_str()}), EXIT_SUCCESS);
-  std::filesystem::remove(ElfPath.c_str());
+    std::string TruncPath = writeWasmToFile(TruncatedWasm.data(),
+                                            TruncatedWasm.size(), "trunc.wasm");
+    EXPECT_NE(callRun({TruncPath.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(TruncPath.c_str());
 
-  EXPECT_NE(callRun({"--no-such-flag", simplePath().c_str()}), EXIT_SUCCESS);
-}
+    std::string ElfPath =
+        writeWasmToFile(NotWasmBytes.data(), NotWasmBytes.size(), "elf.wasm");
+    EXPECT_NE(callRun({ElfPath.c_str()}), EXIT_SUCCESS);
+    std::filesystem::remove(ElfPath.c_str());
 
-TEST(DriverToolTest, RunReactorMode) {
+    EXPECT_NE(callRun({"--no-such-flag", simplePath().c_str()}), EXIT_SUCCESS);
+  }
+
+  // Reactor mode.
   EXPECT_EQ(callRun({"--reactor", simplePath().c_str(), "add", "3", "5"}),
             EXIT_SUCCESS);
   EXPECT_EQ(callRun({"--reactor", simplePath().c_str(), "sub", "10", "4"}),
@@ -1275,188 +1397,208 @@ TEST(DriverToolTest, RunReactorMode) {
   EXPECT_NE(callRun({"--reactor", simplePath().c_str(), "no_such_func"}),
             EXIT_SUCCESS);
   EXPECT_NE(callRun({"--reactor", simplePath().c_str()}), EXIT_SUCCESS);
+
+  // Proposal flags.
+  {
+    std::string PathStr = simplePath();
+    const char *Path = PathStr.c_str();
+
+    EXPECT_EQ(callRun({"--reactor", "--disable-simd", Path, "add", "1", "2"}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callRun({"--reactor", "--enable-all", Path, "add", "1", "2"}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callRun({"--reactor", "--wasm-2", Path, "add", "1", "2"}),
+              EXIT_SUCCESS);
+  }
+
+  // Specific flags.
+  {
+    std::string PathStr = simplePath();
+    const char *Path = PathStr.c_str();
+
+    EXPECT_EQ(callRun({"--reactor", "--enable-instruction-count", Path, "add",
+                       "1", "2"}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(
+        callRun({"--reactor", "--enable-gas-measuring", Path, "add", "1", "2"}),
+        EXIT_SUCCESS);
+    EXPECT_EQ(callRun({"--reactor", "--enable-time-measuring", Path, "add", "1",
+                       "2"}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callRun({"--reactor", "--enable-all-statistics", Path, "add", "1",
+                       "2"}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(
+        callRun({"--reactor", "--force-interpreter", Path, "add", "1", "2"}),
+        EXIT_SUCCESS);
+    EXPECT_EQ(callRun({"--reactor", "--enable-jit", Path, "add", "1", "2"}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(
+        callRun({"--reactor", "--enable-coredump", Path, "add", "1", "2"}),
+        EXIT_SUCCESS);
+    EXPECT_EQ(
+        callRun({"--reactor", "--coredump-for-wasmgdb", Path, "add", "1", "2"}),
+        EXIT_SUCCESS);
+    EXPECT_EQ(callRun({"--reactor", "--allow-af-unix", Path, "add", "1", "2"}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(
+        callRun({"--reactor", "--time-limit", "5000", Path, "add", "1", "2"}),
+        EXIT_SUCCESS);
+    EXPECT_EQ(
+        callRun({"--reactor", "--gas-limit", "100000", Path, "add", "1", "2"}),
+        EXIT_SUCCESS);
+    EXPECT_EQ(callRun({"--reactor", "--dir", ".:.", Path, "add", "1", "2"}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(
+        callRun({"--reactor", "--env", "HOME=/tmp", Path, "add", "1", "2"}),
+        EXIT_SUCCESS);
+    EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "256", Path, "add",
+                       "1", "2"}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "-1", Path, "add",
+                       "1", "2"}),
+              EXIT_FAILURE);
+    EXPECT_EQ(callRun({"--reactor", "--stack-size-limit", "1048576", Path,
+                       "add", "1", "2"}),
+              EXIT_SUCCESS);
+  }
+
+  // Limit flag ranges.
+  {
+    std::string PathStr = simplePath();
+    const char *Path = PathStr.c_str();
+
+    EXPECT_EQ(callRun({"--reactor", "--gas-limit", "3000000000", Path, "add",
+                       "1", "2"}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callRun({"--reactor", "--time-limit", "18446744073709551615",
+                       Path, "add", "1", "2"}),
+              EXIT_SUCCESS);
+    EXPECT_NE(callRun({"--reactor", "--gas-limit=-1", Path, "add", "1", "2"}),
+              EXIT_SUCCESS);
+    EXPECT_NE(callRun({"--reactor", "--time-limit=-1", Path, "add", "1", "2"}),
+              EXIT_SUCCESS);
+    EXPECT_NE(
+        callRun({"--reactor", "--memory-page-limit=-1", Path, "add", "1", "2"}),
+        EXIT_SUCCESS);
+    EXPECT_NE(
+        callRun({"--reactor", "--stack-size-limit=-1", Path, "add", "1", "2"}),
+        EXIT_SUCCESS);
+  }
+
+  // Argument ranges.
+  {
+    std::string PathStr = simplePath();
+    const char *Path = PathStr.c_str();
+
+    EXPECT_EQ(callRun({"--reactor", Path, "add", "-2147483648", "4294967295"}),
+              EXIT_SUCCESS);
+    EXPECT_NE(callRun({"--reactor", Path, "add", "4294967296", "1"}),
+              EXIT_SUCCESS);
+    EXPECT_NE(callRun({"--reactor", Path, "add", "-2147483649", "1"}),
+              EXIT_SUCCESS);
+    EXPECT_NE(callRun({"--reactor", Path, "add", "1.5", "1"}), EXIT_SUCCESS);
+    EXPECT_NE(callRun({"--reactor", Path, "add", "1x", "1"}), EXIT_SUCCESS);
+
+    std::string NumPathStr = numericPath();
+    const char *NumPath = NumPathStr.c_str();
+    EXPECT_EQ(callRun({"--reactor", NumPath, "add64", "-9223372036854775808",
+                       "18446744073709551615"}),
+              EXIT_SUCCESS);
+    EXPECT_NE(
+        callRun({"--reactor", NumPath, "add64", "18446744073709551616", "1"}),
+        EXIT_SUCCESS);
+    EXPECT_NE(
+        callRun({"--reactor", NumPath, "add64", "-9223372036854775809", "1"}),
+        EXIT_SUCCESS);
+    EXPECT_EQ(callRun({"--reactor", NumPath, "addf", "1.5", "-2.5e3"}),
+              EXIT_SUCCESS);
+    EXPECT_NE(callRun({"--reactor", NumPath, "addf", "1.5x", "1"}),
+              EXIT_SUCCESS);
+    EXPECT_NE(callRun({"--reactor", NumPath, "addf", "1e39", "1"}),
+              EXIT_SUCCESS);
+  }
+
+  // Linked modules.
+  {
+    std::string ProvPath = providerPath();
+    std::string ConsPath = consumerPath();
+    std::string ModArg = "provider:" + ProvPath;
+
+    EXPECT_EQ(callRun({"--reactor", "--module", ModArg.c_str(),
+                       ConsPath.c_str(), "add", "3", "5"}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callRun({"--reactor", "--module", "badformat", ConsPath.c_str(),
+                       "add", "1", "2"}),
+              EXIT_FAILURE);
+    EXPECT_EQ(callRun({"--reactor", "--module", "provider:nonexist.wasm",
+                       ConsPath.c_str(), "add", "1", "2"}),
+              EXIT_FAILURE);
+  }
+
+  // Coredump requires interpreter.
+  {
+    std::string PathStr = trapPath();
+    const char *Path = PathStr.c_str();
+
+    // The interpreter is the default run mode, hence the coredump is generated.
+    EXPECT_EQ(countCoredumpsOf({"--enable-coredump", Path}, "default"), 1U);
+    EXPECT_EQ(countCoredumpsOf({"--coredump-for-wasmgdb", Path}, "wasmgdb"),
+              1U);
+    EXPECT_EQ(
+        countCoredumpsOf({"--run-mode=interpreter", "--enable-coredump", Path},
+                         "interpreter"),
+        1U);
+
+    // An explicitly requested run mode takes precedence over the coredump, so
+    // no coredump is generated and the run mode is kept.
+    EXPECT_EQ(
+        countCoredumpsOf({"--run-mode=jit", "--enable-coredump", Path}, "jit"),
+        0U);
+    EXPECT_EQ(
+        countCoredumpsOf({"--run-mode=aot", "--enable-coredump", Path}, "aot"),
+        0U);
+    EXPECT_EQ(
+        countCoredumpsOf({"--run-mode=lazyjit", "--coredump-for-wasmgdb", Path},
+                         "lazyjit"),
+        0U);
+
+    // The decision follows the requested run mode, not the effective one, hence
+    // it is deterministic on the builds without LLVM as well.
+    EXPECT_EQ(countCoredumpsOf({"--enable-jit", "--enable-coredump", Path},
+                               "deprecated-jit"),
+              0U);
+    EXPECT_EQ(
+        countCoredumpsOf({"--force-interpreter", "--enable-coredump", Path},
+                         "deprecated-interpreter"),
+        1U);
+  }
+
+  // Global flags.
+  {
+    std::string PathStr = simplePath();
+    const char *Path = PathStr.c_str();
+
+    EXPECT_EQ(
+        callRun({"--reactor", "--log-level", "error", Path, "add", "1", "2"}),
+        EXIT_SUCCESS);
+    EXPECT_EQ(callRun({"--reactor", "--forbidden-plugin", "someplugin", Path,
+                       "add", "1", "2"}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(callRun({"--reactor", "--forbidden-plugin", "pA",
+                       "--forbidden-plugin", "pB", Path, "add", "1", "2"}),
+              EXIT_SUCCESS);
+  }
 }
 
-TEST(DriverToolTest, RunProposalFlags) {
-  std::string PathStr = simplePath();
-  const char *Path = PathStr.c_str();
+TEST(DriverToolTest, UniTool) {
+  // Test the options of the unified tool.
+  //
+  //   1.  Fallback to run.
+  //   2.  Global flags before subcommand.
+  //   3.  Invalid log level.
 
-  EXPECT_EQ(callRun({"--reactor", "--disable-simd", Path, "add", "1", "2"}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callRun({"--reactor", "--enable-all", Path, "add", "1", "2"}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callRun({"--reactor", "--wasm-2", Path, "add", "1", "2"}),
-            EXIT_SUCCESS);
-}
-
-TEST(DriverToolTest, RunSpecificFlags) {
-  std::string PathStr = simplePath();
-  const char *Path = PathStr.c_str();
-
-  EXPECT_EQ(callRun({"--reactor", "--enable-instruction-count", Path, "add",
-                     "1", "2"}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(
-      callRun({"--reactor", "--enable-gas-measuring", Path, "add", "1", "2"}),
-      EXIT_SUCCESS);
-  EXPECT_EQ(
-      callRun({"--reactor", "--enable-time-measuring", Path, "add", "1", "2"}),
-      EXIT_SUCCESS);
-  EXPECT_EQ(
-      callRun({"--reactor", "--enable-all-statistics", Path, "add", "1", "2"}),
-      EXIT_SUCCESS);
-  EXPECT_EQ(
-      callRun({"--reactor", "--force-interpreter", Path, "add", "1", "2"}),
-      EXIT_SUCCESS);
-  EXPECT_EQ(callRun({"--reactor", "--enable-jit", Path, "add", "1", "2"}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callRun({"--reactor", "--enable-coredump", Path, "add", "1", "2"}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(
-      callRun({"--reactor", "--coredump-for-wasmgdb", Path, "add", "1", "2"}),
-      EXIT_SUCCESS);
-  EXPECT_EQ(callRun({"--reactor", "--allow-af-unix", Path, "add", "1", "2"}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(
-      callRun({"--reactor", "--time-limit", "5000", Path, "add", "1", "2"}),
-      EXIT_SUCCESS);
-  EXPECT_EQ(
-      callRun({"--reactor", "--gas-limit", "100000", Path, "add", "1", "2"}),
-      EXIT_SUCCESS);
-  EXPECT_EQ(callRun({"--reactor", "--dir", ".:.", Path, "add", "1", "2"}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callRun({"--reactor", "--env", "HOME=/tmp", Path, "add", "1", "2"}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "256", Path, "add",
-                     "1", "2"}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "-1", Path, "add", "1",
-                     "2"}),
-            EXIT_FAILURE);
-  EXPECT_EQ(callRun({"--reactor", "--stack-size-limit", "1048576", Path, "add",
-                     "1", "2"}),
-            EXIT_SUCCESS);
-}
-
-TEST(DriverToolTest, RunLimitFlagRanges) {
-  std::string PathStr = simplePath();
-  const char *Path = PathStr.c_str();
-
-  EXPECT_EQ(callRun({"--reactor", "--gas-limit", "3000000000", Path, "add", "1",
-                     "2"}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callRun({"--reactor", "--time-limit", "18446744073709551615", Path,
-                     "add", "1", "2"}),
-            EXIT_SUCCESS);
-  EXPECT_NE(callRun({"--reactor", "--gas-limit=-1", Path, "add", "1", "2"}),
-            EXIT_SUCCESS);
-  EXPECT_NE(callRun({"--reactor", "--time-limit=-1", Path, "add", "1", "2"}),
-            EXIT_SUCCESS);
-  EXPECT_NE(
-      callRun({"--reactor", "--memory-page-limit=-1", Path, "add", "1", "2"}),
-      EXIT_SUCCESS);
-  EXPECT_NE(
-      callRun({"--reactor", "--stack-size-limit=-1", Path, "add", "1", "2"}),
-      EXIT_SUCCESS);
-}
-
-TEST(DriverToolTest, RunArgumentRanges) {
-  std::string PathStr = simplePath();
-  const char *Path = PathStr.c_str();
-
-  EXPECT_EQ(callRun({"--reactor", Path, "add", "-2147483648", "4294967295"}),
-            EXIT_SUCCESS);
-  EXPECT_NE(callRun({"--reactor", Path, "add", "4294967296", "1"}),
-            EXIT_SUCCESS);
-  EXPECT_NE(callRun({"--reactor", Path, "add", "-2147483649", "1"}),
-            EXIT_SUCCESS);
-  EXPECT_NE(callRun({"--reactor", Path, "add", "1.5", "1"}), EXIT_SUCCESS);
-  EXPECT_NE(callRun({"--reactor", Path, "add", "1x", "1"}), EXIT_SUCCESS);
-
-  std::string NumPathStr = numericPath();
-  const char *NumPath = NumPathStr.c_str();
-  EXPECT_EQ(callRun({"--reactor", NumPath, "add64", "-9223372036854775808",
-                     "18446744073709551615"}),
-            EXIT_SUCCESS);
-  EXPECT_NE(
-      callRun({"--reactor", NumPath, "add64", "18446744073709551616", "1"}),
-      EXIT_SUCCESS);
-  EXPECT_NE(
-      callRun({"--reactor", NumPath, "add64", "-9223372036854775809", "1"}),
-      EXIT_SUCCESS);
-  EXPECT_EQ(callRun({"--reactor", NumPath, "addf", "1.5", "-2.5e3"}),
-            EXIT_SUCCESS);
-  EXPECT_NE(callRun({"--reactor", NumPath, "addf", "1.5x", "1"}), EXIT_SUCCESS);
-  EXPECT_NE(callRun({"--reactor", NumPath, "addf", "1e39", "1"}), EXIT_SUCCESS);
-}
-
-TEST(DriverToolTest, RunLinkedModules) {
-  std::string ProvPath = providerPath();
-  std::string ConsPath = consumerPath();
-  std::string ModArg = "provider:" + ProvPath;
-
-  EXPECT_EQ(callRun({"--reactor", "--module", ModArg.c_str(), ConsPath.c_str(),
-                     "add", "3", "5"}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callRun({"--reactor", "--module", "badformat", ConsPath.c_str(),
-                     "add", "1", "2"}),
-            EXIT_FAILURE);
-  EXPECT_EQ(callRun({"--reactor", "--module", "provider:nonexist.wasm",
-                     ConsPath.c_str(), "add", "1", "2"}),
-            EXIT_FAILURE);
-}
-
-TEST(DriverToolTest, RunCoredumpRequiresInterpreter) {
-  std::string PathStr = trapPath();
-  const char *Path = PathStr.c_str();
-
-  // The interpreter is the default run mode, hence the coredump is generated.
-  EXPECT_EQ(countCoredumpsOf({"--enable-coredump", Path}, "default"), 1U);
-  EXPECT_EQ(countCoredumpsOf({"--coredump-for-wasmgdb", Path}, "wasmgdb"), 1U);
-  EXPECT_EQ(
-      countCoredumpsOf({"--run-mode=interpreter", "--enable-coredump", Path},
-                       "interpreter"),
-      1U);
-
-  // An explicitly requested run mode takes precedence over the coredump, so
-  // no coredump is generated and the run mode is kept.
-  EXPECT_EQ(
-      countCoredumpsOf({"--run-mode=jit", "--enable-coredump", Path}, "jit"),
-      0U);
-  EXPECT_EQ(
-      countCoredumpsOf({"--run-mode=aot", "--enable-coredump", Path}, "aot"),
-      0U);
-  EXPECT_EQ(
-      countCoredumpsOf({"--run-mode=lazyjit", "--coredump-for-wasmgdb", Path},
-                       "lazyjit"),
-      0U);
-
-  // The decision follows the requested run mode, not the effective one, hence
-  // it is deterministic on the builds without LLVM as well.
-  EXPECT_EQ(countCoredumpsOf({"--enable-jit", "--enable-coredump", Path},
-                             "deprecated-jit"),
-            0U);
-  EXPECT_EQ(countCoredumpsOf({"--force-interpreter", "--enable-coredump", Path},
-                             "deprecated-interpreter"),
-            1U);
-}
-
-TEST(DriverToolTest, RunGlobalFlags) {
-  std::string PathStr = simplePath();
-  const char *Path = PathStr.c_str();
-
-  EXPECT_EQ(
-      callRun({"--reactor", "--log-level", "error", Path, "add", "1", "2"}),
-      EXIT_SUCCESS);
-  EXPECT_EQ(callRun({"--reactor", "--forbidden-plugin", "someplugin", Path,
-                     "add", "1", "2"}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(callRun({"--reactor", "--forbidden-plugin", "pA",
-                     "--forbidden-plugin", "pB", Path, "add", "1", "2"}),
-            EXIT_SUCCESS);
-}
-
-TEST(DriverToolTest, NoSubcommandFallbackToRun) {
+  // Fallback to run.
   EXPECT_EQ(
       callUniToolAll({"--reactor", simplePath().c_str(), "add", "3", "5"}),
       EXIT_SUCCESS);
@@ -1464,53 +1606,55 @@ TEST(DriverToolTest, NoSubcommandFallbackToRun) {
   EXPECT_EQ(callUniToolAll({"--reactor", "--force-interpreter",
                             simplePath().c_str(), "add", "1", "2"}),
             EXIT_SUCCESS);
-}
 
-TEST(DriverToolTest, NoSubcommandGlobalFlagsBeforeSubcommand) {
-  std::string PathStr = simplePath();
-  const char *Path = PathStr.c_str();
-  std::string OutPath = TestDataPath + "/log_level.wasm";
+  // Global flags before subcommand.
+  {
+    std::string PathStr = simplePath();
+    const char *Path = PathStr.c_str();
+    std::string OutPath = TestDataPath + "/log_level.wasm";
 
-  EXPECT_EQ(callUniToolAll({"--log-level", "error", "parse", Path}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(spdlog::get_level(), spdlog::level::err);
-  EXPECT_EQ(callUniToolAll({"--log-level", "debug", "validate", Path}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(spdlog::get_level(), spdlog::level::debug);
-  EXPECT_EQ(callUniToolAll({"--log-level", "off", "instantiate", Path}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(spdlog::get_level(), spdlog::level::off);
-  EXPECT_EQ(callUniToolAll({"--log-level", "error", "validate", "--log-level",
-                            "debug", Path}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(spdlog::get_level(), spdlog::level::debug);
-  // The compile result depends on LLVM; only the level is checked.
-  callUniToolAll({"--log-level", "error", "compile", Path, OutPath.c_str()});
-  EXPECT_EQ(spdlog::get_level(), spdlog::level::err);
-  callUniToolAll({"compile", "--log-level", "off", Path, OutPath.c_str()});
-  EXPECT_EQ(spdlog::get_level(), spdlog::level::off);
-  std::filesystem::remove(OutPath);
-  spdlog::set_level(spdlog::level::info);
-}
+    EXPECT_EQ(callUniToolAll({"--log-level", "error", "parse", Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(spdlog::get_level(), spdlog::level::err);
+    EXPECT_EQ(callUniToolAll({"--log-level", "debug", "validate", Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(spdlog::get_level(), spdlog::level::debug);
+    EXPECT_EQ(callUniToolAll({"--log-level", "off", "instantiate", Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(spdlog::get_level(), spdlog::level::off);
+    EXPECT_EQ(callUniToolAll({"--log-level", "error", "validate", "--log-level",
+                              "debug", Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(spdlog::get_level(), spdlog::level::debug);
+    // The compile result depends on LLVM; only the level is checked.
+    callUniToolAll({"--log-level", "error", "compile", Path, OutPath.c_str()});
+    EXPECT_EQ(spdlog::get_level(), spdlog::level::err);
+    callUniToolAll({"compile", "--log-level", "off", Path, OutPath.c_str()});
+    EXPECT_EQ(spdlog::get_level(), spdlog::level::off);
+    std::filesystem::remove(OutPath);
+    spdlog::set_level(spdlog::level::info);
+  }
 
-TEST(DriverToolTest, NoSubcommandInvalidLogLevel) {
-  std::string PathStr = simplePath();
-  const char *Path = PathStr.c_str();
+  // Invalid log level.
+  {
+    std::string PathStr = simplePath();
+    const char *Path = PathStr.c_str();
 
-  spdlog::set_level(spdlog::level::err);
-  EXPECT_EQ(callUniToolAll(
-                {"--log-level", "invalid", "--reactor", Path, "add", "1", "2"}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
-  spdlog::set_level(spdlog::level::err);
-  EXPECT_EQ(callUniToolAll({"--log-level", "invalid", "run", "--reactor", Path,
-                            "add", "1", "2"}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
-  spdlog::set_level(spdlog::level::err);
-  EXPECT_EQ(callUniToolAll({"--log-level", "invalid", "validate", Path}),
-            EXIT_SUCCESS);
-  EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
+    spdlog::set_level(spdlog::level::err);
+    EXPECT_EQ(callUniToolAll({"--log-level", "invalid", "--reactor", Path,
+                              "add", "1", "2"}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
+    spdlog::set_level(spdlog::level::err);
+    EXPECT_EQ(callUniToolAll({"--log-level", "invalid", "run", "--reactor",
+                              Path, "add", "1", "2"}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
+    spdlog::set_level(spdlog::level::err);
+    EXPECT_EQ(callUniToolAll({"--log-level", "invalid", "validate", Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
+  }
 }
 
 } // namespace

@@ -77,70 +77,90 @@ struct FinalizerContext {
 
 } // namespace
 
-TEST(ModuleInstanceTest, DirectDeleteRunsDerivedDtorBeforeFinalizer) {
-  std::vector<Event> Events;
+TEST(ModuleInstanceTest, DeleteDtorBeforeFinalizer) {
+  // Test the destructor and the finalizer of a deleted module.
+  //
+  //   1.  Direct delete.
+  //   2.  Cascade delete.
+
+  // Direct delete.
   {
-    auto Mod = std::make_unique<TestModule>("direct", &Events, makeFinalizer());
-    (void)Mod;
+    std::vector<Event> Events;
+    {
+      auto Mod =
+          std::make_unique<TestModule>("direct", &Events, makeFinalizer());
+      (void)Mod;
+    }
+    ASSERT_EQ(Events.size(), 2u) << "expected exactly [DerivedDtor, Finalizer]";
+    EXPECT_EQ(Events[0], Event::DerivedDtor);
+    EXPECT_EQ(Events[1], Event::Finalizer);
   }
-  ASSERT_EQ(Events.size(), 2u) << "expected exactly [DerivedDtor, Finalizer]";
-  EXPECT_EQ(Events[0], Event::DerivedDtor);
-  EXPECT_EQ(Events[1], Event::Finalizer);
+
+  // Cascade delete.
+  {
+    std::vector<Event> ProviderEvents;
+    auto *Provider =
+        new TestModule("provider", &ProviderEvents, makeFinalizer());
+    auto Consumer = std::make_unique<TestModule>("consumer", nullptr, nullptr);
+    Consumer->addDependency(*Provider);
+    Provider->terminate();
+    Consumer.reset();
+    ASSERT_EQ(ProviderEvents.size(), 2u)
+        << "cascade did not run ~TestModule and the finalizer exactly once";
+    EXPECT_EQ(ProviderEvents[0], Event::DerivedDtor);
+    EXPECT_EQ(ProviderEvents[1], Event::Finalizer);
+  }
 }
 
-TEST(ModuleInstanceTest, CascadeDeleteRunsDerivedDtorBeforeFinalizer) {
-  std::vector<Event> ProviderEvents;
-  auto *Provider = new TestModule("provider", &ProviderEvents, makeFinalizer());
-  auto Consumer = std::make_unique<TestModule>("consumer", nullptr, nullptr);
-  Consumer->addDependency(*Provider);
-  Provider->terminate();
-  Consumer.reset();
-  ASSERT_EQ(ProviderEvents.size(), 2u)
-      << "cascade did not run ~TestModule and the finalizer exactly once";
-  EXPECT_EQ(ProviderEvents[0], Event::DerivedDtor);
-  EXPECT_EQ(ProviderEvents[1], Event::Finalizer);
-}
+TEST(ModuleInstanceTest, Cascade) {
+  // Test cascading deletion.
+  //
+  //   1.  The provider stays pinned until the finalizer ran.
+  //   2.  A deep cascade does not overflow the stack.
 
-TEST(ModuleInstanceTest, CascadePinsProviderUntilFinalized) {
-  std::vector<Event> Events;
-  auto *Provider = new TestModule("provider", &Events, makeFinalizer());
-  FinalizerContext FinalizerCtx{Provider, &Events};
-  auto *Middle =
-      new TestModule("middle", &FinalizerCtx, nullptr, [](void *Data) {
-        auto *Ctx = static_cast<FinalizerContext *>(Data);
-        Ctx->Events->push_back(Event::MiddleFinalizerEnter);
-        Ctx->Provider->terminate();
-        Ctx->Events->push_back(Event::MiddleFinalizerAfterTerminate);
-      });
-  auto *Consumer = new TestModule("consumer", nullptr, nullptr);
-  Middle->addDependency(*Provider);
-  Consumer->addDependency(*Middle);
-  Middle->terminate();
-  Consumer->terminate();
-  ASSERT_EQ(Events.size(), 4u)
-      << "provider must remain pinned until the importer finalizer completes";
-  EXPECT_EQ(Events[0], Event::MiddleFinalizerEnter);
-  EXPECT_EQ(Events[1], Event::MiddleFinalizerAfterTerminate);
-  EXPECT_EQ(Events[2], Event::DerivedDtor);
-  EXPECT_EQ(Events[3], Event::Finalizer);
-}
+  // The provider stays pinned until the finalizer ran.
+  {
+    std::vector<Event> Events;
+    auto *Provider = new TestModule("provider", &Events, makeFinalizer());
+    FinalizerContext FinalizerCtx{Provider, &Events};
+    auto *Middle =
+        new TestModule("middle", &FinalizerCtx, nullptr, [](void *Data) {
+          auto *Ctx = static_cast<FinalizerContext *>(Data);
+          Ctx->Events->push_back(Event::MiddleFinalizerEnter);
+          Ctx->Provider->terminate();
+          Ctx->Events->push_back(Event::MiddleFinalizerAfterTerminate);
+        });
+    auto *Consumer = new TestModule("consumer", nullptr, nullptr);
+    Middle->addDependency(*Provider);
+    Consumer->addDependency(*Middle);
+    Middle->terminate();
+    Consumer->terminate();
+    ASSERT_EQ(Events.size(), 4u)
+        << "provider must remain pinned until the importer finalizer completes";
+    EXPECT_EQ(Events[0], Event::MiddleFinalizerEnter);
+    EXPECT_EQ(Events[1], Event::MiddleFinalizerAfterTerminate);
+    EXPECT_EQ(Events[2], Event::DerivedDtor);
+    EXPECT_EQ(Events[3], Event::Finalizer);
+  }
 
-TEST(ModuleInstanceTest, DeepCascadeNoStackOverflow) {
-  constexpr std::size_t N = 50000;
-  std::vector<Event> Events;
-  Events.reserve(2 * N);
-  std::vector<TestModule *> Mods;
-  Mods.reserve(N);
-  for (std::size_t I = 0; I < N; ++I) {
-    Mods.push_back(new TestModule("m", &Events, makeFinalizer()));
+  // A deep cascade does not overflow the stack.
+  {
+    constexpr std::size_t N = 50000;
+    std::vector<Event> Events;
+    Events.reserve(2 * N);
+    std::vector<TestModule *> Mods;
+    Mods.reserve(N);
+    for (std::size_t I = 0; I < N; ++I) {
+      Mods.push_back(new TestModule("m", &Events, makeFinalizer()));
+    }
+    for (std::size_t I = 0; I + 1 < N; ++I) {
+      Mods[I]->addDependency(*Mods[I + 1]);
+    }
+    for (std::size_t I = 1; I < N; ++I) {
+      Mods[I]->terminate();
+    }
+    Mods[0]->terminate();
+    EXPECT_EQ(Events.size(), 2 * N)
+        << "every module in the chain must run its dtor and finalizer once";
   }
-  for (std::size_t I = 0; I + 1 < N; ++I) {
-    Mods[I]->addDependency(*Mods[I + 1]);
-  }
-  for (std::size_t I = 1; I < N; ++I) {
-    Mods[I]->terminate();
-  }
-  Mods[0]->terminate();
-  EXPECT_EQ(Events.size(), 2 * N)
-      << "every module in the chain must run its dtor and finalizer once";
 }

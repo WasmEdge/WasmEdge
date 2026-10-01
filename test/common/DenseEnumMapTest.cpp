@@ -31,25 +31,69 @@ static_assert(ColorMap.begin() != ColorMap.end(),
 static_assert(ColorMap.find(static_cast<Color>(3)) == ColorMap.end(),
               "out-of-range key must compare equal to end()");
 
-// Iterator distance against end() must not read out of bounds (a hardened
-// libstdc++ with _GLIBCXX_ASSERTIONS aborted here).
-TEST(DenseEnumMapTest, DistanceToEnd) {
+TEST(DenseEnumMapTest, Iterator) {
+  // Test the iterators.
+  //
+  //   1.  Distance to end.
+  //   2.  Forward iteration.
+  //   3.  Ordering against end.
+  //   4.  Random access arithmetic.
+
+  // Iterator distance against end() must not read out of bounds (a hardened
+  // libstdc++ with _GLIBCXX_ASSERTIONS aborted here).
   EXPECT_EQ(ColorMap.end() - ColorMap.begin(), 3);
   EXPECT_EQ(std::distance(ColorMap.begin(), ColorMap.end()), 3);
+
+  // Full forward traversal via begin()/end() and operator!=, exactly as a
+  // range-for would drive it.
+  {
+    std::string_view Expected[] = {"red"sv, "green"sv, "blue"sv};
+    std::size_t I = 0;
+    for (auto It = ColorMap.begin(); It != ColorMap.end(); ++It, ++I) {
+      ASSERT_LT(I, 3u);
+      EXPECT_EQ(It->second, Expected[I]);
+    }
+    EXPECT_EQ(I, 3u);
+  }
+
+  // Ordering operators are all defined in terms of operator-, so they must also
+  // stay valid when compared against end().
+  EXPECT_TRUE(ColorMap.begin() < ColorMap.end());
+  EXPECT_TRUE(ColorMap.end() > ColorMap.begin());
+  EXPECT_TRUE(ColorMap.begin() <= ColorMap.end());
+  EXPECT_TRUE(ColorMap.end() >= ColorMap.begin());
+  EXPECT_FALSE(ColorMap.end() < ColorMap.begin());
+
+  // Random-access arithmetic should land on end() without dereferencing past
+  // it.
+  {
+    auto It = ColorMap.begin() + 3;
+    EXPECT_EQ(It, ColorMap.end());
+    EXPECT_EQ(It - ColorMap.begin(), 3);
+    // Note: ConstIterator provides operator+(iter, diff) but not
+    // operator-(iter, diff), so step back via operator+ with a negative offset.
+    auto Back = It + (-1);
+    EXPECT_EQ(Back->second, "blue"sv);
+  }
 }
 
-// The real-world usage pattern from lib/common/errinfo.cpp: look up a key and
-// guard the result against end() before dereferencing.
-TEST(DenseEnumMapTest, FindPresentKey) {
-  auto It = ColorMap.find(Color::Green);
-  ASSERT_NE(It, ColorMap.end());
-  EXPECT_EQ(It->second, "green"sv);
-  EXPECT_EQ(ColorMap.find(Color::Red)->second, "red"sv);
-  EXPECT_EQ(ColorMap.find(Color::Blue)->second, "blue"sv);
-}
+TEST(DenseEnumMapTest, Find) {
+  // Test find.
+  //
+  //   1.  Present key.
+  //   2.  Absent key.
 
-// A key outside the dense index range clamps to end().
-TEST(DenseEnumMapTest, FindAbsentKey) {
+  // The real-world usage pattern from lib/common/errinfo.cpp: look up a key and
+  // guard the result against end() before dereferencing.
+  {
+    auto It = ColorMap.find(Color::Green);
+    ASSERT_NE(It, ColorMap.end());
+    EXPECT_EQ(It->second, "green"sv);
+    EXPECT_EQ(ColorMap.find(Color::Red)->second, "red"sv);
+    EXPECT_EQ(ColorMap.find(Color::Blue)->second, "blue"sv);
+  }
+
+  // A key outside the dense index range clamps to end().
   EXPECT_EQ(ColorMap.find(static_cast<Color>(3)), ColorMap.end());
   EXPECT_EQ(ColorMap.find(static_cast<Color>(99)), ColorMap.end());
 }
@@ -59,39 +103,6 @@ TEST(DenseEnumMapTest, SubscriptByKey) {
   EXPECT_EQ(ColorMap[Color::Red], "red"sv);
   EXPECT_EQ(ColorMap[Color::Green], "green"sv);
   EXPECT_EQ(ColorMap[Color::Blue], "blue"sv);
-}
-
-// Full forward traversal via begin()/end() and operator!=, exactly as a
-// range-for would drive it.
-TEST(DenseEnumMapTest, ForwardIteration) {
-  std::string_view Expected[] = {"red"sv, "green"sv, "blue"sv};
-  std::size_t I = 0;
-  for (auto It = ColorMap.begin(); It != ColorMap.end(); ++It, ++I) {
-    ASSERT_LT(I, 3u);
-    EXPECT_EQ(It->second, Expected[I]);
-  }
-  EXPECT_EQ(I, 3u);
-}
-
-// Ordering operators are all defined in terms of operator-, so they must also
-// stay valid when compared against end().
-TEST(DenseEnumMapTest, OrderingAgainstEnd) {
-  EXPECT_TRUE(ColorMap.begin() < ColorMap.end());
-  EXPECT_TRUE(ColorMap.end() > ColorMap.begin());
-  EXPECT_TRUE(ColorMap.begin() <= ColorMap.end());
-  EXPECT_TRUE(ColorMap.end() >= ColorMap.begin());
-  EXPECT_FALSE(ColorMap.end() < ColorMap.begin());
-}
-
-// Random-access arithmetic should land on end() without dereferencing past it.
-TEST(DenseEnumMapTest, RandomAccessArithmetic) {
-  auto It = ColorMap.begin() + 3;
-  EXPECT_EQ(It, ColorMap.end());
-  EXPECT_EQ(It - ColorMap.begin(), 3);
-  // Note: ConstIterator provides operator+(iter, diff) but not
-  // operator-(iter, diff), so step back via operator+ with a negative offset.
-  auto Back = It + (-1);
-  EXPECT_EQ(Back->second, "blue"sv);
 }
 
 } // namespace

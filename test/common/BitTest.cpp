@@ -33,16 +33,26 @@ struct NotTriviallyCopyable {
 };
 static_assert(!CanBitCast<std::uint32_t, NotTriviallyCopyable>::value);
 
-TEST(BitTest, RoundTripsBytes) {
-  const std::array<std::uint8_t, 8> Bytes = {0x00, 0x01, 0x02, 0x03,
-                                             0x04, 0x05, 0x06, 0x07};
-  const auto Value = cxx20::bit_cast<std::uint64_t>(Bytes);
-  EXPECT_EQ((cxx20::bit_cast<std::array<std::uint8_t, 8>>(Value)), Bytes);
-}
+TEST(BitTest, BitCast) {
+  // Test bit_cast.
+  //
+  //   1.  Round trips bytes.
+  //   2.  Preserves na n payload.
 
-TEST(BitTest, PreservesNaNPayload) {
-  const std::uint32_t Bits = UINT32_C(0x7fc00123);
-  EXPECT_EQ(cxx20::bit_cast<std::uint32_t>(cxx20::bit_cast<float>(Bits)), Bits);
+  // Round trips bytes.
+  {
+    const std::array<std::uint8_t, 8> Bytes = {0x00, 0x01, 0x02, 0x03,
+                                               0x04, 0x05, 0x06, 0x07};
+    const auto Value = cxx20::bit_cast<std::uint64_t>(Bytes);
+    EXPECT_EQ((cxx20::bit_cast<std::array<std::uint8_t, 8>>(Value)), Bytes);
+  }
+
+  // Preserves na n payload.
+  {
+    const std::uint32_t Bits = UINT32_C(0x7fc00123);
+    EXPECT_EQ(cxx20::bit_cast<std::uint32_t>(cxx20::bit_cast<float>(Bits)),
+              Bits);
+  }
 }
 
 } // namespace

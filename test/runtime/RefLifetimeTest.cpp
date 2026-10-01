@@ -24,43 +24,63 @@ namespace {
 
 using WasmEdge::Runtime::Instance::RefLifetime;
 
-TEST(RefLifetimeTest, OwnerOnlyDeletesOnReleaseOwner) {
-  RefLifetime Life;
-  EXPECT_FALSE(Life.hasDependents());
-  EXPECT_TRUE(Life.releaseOwner());
+TEST(RefLifetimeTest, ReleaseOwner) {
+  // Test releasing the owner.
+  //
+  //   1.  Owner only deletes on release owner.
+  //   2.  Is idempotent.
+
+  // Owner only deletes on release owner.
+  {
+    RefLifetime Life;
+    EXPECT_FALSE(Life.hasDependents());
+    EXPECT_TRUE(Life.releaseOwner());
+  }
+
+  // Is idempotent.
+  {
+    RefLifetime Life;
+    EXPECT_TRUE(Life.releaseOwner());
+    EXPECT_FALSE(Life.releaseOwner());
+  }
 }
 
-TEST(RefLifetimeTest, ReleaseOwnerIsIdempotent) {
-  RefLifetime Life;
-  EXPECT_TRUE(Life.releaseOwner());
-  EXPECT_FALSE(Life.releaseOwner());
-}
+TEST(RefLifetimeTest, Dependents) {
+  // Test dependent instances.
+  //
+  //   1.  Owner delete deferred by dependent.
+  //   2.  Dependent release keeps owner.
+  //   3.  Multiple dependents delete on last.
 
-TEST(RefLifetimeTest, OwnerWithDependentDefersUntilLastRelease) {
-  RefLifetime Life;
-  Life.addDependent();
-  EXPECT_TRUE(Life.hasDependents());
-  EXPECT_FALSE(Life.releaseOwner());
-  EXPECT_TRUE(Life.releaseDependent());
-}
+  // Owner delete deferred by dependent.
+  {
+    RefLifetime Life;
+    Life.addDependent();
+    EXPECT_TRUE(Life.hasDependents());
+    EXPECT_FALSE(Life.releaseOwner());
+    EXPECT_TRUE(Life.releaseDependent());
+  }
 
-TEST(RefLifetimeTest, DependentReleasedBeforeOwnerDoesNotDelete) {
-  RefLifetime Life;
-  Life.addDependent();
-  EXPECT_FALSE(Life.releaseDependent());
-  EXPECT_FALSE(Life.hasDependents());
-  EXPECT_TRUE(Life.releaseOwner());
-}
+  // Dependent release keeps owner.
+  {
+    RefLifetime Life;
+    Life.addDependent();
+    EXPECT_FALSE(Life.releaseDependent());
+    EXPECT_FALSE(Life.hasDependents());
+    EXPECT_TRUE(Life.releaseOwner());
+  }
 
-TEST(RefLifetimeTest, MultipleDependentsDeleteOnLast) {
-  RefLifetime Life;
-  Life.addDependent();
-  Life.addDependent();
-  Life.addDependent();
-  EXPECT_FALSE(Life.releaseOwner());
-  EXPECT_FALSE(Life.releaseDependent());
-  EXPECT_FALSE(Life.releaseDependent());
-  EXPECT_TRUE(Life.releaseDependent());
+  // Multiple dependents delete on last.
+  {
+    RefLifetime Life;
+    Life.addDependent();
+    Life.addDependent();
+    Life.addDependent();
+    EXPECT_FALSE(Life.releaseOwner());
+    EXPECT_FALSE(Life.releaseDependent());
+    EXPECT_FALSE(Life.releaseDependent());
+    EXPECT_TRUE(Life.releaseDependent());
+  }
 }
 
 TEST(RefLifetimeTest, ConcurrentReleasesDeleteExactlyOnce) {

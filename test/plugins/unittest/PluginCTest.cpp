@@ -50,7 +50,7 @@ WasmEdge_ModuleInstanceContext *createModuleCPP() {
 }
 } // namespace
 
-TEST(wasmedgePluginTests, C_DefaultPaths) {
+TEST(PluginCTest, DefaultPaths) {
 #if WASMEDGE_OS_WINDOWS
   const std::string Separator = ";";
 #else
@@ -79,7 +79,7 @@ TEST(wasmedgePluginTests, C_DefaultPaths) {
       nullptr);
 }
 
-TEST(wasmedgePluginTests, C_Run) {
+TEST(PluginCTest, Run) {
   auto *ExecCxt = WasmEdge_ExecutorCreate(nullptr, nullptr);
   auto *StoreCxt = WasmEdge_StoreCreate();
   WasmEdge_Result Res;
@@ -168,7 +168,7 @@ TEST(wasmedgePluginTests, C_Run) {
   WasmEdge_ModuleInstanceDelete(ModInstCPP);
 }
 
-TEST(wasmedgePluginTests, C_Module) {
+TEST(PluginCTest, Module) {
   WasmEdge_String NameBuf[16];
 
   // Create the wasmedge_plugintest_c_module module instance.

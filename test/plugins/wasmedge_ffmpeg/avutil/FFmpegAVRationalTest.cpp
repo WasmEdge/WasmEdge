@@ -12,7 +12,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-TEST_F(FFmpegTest, AVRational) {
+using FFmpegAVRationalTest = FFmpegTest;
+
+TEST_F(FFmpegAVRationalTest, AVRational) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   uint32_t NumPtr = UINT32_C(4);

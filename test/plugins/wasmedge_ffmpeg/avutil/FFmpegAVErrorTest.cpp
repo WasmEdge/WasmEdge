@@ -12,7 +12,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-TEST_F(FFmpegTest, AVError) {
+using FFmpegAVErrorTest = FFmpegTest;
+
+TEST_F(FFmpegAVErrorTest, AVError) {
   using namespace std::literals::string_view_literals;
   ASSERT_TRUE(AVUtilMod != nullptr);
 

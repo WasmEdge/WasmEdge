@@ -277,7 +277,7 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
   ASSERT_NE(Var##Inst, nullptr);                                               \
   auto &Var = Var##Inst->getHostFunc();
 
-TEST(WasmEdgeZlibTest, HardeningBounds) {
+TEST(WasmEdgeZlibTest, GuestPointerBounds) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -370,7 +370,7 @@ TEST(WasmEdgeZlibTest, HardeningBounds) {
   }
 }
 
-TEST(WasmEdgeZlibTest, HardeningCompress2AnswersInvalidLevelBeforeBounds) {
+TEST(WasmEdgeZlibTest, Compress2InvalidLevelBeforeBounds) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -404,7 +404,7 @@ TEST(WasmEdgeZlibTest, HardeningCompress2AnswersInvalidLevelBeforeBounds) {
       RetVal));
 }
 
-TEST(WasmEdgeZlibTest, HardeningUncompress2AliasedLengthMatchesNative) {
+TEST(WasmEdgeZlibTest, Uncompress2AliasedLengthMatchesZlib) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -853,7 +853,7 @@ TEST(WasmEdgeZlibTest, HardeningDeflateSetDictionaryStartedStreamAnswersFirst) {
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZSRaw}, RetVal));
 }
 
-TEST(WasmEdgeZlibTest, HardeningDeflateCopyInheritsDictionaryState) {
+TEST(WasmEdgeZlibTest, DeflateCopyInheritsDictionaryState) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -1003,7 +1003,7 @@ TEST(WasmEdgeZlibTest, HardeningZeroLengthChecksumMatchesZlib) {
   EXPECT_EQ(RetVal[0].get<int32_t>(), static_cast<int32_t>(Running));
 }
 
-TEST(WasmEdgeZlibTest, HardeningUnterminatedString) {
+TEST(WasmEdgeZlibTest, UnterminatedString) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -2738,7 +2738,7 @@ TEST(WasmEdgeZlibTest, HardeningInflateGetHeaderAnswersNonGzipStreams) {
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{ZS}, RetVal));
 }
 
-TEST(WasmEdgeZlibTest, HardeningInflateEndToleratesCorruptHeaderMax) {
+TEST(WasmEdgeZlibTest, InflateEndToleratesCorruptHeaderMax) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -3318,7 +3318,7 @@ TEST(WasmEdgeZlibTest, HardeningInflateHeaderZeroCapacityKeepsGuestPointers) {
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{IZS}, RetVal));
 }
 
-TEST(WasmEdgeZlibTest, HardeningReinitRejectsLiveStream) {
+TEST(WasmEdgeZlibTest, ReinitRejectsLiveStream) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -3347,7 +3347,7 @@ TEST(WasmEdgeZlibTest, HardeningReinitRejectsLiveStream) {
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_STREAM_ERROR);
 }
 
-TEST(WasmEdgeZlibTest, HardeningWrongTypeEndKeepsStream) {
+TEST(WasmEdgeZlibTest, WrongTypeEndKeepsStream) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -3380,7 +3380,7 @@ TEST(WasmEdgeZlibTest, HardeningWrongTypeEndKeepsStream) {
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 }
 
-TEST(WasmEdgeZlibTest, HardeningWrongKindStreamAnswersLikeZlib) {
+TEST(WasmEdgeZlibTest, WrongKindStreamAnswersLikeZlib) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -3500,7 +3500,7 @@ TEST(WasmEdgeZlibTest, HardeningWrongKindStreamAnswersLikeZlib) {
   ExpectI32(InflateEnd, {IZS}, Z_OK);
 }
 
-TEST(WasmEdgeZlibTest, HardeningDeflateCopyRejectsLiveDest) {
+TEST(WasmEdgeZlibTest, DeflateCopyRejectsLiveDest) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -3818,7 +3818,7 @@ TEST(WasmEdgeZlibTest, HardeningGZBufferClampsSize) {
   std::remove(TmpPath.c_str());
 }
 
-TEST(WasmEdgeZlibTest, HardeningDeflatePendingRejectsOOBPointer) {
+TEST(WasmEdgeZlibTest, DeflatePendingRejectsOOBPointer) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -3888,7 +3888,7 @@ TEST(WasmEdgeZlibTest, InflateGetHeaderSyncsImmediateDoneReset) {
       CallFrame, std::initializer_list<WasmEdge::ValVariant>{IZS}, RetVal));
 }
 
-TEST(WasmEdgeZlibTest, GetDictionaryAndPendingHonorNullOutPointers) {
+TEST(WasmEdgeZlibTest, GetDictionaryAndPendingAcceptNullOut) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -4061,7 +4061,7 @@ TEST(WasmEdgeZlibTest, HardeningInflateBackInitNullWindowMatchesZlib) {
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 }
 
-TEST(WasmEdgeZlibTest, HardeningVersionedInitAnswersVersionErrorFirst) {
+TEST(WasmEdgeZlibTest, VersionedInitVersionErrorFirst) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -4135,7 +4135,7 @@ TEST(WasmEdgeZlibTest, HardeningVersionedInitAnswersVersionErrorFirst) {
   EXPECT_EQ(RetVal[0].get<int32_t>(), Z_OK);
 }
 
-TEST(WasmEdgeZlibTest, HardeningDeflateInitValidatesVersionString) {
+TEST(WasmEdgeZlibTest, DeflateInitValidatesVersionString) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -4362,7 +4362,7 @@ TEST(WasmEdgeZlibTest, HardeningGZOpenWasiAcceptsAbsoluteGuestPaths) {
   std::filesystem::remove(SandboxDir / "wasi_abs.gz", EC);
 }
 
-TEST(WasmEdgeZlibTest, HardeningGZOpenUnrecognizedWasiFailsClosed) {
+TEST(WasmEdgeZlibTest, GZOpenUnrecognizedWasiFailsClosed) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -4667,7 +4667,7 @@ TEST(WasmEdgeZlibTest, HardeningGZOpenWasiHonorsOpenModes) {
   std::filesystem::remove(SandboxDir / "gfresh.gz", EC);
 }
 
-TEST(WasmEdgeZlibTest, HardeningGZOpenWasiFollowsSandboxSymlinks) {
+TEST(WasmEdgeZlibTest, GZOpenWasiFollowsSandboxSymlinks) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 
@@ -4804,7 +4804,7 @@ TEST(WasmEdgeZlibTest, HardeningGZOpenWasiFollowsSandboxSymlinks) {
   std::filesystem::remove(OutsideFile, EC);
 }
 
-TEST(WasmEdgeZlibTest, HardeningGZDOpenTemporarilyDisabled) {
+TEST(WasmEdgeZlibTest, GZDOpenTemporarilyDisabled) {
   auto ZlibMod = createModule();
   ASSERT_TRUE(ZlibMod);
 

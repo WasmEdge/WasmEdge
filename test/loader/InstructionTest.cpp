@@ -1447,7 +1447,7 @@ TEST(InstructionTest, LoadMiscInstruction) {
   }
 }
 
-TEST(InstructionTest, Proposals) {
+TEST(InstructionTest, LoadInstructionWithProposals) {
   std::vector<uint8_t> Vec;
 
   Conf.setWASMStandard(WasmEdge::Standard::WASM_1);

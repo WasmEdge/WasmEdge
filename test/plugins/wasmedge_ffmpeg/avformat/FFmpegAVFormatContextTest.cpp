@@ -13,7 +13,9 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 // Testing all AVFormat_funcs.
-TEST_F(FFmpegTest, AVFormatContextStruct) {
+using FFmpegAVFormatContextTest = FFmpegTest;
+
+TEST_F(FFmpegAVFormatContextTest, AVFormatContextStruct) {
   uint32_t FormatCtxPtr = UINT32_C(4);
   uint32_t InputFormatPtr = UINT32_C(8);
   uint32_t OutputFormatPtr = UINT32_C(12);
@@ -175,7 +177,7 @@ TEST_F(FFmpegTest, AVFormatContextStruct) {
   }
 }
 
-TEST_F(FFmpegTest, AVFormatNewStream) {
+TEST_F(FFmpegAVFormatContextTest, AVFormatNewStream) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVCodecMod != nullptr);
 
@@ -304,7 +306,7 @@ TEST_F(FFmpegTest, AVFormatNewStream) {
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFormatCtxMetadataNullHandle) {
+TEST_F(FFmpegAVFormatContextTest, AVFormatCtxMetadataNullHandle) {
   ASSERT_TRUE(AVFormatMod != nullptr);
 
   auto *FuncInst = AVFormatMod->findFuncExports(

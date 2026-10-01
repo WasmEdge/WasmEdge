@@ -151,9 +151,8 @@ TEST(WasiNNResourceTableTest, InsertFailsOnIdExhaustion) {
   EXPECT_NE(Table.get(*Last), nullptr);
 }
 
-// Concurrency stress: producers publish, workers pin-and-use, removers
-// detach. Under TSan this checks unique ids, exactly-once destruction, and
-// pins surviving concurrent removal.
+// Concurrency stress (producers, pinning workers, removers): unique ids,
+// exactly-once destruction, and pins surviving removal under TSan.
 TEST(WasiNNResourceTableTest, ConcurrentChurnKeepsOwnershipExact) {
   constexpr uint32_t Producers = 4;
   constexpr uint32_t PerProducer = 256;

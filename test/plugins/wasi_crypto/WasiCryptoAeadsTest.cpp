@@ -8,7 +8,9 @@ namespace Host {
 namespace WasiCrypto {
 using namespace std::literals;
 
-TEST_F(WasiCryptoTest, Aeads) {
+using WasiCryptoAeadsTest = WasiCryptoTest;
+
+TEST_F(WasiCryptoAeadsTest, Aeads) {
   auto AeadsTest = [this](std::string_view Name,
                           const std::vector<uint8_t> &Nonce, size_t MaxTagSize,
                           const std::vector<uint8_t> &Msg) {

@@ -62,7 +62,7 @@ void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 
 } // namespace
 
-TEST(WasiLoggingTests, func_log) {
+TEST(WasiLoggingTest, FuncLog) {
   using namespace std::literals::string_view_literals;
   // Create the wasi-logging module instance.
   // Create two wasi-logging modules for testing multiple modules.
@@ -212,7 +212,7 @@ TEST(WasiLoggingTests, func_log) {
       {}));
 }
 
-TEST(WasiLoggingTests, func_log_file) {
+TEST(WasiLoggingTest, FuncLogFile) {
   using namespace std::literals::string_view_literals;
   auto WasiLoggingMod = createModule();
   ASSERT_TRUE(WasiLoggingMod);
@@ -322,7 +322,7 @@ TEST(WasiLoggingTests, func_log_file) {
   std::filesystem::remove_all(Logs);
 }
 
-TEST(WasiLoggingTests, func_log_oob) {
+TEST(WasiLoggingTest, FuncLogOOB) {
   using namespace std::literals::string_view_literals;
   auto WasiLoggingMod = createModule();
   ASSERT_TRUE(WasiLoggingMod);
@@ -348,21 +348,19 @@ TEST(WasiLoggingTests, func_log_oob) {
 
   // OOB context: CxtPtr=65535, CxtLen=100 extends 99 bytes past the page end.
   // Expected: HostFuncError (not a crash).
-  EXPECT_FALSE(HostFuncInst.run(
-      CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{
-          UINT32_C(0), UINT32_C(65535), UINT32_C(100), UINT32_C(0),
-          UINT32_C(6)},
-      {}));
+  EXPECT_FALSE(HostFuncInst.run(CallFrame,
+                                std::initializer_list<WasmEdge::ValVariant>{
+                                    UINT32_C(0), UINT32_C(65535), UINT32_C(100),
+                                    UINT32_C(0), UINT32_C(6)},
+                                {}));
 
   // OOB message: valid context ("stdout"), MsgPtr=65535, MsgLen=100.
   // Expected: HostFuncError (not a crash).
-  EXPECT_FALSE(HostFuncInst.run(
-      CallFrame,
-      std::initializer_list<WasmEdge::ValVariant>{
-          UINT32_C(0), UINT32_C(0), UINT32_C(6), UINT32_C(65535),
-          UINT32_C(100)},
-      {}));
+  EXPECT_FALSE(HostFuncInst.run(CallFrame,
+                                std::initializer_list<WasmEdge::ValVariant>{
+                                    UINT32_C(0), UINT32_C(0), UINT32_C(6),
+                                    UINT32_C(65535), UINT32_C(100)},
+                                {}));
 }
 
 GTEST_API_ int main(int argc, char **argv) {

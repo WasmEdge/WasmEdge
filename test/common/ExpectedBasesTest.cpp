@@ -4,7 +4,7 @@
 #include <string>
 #include <type_traits>
 
-TEST(BaseTest, Triviality) {
+TEST(ExpectedBasesTest, Triviality) {
   EXPECT_TRUE(
       (std::is_trivially_copy_constructible_v<cxx20::expected<int, int>>));
   EXPECT_TRUE((std::is_trivially_copy_assignable_v<cxx20::expected<int, int>>));
@@ -56,7 +56,7 @@ TEST(BaseTest, Triviality) {
   }
 }
 
-TEST(BaseTest, Deletion) {
+TEST(ExpectedBasesTest, Deletion) {
   EXPECT_TRUE((std::is_copy_constructible_v<cxx20::expected<int, int>>));
   EXPECT_TRUE((std::is_copy_assignable_v<cxx20::expected<int, int>>));
   EXPECT_TRUE((std::is_move_constructible_v<cxx20::expected<int, int>>));

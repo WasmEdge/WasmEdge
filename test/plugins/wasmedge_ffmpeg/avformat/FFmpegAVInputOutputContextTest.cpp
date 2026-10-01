@@ -13,7 +13,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-TEST_F(FFmpegTest, AVInputFormat) {
+using FFmpegAVInputOutputContextTest = FFmpegTest;
+
+TEST_F(FFmpegAVInputOutputContextTest, AVInputFormat) {
   using namespace std::literals::string_view_literals;
   std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
   uint32_t FormatCtxPtr = UINT32_C(24);
@@ -25,9 +27,7 @@ TEST_F(FFmpegTest, AVInputFormat) {
 
   uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
 
-  // ====================================================================
-  //                        Initialize AVInputFormat
-  // ====================================================================
+  // Initialize AVInputFormat.
 
   auto *FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformatContext_iformat");
@@ -45,10 +45,6 @@ TEST_F(FFmpegTest, AVInputFormat) {
     EXPECT_TRUE(readUInt32(MemInst, InputFormatPtr) > 0);
   }
   uint32_t InputFormatId = readUInt32(MemInst, InputFormatPtr);
-
-  // ====================================================================
-  //                       End Initialize AVInputFormat
-  // ====================================================================
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avIOFormat_name_length");
@@ -192,7 +188,7 @@ TEST_F(FFmpegTest, AVInputFormat) {
   }
 }
 
-TEST_F(FFmpegTest, AVInputFormatNameBounds) {
+TEST_F(FFmpegAVInputOutputContextTest, AVInputFormatNameBounds) {
   ASSERT_TRUE(AVFormatMod != nullptr);
 
   std::string FileName = "ffmpeg-assets/sample_video.mp4";
@@ -268,7 +264,7 @@ TEST_F(FFmpegTest, AVInputFormatNameBounds) {
   }
 }
 
-TEST_F(FFmpegTest, InputOutputFormatFreeRejectsWrongTypeHandle) {
+TEST_F(FFmpegAVInputOutputContextTest, FormatFreeRejectsWrongTypeHandle) {
   ASSERT_TRUE(AVFormatMod != nullptr);
 
   uint32_t FormatCtxPtr = UINT32_C(4);

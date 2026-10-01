@@ -13,7 +13,9 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 // Testing all AVFormat_funcs.
-TEST_F(FFmpegTest, AVStreamStruct) {
+using FFmpegAVStreamTest = FFmpegTest;
+
+TEST_F(FFmpegAVStreamTest, AVStreamStruct) {
   ASSERT_TRUE(AVFormatMod != nullptr);
 
   uint32_t StreamIdx = 0;
@@ -269,7 +271,7 @@ TEST_F(FFmpegTest, AVStreamStruct) {
   }
 }
 
-TEST_F(FFmpegTest, AVStreamIndexOutOfRange) {
+TEST_F(FFmpegAVStreamTest, AVStreamIndexOutOfRange) {
   ASSERT_TRUE(AVFormatMod != nullptr);
 
   uint32_t FormatCtxPtr = UINT32_C(4);
@@ -307,7 +309,7 @@ TEST_F(FFmpegTest, AVStreamIndexOutOfRange) {
             static_cast<int32_t>(ErrNo::InternalError));
 }
 
-TEST_F(FFmpegTest, AVStreamRationalSettersValidateValuesAndMuxState) {
+TEST_F(FFmpegAVStreamTest, AVStreamRationalSettersValidated) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVCodecMod != nullptr);
 
@@ -335,9 +337,8 @@ TEST_F(FFmpegTest, AVStreamRationalSettersValidateValuesAndMuxState) {
   uint32_t InCtxId = readUInt32(MemInst, InCtxPtr);
   ASSERT_TRUE(InCtxId > 0);
 
-  // libavformat divides by the time base and the muxers loop on it, so
-  // neither term may be 0 or exceed int range; frame rates may be 0
-  // (unknown) but never negative.
+  // libavformat divides by the time base and the muxers loop on it: no term
+  // may be 0 or exceed int range; a frame rate may be 0 but never negative.
   EXPECT_EQ(Run(AVFormatMod.get(), SetTimebase,
                 {UINT32_C(0), UINT32_C(1), InCtxId, UINT32_C(0)}),
             Rejected);

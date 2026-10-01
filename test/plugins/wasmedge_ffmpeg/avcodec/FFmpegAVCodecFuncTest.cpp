@@ -14,7 +14,9 @@ namespace WasmEdgeFFmpeg {
 
 // TODO: Commented functions need tests.
 
-TEST_F(FFmpegTest, AVCodecFunc) {
+using FFmpegAVCodecFuncTest = FFmpegTest;
+
+TEST_F(FFmpegAVCodecFuncTest, AVCodecFunc) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   uint32_t CodecCtxPtr = UINT32_C(4);
@@ -373,7 +375,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
   }
 }
 
-TEST_F(FFmpegTest, SendPacketReceiveFrame) {
+TEST_F(FFmpegAVCodecFuncTest, SendPacketReceiveFrame) {
   std::string FileName = "ffmpeg-assets/dummy.mp4"; // 32 chars
   uint32_t CodecCtxPtr = UINT32_C(64);
   uint32_t FramePtr = UINT32_C(72);
@@ -522,7 +524,7 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
   }
 }
 
-TEST_F(FFmpegTest, AVCodecFailuresZeroTheIdSlot) {
+TEST_F(FFmpegAVCodecFuncTest, AVCodecFailuresZeroIdSlot) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -571,7 +573,7 @@ TEST_F(FFmpegTest, AVCodecFailuresZeroTheIdSlot) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVCodecSendRejectsUnresolvedHandles) {
+TEST_F(FFmpegAVCodecFuncTest, AVCodecSendRejectsUnresolvedHandles) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   uint32_t CodecCtxPtr = UINT32_C(4);
@@ -621,7 +623,7 @@ TEST_F(FFmpegTest, AVCodecSendRejectsUnresolvedHandles) {
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVCodecSendFrameRejectsMismatchedFrame) {
+TEST_F(FFmpegAVCodecFuncTest, AVCodecSendFrameRejectsMismatchedFrame) {
   ASSERT_TRUE(AVCodecMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -710,7 +712,7 @@ TEST_F(FFmpegTest, AVCodecSendFrameRejectsMismatchedFrame) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVCodecSendFrameRejectsFrameWithoutBuffers) {
+TEST_F(FFmpegAVCodecFuncTest, AVCodecSendFrameRejectsBufferlessFrame) {
   ASSERT_TRUE(AVCodecMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -789,7 +791,7 @@ TEST_F(FFmpegTest, AVCodecSendFrameRejectsFrameWithoutBuffers) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVCodecParametersToContextAcceptsOpenedParams) {
+TEST_F(FFmpegAVCodecFuncTest, AVCodecParametersToOpenContext) {
   ASSERT_TRUE(AVCodecMod != nullptr);
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
@@ -903,7 +905,7 @@ TEST_F(FFmpegTest, AVCodecParametersToContextAcceptsOpenedParams) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVCodecFlushBuffersRequiresOpenContext) {
+TEST_F(FFmpegAVCodecFuncTest, AVCodecFlushBuffersRequiresOpenContext) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -938,7 +940,7 @@ TEST_F(FFmpegTest, AVCodecFlushBuffersRequiresOpenContext) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVCodecLookupsHideWrappedAvframe) {
+TEST_F(FFmpegAVCodecFuncTest, AVCodecLookupsHideWrappedAvframe) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -985,7 +987,7 @@ TEST_F(FFmpegTest, AVCodecLookupsHideWrappedAvframe) {
   EXPECT_TRUE(readUInt32(MemInst, CodecPtr) > 0);
 }
 
-TEST_F(FFmpegTest, AVCodecReceiveFrameRequiresOpenContext) {
+TEST_F(FFmpegAVCodecFuncTest, AVCodecReceiveFrameRequiresOpenContext) {
   ASSERT_TRUE(AVCodecMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -1053,7 +1055,7 @@ TEST_F(FFmpegTest, AVCodecReceiveFrameRequiresOpenContext) {
       static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVCodecParametersWritesRejectLockedMuxer) {
+TEST_F(FFmpegAVCodecFuncTest, AVCodecParametersRejectLockedMuxer) {
   ASSERT_TRUE(AVCodecMod != nullptr);
   ASSERT_TRUE(AVFormatMod != nullptr);
 

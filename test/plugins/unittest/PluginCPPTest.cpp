@@ -54,7 +54,7 @@ std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance> createModuleCPP() {
 }
 } // namespace
 
-TEST(wasmedgePluginTests, CPP_Run) {
+TEST(PluginCPPTest, Run) {
   // Create the wasmedge_plugintest_cpp_module module instance.
   auto TestModCPP = createModuleCPP();
   ASSERT_TRUE(TestModCPP);
@@ -100,7 +100,7 @@ TEST(wasmedgePluginTests, CPP_Run) {
   // Therefore not test to invoke them here.
 }
 
-TEST(wasmedgePluginTests, CPP_Module) {
+TEST(PluginCPPTest, Module) {
   // Create the wasmedge_plugintest_cpp_module module instance.
   auto TestModCPP = createModuleCPP();
   ASSERT_TRUE(TestModCPP);

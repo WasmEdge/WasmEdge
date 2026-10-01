@@ -12,7 +12,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-TEST_F(FFmpegTest, AVSampleFmt) {
+using FFmpegAVSampleFmtTest = FFmpegTest;
+
+TEST_F(FFmpegAVSampleFmtTest, AVSampleFmt) {
   using namespace std::literals::string_view_literals;
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -203,7 +205,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   }
 }
 
-TEST_F(FFmpegTest, AVSampleFmtNameBounds) {
+TEST_F(FFmpegAVSampleFmtTest, AVSampleFmtNameBounds) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto *FuncInst = AVUtilMod->findFuncExports(
@@ -232,7 +234,7 @@ TEST_F(FFmpegTest, AVSampleFmtNameBounds) {
   }
 }
 
-TEST_F(FFmpegTest, AVSampleFmtNameInvalid) {
+TEST_F(FFmpegAVSampleFmtTest, AVSampleFmtNameInvalid) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   uint32_t NamePtr = UINT32_C(4);
@@ -260,7 +262,7 @@ TEST_F(FFmpegTest, AVSampleFmtNameInvalid) {
   EXPECT_EQ(Result[0].get<int32_t>(), 0);
 }
 
-TEST_F(FFmpegTest, AVSampleFmtGetBounds) {
+TEST_F(FFmpegAVSampleFmtTest, AVSampleFmtGetBounds) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto *FuncInst =
@@ -277,7 +279,7 @@ TEST_F(FFmpegTest, AVSampleFmtGetBounds) {
             static_cast<int32_t>(ErrNo::MissingMemory));
 }
 
-TEST_F(FFmpegTest, AVFreepNullSafeAndIdempotent) {
+TEST_F(FFmpegAVSampleFmtTest, AVFreepNullSafeAndIdempotent) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -317,7 +319,7 @@ TEST_F(FFmpegTest, AVFreepNullSafeAndIdempotent) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVSamplesAllocArrayAndSamplesLeavesTheLiveBufferAlone) {
+TEST_F(FFmpegAVSampleFmtTest, AVSamplesAllocArrayKeepsLiveBuffer) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto Run = [&](const char *Name,

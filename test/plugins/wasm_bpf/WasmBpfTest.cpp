@@ -560,9 +560,8 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
   // Three helper functions used below.
   auto mapGetNextKey = [&](int32_t fd, uint32_t lookupKey,
                            uint32_t nextKey) -> int32_t {
-    // lookupKey is the last element -> returns -1
-    // lookupKey found -> returns 0, set nextKey
-    // lookupKey not found -> returns 0, set nextKey to the first key
+    // Returns -1 when lookupKey is the last key; otherwise returns 0 and sets
+    // nextKey (to the first key when lookupKey is absent).
 
     return callMapOperate(fd,
                           4, // BPF_MAP_GET_NEXT_KEY

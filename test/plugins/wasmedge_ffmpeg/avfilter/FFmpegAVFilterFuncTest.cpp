@@ -21,7 +21,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-TEST_F(FFmpegTest, AVFilterFunc) {
+using FFmpegAVFilterFuncTest = FFmpegTest;
+
+TEST_F(FFmpegAVFilterFuncTest, AVFilterFunc) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   // Structs Ptr
@@ -198,9 +200,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   uint32_t InputFilterCtxId = readUInt32(MemInst, InputFilterCtxPtr);
   ASSERT_TRUE(InputFilterCtxId > 0);
 
-  // ==================================================================
-  //                  Setting InOutId Values for Filtering
-  // ==================================================================
+  // Setting InOutId Values for Filtering.
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_inout_set_name");
@@ -287,10 +287,6 @@ TEST_F(FFmpegTest, AVFilterFunc) {
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
-
-  // ==================================================================
-  //                  End Setting InOutId Values for Filtering
-  // ==================================================================
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_graph_parse_ptr");
@@ -452,9 +448,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
               std::string_view::npos);
   }
 
-  // ==================================================================
-  //              Start Test AVBufferSource, AVBufferSink Funcs
-  // ==================================================================
+  // Test AVBufferSource and AVBufferSink functions.
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_av_buffersrc_get_nb_failed_requests");
@@ -495,28 +489,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 
-  // Need to send the last frame. Then only this test will pass. Else Null
-  // pointer exception.
-  //  FuncInst = AVFilterMod->findFuncExports(
-  //      "wasmedge_ffmpeg_avfilter_av_buffersrc_close");
-  //  EXPECT_NE(FuncInst, nullptr);
-  //  EXPECT_TRUE(FuncInst->isHostFunction());
-  //
-  //  auto &HostFuncAVBufferSrcClose = dynamic_cast<
-  //      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVBufferSrcClose &>(
-  //      FuncInst->getHostFunc());
-  //
-  //  {
-  //    int64_t Pts = 20;
-  //    uint32_t Flags = 30;
-  //    EXPECT_TRUE(HostFuncAVBufferSrcClose.run(
-  //        CallFrame,
-  //        std::initializer_list<WasmEdge::ValVariant>{InputFilterCtxPtr, Pts,
-  //                                                    Flags},
-  //        Result));
-  //    EXPECT_EQ(Result[0].get<int32_t>(),
-  //    static_cast<int32_t>(ErrNo::Success));
-  //  }
+  // TODO: test av_buffersrc_close; it needs the last frame sent first, or it
+  // dereferences a null pointer.
 
   // Passing Empty frames. Return AVERROR due to no frames presen Return AVERROR
   // due to no frames present.
@@ -568,13 +542,7 @@ TEST_F(FFmpegTest, AVFilterFunc) {
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 
-  // ==================================================================
-  //              End Test AVBufferSource, AVBufferSink Funcs
-  // ==================================================================
-
-  // ==================================================================
-  //                        Clean Memory
-  // ==================================================================
+  // Clean Memory.
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_free_graph_str");
@@ -637,13 +605,9 @@ TEST_F(FFmpegTest, AVFilterFunc) {
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
-
-  // ==================================================================
-  //                        End Clean Memory
-  // ==================================================================
 }
 
-TEST_F(FFmpegTest, AVFilterInOutChainOwnership) {
+TEST_F(FFmpegAVFilterFuncTest, InOutChainOwnership) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   uint32_t HeadPtr = UINT32_C(4);
@@ -695,7 +659,7 @@ TEST_F(FFmpegTest, AVFilterInOutChainOwnership) {
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFilterInOutRelinkReleasesOldNext) {
+TEST_F(FFmpegAVFilterFuncTest, InOutRelinkReleasesOldNext) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   uint32_t HeadPtr = UINT32_C(4);
@@ -750,7 +714,7 @@ TEST_F(FFmpegTest, AVFilterInOutRelinkReleasesOldNext) {
   FreeInOut(NewNextId);
 }
 
-TEST_F(FFmpegTest, AVFilterInOutSetNextRejectsSharedNode) {
+TEST_F(FFmpegAVFilterFuncTest, InOutSetNextRejectsSharedNode) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -796,7 +760,7 @@ TEST_F(FFmpegTest, AVFilterInOutSetNextRejectsSharedNode) {
   EXPECT_EQ(FreeInOut(SharedId), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFilterInOutSetNextRejectsCyclicLink) {
+TEST_F(FFmpegAVFilterFuncTest, InOutSetNextRejectsCyclicLink) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -842,7 +806,7 @@ TEST_F(FFmpegTest, AVFilterInOutSetNextRejectsCyclicLink) {
             static_cast<int32_t>(ErrNo::InternalError));
 }
 
-TEST_F(FFmpegTest, AVFilterGraphParsePtrRejectsAliasedInOut) {
+TEST_F(FFmpegAVFilterFuncTest, GraphParsePtrRejectsAliasedInOut) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -880,7 +844,7 @@ TEST_F(FFmpegTest, AVFilterGraphParsePtrRejectsAliasedInOut) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFilterGraphParsePtrRejectionKeepsInOutChain) {
+TEST_F(FFmpegAVFilterFuncTest, GraphParsePtrRejectionKeepsInOutChain) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -943,7 +907,7 @@ TEST_F(FFmpegTest, AVFilterGraphParsePtrRejectionKeepsInOutChain) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFilterGraphParsePtrDropsChildrenOnError) {
+TEST_F(FFmpegAVFilterFuncTest, GraphParsePtrDropsChildrenOnError) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1016,7 +980,7 @@ TEST_F(FFmpegTest, AVFilterGraphParsePtrDropsChildrenOnError) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFilterGraphParsePtrRejectsBorrowedInOut) {
+TEST_F(FFmpegAVFilterFuncTest, GraphParsePtrRejectsBorrowedInOut) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1075,7 +1039,7 @@ TEST_F(FFmpegTest, AVFilterGraphParsePtrRejectsBorrowedInOut) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFilterGraphFreeRejectsWrongTypeHandle) {
+TEST_F(FFmpegAVFilterFuncTest, GraphFreeRejectsWrongTypeHandle) {
   ASSERT_TRUE(AVFilterMod != nullptr);
   ASSERT_TRUE(AVFormatMod != nullptr);
 
@@ -1120,7 +1084,7 @@ TEST_F(FFmpegTest, AVFilterGraphFreeRejectsWrongTypeHandle) {
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFilterFreeGraphStrRejectsWrongTypeHandle) {
+TEST_F(FFmpegAVFilterFuncTest, FreeGraphStrRejectsWrongTypeHandle) {
   ASSERT_TRUE(AVFilterMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -1168,7 +1132,7 @@ TEST_F(FFmpegTest, AVFilterFreeGraphStrRejectsWrongTypeHandle) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFilterGraphParsePtrRejectsNullFilterCtx) {
+TEST_F(FFmpegAVFilterFuncTest, GraphParsePtrRejectsNullFilterCtx) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1212,7 +1176,7 @@ TEST_F(FFmpegTest, AVFilterGraphParsePtrRejectsNullFilterCtx) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFilterGraphParsePtrRejectsStaleFilterCtx) {
+TEST_F(FFmpegAVFilterFuncTest, GraphParsePtrRejectsStaleFilterCtx) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1294,7 +1258,7 @@ TEST_F(FFmpegTest, AVFilterGraphParsePtrRejectsStaleFilterCtx) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFilterGraphParsePtrRejectsForeignGraphFilterCtx) {
+TEST_F(FFmpegAVFilterFuncTest, GraphParsePtrRejectsForeignFilterCtx) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1376,7 +1340,7 @@ TEST_F(FFmpegTest, AVFilterGraphParsePtrRejectsForeignGraphFilterCtx) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFilterGraphParsePtrAcceptsDroppedFilterCtxHandle) {
+TEST_F(FFmpegAVFilterFuncTest, GraphParsePtrAcceptsDroppedFilterCtx) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1468,7 +1432,7 @@ TEST_F(FFmpegTest, AVFilterGraphParsePtrAcceptsDroppedFilterCtxHandle) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFilterGraphFailuresZeroTheIdSlot) {
+TEST_F(FFmpegAVFilterFuncTest, GraphFailuresZeroIdSlot) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1546,7 +1510,7 @@ TEST_F(FFmpegTest, AVFilterGraphFailuresZeroTheIdSlot) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFilterGraphDumpRejectsUnlinkedPads) {
+TEST_F(FFmpegAVFilterFuncTest, GraphDumpRejectsUnlinkedPads) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1601,7 +1565,7 @@ TEST_F(FFmpegTest, AVFilterGraphDumpRejectsUnlinkedPads) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVBufferSinkSrcRequireConfiguredBufferFilters) {
+TEST_F(FFmpegAVFilterFuncTest, BufferSinkSrcRequireConfiguredFilters) {
   ASSERT_TRUE(AVFilterMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -1738,7 +1702,7 @@ TEST_F(FFmpegTest, AVBufferSinkSrcRequireConfiguredBufferFilters) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVBufferSrcAddFrameRejectsFramesThatDoNotFitTheLink) {
+TEST_F(FFmpegAVFilterFuncTest, BufferSrcAddFrameRejectsMismatchedFrame) {
   ASSERT_TRUE(AVFilterMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -1835,7 +1799,7 @@ TEST_F(FFmpegTest, AVBufferSrcAddFrameRejectsFramesThatDoNotFitTheLink) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFilterGraphConfigIsIdempotentAndTracked) {
+TEST_F(FFmpegAVFilterFuncTest, GraphConfigIsIdempotentAndTracked) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
@@ -1913,7 +1877,7 @@ TEST_F(FFmpegTest, AVFilterGraphConfigIsIdempotentAndTracked) {
   EXPECT_FALSE(Env->hasFlag(GraphId, WasmEdgeFFmpegEnv::GraphConfigured));
 }
 
-TEST_F(FFmpegTest, AVBufferSinkSetFrameSizeRequiresAudioSinkAndSize) {
+TEST_F(FFmpegAVFilterFuncTest, BufferSinkSetFrameSizeNeedsAudioSink) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1981,7 +1945,7 @@ TEST_F(FFmpegTest, AVBufferSinkSetFrameSizeRequiresAudioSinkAndSize) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVBufferSinkGetSamplesRequiresAudioSinkAndBoundedCount) {
+TEST_F(FFmpegAVFilterFuncTest, BufferSinkGetSamplesChecksSinkAndCount) {
   ASSERT_TRUE(AVFilterMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -2067,7 +2031,7 @@ TEST_F(FFmpegTest, AVBufferSinkGetSamplesRequiresAudioSinkAndBoundedCount) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVBufferSinkReleasesTheFrameItRefills) {
+TEST_F(FFmpegAVFilterFuncTest, BufferSinkReleasesRefilledFrame) {
   ASSERT_TRUE(AVFilterMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 

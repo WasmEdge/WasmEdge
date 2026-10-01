@@ -10,7 +10,9 @@ namespace Host {
 namespace WasiCrypto {
 using namespace std::literals;
 
-TEST_F(WasiCryptoTest, Signatures) {
+using WasiCryptoSignaturesTest = WasiCryptoTest;
+
+TEST_F(WasiCryptoSignaturesTest, Signatures) {
   // Use the generated data to sign and verify.
   auto SigTest = [this](__wasi_algorithm_type_e_t AlgType,
                         std::string_view Alg) {

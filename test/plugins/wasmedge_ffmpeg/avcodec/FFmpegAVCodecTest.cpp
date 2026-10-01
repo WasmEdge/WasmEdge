@@ -14,7 +14,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-TEST_F(FFmpegTest, AVCodec) {
+using FFmpegAVCodecTest = FFmpegTest;
+
+TEST_F(FFmpegAVCodecTest, AVCodec) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   uint32_t AVCodecPtr = UINT32_C(20);
@@ -332,7 +334,7 @@ TEST_F(FFmpegTest, AVCodec) {
   }
 }
 
-TEST_F(FFmpegTest, AVCodecChannelLayoutIterBounds) {
+TEST_F(FFmpegAVCodecTest, AVCodecChannelLayoutIterBounds) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   std::string CodecName = "ac3";
@@ -379,7 +381,7 @@ TEST_F(FFmpegTest, AVCodecChannelLayoutIterBounds) {
   EXPECT_EQ(Result[0].get<uint64_t>(), UINT64_C(0));
 }
 
-TEST_F(FFmpegTest, AVCodecPixFmtsIterBounds) {
+TEST_F(FFmpegAVCodecTest, AVCodecPixFmtsIterBounds) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   std::string CodecName = "mpeg4";
@@ -420,7 +422,7 @@ TEST_F(FFmpegTest, AVCodecPixFmtsIterBounds) {
   EXPECT_EQ(Result[0].get<uint32_t>(), UINT32_C(0));
 }
 
-TEST_F(FFmpegTest, AVCodecSupportedFrameratesIterBounds) {
+TEST_F(FFmpegAVCodecTest, AVCodecSupportedFrameratesIterBounds) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   std::string CodecName = "mpeg1video";
@@ -467,7 +469,7 @@ TEST_F(FFmpegTest, AVCodecSupportedFrameratesIterBounds) {
   EXPECT_EQ(readUInt32(MemInst, DenPtr), UINT32_C(0));
 }
 
-TEST_F(FFmpegTest, AVCodecSupportedSampleRatesIterBounds) {
+TEST_F(FFmpegAVCodecTest, AVCodecSupportedSampleRatesIterBounds) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   std::string CodecName = "ac3";
@@ -508,7 +510,7 @@ TEST_F(FFmpegTest, AVCodecSupportedSampleRatesIterBounds) {
   EXPECT_EQ(Result[0].get<int32_t>(), 0);
 }
 
-TEST_F(FFmpegTest, AVCodecSampleFmtsIterBounds) {
+TEST_F(FFmpegAVCodecTest, AVCodecSampleFmtsIterBounds) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   std::string CodecName = "ac3";
@@ -549,7 +551,7 @@ TEST_F(FFmpegTest, AVCodecSampleFmtsIterBounds) {
   EXPECT_EQ(Result[0].get<uint32_t>(), UINT32_C(0));
 }
 
-TEST_F(FFmpegTest, AVCodecGetNameBounds) {
+TEST_F(FFmpegAVCodecTest, AVCodecGetNameBounds) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   std::string CodecName = "mpeg4";
@@ -624,7 +626,7 @@ TEST_F(FFmpegTest, AVCodecGetNameBounds) {
     }
   }
 }
-TEST_F(FFmpegTest, AVCodecFindEncoderByNameBounds) {
+TEST_F(FFmpegAVCodecTest, AVCodecFindEncoderByNameBounds) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   auto *FuncInst = AVCodecMod->findFuncExports(
@@ -642,7 +644,7 @@ TEST_F(FFmpegTest, AVCodecFindEncoderByNameBounds) {
             static_cast<int32_t>(ErrNo::MissingMemory));
 }
 
-TEST_F(FFmpegTest, AVCodecGetNameLengthContract) {
+TEST_F(FFmpegAVCodecTest, AVCodecGetNameLengthContract) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   std::string CodecName = "mpeg4";

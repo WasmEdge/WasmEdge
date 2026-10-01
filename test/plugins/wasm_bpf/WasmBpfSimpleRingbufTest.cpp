@@ -67,7 +67,7 @@ public:
 
 } // namespace
 
-TEST(WasmBpfTest, SimpleRingbuf) {
+TEST(WasmBpfSimpleRingbufTest, RingbufPolling) {
   using namespace std::string_view_literals;
   // Test loading and attaching a BPF program and polling a buffer.
   auto module = dynamic_cast<WasmEdge::Host::WasmBpfModule *>(createModule());

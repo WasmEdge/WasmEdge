@@ -16,7 +16,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-TEST_F(FFmpegTest, AVDictionary) {
+using FFmpegAVDictionaryTest = FFmpegTest;
+
+TEST_F(FFmpegAVDictionaryTest, AVDictionary) {
   using namespace std::literals::string_view_literals;
 
   uint32_t KeyStart = UINT32_C(1);
@@ -150,7 +152,7 @@ TEST_F(FFmpegTest, AVDictionary) {
   }
 }
 
-TEST_F(FFmpegTest, AVDictSetMasksOwnershipTransferFlags) {
+TEST_F(FFmpegAVDictionaryTest, AVDictSetMasksOwnershipTransferFlags) {
   using namespace std::literals::string_view_literals;
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -206,7 +208,7 @@ TEST_F(FFmpegTest, AVDictSetMasksOwnershipTransferFlags) {
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVDictCopyIntoItselfCopiesASnapshot) {
+TEST_F(FFmpegAVDictionaryTest, AVDictCopyIntoItselfUsesSnapshot) {
   using namespace std::literals::string_view_literals;
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -257,7 +259,7 @@ TEST_F(FFmpegTest, AVDictCopyIntoItselfCopiesASnapshot) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVDictGetKeyValueBounds) {
+TEST_F(FFmpegAVDictionaryTest, AVDictGetKeyValueBounds) {
   using namespace std::literals::string_view_literals;
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -313,7 +315,7 @@ TEST_F(FFmpegTest, AVDictGetKeyValueBounds) {
   }
 }
 
-TEST_F(FFmpegTest, AVDictGetKeyValueKeyLenBounds) {
+TEST_F(FFmpegAVDictionaryTest, AVDictGetKeyValueKeyLenBounds) {
   using namespace std::literals::string_view_literals;
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -358,7 +360,7 @@ TEST_F(FFmpegTest, AVDictGetKeyValueKeyLenBounds) {
             static_cast<int32_t>(ErrNo::MissingMemory));
 }
 
-TEST_F(FFmpegTest, AVDictGetKeyLenBounds) {
+TEST_F(FFmpegAVDictionaryTest, AVDictGetKeyLenBounds) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   int32_t Flags = 0;
@@ -381,7 +383,7 @@ TEST_F(FFmpegTest, AVDictGetKeyLenBounds) {
             static_cast<int32_t>(ErrNo::MissingMemory));
 }
 
-TEST_F(FFmpegTest, AVDictSetKeyLenBounds) {
+TEST_F(FFmpegAVDictionaryTest, AVDictSetKeyLenBounds) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   int32_t Flags = 0;
@@ -404,7 +406,7 @@ TEST_F(FFmpegTest, AVDictSetKeyLenBounds) {
             static_cast<int32_t>(ErrNo::MissingMemory));
 }
 
-TEST_F(FFmpegTest, AVDictGetLargePrevIndexTerminates) {
+TEST_F(FFmpegAVDictionaryTest, AVDictGetLargePrevIndexTerminates) {
   using namespace std::literals::string_view_literals;
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -445,7 +447,7 @@ TEST_F(FFmpegTest, AVDictGetLargePrevIndexTerminates) {
             static_cast<int32_t>(ErrNo::InternalError));
 }
 
-TEST_F(FFmpegTest, AVDictStaleIdHandling) {
+TEST_F(FFmpegAVDictionaryTest, AVDictStaleIdHandling) {
   using namespace std::literals::string_view_literals;
   ASSERT_TRUE(AVUtilMod != nullptr);
 

@@ -5,6 +5,7 @@ wasmedge_add_executable(wasmedgeRuntimeTests
   MemInstanceTest.cpp
   ModuleInstanceTest.cpp
   RefLifetimeTest.cpp
+  TableInstanceTest.cpp
 )
 
 add_test(wasmedgeRuntimeTests wasmedgeRuntimeTests)

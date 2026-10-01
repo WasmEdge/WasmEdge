@@ -14,7 +14,9 @@ namespace Host {
 namespace WasiCrypto {
 using namespace std::literals;
 
-TEST_F(WasiCryptoTest, KxDh) {
+using WasiCryptoKxTest = WasiCryptoTest;
+
+TEST_F(WasiCryptoKxTest, Dh) {
 
   auto KxDhTest = [this](std::string_view Alg, const std::vector<uint8_t> &Pk1,
                          const std::vector<uint8_t> &Sk1,
@@ -56,8 +58,8 @@ TEST_F(WasiCryptoTest, KxDh) {
     WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(SharedKey2Handle, SharedKey2));
     EXPECT_EQ(SharedKey2, SharedSecret);
 
-    /// It's only supported in OpenSSL 3.0.
-    /// See: https://github.com/openssl/openssl/issues/7616
+    // It's only supported in OpenSSL 3.0.
+    // See: https://github.com/openssl/openssl/issues/7616
     WASI_CRYPTO_EXPECT_FAILURE(kxEncapsulate(Pk1Handle),
                                __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
     WASI_CRYPTO_EXPECT_FAILURE(kxDecapsulate(Sk1Handle, {}),
@@ -114,8 +116,8 @@ TEST_F(WasiCryptoTest, KxDh) {
 
     EXPECT_EQ(SharedKey1, SharedKey2);
 
-    /// It's only supported in OpenSSL 3.0.
-    /// See: https://github.com/openssl/openssl/issues/7616
+    // It's only supported in OpenSSL 3.0.
+    // See: https://github.com/openssl/openssl/issues/7616
     WASI_CRYPTO_EXPECT_FAILURE(kxEncapsulate(Pk1Handle),
                                __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
     WASI_CRYPTO_EXPECT_FAILURE(kxDecapsulate(Sk1Handle, {}),
@@ -157,7 +159,7 @@ TEST_F(WasiCryptoTest, KxDh) {
 }
 
 #if OPENSSL_VERSION_NUMBER >= 0x30500000L
-TEST_F(WasiCryptoTest, KxMlKemKeypairGenerate) {
+TEST_F(WasiCryptoKxTest, MlKemKeypairGenerate) {
   auto MlKemGenerateTest = [this](std::string_view Alg, size_t PkSize) {
     SCOPED_TRACE(Alg);
 
@@ -196,7 +198,7 @@ TEST_F(WasiCryptoTest, KxMlKemKeypairGenerate) {
   MlKemGenerateTest("ML-KEM-1024"sv, 1568);
 }
 
-TEST_F(WasiCryptoTest, KxMlKemKeyAccessors) {
+TEST_F(WasiCryptoKxTest, MlKemKeyAccessors) {
   auto MlKemAccessorTest = [this](std::string_view Alg, size_t PkSize) {
     SCOPED_TRACE(Alg);
 
@@ -234,7 +236,7 @@ TEST_F(WasiCryptoTest, KxMlKemKeyAccessors) {
   MlKemAccessorTest("ML-KEM-1024"sv, 1568);
 }
 
-TEST_F(WasiCryptoTest, KxMlKemEncapsulate) {
+TEST_F(WasiCryptoKxTest, MlKemEncapsulate) {
   auto MlKemEncapsulateTest = [this](std::string_view Alg, size_t CtSize) {
     SCOPED_TRACE(Alg);
     constexpr size_t SecretSize = 32;
@@ -280,7 +282,7 @@ TEST_F(WasiCryptoTest, KxMlKemEncapsulate) {
   MlKemEncapsulateTest("ML-KEM-1024"sv, 1568);
 }
 
-TEST_F(WasiCryptoTest, KxMlKemRoundTrip) {
+TEST_F(WasiCryptoKxTest, MlKemRoundTrip) {
   auto MlKemRoundTripTest = [this](std::string_view Alg, size_t CtSize) {
     SCOPED_TRACE(Alg);
     constexpr size_t SecretSize = 32;
@@ -333,7 +335,7 @@ TEST_F(WasiCryptoTest, KxMlKemRoundTrip) {
   MlKemRoundTripTest("ML-KEM-1024"sv, 1568);
 }
 
-TEST_F(WasiCryptoTest, KxMlKemPublickeyImport) {
+TEST_F(WasiCryptoKxTest, MlKemPublickeyImport) {
   auto MlKemPkImportTest = [this](std::string_view Alg, size_t PkSize,
                                   size_t CtSize) {
     SCOPED_TRACE(Alg);
@@ -405,7 +407,7 @@ TEST_F(WasiCryptoTest, KxMlKemPublickeyImport) {
   MlKemPkImportTest("ML-KEM-1024"sv, 1568, 1568);
 }
 
-TEST_F(WasiCryptoTest, KxMlKemSecretkeyExport) {
+TEST_F(WasiCryptoKxTest, MlKemSecretkeyExport) {
   auto MlKemSkExportTest = [this](std::string_view Alg, size_t PkSize,
                                   size_t SkSize) {
     SCOPED_TRACE(Alg);
@@ -431,9 +433,8 @@ TEST_F(WasiCryptoTest, KxMlKemSecretkeyExport) {
     std::vector<uint8_t> Pk(PkSize);
     WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(PkOutputHandle, Pk));
 
-    // FIPS 203 lays the decapsulation key out as dk_PKE || ek || H(ek) || z,
-    // so the encapsulation key must appear verbatim at that offset. This
-    // confirms the export really is the expanded dk.
+    // FIPS 203 dk = dk_PKE || ek || H(ek) || z, so ek appears verbatim in the
+    // expanded export.
     const size_t EkOffset = SkSize - PkSize - 64;
     EXPECT_EQ(std::vector<uint8_t>(Sk.begin() + EkOffset,
                                    Sk.begin() + EkOffset + PkSize),
@@ -452,7 +453,7 @@ TEST_F(WasiCryptoTest, KxMlKemSecretkeyExport) {
   MlKemSkExportTest("ML-KEM-1024"sv, 1568, 3168);
 }
 
-TEST_F(WasiCryptoTest, KxMlKemSecretkeyImport) {
+TEST_F(WasiCryptoKxTest, MlKemSecretkeyImport) {
   auto MlKemSkImportTest = [this](std::string_view Alg, size_t PkSize,
                                   size_t SkSize, size_t CtSize) {
     SCOPED_TRACE(Alg);
@@ -548,7 +549,7 @@ TEST_F(WasiCryptoTest, KxMlKemSecretkeyImport) {
   MlKemSkImportTest("ML-KEM-1024"sv, 1568, 3168, 1568);
 }
 
-TEST_F(WasiCryptoTest, KxMlKemKeypairExport) {
+TEST_F(WasiCryptoKxTest, MlKemKeypairExport) {
   auto MlKemKpExportTest = [this](std::string_view Alg, size_t PkSize,
                                   size_t SkSize) {
     SCOPED_TRACE(Alg);
@@ -596,7 +597,7 @@ TEST_F(WasiCryptoTest, KxMlKemKeypairExport) {
   MlKemKpExportTest("ML-KEM-1024"sv, 1568, 3168);
 }
 
-TEST_F(WasiCryptoTest, KxMlKemKeypairImport) {
+TEST_F(WasiCryptoKxTest, MlKemKeypairImport) {
   auto MlKemKpImportTest = [this](std::string_view Alg, size_t PkSize,
                                   size_t SkSize, size_t CtSize) {
     SCOPED_TRACE(Alg);
@@ -693,7 +694,7 @@ TEST_F(WasiCryptoTest, KxMlKemKeypairImport) {
   MlKemKpImportTest("ML-KEM-1024"sv, 1568, 3168, 1568);
 }
 
-TEST_F(WasiCryptoTest, KxMlKemKnownAnswerTests) {
+TEST_F(WasiCryptoKxTest, MlKemKnownAnswerTests) {
   auto MlKemKatTest = [this](std::string_view Alg, const MlKemKat &Kat) {
     SCOPED_TRACE(Alg);
     const auto Seed = mlKemKatBytes(Kat.Seed);

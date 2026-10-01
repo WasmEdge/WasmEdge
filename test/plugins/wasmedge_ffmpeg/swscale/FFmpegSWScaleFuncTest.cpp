@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-#include "swscale/swscale_func.h"
 #include "swscale/module.h"
+#include "swscale/swscale_func.h"
 
 #include "utils.h"
 
@@ -13,11 +13,11 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-// ============================================================================
-// This test deals with functions related to SwsContext.
-// ============================================================================
+// Tests for functions related to SwsContext.
 
-TEST_F(FFmpegTest, SwsContext) {
+using FFmpegSWScaleFuncTest = FFmpegTest;
+
+TEST_F(FFmpegSWScaleFuncTest, SwsContext) {
   ASSERT_TRUE(SWScaleMod != nullptr);
 
   auto *FuncInst =
@@ -197,11 +197,9 @@ TEST_F(FFmpegTest, SwsContext) {
   }
 }
 
-// ============================================================================
-// This test deals with functions related to SwsFilter.
-// ============================================================================
+// Tests for functions related to SwsFilter.
 
-TEST_F(FFmpegTest, SwsFilter) {
+TEST_F(FFmpegSWScaleFuncTest, SwsFilter) {
   ASSERT_TRUE(SWScaleMod != nullptr);
   auto *FuncInst = SWScaleMod->findFuncExports(
       "wasmedge_ffmpeg_swscale_sws_getDefaultFilter");
@@ -306,11 +304,9 @@ TEST_F(FFmpegTest, SwsFilter) {
   }
 }
 
-// ============================================================================
-// This test deals with functions related to SwsVector.
-// ============================================================================
+// Tests for functions related to SwsVector.
 
-TEST_F(FFmpegTest, SwsVector) {
+TEST_F(FFmpegSWScaleFuncTest, SwsVector) {
   ASSERT_TRUE(SWScaleMod != nullptr);
   uint32_t SwsVectorPtr = UINT32_C(40);
   uint32_t CoeffPtr = UINT32_C(100);
@@ -426,12 +422,9 @@ TEST_F(FFmpegTest, SwsVector) {
   }
 }
 
-// ============================================================================
-// This test deals with functions related to Version, Configuration, and
-// License.
-// ============================================================================
+// Tests for functions related to Version, Configuration, and License.
 
-TEST_F(FFmpegTest, SWScaleVersion) {
+TEST_F(FFmpegSWScaleFuncTest, SWScaleVersion) {
   ASSERT_TRUE(SWScaleMod != nullptr);
 
   uint32_t Length = 0;
@@ -518,7 +511,7 @@ TEST_F(FFmpegTest, SWScaleVersion) {
   }
 }
 
-TEST_F(FFmpegTest, SwsGetCachedContextFailureInvalidatesAliases) {
+TEST_F(FFmpegSWScaleFuncTest, SwsGetCachedContextFailureDropsAliases) {
   ASSERT_TRUE(SWScaleMod != nullptr);
 
   uint32_t SwsCtxPtr = UINT32_C(4);
@@ -567,7 +560,7 @@ TEST_F(FFmpegTest, SwsGetCachedContextFailureInvalidatesAliases) {
   EXPECT_EQ(Env->fetchData(SwsCtxId), nullptr);
 }
 
-TEST_F(FFmpegTest, SwsGetCachedContextKeepsTheContextId) {
+TEST_F(FFmpegSWScaleFuncTest, SwsGetCachedContextKeepsContextId) {
   ASSERT_TRUE(SWScaleMod != nullptr);
 
   uint32_t SwsCtxPtr = UINT32_C(4);
@@ -638,7 +631,7 @@ TEST_F(FFmpegTest, SwsGetCachedContextKeepsTheContextId) {
   EXPECT_EQ(Env->fetchData(FirstId), nullptr);
 }
 
-TEST_F(FFmpegTest, SwsGetCoeffBounds) {
+TEST_F(FFmpegSWScaleFuncTest, SwsGetCoeffBounds) {
   ASSERT_TRUE(SWScaleMod != nullptr);
 
   uint32_t SwsVectorPtr = UINT32_C(4);
@@ -682,7 +675,7 @@ TEST_F(FFmpegTest, SwsGetCoeffBounds) {
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, SwsCachedContextRejectsUnresolvedAndWrongTypeIds) {
+TEST_F(FFmpegSWScaleFuncTest, SwsCachedContextRejectsInvalidIds) {
   ASSERT_TRUE(SWScaleMod != nullptr);
 
   uint32_t CachedPtr = UINT32_C(4);
@@ -740,7 +733,7 @@ TEST_F(FFmpegTest, SwsCachedContextRejectsUnresolvedAndWrongTypeIds) {
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, SwsGetCachedContextRejectionWritesTheContextId) {
+TEST_F(FFmpegSWScaleFuncTest, SwsGetCachedContextRejectionWritesId) {
   ASSERT_TRUE(SWScaleMod != nullptr);
 
   uint32_t SwsCtxPtr = UINT32_C(4);
@@ -796,7 +789,7 @@ TEST_F(FFmpegTest, SwsGetCachedContextRejectionWritesTheContextId) {
   EXPECT_EQ(Env->fetchData(SwsCtxId), nullptr);
 }
 
-TEST_F(FFmpegTest, SwsFailuresZeroTheIdSlot) {
+TEST_F(FFmpegSWScaleFuncTest, SwsFailuresZeroIdSlot) {
   ASSERT_TRUE(SWScaleMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -837,7 +830,7 @@ TEST_F(FFmpegTest, SwsFailuresZeroTheIdSlot) {
   }
 }
 
-TEST_F(FFmpegTest, SwsAllocVecFailureDoesNotLeakHandle) {
+TEST_F(FFmpegSWScaleFuncTest, SwsAllocVecFailureLeaksNoHandle) {
   ASSERT_TRUE(SWScaleMod != nullptr);
 
   uint32_t SwsVectorPtr = UINT32_C(4);
@@ -879,7 +872,7 @@ TEST_F(FFmpegTest, SwsAllocVecFailureDoesNotLeakHandle) {
   EXPECT_EQ(Env->fetchData(VecId), nullptr);
 }
 
-TEST_F(FFmpegTest, SwsFilterOwnsItsVectors) {
+TEST_F(FFmpegSWScaleFuncTest, SwsFilterOwnsVectors) {
   ASSERT_TRUE(SWScaleMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -924,7 +917,7 @@ TEST_F(FFmpegTest, SwsFilterOwnsItsVectors) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, SwsScaleRejectsFramesThatDoNotMatchTheContext) {
+TEST_F(FFmpegSWScaleFuncTest, SwsScaleRejectsMismatchedFrames) {
   ASSERT_TRUE(SWScaleMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -999,7 +992,7 @@ TEST_F(FFmpegTest, SwsScaleRejectsFramesThatDoNotMatchTheContext) {
       static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, SwsScaleAcceptsFormatsTheContextRewrites) {
+TEST_F(FFmpegSWScaleFuncTest, SwsScaleAcceptsRewrittenFormats) {
   ASSERT_TRUE(SWScaleMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -1069,7 +1062,7 @@ TEST_F(FFmpegTest, SwsScaleAcceptsFormatsTheContextRewrites) {
   }
 }
 
-TEST_F(FFmpegTest, SwsScaleRejectsSlicesOutsideTheSource) {
+TEST_F(FFmpegSWScaleFuncTest, SwsScaleRejectsSlicesOutsideSource) {
   ASSERT_TRUE(SWScaleMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -1112,9 +1105,8 @@ TEST_F(FFmpegTest, SwsScaleRejectsSlicesOutsideTheSource) {
   uint32_t SrcId = MakeFrame(UINT32_C(8));
   uint32_t DstId = MakeFrame(UINT32_C(12));
 
-  // libswscale accepts (-2, 34) on a 32-row source because the slice still
-  // ends at row 32, then scales it bottom-up and writes before the
-  // destination planes.
+  // libswscale accepts (-2, 34) on a 32-row source because the slice ends at
+  // row 32, then scales bottom-up and writes before the destination planes.
   EXPECT_EQ(Run(SWScaleMod.get(), "wasmedge_ffmpeg_swscale_sws_scale",
                 {CtxId, SrcId, INT32_C(-2), INT32_C(34), DstId}),
             static_cast<int32_t>(ErrNo::InternalError));
@@ -1138,7 +1130,7 @@ TEST_F(FFmpegTest, SwsScaleRejectsSlicesOutsideTheSource) {
       static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, SwsAllocVecZeroesCoefficients) {
+TEST_F(FFmpegSWScaleFuncTest, SwsAllocVecZeroesCoefficients) {
   ASSERT_TRUE(SWScaleMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1180,7 +1172,7 @@ TEST_F(FFmpegTest, SwsAllocVecZeroesCoefficients) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, SwsGetDefaultFilterRejectsUnboundedParameters) {
+TEST_F(FFmpegSWScaleFuncTest, SwsGetDefaultFilterRejectsUnbounded) {
   ASSERT_TRUE(SWScaleMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1215,7 +1207,7 @@ TEST_F(FFmpegTest, SwsGetDefaultFilterRejectsUnboundedParameters) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, SwsVectorAllocationsAreBounded) {
+TEST_F(FFmpegSWScaleFuncTest, SwsVectorAllocationsAreBounded) {
   ASSERT_TRUE(SWScaleMod != nullptr);
 
   auto Run = [&](const char *Name,

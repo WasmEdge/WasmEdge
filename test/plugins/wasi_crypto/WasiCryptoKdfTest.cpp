@@ -8,7 +8,9 @@ namespace Host {
 namespace WasiCrypto {
 using namespace std::literals;
 
-TEST_F(WasiCryptoTest, Kdf) {
+using WasiCryptoKdfTest = WasiCryptoTest;
+
+TEST_F(WasiCryptoKdfTest, Kdf) {
   auto KdfTest = [this](std::string_view ExtractAlg, std::string_view ExpandAlg,
                         const std::vector<uint8_t> &Key,
                         const std::vector<uint8_t> &Salt,

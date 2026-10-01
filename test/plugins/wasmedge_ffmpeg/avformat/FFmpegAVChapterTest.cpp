@@ -13,7 +13,9 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 // Sample Video under test has only Single Chapter.
-TEST_F(FFmpegTest, AVChapter) {
+using FFmpegAVChapterTest = FFmpegTest;
+
+TEST_F(FFmpegAVChapterTest, AVChapter) {
   ASSERT_TRUE(AVFormatMod != nullptr);
 
   uint32_t ChapterIdx = 0;

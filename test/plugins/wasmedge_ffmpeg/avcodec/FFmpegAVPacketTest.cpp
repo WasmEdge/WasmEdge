@@ -19,7 +19,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-TEST_F(FFmpegTest, AVPacketTest) {
+using FFmpegAVPacketTest = FFmpegTest;
+
+TEST_F(FFmpegAVPacketTest, AVPacket) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   uint32_t PacketPtr = UINT32_C(4);
@@ -332,7 +334,7 @@ TEST_F(FFmpegTest, AVPacketTest) {
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 }
-TEST_F(FFmpegTest, AVPacketDataBounds) {
+TEST_F(FFmpegAVPacketTest, AVPacketDataBounds) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   uint32_t PacketPtr = UINT32_C(4);
@@ -382,7 +384,7 @@ TEST_F(FFmpegTest, AVPacketDataBounds) {
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVPacketDataEmptyPacketZeroLength) {
+TEST_F(FFmpegAVPacketTest, AVPacketDataEmptyPacketZeroLength) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   uint32_t PacketPtr = UINT32_C(4);
@@ -422,7 +424,7 @@ TEST_F(FFmpegTest, AVPacketDataEmptyPacketZeroLength) {
   }
 }
 
-TEST_F(FFmpegTest, AVPacketUnrefNullSafeAndIdempotent) {
+TEST_F(FFmpegAVPacketTest, AVPacketUnrefNullSafeAndIdempotent) {
   ASSERT_TRUE(AVCodecMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -464,7 +466,7 @@ TEST_F(FFmpegTest, AVPacketUnrefNullSafeAndIdempotent) {
       static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVShrinkPacketRejectsNegativeSize) {
+TEST_F(FFmpegAVPacketTest, AVShrinkPacketRejectsNegativeSize) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
@@ -502,7 +504,7 @@ TEST_F(FFmpegTest, AVShrinkPacketRejectsNegativeSize) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVPacketRefRejectsAliasAndReplacesDestination) {
+TEST_F(FFmpegAVPacketTest, AVPacketRefRejectsSelfReplacesDest) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -540,7 +542,7 @@ TEST_F(FFmpegTest, AVPacketRefRejectsAliasAndReplacesDestination) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVPacketSetFlagsAcceptsOnlyPublicFlags) {
+TEST_F(FFmpegAVPacketTest, AVPacketSetFlagsAcceptsOnlyPublicFlags) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -564,9 +566,8 @@ TEST_F(FFmpegTest, AVPacketSetFlagsAcceptsOnlyPublicFlags) {
   EXPECT_EQ(Run("wasmedge_ffmpeg_avcodec_av_packet_flags", {PacketId}),
             PublicFlags);
 
-  // AV_PKT_FLAG_TRUSTED, libavformat's internal uncoded-frame bit and any
-  // other unknown bit change how FFmpeg reads the payload: rejected, and
-  // the previous flags stay in place.
+  // AV_PKT_FLAG_TRUSTED, the internal uncoded-frame bit, and unknown bits
+  // change how FFmpeg reads the payload: rejected, with the flags unchanged.
   for (int32_t const Flags : {static_cast<int32_t>(AV_PKT_FLAG_TRUSTED),
                               INT32_C(0x2000), INT32_C(0x40), INT32_C(-1)}) {
     EXPECT_EQ(
@@ -580,7 +581,7 @@ TEST_F(FFmpegTest, AVPacketSetFlagsAcceptsOnlyPublicFlags) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVNewPacketAndGrowPacketZeroThePayload) {
+TEST_F(FFmpegAVPacketTest, AVNewAndGrowPacketZeroPayload) {
   ASSERT_TRUE(AVCodecMod != nullptr);
   ASSERT_TRUE(AVFormatMod != nullptr);
 
@@ -593,10 +594,8 @@ TEST_F(FFmpegTest, AVNewPacketAndGrowPacketZeroThePayload) {
     return Result[0].get<int32_t>();
   };
 
-  // Demux a real packet and release it, so the allocator may hand its
-  // block of non-zero media data back to a fresh packet of the same size
-  // (whether it does depends on the allocator; the zero-fill contract must
-  // hold either way).
+  // Demux a real packet and release it, so the allocator may hand its non-zero
+  // block to a fresh packet of the same size; the zero fill must hold anyway.
   uint32_t FormatCtxPtr = UINT32_C(4);
   uint32_t PacketPtr = UINT32_C(8);
   uint32_t FilePtr = UINT32_C(100);
@@ -665,7 +664,7 @@ TEST_F(FFmpegTest, AVNewPacketAndGrowPacketZeroThePayload) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVNewPacketReleasesThePreviousPayload) {
+TEST_F(FFmpegAVPacketTest, AVNewPacketReleasesPreviousPayload) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   auto Run = [&](const char *Name,

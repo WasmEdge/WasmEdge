@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-#include "avutil/avutil_func.h"
 #include "avutil/avTime.h"
+#include "avutil/avutil_func.h"
 #include "avutil/module.h"
 
 #include "utils.h"
@@ -17,7 +17,9 @@ namespace WasmEdgeFFmpeg {
 
 using namespace std::literals;
 
-TEST_F(FFmpegTest, AVUtilFunc) {
+using FFmpegAVUtilFuncTest = FFmpegTest;
+
+TEST_F(FFmpegAVUtilFuncTest, AVUtilFunc) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   uint32_t NamePtr = UINT32_C(4);
@@ -320,7 +322,7 @@ TEST_F(FFmpegTest, AVUtilFunc) {
   }
 }
 
-TEST_F(FFmpegTest, AVUtilChannelLayoutNameBounds) {
+TEST_F(FFmpegAVUtilFuncTest, AVUtilChannelLayoutNameBounds) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto *FuncInst = AVUtilMod->findFuncExports(
@@ -350,7 +352,7 @@ TEST_F(FFmpegTest, AVUtilChannelLayoutNameBounds) {
   }
 }
 
-TEST_F(FFmpegTest, AVUtilChannelLayoutNameLowFrequency) {
+TEST_F(FFmpegAVUtilFuncTest, AVUtilChannelLayoutNameLowFrequency) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto *FuncInst = AVUtilMod->findFuncExports(
@@ -372,7 +374,7 @@ TEST_F(FFmpegTest, AVUtilChannelLayoutNameLowFrequency) {
   EXPECT_STREQ(Buf, "LFE");
 }
 
-TEST_F(FFmpegTest, AVUtilChannelLayoutNameStereo) {
+TEST_F(FFmpegAVUtilFuncTest, AVUtilChannelLayoutNameStereo) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   uint64_t ChannelId = UINT64_C(0x3);
@@ -406,7 +408,7 @@ TEST_F(FFmpegTest, AVUtilChannelLayoutNameStereo) {
   EXPECT_EQ(ReportedLen, static_cast<int32_t>(WrittenLen));
 }
 
-TEST_F(FFmpegTest, AVUtilChannelLayoutNameLargeCustom) {
+TEST_F(FFmpegAVUtilFuncTest, AVUtilChannelLayoutNameLargeCustom) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   uint64_t const ChannelId = UINT64_C(0x3FFFF);
@@ -443,7 +445,7 @@ TEST_F(FFmpegTest, AVUtilChannelLayoutNameLargeCustom) {
   EXPECT_EQ(static_cast<int32_t>(WrittenLen), ReportedLen);
 }
 
-TEST_F(FFmpegTest, AVUtilChannelLayoutInvalidInputs) {
+TEST_F(FFmpegAVUtilFuncTest, AVUtilChannelLayoutInvalidInputs) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto *FuncInst = AVUtilMod->findFuncExports(
@@ -467,7 +469,7 @@ TEST_F(FFmpegTest, AVUtilChannelLayoutInvalidInputs) {
   EXPECT_EQ(Result[0].get<uint64_t>(), UINT64_C(0));
 }
 
-TEST_F(FFmpegTest, AVTime) {
+TEST_F(FFmpegAVUtilFuncTest, AVTime) {
 
   ASSERT_TRUE(AVUtilMod != nullptr);
 

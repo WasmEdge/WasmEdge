@@ -8,7 +8,9 @@ namespace Host {
 namespace WasiCrypto {
 using namespace std::literals;
 
-TEST_F(WasiCryptoTest, Mac) {
+using WasiCryptoMacTest = WasiCryptoTest;
+
+TEST_F(WasiCryptoMacTest, Mac) {
   auto MacTest = [this](std::string_view Name,
                         const std::vector<uint8_t> &ImportKey,
                         const std::vector<uint8_t> &AbsorbData1,

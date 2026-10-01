@@ -8,7 +8,9 @@ namespace Host {
 namespace WasiCrypto {
 using namespace std::literals;
 
-TEST_F(WasiCryptoTest, Hash) {
+using WasiCryptoHashTest = WasiCryptoTest;
+
+TEST_F(WasiCryptoHashTest, Hash) {
   auto HashTest = [this](std::string_view Name,
                          const std::vector<uint8_t> &AbsorbData1,
                          const std::vector<uint8_t> &AbsorbData2,

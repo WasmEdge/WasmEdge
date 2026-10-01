@@ -13,7 +13,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-TEST_F(FFmpegTest, AVCodecCtx) {
+using FFmpegAVCodecCtxTest = FFmpegTest;
+
+TEST_F(FFmpegAVCodecCtxTest, AVCodecCtx) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   uint32_t AVCodecCtxPtr = UINT32_C(64);
@@ -1480,7 +1482,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   }
 }
 
-TEST_F(FFmpegTest, AVCodecCtxRejectsFormatChangesAfterOpen) {
+TEST_F(FFmpegAVCodecCtxTest, RejectsFormatChangesAfterOpen) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
@@ -1557,9 +1559,8 @@ TEST_F(FFmpegTest, AVCodecCtxRejectsFormatChangesAfterOpen) {
                 {CtxId, UINT32_C(1)}),
             static_cast<int32_t>(ErrNo::InternalError));
 
-  // Every other field that libavcodec reads at avcodec_open2, or sizes its
-  // state from, is frozen too; only the decoder knobs FFmpeg documents as
-  // adjustable while decoding stay writable.
+  // Every other field libavcodec reads or sizes its state from at open time
+  // is frozen too; only the documented decoder knobs stay writable.
   auto RunV = [&](const char *Name,
                   const std::vector<WasmEdge::ValVariant> &Args) {
     auto *Inst = AVCodecMod->findFuncExports(Name);
@@ -1752,7 +1753,7 @@ TEST_F(FFmpegTest, AVCodecCtxRejectsFormatChangesAfterOpen) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVCodecCtxSetChannelsBuildsDefaultLayout) {
+TEST_F(FFmpegAVCodecCtxTest, SetChannelsBuildsDefaultLayout) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
@@ -1794,7 +1795,7 @@ TEST_F(FFmpegTest, AVCodecCtxSetChannelsBuildsDefaultLayout) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVCodecCtxSetChannelsKeepsMatchingLayout) {
+TEST_F(FFmpegAVCodecCtxTest, SetChannelsKeepsMatchingLayout) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1844,7 +1845,7 @@ TEST_F(FFmpegTest, AVCodecCtxSetChannelsKeepsMatchingLayout) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVCodecCtxBoundsMotionEstimationParameters) {
+TEST_F(FFmpegAVCodecCtxTest, BoundsMotionEstimationParameters) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   auto Run = [&](const char *Name,

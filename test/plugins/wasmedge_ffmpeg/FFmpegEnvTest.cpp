@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-#include "ffmpeg_env.h"
 #include "avutil/avFrame.h"
+#include "ffmpeg_env.h"
 
 #include "utils.h"
 
@@ -17,7 +17,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-TEST(FFmpegEnvHandleIds, TakeFreeHandleSkipsNullAndLiveIdsAcrossWrap) {
+using FFmpegEnvTest = FFmpegTest;
+
+TEST_F(FFmpegEnvTest, TakeFreeHandleSkipsNullAndLiveIds) {
   constexpr uint32_t Max = std::numeric_limits<uint32_t>::max();
   std::map<uint32_t, int> Live;
   uint32_t Next = Max - 1;
@@ -43,11 +45,9 @@ TEST(FFmpegEnvHandleIds, TakeFreeHandleSkipsNullAndLiveIdsAcrossWrap) {
   EXPECT_EQ(detail::takeFreeHandle(Next, Live), UINT32_C(5));
 }
 
-// Strands an owned object of each kind the plugin allocates (device lists
-// aside), then drops the module instances so the shared env is destroyed:
-// everything the guest never freed must go with it, including the two open
-// files.
-TEST_F(FFmpegTest, EnvTeardownReclaimsStrandedObjects) {
+// Strands an owned object of each kind (device lists aside), then drops the
+// module instances: the shared env must free them all, open files included.
+TEST_F(FFmpegEnvTest, EnvTeardownReclaimsStrandedObjects) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVCodecMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
@@ -250,10 +250,9 @@ TEST_F(FFmpegTest, EnvTeardownReclaimsStrandedObjects) {
 #endif
 }
 
-// A muxer stranded between its header and its trailer owes the trailer (see
-// AVFormatFreeContextWritesThePendingTrailer): the teardown writes it before
-// freeing the context, so the abandoned file comes out complete.
-TEST_F(FFmpegTest, EnvTeardownFinishesAnAbandonedMuxer) {
+// A muxer stranded between its header and its trailer owes the trailer: the
+// teardown writes it before freeing the context, which completes the file.
+TEST_F(FFmpegEnvTest, EnvTeardownFinishesAbandonedMuxer) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVCodecMod != nullptr);
 
@@ -353,12 +352,9 @@ TEST_F(FFmpegTest, EnvTeardownFinishesAnAbandonedMuxer) {
   EXPECT_EQ(RiffSize, FileSize - 8);
 }
 
-// The SDK never releases a borrowed view, so every getter that returns one
-// must hand out one id per object: a second call returns the id of the
-// first instead of a new handle that only the parent's free would release.
-// Each request holds a reference, so a guest dropping one copy of the id
-// leaves the other valid.
-TEST_F(FFmpegTest, ViewGettersKeepOneIdPerObject) {
+// A getter of a borrowed view hands out one id per object: a second call
+// returns the first id with another reference, so a drop keeps the other.
+TEST_F(FFmpegEnvTest, ViewGettersKeepOneIdPerObject) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVCodecMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
@@ -517,11 +513,9 @@ TEST_F(FFmpegTest, ViewGettersKeepOneIdPerObject) {
             Ok);
 }
 
-// Codec, filter and format descriptors are static and pad views describe a
-// static pad array, so a guest asking for one again gets the same id with
-// another reference instead of a new handle; a drop gives one back, and the
-// id goes with the last.
-TEST_F(FFmpegTest, DescriptorAndPadGettersShareCountedIds) {
+// Descriptors and pad views are static, so asking again returns the same id
+// with another reference; a drop gives one back and the last frees the id.
+TEST_F(FFmpegEnvTest, DescriptorAndPadGettersShareCountedIds) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVCodecMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);

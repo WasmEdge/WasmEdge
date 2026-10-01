@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-#include "swresample/swresample_func.h"
 #include "swresample/module.h"
+#include "swresample/swresample_func.h"
 
 #include "utils.h"
 
@@ -12,7 +12,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-TEST_F(FFmpegTest, SWResampleFunc) {
+using FFmpegSWResampleFuncTest = FFmpegTest;
+
+TEST_F(FFmpegSWResampleFuncTest, SWResampleFunc) {
   ASSERT_TRUE(SWResampleMod != nullptr);
 
   uint32_t DictPtr = UINT32_C(4);
@@ -240,7 +242,7 @@ TEST_F(FFmpegTest, SWResampleFunc) {
   }
 }
 
-TEST_F(FFmpegTest, SWRAllocSetOptsFailureInvalidatesTheContextId) {
+TEST_F(FFmpegSWResampleFuncTest, SWRAllocSetOptsFailureInvalidatesId) {
   ASSERT_TRUE(SWResampleMod != nullptr);
 
   auto *FuncInst = SWResampleMod->findFuncExports(
@@ -283,7 +285,7 @@ TEST_F(FFmpegTest, SWRAllocSetOptsFailureInvalidatesTheContextId) {
   EXPECT_EQ(Env->fetchData(FirstId), nullptr);
 }
 
-TEST_F(FFmpegTest, SWRAllocSetOptsPreservesHandleOnInvalidLayout) {
+TEST_F(FFmpegSWResampleFuncTest, SWRAllocSetOptsBadLayoutKeepsHandle) {
   ASSERT_TRUE(SWResampleMod != nullptr);
 
   auto *FuncInst = SWResampleMod->findFuncExports(
@@ -344,7 +346,7 @@ TEST_F(FFmpegTest, SWRAllocSetOptsPreservesHandleOnInvalidLayout) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, SWRAllocSetOptsZeroesTheSlotWithoutAContext) {
+TEST_F(FFmpegSWResampleFuncTest, SWRAllocSetOptsNoContextZeroesSlot) {
   ASSERT_TRUE(SWResampleMod != nullptr);
 
   auto *FuncInst = SWResampleMod->findFuncExports(
@@ -378,7 +380,7 @@ TEST_F(FFmpegTest, SWRAllocSetOptsZeroesTheSlotWithoutAContext) {
   }
 }
 
-TEST_F(FFmpegTest, SWRAllocSetOptsPreservesSlotOnUnresolvedId) {
+TEST_F(FFmpegSWResampleFuncTest, SWRAllocSetOptsUnresolvedIdKeepsSlot) {
   ASSERT_TRUE(SWResampleMod != nullptr);
 
   auto *FuncInst = SWResampleMod->findFuncExports(
@@ -410,7 +412,7 @@ TEST_F(FFmpegTest, SWRAllocSetOptsPreservesSlotOnUnresolvedId) {
   EXPECT_EQ(readUInt32(MemInst, SWResamplePtr), UnresolvedId);
 }
 
-TEST_F(FFmpegTest, SWRAllocSetOptsKeepsTheContextId) {
+TEST_F(FFmpegSWResampleFuncTest, SWRAllocSetOptsKeepsContextId) {
   ASSERT_TRUE(SWResampleMod != nullptr);
 
   auto *FuncInst = SWResampleMod->findFuncExports(
@@ -464,7 +466,7 @@ TEST_F(FFmpegTest, SWRAllocSetOptsKeepsTheContextId) {
   EXPECT_EQ(Env->fetchData(FirstId), nullptr);
 }
 
-TEST_F(FFmpegTest, SWRConvertFrameRejectsUnresolvedFrameHandles) {
+TEST_F(FFmpegSWResampleFuncTest, SWRConvertFrameRejectsUnresolvedHandles) {
   ASSERT_TRUE(SWResampleMod != nullptr);
 
   auto *AllocInst = SWResampleMod->findFuncExports(
@@ -516,7 +518,7 @@ TEST_F(FFmpegTest, SWRConvertFrameRejectsUnresolvedFrameHandles) {
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, SWRConvertFrameRejectsUnallocatedInput) {
+TEST_F(FFmpegSWResampleFuncTest, SWRConvertFrameRejectsUnallocatedInput) {
   ASSERT_TRUE(SWResampleMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -590,7 +592,7 @@ TEST_F(FFmpegTest, SWRConvertFrameRejectsUnallocatedInput) {
       static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, SWRConvertFrameRejectsVideoShapedFrames) {
+TEST_F(FFmpegSWResampleFuncTest, SWRConvertFrameRejectsVideoShapedFrames) {
   ASSERT_TRUE(SWResampleMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -660,8 +662,7 @@ TEST_F(FFmpegTest, SWRConvertFrameRejectsVideoShapedFrames) {
   uint32_t InFrameId =
       MakeFrame(UINT32_C(8), INT32_C(44100), INT32_C(1024), UINT32_C(0));
   // swr_convert_frame allocates an empty output frame with av_frame_get_buffer,
-  // which takes the video path for a frame with a width and height and then
-  // receives about 1100 stereo samples.
+  // which takes the video path for this shape, then gets ~1100 stereo samples.
   uint32_t VideoShapedOutId =
       MakeFrame(UINT32_C(12), INT32_C(48000), INT32_C(0), UINT32_C(2));
   uint32_t OutFrameId =
@@ -686,7 +687,7 @@ TEST_F(FFmpegTest, SWRConvertFrameRejectsVideoShapedFrames) {
       static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, SWRGetDelayWithoutInputSampleRate) {
+TEST_F(FFmpegSWResampleFuncTest, SWRGetDelayWithoutInputSampleRate) {
   ASSERT_TRUE(SWResampleMod != nullptr);
 
   auto *AllocInst = SWResampleMod->findFuncExports(
@@ -726,7 +727,7 @@ TEST_F(FFmpegTest, SWRGetDelayWithoutInputSampleRate) {
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, SWRInitFreezesContextOptions) {
+TEST_F(FFmpegSWResampleFuncTest, SWRInitFreezesContextOptions) {
   ASSERT_TRUE(SWResampleMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -772,9 +773,8 @@ TEST_F(FFmpegTest, SWRInitFreezesContextOptions) {
       Run(SWResampleMod.get(), "wasmedge_ffmpeg_swresample_swr_init", {SwrId}),
       0);
 
-  // Once initialised, the converter is built for the options it was given;
-  // swr_convert_frame checks frames against the current options, so a
-  // later change would make it convert into a buffer sized for the old ones.
+  // The converter is built for the options it was initialised with; a later
+  // change would make swr_convert_frame fill a buffer sized for the old ones.
   EXPECT_EQ(Run(SWResampleMod.get(),
                 "wasmedge_ffmpeg_swresample_swr_alloc_set_opts",
                 {AliasPtr, SwrId, StereoLayoutId, U8FmtId, INT32_C(48000),

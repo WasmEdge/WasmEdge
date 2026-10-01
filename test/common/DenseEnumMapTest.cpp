@@ -31,9 +31,8 @@ static_assert(ColorMap.begin() != ColorMap.end(),
 static_assert(ColorMap.find(static_cast<Color>(3)) == ColorMap.end(),
               "out-of-range key must compare equal to end()");
 
-// Iterator distance against end() must not access out-of-bounds memory. Under a
-// hardened libstdc++ (_GLIBCXX_ASSERTIONS, the default on Fedora) the buggy
-// implementation aborts here; with the fix it simply returns Size.
+// Iterator distance against end() must not read out of bounds (a hardened
+// libstdc++ with _GLIBCXX_ASSERTIONS aborted here).
 TEST(DenseEnumMapTest, DistanceToEnd) {
   EXPECT_EQ(ColorMap.end() - ColorMap.begin(), 3);
   EXPECT_EQ(std::distance(ColorMap.begin(), ColorMap.end()), 3);

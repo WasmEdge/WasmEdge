@@ -12,7 +12,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-TEST_F(FFmpegTest, AVPixFmt) {
+using FFmpegAVPixFmtTest = FFmpegTest;
+
+TEST_F(FFmpegAVPixFmtTest, AVPixFmt) {
   using namespace std::literals::string_view_literals;
   uint32_t NamePtr = UINT32_C(4);
 

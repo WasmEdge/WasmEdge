@@ -161,10 +161,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   std::vector<uint8_t> WeightRead =
       readEntireFile("./wasinn_openvino_fixtures/mobilenet.bin");
 
-  // Convert the NHWC to NCHW format.
-  // For historical reasons, the OpenVINO model expects the input tensor in
-  // NCHW format, while the input tensor is in NHWC format.
-  // https://github.com/intel/openvino-rs/blob/v0.3.3/crates/openvino/tests/fixtures/mobilenet/build.sh#L39
+  // The OpenVINO model expects NCHW while the fixture tensor is NHWC, see
   // https://github.com/intel/openvino-rs/blob/v0.8.0/crates/openvino/tests/classify-mobilenet.rs#L34
   ASSERT_EQ(TensorDataLegecy.size(), 3 * 224 * 224 * 4);
   std::vector<uint8_t> TensorData(TensorDataLegecy.size());
@@ -765,21 +762,7 @@ TEST(WasiNNTest, PyTorchBackend) {
   // Swap to the tmp. env.
   TmpGraph = std::make_shared<WasmEdge::Host::WASINN::Graph>(Backend::PyTorch);
   NNGraphTmp.insert(TmpGraph);
-  // Test: init_execution_context -- graph id exceeds.
-  // TODO: add a non-null test for PyTorch.
-  //   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
-  //   NNContextTmp.swap(NNMod->getEnv().NNContext);
-  //   {
-  //     EXPECT_TRUE(HostFuncInit.run(
-  //         CallFrame,
-  //         std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0),
-  //         BuilderPtr}, Errno));
-  //     EXPECT_EQ(Errno[0].get<int32_t>(),
-  //               static_cast<uint32_t>(ErrNo::MissingMemory));
-  //   }
-  // Swap back.
-  //   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
-  //   NNContextTmp.swap(NNMod->getEnv().NNContext);
+  // TODO: add an init_execution_context graph-id-exceeds test for PyTorch.
 
   // Test: init_execution_context -- initialize context successfully.
   {
@@ -1482,9 +1465,8 @@ TEST(WasiNNTest, GGMLBackend) {
     BuilderPtr += 4;
   }
 
-  // Test: get_output_single -- a freshly initialized context has an empty
-  // streamed-token vector, so it reports zero bytes instead of dereferencing
-  // past the end of the vector.
+  // Test: get_output_single -- a fresh context has no streamed tokens and
+  // reports zero bytes.
   {
     auto *SingleInst = NNMod->findFuncExports("get_output_single");
     ASSERT_NE(SingleInst, nullptr);
@@ -1550,9 +1532,8 @@ TEST(WasiNNTest, GGMLBackend) {
       EXPECT_EQ(Params.load_mode, Case.Expected);
     }
 
-    // Test: set_input -- metadata that would overflow the fixed tensor-split
-    // array, truncate n_batch / n_ubatch, or hand llama.cpp a value it aborts
-    // on is rejected and leaves the parameters untouched.
+    // Test: set_input -- out-of-range metadata (tensor-split overflow, n_batch
+    // truncation, llama.cpp abort values) is rejected without side effects.
     {
       const int32_t PrevNBatch = Params.n_batch;
       const int32_t PrevNUBatch = Params.n_ubatch;
@@ -1756,9 +1737,8 @@ TEST(WasiNNTest, GGMLBackend) {
       EXPECT_EQ(Params.hostnames, PrevHostnames);
     }
 
-    // Test: set_input -- a rejected metadata object is applied atomically:
-    // the valid options that precede the invalid one are rolled back on the
-    // graph parameters, the graph settings, and the context config.
+    // Test: set_input -- a rejected metadata object rolls back the valid
+    // options before it (graph parameters, settings, and context config).
     {
       using WasmEdge::Host::WASINN::GGML::EmbdNormalizeType;
       const auto &Conf = NNMod->getEnv()
@@ -2112,9 +2092,8 @@ TEST(WasiNNTest, GGMLBackend) {
     EXPECT_GE(BytesWritten, 50);
   }
 
-  // Test: get_output_single -- drain via the model after unload. Unlike
-  // get_output's buffered copy, this detokenizes through the graph-owned
-  // llama context, so it only works if the model survived the unload.
+  // Test: get_output_single -- drain after unload detokenizes through the
+  // graph-owned llama context, so the model must survive the unload.
   {
     EXPECT_TRUE(HostFuncGetOutputSingleDrain.run(
         CallFrame,
@@ -2171,9 +2150,8 @@ TEST(WasiNNTest, GGMLBackend) {
     EXPECT_EQ(FreshGraphId, UINT32_C(1));
   }
 
-  // Test: concurrent host ops -- one thread hammers dead and unknown handles
-  // while another runs real inference on the fresh graph. The dead handles
-  // must keep failing cleanly and the live path must stay unaffected.
+  // Test: concurrent host ops -- dead and unknown handles keep failing cleanly
+  // while another thread runs inference on the fresh graph.
   {
     uint32_t FreshCtx = UINT32_C(0);
     EXPECT_TRUE(HostFuncInit.run(
@@ -2271,9 +2249,8 @@ TEST(WasiNNTest, GGMLBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
 
-  // Test: load -- metadata passed at load time reaches the llama context and
-  // the graph config: threads-batch is no longer overwritten by threads, and
-  // embd-normalize is applied to the config contexts inherit.
+  // Test: load -- load-time metadata reaches the llama context and graph
+  // config (threads-batch kept, embd-normalize inherited by contexts).
   {
     using WasmEdge::Host::WASINN::GGML::EmbdNormalizeType;
     const std::string LoadMetadata =
@@ -2309,10 +2286,9 @@ TEST(WasiNNTest, GGMLBackend) {
   }
 }
 
-TEST(WasiNNTest, DrainAfterUnloadHostOpTiers) {
-  // Pin each op's hostOpPolicy tier so a later edit cannot move set_input
-  // (NotDetached) or compute/init (Ready) onto a drain tier and let them
-  // reconfigure or re-run an unloaded graph.
+TEST(WasiNNTest, HostOpPolicyTiers) {
+  // Pin each op's hostOpPolicy tier so set_input and compute/init never land
+  // on a drain tier and touch an unloaded graph.
   using WasmEdge::Host::WASINN::GraphReq;
   using WasmEdge::Host::WASINN::HostOp;
   using WasmEdge::Host::WASINN::hostOpPolicy;
@@ -2328,10 +2304,8 @@ TEST(WasiNNTest, DrainAfterUnloadHostOpTiers) {
 }
 
 TEST(WasiNNTest, GraphStatusDetachedIsTerminal) {
-  // unload marks a graph Detached without the op mutex, so an in-flight
-  // set_input reload can finish afterwards; its trailing setReady/setInvalid
-  // must not overwrite Detached or a surviving context would regain compute
-  // rights on an unloaded graph.
+  // A set_input reload finishing after unload must not overwrite Detached,
+  // or a surviving context would regain compute rights.
   using WasmEdge::Host::WASINN::Graph;
   using WasmEdge::Host::WASINN::GraphStatus;
 
@@ -2357,9 +2331,8 @@ TEST(WasiNNTest, GraphStatusDetachedIsTerminal) {
 }
 
 TEST(WasiNNTest, LoadByNameConcurrentBuildsShareOneGraph) {
-  // Two load_by_name calls for one name can miss the cache and build
-  // concurrently (MdMutex is not held across a load); the second finisher
-  // must adopt the first one's cached graph instead of keeping a duplicate.
+  // Concurrent load_by_name builds of one name: the second finisher adopts
+  // the first one's cached graph instead of keeping a duplicate.
   auto NNMod = createModule();
   if (!NNMod) {
     GTEST_SKIP() << "wasi_nn plugin not found";
@@ -2444,11 +2417,9 @@ TEST(WasiNNTest, LoadByNameConcurrentBuildsShareOneGraph) {
   EXPECT_EQ(CachedId, WinnerId);
 }
 
-TEST(WasiNNTest, LoadByNameSkipsDetachedGraphStillInTable) {
-  // unload publishes Detached before dropping the table entry, so a racing
-  // load_by_name can observe a Detached yet still-tabled graph. The name
-  // cache must treat it as unloaded - neither resolving it nor folding a
-  // build onto it - or the guest would get an already-rejected handle.
+TEST(WasiNNTest, LoadByNameSkipsDetachedGraph) {
+  // A racing load_by_name may see a Detached graph still in the table; the
+  // name cache must treat it as unloaded.
   auto NNMod = createModule();
   if (!NNMod) {
     GTEST_SKIP() << "wasi_nn plugin not found";
@@ -2556,10 +2527,9 @@ TEST(WasiNNTest, FileSystemOfConcurrentCallers) {
   EXPECT_EQ(SeenB, FileSystemB);
 }
 
-TEST(WasiNNTest, GGMLBackendDrainAfterInvalidReloadUnload) {
-  // A failed metadata reload leaves the graph Invalid with a null llama
-  // context; unload then makes it Detached, which Drainable admits, so the
-  // backend drain must reject the null context instead of dereferencing it.
+TEST(WasiNNTest, GGMLBackendDrainAfterFailedReload) {
+  // A failed reload leaves a null llama context; draining the then-Detached
+  // graph must reject it instead of dereferencing it.
   auto NNMod = createModule();
   ASSERT_TRUE(NNMod);
 
@@ -2651,9 +2621,8 @@ TEST(WasiNNTest, GGMLBackendDrainAfterInvalidReloadUnload) {
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
 
-  // A context-parameter reload that must fail: llama rejects a context whose
-  // n_seq_max exceeds LLAMA_MAX_SEQ, so set_input leaves the graph Invalid
-  // and the llama context null.
+  // n_seq_max above LLAMA_MAX_SEQ fails the reload, leaving the graph Invalid
+  // with a null llama context.
   const std::string BadMetadata = "{\"embedding\": true, \"n-parallel\": 1000}";
   std::vector<uint8_t> BadMetadataData(BadMetadata.begin(), BadMetadata.end());
   BuilderPtr = SetInputEntryPtr;
@@ -2705,10 +2674,9 @@ TEST(WasiNNTest, GGMLBackendDrainAfterInvalidReloadUnload) {
   EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
 }
 
-TEST(WasiNNTest, GGMLBackendComputeSingleRetriesFailedPromptEvaluation) {
-  // A compute_single whose prompt evaluation fails must not mark the stream
-  // as started; the next call has to evaluate the prompt again instead of
-  // sampling from a context that holds no evaluated prompt.
+TEST(WasiNNTest, GGMLBackendComputeSingleRetriesPrompt) {
+  // A compute_single whose prompt evaluation fails must not mark the stream as
+  // started; the next call evaluates the prompt again instead of sampling.
   auto NNMod = createModule();
   ASSERT_TRUE(NNMod);
 
@@ -2802,10 +2770,9 @@ TEST(WasiNNTest, GGMLBackendComputeSingleRetriesFailedPromptEvaluation) {
   EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
 }
 
-TEST(WasiNNTest, GGMLBackendReloadRebuildsOtherContextSampler) {
-  // A metadata reload of the model through one context frees the model that
-  // the grammar sampler of another context refers to; that context must
-  // rebuild its sampler before it computes again.
+TEST(WasiNNTest, GGMLBackendReloadRebuildsSamplers) {
+  // A metadata reload through one context frees the model that the grammar
+  // sampler of another context refers to; that context rebuilds its sampler.
   auto NNMod = createModule();
   ASSERT_TRUE(NNMod);
 
@@ -2918,9 +2885,8 @@ TEST(WasiNNTest, GGMLBackendReloadRebuildsOtherContextSampler) {
 }
 
 namespace {
-// Table bookkeeping is covered backend-free in resource_table_test.cpp; these
-// check the host-function wiring: guards reject an id that is not a live
-// graph/context before dispatching to any backend, so no model is needed.
+// Host-function guards reject ids that are not live graphs/contexts before
+// any backend dispatch, so no model is needed.
 void expectRejectsUnknownId(std::string_view FuncName) {
   auto NNMod = createModule();
   if (!NNMod) {
@@ -3004,7 +2970,7 @@ uint32_t runLoadByNameWithConfig(uint32_t NamePtr, uint32_t NameLen,
 }
 } // namespace
 
-TEST(WasiNNTest, WasiNNLoadByNameRejectsNameBeyondMemory) {
+TEST(WasiNNTest, LoadByNameRejectsNameBeyondMemory) {
   uint32_t E = runLoadByName(/*NamePtr=*/65500U, /*NameLen=*/64U);
   if (E == 0xFFFFFFFFU) {
     GTEST_SKIP() << "wasi_nn plugin not found";
@@ -3015,7 +2981,7 @@ TEST(WasiNNTest, WasiNNLoadByNameRejectsNameBeyondMemory) {
   EXPECT_EQ(ZeroLenName, static_cast<uint32_t>(ErrNo::InvalidArgument));
 }
 
-TEST(WasiNNTest, WasiNNLoadByNameWithConfigRejectsOutOfBoundsExtent) {
+TEST(WasiNNTest, LoadByNameWithConfigRejectsOOBExtent) {
   uint32_t NameOOB =
       runLoadByNameWithConfig(/*NamePtr=*/65500U, /*NameLen=*/64U,
                               /*ConfigPtr=*/0U, /*ConfigLen=*/8U);
@@ -3099,9 +3065,8 @@ TEST(WasiNNTest, GGMLBackendPreloadMarkerOnlyFromHost) {
 
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 TEST(WasiNNTest, GGMLBackendWithRPC) {
-  // wasi_nn_rpcserver has to be started outside this test,
-  // and the URI has to be set to $WASI_NN_RPC_TEST_URI.
-  // nn-preload has to be specified for "default".
+  // Needs an external wasi_nn_rpcserver at $WASI_NN_RPC_TEST_URI with a
+  // "default" nn-preload.
   /*
     DIR=/tmp/build
     export WASI_NN_RPC_TEST_URI=unix://${DIR}/wasi_nn_rpc.sock
@@ -3282,11 +3247,7 @@ TEST(WasiNNTest, GGMLBackendWithRPC) {
     EXPECT_TRUE(HostFuncCompute.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
         Errno));
-    // FIXME: ErrNo propagation is not supported yet
-    //    EXPECT_TRUE(
-    //        Errno[0].get<int32_t>() == static_cast<uint32_t>(ErrNo::Success)
-    //        || Errno[0].get<int32_t>() ==
-    //        static_cast<uint32_t>(ErrNo::ContextFull));
+    // FIXME: check Errno is Success or ContextFull once RPC propagates ErrNo.
   }
 
   // GGML WASI-NN get_output tests.
@@ -3456,9 +3417,8 @@ TEST(WasiNNTest, GGMLBackendWithRPC) {
 }
 
 TEST(WasiNNTest, GGMLBackendComputeSingleWithRPC) {
-  // wasi_nn_rpcserver has to be started outside this test,
-  // and the URI has to be set to $WASI_NN_RPC_TEST_URI.
-  // nn-preload has to be specified for "default".
+  // Needs an external wasi_nn_rpcserver at $WASI_NN_RPC_TEST_URI with a
+  // "default" nn-preload.
   /*
     DIR=/tmp/build
     export WASI_NN_RPC_TEST_URI=unix://${DIR}/wasi_nn_rpc.sock
@@ -3800,7 +3760,7 @@ uint64_t hostFuncCallerPages(uint64_t MemoryBytes) {
 }
 } // namespace
 
-TEST(WasiNNTest, RPCServerHostFuncCallerSizesMemoryByBytes) {
+TEST(WasiNNTest, RPCServerSizesCallerMemoryByBytes) {
   EXPECT_EQ(hostFuncCallerPages(0U), UINT64_C(0));
   EXPECT_EQ(hostFuncCallerPages(1U), UINT64_C(1));
   EXPECT_EQ(hostFuncCallerPages(UINT32_C(65536)), UINT64_C(1));
@@ -4882,9 +4842,8 @@ TEST(WasiNNTest, ChatTTSBackend) {
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS
 
-// A load from the bytes of the guest writes the model to a file of the host
-// for the backends which load by path. Concurrent loads must not share that
-// file, and it goes away with its owner. This runs in every build.
+// The host file written for a load from guest bytes is unique per load and
+// goes away with its owner; this runs in every build.
 TEST(WasiNNTest, TempModelFileIsUniqueAndRemoved) {
   constexpr std::size_t Count = 64;
   const std::vector<uint8_t> Data{'m', 'o', 'd', 'e', 'l'};
@@ -5429,10 +5388,8 @@ TEST(WasiNNTest, BitNetBackend) {
                                   Errno);
     };
 
-    // Test: set_input -- metadata that would overflow the fixed tensor-split
-    // array, truncate n_batch / n_ubatch, or hand the bundled llama.cpp a
-    // value it throws or aborts on is rejected and leaves the parameters
-    // untouched.
+    // Test: set_input -- out-of-range metadata (tensor-split overflow, n_batch
+    // truncation, llama.cpp throw/abort values) is rejected without effects.
     {
       const int32_t PrevNBatch = Params.n_batch;
       const int32_t PrevNUBatch = Params.n_ubatch;
@@ -5515,8 +5472,7 @@ TEST(WasiNNTest, BitNetBackend) {
     }
 
     // Test: set_input -- in-range KV cache types, pooling types, and mirostat
-    // versions are applied and restored afterwards. None of them reloads the
-    // llama context, so a V cache type that needs flash attention is fine.
+    // versions are applied without a context reload and restored afterwards.
     {
       const std::string PrevCacheTypeK = Params.cache_type_k;
       const std::string PrevCacheTypeV = Params.cache_type_v;
@@ -5541,9 +5497,8 @@ TEST(WasiNNTest, BitNetBackend) {
       EXPECT_EQ(Params.sparams.mirostat, PrevMirostat);
     }
 
-    // Test: set_input -- in-range thread counts, including the threads-batch
-    // -1 fallback, are applied through a successful llama context reload and
-    // restored afterwards.
+    // Test: set_input -- in-range thread counts (threads-batch -1 included)
+    // are applied through a context reload and restored afterwards.
     {
       const int PrevNThreads = Params.cpuparams.n_threads;
       const int PrevNThreadsBatch = Params.cpuparams_batch.n_threads;
@@ -5604,9 +5559,8 @@ TEST(WasiNNTest, BitNetBackend) {
       EXPECT_EQ(Conf.EmbdNormalize, PrevEmbdNormalize);
     }
 
-    // Test: set_input -- a rejected metadata object is applied atomically:
-    // the valid options that precede the invalid one are rolled back on the
-    // graph settings, the graph parameters, and the context config.
+    // Test: set_input -- a rejected metadata object rolls back the valid
+    // options before it (graph settings, parameters, and context config).
     {
       using WasmEdge::Host::WASINN::BitNet::EmbdNormalizeType;
       const auto &Conf = BitNetContext.Conf;

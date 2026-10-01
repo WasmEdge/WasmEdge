@@ -18,7 +18,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-TEST_F(FFmpegTest, AVCodecParameters) {
+using FFmpegAVCodecParametersTest = FFmpegTest;
+
+TEST_F(FFmpegAVCodecParametersTest, AVCodecParameters) {
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   uint32_t AVCodecParamPtr = UINT32_C(60);
@@ -73,7 +75,7 @@ TEST_F(FFmpegTest, AVCodecParameters) {
   }
 }
 
-TEST_F(FFmpegTest, AVCodecParametersCopy) {
+TEST_F(FFmpegAVCodecParametersTest, AVCodecParametersCopy) {
   ASSERT_TRUE(AVCodecMod != nullptr);
   ASSERT_TRUE(AVFormatMod != nullptr);
 
@@ -242,7 +244,7 @@ TEST_F(FFmpegTest, AVCodecParametersCopy) {
   }
 }
 
-TEST_F(FFmpegTest, BorrowedHandlesSurviveGuestFree) {
+TEST_F(FFmpegAVCodecParametersTest, BorrowedHandlesSurviveGuestFree) {
   ASSERT_TRUE(AVCodecMod != nullptr);
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
@@ -309,7 +311,7 @@ TEST_F(FFmpegTest, BorrowedHandlesSurviveGuestFree) {
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, ClosingContextInvalidatesBorrowedChildIds) {
+TEST_F(FFmpegAVCodecParametersTest, ContextCloseInvalidatesBorrowedIds) {
   ASSERT_TRUE(AVCodecMod != nullptr);
   ASSERT_TRUE(AVFormatMod != nullptr);
 
@@ -356,7 +358,7 @@ TEST_F(FFmpegTest, ClosingContextInvalidatesBorrowedChildIds) {
   EXPECT_EQ(Env->fetchData(DictId), nullptr);
 }
 
-TEST_F(FFmpegTest, AVCodecParametersCopyIndexOutOfRange) {
+TEST_F(FFmpegAVCodecParametersTest, AVCodecParametersCopyIndexOutOfRange) {
   ASSERT_TRUE(AVCodecMod != nullptr);
   ASSERT_TRUE(AVFormatMod != nullptr);
 

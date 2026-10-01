@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-#include "avfilter/avFilter.h"
 #include "avfilter//avfilter_func.h"
+#include "avfilter/avFilter.h"
 #include "avfilter/module.h"
 
 #include "utils.h"
@@ -33,9 +33,8 @@ namespace WasmEdgeFFmpeg {
 #endif
 
 namespace {
-// Bytes the process heap has handed out and not taken back, where the
-// allocator reports it. Sanitizer allocators count differently, so their
-// builds report nothing.
+// Bytes the process heap has handed out, where the allocator reports it;
+// sanitizer builds count differently and report nothing.
 std::optional<size_t> heapBytesInUse() {
 #if defined(WASMEDGE_FFMPEG_TEST_ASAN)
   return std::nullopt;
@@ -57,7 +56,9 @@ std::optional<size_t> heapBytesInUse() {
 }
 } // namespace
 
-TEST_F(FFmpegTest, AVFilterStructs) {
+using FFmpegAVFilterTest = FFmpegTest;
+
+TEST_F(FFmpegAVFilterTest, AVFilterStructs) {
   using namespace std::literals::string_view_literals;
   ASSERT_TRUE(AVFilterMod != nullptr);
 
@@ -70,9 +71,7 @@ TEST_F(FFmpegTest, AVFilterStructs) {
   std::string InputName = std::string("abuffer");
   fillMemContent(MemInst, InputNamePtr, InputName);
 
-  // ==================================================================
-  //               Start Initialize AVFilter
-  // ==================================================================
+  // Initialize AVFilter.
 
   auto *FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_get_by_name");
@@ -93,9 +92,6 @@ TEST_F(FFmpegTest, AVFilterStructs) {
 
   uint32_t FilterId = readUInt32(MemInst, FilterPtr);
   ASSERT_TRUE(FilterId > 0);
-  // ==================================================================
-  //               End Initialize AVFilter
-  // ==================================================================
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_name_length");
@@ -315,7 +311,7 @@ TEST_F(FFmpegTest, AVFilterStructs) {
   }
 }
 
-TEST_F(FFmpegTest, AVFilterNameBounds) {
+TEST_F(FFmpegAVFilterTest, AVFilterNameBounds) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   std::string InputName = std::string("abuffer");
@@ -387,7 +383,7 @@ TEST_F(FFmpegTest, AVFilterNameBounds) {
   }
 }
 
-TEST_F(FFmpegTest, AVFilterGetByNameBounds) {
+TEST_F(FFmpegAVFilterTest, AVFilterGetByNameBounds) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   auto *FuncInst = AVFilterMod->findFuncExports(
@@ -408,7 +404,7 @@ TEST_F(FFmpegTest, AVFilterGetByNameBounds) {
   EXPECT_EQ(readUInt32(MemInst, FilterPtr), UINT32_C(0));
 }
 
-TEST_F(FFmpegTest, AVFilterPadGettersZeroTheIdSlot) {
+TEST_F(FFmpegAVFilterTest, AVFilterPadGettersZeroIdSlot) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   uint32_t PadPtr = UINT32_C(4);
@@ -428,7 +424,7 @@ TEST_F(FFmpegTest, AVFilterPadGettersZeroTheIdSlot) {
   }
 }
 
-TEST_F(FFmpegTest, AVFilterPadGetterIndexBounds) {
+TEST_F(FFmpegAVFilterTest, AVFilterPadGetterIndexBounds) {
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   uint32_t FilterPtr = UINT32_C(8);
@@ -505,7 +501,7 @@ TEST_F(FFmpegTest, AVFilterPadGetterIndexBounds) {
   EXPECT_EQ(Result[0].get<int32_t>(), -1);
 }
 
-TEST_F(FFmpegTest, AVFilterPadQueriesShareOneView) {
+TEST_F(FFmpegAVFilterTest, AVFilterPadQueriesShareOneView) {
   if (!heapBytesInUse()) {
     GTEST_SKIP() << "the allocator does not report its heap usage";
   }

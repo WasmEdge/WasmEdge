@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-#include "avformat/avformat_func.h"
 #include "avformat/avChapter.h"
 #include "avformat/avformatContext.h"
+#include "avformat/avformat_func.h"
 #include "avformat/module.h"
 #include "avutil/avDictionary.h"
 
@@ -21,7 +21,9 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 // Testing all AVFormat_funcs.
-TEST_F(FFmpegTest, AVInputFormatFunc) {
+using FFmpegAVFormatFuncTest = FFmpegTest;
+
+TEST_F(FFmpegAVFormatFuncTest, AVInputFormatFunc) {
   uint32_t FormatCtxPtr = UINT32_C(4);
   uint32_t DictPtr = UINT32_C(16);
   uint32_t KeyPtr = UINT32_C(100);
@@ -350,7 +352,7 @@ TEST_F(FFmpegTest, AVInputFormatFunc) {
   }
 }
 
-TEST_F(FFmpegTest, AVOutputFormatFunc) {
+TEST_F(FFmpegAVFormatFuncTest, AVOutputFormatFunc) {
 
   uint32_t FormatCtxPtr = UINT32_C(4);
   uint32_t DictPtr = UINT32_C(16);
@@ -445,24 +447,8 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
   }
 
-  // TODO: This test modifies the input file, so it cannot be tested.
-  // Added test on the Rust side.
-  //  spdlog::info("Testing AVGuessCodec"sv);
-  //  uint32_t EmptyStrPtr = UINT32_C(520);
-  //  writeUInt32(MemInst, 0, EmptyStrPtr);
-  //  {
-  //    uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
-  //    int32_t MediaTypeId = 0; // Video
-  //    EXPECT_TRUE(HostFuncAVGuessCodec.run(
-  //        CallFrame,
-  //        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId,
-  //        EmptyStrPtr, 0,
-  //                                                    FilePtr, 32,
-  //                                                    EmptyStrPtr, 0,
-  //                                                    MediaTypeId},
-  //        Result));
-  //    EXPECT_EQ(Result[0].get<int32_t>(), 1); // AV_CODEC_ID_MPEG1VIDEO:
-  //  }
+  // TODO: av_guess_codec modifies the input file; it is tested on the Rust
+  // side.
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformat_write_header");
@@ -481,25 +467,8 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
     EXPECT_EQ(Result[0].get<int32_t>(), -22);
   }
 
-  // Writing the header above returns an invalid argument, so the test below
-  // does not work. The OutputFormatContext should be configured using the input
-  // format context. Test this on the Rust side. This is working as expected.
-
-  //  FuncInst = AVFormatMod->findFuncExports(
-  //      "wasmedge_ffmpeg_avformat_avformat_write_trailer");
-  //  EXPECT_NE(FuncInst, nullptr);
-  //  EXPECT_TRUE(FuncInst->isHostFunction());
-  //  auto &HostFuncAVFormatTrailer = dynamic_cast<
-  //      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFormatWriteTrailer &>(
-  //      FuncInst->getHostFunc());
-  //  {
-  //    // Did not set AVParameters, etc. Hence Giving Invalid Argument Error.
-  //    uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
-  //    EXPECT_TRUE(HostFuncAVFormatTrailer.run(
-  //        CallFrame, std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
-  //        Result));
-  //    EXPECT_EQ(Result[0].get<int32_t>(), -22);
-  //  }
+  // write_trailer needs a configured output context (write_header fails
+  // above); it is tested on the Rust side.
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avchapter_mallocz");
@@ -514,28 +483,7 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
-  // How to pass IntPtr
-  //
-  //  FuncInst = AVFormatMod->findFuncExports(
-  //      "wasmedge_ffmpeg_avformat_avchapter_dynarray_add");
-  //  EXPECT_NE(FuncInst, nullptr);
-  //  EXPECT_TRUE(FuncInst->isHostFunction());
-  //  auto &HostFuncAVChapterDynarrayAdd = dynamic_cast<
-  //      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterDynarrayAdd &>(
-  //      FuncInst->getHostFunc());
-  //  // For the given input file, nb_chapter is 0;
-  //  {
-  //    uint32_t AvChapterId = readUInt32(MemInst, AvFormatCtxPtr);
-  //    uint32_t AvFormatCtxId = readUInt32(MemInst, AvFormatCtxPtr);
-  //    EXPECT_TRUE(HostFuncAVChapterDynarrayAdd.run(
-  //        CallFrame,
-  //        std::initializer_list<WasmEdge::ValVariant>{AvFormatCtxId,
-  //        UINT32_C(0),
-  //                                                    AvChapterId},
-  //        Result));
-  //    EXPECT_EQ(Result[0].get<int32_t>(),
-  //    static_cast<int32_t>(ErrNo::Success));
-  //  }
+  // TODO: test avchapter_dynarray_add once IntPtr arguments can be passed.
 
   FuncInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avformat_avfreep");
@@ -587,7 +535,7 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
   }
 }
 
-TEST_F(FFmpegTest, AVIOOpenBounds) {
+TEST_F(FFmpegAVFormatFuncTest, AVIOOpenBounds) {
   ASSERT_TRUE(AVFormatMod != nullptr);
 
   auto *FuncInst =
@@ -607,7 +555,7 @@ TEST_F(FFmpegTest, AVIOOpenBounds) {
             static_cast<int32_t>(ErrNo::MissingMemory));
 }
 
-TEST_F(FFmpegTest, AVChapterDynarrayAddNullContext) {
+TEST_F(FFmpegAVFormatFuncTest, AVChapterDynarrayAddNullContext) {
   ASSERT_TRUE(AVFormatMod != nullptr);
 
   uint32_t NbChaptersPtr = UINT32_C(4);
@@ -628,7 +576,7 @@ TEST_F(FFmpegTest, AVChapterDynarrayAddNullContext) {
             static_cast<int32_t>(ErrNo::InternalError));
 }
 
-TEST_F(FFmpegTest, AVChapterDynarrayAddIgnoresForgedCount) {
+TEST_F(FFmpegAVFormatFuncTest, AVChapterDynarrayAddIgnoresForgedCount) {
   ASSERT_TRUE(AVFormatMod != nullptr);
 
   uint32_t NbChaptersPtr = UINT32_C(4);
@@ -680,7 +628,7 @@ TEST_F(FFmpegTest, AVChapterDynarrayAddIgnoresForgedCount) {
             static_cast<uint32_t>(InitialNbChapters + 1));
 }
 
-TEST_F(FFmpegTest, AVFreePOnContextOwnedChapter) {
+TEST_F(FFmpegAVFormatFuncTest, AVFreePOnContextOwnedChapter) {
   ASSERT_TRUE(AVFormatMod != nullptr);
 
   uint32_t NbChaptersPtr = UINT32_C(4);
@@ -749,7 +697,7 @@ TEST_F(FFmpegTest, AVFreePOnContextOwnedChapter) {
   EXPECT_EQ(Env->fetchData(ChapterId), nullptr);
 }
 
-TEST_F(FFmpegTest, AVFormatCtxSetMetadataTakesOwnedDict) {
+TEST_F(FFmpegAVFormatFuncTest, AVFormatCtxSetMetadataTakesOwnedDict) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -868,7 +816,7 @@ TEST_F(FFmpegTest, AVFormatCtxSetMetadataTakesOwnedDict) {
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, WriteFrameRejectsUnresolvedPacketHandles) {
+TEST_F(FFmpegAVFormatFuncTest, WriteFrameRejectsUnresolvedPackets) {
   ASSERT_TRUE(AVFormatMod != nullptr);
 
   uint32_t FormatCtxPtr = UINT32_C(4);
@@ -903,7 +851,7 @@ TEST_F(FFmpegTest, WriteFrameRejectsUnresolvedPacketHandles) {
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, SetMetadataRejectsUnresolvedDictHandle) {
+TEST_F(FFmpegAVFormatFuncTest, SetMetadataRejectsUnresolvedDictHandle) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -997,7 +945,7 @@ TEST_F(FFmpegTest, SetMetadataRejectsUnresolvedDictHandle) {
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFormatFailuresZeroTheIdSlot) {
+TEST_F(FFmpegAVFormatFuncTest, AVFormatFailuresZeroIdSlot) {
   ASSERT_TRUE(AVFormatMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1073,7 +1021,7 @@ TEST_F(FFmpegTest, AVFormatFailuresZeroTheIdSlot) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVIOCloseHandleSemantics) {
+TEST_F(FFmpegAVFormatFuncTest, AVIOCloseHandleSemantics) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -1145,7 +1093,7 @@ TEST_F(FFmpegTest, AVIOCloseHandleSemantics) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFormatFindStreamInfoAppliesDictToEveryStream) {
+TEST_F(FFmpegAVFormatFuncTest, FindStreamInfoAppliesDictPerStream) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -1198,7 +1146,7 @@ TEST_F(FFmpegTest, AVFormatFindStreamInfoAppliesDictToEveryStream) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFormatDemuxCallsRejectOutputContext) {
+TEST_F(FFmpegAVFormatFuncTest, AVFormatDemuxCallsRejectOutputContext) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVCodecMod != nullptr);
 
@@ -1260,7 +1208,7 @@ TEST_F(FFmpegTest, AVFormatDemuxCallsRejectOutputContext) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFormatMuxCallsRejectInputContext) {
+TEST_F(FFmpegAVFormatFuncTest, AVFormatMuxCallsRejectInputContext) {
   ASSERT_TRUE(AVFormatMod != nullptr);
 
   auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
@@ -1316,7 +1264,7 @@ TEST_F(FFmpegTest, AVFormatMuxCallsRejectInputContext) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVIOOpenRequiresWritableUnopenedOutput) {
+TEST_F(FFmpegAVFormatFuncTest, AVIOOpenRequiresWritableUnopenedOutput) {
   ASSERT_TRUE(AVFormatMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1380,7 +1328,7 @@ TEST_F(FFmpegTest, AVIOOpenRequiresWritableUnopenedOutput) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFormatFreeContextRejectsInputContext) {
+TEST_F(FFmpegAVFormatFuncTest, AVFormatFreeContextRejectsInputContext) {
   ASSERT_TRUE(AVFormatMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1405,7 +1353,7 @@ TEST_F(FFmpegTest, AVFormatFreeContextRejectsInputContext) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFormatCloseInputRejectsOutputContext) {
+TEST_F(FFmpegAVFormatFuncTest, AVFormatCloseInputRejectsOutputContext) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVCodecMod != nullptr);
 
@@ -1514,7 +1462,7 @@ TEST_F(FFmpegTest, AVFormatCloseInputRejectsOutputContext) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFormatMuxerStateMachine) {
+TEST_F(FFmpegAVFormatFuncTest, AVFormatMuxerStateMachine) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVCodecMod != nullptr);
 
@@ -1650,7 +1598,7 @@ TEST_F(FFmpegTest, AVFormatMuxerStateMachine) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVDumpFormatIgnoresGuestIsOutput) {
+TEST_F(FFmpegAVFormatFuncTest, AVDumpFormatIgnoresGuestIsOutput) {
   ASSERT_TRUE(AVFormatMod != nullptr);
 
   auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
@@ -1703,7 +1651,7 @@ TEST_F(FFmpegTest, AVDumpFormatIgnoresGuestIsOutput) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFormatWriteHeaderFailureLocksTheMuxer) {
+TEST_F(FFmpegAVFormatFuncTest, AVFormatWriteHeaderFailureLocksMuxer) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVCodecMod != nullptr);
 
@@ -1784,9 +1732,8 @@ TEST_F(FFmpegTest, AVFormatWriteHeaderFailureLocksTheMuxer) {
   EXPECT_LT(HeaderRes, 0);
   EXPECT_NE(HeaderRes, static_cast<int32_t>(ErrNo::InternalError));
 
-  // A failed header leaves the muxer in whatever state FFmpeg reached, so
-  // nothing may be added to it, written through it, or retried; it can
-  // only be closed and freed.
+  // A failed header leaves the muxer in an unknown state: nothing may be
+  // added, written, or retried; it can only be closed and freed.
   EXPECT_EQ(Run(AVFormatMod.get(),
                 "wasmedge_ffmpeg_avformat_avformat_new_stream",
                 {CtxId, UINT32_C(0)}),
@@ -1816,7 +1763,7 @@ TEST_F(FFmpegTest, AVFormatWriteHeaderFailureLocksTheMuxer) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFormatFreeContextClosesLiveOutput) {
+TEST_F(FFmpegAVFormatFuncTest, AVFormatFreeContextClosesLiveOutput) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVCodecMod != nullptr);
 
@@ -1866,9 +1813,8 @@ TEST_F(FFmpegTest, AVFormatFreeContextClosesLiveOutput) {
   EXPECT_EQ(countOpenDescriptors(), Before);
 #endif
 
-  // The same holds for an aborted mux: avio_close is refused between the
-  // header and the trailer, which is what the SDK's Output destructor
-  // runs into, so free must still take the descriptor with it.
+  // The same holds for an aborted mux: avio_close is refused between header
+  // and trailer, as the SDK's Output destructor finds, so free takes the fd.
   uint32_t CodecPtr = UINT32_C(8);
   uint32_t EncCtxPtr = UINT32_C(12);
   uint32_t ParPtr = UINT32_C(16);
@@ -1932,12 +1878,9 @@ TEST_F(FFmpegTest, AVFormatFreeContextClosesLiveOutput) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-// A muxer whose header has been written owes its trailer: the pulse output
-// device starts a thread in write_header whose callbacks dereference the
-// context, and only write_trailer stops it (the muxer has no deinit hook).
-// Freeing such a context writes the trailer first, which also completes the
-// file: the wav muxer patches its RIFF size only in the trailer.
-TEST_F(FFmpegTest, AVFormatFreeContextWritesThePendingTrailer) {
+// A muxer with a written header owes its trailer: only write_trailer stops the
+// pulse device thread and patches the wav RIFF size, so free writes it first.
+TEST_F(FFmpegAVFormatFuncTest, AVFormatFreeContextWritesTrailer) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVCodecMod != nullptr);
 
@@ -2036,7 +1979,7 @@ TEST_F(FFmpegTest, AVFormatFreeContextWritesThePendingTrailer) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFormatOpenInputRejectsCustomIoOption) {
+TEST_F(FFmpegAVFormatFuncTest, AVFormatOpenInputRejectsCustomIoOption) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -2103,7 +2046,7 @@ TEST_F(FFmpegTest, AVFormatOpenInputRejectsCustomIoOption) {
       static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVReadFrameReleasesThePreviousPacket) {
+TEST_F(FFmpegAVFormatFuncTest, AVReadFrameReleasesPreviousPacket) {
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVCodecMod != nullptr);
 

@@ -261,8 +261,7 @@ template <class F, class T> void checkRounding() {
 }
 
 // The x86 rounding without SSE4.1 must not depend on the MXCSR rounding mode
-// or on denormals-are-zero. The other backends round with libm, the compiler
-// expansion of it, or an instruction, as the scalar instructions do.
+// or on denormals-are-zero; the other backends round as the scalar code does.
 template <class F> constexpr bool exactRoundingOnX86() {
 #if (defined(_M_X64) || defined(__SSE2__)) && !defined(__SSE4_1__) &&          \
     !defined(__AVX__)
@@ -492,7 +491,7 @@ TYPED_TEST(SimdTest, MaskReductions) {
   EXPECT_EQ((Y < I64()).to_ullong(), 0x1ULL);
 }
 
-TEST(SimdMaskTest, WideMaskPacksLanesThatFit) {
+TEST(SimdTest, WideMaskPacksFittingLanes) {
   const simd::mask<char, 65> M([](auto I) { return I == 0 || I == 63; });
   EXPECT_EQ(M.to_ullong(), 0x8000000000000001ULL);
 }
@@ -590,7 +589,7 @@ TYPED_TEST(SimdTest, ConversionsMatchScalar) {
   EXPECT_EQ(lanes(R), (std::vector<std::int32_t>{-2, 1, 0, 2147483520}));
 }
 
-TEST(ValVariantTest, ScalarsDoNotBroadcastIntoVectorAlternatives) {
+TEST(SimdTest, ValVariantNarrowIntsStayScalar) {
   const WasmEdge::ValVariant U8(std::uint8_t{200});
   EXPECT_EQ(U8.get<std::int32_t>(), 200);
   const WasmEdge::ValVariant I8(std::int8_t{-3});
@@ -603,7 +602,7 @@ TEST(ValVariantTest, ScalarsDoNotBroadcastIntoVectorAlternatives) {
   EXPECT_EQ(U64.get<std::uint64_t>(), std::uint64_t{1} << 40);
 }
 
-TEST(ValVariantTest, ClassTypesConvertingToScalarsPickTheScalar) {
+TEST(SimdTest, ValVariantClassConvertsToScalar) {
   std::atomic<std::uint32_t> Counter{42};
   const WasmEdge::ValVariant FromAtomic(Counter);
   EXPECT_EQ(FromAtomic.get<std::uint32_t>(), 42U);

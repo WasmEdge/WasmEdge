@@ -52,7 +52,7 @@ static const uint32_t ADD_VALUE_1_KEY = 0xCDEF;
 static const uint32_t ADD_VALUE_2_KEY = 0x1234;
 static const uint32_t RESULT_VALUE_KEY = 0x7890;
 
-TEST(WasmBpfTest, SimpleMapTest) {
+TEST(WasmBpfSimpleMapTest, MapOperations) {
   using namespace std::string_view_literals;
   // Test loading and attaching a BPF program and some map operations.
   auto module = dynamic_cast<WasmEdge::Host::WasmBpfModule *>(createModule());
@@ -258,9 +258,7 @@ TEST(WasmBpfTest, SimpleMapTest) {
   ASSERT_EQ(mapUpdateElem(mapFd, num1KeyOffset, numOffset1), 0);
   ASSERT_EQ(mapUpdateElem(mapFd, num2KeyOffset, numOffset2), 0);
 
-  // Write the indicator key.
-  // Arbitrary values are correct. We only care about the existence of the
-  // indicator key.
+  // Write the indicator key; only its existence matters, not its value.
   ASSERT_EQ(mapUpdateElem(mapFd, indicatingKeyOffset, numOffset1), 0);
 
   // Sleep for 1s and wait for the eBPF program to process.

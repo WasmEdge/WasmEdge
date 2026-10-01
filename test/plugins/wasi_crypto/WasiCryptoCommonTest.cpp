@@ -23,7 +23,9 @@ namespace Host {
 namespace WasiCrypto {
 using namespace std::literals;
 
-TEST(WasiCryptoOpensslOkTest, Status) {
+using WasiCryptoCommonTest = WasiCryptoTest;
+
+TEST_F(WasiCryptoCommonTest, OpensslOk) {
   EXPECT_FALSE(opensslOk(-2));
   EXPECT_FALSE(opensslOk(-1));
   EXPECT_FALSE(opensslOk(0));
@@ -32,7 +34,7 @@ TEST(WasiCryptoOpensslOkTest, Status) {
   EXPECT_FALSE(opensslOk(static_cast<const EVP_PKEY *>(nullptr)));
 }
 
-TEST_F(WasiCryptoTest, Options) {
+TEST_F(WasiCryptoCommonTest, Options) {
   // Symmetric options.
   {
     // Open options.
@@ -134,7 +136,7 @@ TEST_F(WasiCryptoTest, Options) {
   }
 }
 
-TEST_F(WasiCryptoTest, SecretsManager) {
+TEST_F(WasiCryptoCommonTest, SecretsManager) {
   // Open secrets manager.
   WASI_CRYPTO_EXPECT_SUCCESS(SmHandle, secretsManagerOpen(std::nullopt));
 
@@ -218,7 +220,7 @@ TEST_F(WasiCryptoTest, SecretsManager) {
   WASI_CRYPTO_EXPECT_TRUE(secretsManagerClose(SmHandle2));
 }
 
-TEST_F(WasiCryptoTest, ArrayOutputPullReportsCompletion) {
+TEST_F(WasiCryptoCommonTest, ArrayOutputPullReportsCompletion) {
   WASI_CRYPTO_EXPECT_SUCCESS(
       KeyHandle, symmetricKeyGenerate("HMAC/SHA-256"sv, std::nullopt));
   WASI_CRYPTO_EXPECT_SUCCESS(OutputHandle, symmetricKeyExport(KeyHandle));
@@ -239,13 +241,13 @@ TEST_F(WasiCryptoTest, ArrayOutputPullReportsCompletion) {
   std::vector<uint8_t> SecondHalf(PartialSize - FirstHalf.size());
 
   // Pull the first half: unread data remains, so the handle stays open.
-  WASI_CRYPTO_EXPECT_SUCCESS(
-      FirstRead, arrayOutputPull(PartialHandle, FirstHalf));
+  WASI_CRYPTO_EXPECT_SUCCESS(FirstRead,
+                             arrayOutputPull(PartialHandle, FirstHalf));
   EXPECT_EQ(FirstRead, FirstHalf.size());
 
   // Pull the remaining half: the payload is now fully consumed.
-  WASI_CRYPTO_EXPECT_SUCCESS(
-      SecondRead, arrayOutputPull(PartialHandle, SecondHalf));
+  WASI_CRYPTO_EXPECT_SUCCESS(SecondRead,
+                             arrayOutputPull(PartialHandle, SecondHalf));
   EXPECT_EQ(SecondRead, SecondHalf.size());
 
   // The concatenated output must match the original exported payload.
@@ -253,9 +255,8 @@ TEST_F(WasiCryptoTest, ArrayOutputPullReportsCompletion) {
   EXPECT_EQ(FirstHalf, Buf);
 
   // Partial read: handle must close only after the final pull.
-  WASI_CRYPTO_EXPECT_FAILURE(
-      arrayOutputPull(PartialHandle, SecondHalf),
-      __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+  WASI_CRYPTO_EXPECT_FAILURE(arrayOutputPull(PartialHandle, SecondHalf),
+                             __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 
   WASI_CRYPTO_EXPECT_TRUE(symmetricKeyClose(KeyHandle));
 }

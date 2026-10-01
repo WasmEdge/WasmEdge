@@ -8,9 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file parses and runs tests of Wasm test suites extracted by wast2json.
-/// Test Suites: https://github.com/WebAssembly/spec/tree/master/test/core
-/// wast2json: https://webassembly.github.io/wabt/doc/wast2json.1.html
+/// Helpers for running the wast2json-extracted spec test suites through the
+/// C API.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

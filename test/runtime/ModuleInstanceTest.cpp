@@ -8,9 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// Tests for ModuleInstance teardown: the subclass destructor must run before
-/// the HostDataFinalizer on both the direct and cascade paths, and a deep
-/// dependency chain must tear down iteratively without overflowing the stack.
+/// Tests for ModuleInstance teardown order (subclass dtor before finalizer)
+/// and iterative teardown of deep dependency chains.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -28,7 +27,7 @@ namespace {
 
 using namespace WasmEdge;
 
-/// Events recorded by the subclass destructor and the finalizer, in order.
+// Events recorded by the subclass destructor and the finalizer, in order.
 enum class Event {
   DerivedDtor,
   Finalizer,
@@ -36,8 +35,8 @@ enum class Event {
   MiddleFinalizerAfterTerminate
 };
 
-/// Test-only subclass that records its destruction and exposes addDependency
-/// so tests can wire a consumer -> provider edge.
+// Test-only subclass that records its destruction and exposes addDependency
+// so tests can wire a consumer -> provider edge.
 class TestModule final : public Runtime::Instance::ModuleInstance {
 public:
   TestModule(std::string_view Name, std::vector<Event> *Events,
@@ -61,7 +60,7 @@ private:
   std::vector<Event> *RecordedEvents;
 };
 
-/// Finalizer that recovers the event vector from its HostData argument.
+// Finalizer that recovers the event vector from its HostData argument.
 std::function<void(void *)> makeFinalizer() {
   return [](void *Data) {
     auto *Events = static_cast<std::vector<Event> *>(Data);
@@ -102,7 +101,7 @@ TEST(ModuleInstanceTest, CascadeDeleteRunsDerivedDtorBeforeFinalizer) {
   EXPECT_EQ(ProviderEvents[1], Event::Finalizer);
 }
 
-TEST(ModuleInstanceTest, CascadeKeepsProviderPinnedUntilFinalizerCompletes) {
+TEST(ModuleInstanceTest, CascadePinsProviderUntilFinalized) {
   std::vector<Event> Events;
   auto *Provider = new TestModule("provider", &Events, makeFinalizer());
   FinalizerContext FinalizerCtx{Provider, &Events};
@@ -126,7 +125,7 @@ TEST(ModuleInstanceTest, CascadeKeepsProviderPinnedUntilFinalizerCompletes) {
   EXPECT_EQ(Events[3], Event::Finalizer);
 }
 
-TEST(ModuleInstanceTest, DeepCascadeDoesNotOverflowStack) {
+TEST(ModuleInstanceTest, DeepCascadeNoStackOverflow) {
   constexpr std::size_t N = 50000;
   std::vector<Event> Events;
   Events.reserve(2 * N);

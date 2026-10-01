@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-#include "avutil/avFrame.h"
 #include "avutil/avDictionary.h"
+#include "avutil/avFrame.h"
 #include "avutil/module.h"
 
 #include "utils.h"
@@ -13,7 +13,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-TEST_F(FFmpegTest, AVFrame) {
+using FFmpegAVFrameTest = FFmpegTest;
+
+TEST_F(FFmpegAVFrameTest, AVFrame) {
   uint32_t AVFramePtr = UINT32_C(72);
   uint32_t AVFrame2Ptr = UINT32_C(40);
   uint32_t DictPtr = UINT32_C(36);
@@ -603,9 +605,7 @@ TEST_F(FFmpegTest, AVFrame) {
     EXPECT_EQ(Result[0].get<int32_t>(), ColorPrimariesId);
   }
 
-  //  ==========================================================================
-  //                            AVFrame Audio Funcs.
-  //  ==========================================================================
+  // AVFrame Audio Funcs.
 
   // Setting the audio fields on the unallocated scratch frame.
 
@@ -751,10 +751,6 @@ TEST_F(FFmpegTest, AVFrame) {
     EXPECT_EQ(Result[0].get<uint64_t>(), ChannelLayout);
   }
 
-  //  ==========================================================================
-  //                            AVFrame Audio Funcs.
-  //  ==========================================================================
-
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_get_buffer");
   ASSERT_NE(FuncInst, nullptr);
@@ -799,7 +795,7 @@ TEST_F(FFmpegTest, AVFrame) {
   }
 }
 
-TEST_F(FFmpegTest, AVFrameDataIndexBounds) {
+TEST_F(FFmpegAVFrameTest, AVFrameDataIndexBounds) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto *FuncInst =
@@ -828,7 +824,7 @@ TEST_F(FFmpegTest, AVFrameDataIndexBounds) {
             static_cast<int32_t>(ErrNo::InternalError));
 }
 
-TEST_F(FFmpegTest, AVFrameDataNullPlane) {
+TEST_F(FFmpegAVFrameTest, AVFrameDataNullPlane) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto *FuncInst =
@@ -857,7 +853,7 @@ TEST_F(FFmpegTest, AVFrameDataNullPlane) {
             static_cast<int32_t>(ErrNo::InternalError));
 }
 
-TEST_F(FFmpegTest, AVFrameDataZeroLength) {
+TEST_F(FFmpegAVFrameTest, AVFrameDataZeroLength) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto *FuncInst =
@@ -884,7 +880,7 @@ TEST_F(FFmpegTest, AVFrameDataZeroLength) {
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFrameDataRejectsOversizedRead) {
+TEST_F(FFmpegAVFrameTest, AVFrameDataRejectsOversizedRead) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto *FuncInst =
@@ -964,7 +960,7 @@ TEST_F(FFmpegTest, AVFrameDataRejectsOversizedRead) {
   EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFrameMetadataNullHandle) {
+TEST_F(FFmpegAVFrameTest, AVFrameMetadataNullHandle) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto *FuncInst =
@@ -983,7 +979,7 @@ TEST_F(FFmpegTest, AVFrameMetadataNullHandle) {
   EXPECT_EQ(readUInt32(MemInst, DictPtr), UINT32_C(0));
 }
 
-TEST_F(FFmpegTest, AVFrameSetMetadataMovesOwnedDictAndCopiesViews) {
+TEST_F(FFmpegAVFrameTest, AVFrameSetMetadataMovesOrCopiesDict) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1050,7 +1046,7 @@ TEST_F(FFmpegTest, AVFrameSetMetadataMovesOwnedDictAndCopiesViews) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFrameMetadataLiveView) {
+TEST_F(FFmpegAVFrameTest, AVFrameMetadataLiveView) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto *FuncInst =
@@ -1133,7 +1129,7 @@ TEST_F(FFmpegTest, AVFrameMetadataLiveView) {
   EXPECT_EQ(Result[0].get<int32_t>(), 1);
 }
 
-TEST_F(FFmpegTest, AVFrameGeometrySettersRejectAllocatedFrame) {
+TEST_F(FFmpegAVFrameTest, AVFrameGeometrySettersRejectAllocated) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1189,7 +1185,7 @@ TEST_F(FFmpegTest, AVFrameGeometrySettersRejectAllocatedFrame) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFrameGetBufferRejectsReallocationAndBadAlign) {
+TEST_F(FFmpegAVFrameTest, AVFrameGetBufferChecksReallocAndAlign) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1231,7 +1227,7 @@ TEST_F(FFmpegTest, AVFrameGetBufferRejectsReallocationAndBadAlign) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFrameGetBufferRejectsMixedGeometry) {
+TEST_F(FFmpegAVFrameTest, AVFrameGetBufferRejectsMixedGeometry) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1283,7 +1279,7 @@ TEST_F(FFmpegTest, AVFrameGetBufferRejectsMixedGeometry) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFrameSetNbSamplesOnlyShrinksAllocatedFrame) {
+TEST_F(FFmpegAVFrameTest, AVFrameSetNbSamplesOnlyShrinks) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1329,7 +1325,7 @@ TEST_F(FFmpegTest, AVFrameSetNbSamplesOnlyShrinksAllocatedFrame) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFrameCopyRejectsSelf) {
+TEST_F(FFmpegAVFrameTest, AVFrameCopyRejectsSelf) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1367,7 +1363,7 @@ TEST_F(FFmpegTest, AVFrameCopyRejectsSelf) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFrameCopyReportsFailures) {
+TEST_F(FFmpegAVFrameTest, AVFrameCopyReportsFailures) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1409,7 +1405,7 @@ TEST_F(FFmpegTest, AVFrameCopyReportsFailures) {
   }
 }
 
-TEST_F(FFmpegTest, AVFrameGetBufferFailureLeavesNoResidue) {
+TEST_F(FFmpegAVFrameTest, AVFrameGetBufferFailureLeavesNoResidue) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1434,10 +1430,8 @@ TEST_F(FFmpegTest, AVFrameGetBufferFailureLeavesNoResidue) {
                 {FrameId, UINT32_C(2000000)}),
             static_cast<int32_t>(ErrNo::Success));
 
-  // The plane sizes of this geometry overflow INT_MAX, so av_frame_get_buffer
-  // fails after it has already filled in linesize[] for a 1-pixel-wide
-  // picture. A later allocation for a wide picture would reuse that
-  // linesize and come back far too small.
+  // This geometry overflows INT_MAX, so av_frame_get_buffer fails after filling
+  // linesize[] for a 1-pixel width, which a later wide allocation would reuse.
   int32_t const OverflowRes = Run("wasmedge_ffmpeg_avutil_av_frame_get_buffer",
                                   {FrameId, INT32_C(1024)});
   EXPECT_LT(OverflowRes, 0);
@@ -1463,7 +1457,7 @@ TEST_F(FFmpegTest, AVFrameGetBufferFailureLeavesNoResidue) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFrameSetChannelsRebuildsLayout) {
+TEST_F(FFmpegAVFrameTest, AVFrameSetChannelsRebuildsLayout) {
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   auto Run = [&](const char *Name,
@@ -1516,7 +1510,7 @@ TEST_F(FFmpegTest, AVFrameSetChannelsRebuildsLayout) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVFrameGetBufferZeroesPlanes) {
+TEST_F(FFmpegAVFrameTest, AVFrameGetBufferZeroesPlanes) {
   ASSERT_TRUE(AVUtilMod != nullptr);
   ASSERT_TRUE(SWScaleMod != nullptr);
 
@@ -1553,9 +1547,8 @@ TEST_F(FFmpegTest, AVFrameGetBufferZeroesPlanes) {
   uint32_t const BufLen = UINT32_C(6272);
   uint32_t BufPtr = UINT32_C(1024);
 
-  // Fill a YUV420P buffer with non-zero samples (black RGB converts to
-  // Y=16, U=V=128) and free it, so the allocator has stale data to hand
-  // back to the next frame of the same size.
+  // Fill a YUV420P buffer with non-zero samples (black RGB is Y=16, U=V=128)
+  // and free it, so the allocator has stale data for the next frame.
   uint32_t SrcId = MakeFrame(UINT32_C(4), RGB24Id);
   uint32_t DirtyId = MakeFrame(UINT32_C(8), YUV420PId);
   uint32_t SwsPtr = UINT32_C(12);

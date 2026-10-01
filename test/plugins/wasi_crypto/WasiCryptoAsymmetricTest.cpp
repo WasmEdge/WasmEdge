@@ -8,7 +8,9 @@ namespace Host {
 namespace WasiCrypto {
 using namespace std::literals;
 
-TEST_F(WasiCryptoTest, Asymmetric) {
+using WasiCryptoAsymmetricTest = WasiCryptoTest;
+
+TEST_F(WasiCryptoAsymmetricTest, Asymmetric) {
   WASI_CRYPTO_EXPECT_SUCCESS(SmHandle, secretsManagerOpen(std::nullopt));
 
   auto EncodingCheck =

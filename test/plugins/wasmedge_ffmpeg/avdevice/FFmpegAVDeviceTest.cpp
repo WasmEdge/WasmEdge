@@ -9,7 +9,9 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-TEST_F(FFmpegTest, AVDeviceListDevicesFailureZeroesTheIdSlot) {
+using FFmpegAVDeviceTest = FFmpegTest;
+
+TEST_F(FFmpegAVDeviceTest, ListDevicesFailureZeroesIdSlot) {
   ASSERT_TRUE(AVDeviceMod != nullptr);
 
   auto *FuncInst = AVDeviceMod->findFuncExports(
@@ -26,7 +28,7 @@ TEST_F(FFmpegTest, AVDeviceListDevicesFailureZeroesTheIdSlot) {
   EXPECT_EQ(readUInt32(MemInst, ListPtr), UINT32_C(0));
 }
 
-TEST_F(FFmpegTest, AVDeviceFreeListDevicesNullSafeAndIdempotent) {
+TEST_F(FFmpegAVDeviceTest, FreeListDevicesNullSafeAndIdempotent) {
   ASSERT_TRUE(AVDeviceMod != nullptr);
   ASSERT_TRUE(AVUtilMod != nullptr);
 
@@ -62,7 +64,7 @@ TEST_F(FFmpegTest, AVDeviceFreeListDevicesNullSafeAndIdempotent) {
       static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVDeviceListDevicesFailureStoresNothing) {
+TEST_F(FFmpegAVDeviceTest, ListDevicesFailureStoresNothing) {
   ASSERT_TRUE(AVDeviceMod != nullptr);
   ASSERT_TRUE(AVFormatMod != nullptr);
 
@@ -99,7 +101,7 @@ TEST_F(FFmpegTest, AVDeviceListDevicesFailureStoresNothing) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
-TEST_F(FFmpegTest, AVDeviceListDevicesRejectsAFinishedMuxer) {
+TEST_F(FFmpegAVDeviceTest, ListDevicesRejectsFinishedMuxer) {
   ASSERT_TRUE(AVDeviceMod != nullptr);
   ASSERT_TRUE(AVFormatMod != nullptr);
   ASSERT_TRUE(AVCodecMod != nullptr);

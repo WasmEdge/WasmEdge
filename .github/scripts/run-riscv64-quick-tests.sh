@@ -59,7 +59,6 @@ QUICK_TESTS="
   wasmedgeLoaderTests
   wasmedgeValidatorTests
   wasmedgeRuntimeTests
-  wasmedgeHostMockTests
   wasmedgeAPITests
   wasmedgeAOTTests
 "

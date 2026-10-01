@@ -88,42 +88,17 @@ const std::array<WasmEdge::Byte, 105> OverlapTestWasm{
 
 const ValType I32Type = ValType(TypeCode::I32);
 
-void storeByte(VM::VM &VM, uint32_t Addr, uint32_t Val) {
-  std::vector<ValVariant> Params = {Addr, Val};
-  std::vector<ValType> ParamTypes = {I32Type, I32Type};
-  auto Res = VM.execute("store8", Params, ParamTypes);
-  ASSERT_TRUE(Res) << "store8 failed at addr=" << Addr;
-}
-
-uint32_t loadByte(VM::VM &VM, uint32_t Addr) {
-  std::vector<ValVariant> Params = {Addr};
-  std::vector<ValType> ParamTypes = {I32Type};
-  auto Res = VM.execute("load8", Params, ParamTypes);
-  EXPECT_TRUE(Res) << "load8 failed at addr=" << Addr;
-  return (*Res)[0].first.get<uint32_t>();
-}
-
-void memoryCopy(VM::VM &VM, uint32_t Dst, uint32_t Src, uint32_t Len) {
-  std::vector<ValVariant> Params = {Dst, Src, Len};
-  std::vector<ValType> ParamTypes = {I32Type, I32Type, I32Type};
-  auto Res = VM.execute("copy", Params, ParamTypes);
-  ASSERT_TRUE(Res) << "memory.copy failed: dst=" << Dst << " src=" << Src
-                   << " len=" << Len;
-}
-
 std::vector<uint8_t> readMemory(VM::VM &VM, uint32_t Start, uint32_t Len) {
   std::vector<uint8_t> Result;
   Result.reserve(Len);
   for (uint32_t I = 0; I < Len; ++I) {
-    Result.push_back(static_cast<uint8_t>(loadByte(VM, Start + I)));
+    std::vector<ValVariant> Params = {Start + I};
+    std::vector<ValType> ParamTypes = {I32Type};
+    auto Res = VM.execute("load8", Params, ParamTypes);
+    EXPECT_TRUE(Res) << "load8 failed at addr=" << Start + I;
+    Result.push_back(static_cast<uint8_t>((*Res)[0].first.get<uint32_t>()));
   }
   return Result;
-}
-
-void instantiateOverlapModule(VM::VM &VM) {
-  ASSERT_TRUE(VM.loadWasm(OverlapTestWasm));
-  ASSERT_TRUE(VM.validate());
-  ASSERT_TRUE(VM.instantiate());
 }
 
 // dst > src with overlap: a forward-only copy would clobber unread source
@@ -131,12 +106,20 @@ void instantiateOverlapModule(VM::VM &VM) {
 TEST(MemInstanceTest, CopyForwardOverlap) {
   WasmEdge::Configure Conf;
   VM::VM TestVM(Conf);
-  ASSERT_NO_FATAL_FAILURE(instantiateOverlapModule(TestVM));
+  ASSERT_TRUE(TestVM.loadWasm(OverlapTestWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
   for (uint32_t I = 0; I < 8; ++I) {
-    storeByte(TestVM, I, 0x41 + I);
+    std::vector<ValVariant> Params = {I, 0x41 + I};
+    std::vector<ValType> ParamTypes = {I32Type, I32Type};
+    ASSERT_TRUE(TestVM.execute("store8", Params, ParamTypes))
+        << "store8 failed at addr=" << I;
   }
 
-  memoryCopy(TestVM, 3, 0, 5);
+  std::vector<ValVariant> CopyParams = {uint32_t{3}, uint32_t{0}, uint32_t{5}};
+  std::vector<ValType> CopyParamTypes = {I32Type, I32Type, I32Type};
+  ASSERT_TRUE(TestVM.execute("copy", CopyParams, CopyParamTypes))
+      << "memory.copy failed: dst=3 src=0 len=5";
 
   std::vector<uint8_t> Expected = {0x41, 0x42, 0x43, 0x44, 0x45};
   auto Actual = readMemory(TestVM, 3, 5);
@@ -152,12 +135,20 @@ TEST(MemInstanceTest, CopyForwardOverlap) {
 TEST(MemInstanceTest, CopyBackwardOverlap) {
   WasmEdge::Configure Conf;
   VM::VM TestVM(Conf);
-  ASSERT_NO_FATAL_FAILURE(instantiateOverlapModule(TestVM));
+  ASSERT_TRUE(TestVM.loadWasm(OverlapTestWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
   for (uint32_t I = 0; I < 8; ++I) {
-    storeByte(TestVM, I, 0x41 + I);
+    std::vector<ValVariant> Params = {I, 0x41 + I};
+    std::vector<ValType> ParamTypes = {I32Type, I32Type};
+    ASSERT_TRUE(TestVM.execute("store8", Params, ParamTypes))
+        << "store8 failed at addr=" << I;
   }
 
-  memoryCopy(TestVM, 0, 3, 5);
+  std::vector<ValVariant> CopyParams = {uint32_t{0}, uint32_t{3}, uint32_t{5}};
+  std::vector<ValType> CopyParamTypes = {I32Type, I32Type, I32Type};
+  ASSERT_TRUE(TestVM.execute("copy", CopyParams, CopyParamTypes))
+      << "memory.copy failed: dst=0 src=3 len=5";
 
   std::vector<uint8_t> Expected = {0x44, 0x45, 0x46, 0x47, 0x48};
   auto Actual = readMemory(TestVM, 0, 5);
@@ -172,12 +163,20 @@ TEST(MemInstanceTest, CopyBackwardOverlap) {
 TEST(MemInstanceTest, CopyExactOverlap) {
   WasmEdge::Configure Conf;
   VM::VM TestVM(Conf);
-  ASSERT_NO_FATAL_FAILURE(instantiateOverlapModule(TestVM));
+  ASSERT_TRUE(TestVM.loadWasm(OverlapTestWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
   for (uint32_t I = 0; I < 8; ++I) {
-    storeByte(TestVM, I, 0x41 + I);
+    std::vector<ValVariant> Params = {I, 0x41 + I};
+    std::vector<ValType> ParamTypes = {I32Type, I32Type};
+    ASSERT_TRUE(TestVM.execute("store8", Params, ParamTypes))
+        << "store8 failed at addr=" << I;
   }
 
-  memoryCopy(TestVM, 2, 2, 4);
+  std::vector<ValVariant> CopyParams = {uint32_t{2}, uint32_t{2}, uint32_t{4}};
+  std::vector<ValType> CopyParamTypes = {I32Type, I32Type, I32Type};
+  ASSERT_TRUE(TestVM.execute("copy", CopyParams, CopyParamTypes))
+      << "memory.copy failed: dst=2 src=2 len=4";
 
   std::vector<uint8_t> Expected = {0x41, 0x42, 0x43, 0x44,
                                    0x45, 0x46, 0x47, 0x48};
@@ -189,15 +188,26 @@ TEST(MemInstanceTest, CopyExactOverlap) {
 TEST(MemInstanceTest, CopyNonOverlapping) {
   WasmEdge::Configure Conf;
   VM::VM TestVM(Conf);
-  ASSERT_NO_FATAL_FAILURE(instantiateOverlapModule(TestVM));
+  ASSERT_TRUE(TestVM.loadWasm(OverlapTestWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
   for (uint32_t I = 0; I < 5; ++I) {
-    storeByte(TestVM, I, 0x41 + I);
+    std::vector<ValVariant> Params = {I, 0x41 + I};
+    std::vector<ValType> ParamTypes = {I32Type, I32Type};
+    ASSERT_TRUE(TestVM.execute("store8", Params, ParamTypes))
+        << "store8 failed at addr=" << I;
   }
   for (uint32_t I = 10; I < 15; ++I) {
-    storeByte(TestVM, I, 0x00);
+    std::vector<ValVariant> Params = {I, uint32_t{0}};
+    std::vector<ValType> ParamTypes = {I32Type, I32Type};
+    ASSERT_TRUE(TestVM.execute("store8", Params, ParamTypes))
+        << "store8 failed at addr=" << I;
   }
 
-  memoryCopy(TestVM, 10, 0, 5);
+  std::vector<ValVariant> CopyParams = {uint32_t{10}, uint32_t{0}, uint32_t{5}};
+  std::vector<ValType> CopyParamTypes = {I32Type, I32Type, I32Type};
+  ASSERT_TRUE(TestVM.execute("copy", CopyParams, CopyParamTypes))
+      << "memory.copy failed: dst=10 src=0 len=5";
 
   std::vector<uint8_t> Expected = {0x41, 0x42, 0x43, 0x44, 0x45};
   auto Actual = readMemory(TestVM, 10, 5);
@@ -210,12 +220,20 @@ TEST(MemInstanceTest, CopyNonOverlapping) {
 TEST(MemInstanceTest, CopyZeroLength) {
   WasmEdge::Configure Conf;
   VM::VM TestVM(Conf);
-  ASSERT_NO_FATAL_FAILURE(instantiateOverlapModule(TestVM));
+  ASSERT_TRUE(TestVM.loadWasm(OverlapTestWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
   for (uint32_t I = 0; I < 5; ++I) {
-    storeByte(TestVM, I, 0x41 + I);
+    std::vector<ValVariant> Params = {I, 0x41 + I};
+    std::vector<ValType> ParamTypes = {I32Type, I32Type};
+    ASSERT_TRUE(TestVM.execute("store8", Params, ParamTypes))
+        << "store8 failed at addr=" << I;
   }
 
-  memoryCopy(TestVM, 0, 2, 0);
+  std::vector<ValVariant> CopyParams = {uint32_t{0}, uint32_t{2}, uint32_t{0}};
+  std::vector<ValType> CopyParamTypes = {I32Type, I32Type, I32Type};
+  ASSERT_TRUE(TestVM.execute("copy", CopyParams, CopyParamTypes))
+      << "memory.copy failed: dst=0 src=2 len=0";
 
   std::vector<uint8_t> Expected = {0x41, 0x42, 0x43, 0x44, 0x45};
   auto Actual = readMemory(TestVM, 0, 5);
@@ -225,17 +243,30 @@ TEST(MemInstanceTest, CopyZeroLength) {
 TEST(MemInstanceTest, CopyLargeForwardOverlap) {
   WasmEdge::Configure Conf;
   VM::VM TestVM(Conf);
-  ASSERT_NO_FATAL_FAILURE(instantiateOverlapModule(TestVM));
+  ASSERT_TRUE(TestVM.loadWasm(OverlapTestWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
   const uint32_t Size = 256;
   for (uint32_t I = 0; I < Size; ++I) {
-    storeByte(TestVM, I, I & 0xFF);
+    std::vector<ValVariant> Params = {I, I & 0xFF};
+    std::vector<ValType> ParamTypes = {I32Type, I32Type};
+    ASSERT_TRUE(TestVM.execute("store8", Params, ParamTypes))
+        << "store8 failed at addr=" << I;
   }
 
-  memoryCopy(TestVM, 10, 0, 200);
+  std::vector<ValVariant> CopyParams = {uint32_t{10}, uint32_t{0},
+                                        uint32_t{200}};
+  std::vector<ValType> CopyParamTypes = {I32Type, I32Type, I32Type};
+  ASSERT_TRUE(TestVM.execute("copy", CopyParams, CopyParamTypes))
+      << "memory.copy failed: dst=10 src=0 len=200";
 
   for (uint32_t I = 0; I < 200; ++I) {
     uint8_t Expected = I & 0xFF;
-    uint8_t Actual = static_cast<uint8_t>(loadByte(TestVM, 10 + I));
+    std::vector<ValVariant> LoadParams = {10 + I};
+    std::vector<ValType> LoadParamTypes = {I32Type};
+    auto Res = TestVM.execute("load8", LoadParams, LoadParamTypes);
+    ASSERT_TRUE(Res) << "load8 failed at addr=" << 10 + I;
+    uint8_t Actual = static_cast<uint8_t>((*Res)[0].first.get<uint32_t>());
     EXPECT_EQ(Actual, Expected)
         << "Large forward overlap mismatch at offset " << I;
   }
@@ -244,15 +275,26 @@ TEST(MemInstanceTest, CopyLargeForwardOverlap) {
 TEST(MemInstanceTest, CopyAdjacentRegions) {
   WasmEdge::Configure Conf;
   VM::VM TestVM(Conf);
-  ASSERT_NO_FATAL_FAILURE(instantiateOverlapModule(TestVM));
+  ASSERT_TRUE(TestVM.loadWasm(OverlapTestWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
   for (uint32_t I = 0; I < 5; ++I) {
-    storeByte(TestVM, I, 0x41 + I);
+    std::vector<ValVariant> Params = {I, 0x41 + I};
+    std::vector<ValType> ParamTypes = {I32Type, I32Type};
+    ASSERT_TRUE(TestVM.execute("store8", Params, ParamTypes))
+        << "store8 failed at addr=" << I;
   }
   for (uint32_t I = 5; I < 10; ++I) {
-    storeByte(TestVM, I, 0x00);
+    std::vector<ValVariant> Params = {I, uint32_t{0}};
+    std::vector<ValType> ParamTypes = {I32Type, I32Type};
+    ASSERT_TRUE(TestVM.execute("store8", Params, ParamTypes))
+        << "store8 failed at addr=" << I;
   }
 
-  memoryCopy(TestVM, 5, 0, 5);
+  std::vector<ValVariant> CopyParams = {uint32_t{5}, uint32_t{0}, uint32_t{5}};
+  std::vector<ValType> CopyParamTypes = {I32Type, I32Type, I32Type};
+  ASSERT_TRUE(TestVM.execute("copy", CopyParams, CopyParamTypes))
+      << "memory.copy failed: dst=5 src=0 len=5";
 
   std::vector<uint8_t> Expected = {0x41, 0x42, 0x43, 0x44, 0x45,
                                    0x41, 0x42, 0x43, 0x44, 0x45};
@@ -263,13 +305,21 @@ TEST(MemInstanceTest, CopyAdjacentRegions) {
 TEST(MemInstanceTest, CopySingleByteOverlap) {
   WasmEdge::Configure Conf;
   VM::VM TestVM(Conf);
-  ASSERT_NO_FATAL_FAILURE(instantiateOverlapModule(TestVM));
+  ASSERT_TRUE(TestVM.loadWasm(OverlapTestWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
   for (uint32_t I = 0; I < 5; ++I) {
-    storeByte(TestVM, I, 0x41 + I);
+    std::vector<ValVariant> Params = {I, 0x41 + I};
+    std::vector<ValType> ParamTypes = {I32Type, I32Type};
+    ASSERT_TRUE(TestVM.execute("store8", Params, ParamTypes))
+        << "store8 failed at addr=" << I;
   }
 
   // Source and destination share exactly one byte (address 4).
-  memoryCopy(TestVM, 4, 0, 5);
+  std::vector<ValVariant> CopyParams = {uint32_t{4}, uint32_t{0}, uint32_t{5}};
+  std::vector<ValType> CopyParamTypes = {I32Type, I32Type, I32Type};
+  ASSERT_TRUE(TestVM.execute("copy", CopyParams, CopyParamTypes))
+      << "memory.copy failed: dst=4 src=0 len=5";
 
   std::vector<uint8_t> Expected = {0x41, 0x42, 0x43, 0x44, 0x45};
   auto Actual = readMemory(TestVM, 4, 5);

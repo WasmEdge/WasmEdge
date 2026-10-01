@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-//===-- wasmedge/test/api/hostfunc_c.c - Spec test host functions for C API ==//
+//===-- wasmedge/test/spec/hostfunc_c.c -----------------------------------===//
 //
 // Part of the WasmEdge Project.
 //

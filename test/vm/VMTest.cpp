@@ -37,21 +37,6 @@ const std::array<WasmEdge::Byte, 34> ConstFuncWasm{
     0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01, 0x66,
     0x00, 0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x07, 0x0b};
 
-// Load, validate, and instantiate the constant function module.
-void instantiateFixture(VM::VM &TestVM) {
-  ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
-  ASSERT_TRUE(TestVM.validate());
-  ASSERT_TRUE(TestVM.instantiate());
-}
-
-// Execute "f" and expect the constant result.
-void expectConstResult(VM::VM &TestVM) {
-  auto Res = TestVM.execute("f");
-  ASSERT_TRUE(Res);
-  ASSERT_EQ(Res->size(), 1U);
-  EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
-}
-
 TEST(VMTest, StageValidateBeforeLoadFails) {
   Configure Conf;
   VM::VM TestVM(Conf);
@@ -86,9 +71,14 @@ TEST(VMTest, StageLoadValidateInstantiateExecute) {
   Configure Conf;
   VM::VM TestVM(Conf);
   EXPECT_FALSE(TestVM.holdsModule());
-  instantiateFixture(TestVM);
+  ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
   EXPECT_TRUE(TestVM.holdsModule());
-  expectConstResult(TestVM);
+  auto Res = TestVM.execute("f");
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
 
   auto FnList = TestVM.getFunctionList();
   ASSERT_EQ(FnList.size(), 1U);
@@ -98,10 +88,15 @@ TEST(VMTest, StageLoadValidateInstantiateExecute) {
 TEST(VMTest, StageRegisterWhileInstantiatedAllowsReinstantiate) {
   Configure Conf;
   VM::VM TestVM(Conf);
-  instantiateFixture(TestVM);
+  ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
   ASSERT_TRUE(TestVM.registerModule("ext", ConstFuncWasm));
   ASSERT_TRUE(TestVM.instantiate());
-  expectConstResult(TestVM);
+  auto Res = TestVM.execute("f");
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
 }
 
 TEST(VMTest, RegisterAndExecuteByName) {
@@ -163,16 +158,26 @@ TEST(VMTest, PluginWasiImportModulePresence) {
 TEST(VMTest, CleanupThenReuse) {
   Configure Conf;
   VM::VM TestVM(Conf);
-  instantiateFixture(TestVM);
-  expectConstResult(TestVM);
+  ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  auto Res = TestVM.execute("f");
+  ASSERT_TRUE(Res);
+  ASSERT_EQ(Res->size(), 1U);
+  EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
 
   TestVM.cleanup();
-  auto Res = TestVM.execute("f");
-  ASSERT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::WrongInstanceAddress);
+  auto AfterCleanup = TestVM.execute("f");
+  ASSERT_FALSE(AfterCleanup);
+  EXPECT_EQ(AfterCleanup.error(), ErrCode::Value::WrongInstanceAddress);
 
-  instantiateFixture(TestVM);
-  expectConstResult(TestVM);
+  ASSERT_TRUE(TestVM.loadWasm(ConstFuncWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  auto AfterReuse = TestVM.execute("f");
+  ASSERT_TRUE(AfterReuse);
+  ASSERT_EQ(AfterReuse->size(), 1U);
+  EXPECT_EQ((*AfterReuse)[0].first.get<uint32_t>(), 7U);
 }
 
 TEST(VMTest, CleanupRestoresBuiltinHosts) {

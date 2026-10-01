@@ -241,7 +241,7 @@ void runCoredump(bool ForWasmgdb, AST::Module &Output) {
   std::filesystem::remove_all(TempDir, Error);
 }
 
-TEST(Coredump, Sections) {
+TEST(CoredumpTest, Sections) {
   AST::Module Mod;
   ASSERT_NO_FATAL_FAILURE(runCoredump(false, Mod));
 
@@ -311,7 +311,7 @@ TEST(Coredump, Sections) {
   EXPECT_TRUE(InstanceReader.isEnd());
 }
 
-TEST(Coredump, StackFrames) {
+TEST(CoredumpTest, StackFrames) {
   AST::Module Mod;
   ASSERT_NO_FATAL_FAILURE(runCoredump(false, Mod));
 
@@ -356,7 +356,7 @@ TEST(Coredump, StackFrames) {
   EXPECT_TRUE(Reader.isEnd());
 }
 
-TEST(Coredump, Wasmgdb) {
+TEST(CoredumpTest, Wasmgdb) {
   AST::Module Mod;
   ASSERT_NO_FATAL_FAILURE(runCoredump(true, Mod));
 

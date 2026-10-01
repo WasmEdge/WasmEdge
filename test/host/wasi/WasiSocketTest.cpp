@@ -26,11 +26,8 @@ using namespace std::literals;
 
 namespace {
 
-// XXX: Set up a socket with address ::1 to test if IPv6 is available.
-//      It prevents system calls like sysctl net.ipv6.conf.all.disable_ipv6.
-//      However, the port used in TEST cannot be the same as
-//      TrySetUpIPV6Socket because it does not set up SO_REUSEADDR=1 and may
-//      cause the test to fail.
+// Probe IPv6 availability by binding ::1. The tests must use another port,
+// since this socket does not set SO_REUSEADDR.
 bool TrySetUpIPV6Socket() {
   bool State = false;
 
@@ -220,7 +217,7 @@ void expectSockaddrFieldsEqual(const __wasi_sockaddr_t &Actual,
 
 } // namespace
 
-TEST(WasiSockTest, SocketUDP_4V1) {
+TEST(WasiSocketTest, SocketUDP4V1) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
@@ -422,7 +419,7 @@ TEST(WasiSockTest, SocketUDP_4V1) {
   }
 }
 
-TEST(WasiSockTest, SocketUDP_4V2) {
+TEST(WasiSocketTest, SocketUDP4V2) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
@@ -635,7 +632,7 @@ TEST(WasiSockTest, SocketUDP_4V2) {
   }
 }
 
-TEST(WasiSockTest, SocketUDP_6) {
+TEST(WasiSocketTest, SocketUDP6) {
   if (!TestIPv6Enabled()) {
     GTEST_SKIP();
   }
@@ -787,7 +784,7 @@ TEST(WasiSockTest, SocketUDP_6) {
   }
 }
 
-TEST(WasiSockTest, SockConnect_6) {
+TEST(WasiSocketTest, SockConnect6) {
   if (!TestIPv6Enabled()) {
     GTEST_SKIP();
   }
@@ -928,7 +925,7 @@ TEST(WasiSockTest, SockConnect_6) {
 #endif
 }
 
-TEST(WasiSockTest, SockConnectRefused_4) {
+TEST(WasiSocketTest, SockConnectRefused4) {
   // A loopback port nothing listens on: bind to an ephemeral one and close it.
 #if WASMEDGE_OS_WINDOWS
   WSADATA_ WSAData;
@@ -1012,7 +1009,7 @@ TEST(WasiSockTest, SockConnectRefused_4) {
 #endif
 }
 
-TEST(WasiSockTest, SocketUDP_4_Fallback) {
+TEST(WasiSocketTest, SocketUDP4Fallback) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
@@ -1151,7 +1148,7 @@ TEST(WasiSockTest, SocketUDP_4_Fallback) {
   }
 }
 
-TEST(WasiSockTest, SocketUDP_6_Fallback) {
+TEST(WasiSocketTest, SocketUDP6Fallback) {
   if (!TestIPv6Enabled()) {
     GTEST_SKIP();
   }
@@ -1293,7 +1290,7 @@ TEST(WasiSockTest, SocketUDP_6_Fallback) {
   }
 }
 
-TEST(WasiSockTest, SockOpt) {
+TEST(WasiSocketTest, SockOpt) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
@@ -1417,7 +1414,7 @@ TEST(WasiSockTest, SockOpt) {
   }
 }
 
-TEST(WasiSockTest, SockGetLocalAddr_4) {
+TEST(WasiSocketTest, SockGetLocalAddr4) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
@@ -1511,7 +1508,7 @@ TEST(WasiSockTest, SockGetLocalAddr_4) {
   }
 }
 
-TEST(WasiSockTest, SockGetLocalAddr_6) {
+TEST(WasiSocketTest, SockGetLocalAddr6) {
   if (!TestIPv6Enabled()) {
     GTEST_SKIP();
   }
@@ -1612,7 +1609,7 @@ TEST(WasiSockTest, SockGetLocalAddr_6) {
   }
 }
 
-TEST(WasiSockTest, GetAddrinfo) {
+TEST(WasiSocketTest, GetAddrinfo) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
@@ -1805,7 +1802,7 @@ TEST(WasiSockTest, GetAddrinfo) {
   }
 }
 
-TEST(WasiSockTest, GetAddrinfoRejectsShortSocketAddressBuffer) {
+TEST(WasiSocketTest, GetAddrinfoRejectsShortSocketAddressBuffer) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
@@ -1851,7 +1848,7 @@ TEST(WasiSockTest, GetAddrinfoRejectsShortSocketAddressBuffer) {
       AddrinfoTestData::InitialResultLength);
 }
 
-TEST(WasiSockTest, GetAddrinfoRejectsShortIPv6SocketAddressBuffer) {
+TEST(WasiSocketTest, GetAddrinfoRejectsShortIPv6SocketAddressBuffer) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
@@ -1896,7 +1893,7 @@ TEST(WasiSockTest, GetAddrinfoRejectsShortIPv6SocketAddressBuffer) {
       AddrinfoTestData::InitialResultLength);
 }
 
-TEST(WasiSockTest, GetAddrinfoRejectsShortCanonicalNameBuffer) {
+TEST(WasiSocketTest, GetAddrinfoRejectsShortCanonicalNameBuffer) {
 #if WASMEDGE_OS_WINDOWS || WASMEDGE_OS_MACOS
   GTEST_SKIP()
       << "Windows and macOS do not return a canonical name for numeric hosts";
@@ -1949,7 +1946,7 @@ TEST(WasiSockTest, GetAddrinfoRejectsShortCanonicalNameBuffer) {
 
 // TODO: add af_unix for windows
 #if WASMEDGE_OS_MACOS || WASMEDGE_OS_LINUX
-TEST(WasiTest, UNIX_Socket) {
+TEST(WasiSocketTest, UnixSocket) {
   WasmEdge::Configure Configure;
   Configure.getRuntimeConfigure().setAllowAFUNIX(true);
   WasmEdge::Executor::Executor Executor(Configure);

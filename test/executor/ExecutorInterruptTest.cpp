@@ -12,7 +12,6 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "common/spdlog.h"
 #include "vm/vm.h"
 
 #include <gtest/gtest.h>
@@ -22,13 +21,23 @@
 
 namespace {
 
+// (module
+//   (type (;0;) (func))
+//   (memory (;0;) 1)
+//   (export "_start" (func 0))
+//   (func (;0;) (type 0)
+//     loop ;; label = @1
+//       br 0 (;@1;)
+//     end
+//   )
+// )
 std::array<WasmEdge::Byte, 46> AsyncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
     0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07,
     0x0a, 0x01, 0x06, 0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x00, 0x0a,
     0x09, 0x01, 0x07, 0x00, 0x03, 0x40, 0x0c, 0x00, 0x0b, 0x0b};
 
-TEST(AsyncRunWsmFile, InterruptTest) {
+TEST(ExecutorInterruptTest, AsyncRunWasmFile) {
   WasmEdge::Configure Conf;
   WasmEdge::VM::VM VM(Conf);
   {
@@ -52,7 +61,7 @@ TEST(AsyncRunWsmFile, InterruptTest) {
   }
 }
 
-TEST(AsyncExecute, InterruptTest) {
+TEST(ExecutorInterruptTest, AsyncExecute) {
   WasmEdge::Configure Conf;
   WasmEdge::VM::VM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(AsyncWasm));
@@ -79,7 +88,7 @@ TEST(AsyncExecute, InterruptTest) {
   }
 }
 
-TEST(AsyncInvoke, InterruptTest) {
+TEST(ExecutorInterruptTest, AsyncInvoke) {
   WasmEdge::Configure Conf;
   WasmEdge::Loader::Loader LoadEngine(Conf);
   WasmEdge::Validator::Validator ValidEngine(Conf);

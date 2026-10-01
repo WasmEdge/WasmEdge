@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 wasmedge_add_executable(wasmedgeImageTests
-  wasmedge_image.cpp
+  WasmEdgeImageTest.cpp
 )
 
 add_dependencies(wasmedgeImageTests

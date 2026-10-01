@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-/// This file contains tests of nested VM execution.
-/// When entering compiled wasm functions, current VM references are written to
-/// thread local variables (e.g. `Executor::This`).
-/// These references are read when compiled wasm calls a host function.
-/// There was a bug where a host function created a nested VM to call another
-/// compiled wasm function, and the overwritten reference was not restored.
+// Regression test: a host function that runs compiled wasm in a nested VM must
+// not clobber the executor reference seen by the outer compiled wasm.
 
 #include "wasmedge/wasmedge.h"
 
@@ -18,8 +14,7 @@
 using namespace std::literals;
 
 namespace {
-/// C++ overloaded error checking functions
-/// `try` is keyword, `_try` is reserved in msvc
+// `try` is a keyword and `_try` is reserved in MSVC.
 void _Try(const char *Name, const WasmEdge_Result &R) {
   if (!WasmEdge_ResultOK(R)) {
     throw std::runtime_error{
@@ -32,8 +27,7 @@ template <typename T> T *_Try(const char *Name, T *R) {
   }
   return R;
 }
-/// C++ error checking function wrapper.
-/// Accepts same arguments `(A...)` as wrapped function instead of `(auto...)`.
+// Wraps a C API function so that failures throw.
 template <typename T> struct TryWrap;
 template <typename R, typename... A> struct TryWrap<R (*)(A...)> {
   static auto wrap(const char *Name, R (*Fn)(A...)) {
@@ -45,10 +39,9 @@ template <typename R, typename... A> struct TryWrap<R (*)(A...) noexcept> {
     return [Name, Fn](A... Args) { return _Try(Name, Fn(Args...)); };
   }
 };
-/// C++ error checking macro
 #define TRY(fn) TryWrap<decltype(&fn)>::wrap(#fn, &fn)
 
-/// C++ non-owned wasmedge string
+// Non-owning WasmEdge_String.
 struct StringView {
   WasmEdge_String Ffi{{}, {}};
   StringView() {}
@@ -57,7 +50,6 @@ struct StringView {
   operator WasmEdge_String() const { return Ffi; }
 };
 
-/// C++ overloaded wasmedge object deleters
 void deletePtr(WasmEdge_LoaderContext *Ptr) { WasmEdge_LoaderDelete(Ptr); }
 void deletePtr(WasmEdge_ASTModuleContext *Ptr) {
   WasmEdge_ASTModuleDelete(Ptr);
@@ -75,7 +67,7 @@ void deletePtr(WasmEdge_FunctionTypeContext *Ptr) {
 }
 void deletePtr(WasmEdge_CompilerContext *Ptr) { WasmEdge_CompilerDelete(Ptr); }
 
-/// C++ owned wasmedge object pointer
+// Owning pointer to a WasmEdge C API object.
 template <typename T> struct Ptr {
   using Pffi = T *;
   Pffi Ffi{};
@@ -92,54 +84,18 @@ template <typename T> struct Ptr {
   operator Pffi *() { return &Ffi; }
 };
 
-/*
-(module
-  (import "env" "hostFnCheck" (func $hostFnCheck))
-  (import "env" "hostFnOverwrite" (func $hostFnOverwrite))
-  (func (export "wasmFnOverwrite")
-  )
-  (func (export "wasmFn")
-    call $hostFnCheck
-    call $hostFnOverwrite
-    call $hostFnCheck
-  )
-)
-*/
-const std::array<uint8_t, 107> EmbeddedNestedWasm{
-    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
-    0x00, 0x00, 0x02, 0x29, 0x02, 0x03, 0x65, 0x6e, 0x76, 0x0b, 0x68, 0x6f,
-    0x73, 0x74, 0x46, 0x6e, 0x43, 0x68, 0x65, 0x63, 0x6b, 0x00, 0x00, 0x03,
-    0x65, 0x6e, 0x76, 0x0f, 0x68, 0x6f, 0x73, 0x74, 0x46, 0x6e, 0x4f, 0x76,
-    0x65, 0x72, 0x77, 0x72, 0x69, 0x74, 0x65, 0x00, 0x00, 0x03, 0x03, 0x02,
-    0x00, 0x00, 0x07, 0x1c, 0x02, 0x0f, 0x77, 0x61, 0x73, 0x6d, 0x46, 0x6e,
-    0x4f, 0x76, 0x65, 0x72, 0x77, 0x72, 0x69, 0x74, 0x65, 0x00, 0x02, 0x06,
-    0x77, 0x61, 0x73, 0x6d, 0x46, 0x6e, 0x00, 0x03, 0x0a, 0x0d, 0x02, 0x02,
-    0x00, 0x0b, 0x08, 0x00, 0x10, 0x00, 0x10, 0x01, 0x10, 0x00, 0x0b,
-};
-
-/// Test compiles embedded wasm to this file
 const char *PathNestedWasmCompiled = "aot_nested.wasm";
 
-/// Forward declare host functions
 void hostFnCheck(const WasmEdge_CallingFrameContext *Frame);
 void hostFnOverwrite();
 
-/// Compile embedded wasm
-void compileWasm() {
-  TRY(WasmEdge_CompilerCompileFromBuffer)
-  (Ptr{TRY(WasmEdge_CompilerCreate)(nullptr)}, EmbeddedNestedWasm.data(),
-   EmbeddedNestedWasm.size(), PathNestedWasmCompiled);
-}
-
-/// Stack of nested VM
 thread_local std::stack<WasmEdge_ExecutorContext *> ExecutorsStack;
-/// Call specified function from embedded wasm
 void callWasm(const char *FnName) {
   Ptr<WasmEdge_ASTModuleContext> Module;
-  TRY(WasmEdge_LoaderParseFromFile)
-  (Ptr{TRY(WasmEdge_LoaderCreate)(nullptr)}, Module, PathNestedWasmCompiled);
-  TRY(WasmEdge_ValidatorValidate)
-  (Ptr{TRY(WasmEdge_ValidatorCreate)(nullptr)}, Module);
+  TRY(WasmEdge_LoaderParseFromFile)(Ptr{TRY(WasmEdge_LoaderCreate)(nullptr)},
+                                    Module, PathNestedWasmCompiled);
+  TRY(WasmEdge_ValidatorValidate)(Ptr{TRY(WasmEdge_ValidatorCreate)(nullptr)},
+                                  Module);
 
   static auto Executor = Ptr{TRY(WasmEdge_ExecutorCreate)(nullptr, nullptr)};
   auto Store = Ptr{TRY(WasmEdge_StoreCreate)()};
@@ -188,16 +144,35 @@ void hostFnOverwrite() {
   callWasm("wasmFnOverwrite");
 }
 
-/*
-Call graph:
-  wasmFn()               // Executor::This = executor1
-    hostFnCheck()        // EXPECT_EQ(Executor::This, executor1)
-    hostFnOverwrite()    // create nested VM
-      wasmFnOverwrite()  // Executor::This = executor2
-    hostFnCheck()        // EXPECT_EQ(Executor::This, executor1)
-*/
+// wasmFn calls hostFnCheck, then hostFnOverwrite (nested VM running
+// wasmFnOverwrite), then hostFnCheck, which must still see the outer executor.
 TEST(APIAOTNestedVMTest, NestedVM) {
-  compileWasm();
+  // (module
+  //   (import "env" "hostFnCheck" (func $hostFnCheck))
+  //   (import "env" "hostFnOverwrite" (func $hostFnOverwrite))
+  //   (func (export "wasmFnOverwrite")
+  //   )
+  //   (func (export "wasmFn")
+  //     call $hostFnCheck
+  //     call $hostFnOverwrite
+  //     call $hostFnCheck
+  //   )
+  // )
+  std::array<uint8_t, 107> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+      0x00, 0x00, 0x02, 0x29, 0x02, 0x03, 0x65, 0x6e, 0x76, 0x0b, 0x68, 0x6f,
+      0x73, 0x74, 0x46, 0x6e, 0x43, 0x68, 0x65, 0x63, 0x6b, 0x00, 0x00, 0x03,
+      0x65, 0x6e, 0x76, 0x0f, 0x68, 0x6f, 0x73, 0x74, 0x46, 0x6e, 0x4f, 0x76,
+      0x65, 0x72, 0x77, 0x72, 0x69, 0x74, 0x65, 0x00, 0x00, 0x03, 0x03, 0x02,
+      0x00, 0x00, 0x07, 0x1c, 0x02, 0x0f, 0x77, 0x61, 0x73, 0x6d, 0x46, 0x6e,
+      0x4f, 0x76, 0x65, 0x72, 0x77, 0x72, 0x69, 0x74, 0x65, 0x00, 0x02, 0x06,
+      0x77, 0x61, 0x73, 0x6d, 0x46, 0x6e, 0x00, 0x03, 0x0a, 0x0d, 0x02, 0x02,
+      0x00, 0x0b, 0x08, 0x00, 0x10, 0x00, 0x10, 0x01, 0x10, 0x00, 0x0b,
+  };
+
+  TRY(WasmEdge_CompilerCompileFromBuffer)(
+      Ptr{TRY(WasmEdge_CompilerCreate)(nullptr)}, Wasm.data(), Wasm.size(),
+      PathNestedWasmCompiled);
   callWasm("wasmFn");
   // wasmedge doesn't build GMock by default
   EXPECT_EQ(CalledHostFnCheck, 2);

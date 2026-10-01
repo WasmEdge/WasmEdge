@@ -26,7 +26,7 @@ namespace {
 using namespace std::literals::string_literals;
 using namespace std::literals::string_view_literals;
 
-TEST(CacheTest, GlobalEmpty) {
+TEST(AOTCacheTest, GlobalEmpty) {
   const auto Path = WasmEdge::AOT::Cache::getPath(
       {}, WasmEdge::AOT::Cache::StorageScope::Global);
   EXPECT_TRUE(Path);
@@ -43,7 +43,7 @@ TEST(CacheTest, GlobalEmpty) {
       "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"s);
 }
 
-TEST(CacheTest, LocalEmpty) {
+TEST(AOTCacheTest, LocalEmpty) {
   const auto Path = WasmEdge::AOT::Cache::getPath(
       {}, WasmEdge::AOT::Cache::StorageScope::Local);
   EXPECT_TRUE(Path);
@@ -61,7 +61,7 @@ TEST(CacheTest, LocalEmpty) {
       "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"s);
 }
 
-TEST(CacheTest, GlobalKey) {
+TEST(AOTCacheTest, GlobalKey) {
   const auto Path = WasmEdge::AOT::Cache::getPath(
       {}, WasmEdge::AOT::Cache::StorageScope::Global, "key"s);
   EXPECT_TRUE(Path);
@@ -79,7 +79,7 @@ TEST(CacheTest, GlobalKey) {
   EXPECT_EQ(WasmEdge::u8string(Part.parent_path().filename()), "key"s);
 }
 
-TEST(CacheTest, LocalKey) {
+TEST(AOTCacheTest, LocalKey) {
   const auto Path = WasmEdge::AOT::Cache::getPath(
       {}, WasmEdge::AOT::Cache::StorageScope::Local, "key"s);
   EXPECT_TRUE(Path);

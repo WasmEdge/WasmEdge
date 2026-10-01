@@ -39,18 +39,6 @@ TEST(SegmentTest, LoadTableSegment) {
   Conf.setWASMStandard(WasmEdge::Standard::WASM_2);
   WasmEdge::Loader::Loader LdrWASM2(Conf);
 
-  // 1. Test load table segment.
-  //
-  //   1.  Load invalid empty table segment.
-  //   2.  Load a table segment that contains only table type.
-  //   3.  Load a table segment that contains an initialization expression
-  //       with or without the typed function reference proposal.
-  //   4.  Load a table segment with an unexpected end of checking byte.
-  //   5.  Load a table segment with a wrong checking byte.
-  //   6.  Load a table segment with an unexpected end of table type.
-  //   7.  Load a table segment with an unexpected end of initialization
-  //       expression.
-
   Vec = {
       0x04U, // Table section
       0x01U, // Content size = 1
@@ -130,12 +118,6 @@ TEST(SegmentTest, LoadTableSegment) {
 TEST(SegmentTest, LoadGlobalSegment) {
   std::vector<uint8_t> Vec;
 
-  // 2. Test load global segment.
-  //
-  //   1.  Load invalid empty global segment.
-  //   2.  Load global segment with expression of only End operation.
-  //   3.  Load global segment with non-empty expression.
-
   Vec = {
       0x06U, // Global section
       0x01U, // Content size = 1
@@ -167,27 +149,6 @@ TEST(SegmentTest, LoadElementSegment) {
 
   Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
   WasmEdge::Loader::Loader LdrWASM1(Conf);
-
-  // 3. Test load element segment.
-  //
-  //   1.  Load invalid empty element segment.
-  //   2.  Load element segment with expression of only End operation and empty
-  //       function indices list.
-  //   3.  Load element segment with expression and function indices list.
-  //   4.  Load element segment with invalid checking byte.
-  //   5.  Load element segment with invalid checking byte without Ref-Types
-  //       proposal.
-  //   6.  Load element segment with unexpected end of table index.
-  //   7.  Load element segment with unexpected end of offset expression.
-  //   8.  Load element segment with invalid element kind.
-  //   9.  Load element segment with unexpected end of element kind.
-  //   10. Load element segment with unexpected end of initialization vector
-  //       count.
-  //   11. Load element segment with unexpected end of initialization function
-  //       index.
-  //   12. Load element segment with unexpected end of reference type.
-  //   13. Load element segment with unexpected end of initialization
-  //       expression vector count.
 
   Vec = {
       0x09U, // Element section
@@ -342,17 +303,6 @@ TEST(SegmentTest, LoadCodeSegment) {
   Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
   WasmEdge::Loader::Loader LdrWASM1(Conf);
 
-  // 4. Test load code segment.
-  //
-  //   1.  Load invalid empty code segment.
-  //   2.  Load invalid code segment of zero content size.
-  //   3.  Load code segment of empty locals and expression with only End
-  //       operation.
-  //   4.  Load code segment with expression and local lists.
-  //   5.  Load code segment with unexpected end of local number type.
-  //   6.  Load code segment with invalid local number type without Ref-Types
-  //       proposal.
-
   Vec = {
       0x03U, // Function section
       0x02U, // Content size = 2
@@ -448,19 +398,6 @@ TEST(SegmentTest, LoadDataSegment) {
 
   Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
   WasmEdge::Loader::Loader LdrWASM1(Conf);
-
-  // 5. Test load data segment.
-  //
-  //   1.  Load invalid empty data segment.
-  //   2.  Load data segment of expression with only End operation and empty
-  //       initialization data.
-  //   3.  Load data segment with expression and initialization data.
-  //   4.  Load data segment with invalid checking byte.
-  //   5.  Load data segment with invalid checking byte without Bulk-Mem
-  //       proposal.
-  //   6.  Load data segment with unexpected end of memory index.
-  //   7.  Load data segment with unexpected end of expression.
-  //   8.  Load data segment with unexpected end of initialization data vector.
 
   Vec = {
       0x0BU, // Data section

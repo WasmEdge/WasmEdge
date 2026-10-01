@@ -52,11 +52,6 @@ TEST(SerializeModuleTest, SerializeModule) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  // 1. Test serialize module.
-  //
-  //   1.  Serialize module only with magic and version;
-  //   2.  Serialize module with ordered sections.
-
   WasmEdge::AST::Module Module;
 
   Module.getMagic() = {0x00U, 0x61U, 0x73U, 0x6DU};
@@ -94,11 +89,6 @@ TEST(SerializeModuleTest, PopulatedMultiSectionModule) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  // 2. Test serialize module with multiple populated sections.
-  //
-  //   1.  Serialize module with type, function, memory, export, and code
-  //       sections all containing real content.
-
   WasmEdge::AST::Module Module = createPopulatedModule();
 
   auto SerRes = Ser.serializeModule(Module);
@@ -119,10 +109,8 @@ TEST(SerializeModuleTest, PopulatedMultiSectionModule) {
 }
 
 TEST(SerializeModuleTest, HandBuiltSectionOrder) {
-  // 3. Test that a module built without the loader is emitted in the section
-  //    order the binary format requires.
-  //
-  //   1.  The tag section (id 13) must precede the global section (id 6).
+  // A module built without the loader is emitted in binary section order: the
+  // tag section (id 13) precedes the global section (id 6).
 
   WasmEdge::AST::Module Module;
   Module.getMagic() = {0x00U, 0x61U, 0x73U, 0x6DU};
@@ -152,11 +140,8 @@ TEST(SerializeModuleTest, HandBuiltSectionOrder) {
 }
 
 TEST(SerializeModuleTest, CustomSectionPositionPreserved) {
-  // 4. Test that a custom section keeps its position across a load and a
-  //    serialize.
-  //
-  //   1.  A custom section sitting between the type and function sections must
-  //       come back out in the same place.
+  // A custom section between the type and function sections keeps its
+  // position across a load and a serialize.
 
   const std::vector<uint8_t> Input = {
       0x00U, 0x61U, 0x73U, 0x6DU,               // Magic
@@ -177,11 +162,6 @@ TEST(SerializeModuleTest, CustomSectionPositionPreserved) {
 }
 
 TEST(SerializeModuleTest, ModuleRoundTrip) {
-  // 5. Test that serialize -> load -> serialize is lossless.
-  //
-  //   1.  Serialize a module to bytes, parse those bytes back via the Loader,
-  //       serialize the loaded module again, and assert both byte sequences
-  //       are bit-for-bit identical.
 
   WasmEdge::AST::Module Module = createPopulatedModule();
 

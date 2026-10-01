@@ -151,22 +151,6 @@ std::shared_ptr<AST::Module> compileToJIT(const Configure &Conf,
   return Mod;
 }
 
-// Parses and validates a module without compiling it, so it runs interpreted.
-std::shared_ptr<AST::Module> loadModule(const Configure &Conf,
-                                        Span<const Byte> Bytes) {
-  Loader::Loader LoaderEngine(Conf);
-  Validator::Validator ValidatorEngine(Conf);
-  auto ModOrErr = LoaderEngine.parseModule(Bytes);
-  if (!ModOrErr) {
-    return nullptr;
-  }
-  std::shared_ptr<AST::Module> Mod{std::move(*ModOrErr)};
-  if (!ValidatorEngine.validate(*Mod)) {
-    return nullptr;
-  }
-  return Mod;
-}
-
 // Compiled and lazy JIT cross-module call_ref, call, and call_indirect must run
 // the callee with its own context and restore the caller's on return.
 TEST(LLVMRegressionTest, CrossModuleCallUsesCalleeContext) {
@@ -946,10 +930,17 @@ TEST(LLVMRegressionTest, CrossModuleInterpreterTrapAttributesCallerModule) {
 
   Configure Conf;
 
-  auto CalleeMod = loadModule(Conf, CalleeWasm);
-  ASSERT_NE(CalleeMod, nullptr);
-  auto CallerMod = loadModule(Conf, CallerWasm);
-  ASSERT_NE(CallerMod, nullptr);
+  // Parsed and validated without compiling, so both run interpreted.
+  Loader::Loader LoaderEngine(Conf);
+  Validator::Validator ValidatorEngine(Conf);
+  auto CalleeModOrErr = LoaderEngine.parseModule(CalleeWasm);
+  ASSERT_TRUE(CalleeModOrErr);
+  std::shared_ptr<AST::Module> CalleeMod{std::move(*CalleeModOrErr)};
+  ASSERT_TRUE(ValidatorEngine.validate(*CalleeMod));
+  auto CallerModOrErr = LoaderEngine.parseModule(CallerWasm);
+  ASSERT_TRUE(CallerModOrErr);
+  std::shared_ptr<AST::Module> CallerMod{std::move(*CallerModOrErr)};
+  ASSERT_TRUE(ValidatorEngine.validate(*CallerMod));
 
   Executor::Executor ExecEngine(Conf);
   Runtime::StoreManager Store;
@@ -1540,8 +1531,14 @@ TEST(LLVMRegressionTest, TmpValuesLoopKeepsNativeStackFlat) {
       0x20, 0x00, 0x49, 0x0d, 0x00, 0x0b, 0x20, 0x02, 0x0b};
 
   Configure Conf;
-  auto CalleeMod = loadModule(Conf, CalleeWasm);
-  ASSERT_NE(CalleeMod, nullptr);
+  // The callee is parsed and validated without compiling, so it runs
+  // interpreted.
+  Loader::Loader LoaderEngine(Conf);
+  Validator::Validator ValidatorEngine(Conf);
+  auto CalleeModOrErr = LoaderEngine.parseModule(CalleeWasm);
+  ASSERT_TRUE(CalleeModOrErr);
+  std::shared_ptr<AST::Module> CalleeMod{std::move(*CalleeModOrErr)};
+  ASSERT_TRUE(ValidatorEngine.validate(*CalleeMod));
   auto CallerMod = compileToJIT(Conf, CallerWasm);
   ASSERT_NE(CallerMod, nullptr);
 

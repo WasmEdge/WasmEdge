@@ -95,6 +95,17 @@ if(WASMEDGE_USE_LLVM)
 endif()
 
 if(WASMEDGE_BUILD_SHARED_LIB)
+  wasmedge_add_library(wasmedgeTestSpecAPI
+    apihelper.cpp
+    hostfunc_c.c
+  )
+
+  target_link_libraries(wasmedgeTestSpecAPI
+    PUBLIC
+    wasmedge_shared
+    wasmedgeTestSpec
+  )
+
   wasmedge_add_executable(wasmedgeSpecAPIVMTests
     SpecAPIVMTest.cpp
   )
@@ -103,7 +114,7 @@ if(WASMEDGE_BUILD_SHARED_LIB)
 
   target_link_libraries(wasmedgeSpecAPIVMTests
     PRIVATE
-    wasmedgeAPITestHelpers
+    wasmedgeTestSpecAPI
     wasmedge_shared
   )
 
@@ -115,7 +126,7 @@ if(WASMEDGE_BUILD_SHARED_LIB)
 
   target_link_libraries(wasmedgeSpecAPIStepsTests
     PRIVATE
-    wasmedgeAPITestHelpers
+    wasmedgeTestSpecAPI
     wasmedge_shared
   )
 
@@ -128,7 +139,7 @@ if(WASMEDGE_BUILD_SHARED_LIB)
 
     target_link_libraries(wasmedgeSpecAPIAOTTests
       PRIVATE
-      wasmedgeAPITestHelpers
+      wasmedgeTestSpecAPI
       wasmedge_shared
     )
 

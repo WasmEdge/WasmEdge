@@ -78,7 +78,6 @@ test/api/                               @q82419
 test/common/                            @ibmibmibm
 test/executor/                          @q82419
 test/host/                              @q82419 @ibmibmibm
-test/host/mock/                         @q82419
 test/host/wasi/                         @ibmibmibm
 test/llvm/                              @ibmibmibm
 test/loader/                            @q82419 @dannypsnl

@@ -5,6 +5,7 @@ wasmedge_add_executable(wasmedgeExecutorTests
   CoredumpTest.cpp
   ExecutorInterruptTest.cpp
   ExecutorRegressionTest.cpp
+  PluginImportTest.cpp
 )
 
 add_test(wasmedgeExecutorTests wasmedgeExecutorTests)

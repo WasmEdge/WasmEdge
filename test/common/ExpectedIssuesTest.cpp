@@ -16,7 +16,7 @@ static cxx20::expected<int, std::string> getInt1() {
   return getInt2(5).and_then(getInt3);
 }
 
-TEST(RegressionTest, Issue1) { getInt1(); }
+TEST(ExpectedIssuesTest, Issue1) { getInt1(); }
 
 static cxx20::expected<int, int> operation1() { return 42; }
 
@@ -24,7 +24,7 @@ static cxx20::expected<std::string, int> operation2(int const) {
   return "Bananas";
 }
 
-TEST(RegressionTest, Issue17) {
+TEST(ExpectedIssuesTest, Issue17) {
   auto const intermediate_result = operation1();
 
   intermediate_result.and_then(operation2);
@@ -37,12 +37,12 @@ static auto doit() -> cxx20::expected<std::unique_ptr<b>, int> {
   return cxx20::unexpected(0);
 }
 
-TEST(RegressionTest, Issue23) {
+TEST(ExpectedIssuesTest, Issue23) {
   cxx20::expected<std::unique_ptr<a>, int> msg = doit();
   EXPECT_FALSE(msg.has_value());
 }
 
-TEST(RegressionTest, Issue26) {
+TEST(ExpectedIssuesTest, Issue26) {
   cxx20::expected<a, int> exp = cxx20::expected<b, int>(cxx20::unexpect, 0);
   EXPECT_FALSE(exp.has_value());
 }
@@ -53,7 +53,7 @@ struct foo {
   foo(foo &&) {}
 };
 
-TEST(RegressionTest, Issue29) {
+TEST(ExpectedIssuesTest, Issue29) {
   std::vector<foo> v;
   v.emplace_back();
   cxx20::expected<std::vector<foo>, int> ov = std::move(v);
@@ -65,12 +65,12 @@ static cxx20::expected<int, std::string> error() {
 }
 static std::string maperror(std::string s) { return s + "maperror "; }
 
-TEST(RegressionTest, Issue30) { error().map_error(maperror); }
+TEST(ExpectedIssuesTest, Issue30) { error().map_error(maperror); }
 
 struct i31 {
   int i;
 };
-TEST(RegressionTest, Issue31) {
+TEST(ExpectedIssuesTest, Issue31) {
   const cxx20::expected<i31, int> a = i31{42};
   EXPECT_EQ(a->i, 42);
 
@@ -79,7 +79,7 @@ TEST(RegressionTest, Issue31) {
   result2 = result;
 }
 
-TEST(RegressionTest, Issue33) {
+TEST(ExpectedIssuesTest, Issue33) {
   cxx20::expected<void, int> res{cxx20::unexpect, 0};
   EXPECT_FALSE(res);
   res = res.map_error([](int) { return 42; });
@@ -90,7 +90,7 @@ static cxx20::expected<void, std::string> voidWork() { return {}; }
 static cxx20::expected<int, std::string> work2() { return 42; }
 static void errorhandling(std::string) {}
 
-TEST(RegressionTest, Issue34) {
+TEST(ExpectedIssuesTest, Issue34) {
   cxx20::expected<int, std::string> result = voidWork().and_then(work2);
   result.map_error([&](std::string r) { errorhandling(r); });
 }
@@ -101,11 +101,11 @@ struct non_copyable {
   non_copyable() = default;
 };
 
-TEST(RegressionTest, Issue42) {
+TEST(ExpectedIssuesTest, Issue42) {
   cxx20::expected<non_copyable, int>{}.map([](non_copyable) {});
 }
 
-TEST(RegressionTest, Issue43) {
+TEST(ExpectedIssuesTest, Issue43) {
   auto result = cxx20::expected<void, std::string>{};
   result = cxx20::unexpected(std::string{"foo"});
 }
@@ -116,11 +116,11 @@ static MaybeDataPtr test(int i) noexcept { return i; }
 
 static MaybeDataPtr test2(int i) noexcept { return i; }
 
-TEST(RegressionTest, Issue49) { auto m = test(10).and_then(test2); }
+TEST(ExpectedIssuesTest, Issue49) { auto m = test(10).and_then(test2); }
 
 static cxx20::expected<int, std::unique_ptr<std::string>> func() { return 1; }
 
-TEST(RegressionTest, Issue61) { EXPECT_EQ(func().value(), 1); }
+TEST(ExpectedIssuesTest, Issue61) { EXPECT_EQ(func().value(), 1); }
 
 struct move_tracker {
   int moved = 0;
@@ -136,14 +136,14 @@ struct move_tracker {
   }
 };
 
-TEST(RegressionTest, Issue122) {
+TEST(ExpectedIssuesTest, Issue122) {
   cxx20::expected<move_tracker, int> res;
   res.emplace();
   EXPECT_EQ(res.value().moved, 0);
 }
 
 #ifdef __cpp_deduction_guides
-TEST(RegressionTest, Issue89) {
+TEST(ExpectedIssuesTest, Issue89) {
   auto s = cxx20::unexpected("Some string");
   EXPECT_EQ(s.value(), std::string("Some string"));
 }
@@ -156,7 +156,7 @@ struct S {
   S(int i, int j) : i(i), j(j) {}
 };
 
-TEST(RegressionTest, Issue107) {
+TEST(ExpectedIssuesTest, Issue107) {
   cxx20::expected<int, S> ex1(cxx20::unexpect, 2);
   cxx20::expected<int, S> ex2(cxx20::unexpect, 2, 2);
 
@@ -166,7 +166,7 @@ TEST(RegressionTest, Issue107) {
   EXPECT_EQ(ex2.error().j, 2);
 }
 
-TEST(RegressionTest, Issue129) {
+TEST(ExpectedIssuesTest, Issue129) {
   cxx20::expected<std::unique_ptr<int>, int> x1{
       std::unique_ptr<int>(new int(4))};
   cxx20::expected<std::unique_ptr<int>, int> y1{

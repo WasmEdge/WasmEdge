@@ -10,7 +10,7 @@
 namespace {
 using namespace std::literals;
 
-TEST(Int128Test, Int128OutputTest) {
+TEST(Int128Test, Output) {
   {
     const WasmEdge::uint128_t Value = 0U;
     EXPECT_EQ(fmt::format("{}"sv, WasmEdge::uint128(Value)), "0");
@@ -106,7 +106,7 @@ TEST(Int128Test, Int128OutputTest) {
   }
 }
 
-TEST(Int128Test, Int128ClzTest) {
+TEST(Int128Test, Clz) {
   EXPECT_EQ(WasmEdge::clz(static_cast<uint32_t>(0)), 32);
   EXPECT_EQ(WasmEdge::clz(static_cast<uint32_t>(1)), 31);
   EXPECT_EQ(WasmEdge::clz(static_cast<uint32_t>(0x80000000U)), 0);
@@ -115,7 +115,7 @@ TEST(Int128Test, Int128ClzTest) {
   EXPECT_EQ(WasmEdge::clz(static_cast<uint64_t>(0x8000000000000000ULL)), 0);
 }
 
-TEST(Int128Test, Int128ShiftTest) {
+TEST(Int128Test, Shift) {
   const WasmEdge::uint128 One(0, 1ULL);
   EXPECT_EQ(One << 127U, WasmEdge::uint128(0x8000000000000000ULL, 0));
 
@@ -142,7 +142,7 @@ TEST(Int128Test, Int128ShiftTest) {
   EXPECT_EQ(ValHigh >> 128ULL, WasmEdge::uint128(0, 0));
 }
 
-TEST(Int128Test, Int128NumericLimitsTest) {
+TEST(Int128Test, NumericLimits) {
   EXPECT_EQ(std::numeric_limits<WasmEdge::uint128>::digits, 128);
   EXPECT_TRUE(std::numeric_limits<WasmEdge::uint128>::is_modulo);
   EXPECT_FALSE(std::numeric_limits<WasmEdge::uint128>::is_signed);

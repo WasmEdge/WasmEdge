@@ -10,13 +10,12 @@
 /// \file
 /// This file contains tests of Wasm test suites extracted by wast2json.
 /// Test Suites: https://github.com/WebAssembly/spec/tree/master/test/core
-/// wast2json: https://webassembly.github.io/wabt/doc/wast2json.1.html
 ///
 //===----------------------------------------------------------------------===//
 
-#include "common/filesystem.h"
 #include "../api/helper.h"
 #include "../api/hostfunc_c.h"
+#include "common/filesystem.h"
 #include "wasmedge/wasmedge.h"
 
 #include "spectest.h"
@@ -37,9 +36,9 @@ using namespace WasmEdge;
 static SpecTest T(u8path("testSuites"sv));
 
 // Parameterized testing class.
-class CoreTest : public testing::TestWithParam<std::string> {};
+class SpecAPIVMTest : public testing::TestWithParam<std::string> {};
 
-TEST_P(CoreTest, TestSuites) {
+TEST_P(SpecAPIVMTest, TestSuites) {
   const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
   const auto &ConfRef = Conf;
 
@@ -265,7 +264,7 @@ TEST_P(CoreTest, TestSuites) {
 
 // Initiate test suite.
 INSTANTIATE_TEST_SUITE_P(
-    TestUnit, CoreTest,
+    TestUnit, SpecAPIVMTest,
     testing::ValuesIn(T.enumerate(SpecTest::TestMode::Interpreter,
                                   /* IncludeComponent */ false)));
 

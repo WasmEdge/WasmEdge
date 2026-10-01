@@ -66,7 +66,7 @@ template <class T1, class T2> void swap_test() {
   }
 }
 
-TEST(SwapTest, Swap) {
+TEST(ExpectedSwapTest, Swap) {
   swap_test<no_throw, no_throw>();
   swap_test<no_throw, canthrow_move>();
   swap_test<canthrow_move, no_throw>();
@@ -83,7 +83,7 @@ TEST(SwapTest, Swap) {
   EXPECT_EQ(b.error().i, s2);
 }
 
-TEST(SwapTest, Compile) {
+TEST(ExpectedSwapTest, Compile) {
   EXPECT_TRUE((std::is_swappable_v<cxx20::expected<no_throw, no_throw>>));
   EXPECT_TRUE((std::is_swappable_v<cxx20::expected<no_throw, canthrow_move>>));
   EXPECT_TRUE((std::is_swappable_v<cxx20::expected<canthrow_move, no_throw>>));

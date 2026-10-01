@@ -17,7 +17,7 @@ struct takes_init_and_variadic {
 };
 } // namespace
 
-TEST(EmplaceTest, Emplace) {
+TEST(ExpectedEmplaceTest, Emplace) {
   {
     cxx20::expected<std::unique_ptr<int>, int> e;
     e.emplace(new int{42});

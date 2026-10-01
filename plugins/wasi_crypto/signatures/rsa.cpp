@@ -308,39 +308,8 @@ Rsa<PadMode, KeyBits, ShaNid>::Signature::import(
     ensureOrReturn(Encoded.size() == getSigSize(),
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
     return std::vector<uint8_t>(Encoded.begin(), Encoded.end());
-  case __WASI_SIGNATURE_ENCODING_DER: {
-    const size_t SigSize = getSigSize();
-    const size_t MaxDerLen =
-        SigSize + (SigSize < 128 ? 2 : (SigSize < 256 ? 3 : 4));
-    ensureOrReturn(Encoded.size() <= MaxDerLen,
-                   __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
-
-    const uint8_t *DataPtr = Encoded.data();
-    Asn1OctetStringPtr OctetString(
-        d2i_ASN1_OCTET_STRING(nullptr, &DataPtr, Encoded.size()));
-    ensureOrReturn(OctetString, __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
-    ensureOrReturn(DataPtr == Encoded.data() + Encoded.size(),
-                   __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
-    ensureOrReturn(static_cast<size_t>(OctetString->length) == SigSize,
-                   __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
-
-    int ReEncodedLen = i2d_ASN1_OCTET_STRING(OctetString.get(), nullptr);
-    ensureOrReturn(ReEncodedLen > 0 &&
-                       static_cast<size_t>(ReEncodedLen) == Encoded.size(),
-                   __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
-    std::vector<uint8_t> ReEncoded(ReEncodedLen);
-    uint8_t *RePtr = ReEncoded.data();
-    int Written = i2d_ASN1_OCTET_STRING(OctetString.get(), &RePtr);
-    ensureOrReturn(
-        Written == ReEncodedLen &&
-            std::equal(Encoded.begin(), Encoded.end(), ReEncoded.begin()),
-        __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
-
-    return std::vector<uint8_t>(OctetString->data,
-                                OctetString->data + OctetString->length);
-  }
   default:
-    assumingUnreachable();
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
 }
 
@@ -351,23 +320,8 @@ Rsa<PadMode, KeyBits, ShaNid>::Signature::exportData(
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
     return Data;
-  case __WASI_SIGNATURE_ENCODING_DER: {
-    ASN1_OCTET_STRING OctetString;
-    OctetString.data = const_cast<uint8_t *>(Data.data());
-    OctetString.length = static_cast<int>(Data.size());
-    OctetString.type = V_ASN1_OCTET_STRING;
-    OctetString.flags = 0;
-
-    int Len = i2d_ASN1_OCTET_STRING(&OctetString, nullptr);
-    ensureOrReturn(Len > 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-    std::vector<uint8_t> Res(Len);
-    uint8_t *Ptr = Res.data();
-    int Written = i2d_ASN1_OCTET_STRING(&OctetString, &Ptr);
-    ensureOrReturn(Written == Len, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-    return Res;
-  }
   default:
-    assumingUnreachable();
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
   }
 }
 

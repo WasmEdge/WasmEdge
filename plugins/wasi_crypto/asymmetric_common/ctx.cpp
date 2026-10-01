@@ -256,8 +256,6 @@ Context::keypairReplaceManaged(__wasi_secrets_manager_t SecretsManagerHandle,
               return Sm.replaceKp(KpId, *NewKp).and_then([&](auto NextVersion) {
                 return KeyPairManager
                     .setManagedInfo(NewKpHandle, KpId, NextVersion)
-                    .and_then(
-                        [&]() { return KeyPairManager.close(OldKpHandle); })
                     .map([NextVersion]() { return NextVersion; });
               });
             });

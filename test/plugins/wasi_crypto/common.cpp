@@ -150,6 +150,12 @@ TEST_F(WasiCryptoTest, SecretsManager) {
       symmetricKeyReplaceManaged(SmHandle, KeyHandle, NewKeyHandle));
   EXPECT_EQ(NewVersion, 1u);
 
+  // Verify that the old key handle remains valid.
+  WASI_CRYPTO_EXPECT_SUCCESS(OldIdRes, symmetricKeyId(KeyHandle, OutId));
+  EXPECT_EQ(std::get<0>(OldIdRes), 32u);
+  EXPECT_EQ(std::get<1>(OldIdRes), 0u);
+  EXPECT_EQ(OutId, KeyId);
+
   // Verify new key ID and version.
   WASI_CRYPTO_EXPECT_SUCCESS(NewIdRes, symmetricKeyId(NewKeyHandle, OutId));
   EXPECT_EQ(std::get<0>(NewIdRes), 32u);
@@ -172,7 +178,34 @@ TEST_F(WasiCryptoTest, SecretsManager) {
   WASI_CRYPTO_EXPECT_FAILURE(secretsManagerInvalidate(SmHandle, KeyId, 0),
                              __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 
+  WASI_CRYPTO_EXPECT_TRUE(symmetricKeyClose(KeyHandle));
   WASI_CRYPTO_EXPECT_TRUE(symmetricKeyClose(NewKeyHandle));
+
+  // Test keypair managed replacement retains old handle.
+  std::string_view KpAlg = "Ed25519";
+  WASI_CRYPTO_EXPECT_SUCCESS(SmHandle2, secretsManagerOpen(std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      KpHandle, keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES, KpAlg,
+                                std::nullopt));
+  std::vector<uint8_t> KpId(32);
+  WASI_CRYPTO_EXPECT_TRUE(keypairStoreManaged(SmHandle2, KpHandle, KpId));
+
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      NewKpHandle, keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES, KpAlg,
+                                   std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      NewKpVersion, keypairReplaceManaged(SmHandle2, KpHandle, NewKpHandle));
+  EXPECT_EQ(NewKpVersion, 1u);
+
+  std::vector<uint8_t> OutKpId(32);
+  WASI_CRYPTO_EXPECT_SUCCESS(OldKpIdRes, keypairId(KpHandle, OutKpId));
+  EXPECT_EQ(std::get<0>(OldKpIdRes), 32u);
+  EXPECT_EQ(std::get<1>(OldKpIdRes), 0u);
+  EXPECT_EQ(OutKpId, KpId);
+
+  WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+  WASI_CRYPTO_EXPECT_TRUE(keypairClose(NewKpHandle));
+  WASI_CRYPTO_EXPECT_TRUE(secretsManagerClose(SmHandle2));
 }
 
 } // namespace WasiCrypto

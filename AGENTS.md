@@ -57,8 +57,9 @@ implementation-only areas such as `lib/wasi_nn_rpc/`.
 - 2-space indentation, no tabs; UTF-8 encoding; LF line endings
 - CamelCase for classes, functions, variables, and parameters
 - All files must end with a newline and have no trailing whitespace; run `lineguard` to check
-- Do not add inline comments explaining the change
-- Use the `sv` suffix for string literals in spdlog calls (e.g., `spdlog::info("message"sv)`)
+- Do not add inline comments explaining the change; the commit message serves that purpose
+- Use the `sv` suffix for string literals in spdlog calls (e.g., `spdlog::info("message"sv)`);
+  the codebase applies it consistently, and a missing suffix is treated as a bug to fix
 
 ### Header File Format
 
@@ -88,6 +89,14 @@ cmake --build build -j$(nproc)
 ```
 
 On macOS, replace `$(nproc)` with `$(sysctl -n hw.logicalcpu)`.
+
+Configuring with `WASMEDGE_BUILD_TESTS=ON` clones the spec test suite and
+copies it under `test/spec/testSuites` in the build tree, plus GoogleTest and
+simdjson when no system copy is found; the WASI-NN, Stable Diffusion,
+wasm-bpf, and FFmpeg plugin tests download their fixtures too. Set
+`FETCHCONTENT_SOURCE_DIR_WASMEDGE_UNIT_TEST` to an existing
+`build/_deps/wasmedge_unit_test-src` to skip the clone across build trees;
+each tree still keeps its own copy.
 
 ### Core CMake Options
 
@@ -187,23 +196,31 @@ subdirectory; the loader recursively scans plugin directories.
 
 ## Testing
 
-Tests use the Google Test framework:
+Tests use the Google Test framework. Build one test target by the name it is
+registered with in the `test/` CMake files:
 
 ```bash
-cmake --build build --target <test-name-regex>
+cmake --build build --target wasmedgeLoaderSerializerTests
 ```
 
-Run a specific test:
+Run tests by the name registered with `add_test`, with the freshly built
+library first on the loader path, as CI does (`LD_LIBRARY_PATH` on Linux,
+`DYLD_LIBRARY_PATH` on macOS):
 
 ```bash
-cd build && ctest -R <test-name-regex>
+export LD_LIBRARY_PATH=$(pwd)/build/lib/api:$LD_LIBRARY_PATH
+(cd build && ctest --no-tests=error -R '^wasmedgeLoaderSerializerTests$')
 ```
+
+Without `--no-tests=error`, `ctest` exits 0 when a pattern matches no test;
+without the export, an installed libwasmedge earlier on the loader path
+shadows the one just built.
 
 Test files are located in `test/`, with a structure mirroring `lib/`. Plugin tests live in `test/plugins/`.
 
 ### Test Case Guidelines
 
-- **Avoid adding new test targets**: Do not casually register a new CMake test executable (`wasmedge_add_test` / `add_test`) for new cases. Prefer adding `TEST(...)` cases to an existing test target whose scope matches (e.g. add loader/serializer cases to `test/loader`), so the suite stays consolidated and CI does not gain extra binaries to build and run.
+- **Avoid adding new test targets**: Do not casually register a new test executable (`wasmedge_add_executable` + `add_test`) for new cases. Prefer adding `TEST(...)` cases to an existing test target whose scope matches (e.g. add loader/serializer cases to `test/loader`), so the suite stays consolidated and CI does not gain extra binaries to build and run.
 - Only create a new test target when the work introduces a genuinely new component or test category with no suitable existing home; when you do, justify it and register it in the directory's `CMakeLists.txt` following the surrounding pattern.
 
 ## Plugin System
@@ -290,9 +307,10 @@ Rules:
 
 ### AI Assistance Disclosure
 
-Use the `Assisted-by:` trailer for the AI assistance disclosure.
-
-The `Assisted-by:` trailer should be placed before `Signed-off-by:` to indicate that AI assistance was used, with the human sign-off as the final confirmation.
+Disclose AI assistance with the `Assisted-by:` trailer, placed before
+`Signed-off-by:` so the human sign-off stays the final confirmation. See
+`docs/CONTRIBUTING.md` under "AI Assistance Disclosure" for the
+contributor-facing policy.
 
 ```text
 <type>: <description>
@@ -301,7 +319,9 @@ Assisted-by: <name of AI tool or service>
 Signed-off-by: Your Name <email@example.com>
 ```
 
-Example: `Assisted-by: Claude (Anthropic)`. Use the tool's commercial name and, optionally, its model version.
+Name the tool you actually used, by its commercial name and optionally its
+model version, for example `Assisted-by: Claude (Anthropic)` or
+`Assisted-by: Codex (OpenAI)`.
 
 For pull requests, include a statement like:
 
@@ -310,7 +330,9 @@ For pull requests, include a statement like:
 ### Commit Authorship
 
 - Do not modify the git user configuration; preserve the original author
-- Append agent co-authorship to the commit message footer
+- Do not add the AI agent itself as a `Co-Authored-By:` trailer (human
+  co-author trailers stay); AI disclosure goes in the `Assisted-by:` trailer
+  instead
 
 ## CI Checks
 
@@ -326,20 +348,62 @@ have path filters:
 | CodeQL | `codeql-analysis.yml` | Security analysis |
 | IWYU | `IWYU_scan.yml` | Include-what-you-use |
 | Infer | `static-code-analysis.yml` | Static code analysis |
+| Symbol exposure | `reusable-build-on-*.yml` | `check_symbols.sh` compares the exported C API symbols with `whitelist.symbols` |
 
 Build workflows: `build.yml` (Core), `build-extensions.yml` (Extensions), plus
 targeted platform, installer, release, Docker, and WASI testsuite workflows.
 
-Pre-validate locally before pushing:
+## Definition of Done
+
+Run these from the repository root before handing a change off; they need no
+approval:
+
+- `cmake --build build` (incremental; CI builds everything before testing),
+  then the affected tests as described under Testing, with
+  `--no-tests=error` so a pattern that matches no test fails instead of
+  passing silently
+- `bash .github/scripts/clang-format.sh "$(which clang-format)"` (the script
+  needs a path, not a command name) with the version pinned in
+  `reusable-call-linter.yml` (currently 22, available via
+  `pip install 'clang-format==22.*'`); diagnostics in files you did not touch
+  mean a version mismatch, not something to reformat
+- `git ls-files --cached --others --exclude-standard | lineguard --config .lineguardrc --stdin`,
+  which also covers new files not yet added while skipping the ignored
+  `build/` (`-r .` scans it and fails once the tree is configured)
+- The codespell command below, which mirrors `misc-linters.yml` and skips
+  `thirdparty/` and the changelog thank-you lists on purpose; use the
+  `codespell==2.4.1` that workflow pins, since older releases lack
+  `--ignore-multiline-regex` and the `2>/dev/null` hides that error
+- `npx commitlint --from <base> --to HEAD --verbose` with the packages
+  `commitlint.yml` installs, where `<base>` is the fetched PR target such as
+  `origin/master` or `origin/0.17.x`; CI lints only the PR commits, and a
+  stale local `master` or another target branch adds unrelated commits to
+  the range. The commit carries `Signed-off-by:` and, for AI-assisted work,
+  `Assisted-by:`
+- When exported C API symbols change: update
+  `.github/scripts/whitelist.symbols` and run
+  `bash .github/scripts/check_symbols.sh` (see
+  `.github/scripts/SYMBOL_CHECKING.md`)
+- When `utils/install.py` changes: `black --check utils/install.py` with the
+  version `test-installers.yml` pins
 
 ```bash
-lineguard --config .lineguardrc -r .
+git ls-files | grep -v '^thirdparty' | grep -v '/thirdparty/' | grep -v '/dist/' \
+  | xargs codespell --ignore-words .github/workflows/ignore_words \
+      --ignore-multiline-regex 'Thank all the contributors who made this release possible!\n\n[^\n]*\n' 2>/dev/null
 ```
+
+Keep the ctest output: the PR description must include local test evidence
+(see `docs/CONTRIBUTING.md`). The full suite is slow; prefer the affected
+targets.
+
+Keep the change to what the task asks for. Report pre-existing bugs or
+unrelated improvements in your summary instead of fixing them in the same
+change. Add tests to the existing target that covers the behavior (see Test
+Case Guidelines for when a new target is justified), sized like the
+neighboring tests.
 
 ## Common Pitfalls
 
-- **No inline comments**: Do not add comments explaining what changed — the commit message serves that purpose.
 - **Style configs are read-only**: Do not modify `.clang-format`, `.clang-tidy`, or `.lineguardrc`.
 - **Platform restrictions**: Some plugins only build on certain operating systems. Check `plugins/CMakeLists.txt` for guards (e.g., `wasm_bpf` is Linux-only).
-- **spdlog `sv` suffix**: Always use `"text"sv` in spdlog format strings — omitting `sv` causes build warnings.
-- **macOS vs Linux core count**: Use `sysctl -n hw.logicalcpu` on macOS, `nproc` on Linux.

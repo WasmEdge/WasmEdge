@@ -66,3 +66,27 @@ TEST(Help, Simple2) {
   EXPECT_FALSE(Parser.isVersion());
   EXPECT_TRUE(Parser.isHelp());
 }
+
+TEST(Help, OptionFormatting) {
+  Option<Toggle> A(Description("option a description"sv));
+  ArgumentParser Parser;
+  Parser.add_option("opt-a"sv, A);
+
+  std::FILE *Fp = std::tmpfile();
+  ASSERT_NE(Fp, nullptr);
+  Parser.help(Fp);
+  std::rewind(Fp);
+  std::string Out;
+  char Buf[256];
+  while (std::fgets(Buf, sizeof(Buf), Fp)) {
+    Out += Buf;
+  }
+  std::fclose(Fp);
+
+  // The option flag should be indented on the same line and not start on an
+  // unindented newline
+  EXPECT_EQ(Out.find("\n--opt-a"), std::string::npos);
+  EXPECT_NE(Out.find("--opt-a"), std::string::npos);
+  EXPECT_NE(Out.find("\t\toption a description\n"), std::string::npos);
+  EXPECT_NE(Out.find("Show this help message\n"), std::string::npos);
+}

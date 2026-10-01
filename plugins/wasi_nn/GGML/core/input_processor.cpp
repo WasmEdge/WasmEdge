@@ -130,6 +130,14 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
     if (CxtRef.CurrentBatchSize != GraphRef.Params.n_batch) {
       llama_batch_free(CxtRef.LlamaBatch);
       CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
+      if (CxtRef.LlamaBatch.token == nullptr) {
+        // Force a reallocation on the next metadata pass and keep compute
+        // away from the empty batch until then.
+        CxtRef.CurrentBatchSize = 0;
+        G.setInvalid();
+        RET_ERROR(ErrNo::RuntimeError,
+                  "setInput: unable to allocate llama_batch."sv)
+      }
       CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
     }
 
@@ -299,8 +307,13 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, WASINN::Graph &G,
   } else {
     // Text only prompt.
     LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize text prompt"sv)
-    CxtRef.LlamaInputs = common_tokenize(GraphRef.LlamaContext.get(), Prompt,
-                                         AddSpecial, ParseSpecial);
+    try {
+      CxtRef.LlamaInputs = common_tokenize(GraphRef.LlamaContext.get(), Prompt,
+                                           AddSpecial, ParseSpecial);
+    } catch (const std::exception &E) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "setInput: unable to tokenize the prompt: {}"sv, E.what())
+    }
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "setInput: tokenize text prompt...Done"sv)
 

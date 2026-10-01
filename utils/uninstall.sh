@@ -253,12 +253,18 @@ main() {
 
     for file in "${__HOME__}/${_shell_rc}" "${__HOME__}/.profile" "${__HOME__}/.bash_profile"; do
       [[ -f "$file" ]] || continue
-      line_num="$(grep -n ". \"${IPATH}/env\"" "$file" | cut -d : -f 1)"
-      [[ -n "$line_num" ]] || continue
-      real_file="$(resolve_path "$file")"
-      cp "$real_file" "$real_file.bak"
-      sed "${line_num}d" "$real_file.bak" > "$real_file"
-      rm -f "$real_file.bak"
+      if grep -qFx \
+        -e ". \"${IPATH}/env\"" \
+        -e "source \"${IPATH}/env\"" \
+        "$file"; then
+        real_file="$(resolve_path "$file")"
+        cp "$real_file" "$real_file.bak"
+        grep -Fxv \
+          -e ". \"${IPATH}/env\"" \
+          -e "source \"${IPATH}/env\"" \
+          "$real_file.bak" > "$real_file" || [ $? -eq 1 ]
+        rm -f "$real_file.bak"
+      fi
     done
 
     exit 0

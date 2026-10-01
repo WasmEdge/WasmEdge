@@ -110,6 +110,8 @@ public:
   static inline unsigned int Floor = 0;
   static inline unsigned int FShl = 0;
   static inline unsigned int FShr = 0;
+  static inline unsigned int LifetimeEnd = 0;
+  static inline unsigned int LifetimeStart = 0;
   static inline unsigned int MaxNum = 0;
   static inline unsigned int MinNum = 0;
   static inline unsigned int Nearbyint = 0;
@@ -117,6 +119,7 @@ public:
   static inline unsigned int SAddSat = 0;
   static inline unsigned int Sqrt = 0;
   static inline unsigned int SSubSat = 0;
+  static inline unsigned int StackSave = 0;
   static inline unsigned int Trunc = 0;
   static inline unsigned int UAddSat = 0;
   static inline unsigned int USubSat = 0;
@@ -203,6 +206,8 @@ private:
     Floor = getIntrinsicID("llvm.floor"sv);
     FShl = getIntrinsicID("llvm.fshl"sv);
     FShr = getIntrinsicID("llvm.fshr"sv);
+    LifetimeEnd = getIntrinsicID("llvm.lifetime.end"sv);
+    LifetimeStart = getIntrinsicID("llvm.lifetime.start"sv);
     MaxNum = getIntrinsicID("llvm.maxnum"sv);
     MinNum = getIntrinsicID("llvm.minnum"sv);
     Nearbyint = getIntrinsicID("llvm.nearbyint"sv);
@@ -210,6 +215,7 @@ private:
     SAddSat = getIntrinsicID("llvm.sadd.sat"sv);
     Sqrt = getIntrinsicID("llvm.sqrt"sv);
     SSubSat = getIntrinsicID("llvm.ssub.sat"sv);
+    StackSave = getIntrinsicID("llvm.stacksave"sv);
     Trunc = getIntrinsicID("llvm.trunc"sv);
     UAddSat = getIntrinsicID("llvm.uadd.sat"sv);
     USubSat = getIntrinsicID("llvm.usub.sat"sv);
@@ -815,6 +821,7 @@ public:
                           Metadata Node) noexcept;
   inline void setMustTailCall() noexcept;
   inline void setTailCall() noexcept;
+  inline void setNoTailCall() noexcept;
   Type getInstructionCalledFunctionType() const noexcept {
     return LLVMGetCalledFunctionType(Ref);
   }
@@ -827,6 +834,10 @@ public:
   unsigned int countBasicBlocks() noexcept { return LLVMCountBasicBlocks(Ref); }
 
   Type getType() const noexcept { return LLVMTypeOf(Ref); }
+  void replaceAllUsesWith(Value NewVal) noexcept {
+    LLVMReplaceAllUsesWith(Ref, NewVal.unwrap());
+  }
+  void eraseFromParent() noexcept { LLVMInstructionEraseFromParent(Ref); }
   Value getInitializer() noexcept { return LLVMGetInitializer(Ref); }
   void setInitializer(Value ConstantVal) noexcept {
     LLVMSetInitializer(Ref, ConstantVal.unwrap());
@@ -1074,6 +1085,9 @@ void Value::setMustTailCall() noexcept {
 void Value::setTailCall() noexcept {
   LLVMSetTailCallKind(Ref, LLVMTailCallKindTail);
 }
+void Value::setNoTailCall() noexcept {
+  LLVMSetTailCallKind(Ref, LLVMTailCallKindNoTail);
+}
 
 static inline Message getDefaultTargetTriple() noexcept {
   return LLVMGetDefaultTargetTriple();
@@ -1168,6 +1182,9 @@ public:
 
   void positionAtEnd(BasicBlock B) noexcept {
     LLVMPositionBuilderAtEnd(Ref, B.unwrap());
+  }
+  void positionBefore(Value Instr) noexcept {
+    LLVMPositionBuilderBefore(Ref, Instr.unwrap());
   }
   BasicBlock getInsertBlock() noexcept { return LLVMGetInsertBlock(Ref); }
 
@@ -1619,10 +1636,34 @@ public:
     return createShuffleVector(One, Empty, Value::getConstVector(Mask), Name);
   }
 
+  Value createLifetimeStart(Value Ptr, uint64_t Size) noexcept {
+    return createLifetimeIntrinsic(LLVM::Core::LifetimeStart, Ptr, Size);
+  }
+  Value createLifetimeEnd(Value Ptr, uint64_t Size) noexcept {
+    return createLifetimeIntrinsic(LLVM::Core::LifetimeEnd, Ptr, Size);
+  }
+  Value createLifetimeIntrinsic(unsigned int ID, Value Ptr,
+                                [[maybe_unused]] uint64_t Size) noexcept {
+#if LLVM_VERSION_MAJOR >= 22
+    return createIntrinsic(ID, {Ptr.getType()}, {Ptr});
+#else
+    return createIntrinsic(
+        ID, {Ptr.getType()},
+        {Value::getConstInt(LLVMInt64TypeInContext(getCtx()), Size), Ptr});
+#endif
+  }
+
   Value createLikely(Value V) noexcept {
     Type Int1Ty = LLVMInt1TypeInContext(getCtx());
     return createIntrinsic(LLVM::Core::Expect, {Int1Ty},
                            {V, Value::getConstInt(Int1Ty, 1)});
+  }
+  Value createStackSave(Type PtrTy) noexcept {
+    // Newer LLVM overloads llvm.stacksave on the returned pointer type.
+    const size_t TypeCount =
+        LLVMIntrinsicIsOverloaded(LLVM::Core::StackSave) ? 1 : 0;
+    return createIntrinsic(LLVM::Core::StackSave,
+                           Span<const Type>(&PtrTy, TypeCount), {});
   }
 
   Value getConstrainedFPRounding() noexcept {

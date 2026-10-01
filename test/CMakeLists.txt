@@ -37,35 +37,33 @@ else()
   set(GTEST_BOTH_LIBRARIES "gtest_main")
 endif()
 
+set(WASMEDGE_UNIT_TEST_DIRS
+  common
+  component
+  executor
+  host/mock
+  host/wasi
+  loader
+  po
+  runtime
+  validator
+  vm
+)
 if(WASMEDGE_USE_LLVM)
-  add_subdirectory(aot)
-  add_subdirectory(llvm)
-  add_subdirectory(mixcall)
+  list(APPEND WASMEDGE_UNIT_TEST_DIRS llvm)
 endif()
-add_subdirectory(common)
-add_subdirectory(spec)
-add_subdirectory(loader)
-add_subdirectory(executor)
-add_subdirectory(validator)
-add_subdirectory(component)
-add_subdirectory(thread)
 if(WASMEDGE_BUILD_SHARED_LIB)
-  add_subdirectory(api)
-  add_subdirectory(driver)
-  add_subdirectory(externref)
+  list(APPEND WASMEDGE_UNIT_TEST_DIRS api driver)
 endif()
+foreach(Dir ${WASMEDGE_UNIT_TEST_DIRS})
+  add_subdirectory(${Dir})
+  set_property(DIRECTORY ${Dir} PROPERTY LABELS unit)
+endforeach()
+add_subdirectory(spec)
+set_property(DIRECTORY spec PROPERTY LABELS spec)
 if(WASMEDGE_BUILD_PLUGINS)
   add_subdirectory(plugins)
 endif()
-add_subdirectory(host/socket)
-add_subdirectory(host/wasi)
-add_subdirectory(host/mock)
-add_subdirectory(expected)
-add_subdirectory(span)
-add_subdirectory(po)
-add_subdirectory(instance)
-add_subdirectory(errinfo)
-add_subdirectory(vm)
 
 if(WASMEDGE_BUILD_COVERAGE)
   include(ProcessorCount)

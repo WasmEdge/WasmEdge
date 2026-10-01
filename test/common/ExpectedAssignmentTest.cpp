@@ -2,7 +2,7 @@
 #include <experimental/expected.hpp>
 #include <gtest/gtest.h>
 
-TEST(AssignmentTest, SimpleAssignment) {
+TEST(ExpectedAssignmentTest, Simple) {
   cxx20::expected<int, int> e1 = 42;
   cxx20::expected<int, int> e2 = 17;
   cxx20::expected<int, int> e3 = 21;
@@ -52,7 +52,7 @@ TEST(AssignmentTest, SimpleAssignment) {
   EXPECT_EQ(*e4, 21);
 }
 
-TEST(AssignmentTest, AssignmentDeletion) {
+TEST(ExpectedAssignmentTest, Deletion) {
   struct has_all {
     [[maybe_unused]] has_all() noexcept = default;
     has_all(const has_all &) noexcept = default;
@@ -74,7 +74,7 @@ TEST(AssignmentTest, AssignmentDeletion) {
                             cxx20::expected<except_move, except_move>>));
 }
 
-TEST(AssignmentTest, AssignmentThrowRecovery) {
+TEST(ExpectedAssignmentTest, ThrowRecovery) {
   struct throw_move {
     int v;
     throw_move(int v) noexcept : v(v) {}

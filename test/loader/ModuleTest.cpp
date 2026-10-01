@@ -61,14 +61,14 @@ WasmEdge::Loader::Loader Ldr(Conf);
 TEST(ModuleTest, LoadModule) {
   std::vector<uint8_t> Vec;
 
-  // 1. Test load empty file
+  // Test load empty file
   EXPECT_FALSE(Ldr.parseModule(Vec));
 
-  // 2. Test load empty module
+  // Test load empty module
   Vec = {0x00U, 0x61U, 0x73U, 0x6DU, 0x01U, 0x00U, 0x00U, 0x00U};
   EXPECT_TRUE(Ldr.parseModule(Vec));
 
-  // 3. Test load module with valid empty sections
+  // Test load module with valid empty sections
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU,                      // Magic
       0x01U, 0x00U, 0x00U, 0x00U,                      // Version
@@ -87,7 +87,7 @@ TEST(ModuleTest, LoadModule) {
   };
   EXPECT_TRUE(Ldr.parseModule(Vec));
 
-  // 4. Test load module with invalid sections
+  // Test load module with invalid sections
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU,                      // Magic
       0x01U, 0x00U, 0x00U, 0x00U,                      // Version
@@ -113,7 +113,7 @@ TEST(ModuleTest, LoadDataCountSecModule) {
   WasmEdge::Loader::Loader LdrWASM1(Conf);
   std::vector<uint8_t> Vec;
 
-  // 5. Test load module with invalid datacount section without proposals.
+  // Test load module with invalid datacount section without proposals.
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU,       // Magic
       0x01U, 0x00U, 0x00U, 0x00U,       // Version
@@ -122,7 +122,7 @@ TEST(ModuleTest, LoadDataCountSecModule) {
   };
   EXPECT_FALSE(LdrWASM1.parseModule(Vec));
 
-  // 6. Test load module with invalid datacount section.
+  // Test load module with invalid datacount section.
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version
@@ -132,7 +132,7 @@ TEST(ModuleTest, LoadDataCountSecModule) {
 }
 
 TEST(ModuleTest, LoadStartSecModule) {
-  // 7. Test load module with invalid start section.
+  // Test load module with invalid start section.
   std::vector<unsigned char> Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version
@@ -144,7 +144,7 @@ TEST(ModuleTest, LoadStartSecModule) {
 TEST(ModuleTest, LoadDupSecModule) {
   std::vector<uint8_t> Vec;
 
-  // 8. Test load module with duplicated type section.
+  // Test load module with duplicated type section.
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version
@@ -153,7 +153,7 @@ TEST(ModuleTest, LoadDupSecModule) {
   };
   EXPECT_FALSE(Ldr.parseModule(Vec));
 
-  // 9. Test load module with duplicated import section.
+  // Test load module with duplicated import section.
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version
@@ -162,7 +162,7 @@ TEST(ModuleTest, LoadDupSecModule) {
   };
   EXPECT_FALSE(Ldr.parseModule(Vec));
 
-  // 10. Test load module with duplicated function section.
+  // Test load module with duplicated function section.
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version
@@ -171,7 +171,7 @@ TEST(ModuleTest, LoadDupSecModule) {
   };
   EXPECT_FALSE(Ldr.parseModule(Vec));
 
-  // 11. Test load module with duplicated table section.
+  // Test load module with duplicated table section.
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version
@@ -180,7 +180,7 @@ TEST(ModuleTest, LoadDupSecModule) {
   };
   EXPECT_FALSE(Ldr.parseModule(Vec));
 
-  // 12. Test load module with duplicated memory section.
+  // Test load module with duplicated memory section.
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version
@@ -189,7 +189,7 @@ TEST(ModuleTest, LoadDupSecModule) {
   };
   EXPECT_FALSE(Ldr.parseModule(Vec));
 
-  // 13. Test load module with duplicated global section.
+  // Test load module with duplicated global section.
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version
@@ -198,7 +198,7 @@ TEST(ModuleTest, LoadDupSecModule) {
   };
   EXPECT_FALSE(Ldr.parseModule(Vec));
 
-  // 14. Test load module with duplicated export section.
+  // Test load module with duplicated export section.
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version
@@ -207,7 +207,7 @@ TEST(ModuleTest, LoadDupSecModule) {
   };
   EXPECT_FALSE(Ldr.parseModule(Vec));
 
-  // 15. Test load module with duplicated start section.
+  // Test load module with duplicated start section.
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version
@@ -216,7 +216,7 @@ TEST(ModuleTest, LoadDupSecModule) {
   };
   EXPECT_FALSE(Ldr.parseModule(Vec));
 
-  // 16. Test load module with duplicated element section.
+  // Test load module with duplicated element section.
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version
@@ -225,7 +225,7 @@ TEST(ModuleTest, LoadDupSecModule) {
   };
   EXPECT_FALSE(Ldr.parseModule(Vec));
 
-  // 17. Test load module with duplicated code section.
+  // Test load module with duplicated code section.
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version
@@ -234,7 +234,7 @@ TEST(ModuleTest, LoadDupSecModule) {
   };
   EXPECT_FALSE(Ldr.parseModule(Vec));
 
-  // 18. Test load module with duplicated data section.
+  // Test load module with duplicated data section.
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version
@@ -243,7 +243,7 @@ TEST(ModuleTest, LoadDupSecModule) {
   };
   EXPECT_FALSE(Ldr.parseModule(Vec));
 
-  // 19. Test load module with duplicated datacount section.
+  // Test load module with duplicated datacount section.
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version

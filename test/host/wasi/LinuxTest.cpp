@@ -6,7 +6,7 @@
 
 using namespace WasmEdge::Host::WASI::detail;
 
-TEST(LinuxTest, fromErrNo) {
+TEST(LinuxTest, FromErrNo) {
 
   EXPECT_EQ(fromErrNo(0), __WASI_ERRNO_SUCCESS);
   EXPECT_EQ(fromErrNo(E2BIG), __WASI_ERRNO_2BIG);
@@ -86,7 +86,7 @@ TEST(LinuxTest, fromErrNo) {
   EXPECT_EQ(fromErrNo(EXDEV), __WASI_ERRNO_XDEV);
 }
 
-TEST(LinuxTest, fromEAIErrNo) {
+TEST(LinuxTest, FromEAIErrNo) {
   EXPECT_EQ(fromEAIErrNo(EAI_ADDRFAMILY), __WASI_ERRNO_AIADDRFAMILY);
   EXPECT_EQ(fromEAIErrNo(EAI_AGAIN), __WASI_ERRNO_AIAGAIN);
   EXPECT_EQ(fromEAIErrNo(EAI_BADFLAGS), __WASI_ERRNO_AIBADFLAG);
@@ -100,7 +100,7 @@ TEST(LinuxTest, fromEAIErrNo) {
   EXPECT_EQ(fromEAIErrNo(EAI_SYSTEM), __WASI_ERRNO_AISYSTEM);
 }
 
-TEST(LinuxTest, toClockId) {
+TEST(LinuxTest, ToClockId) {
   EXPECT_EQ(toClockId(__WASI_CLOCKID_REALTIME), CLOCK_REALTIME);
   EXPECT_EQ(toClockId(__WASI_CLOCKID_MONOTONIC), CLOCK_MONOTONIC);
   EXPECT_EQ(toClockId(__WASI_CLOCKID_PROCESS_CPUTIME_ID),
@@ -109,7 +109,7 @@ TEST(LinuxTest, toClockId) {
             CLOCK_THREAD_CPUTIME_ID);
 }
 
-TEST(LinuxTest, toTimespec) {
+TEST(LinuxTest, ToTimespec) {
   const __wasi_timestamp_t kNanoSeconds1 = 9LL * 1000 * 1000 * 1000;
   const __wasi_timestamp_t kNanoSeconds2 = 5LL * 1000 * 1000;
   const __wasi_timestamp_t kTimestamp = kNanoSeconds1 + kNanoSeconds2;
@@ -118,7 +118,7 @@ TEST(LinuxTest, toTimespec) {
   EXPECT_EQ(result.tv_nsec, kNanoSeconds2);
 }
 
-TEST(LinuxTest, fromTimespec) {
+TEST(LinuxTest, FromTimespec) {
   const __time_t kSec = 20;
   const __time_t kNsec = 30;
   const timespec kTime = {kSec, kNsec};
@@ -129,7 +129,7 @@ TEST(LinuxTest, fromTimespec) {
 }
 
 #if !__GLIBC_PREREQ(2, 6)
-TEST(LinuxTest, toTimeval) {
+TEST(LinuxTest, ToTimeval) {
   const __wasi_timestamp_t kNanoSeconds1 = 9LL * 1000 * 1000 * 1000;
   const __wasi_timestamp_t kNanoSeconds2 = 5LL * 1000 * 1000;
   const __wasi_timestamp_t kTimestamp = kNanoSeconds1 + kNanoSeconds2;
@@ -141,7 +141,7 @@ TEST(LinuxTest, toTimeval) {
   EXPECT_EQ(result.tv_usec, kExpectResult.tv_usec);
 }
 
-TEST(LinuxTest, toTimeva_with_timespec_signature) {
+TEST(LinuxTest, ToTimevalWithTimespecSignature) {
   const __time_t kSec = 20;
   const __time_t kNsec = 30 * 1000 * 1000;
   const timespec kTime = {kSec, kNsec};
@@ -152,7 +152,7 @@ TEST(LinuxTest, toTimeva_with_timespec_signature) {
 }
 #endif
 
-TEST(LinuxTest, toAdvice) {
+TEST(LinuxTest, ToAdvice) {
   EXPECT_EQ(toAdvice(__WASI_ADVICE_NORMAL), POSIX_FADV_NORMAL);
   EXPECT_EQ(toAdvice(__WASI_ADVICE_SEQUENTIAL), POSIX_FADV_SEQUENTIAL);
   EXPECT_EQ(toAdvice(__WASI_ADVICE_RANDOM), POSIX_FADV_RANDOM);
@@ -161,7 +161,7 @@ TEST(LinuxTest, toAdvice) {
   EXPECT_EQ(toAdvice(__WASI_ADVICE_NOREUSE), POSIX_FADV_NOREUSE);
 }
 
-TEST(LinuxTest, fromFileTypeMode) {
+TEST(LinuxTest, FromFileTypeMode) {
   EXPECT_EQ(fromFileType(static_cast<mode_t>(S_IFBLK)),
             __WASI_FILETYPE_BLOCK_DEVICE);
   EXPECT_EQ(fromFileType(static_cast<mode_t>(S_IFCHR)),
@@ -178,7 +178,7 @@ TEST(LinuxTest, fromFileTypeMode) {
             __WASI_FILETYPE_UNKNOWN);
 }
 
-TEST(LinuxTest, fromFileType) {
+TEST(LinuxTest, FromFileType) {
   EXPECT_EQ(fromFileType(static_cast<uint8_t>(6)),
             __WASI_FILETYPE_BLOCK_DEVICE);
   EXPECT_EQ(fromFileType(static_cast<uint8_t>(DT_CHR)),
@@ -197,17 +197,17 @@ TEST(LinuxTest, fromFileType) {
             __WASI_FILETYPE_UNKNOWN);
 }
 
-TEST(LinuxTest, toWhence) {
+TEST(LinuxTest, ToWhence) {
   EXPECT_EQ(toWhence(__WASI_WHENCE_CUR), SEEK_CUR);
   EXPECT_EQ(toWhence(__WASI_WHENCE_END), SEEK_END);
   EXPECT_EQ(toWhence(__WASI_WHENCE_SET), SEEK_SET);
 }
 
-TEST(LinuxTest, toSockOptLevel) {
+TEST(LinuxTest, ToSockOptLevel) {
   EXPECT_EQ(toSockOptLevel(__WASI_SOCK_OPT_LEVEL_SOL_SOCKET), SOL_SOCKET);
 }
 
-TEST(LinuxTest, toSockOptSoName) {
+TEST(LinuxTest, ToSockOptSoName) {
   EXPECT_EQ(toSockOptSoName(__WASI_SOCK_OPT_SO_REUSEADDR), SO_REUSEADDR);
   EXPECT_EQ(toSockOptSoName(__WASI_SOCK_OPT_SO_TYPE), SO_TYPE);
   EXPECT_EQ(toSockOptSoName(__WASI_SOCK_OPT_SO_ERROR), SO_ERROR);
@@ -225,7 +225,7 @@ TEST(LinuxTest, toSockOptSoName) {
   EXPECT_EQ(toSockOptSoName(__WASI_SOCK_OPT_SO_BINDTODEVICE), SO_BINDTODEVICE);
 }
 
-TEST(LinuxTest, fromAIFlags) {
+TEST(LinuxTest, FromAIFlags) {
   EXPECT_EQ(fromAIFlags(AI_PASSIVE), __WASI_AIFLAGS_AI_PASSIVE);
   EXPECT_EQ(fromAIFlags(AI_CANONNAME), __WASI_AIFLAGS_AI_CANONNAME);
   EXPECT_EQ(fromAIFlags(AI_NUMERICHOST), __WASI_AIFLAGS_AI_NUMERICHOST);
@@ -236,7 +236,7 @@ TEST(LinuxTest, fromAIFlags) {
   EXPECT_EQ(fromAIFlags(0), 0);
 }
 
-TEST(LinuxTest, toAIFlags) {
+TEST(LinuxTest, ToAIFlags) {
   EXPECT_EQ(toAIFlags(__WASI_AIFLAGS_AI_PASSIVE), AI_PASSIVE);
   EXPECT_EQ(toAIFlags(__WASI_AIFLAGS_AI_CANONNAME), AI_CANONNAME);
   EXPECT_EQ(toAIFlags(__WASI_AIFLAGS_AI_NUMERICHOST), AI_NUMERICHOST);
@@ -247,37 +247,37 @@ TEST(LinuxTest, toAIFlags) {
   EXPECT_EQ(toAIFlags(static_cast<__wasi_aiflags_t>(0)), 0);
 }
 
-TEST(LinuxTest, fromSockType) {
+TEST(LinuxTest, FromSockType) {
   EXPECT_EQ(fromSockType(0), __WASI_SOCK_TYPE_SOCK_ANY);
   EXPECT_EQ(fromSockType(SOCK_DGRAM), __WASI_SOCK_TYPE_SOCK_DGRAM);
   EXPECT_EQ(fromSockType(SOCK_STREAM), __WASI_SOCK_TYPE_SOCK_STREAM);
 }
 
-TEST(LinuxTest, toSockType) {
+TEST(LinuxTest, ToSockType) {
   EXPECT_EQ(toSockType(__WASI_SOCK_TYPE_SOCK_ANY), 0);
   EXPECT_EQ(toSockType(__WASI_SOCK_TYPE_SOCK_DGRAM), SOCK_DGRAM);
   EXPECT_EQ(toSockType(__WASI_SOCK_TYPE_SOCK_STREAM), SOCK_STREAM);
 }
 
-TEST(LinuxTest, fromProtocol) {
+TEST(LinuxTest, FromProtocol) {
   EXPECT_EQ(fromProtocol(IPPROTO_IP), __WASI_PROTOCOL_IPPROTO_IP);
   EXPECT_EQ(fromProtocol(IPPROTO_TCP), __WASI_PROTOCOL_IPPROTO_TCP);
   EXPECT_EQ(fromProtocol(IPPROTO_UDP), __WASI_PROTOCOL_IPPROTO_UDP);
 }
 
-TEST(LinuxTest, toProtocol) {
+TEST(LinuxTest, ToProtocol) {
   EXPECT_EQ(toProtocol(__WASI_PROTOCOL_IPPROTO_IP), IPPROTO_IP);
   EXPECT_EQ(toProtocol(__WASI_PROTOCOL_IPPROTO_TCP), IPPROTO_TCP);
   EXPECT_EQ(toProtocol(__WASI_PROTOCOL_IPPROTO_UDP), IPPROTO_UDP);
 }
 
-TEST(LinuxTest, fromAddressFamily) {
+TEST(LinuxTest, FromAddressFamily) {
   EXPECT_EQ(fromAddressFamily(PF_UNSPEC), __WASI_ADDRESS_FAMILY_UNSPEC);
   EXPECT_EQ(fromAddressFamily(PF_INET), __WASI_ADDRESS_FAMILY_INET4);
   EXPECT_EQ(fromAddressFamily(PF_INET6), __WASI_ADDRESS_FAMILY_INET6);
 }
 
-TEST(LinuxTest, toAddressFamily) {
+TEST(LinuxTest, ToAddressFamily) {
   EXPECT_EQ(toAddressFamily(__WASI_ADDRESS_FAMILY_UNSPEC), PF_UNSPEC);
   EXPECT_EQ(toAddressFamily(__WASI_ADDRESS_FAMILY_INET4), PF_INET);
   EXPECT_EQ(toAddressFamily(__WASI_ADDRESS_FAMILY_INET6), PF_INET6);

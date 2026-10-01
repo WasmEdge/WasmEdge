@@ -25,21 +25,7 @@ namespace {
 using namespace std::literals;
 using namespace WasmEdge;
 
-class ValidatorRegressionTest : public testing::Test {
-protected:
-  void SetUp() override {
-    Conf = std::make_unique<WasmEdge::Configure>();
-    Conf->addProposal(WasmEdge::Proposal::GC);
-    LoadEngine = std::make_unique<WasmEdge::Loader::Loader>(*Conf);
-    ValidEngine = std::make_unique<WasmEdge::Validator::Validator>(*Conf);
-  }
-
-  std::unique_ptr<WasmEdge::Configure> Conf;
-  std::unique_ptr<WasmEdge::Loader::Loader> LoadEngine;
-  std::unique_ptr<WasmEdge::Validator::Validator> ValidEngine;
-};
-
-// Helper function to encode an unsigned 32-bit integer as LEB128
+// Encodes an unsigned 32-bit integer as LEB128.
 static std::vector<WasmEdge::Byte> encodeLEB128(uint32_t Value) {
   std::vector<WasmEdge::Byte> Leb;
   do {
@@ -53,14 +39,11 @@ static std::vector<WasmEdge::Byte> encodeLEB128(uint32_t Value) {
   return Leb;
 }
 
-// Generates a Wasm module with a chain of subtypes.
-// NumTotalTypes: The total number of types to define. Type k+1 subtypes type
-// k. The maximum depth of the chain will be NumTotalTypes - 1.
+// Generates a module whose type k+1 subtypes type k, giving a subtype chain of
+// depth NumTotalTypes - 1.
 static std::vector<WasmEdge::Byte>
 generateWasmWithSubtypeChain(int NumTotalTypes) {
   std::vector<WasmEdge::Byte> WasmBytes;
-  // Estimate capacity and Reserve a bit more to be safe. Max NumTotalTypes
-  // expected is small (e.g. < 100).
   WasmBytes.reserve(static_cast<size_t>(NumTotalTypes) * 12 + 100);
 
   // 1. Preamble(magic number, wasm v1)
@@ -81,8 +64,7 @@ generateWasmWithSubtypeChain(int NumTotalTypes) {
   // First type entry (index 0): (sub (final) (func))
   WasmBytes.insert(WasmBytes.end(), {0x50, 0x00, 0x60, 0x00, 0x00});
 
-  // Next (NumTotalTypes - 1) type entries.
-  // Type with index `k+1` subtypes type with index `k`.
+  // Type k+1: (sub k (func)).
   for (int K = 0; K < NumTotalTypes - 1; ++K) {
     WasmBytes.push_back(0x50);
     WasmBytes.push_back(0x01);
@@ -102,8 +84,7 @@ generateWasmWithSubtypeChain(int NumTotalTypes) {
   // 5. Code Section (ID 0x0a) - Fixed content
   WasmBytes.insert(WasmBytes.end(), {0x0a, 0x05, 0x01, 0x03, 0x00, 0x01, 0x0b});
 
-  // 6. Custom "name" Section (ID 0x00)
-  // Build the entire payload of the "name" section to determine its size.
+  // 6. Custom "name" Section (ID 0x00), payload built first for its size
   std::vector<WasmEdge::Byte> NameSectionPayloadContent;
 
   // 6.1. Name of custom section: "name" (vec(byte))
@@ -169,96 +150,134 @@ generateWasmWithSubtypeChain(int NumTotalTypes) {
   return WasmBytes;
 }
 
-TEST_F(ValidatorRegressionTest, MaxSubtypeDepthExceeded) {
+TEST(ValidatorRegressionTest, MaxSubtypeDepthExceeded) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
+
   auto Wasm = generateWasmWithSubtypeChain(65);
-  auto Result = LoadEngine->parseModule(Wasm);
+  auto Result = LoadEngine.parseModule(Wasm);
   ASSERT_TRUE(Result);
 
-  auto ValidationResult = ValidEngine->validate(**Result);
+  auto ValidationResult = ValidEngine.validate(**Result);
   EXPECT_FALSE(ValidationResult);
   EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
 }
 
-TEST_F(ValidatorRegressionTest, InvalidTypeIndex) {
+TEST(ValidatorRegressionTest, InvalidTypeIndex) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
+
+  // (module (type (func)) (type (sub 4294967295 (func))))
   std::array<WasmEdge::Byte, 24> Wasm = {
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0E, 0x02, 0x60,
       0x00, 0x00, 0x50, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 0x60, 0x00, 0x00};
 
-  auto Result = LoadEngine->parseModule(Wasm);
+  auto Result = LoadEngine.parseModule(Wasm);
   ASSERT_TRUE(Result);
-  auto ValidationResult = ValidEngine->validate(**Result);
+  auto ValidationResult = ValidEngine.validate(**Result);
   EXPECT_FALSE(ValidationResult);
   EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
 }
 
-TEST_F(ValidatorRegressionTest, InvalidSupertypeIndex) {
+TEST(ValidatorRegressionTest, InvalidSupertypeIndex) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
+
+  // (module
+  //   (type (;0;) (sub 0 (func))))
   std::array<WasmEdge::Byte, 17> Wasm = {0x00, 0x61, 0x73, 0x6d, 0x01, 0x00,
                                          0x00, 0x00, 0x01, 0x07, 0x01, 0x50,
                                          0x01, 0x00, 0x60, 0x00, 0x00};
-  auto Result = LoadEngine->parseModule(Wasm);
+  auto Result = LoadEngine.parseModule(Wasm);
   ASSERT_TRUE(Result);
-  auto ValidationResult = ValidEngine->validate(**Result);
+  auto ValidationResult = ValidEngine.validate(**Result);
   EXPECT_FALSE(ValidationResult);
   EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
 }
 
-TEST_F(ValidatorRegressionTest, ForwardSupertypeInRecGroup) {
-  // Module: (module
+TEST(ValidatorRegressionTest, ForwardSupertypeInRecGroup) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
+
+  // A declared supertype must have a smaller type index than its sub type.
+  // (module
   //   (rec
   //     (type $mid (sub $top (func (result i32))))
   //     (type $top (sub (func (result i32))))))
-  //
-  // $mid (type index 0) declares supertype $top (type index 1), a forward
-  // reference. The GC spec requires a declared supertype to have a smaller
-  // type index than the sub type itself, so validation must fail.
   std::array<WasmEdge::Byte, 26> Wasm = {
-      // Preamble
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
-      // Type section: one rec group of 2 sub types
-      0x01, 0x10, 0x01, 0x4e, 0x02,
-      // type 0 ($mid): (sub 1 (func (result i32)))  -- forward supertype 1
-      0x50, 0x01, 0x01, 0x60, 0x00, 0x01, 0x7f,
-      // type 1 ($top): (sub (func (result i32)))
-      0x50, 0x00, 0x60, 0x00, 0x01, 0x7f};
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x10, 0x01, 0x4e, 0x02, 0x50, 0x01, 0x01, 0x60, 0x00,
+      0x01, 0x7f, 0x50, 0x00, 0x60, 0x00, 0x01, 0x7f};
 
-  auto Result = LoadEngine->parseModule(Wasm);
+  auto Result = LoadEngine.parseModule(Wasm);
   ASSERT_TRUE(Result);
 
-  auto ValidationResult = ValidEngine->validate(**Result);
+  auto ValidationResult = ValidEngine.validate(**Result);
   EXPECT_FALSE(ValidationResult);
   EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
 }
 
-TEST_F(ValidatorRegressionTest, CyclicSupertypeInRecGroup) {
-  // Module: (module
+TEST(ValidatorRegressionTest, CyclicSupertypeInRecGroup) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
+
+  // $c names itself as supertype; it must be rejected before matching type 1
+  // walks its supertypes forever.
+  // (module
   //   (rec
   //     (type $a (sub (func (result (ref null $a)))))
   //     (type (sub $a (func (result (ref null $c)))))
   //     (type $c (sub $c (func)))))
-  //
-  // Matching type 1 walks the super types of $c, which names itself, so
-  // validation must reject $c before matching instead of recursing forever.
   std::array<WasmEdge::Byte, 34> Wasm = {
-      // Preamble
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
-      // Type section: one rec group of 3 sub types
-      0x01, 0x18, 0x01, 0x4e, 0x03,
-      // type 0 ($a): (sub (func (result (ref null 0))))
-      0x50, 0x00, 0x60, 0x00, 0x01, 0x63, 0x00,
-      // type 1: (sub 0 (func (result (ref null 2))))
-      0x50, 0x01, 0x00, 0x60, 0x00, 0x01, 0x63, 0x02,
-      // type 2 ($c): (sub 2 (func))  -- its own supertype
-      0x50, 0x01, 0x02, 0x60, 0x00, 0x00};
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x18, 0x01, 0x4e,
+      0x03, 0x50, 0x00, 0x60, 0x00, 0x01, 0x63, 0x00, 0x50, 0x01, 0x00, 0x60,
+      0x00, 0x01, 0x63, 0x02, 0x50, 0x01, 0x02, 0x60, 0x00, 0x00};
 
-  auto Result = LoadEngine->parseModule(Wasm);
+  auto Result = LoadEngine.parseModule(Wasm);
   ASSERT_TRUE(Result);
 
-  auto ValidationResult = ValidEngine->validate(**Result);
+  auto ValidationResult = ValidEngine.validate(**Result);
   EXPECT_FALSE(ValidationResult);
   EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
 }
 
-TEST_F(ValidatorRegressionTest, ErrorPropagationRecursive) {
+TEST(ValidatorRegressionTest, ErrorPropagationRecursive) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
+
+  // (module
+  //   (rec
+  //     (type $grandparent_field_super_type (;0;) (struct (field i32)))
+  //     (type $grandparent_field_sub_type_BAD (;1;) (struct (field f32)))
+  //     (type $parent_super_type (;2;)
+  //       (struct (field (ref $grandparent_field_super_type))))
+  //     (type $parent_sub_type_BAD (;3;)
+  //       (struct (field (ref $grandparent_field_sub_type_BAD))))
+  //     (type $actual_super_type (;4;)
+  //       (struct (field (ref $parent_super_type))))
+  //     (type $actual_sub_type_ERROR (;5;)
+  //       (sub $actual_super_type
+  //         (struct (field (ref $parent_sub_type_BAD)))))
+  //   )
+  //   (type (;6;) (func (param (ref $actual_sub_type_ERROR))))
+  //   (export "test_usage" (func $test_usage))
+  //   (func $test_usage (;0;) (type 6)
+  //     (param $p (ref $actual_sub_type_ERROR))
+  //     nop
+  //   )
+  // )
   std::array<WasmEdge::Byte, 255> Wasm = {
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x27, 0x02, 0x4e,
       0x06, 0x5f, 0x01, 0x7f, 0x00, 0x5f, 0x01, 0x7d, 0x00, 0x5f, 0x01, 0x64,
@@ -283,85 +302,90 @@ TEST_F(ValidatorRegressionTest, ErrorPropagationRecursive) {
       0x5f, 0x73, 0x75, 0x62, 0x5f, 0x74, 0x79, 0x70, 0x65, 0x5f, 0x45, 0x52,
       0x52, 0x4f, 0x52};
 
-  auto Result = LoadEngine->parseModule(Wasm);
+  auto Result = LoadEngine.parseModule(Wasm);
   ASSERT_TRUE(Result);
-  auto ValidationResult = ValidEngine->validate(**Result);
+  auto ValidationResult = ValidEngine.validate(**Result);
   EXPECT_FALSE(ValidationResult);
   EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
 }
 
-TEST_F(ValidatorRegressionTest, ErrorPropagationInTypeHierarchy) {
+TEST(ValidatorRegressionTest, ErrorPropagationInTypeHierarchy) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
+
+  // (module
+  //   (type (;0;) (func))
+  //   (type (;1;) (struct))
+  //   (type (;2;) (sub 1 (struct (field i32))))
+  //   (type (;3;) (sub 5 (struct (field i32))))
+  // )
   std::array<WasmEdge::Byte, 30> Wasm = {
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x14,
       0x04, 0x60, 0x00, 0x00, 0x5f, 0x00, 0x50, 0x01, 0x01, 0x5f,
       0x01, 0x7f, 0x00, 0x50, 0x01, 0x05, 0x5f, 0x01, 0x7f, 0x00};
 
-  auto Result = LoadEngine->parseModule(Wasm);
+  auto Result = LoadEngine.parseModule(Wasm);
   ASSERT_TRUE(Result);
 
-  auto ValidationResult = ValidEngine->validate(**Result);
+  auto ValidationResult = ValidEngine.validate(**Result);
   EXPECT_FALSE(ValidationResult);
   EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
 }
 
-TEST_F(ValidatorRegressionTest, ExactMaxSubtypeDepth) {
+TEST(ValidatorRegressionTest, ExactMaxSubtypeDepth) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
+
   auto Wasm = generateWasmWithSubtypeChain(64);
 
-  auto Result = LoadEngine->parseModule(Wasm);
+  auto Result = LoadEngine.parseModule(Wasm);
   ASSERT_TRUE(Result);
 
-  auto ValidationResult = ValidEngine->validate(**Result);
+  auto ValidationResult = ValidEngine.validate(**Result);
   EXPECT_TRUE(ValidationResult);
 }
 
-TEST_F(ValidatorRegressionTest, RejectMismatchedActiveElementRefType) {
-  // Module: (module
+TEST(ValidatorRegressionTest, RejectMismatchedActiveElementRefType) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
+
+  // The segment type (ref $t0) is a supertype, not a subtype, of the table
+  // element type (ref null $t1).
+  // (module
   //   (type $t0 (sub (func)))
   //   (type $t1 (sub final $t0 (func)))
   //   (import "env" "f" (func (type $t0)))
   //   (table 1 (ref null $t1))
   //   (elem (table 0) (i32.const 0) (ref $t0) (ref.func 0)))
-  //
-  // The element segment's ref type (ref $t0) must be a subtype of the
-  // table's element type (ref null $t1). Since $t0 is a supertype of $t1
-  // (not a subtype), validation must fail with TypeCheckFailed.
   std::array<WasmEdge::Byte, 54> Wasm = {
-      // Preamble
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
-      // Type section: 2 types
-      //   type 0: (sub (func))             -- non-final, no super
-      //   type 1: (sub final 0 (func))     -- final, supertype 0
-      0x01, 0x0c, 0x02, 0x50, 0x00, 0x60, 0x00, 0x00, 0x4f, 0x01, 0x00, 0x60,
-      0x00, 0x00,
-      // Import section: "env"."f" func of type 0
-      0x02, 0x09, 0x01, 0x03, 0x65, 0x6e, 0x76, // "env"
-      0x01, 0x66,                               // "f"
-      0x00, 0x00,                               // func kind, typeidx 0
-      // Table section: 1 table of type (ref null 1), min 1
-      0x04, 0x05, 0x01, 0x63, 0x01, // reftype: ref null, typeindex 1
-      0x00, 0x01,                   // limits: min=1, no max
-      // Element section: 1 active segment, table 0, offset i32.const 0,
-      //   reftype (ref 0), init [ref.func 0]
-      0x09, 0x0c, 0x01,
-      0x06,             // form 6: active, tableidx, offset, reftype, vec(expr)
-      0x00,             // tableidx 0
-      0x41, 0x00, 0x0b, // offset: i32.const 0, end
-      0x64, 0x00,       // reftype: (ref 0)
-      0x01,             // 1 init expr
-      0xd2, 0x00, 0x0b  // ref.func 0, end
-  };
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0c, 0x02,
+      0x50, 0x00, 0x60, 0x00, 0x00, 0x4f, 0x01, 0x00, 0x60, 0x00, 0x00,
+      0x02, 0x09, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x01, 0x66, 0x00, 0x00,
+      0x04, 0x05, 0x01, 0x63, 0x01, 0x00, 0x01, 0x09, 0x0c, 0x01, 0x06,
+      0x00, 0x41, 0x00, 0x0b, 0x64, 0x00, 0x01, 0xd2, 0x00, 0x0b};
 
-  auto Result = LoadEngine->parseModule(Wasm);
+  auto Result = LoadEngine.parseModule(Wasm);
   ASSERT_TRUE(Result);
 
-  auto ValidationResult = ValidEngine->validate(**Result);
+  auto ValidationResult = ValidEngine.validate(**Result);
   EXPECT_FALSE(ValidationResult);
   EXPECT_EQ(ValidationResult.error(),
             WasmEdge::ErrCode::Value::TypeCheckFailed);
 }
 
-TEST_F(ValidatorRegressionTest, ActiveElemTypedFuncrefAssert) {
-  // Module: (module
+TEST(ValidatorRegressionTest, ActiveElemTypedFuncrefAssert) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
+
+  // (module
   //   (type $t0 (func (param i32)))
   //   (type $t1 (func))
   //   (func $f0 (type $t1))
@@ -380,17 +404,22 @@ TEST_F(ValidatorRegressionTest, ActiveElemTypedFuncrefAssert) {
       0x03, 0x02, 0x00, 0x0b, 0x05, 0x00, 0x20, 0x00, 0x1a, 0x0b, 0x08,
       0x00, 0x41, 0x00, 0x25, 0x00, 0x14, 0x01, 0x0b};
 
-  auto Result = LoadEngine->parseModule(Wasm);
+  auto Result = LoadEngine.parseModule(Wasm);
   ASSERT_TRUE(Result);
 
-  auto ValidationResult = ValidEngine->validate(**Result);
+  auto ValidationResult = ValidEngine.validate(**Result);
   EXPECT_FALSE(ValidationResult);
   EXPECT_EQ(ValidationResult.error(),
             WasmEdge::ErrCode::Value::TypeCheckFailed);
 }
 
-TEST_F(ValidatorRegressionTest, ActiveElemTypedFuncrefTrap) {
-  // Module: (module
+TEST(ValidatorRegressionTest, ActiveElemTypedFuncrefTrap) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
+
+  // (module
   //   (type $t0 (func))
   //   (type $t1 (func (param (ref $t0))))
   //   (type $t2 (sub final $t1 (func (param funcref))))
@@ -413,123 +442,105 @@ TEST_F(ValidatorRegressionTest, ActiveElemTypedFuncrefTrap) {
       0x14, 0x00, 0x0b, 0x05, 0x00, 0x20, 0x00, 0x1a, 0x0b, 0x02, 0x00, 0x0b,
       0x0a, 0x00, 0xd0, 0x70, 0x41, 0x00, 0x25, 0x00, 0x14, 0x02, 0x0b};
 
-  auto Result = LoadEngine->parseModule(Wasm);
+  auto Result = LoadEngine.parseModule(Wasm);
   ASSERT_TRUE(Result);
 
-  auto ValidationResult = ValidEngine->validate(**Result);
+  auto ValidationResult = ValidEngine.validate(**Result);
   EXPECT_FALSE(ValidationResult);
   EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
 }
 
-// Test that ref.test after unreachable passes validation.
-// The unreachable instruction produces bottom types on the stack, which should
-// be accepted by ref.test per the Wasm spec.
-TEST_F(ValidatorRegressionTest, RefTestAfterUnreachable) {
-  // Module: (module
+// ref.test must accept the bottom type that unreachable leaves on the stack.
+TEST(ValidatorRegressionTest, RefTestAfterUnreachable) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
+
+  // (module
   //   (type (func))
   //   (func (type 0) unreachable  ref.test (ref func)  drop  end))
   std::array<WasmEdge::Byte, 29> Wasm = {
-      // Preamble
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
-      // Type section: 1 type (func)
-      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
-      // Function section: 1 function, type index 0
-      0x03, 0x02, 0x01, 0x00,
-      // Code section: 1 body
-      // Body: unreachable (0x00), ref.test (0xfb 0x14), heaptype func (0x70),
-      //       drop (0x1a), end (0x0b)
-      0x0a, 0x09, 0x01, 0x07, 0x00, 0x00, 0xfb, 0x14, 0x70, 0x1a, 0x0b};
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+      0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x09,
+      0x01, 0x07, 0x00, 0x00, 0xfb, 0x14, 0x70, 0x1a, 0x0b};
 
-  auto Result = LoadEngine->parseModule(Wasm);
+  auto Result = LoadEngine.parseModule(Wasm);
   ASSERT_TRUE(Result);
 
-  auto ValidationResult = ValidEngine->validate(**Result);
+  auto ValidationResult = ValidEngine.validate(**Result);
   EXPECT_TRUE(ValidationResult);
 }
 
-// Test that ref.cast after unreachable passes validation.
-// The unreachable instruction produces bottom types on the stack, which should
-// be accepted by ref.cast per the Wasm spec.
-TEST_F(ValidatorRegressionTest, RefCastAfterUnreachable) {
-  // Module: (module
+// ref.cast must accept the bottom type that unreachable leaves on the stack.
+TEST(ValidatorRegressionTest, RefCastAfterUnreachable) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
+
+  // (module
   //   (type (func))
   //   (func (type 0) unreachable  ref.cast (ref null func)  drop  end))
   std::array<WasmEdge::Byte, 29> Wasm = {
-      // Preamble
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
-      // Type section: 1 type (func)
-      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
-      // Function section: 1 function, type index 0
-      0x03, 0x02, 0x01, 0x00,
-      // Code section: 1 body
-      // Body: unreachable (0x00), ref.cast_null (0xfb 0x17),
-      //       heaptype func (0x70), drop (0x1a), end (0x0b)
-      0x0a, 0x09, 0x01, 0x07, 0x00, 0x00, 0xfb, 0x17, 0x70, 0x1a, 0x0b};
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+      0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x09,
+      0x01, 0x07, 0x00, 0x00, 0xfb, 0x17, 0x70, 0x1a, 0x0b};
 
-  auto Result = LoadEngine->parseModule(Wasm);
+  auto Result = LoadEngine.parseModule(Wasm);
   ASSERT_TRUE(Result);
 
-  auto ValidationResult = ValidEngine->validate(**Result);
+  auto ValidationResult = ValidEngine.validate(**Result);
   EXPECT_TRUE(ValidationResult);
 }
 
-// Test that ref.func on an imported function is rejected when the function is
-// not declared. Imported functions are not part of the module's declared
-// function reference set, so they need an explicit declarative element segment
-// like any other function.
-TEST_F(ValidatorRegressionTest, UndeclaredRefFuncToImportedFunction) {
-  // Module: (module
+// ref.func on an imported function also needs a declarative element segment.
+TEST(ValidatorRegressionTest, UndeclaredRefFuncToImportedFunction) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
+
+  // (module
   //   (type (func))
   //   (import "env" "f" (func (type 0)))
   //   (func (type 0) ref.func 0 drop))
   std::array<WasmEdge::Byte, 38> Wasm = {
-      // Preamble
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
-      // Type section: 1 type (func)
-      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
-      // Import section: 1 import "env" "f" as function of type 0
-      0x02, 0x09, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x01, 0x66, 0x00, 0x00,
-      // Function section: 1 function, type index 0
-      0x03, 0x02, 0x01, 0x00,
-      // Code section: 1 body
-      // Body: ref.func 0 (0xd2 0x00), drop (0x1a), end (0x0b)
-      0x0a, 0x07, 0x01, 0x05, 0x00, 0xd2, 0x00, 0x1a, 0x0b};
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+      0x01, 0x60, 0x00, 0x00, 0x02, 0x09, 0x01, 0x03, 0x65, 0x6e,
+      0x76, 0x01, 0x66, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0a,
+      0x07, 0x01, 0x05, 0x00, 0xd2, 0x00, 0x1a, 0x0b};
 
-  auto Result = LoadEngine->parseModule(Wasm);
+  auto Result = LoadEngine.parseModule(Wasm);
   ASSERT_TRUE(Result);
 
-  auto ValidationResult = ValidEngine->validate(**Result);
+  auto ValidationResult = ValidEngine.validate(**Result);
   EXPECT_FALSE(ValidationResult);
   EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidRefIdx);
 }
 
-// Test that ref.func on an imported function passes validation once the
-// function is declared by a declarative element segment.
-TEST_F(ValidatorRegressionTest, DeclaredRefFuncToImportedFunction) {
-  // Module: (module
+// ref.func on an imported function declared by a declarative element segment.
+TEST(ValidatorRegressionTest, DeclaredRefFuncToImportedFunction) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Loader::Loader LoadEngine(Conf);
+  Validator::Validator ValidEngine(Conf);
+
+  // (module
   //   (type (func))
   //   (import "env" "f" (func (type 0)))
   //   (elem declare func 0)
   //   (func (type 0) ref.func 0 drop))
   std::array<WasmEdge::Byte, 45> Wasm = {
-      // Preamble
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
-      // Type section: 1 type (func)
-      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
-      // Import section: 1 import "env" "f" as function of type 0
-      0x02, 0x09, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x01, 0x66, 0x00, 0x00,
-      // Function section: 1 function, type index 0
-      0x03, 0x02, 0x01, 0x00,
-      // Element section: 1 declarative segment declaring function 0
-      0x09, 0x05, 0x01, 0x03, 0x00, 0x01, 0x00,
-      // Code section: 1 body
-      // Body: ref.func 0 (0xd2 0x00), drop (0x1a), end (0x0b)
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+      0x00, 0x00, 0x02, 0x09, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x01, 0x66, 0x00,
+      0x00, 0x03, 0x02, 0x01, 0x00, 0x09, 0x05, 0x01, 0x03, 0x00, 0x01, 0x00,
       0x0a, 0x07, 0x01, 0x05, 0x00, 0xd2, 0x00, 0x1a, 0x0b};
 
-  auto Result = LoadEngine->parseModule(Wasm);
+  auto Result = LoadEngine.parseModule(Wasm);
   ASSERT_TRUE(Result);
 
-  auto ValidationResult = ValidEngine->validate(**Result);
+  auto ValidationResult = ValidEngine.validate(**Result);
   EXPECT_TRUE(ValidationResult);
 }
 

@@ -56,27 +56,6 @@ TEST(SerializeTypeTest, SerializeValType) {
   std::vector<uint8_t> Output;
   std::vector<uint8_t> Expected;
 
-  // 1. Test serialize Function References heap types.
-  //
-  //   1.  Test FuncRef heap type.
-  //   2.  Test ExternRef heap type.
-  //   3.  Test Ref heap type.
-  //   4.  Test RefNull heap type.
-  //   5.  Test TypeIndex 5 heap type.
-  //   6.  Test NullFuncRef type.
-  //   7.  Test NullExternRef type.
-  //   8.  Test NullRef type.
-  //   9.  Test AnyRef type.
-  //   10.  Test EqRef type.
-  //   11.  Test I31Ref type.
-  //   12.  Test StructRef type.
-  //   13.  Test ArrayRef type.
-  //   14.  Test them as RefTypes
-  //   15.  Test I8 storage type.
-  //   16.  Test I16 storage type.
-  //   17.  Test ExnRef type.
-  //   18.  Test NullExnRef type.
-
   WasmEdge::AST::GlobalType GlobalType;
   GlobalType.setValType(WasmEdge::TypeCode::FuncRef);
   GlobalType.setValMut(WasmEdge::ValMut::Const);
@@ -354,13 +333,6 @@ TEST(SerializeTypeTest, SerializeFunctionType) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  // 2. Test serialize function type.
-  //
-  //   1.  Serialize void parameter and result function type.
-  //   2.  Serialize non-void parameter function type.
-  //   3.  Serialize non-void result function type.
-  //   4.  Serialize function type with parameters and result.
-
   WasmEdge::AST::FunctionType FuncType;
 
   Output = {};
@@ -435,11 +407,6 @@ TEST(SerializeTypeTest, SerializeCompositeType) {
   std::vector<uint8_t> Output;
   std::vector<uint8_t> Expected;
 
-  // 3. Test composite types.
-  //
-  //   1.  Test CompositeType (Array).
-  //   2.  Test CompositeType (Struct).
-
   WasmEdge::AST::SubType SubType;
   WasmEdge::AST::FieldType FType;
   WasmEdge::AST::CompositeType CompType;
@@ -482,14 +449,6 @@ TEST(SerializeTypeTest, SerializeCompositeType) {
 TEST(SerializeTypeTest, SerializeSubType) {
   std::vector<uint8_t> Output;
   std::vector<uint8_t> Expected;
-
-  // 4. Test serialize SubType, CompositeType, RecuresiveType, and FieldTypes.
-  //
-  //   1.  Test SubType (and CompositeType too) with final flag.
-  //   2.  Test SubType (CompositeType, and FieldType too) with final flag.
-  //   3.  Test SubType (CompositeType, and FieldType too) without final flag.
-  //   4.  Test non-final SubType with zero supertypes (emits 0x50 0x00).
-  //   5.  Test RecType (RecType ::= 0x4E vector(subtype)).
 
   WasmEdge::AST::SubType SubType;
   SubType.getCompositeType() =
@@ -598,11 +557,6 @@ TEST(SerializeTypeTest, SerializeTableType) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  // 5. Test serialize table type, which is reference type and limit.
-  //
-  //   1.  Serialize limit with only min.
-  //   2.  Serialize limit with min and max.
-
   WasmEdge::AST::TableType TableType;
 
   TableType.setRefType(WasmEdge::TypeCode::FuncRef);
@@ -645,11 +599,6 @@ TEST(SerializeTypeTest, SerializeTableType) {
 TEST(SerializeTypeTest, SerializeMemoryType) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
-
-  // 6. Test serialize memory type, which is limit.
-  //
-  //   1.  Serialize limit with only min.
-  //   2.  Serialize limit with min and max.
 
   WasmEdge::AST::MemoryType MemoryType;
 
@@ -724,13 +673,6 @@ TEST(SerializeTypeTest, SerializeMemory64AndSharedLimit) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  // 8. Test serialize memory64 (i64) and shared limits.
-  //
-  //   1.  Serialize i64 memory limit with only min (flag 0x04).
-  //   2.  Serialize i64 memory limit with min and max (flag 0x05).
-  //   3.  Serialize i64 table limit with min and max (flag 0x05).
-  //   4.  Serialize shared limit with min and max (flag 0x03).
-
   WasmEdge::AST::MemoryType MemoryType;
 
   MemoryType.getLimit().setType(WasmEdge::AST::Limit::LimitType::I64HasMin);
@@ -802,10 +744,6 @@ TEST(SerializeTypeTest, SerializeMemoryTypeSharedLimits) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  // 9. Test serialize memory type with shared limits.
-  //
-  //   1.  Serialize shared limit (0x03).
-
   WasmEdge::AST::MemoryType MemType;
   MemType.getLimit().setMin(0);
   MemType.getLimit().setMax(65536);
@@ -835,10 +773,6 @@ TEST(SerializeTypeTest, SerializeGlobalType) {
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
-
-  // 10. Test serialize global type.
-  //
-  //   1.  Serialize valid global type.
 
   WasmEdge::AST::GlobalType GlobalType;
 

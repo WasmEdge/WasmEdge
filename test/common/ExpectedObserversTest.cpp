@@ -14,7 +14,7 @@ struct move_detector {
   bool been_moved = false;
 };
 
-TEST(ObserversTest, Observers) {
+TEST(ExpectedObserversTest, Observers) {
   expected<int, int> o1 = 42;
   expected<int, int> o2{unexpect, 0};
   const expected<int, int> o3 = 42;

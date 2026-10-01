@@ -10,61 +10,53 @@
 namespace {
 using namespace std::literals;
 
-// ---------------------------------------------------------------------------
-// Group 1 — setLoggingLevelFromString: valid inputs
-// ---------------------------------------------------------------------------
-
-TEST(SpdlogTest, SetLevelFromString_Trace) {
+TEST(SpdlogTest, SetLevelFromStringTrace) {
   EXPECT_TRUE(WasmEdge::Log::setLoggingLevelFromString("trace"sv));
   EXPECT_EQ(spdlog::get_level(), spdlog::level::trace);
 }
 
-TEST(SpdlogTest, SetLevelFromString_Debug) {
+TEST(SpdlogTest, SetLevelFromStringDebug) {
   EXPECT_TRUE(WasmEdge::Log::setLoggingLevelFromString("debug"sv));
   EXPECT_EQ(spdlog::get_level(), spdlog::level::debug);
 }
 
-TEST(SpdlogTest, SetLevelFromString_Info) {
+TEST(SpdlogTest, SetLevelFromStringInfo) {
   EXPECT_TRUE(WasmEdge::Log::setLoggingLevelFromString("info"sv));
   EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
 }
 
-TEST(SpdlogTest, SetLevelFromString_Warn) {
+TEST(SpdlogTest, SetLevelFromStringWarn) {
   EXPECT_TRUE(WasmEdge::Log::setLoggingLevelFromString("warn"sv));
   EXPECT_EQ(spdlog::get_level(), spdlog::level::warn);
 }
 
-TEST(SpdlogTest, SetLevelFromString_Warning) {
+TEST(SpdlogTest, SetLevelFromStringWarning) {
   EXPECT_TRUE(WasmEdge::Log::setLoggingLevelFromString("warning"sv));
   EXPECT_EQ(spdlog::get_level(), spdlog::level::warn);
 }
 
-TEST(SpdlogTest, SetLevelFromString_Error) {
+TEST(SpdlogTest, SetLevelFromStringError) {
   EXPECT_TRUE(WasmEdge::Log::setLoggingLevelFromString("error"sv));
   EXPECT_EQ(spdlog::get_level(), spdlog::level::err);
 }
 
-TEST(SpdlogTest, SetLevelFromString_Critical) {
+TEST(SpdlogTest, SetLevelFromStringCritical) {
   EXPECT_TRUE(WasmEdge::Log::setLoggingLevelFromString("critical"sv));
   EXPECT_EQ(spdlog::get_level(), spdlog::level::critical);
 }
 
 // "fatal" is also accepted as an alias for critical per the implementation.
-TEST(SpdlogTest, SetLevelFromString_Fatal) {
+TEST(SpdlogTest, SetLevelFromStringFatal) {
   EXPECT_TRUE(WasmEdge::Log::setLoggingLevelFromString("fatal"sv));
   EXPECT_EQ(spdlog::get_level(), spdlog::level::critical);
 }
 
-TEST(SpdlogTest, SetLevelFromString_Off) {
+TEST(SpdlogTest, SetLevelFromStringOff) {
   EXPECT_TRUE(WasmEdge::Log::setLoggingLevelFromString("off"sv));
   EXPECT_EQ(spdlog::get_level(), spdlog::level::off);
 }
 
-// ---------------------------------------------------------------------------
-// Group 2 — setLoggingLevelFromString: invalid inputs
-// ---------------------------------------------------------------------------
-
-TEST(SpdlogTest, SetLevelFromString_EmptyString) {
+TEST(SpdlogTest, SetLevelFromStringEmptyString) {
   // Reset to a known level first so we can check it doesn't change.
   WasmEdge::Log::setLoggingLevelFromString("info"sv);
   EXPECT_FALSE(WasmEdge::Log::setLoggingLevelFromString(""sv));
@@ -72,107 +64,99 @@ TEST(SpdlogTest, SetLevelFromString_EmptyString) {
   EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
 }
 
-TEST(SpdlogTest, SetLevelFromString_InvalidString) {
+TEST(SpdlogTest, SetLevelFromStringInvalidString) {
   WasmEdge::Log::setLoggingLevelFromString("info"sv);
   EXPECT_FALSE(WasmEdge::Log::setLoggingLevelFromString("invalid"sv));
   EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
 }
 
 // The comparison uses == on string_view so it is case-sensitive.
-TEST(SpdlogTest, SetLevelFromString_UppercaseDebug) {
+TEST(SpdlogTest, SetLevelFromStringUppercaseDebug) {
   WasmEdge::Log::setLoggingLevelFromString("info"sv);
   EXPECT_FALSE(WasmEdge::Log::setLoggingLevelFromString("DEBUG"sv));
   EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
 }
 
-TEST(SpdlogTest, SetLevelFromString_UppercaseInfo) {
+TEST(SpdlogTest, SetLevelFromStringUppercaseInfo) {
   WasmEdge::Log::setLoggingLevelFromString("warn"sv);
   EXPECT_FALSE(WasmEdge::Log::setLoggingLevelFromString("INFO"sv));
   EXPECT_EQ(spdlog::get_level(), spdlog::level::warn);
 }
 
-TEST(SpdlogTest, SetLevelFromString_MixedCase) {
+TEST(SpdlogTest, SetLevelFromStringMixedCase) {
   WasmEdge::Log::setLoggingLevelFromString("info"sv);
   EXPECT_FALSE(WasmEdge::Log::setLoggingLevelFromString("Error"sv));
   EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
 }
 
-TEST(SpdlogTest, SetLevelFromString_WhitespaceString) {
+TEST(SpdlogTest, SetLevelFromStringWhitespaceString) {
   WasmEdge::Log::setLoggingLevelFromString("info"sv);
   EXPECT_FALSE(WasmEdge::Log::setLoggingLevelFromString(" "sv));
   EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
 }
 
-TEST(SpdlogTest, SetLevelFromString_StringWithSpaces) {
+TEST(SpdlogTest, SetLevelFromStringStringWithSpaces) {
   WasmEdge::Log::setLoggingLevelFromString("info"sv);
   EXPECT_FALSE(WasmEdge::Log::setLoggingLevelFromString(" debug "sv));
   EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
 }
 
-// ---------------------------------------------------------------------------
-// Group 3 — Level setter functions
-// ---------------------------------------------------------------------------
-
-TEST(SpdlogTest, LevelSetter_SetLogOff) {
+TEST(SpdlogTest, LevelSetterSetLogOff) {
   // Must not throw or crash.
   EXPECT_NO_THROW(WasmEdge::Log::setLogOff());
   EXPECT_EQ(spdlog::get_level(), spdlog::level::off);
 }
 
-TEST(SpdlogTest, LevelSetter_SetTrace) {
+TEST(SpdlogTest, LevelSetterSetTrace) {
   EXPECT_NO_THROW(WasmEdge::Log::setTraceLoggingLevel());
   EXPECT_EQ(spdlog::get_level(), spdlog::level::trace);
 }
 
-TEST(SpdlogTest, LevelSetter_SetDebug) {
+TEST(SpdlogTest, LevelSetterSetDebug) {
   EXPECT_NO_THROW(WasmEdge::Log::setDebugLoggingLevel());
   EXPECT_EQ(spdlog::get_level(), spdlog::level::debug);
 }
 
-TEST(SpdlogTest, LevelSetter_SetInfo) {
+TEST(SpdlogTest, LevelSetterSetInfo) {
   EXPECT_NO_THROW(WasmEdge::Log::setInfoLoggingLevel());
   EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
 }
 
-TEST(SpdlogTest, LevelSetter_SetWarn) {
+TEST(SpdlogTest, LevelSetterSetWarn) {
   EXPECT_NO_THROW(WasmEdge::Log::setWarnLoggingLevel());
   EXPECT_EQ(spdlog::get_level(), spdlog::level::warn);
 }
 
-TEST(SpdlogTest, LevelSetter_SetError) {
+TEST(SpdlogTest, LevelSetterSetError) {
   EXPECT_NO_THROW(WasmEdge::Log::setErrorLoggingLevel());
   EXPECT_EQ(spdlog::get_level(), spdlog::level::err);
 }
 
-TEST(SpdlogTest, LevelSetter_SetCritical) {
+TEST(SpdlogTest, LevelSetterSetCritical) {
   EXPECT_NO_THROW(WasmEdge::Log::setCriticalLoggingLevel());
   EXPECT_EQ(spdlog::get_level(), spdlog::level::critical);
 }
 
 // Repeated calls to the same setter must be idempotent.
-TEST(SpdlogTest, LevelSetter_Idempotent) {
+TEST(SpdlogTest, LevelSetterIdempotent) {
   WasmEdge::Log::setDebugLoggingLevel();
   WasmEdge::Log::setDebugLoggingLevel();
   EXPECT_EQ(spdlog::get_level(), spdlog::level::debug);
 }
 
-// ---------------------------------------------------------------------------
-// Group 4 — setLoggingCallback
-// ---------------------------------------------------------------------------
-
-TEST(SpdlogTest, SetLoggingCallback_NullptrDoesNotCrash) {
+TEST(SpdlogTest, SetLoggingCallbackNullptrDoesNotCrash) {
   // Passing nullptr must reset to the default color logger without crashing.
   EXPECT_NO_THROW(WasmEdge::Log::setLoggingCallback(nullptr));
 }
 
-TEST(SpdlogTest, SetLoggingCallback_ValidCallbackDoesNotCrash) {
+TEST(SpdlogTest, SetLoggingCallbackValidCallbackDoesNotCrash) {
   auto Cb = [](const spdlog::details::log_msg &) {};
   EXPECT_NO_THROW(WasmEdge::Log::setLoggingCallback(Cb));
   // Reset to default afterwards.
   WasmEdge::Log::setLoggingCallback(nullptr);
 }
 
-TEST(SpdlogTest, SetLoggingCallback_CallbackIsInvoked) {
+TEST(SpdlogTest, SetLoggingCallbackCallbackIsInvoked) {
   std::atomic<int> CallCount{0};
 
   // Install the callback and enable the level so the message is delivered.
@@ -189,7 +173,7 @@ TEST(SpdlogTest, SetLoggingCallback_CallbackIsInvoked) {
   WasmEdge::Log::setLoggingCallback(nullptr);
 }
 
-TEST(SpdlogTest, SetLoggingCallback_CallbackReceivesCorrectLevel) {
+TEST(SpdlogTest, SetLoggingCallbackCallbackReceivesCorrectLevel) {
   spdlog::level::level_enum Captured = spdlog::level::off;
 
   WasmEdge::Log::setLoggingCallback(
@@ -205,7 +189,7 @@ TEST(SpdlogTest, SetLoggingCallback_CallbackReceivesCorrectLevel) {
   WasmEdge::Log::setLoggingCallback(nullptr);
 }
 
-TEST(SpdlogTest, SetLoggingCallback_NullptrAfterCallbackResetsLogger) {
+TEST(SpdlogTest, SetLoggingCallbackNullptrAfterCallbackResetsLogger) {
   // Install a callback, then remove it — must not crash and must restore a
   // functioning default logger.
   auto Cb = [](const spdlog::details::log_msg &) {};
@@ -216,7 +200,7 @@ TEST(SpdlogTest, SetLoggingCallback_NullptrAfterCallbackResetsLogger) {
   EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
 }
 
-TEST(SpdlogTest, SetLoggingCallback_ReplaceCallback) {
+TEST(SpdlogTest, SetLoggingCallbackReplaceCallback) {
   std::atomic<int> FirstCount{0};
   std::atomic<int> SecondCount{0};
 
@@ -236,11 +220,7 @@ TEST(SpdlogTest, SetLoggingCallback_ReplaceCallback) {
   WasmEdge::Log::setLoggingCallback(nullptr);
 }
 
-// ---------------------------------------------------------------------------
-// Group 5 — Edge cases
-// ---------------------------------------------------------------------------
-
-TEST(SpdlogTest, EdgeCase_SetLevelFromStringMultipleTimes) {
+TEST(SpdlogTest, EdgeCaseSetLevelFromStringMultipleTimes) {
   EXPECT_TRUE(WasmEdge::Log::setLoggingLevelFromString("trace"sv));
   EXPECT_TRUE(WasmEdge::Log::setLoggingLevelFromString("debug"sv));
   EXPECT_TRUE(WasmEdge::Log::setLoggingLevelFromString("info"sv));
@@ -251,7 +231,7 @@ TEST(SpdlogTest, EdgeCase_SetLevelFromStringMultipleTimes) {
   EXPECT_EQ(spdlog::get_level(), spdlog::level::off);
 }
 
-TEST(SpdlogTest, EdgeCase_CallbackSetResetSet) {
+TEST(SpdlogTest, EdgeCaseCallbackSetResetSet) {
   std::atomic<int> Count{0};
   auto Cb = [&Count](const spdlog::details::log_msg &) { ++Count; };
 
@@ -268,7 +248,7 @@ TEST(SpdlogTest, EdgeCase_CallbackSetResetSet) {
   WasmEdge::Log::setLoggingCallback(nullptr);
 }
 
-TEST(SpdlogTest, EdgeCase_LevelSetterAfterStringParser) {
+TEST(SpdlogTest, EdgeCaseLevelSetterAfterStringParser) {
   // Mix setLoggingLevelFromString and direct setters to verify both
   // target the same global spdlog level.
   EXPECT_TRUE(WasmEdge::Log::setLoggingLevelFromString("trace"sv));

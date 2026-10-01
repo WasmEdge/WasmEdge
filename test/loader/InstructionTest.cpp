@@ -39,16 +39,6 @@ std::vector<uint8_t> prefixedVec(const std::vector<uint8_t> &Vec) {
 TEST(InstructionTest, LoadBlockControlInstruction) {
   std::vector<uint8_t> Vec;
 
-  // 1. Test block control instructions.
-  //
-  //   1.  Load block with only end operation.
-  //   2.  Load loop with only end operation.
-  //   3.  Load block with invalid operations.
-  //   4.  Load loop with invalid operations.
-  //   5.  Load block with instructions.
-  //   6.  Load loop with instructions.
-  //   7.  Load invalid loop with non-canonical multi-byte SLEB128 blocktype.
-
   Vec = {
       0x0AU, // Code section
       0x07U, // Content size = 7
@@ -149,19 +139,6 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
 
 TEST(InstructionTest, LoadIfElseControlInstruction) {
   std::vector<uint8_t> Vec;
-
-  // 2. Test load if-else control instruction.
-  //
-  //   1.  Load invalid empty-body if statement.
-  //   2.  Load if statement with only end operation.
-  //   3.  Load if and else statements with only end operation.
-  //   4.  Load if statement with invalid operations.
-  //   5.  Load if and else statements with invalid operations.
-  //   6.  Load if statement with instructions.
-  //   7.  Load if and else statements with instructions.
-  //   8.  Load invalid else instruction out of block.
-  //   9.  Load invalid else instruction out of if statement.
-  //   10. Load invalid else instruction duplicated in if statement.
 
   Vec = {
       0x0AU, // Code section
@@ -310,11 +287,6 @@ TEST(InstructionTest, LoadIfElseControlInstruction) {
 TEST(InstructionTest, LoadBrControlInstruction) {
   std::vector<uint8_t> Vec;
 
-  // 3. Test branch control instructions.
-  //
-  //   1.  Load invalid empty label index.
-  //   2.  Load valid label index.
-
   Vec = {
       0x0AU, // Code section
       0x04U, // Content size = 4
@@ -344,13 +316,6 @@ TEST(InstructionTest, LoadBrControlInstruction) {
 
 TEST(InstructionTest, LoadBrTableControlInstruction) {
   std::vector<uint8_t> Vec;
-
-  // 4. Test branch table control instruction.
-  //
-  //   1.  Load invalid empty instruction body.
-  //   2.  Load instruction with empty label vector.
-  //   3.  Load instruction with label vector.
-  //   4.  Load instruction with wrong length of label vector.
 
   Vec = {
       0x0AU, // Code section
@@ -412,15 +377,6 @@ TEST(InstructionTest, LoadCallControlInstruction) {
   Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
   WasmEdge::Loader::Loader LdrNoRefType(Conf);
   Conf.setWASMStandard(WasmEdge::Standard::WASM_3);
-
-  // 5. Test call control instructions.
-  //
-  //   1.  Load invalid empty call or call_indirect instruction body.
-  //   2.  Load call instruction with valid type index.
-  //   3.  Load call_indirect instruction with valid type and table index.
-  //   4.  Load call_indirect instruction with unexpected end of table index.
-  //   5.  Load call_indirect instruction with invalid table index without
-  //       Ref-Types proposal.
 
   Vec = {
       0x0AU, // Code section
@@ -493,11 +449,6 @@ TEST(InstructionTest, LoadReferenceInstruction) {
   WasmEdge::Loader::Loader LdrNoRefType(Conf);
   Conf.setWASMStandard(WasmEdge::Standard::WASM_3);
 
-  // 6. Test reference instructions.
-  //
-  //   1.  Load invalid empty reference type.
-  //   2.  Load invalid reference type without Ref-Types proposal.
-
   Vec = {
       0x0AU, // Code section
       0x04U, // Content size = 4
@@ -527,14 +478,6 @@ TEST(InstructionTest, LoadParametricInstruction) {
   Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
   WasmEdge::Loader::Loader LdrNoSIMD(Conf);
   Conf.setWASMStandard(WasmEdge::Standard::WASM_3);
-
-  // 7. Test parametric instructions.
-  //
-  //   1.  Load valid select_t instruction with value type list.
-  //   2.  Load invalid empty value type list.
-  //   3.  Load invalid select_t instruction with unexpected end of value type
-  //       list.
-  //   4.  Load invalid value type list without SIMD proposal.
 
   Vec = {
       0x0AU,        // Code section
@@ -588,11 +531,6 @@ TEST(InstructionTest, LoadParametricInstruction) {
 TEST(InstructionTest, LoadVariableInstruction) {
   std::vector<uint8_t> Vec;
 
-  // 8. Test variable instructions.
-  //
-  //   1.  Load invalid empty local or global index.
-  //   2.  Load valid local or global index.
-
   Vec = {
       0x0AU, // Code section
       0x04U, // Content size = 4
@@ -618,12 +556,6 @@ TEST(InstructionTest, LoadVariableInstruction) {
 
 TEST(InstructionTest, LoadTableInstruction) {
   std::vector<uint8_t> Vec;
-
-  // 9. Test table instructions.
-  //
-  //   1.  Load table_get instruction with unexpected end of table index.
-  //   2.  Load table_init instruction with unexpected end of table index.
-  //   3.  Load table_copy instruction with unexpected end of destination index.
 
   Vec = {
       0x0AU, // Code section
@@ -662,19 +594,6 @@ TEST(InstructionTest, LoadMemoryInstruction) {
   Conf.setWASMStandard(WasmEdge::Standard::WASM_2);
   WasmEdge::Loader::Loader LdrMultiMem(Conf);
   Conf.setWASMStandard(WasmEdge::Standard::WASM_3);
-
-  // 10. Test memory instructions.
-  //
-  //   1.  Load invalid empty memory args.
-  //   2.  Load memory_grow instruction with invalid empty checking byte.
-  //   3.  Load memory_grow instruction with invalid checking byte.
-  //   4.  Load valid memory args.
-  //   5.  Load memory_grow instruction with valid checking byte.
-  //   6.  Load memory_copy instruction with invalid checking byte.
-  //   7.  Load memory_init instruction with unexpected end of data index.
-  //   8.  Load memory_copy instruction with unexpected end of source index with
-  //       multi-memories proposal.
-  //   9.  Load invalid memory index with multi-memories proposal.
 
   Vec = {
       0x0AU, // Code section
@@ -788,15 +707,6 @@ TEST(InstructionTest, LoadMemoryInstruction) {
 TEST(InstructionTest, LoadConstInstruction) {
   std::vector<uint8_t> Vec;
 
-  // 11. Test const numeric instructions.
-  //
-  //   1.  Load I32 const numeric instruction.
-  //   2.  Load I64 const numeric instruction.
-  //   3.  Load F32 const numeric instruction.
-  //   4.  Load F64 const numeric instruction.
-  //   5.  Load invalid F32 const numeric instruction with unexpected end.
-  //   6.  Load invalid F64 const numeric instruction with unexpected end.
-
   Vec = {
       0x0AU,               // Code section
       0x08U,               // Content size = 8
@@ -875,17 +785,6 @@ TEST(InstructionTest, LoadConstInstruction) {
 
 TEST(InstructionTest, LoadMiscInstruction) {
   std::vector<uint8_t> Vec;
-
-  // 12. Test miscellaneous instruction opcodes.
-  //
-  //   1.  Load I32__trunc_sat_f32_s with one- to five-byte ULEB32 opcodes.
-  //   2.  Load invalid empty opcode after the miscellaneous prefix.
-  //   3.  Load invalid opcode with an incomplete ULEB32 encoding.
-  //   4.  Load invalid opcode with a value exceeding ULEB32.
-  //   5.  Load invalid opcode with a ULEB32 encoding longer than five bytes.
-  //   6.  Load invalid unknown miscellaneous opcodes 0x100 and 0x113.
-  //   7.  Load invalid wide arithmetic opcodes 0x13-0x16 with one- to five-byte
-  //       ULEB32 encodings.
 
   Vec = {
       0x0AU,        // Code section
@@ -1192,25 +1091,6 @@ TEST(InstructionTest, Proposals) {
   WasmEdge::Loader::Loader LdrThreads(Conf);
   Conf.removeProposal(WasmEdge::Proposal::Threads);
 
-  // 13. Test ValTypes and instructions with disabled proposals
-  //
-  //   1.  Load if instruction with/without SIMD proposal.
-  //   2.  Load if instruction with reference instructions with/without
-  //       Ref-Types and Bulk-Mem proposals.
-  //   3.  Load select_t instruction with/without SIMD proposal.
-  //   4.  Load select_t instruction with reference instructions with/without
-  //       Ref-Types and Bulk-Mem proposals.
-  //   5.  Load if instruction with BlockType as result type with/without
-  //       Multi-Value proposal.
-  //   6.  Load saturating truncation instructions with/without NonTrap-Conv
-  //       proposal.
-  //   7.  Load sign extension instructions with/without Sign-Ext proposal.
-  //   8.  Load atomic instructions with/without threads proposal.
-  //   9.  Load return_call instructions with/without tail-call proposal.
-  //   10. Load reference instructions with/without typed function reference
-  //       proposal.
-  //   11. Load Return_call_ref instruction with/without tail-call proposal.
-
   Vec = {
       0x0AU,                      // Code section
       0x2CU,                      // Content size = 44
@@ -1393,16 +1273,6 @@ TEST(InstructionTest, Proposals) {
 TEST(InstructionTest, LoadSIMDInstruction) {
   std::vector<uint8_t> Vec;
 
-  // 14. Test SIMD instructions.
-  //
-  //   1.  Load invalid V128__load with unexpected end of memory align.
-  //   2.  Load invalid V128__load with unexpected end of memory offset.
-  //   3.  Load invalid V128__load8_lane with unexpected end of memory align.
-  //   4.  Load invalid V128__load8_lane with unexpected end of memory offset.
-  //   5.  Load invalid V128__load8_lane with unexpected end of lane index.
-  //   6.  Load invalid I8x16__shuffle with unexpected end of value list.
-  //   7.  Load invalid I8x16__extract_lane_s with unexpected end of lane index.
-
   Vec = {
       0x0AU,       // Code section
       0x05U,       // Content size = 5
@@ -1490,12 +1360,6 @@ TEST(InstructionTest, LoadSIMDInstruction) {
 
 TEST(InstructionTest, LoadTryTable) {
   std::vector<uint8_t> Vec;
-
-  // 15. Test try_table instructions.
-  //
-  //   1.  Load try_table with all valid catch flags (0x00-0x03).
-  //   2.  Load try_table with invalid catch flag 0x04.
-  //   3.  Load try_table with invalid catch flag 0xFF.
 
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
@@ -1614,14 +1478,6 @@ TEST(InstructionTest, LoadTryTable) {
 
 TEST(InstructionTest, LoadBrOnCastFlags) {
   std::vector<uint8_t> Vec;
-
-  // 16. Test br_on_cast and br_on_cast_fail flags.
-  //
-  //   1.  Load both instructions with all valid flags (0x00-0x03).
-  //   2.  Load br_on_cast with invalid flag 0x04.
-  //   3.  Load br_on_cast with invalid flag 0xFF.
-  //   4.  Load br_on_cast_fail with invalid flag 0x04.
-  //   5.  Load br_on_cast_fail with invalid flag 0xFF.
 
   Vec = {
       0x0AU, // Code section

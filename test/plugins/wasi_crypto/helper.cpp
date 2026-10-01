@@ -1411,36 +1411,6 @@ WasiCryptoExpect<void> WasiCryptoTest::signatureVerificationStateClose(
   return {};
 }
 
-// WasiCryptoExpect<__wasi_secretkey_t> WasiCryptoTest::secretkeyImport(
-//     __wasi_algorithm_type_e_t AlgType, std::string_view AlgStr,
-//     Span<const uint8_t> Encoded, __wasi_secretkey_encoding_e_t Encoding) {
-//   writeString(AlgStr, 0);
-//   writeSpan(Encoded, AlgStr.size());
-//   auto Res =
-//       testRun<AsymmetricCommon::SecretkeyImport>(
-//           {static_cast<uint32_t>(AlgType), 0, AlgStr.size(), AlgStr.size(),
-//            Encoded.size(), static_cast<uint32_t>(Encoding),
-//            AlgStr.size() + Encoded.size()})
-//           .value();
-//   if (Res != __WASI_CRYPTO_ERRNO_SUCCESS) {
-//     return WasiCryptoUnexpect(Res);
-//   }
-//   return *MemInst->getPointer<__wasi_signature_keypair_t *>(AlgStr.size() +
-//                                                            Encoded.size());
-// }
-
-// WasiCryptoExpect<__wasi_array_output_t>
-// WasiCryptoTest::secretkeyExport(__wasi_secretkey_t SkHandle,
-//                                 __wasi_secretkey_encoding_e_t SkEncoding) {
-//   auto Res = testRun<AsymmetricCommon::SecretkeyExport>(
-//                  {SkHandle, static_cast<uint32_t>(SkEncoding), 0})
-//                  .value();
-//   if (Res != __WASI_CRYPTO_ERRNO_SUCCESS) {
-//     return WasiCryptoUnexpect(Res);
-//   }
-//   return *MemInst->getPointer<__wasi_signature_keypair_t *>(0);
-// }
-
 } // namespace WasiCrypto
 } // namespace Host
 } // namespace WasmEdge

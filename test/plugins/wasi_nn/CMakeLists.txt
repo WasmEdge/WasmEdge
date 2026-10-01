@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-wasmedge_add_executable(wasiNNTests
-  wasi_nn.cpp
-  resource_table_test.cpp
+wasmedge_add_executable(wasmedgeWasiNNTests
+  WasiNNResourceTableTest.cpp
+  WasiNNTest.cpp
 )
 
 # Prepare the testing data for each backends.
@@ -67,20 +67,20 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       )
     endif()
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-      target_compile_options(wasiNNTests PUBLIC
+      target_compile_options(wasmedgeWasiNNTests PUBLIC
         /wd4067 # unexpected tokens following preprocessor directive - expected a newline
         /wd4505 # unreferenced local function has been removed
       )
     else()
       # string_split<std::string> in common.h unused
-      target_compile_options(wasiNNTests PUBLIC
+      target_compile_options(wasmedgeWasiNNTests PUBLIC
         -Wno-unused-function
       )
     endif()
     # The lifetime tests construct WASINN::Graph values inside the test
     # binary, so the GGML payload's mtmd member deleters must resolve at link
     # time here, not only in the plugin library.
-    target_link_libraries(wasiNNTests
+    target_link_libraries(wasmedgeWasiNNTests
       PRIVATE
       mtmd
     )
@@ -96,7 +96,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     # a different copy than the test binary, option lookups would miss and
     # the WASI-NN RPC URI would silently fail to apply.
     if(UNIX AND NOT APPLE)
-      target_link_options(wasiNNTests PRIVATE
+      target_link_options(wasmedgeWasiNNTests PRIVATE
         "LINKER:--exclude-libs,libllama.a:libggml.a:libggml-base.a:libggml-cpu.a:libggml-blas.a:libggml-cuda.a:libmtmd.a:libcommon.a"
       )
     endif()
@@ -151,7 +151,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       set(ESPEAK_TARGETS "")
     endif()
 
-    target_link_libraries(wasiNNTests
+    target_link_libraries(wasmedgeWasiNNTests
       PRIVATE
       onnxruntime
       ${ESPEAK_TARGETS}
@@ -171,14 +171,14 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     # The lifetime tests construct WASINN::Graph values inside the test
     # binary, so whisper_free in the Whisper payload's destructor must
     # resolve at link time here, not only in the plugin library.
-    target_link_libraries(wasiNNTests
+    target_link_libraries(wasmedgeWasiNNTests
       PRIVATE
       whisper
     )
     # Keep this second whisper/ggml copy out of the dynamic symbol table for
     # the same reason as the ggml archives above.
     if(UNIX AND NOT APPLE)
-      target_link_options(wasiNNTests PRIVATE
+      target_link_options(wasmedgeWasiNNTests PRIVATE
         "LINKER:--exclude-libs,libwhisper.a:libggml.a:libggml-base.a:libggml-cpu.a:libggml-blas.a:libggml-cuda.a"
       )
     endif()
@@ -194,7 +194,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_mlx_fixtures/tokenizer.json
       MD5=c9dc953a24ad2b76b4bae4bf456f18bd
     )
-    target_compile_options(wasiNNTests PUBLIC
+    target_compile_options(wasmedgeWasiNNTests PUBLIC
       -Wno-unused-parameter
     )
 
@@ -206,7 +206,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       SHA256=feb7478007e916d26bb807cb1a01cc45ac16f197e355d8c30aed25e550ecd73b
     )
     if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-      target_compile_options(wasiNNTests PUBLIC
+      target_compile_options(wasmedgeWasiNNTests PUBLIC
         -Wno-unused-function
       )
     endif()
@@ -215,42 +215,42 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   endif()
 endforeach()
 
-add_dependencies(wasiNNTests
+add_dependencies(wasmedgeWasiNNTests
   wasmedgePluginWasiNN
 )
 
 include(WASINNDeps)
-wasmedge_setup_wasinn_target(wasiNNTests)
+wasmedge_setup_wasinn_target(wasmedgeWasiNNTests)
 
-target_include_directories(wasiNNTests
+target_include_directories(wasmedgeWasiNNTests
   PUBLIC
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
   $<TARGET_PROPERTY:wasmedgePluginWasiNN,INCLUDE_DIRECTORIES>
 )
 
-target_link_libraries(wasiNNTests
+target_link_libraries(wasmedgeWasiNNTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
 )
 
 # Link to the WasmEdge library
 if(WASMEDGE_LINK_PLUGINS_STATIC)
-  target_link_libraries(wasiNNTests
+  target_link_libraries(wasmedgeWasiNNTests
     PRIVATE
     wasmedgeCAPI
   )
 else()
-  target_link_libraries(wasiNNTests
+  target_link_libraries(wasmedgeWasiNNTests
     PRIVATE
     wasmedge_shared
   )
 endif()
 
-add_test(wasiNNTests wasiNNTests)
+add_test(wasmedgeWasiNNTests wasmedgeWasiNNTests)
 
 if(WASMEDGE_BUILD_WASI_NN_RPC)
   add_definitions(-DWASMEDGE_BUILD_WASI_NN_RPC)
-  target_link_libraries(wasiNNTests
+  target_link_libraries(wasmedgeWasiNNTests
     PRIVATE
     wasiNNRPC
   )

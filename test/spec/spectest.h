@@ -10,7 +10,6 @@
 /// \file
 /// This file parses and runs tests of Wasm test suites extracted by wast2json.
 /// Test Suites: https://github.com/WebAssembly/spec/tree/master/test/core
-/// wast2json: https://webassembly.github.io/wabt/doc/wast2json.1.html
 ///
 //===----------------------------------------------------------------------===//
 
@@ -84,12 +83,8 @@ public:
   // The concrete test harness defines the pointed-to type.
   using ContextHandle = void *;
 
-  // Create a new execution context.
-  //   Parent: parent context (nullptr for root context)
-  //   SharedModules: pairs of (export_name, alias_name) for modules
-  //     accessible in this context. The harness should find each module by
-  //     the first name in the parent store and register it under the second
-  //     name in the child store.
+  // Creates a child context of Parent (nullptr for root) that registers each
+  // (export_name, alias_name) module of the parent store under alias_name.
   using InitCallback = ContextHandle(
       ContextHandle Parent,
       const std::vector<std::pair<std::string, std::string>> &SharedModules);
@@ -138,9 +133,8 @@ public:
       ContextHandle Ctx, const std::string &ModName, const std::string &Field);
   std::function<GetCallback> onGet;
 
-  // Set by the spec test runner before calling onModule to indicate that
-  // component validation should be skipped. Only used in spec tests and will
-  // be removed when component-model is fully supported.
+  // Set by the runner before onModule to skip component validation, until the
+  // component model is fully supported.
   static thread_local bool SkipComponentValidation;
 
 private:

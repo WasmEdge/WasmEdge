@@ -28,15 +28,6 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
 
-  // 1. Test serialize import description.
-  //
-  //   1.  Serialize import description with empty module and external name.
-  //   2.  Serialize import description with module and external names.
-  //   3.  Serialize import description of table type.
-  //   4.  Serialize import description of memory type.
-  //   5.  Serialize import description of global type.
-  //   6.  Serialize import description of tag type.
-
   Desc.setModuleName("");
   Desc.setExternalName("");
   Desc.setExternalType(WasmEdge::ExternalType::Function);
@@ -154,13 +145,6 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   WasmEdge::AST::ExportDesc Desc;
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
-
-  // 2. Test serialize export description.
-  //
-  //   1.  Serialize export description with empty module name.
-  //   2.  Serialize export description with non-empty module name.
-  //   3.  Serialize export description of table type.
-  //   4.  Serialize export description of tag type.
 
   Desc.setExternalName("");
   Desc.setExternalType(WasmEdge::ExternalType::Function);

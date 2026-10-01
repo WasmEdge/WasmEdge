@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 wasmedge_add_executable(wasmedgeTensorflowLiteTests
-  wasmedge_tensorflowlite.cpp
+  WasmEdgeTensorflowLiteTest.cpp
 )
 
 add_dependencies(wasmedgeTensorflowLiteTests

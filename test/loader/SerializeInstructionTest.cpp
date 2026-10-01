@@ -27,13 +27,6 @@ TEST(SerializeInstructionTest, SerializeBlockControlInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 1. Test block control instructions.
-  //
-  //   1.  Serialize block with only end operation.
-  //   2.  Serialize loop with only end operation.
-  //   3.  Serialize block with instructions.
-  //   4.  Serialize loop with instructions.
-
   WasmEdge::AST::Instruction Block(WasmEdge::OpCode::Block);
   WasmEdge::AST::Instruction Loop(WasmEdge::OpCode::Loop);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
@@ -151,13 +144,6 @@ TEST(SerializeInstructionTest, SerializeIfElseControlInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 2. Test serialize if-else control instruction.
-  //
-  //   1.  Serialize if statement with only end operation.
-  //   2.  Serialize if and else statements with only end operation.
-  //   3.  Serialize if statement with instructions.
-  //   4.  Serialize if and else statements with instructions.
-
   WasmEdge::AST::Instruction If(WasmEdge::OpCode::If);
   WasmEdge::AST::Instruction Else(WasmEdge::OpCode::Else);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
@@ -245,14 +231,6 @@ TEST(SerializeInstructionTest, SerializeBrControlInstruction) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
-
-  // 3. Test branch control instructions.
-  //
-  //   1.  Serialize valid label index.
-  //   2.  Serialize Br_on_null instruction.
-  //   3.  Serialize Br_on_non_null instruction.
-  //   4.  Serialize Br_on_cast instruction.
-  //   5.  Serialize Br_on_cast_fail instruction.
 
   WasmEdge::AST::Instruction Br(WasmEdge::OpCode::Br);
   WasmEdge::AST::Instruction BrIf(WasmEdge::OpCode::Br_if);
@@ -360,11 +338,6 @@ TEST(SerializeInstructionTest, SerializeBrTableControlInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 4. Test branch table control instruction.
-  //
-  //   1.  Serialize instruction with empty label vector.
-  //   2.  Serialize instruction with label vector.
-
   WasmEdge::AST::Instruction BrTable(WasmEdge::OpCode::Br_table);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
@@ -416,13 +389,6 @@ TEST(SerializeInstructionTest, SerializeCallControlInstruction) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
-
-  // 5. Test call control instructions.
-  //
-  //   1.  Serialize call instruction with valid type index.
-  //   2.  Serialize call_indirect instruction with valid type and table index.
-  //   3.  Serialize Call_ref instruction with valid type index.
-  //   4.  Serialize Return_call_ref instruction with valid type and table.
 
   WasmEdge::AST::Instruction Call(WasmEdge::OpCode::Call);
   WasmEdge::AST::Instruction CallIndirect(WasmEdge::OpCode::Call_indirect);
@@ -515,12 +481,6 @@ TEST(SerializeInstructionTest, SerializeEHControlInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 6. Test exception handling instruction.
-  //
-  //   1.  Serialize Throw_ref instruction.
-  //   2.  Serialize Throw instruction.
-  //   3.  Serialize Try_table instruction.
-
   WasmEdge::AST::Instruction ThrowRef(WasmEdge::OpCode::Throw_ref);
   WasmEdge::AST::Instruction Throw(WasmEdge::OpCode::Throw);
   WasmEdge::AST::Instruction TryTable(WasmEdge::OpCode::Try_table);
@@ -605,41 +565,6 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
-
-  // 7. Test reference instructions.
-  //
-  //   1.  Serialize function reference type.
-  //   2.  Serialize Ref_as_non_null instruction with valid type index.
-  //   3.  Serialize Ref__eq instruction.
-  //   4.  Serialize Ref__i31 instruction.
-  //   5.  Serialize Ref__test instruction.
-  //   6.  Serialize Ref__test_null instruction.
-  //   7.  Serialize Ref__cast instruction.
-  //   8.  Serialize Ref__cast_null instruction.
-  //   9.  Serialize Any__convert_extern instruction.
-  //   10.  Serialize Extern__convert_any instruction.
-  //   11.  Serialize I31__get_s instruction.
-  //   12.  Serialize I31__get_u instruction.
-  //   13.  Serialize Struct__new instruction.
-  //   14.  Serialize Struct__new_default instruction.
-  //   15.  Serialize Struct__get instruction.
-  //   16.  Serialize Struct__get_s instruction.
-  //   17.  Serialize Struct__get_u instruction.
-  //   18.  Serialize Struct__set instruction.
-  //   19.  Serialize Array__new instruction.
-  //   20.  Serialize Array__new_default instruction.
-  //   21.  Serialize Array__get instruction.
-  //   22.  Serialize Array__get_s instruction.
-  //   23.  Serialize Array__get_u instruction.
-  //   24.  Serialize Array__set instruction.
-  //   25.  Serialize Array__fill instruction.
-  //   26.  Serialize Array__len instruction.
-  //   27.  Serialize Array__new_fixed instruction.
-  //   28.  Serialize Array__new_data instruction.
-  //   29.  Serialize Array__new_elem instruction.
-  //   30.  Serialize Array__copy instruction.
-  //   31.  Serialize Array__init_data instruction.
-  //   32.  Serialize Array__init_elem instruction.
 
   WasmEdge::AST::Instruction RefNull(WasmEdge::OpCode::Ref__null);
   WasmEdge::AST::Instruction RefAsNonNull(WasmEdge::OpCode::Ref__as_non_null);
@@ -1058,10 +983,6 @@ TEST(SerializeInstructionTest, SerializeParametricInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 8. Test parametric instructions.
-  //
-  //   1.  Serialize valid select_t instruction with value type list.
-
   WasmEdge::AST::Instruction SelectT(WasmEdge::OpCode::Select_t);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
@@ -1109,10 +1030,6 @@ TEST(SerializeInstructionTest, SerializeVariableInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 9. Test variable instructions.
-  //
-  //   1.  Serialize valid local or global index.
-
   WasmEdge::AST::Instruction LocalGet(WasmEdge::OpCode::Local__get);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
@@ -1157,13 +1074,6 @@ TEST(SerializeInstructionTest, SerializeTableInstruction) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
-
-  // 10. Test table instructions.
-  //
-  //   1.  Serialize table_get instruction.
-  //   2.  Serialize table_init instruction.
-  //   3.  Serialize table_copy instruction with distinct source and
-  //   destination.
 
   WasmEdge::AST::Instruction TableGet(WasmEdge::OpCode::Table__get);
   WasmEdge::AST::Instruction TableInit(WasmEdge::OpCode::Table__init);
@@ -1250,13 +1160,6 @@ TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
-
-  // 11. Test memory instructions.
-  //
-  //   1.  Serialize memory_grow instruction.
-  //   2.  Serialize i32_load instruction.
-  //   3.  Serialize memory_init with a non-zero data segment index.
-  //   4.  Serialize memory_copy with both memory indices zero.
 
   WasmEdge::AST::Instruction MemoryGrow(WasmEdge::OpCode::Memory__grow);
   WasmEdge::AST::Instruction I32Load(WasmEdge::OpCode::I32__load);
@@ -1448,13 +1351,6 @@ TEST(SerializeInstructionTest, SerializeMultiMemoryMemArgInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 12. Test multi-memory memarg encoding.
-  //
-  //   1.  Serialize i32_load with a non-zero memory index.
-  //   2.  Serialize i32_store with a non-zero memory index.
-  //   3.  Serialize i32_load with memory index 0 (single-memory encoding).
-  //   4.  Serialize i32_load with a non-zero memory index again.
-
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   WasmEdge::AST::Instruction I32Load(WasmEdge::OpCode::I32__load);
@@ -1541,13 +1437,6 @@ TEST(SerializeInstructionTest, SerializeConstInstruction) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
-
-  // 13. Test const numeric instructions.
-  //
-  //   1.  Serialize I32 const numeric instruction.
-  //   2.  Serialize I64 const numeric instruction.
-  //   3.  Serialize F32 const numeric instruction.
-  //   4.  Serialize F64 const numeric instruction.
 
   WasmEdge::AST::Instruction I32Const(WasmEdge::OpCode::I32__const);
   WasmEdge::AST::Instruction I64Const(WasmEdge::OpCode::I64__const);
@@ -2001,17 +1890,6 @@ TEST(SerializeInstructionTest, SerializeTruncSatInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 14. Test saturating truncation instructions (0xFC prefix, no immediates).
-  //
-  //   1.  Serialize i32.trunc_sat_f32_s instruction.
-  //   2.  Serialize i32.trunc_sat_f32_u instruction.
-  //   3.  Serialize i32.trunc_sat_f64_s instruction.
-  //   4.  Serialize i32.trunc_sat_f64_u instruction.
-  //   5.  Serialize i64.trunc_sat_f32_s instruction.
-  //   6.  Serialize i64.trunc_sat_f32_u instruction.
-  //   7.  Serialize i64.trunc_sat_f64_s instruction.
-  //   8.  Serialize i64.trunc_sat_f64_u instruction.
-
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   WasmEdge::AST::Instruction I32TruncSatF32S(
@@ -2157,11 +2035,6 @@ TEST(SerializeInstructionTest, SerializeSIMDConstInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 15. Test SIMD const and shuffle instructions.
-  //
-  //   1.  Serialize V128__const instruction.
-  //   2.  Serialize I8x16__shuffle instruction.
-
   WasmEdge::AST::Instruction V128Const(WasmEdge::OpCode::V128__const);
   WasmEdge::AST::Instruction I8x16Shuffle(WasmEdge::OpCode::I8x16__shuffle);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
@@ -2211,12 +2084,6 @@ TEST(SerializeInstructionTest, SerializeSIMDMemoryInstruction) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
-
-  // 16. Test base SIMD memory instructions.
-  //
-  //   1.  Serialize v128_load instruction with memarg.
-  //   2.  Serialize v128_store instruction with memarg.
-  //   3.  Serialize v128_load8_lane instruction with memarg and lane.
 
   WasmEdge::AST::Instruction V128Load(WasmEdge::OpCode::V128__load);
   WasmEdge::AST::Instruction V128Store(WasmEdge::OpCode::V128__store);
@@ -2344,15 +2211,6 @@ TEST(SerializeInstructionTest, SerializeSIMDLaneAndNumericInstruction) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
-
-  // 17. Test base SIMD lane and numeric instructions.
-  //
-  //   1.  Serialize i8x16_splat instruction.
-  //   2.  Serialize i8x16_add instruction.
-  //   3.  Serialize i32x4_mul instruction (two-byte LEB128 opcode suffix).
-  //   4.  Serialize f32x4_add instruction (two-byte LEB128 opcode suffix).
-  //   5.  Serialize i8x16_extract_lane_s instruction with lane immediate.
-  //   6.  Serialize i8x16_replace_lane instruction with lane immediate.
 
   WasmEdge::AST::Instruction I8x16Splat(WasmEdge::OpCode::I8x16__splat);
   WasmEdge::AST::Instruction I8x16Add(WasmEdge::OpCode::I8x16__add);
@@ -3066,10 +2924,6 @@ TEST(SerializeInstructionTest, SerializeSwizzleInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 18. Test swizzle instruction.
-  //
-  //   1.  Serialize I8x16__relaxed_swizzle instruction.
-
   WasmEdge::AST::Instruction I8x16RelaxedSwizzle(
       WasmEdge::OpCode::I8x16__relaxed_swizzle);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
@@ -3097,13 +2951,6 @@ TEST(SerializeInstructionTest, SerializeTruncInstruction) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
-
-  // 19. Test trunc instruction.
-  //
-  //   1.  Serialize I32x4__relaxed_trunc_f32x4_s instruction.
-  //   2.  Serialize I32x4__relaxed_trunc_f32x4_u instruction.
-  //   3.  Serialize I32x4__relaxed_trunc_f64x2_s_zero instruction.
-  //   4.  Serialize I32x4__relaxed_trunc_f64x2_u_zero instruction.
 
   WasmEdge::AST::Instruction I8x16RelaxedTruncF32x4S(
       WasmEdge::OpCode::I32x4__relaxed_trunc_f32x4_s);
@@ -3157,13 +3004,6 @@ TEST(SerializeInstructionTest, SerializeMulAddInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 20. Test multiply-add instruction.
-  //
-  //   1.  Serialize F32x4__relaxed_madd instruction.
-  //   2.  Serialize F32x4__relaxed_nmadd instruction.
-  //   3.  Serialize F64x2__relaxed_madd instruction.
-  //   4.  Serialize F64x2__relaxed_nmadd instruction.
-
   WasmEdge::AST::Instruction F32x4RelaxedMadd(
       WasmEdge::OpCode::F32x4__relaxed_madd);
   WasmEdge::AST::Instruction F32x4RelaxedNMadd(
@@ -3216,13 +3056,6 @@ TEST(SerializeInstructionTest, SerializeLaneSelectInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 21. Test laneselect instruction.
-  //
-  //   1.  Serialize I8x16__relaxed_laneselect instruction.
-  //   2.  Serialize I16x8__relaxed_laneselect instruction.
-  //   3.  Serialize I32x4__relaxed_laneselect instruction.
-  //   4.  Serialize I64x2__relaxed_laneselect instruction.
-
   WasmEdge::AST::Instruction I8x16RelaxedLaneSelect(
       WasmEdge::OpCode::I8x16__relaxed_laneselect);
   WasmEdge::AST::Instruction I16x8RelaxedLaneSelect(
@@ -3273,13 +3106,6 @@ TEST(SerializeInstructionTest, SerializeMinMaxInstruction) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
-
-  // 22. Test laneselect instruction.
-  //
-  //   1.  Serialize F32x4__relaxed_min instruction.
-  //   2.  Serialize F32x4__relaxed_max instruction.
-  //   3.  Serialize F64x2__relaxed_min instruction.
-  //   4.  Serialize F64x2__relaxed_max instruction.
 
   WasmEdge::AST::Instruction F32x4RelaxedMin(
       WasmEdge::OpCode::F32x4__relaxed_min);
@@ -3333,10 +3159,6 @@ TEST(SerializeInstructionTest, SerializeQ15MulRInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 23. Test rounding Q-format multiplication instruction.
-  //
-  //   1.  Serialize I16x8__relaxed_q15mulr_s instruction.
-
   WasmEdge::AST::Instruction I16x8RelaxedQ15MulRS(
       WasmEdge::OpCode::I16x8__relaxed_q15mulr_s);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
@@ -3364,11 +3186,6 @@ TEST(SerializeInstructionTest, SerializeDotProductInstruction) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
-
-  // 24. Test dot product instruction.
-  //
-  //   1.  Serialize I16x8__relaxed_dot_i8x16_i7x16_s instruction.
-  //   2.  Serialize I32x4__relaxed_dot_i8x16_i7x16_add_s instruction.
 
   WasmEdge::AST::Instruction I16x8RelaxedDotI8x16i7x16S(
       WasmEdge::OpCode::I16x8__relaxed_dot_i8x16_i7x16_s);
@@ -3406,14 +3223,6 @@ TEST(SerializeInstructionTest, SerializeAtomicInstruction) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
-
-  // 25. Test atomic instructions.
-  //
-  //   1.  Serialize memory_atomic_notify instruction with memarg.
-  //   2.  Serialize memory_atomic_wait32 instruction with memarg.
-  //   3.  Serialize i32_atomic_load instruction with memarg.
-  //   4.  Serialize i32_atomic_store instruction with memarg.
-  //   5.  Serialize i32_atomic_rmw_add instruction with memarg.
 
   WasmEdge::AST::Instruction MemoryAtomicNotify(
       WasmEdge::OpCode::Memory__atomic__notify);
@@ -3658,12 +3467,6 @@ TEST(SerializeInstructionTest, SerializeAtomicFenceAndWait64Instruction) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
-
-  // 26. Test atomic.fence and memory.atomic.wait64 serialization.
-  //
-  //   1.  Serialize atomic.fence (a reserved byte immediate, not a memarg).
-  //   2.  Serialize memory.atomic.wait64 with memarg.
-  //   3.  Serialize i64.atomic.load with memarg.
 
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 

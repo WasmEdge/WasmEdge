@@ -21,6 +21,7 @@
 #include "ast/component/type.h"
 #include "ast/module.h"
 #include "ast/type.h"
+#include "common/component_valtype.h"
 #include "common/errcode.h"
 #include "common/span.h"
 #include "validator/component_name.h"
@@ -240,8 +241,7 @@ public:
   const TypeEntry *getTypeEntry(const QualValType &Q,
                                 TypeEntry &Storage) noexcept;
   /// The primitive a valtype denotes through aliases; nullopt for composites.
-  std::optional<AST::Component::PrimValType>
-  getPrimValType(const QualValType &Q) noexcept;
+  std::optional<PrimValType> getPrimValType(const QualValType &Q) noexcept;
   /// Effective resource id behind an own/borrow handle index.
   std::optional<uint32_t> getResourceId(const Scope *Home,
                                         const ResourceMap *Remap,
@@ -288,6 +288,9 @@ public:
 
   /// Transitive borrow check on value types.
   bool hasBorrow(const QualValType &Q) noexcept;
+  /// Transitive handle check on value types: own, borrow, stream, future and
+  /// error-context.
+  bool hasHandle(const QualValType &Q) noexcept;
   /// Collect resource ids reachable from a view (for free-variable rules).
   void collectResources(const ExternInfo &Info,
                         std::unordered_set<uint32_t> &Out) noexcept;

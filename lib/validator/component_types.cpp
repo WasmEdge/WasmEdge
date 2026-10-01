@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 #include "validator/component_types.h"
 
+#include "common/component_valtype.h"
 #include "common/errinfo.h"
 #include "common/spdlog.h"
 #include "validator/component_context.h"
@@ -495,15 +496,13 @@ Expect<void> Matcher::matchComponentShape(Context &Ctx, const Shape &Sub,
   return {};
 }
 
-Expect<void>
-Matcher::matchPrimValType(AST::Component::PrimValType Sub,
-                          AST::Component::PrimValType Sup) noexcept {
+Expect<void> Matcher::matchPrimValType(PrimValType Sub,
+                                       PrimValType Sup) noexcept {
   if (Sub == Sup) {
     return {};
   }
   // Only a class-level difference names the primitive.
-  if ((Sub == AST::Component::PrimValType::String) !=
-      (Sup == AST::Component::PrimValType::String)) {
+  if ((Sub == PrimValType::String) != (Sup == PrimValType::String)) {
     return Unexpect(ErrCode::Value::ComponentPrimitiveMismatch);
   }
   return Unexpect(ErrCode::Value::ArgTypeMismatch);

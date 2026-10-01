@@ -2307,6 +2307,27 @@ TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoReallocRejected) {
   EXPECT_FALSE(VM.validate());
 }
 
+// (component
+//   (type $s (stream u8))
+//   (type $t (option $s))
+//   (value $v $t none)
+//   (export "v" (value $v))
+// )
+static const std::vector<uint8_t> validator_value_handle_type_wasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x06, 0x02,
+    0x66, 0x01, 0x7d, 0x6b, 0x00, 0x0c, 0x04, 0x01, 0x01, 0x01, 0x00,
+    0x0b, 0x07, 0x01, 0x00, 0x01, 0x76, 0x02, 0x00, 0x00};
+
+// A value definition whose type transitively contains a handle is rejected
+// even when its payload, `none`, carries no handle.
+TEST(ComponentValidatorTest, EndToEnd_ValueHandleTypeRejected) {
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(validator_value_handle_type_wasm));
+  auto Res = VM.validate();
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueHandleType);
+}
+
 // =============================================================================
 // Core instance global/table/memory checking via an imported core MODULE TYPE
 // (GAP-CI-1). Unlike the raw-module tests above, these drive the imported

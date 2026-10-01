@@ -82,7 +82,6 @@ test/executor/                          @q82419
 test/expected/                          @ibmibmibm
 test/externref/                         @q82419
 test/host/                              @q82419 @ibmibmibm
-test/host/mock/                         @q82419
 test/host/socket/                       @ibmibmibm
 test/host/wasi/                         @ibmibmibm
 test/llvm/                              @ibmibmibm

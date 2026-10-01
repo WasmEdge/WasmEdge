@@ -55,3 +55,86 @@ target_link_libraries(wasmedgeTestSpec
   wasmedgeCommon
   ${GTEST_BOTH_LIBRARIES}
 )
+
+wasmedge_add_executable(wasmedgeSpecInterpreterTests
+  SpecInterpreterTest.cpp
+)
+
+add_test(wasmedgeSpecInterpreterTests wasmedgeSpecInterpreterTests)
+
+target_link_libraries(wasmedgeSpecInterpreterTests
+  PRIVATE
+  wasmedgeTestSpec
+  wasmedgeVM
+)
+
+if(WASMEDGE_USE_LLVM)
+  wasmedge_add_executable(wasmedgeSpecAOTTests
+    SpecAOTTest.cpp
+  )
+
+  add_test(wasmedgeSpecAOTTests wasmedgeSpecAOTTests)
+
+  target_link_libraries(wasmedgeSpecAOTTests
+    PRIVATE
+    wasmedgeTestSpec
+    wasmedgeVM
+  )
+
+  wasmedge_add_executable(wasmedgeSpecJITTests
+    SpecJITTest.cpp
+  )
+
+  add_test(wasmedgeSpecJITTests wasmedgeSpecJITTests)
+
+  target_link_libraries(wasmedgeSpecJITTests
+    PRIVATE
+    wasmedgeTestSpec
+    wasmedgeVM
+  )
+endif()
+
+if(WASMEDGE_BUILD_SHARED_LIB)
+  wasmedge_add_executable(wasmedgeSpecAPIVMTests
+    SpecAPIVMTest.cpp
+  )
+
+  add_test(wasmedgeSpecAPIVMTests wasmedgeSpecAPIVMTests)
+
+  target_link_libraries(wasmedgeSpecAPIVMTests
+    PRIVATE
+    wasmedgeAPITestHelpers
+    wasmedge_shared
+  )
+
+  wasmedge_add_executable(wasmedgeSpecAPIStepsTests
+    SpecAPIStepsTest.cpp
+  )
+
+  add_test(wasmedgeSpecAPIStepsTests wasmedgeSpecAPIStepsTests)
+
+  target_link_libraries(wasmedgeSpecAPIStepsTests
+    PRIVATE
+    wasmedgeAPITestHelpers
+    wasmedge_shared
+  )
+
+  if(WASMEDGE_USE_LLVM)
+    wasmedge_add_executable(wasmedgeSpecAPIAOTTests
+      SpecAPIAOTTest.cpp
+    )
+
+    add_test(wasmedgeSpecAPIAOTTests wasmedgeSpecAPIAOTTests)
+
+    target_link_libraries(wasmedgeSpecAPIAOTTests
+      PRIVATE
+      wasmedgeAPITestHelpers
+      wasmedge_shared
+    )
+
+    set_tests_properties(wasmedgeSpecAOTTests wasmedgeSpecAPIAOTTests
+      PROPERTIES
+      RESOURCE_LOCK wasmedgeSpecTestSuites
+    )
+  endif()
+endif()

@@ -10,7 +10,7 @@
 namespace {
 using namespace std::literals;
 
-TEST(Int128Test, Int128OutputTest) {
+TEST(Int128Test, Output) {
   {
     const WasmEdge::uint128_t Value = 0U;
     EXPECT_EQ(fmt::format("{}"sv, WasmEdge::uint128(Value)), "0");
@@ -106,7 +106,7 @@ TEST(Int128Test, Int128OutputTest) {
   }
 }
 
-TEST(Int128Test, Int128ClzTest) {
+TEST(Int128Test, Clz) {
   EXPECT_EQ(WasmEdge::clz(static_cast<uint32_t>(0)), 32);
   EXPECT_EQ(WasmEdge::clz(static_cast<uint32_t>(1)), 31);
   EXPECT_EQ(WasmEdge::clz(static_cast<uint32_t>(0x80000000U)), 0);

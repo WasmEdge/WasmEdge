@@ -11,7 +11,7 @@
 using namespace WasmEdge::PO;
 using namespace std::literals;
 
-TEST(SubCommands, Simple1) {
+TEST(SubcommandTest, Simple1) {
   SubCommand S1(Description("s1"sv));
   SubCommand S2(Description("s2"sv));
   ArgumentParser Parser;
@@ -25,7 +25,7 @@ TEST(SubCommands, Simple1) {
   EXPECT_FALSE(S2.is_selected());
 }
 
-TEST(SubCommands, Simple2) {
+TEST(SubcommandTest, Simple2) {
   SubCommand S1(Description("s1"sv));
   SubCommand S2(Description("s2"sv));
   ArgumentParser Parser;
@@ -39,7 +39,7 @@ TEST(SubCommands, Simple2) {
   EXPECT_FALSE(S2.is_selected());
 }
 
-TEST(SubCommands, Simple3) {
+TEST(SubcommandTest, Simple3) {
   SubCommand S1(Description("s1"sv));
   SubCommand S2(Description("s2"sv));
   ArgumentParser Parser;
@@ -53,7 +53,7 @@ TEST(SubCommands, Simple3) {
   EXPECT_TRUE(S2.is_selected());
 }
 
-TEST(SubCommands, Simple4) {
+TEST(SubcommandTest, Simple4) {
   SubCommand S1(Description("s1"sv));
   SubCommand S2(Description("s2"sv));
   ArgumentParser Parser;
@@ -66,7 +66,7 @@ TEST(SubCommands, Simple4) {
       Parser.parse(stdout, static_cast<int>(Args.size()), Args.data()));
 }
 
-TEST(SubCommands, Nested1) {
+TEST(SubcommandTest, Nested1) {
   SubCommand S1(Description("s1"sv));
   SubCommand S2(Description("s2"sv));
   ArgumentParser Parser;
@@ -80,7 +80,7 @@ TEST(SubCommands, Nested1) {
   EXPECT_TRUE(S2.is_selected());
 }
 
-TEST(SubCommands, Nested2) {
+TEST(SubcommandTest, Nested2) {
   SubCommand S1(Description("s1"sv));
   SubCommand S2(Description("s2"sv));
   ArgumentParser Parser;
@@ -94,7 +94,7 @@ TEST(SubCommands, Nested2) {
   EXPECT_FALSE(S2.is_selected());
 }
 
-TEST(SubCommands, Nested3) {
+TEST(SubcommandTest, Nested3) {
   SubCommand S1(Description("s1"sv));
   SubCommand S2(Description("s2"sv));
   ArgumentParser Parser;
@@ -107,7 +107,7 @@ TEST(SubCommands, Nested3) {
       Parser.parse(stdout, static_cast<int>(Args.size()), Args.data()));
 }
 
-TEST(SubCommands, NestedOption1) {
+TEST(SubcommandTest, NestedOption1) {
   Option<Toggle> T1;
   Option<Toggle> T2;
   Option<Toggle> T3;
@@ -129,7 +129,7 @@ TEST(SubCommands, NestedOption1) {
   EXPECT_TRUE(S1.is_selected());
 }
 
-TEST(SubCommands, NestedOption2) {
+TEST(SubcommandTest, NestedOption2) {
   Option<Toggle> T1;
   Option<Toggle> T2;
   Option<Toggle> T3;
@@ -148,7 +148,7 @@ TEST(SubCommands, NestedOption2) {
       Parser.parse(stdout, static_cast<int>(Args.size()), Args.data()));
 }
 
-TEST(SubCommands, NestedOption3) {
+TEST(SubcommandTest, NestedOption3) {
   Option<Toggle> T1;
   Option<Toggle> T2;
   Option<Toggle> T3;
@@ -170,7 +170,7 @@ TEST(SubCommands, NestedOption3) {
   EXPECT_TRUE(S1.is_selected());
 }
 
-TEST(SubCommands, NestedOption4) {
+TEST(SubcommandTest, NestedOption4) {
   Option<Toggle> T1;
   Option<Toggle> T2;
   Option<Toggle> T3;
@@ -192,7 +192,7 @@ TEST(SubCommands, NestedOption4) {
   EXPECT_TRUE(S1.is_selected());
 }
 
-TEST(SubCommands, NestedOption5) {
+TEST(SubcommandTest, NestedOption5) {
   Option<Toggle> T1;
   Option<Toggle> T2;
   Option<Toggle> T3;

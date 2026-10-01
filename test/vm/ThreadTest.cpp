@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-//===-- wasmedge/test/thread/ThreadTest.cpp - Multithread test ------------===//
+//===-- wasmedge/test/vm/ThreadTest.cpp - Multithread test ----------------===//
 //
 // Part of the WasmEdge Project.
 //
@@ -31,7 +31,7 @@
 
 namespace {
 
-// See mt19937.c for source of this webassembly data.
+// Mersenne Twister 19937 module exporting "mt19937" (SIMD), see mt19937.c.
 std::array<WasmEdge::Byte, 1481> MersenneTwister19937{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x01, 0x60,
     0x03, 0x7f, 0x7e, 0x7e, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03,
@@ -164,6 +164,14 @@ std::array<uint64_t, 4> Answers{
     UINT64_C(4446454406775736720),
     UINT64_C(9019442596657776185),
 };
+// (module
+//   (memory (export "memory") 1 1 shared)
+//   (func (export "notify") (param i32 i32) (result i32)
+//     (memory.atomic.notify (local.get 0) (local.get 1)))
+//   (func (export "wait32") (param i32 i32 i64) (result i32)
+//     (memory.atomic.wait32 (local.get 0) (local.get 1) (local.get 2)))
+//   (func (export "wait64") (param i32 i64 i64) (result i32)
+//     (memory.atomic.wait64 (local.get 0) (local.get 1) (local.get 2))))
 std::array<WasmEdge::Byte, 122> AtomicThreads32{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x15, 0x03, 0x60,
     0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x60, 0x03, 0x7f, 0x7f, 0x7e, 0x01, 0x7f,
@@ -177,6 +185,25 @@ std::array<WasmEdge::Byte, 122> AtomicThreads32{
     0x0b, 0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfe, 0x02, 0x03,
     0x00, 0x0b,
 };
+// (module
+//   (memory (export "memory") i64 1 1 shared)
+//   (func (export "notify") (param i64 i32) (result i32)
+//     (memory.atomic.notify (local.get 0) (local.get 1)))
+//   (func (export "notify-offset") (param i64 i32) (result i32)
+//     (memory.atomic.notify offset=4 (local.get 0) (local.get 1)))
+//   (func (export "notify-wrapped-count") (param i64) (result i32)
+//     (memory.atomic.notify (local.get 0)
+//       (i32.wrap_i64 (i64.const 8589934593))))
+//   (func (export "wait32") (param i64 i32 i64) (result i32)
+//     (memory.atomic.wait32 (local.get 0) (local.get 1) (local.get 2)))
+//   (func (export "wait32-offset") (param i64 i32 i64) (result i32)
+//     (memory.atomic.wait32 offset=4
+//       (local.get 0) (local.get 1) (local.get 2)))
+//   (func (export "wait64") (param i64 i64 i64) (result i32)
+//     (memory.atomic.wait64 (local.get 0) (local.get 1) (local.get 2)))
+//   (func (export "wait64-offset") (param i64 i64 i64) (result i32)
+//     (memory.atomic.wait64 offset=8
+//       (local.get 0) (local.get 1) (local.get 2))))
 std::array<WasmEdge::Byte, 255> AtomicThreads64{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x1a, 0x04, 0x60,
     0x02, 0x7e, 0x7f, 0x01, 0x7f, 0x60, 0x01, 0x7e, 0x01, 0x7f, 0x60, 0x03,
@@ -204,7 +231,7 @@ std::array<WasmEdge::Byte, 255> AtomicThreads64{
 
 using namespace std::literals;
 
-TEST(AtomicWaitNotify, Memory32) {
+TEST(ThreadTest, AtomicWaitNotifyMemory32) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Threads);
   WasmEdge::VM::VM VM(Conf);
@@ -324,7 +351,7 @@ TEST(AtomicWaitNotify, Memory32) {
   }
 }
 
-TEST(AtomicWaitNotify, Memory64) {
+TEST(ThreadTest, AtomicWaitNotifyMemory64) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Threads);
   WasmEdge::VM::VM VM(Conf);
@@ -557,7 +584,7 @@ TEST(AtomicWaitNotify, Memory64) {
   }
 }
 
-TEST(AsyncExecute, ThreadTest) {
+TEST(ThreadTest, AsyncExecute) {
   WasmEdge::Configure Conf;
   WasmEdge::VM::VM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(MersenneTwister19937));
@@ -587,7 +614,7 @@ TEST(AsyncExecute, ThreadTest) {
   }
 }
 
-TEST(AsyncExecute, GasThreadTest) {
+TEST(ThreadTest, AsyncExecuteGas) {
   WasmEdge::Configure Conf;
   Conf.getStatisticsConfigure().setInstructionCounting(true);
   Conf.getStatisticsConfigure().setCostMeasuring(true);
@@ -622,7 +649,7 @@ TEST(AsyncExecute, GasThreadTest) {
 
 #ifdef WASMEDGE_USE_LLVM
 
-TEST(AtomicWaitNotifyJIT, Memory32) {
+TEST(ThreadTest, AtomicWaitNotifyJITMemory32) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Threads);
   Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::JIT);
@@ -758,7 +785,7 @@ TEST(AtomicWaitNotifyJIT, Memory32) {
   }
 }
 
-TEST(AtomicWaitNotifyJIT, Memory64) {
+TEST(ThreadTest, AtomicWaitNotifyJITMemory64) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Threads);
   Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::JIT);
@@ -1025,7 +1052,7 @@ TEST(AtomicWaitNotifyJIT, Memory64) {
   }
 }
 
-TEST(AOTAsyncExecute, ThreadTest) {
+TEST(ThreadTest, AOTAsyncExecute) {
   WasmEdge::Configure Conf;
   Conf.getCompilerConfigure().setInterruptible(true);
   Conf.getCompilerConfigure().setOutputFormat(
@@ -1076,7 +1103,7 @@ TEST(AOTAsyncExecute, ThreadTest) {
   EXPECT_NO_THROW(std::filesystem::remove(Path));
 }
 
-TEST(AOTAsyncExecute, GasThreadTest) {
+TEST(ThreadTest, AOTAsyncExecuteGas) {
   WasmEdge::Configure Conf;
   Conf.getCompilerConfigure().setInterruptible(true);
   Conf.getStatisticsConfigure().setInstructionCounting(true);

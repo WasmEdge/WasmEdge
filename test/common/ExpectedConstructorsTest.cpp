@@ -16,7 +16,7 @@ struct takes_init_and_variadic {
       : v(l), t(std::forward<Args>(args)...) {}
 };
 
-TEST(ConstructorsTest, Constructors) {
+TEST(ExpectedConstructorsTest, Constructors) {
   {
     cxx20::expected<int, int> e;
     EXPECT_TRUE(e);

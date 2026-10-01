@@ -15,7 +15,7 @@
 #include <cstdint>
 #include <string>
 
-TEST(HostMockTest, WasiCrypto) {
+TEST(MockTest, WasiCrypto) {
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
   std::array<WasmEdge::ValVariant, 1> Errno;
@@ -430,7 +430,7 @@ TEST(HostMockTest, WasiCrypto) {
   }
 }
 
-TEST(HostMockTest, WasiNN) {
+TEST(MockTest, WasiNN) {
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
   std::array<WasmEdge::ValVariant, 1> Errno;
@@ -462,7 +462,7 @@ TEST(HostMockTest, WasiNN) {
   EXPECT_EQ(WasiNNModule.getFuncExportNum(), 5U);
 }
 
-TEST(HostMockTest, WasiLogging) {
+TEST(MockTest, WasiLogging) {
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
@@ -476,7 +476,7 @@ TEST(HostMockTest, WasiLogging) {
   EXPECT_EQ(WasiLoggingModule.getFuncExportNum(), 1U);
 }
 
-TEST(HostMockTest, WasmEdgeTensorflow) {
+TEST(MockTest, WasmEdgeTensorflow) {
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
   std::array<WasmEdge::ValVariant, 1> Errno;
@@ -529,7 +529,7 @@ TEST(HostMockTest, WasmEdgeTensorflow) {
   EXPECT_EQ(TensorflowModule.getFuncExportNum(), 10U);
 }
 
-TEST(HostMockTest, WasmEdgeTensorflowLite) {
+TEST(MockTest, WasmEdgeTensorflowLite) {
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
   std::array<WasmEdge::ValVariant, 1> Errno;
@@ -570,7 +570,7 @@ TEST(HostMockTest, WasmEdgeTensorflowLite) {
   EXPECT_EQ(TensorflowLiteModule.getFuncExportNum(), 7U);
 }
 
-TEST(HostMockTest, WasmEdgeImage) {
+TEST(MockTest, WasmEdgeImage) {
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
   std::array<WasmEdge::ValVariant, 1> Errno;

@@ -40,27 +40,6 @@ TEST(TypeTest, LoadFunctionType) {
   Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
   WasmEdge::Loader::Loader LdrWASM1(Conf);
 
-  // 1. Test load function type.
-  //
-  //   1.  Load invalid empty function type.
-  //   2.  Load invalid types of function type.
-  //   3.  Load void parameter and result function type.
-  //   4.  Load non-void parameter function type.
-  //   5.  Load non-void result function type.
-  //   6.  Load function type with parameters and result.
-  //   7.  Load invalid parameters with unexpected end.
-  //   8.  Load invalid results with unexpected end.
-  //   9.  Load invalid parameters with invalid value types.
-  //   10. Load invalid results with invalid value types.
-  //   11. Load invalid parameters with ExternRef without Ref-Types proposal.
-  //   12. Load invalid results with ExternRef without Ref-Types proposal.
-  //   13. Load invalid parameters with invalid value types without Ref-Types
-  //       proposal.
-  //   14. Load invalid results with invalid value types without Ref-Types
-  //       proposal.
-  //   15. Load invalid function type with multi-value returns without
-  //       Multi-Value proposal.
-
   Vec = {
       0x01U, // Type section
       0x01U, // Content size = 1
@@ -235,17 +214,6 @@ TEST(TypeTest, LoadTableType) {
   Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
   WasmEdge::Loader::Loader LdrWASM1(Conf);
 
-  // 3. Test load table type, which is reference type and limit.
-  //
-  //   1.  Load invalid empty table type.
-  //   2.  Load invalid reference type.
-  //   3.  Load invalid types of limit in table type.
-  //   4.  Load limit with only min.
-  //   5.  Load invalid limit that fails while loading max.
-  //   6.  Load limit with min and max.
-  //   7.  Load invalid ExternRef without Ref-Types proposal.
-  //   8.  Load invalid reference type without Ref-Types proposal.
-
   Vec = {
       0x04U, // Table section
       0x01U, // Content size = 1
@@ -330,14 +298,6 @@ TEST(TypeTest, LoadTableType) {
 TEST(TypeTest, LoadMemoryType) {
   std::vector<uint8_t> Vec;
 
-  // 2. Test load memory type, which is limit.
-  //
-  //   1.  Load invalid empty limit.
-  //   2.  Load invalid types of limit.
-  //   3.  Load limit with only min.
-  //   4.  Load invalid limit that fails while loading max.
-  //   5.  Load limit with min and max.
-
   Vec = {
       0x05U, // Memory section
       0x01U, // Content size = 1
@@ -390,15 +350,6 @@ TEST(TypeTest, LoadGlobalType) {
 
   Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
   WasmEdge::Loader::Loader LdrWASM1(Conf);
-
-  // 4. Test load global type.
-  //
-  //   1.  Load invalid empty global type.
-  //   2.  Load invalid global type without mutation.
-  //   3.  Load invalid value type of global type.
-  //   4.  Load invalid mutation of global type.
-  //   5.  Load valid global type.
-  //   6.  Load invalid global type with ExternRef without Ref-Types proposal.
 
   Vec = {
       0x06U, // Global section
@@ -461,13 +412,6 @@ TEST(TypeTest, LoadHeapType) {
 
   Conf.setWASMStandard(WasmEdge::Standard::WASM_2);
   WasmEdge::Loader::Loader LdrWASM2(Conf);
-
-  // 5. Test load heap type.
-  //
-  //   1.  Load invalid empty heap type.
-  //   2.  Load invalid heap type with unknown heap type code.
-  //   3.  Load invalid heap type with type index with/without typed function
-  //       references proposal.
 
   Vec = {
       0x06U,        // Global section

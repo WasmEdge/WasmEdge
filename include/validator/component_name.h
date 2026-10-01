@@ -21,24 +21,17 @@ public:
     Method,
     Static,
     InterfaceType,
-    Label,
-    LockedDep,
-    UnlockedDep,
-    Url,
-    Integrity
+    Label
   };
 
   /// Fragments as views into the input; the kind decides which are set.
   struct Detail {
-    std::string_view Resource;     // Constructor, Method, Static
-    std::string_view Method;       // Method, Static
-    std::string_view Namespace;    // InterfaceType, LockedDep, UnlockedDep
-    std::string_view Package;      // InterfaceType, LockedDep, UnlockedDep
-    std::string_view Interface;    // InterfaceType
-    std::string_view Version;      // InterfaceType, LockedDep
-    std::string_view VersionRange; // UnlockedDep
-    std::string_view Url;          // Url
-    std::string_view Integrity;    // LockedDep, Url, Integrity
+    std::string_view Resource;  // Constructor, Method, Static
+    std::string_view Method;    // Method, Static
+    std::string_view Namespace; // InterfaceType
+    std::string_view Package;   // InterfaceType
+    std::string_view Interface; // InterfaceType
+    std::string_view Version;   // InterfaceType
   };
 
   /// Returns true if Input is a label: <first-fragment> ( '-' <fragment> )*.
@@ -63,24 +56,15 @@ private:
 
   // One member per production, consuming the rest after its leading tag.
   Expect<void> parsePlainName() noexcept;
-  Expect<void> parseUnlockedDep() noexcept;
-  Expect<void> parseLockedDep() noexcept;
-  Expect<void> parseUrlName() noexcept;
-  Expect<void> parseHashName() noexcept;
   Expect<void> parseInterfaceName() noexcept;
-  Expect<void> parsePkgPath(std::string_view StopChars) noexcept;
-  Expect<std::string_view> parseIntegrityBody() noexcept;
-  Expect<std::string_view> parseIntegritySuffix() noexcept;
 
   // Grammar checks over a substring; the semver scanners stay unlogged.
   Expect<void> checkWordsLabel(std::string_view Label,
                                std::string_view What) const noexcept;
-  Expect<void> checkVersionRange(std::string_view Body) const noexcept;
   bool isCanonVersion(std::string_view V) const noexcept;
   Expect<void> scanSemver(std::string_view V) const noexcept;
   Expect<void> scanSemverIdentifiers(std::string_view Idents,
                                      bool CheckLeadingZeros) const noexcept;
-  Expect<void> checkIntegrityMetadata(std::string_view Input) const noexcept;
 
   std::string_view OriName;
   std::string_view NoTagName;

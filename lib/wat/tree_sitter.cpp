@@ -1,0 +1,311 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "tree_sitter.h"
+
+#include <tree_sitter/api.h>
+
+#include <algorithm>
+#include <cstring>
+#include <limits>
+#include <utility>
+
+namespace WasmEdge {
+namespace WAT {
+
+static TSNode &nodeRef(unsigned char *S) {
+  return *reinterpret_cast<TSNode *>(S);
+}
+static const TSNode &nodeRef(const unsigned char *S) {
+  return *reinterpret_cast<const TSNode *>(S);
+}
+
+Node::Node() {
+  static_assert(sizeof(TSNode) <= sizeof(Storage),
+                "Node::Storage too small for TSNode");
+  std::memset(Storage, 0, sizeof(Storage));
+}
+
+// Every accessor is null-safe. The tree-sitter functions dereference the node
+// id. Cursor::node() gives a null node at the end of the children. child()
+// gives one for an index that is out of range, and parent() gives one at the
+// root. A null node reads as an empty leaf with no text.
+
+std::string_view Node::type() const {
+  if (isNull()) {
+    return {};
+  }
+  const char *T = ts_node_type(nodeRef(Storage));
+  return T ? std::string_view(T) : std::string_view();
+}
+
+std::string_view Node::text(std::string_view Source) const {
+  if (isNull()) {
+    return {};
+  }
+  uint32_t Start = startByte();
+  uint32_t End = endByte();
+  if (Start >= Source.size() || End > Source.size() || Start >= End) {
+    return {};
+  }
+  return std::string_view(Source.data() + Start, End - Start);
+}
+
+uint32_t Node::startByte() const {
+  return isNull() ? 0 : ts_node_start_byte(nodeRef(Storage));
+}
+uint32_t Node::endByte() const {
+  return isNull() ? 0 : ts_node_end_byte(nodeRef(Storage));
+}
+uint32_t Node::startRow() const {
+  return isNull() ? 0 : ts_node_start_point(nodeRef(Storage)).row;
+}
+
+uint32_t Node::childCount() const {
+  return isNull() ? 0 : ts_node_child_count(nodeRef(Storage));
+}
+uint32_t Node::namedChildCount() const {
+  return isNull() ? 0 : ts_node_named_child_count(nodeRef(Storage));
+}
+
+Node Node::child(uint32_t Index) const {
+  Node Result;
+  if (!isNull()) {
+    nodeRef(Result.Storage) = ts_node_child(nodeRef(Storage), Index);
+  }
+  return Result;
+}
+Node Node::namedChild(uint32_t Index) const {
+  Node Result;
+  if (!isNull()) {
+    nodeRef(Result.Storage) = ts_node_named_child(nodeRef(Storage), Index);
+  }
+  return Result;
+}
+Node Node::parent() const {
+  Node Result;
+  if (!isNull()) {
+    nodeRef(Result.Storage) = ts_node_parent(nodeRef(Storage));
+  }
+  return Result;
+}
+
+bool Node::isNull() const { return ts_node_is_null(nodeRef(Storage)); }
+bool Node::isNamed() const {
+  return !isNull() && ts_node_is_named(nodeRef(Storage));
+}
+bool Node::hasError() const {
+  return !isNull() && ts_node_has_error(nodeRef(Storage));
+}
+
+void Node::collectLeaves(std::vector<Node> &Leaves,
+                         std::vector<Node> &Annotations) const {
+  using std::literals::operator""sv;
+  // Use a tree-sitter cursor, because it moves to the next sibling in O(1)
+  // time. An indexed child access needs O(i) time for each call, so a simple
+  // walk needs O(n^2) time on a wide tree. A deep error-recovery node makes
+  // such a wide tree.
+  const TSNode &Root = nodeRef(Storage);
+  if (ts_node_child_count(Root) == 0) {
+    Leaves.push_back(*this);
+    return;
+  }
+  TSTreeCursor Cursor = ts_tree_cursor_new(Root);
+  // Descend to the leftmost leaf.
+  while (ts_tree_cursor_goto_first_child(&Cursor)) {
+  }
+  // Walk all the leaves. Move to the next sibling, then descend.
+  for (;;) {
+    TSNode Current = ts_tree_cursor_current_node(&Cursor);
+    if (ts_node_child_count(Current) == 0) {
+      Node Leaf;
+      nodeRef(Leaf.Storage) = Current;
+      if (ts_node_type(Current) == "annotation"sv) {
+        Annotations.push_back(Leaf);
+      } else {
+        Leaves.push_back(Leaf);
+      }
+    }
+    // Move to the next sibling. If there is no sibling, ascend first.
+    if (ts_tree_cursor_goto_next_sibling(&Cursor)) {
+      // Descend to the leftmost leaf of this sibling.
+      while (ts_tree_cursor_goto_first_child(&Cursor)) {
+      }
+    } else {
+      // Ascend. The walk is complete at the root level.
+      bool Found = false;
+      while (ts_tree_cursor_goto_parent(&Cursor)) {
+        TSNode Parent = ts_tree_cursor_current_node(&Cursor);
+        if (ts_node_eq(Parent, Root)) {
+          break;
+        }
+        if (ts_tree_cursor_goto_next_sibling(&Cursor)) {
+          while (ts_tree_cursor_goto_first_child(&Cursor)) {
+          }
+          Found = true;
+          break;
+        }
+      }
+      if (!Found) {
+        break;
+      }
+    }
+  }
+  ts_tree_cursor_delete(&Cursor);
+}
+// --- Cursor ---
+
+static TSTreeCursor &cursorRef(unsigned char *S) {
+  return *reinterpret_cast<TSTreeCursor *>(S);
+}
+static const TSTreeCursor &cursorRef(const unsigned char *S) {
+  return *reinterpret_cast<const TSTreeCursor *>(S);
+}
+
+static bool shouldSkip(TSNode N) {
+  using std::literals::operator""sv;
+  if (!ts_node_is_named(N)) {
+    return true;
+  }
+  // Skip the annotation extras. The conversion ignores them.
+  const char *T = ts_node_type(N);
+  if (T == "annotation"sv) {
+    return true;
+  }
+  return false;
+}
+
+void Cursor::skip() {
+  while (Valid &&
+         shouldSkip(ts_tree_cursor_current_node(&cursorRef(Storage)))) {
+    Valid = ts_tree_cursor_goto_next_sibling(&cursorRef(Storage));
+  }
+}
+
+Cursor::Cursor() : Storage{}, Valid(false) {
+  static_assert(sizeof(TSTreeCursor) <= sizeof(Storage),
+                "Cursor::Storage too small for TSTreeCursor");
+}
+
+Cursor::Cursor(Node Parent) : Storage{}, Valid(false) {
+  // A cursor on a null node stays at the end. ts_tree_cursor_new dereferences
+  // the node, so it must not see a null node. The zero storage is safe for
+  // ts_tree_cursor_delete, as in the move constructor.
+  if (Parent.isNull()) {
+    return;
+  }
+  cursorRef(Storage) = ts_tree_cursor_new(nodeRef(Parent.Storage));
+  Valid = ts_tree_cursor_goto_first_child(&cursorRef(Storage));
+  if (Valid) {
+    skip();
+  }
+}
+
+Cursor::~Cursor() { ts_tree_cursor_delete(&cursorRef(Storage)); }
+
+void Cursor::steal(Cursor &Other) noexcept {
+  std::copy(Other.Storage, Other.Storage + sizeof(Storage), Storage);
+  // Fill the source with zeros, so that its destructor does not free the
+  // stack.
+  std::fill(Other.Storage, Other.Storage + sizeof(Other.Storage),
+            static_cast<uint8_t>(0));
+  Valid = std::exchange(Other.Valid, false);
+}
+
+Cursor::Cursor(Cursor &&Other) noexcept { steal(Other); }
+
+Cursor &Cursor::operator=(Cursor &&Other) noexcept {
+  if (this != &Other) {
+    ts_tree_cursor_delete(&cursorRef(Storage));
+    steal(Other);
+  }
+  return *this;
+}
+
+Cursor Cursor::copy() const {
+  Cursor Result;
+  cursorRef(Result.Storage) = ts_tree_cursor_copy(&cursorRef(Storage));
+  Result.Valid = Valid;
+  return Result;
+}
+
+Node Cursor::node() const {
+  if (!Valid) {
+    return Node{};
+  }
+  Node Result;
+  nodeRef(Result.Storage) = ts_tree_cursor_current_node(&cursorRef(Storage));
+  return Result;
+}
+
+bool Cursor::valid() const { return Valid; }
+
+bool Cursor::next() {
+  if (!Valid) {
+    return false;
+  }
+  Valid = ts_tree_cursor_goto_next_sibling(&cursorRef(Storage));
+  if (Valid) {
+    skip();
+  }
+  return Valid;
+}
+
+// --- Tree ---
+struct Tree::Impl {
+  TSTree *Raw;
+  ~Impl() {
+    if (Raw)
+      ts_tree_delete(Raw);
+  }
+};
+
+Tree::Tree(TSTree *RawTree) : Pimpl(std::make_unique<Impl>()) {
+  Pimpl->Raw = RawTree;
+}
+Tree::~Tree() = default;
+Tree::Tree(Tree &&Other) noexcept = default;
+Tree &Tree::operator=(Tree &&Other) noexcept = default;
+
+Node Tree::rootNode() const {
+  // A call to ts_tree_root_node(nullptr) is undefined behavior. For a null
+  // tree, this function returns a null Node.
+  if (Pimpl->Raw == nullptr) {
+    return Node{};
+  }
+  Node Result;
+  nodeRef(Result.Storage) = ts_tree_root_node(Pimpl->Raw);
+  return Result;
+}
+
+// --- Parser ---
+struct Parser::Impl {
+  TSParser *Raw;
+  ~Impl() {
+    if (Raw)
+      ts_parser_delete(Raw);
+  }
+};
+
+Parser::Parser(LanguageFn Lang) : Pimpl(std::make_unique<Impl>()) {
+  Pimpl->Raw = ts_parser_new();
+  ts_parser_set_language(Pimpl->Raw, Lang());
+}
+Parser::~Parser() = default;
+Parser::Parser(Parser &&Other) noexcept = default;
+Parser &Parser::operator=(Parser &&Other) noexcept = default;
+
+Tree Parser::parse(std::string_view Source) const {
+  // Refuse input that is too large. The length parameter of
+  // ts_parser_parse_string is a uint32_t, and it truncates such input to a
+  // shorter prefix.
+  if (Source.size() > std::numeric_limits<uint32_t>::max()) {
+    return Tree(nullptr);
+  }
+  TSTree *RawTree = ts_parser_parse_string(
+      Pimpl->Raw, nullptr, Source.data(), static_cast<uint32_t>(Source.size()));
+  return Tree(RawTree);
+}
+
+} // namespace WAT
+} // namespace WasmEdge

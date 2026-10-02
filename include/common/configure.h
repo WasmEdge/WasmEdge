@@ -259,7 +259,8 @@ public:
   Configure(const Configure &RHS) noexcept
       : Proposals(RHS.Proposals), Hosts(RHS.Hosts),
         ForbiddenPlugins(RHS.ForbiddenPlugins), CompilerConf(RHS.CompilerConf),
-        RuntimeConf(RHS.RuntimeConf), StatisticsConf(RHS.StatisticsConf) {}
+        RuntimeConf(RHS.RuntimeConf), StatisticsConf(RHS.StatisticsConf),
+        EnableWAT(RHS.EnableWAT) {}
 
   void addProposal(const Proposal Type) noexcept {
     std::unique_lock Lock(Mutex);
@@ -349,6 +350,19 @@ public:
     return ForbiddenPlugins.find(PluginName) != ForbiddenPlugins.end();
   }
 
+  /// The WebAssembly text format loader is experimental. The loader reads
+  /// WAT text only when this flag is on. The default is off, and
+  /// setWASMStandard does not change it.
+  void setEnableWAT(bool IsEnableWAT) noexcept {
+    std::unique_lock Lock(Mutex);
+    EnableWAT = IsEnableWAT;
+  }
+
+  bool isEnableWAT() const noexcept {
+    std::shared_lock Lock(Mutex);
+    return EnableWAT;
+  }
+
   bool hasHostRegistration(const HostRegistration Host) const noexcept {
     std::shared_lock Lock(Mutex);
     return Hosts.test(static_cast<uint8_t>(Host));
@@ -419,9 +433,11 @@ public:
       if (unlikely(!hasProposal(Proposal::TailCall))) {
         return Proposal::TailCall;
       }
-    } else if (Code >= OpCode::I32__atomic__load &&
+    } else if (Code >= OpCode::Memory__atomic__notify &&
                Code <= OpCode::I64__atomic__rmw32__cmpxchg_u) {
-      // These instructions are for Thread proposal.
+      // These instructions are for Thread proposal. The range starts at
+      // memory.atomic.notify, so that it also covers memory.atomic.wait32,
+      // memory.atomic.wait64, and atomic.fence.
       if (!hasProposal(Proposal::Threads)) {
         return Proposal::Threads;
       }
@@ -482,6 +498,7 @@ private:
   CompilerConfigure CompilerConf;
   RuntimeConfigure RuntimeConf;
   StatisticsConfigure StatisticsConf;
+  bool EnableWAT = false;
 };
 
 } // namespace WasmEdge

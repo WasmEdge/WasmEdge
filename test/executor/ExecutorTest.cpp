@@ -16,10 +16,13 @@
 
 #include "common/filesystem.h"
 #include "common/spdlog.h"
+#include "loader/loader.h"
+#include "validator/validator.h"
 #include "vm/vm.h"
 
 #include "../spec/hostfunc.h"
 #include "../spec/spectest.h"
+#include "../spec/vmcallback.h"
 
 #include <gtest/gtest.h>
 
@@ -47,13 +50,19 @@ static SpecTest T(u8path("../spec/testSuites"sv));
 class CoreTest : public testing::TestWithParam<std::string> {};
 
 TEST_P(CoreTest, TestSuites) {
-  const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
-  const auto &ConfRef = Conf;
+  const auto [Proposal, Config, UnitName] = T.resolve(GetParam());
+  const auto &ConfRef = Config;
 
   // Define context structure
   struct TestContext {
     WasmEdge::SpecTestModule SpecTestMod;
     WasmEdge::VM::VM VM;
+    // Keep the component instances alive for the full test. The VM pipeline
+    // does not support the Component Model yet. As a result, this structure
+    // owns the instances, and VM.ActiveCompInst does not control their
+    // lifetime.
+    std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+        CompInsts;
     TestContext(const WasmEdge::Configure &C) : VM(C) {
       VM.registerModule(SpecTestMod);
     }
@@ -83,110 +92,81 @@ TEST_P(CoreTest, TestSuites) {
     delete static_cast<TestContext *>(Ctx);
   };
 
-  T.onModule = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
-                  const std::string &FileName) -> Expect<void> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    if (!ModName.empty()) {
-      // registerModule only supports core wasm modules. If it fails (e.g.
-      // because the file is a component), fall back to
-      // load/validate/instantiate.
-      if (auto Res = VM.registerModule(ModName, FileName); Res) {
-        return {};
-      }
-    }
-    if (T.SkipComponentValidation) {
-      // For component-model tests where validation is not yet supported,
-      // skip validation by force-setting the stage as validated.
-      return VM.loadWasm(FileName)
-          .and_then([&VM]() { return VM.forceValidateForComponent(); })
-          .and_then([&VM]() { return VM.instantiate(); });
+  T.onParse =
+      [](SpecTest::ContextHandle Ctx, std::string_view Source,
+         Wast::ModuleType Type,
+         const WasmEdge::Configure &Conf) -> Expect<SpecTest::WasmUnit> {
+    (void)Ctx;
+    if (Type == Wast::ModuleType::BinaryFile ||
+        Type == Wast::ModuleType::TextFile) {
+      // The source is a path to a .wasm file or to a .wat file. Parse it
+      // with the Loader, which gives a wasm unit.
+      WasmEdge::Loader::Loader Ld(Conf);
+      EXPECTED_TRY(auto ASTUnit, Ld.parseWasmUnit(std::filesystem::path(
+                                     std::string(Source))));
+      return ASTUnit;
     } else {
-      return VM.loadWasm(FileName)
+      // The source is raw binary bytes, or inline WAT text that the JSON mode
+      // does not use. The loader parses both.
+      WasmEdge::Loader::Loader Ld(Conf);
+      EXPECTED_TRY(auto ModPtr,
+                   Ld.parseModule(Span<const uint8_t>(
+                       reinterpret_cast<const uint8_t *>(Source.data()),
+                       Source.size())));
+      return SpecTest::WasmUnit(std::move(ModPtr));
+    }
+  };
+
+  T.onValidate = [](SpecTest::ContextHandle Ctx,
+                    SpecTest::WasmUnit &Unit) -> Expect<void> {
+    return SpecTestVM::validate(static_cast<TestContext *>(Ctx)->VM, Unit);
+  };
+
+  T.onInstantiate = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+                       const SpecTest::WasmUnit &Unit) -> Expect<void> {
+    auto *TC = static_cast<TestContext *>(Ctx);
+    auto &VM = TC->VM;
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(Unit)) {
+      auto &ASTMod = *std::get<std::unique_ptr<AST::Module>>(Unit);
+      if (!ModName.empty()) {
+        return VM.registerModule(ModName, ASTMod);
+      }
+      return VM.loadWasm(ASTMod)
           .and_then([&VM]() { return VM.validate(); })
           .and_then([&VM]() { return VM.instantiate(); });
     }
-  };
-  T.onLoad = [](SpecTest::ContextHandle Ctx,
-                const std::string &FileName) -> Expect<void> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    return VM.loadWasm(FileName);
-  };
-  T.onValidate = [](SpecTest::ContextHandle Ctx,
-                    const std::string &FileName) -> Expect<void> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    return VM.loadWasm(FileName).and_then([&VM]() { return VM.validate(); });
-  };
-  T.onModuleDefine =
-      [](SpecTest::ContextHandle Ctx,
-         const std::string &FileName) -> Expect<SpecTest::WasmUnit> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    Loader::Loader &Loader = VM.getLoader();
-    Validator::Validator &Validator = VM.getValidator();
-    EXPECTED_TRY(auto ASTUnit, Loader.parseWasmUnit(FileName));
-    if (std::holds_alternative<std::unique_ptr<AST::Module>>(ASTUnit)) {
-      auto &ASTMod = std::get<std::unique_ptr<AST::Module>>(ASTUnit);
-      EXPECTED_TRY(Validator.validate(*ASTMod.get()));
-    } else if (!T.SkipComponentValidation) {
-      auto &ASTComp =
-          std::get<std::unique_ptr<AST::Component::Component>>(ASTUnit);
-      EXPECTED_TRY(Validator.validate(*ASTComp.get()));
+    // This is the component path. The VM has no loadWasm(Component)
+    // overload, because a copy of an AST::Component::Component is not
+    // possible. A ComponentSection owns a unique_ptr<Component>. As a result,
+    // this code calls the Executor directly.
+    auto &ASTComp = *std::get<std::unique_ptr<AST::Component::Component>>(Unit);
+    if (T.SkipComponentValidation) {
+      // This code does the same as VM::forceValidateForComponent. It sets
+      // the validated flag, so that the instantiation continues on input
+      // that no validator examined.
+      const_cast<AST::Component::Component &>(ASTComp).setIsValidated();
     }
-    return ASTUnit;
+    auto &Exec = VM.getExecutor();
+    auto &Store = VM.getStoreManager();
+    auto Res = ModName.empty()
+                   ? Exec.instantiateComponent(Store, ASTComp)
+                   : Exec.registerComponent(Store, ASTComp, ModName);
+    if (!Res) {
+      return Unexpect(Res.error());
+    }
+    TC->CompInsts.push_back(std::move(*Res));
+    return {};
   };
-  T.onInstanceFromDef = [](SpecTest::ContextHandle Ctx,
-                           const std::string &ModName,
-                           const AST::Module &ASTMod) -> Expect<void> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    return VM.registerModule(ModName, ASTMod);
-  };
-  T.onInstantiate = [](SpecTest::ContextHandle Ctx,
-                       const std::string &FileName) -> Expect<void> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    return VM.loadWasm(FileName)
-        .and_then([&VM]() { return VM.validate(); })
-        .and_then([&VM]() { return VM.instantiate(); });
-  };
-  // Helper function to call functions.
   T.onInvoke = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
                   const std::string &Field,
                   const std::vector<ValVariant> &Params,
-                  const std::vector<ValType> &ParamTypes)
-      -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    if (!ModName.empty()) {
-      // Invoke function of named module. Named modules are registered in Store
-      // Manager.
-      return VM.execute(ModName, Field, Params, ParamTypes);
-    } else {
-      // Invoke function of anonymous module. Anonymous modules are instantiated
-      // in the VM.
-      return VM.execute(Field, Params, ParamTypes);
-    }
+                  const std::vector<ValType> &ParamTypes) {
+    return SpecTestVM::invoke(static_cast<TestContext *>(Ctx)->VM, ModName,
+                              Field, Params, ParamTypes);
   };
-  // Helper function to get values.
-  T.onGet =
-      [](SpecTest::ContextHandle Ctx, const std::string &ModName,
-         const std::string &Field) -> Expect<std::pair<ValVariant, ValType>> {
-    auto &VM = static_cast<TestContext *>(Ctx)->VM;
-    // Get module instance.
-    const WasmEdge::Runtime::Instance::ModuleInstance *ModInst = nullptr;
-    if (ModName.empty()) {
-      ModInst = VM.getActiveModule();
-    } else {
-      ModInst = VM.getStoreManager().findModule(ModName);
-    }
-    if (ModInst == nullptr) {
-      return Unexpect(ErrCode::Value::WrongInstanceAddress);
-    }
-
-    // Get global instance.
-    WasmEdge::Runtime::Instance::GlobalInstance *GlobInst =
-        ModInst->findGlobalExports(Field);
-    if (unlikely(GlobInst == nullptr)) {
-      return Unexpect(ErrCode::Value::WrongInstanceAddress);
-    }
-    return std::make_pair(GlobInst->getValue(),
-                          GlobInst->getGlobalType().getValType());
+  T.onGet = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+               const std::string &Field) {
+    return SpecTestVM::get(static_cast<TestContext *>(Ctx)->VM, ModName, Field);
   };
 
   T.run(Proposal, UnitName);

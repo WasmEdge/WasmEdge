@@ -55,6 +55,7 @@ WasmEdge_ConfigureContext *createConf(const Configure &Conf) {
   WasmEdge_ConfigureSetRunMode(
       Cxt,
       static_cast<WasmEdge_RunMode>(Conf.getRuntimeConfigure().getRunMode()));
+  WasmEdge_ConfigureSetEnableWAT(Cxt, Conf.isEnableWAT());
   return Cxt;
 }
 

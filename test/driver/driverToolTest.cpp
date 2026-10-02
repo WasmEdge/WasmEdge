@@ -139,6 +139,16 @@ static const std::array<uint8_t, 127> SimpleWasm{
     0x02, 0x05, 0x02, 0x00, 0x00, 0x01, 0x00, 0x07, 0x0a, 0x01, 0x00, 0x07,
     0x63, 0x6f, 0x75, 0x6e, 0x74, 0x65, 0x72};
 
+// numeric.wasm: exports add64 (param i64 i64) (result i64) and
+// addf (param f32 f64) (result f64).
+static const std::array<uint8_t, 66> NumericWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x02,
+    0x60, 0x02, 0x7e, 0x7e, 0x01, 0x7e, 0x60, 0x02, 0x7d, 0x7c, 0x01,
+    0x7c, 0x03, 0x03, 0x02, 0x00, 0x01, 0x07, 0x10, 0x02, 0x05, 0x61,
+    0x64, 0x64, 0x36, 0x34, 0x00, 0x00, 0x04, 0x61, 0x64, 0x64, 0x66,
+    0x00, 0x01, 0x0a, 0x12, 0x02, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01,
+    0x7c, 0x0b, 0x08, 0x00, 0x20, 0x00, 0xbb, 0x20, 0x01, 0xa0, 0x0b};
+
 // invalid.wasm: declares (func (result i32)) but body pushes two i32 values
 // without consuming the extra one, causing a type mismatch during validation.
 static const std::array<uint8_t, 29> InvalidWasm{
@@ -263,6 +273,15 @@ std::string simplePath() {
   static std::string Path;
   if (Path.empty()) {
     Path = writeWasmToFile(SimpleWasm.data(), SimpleWasm.size(), "simple.wasm");
+  }
+  return Path;
+}
+
+std::string numericPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path =
+        writeWasmToFile(NumericWasm.data(), NumericWasm.size(), "numeric.wasm");
   }
   return Path;
 }
@@ -959,8 +978,7 @@ TEST(InstantiateSubcommand, LinkerFlags) {
   EXPECT_EQ(callInstantiate({"--env", "HOME=/tmp", Path}), EXIT_SUCCESS);
   EXPECT_EQ(callInstantiate({"--memory-page-limit", "256", Path}),
             EXIT_SUCCESS);
-  EXPECT_EQ(callInstantiate({"--memory-page-limit", "-1", Path}),
-            EXIT_FAILURE);
+  EXPECT_EQ(callInstantiate({"--memory-page-limit", "-1", Path}), EXIT_FAILURE);
   EXPECT_EQ(callInstantiate({"--dir", ".:.", "--env", "HOME=/tmp",
                              "--memory-page-limit", "256", Path}),
             EXIT_SUCCESS);
@@ -1077,12 +1095,64 @@ TEST(RunSubcommand, RunSpecificFlags) {
   EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "256", Path, "add",
                      "1", "2"}),
             EXIT_SUCCESS);
-  EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "-1", Path, "add",
-                     "1", "2"}),
+  EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "-1", Path, "add", "1",
+                     "2"}),
             EXIT_FAILURE);
   EXPECT_EQ(callRun({"--reactor", "--stack-size-limit", "1048576", Path, "add",
                      "1", "2"}),
             EXIT_SUCCESS);
+}
+
+TEST(RunSubcommand, LimitFlagRanges) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callRun({"--reactor", "--gas-limit", "3000000000", Path, "add", "1",
+                     "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--time-limit", "18446744073709551615", Path,
+                     "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", "--gas-limit=-1", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", "--time-limit=-1", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(
+      callRun({"--reactor", "--memory-page-limit=-1", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+  EXPECT_NE(
+      callRun({"--reactor", "--stack-size-limit=-1", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+}
+
+TEST(RunSubcommand, ArgumentRanges) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callRun({"--reactor", Path, "add", "-2147483648", "4294967295"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", Path, "add", "4294967296", "1"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", Path, "add", "-2147483649", "1"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", Path, "add", "1.5", "1"}), EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", Path, "add", "1x", "1"}), EXIT_SUCCESS);
+
+  std::string NumPathStr = numericPath();
+  const char *NumPath = NumPathStr.c_str();
+  EXPECT_EQ(callRun({"--reactor", NumPath, "add64", "-9223372036854775808",
+                     "18446744073709551615"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(
+      callRun({"--reactor", NumPath, "add64", "18446744073709551616", "1"}),
+      EXIT_SUCCESS);
+  EXPECT_NE(
+      callRun({"--reactor", NumPath, "add64", "-9223372036854775809", "1"}),
+      EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", NumPath, "addf", "1.5", "-2.5e3"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", NumPath, "addf", "1.5x", "1"}), EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", NumPath, "addf", "1e39", "1"}), EXIT_SUCCESS);
 }
 
 TEST(RunSubcommand, LinkedModules) {

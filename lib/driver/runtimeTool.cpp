@@ -15,7 +15,9 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -67,6 +69,41 @@ bool parseNumericArg(const std::string &Value, size_t ParamIndex,
                   ParamIndex + 1, TypeName);
     return false;
   }
+}
+
+// Helpers to convert the integer arguments with the range checking.
+int32_t toI32(const std::string &S) {
+  // An i32 parameter takes both the signed and the unsigned ranges.
+  const auto Val = std::stoll(S);
+  if (Val < std::numeric_limits<int32_t>::min() ||
+      Val > std::numeric_limits<uint32_t>::max()) {
+    throw std::out_of_range("i32");
+  }
+  return static_cast<int32_t>(static_cast<uint32_t>(Val));
+}
+
+int32_t toS32(const std::string &S) {
+  const auto Val = std::stoll(S);
+  if (Val < std::numeric_limits<int32_t>::min() ||
+      Val > std::numeric_limits<int32_t>::max()) {
+    throw std::out_of_range("s32");
+  }
+  return static_cast<int32_t>(Val);
+}
+
+uint64_t toU64(const std::string &S) {
+  if (S.find('-') != std::string::npos) {
+    throw std::out_of_range("u64");
+  }
+  return std::stoull(S);
+}
+
+uint32_t toU32(const std::string &S) {
+  const auto Val = toU64(S);
+  if (Val > std::numeric_limits<uint32_t>::max()) {
+    throw std::out_of_range("u32");
+  }
+  return static_cast<uint32_t>(Val);
 }
 
 // Helper to parse the arguments beyond the function parameters.
@@ -129,12 +166,8 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
 
     switch (TCode) {
     case TypeCode::I32: {
-      if (!parseNumericArg(
-              ArgValue, I, "i32"sv,
-              [](const std::string &S) {
-                return static_cast<int32_t>(std::stol(S));
-              },
-              FuncArgs, FuncArgTypes, TCode)) {
+      if (!parseNumericArg(ArgValue, I, "i32"sv, toI32, FuncArgs, FuncArgTypes,
+                           TCode)) {
         return EXIT_FAILURE;
       }
       break;
@@ -254,23 +287,15 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
 
     switch (TCode) {
     case ComponentTypeCode::S32: {
-      if (!parseNumericArg(
-              ArgValue, I, "s32"sv,
-              [](const std::string &S) {
-                return static_cast<int32_t>(std::stol(S));
-              },
-              FuncArgs, FuncArgTypes, TCode)) {
+      if (!parseNumericArg(ArgValue, I, "s32"sv, toS32, FuncArgs, FuncArgTypes,
+                           TCode)) {
         return EXIT_FAILURE;
       }
       break;
     }
     case ComponentTypeCode::U32: {
-      if (!parseNumericArg(
-              ArgValue, I, "u32"sv,
-              [](const std::string &S) {
-                return static_cast<uint32_t>(std::stoul(S));
-              },
-              FuncArgs, FuncArgTypes, TCode)) {
+      if (!parseNumericArg(ArgValue, I, "u32"sv, toU32, FuncArgs, FuncArgTypes,
+                           TCode)) {
         return EXIT_FAILURE;
       }
       break;
@@ -287,12 +312,8 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
       break;
     }
     case ComponentTypeCode::U64: {
-      if (!parseNumericArg(
-              ArgValue, I, "u64"sv,
-              [](const std::string &S) {
-                return static_cast<uint64_t>(std::stoull(S));
-              },
-              FuncArgs, FuncArgTypes, TCode)) {
+      if (!parseNumericArg(ArgValue, I, "u64"sv, toU64, FuncArgs, FuncArgTypes,
+                           TCode)) {
         return EXIT_FAILURE;
       }
       break;
@@ -326,12 +347,8 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
       break;
     }
   }
-  if (!parseExtraArgs(
-          Opt.Args.value(), FuncType.getParamList().size(), "u64"sv,
-          [](const std::string &S) {
-            return static_cast<uint64_t>(std::stoull(S));
-          },
-          FuncArgs, FuncArgTypes, ComponentTypeCode::U64)) {
+  if (!parseExtraArgs(Opt.Args.value(), FuncType.getParamList().size(), "u64"sv,
+                      toU64, FuncArgs, FuncArgTypes, ComponentTypeCode::U64)) {
     return EXIT_FAILURE;
   }
 
@@ -381,17 +398,19 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
 
   std::optional<std::chrono::system_clock::time_point> Timeout;
   if (Opt.TimeLim.value() > 0) {
-    Timeout = std::chrono::system_clock::now() +
-              std::chrono::milliseconds(Opt.TimeLim.value());
+    // A limit beyond the range of the clock never expires.
+    const auto Now = std::chrono::system_clock::now();
+    const auto Remain = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::time_point::max() - Now);
+    if (Opt.TimeLim.value() < static_cast<uint64_t>(Remain.count())) {
+      Timeout = Now + std::chrono::milliseconds(Opt.TimeLim.value());
+    }
   }
   if (Opt.GasLim.value().size() > 0) {
     Conf.getStatisticsConfigure().setCostMeasuring(true);
-    Conf.getStatisticsConfigure().setCostLimit(
-        static_cast<uint32_t>(Opt.GasLim.value().back()));
+    Conf.getStatisticsConfigure().setCostLimit(Opt.GasLim.value().back());
   }
-  if (!setMemoryPageLimit(Opt, Conf)) {
-    return EXIT_FAILURE;
-  }
+  setMemoryPageLimit(Opt, Conf);
   Conf.getRuntimeConfigure().setMaxStackSize(Opt.StackLim.value());
   setStatisticsConfigure(Opt, Conf);
   // Determine the effective run mode.

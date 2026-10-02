@@ -161,17 +161,11 @@ getInputPath(const struct DriverToolOptions &Opt) noexcept {
   return std::filesystem::absolute(u8path(Opt.SoName.value()));
 }
 
-bool setMemoryPageLimit(const struct DriverToolOptions &Opt,
+void setMemoryPageLimit(const struct DriverToolOptions &Opt,
                         Configure &Conf) noexcept {
   if (Opt.MemLim.value().size() > 0) {
-    if (Opt.MemLim.value().back() < 0) {
-      spdlog::error("--memory-page-limit value cannot be negative."sv);
-      return false;
-    }
-    Conf.getRuntimeConfigure().setMaxMemoryPage(
-        static_cast<uint32_t>(Opt.MemLim.value().back()));
+    Conf.getRuntimeConfigure().setMaxMemoryPage(Opt.MemLim.value().back());
   }
-  return true;
 }
 
 bool registerLinkedModules(const struct DriverToolOptions &Opt,

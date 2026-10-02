@@ -112,8 +112,8 @@ struct DriverToolOptions : public DriverProposalOptions,
   PO::Option<std::string> ConfRunMode;
   PO::Option<PO::Toggle> ConfAFUNIX;
   PO::Option<uint64_t> TimeLim;
-  PO::List<int> GasLim;
-  PO::List<int> MemLim;
+  PO::List<uint64_t> GasLim;
+  PO::List<uint64_t> MemLim;
   PO::Option<uint64_t> StackLim;
   PO::List<std::string> LinkedModules;
   PO::List<std::string> ForbiddenPlugins;
@@ -173,7 +173,7 @@ Configure createConfigure(const struct DriverToolOptions &Opt) noexcept;
 std::optional<RunMode> parseRunModeArg(std::string_view S) noexcept;
 std::optional<std::filesystem::path>
 getInputPath(const struct DriverToolOptions &Opt) noexcept;
-bool setMemoryPageLimit(const struct DriverToolOptions &Opt,
+void setMemoryPageLimit(const struct DriverToolOptions &Opt,
                         Configure &Conf) noexcept;
 bool registerLinkedModules(const struct DriverToolOptions &Opt,
                            VM::VM &VM) noexcept;

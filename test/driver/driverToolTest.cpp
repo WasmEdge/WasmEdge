@@ -1038,6 +1038,40 @@ TEST(RunSubcommand, RunSpecificFlags) {
             EXIT_SUCCESS);
 }
 
+TEST(RunSubcommand, LimitFlagRanges) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callRun({"--reactor", "--gas-limit", "3000000000", Path, "add", "1",
+                     "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--time-limit", "18446744073709551615", Path,
+                     "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", "--gas-limit=-1", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", "--time-limit=-1", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(
+      callRun({"--reactor", "--memory-page-limit=-1", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+  EXPECT_NE(
+      callRun({"--reactor", "--stack-size-limit=-1", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+}
+
+TEST(RunSubcommand, ArgumentRanges) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callRun({"--reactor", Path, "add", "-2147483648", "4294967295"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", Path, "add", "4294967296", "1"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", Path, "add", "-2147483649", "1"}),
+            EXIT_SUCCESS);
+}
+
 TEST(RunSubcommand, LinkedModules) {
   std::string ProvPath = providerPath();
   std::string ConsPath = consumerPath();

@@ -6,6 +6,7 @@
 #include "po/option.h"
 #include <cctype>
 #include <cstddef>
+#include <cstdint>
 #include <gtest/gtest.h>
 #include <string>
 #include <string_view>
@@ -49,6 +50,19 @@ public:
   List<std::string> F;
   ArgumentParser Parser;
 };
+
+TEST(UnsignedOptions, RejectNegative) {
+  Option<uint64_t> N(Description("n option"sv), DefaultValue<uint64_t>(0));
+  ArgumentParser Parser;
+  Parser.add_option("n"sv, N);
+
+  std::vector<const char *> Max = {"test", "--n=18446744073709551615"};
+  EXPECT_TRUE(Parser.parse(stdout, static_cast<int>(Max.size()), Max.data()));
+  EXPECT_EQ(N.value(), UINT64_MAX);
+  std::vector<const char *> Negative = {"test", "--n=-1"};
+  EXPECT_FALSE(
+      Parser.parse(stdout, static_cast<int>(Negative.size()), Negative.data()));
+}
 
 TEST_P(GeneralOptions, Test) {
   auto P = GetParam();

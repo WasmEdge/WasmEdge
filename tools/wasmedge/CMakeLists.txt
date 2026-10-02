@@ -1,6 +1,20 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+function(wasmedge_link_tool target)
+  if(WASMEDGE_LINK_TOOLS_STATIC)
+    target_link_libraries(${target}
+      PRIVATE
+      wasmedgeCAPI
+    )
+  else()
+    target_link_libraries(${target}
+      PRIVATE
+      wasmedge_shared
+    )
+  endif()
+endfunction()
+
 if(WASMEDGE_USE_LLVM)
   wasmedge_add_executable(wasmedgec
     wasmedgec.cpp
@@ -11,17 +25,7 @@ if(WASMEDGE_USE_LLVM)
     COMPONENT WasmEdge
   )
 
-  if(WASMEDGE_LINK_TOOLS_STATIC)
-    target_link_libraries(wasmedgec
-      PRIVATE
-      wasmedgeCAPI
-    )
-  else()
-    target_link_libraries(wasmedgec
-      PRIVATE
-      wasmedge_shared
-    )
-  endif()
+  wasmedge_link_tool(wasmedgec)
 endif()
 
 wasmedge_add_executable(wasmedge
@@ -33,17 +37,7 @@ install(TARGETS wasmedge EXPORT wasmedge
   COMPONENT WasmEdge
 )
 
-if(WASMEDGE_LINK_TOOLS_STATIC)
-  target_link_libraries(wasmedge
-    PRIVATE
-    wasmedgeCAPI
-  )
-else()
-  target_link_libraries(wasmedge
-    PRIVATE
-    wasmedge_shared
-  )
-endif()
+wasmedge_link_tool(wasmedge)
 
 
 if(WASMEDGE_BUILD_WASI_NN_RPC)
@@ -60,17 +54,7 @@ if(WASMEDGE_BUILD_WASI_NN_RPC)
     COMPONENT WasmEdge
   )
 
-  if(WASMEDGE_LINK_TOOLS_STATIC)
-    target_link_libraries(wasi_nn_rpcserver
-      PRIVATE
-      wasmedgeCAPI
-    )
-  else()
-    target_link_libraries(wasi_nn_rpcserver
-      PRIVATE
-      wasmedge_shared
-    )
-  endif()
+  wasmedge_link_tool(wasi_nn_rpcserver)
 
   target_compile_options(wasi_nn_rpcserver
     PUBLIC

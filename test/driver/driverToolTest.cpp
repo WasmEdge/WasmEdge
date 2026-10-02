@@ -3,6 +3,7 @@
 
 #include "common/defines.h"
 #include "common/filesystem.h"
+#include "common/spdlog.h"
 #include "driver/tool.h"
 #include "driver/unitool.h"
 #include "po/argument_parser.h"
@@ -34,46 +35,36 @@ std::string writeWasmToFile(const uint8_t *Data, size_t Size,
   return Path;
 }
 
-int callParse(std::initializer_list<const char *> Args) {
+int callTool(WasmEdge::Driver::ToolType Type,
+             std::initializer_list<const char *> Args) {
   std::vector<const char *> Argv = {"wasmedge"};
   Argv.insert(Argv.end(), Args.begin(), Args.end());
   return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
-                                   WasmEdge::Driver::ToolType::Parse);
+                                   Type);
+}
+
+int callParse(std::initializer_list<const char *> Args) {
+  return callTool(WasmEdge::Driver::ToolType::Parse, Args);
 }
 
 int callValidate(std::initializer_list<const char *> Args) {
-  std::vector<const char *> Argv = {"wasmedge"};
-  Argv.insert(Argv.end(), Args.begin(), Args.end());
-  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
-                                   WasmEdge::Driver::ToolType::Validate);
+  return callTool(WasmEdge::Driver::ToolType::Validate, Args);
 }
 
 int callCompile(std::initializer_list<const char *> Args) {
-  std::vector<const char *> Argv = {"wasmedge"};
-  Argv.insert(Argv.end(), Args.begin(), Args.end());
-  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
-                                   WasmEdge::Driver::ToolType::Compiler);
+  return callTool(WasmEdge::Driver::ToolType::Compiler, Args);
 }
 
 int callInstantiate(std::initializer_list<const char *> Args) {
-  std::vector<const char *> Argv = {"wasmedge"};
-  Argv.insert(Argv.end(), Args.begin(), Args.end());
-  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
-                                   WasmEdge::Driver::ToolType::Instantiate);
+  return callTool(WasmEdge::Driver::ToolType::Instantiate, Args);
 }
 
 int callRun(std::initializer_list<const char *> Args) {
-  std::vector<const char *> Argv = {"wasmedge"};
-  Argv.insert(Argv.end(), Args.begin(), Args.end());
-  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
-                                   WasmEdge::Driver::ToolType::Tool);
+  return callTool(WasmEdge::Driver::ToolType::Tool, Args);
 }
 
 int callUniToolAll(std::initializer_list<const char *> Args) {
-  std::vector<const char *> Argv = {"wasmedge"};
-  Argv.insert(Argv.end(), Args.begin(), Args.end());
-  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
-                                   WasmEdge::Driver::ToolType::All);
+  return callTool(WasmEdge::Driver::ToolType::All, Args);
 }
 
 #if !WASMEDGE_OS_WINDOWS
@@ -83,8 +74,6 @@ struct ToolResult {
 };
 
 ToolResult callParseCaptureStdout(std::initializer_list<const char *> Args) {
-  std::vector<const char *> Argv = {"wasmedge"};
-  Argv.insert(Argv.end(), Args.begin(), Args.end());
   int Pipe[2];
   if (pipe(Pipe) != 0) {
     return {-1, {}};
@@ -92,9 +81,7 @@ ToolResult callParseCaptureStdout(std::initializer_list<const char *> Args) {
   int SavedStdout = dup(STDOUT_FILENO);
   dup2(Pipe[1], STDOUT_FILENO);
   close(Pipe[1]);
-  int Ret =
-      WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
-                                WasmEdge::Driver::ToolType::Parse);
+  int Ret = callParse(Args);
   fflush(stdout);
   dup2(SavedStdout, STDOUT_FILENO);
   close(SavedStdout);
@@ -389,6 +376,7 @@ std::string nonExistPath() { return TestDataPath + "/nonexist.wasm"; }
 
 TEST(ParseSubcommand, ErrorHandling) {
   EXPECT_NE(callParse({}), EXIT_SUCCESS);
+  EXPECT_NE(callParse({""}), EXIT_SUCCESS);
 
   std::string NonExist = TestDataPath + "/nonexist.wasm";
   EXPECT_NE(callParse({NonExist.c_str()}), EXIT_SUCCESS);
@@ -591,6 +579,7 @@ TEST(ParseSubcommand, OutputTagSection) {
 
 TEST(ValidateSubcommand, ErrorHandling) {
   EXPECT_NE(callValidate({}), EXIT_SUCCESS);
+  EXPECT_NE(callValidate({""}), EXIT_SUCCESS);
   EXPECT_NE(callValidate({nonExistPath().c_str()}), EXIT_SUCCESS);
   EXPECT_NE(callValidate({TestDataPath.c_str()}), EXIT_SUCCESS);
 
@@ -962,6 +951,7 @@ TEST(InstantiateSubcommand, ForbiddenPluginFlag) {
 
 TEST(RunSubcommand, ErrorHandling) {
   EXPECT_NE(callRun({}), EXIT_SUCCESS);
+  EXPECT_NE(callRun({""}), EXIT_SUCCESS);
   EXPECT_NE(callRun({nonExistPath().c_str()}), EXIT_SUCCESS);
 
   std::string TruncPath =
@@ -1048,6 +1038,40 @@ TEST(RunSubcommand, RunSpecificFlags) {
             EXIT_SUCCESS);
 }
 
+TEST(RunSubcommand, LimitFlagRanges) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callRun({"--reactor", "--gas-limit", "3000000000", Path, "add", "1",
+                     "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--time-limit", "18446744073709551615", Path,
+                     "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", "--gas-limit=-1", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", "--time-limit=-1", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(
+      callRun({"--reactor", "--memory-page-limit=-1", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+  EXPECT_NE(
+      callRun({"--reactor", "--stack-size-limit=-1", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+}
+
+TEST(RunSubcommand, ArgumentRanges) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callRun({"--reactor", Path, "add", "-2147483648", "4294967295"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", Path, "add", "4294967296", "1"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", Path, "add", "-2147483649", "1"}),
+            EXIT_SUCCESS);
+}
+
 TEST(RunSubcommand, LinkedModules) {
   std::string ProvPath = providerPath();
   std::string ConsPath = consumerPath();
@@ -1125,6 +1149,31 @@ TEST(NoSubcommand, FallbackToRun) {
 }
 
 } // namespace
+
+TEST(NoSubcommand, GlobalFlagsBeforeSubcommand) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  for (const char *Sub : {"parse", "validate", "instantiate"}) {
+    spdlog::set_level(spdlog::level::info);
+    EXPECT_EQ(callUniToolAll({"--log-level", "error", Sub, Path}),
+              EXIT_SUCCESS);
+    EXPECT_EQ(spdlog::get_level(), spdlog::level::err);
+  }
+  EXPECT_EQ(callUniToolAll({"--log-level", "error", "validate", "--log-level",
+                            "debug", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::debug);
+
+  std::string OutPath = TestDataPath + "/log_level.wasm";
+  callUniToolAll({"--log-level", "error", "compile", Path, OutPath.c_str()});
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::err);
+  callUniToolAll({"compile", "--log-level", "off", Path, OutPath.c_str()});
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::off);
+  std::filesystem::remove(OutPath);
+
+  spdlog::set_level(spdlog::level::info);
+}
 
 GTEST_API_ int main(int Argc, char *Argv[]) {
   testing::InitGoogleTest(&Argc, Argv);

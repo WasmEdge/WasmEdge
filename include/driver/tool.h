@@ -15,15 +15,22 @@
 #include "driver/options.h"
 #include "plugin/plugin.h"
 #include "po/argument_parser.h"
+#include <filesystem>
 #include <optional>
 #include <string_view>
 
 namespace WasmEdge {
+namespace VM {
+class VM;
+} // namespace VM
+
 namespace Driver {
 
 using namespace std::literals;
 
-struct DriverToolOptions : public DriverProposalOptions {
+struct DriverToolOptions : public DriverProposalOptions,
+                           public DriverStatisticsOptions,
+                           public DriverLoggingOptions {
   DriverToolOptions()
       : SoName(PO::Description("Wasm or so file"sv),
                PO::MetaVar("WASM_OR_SO"sv)),
@@ -46,15 +53,6 @@ struct DriverToolOptions : public DriverProposalOptions {
             PO::MetaVar("ENVS"sv)),
         PropComponent(PO::Description(
             "Enable Component Model proposal, this is experimental"sv)),
-        ConfEnableInstructionCounting(PO::Description(
-            "Enable generating code for counting Wasm instructions executed."sv)),
-        ConfEnableGasMeasuring(PO::Description(
-            "Enable generating code for counting gas burned during execution."sv)),
-        ConfEnableTimeMeasuring(PO::Description(
-            "Enable generating code for counting time during execution."sv)),
-        ConfEnableAllStatistics(PO::Description(
-            "Enable generating code for all statistics options include "
-            "instruction counting, gas measuring, and execution time"sv)),
         ConfEnableJIT(
             PO::Description("Enable Just-In-Time compiler for running WASM"sv)),
         ConfEnableCoredump(PO::Description(
@@ -99,12 +97,7 @@ struct DriverToolOptions : public DriverProposalOptions {
                 "the module name to export and `path` is the WASM file path."sv),
             PO::MetaVar("MODULES"sv)),
         ForbiddenPlugins(PO::Description("List of plugins to ignore."sv),
-                         PO::MetaVar("NAMES"sv)),
-        LogLevel(
-            PO::Description(
-                "Set logging level. Valid values: off, trace, debug, info, "
-                "warning, error, fatal. Default is info."sv),
-            PO::MetaVar("LEVEL"sv), PO::DefaultValue(std::string())) {}
+                         PO::MetaVar("NAMES"sv)) {}
 
   PO::Option<std::string> SoName;
   PO::List<std::string> Args;
@@ -112,10 +105,6 @@ struct DriverToolOptions : public DriverProposalOptions {
   PO::List<std::string> Dir;
   PO::List<std::string> Env;
   PO::Option<PO::Toggle> PropComponent;
-  PO::Option<PO::Toggle> ConfEnableInstructionCounting;
-  PO::Option<PO::Toggle> ConfEnableGasMeasuring;
-  PO::Option<PO::Toggle> ConfEnableTimeMeasuring;
-  PO::Option<PO::Toggle> ConfEnableAllStatistics;
   PO::Option<PO::Toggle> ConfEnableJIT;
   PO::Option<PO::Toggle> ConfEnableCoredump;
   PO::Option<PO::Toggle> ConfCoredumpWasmgdb;
@@ -123,20 +112,27 @@ struct DriverToolOptions : public DriverProposalOptions {
   PO::Option<std::string> ConfRunMode;
   PO::Option<PO::Toggle> ConfAFUNIX;
   PO::Option<uint64_t> TimeLim;
-  PO::List<int> GasLim;
-  PO::List<int> MemLim;
+  PO::List<uint64_t> GasLim;
+  PO::List<uint64_t> MemLim;
   PO::Option<uint64_t> StackLim;
   PO::List<std::string> LinkedModules;
   PO::List<std::string> ForbiddenPlugins;
-  PO::Option<std::string> LogLevel;
 
 private:
   void addGlobalOptions(PO::ArgumentParser &Parser) noexcept {
-    Parser.add_option("log-level"sv, LogLevel)
-        .add_option("forbidden-plugin"sv, ForbiddenPlugins);
+    addLoggingOptions(Parser);
+    Parser.add_option("forbidden-plugin"sv, ForbiddenPlugins);
   }
 
 public:
+  /// Take the global options given before the subcommand.
+  void inheritGlobalOptions(const DriverToolOptions &Parent) noexcept {
+    inheritLoggingOptions(Parent);
+    ForbiddenPlugins.value().insert(ForbiddenPlugins.value().begin(),
+                                    Parent.ForbiddenPlugins.value().begin(),
+                                    Parent.ForbiddenPlugins.value().end());
+  }
+
   void addParserOptions(PO::ArgumentParser &Parser) noexcept {
     addGlobalOptions(Parser);
     addProposalOptions(Parser);
@@ -159,12 +155,9 @@ public:
     addLinkerOptions(Parser);
 
     // pure Execution and Profiling flags
-    Parser.add_option(Args)
-        .add_option("enable-instruction-count"sv, ConfEnableInstructionCounting)
-        .add_option("enable-gas-measuring"sv, ConfEnableGasMeasuring)
-        .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
-        .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
-        .add_option("enable-jit"sv, ConfEnableJIT)
+    Parser.add_option(Args);
+    addStatisticsOptions(Parser);
+    Parser.add_option("enable-jit"sv, ConfEnableJIT)
         .add_option("enable-coredump"sv, ConfEnableCoredump)
         .add_option("coredump-for-wasmgdb"sv, ConfCoredumpWasmgdb)
         .add_option("force-interpreter"sv, ConfForceInterpreter)
@@ -178,6 +171,12 @@ public:
 };
 Configure createConfigure(const struct DriverToolOptions &Opt) noexcept;
 std::optional<RunMode> parseRunModeArg(std::string_view S) noexcept;
+std::optional<std::filesystem::path>
+getInputPath(const struct DriverToolOptions &Opt) noexcept;
+void setMemoryPageLimit(const struct DriverToolOptions &Opt,
+                        Configure &Conf) noexcept;
+bool registerLinkedModules(const struct DriverToolOptions &Opt,
+                           VM::VM &VM) noexcept;
 
 int Tool(struct DriverToolOptions &Opt) noexcept;
 int ParseTool(struct DriverToolOptions &Opt) noexcept;

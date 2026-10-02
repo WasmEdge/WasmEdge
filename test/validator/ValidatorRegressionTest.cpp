@@ -17,6 +17,7 @@
 #include "common/spdlog.h"
 #include "vm/vm.h"
 
+#include <cstdint>
 #include <gtest/gtest.h>
 #include <vector>
 
@@ -531,6 +532,285 @@ TEST_F(ValidatorRegressionTest, DeclaredRefFuncToImportedFunction) {
 
   auto ValidationResult = ValidEngine->validate(**Result);
   EXPECT_TRUE(ValidationResult);
+}
+
+struct WideArithmeticEncoding {
+  uint8_t Subopcode;
+  bool IsAddOrSub;
+  OpCode Opcode;
+};
+
+constexpr WideArithmeticEncoding WideArithmeticEncodings[] = {
+    {0x13U, true, OpCode::I64__add128},
+    {0x14U, true, OpCode::I64__sub128},
+    {0x15U, false, OpCode::I64__mul_wide_s},
+    {0x16U, false, OpCode::I64__mul_wide_u}};
+
+static AST::Module makeWideArithmeticModule(
+    OpCode Opcode, const std::vector<ValType> &Params,
+    const std::vector<ValType> &Returns = {TypeCode::I64, TypeCode::I64}) {
+  AST::Module Module;
+  AST::FunctionType Type;
+  Type.getParamTypes() = Params;
+  Type.getReturnTypes() = Returns;
+  Module.getTypeSection().getContent().emplace_back(Type);
+  Module.getFunctionSection().getContent().push_back(0U);
+  AST::CodeSegment Code;
+  for (uint32_t I = 0; I < Params.size(); ++I) {
+    AST::Instruction Get(OpCode::Local__get);
+    Get.getTargetIndex() = I;
+    Code.getExpr().getInstrs().push_back(Get);
+  }
+  Code.getExpr().getInstrs().emplace_back(Opcode);
+  Code.getExpr().getInstrs().emplace_back(OpCode::End);
+  Module.getCodeSection().getContent().push_back(Code);
+  return Module;
+}
+
+TEST_F(ValidatorRegressionTest, ValidateWideArithmeticStackTypes) {
+  Conf->addProposal(Proposal::WideArithmetic);
+  Validator::Validator Validator(*Conf);
+  Configure DisabledConf;
+  DisabledConf.removeProposal(Proposal::WideArithmetic);
+  Validator::Validator DisabledValidator(DisabledConf);
+  for (const auto &Encoding : WideArithmeticEncodings) {
+    SCOPED_TRACE(static_cast<unsigned>(Encoding.Subopcode));
+    const size_t Arity = Encoding.IsAddOrSub ? 4U : 2U;
+    const std::vector<ValType> Params(Arity, TypeCode::I64);
+    auto Module = makeWideArithmeticModule(Encoding.Opcode, Params);
+    EXPECT_TRUE(Validator.validate(Module));
+    auto DisabledResult = DisabledValidator.validate(Module);
+    ASSERT_FALSE(DisabledResult);
+    EXPECT_EQ(DisabledResult.error(), ErrCode::Value::IllegalOpCode);
+
+    for (size_t I = 0; I < Arity; ++I) {
+      SCOPED_TRACE(I);
+      for (const auto WrongType :
+           {TypeCode::I32, TypeCode::F32, TypeCode::F64}) {
+        SCOPED_TRACE(static_cast<unsigned>(WrongType));
+        auto WrongParams = Params;
+        WrongParams[I] = WrongType;
+        auto Wrong = makeWideArithmeticModule(Encoding.Opcode, WrongParams);
+        auto Result = Validator.validate(Wrong);
+        ASSERT_FALSE(Result);
+        EXPECT_EQ(Result.error(), ErrCode::Value::TypeCheckFailed);
+      }
+    }
+
+    for (const size_t Count : {Arity - 1U, Arity + 1U}) {
+      SCOPED_TRACE(Count);
+      auto WrongArity = makeWideArithmeticModule(
+          Encoding.Opcode, std::vector<ValType>(Count, TypeCode::I64));
+      auto Result = Validator.validate(WrongArity);
+      ASSERT_FALSE(Result);
+      EXPECT_EQ(Result.error(), ErrCode::Value::TypeCheckFailed);
+    }
+  }
+}
+
+TEST_F(ValidatorRegressionTest, ValidateWideArithmeticResultTypes) {
+  Conf->addProposal(Proposal::WideArithmetic);
+  Validator::Validator Validator(*Conf);
+  for (const auto &Encoding : WideArithmeticEncodings) {
+    SCOPED_TRACE(static_cast<unsigned>(Encoding.Subopcode));
+    const std::vector<ValType> Params(Encoding.IsAddOrSub ? 4U : 2U,
+                                      TypeCode::I64);
+    for (const size_t Count : {0U, 1U, 3U}) {
+      SCOPED_TRACE(Count);
+      auto Module = makeWideArithmeticModule(
+          Encoding.Opcode, Params, std::vector<ValType>(Count, TypeCode::I64));
+      auto Result = Validator.validate(Module);
+      ASSERT_FALSE(Result);
+      EXPECT_EQ(Result.error(), ErrCode::Value::TypeCheckFailed);
+    }
+    for (size_t I = 0; I < 2U; ++I) {
+      SCOPED_TRACE(I);
+      for (const auto WrongType :
+           {TypeCode::I32, TypeCode::F32, TypeCode::F64}) {
+        SCOPED_TRACE(static_cast<unsigned>(WrongType));
+        std::vector<ValType> Returns(2U, TypeCode::I64);
+        Returns[I] = WrongType;
+        auto Module =
+            makeWideArithmeticModule(Encoding.Opcode, Params, Returns);
+        auto Result = Validator.validate(Module);
+        ASSERT_FALSE(Result);
+        EXPECT_EQ(Result.error(), ErrCode::Value::TypeCheckFailed);
+      }
+    }
+  }
+}
+
+TEST_F(ValidatorRegressionTest, PreserveWideArithmeticStackPrefix) {
+  Conf->addProposal(Proposal::WideArithmetic);
+  Validator::Validator Validator(*Conf);
+  for (const auto &Encoding : WideArithmeticEncodings) {
+    SCOPED_TRACE(static_cast<unsigned>(Encoding.Subopcode));
+    std::vector<ValType> Params(Encoding.IsAddOrSub ? 4U : 2U, TypeCode::I64);
+    Params.insert(Params.begin(), TypeCode::I32);
+    auto Module = makeWideArithmeticModule(
+        Encoding.Opcode, Params, {TypeCode::I32, TypeCode::I64, TypeCode::I64});
+    EXPECT_TRUE(Validator.validate(Module));
+  }
+}
+
+TEST_F(ValidatorRegressionTest, ValidateWideArithmeticUnreachableStack) {
+  Conf->addProposal(Proposal::WideArithmetic);
+  Validator::Validator Validator(*Conf);
+  for (const auto &Encoding : WideArithmeticEncodings) {
+    SCOPED_TRACE(static_cast<unsigned>(Encoding.Subopcode));
+    for (const bool WrongType : {false, true}) {
+      SCOPED_TRACE(WrongType);
+      auto Module = makeWideArithmeticModule(Encoding.Opcode, {});
+      auto &Body =
+          Module.getCodeSection().getContent()[0].getExpr().getInstrs();
+      if (WrongType) {
+        AST::Instruction Const(OpCode::I32__const);
+        Const.setNum(uint32_t(0));
+        Body.insert(Body.begin(), Const);
+      }
+      Body.insert(Body.begin(), AST::Instruction(OpCode::Unreachable));
+      auto Result = Validator.validate(Module);
+      if (WrongType) {
+        ASSERT_FALSE(Result);
+        EXPECT_EQ(Result.error(), ErrCode::Value::TypeCheckFailed);
+      } else {
+        EXPECT_TRUE(Result);
+      }
+    }
+  }
+}
+
+TEST_F(ValidatorRegressionTest, RejectWideArithmeticASTWithProposalDisabled) {
+  Conf->removeProposal(Proposal::WideArithmetic);
+  Validator::Validator Validator(*Conf);
+  for (const auto &Encoding : WideArithmeticEncodings) {
+    SCOPED_TRACE(static_cast<unsigned>(Encoding.Subopcode));
+    for (const bool Unreachable : {false, true}) {
+      SCOPED_TRACE(Unreachable);
+      auto Module = makeWideArithmeticModule(
+          Encoding.Opcode,
+          std::vector<ValType>(Encoding.IsAddOrSub ? 4U : 2U, TypeCode::I64));
+      if (Unreachable) {
+        auto &Body =
+            Module.getCodeSection().getContent()[0].getExpr().getInstrs();
+        Body.insert(Body.begin(), AST::Instruction(OpCode::Unreachable));
+      }
+      auto Result = Validator.validate(Module);
+      ASSERT_FALSE(Result);
+      EXPECT_EQ(Result.error(), ErrCode::Value::IllegalOpCode);
+      EXPECT_FALSE(Module.getIsValidated());
+    }
+  }
+}
+
+static std::vector<Byte>
+makeWideArithmeticFunction(const WideArithmeticEncoding &Encoding,
+                           bool Unreachable = false) {
+  // Add/sub module (use i64.sub128 for subtraction):
+  // (module
+  //   (type (func))
+  //   (func (export "run") (type 0)
+  //     i64.const 1 i64.const 1 i64.const 1 i64.const 1
+  //     i64.add128 drop drop))
+  // Multiplication module (use i64.mul_wide_u for unsigned multiplication):
+  // (module
+  //   (type (func))
+  //   (func (export "run") (type 0)
+  //     i64.const 1 i64.const 1
+  //     i64.mul_wide_s drop drop))
+  // The unreachable variant inserts unreachable before the first constant.
+  std::vector<Byte> Body = {0x00}; // Local declarations: empty vector.
+  if (Unreachable) {
+    Body.push_back(0x00); // OpCode Unreachable.
+  }
+  const uint32_t OperandCount = Encoding.IsAddOrSub ? 4U : 2U;
+  for (uint32_t I = 0; I < OperandCount; ++I) {
+    Body.insert(Body.end(), {0x42, 0x01}); // OpCode I64__const, value 1.
+  }
+  // Wide opcode, drop both i64 results, expression end.
+  Body.insert(Body.end(), {0xFC, Encoding.Subopcode, 0x1A, 0x1A, 0x0B});
+
+  std::vector<Byte> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 1 type (func)
+      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+      // Function section: 1 function, type index 0
+      0x03, 0x02, 0x01, 0x00,
+      // Export section: 1 function export named "run", function index 0
+      0x07, 0x07, 0x01, 0x03, 0x72, 0x75, 0x6E, 0x00, 0x00,
+      // Code section
+      0x0A};
+  // Content size includes the function count and the one-byte body size.
+  Wasm.push_back(static_cast<Byte>(Body.size() + 2U));
+  Wasm.push_back(0x01); // Function count.
+  Wasm.push_back(static_cast<Byte>(Body.size()));
+  Wasm.insert(Wasm.end(), Body.begin(), Body.end());
+  return Wasm;
+}
+
+TEST_F(ValidatorRegressionTest, ValidateWideArithmeticFunctions) {
+  Conf->addProposal(Proposal::WideArithmetic);
+  Loader::Loader EnabledLoader(*Conf);
+  Validator::Validator EnabledValidator(*Conf);
+  for (const auto &Encoding : WideArithmeticEncodings) {
+    SCOPED_TRACE(static_cast<unsigned>(Encoding.Subopcode));
+    for (const bool Unreachable : {false, true}) {
+      SCOPED_TRACE(Unreachable);
+      auto Module = EnabledLoader.parseModule(
+          makeWideArithmeticFunction(Encoding, Unreachable));
+      ASSERT_TRUE(Module);
+      EXPECT_FALSE((*Module)->getIsValidated());
+
+      auto Result = EnabledValidator.validate(**Module);
+      ASSERT_TRUE(Result);
+      EXPECT_TRUE((*Module)->getIsValidated());
+    }
+  }
+}
+
+TEST_F(ValidatorRegressionTest, RejectWideArithmeticConstantExpressions) {
+  // Add/sub module (use i64.sub128 for subtraction):
+  // (module
+  //   (global i64
+  //     i64.const 1 i64.const 1 i64.const 1 i64.const 1
+  //     i64.add128 i64.add))
+  // Multiplication module (use i64.mul_wide_u for unsigned multiplication):
+  // (module
+  //   (global i64
+  //     i64.const 1 i64.const 1
+  //     i64.mul_wide_s i64.add))
+  // The final i64.add reduces the two wide results to one initializer value.
+  // Wide instructions are not permitted in constant expressions.
+  Conf->addProposal(Proposal::WideArithmetic);
+  Conf->addProposal(Proposal::ExtendedConst);
+  Loader::Loader EnabledLoader(*Conf);
+  Validator::Validator EnabledValidator(*Conf);
+  for (const auto &Encoding : WideArithmeticEncodings) {
+    SCOPED_TRACE(static_cast<unsigned>(Encoding.Subopcode));
+    // One immutable i64 global.
+    std::vector<Byte> Global = {0x01, 0x7E, 0x00};
+    const uint32_t OperandCount = Encoding.IsAddOrSub ? 4U : 2U;
+    for (uint32_t I = 0; I < OperandCount; ++I) {
+      Global.insert(Global.end(), {0x42, 0x01}); // OpCode I64__const, value 1.
+    }
+    // Wide opcode, i64.add, expression end.
+    Global.insert(Global.end(), {0xFC, Encoding.Subopcode, 0x7C, 0x0B});
+    std::vector<Byte> Wasm = {// Preamble
+                              0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00,
+                              // Global section
+                              0x06};
+    // Content size: global count, type and initializer expression.
+    Wasm.push_back(static_cast<Byte>(Global.size()));
+    Wasm.insert(Wasm.end(), Global.begin(), Global.end());
+    auto Module = EnabledLoader.parseModule(Wasm);
+    ASSERT_TRUE(Module);
+
+    auto Result = EnabledValidator.validate(**Module);
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), ErrCode::Value::ConstExprRequired);
+    EXPECT_FALSE((*Module)->getIsValidated());
+  }
 }
 
 } // namespace

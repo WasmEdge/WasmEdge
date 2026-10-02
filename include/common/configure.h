@@ -385,6 +385,11 @@ public:
       if (unlikely(!hasProposal(Proposal::SignExtensionOperators))) {
         return Proposal::SignExtensionOperators;
       }
+    } else if (Code >= OpCode::I64__add128 && Code <= OpCode::I64__mul_wide_u) {
+      // These instructions are for WideArithmetic proposal.
+      if (unlikely(!hasProposal(Proposal::WideArithmetic))) {
+        return Proposal::WideArithmetic;
+      }
     } else if ((Code >= OpCode::Ref__null && Code <= OpCode::Ref__func) ||
                (Code >= OpCode::Table__init && Code <= OpCode::Table__copy) ||
                (Code >= OpCode::Memory__init && Code <= OpCode::Memory__fill)) {

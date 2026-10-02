@@ -20,7 +20,10 @@
 #include "common/symbol.h"
 #include "common/types.h"
 
+#include <algorithm>
 #include <optional>
+#include <set>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {
@@ -262,17 +265,26 @@ public:
     uint32_t RecTypeSize;
   };
 
-  /// Getter for recursive type information.
-  std::optional<RecInfo> getRecursiveInfo() const noexcept {
-    return RecTypeInfo;
+  /// Getter and setter for recursive type info, {0, 1} for a lone sub type.
+  RecInfo getRecursiveInfo() const noexcept {
+    return RecTypeInfo.value_or(RecInfo{0, 1});
   }
   void setRecursiveInfo(uint32_t Index, uint32_t Size) noexcept {
     RecTypeInfo = RecInfo{Index, Size};
   }
 
+  /// Check whether the sub type is written in a recursive type.
+  bool isInRecType() const noexcept { return RecTypeInfo.has_value(); }
+
   /// Getter for type index information in a module.
   std::optional<uint32_t> getTypeIndex() const noexcept { return TypeIndex; }
   void setTypeIndex(uint32_t Index) noexcept { TypeIndex = Index; }
+
+  /// Getter and setter for the canonical type index: the first equal type's.
+  std::optional<uint32_t> getCanonicalIndex() const noexcept {
+    return CanonicalIndex;
+  }
+  void setCanonicalIndex(uint32_t Index) noexcept { CanonicalIndex = Index; }
 
 private:
   /// \name Data of SubType.
@@ -291,407 +303,9 @@ private:
   std::optional<RecInfo> RecTypeInfo;
   /// Type index in the module. Record for backward iteration.
   std::optional<uint32_t> TypeIndex;
+  /// Canonical type index in the module. Set by the validator.
+  std::optional<uint32_t> CanonicalIndex;
   /// @}
-};
-
-/// AST Type match helper class.
-class TypeMatcher {
-public:
-  /// Validator: Match two defined types in the same module.
-  static bool matchType(Span<const SubType *const> TypeList, uint32_t ExpIdx,
-                        uint32_t GotIdx) noexcept {
-    return matchType(TypeList, ExpIdx, TypeList, GotIdx);
-  }
-
-  /// Validator: Match two composite types in the same module.
-  static bool matchType(Span<const SubType *const> TypeList,
-                        const CompositeType &Exp,
-                        const CompositeType &Got) noexcept {
-    auto isFieldTypeMatched = [&](const FieldType &ExpFieldType,
-                                  const FieldType &GotFieldType) -> bool {
-      bool IsMatch = false;
-      if (ExpFieldType.getValMut() == GotFieldType.getValMut()) {
-        // If both are const or both are var, the got storage type should match
-        // the expected storage type.
-        IsMatch = matchType(TypeList, ExpFieldType.getStorageType(),
-                            GotFieldType.getStorageType());
-        if (ExpFieldType.getValMut() == ValMut::Var) {
-          // If both are var, the reverse should also match.
-          IsMatch &= matchType(TypeList, GotFieldType.getStorageType(),
-                               ExpFieldType.getStorageType());
-        }
-      }
-      return IsMatch;
-    };
-
-    if (Exp.getContentTypeCode() != Got.getContentTypeCode()) {
-      return false;
-    }
-    switch (Exp.getContentTypeCode()) {
-    case TypeCode::Func: {
-      const auto &ExpFType = Exp.getFuncType();
-      const auto &GotFType = Got.getFuncType();
-      return matchTypes(TypeList, GotFType.getParamTypes(),
-                        ExpFType.getParamTypes()) &&
-             matchTypes(TypeList, ExpFType.getReturnTypes(),
-                        GotFType.getReturnTypes());
-    }
-    case TypeCode::Struct: {
-      const auto &ExpFType = Exp.getFieldTypes();
-      const auto &GotFType = Got.getFieldTypes();
-      if (GotFType.size() < ExpFType.size()) {
-        return false;
-      }
-      for (uint32_t I = 0; I < ExpFType.size(); I++) {
-        if (!isFieldTypeMatched(ExpFType[I], GotFType[I])) {
-          return false;
-        }
-      }
-      return true;
-    }
-    case TypeCode::Array: {
-      const auto &ExpFType = Exp.getFieldTypes();
-      const auto &GotFType = Got.getFieldTypes();
-      return isFieldTypeMatched(ExpFType[0], GotFType[0]);
-    }
-    default:
-      return false;
-    }
-  }
-
-  /// Validator: Match two value types in the same module.
-  static bool matchType(Span<const SubType *const> TypeList, const ValType &Exp,
-                        const ValType &Got) noexcept {
-    return matchType(TypeList, Exp, TypeList, Got);
-  }
-
-  /// Validator: Match two type lists in the same module.
-  static bool matchTypes(Span<const SubType *const> TypeList,
-                         Span<const ValType> Exp,
-                         Span<const ValType> Got) noexcept {
-    if (Exp.size() != Got.size()) {
-      return false;
-    }
-    for (uint32_t I = 0; I < Exp.size(); I++) {
-      if (!matchType(TypeList, Exp[I], Got[I])) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /// Matcher: Match two defined types.
-  static bool matchType(Span<const SubType *const> ExpTypeList, uint32_t ExpIdx,
-                        Span<const SubType *const> GotTypeList,
-                        uint32_t GotIdx) noexcept {
-    if (ExpIdx >= ExpTypeList.size() || GotIdx >= GotTypeList.size()) {
-      return false;
-    }
-    if (isDefTypeEqual(ExpTypeList, ExpIdx, GotTypeList, GotIdx)) {
-      return true;
-    }
-    const auto *GotType = GotTypeList[GotIdx];
-    for (auto TIdx : GotType->getSuperTypeIndices()) {
-      if (matchType(ExpTypeList, ExpIdx, GotTypeList, TIdx)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /// Matcher: Match two value types.
-  static bool matchType(Span<const SubType *const> ExpTypeList,
-                        const ValType &Exp,
-                        Span<const SubType *const> GotTypeList,
-                        const ValType &Got) noexcept {
-    if (!Exp.isRefType() && !Got.isRefType() &&
-        Exp.getCode() == Got.getCode()) {
-      // Match for the non-reference type case.
-      return true;
-    }
-    if (Exp.isRefType() && Got.isRefType()) {
-      // Nullable matching.
-      if (!Exp.isNullableRefType() && Got.isNullableRefType()) {
-        return false;
-      }
-
-      // Match heap type.
-      if (Exp.isAbsHeapType() && Got.isAbsHeapType()) {
-        // Case 1: Both abstract heap type.
-        return matchTypeCode(Exp.getHeapTypeCode(), Got.getHeapTypeCode());
-      } else if (Exp.isAbsHeapType()) {
-        // Case 2: Match a type index to abstract heap type.
-        if (Got.getTypeIndex() >= GotTypeList.size()) {
-          return false;
-        }
-        return matchTypeCode(
-            Exp.getHeapTypeCode(),
-            GotTypeList[Got.getTypeIndex()]->getCompositeType().expand());
-      } else if (Got.isAbsHeapType()) {
-        // Case 3: Match abstract heap type to a type index.
-        if (Exp.getTypeIndex() >= ExpTypeList.size()) {
-          return false;
-        }
-        TypeCode ExpandGotType =
-            ExpTypeList[Exp.getTypeIndex()]->getCompositeType().expand();
-        switch (Got.getHeapTypeCode()) {
-        case TypeCode::NullRef:
-          return matchTypeCode(TypeCode::AnyRef, ExpandGotType);
-        case TypeCode::NullFuncRef:
-          return matchTypeCode(TypeCode::FuncRef, ExpandGotType);
-        case TypeCode::NullExternRef:
-          return matchTypeCode(TypeCode::ExternRef, ExpandGotType);
-        default:
-          return false;
-        }
-      } else {
-        // Case 4: Match defined types.
-        return matchType(ExpTypeList, Exp.getTypeIndex(), GotTypeList,
-                         Got.getTypeIndex());
-      }
-    }
-    return false;
-  }
-
-  /// Matcher: Match two limits.
-  static bool matchLimit(const Limit &Exp, const Limit &Got) noexcept {
-    if (Exp.getAddrType() != Got.getAddrType() ||
-        Exp.isShared() != Got.isShared()) {
-      return false;
-    }
-    if (Got.getMin() < Exp.getMin()) {
-      return false;
-    }
-    if (Exp.hasMax()) {
-      return Got.hasMax() && Got.getMax() <= Exp.getMax();
-    }
-    return true;
-  }
-
-private:
-  /// Matcher: Helper for checking the equivalence of two defined types.
-  static bool isDefTypeEqual(Span<const SubType *const> LHSList,
-                             uint32_t LHSIdx,
-                             Span<const SubType *const> RHSList,
-                             uint32_t RHSIdx) {
-    if (LHSList.data() == RHSList.data() && LHSIdx == RHSIdx) {
-      // Two type indices in the same module are the same.
-      return true;
-    }
-    const auto *LHSType = LHSList[LHSIdx];
-    const auto *RHSType = RHSList[RHSIdx];
-    // For GC proposal, a single subtype can be treated as a self-recursive
-    // type. That is, `(rec (type $t1 (func (param (ref $t1)))))` and
-    //               `(type $t1 (func (param (ref $t1))))` are the same.
-    // Therefore, use the subtype length for the recursive type size.
-    const uint32_t LRecSize = LHSType->getRecursiveInfo().has_value()
-                                  ? LHSType->getRecursiveInfo()->RecTypeSize
-                                  : 1U;
-    const uint32_t RRecSize = RHSType->getRecursiveInfo().has_value()
-                                  ? RHSType->getRecursiveInfo()->RecTypeSize
-                                  : 1U;
-    if (LRecSize != RRecSize) {
-      // The two recursive type sizes are different, so they must not be the
-      // same.
-      return false;
-    }
-    if (LRecSize > 1) {
-      // Both are in a recursive type with > 1 subtypes.
-      if (LHSType->getRecursiveInfo()->Index !=
-          RHSType->getRecursiveInfo()->Index) {
-        // The recursive indices should be the same.
-        return false;
-      }
-      // The recursive types should be the same.
-      uint32_t LStartIdx = LHSIdx - LHSType->getRecursiveInfo()->Index;
-      uint32_t RStartIdx = RHSIdx - RHSType->getRecursiveInfo()->Index;
-      return isRecTypeEqual(LHSList, LStartIdx, RHSList, RStartIdx, LRecSize);
-    } else {
-      // Both are composite types or self-recursive types.
-      return isRecTypeEqual(LHSList, LHSIdx, RHSList, RHSIdx, 1);
-    }
-  }
-
-  /// Matcher: Helper for checking the equivalence of two recursive types.
-  static bool isRecTypeEqual(Span<const SubType *const> LHSList,
-                             uint32_t LStartIdx,
-                             Span<const SubType *const> RHSList,
-                             uint32_t RStartIdx, uint32_t RecSize) {
-
-    auto isValTypeEqual = [&](const ValType &LType,
-                              const ValType &RType) -> bool {
-      if (LType.getHeapTypeCode() == TypeCode::TypeIndex &&
-          RType.getHeapTypeCode() == TypeCode::TypeIndex) {
-        if (LType.getCode() != RType.getCode()) {
-          return false;
-        }
-        // Check whether the index is the recursive type internal index.
-        auto LIdx = LType.getTypeIndex();
-        auto RIdx = RType.getTypeIndex();
-        assuming(LIdx < LHSList.size() && RIdx < RHSList.size());
-        bool IsLInSelfRecType =
-            (LIdx >= LStartIdx && LIdx < LStartIdx + RecSize);
-        bool IsRInSelfRecType =
-            (RIdx >= RStartIdx && RIdx < RStartIdx + RecSize);
-        if (IsLInSelfRecType != IsRInSelfRecType) {
-          // If one index is the recursive type internal index but the other
-          // isn't, the value types must be different.
-          return false;
-        }
-        if (IsLInSelfRecType) {
-          // If both are internal indices of the recursive types, the internal
-          // indices must be the same.
-          if (LIdx - LStartIdx == RIdx - RStartIdx) {
-            return true;
-          } else {
-            return false;
-          }
-        }
-        // If neither is an internal index, keep checking the equivalence of the
-        // defined types.
-        return isDefTypeEqual(LHSList, LIdx, RHSList, RIdx);
-      } else {
-        return (LType.getCode() == RType.getCode() &&
-                LType.getHeapTypeCode() == RType.getHeapTypeCode());
-      }
-    };
-
-    auto isFieldTypeEqual =
-        [isValTypeEqual](const std::vector<FieldType> &LFieldTypes,
-                         const std::vector<FieldType> &RFieldTypes) -> bool {
-      if (LFieldTypes.size() != RFieldTypes.size()) {
-        return false;
-      }
-      for (uint32_t I = 0; I < LFieldTypes.size(); I++) {
-        if (LFieldTypes[I].getValMut() != RFieldTypes[I].getValMut()) {
-          return false;
-        }
-        if (!isValTypeEqual(LFieldTypes[I].getStorageType(),
-                            RFieldTypes[I].getStorageType())) {
-          return false;
-        }
-      }
-      return true;
-    };
-
-    auto isFuncTypeEqual =
-        [isValTypeEqual](const FunctionType &LFuncType,
-                         const FunctionType &RFuncType) -> bool {
-      auto &LPTypes = LFuncType.getParamTypes();
-      auto &LRTypes = LFuncType.getReturnTypes();
-      auto &RPTypes = RFuncType.getParamTypes();
-      auto &RRTypes = RFuncType.getReturnTypes();
-      if (LPTypes.size() != RPTypes.size() ||
-          LRTypes.size() != RRTypes.size()) {
-        return false;
-      }
-      for (uint32_t I = 0; I < LPTypes.size(); I++) {
-        if (!isValTypeEqual(LPTypes[I], RPTypes[I])) {
-          return false;
-        }
-      }
-      for (uint32_t I = 0; I < LRTypes.size(); I++) {
-        if (!isValTypeEqual(LRTypes[I], RRTypes[I])) {
-          return false;
-        }
-      }
-      return true;
-    };
-
-    auto isCompTypeEqual = [isFuncTypeEqual, isFieldTypeEqual](
-                               const CompositeType &LCompType,
-                               const CompositeType &RCompType) -> bool {
-      if (LCompType.expand() != RCompType.expand()) {
-        return false;
-      }
-      switch (LCompType.expand()) {
-      case TypeCode::FuncRef:
-        return isFuncTypeEqual(LCompType.getFuncType(),
-                               RCompType.getFuncType());
-      case TypeCode::StructRef:
-      case TypeCode::ArrayRef:
-        return isFieldTypeEqual(LCompType.getFieldTypes(),
-                                RCompType.getFieldTypes());
-      default:
-        assumingUnreachable();
-      }
-    };
-
-    for (uint32_t I = 0; I < RecSize; I++) {
-      // Every subtype in the recursive types should be equivalent.
-      const auto *LHSType = LHSList[LStartIdx + I];
-      const auto *RHSType = RHSList[RStartIdx + I];
-      if (LHSType->isFinal() != RHSType->isFinal()) {
-        return false;
-      }
-      auto LSuperTypes = LHSType->getSuperTypeIndices();
-      auto RSuperTypes = RHSType->getSuperTypeIndices();
-      if (LSuperTypes.size() != RSuperTypes.size()) {
-        return false;
-      }
-      // TODO: GC - Fix the subtype matching.
-      uint32_t SuperTypesSize = static_cast<uint32_t>(LSuperTypes.size());
-      for (uint32_t J = 0; J < SuperTypesSize; J++) {
-        if (!isValTypeEqual(ValType(TypeCode::Ref, LSuperTypes[J]),
-                            ValType(TypeCode::Ref, RSuperTypes[J]))) {
-          return false;
-        }
-      }
-      if (!isCompTypeEqual(LHSType->getCompositeType(),
-                           RHSType->getCompositeType())) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /// Matcher: Helper for matching two type codes.
-  static bool matchTypeCode(TypeCode Exp, TypeCode Got) noexcept {
-    // Handle the equal cases first.
-    if (Exp == Got) {
-      return true;
-    }
-
-    // Match the func types: nofunc <= func
-    if (Exp == TypeCode::FuncRef || Exp == TypeCode::NullFuncRef) {
-      return Got == TypeCode::NullFuncRef;
-    }
-    if (Got == TypeCode::FuncRef || Got == TypeCode::NullFuncRef) {
-      return false;
-    }
-
-    // Match the extern types: noextern <= extern
-    if (Exp == TypeCode::ExternRef || Exp == TypeCode::NullExternRef) {
-      return Got == TypeCode::NullExternRef;
-    }
-    if (Got == TypeCode::ExternRef || Got == TypeCode::NullExternRef) {
-      return false;
-    }
-
-    // Match the exception types: noexn <= exn
-    if (Exp == TypeCode::ExnRef || Exp == TypeCode::NullExnRef) {
-      return Got == TypeCode::NullExnRef;
-    }
-    if (Got == TypeCode::ExnRef || Got == TypeCode::NullExnRef) {
-      return false;
-    }
-
-    // Match the other types: none <= i31 | struct | array <= eq <= any
-    switch (Exp) {
-    case TypeCode::I31Ref:
-    case TypeCode::StructRef:
-    case TypeCode::ArrayRef:
-      // This will filter out the i31/struct/array unmatch cases.
-      return Got == TypeCode::NullRef;
-    case TypeCode::EqRef:
-      return Got != TypeCode::AnyRef;
-    case TypeCode::AnyRef:
-      return true;
-    default:
-      break;
-    }
-    return false;
-  }
 };
 
 /// AST MemoryType node.
@@ -805,6 +419,433 @@ public:
 private:
   uint32_t TypeIdx;
   const SubType *Type;
+};
+
+/// AST Type match helper class.
+class TypeMatcher {
+public:
+  /// Pairs of recursive types known to be equal, by their first sub types.
+  using RecTypePairs = std::set<std::pair<const SubType *, const SubType *>>;
+
+  /// Validator: Match two composite types in the same module.
+  static bool matchType(Span<const SubType *const> TypeList,
+                        const CompositeType &Exp,
+                        const CompositeType &Got) noexcept {
+    if (Exp.getContentTypeCode() != Got.getContentTypeCode()) {
+      return false;
+    }
+    if (Exp.isFunc()) {
+      // Parameters match contravariantly and results covariantly.
+      const auto &ExpFType = Exp.getFuncType();
+      const auto &GotFType = Got.getFuncType();
+      return matchTypes(TypeList, GotFType.getParamTypes(),
+                        ExpFType.getParamTypes()) &&
+             matchTypes(TypeList, ExpFType.getReturnTypes(),
+                        GotFType.getReturnTypes());
+    }
+    // A struct type may add fields, and an array type has exactly one.
+    const auto &ExpFTypes = Exp.getFieldTypes();
+    const auto &GotFTypes = Got.getFieldTypes();
+    if (GotFTypes.size() < ExpFTypes.size()) {
+      return false;
+    }
+    for (uint32_t I = 0; I < ExpFTypes.size(); I++) {
+      if (!matchType(TypeList, ExpFTypes[I], GotFTypes[I])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Validator: Match two value types in the same module.
+  static bool matchType(Span<const SubType *const> TypeList, const ValType &Exp,
+                        const ValType &Got) noexcept {
+    return matchType(TypeList, Exp, TypeList, Got);
+  }
+
+  /// Validator: Match two type lists in the same module.
+  static bool matchTypes(Span<const SubType *const> TypeList,
+                         Span<const ValType> Exp,
+                         Span<const ValType> Got) noexcept {
+    if (Exp.size() != Got.size()) {
+      return false;
+    }
+    for (uint32_t I = 0; I < Exp.size(); I++) {
+      if (!matchType(TypeList, Exp[I], Got[I])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Matcher: Match two defined types.
+  static bool matchType(Span<const SubType *const> ExpTypeList, uint32_t ExpIdx,
+                        Span<const SubType *const> GotTypeList, uint32_t GotIdx,
+                        RecTypePairs *Equal = nullptr) noexcept {
+    // Walk up the super types: at most one each, defined before the sub type.
+    while (GotIdx < GotTypeList.size()) {
+      if (isDefTypeEqual(ExpTypeList, ExpIdx, GotTypeList, GotIdx, Equal)) {
+        return true;
+      }
+      const auto SuperTypes = GotTypeList[GotIdx]->getSuperTypeIndices();
+      if (SuperTypes.empty()) {
+        return false;
+      }
+      GotIdx = SuperTypes[0];
+    }
+    return false;
+  }
+
+  /// Matcher: Match two value types.
+  static bool matchType(Span<const SubType *const> ExpTypeList,
+                        const ValType &Exp,
+                        Span<const SubType *const> GotTypeList,
+                        const ValType &Got,
+                        RecTypePairs *Equal = nullptr) noexcept {
+    if (!Exp.isRefType() || !Got.isRefType()) {
+      // Number, vector, and packed types match only themselves.
+      return !Exp.isRefType() && !Got.isRefType() &&
+             Exp.getCode() == Got.getCode();
+    }
+    if (Got.isNullableRefType() && !Exp.isNullableRefType()) {
+      return false;
+    }
+    if (Exp.isAbsHeapType() && Got.isAbsHeapType()) {
+      return matchTypeCode(Exp.getHeapTypeCode(), Got.getHeapTypeCode());
+    }
+    if (Exp.isAbsHeapType()) {
+      // A defined type matches the abstract heap types above its expansion.
+      return Got.getTypeIndex() < GotTypeList.size() &&
+             matchTypeCode(
+                 Exp.getHeapTypeCode(),
+                 GotTypeList[Got.getTypeIndex()]->getCompositeType().expand());
+    }
+    if (Got.isAbsHeapType()) {
+      // Only the bottom type of the hierarchy matches a defined type.
+      return Exp.getTypeIndex() < ExpTypeList.size() &&
+             Got.getHeapTypeCode() ==
+                 getBottomHeapType(ExpTypeList[Exp.getTypeIndex()]
+                                       ->getCompositeType()
+                                       .expand());
+    }
+    return matchType(ExpTypeList, Exp.getTypeIndex(), GotTypeList,
+                     Got.getTypeIndex(), Equal);
+  }
+
+  /// Matcher: Match two table types.
+  static bool matchType(Span<const SubType *const> ExpTypeList,
+                        const TableType &Exp,
+                        Span<const SubType *const> GotTypeList,
+                        const TableType &Got,
+                        RecTypePairs *Equal = nullptr) noexcept {
+    // Matching both ways, the reference types must be equal.
+    return matchLimit(Exp.getLimit(), Got.getLimit()) &&
+           isValTypeEqual(ExpTypeList, Exp.getRefType(), GotTypeList,
+                          Got.getRefType(), Equal);
+  }
+
+  /// Matcher: Match two global types.
+  static bool matchType(Span<const SubType *const> ExpTypeList,
+                        const GlobalType &Exp,
+                        Span<const SubType *const> GotTypeList,
+                        const GlobalType &Got,
+                        RecTypePairs *Equal = nullptr) noexcept {
+    return matchType(ExpTypeList, Exp.getValMut(), Exp.getValType(),
+                     GotTypeList, Got.getValMut(), Got.getValType(), Equal);
+  }
+
+  /// Matcher: Match two tag types.
+  static bool matchType(Span<const SubType *const> ExpTypeList,
+                        const TagType &Exp,
+                        Span<const SubType *const> GotTypeList,
+                        const TagType &Got,
+                        RecTypePairs *Equal = nullptr) noexcept {
+    // Matching both ways, the defined types must be equal.
+    return isDefTypeEqual(ExpTypeList, Exp.getTypeIdx(), GotTypeList,
+                          Got.getTypeIdx(), Equal);
+  }
+
+  /// Matcher: Match two limits.
+  static bool matchLimit(const Limit &Exp, const Limit &Got) noexcept {
+    if (Exp.getAddrType() != Got.getAddrType() ||
+        Exp.isShared() != Got.isShared()) {
+      return false;
+    }
+    if (Got.getMin() < Exp.getMin()) {
+      return false;
+    }
+    if (Exp.hasMax()) {
+      return Got.hasMax() && Got.getMax() <= Exp.getMax();
+    }
+    return true;
+  }
+
+  /// Matcher: Get the top type of the hierarchy of an abstract heap type.
+  static TypeCode getTopHeapType(TypeCode HTCode) noexcept {
+    switch (HTCode) {
+    case TypeCode::NullFuncRef:
+    case TypeCode::FuncRef:
+      return TypeCode::FuncRef;
+    case TypeCode::NullExternRef:
+    case TypeCode::ExternRef:
+      return TypeCode::ExternRef;
+    case TypeCode::NullExnRef:
+    case TypeCode::ExnRef:
+      return TypeCode::ExnRef;
+    default:
+      return TypeCode::AnyRef;
+    }
+  }
+
+  /// Matcher: Get the bottom type of the hierarchy of an abstract heap type.
+  static TypeCode getBottomHeapType(TypeCode HTCode) noexcept {
+    switch (getTopHeapType(HTCode)) {
+    case TypeCode::FuncRef:
+      return TypeCode::NullFuncRef;
+    case TypeCode::ExternRef:
+      return TypeCode::NullExternRef;
+    case TypeCode::ExnRef:
+      return TypeCode::NullExnRef;
+    default:
+      return TypeCode::NullRef;
+    }
+  }
+
+private:
+  /// Matcher: Helper for matching two field types in the same module.
+  static bool matchType(Span<const SubType *const> TypeList,
+                        const FieldType &Exp, const FieldType &Got) noexcept {
+    return matchType(TypeList, Exp.getValMut(), Exp.getStorageType(), TypeList,
+                     Got.getValMut(), Got.getStorageType());
+  }
+
+  /// Matcher: Helper for matching types with mutability, equal if mutable.
+  static bool matchType(Span<const SubType *const> ExpTypeList, ValMut ExpMut,
+                        const ValType &Exp,
+                        Span<const SubType *const> GotTypeList, ValMut GotMut,
+                        const ValType &Got,
+                        RecTypePairs *Equal = nullptr) noexcept {
+    if (ExpMut != GotMut) {
+      return false;
+    }
+    if (ExpMut == ValMut::Const) {
+      return matchType(ExpTypeList, Exp, GotTypeList, Got, Equal);
+    }
+    return isValTypeEqual(ExpTypeList, Exp, GotTypeList, Got, Equal);
+  }
+
+  /// Matcher: Helper for matching two abstract heap types.
+  static bool matchTypeCode(TypeCode Exp, TypeCode Got) noexcept {
+    if (Exp == Got) {
+      return true;
+    }
+    // The abstract heap types above the got type.
+    switch (Got) {
+    case TypeCode::NullRef:
+    case TypeCode::NullFuncRef:
+    case TypeCode::NullExnRef:
+    case TypeCode::NullExternRef:
+      return getTopHeapType(Exp) == getTopHeapType(Got);
+    case TypeCode::I31Ref:
+    case TypeCode::StructRef:
+    case TypeCode::ArrayRef:
+      return Exp == TypeCode::EqRef || Exp == TypeCode::AnyRef;
+    case TypeCode::EqRef:
+      return Exp == TypeCode::AnyRef;
+    default:
+      return false;
+    }
+  }
+
+  /// Matcher: Helper for checking the equivalence of two value types.
+  static bool isValTypeEqual(Span<const SubType *const> LHSList,
+                             const ValType &LHS,
+                             Span<const SubType *const> RHSList,
+                             const ValType &RHS, RecTypePairs *Equal) noexcept {
+    if (LHS.getCode() != RHS.getCode() ||
+        LHS.getHeapTypeCode() != RHS.getHeapTypeCode()) {
+      return false;
+    }
+    return LHS.getHeapTypeCode() != TypeCode::TypeIndex ||
+           isDefTypeEqual(LHSList, LHS.getTypeIndex(), RHSList,
+                          RHS.getTypeIndex(), Equal);
+  }
+
+  /// Matcher: Helper for the equivalence of two defined types by indices alone.
+  static std::optional<bool> isEqualByIndex(Span<const SubType *const> LHSList,
+                                            uint32_t LHSIdx,
+                                            Span<const SubType *const> RHSList,
+                                            uint32_t RHSIdx) noexcept {
+    if (LHSIdx >= LHSList.size() || RHSIdx >= RHSList.size()) {
+      return false;
+    }
+    if (LHSList.data() != RHSList.data()) {
+      return std::nullopt;
+    }
+    if (LHSIdx == RHSIdx) {
+      return true;
+    }
+    const auto LCanonIdx = LHSList[LHSIdx]->getCanonicalIndex();
+    const auto RCanonIdx = RHSList[RHSIdx]->getCanonicalIndex();
+    if (!LCanonIdx.has_value() || !RCanonIdx.has_value()) {
+      return std::nullopt;
+    }
+    return *LCanonIdx == *RCanonIdx;
+  }
+
+  /// Matcher: Helper for the first indices of the recursive types to compare.
+  static std::optional<std::pair<uint32_t, uint32_t>>
+  getRecTypePair(Span<const SubType *const> LHSList, uint32_t LHSIdx,
+                 Span<const SubType *const> RHSList, uint32_t RHSIdx) noexcept {
+    const auto LInfo = LHSList[LHSIdx]->getRecursiveInfo();
+    const auto RInfo = RHSList[RHSIdx]->getRecursiveInfo();
+    if (LInfo.Index != RInfo.Index || LInfo.RecTypeSize != RInfo.RecTypeSize) {
+      return std::nullopt;
+    }
+    const uint32_t LStartIdx = LHSIdx - LInfo.Index;
+    const uint32_t RStartIdx = RHSIdx - RInfo.Index;
+    return std::make_pair(
+        LHSList[LStartIdx]->getCanonicalIndex().value_or(LStartIdx),
+        RHSList[RStartIdx]->getCanonicalIndex().value_or(RStartIdx));
+  }
+
+  /// Matcher: Helper for checking the equivalence of two defined types.
+  static bool isDefTypeEqual(Span<const SubType *const> LHSList,
+                             uint32_t LHSIdx,
+                             Span<const SubType *const> RHSList,
+                             uint32_t RHSIdx,
+                             RecTypePairs *Equal = nullptr) noexcept {
+    if (const auto IsEqual = isEqualByIndex(LHSList, LHSIdx, RHSList, RHSIdx);
+        IsEqual.has_value()) {
+      return *IsEqual;
+    }
+    auto Pair = getRecTypePair(LHSList, LHSIdx, RHSList, RHSIdx);
+    if (!Pair.has_value()) {
+      return false;
+    }
+    // Rec types refer only to earlier ones, so popping the largest pending pair
+    // compares each pair once, and its repeats come out right after it.
+    std::vector<std::pair<uint32_t, uint32_t>> Pending;
+    std::vector<std::pair<uint32_t, uint32_t>> Compared;
+    while (true) {
+      if (Equal == nullptr ||
+          Equal->count({LHSList[Pair->first], RHSList[Pair->second]}) == 0) {
+        if (!isRecTypeEqual(LHSList, Pair->first, RHSList, Pair->second,
+                            Pending)) {
+          return false;
+        }
+        if (Equal != nullptr) {
+          Compared.push_back(*Pair);
+        }
+      }
+      while (!Pending.empty() && Pending.front() == *Pair) {
+        std::pop_heap(Pending.begin(), Pending.end());
+        Pending.pop_back();
+      }
+      if (Pending.empty()) {
+        break;
+      }
+      std::pop_heap(Pending.begin(), Pending.end());
+      Pair = Pending.back();
+      Pending.pop_back();
+    }
+    if (Equal != nullptr) {
+      for (const auto &[LStartIdx, RStartIdx] : Compared) {
+        Equal->emplace(LHSList[LStartIdx], RHSList[RStartIdx]);
+      }
+    }
+    return true;
+  }
+
+  /// Matcher: Helper for checking the equivalence of two recursive types.
+  static bool
+  isRecTypeEqual(Span<const SubType *const> LHSList, uint32_t LStartIdx,
+                 Span<const SubType *const> RHSList, uint32_t RStartIdx,
+                 std::vector<std::pair<uint32_t, uint32_t>> &Pending) noexcept {
+    const uint32_t RecSize = LHSList[LStartIdx]->getRecursiveInfo().RecTypeSize;
+    auto IsTypeIdxEqual = [&](uint32_t LIdx, uint32_t RIdx) -> bool {
+      const bool IsLInRecType = LIdx >= LStartIdx && LIdx - LStartIdx < RecSize;
+      const bool IsRInRecType = RIdx >= RStartIdx && RIdx - RStartIdx < RecSize;
+      if (IsLInRecType || IsRInRecType) {
+        return IsLInRecType && IsRInRecType &&
+               LIdx - LStartIdx == RIdx - RStartIdx;
+      }
+      if (const auto IsEqual = isEqualByIndex(LHSList, LIdx, RHSList, RIdx);
+          IsEqual.has_value()) {
+        return *IsEqual;
+      }
+      const auto Pair = getRecTypePair(LHSList, LIdx, RHSList, RIdx);
+      if (!Pair.has_value()) {
+        return false;
+      }
+      Pending.push_back(*Pair);
+      std::push_heap(Pending.begin(), Pending.end());
+      return true;
+    };
+    auto IsValTypeEqual = [&](const ValType &LType,
+                              const ValType &RType) -> bool {
+      if (LType.getCode() != RType.getCode() ||
+          LType.getHeapTypeCode() != RType.getHeapTypeCode()) {
+        return false;
+      }
+      return LType.getHeapTypeCode() != TypeCode::TypeIndex ||
+             IsTypeIdxEqual(LType.getTypeIndex(), RType.getTypeIndex());
+    };
+    auto IsValTypesEqual = [&](Span<const ValType> LTypes,
+                               Span<const ValType> RTypes) -> bool {
+      if (LTypes.size() != RTypes.size()) {
+        return false;
+      }
+      for (uint32_t I = 0; I < LTypes.size(); I++) {
+        if (!IsValTypeEqual(LTypes[I], RTypes[I])) {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    for (uint32_t I = 0; I < RecSize; I++) {
+      const auto &LType = *LHSList[LStartIdx + I];
+      const auto &RType = *RHSList[RStartIdx + I];
+      const auto &LCompType = LType.getCompositeType();
+      const auto &RCompType = RType.getCompositeType();
+      const auto LSuperTypes = LType.getSuperTypeIndices();
+      const auto RSuperTypes = RType.getSuperTypeIndices();
+      if (LType.isFinal() != RType.isFinal() ||
+          LCompType.getContentTypeCode() != RCompType.getContentTypeCode() ||
+          LSuperTypes.size() != RSuperTypes.size()) {
+        return false;
+      }
+      if (LCompType.isFunc()) {
+        const auto &LFType = LCompType.getFuncType();
+        const auto &RFType = RCompType.getFuncType();
+        if (!IsValTypesEqual(LFType.getParamTypes(), RFType.getParamTypes()) ||
+            !IsValTypesEqual(LFType.getReturnTypes(),
+                             RFType.getReturnTypes())) {
+          return false;
+        }
+      } else {
+        const auto &LFTypes = LCompType.getFieldTypes();
+        const auto &RFTypes = RCompType.getFieldTypes();
+        if (LFTypes.size() != RFTypes.size()) {
+          return false;
+        }
+        for (uint32_t J = 0; J < LFTypes.size(); J++) {
+          if (LFTypes[J].getValMut() != RFTypes[J].getValMut() ||
+              !IsValTypeEqual(LFTypes[J].getStorageType(),
+                              RFTypes[J].getStorageType())) {
+            return false;
+          }
+        }
+      }
+      for (uint32_t J = 0; J < LSuperTypes.size(); J++) {
+        if (!IsTypeIdxEqual(LSuperTypes[J], RSuperTypes[J])) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
 };
 
 } // namespace AST

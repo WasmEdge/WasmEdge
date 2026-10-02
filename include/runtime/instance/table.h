@@ -27,6 +27,8 @@ namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
 
+class ModuleInstance;
+
 class TableInstance {
 public:
   TableInstance() = delete;
@@ -50,6 +52,15 @@ public:
     assuming(TType.getRefType().isNullableRefType() || !InitVal.isNull());
     DataPtr = Refs.data();
   }
+  /// Constructor for a table instance defined by a module.
+  TableInstance(const ModuleInstance *Mod, const AST::TableType &TType,
+                const RefVariant &InitVal) noexcept
+      : TableInstance(TType, InitVal) {
+    ModInst = Mod;
+  }
+
+  /// Getter for the defining module instance, if any.
+  const ModuleInstance *getModule() const noexcept { return ModInst; }
 
   /// Get size of table.refs
   uint64_t getSize() const noexcept {
@@ -189,6 +200,7 @@ private:
 
   /// \name Data of table instance.
   /// @{
+  const ModuleInstance *ModInst = nullptr;
   AST::TableType TabType;
   std::vector<RefVariant> Refs;
   RefVariant InitValue;

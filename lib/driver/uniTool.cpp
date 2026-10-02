@@ -3,10 +3,13 @@
 
 #include "driver/unitool.h"
 #include "common/spdlog.h"
+#include "common/version.h"
 #include "driver/compiler.h"
 #include "driver/tool.h"
+#include "plugin/plugin.h"
 #include "po/argument_parser.h"
 
+#include <cstdlib>
 #include <string_view>
 
 namespace WasmEdge {
@@ -35,36 +38,44 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
   struct DriverToolOptions InstantiateOptions;
   struct DriverToolOptions ValidateOptions;
 
+  auto AddOptions = [&](const ToolType Type) noexcept {
+    switch (Type) {
+    case ToolType::Tool:
+      ToolOptions.addOptions(Parser);
+      return true;
+    case ToolType::Compiler:
+      CompilerOptions.addOptions(Parser);
+      return true;
+    case ToolType::Parse:
+      ParseOptions.addParserOptions(Parser);
+      return true;
+    case ToolType::Instantiate:
+      InstantiateOptions.addLinkerOptions(Parser);
+      return true;
+    case ToolType::Validate:
+      ValidateOptions.addParserOptions(Parser);
+      return true;
+    default:
+      return false;
+    }
+  };
+  auto AddSubCommand = [&](PO::SubCommand &SubCommand, std::string_view Name,
+                           const ToolType Type) noexcept {
+    Parser.begin_subcommand(SubCommand, Name);
+    AddOptions(Type);
+    Parser.end_subcommand();
+  };
+
   // Construct Parser Subcommands and Options
   if (ToolSelect == ToolType::All) {
-    ToolOptions.addOptions(Parser);
-
-    Parser.begin_subcommand(CompilerSubCommand, "compile"sv);
-    CompilerOptions.addOptions(Parser);
-    Parser.end_subcommand();
-    Parser.begin_subcommand(ToolSubCommand, "run"sv);
-    ToolOptions.addOptions(Parser);
-    Parser.end_subcommand();
-    Parser.begin_subcommand(ParseSubCommand, "parse"sv);
-    ParseOptions.addParserOptions(Parser);
-    Parser.end_subcommand();
-    Parser.begin_subcommand(InstantiateSubCommand, "instantiate"sv);
-    InstantiateOptions.addLinkerOptions(Parser);
-    Parser.end_subcommand();
-    Parser.begin_subcommand(ValidateSubCommand, "validate"sv);
-    ValidateOptions.addParserOptions(Parser);
-    Parser.end_subcommand();
-  } else if (ToolSelect == ToolType::Tool) {
-    ToolOptions.addOptions(Parser);
-  } else if (ToolSelect == ToolType::Compiler) {
-    CompilerOptions.addOptions(Parser);
-  } else if (ToolSelect == ToolType::Parse) {
-    ParseOptions.addParserOptions(Parser);
-  } else if (ToolSelect == ToolType::Validate) {
-    ValidateOptions.addParserOptions(Parser);
-  } else if (ToolSelect == ToolType::Instantiate) {
-    InstantiateOptions.addLinkerOptions(Parser);
-  } else {
+    AddOptions(ToolType::Tool);
+    AddSubCommand(CompilerSubCommand, "compile"sv, ToolType::Compiler);
+    AddSubCommand(ToolSubCommand, "run"sv, ToolType::Tool);
+    AddSubCommand(ParseSubCommand, "parse"sv, ToolType::Parse);
+    AddSubCommand(InstantiateSubCommand, "instantiate"sv,
+                  ToolType::Instantiate);
+    AddSubCommand(ValidateSubCommand, "validate"sv, ToolType::Validate);
+  } else if (!AddOptions(ToolSelect)) {
     return EXIT_FAILURE;
   }
 
@@ -86,44 +97,38 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
     return EXIT_SUCCESS;
   }
 
-  auto ApplyLogLevel = [](const std::string &Level) {
-    if (!Level.empty() && !Log::setLoggingLevelFromString(Level)) {
-      spdlog::warn(
-          "Invalid log level: {}. Valid values are: off, trace, debug, "
-          "info, warning, error, fatal. Falling back to info level."sv,
-          Level);
-      Log::setInfoLoggingLevel();
-    }
-  };
-
-  if (ToolSelect == ToolType::All) {
-    if (!ParseSubCommand.is_selected() && !ValidateSubCommand.is_selected() &&
-        !InstantiateSubCommand.is_selected()) {
-      ApplyLogLevel(ToolOptions.LogLevel.value());
-    }
-  } else if (ToolSelect == ToolType::Tool) {
-    ApplyLogLevel(ToolOptions.LogLevel.value());
-  } else if (ToolSelect == ToolType::Instantiate) {
-    ApplyLogLevel(InstantiateOptions.LogLevel.value());
-  }
-
   // Forward Results
-  if (ToolSubCommand.is_selected() || ToolSelect == ToolType::Tool) {
-    return Tool(ToolOptions);
-  } else if (CompilerSubCommand.is_selected() ||
-             ToolSelect == ToolType::Compiler) {
+  ToolType Selected = ToolSelect;
+  if (ToolSelect == ToolType::All) {
+    if (CompilerSubCommand.is_selected()) {
+      Selected = ToolType::Compiler;
+    } else if (ParseSubCommand.is_selected()) {
+      Selected = ToolType::Parse;
+    } else if (InstantiateSubCommand.is_selected()) {
+      Selected = ToolType::Instantiate;
+    } else if (ValidateSubCommand.is_selected()) {
+      Selected = ToolType::Validate;
+    } else {
+      Selected = ToolType::Tool;
+    }
+  }
+  switch (Selected) {
+  case ToolType::Compiler:
+    CompilerOptions.inheritLoggingOptions(ToolOptions);
     return Compiler(CompilerOptions);
-  } else if (ParseSubCommand.is_selected() || ToolSelect == ToolType::Parse) {
+  case ToolType::Parse:
+    ParseOptions.inheritGlobalOptions(ToolOptions);
     return ParseTool(ParseOptions);
-  } else if (ValidateSubCommand.is_selected() ||
-             ToolSelect == ToolType::Validate) {
-    return ValidateTool(ValidateOptions);
-  } else if (InstantiateSubCommand.is_selected() ||
-             ToolSelect == ToolType::Instantiate) {
+  case ToolType::Instantiate:
+    InstantiateOptions.inheritGlobalOptions(ToolOptions);
     return InstantiateTool(InstantiateOptions);
-  } else {
+  case ToolType::Validate:
+    ValidateOptions.inheritGlobalOptions(ToolOptions);
+    return ValidateTool(ValidateOptions);
+  default:
     return Tool(ToolOptions);
   }
 }
+
 } // namespace Driver
 } // namespace WasmEdge

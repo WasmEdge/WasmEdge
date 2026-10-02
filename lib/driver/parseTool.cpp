@@ -3,15 +3,19 @@
 
 #include "ast/module.h"
 #include "common/configure.h"
+#include "common/errcode.h"
 #include "common/filesystem.h"
 #include "common/spdlog.h"
 #include "driver/tool.h"
+#include "loader/filemgr.h"
 #include "loader/loader.h"
 
+#include <cstdint>
 #include <cstdlib>
 #include <map>
 #include <string>
 #include <string_view>
+#include <utility>
 
 using namespace std::literals;
 
@@ -25,55 +29,48 @@ struct NameSection {
   std::map<uint32_t, std::string> GlobalNames;
 };
 
-uint32_t decodeLEB128U32(Span<const Byte> Data, uint32_t &Offset) {
-  uint32_t Result = 0;
-  uint32_t Shift = 0;
-  while (Offset < Data.size()) {
-    uint8_t B = static_cast<uint8_t>(Data[Offset++]);
-    Result |= static_cast<uint32_t>(B & 0x7F) << Shift;
-    if ((B & 0x80) == 0)
-      break;
-    Shift += 7;
-  }
-  return Result;
-}
-
-std::string decodeName(Span<const Byte> Data, uint32_t &Offset) {
-  uint32_t Len = decodeLEB128U32(Data, Offset);
-  if (Len > Data.size() - Offset)
-    return {};
-  std::string Name(reinterpret_cast<const char *>(&Data[Offset]), Len);
-  Offset += Len;
-  return Name;
-}
-
-std::map<uint32_t, std::string> decodeNameMap(Span<const Byte> Data,
-                                              uint32_t &Offset) {
+// Reads a name map subsection: a count of index and name pairs.
+Expect<std::map<uint32_t, std::string>> readNameMap(Span<const Byte> Data) {
+  FileMgr Mgr;
+  EXPECTED_TRY(Mgr.setCode(Data));
   std::map<uint32_t, std::string> Map;
-  uint32_t Count = decodeLEB128U32(Data, Offset);
-  for (uint32_t I = 0; I < Count && Offset < Data.size(); I++) {
-    uint32_t Idx = decodeLEB128U32(Data, Offset);
-    std::string Name = decodeName(Data, Offset);
+  EXPECTED_TRY(uint32_t Count, Mgr.readU32());
+  for (uint32_t I = 0; I < Count; ++I) {
+    EXPECTED_TRY(uint32_t Idx, Mgr.readU32());
+    EXPECTED_TRY(std::string Name, Mgr.readName());
     Map[Idx] = std::move(Name);
   }
   return Map;
 }
 
+// Reads the function and global name subsections, each within its own size.
 NameSection parseNameSection(Span<const Byte> Data) {
   NameSection NS;
-  uint32_t Offset = 0;
-  while (Offset < Data.size()) {
-    uint8_t SubId = static_cast<uint8_t>(Data[Offset++]);
-    uint32_t SubSize = decodeLEB128U32(Data, Offset);
-    if (SubSize > Data.size() - Offset)
+  FileMgr Mgr;
+  if (!Mgr.setCode(Data)) {
+    return NS;
+  }
+  while (Mgr.getRemainSize() > 0) {
+    const auto SubId = Mgr.readByte();
+    const auto SubSize = Mgr.readU32();
+    if (!SubId || !SubSize || *SubSize > Mgr.getRemainSize()) {
+      spdlog::warn(
+          "Malformed name section; the remaining names are ignored."sv);
       break;
-    uint32_t SubEnd = Offset + SubSize;
-    if (SubId == 1) {
-      NS.FuncNames = decodeNameMap(Data, Offset);
-    } else if (SubId == 7) {
-      NS.GlobalNames = decodeNameMap(Data, Offset);
     }
-    Offset = SubEnd;
+    const auto SubData = Data.subspan(Mgr.getOffset(), *SubSize);
+    if (*SubId == 1 || *SubId == 7) {
+      auto Res = readNameMap(SubData);
+      if (!Res) {
+        spdlog::warn("Malformed name subsection {}; its names are ignored."sv,
+                     *SubId);
+      } else if (*SubId == 1) {
+        NS.FuncNames = std::move(*Res);
+      } else {
+        NS.GlobalNames = std::move(*Res);
+      }
+    }
+    Mgr.seek(Mgr.getOffset() + *SubSize);
   }
   return NS;
 }
@@ -126,10 +123,13 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
   std::ios::sync_with_stdio(false);
 
   Configure Conf = createConfigure(Opt);
-  const auto InputPath = std::filesystem::absolute(u8path(Opt.SoName.value()));
+  const auto InputPath = getInputPath(Opt);
+  if (!InputPath) {
+    return EXIT_FAILURE;
+  }
 
   Loader::Loader Loader(Conf);
-  auto Res = Loader.parseModule(InputPath);
+  auto Res = Loader.parseModule(*InputPath);
   if (!Res) {
     spdlog::error("Failed to parse WASM module."sv);
     return EXIT_FAILURE;
@@ -178,7 +178,7 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
     return {};
   };
 
-  fmt::print("{}:  file format wasm 0x1\n\n", InputPath.filename().string());
+  fmt::print("{}:  file format wasm 0x1\n\n", InputPath->filename().string());
   fmt::print("Section Details:\n\n");
 
   // Type Section

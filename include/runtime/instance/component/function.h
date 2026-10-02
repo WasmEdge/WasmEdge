@@ -10,6 +10,9 @@
 #include <memory>
 
 namespace WasmEdge {
+
+/// The string encoding of a canonical option.
+enum class StringEncoding : uint8_t { UTF8, UTF16, Latin1UTF16 };
 namespace Runtime {
 namespace Instance {
 

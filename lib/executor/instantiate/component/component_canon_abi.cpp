@@ -60,8 +60,8 @@ Expect<uint32_t> callRealloc(const CanonCtx &Cx, uint32_t OldPtr,
 constexpr uint32_t kU8Cases = 256;
 constexpr uint32_t kU16Cases = 65536;
 
-Expect<uint32_t> alignmentPrim(AST::Component::PrimValType PVT) noexcept {
-  using P = AST::Component::PrimValType;
+Expect<uint32_t> alignmentPrim(PrimValType PVT) noexcept {
+  using P = PrimValType;
   switch (PVT) {
   case P::Bool:
   case P::S8:
@@ -139,8 +139,7 @@ Expect<uint32_t> alignment(const CanonCtx &Cx,
 
   // PrimValType and ComponentTypeCode share byte values for the primitive
   // range (Bool=0x7F .. ErrContext=0x64). Forward to alignmentPrim.
-  return alignmentPrim(
-      static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
+  return alignmentPrim(static_cast<PrimValType>(static_cast<uint8_t>(Code)));
 }
 
 Expect<uint32_t> alignmentDef(const CanonCtx &Cx,
@@ -245,9 +244,9 @@ Expect<uint32_t> alignmentDef(const CanonCtx &Cx,
 
 namespace {
 
-Expect<uint32_t> elemSizePrim(AST::Component::PrimValType PVT) noexcept {
+Expect<uint32_t> elemSizePrim(PrimValType PVT) noexcept {
   // CanonicalABI.md L1994-2008.
-  using P = AST::Component::PrimValType;
+  using P = PrimValType;
   switch (PVT) {
   case P::Bool:
   case P::S8:
@@ -317,8 +316,7 @@ Expect<uint32_t> elemSize(const CanonCtx &Cx,
     return elemSizeDef(Cx, DT->getDefValType());
   }
 
-  return elemSizePrim(
-      static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
+  return elemSizePrim(static_cast<PrimValType>(static_cast<uint8_t>(Code)));
 }
 
 Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
@@ -336,11 +334,11 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
     for (const auto &F : T.getRecord().LabelTypes) {
       EXPECTED_TRY(auto A, alignment(Cx, F.getValType()));
       Max = std::max(Max, A);
-      Off = alignTo(Off, A);
+      Off = static_cast<uint32_t>(alignTo(Off, A));
       EXPECTED_TRY(auto S, elemSize(Cx, F.getValType()));
       Off += S;
     }
-    return alignTo(Off, Max);
+    return static_cast<uint32_t>(alignTo(Off, Max));
   }
 
   if (T.isTupleTy()) {
@@ -349,11 +347,11 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
     for (const auto &V : T.getTuple().Types) {
       EXPECTED_TRY(auto A, alignment(Cx, V));
       Max = std::max(Max, A);
-      Off = alignTo(Off, A);
+      Off = static_cast<uint32_t>(alignTo(Off, A));
       EXPECTED_TRY(auto S, elemSize(Cx, V));
       Off += S;
     }
-    return alignTo(Off, Max);
+    return static_cast<uint32_t>(alignTo(Off, Max));
   }
 
   if (T.isVariantTy()) {
@@ -373,7 +371,8 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
       }
     }
     const uint32_t Aggr = std::max(Disc, MaxAlign);
-    return alignTo(alignTo(Disc, MaxAlign) + MaxSize, Aggr);
+    return static_cast<uint32_t>(
+        alignTo(alignTo(Disc, MaxAlign) + MaxSize, Aggr));
   }
 
   if (T.isOptionTy()) {
@@ -381,7 +380,7 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
     EXPECTED_TRY(auto A, alignment(Cx, T.getOption().ValTy));
     EXPECTED_TRY(auto PS, elemSize(Cx, T.getOption().ValTy));
     const uint32_t Aggr = std::max(1u, A);
-    return alignTo(alignTo(1u, A) + PS, Aggr);
+    return static_cast<uint32_t>(alignTo(alignTo(1u, A) + PS, Aggr));
   }
 
   if (T.isResultTy()) {
@@ -402,7 +401,8 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
     EXPECTED_TRY(consider(R.ValTy));
     EXPECTED_TRY(consider(R.ErrTy));
     const uint32_t Aggr = MaxAlign; // disc=1 ≤ MaxAlign
-    return alignTo(alignTo(1u, MaxAlign) + MaxSize, Aggr);
+    return static_cast<uint32_t>(
+        alignTo(alignTo(1u, MaxAlign) + MaxSize, Aggr));
   }
 
   if (T.isListTy()) {
@@ -424,7 +424,7 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
     const uint32_t Labels = static_cast<uint32_t>(F.Labels.size());
     const uint32_t Bytes = (Labels + 7u) / 8u;
     EXPECTED_TRY(auto A, alignmentDef(Cx, T));
-    return alignTo(Bytes, A);
+    return static_cast<uint32_t>(alignTo(Bytes, A));
   }
 
   if (T.isEnumTy()) {
@@ -448,10 +448,9 @@ const ValType I64T{TypeCode::I64};
 const ValType F32T{TypeCode::F32};
 const ValType F64T{TypeCode::F64};
 
-Expect<std::vector<ValType>>
-flattenTypePrim(AST::Component::PrimValType PVT) noexcept {
+Expect<std::vector<ValType>> flattenTypePrim(PrimValType PVT) noexcept {
   // CanonicalABI.md L2862-2870 / L2874 / L2875 (excluding gated rows).
-  using P = AST::Component::PrimValType;
+  using P = PrimValType;
   switch (PVT) {
   case P::Bool:
   case P::S8:
@@ -518,8 +517,7 @@ Expect<std::vector<ValType>> flattenType(const CanonCtx &Cx,
     return flattenTypeDef(Cx, DT->getDefValType());
   }
 
-  return flattenTypePrim(
-      static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
+  return flattenTypePrim(static_cast<PrimValType>(static_cast<uint8_t>(Code)));
 }
 
 Expect<std::vector<ValType>>
@@ -719,7 +717,7 @@ bool containsListOrStringDef(const CanonCtx &Cx,
                              const AST::Component::DefValType &T,
                              std::unordered_set<uint32_t> &Seen) noexcept {
   if (T.isPrimValType()) {
-    return T.getPrimValType() == AST::Component::PrimValType::String;
+    return T.getPrimValType() == PrimValType::String;
   }
   if (T.isListTy()) {
     return true;
@@ -1174,9 +1172,9 @@ encodeString(const CanonCtx &Cx, const std::string &S) noexcept {
 
 // Load a primitive at Ptr. CanonicalABI.md L2054-2065.
 Expect<ComponentValVariant> loadPrim(const CanonCtx &Cx, uint32_t Ptr,
-                                     AST::Component::PrimValType PVT) noexcept {
+                                     PrimValType PVT) noexcept {
   assuming(Cx.Mem != nullptr);
-  using P = AST::Component::PrimValType;
+  using P = PrimValType;
   switch (PVT) {
   case P::Bool: {
     // convert_int_to_bool (L2088-2090): 0 → false, else true.
@@ -1292,9 +1290,8 @@ Expect<ComponentValVariant> load(const CanonCtx &Cx, uint32_t Ptr,
     return loadDef(Cx, Ptr, DT->getDefValType());
   }
 
-  return loadPrim(
-      Cx, Ptr,
-      static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
+  return loadPrim(Cx, Ptr,
+                  static_cast<PrimValType>(static_cast<uint8_t>(Code)));
 }
 
 Expect<ComponentValVariant>
@@ -1310,7 +1307,7 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
     uint32_t Off = Ptr;
     for (const auto &F : T.getRecord().LabelTypes) {
       EXPECTED_TRY(auto A, alignment(Cx, F.getValType()));
-      Off = alignTo(Off, A);
+      Off = static_cast<uint32_t>(alignTo(Off, A));
       EXPECTED_TRY(auto V, load(Cx, Off, F.getValType()));
       R.Fields.emplace_back(std::string(F.getLabel()), std::move(V));
       EXPECTED_TRY(auto S, elemSize(Cx, F.getValType()));
@@ -1324,7 +1321,7 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
     uint32_t Off = Ptr;
     for (const auto &V : T.getTuple().Types) {
       EXPECTED_TRY(auto A, alignment(Cx, V));
-      Off = alignTo(Off, A);
+      Off = static_cast<uint32_t>(alignTo(Off, A));
       EXPECTED_TRY(auto Val, load(Cx, Off, V));
       Tu.Values.push_back(std::move(Val));
       EXPECTED_TRY(auto S, elemSize(Cx, V));
@@ -1347,7 +1344,8 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
     VV.Case = Case;
     if (Vt.Cases[Case].second.has_value()) {
       EXPECTED_TRY(auto MaxAlign, maxCaseAlignment(Cx, Vt.Cases));
-      const uint32_t PayloadOff = alignTo(Ptr + DiscSize, MaxAlign);
+      const uint32_t PayloadOff =
+          static_cast<uint32_t>(alignTo(Ptr + DiscSize, MaxAlign));
       EXPECTED_TRY(auto PV, load(Cx, PayloadOff, *Vt.Cases[Case].second));
       VV.Payload = std::move(PV);
     }
@@ -1364,7 +1362,7 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
     OptionVal OV;
     if (Disc == 1u) {
       EXPECTED_TRY(auto A, alignment(Cx, T.getOption().ValTy));
-      const uint32_t PayloadOff = alignTo(Ptr + 1u, A);
+      const uint32_t PayloadOff = static_cast<uint32_t>(alignTo(Ptr + 1u, A));
       EXPECTED_TRY(auto PV, load(Cx, PayloadOff, T.getOption().ValTy));
       OV.Value = std::move(PV);
     }
@@ -1392,7 +1390,8 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
         EXPECTED_TRY(auto A, alignment(Cx, *R.ErrTy));
         MaxAlign = std::max(MaxAlign, A);
       }
-      const uint32_t PayloadOff = alignTo(Ptr + 1u, MaxAlign);
+      const uint32_t PayloadOff =
+          static_cast<uint32_t>(alignTo(Ptr + 1u, MaxAlign));
       EXPECTED_TRY(auto PV, load(Cx, PayloadOff, *PT));
       RV.Payload = std::move(PV);
     }
@@ -1489,9 +1488,9 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
 namespace {
 
 Expect<void> storePrim(const CanonCtx &Cx, const ComponentValVariant &V,
-                       AST::Component::PrimValType PVT, uint32_t Ptr) noexcept {
+                       PrimValType PVT, uint32_t Ptr) noexcept {
   assuming(Cx.Mem != nullptr);
-  using P = AST::Component::PrimValType;
+  using P = PrimValType;
   switch (PVT) {
   case P::Bool: {
     const uint32_t B = std::get<bool>(V) ? 1u : 0u;
@@ -1576,10 +1575,8 @@ Expect<void> store(const CanonCtx &Cx, const ComponentValVariant &V,
     return storeDef(Cx, V, DT->getDefValType(), Ptr);
   }
 
-  return storePrim(
-      Cx, V,
-      static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)),
-      Ptr);
+  return storePrim(Cx, V, static_cast<PrimValType>(static_cast<uint8_t>(Code)),
+                   Ptr);
 }
 
 Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
@@ -1599,7 +1596,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
     uint32_t Off = Ptr;
     for (size_t I = 0; I < Fields.size(); ++I) {
       EXPECTED_TRY(auto A, alignment(Cx, Fields[I].getValType()));
-      Off = alignTo(Off, A);
+      Off = static_cast<uint32_t>(alignTo(Off, A));
       EXPECTED_TRY(store(Cx, R.Fields[I].second, Fields[I].getValType(), Off));
       EXPECTED_TRY(auto S, elemSize(Cx, Fields[I].getValType()));
       Off += S;
@@ -1616,7 +1613,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
     uint32_t Off = Ptr;
     for (size_t I = 0; I < Types.size(); ++I) {
       EXPECTED_TRY(auto A, alignment(Cx, Types[I]));
-      Off = alignTo(Off, A);
+      Off = static_cast<uint32_t>(alignTo(Off, A));
       EXPECTED_TRY(store(Cx, Tu.Values[I], Types[I], Off));
       EXPECTED_TRY(auto S, elemSize(Cx, Types[I]));
       Off += S;
@@ -1637,7 +1634,8 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
     if (Vt.Cases[Vv.Case].second.has_value()) {
       assuming(Vv.Payload.has_value());
       EXPECTED_TRY(auto MaxAlign, maxCaseAlignment(Cx, Vt.Cases));
-      const uint32_t PayloadOff = alignTo(Ptr + DiscSize, MaxAlign);
+      const uint32_t PayloadOff =
+          static_cast<uint32_t>(alignTo(Ptr + DiscSize, MaxAlign));
       EXPECTED_TRY(
           store(Cx, *Vv.Payload, *Vt.Cases[Vv.Case].second, PayloadOff));
     }
@@ -1652,7 +1650,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
     EXPECTED_TRY(storeN<uint32_t>(*Cx.Mem, 1, Disc, Ptr));
     if (O.Value.has_value()) {
       EXPECTED_TRY(auto A, alignment(Cx, T.getOption().ValTy));
-      const uint32_t PayloadOff = alignTo(Ptr + 1u, A);
+      const uint32_t PayloadOff = static_cast<uint32_t>(alignTo(Ptr + 1u, A));
       EXPECTED_TRY(store(Cx, *O.Value, T.getOption().ValTy, PayloadOff));
     }
     return {};
@@ -1677,7 +1675,8 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
         EXPECTED_TRY(auto A, alignment(Cx, *Rt.ErrTy));
         MaxAlign = std::max(MaxAlign, A);
       }
-      const uint32_t PayloadOff = alignTo(Ptr + 1u, MaxAlign);
+      const uint32_t PayloadOff =
+          static_cast<uint32_t>(alignTo(Ptr + 1u, MaxAlign));
       EXPECTED_TRY(store(Cx, *R.Payload, *PT, PayloadOff));
     }
     return {};
@@ -1765,14 +1764,14 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     assuming(VC);
     const auto &O = std::get<OwnVal>(VC->V);
-    return Cx.Mem->storeValue<uint32_t>(O.Handle, Ptr);
+    return Cx.Mem->storeValue<uint32_t>(static_cast<uint32_t>(O.Handle), Ptr);
   }
 
   if (T.isBorrowTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     assuming(VC);
     const auto &B = std::get<BorrowVal>(VC->V);
-    return Cx.Mem->storeValue<uint32_t>(B.Handle, Ptr);
+    return Cx.Mem->storeValue<uint32_t>(static_cast<uint32_t>(B.Handle), Ptr);
   }
 
   spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
@@ -1946,10 +1945,9 @@ ComponentValVariant liftFlatSigned(uint32_t Width, uint64_t Raw) noexcept {
   }
 }
 
-Expect<ComponentValVariant>
-liftFlatPrim(const CanonCtx &Cx, FlatIter &VI,
-             AST::Component::PrimValType PVT) noexcept {
-  using P = AST::Component::PrimValType;
+Expect<ComponentValVariant> liftFlatPrim(const CanonCtx &Cx, FlatIter &VI,
+                                         PrimValType PVT) noexcept {
+  using P = PrimValType;
   auto Next = VI.next();
   assuming(Next.has_value() || PVT == P::String || PVT == P::ErrorContext);
   switch (PVT) {
@@ -2027,9 +2025,8 @@ Expect<ComponentValVariant> liftFlat(const CanonCtx &Cx, FlatIter &VI,
     }
     return liftFlatDef(Cx, VI, DT->getDefValType());
   }
-  return liftFlatPrim(
-      Cx, VI,
-      static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
+  return liftFlatPrim(Cx, VI,
+                      static_cast<PrimValType>(static_cast<uint8_t>(Code)));
 }
 
 Expect<ComponentValVariant>
@@ -2222,10 +2219,10 @@ std::vector<ValVariant> lowerSigned64(int64_t V) noexcept {
   return {ValVariant(static_cast<uint64_t>(V))};
 }
 
-Expect<std::vector<ValVariant>>
-lowerFlatPrim(const CanonCtx &Cx, const ComponentValVariant &V,
-              AST::Component::PrimValType PVT) noexcept {
-  using P = AST::Component::PrimValType;
+Expect<std::vector<ValVariant>> lowerFlatPrim(const CanonCtx &Cx,
+                                              const ComponentValVariant &V,
+                                              PrimValType PVT) noexcept {
+  using P = PrimValType;
   switch (PVT) {
   case P::Bool:
     return std::vector<ValVariant>{ValVariant(std::get<bool>(V) ? 1u : 0u)};
@@ -2299,9 +2296,8 @@ Expect<std::vector<ValVariant>> lowerFlat(const CanonCtx &Cx,
     }
     return lowerFlatDef(Cx, V, DT->getDefValType());
   }
-  return lowerFlatPrim(
-      Cx, V,
-      static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
+  return lowerFlatPrim(Cx, V,
+                       static_cast<PrimValType>(static_cast<uint8_t>(Code)));
 }
 
 Expect<std::vector<ValVariant>>
@@ -2603,7 +2599,7 @@ lowerFlatValues(const CanonCtx &Cx, Span<const ComponentValVariant> Values,
     uint32_t Off = 0u;
     for (size_t I = 0; I < Types.size(); ++I) {
       EXPECTED_TRY(auto FA, alignment(Cx, Types[I]));
-      Off = alignTo(Off, FA);
+      Off = static_cast<uint32_t>(alignTo(Off, FA));
       EXPECTED_TRY(store(Cx, Values[I], Types[I], Ptr + Off));
       EXPECTED_TRY(auto FS, elemSize(Cx, Types[I]));
       Off += FS;

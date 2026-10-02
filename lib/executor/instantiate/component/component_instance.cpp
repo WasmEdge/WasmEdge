@@ -77,10 +77,10 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
         case AST::Component::Sort::CoreSortType::Type:
         case AST::Component::Sort::CoreSortType::Module:
         case AST::Component::Sort::CoreSortType::Instance:
-          spdlog::error(ErrCode::Value::CoreInvalidExport);
+          spdlog::error(ErrCode::Value::ComponentUnexpectedSort);
           spdlog::error("    A module instance cannot exports types, modules,"sv
                         " or instances"sv);
-          return Unexpect(ErrCode::Value::CoreInvalidExport);
+          return Unexpect(ErrCode::Value::ComponentUnexpectedSort);
         default:
           assumingUnreachable();
         }

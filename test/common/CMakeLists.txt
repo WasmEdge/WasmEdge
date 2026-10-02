@@ -11,6 +11,7 @@ wasmedge_add_executable(wasmedgeCommonTests
   byteswapTest.cpp
   statisticsTest.cpp
   denseEnumMapTest.cpp
+  bitTest.cpp
 )
 
 add_test(wasmedgeCommonTests wasmedgeCommonTests)

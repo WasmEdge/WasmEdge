@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "experimental/simd.hpp"
+#include "common/types.h"
 #include "experimental/bit.hpp"
 #include "experimental/math.hpp"
 #include "experimental/simd/ext.hpp"
@@ -500,6 +501,19 @@ TYPED_TEST(SimdTest, NativeRoundTrip) {
   EXPECT_EQ((std::vector<std::uint32_t>(Raw, Raw + 4)),
             (std::vector<std::uint32_t>{0x11, 0x22, 0x33, 0x44}));
   EXPECT_EQ(lanes(cxx26::simd_ext::from_native<U32>(Native)), lanes(X));
+}
+
+TEST(ValVariantTest, ScalarsDoNotBroadcastIntoVectorAlternatives) {
+  const WasmEdge::ValVariant U8(std::uint8_t{200});
+  EXPECT_EQ(U8.get<std::int32_t>(), 200);
+  const WasmEdge::ValVariant I8(std::int8_t{-3});
+  EXPECT_EQ(I8.get<std::int32_t>(), -3);
+  const WasmEdge::ValVariant U16(std::uint16_t{0xbeef});
+  EXPECT_EQ(U16.get<std::int32_t>(), 0xbeef);
+  const WasmEdge::ValVariant F(1.5f);
+  EXPECT_EQ(F.get<float>(), 1.5f);
+  const WasmEdge::ValVariant U64(std::uint64_t{1} << 40);
+  EXPECT_EQ(U64.get<std::uint64_t>(), std::uint64_t{1} << 40);
 }
 
 } // namespace

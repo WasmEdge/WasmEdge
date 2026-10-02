@@ -20,9 +20,13 @@
 #include "common/int128.h"
 #include "common/variant.h"
 #include "endian.h"
+#include "experimental/bit.hpp"
+#include "experimental/simd.hpp"
+#include "experimental/simd/ext.hpp"
 
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <type_traits>
@@ -52,13 +56,8 @@ inline constexpr uint32_t alignTo(uint32_t Value, uint32_t Alignment) noexcept {
 /// SIMD types definition.
 template <typename Ty, size_t TotalSize,
           std::enable_if_t<(TotalSize % sizeof(Ty) == 0), int> = 0>
-#if defined(_MSC_VER) && !defined(__clang__)
-/// Because MSVC does not support [[gnu::vector_size(16)]] or
-/// __attribute__((vector_size(16)), we use this type to fill the gap.
-using SIMDArray = std::array<Ty, (TotalSize / sizeof(Ty))>;
-#else
-using SIMDArray [[gnu::vector_size(TotalSize)]] = Ty;
-#endif
+using SIMDArray = cxx26::simd::vec<Ty, static_cast<cxx26::simd::simd_size_type>(
+                                           TotalSize / sizeof(Ty))>;
 
 using int64x2_t = SIMDArray<int64_t, 16>;
 using uint64x2_t = SIMDArray<uint64_t, 16>;
@@ -70,6 +69,27 @@ using int8x16_t = SIMDArray<int8_t, 16>;
 using uint8x16_t = SIMDArray<uint8_t, 16>;
 using doublex2_t = SIMDArray<double, 16>;
 using floatx4_t = SIMDArray<float, 16>;
+
+/// Raw 128-bit storage passed in a vector register across the AOT boundary.
+/// The std::array backend (CXX26_SIMD_FORCE_GENERIC) makes this a struct,
+/// which is not returned in a vector register, so AOT and JIT need another
+/// backend.
+using RawV128 = cxx26::simd_ext::native_type_t<uint64x2_t>;
+
+namespace detail {
+template <typename V> constexpr bool isV128Layout() noexcept {
+  return sizeof(V) == 16 && alignof(V) == 16 &&
+         cxx26::simd::alignment_v<V> == 16 && std::is_trivially_copyable_v<V> &&
+         std::is_trivially_default_constructible_v<V>;
+}
+} // namespace detail
+static_assert(
+    detail::isV128Layout<int64x2_t>() && detail::isV128Layout<uint64x2_t>() &&
+    detail::isV128Layout<int32x4_t>() && detail::isV128Layout<uint32x4_t>() &&
+    detail::isV128Layout<int16x8_t>() && detail::isV128Layout<uint16x8_t>() &&
+    detail::isV128Layout<int8x16_t>() && detail::isV128Layout<uint8x16_t>() &&
+    detail::isV128Layout<doublex2_t>() && detail::isV128Layout<floatx4_t>());
+static_assert(sizeof(RawV128) == 16 && alignof(RawV128) == 16);
 
 /// Address type enumeration class.
 enum class AddressType : uint8_t { I32, I64 };
@@ -405,43 +425,42 @@ struct RefVariant {
     setData(TypeCode::ArrayRef, reinterpret_cast<const void *>(P));
   }
 
-  // Getter for type.
-  const ValType &getType() const noexcept {
-    return reinterpret_cast<const ValType &>(toArray()[0]);
+  // Getter and setter for type.
+  const ValType getType() const noexcept {
+    return cxx20::bit_cast<ValType>(toArray()[0]);
   }
-  ValType &getType() noexcept {
-    return reinterpret_cast<ValType &>(toArray()[0]);
+  void setType(const ValType &VT) noexcept {
+    std::memcpy(&Data, static_cast<const void *>(&VT), sizeof(VT));
   }
 
   // Getter for pointer.
   template <typename T> T *getPtr() const noexcept {
-    return reinterpret_cast<T *>(toArray()[1]);
+    return reinterpret_cast<T *>(static_cast<uintptr_t>(toArray()[1]));
   }
 
   // Check whether it is null.
   bool isNull() const { return getPtr<void>() == nullptr; }
 
   // Getter for the raw data.
-  uint64x2_t getRawData() const noexcept { return Data; }
+  RawV128 getRawData() const noexcept { return Data; }
 
 private:
   // Helper function for converting data to array.
-  const std::array<uint64_t, 2> &toArray() const noexcept {
-    return reinterpret_cast<const std::array<uint64_t, 2> &>(Data);
-  }
-  std::array<uint64_t, 2> &toArray() noexcept {
-    return reinterpret_cast<std::array<uint64_t, 2> &>(Data);
+  std::array<uint64_t, 2> toArray() const noexcept {
+    return cxx20::bit_cast<std::array<uint64_t, 2>>(Data);
   }
 
   // Helper function to set the content.
   template <typename T>
   void setData(const ValType &VT, const T *Ptr = nullptr) noexcept {
-    getType() = VT;
-    toArray()[1] = reinterpret_cast<uintptr_t>(Ptr);
+    setType(VT);
+    const uint64_t P = reinterpret_cast<uintptr_t>(Ptr);
+    std::memcpy(reinterpret_cast<unsigned char *>(&Data) + sizeof(uint64_t), &P,
+                sizeof(P));
   }
 
   // Member data.
-  uint64x2_t Data;
+  RawV128 Data;
 };
 
 /// ValVariant for all value types.
@@ -450,6 +469,7 @@ using ValVariant =
             int128_t, uint64x2_t, int64x2_t, uint32x4_t, int32x4_t, uint16x8_t,
             int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t,
             RefVariant>;
+static_assert(alignof(ValVariant) == cxx26::simd::alignment_v<uint64x2_t>);
 
 // <<<<<<<< Value definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

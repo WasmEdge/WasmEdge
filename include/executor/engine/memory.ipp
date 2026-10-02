@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+#include "executor/engine/vector_helper.h"
 #include "executor/executor.h"
+#include "experimental/bit.hpp"
+#include "experimental/simd/ext.hpp"
 #include "runtime/instance/memory.h"
 
 #include <cstdint>
@@ -74,17 +77,9 @@ Executor::runLoadExpandOp(Runtime::StackManager &StackMgr,
         using VTIn = SIMDArray<TIn, 8>;
         using VTOut = SIMDArray<TOut, 16>;
 
-        VTIn Value;
-        std::memcpy(&Value, &Buffer, 8);
+        const auto Value = cxx20::bit_cast<VTIn>(Buffer);
 
-        if constexpr (sizeof(TOut) == 2) {
-          Val.emplace<VTOut>(VTOut{Value[0], Value[1], Value[2], Value[3],
-                                   Value[4], Value[5], Value[6], Value[7]});
-        } else if constexpr (sizeof(TOut) == 4) {
-          Val.emplace<VTOut>(VTOut{Value[0], Value[1], Value[2], Value[3]});
-        } else if constexpr (sizeof(TOut) == 8) {
-          Val.emplace<VTOut>(VTOut{Value[0], Value[1]});
-        }
+        Val.emplace<VTOut>(VTOut(Value));
       });
 }
 
@@ -112,16 +107,7 @@ Executor::runLoadSplatOp(Runtime::StackManager &StackMgr,
       .map([&]() {
         const T Part = static_cast<T>(Buffer);
 
-        if constexpr (sizeof(T) == 1) {
-          Val.emplace<VT>(VT{Part, Part, Part, Part, Part, Part, Part, Part,
-                             Part, Part, Part, Part, Part, Part, Part, Part});
-        } else if constexpr (sizeof(T) == 2) {
-          Val.emplace<VT>(VT{Part, Part, Part, Part, Part, Part, Part, Part});
-        } else if constexpr (sizeof(T) == 4) {
-          Val.emplace<VT>(VT{Part, Part, Part, Part});
-        } else if constexpr (sizeof(T) == 8) {
-          Val.emplace<VT>(VT{Part, Part});
-        }
+        Val.emplace<VT>(VT(Part));
       });
 }
 
@@ -131,9 +117,7 @@ Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
                                      const AST::Instruction &Instr) {
   using VT = SIMDArray<T, 16>;
   VT Result = StackMgr.pop().get<VT>();
-  const uint32_t Lane = Endian::native == Endian::little
-                            ? Instr.getMemoryLane()
-                            : (16 / sizeof(T)) - 1 - Instr.getMemoryLane();
+  const auto Lane = detail::lane<T>(Instr.getMemoryLane());
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
@@ -150,7 +134,7 @@ Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
         return E;
       })
       .map([&]() {
-        Result[Lane] = static_cast<T>(Buffer);
+        cxx26::simd_ext::replace_lane(Result, Lane, static_cast<T>(Buffer));
         Val.emplace<VT>(Result);
       });
 }
@@ -162,9 +146,7 @@ Executor::runStoreLaneOp(Runtime::StackManager &StackMgr,
                          const AST::Instruction &Instr) {
   using VT = SIMDArray<T, 16>;
   using TBuf = std::conditional_t<sizeof(T) < 4, uint32_t, T>;
-  const uint32_t Lane = Endian::native == Endian::little
-                            ? Instr.getMemoryLane()
-                            : (16 / sizeof(T)) - 1 - Instr.getMemoryLane();
+  const auto Lane = detail::lane<T>(Instr.getMemoryLane());
   const TBuf C = StackMgr.pop().get<VT>()[Lane];
 
   // Calculate EA = i + offset

@@ -1,5 +1,5 @@
 wasmedge_add_executable(wasmedgeStableDiffusionTests
-  wasmedge_stablediffusion.cpp
+  WasmEdgeStableDiffusionTest.cpp
 )
 
 add_dependencies(wasmedgeStableDiffusionTests

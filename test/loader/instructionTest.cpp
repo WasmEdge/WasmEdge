@@ -875,6 +875,9 @@ TEST(InstructionTest, LoadConstInstruction) {
 
 TEST(InstructionTest, LoadMiscInstruction) {
   std::vector<uint8_t> Vec;
+  WasmEdge::Configure WideConf;
+  WideConf.addProposal(WasmEdge::Proposal::WideArithmetic);
+  WasmEdge::Loader::Loader LdrWideArithmetic(WideConf);
 
   // 12. Test miscellaneous instruction opcodes.
   //
@@ -883,9 +886,9 @@ TEST(InstructionTest, LoadMiscInstruction) {
   //   3.  Load invalid opcode with an incomplete ULEB32 encoding.
   //   4.  Load invalid opcode with a value exceeding ULEB32.
   //   5.  Load invalid opcode with a ULEB32 encoding longer than five bytes.
-  //   6.  Load invalid unknown miscellaneous opcodes 0x100 and 0x113.
-  //   7.  Load invalid wide arithmetic opcodes 0x13-0x16 with one- to five-byte
-  //       ULEB32 encodings.
+  //   6.  Load invalid unknown miscellaneous opcodes 0x100, 0x113 and 0x17.
+  //   7.  Load wide arithmetic opcodes with the proposal disabled and enabled,
+  //       using one- to five-byte ULEB32 encodings.
 
   Vec = {
       0x0AU,        // Code section
@@ -998,6 +1001,11 @@ TEST(InstructionTest, LoadMiscInstruction) {
   auto Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::UnexpectedEnd);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_FALSE(EnabledResult);
+    EXPECT_EQ(EnabledResult.error(), WasmEdge::ErrCode::Value::UnexpectedEnd);
+  }
 
   Vec = {
       0x0AU,       // Code section
@@ -1010,6 +1018,11 @@ TEST(InstructionTest, LoadMiscInstruction) {
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::UnexpectedEnd);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_FALSE(EnabledResult);
+    EXPECT_EQ(EnabledResult.error(), WasmEdge::ErrCode::Value::UnexpectedEnd);
+  }
 
   Vec = {
       0x0AU,                                   // Code section
@@ -1022,6 +1035,11 @@ TEST(InstructionTest, LoadMiscInstruction) {
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IntegerTooLarge);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_FALSE(EnabledResult);
+    EXPECT_EQ(EnabledResult.error(), WasmEdge::ErrCode::Value::IntegerTooLarge);
+  }
 
   Vec = {
       0x0AU, // Code section
@@ -1035,6 +1053,11 @@ TEST(InstructionTest, LoadMiscInstruction) {
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IntegerTooLong);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_FALSE(EnabledResult);
+    EXPECT_EQ(EnabledResult.error(), WasmEdge::ErrCode::Value::IntegerTooLong);
+  }
 
   Vec = {
       0x0AU,              // Code section
@@ -1047,10 +1070,37 @@ TEST(InstructionTest, LoadMiscInstruction) {
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_FALSE(EnabledResult);
+    EXPECT_EQ(EnabledResult.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  }
   Vec[6] = 0x93U; // Unknown miscellaneous opcode 0x113.
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_FALSE(EnabledResult);
+    EXPECT_EQ(EnabledResult.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  }
+
+  Vec = {
+      0x0AU,       // Code section
+      0x05U,       // Content size = 5
+      0x01U,       // Vector length = 1
+      0x03U,       // Code segment size = 3
+      0x00U,       // Local vec(0)
+      0xFCU, 0x17U // Unknown miscellaneous opcode 0x17.
+  };
+  Result = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_FALSE(EnabledResult);
+    EXPECT_EQ(EnabledResult.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  }
 
   Vec = {
       0x0AU,        // Code section
@@ -1064,18 +1114,58 @@ TEST(InstructionTest, LoadMiscInstruction) {
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__add128);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
   Vec[6] = 0x14U; // Wide arithmetic opcode 0x14.
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__sub128);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
   Vec[6] = 0x15U; // Wide arithmetic opcode 0x15.
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_s);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
   Vec[6] = 0x16U; // Wide arithmetic opcode 0x16.
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_u);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
 
   Vec = {
       0x0AU,               // Code section
@@ -1089,18 +1179,58 @@ TEST(InstructionTest, LoadMiscInstruction) {
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__add128);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
   Vec[6] = 0x94U; // Wide arithmetic opcode 0x14.
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__sub128);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
   Vec[6] = 0x95U; // Wide arithmetic opcode 0x15.
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_s);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
   Vec[6] = 0x96U; // Wide arithmetic opcode 0x16.
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_u);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
 
   Vec = {
       0x0AU,                      // Code section
@@ -1114,18 +1244,58 @@ TEST(InstructionTest, LoadMiscInstruction) {
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__add128);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
   Vec[6] = 0x94U; // Wide arithmetic opcode 0x14.
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__sub128);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
   Vec[6] = 0x95U; // Wide arithmetic opcode 0x15.
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_s);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
   Vec[6] = 0x96U; // Wide arithmetic opcode 0x16.
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_u);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
 
   Vec = {
       0x0AU,                             // Code section
@@ -1139,18 +1309,58 @@ TEST(InstructionTest, LoadMiscInstruction) {
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__add128);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
   Vec[6] = 0x94U; // Wide arithmetic opcode 0x14.
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__sub128);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
   Vec[6] = 0x95U; // Wide arithmetic opcode 0x15.
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_s);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
   Vec[6] = 0x96U; // Wide arithmetic opcode 0x16.
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_u);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
 
   Vec = {
       0x0AU,                                    // Code section
@@ -1164,18 +1374,58 @@ TEST(InstructionTest, LoadMiscInstruction) {
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__add128);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
   Vec[6] = 0x94U; // Wide arithmetic opcode 0x14.
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__sub128);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
   Vec[6] = 0x95U; // Wide arithmetic opcode 0x15.
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_s);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
   Vec[6] = 0x96U; // Wide arithmetic opcode 0x16.
   Result = Ldr.parseModule(prefixedVec(Vec));
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::IllegalOpCode);
+  {
+    auto EnabledResult = LdrWideArithmetic.parseModule(prefixedVec(Vec));
+    ASSERT_TRUE(EnabledResult);
+    const auto &CodeSec = (*EnabledResult)->getCodeSection();
+    ASSERT_EQ(CodeSec.getContent().size(), 1U);
+    const auto Instrs = CodeSec.getContent()[0].getExpr().getInstrs();
+    ASSERT_EQ(Instrs.size(), 2U);
+    EXPECT_EQ(Instrs[0].getOpCode(), WasmEdge::OpCode::I64__mul_wide_u);
+    EXPECT_EQ(Instrs[1].getOpCode(), WasmEdge::OpCode::End);
+  }
 }
 
 TEST(InstructionTest, Proposals) {
@@ -1191,6 +1441,21 @@ TEST(InstructionTest, Proposals) {
   Conf.addProposal(WasmEdge::Proposal::Threads);
   WasmEdge::Loader::Loader LdrThreads(Conf);
   Conf.removeProposal(WasmEdge::Proposal::Threads);
+
+  WasmEdge::Configure WideConf;
+  WideConf.addProposal(WasmEdge::Proposal::WideArithmetic);
+  WasmEdge::Loader::Loader LdrWideArithmetic(WideConf);
+  WideConf.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Loader LdrWideWASM1(WideConf);
+  WideConf.addProposal(WasmEdge::Proposal::WideArithmetic);
+  WideConf.setWASMStandard(WasmEdge::Standard::WASM_2);
+  WasmEdge::Loader::Loader LdrWideWASM2(WideConf);
+  WideConf.addProposal(WasmEdge::Proposal::WideArithmetic);
+  WideConf.setWASMStandard(WasmEdge::Standard::WASM_3);
+  WasmEdge::Loader::Loader LdrWideWASM3(WideConf);
+  WideConf.addProposal(WasmEdge::Proposal::WideArithmetic);
+  WideConf.removeProposal(WasmEdge::Proposal::WideArithmetic);
+  WasmEdge::Loader::Loader LdrWithoutWideArithmetic(WideConf);
 
   // 13. Test ValTypes and instructions with disabled proposals
   //
@@ -1210,6 +1475,8 @@ TEST(InstructionTest, Proposals) {
   //   10. Load reference instructions with/without typed function reference
   //       proposal.
   //   11. Load Return_call_ref instruction with/without tail-call proposal.
+  //   12. Load wide arithmetic instructions with/without the proposal and
+  //       after resetting the WebAssembly standard.
 
   Vec = {
       0x0AU,                      // Code section
@@ -1388,6 +1655,25 @@ TEST(InstructionTest, Proposals) {
   };
   EXPECT_FALSE(LdrWASM2.parseModule(prefixedVec(Vec)));
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,        // Code section
+      0x0CU,        // Content size = 12
+      0x01U,        // Vector length = 1
+      0x0AU,        // Code segment size = 10
+      0x00U,        // Local vec(0)
+      0xFCU, 0x13U, // OpCode I64__add128.
+      0xFCU, 0x14U, // OpCode I64__sub128.
+      0xFCU, 0x15U, // OpCode I64__mul_wide_s.
+      0xFCU, 0x16U, // OpCode I64__mul_wide_u.
+      0x0BU         // Expression End.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(LdrWideArithmetic.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWideWASM1.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWideWASM2.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWideWASM3.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWithoutWideArithmetic.parseModule(prefixedVec(Vec)));
 }
 
 TEST(InstructionTest, LoadSIMDInstruction) {

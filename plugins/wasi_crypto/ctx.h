@@ -19,6 +19,7 @@
 #include "asymmetric_common/secretkey.h"
 #include "common/array_output.h"
 #include "common/options.h"
+#include "common/secrets_manager.h"
 #include "kx/registered.h"
 #include "signatures/registered.h"
 #include "signatures/signatures.h"
@@ -355,6 +356,8 @@ private:
   RcHandlesManager<__wasi_signature_state_t,
                    Signatures::VerificationStateVariant>
       VerificationStateManager{0x02};
+  RcHandlesManager<__wasi_secrets_manager_t, Common::SecretsManager>
+      SecretsManagerManager{0x0b};
 
   static std::shared_mutex Mutex;
   static std::weak_ptr<Context> Instance;

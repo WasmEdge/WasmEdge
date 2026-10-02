@@ -228,8 +228,4 @@ TypeF<T> Executor::runCopysignOp(ValVariant &Val1,
 } // namespace Executor
 } // namespace WasmEdge
 
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-#include "executor/engine/binary_numeric_vector_msvc.ipp"
-#else
 #include "executor/engine/binary_numeric_vector.ipp"
-#endif // MSVC

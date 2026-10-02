@@ -920,7 +920,7 @@ private:
   Expect<void> runVectorFMinOp(ValVariant &Val1, const ValVariant &Val2) const;
   template <typename T>
   Expect<void> runVectorFMaxOp(ValVariant &Val1, const ValVariant &Val2) const;
-  template <typename T, typename ET>
+  template <typename T>
   Expect<void> runVectorAvgrOp(ValVariant &Val1, const ValVariant &Val2) const;
   template <typename T> Expect<void> runVectorCeilOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorFloorOp(ValVariant &Val) const;

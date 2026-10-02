@@ -113,8 +113,4 @@ template <typename T> TypeF<T> Executor::runSqrtOp(ValVariant &Val) const {
 } // namespace Executor
 } // namespace WasmEdge
 
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-#include "executor/engine/unary_numeric_vector_msvc.ipp"
-#else
 #include "executor/engine/unary_numeric_vector.ipp"
-#endif // MSVC

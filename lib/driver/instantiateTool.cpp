@@ -19,9 +19,7 @@ int InstantiateTool(struct DriverToolOptions &Opt) noexcept {
 
   Configure Conf = createConfigure(Opt);
 
-  if (!setMemoryPageLimit(Opt, Conf)) {
-    return EXIT_FAILURE;
-  }
+  setMemoryPageLimit(Opt, Conf);
 
   Conf.addHostRegistration(HostRegistration::Wasi);
 

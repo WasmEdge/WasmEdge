@@ -16,9 +16,9 @@
 
 #if !defined(_MSC_VER) || defined(__clang__)
 
-#include "common/roundeven.h"
 #include "common/types.h"
 #include "executor/engine/vector_helper.h"
+#include "experimental/math.hpp"
 
 #include <cmath>
 #include <cstdint>
@@ -214,10 +214,10 @@ template <typename T> inline void vectorNearest(ValVariant &Val) noexcept {
   using VT [[gnu::vector_size(16)]] = T;
   VT &Result = Val.get<VT>();
   if constexpr (sizeof(T) == 4) {
-    Result = VT{WasmEdge::roundeven(Result[0]), WasmEdge::roundeven(Result[1]),
-                WasmEdge::roundeven(Result[2]), WasmEdge::roundeven(Result[3])};
+    Result = VT{cxx26::roundeven(Result[0]), cxx26::roundeven(Result[1]),
+                cxx26::roundeven(Result[2]), cxx26::roundeven(Result[3])};
   } else if constexpr (sizeof(T) == 8) {
-    Result = VT{WasmEdge::roundeven(Result[0]), WasmEdge::roundeven(Result[1])};
+    Result = VT{cxx26::roundeven(Result[0]), cxx26::roundeven(Result[1])};
   }
 }
 

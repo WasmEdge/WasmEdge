@@ -2,9 +2,9 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/endian.h"
-#include "common/roundeven.h"
 #include "executor/engine/simd_ops.h"
 #include "executor/executor.h"
+#include "experimental/math.hpp"
 
 namespace WasmEdge {
 namespace Executor {

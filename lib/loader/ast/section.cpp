@@ -209,36 +209,6 @@ inline constexpr uint32_t HostVersion() noexcept {
   return WasmEdge::AOT::kBinaryVersion;
 }
 
-inline constexpr uint8_t HostOSType() noexcept {
-#if WASMEDGE_OS_LINUX
-  return UINT8_C(1);
-#elif WASMEDGE_OS_MACOS
-  return UINT8_C(2);
-#elif WASMEDGE_OS_WINDOWS
-  return UINT8_C(3);
-#else
-  // Means WasmEdge is not yet supported on this OS.
-  return UINT8_C(-1);
-#endif
-}
-
-inline constexpr uint8_t HostArchType() noexcept {
-#if defined(__x86_64__) || defined(_M_X64)
-  return UINT8_C(1);
-#elif defined(__aarch64__)
-  return UINT8_C(2);
-#elif defined(__riscv) && __riscv_xlen == 64
-  return UINT8_C(3);
-#elif defined(__arm__) && __ARM_ARCH == 7
-  return UINT8_C(4);
-#elif defined(__s390x__)
-  return UINT8_C(5);
-#else
-  // Means universal wasm binary is not yet supported on this arch.
-  return UINT8_C(-1);
-#endif
-}
-
 } // namespace
 
 // If any loader error occurs in loadSection, fall back to interpreter mode with
@@ -262,7 +232,7 @@ Expect<void> Loader::loadSection(FileMgr &VecMgr, AST::AOTSection &Sec) {
     return E;
   }));
   Sec.setOSType(OSType);
-  if (unlikely(Sec.getOSType() != HostOSType())) {
+  if (unlikely(Sec.getOSType() != static_cast<uint8_t>(AOT::kHostOSType))) {
     spdlog::error(ErrCode::Value::MalformedSection);
     spdlog::error("    AOT OS type unmatched."sv);
     return Unexpect(ErrCode::Value::MalformedSection);
@@ -274,7 +244,9 @@ Expect<void> Loader::loadSection(FileMgr &VecMgr, AST::AOTSection &Sec) {
     return E;
   }));
   Sec.setArchType(ArchType);
-  if (unlikely(Sec.getArchType() != HostArchType())) {
+  if (unlikely(AOT::kHostArchitecture == AOT::Architecture::Unsupported ||
+               Sec.getArchType() !=
+                   static_cast<uint8_t>(AOT::kHostArchitecture))) {
     spdlog::error(ErrCode::Value::MalformedSection);
     spdlog::error("    AOT arch type unmatched."sv);
     return Unexpect(ErrCode::Value::MalformedSection);

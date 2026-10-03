@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-#include "common/roundeven.h"
 #include "executor/executor.h"
+#include "experimental/math.hpp"
 
 namespace WasmEdge {
 namespace Executor {
@@ -315,10 +315,10 @@ Expect<void> Executor::runVectorNearestOp(ValVariant &Val) const {
   using VT = SIMDArray<T, 16>;
   VT &Result = Val.get<VT>();
   if constexpr (sizeof(T) == 4) {
-    Result = VT{WasmEdge::roundeven(Result[0]), WasmEdge::roundeven(Result[1]),
-                WasmEdge::roundeven(Result[2]), WasmEdge::roundeven(Result[3])};
+    Result = VT{cxx26::roundeven(Result[0]), cxx26::roundeven(Result[1]),
+                cxx26::roundeven(Result[2]), cxx26::roundeven(Result[3])};
   } else if constexpr (sizeof(T) == 8) {
-    Result = VT{WasmEdge::roundeven(Result[0]), WasmEdge::roundeven(Result[1])};
+    Result = VT{cxx26::roundeven(Result[0]), cxx26::roundeven(Result[1])};
   }
   return {};
 }

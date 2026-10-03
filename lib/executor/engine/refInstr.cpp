@@ -107,7 +107,8 @@ Executor::runRefAsNonNullOp(RefVariant &Ref,
   if (Ref.isNull()) {
     return Unexpect(logError(ErrCode::Value::CastNullToNonNull, Instr));
   }
-  Ref.getType().toNonNullableRef();
+  ValType VT = Ref.getType();
+  Ref.setType(VT.toNonNullableRef());
   return {};
 }
 
@@ -375,10 +376,12 @@ Expect<void> Executor::runRefConvOp(RefVariant &Ref,
     if (Ref.isNull()) {
       Ref = RefVariant(ValType(TypeCode::RefNull, TypeCode::NullRef));
     } else {
-      Ref.getType().setInternalized();
-      if (Ref.getType().isExternRefType()) {
-        Ref.getType() = ValType(TypeCode::Ref, TypeCode::AnyRef);
+      ValType VT = Ref.getType();
+      VT.setInternalized();
+      if (VT.isExternRefType()) {
+        VT = ValType(TypeCode::Ref, TypeCode::AnyRef);
       }
+      Ref.setType(VT);
     }
   } else {
     // Externalize.
@@ -387,7 +390,9 @@ Expect<void> Executor::runRefConvOp(RefVariant &Ref,
     } else {
       // Use the externalize flag because the value type information should be
       // reserved when a reference being externalized and internalized.
-      Ref.getType().setExternalized();
+      ValType VT = Ref.getType();
+      VT.setExternalized();
+      Ref.setType(VT);
     }
   }
   return {};

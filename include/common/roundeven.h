@@ -94,4 +94,27 @@ inline double roundeven(double Value) noexcept {
 using detail::roundeven;
 inline float roundeven(float Value) { return detail::roundevenf(Value); }
 
+/// Sets the most significant bit of a NaN payload to 1 and leaves other values
+/// as it is. Operators propagating a NaN operand, and the libm ceil, floor,
+/// and trunc for 32-bit floats on some platforms, can produce a signaling NaN,
+/// while the specification requires an arithmetic NaN.
+template <typename T> inline T quietNaN(T Value) noexcept {
+  static_assert(std::is_floating_point_v<T>);
+  if (!std::isnan(Value)) {
+    return Value;
+  }
+  if constexpr (sizeof(T) == sizeof(uint32_t)) {
+    uint32_t I32;
+    std::memcpy(&I32, &Value, sizeof(T));
+    I32 |= static_cast<uint32_t>(0x01U) << 22;
+    std::memcpy(&Value, &I32, sizeof(T));
+  } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
+    uint64_t I64;
+    std::memcpy(&I64, &Value, sizeof(T));
+    I64 |= static_cast<uint64_t>(0x01U) << 51;
+    std::memcpy(&Value, &I64, sizeof(T));
+  }
+  return Value;
+}
+
 } // namespace WasmEdge

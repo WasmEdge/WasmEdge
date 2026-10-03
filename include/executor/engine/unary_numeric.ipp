@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-#include "common/roundeven.h"
 #include "executor/executor.h"
+#include "experimental/math.hpp"
 
 #include <cmath>
 
@@ -101,7 +101,7 @@ template <typename T> TypeF<T> Executor::runTruncOp(ValVariant &Val) const {
 }
 
 template <typename T> TypeF<T> Executor::runNearestOp(ValVariant &Val) const {
-  Val.get<T>() = WasmEdge::roundeven(Val.get<T>());
+  Val.get<T>() = cxx26::roundeven(Val.get<T>());
   return {};
 }
 

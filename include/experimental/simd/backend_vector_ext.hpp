@@ -124,7 +124,7 @@ template <class T, simd_size_type N> struct simd_backend<T, vector_ext_abi<N>> {
     if constexpr (intrinsics::has_math) {                                      \
       return intrinsics::NAME(A);                                              \
     } else {                                                                   \
-      return generate([&](auto I) { return SCALAR(get(A, I)); });              \
+      return generate([&](auto I) { return quiet_nan(SCALAR(get(A, I))); });   \
     }                                                                          \
   }
   CXX26_SIMD_VECTOR_EXT_MATH(sqrt, std::sqrt)

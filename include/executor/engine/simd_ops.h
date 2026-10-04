@@ -20,6 +20,7 @@
 #include "experimental/simd/ext.hpp"
 
 #include <cstdint>
+#include <limits>
 #include <type_traits>
 
 namespace WasmEdge {
@@ -78,10 +79,19 @@ inline void vectorMax(ValVariant &V1, const ValVariant &V2) noexcept {
 //   fmin:  R = bits(A) | bits(B)    // merge NaN payloads
 //          if A < B: R = A
 //          if A > B: R = B
-//          if A is NaN: R = A
-//          if B is NaN: R = B
+//          if A is NaN: R = A with the quiet bit set
+//          if B is NaN: R = B with the quiet bit set
 //   fmax:  same but & instead of |, and reversed comparisons.
 // ---------------------------------------------------------------------------
+
+/// V with the most significant payload bit set, so a NaN lane becomes an
+/// arithmetic NaN.
+template <typename T> inline Vec<T> setQuietBit(const Vec<T> &V) noexcept {
+  using U = std::conditional_t<sizeof(T) == 4, uint32_t, uint64_t>;
+  const Vec<U> Bit(
+      static_cast<U>(U{1} << (std::numeric_limits<T>::digits - 2)));
+  return bit_cast<Vec<T>>(bit_cast<Vec<U>>(V) | Bit);
+}
 
 template <typename T>
 inline void vectorFMin(ValVariant &V1, const ValVariant &V2) noexcept {
@@ -92,8 +102,8 @@ inline void vectorFMin(ValVariant &V1, const ValVariant &V2) noexcept {
   R = select(A < B, A, R);
   R = select(A > B, B, R);
   // NOLINTBEGIN(misc-redundant-expression): IEEE NaN checks on vector lanes
-  R = select(A == A, R, A);
-  R = select(B == B, R, B);
+  R = select(A == A, R, setQuietBit<T>(A));
+  R = select(B == B, R, setQuietBit<T>(B));
   // NOLINTEND(misc-redundant-expression)
   A = R;
 }
@@ -107,8 +117,8 @@ inline void vectorFMax(ValVariant &V1, const ValVariant &V2) noexcept {
   R = select(A < B, B, R);
   R = select(A > B, A, R);
   // NOLINTBEGIN(misc-redundant-expression): IEEE NaN checks on vector lanes
-  R = select(A == A, R, A);
-  R = select(B == B, R, B);
+  R = select(A == A, R, setQuietBit<T>(A));
+  R = select(B == B, R, setQuietBit<T>(B));
   // NOLINTEND(misc-redundant-expression)
   A = R;
 }

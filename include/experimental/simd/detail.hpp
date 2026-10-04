@@ -13,6 +13,9 @@
 
 #pragma once
 
+#include "experimental/bit.hpp"
+
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -54,6 +57,17 @@ template <> struct integer_from<8> {
 };
 template <std::size_t Bytes>
 using integer_from_t = typename integer_from<Bytes>::type;
+
+// IEEE 754 math returns a signaling NaN quieted, but some libm functions
+// return it unchanged.
+template <class T> T quiet_nan(T Value) noexcept {
+  using U = std::conditional_t<sizeof(T) == 4, std::uint32_t, std::uint64_t>;
+  if (!std::isnan(Value)) {
+    return Value;
+  }
+  return cxx20::bit_cast<T>(cxx20::bit_cast<U>(Value) |
+                            U{1} << (std::numeric_limits<T>::digits - 2));
+}
 
 template <class T>
 using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+#include "common/nan.h"
 #include "executor/executor.h"
 #include "experimental/math.hpp"
 
@@ -86,22 +87,22 @@ template <typename T> TypeF<T> Executor::runNegOp(ValVariant &Val) const {
 }
 
 template <typename T> TypeF<T> Executor::runCeilOp(ValVariant &Val) const {
-  Val.get<T>() = std::ceil(Val.get<T>());
+  Val.get<T>() = quietNaN(std::ceil(Val.get<T>()));
   return {};
 }
 
 template <typename T> TypeF<T> Executor::runFloorOp(ValVariant &Val) const {
-  Val.get<T>() = std::floor(Val.get<T>());
+  Val.get<T>() = quietNaN(std::floor(Val.get<T>()));
   return {};
 }
 
 template <typename T> TypeF<T> Executor::runTruncOp(ValVariant &Val) const {
-  Val.get<T>() = std::trunc(Val.get<T>());
+  Val.get<T>() = quietNaN(std::trunc(Val.get<T>()));
   return {};
 }
 
 template <typename T> TypeF<T> Executor::runNearestOp(ValVariant &Val) const {
-  Val.get<T>() = cxx26::roundeven(Val.get<T>());
+  Val.get<T>() = quietNaN(cxx26::roundeven(Val.get<T>()));
   return {};
 }
 

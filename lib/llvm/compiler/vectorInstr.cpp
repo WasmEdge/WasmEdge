@@ -4,6 +4,7 @@
 #include "compiler/function_compiler.h"
 
 #include <array>
+#include <cstdint>
 #include <limits>
 #include <numeric>
 
@@ -1673,10 +1674,23 @@ void FunctionCompiler::compileVectorVectorFMax(LLVM::Type VectorTy) noexcept {
         LHS.getType());
     Ret = Builder.createSelect(OLT, RHS, Ret);
     Ret = Builder.createSelect(OGT, LHS, Ret);
-    Ret = Builder.createSelect(LNaN, LHS, Ret);
-    Ret = Builder.createSelect(RNaN, RHS, Ret);
+    Ret = Builder.createSelect(LNaN, compileVectorQuietBit(LHS), Ret);
+    Ret = Builder.createSelect(RNaN, compileVectorQuietBit(RHS), Ret);
     return Ret;
   });
+}
+
+LLVM::Value
+FunctionCompiler::compileVectorQuietBit(LLVM::Value Vector) noexcept {
+  // Set the most significant payload bit, so a NaN lane becomes an arithmetic
+  // NaN.
+  const uint64_t Bit = Vector.getType().getElementType().isFloatTy()
+                           ? UINT64_C(0x0040000000400000)
+                           : UINT64_C(0x0008000000000000);
+  return Builder.createBitCast(
+      Builder.createOr(Builder.createBitCast(Vector, Context.Int64x2Ty),
+                       LLVM::Value::getConstVector64(LLContext, {Bit, Bit})),
+      Vector.getType());
 }
 
 void FunctionCompiler::compileVectorVectorFMin(LLVM::Type VectorTy) noexcept {
@@ -1691,8 +1705,8 @@ void FunctionCompiler::compileVectorVectorFMin(LLVM::Type VectorTy) noexcept {
         LHS.getType());
     Ret = Builder.createSelect(OGT, RHS, Ret);
     Ret = Builder.createSelect(OLT, LHS, Ret);
-    Ret = Builder.createSelect(LNaN, LHS, Ret);
-    Ret = Builder.createSelect(RNaN, RHS, Ret);
+    Ret = Builder.createSelect(LNaN, compileVectorQuietBit(LHS), Ret);
+    Ret = Builder.createSelect(RNaN, compileVectorQuietBit(RHS), Ret);
     return Ret;
   });
 }

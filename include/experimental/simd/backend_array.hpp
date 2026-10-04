@@ -102,7 +102,7 @@ template <class T, simd_size_type N> struct simd_backend<T, array_abi<N>> {
 
 #define CXX26_SIMD_ARRAY_MATH(NAME)                                            \
   static storage_type NAME(const storage_type &A) noexcept {                   \
-    return generate([&](auto I) { return std::NAME(A.Lanes[I]); });            \
+    return generate([&](auto I) { return quiet_nan(std::NAME(A.Lanes[I])); }); \
   }
   CXX26_SIMD_ARRAY_MATH(sqrt)
   CXX26_SIMD_ARRAY_MATH(ceil)
@@ -111,7 +111,8 @@ template <class T, simd_size_type N> struct simd_backend<T, array_abi<N>> {
 #undef CXX26_SIMD_ARRAY_MATH
 
   static storage_type roundeven(const storage_type &A) noexcept {
-    return generate([&](auto I) { return cxx26::roundeven(A.Lanes[I]); });
+    return generate(
+        [&](auto I) { return quiet_nan(cxx26::roundeven(A.Lanes[I])); });
   }
 
 #define CXX26_SIMD_ARRAY_COMPARE(NAME, OP)                                     \

@@ -19,6 +19,7 @@
 #include <array>
 #include <cstdint>
 #include <gtest/gtest.h>
+#include <string>
 #include <vector>
 
 namespace {
@@ -726,6 +727,17 @@ std::array<WasmEdge::Byte, 129> TailCallHostImportWasm{
     0xe3, 0x00, 0x10, 0x01, 0x0b, 0x06, 0x00, 0x41, 0x07, 0x10, 0x02, 0x0b,
     0x00, 0x13, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x0c, 0x03, 0x00, 0x01,
     0x68, 0x01, 0x02, 0x66, 0x32, 0x02, 0x02, 0x66, 0x31};
+
+/// Binary Wasm module: a signed truncation that overflows i32.
+///
+/// (module
+///   (func (export "trunc") (result i32)
+///     (i32.trunc_f64_s (f64.const 2147483648.5))))
+std::array<WasmEdge::Byte, 46> TruncOverflowWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+    0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x09, 0x01, 0x05, 0x74,
+    0x72, 0x75, 0x6e, 0x63, 0x00, 0x00, 0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x44,
+    0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0xe0, 0x41, 0xaa, 0x0b};
 
 /// Binary Wasm module: Memory64 + Threads.
 ///
@@ -1484,6 +1496,28 @@ TEST(ExecutorRegression, CallStackDefaultLimit) {
   auto Result = VM.execute("f", RunawayParams, ParamTypes);
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), ErrCode::Value::CallStackExhausted);
+}
+
+TEST(ExecutorRegression, TruncOverflowLogsOriginalOperand) {
+  Configure Conf;
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(TruncOverflowWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  // Capture the error log: the instruction diagnostic must show the operand
+  // as the guest pushed it (2147483648.5), not its truncated value.
+  std::string Captured;
+  Log::setLoggingCallback([&Captured](const spdlog::details::log_msg &Msg) {
+    Captured.append(Msg.payload.data(), Msg.payload.size());
+    Captured.push_back('\n');
+  });
+  auto Result = VM.execute("trunc");
+  Log::setLoggingCallback(nullptr);
+
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::IntegerOverflow);
+  EXPECT_NE(Captured.find("2147483648.5"), std::string::npos) << Captured;
 }
 
 } // namespace

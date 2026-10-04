@@ -39,6 +39,22 @@ public:
   using Wrapper = void(void *ModCtx, void *ExecCtx, void *Function,
                        const ValVariant *Args, ValVariant *Rets);
 
+  /// Field index of each member of the executor context struct that compiled
+  /// code receives as its second argument. Executor::ExecutorContext declares
+  /// its members in this order, and the LLVM compiler reads them by these
+  /// indices.
+  enum class ExecCtxField : uint32_t {
+    InstrCount,
+    CostTable,
+    Gas,
+    GasLimit,
+    StopToken,
+    PendingExnTagAddr,
+    StackLimit,
+    ShadowHead,
+    GCStopFlag,
+  };
+
   enum class Intrinsics : uint32_t {
     kTrap,
     kCall,
@@ -78,6 +94,10 @@ public:
     kThrow,
     kThrowRef,
     kCatchPop,
+    kWriteBarrier,
+    kGCSafepoint,
+    kCoherentRefLoad,
+    kCoherentRefStore,
     kIntrinsicMax,
   };
   using IntrinsicsTable = void * [uint32_t(Intrinsics::kIntrinsicMax)];

@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "experimental/simd.hpp"
+#include "common/nan.h"
 #include "common/types.h"
 #include "experimental/bit.hpp"
 #include "experimental/math.hpp"
@@ -124,8 +125,7 @@ template <class T> std::vector<T> edgeValues() {
 }
 
 template <class T> auto bitsOf(T X) {
-  using U = std::conditional_t<sizeof(T) == 8, std::uint64_t, std::uint32_t>;
-  return cxx20::bit_cast<U>(X);
+  return cxx20::bit_cast<WasmEdge::FloatBits<T>>(X);
 }
 
 template <class F, class T, class Check> void forEdgePairs(Check &&C) {
@@ -244,9 +244,8 @@ template <class T> std::vector<T> roundingValues() {
 
 template <class T> bool sameFloat(T Got, T Want, bool RequireQuiet) {
   if (std::isnan(Want)) {
-    const auto Quiet = decltype(bitsOf(Got)){1}
-                       << (std::numeric_limits<T>::digits - 2);
-    return std::isnan(Got) && (!RequireQuiet || (bitsOf(Got) & Quiet) != 0);
+    return std::isnan(Got) &&
+           (!RequireQuiet || (bitsOf(Got) & WasmEdge::QuietBit<T>) != 0);
   }
   return bitsOf(Got) == bitsOf(Want);
 }

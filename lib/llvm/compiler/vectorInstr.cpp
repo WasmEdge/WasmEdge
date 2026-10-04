@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+#include "common/nan.h"
 #include "compiler/function_compiler.h"
 
 #include <array>
+#include <cstdint>
 #include <limits>
 #include <numeric>
 
@@ -1667,6 +1669,19 @@ void FunctionCompiler::compileVectorVectorFDiv(LLVM::Type VectorTy) noexcept {
   });
 }
 
+LLVM::Value
+FunctionCompiler::compileVectorQuietBit(LLVM::Value Vector) noexcept {
+  // Set the most significant payload bit, so a NaN lane becomes an arithmetic
+  // NaN.
+  const uint64_t Bit = Vector.getType().getElementType().isFloatTy()
+                           ? (uint64_t{QuietBit<float>} << 32 | QuietBit<float>)
+                           : QuietBit<double>;
+  return Builder.createBitCast(
+      Builder.createOr(Builder.createBitCast(Vector, Context.Int64x2Ty),
+                       LLVM::Value::getConstVector64(LLContext, {Bit, Bit})),
+      Vector.getType());
+}
+
 void FunctionCompiler::compileVectorVectorFMax(LLVM::Type VectorTy) noexcept {
   compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
     auto LNaN = Builder.createFCmpUNO(LHS, LHS);
@@ -1679,8 +1694,8 @@ void FunctionCompiler::compileVectorVectorFMax(LLVM::Type VectorTy) noexcept {
         LHS.getType());
     Ret = Builder.createSelect(OLT, RHS, Ret);
     Ret = Builder.createSelect(OGT, LHS, Ret);
-    Ret = Builder.createSelect(LNaN, LHS, Ret);
-    Ret = Builder.createSelect(RNaN, RHS, Ret);
+    Ret = Builder.createSelect(LNaN, compileVectorQuietBit(LHS), Ret);
+    Ret = Builder.createSelect(RNaN, compileVectorQuietBit(RHS), Ret);
     return Ret;
   });
 }
@@ -1697,8 +1712,8 @@ void FunctionCompiler::compileVectorVectorFMin(LLVM::Type VectorTy) noexcept {
         LHS.getType());
     Ret = Builder.createSelect(OGT, RHS, Ret);
     Ret = Builder.createSelect(OLT, LHS, Ret);
-    Ret = Builder.createSelect(LNaN, LHS, Ret);
-    Ret = Builder.createSelect(RNaN, RHS, Ret);
+    Ret = Builder.createSelect(LNaN, compileVectorQuietBit(LHS), Ret);
+    Ret = Builder.createSelect(RNaN, compileVectorQuietBit(RHS), Ret);
     return Ret;
   });
 }

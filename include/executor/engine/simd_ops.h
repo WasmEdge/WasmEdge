@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/nan.h"
 #include "common/types.h"
 #include "executor/engine/vector_helper.h"
 #include "experimental/bit.hpp"
@@ -78,22 +79,30 @@ inline void vectorMax(ValVariant &V1, const ValVariant &V2) noexcept {
 //   fmin:  R = bits(A) | bits(B)    // merge NaN payloads
 //          if A < B: R = A
 //          if A > B: R = B
-//          if A is NaN: R = A
-//          if B is NaN: R = B
+//          if A is NaN: R = A with the quiet bit set
+//          if B is NaN: R = B with the quiet bit set
 //   fmax:  same but & instead of |, and reversed comparisons.
 // ---------------------------------------------------------------------------
+
+/// V with the most significant payload bit set, so a NaN lane becomes an
+/// arithmetic NaN.
+template <typename T> inline Vec<T> setQuietBit(const Vec<T> &V) noexcept {
+  using UV = Vec<FloatBits<T>>;
+  return bit_cast<Vec<T>>(bit_cast<UV>(V) | UV(QuietBit<T>));
+}
 
 template <typename T>
 inline void vectorFMin(ValVariant &V1, const ValVariant &V2) noexcept {
   static_assert(std::is_floating_point_v<T>);
   auto &A = V1.get<Vec<T>>();
   const auto &B = V2.get<Vec<T>>();
-  auto R = bit_cast<Vec<T>>(bit_cast<uint64x2_t>(A) | bit_cast<uint64x2_t>(B));
+  using UV = Vec<FloatBits<T>>;
+  auto R = bit_cast<Vec<T>>(bit_cast<UV>(A) | bit_cast<UV>(B));
   R = select(A < B, A, R);
   R = select(A > B, B, R);
   // NOLINTBEGIN(misc-redundant-expression): IEEE NaN checks on vector lanes
-  R = select(A == A, R, A);
-  R = select(B == B, R, B);
+  R = select(A == A, R, setQuietBit<T>(A));
+  R = select(B == B, R, setQuietBit<T>(B));
   // NOLINTEND(misc-redundant-expression)
   A = R;
 }
@@ -103,12 +112,13 @@ inline void vectorFMax(ValVariant &V1, const ValVariant &V2) noexcept {
   static_assert(std::is_floating_point_v<T>);
   auto &A = V1.get<Vec<T>>();
   const auto &B = V2.get<Vec<T>>();
-  auto R = bit_cast<Vec<T>>(bit_cast<uint64x2_t>(A) & bit_cast<uint64x2_t>(B));
+  using UV = Vec<FloatBits<T>>;
+  auto R = bit_cast<Vec<T>>(bit_cast<UV>(A) & bit_cast<UV>(B));
   R = select(A < B, B, R);
   R = select(A > B, A, R);
   // NOLINTBEGIN(misc-redundant-expression): IEEE NaN checks on vector lanes
-  R = select(A == A, R, A);
-  R = select(B == B, R, B);
+  R = select(A == A, R, setQuietBit<T>(A));
+  R = select(B == B, R, setQuietBit<T>(B));
   // NOLINTEND(misc-redundant-expression)
   A = R;
 }
@@ -127,7 +137,7 @@ template <typename T> inline void vectorNeg(ValVariant &Val) noexcept {
 template <typename T> inline void vectorAbs(ValVariant &Val) noexcept {
   auto &Result = Val.get<Vec<T>>();
   if constexpr (std::is_floating_point_v<T>) {
-    using U = std::conditional_t<sizeof(T) == 4, uint32_t, uint64_t>;
+    using U = FloatBits<T>;
     const Vec<U> Mask(static_cast<U>(~(U(1) << (sizeof(U) * 8 - 1))));
     Result = bit_cast<Vec<T>>(bit_cast<Vec<U>>(Result) & Mask);
   } else {

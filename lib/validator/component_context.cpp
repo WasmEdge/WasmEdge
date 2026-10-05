@@ -426,13 +426,6 @@ Expect<void> Context::requireOptions(const AST::Component::Canonical &Canon,
 Expect<ExternName> Context::parseExternName(std::string_view Name,
                                             bool IsImport) const noexcept {
   const auto Position = IsImport ? "Import"sv : "Export"sv;
-  // `relative-url=` is not part of the extern-name grammar.
-  if (Name.rfind("relative-url="sv, 0) == 0) {
-    spdlog::error(ErrCode::Value::InvalidExternName);
-    spdlog::error("    {} name '{}' is not a valid extern name."sv, Position,
-                  Name);
-    return Unexpect(ErrCode::Value::InvalidExternName);
-  }
   ExternName CN;
   EXPECTED_TRY(CN.parse(Name));
   if (CN.getKind() == ExternName::Kind::Invalid) {
@@ -441,33 +434,12 @@ Expect<ExternName> Context::parseExternName(std::string_view Name,
                   Name);
     return Unexpect(ErrCode::Value::InvalidExternName);
   }
-  // Dep / url / hash names are import-only.
-  if (!IsImport && (CN.getKind() == ExternName::Kind::LockedDep ||
-                    CN.getKind() == ExternName::Kind::UnlockedDep ||
-                    CN.getKind() == ExternName::Kind::Url ||
-                    CN.getKind() == ExternName::Kind::Integrity)) {
-    spdlog::error(ErrCode::Value::InvalidExportName);
-    spdlog::error("    Export name '{}' kind is not valid for exports."sv,
-                  Name);
-    return Unexpect(ErrCode::Value::InvalidExportName);
-  }
   return CN;
 }
 
 NameRecord Context::makeNameRecord(const ExternName &Name) const noexcept {
   NameRecord R;
   R.Original = std::string(Name.getOriginalName());
-  // Dep, url, and integrity names compare exactly.
-  switch (Name.getKind()) {
-  case ExternName::Kind::LockedDep:
-  case ExternName::Kind::UnlockedDep:
-  case ExternName::Kind::Url:
-  case ExternName::Kind::Integrity:
-    R.Canonical = R.Original;
-    return R;
-  default:
-    break;
-  }
   // Remove the hyphens and lowercase the acronyms, then strip the annotation
   // except `[constructor]`, and reduce `[*]l.l` to `l`.
   const bool Annotated = Name.getKind() == ExternName::Kind::Constructor ||

@@ -98,7 +98,7 @@ public:
   // Naming checks and the named-types rule; the only writer of NameSide.
   // ==========================================================================
 
-  /// Extern-name grammar checks; an export rejects the import-only name kinds.
+  /// Extern-name grammar checks; IsImport only selects the log prefix.
   Expect<ExternName> parseExternName(std::string_view Name,
                                      bool IsImport) const noexcept;
   /// Build the comparison record for a parsed name.

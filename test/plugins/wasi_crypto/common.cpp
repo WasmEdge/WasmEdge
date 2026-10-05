@@ -185,14 +185,14 @@ TEST_F(WasiCryptoTest, SecretsManager) {
   std::string_view KpAlg = "Ed25519";
   WASI_CRYPTO_EXPECT_SUCCESS(SmHandle2, secretsManagerOpen(std::nullopt));
   WASI_CRYPTO_EXPECT_SUCCESS(
-      KpHandle, keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES, KpAlg,
-                                std::nullopt));
+      KpHandle,
+      keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES, KpAlg, std::nullopt));
   std::vector<uint8_t> KpId(32);
   WASI_CRYPTO_EXPECT_TRUE(keypairStoreManaged(SmHandle2, KpHandle, KpId));
 
   WASI_CRYPTO_EXPECT_SUCCESS(
-      NewKpHandle, keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES, KpAlg,
-                                   std::nullopt));
+      NewKpHandle,
+      keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES, KpAlg, std::nullopt));
   WASI_CRYPTO_EXPECT_SUCCESS(
       NewKpVersion, keypairReplaceManaged(SmHandle2, KpHandle, NewKpHandle));
   EXPECT_EQ(NewKpVersion, 1u);

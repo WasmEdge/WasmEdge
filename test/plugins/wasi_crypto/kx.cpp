@@ -132,14 +132,13 @@ TEST_F(WasiCryptoTest, KxDh) {
   // Mismatched KX key types must be rejected as incompatible keys.
   const std::vector<uint8_t> X25519Sk1Raw =
       "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a"_u8v;
-  WASI_CRYPTO_EXPECT_SUCCESS(
-      X25519SkHandle,
-      secretkeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, "X25519"sv,
-                      X25519Sk1Raw, __WASI_SECRETKEY_ENCODING_RAW));
-  WASI_CRYPTO_EXPECT_SUCCESS(
-      P256KpHandle,
-      keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, "P256-SHA256"sv,
-                      std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(X25519SkHandle,
+                             secretkeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+                                             "X25519"sv, X25519Sk1Raw,
+                                             __WASI_SECRETKEY_ENCODING_RAW));
+  WASI_CRYPTO_EXPECT_SUCCESS(P256KpHandle,
+                             keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+                                             "P256-SHA256"sv, std::nullopt));
   WASI_CRYPTO_EXPECT_SUCCESS(P256PkHandle, keypairPublickey(P256KpHandle));
   WASI_CRYPTO_EXPECT_FAILURE(kxDh(P256PkHandle, X25519SkHandle),
                              __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);

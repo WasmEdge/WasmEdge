@@ -191,9 +191,8 @@ TEST(ComponentNameParserTest, KebabLabel) {
 }
 
 TEST(ComponentNameParserTest, StronglyUniqueBasicCases) {
-  Validator::Component::TypeSystem Types;
-  Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::ScopeKind::Component);
+  Validator::Component::Context Ctx;
+  Ctx.pushScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
@@ -201,7 +200,9 @@ TEST(ComponentNameParserTest, StronglyUniqueBasicCases) {
     if (!CN.has_value()) {
       return false;
     }
-    return Ctx.addUniqueName(Names, Ctx.makeNameRecord(*CN), false).has_value();
+    return Ctx
+        .addUniqueName(Names, Validator::Component::NameRecord(*CN), false)
+        .has_value();
   };
 
   EXPECT_TRUE(add("foo"sv));
@@ -220,9 +221,8 @@ TEST(ComponentNameParserTest, StronglyUniqueBasicCases) {
 }
 
 TEST(ComponentNameParserTest, StronglyUnique) {
-  Validator::Component::TypeSystem Types;
-  Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::ScopeKind::Component);
+  Validator::Component::Context Ctx;
+  Ctx.pushScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
@@ -230,7 +230,9 @@ TEST(ComponentNameParserTest, StronglyUnique) {
     if (!CN.has_value()) {
       return false;
     }
-    return Ctx.addUniqueName(Names, Ctx.makeNameRecord(*CN), false).has_value();
+    return Ctx
+        .addUniqueName(Names, Validator::Component::NameRecord(*CN), false)
+        .has_value();
   };
 
   EXPECT_TRUE(add("[method]foo.abc"sv));
@@ -246,9 +248,8 @@ TEST(ComponentNameParserTest, StronglyUniqueExportBasicCases) {
   // Mirrors StronglyUniqueBasicCases on the export-side name set: the
   // strong-uniqueness rule must apply symmetrically to import and export
   // name sets (Explainer §Import and Export Definitions).
-  Validator::Component::TypeSystem Types;
-  Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::ScopeKind::Component);
+  Validator::Component::Context Ctx;
+  Ctx.pushScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
@@ -256,7 +257,9 @@ TEST(ComponentNameParserTest, StronglyUniqueExportBasicCases) {
     if (!CN.has_value()) {
       return false;
     }
-    return Ctx.addUniqueName(Names, Ctx.makeNameRecord(*CN), false).has_value();
+    return Ctx
+        .addUniqueName(Names, Validator::Component::NameRecord(*CN), false)
+        .has_value();
   };
 
   EXPECT_TRUE(add("foo"sv));
@@ -275,9 +278,8 @@ TEST(ComponentNameParserTest, StronglyUniqueExportBasicCases) {
 }
 
 TEST(ComponentNameParserTest, StronglyUniqueExport) {
-  Validator::Component::TypeSystem Types;
-  Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::ScopeKind::Component);
+  Validator::Component::Context Ctx;
+  Ctx.pushScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
 
   auto add = [&](std::string_view S) -> bool {
@@ -285,7 +287,9 @@ TEST(ComponentNameParserTest, StronglyUniqueExport) {
     if (!CN.has_value()) {
       return false;
     }
-    return Ctx.addUniqueName(Names, Ctx.makeNameRecord(*CN), false).has_value();
+    return Ctx
+        .addUniqueName(Names, Validator::Component::NameRecord(*CN), false)
+        .has_value();
   };
 
   EXPECT_TRUE(add("[method]foo.abc"sv));
@@ -309,14 +313,15 @@ TEST(ComponentNameParserTest, OnlyPlainAndInterfaceNames) {
 TEST(ComponentNameParserTest, StronglyUniqueImportExportIndependence) {
   // Spec: import and export name sets are checked *separately* — an import
   // and an export sharing a name is not a strong-uniqueness violation.
-  Validator::Component::TypeSystem Types;
-  Validator::Component::Context Ctx{Types};
-  Ctx.enterScope(Validator::Component::ScopeKind::Component);
+  Validator::Component::Context Ctx;
+  Ctx.pushScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Imports, Exports;
 
   auto add = [&Ctx](std::vector<Validator::Component::NameRecord> &Names,
                     std::string_view S) {
-    return Ctx.addUniqueName(Names, Ctx.makeNameRecord(*parseName(S)), false)
+    return Ctx
+        .addUniqueName(Names, Validator::Component::NameRecord(*parseName(S)),
+                       false)
         .has_value();
   };
 

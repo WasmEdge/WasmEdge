@@ -839,6 +839,30 @@ bool Context::hasBorrow(const QualValType &Q) noexcept {
   return Found;
 }
 
+bool Context::hasHandle(const QualValType &Q) noexcept {
+  if (Q.VT.isPrimValType()) {
+    return Q.VT.getPrimValType() == PrimValType::ErrorContext;
+  }
+  TypeEntry Storage;
+  const auto *Entry = getTypeEntry(Q, Storage);
+  const auto *Def = Entry != nullptr ? Entry->getDefValType() : nullptr;
+  if (Def == nullptr) {
+    return false;
+  }
+  const auto &D = *Def;
+  if (D.isPrimValType()) {
+    return D.getPrimValType() == PrimValType::ErrorContext;
+  }
+  if (D.isOwnTy() || D.isBorrowTy() || D.isStreamTy() || D.isFutureTy()) {
+    return true;
+  }
+  bool Found = false;
+  forEachValType(D, [&](const ComponentValType &VT) noexcept {
+    Found = Found || hasHandle({VT, Entry->Home, Entry->Remap});
+  });
+  return Found;
+}
+
 void Context::collectResources(const ExternInfo &Info,
                                std::unordered_set<uint32_t> &Out) noexcept {
   switch (Info.Kind) {

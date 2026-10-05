@@ -999,6 +999,11 @@ Validator::validate(const AST::Component::ValueSection &ValSec) noexcept {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Value));
       return E;
     }));
+    if (CompCtx.hasHandle({Value.getType(), &CompCtx.getTop(), nullptr})) {
+      spdlog::error(ErrCode::Value::ComponentValueHandleType);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Value));
+      return Unexpect(ErrCode::Value::ComponentValueHandleType);
+    }
     Component::ValueDecoder Decoder(Value.getData(), CompCtx.getTop());
     auto Decoded = Decoder.decode(Value.getType());
     if (!Decoded) {

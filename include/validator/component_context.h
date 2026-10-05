@@ -288,6 +288,9 @@ public:
 
   /// Transitive borrow check on value types.
   bool hasBorrow(const QualValType &Q) noexcept;
+  /// Transitive handle check on value types: own, borrow, stream, future and
+  /// error-context.
+  bool hasHandle(const QualValType &Q) noexcept;
   /// Collect resource ids reachable from a view (for free-variable rules).
   void collectResources(const ExternInfo &Info,
                         std::unordered_set<uint32_t> &Out) noexcept;

@@ -1338,6 +1338,8 @@ E(ComponentValueSizeTooLarge, 0x129A, "exceeds maximum byte size")
 E(ComponentStreamTypeRequired, 0x129B, "requires a stream type")
 // The type immediate of a future built-in is not a future type
 E(ComponentFutureTypeRequired, 0x129C, "requires a future type")
+// The type of a value definition contains a handle
+E(ComponentValueHandleType, 0x129D, "value type cannot contain a handle type")
 // @}
 
 // Instantiation phase

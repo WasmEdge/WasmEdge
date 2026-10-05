@@ -6,6 +6,7 @@ wasmedge_add_library(wasmedgeSystem
   fault.cpp
   mmap.cpp
   path.cpp
+  poll.cpp
   stacktrace.cpp
 )
 
@@ -23,5 +24,6 @@ if(WIN32)
   target_link_libraries(wasmedgeSystem
     PRIVATE
     dbghelp
+    ws2_32
   )
 endif()

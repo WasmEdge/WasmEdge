@@ -44,6 +44,9 @@ private:
   Expect<void> validate(const AST::SubType &Type, uint32_t OwnTypeIdx,
                         std::vector<uint32_t> &SubTypeDepthMap,
                         const std::vector<const AST::SubType *> &TypeVec);
+  Expect<void> validate(Span<const AST::SubType> RecType, uint32_t BaseIdx,
+                        std::vector<uint32_t> &SubTypeDepthMap,
+                        const std::vector<const AST::SubType *> &TypeVec);
   Expect<void> validate(const AST::Limit &Lim);
   Expect<void> validate(const AST::TableType &Tab);
   Expect<void> validate(const AST::MemoryType &Mem);
@@ -118,8 +121,7 @@ private:
                         Component::Shape &Out) noexcept;
   Expect<void> validate(const AST::Component::Export &Ex,
                         Component::Shape &Out) noexcept;
-  // Resolve + validate descriptors into typed views. Sub-resource type
-  // bounds allocate a fresh abstract resource id (import- or export-side).
+  // Resolve descriptors into typed views; a sub-resource bound gets a fresh id.
   Expect<void> validate(const AST::Component::CoreImportDesc &Desc,
                         Component::CoreExternInfo &Out) noexcept;
   Expect<void> validate(const AST::Component::ExternDesc &Desc, bool IsImport,

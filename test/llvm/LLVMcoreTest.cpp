@@ -942,6 +942,75 @@ TEST(AOTCrossModule, CompiledFramelessTrapAttributedToCallee) {
       << "frameless cross-module trap was not attributed to the callee module";
 }
 
+// Cross-module recursion re-enters compiled code through the call proxy, so the
+// hops share one budget: 300 round trips exceed 256 KiB though each hop fits.
+//   callee: (type $t (func (param i64) (result i64)))
+//           (table (export "tab") 1 funcref)
+//           (func (export "g") (type $t)
+//             (call_indirect (type $t) (local.get 0) (i32.const 0)))
+//   caller: (import "callee" "g" (func $g (type $t)))
+//           (import "callee" "tab" (table 1 funcref))
+//           (elem (i32.const 0) func $f)
+//           (func $f (export "f") (type $t)
+//             (if (result i64) (i64.eqz (local.get 0)) (then (i64.const 0))
+//               (else (i64.add (call $g (i64.sub (local.get 0) (i64.const 1)))
+//                              (i64.const 1)))))
+const std::array<WasmEdge::Byte, 65> CrossModuleRecurseCalleeWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
+    0x60, 0x01, 0x7e, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04,
+    0x01, 0x70, 0x00, 0x01, 0x07, 0x0b, 0x02, 0x03, 0x74, 0x61, 0x62,
+    0x01, 0x00, 0x01, 0x67, 0x00, 0x00, 0x0a, 0x0b, 0x01, 0x09, 0x00,
+    0x20, 0x00, 0x41, 0x00, 0x11, 0x00, 0x00, 0x0b, 0x00, 0x0b, 0x04,
+    0x6e, 0x61, 0x6d, 0x65, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74};
+
+const std::array<WasmEdge::Byte, 112> CrossModuleRecurseCallerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+    0x01, 0x7e, 0x01, 0x7e, 0x02, 0x1b, 0x02, 0x06, 0x63, 0x61, 0x6c, 0x6c,
+    0x65, 0x65, 0x01, 0x67, 0x00, 0x00, 0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65,
+    0x65, 0x03, 0x74, 0x61, 0x62, 0x01, 0x70, 0x00, 0x01, 0x03, 0x02, 0x01,
+    0x00, 0x07, 0x05, 0x01, 0x01, 0x66, 0x00, 0x01, 0x09, 0x07, 0x01, 0x00,
+    0x41, 0x00, 0x0b, 0x01, 0x01, 0x0a, 0x17, 0x01, 0x15, 0x00, 0x20, 0x00,
+    0x50, 0x04, 0x7e, 0x42, 0x00, 0x05, 0x20, 0x00, 0x42, 0x01, 0x7d, 0x10,
+    0x00, 0x42, 0x01, 0x7c, 0x0b, 0x0b, 0x00, 0x14, 0x04, 0x6e, 0x61, 0x6d,
+    0x65, 0x01, 0x07, 0x02, 0x00, 0x01, 0x67, 0x01, 0x01, 0x66, 0x04, 0x04,
+    0x01, 0x00, 0x01, 0x74};
+
+TEST(AOTCrossModule, CrossModuleRecursionSharesStackLimit) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setMaxStackSize(UINT64_C(256) << 10);
+
+  auto CalleeMod = compileToJIT(Conf, CrossModuleRecurseCalleeWasm);
+  ASSERT_NE(CalleeMod, nullptr);
+  auto CallerMod = compileToJIT(Conf, CrossModuleRecurseCallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+
+  auto CalleeInstOrErr = ExecEngine.registerModule(Store, *CalleeMod, "callee");
+  ASSERT_TRUE(CalleeInstOrErr);
+  auto CalleeInst = std::move(*CalleeInstOrErr);
+
+  auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+  ASSERT_TRUE(CallerInstOrErr);
+  auto CallerInst = std::move(*CallerInstOrErr);
+
+  const auto *F = CallerInst->findFuncExports("f");
+  ASSERT_NE(F, nullptr);
+  ASSERT_TRUE(F->isCompiledFunction());
+
+  const std::array<ValType, 1> ArgTypes{ValType(TypeCode::I64)};
+  const std::array<ValVariant, 1> ShallowArgs{ValVariant(UINT64_C(5))};
+  auto Shallow = ExecEngine.invoke(F, ShallowArgs, ArgTypes);
+  ASSERT_TRUE(Shallow);
+  EXPECT_EQ((*Shallow)[0].first.get<uint64_t>(), UINT64_C(5));
+
+  const std::array<ValVariant, 1> DeepArgs{ValVariant(UINT64_C(300))};
+  auto Deep = ExecEngine.invoke(F, DeepArgs, ArgTypes);
+  ASSERT_FALSE(Deep);
+  EXPECT_EQ(Deep.error(), ErrCode::Value::CallStackExhausted);
+}
+
 TEST_P(NativeCoreTest, TestSuites) {
   auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
   // Native AOT spec test: explicitly opt into RunMode::AOT so the runtime
@@ -2147,6 +2216,100 @@ TEST(AOTNullLocal, AbstractRefTypeIsBottomTyped) {
   ASSERT_TRUE(RTestExtern);
   ASSERT_EQ(RTestExtern->size(), 1u);
   EXPECT_EQ((*RTestExtern)[0].first.get<uint32_t>(), 1u);
+}
+
+TEST(AOTTmpValues, LoopKeepsNativeStackFlat) {
+  // The temporary values of the runtime calls in a loop must not grow the
+  // native stack on every iteration (issue #4636).
+  //
+  // callee (interpreted, so calls to it take the runtime fallback path):
+  //   (func (export "one") (result i32) (i32.const 1))
+  // caller:
+  //   (type $s (struct (field (mut i32)) (field (mut i64))))
+  //   (type $a (array (mut i32)))
+  //   (type $v (func (result i32)))
+  //   (import "callee" "one" (func $one (type $v)))
+  //   (table 1 funcref) (elem (i32.const 0) func $one) (elem declare func $one)
+  //   (tag $e (param i32))
+  //   (func (export "run") (param $n i32) (result i32)
+  //     (local $i i32) (local $sum i32)
+  //     (local $o (ref null $s)) (local $arr (ref null $a))
+  //     (loop $l
+  //       (local.set $o (struct.new $s (i32.const 0) (i64.const 0)))
+  //       (struct.set $s 0 (local.get $o) (i32.const 1))
+  //       (local.set $sum (i32.add (local.get $sum)
+  //         (struct.get $s 0 (local.get $o))))
+  //       (local.set $arr (array.new_fixed $a 2 (i32.const 0) (i32.const 0)))
+  //       (array.set $a (local.get $arr) (i32.const 0) (i32.const 1))
+  //       (array.fill $a (local.get $arr) (i32.const 1) (i32.const 1)
+  //         (i32.const 1))
+  //       (local.set $sum (i32.add (local.get $sum)
+  //         (array.get $a (local.get $arr) (i32.const 1))))
+  //       (drop (array.new $a (i32.const 0) (i32.const 1)))
+  //       (local.set $sum (i32.add (local.get $sum)
+  //         (block $h (result i32)
+  //           (try_table (catch $e $h) (throw $e (i32.const 1)))
+  //           (i32.const 0))))
+  //       (local.set $sum (i32.add (local.get $sum)
+  //         (call_indirect (type $v) (i32.const 0))))
+  //       (local.set $sum (i32.add (local.get $sum)
+  //         (call_ref $v (ref.func $one))))
+  //       (br_if $l (i32.lt_u
+  //         (local.tee $i (i32.add (local.get $i) (i32.const 1)))
+  //         (local.get $n))))
+  //     (local.get $sum))
+  std::array<WasmEdge::Byte, 36> TmpValuesCalleeWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+      0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x07, 0x01, 0x03, 0x6f,
+      0x6e, 0x65, 0x00, 0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x01, 0x0b};
+  std::array<WasmEdge::Byte, 237> TmpValuesCallerWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x17, 0x05, 0x5f,
+      0x02, 0x7f, 0x01, 0x7e, 0x01, 0x5e, 0x7f, 0x01, 0x60, 0x00, 0x01, 0x7f,
+      0x60, 0x01, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x02, 0x0e, 0x01,
+      0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65, 0x65, 0x03, 0x6f, 0x6e, 0x65, 0x00,
+      0x02, 0x03, 0x02, 0x01, 0x04, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x0d,
+      0x03, 0x01, 0x00, 0x03, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00,
+      0x01, 0x09, 0x0b, 0x02, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x03, 0x00,
+      0x01, 0x00, 0x0a, 0x94, 0x01, 0x01, 0x91, 0x01, 0x03, 0x02, 0x7f, 0x01,
+      0x63, 0x00, 0x01, 0x63, 0x01, 0x03, 0x40, 0x41, 0x00, 0x42, 0x00, 0xfb,
+      0x00, 0x00, 0x21, 0x03, 0x20, 0x03, 0x41, 0x01, 0xfb, 0x05, 0x00, 0x00,
+      0x20, 0x02, 0x20, 0x03, 0xfb, 0x02, 0x00, 0x00, 0x6a, 0x21, 0x02, 0x41,
+      0x00, 0x41, 0x00, 0xfb, 0x08, 0x01, 0x02, 0x21, 0x04, 0x20, 0x04, 0x41,
+      0x00, 0x41, 0x01, 0xfb, 0x0e, 0x01, 0x20, 0x04, 0x41, 0x01, 0x41, 0x01,
+      0x41, 0x01, 0xfb, 0x10, 0x01, 0x20, 0x02, 0x20, 0x04, 0x41, 0x01, 0xfb,
+      0x0b, 0x01, 0x6a, 0x21, 0x02, 0x41, 0x00, 0x41, 0x01, 0xfb, 0x06, 0x01,
+      0x1a, 0x20, 0x02, 0x02, 0x7f, 0x1f, 0x40, 0x01, 0x00, 0x00, 0x00, 0x41,
+      0x01, 0x08, 0x00, 0x0b, 0x41, 0x00, 0x0b, 0x6a, 0x21, 0x02, 0x20, 0x02,
+      0x41, 0x00, 0x11, 0x02, 0x00, 0x6a, 0x21, 0x02, 0x20, 0x02, 0xd2, 0x00,
+      0x14, 0x02, 0x6a, 0x21, 0x02, 0x20, 0x01, 0x41, 0x01, 0x6a, 0x22, 0x01,
+      0x20, 0x00, 0x49, 0x0d, 0x00, 0x0b, 0x20, 0x02, 0x0b};
+
+  Configure Conf;
+  auto CalleeMod = loadModule(Conf, TmpValuesCalleeWasm);
+  ASSERT_NE(CalleeMod, nullptr);
+  auto CallerMod = compileToJIT(Conf, TmpValuesCallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+  auto CalleeInstOrErr = ExecEngine.registerModule(Store, *CalleeMod, "callee");
+  ASSERT_TRUE(CalleeInstOrErr);
+  auto CalleeInst = std::move(*CalleeInstOrErr);
+  auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+  ASSERT_TRUE(CallerInstOrErr);
+  auto CallerInst = std::move(*CallerInstOrErr);
+
+  const auto *Run = CallerInst->findFuncExports("run");
+  ASSERT_NE(Run, nullptr);
+  ASSERT_TRUE(Run->isCompiledFunction());
+
+  // A leak of 240 bytes per iteration would need 24 MB of stack.
+  const std::array<ValVariant, 1> Args{ValVariant(uint32_t(100000U))};
+  const std::array<ValType, 1> ArgTypes{ValType(TypeCode::I32)};
+  auto R = ExecEngine.invoke(Run, Args, ArgTypes);
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 500000u);
 }
 
 } // namespace

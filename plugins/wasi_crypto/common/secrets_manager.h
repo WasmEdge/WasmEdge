@@ -169,8 +169,7 @@ public:
     return NextVersion;
   }
 
-  WasiCryptoExpect<
-      std::pair<AsymmetricCommon::KpVariant, __wasi_version_t>>
+  WasiCryptoExpect<std::pair<AsymmetricCommon::KpVariant, __wasi_version_t>>
   getKpWithVersion(Span<const uint8_t> KeyId,
                    __wasi_version_t Version) noexcept {
     std::shared_lock Lock(Ctx->Mutex);

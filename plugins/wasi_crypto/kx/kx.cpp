@@ -16,9 +16,9 @@ template <typename Sk, typename Pk, typename = void>
 struct IsDhCompatible : std::false_type {};
 
 template <typename Sk, typename Pk>
-struct IsDhCompatible<
-    Sk, Pk, std::void_t<decltype(std::declval<const Sk &>().dh(std::declval<const Pk &>()))>>
-    : std::true_type {};
+struct IsDhCompatible<Sk, Pk,
+                      std::void_t<decltype(std::declval<const Sk &>().dh(
+                          std::declval<const Pk &>()))>> : std::true_type {};
 
 // C++17 void_t SFINAE member-detection traits. Only algorithm classes that
 // implement a KEM (e.g. ML-KEM) expose encapsulate/decapsulate; DH classes

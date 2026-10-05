@@ -861,6 +861,7 @@ TEST(WasiSockTest, SockConnect_6) {
 
   WasmEdge::Host::WasiSockOpenV1 WasiSockOpen(Env);
   WasmEdge::Host::WasiSockConnectV1 WasiSockConnect(Env);
+  WasmEdge::Host::WasiSockGetOpt WasiSockGetOpt(Env);
   WasmEdge::Host::WasiFdClose WasiFdClose(Env);
 
   std::array<WasmEdge::ValVariant, 1> Errno;
@@ -868,6 +869,8 @@ TEST(WasiSockTest, SockConnect_6) {
   const uint32_t AddrPtr = 16;
   const uint32_t AddrBufPtr = 64;
   const uint32_t AddrBufLen = 16;
+  const uint32_t ResBufPtr = 128;
+  const uint32_t ResBufSzPtr = 136;
 
   Env.init({}, "test"s, {}, {});
 
@@ -894,6 +897,23 @@ TEST(WasiSockTest, SockConnect_6) {
       CallFrame, std::array<WasmEdge::ValVariant, 3>{Fd, AddrPtr, Port},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+  // A connected socket has no pending error.
+  *MemInst.getPointer<int32_t *>(ResBufPtr) = -1;
+  *MemInst.getPointer<uint32_t *>(ResBufSzPtr) =
+      WasmEdge::EndianValue(static_cast<uint32_t>(sizeof(int32_t))).le();
+  EXPECT_TRUE(WasiSockGetOpt.run(
+      CallFrame,
+      std::array<WasmEdge::ValVariant, 5>{
+          Fd, static_cast<uint32_t>(__WASI_SOCK_OPT_LEVEL_SOL_SOCKET),
+          static_cast<uint32_t>(__WASI_SOCK_OPT_SO_ERROR), ResBufPtr,
+          ResBufSzPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  EXPECT_EQ(
+      WasmEdge::EndianValue(*MemInst.getPointer<const int32_t *>(ResBufPtr))
+          .le(),
+      __WASI_ERRNO_SUCCESS);
 
   WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{Fd}, Errno);
   Env.fini();

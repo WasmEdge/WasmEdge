@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 #include "validator/component_context.h"
 
+#include "common/component_valtype.h"
 #include "common/errinfo.h"
 #include "common/spdlog.h"
 
@@ -788,10 +789,10 @@ const TypeEntry *Context::getTypeEntry(const QualValType &Q,
 }
 
 // The primitive behind a valtype, through prim-alias indirections.
-std::optional<AST::Component::PrimValType>
+std::optional<PrimValType>
 Context::getPrimValType(const QualValType &Q) noexcept {
   if (Q.VT.isPrimValType()) {
-    return static_cast<AST::Component::PrimValType>(Q.VT.getCode());
+    return Q.VT.getPrimValType();
   }
   TypeEntry Storage;
   const auto *Entry = getTypeEntry(Q, Storage);
@@ -1111,19 +1112,19 @@ Expect<void> Context::checkTypeLimits(const ExternInfo &Info) noexcept {
 std::pair<uint64_t, uint64_t>
 Context::getElemLayout(const QualValType &Q) noexcept {
   if (Q.VT.isPrimValType()) {
-    switch (static_cast<AST::Component::PrimValType>(Q.VT.getCode())) {
-    case AST::Component::PrimValType::Bool:
-    case AST::Component::PrimValType::S8:
-    case AST::Component::PrimValType::U8:
+    switch (Q.VT.getPrimValType()) {
+    case PrimValType::Bool:
+    case PrimValType::S8:
+    case PrimValType::U8:
       return {1, 1};
-    case AST::Component::PrimValType::S16:
-    case AST::Component::PrimValType::U16:
+    case PrimValType::S16:
+    case PrimValType::U16:
       return {2, 2};
-    case AST::Component::PrimValType::S64:
-    case AST::Component::PrimValType::U64:
-    case AST::Component::PrimValType::F64:
+    case PrimValType::S64:
+    case PrimValType::U64:
+    case PrimValType::F64:
       return {8, 8};
-    case AST::Component::PrimValType::String:
+    case PrimValType::String:
       return {16, 8};
     default:
       return {4, 4};
@@ -1142,9 +1143,7 @@ std::pair<uint64_t, uint64_t>
 Context::getElemLayout(const AST::Component::DefValType &D, const Scope *Home,
                        const ResourceMap *Remap) noexcept {
   if (D.isPrimValType()) {
-    return getElemLayout(
-        {ComponentValType(static_cast<ComponentTypeCode>(D.getPrimValType())),
-         Home, Remap});
+    return getElemLayout({ComponentValType(D.getPrimValType()), Home, Remap});
   }
   auto It = ElemLayouts.find(&D);
   if (It != ElemLayouts.end()) {
@@ -1244,31 +1243,31 @@ bool Context::flattenValType(const QualValType &Q, std::vector<ValType> &Out,
   }
   if (const auto Prim = getPrimValType(Q)) {
     switch (*Prim) {
-    case AST::Component::PrimValType::Bool:
-    case AST::Component::PrimValType::S8:
-    case AST::Component::PrimValType::U8:
-    case AST::Component::PrimValType::S16:
-    case AST::Component::PrimValType::U16:
-    case AST::Component::PrimValType::S32:
-    case AST::Component::PrimValType::U32:
-    case AST::Component::PrimValType::Char:
+    case PrimValType::Bool:
+    case PrimValType::S8:
+    case PrimValType::U8:
+    case PrimValType::S16:
+    case PrimValType::U16:
+    case PrimValType::S32:
+    case PrimValType::U32:
+    case PrimValType::Char:
       Out.push_back(ValType(TypeCode::I32));
       return true;
-    case AST::Component::PrimValType::S64:
-    case AST::Component::PrimValType::U64:
+    case PrimValType::S64:
+    case PrimValType::U64:
       Out.push_back(ValType(TypeCode::I64));
       return true;
-    case AST::Component::PrimValType::F32:
+    case PrimValType::F32:
       Out.push_back(ValType(TypeCode::F32));
       return true;
-    case AST::Component::PrimValType::F64:
+    case PrimValType::F64:
       Out.push_back(ValType(TypeCode::F64));
       return true;
-    case AST::Component::PrimValType::String:
+    case PrimValType::String:
       Out.push_back(Ptr);
       Out.push_back(Ptr);
       return true;
-    case AST::Component::PrimValType::ErrorContext:
+    case PrimValType::ErrorContext:
       Out.push_back(ValType(TypeCode::I32));
       return true;
     default:
@@ -1386,7 +1385,7 @@ bool Context::flattenValType(const QualValType &Q, std::vector<ValType> &Out,
 // True iff the type transitively contains a list, map, or string.
 bool Context::needsMemory(const QualValType &Q) noexcept {
   if (const auto Prim = getPrimValType(Q)) {
-    return *Prim == AST::Component::PrimValType::String;
+    return *Prim == PrimValType::String;
   }
   TypeEntry Storage;
   const auto *Entry = getTypeEntry(Q, Storage);

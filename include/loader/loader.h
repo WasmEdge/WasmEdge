@@ -17,6 +17,7 @@
 #include "ast/component/component.h"
 #include "ast/module.h"
 #include "ast/type.h"
+#include "common/component_valtype.h"
 #include "common/configure.h"
 #include "common/errinfo.h"
 #include "loader/filemgr.h"

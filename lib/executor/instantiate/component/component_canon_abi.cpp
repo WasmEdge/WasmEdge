@@ -60,8 +60,8 @@ Expect<uint32_t> callRealloc(const CanonCtx &Cx, uint32_t OldPtr,
 constexpr uint32_t kU8Cases = 256;
 constexpr uint32_t kU16Cases = 65536;
 
-Expect<uint32_t> alignmentPrim(AST::Component::PrimValType PVT) noexcept {
-  using P = AST::Component::PrimValType;
+Expect<uint32_t> alignmentPrim(PrimValType PVT) noexcept {
+  using P = PrimValType;
   switch (PVT) {
   case P::Bool:
   case P::S8:
@@ -139,8 +139,7 @@ Expect<uint32_t> alignment(const CanonCtx &Cx,
 
   // PrimValType and ComponentTypeCode share byte values for the primitive
   // range (Bool=0x7F .. ErrContext=0x64). Forward to alignmentPrim.
-  return alignmentPrim(
-      static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
+  return alignmentPrim(static_cast<PrimValType>(static_cast<uint8_t>(Code)));
 }
 
 Expect<uint32_t> alignmentDef(const CanonCtx &Cx,
@@ -245,9 +244,9 @@ Expect<uint32_t> alignmentDef(const CanonCtx &Cx,
 
 namespace {
 
-Expect<uint32_t> elemSizePrim(AST::Component::PrimValType PVT) noexcept {
+Expect<uint32_t> elemSizePrim(PrimValType PVT) noexcept {
   // CanonicalABI.md L1994-2008.
-  using P = AST::Component::PrimValType;
+  using P = PrimValType;
   switch (PVT) {
   case P::Bool:
   case P::S8:
@@ -317,8 +316,7 @@ Expect<uint32_t> elemSize(const CanonCtx &Cx,
     return elemSizeDef(Cx, DT->getDefValType());
   }
 
-  return elemSizePrim(
-      static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
+  return elemSizePrim(static_cast<PrimValType>(static_cast<uint8_t>(Code)));
 }
 
 Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
@@ -448,10 +446,9 @@ const ValType I64T{TypeCode::I64};
 const ValType F32T{TypeCode::F32};
 const ValType F64T{TypeCode::F64};
 
-Expect<std::vector<ValType>>
-flattenTypePrim(AST::Component::PrimValType PVT) noexcept {
+Expect<std::vector<ValType>> flattenTypePrim(PrimValType PVT) noexcept {
   // CanonicalABI.md L2862-2870 / L2874 / L2875 (excluding gated rows).
-  using P = AST::Component::PrimValType;
+  using P = PrimValType;
   switch (PVT) {
   case P::Bool:
   case P::S8:
@@ -518,8 +515,7 @@ Expect<std::vector<ValType>> flattenType(const CanonCtx &Cx,
     return flattenTypeDef(Cx, DT->getDefValType());
   }
 
-  return flattenTypePrim(
-      static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
+  return flattenTypePrim(static_cast<PrimValType>(static_cast<uint8_t>(Code)));
 }
 
 Expect<std::vector<ValType>>
@@ -719,7 +715,7 @@ bool containsListOrStringDef(const CanonCtx &Cx,
                              const AST::Component::DefValType &T,
                              std::unordered_set<uint32_t> &Seen) noexcept {
   if (T.isPrimValType()) {
-    return T.getPrimValType() == AST::Component::PrimValType::String;
+    return T.getPrimValType() == PrimValType::String;
   }
   if (T.isListTy()) {
     return true;
@@ -1174,9 +1170,9 @@ encodeString(const CanonCtx &Cx, const std::string &S) noexcept {
 
 // Load a primitive at Ptr. CanonicalABI.md L2054-2065.
 Expect<ComponentValVariant> loadPrim(const CanonCtx &Cx, uint32_t Ptr,
-                                     AST::Component::PrimValType PVT) noexcept {
+                                     PrimValType PVT) noexcept {
   assuming(Cx.Mem != nullptr);
-  using P = AST::Component::PrimValType;
+  using P = PrimValType;
   switch (PVT) {
   case P::Bool: {
     // convert_int_to_bool (L2088-2090): 0 → false, else true.
@@ -1292,9 +1288,8 @@ Expect<ComponentValVariant> load(const CanonCtx &Cx, uint32_t Ptr,
     return loadDef(Cx, Ptr, DT->getDefValType());
   }
 
-  return loadPrim(
-      Cx, Ptr,
-      static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
+  return loadPrim(Cx, Ptr,
+                  static_cast<PrimValType>(static_cast<uint8_t>(Code)));
 }
 
 Expect<ComponentValVariant>
@@ -1489,9 +1484,9 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
 namespace {
 
 Expect<void> storePrim(const CanonCtx &Cx, const ComponentValVariant &V,
-                       AST::Component::PrimValType PVT, uint32_t Ptr) noexcept {
+                       PrimValType PVT, uint32_t Ptr) noexcept {
   assuming(Cx.Mem != nullptr);
-  using P = AST::Component::PrimValType;
+  using P = PrimValType;
   switch (PVT) {
   case P::Bool: {
     const uint32_t B = std::get<bool>(V) ? 1u : 0u;
@@ -1576,10 +1571,8 @@ Expect<void> store(const CanonCtx &Cx, const ComponentValVariant &V,
     return storeDef(Cx, V, DT->getDefValType(), Ptr);
   }
 
-  return storePrim(
-      Cx, V,
-      static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)),
-      Ptr);
+  return storePrim(Cx, V, static_cast<PrimValType>(static_cast<uint8_t>(Code)),
+                   Ptr);
 }
 
 Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
@@ -1946,10 +1939,9 @@ ComponentValVariant liftFlatSigned(uint32_t Width, uint64_t Raw) noexcept {
   }
 }
 
-Expect<ComponentValVariant>
-liftFlatPrim(const CanonCtx &Cx, FlatIter &VI,
-             AST::Component::PrimValType PVT) noexcept {
-  using P = AST::Component::PrimValType;
+Expect<ComponentValVariant> liftFlatPrim(const CanonCtx &Cx, FlatIter &VI,
+                                         PrimValType PVT) noexcept {
+  using P = PrimValType;
   auto Next = VI.next();
   assuming(Next.has_value() || PVT == P::String || PVT == P::ErrorContext);
   switch (PVT) {
@@ -2027,9 +2019,8 @@ Expect<ComponentValVariant> liftFlat(const CanonCtx &Cx, FlatIter &VI,
     }
     return liftFlatDef(Cx, VI, DT->getDefValType());
   }
-  return liftFlatPrim(
-      Cx, VI,
-      static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
+  return liftFlatPrim(Cx, VI,
+                      static_cast<PrimValType>(static_cast<uint8_t>(Code)));
 }
 
 Expect<ComponentValVariant>
@@ -2222,10 +2213,10 @@ std::vector<ValVariant> lowerSigned64(int64_t V) noexcept {
   return {ValVariant(static_cast<uint64_t>(V))};
 }
 
-Expect<std::vector<ValVariant>>
-lowerFlatPrim(const CanonCtx &Cx, const ComponentValVariant &V,
-              AST::Component::PrimValType PVT) noexcept {
-  using P = AST::Component::PrimValType;
+Expect<std::vector<ValVariant>> lowerFlatPrim(const CanonCtx &Cx,
+                                              const ComponentValVariant &V,
+                                              PrimValType PVT) noexcept {
+  using P = PrimValType;
   switch (PVT) {
   case P::Bool:
     return std::vector<ValVariant>{ValVariant(std::get<bool>(V) ? 1u : 0u)};
@@ -2299,9 +2290,8 @@ Expect<std::vector<ValVariant>> lowerFlat(const CanonCtx &Cx,
     }
     return lowerFlatDef(Cx, V, DT->getDefValType());
   }
-  return lowerFlatPrim(
-      Cx, V,
-      static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
+  return lowerFlatPrim(Cx, V,
+                       static_cast<PrimValType>(static_cast<uint8_t>(Code)));
 }
 
 Expect<std::vector<ValVariant>>

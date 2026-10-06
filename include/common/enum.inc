@@ -1156,19 +1156,6 @@ E(NameEmptyString, 0x121C, "empty string")
 E(NameEmptyIdentifierSegment, 0x121D, "empty identifier segment")
 E(NameExpectedSlashAfterPackage, 0x121E, "expected `/` after package name")
 E(NameTrailingCharacters, 0x121F, "trailing characters found")
-E(NameExpectedOpenAngle, 0x1220, "expected `<`")
-E(NameExpectedCloseAngle, 0x1221, "expected `>`")
-E(NameExpectedOpenBrace, 0x1222, "expected `{`")
-E(NameExpectedVersionRangeOp, 0x1223,
-  "expected `>=` or `<` at start of version range")
-E(NameNotValidSemver, 0x1224, "not a valid semver")
-E(NameExpectedIntegrity, 0x1225, "expected `integrity=<`")
-E(NameFailedToFindCloseAngle, 0x1226, "failed to find `>`")
-E(NameUrlContainsOpenAngle, 0x1227, "url cannot contain `<`")
-E(NameIntegrityEmpty, 0x1228, "integrity hash cannot be empty")
-E(NameExpectedDashAfterHash, 0x1229, "expected `-` after hash algorithm")
-E(NameInvalidBase64, 0x122A, "not valid base64")
-E(NameUnknownHashAlgorithm, 0x122B, "unrecognized hash algorithm")
 E(NameFailedToFindDot, 0x122C, "failed to find `.` character")
 // Component import/export name uniqueness diagnostics
 E(ComponentDuplicateImportName, 0x122D, "duplicate import name")
@@ -1351,6 +1338,8 @@ E(ComponentValueSizeTooLarge, 0x129A, "exceeds maximum byte size")
 E(ComponentStreamTypeRequired, 0x129B, "requires a stream type")
 // The type immediate of a future built-in is not a future type
 E(ComponentFutureTypeRequired, 0x129C, "requires a future type")
+// The type of a value definition contains a handle
+E(ComponentValueHandleType, 0x129D, "value type cannot contain a handle type")
 // @}
 
 // Instantiation phase

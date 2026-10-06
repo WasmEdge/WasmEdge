@@ -474,6 +474,19 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
 // Validate Code segment. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::CodeSegment &CodeSeg,
                                  const uint32_t TypeIdx) {
+  // Enforce the proposal for ASTs supplied directly without loader checks.
+  if (!Conf.hasProposal(Proposal::WideArithmetic)) {
+    for (const auto &Instr : CodeSeg.getExpr().getInstrs()) {
+      if (Instr.getOpCode() >= OpCode::I64__add128 &&
+          Instr.getOpCode() <= OpCode::I64__mul_wide_u) {
+        spdlog::error(ErrCode::Value::IllegalOpCode);
+        spdlog::error(ErrInfo::InfoProposal(Proposal::WideArithmetic));
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+        return Unexpect(ErrCode::Value::IllegalOpCode);
+      }
+    }
+  }
   // Due to validation of the function section, the type at this index must
   // be a function type.
   const auto &FuncType =

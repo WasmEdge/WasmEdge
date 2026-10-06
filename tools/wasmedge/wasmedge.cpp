@@ -1,20 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-#include "wasmedge/wasmedge.h"
+#include "main.h"
 
-#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
-    defined(__TOS_WIN__) || defined(__WINDOWS__)
-extern "C" int wmain(int Argc, const wchar_t *Argv[]);
-int wmain(int Argc, const wchar_t *Argv[]) {
-  WasmEdge_Driver_SetConsoleOutputCPtoUTF8();
-  auto NewArgv = WasmEdge_Driver_ArgvCreate(Argc, Argv);
-  const int Result = WasmEdge_Driver_UniTool(Argc, NewArgv);
-  WasmEdge_Driver_ArgvDelete(NewArgv);
-  return Result;
-}
-#else
-int main(int Argc, const char *Argv[]) {
-  return WasmEdge_Driver_UniTool(Argc, Argv);
-}
-#endif
+WASMEDGE_DRIVER_MAIN(WasmEdge_Driver_UniTool)

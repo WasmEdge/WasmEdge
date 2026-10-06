@@ -21,13 +21,16 @@ int ValidateTool(struct DriverToolOptions &Opt) noexcept {
   Configure Conf = createConfigure(Opt);
 
   Conf.addHostRegistration(HostRegistration::Wasi);
-  const auto InputPath = std::filesystem::absolute(u8path(Opt.SoName.value()));
+  const auto InputPath = getInputPath(Opt);
+  if (!InputPath) {
+    return EXIT_FAILURE;
+  }
 
   // Create VM and get WASI module instance.
   VM::VM VM(Conf);
 
   // Load, validate, WASM or Component.
-  if (auto Result = VM.loadWasm(u8string(InputPath)); !Result) {
+  if (auto Result = VM.loadWasm(u8string(*InputPath)); !Result) {
     return EXIT_FAILURE;
   }
 

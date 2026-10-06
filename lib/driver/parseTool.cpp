@@ -126,10 +126,13 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
   std::ios::sync_with_stdio(false);
 
   Configure Conf = createConfigure(Opt);
-  const auto InputPath = std::filesystem::absolute(u8path(Opt.SoName.value()));
+  const auto InputPath = getInputPath(Opt);
+  if (!InputPath) {
+    return EXIT_FAILURE;
+  }
 
   Loader::Loader Loader(Conf);
-  auto Res = Loader.parseModule(InputPath);
+  auto Res = Loader.parseModule(*InputPath);
   if (!Res) {
     spdlog::error("Failed to parse WASM module."sv);
     return EXIT_FAILURE;
@@ -178,7 +181,7 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
     return {};
   };
 
-  fmt::print("{}:  file format wasm 0x1\n\n", InputPath.filename().string());
+  fmt::print("{}:  file format wasm 0x1\n\n", InputPath->filename().string());
   fmt::print("Section Details:\n\n");
 
   // Type Section

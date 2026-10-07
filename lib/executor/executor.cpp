@@ -206,7 +206,7 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
     if (RType.isRefType()) {
       // For the reference type cases of the return values, they should be
       // transformed into abstract heap types due to the opaque of type indices.
-      auto &RefType = Val.get<RefVariant>().getType();
+      ValType RefType = Val.get<RefVariant>().getType();
       if (RefType.isExternalized()) {
         // First handle the forced externalized value type case.
         RefType = ValType(TypeCode::Ref, TypeCode::ExternRef);
@@ -226,6 +226,7 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
         RefType =
             ValType(RefType.getCode(), DefType->getCompositeType().expand());
       }
+      Val.get<RefVariant>().setType(RefType);
       // Should use the value type from the reference here due to the dynamic
       // typing rule of the null references.
       Returns[RTypes.size() - I - 1] = std::make_pair(Val, RefType);

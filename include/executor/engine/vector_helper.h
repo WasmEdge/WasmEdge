@@ -3,22 +3,29 @@
 
 #pragma once
 
-#include <type_traits>
+#include "common/endian.h"
+#include "experimental/bit.hpp"
+#include "experimental/simd.hpp"
 
 namespace WasmEdge {
 namespace Executor {
 namespace detail {
 
-template <typename U, typename V>
-[[gnu::always_inline]] constexpr inline std::enable_if_t<
-    !std::is_arithmetic_v<V>, V>
-vectorSelect(U Cond, V A, V B) noexcept {
-#if defined(__clang__)
-  return reinterpret_cast<V>((Cond & reinterpret_cast<U>(A)) |
-                             (~Cond & reinterpret_cast<U>(B)));
-#else
-  return Cond ? A : B;
-#endif
+namespace simd = cxx26::simd;
+
+template <typename T, simd::simd_size_type N =
+                          static_cast<simd::simd_size_type>(16 / sizeof(T))>
+using Vec = simd::vec<T, N>;
+
+/// Memory lane index of logical Wasm lane I.
+template <typename T>
+constexpr simd::simd_size_type lane(simd::simd_size_type I) noexcept {
+  return Endian::native == Endian::little ? I : Vec<T>::size - 1 - I;
+}
+
+/// All-one-bits lanes where Mask is true and zero lanes elsewhere, as a V.
+template <typename V, typename M> V maskToVec(const M &Mask) noexcept {
+  return cxx20::bit_cast<V>(-Mask);
 }
 
 } // namespace detail

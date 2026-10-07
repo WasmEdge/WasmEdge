@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <new>
 #include <vector>
 
 namespace WasmEdge {
@@ -101,10 +102,14 @@ public:
       const uint64_t Max = TabType.getLimit().getMax();
       MaxSizeCaped = std::min(Max, MaxSizeCaped);
     }
-    if (Count > MaxSizeCaped - Min) {
+    if (Count > MaxSizeCaped - Min || Count > Refs.max_size() - Refs.size()) {
       return false;
     }
-    Refs.resize(Refs.size() + Count);
+    try {
+      Refs.resize(Refs.size() + Count);
+    } catch (const std::bad_alloc &) {
+      return false;
+    }
     std::fill_n(Refs.end() - static_cast<std::ptrdiff_t>(Count), Count, Val);
     DataPtr = Refs.data();
     setLiveSize(Min + Count);

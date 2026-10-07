@@ -39,6 +39,8 @@ if(WASMEDGE_LINK_LLVM_STATIC)
     PUBLIC
     wasmedgeCommon
     wasmedgeSystem
+    wasmedgeWat
+    wasmedgeLoader
     std::filesystem
     ${WASMEDGE_LLVM_LINK_STATIC_COMPONENTS}
     ${WASMEDGE_LLVM_LINK_SHARED_COMPONENTS}
@@ -69,6 +71,8 @@ else()
     LINK_LIBS
     wasmedgeCommon
     wasmedgeSystem
+    wasmedgeWat
+    wasmedgeLoader
     ${LLD_LIBS}
     std::filesystem
     ${CMAKE_THREAD_LIBS_INIT}

@@ -4,6 +4,7 @@
 #include "loader/loader.h"
 
 #include "aot/version.h"
+#include "wat/parser.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -76,6 +77,26 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     return E;
   }));
 
+  // Find WAT text in the mapped bytes. A full read only for this test is not
+  // necessary, because maybeWAT rejects a WASM binary or an AOT binary after
+  // the first page. The text format loader is experimental, so it is on only
+  // by request. Without it, the text goes to the binary loader.
+  if (Conf.isEnableWAT() && WAT::maybeWAT(FMgr.getSpan())) {
+    // The text is a WASM module, so the input type is WASM. Reset the file
+    // manager after the conversion, because the parser reads the mapped
+    // file. A later parse then starts from a clean state.
+    WASMType = InputType::WASM;
+    auto Res =
+        WAT::parseWat(FMgr.getSpan(), Conf).map_error([&FilePath](auto E) {
+          spdlog::error(E);
+          spdlog::error(ErrInfo::InfoFile(FilePath));
+          return E;
+        });
+    FMgr.reset();
+    EXPECTED_TRY(auto Mod, std::move(Res));
+    return std::make_unique<AST::Module>(std::move(Mod));
+  }
+
   auto ReportError = [&FilePath](auto E) {
     spdlog::error(ErrInfo::InfoFile(FilePath));
     return E;
@@ -140,6 +161,18 @@ Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                     std::unique_ptr<AST::Module>>>
 Loader::parseWasmUnit(Span<const uint8_t> Code) {
   std::lock_guard Lock(Mutex);
+
+  // Find if the buffer holds WAT text. The text format loader is
+  // experimental, so it is on only by request.
+  if (Conf.isEnableWAT() && WAT::maybeWAT(Code)) {
+    // The text is a WASM module, so the input type is WASM. Drop the state
+    // of an earlier parse, which can still hold a mapped file.
+    WASMType = InputType::WASM;
+    FMgr.reset();
+    EXPECTED_TRY(auto Mod, WAT::parseWat(Code, Conf));
+    return std::make_unique<AST::Module>(std::move(Mod));
+  }
+
   EXPECTED_TRY(FMgr.setCode(Code));
   switch (FMgr.getHeaderType()) {
   // Filter out the Windows .dll, macOS .dylib, or Linux .so AOT compiled

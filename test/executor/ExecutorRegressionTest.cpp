@@ -14,6 +14,7 @@
 
 #include "common/spdlog.h"
 #include "common/types.h"
+#include "executor/executor.h"
 #include "vm/vm.h"
 
 #include <array>
@@ -1484,6 +1485,62 @@ TEST(ExecutorRegression, CallStackDefaultLimit) {
   auto Result = VM.execute("f", RunawayParams, ParamTypes);
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), ErrCode::Value::CallStackExhausted);
+}
+
+class DummyTableModule : public Runtime::Instance::ModuleInstance {
+public:
+  DummyTableModule() : ModuleInstance("test") {}
+  void createTable(const AST::TableType &TT) { addTable(TT); }
+  Runtime::Instance::TableInstance *getTableInst(uint32_t Idx) {
+    return *getTable(Idx);
+  }
+};
+
+/// Regression test for proxyTableCopy copying slices between tables correctly.
+TEST(ExecutorRegression, ProxyTableCopy) {
+  Configure Conf;
+  Executor::Executor Exec(Conf);
+  Runtime::StackManager StackMgr;
+  DummyTableModule ModInst;
+
+  AST::TableType TabType(ValType(TypeCode::FuncRef), 10);
+  ModInst.createTable(TabType);
+  ModInst.createTable(TabType);
+
+  auto *TabSrc = ModInst.getTableInst(0);
+  auto *TabDst = ModInst.getTableInst(1);
+
+  for (uint32_t I = 0; I < 10; ++I) {
+    auto Ref =
+        RefVariant(ValType(TypeCode::Ref, TypeCode::FuncRef),
+                   reinterpret_cast<void *>(uintptr_t(0x1000 + I * 0x10)));
+    EXPECT_TRUE(TabSrc->setRefAddr(I, Ref));
+  }
+
+  // Copy TabSrc[3..6] (Len=4) to TabDst[2..5]
+  EXPECT_TRUE(Exec.proxyTableCopy(StackMgr, &ModInst, 1, 0, 2, 3, 4));
+
+  for (uint32_t I = 0; I < 4; ++I) {
+    auto DstRef = TabDst->getRefAddr(2 + I);
+    ASSERT_TRUE(DstRef);
+    EXPECT_EQ(DstRef->getPtr<void>(),
+              reinterpret_cast<void *>(uintptr_t(0x1000 + (3 + I) * 0x10)));
+  }
+
+  // Overlapping copy within same table: TabSrc[2..5] to TabSrc[4..7]
+  EXPECT_TRUE(Exec.proxyTableCopy(StackMgr, &ModInst, 0, 0, 4, 2, 4));
+  for (uint32_t I = 0; I < 4; ++I) {
+    auto DstRef = TabSrc->getRefAddr(4 + I);
+    ASSERT_TRUE(DstRef);
+    EXPECT_EQ(DstRef->getPtr<void>(),
+              reinterpret_cast<void *>(uintptr_t(0x1000 + (2 + I) * 0x10)));
+  }
+
+  // Out of bounds source
+  EXPECT_FALSE(Exec.proxyTableCopy(StackMgr, &ModInst, 1, 0, 0, 8, 4));
+
+  // Out of bounds destination
+  EXPECT_FALSE(Exec.proxyTableCopy(StackMgr, &ModInst, 1, 0, 8, 0, 4));
 }
 
 } // namespace

@@ -470,8 +470,8 @@ Expect<void> Executor::proxyTableCopy(
   auto *TabInstSrc = getTabInstByIdx(ModInst, TableIdxSrc);
   assuming(TabInstSrc);
 
-  EXPECTED_TRY(auto Refs, TabInstSrc->getRefs(0, SrcOff + Len));
-  return TabInstDst->setRefs(Refs, DstOff, SrcOff, Len);
+  EXPECTED_TRY(auto Refs, TabInstSrc->getRefs(SrcOff, Len));
+  return TabInstDst->setRefs(Refs, DstOff, 0, Len);
 }
 
 Expect<uint64_t>

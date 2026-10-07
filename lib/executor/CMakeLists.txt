@@ -40,4 +40,5 @@ target_link_libraries(wasmedgeExecutor
   PUBLIC
   wasmedgeCommon
   wasmedgeSystem
+  wasmedgeGC
 )

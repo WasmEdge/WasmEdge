@@ -367,6 +367,8 @@ void FunctionCompiler::compileAtomicNotify(unsigned MemoryIndex,
   }
   compileAtomicCheckOffsetAlignment(Offset, Context.Int32Ty);
   boundsCheckMemory64(MemoryIndex, Addr, MemoryOffset, sizeof(uint32_t));
+  // The woken-count result is always i32, even on memory64; truncating to the
+  // memory address type would mis-type the operand stack with an i64.
   stackPush(Builder.createTrunc(
       Builder.createCall(
           Context.getIntrinsic(
@@ -393,19 +395,24 @@ void FunctionCompiler::compileAtomicWait(unsigned MemoryIndex,
   }
   compileAtomicCheckOffsetAlignment(Offset, TargetType);
   boundsCheckMemory64(MemoryIndex, Addr, MemoryOffset, BitWidth / 8);
-  stackPush(Builder.createTrunc(
-      Builder.createCall(
-          Context.getIntrinsic(
-              Builder, Executable::Intrinsics::kMemAtomicWait,
-              LLVM::Type::getFunctionType(Context.Int64Ty,
-                                          {Context.Int8PtrTy, Context.Int32Ty,
-                                           Context.Int64Ty, Context.Int64Ty,
-                                           Context.Int64Ty, Context.Int32Ty},
-                                          false)),
-          {Context.getModuleInst(Builder, ModCtx),
-           LLContext.getInt32(MemoryIndex), Offset, ExpectedValue, Timeout,
-           LLContext.getInt32(BitWidth)}),
-      Context.Int32Ty));
+  // The wait blocks this thread (Blocked via NativeScope): a collection that
+  // runs meanwhile scans it remotely, so the live refs must be in the shadow
+  // chain across the intrinsic.
+  LLVM::Value ShadowPrev = pushShadowFrame();
+  auto Ret = Builder.createCall(
+      Context.getIntrinsic(
+          Builder, Executable::Intrinsics::kMemAtomicWait,
+          LLVM::Type::getFunctionType(Context.Int64Ty,
+                                      {Context.Int8PtrTy, Context.Int32Ty,
+                                       Context.Int64Ty, Context.Int64Ty,
+                                       Context.Int64Ty, Context.Int32Ty},
+                                      false)),
+      {Context.getModuleInst(Builder, ModCtx), LLContext.getInt32(MemoryIndex),
+       Offset, ExpectedValue, Timeout, LLContext.getInt32(BitWidth)});
+  popShadowFrame(ShadowPrev);
+  // atomic.wait32/64 returns i32 (0/1/2), even on memory64; truncating to
+  // the memory address type would mis-type the operand stack with an i64.
+  stackPush(Builder.createTrunc(Ret, Context.Int32Ty));
 }
 
 void FunctionCompiler::compileAtomicLoad(unsigned MemoryIndex,
@@ -450,7 +457,9 @@ void FunctionCompiler::compileAtomicStore(unsigned MemoryIndex,
     V = Builder.createZExtOrTrunc(V, TargetType);
   }
   V = switchEndian(V);
-  auto Addr = Builder.createZExt(Stack.back(), Context.Int64Ty);
+  // A store produces nothing: pop the address too (the load/RMW variants peek
+  // it because they overwrite that slot with their result).
+  auto Addr = Builder.createZExt(stackPop(), Context.Int64Ty);
   boundsCheckMemory64(MemoryIndex, Addr, MemoryOffset,
                       TargetType.getPrimitiveSizeInBits() / 8);
   auto Offset = Addr;

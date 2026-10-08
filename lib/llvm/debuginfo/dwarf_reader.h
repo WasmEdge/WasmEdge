@@ -240,6 +240,9 @@ public:
   std::string getFunctionName(uint32_t FuncIndex) const;
   uint32_t getErrorCount() const noexcept { return *Errors; }
   bool hasGlobalVariables() const noexcept { return HasGlobals; }
+  /// A number that no other reader in this process has. The LazyJIT objects
+  /// of one module share their reader, so the number names the module.
+  uint64_t getModuleId() const noexcept { return ModuleId; }
 
 private:
   DwarfReader() = default;
@@ -254,6 +257,7 @@ private:
   std::unique_ptr<llvm::DWARFContext> Ctx;
   std::shared_ptr<uint32_t> Errors = std::make_shared<uint32_t>(0);
   uint64_t CodeOffset = 0;
+  uint64_t ModuleId = 0;
   bool HasGlobals = false;
   std::vector<llvm::DWARFDie> Subprograms;
   std::unordered_map<uint32_t, std::string> Names;

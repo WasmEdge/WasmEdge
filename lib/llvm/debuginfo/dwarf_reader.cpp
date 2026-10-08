@@ -17,6 +17,7 @@
 #include <fmt/format.h>
 
 #include <algorithm>
+#include <atomic>
 #include <iterator>
 #include <optional>
 #include <set>
@@ -358,6 +359,8 @@ DwarfReader::create(const AST::Module &Mod) noexcept {
     return nullptr;
   }
   std::unique_ptr<DwarfReader> R(new DwarfReader());
+  static std::atomic<uint64_t> LastModuleId = 0;
+  R->ModuleId = ++LastModuleId;
   for (const auto &Custom : Mod.getCustomSections()) {
     std::string_view Name = Custom.getName();
     if (Name.substr(0, 7) != ".debug_") {

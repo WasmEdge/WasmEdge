@@ -54,7 +54,7 @@ globalVariable(llvm::DIBuilder &DB, llvm::DIScope *Scope, llvm::StringRef Name,
 } // namespace
 
 ModuleDebugInfoImpl::ModuleDebugInfoImpl(llvm::Module &M,
-                                         std::unique_ptr<DwarfReader> R, Part P,
+                                         std::shared_ptr<DwarfReader> R, Part P,
                                          bool HasMemory,
                                          bool LinesOnly) noexcept
     : M(M), Reader(std::move(R)),
@@ -66,6 +66,9 @@ ModuleDebugInfoImpl::ModuleDebugInfoImpl(llvm::Module &M,
   M.addModuleFlag(llvm::Module::Warning, "Dwarf Version", 4);
   if (HasMemory && !LinesOnly && Reader->hasGlobalVariables()) {
     createMemoryBase();
+  }
+  if (!LinesOnly && P != Part::All) {
+    addModuleId();
   }
   if (!LinesOnly && P != Part::FunctionsOnly) {
     addUnitGlobals();
@@ -285,6 +288,17 @@ void ModuleDebugInfoImpl::createMemoryBase() noexcept {
       true, A.DB->createExpression()));
 }
 
+void ModuleDebugInfoImpl::addModuleId() noexcept {
+  auto &A = artificialUnit();
+  globalVariable(
+      *A.DB, A.CU, "__wasmedge_debug_module", A.CU->getFile(), 0,
+      A.DB->createBasicType("unsigned long long", 64, dwarf::DW_ATE_unsigned),
+      false,
+      A.DB->createExpression(llvm::SmallVector<uint64_t, 3>{
+          dwarf::DW_OP_constu, Reader->getModuleId(),
+          dwarf::DW_OP_stack_value}));
+}
+
 void ModuleDebugInfoImpl::addUnitGlobals() noexcept {
   for (const auto &CU : Reader->getContext().compile_units()) {
     addScopeGlobals(CU->getUnitDIE(), 0);
@@ -417,9 +431,20 @@ UnitState &ModuleDebugInfoImpl::unit(DWARFDie Die) noexcept {
 std::unique_ptr<ModuleDebugInfo> ModuleDebugInfo::create(const AST::Module &Mod,
                                                          LLVMModuleRef M,
                                                          Part P) noexcept {
-  auto Reader = DwarfReader::create(Mod);
+  std::optional<std::shared_ptr<DwarfReader>> Reader;
+  return create(Mod, M, P, Reader);
+}
+
+std::unique_ptr<ModuleDebugInfo> ModuleDebugInfo::create(
+    const AST::Module &Mod, LLVMModuleRef M, Part P,
+    std::optional<std::shared_ptr<DwarfReader>> &Reader) noexcept {
   if (!Reader) {
-    spdlog::info("debug info: module has no DWARF sections"sv);
+    Reader.emplace(DwarfReader::create(Mod));
+  }
+  if (!*Reader) {
+    if (P != Part::FunctionsOnly) {
+      spdlog::info("debug info: module has no DWARF sections"sv);
+    }
     return nullptr;
   }
   const AST::MemoryType *Memory = nullptr;
@@ -445,8 +470,7 @@ std::unique_ptr<ModuleDebugInfo> ModuleDebugInfo::create(const AST::Module &Mod,
                  "big-endian, so only functions and lines get debug info"sv);
   }
   return std::make_unique<ModuleDebugInfoImpl>(
-      *llvm::unwrap(M), std::move(Reader), P, Memory != nullptr,
-      Memory64 || BigEndian);
+      *llvm::unwrap(M), *Reader, P, Memory != nullptr, Memory64 || BigEndian);
 }
 
 } // namespace WasmEdge::LLVM::DebugInfo

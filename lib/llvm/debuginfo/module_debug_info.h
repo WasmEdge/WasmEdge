@@ -28,7 +28,7 @@ namespace WasmEdge::LLVM::DebugInfo {
 
 class ModuleDebugInfoImpl final : public ModuleDebugInfo {
 public:
-  ModuleDebugInfoImpl(llvm::Module &M, std::unique_ptr<DwarfReader> R, Part P,
+  ModuleDebugInfoImpl(llvm::Module &M, std::shared_ptr<DwarfReader> R, Part P,
                       bool HasMemory, bool LinesOnly) noexcept;
 
   ~ModuleDebugInfoImpl() noexcept override { finalize(); }
@@ -82,6 +82,8 @@ public:
 private:
   void createMemoryBase() noexcept;
 
+  void addModuleId() noexcept;
+
   /// Describes a global with DW_AT_const_value. It needs no memory base.
   void addConstantGlobal(UnitState &S, llvm::DIScope *Scope,
                          DWARFDie D) noexcept;
@@ -107,7 +109,7 @@ private:
   UnitState &unit(DWARFDie Die) noexcept;
 
   llvm::Module &M;
-  std::unique_ptr<DwarfReader> Reader;
+  std::shared_ptr<DwarfReader> Reader;
   TypeTranslator Translator;
   std::map<uint64_t, UnitState> Units;
   std::unordered_map<uint64_t, llvm::DISubprogram *> Subprograms;

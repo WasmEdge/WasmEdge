@@ -5,6 +5,13 @@
 #include "llvm.h"
 #include "llvm/data.h"
 
+#include <memory>
+#include <optional>
+
+namespace WasmEdge::LLVM::DebugInfo {
+class DwarfReader;
+} // namespace WasmEdge::LLVM::DebugInfo
+
 struct WasmEdge::LLVM::Data::DataContext {
 #if LLVM_VERSION_MAJOR < 21
   LLVM::OrcThreadSafeContext TSContext;
@@ -18,6 +25,7 @@ struct WasmEdge::LLVM::Data::DataContext {
 #endif
   LLVM::Module LLModule;
   LLVM::TargetMachine TM;
+  std::optional<std::shared_ptr<DebugInfo::DwarfReader>> DebugReader;
   DataContext() noexcept : LLModule(getLLContext(), "wasm") {}
   void resetModule() noexcept {
     LLModule = LLVM::Module(getLLContext(), "wasm");

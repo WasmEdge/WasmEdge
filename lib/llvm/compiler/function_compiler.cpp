@@ -13,16 +13,14 @@ using namespace std::literals;
 
 namespace WasmEdge {
 
-FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
-                                   LLVM::FunctionCallee F,
-                                   Span<const ValType> Locals,
-                                   bool Interruptible, bool InstructionCounting,
-                                   bool GasMeasuring, bool IsLazyJIT,
-                                   bool StackCheck, uint32_t FuncIndex,
-                                   uint32_t DefinedIndex) noexcept
+FunctionCompiler::FunctionCompiler(
+    LLVM::Compiler::CompileContext &Context, LLVM::FunctionCallee F,
+    Span<const ValType> Locals, bool Interruptible, bool InstructionCounting,
+    bool GasMeasuring, bool IsLazyJIT, bool StackCheck, uint32_t FuncIndex,
+    uint32_t DefinedIndex, bool ExtendLiveness) noexcept
     : Context(Context), LLContext(Context.LLContext),
-      Interruptible(Interruptible), IsLazyJIT(IsLazyJIT), F(F),
-      Builder(LLContext) {
+      Interruptible(Interruptible), ExtendLiveness(ExtendLiveness),
+      IsLazyJIT(IsLazyJIT), F(F), Builder(LLContext) {
   if (F.Fn) {
     if (Context.DI) {
       DI = Context.DI->beginFunction(FuncIndex, DefinedIndex, F.Fn.unwrap());
@@ -55,6 +53,12 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
       LLVM::Type Ty = toLLVMType(LLContext, Type);
       Local.emplace_back(Ty, Builder.createAlloca(Ty));
     }
+    if (DI && !Context.MemoryAddrTypes.empty()) {
+      MemorySlot = Builder.createAlloca(Context.Int8PtrTy);
+      if (DI->getFrameBase().K != LLVM::DebugInfo::FrameBase::Kind::None) {
+        FrameBaseSlot = Builder.createAlloca(Context.Int8PtrTy);
+      }
+    }
 
     if (StackCheck) {
       checkStackLimit();
@@ -76,7 +80,44 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
           toLLVMConstantZero(LLContext, Type, Context.CompositeTypes),
           (LocalIt++)->second);
     }
+    if (MemorySlot) {
+      auto Base = Context.getMemory(Builder, ModCtx, 0);
+      Builder.createStore(Base, MemorySlot);
+      if (auto MB = LLVM::Value(Context.DI->getMemoryBaseGlobal())) {
+        auto Store = Builder.createStore(Base, MB);
+        Store.setOrdering(LLVMAtomicOrderingMonotonic);
+        Store.setAlignment(8);
+      }
+      updateFrameBaseSlot();
+    }
   }
+}
+
+void FunctionCompiler::updateFrameBaseSlot() noexcept {
+  if (!FrameBaseSlot) {
+    return;
+  }
+  const auto FB = DI->getFrameBase();
+  LLVM::Value Value;
+  if (FB.K == LLVM::DebugInfo::FrameBase::Kind::Local) {
+    if (FB.Index >= Local.size()) {
+      return;
+    }
+    Value = Builder.createLoad(Local[FB.Index].first, Local[FB.Index].second);
+  } else {
+    if (FB.Index >= Context.Globals.size()) {
+      return;
+    }
+    const auto G = Context.getGlobal(Builder, ModCtx, FB.Index);
+    Value = Builder.createLoad(G.first, G.second);
+  }
+  if (!Value.getType().isIntegerTy()) {
+    return;
+  }
+  auto Offset = Builder.createZExtOrTrunc(Value, Context.Int64Ty);
+  auto Base = Builder.createLoad(Context.Int8PtrTy, MemorySlot);
+  Builder.createStore(Builder.createInBoundsGEP1(Context.Int8Ty, Base, Offset),
+                      FrameBaseSlot);
 }
 
 LLVM::BasicBlock FunctionCompiler::getTrapBB(ErrCode::Value Error) noexcept {
@@ -142,6 +183,17 @@ Expect<void> FunctionCompiler::compile(
     } else {
       Builder.createRet(LLVM::Value::getUndef(Ty));
     }
+  }
+
+  if (DI) {
+    std::vector<LLVMValueRef> Allocas;
+    Allocas.reserve(Local.size());
+    for (const auto &L : Local) {
+      Allocas.push_back(L.second.unwrap());
+    }
+    DI->finish(LLVMGetEntryBasicBlock(F.Fn.unwrap()), Allocas,
+               MemorySlot.unwrap(), FrameBaseSlot.unwrap(),
+               F.Fn.getFirstParam().unwrap(), ExtendLiveness);
   }
   return {};
 }
@@ -473,9 +525,19 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
     }
     case OpCode::Local__set:
       Builder.createStore(stackPop(), Local[Instr.getTargetIndex()].second);
+      if (FrameBaseSlot &&
+          DI->getFrameBase().K == LLVM::DebugInfo::FrameBase::Kind::Local &&
+          DI->getFrameBase().Index == Instr.getTargetIndex()) {
+        updateFrameBaseSlot();
+      }
       break;
     case OpCode::Local__tee:
       Builder.createStore(Stack.back(), Local[Instr.getTargetIndex()].second);
+      if (FrameBaseSlot &&
+          DI->getFrameBase().K == LLVM::DebugInfo::FrameBase::Kind::Local &&
+          DI->getFrameBase().Index == Instr.getTargetIndex()) {
+        updateFrameBaseSlot();
+      }
       break;
     case OpCode::Global__get: {
       const auto G = Context.getGlobal(Builder, ModCtx, Instr.getTargetIndex());
@@ -486,6 +548,11 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
       Builder.createStore(
           stackPop(),
           Context.getGlobal(Builder, ModCtx, Instr.getTargetIndex()).second);
+      if (FrameBaseSlot &&
+          DI->getFrameBase().K == LLVM::DebugInfo::FrameBase::Kind::Global &&
+          DI->getFrameBase().Index == Instr.getTargetIndex()) {
+        updateFrameBaseSlot();
+      }
       break;
 
     // Table Instructions

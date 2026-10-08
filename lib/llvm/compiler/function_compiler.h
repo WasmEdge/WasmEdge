@@ -21,7 +21,8 @@ public:
                    LLVM::FunctionCallee F, Span<const ValType> Locals,
                    bool Interruptible, bool InstructionCounting,
                    bool GasMeasuring, bool IsLazyJIT, bool StackCheck,
-                   uint32_t FuncIndex, uint32_t DefinedIndex) noexcept;
+                   uint32_t FuncIndex, uint32_t DefinedIndex,
+                   bool ExtendLiveness) noexcept;
 
   LLVM::BasicBlock getTrapBB(ErrCode::Value Error) noexcept;
 
@@ -75,6 +76,8 @@ public:
   void updateGasAtTrap() noexcept;
 
 private:
+  void updateFrameBaseSlot() noexcept;
+
   void compileTryTableOp(const AST::Instruction &Instr) noexcept;
 
   void compileThrowOp(const uint32_t TagIndex) noexcept;
@@ -264,9 +267,12 @@ private:
   LLVM::Value TmpValues = nullptr;
   size_t TmpValuesSize = 0;
   uint64_t TmpValuesUsed = 0;
+  LLVM::Value MemorySlot = nullptr;
+  LLVM::Value FrameBaseSlot = nullptr;
   std::unordered_map<ErrCode::Value, LLVM::BasicBlock> TrapBB;
   bool IsUnreachable = false;
   bool Interruptible = false;
+  bool ExtendLiveness = false;
   struct Control {
     size_t StackSize;
     bool Unreachable;

@@ -29,7 +29,7 @@ public:
   virtual FrameBase getFrameBase() const noexcept = 0;
   virtual void finish(LLVMBasicBlockRef Entry, Span<const LLVMValueRef> Locals,
                       LLVMValueRef MemorySlot, LLVMValueRef FrameBaseSlot,
-                      LLVMValueRef ModCtxArg) noexcept = 0;
+                      LLVMValueRef ModCtxArg, bool ExtendLiveness) noexcept = 0;
 };
 
 class ModuleDebugInfo {

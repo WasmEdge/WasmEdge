@@ -692,7 +692,9 @@ Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
       Conf.getStatisticsConfigure().isInstructionCounting(),
       Conf.getStatisticsConfigure().isCostMeasuring(),
       Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT, !IsSmallLeaf,
-      GlobalFuncIndex, LocalFuncIndex);
+      GlobalFuncIndex, LocalFuncIndex,
+      Conf.getCompilerConfigure().getOptimizationLevel() ==
+          CompilerConfigure::OptimizationLevel::Og);
   EXPECTED_TRY(FC.compile(*Code, std::move(Type)));
   F.Fn.eliminateUnreachableBlocks();
 

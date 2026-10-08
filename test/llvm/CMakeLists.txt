@@ -55,8 +55,12 @@ target_link_libraries(wasmedgeLazyJITTests
 )
 
 find_package(Python3 3.7 COMPONENTS Interpreter)
-if(Python3_FOUND AND CMAKE_SYSTEM_NAME STREQUAL "Linux"
+if(Python3_FOUND AND CMAKE_SYSTEM_NAME MATCHES "^(Linux|Darwin|Windows)$"
    AND TARGET wasmedge AND TARGET wasmedgec)
+  set(WASMEDGE_DEBUGGERS lldb)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(PREPEND WASMEDGE_DEBUGGERS gdb)
+  endif()
   function(wasmedge_add_debugger_test DEBUGGER MODE OPT)
     string(TOUPPER "${DEBUGGER}_${MODE}" SUFFIX)
     if(NOT OPT STREQUAL "0")
@@ -74,8 +78,15 @@ if(Python3_FOUND AND CMAKE_SYSTEM_NAME STREQUAL "Linux"
     )
     set_tests_properties(${TEST_NAME} PROPERTIES SKIP_RETURN_CODE 77)
   endfunction()
-  foreach(MODE aot jit lazyjit)
-    wasmedge_add_debugger_test(gdb ${MODE} 0)
+  set(WASMEDGE_DEBUGGER_MODES aot jit lazyjit)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Windows" OR
+     (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND LLVM_VERSION_MAJOR LESS 15))
+    set(WASMEDGE_DEBUGGER_MODES aot)
+  endif()
+  foreach(DEBUGGER ${WASMEDGE_DEBUGGERS})
+    foreach(MODE ${WASMEDGE_DEBUGGER_MODES})
+      wasmedge_add_debugger_test(${DEBUGGER} ${MODE} 0)
+    endforeach()
+    wasmedge_add_debugger_test(${DEBUGGER} aot g)
   endforeach()
-  wasmedge_add_debugger_test(gdb aot g)
 endif()

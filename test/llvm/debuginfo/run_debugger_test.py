@@ -15,8 +15,9 @@ SKIP = 77
 # A comma-separated list of debuggers whose tests must run. A test of a
 # listed debugger fails where it would skip.
 REQUIRED = os.environ.get("WASMEDGE_REQUIRE_DEBUGGER", "").split(",")
-# The wasmedge tool defines wmain on Windows.
-ENTRY = "wmain" if os.name == "nt" else "main"
+# gdb runs only on Linux, where the tool defines main.
+ENTRY = "main"
+LIB_SUFFIX = {"darwin": ".dylib", "win32": ".dll"}.get(sys.platform, ".so")
 
 # Each check is (section marker printed by the debugger script, regex that
 # must match inside that section).
@@ -38,7 +39,23 @@ CHECKS = {
         ("BT2", r"#\d+\s+.*\bfact\b.*\bN=1\b.*dwarf_basic\.c:\d+"),
         ("FACT_N", r"^\$\d+ = 1$"),
     ],
-    "lldb": [],
+    "lldb": [
+        ("BT1", r"frame #\d+: .*\bsumList\b.*dwarf_basic\.c:\d+"),
+        ("BT1", r"frame #\d+: .*\brun\b.*dwarf_basic\.c:\d+"),
+        ("LOCALS", r"^\(int\) Total = 0$"),
+        ("HEAD_RAW", r"^\s+__addr = \d+$"),
+        ("HEAD", r"Head = \(wasm\) 0x[0-9a-f]+ \{\n\s+\* = \{\n\s+Value = 1$"),
+        ("HEAD", r"^\s+Next = \(wasm\) 0x[0-9a-f]+ \{\}$"),
+        ("WASM_VALUE", r"^N->Value = 1$"),
+        ("COUNTER", r"^\(int\) Counter = 7$"),
+        ("NODE1", r"^\(int\) Nodes\[1\]\.Value = 2$"),
+        ("GLOBAL", r"^Counter = 7$"),
+        ("CONSTANT", r"^NodeCount = 3$"),
+        ("NULL", r"Nodes\[2\]\.Next = \(wasm\) 0x0 \{\}$"),
+        ("UNREADABLE", r"^\(wasm\) <unavailable>$"),
+        ("BT2", r"frame #\d+: .*\bfact\b.*\bN=1\b.*dwarf_basic\.c:\d+"),
+        ("FACT_N", r"^\(int\) N = 1$"),
+    ],
 }
 
 
@@ -56,6 +73,10 @@ OG_CHECKS = {
     "gdb": {
         "BT2": r"#\d+\s+.*\bfact\b.*\bN=[14]\b.*dwarf_basic\.c:\d+",
         "FACT_N": r"^\$\d+ = [14]$",
+    },
+    "lldb": {
+        "BT2": r"frame #\d+: .*\bfact\b.*\bN=[14]\b.*dwarf_basic\.c:\d+",
+        "FACT_N": r"^\(int\) N = [14]$",
     },
 }
 
@@ -186,17 +207,12 @@ def run(a, exe, env, work):
     ext = a.debugger
     helper = os.path.join(a.helpers, f"wasmedge_{ext}.py")
     template = os.path.join(a.fixtures, f"basic.{ext}")
-    if a.debugger == "lldb" and not (os.path.exists(template) and
-                                     os.path.exists(helper)):
-        print(f"{a.debugger} test files not available, skipping")
-        return SKIP
-
     src = os.path.join(a.fixtures, "dwarf_basic.c")
     wasm = os.path.join(work, "dwarf_basic_O0.wasm")
     hex_tool.from_hex(os.path.join(a.fixtures, "dwarf_basic_O0.wasm.hex"),
                       wasm)
     if a.mode == "aot":
-        target = os.path.join(work, "dwarf_basic.so")
+        target = os.path.join(work, "dwarf_basic" + LIB_SUFFIX)
         subprocess.run([a.wasmedgec, "--debug-info", "--optimize", a.opt,
                         wasm, target], check=True)
         run_args = ["--run-mode=aot", "--reactor", target, "run"]
@@ -206,7 +222,7 @@ def run(a, exe, env, work):
 
     with open(template, encoding="utf-8") as f:
         script = f.read()
-    script = (script.replace("@HELPER@", helper)
+    script = (script.replace("@HELPER@", helper.replace(os.sep, "/"))
               .replace("@BREAK_SUMLIST@", str(marker(src, "BREAK_SUMLIST")))
               .replace("@BREAK_FACT@", str(marker(src, "BREAK_FACT"))))
     script_path = os.path.join(work, f"basic.{ext}")
@@ -221,7 +237,7 @@ def run(a, exe, env, work):
                a.wasmedge] + run_args
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True,
-                              timeout=300)
+                              timeout=300, env=env)
     except subprocess.TimeoutExpired as e:
         print(f"{a.debugger} did not finish in {e.timeout} seconds")
         return 1

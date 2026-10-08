@@ -149,10 +149,18 @@ jobs:
           cmake --build build
       - name: Test WasmEdge
         if: ${{ matrix.tests }}
+        env:
+          WASMEDGE_REQUIRE_DEBUGGER: ${{ matrix.debugger }}
         run: |
           export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
           cd build
-          ctest
+          if [[ -n "$WASMEDGE_REQUIRE_DEBUGGER" ]]; then
+            DEBUGGER_TESTS="^wasmedgeDebugInfo$(echo "$WASMEDGE_REQUIRE_DEBUGGER" | tr '[:lower:]' '[:upper:]')_"
+            ctest --no-tests=error -R "$DEBUGGER_TESTS"
+            ctest -E "$DEBUGGER_TESTS"
+          else
+            ctest
+          fi
       - name: Create package tarball
         run: |
           cmake --build build --target package

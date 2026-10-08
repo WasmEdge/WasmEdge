@@ -66,9 +66,22 @@ lldb: `command script import utils/debug/wasmedge_lldb.py`
 | Read a C global for the current instance | `print $wasm_global("name")` | `wasm-global name` |
 | Pretty-print wasm pointers | automatic | automatic |
 
-The pretty-printer shows a wasm pointer as `(wasm) 0x<address> -> <value>`.
-It shows the target one level deep. To see the raw fields in gdb, use
-`print -raw-values -- p`. This option needs gdb 10 or newer.
+In gdb, the pretty-printer shows a wasm pointer as
+`(wasm) 0x<address> -> <value>`. It shows the target one level deep. To see
+the raw fields, use `print -raw-values -- p`. This option needs gdb 10 or
+newer.
+
+In lldb, the summary shows a wasm pointer as `(wasm) 0x<address>`, or
+`(wasm) <unavailable>` if lldb cannot read it. The child `*` holds the
+target. lldb expands only the first wasm pointer, so a cyclic list does not
+expand without end. To follow a nested pointer, use `wasm p->next`. To see
+the raw fields, use `frame variable --raw-output p`.
+
+Both helpers find `__wasm_memory` in the selected frame. If the selected
+frame is an inlined function, they also look in the function that it is
+inlined into. They do not look in callers, because a caller can belong to
+another instance with another memory. If no frame has a value, select the
+frame of a wasm function, for example with `up`.
 
 ## How wasm values appear
 
@@ -84,8 +97,32 @@ It shows the target one level deep. To see the raw fields in gdb, use
 
 ## Limits
 
-- Linux only. The helpers work with AOT shared libraries and with JIT.
-  Universal wasm output gets no native debug info. The file still holds
+- The gdb helper works on Linux. The lldb helper works on Linux, macOS, and
+  Windows. Both helpers work with AOT shared libraries. On Linux and macOS,
+  they also work with JIT.
+- On Windows, the JIT gives the debugger no debug info. Use AOT to debug
+  on Windows.
+- On macOS, the JIT gives the debugger debug info only with LLVM 15 or
+  newer.
+- Where the JIT gives the debugger no debug info, `--debug-info` prints a
+  warning and has no effect on JIT code. The JIT keeps its usual
+  optimization level there.
+- On macOS, the AOT compiler keeps the debug info in an object file next to
+  the library, named `<name>.<random>.o`, where `<name>` is the library file
+  name without its extension. After a successful build, it deletes the
+  object file that the replaced library records, but only if the replaced
+  library is a WasmEdge library and the object file is unchanged since the
+  link. If `ZERO_AR_DATE` is set, the linker records no modification time,
+  so the object files stay. If a build fails, with or without debug info,
+  the earlier library and object file stay. This cleanup is best effort when
+  separate processes build the same library at the same time: the object
+  file of one build can stay. The library records the absolute path of the
+  object file, so do not move or delete it. To move the library, run
+  `dsymutil <library>` first, and move the `.dSYM` bundle with it.
+- On macOS, a failed `codesign` does not fail the build. The compiler logs
+  the failure. The library then keeps the ad hoc signature of the linker,
+  which signs arm64 output. x86-64 code runs without a signature.
+- Universal wasm output gets no native debug info. The file still holds
   the wasm DWARF sections of the input module, because it keeps the
   original wasm bytes.
 - Debug info sends the DWARF sections of the module to the LLVM DWARF

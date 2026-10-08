@@ -33,12 +33,19 @@ public:
   uint64_t getStartOffset() const noexcept { return StartOffset; }
   void setStartOffset(uint64_t Off) noexcept { StartOffset = Off; }
 
+  /// Getter and setter for the offset of the section content in source.
+  uint64_t getContentOffset() const noexcept { return ContentOffset; }
+  void setContentOffset(uint64_t Off) noexcept { ContentOffset = Off; }
+
 protected:
   /// Content size of this section.
   uint64_t ContentSize = 0;
 
   /// Start offset in source of this section.
   uint64_t StartOffset = 0;
+
+  /// Offset in source of the first content byte of this section.
+  uint64_t ContentOffset = 0;
 };
 
 /// AST CustomSection node.

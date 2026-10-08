@@ -28,6 +28,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <type_traits>
 #include <vector>
 
 namespace WasmEdge {
@@ -348,6 +349,9 @@ private:
     // Set the section size.
     Sec.setContentSize(SecSize);
     auto StartOffset = FMgr.getOffset();
+    if constexpr (std::is_same_v<T, AST::CodeSection>) {
+      Sec.setContentOffset(StartOffset);
+    }
 
     // Invoke the callback function.
     EXPECTED_TRY(Func());

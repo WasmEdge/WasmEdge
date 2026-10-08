@@ -240,9 +240,12 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
   };
 
   // Read the code segment size.
+  const auto SegOffset = FMgr.getOffset();
   EXPECTED_TRY(FMgr.readU32().map_error(ReportError).map([&](auto S) {
     CodeSeg.setSegSize(S);
   }));
+  CodeSeg.setBodyOffset(FMgr.getOffset(),
+                        static_cast<uint8_t>(FMgr.getOffset() - SegOffset));
   auto ExprSizeBound = FMgr.getOffset() + CodeSeg.getSegSize();
 
   // Read the vector of local variable counts and types.

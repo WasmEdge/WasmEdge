@@ -193,10 +193,16 @@ public:
   Span<const CodeSegment> getContent() const noexcept { return Content; }
   std::vector<CodeSegment> &getContent() noexcept { return Content; }
 
+  /// Getter and setter for the offset of the section content in source.
+  uint64_t getContentOffset() const noexcept { return ContentOffset; }
+  void setContentOffset(uint64_t Off) noexcept { ContentOffset = Off; }
+
 private:
   /// \name Data of CodeSection.
   /// @{
   std::vector<CodeSegment> Content;
+  /// Offset in source of the first content byte of this section.
+  uint64_t ContentOffset = 0;
   /// @}
 };
 

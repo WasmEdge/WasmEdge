@@ -688,4 +688,34 @@ TEST(SectionTest, LoadAOTSectionFailureAfterEHFrame) {
     EXPECT_TRUE(Exec.load(Good));
   }
 }
+
+TEST(SectionTest, CodeSectionRecordsOffsets) {
+  std::vector<uint8_t> Vec = {
+      0x01U, 0x04U, 0x01U, 0x60U, 0x00U, 0x00U, // Type section: () -> ()
+      0x03U, 0x02U, 0x01U, 0x00U,               // Function section
+      0x0AU, 0x04U, 0x01U,                      // Code section, 1 segment
+      0x02U, 0x00U, 0x0BU                       // Size 2, 0 locals, end
+  };
+  auto Mod = Ldr.parseModule(prefixedVec(Vec));
+  ASSERT_TRUE(Mod);
+  const auto &CodeSec = (*Mod)->getCodeSection();
+  EXPECT_EQ(CodeSec.getContentOffset(), 20U);
+  ASSERT_EQ(CodeSec.getContent().size(), 1U);
+  EXPECT_EQ(CodeSec.getContent()[0].getSegOffset(), 21U);
+  EXPECT_EQ(CodeSec.getContent()[0].getBodyOffset(), 22U);
+  EXPECT_EQ(CodeSec.getContent()[0].getExpr().getInstrs().back().getOffset(),
+            23U);
+
+  std::vector<uint8_t> Padded = {
+      0x01U, 0x04U, 0x01U, 0x60U, 0x00U, 0x00U, // Type section: () -> ()
+      0x03U, 0x02U, 0x01U, 0x00U,               // Function section
+      0x0AU, 0x05U, 0x01U,                      // Code section, 1 segment
+      0x82U, 0x00U, 0x00U, 0x0BU                // Padded size 2, 0 locals, end
+  };
+  auto PaddedMod = Ldr.parseModule(prefixedVec(Padded));
+  ASSERT_TRUE(PaddedMod);
+  const auto &PaddedSeg = (*PaddedMod)->getCodeSection().getContent()[0];
+  EXPECT_EQ(PaddedSeg.getSegOffset(), 21U);
+  EXPECT_EQ(PaddedSeg.getBodyOffset(), 23U);
+}
 } // namespace

@@ -104,6 +104,19 @@ public:
   uint32_t getSegSize() const noexcept { return SegSize; }
   void setSegSize(uint32_t Size) noexcept { SegSize = Size; }
 
+  /// Getter for the offset of the segment size in source.
+  uint64_t getSegOffset() const noexcept { return BodyOffset - SegSizeWidth; }
+
+  /// Getter for the offset of the segment body in source.
+  uint64_t getBodyOffset() const noexcept { return BodyOffset; }
+
+  /// Setter for the offset of the segment body in source and the number of
+  /// bytes of the segment size before it.
+  void setBodyOffset(uint64_t Off, uint8_t SizeWidth) noexcept {
+    BodyOffset = Off;
+    SegSizeWidth = SizeWidth;
+  }
+
   /// Getter for locals vector.
   Span<const std::pair<uint32_t, ValType>> getLocals() const noexcept {
     return Locals;
@@ -120,6 +133,8 @@ private:
   /// \name Data of CodeSegment node.
   /// @{
   uint32_t SegSize = 0;
+  uint8_t SegSizeWidth = 0;
+  uint64_t BodyOffset = 0;
   std::vector<std::pair<uint32_t, ValType>> Locals;
   Symbol<void> FuncSymbol;
   /// @}

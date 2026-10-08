@@ -347,6 +347,7 @@ private:
     // Set the section size.
     Sec.setContentSize(SecSize);
     auto StartOffset = FMgr.getOffset();
+    Sec.setContentOffset(StartOffset);
 
     // Invoke the callback function.
     EXPECTED_TRY(Func());

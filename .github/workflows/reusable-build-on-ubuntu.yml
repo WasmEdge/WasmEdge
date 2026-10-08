@@ -74,6 +74,10 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
+      - name: Install the debugger for the debug info tests
+        if: ${{ matrix.debugger }}
+        run: |
+          apt-get install -y ${{ matrix.debugger }} python3
       - name: Set environment variables for tests
         if: ${{ matrix.tests }}
         run: |
@@ -106,11 +110,19 @@ jobs:
           cmake --build build --target wasmedge-fuzzcomponent
       - name: Test
         if: ${{ !matrix.coverage && !matrix.fuzzing && matrix.tests }}
+        env:
+          WASMEDGE_REQUIRE_DEBUGGER: ${{ matrix.debugger }}
         run: |
           export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
           cd build
           ./tools/wasmedge/wasmedge -v
-          ctest
+          if [[ -n "$WASMEDGE_REQUIRE_DEBUGGER" ]]; then
+            DEBUGGER_TESTS="^wasmedgeDebugInfo${WASMEDGE_REQUIRE_DEBUGGER^^}_"
+            ctest --no-tests=error -R "$DEBUGGER_TESTS"
+            ctest -E "$DEBUGGER_TESTS"
+          else
+            ctest
+          fi
           cd -
       - name: Check symbol exposure
         if: ${{ !matrix.coverage && !matrix.fuzzing }}

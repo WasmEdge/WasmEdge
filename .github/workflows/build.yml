@@ -146,7 +146,7 @@ jobs:
     secrets: inherit
     with:
       version: ${{ needs.get_version.outputs.version }}
-      matrix: "[{'name':'ubuntu-24.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'g++','build_type':'Debug','docker_tag':'ubuntu-24.04-build-gcc','tests':true},
+      matrix: "[{'name':'ubuntu-24.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'g++','build_type':'Debug','docker_tag':'ubuntu-24.04-build-gcc','tests':true,'debugger':'gdb'},
                 {'name':'ubuntu-24.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'g++','build_type':'Release','docker_tag':'ubuntu-24.04-build-gcc','tests':true},
                 {'name':'ubuntu-24.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'clang++','build_type':'Debug','docker_tag':'ubuntu-24.04-build-clang','tests':true},
                 {'name':'ubuntu-24.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-24.04-build-clang','tests':true},

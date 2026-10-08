@@ -53,3 +53,29 @@ target_link_libraries(wasmedgeLazyJITTests
   wasmedgeVM
   GTest::gtest
 )
+
+find_package(Python3 3.7 COMPONENTS Interpreter)
+if(Python3_FOUND AND CMAKE_SYSTEM_NAME STREQUAL "Linux"
+   AND TARGET wasmedge AND TARGET wasmedgec)
+  function(wasmedge_add_debugger_test DEBUGGER MODE OPT)
+    string(TOUPPER "${DEBUGGER}_${MODE}" SUFFIX)
+    if(NOT OPT STREQUAL "0")
+      string(TOUPPER "${SUFFIX}_O${OPT}" SUFFIX)
+    endif()
+    set(TEST_NAME wasmedgeDebugInfo${SUFFIX})
+    add_test(NAME ${TEST_NAME}
+      COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/debuginfo/run_debugger_test.py
+        --debugger ${DEBUGGER} --mode ${MODE} --opt ${OPT}
+        --wasmedge $<TARGET_FILE:wasmedge>
+        --wasmedgec $<TARGET_FILE:wasmedgec>
+        --fixtures ${CMAKE_CURRENT_SOURCE_DIR}/debuginfo
+        --helpers ${PROJECT_SOURCE_DIR}/utils/debug
+    )
+    set_tests_properties(${TEST_NAME} PROPERTIES SKIP_RETURN_CODE 77)
+  endfunction()
+  foreach(MODE aot jit lazyjit)
+    wasmedge_add_debugger_test(gdb ${MODE} 0)
+  endforeach()
+  wasmedge_add_debugger_test(gdb aot g)
+endif()

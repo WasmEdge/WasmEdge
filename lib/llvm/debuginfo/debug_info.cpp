@@ -31,8 +31,10 @@
 #include <llvm/Support/Path.h>
 #include <llvm/Support/raw_ostream.h>
 #if LLVM_VERSION_MAJOR < 16
+#include <llvm/ADT/Triple.h>
 #else
 #include <llvm/Support/ModRef.h>
+#include <llvm/TargetParser/Triple.h>
 #endif
 
 #include <algorithm>
@@ -429,6 +431,10 @@ private:
 #else
     MemoryBase->setAlignment(llvm::Align(8));
 #endif
+    if (P != Part::FunctionsOnly &&
+        llvm::Triple(M.getTargetTriple()).isOSBinFormatELF()) {
+      MemoryBase->setSection(".data");
+    }
   }
 
   void addUnitGlobals() noexcept {

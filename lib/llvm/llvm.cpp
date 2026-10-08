@@ -12,13 +12,37 @@
 #if LLVM_VERSION_MAJOR < 12
 #include <llvm/Target/TargetMachine.h>
 #endif
-#if LLVM_VERSION_MAJOR < 13
+#include <llvm/ExecutionEngine/JITEventListener.h>
 #include <llvm/ExecutionEngine/Orc/LLJIT.h>
+#include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
 #include <llvm/Support/CBindingWrapping.h>
 #include <llvm/Support/Error.h>
+#if LLVM_VERSION_MAJOR < 15
+#else
+#include <llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h>
+#endif
+#if LLVM_VERSION_MAJOR < 15
+#elif LLVM_VERSION_MAJOR < 22
+#include <llvm/ExecutionEngine/Orc/DebugObjectManagerPlugin.h>
+#include <llvm/ExecutionEngine/Orc/EPCDebugObjectRegistrar.h>
+#else
+#include <llvm/ExecutionEngine/Orc/Debugging/DebuggerSupport.h>
+#endif
+#if LLVM_VERSION_MAJOR < 15
+#else
+#include <llvm/ExecutionEngine/Orc/Shared/ExecutorAddress.h>
+#include <llvm/ExecutionEngine/Orc/TargetProcess/JITLoaderGDB.h>
+#if LLVM_VERSION_MAJOR < 18
+#include <llvm/ExecutionEngine/Orc/DebuggerSupportPlugin.h>
+#else
+#include <llvm/ExecutionEngine/Orc/Debugging/DebuggerSupportPlugin.h>
+#endif
+#if LLVM_VERSION_MAJOR < 17
+#else
+#include <llvm/ExecutionEngine/Orc/Shared/ExecutorSymbolDef.h>
+#endif
 #endif
 #if LLVM_VERSION_MAJOR < 10
-#include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
 #include <llvm/MC/SubtargetFeature.h>
 #include <llvm/Support/Host.h>
@@ -30,7 +54,6 @@
 
 #if WASMEDGE_OS_WINDOWS
 #include "common/spdlog.h"
-#include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
 #include <llvm/Support/Process.h>
 #include <system/winapi.h>
@@ -59,8 +82,8 @@ DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::IRTransformLayer,
                                    LLVMOrcIRTransformLayerRef)
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::MaterializationResponsibility,
                                    LLVMOrcMaterializationResponsibilityRef)
-DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::LLJIT, LLVMOrcLLJITRef)
 #endif
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::LLJIT, LLVMOrcLLJITRef)
 } // namespace llvm
 
 #if LLVM_VERSION_MAJOR < 18
@@ -399,6 +422,103 @@ LLVMOrcLLJITBuilderRef OrcLLJIT::getBuilder() noexcept {
 #else
 LLVMOrcLLJITBuilderRef OrcLLJIT::getBuilder() noexcept { return nullptr; }
 #endif
+
+#if LLVM_VERSION_MAJOR < 15 || WASMEDGE_OS_WINDOWS
+#else
+namespace {
+llvm::Error addMachODebuggerSupport(llvm::orc::LLJIT &J,
+                                    llvm::orc::ObjectLinkingLayer &Linking) {
+  auto &ES = J.getExecutionSession();
+  auto &ProcessJD = ES.createBareJITDylib("<wasmedge-debugger-support>");
+#if LLVM_VERSION_MAJOR < 17
+  const llvm::JITEvaluatedSymbol AllocAction(
+      llvm::pointerToJITTargetAddress(
+          &llvm_orc_registerJITLoaderGDBAllocAction),
+      llvm::JITSymbolFlags::Exported);
+#else
+  const llvm::orc::ExecutorSymbolDef AllocAction(
+      llvm::orc::ExecutorAddr::fromPtr(
+          &llvm_orc_registerJITLoaderGDBAllocAction),
+      llvm::JITSymbolFlags::Exported);
+#endif
+  if (auto Err = ProcessJD.define(llvm::orc::absoluteSymbols(
+          {{J.mangleAndIntern("llvm_orc_registerJITLoaderGDBAllocAction"),
+            AllocAction}}))) {
+    return Err;
+  }
+  auto Plugin = llvm::orc::GDBJITDebugInfoRegistrationPlugin::Create(
+      ES, ProcessJD, J.getTargetTriple());
+  if (!Plugin) {
+    return Plugin.takeError();
+  }
+  Linking.addPlugin(std::move(*Plugin));
+  return llvm::Error::success();
+}
+} // namespace
+#endif
+
+Error OrcLLJIT::enableDebuggerSupport() noexcept {
+#if WASMEDGE_OS_WINDOWS
+  return Error(llvm::wrap(llvm::make_error<llvm::StringError>(
+      "not supported on Windows", llvm::inconvertibleErrorCode())));
+#elif WASMEDGE_OS_MACOS && LLVM_VERSION_MAJOR < 13
+  return Error(llvm::wrap(llvm::make_error<llvm::StringError>(
+      "unknown JIT object layer", llvm::inconvertibleErrorCode())));
+#else
+  auto &J = *llvm::unwrap(Ref);
+  auto &Layer = J.getObjLinkingLayer();
+#if LLVM_VERSION_MAJOR < 11
+  static_cast<llvm::orc::RTDyldObjectLinkingLayer &>(Layer).setNotifyLoaded(
+      [](llvm::orc::VModuleKey K, const llvm::object::ObjectFile &Obj,
+         const llvm::RuntimeDyld::LoadedObjectInfo &Info) {
+        llvm::JITEventListener::createGDBRegistrationListener()
+            ->notifyObjectLoaded(K, Obj, Info);
+      });
+  return Error();
+#elif LLVM_VERSION_MAJOR < 13
+  static_cast<llvm::orc::RTDyldObjectLinkingLayer &>(Layer)
+      .registerJITEventListener(
+          *llvm::JITEventListener::createGDBRegistrationListener());
+  return Error();
+#else
+  if (auto *RTDyld =
+          llvm::dyn_cast<llvm::orc::RTDyldObjectLinkingLayer>(&Layer)) {
+    RTDyld->registerJITEventListener(
+        *llvm::JITEventListener::createGDBRegistrationListener());
+    return Error();
+  }
+#if LLVM_VERSION_MAJOR < 15
+  return Error(llvm::wrap(llvm::make_error<llvm::StringError>(
+      "unknown JIT object layer", llvm::inconvertibleErrorCode())));
+#else
+  auto *Linking = llvm::dyn_cast<llvm::orc::ObjectLinkingLayer>(&Layer);
+  if (Linking && J.getTargetTriple().isOSBinFormatMachO()) {
+    return Error(llvm::wrap(addMachODebuggerSupport(J, *Linking)));
+  }
+#if LLVM_VERSION_MAJOR < 22
+  if (!Linking) {
+    return Error(llvm::wrap(llvm::make_error<llvm::StringError>(
+        "unknown JIT object layer", llvm::inconvertibleErrorCode())));
+  }
+  auto &ES = J.getExecutionSession();
+  auto Registrar = std::make_unique<llvm::orc::EPCDebugObjectRegistrar>(
+      ES,
+      llvm::orc::ExecutorAddr::fromPtr(&llvm_orc_registerJITLoaderGDBWrapper));
+#if LLVM_VERSION_MAJOR < 17
+  Linking->addPlugin(std::make_unique<llvm::orc::DebugObjectManagerPlugin>(
+      ES, std::move(Registrar)));
+#else
+  Linking->addPlugin(std::make_unique<llvm::orc::DebugObjectManagerPlugin>(
+      ES, std::move(Registrar), true, true));
+#endif
+  return Error();
+#else
+  return Error(llvm::wrap(llvm::orc::enableDebuggerSupport(J)));
+#endif
+#endif
+#endif
+#endif
+}
 
 } // namespace WasmEdge::LLVM
 

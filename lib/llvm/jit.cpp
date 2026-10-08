@@ -21,7 +21,7 @@ std::string errorToString(LLVM::Error &&E) noexcept {
   return std::string(Msg.string_view());
 }
 
-static WasmEdge::Expect<LLVM::OrcLLJIT> createTunedLazyLLJIT() noexcept {
+static WasmEdge::Expect<LLVM::OrcLLJIT> createTunedLLJIT() noexcept {
   LLVMOrcLLJITBuilderRef Builder = LLVM::OrcLLJIT::getBuilder();
   if (!Builder) {
     Builder = LLVMOrcCreateLLJITBuilder();
@@ -32,7 +32,7 @@ static WasmEdge::Expect<LLVM::OrcLLJIT> createTunedLazyLLJIT() noexcept {
   char *TripleErr = nullptr;
   if (LLVMGetTargetFromTriple(Triple.string_view().data(), &TheTarget,
                               &TripleErr)) {
-    spdlog::error("[lazy-jit]: getTargetFromTriple failed: {}"sv,
+    spdlog::error("getTargetFromTriple failed: {}"sv,
                   TripleErr ? TripleErr : "");
     LLVMDisposeMessage(TripleErr);
     LLVMOrcDisposeLLJITBuilder(Builder);
@@ -48,14 +48,14 @@ static WasmEdge::Expect<LLVM::OrcLLJIT> createTunedLazyLLJIT() noexcept {
   // Note that this codegen level is independent of the optimisation
   // level passed through WasmEdge::Configure, which governs the
   // IR compilation step, this setting only controls the ORC materialisation
-  // pipeline for lazy JIT.
+  // pipeline for lazy JIT and for JIT with debug info.
   LLVMTargetMachineRef TM = LLVMCreateTargetMachine(
       TheTarget, Triple.string_view().data(), CPU.string_view().data(),
       Features.string_view().data(), LLVMCodeGenLevelNone, LLVMRelocDefault,
       LLVMCodeModelJITDefault);
 
   if (!TM) {
-    spdlog::error("[lazy-jit]: createTargetMachine failed"sv);
+    spdlog::error("createTargetMachine failed"sv);
     LLVMOrcDisposeLLJITBuilder(Builder);
     return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::LazyCompilationError);
   }
@@ -67,8 +67,7 @@ static WasmEdge::Expect<LLVM::OrcLLJIT> createTunedLazyLLJIT() noexcept {
   LLVM::OrcLLJIT Result;
   if (LLVMErrorRef CreateErr = LLVMOrcCreateLLJIT(&Result.unwrap(), Builder)) {
     LLVM::ErrorMessage Msg(LLVMGetErrorMessage(CreateErr));
-    spdlog::error("[lazy-jit]: LLVMOrcCreateLLJIT failed: {}"sv,
-                  Msg.string_view());
+    spdlog::error("LLVMOrcCreateLLJIT failed: {}"sv, Msg.string_view());
     return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::LazyCompilationError);
   }
   return Result;
@@ -155,10 +154,13 @@ Expect<std::shared_ptr<Executable>> JIT::loadLazy(Data &D) noexcept {
 Expect<std::shared_ptr<Executable>> JIT::loadImpl(Data &D,
                                                   bool IsLazy) noexcept {
   OrcLLJIT LLJITInstance;
-  if (IsLazy) {
-    auto R = createTunedLazyLLJIT();
+  if (IsLazy || Conf.getCompilerConfigure().isDebugInfo()) {
+    auto R = createTunedLLJIT();
     if (!R) {
-      spdlog::error("[lazy-jit]: failed to create LLJIT"sv);
+      spdlog::error("failed to create LLJIT"sv);
+      if (!IsLazy) {
+        return Unexpect(ErrCode::Value::HostFuncError);
+      }
       return Unexpect(R.error());
     }
     LLJITInstance = std::move(*R);
@@ -179,6 +181,13 @@ Expect<std::shared_ptr<Executable>> JIT::loadImpl(Data &D,
     const auto *Filename = IsLazy ? "wasm-lazy-jit.ll" : "wasm-jit.ll";
     if (auto ErrorMessage = LLModule.printModuleToFile(Filename)) {
       spdlog::error("printModuleToFile failed"sv);
+    }
+  }
+
+  if (Conf.getCompilerConfigure().isDebugInfo()) {
+    if (auto Err = LLJITInstance.enableDebuggerSupport()) {
+      spdlog::warn("debug info: JIT debugger registration failed: {}"sv,
+                   Err.message().string_view());
     }
   }
 

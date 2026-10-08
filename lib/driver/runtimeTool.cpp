@@ -436,7 +436,9 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   }
   if (RunModeFromFlag == RunMode::JIT || RunModeFromFlag == RunMode::LazyJIT) {
     Conf.getCompilerConfigure().setOptimizationLevel(
-        WasmEdge::CompilerConfigure::OptimizationLevel::O1);
+        Conf.getCompilerConfigure().isDebugInfo()
+            ? WasmEdge::CompilerConfigure::OptimizationLevel::O0
+            : WasmEdge::CompilerConfigure::OptimizationLevel::O1);
   }
   bool IsCoredumpEnabled =
       Opt.ConfEnableCoredump.value() || Opt.ConfCoredumpWasmgdb.value();

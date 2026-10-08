@@ -905,6 +905,37 @@ TEST(DebugInfoAOT, VariablesHaveLocations) {
   removeOutput(SO);
 }
 
+TEST(DebugInfoAOT, MemoryBaseHasFileBackedSection) {
+  auto SO = compileToSO(Configure{}, "dwarf_basic_O0.wasm"sv, true,
+                        CompilerConfigure::OptimizationLevel::O0);
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  const auto *Obj = D.Obj.getBinary();
+  if (Obj->getTripleObjectFormat() != llvm::Triple::ELF) {
+    removeOutput(SO);
+    GTEST_SKIP() << "ELF only";
+  }
+  bool Found = false;
+  for (const auto &Sym : Obj->symbols()) {
+    auto Name = Sym.getName();
+    if (!Name) {
+      llvm::consumeError(Name.takeError());
+      continue;
+    }
+    if (*Name != "__wasmedge_debug_membase") {
+      continue;
+    }
+    auto Sec = Sym.getSection();
+    ASSERT_TRUE(static_cast<bool>(Sec));
+    ASSERT_NE(*Sec, Obj->section_end());
+    EXPECT_FALSE((*Sec)->isBSS());
+    Found = true;
+  }
+  EXPECT_TRUE(Found);
+  removeOutput(SO);
+}
+
 TEST(DebugInfoAOT, NoMemoryModuleCompiles) {
   auto SO = compileToSO(Configure{}, "dwarf_nomem_O0.wasm"sv, true,
                         CompilerConfigure::OptimizationLevel::O0);

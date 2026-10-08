@@ -26,6 +26,7 @@ struct WasmEdge::LLVM::Data::DataContext {
   LLVM::Module LLModule;
   LLVM::TargetMachine TM;
   std::optional<std::shared_ptr<DebugInfo::DwarfReader>> DebugReader;
+  bool HasDebugInfo = false;
   DataContext() noexcept : LLModule(getLLContext(), "wasm") {}
   void resetModule() noexcept {
     LLModule = LLVM::Module(getLLContext(), "wasm");

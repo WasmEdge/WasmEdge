@@ -1619,6 +1619,47 @@ TEST(DebugInfoAOT, RangeReachesEveryPathThatEntersIt) {
 #endif
 }
 
+TEST(DebugInfoAOT, MemoryBaseHasFileBackedSection) {
+  SKIP_IF_NATIVE_GETS_ONLY_LINES();
+  auto SO = compileToSO(Configure{}, "dwarf_basic_O0.wasm"sv, true,
+                        CompilerConfigure::OptimizationLevel::O0);
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  const auto *Obj = D.Obj.getBinary();
+  if (Obj->getTripleObjectFormat() != llvm::Triple::ELF) {
+    removeOutput(SO);
+    GTEST_SKIP() << "ELF only";
+  }
+  bool Found = false;
+  for (const auto &Sym : Obj->symbols()) {
+    auto Name = Sym.getName();
+    if (!Name) {
+      llvm::consumeError(Name.takeError());
+      continue;
+    }
+    if (*Name != "__wasmedge_debug_membase") {
+      continue;
+    }
+    auto Sec = Sym.getSection();
+    ASSERT_TRUE(static_cast<bool>(Sec));
+    ASSERT_NE(*Sec, Obj->section_end());
+    EXPECT_FALSE((*Sec)->isBSS());
+    Found = true;
+  }
+  EXPECT_TRUE(Found);
+  const auto *ELF = llvm::cast<llvm::object::ELFObjectFileBase>(Obj);
+  for (const auto &Sym : ELF->getDynamicSymbolIterators()) {
+    auto Name = Sym.getName();
+    if (!Name) {
+      llvm::consumeError(Name.takeError());
+      continue;
+    }
+    EXPECT_NE(*Name, "__wasmedge_debug_membase");
+  }
+  removeOutput(SO);
+}
+
 TEST(DebugInfoAOT, ConstantLocalsKeepTheirValue) {
   SKIP_IF_NATIVE_GETS_ONLY_LINES();
   auto SO = compileToSO(Configure{}, "dwarf_const_O2.wasm"sv, true,

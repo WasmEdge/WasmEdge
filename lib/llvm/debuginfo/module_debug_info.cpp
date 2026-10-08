@@ -25,6 +25,11 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/raw_ostream.h>
+#if LLVM_VERSION_MAJOR < 16
+#include <llvm/ADT/Triple.h>
+#else
+#include <llvm/TargetParser/Triple.h>
+#endif
 
 #include <cstdint>
 #include <memory>
@@ -281,6 +286,9 @@ void ModuleDebugInfoImpl::createMemoryBase() noexcept {
     return;
   }
   MemoryBase->setVisibility(llvm::GlobalValue::HiddenVisibility);
+  if (llvm::Triple(M.getTargetTriple()).isOSBinFormatELF()) {
+    MemoryBase->setSection(".data");
+  }
   auto &A = artificialUnit();
   MemoryBase->addDebugInfo(globalVariable(
       *A.DB, A.CU, "__wasmedge_debug_membase", A.CU->getFile(), 0,

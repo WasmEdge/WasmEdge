@@ -54,9 +54,22 @@ private:
   friend class JIT;
 };
 
+/// The optimization level that the JIT and the lazy JIT compile Module
+/// with. It is O0 if Module has DWARF and Conf turns on debug info and
+/// setJITDebugO0. Otherwise it is the level of Conf.
+CompilerConfigure::OptimizationLevel
+jitOptimizationLevel(const Configure &Conf, const AST::Module &Module) noexcept;
+
 class JIT {
 public:
-  JIT(const Configure &Conf) noexcept : Conf(Conf) {}
+  JIT(const Configure &Conf) noexcept
+      : Conf(Conf),
+        OptLevel(Conf.getCompilerConfigure().getOptimizationLevel()) {}
+
+  /// Loads code that the compiler built at Level.
+  JIT(const Configure &Conf,
+      CompilerConfigure::OptimizationLevel Level) noexcept
+      : Conf(Conf), OptLevel(Level) {}
   Expect<std::shared_ptr<Executable>> load(Data D) noexcept;
 
   /// Load for lazy JIT. The data is kept alive by the caller so following
@@ -72,6 +85,7 @@ private:
   Expect<std::shared_ptr<Executable>> loadImpl(Data &D, bool IsLazy) noexcept;
 
   const Configure Conf;
+  const CompilerConfigure::OptimizationLevel OptLevel;
 };
 
 } // namespace WasmEdge::LLVM

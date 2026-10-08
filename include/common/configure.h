@@ -39,7 +39,8 @@ public:
         DumpIR(RHS.DumpIR.load(std::memory_order_relaxed)),
         GenericBinary(RHS.GenericBinary.load(std::memory_order_relaxed)),
         Interruptible(RHS.Interruptible.load(std::memory_order_relaxed)),
-        DebugInfo(RHS.DebugInfo.load(std::memory_order_relaxed)) {}
+        DebugInfo(RHS.DebugInfo.load(std::memory_order_relaxed)),
+        JITDebugO0(RHS.JITDebugO0.load(std::memory_order_relaxed)) {}
 
   /// AOT compiler optimization level enum class.
   enum class OptimizationLevel : uint8_t {
@@ -114,6 +115,16 @@ public:
     return DebugInfo.load(std::memory_order_relaxed);
   }
 
+  /// With debug info, the JIT and the lazy JIT compile a module that has
+  /// DWARF at O0. A module without DWARF keeps the optimization level.
+  void setJITDebugO0(bool IsJITDebugO0) noexcept {
+    JITDebugO0.store(IsJITDebugO0, std::memory_order_relaxed);
+  }
+
+  bool isJITDebugO0() const noexcept {
+    return JITDebugO0.load(std::memory_order_relaxed);
+  }
+
 private:
   std::atomic<OptimizationLevel> OptLevel = OptimizationLevel::O3;
   std::atomic<OutputFormat> OFormat = OutputFormat::Wasm;
@@ -121,6 +132,7 @@ private:
   std::atomic<bool> GenericBinary = false;
   std::atomic<bool> Interruptible = false;
   std::atomic<bool> DebugInfo = false;
+  std::atomic<bool> JITDebugO0 = false;
 };
 
 class RuntimeConfigure {

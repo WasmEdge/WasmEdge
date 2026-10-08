@@ -460,7 +460,8 @@ Expect<void> VM::unsafeLoadJITExecutable() {
     EXPECTED_TRY(LoaderEngine.loadExecutable(*Mod, std::move(Exec)));
     return {};
   }
-  LLVM::Compiler Compiler(Conf);
+  const auto JITLevel = LLVM::jitOptimizationLevel(Conf, *Mod);
+  LLVM::Compiler Compiler(Conf, JITLevel);
   Compiler.checkConfigure()
       .map_error([](uint32_t Err) {
         if (Err != ErrCode::Value::Success) {
@@ -480,7 +481,7 @@ Expect<void> VM::unsafeLoadJITExecutable() {
         return ErrCode::Value::Success;
       })
       .and_then([&](auto LLModule) {
-        LLVM::JIT JIT(Conf);
+        LLVM::JIT JIT(Conf, JITLevel);
         return JIT.load(std::move(LLModule));
       })
       .map_error([](uint32_t Err) {

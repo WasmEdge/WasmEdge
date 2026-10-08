@@ -464,6 +464,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     if (RunModeFromFlag == RunMode::JIT ||
         RunModeFromFlag == RunMode::LazyJIT) {
       Conf.getCompilerConfigure().setDebugInfo(true);
+      Conf.getCompilerConfigure().setJITDebugO0(true);
     } else {
       spdlog::warn("--debug-info has an effect only with --run-mode=jit or "
                    "--run-mode=lazyjit."sv);

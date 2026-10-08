@@ -31,6 +31,7 @@ set(WASMEDGE_LLVM_SOURCES
   debuginfo/module_debug_info.cpp
   debuginfo/type_translator.cpp
   jit.cpp
+  jit_debug.cpp
   lazyjit.cpp
   llvm.cpp
 )
@@ -49,6 +50,15 @@ if(WASMEDGE_LINK_LLVM_STATIC)
     ${WASMEDGE_LLVM_LINK_STATIC_COMPONENTS}
     ${WASMEDGE_LLVM_LINK_SHARED_COMPONENTS}
   )
+
+  # A class that derives from an LLVM class needs the type information of
+  # the base class, which an LLVM built without RTTI does not have.
+  if(NOT LLVM_ENABLE_RTTI AND NOT MSVC)
+    target_compile_options(wasmedgeLLVM
+      PRIVATE
+      -fno-rtti
+    )
+  endif()
 else()
   if(APPLE)
     list(APPEND LLD_LIBS lldMachO)

@@ -8,6 +8,7 @@
 
 #include "common/spdlog.h"
 #include "data.h"
+#include "jit_debug.h"
 #include "llvm.h"
 
 #include <algorithm>
@@ -270,6 +271,7 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
     DI = DebugInfo::ModuleDebugInfo::create(
         Module, LLModule.unwrap(), DebugInfo::ModuleDebugInfo::Part::All);
     Context->DI = DI.get();
+    D.extract().HasDebugInfo = DI != nullptr;
   }
 
   // Compile all sections and the function declarations.
@@ -721,6 +723,14 @@ bool Compiler::shouldEmitDebugInfo(bool Warn) const noexcept {
     return false;
   }
   const auto Mode = Conf.getRuntimeConfigure().getRunMode();
+  if ((Mode == RunMode::JIT || Mode == RunMode::LazyJIT) &&
+      !jitDebuggerSupported()) {
+    if (Warn) {
+      spdlog::warn("debug info: the JIT gives a debugger no debug info on "
+                   "this platform, option ignored"sv);
+    }
+    return false;
+  }
   if (CC.getOutputFormat() == CompilerConfigure::OutputFormat::Wasm &&
       Mode != RunMode::JIT && Mode != RunMode::LazyJIT) {
     if (Warn) {
@@ -756,6 +766,7 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module) noexcept {
     DI = DebugInfo::ModuleDebugInfo::create(
         Module, LLModule.unwrap(),
         DebugInfo::ModuleDebugInfo::Part::GlobalsOnly, D.extract().DebugReader);
+    D.extract().HasDebugInfo = DI != nullptr;
   }
 
   // Compile all sections and the function declarations without bodies.

@@ -8,6 +8,8 @@
 #include "debuginfo/dwarf_die.h"
 #include "debuginfo/dwarf_reader.h"
 #include "debuginfo/type_translator.h"
+#include "jit_debug.h"
+#include "llvm.h"
 
 #include "common/configure.h"
 #include "common/defines.h"
@@ -17,12 +19,20 @@
 #include "vm/vm.h"
 #include "llvm/codegen.h"
 #include "llvm/compiler.h"
+#include "llvm/jit.h"
 
 #include <fmt/format.h>
 #include <gtest/gtest.h>
 #include <llvm-c/Core.h>
 #include <llvm/Config/llvm-config.h>
 #include <llvm/DebugInfo/DWARF/DWARFContext.h>
+#if LLVM_VERSION_MAJOR < 21 || WASMEDGE_OS_WINDOWS || WASMEDGE_OS_MACOS
+#else
+#include <llvm/ExecutionEngine/Orc/LLJIT.h>
+#include <llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h>
+#include <llvm/Support/TargetSelect.h>
+#endif
+#include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/DebugInfoMetadata.h>
 #if LLVM_VERSION_MAJOR < 19
 #else
@@ -35,6 +45,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/Object/ELFObjectFile.h>
 #include <llvm/Object/ObjectFile.h>
 #if WASMEDGE_OS_MACOS
 #include <llvm/Object/MachO.h>

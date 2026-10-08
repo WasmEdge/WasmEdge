@@ -110,6 +110,9 @@ struct LazyJITEngine::Impl {
     /// from prepare time on, so the AST module pointers used as map keys
     /// below can never dangle or be reused by another allocation.
     std::shared_ptr<const AST::Module> Module;
+    /// The optimization level that compiles this module.
+    CompilerConfigure::OptimizationLevel OptLevel =
+        CompilerConfigure::OptimizationLevel::O0;
     /// Per-module LLVM data holding the thread-safe context.
     Data LLData;
     /// Per-module ORC LLJIT holding the generated code.
@@ -188,14 +191,15 @@ LazyJITEngine::prepare(std::shared_ptr<const AST::Module> Module) {
   }
   Impl::ModuleState State;
   State.Module = std::move(Module);
+  State.OptLevel = jitOptimizationLevel(PImpl->Conf, *State.Module);
 
-  Compiler InfraCompiler(PImpl->Conf);
+  Compiler InfraCompiler(PImpl->Conf, State.OptLevel);
   EXPECTED_TRY(InfraCompiler.checkConfigure());
 
   EXPECTED_TRY(State.LLData,
                InfraCompiler.compileInfrastructure(*State.Module));
 
-  JIT JITEngine(PImpl->Conf);
+  JIT JITEngine(PImpl->Conf, State.OptLevel);
   EXPECTED_TRY(auto Exec, JITEngine.loadLazy(State.LLData));
   State.JITLib = std::static_pointer_cast<JITLibrary>(Exec);
 
@@ -315,7 +319,7 @@ Expect<void> LazyJITEngine::compileOnDemand(
   // The configure was already validated by checkConfigure() in prepare(),
   // and a state only exists after a successful prepare, so re-validating
   // here would only repeat its per-proposal warnings once per batch.
-  Compiler BatchCompiler(PImpl->Conf);
+  Compiler BatchCompiler(PImpl->Conf, State.OptLevel);
   EXPECTED_TRY(
       auto CompiledData,
       BatchCompiler
@@ -331,7 +335,7 @@ Expect<void> LazyJITEngine::compileOnDemand(
 
   // The JIT library is created in prepare() and lives as long as the state.
   assuming(State.JITLib);
-  JIT JITEngine(PImpl->Conf);
+  JIT JITEngine(PImpl->Conf, State.OptLevel);
   EXPECTED_TRY(auto ResolvedAddresses,
                JITEngine.add(*State.JITLib, State.LLData, BatchGlobal)
                    .map_error(LogError("lazy JIT add"sv)));

@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "llvm.h"
+#include "jit_debug.h"
 
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/Object/ObjectFile.h>
@@ -12,11 +13,9 @@
 #if LLVM_VERSION_MAJOR < 12
 #include <llvm/Target/TargetMachine.h>
 #endif
-#if LLVM_VERSION_MAJOR < 13
 #include <llvm/ExecutionEngine/Orc/LLJIT.h>
 #include <llvm/Support/CBindingWrapping.h>
 #include <llvm/Support/Error.h>
-#endif
 #if LLVM_VERSION_MAJOR < 10
 #include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
@@ -59,8 +58,8 @@ DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::IRTransformLayer,
                                    LLVMOrcIRTransformLayerRef)
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::MaterializationResponsibility,
                                    LLVMOrcMaterializationResponsibilityRef)
-DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::LLJIT, LLVMOrcLLJITRef)
 #endif
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::LLJIT, LLVMOrcLLJITRef)
 } // namespace llvm
 
 #if LLVM_VERSION_MAJOR < 18
@@ -400,6 +399,10 @@ LLVMOrcLLJITBuilderRef OrcLLJIT::getBuilder() noexcept {
 LLVMOrcLLJITBuilderRef OrcLLJIT::getBuilder() noexcept { return nullptr; }
 #endif
 
+Error OrcLLJIT::enableDebuggerSupport() noexcept {
+  return Error(llvm::wrap(enableJITDebugger(*llvm::unwrap(Ref))));
+}
+
 } // namespace WasmEdge::LLVM
 
 #if LLVM_VERSION_MAJOR < 12 && WASMEDGE_OS_WINDOWS
@@ -483,7 +486,12 @@ LLVMErrorRef LLVMOrcCreateLLJIT(LLVMOrcLLJITRef *Result,
 }
 
 LLVMErrorRef LLVMOrcDisposeLLJIT(LLVMOrcLLJITRef J) noexcept {
-  delete llvm::unwrap(J);
+  auto *JIT = llvm::unwrap(J);
+  if (!JIT) {
+    return LLVMErrorSuccess;
+  }
+  WasmEdge::LLVM::releaseJITDebugger(*JIT);
+  delete JIT;
   return LLVMErrorSuccess;
 }
 

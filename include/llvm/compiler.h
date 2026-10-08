@@ -32,6 +32,13 @@ class Compiler {
 public:
   Compiler(const Configure &Conf) noexcept : Context(nullptr), Conf(Conf) {}
 
+  /// Compiles with Level instead of the optimization level of Conf.
+  Compiler(const Configure &Conf,
+           CompilerConfigure::OptimizationLevel Level) noexcept
+      : Context(nullptr), Conf(Conf) {
+    this->Conf.getCompilerConfigure().setOptimizationLevel(Level);
+  }
+
   Expect<void> checkConfigure() noexcept;
 
   /// Compile the whole module.
@@ -72,7 +79,7 @@ private:
 
   std::mutex Mutex;
   CompileContext *Context;
-  const Configure Conf;
+  Configure Conf;
 };
 
 } // namespace WasmEdge::LLVM

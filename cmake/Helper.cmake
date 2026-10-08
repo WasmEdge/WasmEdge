@@ -326,6 +326,9 @@ function(wasmedge_llvm_components OUT)
   set(COMPONENTS
     core debuginfodwarf linker lto native nativecodegen object option passes support
     orcjit transformutils)
+  if(LLVM_VERSION_MAJOR GREATER_EQUAL 18)
+    list(APPEND COMPONENTS orcdebugging)
+  endif()
   set(${OUT} ${COMPONENTS} PARENT_SCOPE)
 endfunction()
 

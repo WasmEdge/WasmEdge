@@ -57,7 +57,10 @@ enum WasmEdge_CompilerOptimizationLevel {
   // significant incremental compile time or execution time slowdowns.
   WasmEdge_CompilerOptimizationLevel_Os,
   // Optimize for small code size as much as possible.
-  WasmEdge_CompilerOptimizationLevel_Oz
+  WasmEdge_CompilerOptimizationLevel_Oz,
+  // Optimize like O1. With debug info, also keep the variables available
+  // to a debugger.
+  WasmEdge_CompilerOptimizationLevel_Og
 };
 
 /// AOT compiler output binary format C enumeration.

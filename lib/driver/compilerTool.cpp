@@ -82,13 +82,14 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
   Configure Conf = createProposalConfigure(Opt);
 
   using OptimizationLevel = CompilerConfigure::OptimizationLevel;
-  static const std::array<std::pair<std::string_view, OptimizationLevel>, 6>
+  static const std::array<std::pair<std::string_view, OptimizationLevel>, 7>
       OptimizationLevels{{{"0"sv, OptimizationLevel::O0},
                           {"1"sv, OptimizationLevel::O1},
                           {"2"sv, OptimizationLevel::O2},
                           {"3"sv, OptimizationLevel::O3},
                           {"s"sv, OptimizationLevel::Os},
-                          {"z"sv, OptimizationLevel::Oz}}};
+                          {"z"sv, OptimizationLevel::Oz},
+                          {"g"sv, OptimizationLevel::Og}}};
   const auto Level =
       std::find_if(OptimizationLevels.begin(), OptimizationLevels.end(),
                    [&Opt](const auto &L) {
@@ -98,7 +99,7 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
     Conf.getCompilerConfigure().setOptimizationLevel(Level->second);
   } else {
     spdlog::warn("Unknown --optimize value: \"{}\"; using 2. Valid values: 0, "
-                 "1, 2, 3, s, z."sv,
+                 "1, 2, 3, s, z, g."sv,
                  Opt.PropOptimizationLevel.value());
     Conf.getCompilerConfigure().setOptimizationLevel(OptimizationLevel::O2);
   }
@@ -128,6 +129,9 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
   }
   if (Opt.ConfInterruptible.value()) {
     Conf.getCompilerConfigure().setInterruptible(true);
+  }
+  if (Opt.ConfDebugInfo.value()) {
+    Conf.getCompilerConfigure().setDebugInfo(true);
   }
   setStatisticsConfigure(Opt, Conf);
   if (Opt.ConfGenericBinary.value()) {

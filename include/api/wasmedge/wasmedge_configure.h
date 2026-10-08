@@ -355,6 +355,44 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetInterruptible(
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureCompilerIsInterruptible(
     const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
+/// Set the debug info option of the AOT compiler and the JIT.
+///
+/// When set, the AOT compiler, the JIT, and the lazy JIT translate the DWARF
+/// sections of the module into native debug info for source-level debugging.
+/// The option works on Linux, macOS, and Windows. On Windows, and on macOS
+/// with LLVM 14 or older, the JIT and the lazy JIT cannot give the debugger
+/// debug info, so they ignore the option with a warning. The AOT compiler keeps
+/// the debug info only in the native shared library output. On macOS, the debug
+/// info stays in an object file next to the library. Its name is the library
+/// path without its extension, a dot, ten random hexadecimal digits, and
+/// ".o", for example "app.0123456789.o" for "app.dylib". With the
+/// universal wasm output format, the option is ignored with a warning, and the
+/// output keeps only the wasm DWARF sections of the input. Use it
+/// with WasmEdge_CompilerOptimizationLevel_Og to get optimized code that a
+/// debugger can still inspect. The JIT and the lazy JIT remove their code
+/// from the debugger when they are destroyed. The option is a development aid
+/// for trusted modules: the DWARF sections go to the LLVM DWARF parser.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param IsDebugInfo the boolean value to determine to generate native debug
+/// info from the DWARF sections of the module during compilation.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetDebugInfo(
+    WasmEdge_ConfigureContext *Cxt,
+    const bool IsDebugInfo) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the debug info option of the AOT compiler and the JIT.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to generate native debug info or
+/// not during compilation.
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureCompilerIsDebugInfo(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
 /// Set the instruction counting option for the statistics.
 ///
 /// This function is thread-safe.

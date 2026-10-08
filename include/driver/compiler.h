@@ -35,8 +35,12 @@ struct DriverCompilerOptions : public DriverProposalOptions,
         ConfDumpIR(
             PO::Description("Dump LLVM IR to `wasm.ll` and `wasm-opt.ll`."sv)),
         ConfInterruptible(PO::Description("Generate a interruptible binary"sv)),
+        ConfDebugInfo(PO::Description(
+            "Generate native debug info from the DWARF sections of the "
+            "module."sv)),
         PropOptimizationLevel(
-            PO::Description("Optimization level, one of 0, 1, 2, 3, s, z."sv),
+            PO::Description(
+                "Optimization level, one of 0, 1, 2, 3, s, z, g."sv),
             PO::DefaultValue(std::string("2"))) {}
 
   PO::Option<std::string> WasmName;
@@ -44,6 +48,7 @@ struct DriverCompilerOptions : public DriverProposalOptions,
   PO::Option<PO::Toggle> ConfGenericBinary;
   PO::Option<PO::Toggle> ConfDumpIR;
   PO::Option<PO::Toggle> ConfInterruptible;
+  PO::Option<PO::Toggle> ConfDebugInfo;
   PO::Option<std::string> PropOptimizationLevel;
 
   void addOptions(PO::ArgumentParser &Parser) noexcept {
@@ -51,7 +56,8 @@ struct DriverCompilerOptions : public DriverProposalOptions,
     Parser.add_option(WasmName)
         .add_option(SoName)
         .add_option("dump"sv, ConfDumpIR)
-        .add_option("interruptible"sv, ConfInterruptible);
+        .add_option("interruptible"sv, ConfInterruptible)
+        .add_option("debug-info"sv, ConfDebugInfo);
     addStatisticsOptions(Parser);
     Parser.add_option("generic-binary"sv, ConfGenericBinary);
     addProposalOptions(Parser);

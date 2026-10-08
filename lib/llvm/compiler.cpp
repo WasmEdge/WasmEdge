@@ -38,6 +38,7 @@ toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
   case OL::O0:
     return {0, 0};
   case OL::O1:
+  case OL::Og:
     return {1, 0};
   case OL::O2:
     return {2, 0};
@@ -59,6 +60,7 @@ toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
   case OL::O0:
     return "default<O0>,function(tailcallelim)";
   case OL::O1:
+  case OL::Og:
     return "default<O1>,function(tailcallelim)";
   case OL::O2:
     return "default<O2>";
@@ -87,6 +89,7 @@ static inline LLVMCodeGenOptLevel toLLVMCodeGenLevel(
   case OL::O0:
     return LLVMCodeGenLevelNone;
   case OL::O1:
+  case OL::Og:
     return LLVMCodeGenLevelLess;
   case OL::O2:
     return LLVMCodeGenLevelDefault;
@@ -168,6 +171,7 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
   switch (Conf.getCompilerConfigure().getOptimizationLevel()) {
   case CompilerConfigure::OptimizationLevel::O0:
   case CompilerConfigure::OptimizationLevel::O1:
+  case CompilerConfigure::OptimizationLevel::Og:
     FP.addTailCallEliminationPass();
     break;
   default:

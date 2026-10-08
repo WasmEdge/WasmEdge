@@ -801,6 +801,10 @@ TEST(CompileSubcommand, CompilerSpecificFlags) {
             EXIT_SUCCESS);
   std::filesystem::remove(Output.c_str());
 
+  EXPECT_EQ(callCompile({"--optimize", "g", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
 #if defined(WASMEDGE_LLVM_VERSION_MAJOR) && WASMEDGE_LLVM_VERSION_MAJOR >= 23
   auto ReadOptimizedIR = []() {
     std::ifstream Ifs("wasm-opt.ll");

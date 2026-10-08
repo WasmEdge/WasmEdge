@@ -57,6 +57,10 @@ struct DriverToolOptions : public DriverProposalOptions {
             "instruction counting, gas measuring, and execution time"sv)),
         ConfEnableJIT(
             PO::Description("Enable Just-In-Time compiler for running WASM"sv)),
+        ConfDebugInfo(PO::Description(
+            "Generate native debug info for JIT compiled code from the DWARF "
+            "sections of the module. Has an effect only with --run-mode=jit "
+            "or --run-mode=lazyjit."sv)),
         ConfEnableCoredump(PO::Description(
             "Enable coredump when WebAssembly enters a trap. Requires the "
             "interpreter run mode, otherwise it is disabled"sv)),
@@ -117,6 +121,7 @@ struct DriverToolOptions : public DriverProposalOptions {
   PO::Option<PO::Toggle> ConfEnableTimeMeasuring;
   PO::Option<PO::Toggle> ConfEnableAllStatistics;
   PO::Option<PO::Toggle> ConfEnableJIT;
+  PO::Option<PO::Toggle> ConfDebugInfo;
   PO::Option<PO::Toggle> ConfEnableCoredump;
   PO::Option<PO::Toggle> ConfCoredumpWasmgdb;
   PO::Option<PO::Toggle> ConfForceInterpreter;
@@ -165,6 +170,7 @@ public:
         .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
         .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
         .add_option("enable-jit"sv, ConfEnableJIT)
+        .add_option("debug-info"sv, ConfDebugInfo)
         .add_option("enable-coredump"sv, ConfEnableCoredump)
         .add_option("coredump-for-wasmgdb"sv, ConfCoredumpWasmgdb)
         .add_option("force-interpreter"sv, ConfForceInterpreter)

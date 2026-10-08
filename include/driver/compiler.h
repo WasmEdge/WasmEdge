@@ -29,6 +29,9 @@ struct DriverCompilerOptions : public DriverProposalOptions {
         ConfDumpIR(
             PO::Description("Dump LLVM IR to `wasm.ll` and `wasm-opt.ll`."sv)),
         ConfInterruptible(PO::Description("Generate a interruptible binary"sv)),
+        ConfDebugInfo(PO::Description(
+            "Generate native debug info from the DWARF sections of the "
+            "module."sv)),
         ConfEnableInstructionCounting(PO::Description(
             "Enable generating code for counting Wasm instructions executed."sv)),
         ConfEnableGasMeasuring(PO::Description(
@@ -39,7 +42,8 @@ struct DriverCompilerOptions : public DriverProposalOptions {
             "Enable generating code for all statistics options include "
             "instruction counting, gas measuring, and execution time."sv)),
         PropOptimizationLevel(
-            PO::Description("Optimization level, one of 0, 1, 2, 3, s, z."sv),
+            PO::Description(
+                "Optimization level, one of 0, 1, 2, 3, s, z, g."sv),
             PO::DefaultValue(std::string("2"))) {}
 
   PO::Option<std::string> WasmName;
@@ -47,6 +51,7 @@ struct DriverCompilerOptions : public DriverProposalOptions {
   PO::Option<PO::Toggle> ConfGenericBinary;
   PO::Option<PO::Toggle> ConfDumpIR;
   PO::Option<PO::Toggle> ConfInterruptible;
+  PO::Option<PO::Toggle> ConfDebugInfo;
   PO::Option<PO::Toggle> ConfEnableInstructionCounting;
   PO::Option<PO::Toggle> ConfEnableGasMeasuring;
   PO::Option<PO::Toggle> ConfEnableTimeMeasuring;
@@ -58,6 +63,7 @@ struct DriverCompilerOptions : public DriverProposalOptions {
         .add_option(SoName)
         .add_option("dump"sv, ConfDumpIR)
         .add_option("interruptible"sv, ConfInterruptible)
+        .add_option("debug-info"sv, ConfDebugInfo)
         .add_option("enable-instruction-count"sv, ConfEnableInstructionCounting)
         .add_option("enable-gas-measuring"sv, ConfEnableGasMeasuring)
         .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)

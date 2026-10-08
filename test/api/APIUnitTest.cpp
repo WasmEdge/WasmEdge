@@ -782,6 +782,10 @@ TEST(APICoreTest, Configure) {
   WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_Interpreter);
   // Tests for AOT compiler configurations.
   WasmEdge_ConfigureCompilerSetOptimizationLevel(
+      Conf, WasmEdge_CompilerOptimizationLevel_Og);
+  EXPECT_EQ(WasmEdge_ConfigureCompilerGetOptimizationLevel(Conf),
+            WasmEdge_CompilerOptimizationLevel_Og);
+  WasmEdge_ConfigureCompilerSetOptimizationLevel(
       ConfNull, WasmEdge_CompilerOptimizationLevel_Os);
   WasmEdge_ConfigureCompilerSetOptimizationLevel(
       Conf, WasmEdge_CompilerOptimizationLevel_Os);
@@ -809,6 +813,10 @@ TEST(APICoreTest, Configure) {
   WasmEdge_ConfigureCompilerSetInterruptible(Conf, true);
   EXPECT_NE(WasmEdge_ConfigureCompilerIsInterruptible(ConfNull), true);
   EXPECT_EQ(WasmEdge_ConfigureCompilerIsInterruptible(Conf), true);
+  WasmEdge_ConfigureCompilerSetDebugInfo(ConfNull, true);
+  WasmEdge_ConfigureCompilerSetDebugInfo(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureCompilerIsDebugInfo(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureCompilerIsDebugInfo(Conf), true);
   // Tests for Statistics configurations.
   WasmEdge_ConfigureStatisticsSetInstructionCounting(ConfNull, true);
   WasmEdge_ConfigureStatisticsSetInstructionCounting(Conf, true);

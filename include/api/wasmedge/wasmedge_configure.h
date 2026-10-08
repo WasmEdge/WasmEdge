@@ -340,6 +340,38 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetInterruptible(
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureCompilerIsInterruptible(
     const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
+/// Set the debug info option of the AOT compiler and the JIT.
+///
+/// When set, the AOT compiler, the JIT, and the lazy JIT translate the DWARF
+/// sections of the module into native debug info for source-level debugging.
+/// The option works on Linux, macOS, and Windows. On Windows, the JIT and the
+/// lazy JIT give the debugger no debug info. The AOT compiler keeps the
+/// debug info only in the native shared library output. On macOS, the debug
+/// info stays in an object file next to the library, named by the library
+/// path with ".o" appended. With the universal wasm output format, the option
+/// is ignored with a warning. Use it with WasmEdge_CompilerOptimizationLevel_Og
+/// to get optimized code that a debugger can still inspect.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param IsDebugInfo the boolean value to determine to generate native debug
+/// info from the DWARF sections of the module during compilation.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetDebugInfo(
+    WasmEdge_ConfigureContext *Cxt,
+    const bool IsDebugInfo) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the debug info option of the AOT compiler and the JIT.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to generate native debug info or
+/// not during compilation.
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureCompilerIsDebugInfo(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
 /// Set the instruction counting option for the statistics.
 ///
 /// This function is thread-safe.

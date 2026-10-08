@@ -3,6 +3,7 @@
 
 wasmedge_add_executable(wasmedgeLLVMCoreTests
   LLVMcoreTest.cpp
+  DebugInfoTest.cpp
 )
 
 add_test(wasmedgeLLVMCoreTests wasmedgeLLVMCoreTests)
@@ -11,6 +12,22 @@ target_link_libraries(wasmedgeLLVMCoreTests
   PRIVATE
   wasmedgeTestSpec
   wasmedgeVM
+)
+
+target_include_directories(wasmedgeLLVMCoreTests
+  PRIVATE
+  ${PROJECT_SOURCE_DIR}/lib/llvm
+)
+
+find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_PATH}" "${LLVM_DIR}")
+if(NOT LLVM_ENABLE_RTTI AND NOT MSVC)
+  set_source_files_properties(DebugInfoTest.cpp
+    PROPERTIES COMPILE_OPTIONS -fno-rtti)
+endif()
+target_include_directories(wasmedgeLLVMCoreTests
+  SYSTEM
+  PRIVATE
+  ${LLVM_INCLUDE_DIRS}
 )
 
 wasmedge_add_executable(wasmedgeLazyJITTests

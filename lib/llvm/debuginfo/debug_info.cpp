@@ -12,23 +12,37 @@
 #include <llvm/DebugInfo/DWARF/DWARFContext.h>
 #include <llvm/DebugInfo/DWARF/DWARFDebugLine.h>
 #include <llvm/DebugInfo/DWARF/DWARFFormValue.h>
+#include <llvm/DebugInfo/DWARF/DWARFUnit.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/DIBuilder.h>
+#include <llvm/IR/DataLayout.h>
 #include <llvm/IR/DebugInfo.h>
 #include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/InlineAsm.h>
+#include <llvm/IR/Instructions.h>
+#include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/ValueHandle.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/Path.h>
 #include <llvm/Support/raw_ostream.h>
+#if LLVM_VERSION_MAJOR < 16
+#else
+#include <llvm/Support/ModRef.h>
+#endif
 
+#include <algorithm>
 #include <map>
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
+#include <vector>
 
 namespace WasmEdge::LLVM::DebugInfo {
 
@@ -37,6 +51,8 @@ using llvm::DWARFDie;
 namespace dwarf = llvm::dwarf;
 
 namespace {
+
+constexpr uint32_t MaxDepth = 128;
 
 struct UnitState {
   std::unique_ptr<llvm::DIBuilder> DB;
@@ -52,6 +68,75 @@ template <typename T>
 std::pair<unsigned, unsigned>
 lineColumn(const std::optional<T> &Info) noexcept {
   return Info ? lineColumn(*Info) : std::pair<unsigned, unsigned>{0, 0};
+}
+
+#if LLVM_VERSION_MAJOR < 10
+std::optional<std::vector<llvm::ArrayRef<uint8_t>>>
+locationList(DWARFDie D, const llvm::DWARFFormValue &Attr) noexcept {
+  auto Offset = Attr.getAsSectionOffset();
+  if (!Offset) {
+    return std::nullopt;
+  }
+  auto *U = D.getDwarfUnit();
+  const auto Section = U->getContext().getDWARFObj().getLocSection().Data;
+  llvm::DataExtractor Data(Section, true, U->getAddressByteSize());
+  const uint64_t Max = U->getAddressByteSize() == 4 ? UINT32_MAX : UINT64_MAX;
+  uint32_t Cursor = static_cast<uint32_t>(*Offset);
+  std::vector<llvm::ArrayRef<uint8_t>> Entries;
+  while (Data.isValidOffsetForDataOfSize(Cursor, 2 * U->getAddressByteSize())) {
+    const auto Begin = Data.getAddress(&Cursor);
+    const auto End = Data.getAddress(&Cursor);
+    if (Begin == 0 && End == 0) {
+      return Entries;
+    }
+    if (Begin == Max) {
+      continue;
+    }
+    const auto Size = Data.getU16(&Cursor);
+    if (!Data.isValidOffsetForDataOfSize(Cursor, Size)) {
+      return std::nullopt;
+    }
+    Entries.emplace_back(Section.bytes_begin() + Cursor, Size);
+    Cursor += Size;
+  }
+  return std::nullopt;
+}
+#endif
+
+std::optional<WasmLocation> locationOf(DWARFDie D) noexcept {
+  auto Attr = D.find(dwarf::DW_AT_location);
+  if (!Attr) {
+    return std::nullopt;
+  }
+  if (auto Block = Attr->getAsBlock()) {
+    return decodeLocation(*Block, D.getDwarfUnit());
+  }
+#if LLVM_VERSION_MAJOR < 10
+  auto Locs = locationList(D, *Attr);
+  if (!Locs) {
+    return std::nullopt;
+  }
+#else
+  auto Locs = D.getLocations(dwarf::DW_AT_location);
+  if (!Locs) {
+    llvm::consumeError(Locs.takeError());
+    return std::nullopt;
+  }
+#endif
+  std::optional<WasmLocation> Same;
+  for (const auto &E : *Locs) {
+#if LLVM_VERSION_MAJOR < 10
+    auto L = decodeLocation(E, D.getDwarfUnit());
+#else
+    auto L = decodeLocation(E.Expr, D.getDwarfUnit());
+#endif
+    if (Same && (Same->K != L.K || Same->Index != L.Index ||
+                 Same->Offset != L.Offset)) {
+      return std::nullopt;
+    }
+    Same = L;
+  }
+  return Same;
 }
 
 std::string declFile(DWARFDie D) noexcept {
@@ -85,6 +170,23 @@ public:
                         DWARFDie Die) noexcept
       : Parent(Parent), S(S), Fn(Fn), SP(SP), Die(Die) {
     Fn.setSubprogram(SP);
+    if (!Die) {
+      return;
+    }
+    if (auto FB = Die.find(dwarf::DW_AT_frame_base)) {
+      if (auto Block = FB->getAsBlock()) {
+        const auto L = decodeLocation(*Block, Die.getDwarfUnit());
+        if (L.K == WasmLocation::Kind::Local) {
+          Base = {FrameBase::Kind::Local, static_cast<uint32_t>(L.Index)};
+        } else if (L.K == WasmLocation::Kind::Global) {
+          Base = {FrameBase::Kind::Global, static_cast<uint32_t>(L.Index)};
+        }
+      }
+    }
+    collectScopeEnds(Die, 0);
+    std::stable_sort(
+        ScopeEnds.begin(), ScopeEnds.end(),
+        [](const ScopeEnd &L, const ScopeEnd &R) { return L.End < R.End; });
   }
 
   void setPrologueLocation(LLVMBuilderRef B) noexcept override {
@@ -99,27 +201,77 @@ public:
 
   void setLocation(LLVMBuilderRef B, uint64_t FileOffset) noexcept override;
 
-  FrameBase getFrameBase() const noexcept override { return {}; }
+  FrameBase getFrameBase() const noexcept override { return Base; }
 
-  void finish(LLVMBasicBlockRef, Span<const LLVMValueRef>, LLVMValueRef,
-              LLVMValueRef, LLVMValueRef) noexcept override {}
+  void finish(LLVMBasicBlockRef EntryRef, Span<const LLVMValueRef> Locals,
+              LLVMValueRef MemorySlot, LLVMValueRef FrameBaseSlot,
+              LLVMValueRef ModCtxArg, bool ExtendLiveness) noexcept override;
 
 private:
+#if LLVM_VERSION_MAJOR < 20
+  using InsertPoint = llvm::Instruction *;
+#else
+  using InsertPoint = llvm::BasicBlock::iterator;
+#endif
+
+  struct LocalVariable {
+    uint64_t ScopeOffset;
+    const llvm::DIScope *Scope;
+    size_t Index;
+  };
+
+  struct Slots {
+    Span<const LLVMValueRef> Locals;
+    llvm::Value *FrameBaseSlot;
+    llvm::Value *ModCtxArg;
+    InsertPoint Where;
+    std::vector<LocalVariable> &Declared;
+  };
+
+  void declareVariables(const Slots &Ctx, DWARFDie Node, llvm::DIScope *Scope,
+                        unsigned &ArgNo, uint32_t Depth) noexcept;
+  struct ScopeEnd {
+    uint64_t End;
+    uint64_t Offset;
+  };
+
+  struct ScopeExit {
+    llvm::WeakVH Block;
+    llvm::WeakVH Last;
+    bool HasLast;
+    std::vector<uint64_t> Offsets;
+  };
+
+  void collectScopeEnds(DWARFDie Node, uint32_t Depth) noexcept;
+  void recordScopeExits(llvm::IRBuilderBase &B, uint64_t Addr) noexcept;
+  static void keepInMemory(llvm::Value *Slot) noexcept;
+  void addFakeUses(Span<const LLVMValueRef> Locals,
+                   const std::vector<LocalVariable> &Declared) noexcept;
+
   ModuleDebugInfoImpl &Parent;
   UnitState &S;
   llvm::Function &Fn;
   llvm::DISubprogram *SP;
   DWARFDie Die;
+  FrameBase Base;
+  std::vector<ScopeEnd> ScopeEnds;
+  std::unordered_set<uint64_t> RangedScopes;
+  size_t NextScopeEnd = 0;
+  std::vector<ScopeExit> ScopeExits;
 };
 
 class ModuleDebugInfoImpl final : public ModuleDebugInfo {
 public:
-  ModuleDebugInfoImpl(llvm::Module &M, std::unique_ptr<DwarfReader> R,
-                      Part P) noexcept
+  ModuleDebugInfoImpl(llvm::Module &M, std::unique_ptr<DwarfReader> R, Part P,
+                      bool HasMemory) noexcept
       : M(M), Reader(std::move(R)), P(P) {
     M.addModuleFlag(llvm::Module::Warning, "Debug Info Version",
                     llvm::DEBUG_METADATA_VERSION);
     M.addModuleFlag(llvm::Module::Warning, "Dwarf Version", 4);
+    if (HasMemory) {
+      createMemoryBase();
+      addUnitGlobals();
+    }
   }
 
   LLVMMetadataRef translateType(uint64_t DieOffset) noexcept override {
@@ -213,7 +365,110 @@ public:
     return llvm::DILocation::get(Ctx, Line, Column, Outer, InlinedAt);
   }
 
+  llvm::DIScope *lexicalBlock(UnitState &S, llvm::DIScope *Scope,
+                              DWARFDie Block) noexcept {
+    auto &Cached = Lexical[Block.getOffset()];
+    if (!Cached) {
+      Cached = S.DB->createLexicalBlock(Scope, file(S, Block), line(Block), 0);
+    }
+    return Cached;
+  }
+
+  llvm::DIType *variableType(UnitState &S, DWARFDie Var) noexcept {
+    auto *T = type(S, ref(Var));
+    return T ? T : opaque(S, 0);
+  }
+
+  uint64_t globalsOffset() const noexcept {
+#if LLVM_VERSION_MAJOR < 12
+    auto *ModCtxTy = M.getTypeByName("ModCtx");
+#else
+    auto *ModCtxTy = llvm::StructType::getTypeByName(M.getContext(), "ModCtx");
+#endif
+    if (!ModCtxTy) {
+      spdlog::debug("debug info: ModCtx type not found, assume offset 32"sv);
+      return 32;
+    }
+    return M.getDataLayout().getStructLayout(ModCtxTy)->getElementOffset(4);
+  }
+
+  void addGlobal(UnitState &S, llvm::DIScope *Scope, DWARFDie D,
+                 uint64_t Address) noexcept {
+    if (P == Part::FunctionsOnly || !MemoryBase ||
+        !Globals.insert(D.getOffset()).second) {
+      return;
+    }
+    auto *Expr = S.DB->createExpression(llvm::SmallVector<uint64_t, 3>{
+        dwarf::DW_OP_deref, dwarf::DW_OP_plus_uconst, Address & 0xFFFFFFFFU});
+    auto *GVE = S.DB->createGlobalVariableExpression(
+        Scope, name(D), "", file(S, D), line(D), variableType(S, D),
+        !dwarf::toUnsigned(D.find(dwarf::DW_AT_external), 0),
+#if LLVM_VERSION_MAJOR < 10
+#else
+        true,
+#endif
+        Expr);
+    MemoryBase->addDebugInfo(GVE);
+  }
+
 private:
+  void createMemoryBase() noexcept {
+#if LLVM_VERSION_MAJOR < 15
+    auto *PtrTy = llvm::Type::getInt8PtrTy(M.getContext());
+#else
+    auto *PtrTy = llvm::PointerType::getUnqual(M.getContext());
+#endif
+    MemoryBase = new llvm::GlobalVariable(
+        M, PtrTy, false, llvm::GlobalValue::ExternalLinkage,
+        P == Part::FunctionsOnly ? nullptr
+                                 : llvm::ConstantPointerNull::get(PtrTy),
+        "__wasmedge_debug_membase");
+    MemoryBase->setVisibility(llvm::GlobalValue::HiddenVisibility);
+#if LLVM_VERSION_MAJOR < 10
+    MemoryBase->setAlignment(8);
+#else
+    MemoryBase->setAlignment(llvm::Align(8));
+#endif
+  }
+
+  void addUnitGlobals() noexcept {
+    for (const auto &CU : Reader->getContext().compile_units()) {
+      addScopeGlobals(CU->getUnitDIE(), 0);
+    }
+  }
+
+  void addScopeGlobals(DWARFDie Parent, uint32_t Depth) noexcept {
+    for (auto C : Parent.children()) {
+      const auto Tag = C.getTag();
+      if (Tag == dwarf::DW_TAG_namespace) {
+        if (Depth < MaxDepth) {
+          addScopeGlobals(C, Depth + 1);
+        }
+        continue;
+      }
+      if (Tag != dwarf::DW_TAG_variable) {
+        continue;
+      }
+      if (auto L = locationOf(C); L && L->K == WasmLocation::Kind::Address) {
+        auto &S = unit(C);
+        addGlobal(S, namespaceScope(S, Parent), C, L->Index);
+      }
+    }
+  }
+
+  llvm::DIScope *namespaceScope(UnitState &S, DWARFDie D) noexcept {
+    if (D.getTag() != dwarf::DW_TAG_namespace) {
+      return S.CU;
+    }
+    if (auto It = Namespaces.find(D.getOffset()); It != Namespaces.end()) {
+      return It->second;
+    }
+    auto *Scope =
+        S.DB->createNameSpace(namespaceScope(S, D.getParent()), name(D), false);
+    Namespaces[D.getOffset()] = Scope;
+    return Scope;
+  }
+
   llvm::DISubprogram *subprogramFor(UnitState &S, DWARFDie D) noexcept {
     if (auto It = Subprograms.find(D.getOffset()); It != Subprograms.end()) {
       return It->second;
@@ -271,11 +526,7 @@ private:
       Blocks.push_back(B);
     }
     for (auto It = Blocks.rbegin(); It != Blocks.rend(); ++It) {
-      auto &Cached = Lexical[It->getOffset()];
-      if (!Cached) {
-        Cached = S.DB->createLexicalBlock(Scope, file(S, *It), line(*It), 0);
-      }
-      Scope = Cached;
+      Scope = lexicalBlock(S, Scope, *It);
     }
     return Scope;
   }
@@ -354,6 +605,21 @@ private:
     if (auto It = Types.find(D.getOffset()); It != Types.end()) {
       return It->second;
     }
+    if (TypeDepth >= MaxDepth) {
+      return nullptr;
+    }
+    Types[D.getOffset()] = nullptr;
+    ++TypeDepth;
+    auto *T = buildType(S, D);
+    --TypeDepth;
+    Types[D.getOffset()] = T;
+    if (TypeDepth == 0) {
+      completePointers();
+    }
+    return T;
+  }
+
+  llvm::DIType *buildType(UnitState &S, DWARFDie D) noexcept {
     auto &DB = *S.DB;
     llvm::DIType *T = nullptr;
     switch (D.getTag()) {
@@ -398,7 +664,6 @@ private:
       T = opaque(S, byteSize(D));
       break;
     }
-    Types[D.getOffset()] = T;
     return T;
   }
 
@@ -425,11 +690,26 @@ private:
     if (Pointee && Pointee.getTag() == dwarf::DW_TAG_subroutine_type) {
       return funcRef(S);
     }
-    auto &DB = *S.DB;
-    auto *T = DB.createReplaceableCompositeType(
+    auto *T = S.DB->createReplaceableCompositeType(
         dwarf::DW_TAG_structure_type, "__wasm_ptr", S.CU, nullptr, 0, 0, 32, 32,
         llvm::DINode::FlagZero);
-    Types[D.getOffset()] = T;
+    PendingPointers.push_back({&S, T, Pointee});
+    return T;
+  }
+
+  void completePointers() noexcept {
+    ++TypeDepth;
+    while (!PendingPointers.empty()) {
+      const auto Pending = PendingPointers.back();
+      PendingPointers.pop_back();
+      completePointer(*Pending.S, Pending.T, Pending.Pointee);
+    }
+    --TypeDepth;
+  }
+
+  void completePointer(UnitState &S, llvm::DICompositeType *T,
+                       DWARFDie Pointee) noexcept {
+    auto &DB = *S.DB;
     llvm::DIType *Elem = Pointee ? type(S, Pointee) : nullptr;
     if (!Elem) {
       Elem = uchar(S);
@@ -437,13 +717,13 @@ private:
     auto *Addr = DB.createMemberType(T, "__addr", nullptr, 0, 32, 32, 0,
                                      llvm::DINode::FlagZero, uint32(S));
     auto *Arr = DB.createArrayType(
-        0, 0, Elem,
+        0, 0, DB.createPointerType(Elem, 64),
         DB.getOrCreateArray({DB.getOrCreateSubrange(int64_t(0), int64_t(0))}));
     auto *Pt = DB.createMemberType(T, "__pointee", nullptr, 0, uint64_t(0), 0,
                                    uint64_t(0), llvm::DINode::FlagZero, Arr);
     llvm::Metadata *Fields[] = {Addr, Pt};
     DB.replaceArrays(T, DB.getOrCreateArray(Fields));
-    return llvm::MDNode::replaceWithDistinct(llvm::TempDICompositeType(T));
+    llvm::MDNode::replaceWithDistinct(llvm::TempDICompositeType(T));
   }
 
   llvm::DIDerivedType *member(UnitState &S, llvm::DIScope *Scope,
@@ -510,6 +790,12 @@ private:
                                 DB.getOrCreateArray(Variants));
   }
 
+  static bool isStaticMember(DWARFDie C) noexcept {
+    return !C.find(dwarf::DW_AT_data_member_location) &&
+           (dwarf::toUnsigned(C.find(dwarf::DW_AT_declaration), 0) ||
+            dwarf::toUnsigned(C.find(dwarf::DW_AT_external), 0));
+  }
+
   llvm::DIType *composite(UnitState &S, DWARFDie D) noexcept {
     auto &DB = *S.DB;
     const bool Decl = dwarf::toUnsigned(D.find(dwarf::DW_AT_declaration), 0);
@@ -522,7 +808,9 @@ private:
       llvm::Metadata *E = nullptr;
       switch (C.getTag()) {
       case dwarf::DW_TAG_member:
-        E = member(S, T, C);
+        if (!isStaticMember(C)) {
+          E = member(S, T, C);
+        }
         break;
       case dwarf::DW_TAG_inheritance:
         if (auto *Base = type(S, ref(C))) {
@@ -608,12 +896,22 @@ private:
     return S.DB->createSubroutineType(S.DB->getOrCreateTypeArray(Sig));
   }
 
+  struct PendingPointer {
+    UnitState *S;
+    llvm::DICompositeType *T;
+    DWARFDie Pointee;
+  };
+
   llvm::Module &M;
   std::unique_ptr<DwarfReader> Reader;
   std::map<uint64_t, UnitState> Units;
   std::unordered_map<uint64_t, llvm::DIType *> Types;
   std::unordered_map<uint64_t, llvm::DISubprogram *> Subprograms;
   std::unordered_map<uint64_t, llvm::DIScope *> Lexical;
+  std::unordered_map<uint64_t, llvm::DIScope *> Namespaces;
+  std::unordered_set<uint64_t> Globals;
+  std::vector<PendingPointer> PendingPointers;
+  uint32_t TypeDepth = 0;
   UnitState Artificial;
   Part P;
   llvm::GlobalVariable *MemoryBase = nullptr;
@@ -625,8 +923,358 @@ void FunctionDebugInfoImpl::setLocation(LLVMBuilderRef B,
     setArtificialLocation(B);
     return;
   }
+  const auto Addr = Parent.toAddress(FileOffset);
+  recordScopeExits(*llvm::unwrap(B), Addr);
   llvm::unwrap(B)->SetCurrentDebugLocation(
-      Parent.locationFor(S, SP, Die, Parent.toAddress(FileOffset)));
+      Parent.locationFor(S, SP, Die, Addr));
+}
+
+void FunctionDebugInfoImpl::finish(
+    LLVMBasicBlockRef EntryRef, Span<const LLVMValueRef> Locals,
+    LLVMValueRef MemorySlot, LLVMValueRef FrameBaseSlot, LLVMValueRef ModCtxArg,
+    [[maybe_unused]] bool ExtendLiveness) noexcept {
+  auto *Terminator = llvm::unwrap(EntryRef)->getTerminator();
+  if (!Terminator) {
+    return;
+  }
+  if (ExtendLiveness) {
+    keepInMemory(llvm::unwrap(MemorySlot));
+    keepInMemory(llvm::unwrap(FrameBaseSlot));
+  }
+#if LLVM_VERSION_MAJOR < 20
+  const InsertPoint Where = Terminator;
+#else
+  const InsertPoint Where = Terminator->getIterator();
+#endif
+  if (MemorySlot) {
+    auto &DB = *S.DB;
+    auto *Ty = DB.createPointerType(
+        DB.createBasicType("unsigned char", 8, dwarf::DW_ATE_unsigned_char),
+        64);
+    auto *Var = DB.createAutoVariable(SP, "__wasm_memory", SP->getFile(), 0, Ty,
+                                      true, llvm::DINode::FlagArtificial);
+    DB.insertDeclare(
+        llvm::unwrap(MemorySlot), Var, DB.createExpression(),
+        llvm::DILocation::get(Fn.getContext(), SP->getLine(), 0, SP), Where);
+  }
+  if (!Die) {
+    return;
+  }
+  unsigned ArgNo = 0;
+  std::vector<LocalVariable> Declared;
+  declareVariables({Locals, llvm::unwrap(FrameBaseSlot),
+                    llvm::unwrap(ModCtxArg), Where, Declared},
+                   Die, SP, ArgNo, 0);
+  if (ExtendLiveness) {
+    addFakeUses(Locals, Declared);
+  }
+}
+
+void FunctionDebugInfoImpl::collectScopeEnds(DWARFDie Node,
+                                             uint32_t Depth) noexcept {
+  if (Depth >= MaxDepth) {
+    return;
+  }
+  for (auto C : Node.children()) {
+    if (C.getTag() != dwarf::DW_TAG_lexical_block) {
+      continue;
+    }
+    if (auto Ranges = C.getAddressRanges()) {
+      for (const auto &R : *Ranges) {
+        if (R.LowPC < R.HighPC) {
+          ScopeEnds.push_back({R.HighPC, C.getOffset()});
+          RangedScopes.insert(C.getOffset());
+        }
+      }
+    } else {
+      llvm::consumeError(Ranges.takeError());
+    }
+    collectScopeEnds(C, Depth + 1);
+  }
+}
+
+void FunctionDebugInfoImpl::recordScopeExits(llvm::IRBuilderBase &B,
+                                             uint64_t Addr) noexcept {
+  if (NextScopeEnd >= ScopeEnds.size() || ScopeEnds[NextScopeEnd].End > Addr) {
+    return;
+  }
+  auto *BB = B.GetInsertBlock();
+  if (!BB) {
+    return;
+  }
+  const auto Pos = B.GetInsertPoint();
+  ScopeExit Exit;
+  Exit.Block = BB;
+  Exit.HasLast = Pos != BB->begin();
+  if (Exit.HasLast) {
+    Exit.Last = &*std::prev(Pos);
+  }
+  for (; NextScopeEnd < ScopeEnds.size() && ScopeEnds[NextScopeEnd].End <= Addr;
+       ++NextScopeEnd) {
+    Exit.Offsets.push_back(ScopeEnds[NextScopeEnd].Offset);
+  }
+  ScopeExits.push_back(std::move(Exit));
+}
+
+void FunctionDebugInfoImpl::keepInMemory(llvm::Value *Slot) noexcept {
+  if (!Slot) {
+    return;
+  }
+  for (auto *U : Slot->users()) {
+    if (auto *Load = llvm::dyn_cast<llvm::LoadInst>(U)) {
+      Load->setVolatile(true);
+    } else if (auto *Store = llvm::dyn_cast<llvm::StoreInst>(U);
+               Store && Store->getPointerOperand() == Slot) {
+      Store->setVolatile(true);
+    }
+  }
+}
+
+#if LLVM_VERSION_MAJOR < 20
+void emitAsmFakeUse(llvm::IRBuilder<> &B, const llvm::Triple &TT,
+                    llvm::Value *V) noexcept {
+  std::vector<llvm::Value *> Ops;
+  std::string Constraints;
+  auto Add = [&](llvm::Value *Op, const char *C) {
+    if (!Constraints.empty()) {
+      Constraints += ',';
+    }
+    Constraints += C;
+    Ops.push_back(Op);
+  };
+  auto *Ty = V->getType();
+  if (!Ty->isFloatingPointTy() && !Ty->isVectorTy()) {
+    Add(V, "r");
+  } else if (TT.getArch() == llvm::Triple::x86 ||
+             TT.getArch() == llvm::Triple::x86_64) {
+    Add(V, "x");
+  } else if (TT.isAArch64()) {
+    Add(V, "w");
+  } else if (Ty->isVectorTy()) {
+#if LLVM_VERSION_MAJOR < 11
+    auto *VecTy = llvm::VectorType::get(B.getInt64Ty(), 2);
+#else
+    auto *VecTy = llvm::FixedVectorType::get(B.getInt64Ty(), 2);
+#endif
+    auto *Vec = B.CreateBitCast(V, VecTy);
+    Add(B.CreateExtractElement(Vec, uint64_t(0)), "r");
+    Add(B.CreateExtractElement(Vec, uint64_t(1)), "r");
+  } else {
+    Add(B.CreateBitCast(V, B.getIntNTy(Ty->getPrimitiveSizeInBits())), "r");
+  }
+  std::vector<llvm::Type *> Types;
+  for (auto *Op : Ops) {
+    Types.push_back(Op->getType());
+  }
+  auto *FTy = llvm::FunctionType::get(B.getVoidTy(), Types, false);
+  auto *Call =
+      B.CreateCall(FTy, llvm::InlineAsm::get(FTy, "", Constraints, true), Ops);
+  Call->setDoesNotThrow();
+#if LLVM_VERSION_MAJOR < 14
+  Call->addAttribute(llvm::AttributeList::FunctionIndex,
+                     llvm::Attribute::InaccessibleMemOnly);
+#elif LLVM_VERSION_MAJOR < 16
+  Call->addFnAttr(llvm::Attribute::InaccessibleMemOnly);
+#else
+  Call->setMemoryEffects(llvm::MemoryEffects::inaccessibleMemOnly());
+#endif
+  Call->setTailCallKind(llvm::CallInst::TCK_NoTail);
+}
+#endif
+
+void FunctionDebugInfoImpl::addFakeUses(
+    Span<const LLVMValueRef> Locals,
+    const std::vector<LocalVariable> &Declared) noexcept {
+  if (Declared.empty()) {
+    return;
+  }
+  std::vector<bool> FunctionScope(Locals.size(), false);
+  std::unordered_map<uint64_t, std::vector<size_t>> ScopeLocals;
+  std::unordered_map<const llvm::DIScope *, uint64_t> ScopeOffsets;
+  for (const auto &V : Declared) {
+    if (RangedScopes.count(V.ScopeOffset)) {
+      ScopeLocals[V.ScopeOffset].push_back(V.Index);
+      ScopeOffsets.emplace(V.Scope, V.ScopeOffset);
+    } else {
+      FunctionScope[V.Index] = true;
+    }
+  }
+
+  std::vector<std::pair<llvm::Instruction *, std::vector<bool>>> Points;
+  std::unordered_map<llvm::Instruction *, size_t> PointIndex;
+  auto Want = [&](llvm::Instruction *At) -> std::vector<bool> & {
+    if (auto *Ret = llvm::dyn_cast<llvm::ReturnInst>(At)) {
+      if (auto *Call =
+              llvm::dyn_cast_or_null<llvm::CallInst>(Ret->getPrevNode());
+          Call && Call->isTailCall()) {
+        At = Call;
+      }
+    }
+    auto [It, Inserted] = PointIndex.emplace(At, Points.size());
+    if (Inserted) {
+      Points.emplace_back(At, std::vector<bool>(Locals.size(), false));
+    }
+    return Points[It->second].second;
+  };
+  auto AddScope = [&](std::vector<bool> &Set, uint64_t Offset) {
+    if (auto It = ScopeLocals.find(Offset); It != ScopeLocals.end()) {
+      for (auto I : It->second) {
+        Set[I] = true;
+      }
+    }
+  };
+
+  for (const auto &Exit : ScopeExits) {
+    auto *BB = llvm::cast_or_null<llvm::BasicBlock>(Exit.Block);
+    if (!BB) {
+      continue;
+    }
+    llvm::Instruction *At = nullptr;
+    if (Exit.HasLast) {
+      if (auto *Last = llvm::cast_or_null<llvm::Instruction>(Exit.Last);
+          Last && Last->getParent() == BB) {
+        At = Last->getNextNode();
+      }
+    } else if (auto It = BB->getFirstInsertionPt(); It != BB->end()) {
+      At = &*It;
+    }
+    if (!At || llvm::isa<llvm::PHINode>(At) || At->isEHPad()) {
+      continue;
+    }
+    auto &Set = Want(At);
+    for (auto Offset : Exit.Offsets) {
+      AddScope(Set, Offset);
+    }
+  }
+  for (auto &BB : Fn) {
+    auto *Ret = llvm::dyn_cast_or_null<llvm::ReturnInst>(BB.getTerminator());
+    if (!Ret) {
+      continue;
+    }
+    auto &Set = Want(Ret);
+    for (size_t I = 0; I < Locals.size(); ++I) {
+      if (FunctionScope[I]) {
+        Set[I] = true;
+      }
+    }
+    const auto *Loc = Ret->getDebugLoc().get();
+    for (const llvm::DIScope *Scope = Loc ? Loc->getInlinedAtScope() : nullptr;
+         Scope && Scope != SP; Scope = Scope->getScope()) {
+      if (auto It = ScopeOffsets.find(Scope); It != ScopeOffsets.end()) {
+        AddScope(Set, It->second);
+      }
+    }
+  }
+
+#if LLVM_VERSION_MAJOR < 20
+  const llvm::Triple TT(Fn.getParent()->getTargetTriple());
+#else
+  llvm::Function *FakeUse = nullptr;
+#endif
+  for (const auto &[At, Set] : Points) {
+    llvm::IRBuilder<> B(At);
+    B.SetCurrentDebugLocation(llvm::DebugLoc());
+    for (size_t I = 0; I < Locals.size(); ++I) {
+      auto *Slot = llvm::dyn_cast<llvm::AllocaInst>(llvm::unwrap(Locals[I]));
+      if (!Set[I] || !Slot) {
+        continue;
+      }
+      auto *Value = B.CreateLoad(Slot->getAllocatedType(), Slot, "fake.use");
+#if LLVM_VERSION_MAJOR < 20
+      emitAsmFakeUse(B, TT, Value);
+#else
+      if (!FakeUse) {
+        FakeUse = llvm::Intrinsic::getOrInsertDeclaration(
+            Fn.getParent(), llvm::Intrinsic::fake_use);
+      }
+      auto *Call = B.CreateCall(FakeUse, {Value});
+      Call->setDoesNotThrow();
+      Call->setTailCallKind(llvm::CallInst::TCK_NoTail);
+#endif
+    }
+  }
+}
+
+void FunctionDebugInfoImpl::declareVariables(const Slots &Ctx, DWARFDie Node,
+                                             llvm::DIScope *Scope,
+                                             unsigned &ArgNo,
+                                             uint32_t Depth) noexcept {
+  auto &DB = *S.DB;
+  for (auto C : Node.children()) {
+    const auto Tag = C.getTag();
+    if (Tag == dwarf::DW_TAG_lexical_block) {
+      if (Depth < MaxDepth) {
+        declareVariables(Ctx, C, Parent.lexicalBlock(S, Scope, C), ArgNo,
+                         Depth + 1);
+      }
+      continue;
+    }
+    if (Tag != dwarf::DW_TAG_formal_parameter &&
+        Tag != dwarf::DW_TAG_variable) {
+      continue;
+    }
+    const bool IsParam = Tag == dwarf::DW_TAG_formal_parameter;
+    if (IsParam) {
+      ++ArgNo;
+    }
+    const auto L = locationOf(C);
+    if (!L) {
+      continue;
+    }
+    if (L->K == WasmLocation::Kind::Address) {
+      Parent.addGlobal(S, Scope, C, L->Index);
+      continue;
+    }
+    auto *Ty = Parent.variableType(S, C);
+    const char *Name = C.getName(llvm::DINameKind::ShortName);
+    const auto Line = static_cast<unsigned>(C.getDeclLine());
+    llvm::DILocalVariable *Var =
+        IsParam ? DB.createParameterVariable(Scope, Name ? Name : "", ArgNo,
+                                             SP->getFile(), Line, Ty, true)
+                : DB.createAutoVariable(Scope, Name ? Name : "", SP->getFile(),
+                                        Line, Ty, true);
+    auto *VarLoc = llvm::DILocation::get(Fn.getContext(), Line, 0, Scope);
+    switch (L->K) {
+    case WasmLocation::Kind::Local:
+      if (L->Index < Ctx.Locals.size()) {
+        DB.insertDeclare(llvm::unwrap(Ctx.Locals[L->Index]), Var,
+                         DB.createExpression(), VarLoc, Ctx.Where);
+        Ctx.Declared.push_back(
+            {Node.getOffset(), Scope, static_cast<size_t>(L->Index)});
+      }
+      break;
+    case WasmLocation::Kind::FrameBaseOffset:
+      if (Ctx.FrameBaseSlot) {
+        llvm::SmallVector<uint64_t, 4> Ops = {dwarf::DW_OP_deref};
+        if (L->Offset >= 0) {
+          Ops.append(
+              {dwarf::DW_OP_plus_uconst, static_cast<uint64_t>(L->Offset)});
+        } else {
+          Ops.append({dwarf::DW_OP_constu,
+                      UINT64_C(0) - static_cast<uint64_t>(L->Offset),
+                      dwarf::DW_OP_minus});
+        }
+        DB.insertDeclare(Ctx.FrameBaseSlot, Var, DB.createExpression(Ops),
+                         VarLoc, Ctx.Where);
+      }
+      break;
+    case WasmLocation::Kind::Global:
+      if (Ctx.ModCtxArg) {
+        auto *Expr = DB.createExpression(llvm::SmallVector<uint64_t, 6>{
+            dwarf::DW_OP_plus_uconst, Parent.globalsOffset(),
+            dwarf::DW_OP_deref, dwarf::DW_OP_plus_uconst, L->Index * 8,
+            dwarf::DW_OP_deref});
+#if LLVM_VERSION_MAJOR < 24
+        DB.insertDbgValueIntrinsic(Ctx.ModCtxArg, Var, Expr, VarLoc, Ctx.Where);
+#else
+        DB.insertDbgValue(Ctx.ModCtxArg, Var, Expr, VarLoc, Ctx.Where);
+#endif
+      }
+      break;
+    default:
+      break;
+    }
+  }
 }
 
 } // namespace
@@ -639,8 +1287,12 @@ std::unique_ptr<ModuleDebugInfo> ModuleDebugInfo::create(const AST::Module &Mod,
     spdlog::info("debug info: module has no DWARF sections"sv);
     return nullptr;
   }
+  bool HasMemory = !Mod.getMemorySection().getContent().empty();
+  for (const auto &Desc : Mod.getImportSection().getContent()) {
+    HasMemory |= Desc.getExternalType() == ExternalType::Memory;
+  }
   return std::make_unique<ModuleDebugInfoImpl>(*llvm::unwrap(M),
-                                               std::move(Reader), P);
+                                               std::move(Reader), P, HasMemory);
 }
 
 } // namespace WasmEdge::LLVM::DebugInfo

@@ -5,9 +5,11 @@
 
 #include "ast/module.h"
 
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/StringMap.h>
 #include <llvm/DebugInfo/DWARF/DWARFContext.h>
 #include <llvm/DebugInfo/DWARF/DWARFDie.h>
+#include <llvm/DebugInfo/DWARF/DWARFUnit.h>
 #include <llvm/Support/MemoryBuffer.h>
 
 #include <cstdint>
@@ -17,6 +19,16 @@
 #include <vector>
 
 namespace WasmEdge::LLVM::DebugInfo {
+
+struct WasmLocation {
+  enum class Kind : uint8_t { None, Local, Global, FrameBaseOffset, Address };
+  Kind K = Kind::None;
+  uint64_t Index = 0;
+  int64_t Offset = 0;
+};
+
+WasmLocation decodeLocation(llvm::ArrayRef<uint8_t> Bytes,
+                            llvm::DWARFUnit *U) noexcept;
 
 class DwarfReader {
 public:

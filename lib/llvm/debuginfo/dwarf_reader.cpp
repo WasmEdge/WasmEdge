@@ -6,6 +6,12 @@
 #include <llvm/BinaryFormat/Dwarf.h>
 #include <llvm/Config/llvm-config.h>
 #include <llvm/DebugInfo/DWARF/DWARFCompileUnit.h>
+#if LLVM_VERSION_MAJOR < 21
+#include <llvm/DebugInfo/DWARF/DWARFExpression.h>
+#else
+#include <llvm/DebugInfo/DWARF/LowLevel/DWARFExpression.h>
+#endif
+#include <llvm/Support/DataExtractor.h>
 #include <llvm/Support/Error.h>
 
 #include <fmt/format.h>
@@ -33,7 +39,171 @@ bool readULEB(Span<const Byte> &Data, uint64_t &Value) noexcept {
   return false;
 }
 
+#if LLVM_VERSION_MAJOR < 10
+bool readSLEB(Span<const Byte> &Data, int64_t &Value) noexcept {
+  uint64_t Result = 0;
+  for (uint32_t Shift = 0; Shift < 64; Shift += 7) {
+    if (Data.empty()) {
+      return false;
+    }
+    const auto B = static_cast<uint8_t>(Data[0]);
+    Data = Data.subspan(1);
+    Result |= static_cast<uint64_t>(B & 0x7FU) << Shift;
+    if ((B & 0x80U) == 0) {
+      if (Shift + 7 < 64 && (B & 0x40U)) {
+        Result |= ~UINT64_C(0) << (Shift + 7);
+      }
+      Value = static_cast<int64_t>(Result);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool readU32(Span<const Byte> &Data, uint64_t &Value) noexcept {
+  if (Data.size() < 4) {
+    return false;
+  }
+  Value = 0;
+  for (uint32_t I = 0; I < 4; ++I) {
+    Value |= static_cast<uint64_t>(Data[I]) << (I * 8);
+  }
+  Data = Data.subspan(4);
+  return true;
+}
+#endif
+
 } // namespace
+
+#if LLVM_VERSION_MAJOR < 10
+WasmLocation decodeLocation(llvm::ArrayRef<uint8_t> Bytes,
+                            llvm::DWARFUnit *U) noexcept {
+  namespace dwarf = llvm::dwarf;
+  constexpr uint8_t WasmLocationOp = 0xED;
+  Span<const Byte> Data(Bytes.data(), Bytes.size());
+  WasmLocation L;
+  while (!Data.empty()) {
+    const auto Op = static_cast<uint8_t>(Data[0]);
+    Data = Data.subspan(1);
+    uint64_t Kind = 0;
+    uint64_t Value = 0;
+    int64_t Offset = 0;
+    switch (Op) {
+    case WasmLocationOp:
+      if (L.K != WasmLocation::Kind::None || !readULEB(Data, Kind)) {
+        return {};
+      }
+      if (Kind == 3 ? !readU32(Data, Value) : !readULEB(Data, Value)) {
+        return {};
+      }
+      if (Kind == 0) {
+        L = {WasmLocation::Kind::Local, Value, 0};
+      } else if (Kind == 1 || Kind == 3) {
+        L = {WasmLocation::Kind::Global, Value, 0};
+      } else {
+        return {};
+      }
+      break;
+    case dwarf::DW_OP_fbreg:
+      if (!readSLEB(Data, Offset)) {
+        return {};
+      }
+      L = {WasmLocation::Kind::FrameBaseOffset, 0, Offset};
+      break;
+    case dwarf::DW_OP_addr:
+      if (!readU32(Data, Value)) {
+        return {};
+      }
+      L = {WasmLocation::Kind::Address, Value, 0};
+      break;
+    case dwarf::DW_OP_addrx:
+      if (!U || !readULEB(Data, Value)) {
+        return {};
+      }
+      if (auto A = U->getAddrOffsetSectionItem(static_cast<uint32_t>(Value))) {
+        L = {WasmLocation::Kind::Address, A->Address, 0};
+      } else {
+        return {};
+      }
+      break;
+    case dwarf::DW_OP_stack_value:
+      if (L.K == WasmLocation::Kind::FrameBaseOffset ||
+          L.K == WasmLocation::Kind::Address) {
+        return {};
+      }
+      break;
+    default:
+      return {};
+    }
+  }
+  return L;
+}
+#else
+WasmLocation decodeLocation(llvm::ArrayRef<uint8_t> Bytes,
+                            llvm::DWARFUnit *U) noexcept {
+  namespace dwarf = llvm::dwarf;
+#if LLVM_VERSION_MAJOR < 23
+  llvm::DataExtractor Data(
+      llvm::StringRef(reinterpret_cast<const char *>(Bytes.data()),
+                      Bytes.size()),
+      true, 4);
+#else
+  llvm::DataExtractor Data(Bytes, true);
+#endif
+#if LLVM_VERSION_MAJOR < 11
+  llvm::DWARFExpression Expr(Data, 4, 4);
+#else
+  llvm::DWARFExpression Expr(Data, 4);
+#endif
+  WasmLocation L;
+  for (auto &Op : Expr) {
+    if (Op.isError()) {
+      return {};
+    }
+    switch (Op.getCode()) {
+    case dwarf::DW_OP_WASM_location:
+      if (L.K != WasmLocation::Kind::None) {
+        return {};
+      }
+      if (Op.getRawOperand(0) == 0) {
+        L = {WasmLocation::Kind::Local, Op.getRawOperand(1), 0};
+      } else if (Op.getRawOperand(0) == 1 || Op.getRawOperand(0) == 3) {
+        L = {WasmLocation::Kind::Global, Op.getRawOperand(1), 0};
+      } else {
+        return {};
+      }
+      break;
+    case dwarf::DW_OP_fbreg:
+      L = {WasmLocation::Kind::FrameBaseOffset, 0,
+           static_cast<int64_t>(Op.getRawOperand(0))};
+      break;
+    case dwarf::DW_OP_addr:
+      L = {WasmLocation::Kind::Address, Op.getRawOperand(0), 0};
+      break;
+    case dwarf::DW_OP_addrx:
+      if (!U) {
+        return {};
+      }
+      if (auto A = U->getAddrOffsetSectionItem(
+              static_cast<uint32_t>(Op.getRawOperand(0)))) {
+        L = {WasmLocation::Kind::Address, A->Address, 0};
+      } else {
+        return {};
+      }
+      break;
+    case dwarf::DW_OP_stack_value:
+      if (L.K == WasmLocation::Kind::FrameBaseOffset ||
+          L.K == WasmLocation::Kind::Address) {
+        return {};
+      }
+      break;
+    default:
+      return {};
+    }
+  }
+  return L;
+}
+#endif
 
 std::unique_ptr<DwarfReader>
 DwarfReader::create(const AST::Module &Mod) noexcept {

@@ -14,9 +14,10 @@ OUT=$(mktemp -d)
 trap 'rm -rf "$OUT"' EXIT
 FLAGS=(--target=wasm32 -nostdlib -fdebug-prefix-map="$PWD"=/wasmedge/debuginfo
   -Wl,--no-entry -Wl,--export-dynamic)
-"$CLANG" "${FLAGS[@]}" -g -O0 dwarf_basic.c \
+"$CLANG" --target=wasm32 -O0 -c dwarf_plain.c -o "$OUT/dwarf_plain.o"
+"$CLANG" "${FLAGS[@]}" -g -O0 dwarf_basic.c "$OUT/dwarf_plain.o" \
   -o "$OUT/dwarf_basic_O0.wasm"
-"$CLANG" "${FLAGS[@]}" -g -O2 dwarf_basic.c \
+"$CLANG" "${FLAGS[@]}" -g -O2 dwarf_basic.c "$OUT/dwarf_plain.o" \
   -o "$OUT/dwarf_basic_O2.wasm"
 "$CLANG" "${FLAGS[@]}" -O0 dwarf_basic.c -o "$OUT/dwarf_basic_nodebug.wasm"
 "$CLANG" "${FLAGS[@]}" -g -O1 dwarf_nomem.c -o "$OUT/dwarf_nomem_O1_mem.wasm"

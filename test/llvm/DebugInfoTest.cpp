@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+#include "data.h"
 #include "debuginfo/debug_info.h"
 #include "debuginfo/dwarf_reader.h"
 
@@ -9,6 +10,7 @@
 #include "executor/executor.h"
 #include "loader/loader.h"
 #include "validator/validator.h"
+#include "vm/vm.h"
 #include "llvm/codegen.h"
 #include "llvm/compiler.h"
 
@@ -18,6 +20,14 @@
 #include <llvm/Config/llvm-config.h>
 #include <llvm/DebugInfo/DWARF/DWARFContext.h>
 #include <llvm/IR/DebugInfoMetadata.h>
+#if LLVM_VERSION_MAJOR < 19
+#else
+#include <llvm/IR/DebugProgramInstruction.h>
+#endif
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/InlineAsm.h>
+#include <llvm/IR/InstIterator.h>
+#include <llvm/IR/IntrinsicInst.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
@@ -32,6 +42,8 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -176,6 +188,27 @@ TEST(DwarfReader, FallbackFunctionName) {
   EXPECT_EQ(R->getFunctionName(100000U), "func[100000]"s);
 }
 
+TEST(DwarfReader, StackValueDropsMemoryLocations) {
+  using LLVM::DebugInfo::decodeLocation;
+  using Kind = LLVM::DebugInfo::WasmLocation::Kind;
+  const uint8_t FrameBase[] = {0x91, 0x0c};
+  const uint8_t FrameBaseValue[] = {0x91, 0x0c, 0x9f};
+  const uint8_t Addr[] = {0x03, 0x10, 0x00, 0x00, 0x00};
+  const uint8_t AddrValue[] = {0x03, 0x10, 0x00, 0x00, 0x00, 0x9f};
+  const uint8_t LocalValue[] = {0xed, 0x00, 0x02, 0x9f};
+  const auto FB = decodeLocation(FrameBase, nullptr);
+  EXPECT_EQ(FB.K, Kind::FrameBaseOffset);
+  EXPECT_EQ(FB.Offset, 12);
+  EXPECT_EQ(decodeLocation(FrameBaseValue, nullptr).K, Kind::None);
+  const auto A = decodeLocation(Addr, nullptr);
+  EXPECT_EQ(A.K, Kind::Address);
+  EXPECT_EQ(A.Index, 16U);
+  EXPECT_EQ(decodeLocation(AddrValue, nullptr).K, Kind::None);
+  const auto L = decodeLocation(LocalValue, nullptr);
+  EXPECT_EQ(L.K, Kind::Local);
+  EXPECT_EQ(L.Index, 2U);
+}
+
 llvm::DWARFDie findType(llvm::DWARFContext &Ctx, llvm::dwarf::Tag Tag,
                         std::string_view Name) {
   for (const auto &CU : Ctx.compile_units()) {
@@ -227,7 +260,9 @@ TEST(DebugInfoTypes, RecursiveStructUsesWasmPointer) {
   EXPECT_EQ(Ptr->getSizeInBits(), 32U);
   auto *Pointee = llvm::cast<llvm::DIDerivedType>(Ptr->getElements()[1]);
   auto *Arr = llvm::cast<llvm::DICompositeType>(Pointee->getBaseType());
-  EXPECT_EQ(Arr->getBaseType(), T);
+  auto *Elem = llvm::cast<llvm::DIDerivedType>(Arr->getBaseType());
+  EXPECT_EQ(Elem->getTag(), llvm::dwarf::DW_TAG_pointer_type);
+  EXPECT_EQ(Elem->getBaseType(), T);
   F.DI->finalize();
   EXPECT_FALSE(llvm::verifyModule(*F.M, &llvm::errs()));
 }
@@ -247,6 +282,27 @@ TEST(DebugInfoTypes, RustEnumHasVariantPart) {
     }
   }
   EXPECT_TRUE(HasVariantPart);
+  F.DI->finalize();
+  EXPECT_FALSE(llvm::verifyModule(*F.M, &llvm::errs()));
+}
+
+TEST(DebugInfoTypes, NamespacedStaticGetsGlobalVariable) {
+  TypeFixture F;
+  ASSERT_TRUE(F.load("dwarf_enum_O0.wasm"sv));
+  auto *MB = F.M->getGlobalVariable("__wasmedge_debug_membase");
+  ASSERT_NE(MB, nullptr);
+  llvm::SmallVector<llvm::DIGlobalVariableExpression *, 4> GVEs;
+  MB->getDebugInfo(GVEs);
+  const llvm::DIGlobalVariable *Calls = nullptr;
+  for (auto *GVE : GVEs) {
+    if (GVE->getVariable()->getName() == "CALLS") {
+      Calls = GVE->getVariable();
+    }
+  }
+  ASSERT_NE(Calls, nullptr);
+  auto *NS = llvm::dyn_cast_or_null<llvm::DINamespace>(Calls->getScope());
+  ASSERT_NE(NS, nullptr);
+  EXPECT_EQ(NS->getName(), "dwarf_enum");
   F.DI->finalize();
   EXPECT_FALSE(llvm::verifyModule(*F.M, &llvm::errs()));
 }
@@ -418,6 +474,33 @@ TEST(DebugInfoAOT, LinesAndSubprograms) {
   }
 }
 
+TEST(DebugInfoAOT, FunctionWithoutDwarfGetsArtificialSubprogram) {
+  for (auto Level : {CompilerConfigure::OptimizationLevel::O0,
+                     CompilerConfigure::OptimizationLevel::O2}) {
+    for (auto Name : {"dwarf_basic_O0.wasm"sv, "dwarf_basic_O2.wasm"sv}) {
+      auto SO = compileToSO(Configure{}, Name, true, Level);
+      ASSERT_FALSE(SO.empty());
+      NativeDwarf D;
+      ASSERT_TRUE(D.open(SO));
+      EXPECT_TRUE(D.hasSubprogram("run"sv)) << Name;
+      bool Artificial = false;
+      for (const auto &CU : D.Ctx->compile_units()) {
+        for (const auto &Entry : CU->dies()) {
+          llvm::DWARFDie Die(CU.get(), &Entry);
+          if (Die.getTag() == llvm::dwarf::DW_TAG_subprogram &&
+              Die.getName(llvm::DINameKind::ShortName) &&
+              "plain"sv == Die.getName(llvm::DINameKind::ShortName)) {
+            Artificial =
+                static_cast<bool>(Die.find(llvm::dwarf::DW_AT_artificial));
+          }
+        }
+      }
+      EXPECT_TRUE(Artificial) << Name;
+      removeOutput(SO);
+    }
+  }
+}
+
 TEST(DebugInfoAOT, InlinedTwiceAppearsAsInlinedSubroutine) {
   auto SO = compileToSO(Configure{}, "dwarf_basic_O0.wasm"sv, true,
                         CompilerConfigure::OptimizationLevel::O0);
@@ -481,6 +564,379 @@ TEST(DebugInfoAOT, CorruptDwarfStillCompilesAndRuns) {
   }
   LLVM::Compiler Compiler(Conf);
   EXPECT_TRUE(Compiler.compile(*Mod));
+}
+
+TEST(DebugInfoAOT, SelfReferentialTypeStillCompiles) {
+  Configure Conf;
+  Conf.getCompilerConfigure().setDebugInfo(true);
+  auto Mod = loadFixture(Conf, "dwarf_basic_O0.wasm"sv);
+  ASSERT_NE(Mod, nullptr);
+  uint64_t ArrayOffset = 0;
+  uint64_t AttrOffset = 0;
+  uint32_t SelfRef = 0;
+  {
+    auto R = LLVM::DebugInfo::DwarfReader::create(*Mod);
+    ASSERT_NE(R, nullptr);
+    for (const auto &CU : R->getContext().compile_units()) {
+      for (const auto &Entry : CU->dies()) {
+        llvm::DWARFDie D(CU.get(), &Entry);
+        if (AttrOffset != 0 || D.getTag() != llvm::dwarf::DW_TAG_array_type) {
+          continue;
+        }
+        for (const auto &A : D.attributes()) {
+          if (A.Attr == llvm::dwarf::DW_AT_type &&
+              A.Value.getForm() == llvm::dwarf::DW_FORM_ref4) {
+            ArrayOffset = D.getOffset();
+            AttrOffset = A.Offset;
+            SelfRef = static_cast<uint32_t>(D.getOffset() - CU->getOffset());
+          }
+        }
+      }
+    }
+  }
+  ASSERT_NE(AttrOffset, 0U);
+  for (auto &Custom : Mod->getCustomSections()) {
+    if (Custom.getName() == ".debug_info"sv) {
+      auto &Bytes = Custom.getContent();
+      ASSERT_LE(AttrOffset + 4, Bytes.size());
+      for (uint32_t I = 0; I < 4; ++I) {
+        Bytes[AttrOffset + I] = static_cast<Byte>(SelfRef >> (I * 8));
+      }
+    }
+  }
+  llvm::LLVMContext Ctx;
+  llvm::Module M("t", Ctx);
+  auto DI = LLVM::DebugInfo::ModuleDebugInfo::create(
+      *Mod, llvm::wrap(&M), LLVM::DebugInfo::ModuleDebugInfo::Part::All);
+  ASSERT_NE(DI, nullptr);
+  EXPECT_NE(DI->translateType(ArrayOffset), nullptr);
+  DI->finalize();
+  EXPECT_FALSE(llvm::verifyModule(M, &llvm::errs()));
+  LLVM::Compiler Compiler(Conf);
+  EXPECT_TRUE(Compiler.compile(*Mod));
+}
+
+llvm::DWARFDie findVariable(llvm::DWARFContext &Ctx, std::string_view Fn,
+                            std::string_view Var) {
+  for (const auto &CU : Ctx.compile_units()) {
+    for (const auto &Entry : CU->dies()) {
+      llvm::DWARFDie D(CU.get(), &Entry);
+      const auto Tag = D.getTag();
+      if ((Tag != llvm::dwarf::DW_TAG_variable &&
+           Tag != llvm::dwarf::DW_TAG_formal_parameter) ||
+          !D.getName(llvm::DINameKind::ShortName) ||
+          Var != D.getName(llvm::DINameKind::ShortName)) {
+        continue;
+      }
+      auto P = D.getParent();
+      while (P && P.getTag() == llvm::dwarf::DW_TAG_lexical_block) {
+        P = P.getParent();
+      }
+      const bool InFn = P && P.getName(llvm::DINameKind::ShortName) &&
+                        Fn == P.getName(llvm::DINameKind::ShortName);
+      const bool Global =
+          Fn.empty() && P && P.getTag() == llvm::dwarf::DW_TAG_compile_unit;
+      if (InFn || Global) {
+        return D;
+      }
+    }
+  }
+  return {};
+}
+
+const llvm::Value *fakeUseOperand(const llvm::Instruction &I) {
+  const auto *Call = llvm::dyn_cast<llvm::CallInst>(&I);
+  if (!Call || Call->arg_size() == 0) {
+    return nullptr;
+  }
+#if LLVM_VERSION_MAJOR < 20
+#else
+  if (Call->getIntrinsicID() == llvm::Intrinsic::fake_use) {
+    return Call->getArgOperand(0);
+  }
+#endif
+  if (const auto *IA =
+          llvm::dyn_cast<llvm::InlineAsm>(Call->getCalledOperand());
+      IA && IA->getAsmString().empty()) {
+    return Call->getArgOperand(0);
+  }
+  return nullptr;
+}
+
+TEST(DebugInfoAOT, OgKeepsVariableLocations) {
+  auto SO = compileToSO(Configure{}, "dwarf_basic_O0.wasm"sv, true,
+                        CompilerConfigure::OptimizationLevel::Og);
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  for (auto [Fn, Var] :
+       {std::pair{"sumList"sv, "Head"sv}, std::pair{"sumList"sv, "Total"sv},
+        std::pair{"sumList"sv, "N"sv},
+        std::pair{"sumList"sv, "__wasm_memory"sv},
+        std::pair{""sv, "Counter"sv}}) {
+    auto V = findVariable(*D.Ctx, Fn, Var);
+    ASSERT_TRUE(V) << Fn << "::" << Var;
+    EXPECT_TRUE(V.find(llvm::dwarf::DW_AT_location)) << Fn << "::" << Var;
+  }
+
+  const auto Line = markerLine("BREAK_SUMLIST"sv);
+  std::vector<uint64_t> Addresses;
+  for (const auto &CU : D.Ctx->compile_units()) {
+    if (auto *LT = D.Ctx->getLineTableForUnit(CU.get())) {
+      for (const auto &Row : LT->Rows) {
+        if (Row.Line == Line && !Row.EndSequence) {
+          Addresses.push_back(Row.Address.Address);
+        }
+      }
+    }
+  }
+  ASSERT_FALSE(Addresses.empty());
+  auto Total = findVariable(*D.Ctx, "sumList"sv, "Total"sv);
+  ASSERT_TRUE(Total);
+  bool Covered = false;
+#if LLVM_VERSION_MAJOR < 10
+  auto Attr = Total.find(llvm::dwarf::DW_AT_location);
+  ASSERT_TRUE(Attr);
+  if (Attr->getAsBlock()) {
+    Covered = true;
+  } else if (auto Offset = Attr->getAsSectionOffset()) {
+    const auto *List = D.Ctx->getDebugLoc()->getLocationListAtOffset(*Offset);
+    ASSERT_NE(List, nullptr);
+    const auto Base = Total.getDwarfUnit()->getBaseAddress();
+    const uint64_t BaseAddress = Base ? Base->Address : 0;
+    for (const auto &E : List->Entries) {
+      for (const auto Address : Addresses) {
+        Covered |=
+            BaseAddress + E.Begin <= Address && Address < BaseAddress + E.End;
+      }
+    }
+  }
+#else
+  auto Locations = Total.getLocations(llvm::dwarf::DW_AT_location);
+  ASSERT_TRUE(static_cast<bool>(Locations));
+  for (const auto &Loc : *Locations) {
+    for (const auto Address : Addresses) {
+      Covered |= !Loc.Range ||
+                 (Loc.Range->LowPC <= Address && Address < Loc.Range->HighPC);
+    }
+  }
+#endif
+  EXPECT_TRUE(Covered);
+  removeOutput(SO);
+}
+
+TEST(DebugInfoAOT, OgKeepsBlockVariablesUntilScopeEnd) {
+#if LLVM_VERSION_MAJOR < 19
+  GTEST_SKIP() << "debug records need LLVM 19 or newer";
+#else
+  Configure Conf;
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Native);
+  Conf.getCompilerConfigure().setOptimizationLevel(
+      CompilerConfigure::OptimizationLevel::Og);
+  Conf.getCompilerConfigure().setDebugInfo(true);
+  auto Mod = loadFixture(Conf, "dwarf_scope_Og.wasm"sv);
+  ASSERT_NE(Mod, nullptr);
+  LLVM::Compiler Compiler(Conf);
+  auto Data = Compiler.compile(*Mod);
+  ASSERT_TRUE(Data);
+  auto &M = *llvm::unwrap(Data->extract().LLModule.unwrap());
+  EXPECT_FALSE(llvm::verifyModule(M, &llvm::errs()));
+  auto It = std::find_if(M.begin(), M.end(), [](const llvm::Function &F) {
+    return F.getSubprogram() && F.getSubprogram()->getName() == "scoped";
+  });
+  ASSERT_NE(It, M.end());
+  std::vector<const llvm::Value *> Steps;
+  for (const auto &I : llvm::instructions(*It)) {
+    for (const llvm::DbgVariableRecord &DVR :
+         llvm::filterDbgVars(I.getDbgRecordRange())) {
+      if (DVR.getVariable()->getName() == "Step") {
+        for (const auto *V : DVR.location_ops()) {
+          Steps.push_back(V);
+        }
+      }
+    }
+  }
+  auto Returns = [](const llvm::BasicBlock &BB) {
+    const auto *Term = BB.getTerminator();
+    if (llvm::isa<llvm::ReturnInst>(Term)) {
+      return true;
+    }
+#if LLVM_VERSION_MAJOR < 23
+    const auto *Br = llvm::dyn_cast<llvm::BranchInst>(Term);
+    return Br && Br->isUnconditional() &&
+           llvm::isa<llvm::ReturnInst>(Br->getSuccessor(0)->getTerminator());
+#else
+    const auto *Br = llvm::dyn_cast<llvm::UncondBrInst>(Term);
+    return Br &&
+           llvm::isa<llvm::ReturnInst>(Br->getSuccessor()->getTerminator());
+#endif
+  };
+  bool StepInScope = false;
+  bool ArgAtRet = false;
+  uint32_t MaxUsesAtRet = 0;
+  for (const auto &BB : *It) {
+    const bool AtRet = Returns(BB);
+    uint32_t UsesAtRet = 0;
+    for (const auto &I : BB) {
+      const auto *V = fakeUseOperand(I);
+      if (!V) {
+        continue;
+      }
+      const bool IsStep =
+          std::find(Steps.begin(), Steps.end(), V) != Steps.end();
+      StepInScope |= IsStep && !AtRet;
+      if (AtRet) {
+        ++UsesAtRet;
+        ArgAtRet |= llvm::isa<llvm::Argument>(V);
+      }
+    }
+    MaxUsesAtRet = std::max(MaxUsesAtRet, UsesAtRet);
+  }
+  EXPECT_TRUE(StepInScope);
+  EXPECT_TRUE(ArgAtRet);
+  EXPECT_EQ(MaxUsesAtRet, 1U);
+#endif
+}
+
+TEST(DebugInfoAOT, OgPlacesFakeUsesAtScopeExits) {
+  Configure Conf;
+  auto Mod = loadFixture(Conf, "dwarf_scope_Og.wasm"sv);
+  ASSERT_NE(Mod, nullptr);
+  auto R = LLVM::DebugInfo::DwarfReader::create(*Mod);
+  ASSERT_NE(R, nullptr);
+  auto Step = findVariable(R->getContext(), "scoped"sv, "Step"sv);
+  ASSERT_TRUE(Step);
+  auto Ranges = Step.getParent().getAddressRanges();
+  ASSERT_TRUE(static_cast<bool>(Ranges));
+  ASSERT_EQ(Ranges->size(), 1U);
+  const auto Low = Ranges->front().LowPC;
+  const auto High = Ranges->front().HighPC;
+  const auto &Seg = Mod->getCodeSection().getContent()[1];
+
+  llvm::LLVMContext Ctx;
+  llvm::Module M("t", Ctx);
+  auto DI = LLVM::DebugInfo::ModuleDebugInfo::create(
+      *Mod, llvm::wrap(&M), LLVM::DebugInfo::ModuleDebugInfo::Part::All);
+  ASSERT_NE(DI, nullptr);
+  auto *I32 = llvm::Type::getInt32Ty(Ctx);
+  auto *Fn = llvm::Function::Create(llvm::FunctionType::get(I32, {}, false),
+                                    llvm::Function::ExternalLinkage, "f", M);
+  auto FI = DI->beginFunction(1, 1, llvm::wrap(Fn));
+  ASSERT_NE(FI, nullptr);
+  auto *Entry = llvm::BasicBlock::Create(Ctx, "entry", Fn);
+  llvm::IRBuilder<> B(Entry);
+  std::vector<LLVMValueRef> Locals;
+  for (uint32_t I = 0; I < 5; ++I) {
+    Locals.push_back(llvm::wrap(B.CreateAlloca(I32)));
+  }
+  auto *Mark = B.CreateAlloca(I32);
+  auto *Body = llvm::BasicBlock::Create(Ctx, "body", Fn);
+  B.CreateBr(Body);
+  B.SetInsertPoint(Body);
+  llvm::Instruction *EarlyRet = nullptr;
+  llvm::Instruction *EndMark = nullptr;
+  for (const auto &Instr : Seg.getExpr().getInstrs()) {
+    FI->setLocation(llvm::wrap(&B), Instr.getOffset());
+    const auto Addr = R->toAddress(Instr.getOffset());
+    auto *Store = B.CreateStore(B.getInt32(Instr.getOffset()), Mark, true);
+    if (!EndMark && Addr >= High) {
+      EndMark = Store;
+    }
+    if (!EarlyRet && Low <= Addr && Addr < High) {
+      auto *Early = llvm::BasicBlock::Create(Ctx, "early", Fn);
+      auto *Next = llvm::BasicBlock::Create(Ctx, "next", Fn);
+      B.CreateCondBr(B.CreateLoad(B.getInt1Ty(), Mark), Early, Next);
+      B.SetInsertPoint(Early);
+      EarlyRet = B.CreateRet(B.getInt32(0));
+      B.SetInsertPoint(Next);
+    }
+  }
+  auto *FinalRet = B.CreateRet(B.getInt32(0));
+  ASSERT_NE(EarlyRet, nullptr);
+  ASSERT_NE(EndMark, nullptr);
+  FI->finish(llvm::wrap(Entry), Locals, nullptr, nullptr, nullptr, true);
+  DI->finalize();
+  EXPECT_FALSE(llvm::verifyModule(M, &llvm::errs()));
+
+  std::vector<std::pair<const llvm::Instruction *, LLVMValueRef>> Uses;
+  for (const auto &I : llvm::instructions(*Fn)) {
+    const auto *Op = fakeUseOperand(I);
+    if (!Op) {
+      continue;
+    }
+    EXPECT_FALSE(I.getDebugLoc());
+    const auto *Next = I.getNextNode();
+    while (llvm::isa<llvm::LoadInst>(Next) ||
+           llvm::isa<llvm::IntrinsicInst>(Next) || fakeUseOperand(*Next)) {
+      Next = Next->getNextNode();
+    }
+    const auto *Load = llvm::cast<llvm::LoadInst>(Op);
+    Uses.emplace_back(Next, llvm::wrap(Load->getPointerOperand()));
+  }
+  auto Has = [&](const llvm::Instruction *At, uint32_t Local) {
+    return std::count(Uses.begin(), Uses.end(), std::pair{At, Locals[Local]});
+  };
+  EXPECT_EQ(Has(EndMark, 2), 1);
+  EXPECT_EQ(Has(EndMark, 0), 0);
+  EXPECT_EQ(Has(EarlyRet, 2), 1);
+  EXPECT_EQ(Has(EarlyRet, 0), 1);
+  EXPECT_EQ(Has(FinalRet, 0), 1);
+  EXPECT_EQ(Has(FinalRet, 2), 0);
+  EXPECT_EQ(Uses.size(), 4U);
+}
+
+TEST(DebugInfoAOT, VariablesHaveLocations) {
+  auto SO = compileToSO(Configure{}, "dwarf_basic_O0.wasm"sv, true,
+                        CompilerConfigure::OptimizationLevel::O0);
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  for (auto [Fn, Var] :
+       {std::pair{"sumList"sv, "Head"sv}, std::pair{"sumList"sv, "Total"sv},
+        std::pair{"sumList"sv, "N"sv},
+        std::pair{"sumList"sv, "__wasm_memory"sv}, std::pair{"fact"sv, "N"sv},
+        std::pair{""sv, "Counter"sv}, std::pair{""sv, "Nodes"sv}}) {
+    auto V = findVariable(*D.Ctx, Fn, Var);
+    ASSERT_TRUE(V) << Fn << "::" << Var;
+    EXPECT_TRUE(V.find(llvm::dwarf::DW_AT_location)) << Fn << "::" << Var;
+  }
+  removeOutput(SO);
+}
+
+TEST(DebugInfoAOT, NoMemoryModuleCompiles) {
+  auto SO = compileToSO(Configure{}, "dwarf_nomem_O0.wasm"sv, true,
+                        CompilerConfigure::OptimizationLevel::O0);
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  EXPECT_TRUE(D.hasSubprogram("add3"sv));
+  removeOutput(SO);
+}
+
+TEST(DebugInfoRun, FixtureMatrix) {
+  using OL = CompilerConfigure::OptimizationLevel;
+  for (auto [Name, Fn, Want] :
+       {std::tuple{"dwarf_basic_O0.wasm"sv, "run"sv, 43U},
+        std::tuple{"dwarf_basic_O2.wasm"sv, "run"sv, 43U},
+        std::tuple{"dwarf_basic_O0.wasm"sv, "plain"sv, 5U},
+        std::tuple{"dwarf_basic_O2.wasm"sv, "plain"sv, 5U},
+        std::tuple{"dwarf_enum_O0.wasm"sv, "pick"sv, 7U}}) {
+    for (auto Level :
+         {OL::O0, OL::O1, OL::O2, OL::O3, OL::Os, OL::Oz, OL::Og}) {
+      Configure Conf;
+      Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+      Conf.getCompilerConfigure().setOptimizationLevel(Level);
+      Conf.getCompilerConfigure().setDebugInfo(true);
+      VM::VM Machine(Conf);
+      ASSERT_TRUE(Machine.loadWasm(readHexFixture(Name)));
+      ASSERT_TRUE(Machine.validate());
+      ASSERT_TRUE(Machine.instantiate());
+      auto R = Machine.execute(Fn);
+      ASSERT_TRUE(R) << Name << " level " << static_cast<int>(Level);
+      EXPECT_EQ((*R)[0].first.get<uint32_t>(), Want);
+    }
+  }
 }
 
 } // namespace

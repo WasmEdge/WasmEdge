@@ -25,6 +25,7 @@ set(WASMEDGE_LLVM_SOURCES
   compiler/vectorInstr.cpp
   codegen.cpp
   data.cpp
+  debuginfo/dwarf_reader.cpp
   jit.cpp
   lazyjit.cpp
   llvm.cpp
@@ -74,10 +75,12 @@ else()
     ${CMAKE_THREAD_LIBS_INIT}
     LINK_COMPONENTS
     core
+    debuginfodwarf
     linker
     lto
     native
     nativecodegen
+    object
     option
     passes
     support

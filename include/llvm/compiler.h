@@ -68,6 +68,7 @@ private:
                                    const AST::CodeSection &CodeSec) noexcept;
   Expect<void> compileFunctionBody(uint32_t LocalFuncIndex) noexcept;
   Expect<void> optimize(Module &LLModule, TargetMachine &TM) noexcept;
+  bool shouldEmitDebugInfo() const noexcept;
 
   std::mutex Mutex;
   CompileContext *Context;

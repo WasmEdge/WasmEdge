@@ -9,31 +9,63 @@
 #include "debuginfo/type_translator.h"
 
 #include "common/configure.h"
+#include "common/defines.h"
 #include "executor/executor.h"
 #include "loader/loader.h"
 #include "validator/validator.h"
+#include "vm/vm.h"
+#include "llvm/codegen.h"
+#include "llvm/compiler.h"
 
+#include <fmt/format.h>
 #include <gtest/gtest.h>
 #include <llvm-c/Core.h>
+#include <llvm/Config/llvm-config.h>
+#include <llvm/DebugInfo/DWARF/DWARFContext.h>
 #include <llvm/IR/DebugInfoMetadata.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/Object/ObjectFile.h>
+#if WASMEDGE_OS_MACOS
+#include <llvm/Object/MachO.h>
+#endif
 #include <llvm/Support/raw_ostream.h>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <optional>
+#include <random>
+#include <set>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 namespace WasmEdge::DebugInfoTest {
 
 using namespace std::literals;
+
+/// True when native code is big-endian. The compiler then emits only
+/// functions and lines, because wasm memory is little-endian.
+inline bool nativeGetsOnlyLines() noexcept {
+  const uint16_t One = 1;
+  uint8_t First = 0;
+  std::memcpy(&First, &One, 1);
+  return First == 0;
+}
+
+#define SKIP_IF_NATIVE_GETS_ONLY_LINES()                                       \
+  if (nativeGetsOnlyLines()) {                                                 \
+    GTEST_SKIP() << "a big-endian target gets only functions and lines";       \
+  }
 
 inline std::filesystem::path fixture(std::string_view Name) {
   return std::filesystem::u8path(WASMEDGE_DEBUGINFO_FIXTURES) /

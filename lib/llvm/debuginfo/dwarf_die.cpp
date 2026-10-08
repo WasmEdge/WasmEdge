@@ -13,11 +13,41 @@
 #include <llvm/IR/DebugInfoMetadata.h>
 #include <llvm/Support/LEB128.h>
 
+#include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <optional>
+#include <set>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace WasmEdge::LLVM::DebugInfo {
+
+std::string lineTableFile(const llvm::DWARFDebugLine::LineTable *LT,
+                          llvm::DWARFUnit *U, uint64_t Index) noexcept {
+  std::string Path;
+  if (!LT || !LT->getFileNameByIndex(
+                 Index, U->getCompilationDir(),
+                 llvm::DILineInfoSpecifier::FileLineInfoKind::AbsoluteFilePath,
+                 Path)) {
+    return {};
+  }
+  return Path;
+}
+
+namespace {
+
+template <typename OptionalIndex>
+std::string unitFile(DWARFDie D, const OptionalIndex &Index) noexcept {
+  if (!Index) {
+    return {};
+  }
+  auto *U = D.getDwarfUnit();
+  return lineTableFile(U->getContext().getLineTableForUnit(U), U, *Index);
+}
+
+} // namespace
 
 std::string declFile(DWARFDie D) noexcept {
 #if LLVM_VERSION_MAJOR < 12
@@ -27,19 +57,15 @@ std::string declFile(DWARFDie D) noexcept {
   if (!Index || !U) {
     return {};
   }
-  const auto *LT = U->getContext().getLineTableForUnit(U);
-  std::string Path;
-  if (!LT || !LT->getFileNameByIndex(
-                 *Index, U->getCompilationDir(),
-                 llvm::DILineInfoSpecifier::FileLineInfoKind::AbsoluteFilePath,
-                 Path)) {
-    return {};
-  }
-  return Path;
+  return lineTableFile(U->getContext().getLineTableForUnit(U), U, *Index);
 #else
   return D.getDeclFile(
       llvm::DILineInfoSpecifier::FileLineInfoKind::AbsoluteFilePath);
 #endif
+}
+
+std::string callFile(DWARFDie D) noexcept {
+  return unitFile(D, dwarf::toUnsigned(D.find(dwarf::DW_AT_call_file)));
 }
 
 unsigned line(DWARFDie D) noexcept {
@@ -73,6 +99,19 @@ DWARFDie ref(DWARFDie D) noexcept {
     }
   }
   return T;
+}
+
+void inlinedChain(llvm::DWARFUnit &U, uint64_t Address,
+                  llvm::SmallVectorImpl<DWARFDie> &Chain) noexcept {
+  for (auto D = U.getSubroutineForAddress(Address); D; D = D.getParent()) {
+    if (D.isSubprogramDIE()) {
+      Chain.push_back(D);
+      return;
+    }
+    if (D.getTag() == dwarf::DW_TAG_inlined_subroutine) {
+      Chain.push_back(D);
+    }
+  }
 }
 
 DWARFDie declarationOf(DWARFDie D) noexcept {
@@ -197,6 +236,42 @@ std::optional<uint64_t> memberOffset(const llvm::DWARFFormValue &V,
     }
   }
   return std::nullopt;
+}
+
+void ScopeIndex::add(DWARFDie Frame, DWARFDie Block, uint32_t Depth,
+                     uint64_t Low, uint64_t High) {
+  if (Low < High) {
+    Ranges[Frame.getOffset()].push_back({Low, High, Depth, Block});
+  }
+}
+
+void ScopeIndex::build() noexcept {
+  Spans.clear();
+  for (const auto &Entry : Ranges) {
+    const auto &List = Entry.second;
+    std::set<std::pair<uint32_t, size_t>> Active;
+    Spans[Entry.first] = sweepIntervals<DWARFDie>(
+        llvm::ArrayRef<Range>(List),
+        [&](size_t I) { Active.emplace(List[I].Depth, I); },
+        [&](size_t I) { Active.erase({List[I].Depth, I}); },
+        [&]() -> std::optional<DWARFDie> {
+          if (Active.empty()) {
+            return std::nullopt;
+          }
+          return List[std::prev(Active.end())->second].Block;
+        });
+  }
+  Ranges = decltype(Ranges)();
+}
+
+DWARFDie ScopeIndex::innermost(DWARFDie Frame, uint64_t Addr) const noexcept {
+  const auto Found = Spans.find(Frame.getOffset());
+  if (Found == Spans.end()) {
+    return Frame;
+  }
+  const auto I =
+      findInterval(llvm::ArrayRef<AddressSpan<DWARFDie>>(Found->second), Addr);
+  return I ? Found->second[*I].Value : Frame;
 }
 
 } // namespace WasmEdge::LLVM::DebugInfo

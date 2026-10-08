@@ -38,6 +38,8 @@ public:
   /// compile unit.
   llvm::DIScope *typeScope(UnitState &S, DWARFDie D) noexcept;
 
+  llvm::DISubroutineType *subroutine(UnitState &S, DWARFDie D) noexcept;
+
 private:
   llvm::DIType *uchar(UnitState &S) noexcept;
 
@@ -66,8 +68,6 @@ private:
   llvm::DIType *enumeration(UnitState &S, DWARFDie D) noexcept;
 
   llvm::DIType *array(UnitState &S, DWARFDie D) noexcept;
-
-  llvm::DISubroutineType *subroutine(UnitState &S, DWARFDie D) noexcept;
 
   llvm::LLVMContext &Ctx;
   std::unordered_map<uint64_t, llvm::DIType *> Types;

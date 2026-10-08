@@ -27,6 +27,7 @@ set(WASMEDGE_LLVM_SOURCES
   data.cpp
   debuginfo/dwarf_die.cpp
   debuginfo/dwarf_reader.cpp
+  debuginfo/function_debug_info.cpp
   debuginfo/module_debug_info.cpp
   debuginfo/type_translator.cpp
   jit.cpp

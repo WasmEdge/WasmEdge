@@ -46,6 +46,9 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
   } else if (Opt.PropOptimizationLevel.value() == "z") {
     Conf.getCompilerConfigure().setOptimizationLevel(
         WasmEdge::CompilerConfigure::OptimizationLevel::Oz);
+  } else if (Opt.PropOptimizationLevel.value() == "g") {
+    Conf.getCompilerConfigure().setOptimizationLevel(
+        WasmEdge::CompilerConfigure::OptimizationLevel::Og);
   } else {
     Conf.getCompilerConfigure().setOptimizationLevel(
         WasmEdge::CompilerConfigure::OptimizationLevel::O2);
@@ -94,6 +97,9 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
     }
     if (Opt.ConfInterruptible.value()) {
       Conf.getCompilerConfigure().setInterruptible(true);
+    }
+    if (Opt.ConfDebugInfo.value()) {
+      Conf.getCompilerConfigure().setDebugInfo(true);
     }
     if (Opt.ConfEnableAllStatistics.value()) {
       Conf.getStatisticsConfigure().setInstructionCounting(true);

@@ -1142,6 +1142,22 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureCompilerIsInterruptible(
   return false;
 }
 
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureCompilerSetDebugInfo(WasmEdge_ConfigureContext *Cxt,
+                                       const bool IsDebugInfo) noexcept {
+  if (Cxt) {
+    Cxt->Conf.getCompilerConfigure().setDebugInfo(IsDebugInfo);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureCompilerIsDebugInfo(
+    const WasmEdge_ConfigureContext *Cxt) noexcept {
+  if (Cxt) {
+    return Cxt->Conf.getCompilerConfigure().isDebugInfo();
+  }
+  return false;
+}
+
 WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureStatisticsSetInstructionCounting(
     WasmEdge_ConfigureContext *Cxt, const bool IsCount) noexcept {
   if (Cxt) {

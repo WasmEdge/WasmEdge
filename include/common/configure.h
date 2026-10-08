@@ -38,7 +38,8 @@ public:
         OFormat(RHS.OFormat.load(std::memory_order_relaxed)),
         DumpIR(RHS.DumpIR.load(std::memory_order_relaxed)),
         GenericBinary(RHS.GenericBinary.load(std::memory_order_relaxed)),
-        Interruptible(RHS.Interruptible.load(std::memory_order_relaxed)) {}
+        Interruptible(RHS.Interruptible.load(std::memory_order_relaxed)),
+        DebugInfo(RHS.DebugInfo.load(std::memory_order_relaxed)) {}
 
   /// AOT compiler optimization level enum class.
   enum class OptimizationLevel : uint8_t {
@@ -55,7 +56,10 @@ public:
     // significant incremental compile time or execution time slowdowns.
     Os,
     // Optimize for small code size as much as possible.
-    Oz
+    Oz,
+    // Optimize like O1. With debug info, also keep the variables available
+    // to a debugger.
+    Og
   };
   void setOptimizationLevel(OptimizationLevel Level) noexcept {
     OptLevel.store(Level, std::memory_order_relaxed);
@@ -102,12 +106,21 @@ public:
     return Interruptible.load(std::memory_order_relaxed);
   }
 
+  void setDebugInfo(bool IsDebugInfo) noexcept {
+    DebugInfo.store(IsDebugInfo, std::memory_order_relaxed);
+  }
+
+  bool isDebugInfo() const noexcept {
+    return DebugInfo.load(std::memory_order_relaxed);
+  }
+
 private:
   std::atomic<OptimizationLevel> OptLevel = OptimizationLevel::O3;
   std::atomic<OutputFormat> OFormat = OutputFormat::Wasm;
   std::atomic<bool> DumpIR = false;
   std::atomic<bool> GenericBinary = false;
   std::atomic<bool> Interruptible = false;
+  std::atomic<bool> DebugInfo = false;
 };
 
 class RuntimeConfigure {

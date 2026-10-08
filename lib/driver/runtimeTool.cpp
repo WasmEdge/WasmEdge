@@ -425,6 +425,15 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     RunModeFromFlag = RunMode::Interpreter;
   }
   Conf.getRuntimeConfigure().setRunMode(RunModeFromFlag);
+  if (Opt.ConfDebugInfo.value()) {
+    if (RunModeFromFlag == RunMode::JIT ||
+        RunModeFromFlag == RunMode::LazyJIT) {
+      Conf.getCompilerConfigure().setDebugInfo(true);
+    } else {
+      spdlog::warn("--debug-info has an effect only with --run-mode=jit or "
+                   "--run-mode=lazyjit."sv);
+    }
+  }
   if (RunModeFromFlag == RunMode::JIT || RunModeFromFlag == RunMode::LazyJIT) {
     Conf.getCompilerConfigure().setOptimizationLevel(
         WasmEdge::CompilerConfigure::OptimizationLevel::O1);

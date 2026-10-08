@@ -25,8 +25,10 @@
 #include <llvm/Support/raw_ostream.h>
 
 #include <map>
+#include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
 
 namespace WasmEdge::LLVM::DebugInfo {
 
@@ -40,6 +42,17 @@ struct UnitState {
   std::unique_ptr<llvm::DIBuilder> DB;
   llvm::DICompileUnit *CU = nullptr;
 };
+
+template <typename T>
+std::pair<unsigned, unsigned> lineColumn(const T &Info) noexcept {
+  return {Info.Line, Info.Column};
+}
+
+template <typename T>
+std::pair<unsigned, unsigned>
+lineColumn(const std::optional<T> &Info) noexcept {
+  return Info ? lineColumn(*Info) : std::pair<unsigned, unsigned>{0, 0};
+}
 
 std::string declFile(DWARFDie D) noexcept {
 #if LLVM_VERSION_MAJOR < 12
@@ -63,10 +76,47 @@ std::string declFile(DWARFDie D) noexcept {
 #endif
 }
 
+class ModuleDebugInfoImpl;
+
+class FunctionDebugInfoImpl final : public FunctionDebugInfo {
+public:
+  FunctionDebugInfoImpl(ModuleDebugInfoImpl &Parent, UnitState &S,
+                        llvm::Function &Fn, llvm::DISubprogram *SP,
+                        DWARFDie Die) noexcept
+      : Parent(Parent), S(S), Fn(Fn), SP(SP), Die(Die) {
+    Fn.setSubprogram(SP);
+  }
+
+  void setPrologueLocation(LLVMBuilderRef B) noexcept override {
+    llvm::unwrap(B)->SetCurrentDebugLocation(
+        llvm::DILocation::get(Fn.getContext(), SP->getLine(), 0, SP));
+  }
+
+  void setArtificialLocation(LLVMBuilderRef B) noexcept override {
+    llvm::unwrap(B)->SetCurrentDebugLocation(
+        llvm::DILocation::get(Fn.getContext(), 0, 0, SP));
+  }
+
+  void setLocation(LLVMBuilderRef B, uint64_t FileOffset) noexcept override;
+
+  FrameBase getFrameBase() const noexcept override { return {}; }
+
+  void finish(LLVMBasicBlockRef, Span<const LLVMValueRef>, LLVMValueRef,
+              LLVMValueRef, LLVMValueRef) noexcept override {}
+
+private:
+  ModuleDebugInfoImpl &Parent;
+  UnitState &S;
+  llvm::Function &Fn;
+  llvm::DISubprogram *SP;
+  DWARFDie Die;
+};
+
 class ModuleDebugInfoImpl final : public ModuleDebugInfo {
 public:
-  ModuleDebugInfoImpl(llvm::Module &M, std::unique_ptr<DwarfReader> R) noexcept
-      : M(M), Reader(std::move(R)) {
+  ModuleDebugInfoImpl(llvm::Module &M, std::unique_ptr<DwarfReader> R,
+                      Part P) noexcept
+      : M(M), Reader(std::move(R)), P(P) {
     M.addModuleFlag(llvm::Module::Warning, "Debug Info Version",
                     llvm::DEBUG_METADATA_VERSION);
     M.addModuleFlag(llvm::Module::Warning, "Dwarf Version", 4);
@@ -85,13 +135,32 @@ public:
   }
 
   std::unique_ptr<FunctionDebugInfo>
-  beginFunction(uint32_t, uint32_t, LLVMValueRef) noexcept override {
-    return nullptr;
+  beginFunction(uint32_t FuncIndex, uint32_t DefinedIndex,
+                LLVMValueRef Fn) noexcept override {
+    if (P == Part::GlobalsOnly) {
+      return nullptr;
+    }
+    auto &F = *llvm::cast<llvm::Function>(llvm::unwrap(Fn));
+    if (auto Die = Reader->getSubprogram(DefinedIndex)) {
+      auto &S = unit(Die);
+      return std::make_unique<FunctionDebugInfoImpl>(
+          *this, S, F, subprogramFor(S, Die), Die);
+    }
+    auto &S = artificialUnit();
+    auto *SP = S.DB->createFunction(
+        S.CU->getFile(), Reader->getFunctionName(FuncIndex), F.getName(),
+        S.CU->getFile(), 0,
+        S.DB->createSubroutineType(S.DB->getOrCreateTypeArray({})), 0,
+        llvm::DINode::FlagArtificial, llvm::DISubprogram::SPFlagDefinition);
+    return std::make_unique<FunctionDebugInfoImpl>(*this, S, F, SP, DWARFDie());
   }
 
   void finalize() noexcept override {
     for (auto &[Offset, U] : Units) {
       U.DB->finalize();
+    }
+    if (Artificial.DB) {
+      Artificial.DB->finalize();
     }
   }
 
@@ -110,7 +179,107 @@ public:
     return true;
   }
 
+  uint64_t toAddress(uint64_t FileOffset) const noexcept {
+    return Reader->toAddress(FileOffset);
+  }
+
+  llvm::DILocation *locationFor(UnitState &S, llvm::DISubprogram *SP,
+                                DWARFDie FnDie, uint64_t Addr) noexcept {
+    auto &Ctx = M.getContext();
+    const auto [Line, Column] =
+        lineColumn(Reader->getContext().getLineInfoForAddress(
+            {Addr, llvm::object::SectionedAddress::UndefSection}));
+    llvm::SmallVector<DWARFDie, 4> Chain;
+    FnDie.getDwarfUnit()->getInlinedChainForAddress(Addr, Chain);
+    if (Chain.empty() || Chain.back() != FnDie) {
+      return llvm::DILocation::get(Ctx, Line, Column,
+                                   scopeFor(S, SP, FnDie, Addr));
+    }
+    llvm::DILocation *InlinedAt = nullptr;
+    llvm::DIScope *Outer = scopeFor(S, SP, FnDie, Addr);
+    for (size_t I = Chain.size() - 1; I > 0; --I) {
+      auto Call = Chain[I - 1];
+      InlinedAt = llvm::DILocation::get(
+          Ctx,
+          static_cast<unsigned>(
+              dwarf::toUnsigned(Call.find(dwarf::DW_AT_call_line), 0)),
+          static_cast<unsigned>(
+              dwarf::toUnsigned(Call.find(dwarf::DW_AT_call_column), 0)),
+          Outer, InlinedAt);
+      auto Origin =
+          Call.getAttributeValueAsReferencedDie(dwarf::DW_AT_abstract_origin);
+      Outer = scopeFor(S, subprogramFor(S, Origin ? Origin : Call), Call, Addr);
+    }
+    return llvm::DILocation::get(Ctx, Line, Column, Outer, InlinedAt);
+  }
+
 private:
+  llvm::DISubprogram *subprogramFor(UnitState &S, DWARFDie D) noexcept {
+    if (auto It = Subprograms.find(D.getOffset()); It != Subprograms.end()) {
+      return It->second;
+    }
+    auto *File = file(S, D);
+    const char *Linkage =
+        dwarf::toString(D.findRecursively({dwarf::DW_AT_MIPS_linkage_name,
+                                           dwarf::DW_AT_linkage_name}),
+                        nullptr);
+    auto Flags = llvm::DISubprogram::SPFlagDefinition;
+    if (!dwarf::toUnsigned(D.find(dwarf::DW_AT_external), 0)) {
+      Flags |= llvm::DISubprogram::SPFlagLocalToUnit;
+    }
+    auto *SP = S.DB->createFunction(File, name(D), Linkage ? Linkage : "", File,
+                                    line(D), subroutine(S, D), line(D),
+                                    llvm::DINode::FlagZero, Flags);
+    Subprograms[D.getOffset()] = SP;
+    return SP;
+  }
+
+  UnitState &artificialUnit() noexcept {
+    if (!Artificial.DB) {
+      Artificial.DB = std::make_unique<llvm::DIBuilder>(M);
+      Artificial.CU = Artificial.DB->createCompileUnit(
+#if LLVM_VERSION_MAJOR < 22
+          dwarf::DW_LANG_C99,
+#else
+          llvm::DISourceLanguageName(dwarf::DW_LANG_C99),
+#endif
+          Artificial.DB->createFile("<wasm>", ""), "WasmEdge", false, "", 0);
+    }
+    return Artificial;
+  }
+
+  DWARFDie innermostScope(DWARFDie Frame, uint64_t Addr) noexcept {
+    for (bool Descended = true; Descended;) {
+      Descended = false;
+      for (auto C : Frame.children()) {
+        if (C.getTag() == dwarf::DW_TAG_lexical_block &&
+            C.addressRangeContainsAddress(Addr)) {
+          Frame = C;
+          Descended = true;
+          break;
+        }
+      }
+    }
+    return Frame;
+  }
+
+  llvm::DIScope *scopeFor(UnitState &S, llvm::DIScope *Parent, DWARFDie Frame,
+                          uint64_t Addr) noexcept {
+    llvm::DIScope *Scope = Parent;
+    llvm::SmallVector<DWARFDie, 4> Blocks;
+    for (auto B = innermostScope(Frame, Addr); B != Frame; B = B.getParent()) {
+      Blocks.push_back(B);
+    }
+    for (auto It = Blocks.rbegin(); It != Blocks.rend(); ++It) {
+      auto &Cached = Lexical[It->getOffset()];
+      if (!Cached) {
+        Cached = S.DB->createLexicalBlock(Scope, file(S, *It), line(*It), 0);
+      }
+      Scope = Cached;
+    }
+    return Scope;
+  }
+
   UnitState &unit(DWARFDie Die) noexcept {
     auto *U = Die.getDwarfUnit();
     auto &S = Units[U->getOffset()];
@@ -443,21 +612,35 @@ private:
   std::unique_ptr<DwarfReader> Reader;
   std::map<uint64_t, UnitState> Units;
   std::unordered_map<uint64_t, llvm::DIType *> Types;
+  std::unordered_map<uint64_t, llvm::DISubprogram *> Subprograms;
+  std::unordered_map<uint64_t, llvm::DIScope *> Lexical;
+  UnitState Artificial;
+  Part P;
   llvm::GlobalVariable *MemoryBase = nullptr;
 };
+
+void FunctionDebugInfoImpl::setLocation(LLVMBuilderRef B,
+                                        uint64_t FileOffset) noexcept {
+  if (!Die) {
+    setArtificialLocation(B);
+    return;
+  }
+  llvm::unwrap(B)->SetCurrentDebugLocation(
+      Parent.locationFor(S, SP, Die, Parent.toAddress(FileOffset)));
+}
 
 } // namespace
 
 std::unique_ptr<ModuleDebugInfo> ModuleDebugInfo::create(const AST::Module &Mod,
                                                          LLVMModuleRef M,
-                                                         Part) noexcept {
+                                                         Part P) noexcept {
   auto Reader = DwarfReader::create(Mod);
   if (!Reader) {
     spdlog::info("debug info: module has no DWARF sections"sv);
     return nullptr;
   }
   return std::make_unique<ModuleDebugInfoImpl>(*llvm::unwrap(M),
-                                               std::move(Reader));
+                                               std::move(Reader), P);
 }
 
 } // namespace WasmEdge::LLVM::DebugInfo

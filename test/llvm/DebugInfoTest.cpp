@@ -5,21 +5,29 @@
 #include "debuginfo/dwarf_reader.h"
 
 #include "common/configure.h"
+#include "common/defines.h"
 #include "executor/executor.h"
 #include "loader/loader.h"
 #include "validator/validator.h"
+#include "llvm/codegen.h"
+#include "llvm/compiler.h"
 
+#include <fmt/format.h>
 #include <gtest/gtest.h>
 #include <llvm-c/Core.h>
+#include <llvm/Config/llvm-config.h>
+#include <llvm/DebugInfo/DWARF/DWARFContext.h>
 #include <llvm/IR/DebugInfoMetadata.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/Object/ObjectFile.h>
 #include <llvm/Support/raw_ostream.h>
 
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
@@ -252,6 +260,227 @@ TEST(DebugInfoTypes, UnknownTagBecomesOpaqueBytes) {
   auto *Arr = llvm::dyn_cast_or_null<llvm::DICompositeType>(T);
   ASSERT_NE(Arr, nullptr);
   EXPECT_EQ(Arr->getTag(), llvm::dwarf::DW_TAG_array_type);
+}
+
+std::filesystem::path compileToSO(Configure Conf, std::string_view Name,
+                                  bool Debug,
+                                  CompilerConfigure::OptimizationLevel Level,
+                                  std::filesystem::path Out = {}) {
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Native);
+  Conf.getCompilerConfigure().setOptimizationLevel(Level);
+  Conf.getCompilerConfigure().setDebugInfo(Debug);
+  auto Mod = loadFixture(Conf, Name);
+  if (!Mod) {
+    return {};
+  }
+  LLVM::Compiler Compiler(Conf);
+  auto Data = Compiler.compile(*Mod);
+  if (!Data) {
+    return {};
+  }
+  if (Out.empty()) {
+    Out = std::filesystem::temp_directory_path() /
+          fmt::format("wasmedge-dwarf-{}-{}-{}" WASMEDGE_LIB_EXTENSION, Name,
+                      Debug, static_cast<int>(Level));
+  }
+  LLVM::CodeGen CG(Conf);
+  std::vector<Byte> Bytes;
+  if (!CG.codegen(Bytes, std::move(*Data), Out)) {
+    return {};
+  }
+  return Out;
+}
+
+std::filesystem::path debugFileOf(std::filesystem::path SO) {
+#if WASMEDGE_OS_MACOS
+  SO += ".o";
+#endif
+  return SO;
+}
+
+void removeOutput(const std::filesystem::path &SO) {
+  std::error_code Error;
+  std::filesystem::remove(SO, Error);
+  std::filesystem::remove(debugFileOf(SO), Error);
+}
+
+std::vector<std::pair<std::string, std::string>>
+sectionContents(const std::filesystem::path &P) {
+  std::vector<std::pair<std::string, std::string>> Result;
+  auto O = llvm::object::ObjectFile::createObjectFile(P.string());
+  if (!O) {
+    llvm::consumeError(O.takeError());
+    return Result;
+  }
+  for (const auto &Sec : O->getBinary()->sections()) {
+#if LLVM_VERSION_MAJOR < 10
+    llvm::StringRef Name;
+    if (Sec.getName(Name)) {
+      continue;
+    }
+    std::string SecName = Name.str();
+#else
+    auto Name = Sec.getName();
+    if (!Name) {
+      llvm::consumeError(Name.takeError());
+      continue;
+    }
+    std::string SecName = Name->str();
+#endif
+    auto Data = Sec.getContents();
+    if (!Data) {
+      llvm::consumeError(Data.takeError());
+      continue;
+    }
+    Result.emplace_back(std::move(SecName), Data->str());
+  }
+  return Result;
+}
+
+struct NativeDwarf {
+  llvm::object::OwningBinary<llvm::object::ObjectFile> Obj;
+  std::unique_ptr<llvm::DWARFContext> Ctx;
+  bool open(const std::filesystem::path &P) {
+    auto O =
+        llvm::object::ObjectFile::createObjectFile(debugFileOf(P).string());
+    if (!O) {
+      llvm::consumeError(O.takeError());
+      return false;
+    }
+    Obj = std::move(*O);
+    Ctx = llvm::DWARFContext::create(*Obj.getBinary());
+    return Ctx->getNumCompileUnits() > 0;
+  }
+  bool hasSubprogram(std::string_view Name) {
+    for (const auto &CU : Ctx->compile_units()) {
+      for (const auto &Entry : CU->dies()) {
+        llvm::DWARFDie D(CU.get(), &Entry);
+        if (D.getTag() == llvm::dwarf::DW_TAG_subprogram &&
+            D.getName(llvm::DINameKind::ShortName) &&
+            Name == D.getName(llvm::DINameKind::ShortName)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+  bool hasLine(std::string_view File, uint32_t Line) {
+    for (const auto &CU : Ctx->compile_units()) {
+      auto *LT = Ctx->getLineTableForUnit(CU.get());
+      if (!LT) {
+        continue;
+      }
+      for (const auto &Row : LT->Rows) {
+        std::string Path;
+        LT->getFileNameByIndex(
+            Row.File, CU->getCompilationDir(),
+            llvm::DILineInfoSpecifier::FileLineInfoKind::AbsoluteFilePath,
+            Path);
+        const std::string_view View(Path);
+        if (Row.Line == Line && View.size() >= File.size() &&
+            View.substr(View.size() - File.size()) == File) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+};
+
+uint32_t markerLine(std::string_view Marker) {
+  std::ifstream In(fixture("dwarf_basic.c"sv));
+  std::string Text;
+  for (uint32_t N = 1; std::getline(In, Text); ++N) {
+    if (Text.find(Marker) != std::string::npos) {
+      return N;
+    }
+  }
+  return 0;
+}
+
+TEST(DebugInfoAOT, LinesAndSubprograms) {
+  for (auto Level : {CompilerConfigure::OptimizationLevel::O0,
+                     CompilerConfigure::OptimizationLevel::O2}) {
+    auto SO = compileToSO(Configure{}, "dwarf_basic_O0.wasm"sv, true, Level);
+    ASSERT_FALSE(SO.empty());
+    NativeDwarf D;
+    ASSERT_TRUE(D.open(SO));
+    EXPECT_TRUE(D.hasSubprogram("sumList"sv));
+    EXPECT_TRUE(D.hasSubprogram("fact"sv));
+    EXPECT_TRUE(D.hasSubprogram("run"sv));
+    EXPECT_TRUE(D.hasLine("dwarf_basic.c"sv, markerLine("BREAK_SUMLIST"sv)));
+    EXPECT_TRUE(D.hasLine("dwarf_basic.c"sv, markerLine("BREAK_RUN"sv)));
+    if (Level == CompilerConfigure::OptimizationLevel::O0) {
+      EXPECT_TRUE(D.hasLine("dwarf_basic.c"sv, markerLine("BREAK_FACT"sv)));
+    }
+    removeOutput(SO);
+  }
+}
+
+TEST(DebugInfoAOT, InlinedTwiceAppearsAsInlinedSubroutine) {
+  auto SO = compileToSO(Configure{}, "dwarf_basic_O0.wasm"sv, true,
+                        CompilerConfigure::OptimizationLevel::O0);
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  bool Found = false;
+  for (const auto &CU : D.Ctx->compile_units()) {
+    for (const auto &Entry : CU->dies()) {
+      llvm::DWARFDie Die(CU.get(), &Entry);
+      if (Die.getTag() == llvm::dwarf::DW_TAG_inlined_subroutine) {
+        auto Origin = Die.getAttributeValueAsReferencedDie(
+            llvm::dwarf::DW_AT_abstract_origin);
+        Found |= Origin && Origin.getName(llvm::DINameKind::ShortName) &&
+                 "twice"sv == Origin.getName(llvm::DINameKind::ShortName);
+      }
+    }
+  }
+  EXPECT_TRUE(Found);
+  removeOutput(SO);
+}
+
+TEST(DebugInfoAOT, OffMeansNoDebugSections) {
+  auto SO = compileToSO(Configure{}, "dwarf_basic_O0.wasm"sv, false,
+                        CompilerConfigure::OptimizationLevel::O0);
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  EXPECT_FALSE(D.open(SO));
+  removeOutput(SO);
+}
+
+TEST(DebugInfoAOT, NoDwarfModuleHasIdenticalSections) {
+  const auto Out = std::filesystem::temp_directory_path() /
+                   "wasmedge-dwarf-nodebug" WASMEDGE_LIB_EXTENSION;
+  auto Sections = [&Out](bool Debug) {
+    std::vector<std::pair<std::string, std::string>> Result;
+    if (!compileToSO(Configure{}, "dwarf_basic_nodebug.wasm"sv, Debug,
+                     CompilerConfigure::OptimizationLevel::O2, Out)
+             .empty()) {
+      Result = sectionContents(Out);
+    }
+    removeOutput(Out);
+    return Result;
+  };
+  const auto Off = Sections(false);
+  const auto On = Sections(true);
+  ASSERT_FALSE(Off.empty());
+  EXPECT_EQ(Off, On);
+}
+
+TEST(DebugInfoAOT, CorruptDwarfStillCompilesAndRuns) {
+  Configure Conf;
+  Conf.getCompilerConfigure().setDebugInfo(true);
+  auto Mod = loadFixture(Conf, "dwarf_basic_O0.wasm"sv);
+  ASSERT_NE(Mod, nullptr);
+  for (auto &Custom : Mod->getCustomSections()) {
+    if (Custom.getName() == ".debug_info"sv) {
+      auto &Bytes = Custom.getContent();
+      Bytes.resize(Bytes.size() / 2);
+    }
+  }
+  LLVM::Compiler Compiler(Conf);
+  EXPECT_TRUE(Compiler.compile(*Mod));
 }
 
 } // namespace

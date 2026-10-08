@@ -4,6 +4,7 @@
 
 #include "llvm/compiler.h"
 
+#include "debuginfo/debug_info.h"
 #include "llvm.h"
 
 #include "aot/version.h"
@@ -106,6 +107,7 @@ struct Compiler::CompileContext {
   std::vector<std::tuple<uint32_t, LLVM::FunctionCallee,
                          const WasmEdge::AST::CodeSegment *>>
       Functions;
+  DebugInfo::ModuleDebugInfo *DI = nullptr;
   std::vector<LLVM::Value> LazyJITCacheVars;
   uint32_t ImportCount = 0;
   std::vector<LLVM::Type> MemoryAddrTypes;

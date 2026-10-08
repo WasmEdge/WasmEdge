@@ -251,6 +251,12 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
                             Conf.getCompilerConfigure().isGenericBinary());
   RAIICleanup Cleanup(Context, &NewContext);
   Context->addVersionGlobal();
+  std::unique_ptr<DebugInfo::ModuleDebugInfo> DI;
+  if (shouldEmitDebugInfo()) {
+    DI = DebugInfo::ModuleDebugInfo::create(
+        Module, LLModule.unwrap(), DebugInfo::ModuleDebugInfo::Part::All);
+    Context->DI = DI.get();
+  }
 
   // Compile all sections and the function declarations.
   compileSections(Module, false);
@@ -262,6 +268,11 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   // Compile ExportSection.
   compile(Module.getExportSection());
   // StartSection is not required for compilation.
+
+  if (DI) {
+    DI->finalize();
+    DI->verifyOrStrip();
+  }
 
   spdlog::info("verify start"sv);
   if (LLVM::Message VerifyMsg; LLModule.hasVerificationError(VerifyMsg)) {
@@ -680,12 +691,27 @@ Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
       *Context, F, Locals, Conf.getCompilerConfigure().isInterruptible(),
       Conf.getStatisticsConfigure().isInstructionCounting(),
       Conf.getStatisticsConfigure().isCostMeasuring(),
-      Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT,
-      !IsSmallLeaf);
+      Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT, !IsSmallLeaf,
+      GlobalFuncIndex, LocalFuncIndex);
   EXPECTED_TRY(FC.compile(*Code, std::move(Type)));
   F.Fn.eliminateUnreachableBlocks();
 
   return {};
+}
+
+bool Compiler::shouldEmitDebugInfo() const noexcept {
+  const auto &CC = Conf.getCompilerConfigure();
+  if (!CC.isDebugInfo()) {
+    return false;
+  }
+  const auto Mode = Conf.getRuntimeConfigure().getRunMode();
+  if (CC.getOutputFormat() == CompilerConfigure::OutputFormat::Wasm &&
+      Mode != RunMode::JIT && Mode != RunMode::LazyJIT) {
+    spdlog::warn("debug info: universal wasm output keeps no debug info, "
+                 "option ignored"sv);
+    return false;
+  }
+  return true;
 }
 
 Expect<LLVM::Data>

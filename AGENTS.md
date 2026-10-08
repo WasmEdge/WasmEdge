@@ -200,7 +200,7 @@ Tests use the Google Test framework. Build one test target by the name it is
 registered with in the `test/` CMake files:
 
 ```bash
-cmake --build build --target wasmedgeLoaderSerializerTests
+cmake --build build --target wasmedgeLoaderTests
 ```
 
 Run tests by the name registered with `add_test`, with the freshly built
@@ -209,19 +209,28 @@ library first on the loader path, as CI does (`LD_LIBRARY_PATH` on Linux,
 
 ```bash
 export LD_LIBRARY_PATH=$(pwd)/build/lib/api:$LD_LIBRARY_PATH
-(cd build && ctest --no-tests=error -R '^wasmedgeLoaderSerializerTests$')
+(cd build && ctest --no-tests=error -R '^wasmedgeLoaderTests$')
 ```
 
 Without `--no-tests=error`, `ctest` exits 0 when a pattern matches no test;
 without the export, an installed libwasmedge earlier on the loader path
 shadows the one just built.
 
-Test files are located in `test/`, with a structure mirroring `lib/`. Plugin tests live in `test/plugins/`.
+Test files are located in `test/`, with a structure mirroring `lib/`: one
+`wasmedge<Area>Tests` target per directory (a few directories, such as
+`test/api` and `test/llvm`, split theirs by dependency). The spec test runners
+live in `test/spec`, one `wasmedgeSpec<Mode>Tests` target per execution mode.
+Plugin tests live in `test/plugins/`. Every test carries a `unit`, `spec`, or
+`plugin` label, so `ctest -L unit` runs the fast suites only.
 
 ### Test Case Guidelines
 
-- **Avoid adding new test targets**: Do not casually register a new test executable (`wasmedge_add_executable` + `add_test`) for new cases. Prefer adding `TEST(...)` cases to an existing test target whose scope matches (e.g. add loader/serializer cases to `test/loader`), so the suite stays consolidated and CI does not gain extra binaries to build and run.
+- **Avoid adding new test targets**: Do not casually register a new test executable (`wasmedge_add_executable` + `add_test`) for new cases. Prefer adding `TEST(...)` cases to an existing test target whose scope matches (e.g. add loader/serializer cases to `wasmedgeLoaderTests` in `test/loader`), so the suite stays consolidated and CI does not gain extra binaries to build and run.
 - Only create a new test target when the work introduces a genuinely new component or test category with no suitable existing home; when you do, justify it and register it in the directory's `CMakeLists.txt` following the surrounding pattern.
+- **Naming**: test files are `<Topic>Test.cpp` with one suite per file named after the file (`TEST(ExpressionTest, LoadExpression)` in `ExpressionTest.cpp`); test names are PascalCase without underscores.
+- **Wasm binaries**: tests that load wasm binaries use plain `TEST()`, not `TEST_F`. Declare the byte array inside the test that uses it (at file scope only when several tests share it), with the module text as a `//` comment right above it and the bytes as one plain list, as in `test/validator/ValidatorRegressionTest.cpp`.
+- **Grouping**: put related cases in one `TEST()`. Cases whose modules are all valid share one module with an export per case; invalid modules stay separate arrays, since validation stops at the first error.
+- **Comments**: apart from the module text, keep each comment to one or two lines.
 
 ## Plugin System
 

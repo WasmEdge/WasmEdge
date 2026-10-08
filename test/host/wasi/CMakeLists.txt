@@ -1,19 +1,30 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-wasmedge_add_executable(wasiTests
-  wasi.cpp
-  linuxTest.cpp
-  vfs_io.cpp
+wasmedge_add_executable(wasmedgeHostWasiTests
+  LinuxTest.cpp
+  VfsIoTest.cpp
+  WasiSocketTest.cpp
+  WasiTest.cpp
 )
 
-add_test(wasiTests wasiTests)
+add_test(wasmedgeHostWasiTests wasmedgeHostWasiTests)
 
-target_link_libraries(wasiTests
+target_link_libraries(wasmedgeHostWasiTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeHostModuleWasi
+  wasmedgeExecutor
+  wasmedgeLoader
 )
+
+if(WIN32)
+  target_link_libraries(wasmedgeHostWasiTests
+    PRIVATE
+    wsock32
+    ws2_32
+  )
+endif()
 
 if(WASMEDGE_BUILD_COVERAGE)
   add_test(

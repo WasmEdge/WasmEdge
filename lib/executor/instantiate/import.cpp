@@ -5,10 +5,16 @@
 
 #include "common/errinfo.h"
 #include "common/spdlog.h"
+#include "runtime/hostfunc.h"
 
+#include <algorithm>
+#include <array>
 #include <cstdint>
+#include <memory>
+#include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 using namespace std::literals;
 
@@ -25,6 +31,69 @@ auto logMatchError(std::string_view ModName, std::string_view ExtName,
   spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Desc_Import));
   return Unexpect(ErrCode::Value::IncompatibleImportType);
 }
+
+/// The module names imported from each official plugin.
+constexpr std::array<std::pair<std::string_view, std::string_view>, 22>
+    OfficialPluginModules{{
+        {"wasi_ephemeral_crypto_common"sv, "wasi_crypto"sv},
+        {"wasi_ephemeral_crypto_asymmetric_common"sv, "wasi_crypto"sv},
+        {"wasi_ephemeral_crypto_kx"sv, "wasi_crypto"sv},
+        {"wasi_ephemeral_crypto_signatures"sv, "wasi_crypto"sv},
+        {"wasi_ephemeral_crypto_symmetric"sv, "wasi_crypto"sv},
+        {"wasi:logging/logging"sv, "wasi_logging"sv},
+        {"wasi_ephemeral_nn"sv, "wasi_nn"sv},
+        {"wasm_bpf"sv, "wasm_bpf"sv},
+        {"wasmedge_ffmpeg_avcodec"sv, "wasmedge_ffmpeg"sv},
+        {"wasmedge_ffmpeg_avdevice"sv, "wasmedge_ffmpeg"sv},
+        {"wasmedge_ffmpeg_avfilter"sv, "wasmedge_ffmpeg"sv},
+        {"wasmedge_ffmpeg_avformat"sv, "wasmedge_ffmpeg"sv},
+        {"wasmedge_ffmpeg_avutil"sv, "wasmedge_ffmpeg"sv},
+        {"wasmedge_ffmpeg_swresample"sv, "wasmedge_ffmpeg"sv},
+        {"wasmedge_ffmpeg_swscale"sv, "wasmedge_ffmpeg"sv},
+        {"wasmedge_image"sv, "wasmedge_image"sv},
+        {"wasmedge_ocr"sv, "wasmedge_ocr"sv},
+        {"wasmedge_opencvmini"sv, "wasmedge_opencvmini"sv},
+        {"wasmedge_stablediffusion"sv, "wasmedge_stablediffusion"sv},
+        {"wasmedge_tensorflow"sv, "wasmedge_tensorflow"sv},
+        {"wasmedge_tensorflowlite"sv, "wasmedge_tensorflowlite"sv},
+        {"wasmedge_zlib"sv, "wasmedge_zlib"sv},
+    }};
+
+/// Get the official plugin that provides the module, or an empty name.
+std::string_view getOfficialPluginName(std::string_view ModName) noexcept {
+  for (const auto &[Name, PluginName] : OfficialPluginModules) {
+    if (Name == ModName) {
+      return PluginName;
+    }
+  }
+  return {};
+}
+
+/// Host function that stands in for an import of an uninstalled plugin, which
+/// reports the plugin and traps.
+class PluginMockFunction : public Runtime::HostFunctionBase {
+public:
+  PluginMockFunction(std::string_view PluginName, std::string_view ModName,
+                     std::string_view FuncName, const AST::FunctionType &Type)
+      : HostFunctionBase(0), PluginName(PluginName), ModName(ModName),
+        FuncName(FuncName) {
+    DefType.getCompositeType().getFuncType() = Type;
+  }
+
+  Expect<void> run(const Runtime::CallingFrame &, Span<const ValVariant>,
+                   Span<ValVariant>) override {
+    spdlog::error("Calling \"{}\" \"{}\" requires the {} plugin, which is not "
+                  "installed. Please install the plugin and restart "
+                  "WasmEdge."sv,
+                  ModName, FuncName, PluginName);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+private:
+  std::string_view PluginName;
+  std::string ModName;
+  std::string FuncName;
+};
 
 auto logUnknownError(std::string_view ModName, std::string_view ExtName,
                      ExternalType ExtType) {
@@ -99,6 +168,8 @@ Expect<void> Executor::instantiate(
         ModuleFinder,
     Runtime::Instance::ModuleInstance &ModInst,
     const AST::ImportSection &ImportSec) {
+  // The plugin modules whose imports are stood in for, to warn only once.
+  std::vector<std::string_view> MockedModNames;
   // Iterate and instantiate import descriptions.
   for (const auto &ImpDesc : ImportSec.getContent()) {
     // Get data from import description and find import module.
@@ -107,22 +178,35 @@ Expect<void> Executor::instantiate(
     auto ExtName = ImpDesc.getExternalName();
     const auto *ImpModInst = ModuleFinder(ModName);
     if (unlikely(ImpModInst == nullptr)) {
+      const auto PluginName = getOfficialPluginName(ModName);
+      if (!PluginName.empty() && ExtType == ExternalType::Function) {
+        // Stand in for the function of an uninstalled official plugin, and
+        // remind the user once per module.
+        if (std::find(MockedModNames.begin(), MockedModNames.end(), ModName) ==
+            MockedModNames.end()) {
+          spdlog::warn("The {} plugin, which provides module \"{}\", is not "
+                       "installed, so calling the functions imported from it "
+                       "will fail. Please install the plugin."sv,
+                       PluginName, ModName);
+          MockedModNames.push_back(ModName);
+        }
+        const uint32_t TypeIdx = ImpDesc.getExternalFuncTypeIdx();
+        ModInst.addFunc(TypeIdx, std::unique_ptr<Runtime::HostFunctionBase>(
+                                     std::make_unique<PluginMockFunction>(
+                                         PluginName, ModName, ExtName,
+                                         (*ModInst.getType(TypeIdx))
+                                             ->getCompositeType()
+                                             .getFuncType())));
+        continue;
+      }
       auto Res = logUnknownError(ModName, ExtName, ExtType);
       if (ModName == "wasi_snapshot_preview1"sv) {
         spdlog::error("    This is a WASI related import. Please ensure that "
                       "you've turned on the WASI configuration."sv);
-      } else if (ModName == "wasi_nn"sv) {
-        spdlog::error("    This is a WASI-NN related import. Please ensure "
-                      "that you've turned on the WASI-NN configuration and "
-                      "installed the WASI-NN plug-in."sv);
-      } else if (ModName == "wasi_crypto_common"sv ||
-                 ModName == "wasi_crypto_asymmetric_common"sv ||
-                 ModName == "wasi_crypto_kx"sv ||
-                 ModName == "wasi_crypto_signatures"sv ||
-                 ModName == "wasi_crypto_symmetric"sv) {
-        spdlog::error("    This is a WASI-Crypto related import. Please ensure "
-                      "that you've turned on the WASI-Crypto configuration and "
-                      "installed the WASI-Crypto plug-in."sv);
+      } else if (!PluginName.empty()) {
+        spdlog::error("    This is an import of the {} plugin. Please install "
+                      "the plugin."sv,
+                      PluginName);
       } else if (ModName == "env"sv) {
         spdlog::error(
             "    This may be the import of host environment like JavaScript or "

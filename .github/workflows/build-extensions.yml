@@ -186,7 +186,7 @@ jobs:
             -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML \
             -DWASMEDGE_BUILD_WASI_NN_RPC=ON
           cmake --build build_rpc
-          export test_bin=wasiNNTests
+          export test_bin=wasmedgeWasiNNTests
           export WASI_NN_RPC_TEST_URI=unix:///tmp/wasi_nn_rpc.sock
           export WASMEDGE_PLUGIN_PATH=build_rpc/plugins/wasi_nn
           build_rpc/tools/wasmedge/wasi_nn_rpcserver \
@@ -222,7 +222,7 @@ jobs:
       output_dir: build/plugins/wasi_nn
       test_dir: build/test/plugins/wasi_nn
       tar_names: wasi_nn-ggml
-      test_bin: wasiNNTests
+      test_bin: wasmedgeWasiNNTests
       output_bin: wasmedgePluginWasiNN.dll
     needs: [ get_version, filter ]
     if: >-

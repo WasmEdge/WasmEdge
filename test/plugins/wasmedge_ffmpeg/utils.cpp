@@ -22,7 +22,8 @@ void FFmpegTest::initEmptyFrame(uint32_t FramePtr) {
   ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVFrameAlloc = FuncInst->getHostFunc();
   ASSERT_TRUE(HostFuncAVFrameAlloc.run(
-      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FramePtr}, Result));
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FramePtr},
+      Result));
 }
 
 void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,

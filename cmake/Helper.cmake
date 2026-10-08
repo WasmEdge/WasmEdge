@@ -321,6 +321,14 @@ function(wasmedge_download URL OUTPUT HASH)
   message(FATAL_ERROR "Failed to download ${URL} after 3 attempts")
 endfunction()
 
+# The LLVM components that wasmedgeLLVM uses on every target.
+function(wasmedge_llvm_components OUT)
+  set(COMPONENTS
+    core debuginfodwarf linker lto native nativecodegen object option passes support
+    orcjit transformutils)
+  set(${OUT} ${COMPONENTS} PARENT_SCOPE)
+endfunction()
+
 # Generate the list of static libs to statically link LLVM.
 if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLVM)
   # Pack the LLVM and lld static libraries.
@@ -333,9 +341,10 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
   if(NOT IS_DIRECTORY "${LLD_LIBRARY_DIR}")
     set(LLD_LIBRARY_DIR ${LLVM_LIBRARY_DIR})
   endif()
+  wasmedge_llvm_components(WASMEDGE_LLVM_CONFIG_COMPONENTS)
   execute_process(
     COMMAND ${LLVM_BINARY_DIR}/bin/llvm-config --libs --link-static
-    core linker lto native nativecodegen option passes support orcjit transformutils all-targets
+    ${WASMEDGE_LLVM_CONFIG_COMPONENTS} all-targets
     OUTPUT_VARIABLE WASMEDGE_LLVM_LINK_LIBS_NAME
   )
   string(REPLACE "-l" "" WASMEDGE_LLVM_LINK_LIBS_NAME "${WASMEDGE_LLVM_LINK_LIBS_NAME}")

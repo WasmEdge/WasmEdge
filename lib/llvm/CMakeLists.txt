@@ -25,6 +25,7 @@ set(WASMEDGE_LLVM_SOURCES
   compiler/vectorInstr.cpp
   codegen.cpp
   data.cpp
+  debuginfo/dwarf_reader.cpp
   jit.cpp
   lazyjit.cpp
   llvm.cpp
@@ -38,6 +39,7 @@ if(WASMEDGE_LINK_LLVM_STATIC)
   target_link_libraries(wasmedgeLLVM
     PUBLIC
     wasmedgeCommon
+    wasmedgeLoaderFileMgr
     wasmedgeSystem
     std::filesystem
     ${WASMEDGE_LLVM_LINK_STATIC_COMPONENTS}
@@ -58,6 +60,8 @@ else()
     list(APPEND LLD_LIBS lldDriver)
   endif()
 
+  wasmedge_llvm_components(WASMEDGE_LLVM_COMPONENTS)
+
   # Command line warning D9025 : overriding '/EHs' with '/EHs-'
   # prevent LLVM from adding /EHs-c-.
   if(WIN32)
@@ -68,27 +72,20 @@ else()
     ${WASMEDGE_LLVM_SOURCES}
     LINK_LIBS
     wasmedgeCommon
+    wasmedgeLoaderFileMgr
     wasmedgeSystem
     ${LLD_LIBS}
     std::filesystem
     ${CMAKE_THREAD_LIBS_INIT}
     LINK_COMPONENTS
-    core
-    linker
-    lto
-    native
-    nativecodegen
-    option
-    passes
-    support
-    orcjit
-    transformutils
+    ${WASMEDGE_LLVM_COMPONENTS}
     ${EXTRA_COMPONENTS}
   )
   if(LLVM_VERSION_MAJOR LESS 10)
     target_link_libraries(wasmedgeLLVM
       PRIVATE
       wasmedgeCommon
+      wasmedgeLoaderFileMgr
       wasmedgeSystem
     )
   endif()

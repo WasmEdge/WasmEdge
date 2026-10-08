@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+#include "debuginfo/debug_info.h"
 #include "debuginfo/dwarf_reader.h"
 
 #include "common/configure.h"
@@ -9,6 +10,12 @@
 #include "validator/validator.h"
 
 #include <gtest/gtest.h>
+#include <llvm-c/Core.h>
+#include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/Verifier.h>
+#include <llvm/Support/raw_ostream.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -159,6 +166,92 @@ TEST(DwarfReader, FallbackFunctionName) {
   auto R = LLVM::DebugInfo::DwarfReader::create(*Mod);
   ASSERT_NE(R, nullptr);
   EXPECT_EQ(R->getFunctionName(100000U), "func[100000]"s);
+}
+
+llvm::DWARFDie findType(llvm::DWARFContext &Ctx, llvm::dwarf::Tag Tag,
+                        std::string_view Name) {
+  for (const auto &CU : Ctx.compile_units()) {
+    for (const auto &Entry : CU->dies()) {
+      llvm::DWARFDie Die(CU.get(), &Entry);
+      if (Die.getTag() == Tag && Die.getName(llvm::DINameKind::ShortName) &&
+          Name == Die.getName(llvm::DINameKind::ShortName)) {
+        return Die;
+      }
+    }
+  }
+  return {};
+}
+
+struct TypeFixture {
+  Configure Conf;
+  std::unique_ptr<AST::Module> Mod;
+  std::unique_ptr<LLVM::DebugInfo::DwarfReader> Reader;
+  llvm::LLVMContext Ctx;
+  std::unique_ptr<llvm::Module> M;
+  std::unique_ptr<LLVM::DebugInfo::ModuleDebugInfo> DI;
+  bool load(std::string_view Name) {
+    Mod = loadFixture(Conf, Name);
+    if (!Mod) {
+      return false;
+    }
+    Reader = LLVM::DebugInfo::DwarfReader::create(*Mod);
+    M = std::make_unique<llvm::Module>("t", Ctx);
+    DI = LLVM::DebugInfo::ModuleDebugInfo::create(
+        *Mod, llvm::wrap(M.get()), LLVM::DebugInfo::ModuleDebugInfo::Part::All);
+    return Reader && DI;
+  }
+};
+
+TEST(DebugInfoTypes, RecursiveStructUsesWasmPointer) {
+  TypeFixture F;
+  ASSERT_TRUE(F.load("dwarf_basic_O0.wasm"sv));
+  auto NodeDie = findType(F.Reader->getContext(),
+                          llvm::dwarf::DW_TAG_structure_type, "Node"sv);
+  ASSERT_TRUE(NodeDie);
+  auto *T = llvm::cast<llvm::DICompositeType>(
+      llvm::unwrap(F.DI->translateType(NodeDie.getOffset())));
+  ASSERT_EQ(T->getElements().size(), 2U);
+  auto *Next = llvm::cast<llvm::DIDerivedType>(T->getElements()[1]);
+  EXPECT_EQ(Next->getName(), "Next");
+  EXPECT_EQ(Next->getOffsetInBits(), 32U);
+  auto *Ptr = llvm::cast<llvm::DICompositeType>(Next->getBaseType());
+  EXPECT_EQ(Ptr->getName(), "__wasm_ptr");
+  EXPECT_EQ(Ptr->getSizeInBits(), 32U);
+  auto *Pointee = llvm::cast<llvm::DIDerivedType>(Ptr->getElements()[1]);
+  auto *Arr = llvm::cast<llvm::DICompositeType>(Pointee->getBaseType());
+  EXPECT_EQ(Arr->getBaseType(), T);
+  F.DI->finalize();
+  EXPECT_FALSE(llvm::verifyModule(*F.M, &llvm::errs()));
+}
+
+TEST(DebugInfoTypes, RustEnumHasVariantPart) {
+  TypeFixture F;
+  ASSERT_TRUE(F.load("dwarf_enum_O0.wasm"sv));
+  auto ShapeDie = findType(F.Reader->getContext(),
+                           llvm::dwarf::DW_TAG_structure_type, "Shape"sv);
+  ASSERT_TRUE(ShapeDie);
+  auto *T = llvm::cast<llvm::DICompositeType>(
+      llvm::unwrap(F.DI->translateType(ShapeDie.getOffset())));
+  bool HasVariantPart = false;
+  for (auto *E : T->getElements()) {
+    if (auto *C = llvm::dyn_cast<llvm::DICompositeType>(E)) {
+      HasVariantPart |= C->getTag() == llvm::dwarf::DW_TAG_variant_part;
+    }
+  }
+  EXPECT_TRUE(HasVariantPart);
+  F.DI->finalize();
+  EXPECT_FALSE(llvm::verifyModule(*F.M, &llvm::errs()));
+}
+
+TEST(DebugInfoTypes, UnknownTagBecomesOpaqueBytes) {
+  TypeFixture F;
+  ASSERT_TRUE(F.load("dwarf_basic_O0.wasm"sv));
+  auto CUDie =
+      F.Reader->getContext().compile_units().begin()->get()->getUnitDIE();
+  auto *T = llvm::unwrap(F.DI->translateType(CUDie.getOffset()));
+  auto *Arr = llvm::dyn_cast_or_null<llvm::DICompositeType>(T);
+  ASSERT_NE(Arr, nullptr);
+  EXPECT_EQ(Arr->getTag(), llvm::dwarf::DW_TAG_array_type);
 }
 
 } // namespace

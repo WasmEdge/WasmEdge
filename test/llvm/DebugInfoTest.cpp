@@ -48,6 +48,24 @@
 #include <utility>
 #include <vector>
 
+#if WASMEDGE_OS_LINUX && LLVM_VERSION_MAJOR < 15
+extern "C" {
+struct GDBJITCodeEntry {
+  GDBJITCodeEntry *NextEntry;
+  GDBJITCodeEntry *PrevEntry;
+  const char *SymfileAddr;
+  uint64_t SymfileSize;
+};
+struct GDBJITDescriptor {
+  uint32_t Version;
+  uint32_t ActionFlag;
+  GDBJITCodeEntry *RelevantEntry;
+  GDBJITCodeEntry *FirstEntry;
+};
+extern GDBJITDescriptor __jit_debug_descriptor;
+}
+#endif
+
 namespace {
 
 using namespace WasmEdge;
@@ -984,6 +1002,37 @@ TEST(DebugInfoAOT, LocationListKeepsRanges) {
   removeOutput(SO);
 }
 
+TEST(DebugInfoAOT, MemoryBaseHasFileBackedSection) {
+  auto SO = compileToSO(Configure{}, "dwarf_basic_O0.wasm"sv, true,
+                        CompilerConfigure::OptimizationLevel::O0);
+  ASSERT_FALSE(SO.empty());
+  NativeDwarf D;
+  ASSERT_TRUE(D.open(SO));
+  const auto *Obj = D.Obj.getBinary();
+  if (Obj->getTripleObjectFormat() != llvm::Triple::ELF) {
+    removeOutput(SO);
+    GTEST_SKIP() << "ELF only";
+  }
+  bool Found = false;
+  for (const auto &Sym : Obj->symbols()) {
+    auto Name = Sym.getName();
+    if (!Name) {
+      llvm::consumeError(Name.takeError());
+      continue;
+    }
+    if (*Name != "__wasmedge_debug_membase") {
+      continue;
+    }
+    auto Sec = Sym.getSection();
+    ASSERT_TRUE(static_cast<bool>(Sec));
+    ASSERT_NE(*Sec, Obj->section_end());
+    EXPECT_FALSE((*Sec)->isBSS());
+    Found = true;
+  }
+  EXPECT_TRUE(Found);
+  removeOutput(SO);
+}
+
 TEST(DebugInfoAOT, NoMemoryModuleCompiles) {
   auto SO = compileToSO(Configure{}, "dwarf_nomem_O0.wasm"sv, true,
                         CompilerConfigure::OptimizationLevel::O0);
@@ -1020,6 +1069,33 @@ TEST(DebugInfoRun, FixtureMatrix) {
       }
     }
   }
+}
+
+TEST(DebugInfoRun, JITTeardownUnregistersDebugObjects) {
+#if WASMEDGE_OS_LINUX && LLVM_VERSION_MAJOR < 15
+  auto Count = [] {
+    uint32_t N = 0;
+    for (auto *E = __jit_debug_descriptor.FirstEntry; E; E = E->NextEntry) {
+      ++N;
+    }
+    return N;
+  };
+  const auto Before = Count();
+  for (uint32_t I = 0; I < 2; ++I) {
+    Configure Conf;
+    Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+    Conf.getCompilerConfigure().setDebugInfo(true);
+    VM::VM Machine(Conf);
+    ASSERT_TRUE(Machine.loadWasm(readHexFixture("dwarf_basic_O0.wasm"sv)));
+    ASSERT_TRUE(Machine.validate());
+    ASSERT_TRUE(Machine.instantiate());
+    ASSERT_TRUE(Machine.execute("run"sv));
+    EXPECT_GT(Count(), Before);
+  }
+  EXPECT_EQ(Count(), Before);
+#else
+  GTEST_SKIP() << "JITLink keeps debug objects registered until exit";
+#endif
 }
 
 TEST(DebugInfoRun, LazyJITModulesCarryDebugInfo) {

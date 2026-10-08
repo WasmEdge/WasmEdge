@@ -8,6 +8,7 @@ WASMEDGE_0.16 {
       wasm::*
     };
     wasm_*;
+    __jit_debug_*;
 
   local:
     # Internal names of the backward-compat shims (see

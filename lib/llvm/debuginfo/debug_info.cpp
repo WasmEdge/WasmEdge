@@ -31,8 +31,10 @@
 #include <llvm/Support/Path.h>
 #include <llvm/Support/raw_ostream.h>
 #if LLVM_VERSION_MAJOR < 16
+#include <llvm/ADT/Triple.h>
 #else
 #include <llvm/Support/ModRef.h>
+#include <llvm/TargetParser/Triple.h>
 #endif
 
 #include <algorithm>
@@ -492,6 +494,9 @@ private:
 #endif
     if (P == Part::FunctionsOnly) {
       return;
+    }
+    if (llvm::Triple(M.getTargetTriple()).isOSBinFormatELF()) {
+      MemoryBase->setSection(".data");
     }
     auto &A = artificialUnit();
     MemoryBase->addDebugInfo(A.DB->createGlobalVariableExpression(

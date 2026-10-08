@@ -304,7 +304,7 @@ private:
 
 class ModuleDebugInfoImpl final : public ModuleDebugInfo {
 public:
-  ModuleDebugInfoImpl(llvm::Module &M, std::unique_ptr<DwarfReader> R, Part P,
+  ModuleDebugInfoImpl(llvm::Module &M, std::shared_ptr<DwarfReader> R, Part P,
                       bool HasMemory) noexcept
       : M(M), Reader(std::move(R)), P(P) {
     M.addModuleFlag(llvm::Module::Warning, "Debug Info Version",
@@ -1060,7 +1060,7 @@ private:
   };
 
   llvm::Module &M;
-  std::unique_ptr<DwarfReader> Reader;
+  std::shared_ptr<DwarfReader> Reader;
   std::map<uint64_t, UnitState> Units;
   std::unordered_map<uint64_t, llvm::DIType *> Types;
   std::unordered_map<uint64_t, llvm::DISubprogram *> Subprograms;
@@ -1666,17 +1666,28 @@ void FunctionDebugInfoImpl::addFakeUses(
 std::unique_ptr<ModuleDebugInfo> ModuleDebugInfo::create(const AST::Module &Mod,
                                                          LLVMModuleRef M,
                                                          Part P) noexcept {
-  auto Reader = DwarfReader::create(Mod);
+  std::shared_ptr<DwarfReader> Reader;
+  return create(Mod, M, P, Reader);
+}
+
+std::unique_ptr<ModuleDebugInfo>
+ModuleDebugInfo::create(const AST::Module &Mod, LLVMModuleRef M, Part P,
+                        std::shared_ptr<DwarfReader> &Reader) noexcept {
   if (!Reader) {
-    spdlog::info("debug info: module has no DWARF sections"sv);
+    Reader = DwarfReader::create(Mod);
+  }
+  if (!Reader) {
+    if (P != Part::FunctionsOnly) {
+      spdlog::info("debug info: module has no DWARF sections"sv);
+    }
     return nullptr;
   }
   bool HasMemory = !Mod.getMemorySection().getContent().empty();
   for (const auto &Desc : Mod.getImportSection().getContent()) {
     HasMemory |= Desc.getExternalType() == ExternalType::Memory;
   }
-  return std::make_unique<ModuleDebugInfoImpl>(*llvm::unwrap(M),
-                                               std::move(Reader), P, HasMemory);
+  return std::make_unique<ModuleDebugInfoImpl>(*llvm::unwrap(M), Reader, P,
+                                               HasMemory);
 }
 
 } // namespace WasmEdge::LLVM::DebugInfo

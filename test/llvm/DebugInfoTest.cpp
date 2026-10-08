@@ -39,6 +39,7 @@
 #include <fstream>
 #include <iterator>
 #include <memory>
+#include <numeric>
 #include <optional>
 #include <random>
 #include <string>
@@ -1001,21 +1002,55 @@ TEST(DebugInfoRun, FixtureMatrix) {
         std::tuple{"dwarf_basic_O0.wasm"sv, "plain"sv, 5U},
         std::tuple{"dwarf_basic_O2.wasm"sv, "plain"sv, 5U},
         std::tuple{"dwarf_enum_O0.wasm"sv, "pick"sv, 7U}}) {
-    for (auto Level :
-         {OL::O0, OL::O1, OL::O2, OL::O3, OL::Os, OL::Oz, OL::Og}) {
-      Configure Conf;
-      Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
-      Conf.getCompilerConfigure().setOptimizationLevel(Level);
-      Conf.getCompilerConfigure().setDebugInfo(true);
-      VM::VM Machine(Conf);
-      ASSERT_TRUE(Machine.loadWasm(readHexFixture(Name)));
-      ASSERT_TRUE(Machine.validate());
-      ASSERT_TRUE(Machine.instantiate());
-      auto R = Machine.execute(Fn);
-      ASSERT_TRUE(R) << Name << " level " << static_cast<int>(Level);
-      EXPECT_EQ((*R)[0].first.get<uint32_t>(), Want);
+    for (auto Mode : {RunMode::JIT, RunMode::LazyJIT}) {
+      for (auto Level :
+           {OL::O0, OL::O1, OL::O2, OL::O3, OL::Os, OL::Oz, OL::Og}) {
+        Configure Conf;
+        Conf.getRuntimeConfigure().setRunMode(Mode);
+        Conf.getCompilerConfigure().setOptimizationLevel(Level);
+        Conf.getCompilerConfigure().setDebugInfo(true);
+        VM::VM Machine(Conf);
+        ASSERT_TRUE(Machine.loadWasm(readHexFixture(Name)));
+        ASSERT_TRUE(Machine.validate());
+        ASSERT_TRUE(Machine.instantiate());
+        auto R = Machine.execute(Fn);
+        ASSERT_TRUE(R) << Name << " mode " << static_cast<int>(Mode)
+                       << " level " << static_cast<int>(Level);
+        EXPECT_EQ((*R)[0].first.get<uint32_t>(), Want);
+      }
     }
   }
+}
+
+TEST(DebugInfoRun, LazyJITModulesCarryDebugInfo) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+  Conf.getCompilerConfigure().setDebugInfo(true);
+  auto Mod = loadFixture(Conf, "dwarf_basic_O0.wasm"sv);
+  ASSERT_NE(Mod, nullptr);
+  LLVM::Compiler Compiler(Conf);
+  auto Infra = Compiler.compileInfrastructure(*Mod);
+  ASSERT_TRUE(Infra);
+  auto *InfraM = llvm::unwrap(Infra->extract().LLModule.unwrap());
+  auto *MB = InfraM->getGlobalVariable("__wasmedge_debug_membase");
+  ASSERT_NE(MB, nullptr);
+  EXPECT_FALSE(MB->isDeclaration());
+  llvm::SmallVector<llvm::DIGlobalVariableExpression *, 4> GVEs;
+  MB->getDebugInfo(GVEs);
+  EXPECT_FALSE(GVEs.empty());
+  const uint32_t Count =
+      static_cast<uint32_t>(Mod->getCodeSection().getContent().size());
+  std::vector<uint32_t> All(Count);
+  std::iota(All.begin(), All.end(), 0U);
+  auto Batch = Compiler.compileFunctions(std::move(*Infra), *Mod, All);
+  ASSERT_TRUE(Batch);
+  auto *BatchM = llvm::unwrap(Batch->extract().LLModule.unwrap());
+  uint32_t WithSP = 0;
+  for (auto &F : *BatchM) {
+    WithSP += F.getSubprogram() != nullptr;
+  }
+  EXPECT_GE(WithSP, 3U);
+  EXPECT_FALSE(llvm::verifyModule(*BatchM, &llvm::errs()));
 }
 
 } // namespace

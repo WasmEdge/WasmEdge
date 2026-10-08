@@ -715,7 +715,7 @@ Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
   return {};
 }
 
-bool Compiler::shouldEmitDebugInfo() const noexcept {
+bool Compiler::shouldEmitDebugInfo(bool Warn) const noexcept {
   const auto &CC = Conf.getCompilerConfigure();
   if (!CC.isDebugInfo()) {
     return false;
@@ -723,8 +723,10 @@ bool Compiler::shouldEmitDebugInfo() const noexcept {
   const auto Mode = Conf.getRuntimeConfigure().getRunMode();
   if (CC.getOutputFormat() == CompilerConfigure::OutputFormat::Wasm &&
       Mode != RunMode::JIT && Mode != RunMode::LazyJIT) {
-    spdlog::warn("debug info: universal wasm output keeps no debug info, "
-                 "option ignored"sv);
+    if (Warn) {
+      spdlog::warn("debug info: universal wasm output keeps no debug info, "
+                   "option ignored"sv);
+    }
     return false;
   }
   return true;
@@ -749,6 +751,12 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module) noexcept {
                             Conf.getCompilerConfigure().isGenericBinary());
   RAIICleanup Cleanup(Context, &NewContext);
   Context->addVersionGlobal();
+  std::unique_ptr<DebugInfo::ModuleDebugInfo> DI;
+  if (shouldEmitDebugInfo()) {
+    DI = DebugInfo::ModuleDebugInfo::create(
+        Module, LLModule.unwrap(),
+        DebugInfo::ModuleDebugInfo::Part::GlobalsOnly, D.extract().DebugReader);
+  }
 
   // Compile all sections and the function declarations without bodies.
   compileSections(Module, false);
@@ -757,9 +765,12 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module) noexcept {
 
   // Set initializer for constant value
   Context->finalizeIntrinsicsTable();
-  if (LLVM::Message VerifyMsg; LLModule.hasVerificationError(VerifyMsg)) {
-    spdlog::error("LLVM module verification failed: {}"sv,
-                  VerifyMsg.string_view());
+  if (DI) {
+    DI->finalize();
+  }
+
+  if (auto VerifyMsg = verifyModule(LLModule, DI.get())) {
+    spdlog::error("LLVM module verification failed: {}"sv, *VerifyMsg);
     return Unexpect(ErrCode::Value::InvalidAOTConfigure);
   }
 
@@ -800,6 +811,14 @@ Compiler::compileFunctions(Data &&LLData, const AST::Module &Module,
   CompileContext NewContext(LLContext, LLModule,
                             Conf.getCompilerConfigure().isGenericBinary());
   RAIICleanup Cleanup(Context, &NewContext);
+  std::unique_ptr<DebugInfo::ModuleDebugInfo> DI;
+  if (shouldEmitDebugInfo(false)) {
+    DI = DebugInfo::ModuleDebugInfo::create(
+        Module, LLModule.unwrap(),
+        DebugInfo::ModuleDebugInfo::Part::FunctionsOnly,
+        LLData.extract().DebugReader);
+    Context->DI = DI.get();
+  }
 
   // Emit the type wrappers as external declarations resolved against the
   // infrastructure module, then declare the functions and compile the
@@ -810,10 +829,13 @@ Compiler::compileFunctions(Data &&LLData, const AST::Module &Module,
     EXPECTED_TRY(compileFunctionBody(FuncIndex));
   }
 
+  if (DI) {
+    DI->finalize();
+  }
+
   spdlog::info("[lazy-jit]: verify batch ({} funcs) start"sv, Sorted.size());
-  if (LLVM::Message VerifyMsg; LLModule.hasVerificationError(VerifyMsg)) {
-    spdlog::error("[lazy-jit]: batch verification failed: {}"sv,
-                  VerifyMsg.string_view());
+  if (auto VerifyMsg = verifyModule(LLModule, DI.get())) {
+    spdlog::error("[lazy-jit]: batch verification failed: {}"sv, *VerifyMsg);
     return Unexpect(ErrCode::Value::InvalidAOTConfigure);
   }
   spdlog::info("[lazy-jit]: verify batch ({} funcs) done"sv, Sorted.size());

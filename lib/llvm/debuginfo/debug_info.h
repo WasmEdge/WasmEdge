@@ -16,6 +16,8 @@
 
 namespace WasmEdge::LLVM::DebugInfo {
 
+class DwarfReader;
+
 struct AddressSlot {
   enum class Kind : uint8_t { Local, Global, GlobalStorage };
   Kind K = Kind::Local;
@@ -44,6 +46,9 @@ public:
   enum class Part : uint8_t { All, GlobalsOnly, FunctionsOnly };
   static std::unique_ptr<ModuleDebugInfo>
   create(const AST::Module &Mod, LLVMModuleRef M, Part P) noexcept;
+  static std::unique_ptr<ModuleDebugInfo>
+  create(const AST::Module &Mod, LLVMModuleRef M, Part P,
+         std::shared_ptr<DwarfReader> &Reader) noexcept;
   virtual ~ModuleDebugInfo() noexcept = default;
   virtual LLVMMetadataRef translateType(uint64_t DieOffset) noexcept = 0;
   virtual LLVMValueRef getMemoryBaseGlobal() const noexcept = 0;

@@ -24,3 +24,9 @@ target_link_libraries(wasmedgeLazyJITTests
   wasmedgeVM
   GTest::gtest
 )
+
+file(COPY
+  ${CMAKE_CURRENT_SOURCE_DIR}/debuginfo
+  DESTINATION
+  ${CMAKE_CURRENT_BINARY_DIR}
+)

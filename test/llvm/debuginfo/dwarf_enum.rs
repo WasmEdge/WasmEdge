@@ -14,8 +14,13 @@ pub enum Shape {
     Empty,
 }
 
+static mut CALLS: u32 = 0;
+
 #[inline(never)]
 fn area(s: &Shape) -> u32 {
+    unsafe {
+        CALLS += 1;
+    }
     match s {
         Shape::Circle(r) => r * 3,
         Shape::Square { side } => side * side,

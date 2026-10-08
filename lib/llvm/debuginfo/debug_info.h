@@ -16,9 +16,9 @@
 
 namespace WasmEdge::LLVM::DebugInfo {
 
-struct FrameBase {
-  enum class Kind : uint8_t { None, Local, Global };
-  Kind K = Kind::None;
+struct AddressSlot {
+  enum class Kind : uint8_t { Local, Global, GlobalStorage };
+  Kind K = Kind::Local;
   uint32_t Index = 0;
 };
 
@@ -28,10 +28,15 @@ public:
   virtual void setPrologueLocation(LLVMBuilderRef B) noexcept = 0;
   virtual void setLocation(LLVMBuilderRef B, uint64_t FileOffset) noexcept = 0;
   virtual void setArtificialLocation(LLVMBuilderRef B) noexcept = 0;
-  virtual FrameBase getFrameBase() const noexcept = 0;
-  virtual void finish(LLVMBasicBlockRef Entry, Span<const LLVMValueRef> Locals,
-                      LLVMValueRef MemorySlot, LLVMValueRef FrameBaseSlot,
-                      LLVMValueRef ModCtxArg) noexcept = 0;
+  virtual Span<const AddressSlot> getAddressSlots() const noexcept = 0;
+  virtual void bindFrame(Span<const LLVMValueRef> Locals,
+                         LLVMValueRef MemorySlot,
+                         Span<const LLVMValueRef> Slots,
+                         bool LocalsInMemory) noexcept = 0;
+  virtual void localWritten(LLVMBuilderRef B, uint32_t Index,
+                            LLVMValueRef Value) noexcept = 0;
+  virtual void finish(LLVMBasicBlockRef Entry,
+                      bool ExtendLiveness) noexcept = 0;
 };
 
 class ModuleDebugInfo {

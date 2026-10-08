@@ -1,0 +1,29 @@
+command script import @HELPER@
+settings set plugin.jit-loader.gdb.enable on
+breakpoint set --file dwarf_basic.c --line @BREAK_SUMLIST@
+process launch
+script print("@@BT1", flush=True)
+thread backtrace -c 3
+script print("@@LOCALS", flush=True)
+frame variable
+script print("@@HEAD_RAW", flush=True)
+frame variable --raw-output Head
+script print("@@HEAD", flush=True)
+frame variable Head
+script print("@@WASM_VALUE", flush=True)
+wasm N->Value
+script print("@@COUNTER", flush=True)
+frame variable Counter
+script print("@@NODE1", flush=True)
+frame variable Nodes[1].Value
+script print("@@GLOBAL", flush=True)
+wasm-global Counter
+breakpoint delete --force
+breakpoint set --file dwarf_basic.c --line @BREAK_FACT@
+process continue
+script print("@@BT2", flush=True)
+thread backtrace -c 3
+script print("@@FACT_N", flush=True)
+frame variable N
+process kill
+quit

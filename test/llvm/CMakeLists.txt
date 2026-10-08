@@ -49,10 +49,17 @@ file(COPY
 )
 
 find_package(Python3 COMPONENTS Interpreter)
-if(Python3_FOUND AND CMAKE_SYSTEM_NAME STREQUAL "Linux"
+if(Python3_FOUND AND CMAKE_SYSTEM_NAME MATCHES "^(Linux|Darwin|Windows)$"
    AND TARGET wasmedge AND TARGET wasmedgec)
-  foreach(DEBUGGER gdb)
+  set(WASMEDGE_DEBUGGERS lldb)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(PREPEND WASMEDGE_DEBUGGERS gdb)
+  endif()
+  foreach(DEBUGGER ${WASMEDGE_DEBUGGERS})
     foreach(MODE aot jit)
+      if(MODE STREQUAL "jit" AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        continue()
+      endif()
       string(TOUPPER "${DEBUGGER}" DEBUGGER_UPPER)
       string(TOUPPER "${MODE}" MODE_UPPER)
       set(TEST_NAME wasmedgeDebugInfo${DEBUGGER_UPPER}_${MODE_UPPER})
@@ -68,7 +75,7 @@ if(Python3_FOUND AND CMAKE_SYSTEM_NAME STREQUAL "Linux"
       set_tests_properties(${TEST_NAME} PROPERTIES SKIP_RETURN_CODE 77)
     endforeach()
   endforeach()
-  foreach(DEBUGGER gdb)
+  foreach(DEBUGGER ${WASMEDGE_DEBUGGERS})
     string(TOUPPER "${DEBUGGER}" DEBUGGER_UPPER)
     set(TEST_NAME wasmedgeDebugInfo${DEBUGGER_UPPER}_AOT_OG)
     add_test(NAME ${TEST_NAME}

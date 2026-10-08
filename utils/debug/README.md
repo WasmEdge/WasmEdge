@@ -58,9 +58,14 @@ lldb: `command script import utils/debug/wasmedge_lldb.py`
 | Read a C global for the current instance | `print $wasm_global("name")` | `wasm-global name` |
 | Pretty-print wasm pointers | automatic | automatic |
 
-The pretty-printer shows a wasm pointer as `(wasm) 0x<address> -> <value>`.
-It shows the target one level deep. To see the raw fields in gdb, use
-`print -raw-values -- p`. This option needs gdb 10 or newer.
+In gdb, the pretty-printer shows a wasm pointer as
+`(wasm) 0x<address> -> <value>`. It shows the target one level deep. To see
+the raw fields, use `print -raw-values -- p`. This option needs gdb 10 or
+newer.
+
+In lldb, the summary shows a wasm pointer as `(wasm) 0x<address>`. The child
+`*` holds the target. To see the raw fields, use
+`frame variable --raw-output p`.
 
 ## How wasm values appear
 
@@ -74,8 +79,15 @@ It shows the target one level deep. To see the raw fields in gdb, use
 
 ## Limits
 
-- Linux only. The helpers work with AOT shared libraries and with JIT.
-  Universal wasm output keeps no debug info.
+- The gdb helper works on Linux. The lldb helper works on Linux, macOS, and
+  Windows. Both helpers work with AOT shared libraries. On Linux and macOS,
+  they also work with JIT.
+- On Windows, the JIT gives the debugger no debug info. Use AOT to debug
+  on Windows.
+- On macOS, the AOT compiler keeps the debug info in an object file next to
+  the library, named `<library>.o`. Keep that file next to the library, or
+  run `dsymutil <library>` to make a `.dSYM` bundle.
+- Universal wasm output keeps no debug info.
 - C globals read the memory base of the last function that ran in that
   compiled module. If two instances of one module run together, or two
   threads run together, a global can show the value of another instance.

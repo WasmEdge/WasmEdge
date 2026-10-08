@@ -47,3 +47,39 @@ file(COPY
   DESTINATION
   ${CMAKE_CURRENT_BINARY_DIR}
 )
+
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_FOUND AND CMAKE_SYSTEM_NAME STREQUAL "Linux"
+   AND TARGET wasmedge AND TARGET wasmedgec)
+  foreach(DEBUGGER gdb)
+    foreach(MODE aot jit)
+      string(TOUPPER "${DEBUGGER}" DEBUGGER_UPPER)
+      string(TOUPPER "${MODE}" MODE_UPPER)
+      set(TEST_NAME wasmedgeDebugInfo${DEBUGGER_UPPER}_${MODE_UPPER})
+      add_test(NAME ${TEST_NAME}
+        COMMAND ${Python3_EXECUTABLE}
+          ${CMAKE_CURRENT_SOURCE_DIR}/debuginfo/run_debugger_test.py
+          --debugger ${DEBUGGER} --mode ${MODE}
+          --wasmedge $<TARGET_FILE:wasmedge>
+          --wasmedgec $<TARGET_FILE:wasmedgec>
+          --fixtures ${CMAKE_CURRENT_BINARY_DIR}/debuginfo
+          --helpers ${PROJECT_SOURCE_DIR}/utils/debug
+      )
+      set_tests_properties(${TEST_NAME} PROPERTIES SKIP_RETURN_CODE 77)
+    endforeach()
+  endforeach()
+  foreach(DEBUGGER gdb)
+    string(TOUPPER "${DEBUGGER}" DEBUGGER_UPPER)
+    set(TEST_NAME wasmedgeDebugInfo${DEBUGGER_UPPER}_AOT_OG)
+    add_test(NAME ${TEST_NAME}
+      COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/debuginfo/run_debugger_test.py
+        --debugger ${DEBUGGER} --mode aot --opt g
+        --wasmedge $<TARGET_FILE:wasmedge>
+        --wasmedgec $<TARGET_FILE:wasmedgec>
+        --fixtures ${CMAKE_CURRENT_BINARY_DIR}/debuginfo
+        --helpers ${PROJECT_SOURCE_DIR}/utils/debug
+    )
+    set_tests_properties(${TEST_NAME} PROPERTIES SKIP_RETURN_CODE 77)
+  endforeach()
+endif()

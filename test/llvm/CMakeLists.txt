@@ -4,6 +4,7 @@
 wasmedge_add_executable(wasmedgeLLVMCoreTests
   LLVMcoreTest.cpp
   DebugInfoReaderTest.cpp
+  DebugInfoTypesTest.cpp
 )
 
 add_test(wasmedgeLLVMCoreTests wasmedgeLLVMCoreTests)
@@ -28,6 +29,7 @@ find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_PATH}" "${LLVM_DIR}")
 if(NOT LLVM_ENABLE_RTTI AND NOT MSVC)
   set_source_files_properties(
     DebugInfoReaderTest.cpp
+    DebugInfoTypesTest.cpp
     PROPERTIES COMPILE_OPTIONS -fno-rtti)
 endif()
 target_include_directories(wasmedgeLLVMCoreTests

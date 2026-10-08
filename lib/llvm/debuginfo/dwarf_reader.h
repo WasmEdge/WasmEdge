@@ -8,6 +8,7 @@
 #include <llvm/ADT/StringMap.h>
 #include <llvm/DebugInfo/DWARF/DWARFContext.h>
 #include <llvm/DebugInfo/DWARF/DWARFDie.h>
+#include <llvm/DebugInfo/DWARF/DWARFFormValue.h>
 #include <llvm/Support/MemoryBuffer.h>
 
 #include <algorithm>
@@ -100,6 +101,39 @@ inline bool isTombstoneDataAddress(uint64_t Address) noexcept {
 inline bool isTombstoneAddress(uint64_t Address) noexcept {
   return Address == 0 || isTombstoneDataAddress(Address);
 }
+
+/// An integer constant with the signedness that its form or its type gives.
+struct IntegerConstant {
+  bool Signed = false;
+  int64_t SignedValue = 0;
+  uint64_t UnsignedValue = 0;
+
+  /// The two's complement bits of the value.
+  uint64_t bits() const noexcept {
+    return Signed ? static_cast<uint64_t>(SignedValue) : UnsignedValue;
+  }
+
+  /// The value as int64_t, or nothing if it is unsigned and above INT64_MAX.
+  std::optional<int64_t> toInt64() const noexcept {
+    if (Signed) {
+      return SignedValue;
+    }
+    if (UnsignedValue > static_cast<uint64_t>(INT64_MAX)) {
+      return std::nullopt;
+    }
+    return static_cast<int64_t>(UnsignedValue);
+  }
+};
+
+/// Reads an integer constant, such as an array bound or a constant value. An
+/// sdata value, or a fixed-size value of a signed type, is sign-extended. An
+/// expression, a block, or a reference gives no value.
+std::optional<IntegerConstant> integerConstant(const llvm::DWARFFormValue &V,
+                                               bool Signed) noexcept;
+
+/// The lower bound that DWARF 5 table 7.17 gives an array without
+/// DW_AT_lower_bound.
+int64_t defaultLowerBound(uint64_t Language) noexcept;
 
 class DwarfReader {
 public:

@@ -25,7 +25,10 @@ set(WASMEDGE_LLVM_SOURCES
   compiler/vectorInstr.cpp
   codegen.cpp
   data.cpp
+  debuginfo/dwarf_die.cpp
   debuginfo/dwarf_reader.cpp
+  debuginfo/module_debug_info.cpp
+  debuginfo/type_translator.cpp
   jit.cpp
   lazyjit.cpp
   llvm.cpp

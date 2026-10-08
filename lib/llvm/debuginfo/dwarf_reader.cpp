@@ -21,6 +21,47 @@ namespace WasmEdge::LLVM::DebugInfo {
 
 using namespace std::literals;
 
+std::optional<IntegerConstant> integerConstant(const llvm::DWARFFormValue &V,
+                                               bool Signed) noexcept {
+  namespace dwarf = llvm::dwarf;
+  switch (V.getForm()) {
+  case dwarf::DW_FORM_sdata:
+  case dwarf::DW_FORM_implicit_const:
+    Signed = true;
+    break;
+  case dwarf::DW_FORM_udata:
+    Signed = false;
+    break;
+  case dwarf::DW_FORM_data1:
+  case dwarf::DW_FORM_data2:
+  case dwarf::DW_FORM_data4:
+  case dwarf::DW_FORM_data8:
+    break;
+  default:
+    return std::nullopt;
+  }
+  IntegerConstant Result;
+  Result.Signed = Signed;
+  if (Signed) {
+    if (auto Value = V.getAsSignedConstant()) {
+      Result.SignedValue = *Value;
+      return Result;
+    }
+  } else if (auto Value = V.getAsUnsignedConstant()) {
+    Result.UnsignedValue = *Value;
+    return Result;
+  }
+  return std::nullopt;
+}
+
+int64_t defaultLowerBound(uint64_t Language) noexcept {
+  if (const auto Bound = llvm::dwarf::LanguageLowerBound(
+          static_cast<llvm::dwarf::SourceLanguage>(Language))) {
+    return *Bound;
+  }
+  return 0;
+}
+
 bool DwarfReader::hasDwarf(const AST::Module &Mod) noexcept {
   bool HasInfo = false;
   bool HasAbbrev = false;

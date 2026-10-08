@@ -3,7 +3,10 @@
 
 #pragma once
 
+#include "debuginfo/debug_info.h"
+#include "debuginfo/dwarf_die.h"
 #include "debuginfo/dwarf_reader.h"
+#include "debuginfo/type_translator.h"
 
 #include "common/configure.h"
 #include "executor/executor.h"
@@ -11,6 +14,12 @@
 #include "validator/validator.h"
 
 #include <gtest/gtest.h>
+#include <llvm-c/Core.h>
+#include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/Verifier.h>
+#include <llvm/Support/raw_ostream.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -150,6 +159,200 @@ renameAbbrevAttribute(AST::Module &Mod,
       [To](std::vector<Byte> &Bytes, size_t AttrAt, size_t) {
         Bytes[AttrAt] = static_cast<Byte>(To);
       });
+}
+
+/// A DIE for writeDwarfUnit. A DW_FORM_ref4 attribute holds the Id of the
+/// DIE it refers to. A string, block, or expression attribute holds its
+/// bytes in Bytes.
+struct TestDie {
+  struct Attribute {
+    llvm::dwarf::Attribute Name;
+    llvm::dwarf::Form Form;
+    uint64_t Value = 0;
+    std::vector<uint8_t> Bytes = {};
+  };
+  llvm::dwarf::Tag Tag;
+  std::vector<Attribute> Attributes = {};
+  std::vector<TestDie> Children = {};
+  uint32_t Id = 0;
+};
+
+inline TestDie::Attribute strAttr(llvm::dwarf::Attribute Name,
+                                  std::string_view Text) {
+  return {Name, llvm::dwarf::DW_FORM_string, 0,
+          std::vector<uint8_t>(Text.begin(), Text.end())};
+}
+
+inline TestDie::Attribute refAttr(llvm::dwarf::Attribute Name, uint32_t Id) {
+  return {Name, llvm::dwarf::DW_FORM_ref4, Id};
+}
+
+struct TestDwarf {
+  std::vector<uint8_t> Info;
+  std::vector<uint8_t> Abbrev;
+  /// The .debug_info offset of each DIE with an Id.
+  std::map<uint32_t, uint64_t> Offsets;
+};
+
+/// Writes one compile unit with the given DWARF version for a wasm32
+/// module. Each DIE gets its own abbreviation.
+inline TestDwarf writeDwarfUnit(uint16_t Version, const TestDie &Root) {
+  TestDwarf Out;
+  auto Fixed = [](std::vector<uint8_t> &To, uint64_t V, unsigned Size) {
+    for (unsigned I = 0; I < Size; ++I) {
+      To.push_back(static_cast<uint8_t>(V >> (I * 8)));
+    }
+  };
+  auto ULEB = [](std::vector<uint8_t> &To, uint64_t V) {
+    do {
+      const auto B = static_cast<uint8_t>(V & 0x7f);
+      V >>= 7;
+      To.push_back(V ? B | 0x80 : B);
+    } while (V);
+  };
+  auto SLEB = [](std::vector<uint8_t> &To, int64_t V) {
+    while (true) {
+      const auto B = static_cast<uint8_t>(V & 0x7f);
+      V >>= 7;
+      if ((V == 0 && !(B & 0x40)) || (V == -1 && (B & 0x40))) {
+        To.push_back(B);
+        return;
+      }
+      To.push_back(B | 0x80);
+    }
+  };
+  auto &Info = Out.Info;
+  Fixed(Info, 0, 4);
+  Fixed(Info, Version, 2);
+  if (Version < 5) {
+    Fixed(Info, 0, 4);
+    Info.push_back(4);
+  } else {
+    Info.push_back(llvm::dwarf::DW_UT_compile);
+    Info.push_back(4);
+    Fixed(Info, 0, 4);
+  }
+  std::vector<std::pair<size_t, uint32_t>> Refs;
+  uint64_t Code = 0;
+  std::function<void(const TestDie &)> Write = [&](const TestDie &D) {
+    ULEB(Out.Abbrev, ++Code);
+    ULEB(Out.Abbrev, D.Tag);
+    Out.Abbrev.push_back(D.Children.empty() ? 0 : 1);
+    if (D.Id) {
+      Out.Offsets[D.Id] = Info.size();
+    }
+    ULEB(Info, Code);
+    for (const auto &A : D.Attributes) {
+      ULEB(Out.Abbrev, A.Name);
+      ULEB(Out.Abbrev, A.Form);
+      switch (A.Form) {
+      case llvm::dwarf::DW_FORM_data1:
+        Fixed(Info, A.Value, 1);
+        break;
+      case llvm::dwarf::DW_FORM_data2:
+        Fixed(Info, A.Value, 2);
+        break;
+      case llvm::dwarf::DW_FORM_data4:
+      case llvm::dwarf::DW_FORM_sec_offset:
+        Fixed(Info, A.Value, 4);
+        break;
+      case llvm::dwarf::DW_FORM_data8:
+        Fixed(Info, A.Value, 8);
+        break;
+      case llvm::dwarf::DW_FORM_udata:
+        ULEB(Info, A.Value);
+        break;
+      case llvm::dwarf::DW_FORM_sdata:
+        SLEB(Info, static_cast<int64_t>(A.Value));
+        break;
+      case llvm::dwarf::DW_FORM_ref4:
+        Refs.emplace_back(Info.size(), static_cast<uint32_t>(A.Value));
+        Fixed(Info, 0, 4);
+        break;
+      case llvm::dwarf::DW_FORM_string:
+        Info.insert(Info.end(), A.Bytes.begin(), A.Bytes.end());
+        Info.push_back(0);
+        break;
+      case llvm::dwarf::DW_FORM_exprloc:
+      case llvm::dwarf::DW_FORM_block:
+        ULEB(Info, A.Bytes.size());
+        Info.insert(Info.end(), A.Bytes.begin(), A.Bytes.end());
+        break;
+      case llvm::dwarf::DW_FORM_flag_present:
+        break;
+      default:
+        ADD_FAILURE() << "writeDwarfUnit: unsupported form " << A.Form;
+        break;
+      }
+    }
+    Out.Abbrev.push_back(0);
+    Out.Abbrev.push_back(0);
+    if (!D.Children.empty()) {
+      for (const auto &C : D.Children) {
+        Write(C);
+      }
+      Info.push_back(0);
+    }
+  };
+  Write(Root);
+  Out.Abbrev.push_back(0);
+  for (const auto &[At, Id] : Refs) {
+    const auto It = Out.Offsets.find(Id);
+    EXPECT_NE(It, Out.Offsets.end()) << "writeDwarfUnit: no DIE " << Id;
+    if (It != Out.Offsets.end()) {
+      for (unsigned I = 0; I < 4; ++I) {
+        Info[At + I] = static_cast<uint8_t>(It->second >> (I * 8));
+      }
+    }
+  }
+  const auto Length = Info.size() - 4;
+  for (unsigned I = 0; I < 4; ++I) {
+    Info[I] = static_cast<uint8_t>(Length >> (I * 8));
+  }
+  return Out;
+}
+
+/// A module with functions and no DWARF, which gets the sections of Dwarf
+/// and the Extra sections.
+inline std::unique_ptr<AST::Module>
+moduleWithDwarf(const Configure &Conf, const TestDwarf &Dwarf,
+                const std::vector<std::pair<std::string, std::vector<uint8_t>>>
+                    &Extra = {}) {
+  auto Mod = loadFixture(Conf, "dwarf_basic_nodebug.wasm"sv);
+  if (!Mod) {
+    return nullptr;
+  }
+  for (const auto &[Name, Content] :
+       {std::pair{".debug_info"sv, &Dwarf.Info},
+        std::pair{".debug_abbrev"sv, &Dwarf.Abbrev},
+        std::pair{".debug_line"sv,
+                  static_cast<const std::vector<uint8_t> *>(nullptr)}}) {
+    auto &Custom = Mod->getCustomSections().emplace_back();
+    Custom.setName(Name);
+    if (Content) {
+      Custom.getContent() = *Content;
+    }
+  }
+  for (const auto &[Name, Content] : Extra) {
+    auto &Custom = Mod->getCustomSections().emplace_back();
+    Custom.setName(Name);
+    Custom.getContent() = Content;
+  }
+  return Mod;
+}
+
+inline llvm::DWARFDie findType(llvm::DWARFContext &Ctx, llvm::dwarf::Tag Tag,
+                               std::string_view Name) {
+  for (const auto &CU : Ctx.compile_units()) {
+    for (const auto &Entry : CU->dies()) {
+      llvm::DWARFDie Die(CU.get(), &Entry);
+      if (Die.getTag() == Tag && Die.getName(llvm::DINameKind::ShortName) &&
+          Name == Die.getName(llvm::DINameKind::ShortName)) {
+        return Die;
+      }
+    }
+  }
+  return {};
 }
 
 } // namespace WasmEdge::DebugInfoTest

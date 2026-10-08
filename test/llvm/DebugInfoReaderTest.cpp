@@ -269,4 +269,60 @@ TEST(DwarfReader, NameSectionRecovery) {
   }
 }
 
+TEST(DwarfReader, DeclFileUsesTheUnitOfTheAttribute) {
+  Configure Conf;
+  auto Mod = loadFixture(Conf, "dwarf_units_O2.wasm"sv);
+  ASSERT_NE(Mod, nullptr);
+  auto R = LLVM::DebugInfo::DwarfReader::create(*Mod);
+  ASSERT_NE(R, nullptr);
+  uint32_t Checked = 0;
+  for (const auto &CU : R->getContext().compile_units()) {
+    for (const auto &Entry : CU->dies()) {
+      llvm::DWARFDie D(CU.get(), &Entry);
+      auto Origin = D.getAttributeValueAsReferencedDie(
+          llvm::dwarf::DW_AT_abstract_origin);
+      if (D.getTag() != llvm::dwarf::DW_TAG_variable || !Origin ||
+          Origin.getDwarfUnit() == CU.get()) {
+        continue;
+      }
+      const auto Path = LLVM::DebugInfo::declFile(D);
+      EXPECT_TRUE(Path.size() >= "dwarf_units_helper.c"sv.size() &&
+                  Path.compare(Path.size() - "dwarf_units_helper.c"sv.size(),
+                               std::string::npos, "dwarf_units_helper.c") == 0)
+          << Path;
+      ++Checked;
+    }
+  }
+  EXPECT_GT(Checked, 0U);
+}
+
+TEST(DwarfReader, ArrayBoundForms) {
+  using LLVM::DebugInfo::defaultLowerBound;
+  using LLVM::DebugInfo::integerConstant;
+  namespace dwarf = llvm::dwarf;
+  const auto SData =
+      llvm::DWARFFormValue::createFromSValue(dwarf::DW_FORM_sdata, -3);
+  const auto Data1 =
+      llvm::DWARFFormValue::createFromUValue(dwarf::DW_FORM_data1, 0xfd);
+  const auto Ref =
+      llvm::DWARFFormValue::createFromUValue(dwarf::DW_FORM_ref4, 8);
+  const auto Data8 =
+      llvm::DWARFFormValue::createFromUValue(dwarf::DW_FORM_data8, UINT64_MAX);
+  auto Value = [](const llvm::DWARFFormValue &V, bool Signed) {
+    const auto C = integerConstant(V, Signed);
+    return C ? C->toInt64() : std::nullopt;
+  };
+  EXPECT_EQ(Value(SData, false), -3);
+  EXPECT_EQ(Value(Data1, true), -3);
+  EXPECT_EQ(Value(Data1, false), 0xfd);
+  EXPECT_FALSE(integerConstant(Ref, false));
+  EXPECT_EQ(Value(Data8, true), -1);
+  const auto Big = integerConstant(Data8, false);
+  ASSERT_TRUE(Big);
+  EXPECT_FALSE(Big->toInt64());
+  EXPECT_EQ(Big->bits(), UINT64_MAX);
+  EXPECT_EQ(defaultLowerBound(dwarf::DW_LANG_C11), 0);
+  EXPECT_EQ(defaultLowerBound(dwarf::DW_LANG_Fortran90), 1);
+}
+
 } // namespace

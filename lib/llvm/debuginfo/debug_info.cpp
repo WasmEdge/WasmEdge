@@ -1284,7 +1284,9 @@ std::unique_ptr<ModuleDebugInfo> ModuleDebugInfo::create(const AST::Module &Mod,
                                                          Part P) noexcept {
   auto Reader = DwarfReader::create(Mod);
   if (!Reader) {
-    spdlog::info("debug info: module has no DWARF sections"sv);
+    if (P != Part::FunctionsOnly) {
+      spdlog::info("debug info: module has no DWARF sections"sv);
+    }
     return nullptr;
   }
   bool HasMemory = !Mod.getMemorySection().getContent().empty();

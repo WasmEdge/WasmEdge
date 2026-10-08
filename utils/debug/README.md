@@ -65,9 +65,19 @@ lldb: `command script import utils/debug/wasmedge_lldb.py`
 | Read a C global for the current instance | `print $wasm_global("name")` | `wasm-global name` |
 | Pretty-print wasm pointers | automatic | automatic |
 
-The pretty-printer shows a wasm pointer as `(wasm) 0x<address> -> <value>`.
-It shows the target one level deep. To see the raw fields in gdb, use
-`print -raw-values -- p`. This option needs gdb 10 or newer.
+In gdb, the pretty-printer shows a wasm pointer as
+`(wasm) 0x<address> -> <value>`. It shows the target one level deep. To see
+the raw fields, use `print -raw-values -- p`. This option needs gdb 10 or
+newer.
+
+In lldb, the summary shows a wasm pointer as `(wasm) 0x<address>`. The child
+`*` holds the target. lldb expands nested wasm pointers at most four levels
+deep, so a cyclic list does not expand without end. To see the raw fields,
+use `frame variable --raw-output p`.
+
+Both helpers find `__wasm_memory` in the selected frame. If the selected
+frame has no value for it, they look in the callers that are in the same
+compiled module.
 
 ## How wasm values appear
 
@@ -83,8 +93,17 @@ It shows the target one level deep. To see the raw fields in gdb, use
 
 ## Limits
 
-- Linux only. The helpers work with AOT shared libraries and with JIT.
-  Universal wasm output keeps no debug info.
+- The gdb helper works on Linux. The lldb helper works on Linux, macOS, and
+  Windows. Both helpers work with AOT shared libraries. On Linux and macOS,
+  they also work with JIT.
+- On Windows, the JIT gives the debugger no debug info. Use AOT to debug
+  on Windows.
+- On macOS, the AOT compiler keeps the debug info in an object file next to
+  the library, named `<library>.o`. It replaces a file with that name. The
+  library records the absolute path of that file, so do not move or delete
+  it. To move the library, run `dsymutil <library>` first, and move the
+  `.dSYM` bundle with it.
+- Universal wasm output keeps no debug info.
 - With LLVM 15 or newer, the JIT does not remove its code from the
   debugger list when WasmEdge frees a module. The list grows with each JIT
   module until the process exits. Use JIT debug info for debugging, not in

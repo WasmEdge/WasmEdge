@@ -10,6 +10,7 @@ import sys
 import tempfile
 
 SKIP = 77
+LIB_SUFFIX = {"darwin": ".dylib", "win32": ".dll"}.get(sys.platform, ".so")
 
 # Each check is (section marker printed by the debugger script, regex that
 # must match inside that section).
@@ -27,7 +28,19 @@ CHECKS = {
         ("BT2", r"#\d+\s+.*\bfact\b.*\bN=1\b.*dwarf_basic\.c:\d+"),
         ("FACT_N", r"^\$\d+ = 1$"),
     ],
-    "lldb": [],
+    "lldb": [
+        ("BT1", r"frame #\d+: .*\bsumList\b.*dwarf_basic\.c:\d+"),
+        ("BT1", r"frame #\d+: .*\brun\b.*dwarf_basic\.c:\d+"),
+        ("LOCALS", r"^\(int\) Total = 0$"),
+        ("HEAD_RAW", r"^\s+__addr = \d+$"),
+        ("HEAD", r"Head = \(wasm\) 0x[0-9a-f]+ \{\n\s+\* = \{\n\s+Value = 1$"),
+        ("WASM_VALUE", r"^N->Value = 1$"),
+        ("COUNTER", r"^\(int\) Counter = 7$"),
+        ("NODE1", r"^\(int\) Nodes\[1\]\.Value = 2$"),
+        ("GLOBAL", r"^Counter = 7$"),
+        ("BT2", r"frame #\d+: .*\bfact\b.*\bN=1\b.*dwarf_basic\.c:\d+"),
+        ("FACT_N", r"^\(int\) N = 1$"),
+    ],
 }
 
 
@@ -37,7 +50,10 @@ UNUSABLE = {
         r"ptrace: Operation not permitted",
         r"Python scripting is not supported in this copy of GDB",
     ],
-    "lldb": [],
+    "lldb": [
+        r"there is no embedded script interpreter in this mode",
+        r"process launch failed",
+    ],
 }
 
 
@@ -48,6 +64,10 @@ OG_CHECKS = {
     "gdb": {
         "BT2": r"#\d+\s+.*\bfact\b.*\bN=[14]\b.*dwarf_basic\.c:\d+",
         "FACT_N": r"^\$\d+ = [14]$",
+    },
+    "lldb": {
+        "BT2": r"frame #\d+: .*\bfact\b.*\bN=[14]\b.*dwarf_basic\.c:\d+",
+        "FACT_N": r"^\(int\) N = [14]$",
     },
 }
 
@@ -144,11 +164,6 @@ def main():
     ext = a.debugger
     helper = os.path.join(a.helpers, f"wasmedge_{ext}.py")
     template = os.path.join(a.fixtures, f"basic.{ext}")
-    if a.debugger == "lldb" and not (os.path.exists(template) and
-                                     os.path.exists(helper)):
-        print(f"{a.debugger} test files not available, skipping")
-        return SKIP
-
     src = os.path.join(a.fixtures, "dwarf_basic.c")
     work = tempfile.mkdtemp(prefix="wasmedge-dbg-")
     wasm = os.path.join(work, "dwarf_basic_O0.wasm")
@@ -156,7 +171,7 @@ def main():
         with open(wasm, "wb") as out:
             out.write(bytes.fromhex("".join(f.read().split())))
     if a.mode == "aot":
-        target = os.path.join(work, "dwarf_basic.so")
+        target = os.path.join(work, "dwarf_basic" + LIB_SUFFIX)
         subprocess.run([a.wasmedgec, "--debug-info", "--optimize", a.opt,
                         wasm, target], check=True)
         run_args = ["--run-mode=aot", "--reactor", target, "run"]
@@ -166,7 +181,7 @@ def main():
 
     with open(template, encoding="utf-8") as f:
         script = f.read()
-    script = (script.replace("@HELPER@", helper)
+    script = (script.replace("@HELPER@", helper.replace(os.sep, "/"))
               .replace("@BREAK_SUMLIST@", str(marker(src, "BREAK_SUMLIST")))
               .replace("@BREAK_FACT@", str(marker(src, "BREAK_FACT"))))
     script_path = os.path.join(work, f"basic.{ext}")
@@ -180,7 +195,7 @@ def main():
         cmd = [exe, "-b", "-s", script_path, "--", a.wasmedge] + run_args
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True,
-                              timeout=300)
+                              timeout=300, env=env)
     except subprocess.TimeoutExpired as e:
         print(f"{a.debugger} did not finish in {e.timeout} seconds")
         print(f"work directory kept: {work}")

@@ -18,12 +18,19 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
                                    Span<const ValType> Locals,
                                    bool Interruptible, bool InstructionCounting,
                                    bool GasMeasuring, bool IsLazyJIT,
-                                   bool StackCheck) noexcept
+                                   bool StackCheck, uint32_t FuncIndex,
+                                   uint32_t DefinedIndex) noexcept
     : Context(Context), LLContext(Context.LLContext),
       Interruptible(Interruptible), IsLazyJIT(IsLazyJIT), F(F),
       Builder(LLContext) {
   if (F.Fn) {
+    if (Context.DI) {
+      DI = Context.DI->beginFunction(FuncIndex, DefinedIndex, F.Fn.unwrap());
+    }
     Builder.positionAtEnd(LLVM::BasicBlock::create(LLContext, F.Fn, "entry"));
+    if (DI) {
+      DI->setPrologueLocation(Builder.unwrap());
+    }
     ModCtx = Builder.createLoad(Context.ModCtxTy, F.Fn.getFirstParam());
     ExecCtx = Builder.createLoad(Context.ExecCtxTy,
                                  F.Fn.getFirstParam().getNextParam());
@@ -110,6 +117,9 @@ Expect<void> FunctionCompiler::compile(
   assuming(ControlStack.empty());
   compileReturn();
 
+  if (DI) {
+    DI->setArtificialLocation(Builder.unwrap());
+  }
   for (auto &[Error, BB] : TrapBB) {
     Builder.positionAtEnd(BB);
     updateInstrCount();
@@ -1099,6 +1109,9 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
   };
 
   for (const auto &Instr : Instrs) {
+    if (DI) {
+      DI->setLocation(Builder.unwrap(), Instr.getOffset());
+    }
     // Update instruction count
     if (LocalInstrCount) {
       Builder.createStore(Builder.createAdd(Builder.createLoad(Context.Int64Ty,

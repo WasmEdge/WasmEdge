@@ -5,6 +5,7 @@
 #include "compiler/context.h"
 
 #include <cstdint>
+#include <memory>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
@@ -19,7 +20,8 @@ public:
   FunctionCompiler(LLVM::Compiler::CompileContext &Context,
                    LLVM::FunctionCallee F, Span<const ValType> Locals,
                    bool Interruptible, bool InstructionCounting,
-                   bool GasMeasuring, bool IsLazyJIT, bool StackCheck) noexcept;
+                   bool GasMeasuring, bool IsLazyJIT, bool StackCheck,
+                   uint32_t FuncIndex, uint32_t DefinedIndex) noexcept;
 
   LLVM::BasicBlock getTrapBB(ErrCode::Value Error) noexcept;
 
@@ -296,6 +298,7 @@ private:
   LLVM::Value ExecCtx;
   LLVM::BasicBlock UnwindBB;
   LLVM::Builder Builder;
+  std::unique_ptr<LLVM::DebugInfo::FunctionDebugInfo> DI;
 };
 
 } // namespace WasmEdge

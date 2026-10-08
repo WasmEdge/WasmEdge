@@ -180,12 +180,27 @@ std::filesystem::path createTemp(const std::filesystem::path Model) noexcept {
   }
 }
 
+bool hasDebugInfo(const LLVM::Module &M) noexcept {
+  constexpr auto Name = "llvm.dbg.cu"sv;
+  return LLVMGetNamedMetadata(M.unwrap(), Name.data(), Name.size()) != nullptr;
+}
+
 // Write output object and link
 Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
-                                 const LLVM::MemoryBuffer &OSVec) noexcept {
+                                 const LLVM::MemoryBuffer &OSVec,
+                                 bool DebugInfo) noexcept {
   spdlog::info("output start"sv);
   std::filesystem::path ObjectName;
-  {
+  const bool KeepObject = WASMEDGE_OS_MACOS && DebugInfo;
+  if (KeepObject) {
+    std::error_code Error;
+    ObjectName = std::filesystem::absolute(OutputPath, Error);
+    if (Error) {
+      spdlog::error("so file creation failed:{}"sv, u8string(OutputPath));
+      return Unexpect(ErrCode::Value::IllegalPath);
+    }
+    ObjectName += ".o";
+  } else {
     // tempfile
     std::filesystem::path OPath(OutputPath);
 #if WASMEDGE_OS_WINDOWS
@@ -199,6 +214,8 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
       spdlog::error("so file creation failed:{}"sv, u8string(OPath));
       return Unexpect(ErrCode::Value::IllegalPath);
     }
+  }
+  {
     std::ofstream OS(ObjectName, std::ios_base::binary);
     OS.write(OSVec.data(), static_cast<std::streamsize>(OSVec.size()));
     OS.close();
@@ -251,7 +268,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
   LinkResult = lld::coff::link(
       std::initializer_list<const char *>{
           "lld-link", "-dll", "-base:0", "-nologo",
-          u8string(ObjectName).c_str(),
+          DebugInfo ? "-debug:dwarf" : "-nologo", u8string(ObjectName).c_str(),
           ("-out:" + u8string(OutputPath)).c_str()},
 #endif
 
@@ -271,7 +288,9 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 
   if (LinkResult) {
     std::error_code Error;
-    std::filesystem::remove(ObjectName, Error);
+    if (!KeepObject) {
+      std::filesystem::remove(ObjectName, Error);
+    }
 #if WASMEDGE_OS_WINDOWS
     std::filesystem::path LibPath(OutputPath);
     LibPath.replace_extension(".lib"sv);
@@ -326,7 +345,7 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
     OS.close();
   }
 
-  EXPECTED_TRY(outputNativeLibrary(SharedObjectName, OSVec));
+  EXPECTED_TRY(outputNativeLibrary(SharedObjectName, OSVec, false));
 
   LLVM::MemoryBuffer SOFile;
   if (auto [Res, ErrorMessage] =
@@ -632,7 +651,8 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
         CompilerConfigure::OutputFormat::Wasm) {
       EXPECTED_TRY(outputWasmLibrary(LLContext, OutputPath, WasmData, OSVec));
     } else {
-      EXPECTED_TRY(outputNativeLibrary(OutputPath, OSVec));
+      EXPECTED_TRY(
+          outputNativeLibrary(OutputPath, OSVec, hasDebugInfo(LLModule)));
     }
   }
 

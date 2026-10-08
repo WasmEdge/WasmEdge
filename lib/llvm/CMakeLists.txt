@@ -55,6 +55,10 @@ else()
     list(APPEND LLD_LIBS lldELF)
   endif()
 
+  if(LLVM_VERSION_MAJOR GREATER_EQUAL 18)
+    list(APPEND EXTRA_COMPONENTS orcdebugging)
+  endif()
+
   list(APPEND LLD_LIBS lldCommon)
   if(LLVM_VERSION_MAJOR LESS_EQUAL 13)
     list(APPEND LLD_LIBS lldDriver)

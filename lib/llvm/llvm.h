@@ -2442,6 +2442,8 @@ public:
   }
 #endif
 
+  Error enableDebuggerSupport() noexcept;
+
   static LLVMOrcLLJITBuilderRef getBuilder() noexcept;
 
 private:

@@ -326,9 +326,14 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
   if(NOT IS_DIRECTORY "${LLD_LIBRARY_DIR}")
     set(LLD_LIBRARY_DIR ${LLVM_LIBRARY_DIR})
   endif()
+  set(WASMEDGE_LLVM_CONFIG_COMPONENTS
+    core linker lto native nativecodegen option passes support orcjit transformutils all-targets)
+  if(LLVM_VERSION_MAJOR GREATER_EQUAL 18)
+    list(APPEND WASMEDGE_LLVM_CONFIG_COMPONENTS orcdebugging)
+  endif()
   execute_process(
     COMMAND ${LLVM_BINARY_DIR}/bin/llvm-config --libs --link-static
-    core linker lto native nativecodegen option passes support orcjit transformutils all-targets
+    ${WASMEDGE_LLVM_CONFIG_COMPONENTS}
     OUTPUT_VARIABLE WASMEDGE_LLVM_LINK_LIBS_NAME
   )
   string(REPLACE "-l" "" WASMEDGE_LLVM_LINK_LIBS_NAME "${WASMEDGE_LLVM_LINK_LIBS_NAME}")

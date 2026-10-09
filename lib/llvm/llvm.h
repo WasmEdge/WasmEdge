@@ -31,6 +31,10 @@
 #include <llvm-c/LLJIT.h>
 #endif
 
+#if LLVM_VERSION_MAJOR < 10
+LLVMBool LLVMGetWeak(LLVMValueRef CmpXchgInst) noexcept;
+void LLVMSetWeak(LLVMValueRef CmpXchgInst, LLVMBool IsWeak) noexcept;
+#endif
 #if LLVM_VERSION_MAJOR < 11
 using LLVMOrcJITTargetAddress = uint64_t;
 using LLVMOrcExecutionSessionRef = struct LLVMOrcOpaqueExecutionSession *;

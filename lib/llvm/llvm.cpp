@@ -68,6 +68,15 @@ void LLVMSetTailCallKind(LLVMValueRef Call, LLVMTailCallKind kind) {
       static_cast<llvm::CallInst::TailCallKind>(kind));
 }
 #endif
+#if LLVM_VERSION_MAJOR < 10
+LLVMBool LLVMGetWeak(LLVMValueRef CmpXchgInst) noexcept {
+  return llvm::unwrap<llvm::AtomicCmpXchgInst>(CmpXchgInst)->isWeak();
+}
+
+void LLVMSetWeak(LLVMValueRef CmpXchgInst, LLVMBool IsWeak) noexcept {
+  llvm::unwrap<llvm::AtomicCmpXchgInst>(CmpXchgInst)->setWeak(IsWeak);
+}
+#endif
 
 namespace WasmEdge::LLVM {
 
@@ -478,9 +487,15 @@ LLVMOrcJITTargetMachineBuilderCreateFromTargetMachine(LLVMTargetMachineRef TM) {
   JTMB->setCPU(TemplateTM->getTargetCPU().str())
       .setRelocationModel(TemplateTM->getRelocationModel())
       .setCodeModel(TemplateTM->getCodeModel())
-      .setCodeGenOptLevel(TemplateTM->getOptLevel())
-      .setFeatures(TemplateTM->getTargetFeatureString())
+      .setCodeGenOptLevel(TemplateTM->getOptLevel());
+#if LLVM_VERSION_MAJOR < 10
+  JTMB->getFeatures() =
+      llvm::SubtargetFeatures(TemplateTM->getTargetFeatureString());
+  JTMB->getOptions() = TemplateTM->Options;
+#else
+  JTMB->setFeatures(TemplateTM->getTargetFeatureString())
       .setOptions(TemplateTM->Options);
+#endif
   LLVMDisposeTargetMachine(TM);
   return wrap(JTMB.release());
 }
@@ -537,7 +552,12 @@ LLVMOrcThreadSafeModuleWithModuleDo(LLVMOrcThreadSafeModuleRef TSM,
                                     void *Ctx) noexcept {
   using llvm::unwrap;
   using llvm::wrap;
+#if LLVM_VERSION_MAJOR < 10
+  auto Lock = unwrap(TSM)->getContextLock();
+  return F(Ctx, wrap(unwrap(TSM)->getModule()));
+#else
   return wrap(unwrap(TSM)->withModuleDo(
       [&](llvm::Module &M) { return unwrap(F(Ctx, wrap(&M))); }));
+#endif
 }
 #endif

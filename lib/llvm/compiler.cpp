@@ -148,6 +148,7 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
 #endif
       toLLVMCodeGenLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
       LLVMRelocPIC, LLVMCodeModelDefault);
+  TM.setModuleDataLayout(LLModule);
 
 #if LLVM_VERSION_MAJOR >= 13
 #if LLVM_VERSION_MAJOR >= 23

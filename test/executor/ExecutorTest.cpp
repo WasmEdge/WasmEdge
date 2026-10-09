@@ -16,6 +16,7 @@
 
 #include "common/filesystem.h"
 #include "common/spdlog.h"
+#include "executor/coredump.h"
 #include "vm/vm.h"
 
 #include "../spec/hostfunc.h"
@@ -23,6 +24,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -30,6 +32,7 @@
 #include <filesystem>
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -674,6 +677,309 @@ TEST(Coredump, Wasmgdb) {
 
   EXPECT_FALSE(Reader.isFailed());
   EXPECT_TRUE(Reader.isEnd());
+}
+
+const std::array<Byte, 31> CoredumpModuleB{
+    0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x05, 0x03, 0x01,
+    0x00, 0x01, 0x06, 0x07, 0x01, 0x7F, 0x01, 0x41, 0xB4, 0x24, 0x0B,
+    0x0B, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0B, 0x01, 0x42};
+
+class CoredumpState : public testing::Test {
+protected:
+  void SetUp() override {
+    TempDir =
+        std::filesystem::temp_directory_path() /
+        u8path("wasmedge-coredump-state-"s +
+               testing::UnitTest::GetInstance()->current_test_info()->name());
+    std::error_code Error;
+    std::filesystem::remove_all(TempDir, Error);
+    ASSERT_TRUE(std::filesystem::create_directories(TempDir, Error));
+    Path = u8string(TempDir / "state.core");
+    Conf.addHostRegistration(HostRegistration::Wasi);
+    Conf.getRuntimeConfigure().setEnableCoredump(true);
+    VM = std::make_unique<WasmEdge::VM::VM>(Conf);
+    ASSERT_TRUE(VM->registerModule("B"sv, CoredumpModuleB));
+    ASSERT_TRUE(VM->loadWasm(CoredumpWasm));
+  }
+
+  void TearDown() override {
+    std::error_code Error;
+    std::filesystem::remove_all(TempDir, Error);
+  }
+
+  void instantiate() {
+    ASSERT_TRUE(VM->validate());
+    ASSERT_TRUE(VM->instantiate());
+  }
+
+  void generate(Coredump::Request Req, AST::Module &Output) {
+    // The loader keeps the previous dump mapped, and Windows refuses to rewrite
+    // a mapped file, so every dump gets its own name.
+    Path =
+        u8string(TempDir / ("state-"s + std::to_string(++Generated) + ".core"));
+    Req.Path = Path;
+    const auto Result = Coredump::generate(Req);
+    ASSERT_TRUE(Result);
+    EXPECT_EQ(*Result, Path);
+    EXPECT_TRUE(std::filesystem::exists(u8path(Path)));
+    auto Mod = VM->getLoader().parseModule(u8path(Path));
+    ASSERT_TRUE(Mod);
+    ASSERT_TRUE(VM->getValidator().validate(**Mod));
+    Output = std::move(**Mod);
+  }
+
+  Configure Conf;
+  std::unique_ptr<WasmEdge::VM::VM> VM;
+  std::filesystem::path TempDir;
+  std::string Path;
+  unsigned Generated = 0;
+};
+
+TEST_F(CoredumpState, ModulesOnly) {
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  const auto *Active = VM->getActiveModule();
+  ASSERT_NE(Active, nullptr);
+  const std::array Modules{Active};
+  for (const bool ForWasmgdb : {false, true}) {
+    SCOPED_TRACE(ForWasmgdb);
+    Coredump::Request Req;
+    Req.Modules = Modules;
+    Req.ForWasmgdb = ForWasmgdb;
+    AST::Module Mod;
+    ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+    ASSERT_EQ(Mod.getCustomSections().size(), 4U);
+    for (const auto Name :
+         {"core"sv, "coremodules"sv, "coreinstances"sv, "corestack"sv}) {
+      ASSERT_NE(findCustomSection(Mod, Name), nullptr);
+    }
+    CoredumpReader Reader(findCustomSection(Mod, "corestack"sv)->getContent());
+    EXPECT_EQ(Reader.readByte(), 0U);
+    EXPECT_EQ(Reader.readName(), "main"s);
+    EXPECT_EQ(Reader.readU32(), 0U);
+    EXPECT_FALSE(Reader.isFailed());
+    EXPECT_TRUE(Reader.isEnd());
+    ASSERT_EQ(Mod.getMemorySection().getContent().size(), 1U);
+    EXPECT_EQ(Mod.getMemorySection().getContent()[0].getLimit().getMin(), 1U);
+    const auto Memories = Active->getMemoryInstances();
+    ASSERT_EQ(Memories.size(), 1U);
+    const auto Memory = Memories[0]->getBytes(0, Memories[0]->getSize());
+    ASSERT_TRUE(Memory);
+    std::vector<Byte> Restored(Memory->size(), 0);
+    const auto &Segments = Mod.getDataSection().getContent();
+    EXPECT_EQ(Segments.size(), ForWasmgdb ? 1U : 0U);
+    for (const auto &Seg : Segments) {
+      EXPECT_EQ(Seg.getIdx(), 0U);
+      const auto Offset = Seg.getExpr().getInstrs()[0].getNum().get<uint32_t>();
+      ASSERT_LE(Offset + Seg.getData().size(), Restored.size());
+      std::copy(Seg.getData().begin(), Seg.getData().end(),
+                Restored.begin() + Offset);
+    }
+    EXPECT_EQ(Restored, (std::vector<Byte>(Memory->begin(), Memory->end())));
+    const auto Globals = Active->getGlobalInstances();
+    const auto &DumpGlobals = Mod.getGlobalSection().getContent();
+    ASSERT_EQ(DumpGlobals.size(), Globals.size());
+    ASSERT_EQ(DumpGlobals.size(), 2U);
+    EXPECT_EQ(DumpGlobals[0].getExpr().getInstrs()[0].getNum().get<int32_t>(),
+              Globals[0]->getValue().get<int32_t>());
+    EXPECT_DOUBLE_EQ(
+        DumpGlobals[1].getExpr().getInstrs()[0].getNum().get<double>(),
+        Globals[1]->getValue().get<double>());
+  }
+}
+
+TEST_F(CoredumpState, RegisteredModule) {
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  const auto *Active = VM->getActiveModule();
+  const auto *B = VM->getStoreManager().findModule("B"sv);
+  ASSERT_NE(Active, nullptr);
+  ASSERT_NE(B, nullptr);
+  const std::array Modules{Active, B};
+  Coredump::Request Req;
+  Req.Modules = Modules;
+  AST::Module Mod;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+  const auto *CoreModules = findCustomSection(Mod, "coremodules"sv);
+  ASSERT_NE(CoreModules, nullptr);
+  CoredumpReader Reader(CoreModules->getContent());
+  ASSERT_EQ(Reader.readU32(), 2U);
+  for (const auto *Module : Modules) {
+    EXPECT_EQ(Reader.readByte(), 0U);
+    EXPECT_EQ(Reader.readName(), Module->getModuleName());
+  }
+  EXPECT_FALSE(Reader.isFailed());
+  EXPECT_TRUE(Reader.isEnd());
+  const auto *Instances = findCustomSection(Mod, "coreinstances"sv);
+  ASSERT_NE(Instances, nullptr);
+  CoredumpReader InstanceReader(Instances->getContent());
+  ASSERT_EQ(InstanceReader.readU32(), 2U);
+  for (uint32_t I = 0; I < 2; ++I) {
+    EXPECT_EQ(InstanceReader.readByte(), 0U);
+    EXPECT_EQ(InstanceReader.readU32(), I);
+    ASSERT_EQ(InstanceReader.readU32(), 1U);
+    EXPECT_EQ(InstanceReader.readU32(), I);
+    ASSERT_EQ(InstanceReader.readU32(), I == 0 ? 2U : 1U);
+    EXPECT_EQ(InstanceReader.readU32(), I == 0 ? 0U : 2U);
+    if (I == 0) {
+      EXPECT_EQ(InstanceReader.readU32(), 1U);
+    }
+  }
+  EXPECT_FALSE(InstanceReader.isFailed());
+  EXPECT_TRUE(InstanceReader.isEnd());
+  ASSERT_EQ(Mod.getGlobalSection().getContent().size(), 3U);
+  const auto &Global = Mod.getGlobalSection().getContent()[2];
+  EXPECT_EQ(Global.getExpr().getInstrs()[0].getNum().get<int32_t>(), 0x1234);
+  ASSERT_EQ(Mod.getMemorySection().getContent().size(), 2U);
+  ASSERT_EQ(Mod.getDataSection().getContent().size(), 1U);
+  const auto &Seg = Mod.getDataSection().getContent()[0];
+  EXPECT_EQ(Seg.getIdx(), 1U);
+  EXPECT_EQ(Seg.getExpr().getInstrs()[0].getNum().get<int32_t>(), 0);
+  ASSERT_EQ(Seg.getData().size(), 1U);
+  EXPECT_EQ(Seg.getData()[0], 0x42);
+
+  ScopedWorkingDirectory Guard(TempDir);
+  const auto Result = VM->execute("access_out_of_bounds"sv);
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::MemoryOutOfBounds);
+  size_t Dumps = 0;
+  for (const auto &Entry : std::filesystem::directory_iterator(TempDir)) {
+    if (Entry.path().filename().string().rfind("coredump."s, 0) != 0) {
+      continue;
+    }
+    ++Dumps;
+    auto Trap = VM->getLoader().parseModule(Entry.path());
+    ASSERT_TRUE(Trap);
+    const auto *Section = findCustomSection(**Trap, "coremodules"sv);
+    ASSERT_NE(Section, nullptr);
+    CoredumpReader TrapReader(Section->getContent());
+    EXPECT_EQ(TrapReader.readU32(), 1U);
+    EXPECT_EQ(TrapReader.readByte(), 0U);
+    EXPECT_EQ(TrapReader.readName(), Active->getModuleName());
+    EXPECT_FALSE(TrapReader.isFailed());
+    EXPECT_TRUE(TrapReader.isEnd());
+  }
+  EXPECT_EQ(Dumps, 1U);
+}
+
+TEST_F(CoredumpState, EmptyAndDuplicateModules) {
+  Coredump::Request Req;
+  Req.Path = Path;
+  auto Result = Coredump::generate(Req);
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::IllegalPath);
+  EXPECT_FALSE(std::filesystem::exists(u8path(Path)));
+  const std::array<const Runtime::Instance::ModuleInstance *, 1> NullModules{
+      nullptr};
+  Req.Modules = NullModules;
+  Result = Coredump::generate(Req);
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::IllegalPath);
+  EXPECT_FALSE(std::filesystem::exists(u8path(Path)));
+
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  const auto *Active = VM->getActiveModule();
+  const std::array<const Runtime::Instance::ModuleInstance *, 3> Modules{
+      nullptr, Active, Active};
+  Req.Modules = Modules;
+  AST::Module Mod;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+  const auto *Section = findCustomSection(Mod, "coremodules"sv);
+  ASSERT_NE(Section, nullptr);
+  CoredumpReader Reader(Section->getContent());
+  EXPECT_EQ(Reader.readU32(), 1U);
+  EXPECT_EQ(Reader.readByte(), 0U);
+  EXPECT_EQ(Reader.readName(), Active->getModuleName());
+  EXPECT_FALSE(Reader.isFailed());
+  EXPECT_TRUE(Reader.isEnd());
+  ASSERT_EQ(Mod.getMemorySection().getContent().size(), 1U);
+  ASSERT_EQ(Mod.getGlobalSection().getContent().size(), 2U);
+}
+
+TEST_F(CoredumpState, InvalidPath) {
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  const std::array Modules{VM->getActiveModule()};
+  Coredump::Request Req;
+  Req.Modules = Modules;
+  const auto MissingPath = u8string(TempDir / "missing" / "state.core");
+  Req.Path = MissingPath;
+  const auto Result = Coredump::generate(Req);
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::IllegalPath);
+  EXPECT_TRUE(std::filesystem::is_empty(TempDir));
+}
+
+TEST_F(CoredumpState, StackModulesAppended) {
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  const auto *Active = VM->getActiveModule();
+  const auto *B = VM->getStoreManager().findModule("B"sv);
+  const std::array Modules{B};
+  Runtime::StackManager Stack;
+  Stack.pushFrame(Active, nullptr);
+  Coredump::Request Req;
+  Req.Modules = Modules;
+  Req.Stack = &Stack;
+  AST::Module Mod;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+  const auto *Section = findCustomSection(Mod, "coremodules"sv);
+  ASSERT_NE(Section, nullptr);
+  CoredumpReader Reader(Section->getContent());
+  EXPECT_EQ(Reader.readU32(), 2U);
+  EXPECT_EQ(Reader.readByte(), 0U);
+  EXPECT_EQ(Reader.readName(), "B"s);
+  EXPECT_EQ(Reader.readByte(), 0U);
+  EXPECT_EQ(Reader.readName(), Active->getModuleName());
+  EXPECT_FALSE(Reader.isFailed());
+  EXPECT_TRUE(Reader.isEnd());
+  const auto *Core = findCustomSection(Mod, "core"sv);
+  ASSERT_NE(Core, nullptr);
+  CoredumpReader CoreReader(Core->getContent());
+  EXPECT_EQ(CoreReader.readByte(), 0U);
+  EXPECT_EQ(CoreReader.readName(), "B"s);
+  EXPECT_FALSE(CoreReader.isFailed());
+  EXPECT_TRUE(CoreReader.isEnd());
+  const auto *Frames = findCustomSection(Mod, "corestack"sv);
+  ASSERT_NE(Frames, nullptr);
+  CoredumpReader FrameReader(Frames->getContent());
+  EXPECT_EQ(FrameReader.readByte(), 0U);
+  EXPECT_EQ(FrameReader.readName(), "main"s);
+  EXPECT_EQ(FrameReader.readU32(), 1U);
+  EXPECT_EQ(FrameReader.readByte(), 0U);
+  EXPECT_EQ(FrameReader.readU32(), 1U);
+  for (unsigned I = 0; I < 4; ++I) {
+    EXPECT_EQ(FrameReader.readU32(), 0U);
+  }
+  EXPECT_FALSE(FrameReader.isFailed());
+  EXPECT_TRUE(FrameReader.isEnd());
+}
+
+TEST_F(CoredumpState, RegisteredAndBuiltInModules) {
+  const auto *B = VM->getStoreManager().findModule("B"sv);
+  const Runtime::Instance::ModuleInstance *Wasi =
+      VM->getImportModule(HostRegistration::Wasi);
+  ASSERT_NE(B, nullptr);
+  ASSERT_NE(Wasi, nullptr);
+  ASSERT_EQ(VM->getActiveModule(), nullptr);
+  std::vector<const Runtime::Instance::ModuleInstance *> Modules{B, Wasi};
+  for (const bool Instantiate : {false, true}) {
+    SCOPED_TRACE(Instantiate);
+    if (Instantiate) {
+      ASSERT_NO_FATAL_FAILURE(instantiate());
+      Modules.insert(Modules.begin(), VM->getActiveModule());
+    }
+    Coredump::Request Req;
+    Req.Modules = Modules;
+    AST::Module Mod;
+    ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+    const auto *Section = findCustomSection(Mod, "coremodules"sv);
+    ASSERT_NE(Section, nullptr);
+    CoredumpReader Reader(Section->getContent());
+    EXPECT_EQ(Reader.readU32(), Modules.size());
+    for (const auto *Module : Modules) {
+      EXPECT_EQ(Reader.readByte(), 0U);
+      EXPECT_EQ(Reader.readName(), Module->getModuleName());
+    }
+    EXPECT_FALSE(Reader.isFailed());
+    EXPECT_TRUE(Reader.isEnd());
+  }
 }
 
 } // namespace

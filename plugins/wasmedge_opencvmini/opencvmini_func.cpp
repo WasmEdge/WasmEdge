@@ -81,6 +81,9 @@ Expect<uint32_t> WasmEdgeOpenCVMiniDilate::body(const Runtime::CallingFrame &,
                                                 uint32_t KernelMatKey) {
   cv::Mat Dst;
   auto Kernel = Env.getMat(KernelMatKey);
+  if (!Kernel) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
   if (auto Src = Env.getMat(SrcMatKey); Src) {
     cv::dilate(*Src, Dst, *Kernel);
   }
@@ -92,6 +95,9 @@ Expect<uint32_t> WasmEdgeOpenCVMiniErode::body(const Runtime::CallingFrame &,
                                                uint32_t KernelMatKey) {
   cv::Mat Dst;
   auto Kernel = Env.getMat(KernelMatKey);
+  if (!Kernel) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
   if (auto Src = Env.getMat(SrcMatKey); Src) {
     cv::erode(*Src, Dst, *Kernel);
   }
@@ -248,8 +254,8 @@ Expect<void> WasmEdgeOpenCVMiniRectangle::body(
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  cv::Point TopLeft(Top, Left);
-  cv::Point BottomRight(Bot, Right);
+  cv::Point TopLeft(Left, Top);
+  cv::Point BottomRight(Right, Bot);
 
   cv::rectangle(*Src, TopLeft, BottomRight, cv::Scalar(B, G, R), Thickness,
                 LineType, Shift);

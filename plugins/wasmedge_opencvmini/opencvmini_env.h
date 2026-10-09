@@ -27,11 +27,13 @@ public:
   }
 
   Expect<uint32_t> insertMat(const cv::Mat &Img) {
-    // cv::Mat::flags contains magic signature & I believe it's a good enough
-    // key for this purpose.
-    this->MatPool[static_cast<uint32_t>(Img.flags)] = Img;
-    return static_cast<uint32_t>(Img.flags);
+    uint32_t Key = NextMatKey++;
+    this->MatPool[Key] = Img;
+    return Key;
   }
+
+private:
+  uint32_t NextMatKey = 0;
 };
 
 } // namespace Host

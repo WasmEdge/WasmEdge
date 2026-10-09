@@ -72,7 +72,7 @@ LLVMOrcThreadSafeModuleWithModuleDo(LLVMOrcThreadSafeModuleRef TSM,
 #define __x86_64__ 1
 #endif
 
-#if LLVM_VERSION_MAJOR < 17
+#if LLVM_VERSION_MAJOR < 18
 typedef enum {
   LLVMTailCallKindNone = 0,
   LLVMTailCallKindTail = 1,

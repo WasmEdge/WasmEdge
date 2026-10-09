@@ -2342,39 +2342,44 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
           Instr);
 
     default:
-      return {};
+      // The loader only produces the opcodes above.
+      assumingUnreachable();
     }
   };
 
+  // The statistics configuration is fixed during the execution, therefore the
+  // per-instruction accounting is decided once outside the loop.
+  const bool IsCounting =
+      Stat && Conf.getStatisticsConfigure().isInstructionCounting();
+  const bool IsCostMeasuring =
+      Stat && Conf.getStatisticsConfigure().isCostMeasuring();
+
   while (PC != PCEnd) {
-    if (Stat) {
-      OpCode Code = PC->getOpCode();
-      if (Conf.getStatisticsConfigure().isInstructionCounting()) {
+    if (unlikely(IsCounting || IsCostMeasuring)) {
+      if (IsCounting) {
         Stat->incInstrCount();
       }
       // Add cost. Note: if-else cases should be processed additionally.
-      if (Conf.getStatisticsConfigure().isCostMeasuring()) {
-        if (unlikely(!Stat->addInstrCost(Code))) {
-          const AST::Instruction &Instr = *PC;
-          spdlog::error(
-              ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-          return Unexpect(ErrCode::Value::CostLimitExceeded);
-        }
+      if (IsCostMeasuring && unlikely(!Stat->addInstrCost(PC->getOpCode()))) {
+        const AST::Instruction &Instr = *PC;
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+        return Unexpect(ErrCode::Value::CostLimitExceeded);
       }
     }
 #if defined(_MSC_VER) && !defined(__clang__) &&                                \
     __has_cpp_attribute(msvc::forceinline_calls)
     [[msvc::forceinline_calls]]
 #endif
-    EXPECTED_TRY(Dispatch().map_error([this, &StackMgr, PC](auto E) {
+    if (auto Res = Dispatch(); unlikely(!Res)) {
       StackTraceSize = interpreterStackTrace(StackMgr, StackTrace).size();
       if (Conf.getRuntimeConfigure().isEnableCoredump() &&
-          E.getErrCodePhase() == WasmPhase::Execution) {
+          Res.error().getErrCodePhase() == WasmPhase::Execution) {
         Coredump::generateCoredump(
             StackMgr, PC, Conf.getRuntimeConfigure().isCoredumpWasmgdb());
       }
-      return E;
-    }));
+      return Unexpect(Res.error());
+    }
     PC++;
   }
   return {};

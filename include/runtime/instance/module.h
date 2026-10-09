@@ -145,6 +145,18 @@ public:
         GlobInsts.size());
   }
 
+  Span<const TableInstance *const> getTableInstances() const noexcept {
+    return Span<const TableInstance *const>(
+        const_cast<const TableInstance *const *>(TabInsts.data()),
+        TabInsts.size());
+  }
+
+  Span<const ElementInstance *const> getElemInstances() const noexcept {
+    return Span<const ElementInstance *const>(
+        const_cast<const ElementInstance *const *>(ElemInsts.data()),
+        ElemInsts.size());
+  }
+
   Span<const DataInstance *const> getOwnedDataInstances() const noexcept {
     return Span<const DataInstance *const>(
         const_cast<const DataInstance *const *>(DataInsts.data()),

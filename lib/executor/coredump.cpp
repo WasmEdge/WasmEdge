@@ -517,7 +517,7 @@ Expect<std::string> generate(const Request &Req) noexcept {
   for (const auto *Mod : Req.Modules) {
     Spaces.addModule(Mod);
   }
-  if (Req.Modules.empty() || Spaces.getModules().empty()) {
+  if (Req.Modules.empty()) {
     spdlog::error("Failed to generate coredump: no module instance found."sv);
     return Unexpect(ErrCode::Value::IllegalPath);
   }
@@ -526,6 +526,10 @@ Expect<std::string> generate(const Request &Req) noexcept {
       Spaces.addModule(Frame.Module);
     }
     Spaces.addModule(Req.Stack->getModule());
+  }
+  if (Spaces.getModules().empty()) {
+    spdlog::error("Failed to generate coredump: no module instance found."sv);
+    return Unexpect(ErrCode::Value::IllegalPath);
   }
 
   std::vector<FrameInfo> Frames;
@@ -570,7 +574,10 @@ Expect<std::string> generate(const Request &Req) noexcept {
   }
 
   const std::string Path =
-      "coredump." + std::to_string(static_cast<uint64_t>(std::time(nullptr)));
+      Req.Path.empty()
+          ? "coredump." +
+                std::to_string(static_cast<uint64_t>(std::time(nullptr)))
+          : std::string(Req.Path);
   std::ofstream File(Path, std::ios::out | std::ios::binary);
   if (!File.is_open()) {
     spdlog::error("Failed to open the coredump file {}."sv, Path);

@@ -1893,6 +1893,14 @@ public:
                                    Reloc, CodeModel);
   }
 
+#if LLVM_VERSION_MAJOR < 16
+  void setModuleDataLayout(Module &M) noexcept {
+    auto DL = LLVMCreateTargetDataLayout(Ref);
+    LLVMSetModuleDataLayout(M.unwrap(), DL);
+    LLVMDisposeTargetData(DL);
+  }
+#endif
+
 #if LLVM_VERSION_MAJOR < 13
   void addAnalysisPasses(PassManager &P) noexcept {
     LLVMAddAnalysisPasses(Ref, P.unwrap());

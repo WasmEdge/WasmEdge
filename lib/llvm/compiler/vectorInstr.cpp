@@ -137,7 +137,7 @@ FunctionCompiler::compileVectorOp(const AST::Instruction &Instr) noexcept {
     auto V2 = Builder.createBitCast(stackPop(), Context.Int8x16Ty);
     auto V1 = Builder.createBitCast(stackPop(), Context.Int8x16Ty);
     const auto V3 = Instr.getNum().get<uint128_t>();
-    std::array<uint8_t, 16> Mask;
+    std::array<uint32_t, 16> Mask;
     for (size_t I = 0; I < 16; ++I) {
       auto Num = static_cast<uint8_t>(V3 >> (I * 8));
       if constexpr (Endian::native == Endian::little) {
@@ -148,7 +148,7 @@ FunctionCompiler::compileVectorOp(const AST::Instruction &Instr) noexcept {
     }
     stackPush(Builder.createBitCast(
         Builder.createShuffleVector(
-            V1, V2, LLVM::Value::getConstVector8(LLContext, Mask)),
+            V1, V2, LLVM::Value::getConstVector32(LLContext, Mask)),
         Context.Int64x2Ty));
     break;
   }

@@ -36,6 +36,11 @@ DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::ExecutionSession,
                                    LLVMOrcExecutionSessionRef)
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::ObjectLayer, LLVMOrcObjectLayerRef)
 #endif
+#if LLVM_VERSION_MAJOR < 11
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::ThreadSafeContext,
+                                   LLVMOrcThreadSafeContextRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::JITDylib, LLVMOrcJITDylibRef)
+#endif
 #if LLVM_VERSION_MAJOR < 12
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::LLJITBuilder, LLVMOrcLLJITBuilderRef)
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::JITTargetMachineBuilder,
@@ -364,6 +369,105 @@ void LLVMOrcLLJITBuilderSetObjectLinkingLayerCreator(
       });
 }
 #endif
+#if LLVM_VERSION_MAJOR < 11
+LLVMOrcThreadSafeContextRef LLVMOrcCreateNewThreadSafeContext() noexcept {
+  using llvm::wrap;
+  return wrap(
+      new llvm::orc::ThreadSafeContext(std::make_unique<llvm::LLVMContext>()));
+}
+
+LLVMContextRef
+LLVMOrcThreadSafeContextGetContext(LLVMOrcThreadSafeContextRef TSCtx) noexcept {
+  using llvm::unwrap;
+  using llvm::wrap;
+  return wrap(unwrap(TSCtx)->getContext());
+}
+
+void LLVMOrcDisposeThreadSafeContext(
+    LLVMOrcThreadSafeContextRef TSCtx) noexcept {
+  delete llvm::unwrap(TSCtx);
+}
+
+LLVMOrcThreadSafeModuleRef
+LLVMOrcCreateNewThreadSafeModule(LLVMModuleRef M,
+                                 LLVMOrcThreadSafeContextRef TSCtx) noexcept {
+  using llvm::unwrap;
+  using llvm::wrap;
+  return wrap(new llvm::orc::ThreadSafeModule(
+      std::unique_ptr<llvm::Module>(unwrap(M)), *unwrap(TSCtx)));
+}
+
+void LLVMOrcDisposeThreadSafeModule(LLVMOrcThreadSafeModuleRef TSM) noexcept {
+  delete llvm::unwrap(TSM);
+}
+
+LLVMOrcLLJITBuilderRef LLVMOrcCreateLLJITBuilder() noexcept {
+  return llvm::wrap(new llvm::orc::LLJITBuilder());
+}
+
+void LLVMOrcDisposeLLJITBuilder(LLVMOrcLLJITBuilderRef Builder) noexcept {
+  delete llvm::unwrap(Builder);
+}
+
+void LLVMOrcLLJITBuilderSetJITTargetMachineBuilder(
+    LLVMOrcLLJITBuilderRef Builder,
+    LLVMOrcJITTargetMachineBuilderRef JTMB) noexcept {
+  using llvm::unwrap;
+  unwrap(Builder)->setJITTargetMachineBuilder(std::move(*unwrap(JTMB)));
+  delete unwrap(JTMB);
+}
+
+LLVMErrorRef LLVMOrcCreateLLJIT(LLVMOrcLLJITRef *Result,
+                                LLVMOrcLLJITBuilderRef Builder) noexcept {
+  using llvm::unwrap;
+  using llvm::wrap;
+  if (!Builder) {
+    Builder = LLVMOrcCreateLLJITBuilder();
+  }
+  auto J = unwrap(Builder)->create();
+  LLVMOrcDisposeLLJITBuilder(Builder);
+  if (!J) {
+    *Result = nullptr;
+    return wrap(J.takeError());
+  }
+  *Result = wrap(J->release());
+  return LLVMErrorSuccess;
+}
+
+LLVMErrorRef LLVMOrcDisposeLLJIT(LLVMOrcLLJITRef J) noexcept {
+  delete llvm::unwrap(J);
+  return LLVMErrorSuccess;
+}
+
+LLVMOrcJITDylibRef LLVMOrcLLJITGetMainJITDylib(LLVMOrcLLJITRef J) noexcept {
+  using llvm::unwrap;
+  using llvm::wrap;
+  return wrap(&unwrap(J)->getMainJITDylib());
+}
+
+LLVMErrorRef
+LLVMOrcLLJITAddLLVMIRModule(LLVMOrcLLJITRef J, LLVMOrcJITDylibRef JD,
+                            LLVMOrcThreadSafeModuleRef TSM) noexcept {
+  using llvm::unwrap;
+  using llvm::wrap;
+  std::unique_ptr<llvm::orc::ThreadSafeModule> TmpTSM(unwrap(TSM));
+  return wrap(unwrap(J)->addIRModule(*unwrap(JD), std::move(*TmpTSM)));
+}
+
+LLVMErrorRef LLVMOrcLLJITLookup(LLVMOrcLLJITRef J,
+                                LLVMOrcJITTargetAddress *Result,
+                                const char *Name) noexcept {
+  using llvm::unwrap;
+  using llvm::wrap;
+  auto Sym = unwrap(J)->lookup(Name);
+  if (!Sym) {
+    *Result = 0;
+    return wrap(Sym.takeError());
+  }
+  *Result = Sym->getAddress();
+  return LLVMErrorSuccess;
+}
+#endif
 #if LLVM_VERSION_MAJOR < 12
 LLVMOrcJITTargetMachineBuilderRef
 LLVMOrcJITTargetMachineBuilderCreateFromTargetMachine(LLVMTargetMachineRef TM) {
@@ -400,7 +504,7 @@ LLVMOrcLLJITAddLLVMIRModuleWithRT(LLVMOrcLLJITRef J,
       J, reinterpret_cast<LLVMOrcJITDylibRef>(RT), TSM);
 }
 #endif
-#if LLVM_VERSION_MAJOR < 13
+#if LLVM_VERSION_MAJOR >= 11 && LLVM_VERSION_MAJOR < 13
 LLVMOrcIRTransformLayerRef
 LLVMOrcLLJITGetIRTransformLayer(LLVMOrcLLJITRef J) noexcept {
   using llvm::unwrap;
@@ -425,7 +529,8 @@ void LLVMOrcIRTransformLayerSetTransform(
         return std::move(*unwrap(TSMRef));
       });
 }
-
+#endif
+#if LLVM_VERSION_MAJOR < 13
 LLVMErrorRef
 LLVMOrcThreadSafeModuleWithModuleDo(LLVMOrcThreadSafeModuleRef TSM,
                                     LLVMOrcGenericIRModuleOperationFunction F,

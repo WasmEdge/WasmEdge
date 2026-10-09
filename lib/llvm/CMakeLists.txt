@@ -85,6 +85,13 @@ else()
     transformutils
     ${EXTRA_COMPONENTS}
   )
+  if(LLVM_VERSION_MAJOR LESS 10)
+    target_link_libraries(wasmedgeLLVM
+      PRIVATE
+      wasmedgeCommon
+      wasmedgeSystem
+    )
+  endif()
 endif()
 
 wasmedge_setup_target(wasmedgeLLVM)

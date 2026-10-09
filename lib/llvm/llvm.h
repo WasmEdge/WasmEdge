@@ -38,6 +38,18 @@ void LLVMOrcLLJITBuilderSetObjectLinkingLayerCreator(
     LLVMOrcLLJITBuilderRef Builder,
     LLVMOrcLLJITBuilderObjectLinkingLayerCreatorFunction F, void *Ctx) noexcept;
 #endif
+#if LLVM_VERSION_MAJOR < 12
+using LLVMOrcResourceTrackerRef = struct LLVMOrcOpaqueResourceTracker *;
+LLVMOrcResourceTrackerRef
+LLVMOrcJITDylibCreateResourceTracker(LLVMOrcJITDylibRef JD) noexcept;
+void LLVMOrcReleaseResourceTracker(LLVMOrcResourceTrackerRef RT) noexcept;
+LLVMErrorRef
+LLVMOrcResourceTrackerRemove(LLVMOrcResourceTrackerRef RT) noexcept;
+LLVMErrorRef
+LLVMOrcLLJITAddLLVMIRModuleWithRT(LLVMOrcLLJITRef J,
+                                  LLVMOrcResourceTrackerRef RT,
+                                  LLVMOrcThreadSafeModuleRef TSM) noexcept;
+#endif
 #if LLVM_VERSION_MAJOR < 13
 using LLVMOrcMaterializationResponsibilityRef =
     struct LLVMOrcOpaqueMaterializationResponsibility *;

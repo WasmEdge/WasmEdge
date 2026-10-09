@@ -359,6 +359,26 @@ void LLVMOrcLLJITBuilderSetObjectLinkingLayerCreator(
       });
 }
 #endif
+#if LLVM_VERSION_MAJOR < 12
+LLVMOrcResourceTrackerRef
+LLVMOrcJITDylibCreateResourceTracker(LLVMOrcJITDylibRef JD) noexcept {
+  return reinterpret_cast<LLVMOrcResourceTrackerRef>(JD);
+}
+
+void LLVMOrcReleaseResourceTracker(LLVMOrcResourceTrackerRef) noexcept {}
+
+LLVMErrorRef LLVMOrcResourceTrackerRemove(LLVMOrcResourceTrackerRef) noexcept {
+  return LLVMErrorSuccess;
+}
+
+LLVMErrorRef
+LLVMOrcLLJITAddLLVMIRModuleWithRT(LLVMOrcLLJITRef J,
+                                  LLVMOrcResourceTrackerRef RT,
+                                  LLVMOrcThreadSafeModuleRef TSM) noexcept {
+  return LLVMOrcLLJITAddLLVMIRModule(
+      J, reinterpret_cast<LLVMOrcJITDylibRef>(RT), TSM);
+}
+#endif
 #if LLVM_VERSION_MAJOR < 13
 LLVMOrcIRTransformLayerRef
 LLVMOrcLLJITGetIRTransformLayer(LLVMOrcLLJITRef J) noexcept {

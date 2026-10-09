@@ -9,6 +9,9 @@
 #if LLVM_VERSION_MAJOR < 12 || WASMEDGE_OS_WINDOWS
 #include <llvm/ExecutionEngine/Orc/Core.h>
 #endif
+#if LLVM_VERSION_MAJOR < 12
+#include <llvm/Target/TargetMachine.h>
+#endif
 #if LLVM_VERSION_MAJOR < 13
 #include <llvm/ExecutionEngine/Orc/LLJIT.h>
 #include <llvm/Support/CBindingWrapping.h>
@@ -35,6 +38,8 @@ DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::ObjectLayer, LLVMOrcObjectLayerRef)
 #endif
 #if LLVM_VERSION_MAJOR < 12
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::LLJITBuilder, LLVMOrcLLJITBuilderRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::JITTargetMachineBuilder,
+                                   LLVMOrcJITTargetMachineBuilderRef)
 #endif
 #if LLVM_VERSION_MAJOR < 13
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::ThreadSafeModule,
@@ -360,6 +365,22 @@ void LLVMOrcLLJITBuilderSetObjectLinkingLayerCreator(
 }
 #endif
 #if LLVM_VERSION_MAJOR < 12
+LLVMOrcJITTargetMachineBuilderRef
+LLVMOrcJITTargetMachineBuilderCreateFromTargetMachine(LLVMTargetMachineRef TM) {
+  using llvm::wrap;
+  auto *TemplateTM = reinterpret_cast<llvm::TargetMachine *>(TM);
+  auto JTMB = std::make_unique<llvm::orc::JITTargetMachineBuilder>(
+      TemplateTM->getTargetTriple());
+  JTMB->setCPU(TemplateTM->getTargetCPU().str())
+      .setRelocationModel(TemplateTM->getRelocationModel())
+      .setCodeModel(TemplateTM->getCodeModel())
+      .setCodeGenOptLevel(TemplateTM->getOptLevel())
+      .setFeatures(TemplateTM->getTargetFeatureString())
+      .setOptions(TemplateTM->Options);
+  LLVMDisposeTargetMachine(TM);
+  return wrap(JTMB.release());
+}
+
 LLVMOrcResourceTrackerRef
 LLVMOrcJITDylibCreateResourceTracker(LLVMOrcJITDylibRef JD) noexcept {
   return reinterpret_cast<LLVMOrcResourceTrackerRef>(JD);

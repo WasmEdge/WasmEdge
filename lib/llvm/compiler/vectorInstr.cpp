@@ -979,8 +979,13 @@ void FunctionCompiler::compileStoreLaneOp(uint32_t MemoryIndex, uint64_t Offset,
 
 void FunctionCompiler::compileVectorAbs(LLVM::Type VectorTy) noexcept {
   compileVectorOp(VectorTy, [this](auto V) noexcept {
+#if LLVM_VERSION_MAJOR < 12
+    auto C = Builder.createICmpSLT(V, LLVM::Value::getConstNull(V.getType()));
+    return Builder.createSelect(C, Builder.createNeg(V), V);
+#else
     return Builder.createIntrinsic(LLVM::Core::Abs, {V.getType()},
                                    {V, LLContext.getFalse()});
+#endif
   });
 }
 
@@ -1796,15 +1801,25 @@ void FunctionCompiler::compileVectorVectorQ15MulSat() noexcept {
 
 void FunctionCompiler::compileVectorVectorSMax(LLVM::Type VectorTy) noexcept {
   compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+#if LLVM_VERSION_MAJOR < 12
+    auto C = Builder.createICmpSGE(LHS, RHS);
+    return Builder.createSelect(C, LHS, RHS);
+#else
     return Builder.createIntrinsic(LLVM::Core::SMax, {LHS.getType()},
                                    {LHS, RHS});
+#endif
   });
 }
 
 void FunctionCompiler::compileVectorVectorSMin(LLVM::Type VectorTy) noexcept {
   compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+#if LLVM_VERSION_MAJOR < 12
+    auto C = Builder.createICmpSLE(LHS, RHS);
+    return Builder.createSelect(C, LHS, RHS);
+#else
     return Builder.createIntrinsic(LLVM::Core::SMin, {LHS.getType()},
                                    {LHS, RHS});
+#endif
   });
 }
 
@@ -1873,15 +1888,25 @@ void FunctionCompiler::compileVectorVectorUAvgr(LLVM::Type VectorTy) noexcept {
 
 void FunctionCompiler::compileVectorVectorUMax(LLVM::Type VectorTy) noexcept {
   compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+#if LLVM_VERSION_MAJOR < 12
+    auto C = Builder.createICmpUGE(LHS, RHS);
+    return Builder.createSelect(C, LHS, RHS);
+#else
     return Builder.createIntrinsic(LLVM::Core::UMax, {LHS.getType()},
                                    {LHS, RHS});
+#endif
   });
 }
 
 void FunctionCompiler::compileVectorVectorUMin(LLVM::Type VectorTy) noexcept {
   compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+#if LLVM_VERSION_MAJOR < 12
+    auto C = Builder.createICmpULE(LHS, RHS);
+    return Builder.createSelect(C, LHS, RHS);
+#else
     return Builder.createIntrinsic(LLVM::Core::UMin, {LHS.getType()},
                                    {LHS, RHS});
+#endif
   });
 }
 

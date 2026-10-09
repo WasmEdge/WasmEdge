@@ -3,9 +3,9 @@
 
 #include "compiler/context.h"
 
-#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <initializer_list>
 #include <string_view>
 #include <utility>
@@ -265,9 +265,10 @@ LLVM::Value toLLVMConstantZero(
           CompType->isFunc() ? TypeCode::NullFuncRef : TypeCode::NullRef;
     }
     const WasmEdge::ValType VType(TypeCode::RefNull, BotTypeCode);
-    std::array<uint8_t, 16> Data{};
-    std::copy_n(VType.getRawData().cbegin(), 8, Data.begin());
-    return LLVM::Value::getConstVector8(LLContext, Data);
+    const auto Raw = VType.getRawData();
+    std::array<uint64_t, 2> Data{};
+    std::memcpy(Data.data(), Raw.data(), Raw.size());
+    return LLVM::Value::getConstVector64(LLContext, Data);
   }
   case TypeCode::V128:
     return LLVM::Value::getConstNull(

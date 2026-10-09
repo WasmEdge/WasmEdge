@@ -603,8 +603,10 @@ public:
 
   unsigned int getPrimitiveSizeInBits() const noexcept {
     switch (LLVMGetTypeKind(Ref)) {
+#if LLVM_VERSION_MAJOR >= 11
     case LLVMBFloatTypeKind:
       return 16;
+#endif
     case LLVMHalfTypeKind:
       return 16;
     case LLVMFloatTypeKind:
@@ -631,8 +633,10 @@ public:
   }
   unsigned int getFPMantissaWidth() const noexcept {
     switch (LLVMGetTypeKind(Ref)) {
+#if LLVM_VERSION_MAJOR >= 11
     case LLVMBFloatTypeKind:
       return 8;
+#endif
     case LLVMHalfTypeKind:
       return 11;
     case LLVMFloatTypeKind:

@@ -20,6 +20,8 @@
 #if LLVM_VERSION_MAJOR < 10
 #include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
+#include <llvm/MC/SubtargetFeature.h>
+#include <llvm/Support/Host.h>
 #endif
 #if LLVM_VERSION_MAJOR < 18
 #include <llvm/IR/Instructions.h>
@@ -374,6 +376,17 @@ public:
 LLVMOrcLLJITBuilderRef OrcLLJIT::getBuilder() noexcept {
   using llvm::unwrap;
   const LLVMOrcLLJITBuilderRef Builder = LLVMOrcCreateLLJITBuilder();
+  if (auto JTMB = llvm::orc::JITTargetMachineBuilder::detectHost()) {
+    llvm::StringMap<bool> FeatureMap;
+    llvm::sys::getHostCPUFeatures(FeatureMap);
+    for (auto &Feature : FeatureMap) {
+      JTMB->getFeatures().AddFeature(Feature.first(), Feature.second);
+    }
+    JTMB->setCPU(llvm::sys::getHostCPUName().str());
+    unwrap(Builder)->setJITTargetMachineBuilder(std::move(*JTMB));
+  } else {
+    llvm::consumeError(JTMB.takeError());
+  }
   unwrap(Builder)->setObjectLinkingLayerCreator(
       [](llvm::orc::ExecutionSession &ES) {
         return std::make_unique<llvm::orc::RTDyldObjectLinkingLayer>(ES, []() {

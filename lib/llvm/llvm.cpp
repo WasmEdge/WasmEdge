@@ -17,6 +17,10 @@
 #include <llvm/Support/CBindingWrapping.h>
 #include <llvm/Support/Error.h>
 #endif
+#if LLVM_VERSION_MAJOR < 10
+#include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
+#include <llvm/ExecutionEngine/SectionMemoryManager.h>
+#endif
 #if LLVM_VERSION_MAJOR < 18
 #include <llvm/IR/Instructions.h>
 #include <llvm/Support/CBindingWrapping.h>
@@ -355,6 +359,27 @@ LLVMOrcLLJITBuilderRef OrcLLJIT::getBuilder() noexcept {
         return wrap(static_cast<llvm::orc::ObjectLayer *>(Layer.release()));
       },
       nullptr);
+  return Builder;
+}
+#elif LLVM_VERSION_MAJOR < 10
+namespace {
+class EHFrameDeregisteringMemoryManager : public llvm::SectionMemoryManager {
+public:
+  ~EHFrameDeregisteringMemoryManager() noexcept override {
+    deregisterEHFrames();
+  }
+};
+} // namespace
+
+LLVMOrcLLJITBuilderRef OrcLLJIT::getBuilder() noexcept {
+  using llvm::unwrap;
+  const LLVMOrcLLJITBuilderRef Builder = LLVMOrcCreateLLJITBuilder();
+  unwrap(Builder)->setObjectLinkingLayerCreator(
+      [](llvm::orc::ExecutionSession &ES) {
+        return std::make_unique<llvm::orc::RTDyldObjectLinkingLayer>(ES, []() {
+          return std::make_unique<EHFrameDeregisteringMemoryManager>();
+        });
+      });
   return Builder;
 }
 #else

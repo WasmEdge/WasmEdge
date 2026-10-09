@@ -984,11 +984,12 @@ Value Module::getNamedGlobal(const char *Name) noexcept {
 }
 
 Value Module::addAlias(Type Ty, Value V, const char *Name,
-                       unsigned int AddrSpace [[maybe_unused]]) noexcept {
+                       unsigned int AddrSpace) noexcept {
 #if LLVM_VERSION_MAJOR >= 14
   return LLVMAddAlias2(Ref, Ty.unwrap(), AddrSpace, V.unwrap(), Name);
 #else
-  return LLVMAddAlias(Ref, Ty.unwrap(), V.unwrap(), Name);
+  return LLVMAddAlias(Ref, LLVMPointerType(Ty.unwrap(), AddrSpace), V.unwrap(),
+                      Name);
 #endif
 }
 

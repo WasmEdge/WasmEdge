@@ -544,7 +544,7 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
     Builder.positionAtEnd(LLVM::BasicBlock::create(LLContext, F, "entry"));
     Builder.createRet(LLContext.getInt32(1u));
 
-    auto A = LLModule.addAlias(F.getType(), F, "_fltused");
+    auto A = LLModule.addAlias(FTy, F, "_fltused");
     A.setLinkage(LLVMExternalLinkage);
     A.setVisibility(LLVMProtectedVisibility);
     A.setDSOLocal(true);

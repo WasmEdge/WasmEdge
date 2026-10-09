@@ -14,7 +14,7 @@
 #include <llvm/Support/CBindingWrapping.h>
 #include <llvm/Support/Error.h>
 #endif
-#if LLVM_VERSION_MAJOR < 17
+#if LLVM_VERSION_MAJOR < 18
 #include <llvm/IR/Instructions.h>
 #include <llvm/Support/CBindingWrapping.h>
 #endif
@@ -47,7 +47,7 @@ DEFINE_SIMPLE_CONVERSION_FUNCTIONS(orc::LLJIT, LLVMOrcLLJITRef)
 #endif
 } // namespace llvm
 
-#if LLVM_VERSION_MAJOR < 17
+#if LLVM_VERSION_MAJOR < 18
 LLVMTailCallKind LLVMGetTailCallKind(LLVMValueRef Call) {
   return static_cast<LLVMTailCallKind>(
       llvm::unwrap<llvm::CallInst>(Call)->getTailCallKind());

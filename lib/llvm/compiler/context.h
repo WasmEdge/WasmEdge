@@ -258,7 +258,7 @@ struct Compiler::CompileContext {
   }
   void finalizeIntrinsicsTable() noexcept {
     if (auto Table = LLModule.get().getNamedGlobal("intrinsics")) {
-      Table.setInitializer(LLVM::Value::getConstNull(Table.getType()));
+      Table.setInitializer(LLVM::Value::getConstNull(IntrinsicsTablePtrTy));
       Table.setGlobalConstant(false);
     } else {
       LLModule.get().addGlobal(IntrinsicsTablePtrTy, false, LLVMExternalLinkage,

@@ -478,6 +478,35 @@ createWasmEdgeTables(const Loader::Serializer &Ser, const IndexSpaces &Spaces,
   return Section;
 }
 
+AST::CustomSection createWasmEdgeInstances(const Loader::Serializer &Ser,
+                                         const IndexSpaces &Spaces) noexcept {
+  AST::CustomSection Section;
+  Section.setName("wasmedge.instances");
+  auto &Out = Section.getContent();
+  Ser.serializeU32(kInstancesVersion, Out);
+  const auto Modules = Spaces.getModules();
+  const auto &Tables = Spaces.getInstanceTables();
+  assuming(Tables.size() == Modules.size());
+  Ser.serializeU32(static_cast<uint32_t>(Modules.size()), Out);
+  for (uint32_t I = 0; I < Modules.size(); ++I) {
+    Ser.serializeU32(static_cast<uint32_t>(Tables[I].size()), Out);
+    for (const auto Idx : Tables[I]) {
+      Ser.serializeU32(Idx, Out);
+    }
+    const auto Data = Modules[I]->getOwnedDataInstances();
+    Ser.serializeU32(static_cast<uint32_t>(Data.size()), Out);
+    for (const auto *Seg : Data) {
+      Out.push_back(Seg->isDropped());
+    }
+    const auto Elems = Modules[I]->getElemInstances();
+    Ser.serializeU32(static_cast<uint32_t>(Elems.size()), Out);
+    for (const auto *Seg : Elems) {
+      Out.push_back(Seg->isDropped());
+    }
+  }
+  return Section;
+}
+
 AST::TableSection createTable(const IndexSpaces &Spaces) noexcept {
   AST::TableSection Tables;
   for (const auto *Tab : Spaces.getTables()) {
@@ -664,6 +693,7 @@ Expect<std::string> generate(const Request &Req) noexcept {
     }
     EXPECTED_TRY(auto Tables, createWasmEdgeTables(Ser, Spaces, Indexer));
     CustomSections.push_back(std::move(Tables));
+    CustomSections.push_back(createWasmEdgeInstances(Ser, Spaces));
     Module.getTableSection() = createTable(Spaces);
   }
   Module.getMemorySection() = createMemory(Spaces);

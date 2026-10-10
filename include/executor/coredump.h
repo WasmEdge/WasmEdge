@@ -18,12 +18,12 @@ namespace Coredump {
 /// LEB128 encoding of the Wasm binary format.
 ///
 ///   wasmedge.tables    ::= version:u32 vec(table)
-///   table              ::= size:u64 elems:vec(ref)
+///   table              ::= type:tabletype size:u64 elems:vec(ref)
 ///   wasmedge.instances ::= version:u32 vec(instance)
 ///   instance           ::= tables:vec(u32) datadropped:vec(u8)
 ///                          elemdropped:vec(u8)
 ///   wasmedge.globals   ::= version:u32 vec(global)
-///   global             ::= globalidx:u32 ref
+///   global             ::= globalidx:u32 type:globaltype ref
 ///   ref                ::= 0x00                              null
 ///                        | 0x01 instanceidx:u32 funcidx:u32   function
 ///                        | 0x02                              missing
@@ -32,6 +32,12 @@ namespace Coredump {
 /// include imports. Missing references are non-null externrefs, GC references,
 /// and functions absent from all dumped modules. Dropped flags are 0 (live) or
 /// 1 (dropped). Each version covers the layout of its own section only.
+///
+/// Extension types keep the original limits, mutability, and reference types;
+/// concrete type indices keep their module-local meaning. The standard
+/// sections use nullable abstract tops instead, so readers need GC enabled for
+/// anyref placeholders (including unresolved concrete types) and
+/// ExceptionHandling for exnref placeholders.
 static inline constexpr const uint32_t kTablesVersion = 1;
 static inline constexpr const uint32_t kInstancesVersion = 1;
 static inline constexpr const uint32_t kGlobalsVersion = 1;

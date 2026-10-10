@@ -7,11 +7,34 @@
 #include "common/span.h"
 #include "runtime/stackmgr.h"
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 
 namespace WasmEdge {
 namespace Coredump {
+
+/// WasmEdge extension sections, omitted in wasmgdb mode. Integers use the
+/// LEB128 encoding of the Wasm binary format.
+///
+///   wasmedge.tables    ::= version:u32 vec(table)
+///   table              ::= size:u64 elems:vec(ref)
+///   wasmedge.instances ::= version:u32 vec(instance)
+///   instance           ::= tables:vec(u32) datadropped:vec(u8)
+///                          elemdropped:vec(u8)
+///   wasmedge.globals   ::= version:u32 vec(global)
+///   global             ::= globalidx:u32 ref
+///   ref                ::= 0x00                              null
+///                        | 0x01 instanceidx:u32 funcidx:u32   function
+///                        | 0x02                              missing
+///
+/// Instance indices follow the coreinstances order and function indices
+/// include imports. Missing references are non-null externrefs, GC references,
+/// and functions absent from all dumped modules. Dropped flags are 0 (live) or
+/// 1 (dropped). Each version covers the layout of its own section only.
+static inline constexpr const uint32_t kTablesVersion = 1;
+static inline constexpr const uint32_t kInstancesVersion = 1;
+static inline constexpr const uint32_t kGlobalsVersion = 1;
 
 /// What to dump and where to write it. The caller must keep the referenced
 /// modules, stack, instructions, and path alive until generate returns.

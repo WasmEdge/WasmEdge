@@ -20,6 +20,7 @@
 #include <ctime>
 #include <fstream>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -174,6 +175,56 @@ private:
   std::vector<std::vector<uint32_t>> InstanceMemories;
   std::vector<std::vector<uint32_t>> InstanceGlobals;
 };
+
+class FunctionIndexer {
+public:
+  explicit FunctionIndexer(const IndexSpaces &Spaces) noexcept {
+    const auto Modules = Spaces.getModules();
+    for (uint32_t InstanceIdx = 0; InstanceIdx < Modules.size(); ++InstanceIdx) {
+      const auto *Mod = Modules[InstanceIdx];
+      const auto Functions = Mod->getFunctionInstances();
+      for (uint32_t I = 0; I < Functions.size(); ++I) {
+        const auto *Func = Functions[I];
+        if (Func == nullptr) {
+          continue;
+        }
+        const auto [It, Inserted] = Indices.emplace(Func, std::make_pair(InstanceIdx, I));
+        if (!Inserted && Func->getModule() == Mod &&
+            Modules[It->second.first] != Mod) {
+          It->second = {InstanceIdx, I};
+        }
+      }
+    }
+  }
+
+  std::optional<std::pair<uint32_t, uint32_t>>
+  lookup(const RefVariant &Ref) const noexcept {
+    if (Ref.getType().isExternRefType() || !Ref.getType().isFuncRefType()) {
+      return std::nullopt;
+    }
+    const auto It = Indices.find(Ref.getPtr<FunctionInstance>());
+    if (It == Indices.end()) {
+      return std::nullopt;
+    }
+    return It->second;
+  }
+
+private:
+  std::unordered_map<const FunctionInstance *, std::pair<uint32_t, uint32_t>> Indices;
+};
+
+void serializeRef(const Loader::Serializer &Ser, const RefVariant &Ref,
+                  const FunctionIndexer &Indexer, std::vector<Byte> &Out) noexcept {
+  if (Ref.isNull()) {
+    Out.push_back(0x00);
+  } else if (const auto Index = Indexer.lookup(Ref)) {
+    Out.push_back(0x01);
+    Ser.serializeU32(Index->first, Out);
+    Ser.serializeU32(Index->second, Out);
+  } else {
+    Out.push_back(0x02);
+  }
+}
 
 /// Resolve an instruction pointer back to the function which contains it.
 class FunctionResolver {
@@ -402,6 +453,31 @@ AST::CustomSection createCoreStack(const Loader::Serializer &Ser,
   return CoreStack;
 }
 
+Expect<AST::CustomSection>
+createWasmEdgeTables(const Loader::Serializer &Ser, const IndexSpaces &Spaces,
+                    const std::optional<FunctionIndexer> &Indexer) noexcept {
+  AST::CustomSection Section;
+  Section.setName("wasmedge.tables");
+  auto &Out = Section.getContent();
+  Ser.serializeU32(kTablesVersion, Out);
+  Ser.serializeU32(static_cast<uint32_t>(Spaces.getTables().size()), Out);
+  for (const auto *Tab : Spaces.getTables()) {
+    const auto Size = Tab->getSize();
+    EXPECTED_TRY(auto Refs, Tab->getRefs(0, Size));
+    uint64_t Remaining = Size;
+    do {
+      const auto Byte = static_cast<uint8_t>(Remaining & 0x7FU);
+      Remaining >>= 7;
+      Out.push_back(Byte | (Remaining ? 0x80U : 0x00U));
+    } while (Remaining);
+    Ser.serializeU32(static_cast<uint32_t>(Refs.size()), Out);
+    for (const auto &Ref : Refs) {
+      serializeRef(Ser, Ref, *Indexer, Out);
+    }
+  }
+  return Section;
+}
+
 AST::TableSection createTable(const IndexSpaces &Spaces) noexcept {
   AST::TableSection Tables;
   for (const auto *Tab : Spaces.getTables()) {
@@ -578,6 +654,16 @@ Expect<std::string> generate(const Request &Req) noexcept {
   CustomSections.push_back(createCoreInstances(Ser, Spaces));
   CustomSections.push_back(createCoreStack(Ser, Frames, Req.ForWasmgdb));
   if (!Req.ForWasmgdb) {
+    std::optional<FunctionIndexer> Indexer;
+    if (!Spaces.getTables().empty() ||
+        std::any_of(Spaces.getGlobals().begin(), Spaces.getGlobals().end(),
+                    [](const auto *Glob) {
+                      return Glob->getGlobalType().getValType().isRefType();
+                    })) {
+      Indexer.emplace(Spaces);
+    }
+    EXPECTED_TRY(auto Tables, createWasmEdgeTables(Ser, Spaces, Indexer));
+    CustomSections.push_back(std::move(Tables));
     Module.getTableSection() = createTable(Spaces);
   }
   Module.getMemorySection() = createMemory(Spaces);

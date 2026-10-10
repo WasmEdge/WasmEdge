@@ -1255,7 +1255,8 @@ void FunctionCompiler::compileVectorFFloor(LLVM::Type VectorTy) noexcept {
 
 void FunctionCompiler::compileVectorFNearest(LLVM::Type VectorTy) noexcept {
   compileVectorOp(VectorTy, [&](auto V) noexcept {
-#if LLVM_VERSION_MAJOR >= 12 && !defined(__s390x__)
+#if LLVM_VERSION_MAJOR < 12 || defined(__s390x__)
+#else
     assuming(LLVM::Core::Roundeven != LLVM::Core::NotIntrinsic);
     if (LLVM::Core::Roundeven != LLVM::Core::NotIntrinsic) {
       return Builder.createUnaryIntrinsic(LLVM::Core::Roundeven, V);

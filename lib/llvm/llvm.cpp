@@ -352,7 +352,8 @@ LLVMOrcLLJITBuilderRef OrcLLJIT::getBuilder() noexcept {
       [](void *, LLVMOrcExecutionSessionRef ES, const char *) noexcept {
         auto Layer = std::make_unique<llvm::orc::RTDyldObjectLinkingLayer>(
             *unwrap(ES), [](
-#if LLVM_VERSION_MAJOR >= 21
+#if LLVM_VERSION_MAJOR < 21
+#else
                              const llvm::MemoryBuffer &
 #endif
                          ) { return std::make_unique<Win64EHManager>(); });
@@ -557,7 +558,8 @@ LLVMOrcLLJITAddLLVMIRModuleWithRT(LLVMOrcLLJITRef J,
       J, reinterpret_cast<LLVMOrcJITDylibRef>(RT), TSM);
 }
 #endif
-#if LLVM_VERSION_MAJOR >= 11 && LLVM_VERSION_MAJOR < 13
+#if LLVM_VERSION_MAJOR < 11
+#elif LLVM_VERSION_MAJOR < 13
 LLVMOrcIRTransformLayerRef
 LLVMOrcLLJITGetIRTransformLayer(LLVMOrcLLJITRef J) noexcept {
   using llvm::unwrap;

@@ -16,7 +16,8 @@
 #include <llvm-c/Core.h>
 #include <llvm-c/Error.h>
 #include <llvm-c/Object.h>
-#if LLVM_VERSION_MAJOR >= 11
+#if LLVM_VERSION_MAJOR < 11
+#else
 #include <llvm-c/Orc.h>
 #endif
 #include <llvm-c/Target.h>
@@ -27,7 +28,8 @@
 #include <utility>
 #include <vector>
 
-#if LLVM_VERSION_MAJOR >= 12
+#if LLVM_VERSION_MAJOR < 12
+#else
 #include <llvm-c/LLJIT.h>
 #endif
 
@@ -102,7 +104,8 @@ using LLVMOrcIRTransformLayerTransformFunction =
                      LLVMOrcMaterializationResponsibilityRef MR) noexcept;
 using LLVMOrcGenericIRModuleOperationFunction =
     LLVMErrorRef (*)(void *Ctx, LLVMModuleRef M) noexcept;
-#if LLVM_VERSION_MAJOR >= 11
+#if LLVM_VERSION_MAJOR < 11
+#else
 LLVMOrcIRTransformLayerRef
 LLVMOrcLLJITGetIRTransformLayer(LLVMOrcLLJITRef J) noexcept;
 void LLVMOrcIRTransformLayerSetTransform(
@@ -116,12 +119,12 @@ LLVMOrcThreadSafeModuleWithModuleDo(LLVMOrcThreadSafeModuleRef TSM,
                                     void *Ctx) noexcept;
 #endif
 
-#if LLVM_VERSION_MAJOR >= 13
-#include <llvm-c/Transforms/PassBuilder.h>
-#else
+#if LLVM_VERSION_MAJOR < 13
 #include <llvm-c/Transforms/IPO.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Transforms/Scalar.h>
+#else
+#include <llvm-c/Transforms/PassBuilder.h>
 #endif
 
 // Enable __x86_64__ for MSVC
@@ -222,10 +225,10 @@ public:
   static inline unsigned int ReadOnly = 0;
   static inline unsigned int StrictFP = 0;
   static inline unsigned int UWTable = 0;
-#if LLVM_VERSION_MAJOR >= 15
-  static constexpr inline const unsigned int UWTableDefault = 2;
-#else
+#if LLVM_VERSION_MAJOR < 15
   static constexpr inline const unsigned int UWTableDefault = 0;
+#else
+  static constexpr inline const unsigned int UWTableDefault = 2;
 #endif
 
   static inline unsigned int InvariantGroup = 0;
@@ -648,7 +651,8 @@ public:
 
   unsigned int getPrimitiveSizeInBits() const noexcept {
     switch (LLVMGetTypeKind(Ref)) {
-#if LLVM_VERSION_MAJOR >= 11
+#if LLVM_VERSION_MAJOR < 11
+#else
     case LLVMBFloatTypeKind:
       return 16;
 #endif
@@ -678,7 +682,8 @@ public:
   }
   unsigned int getFPMantissaWidth() const noexcept {
     switch (LLVMGetTypeKind(Ref)) {
-#if LLVM_VERSION_MAJOR >= 11
+#if LLVM_VERSION_MAJOR < 11
+#else
     case LLVMBFloatTypeKind:
       return 8;
 #endif
@@ -1046,11 +1051,11 @@ Value Module::getNamedGlobal(const char *Name) noexcept {
 
 Value Module::addAlias(Type Ty, Value V, const char *Name,
                        unsigned int AddrSpace) noexcept {
-#if LLVM_VERSION_MAJOR >= 14
-  return LLVMAddAlias2(Ref, Ty.unwrap(), AddrSpace, V.unwrap(), Name);
-#else
+#if LLVM_VERSION_MAJOR < 14
   return LLVMAddAlias(Ref, LLVMPointerType(Ty.unwrap(), AddrSpace), V.unwrap(),
                       Name);
+#else
+  return LLVMAddAlias2(Ref, Ty.unwrap(), AddrSpace, V.unwrap(), Name);
 #endif
 }
 
@@ -1706,12 +1711,12 @@ public:
   }
   Value createLifetimeIntrinsic(unsigned int ID, Value Ptr,
                                 [[maybe_unused]] uint64_t Size) noexcept {
-#if LLVM_VERSION_MAJOR >= 22
-    return createIntrinsic(ID, {Ptr.getType()}, {Ptr});
-#else
+#if LLVM_VERSION_MAJOR < 22
     return createIntrinsic(
         ID, {Ptr.getType()},
         {Value::getConstInt(LLVMInt64TypeInContext(getCtx()), Size), Ptr});
+#else
+    return createIntrinsic(ID, {Ptr.getType()}, {Ptr});
 #endif
   }
 
@@ -1979,7 +1984,8 @@ private:
   LLVMTargetMachineRef Ref = nullptr;
 };
 
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR < 13
+#else
 class PassBuilderOptions {
 public:
   constexpr PassBuilderOptions() noexcept = default;
@@ -2205,13 +2211,13 @@ public:
     swap(*this, B);
     return *this;
   }
-#if LLVM_VERSION_MAJOR >= 21
-  OrcThreadSafeContext(Context &C) noexcept
-      : Ref(LLVMOrcCreateNewThreadSafeContextFromLLVMContext(C.unwrap())) {}
-#else
+#if LLVM_VERSION_MAJOR < 21
   Context getContext() noexcept {
     return LLVMOrcThreadSafeContextGetContext(Ref);
   }
+#else
+  OrcThreadSafeContext(Context &C) noexcept
+      : Ref(LLVMOrcCreateNewThreadSafeContextFromLLVMContext(C.unwrap())) {}
 #endif
 
   OrcThreadSafeContext() noexcept : Ref(LLVMOrcCreateNewThreadSafeContext()) {}
@@ -2339,7 +2345,8 @@ private:
   LLVMOrcJITDylibRef Ref = nullptr;
 };
 
-#if LLVM_VERSION_MAJOR >= 11
+#if LLVM_VERSION_MAJOR < 11
+#else
 class OrcIRTransformLayer {
 public:
   constexpr OrcIRTransformLayer() noexcept = default;
@@ -2428,7 +2435,8 @@ public:
     return reinterpret_cast<T *>(Addr);
   }
 
-#if LLVM_VERSION_MAJOR >= 11
+#if LLVM_VERSION_MAJOR < 11
+#else
   OrcIRTransformLayer getIRTransformLayer() noexcept {
     return LLVMOrcLLJITGetIRTransformLayer(Ref);
   }

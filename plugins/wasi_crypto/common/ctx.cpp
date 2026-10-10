@@ -4,6 +4,8 @@
 #include "ctx.h"
 #include "common/array_output.h"
 #include "common/options.h"
+#include "common/secrets_manager.h"
+#include <optional>
 
 namespace WasmEdge {
 namespace Host {
@@ -67,19 +69,31 @@ Context::optionsSetGuestBuffer(__wasi_options_t OptionsHandle,
 }
 
 WasiCryptoExpect<__wasi_secrets_manager_t>
-Context::secretsManagerOpen(__wasi_opt_options_t) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Context::secretsManagerOpen(__wasi_opt_options_t OptOptionsHandle) noexcept {
+  std::optional<Common::Options> opts;
+  if (OptOptionsHandle.tag == __WASI_OPT_OPTIONS_U_SOME) {
+    auto Res = OptionsManager.getAs<Common::Options>(OptOptionsHandle.u.some);
+    if (!Res) {
+      return Res.error();
+    }
+    opts = std::move(*Res);
+  }
+  return SecretsManagerManager.registerManager((std::move(opts)));
+}
+
+WasiCryptoExpect<void> Context::secretsManagerClose(
+    __wasi_secrets_manager_t SecretsManagerHandle) noexcept {
+  return SecretsManagerManager.close(SecretsManagerHandle);
 }
 
 WasiCryptoExpect<void>
-Context::secretsManagerClose(__wasi_secrets_manager_t) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-}
-
-WasiCryptoExpect<void>
-Context::secretsManagerInvalidate(__wasi_secrets_manager_t, Span<const uint8_t>,
-                                  __wasi_version_t) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Context::secretsManagerInvalidate(__wasi_secrets_manager_t SecretsManagerHandle,
+                                  Span<const uint8_t> KeyId,
+                                  __wasi_version_t Version) noexcept {
+  return SecretsManagerManager.get(SecretsManagerHandle)
+      .and_then([KeyId, Version](auto &&Manager) noexcept {
+        return Manager.get().invalidate(KeyId, Version);
+      });
 }
 
 } // namespace WasiCrypto

@@ -17,6 +17,7 @@
 #include "common/filesystem.h"
 #include "common/spdlog.h"
 #include "executor/coredump.h"
+#include "loader/serialize.h"
 #include "vm/vm.h"
 
 #include "../spec/hostfunc.h"
@@ -341,6 +342,61 @@ public:
     return 0;
   }
 
+  uint64_t readU64() noexcept {
+    uint64_t Result = 0;
+    for (uint32_t Shift = 0; Shift < 64; Shift += 7) {
+      const auto B = readByte();
+      if (Failed || (Shift == 63 && B > 1)) {
+        Failed = true;
+        return 0;
+      }
+      Result |= static_cast<uint64_t>(B & 0x7FU) << Shift;
+      if ((B & 0x80U) == 0) {
+        return Result;
+      }
+    }
+    Failed = true;
+    return 0;
+  }
+
+  template <typename T> void expectType(const T &Type) {
+    std::vector<Byte> Bytes;
+    Loader::Serializer().serializeType(Type, Bytes);
+    for (const auto B : Bytes) {
+      EXPECT_EQ(readByte(), B);
+    }
+  }
+
+  std::array<uint32_t, 3> readRef() noexcept {
+    const auto Tag = readByte();
+    if (Tag == 1) {
+      const auto Instance = readU32();
+      return {Tag, Instance, readU32()};
+    }
+    if (Tag > 2) {
+      Failed = true;
+    }
+    return {Tag, 0, 0};
+  }
+
+  const Runtime::Instance::FunctionInstance *readFunction(
+      Span<const Runtime::Instance::ModuleInstance *const> Modules) noexcept {
+    const auto Ref = readRef();
+    if (Ref[0] == 0) {
+      return nullptr;
+    }
+    if (Ref[0] != 1 || Ref[1] >= Modules.size()) {
+      Failed = true;
+      return nullptr;
+    }
+    const auto Functions = Modules[Ref[1]]->getFunctionInstances();
+    if (Ref[2] >= Functions.size()) {
+      Failed = true;
+      return nullptr;
+    }
+    return Functions[Ref[2]];
+  }
+
   std::string readName() noexcept {
     const uint32_t Size = readU32();
     if (Pos + Size > Content.size()) {
@@ -523,6 +579,27 @@ TEST(Coredump, Sections) {
   AST::Module Mod;
   ASSERT_NO_FATAL_FAILURE(runCoredump(false, Mod));
 
+  ASSERT_EQ(Mod.getCustomSections().size(), 7U);
+  for (const auto Name : {"wasmedge.tables"sv, "wasmedge.globals"sv}) {
+    const auto *Section = findCustomSection(Mod, Name);
+    ASSERT_NE(Section, nullptr);
+    CoredumpReader Reader(Section->getContent());
+    EXPECT_EQ(Reader.readU32(), 1U);
+    EXPECT_EQ(Reader.readU32(), 0U);
+    EXPECT_FALSE(Reader.isFailed());
+    EXPECT_TRUE(Reader.isEnd());
+  }
+  const auto *Extensions = findCustomSection(Mod, "wasmedge.instances"sv);
+  ASSERT_NE(Extensions, nullptr);
+  CoredumpReader ExtensionReader(Extensions->getContent());
+  EXPECT_EQ(ExtensionReader.readU32(), 1U);
+  EXPECT_EQ(ExtensionReader.readU32(), 1U);
+  for (unsigned I = 0; I < 3; ++I) {
+    EXPECT_EQ(ExtensionReader.readU32(), 0U);
+  }
+  EXPECT_FALSE(ExtensionReader.isFailed());
+  EXPECT_TRUE(ExtensionReader.isEnd());
+
   ASSERT_EQ(Mod.getMemorySection().getContent().size(), 1U);
   EXPECT_EQ(Mod.getMemorySection().getContent()[0].getLimit().getMin(), 1U);
 
@@ -637,6 +714,10 @@ TEST(Coredump, StackFrames) {
 TEST(Coredump, Wasmgdb) {
   AST::Module Mod;
   ASSERT_NO_FATAL_FAILURE(runCoredump(true, Mod));
+  EXPECT_TRUE(Mod.getTableSection().getContent().empty());
+  for (const auto &Section : Mod.getCustomSections()) {
+    EXPECT_NE(Section.getName().find("wasmedge."sv), 0U);
+  }
 
   // The wasmgdb parser only reads the first data segment and pads it with the
   // offset, hence the whole memory must be dumped as a single segment.
@@ -684,6 +765,61 @@ const std::array<Byte, 31> CoredumpModuleB{
     0x00, 0x01, 0x06, 0x07, 0x01, 0x7F, 0x01, 0x41, 0xB4, 0x24, 0x0B,
     0x0B, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0B, 0x01, 0x42};
 
+// (module
+//   (table 2 10 funcref) (memory 1)
+//   (func $f0) (func $f1) (func $f2)
+//   (elem (i32.const 0) $f0)
+//   (elem funcref (ref.func $f1) (ref.func $f2))
+//   (elem funcref (ref.func $f0))
+//   (data "ab") (data "cd")
+//   (func (export "setup")
+//     (table.set (i32.const 1) (ref.func $f2))
+//     (drop (table.grow (ref.null func) (i32.const 2)))
+//     (table.init 1 (i32.const 2) (i32.const 0) (i32.const 2))
+//     (elem.drop 2) (data.drop 1)))
+const Byte CoredumpTablesWasm[]{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+    0x00, 0x00, 0x03, 0x05, 0x04, 0x00, 0x00, 0x00, 0x00, 0x04, 0x05, 0x01,
+    0x70, 0x01, 0x02, 0x0a, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x09, 0x01,
+    0x05, 0x73, 0x65, 0x74, 0x75, 0x70, 0x00, 0x03, 0x09, 0x16, 0x03, 0x00,
+    0x41, 0x00, 0x0b, 0x01, 0x00, 0x05, 0x70, 0x02, 0xd2, 0x01, 0x0b, 0xd2,
+    0x02, 0x0b, 0x05, 0x70, 0x01, 0xd2, 0x00, 0x0b, 0x0c, 0x01, 0x02, 0x0a,
+    0x2b, 0x04, 0x02, 0x00, 0x0b, 0x02, 0x00, 0x0b, 0x02, 0x00, 0x0b, 0x20,
+    0x00, 0x41, 0x01, 0xd2, 0x02, 0x26, 0x00, 0xd0, 0x70, 0x41, 0x02, 0xfc,
+    0x0f, 0x00, 0x1a, 0x41, 0x02, 0x41, 0x00, 0x41, 0x02, 0xfc, 0x0c, 0x01,
+    0x00, 0xfc, 0x0d, 0x02, 0xfc, 0x09, 0x01, 0x0b, 0x0b, 0x09, 0x02, 0x01,
+    0x02, 0x61, 0x62, 0x01, 0x02, 0x63, 0x64};
+
+// (module
+//   (table 2 10 funcref) (memory 1)
+//   (global (mut funcref) (ref.null func)) (global i32 (i32.const 7))
+//   (func $f0) (func $f1) (func $f2)
+//   (elem (i32.const 0) $f0)
+//   (elem funcref (ref.func $f1) (ref.func $f2))
+//   (elem funcref (ref.func $f0))
+//   (data "ab") (data "cd")
+//   (func (export "setup")
+//     (table.set (i32.const 1) (ref.func $f2))
+//     (drop (table.grow (ref.null func) (i32.const 2)))
+//     (table.init 1 (i32.const 2) (i32.const 0) (i32.const 2))
+//     (elem.drop 2) (data.drop 1)
+//     (i32.store (i32.const 1024) (i32.const 0xCAFE))
+//     (global.set 0 (ref.func $f0))))
+const Byte CoredumpReadBackWasm[]{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+    0x00, 0x00, 0x03, 0x05, 0x04, 0x00, 0x00, 0x00, 0x00, 0x04, 0x05, 0x01,
+    0x70, 0x01, 0x02, 0x0a, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x0b, 0x02,
+    0x70, 0x01, 0xd0, 0x70, 0x0b, 0x7f, 0x00, 0x41, 0x07, 0x0b, 0x07, 0x09,
+    0x01, 0x05, 0x73, 0x65, 0x74, 0x75, 0x70, 0x00, 0x03, 0x09, 0x16, 0x03,
+    0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x05, 0x70, 0x02, 0xd2, 0x01, 0x0b,
+    0xd2, 0x02, 0x0b, 0x05, 0x70, 0x01, 0xd2, 0x00, 0x0b, 0x0c, 0x01, 0x02,
+    0x0a, 0x39, 0x04, 0x02, 0x00, 0x0b, 0x02, 0x00, 0x0b, 0x02, 0x00, 0x0b,
+    0x2e, 0x00, 0x41, 0x01, 0xd2, 0x02, 0x26, 0x00, 0xd0, 0x70, 0x41, 0x02,
+    0xfc, 0x0f, 0x00, 0x1a, 0x41, 0x02, 0x41, 0x00, 0x41, 0x02, 0xfc, 0x0c,
+    0x01, 0x00, 0xfc, 0x0d, 0x02, 0xfc, 0x09, 0x01, 0x41, 0x80, 0x08, 0x41,
+    0xfe, 0x95, 0x03, 0x36, 0x02, 0x00, 0xd2, 0x00, 0x24, 0x00, 0x0b, 0x0b,
+    0x09, 0x02, 0x01, 0x02, 0x61, 0x62, 0x01, 0x02, 0x63, 0x64};
+
 class CoredumpState : public testing::Test {
 protected:
   void SetUp() override {
@@ -729,6 +865,7 @@ protected:
   }
 
   Configure Conf;
+  std::unique_ptr<SpecTestModule> SpectestHost;
   std::unique_ptr<WasmEdge::VM::VM> VM;
   std::filesystem::path TempDir;
   std::string Path;
@@ -747,7 +884,7 @@ TEST_F(CoredumpState, ModulesOnly) {
     Req.ForWasmgdb = ForWasmgdb;
     AST::Module Mod;
     ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
-    ASSERT_EQ(Mod.getCustomSections().size(), 4U);
+    ASSERT_EQ(Mod.getCustomSections().size(), ForWasmgdb ? 4U : 7U);
     for (const auto Name :
          {"core"sv, "coremodules"sv, "coreinstances"sv, "corestack"sv}) {
       ASSERT_NE(findCustomSection(Mod, Name), nullptr);
@@ -979,6 +1116,672 @@ TEST_F(CoredumpState, RegisteredAndBuiltInModules) {
     }
     EXPECT_FALSE(Reader.isFailed());
     EXPECT_TRUE(Reader.isEnd());
+  }
+}
+
+TEST_F(CoredumpState, TablesAndSegments) {
+  ASSERT_TRUE(VM->loadWasm(CoredumpTablesWasm));
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  ASSERT_TRUE(VM->execute("setup"sv));
+  const std::array Modules{VM->getActiveModule()};
+  Coredump::Request Req;
+  Req.Modules = Modules;
+  AST::Module Mod;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+  ASSERT_EQ(Mod.getTableSection().getContent().size(), 1U);
+  const auto &Type = Mod.getTableSection().getContent()[0].getTableType();
+  EXPECT_EQ(Type.getRefType(), ValType(TypeCode::FuncRef));
+  EXPECT_EQ(Type.getLimit().getMin(), 4U);
+  ASSERT_TRUE(Type.getLimit().hasMax());
+  EXPECT_EQ(Type.getLimit().getMax(), 10U);
+  const auto *Section = findCustomSection(Mod, "wasmedge.tables"sv);
+  ASSERT_NE(Section, nullptr);
+  CoredumpReader Tables(Section->getContent());
+  EXPECT_EQ(Tables.readU32(), 1U);
+  EXPECT_EQ(Tables.readU32(), 1U);
+  Tables.expectType(Modules[0]->getTableInstances()[0]->getTableType());
+  EXPECT_EQ(Tables.readU64(), 4U);
+  EXPECT_EQ(Tables.readU32(), 4U);
+  for (const uint32_t Idx : {0U, 2U, 1U, 2U}) {
+    EXPECT_EQ(Tables.readRef(), (std::array<uint32_t, 3>{1, 0, Idx}));
+  }
+  EXPECT_FALSE(Tables.isFailed());
+  EXPECT_TRUE(Tables.isEnd());
+  Section = findCustomSection(Mod, "wasmedge.instances"sv);
+  ASSERT_NE(Section, nullptr);
+  CoredumpReader Instances(Section->getContent());
+  EXPECT_EQ(Instances.readU32(), 1U);
+  EXPECT_EQ(Instances.readU32(), 1U);
+  EXPECT_EQ(Instances.readU32(), 1U);
+  EXPECT_EQ(Instances.readU32(), 0U);
+  EXPECT_EQ(Instances.readU32(), 2U);
+  EXPECT_EQ(Instances.readByte(), 0U);
+  EXPECT_EQ(Instances.readByte(), 1U);
+  EXPECT_EQ(Instances.readU32(), 3U);
+  for (const uint32_t Flag : {1U, 0U, 1U}) {
+    EXPECT_EQ(Instances.readByte(), Flag);
+  }
+  EXPECT_FALSE(Instances.isFailed());
+  EXPECT_TRUE(Instances.isEnd());
+  Section = findCustomSection(Mod, "wasmedge.globals"sv);
+  ASSERT_NE(Section, nullptr);
+  CoredumpReader Globals(Section->getContent());
+  EXPECT_EQ(Globals.readU32(), 1U);
+  EXPECT_EQ(Globals.readU32(), 0U);
+  EXPECT_FALSE(Globals.isFailed());
+  EXPECT_TRUE(Globals.isEnd());
+  Req.ForWasmgdb = true;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+  EXPECT_TRUE(Mod.getTableSection().getContent().empty());
+  for (const auto &Sec : Mod.getCustomSections()) {
+    EXPECT_NE(Sec.getName().find("wasmedge."sv), 0U);
+  }
+}
+
+TEST_F(CoredumpState, SharedTable) {
+  // (module (table (export "table") 1 funcref))
+  const Byte B[]{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x04,
+                 0x04, 0x01, 0x70, 0x00, 0x01, 0x07, 0x09, 0x01, 0x05,
+                 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00};
+  // (module
+  //   (import "tables" "table" (table 1 funcref))
+  //   (func $f) (elem declare func $f)
+  //   (func (export "setup") (table.set (i32.const 0) (ref.func $f))))
+  const Byte A[]{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+      0x00, 0x00, 0x02, 0x12, 0x01, 0x06, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x73,
+      0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x70, 0x00, 0x01, 0x03, 0x03,
+      0x02, 0x00, 0x00, 0x07, 0x09, 0x01, 0x05, 0x73, 0x65, 0x74, 0x75, 0x70,
+      0x00, 0x01, 0x09, 0x05, 0x01, 0x03, 0x00, 0x01, 0x00, 0x0a, 0x0d, 0x02,
+      0x02, 0x00, 0x0b, 0x08, 0x00, 0x41, 0x00, 0xd2, 0x00, 0x26, 0x00, 0x0b};
+  ASSERT_TRUE(VM->registerModule("tables"sv, B));
+  ASSERT_TRUE(VM->loadWasm(A));
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  ASSERT_TRUE(VM->execute("setup"sv));
+  const std::array Modules{VM->getActiveModule(),
+                           VM->getStoreManager().findModule("tables"sv)};
+  ASSERT_EQ(Modules[0]->getTableInstances()[0],
+            Modules[1]->getTableInstances()[0]);
+  Coredump::Request Req;
+  Req.Modules = Modules;
+  AST::Module Mod;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+  ASSERT_EQ(Mod.getTableSection().getContent().size(), 1U);
+  const auto *Section = findCustomSection(Mod, "wasmedge.tables"sv);
+  ASSERT_NE(Section, nullptr);
+  CoredumpReader Tables(Section->getContent());
+  EXPECT_EQ(Tables.readU32(), 1U);
+  EXPECT_EQ(Tables.readU32(), 1U);
+  Tables.expectType(Modules[0]->getTableInstances()[0]->getTableType());
+  EXPECT_EQ(Tables.readU64(), 1U);
+  EXPECT_EQ(Tables.readU32(), 1U);
+  EXPECT_EQ(Tables.readRef(), (std::array<uint32_t, 3>{1, 0, 0}));
+  EXPECT_FALSE(Tables.isFailed());
+  EXPECT_TRUE(Tables.isEnd());
+  Section = findCustomSection(Mod, "wasmedge.instances"sv);
+  ASSERT_NE(Section, nullptr);
+  CoredumpReader Instances(Section->getContent());
+  EXPECT_EQ(Instances.readU32(), 1U);
+  EXPECT_EQ(Instances.readU32(), 2U);
+  for (unsigned I = 0; I < 2; ++I) {
+    EXPECT_EQ(Instances.readU32(), 1U);
+    EXPECT_EQ(Instances.readU32(), 0U);
+    EXPECT_EQ(Instances.readU32(), 0U);
+    EXPECT_EQ(Instances.readU32(), I == 0 ? 1U : 0U);
+    if (I == 0) {
+      EXPECT_EQ(Instances.readByte(), 1U);
+    }
+  }
+  EXPECT_FALSE(Instances.isFailed());
+  EXPECT_TRUE(Instances.isEnd());
+}
+
+TEST_F(CoredumpState, ExternRefTable) {
+  Runtime::Instance::ModuleInstance Host("host"sv);
+  auto Table = std::make_unique<Runtime::Instance::TableInstance>(
+      AST::TableType(ValType(TypeCode::ExternRef), AST::Limit(2)));
+  int Value = 42;
+  ASSERT_TRUE(
+      Table->setRefAddr(0, RefVariant(ValType(TypeCode::ExternRef), &Value)));
+  ASSERT_TRUE(Host.addHostTable("table"sv, std::move(Table)));
+  const std::array<const Runtime::Instance::ModuleInstance *, 1> Modules{&Host};
+  Coredump::Request Req;
+  Req.Modules = Modules;
+  AST::Module Mod;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+  const auto *Section = findCustomSection(Mod, "wasmedge.tables"sv);
+  ASSERT_NE(Section, nullptr);
+  CoredumpReader Tables(Section->getContent());
+  EXPECT_EQ(Tables.readU32(), 1U);
+  EXPECT_EQ(Tables.readU32(), 1U);
+  Tables.expectType(Host.getTableInstances()[0]->getTableType());
+  EXPECT_EQ(Tables.readU64(), 2U);
+  EXPECT_EQ(Tables.readU32(), 2U);
+  EXPECT_EQ(Tables.readRef(), (std::array<uint32_t, 3>{2, 0, 0}));
+  EXPECT_EQ(Tables.readRef(), (std::array<uint32_t, 3>{0, 0, 0}));
+  EXPECT_FALSE(Tables.isFailed());
+  EXPECT_TRUE(Tables.isEnd());
+}
+
+TEST_F(CoredumpState, ForeignFunction) {
+  // (module
+  //   (import "spectest" "print" (func $print)) (table 1 funcref)
+  //   (elem declare func $print)
+  //   (func (export "setup") (table.set (i32.const 0) (ref.func $print))))
+  const Byte Wasm[]{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+                    0x01, 0x60, 0x00, 0x00, 0x02, 0x12, 0x01, 0x08, 0x73, 0x70,
+                    0x65, 0x63, 0x74, 0x65, 0x73, 0x74, 0x05, 0x70, 0x72, 0x69,
+                    0x6e, 0x74, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04,
+                    0x01, 0x70, 0x00, 0x01, 0x07, 0x09, 0x01, 0x05, 0x73, 0x65,
+                    0x74, 0x75, 0x70, 0x00, 0x01, 0x09, 0x05, 0x01, 0x03, 0x00,
+                    0x01, 0x00, 0x0a, 0x0a, 0x01, 0x08, 0x00, 0x41, 0x00, 0xd2,
+                    0x00, 0x26, 0x00, 0x0b};
+  Conf.addProposal(Proposal::Threads);
+  Conf.addProposal(Proposal::Memory64);
+  VM = std::make_unique<WasmEdge::VM::VM>(Conf);
+  SpectestHost = std::make_unique<SpecTestModule>();
+  auto &Spectest = *SpectestHost;
+  ASSERT_TRUE(VM->registerModule(Spectest));
+  ASSERT_TRUE(VM->loadWasm(Wasm));
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  ASSERT_TRUE(VM->execute("setup"sv));
+  const auto *Active = VM->getActiveModule();
+  const auto Functions = Spectest.getFunctionInstances();
+  const auto *Print = Spectest.findFuncExports("print"sv);
+  const auto It = std::find(Functions.begin(), Functions.end(), Print);
+  ASSERT_NE(It, Functions.end());
+  const auto PrintIdx = static_cast<uint32_t>(It - Functions.begin());
+  Runtime::Instance::ModuleInstance Holder("holder"sv);
+  auto Table = std::make_unique<Runtime::Instance::TableInstance>(
+      AST::TableType(ValType(TypeCode::FuncRef), AST::Limit(1)));
+  const auto Ref = Active->getTableInstances()[0]->getRefAddr(0);
+  ASSERT_TRUE(Ref);
+  ASSERT_TRUE(Table->setRefAddr(0, *Ref));
+  ASSERT_TRUE(Holder.addHostTable("table"sv, std::move(Table)));
+  for (unsigned Case = 0; Case < 3; ++Case) {
+    SCOPED_TRACE(Case);
+    std::vector<const Runtime::Instance::ModuleInstance *> Modules{Active};
+    std::array<uint32_t, 3> Expected{1, 0, 0};
+    if (Case == 1) {
+      Modules.push_back(&Spectest);
+      Expected = {1, 1, PrintIdx};
+    } else if (Case == 2) {
+      Modules = {&Holder};
+      Expected = {2, 0, 0};
+    }
+    Coredump::Request Req;
+    Req.Modules = Modules;
+    AST::Module Mod;
+    ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+    const auto *Section = findCustomSection(Mod, "wasmedge.tables"sv);
+    ASSERT_NE(Section, nullptr);
+    CoredumpReader Reader(Section->getContent());
+    EXPECT_EQ(Reader.readU32(), 1U);
+    EXPECT_EQ(Reader.readU32(), Case == 1 ? 3U : 1U);
+    Reader.expectType(Active->getTableInstances()[0]->getTableType());
+    EXPECT_EQ(Reader.readU64(), 1U);
+    EXPECT_EQ(Reader.readU32(), 1U);
+    EXPECT_EQ(Reader.readRef(), Expected);
+    if (Case == 1) {
+      for (unsigned I = 0; I < 2; ++I) {
+        Reader.expectType(Spectest.getTableInstances()[I]->getTableType());
+        EXPECT_EQ(Reader.readU64(), 10U);
+        EXPECT_EQ(Reader.readU32(), 10U);
+        for (unsigned J = 0; J < 10; ++J) {
+          EXPECT_EQ(Reader.readRef(), (std::array<uint32_t, 3>{0, 0, 0}));
+        }
+      }
+    }
+    EXPECT_FALSE(Reader.isFailed());
+    EXPECT_TRUE(Reader.isEnd());
+  }
+}
+
+TEST_F(CoredumpState, FuncRefGlobal) {
+  // (module
+  //   (global (mut funcref) (ref.null func)) (global i32 (i32.const 7))
+  //   (func $f0) (elem declare func $f0)
+  //   (func (export "setup") (global.set 0 (ref.func $f0))))
+  const Byte Wasm[]{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01,
+                    0x04, 0x01, 0x60, 0x00, 0x00, 0x03, 0x03, 0x02, 0x00,
+                    0x00, 0x06, 0x0b, 0x02, 0x70, 0x01, 0xd0, 0x70, 0x0b,
+                    0x7f, 0x00, 0x41, 0x07, 0x0b, 0x07, 0x09, 0x01, 0x05,
+                    0x73, 0x65, 0x74, 0x75, 0x70, 0x00, 0x01, 0x09, 0x05,
+                    0x01, 0x03, 0x00, 0x01, 0x00, 0x0a, 0x0b, 0x02, 0x02,
+                    0x00, 0x0b, 0x06, 0x00, 0xd2, 0x00, 0x24, 0x00, 0x0b};
+  ASSERT_TRUE(VM->loadWasm(Wasm));
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  const std::array Modules{VM->getActiveModule()};
+  for (const bool Setup : {false, true}) {
+    if (Setup) {
+      ASSERT_TRUE(VM->execute("setup"sv));
+    }
+    Coredump::Request Req;
+    Req.Modules = Modules;
+    AST::Module Mod;
+    ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+    ASSERT_EQ(Mod.getGlobalSection().getContent().size(), 2U);
+    const auto &Init =
+        Mod.getGlobalSection().getContent()[0].getExpr().getInstrs()[0];
+    EXPECT_EQ(Init.getOpCode(), OpCode::Ref__null);
+    EXPECT_EQ(Init.getValType(), ValType(TypeCode::FuncRef));
+    const auto *Section = findCustomSection(Mod, "wasmedge.globals"sv);
+    ASSERT_NE(Section, nullptr);
+    CoredumpReader Reader(Section->getContent());
+    EXPECT_EQ(Reader.readU32(), 1U);
+    EXPECT_EQ(Reader.readU32(), 1U);
+    EXPECT_EQ(Reader.readU32(), 0U);
+    Reader.expectType(Modules[0]->getGlobalInstances()[0]->getGlobalType());
+    EXPECT_EQ(Reader.readRef(),
+              (std::array<uint32_t, 3>{Setup ? 1U : 0U, 0, 0}));
+    EXPECT_FALSE(Reader.isFailed());
+    EXPECT_TRUE(Reader.isEnd());
+  }
+}
+
+TEST_F(CoredumpState, ReadBack) {
+  ASSERT_TRUE(VM->loadWasm(CoredumpReadBackWasm));
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  const auto *Active = VM->getActiveModule();
+  const std::array Modules{Active};
+  for (const bool Setup : {false, true}) {
+    SCOPED_TRACE(Setup);
+    if (Setup) {
+      ASSERT_TRUE(VM->execute("setup"sv));
+    }
+    Coredump::Request Req;
+    Req.Modules = Modules;
+    AST::Module Mod;
+    ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+    const auto *Section = findCustomSection(Mod, "coreinstances"sv);
+    ASSERT_NE(Section, nullptr);
+    CoredumpReader Core(Section->getContent());
+    ASSERT_EQ(Core.readU32(), 1U);
+    EXPECT_EQ(Core.readByte(), 0U);
+    EXPECT_EQ(Core.readU32(), 0U);
+    ASSERT_EQ(Core.readU32(), 1U);
+    const auto MemoryIdx = Core.readU32();
+    ASSERT_LT(MemoryIdx, Mod.getMemorySection().getContent().size());
+    ASSERT_EQ(Core.readU32(), 2U);
+    const auto RefGlobalIdx = Core.readU32();
+    const auto NumGlobalIdx = Core.readU32();
+    EXPECT_FALSE(Core.isFailed());
+    EXPECT_TRUE(Core.isEnd());
+    const auto *Memory = Active->getMemoryInstances()[0];
+    EXPECT_EQ(
+        Mod.getMemorySection().getContent()[MemoryIdx].getLimit().getMin(),
+        Memory->getPageSize());
+    std::vector<Byte> Bytes(Memory->getSize(), 0);
+    for (const auto &Seg : Mod.getDataSection().getContent()) {
+      EXPECT_EQ(Seg.getIdx(), MemoryIdx);
+      const auto Offset = Seg.getExpr().getInstrs()[0].getNum().get<uint32_t>();
+      ASSERT_LE(Offset + Seg.getData().size(), Bytes.size());
+      std::copy(Seg.getData().begin(), Seg.getData().end(),
+                Bytes.begin() + Offset);
+    }
+    const auto LiveBytes = Memory->getBytes(0, Memory->getSize());
+    ASSERT_TRUE(LiveBytes);
+    EXPECT_EQ(Bytes, (std::vector<Byte>(LiveBytes->begin(), LiveBytes->end())));
+    EXPECT_EQ(Bytes[1024], Setup ? 0xFE : 0);
+    EXPECT_EQ(Bytes[1025], Setup ? 0xCA : 0);
+    const auto &Globals = Mod.getGlobalSection().getContent();
+    ASSERT_LT(NumGlobalIdx, Globals.size());
+    EXPECT_EQ(
+        Globals[NumGlobalIdx].getExpr().getInstrs()[0].getNum().get<int32_t>(),
+        Active->getGlobalInstances()[1]->getValue().get<int32_t>());
+    Section = findCustomSection(Mod, "wasmedge.globals"sv);
+    ASSERT_NE(Section, nullptr);
+    CoredumpReader GlobalReader(Section->getContent());
+    EXPECT_EQ(GlobalReader.readU32(), 1U);
+    ASSERT_EQ(GlobalReader.readU32(), 1U);
+    EXPECT_EQ(GlobalReader.readU32(), RefGlobalIdx);
+    GlobalReader.expectType(Active->getGlobalInstances()[0]->getGlobalType());
+    const auto *GlobalFunc = GlobalReader.readFunction(Modules);
+    EXPECT_EQ(GlobalFunc, Active->getGlobalInstances()[0]
+                              ->getValue()
+                              .get<RefVariant>()
+                              .getPtr<Runtime::Instance::FunctionInstance>());
+    EXPECT_EQ(GlobalFunc, Setup ? Active->getFunctionInstances()[0] : nullptr);
+    EXPECT_FALSE(GlobalReader.isFailed());
+    EXPECT_TRUE(GlobalReader.isEnd());
+
+    Section = findCustomSection(Mod, "wasmedge.tables"sv);
+    ASSERT_NE(Section, nullptr);
+    CoredumpReader Tables(Section->getContent());
+    EXPECT_EQ(Tables.readU32(), 1U);
+    ASSERT_EQ(Tables.readU32(), 1U);
+    const auto *Table = Active->getTableInstances()[0];
+    Tables.expectType(Table->getTableType());
+    const auto Size = Tables.readU64();
+    ASSERT_EQ(Size, Table->getSize());
+    EXPECT_EQ(Size, Setup ? 4U : 2U);
+    ASSERT_EQ(Mod.getTableSection().getContent().size(), 1U);
+    EXPECT_EQ(Mod.getTableSection()
+                  .getContent()[0]
+                  .getTableType()
+                  .getLimit()
+                  .getMin(),
+              Size);
+    ASSERT_EQ(Tables.readU32(), Size);
+    const auto Refs = Table->getRefs(0, Size);
+    ASSERT_TRUE(Refs);
+    for (const auto &Ref : *Refs) {
+      EXPECT_EQ(Tables.readFunction(Modules),
+                Ref.getPtr<Runtime::Instance::FunctionInstance>());
+    }
+    if (!Setup) {
+      EXPECT_TRUE((*Refs)[1].isNull());
+    }
+    EXPECT_FALSE(Tables.isFailed());
+    EXPECT_TRUE(Tables.isEnd());
+
+    Section = findCustomSection(Mod, "wasmedge.instances"sv);
+    ASSERT_NE(Section, nullptr);
+    CoredumpReader Instances(Section->getContent());
+    EXPECT_EQ(Instances.readU32(), 1U);
+    ASSERT_EQ(Instances.readU32(), Modules.size());
+    const std::array DumpTables{Table};
+    ASSERT_EQ(Instances.readU32(), Active->getTableInstances().size());
+    const auto TableIdx = Instances.readU32();
+    ASSERT_LT(TableIdx, DumpTables.size());
+    EXPECT_EQ(DumpTables[TableIdx], Active->getTableInstances()[0]);
+    const auto Data = Active->getOwnedDataInstances();
+    ASSERT_EQ(Instances.readU32(), Data.size());
+    for (size_t I = 0; I < Data.size(); ++I) {
+      const auto Flag = Instances.readByte();
+      EXPECT_EQ(Flag, Data[I]->isDropped());
+      EXPECT_EQ(Flag, Setup && I == 1);
+    }
+    const auto Elems = Active->getElemInstances();
+    ASSERT_EQ(Instances.readU32(), Elems.size());
+    for (size_t I = 0; I < Elems.size(); ++I) {
+      const auto Flag = Instances.readByte();
+      EXPECT_EQ(Flag, Elems[I]->isDropped());
+      EXPECT_EQ(Flag, I == 0 || (Setup && I == 2));
+    }
+    EXPECT_FALSE(Instances.isFailed());
+    EXPECT_TRUE(Instances.isEnd());
+  }
+}
+
+TEST_F(CoredumpState, TypedReferences) {
+  // (module
+  //   (type $s (struct (field i32))) (type $f (func))
+  //   (func $f0 (type $f))
+  //   (table 1 (ref null $s))
+  //   (table 1 (ref $f) (ref.func $f0))
+  //   (table 1 (ref func) (ref.func $f0))
+  //   (global (mut (ref null $s)) (ref.null $s))
+  //   (global (ref $f) (ref.func $f0))
+  //   (global (mut funcref) (ref.null func)))
+  const Byte Wasm[]{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08,
+                    0x02, 0x5f, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x03, 0x02,
+                    0x01, 0x01, 0x04, 0x17, 0x03, 0x63, 0x00, 0x00, 0x01, 0x40,
+                    0x00, 0x64, 0x01, 0x00, 0x01, 0xd2, 0x00, 0x0b, 0x40, 0x00,
+                    0x64, 0x70, 0x00, 0x01, 0xd2, 0x00, 0x0b, 0x06, 0x12, 0x03,
+                    0x63, 0x00, 0x01, 0xd0, 0x00, 0x0b, 0x64, 0x01, 0x00, 0xd2,
+                    0x00, 0x0b, 0x70, 0x01, 0xd0, 0x70, 0x0b, 0x0a, 0x04, 0x01,
+                    0x02, 0x00, 0x0b};
+  // (module (type $f (func)) (table 1 (ref null $f)))
+  const Byte B[]{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00,
+                 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+                 0x04, 0x05, 0x01, 0x63, 0x00, 0x00, 0x01};
+  ASSERT_TRUE(VM->registerModule("typed-b"sv, B));
+  ASSERT_TRUE(VM->loadWasm(Wasm));
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  const auto *Active = VM->getActiveModule();
+  const auto *Other = VM->getStoreManager().findModule("typed-b"sv);
+  ASSERT_NE(Other, nullptr);
+  for (const bool Multiple : {false, true}) {
+    SCOPED_TRACE(Multiple);
+    std::vector<const Runtime::Instance::ModuleInstance *> Modules{Active};
+    if (Multiple) {
+      Modules.push_back(Other);
+    }
+    Coredump::Request Req;
+    Req.Modules = Modules;
+    AST::Module Mod;
+    ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+    const auto &Tables = Mod.getTableSection().getContent();
+    ASSERT_EQ(Tables.size(), Multiple ? 4U : 3U);
+    const auto *Section = findCustomSection(Mod, "wasmedge.tables"sv);
+    ASSERT_NE(Section, nullptr);
+    CoredumpReader TableReader(Section->getContent());
+    EXPECT_EQ(TableReader.readU32(), 1U);
+    EXPECT_EQ(TableReader.readU32(), Tables.size());
+    for (size_t I = 0; I < Tables.size(); ++I) {
+      EXPECT_EQ(Tables[I].getTableType().getRefType(),
+                ValType(I == 0 ? TypeCode::AnyRef : TypeCode::FuncRef));
+      const auto *Table = I < 3 ? Active->getTableInstances()[I]
+                                : Other->getTableInstances()[0];
+      TableReader.expectType(Table->getTableType());
+      EXPECT_EQ(TableReader.readU64(), 1U);
+      EXPECT_EQ(TableReader.readU32(), 1U);
+      EXPECT_EQ(TableReader.readRef(),
+                (std::array<uint32_t, 3>{I == 1 || I == 2 ? 1U : 0U, 0, 0}));
+    }
+    EXPECT_FALSE(TableReader.isFailed());
+    EXPECT_TRUE(TableReader.isEnd());
+    const auto &Globals = Mod.getGlobalSection().getContent();
+    ASSERT_EQ(Globals.size(), 3U);
+    Section = findCustomSection(Mod, "wasmedge.globals"sv);
+    ASSERT_NE(Section, nullptr);
+    CoredumpReader GlobalReader(Section->getContent());
+    EXPECT_EQ(GlobalReader.readU32(), 1U);
+    EXPECT_EQ(GlobalReader.readU32(), 3U);
+    for (uint32_t I = 0; I < 3; ++I) {
+      const ValType Top(I == 0 ? TypeCode::AnyRef : TypeCode::FuncRef);
+      EXPECT_EQ(Globals[I].getGlobalType().getValType(), Top);
+      EXPECT_EQ(Globals[I].getGlobalType().getValMut(), ValMut::Const);
+      const auto Instrs = Globals[I].getExpr().getInstrs();
+      const auto &Init = Instrs[0];
+      EXPECT_EQ(Init.getOpCode(), OpCode::Ref__null);
+      EXPECT_EQ(Init.getValType(), Top);
+      EXPECT_EQ(GlobalReader.readU32(), I);
+      GlobalReader.expectType(Active->getGlobalInstances()[I]->getGlobalType());
+      EXPECT_EQ(GlobalReader.readRef(),
+                (std::array<uint32_t, 3>{I == 1 ? 1U : 0U, 0, 0}));
+    }
+    EXPECT_FALSE(GlobalReader.isFailed());
+    EXPECT_TRUE(GlobalReader.isEnd());
+    Section = findCustomSection(Mod, "wasmedge.instances"sv);
+    ASSERT_NE(Section, nullptr);
+    CoredumpReader Instances(Section->getContent());
+    EXPECT_EQ(Instances.readU32(), 1U);
+    EXPECT_EQ(Instances.readU32(), Modules.size());
+    EXPECT_EQ(Instances.readU32(), 3U);
+    for (uint32_t I = 0; I < 3; ++I) {
+      EXPECT_EQ(Instances.readU32(), I);
+    }
+    EXPECT_EQ(Instances.readU32(), 0U);
+    EXPECT_EQ(Instances.readU32(), 0U);
+    if (Multiple) {
+      EXPECT_EQ(Instances.readU32(), 1U);
+      EXPECT_EQ(Instances.readU32(), 3U);
+      EXPECT_EQ(Instances.readU32(), 0U);
+      EXPECT_EQ(Instances.readU32(), 0U);
+    }
+    EXPECT_FALSE(Instances.isFailed());
+    EXPECT_TRUE(Instances.isEnd());
+  }
+}
+
+TEST_F(CoredumpState, EmptySegments) {
+  // (module
+  //   (memory 1) (data "") (data (i32.const 0) "")
+  //   (elem funcref) (elem declare funcref)
+  //   (func (export "setup") (data.drop 0) (elem.drop 0)))
+  const Byte Wasm[]{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+                    0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03,
+                    0x01, 0x00, 0x01, 0x07, 0x09, 0x01, 0x05, 0x73, 0x65, 0x74,
+                    0x75, 0x70, 0x00, 0x00, 0x09, 0x07, 0x02, 0x05, 0x70, 0x00,
+                    0x07, 0x70, 0x00, 0x0c, 0x01, 0x02, 0x0a, 0x0a, 0x01, 0x08,
+                    0x00, 0xfc, 0x09, 0x00, 0xfc, 0x0d, 0x00, 0x0b, 0x0b, 0x08,
+                    0x02, 0x01, 0x00, 0x00, 0x41, 0x00, 0x0b, 0x00};
+  ASSERT_TRUE(VM->loadWasm(Wasm));
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  const std::array Modules{VM->getActiveModule()};
+  for (const bool Setup : {false, true}) {
+    if (Setup) {
+      ASSERT_TRUE(VM->execute("setup"sv));
+    }
+    Coredump::Request Req;
+    Req.Modules = Modules;
+    AST::Module Mod;
+    ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+    const auto *Section = findCustomSection(Mod, "wasmedge.instances"sv);
+    ASSERT_NE(Section, nullptr);
+    CoredumpReader Reader(Section->getContent());
+    EXPECT_EQ(Reader.readU32(), 1U);
+    EXPECT_EQ(Reader.readU32(), 1U);
+    EXPECT_EQ(Reader.readU32(), 0U);
+    for (unsigned I = 0; I < 2; ++I) {
+      EXPECT_EQ(Reader.readU32(), 2U);
+      EXPECT_EQ(Reader.readByte(), Setup);
+      EXPECT_EQ(Reader.readByte(), 1U);
+    }
+    EXPECT_FALSE(Reader.isFailed());
+    EXPECT_TRUE(Reader.isEnd());
+  }
+}
+
+TEST_F(CoredumpState, ReferenceHierarchies) {
+  Conf.addProposal(Proposal::ExceptionHandling);
+  VM = std::make_unique<WasmEdge::VM::VM>(Conf);
+  const std::array Types{ValType(TypeCode::NullFuncRef),
+                         ValType(TypeCode::NullExternRef),
+                         ValType(TypeCode::EqRef),
+                         ValType(TypeCode::I31Ref),
+                         ValType(TypeCode::StructRef),
+                         ValType(TypeCode::ArrayRef),
+                         ValType(TypeCode::NullRef),
+                         ValType(TypeCode::ExnRef),
+                         ValType(TypeCode::NullExnRef),
+                         ValType(TypeCode::RefNull, uint32_t(999))};
+  const std::array Tops{TypeCode::FuncRef, TypeCode::ExternRef,
+                        TypeCode::AnyRef,  TypeCode::AnyRef,
+                        TypeCode::AnyRef,  TypeCode::AnyRef,
+                        TypeCode::AnyRef,  TypeCode::ExnRef,
+                        TypeCode::ExnRef,  TypeCode::AnyRef};
+  Runtime::Instance::ModuleInstance Host("hierarchies"sv);
+  for (size_t I = 0; I < Types.size(); ++I) {
+    ASSERT_TRUE(Host.addHostTable(
+        std::to_string(I),
+        std::make_unique<Runtime::Instance::TableInstance>(
+            AST::TableType(Types[I], AST::Limit(130)), RefVariant(Types[I]))));
+    ASSERT_TRUE(Host.addHostGlobal(
+        std::to_string(I),
+        std::make_unique<Runtime::Instance::GlobalInstance>(
+            AST::GlobalType(Types[I], ValMut::Var), RefVariant(Types[I]))));
+  }
+  const std::array<const Runtime::Instance::ModuleInstance *, 1> Modules{&Host};
+  Coredump::Request Req;
+  Req.Modules = Modules;
+  AST::Module Mod;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+  ASSERT_EQ(Mod.getTableSection().getContent().size(), Types.size());
+  ASSERT_EQ(Mod.getGlobalSection().getContent().size(), Types.size());
+  const auto *Section = findCustomSection(Mod, "wasmedge.tables"sv);
+  ASSERT_NE(Section, nullptr);
+  CoredumpReader Tables(Section->getContent());
+  EXPECT_EQ(Tables.readU32(), 1U);
+  EXPECT_EQ(Tables.readU32(), Types.size());
+  Section = findCustomSection(Mod, "wasmedge.globals"sv);
+  ASSERT_NE(Section, nullptr);
+  CoredumpReader Globals(Section->getContent());
+  EXPECT_EQ(Globals.readU32(), 1U);
+  EXPECT_EQ(Globals.readU32(), Types.size());
+  for (size_t I = 0; I < Types.size(); ++I) {
+    SCOPED_TRACE(I);
+    EXPECT_EQ(Mod.getTableSection().getContent()[I].getTableType().getRefType(),
+              ValType(Tops[I]));
+    EXPECT_EQ(
+        Mod.getGlobalSection().getContent()[I].getGlobalType().getValType(),
+        ValType(Tops[I]));
+    Tables.expectType(Host.getTableInstances()[I]->getTableType());
+    EXPECT_EQ(Tables.readU64(), 130U);
+    EXPECT_EQ(Tables.readU32(), 130U);
+    for (unsigned J = 0; J < 130; ++J) {
+      EXPECT_EQ(Tables.readRef(), (std::array<uint32_t, 3>{0, 0, 0}));
+    }
+    EXPECT_EQ(Globals.readU32(), I);
+    Globals.expectType(Host.getGlobalInstances()[I]->getGlobalType());
+    EXPECT_EQ(Globals.readRef(), (std::array<uint32_t, 3>{0, 0, 0}));
+  }
+  EXPECT_FALSE(Tables.isFailed());
+  EXPECT_TRUE(Tables.isEnd());
+  EXPECT_FALSE(Globals.isFailed());
+  EXPECT_TRUE(Globals.isEnd());
+}
+
+TEST_F(CoredumpState, MissingGCReferences) {
+  // (module
+  //   (type $s (struct (field i32)))
+  //   (table 1 (ref null $s))
+  //   (global (mut (ref null $s)) (ref.null $s))
+  //   (func (export "setup")
+  //     (global.set 0 (struct.new $s (i32.const 7)))
+  //     (table.set (i32.const 0) (global.get 0))))
+  const Byte Wasm[]{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08,
+                    0x02, 0x5f, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x03, 0x02,
+                    0x01, 0x01, 0x04, 0x05, 0x01, 0x63, 0x00, 0x00, 0x01, 0x06,
+                    0x07, 0x01, 0x63, 0x00, 0x01, 0xd0, 0x00, 0x0b, 0x07, 0x09,
+                    0x01, 0x05, 0x73, 0x65, 0x74, 0x75, 0x70, 0x00, 0x00, 0x0a,
+                    0x11, 0x01, 0x0f, 0x00, 0x41, 0x07, 0xfb, 0x00, 0x00, 0x24,
+                    0x00, 0x41, 0x00, 0x23, 0x00, 0x26, 0x00, 0x0b};
+  ASSERT_TRUE(VM->loadWasm(Wasm));
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  ASSERT_TRUE(VM->execute("setup"sv));
+  const auto *Active = VM->getActiveModule();
+  const std::array Modules{Active};
+  Coredump::Request Req;
+  Req.Modules = Modules;
+  AST::Module Mod;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+  const auto *Section = findCustomSection(Mod, "wasmedge.tables"sv);
+  ASSERT_NE(Section, nullptr);
+  CoredumpReader Tables(Section->getContent());
+  EXPECT_EQ(Tables.readU32(), 1U);
+  EXPECT_EQ(Tables.readU32(), 1U);
+  Tables.expectType(Active->getTableInstances()[0]->getTableType());
+  EXPECT_EQ(Tables.readU64(), 1U);
+  EXPECT_EQ(Tables.readU32(), 1U);
+  EXPECT_EQ(Tables.readRef(), (std::array<uint32_t, 3>{2, 0, 0}));
+  EXPECT_FALSE(Tables.isFailed());
+  EXPECT_TRUE(Tables.isEnd());
+  Section = findCustomSection(Mod, "wasmedge.globals"sv);
+  ASSERT_NE(Section, nullptr);
+  CoredumpReader Globals(Section->getContent());
+  EXPECT_EQ(Globals.readU32(), 1U);
+  EXPECT_EQ(Globals.readU32(), 1U);
+  EXPECT_EQ(Globals.readU32(), 0U);
+  Globals.expectType(Active->getGlobalInstances()[0]->getGlobalType());
+  EXPECT_EQ(Globals.readRef(), (std::array<uint32_t, 3>{2, 0, 0}));
+  EXPECT_FALSE(Globals.isFailed());
+  EXPECT_TRUE(Globals.isEnd());
+}
+
+TEST_F(CoredumpState, WasmgdbReferenceGlobal) {
+  Runtime::Instance::ModuleInstance Host("host"sv);
+  ASSERT_TRUE(Host.addHostGlobal(
+      "ref"sv, std::make_unique<Runtime::Instance::GlobalInstance>(
+                   AST::GlobalType(TypeCode::StructRef, ValMut::Var),
+                   RefVariant(TypeCode::StructRef))));
+  const std::array<const Runtime::Instance::ModuleInstance *, 1> Modules{&Host};
+  Coredump::Request Req;
+  Req.Modules = Modules;
+  for (const bool ForWasmgdb : {false, true}) {
+    Req.ForWasmgdb = ForWasmgdb;
+    AST::Module Mod;
+    ASSERT_NO_FATAL_FAILURE(generate(Req, Mod));
+    ASSERT_EQ(Mod.getGlobalSection().getContent().size(), 1U);
+    const auto &Global = Mod.getGlobalSection().getContent()[0];
+    const ValType Expected(ForWasmgdb ? TypeCode::StructRef : TypeCode::AnyRef);
+    EXPECT_EQ(Global.getGlobalType().getValType(), Expected);
+    const auto Instrs = Global.getExpr().getInstrs();
+    EXPECT_EQ(Instrs[0].getOpCode(), OpCode::Ref__null);
+    EXPECT_EQ(Instrs[0].getValType(), Expected);
+    EXPECT_EQ(Mod.getCustomSections().size(), ForWasmgdb ? 4U : 7U);
   }
 }
 

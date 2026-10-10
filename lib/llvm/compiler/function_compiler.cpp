@@ -1162,7 +1162,8 @@ void FunctionCompiler::updateInstrCount() noexcept {
         LLVMAtomicRMWBinOpAdd, Context.getInstrCount(Builder, ExecCtx),
         Builder.createLoad(Context.Int64Ty, LocalInstrCount),
         LLVMAtomicOrderingMonotonic);
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR < 13
+#else
     Store.setAlignment(8);
 #endif
     Builder.createStore(LLContext.getInt64(0), LocalInstrCount);
@@ -1197,7 +1198,8 @@ void FunctionCompiler::updateGas() noexcept {
     auto RGasAndSucceed = Builder.createAtomicCmpXchg(
         GasPtr, PHIOldGas, NewGas, LLVMAtomicOrderingMonotonic,
         LLVMAtomicOrderingMonotonic);
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR < 13
+#else
     RGasAndSucceed.setAlignment(8);
 #endif
     RGasAndSucceed.setWeak(true);
@@ -1219,7 +1221,8 @@ void FunctionCompiler::updateGasAtTrap() noexcept {
         LLVMAtomicRMWBinOpAdd, Context.getGas(Builder, ExecCtx),
         Builder.createLoad(Context.Int64Ty, LocalGas),
         LLVMAtomicOrderingMonotonic);
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR < 13
+#else
     Update.setAlignment(8);
 #endif
   }
@@ -2092,7 +2095,8 @@ void FunctionCompiler::checkStop() noexcept {
   auto StopToken = Builder.createAtomicRMW(
       LLVMAtomicRMWBinOpXchg, Context.getStopToken(Builder, ExecCtx),
       LLContext.getInt32(0), LLVMAtomicOrderingMonotonic);
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR < 13
+#else
   StopToken.setAlignment(32);
 #endif
   auto NotStop = Builder.createLikely(

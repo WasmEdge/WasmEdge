@@ -507,6 +507,27 @@ AST::CustomSection createWasmEdgeInstances(const Loader::Serializer &Ser,
   return Section;
 }
 
+AST::CustomSection
+createWasmEdgeGlobals(const Loader::Serializer &Ser, const IndexSpaces &Spaces,
+                     const std::optional<FunctionIndexer> &Indexer) noexcept {
+  AST::CustomSection Section;
+  Section.setName("wasmedge.globals");
+  auto &Out = Section.getContent();
+  Ser.serializeU32(kGlobalsVersion, Out);
+  const auto Globals = Spaces.getGlobals();
+  const auto IsRef = [](const auto *Glob) {
+    return Glob->getGlobalType().getValType().isRefType();
+  };
+  Ser.serializeU32(static_cast<uint32_t>(std::count_if(Globals.begin(), Globals.end(), IsRef)), Out);
+  for (uint32_t I = 0; I < Globals.size(); ++I) {
+    if (IsRef(Globals[I])) {
+      Ser.serializeU32(I, Out);
+      serializeRef(Ser, Globals[I]->getValue().get<RefVariant>(), *Indexer, Out);
+    }
+  }
+  return Section;
+}
+
 AST::TableSection createTable(const IndexSpaces &Spaces) noexcept {
   AST::TableSection Tables;
   for (const auto *Tab : Spaces.getTables()) {
@@ -694,6 +715,7 @@ Expect<std::string> generate(const Request &Req) noexcept {
     EXPECTED_TRY(auto Tables, createWasmEdgeTables(Ser, Spaces, Indexer));
     CustomSections.push_back(std::move(Tables));
     CustomSections.push_back(createWasmEdgeInstances(Ser, Spaces));
+    CustomSections.push_back(createWasmEdgeGlobals(Ser, Spaces, Indexer));
     Module.getTableSection() = createTable(Spaces);
   }
   Module.getMemorySection() = createMemory(Spaces);

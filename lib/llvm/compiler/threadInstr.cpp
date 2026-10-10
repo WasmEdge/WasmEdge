@@ -523,7 +523,8 @@ void FunctionCompiler::compileAtomicRMWOp(
                                   LLVMAtomicOrderingSequentiallyConsistent);
   }
   Ret = switchEndian(Ret);
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR < 13
+#else
   Ret.setAlignment(1 << Alignment);
 #endif
   if (Signed) {
@@ -556,7 +557,8 @@ void FunctionCompiler::compileAtomicCompareExchange(
       Ptr, switchEndian(Expected), switchEndian(Replacement),
       LLVMAtomicOrderingSequentiallyConsistent,
       LLVMAtomicOrderingSequentiallyConsistent);
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR < 13
+#else
   Ret.setAlignment(1 << Alignment);
 #endif
   auto OldVal = Builder.createExtractValue(Ret, 0);

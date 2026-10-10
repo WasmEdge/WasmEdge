@@ -30,34 +30,7 @@ struct RAIICleanup {
 };
 
 // Translate Compiler::OptimizationLevel to llvm::PassBuilder version
-#if LLVM_VERSION_MAJOR >= 13
-static inline const char *
-toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
-  using OL = WasmEdge::CompilerConfigure::OptimizationLevel;
-  switch (Level) {
-  case OL::O0:
-    return "default<O0>,function(tailcallelim)";
-  case OL::O1:
-    return "default<O1>,function(tailcallelim)";
-  case OL::O2:
-    return "default<O2>";
-  case OL::O3:
-    return "default<O3>";
-#if LLVM_VERSION_MAJOR >= 23
-  case OL::Os:
-  case OL::Oz:
-    return "default<O2>";
-#else
-  case OL::Os:
-    return "default<Os>";
-  case OL::Oz:
-    return "default<Oz>";
-#endif
-  default:
-    assumingUnreachable();
-  }
-}
-#else
+#if LLVM_VERSION_MAJOR < 13
 static inline std::pair<unsigned int, unsigned int>
 toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
   using OL = WasmEdge::CompilerConfigure::OptimizationLevel;
@@ -74,6 +47,33 @@ toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
     return {2, 1};
   case OL::Oz:
     return {2, 2};
+  default:
+    assumingUnreachable();
+  }
+}
+#else
+static inline const char *
+toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
+  using OL = WasmEdge::CompilerConfigure::OptimizationLevel;
+  switch (Level) {
+  case OL::O0:
+    return "default<O0>,function(tailcallelim)";
+  case OL::O1:
+    return "default<O1>,function(tailcallelim)";
+  case OL::O2:
+    return "default<O2>";
+  case OL::O3:
+    return "default<O3>";
+#if LLVM_VERSION_MAJOR < 23
+  case OL::Os:
+    return "default<Os>";
+  case OL::Oz:
+    return "default<Oz>";
+#else
+  case OL::Os:
+  case OL::Oz:
+    return "default<O2>";
+#endif
   default:
     assumingUnreachable();
   }
@@ -148,39 +148,9 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
 #endif
       toLLVMCodeGenLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
       LLVMRelocPIC, LLVMCodeModelDefault);
+  TM.setModuleDataLayout(LLModule);
 
-#if LLVM_VERSION_MAJOR >= 13
-#if LLVM_VERSION_MAJOR >= 23
-  {
-    using OL = CompilerConfigure::OptimizationLevel;
-    const auto Level = Conf.getCompilerConfigure().getOptimizationLevel();
-    if (Level == OL::Os || Level == OL::Oz) {
-      auto LLContext = LLModule.getContext();
-      const auto OptSize = LLVM::Attribute::createEnum(
-          LLContext, LLVM::Core::OptimizeForSize, 0);
-      const auto MinSize =
-          LLVM::Attribute::createEnum(LLContext, LLVM::Core::MinSize, 0);
-      for (auto Fn = LLModule.getFirstFunction(); Fn;
-           Fn = Fn.getNextFunction()) {
-        if (Fn.isDeclaration()) {
-          continue;
-        }
-        Fn.addFnAttr(OptSize);
-        if (Level == OL::Oz) {
-          Fn.addFnAttr(MinSize);
-        }
-      }
-    }
-  }
-#endif
-  auto PBO = LLVM::PassBuilderOptions::create();
-  if (auto Error = PBO.runPasses(
-          LLModule,
-          toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
-          TM)) {
-    spdlog::error("{}"sv, Error.message().string_view());
-  }
-#else
+#if LLVM_VERSION_MAJOR < 13
   auto FP = LLVM::PassManager::createForModule(LLModule);
   auto MP = LLVM::PassManager::create();
 
@@ -210,6 +180,38 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
   }
   FP.finalizeFunctionPassManager();
   MP.runPassManager(LLModule);
+#else
+#if LLVM_VERSION_MAJOR < 23
+#else
+  {
+    using OL = CompilerConfigure::OptimizationLevel;
+    const auto Level = Conf.getCompilerConfigure().getOptimizationLevel();
+    if (Level == OL::Os || Level == OL::Oz) {
+      auto LLContext = LLModule.getContext();
+      const auto OptSize = LLVM::Attribute::createEnum(
+          LLContext, LLVM::Core::OptimizeForSize, 0);
+      const auto MinSize =
+          LLVM::Attribute::createEnum(LLContext, LLVM::Core::MinSize, 0);
+      for (auto Fn = LLModule.getFirstFunction(); Fn;
+           Fn = Fn.getNextFunction()) {
+        if (Fn.isDeclaration()) {
+          continue;
+        }
+        Fn.addFnAttr(OptSize);
+        if (Level == OL::Oz) {
+          Fn.addFnAttr(MinSize);
+        }
+      }
+    }
+  }
+#endif
+  auto PBO = LLVM::PassBuilderOptions::create();
+  if (auto Error = PBO.runPasses(
+          LLModule,
+          toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
+          TM)) {
+    spdlog::error("{}"sv, Error.message().string_view());
+  }
 #endif
 
   spdlog::info("optimize done"sv);

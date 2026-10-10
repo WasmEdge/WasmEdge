@@ -1,5 +1,5 @@
-name: "General Issue"
-description: Don't see your issue kind in other issue templates? Use this one instead.
+name: "Question"
+description: Have a question about this project? Use this issue.
 title: "question: <title>"
 labels: [
   "question"

@@ -1,0 +1,88 @@
+name: "Performance Issue"
+description: WasmEdge works, but it is slower or uses more resources than you expect?
+title: "perf: <title>"
+labels: [
+  "performance"
+]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: "Summary"
+      description: Please shortly describe the performance problem you encounter in the current WasmEdge project.
+      placeholder: Describe in a few lines the performance regression or bottleneck
+    validations:
+      required: true
+  - type: textarea
+    id: workload
+    attributes:
+      label: "Workload"
+      description: Please describe the workload, benchmark, or scenario that exhibits the problem.
+      placeholder: e.g. the Wasm module, input size, concurrency, or benchmark used
+    validations:
+      required: true
+  - type: textarea
+    id: measurements
+    attributes:
+      label: "Measurements"
+      description: Provide the measured numbers (latency, throughput, memory, CPU) and, if applicable, a baseline to compare against.
+      value: |
+        - Metric (e.g. execution time, throughput, RSS):
+        - Observed:
+        - Expected / baseline (e.g. a previous version or another runtime):
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction_steps
+    attributes:
+      label: "Reproduction steps"
+      description: Please provide as much information as necessary to reproduce the measurement.
+      value: |
+        1. Build with options '...'
+        2. Execute with flags '....'
+        3. Execute with inputs '....'
+        4. Measure with '....'
+    validations:
+      required: true
+  - type: textarea
+    id: profile
+    attributes:
+      label: "Profiling data"
+      description: If applicable, attach profiling output (e.g. perf, flamegraph) that helps locate the hot path.
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: "WasmEdge Version or Commit you used"
+      description: WasmEdge Version or Commit you used
+      placeholder: ex. 0.16.4, 0.17.0, or master, etc.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: "Operating system information"
+      description: Operating system information
+      placeholder: ex. Ubuntu 20.04, CentOS 7.6, macOS 13.5.2, or Windows 11, etc.
+    validations:
+      required: true
+  - type: input
+    id: arch
+    attributes:
+      label: "Hardware Architecture"
+      description: Hardware Architecture
+      placeholder: ex. amd64, x86_64, arm64, aarch64, or RISC-V, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: compiler_flags_and_options
+    attributes:
+      label: "Compiler flags and options"
+      description: Compiler flags and options. Please provide this information if you are building from source, as it strongly affects performance.
+      placeholder: |
+        - C++ Compiler version:
+        - CMake version:
+        - CMake flags: (e.g. `-DCMAKE_BUILD_TYPE=Release -DWASMEDGE_USE_LLVM=ON`)
+    validations:
+      required: false

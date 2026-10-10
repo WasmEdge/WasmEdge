@@ -552,11 +552,41 @@ fi
         else:
             logging.error("Not able to write to env file")
 
+    if "fish" in SHELL:
+        fish_env_content = (
+            "#!/usr/bin/env fish\n"
+            "# wasmedge shell setup for fish\n"
+            'fish_add_path -p "{path}/bin"\n'
+            'set -gx {ldlib} "{path}/{lib}" ${ldlib}\n'
+            'set -gx LIBRARY_PATH "{path}/{lib}" $LIBRARY_PATH\n'
+            'set -gx C_INCLUDE_PATH "{path}/include" $C_INCLUDE_PATH\n'
+            'set -gx CPLUS_INCLUDE_PATH "{path}/include" $CPLUS_INCLUDE_PATH\n'
+            "# Please do not edit comments below this for uninstallation purpose\n"
+        ).format(path=args.path, ldlib=compat.ld_library_path, lib=CONST_lib_dir)
+        fish_env_path = join(args.path, "env.fish")
+        fish_mode = "w+" if not exists(fish_env_path) else "w"
+        with opened_w_error(fish_env_path, fish_mode) as fish_env:
+            if fish_env is not None:
+                fish_env.write(fish_env_content)
+            else:
+                logging.warning("Not able to write to fish env file")
+
 
 def shell_configure(args, compat):
     global CONST_shell_profile, CONST_shell_config
 
     source_string = '\n. "{0}"\n'.format(join(args.path, "env"))
+
+    if "fish" in SHELL:
+        fish_config_path = join(HOME, ".config", "fish", "config.fish")
+        fish_source_string = '\nsource "{0}"\n'.format(join(args.path, "env.fish"))
+        if exists(fish_config_path):
+            with opened_w_error(fish_config_path, "r") as fish_config:
+                if fish_config is not None:
+                    if fish_source_string not in fish_config.read():
+                        with opened_w_error(fish_config_path, "a") as fish_config_w:
+                            if fish_config_w is not None:
+                                fish_config_w.write(fish_source_string)
 
     if ("bash" in SHELL) or ("zsh" in SHELL):
         CONST_shell_config = join(HOME, "." + SHELL + "rc")
@@ -610,6 +640,8 @@ def shell_configure(args, compat):
                         shell_profile.write(source_string)
                 write_shell = False
 
+    elif "fish" in SHELL:
+        pass
     else:
         logging.error("Unknown shell found")
         return -1

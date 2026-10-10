@@ -127,6 +127,15 @@ public:
 
   void *getHostData() const noexcept { return HostData; }
 
+  /// Get the defined type by index.
+  Expect<const AST::SubType *> getType(uint32_t Idx) const noexcept {
+    std::shared_lock Lock(Mutex);
+    if (unlikely(Idx >= Types.size())) {
+      return Unexpect(ErrCode::Value::WrongInstanceIndex);
+    }
+    return unsafeGetType(Idx);
+  }
+
   Span<const FunctionInstance *const> getFunctionInstances() const noexcept {
     return Span<const FunctionInstance *const>(
         const_cast<const FunctionInstance *const *>(FuncInsts.data()),
@@ -422,14 +431,6 @@ protected:
   Span<const AST::SubType *const> getTypeList() const noexcept { return Types; }
 
   /// Get instance pointer by index.
-  Expect<const AST::SubType *> getType(uint32_t Idx) const noexcept {
-    std::shared_lock Lock(Mutex);
-    if (unlikely(Idx >= Types.size())) {
-      // Error logging needs to be handled by the caller.
-      return Unexpect(ErrCode::Value::WrongInstanceIndex);
-    }
-    return unsafeGetType(Idx);
-  }
   const AST::SubType *unsafeGetType(uint32_t Idx) const noexcept {
     return Types[Idx];
   }

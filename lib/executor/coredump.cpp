@@ -111,6 +111,7 @@ public:
     auto &TabIdxVec = InstanceTables.emplace_back();
     for (const auto *Tab : Mod->getTableInstances()) {
       TabIdxVec.push_back(add(Tab, Tables, TableIdx));
+      TableModules.emplace(Tab, Mod);
     }
     auto &MemIdxVec = InstanceMemories.emplace_back();
     for (const auto *Mem : Mod->getMemoryInstances()) {
@@ -119,6 +120,7 @@ public:
     auto &GlobIdxVec = InstanceGlobals.emplace_back();
     for (const auto *Glob : Mod->getGlobalInstances()) {
       GlobIdxVec.push_back(add(Glob, Globals, GlobalIdx));
+      GlobalModules.emplace(Glob, Mod);
     }
   }
 
@@ -137,6 +139,15 @@ public:
     return Globals;
   }
   Span<const TableInstance *const> getTables() const noexcept { return Tables; }
+  const ModuleInstance *getTypeModule(const TableInstance *Tab) const noexcept {
+    const auto It = TableModules.find(Tab);
+    return It == TableModules.end() ? nullptr : It->second;
+  }
+  const ModuleInstance *
+  getTypeModule(const GlobalInstance *Glob) const noexcept {
+    const auto It = GlobalModules.find(Glob);
+    return It == GlobalModules.end() ? nullptr : It->second;
+  }
   const std::vector<std::vector<uint32_t>> &getInstanceTables() const noexcept {
     return InstanceTables;
   }
@@ -164,6 +175,10 @@ private:
   }
 
   std::vector<const ModuleInstance *> Modules;
+  std::unordered_map<const TableInstance *, const ModuleInstance *>
+      TableModules;
+  std::unordered_map<const GlobalInstance *, const ModuleInstance *>
+      GlobalModules;
   std::vector<const TableInstance *> Tables;
   std::unordered_map<const TableInstance *, uint32_t> TableIdx;
   std::vector<std::vector<uint32_t>> InstanceTables;
@@ -176,11 +191,36 @@ private:
   std::vector<std::vector<uint32_t>> InstanceGlobals;
 };
 
+ValType toTopRefType(const ValType &Type, const ModuleInstance *Mod) noexcept {
+  switch (Type.getHeapTypeCode()) {
+  case TypeCode::FuncRef:
+  case TypeCode::NullFuncRef:
+    return ValType(TypeCode::FuncRef);
+  case TypeCode::ExternRef:
+  case TypeCode::NullExternRef:
+    return ValType(TypeCode::ExternRef);
+  case TypeCode::ExnRef:
+  case TypeCode::NullExnRef:
+    return ValType(TypeCode::ExnRef);
+  case TypeCode::TypeIndex:
+    if (Mod != nullptr) {
+      if (const auto Def = Mod->getType(Type.getTypeIndex());
+          Def && (*Def)->getCompositeType().isFunc()) {
+        return ValType(TypeCode::FuncRef);
+      }
+    }
+    [[fallthrough]];
+  default:
+    return ValType(TypeCode::AnyRef);
+  }
+}
+
 class FunctionIndexer {
 public:
   explicit FunctionIndexer(const IndexSpaces &Spaces) noexcept {
     const auto Modules = Spaces.getModules();
-    for (uint32_t InstanceIdx = 0; InstanceIdx < Modules.size(); ++InstanceIdx) {
+    for (uint32_t InstanceIdx = 0; InstanceIdx < Modules.size();
+         ++InstanceIdx) {
       const auto *Mod = Modules[InstanceIdx];
       const auto Functions = Mod->getFunctionInstances();
       for (uint32_t I = 0; I < Functions.size(); ++I) {
@@ -188,7 +228,8 @@ public:
         if (Func == nullptr) {
           continue;
         }
-        const auto [It, Inserted] = Indices.emplace(Func, std::make_pair(InstanceIdx, I));
+        const auto [It, Inserted] =
+            Indices.emplace(Func, std::make_pair(InstanceIdx, I));
         if (!Inserted && Func->getModule() == Mod &&
             Modules[It->second.first] != Mod) {
           It->second = {InstanceIdx, I};
@@ -210,11 +251,13 @@ public:
   }
 
 private:
-  std::unordered_map<const FunctionInstance *, std::pair<uint32_t, uint32_t>> Indices;
+  std::unordered_map<const FunctionInstance *, std::pair<uint32_t, uint32_t>>
+      Indices;
 };
 
 void serializeRef(const Loader::Serializer &Ser, const RefVariant &Ref,
-                  const FunctionIndexer &Indexer, std::vector<Byte> &Out) noexcept {
+                  const FunctionIndexer &Indexer,
+                  std::vector<Byte> &Out) noexcept {
   if (Ref.isNull()) {
     Out.push_back(0x00);
   } else if (const auto Index = Indexer.lookup(Ref)) {
@@ -455,7 +498,7 @@ AST::CustomSection createCoreStack(const Loader::Serializer &Ser,
 
 Expect<AST::CustomSection>
 createWasmEdgeTables(const Loader::Serializer &Ser, const IndexSpaces &Spaces,
-                    const std::optional<FunctionIndexer> &Indexer) noexcept {
+                     const std::optional<FunctionIndexer> &Indexer) noexcept {
   AST::CustomSection Section;
   Section.setName("wasmedge.tables");
   auto &Out = Section.getContent();
@@ -464,14 +507,11 @@ createWasmEdgeTables(const Loader::Serializer &Ser, const IndexSpaces &Spaces,
   for (const auto *Tab : Spaces.getTables()) {
     const auto Size = Tab->getSize();
     EXPECTED_TRY(auto Refs, Tab->getRefs(0, Size));
-    uint64_t Remaining = Size;
-    do {
-      const auto Byte = static_cast<uint8_t>(Remaining & 0x7FU);
-      Remaining >>= 7;
-      Out.push_back(Byte | (Remaining ? 0x80U : 0x00U));
-    } while (Remaining);
+    Ser.serializeType(Tab->getTableType(), Out);
+    Ser.serializeU64(Size, Out);
     Ser.serializeU32(static_cast<uint32_t>(Refs.size()), Out);
     for (const auto &Ref : Refs) {
+      assuming(Indexer);
       serializeRef(Ser, Ref, *Indexer, Out);
     }
   }
@@ -479,7 +519,7 @@ createWasmEdgeTables(const Loader::Serializer &Ser, const IndexSpaces &Spaces,
 }
 
 AST::CustomSection createWasmEdgeInstances(const Loader::Serializer &Ser,
-                                         const IndexSpaces &Spaces) noexcept {
+                                           const IndexSpaces &Spaces) noexcept {
   AST::CustomSection Section;
   Section.setName("wasmedge.instances");
   auto &Out = Section.getContent();
@@ -509,7 +549,7 @@ AST::CustomSection createWasmEdgeInstances(const Loader::Serializer &Ser,
 
 AST::CustomSection
 createWasmEdgeGlobals(const Loader::Serializer &Ser, const IndexSpaces &Spaces,
-                     const std::optional<FunctionIndexer> &Indexer) noexcept {
+                      const std::optional<FunctionIndexer> &Indexer) noexcept {
   AST::CustomSection Section;
   Section.setName("wasmedge.globals");
   auto &Out = Section.getContent();
@@ -518,11 +558,16 @@ createWasmEdgeGlobals(const Loader::Serializer &Ser, const IndexSpaces &Spaces,
   const auto IsRef = [](const auto *Glob) {
     return Glob->getGlobalType().getValType().isRefType();
   };
-  Ser.serializeU32(static_cast<uint32_t>(std::count_if(Globals.begin(), Globals.end(), IsRef)), Out);
+  Ser.serializeU32(static_cast<uint32_t>(
+                       std::count_if(Globals.begin(), Globals.end(), IsRef)),
+                   Out);
   for (uint32_t I = 0; I < Globals.size(); ++I) {
     if (IsRef(Globals[I])) {
+      assuming(Indexer);
       Ser.serializeU32(I, Out);
-      serializeRef(Ser, Globals[I]->getValue().get<RefVariant>(), *Indexer, Out);
+      Ser.serializeType(Globals[I]->getGlobalType(), Out);
+      serializeRef(Ser, Globals[I]->getValue().get<RefVariant>(), *Indexer,
+                   Out);
     }
   }
   return Section;
@@ -532,7 +577,10 @@ AST::TableSection createTable(const IndexSpaces &Spaces) noexcept {
   AST::TableSection Tables;
   for (const auto *Tab : Spaces.getTables()) {
     auto &Seg = Tables.getContent().emplace_back();
-    Seg.getTableType() = Tab->getTableType();
+    const auto &Type = Tab->getTableType();
+    Seg.getTableType() = AST::TableType(
+        toTopRefType(Type.getRefType(), Spaces.getTypeModule(Tab)),
+        Type.getLimit());
   }
   return Tables;
 }
@@ -599,11 +647,16 @@ AST::DataSection createData(const IndexSpaces &Spaces,
 
 /// The globals are dumped as constant and non-mutable globals holding their
 /// current values.
-AST::GlobalSection createGlobals(const IndexSpaces &Spaces) noexcept {
+AST::GlobalSection createGlobals(const IndexSpaces &Spaces,
+                                 bool ForWasmgdb) noexcept {
   AST::GlobalSection Globals;
   auto &Content = Globals.getContent();
   for (const auto *Glob : Spaces.getGlobals()) {
-    const auto &Type = Glob->getGlobalType().getValType();
+    const auto &OriginalType = Glob->getGlobalType().getValType();
+    const auto Type =
+        !ForWasmgdb && OriginalType.isRefType()
+            ? toTopRefType(OriginalType, Spaces.getTypeModule(Glob))
+            : OriginalType;
     AST::GlobalSegment Seg;
     Seg.getGlobalType() = AST::GlobalType(Type, ValMut::Const);
     AST::Instruction Init(OpCode::Ref__null);
@@ -629,8 +682,6 @@ AST::GlobalSection createGlobals(const IndexSpaces &Spaces) noexcept {
       Init.setNum(Glob->getValue());
       break;
     default:
-      // A reference cannot be represented by a constant expression of a
-      // coredump, dump a null reference of the same type instead.
       Init.setValType(Type);
       break;
     }
@@ -719,7 +770,7 @@ Expect<std::string> generate(const Request &Req) noexcept {
     Module.getTableSection() = createTable(Spaces);
   }
   Module.getMemorySection() = createMemory(Spaces);
-  Module.getGlobalSection() = createGlobals(Spaces);
+  Module.getGlobalSection() = createGlobals(Spaces, Req.ForWasmgdb);
   Module.getDataSection() = createData(Spaces, Req.ForWasmgdb);
   // The serializer emits the sections ordered by their start offsets, assign
   // the offsets of a well-formed module to keep the section order valid.

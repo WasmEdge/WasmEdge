@@ -12,6 +12,7 @@
 #include "loader/serialize.h"
 #include "runtime/instance/memory.h"
 #include "runtime/instance/module.h"
+#include "runtime/instance/table.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -36,6 +37,7 @@ using Runtime::Instance::FunctionInstance;
 using Runtime::Instance::GlobalInstance;
 using Runtime::Instance::MemoryInstance;
 using Runtime::Instance::ModuleInstance;
+using Runtime::Instance::TableInstance;
 
 /// Type tags of the `value` production of the coredump format.
 static inline constexpr const Byte ValueMissing = 0x01;
@@ -105,6 +107,10 @@ public:
     }
     ModuleIdx.emplace(Mod, static_cast<uint32_t>(Modules.size()));
     Modules.push_back(Mod);
+    auto &TabIdxVec = InstanceTables.emplace_back();
+    for (const auto *Tab : Mod->getTableInstances()) {
+      TabIdxVec.push_back(add(Tab, Tables, TableIdx));
+    }
     auto &MemIdxVec = InstanceMemories.emplace_back();
     for (const auto *Mem : Mod->getMemoryInstances()) {
       MemIdxVec.push_back(add(Mem, Memories, MemoryIdx));
@@ -128,6 +134,10 @@ public:
   }
   Span<const GlobalInstance *const> getGlobals() const noexcept {
     return Globals;
+  }
+  Span<const TableInstance *const> getTables() const noexcept { return Tables; }
+  const std::vector<std::vector<uint32_t>> &getInstanceTables() const noexcept {
+    return InstanceTables;
   }
   const std::vector<std::vector<uint32_t>> &
   getInstanceMemories() const noexcept {
@@ -153,6 +163,9 @@ private:
   }
 
   std::vector<const ModuleInstance *> Modules;
+  std::vector<const TableInstance *> Tables;
+  std::unordered_map<const TableInstance *, uint32_t> TableIdx;
+  std::vector<std::vector<uint32_t>> InstanceTables;
   std::vector<const MemoryInstance *> Memories;
   std::vector<const GlobalInstance *> Globals;
   std::unordered_map<const ModuleInstance *, uint32_t> ModuleIdx;
@@ -389,6 +402,15 @@ AST::CustomSection createCoreStack(const Loader::Serializer &Ser,
   return CoreStack;
 }
 
+AST::TableSection createTable(const IndexSpaces &Spaces) noexcept {
+  AST::TableSection Tables;
+  for (const auto *Tab : Spaces.getTables()) {
+    auto &Seg = Tables.getContent().emplace_back();
+    Seg.getTableType() = Tab->getTableType();
+  }
+  return Tables;
+}
+
 AST::MemorySection createMemory(const IndexSpaces &Spaces) noexcept {
   AST::MemorySection Memory;
   auto &Content = Memory.getContent();
@@ -555,16 +577,20 @@ Expect<std::string> generate(const Request &Req) noexcept {
   CustomSections.push_back(createCoreModules(Ser, Spaces));
   CustomSections.push_back(createCoreInstances(Ser, Spaces));
   CustomSections.push_back(createCoreStack(Ser, Frames, Req.ForWasmgdb));
+  if (!Req.ForWasmgdb) {
+    Module.getTableSection() = createTable(Spaces);
+  }
   Module.getMemorySection() = createMemory(Spaces);
   Module.getGlobalSection() = createGlobals(Spaces);
   Module.getDataSection() = createData(Spaces, Req.ForWasmgdb);
   // The serializer emits the sections ordered by their start offsets, assign
   // the offsets of a well-formed module to keep the section order valid.
-  Module.getMemorySection().setStartOffset(1);
-  Module.getGlobalSection().setStartOffset(2);
-  Module.getDataSection().setStartOffset(3);
+  Module.getTableSection().setStartOffset(1);
+  Module.getMemorySection().setStartOffset(2);
+  Module.getGlobalSection().setStartOffset(3);
+  Module.getDataSection().setStartOffset(4);
   for (auto &Sec : CustomSections) {
-    Sec.setStartOffset(4);
+    Sec.setStartOffset(5);
   }
 
   auto Res = Ser.serializeModule(Module);

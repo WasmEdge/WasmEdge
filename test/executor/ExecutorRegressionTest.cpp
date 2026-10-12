@@ -742,6 +742,16 @@ std::array<WasmEdge::Byte, 49> NotifyMemory64Wasm{
     0x07, 0x08, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x0a, 0x0d,
     0x01, 0x0b, 0x00, 0x42, 0x04, 0x41, 0x01, 0xfe, 0x00, 0x02, 0x00, 0x1a,
     0x0b};
+
+/// Self-recursive f(n) = n ? f(n-1) : 0 (no tail-call); recursing deeper than
+/// the configured MaxStackSize must trap with CallStackExhausted, not complete.
+std::array<WasmEdge::Byte, 70> RecurseWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+    0x01, 0x7e, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+    0x66, 0x00, 0x00, 0x0a, 0x14, 0x01, 0x12, 0x00, 0x20, 0x00, 0x50, 0x04,
+    0x7e, 0x42, 0x00, 0x05, 0x20, 0x00, 0x42, 0x01, 0x7d, 0x10, 0x00, 0x0b,
+    0x0b, 0x00, 0x13, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x04, 0x01, 0x00,
+    0x01, 0x66, 0x02, 0x06, 0x01, 0x00, 0x01, 0x00, 0x01, 0x6e};
 // clang-format on
 
 /// Regression test for ref.test on externalized nullable references.
@@ -1437,6 +1447,43 @@ TEST(ExecutorRegression, MemoryAtomicNotifyMemory64) {
   auto Result = VM.execute("test");
   EXPECT_TRUE(Result) << "memory.atomic.notify should succeed with 4-byte "
                          "alignment on Memory64";
+}
+
+/// Deeply recursive wasm must trap with CallStackExhausted once MaxStackSize
+/// is exceeded, instead of completing or overflowing the host stack.
+TEST(ExecutorRegression, CallStackExhaustion) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setMaxStackSize(UINT64_C(64) << 10);
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(RecurseWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  const std::vector<ValVariant> Params = {ValVariant(UINT64_C(5000))};
+  const std::vector<ValType> ParamTypes = {ValType(TypeCode::I64)};
+  auto Result = VM.execute("f", Params, ParamTypes);
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::CallStackExhausted);
+  EXPECT_EQ(Result.error().getErrCodePhase(), WasmPhase::Execution);
+}
+
+/// The default MaxStackSize of 0 lets the interpreter recurse deeper than the
+/// compiled-code default allows, but runaway recursion still traps.
+TEST(ExecutorRegression, CallStackDefaultLimit) {
+  Configure Conf;
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(RecurseWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  const std::vector<ValType> ParamTypes = {ValType(TypeCode::I64)};
+  const std::vector<ValVariant> DeepParams = {ValVariant(UINT64_C(20000))};
+  EXPECT_TRUE(VM.execute("f", DeepParams, ParamTypes));
+  const std::vector<ValVariant> RunawayParams = {
+      ValVariant(UINT64_C(100000000))};
+  auto Result = VM.execute("f", RunawayParams, ParamTypes);
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::CallStackExhausted);
 }
 
 } // namespace

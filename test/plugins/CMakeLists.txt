@@ -39,11 +39,6 @@ if(WASMEDGE_PLUGIN_IMAGE)
   endif()
 endif()
 
-# WasmEdge plug-in: LLMC.
-if(WASMEDGE_PLUGIN_LLMC)
-  add_subdirectory(wasmedge_llmc)
-endif()
-
 # WasmEdge plug-in: OpenCV-mini.
 if(WASMEDGE_PLUGIN_OPENCVMINI)
   # wasmedge_opencvmini is currently supported only on Linux and macOS.
@@ -52,11 +47,6 @@ if(WASMEDGE_PLUGIN_OPENCVMINI)
   else()
     message(WARNING "Only Linux and Darwin platforms support WasmEdge_OpenCVMini plug-in now.")
   endif()
-endif()
-
-# WasmEdge plug-in: Process.
-if(WASMEDGE_PLUGIN_PROCESS)
-  add_subdirectory(wasmedge_process)
 endif()
 
 # WasmEdge plug-in: Stable-diffusion.

@@ -928,6 +928,8 @@ TEST(InstantiateSubcommand, LinkerFlags) {
   EXPECT_EQ(callInstantiate({"--env", "HOME=/tmp", Path}), EXIT_SUCCESS);
   EXPECT_EQ(callInstantiate({"--memory-page-limit", "256", Path}),
             EXIT_SUCCESS);
+  EXPECT_EQ(callInstantiate({"--memory-page-limit", "-1", Path}),
+            EXIT_FAILURE);
   EXPECT_EQ(callInstantiate({"--dir", ".:.", "--env", "HOME=/tmp",
                              "--memory-page-limit", "256", Path}),
             EXIT_SUCCESS);
@@ -1036,6 +1038,12 @@ TEST(RunSubcommand, RunSpecificFlags) {
   EXPECT_EQ(callRun({"--reactor", "--env", "HOME=/tmp", Path, "add", "1", "2"}),
             EXIT_SUCCESS);
   EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "256", Path, "add",
+                     "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "-1", Path, "add",
+                     "1", "2"}),
+            EXIT_FAILURE);
+  EXPECT_EQ(callRun({"--reactor", "--stack-size-limit", "1048576", Path, "add",
                      "1", "2"}),
             EXIT_SUCCESS);
 }

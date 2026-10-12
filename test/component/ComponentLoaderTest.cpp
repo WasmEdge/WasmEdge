@@ -212,9 +212,11 @@ TEST(ComponentNameParserTest, StronglyUniqueBasicCases) {
 
   EXPECT_FALSE(add("foo"sv));
   EXPECT_FALSE(add("foo-BAR"sv));
-  EXPECT_FALSE(add("[constructor]foo-BAR"sv));
+  EXPECT_FALSE(add("foobar"sv));
+  EXPECT_FALSE(add("[constructor]FOO"sv));
   EXPECT_FALSE(add("[method]foo.foo"sv));
   EXPECT_FALSE(add("[method]foo.BAR"sv));
+  EXPECT_FALSE(add("[static]foo-bar.FOOB-ar"sv));
 }
 
 TEST(ComponentNameParserTest, StronglyUnique) {
@@ -265,9 +267,11 @@ TEST(ComponentNameParserTest, StronglyUniqueExportBasicCases) {
 
   EXPECT_FALSE(add("foo"sv));
   EXPECT_FALSE(add("foo-BAR"sv));
-  EXPECT_FALSE(add("[constructor]foo-BAR"sv));
+  EXPECT_FALSE(add("foobar"sv));
+  EXPECT_FALSE(add("[constructor]FOO"sv));
   EXPECT_FALSE(add("[method]foo.foo"sv));
   EXPECT_FALSE(add("[method]foo.BAR"sv));
+  EXPECT_FALSE(add("[static]foo-bar.FOOB-ar"sv));
 }
 
 TEST(ComponentNameParserTest, StronglyUniqueExport) {
@@ -623,6 +627,23 @@ TEST(ComponentLoaderTest, MalformedResultList) {
   EXPECT_EQ(Res.error().getEnum(), WasmEdge::ErrCode::Value::MalformedDefType);
 }
 
+TEST(ComponentLoaderTest, MalformedTaskReturnResultList) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // task.return takes the functype resultlist: after 0x01 only 0x00 follows.
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
+      0x08, 0x04, 0x01, 0x09, 0x01, 0x01,             // canon section
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error().getEnum(),
+            WasmEdge::ErrCode::Value::MalformedCanonical);
+}
+
 TEST(ComponentLoaderTest, ContextTypeIsACoreValType) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Component);
@@ -652,33 +673,35 @@ TEST(ComponentLoaderTest, ContextTypeIsACoreValType) {
             WasmEdge::ValType(WasmEdge::TypeCode::F32));
 }
 
-TEST(ComponentLoaderTest, NameAttributesKeepEveryExternalId) {
+TEST(ComponentLoaderTest, NameAttributesRejectDuplicateKinds) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Component);
   WasmEdge::Loader::Loader Loader(Conf);
 
-  // Component importing a func named "f" with two external-id attributes.
-  // Both are kept so that the at-most-once rule can be validated.
-  std::vector<uint8_t> Vec = {
-      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
-      0x07, 0x05, 0x01, 0x40, 0x00, 0x01, 0x00,       // functype at index 0
-      0x0a, 0x0d, 0x01, 0x02, 0x01, 0x66, 0x02, 0x02, // import section
-      0x01, 0x61, 0x02, 0x01, 0x62, 0x01, 0x00,
+  // Component importing a func named "f" with two attributes of the given
+  // kind: 0x00 implements, 0x01 versionsuffix, 0x02 external-id.
+  auto Load = [&Loader](uint8_t Kind) {
+    std::vector<uint8_t> Vec = {
+        0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
+        0x07, 0x05, 0x01, 0x40, 0x00, 0x01, 0x00,       // functype at index 0
+        0x0a, 0x0d, 0x01, 0x02, 0x01, 0x66, 0x02, Kind, // import section
+        0x01, 0x61, Kind, 0x01, 0x62, 0x01, 0x00,
+    };
+    return Loader.parseWasmUnit(Vec);
   };
 
-  auto Res = Loader.parseWasmUnit(Vec);
-  ASSERT_TRUE(Res);
-  auto *Comp =
-      std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res);
-  ASSERT_NE(Comp, nullptr);
-  ASSERT_EQ((*Comp)->getSections().size(), 2U);
-  const auto &Sec = std::get<WasmEdge::AST::Component::ImportSection>(
-      (*Comp)->getSections()[1]);
-  ASSERT_EQ(Sec.getContent().size(), 1U);
-  EXPECT_EQ(Sec.getContent()[0].getName(), "f"sv);
-  ASSERT_EQ(Sec.getContent()[0].getExternalIds().size(), 2U);
-  EXPECT_EQ(Sec.getContent()[0].getExternalIds()[0], "a"sv);
-  EXPECT_EQ(Sec.getContent()[0].getExternalIds()[1], "b"sv);
+  auto Res = Load(0x00);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(),
+            WasmEdge::ErrCode::Value::ComponentImplementsDuplicate);
+  Res = Load(0x01);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(),
+            WasmEdge::ErrCode::Value::ComponentVersionSuffixDuplicate);
+  Res = Load(0x02);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(),
+            WasmEdge::ErrCode::Value::ComponentExternalIdDuplicate);
 }
 
 TEST(ComponentLoaderTest, I64ResourceRepNeedsMemory64) {
@@ -770,16 +793,16 @@ TEST(ComponentLoaderTest, ModeratelyNestedComponentTypeAccepted) {
       nullptr);
 }
 
-TEST(ComponentLoaderTest, DeeplyNestedCoreModuleTypeRejected) {
+TEST(ComponentLoaderTest, NestedCoreModuleTypeRejected) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Component);
   WasmEdge::Loader::Loader Loader(Conf);
 
-  // Core module types share the guard.
-  auto Res = Loader.parseWasmUnit(makeNestedCoreModuleType(1000));
+  // A module type cannot declare a nested module type.
+  auto Res = Loader.parseWasmUnit(makeNestedCoreModuleType(2));
   ASSERT_FALSE(Res);
   EXPECT_EQ(Res.error().getEnum(),
-            WasmEdge::ErrCode::Value::ComponentNestLevelExceeded);
+            WasmEdge::ErrCode::Value::MalformedModuleType);
 }
 
 TEST(ComponentLoaderTest, DeeplyNestedComponentRejected) {

@@ -229,6 +229,35 @@ TEST_F(ValidatorRegressionTest, ForwardSupertypeInRecGroup) {
   EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
 }
 
+TEST_F(ValidatorRegressionTest, CyclicSupertypeInRecGroup) {
+  // Module: (module
+  //   (rec
+  //     (type $a (sub (func (result (ref null $a)))))
+  //     (type (sub $a (func (result (ref null $c)))))
+  //     (type $c (sub $c (func)))))
+  //
+  // Matching type 1 walks the super types of $c, which names itself, so
+  // validation must reject $c before matching instead of recursing forever.
+  std::array<WasmEdge::Byte, 34> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one rec group of 3 sub types
+      0x01, 0x18, 0x01, 0x4e, 0x03,
+      // type 0 ($a): (sub (func (result (ref null 0))))
+      0x50, 0x00, 0x60, 0x00, 0x01, 0x63, 0x00,
+      // type 1: (sub 0 (func (result (ref null 2))))
+      0x50, 0x01, 0x00, 0x60, 0x00, 0x01, 0x63, 0x02,
+      // type 2 ($c): (sub 2 (func))  -- its own supertype
+      0x50, 0x01, 0x02, 0x60, 0x00, 0x00};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
 TEST_F(ValidatorRegressionTest, ErrorPropagationRecursive) {
   std::array<WasmEdge::Byte, 255> Wasm = {
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x27, 0x02, 0x4e,

@@ -8,11 +8,20 @@
 #include "system/fault.h"
 #include "system/stacktrace.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <shared_mutex>
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#include <intrin.h>
+#endif
+
+#ifndef __has_builtin
+#define __has_builtin(x) 0
+#endif
 
 namespace WasmEdge {
 namespace Executor {
@@ -33,6 +42,41 @@ Executor::SavedThreadLocal::SavedThreadLocal(
     ExecutionContext.CostTable = Ex.Stat->getCostTable().data();
     ExecutionContext.Gas = &Ex.Stat->getTotalCostRef();
     ExecutionContext.GasLimit = Ex.Stat->getCostLimit();
+  }
+  // Native stack limit: this entry's budget, raised to the thread's stack
+  // bottom plus a margin and to an outer limit on the same stack.
+  {
+    static constexpr const uintptr_t StackMargin = UINT64_C(64) << 10;
+    uint64_t StackBudget = Ex.Conf.getRuntimeConfigure().getMaxStackSize();
+    if (StackBudget == 0) {
+      StackBudget = RuntimeConfigure::DefaultCompiledStackSize;
+    }
+    // Stack pointer of this entry: from the compiler where it can tell, else
+    // the address of a local.
+#if __has_builtin(__builtin_stack_address)
+    const auto SP = reinterpret_cast<uintptr_t>(__builtin_stack_address());
+#elif defined(__GNUC__) || defined(__clang__)
+    const auto SP = reinterpret_cast<uintptr_t>(__builtin_frame_address(0));
+#elif defined(_MSC_VER)
+    const auto SP = reinterpret_cast<uintptr_t>(_AddressOfReturnAddress());
+#else
+    volatile char StackProbe;
+    const auto SP = reinterpret_cast<uintptr_t>(&StackProbe);
+#endif
+    uintptr_t Limit = StackBudget < SP
+                          ? SP - static_cast<uintptr_t>(StackBudget)
+                          : static_cast<uintptr_t>(0);
+    const auto [Low, High] = getThreadStackBounds();
+    const bool OnThreadStack = Low < SP && SP <= High;
+    if (OnThreadStack) {
+      Limit = std::max(Limit, Low + StackMargin);
+    }
+    const auto Outer = reinterpret_cast<uintptr_t>(ExecutionContext.StackLimit);
+    if (OnThreadStack ? Low < Outer && Outer <= High
+                      : Outer <= SP + StackMargin) {
+      Limit = std::max(Limit, Outer);
+    }
+    ExecutionContext.StackLimit = reinterpret_cast<uint8_t *>(Limit);
   }
 
   SavedCurrentStack = CurrentStack;
@@ -56,6 +100,28 @@ Expect<AST::InstrView::iterator> Executor::enterFunction(
   if (unlikely(StopToken.exchange(0, std::memory_order_relaxed))) {
     spdlog::error(ErrCode::Value::Interrupted);
     return Unexpect(ErrCode::Value::Interrupted);
+  }
+
+  // Bound the interpreter's heap stack, counting the frame and locals about to
+  // be pushed; a tail call reuses the frame.
+  if (!IsTailCall) {
+    uint64_t StackSizeLimit = Conf.getRuntimeConfigure().getMaxStackSize();
+    if (StackSizeLimit == 0) {
+      StackSizeLimit = RuntimeConfigure::DefaultInterpreterStackSize;
+    }
+    const uint64_t LocalBytes =
+        Func.isWasmFunction()
+            ? static_cast<uint64_t>(Func.getLocalNum()) * sizeof(ValVariant)
+            : UINT64_C(0);
+    const uint64_t StackSizeNeeded =
+        static_cast<uint64_t>(StackMgr.size()) * sizeof(ValVariant) +
+        static_cast<uint64_t>(StackMgr.getFramesSpan().size() + 1) *
+            sizeof(Runtime::StackManager::Frame) +
+        LocalBytes;
+    if (unlikely(StackSizeNeeded > StackSizeLimit)) {
+      spdlog::error(ErrCode::Value::CallStackExhausted);
+      return Unexpect(ErrCode::Value::CallStackExhausted);
+    }
   }
 
   // Get the function type for the parameter and return counts.

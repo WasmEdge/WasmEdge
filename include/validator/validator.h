@@ -44,6 +44,9 @@ private:
   Expect<void> validate(const AST::SubType &Type, uint32_t OwnTypeIdx,
                         std::vector<uint32_t> &SubTypeDepthMap,
                         const std::vector<const AST::SubType *> &TypeVec);
+  Expect<void> validate(Span<const AST::SubType> RecType, uint32_t BaseIdx,
+                        std::vector<uint32_t> &SubTypeDepthMap,
+                        const std::vector<const AST::SubType *> &TypeVec);
   Expect<void> validate(const AST::Limit &Lim);
   Expect<void> validate(const AST::TableType &Tab);
   Expect<void> validate(const AST::MemoryType &Mem);

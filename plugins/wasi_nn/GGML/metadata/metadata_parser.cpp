@@ -650,8 +650,11 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                                    GraphRef.Params.n_threads_http);
     parseJsonWithCastAuto<int64_t>(Doc, "n-cache-reuse",
                                    GraphRef.Params.n_cache_reuse);
-    parseJsonWithCastAuto<std::string_view>(Doc, "hostname",
-                                            GraphRef.Params.hostname);
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "hostname", [&GraphRef](const std::string_view &Hostname) -> bool {
+          GraphRef.Params.hostnames = {std::string(Hostname)};
+          return true;
+        });
     parseJsonWithCastAuto<std::string_view>(Doc, "public-path",
                                             GraphRef.Params.public_path);
     parseJsonWithCastAuto<std::string_view>(Doc, "chat-template",

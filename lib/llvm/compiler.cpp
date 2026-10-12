@@ -650,12 +650,32 @@ Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
     }
   }
 
+  auto Type = Context->resolveBlockType(T);
+  // A small leaf cannot recurse and its frame fits in the stack margin kept
+  // below the limit, so it skips the stack limit check.
+  const auto Instrs = Code->getExpr().getInstrs();
+  const bool IsSmallLeaf = Type.first.size() + Locals.size() <= 64 &&
+                           Instrs.size() <= 256 &&
+                           std::none_of(Instrs.begin(), Instrs.end(),
+                                        [](const AST::Instruction &Instr) {
+                                          switch (Instr.getOpCode()) {
+                                          case OpCode::Call:
+                                          case OpCode::Call_indirect:
+                                          case OpCode::Call_ref:
+                                          case OpCode::Return_call:
+                                          case OpCode::Return_call_indirect:
+                                          case OpCode::Return_call_ref:
+                                            return true;
+                                          default:
+                                            return false;
+                                          }
+                                        });
   FunctionCompiler FC(
       *Context, F, Locals, Conf.getCompilerConfigure().isInterruptible(),
       Conf.getStatisticsConfigure().isInstructionCounting(),
       Conf.getStatisticsConfigure().isCostMeasuring(),
-      Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT);
-  auto Type = Context->resolveBlockType(T);
+      Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT,
+      !IsSmallLeaf);
   EXPECTED_TRY(FC.compile(*Code, std::move(Type)));
   F.Fn.eliminateUnreachableBlocks();
 

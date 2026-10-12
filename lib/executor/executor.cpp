@@ -293,8 +293,8 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
 
   // Get return values.
   std::vector<ComponentValType> ReturnTypes;
-  for (const auto &Type : FuncInst->getFuncType().getResultList()) {
-    ReturnTypes.push_back(Type.getValType());
+  if (const auto &R = FuncInst->getFuncType().getResult(); R.has_value()) {
+    ReturnTypes.push_back(*R);
   }
   EXPECTED_TRY(auto Returns,
                convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst,

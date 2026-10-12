@@ -87,6 +87,11 @@ struct DriverToolOptions : public DriverProposalOptions {
                 "instance. Upper bound can be specified as --memory-page-limit "
                 "`PAGE_COUNT`."sv),
             PO::MetaVar("PAGE_COUNT"sv)),
+        StackLim(PO::Description(
+                     "Limitation of stack size (in bytes) for execution, "
+                     "default value is 0 for the engine default (8 MiB for "
+                     "the interpreter, 512 KiB for compiled code)"sv),
+                 PO::MetaVar("BYTES"sv), PO::DefaultValue<uint64_t>(0)),
         LinkedModules(
             PO::Description(
                 "Register additional WASM modules for linking. Each module "
@@ -120,6 +125,7 @@ struct DriverToolOptions : public DriverProposalOptions {
   PO::Option<uint64_t> TimeLim;
   PO::List<int> GasLim;
   PO::List<int> MemLim;
+  PO::Option<uint64_t> StackLim;
   PO::List<std::string> LinkedModules;
   PO::List<std::string> ForbiddenPlugins;
   PO::Option<std::string> LogLevel;
@@ -166,6 +172,7 @@ public:
         .add_option("allow-af-unix"sv, ConfAFUNIX)
         .add_option("time-limit"sv, TimeLim)
         .add_option("gas-limit"sv, GasLim)
+        .add_option("stack-size-limit"sv, StackLim)
         .add_option("reactor"sv, Reactor);
   }
 };

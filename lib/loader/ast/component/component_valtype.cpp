@@ -32,13 +32,21 @@ Loader::loadNameAttributes(std::string &Name,
         return Unexpect(ErrCode::Value::MalformedName);
       }
       EXPECTED_TRY(auto Value, FMgr.readName());
-      // Every kind keeps its values, so validation can hold each of them to
-      // at most one occurrence.
+      // Each kind of attribute may occur at most once.
       if (Opt == 0x00) {
+        if (!Implements.empty()) {
+          return Unexpect(ErrCode::Value::ComponentImplementsDuplicate);
+        }
         Implements.push_back(std::move(Value));
       } else if (Opt == 0x01) {
+        if (!VersionSuffixes.empty()) {
+          return Unexpect(ErrCode::Value::ComponentVersionSuffixDuplicate);
+        }
         VersionSuffixes.push_back(std::move(Value));
       } else {
+        if (!ExternalIds.empty()) {
+          return Unexpect(ErrCode::Value::ComponentExternalIdDuplicate);
+        }
         ExternalIds.push_back(std::move(Value));
       }
     }

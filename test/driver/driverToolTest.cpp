@@ -714,6 +714,9 @@ TEST(CompileSubcommand, ErrorHandling) {
 }
 
 TEST(CompileSubcommand, ValidAndInvalidModules) {
+#ifndef WASMEDGE_USE_LLVM
+  GTEST_SKIP() << "Compilation is not supported when built without LLVM";
+#endif
   std::string Output = TestDataPath + "/simple_aot.wasm";
   EXPECT_EQ(callCompile({simplePath().c_str(), Output.c_str()}), EXIT_SUCCESS);
   std::filesystem::remove(Output.c_str());
@@ -725,6 +728,9 @@ TEST(CompileSubcommand, ValidAndInvalidModules) {
 }
 
 TEST(CompileSubcommand, ProposalFlags) {
+#ifndef WASMEDGE_USE_LLVM
+  GTEST_SKIP() << "Compilation is not supported when built without LLVM";
+#endif
   std::string Output = TestDataPath + "/proposal_out.wasm";
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
@@ -746,6 +752,9 @@ TEST(CompileSubcommand, ProposalFlags) {
 }
 
 TEST(CompileSubcommand, CompilerSpecificFlags) {
+#ifndef WASMEDGE_USE_LLVM
+  GTEST_SKIP() << "Compilation is not supported when built without LLVM";
+#endif
   std::string Output = TestDataPath + "/compiler_out.wasm";
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
@@ -836,6 +845,9 @@ TEST(CompileSubcommand, CompilerSpecificFlags) {
 }
 
 TEST(CompileSubcommand, OutputFormat) {
+#ifndef WASMEDGE_USE_LLVM
+  GTEST_SKIP() << "Compilation is not supported when built without LLVM";
+#endif
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
 

@@ -115,13 +115,13 @@ jobs:
           echo product_version=$Env:product_version | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
       - name: Upload artifact
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: WasmEdge-${{ inputs.version }}-windows-msvc.zip
           path: build\\WasmEdge-${{ inputs.version }}-Windows.zip
       - name: Upload Windows installer
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: WasmEdge-${{ env.product_version }}-windows-msvc.msi
           path: build\\WasmEdge-${{ env.product_version }}-windows-msvc.msi

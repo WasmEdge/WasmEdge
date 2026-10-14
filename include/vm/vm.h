@@ -358,9 +358,18 @@ private:
                     Span<const ValVariant> Params = {},
                     Span<const ValType> ParamTypes = {});
   Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeRunWasmFile(AST::Module &Module, std::string_view Func,
+                    Span<const ValVariant> Params = {},
+                    Span<const ValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
   unsafeRunWasmFile(const AST::Component::Component &Component,
                     std::string_view Func, Span<const ValVariant> Params = {},
                     Span<const ValType> ParamTypes = {});
+
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeInstantiateAndExecute(const AST::Module &Module, std::string_view Func,
+                              Span<const ValVariant> Params,
+                              Span<const ValType> ParamTypes);
 
   Expect<void> unsafeLoadWasm(const std::filesystem::path &Path);
   Expect<void> unsafeLoadWasm(Span<const Byte> Code);
@@ -375,8 +384,9 @@ private:
   /// back to the interpreter; without LLVM support this only logs a warning.
   Expect<void> unsafeLoadJITExecutable();
 
-  /// Compile and attach a JIT executable to the given module; failures fall
-  /// back to the interpreter.
+  /// Eagerly compile and attach a JIT executable to a validated module;
+  /// failures fall back to the interpreter. The caller checks run mode and
+  /// existing symbol.
   Expect<void> unsafeLoadJITExecutable(AST::Module &Module);
 
   Expect<std::vector<std::pair<ValVariant, ValType>>>

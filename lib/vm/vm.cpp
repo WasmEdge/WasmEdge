@@ -283,8 +283,34 @@ Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
+  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT &&
+      !Module.getSymbol()) {
+    AST::Module ModuleCopy(Module);
+    return unsafeRunWasmFile(ModuleCopy, Func, Params, ParamTypes);
+  }
   unsafeRevertStageToValidated();
   EXPECTED_TRY(ValidatorEngine.validate(Module));
+  return unsafeInstantiateAndExecute(Module, Func, Params, ParamTypes);
+}
+
+Expect<std::vector<std::pair<ValVariant, ValType>>>
+VM::unsafeRunWasmFile(AST::Module &Module, std::string_view Func,
+                      Span<const ValVariant> Params,
+                      Span<const ValType> ParamTypes) {
+  unsafeRevertStageToValidated();
+  EXPECTED_TRY(ValidatorEngine.validate(Module));
+  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT &&
+      !Module.getSymbol()) {
+    EXPECTED_TRY(unsafeLoadJITExecutable(Module));
+  }
+  return unsafeInstantiateAndExecute(Module, Func, Params, ParamTypes);
+}
+
+Expect<std::vector<std::pair<ValVariant, ValType>>>
+VM::unsafeInstantiateAndExecute(const AST::Module &Module,
+                                std::string_view Func,
+                                Span<const ValVariant> Params,
+                                Span<const ValType> ParamTypes) {
 #ifdef WASMEDGE_USE_LLVM
   if (LazyEngine) {
     // This one-shot path takes no shared ownership of the module, so it is

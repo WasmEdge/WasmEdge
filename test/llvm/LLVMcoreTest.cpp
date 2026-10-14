@@ -397,6 +397,56 @@ TEST(JITRegisterModule, RegisteredASTModuleIsCompiled) {
   EXPECT_EQ((*R)[0].first.get<uint32_t>(), 42u);
 }
 
+TEST(JITRegisterModule, RunWasmFileCompilesMainModule) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  VM::VM VM(Conf);
+
+  ASSERT_TRUE(VM.registerModule("m"sv, JITRegisteredCalleeWasm));
+  const std::array<ValVariant, 1> Args{ValVariant(uint32_t(100000U))};
+  const std::array<ValType, 1> ArgTypes{ValType(TypeCode::I32)};
+  auto R = VM.runWasmFile(JITRegisteredCallerWasm, "run"sv, Args, ArgTypes);
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 42u);
+
+  const auto *Module = VM.getActiveModule();
+  ASSERT_NE(Module, nullptr);
+  const auto *Func = Module->findFuncExports("run"sv);
+  ASSERT_NE(Func, nullptr);
+  EXPECT_TRUE(Func->isCompiledFunction());
+}
+
+TEST(JITRegisterModule, RunWasmFileCompilesASTModuleCopy) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  Loader::Loader LoaderEngine(Conf);
+  auto ASTModule = LoaderEngine.parseModule(JITRegisteredCallerWasm);
+  ASSERT_TRUE(ASTModule);
+  const auto &Caller = **ASTModule;
+  VM::VM VM(Conf);
+
+  ASSERT_TRUE(VM.registerModule("m"sv, JITRegisteredCalleeWasm));
+  const std::array<ValVariant, 1> Args{ValVariant(uint32_t(100000U))};
+  const std::array<ValType, 1> ArgTypes{ValType(TypeCode::I32)};
+  auto R = VM.runWasmFile(Caller, "run"sv, Args, ArgTypes);
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 42u);
+  EXPECT_FALSE(Caller.getSymbol());
+  ASTModule->reset();
+
+  const auto *Module = VM.getActiveModule();
+  ASSERT_NE(Module, nullptr);
+  const auto *Func = Module->findFuncExports("run"sv);
+  ASSERT_NE(Func, nullptr);
+  EXPECT_TRUE(Func->isCompiledFunction());
+  R = VM.execute("run"sv, Args, ArgTypes);
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 42u);
+}
+
 const std::array<WasmEdge::Byte, 67> CrossModuleNestCalleeWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
     0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x05,

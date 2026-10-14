@@ -178,9 +178,18 @@ std::filesystem::path createTemp(const std::filesystem::path Model) noexcept {
   }
 }
 
-// Write output object and link
+// Write output object and link.
+//
+// RejectUndefinedSymbols is for output that will be consumed by
+// Loader::AOTSection rather than by the system dynamic linker. AOTSection
+// copies the linked object's raw sections into an anonymous mapping and never
+// processes relocations, so an undefined symbol survives into the runtime as a
+// PLT entry whose GOT slot still holds its link-time value: calling it jumps to
+// a wild address, and the crash lands nowhere near the code that caused it.
+// Refuse to emit such an artifact, while the linker can still name the symbol.
 Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
-                                 const LLVM::MemoryBuffer &OSVec) noexcept {
+                                 const LLVM::MemoryBuffer &OSVec,
+                                 bool RejectUndefinedSymbols) noexcept {
   spdlog::info("output start"sv);
   std::filesystem::path ObjectName;
   {
@@ -240,11 +249,21 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
           "-syslibroot", "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
           u8string(ObjectName).c_str(), "-o", u8string(OutputPath).c_str()},
 #elif WASMEDGE_OS_LINUX
-  LinkResult = lld::elf::link(
-      std::initializer_list<const char *>{"ld.lld", "--eh-frame-hdr",
-                                          "--shared", "--gc-sections",
-                                          "--discard-all", ObjectName.c_str(),
-                                          "-o", u8string(OutputPath).c_str()},
+  // Held in named strings: the argument vector borrows their buffers, so a
+  // temporary would dangle before link() reads it.
+  const auto ObjectNameStr = u8string(ObjectName);
+  const auto OutputPathStr = u8string(OutputPath);
+  std::vector<const char *> LinkArgs{"ld.lld", "--eh-frame-hdr", "--shared",
+                                     "--gc-sections", "--discard-all"};
+  if (RejectUndefinedSymbols) {
+    // A shared object may leave symbols undefined; an AOTSection artifact may
+    // not. See the note on this function.
+    LinkArgs.push_back("--no-undefined");
+  }
+  LinkArgs.push_back(ObjectNameStr.c_str());
+  LinkArgs.push_back("-o");
+  LinkArgs.push_back(OutputPathStr.c_str());
+  LinkResult = lld::elf::link(LinkArgs,
 #elif WASMEDGE_OS_WINDOWS
   LinkResult = lld::coff::link(
       std::initializer_list<const char *>{
@@ -256,7 +275,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #if LLVM_VERSION_MAJOR >= 14
       llvm::outs(), llvm::errs(), false, false
 #elif LLVM_VERSION_MAJOR >= 10
-      false, llvm::outs(), llvm::errs()
+                              false, llvm::outs(), llvm::errs()
 #else
       false, llvm::errs()
 #endif
@@ -278,6 +297,14 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
     spdlog::info("codegen done"sv);
   } else {
     spdlog::error("link error"sv);
+    if (RejectUndefinedSymbols) {
+      spdlog::error("    An undefined symbol above means the generated code "
+                    "calls out to something the AOT loader cannot resolve: it "
+                    "maps sections without processing relocations, so the call "
+                    "would jump to a wild address at run time."sv);
+    }
+    std::error_code Error;
+    std::filesystem::remove(ObjectName, Error);
   }
 
 #if WASMEDGE_OS_MACOS
@@ -299,6 +326,10 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
     }
   }
 #endif
+
+  if (!LinkResult) {
+    return Unexpect(ErrCode::Value::IllegalPath);
+  }
 
   return {};
 }
@@ -323,7 +354,10 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
     OS.close();
   }
 
-  EXPECTED_TRY(outputNativeLibrary(SharedObjectName, OSVec));
+  // This object is embedded into a universal WASM and loaded by
+  // Loader::AOTSection, which does not relocate -- undefined symbols must not
+  // survive linking.
+  EXPECTED_TRY(outputNativeLibrary(SharedObjectName, OSVec, true));
 
   LLVM::MemoryBuffer SOFile;
   if (auto [Res, ErrorMessage] =
@@ -398,6 +432,11 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
     }
 #endif
     uint64_t VersionAddress = 0, IntrinsicsAddress = 0;
+    // Durable capability: the compiler emits the "gc.capable" marker global
+    // only when GC codegen is on. A universal WASM is loaded by mapping
+    // recorded addresses rather than by symbol lookup, so record the marker's
+    // presence as a flag byte the loader can read back directly.
+    bool GCCapable = false;
     std::vector<uint64_t> Types;
     std::vector<uint64_t> Codes;
     uint64_t CodesMin = std::numeric_limits<uint64_t>::max();
@@ -406,6 +445,8 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
         VersionAddress = Address;
       } else if (Name == SYMBOL("intrinsics"sv)) {
         IntrinsicsAddress = Address;
+      } else if (Name == SYMBOL("gc.capable"sv)) {
+        GCCapable = true;
       } else if (startsWith(Name, SYMBOL("t"sv))) {
         uint64_t Index = 0;
         std::from_chars(Name.data() + SYMBOL("t"sv).size(),
@@ -429,6 +470,7 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
       Codes.erase(Codes.begin(),
                   Codes.begin() + static_cast<int64_t>(CodesMin));
     }
+    WriteByte(OS, GCCapable ? UINT8_C(1) : UINT8_C(0));
     WriteU64(OS, VersionAddress);
     WriteU64(OS, IntrinsicsAddress);
     WriteU64(OS, Types.size());
@@ -629,7 +671,9 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
         CompilerConfigure::OutputFormat::Wasm) {
       EXPECTED_TRY(outputWasmLibrary(LLContext, OutputPath, WasmData, OSVec));
     } else {
-      EXPECTED_TRY(outputNativeLibrary(OutputPath, OSVec));
+      // A plain shared library is loaded by the system dynamic linker, which
+      // resolves and relocates normally, so undefined symbols are legitimate.
+      EXPECTED_TRY(outputNativeLibrary(OutputPath, OSVec, false));
     }
   }
 

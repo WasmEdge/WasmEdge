@@ -9,14 +9,15 @@ namespace Executor {
 Expect<void>
 Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
                             Runtime::Instance::MemoryInstance &MemInst,
-                            const AST::Instruction &Instr) {
-  ValVariant RawCount = StackMgr.pop();
-  ValVariant &RawAddress = StackMgr.getTop();
+                            const AST::Instruction &Instr) noexcept {
+  auto [RawCount, RawAddress] = StackMgr.popsPeekTop<ValVariant, ValVariant>();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t Address = extractAddr(RawAddress, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(uint32_t)));
   Address += Instr.getMemoryOffset();
-
+  // notify's atomic access is always 4-byte (it does not widen for memory64),
+  // and the count operand and woken-count result are both i32 regardless of
+  // address type; treating them as i64 under memory64 would mis-type the stack.
   if (Address % sizeof(uint32_t) != 0) {
     spdlog::error(ErrCode::Value::UnalignedAtomicAccess);
     spdlog::error(
@@ -33,7 +34,7 @@ Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return E;
       }));
-  RawAddress = emplaceAddr(Total, AddressType::I32);
+  StackMgr.emplaceTop(emplaceAddr(Total, AddressType::I32));
   return {};
 }
 

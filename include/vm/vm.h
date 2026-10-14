@@ -50,7 +50,22 @@ public:
   VM() = delete;
   VM(const Configure &Conf);
   VM(const Configure &Conf, Runtime::StoreManager &S);
+  /// The destructor blocks until every asyncExecute() worker has finished and
+  /// every WasmEdge::Async handle from this VM is destroyed, because a result
+  /// can hold GC references into this VM's heap. Destroy all handles before
+  /// the VM, or the destructor deadlocks (the controller logs the count). The
+  /// C API rejects WasmEdge_VMDelete in that state instead.
   ~VM() {
+    // Wait for all leases while the VM state is still alive. The drain in
+    // ~Controller runs too late: ExecutorEngine is declared before the module
+    // and store members, so it is destroyed after them. beginClosing() is
+    // idempotent.
+    //
+    // This waits for running invocations to complete and does not call
+    // Executor::stop(): a stop during a GC collection deadlocks the teardown.
+    // To end an unbounded async guest quickly, cancel() it before the VM is
+    // destroyed.
+    ExecutorEngine.getController().beginClosing();
     if (ActiveModInst) {
       auto *RawMod = ActiveModInst.release();
       if (RawMod) {
@@ -192,6 +207,7 @@ public:
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   execute(std::string_view Func, Span<const ValVariant> Params = {},
           Span<const ValType> ParamTypes = {}) {
+    EXPECTED_TRY(auto OpLease, acquireOperationLease());
     std::shared_lock Lock(Mutex);
     return unsafeExecute(Func, Params, ParamTypes);
   }
@@ -201,6 +217,7 @@ public:
   execute(std::string_view ModName, std::string_view Func,
           Span<const ValVariant> Params = {},
           Span<const ValType> ParamTypes = {}) {
+    EXPECTED_TRY(auto OpLease, acquireOperationLease());
     std::shared_lock Lock(Mutex);
     return unsafeExecute(ModName, Func, Params, ParamTypes);
   }
@@ -210,6 +227,7 @@ public:
   executeComponent(std::string_view Func,
                    Span<const ComponentValVariant> Params = {},
                    Span<const ComponentValType> ParamTypes = {}) {
+    EXPECTED_TRY(auto OpLease, acquireOperationLease());
     std::shared_lock Lock(Mutex);
     return unsafeExecuteComponent(Func, Params, ParamTypes);
   }
@@ -219,6 +237,7 @@ public:
   executeComponent(std::string_view CompName, std::string_view Func,
                    Span<const ComponentValVariant> Params = {},
                    Span<const ComponentValType> ParamTypes = {}) {
+    EXPECTED_TRY(auto OpLease, acquireOperationLease());
     std::shared_lock Lock(Mutex);
     return unsafeExecuteComponent(CompName, Func, Params, ParamTypes);
   }
@@ -300,6 +319,31 @@ public:
   /// Getter for the executor in the VM.
   Executor::Executor &getExecutor() noexcept { return ExecutorEngine; }
 
+  /// Getter for the GC controller of the executor.
+  ///
+  /// asyncExecute() uses the VM as the Async target, so Async takes its launch
+  /// lease through this getter. Without it, the teardown could not wait for a
+  /// running async execution.
+  GC::Controller &getController() noexcept {
+    return ExecutorEngine.getController();
+  }
+
+  /// Release a host-retained GC reference returned to the host.
+  ///
+  /// The release methods below intentionally skip the VM Mutex: the allocator
+  /// locks the GC host-root registry internally.
+  void releaseRef(const RefVariant &Ref) noexcept {
+    ExecutorEngine.releaseRef(Ref);
+  }
+
+  /// Release several host-retained GC references.
+  void releaseRefs(Span<const RefVariant> Refs) noexcept {
+    ExecutorEngine.releaseRefs(Refs);
+  }
+
+  /// Release all host-retained GC references.
+  void releaseAllRefs() noexcept { ExecutorEngine.releaseAllRefs(); }
+
   /// Getter for statistics.
   Statistics::Statistics &getStatistics() noexcept { return Stat; }
 
@@ -311,6 +355,19 @@ public:
 #endif
 
 private:
+  /// Take an operation lease for a public execute call. Declare it before the
+  /// VM lock, so it is released after the unlock and the destructor cannot
+  /// finish while the call uses VM state. Fails with Interrupted when the VM
+  /// is being destroyed.
+  Expect<GC::Controller::Lease> acquireOperationLease() noexcept {
+    Expect<GC::Controller::Lease> OpLease =
+        ExecutorEngine.getController().acquireLease();
+    if (!OpLease->valid()) {
+      return Unexpect(ErrCode::Value::Interrupted);
+    }
+    return OpLease;
+  }
+
   /// Release and terminate all module instances in a sequence or map
   /// container, then clear the container.
   template <typename ContainerT>
@@ -374,6 +431,10 @@ private:
   /// module if it does not carry one yet. Eager JIT compilation failures fall
   /// back to the interpreter; without LLVM support this only logs a warning.
   Expect<void> unsafeLoadJITExecutable();
+
+  /// Record the GC capability of JIT or LazyJIT code that this VM just compiled
+  /// for \p Module. No-op if \p Module has no compiled symbols.
+  void setGCCompiledIfCompiled(AST::Module &Module) const noexcept;
 
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   unsafeExecute(std::string_view Func, Span<const ValVariant> Params = {},

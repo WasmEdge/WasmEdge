@@ -25,10 +25,25 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
 Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
                       const AST::Module &Mod) {
+  // Operation lease across instantiation: it registers a value stack (the
+  // start function may run guest code) and touches the allocator. Refused
+  // once the controller is closing -- same boundary contract as
+  // Executor::invoke.
+  auto OpLease = getController().acquireLease();
+  if (unlikely(!OpLease.valid())) {
+    spdlog::error(ErrCode::Value::Interrupted);
+    return Unexpect(ErrCode::Value::Interrupted);
+  }
+
   // Create the stack manager.
-  Runtime::StackManager StackMgr;
+  Runtime::StackManager StackMgr(getController());
 
   // Create the module instance.
+  //
+  // Not marked setDeferrableStorage(): a component-core module instance is
+  // owned by a unique_ptr (OwnedCoreModInsts), not terminate()-managed.
+  // Marking it deferrable would let an async ModulePin outlive it and trip
+  // assuming(!Life.hasDependents()). asyncInvoke rejects such a target.
   std::unique_ptr<Runtime::Instance::ModuleInstance> ModInst =
       std::make_unique<Runtime::Instance::ModuleInstance>("");
 
@@ -59,8 +74,11 @@ Executor::instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
   // Instantiate Functions in module. (FunctionSec, CodeSec)
   const AST::FunctionSection &FuncSec = Mod.getFunctionSection();
   const AST::CodeSection &CodeSec = Mod.getCodeSection();
-  // This function will always success.
-  instantiate(*ModInst, FuncSec, CodeSec);
+  // Pass the GC capability and carry it on the instance, as the core module
+  // instantiate path does (see lib/executor/instantiate/module.cpp).
+  EXPECTED_TRY(instantiate(*ModInst, FuncSec, CodeSec, Mod.getGCCompiled())
+                   .map_error(ReportError(ASTNodeAttr::Sec_Function)));
+  ModInst->setGCCompiled(Mod.getGCCompiled());
 
   // Instantiate MemorySection (MemorySec)
   const AST::MemorySection &MemSec = Mod.getMemorySection();
@@ -73,7 +91,7 @@ Executor::instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
   instantiate(*ModInst, TagSec);
 
   // Push a new frame {ModInst, locals:none}
-  StackMgr.pushFrame(ModInst.get(), AST::InstrView::iterator(), 0, 0);
+  StackMgr.pushFrame(ModInst.get(), AST::InstrView::iterator());
 
   // Instantiate GlobalSection (GlobalSec)
   const AST::GlobalSection &GlobSec = Mod.getGlobalSection();

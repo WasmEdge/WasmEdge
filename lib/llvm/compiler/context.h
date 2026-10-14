@@ -63,6 +63,11 @@ struct Compiler::CompileContext {
   LLVM::Type ModCtxPtrTy;
   LLVM::Type ExecCtxTy;
   LLVM::Type ExecCtxPtrTy;
+  // GC shadow-frame node {ShadowFrame* Prev; uint32_t Count; ValVariant* Slots}
+  // -- layout kept in lockstep with GC::Controller::ShadowFrame. Generated code
+  // pushes one of these onto the thread's shadow-head chain around calls.
+  LLVM::Type ShadowFrameTy;
+  LLVM::Type ShadowFramePtrTy;
   LLVM::Type IntrinsicsTableTy;
   LLVM::Type IntrinsicsTablePtrTy;
   LLVM::Message SubtargetFeatures;
@@ -111,11 +116,24 @@ struct Compiler::CompileContext {
   std::vector<LLVM::Type> MemoryAddrTypes;
   std::vector<LLVM::Type> TableAddrTypes;
   std::vector<LLVM::Type> Globals;
+  // Parallel to Globals: whether each global is reference-typed. A ref-typed
+  // global.set must also run the GC write barrier (kWriteBarrier) on the old
+  // and new reference; a numeric global stores directly with no barrier.
+  std::vector<bool> GlobalIsRef;
   std::vector<uint32_t> Tags;
   LLVM::Value IntrinsicsTable;
   LLVM::FunctionCallee Trap;
-  CompileContext(LLVM::Context C, LLVM::Module &M,
-                 bool IsGenericBinary) noexcept;
+  // Whether the GC proposal is enabled for this compilation. Drives emission of
+  // the GC-specific codegen that a concurrent collector relies on -- the
+  // cooperative safepoint poll (checkGCSafepoint) and the shadow-root spill
+  // around calls. When false, this artifact is not GC-capable: it never yields
+  // at a safepoint and never publishes native roots, so it must not run
+  // natively under a GC-enabled executor (the instantiate gate falls it back to
+  // the interpreter). Coherent ref global/table access stays unconditional
+  // (externrefs cross into non-GC modules), so it is not gated on this flag.
+  bool GCEnabled = false;
+  CompileContext(LLVM::Context C, LLVM::Module &M, bool IsGenericBinary,
+                 bool GCEnabled) noexcept;
   LLVM::Value getMemory(LLVM::Builder &Builder, LLVM::Value ModCtx,
                         uint32_t Index) noexcept {
     auto Array = Builder.createExtractValue(ModCtx, 0);
@@ -157,9 +175,15 @@ struct Compiler::CompileContext {
                                    LLContext.getInt64(Index)));
     VPtrPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
                         LLVM::Metadata(LLContext, {}));
-    return Builder.createLoad(
+    // Acquire load of the table's base pointer: pairs with growTable's release
+    // store, so a reader that observes the new base also sees the new buffer's
+    // contents (no torn/stale read) and does not data-race that store.
+    auto DataPtrVal = Builder.createLoad(
         RefPtrTy,
         Builder.createInBoundsGEP1(RefPtrTy, VPtrPtr, LLContext.getInt64(0)));
+    DataPtrVal.setOrdering(LLVMAtomicOrderingAcquire);
+    DataPtrVal.setAlignment(8);
+    return DataPtrVal;
   }
   LLVM::Value getTableSize(LLVM::Builder &Builder, LLVM::Value ModCtx,
                            uint32_t Index) noexcept {
@@ -169,7 +193,14 @@ struct Compiler::CompileContext {
                                                LLContext.getInt64(Index)));
     VPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
                      LLVM::Metadata(LLContext, {}));
-    return Builder.createLoad(Int64Ty, VPtr);
+    // Acquire load of the table's live size: pairs with growTable's release
+    // store of LiveSize (published after the base pointer), so observing the
+    // new size implies the new base is visible -- the bounds check and buffer
+    // access stay consistent (no OOB) and do not data-race the store.
+    auto SizeVal = Builder.createLoad(Int64Ty, VPtr);
+    SizeVal.setOrdering(LLVMAtomicOrderingAcquire);
+    SizeVal.setAlignment(8);
+    return SizeVal;
   }
   LLVM::Value getModuleInst(LLVM::Builder &Builder,
                             LLVM::Value ModCtx) noexcept {
@@ -198,32 +229,63 @@ struct Compiler::CompileContext {
                      LLVM::Metadata(LLContext, {}));
     return VPtr;
   }
+  // Read one member of ExecCtx. The indices are shared with
+  // Executor::ExecutorContext through Executable::ExecCtxField.
+  static LLVM::Value getExecCtxField(LLVM::Builder &Builder,
+                                     LLVM::Value ExecCtx,
+                                     Executable::ExecCtxField Field) noexcept {
+    return Builder.createExtractValue(ExecCtx, static_cast<uint32_t>(Field));
+  }
   LLVM::Value getPendingExnTagAddr(LLVM::Builder &Builder,
                                    LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 5);
+    return getExecCtxField(Builder, ExecCtx,
+                           Executable::ExecCtxField::PendingExnTagAddr);
   }
   LLVM::Value getInstrCount(LLVM::Builder &Builder,
                             LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 0);
+    return getExecCtxField(Builder, ExecCtx,
+                           Executable::ExecCtxField::InstrCount);
   }
   LLVM::Value getCostTable(LLVM::Builder &Builder,
                            LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 1);
+    return getExecCtxField(Builder, ExecCtx,
+                           Executable::ExecCtxField::CostTable);
   }
   LLVM::Value getGas(LLVM::Builder &Builder, LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 2);
+    return getExecCtxField(Builder, ExecCtx, Executable::ExecCtxField::Gas);
   }
   LLVM::Value getGasLimit(LLVM::Builder &Builder,
                           LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 3);
+    return getExecCtxField(Builder, ExecCtx,
+                           Executable::ExecCtxField::GasLimit);
   }
   LLVM::Value getStopToken(LLVM::Builder &Builder,
                            LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 4);
+    return getExecCtxField(Builder, ExecCtx,
+                           Executable::ExecCtxField::StopToken);
+  }
+  // GC::Controller::ShadowHead*: the raw pointer to this thread's stable
+  // shadow-root chain anchor, into which generated code publishes spilled
+  // managed refs for the collector to scan. Thread state, not module state, so
+  // it lives in ExecCtx and stays fixed across a cross-module call that swaps
+  // ModCtx.
+  LLVM::Value getShadowHead(LLVM::Builder &Builder,
+                            LLVM::Value ExecCtx) noexcept {
+    return getExecCtxField(Builder, ExecCtx,
+                           Executable::ExecCtxField::ShadowHead);
+  }
+  // std::atomic<bool>*: the GC controller's stop flag. Generated code loads a
+  // byte from it at loop back-edges and function entry; a set flag routes to
+  // kGCSafepoint.
+  LLVM::Value getGCStopFlag(LLVM::Builder &Builder,
+                            LLVM::Value ExecCtx) noexcept {
+    return getExecCtxField(Builder, ExecCtx,
+                           Executable::ExecCtxField::GCStopFlag);
   }
   LLVM::Value getStackLimit(LLVM::Builder &Builder,
                             LLVM::Value ExecCtx) noexcept {
-    return Builder.createExtractValue(ExecCtx, 6);
+    return getExecCtxField(Builder, ExecCtx,
+                           Executable::ExecCtxField::StackLimit);
   }
   LLVM::FunctionCallee getIntrinsic(LLVM::Builder &Builder,
                                     Executable::Intrinsics Index,
@@ -255,6 +317,22 @@ struct Compiler::CompileContext {
     LLModule.get().addGlobal(
         Int32Ty, true, LLVMExternalLinkage,
         LLVM::Value::getConstInt(Int32Ty, AOT::kBinaryVersion), "version");
+  }
+  /// Emit an exported marker global recording that this artifact was compiled
+  /// with GC codegen (safepoint polls + shadow-root spill). It is the single
+  /// source of truth for the capability once the artifact leaves this process:
+  /// a native shared library is probed for the symbol directly, and a universal
+  /// WASM records its presence as a flag byte in the AOT section. Emitted only
+  /// when GC codegen is on, so absence means "not GC-capable" -- unambiguous
+  /// because artifacts predating this marker (version 3 and earlier) are
+  /// already rejected by the kBinaryVersion check.
+  void addGCCapableGlobal() noexcept {
+    if (!GCEnabled) {
+      return;
+    }
+    LLModule.get().addGlobal(Int32Ty, true, LLVMExternalLinkage,
+                             LLVM::Value::getConstInt(Int32Ty, UINT32_C(1)),
+                             "gc.capable");
   }
   void finalizeIntrinsicsTable() noexcept {
     if (auto Table = LLModule.get().getNamedGlobal("intrinsics")) {

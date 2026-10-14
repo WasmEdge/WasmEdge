@@ -94,6 +94,15 @@ public:
   bool getIsValidated() const noexcept { return IsValidated; }
   void setIsValidated(bool V = true) noexcept { IsValidated = V; }
 
+  /// Getter and setter for the GC-capability flag: whether this module's
+  /// compiled code was emitted with GC support (safepoint polls + shadow-root
+  /// spill). Defaults to true so artifacts that never pass through the
+  /// in-process compiler keep their prior behavior; the JIT compile path stamps
+  /// the actual value. A GC-enabled executor falls a non-capable module back to
+  /// the interpreter.
+  bool getGCCompiled() const noexcept { return GCCompiled; }
+  void setGCCompiled(bool V) noexcept { GCCompiled = V; }
+
 private:
   /// \name Data of Module node.
   /// @{
@@ -128,6 +137,11 @@ private:
   /// \name Validated flag.
   /// @{
   bool IsValidated = false;
+  /// @}
+
+  /// \name GC-capability flag (see getGCCompiled).
+  /// @{
+  bool GCCompiled = true;
   /// @}
 };
 

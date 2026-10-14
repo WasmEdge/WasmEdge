@@ -870,6 +870,9 @@ public:
   void setOrdering(LLVMAtomicOrdering Ordering) noexcept {
     LLVMSetOrdering(Ref, Ordering);
   }
+  void setOperand(unsigned int Index, Value V) noexcept {
+    LLVMSetOperand(Ref, Index, V.unwrap());
+  }
   std::string_view getName() noexcept {
     size_t Length;
     auto Data = LLVMGetValueName2(Ref, &Length);

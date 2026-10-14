@@ -17,7 +17,6 @@
 #include "ast/module.h"
 #include "common/errcode.h"
 #include "runtime/hostfunc.h"
-#include "runtime/instance/array.h"
 #include "runtime/instance/data.h"
 #include "runtime/instance/elem.h"
 #include "runtime/instance/exception.h"
@@ -25,7 +24,6 @@
 #include "runtime/instance/global.h"
 #include "runtime/instance/memory.h"
 #include "runtime/instance/reflifetime.h"
-#include "runtime/instance/struct.h"
 #include "runtime/instance/table.h"
 #include "runtime/instance/tag.h"
 
@@ -106,6 +104,30 @@ public:
     }
   }
 
+  /// Keep this instance alive for a user whose access can outlive the calling
+  /// scope, e.g. a detached async invocation that uses a FunctionInstance of
+  /// this module. Like the importer pin of addDependency(), a heap instance
+  /// released by terminate() is not deleted while a pin is live. Balance each
+  /// pin() with one unpin(). const because Life is a mutable counter.
+  void pin() const noexcept { Life.addDependent(); }
+
+  /// Release one pin() taken earlier. Returns true if this was the last
+  /// dependent and the owner already called terminate(); the caller must then
+  /// `delete` this instance. A still-owned instance always returns false.
+  [[nodiscard]] bool unpin() const noexcept { return Life.releaseDependent(); }
+
+  /// True if this instance is heap-allocated and deleted through terminate(),
+  /// so that a ModulePin can defer its deletion. The runtime instantiation
+  /// paths, the C API creation wrappers, and the VM's built-in and plugin
+  /// registration set it. An embedder-constructed (stack or member) module
+  /// does not have it, and Executor::asyncInvoke rejects such a target.
+  void setDeferrableStorage() noexcept {
+    DeferrableStorage.store(true, std::memory_order_release);
+  }
+  bool isDeferrableStorage() const noexcept {
+    return DeferrableStorage.load(std::memory_order_acquire);
+  }
+
   /// Mark this module instance finalized (immutable). Idempotent, thread-safe.
   void finalizeInstantiation() const noexcept {
     if (InstantiateFinalized.load(std::memory_order_acquire)) {
@@ -119,6 +141,68 @@ public:
   bool isInstantiateFinalized() const noexcept {
     return InstantiateFinalized.load(std::memory_order_acquire);
   }
+
+  /// \name GC capability of the module's native code.
+  ///
+  /// Copy of AST::Module::getGCCompiled(). Executor::instantiate uses the AST
+  /// flag to run a non-GC-capable module in the interpreter, but a module that
+  /// a GC-off executor instantiated can still reach a GC-enabled executor
+  /// through registerModule or a direct invoke. Its native code does not poll
+  /// safepoints or publish shadow roots, so enterFunction checks this flag on
+  /// each call. Defaults to true for host modules, embedder-built instances,
+  /// and the interpreter.
+  /// @{
+  void setGCCompiled(bool V) noexcept {
+    GCCompiled.store(V, std::memory_order_release);
+  }
+  bool isGCCompiled() const noexcept {
+    return GCCompiled.load(std::memory_order_acquire);
+  }
+  /// @}
+
+  /// \name GC root-ownership stamp.
+  ///
+  /// The id (GC::Allocator::getId) of the allocator whose ownership walk
+  /// (Executor::attachRegisteredModuleRoots) last succeeded for this module,
+  /// or kSharedGCRootsOwner when the module has no root that ties it to an
+  /// allocator. Executor::invoke skips the walk when the stamp matches. 0 until
+  /// an executor instantiates or claims the module. It is an id, not an
+  /// address, because the module can outlive the allocator and a new
+  /// allocator can reuse the storage. Adding or importing a table or global
+  /// drops the stamp.
+  /// @{
+  /// Stamp for a module that no allocator must own (no managed-capable table
+  /// or global, no growable table). GC::Allocator never uses UINT64_MAX (or 0)
+  /// as an id.
+  static constexpr uint64_t kSharedGCRootsOwner = UINT64_MAX;
+  uint64_t getGCRootsOwnerId() const noexcept {
+    return GCRootsOwnerId.load(std::memory_order_acquire);
+  }
+  /// Whether the allocator with id \p Id may run this module without a walk:
+  /// it stamped the module, or the module has no allocator-specific root.
+  bool gcRootsOwnedBy(uint64_t Id) const noexcept {
+    const uint64_t Stamp = getGCRootsOwnerId();
+    return Stamp == Id || Stamp == kSharedGCRootsOwner;
+  }
+  /// Generation of the table/global index space, incremented each time it is
+  /// extended. An ownership walk reads it first and gives it to
+  /// stampGCRootsOwner(), which refuses the stamp if the index space changed.
+  uint64_t getGCRootsGeneration() const noexcept {
+    return GCRootsGeneration.load(std::memory_order_acquire);
+  }
+  /// Record that the ownership walk that saw generation \p GenSeen succeeded
+  /// for the allocator with id \p Id. Holds Mutex shared; the mutators that
+  /// drop the stamp hold it exclusively. Returns false (no stamp) if the
+  /// generation changed.
+  bool stampGCRootsOwner(uint64_t Id, uint64_t GenSeen) const noexcept {
+    std::shared_lock Lock(Mutex);
+    if (GCRootsGeneration.load(std::memory_order_acquire) != GenSeen) {
+      return false;
+    }
+    GCRootsOwnerId.store(Id, std::memory_order_release);
+    return true;
+  }
+  /// @}
 
   std::string_view getModuleName() const noexcept {
     std::shared_lock Lock(Mutex);
@@ -192,6 +276,7 @@ public:
     }
     unsafeAddHostInstance(Name, OwnedTabInsts, TabInsts, ExpTables,
                           std::move(Tab));
+    unsafeDropGCRootsOwner();
     return {};
   }
   Expect<void> addHostMemory(std::string_view Name,
@@ -212,6 +297,7 @@ public:
     }
     unsafeAddHostInstance(Name, OwnedGlobInsts, GlobInsts, ExpGlobals,
                           std::move(Glob));
+    unsafeDropGCRootsOwner();
     return {};
   }
 
@@ -304,9 +390,18 @@ protected:
     unsafeAddInstance(OwnedFuncInsts, FuncInsts, this,
                       std::forward<Args>(Values)...);
   }
-  template <typename... Args> void addTable(Args &&...Values) {
+  template <typename... Args>
+  Expect<void> addTable(GC::Allocator &A, const AST::TableType &TType,
+                        Args &&...Values) {
     std::unique_lock Lock(Mutex);
-    unsafeAddInstance(OwnedTabInsts, TabInsts, std::forward<Args>(Values)...);
+    // Resolve CanHoldManaged here, where this module's type list is available.
+    const bool CanHoldManaged = AST::TypeMatcher::refTypeCanHoldGCObject(
+        TType.getRefType(), getTypeList());
+    unsafeAddInstance(OwnedTabInsts, TabInsts, TType,
+                      std::forward<Args>(Values)..., CanHoldManaged);
+    unsafeDropGCRootsOwner();
+    // A new table is unattached, so this attach succeeds.
+    return TabInsts.back()->setAllocator(A);
   }
   template <typename... Args> void addMemory(Args &&...Values) {
     std::unique_lock Lock(Mutex);
@@ -316,35 +411,33 @@ protected:
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedTagInsts, TagInsts, std::forward<Args>(Values)...);
   }
-  template <typename... Args> void addGlobal(Args &&...Values) {
+  template <typename... Args>
+  Expect<void> addGlobal(GC::Allocator &A, const AST::GlobalType &GType,
+                         Args &&...Values) {
     std::unique_lock Lock(Mutex);
-    unsafeAddInstance(OwnedGlobInsts, GlobInsts, std::forward<Args>(Values)...);
+    // Resolve CanHoldManaged here, as in addTable.
+    const bool CanHoldManaged = AST::TypeMatcher::refTypeCanHoldGCObject(
+        GType.getValType(), getTypeList());
+    unsafeAddInstance(OwnedGlobInsts, GlobInsts, GType, CanHoldManaged,
+                      std::forward<Args>(Values)...);
+    unsafeDropGCRootsOwner();
+    return GlobInsts.back()->setAllocator(A);
   }
-  template <typename... Args> void addElem(Args &&...Values) {
+  template <typename... Args> void addElem(GC::Allocator &A, Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedElemInsts, ElemInsts, std::forward<Args>(Values)...);
+    ElemInsts.back()->setAllocator(A);
   }
   template <typename... Args> void addData(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedDataInsts, DataInsts, std::forward<Args>(Values)...);
   }
-  template <typename... Args> ArrayInstance *newArray(Args &&...Values) {
-    std::unique_lock Lock(Mutex);
-    OwnedArrayInsts.push_back(
-        std::make_unique<ArrayInstance>(this, std::forward<Args>(Values)...));
-    return OwnedArrayInsts.back().get();
-  }
-  template <typename... Args> StructInstance *newStruct(Args &&...Values) {
-    std::unique_lock Lock(Mutex);
-    OwnedStructInsts.push_back(
-        std::make_unique<StructInstance>(this, std::forward<Args>(Values)...));
-    return OwnedStructInsts.back().get();
-  }
   template <typename... Args>
-  ExceptionInstance *newException(Args &&...Values) {
+  ExceptionInstance *newException(GC::Allocator &A, Args &&...Values) {
     std::unique_lock Lock(Mutex);
     OwnedExceptionInsts.push_back(
         std::make_unique<ExceptionInstance>(std::forward<Args>(Values)...));
+    OwnedExceptionInsts.back()->setAllocator(A);
     return OwnedExceptionInsts.back().get();
   }
 
@@ -369,6 +462,7 @@ protected:
   void importTable(TableInstance *Tab) {
     std::unique_lock Lock(Mutex);
     unsafeImportInstance(TabInsts, Tab);
+    unsafeDropGCRootsOwner();
   }
   void importMemory(MemoryInstance *Mem) {
     std::unique_lock Lock(Mutex);
@@ -382,6 +476,7 @@ protected:
     std::unique_lock Lock(Mutex);
     ImpGlobalNum++;
     unsafeImportInstance(GlobInsts, Glob);
+    unsafeDropGCRootsOwner();
   }
 
   /// Export instances with name from this module instance.
@@ -732,8 +827,6 @@ protected:
   std::vector<std::unique_ptr<GlobalInstance>> OwnedGlobInsts;
   std::vector<std::unique_ptr<ElementInstance>> OwnedElemInsts;
   std::vector<std::unique_ptr<DataInstance>> OwnedDataInsts;
-  std::vector<std::unique_ptr<ArrayInstance>> OwnedArrayInsts;
-  std::vector<std::unique_ptr<StructInstance>> OwnedStructInsts;
   std::vector<std::unique_ptr<ExceptionInstance>> OwnedExceptionInsts;
 
   /// Imported and added instances in this module.
@@ -775,11 +868,66 @@ protected:
   mutable std::atomic<bool> InstantiateFinalized{false};
 
   /// Intrusive lifetime: owner flag plus importer count, packed into one
-  /// atomic.
-  RefLifetime Life;
+  /// atomic. Mutable so pin() and unpin() work on a const instance.
+  mutable RefLifetime Life;
+  /// See setDeferrableStorage(). Set at creation, read by async launches.
+  std::atomic<bool> DeferrableStorage{false};
+  /// See setGCCompiled(). Set at instantiation, read on each compiled call.
+  std::atomic<bool> GCCompiled{true};
+  /// See getGCRootsOwnerId().
+  mutable std::atomic<uint64_t> GCRootsOwnerId{0};
+  /// See getGCRootsGeneration(). Written under Mutex.
+  mutable std::atomic<uint64_t> GCRootsGeneration{0};
+  /// Called under Mutex when a table or global is added: the new root is not
+  /// attached yet, so drop the stamp and increment the generation so that a
+  /// walk in progress cannot stamp again.
+  void unsafeDropGCRootsOwner() noexcept {
+    GCRootsGeneration.fetch_add(1, std::memory_order_acq_rel);
+    GCRootsOwnerId.store(0, std::memory_order_release);
+  }
   /// Provider instances this module imported from; each holds one dependent
   /// pin, released when this module is destroyed.
   std::unordered_set<ModuleInstance *> Providers;
+};
+
+/// Move-only RAII holder of one ModuleInstance::pin(). The destructor unpins
+/// and deletes the module if it was the last dependent after terminate(). A
+/// null target (a host function without a module) does nothing.
+class ModulePin {
+public:
+  ModulePin() noexcept = default;
+  explicit ModulePin(const ModuleInstance *Mod) noexcept : Inst(Mod) {
+    if (Inst != nullptr) {
+      Inst->pin();
+    }
+  }
+  ModulePin(const ModulePin &) = delete;
+  ModulePin &operator=(const ModulePin &) = delete;
+  ModulePin(ModulePin &&Other) noexcept : Inst(Other.Inst) {
+    Other.Inst = nullptr;
+  }
+  ModulePin &operator=(ModulePin &&Other) noexcept {
+    if (this != &Other) {
+      release();
+      Inst = Other.Inst;
+      Other.Inst = nullptr;
+    }
+    return *this;
+  }
+  ~ModulePin() noexcept { release(); }
+
+private:
+  void release() noexcept {
+    if (Inst != nullptr) {
+      const ModuleInstance *Doomed = Inst;
+      Inst = nullptr;
+      if (Doomed->unpin()) {
+        delete Doomed;
+      }
+    }
+  }
+
+  const ModuleInstance *Inst = nullptr;
 };
 
 } // namespace Instance

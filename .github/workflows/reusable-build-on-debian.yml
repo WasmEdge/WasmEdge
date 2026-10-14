@@ -68,7 +68,7 @@ jobs:
           cd build
           ./tools/wasmedge/wasmedge -v
           ldd test/aot/wasmedgeAOTBlake3Tests | grep libblake3
-          ctest
+          ctest --output-on-failure
           cd -
       - name: Create package tarball
         run: |

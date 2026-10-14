@@ -280,6 +280,16 @@ Expect<void> Loader::loadSection(FileMgr &VecMgr, AST::AOTSection &Sec) {
     return Unexpect(ErrCode::Value::MalformedSection);
   }
 
+  // Durable capability: whether this artifact was compiled with GC codegen.
+  // Written by outputWasmLibrary from the presence of the "gc.capable" marker
+  // global.
+  EXPECTED_TRY(auto GCCapable, VecMgr.readByte().map_error([](auto E) {
+    spdlog::error(E);
+    spdlog::error("    AOT GC capability read error:{}"sv, E);
+    return E;
+  }));
+  Sec.setGCCapable(GCCapable != UINT8_C(0));
+
   EXPECTED_TRY(auto VersionAddress, VecMgr.readU64().map_error([](auto E) {
     spdlog::error(E);
     spdlog::error("    AOT version address read error:{}"sv, E);

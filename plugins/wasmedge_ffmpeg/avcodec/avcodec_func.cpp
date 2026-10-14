@@ -13,6 +13,21 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVcodec {
 
+namespace {
+bool frameMatchesEncoder(const AVCodecContext *Ctx, const AVFrame *Frame) {
+  switch (Ctx->codec_type) {
+  case AVMEDIA_TYPE_AUDIO:
+    return Frame->format == Ctx->sample_fmt &&
+           Frame->ch_layout.nb_channels == Ctx->ch_layout.nb_channels;
+  case AVMEDIA_TYPE_VIDEO:
+    return Frame->format == Ctx->pix_fmt && Frame->width == Ctx->width &&
+           Frame->height == Ctx->height;
+  default:
+    return true;
+  }
+}
+} // namespace
+
 Expect<int32_t> AVCodecAllocContext3::body(const Runtime::CallingFrame &Frame,
                                            uint32_t AvCodecId,
                                            uint32_t AvCodecCtxPtr) {
@@ -147,6 +162,9 @@ Expect<int32_t> AVCodecParametersToContext::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_CHECK(AvCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
   FFMPEG_PTR_CHECK(AvCodecParam, static_cast<int32_t>(ErrNo::InternalError));
 
+  if (avcodec_is_open(AvCodecCtx)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return avcodec_parameters_to_context(AvCodecCtx, AvCodecParam);
 }
 
@@ -210,6 +228,9 @@ Expect<int32_t> AVCodecSendFrame::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_CHECK(AVCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
   FFMPEG_PTR_CHECK_NONZERO(AvFrame, FrameId,
                            static_cast<int32_t>(ErrNo::InternalError));
+  if (AvFrame != nullptr && !frameMatchesEncoder(AVCodecCtx, AvFrame)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return avcodec_send_frame(AVCodecCtx, AvFrame);
 }
 

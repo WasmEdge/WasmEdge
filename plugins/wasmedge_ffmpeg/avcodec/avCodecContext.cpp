@@ -78,6 +78,9 @@ Expect<int32_t> AVCodecCtxSetWidth::body(const Runtime::CallingFrame &,
                                          uint32_t AvCodecCtxId, int32_t Width) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   FFMPEG_PTR_CHECK(AvCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
+  if (avcodec_is_open(AvCodecCtx)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   AvCodecCtx->width = Width;
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -94,6 +97,9 @@ Expect<int32_t> AVCodecCtxSetHeight::body(const Runtime::CallingFrame &,
                                           int32_t Height) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   FFMPEG_PTR_CHECK(AvCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
+  if (avcodec_is_open(AvCodecCtx)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   AvCodecCtx->height = Height;
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -139,6 +145,9 @@ Expect<int32_t> AVCodecCtxSetChannelLayout::body(const Runtime::CallingFrame &,
                                                  uint64_t ChannelLayoutId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   FFMPEG_PTR_CHECK(AvCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
+  if (avcodec_is_open(AvCodecCtx)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   uint64_t const AvChannel =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
   int const Ret =
@@ -165,6 +174,9 @@ Expect<int32_t> AVCodecCtxSetPixFormat::body(const Runtime::CallingFrame &,
                                              uint32_t PixFmtId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   FFMPEG_PTR_CHECK(AvCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
+  if (avcodec_is_open(AvCodecCtx)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   AVPixelFormat const PixFmt = FFmpegUtils::PixFmt::intoAVPixFmt(PixFmtId);
   AvCodecCtx->pix_fmt = PixFmt;
   return static_cast<int32_t>(ErrNo::Success);
@@ -183,6 +195,9 @@ Expect<int32_t> AVCodecCtxSetSampleFormat::body(const Runtime::CallingFrame &,
                                                 uint32_t SampleFmtId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   FFMPEG_PTR_CHECK(AvCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
+  if (avcodec_is_open(AvCodecCtx)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   AVSampleFormat const SampleFormat =
       FFmpegUtils::SampleFmt::fromSampleID(SampleFmtId);
   AvCodecCtx->sample_fmt = SampleFormat;
@@ -201,6 +216,9 @@ Expect<int32_t> AVCodecCtxSetSampleRate::body(const Runtime::CallingFrame &,
                                               int32_t SampleRate) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   FFMPEG_PTR_CHECK(AvCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
+  if (avcodec_is_open(AvCodecCtx)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   AvCodecCtx->sample_rate = SampleRate;
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -645,7 +663,14 @@ Expect<int32_t> AVCodecCtxSetChannels::body(const Runtime::CallingFrame &,
                                             int32_t Channels) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   FFMPEG_PTR_CHECK(AvCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
-  AvCodecCtx->ch_layout.nb_channels = Channels;
+  if (avcodec_is_open(AvCodecCtx)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  if (Channels < 0) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  av_channel_layout_uninit(&AvCodecCtx->ch_layout);
+  av_channel_layout_default(&AvCodecCtx->ch_layout, Channels);
   return static_cast<int32_t>(ErrNo::Success);
 }
 

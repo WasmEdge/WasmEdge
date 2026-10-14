@@ -144,6 +144,30 @@ public:
     return false;
   }
 
+  enum HandleFlag : uint32_t {
+    MuxHeaderWritten = 1U << 0,
+    MuxTrailerWritten = 1U << 1,
+    GraphConfigured = 1U << 2,
+  };
+
+  void setFlag(uint32_t Index, uint32_t Flag) { FlagsById[Index] |= Flag; }
+
+  void clearFlag(uint32_t Index, uint32_t Flag) {
+    auto It = FlagsById.find(Index);
+    if (It == FlagsById.end()) {
+      return;
+    }
+    It->second &= ~Flag;
+    if (It->second == 0) {
+      FlagsById.erase(It);
+    }
+  }
+
+  bool hasFlag(uint32_t Index, uint32_t Flag) const {
+    auto It = FlagsById.find(Index);
+    return It != FlagsById.end() && (It->second & Flag) != 0;
+  }
+
   void dealloc(size_t Index) {
 
     if (Index >= FfmpegPtrAllocateKey) {
@@ -156,6 +180,7 @@ public:
       FfmpegPtrMap.erase(It);
     }
     BorrowedKeys.erase(static_cast<uint32_t>(Index));
+    FlagsById.erase(static_cast<uint32_t>(Index));
     eraseChildLink(static_cast<uint32_t>(Index));
   }
 
@@ -177,6 +202,7 @@ public:
     for (auto It = Range.first; It != Range.second; ++It) {
       FfmpegPtrMap.erase(It->second);
       BorrowedKeys.erase(It->second);
+      FlagsById.erase(It->second);
       eraseChildLink(It->second);
     }
     KeysByValue.erase(Data);
@@ -224,6 +250,7 @@ private:
   std::set<uint32_t> BorrowedKeys;
   std::multimap<uint32_t, uint32_t> ChildIdsByParent;
   std::map<uint32_t, uint32_t> ParentIdByChild;
+  std::map<uint32_t, uint32_t> FlagsById;
   std::multimap<void *, uint32_t> KeysByValue;
   static std::weak_ptr<WasmEdgeFFmpegEnv> Instance;
   static std::shared_mutex Mutex;

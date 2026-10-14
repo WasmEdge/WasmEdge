@@ -15,6 +15,16 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVFormat {
 
+namespace {
+bool isInputContext(const AVFormatContext *Ctx) {
+  return Ctx->iformat != nullptr;
+}
+
+bool isOutputContext(const AVFormatContext *Ctx) {
+  return Ctx->oformat != nullptr;
+}
+} // namespace
+
 Expect<int32_t> AVFormatOpenInput::body(const Runtime::CallingFrame &Frame,
                                         uint32_t AvFormatCtxPtr,
                                         uint32_t UrlPtr, uint32_t UrlSize,
@@ -50,6 +60,9 @@ Expect<int32_t> AVFormatFindStreamInfo::body(const Runtime::CallingFrame &,
                                              uint32_t AvDictionaryId) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
   FFMPEG_PTR_CHECK(AvFormatContext, static_cast<int32_t>(ErrNo::InternalError));
+  if (!isInputContext(AvFormatContext)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   FFMPEG_PTR_FETCH(AvDictionary, AvDictionaryId, AVDictionary *);
   FFMPEG_PTR_CHECK_NONZERO(AvDictionary, AvDictionaryId,
                            static_cast<int32_t>(ErrNo::InternalError));
@@ -89,6 +102,9 @@ Expect<int32_t> AVReadPause::body(const Runtime::CallingFrame &,
                                   uint32_t AvFormatCtxId) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
   FFMPEG_PTR_CHECK(AvFormatContext, static_cast<int32_t>(ErrNo::InternalError));
+  if (!isInputContext(AvFormatContext)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return av_read_pause(AvFormatContext);
 }
 
@@ -96,6 +112,9 @@ Expect<int32_t> AVReadPlay::body(const Runtime::CallingFrame &,
                                  uint32_t AvFormatCtxId) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
   FFMPEG_PTR_CHECK(AvFormatContext, static_cast<int32_t>(ErrNo::InternalError));
+  if (!isInputContext(AvFormatContext)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return av_read_play(AvFormatContext);
 }
 
@@ -106,14 +125,16 @@ Expect<int32_t> AVFormatSeekFile::body(const Runtime::CallingFrame &,
                                        int32_t Flags) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
   FFMPEG_PTR_CHECK(AvFormatContext, static_cast<int32_t>(ErrNo::InternalError));
+  if (!isInputContext(AvFormatContext)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return avformat_seek_file(AvFormatContext, StreamIdx, MinTs, Ts, MaxTs,
                             Flags);
 }
 
 Expect<int32_t> AVDumpFormat::body(const Runtime::CallingFrame &Frame,
                                    uint32_t AvFormatCtxId, int32_t Idx,
-                                   uint32_t UrlPtr, uint32_t UrlSize,
-                                   int32_t IsOutput) {
+                                   uint32_t UrlPtr, uint32_t UrlSize, int32_t) {
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(UrlBuf, MemInst, char, UrlPtr, UrlSize, "");
 
@@ -121,7 +142,8 @@ Expect<int32_t> AVDumpFormat::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
   FFMPEG_PTR_CHECK(AvFormatCtx, static_cast<int32_t>(ErrNo::InternalError));
 
-  av_dump_format(AvFormatCtx, Idx, TargetUrl.c_str(), IsOutput);
+  av_dump_format(AvFormatCtx, Idx, TargetUrl.c_str(),
+                 isOutputContext(AvFormatCtx) ? 1 : 0);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -162,6 +184,9 @@ Expect<int32_t> AVReadFrame::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvPacket, PacketId, AVPacket);
   FFMPEG_PTR_CHECK(AvPacket, static_cast<int32_t>(ErrNo::InternalError));
 
+  if (!isInputContext(AvFormatContext)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return av_read_frame(AvFormatContext, AvPacket);
 }
 
@@ -170,6 +195,12 @@ Expect<int32_t> AVIOClose::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
   FFMPEG_PTR_CHECK_FREE(AvFormatCtx, AvFormatCtxId,
                         static_cast<int32_t>(ErrNo::InternalError));
+  if (isInputContext(AvFormatCtx) ||
+      (Env.get()->hasFlag(AvFormatCtxId, WasmEdgeFFmpegEnv::MuxHeaderWritten) &&
+       !Env.get()->hasFlag(AvFormatCtxId,
+                           WasmEdgeFFmpegEnv::MuxTrailerWritten))) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   avio_closep(&AvFormatCtx->pb);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -190,14 +221,31 @@ Expect<int32_t> AVFormatWriteHeader::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
   FFMPEG_PTR_CHECK_NONZERO(AvDict, DictId,
                            static_cast<int32_t>(ErrNo::InternalError));
-  return avformat_write_header(AvFormatContext, AvDict);
+  if (!isOutputContext(AvFormatContext) ||
+      Env.get()->hasFlag(AvFormatCtxId, WasmEdgeFFmpegEnv::MuxHeaderWritten) ||
+      (!(AvFormatContext->oformat->flags & AVFMT_NOFILE) &&
+       AvFormatContext->pb == nullptr)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  int const Res = avformat_write_header(AvFormatContext, AvDict);
+  if (Res >= 0) {
+    Env.get()->setFlag(AvFormatCtxId, WasmEdgeFFmpegEnv::MuxHeaderWritten);
+  }
+  return Res;
 }
 
 Expect<int32_t> AVFormatWriteTrailer::body(const Runtime::CallingFrame &,
                                            uint32_t AvFormatCtxId) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
   FFMPEG_PTR_CHECK(AvFormatContext, static_cast<int32_t>(ErrNo::InternalError));
-  return av_write_trailer(AvFormatContext);
+  if (!isOutputContext(AvFormatContext) ||
+      !Env.get()->hasFlag(AvFormatCtxId, WasmEdgeFFmpegEnv::MuxHeaderWritten) ||
+      Env.get()->hasFlag(AvFormatCtxId, WasmEdgeFFmpegEnv::MuxTrailerWritten)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  int const Res = av_write_trailer(AvFormatContext);
+  Env.get()->setFlag(AvFormatCtxId, WasmEdgeFFmpegEnv::MuxTrailerWritten);
+  return Res;
 }
 
 Expect<int32_t> AVFormatAllocOutputContext2::body(
@@ -251,6 +299,9 @@ Expect<int32_t> AVIOOpen::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
   FFMPEG_PTR_CHECK(AvFormatContext, static_cast<int32_t>(ErrNo::InternalError));
 
+  if (isInputContext(AvFormatContext)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return avio_open(&(AvFormatContext->pb), File.c_str(), Flags);
 }
 
@@ -274,6 +325,9 @@ Expect<int32_t> AVIOOpen2::body(const Runtime::CallingFrame &Frame,
 
   std::string TargetUrl(UrlId.data(), UrlLen);
 
+  if (isInputContext(AvFormatCtx)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return avio_open2(&(AvFormatCtx->pb), TargetUrl.c_str(), Flags,
                     AvIOInterruptCB, AvDictionary);
 }
@@ -375,6 +429,11 @@ Expect<int32_t> AVInterleavedWriteFrame::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_CHECK_NONZERO(AvPacket, AvPacketId,
                            static_cast<int32_t>(ErrNo::InternalError));
 
+  if (!isOutputContext(AvFormatCtx) ||
+      !Env.get()->hasFlag(AvFormatCtxId, WasmEdgeFFmpegEnv::MuxHeaderWritten) ||
+      Env.get()->hasFlag(AvFormatCtxId, WasmEdgeFFmpegEnv::MuxTrailerWritten)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return av_interleaved_write_frame(AvFormatCtx, AvPacket);
 }
 
@@ -387,6 +446,11 @@ Expect<int32_t> AVWriteFrame::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_CHECK_NONZERO(AvPacket, AvPacketId,
                            static_cast<int32_t>(ErrNo::InternalError));
 
+  if (!isOutputContext(AvFormatCtx) ||
+      !Env.get()->hasFlag(AvFormatCtxId, WasmEdgeFFmpegEnv::MuxHeaderWritten) ||
+      Env.get()->hasFlag(AvFormatCtxId, WasmEdgeFFmpegEnv::MuxTrailerWritten)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return av_write_frame(AvFormatCtx, AvPacket);
 }
 
@@ -397,6 +461,10 @@ Expect<int32_t> AVFormatNewStream::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_CHECK(AvFormatCtx, 0);
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
   FFMPEG_PTR_CHECK_NONZERO(AvCodec, AvCodecId, 0);
+  if (isInputContext(AvFormatCtx) ||
+      Env.get()->hasFlag(AvFormatCtxId, WasmEdgeFFmpegEnv::MuxHeaderWritten)) {
+    return 0;
+  }
   AVStream *Stream = avformat_new_stream(AvFormatCtx, AvCodec);
   if (Stream == nullptr) {
     return 0;

@@ -18,7 +18,7 @@ jobs:
           egress-policy: audit
 
       - name: Submit WasmEdge MSI package with Winget-Releaser
-        uses: vedantmgoyal9/winget-releaser@a8fff44b123f115ce4c21543edf8b677376fc7e0 # main
+        uses: vedantmgoyal9/winget-releaser@b7370d4d152efdce803a26cc6ca9eee58cb2ad54 # main
         with:
           identifier: WasmEdge.WasmEdge
           installers-regex: 'windows\.msi$'

@@ -922,9 +922,11 @@ TEST_F(FFmpegTest, AVFilterGraphParsePtrDropsChildrenOnError) {
   uint32_t CtxId = readUInt32(MemInst, CtxPtr);
   ASSERT_TRUE(CtxId > 0);
 
-  EXPECT_EQ(Run("wasmedge_ffmpeg_avfilter_av_buffersrc_get_nb_failed_requests",
-                {CtxId}),
-            0);
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avfilter_avfilter_graph_get_filter",
+                {CtxPtr, GraphId, CtxNamePtr,
+                 static_cast<uint32_t>(CtxName.length())}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_TRUE(readUInt32(MemInst, CtxPtr) > 0);
 
   EXPECT_LT(Run("wasmedge_ffmpeg_avfilter_avfilter_graph_parse_ptr",
                 {GraphId, SpecPtr, static_cast<int32_t>(BadSpec.length()),
@@ -934,6 +936,11 @@ TEST_F(FFmpegTest, AVFilterGraphParsePtrDropsChildrenOnError) {
   EXPECT_EQ(Run("wasmedge_ffmpeg_avfilter_av_buffersrc_get_nb_failed_requests",
                 {CtxId}),
             static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avfilter_avfilter_graph_get_filter",
+                {CtxPtr, GraphId, CtxNamePtr,
+                 static_cast<uint32_t>(CtxName.length())}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(readUInt32(MemInst, CtxPtr), UINT32_C(0));
 
   EXPECT_EQ(Run("wasmedge_ffmpeg_avfilter_avfilter_graph_free", {GraphId}),
             static_cast<int32_t>(ErrNo::Success));
@@ -1352,6 +1359,221 @@ TEST_F(FFmpegTest, AVFilterGraphDumpRejectsUnlinkedPads) {
 
   EXPECT_EQ(Run("wasmedge_ffmpeg_avfilter_avfilter_graph_free", {GraphId}),
             static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegTest, AVBufferSinkSrcRequireConfiguredBufferFilters) {
+  ASSERT_TRUE(AVFilterMod != nullptr);
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  uint32_t GraphPtr = UINT32_C(4);
+  uint32_t FilterPtr = UINT32_C(8);
+  uint32_t CtxPtr = UINT32_C(12);
+  uint32_t FramePtr = UINT32_C(16);
+  uint32_t NamePtr = UINT32_C(100);
+  uint32_t CtxNamePtr = UINT32_C(200);
+  uint32_t ArgsPtr = UINT32_C(300);
+  uint32_t SpecPtr = UINT32_C(400);
+
+  auto CreateFilter = [&](uint32_t GraphId, const std::string &FilterName,
+                          const std::string &CtxName) {
+    fillMemContent(MemInst, NamePtr, FilterName);
+    fillMemContent(MemInst, CtxNamePtr, CtxName);
+    EXPECT_EQ(
+        Run(AVFilterMod.get(), "wasmedge_ffmpeg_avfilter_avfilter_get_by_name",
+            {FilterPtr, NamePtr, static_cast<int32_t>(FilterName.length())}),
+        static_cast<int32_t>(ErrNo::Success));
+    uint32_t FilterId = readUInt32(MemInst, FilterPtr);
+    EXPECT_TRUE(FilterId > 0);
+    EXPECT_GE(Run(AVFilterMod.get(),
+                  "wasmedge_ffmpeg_avfilter_avfilter_graph_create_filter",
+                  {CtxPtr, FilterId, CtxNamePtr,
+                   static_cast<int32_t>(CtxName.length()), ArgsPtr, INT32_C(0),
+                   GraphId}),
+              0);
+    uint32_t CtxId = readUInt32(MemInst, CtxPtr);
+    EXPECT_TRUE(CtxId > 0);
+    return CtxId;
+  };
+
+  EXPECT_EQ(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_avfilter_graph_alloc", {GraphPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t GraphId = readUInt32(MemInst, GraphPtr);
+  ASSERT_TRUE(GraphId > 0);
+  uint32_t NullCtxId = CreateFilter(GraphId, "anull", "n");
+  uint32_t SinkCtxId = CreateFilter(GraphId, "abuffersink", "s");
+  initEmptyFrame(FramePtr);
+  uint32_t FrameId = readUInt32(MemInst, FramePtr);
+  ASSERT_TRUE(FrameId > 0);
+
+  EXPECT_EQ(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_av_buffersink_get_frame",
+                {NullCtxId, FrameId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_av_buffersink_get_frame",
+                {SinkCtxId, FrameId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_av_buffersink_get_samples",
+                {SinkCtxId, FrameId, INT32_C(64)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_av_buffersink_set_frame_size",
+                {SinkCtxId, INT32_C(64)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_av_buffersrc_add_frame",
+                {SinkCtxId, UINT32_C(0)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_av_buffersrc_get_nb_failed_requests",
+                {NullCtxId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_av_buffersrc_close",
+                {NullCtxId, INT64_C(0), UINT32_C(0)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_avfilter_graph_free", {GraphId}),
+            static_cast<int32_t>(ErrNo::Success));
+
+  std::string Spec("abuffer=time_base=1/"
+                   "44100:sample_rate=44100:sample_fmt=fltp:channel_layout=0x3,"
+                   "anull,abuffersink");
+  fillMemContent(MemInst, SpecPtr, Spec);
+  EXPECT_EQ(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_avfilter_graph_alloc", {GraphPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t ConfiguredGraphId = readUInt32(MemInst, GraphPtr);
+  ASSERT_TRUE(ConfiguredGraphId > 0);
+  EXPECT_GE(
+      Run(AVFilterMod.get(),
+          "wasmedge_ffmpeg_avfilter_avfilter_graph_parse_ptr",
+          {ConfiguredGraphId, SpecPtr, static_cast<int32_t>(Spec.length()),
+           UINT32_C(0), UINT32_C(0)}),
+      0);
+  EXPECT_GE(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_avfilter_graph_config",
+                {ConfiguredGraphId}),
+            0);
+  auto GetFilter = [&](const std::string &Name) {
+    fillMemContent(MemInst, CtxNamePtr, Name);
+    EXPECT_EQ(Run(AVFilterMod.get(),
+                  "wasmedge_ffmpeg_avfilter_avfilter_graph_get_filter",
+                  {CtxPtr, ConfiguredGraphId, CtxNamePtr,
+                   static_cast<uint32_t>(Name.length())}),
+              static_cast<int32_t>(ErrNo::Success));
+    uint32_t Id = readUInt32(MemInst, CtxPtr);
+    EXPECT_TRUE(Id > 0);
+    return Id;
+  };
+  uint32_t SrcId = GetFilter("Parsed_abuffer_0");
+  uint32_t ConfiguredSinkId = GetFilter("Parsed_abuffersink_2");
+  EXPECT_GE(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_av_buffersrc_add_frame",
+                {SrcId, UINT32_C(0)}),
+            0);
+  int32_t const SinkRes =
+      Run(AVFilterMod.get(), "wasmedge_ffmpeg_avfilter_av_buffersink_get_frame",
+          {ConfiguredSinkId, FrameId});
+  EXPECT_NE(SinkRes, static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_LT(SinkRes, 0);
+
+  EXPECT_EQ(
+      Run(AVUtilMod.get(), "wasmedge_ffmpeg_avutil_av_frame_free", {FrameId}),
+      static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_avfilter_graph_free",
+                {ConfiguredGraphId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegTest, AVFilterGraphConfigIsIdempotentAndTracked) {
+  ASSERT_TRUE(AVFilterMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  auto *ConfigInst = AVFilterMod->findFuncExports(
+      "wasmedge_ffmpeg_avfilter_avfilter_graph_config");
+  ASSERT_NE(ConfigInst, nullptr);
+  auto Env =
+      dynamic_cast<
+          WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::AVFilterGraphConfig &>(
+          ConfigInst->getHostFunc())
+          .getEnv();
+
+  uint32_t GraphPtr = UINT32_C(4);
+  uint32_t FilterPtr = UINT32_C(8);
+  uint32_t CtxPtr = UINT32_C(12);
+  uint32_t SpecPtr = UINT32_C(100);
+  uint32_t NamePtr = UINT32_C(300);
+  uint32_t CtxNamePtr = UINT32_C(320);
+  uint32_t ArgsPtr = UINT32_C(340);
+  std::string Spec("abuffer=time_base=1/"
+                   "44100:sample_rate=44100:sample_fmt=fltp:channel_layout=0x3,"
+                   "anull,abuffersink");
+  fillMemContent(MemInst, SpecPtr, Spec);
+
+  EXPECT_EQ(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_avfilter_graph_alloc", {GraphPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t GraphId = readUInt32(MemInst, GraphPtr);
+  ASSERT_TRUE(GraphId > 0);
+  EXPECT_GE(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_avfilter_graph_parse_ptr",
+                {GraphId, SpecPtr, static_cast<int32_t>(Spec.length()),
+                 UINT32_C(0), UINT32_C(0)}),
+            0);
+  EXPECT_FALSE(Env->hasFlag(GraphId, WasmEdgeFFmpegEnv::GraphConfigured));
+
+  EXPECT_GE(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_avfilter_graph_config", {GraphId}),
+            0);
+  EXPECT_TRUE(Env->hasFlag(GraphId, WasmEdgeFFmpegEnv::GraphConfigured));
+  EXPECT_EQ(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_avfilter_graph_config", {GraphId}),
+            0);
+  EXPECT_TRUE(Env->hasFlag(GraphId, WasmEdgeFFmpegEnv::GraphConfigured));
+
+  std::string FilterName("anull");
+  std::string CtxName("late");
+  fillMemContent(MemInst, NamePtr, FilterName);
+  fillMemContent(MemInst, CtxNamePtr, CtxName);
+  EXPECT_EQ(
+      Run(AVFilterMod.get(), "wasmedge_ffmpeg_avfilter_avfilter_get_by_name",
+          {FilterPtr, NamePtr, static_cast<int32_t>(FilterName.length())}),
+      static_cast<int32_t>(ErrNo::Success));
+  uint32_t FilterId = readUInt32(MemInst, FilterPtr);
+  ASSERT_TRUE(FilterId > 0);
+  EXPECT_GE(
+      Run(AVFilterMod.get(),
+          "wasmedge_ffmpeg_avfilter_avfilter_graph_create_filter",
+          {CtxPtr, FilterId, CtxNamePtr, static_cast<int32_t>(CtxName.length()),
+           ArgsPtr, INT32_C(0), GraphId}),
+      0);
+  EXPECT_FALSE(Env->hasFlag(GraphId, WasmEdgeFFmpegEnv::GraphConfigured));
+
+  EXPECT_EQ(Run(AVFilterMod.get(),
+                "wasmedge_ffmpeg_avfilter_avfilter_graph_free", {GraphId}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_FALSE(Env->hasFlag(GraphId, WasmEdgeFFmpegEnv::GraphConfigured));
 }
 
 } // namespace WasmEdgeFFmpeg

@@ -168,6 +168,11 @@ public:
     return It != FlagsById.end() && (It->second & Flag) != 0;
   }
 
+  uint32_t parentIdOf(uint32_t ChildId) const {
+    auto It = ParentIdByChild.find(ChildId);
+    return It == ParentIdByChild.end() ? 0 : It->second;
+  }
+
   void dealloc(size_t Index) {
 
     if (Index >= FfmpegPtrAllocateKey) {

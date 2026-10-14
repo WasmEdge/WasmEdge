@@ -34,8 +34,16 @@ Expect<int32_t> AVFilterGraphConfig::body(const Runtime::CallingFrame &,
                                           uint32_t FilterGraphId) {
   FFMPEG_PTR_FETCH(FilterGraph, FilterGraphId, AVFilterGraph);
   FFMPEG_PTR_CHECK(FilterGraph, static_cast<int32_t>(ErrNo::InternalError));
-  return avfilter_graph_config(FilterGraph,
-                               nullptr); // log_ctx always NULL on Rust SDK.
+  if (Env.get()->hasFlag(FilterGraphId, WasmEdgeFFmpegEnv::GraphConfigured)) {
+    return 0;
+  }
+  int const Res =
+      avfilter_graph_config(FilterGraph,
+                            nullptr); // log_ctx always NULL on Rust SDK.
+  if (Res >= 0) {
+    Env.get()->setFlag(FilterGraphId, WasmEdgeFFmpegEnv::GraphConfigured);
+  }
+  return Res;
 }
 
 Expect<int32_t> AVFilterGraphFree::body(const Runtime::CallingFrame &,
@@ -127,6 +135,7 @@ Expect<int32_t> AVFilterGraphParsePtr::body(const Runtime::CallingFrame &Frame,
   std::string Filters(FiltersId.data(), FiltersSize);
   int32_t const Res = avfilter_graph_parse_ptr(FiltersGraph, Filters.c_str(),
                                                &Inputs, &Outputs, nullptr);
+  Env.get()->clearFlag(FilterGraphId, WasmEdgeFFmpegEnv::GraphConfigured);
 
   if (Res < 0) {
     Env.get()->deallocChildren(FilterGraphId);
@@ -240,6 +249,7 @@ Expect<int32_t> AVFilterGraphCreateFilter::body(
   }
 
   FFMPEG_PTR_STORE_CHILD(FilterCtx, FilterCtxId, FilterGraphId);
+  Env.get()->clearFlag(FilterGraphId, WasmEdgeFFmpegEnv::GraphConfigured);
   return Res;
 }
 

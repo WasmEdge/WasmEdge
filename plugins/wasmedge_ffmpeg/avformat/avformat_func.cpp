@@ -8,6 +8,8 @@ extern "C" {
 #include "libavformat/avformat.h"
 }
 
+#include <vector>
+
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
@@ -51,7 +53,25 @@ Expect<int32_t> AVFormatFindStreamInfo::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvDictionary, AvDictionaryId, AVDictionary *);
   FFMPEG_PTR_CHECK_NONZERO(AvDictionary, AvDictionaryId,
                            static_cast<int32_t>(ErrNo::InternalError));
-  return avformat_find_stream_info(AvFormatContext, AvDictionary);
+  if (AvDictionary == nullptr || AvFormatContext->nb_streams == 0) {
+    return avformat_find_stream_info(AvFormatContext, nullptr);
+  }
+
+  std::vector<AVDictionary *> Options(AvFormatContext->nb_streams, nullptr);
+  auto FreeOptions = [&Options]() {
+    for (AVDictionary *&Dict : Options) {
+      av_dict_free(&Dict);
+    }
+  };
+  for (AVDictionary *&Dict : Options) {
+    if (av_dict_copy(&Dict, *AvDictionary, 0) < 0) {
+      FreeOptions();
+      return static_cast<int32_t>(ErrNo::InternalError);
+    }
+  }
+  int const Res = avformat_find_stream_info(AvFormatContext, Options.data());
+  FreeOptions();
+  return Res;
 }
 
 Expect<int32_t> AVFormatCloseInput::body(const Runtime::CallingFrame &,

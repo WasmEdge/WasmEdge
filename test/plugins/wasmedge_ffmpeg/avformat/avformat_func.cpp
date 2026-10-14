@@ -1000,6 +1000,59 @@ TEST_F(FFmpegTest, AVIOCloseHandleSemantics) {
             static_cast<int32_t>(ErrNo::Success));
 }
 
+TEST_F(FFmpegTest, AVFormatFindStreamInfoAppliesDictToEveryStream) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  uint32_t FormatCtxPtr = UINT32_C(8);
+  uint32_t DictPtr = UINT32_C(12);
+  uint32_t KeyLenPtr = UINT32_C(16);
+  uint32_t ValueLenPtr = UINT32_C(20);
+  uint32_t KeyPtr = UINT32_C(100);
+  uint32_t ValuePtr = UINT32_C(120);
+  uint32_t FilePtr = UINT32_C(300);
+
+  initFormatCtx(FormatCtxPtr, FilePtr,
+                std::string("ffmpeg-assets/sample_video.mp4"));
+  uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
+  ASSERT_TRUE(FormatCtxId > 0);
+  ASSERT_GE(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformatContext_nb_streams",
+                {FormatCtxId}),
+            2);
+
+  std::string Key("threads");
+  initDict(DictPtr, KeyPtr, Key, ValuePtr, std::string("1"));
+  uint32_t DictId = readUInt32(MemInst, DictPtr);
+  ASSERT_TRUE(DictId > 0);
+
+  EXPECT_GE(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_find_stream_info",
+                {FormatCtxId, DictId}),
+            0);
+
+  EXPECT_EQ(Run(AVUtilMod.get(), "wasmedge_ffmpeg_avutil_av_dict_get",
+                {DictId, KeyPtr, static_cast<uint32_t>(Key.length()),
+                 UINT32_C(0), UINT32_C(0), KeyLenPtr, ValueLenPtr}),
+            1);
+
+  EXPECT_EQ(
+      Run(AVUtilMod.get(), "wasmedge_ffmpeg_avutil_av_dict_free", {DictId}),
+      static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_close_input", {FormatCtxId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
 } // namespace WasmEdgeFFmpeg
 } // namespace Host
 } // namespace WasmEdge

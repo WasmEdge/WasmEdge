@@ -5,13 +5,42 @@
 
 extern "C" {
 #include "libavutil/frame.h"
+#include "libavutil/opt.h"
 #include "libswscale/swscale.h"
 }
+
+#include <cmath>
 
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace SWScale {
+
+namespace {
+constexpr int32_t MaxVectorLength = 65536;
+constexpr double MaxGaussianProduct = 32768.0;
+constexpr float MaxFilterParameter = 32768.0f;
+
+bool framesMatchContext(SwsContext *Ctx, const AVFrame *Src,
+                        const AVFrame *Dst) {
+  int64_t SrcW = 0, SrcH = 0, SrcFmt = 0, DstW = 0, DstH = 0, DstFmt = 0;
+  if (av_opt_get_int(Ctx, "srcw", 0, &SrcW) < 0 ||
+      av_opt_get_int(Ctx, "srch", 0, &SrcH) < 0 ||
+      av_opt_get_int(Ctx, "src_format", 0, &SrcFmt) < 0 ||
+      av_opt_get_int(Ctx, "dstw", 0, &DstW) < 0 ||
+      av_opt_get_int(Ctx, "dsth", 0, &DstH) < 0 ||
+      av_opt_get_int(Ctx, "dst_format", 0, &DstFmt) < 0) {
+    return false;
+  }
+  return Src->buf[0] != nullptr && Dst->buf[0] != nullptr &&
+         Src->width == SrcW && Src->height == SrcH && Src->format == SrcFmt &&
+         Dst->width == DstW && Dst->height == DstH && Dst->format == DstFmt;
+}
+
+bool withinFilterRange(float Value) {
+  return std::isfinite(Value) && std::fabs(Value) <= MaxFilterParameter;
+}
+} // namespace
 
 Expect<int32_t>
 SwsGetContext::body(const Runtime::CallingFrame &Frame, uint32_t SwsCtxPtr,
@@ -66,6 +95,9 @@ Expect<int32_t> SwsScale::body(const Runtime::CallingFrame &, uint32_t SwsCtxId,
   FFMPEG_PTR_CHECK(SwsCtx, static_cast<int32_t>(ErrNo::InternalError));
   FFMPEG_PTR_CHECK(InputFrame, static_cast<int32_t>(ErrNo::InternalError));
   FFMPEG_PTR_CHECK(OutputFrame, static_cast<int32_t>(ErrNo::InternalError));
+  if (!framesMatchContext(SwsCtx, InputFrame, OutputFrame)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return sws_scale(SwsCtx, InputFrame->data, InputFrame->linesize, SrcSliceY,
                    SrcSliceH, OutputFrame->data, OutputFrame->linesize);
 }
@@ -141,6 +173,12 @@ Expect<int32_t> SwsGetDefaultFilter::body(
     float ChromaHShift, float ChromaVShift, int32_t Verbose) {
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(SwsFilterId, MemInst, uint32_t, SwsFilterPtr, "")
+  for (float const Value : {LumaGBlur, ChromaGBlur, LumaSharpen, ChromaSharpen,
+                            ChromaHShift, ChromaVShift}) {
+    if (!withinFilterRange(Value)) {
+      return static_cast<int32_t>(ErrNo::InternalError);
+    }
+  }
 
   SwsFilter *Filter =
       sws_getDefaultFilter(LumaGBlur, ChromaGBlur, LumaSharpen, ChromaSharpen,
@@ -220,6 +258,9 @@ Expect<int32_t> SwsAllocVec::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(SwsVectorId, MemInst, uint32_t, SwsVectorPtr, "")
 
+  if (Length > MaxVectorLength) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   SwsVector *Vector = sws_allocVec(Length);
   FFMPEG_PTR_STORE(Vector, SwsVectorId);
   return static_cast<int32_t>(ErrNo::Success);
@@ -231,6 +272,10 @@ Expect<int32_t> SwsGetGaussianVec::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(SwsVectorId, MemInst, uint32_t, SwsVectorPtr, "")
 
+  if (!std::isfinite(Variance) || !std::isfinite(Quality) || Variance < 0.0 ||
+      Quality < 0.0 || Variance * Quality > MaxGaussianProduct) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   SwsVector *Vector = sws_getGaussianVec(Variance, Quality);
   FFMPEG_PTR_STORE(Vector, SwsVectorId);
   return static_cast<int32_t>(ErrNo::Success);

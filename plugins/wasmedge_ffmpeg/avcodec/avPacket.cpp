@@ -46,7 +46,7 @@ Expect<int32_t> AVPacketUnref::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket); // Free packet.
   FFMPEG_PTR_CHECK_FREE(AvPacket, AvPacketId,
                         static_cast<int32_t>(ErrNo::InternalError));
-  av_packet_unref(AvPacket);
+  av_packet_free(&AvPacket);
   FFMPEG_PTR_DELETE(AvPacketId);
   return static_cast<int32_t>(ErrNo::Success);
 }

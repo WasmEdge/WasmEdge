@@ -134,9 +134,9 @@ Expect<int32_t> AVCodecClose::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   FFMPEG_PTR_CHECK_FREE(AvCodecCtx, AvCodecCtxId,
                         static_cast<int32_t>(ErrNo::InternalError));
-  int Res = avcodec_close(AvCodecCtx);
+  avcodec_free_context(&AvCodecCtx);
   FFMPEG_PTR_DELETE(AvCodecCtxId);
-  return Res;
+  return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<int32_t> AVCodecParametersToContext::body(const Runtime::CallingFrame &,

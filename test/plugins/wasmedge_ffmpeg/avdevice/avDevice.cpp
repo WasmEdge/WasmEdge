@@ -45,6 +45,43 @@ TEST_F(FFmpegTest, AVDeviceFreeListDevicesNullSafeAndIdempotent) {
       static_cast<int32_t>(ErrNo::Success));
 }
 
+TEST_F(FFmpegTest, AVDeviceListDevicesFailureStoresNothing) {
+  ASSERT_TRUE(AVDeviceMod != nullptr);
+  ASSERT_TRUE(AVFormatMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  uint32_t FormatCtxPtr = UINT32_C(4);
+  uint32_t ListPtr = UINT32_C(8);
+  uint32_t FilePtr = UINT32_C(100);
+  initFormatCtx(FormatCtxPtr, FilePtr,
+                std::string("ffmpeg-assets/sample_video.mp4"));
+  uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
+  ASSERT_TRUE(FormatCtxId > 0);
+
+  writeUInt32(MemInst, UINT32_C(0xABCD), ListPtr);
+  EXPECT_LT(Run(AVDeviceMod.get(),
+                "wasmedge_ffmpeg_avdevice_avdevice_list_devices",
+                {FormatCtxId, ListPtr}),
+            0);
+  EXPECT_EQ(readUInt32(MemInst, ListPtr), UINT32_C(0xABCD));
+  EXPECT_EQ(Run(AVDeviceMod.get(),
+                "wasmedge_ffmpeg_avdevice_avdevice_nb_devices",
+                {UINT32_C(0xABCD)}),
+            0);
+
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_close_input", {FormatCtxId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
 } // namespace WasmEdgeFFmpeg
 } // namespace Host
 } // namespace WasmEdge

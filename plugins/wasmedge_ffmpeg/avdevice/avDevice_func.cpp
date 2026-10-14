@@ -36,7 +36,12 @@ Expect<int32_t> AVDeviceListDevices::body(const Runtime::CallingFrame &Frame,
     return static_cast<int32_t>(ErrNo::InternalError);
   }
 
-  int Res = avdevice_list_devices(AvFormatCtx, AvDeviceInfoList);
+  int const Res = avdevice_list_devices(AvFormatCtx, AvDeviceInfoList);
+  if (Res < 0 || *AvDeviceInfoList == nullptr) {
+    avdevice_free_list_devices(AvDeviceInfoList);
+    av_free(AvDeviceInfoList);
+    return Res < 0 ? Res : static_cast<int32_t>(ErrNo::InternalError);
+  }
   FFMPEG_PTR_STORE(AvDeviceInfoList, AVDeviceInfoListId);
   return Res;
 }
@@ -71,6 +76,7 @@ Expect<int32_t> AVDeviceFreeListDevices::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_CHECK_FREE(AvDeviceInfoList, AVDeviceInfoListId,
                         static_cast<int32_t>(ErrNo::InternalError));
   avdevice_free_list_devices(AvDeviceInfoList);
+  av_free(AvDeviceInfoList);
   FFMPEG_PTR_DELETE(AVDeviceInfoListId);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -79,6 +85,9 @@ Expect<int32_t> AVDeviceNbDevices::body(const Runtime::CallingFrame &,
                                         uint32_t AVDeviceInfoListId) {
   FFMPEG_PTR_FETCH(AvDeviceInfoList, AVDeviceInfoListId, AVDeviceInfoList *);
   FFMPEG_PTR_CHECK(AvDeviceInfoList, 0);
+  if (*AvDeviceInfoList == nullptr) {
+    return 0;
+  }
   return (*AvDeviceInfoList)->nb_devices;
 }
 
@@ -86,6 +95,9 @@ Expect<int32_t> AVDeviceDefaultDevice::body(const Runtime::CallingFrame &,
                                             uint32_t AVDeviceInfoListId) {
   FFMPEG_PTR_FETCH(AvDeviceInfoList, AVDeviceInfoListId, AVDeviceInfoList *);
   FFMPEG_PTR_CHECK(AvDeviceInfoList, 0);
+  if (*AvDeviceInfoList == nullptr) {
+    return 0;
+  }
   return (*AvDeviceInfoList)->default_device;
 }
 

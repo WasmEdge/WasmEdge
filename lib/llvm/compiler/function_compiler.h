@@ -18,8 +18,9 @@ class FunctionCompiler {
 public:
   FunctionCompiler(LLVM::Compiler::CompileContext &Context,
                    LLVM::FunctionCallee F, Span<const ValType> Locals,
-                   bool Interruptible, bool InstructionCounting,
-                   bool GasMeasuring, bool IsLazyJIT, bool StackCheck) noexcept;
+                   Span<const ValType> ReturnTypes, bool Interruptible,
+                   bool InstructionCounting, bool GasMeasuring, bool IsLazyJIT,
+                   bool StackCheck) noexcept;
 
   LLVM::BasicBlock getTrapBB(ErrCode::Value Error) noexcept;
 
@@ -250,6 +251,8 @@ private:
 
   LLVM::Compiler::CompileContext &Context;
   LLVM::Context LLContext;
+  LLVM::Type ReturnTy;
+  LLVM::Value ReturnBuffer = nullptr;
   std::vector<std::pair<LLVM::Type, LLVM::Value>> Local;
   std::vector<LLVM::Value> Stack;
   LLVM::Value LocalInstrCount = nullptr;

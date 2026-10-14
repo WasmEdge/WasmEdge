@@ -62,6 +62,9 @@ Expect<int32_t> AVShrinkPacket::body(const Runtime::CallingFrame &,
                                      uint32_t AvPacketId, int32_t Size) {
   FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
   FFMPEG_PTR_CHECK(AvPacket, static_cast<int32_t>(ErrNo::InternalError));
+  if (Size < 0) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   av_shrink_packet(AvPacket, Size);
   return static_cast<int32_t>(ErrNo::Success);
 }

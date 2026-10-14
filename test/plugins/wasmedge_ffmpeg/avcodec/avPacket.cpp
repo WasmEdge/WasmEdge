@@ -459,6 +459,44 @@ TEST_F(FFmpegTest, AVPacketUnrefNullSafeAndIdempotent) {
       static_cast<int32_t>(ErrNo::Success));
 }
 
+TEST_F(FFmpegTest, AVShrinkPacketRejectsNegativeSize) {
+  ASSERT_TRUE(AVCodecMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  uint32_t PacketPtr = UINT32_C(4);
+  allocPacket(PacketPtr);
+  uint32_t PacketId = readUInt32(MemInst, PacketPtr);
+  ASSERT_TRUE(PacketId > 0);
+  EXPECT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_av_new_packet",
+                {PacketId, INT32_C(100)}),
+            0);
+
+  EXPECT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_av_shrink_packet",
+                {PacketId, INT32_C(-1)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_av_packet_size",
+                {PacketId}),
+            100);
+  EXPECT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_av_shrink_packet",
+                {PacketId, INT32_C(50)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_av_packet_size",
+                {PacketId}),
+            50);
+
+  EXPECT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_av_packet_unref",
+                {PacketId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
 } // namespace WasmEdgeFFmpeg
 } // namespace Host
 } // namespace WasmEdge

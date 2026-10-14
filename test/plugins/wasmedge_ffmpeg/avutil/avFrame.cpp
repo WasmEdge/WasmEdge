@@ -136,21 +136,6 @@ TEST_F(FFmpegTest, AVFrame) {
     EXPECT_EQ(Stride, 1920);
   }
 
-  FuncInst =
-      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_get_buffer");
-  ASSERT_NE(FuncInst, nullptr);
-  ASSERT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVFrameGetBuffer = FuncInst->getHostFunc();
-  {
-    // For video, it is 32.
-    int32_t Align = 32;
-    HostFuncAVFrameGetBuffer.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, Align}, Result);
-
-    EXPECT_EQ(Result[0].get<int32_t>(), 0);
-  }
-
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_best_effort_timestamp");
   ASSERT_NE(FuncInst, nullptr);
@@ -388,6 +373,11 @@ TEST_F(FFmpegTest, AVFrame) {
     EXPECT_EQ(Result[0].get<int64_t>(), static_cast<int32_t>(ErrNo::Success));
   }
 
+  uint32_t ScratchFramePtr = UINT32_C(92);
+  initEmptyFrame(ScratchFramePtr);
+  uint32_t ScratchFrameId = readUInt32(MemInst, ScratchFramePtr);
+  ASSERT_TRUE(ScratchFrameId > 0);
+
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_set_width");
   ASSERT_NE(FuncInst, nullptr);
@@ -398,11 +388,12 @@ TEST_F(FFmpegTest, AVFrame) {
     int32_t Width = 100;
     HostFuncAVFrameSetWidth.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, Width}, Result);
+        std::initializer_list<WasmEdge::ValVariant>{ScratchFrameId, Width},
+        Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
     HostFuncAVFrameWidth.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchFrameId},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), Width);
   }
@@ -417,11 +408,12 @@ TEST_F(FFmpegTest, AVFrame) {
   {
     HostFuncAVFrameSetHeight.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, Height}, Result);
+        std::initializer_list<WasmEdge::ValVariant>{ScratchFrameId, Height},
+        Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
     HostFuncAVFrameHeight.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchFrameId},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), Height);
   }
@@ -451,12 +443,13 @@ TEST_F(FFmpegTest, AVFrame) {
     uint32_t PixFormatId = 10; // GRAY8
     HostFuncAVFrameSetVideoFormat.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, PixFormatId},
+        std::initializer_list<WasmEdge::ValVariant>{ScratchFrameId,
+                                                    PixFormatId},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
 
     HostFuncAVFrameVideoFormat.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchFrameId},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), PixFormatId);
 
@@ -614,7 +607,7 @@ TEST_F(FFmpegTest, AVFrame) {
   //                            AVFrame Audio Funcs.
   //  ==========================================================================
 
-  // Setting the fields to Video Frame itself.
+  // Setting the audio fields on the unallocated scratch frame.
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_frame_set_audio_format");
@@ -626,7 +619,8 @@ TEST_F(FFmpegTest, AVFrame) {
   {
     HostFuncAVFrameSetAudioFormat.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, SampleFormatId},
+        std::initializer_list<WasmEdge::ValVariant>{ScratchFrameId,
+                                                    SampleFormatId},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
@@ -639,7 +633,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   {
     HostFuncAVFrameAudioFormat.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchFrameId},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), SampleFormatId);
   }
@@ -654,7 +648,7 @@ TEST_F(FFmpegTest, AVFrame) {
   {
     HostFuncAVFrameSetNbSamples.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, NbSamples},
+        std::initializer_list<WasmEdge::ValVariant>{ScratchFrameId, NbSamples},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
@@ -667,7 +661,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   {
     HostFuncAVFrameNbSamples.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchFrameId},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), NbSamples);
   }
@@ -710,7 +704,7 @@ TEST_F(FFmpegTest, AVFrame) {
   {
     HostFuncAVFrameSetChannels.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, Channels},
+        std::initializer_list<WasmEdge::ValVariant>{ScratchFrameId, Channels},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
@@ -723,7 +717,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   {
     HostFuncAVFrameChannels.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchFrameId},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), Channels);
   }
@@ -738,7 +732,8 @@ TEST_F(FFmpegTest, AVFrame) {
   {
     HostFuncAVFrameSetChannelLayout.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AVFrameId, ChannelLayout},
+        std::initializer_list<WasmEdge::ValVariant>{ScratchFrameId,
+                                                    ChannelLayout},
         Result);
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
@@ -751,7 +746,7 @@ TEST_F(FFmpegTest, AVFrame) {
 
   {
     HostFuncAVFrameChannelLayout.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchFrameId},
         Result);
     EXPECT_EQ(Result[0].get<uint64_t>(), ChannelLayout);
   }
@@ -759,6 +754,49 @@ TEST_F(FFmpegTest, AVFrame) {
   //  ==========================================================================
   //                            AVFrame Audio Funcs.
   //  ==========================================================================
+
+  FuncInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_get_buffer");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncAVFrameGetBuffer = FuncInst->getHostFunc();
+
+  uint32_t BufferFramePtr = UINT32_C(96);
+  initEmptyFrame(BufferFramePtr);
+  uint32_t BufferFrameId = readUInt32(MemInst, BufferFramePtr);
+  ASSERT_TRUE(BufferFrameId > 0);
+  {
+    HostFuncAVFrameSetWidth.run(CallFrame,
+                                std::initializer_list<WasmEdge::ValVariant>{
+                                    BufferFrameId, INT32_C(100)},
+                                Result);
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    HostFuncAVFrameSetHeight.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{BufferFrameId, Height},
+        Result);
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+    HostFuncAVFrameSetVideoFormat.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{BufferFrameId,
+                                                    UINT32_C(10)},
+        Result);
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+    // For video, it is 32.
+    int32_t Align = 32;
+    HostFuncAVFrameGetBuffer.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{BufferFrameId, Align},
+        Result);
+    EXPECT_EQ(Result[0].get<int32_t>(), 0);
+  }
+
+  for (uint32_t Id : {ScratchFrameId, BufferFrameId}) {
+    HostFuncAVFrameFree.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{Id}, Result);
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
 }
 
 TEST_F(FFmpegTest, AVFrameDataIndexBounds) {
@@ -1024,6 +1062,142 @@ TEST_F(FFmpegTest, AVFrameMetadataLiveView) {
                             UINT32_C(0), KeyLenPtr, ValueLenPtr},
                         Result);
   EXPECT_EQ(Result[0].get<int32_t>(), 1);
+}
+
+TEST_F(FFmpegTest, AVFrameGeometrySettersRejectAllocatedFrame) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto Run = [&](const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = AVUtilMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  uint32_t FramePtr = UINT32_C(4);
+  initEmptyFrame(FramePtr);
+  uint32_t FrameId = readUInt32(MemInst, FramePtr);
+  ASSERT_TRUE(FrameId > 0);
+
+  EXPECT_EQ(
+      Run("wasmedge_ffmpeg_avutil_av_frame_set_width", {FrameId, UINT32_C(16)}),
+      static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_set_height",
+                {FrameId, UINT32_C(16)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_set_video_format",
+                {FrameId, UINT32_C(1)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(
+      Run("wasmedge_ffmpeg_avutil_av_frame_get_buffer", {FrameId, INT32_C(0)}),
+      0);
+
+  EXPECT_EQ(
+      Run("wasmedge_ffmpeg_avutil_av_frame_set_width", {FrameId, UINT32_C(32)}),
+      static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_set_height",
+                {FrameId, UINT32_C(32)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_set_video_format",
+                {FrameId, UINT32_C(10)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_set_audio_format",
+                {FrameId, UINT32_C(2)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_set_nb_samples",
+                {FrameId, INT32_C(64)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_set_channel_layout",
+                {FrameId, UINT64_C(3)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_set_channels",
+                {FrameId, INT32_C(2)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_width", {FrameId}), 16);
+
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_free", {FrameId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegTest, AVFrameGetBufferRejectsReallocationAndBadAlign) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto Run = [&](const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = AVUtilMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  uint32_t FramePtr = UINT32_C(4);
+  initEmptyFrame(FramePtr);
+  uint32_t FrameId = readUInt32(MemInst, FramePtr);
+  ASSERT_TRUE(FrameId > 0);
+  EXPECT_EQ(
+      Run("wasmedge_ffmpeg_avutil_av_frame_set_width", {FrameId, UINT32_C(16)}),
+      static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_set_height",
+                {FrameId, UINT32_C(16)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_set_video_format",
+                {FrameId, UINT32_C(1)}),
+            static_cast<int32_t>(ErrNo::Success));
+
+  EXPECT_EQ(
+      Run("wasmedge_ffmpeg_avutil_av_frame_get_buffer", {FrameId, INT32_C(-1)}),
+      static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_get_buffer",
+                {FrameId, INT32_C(0x40000000)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(
+      Run("wasmedge_ffmpeg_avutil_av_frame_get_buffer", {FrameId, INT32_C(0)}),
+      0);
+  EXPECT_EQ(
+      Run("wasmedge_ffmpeg_avutil_av_frame_get_buffer", {FrameId, INT32_C(0)}),
+      static_cast<int32_t>(ErrNo::InternalError));
+
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_free", {FrameId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegTest, AVFrameCopyRejectsSelf) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto Run = [&](const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = AVUtilMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  uint32_t FramePtr = UINT32_C(4);
+  initEmptyFrame(FramePtr);
+  uint32_t FrameId = readUInt32(MemInst, FramePtr);
+  ASSERT_TRUE(FrameId > 0);
+  EXPECT_EQ(
+      Run("wasmedge_ffmpeg_avutil_av_frame_set_width", {FrameId, UINT32_C(16)}),
+      static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_set_height",
+                {FrameId, UINT32_C(16)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_set_video_format",
+                {FrameId, UINT32_C(1)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(
+      Run("wasmedge_ffmpeg_avutil_av_frame_get_buffer", {FrameId, INT32_C(0)}),
+      0);
+
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_copy", {FrameId, FrameId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(
+      Run("wasmedge_ffmpeg_avutil_av_frame_copy_props", {FrameId, FrameId}),
+      static_cast<int32_t>(ErrNo::InternalError));
+
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avutil_av_frame_free", {FrameId}),
+            static_cast<int32_t>(ErrNo::Success));
 }
 
 } // namespace WasmEdgeFFmpeg

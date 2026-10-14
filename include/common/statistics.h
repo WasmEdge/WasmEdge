@@ -173,6 +173,12 @@ public:
     }
     if (StatConf.isCostMeasuring()) {
       spdlog::info(" Gas costs: {}"sv, getTotalCost());
+      if (getCostLimit() != UINT64_MAX && getCostLimit() > 0) {
+        spdlog::info(" Gas limit: {}"sv, getCostLimit());
+        spdlog::info(" Gas usage: {:.2f}%"sv,
+                     (static_cast<double>(getTotalCost()) / getCostLimit()) *
+                         100.0);
+      }
     }
     if (StatConf.isInstructionCounting() && StatConf.isTimeMeasuring()) {
       const double IPS = getInstrPerSecond();

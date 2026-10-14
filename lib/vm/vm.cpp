@@ -125,6 +125,9 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
 
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,
                                       const AST::Module &Module) {
+  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT) {
+    return unsafeRegisterModule(Name, std::make_shared<AST::Module>(Module));
+  }
 #ifdef WASMEDGE_USE_LLVM
   if (LazyEngine) {
     // The lazy JIT engine needs to own the AST module and hook the compiled
@@ -148,6 +151,11 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
   unsafeRevertStageToValidated();
   // Validate module.
   EXPECTED_TRY(ValidatorEngine.validate(*Module));
+
+  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT &&
+      !Module->getSymbol()) {
+    EXPECTED_TRY(unsafeLoadJITExecutable(*Module));
+  }
 
 #ifdef WASMEDGE_USE_LLVM
   if (LazyEngine && !Module->getSymbol()) {
@@ -403,6 +411,12 @@ Expect<void> VM::unsafeLoadJITExecutable() {
     EXPECTED_TRY(LoaderEngine.loadExecutable(*Mod, std::move(Exec)));
     return {};
   }
+#endif
+  return unsafeLoadJITExecutable(*Mod);
+}
+
+Expect<void> VM::unsafeLoadJITExecutable([[maybe_unused]] AST::Module &Module) {
+#ifdef WASMEDGE_USE_LLVM
   LLVM::Compiler Compiler(Conf);
   Compiler.checkConfigure()
       .map_error([](uint32_t Err) {
@@ -413,7 +427,7 @@ Expect<void> VM::unsafeLoadJITExecutable() {
         }
         return ErrCode::Value::Success;
       })
-      .and_then([&]() { return Compiler.compile(*Mod); })
+      .and_then([&]() { return Compiler.compile(Module); })
       .map_error([](uint32_t Err) {
         if (Err != ErrCode::Value::Success) {
           spdlog::error("Compilation failed. Error code: {}, use "
@@ -434,8 +448,8 @@ Expect<void> VM::unsafeLoadJITExecutable() {
         }
         return ErrCode::Value::Success;
       })
-      .and_then([&](auto Module) {
-        return LoaderEngine.loadExecutable(*Mod, std::move(Module));
+      .and_then([&](auto Exec) {
+        return LoaderEngine.loadExecutable(Module, std::move(Exec));
       })
       .map_error([](uint32_t Err) {
         if (Err != ErrCode::Value::Success) {

@@ -375,6 +375,10 @@ private:
   /// back to the interpreter; without LLVM support this only logs a warning.
   Expect<void> unsafeLoadJITExecutable();
 
+  /// Compile and attach a JIT executable to the given module; failures fall
+  /// back to the interpreter.
+  Expect<void> unsafeLoadJITExecutable(AST::Module &Module);
+
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   unsafeExecute(std::string_view Func, Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});

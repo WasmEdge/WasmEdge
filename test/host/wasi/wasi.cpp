@@ -2,6 +2,9 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
+#if WASMEDGE_OS_MACOS
+#include "../../../lib/host/wasi/macos.h"
+#endif
 #include "common/filesystem.h"
 #include "common/types.h"
 #include "host/wasi/wasibase.h"
@@ -20,6 +23,7 @@
 #include <fstream>
 #include <gtest/gtest.h>
 #include <iterator>
+#include <limits>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -305,6 +309,30 @@ void writeUntilFull(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 }
 
 } // namespace
+
+#if WASMEDGE_OS_MACOS
+TEST(WasiTest, TimestampConversionsPreserveUnsignedRange) {
+  const std::array<uint64_t, 9> Timestamps = {
+      0,
+      999,
+      1000,
+      999999999,
+      1000000000,
+      uint64_t{1} << 63,
+      (uint64_t{1} << 63) - 1,
+      13136941795642118959ULL,
+      std::numeric_limits<uint64_t>::max()};
+  for (const auto Timestamp : Timestamps) {
+    SCOPED_TRACE(Timestamp);
+    const auto Timespec = WasmEdge::Host::WASI::detail::toTimespec(Timestamp);
+    EXPECT_EQ(Timespec.tv_sec, Timestamp / 1000000000);
+    EXPECT_EQ(Timespec.tv_nsec, Timestamp % 1000000000);
+    const auto Timeval = WasmEdge::Host::WASI::detail::toTimeval(Timestamp);
+    EXPECT_EQ(Timeval.tv_sec, Timestamp / 1000000000);
+    EXPECT_EQ(Timeval.tv_usec, (Timestamp % 1000000000) / 1000);
+  }
+}
+#endif
 
 TEST(WasiTest, Args) {
   WasmEdge::Host::WASI::Environ Env;

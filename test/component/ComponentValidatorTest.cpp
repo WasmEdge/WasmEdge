@@ -3,9 +3,9 @@
 
 #include "ast/component/component.h"
 #include "ast/component/type.h"
+#include "loader/loader.h"
 #include "validator/component_value_decode.h"
 #include "validator/validator.h"
-#include "vm/vm.h"
 
 #include <gtest/gtest.h>
 
@@ -2295,16 +2295,64 @@ static const std::vector<uint8_t> validator_no_realloc_wasm = {
 // canon lift whose result spills into the return area but omits 'memory'.
 // The validator must reject this end-to-end.
 TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoMemoryRejected) {
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(validator_no_memory_wasm));
-  EXPECT_FALSE(VM.validate());
+  Loader::Loader Loader(Conf);
+  auto Unit = Loader.parseWasmUnit(validator_no_memory_wasm);
+  ASSERT_TRUE(Unit);
+  auto &Comp = std::get<std::unique_ptr<AST::Component::Component>>(*Unit);
+  Validator::Validator V(Conf);
+  EXPECT_FALSE(V.validate(*Comp));
 }
 
 // canon lift whose string param forces a realloc but omits 'realloc'.
 TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoReallocRejected) {
-  VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(validator_no_realloc_wasm));
-  EXPECT_FALSE(VM.validate());
+  Loader::Loader Loader(Conf);
+  auto Unit = Loader.parseWasmUnit(validator_no_realloc_wasm);
+  ASSERT_TRUE(Unit);
+  auto &Comp = std::get<std::unique_ptr<AST::Component::Component>>(*Unit);
+  Validator::Validator V(Conf);
+  EXPECT_FALSE(V.validate(*Comp));
+}
+
+// A value definition whose type transitively contains a handle is rejected
+// even when its payload carries none.
+TEST(ComponentValidatorTest, EndToEnd_ValueHandleTypeRejected) {
+  // (component
+  //   (type $s (stream u8))
+  //   (type $t (option $s))
+  //   (value $v $t none)
+  //   (export "v" (value $v)))
+  const std::vector<uint8_t> StreamInOption = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x06, 0x02,
+      0x66, 0x01, 0x7d, 0x6b, 0x00, 0x0c, 0x04, 0x01, 0x01, 0x01, 0x00,
+      0x0b, 0x07, 0x01, 0x00, 0x01, 0x76, 0x02, 0x00, 0x00};
+  // (component
+  //   (type $t (option error-context))
+  //   (value $v $t none)
+  //   (export "v" (value $v)))
+  const std::vector<uint8_t> ErrorContextInOption = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x03,
+      0x01, 0x6b, 0x64, 0x0c, 0x04, 0x01, 0x00, 0x01, 0x00, 0x0b,
+      0x07, 0x01, 0x00, 0x01, 0x76, 0x02, 0x00, 0x00};
+  // (component
+  //   (value $v error-context <empty payload>)
+  //   (export "v" (value $v)))
+  const std::vector<uint8_t> ErrorContext = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x0c, 0x03, 0x01,
+      0x64, 0x00, 0x0b, 0x07, 0x01, 0x00, 0x01, 0x76, 0x02, 0x00, 0x00};
+  for (const auto &[Name, Wasm] :
+       {std::make_pair("stream in option", &StreamInOption),
+        std::make_pair("error-context in option", &ErrorContextInOption),
+        std::make_pair("error-context", &ErrorContext)}) {
+    SCOPED_TRACE(Name);
+    Loader::Loader Loader(Conf);
+    auto Unit = Loader.parseWasmUnit(*Wasm);
+    ASSERT_TRUE(Unit);
+    auto &Comp = std::get<std::unique_ptr<AST::Component::Component>>(*Unit);
+    Validator::Validator V(Conf);
+    auto Res = V.validate(*Comp);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueHandleType);
+  }
 }
 
 // =============================================================================

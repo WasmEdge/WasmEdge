@@ -1033,6 +1033,9 @@ TEST(RunSubcommand, RunSpecificFlags) {
   EXPECT_EQ(
       callRun({"--reactor", "--gas-limit", "100000", Path, "add", "1", "2"}),
       EXIT_SUCCESS);
+  EXPECT_EQ(
+      callRun({"--reactor", "--gas-limit", "-1", Path, "add", "1", "2"}),
+      EXIT_FAILURE);
   EXPECT_EQ(callRun({"--reactor", "--dir", ".:.", Path, "add", "1", "2"}),
             EXIT_SUCCESS);
   EXPECT_EQ(callRun({"--reactor", "--env", "HOME=/tmp", Path, "add", "1", "2"}),

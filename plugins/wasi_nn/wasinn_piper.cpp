@@ -452,6 +452,7 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
     spdlog::error("[WASI-NN] Piper backend: Input is not set."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
+  CxtRef.Output.reset();
 
   piper_synthesize_options Options =
       piper_default_synthesize_options(GraphRef.Synth.get());

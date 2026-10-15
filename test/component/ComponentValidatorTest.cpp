@@ -9,6 +9,8 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+
 namespace {
 
 using namespace WasmEdge;
@@ -90,9 +92,7 @@ TEST(ComponentValidatorTest, TypeMismatch) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-// =============================================================================
 // DefValType validation tests
-// =============================================================================
 
 TEST(ComponentValidatorTest, OwnMustReferenceResourceType) {
   // type 0 = FuncType, type 1 = own(0) -> FAIL (own must refer to resource)
@@ -511,9 +511,7 @@ TEST(ComponentValidatorTest, EqTypeBoundPropagatesResource) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
-// =============================================================================
-// Declaration validation tests (DECL-1 through DECL-4)
-// =============================================================================
+// Declaration validation tests
 
 TEST(ComponentValidatorTest, InstanceTypeExportSubResourceValid) {
   // (type (instance
@@ -875,10 +873,8 @@ TEST(ComponentValidatorTest, ComponentTypeImportAnnotatedNameRequiresFunc) {
 }
 
 TEST(ComponentValidatorTest, ComponentTypeExportedInstanceAliasResolves) {
-  // Regression for wit-smith–generated fuzz case: an `alias export` inside a
-  // ComponentType body must see the sub-exports declared by an earlier
-  // ExportDecl of an inline instance type.
-  //
+  // An alias export in a component type body sees the sub-exports of an
+  // earlier exported instance.
   // (type (component
   //   (type (;0;) (instance (export "xx" (type (sub resource)))))
   //   (export "x" (instance (type 0)))
@@ -944,9 +940,7 @@ TEST(ComponentValidatorTest, ComponentTypeExportedInstanceAliasResolves) {
 }
 
 TEST(ComponentValidatorTest, InstanceTypeExportedInstanceAliasResolves) {
-  // Same as ComponentTypeExportedInstanceAliasResolves but inside an
-  // InstanceType body — the ExportDecl-populate fix must apply on both
-  // componenttype and instancetype scopes.
+  // ComponentTypeExportedInstanceAliasResolves inside an instance type body.
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::TypeSection>();
@@ -1001,9 +995,7 @@ TEST(ComponentValidatorTest, InstanceTypeExportedInstanceAliasResolves) {
 }
 
 TEST(ComponentValidatorTest, ComponentTypeExportedInstanceAliasMissingExport) {
-  // Negative: aliasing an export that the exported instance does not expose
-  // must still fail after the populate fix.
-  //
+  // Aliasing an export that the exported instance does not expose fails.
   // (type (component
   //   (type (;0;) (instance (export "xx" (type (sub resource)))))
   //   (export "x" (instance (type 0)))
@@ -1139,9 +1131,7 @@ TEST(ComponentValidatorTest, CoreModuleTypeValidImportExport) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
-// =============================================================================
 // Duplicate-name validation tests for instances/instantiate
-// =============================================================================
 
 TEST(ComponentValidatorTest, CoreInstanceInstantiateDuplicateArgName) {
   // (core module $M)    ;; empty core module
@@ -1256,9 +1246,7 @@ TEST(ComponentValidatorTest, InstanceInlineExportDuplicateName) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-// =============================================================================
-// Canonical built-in validation tests (GAP-C-1 .. GAP-C-5)
-// =============================================================================
+// Canonical built-in validation tests
 
 // Helper: build a Component with a single ResourceType in type index 0.
 inline AST::Component::Component makeCompWithLocalResource() {
@@ -1320,10 +1308,8 @@ inline AST::Component::Component makeCompWithCoreFuncAndFuncType() {
   // Type 0: ResourceType (local).
   TypeSec.getContent().emplace_back();
   TypeSec.getContent().back().setResourceType(AST::Component::ResourceType{});
-  // Type 1: FuncType (param "p" u32) (result u32). Its lift flattening
-  // (flatten_functype($opts, $ft, 'lift'), CanonicalABI.md) is
-  // [i32] -> [i32], matching the resource.new core func used as the lift
-  // $callee below.
+  // Type 1: (func (param "p" u32) (result u32)), which lift-flattens to
+  // [i32] -> [i32] like the resource.new core func below.
   AST::Component::FuncType FT;
   std::vector<AST::Component::LabelValType> Params;
   Params.emplace_back("p", ComponentValType(ComponentTypeCode::U32));
@@ -1343,7 +1329,7 @@ inline AST::Component::Component makeCompWithCoreFuncAndFuncType() {
   return Comp;
 }
 
-TEST(ComponentValidatorTest, CanonResourceNew_OnLocalResource_Passes) {
+TEST(ComponentValidatorTest, CanonResourceNewOnLocalResourcePasses) {
   auto Comp = makeCompWithLocalResource();
   auto &CanonSec = appendCanonSection(Comp);
   AST::Component::Canonical C;
@@ -1355,7 +1341,7 @@ TEST(ComponentValidatorTest, CanonResourceNew_OnLocalResource_Passes) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonResourceNew_TypeIndexOutOfBounds_Fails) {
+TEST(ComponentValidatorTest, CanonResourceNewTypeIndexOutOfBoundsFails) {
   AST::Component::Component Comp;
   auto &CanonSec = appendCanonSection(Comp);
   AST::Component::Canonical C;
@@ -1367,7 +1353,7 @@ TEST(ComponentValidatorTest, CanonResourceNew_TypeIndexOutOfBounds_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonResourceNew_TypeIsNotResource_Fails) {
+TEST(ComponentValidatorTest, CanonResourceNewTypeIsNotResourceFails) {
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::TypeSection>();
@@ -1387,7 +1373,7 @@ TEST(ComponentValidatorTest, CanonResourceNew_TypeIsNotResource_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonResourceNew_OnImportedResource_Fails) {
+TEST(ComponentValidatorTest, CanonResourceNewOnImportedResourceFails) {
   // resource.new requires a LOCAL resource; imported resources are rejected.
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
@@ -1406,7 +1392,7 @@ TEST(ComponentValidatorTest, CanonResourceNew_OnImportedResource_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonResourceRep_OnLocalResource_Passes) {
+TEST(ComponentValidatorTest, CanonResourceRepOnLocalResourcePasses) {
   auto Comp = makeCompWithLocalResource();
   auto &CanonSec = appendCanonSection(Comp);
   AST::Component::Canonical C;
@@ -1417,7 +1403,7 @@ TEST(ComponentValidatorTest, CanonResourceRep_OnLocalResource_Passes) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonResourceRep_TypeIndexOutOfBounds_Fails) {
+TEST(ComponentValidatorTest, CanonResourceRepTypeIndexOutOfBoundsFails) {
   AST::Component::Component Comp;
   auto &CanonSec = appendCanonSection(Comp);
   AST::Component::Canonical C;
@@ -1428,7 +1414,7 @@ TEST(ComponentValidatorTest, CanonResourceRep_TypeIndexOutOfBounds_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonResourceRep_TypeIsNotResource_Fails) {
+TEST(ComponentValidatorTest, CanonResourceRepTypeIsNotResourceFails) {
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::TypeSection>();
@@ -1445,7 +1431,7 @@ TEST(ComponentValidatorTest, CanonResourceRep_TypeIsNotResource_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonResourceRep_OnImportedResource_Fails) {
+TEST(ComponentValidatorTest, CanonResourceRepOnImportedResourceFails) {
   // resource.rep requires a LOCAL resource; imported resources are rejected.
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
@@ -1464,7 +1450,7 @@ TEST(ComponentValidatorTest, CanonResourceRep_OnImportedResource_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonResourceDrop_OnLocalResource_Passes) {
+TEST(ComponentValidatorTest, CanonResourceDropOnLocalResourcePasses) {
   auto Comp = makeCompWithLocalResource();
   auto &CanonSec = appendCanonSection(Comp);
   AST::Component::Canonical C;
@@ -1475,7 +1461,7 @@ TEST(ComponentValidatorTest, CanonResourceDrop_OnLocalResource_Passes) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonResourceDrop_OnImportedResource_Passes) {
+TEST(ComponentValidatorTest, CanonResourceDropOnImportedResourcePasses) {
   // Import a resource via a type import bound to (sub resource).
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
@@ -1494,7 +1480,7 @@ TEST(ComponentValidatorTest, CanonResourceDrop_OnImportedResource_Passes) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonResourceDrop_TypeIsNotResource_Fails) {
+TEST(ComponentValidatorTest, CanonResourceDropTypeIsNotResourceFails) {
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::TypeSection>();
@@ -1511,7 +1497,7 @@ TEST(ComponentValidatorTest, CanonResourceDrop_TypeIsNotResource_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonResourceDrop_TypeIndexOutOfBounds_Fails) {
+TEST(ComponentValidatorTest, CanonResourceDropTypeIndexOutOfBoundsFails) {
   AST::Component::Component Comp;
   auto &CanonSec = appendCanonSection(Comp);
   AST::Component::Canonical C;
@@ -1522,7 +1508,7 @@ TEST(ComponentValidatorTest, CanonResourceDrop_TypeIndexOutOfBounds_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonResourceNew_RejectsOptions) {
+TEST(ComponentValidatorTest, CanonResourceNewRejectsOptions) {
   auto Comp = makeCompWithLocalResource();
   auto &CanonSec = appendCanonSection(Comp);
   AST::Component::Canonical C;
@@ -1534,7 +1520,7 @@ TEST(ComponentValidatorTest, CanonResourceNew_RejectsOptions) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonResourceDrop_RejectsOptions) {
+TEST(ComponentValidatorTest, CanonResourceDropRejectsOptions) {
   auto Comp = makeCompWithLocalResource();
   auto &CanonSec = appendCanonSection(Comp);
   AST::Component::Canonical C;
@@ -1546,7 +1532,7 @@ TEST(ComponentValidatorTest, CanonResourceDrop_RejectsOptions) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonLower_ValidFuncIndex_Passes) {
+TEST(ComponentValidatorTest, CanonLowerValidFuncIndexPasses) {
   auto Comp = makeCompWithImportedFunc();
   auto &CanonSec = appendCanonSection(Comp);
   AST::Component::Canonical C;
@@ -1557,7 +1543,7 @@ TEST(ComponentValidatorTest, CanonLower_ValidFuncIndex_Passes) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonLower_FuncIndexOutOfBounds_Fails) {
+TEST(ComponentValidatorTest, CanonLowerFuncIndexOutOfBoundsFails) {
   AST::Component::Component Comp;
   auto &CanonSec = appendCanonSection(Comp);
   AST::Component::Canonical C;
@@ -1568,7 +1554,7 @@ TEST(ComponentValidatorTest, CanonLower_FuncIndexOutOfBounds_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonLower_RejectsPostReturn) {
+TEST(ComponentValidatorTest, CanonLowerRejectsPostReturn) {
   auto Comp = makeCompWithImportedFunc();
   auto &CanonSec = appendCanonSection(Comp);
   AST::Component::Canonical C;
@@ -1580,7 +1566,7 @@ TEST(ComponentValidatorTest, CanonLower_RejectsPostReturn) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonLower_RejectsCallback) {
+TEST(ComponentValidatorTest, CanonLowerRejectsCallback) {
   auto Comp = makeCompWithImportedFunc();
   auto &CanonSec = appendCanonSection(Comp);
   AST::Component::Canonical C;
@@ -1595,7 +1581,7 @@ TEST(ComponentValidatorTest, CanonLower_RejectsCallback) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonLower_ReallocWithoutMemory_Fails) {
+TEST(ComponentValidatorTest, CanonLowerReallocWithoutMemoryFails) {
   auto Comp = makeCompWithImportedFunc();
   auto &CanonSec = appendCanonSection(Comp);
   AST::Component::Canonical C;
@@ -1607,7 +1593,7 @@ TEST(ComponentValidatorTest, CanonLower_ReallocWithoutMemory_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonLift_CoreFuncIndexOutOfBounds_Fails) {
+TEST(ComponentValidatorTest, CanonLiftCoreFuncIndexOutOfBoundsFails) {
   // No core funcs; index 0 is out of bounds.
   AST::Component::Component Comp;
   auto &CanonSec = appendCanonSection(Comp);
@@ -1620,7 +1606,7 @@ TEST(ComponentValidatorTest, CanonLift_CoreFuncIndexOutOfBounds_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonLift_TypeIndexOutOfBounds_Fails) {
+TEST(ComponentValidatorTest, CanonLiftTypeIndexOutOfBoundsFails) {
   // Fixture provides core func 0 and types 0 (resource), 1 (func). Target
   // index 2 is out of bounds.
   auto Comp = makeCompWithCoreFuncAndFuncType();
@@ -1635,7 +1621,7 @@ TEST(ComponentValidatorTest, CanonLift_TypeIndexOutOfBounds_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonLift_TargetIsNotFuncType_Fails) {
+TEST(ComponentValidatorTest, CanonLiftTargetIsNotFuncTypeFails) {
   // Target type 0 is a ResourceType, not a FuncType.
   auto Comp = makeCompWithCoreFuncAndFuncType();
   auto &CanonSec =
@@ -1649,7 +1635,7 @@ TEST(ComponentValidatorTest, CanonLift_TargetIsNotFuncType_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonLift_Valid_Passes) {
+TEST(ComponentValidatorTest, CanonLiftValidPasses) {
   // Happy path: core func 0 + FuncType at type 1.
   auto Comp = makeCompWithCoreFuncAndFuncType();
   auto &CanonSec =
@@ -1663,11 +1649,9 @@ TEST(ComponentValidatorTest, CanonLift_Valid_Passes) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonLift_WithPostReturn_Passes) {
-  // post-return is a Lift-only option; exercise the happy path. Target type 1
-  // lift-flattens to [i32] -> [i32], so spec requires post-return to have
-  // type (func (param i32)), i.e. [i32] -> []. resource.drop 0 produces exactly
-  // such a core func at index 1.
+TEST(ComponentValidatorTest, CanonLiftWithPostReturnPasses) {
+  // Type 1 lift-flattens to [i32] -> [i32], so post-return must be
+  // [i32] -> [], which the resource.drop core func 1 is.
   auto Comp = makeCompWithCoreFuncAndFuncType();
   auto &CanonSec =
       std::get<AST::Component::CanonSection>(Comp.getSections().back());
@@ -1685,9 +1669,7 @@ TEST(ComponentValidatorTest, CanonLift_WithPostReturn_Passes) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
-// =============================================================================
-// ExportDecl ExternDesc bounds (GAP-DECL-ED)
-// =============================================================================
+// ExportDecl ExternDesc bounds
 
 TEST(ComponentValidatorTest,
      InstanceTypeExportDeclFuncTypeOutOfBoundsRejected) {
@@ -1717,9 +1699,7 @@ TEST(ComponentValidatorTest,
   ASSERT_FALSE(V.validate(Comp));
 }
 
-// =============================================================================
-// Start section validation (GAP-S-1)
-// =============================================================================
+// Start section validation
 
 TEST(ComponentValidatorTest, StartFuncIndexOutOfBoundsRejected) {
   // start (func 99) ;; FAIL — no func at index 99
@@ -1796,14 +1776,11 @@ TEST(ComponentValidatorTest, StartValidEmptyFuncPasses) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
-// =============================================================================
-// Annotated-name resource-in-scope (GAP-T-3b)
-// =============================================================================
+// Annotated-name resource in scope
 
 TEST(ComponentValidatorTest, AnnotatedNameMissingResourceRejected) {
   // type 0: FuncType
-  // import "[constructor]missing" (func (type 0))   ;; FAIL — no resource
-  // "missing"
+  // import "[constructor]missing" (func (type 0))   ;; FAIL — no "missing"
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::TypeSection>();
@@ -1864,9 +1841,7 @@ TEST(ComponentValidatorTest, AnnotatedNameResourceInScopePasses) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
-// =============================================================================
-// Resource destructor signature (GAP-T-5b)
-// =============================================================================
+// Resource destructor signature
 
 TEST(ComponentValidatorTest, ResourceDestructorSignatureWrongShape) {
   // type 0: resource (no dtor)
@@ -1939,9 +1914,7 @@ TEST(ComponentValidatorTest, ResourceDestructorSignatureCorrect) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
-// =============================================================================
-// Core-export alias tag support (GAP-A-2)
-// =============================================================================
+// Core-export alias tag support
 
 TEST(ComponentValidatorTest, CoreAliasCoreExportTagPasses) {
   // (core module $M
@@ -1949,10 +1922,9 @@ TEST(ComponentValidatorTest, CoreAliasCoreExportTagPasses) {
   //   (tag (type 0))
   //   (export "t" (tag 0)))
   // (core instance $i (instantiate $M))
-  // (alias core export $i "t" (core tag $t))   ;; FAIL pre-fix, PASS post-fix
+  // (alias core export $i "t" (core tag $t))   ;; PASS
   Configure ConfTag;
   ConfTag.addProposal(Proposal::Component);
-  ConfTag.addProposal(Proposal::ExceptionHandling);
 
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
@@ -2002,21 +1974,13 @@ TEST(ComponentValidatorTest, CoreAliasCoreExportTagPasses) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
-// =============================================================================
-// Imported component instantiation arg-checking (GAP-I-1)
-// =============================================================================
+// Imported component instantiation argument checking
 
 TEST(ComponentValidatorTest, InstantiateImportedComponentMissingArgRejected) {
   // type 0: (component (import "x" (value bool)))
   // import "C" (component (type 0))   ;; component 0 — imported, no raw AST
   // instance (instantiate 0)          ;; FAIL — no arg supplied for "x"
-  //
-  // The (value ...) bound is used because it does not reference any type
-  // index in the inner component-type scope (which would otherwise need
-  // cross-scope resolution to validate). The point of this test is to
-  // exercise GAP-I-1: an instantiate of an imported component should
-  // surface the missing-argument diagnostic from the ComponentType-derived
-  // import list.
+  // The value bound avoids type indices in the inner component-type scope.
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::TypeSection>();
@@ -2057,11 +2021,8 @@ TEST(ComponentValidatorTest, InstantiateImportedComponentMissingArgRejected) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-// =============================================================================
-// Core instance memory index-type checking on instantiation (GAP-CI-1)
-// =============================================================================
+// Core instance memory index-type checking on instantiation
 
-namespace {
 // Builds:
 //   (core module $A (import "" "" (memory 1)))   ;; imports a 32-bit memory
 //   (core module $B (memory (export "") <mem>))  ;; exports `Mem`
@@ -2113,7 +2074,6 @@ AST::Component::Component buildMemoryLinkComponent(const AST::MemoryType &Mem) {
   CoreInstSec.getContent().back().setInstantiateArgs(0U, {Arg});
   return Comp;
 }
-} // namespace
 
 TEST(ComponentValidatorTest, CoreInstanceMemoryIndexTypeMismatchRejected) {
   // Provide a 64-bit memory where a 32-bit memory is imported -> reject.
@@ -2129,9 +2089,8 @@ TEST(ComponentValidatorTest, CoreInstanceMemoryIndexTypeMatchAccepted) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
-// Helper: build a Component whose type 1 is `(func (param "s" string))` —
-// triggers the spec's `lift(T)` and `lower(T)` realloc/memory rules
-// (CanonicalABI.md).
+// Helper: build a Component whose type 1 is `(func (param "s" string))`,
+// which needs realloc when lifted and memory when lowered.
 inline AST::Component::Component makeCompWithStringParamFunc() {
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
@@ -2161,10 +2120,8 @@ inline AST::Component::Component makeCompWithStringParamFunc() {
   return Comp;
 }
 
-TEST(ComponentValidatorTest, CanonLift_StringParamRequiresRealloc_Fails) {
-  // spec: `lift(param)` for a list/string-containing T requires
-  // 'realloc'. The lift below omits realloc and so must be rejected by the
-  // validator (previously only caught at instantiate time).
+TEST(ComponentValidatorTest, CanonLiftStringParamRequiresReallocFails) {
+  // Lifting a string param requires 'realloc', which the lift omits.
   auto Comp = makeCompWithStringParamFunc();
   auto &CanonSec =
       std::get<AST::Component::CanonSection>(Comp.getSections().back());
@@ -2177,10 +2134,8 @@ TEST(ComponentValidatorTest, CanonLift_StringParamRequiresRealloc_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonLower_StringParamRequiresMemory_Fails) {
-  // spec: `lower(param)` for a list/string-containing T requires
-  // 'memory'. Set up an imported component func with a string param and
-  // canon-lower it without supplying 'memory'.
+TEST(ComponentValidatorTest, CanonLowerStringParamRequiresMemoryFails) {
+  // Lowering a string param requires 'memory', which the lower omits.
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
   Comp.getSections().back().emplace<AST::Component::TypeSection>();
@@ -2210,111 +2165,90 @@ TEST(ComponentValidatorTest, CanonLower_StringParamRequiresMemory_Fails) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-// =============================================================================
-// End-to-end coverage tests for the validator's canon-lift option checks.
-// Existing AST-based tests above hit the validator logic directly; these
-// load real binaries through the loader so the loader→validator integration
-// is exercised as well. .wat sources embedded as comments.
+// End-to-end canon-lift option checks through the loader and the validator.
 
-// === canon lift result spills but no memory ===
-// (component
-//   ;; (canon lift) with a result type that needs memory (tuple of two u32 →
-//   ;; indirect-return) but the lift omits the `(memory ...)` option. The
-//   ;; validator's flatten-derived check in component_validator.cpp must
-//   ;; reject this with InvalidCanonOption.
-//   (core module $m
-//     (memory (export "mem") 1)
-//     (func (export "g") (result i32) i32.const 16)
-//     (func (export "realloc") (param i32 i32 i32 i32) (result i32) i32.const
-//     256))
-//   (core instance $i (instantiate $m))
-//   (alias core export $i "realloc" (core func $r))
-//   (alias core export $i "g" (core func $g))
-//   (type $tup (tuple u32 u32))
-//   (type $ft (func (result $tup)))
-//   (func (export "g") (type $ft)
-//     (canon lift (core func $g) (realloc $r))))
-static const std::vector<uint8_t> validator_no_memory_wasm = {
-    0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x51, 0x00, 0x61,
-    0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x02, 0x60, 0x00, 0x01,
-    0x7f, 0x60, 0x04, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x03, 0x02,
-    0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x15, 0x03, 0x03, 0x6d,
-    0x65, 0x6d, 0x02, 0x00, 0x01, 0x67, 0x00, 0x00, 0x07, 0x72, 0x65, 0x61,
-    0x6c, 0x6c, 0x6f, 0x63, 0x00, 0x01, 0x0a, 0x0c, 0x02, 0x04, 0x00, 0x41,
-    0x10, 0x0b, 0x05, 0x00, 0x41, 0x80, 0x02, 0x0b, 0x00, 0x09, 0x04, 0x6e,
-    0x61, 0x6d, 0x65, 0x00, 0x02, 0x01, 0x6d, 0x02, 0x04, 0x01, 0x00, 0x00,
-    0x00, 0x06, 0x13, 0x02, 0x00, 0x00, 0x01, 0x00, 0x07, 0x72, 0x65, 0x61,
-    0x6c, 0x6c, 0x6f, 0x63, 0x00, 0x00, 0x01, 0x00, 0x01, 0x67, 0x07, 0x09,
-    0x02, 0x6f, 0x02, 0x79, 0x79, 0x40, 0x00, 0x00, 0x00, 0x08, 0x08, 0x01,
-    0x00, 0x00, 0x01, 0x01, 0x04, 0x00, 0x01, 0x0b, 0x07, 0x01, 0x00, 0x01,
-    0x67, 0x01, 0x00, 0x00, 0x00, 0x37, 0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f,
-    0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x09, 0x00,
-    0x00, 0x02, 0x00, 0x01, 0x72, 0x01, 0x01, 0x67, 0x01, 0x06, 0x00, 0x11,
-    0x01, 0x00, 0x01, 0x6d, 0x01, 0x06, 0x00, 0x12, 0x01, 0x00, 0x01, 0x69,
-    0x01, 0x0b, 0x03, 0x02, 0x00, 0x03, 0x74, 0x75, 0x70, 0x01, 0x02, 0x66,
-    0x74,
-};
+TEST(ComponentValidatorTest, EndToEndCanonLiftNoMemoryRejected) {
+  // The tuple result spills into the return area, but the lift omits 'memory'.
+  // (component
+  //   (core module $m
+  //     (memory (export "mem") 1)
+  //     (func (export "g") (result i32) i32.const 16)
+  //     (func (export "realloc") (param i32 i32 i32 i32) (result i32)
+  //       i32.const 256))
+  //   (core instance $i (instantiate $m))
+  //   (alias core export $i "realloc" (core func $r))
+  //   (alias core export $i "g" (core func $g))
+  //   (type $tup (tuple u32 u32))
+  //   (type $ft (func (result $tup)))
+  //   (func (export "g") (type $ft)
+  //     (canon lift (core func $g) (realloc $r))))
+  std::array<WasmEdge::Byte, 205> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x51, 0x00, 0x61,
+      0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x02, 0x60, 0x00, 0x01,
+      0x7f, 0x60, 0x04, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x03, 0x02,
+      0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x15, 0x03, 0x03, 0x6d,
+      0x65, 0x6d, 0x02, 0x00, 0x01, 0x67, 0x00, 0x00, 0x07, 0x72, 0x65, 0x61,
+      0x6c, 0x6c, 0x6f, 0x63, 0x00, 0x01, 0x0a, 0x0c, 0x02, 0x04, 0x00, 0x41,
+      0x10, 0x0b, 0x05, 0x00, 0x41, 0x80, 0x02, 0x0b, 0x00, 0x09, 0x04, 0x6e,
+      0x61, 0x6d, 0x65, 0x00, 0x02, 0x01, 0x6d, 0x02, 0x04, 0x01, 0x00, 0x00,
+      0x00, 0x06, 0x13, 0x02, 0x00, 0x00, 0x01, 0x00, 0x07, 0x72, 0x65, 0x61,
+      0x6c, 0x6c, 0x6f, 0x63, 0x00, 0x00, 0x01, 0x00, 0x01, 0x67, 0x07, 0x09,
+      0x02, 0x6f, 0x02, 0x79, 0x79, 0x40, 0x00, 0x00, 0x00, 0x08, 0x08, 0x01,
+      0x00, 0x00, 0x01, 0x01, 0x04, 0x00, 0x01, 0x0b, 0x07, 0x01, 0x00, 0x01,
+      0x67, 0x01, 0x00, 0x00, 0x00, 0x37, 0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f,
+      0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x09, 0x00,
+      0x00, 0x02, 0x00, 0x01, 0x72, 0x01, 0x01, 0x67, 0x01, 0x06, 0x00, 0x11,
+      0x01, 0x00, 0x01, 0x6d, 0x01, 0x06, 0x00, 0x12, 0x01, 0x00, 0x01, 0x69,
+      0x01, 0x0b, 0x03, 0x02, 0x00, 0x03, 0x74, 0x75, 0x70, 0x01, 0x02, 0x66,
+      0x74};
 
-// === canon lift string param but no realloc ===
-// (component
-//   ;; Symmetric to validator_no_memory.wat — a (canon lift) whose param
-//   ;; type contains a string (forcing the spill to realloc) but omits the
-//   ;; `(realloc ...)` option. Should be rejected with InvalidCanonOption.
-//   (core module $m
-//     (memory (export "mem") 1)
-//     (func (export "sink") (param i32 i32) (result i32) local.get 1)
-//     (func (export "realloc") (param i32 i32 i32 i32) (result i32) i32.const
-//     256))
-//   (core instance $i (instantiate $m))
-//   (alias core export $i "mem" (core memory $mem))
-//   (alias core export $i "sink" (core func $g))
-//   (type $ft (func (param "s" string) (result u32)))
-//   (func (export "sink") (type $ft)
-//     (canon lift (core func $g) (memory $mem))))
-static const std::vector<uint8_t> validator_no_realloc_wasm = {
-    0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x56, 0x00, 0x61,
-    0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0f, 0x02, 0x60, 0x02, 0x7f,
-    0x7f, 0x01, 0x7f, 0x60, 0x04, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f, 0x03,
-    0x03, 0x02, 0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x18, 0x03,
-    0x03, 0x6d, 0x65, 0x6d, 0x02, 0x00, 0x04, 0x73, 0x69, 0x6e, 0x6b, 0x00,
-    0x00, 0x07, 0x72, 0x65, 0x61, 0x6c, 0x6c, 0x6f, 0x63, 0x00, 0x01, 0x0a,
-    0x0c, 0x02, 0x04, 0x00, 0x20, 0x01, 0x0b, 0x05, 0x00, 0x41, 0x80, 0x02,
-    0x0b, 0x00, 0x09, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x00, 0x02, 0x01, 0x6d,
-    0x02, 0x04, 0x01, 0x00, 0x00, 0x00, 0x06, 0x12, 0x02, 0x00, 0x02, 0x01,
-    0x00, 0x03, 0x6d, 0x65, 0x6d, 0x00, 0x00, 0x01, 0x00, 0x04, 0x73, 0x69,
-    0x6e, 0x6b, 0x07, 0x08, 0x01, 0x40, 0x01, 0x01, 0x73, 0x73, 0x00, 0x79,
-    0x08, 0x08, 0x01, 0x00, 0x00, 0x00, 0x01, 0x03, 0x00, 0x00, 0x0b, 0x0a,
-    0x01, 0x00, 0x04, 0x73, 0x69, 0x6e, 0x6b, 0x01, 0x00, 0x00, 0x00, 0x39,
-    0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f, 0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e,
-    0x61, 0x6d, 0x65, 0x01, 0x06, 0x00, 0x00, 0x01, 0x00, 0x01, 0x67, 0x01,
-    0x08, 0x00, 0x02, 0x01, 0x00, 0x03, 0x6d, 0x65, 0x6d, 0x01, 0x06, 0x00,
-    0x11, 0x01, 0x00, 0x01, 0x6d, 0x01, 0x06, 0x00, 0x12, 0x01, 0x00, 0x01,
-    0x69, 0x01, 0x06, 0x03, 0x01, 0x00, 0x02, 0x66, 0x74,
-};
-
-// canon lift whose result spills into the return area but omits 'memory'.
-// The validator must reject this end-to-end.
-TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoMemoryRejected) {
   VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(validator_no_memory_wasm));
+  ASSERT_TRUE(VM.loadWasm(Wasm));
   EXPECT_FALSE(VM.validate());
 }
 
-// canon lift whose string param forces a realloc but omits 'realloc'.
-TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoReallocRejected) {
+TEST(ComponentValidatorTest, EndToEndCanonLiftNoReallocRejected) {
+  // The string param needs 'realloc', but the lift omits it.
+  // (component
+  //   (core module $m
+  //     (memory (export "mem") 1)
+  //     (func (export "sink") (param i32 i32) (result i32) local.get 1)
+  //     (func (export "realloc") (param i32 i32 i32 i32) (result i32)
+  //       i32.const 256))
+  //   (core instance $i (instantiate $m))
+  //   (alias core export $i "mem" (core memory $mem))
+  //   (alias core export $i "sink" (core func $g))
+  //   (type $ft (func (param "s" string) (result u32)))
+  //   (func (export "sink") (type $ft)
+  //     (canon lift (core func $g) (memory $mem))))
+  std::array<WasmEdge::Byte, 213> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x56, 0x00, 0x61,
+      0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0f, 0x02, 0x60, 0x02, 0x7f,
+      0x7f, 0x01, 0x7f, 0x60, 0x04, 0x7f, 0x7f, 0x7f, 0x7f, 0x01, 0x7f, 0x03,
+      0x03, 0x02, 0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x18, 0x03,
+      0x03, 0x6d, 0x65, 0x6d, 0x02, 0x00, 0x04, 0x73, 0x69, 0x6e, 0x6b, 0x00,
+      0x00, 0x07, 0x72, 0x65, 0x61, 0x6c, 0x6c, 0x6f, 0x63, 0x00, 0x01, 0x0a,
+      0x0c, 0x02, 0x04, 0x00, 0x20, 0x01, 0x0b, 0x05, 0x00, 0x41, 0x80, 0x02,
+      0x0b, 0x00, 0x09, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x00, 0x02, 0x01, 0x6d,
+      0x02, 0x04, 0x01, 0x00, 0x00, 0x00, 0x06, 0x12, 0x02, 0x00, 0x02, 0x01,
+      0x00, 0x03, 0x6d, 0x65, 0x6d, 0x00, 0x00, 0x01, 0x00, 0x04, 0x73, 0x69,
+      0x6e, 0x6b, 0x07, 0x08, 0x01, 0x40, 0x01, 0x01, 0x73, 0x73, 0x00, 0x79,
+      0x08, 0x08, 0x01, 0x00, 0x00, 0x00, 0x01, 0x03, 0x00, 0x00, 0x0b, 0x0a,
+      0x01, 0x00, 0x04, 0x73, 0x69, 0x6e, 0x6b, 0x01, 0x00, 0x00, 0x00, 0x39,
+      0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f, 0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e,
+      0x61, 0x6d, 0x65, 0x01, 0x06, 0x00, 0x00, 0x01, 0x00, 0x01, 0x67, 0x01,
+      0x08, 0x00, 0x02, 0x01, 0x00, 0x03, 0x6d, 0x65, 0x6d, 0x01, 0x06, 0x00,
+      0x11, 0x01, 0x00, 0x01, 0x6d, 0x01, 0x06, 0x00, 0x12, 0x01, 0x00, 0x01,
+      0x69, 0x01, 0x06, 0x03, 0x01, 0x00, 0x02, 0x66, 0x74};
+
   VM::VM VM(Conf);
-  ASSERT_TRUE(VM.loadWasm(validator_no_realloc_wasm));
+  ASSERT_TRUE(VM.loadWasm(Wasm));
   EXPECT_FALSE(VM.validate());
 }
 
-// =============================================================================
-// Core instance global/table/memory checking via an imported core MODULE TYPE
-// (GAP-CI-1). Unlike the raw-module tests above, these drive the imported
-// module-type subtype path: the instantiated module's core externs come from a
-// CoreModuleType (not an inline AST::Module).
-// =============================================================================
+// Core instance extern checking where the instantiated module is an imported
+// core module type rather than an inline module.
 
-namespace {
 // Builds a component that links two imported core modules by type:
 //   (core type (module (export "g" <ExpDesc>)))      ;; core:type 0 (provider)
 //   (core type (module (import "provider" "g" <ImpDesc>)))  ;; core:type 1
@@ -2408,7 +2342,6 @@ AST::Component::CoreImportDesc mkMemoryDesc(const AST::Limit &L) {
   D.setMemoryType(AST::MemoryType(L));
   return D;
 }
-} // namespace
 
 TEST(ComponentValidatorTest, CoreInstanceImportGlobalTypeMismatchRejected) {
   // Provider exports (global (mut i64)); consumer imports (global (mut i32)).
@@ -2599,9 +2532,7 @@ TEST(ComponentValidatorTest, ValueConsumedExactlyOnceByStart) {
 }
 
 TEST(ComponentValidatorTest, StartConsumesSameValueTwice) {
-  // Import a value, call a start function with two params using same value
-  // twice
-  // -> reject
+  // Import a value, pass it twice to a start function -> reject
   AST::Component::Component Comp;
 
   // 1. Define a function type (param: u32, u32, result: none)
@@ -2688,13 +2619,10 @@ TEST(ComponentValidatorTest, StartArgumentValueIndexOutOfBounds) {
   EXPECT_EQ(Res.error(), ErrCode::Value::InvalidIndex);
 }
 
-// =============================================================================
 // Async canonical option rules
-// =============================================================================
 
 // Helper: build a Component whose core func 0 has the callback signature
-// [i32 i32 i32] -> [i32], obtained by lowering a (func (param u32 u32 u32)
-// (result u32)).
+// [i32 i32 i32] -> [i32], lowered from a three-u32-param func.
 inline AST::Component::Component makeCompWithCallbackShapedCoreFunc() {
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
@@ -2727,7 +2655,7 @@ inline AST::Component::Component makeCompWithCallbackShapedCoreFunc() {
   return Comp;
 }
 
-TEST(ComponentValidatorTest, CanonLower_CallbackRejectedBySiteRule) {
+TEST(ComponentValidatorTest, CanonLowerCallbackRejectedBySiteRule) {
   // `callback` is only allowed on `canon lift`, so the site rule must fire
   // before the core function index is even resolved.
   auto Comp = makeCompWithImportedFunc();
@@ -2744,7 +2672,7 @@ TEST(ComponentValidatorTest, CanonLower_CallbackRejectedBySiteRule) {
   EXPECT_EQ(Res.error(), ErrCode::Value::CanonCallbackOnLower);
 }
 
-TEST(ComponentValidatorTest, CanonLower_DuplicateAsyncRejected) {
+TEST(ComponentValidatorTest, CanonLowerDuplicateAsyncRejected) {
   auto Comp = makeCompWithImportedFunc();
   auto &CanonSec = appendCanonSection(Comp);
   AST::Component::Canonical C;
@@ -2759,7 +2687,7 @@ TEST(ComponentValidatorTest, CanonLower_DuplicateAsyncRejected) {
   EXPECT_EQ(Res.error(), ErrCode::Value::CanonAsyncDuplicated);
 }
 
-TEST(ComponentValidatorTest, CanonLift_DuplicateCallbackRejected) {
+TEST(ComponentValidatorTest, CanonLiftDuplicateCallbackRejected) {
   auto Comp = makeCompWithCallbackShapedCoreFunc();
   auto &CanonSec =
       std::get<AST::Component::CanonSection>(Comp.getSections().back());
@@ -2777,7 +2705,7 @@ TEST(ComponentValidatorTest, CanonLift_DuplicateCallbackRejected) {
   EXPECT_EQ(Res.error(), ErrCode::Value::CanonCallbackDuplicated);
 }
 
-TEST(ComponentValidatorTest, CanonLift_CallbackWithoutAsyncRejected) {
+TEST(ComponentValidatorTest, CanonLiftCallbackWithoutAsyncRejected) {
   auto Comp = makeCompWithCallbackShapedCoreFunc();
   auto &CanonSec =
       std::get<AST::Component::CanonSection>(Comp.getSections().back());
@@ -2793,13 +2721,10 @@ TEST(ComponentValidatorTest, CanonLift_CallbackWithoutAsyncRejected) {
   EXPECT_EQ(Res.error(), ErrCode::Value::CanonCallbackRequiresAsync);
 }
 
-// =============================================================================
 // context.get / context.set slot immediate
-// =============================================================================
 
-// Helper: append a `context.get`/`context.set` naming the given slot and
-// type. The loader stores the slot immediate as the constant value, not as
-// an index.
+// Helper: append a `context.get`/`context.set` naming the given slot and type.
+// The loader stores the slot immediate as the constant value.
 inline AST::Component::Component
 makeCompWithContextSlot(ComponentCanonOpCode C, uint32_t Slot,
                         ValType Ty = ValType(TypeCode::I32)) {
@@ -2831,13 +2756,13 @@ inline AST::Component::Component makeCompWithTwoContexts(ValType First,
   return Comp;
 }
 
-TEST(ComponentValidatorTest, CanonContextGet_SlotInBounds_Passes) {
+TEST(ComponentValidatorTest, CanonContextGetSlotInBoundsPasses) {
   auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__get, 1);
   Validator::Validator V(Conf);
   EXPECT_TRUE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonContextGet_SlotOutOfBounds_Fails) {
+TEST(ComponentValidatorTest, CanonContextGetSlotOutOfBoundsFails) {
   auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__get, 7);
   Validator::Validator V(Conf);
   auto Res = V.validate(Comp);
@@ -2845,7 +2770,7 @@ TEST(ComponentValidatorTest, CanonContextGet_SlotOutOfBounds_Fails) {
   EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextSlotOutOfBounds);
 }
 
-TEST(ComponentValidatorTest, CanonContextSet_SlotOutOfBounds_Fails) {
+TEST(ComponentValidatorTest, CanonContextSetSlotOutOfBoundsFails) {
   auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__set, 2);
   Validator::Validator V(Conf);
   auto Res = V.validate(Comp);
@@ -2853,14 +2778,14 @@ TEST(ComponentValidatorTest, CanonContextSet_SlotOutOfBounds_Fails) {
   EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextSlotOutOfBounds);
 }
 
-TEST(ComponentValidatorTest, CanonContextGet_I64TypePasses) {
+TEST(ComponentValidatorTest, CanonContextGetI64TypePasses) {
   auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__get, 0,
                                       ValType(TypeCode::I64));
   Validator::Validator V(Conf);
   EXPECT_TRUE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonContextGet_I64NeedsMemory64) {
+TEST(ComponentValidatorTest, CanonContextGetI64NeedsMemory64) {
   // A 64-bit slot is gated like a 64-bit resource rep. The default Configure
   // enables Memory64, so this one has to turn it off explicitly.
   Configure NoMemory64;
@@ -2874,7 +2799,7 @@ TEST(ComponentValidatorTest, CanonContextGet_I64NeedsMemory64) {
   EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextTypeInvalid);
 }
 
-TEST(ComponentValidatorTest, CanonContextSet_NonIntegerTypeFails) {
+TEST(ComponentValidatorTest, CanonContextSetNonIntegerTypeFails) {
   auto Comp = makeCompWithContextSlot(ComponentCanonOpCode::Context__set, 0,
                                       ValType(TypeCode::F32));
   Validator::Validator V(Conf);
@@ -2883,14 +2808,14 @@ TEST(ComponentValidatorTest, CanonContextSet_NonIntegerTypeFails) {
   EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextTypeInvalid);
 }
 
-TEST(ComponentValidatorTest, CanonContext_SameTypeTwicePasses) {
+TEST(ComponentValidatorTest, CanonContextSameTypeTwicePasses) {
   auto Comp =
       makeCompWithTwoContexts(ValType(TypeCode::I64), ValType(TypeCode::I64));
   Validator::Validator V(Conf);
   EXPECT_TRUE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonContext_MixedTypesFail) {
+TEST(ComponentValidatorTest, CanonContextMixedTypesFail) {
   auto Comp =
       makeCompWithTwoContexts(ValType(TypeCode::I32), ValType(TypeCode::I64));
   Validator::Validator V(Conf);
@@ -2899,9 +2824,7 @@ TEST(ComponentValidatorTest, CanonContext_MixedTypesFail) {
   EXPECT_EQ(Res.error(), ErrCode::Value::ComponentContextTypeMismatch);
 }
 
-// =============================================================================
 // Import and export name attributes
-// =============================================================================
 
 // Helper: import a func named "f" carrying the given `external-id` values.
 inline AST::Component::Component
@@ -2964,13 +2887,10 @@ TEST(ComponentValidatorTest, VersionSuffixNeedsInterfaceVersion) {
   EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixInvalid);
 }
 
-// =============================================================================
 // borrow inside a stream or future element type
-// =============================================================================
 
-// Helper: a resource at type 0, a borrow of it at type 1, and the element
-// wrapped in a stream or a future. Elem selects which type index the async
-// type carries, so a borrow can also be reached through a list.
+// Helper: a resource at type 0, a handle to it at type 1, optionally a list of
+// it at type 2, and the last one wrapped in a stream or a future.
 inline AST::Component::Component
 makeCompWithAsyncElem(bool IsFuture, bool ElemIsBorrow, bool ThroughList) {
   auto Comp = makeCompWithLocalResource();
@@ -3063,9 +2983,7 @@ TEST(ComponentValidatorTest, FutureBuiltinRequiresFutureType) {
   EXPECT_EQ(Res.error(), ErrCode::Value::ComponentFutureTypeRequired);
 }
 
-// =============================================================================
 // Canonical ABI element size limit
-// =============================================================================
 
 // Helper: a component defining `(list u64 Len)`.
 inline AST::Component::Component makeCompWithFixedU64List(uint32_t Len) {
@@ -3098,9 +3016,7 @@ TEST(ComponentValidatorTest, ElemSizeAtLimitFails) {
   EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueSizeTooLarge);
 }
 
-// =============================================================================
 // Value payload decoding
-// =============================================================================
 
 // Helper: decode a `val(t)` payload for a primitive type. No type index can
 // appear in these payloads, so an empty scope resolves none.
@@ -3165,9 +3081,7 @@ TEST(ComponentValidatorTest, ValueDecodeStringRequiresUtf8) {
   EXPECT_FALSE(decodePrimValue({0x01, 0xC2, 0x80}, ComponentTypeCode::String));
 }
 
-// =============================================================================
 // Canonical options on the option-bearing built-ins
-// =============================================================================
 
 // Helper: append a canonical definition carrying the given options.
 inline AST::Component::Component &
@@ -3206,7 +3120,7 @@ makeCompWithPayloadType(bool WantStream,
   return Comp;
 }
 
-TEST(ComponentValidatorTest, CanonTaskReturn_MemoryIndexOutOfBounds_Fails) {
+TEST(ComponentValidatorTest, CanonTaskReturnMemoryIndexOutOfBoundsFails) {
   AST::Component::Component Comp;
   appendCanonWithOptions(Comp, ComponentCanonOpCode::Task__return,
                          {mkOpt(ComponentCanonOptCode::Memory, 0)});
@@ -3216,7 +3130,7 @@ TEST(ComponentValidatorTest, CanonTaskReturn_MemoryIndexOutOfBounds_Fails) {
   EXPECT_EQ(Res.error(), ErrCode::Value::ComponentMemoryIndexOutOfBounds);
 }
 
-TEST(ComponentValidatorTest, CanonTaskReturn_RejectsAsync) {
+TEST(ComponentValidatorTest, CanonTaskReturnRejectsAsync) {
   AST::Component::Component Comp;
   appendCanonWithOptions(Comp, ComponentCanonOpCode::Task__return,
                          {mkOpt(ComponentCanonOptCode::Async)});
@@ -3226,7 +3140,7 @@ TEST(ComponentValidatorTest, CanonTaskReturn_RejectsAsync) {
   EXPECT_EQ(Res.error(), ErrCode::Value::CanonAsyncOnBuiltin);
 }
 
-TEST(ComponentValidatorTest, CanonTaskReturn_RejectsPostReturn) {
+TEST(ComponentValidatorTest, CanonTaskReturnRejectsPostReturn) {
   AST::Component::Component Comp;
   appendCanonWithOptions(Comp, ComponentCanonOpCode::Task__return,
                          {mkOpt(ComponentCanonOptCode::PostReturn, 0)});
@@ -3236,7 +3150,7 @@ TEST(ComponentValidatorTest, CanonTaskReturn_RejectsPostReturn) {
   EXPECT_EQ(Res.error(), ErrCode::Value::CanonPostReturnOnLower);
 }
 
-TEST(ComponentValidatorTest, CanonTaskReturn_StringResultRequiresMemory) {
+TEST(ComponentValidatorTest, CanonTaskReturnStringResultRequiresMemory) {
   AST::Component::Component Comp;
   auto &Sec = appendCanonSection(Comp);
   AST::Component::Canonical C;
@@ -3249,7 +3163,7 @@ TEST(ComponentValidatorTest, CanonTaskReturn_StringResultRequiresMemory) {
   EXPECT_EQ(Res.error(), ErrCode::Value::CanonMemoryRequired);
 }
 
-TEST(ComponentValidatorTest, CanonStreamRead_MemoryIndexOutOfBounds_Fails) {
+TEST(ComponentValidatorTest, CanonStreamReadMemoryIndexOutOfBoundsFails) {
   auto Comp = makeCompWithPayloadType(true, ComponentTypeCode::U32);
   appendCanonWithOptions(Comp, ComponentCanonOpCode::Stream__read,
                          {mkOpt(ComponentCanonOptCode::Memory, 0)});
@@ -3259,7 +3173,7 @@ TEST(ComponentValidatorTest, CanonStreamRead_MemoryIndexOutOfBounds_Fails) {
   EXPECT_EQ(Res.error(), ErrCode::Value::ComponentMemoryIndexOutOfBounds);
 }
 
-TEST(ComponentValidatorTest, CanonStreamRead_PayloadRequiresMemory_Fails) {
+TEST(ComponentValidatorTest, CanonStreamReadPayloadRequiresMemoryFails) {
   auto Comp = makeCompWithPayloadType(true, ComponentTypeCode::U32);
   appendCanonWithOptions(Comp, ComponentCanonOpCode::Stream__read, {});
   Validator::Validator V(Conf);
@@ -3268,14 +3182,14 @@ TEST(ComponentValidatorTest, CanonStreamRead_PayloadRequiresMemory_Fails) {
   EXPECT_EQ(Res.error(), ErrCode::Value::CanonMemoryRequired);
 }
 
-TEST(ComponentValidatorTest, CanonStreamWrite_EmptyPayloadNeedsNoMemory) {
+TEST(ComponentValidatorTest, CanonStreamWriteEmptyPayloadNeedsNoMemory) {
   auto Comp = makeCompWithPayloadType(true, std::nullopt);
   appendCanonWithOptions(Comp, ComponentCanonOpCode::Stream__write, {});
   Validator::Validator V(Conf);
   EXPECT_TRUE(V.validate(Comp));
 }
 
-TEST(ComponentValidatorTest, CanonFutureRead_RejectsCallback) {
+TEST(ComponentValidatorTest, CanonFutureReadRejectsCallback) {
   auto Comp = makeCompWithPayloadType(false, std::nullopt);
   appendCanonWithOptions(Comp, ComponentCanonOpCode::Future__read,
                          {mkOpt(ComponentCanonOptCode::Callback, 0)});
@@ -3285,7 +3199,7 @@ TEST(ComponentValidatorTest, CanonFutureRead_RejectsCallback) {
   EXPECT_EQ(Res.error(), ErrCode::Value::CanonCallbackOnLower);
 }
 
-TEST(ComponentValidatorTest, CanonErrorContextNew_RequiresMemory_Fails) {
+TEST(ComponentValidatorTest, CanonErrorContextNewRequiresMemoryFails) {
   AST::Component::Component Comp;
   appendCanonWithOptions(Comp, ComponentCanonOpCode::Error_context__new, {});
   Validator::Validator V(Conf);
@@ -3294,14 +3208,11 @@ TEST(ComponentValidatorTest, CanonErrorContextNew_RequiresMemory_Fails) {
   EXPECT_EQ(Res.error(), ErrCode::Value::CanonMemoryRequired);
 }
 
-// =============================================================================
 // Component core:type rec groups validate in the component core:type space
-// =============================================================================
 
 TEST(ComponentValidatorTest, CoreTypeSubTypeWithRefStillChecksSuperType) {
   // (core type (sub (func)))                          ;; core type 0
   // (core type (sub 5 (func (param (ref null 0)))))   ;; FAIL: no core type 5
-  //
   // The concrete parameter reference must not exempt the subtype rules.
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
@@ -3332,7 +3243,6 @@ TEST(ComponentValidatorTest, CoreTypeSubTypeWithRefStillChecksSuperType) {
 TEST(ComponentValidatorTest, CoreTypeSubTypeResolvesInComponentCoreTypeSpace) {
   // (core type (sub (func)))     ;; core type 0, non-final
   // (core type (sub 0 (func)))   ;; core type 1 -- PASS
-  //
   // The super type index names the component core:type space, not whatever
   // the core FormChecker happens to hold.
   AST::Component::Component Comp;
@@ -3410,9 +3320,7 @@ TEST(ComponentValidatorTest, CoreTypeSubTypeRefToModuleTypeRejected) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-// =============================================================================
 // Resource identities carried by stream/future payloads
-// =============================================================================
 
 TEST(ComponentValidatorTest, OuterAliasFutureOwnResourceLeakRejected) {
   // (type (resource))     ;; type 0
@@ -3566,9 +3474,7 @@ TEST(ComponentValidatorTest, CoreTypeAliasedSuperTypeIndexRejected) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
-// =============================================================================
 // Shape nesting is bounded like value-type nesting
-// =============================================================================
 
 TEST(ComponentValidatorTest, NestedInstanceTypeChainExceedsDepthLimit) {
   // type 0:   (instance)
@@ -3678,9 +3584,7 @@ TEST(ComponentValidatorTest, InlineInstanceChainExceedsDepthLimit) {
   EXPECT_EQ(Res.error(), ErrCode::Value::ComponentTypeNestingDepth);
 }
 
-// =============================================================================
 // Async and sync function types do not satisfy each other
-// =============================================================================
 
 // Builds `(component (type (func async?)) (import "g" (func (type 0)))
 //                    (component (type (func async?)) (import "f" (func 0)))

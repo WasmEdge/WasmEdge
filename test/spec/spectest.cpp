@@ -10,7 +10,6 @@
 /// \file
 /// This file parses and runs tests of Wasm test suites extracted by wast2json.
 /// Test Suites: https://github.com/WebAssembly/testsuite
-/// wast2json: https://webassembly.github.io/wabt/doc/wast2json.1.html
 ///
 //===----------------------------------------------------------------------===//
 
@@ -1171,11 +1170,8 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         std::string_view ThreadName = Cmd["name"];
         simdjson::dom::array ThreadCmds = Cmd["commands"];
 
-        // Build shared module mapping: (parentStoreName, threadAliasName).
-        // Pre-scan the thread's commands for register entries to determine
-        // the alias names. The shared field tells us which modules to share,
-        // and the register commands inside the thread tell us what names
-        // to register them under.
+        // Map each shared module to the name the thread's register commands
+        // give it: (parentStoreName, threadAliasName).
         std::map<std::string, std::string> SharedRegisterMap;
         for (const simdjson::dom::object SubCmd : ThreadCmds) {
           std::string_view SubType;

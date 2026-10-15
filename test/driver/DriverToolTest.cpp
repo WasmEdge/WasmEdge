@@ -1,0 +1,1226 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+//===-- wasmedge/test/driver/DriverToolTest.cpp - Driver tool tests -------===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Tests of the wasmedge driver subcommands: parse, validate, compile,
+/// instantiate, and run.
+///
+//===----------------------------------------------------------------------===//
+
+#include "common/defines.h"
+#include "common/filesystem.h"
+#include "driver/tool.h"
+#include "driver/unitool.h"
+#include "po/argument_parser.h"
+
+#include <array>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <gtest/gtest.h>
+#include <iterator>
+#include <string>
+#if !WASMEDGE_OS_WINDOWS
+#include <unistd.h>
+#endif
+#include <vector>
+
+namespace {
+
+std::string TestDataPath;
+
+std::string writeWasmToFile(const uint8_t *Data, size_t Size,
+                            const std::string &FileName) {
+  std::string Path = TestDataPath + "/" + FileName;
+  std::filesystem::create_directories(TestDataPath);
+  std::ofstream Ofs(Path, std::ios::binary);
+  Ofs.write(reinterpret_cast<const char *>(Data),
+            static_cast<std::streamsize>(Size));
+  Ofs.close();
+  return Path;
+}
+
+int callParse(std::initializer_list<const char *> Args) {
+  std::vector<const char *> Argv = {"wasmedge"};
+  Argv.insert(Argv.end(), Args.begin(), Args.end());
+  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
+                                   WasmEdge::Driver::ToolType::Parse);
+}
+
+int callValidate(std::initializer_list<const char *> Args) {
+  std::vector<const char *> Argv = {"wasmedge"};
+  Argv.insert(Argv.end(), Args.begin(), Args.end());
+  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
+                                   WasmEdge::Driver::ToolType::Validate);
+}
+
+int callCompile(std::initializer_list<const char *> Args) {
+  std::vector<const char *> Argv = {"wasmedge"};
+  Argv.insert(Argv.end(), Args.begin(), Args.end());
+  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
+                                   WasmEdge::Driver::ToolType::Compiler);
+}
+
+int callInstantiate(std::initializer_list<const char *> Args) {
+  std::vector<const char *> Argv = {"wasmedge"};
+  Argv.insert(Argv.end(), Args.begin(), Args.end());
+  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
+                                   WasmEdge::Driver::ToolType::Instantiate);
+}
+
+int callRun(std::initializer_list<const char *> Args) {
+  std::vector<const char *> Argv = {"wasmedge"};
+  Argv.insert(Argv.end(), Args.begin(), Args.end());
+  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
+                                   WasmEdge::Driver::ToolType::Tool);
+}
+
+int callUniToolAll(std::initializer_list<const char *> Args) {
+  std::vector<const char *> Argv = {"wasmedge"};
+  Argv.insert(Argv.end(), Args.begin(), Args.end());
+  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
+                                   WasmEdge::Driver::ToolType::All);
+}
+
+#if !WASMEDGE_OS_WINDOWS
+struct ToolResult {
+  int ExitCode;
+  std::string Stdout;
+};
+
+ToolResult callParseCaptureStdout(std::initializer_list<const char *> Args) {
+  std::vector<const char *> Argv = {"wasmedge"};
+  Argv.insert(Argv.end(), Args.begin(), Args.end());
+  int Pipe[2];
+  if (pipe(Pipe) != 0) {
+    return {-1, {}};
+  }
+  int SavedStdout = dup(STDOUT_FILENO);
+  dup2(Pipe[1], STDOUT_FILENO);
+  close(Pipe[1]);
+  int Ret =
+      WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
+                                WasmEdge::Driver::ToolType::Parse);
+  fflush(stdout);
+  dup2(SavedStdout, STDOUT_FILENO);
+  close(SavedStdout);
+  std::string Output;
+  char Buf[4096];
+  ssize_t N;
+  while ((N = read(Pipe[0], Buf, sizeof(Buf))) > 0) {
+    Output.append(Buf, static_cast<size_t>(N));
+  }
+  close(Pipe[0]);
+  return {Ret, std::move(Output)};
+}
+
+::testing::AssertionResult
+containsAll(const std::string &Output,
+            std::initializer_list<const char *> Needles) {
+  for (const char *Needle : Needles) {
+    if (Output.find(Needle) == std::string::npos) {
+      return ::testing::AssertionFailure()
+             << "output missing substring: \"" << Needle << "\"\n"
+             << "full output:\n"
+             << Output;
+    }
+  }
+  return ::testing::AssertionSuccess();
+}
+
+::testing::AssertionResult
+containsNone(const std::string &Output,
+             std::initializer_list<const char *> Needles) {
+  for (const char *Needle : Needles) {
+    if (Output.find(Needle) != std::string::npos) {
+      return ::testing::AssertionFailure()
+             << "output unexpectedly contains substring: \"" << Needle << "\"\n"
+             << "full output:\n"
+             << Output;
+    }
+  }
+  return ::testing::AssertionSuccess();
+}
+#endif
+
+// (module
+//   (type (;0;) (func (param i32 i32) (result i32)))
+//   (memory (;0;) 1)
+//   (global $counter (;0;) (mut i32) i32.const 0)
+//   (export "add" (func $add))
+//   (export "sub" (func $sub))
+//   (export "memory" (memory 0))
+//   (export "counter" (global $counter))
+//   (func $add (;0;) (type 0) (param i32 i32) (result i32)
+//     local.get 0
+//     local.get 1
+//     i32.add
+//   )
+//   (func $sub (;1;) (type 0) (param i32 i32) (result i32)
+//     local.get 0
+//     local.get 1
+//     i32.sub
+//   )
+// )
+static const std::array<uint8_t, 127> SimpleWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
+    0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x03, 0x02, 0x00, 0x00, 0x05, 0x03,
+    0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07,
+    0x20, 0x04, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x03, 0x73, 0x75, 0x62,
+    0x00, 0x01, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x07,
+    0x63, 0x6f, 0x75, 0x6e, 0x74, 0x65, 0x72, 0x03, 0x00, 0x0a, 0x11, 0x02,
+    0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b, 0x07, 0x00, 0x20, 0x00,
+    0x20, 0x01, 0x6b, 0x0b, 0x00, 0x25, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01,
+    0x0b, 0x02, 0x00, 0x03, 0x61, 0x64, 0x64, 0x01, 0x03, 0x73, 0x75, 0x62,
+    0x02, 0x05, 0x02, 0x00, 0x00, 0x01, 0x00, 0x07, 0x0a, 0x01, 0x00, 0x07,
+    0x63, 0x6f, 0x75, 0x6e, 0x74, 0x65, 0x72};
+
+// (module
+//   (type (;0;) (func (result i32)))
+//   (func (;0;) (type 0) (result i32)
+//     i32.const 1
+//     i32.const 2
+//   )
+// )
+static const std::array<uint8_t, 29> InvalidWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+    0x01, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x0a,
+    0x08, 0x01, 0x06, 0x00, 0x41, 0x01, 0x41, 0x02, 0x0b};
+
+// Truncated module: a valid preamble followed by garbage bytes.
+static const std::array<uint8_t, 12> TruncatedWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF};
+
+// ELF header bytes, not wasm at all.
+static const std::array<uint8_t, 8> NotWasmBytes{0x7f, 0x45, 0x4c, 0x46,
+                                                 0x00, 0x00, 0x00, 0x00};
+
+// (module)
+static const std::array<uint8_t, 8> MinimalWasm{0x00, 0x61, 0x73, 0x6d,
+                                                0x01, 0x00, 0x00, 0x00};
+
+// (module
+//   (type $swap_type (;0;) (func (param i32 i32) (result i32 i32)))
+//   (type (;1;) (func (param i32)))
+//   (type (;2;) (func))
+//   (type (;3;) (func (param i32 i32) (result i32)))
+//   (import "env" "log" (func $imported_func (;0;) (type 1)))
+//   (import "env" "memory" (memory (;0;) 1 10))
+//   (import "env" "table" (table (;0;) 1 funcref))
+//   (import "env" "g_mut" (global $imported_g_mut (;0;) (mut i32)))
+//   (import "env" "g_const" (global $imported_g_const (;1;) i32))
+//   (global $g_i32 (;2;) i32 i32.const 42)
+//   (global $g_i64 (;3;) i64 i64.const 100)
+//   (global $g_f32 (;4;) f32 f32.const 0x1.91eb86p+1 (;=3.14;))
+//   (global $g_f64 (;5;) f64 f64.const 0x1.5be76c8b43958p+1 (;=2.718;))
+//   (global $g_mut_local (;6;) (mut i32) i32.const 0)
+//   (global $g_from_import (;7;) i32 global.get $imported_g_const)
+//   (export "g_i32" (global $g_i32))
+//   (export "g_i64" (global $g_i64))
+//   (export "g_f32" (global $g_f32))
+//   (export "g_f64" (global $g_f64))
+//   (export "g_mut_local" (global $g_mut_local))
+//   (export "nop_func" (func $nop_func))
+//   (export "add_func" (func $add_func))
+//   (export "swap_func" (func $swap_func))
+//   (export "call_import" (func $call_import))
+//   (export "memory" (memory 0))
+//   (export "table" (table 0))
+//   (export "g_from_import" (global $g_from_import))
+//   (func $nop_func (;1;) (type 2)
+//     nop
+//   )
+//   (func $add_func (;2;) (type 3) (param i32 i32) (result i32)
+//     local.get 0
+//     local.get 1
+//     i32.add
+//   )
+//   (func $swap_func (;3;) (type $swap_type) (param i32 i32) (result i32 i32)
+//     local.get 1
+//     local.get 0
+//   )
+//   (func $call_import (;4;) (type 1) (param i32)
+//     local.get 0
+//     call $imported_func
+//   )
+// )
+static const std::array<uint8_t, 502> ParseTestWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x15, 0x04, 0x60,
+    0x02, 0x7f, 0x7f, 0x02, 0x7f, 0x7f, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00,
+    0x00, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02, 0x44, 0x05, 0x03, 0x65,
+    0x6e, 0x76, 0x03, 0x6c, 0x6f, 0x67, 0x00, 0x01, 0x03, 0x65, 0x6e, 0x76,
+    0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x01, 0x01, 0x0a, 0x03,
+    0x65, 0x6e, 0x76, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x70, 0x00,
+    0x01, 0x03, 0x65, 0x6e, 0x76, 0x05, 0x67, 0x5f, 0x6d, 0x75, 0x74, 0x03,
+    0x7f, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x07, 0x67, 0x5f, 0x63, 0x6f, 0x6e,
+    0x73, 0x74, 0x03, 0x7f, 0x00, 0x03, 0x05, 0x04, 0x02, 0x03, 0x00, 0x01,
+    0x06, 0x2a, 0x06, 0x7f, 0x00, 0x41, 0x2a, 0x0b, 0x7e, 0x00, 0x42, 0xe4,
+    0x00, 0x0b, 0x7d, 0x00, 0x43, 0xc3, 0xf5, 0x48, 0x40, 0x0b, 0x7c, 0x00,
+    0x44, 0x58, 0x39, 0xb4, 0xc8, 0x76, 0xbe, 0x05, 0x40, 0x0b, 0x7f, 0x01,
+    0x41, 0x00, 0x0b, 0x7f, 0x00, 0x23, 0x01, 0x0b, 0x07, 0x80, 0x01, 0x0c,
+    0x05, 0x67, 0x5f, 0x69, 0x33, 0x32, 0x03, 0x02, 0x05, 0x67, 0x5f, 0x69,
+    0x36, 0x34, 0x03, 0x03, 0x05, 0x67, 0x5f, 0x66, 0x33, 0x32, 0x03, 0x04,
+    0x05, 0x67, 0x5f, 0x66, 0x36, 0x34, 0x03, 0x05, 0x0b, 0x67, 0x5f, 0x6d,
+    0x75, 0x74, 0x5f, 0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x03, 0x06, 0x08, 0x6e,
+    0x6f, 0x70, 0x5f, 0x66, 0x75, 0x6e, 0x63, 0x00, 0x01, 0x08, 0x61, 0x64,
+    0x64, 0x5f, 0x66, 0x75, 0x6e, 0x63, 0x00, 0x02, 0x09, 0x73, 0x77, 0x61,
+    0x70, 0x5f, 0x66, 0x75, 0x6e, 0x63, 0x00, 0x03, 0x0b, 0x63, 0x61, 0x6c,
+    0x6c, 0x5f, 0x69, 0x6d, 0x70, 0x6f, 0x72, 0x74, 0x00, 0x04, 0x06, 0x6d,
+    0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x05, 0x74, 0x61, 0x62, 0x6c,
+    0x65, 0x01, 0x00, 0x0d, 0x67, 0x5f, 0x66, 0x72, 0x6f, 0x6d, 0x5f, 0x69,
+    0x6d, 0x70, 0x6f, 0x72, 0x74, 0x03, 0x07, 0x0a, 0x1b, 0x04, 0x03, 0x00,
+    0x01, 0x0b, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b, 0x06, 0x00,
+    0x20, 0x01, 0x20, 0x00, 0x0b, 0x06, 0x00, 0x20, 0x00, 0x10, 0x00, 0x0b,
+    0x00, 0xbb, 0x01, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x3c, 0x05, 0x00,
+    0x0d, 0x69, 0x6d, 0x70, 0x6f, 0x72, 0x74, 0x65, 0x64, 0x5f, 0x66, 0x75,
+    0x6e, 0x63, 0x01, 0x08, 0x6e, 0x6f, 0x70, 0x5f, 0x66, 0x75, 0x6e, 0x63,
+    0x02, 0x08, 0x61, 0x64, 0x64, 0x5f, 0x66, 0x75, 0x6e, 0x63, 0x03, 0x09,
+    0x73, 0x77, 0x61, 0x70, 0x5f, 0x66, 0x75, 0x6e, 0x63, 0x04, 0x0b, 0x63,
+    0x61, 0x6c, 0x6c, 0x5f, 0x69, 0x6d, 0x70, 0x6f, 0x72, 0x74, 0x02, 0x0b,
+    0x05, 0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00, 0x04,
+    0x0c, 0x01, 0x00, 0x09, 0x73, 0x77, 0x61, 0x70, 0x5f, 0x74, 0x79, 0x70,
+    0x65, 0x07, 0x5b, 0x08, 0x00, 0x0e, 0x69, 0x6d, 0x70, 0x6f, 0x72, 0x74,
+    0x65, 0x64, 0x5f, 0x67, 0x5f, 0x6d, 0x75, 0x74, 0x01, 0x10, 0x69, 0x6d,
+    0x70, 0x6f, 0x72, 0x74, 0x65, 0x64, 0x5f, 0x67, 0x5f, 0x63, 0x6f, 0x6e,
+    0x73, 0x74, 0x02, 0x05, 0x67, 0x5f, 0x69, 0x33, 0x32, 0x03, 0x05, 0x67,
+    0x5f, 0x69, 0x36, 0x34, 0x04, 0x05, 0x67, 0x5f, 0x66, 0x33, 0x32, 0x05,
+    0x05, 0x67, 0x5f, 0x66, 0x36, 0x34, 0x06, 0x0b, 0x67, 0x5f, 0x6d, 0x75,
+    0x74, 0x5f, 0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x07, 0x0d, 0x67, 0x5f, 0x66,
+    0x72, 0x6f, 0x6d, 0x5f, 0x69, 0x6d, 0x70, 0x6f, 0x72, 0x74};
+
+// (module
+//   (type (;0;) (func))
+//   (table (;0;) 2 3 funcref)
+//   (memory (;0;) 1 2)
+//   (start 0)
+//   (elem (;0;) (i32.const 0) func 0)
+//   (elem (;1;) func 0)
+//   (func (;0;) (type 0))
+//   (data (;0;) (i32.const 0) "ab")
+//   (data (;1;) "cd")
+// )
+static const std::array<uint8_t, 70> SectionsTestWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+    0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x04, 0x05, 0x01, 0x70, 0x01, 0x02,
+    0x03, 0x05, 0x04, 0x01, 0x01, 0x01, 0x02, 0x08, 0x01, 0x00, 0x09, 0x0b,
+    0x02, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x0c,
+    0x01, 0x02, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b, 0x0b, 0x0c, 0x02, 0x00,
+    0x41, 0x00, 0x0b, 0x02, 0x61, 0x62, 0x01, 0x02, 0x63, 0x64};
+
+// (module
+//   (type (;0;) (func (param i32)))
+//   (import "env" "tag" (tag (;0;) (type 0) (param i32)))
+// )
+static const std::array<uint8_t, 29> TagImportTestWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+    0x01, 0x60, 0x01, 0x7f, 0x00, 0x02, 0x0c, 0x01, 0x03, 0x65,
+    0x6e, 0x76, 0x03, 0x74, 0x61, 0x67, 0x04, 0x00, 0x00};
+
+// (module
+//   (type (;0;) (func (param i32)))
+//   (tag (;0;) (type 0) (param i32))
+// )
+static const std::array<uint8_t, 20> TagSectionTestWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+    0x01, 0x60, 0x01, 0x7f, 0x00, 0x0d, 0x03, 0x01, 0x00, 0x00};
+
+// (module
+//   (type (;0;) (func (param i32 i32) (result i32)))
+//   (export "add" (func 0))
+//   (func (;0;) (type 0) (param i32 i32) (result i32)
+//     local.get 0
+//     local.get 1
+//     i32.add
+//   )
+// )
+static const std::array<uint8_t, 41> ProviderWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
+    0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07,
+    0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x0a, 0x09, 0x01,
+    0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b};
+
+// (module
+//   (type (;0;) (func (param i32 i32) (result i32)))
+//   (import "provider" "add" (func (;0;) (type 0)))
+//   (export "add" (func 0))
+// )
+static const std::array<uint8_t, 44> ConsumerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
+    0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02, 0x10, 0x01, 0x08, 0x70,
+    0x72, 0x6f, 0x76, 0x69, 0x64, 0x65, 0x72, 0x03, 0x61, 0x64, 0x64,
+    0x00, 0x00, 0x07, 0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00};
+
+// (module
+//   (type (;0;) (func))
+//   (memory (;0;) 1)
+//   (export "mem" (memory 0))
+//   (export "_start" (func 0))
+//   (func (;0;) (type 0)
+//     i32.const 1
+//     i32.const 0
+//     i32.div_s
+//     drop
+//   )
+// )
+static const std::array<uint8_t, 53> TrapWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01,
+    0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00,
+    0x01, 0x07, 0x10, 0x02, 0x03, 0x6d, 0x65, 0x6d, 0x02, 0x00, 0x06,
+    0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x00, 0x0a, 0x0a, 0x01,
+    0x08, 0x00, 0x41, 0x01, 0x41, 0x00, 0x6d, 0x1a, 0x0b};
+
+std::string simplePath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(SimpleWasm.data(), SimpleWasm.size(), "simple.wasm");
+  }
+  return Path;
+}
+
+std::string invalidPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path =
+        writeWasmToFile(InvalidWasm.data(), InvalidWasm.size(), "invalid.wasm");
+  }
+  return Path;
+}
+
+std::string parseTestPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(ParseTestWasm.data(), ParseTestWasm.size(),
+                           "parse_test.wasm");
+  }
+  return Path;
+}
+
+std::string providerPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(ProviderWasm.data(), ProviderWasm.size(),
+                           "provider.wasm");
+  }
+  return Path;
+}
+
+std::string consumerPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(ConsumerWasm.data(), ConsumerWasm.size(),
+                           "consumer.wasm");
+  }
+  return Path;
+}
+
+std::string trapPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    // The coredump is written into the working directory, hence the tests
+    // change it and the module must be addressed by an absolute path.
+    Path = std::filesystem::absolute(
+               writeWasmToFile(TrapWasm.data(), TrapWasm.size(), "trap.wasm"))
+               .string();
+  }
+  return Path;
+}
+
+// Run in a dedicated directory and report the number of the generated
+// coredumps, because the coredump is written into the working directory.
+size_t countCoredumpsOf(std::initializer_list<const char *> Args,
+                        const std::string &Name) {
+  const auto TempDir = std::filesystem::temp_directory_path() /
+                       WasmEdge::u8path("wasmedge-driver-coredump-" + Name);
+  std::error_code Error;
+  std::filesystem::remove_all(TempDir, Error);
+  if (!std::filesystem::create_directories(TempDir, Error)) {
+    return static_cast<size_t>(-1);
+  }
+  const auto Origin = std::filesystem::current_path();
+  std::filesystem::current_path(TempDir);
+  callRun(Args);
+  std::filesystem::current_path(Origin, Error);
+
+  size_t Count = 0;
+  for (const auto &Entry : std::filesystem::directory_iterator(TempDir)) {
+    if (Entry.path().filename().string().rfind("coredump.", 0) == 0) {
+      Count++;
+    }
+  }
+  std::filesystem::remove_all(TempDir, Error);
+  return Count;
+}
+
+std::string sectionsTestPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(SectionsTestWasm.data(), SectionsTestWasm.size(),
+                           "sections_test.wasm");
+  }
+  return Path;
+}
+
+std::string tagImportTestPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(TagImportTestWasm.data(), TagImportTestWasm.size(),
+                           "tag_import_test.wasm");
+  }
+  return Path;
+}
+
+std::string tagSectionTestPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(TagSectionTestWasm.data(), TagSectionTestWasm.size(),
+                           "tag_section_test.wasm");
+  }
+  return Path;
+}
+
+std::string nonExistPath() { return TestDataPath + "/nonexist.wasm"; }
+
+TEST(DriverToolTest, ParseErrorHandling) {
+  EXPECT_NE(callParse({}), EXIT_SUCCESS);
+
+  std::string NonExist = TestDataPath + "/nonexist.wasm";
+  EXPECT_NE(callParse({NonExist.c_str()}), EXIT_SUCCESS);
+  EXPECT_NE(callParse({TestDataPath.c_str()}), EXIT_SUCCESS);
+
+  std::string InvalidPath =
+      writeWasmToFile(TruncatedWasm.data(), TruncatedWasm.size(), "trunc.wasm");
+  EXPECT_NE(callParse({InvalidPath.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(InvalidPath.c_str());
+
+  std::string ElfPath =
+      writeWasmToFile(NotWasmBytes.data(), NotWasmBytes.size(), "elf.wasm");
+  EXPECT_NE(callParse({ElfPath.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(ElfPath.c_str());
+
+  EXPECT_NE(callParse({"--no-such-flag", parseTestPath().c_str()}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callParse({parseTestPath().c_str(), "extra-arg"}), EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, ParseValidModules) {
+  EXPECT_EQ(callParse({parseTestPath().c_str()}), EXIT_SUCCESS);
+
+  std::string MinPath =
+      writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(), "minimal.wasm");
+  EXPECT_EQ(callParse({MinPath.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(MinPath.c_str());
+
+  // (module
+  //   (import "env" "memory" (memory (;0;) 1))
+  // )
+  std::array<uint8_t, 25> MemNoMaxWasm{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00,
+                                       0x00, 0x02, 0x0f, 0x01, 0x03, 0x65, 0x6e,
+                                       0x76, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72,
+                                       0x79, 0x02, 0x00, 0x01};
+  std::string MemPath = writeWasmToFile(MemNoMaxWasm.data(),
+                                        MemNoMaxWasm.size(), "memnomax.wasm");
+  EXPECT_EQ(callParse({MemPath.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(MemPath.c_str());
+}
+
+TEST(DriverToolTest, ParseDisableProposalFlags) {
+  std::string PathStr = parseTestPath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callParse({"--disable-simd", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--disable-bulk-memory", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--disable-reference-types", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--disable-multi-value", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--disable-non-trap-float-to-int", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--disable-sign-extension-operators", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--disable-tail-call", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--disable-extended-const", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--disable-multi-memory", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--disable-relaxed-simd", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--disable-memory64", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--disable-gc", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--disable-function-reference", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--disable-exception-handling", Path}), EXIT_SUCCESS);
+
+  std::string MinPath =
+      writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(), "min_mg.wasm");
+  EXPECT_EQ(callParse({"--disable-import-export-mut-globals", MinPath.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(MinPath.c_str());
+
+  EXPECT_NE(callParse({"--disable-import-export-mut-globals", Path}),
+            EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, ParseEnableProposalFlags) {
+  std::string PathStr = parseTestPath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callParse({"--enable-all", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--enable-threads", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--enable-component", Path}), EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, ParseWasmStandardFlags) {
+  std::string PathStr = parseTestPath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callParse({"--wasm-1", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--wasm-2", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--wasm-3", Path}), EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, ParseCombinedFlags) {
+  std::string PathStr = parseTestPath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callParse({"--disable-simd", "--disable-bulk-memory",
+                       "--disable-multi-value", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--disable-simd", "--enable-threads", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--wasm-2", "--disable-simd", Path}), EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, ParseForbiddenPluginFlag) {
+  std::string PathStr = parseTestPath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callParse({"--forbidden-plugin", "someplugin", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--forbidden-plugin", "plugA", "--forbidden-plugin",
+                       "plugB", Path}),
+            EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, ParseExtraSectionModules) {
+  EXPECT_EQ(callParse({sectionsTestPath().c_str()}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({tagImportTestPath().c_str()}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({tagSectionTestPath().c_str()}), EXIT_SUCCESS);
+}
+
+#if !WASMEDGE_OS_WINDOWS
+TEST(DriverToolTest, ParseOutputSectionHeaders) {
+  auto R = callParseCaptureStdout({parseTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(
+      R.Stdout,
+      {"file format wasm 0x1", "Section Details:", "Type[4]:", "Import[5]:",
+       "Function[4]:", "Global[6]:", "Export[12]:", "Code[4]:", "Custom:"}));
+}
+
+TEST(DriverToolTest, ParseOutputNameAnnotations) {
+  auto R = callParseCaptureStdout({parseTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(
+      R.Stdout, {"<imported_func>", "<nop_func>", "<add_func>", "<swap_func>",
+                 "<call_import>", "<imported_g_mut>", "<imported_g_const>",
+                 "<g_i32>", "<g_f64>", "<g_mut_local>", "- name: \"name\""}));
+}
+
+TEST(DriverToolTest, ParseOutputImportsAndExports) {
+  auto R = callParseCaptureStdout({parseTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(
+      R.Stdout, {"<- env.log", "<- env.memory", "<- env.table", "<- env.g_mut",
+                 "<- env.g_const", "-> \"nop_func\"", "-> \"add_func\"",
+                 "-> \"swap_func\"", "-> \"call_import\"", "-> \"memory\"",
+                 "-> \"table\"", "-> \"g_i32\""}));
+}
+
+TEST(DriverToolTest, ParseOutputGlobalInitExpressions) {
+  auto R = callParseCaptureStdout({parseTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(R.Stdout, {"init i32=42", "init i64=100", "init f32=",
+                                     "init f64=", "init global.get 1"}));
+}
+
+TEST(DriverToolTest, ParseMinimalModuleEmptyCounts) {
+  std::string Path = writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(),
+                                     "minimal_out.wasm");
+  auto R = callParseCaptureStdout({Path.c_str()});
+  std::filesystem::remove(Path.c_str());
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(
+      containsAll(R.Stdout, {"file format wasm 0x1", "Section Details:"}));
+  EXPECT_TRUE(containsNone(R.Stdout, {"Type[", "Import[", "Function[",
+                                      "Global[", "Export[", "Code[", "Table[",
+                                      "Memory[", "Start:", "Element[",
+                                      "DataCount section", "Data[", "Tag["}));
+}
+
+TEST(DriverToolTest, ParseOutputTableMemoryStartElementData) {
+  auto R = callParseCaptureStdout({sectionsTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(
+      R.Stdout, {"Table[1]:", " - table[0] type=ref_null func initial=2 max=3",
+                 "Memory[1]:", " - memory[0] pages: initial=1 max=2",
+                 "Start:", " - func[0]"}));
+  EXPECT_TRUE(containsAll(
+      R.Stdout, {"Element[2]:",
+                 " - segment[0] flags=0 table=0 type=ref func count=1"
+                 " - init i32=0",
+                 "  - elem[0] = func[0]",
+                 " - segment[1] flags=1 passive type=ref func count=1",
+                 "DataCount section: 2"}));
+  EXPECT_TRUE(containsAll(
+      R.Stdout, {"Data[2]:", " - segment[0] memory=0 size=2 - init i32=0",
+                 " - segment[1] passive size=2"}));
+}
+
+TEST(DriverToolTest, ParseOutputImportedTagType) {
+  auto R = callParseCaptureStdout({tagImportTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(
+      containsAll(R.Stdout, {"Import[1]:", " - tag[0] sig=0 <- env.tag"}));
+}
+
+TEST(DriverToolTest, ParseOutputTagSection) {
+  auto R = callParseCaptureStdout({tagSectionTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(R.Stdout, {"Tag[1]:", " - tag[0] sig=0"}));
+  EXPECT_TRUE(containsNone(R.Stdout, {"Table[", "Memory[", "Start:", "Element[",
+                                      "DataCount section", "Data["}));
+}
+#endif
+
+TEST(DriverToolTest, ValidateErrorHandling) {
+  EXPECT_NE(callValidate({}), EXIT_SUCCESS);
+  EXPECT_NE(callValidate({nonExistPath().c_str()}), EXIT_SUCCESS);
+  EXPECT_NE(callValidate({TestDataPath.c_str()}), EXIT_SUCCESS);
+
+  std::string TruncPath =
+      writeWasmToFile(TruncatedWasm.data(), TruncatedWasm.size(), "trunc.wasm");
+  EXPECT_NE(callValidate({TruncPath.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(TruncPath.c_str());
+
+  std::string ElfPath =
+      writeWasmToFile(NotWasmBytes.data(), NotWasmBytes.size(), "elf.wasm");
+  EXPECT_NE(callValidate({ElfPath.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(ElfPath.c_str());
+
+  EXPECT_NE(callValidate({"--no-such-flag", simplePath().c_str()}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callValidate({simplePath().c_str(), "extra-arg"}), EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, ValidateValidAndInvalidModules) {
+  EXPECT_EQ(callValidate({simplePath().c_str()}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({invalidPath().c_str()}), EXIT_FAILURE);
+
+  std::string MinPath =
+      writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(), "minimal.wasm");
+  EXPECT_EQ(callValidate({MinPath.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(MinPath.c_str());
+
+  EXPECT_EQ(callValidate({parseTestPath().c_str()}), EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, ValidateDisableProposalFlags) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callValidate({"--disable-simd", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--disable-bulk-memory", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--disable-reference-types", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--disable-multi-value", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--disable-non-trap-float-to-int", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--disable-sign-extension-operators", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--disable-tail-call", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--disable-extended-const", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--disable-multi-memory", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--disable-relaxed-simd", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--disable-memory64", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--disable-gc", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--disable-function-reference", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--disable-exception-handling", Path}), EXIT_SUCCESS);
+
+  EXPECT_EQ(callValidate({"--disable-import-export-mut-globals", Path}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callValidate({"--disable-import-export-mut-globals",
+                          parseTestPath().c_str()}),
+            EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, ValidateEnableProposalFlags) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callValidate({"--enable-all", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--enable-threads", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--enable-component", Path}), EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, ValidateWasmStandardFlags) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callValidate({"--wasm-1", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--wasm-2", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--wasm-3", Path}), EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, ValidateCombinedFlags) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callValidate({"--disable-simd", "--disable-bulk-memory", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--disable-simd", "--enable-threads", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--wasm-2", "--disable-simd", Path}), EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, ValidateForbiddenPluginFlag) {
+  EXPECT_EQ(
+      callValidate({"--forbidden-plugin", "someplugin", simplePath().c_str()}),
+      EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, CompileErrorHandling) {
+  std::string Output = TestDataPath + "/err_out.wasm";
+
+  EXPECT_NE(callCompile({}), EXIT_SUCCESS);
+  EXPECT_NE(callCompile({simplePath().c_str()}), EXIT_SUCCESS);
+  EXPECT_NE(callCompile({nonExistPath().c_str(), Output.c_str()}),
+            EXIT_SUCCESS);
+
+  std::string TruncPath =
+      writeWasmToFile(TruncatedWasm.data(), TruncatedWasm.size(), "trunc.wasm");
+  EXPECT_NE(callCompile({TruncPath.c_str(), Output.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(TruncPath.c_str());
+
+  std::string ElfPath =
+      writeWasmToFile(NotWasmBytes.data(), NotWasmBytes.size(), "elf.wasm");
+  EXPECT_NE(callCompile({ElfPath.c_str(), Output.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(ElfPath.c_str());
+
+  EXPECT_NE(
+      callCompile({"--no-such-flag", simplePath().c_str(), Output.c_str()}),
+      EXIT_SUCCESS);
+
+  std::filesystem::remove(Output.c_str());
+}
+
+TEST(DriverToolTest, CompileValidAndInvalidModules) {
+  std::string Output = TestDataPath + "/simple_aot.wasm";
+  EXPECT_EQ(callCompile({simplePath().c_str(), Output.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  std::string BadOutput = TestDataPath + "/invalid_aot.wasm";
+  EXPECT_NE(callCompile({invalidPath().c_str(), BadOutput.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(BadOutput.c_str());
+}
+
+TEST(DriverToolTest, CompileProposalFlags) {
+  std::string Output = TestDataPath + "/proposal_out.wasm";
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callCompile({"--disable-simd", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  EXPECT_EQ(callCompile({"--enable-all", Path, Output.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  EXPECT_EQ(callCompile({"--wasm-2", Path, Output.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  EXPECT_EQ(
+      callCompile({"--disable-simd", "--enable-threads", Path, Output.c_str()}),
+      EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+}
+
+TEST(DriverToolTest, CompileCompilerSpecificFlags) {
+  std::string Output = TestDataPath + "/compiler_out.wasm";
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callCompile({"--generic-binary", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  EXPECT_EQ(callCompile({"--interruptible", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  EXPECT_EQ(callCompile({"--dump", Path, Output.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  EXPECT_EQ(callCompile({"--enable-instruction-count", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  EXPECT_EQ(callCompile({"--enable-gas-measuring", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  EXPECT_EQ(callCompile({"--enable-time-measuring", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  EXPECT_EQ(callCompile({"--enable-all-statistics", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  EXPECT_EQ(callCompile({"--optimize", "0", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  EXPECT_EQ(callCompile({"--optimize", "1", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  EXPECT_EQ(callCompile({"--optimize", "2", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  EXPECT_EQ(callCompile({"--optimize", "3", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  EXPECT_EQ(callCompile({"--optimize", "s", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  EXPECT_EQ(callCompile({"--optimize", "z", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+#if defined(WASMEDGE_LLVM_VERSION_MAJOR) && WASMEDGE_LLVM_VERSION_MAJOR >= 23
+  auto ReadOptimizedIR = []() {
+    std::ifstream Ifs("wasm-opt.ll");
+    return std::string(std::istreambuf_iterator<char>(Ifs),
+                       std::istreambuf_iterator<char>());
+  };
+  auto RemoveDumpedIR = []() {
+    std::filesystem::remove("wasm.ll");
+    std::filesystem::remove("wasm-opt.ll");
+  };
+
+  RemoveDumpedIR();
+  EXPECT_EQ(callCompile({"--optimize", "s", "--dump", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+  const std::string IROptSize = ReadOptimizedIR();
+  EXPECT_NE(IROptSize.find("optsize"), std::string::npos);
+  EXPECT_EQ(IROptSize.find("minsize"), std::string::npos);
+  RemoveDumpedIR();
+
+  EXPECT_EQ(callCompile({"--optimize", "z", "--dump", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+  const std::string IRMinSize = ReadOptimizedIR();
+  EXPECT_NE(IRMinSize.find("optsize"), std::string::npos);
+  EXPECT_NE(IRMinSize.find("minsize"), std::string::npos);
+  RemoveDumpedIR();
+#endif
+
+  EXPECT_EQ(callCompile({"--optimize", "invalid", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+}
+
+TEST(DriverToolTest, CompileOutputFormat) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  std::string WasmOutput = TestDataPath + "/fmt_out.wasm";
+  EXPECT_EQ(callCompile({Path, WasmOutput.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(WasmOutput.c_str());
+
+  std::string NativeOutput = TestDataPath + "/fmt_out" WASMEDGE_LIB_EXTENSION;
+  EXPECT_EQ(callCompile({Path, NativeOutput.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(NativeOutput.c_str());
+}
+
+TEST(DriverToolTest, RunModeFlagParses) {
+  WasmEdge::Driver::DriverToolOptions Opt;
+  WasmEdge::PO::ArgumentParser Parser;
+  Opt.addOptions(Parser);
+
+  const char *Argv[] = {"wasmedge", "--enable-jit", "--run-mode=jit",
+                        "dummy.wasm"};
+  EXPECT_TRUE(Parser.parse(stdout, 4, Argv));
+  EXPECT_TRUE(Opt.ConfEnableJIT.value());
+  EXPECT_EQ(Opt.ConfRunMode.value(), "jit");
+}
+
+TEST(DriverToolTest, RunParseRunModeArg) {
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("interpreter"),
+            WasmEdge::RunMode::Interpreter);
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("jit"), WasmEdge::RunMode::JIT);
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("aot"), WasmEdge::RunMode::AOT);
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("lazyjit"),
+            WasmEdge::RunMode::LazyJIT);
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("JIT"), WasmEdge::RunMode::JIT);
+  EXPECT_FALSE(WasmEdge::Driver::parseRunModeArg("jti").has_value());
+  EXPECT_FALSE(WasmEdge::Driver::parseRunModeArg("").has_value());
+}
+
+TEST(DriverToolTest, InstantiateErrorHandling) {
+  EXPECT_NE(callInstantiate({}), EXIT_SUCCESS);
+  EXPECT_NE(callInstantiate({""}), EXIT_SUCCESS);
+  EXPECT_NE(callInstantiate({nonExistPath().c_str()}), EXIT_SUCCESS);
+  EXPECT_NE(callInstantiate({TestDataPath.c_str()}), EXIT_SUCCESS);
+
+  std::string TruncPath =
+      writeWasmToFile(TruncatedWasm.data(), TruncatedWasm.size(), "trunc.wasm");
+  EXPECT_NE(callInstantiate({TruncPath.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(TruncPath.c_str());
+
+  std::string ElfPath =
+      writeWasmToFile(NotWasmBytes.data(), NotWasmBytes.size(), "elf.wasm");
+  EXPECT_NE(callInstantiate({ElfPath.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(ElfPath.c_str());
+
+  EXPECT_NE(callInstantiate({"--no-such-flag", simplePath().c_str()}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callInstantiate({simplePath().c_str(), "extra-arg"}), EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, InstantiateValidAndInvalidModules) {
+  EXPECT_EQ(callInstantiate({simplePath().c_str()}), EXIT_SUCCESS);
+  EXPECT_EQ(callInstantiate({invalidPath().c_str()}), EXIT_FAILURE);
+
+  std::string MinPath =
+      writeWasmToFile(MinimalWasm.data(), MinimalWasm.size(), "minimal.wasm");
+  EXPECT_EQ(callInstantiate({MinPath.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(MinPath.c_str());
+
+  EXPECT_NE(callInstantiate({parseTestPath().c_str()}), EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, InstantiateProposalFlags) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callInstantiate({"--disable-simd", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callInstantiate({"--enable-all", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callInstantiate({"--wasm-2", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callInstantiate({"--disable-simd", "--enable-threads", Path}),
+            EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, InstantiateLinkerFlags) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callInstantiate({"--dir", ".:.", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callInstantiate({"--env", "HOME=/tmp", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(callInstantiate({"--memory-page-limit", "256", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callInstantiate({"--memory-page-limit", "-1", Path}),
+            EXIT_FAILURE);
+  EXPECT_EQ(callInstantiate({"--dir", ".:.", "--env", "HOME=/tmp",
+                             "--memory-page-limit", "256", Path}),
+            EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, InstantiateLinkedModules) {
+  std::string ProvPath = providerPath();
+  std::string ConsPath = consumerPath();
+  std::string ModArg = "provider:" + ProvPath;
+
+  EXPECT_EQ(callInstantiate({"--module", ModArg.c_str(), ConsPath.c_str()}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callInstantiate({"--module", "badformat", ConsPath.c_str()}),
+            EXIT_FAILURE);
+  EXPECT_EQ(
+      callInstantiate({"--module", "provider:nonexist.wasm", ConsPath.c_str()}),
+      EXIT_FAILURE);
+  EXPECT_NE(callInstantiate({ConsPath.c_str()}), EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, InstantiateForbiddenPluginFlag) {
+  EXPECT_EQ(callInstantiate(
+                {"--forbidden-plugin", "someplugin", simplePath().c_str()}),
+            EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, RunErrorHandling) {
+  EXPECT_NE(callRun({}), EXIT_SUCCESS);
+  EXPECT_NE(callRun({nonExistPath().c_str()}), EXIT_SUCCESS);
+
+  std::string TruncPath =
+      writeWasmToFile(TruncatedWasm.data(), TruncatedWasm.size(), "trunc.wasm");
+  EXPECT_NE(callRun({TruncPath.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(TruncPath.c_str());
+
+  std::string ElfPath =
+      writeWasmToFile(NotWasmBytes.data(), NotWasmBytes.size(), "elf.wasm");
+  EXPECT_NE(callRun({ElfPath.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(ElfPath.c_str());
+
+  EXPECT_NE(callRun({"--no-such-flag", simplePath().c_str()}), EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, RunReactorMode) {
+  EXPECT_EQ(callRun({"--reactor", simplePath().c_str(), "add", "3", "5"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", simplePath().c_str(), "sub", "10", "4"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", simplePath().c_str(), "no_such_func"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", simplePath().c_str()}), EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, RunProposalFlags) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callRun({"--reactor", "--disable-simd", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--enable-all", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--wasm-2", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, RunSpecificFlags) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callRun({"--reactor", "--enable-instruction-count", Path, "add",
+                     "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(
+      callRun({"--reactor", "--enable-gas-measuring", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+  EXPECT_EQ(
+      callRun({"--reactor", "--enable-time-measuring", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+  EXPECT_EQ(
+      callRun({"--reactor", "--enable-all-statistics", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+  EXPECT_EQ(
+      callRun({"--reactor", "--force-interpreter", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--enable-jit", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--enable-coredump", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(
+      callRun({"--reactor", "--coredump-for-wasmgdb", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--allow-af-unix", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(
+      callRun({"--reactor", "--time-limit", "5000", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+  EXPECT_EQ(
+      callRun({"--reactor", "--gas-limit", "100000", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--dir", ".:.", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--env", "HOME=/tmp", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "256", Path, "add",
+                     "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "-1", Path, "add",
+                     "1", "2"}),
+            EXIT_FAILURE);
+  EXPECT_EQ(callRun({"--reactor", "--stack-size-limit", "1048576", Path, "add",
+                     "1", "2"}),
+            EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, RunLinkedModules) {
+  std::string ProvPath = providerPath();
+  std::string ConsPath = consumerPath();
+  std::string ModArg = "provider:" + ProvPath;
+
+  EXPECT_EQ(callRun({"--reactor", "--module", ModArg.c_str(), ConsPath.c_str(),
+                     "add", "3", "5"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--module", "badformat", ConsPath.c_str(),
+                     "add", "1", "2"}),
+            EXIT_FAILURE);
+  EXPECT_EQ(callRun({"--reactor", "--module", "provider:nonexist.wasm",
+                     ConsPath.c_str(), "add", "1", "2"}),
+            EXIT_FAILURE);
+}
+
+TEST(DriverToolTest, RunCoredumpRequiresInterpreter) {
+  std::string PathStr = trapPath();
+  const char *Path = PathStr.c_str();
+
+  // The interpreter is the default run mode, hence the coredump is generated.
+  EXPECT_EQ(countCoredumpsOf({"--enable-coredump", Path}, "default"), 1U);
+  EXPECT_EQ(countCoredumpsOf({"--coredump-for-wasmgdb", Path}, "wasmgdb"), 1U);
+  EXPECT_EQ(
+      countCoredumpsOf({"--run-mode=interpreter", "--enable-coredump", Path},
+                       "interpreter"),
+      1U);
+
+  // An explicitly requested run mode takes precedence over the coredump, so
+  // no coredump is generated and the run mode is kept.
+  EXPECT_EQ(
+      countCoredumpsOf({"--run-mode=jit", "--enable-coredump", Path}, "jit"),
+      0U);
+  EXPECT_EQ(
+      countCoredumpsOf({"--run-mode=aot", "--enable-coredump", Path}, "aot"),
+      0U);
+  EXPECT_EQ(
+      countCoredumpsOf({"--run-mode=lazyjit", "--coredump-for-wasmgdb", Path},
+                       "lazyjit"),
+      0U);
+
+  // The decision follows the requested run mode, not the effective one, hence
+  // it is deterministic on the builds without LLVM as well.
+  EXPECT_EQ(countCoredumpsOf({"--enable-jit", "--enable-coredump", Path},
+                             "deprecated-jit"),
+            0U);
+  EXPECT_EQ(countCoredumpsOf({"--force-interpreter", "--enable-coredump", Path},
+                             "deprecated-interpreter"),
+            1U);
+}
+
+TEST(DriverToolTest, RunGlobalFlags) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(
+      callRun({"--reactor", "--log-level", "error", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--forbidden-plugin", "someplugin", Path,
+                     "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--forbidden-plugin", "pA",
+                     "--forbidden-plugin", "pB", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+}
+
+TEST(DriverToolTest, NoSubcommandFallbackToRun) {
+  EXPECT_EQ(
+      callUniToolAll({"--reactor", simplePath().c_str(), "add", "3", "5"}),
+      EXIT_SUCCESS);
+  EXPECT_NE(callUniToolAll({nonExistPath().c_str()}), EXIT_SUCCESS);
+  EXPECT_EQ(callUniToolAll({"--reactor", "--force-interpreter",
+                            simplePath().c_str(), "add", "1", "2"}),
+            EXIT_SUCCESS);
+}
+
+} // namespace
+
+GTEST_API_ int main(int Argc, char *Argv[]) {
+  testing::InitGoogleTest(&Argc, Argv);
+  TestDataPath = "driverTestData";
+  if (Argc > 1) {
+    TestDataPath = Argv[1];
+  }
+  return RUN_ALL_TESTS();
+}

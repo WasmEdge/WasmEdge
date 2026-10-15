@@ -4044,6 +4044,57 @@ TEST(WasiNNTest, PiperBackend) {
     EXPECT_EQ(BytesWritten, 44100);
   }
 
+  // Sets a JSON input on context 1 and returns the errno.
+  auto SetJsonInput = [&](const std::string &Json) {
+    std::vector<uint8_t> Data(Json.begin(), Json.end());
+    auto DimBytes = static_cast<uint32_t>(
+        TensorDim.size() * sizeof(decltype(TensorDim)::value_type));
+    SetInputEntryPtr = BuilderPtr;
+    writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                    BuilderPtr);
+    writeUInt32(MemInst, 3, BuilderPtr);
+    writeFatPointer(MemInst, StorePtr + DimBytes,
+                    static_cast<uint32_t>(Data.size()), BuilderPtr);
+    writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+    writeBinaries<uint8_t>(MemInst, Data, StorePtr + DimBytes);
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(1), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    StorePtr += DimBytes + static_cast<uint32_t>(Data.size());
+    return static_cast<uint32_t>(Errno[0].get<int32_t>());
+  };
+
+  // Test: set_input -- JSON input without the text field.
+  EXPECT_EQ(SetJsonInput("{\"speaker_id\": 0}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: set_input -- JSON input with a wrongly typed option.
+  EXPECT_EQ(SetJsonInput("{\"text\": \"x\", \"length_scale\": \"fast\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: set_input -- JSON input that is not an object.
+  EXPECT_EQ(SetJsonInput("[\"This is a test.\"]"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: compute -- a rejected input leaves the previous one in effect.
+  {
+    EXPECT_TRUE(HostFuncCompute.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(1), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 44100);
+  }
+
   // Test: load -- espeak_data may name the parent of espeak-ng-data.
   EXPECT_EQ(LoadPiperConfig(
                 "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "

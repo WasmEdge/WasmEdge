@@ -36,3 +36,25 @@ index d43e714..a59d625 100644
  string(REGEX MATCH "version=\"([0-9]+\\.[0-9]+\\.[0-9]+)\"" _ ${SETUP_PY_CONTENTS})
  set(PIPER_VERSION ${CMAKE_MATCH_1})
  
+diff --git a/libpiper/src/piper.cpp b/libpiper/src/piper.cpp
+index 56b61b0..7ebf58b 100644
+--- a/libpiper/src/piper.cpp
++++ b/libpiper/src/piper.cpp
+@@ -101,7 +101,7 @@ auto piper_create_with_options(const piper_create_options *options)
+     return nullptr;
+   }
+ 
+-  auto *synth = new piper_synthesizer();
++  std::unique_ptr<piper_synthesizer> synth(new piper_synthesizer());
+   synth->phoneme_type = phoneme_type;
+ 
+   // Load config options
+@@ -280,7 +280,7 @@ auto piper_create_with_options(const piper_create_options *options)
+   synth->session = std::make_unique<Ort::Session>(
+       Ort::Session(ort_env, model_path_ort, synth->session_options));
+ 
+-  return synth;
++  return synth.release();
+ }
+ 
+ auto piper_create(const char *model_path, const char *config_path,

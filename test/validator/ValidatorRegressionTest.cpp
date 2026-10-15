@@ -569,6 +569,39 @@ TEST_F(ValidatorRegressionTest, BrTableAfterUnreachableOperandMismatch) {
             WasmEdge::ErrCode::Value::TypeCheckFailed);
 }
 
+// Test that br_table after unreachable keeps a bottom value pushed by select
+// as bottom for every label.
+TEST_F(ValidatorRegressionTest, BrTableAfterUnreachableBottomOperand) {
+  // Module: (module
+  //   (type (func))
+  //   (func (type 0)
+  //     (block (result f32)
+  //       (block (result i32)
+  //         unreachable  select  i32.const 0  br_table 0 1)
+  //       drop  f32.const 0)
+  //     drop))
+  std::array<WasmEdge::Byte, 45> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 1 type (func)
+      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+      // Function section: 1 function, type index 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: 1 body
+      0x0a, 0x19, 0x01, 0x17, 0x00,
+      // block (result f32), block (result i32), unreachable
+      0x02, 0x7d, 0x02, 0x7f, 0x00,
+      // select, i32.const 0, br_table 0 1, end
+      0x1b, 0x41, 0x00, 0x0e, 0x01, 0x00, 0x01, 0x0b,
+      // drop, f32.const 0, end, drop, end
+      0x1a, 0x43, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x1a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  EXPECT_TRUE(ValidEngine->validate(**Result));
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

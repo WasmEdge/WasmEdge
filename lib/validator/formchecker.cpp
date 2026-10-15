@@ -543,7 +543,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
         const uint32_t Idx = IdxN - 1;
         // Check whether `unreachableVType` occurred when an `unreachable`
         // instruction appeared before the `br_table` instruction.
-        const bool IsBottom = ValStack.size() == CtrlStack.back().Height;
+        const bool IsBottom = ValStack.size() == CtrlStack.back().Height ||
+                              ValStack.back() == unreachableVType();
         // Cannot use popTypes() here because we need the popped value.
         EXPECTED_TRY(auto Type, popType(NTypes[Idx]));
         TypeBuf[Idx] = IsBottom ? unreachableVType() : Type;

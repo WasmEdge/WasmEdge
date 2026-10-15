@@ -92,8 +92,9 @@ struct Graph {
 struct Context {
   Context(uint32_t GId, Graph &) noexcept : GraphId(GId) {}
   uint32_t GraphId;
-  std::optional<std::string> Line;
-  std::unique_ptr<std::optional<SynthesisConfig>> JsonInputSynthesisConfig;
+  // Text to synthesize: the raw input, or the "text" field of a JSON input.
+  std::optional<std::string> Text;
+  std::optional<SynthesisConfig> JsonInputSynthesisConfig;
   std::optional<std::vector<uint8_t>> Output;
 };
 #else

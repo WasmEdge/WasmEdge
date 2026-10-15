@@ -22,6 +22,7 @@
 #include <string_view>
 #include <system_error>
 #include <tuple>
+#include <utility>
 #include <vector>
 #endif
 
@@ -333,34 +334,41 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
   auto &CxtRef = C.get<Context>();
   auto &GraphRef = G.get<Graph>();
 
-  CxtRef.Line =
-      std::string(reinterpret_cast<const char *>(Tensor.Tensor.data()),
-                  Tensor.Tensor.size());
-
-  if (GraphRef.Config->JsonInput) {
-    simdjson::dom::parser Parser;
-    simdjson::dom::element Doc;
-    simdjson::padded_string const PaddedInput(CxtRef.Line.value());
-
-    if (Parser.parse(PaddedInput).get(Doc) != simdjson::SUCCESS) {
-      spdlog::error("[WASI-NN] Piper backend: Failed to parse JSON input."sv);
-      return WASINN::ErrNo::InvalidArgument;
-    }
-
-    simdjson::dom::object JsonObj;
-    if (Doc.get(JsonObj) != simdjson::SUCCESS) {
-      spdlog::error("[WASI-NN] Piper backend: JSON input is not an object."sv);
-      return WASINN::ErrNo::InvalidArgument;
-    }
-
-    SynthesisConfig NewConfig;
-    if (auto Err = parseSynthesisConfig(NewConfig, JsonObj);
-        Err != WASINN::ErrNo::Success) {
-      return Err;
-    }
-    CxtRef.JsonInputSynthesisConfig =
-        std::make_unique<std::optional<SynthesisConfig>>(NewConfig);
+  std::string Input(reinterpret_cast<const char *>(Tensor.Tensor.data()),
+                    Tensor.Tensor.size());
+  if (!GraphRef.Config->JsonInput) {
+    CxtRef.Text = std::move(Input);
+    return WASINN::ErrNo::Success;
   }
+
+  simdjson::dom::parser Parser;
+  simdjson::dom::element Doc;
+  simdjson::padded_string const PaddedInput(Input);
+  if (Parser.parse(PaddedInput).get(Doc) != simdjson::SUCCESS) {
+    spdlog::error("[WASI-NN] Piper backend: Failed to parse JSON input."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  simdjson::dom::object JsonObj;
+  if (Doc.get(JsonObj) != simdjson::SUCCESS) {
+    spdlog::error("[WASI-NN] Piper backend: JSON input is not an object."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  std::string_view Text;
+  if (JsonObj["text"].get(Text) != simdjson::SUCCESS) {
+    spdlog::error(
+        "[WASI-NN] Piper backend: JSON input must contain 'text' field."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  SynthesisConfig NewConfig;
+  if (auto Err = parseSynthesisConfig(NewConfig, JsonObj);
+      Err != WASINN::ErrNo::Success) {
+    return Err;
+  }
+  CxtRef.Text = std::string(Text);
+  CxtRef.JsonInputSynthesisConfig = NewConfig;
   return WASINN::ErrNo::Success;
 }
 
@@ -404,42 +412,9 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
   auto &CxtRef = C.get<Context>();
   auto &GraphRef = G.get<Graph>();
 
-  if (!CxtRef.Line) {
+  if (!CxtRef.Text) {
     spdlog::error("[WASI-NN] Piper backend: Input is not set."sv);
     return WASINN::ErrNo::InvalidArgument;
-  }
-
-  std::string TextToSpeak = CxtRef.Line.value();
-
-  if (GraphRef.Config->JsonInput) {
-    simdjson::dom::parser Parser;
-    simdjson::dom::element Doc;
-    simdjson::padded_string const PaddedInput(TextToSpeak);
-
-    if (Parser.parse(PaddedInput).get(Doc) != simdjson::SUCCESS) {
-      spdlog::error("[WASI-NN] Piper backend: Failed to parse JSON input."sv);
-      return WASINN::ErrNo::InvalidArgument;
-    }
-
-    simdjson::dom::object JsonObj;
-    if (Doc.get(JsonObj) != simdjson::SUCCESS) {
-      spdlog::error("[WASI-NN] Piper backend: JSON input is not an object."sv);
-      return WASINN::ErrNo::InvalidArgument;
-    }
-
-    std::string_view TmpText;
-    if (JsonObj["text"].get(TmpText) != simdjson::SUCCESS) {
-      spdlog::error(
-          "[WASI-NN] Piper backend: JSON input must contain 'text' field."sv);
-      return WASINN::ErrNo::InvalidArgument;
-    }
-    TextToSpeak = std::string(TmpText);
-
-    SynthesisConfig NewConfig;
-    if (parseSynthesisConfig(NewConfig, JsonObj) == WASINN::ErrNo::Success) {
-      CxtRef.JsonInputSynthesisConfig =
-          std::make_unique<std::optional<SynthesisConfig>>(NewConfig);
-    }
   }
 
   piper_synthesize_options Options =
@@ -451,11 +426,10 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
     OutputType = GraphRef.Config->DefaultSynthesisConfig.OutputType.value();
   }
 
-  if (CxtRef.JsonInputSynthesisConfig &&
-      CxtRef.JsonInputSynthesisConfig->has_value()) {
-    updatePiperOptions(CxtRef.JsonInputSynthesisConfig->value(), Options);
-    if (CxtRef.JsonInputSynthesisConfig->value().OutputType) {
-      OutputType = CxtRef.JsonInputSynthesisConfig->value().OutputType.value();
+  if (CxtRef.JsonInputSynthesisConfig) {
+    updatePiperOptions(*CxtRef.JsonInputSynthesisConfig, Options);
+    if (CxtRef.JsonInputSynthesisConfig->OutputType) {
+      OutputType = CxtRef.JsonInputSynthesisConfig->OutputType.value();
     }
   }
 
@@ -465,7 +439,7 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
 
   try {
     int const Res = piper_synthesize_start(GraphRef.Synth.get(),
-                                           TextToSpeak.c_str(), &Options);
+                                           CxtRef.Text->c_str(), &Options);
     if (Res != PIPER_OK) {
       spdlog::error(
           "[WASI-NN] Piper backend: piper_synthesize_start failed."sv);

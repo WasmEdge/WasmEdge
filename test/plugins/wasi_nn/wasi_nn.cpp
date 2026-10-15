@@ -3707,7 +3707,7 @@ TEST(WasiNNTest, PiperBackend) {
   // Test: load -- load successfully.
   std::string Config =
       "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
-      "\"espeak_data\": \"./wasinn_piper_fixtures/piper/espeak-ng-data\"}";
+      "\"espeak_data\": \"./wasinn_piper_fixtures/espeak-ng-data\"}";
   std::vector<uint8_t> ConfigData(Config.begin(), Config.end());
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, ConfigData.size(), BuilderPtr);
@@ -3835,10 +3835,9 @@ TEST(WasiNNTest, PiperBackend) {
 
   // Piper json_input tests.
   // Test: load -- load successfully.
-  Config =
-      "{\"model\": "
-      "\"./wasinn_piper_fixtures/test_voice.onnx\",\"espeak_data\": "
-      "\"./wasinn_piper_fixtures/piper/espeak-ng-data\",\"json_input\":true}";
+  Config = "{\"model\": "
+           "\"./wasinn_piper_fixtures/test_voice.onnx\",\"espeak_data\": "
+           "\"./wasinn_piper_fixtures/espeak-ng-data\",\"json_input\":true}";
   ConfigData = {Config.begin(), Config.end()};
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, ConfigData.size(), BuilderPtr);

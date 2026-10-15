@@ -115,18 +115,26 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     set(ESPEAK_SOURCE_DIR "")
 
     if (DEFINED PIPER_ROOT)
-        set(ESPEAK_SOURCE_DIR "${PIPER_ROOT}/espeak-ng-data")
-    elseif(EXISTS "${CMAKE_BINARY_DIR}/espeak_ng-install/share/espeak-ng-data")
+        if (EXISTS "${PIPER_ROOT}/espeak-ng-data")
+            set(ESPEAK_SOURCE_DIR "${PIPER_ROOT}/espeak-ng-data")
+        elseif(EXISTS "${PIPER_ROOT}/share/espeak-ng-data")
+            set(ESPEAK_SOURCE_DIR "${PIPER_ROOT}/share/espeak-ng-data")
+        endif()
+    else()
+        # The piper build produces the data, so it only exists after the build.
         set(ESPEAK_SOURCE_DIR "${CMAKE_BINARY_DIR}/espeak_ng-install/share/espeak-ng-data")
     endif()
 
-    if (EXISTS "${ESPEAK_SOURCE_DIR}")
-        file(
-          COPY ${ESPEAK_SOURCE_DIR}
-          DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures
+    if (ESPEAK_SOURCE_DIR)
+        add_custom_command(
+          TARGET wasiNNTests POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${ESPEAK_SOURCE_DIR}"
+            "${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/espeak-ng-data"
+          COMMENT "Copying espeak-ng-data into the Piper test fixtures"
         )
     else()
-        message(WARNING "Could not find espeak-ng-data at ${ESPEAK_SOURCE_DIR}")
+        message(WARNING "Could not find espeak-ng-data under ${PIPER_ROOT}")
     endif()
     if(DEFINED PIPER_ROOT)
       find_library(ESPEAK_NG_LIB

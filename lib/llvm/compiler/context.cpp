@@ -45,8 +45,13 @@ Compiler::CompileContext::CompileContext(LLVM::Context C, LLVM::Module &M,
       ModCtxTy(LLVM::Type::getStructType(
           "ModCtx",
           std::initializer_list<LLVM::Type>{
+#if WASMEDGE_ALLOCATOR_IS_STABLE
               // MemoryPtrs
               Int8PtrTy.getPointerTo(),
+#else
+              // MemoryPtrs
+              Int8PtrPtrTy.getPointerTo(),
+#endif
               // MemorySizes
               Int64PtrTy.getPointerTo(),
               // TableRefs

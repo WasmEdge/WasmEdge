@@ -251,15 +251,6 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
                  std::move(Entry.Type), std::move(Entry.ReturnPHI));
       return {};
     }
-    // Reject unsupported wide arithmetic even in unreachable code.
-    case OpCode::I64__add128:
-    case OpCode::I64__sub128:
-    case OpCode::I64__mul_wide_s:
-    case OpCode::I64__mul_wide_u:
-      spdlog::error(ErrCode::Value::AOTNotImpl);
-      spdlog::error(
-          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-      return Unexpect(ErrCode::Value::AOTNotImpl);
     default:
       break;
     }
@@ -778,6 +769,14 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
     case OpCode::I64__trunc_sat_f64_s:
     case OpCode::I64__trunc_sat_f64_u:
       return compileNumericOp(Instr);
+    case OpCode::I64__add128:
+    case OpCode::I64__sub128:
+    case OpCode::I64__mul_wide_s:
+    case OpCode::I64__mul_wide_u:
+      spdlog::error(ErrCode::Value::AOTNotImpl);
+      spdlog::error(
+          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+      return Unexpect(ErrCode::Value::AOTNotImpl);
     case OpCode::V128__load:
     case OpCode::V128__load8x8_s:
     case OpCode::V128__load8x8_u:

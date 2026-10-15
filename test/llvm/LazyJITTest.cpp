@@ -691,7 +691,7 @@ TEST_F(LazyJITTest, JITAddLookupFailure) {
   EXPECT_EQ(AddResult.error(), ErrCode::Value::LazyCompilationError);
 }
 
-TEST(WideArithmeticCompiler, RejectUntilLoweringIsImplemented) {
+TEST(WideArithmeticCompiler, RejectReachableUnsupportedInstructions) {
   Configure Conf;
   Conf.addProposal(Proposal::WideArithmetic);
   Validator::Validator Validator(Conf);
@@ -729,16 +729,24 @@ TEST(WideArithmeticCompiler, RejectUntilLoweringIsImplemented) {
       ASSERT_TRUE(Validator.validate(Module));
 
       auto Full = Compiler.compile(Module);
-      ASSERT_FALSE(Full);
-      EXPECT_EQ(Full.error(), ErrCode::Value::AOTNotImpl);
+      if (Unreachable) {
+        ASSERT_TRUE(Full);
+      } else {
+        ASSERT_FALSE(Full);
+        EXPECT_EQ(Full.error(), ErrCode::Value::AOTNotImpl);
+      }
 
       auto Infrastructure = LazyCompiler.compileInfrastructure(Module);
       ASSERT_TRUE(Infrastructure);
       const std::array<uint32_t, 1> Functions = {0U};
       auto Lazy = LazyCompiler.compileFunctions(std::move(*Infrastructure),
                                                 Module, Functions);
-      ASSERT_FALSE(Lazy);
-      EXPECT_EQ(Lazy.error(), ErrCode::Value::AOTNotImpl);
+      if (Unreachable) {
+        ASSERT_TRUE(Lazy);
+      } else {
+        ASSERT_FALSE(Lazy);
+        EXPECT_EQ(Lazy.error(), ErrCode::Value::AOTNotImpl);
+      }
     }
   }
 }

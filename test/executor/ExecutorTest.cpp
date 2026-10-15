@@ -233,7 +233,7 @@ TEST(WideArithmetic, ExecutionSupport) {
         auto ExpectedError = Unreachable ? ErrCode::Value::Unreachable
                                          : ErrCode::Value::RuntimeError;
 #ifdef WASMEDGE_USE_LLVM
-        if (Mode == RunMode::LazyJIT) {
+        if (Mode == RunMode::LazyJIT && !Unreachable) {
           ExpectedError = ErrCode::Value::AOTNotImpl;
         }
 #endif

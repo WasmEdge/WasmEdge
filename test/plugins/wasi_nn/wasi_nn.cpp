@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasinn_mlx.h"
+#include "wasinn_piper.h"
 #include "wasinnfunc.h"
 #include "wasinnmodule.h"
 
@@ -3738,6 +3739,50 @@ TEST(WasiNNTest, PiperBackend) {
                 "\"config\": \"./wasinn_piper_fixtures\"}"),
             static_cast<uint32_t>(ErrNo::InvalidArgument));
 
+  // Test: load -- espeak_data does not exist.
+  EXPECT_EQ(LoadPiperConfig(
+                "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+                "\"espeak_data\": \"./wasinn_piper_fixtures/missing\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: load -- espeak_data is a file.
+  EXPECT_EQ(
+      LoadPiperConfig(
+          "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+          "\"espeak_data\": \"./wasinn_piper_fixtures/test_voice.onnx\"}"),
+      static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: load -- espeak_data is a directory without espeak-ng data.
+  EXPECT_EQ(LoadPiperConfig(
+                "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+                "\"espeak_data\": \".\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: load -- espeak_data is longer than espeak-ng's path buffer.
+  constexpr auto ESpeakPathLimit =
+      WasmEdge::Host::WASINN::Piper::ESpeakMaxDataPathSize;
+  std::string LongESpeakData = "./wasinn_piper_fixtures/espeak-ng-data";
+  while (LongESpeakData.size() <= ESpeakPathLimit) {
+    LongESpeakData += "/.";
+  }
+  EXPECT_EQ(LoadPiperConfig(
+                "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+                "\"espeak_data\": \"" +
+                LongESpeakData + "\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: load -- espeak_data names a parent directory that fits the buffer
+  // only without the "/espeak-ng-data" suffix espeak-ng appends.
+  std::string LongParentESpeakData = "./wasinn_piper_fixtures";
+  while (LongParentESpeakData.size() + 14 < ESpeakPathLimit) {
+    LongParentESpeakData += "/.";
+  }
+  EXPECT_EQ(LoadPiperConfig(
+                "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+                "\"espeak_data\": \"" +
+                LongParentESpeakData + "\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
   // Test: load -- load successfully.
   std::string Config =
       "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
@@ -3998,6 +4043,13 @@ TEST(WasiNNTest, PiperBackend) {
     EXPECT_LT(BytesWritten, 50000);
     EXPECT_EQ(BytesWritten, 44100);
   }
+
+  // Test: load -- espeak_data may name the parent of espeak-ng-data.
+  EXPECT_EQ(LoadPiperConfig(
+                "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+                "\"espeak_data\": \"./wasinn_piper_fixtures\"}"),
+            static_cast<uint32_t>(ErrNo::Success));
+  EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 2);
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
 

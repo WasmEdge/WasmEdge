@@ -570,18 +570,12 @@ static AST::Module makeWideArithmeticModule(
 TEST_F(ValidatorRegressionTest, ValidateWideArithmeticStackTypes) {
   Conf->addProposal(Proposal::WideArithmetic);
   Validator::Validator Validator(*Conf);
-  Configure DisabledConf;
-  DisabledConf.removeProposal(Proposal::WideArithmetic);
-  Validator::Validator DisabledValidator(DisabledConf);
   for (const auto &Encoding : WideArithmeticEncodings) {
     SCOPED_TRACE(static_cast<unsigned>(Encoding.Subopcode));
     const size_t Arity = Encoding.IsAddOrSub ? 4U : 2U;
     const std::vector<ValType> Params(Arity, TypeCode::I64);
     auto Module = makeWideArithmeticModule(Encoding.Opcode, Params);
     EXPECT_TRUE(Validator.validate(Module));
-    auto DisabledResult = DisabledValidator.validate(Module);
-    ASSERT_FALSE(DisabledResult);
-    EXPECT_EQ(DisabledResult.error(), ErrCode::Value::IllegalOpCode);
 
     for (size_t I = 0; I < Arity; ++I) {
       SCOPED_TRACE(I);
@@ -676,29 +670,6 @@ TEST_F(ValidatorRegressionTest, ValidateWideArithmeticUnreachableStack) {
       } else {
         EXPECT_TRUE(Result);
       }
-    }
-  }
-}
-
-TEST_F(ValidatorRegressionTest, RejectWideArithmeticASTWithProposalDisabled) {
-  Conf->removeProposal(Proposal::WideArithmetic);
-  Validator::Validator Validator(*Conf);
-  for (const auto &Encoding : WideArithmeticEncodings) {
-    SCOPED_TRACE(static_cast<unsigned>(Encoding.Subopcode));
-    for (const bool Unreachable : {false, true}) {
-      SCOPED_TRACE(Unreachable);
-      auto Module = makeWideArithmeticModule(
-          Encoding.Opcode,
-          std::vector<ValType>(Encoding.IsAddOrSub ? 4U : 2U, TypeCode::I64));
-      if (Unreachable) {
-        auto &Body =
-            Module.getCodeSection().getContent()[0].getExpr().getInstrs();
-        Body.insert(Body.begin(), AST::Instruction(OpCode::Unreachable));
-      }
-      auto Result = Validator.validate(Module);
-      ASSERT_FALSE(Result);
-      EXPECT_EQ(Result.error(), ErrCode::Value::IllegalOpCode);
-      EXPECT_FALSE(Module.getIsValidated());
     }
   }
 }

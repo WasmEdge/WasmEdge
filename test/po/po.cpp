@@ -113,3 +113,32 @@ INSTANTIATE_TEST_SUITE_P(
       }
       return Name;
     });
+
+TEST(UnsignedIntegerOptions, RejectNegative) {
+  Option<uint64_t> U64Opt(Description("u64 option"sv));
+  Option<uint32_t> U32Opt(Description("u32 option"sv));
+  List<uint64_t> U64List(Description("u64 list"sv), ZeroOrMore());
+  ArgumentParser Parser;
+  Parser.add_option("u64"sv, U64Opt)
+      .add_option("u32"sv, U32Opt)
+      .add_option("list"sv, U64List);
+
+  const char *ArgsU64Neg[] = {"test", "--u64=-1"};
+  EXPECT_FALSE(Parser.parse(stdout, 2, ArgsU64Neg));
+
+  const char *ArgsU64NegLarge[] = {"test", "--u64=-100"};
+  EXPECT_FALSE(Parser.parse(stdout, 2, ArgsU64NegLarge));
+
+  const char *ArgsU32Neg[] = {"test", "--u32=-1"};
+  EXPECT_FALSE(Parser.parse(stdout, 2, ArgsU32Neg));
+
+  const char *ArgsListNeg[] = {"test", "--list=-5"};
+  EXPECT_FALSE(Parser.parse(stdout, 2, ArgsListNeg));
+
+  const char *ArgsValid[] = {"test", "--u64=100", "--u32=50", "--list=10"};
+  EXPECT_TRUE(Parser.parse(stdout, 4, ArgsValid));
+  EXPECT_EQ(U64Opt.value(), 100ULL);
+  EXPECT_EQ(U32Opt.value(), 50U);
+  ASSERT_EQ(U64List.value().size(), 1U);
+  EXPECT_EQ(U64List.value()[0], 10ULL);
+}

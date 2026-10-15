@@ -10,9 +10,11 @@
 
 #include "po/error.h"
 #include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <fmt/format.h>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 namespace WasmEdge {
@@ -31,6 +33,19 @@ stringToInteger(ConvResultT (&Conv)(const char *, char **, int),
   using namespace std::literals;
   char *EndPtr;
   const char *CStr = Value.c_str();
+
+  if constexpr (std::is_unsigned_v<ResultT>) {
+    const char *P = CStr;
+    while (*P != '\0' && std::isspace(static_cast<unsigned char>(*P))) {
+      ++P;
+    }
+    if (*P == '-') {
+      return cxx20::unexpected<Error>(
+          std::in_place, ErrCode::InvalidArgument,
+          fmt::format("invalid integer value: {}"sv, Value));
+    }
+  }
+
   auto SavedErrNo = std::exchange(errno, 0);
   const auto Result = Conv(CStr, &EndPtr, 10);
   std::swap(SavedErrNo, errno);

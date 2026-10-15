@@ -3783,6 +3783,19 @@ TEST(WasiNNTest, PiperBackend) {
                 LongParentESpeakData + "\"}"),
             static_cast<uint32_t>(ErrNo::InvalidArgument));
 
+  // Test: load -- synthesis options out of range.
+  for (const char *Option : {"\"speaker_id\": -1", "\"speaker_id\": 4294967296",
+                             "\"length_scale\": 0", "\"length_scale\": 11",
+                             "\"noise_w\": -11", "\"noise_scale\": 1e300"}) {
+    EXPECT_EQ(
+        LoadPiperConfig(
+            "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+            "\"espeak_data\": \"./wasinn_piper_fixtures/espeak-ng-data\", " +
+            std::string(Option) + "}"),
+        static_cast<uint32_t>(ErrNo::InvalidArgument))
+        << Option;
+  }
+
   // Test: load -- load successfully.
   std::string Config =
       "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
@@ -4076,6 +4089,18 @@ TEST(WasiNNTest, PiperBackend) {
 
   // Test: set_input -- JSON input that is not an object.
   EXPECT_EQ(SetJsonInput("[\"This is a test.\"]"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: set_input -- JSON input with synthesis options out of range.
+  EXPECT_EQ(
+      SetJsonInput("{\"text\": \"This is a test.\", \"length_scale\": -1}"),
+      static_cast<uint32_t>(ErrNo::InvalidArgument));
+  EXPECT_EQ(SetJsonInput("{\"text\": \"This is a test.\", \"noise_w\": 1e300}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+  EXPECT_EQ(
+      SetJsonInput("{\"text\": \"This is a test.\", \"length_scale\": 11}"),
+      static_cast<uint32_t>(ErrNo::InvalidArgument));
+  EXPECT_EQ(SetJsonInput("{\"text\": \"This is a test.\", \"noise_w\": 11}"),
             static_cast<uint32_t>(ErrNo::InvalidArgument));
 
   // Test: compute -- a rejected input leaves the previous one in effect.

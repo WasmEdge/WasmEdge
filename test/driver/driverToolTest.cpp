@@ -272,10 +272,26 @@ static const std::array<uint8_t, 53> TrapWasm{
     0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x00, 0x0a, 0x0a, 0x01,
     0x08, 0x00, 0x41, 0x01, 0x41, 0x00, 0x6d, 0x1a, 0x0b};
 
+// spin.wasm: exports "spin", which counts its i32 parameter down to zero.
+static const std::array<uint8_t, 49> SpinWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+    0x01, 0x60, 0x01, 0x7f, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07,
+    0x08, 0x01, 0x04, 0x73, 0x70, 0x69, 0x6e, 0x00, 0x00, 0x0a,
+    0x12, 0x01, 0x10, 0x00, 0x03, 0x40, 0x20, 0x00, 0x41, 0x01,
+    0x6b, 0x21, 0x00, 0x20, 0x00, 0x0d, 0x00, 0x0b, 0x0b};
+
 std::string simplePath() {
   static std::string Path;
   if (Path.empty()) {
     Path = writeWasmToFile(SimpleWasm.data(), SimpleWasm.size(), "simple.wasm");
+  }
+  return Path;
+}
+
+std::string spinPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(SpinWasm.data(), SpinWasm.size(), "spin.wasm");
   }
   return Path;
 }
@@ -996,6 +1012,21 @@ TEST(RunSubcommand, ProposalFlags) {
   EXPECT_EQ(callRun({"--reactor", "--enable-all", Path, "add", "1", "2"}),
             EXIT_SUCCESS);
   EXPECT_EQ(callRun({"--reactor", "--wasm-2", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+}
+
+TEST(RunSubcommand, TimeLimit) {
+  std::string PathStr = spinPath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_NE(
+      callRun({"--reactor", "--time-limit", "50", Path, "spin", "2000000000"}),
+      EXIT_SUCCESS);
+  EXPECT_EQ(
+      callRun({"--reactor", "--time-limit", "60000", Path, "spin", "20000000"}),
+      EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--time-limit", "18446744073709551615", Path,
+                     "spin", "20000000"}),
             EXIT_SUCCESS);
 }
 

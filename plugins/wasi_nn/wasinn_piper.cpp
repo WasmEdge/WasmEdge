@@ -32,20 +32,24 @@ namespace WasmEdge::Host::WASINN::Piper {
 
 namespace {
 
-// Helper function to write the WAV header.
-void writeWavHeader(int SampleRate, int16_t NumChannels, int32_t NumSamples,
-                    std::vector<uint8_t> &OutputBuffer) {
-  int32_t const ByteRate = SampleRate * NumChannels * sizeof(int16_t);
-  int32_t const DataSize = NumSamples * NumChannels * sizeof(int16_t);
-  int32_t const RiffSize = 36 + DataSize;
+constexpr uint32_t WavHeaderSize = 44;
 
-  auto PushU32 = [&](int32_t Val) {
+// Helper function to write the WAV header.
+void writeWavHeader(uint32_t SampleRate, uint16_t NumChannels,
+                    uint32_t NumSamples, std::vector<uint8_t> &OutputBuffer) {
+  uint32_t const BlockAlign =
+      static_cast<uint32_t>(NumChannels * sizeof(int16_t));
+  uint32_t const ByteRate = SampleRate * BlockAlign;
+  uint32_t const DataSize = NumSamples * BlockAlign;
+  uint32_t const RiffSize = WavHeaderSize - 8 + DataSize;
+
+  auto PushU32 = [&](uint32_t Val) {
     OutputBuffer.push_back(Val & 0xFF);
     OutputBuffer.push_back((Val >> 8) & 0xFF);
     OutputBuffer.push_back((Val >> 16) & 0xFF);
     OutputBuffer.push_back((Val >> 24) & 0xFF);
   };
-  auto PushU16 = [&](int16_t Val) {
+  auto PushU16 = [&](uint16_t Val) {
     OutputBuffer.push_back(Val & 0xFF);
     OutputBuffer.push_back((Val >> 8) & 0xFF);
   };
@@ -63,7 +67,7 @@ void writeWavHeader(int SampleRate, int16_t NumChannels, int32_t NumSamples,
   PushU16(NumChannels);
   PushU32(SampleRate);
   PushU32(ByteRate);
-  PushU16(NumChannels * sizeof(int16_t));
+  PushU16(static_cast<uint16_t>(BlockAlign));
   PushU16(16);
   PushStr("data");
   PushU32(DataSize);
@@ -497,13 +501,22 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
       if (Chunk.num_samples == 0) {
         continue;
       }
+      constexpr size_t MaxSamples =
+          (std::numeric_limits<uint32_t>::max() - WavHeaderSize) /
+          sizeof(int16_t);
+      if (Chunk.num_samples > MaxSamples - AudioBuffer.size()) {
+        spdlog::error(
+            "[WASI-NN] Piper backend: The synthesized audio exceeds the maximum output size."sv);
+        return WASINN::ErrNo::TooLarge;
+      }
       SampleRate = Chunk.sample_rate;
       size_t OriginalSize = AudioBuffer.size();
       AudioBuffer.resize(OriginalSize + Chunk.num_samples);
 
       for (size_t I = 0; I < Chunk.num_samples; I++) {
-        float Sample = Chunk.samples[I];
-        Sample = std::clamp(Sample, -1.0f, 1.0f);
+        float Sample = std::isfinite(Chunk.samples[I])
+                           ? std::clamp(Chunk.samples[I], -1.0f, 1.0f)
+                           : 0.0f;
         AudioBuffer[OriginalSize + I] =
             static_cast<int16_t>(Sample * MaxWavValue);
       }
@@ -516,14 +529,15 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
   CxtRef.Output.emplace();
   constexpr int DefaultPiperSampleRate = 22050;
   if (OutputType == SynthesisConfigOutputType::OUTPUT_WAV) {
-    if (SampleRate == 0) {
+    if (SampleRate <= 0) {
       SampleRate = DefaultPiperSampleRate;
     }
-    size_t const TotalSize = 44 + (AudioBuffer.size() * sizeof(int16_t));
+    size_t const TotalSize =
+        WavHeaderSize + (AudioBuffer.size() * sizeof(int16_t));
     CxtRef.Output->reserve(TotalSize);
 
-    writeWavHeader(SampleRate, 1, static_cast<int32_t>(AudioBuffer.size()),
-                   *CxtRef.Output);
+    writeWavHeader(static_cast<uint32_t>(SampleRate), 1,
+                   static_cast<uint32_t>(AudioBuffer.size()), *CxtRef.Output);
 
     const uint8_t *RawData =
         reinterpret_cast<const uint8_t *>(AudioBuffer.data());

@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PATCH_PATH="${SCRIPT_DIR}/wasi-nn/libpiper.patch"
+
 echo "::group::Build and install libpiper"
 rm -rf piper-source
 
@@ -39,8 +42,10 @@ tar -xzf "${ONNXRUNTIME_NAME}.tgz"
 ONNXRUNTIME_DIR="$PWD/${ONNXRUNTIME_NAME}"
 
 git clone https://github.com/OHF-Voice/piper1-gpl piper-source
-cd piper-source/libpiper
+cd piper-source
 git checkout 639388b6317fc4731e91d53da42aea68fd4166ff
+git apply "${PATCH_PATH}"
+cd libpiper
 cmake -Bbuild-deps \
   -DCMAKE_BUILD_TYPE=Release \
   -DPIPER_BUILD_EXE=OFF \
@@ -51,6 +56,13 @@ cmake -Bbuild-deps \
 
 cmake --build build-deps
 cmake --install build-deps
+
+cp build-deps/espeak_ng-install/lib/libespeak-ng.a install/lib/
+find build-deps -name libucd.a -exec cp {} install/lib/ \; -quit
+if [ ! -f install/lib/libucd.a ]; then
+  echo "Error: Failed to install libucd.a" >&2
+  exit 1
+fi
 
 cd ../..
 rm -rf "${ONNXRUNTIME_NAME}.tgz"

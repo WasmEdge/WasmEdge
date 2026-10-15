@@ -12,6 +12,7 @@
 #include "simdjson.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -106,16 +107,42 @@ std::tuple<WASINN::ErrNo, bool> getOption(simdjson::dom::object &Object,
   return {WASINN::ErrNo::Success, true};
 }
 
-template <typename T, typename U = T>
+template <typename T>
 WASINN::ErrNo getOptionalOption(simdjson::dom::object &Object,
                                 std::string_view Key,
                                 std::optional<T> &Result) {
-  auto Value = U{};
+  auto Value = T{};
   auto [Err, HasValue] = getOption(Object, Key, Value);
   if (HasValue) {
     Result = Value;
   }
   return Err;
+}
+
+// Bound for the options that scale phoneme durations; the normal range is
+// 0.5 to 2, and the audio length grows with the value.
+constexpr double MaxDurationScale = 10.0;
+
+WASINN::ErrNo getScaleOption(simdjson::dom::object &Object,
+                             std::string_view Key, std::optional<float> &Result,
+                             bool RequirePositive, double MaxMagnitude) {
+  auto Value = std::optional<double>{};
+  if (auto Err = getOptionalOption(Object, Key, Value);
+      Err != WASINN::ErrNo::Success) {
+    return Err;
+  }
+  if (!Value) {
+    return WASINN::ErrNo::Success;
+  }
+  if (!std::isfinite(*Value) || std::fabs(*Value) > MaxMagnitude ||
+      (RequirePositive && *Value <= 0.0)) {
+    spdlog::error(
+        "[WASI-NN] Piper backend: The \"{}\" option {} is out of range."sv, Key,
+        *Value);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+  Result = static_cast<float>(*Value);
+  return WASINN::ErrNo::Success;
 }
 
 WASINN::ErrNo parseSynthesisConfig(SynthesisConfig &SynthesisConfig,
@@ -146,21 +173,30 @@ WASINN::ErrNo parseSynthesisConfig(SynthesisConfig &SynthesisConfig,
       return Err;
     }
     if (SpeakerId.has_value()) {
+      if (SpeakerId.value() < 0 ||
+          SpeakerId.value() > std::numeric_limits<int>::max()) {
+        spdlog::error(
+            "[WASI-NN] Piper backend: The speaker_id option {} is out of range."sv,
+            SpeakerId.value());
+        return WASINN::ErrNo::InvalidArgument;
+      }
       SynthesisConfig.SpeakerId = static_cast<int>(SpeakerId.value());
     }
   }
-  if (auto Err = getOptionalOption<float, double>(Object, "noise_scale",
-                                                  SynthesisConfig.NoiseScale);
+  if (auto Err =
+          getScaleOption(Object, "noise_scale", SynthesisConfig.NoiseScale,
+                         false, std::numeric_limits<float>::max());
       Err != WASINN::ErrNo::Success) {
     return Err;
   }
-  if (auto Err = getOptionalOption<float, double>(Object, "length_scale",
-                                                  SynthesisConfig.LengthScale);
+  if (auto Err =
+          getScaleOption(Object, "length_scale", SynthesisConfig.LengthScale,
+                         true, MaxDurationScale);
       Err != WASINN::ErrNo::Success) {
     return Err;
   }
-  if (auto Err = getOptionalOption<float, double>(Object, "noise_w",
-                                                  SynthesisConfig.NoiseW);
+  if (auto Err = getScaleOption(Object, "noise_w", SynthesisConfig.NoiseW,
+                                false, MaxDurationScale);
       Err != WASINN::ErrNo::Success) {
     return Err;
   }

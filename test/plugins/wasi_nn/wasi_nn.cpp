@@ -3727,6 +3727,17 @@ TEST(WasiNNTest, PiperBackend) {
                 "\"espeak_data\": \"./wasinn_piper_fixtures/espeak-ng-data\"}"),
             static_cast<uint32_t>(ErrNo::InvalidArgument));
 
+  // Test: load -- the model path is rejected by the OS (NAME_MAX exceeded).
+  EXPECT_EQ(LoadPiperConfig("{\"model\": \"./wasinn_piper_fixtures/" +
+                            std::string(300, 'a') + "\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: load -- the voice config is a directory.
+  EXPECT_EQ(LoadPiperConfig(
+                "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+                "\"config\": \"./wasinn_piper_fixtures\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
   // Test: load -- load successfully.
   std::string Config =
       "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "

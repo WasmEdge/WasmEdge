@@ -1,22 +1,38 @@
 diff --git a/libpiper/CMakeLists.txt b/libpiper/CMakeLists.txt
-index 57349c1..2e7ddd8 100644
+index d43e714..a59d625 100644
 --- a/libpiper/CMakeLists.txt
 +++ b/libpiper/CMakeLists.txt
-@@ -2,6 +2,8 @@
+@@ -2,6 +2,9 @@
  cmake_minimum_required(VERSION 3.26)
  project(piper LANGUAGES C CXX)
  
 +option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
++option(PIPER_BUILD_EXE "Build the piper command line tool" ON)
 +
  set(CMAKE_CXX_STANDARD 17)
  set(CMAKE_CXX_STANDARD_REQUIRED ON)
  
-@@ -112,7 +114,7 @@ endif()
- 
+@@ -141,7 +144,7 @@ endif()
+ include(ClangTidy.cmake)
  # ---- libpiper ---
  
 -add_library(piper SHARED
 +add_library(piper
      ${CMAKE_CURRENT_SOURCE_DIR}/src/piper.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/chinese_phonemizer.cpp
  )
+@@ -159,10 +162,12 @@ target_link_libraries(piper
+ )
+ 
+ # ---- piper exe ---
+-add_subdirectory(src/main)
++if(PIPER_BUILD_EXE)
++    add_subdirectory(src/main)
++endif()
+ 
+ # ---- version
+-file(READ ${CMAKE_SOURCE_DIR}/../setup.py SETUP_PY_CONTENTS)
++file(READ ${CMAKE_CURRENT_SOURCE_DIR}/../setup.py SETUP_PY_CONTENTS)
+ string(REGEX MATCH "version=\"([0-9]+\\.[0-9]+\\.[0-9]+)\"" _ ${SETUP_PY_CONTENTS})
+ set(PIPER_VERSION ${CMAKE_MATCH_1})
  

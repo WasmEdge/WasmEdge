@@ -490,35 +490,34 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
     while (true) {
       piper_audio_chunk Chunk{};
       int const NextRes = piper_synthesize_next(GraphRef.Synth.get(), &Chunk);
-      if (NextRes == PIPER_DONE) {
-        break;
-      }
-      if (NextRes != PIPER_OK) {
+      if (NextRes != PIPER_OK && NextRes != PIPER_DONE) {
         spdlog::error(
             "[WASI-NN] Piper backend: piper_synthesize_next failed."sv);
         return WASINN::ErrNo::RuntimeError;
       }
-      if (Chunk.num_samples == 0) {
-        continue;
-      }
-      constexpr size_t MaxSamples =
-          (std::numeric_limits<uint32_t>::max() - WavHeaderSize) /
-          sizeof(int16_t);
-      if (Chunk.num_samples > MaxSamples - AudioBuffer.size()) {
-        spdlog::error(
-            "[WASI-NN] Piper backend: The synthesized audio exceeds the maximum output size."sv);
-        return WASINN::ErrNo::TooLarge;
-      }
-      SampleRate = Chunk.sample_rate;
-      size_t OriginalSize = AudioBuffer.size();
-      AudioBuffer.resize(OriginalSize + Chunk.num_samples);
+      if (Chunk.num_samples > 0) {
+        constexpr size_t MaxSamples =
+            (std::numeric_limits<uint32_t>::max() - WavHeaderSize) /
+            sizeof(int16_t);
+        if (Chunk.num_samples > MaxSamples - AudioBuffer.size()) {
+          spdlog::error(
+              "[WASI-NN] Piper backend: The synthesized audio exceeds the maximum output size."sv);
+          return WASINN::ErrNo::TooLarge;
+        }
+        SampleRate = Chunk.sample_rate;
+        size_t OriginalSize = AudioBuffer.size();
+        AudioBuffer.resize(OriginalSize + Chunk.num_samples);
 
-      for (size_t I = 0; I < Chunk.num_samples; I++) {
-        float Sample = std::isfinite(Chunk.samples[I])
-                           ? std::clamp(Chunk.samples[I], -1.0f, 1.0f)
-                           : 0.0f;
-        AudioBuffer[OriginalSize + I] =
-            static_cast<int16_t>(Sample * MaxWavValue);
+        for (size_t I = 0; I < Chunk.num_samples; I++) {
+          float Sample = std::isfinite(Chunk.samples[I])
+                             ? std::clamp(Chunk.samples[I], -1.0f, 1.0f)
+                             : 0.0f;
+          AudioBuffer[OriginalSize + I] =
+              static_cast<int16_t>(Sample * MaxWavValue);
+        }
+      }
+      if (NextRes == PIPER_DONE || Chunk.is_last) {
+        break;
       }
     }
   } catch (const std::exception &E) {

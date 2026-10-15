@@ -67,6 +67,28 @@ void writeWavHeader(int SampleRate, int16_t NumChannels, int32_t NumSamples,
   PushU32(DataSize);
 }
 
+WASINN::ErrNo resolveESpeakDataPath(std::string_view Path,
+                                    std::filesystem::path &Resolved) noexcept {
+  auto Dir = u8path(Path);
+  std::error_code EC;
+  if (std::filesystem::is_regular_file(Dir / "espeak-ng-data" / "phontab",
+                                       EC)) {
+    Dir /= "espeak-ng-data";
+  } else if (!std::filesystem::is_regular_file(Dir / "phontab", EC)) {
+    spdlog::error(
+        "[WASI-NN] Piper backend: The espeak_data path is not an espeak-ng data directory."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+  if (Dir.string().size() > ESpeakMaxDataPathSize) {
+    spdlog::error(
+        "[WASI-NN] Piper backend: The espeak_data path is longer than the {} bytes espeak-ng supports."sv,
+        ESpeakMaxDataPathSize);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+  Resolved = std::move(Dir);
+  return WASINN::ErrNo::Success;
+}
+
 } // namespace
 template <typename T>
 std::tuple<WASINN::ErrNo, bool> getOption(simdjson::dom::object &Object,
@@ -211,7 +233,12 @@ WASINN::ErrNo parseRunConfig(RunConfig &RunConfig,
       return Err;
     }
     if (Path) {
-      RunConfig.ESpeakDataPath = u8path(Path.value());
+      std::filesystem::path DataPath;
+      if (auto Err = resolveESpeakDataPath(Path.value(), DataPath);
+          Err != WASINN::ErrNo::Success) {
+        return Err;
+      }
+      RunConfig.ESpeakDataPath = std::move(DataPath);
     }
   }
   if (auto Err =

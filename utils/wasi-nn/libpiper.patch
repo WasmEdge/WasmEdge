@@ -37,11 +37,43 @@ index d43e714..a59d625 100644
  set(PIPER_VERSION ${CMAKE_MATCH_1})
  
 diff --git a/libpiper/src/piper.cpp b/libpiper/src/piper.cpp
-index 56b61b0..7ebf58b 100644
+index 56b61b0..608b5be 100644
 --- a/libpiper/src/piper.cpp
 +++ b/libpiper/src/piper.cpp
-@@ -101,7 +101,7 @@ auto piper_create_with_options(const piper_create_options *options)
-     return nullptr;
+@@ -4,6 +4,7 @@
+ 
+ #include <array>
+ #include <cstddef>
++#include <cstdio>
+ #include <filesystem>
+ #include <fstream>
+ #include <limits>
+@@ -22,6 +23,7 @@
+ #define PIPER_VERSION "0.0.1"
+ #endif
+ 
++#include <espeak-ng/espeak_ng.h>
+ #include <espeak-ng/speak_lib.h>
+ 
+ using json = nlohmann::json;
+@@ -95,13 +97,19 @@ auto piper_create_with_options(const piper_create_options *options)
+     phoneme_type = config["phoneme_type"].get<PhonemeType>();
+   }
+ 
+-  if (phoneme_type == PhonemeType::Espeak &&
+-      espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, 0, final_espeak_data_path,
+-                        0) < 0) {
+-    return nullptr;
++  if (phoneme_type == PhonemeType::Espeak) {
++    espeak_ng_InitializePath(final_espeak_data_path);
++    espeak_ng_ERROR_CONTEXT espeak_context = nullptr;
++    espeak_ng_STATUS espeak_status = espeak_ng_Initialize(&espeak_context);
++    if (espeak_status != ENS_OK) {
++      espeak_ng_PrintStatusCodeMessage(espeak_status, stderr, espeak_context);
++      espeak_ng_ClearErrorContext(&espeak_context);
++      return nullptr;
++    }
++    espeak_ng_InitializeOutput(ENOUTPUT_MODE_SYNCHRONOUS, 0, nullptr);
    }
  
 -  auto *synth = new piper_synthesizer();
@@ -49,7 +81,7 @@ index 56b61b0..7ebf58b 100644
    synth->phoneme_type = phoneme_type;
  
    // Load config options
-@@ -280,7 +280,7 @@ auto piper_create_with_options(const piper_create_options *options)
+@@ -280,7 +288,7 @@ auto piper_create_with_options(const piper_create_options *options)
    synth->session = std::make_unique<Ort::Session>(
        Ort::Session(ort_env, model_path_ort, synth->session_options));
  

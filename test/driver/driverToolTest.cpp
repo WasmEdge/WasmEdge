@@ -494,6 +494,21 @@ TEST(ParseSubcommand, ForbiddenPluginFlag) {
             EXIT_SUCCESS);
 }
 
+TEST(ParseSubcommand, LogLevelFlag) {
+  std::string PathStr = parseTestPath();
+  const char *Path = PathStr.c_str();
+
+  WasmEdge::Log::setInfoLoggingLevel();
+  EXPECT_EQ(callParse({"--log-level", "debug", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::debug);
+
+  EXPECT_EQ(callUniToolAll({"parse", "--log-level", "trace", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::trace);
+
+  WasmEdge::Log::setInfoLoggingLevel();
+}
+
 TEST(ParseSubcommand, ExtraSectionModules) {
   EXPECT_EQ(callParse({sectionsTestPath().c_str()}), EXIT_SUCCESS);
   EXPECT_EQ(callParse({tagImportTestPath().c_str()}), EXIT_SUCCESS);
@@ -682,6 +697,21 @@ TEST(ValidateSubcommand, ForbiddenPluginFlag) {
   EXPECT_EQ(
       callValidate({"--forbidden-plugin", "someplugin", simplePath().c_str()}),
       EXIT_SUCCESS);
+}
+
+TEST(ValidateSubcommand, LogLevelFlag) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  WasmEdge::Log::setInfoLoggingLevel();
+  EXPECT_EQ(callValidate({"--log-level", "debug", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::debug);
+
+  EXPECT_EQ(callUniToolAll({"validate", "--log-level", "warn", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::warn);
+
+  WasmEdge::Log::setInfoLoggingLevel();
 }
 
 // ---------------------------------------------------------------------------
@@ -956,6 +986,47 @@ TEST(InstantiateSubcommand, ForbiddenPluginFlag) {
             EXIT_SUCCESS);
 }
 
+TEST(InstantiateSubcommand, LogLevelFlag) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  WasmEdge::Log::setInfoLoggingLevel();
+  EXPECT_EQ(callInstantiate({"--log-level", "debug", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::debug);
+
+  EXPECT_EQ(callUniToolAll({"instantiate", "--log-level", "error", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::err);
+
+  WasmEdge::Log::setInfoLoggingLevel();
+}
+
+TEST(InstantiateSubcommand, InvalidLogLevelEmittedOnce) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  int WarnCount = 0;
+  WasmEdge::Log::setLoggingCallback(
+      [&WarnCount](const spdlog::details::log_msg &Msg) {
+        if (Msg.level == spdlog::level::warn) {
+          ++WarnCount;
+        }
+      });
+
+  WasmEdge::Log::setInfoLoggingLevel();
+  EXPECT_EQ(callInstantiate({"--log-level", "invalid", Path}), EXIT_SUCCESS);
+  EXPECT_EQ(WarnCount, 1);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
+
+  WarnCount = 0;
+  EXPECT_EQ(callUniToolAll({"instantiate", "--log-level", "invalid", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(WarnCount, 1);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
+
+  WasmEdge::Log::setLoggingCallback(nullptr);
+}
+
 // ---------------------------------------------------------------------------
 // RunSubcommand tests
 // ---------------------------------------------------------------------------
@@ -1103,18 +1174,65 @@ TEST(RunSubcommand, GlobalFlags) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();
 
+  WasmEdge::Log::setInfoLoggingLevel();
   EXPECT_EQ(
       callRun({"--reactor", "--log-level", "error", Path, "add", "1", "2"}),
       EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::err);
+
+  EXPECT_EQ(callUniToolAll({"run", "--reactor", "--log-level", "debug", Path,
+                            "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::debug);
+
   EXPECT_EQ(callRun({"--reactor", "--forbidden-plugin", "someplugin", Path,
                      "add", "1", "2"}),
             EXIT_SUCCESS);
   EXPECT_EQ(callRun({"--reactor", "--forbidden-plugin", "pA",
                      "--forbidden-plugin", "pB", Path, "add", "1", "2"}),
             EXIT_SUCCESS);
+
+  WasmEdge::Log::setInfoLoggingLevel();
+}
+
+TEST(RunSubcommand, InvalidLogLevelEmittedOnce) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  int WarnCount = 0;
+  WasmEdge::Log::setLoggingCallback(
+      [&WarnCount](const spdlog::details::log_msg &Msg) {
+        if (Msg.level == spdlog::level::warn) {
+          ++WarnCount;
+        }
+      });
+
+  WasmEdge::Log::setInfoLoggingLevel();
+  EXPECT_EQ(
+      callRun({"--reactor", "--log-level", "invalid", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+  EXPECT_EQ(WarnCount, 1);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
+
+  WarnCount = 0;
+  EXPECT_EQ(callUniToolAll({"run", "--reactor", "--log-level", "invalid", Path,
+                            "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(WarnCount, 1);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
+
+  WarnCount = 0;
+  EXPECT_EQ(callUniToolAll(
+                {"--reactor", "--log-level", "invalid", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(WarnCount, 1);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
+
+  WasmEdge::Log::setLoggingCallback(nullptr);
 }
 
 TEST(NoSubcommand, FallbackToRun) {
+  WasmEdge::Log::setInfoLoggingLevel();
   EXPECT_EQ(
       callUniToolAll({"--reactor", simplePath().c_str(), "add", "3", "5"}),
       EXIT_SUCCESS);
@@ -1122,6 +1240,12 @@ TEST(NoSubcommand, FallbackToRun) {
   EXPECT_EQ(callUniToolAll({"--reactor", "--force-interpreter",
                             simplePath().c_str(), "add", "1", "2"}),
             EXIT_SUCCESS);
+  EXPECT_EQ(callUniToolAll({"--log-level", "warn", "--reactor",
+                            simplePath().c_str(), "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::warn);
+
+  WasmEdge::Log::setInfoLoggingLevel();
 }
 
 } // namespace

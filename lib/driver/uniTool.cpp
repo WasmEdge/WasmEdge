@@ -86,27 +86,6 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
     return EXIT_SUCCESS;
   }
 
-  auto ApplyLogLevel = [](const std::string &Level) {
-    if (!Level.empty() && !Log::setLoggingLevelFromString(Level)) {
-      spdlog::warn(
-          "Invalid log level: {}. Valid values are: off, trace, debug, "
-          "info, warning, error, fatal. Falling back to info level."sv,
-          Level);
-      Log::setInfoLoggingLevel();
-    }
-  };
-
-  if (ToolSelect == ToolType::All) {
-    if (!ParseSubCommand.is_selected() && !ValidateSubCommand.is_selected() &&
-        !InstantiateSubCommand.is_selected()) {
-      ApplyLogLevel(ToolOptions.LogLevel.value());
-    }
-  } else if (ToolSelect == ToolType::Tool) {
-    ApplyLogLevel(ToolOptions.LogLevel.value());
-  } else if (ToolSelect == ToolType::Instantiate) {
-    ApplyLogLevel(InstantiateOptions.LogLevel.value());
-  }
-
   // Forward Results
   if (ToolSubCommand.is_selected() || ToolSelect == ToolType::Tool) {
     return Tool(ToolOptions);

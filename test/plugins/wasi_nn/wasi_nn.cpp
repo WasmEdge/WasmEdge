@@ -3704,6 +3704,29 @@ TEST(WasiNNTest, PiperBackend) {
               static_cast<uint32_t>(ErrNo::InvalidEncoding));
   }
 
+  // Loads a Piper graph from the given config and returns the errno.
+  auto LoadPiperConfig = [&](const std::string &PiperConfig) {
+    std::vector<uint8_t> Data(PiperConfig.begin(), PiperConfig.end());
+    BuilderPtr = LoadEntryPtr;
+    writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(Data.size()),
+                    BuilderPtr);
+    writeBinaries<uint8_t>(MemInst, Data, StorePtr);
+    EXPECT_TRUE(HostFuncLoad.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     LoadEntryPtr, UINT32_C(1),
+                                     static_cast<uint32_t>(Backend::Piper),
+                                     UINT32_C(0), BuilderPtr},
+                                 Errno));
+    return static_cast<uint32_t>(Errno[0].get<int32_t>());
+  };
+
+  // Test: load -- the voice config is not JSON (libpiper throws).
+  EXPECT_EQ(LoadPiperConfig(
+                "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+                "\"config\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+                "\"espeak_data\": \"./wasinn_piper_fixtures/espeak-ng-data\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
   // Test: load -- load successfully.
   std::string Config =
       "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "

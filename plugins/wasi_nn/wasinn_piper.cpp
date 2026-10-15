@@ -258,10 +258,17 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
     EspeakPath = GraphRef.Config->ESpeakDataPath->string();
   }
 
-  piper_synthesizer *Synth =
-      piper_create(GraphRef.Config->ModelPath.string().c_str(),
-                   GraphRef.Config->ModelConfigPath.string().c_str(),
-                   EspeakPath.empty() ? nullptr : EspeakPath.c_str());
+  piper_synthesizer *Synth = nullptr;
+  try {
+    Synth = piper_create(GraphRef.Config->ModelPath.string().c_str(),
+                         GraphRef.Config->ModelConfigPath.string().c_str(),
+                         EspeakPath.empty() ? nullptr : EspeakPath.c_str());
+  } catch (const std::exception &E) {
+    spdlog::error(
+        "[WASI-NN] Piper backend: Failed to create piper synthesizer: {}"sv,
+        E.what());
+    return WASINN::ErrNo::InvalidArgument;
+  }
 
   if (!Synth) {
     spdlog::error(
@@ -420,40 +427,47 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
     }
   }
 
-  int const Res = piper_synthesize_start(GraphRef.Synth.get(),
-                                         TextToSpeak.c_str(), &Options);
-  if (Res != PIPER_OK) {
-    spdlog::error("[WASI-NN] Piper backend: piper_synthesize_start failed."sv);
-    return WASINN::ErrNo::RuntimeError;
-  }
-
   std::vector<int16_t> AudioBuffer;
   int SampleRate = 0;
   constexpr float MaxWavValue = 32767.0f;
 
-  while (true) {
-    piper_audio_chunk Chunk{};
-    int const NextRes = piper_synthesize_next(GraphRef.Synth.get(), &Chunk);
-    if (NextRes == PIPER_DONE) {
-      break;
-    }
-    if (NextRes != PIPER_OK) {
-      spdlog::error("[WASI-NN] Piper backend: piper_synthesize_next failed."sv);
+  try {
+    int const Res = piper_synthesize_start(GraphRef.Synth.get(),
+                                           TextToSpeak.c_str(), &Options);
+    if (Res != PIPER_OK) {
+      spdlog::error(
+          "[WASI-NN] Piper backend: piper_synthesize_start failed."sv);
       return WASINN::ErrNo::RuntimeError;
     }
-    if (Chunk.num_samples == 0) {
-      continue;
-    }
-    SampleRate = Chunk.sample_rate;
-    size_t OriginalSize = AudioBuffer.size();
-    AudioBuffer.resize(OriginalSize + Chunk.num_samples);
 
-    for (size_t I = 0; I < Chunk.num_samples; I++) {
-      float Sample = Chunk.samples[I];
-      Sample = std::clamp(Sample, -1.0f, 1.0f);
-      AudioBuffer[OriginalSize + I] =
-          static_cast<int16_t>(Sample * MaxWavValue);
+    while (true) {
+      piper_audio_chunk Chunk{};
+      int const NextRes = piper_synthesize_next(GraphRef.Synth.get(), &Chunk);
+      if (NextRes == PIPER_DONE) {
+        break;
+      }
+      if (NextRes != PIPER_OK) {
+        spdlog::error(
+            "[WASI-NN] Piper backend: piper_synthesize_next failed."sv);
+        return WASINN::ErrNo::RuntimeError;
+      }
+      if (Chunk.num_samples == 0) {
+        continue;
+      }
+      SampleRate = Chunk.sample_rate;
+      size_t OriginalSize = AudioBuffer.size();
+      AudioBuffer.resize(OriginalSize + Chunk.num_samples);
+
+      for (size_t I = 0; I < Chunk.num_samples; I++) {
+        float Sample = Chunk.samples[I];
+        Sample = std::clamp(Sample, -1.0f, 1.0f);
+        AudioBuffer[OriginalSize + I] =
+            static_cast<int16_t>(Sample * MaxWavValue);
+      }
     }
+  } catch (const std::exception &E) {
+    spdlog::error("[WASI-NN] Piper backend: Synthesis failed: {}"sv, E.what());
+    return WASINN::ErrNo::RuntimeError;
   }
 
   CxtRef.Output.emplace();

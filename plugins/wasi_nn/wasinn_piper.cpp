@@ -20,6 +20,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <tuple>
 #include <vector>
 #endif
@@ -167,8 +168,10 @@ WASINN::ErrNo parseRunConfig(RunConfig &RunConfig,
   // Verify model file exists
   if (ModelPath) {
     auto Path = u8path(ModelPath.value());
-    if (!std::filesystem::exists(Path)) {
-      spdlog::error("[WASI-NN] Piper backend: Model file doesn't exist"sv);
+    std::error_code EC;
+    if (!std::filesystem::is_regular_file(Path, EC)) {
+      spdlog::error(
+          "[WASI-NN] Piper backend: Model file doesn't exist or is not a regular file"sv);
       return WASINN::ErrNo::InvalidArgument;
     }
     RunConfig.ModelPath = Path;
@@ -190,8 +193,10 @@ WASINN::ErrNo parseRunConfig(RunConfig &RunConfig,
     RunConfig.ModelConfigPath += ".json";
   }
   // Verify model config exists
-  if (!std::filesystem::exists(RunConfig.ModelConfigPath)) {
-    spdlog::error("[WASI-NN] Piper backend: Model config doesn't exist"sv);
+  std::error_code EC;
+  if (!std::filesystem::is_regular_file(RunConfig.ModelConfigPath, EC)) {
+    spdlog::error(
+        "[WASI-NN] Piper backend: Model config doesn't exist or is not a regular file"sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 

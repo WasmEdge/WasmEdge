@@ -40,7 +40,7 @@ uint32_t decodeLEB128U32(Span<const Byte> Data, uint32_t &Offset) {
 
 std::string decodeName(Span<const Byte> Data, uint32_t &Offset) {
   uint32_t Len = decodeLEB128U32(Data, Offset);
-  if (Offset + Len > Data.size())
+  if (Len > Data.size() - Offset)
     return {};
   std::string Name(reinterpret_cast<const char *>(&Data[Offset]), Len);
   Offset += Len;
@@ -65,9 +65,9 @@ NameSection parseNameSection(Span<const Byte> Data) {
   while (Offset < Data.size()) {
     uint8_t SubId = static_cast<uint8_t>(Data[Offset++]);
     uint32_t SubSize = decodeLEB128U32(Data, Offset);
-    uint32_t SubEnd = Offset + SubSize;
-    if (SubEnd > Data.size())
+    if (SubSize > Data.size() - Offset)
       break;
+    uint32_t SubEnd = Offset + SubSize;
     if (SubId == 1) {
       NS.FuncNames = decodeNameMap(Data, Offset);
     } else if (SubId == 7) {

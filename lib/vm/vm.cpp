@@ -125,7 +125,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
 
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,
                                       const AST::Module &Module) {
-  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT) {
+  if (needsJITCompile(Module)) {
     return unsafeRegisterModule(Name, std::make_shared<AST::Module>(Module));
   }
 #ifdef WASMEDGE_USE_LLVM
@@ -152,8 +152,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
   // Validate module.
   EXPECTED_TRY(ValidatorEngine.validate(*Module));
 
-  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT &&
-      !Module->getSymbol()) {
+  if (needsJITCompile(*Module)) {
     EXPECTED_TRY(unsafeLoadJITExecutable(*Module));
   }
 
@@ -283,8 +282,7 @@ Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
-  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT &&
-      !Module.getSymbol()) {
+  if (needsJITCompile(Module)) {
     AST::Module ModuleCopy(Module);
     return unsafeRunWasmFile(ModuleCopy, Func, Params, ParamTypes);
   }
@@ -299,8 +297,7 @@ VM::unsafeRunWasmFile(AST::Module &Module, std::string_view Func,
                       Span<const ValType> ParamTypes) {
   unsafeRevertStageToValidated();
   EXPECTED_TRY(ValidatorEngine.validate(Module));
-  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT &&
-      !Module.getSymbol()) {
+  if (needsJITCompile(Module)) {
     EXPECTED_TRY(unsafeLoadJITExecutable(Module));
   }
   return unsafeInstantiateAndExecute(Module, Func, Params, ParamTypes);
@@ -423,6 +420,11 @@ Expect<void> VM::unsafeValidate() {
   }
   Stage = VMStage::Validated;
   return {};
+}
+
+bool VM::needsJITCompile(const AST::Module &Module) const noexcept {
+  return Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT &&
+         !Module.getSymbol();
 }
 
 Expect<void> VM::unsafeLoadJITExecutable() {

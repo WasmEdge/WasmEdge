@@ -379,14 +379,18 @@ private:
 
   Expect<void> unsafeInstantiate();
 
+  /// Whether the module still needs an eager JIT compile: the run mode is
+  /// RunMode::JIT and no executable is attached yet.
+  bool needsJITCompile(const AST::Module &Module) const noexcept;
+
   /// In JIT or lazy JIT mode, compile and attach an executable to the loaded
   /// module if it does not carry one yet. Eager JIT compilation failures fall
   /// back to the interpreter; without LLVM support this only logs a warning.
   Expect<void> unsafeLoadJITExecutable();
 
   /// Eagerly compile and attach a JIT executable to a validated module;
-  /// failures fall back to the interpreter. The caller checks run mode and
-  /// existing symbol.
+  /// failures fall back to the interpreter. Callers check needsJITCompile()
+  /// first.
   Expect<void> unsafeLoadJITExecutable(AST::Module &Module);
 
   Expect<std::vector<std::pair<ValVariant, ValType>>>

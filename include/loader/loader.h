@@ -258,6 +258,9 @@ public:
                               std::shared_ptr<Executable> Library);
 
 private:
+  /// Convert WAT text into a module.
+  Expect<std::unique_ptr<AST::Module>> parseWatUnit(Span<const uint8_t> Code);
+
   /// \name Helper functions to print error log when loading AST nodes
   /// @{
   inline Unexpected<ErrCode> logLoadError(ErrCode Code, uint64_t Off,

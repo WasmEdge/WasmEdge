@@ -2312,6 +2312,312 @@ TEST(AOTTmpValues, LoopKeepsNativeStackFlat) {
   EXPECT_EQ((*R)[0].first.get<uint32_t>(), 500000u);
 }
 
+void appendMultiValueU32(std::vector<Byte> &Bytes, uint32_t Value) {
+  do {
+    Byte Part = static_cast<Byte>(Value & 0x7fU);
+    Value >>= 7;
+    Bytes.push_back(Value == 0 ? Part : static_cast<Byte>(Part | 0x80U));
+  } while (Value != 0);
+}
+
+void appendMultiValueSection(std::vector<Byte> &Module, Byte Id,
+                             const std::vector<Byte> &Content) {
+  Module.push_back(Id);
+  appendMultiValueU32(Module, static_cast<uint32_t>(Content.size()));
+  Module.insert(Module.end(), Content.begin(), Content.end());
+}
+
+void appendMultiValueConstant(std::vector<Byte> &Body, Byte Type,
+                              uint32_t Value) {
+  switch (Type) {
+  case 0x7e:
+    Body.push_back(0x42);
+    appendMultiValueU32(Body, Value);
+    break;
+  case 0x7c: {
+    Body.push_back(0x44);
+    uint64_t Bits = 0;
+    switch (Value) {
+    case 1:
+      Bits = UINT64_C(0x3ff0000000000000);
+      break;
+    case 2:
+      Bits = UINT64_C(0x4000000000000000);
+      break;
+    case 3:
+      Bits = UINT64_C(0x4008000000000000);
+      break;
+    case 4:
+      Bits = UINT64_C(0x4010000000000000);
+      break;
+    case 5:
+      Bits = UINT64_C(0x4014000000000000);
+      break;
+    default:
+      Bits = UINT64_C(0x4022000000000000);
+      break;
+    }
+    for (unsigned I = 0; I < 8; ++I) {
+      Body.push_back(static_cast<Byte>(Bits >> (I * 8)));
+    }
+    break;
+  }
+  case 0x7b:
+    Body.insert(Body.end(), {0xfd, 0x0c, static_cast<Byte>(Value)});
+    Body.insert(Body.end(), 15, 0);
+    break;
+  case 0x70:
+    if (Value == 9) {
+      Body.insert(Body.end(), {0xd0, 0x70});
+    } else {
+      Body.insert(Body.end(), {0x41, 0x00, 0x25, 0x00});
+    }
+    break;
+  }
+}
+
+std::vector<Byte> multiValueTailModule(Byte TailOp, Byte Type,
+                                       uint32_t ResultCount) {
+  std::vector<Byte> Module{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00};
+  const uint32_t FunctionCount = TailOp == 0x13 ? 4 : TailOp == 0x15 ? 3 : 2;
+
+  std::vector<Byte> Types{0x01, 0x60, 0x01, 0x7f};
+  appendMultiValueU32(Types, ResultCount);
+  Types.insert(Types.end(), ResultCount, Type);
+  appendMultiValueSection(Module, 0x01, Types);
+  std::vector<Byte> Functions;
+  appendMultiValueU32(Functions, FunctionCount);
+  Functions.insert(Functions.end(), FunctionCount, 0);
+  appendMultiValueSection(Module, 0x03, Functions);
+
+  if (TailOp != 0x12 || Type == 0x70) {
+    appendMultiValueSection(
+        Module, 0x04,
+        {0x01, 0x70, 0x00, static_cast<Byte>(TailOp == 0x13 ? 2 : 1)});
+  }
+  std::vector<Byte> Exports;
+  appendMultiValueU32(Exports, FunctionCount);
+  for (const auto &[Name, Index] :
+       {std::pair<std::string_view, Byte>{"tail", 0},
+        {"run", 1},
+        {"null", 2},
+        {"oob", 3}}) {
+    if (Index >= FunctionCount) {
+      continue;
+    }
+    appendMultiValueU32(Exports, static_cast<uint32_t>(Name.size()));
+    Exports.insert(Exports.end(), Name.begin(), Name.end());
+    Exports.insert(Exports.end(), {0x00, Index});
+  }
+  appendMultiValueSection(Module, 0x07, Exports);
+  if (TailOp != 0x12 || Type == 0x70) {
+    appendMultiValueSection(Module, 0x09,
+                            {0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00});
+  }
+
+  std::vector<Byte> TailBody{0x00, 0x20, 0x00, 0x45, 0x04, 0x40};
+  for (uint32_t I = 0; I < ResultCount; ++I) {
+    appendMultiValueConstant(TailBody, Type, I + 1);
+  }
+  TailBody.insert(TailBody.end(), {0x0f, 0x0b, 0x20, 0x00, 0x41, 0x01, 0x6b});
+  if (TailOp == 0x12) {
+    TailBody.insert(TailBody.end(), {0x12, 0x00});
+  } else if (TailOp == 0x13) {
+    TailBody.insert(TailBody.end(), {0x41, 0x00, 0x13, 0x00, 0x00});
+  } else {
+    TailBody.insert(TailBody.end(), {0xd2, 0x00, 0x15, 0x00});
+  }
+  TailBody.push_back(0x0b);
+
+  std::vector<Byte> RunBody{0x00, 0x20, 0x00, 0x10, 0x00, 0x1a};
+  appendMultiValueConstant(RunBody, Type, 9);
+  RunBody.push_back(0x0b);
+
+  std::vector<Byte> Code;
+  appendMultiValueU32(Code, FunctionCount);
+  appendMultiValueU32(Code, static_cast<uint32_t>(TailBody.size()));
+  Code.insert(Code.end(), TailBody.begin(), TailBody.end());
+  appendMultiValueU32(Code, static_cast<uint32_t>(RunBody.size()));
+  Code.insert(Code.end(), RunBody.begin(), RunBody.end());
+  if (TailOp == 0x13) {
+    for (Byte Index : {Byte{1}, Byte{2}}) {
+      std::vector<Byte> Body{0x00, 0x20, 0x00, 0x41, Index,
+                             0x13, 0x00, 0x00, 0x0b};
+      appendMultiValueU32(Code, static_cast<uint32_t>(Body.size()));
+      Code.insert(Code.end(), Body.begin(), Body.end());
+    }
+  } else if (TailOp == 0x15) {
+    std::vector<Byte> Body{0x00, 0x20, 0x00, 0xd0, 0x00, 0x15, 0x00, 0x0b};
+    appendMultiValueU32(Code, static_cast<uint32_t>(Body.size()));
+    Code.insert(Code.end(), Body.begin(), Body.end());
+  }
+  appendMultiValueSection(Module, 0x0a, Code);
+  return Module;
+}
+
+std::vector<Byte> multiValueImportedCallerModule() {
+  std::vector<Byte> Module{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00};
+  appendMultiValueSection(
+      Module, 0x01, {0x01, 0x60, 0x01, 0x7f, 0x04, 0x7e, 0x7e, 0x7e, 0x7e});
+  appendMultiValueSection(Module, 0x02,
+                          {0x01, 0x06, 0x63, 0x61, 0x6c, 0x6c, 0x65, 0x65, 0x04,
+                           0x74, 0x61, 0x69, 0x6c, 0x00, 0x00});
+  appendMultiValueSection(Module, 0x03,
+                          {0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+  appendMultiValueSection(Module, 0x04, {0x01, 0x70, 0x00, 0x01});
+
+  const std::array<std::string_view, 6> Names{
+      "call",     "return_call",    "call_indirect", "return_call_indirect",
+      "call_ref", "return_call_ref"};
+  std::vector<Byte> Exports{0x06};
+  for (size_t I = 0; I < Names.size(); ++I) {
+    appendMultiValueU32(Exports, static_cast<uint32_t>(Names[I].size()));
+    Exports.insert(Exports.end(), Names[I].begin(), Names[I].end());
+    Exports.insert(Exports.end(), {0x00, static_cast<Byte>(I + 1)});
+  }
+  appendMultiValueSection(Module, 0x07, Exports);
+  appendMultiValueSection(Module, 0x09,
+                          {0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00});
+
+  const std::array<std::vector<Byte>, 6> Calls{
+      std::vector<Byte>{0x10, 0x00},  {0x12, 0x00},
+      {0x41, 0x00, 0x11, 0x00, 0x00}, {0x41, 0x00, 0x13, 0x00, 0x00},
+      {0xd2, 0x00, 0x14, 0x00},       {0xd2, 0x00, 0x15, 0x00}};
+  std::vector<Byte> Code{0x06};
+  for (const auto &Call : Calls) {
+    std::vector<Byte> Body{0x00, 0x20, 0x00};
+    Body.insert(Body.end(), Call.begin(), Call.end());
+    Body.push_back(0x0b);
+    appendMultiValueU32(Code, static_cast<uint32_t>(Body.size()));
+    Code.insert(Code.end(), Body.begin(), Body.end());
+  }
+  appendMultiValueSection(Module, 0x0a, Code);
+  return Module;
+}
+
+TEST(AOTMultiValueTailCall, ResultsAndDeepRecursion) {
+  Configure Conf;
+  Conf.addProposal(Proposal::TailCall);
+  Conf.addProposal(Proposal::ReferenceTypes);
+  Conf.addProposal(Proposal::FunctionReferences);
+  Conf.addProposal(Proposal::SIMD);
+
+  const std::array<Byte, 3> TailOps{0x12, 0x13, 0x15};
+  const std::array<std::pair<Byte, uint32_t>, 4> Types{
+      std::pair<Byte, uint32_t>{0x7e, 4}, {0x7c, 5}, {0x7b, 5}, {0x70, 5}};
+  const std::array<ValType, 1> ArgTypes{ValType(TypeCode::I32)};
+
+  for (const auto TailOp : TailOps) {
+    for (const auto &[Type, ResultCount] : Types) {
+      SCOPED_TRACE(static_cast<unsigned>(TailOp));
+      SCOPED_TRACE(static_cast<unsigned>(Type));
+      auto Bytes = multiValueTailModule(TailOp, Type, ResultCount);
+      auto Mod = compileToJIT(Conf, Bytes);
+      ASSERT_NE(Mod, nullptr);
+
+      Executor::Executor ExecEngine(Conf);
+      Runtime::StoreManager Store;
+      auto InstOrErr = ExecEngine.instantiateModule(Store, *Mod);
+      ASSERT_TRUE(InstOrErr);
+      auto Inst = std::move(*InstOrErr);
+
+      const auto *Tail = Inst->findFuncExports("tail");
+      const auto *Run = Inst->findFuncExports("run");
+      ASSERT_NE(Tail, nullptr);
+      ASSERT_NE(Run, nullptr);
+      ASSERT_TRUE(Tail->isCompiledFunction());
+      ASSERT_TRUE(Run->isCompiledFunction());
+
+      for (const auto *Function : {Tail, Run}) {
+        const std::array<ValVariant, 1> Args{
+            ValVariant(uint32_t(Function == Tail ? 100000U : 7U))};
+        auto Result = ExecEngine.invoke(Function, Args, ArgTypes);
+        ASSERT_TRUE(Result);
+        ASSERT_EQ(Result->size(), ResultCount);
+        for (uint32_t I = 0; I < ResultCount; ++I) {
+          const uint32_t Expected =
+              Function == Run && I + 1 == ResultCount ? 9 : I + 1;
+          switch (Type) {
+          case 0x7e:
+            EXPECT_EQ((*Result)[I].first.get<uint64_t>(), Expected);
+            break;
+          case 0x7c:
+            EXPECT_DOUBLE_EQ((*Result)[I].first.get<double>(),
+                             static_cast<double>(Expected));
+            break;
+          case 0x7b:
+            EXPECT_EQ(
+                static_cast<uint64_t>((*Result)[I].first.get<uint128_t>()),
+                Expected);
+            EXPECT_EQ(static_cast<uint64_t>(
+                          (*Result)[I].first.get<uint128_t>() >> 64),
+                      0U);
+            break;
+          case 0x70:
+            EXPECT_EQ((*Result)[I].first.get<RefVariant>().isNull(),
+                      Expected == 9);
+            break;
+          }
+        }
+      }
+      if (TailOp != 0x12) {
+        const std::array<ValVariant, 1> Args{ValVariant(uint32_t(1))};
+        const auto *Null = Inst->findFuncExports("null");
+        ASSERT_NE(Null, nullptr);
+        auto NullResult = ExecEngine.invoke(Null, Args, ArgTypes);
+        ASSERT_FALSE(NullResult);
+        EXPECT_EQ(NullResult.error(), TailOp == 0x13
+                                          ? ErrCode::Value::UninitializedElement
+                                          : ErrCode::Value::AccessNullFunc);
+        if (TailOp == 0x13) {
+          const auto *Oob = Inst->findFuncExports("oob");
+          ASSERT_NE(Oob, nullptr);
+          auto OobResult = ExecEngine.invoke(Oob, Args, ArgTypes);
+          ASSERT_FALSE(OobResult);
+          EXPECT_EQ(OobResult.error(), ErrCode::Value::UndefinedElement);
+        }
+      }
+    }
+  }
+
+  auto CallerBytes = multiValueImportedCallerModule();
+  auto CallerMod = compileToJIT(Conf, CallerBytes);
+  ASSERT_NE(CallerMod, nullptr);
+  auto CalleeBytes = multiValueTailModule(0x12, 0x7e, 4);
+  for (const bool CompileCallee : {false, true}) {
+    SCOPED_TRACE(CompileCallee ? "compiled callee" : "interpreted callee");
+    auto CalleeMod = CompileCallee ? compileToJIT(Conf, CalleeBytes)
+                                   : loadModule(Conf, CalleeBytes);
+    ASSERT_NE(CalleeMod, nullptr);
+
+    Executor::Executor ExecEngine(Conf);
+    Runtime::StoreManager Store;
+    auto CalleeInstOrErr =
+        ExecEngine.registerModule(Store, *CalleeMod, "callee");
+    ASSERT_TRUE(CalleeInstOrErr);
+    auto CalleeInst = std::move(*CalleeInstOrErr);
+    auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+    ASSERT_TRUE(CallerInstOrErr);
+    auto CallerInst = std::move(*CallerInstOrErr);
+
+    const std::array<ValVariant, 1> Args{ValVariant(uint32_t(7))};
+    for (const auto Name :
+         {"call", "return_call", "call_indirect", "return_call_indirect",
+          "call_ref", "return_call_ref"}) {
+      SCOPED_TRACE(Name);
+      const auto *Function = CallerInst->findFuncExports(Name);
+      ASSERT_NE(Function, nullptr);
+      ASSERT_TRUE(Function->isCompiledFunction());
+      auto Result = ExecEngine.invoke(Function, Args, ArgTypes);
+      ASSERT_TRUE(Result);
+      ASSERT_EQ(Result->size(), 4U);
+      for (uint32_t I = 0; I < 4; ++I) {
+        EXPECT_EQ((*Result)[I].first.get<uint64_t>(), I + 1);
+      }
+    }
+  }
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

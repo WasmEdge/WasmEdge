@@ -216,6 +216,10 @@ LLVM::Type toLLVMType(LLVM::Context LLContext, LLVM::Type ModCtxPtrTy,
   auto ArgsTy = toLLVMArgsType(LLContext, ModCtxPtrTy, ExecCtxPtrTy,
                                FuncType.getParamTypes());
   auto RetTy = toLLVMRetsType(LLContext, FuncType.getReturnTypes());
+  if (RetTy.isStructTy()) {
+    ArgsTy.push_back(LLContext.getInt8Ty().getPointerTo());
+    RetTy = LLContext.getVoidTy();
+  }
   return LLVM::Type::getFunctionType(RetTy, ArgsTy);
 }
 

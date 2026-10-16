@@ -3,8 +3,6 @@
 
 #include "compiler/function_compiler.h"
 
-#include "common/errinfo.h"
-#include "common/spdlog.h"
 #include "runtime/instance/function.h"
 
 #include <algorithm>
@@ -773,9 +771,6 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
     case OpCode::I64__sub128:
     case OpCode::I64__mul_wide_s:
     case OpCode::I64__mul_wide_u:
-      spdlog::error(ErrCode::Value::AOTNotImpl);
-      spdlog::error(
-          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
       return Unexpect(ErrCode::Value::AOTNotImpl);
     case OpCode::V128__load:
     case OpCode::V128__load8x8_s:

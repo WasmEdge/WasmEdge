@@ -9,6 +9,7 @@
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
 #include <piper.h>
 
+#include <cstddef>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -26,6 +27,13 @@ class Context;
 namespace WasmEdge::Host::WASINN::Piper {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
 enum class SynthesisConfigOutputType { OUTPUT_WAV, OUTPUT_RAW };
+
+// espeak-ng keeps its data directory in a fixed-size path buffer.
+#if defined(_WIN32)
+constexpr size_t ESpeakMaxDataPathSize = 229;
+#else
+constexpr size_t ESpeakMaxDataPathSize = 159;
+#endif
 struct SynthesisConfig {
   // Type of output to produce.
   // Default is a WAV file.
@@ -84,8 +92,9 @@ struct Graph {
 struct Context {
   Context(uint32_t GId, Graph &) noexcept : GraphId(GId) {}
   uint32_t GraphId;
-  std::optional<std::string> Line;
-  std::unique_ptr<std::optional<SynthesisConfig>> JsonInputSynthesisConfig;
+  // Text to synthesize: the raw input, or the "text" field of a JSON input.
+  std::optional<std::string> Text;
+  std::optional<SynthesisConfig> JsonInputSynthesisConfig;
   std::optional<std::vector<uint8_t>> Output;
 };
 #else

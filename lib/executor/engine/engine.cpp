@@ -921,6 +921,20 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::I64__trunc_sat_f64_u:
       return runTruncateSatOp<double, uint64_t>(StackMgr.getTop());
 
+    // Wide Arithmetic Instructions
+    case OpCode::I64__add128: {
+      ValVariant RhsHi = StackMgr.pop();
+      ValVariant RhsLo = StackMgr.pop();
+      auto Lhs = StackMgr.getTopSpan(2);
+      return runAdd128Op(Lhs[0], Lhs[1], RhsLo, RhsHi);
+    }
+    case OpCode::I64__sub128: {
+      ValVariant RhsHi = StackMgr.pop();
+      ValVariant RhsLo = StackMgr.pop();
+      auto Lhs = StackMgr.getTopSpan(2);
+      return runSub128Op(Lhs[0], Lhs[1], RhsLo, RhsHi);
+    }
+
     // SIMD Memory Instructions
     case OpCode::V128__load:
       return runLoadOp<uint128_t>(
@@ -2341,8 +2355,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
           *getMemInstByIdx(StackMgr.getModule(), Instr.getTargetIndex()),
           Instr);
 
-    case OpCode::I64__add128:
-    case OpCode::I64__sub128:
     case OpCode::I64__mul_wide_s:
     case OpCode::I64__mul_wide_u:
       spdlog::error("Wide arithmetic execution is not implemented."sv);

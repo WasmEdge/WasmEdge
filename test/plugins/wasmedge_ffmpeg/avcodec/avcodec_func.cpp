@@ -522,6 +522,145 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
   }
 }
 
+TEST_F(FFmpegTest, AVCodecSendRejectsUnresolvedHandles) {
+  ASSERT_TRUE(AVCodecMod != nullptr);
+
+  uint32_t CodecCtxPtr = UINT32_C(4);
+  auto *AllocInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodec_alloc_context3");
+  ASSERT_NE(AllocInst, nullptr);
+  auto &HostFuncAllocCtx = AllocInst->getHostFunc();
+  EXPECT_TRUE(HostFuncAllocCtx.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), CodecCtxPtr},
+      Result));
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  uint32_t CodecCtxId = readUInt32(MemInst, CodecCtxPtr);
+  ASSERT_TRUE(CodecCtxId > 0);
+
+  uint32_t UnresolvedId = UINT32_C(999999);
+
+  auto *SendPacketInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodec_send_packet");
+  ASSERT_NE(SendPacketInst, nullptr);
+  auto &HostFuncSendPacket = SendPacketInst->getHostFunc();
+  EXPECT_TRUE(HostFuncSendPacket.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{CodecCtxId, UnresolvedId},
+      Result));
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  auto *SendFrameInst =
+      AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_send_frame");
+  ASSERT_NE(SendFrameInst, nullptr);
+  auto &HostFuncSendFrame = SendFrameInst->getHostFunc();
+  EXPECT_TRUE(HostFuncSendFrame.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{CodecCtxId, UnresolvedId},
+      Result));
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  auto *FreeInst = AVCodecMod->findFuncExports(
+      "wasmedge_ffmpeg_avcodec_avcodec_free_context");
+  ASSERT_NE(FreeInst, nullptr);
+  auto &HostFuncFreeCtx = FreeInst->getHostFunc();
+  EXPECT_TRUE(HostFuncFreeCtx.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{CodecCtxId},
+      Result));
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegTest, AVCodecSendFrameRejectsMismatchedFrame) {
+  ASSERT_TRUE(AVCodecMod != nullptr);
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+  uint32_t CodecPtr = UINT32_C(4);
+  uint32_t CtxPtr = UINT32_C(8);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_find_encoder",
+                {UINT32_C(216), CodecPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t CodecId = readUInt32(MemInst, CodecPtr);
+  ASSERT_TRUE(CodecId > 0);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_alloc_context3",
+                {CodecId, CtxPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t CtxId = readUInt32(MemInst, CtxPtr);
+  ASSERT_TRUE(CtxId > 0);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_format",
+                {CtxId, UINT32_C(2)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_rate",
+                {CtxId, INT32_C(48000)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channel_layout",
+                {CtxId, UINT64_C(3)}),
+            static_cast<int32_t>(ErrNo::Success));
+  ASSERT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_avcodec_open2",
+                {CtxId, CodecId, UINT32_C(0)}),
+            0);
+
+  auto MakeAudioFrame = [&](uint32_t Ptr, uint32_t SampleFormatId,
+                            uint64_t ChannelLayoutId) {
+    initEmptyFrame(Ptr);
+    uint32_t Id = readUInt32(MemInst, Ptr);
+    EXPECT_TRUE(Id > 0);
+    EXPECT_EQ(Run(AVUtilMod.get(),
+                  "wasmedge_ffmpeg_avutil_av_frame_set_audio_format",
+                  {Id, SampleFormatId}),
+              static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(Run(AVUtilMod.get(),
+                  "wasmedge_ffmpeg_avutil_av_frame_set_channel_layout",
+                  {Id, ChannelLayoutId}),
+              static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(Run(AVUtilMod.get(),
+                  "wasmedge_ffmpeg_avutil_av_frame_set_nb_samples",
+                  {Id, INT32_C(64)}),
+              static_cast<int32_t>(ErrNo::Success));
+    EXPECT_EQ(Run(AVUtilMod.get(), "wasmedge_ffmpeg_avutil_av_frame_get_buffer",
+                  {Id, INT32_C(0)}),
+              0);
+    return Id;
+  };
+
+  uint32_t U8StereoId = MakeAudioFrame(UINT32_C(12), UINT32_C(1), UINT64_C(3));
+  uint32_t S16MonoId = MakeAudioFrame(UINT32_C(16), UINT32_C(2), UINT64_C(1));
+  uint32_t S16StereoId = MakeAudioFrame(UINT32_C(20), UINT32_C(2), UINT64_C(3));
+
+  EXPECT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_avcodec_send_frame",
+                {CtxId, U8StereoId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_avcodec_send_frame",
+                {CtxId, S16MonoId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_avcodec_send_frame",
+                {CtxId, S16StereoId}),
+            0);
+
+  for (uint32_t Id : {U8StereoId, S16MonoId, S16StereoId}) {
+    EXPECT_EQ(
+        Run(AVUtilMod.get(), "wasmedge_ffmpeg_avutil_av_frame_free", {Id}),
+        static_cast<int32_t>(ErrNo::Success));
+  }
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_free_context", {CtxId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
 } // namespace WasmEdgeFFmpeg
 } // namespace Host
 } // namespace WasmEdge

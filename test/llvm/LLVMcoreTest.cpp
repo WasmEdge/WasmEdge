@@ -306,6 +306,147 @@ TEST(AOTCrossModule, LazyJITCallUsesCalleeContext) {
   }
 }
 
+// Registered JIT modules must compile before cross-module tail calls execute.
+// (module
+//   (type $t (func (param i32) (result i32)))
+//   (table (export "tab") 1 funcref)
+//   (func (export "f") (type $t)
+//     (if (result i32) (i32.eqz (local.get 0))
+//       (then (i32.const 42))
+//       (else (return_call_indirect (type $t)
+//         (i32.sub (local.get 0) (i32.const 1)) (i32.const 0))))))
+const std::array<WasmEdge::Byte, 77> JITRegisteredCalleeWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
+    0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04,
+    0x01, 0x70, 0x00, 0x01, 0x07, 0x0b, 0x02, 0x03, 0x74, 0x61, 0x62,
+    0x01, 0x00, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x17, 0x01, 0x15, 0x00,
+    0x20, 0x00, 0x45, 0x04, 0x7f, 0x41, 0x2a, 0x05, 0x20, 0x00, 0x41,
+    0x01, 0x6b, 0x41, 0x00, 0x13, 0x00, 0x00, 0x0b, 0x0b, 0x00, 0x0b,
+    0x04, 0x6e, 0x61, 0x6d, 0x65, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74};
+
+// (module
+//   (type $t (func (param i32) (result i32)))
+//   (import "m" "f" (func $f (type $t)))
+//   (import "m" "tab" (table 1 funcref))
+//   (elem declare func $f $g)
+//   (func $g (type $t) (return_call_ref $t (local.get 0) (ref.func $f)))
+//   (func (export "run") (param i32) (result i32)
+//     (table.set (i32.const 0) (ref.func $g))
+//     (call $g (local.get 0))))
+const std::array<WasmEdge::Byte, 104> JITRegisteredCallerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+    0x01, 0x7f, 0x01, 0x7f, 0x02, 0x11, 0x02, 0x01, 0x6d, 0x01, 0x66, 0x00,
+    0x00, 0x01, 0x6d, 0x03, 0x74, 0x61, 0x62, 0x01, 0x70, 0x00, 0x01, 0x03,
+    0x03, 0x02, 0x00, 0x00, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00,
+    0x02, 0x09, 0x06, 0x01, 0x03, 0x00, 0x02, 0x00, 0x01, 0x0a, 0x17, 0x02,
+    0x08, 0x00, 0x20, 0x00, 0xd2, 0x00, 0x15, 0x00, 0x0b, 0x0c, 0x00, 0x41,
+    0x00, 0xd2, 0x01, 0x26, 0x00, 0x20, 0x00, 0x10, 0x01, 0x0b, 0x00, 0x14,
+    0x04, 0x6e, 0x61, 0x6d, 0x65, 0x01, 0x07, 0x02, 0x00, 0x01, 0x66, 0x01,
+    0x01, 0x67, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74};
+
+TEST(JITRegisterModule, RegisteredModuleIsCompiled) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  VM::VM VM(Conf);
+
+  ASSERT_TRUE(VM.registerModule("m"sv, JITRegisteredCalleeWasm));
+  ASSERT_TRUE(VM.loadWasm(JITRegisteredCallerWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  const auto *Module = VM.getStoreManager().findModule("m"sv);
+  ASSERT_NE(Module, nullptr);
+  const auto *Func = Module->findFuncExports("f"sv);
+  ASSERT_NE(Func, nullptr);
+  EXPECT_TRUE(Func->isCompiledFunction());
+
+  const std::array<ValVariant, 1> Args{ValVariant(uint32_t(100000U))};
+  const std::array<ValType, 1> ArgTypes{ValType(TypeCode::I32)};
+  auto R = VM.execute("run"sv, Args, ArgTypes);
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 42u);
+}
+
+TEST(JITRegisterModule, RegisteredASTModuleIsCompiled) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  Loader::Loader LoaderEngine(Conf);
+  Validator::Validator ValidatorEngine(Conf);
+  auto ASTModule = LoaderEngine.parseModule(JITRegisteredCalleeWasm);
+  ASSERT_TRUE(ASTModule);
+  ASSERT_TRUE(ValidatorEngine.validate(**ASTModule));
+  VM::VM VM(Conf);
+
+  ASSERT_TRUE(VM.registerModule("m"sv, **ASTModule));
+  ASSERT_TRUE(VM.loadWasm(JITRegisteredCallerWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  const auto *Module = VM.getStoreManager().findModule("m"sv);
+  ASSERT_NE(Module, nullptr);
+  const auto *Func = Module->findFuncExports("f"sv);
+  ASSERT_NE(Func, nullptr);
+  EXPECT_TRUE(Func->isCompiledFunction());
+
+  const std::array<ValVariant, 1> Args{ValVariant(uint32_t(100000U))};
+  const std::array<ValType, 1> ArgTypes{ValType(TypeCode::I32)};
+  auto R = VM.execute("run"sv, Args, ArgTypes);
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 42u);
+}
+
+TEST(JITRegisterModule, RunWasmFileCompilesMainModule) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  VM::VM VM(Conf);
+
+  ASSERT_TRUE(VM.registerModule("m"sv, JITRegisteredCalleeWasm));
+  const std::array<ValVariant, 1> Args{ValVariant(uint32_t(100000U))};
+  const std::array<ValType, 1> ArgTypes{ValType(TypeCode::I32)};
+  auto R = VM.runWasmFile(JITRegisteredCallerWasm, "run"sv, Args, ArgTypes);
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 42u);
+
+  const auto *Module = VM.getActiveModule();
+  ASSERT_NE(Module, nullptr);
+  const auto *Func = Module->findFuncExports("run"sv);
+  ASSERT_NE(Func, nullptr);
+  EXPECT_TRUE(Func->isCompiledFunction());
+}
+
+TEST(JITRegisterModule, RunWasmFileCompilesASTModuleCopy) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  Loader::Loader LoaderEngine(Conf);
+  auto ASTModule = LoaderEngine.parseModule(JITRegisteredCallerWasm);
+  ASSERT_TRUE(ASTModule);
+  const auto &Caller = **ASTModule;
+  VM::VM VM(Conf);
+
+  ASSERT_TRUE(VM.registerModule("m"sv, JITRegisteredCalleeWasm));
+  const std::array<ValVariant, 1> Args{ValVariant(uint32_t(100000U))};
+  const std::array<ValType, 1> ArgTypes{ValType(TypeCode::I32)};
+  auto R = VM.runWasmFile(Caller, "run"sv, Args, ArgTypes);
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 42u);
+  EXPECT_FALSE(Caller.getSymbol());
+  ASTModule->reset();
+
+  const auto *Module = VM.getActiveModule();
+  ASSERT_NE(Module, nullptr);
+  const auto *Func = Module->findFuncExports("run"sv);
+  ASSERT_NE(Func, nullptr);
+  EXPECT_TRUE(Func->isCompiledFunction());
+  R = VM.execute("run"sv, Args, ArgTypes);
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 42u);
+}
+
 const std::array<WasmEdge::Byte, 67> CrossModuleNestCalleeWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
     0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x05,

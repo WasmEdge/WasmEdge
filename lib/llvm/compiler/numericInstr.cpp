@@ -74,7 +74,8 @@ FunctionCompiler::compileNumericOp(const AST::Instruction &Instr) noexcept {
     const bool IsFloat = Instr.getOpCode() == OpCode::F32__nearest;
     LLVM::Value Value = stackPop();
 
-#if LLVM_VERSION_MAJOR >= 12 && !defined(__s390x__)
+#if LLVM_VERSION_MAJOR < 12 || defined(__s390x__)
+#else
     assuming(LLVM::Core::Roundeven != LLVM::Core::NotIntrinsic);
     if (LLVM::Core::Roundeven != LLVM::Core::NotIntrinsic) {
       stackPush(Builder.createUnaryIntrinsic(LLVM::Core::Roundeven, Value));

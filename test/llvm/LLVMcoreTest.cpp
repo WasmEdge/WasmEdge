@@ -14,6 +14,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "LinkerTestUtils.h"
+
 #include "common/defines.h"
 #include "common/filesystem.h"
 #include "common/spdlog.h"
@@ -33,9 +35,11 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <fstream>
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -48,6 +52,8 @@ namespace {
 
 using namespace std::literals;
 using namespace WasmEdge;
+using WasmEdge::LLVM::Test::ScopedCurrentPath;
+using WasmEdge::LLVM::Test::ScopedTempDirectory;
 static SpecTest T(u8path("../spec/testSuites"sv));
 
 // Parameterized testing class.
@@ -1011,6 +1017,70 @@ TEST(AOTCrossModule, CrossModuleRecursionSharesStackLimit) {
   EXPECT_EQ(Deep.error(), ErrCode::Value::CallStackExhausted);
 }
 
+class AOTLinker : public testing::Test {
+protected:
+  void SetUp() override {
+    TempDirectory.emplace("WasmEdgeAOTLinker-");
+    Path = TempDirectory->path();
+  }
+
+  void TearDown() override { TempDirectory.reset(); }
+
+  void compileAndRun(bool NativeLinker,
+                     CompilerConfigure::OutputFormat Format) {
+    Configure Conf;
+    Conf.getCompilerConfigure().setNativeLinker(NativeLinker);
+    Conf.getCompilerConfigure().setOutputFormat(Format);
+    Conf.getCompilerConfigure().setOptimizationLevel(
+        CompilerConfigure::OptimizationLevel::O0);
+    Conf.getRuntimeConfigure().setRunMode(RunMode::Interpreter);
+
+    auto Mod = loadModule(Conf, CrossModuleCalleeWasm);
+    ASSERT_NE(Mod, nullptr);
+    LLVM::Compiler Compiler(Conf);
+    ASSERT_TRUE(Compiler.checkConfigure());
+    auto Data = Compiler.compile(*Mod);
+    ASSERT_TRUE(Data);
+
+    auto OutputPath = Path / "linker";
+    OutputPath.replace_extension(Format ==
+                                         CompilerConfigure::OutputFormat::Native
+                                     ? std::string_view(WASMEDGE_LIB_EXTENSION)
+                                     : ".wasm"sv);
+    LLVM::CodeGen CodeGen(Conf);
+    ASSERT_TRUE(
+        CodeGen.codegen(CrossModuleCalleeWasm, std::move(*Data), OutputPath));
+
+    Conf.getRuntimeConfigure().setRunMode(RunMode::AOT);
+    VM::VM VM(Conf);
+    auto Result = VM.runWasmFile(OutputPath, "read"sv);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 1U);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), UINT32_C(187));
+  }
+
+  std::optional<ScopedTempDirectory> TempDirectory;
+  std::filesystem::path Path;
+};
+
+TEST_F(AOTLinker, NativeLinkerNativeOutput) {
+  compileAndRun(true, CompilerConfigure::OutputFormat::Native);
+}
+
+TEST_F(AOTLinker, NativeLinkerWasmOutput) {
+  compileAndRun(true, CompilerConfigure::OutputFormat::Wasm);
+}
+
+#ifdef WASMEDGE_USE_LLD
+TEST_F(AOTLinker, LLDNativeOutput) {
+  compileAndRun(false, CompilerConfigure::OutputFormat::Native);
+}
+
+TEST_F(AOTLinker, LLDWasmOutput) {
+  compileAndRun(false, CompilerConfigure::OutputFormat::Wasm);
+}
+#endif
+
 TEST_P(NativeCoreTest, TestSuites) {
   auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
   // Native AOT spec test: explicitly opt into RunMode::AOT so the runtime
@@ -1634,6 +1704,72 @@ std::array<WasmEdge::Byte, 46> AsyncWasm{
     0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07,
     0x0a, 0x01, 0x06, 0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x00, 0x0a,
     0x09, 0x01, 0x07, 0x00, 0x03, 0x40, 0x0c, 0x00, 0x0b, 0x0b};
+
+class CodeGenDumpTest : public testing::Test {
+protected:
+  void SetUp() override {
+    TempDirectory.emplace("WasmEdgeCodeGenDump-");
+    Path = TempDirectory->path();
+  }
+
+  void TearDown() override { TempDirectory.reset(); }
+
+  Expect<void> codegen() {
+    WasmEdge::Configure Conf;
+    Conf.getCompilerConfigure().setDumpIR(true);
+    Conf.getCompilerConfigure().setOutputFormat(
+        CompilerConfigure::OutputFormat::Native);
+    WasmEdge::Loader::Loader Loader(Conf);
+    WasmEdge::Validator::Validator ValidatorEngine(Conf);
+    WasmEdge::LLVM::Compiler Compiler(Conf);
+    WasmEdge::LLVM::CodeGen CodeGen(Conf);
+    auto Module = Loader.parseModule(AsyncWasm);
+    if (!Module) {
+      return Unexpect(Module.error());
+    }
+    EXPECTED_TRY(ValidatorEngine.validate(**Module));
+    auto Data = Compiler.compile(**Module);
+    if (!Data) {
+      return Unexpect(Data.error());
+    }
+    ScopedCurrentPath CurrentPath(Path);
+    return CodeGen.codegen(AsyncWasm, std::move(*Data),
+                           Path / "output" WASMEDGE_LIB_EXTENSION);
+  }
+
+  std::optional<ScopedTempDirectory> TempDirectory;
+  std::filesystem::path Path;
+};
+
+TEST_F(CodeGenDumpTest, WritesObjectFile) {
+  ASSERT_TRUE(codegen());
+  const auto ObjectPath = Path / "wasm.o";
+  ASSERT_TRUE(std::filesystem::is_regular_file(ObjectPath));
+  EXPECT_GT(std::filesystem::file_size(ObjectPath), 4U);
+
+  std::ifstream Object(ObjectPath, std::ios_base::binary);
+  std::array<char, 4> Magic{};
+  ASSERT_TRUE(Object.read(Magic.data(), Magic.size()));
+#if WASMEDGE_OS_LINUX
+  EXPECT_EQ(Magic, (std::array<char, 4>{0x7F, 'E', 'L', 'F'}));
+#endif
+}
+
+TEST_F(CodeGenDumpTest, PropagatesObjectOpenFailure) {
+  std::filesystem::create_directory(Path / "wasm.o");
+  auto Result = codegen();
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::IllegalPath);
+}
+
+#if WASMEDGE_OS_LINUX
+TEST_F(CodeGenDumpTest, PropagatesObjectWriteFailure) {
+  std::filesystem::create_symlink("/dev/full", Path / "wasm.o");
+  auto Result = codegen();
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::IllegalPath);
+}
+#endif
 
 TEST(AsyncRunWsmFile, NativeInterruptTest) {
   WasmEdge::Configure Conf;

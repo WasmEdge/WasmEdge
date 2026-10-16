@@ -15,7 +15,10 @@
 #include <llvm-c/Analysis.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/Error.h>
+#include <llvm/Config/llvm-config.h>
+#ifdef WASMEDGE_USE_LLD
 #include <llvm-c/Object.h>
+#endif
 #if LLVM_VERSION_MAJOR < 11
 #else
 #include <llvm-c/Orc.h>
@@ -417,6 +420,9 @@ public:
   const char *getTarget() noexcept { return LLVMGetTarget(Ref); }
   void setTarget(const char *Triple) noexcept { LLVMSetTarget(Ref, Triple); }
   Context getContext() const noexcept { return LLVMGetModuleContext(Ref); }
+  void setModuleInlineAsm(std::string_view Assembly) noexcept {
+    LLVMSetModuleInlineAsm2(Ref, Assembly.data(), Assembly.size());
+  }
   inline Value addFunction(Type Ty, LLVMLinkage Linkage,
                            const char *Name = "") noexcept;
   inline Value addGlobal(Type Ty, bool IsConstant, LLVMLinkage Linkage,
@@ -558,12 +564,14 @@ public:
     swap(LHS.Ref, RHS.Ref);
   }
 
+#ifdef WASMEDGE_USE_LLD
   static std::pair<MemoryBuffer, Message> getFile(const char *Path) noexcept {
     std::pair<MemoryBuffer, Message> Result;
     LLVMCreateMemoryBufferWithContentsOfFile(Path, &Result.first.unwrap(),
                                              &Result.second.unwrap());
     return Result;
   }
+#endif
   const char *data() const noexcept { return LLVMGetBufferStart(Ref); }
   size_t size() const noexcept { return LLVMGetBufferSize(Ref); }
 
@@ -2072,6 +2080,7 @@ private:
 };
 #endif
 
+#ifdef WASMEDGE_USE_LLD
 class SectionIterator {
 public:
   constexpr SectionIterator() noexcept = default;
@@ -2198,6 +2207,7 @@ public:
 private:
   LLVMBinaryRef Ref = nullptr;
 };
+#endif
 
 class OrcThreadSafeContext {
 public:

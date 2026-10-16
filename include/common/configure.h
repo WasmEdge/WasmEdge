@@ -38,7 +38,8 @@ public:
         OFormat(RHS.OFormat.load(std::memory_order_relaxed)),
         DumpIR(RHS.DumpIR.load(std::memory_order_relaxed)),
         GenericBinary(RHS.GenericBinary.load(std::memory_order_relaxed)),
-        Interruptible(RHS.Interruptible.load(std::memory_order_relaxed)) {}
+        Interruptible(RHS.Interruptible.load(std::memory_order_relaxed)),
+        NativeLinker(RHS.NativeLinker.load(std::memory_order_relaxed)) {}
 
   /// AOT compiler optimization level enum class.
   enum class OptimizationLevel : uint8_t {
@@ -102,12 +103,23 @@ public:
     return Interruptible.load(std::memory_order_relaxed);
   }
 
+  /// Request the native linker instead of lld. Builds without lld ignore this
+  /// flag and always use the native linker.
+  void setNativeLinker(bool IsNativeLinker) noexcept {
+    NativeLinker.store(IsNativeLinker, std::memory_order_relaxed);
+  }
+
+  bool isNativeLinker() const noexcept {
+    return NativeLinker.load(std::memory_order_relaxed);
+  }
+
 private:
   std::atomic<OptimizationLevel> OptLevel = OptimizationLevel::O3;
   std::atomic<OutputFormat> OFormat = OutputFormat::Wasm;
   std::atomic<bool> DumpIR = false;
   std::atomic<bool> GenericBinary = false;
   std::atomic<bool> Interruptible = false;
+  std::atomic<bool> NativeLinker = false;
 };
 
 class RuntimeConfigure {

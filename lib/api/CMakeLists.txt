@@ -37,7 +37,13 @@ endfunction()
 
 # Helper function to construct commands for packaging LLVM and dependency libraries with paths.
 function(wasmedge_add_libs_component_command target_path)
-  get_filename_component(target_name ${target_path} NAME)
+  if(TARGET ${target_path})
+    set(archive_path $<TARGET_FILE:${target_path}>)
+    string(REPLACE "::" "_" target_name ${target_path})
+  else()
+    set(archive_path ${target_path})
+    get_filename_component(target_name ${target_path} NAME)
+  endif()
   string(REGEX REPLACE "^lib" "" target_name ${target_name})
   string(REGEX REPLACE "\.a$" "" target_name ${target_name})
   if(APPLE)
@@ -45,17 +51,17 @@ function(wasmedge_add_libs_component_command target_path)
     if(CMAKE_AR_NAME STREQUAL "ar")
       list(APPEND CMDS
         COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target_name}
-        COMMAND ${CMAKE_AR} -x ${target_path}
-        COMMAND ${CMAKE_AR} -t ${target_path} | xargs -I '{}' mv '{}' objs/${target_name}
+        COMMAND ${CMAKE_AR} -x ${archive_path}
+        COMMAND ${CMAKE_AR} -t ${archive_path} | xargs -I '{}' mv '{}' objs/${target_name}
       )
       set(WASMEDGE_STATIC_LLVM_LIB_AR_CMDS ${WASMEDGE_STATIC_LLVM_LIB_AR_CMDS} ${CMDS} PARENT_SCOPE)
     elseif(CMAKE_AR_NAME STREQUAL "libtool")
-      set(WASMEDGE_STATIC_LIB_LIBTOOL_FILES ${WASMEDGE_STATIC_LIB_LIBTOOL_FILES} ${target_path} PARENT_SCOPE)
+      set(WASMEDGE_STATIC_LIB_LIBTOOL_FILES ${WASMEDGE_STATIC_LIB_LIBTOOL_FILES} ${archive_path} PARENT_SCOPE)
     endif()
   else()
     list(APPEND CMDS
       COMMAND ${CMAKE_COMMAND} -E make_directory objs/${target_name}
-      COMMAND ${CMAKE_COMMAND} -E chdir objs/${target_name} ${CMAKE_AR} -x ${target_path}
+      COMMAND ${CMAKE_COMMAND} -E chdir objs/${target_name} ${CMAKE_AR} -x ${archive_path}
     )
     set(WASMEDGE_STATIC_LLVM_LIB_AR_CMDS ${WASMEDGE_STATIC_LLVM_LIB_AR_CMDS} ${CMDS} PARENT_SCOPE)
   endif()

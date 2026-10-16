@@ -368,8 +368,13 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
 
   std::optional<std::chrono::system_clock::time_point> Timeout;
   if (Opt.TimeLim.value() > 0) {
-    Timeout = std::chrono::system_clock::now() +
-              std::chrono::milliseconds(Opt.TimeLim.value());
+    const auto Now = std::chrono::system_clock::now();
+    const auto Remaining =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::time_point::max() - Now);
+    if (Opt.TimeLim.value() <= static_cast<uint64_t>(Remaining.count())) {
+      Timeout = Now + std::chrono::milliseconds(Opt.TimeLim.value());
+    }
   }
   if (Opt.GasLim.value().size() > 0) {
     Conf.getStatisticsConfigure().setCostMeasuring(true);

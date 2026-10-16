@@ -39,6 +39,12 @@ stringToInteger(ConvResultT (&Conv)(const char *, char **, int),
         std::in_place, ErrCode::InvalidArgument,
         fmt::format("invalid integer value: {}"sv, Value));
   }
+  // The unsigned conversions accept a minus sign and negate the value.
+  if (std::is_unsigned_v<ResultT> && Value.find('-') != std::string::npos) {
+    return cxx20::unexpected<Error>(
+        std::in_place, ErrCode::OutOfRange,
+        fmt::format("integer value out of range: {}"sv, Value));
+  }
   auto InsideRange = [](auto WiderResult) constexpr noexcept {
     using WiderResultT = decltype(WiderResult);
     if constexpr (std::is_same_v<ResultT, WiderResultT>) {

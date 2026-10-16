@@ -16,10 +16,12 @@
 
 #include "common/filesystem.h"
 #include "common/spdlog.h"
+#include "loader/serialize.h"
 #include "vm/vm.h"
 
 #include "../spec/hostfunc.h"
 #include "../spec/spectest.h"
+#include "wideArithmetic.h"
 
 #include <gtest/gtest.h>
 
@@ -196,6 +198,121 @@ TEST_P(CoreTest, TestSuites) {
 INSTANTIATE_TEST_SUITE_P(
     TestUnit, CoreTest,
     testing::ValuesIn(T.enumerate(SpecTest::TestMode::Interpreter)));
+
+TEST(WideArithmetic, InterpreterStackAndLocalsPreserved) {
+  for (const auto &Case : WasmEdge::Test::WideArithmeticCases) {
+    SCOPED_TRACE(::testing::Message()
+                 << "Opcode: " << static_cast<unsigned>(Case.Opcode)
+                 << ", params: " << ::testing::PrintToString(Case.Params));
+    Configure Conf;
+    Conf.addProposal(Proposal::WideArithmetic);
+    Conf.getRuntimeConfigure().setRunMode(RunMode::Interpreter);
+    VM::VM VM(Conf);
+    const std::vector<ValType> Types(Case.Params.size(), TypeCode::I64);
+    // Return the preceding value, the arithmetic result, and the locals.
+    const std::vector<ValType> Returns(3U + Case.Params.size(), TypeCode::I64);
+    auto Mod =
+        WasmEdge::Test::makeWideArithmeticModule(Case.Opcode, Types, Returns);
+    auto &Instrs = Mod.getCodeSection().getContent()[0].getExpr().getInstrs();
+    Instrs.clear();
+    constexpr uint64_t Sentinel = UINT64_C(0x9e3779b97f4a7c15);
+    AST::Instruction Constant(OpCode::I64__const);
+    ValVariant Num(uint128_t(0U));
+    Num.get<uint64_t>() = Sentinel;
+    Constant.setNum(Num);
+    Instrs.push_back(Constant);
+    const auto AppendParams = [&] {
+      for (uint32_t I = 0; I < Types.size(); ++I) {
+        AST::Instruction Get(OpCode::Local__get);
+        Get.getTargetIndex() = I;
+        Instrs.push_back(Get);
+      }
+    };
+    AppendParams();
+    Instrs.emplace_back(Case.Opcode);
+    AppendParams();
+    Instrs.emplace_back(OpCode::End);
+    Loader::Serializer Serializer;
+    auto Bytes = Serializer.serializeModule(Mod);
+    ASSERT_TRUE(Bytes);
+    ASSERT_TRUE(VM.loadWasm(*Bytes));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+    std::vector<ValVariant> Params;
+    for (const auto Value : Case.Params) {
+      Params.emplace_back(Value);
+    }
+    auto Result = VM.execute("wide", Params, Types);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), Returns.size());
+    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
+    for (size_t I = 0; I < 2U; ++I) {
+      EXPECT_EQ((*Result)[1U + I].first.get<uint64_t>(), Case.Results[I]);
+    }
+    for (size_t I = 0; I < Case.Params.size(); ++I) {
+      EXPECT_EQ((*Result)[3U + I].first.get<uint64_t>(), Case.Params[I]);
+    }
+    for (const auto &Value : *Result) {
+      EXPECT_EQ(Value.second, ValType(TypeCode::I64));
+    }
+    auto *Function = VM.getActiveModule()->findFuncExports("wide");
+    ASSERT_NE(Function, nullptr);
+    EXPECT_TRUE(Function->isWasmFunction());
+  }
+}
+
+TEST(WideArithmetic, ExecutionSupport) {
+  for (const auto Mode :
+       {RunMode::Interpreter, RunMode::JIT, RunMode::LazyJIT}) {
+    SCOPED_TRACE(static_cast<unsigned>(Mode));
+    Configure Conf;
+    Conf.addProposal(Proposal::WideArithmetic);
+    Conf.getRuntimeConfigure().setRunMode(Mode);
+    for (const auto Opcode :
+         {OpCode::I64__add128, OpCode::I64__sub128, OpCode::I64__mul_wide_s,
+          OpCode::I64__mul_wide_u}) {
+      SCOPED_TRACE(static_cast<unsigned>(Opcode));
+      const bool IsAddOrSub =
+          Opcode == OpCode::I64__add128 || Opcode == OpCode::I64__sub128;
+      const std::vector<ValType> Types(IsAddOrSub ? 4U : 2U, TypeCode::I64);
+      const std::vector<ValVariant> Values(Types.size(), uint64_t{1});
+      for (const bool Unreachable : {false, true}) {
+        SCOPED_TRACE(Unreachable);
+        auto Module = WasmEdge::Test::makeWideArithmeticModule(Opcode, Types);
+        if (Unreachable) {
+          auto &Body =
+              Module.getCodeSection().getContent()[0].getExpr().getInstrs();
+          Body.insert(Body.begin(), AST::Instruction(OpCode::Unreachable));
+        }
+        VM::VM VM(Conf);
+        Loader::Serializer Serializer;
+        auto Bytes = Serializer.serializeModule(Module);
+        ASSERT_TRUE(Bytes);
+        ASSERT_TRUE(VM.loadWasm(*Bytes));
+        ASSERT_TRUE(VM.validate());
+        ASSERT_TRUE(VM.instantiate());
+
+        bool Supported = IsAddOrSub;
+        auto ExpectedError = Unreachable ? ErrCode::Value::Unreachable
+                                         : ErrCode::Value::RuntimeError;
+#ifdef WASMEDGE_USE_LLVM
+        if (Mode == RunMode::LazyJIT && !Unreachable) {
+          Supported = false;
+          ExpectedError = ErrCode::Value::AOTNotImpl;
+        }
+#endif
+        auto Result = VM.execute("wide", Values, Types);
+        if (Supported && !Unreachable) {
+          ASSERT_TRUE(Result);
+          EXPECT_EQ(Result->size(), 2U);
+        } else {
+          ASSERT_FALSE(Result);
+          EXPECT_EQ(Result.error(), ExpectedError);
+        }
+      }
+    }
+  }
+}
 
 std::array<WasmEdge::Byte, 46> AsyncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,

@@ -41,7 +41,12 @@ public:
   Span<const RefVariant> getRefs() const noexcept { return Refs; }
 
   /// Clear references in element instance.
-  void clear() { Refs.clear(); }
+  void clear() noexcept {
+    Refs.clear();
+    Dropped = true;
+  }
+
+  bool isDropped() const noexcept { return Dropped; }
 
 private:
   /// \name Data of element instance.
@@ -49,6 +54,7 @@ private:
   const uint64_t Off;
   const ValType Type;
   std::vector<RefVariant> Refs;
+  bool Dropped = false;
   /// @}
 };
 

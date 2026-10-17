@@ -15,10 +15,10 @@ Expect<void> Executor::runTableGetOp(Runtime::StackManager &StackMgr,
 
   // Get table[Idx] and push it to the stack.
   return TabInst.getRefAddr(Idx)
-      .map_error([&Instr, &Idx](auto E) {
-        spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                               Instr.getOffset(), {Idx},
-                                               {ValTypeFromType<uint32_t>()}));
+      .map_error([&Instr, &Idx, &AddrType](auto E) {
+        spdlog::error(ErrInfo::InfoInstruction(
+            Instr.getOpCode(), Instr.getOffset(), {Idx},
+            {ValTypeFromAddressType(AddrType)}));
         return E;
       })
       .and_then([&](auto Ref) -> Expect<void> {
@@ -38,12 +38,13 @@ Expect<void> Executor::runTableSetOp(Runtime::StackManager &StackMgr,
   uint64_t Idx = extractAddr(StackMgr.pop(), AddrType);
 
   // Set table[Idx] with Ref.
-  return TabInst.setRefAddr(Idx, Ref).map_error([&Instr, &Idx](auto E) {
-    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
-                                           {Idx},
-                                           {ValTypeFromType<uint32_t>()}));
-    return E;
-  });
+  return TabInst.setRefAddr(Idx, Ref)
+      .map_error([&Instr, &Idx, &AddrType](auto E) {
+        spdlog::error(ErrInfo::InfoInstruction(
+            Instr.getOpCode(), Instr.getOffset(), {Idx},
+            {ValTypeFromAddressType(AddrType)}));
+        return E;
+      });
 }
 
 Expect<void>

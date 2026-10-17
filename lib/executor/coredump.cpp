@@ -496,7 +496,7 @@ AST::CustomSection createCoreStack(const Loader::Serializer &Ser,
   return CoreStack;
 }
 
-Expect<AST::CustomSection>
+AST::CustomSection
 createWasmEdgeTables(const Loader::Serializer &Ser, const IndexSpaces &Spaces,
                      const std::optional<FunctionIndexer> &Indexer) noexcept {
   AST::CustomSection Section;
@@ -506,11 +506,12 @@ createWasmEdgeTables(const Loader::Serializer &Ser, const IndexSpaces &Spaces,
   Ser.serializeU32(static_cast<uint32_t>(Spaces.getTables().size()), Out);
   for (const auto *Tab : Spaces.getTables()) {
     const auto Size = Tab->getSize();
-    EXPECTED_TRY(auto Refs, Tab->getRefs(0, Size));
+    const auto Refs = Tab->getRefs(0, Size);
+    assuming(Refs);
     Ser.serializeType(Tab->getTableType(), Out);
     Ser.serializeU64(Size, Out);
-    Ser.serializeU32(static_cast<uint32_t>(Refs.size()), Out);
-    for (const auto &Ref : Refs) {
+    Ser.serializeU32(static_cast<uint32_t>(Refs->size()), Out);
+    for (const auto &Ref : *Refs) {
       assuming(Indexer);
       serializeRef(Ser, Ref, *Indexer, Out);
     }
@@ -607,10 +608,8 @@ AST::DataSection createData(const IndexSpaces &Spaces,
   for (uint32_t I = 0; I < Memories.size(); ++I) {
     const auto *Mem = Memories[I];
     const auto Size = Mem->getSize();
-    auto Bytes = Mem->getBytes(0, Size);
-    if (!Bytes) {
-      continue;
-    }
+    const auto Bytes = Mem->getBytes(0, Size);
+    assuming(Bytes);
     const bool Is64 = Mem->getMemoryType().getLimit().is64();
     auto AddSegment = [&](uint64_t Offset, Span<const Byte> Chunk) {
       AST::DataSegment Seg;
@@ -763,8 +762,7 @@ Expect<std::string> generate(const Request &Req) noexcept {
                     })) {
       Indexer.emplace(Spaces);
     }
-    EXPECTED_TRY(auto Tables, createWasmEdgeTables(Ser, Spaces, Indexer));
-    CustomSections.push_back(std::move(Tables));
+    CustomSections.push_back(createWasmEdgeTables(Ser, Spaces, Indexer));
     CustomSections.push_back(createWasmEdgeInstances(Ser, Spaces));
     CustomSections.push_back(createWasmEdgeGlobals(Ser, Spaces, Indexer));
     Module.getTableSection() = createTable(Spaces);

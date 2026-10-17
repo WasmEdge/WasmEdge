@@ -827,6 +827,17 @@ inline uint64_t getMaxAddress(const AddressType AT) noexcept {
   }
 }
 
+inline ValType ValTypeFromAddressType(const AddressType AT) noexcept {
+  switch (AT) {
+  case AddressType::I32:
+    return ValType(TypeCode::I32);
+  case AddressType::I64:
+    return ValType(TypeCode::I64);
+  default:
+    assumingUnreachable();
+  }
+}
+
 // <<<<<<<< Functions to access address value from ValVariant <<<<<<<<<<<<<<<<<<
 
 /// EndianValue definition.

@@ -743,6 +743,23 @@ std::array<WasmEdge::Byte, 49> NotifyMemory64Wasm{
     0x01, 0x0b, 0x00, 0x42, 0x04, 0x41, 0x01, 0xfe, 0x00, 0x02, 0x00, 0x1a,
     0x0b};
 
+/// Binary Wasm module: Table64 out-of-bounds access.
+///
+/// (module
+///   (table 1 funcref (i64))
+///   (func (export "test")
+///     i64.const 0x100000001
+///     table.get 0
+///     drop
+///   )
+/// )
+std::array<WasmEdge::Byte, 49> Table64OutOfBoundsWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+    0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01, 0x70, 0x04, 0x01,
+    0x07, 0x08, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x0a, 0x0d,
+    0x01, 0x0b, 0x00, 0x42, 0x81, 0x80, 0x80, 0x80, 0x10, 0x25, 0x00, 0x1a,
+    0x0b};
+
 /// Self-recursive f(n) = n ? f(n-1) : 0 (no tail-call); recursing deeper than
 /// the configured MaxStackSize must trap with CallStackExhausted, not complete.
 std::array<WasmEdge::Byte, 70> RecurseWasm{
@@ -1484,6 +1501,28 @@ TEST(ExecutorRegression, CallStackDefaultLimit) {
   auto Result = VM.execute("f", RunawayParams, ParamTypes);
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), ErrCode::Value::CallStackExhausted);
+}
+
+/// Regression test for Table64 out-of-bounds error logging.
+TEST(ExecutorRegression, Table64OutOfBoundsLogging) {
+  std::string CapturedLog;
+  Log::setLoggingCallback([&CapturedLog](const spdlog::details::log_msg &Msg) {
+    CapturedLog.append(Msg.payload.data(), Msg.payload.size());
+    CapturedLog += '\n';
+  });
+
+  Configure Conf;
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(Table64OutOfBoundsWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  auto Result = VM.execute("test");
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::TableOutOfBounds);
+  EXPECT_NE(CapturedLog.find("Args: [4294967297]"), std::string::npos);
+
+  Log::setLoggingCallback(nullptr);
 }
 
 } // namespace

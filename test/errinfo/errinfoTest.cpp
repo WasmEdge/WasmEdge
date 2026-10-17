@@ -176,6 +176,22 @@ TEST(ErrInfoTest, Info__Instruction) {
   EXPECT_TRUE(true);
 }
 
+TEST(ErrInfoTest, ValTypeFromAddressType) {
+  EXPECT_EQ(WasmEdge::ValTypeFromAddressType(WasmEdge::AddressType::I32),
+            WasmEdge::ValType(WasmEdge::TypeCode::I32));
+  EXPECT_EQ(WasmEdge::ValTypeFromAddressType(WasmEdge::AddressType::I64),
+            WasmEdge::ValType(WasmEdge::TypeCode::I64));
+}
+
+TEST(ErrInfoTest, Info__Instruction_AddressType_I64) {
+  const uint64_t LargeIdx = 0x100000001ULL;
+  WasmEdge::ErrInfo::InfoInstruction Info(
+      WasmEdge::OpCode::Table__get, 0x2d, {LargeIdx},
+      {WasmEdge::ValTypeFromAddressType(WasmEdge::AddressType::I64)});
+  const std::string Formatted = fmt::format("{}"sv, Info);
+  EXPECT_NE(Formatted.find("Args: [4294967297]"), std::string::npos);
+}
+
 TEST(ErrInfoTest, Info__Boundary) {
   WasmEdge::ErrInfo::InfoBoundary Info1(3, 5, 2);
   fmt::print("{}\n"sv, Info1);

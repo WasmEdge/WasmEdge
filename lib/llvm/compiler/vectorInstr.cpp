@@ -137,7 +137,7 @@ FunctionCompiler::compileVectorOp(const AST::Instruction &Instr) noexcept {
     auto V2 = Builder.createBitCast(stackPop(), Context.Int8x16Ty);
     auto V1 = Builder.createBitCast(stackPop(), Context.Int8x16Ty);
     const auto V3 = Instr.getNum().get<uint128_t>();
-    std::array<uint8_t, 16> Mask;
+    std::array<uint32_t, 16> Mask;
     for (size_t I = 0; I < 16; ++I) {
       auto Num = static_cast<uint8_t>(V3 >> (I * 8));
       if constexpr (Endian::native == Endian::little) {
@@ -148,7 +148,7 @@ FunctionCompiler::compileVectorOp(const AST::Instruction &Instr) noexcept {
     }
     stackPush(Builder.createBitCast(
         Builder.createShuffleVector(
-            V1, V2, LLVM::Value::getConstVector8(LLContext, Mask)),
+            V1, V2, LLVM::Value::getConstVector32(LLContext, Mask)),
         Context.Int64x2Ty));
     break;
   }
@@ -979,8 +979,13 @@ void FunctionCompiler::compileStoreLaneOp(uint32_t MemoryIndex, uint64_t Offset,
 
 void FunctionCompiler::compileVectorAbs(LLVM::Type VectorTy) noexcept {
   compileVectorOp(VectorTy, [this](auto V) noexcept {
+#if LLVM_VERSION_MAJOR < 12
+    auto C = Builder.createICmpSLT(V, LLVM::Value::getConstNull(V.getType()));
+    return Builder.createSelect(C, Builder.createNeg(V), V);
+#else
     return Builder.createIntrinsic(LLVM::Core::Abs, {V.getType()},
                                    {V, LLContext.getFalse()});
+#endif
   });
 }
 
@@ -1250,7 +1255,8 @@ void FunctionCompiler::compileVectorFFloor(LLVM::Type VectorTy) noexcept {
 
 void FunctionCompiler::compileVectorFNearest(LLVM::Type VectorTy) noexcept {
   compileVectorOp(VectorTy, [&](auto V) noexcept {
-#if LLVM_VERSION_MAJOR >= 12 && !defined(__s390x__)
+#if LLVM_VERSION_MAJOR < 12 || defined(__s390x__)
+#else
     assuming(LLVM::Core::Roundeven != LLVM::Core::NotIntrinsic);
     if (LLVM::Core::Roundeven != LLVM::Core::NotIntrinsic) {
       return Builder.createUnaryIntrinsic(LLVM::Core::Roundeven, V);
@@ -1796,15 +1802,25 @@ void FunctionCompiler::compileVectorVectorQ15MulSat() noexcept {
 
 void FunctionCompiler::compileVectorVectorSMax(LLVM::Type VectorTy) noexcept {
   compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+#if LLVM_VERSION_MAJOR < 12
+    auto C = Builder.createICmpSGE(LHS, RHS);
+    return Builder.createSelect(C, LHS, RHS);
+#else
     return Builder.createIntrinsic(LLVM::Core::SMax, {LHS.getType()},
                                    {LHS, RHS});
+#endif
   });
 }
 
 void FunctionCompiler::compileVectorVectorSMin(LLVM::Type VectorTy) noexcept {
   compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+#if LLVM_VERSION_MAJOR < 12
+    auto C = Builder.createICmpSLE(LHS, RHS);
+    return Builder.createSelect(C, LHS, RHS);
+#else
     return Builder.createIntrinsic(LLVM::Core::SMin, {LHS.getType()},
                                    {LHS, RHS});
+#endif
   });
 }
 
@@ -1873,15 +1889,25 @@ void FunctionCompiler::compileVectorVectorUAvgr(LLVM::Type VectorTy) noexcept {
 
 void FunctionCompiler::compileVectorVectorUMax(LLVM::Type VectorTy) noexcept {
   compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+#if LLVM_VERSION_MAJOR < 12
+    auto C = Builder.createICmpUGE(LHS, RHS);
+    return Builder.createSelect(C, LHS, RHS);
+#else
     return Builder.createIntrinsic(LLVM::Core::UMax, {LHS.getType()},
                                    {LHS, RHS});
+#endif
   });
 }
 
 void FunctionCompiler::compileVectorVectorUMin(LLVM::Type VectorTy) noexcept {
   compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
+#if LLVM_VERSION_MAJOR < 12
+    auto C = Builder.createICmpULE(LHS, RHS);
+    return Builder.createSelect(C, LHS, RHS);
+#else
     return Builder.createIntrinsic(LLVM::Core::UMin, {LHS.getType()},
                                    {LHS, RHS});
+#endif
   });
 }
 

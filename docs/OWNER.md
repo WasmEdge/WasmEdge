@@ -2,13 +2,14 @@
 
 ## WasmEdge Maintainers
 
-| Maintainer               | GitHub ID  | Organization                  | Email                        | LFID      |
-| ---------------          | ---------  | -----------                   | -----------                  | ---       |
-| Michael Yuan             | @juntao    | Second State                  | <michael@secondstate.io>     | juntao    |
-| Hung-Ying Tai(hydai)     | @hydai     | Second State                  | <hydai@secondstate.io>       | hydaitw   |
-| Yi-Ying He               | @q82419    | Second State                  | <yiying@secondstate.io>      | q82419    |
-| Shen-Ta Hsieh(BestSteve) | @ibmibmibm | Second State                  | <beststeve@secondstate.io>   | beststeve |
-| HanWen Tsao              | @grorge123 | National Tsing Hua University | <chodehirgd157842@gmail.com> | grorge    |
+| Maintainer               | GitHub ID  | Organization                  | Email                         | LFID      |
+| ---------------          | ---------  | -----------                   | -----------                   | ---       |
+| Michael Yuan             | @juntao    | Second State                  | <michael@secondstate.io>      | juntao    |
+| Hung-Ying Tai(hydai)     | @hydai     | Second State                  | <hydai@secondstate.io>        | hydaitw   |
+| Yi-Ying He               | @q82419    | Second State                  | <yiying@secondstate.io>       | q82419    |
+| Shen-Ta Hsieh(BestSteve) | @ibmibmibm | Second State                  | <beststeve@secondstate.io>    | beststeve |
+| HanWen Tsao              | @grorge123 | National Tsing Hua University | <chodehirgd157842@gmail.com>  | grorge    |
+| Wang-Yang Li             | @LFsWang   | National Tsing Hua University | <s108062578@m108.nthu.edu.tw> | lfswang   |
 
 ## WasmEdge Committers
 
@@ -21,7 +22,6 @@
 | Shreyas Atre    | @SAtacker  | SRA VJTI                      | <shreyasatre16@gmail.com>     |
 | csh             | @L-jasmine | Second State                  | <458761603@qq.com>            |
 | Vivian Hu       | @alabulei1 | Second State                  | <vivian@secondstate.io>       |
-| Wang-Yang Li    | @LFsWang   | National Tsing Hua University | <s108062578@m108.nthu.edu.tw> |
 
 ## WasmEdge Reviewers
 

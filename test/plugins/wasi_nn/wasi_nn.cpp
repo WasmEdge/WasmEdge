@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "wasinn_mlx.h"
+#include "wasinn_piper.h"
 #include "wasinnfunc.h"
 #include "wasinnmodule.h"
 
@@ -3704,10 +3705,101 @@ TEST(WasiNNTest, PiperBackend) {
               static_cast<uint32_t>(ErrNo::InvalidEncoding));
   }
 
+  // Loads a Piper graph from the given config and returns the errno.
+  auto LoadPiperConfig = [&](const std::string &PiperConfig) {
+    std::vector<uint8_t> Data(PiperConfig.begin(), PiperConfig.end());
+    BuilderPtr = LoadEntryPtr;
+    writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(Data.size()),
+                    BuilderPtr);
+    writeBinaries<uint8_t>(MemInst, Data, StorePtr);
+    EXPECT_TRUE(HostFuncLoad.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     LoadEntryPtr, UINT32_C(1),
+                                     static_cast<uint32_t>(Backend::Piper),
+                                     UINT32_C(0), BuilderPtr},
+                                 Errno));
+    return static_cast<uint32_t>(Errno[0].get<int32_t>());
+  };
+
+  // Test: load -- the voice config is not JSON (libpiper throws).
+  EXPECT_EQ(LoadPiperConfig(
+                "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+                "\"config\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+                "\"espeak_data\": \"./wasinn_piper_fixtures/espeak-ng-data\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: load -- the model path is rejected by the OS (NAME_MAX exceeded).
+  EXPECT_EQ(LoadPiperConfig("{\"model\": \"./wasinn_piper_fixtures/" +
+                            std::string(300, 'a') + "\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: load -- the voice config is a directory.
+  EXPECT_EQ(LoadPiperConfig(
+                "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+                "\"config\": \"./wasinn_piper_fixtures\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: load -- espeak_data does not exist.
+  EXPECT_EQ(LoadPiperConfig(
+                "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+                "\"espeak_data\": \"./wasinn_piper_fixtures/missing\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: load -- espeak_data is a file.
+  EXPECT_EQ(
+      LoadPiperConfig(
+          "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+          "\"espeak_data\": \"./wasinn_piper_fixtures/test_voice.onnx\"}"),
+      static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: load -- espeak_data is a directory without espeak-ng data.
+  EXPECT_EQ(LoadPiperConfig(
+                "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+                "\"espeak_data\": \".\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: load -- espeak_data is longer than espeak-ng's path buffer.
+  constexpr auto ESpeakPathLimit =
+      WasmEdge::Host::WASINN::Piper::ESpeakMaxDataPathSize;
+  std::string LongESpeakData = "./wasinn_piper_fixtures/espeak-ng-data";
+  while (LongESpeakData.size() <= ESpeakPathLimit) {
+    LongESpeakData += "/.";
+  }
+  EXPECT_EQ(LoadPiperConfig(
+                "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+                "\"espeak_data\": \"" +
+                LongESpeakData + "\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: load -- espeak_data names a parent directory that fits the buffer
+  // only without the "/espeak-ng-data" suffix espeak-ng appends.
+  std::string LongParentESpeakData = "./wasinn_piper_fixtures";
+  while (LongParentESpeakData.size() + 14 < ESpeakPathLimit) {
+    LongParentESpeakData += "/.";
+  }
+  EXPECT_EQ(LoadPiperConfig(
+                "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+                "\"espeak_data\": \"" +
+                LongParentESpeakData + "\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: load -- synthesis options out of range.
+  for (const char *Option : {"\"speaker_id\": -1", "\"speaker_id\": 4294967296",
+                             "\"length_scale\": 0", "\"length_scale\": 11",
+                             "\"noise_w\": -11", "\"noise_scale\": 1e300"}) {
+    EXPECT_EQ(
+        LoadPiperConfig(
+            "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+            "\"espeak_data\": \"./wasinn_piper_fixtures/espeak-ng-data\", " +
+            std::string(Option) + "}"),
+        static_cast<uint32_t>(ErrNo::InvalidArgument))
+        << Option;
+  }
+
   // Test: load -- load successfully.
   std::string Config =
       "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
-      "\"espeak_data\": \"./wasinn_piper_fixtures/piper/espeak-ng-data\"}";
+      "\"espeak_data\": \"./wasinn_piper_fixtures/espeak-ng-data\"}";
   std::vector<uint8_t> ConfigData(Config.begin(), Config.end());
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, ConfigData.size(), BuilderPtr);
@@ -3835,10 +3927,9 @@ TEST(WasiNNTest, PiperBackend) {
 
   // Piper json_input tests.
   // Test: load -- load successfully.
-  Config =
-      "{\"model\": "
-      "\"./wasinn_piper_fixtures/test_voice.onnx\",\"espeak_data\": "
-      "\"./wasinn_piper_fixtures/piper/espeak-ng-data\",\"json_input\":true}";
+  Config = "{\"model\": "
+           "\"./wasinn_piper_fixtures/test_voice.onnx\",\"espeak_data\": "
+           "\"./wasinn_piper_fixtures/espeak-ng-data\",\"json_input\":true}";
   ConfigData = {Config.begin(), Config.end()};
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, ConfigData.size(), BuilderPtr);
@@ -3965,6 +4056,76 @@ TEST(WasiNNTest, PiperBackend) {
     EXPECT_LT(BytesWritten, 50000);
     EXPECT_EQ(BytesWritten, 44100);
   }
+
+  // Sets a JSON input on context 1 and returns the errno.
+  auto SetJsonInput = [&](const std::string &Json) {
+    std::vector<uint8_t> Data(Json.begin(), Json.end());
+    auto DimBytes = static_cast<uint32_t>(
+        TensorDim.size() * sizeof(decltype(TensorDim)::value_type));
+    SetInputEntryPtr = BuilderPtr;
+    writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                    BuilderPtr);
+    writeUInt32(MemInst, 3, BuilderPtr);
+    writeFatPointer(MemInst, StorePtr + DimBytes,
+                    static_cast<uint32_t>(Data.size()), BuilderPtr);
+    writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+    writeBinaries<uint8_t>(MemInst, Data, StorePtr + DimBytes);
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(1), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    StorePtr += DimBytes + static_cast<uint32_t>(Data.size());
+    return static_cast<uint32_t>(Errno[0].get<int32_t>());
+  };
+
+  // Test: set_input -- JSON input without the text field.
+  EXPECT_EQ(SetJsonInput("{\"speaker_id\": 0}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: set_input -- JSON input with a wrongly typed option.
+  EXPECT_EQ(SetJsonInput("{\"text\": \"x\", \"length_scale\": \"fast\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: set_input -- JSON input that is not an object.
+  EXPECT_EQ(SetJsonInput("[\"This is a test.\"]"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: set_input -- JSON input with synthesis options out of range.
+  EXPECT_EQ(
+      SetJsonInput("{\"text\": \"This is a test.\", \"length_scale\": -1}"),
+      static_cast<uint32_t>(ErrNo::InvalidArgument));
+  EXPECT_EQ(SetJsonInput("{\"text\": \"This is a test.\", \"noise_w\": 1e300}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+  EXPECT_EQ(
+      SetJsonInput("{\"text\": \"This is a test.\", \"length_scale\": 11}"),
+      static_cast<uint32_t>(ErrNo::InvalidArgument));
+  EXPECT_EQ(SetJsonInput("{\"text\": \"This is a test.\", \"noise_w\": 11}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // Test: compute -- a rejected input leaves the previous one in effect.
+  {
+    EXPECT_TRUE(HostFuncCompute.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(1), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 44100);
+  }
+
+  // Test: load -- espeak_data may name the parent of espeak-ng-data.
+  EXPECT_EQ(LoadPiperConfig(
+                "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
+                "\"espeak_data\": \"./wasinn_piper_fixtures\"}"),
+            static_cast<uint32_t>(ErrNo::Success));
+  EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 2);
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
 

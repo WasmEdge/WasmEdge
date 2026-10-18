@@ -124,6 +124,20 @@ TEST_F(WasiCryptoTest, Options) {
   }
 }
 
+TEST_F(WasiCryptoTest, ArrayOutputPullReportsCompletion) {
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      KeyHandle, symmetricKeyGenerate("HMAC/SHA-256"sv, std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(OutputHandle, symmetricKeyExport(KeyHandle));
+  WASI_CRYPTO_EXPECT_SUCCESS(KeySize, arrayOutputLen(OutputHandle));
+
+  std::vector<uint8_t> Buf(KeySize);
+  WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(OutputHandle, Buf));
+
+  EXPECT_FALSE(arrayOutputPull(OutputHandle, Buf));
+
+  WASI_CRYPTO_EXPECT_TRUE(symmetricKeyClose(KeyHandle));
+}
+
 } // namespace WasiCrypto
 } // namespace Host
 } // namespace WasmEdge

@@ -114,13 +114,32 @@ jobs:
         if: ${{ !matrix.coverage && !matrix.fuzzing }}
         run: |
           bash .github/scripts/check_symbols.sh
+      - name: Set up GitHub CLI
+        if: ${{ matrix.abi_check || inputs.release }}
+        run: |
+          type -p curl >/dev/null || (apt update && apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && apt update \
+          && apt install gh -y
+      - name: Prepare ABI analysis tools
+        if: ${{ matrix.abi_check || (inputs.release && matrix.abi_baseline) }}
+        run: |
+          apt-get update
+          apt-get install -y python3 binutils abigail-tools
+      - name: Check recorded ABI baselines
+        if: ${{ matrix.abi_check || (inputs.release && matrix.abi_baseline) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ABI_VERSION: ${{ inputs.version }}
+        run: |
+          python3 .github/scripts/check_release_abi.py build/lib/api/libwasmedge.so "$ABI_VERSION"
       - name: Save release ABI baseline
         if: ${{ inputs.release && matrix.abi_baseline }}
         env:
           ABI_VERSION: ${{ inputs.version }}
         run: |
-          apt-get update
-          apt-get install -y python3 binutils abigail-tools
           python3 .github/scripts/save_abi_baseline.py build/lib/api/libwasmedge.so "$ABI_VERSION"
       - name: Build (${{ matrix.compiler }}, Coverage)
         if: ${{ matrix.coverage }}
@@ -141,12 +160,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          type -p curl >/dev/null || (apt update && apt install curl -y)
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
-          && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
-          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-          && apt update \
-          && apt install gh -y
           mv build/WasmEdge-${{ inputs.version }}-Linux.tar.gz WasmEdge-${{ inputs.version }}-ubuntu20.04_${{ matrix.arch }}.tar.gz
           gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-ubuntu20.04_${{ matrix.arch }}.tar.gz --clobber
       - name: Upload ABI baseline

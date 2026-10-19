@@ -1,3 +1,39 @@
+### 0.18.1-rc.1 (2026-10-20)
+
+Fixed issues:
+
+* [CAPI]
+  * Restored the backward-compatible `WasmEdge_ModuleInstanceAdd*` symbols for the applications linked against 0.17.x, by binding the shims to the `WASMEDGE_0.16` version node and building them without LTO. (#5443)
+* [AOT]
+  * Supported building and running the LLVM backend with LLVM 9 to 23, and corrected the alias value types, the null reference defaults, and the `i8x16.shuffle` mask on all LLVM versions. (#5426)
+* [Tools]
+  * Fixed the `uint32_t` overflow in the name section bounds checks, which hung `wasmedge parse` on the malformed name sections. (#5446)
+* [WASI-NN]
+  * Hardened the Piper backend: validated the JSON input, the synthesis option ranges, and the model paths, caught the `libpiper` exceptions and the streaming errors, bounded the audio size, and kept the last audio chunk. (#4903)
+
+Misc:
+
+* [Documentation]
+  * Updated the roadmap for Q4/2026 (#5401), and nominated Wang-Yang Li as a WasmEdge maintainer (#5388).
+
+CI:
+
+* [Runner]
+  * Checked that the changed C API symbols keep their compat aliases, and ran the symbol check on the manylinux builds. (#5443)
+* [dependabot]
+  * ci(dependabot): bump github/codeql-action from 4.38.2 to 4.39.0 (#5433, #5434, #5457, #5458)
+  * ci(dependabot): bump step-security/harden-runner from 2.21.1 to 2.22.1 (#5432)
+  * ci(dependabot): bump cachix/install-nix-action from 31.11.1 to 31.11.2 (#5456)
+  * ci(dependabot): bump vedantmgoyal9/winget-releaser from a8fff44 to b7370d4 (#5435)
+  * ci(dependabot): bump the upload-and-download-artifact group with 2 updates (#5431)
+  * ci(dependabot): bump docker/bake-action from 7.4.0 to 7.5.0 in the docker group (#5455)
+
+Thank all the contributors who made this release possible!
+
+Anshika Jain, hydai, Shen-Ta Hsieh(BestSteve), Yi-Ying He
+
+If you want to build from source, please use WasmEdge-0.18.1-rc.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.18.0 (2026-10-05)
 
 Breaking changes:

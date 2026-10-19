@@ -15,7 +15,7 @@
 
 #include "ast/component/declarator.h"
 #include "ast/component/valtype.h"
-#include "common/types.h"
+#include "common/component_valtype.h"
 
 #include <optional>
 #include <variant>

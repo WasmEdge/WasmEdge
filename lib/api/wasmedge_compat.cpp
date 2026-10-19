@@ -3,25 +3,17 @@
 
 // >>>>>>>> WasmEdge compat ABI shims >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 //
-// Several C API functions changed their signatures across releases. Each such
-// change pins the previous ABI under its historical version node (bound with
-// `.symver`) while `wasmedge.cpp` keeps the new default version, so binaries
-// built against the old library keep resolving the old symbol.
+// Frozen previous-release implementations of the C API functions whose
+// signatures changed, bound with `.symver` to the version node each symbol had
+// in that release. See .github/scripts/SYMBOL_CHECKING.md.
 //
-//   - 0.16 -> 0.17: five functions changed from the by-value `WasmEdge_Limit`
-//     struct to the opaque `WasmEdge_LimitContext` handle. Old ABI pinned at
-//     `@WASMEDGE_0.16`, new default `@@WASMEDGE_0.17`.
-//   - 0.17 -> 0.18: the four `WasmEdge_ModuleInstanceAdd{Function,Table,Memory,
-//     Global}` functions changed their return type from `void` to
-//     `WasmEdge_Result`. Old ABI pinned at `@WASMEDGE_0.17`, new default
-//     `@@WASMEDGE_0.18`.
+//   - 0.16 -> 0.17: `WasmEdge_Limit` struct -> `WasmEdge_LimitContext`,
+//     `@WASMEDGE_0.16` beside the `@@WASMEDGE_0.17` default.
+//   - 0.17 -> 0.18: `WasmEdge_ModuleInstanceAdd*` return `void` ->
+//     `WasmEdge_Result`, `@WASMEDGE_0.16` beside the `@@WASMEDGE_0.18` default.
 //
-// The shims are frozen copies of the previous-release implementations so the
-// old ABIs stay pinned bit-for-bit.
-//
-// Compiled only into the shared library on Linux/Android (see CMakeLists.txt).
-// Kept in a separate TU because under ThinLTO the module-level `.symver` asm
-// would otherwise collide with the in-IR definition of the same public symbol.
+// A separate TU, so the `.symver` asm does not collide with the in-IR public
+// definitions under ThinLTO.
 
 #include "wasmedge/wasmedge.h"
 
@@ -39,7 +31,7 @@
 namespace {
 using namespace WasmEdge;
 
-// Local copies of the `wasmedge.cpp` helpers, kept here to stay self-contained.
+// Copies of the `wasmedge.cpp` helpers.
 inline ValType genValType(const WasmEdge_ValType &T) noexcept {
   std::array<uint8_t, 8> R;
   std::copy_n(T.Data, 8, R.begin());
@@ -81,9 +73,7 @@ inline auto *fromGlobCxt(WasmEdge_GlobalInstanceContext *Cxt) noexcept {
 
 extern "C" {
 
-// Layout-compatible revival of the 0.16 `WasmEdge_Limit` struct. `Min`/`Max`
-// are `uint32_t` (Memory64 widened them to 64-bit only in 0.17), keeping the
-// by-value ABI bit-for-bit identical to what 0.16 consumers were built against.
+// The 0.16 `WasmEdge_Limit` layout, before Memory64 widened `Min`/`Max`.
 typedef struct WasmEdge_Limit_0_16 {
   bool HasMax;
   bool Shared;
@@ -150,10 +140,7 @@ WasmEdge_MemoryTypeGetLimit_Compat_016(const WasmEdge_MemoryTypeContext *Cxt) {
                              /* Min */ 0, /* Max */ 0};
 }
 
-// The 0.17 -> 0.18 transition changed these four functions from returning
-// `void` to returning `WasmEdge_Result`. These shims pin the old `void` ABI:
-// they perform the same best-effort add and discard the result, matching the
-// 0.17 behavior.
+// The 0.17 `void` versions: add and discard the result.
 __attribute__((used, visibility("default"))) void
 WasmEdge_ModuleInstanceAddFunction_Compat_017(
     WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
@@ -200,10 +187,8 @@ WasmEdge_ModuleInstanceAddGlobal_Compat_017(
 
 } // extern "C"
 
-// Bind each shim to its historical `@WASMEDGE_0.16` symbol name. The shims need
-// default visibility for `.symver` to export the alias; their own
-// `WasmEdge_*_Compat_016` names are hidden via the `local:` list in
-// `lib/api/libwasmedge.lds` so only the `@WASMEDGE_0.16` aliases are exported.
+// The shims need default visibility to export the aliases; their own names are
+// hidden by the `local:` list in `lib/api/libwasmedge.lds`.
 __asm__(".symver WasmEdge_LimitIsEqual_Compat_016, "
         "WasmEdge_LimitIsEqual@WASMEDGE_0.16");
 __asm__(".symver WasmEdge_TableTypeCreate_Compat_016, "
@@ -215,13 +200,13 @@ __asm__(".symver WasmEdge_MemoryTypeCreate_Compat_016, "
 __asm__(".symver WasmEdge_MemoryTypeGetLimit_Compat_016, "
         "WasmEdge_MemoryTypeGetLimit@WASMEDGE_0.16");
 __asm__(".symver WasmEdge_ModuleInstanceAddFunction_Compat_017, "
-        "WasmEdge_ModuleInstanceAddFunction@WASMEDGE_0.17");
+        "WasmEdge_ModuleInstanceAddFunction@WASMEDGE_0.16");
 __asm__(".symver WasmEdge_ModuleInstanceAddTable_Compat_017, "
-        "WasmEdge_ModuleInstanceAddTable@WASMEDGE_0.17");
+        "WasmEdge_ModuleInstanceAddTable@WASMEDGE_0.16");
 __asm__(".symver WasmEdge_ModuleInstanceAddMemory_Compat_017, "
-        "WasmEdge_ModuleInstanceAddMemory@WASMEDGE_0.17");
+        "WasmEdge_ModuleInstanceAddMemory@WASMEDGE_0.16");
 __asm__(".symver WasmEdge_ModuleInstanceAddGlobal_Compat_017, "
-        "WasmEdge_ModuleInstanceAddGlobal@WASMEDGE_0.17");
+        "WasmEdge_ModuleInstanceAddGlobal@WASMEDGE_0.16");
 
 #endif // __ELF__ && (__linux__ || __ANDROID__)
 

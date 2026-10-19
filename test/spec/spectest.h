@@ -138,11 +138,6 @@ public:
       ContextHandle Ctx, const std::string &ModName, const std::string &Field);
   std::function<GetCallback> onGet;
 
-  // Set by the spec test runner before calling onModule to indicate that
-  // component validation should be skipped. Only used in spec tests and will
-  // be removed when component-model is fully supported.
-  static thread_local bool SkipComponentValidation;
-
 private:
   // Processes the command array for a given context.
   void processCommands(ContextHandle Ctx, std::string_view Proposal,

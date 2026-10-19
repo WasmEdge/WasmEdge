@@ -6,7 +6,7 @@
 namespace WasmEdge {
 namespace Loader {
 
-Expect<void> Loader::loadCoreAlias(AST::Component::CoreAlias &Alias) {
+Expect<void> Loader::loadAlias(AST::Component::CoreAlias &Alias) {
   auto ReportError = [this](auto E) {
     return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Alias);
   };
@@ -41,15 +41,16 @@ Expect<void> Loader::loadAlias(AST::Component::Alias &Alias) {
 
   EXPECTED_TRY(loadSort(Alias.getSort()).map_error(ReportError));
   EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error(ReportError));
-  switch (Flag) {
-  case 0x00:
-  case 0x01: {
+  const auto Target = static_cast<AST::Component::Alias::TargetType>(Flag);
+  switch (Target) {
+  case AST::Component::Alias::TargetType::Export:
+  case AST::Component::Alias::TargetType::CoreExport: {
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
     EXPECTED_TRY(std::string Name, FMgr.readName().map_error(ReportError));
     Alias.setExport(Idx, Name);
     break;
   }
-  case 0x02: {
+  case AST::Component::Alias::TargetType::Outer: {
     if (!Alias.getSort().isOuterAliasSort()) {
       return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
                           ASTNodeAttr::Comp_Alias);
@@ -63,7 +64,7 @@ Expect<void> Loader::loadAlias(AST::Component::Alias &Alias) {
     return logLoadError(ErrCode::Value::MalformedAliasTarget,
                         FMgr.getLastOffset(), ASTNodeAttr::Comp_Alias);
   }
-  Alias.setTargetType(static_cast<AST::Component::Alias::TargetType>(Flag));
+  Alias.setTargetType(Target);
   return {};
 }
 

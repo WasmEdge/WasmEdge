@@ -59,7 +59,7 @@ struct fmt::formatter<std::filesystem::path>
     auto Quoted = fmt::memory_buffer();
     auto Iter = std::back_inserter(Quoted);
     *Iter++ = Delimiter;
-    for (const auto C : Path.u8string()) {
+    for (const auto C : WasmEdge::u8string(Path)) {
       if (C == Delimiter || C == Escape) {
         *Iter++ = Escape;
       }

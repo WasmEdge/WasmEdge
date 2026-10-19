@@ -433,7 +433,7 @@ private:
   Expect<void> loadSection(AST::Component::ExportSection &Sec);
   Expect<void> loadSection(AST::Component::ValueSection &Sec);
   // core:instance and instance
-  Expect<void> loadCoreInstance(AST::Component::CoreInstance &Instance);
+  Expect<void> loadInstance(AST::Component::CoreInstance &Instance);
   Expect<void> loadInstance(AST::Component::Instance &Instance);
   // core:sort and sort
   Expect<void> loadCoreSort(AST::Component::Sort &Sort);
@@ -441,7 +441,7 @@ private:
   Expect<void> loadSortIndex(AST::Component::SortIndex &SortIdx,
                              const bool IsCore = false);
   // core:alias and alias
-  Expect<void> loadCoreAlias(AST::Component::CoreAlias &Alias);
+  Expect<void> loadAlias(AST::Component::CoreAlias &Alias);
   Expect<void> loadAlias(AST::Component::Alias &Alias);
   // core:deftype and deftype
   Expect<void> loadType(AST::Component::CoreDefType &Ty);

@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "driver/tool.h"
 #include "driver/unitool.h"
 #include "po/argument_parser.h"
@@ -11,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
+#include <iterator>
 #include <string>
 #if !WASMEDGE_OS_WINDOWS
 #include <unistd.h>
@@ -330,9 +332,8 @@ std::string trapPath() {
 // coredumps, because the coredump is written into the working directory.
 size_t countCoredumpsOf(std::initializer_list<const char *> Args,
                         const std::string &Name) {
-  const auto TempDir =
-      std::filesystem::temp_directory_path() /
-      std::filesystem::u8path("wasmedge-driver-coredump-" + Name);
+  const auto TempDir = std::filesystem::temp_directory_path() /
+                       WasmEdge::u8path("wasmedge-driver-coredump-" + Name);
   std::error_code Error;
   std::filesystem::remove_all(TempDir, Error);
   if (!std::filesystem::create_directories(TempDir, Error)) {
@@ -800,6 +801,35 @@ TEST(CompileSubcommand, CompilerSpecificFlags) {
             EXIT_SUCCESS);
   std::filesystem::remove(Output.c_str());
 
+#if defined(WASMEDGE_LLVM_VERSION_MAJOR) && WASMEDGE_LLVM_VERSION_MAJOR >= 23
+  auto ReadOptimizedIR = []() {
+    std::ifstream Ifs("wasm-opt.ll");
+    return std::string(std::istreambuf_iterator<char>(Ifs),
+                       std::istreambuf_iterator<char>());
+  };
+  auto RemoveDumpedIR = []() {
+    std::filesystem::remove("wasm.ll");
+    std::filesystem::remove("wasm-opt.ll");
+  };
+
+  RemoveDumpedIR();
+  EXPECT_EQ(callCompile({"--optimize", "s", "--dump", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+  const std::string IROptSize = ReadOptimizedIR();
+  EXPECT_NE(IROptSize.find("optsize"), std::string::npos);
+  EXPECT_EQ(IROptSize.find("minsize"), std::string::npos);
+  RemoveDumpedIR();
+
+  EXPECT_EQ(callCompile({"--optimize", "z", "--dump", Path, Output.c_str()}),
+            EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+  const std::string IRMinSize = ReadOptimizedIR();
+  EXPECT_NE(IRMinSize.find("optsize"), std::string::npos);
+  EXPECT_NE(IRMinSize.find("minsize"), std::string::npos);
+  RemoveDumpedIR();
+#endif
+
   EXPECT_EQ(callCompile({"--optimize", "invalid", Path, Output.c_str()}),
             EXIT_SUCCESS);
   std::filesystem::remove(Output.c_str());
@@ -898,6 +928,8 @@ TEST(InstantiateSubcommand, LinkerFlags) {
   EXPECT_EQ(callInstantiate({"--env", "HOME=/tmp", Path}), EXIT_SUCCESS);
   EXPECT_EQ(callInstantiate({"--memory-page-limit", "256", Path}),
             EXIT_SUCCESS);
+  EXPECT_EQ(callInstantiate({"--memory-page-limit", "-1", Path}),
+            EXIT_FAILURE);
   EXPECT_EQ(callInstantiate({"--dir", ".:.", "--env", "HOME=/tmp",
                              "--memory-page-limit", "256", Path}),
             EXIT_SUCCESS);
@@ -1006,6 +1038,12 @@ TEST(RunSubcommand, RunSpecificFlags) {
   EXPECT_EQ(callRun({"--reactor", "--env", "HOME=/tmp", Path, "add", "1", "2"}),
             EXIT_SUCCESS);
   EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "256", Path, "add",
+                     "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "-1", Path, "add",
+                     "1", "2"}),
+            EXIT_FAILURE);
+  EXPECT_EQ(callRun({"--reactor", "--stack-size-limit", "1048576", Path, "add",
                      "1", "2"}),
             EXIT_SUCCESS);
 }

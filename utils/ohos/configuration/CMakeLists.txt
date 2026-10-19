@@ -114,7 +114,6 @@ endif()
 
 add_subdirectory(include)
 add_subdirectory(lib)
-add_subdirectory(thirdparty)
 if(WASMEDGE_BUILD_TOOLS)
   add_subdirectory(tools)
 endif()

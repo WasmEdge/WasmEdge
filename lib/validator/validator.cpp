@@ -251,9 +251,8 @@ Validator::validate(const AST::SubType &Type, uint32_t OwnTypeIdx,
 
   // In the current version, the length of the type index vector will be <= 1.
   if (Type.getSuperTypeIndices().size() > 1) {
-    spdlog::error(ErrCode::Value::InvalidSubType);
-    spdlog::error("    Accepts only one super type currently."sv);
-    return Unexpect(ErrCode::Value::InvalidSubType);
+    spdlog::error(ErrCode::Value::MultipleSuperTypes);
+    return Unexpect(ErrCode::Value::MultipleSuperTypes);
   }
 
   for (const auto &Index : Type.getSuperTypeIndices()) {
@@ -281,11 +280,28 @@ Validator::validate(const AST::SubType &Type, uint32_t OwnTypeIdx,
       spdlog::error("    Super type should not be final."sv);
       return Unexpect(ErrCode::Value::InvalidSubType);
     }
-    auto &SuperType = TypeVec[Index]->getCompositeType();
-    if (!AST::TypeMatcher::matchType(TypeVec, SuperType, CompType)) {
-      spdlog::error(ErrCode::Value::InvalidSubType);
-      spdlog::error("    Super type not matched."sv);
-      return Unexpect(ErrCode::Value::InvalidSubType);
+  }
+  return {};
+}
+
+// Validate Rec type. See "include/validator/validator.h".
+Expect<void>
+Validator::validate(Span<const AST::SubType> RecType, uint32_t BaseIdx,
+                    std::vector<uint32_t> &SubTypeDepthMap,
+                    const std::vector<const AST::SubType *> &TypeVec) {
+  // Check all the members before matching, which walks their super types.
+  for (uint32_t I = 0; I < RecType.size(); I++) {
+    EXPECTED_TRY(validate(RecType[I], BaseIdx + I, SubTypeDepthMap, TypeVec));
+  }
+  for (const auto &Type : RecType) {
+    for (const auto &Index : Type.getSuperTypeIndices()) {
+      if (!AST::TypeMatcher::matchType(TypeVec,
+                                       TypeVec[Index]->getCompositeType(),
+                                       Type.getCompositeType())) {
+        spdlog::error(ErrCode::Value::InvalidSubType);
+        spdlog::error("    Super type not matched."sv);
+        return Unexpect(ErrCode::Value::InvalidSubType);
+      }
     }
   }
   return {};
@@ -671,15 +687,12 @@ Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
       for (uint32_t I = Idx; I < Idx + RecSize; I++) {
         Checker.addType(STypeList[I]);
       }
-      for (uint32_t I = Idx; I < Idx + RecSize; I++) {
-        EXPECTED_TRY(validate(STypeList[I], BaseIdx + (I - Idx),
-                              SubTypeDepthMap, Checker.getTypes())
-                         .map_error([](auto E) {
-                           spdlog::error(
-                               ErrInfo::InfoAST(ASTNodeAttr::Type_Rec));
-                           return E;
-                         }));
-      }
+      EXPECTED_TRY(validate(STypeList.subspan(Idx, RecSize), BaseIdx,
+                            SubTypeDepthMap, Checker.getTypes())
+                       .map_error([](auto E) {
+                         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Rec));
+                         return E;
+                       }));
       Idx += RecSize;
     } else {
       // Without GC there are no rec groups: a type may reference only earlier

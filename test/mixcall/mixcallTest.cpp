@@ -76,7 +76,7 @@ std::vector<uint8_t> Module2Wasm = {
     0x31};
 
 void HexToFile(cxx20::span<const uint8_t> Wasm, const char *Path) {
-  std::ofstream TFile(std::filesystem::u8path(Path), std::ios_base::binary);
+  std::ofstream TFile(WasmEdge::u8path(Path), std::ios_base::binary);
   TFile.write(reinterpret_cast<const char *>(Wasm.data()),
               static_cast<std::streamsize>(Wasm.size()));
   TFile.close();

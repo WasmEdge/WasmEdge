@@ -282,7 +282,7 @@ std::vector<uint8_t> ConsumerWasm = {
     0x01, 0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b};
 
 void hexToFile(cxx20::span<const uint8_t> Wasm, const char *Path) {
-  std::ofstream TFile(std::filesystem::u8path(Path), std::ios_base::binary);
+  std::ofstream TFile(WasmEdge::u8path(Path), std::ios_base::binary);
   TFile.write(reinterpret_cast<const char *>(Wasm.data()),
               static_cast<std::streamsize>(Wasm.size()));
   TFile.close();
@@ -742,6 +742,12 @@ TEST(APICoreTest, Configure) {
   WasmEdge_ConfigureSetMaxMemoryPage(Conf, 1234U);
   EXPECT_NE(WasmEdge_ConfigureGetMaxMemoryPage(ConfNull), 1234U);
   EXPECT_EQ(WasmEdge_ConfigureGetMaxMemoryPage(Conf), 1234U);
+  // Tests for stack size limit.
+  EXPECT_EQ(WasmEdge_ConfigureGetMaxStackSize(Conf), 0U);
+  WasmEdge_ConfigureSetMaxStackSize(ConfNull, 65536U);
+  WasmEdge_ConfigureSetMaxStackSize(Conf, 65536U);
+  EXPECT_NE(WasmEdge_ConfigureGetMaxStackSize(ConfNull), 65536U);
+  EXPECT_EQ(WasmEdge_ConfigureGetMaxStackSize(Conf), 65536U);
   // Tests for force interpreter (deprecated API).
   // Pre-set to JIT so the SetForceInterpreter(true) flip is observable; the
   // default run mode is Interpreter, which would make IsForceInterpreter()
@@ -1435,7 +1441,7 @@ TEST(APICoreTest, Compiler) {
 
   // Compile file for shared library output format from buffer
   std::error_code EC;
-  auto TPathFS = std::filesystem::u8path(TPath);
+  auto TPathFS = WasmEdge::u8path(TPath);
   size_t FileSize = std::filesystem::file_size(TPathFS, EC);
   EXPECT_FALSE(EC);
   std::ifstream Fin(TPathFS, std::ios::in | std::ios::binary);
@@ -5064,6 +5070,8 @@ TEST(APICoreTest, ModuleDeletion) {
   WasmEdge_StringDelete(CName1);
   WasmEdge_StringDelete(PName);
   WasmEdge_FunctionTypeDelete(FType);
+  WasmEdge_ValidatorDelete(Validator);
+  WasmEdge_LoaderDelete(Loader);
   WasmEdge_ExecutorDelete(Exec);
 }
 

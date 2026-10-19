@@ -4,21 +4,42 @@
 #include "utils.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+#include <algorithm>
 #include <base64.hpp>
+#include <limits>
 #endif
 
 namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
-// Helper to initialize a llama batch.
+// Helper to initialize a llama batch. Returns a value-initialized batch when
+// the arguments do not fit llama_batch_init or an allocation fails, so the
+// caller can detect the failure and llama_batch_free stays a no-op.
 struct llama_batch allocBatch(int64_t NTokens, int64_t Embd,
                               int32_t NSeqMax) noexcept {
+  constexpr auto Int32Max =
+      static_cast<int64_t>(std::numeric_limits<int32_t>::max());
+  if (NTokens <= 0 || NTokens > Int32Max || Embd < 0 || Embd > Int32Max ||
+      NSeqMax <= 0) {
+    return {};
+  }
   struct llama_batch Batch = llama_batch_init(
       /* n_tokens_alloc */ static_cast<int32_t>(NTokens),
       /* embd */ static_cast<int32_t>(Embd),
       /* n_seq_max */ static_cast<int32_t>(NSeqMax));
+  const bool HasData =
+      Embd > 0 ? Batch.embd != nullptr : Batch.token != nullptr;
+  if (!HasData || !Batch.pos || !Batch.n_seq_id || !Batch.seq_id ||
+      !Batch.logits) {
+    llama_batch_free(Batch);
+    return {};
+  }
   std::fill(Batch.n_seq_id, Batch.n_seq_id + NTokens,
             static_cast<int32_t>(NSeqMax));
   for (int64_t I = 0; I < NTokens; I++) {
+    if (!Batch.seq_id[I]) {
+      llama_batch_free(Batch);
+      return {};
+    }
     std::fill(Batch.seq_id[I], Batch.seq_id[I] + NSeqMax, 0);
   }
   std::fill(Batch.logits, Batch.logits + NTokens, false);

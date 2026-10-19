@@ -5,6 +5,7 @@
 
 #include "aot/version.h"
 #include "common/defines.h"
+#include "common/filesystem.h"
 #include "common/hash.h"
 #include "data.h"
 #include "llvm.h"
@@ -17,10 +18,12 @@
 #include <random>
 #include <sstream>
 
-#if LLVM_VERSION_MAJOR >= 14
+#if LLVM_VERSION_MAJOR < 14
+#else
 #include <lld/Common/CommonLinkerContext.h>
 #endif
-#if LLVM_VERSION_MAJOR >= 17
+#if LLVM_VERSION_MAJOR < 17
+#else
 #if WASMEDGE_OS_MACOS
 LLD_HAS_DRIVER(macho)
 #elif WASMEDGE_OS_LINUX
@@ -193,7 +196,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
     ObjectName = createTemp(OPath);
     if (ObjectName.empty()) {
       // TODO:return error
-      spdlog::error("so file creation failed:{}"sv, OPath.u8string());
+      spdlog::error("so file creation failed:{}"sv, u8string(OPath));
       return Unexpect(ErrCode::Value::IllegalPath);
     }
     std::ofstream OS(ObjectName, std::ios_base::binary);
@@ -210,13 +213,13 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #if WASMEDGE_OS_MACOS
   const auto OSVersion = getOSVersion();
   const auto SDKVersion = getSDKVersion();
-#if LLVM_VERSION_MAJOR >= 14
+#if LLVM_VERSION_MAJOR < 14
+  LinkResult = lld::mach_o::link(
+#else
   // LLVM 14 replaces the older mach_o lld implementation with the new one.
   // So we need to change the namespace after LLVM 14.x was released.
   // Reference: https://reviews.llvm.org/D114842
   LinkResult = lld::macho::link(
-#else
-  LinkResult = lld::mach_o::link(
 #endif
       std::initializer_list<const char *>{
           "lld", "-arch",
@@ -227,41 +230,42 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #else
 #error Unsupported architecture on the MacOS!
 #endif
-#if LLVM_VERSION_MAJOR >= 14
+#if LLVM_VERSION_MAJOR < 14
+          "-sdk_version", SDKVersion.c_str(),
+#else
           // LLVM 14 replaces the older mach_o lld implementation with the new
           // one. And it require -arch and -platform_version to always be
           // specified. Reference: https://reviews.llvm.org/D97799
           "-platform_version", "macos", OSVersion.c_str(), SDKVersion.c_str(),
-#else
-          "-sdk_version", SDKVersion.c_str(),
 #endif
           "-dylib", "-demangle", "-macosx_version_min", OSVersion.c_str(),
           "-syslibroot", "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-          ObjectName.u8string().c_str(), "-o", OutputPath.u8string().c_str()},
+          u8string(ObjectName).c_str(), "-o", u8string(OutputPath).c_str()},
 #elif WASMEDGE_OS_LINUX
   LinkResult = lld::elf::link(
       std::initializer_list<const char *>{"ld.lld", "--eh-frame-hdr",
                                           "--shared", "--gc-sections",
                                           "--discard-all", ObjectName.c_str(),
-                                          "-o", OutputPath.u8string().c_str()},
+                                          "-o", u8string(OutputPath).c_str()},
 #elif WASMEDGE_OS_WINDOWS
   LinkResult = lld::coff::link(
       std::initializer_list<const char *>{
           "lld-link", "-dll", "-base:0", "-nologo",
-          ObjectName.u8string().c_str(),
-          ("-out:" + OutputPath.u8string()).c_str()},
+          u8string(ObjectName).c_str(),
+          ("-out:" + u8string(OutputPath)).c_str()},
 #endif
 
-#if LLVM_VERSION_MAJOR >= 14
-      llvm::outs(), llvm::errs(), false, false
-#elif LLVM_VERSION_MAJOR >= 10
+#if LLVM_VERSION_MAJOR < 10
+      false, llvm::errs()
+#elif LLVM_VERSION_MAJOR < 14
       false, llvm::outs(), llvm::errs()
 #else
-      false, llvm::errs()
+      llvm::outs(), llvm::errs(), false, false
 #endif
   );
 
-#if LLVM_VERSION_MAJOR >= 14
+#if LLVM_VERSION_MAJOR < 14
+#else
   lld::CommonLinkerContext::destroy();
 #endif
 
@@ -287,7 +291,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
       spdlog::error("codesign error on fork:{}"sv, std::strerror(errno));
     } else if (PID == 0) {
       execlp("/usr/bin/codesign", "codesign", "-s", "-",
-             OutputPath.u8string().c_str(), nullptr);
+             u8string(OutputPath).c_str(), nullptr);
       std::exit(256);
     } else {
       int ChildStat;
@@ -314,7 +318,7 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
     SharedObjectName = createTemp(SOPath);
     if (SharedObjectName.empty()) {
       // TODO:return error
-      spdlog::error("so file creation failed:{}"sv, SOPath.u8string());
+      spdlog::error("so file creation failed:{}"sv, u8string(SOPath));
       return Unexpect(ErrCode::Value::IllegalPath);
     }
     std::ofstream OS(SharedObjectName, std::ios_base::binary);
@@ -326,7 +330,7 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
 
   LLVM::MemoryBuffer SOFile;
   if (auto [Res, ErrorMessage] =
-          LLVM::MemoryBuffer::getFile(SharedObjectName.u8string().c_str());
+          LLVM::MemoryBuffer::getFile(u8string(SharedObjectName).c_str());
       unlikely(ErrorMessage)) {
     spdlog::error("object file open error:{}"sv, ErrorMessage.string_view());
     return Unexpect(ErrCode::Value::IllegalPath);
@@ -543,7 +547,7 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
     Builder.positionAtEnd(LLVM::BasicBlock::create(LLContext, F, "entry"));
     Builder.createRet(LLContext.getInt32(1u));
 
-    auto A = LLModule.addAlias(F.getType(), F, "_fltused");
+    auto A = LLModule.addAlias(FTy, F, "_fltused");
     A.setLinkage(LLVMExternalLinkage);
     A.setVisibility(LLVMProtectedVisibility);
     A.setDSOLocal(true);

@@ -16,6 +16,7 @@
 
 #include "spectest.h"
 #include "common/errcode.h"
+#include "common/filesystem.h"
 #include "common/hash.h"
 #include "common/spdlog.h"
 
@@ -374,14 +375,15 @@ std::vector<std::string> SpecTest::enumerate(const SpecTest::TestMode Mode,
   std::vector<std::string> Cases;
   for (const auto &Proposal : TestsuiteProposals) {
     if (static_cast<uint8_t>(Proposal.Mode) & static_cast<uint8_t>(Mode)) {
-      if (!IncludeComponent && Proposal.Path == "component-model-wasm-tools"sv) {
+      if (!IncludeComponent &&
+          Proposal.Path == "component-model-wasm-tools"sv) {
         continue;
       }
       const std::filesystem::path ProposalRoot = TestsuiteRoot / Proposal.Path;
       for (const auto &Subdir :
            std::filesystem::directory_iterator(ProposalRoot)) {
         const auto SubdirPath = Subdir.path();
-        const auto UnitName = SubdirPath.filename().u8string();
+        const auto UnitName = u8string(SubdirPath.filename());
         const auto UnitJson = UnitName + ".json"s;
         if (std::filesystem::is_regular_file(SubdirPath / UnitJson)) {
           Cases.push_back(std::string(Proposal.Path) + ' ' + UnitName);
@@ -911,6 +913,27 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
     }
   };
 
+  // Helper function to check call stack exhaustion on invocation.
+  auto ExhaustionInvoke = [&](const simdjson::dom::object &Action,
+                              uint64_t LineNumber) {
+    if (IsComponent &&
+        !checkComponentSupported(UnitName, WasmPhase::Execution)) {
+      // TODO: Component model invocation not yet supported.
+      return;
+    }
+    const auto ModName = GetModuleName(Action);
+    const std::string_view Field = Action["field"];
+    simdjson::dom::array Args = Action["args"];
+    const auto Params = parseValueList(Args);
+
+    if (auto Res = onInvoke(Ctx, ModName, std::string(Field), Params.first,
+                            Params.second)) {
+      EXPECT_NE(LineNumber, LineNumber);
+    } else {
+      EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::CallStackExhausted);
+    }
+  };
+
   // Helper function to check exception on invocation.
   auto ExceptionInvoke = [&](const simdjson::dom::object &Action,
                              uint64_t LineNumber) {
@@ -951,7 +974,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         }
         std::string_view FileName = Cmd["filename"];
         const auto FilePath =
-            (TestsuiteRoot / Proposal / UnitName / FileName).u8string();
+            u8string(TestsuiteRoot / Proposal / UnitName / FileName);
         const uint64_t LineNumber = Cmd["line"];
         // Reset the flag for each module command to avoid stale state
         // from prior test entries.
@@ -999,7 +1022,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         std::string_view ASTName;
         std::string_view FileName = Cmd["filename"];
         const auto FilePath =
-            (TestsuiteRoot / Proposal / UnitName / FileName).u8string();
+            u8string(TestsuiteRoot / Proposal / UnitName / FileName);
         const uint64_t LineNumber = Cmd["line"];
         if (IsComponent &&
             !checkComponentSupported(UnitName, WasmPhase::Loading)) {
@@ -1088,7 +1111,9 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         return;
       }
       case CommandID::AssertExhaustion: {
-        // TODO: Add stack overflow mechanism.
+        const simdjson::dom::object &Action = Cmd["action"];
+        const uint64_t LineNumber = Cmd["line"];
+        ExhaustionInvoke(Action, LineNumber);
         return;
       }
       case CommandID::AssertMalformed: {
@@ -1099,7 +1124,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         }
         const std::string_view Name = Cmd["filename"];
         const auto Filename =
-            (TestsuiteRoot / Proposal / UnitName / Name).u8string();
+            u8string(TestsuiteRoot / Proposal / UnitName / Name);
         const std::string_view Text = Cmd["text"];
         TrapLoad(Filename, std::string(Text));
         return;
@@ -1112,7 +1137,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         }
         const std::string_view Name = Cmd["filename"];
         const auto Filename =
-            (TestsuiteRoot / Proposal / UnitName / Name).u8string();
+            u8string(TestsuiteRoot / Proposal / UnitName / Name);
         const std::string_view Text = Cmd["text"];
         TrapValidate(Filename, std::string(Text));
         return;
@@ -1121,7 +1146,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
       case CommandID::AssertUninstantiable: {
         const std::string_view Name = Cmd["filename"];
         const auto Filename =
-            (TestsuiteRoot / Proposal / UnitName / Name).u8string();
+            u8string(TestsuiteRoot / Proposal / UnitName / Name);
         const std::string_view Text = Cmd["text"];
         TrapInstantiate(Filename, std::string(Text));
         return;

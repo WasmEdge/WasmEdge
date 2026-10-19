@@ -16,7 +16,10 @@
 #include <llvm-c/Core.h>
 #include <llvm-c/Error.h>
 #include <llvm-c/Object.h>
+#if LLVM_VERSION_MAJOR < 11
+#else
 #include <llvm-c/Orc.h>
+#endif
 #include <llvm-c/Target.h>
 #include <llvm-c/TargetMachine.h>
 #include <llvm-c/Types.h>
@@ -25,10 +28,52 @@
 #include <utility>
 #include <vector>
 
-#if LLVM_VERSION_MAJOR >= 12
+#if LLVM_VERSION_MAJOR < 12
+#else
 #include <llvm-c/LLJIT.h>
 #endif
 
+#if LLVM_VERSION_MAJOR < 10
+LLVMBool LLVMGetWeak(LLVMValueRef CmpXchgInst) noexcept;
+void LLVMSetWeak(LLVMValueRef CmpXchgInst, LLVMBool IsWeak) noexcept;
+#endif
+#if LLVM_VERSION_MAJOR < 11
+using LLVMOrcJITTargetAddress = uint64_t;
+using LLVMOrcExecutionSessionRef = struct LLVMOrcOpaqueExecutionSession *;
+using LLVMOrcJITDylibRef = struct LLVMOrcOpaqueJITDylib *;
+using LLVMOrcThreadSafeContextRef = struct LLVMOrcOpaqueThreadSafeContext *;
+using LLVMOrcThreadSafeModuleRef = struct LLVMOrcOpaqueThreadSafeModule *;
+using LLVMOrcJITTargetMachineBuilderRef =
+    struct LLVMOrcOpaqueJITTargetMachineBuilder *;
+using LLVMOrcLLJITBuilderRef = struct LLVMOrcOpaqueLLJITBuilder *;
+using LLVMOrcLLJITRef = struct LLVMOrcOpaqueLLJIT *;
+LLVMOrcThreadSafeContextRef LLVMOrcCreateNewThreadSafeContext() noexcept;
+LLVMContextRef
+LLVMOrcThreadSafeContextGetContext(LLVMOrcThreadSafeContextRef TSCtx) noexcept;
+void LLVMOrcDisposeThreadSafeContext(
+    LLVMOrcThreadSafeContextRef TSCtx) noexcept;
+LLVMOrcThreadSafeModuleRef
+LLVMOrcCreateNewThreadSafeModule(LLVMModuleRef M,
+                                 LLVMOrcThreadSafeContextRef TSCtx) noexcept;
+void LLVMOrcDisposeThreadSafeModule(LLVMOrcThreadSafeModuleRef TSM) noexcept;
+LLVMOrcJITTargetMachineBuilderRef
+LLVMOrcJITTargetMachineBuilderCreateFromTargetMachine(LLVMTargetMachineRef TM);
+LLVMOrcLLJITBuilderRef LLVMOrcCreateLLJITBuilder() noexcept;
+void LLVMOrcDisposeLLJITBuilder(LLVMOrcLLJITBuilderRef Builder) noexcept;
+void LLVMOrcLLJITBuilderSetJITTargetMachineBuilder(
+    LLVMOrcLLJITBuilderRef Builder,
+    LLVMOrcJITTargetMachineBuilderRef JTMB) noexcept;
+LLVMErrorRef LLVMOrcCreateLLJIT(LLVMOrcLLJITRef *Result,
+                                LLVMOrcLLJITBuilderRef Builder) noexcept;
+LLVMErrorRef LLVMOrcDisposeLLJIT(LLVMOrcLLJITRef J) noexcept;
+LLVMOrcJITDylibRef LLVMOrcLLJITGetMainJITDylib(LLVMOrcLLJITRef J) noexcept;
+LLVMErrorRef
+LLVMOrcLLJITAddLLVMIRModule(LLVMOrcLLJITRef J, LLVMOrcJITDylibRef JD,
+                            LLVMOrcThreadSafeModuleRef TSM) noexcept;
+LLVMErrorRef LLVMOrcLLJITLookup(LLVMOrcLLJITRef J,
+                                LLVMOrcJITTargetAddress *Result,
+                                const char *Name) noexcept;
+#endif
 #if LLVM_VERSION_MAJOR < 12 && WASMEDGE_OS_WINDOWS
 using LLVMOrcObjectLayerRef = struct LLVMOrcOpaqueObjectLayer *;
 using LLVMOrcLLJITBuilderObjectLinkingLayerCreatorFunction =
@@ -37,6 +82,18 @@ using LLVMOrcLLJITBuilderObjectLinkingLayerCreatorFunction =
 void LLVMOrcLLJITBuilderSetObjectLinkingLayerCreator(
     LLVMOrcLLJITBuilderRef Builder,
     LLVMOrcLLJITBuilderObjectLinkingLayerCreatorFunction F, void *Ctx) noexcept;
+#endif
+#if LLVM_VERSION_MAJOR < 12
+using LLVMOrcResourceTrackerRef = struct LLVMOrcOpaqueResourceTracker *;
+LLVMOrcResourceTrackerRef
+LLVMOrcJITDylibCreateResourceTracker(LLVMOrcJITDylibRef JD) noexcept;
+void LLVMOrcReleaseResourceTracker(LLVMOrcResourceTrackerRef RT) noexcept;
+LLVMErrorRef
+LLVMOrcResourceTrackerRemove(LLVMOrcResourceTrackerRef RT) noexcept;
+LLVMErrorRef
+LLVMOrcLLJITAddLLVMIRModuleWithRT(LLVMOrcLLJITRef J,
+                                  LLVMOrcResourceTrackerRef RT,
+                                  LLVMOrcThreadSafeModuleRef TSM) noexcept;
 #endif
 #if LLVM_VERSION_MAJOR < 13
 using LLVMOrcMaterializationResponsibilityRef =
@@ -47,24 +104,27 @@ using LLVMOrcIRTransformLayerTransformFunction =
                      LLVMOrcMaterializationResponsibilityRef MR) noexcept;
 using LLVMOrcGenericIRModuleOperationFunction =
     LLVMErrorRef (*)(void *Ctx, LLVMModuleRef M) noexcept;
+#if LLVM_VERSION_MAJOR < 11
+#else
 LLVMOrcIRTransformLayerRef
 LLVMOrcLLJITGetIRTransformLayer(LLVMOrcLLJITRef J) noexcept;
 void LLVMOrcIRTransformLayerSetTransform(
     LLVMOrcIRTransformLayerRef IRTransformLayer,
     LLVMOrcIRTransformLayerTransformFunction TransformFunction,
     void *Ctx) noexcept;
+#endif
 LLVMErrorRef
 LLVMOrcThreadSafeModuleWithModuleDo(LLVMOrcThreadSafeModuleRef TSM,
                                     LLVMOrcGenericIRModuleOperationFunction F,
                                     void *Ctx) noexcept;
 #endif
 
-#if LLVM_VERSION_MAJOR >= 13
-#include <llvm-c/Transforms/PassBuilder.h>
-#else
+#if LLVM_VERSION_MAJOR < 13
 #include <llvm-c/Transforms/IPO.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Transforms/Scalar.h>
+#else
+#include <llvm-c/Transforms/PassBuilder.h>
 #endif
 
 // Enable __x86_64__ for MSVC
@@ -72,7 +132,7 @@ LLVMOrcThreadSafeModuleWithModuleDo(LLVMOrcThreadSafeModuleRef TSM,
 #define __x86_64__ 1
 #endif
 
-#if LLVM_VERSION_MAJOR < 17
+#if LLVM_VERSION_MAJOR < 18
 typedef enum {
   LLVMTailCallKindNone = 0,
   LLVMTailCallKindTail = 1,
@@ -110,6 +170,8 @@ public:
   static inline unsigned int Floor = 0;
   static inline unsigned int FShl = 0;
   static inline unsigned int FShr = 0;
+  static inline unsigned int LifetimeEnd = 0;
+  static inline unsigned int LifetimeStart = 0;
   static inline unsigned int MaxNum = 0;
   static inline unsigned int MinNum = 0;
   static inline unsigned int Nearbyint = 0;
@@ -117,6 +179,7 @@ public:
   static inline unsigned int SAddSat = 0;
   static inline unsigned int Sqrt = 0;
   static inline unsigned int SSubSat = 0;
+  static inline unsigned int StackSave = 0;
   static inline unsigned int Trunc = 0;
   static inline unsigned int UAddSat = 0;
   static inline unsigned int USubSat = 0;
@@ -154,16 +217,18 @@ public:
 #endif
 
   static inline unsigned int Cold = 0;
+  static inline unsigned int MinSize = 0;
   static inline unsigned int NoAlias = 0;
   static inline unsigned int NoInline = 0;
   static inline unsigned int NoReturn = 0;
+  static inline unsigned int OptimizeForSize = 0;
   static inline unsigned int ReadOnly = 0;
   static inline unsigned int StrictFP = 0;
   static inline unsigned int UWTable = 0;
-#if LLVM_VERSION_MAJOR >= 15
-  static constexpr inline const unsigned int UWTableDefault = 2;
-#else
+#if LLVM_VERSION_MAJOR < 15
   static constexpr inline const unsigned int UWTableDefault = 0;
+#else
+  static constexpr inline const unsigned int UWTableDefault = 2;
 #endif
 
   static inline unsigned int InvariantGroup = 0;
@@ -201,6 +266,8 @@ private:
     Floor = getIntrinsicID("llvm.floor"sv);
     FShl = getIntrinsicID("llvm.fshl"sv);
     FShr = getIntrinsicID("llvm.fshr"sv);
+    LifetimeEnd = getIntrinsicID("llvm.lifetime.end"sv);
+    LifetimeStart = getIntrinsicID("llvm.lifetime.start"sv);
     MaxNum = getIntrinsicID("llvm.maxnum"sv);
     MinNum = getIntrinsicID("llvm.minnum"sv);
     Nearbyint = getIntrinsicID("llvm.nearbyint"sv);
@@ -208,6 +275,7 @@ private:
     SAddSat = getIntrinsicID("llvm.sadd.sat"sv);
     Sqrt = getIntrinsicID("llvm.sqrt"sv);
     SSubSat = getIntrinsicID("llvm.ssub.sat"sv);
+    StackSave = getIntrinsicID("llvm.stacksave"sv);
     Trunc = getIntrinsicID("llvm.trunc"sv);
     UAddSat = getIntrinsicID("llvm.uadd.sat"sv);
     USubSat = getIntrinsicID("llvm.usub.sat"sv);
@@ -246,9 +314,11 @@ private:
 #endif
 
     Cold = getEnumAttributeKind("cold"sv);
+    MinSize = getEnumAttributeKind("minsize"sv);
     NoAlias = getEnumAttributeKind("noalias"sv);
     NoInline = getEnumAttributeKind("noinline"sv);
     NoReturn = getEnumAttributeKind("noreturn"sv);
+    OptimizeForSize = getEnumAttributeKind("optsize"sv);
     ReadOnly = getEnumAttributeKind("readonly"sv);
     StrictFP = getEnumAttributeKind("strictfp"sv);
     UWTable = getEnumAttributeKind("uwtable"sv);
@@ -346,6 +416,7 @@ public:
 
   const char *getTarget() noexcept { return LLVMGetTarget(Ref); }
   void setTarget(const char *Triple) noexcept { LLVMSetTarget(Ref, Triple); }
+  Context getContext() const noexcept { return LLVMGetModuleContext(Ref); }
   inline Value addFunction(Type Ty, LLVMLinkage Linkage,
                            const char *Name = "") noexcept;
   inline Value addGlobal(Type Ty, bool IsConstant, LLVMLinkage Linkage,
@@ -580,8 +651,11 @@ public:
 
   unsigned int getPrimitiveSizeInBits() const noexcept {
     switch (LLVMGetTypeKind(Ref)) {
+#if LLVM_VERSION_MAJOR < 11
+#else
     case LLVMBFloatTypeKind:
       return 16;
+#endif
     case LLVMHalfTypeKind:
       return 16;
     case LLVMFloatTypeKind:
@@ -608,8 +682,11 @@ public:
   }
   unsigned int getFPMantissaWidth() const noexcept {
     switch (LLVMGetTypeKind(Ref)) {
+#if LLVM_VERSION_MAJOR < 11
+#else
     case LLVMBFloatTypeKind:
       return 8;
+#endif
     case LLVMHalfTypeKind:
       return 11;
     case LLVMFloatTypeKind:
@@ -810,6 +887,7 @@ public:
                           Metadata Node) noexcept;
   inline void setMustTailCall() noexcept;
   inline void setTailCall() noexcept;
+  inline void setNoTailCall() noexcept;
   Type getInstructionCalledFunctionType() const noexcept {
     return LLVMGetCalledFunctionType(Ref);
   }
@@ -818,9 +896,14 @@ public:
   Value getNextParam() noexcept { return LLVMGetNextParam(Ref); }
   Value getNextGlobal() noexcept { return LLVMGetNextGlobal(Ref); }
   Value getNextFunction() noexcept { return LLVMGetNextFunction(Ref); }
+  bool isDeclaration() const noexcept { return LLVMIsDeclaration(Ref) != 0; }
   unsigned int countBasicBlocks() noexcept { return LLVMCountBasicBlocks(Ref); }
 
   Type getType() const noexcept { return LLVMTypeOf(Ref); }
+  void replaceAllUsesWith(Value NewVal) noexcept {
+    LLVMReplaceAllUsesWith(Ref, NewVal.unwrap());
+  }
+  void eraseFromParent() noexcept { LLVMInstructionEraseFromParent(Ref); }
   Value getInitializer() noexcept { return LLVMGetInitializer(Ref); }
   void setInitializer(Value ConstantVal) noexcept {
     LLVMSetInitializer(Ref, ConstantVal.unwrap());
@@ -967,11 +1050,12 @@ Value Module::getNamedGlobal(const char *Name) noexcept {
 }
 
 Value Module::addAlias(Type Ty, Value V, const char *Name,
-                       unsigned int AddrSpace [[maybe_unused]]) noexcept {
-#if LLVM_VERSION_MAJOR >= 14
-  return LLVMAddAlias2(Ref, Ty.unwrap(), AddrSpace, V.unwrap(), Name);
+                       unsigned int AddrSpace) noexcept {
+#if LLVM_VERSION_MAJOR < 14
+  return LLVMAddAlias(Ref, LLVMPointerType(Ty.unwrap(), AddrSpace), V.unwrap(),
+                      Name);
 #else
-  return LLVMAddAlias(Ref, Ty.unwrap(), V.unwrap(), Name);
+  return LLVMAddAlias2(Ref, Ty.unwrap(), AddrSpace, V.unwrap(), Name);
 #endif
 }
 
@@ -1068,6 +1152,9 @@ void Value::setMustTailCall() noexcept {
 void Value::setTailCall() noexcept {
   LLVMSetTailCallKind(Ref, LLVMTailCallKindTail);
 }
+void Value::setNoTailCall() noexcept {
+  LLVMSetTailCallKind(Ref, LLVMTailCallKindNoTail);
+}
 
 static inline Message getDefaultTargetTriple() noexcept {
   return LLVMGetDefaultTargetTriple();
@@ -1162,6 +1249,9 @@ public:
 
   void positionAtEnd(BasicBlock B) noexcept {
     LLVMPositionBuilderAtEnd(Ref, B.unwrap());
+  }
+  void positionBefore(Value Instr) noexcept {
+    LLVMPositionBuilderBefore(Ref, Instr.unwrap());
   }
   BasicBlock getInsertBlock() noexcept { return LLVMGetInsertBlock(Ref); }
 
@@ -1613,10 +1703,34 @@ public:
     return createShuffleVector(One, Empty, Value::getConstVector(Mask), Name);
   }
 
+  Value createLifetimeStart(Value Ptr, uint64_t Size) noexcept {
+    return createLifetimeIntrinsic(LLVM::Core::LifetimeStart, Ptr, Size);
+  }
+  Value createLifetimeEnd(Value Ptr, uint64_t Size) noexcept {
+    return createLifetimeIntrinsic(LLVM::Core::LifetimeEnd, Ptr, Size);
+  }
+  Value createLifetimeIntrinsic(unsigned int ID, Value Ptr,
+                                [[maybe_unused]] uint64_t Size) noexcept {
+#if LLVM_VERSION_MAJOR < 22
+    return createIntrinsic(
+        ID, {Ptr.getType()},
+        {Value::getConstInt(LLVMInt64TypeInContext(getCtx()), Size), Ptr});
+#else
+    return createIntrinsic(ID, {Ptr.getType()}, {Ptr});
+#endif
+  }
+
   Value createLikely(Value V) noexcept {
     Type Int1Ty = LLVMInt1TypeInContext(getCtx());
     return createIntrinsic(LLVM::Core::Expect, {Int1Ty},
                            {V, Value::getConstInt(Int1Ty, 1)});
+  }
+  Value createStackSave(Type PtrTy) noexcept {
+    // Newer LLVM overloads llvm.stacksave on the returned pointer type.
+    const size_t TypeCount =
+        LLVMIntrinsicIsOverloaded(LLVM::Core::StackSave) ? 1 : 0;
+    return createIntrinsic(LLVM::Core::StackSave,
+                           Span<const Type>(&PtrTy, TypeCount), {});
   }
 
   Value getConstrainedFPRounding() noexcept {
@@ -1845,6 +1959,14 @@ public:
                                    Reloc, CodeModel);
   }
 
+#if LLVM_VERSION_MAJOR < 16
+  void setModuleDataLayout(Module &M) noexcept {
+    auto DL = LLVMCreateTargetDataLayout(Ref);
+    LLVMSetModuleDataLayout(M.unwrap(), DL);
+    LLVMDisposeTargetData(DL);
+  }
+#endif
+
 #if LLVM_VERSION_MAJOR < 13
   void addAnalysisPasses(PassManager &P) noexcept {
     LLVMAddAnalysisPasses(Ref, P.unwrap());
@@ -1864,7 +1986,8 @@ private:
   LLVMTargetMachineRef Ref = nullptr;
 };
 
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR < 13
+#else
 class PassBuilderOptions {
 public:
   constexpr PassBuilderOptions() noexcept = default;
@@ -2090,13 +2213,13 @@ public:
     swap(*this, B);
     return *this;
   }
-#if LLVM_VERSION_MAJOR >= 21
-  OrcThreadSafeContext(Context &C) noexcept
-      : Ref(LLVMOrcCreateNewThreadSafeContextFromLLVMContext(C.unwrap())) {}
-#else
+#if LLVM_VERSION_MAJOR < 21
   Context getContext() noexcept {
     return LLVMOrcThreadSafeContextGetContext(Ref);
   }
+#else
+  OrcThreadSafeContext(Context &C) noexcept
+      : Ref(LLVMOrcCreateNewThreadSafeContextFromLLVMContext(C.unwrap())) {}
 #endif
 
   OrcThreadSafeContext() noexcept : Ref(LLVMOrcCreateNewThreadSafeContext()) {}
@@ -2224,6 +2347,8 @@ private:
   LLVMOrcJITDylibRef Ref = nullptr;
 };
 
+#if LLVM_VERSION_MAJOR < 11
+#else
 class OrcIRTransformLayer {
 public:
   constexpr OrcIRTransformLayer() noexcept = default;
@@ -2257,6 +2382,7 @@ public:
 private:
   LLVMOrcIRTransformLayerRef Ref = nullptr;
 };
+#endif
 
 class OrcLLJIT {
 public:
@@ -2311,9 +2437,12 @@ public:
     return reinterpret_cast<T *>(Addr);
   }
 
+#if LLVM_VERSION_MAJOR < 11
+#else
   OrcIRTransformLayer getIRTransformLayer() noexcept {
     return LLVMOrcLLJITGetIRTransformLayer(Ref);
   }
+#endif
 
   static LLVMOrcLLJITBuilderRef getBuilder() noexcept;
 

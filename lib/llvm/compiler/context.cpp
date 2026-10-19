@@ -3,9 +3,9 @@
 
 #include "compiler/context.h"
 
-#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <initializer_list>
 #include <string_view>
 #include <utility>
@@ -76,6 +76,8 @@ Compiler::CompileContext::CompileContext(LLVM::Context C, LLVM::Module &M,
               Int32PtrTy,
               // PendingExnTagAddr
               Int8PtrPtrTy,
+              // StackLimit
+              Int8PtrTy,
           })),
       ExecCtxPtrTy(ExecCtxTy.getPointerTo()),
       IntrinsicsTableTy(LLVM::Type::getArrayType(
@@ -227,23 +229,46 @@ LLVM::Value toLLVMConstantZero(
     return LLVM::Value::getConstNull(LLContext.getInt64Ty());
   case TypeCode::Ref:
   case TypeCode::RefNull: {
-    std::array<uint8_t, 16> Data{};
+    // Type the null refs with the bottom heap type of their hierarchy so that
+    // ref.test/ref.cast match them against the concrete types.
+    TypeCode BotTypeCode = TypeCode::NullRef;
     if (ValType.isAbsHeapType()) {
-      // Abstract heap types are already fine for null refs.
-      const auto Raw = ValType.getRawData();
-      std::copy(Raw.begin(), Raw.end(), Data.begin());
+      switch (ValType.getHeapTypeCode()) {
+      case TypeCode::NullFuncRef:
+      case TypeCode::FuncRef:
+        BotTypeCode = TypeCode::NullFuncRef;
+        break;
+      case TypeCode::NullExternRef:
+      case TypeCode::ExternRef:
+        BotTypeCode = TypeCode::NullExternRef;
+        break;
+      case TypeCode::NullExnRef:
+      case TypeCode::ExnRef:
+        BotTypeCode = TypeCode::NullExnRef;
+        break;
+      case TypeCode::NullRef:
+      case TypeCode::AnyRef:
+      case TypeCode::EqRef:
+      case TypeCode::I31Ref:
+      case TypeCode::StructRef:
+      case TypeCode::ArrayRef:
+        BotTypeCode = TypeCode::NullRef;
+        break;
+      default:
+        assumingUnreachable();
+      }
     } else {
-      // For non-abstract heap types (concrete type indices), convert to the
-      // abstract heap type so that ref.cast/ref.test won't dereference a null
-      // pointer when checking the type.
       assuming(ValType.getTypeIndex() < CompositeTypes.size());
       const auto *CompType = CompositeTypes[ValType.getTypeIndex()];
       assuming(CompType != nullptr);
-      WasmEdge::ValType VType =
+      BotTypeCode =
           CompType->isFunc() ? TypeCode::NullFuncRef : TypeCode::NullRef;
-      std::copy_n(VType.getRawData().cbegin(), 8, Data.begin());
     }
-    return LLVM::Value::getConstVector8(LLContext, Data);
+    const WasmEdge::ValType VType(TypeCode::RefNull, BotTypeCode);
+    const auto Raw = VType.getRawData();
+    std::array<uint64_t, 2> Data{};
+    std::memcpy(Data.data(), Raw.data(), Raw.size());
+    return LLVM::Value::getConstVector64(LLContext, Data);
   }
   case TypeCode::V128:
     return LLVM::Value::getConstNull(

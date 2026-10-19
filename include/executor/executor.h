@@ -1176,6 +1176,7 @@ private:
     uint64_t GasLimit;
     std::atomic_uint32_t *StopToken;
     void *const *PendingExnTagAddr;
+    uint8_t *StackLimit;
   };
 
   /// Compiled code reads this struct by field index through the mirrored
@@ -1192,6 +1193,8 @@ private:
                 offsetof(ExecutorContext, StopToken));
   static_assert(offsetof(ExecutorContext, StopToken) <
                 offsetof(ExecutorContext, PendingExnTagAddr));
+  static_assert(offsetof(ExecutorContext, PendingExnTagAddr) <
+                offsetof(ExecutorContext, StackLimit));
 
   /// Restores thread local VM reference after overwriting it.
   struct SavedThreadLocal {

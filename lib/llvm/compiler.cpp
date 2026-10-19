@@ -30,28 +30,7 @@ struct RAIICleanup {
 };
 
 // Translate Compiler::OptimizationLevel to llvm::PassBuilder version
-#if LLVM_VERSION_MAJOR >= 13
-static inline const char *
-toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
-  using OL = WasmEdge::CompilerConfigure::OptimizationLevel;
-  switch (Level) {
-  case OL::O0:
-    return "default<O0>,function(tailcallelim)";
-  case OL::O1:
-    return "default<O1>,function(tailcallelim)";
-  case OL::O2:
-    return "default<O2>";
-  case OL::O3:
-    return "default<O3>";
-  case OL::Os:
-    return "default<Os>";
-  case OL::Oz:
-    return "default<Oz>";
-  default:
-    assumingUnreachable();
-  }
-}
-#else
+#if LLVM_VERSION_MAJOR < 13
 static inline std::pair<unsigned int, unsigned int>
 toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
   using OL = WasmEdge::CompilerConfigure::OptimizationLevel;
@@ -68,6 +47,33 @@ toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
     return {2, 1};
   case OL::Oz:
     return {2, 2};
+  default:
+    assumingUnreachable();
+  }
+}
+#else
+static inline const char *
+toLLVMLevel(WasmEdge::CompilerConfigure::OptimizationLevel Level) noexcept {
+  using OL = WasmEdge::CompilerConfigure::OptimizationLevel;
+  switch (Level) {
+  case OL::O0:
+    return "default<O0>,function(tailcallelim)";
+  case OL::O1:
+    return "default<O1>,function(tailcallelim)";
+  case OL::O2:
+    return "default<O2>";
+  case OL::O3:
+    return "default<O3>";
+#if LLVM_VERSION_MAJOR < 23
+  case OL::Os:
+    return "default<Os>";
+  case OL::Oz:
+    return "default<Oz>";
+#else
+  case OL::Os:
+  case OL::Oz:
+    return "default<O2>";
+#endif
   default:
     assumingUnreachable();
   }
@@ -142,16 +148,11 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
 #endif
       toLLVMCodeGenLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
       LLVMRelocPIC, LLVMCodeModelDefault);
+#if LLVM_VERSION_MAJOR < 16
+  TM.setModuleDataLayout(LLModule);
+#endif
 
-#if LLVM_VERSION_MAJOR >= 13
-  auto PBO = LLVM::PassBuilderOptions::create();
-  if (auto Error = PBO.runPasses(
-          LLModule,
-          toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
-          TM)) {
-    spdlog::error("{}"sv, Error.message().string_view());
-  }
-#else
+#if LLVM_VERSION_MAJOR < 13
   auto FP = LLVM::PassManager::createForModule(LLModule);
   auto MP = LLVM::PassManager::create();
 
@@ -181,6 +182,38 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
   }
   FP.finalizeFunctionPassManager();
   MP.runPassManager(LLModule);
+#else
+#if LLVM_VERSION_MAJOR < 23
+#else
+  {
+    using OL = CompilerConfigure::OptimizationLevel;
+    const auto Level = Conf.getCompilerConfigure().getOptimizationLevel();
+    if (Level == OL::Os || Level == OL::Oz) {
+      auto LLContext = LLModule.getContext();
+      const auto OptSize = LLVM::Attribute::createEnum(
+          LLContext, LLVM::Core::OptimizeForSize, 0);
+      const auto MinSize =
+          LLVM::Attribute::createEnum(LLContext, LLVM::Core::MinSize, 0);
+      for (auto Fn = LLModule.getFirstFunction(); Fn;
+           Fn = Fn.getNextFunction()) {
+        if (Fn.isDeclaration()) {
+          continue;
+        }
+        Fn.addFnAttr(OptSize);
+        if (Level == OL::Oz) {
+          Fn.addFnAttr(MinSize);
+        }
+      }
+    }
+  }
+#endif
+  auto PBO = LLVM::PassBuilderOptions::create();
+  if (auto Error = PBO.runPasses(
+          LLModule,
+          toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
+          TM)) {
+    spdlog::error("{}"sv, Error.message().string_view());
+  }
 #endif
 
   spdlog::info("optimize done"sv);
@@ -621,12 +654,32 @@ Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
     }
   }
 
+  auto Type = Context->resolveBlockType(T);
+  // A small leaf cannot recurse and its frame fits in the stack margin kept
+  // below the limit, so it skips the stack limit check.
+  const auto Instrs = Code->getExpr().getInstrs();
+  const bool IsSmallLeaf = Type.first.size() + Locals.size() <= 64 &&
+                           Instrs.size() <= 256 &&
+                           std::none_of(Instrs.begin(), Instrs.end(),
+                                        [](const AST::Instruction &Instr) {
+                                          switch (Instr.getOpCode()) {
+                                          case OpCode::Call:
+                                          case OpCode::Call_indirect:
+                                          case OpCode::Call_ref:
+                                          case OpCode::Return_call:
+                                          case OpCode::Return_call_indirect:
+                                          case OpCode::Return_call_ref:
+                                            return true;
+                                          default:
+                                            return false;
+                                          }
+                                        });
   FunctionCompiler FC(
       *Context, F, Locals, Conf.getCompilerConfigure().isInterruptible(),
       Conf.getStatisticsConfigure().isInstructionCounting(),
       Conf.getStatisticsConfigure().isCostMeasuring(),
-      Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT);
-  auto Type = Context->resolveBlockType(T);
+      Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT,
+      !IsSmallLeaf);
   EXPECTED_TRY(FC.compile(*Code, std::move(Type)));
   F.Fn.eliminateUnreachableBlocks();
 

@@ -2152,12 +2152,91 @@ TEST(SerializeInstructionTest, SerializeTruncSatInstruction) {
   EXPECT_EQ(Output, Expected);
 }
 
+TEST(SerializeInstructionTest, SerializeWideArithmeticInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 15. Test wide-arithmetic instructions (0xFC prefix, no immediates).
+  //
+  //   1.  Serialize i64.add128 instruction.
+  //   2.  Serialize i64.sub128 instruction.
+  //   3.  Serialize i64.mul_wide_s instruction.
+  //   4.  Serialize i64.mul_wide_u instruction.
+
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+  WasmEdge::AST::Instruction I64Add128(WasmEdge::OpCode::I64__add128);
+  WasmEdge::AST::Instruction I64Sub128(WasmEdge::OpCode::I64__sub128);
+  WasmEdge::AST::Instruction I64MulWideS(WasmEdge::OpCode::I64__mul_wide_s);
+  WasmEdge::AST::Instruction I64MulWideU(WasmEdge::OpCode::I64__mul_wide_u);
+
+  // 1. i64.add128
+  Instructions = {I64Add128, End};
+  Output = {};
+  Ser.serializeSection(createCodeSec(Instructions), Output);
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFCU, 0x13U, // OpCode I64__add128.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // 2. i64.sub128
+  Instructions = {I64Sub128, End};
+  Output = {};
+  Ser.serializeSection(createCodeSec(Instructions), Output);
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFCU, 0x14U, // OpCode I64__sub128.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // 3. i64.mul_wide_s
+  Instructions = {I64MulWideS, End};
+  Output = {};
+  Ser.serializeSection(createCodeSec(Instructions), Output);
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFCU, 0x15U, // OpCode I64__mul_wide_s.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // 4. i64.mul_wide_u
+  Instructions = {I64MulWideU, End};
+  Output = {};
+  Ser.serializeSection(createCodeSec(Instructions), Output);
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFCU, 0x16U, // OpCode I64__mul_wide_u.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+}
+
 TEST(SerializeInstructionTest, SerializeSIMDConstInstruction) {
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 15. Test SIMD const and shuffle instructions.
+  // 16. Test SIMD const and shuffle instructions.
   //
   //   1.  Serialize V128__const instruction.
   //   2.  Serialize I8x16__shuffle instruction.
@@ -2212,7 +2291,7 @@ TEST(SerializeInstructionTest, SerializeSIMDMemoryInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 16. Test base SIMD memory instructions.
+  // 17. Test base SIMD memory instructions.
   //
   //   1.  Serialize v128_load instruction with memarg.
   //   2.  Serialize v128_store instruction with memarg.
@@ -2345,7 +2424,7 @@ TEST(SerializeInstructionTest, SerializeSIMDLaneAndNumericInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 17. Test base SIMD lane and numeric instructions.
+  // 18. Test base SIMD lane and numeric instructions.
   //
   //   1.  Serialize i8x16_splat instruction.
   //   2.  Serialize i8x16_add instruction.
@@ -3066,7 +3145,7 @@ TEST(SerializeInstructionTest, SerializeSwizzleInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 18. Test swizzle instruction.
+  // 19. Test swizzle instruction.
   //
   //   1.  Serialize I8x16__relaxed_swizzle instruction.
 
@@ -3098,7 +3177,7 @@ TEST(SerializeInstructionTest, SerializeTruncInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 19. Test trunc instruction.
+  // 20. Test trunc instruction.
   //
   //   1.  Serialize I32x4__relaxed_trunc_f32x4_s instruction.
   //   2.  Serialize I32x4__relaxed_trunc_f32x4_u instruction.
@@ -3157,7 +3236,7 @@ TEST(SerializeInstructionTest, SerializeMulAddInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 20. Test multiply-add instruction.
+  // 21. Test multiply-add instruction.
   //
   //   1.  Serialize F32x4__relaxed_madd instruction.
   //   2.  Serialize F32x4__relaxed_nmadd instruction.
@@ -3216,7 +3295,7 @@ TEST(SerializeInstructionTest, SerializeLaneSelectInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 21. Test laneselect instruction.
+  // 22. Test laneselect instruction.
   //
   //   1.  Serialize I8x16__relaxed_laneselect instruction.
   //   2.  Serialize I16x8__relaxed_laneselect instruction.
@@ -3274,7 +3353,7 @@ TEST(SerializeInstructionTest, SerializeMinMaxInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 22. Test laneselect instruction.
+  // 23. Test laneselect instruction.
   //
   //   1.  Serialize F32x4__relaxed_min instruction.
   //   2.  Serialize F32x4__relaxed_max instruction.
@@ -3333,7 +3412,7 @@ TEST(SerializeInstructionTest, SerializeQ15MulRInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 23. Test rounding Q-format multiplication instruction.
+  // 24. Test rounding Q-format multiplication instruction.
   //
   //   1.  Serialize I16x8__relaxed_q15mulr_s instruction.
 
@@ -3365,7 +3444,7 @@ TEST(SerializeInstructionTest, SerializeDotProductInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 24. Test dot product instruction.
+  // 25. Test dot product instruction.
   //
   //   1.  Serialize I16x8__relaxed_dot_i8x16_i7x16_s instruction.
   //   2.  Serialize I32x4__relaxed_dot_i8x16_i7x16_add_s instruction.
@@ -3407,7 +3486,7 @@ TEST(SerializeInstructionTest, SerializeAtomicInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 25. Test atomic instructions.
+  // 26. Test atomic instructions.
   //
   //   1.  Serialize memory_atomic_notify instruction with memarg.
   //   2.  Serialize memory_atomic_wait32 instruction with memarg.
@@ -3659,7 +3738,7 @@ TEST(SerializeInstructionTest, SerializeAtomicFenceAndWait64Instruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 26. Test atomic.fence and memory.atomic.wait64 serialization.
+  // 27. Test atomic.fence and memory.atomic.wait64 serialization.
   //
   //   1.  Serialize atomic.fence (a reserved byte immediate, not a memarg).
   //   2.  Serialize memory.atomic.wait64 with memarg.

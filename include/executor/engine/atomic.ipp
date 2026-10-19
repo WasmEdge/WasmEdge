@@ -40,7 +40,7 @@ TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return E;
       })
-      .map([&](auto V) { RawAddress = emplaceAddr(V, AddrType); });
+      .map([&](auto V) { RawAddress = emplaceAddr(V, AddressType::I32); });
 }
 
 template <typename T, typename I>

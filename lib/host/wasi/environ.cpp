@@ -21,15 +21,10 @@ static inline constexpr const __wasi_rights_t kPreOpenBaseRightsReadOnly =
 static inline constexpr const __wasi_rights_t kPreOpenInheritingRightsReadOnly =
     __WASI_RIGHTS_FD_DATASYNC | __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_SEEK |
     __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS | __WASI_RIGHTS_FD_SYNC |
-    __WASI_RIGHTS_FD_TELL | __WASI_RIGHTS_FD_ADVISE |
-    __WASI_RIGHTS_PATH_CREATE_DIRECTORY | __WASI_RIGHTS_PATH_CREATE_FILE |
-    __WASI_RIGHTS_PATH_LINK_SOURCE | __WASI_RIGHTS_PATH_LINK_TARGET |
-    __WASI_RIGHTS_PATH_OPEN | __WASI_RIGHTS_FD_READDIR |
-    __WASI_RIGHTS_PATH_READLINK | __WASI_RIGHTS_PATH_RENAME_SOURCE |
-    __WASI_RIGHTS_PATH_RENAME_TARGET | __WASI_RIGHTS_PATH_FILESTAT_GET |
-    __WASI_RIGHTS_FD_FILESTAT_GET | __WASI_RIGHTS_FD_FILESTAT_SET_TIMES |
-    __WASI_RIGHTS_PATH_SYMLINK | __WASI_RIGHTS_PATH_REMOVE_DIRECTORY |
-    __WASI_RIGHTS_PATH_UNLINK_FILE | __WASI_RIGHTS_POLL_FD_READWRITE;
+    __WASI_RIGHTS_FD_TELL | __WASI_RIGHTS_FD_ADVISE | __WASI_RIGHTS_PATH_OPEN |
+    __WASI_RIGHTS_FD_READDIR | __WASI_RIGHTS_PATH_READLINK |
+    __WASI_RIGHTS_PATH_FILESTAT_GET | __WASI_RIGHTS_FD_FILESTAT_GET |
+    __WASI_RIGHTS_POLL_FD_READWRITE;
 static inline constexpr const __wasi_rights_t kPreOpenBaseRights =
     __WASI_RIGHTS_PATH_CREATE_DIRECTORY | __WASI_RIGHTS_PATH_CREATE_FILE |
     __WASI_RIGHTS_PATH_LINK_SOURCE | __WASI_RIGHTS_PATH_LINK_TARGET |
@@ -265,8 +260,17 @@ WasiExpect<bool> Environ::pathCanWrite(std::string_view Path) const noexcept {
       __WASI_RIGHTS_FD_WRITE, static_cast<__wasi_fdflags_t>(0));
 
   if (Result) {
-    const_cast<Environ *>(this)->fdClose(*Result);
-    return true;
+    __wasi_fdstat_t FdStat{};
+    auto StatResult = fdFdstatGet(*Result, FdStat);
+    auto CloseResult = const_cast<Environ *>(this)->fdClose(*Result);
+    if (!StatResult) {
+      return WasiUnexpect(StatResult.error());
+    }
+    if (!CloseResult) {
+      return WasiUnexpect(CloseResult.error());
+    }
+    return (EndianValue(FdStat.fs_rights_base).le() & __WASI_RIGHTS_FD_WRITE) !=
+           0;
   }
   if (Result.error() == __WASI_ERRNO_ACCES ||
       Result.error() == __WASI_ERRNO_NOENT) {

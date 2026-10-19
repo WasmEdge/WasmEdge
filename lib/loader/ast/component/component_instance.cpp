@@ -6,7 +6,7 @@
 namespace WasmEdge {
 namespace Loader {
 
-Expect<void> Loader::loadCoreInstance(AST::Component::CoreInstance &Instance) {
+Expect<void> Loader::loadInstance(AST::Component::CoreInstance &Instance) {
   auto ReportError = [this](auto E) {
     return logLoadError(E, FMgr.getLastOffset(),
                         ASTNodeAttr::Comp_CoreInstance);

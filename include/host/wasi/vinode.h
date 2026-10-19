@@ -465,13 +465,13 @@ public:
   /// @param[in] OpenFlags The method by which to open the file.
   /// @param[in] FsRightsBase The initial rights of the newly created file
   /// descriptor. The implementation is allowed to return a file descriptor with
-  /// fewer rights than specified, if and only if those rights do not apply to
-  /// the type of file being opened. The *base* rights are rights that will
-  /// apply to operations using the file descriptor itself.
+  /// fewer rights than specified when those rights do not apply to the file
+  /// type or the parent descriptor cannot pass them on. The *base* rights apply
+  /// to operations using the file descriptor itself.
   /// @param[in] FsRightsInheriting The initial rights of the newly created file
   /// descriptor. The implementation is allowed to return a file descriptor with
-  /// fewer rights than specified, if and only if those rights do not apply to
-  /// the type of file being opened. The *inheriting* rights are rights that
+  /// fewer rights than specified when those rights do not apply to the file
+  /// type or the parent descriptor cannot pass them on. The *inheriting* rights
   /// apply to file descriptors derived from it.
   /// @param[in] FdFlags The method by which to open the file.
   /// @return The file descriptor of the file that has been opened, or WASI
@@ -559,7 +559,8 @@ public:
               const __wasi_addrinfo_t &Hint, uint32_t MaxResLength,
               Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
               Span<__wasi_sockaddr_t *> WasiSockaddrArray,
-              Span<char *> AiAddrSaDataArray, Span<char *> AiCanonnameArray,
+              Span<Span<char>> AiAddrSaDataArray,
+              Span<Span<char>> AiCanonnameArray,
               /*Out*/ __wasi_size_t &ResLength) noexcept;
 
   static WasiExpect<std::shared_ptr<VINode>>

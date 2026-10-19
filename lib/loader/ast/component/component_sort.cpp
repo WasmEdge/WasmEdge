@@ -32,16 +32,18 @@ Expect<void> Loader::loadSort(AST::Component::Sort &Sort) {
   EXPECTED_TRY(auto Flag, FMgr.readByte().map_error([this](auto E) {
     return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Sort);
   }));
-  switch (Flag) {
-  case 0x00:
+  if (Flag == 0x00) {
     return loadCoreSort(Sort);
-  case 0x01:
-  case 0x02:
-  case 0x03:
-  case 0x04:
-  case 0x05:
+  }
+  const auto Type = static_cast<AST::Component::Sort::SortType>(Flag);
+  switch (Type) {
+  case AST::Component::Sort::SortType::Func:
+  case AST::Component::Sort::SortType::Value:
+  case AST::Component::Sort::SortType::Type:
+  case AST::Component::Sort::SortType::Component:
+  case AST::Component::Sort::SortType::Instance:
     Sort.setIsCore(false);
-    Sort.setSortType(static_cast<AST::Component::Sort::SortType>(Flag));
+    Sort.setSortType(Type);
     return {};
   default:
     return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
@@ -61,17 +63,18 @@ Expect<void> Loader::loadCoreSort(AST::Component::Sort &Sort) {
   EXPECTED_TRY(auto Flag, FMgr.readByte().map_error([this](auto E) {
     return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Sort);
   }));
-  switch (Flag) {
-  case 0x00:
-  case 0x01:
-  case 0x02:
-  case 0x03:
-  case 0x04:
-  case 0x10:
-  case 0x11:
-  case 0x12:
+  const auto Type = static_cast<AST::Component::Sort::CoreSortType>(Flag);
+  switch (Type) {
+  case AST::Component::Sort::CoreSortType::Func:
+  case AST::Component::Sort::CoreSortType::Table:
+  case AST::Component::Sort::CoreSortType::Memory:
+  case AST::Component::Sort::CoreSortType::Global:
+  case AST::Component::Sort::CoreSortType::Tag:
+  case AST::Component::Sort::CoreSortType::Type:
+  case AST::Component::Sort::CoreSortType::Module:
+  case AST::Component::Sort::CoreSortType::Instance:
     Sort.setIsCore(true);
-    Sort.setCoreSortType(static_cast<AST::Component::Sort::CoreSortType>(Flag));
+    Sort.setCoreSortType(Type);
     return {};
   default:
     return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),

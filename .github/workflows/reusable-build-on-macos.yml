@@ -6,7 +6,7 @@ on:
       version:
         type: string
         required: true
-      matrix: # [ { name, runner, darwin_version }, ... ]
+      matrix: # [ { name, runner, darwin_version, arch, tests }, ... ]
         type: string
         required: true
       release:
@@ -26,14 +26,14 @@ jobs:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
     env:
-      BUILD_TESTS: ON
+      BUILD_TESTS: OFF
       BUILD_TYPE: Debug
       SCCACHE_GHA_ENABLED: "true"
       CMAKE_C_COMPILER_LAUNCHER: sccache
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 
@@ -122,10 +122,13 @@ jobs:
           fi
           brew link "${LLD_KEG}" || true
           brew link cmake || true
+      - name: Set environment variables for tests
+        if: ${{ matrix.tests }}
+        run: |
+          echo "BUILD_TESTS=ON" | tee -a $GITHUB_ENV
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |
-          echo "BUILD_TESTS=OFF" | tee -a $GITHUB_ENV
           echo "BUILD_TYPE=Release" | tee -a $GITHUB_ENV
       - name: Build WasmEdge
         env:
@@ -144,6 +147,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX:PATH=$GITHUB_WORKSPACE/output .
           cmake --build build
       - name: Test WasmEdge
+        if: ${{ matrix.tests }}
         run: |
           export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
           cd build
@@ -177,7 +181,7 @@ jobs:
           bash .github/scripts/check_symbols.sh
       - name: Upload artifact
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: WasmEdge-${{ inputs.version }}-darwin_${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz

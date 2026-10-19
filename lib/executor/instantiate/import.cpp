@@ -34,22 +34,6 @@ auto logUnknownError(std::string_view ModName, std::string_view ExtName,
   return Unexpect(ErrCode::Value::UnknownImport);
 }
 
-bool matchLimit(const AST::Limit &Exp, const AST::Limit &Got) {
-  if (Exp.getAddrType() != Got.getAddrType()) {
-    return false;
-  }
-  if (Exp.isShared() != Got.isShared()) {
-    return false;
-  }
-  if ((Got.getMin() < Exp.getMin()) || (Exp.hasMax() && !Got.hasMax())) {
-    return false;
-  }
-  if (Exp.hasMax() && Got.hasMax() && Got.getMax() > Exp.getMax()) {
-    return false;
-  }
-  return true;
-}
-
 Expect<void>
 checkImportMatched(std::string_view ModName, std::string_view ExtName,
                    const ExternalType ExtType,
@@ -241,7 +225,7 @@ Expect<void> Executor::instantiate(
           !AST::TypeMatcher::matchType(
               ImpModInst->getTypeList(), ImpType.getRefType(),
               ModInst.getTypeList(), TabType.getRefType()) ||
-          !matchLimit(TabLim, ImpLim)) {
+          !AST::TypeMatcher::matchLimit(TabLim, ImpLim)) {
         return logMatchError(ModName, ExtName, ExtType, TabType.getRefType(),
                              TabLim.hasMax(), TabLim.getMin(), TabLim.getMax(),
                              ImpType.getRefType(), ImpLim.hasMax(),
@@ -259,7 +243,7 @@ Expect<void> Executor::instantiate(
       // description.
       auto *ImpInst = ImpModInst->findMemoryExports(ExtName);
       const auto &ImpLim = ImpInst->getMemoryType().getLimit();
-      if (!matchLimit(MemLim, ImpLim)) {
+      if (!AST::TypeMatcher::matchLimit(MemLim, ImpLim)) {
         return logMatchError(ModName, ExtName, ExtType, MemLim.hasMax(),
                              MemLim.getMin(), MemLim.getMax(), ImpLim.hasMax(),
                              ImpLim.getMin(), ImpLim.getMax());

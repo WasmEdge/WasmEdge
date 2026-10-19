@@ -54,8 +54,7 @@ Expect<void> checkLabel(std::string_view Label,
 
 } // namespace
 
-// valtype ::= i:<typeidx> | pvt:<primvaltype>. A type index must refer to a
-// defvaltype entry in the current scope.
+// valtype ::= i:<typeidx> | pvt:<primvaltype>; the index must be a defvaltype.
 Expect<void> Validator::validate(const ComponentValType &VT) noexcept {
   if (VT.isPrimValType()) {
     return {};
@@ -67,7 +66,7 @@ Expect<void> Validator::validate(const ComponentValType &VT) noexcept {
                   VT.getTypeIndex(), CompCtx.top().Types.size());
     return Unexpect(ErrCode::Value::ComponentTypeIndexOutOfBounds);
   }
-  if (Entry->DT == nullptr || !Entry->DT->isDefValType()) {
+  if (Entry->getDefValType() == nullptr) {
     spdlog::error(ErrCode::Value::NotADefinedType);
     spdlog::error("    Value type index {} does not refer to a value type."sv,
                   VT.getTypeIndex());
@@ -199,7 +198,7 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
                     Idx, CompCtx.top().Types.size());
       return Unexpect(ErrCode::Value::ComponentTypeIndexOutOfBounds);
     }
-    if (!Entry->ResourceId.has_value()) {
+    if (!Entry->isResource()) {
       spdlog::error(ErrCode::Value::ComponentNotResourceType);
       spdlog::error(
           "    own/borrow type index {} does not refer to a resource type."sv,
@@ -243,8 +242,7 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
     return {};
   }
   if (DVT.isMapTy()) {
-    // keytype ::= bool | s8 | u8 | s16 | u16 | s32 | u32 | s64 | u64 | char
-    //           | string
+    // keytype ::= bool | s8 .. u64 | char | string.
     const auto &Map = DVT.getMap();
     switch (Map.KeyTy.getCode()) {
     case ComponentTypeCode::Bool:
@@ -285,20 +283,9 @@ Expect<void> Validator::validate(const AST::Component::FuncType &FT) noexcept {
                             ErrCode::Value::FuncParamNameConflict));
     EXPECTED_TRY(validate(Param.getValType()));
   }
-  if (FT.getResultList().size() > 1) {
-    spdlog::error(ErrCode::Value::InvalidTypeReference);
-    spdlog::error("    Function types may have at most one result."sv);
-    return Unexpect(ErrCode::Value::InvalidTypeReference);
-  }
-  for (const auto &Result : FT.getResultList()) {
-    if (!Result.getLabel().empty()) {
-      spdlog::error(ErrCode::Value::InvalidTypeReference);
-      spdlog::error("    Function results cannot be named."sv);
-      return Unexpect(ErrCode::Value::InvalidTypeReference);
-    }
-    EXPECTED_TRY(validate(Result.getValType()));
-    if (CompTypes.containsBorrow(
-            {Result.getValType(), &CompCtx.top(), nullptr})) {
+  if (const auto &Result = FT.getResult(); Result.has_value()) {
+    EXPECTED_TRY(validate(*Result));
+    if (CompTypes.containsBorrow({*Result, &CompCtx.top(), nullptr})) {
       spdlog::error(ErrCode::Value::FuncResultContainsBorrow);
       spdlog::error("    Function results cannot contain borrow handles."sv);
       return Unexpect(ErrCode::Value::FuncResultContainsBorrow);
@@ -309,7 +296,7 @@ Expect<void> Validator::validate(const AST::Component::FuncType &FT) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::ResourceType &RT) noexcept {
-  if (CompCtx.top().K != Component::Scope::Kind::Component) {
+  if (CompCtx.top().Kind != Component::ScopeKind::Component) {
     spdlog::error(ErrCode::Value::ComponentResourceOutsideComponent);
     spdlog::error(
         "    Resource types cannot be defined in component or instance types."sv);
@@ -345,28 +332,24 @@ Validator::validate(const AST::Component::ResourceType &RT) noexcept {
   return {};
 }
 
-// core:deftype ::= rectype | moduletype. Rectypes push one core:type entry
-// per subtype; moduletypes are validated in their own scope.
+// core:deftype ::= rectype | moduletype; rectypes push one entry per subtype.
 Expect<void>
 Validator::validate(const AST::Component::CoreDefType &DType) noexcept {
   if (DType.isRecType()) {
     auto &S = CompCtx.top();
     const auto STypes = DType.getSubTypes();
     const uint32_t BaseIdx = static_cast<uint32_t>(S.CoreTypes.size());
-    // The group enters the core:type space as a whole, so that its members may
-    // reference each other, and every member then validates against it.
+    // The whole group is added first so its members may reference each other.
     for (const auto &ST : STypes) {
-      S.CoreTypes.push_back({&ST, nullptr});
+      S.addCoreType({&ST, nullptr});
     }
-    // A module type occupies a core:type index but is not a subtype, so it
-    // reaches the core subtype rules as a null entry.
+    // A module type occupies a core:type index but is a null subtype entry.
     std::vector<const AST::SubType *> TypeVec;
     TypeVec.reserve(S.CoreTypes.size());
     for (const auto &Entry : S.CoreTypes) {
       TypeVec.push_back(Entry.Func);
     }
-    // Concrete indices resolve against the component core:type space, which
-    // the core FormChecker cannot see.
+    // Concrete indices resolve against the component core:type space.
     auto CheckIdx = [&S](uint32_t Idx) -> Expect<void> {
       const auto *Entry = S.getCoreType(Idx);
       if (Entry == nullptr) {
@@ -387,8 +370,7 @@ Validator::validate(const AST::Component::CoreDefType &DType) noexcept {
       }
       return {};
     };
-    // Depth memoization for the core subtype hierarchy checks. The core
-    // validator resizes it on demand.
+    // Depth memoization for the core subtype hierarchy checks.
     std::vector<uint32_t> SubTypeDepthMap;
     for (uint32_t I = 0; I < STypes.size(); ++I) {
       const auto &CT = STypes[I].getCompositeType();
@@ -407,13 +389,12 @@ Validator::validate(const AST::Component::CoreDefType &DType) noexcept {
       for (const uint32_t Idx : STypes[I].getSuperTypeIndices()) {
         EXPECTED_TRY(CheckIdx(Idx));
       }
-      EXPECTED_TRY(validate(STypes[I], BaseIdx + I, SubTypeDepthMap, TypeVec));
     }
-    return {};
+    return validate(STypes, BaseIdx, SubTypeDepthMap, TypeVec);
   }
-  auto *Shape = CompTypes.newCoreShape();
+  auto *Shape = CompTypes.addCoreShape();
   EXPECTED_TRY(validate(DType.getModuleType(), *Shape));
-  CompCtx.top().CoreTypes.push_back({nullptr, Shape});
+  CompCtx.top().addCoreType({nullptr, Shape});
   return {};
 }
 
@@ -422,46 +403,63 @@ Validator::validate(const AST::Component::DefType &DType) noexcept {
   if (DType.isDefValType()) {
     EXPECTED_TRY(validate(DType.getDefValType()));
     auto &S = CompCtx.top();
-    S.Types.push_back(
-        {&DType, &S, nullptr, nullptr, nullptr, {}, CompTypes.newNameId()});
+    // The Canonical ABI bounds the element size of every defvaltype.
+    const uint64_t Size =
+        CompTypes.getElemLayout(DType.getDefValType(), &S, nullptr).first;
+    if (Size >= Component::TypeSystem::MaxElemSize) {
+      spdlog::error(ErrCode::Value::ComponentValueSizeTooLarge);
+      spdlog::error("    Value type of {} bytes reaches the limit of {}."sv,
+                    Size, Component::TypeSystem::MaxElemSize);
+      return Unexpect(ErrCode::Value::ComponentValueSizeTooLarge);
+    }
+    Component::TypeEntry Entry{&DType, &S};
+    Entry.NameId = CompTypes.nextNameId();
+    S.addType(Entry);
   } else if (DType.isFuncType()) {
     EXPECTED_TRY(validate(DType.getFuncType()));
     auto &S = CompCtx.top();
-    S.Types.push_back({&DType, &S, nullptr, nullptr, nullptr, {}, {}});
+    S.addType({&DType, &S});
   } else if (DType.isResourceType()) {
     EXPECTED_TRY(validate(DType.getResourceType()));
     auto &S = CompCtx.top();
     const uint32_t Id =
         CompTypes.addResource(&DType.getResourceType(), &S, false);
-    S.Types.push_back({&DType, &S, nullptr, nullptr, nullptr, Id,
-                       CompTypes.getResource(Id).NameId});
+    Component::TypeEntry Entry{&DType, &S};
+    Entry.ResourceId = Id;
+    Entry.NameId = CompTypes.getResource(Id).NameId;
+    S.addType(Entry);
   } else if (DType.isInstanceType()) {
-    auto *Shape = CompTypes.newShape();
+    auto *Shape = CompTypes.addShape();
     EXPECTED_TRY(validate(DType.getInstanceType(), *Shape));
     auto &S = CompCtx.top();
-    S.Types.push_back({&DType, &S, nullptr, Shape, nullptr, {}, {}});
+    Component::TypeEntry Entry{&DType, &S};
+    Entry.Inst = Shape;
+    S.addType(Entry);
   } else if (DType.isComponentType()) {
-    auto *Shape = CompTypes.newShape();
+    auto *Shape = CompTypes.addShape();
     EXPECTED_TRY(validate(DType.getComponentType(), *Shape));
     auto &S = CompCtx.top();
-    S.Types.push_back({&DType, &S, nullptr, nullptr, Shape, {}, {}});
+    Component::TypeEntry Entry{&DType, &S};
+    Entry.Comp = Shape;
+    S.addType(Entry);
   }
   // Effective type-size limit on the freshly defined entry.
   {
     auto &S = CompCtx.top();
     Component::ExternInfo Probe;
-    Probe.K = Component::ExternKind::TypeBound;
+    Probe.Kind = Component::ExternKind::TypeBound;
     Probe.Type = S.Types.back();
     EXPECTED_TRY(CompTypes.checkTypeLimits(Probe));
   }
   return {};
 }
 
-// core:importdesc inside moduletype declarations. A func or tag type index
-// resolves in the own core type space of the moduletype.
+// core:importdesc in a moduletype; type indices resolve in its own core space.
 Expect<void> Validator::validate(const AST::Component::CoreImportDesc &Desc,
                                  Component::CoreExternInfo &Out) noexcept {
-  if (Desc.isFunc()) {
+  Out.Kind = Desc.getExternalType();
+  switch (Out.Kind) {
+  case ExternalType::Function: {
     const auto *Entry = CompCtx.top().getCoreType(Desc.getTypeIndex());
     if (Entry == nullptr) {
       spdlog::error(ErrCode::Value::ComponentTypeIndexOutOfBounds);
@@ -475,21 +473,25 @@ Expect<void> Validator::validate(const AST::Component::CoreImportDesc &Desc,
                     Desc.getTypeIndex());
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
-    Out.Kind = ExternalType::Function;
     Out.Func = Entry->Func;
-  } else if (Desc.isTable()) {
+    break;
+  }
+  case ExternalType::Table: {
     EXPECTED_TRY(validate(Desc.getTableType()));
-    Out.Kind = ExternalType::Table;
     Out.Table = &Desc.getTableType();
-  } else if (Desc.isMemory()) {
+    break;
+  }
+  case ExternalType::Memory: {
     EXPECTED_TRY(validate(Desc.getMemoryType()));
-    Out.Kind = ExternalType::Memory;
     Out.Memory = &Desc.getMemoryType();
-  } else if (Desc.isGlobal()) {
+    break;
+  }
+  case ExternalType::Global: {
     EXPECTED_TRY(validate(Desc.getGlobalType()));
-    Out.Kind = ExternalType::Global;
     Out.Global = &Desc.getGlobalType();
-  } else if (Desc.isTag()) {
+    break;
+  }
+  case ExternalType::Tag: {
     const uint32_t Idx = Desc.getTagType().getTypeIdx();
     const auto *Entry = CompCtx.top().getCoreType(Idx);
     if (Entry == nullptr) {
@@ -506,18 +508,18 @@ Expect<void> Validator::validate(const AST::Component::CoreImportDesc &Desc,
       spdlog::error("    Tag types must be function types without results."sv);
       return Unexpect(ErrCode::Value::InvalidTagResultType);
     }
-    Out.Kind = ExternalType::Tag;
     Out.Func = Entry->Func;
+    break;
+  }
   }
   return {};
 }
 
-// moduletype ::= 0x50 md*:vec(<core:moduledecl>). Runs in a ModuleType scope
-// whose core type space is local to the declaration body.
+// moduletype ::= 0x50 md*:vec(<core:moduledecl>), in its own ModuleType scope.
 Expect<void>
 Validator::validate(Span<const AST::Component::CoreModuleDecl> Decls,
                     Component::CoreShape &Out) noexcept {
-  CompCtx.enterScope(Component::Scope::Kind::ModuleType);
+  CompCtx.enterScope(Component::ScopeKind::ModuleType);
   for (const auto &Decl : Decls) {
     if (Decl.isImport()) {
       const auto &Imp = Decl.getImport();
@@ -539,12 +541,6 @@ Validator::validate(Span<const AST::Component::CoreModuleDecl> Decls,
         spdlog::error(ErrCode::Value::InvalidTypeReference);
         return Unexpect(ErrCode::Value::InvalidTypeReference);
       }
-      // MVP: module types cannot define nested module types.
-      if (T->isModuleType()) {
-        spdlog::error(ErrCode::Value::InvalidTypeReference);
-        spdlog::error("    Module types cannot define nested module types."sv);
-        return Unexpect(ErrCode::Value::InvalidTypeReference);
-      }
       EXPECTED_TRY(validate(*T));
     } else if (Decl.isAlias()) {
       EXPECTED_TRY(validate(Decl.getAlias()));
@@ -564,8 +560,7 @@ Validator::validate(Span<const AST::Component::CoreModuleDecl> Decls,
   return {};
 }
 
-// core:alias inside moduletype declarations. The grammar fixes it to an outer
-// alias of the core type sort. The MVP also rejects an alias of a module type.
+// core:alias in a moduletype: an outer alias of a non-module core type.
 Expect<void>
 Validator::validate(const AST::Component::CoreAlias &Alias) noexcept {
   const auto *Target = CompCtx.scopeUp(Alias.getComponentJump());
@@ -587,13 +582,13 @@ Validator::validate(const AST::Component::CoreAlias &Alias) noexcept {
     spdlog::error("    Module types cannot be aliased into module types."sv);
     return Unexpect(ErrCode::Value::InvalidTypeReference);
   }
-  CompCtx.top().CoreTypes.push_back(*Entry);
+  CompCtx.top().addCoreType(*Entry);
   return {};
 }
 
 Expect<void> Validator::validate(const AST::Component::InstanceType &IT,
                                  Component::Shape &Out) noexcept {
-  auto &S = CompCtx.enterScope(Component::Scope::Kind::InstanceType);
+  auto &S = CompCtx.enterScope(Component::ScopeKind::InstanceType);
   Out.DeclScope = &S;
   for (const auto &Decl : IT.getDecl()) {
     const auto Before = Out.Exports.size();
@@ -608,7 +603,7 @@ Expect<void> Validator::validate(const AST::Component::InstanceType &IT,
 
 Expect<void> Validator::validate(const AST::Component::ComponentType &CT,
                                  Component::Shape &Out) noexcept {
-  auto &S = CompCtx.enterScope(Component::Scope::Kind::ComponentType);
+  auto &S = CompCtx.enterScope(Component::ScopeKind::ComponentType);
   Out.DeclScope = &S;
   for (const auto &Decl : CT.getDecl()) {
     EXPECTED_TRY(validate(Decl, Out));
@@ -644,7 +639,7 @@ Expect<void> Validator::validate(const AST::Component::InstanceDecl &Decl,
     // The descriptor is checked before the export name.
     Component::ExternInfo Info;
     EXPECTED_TRY(validate(ED.getExternDesc(), false, Info));
-    if (Info.K == Component::ExternKind::InstanceType) {
+    if (Info.Kind == Component::ExternKind::InstanceType) {
       Info.Shape = CompCtx.freshenDeclaredResources(Info.Shape, false);
     }
     EXPECTED_TRY(Component::ExternName CN,
@@ -655,8 +650,8 @@ Expect<void> Validator::validate(const AST::Component::InstanceDecl &Decl,
     EXPECTED_TRY(CompCtx.checkNamedTypesRule(Info, false));
     EXPECTED_TRY(CompCtx.checkAnnotatedName(CN, Info, false));
     EXPECTED_TRY(CompCtx.checkNameAttributes(
-        CN, ED.getImplements(), ED.getExternalIds(), ED.getVersionSuffixes(),
-        Info.K == Component::ExternKind::InstanceType));
+        CN, ED.getImplements(), ED.getVersionSuffixes(),
+        Info.Kind == Component::ExternKind::InstanceType));
     CompCtx.recordResourceLabel(CN, Info, false);
     Exports.emplace(std::string(ED.getName()), Info);
     return {};
@@ -671,23 +666,22 @@ Expect<void> Validator::validate(const AST::Component::ComponentDecl &Decl,
     const auto &ID = Decl.getImport();
     Component::ExternInfo Resolved;
     EXPECTED_TRY(validate(ID.getExternDesc(), true, Resolved));
-    EXPECTED_TRY(auto Ext, CompCtx.defineImport(
-                               ID.getName(), Resolved, ID.getImplements(),
-                               ID.getExternalIds(), ID.getVersionSuffixes()));
+    EXPECTED_TRY(auto Ext, CompCtx.defineImport(ID.getName(), Resolved,
+                                                ID.getImplements(),
+                                                ID.getVersionSuffixes()));
     Out.Imports.emplace_back(std::string(ID.getName()), Ext);
     return {};
   }
   return validate(Decl.getInstance(), Out.Exports);
 }
 
-// externdesc resolution: bounds/kind checks plus entity typing. Sub-resource
-// type bounds allocate a fresh abstract id in the current scope.
+// externdesc resolution; a (sub resource) bound allocates a fresh resource id.
 Expect<void> Validator::validate(const AST::Component::ExternDesc &Desc,
                                  bool IsImport,
                                  Component::ExternInfo &Out) noexcept {
-  Out.K = Desc.getDescType();
+  Out.Kind = Desc.getDescType();
   auto &S = CompCtx.top();
-  switch (Out.K) {
+  switch (Out.Kind) {
   case AST::Component::ExternDesc::DescType::CoreType: {
     const auto *Entry = S.getCoreType(Desc.getTypeIndex());
     if (Entry == nullptr) {
@@ -715,7 +709,7 @@ Expect<void> Validator::validate(const AST::Component::ExternDesc &Desc,
                     Desc.getTypeIndex(), S.Types.size());
       return Unexpect(ErrCode::Value::ComponentTypeIndexOutOfBounds);
     }
-    if (Entry->DT == nullptr || !Entry->DT->isFuncType()) {
+    if (Entry->getFuncType() == nullptr) {
       const auto Code = IsImport ? ErrCode::Value::ComponentUnknownFunctionType
                                  : ErrCode::Value::ComponentNotFunctionType;
       spdlog::error(Code);
@@ -723,7 +717,7 @@ Expect<void> Validator::validate(const AST::Component::ExternDesc &Desc,
                     Desc.getTypeIndex());
       return Unexpect(Code);
     }
-    Out.Func = {&Entry->DT->getFuncType(), Entry->Home, Entry->Remap};
+    Out.Func = {Entry->getFuncType(), Entry->Home, Entry->Remap};
     return {};
   }
   case AST::Component::ExternDesc::DescType::ValueBound: {
@@ -753,18 +747,16 @@ Expect<void> Validator::validate(const AST::Component::ExternDesc &Desc,
       }
       Out.Type = *Entry;
       // The created index carries a fresh naming identity.
-      Out.Type.NameId = CompTypes.newNameId();
+      Out.Type.NameId = CompTypes.nextNameId();
       return {};
     }
     // (sub resource): fresh abstract resource type.
     const uint32_t Id = CompTypes.addResource(nullptr, &S, IsImport);
-    Out.Type = {nullptr,
-                &S,
-                nullptr,
-                nullptr,
-                nullptr,
-                Id,
-                CompTypes.getResource(Id).NameId};
+    Component::TypeEntry Bound;
+    Bound.Home = &S;
+    Bound.ResourceId = Id;
+    Bound.NameId = CompTypes.getResource(Id).NameId;
+    Out.Type = Bound;
     return {};
   }
   case AST::Component::ExternDesc::DescType::ComponentType: {

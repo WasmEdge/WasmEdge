@@ -203,7 +203,7 @@ void ArgumentParser::SubCommandDescriptor::help(std::FILE *Out) const noexcept {
       continue;
     }
 
-    fmt::print(Out, "{}{}\n"sv, kIndent, GREEN_COLOR);
+    fmt::print(Out, "{}{}"sv, kIndent, GREEN_COLOR);
     bool First = true;
     for (const auto &Option : Desc.options()) {
       if (!First) {

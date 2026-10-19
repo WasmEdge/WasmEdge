@@ -221,6 +221,10 @@ struct Compiler::CompileContext {
                            LLVM::Value ExecCtx) noexcept {
     return Builder.createExtractValue(ExecCtx, 4);
   }
+  LLVM::Value getStackLimit(LLVM::Builder &Builder,
+                            LLVM::Value ExecCtx) noexcept {
+    return Builder.createExtractValue(ExecCtx, 6);
+  }
   LLVM::FunctionCallee getIntrinsic(LLVM::Builder &Builder,
                                     Executable::Intrinsics Index,
                                     LLVM::Type Ty) noexcept {
@@ -254,7 +258,7 @@ struct Compiler::CompileContext {
   }
   void finalizeIntrinsicsTable() noexcept {
     if (auto Table = LLModule.get().getNamedGlobal("intrinsics")) {
-      Table.setInitializer(LLVM::Value::getConstNull(Table.getType()));
+      Table.setInitializer(LLVM::Value::getConstNull(IntrinsicsTablePtrTy));
       Table.setGlobalConstant(false);
     } else {
       LLModule.get().addGlobal(IntrinsicsTablePtrTy, false, LLVMExternalLinkage,

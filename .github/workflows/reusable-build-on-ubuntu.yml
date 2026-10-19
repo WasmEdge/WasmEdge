@@ -119,7 +119,7 @@ jobs:
           LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target codecov
       - name: Upload artifact
         if: ${{ !inputs.release && !matrix.coverage && !matrix.fuzzing }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: WasmEdge-${{ inputs.version }}-${{ matrix.name }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ matrix.arch }}.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
@@ -138,10 +138,11 @@ jobs:
           gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-ubuntu20.04_${{ matrix.arch }}.tar.gz --clobber
       - name: Create and upload coverage report to Codecov
         if: ${{ matrix.coverage }}
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./build/codecov.xml
+          disable_search: true
           name: codecov-wasmedge
           fail_ci_if_error: true
           verbose: true

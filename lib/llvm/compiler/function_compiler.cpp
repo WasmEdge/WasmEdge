@@ -17,7 +17,8 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
                                    LLVM::FunctionCallee F,
                                    Span<const ValType> Locals,
                                    bool Interruptible, bool InstructionCounting,
-                                   bool GasMeasuring, bool IsLazyJIT) noexcept
+                                   bool GasMeasuring, bool IsLazyJIT,
+                                   bool StackCheck) noexcept
     : Context(Context), LLContext(Context.LLContext),
       Interruptible(Interruptible), IsLazyJIT(IsLazyJIT), F(F),
       Builder(LLContext) {
@@ -27,32 +28,46 @@ FunctionCompiler::FunctionCompiler(LLVM::Compiler::CompileContext &Context,
     ExecCtx = Builder.createLoad(Context.ExecCtxTy,
                                  F.Fn.getFirstParam().getNextParam());
 
+    // Create every frame slot first so nothing writes the frame before the
+    // stack check.
     if (InstructionCounting) {
       LocalInstrCount = Builder.createAlloca(Context.Int64Ty);
-      Builder.createStore(LLContext.getInt64(0), LocalInstrCount);
     }
-
     if (GasMeasuring) {
       LocalGas = Builder.createAlloca(Context.Int64Ty);
-      Builder.createStore(LLContext.getInt64(0), LocalGas);
     }
-
     CalleeCtxSlot = Builder.createAlloca(Context.ModCtxPtrTy);
-
+    TmpValues = Builder.createArray(1, LLVM::kValSize);
+    TmpValuesSize = 1;
     for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam().getNextParam();
          Arg; Arg = Arg.getNextParam()) {
       LLVM::Type Ty = Arg.getType();
-      LLVM::Value ArgPtr = Builder.createAlloca(Ty);
-      Builder.createStore(Arg, ArgPtr);
-      Local.emplace_back(Ty, ArgPtr);
+      Local.emplace_back(Ty, Builder.createAlloca(Ty));
     }
-
     for (const auto &Type : Locals) {
       LLVM::Type Ty = toLLVMType(LLContext, Type);
-      LLVM::Value ArgPtr = Builder.createAlloca(Ty);
+      Local.emplace_back(Ty, Builder.createAlloca(Ty));
+    }
+
+    if (StackCheck) {
+      checkStackLimit();
+    }
+
+    if (LocalInstrCount) {
+      Builder.createStore(LLContext.getInt64(0), LocalInstrCount);
+    }
+    if (LocalGas) {
+      Builder.createStore(LLContext.getInt64(0), LocalGas);
+    }
+    auto LocalIt = Local.begin();
+    for (LLVM::Value Arg = F.Fn.getFirstParam().getNextParam().getNextParam();
+         Arg; Arg = Arg.getNextParam()) {
+      Builder.createStore(Arg, (LocalIt++)->second);
+    }
+    for (const auto &Type : Locals) {
       Builder.createStore(
-          toLLVMConstantZero(LLContext, Type, Context.CompositeTypes), ArgPtr);
-      Local.emplace_back(Ty, ArgPtr);
+          toLLVMConstantZero(LLContext, Type, Context.CompositeTypes),
+          (LocalIt++)->second);
     }
   }
 }
@@ -64,6 +79,25 @@ LLVM::BasicBlock FunctionCompiler::getTrapBB(ErrCode::Value Error) noexcept {
   auto BB = LLVM::BasicBlock::create(LLContext, F.Fn, "trap");
   TrapBB.emplace(Error, BB);
   return BB;
+}
+
+LLVM::Value FunctionCompiler::getTmpValues(size_t Num) noexcept {
+  if (Num > TmpValuesSize) {
+    LLVM::Builder EntryBuilder(LLContext);
+    EntryBuilder.positionBefore(TmpValues);
+    auto Values = EntryBuilder.createArray(Num, LLVM::kValSize);
+    TmpValues.replaceAllUsesWith(Values);
+    TmpValues.eraseFromParent();
+    TmpValues = Values;
+    TmpValuesSize = Num;
+  }
+  TmpValuesUsed = static_cast<uint64_t>(Num) * LLVM::kValSize;
+  Builder.createLifetimeStart(TmpValues, TmpValuesUsed);
+  return TmpValues;
+}
+
+void FunctionCompiler::endTmpValues() noexcept {
+  Builder.createLifetimeEnd(TmpValues, TmpValuesUsed);
 }
 
 Expect<void> FunctionCompiler::compile(
@@ -1109,13 +1143,27 @@ void FunctionCompiler::compileReturn() noexcept {
   }
 }
 
+void FunctionCompiler::checkStackLimit() noexcept {
+  // Trap if the allocated but not yet written frame reaches below the limit.
+  auto SP = Builder.createPtrToInt(Builder.createStackSave(Context.Int8PtrTy),
+                                   Context.Int64Ty);
+  auto Limit = Builder.createPtrToInt(Context.getStackLimit(Builder, ExecCtx),
+                                      Context.Int64Ty);
+  auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "stack_ok");
+  auto IsOk = Builder.createLikely(Builder.createICmpULE(Limit, SP));
+  Builder.createCondBr(IsOk, OkBB,
+                       getTrapBB(ErrCode::Value::CallStackExhausted));
+  Builder.positionAtEnd(OkBB);
+}
+
 void FunctionCompiler::updateInstrCount() noexcept {
   if (LocalInstrCount) {
     auto Store [[maybe_unused]] = Builder.createAtomicRMW(
         LLVMAtomicRMWBinOpAdd, Context.getInstrCount(Builder, ExecCtx),
         Builder.createLoad(Context.Int64Ty, LocalInstrCount),
         LLVMAtomicOrderingMonotonic);
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR < 13
+#else
     Store.setAlignment(8);
 #endif
     Builder.createStore(LLContext.getInt64(0), LocalInstrCount);
@@ -1150,7 +1198,8 @@ void FunctionCompiler::updateGas() noexcept {
     auto RGasAndSucceed = Builder.createAtomicCmpXchg(
         GasPtr, PHIOldGas, NewGas, LLVMAtomicOrderingMonotonic,
         LLVMAtomicOrderingMonotonic);
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR < 13
+#else
     RGasAndSucceed.setAlignment(8);
 #endif
     RGasAndSucceed.setWeak(true);
@@ -1172,7 +1221,8 @@ void FunctionCompiler::updateGasAtTrap() noexcept {
         LLVMAtomicRMWBinOpAdd, Context.getGas(Builder, ExecCtx),
         Builder.createLoad(Context.Int64Ty, LocalGas),
         LLVMAtomicOrderingMonotonic);
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR < 13
+#else
     Update.setAlignment(8);
 #endif
   }
@@ -1256,7 +1306,7 @@ void FunctionCompiler::compileTryTableOp(
         PayloadNum = static_cast<uint32_t>(TagFuncType.getParamTypes().size());
       }
       const uint32_t OutNum = PayloadNum + (C->IsRef ? 1U : 0U);
-      LLVM::Value Out = Builder.createArray(OutNum, LLVM::kValSize);
+      LLVM::Value Out = getTmpValues(OutNum);
       Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kCatchPop,
@@ -1284,6 +1334,7 @@ void FunctionCompiler::compileTryTableOp(
             Context.Int64x2Ty, Out, Context.Int8Ty,
             static_cast<uint64_t>(OutIdx) * LLVM::kValSize));
       }
+      endTmpValues();
       setLableJumpPHI(C->LabelIndex);
       Builder.createBr(getLabel(C->LabelIndex));
       Stack.erase(Stack.begin() + static_cast<int64_t>(StackSizeBefore),
@@ -1308,7 +1359,7 @@ void FunctionCompiler::compileThrowOp(const uint32_t TagIndex) noexcept {
   for (uint32_t I = 0; I < Arity; ++I) {
     Payload[Arity - 1 - I] = stackPop();
   }
-  LLVM::Value Vals = Builder.createArray(Arity, LLVM::kValSize);
+  LLVM::Value Vals = getTmpValues(Arity);
   Builder.createArrayPtrStore(Payload, Vals, Context.Int8Ty, LLVM::kValSize);
 
   Builder.createCall(
@@ -1320,6 +1371,7 @@ void FunctionCompiler::compileThrowOp(const uint32_t TagIndex) noexcept {
                                       false)),
       {Context.getModuleInst(Builder, ModCtx), LLContext.getInt32(TagIndex),
        Vals, LLContext.getInt32(Arity)});
+  endTmpValues();
 
   Builder.createBr(getEHDispatchTarget());
   setUnreachable();
@@ -1420,6 +1472,9 @@ void FunctionCompiler::compileCallOp(const unsigned int FuncIndex) noexcept {
   } else {
     Ret = Builder.createCall(Function, Args);
   }
+  // A wasm call keeps its frame, so LLVM cannot turn recursion into a loop that
+  // never exhausts the stack.
+  Ret.setNoTailCall();
 
   auto Ty = Ret.getType();
   if (Ty.isVoidTy()) {
@@ -1523,6 +1578,7 @@ void FunctionCompiler::compileIndirectCallOp(
     auto FastRet = Builder.createCall(
         LLVM::FunctionCallee{FTy, Builder.createBitCast(Code, FPtrTy)},
         ArgsVec);
+    FastRet.setNoTailCall();
     FastRetsVec = UnpackRets(FastRet);
     Builder.createBr(EndBB);
   }
@@ -1553,6 +1609,7 @@ void FunctionCompiler::compileIndirectCallOp(
                                           F.Fn.getFirstParam(), Returned);
     auto FPtrRet =
         Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, SlowArgsVec);
+    FPtrRet.setNoTailCall();
     FPtrRetsVec = UnpackRets(FPtrRet);
   }
 
@@ -1561,8 +1618,9 @@ void FunctionCompiler::compileIndirectCallOp(
 
   std::vector<LLVM::Value> RetsVec;
   {
-    LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
-    LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
+    LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+    LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
+        Context.Int8Ty, Args, ArgSize * LLVM::kValSize);
     Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
@@ -1585,6 +1643,7 @@ void FunctionCompiler::compileIndirectCallOp(
       RetsVec = Builder.createArrayPtrLoad(RetSize, RTy, Rets, Context.Int8Ty,
                                            LLVM::kValSize);
     }
+    endTmpValues();
     Builder.createBr(EndBB);
     Builder.positionAtEnd(EndBB);
   }
@@ -1751,8 +1810,9 @@ void FunctionCompiler::compileReturnIndirectCallOp(
   Builder.positionAtEnd(IsNullBB);
 
   {
-    LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
-    LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
+    LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+    LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
+        Context.Int8Ty, Args, ArgSize * LLVM::kValSize);
     Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
@@ -1768,12 +1828,17 @@ void FunctionCompiler::compileReturnIndirectCallOp(
          LLContext.getInt32(FuncTypeIndex), Idx64, Args, Rets});
 
     if (RetSize == 0) {
+      endTmpValues();
       Builder.createRetVoid();
     } else if (RetSize == 1) {
-      Builder.createRet(Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
+      auto Ret = Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty);
+      endTmpValues();
+      Builder.createRet(Ret);
     } else {
-      Builder.createAggregateRet(Builder.createArrayPtrLoad(
-          RetSize, RTy, Rets, Context.Int8Ty, LLVM::kValSize));
+      auto Ret = Builder.createArrayPtrLoad(RetSize, RTy, Rets, Context.Int8Ty,
+                                            LLVM::kValSize);
+      endTmpValues();
+      Builder.createAggregateRet(Ret);
     }
   }
 }
@@ -1829,6 +1894,7 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
                                           F.Fn.getFirstParam(), Returned);
     auto FPtrRet =
         Builder.createCall(LLVM::FunctionCallee{FTy, FPtr}, SlowArgsVec);
+    FPtrRet.setNoTailCall();
     if (RetSize == 0) {
       // nothing to do
     } else if (RetSize == 1) {
@@ -1845,8 +1911,9 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
 
   std::vector<LLVM::Value> RetsVec;
   {
-    LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
-    LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
+    LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+    LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
+        Context.Int8Ty, Args, ArgSize * LLVM::kValSize);
     Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
@@ -1867,6 +1934,7 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
       RetsVec = Builder.createArrayPtrLoad(RetSize, RTy, Rets, Context.Int8Ty,
                                            LLVM::kValSize);
     }
+    endTmpValues();
     Builder.createBr(EndBB);
     Builder.positionAtEnd(EndBB);
   }
@@ -1947,8 +2015,9 @@ void FunctionCompiler::compileReturnCallRefOp(
   Builder.positionAtEnd(IsNullBB);
 
   {
-    LLVM::Value Args = Builder.createArray(ArgSize, LLVM::kValSize);
-    LLVM::Value Rets = Builder.createArray(RetSize, LLVM::kValSize);
+    LLVM::Value Args = getTmpValues(ArgSize + RetSize);
+    LLVM::Value Rets = Builder.createConstInBoundsGEP1_64(
+        Context.Int8Ty, Args, ArgSize * LLVM::kValSize);
     Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
@@ -1962,12 +2031,17 @@ void FunctionCompiler::compileReturnCallRefOp(
         {Context.getModuleInst(Builder, ModCtx), Ref, Args, Rets});
 
     if (RetSize == 0) {
+      endTmpValues();
       Builder.createRetVoid();
     } else if (RetSize == 1) {
-      Builder.createRet(Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
+      auto Ret = Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty);
+      endTmpValues();
+      Builder.createRet(Ret);
     } else {
-      Builder.createAggregateRet(Builder.createArrayPtrLoad(
-          RetSize, RTy, Rets, Context.Int8Ty, LLVM::kValSize));
+      auto Ret = Builder.createArrayPtrLoad(RetSize, RTy, Rets, Context.Int8Ty,
+                                            LLVM::kValSize);
+      endTmpValues();
+      Builder.createAggregateRet(Ret);
     }
   }
 }
@@ -2021,7 +2095,8 @@ void FunctionCompiler::checkStop() noexcept {
   auto StopToken = Builder.createAtomicRMW(
       LLVMAtomicRMWBinOpXchg, Context.getStopToken(Builder, ExecCtx),
       LLContext.getInt32(0), LLVMAtomicOrderingMonotonic);
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR < 13
+#else
   StopToken.setAlignment(32);
 #endif
   auto NotStop = Builder.createLikely(
@@ -2150,10 +2225,9 @@ LLVM::Value FunctionCompiler::switchEndian(LLVM::Value Value) {
       return Builder.createUnaryIntrinsic(LLVM::Core::Bswap, Value);
     }
     if (Type.isVectorTy()) {
-      LLVM::Type VecType = Type.getElementType().getIntegerBitWidth() == 128
-                               ? Context.Int128Ty
-                               : Context.Int64Ty;
-      Value = Builder.createBitCast(Value, VecType);
+      // Bswap operates on the total vector width, not the lane width.
+      Value = Builder.createBitCast(
+          Value, LLContext.getIntNTy(Type.getPrimitiveSizeInBits()));
       Value = Builder.createUnaryIntrinsic(LLVM::Core::Bswap, Value);
       return Builder.createBitCast(Value, Type);
     }

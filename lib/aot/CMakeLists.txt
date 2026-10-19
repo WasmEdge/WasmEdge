@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
+wasmedge_setup_blake3()
+
 wasmedge_add_library(wasmedgeAOT
   blake3.cpp
   cache.cpp
@@ -10,7 +12,7 @@ target_link_libraries(wasmedgeAOT
   PUBLIC
   wasmedgeCommon
   wasmedgeSystem
-  utilBlake3
+  ${WASMEDGE_BLAKE3_TARGET}
   std::filesystem
 )
 
@@ -23,5 +25,4 @@ target_include_directories(wasmedgeAOT
 target_include_directories(wasmedgeAOT
   PUBLIC
   ${PROJECT_BINARY_DIR}/include
-  ${PROJECT_SOURCE_DIR}/thirdparty/blake3
 )

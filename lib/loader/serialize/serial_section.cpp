@@ -62,7 +62,7 @@ void Serializer::serializeSection(const AST::ImportSection &Sec,
   // Import section: 0x02 + size:u32 + content:vec(importdesc).
   serializeSectionContent(
       Sec, 0x02U, OutVec,
-      [=](const AST::ImportDesc &R, std::vector<uint8_t> &V) {
+      [this](const AST::ImportDesc &R, std::vector<uint8_t> &V) {
         serializeDesc(R, V);
       });
 }
@@ -71,9 +71,10 @@ void Serializer::serializeSection(const AST::ImportSection &Sec,
 void Serializer::serializeSection(const AST::FunctionSection &Sec,
                                   std::vector<uint8_t> &OutVec) const noexcept {
   // Function section: 0x03 + size:u32 + content:vec(u32).
-  serializeSectionContent(
-      Sec, 0x03U, OutVec,
-      [=](const uint32_t &R, std::vector<uint8_t> &V) { serializeU32(R, V); });
+  serializeSectionContent(Sec, 0x03U, OutVec,
+                          [this](const uint32_t &R, std::vector<uint8_t> &V) {
+                            serializeU32(R, V);
+                          });
 }
 
 // Serialize table section. See "include/loader/serialize.h".
@@ -82,7 +83,7 @@ void Serializer::serializeSection(const AST::TableSection &Sec,
   // Table section: 0x04 + size:u32 + content:vec(table).
   serializeSectionContent(
       Sec, 0x04U, OutVec,
-      [=](const AST::TableSegment &R, std::vector<uint8_t> &V) {
+      [this](const AST::TableSegment &R, std::vector<uint8_t> &V) {
         serializeSegment(R, V);
       });
 }
@@ -93,7 +94,7 @@ void Serializer::serializeSection(const AST::MemorySection &Sec,
   // Memory section: 0x05 + size:u32 + content:vec(memorytype).
   serializeSectionContent(
       Sec, 0x05U, OutVec,
-      [=](const AST::MemoryType &R, std::vector<uint8_t> &V) {
+      [this](const AST::MemoryType &R, std::vector<uint8_t> &V) {
         serializeType(R, V);
       });
 }
@@ -104,7 +105,7 @@ void Serializer::serializeSection(const AST::GlobalSection &Sec,
   // Global section: 0x06 + size:u32 + content:vec(global).
   serializeSectionContent(
       Sec, 0x06U, OutVec,
-      [=](const AST::GlobalSegment &R, std::vector<uint8_t> &V) {
+      [this](const AST::GlobalSegment &R, std::vector<uint8_t> &V) {
         serializeSegment(R, V);
       });
 }
@@ -115,7 +116,7 @@ void Serializer::serializeSection(const AST::ExportSection &Sec,
   // Export section: 0x07 + size:u32 + content:vec(exportdesc).
   serializeSectionContent(
       Sec, 0x07U, OutVec,
-      [=](const AST::ExportDesc &R, std::vector<uint8_t> &V) {
+      [this](const AST::ExportDesc &R, std::vector<uint8_t> &V) {
         serializeDesc(R, V);
       });
 }
@@ -142,7 +143,7 @@ void Serializer::serializeSection(const AST::ElementSection &Sec,
   // Element section: 0x09 + size:u32 + content:vec(elemseg).
   serializeSectionContent(
       Sec, 0x09U, OutVec,
-      [=](const AST::ElementSegment &R, std::vector<uint8_t> &V) {
+      [this](const AST::ElementSegment &R, std::vector<uint8_t> &V) {
         serializeSegment(R, V);
       });
 }
@@ -153,7 +154,7 @@ void Serializer::serializeSection(const AST::CodeSection &Sec,
   // Code section: 0x0A + size:u32 + content:vec(codeseg).
   serializeSectionContent(
       Sec, 0x0AU, OutVec,
-      [=](const AST::CodeSegment &R, std::vector<uint8_t> &V) {
+      [this](const AST::CodeSegment &R, std::vector<uint8_t> &V) {
         serializeSegment(R, V);
       });
 }
@@ -164,7 +165,7 @@ void Serializer::serializeSection(const AST::DataSection &Sec,
   // Data section: 0x0B + size:u32 + content:vec(dataseg).
   serializeSectionContent(
       Sec, 0x0BU, OutVec,
-      [=](const AST::DataSegment &R, std::vector<uint8_t> &V) {
+      [this](const AST::DataSegment &R, std::vector<uint8_t> &V) {
         serializeSegment(R, V);
       });
 }
@@ -189,10 +190,11 @@ void Serializer::serializeSection(const AST::DataCountSection &Sec,
 void Serializer::serializeSection(const AST::TagSection &Sec,
                                   std::vector<uint8_t> &OutVec) const noexcept {
   // Tag section: 0x0D + size:u32 + content:vec(tagtype)
-  serializeSectionContent(Sec, 0x0DU, OutVec,
-                          [=](const AST::TagType &R, std::vector<uint8_t> &V) {
-                            serializeType(R, V);
-                          });
+  serializeSectionContent(
+      Sec, 0x0DU, OutVec,
+      [this](const AST::TagType &R, std::vector<uint8_t> &V) {
+        serializeType(R, V);
+      });
 }
 
 } // namespace Loader

@@ -95,7 +95,7 @@ public:
   // Naming checks and the named-types rule; the only writer of NameSide.
   // ==========================================================================
 
-  /// Extern-name grammar checks; an export rejects the import-only name kinds.
+  /// Extern-name grammar checks; IsImport only selects the log prefix.
   Expect<ExternName> parseExternName(std::string_view Name,
                                      bool IsImport) const noexcept;
   /// Append N to Names, or diagnose the clash (exact or strong-uniqueness).
@@ -288,6 +288,9 @@ public:
 
   /// Transitive borrow check on value types.
   bool hasBorrow(const QualValType &Q) noexcept;
+  /// Transitive handle check on value types: own, borrow, stream, future and
+  /// error-context.
+  bool hasHandle(const QualValType &Q) noexcept;
   /// Collect resource ids reachable from a view (for free-variable rules).
   void collectResources(const ExternInfo &Info,
                         std::unordered_set<uint32_t> &Out) noexcept;

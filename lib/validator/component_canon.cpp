@@ -296,6 +296,11 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
   case ComponentCanonOpCode::Thread__index:
     return PushBuiltin(I32V);
   case ComponentCanonOpCode::Task__return: {
+    if (const auto &R = Canon.getResult();
+        R.has_value() && CompCtx.hasBorrow({*R, &S, nullptr})) {
+      spdlog::error(ErrCode::Value::CanonTaskReturnBorrow);
+      return Unexpect(ErrCode::Value::CanonTaskReturnBorrow);
+    }
     // The results lower as the core parameters; task.return never reallocates.
     EXPECTED_TRY(CompCtx.checkOptions(Canon, false));
     if (Canon.hasOption(ComponentCanonOptCode::Realloc)) {
@@ -468,8 +473,13 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
                     Canon.getTargetIndex());
       return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
     }
-    // The thread index carries the address type of the table.
+    // The table element type must be exactly `funcref`, not a subtype.
     const auto *Tab = S.CoreTables[Canon.getTargetIndex()];
+    if (Tab != nullptr && Tab->getRefType() != ValType(TypeCode::FuncRef)) {
+      spdlog::error(ErrCode::Value::CanonThreadTableType);
+      return Unexpect(ErrCode::Value::CanonThreadTableType);
+    }
+    // The thread index carries the address type of the table.
     return PushBuiltin(ValType(Tab != nullptr && Tab->getLimit().is64()
                                    ? TypeCode::I64
                                    : TypeCode::I32));

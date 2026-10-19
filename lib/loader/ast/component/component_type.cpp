@@ -56,34 +56,47 @@ Expect<void> Loader::loadType(AST::Component::CoreDefType &Ty) {
     Ty.setModuleType(std::move(Decls));
     return {};
   }
-  case 0x00: // sub non-final case
+  case 0x00: { // sub non-final case
     FMgr.readByte();
-    [[fallthrough]];
+    std::vector<AST::SubType> STypes(1);
+    STypes.back().setTypeIndex(0);
+    EXPECTED_TRY(loadType(STypes.back()).map_error(ReportError));
+    Ty.setSubTypes(std::move(STypes));
+    return {};
+  }
   default: { // recursive type case
     std::vector<AST::SubType> STypes;
-    if (static_cast<TypeCode>(Flag) == TypeCode::Rec) {
-      // Case: 0x4E vec(subtype).
-      FMgr.readByte();
-      EXPECTED_TRY(uint32_t RecVecCnt, loadVecCnt().map_error([this](auto E) {
-        return logLoadError(E, FMgr.getLastOffset(),
-                            ASTNodeAttr::Comp_CoreDefType);
-      }));
-      for (uint32_t I = 0; I < RecVecCnt; ++I) {
-        STypes.emplace_back();
-        EXPECTED_TRY(loadType(STypes.back()).map_error(ReportError));
-        STypes.back().setRecursiveInfo(I, RecVecCnt);
-        STypes.back().setTypeIndex(I);
-      }
-    } else {
-      // Case: subtype.
-      STypes.emplace_back();
-      STypes.back().setTypeIndex(0);
-      EXPECTED_TRY(loadType(STypes.back()).map_error(ReportError));
-    }
+    EXPECTED_TRY(loadRecType(STypes).map_error(ReportError));
     Ty.setSubTypes(std::move(STypes));
     return {};
   }
   }
+}
+
+Expect<void> Loader::loadRecType(std::vector<AST::SubType> &STypes) {
+  // core:rectype ::= 0x4E st*:vec(<core:subtype>) => (rec st*)
+  //                | st:<core:subtype>             => (rec st)
+
+  EXPECTED_TRY(uint8_t Flag, FMgr.peekByte().map_error([this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_CoreDefType);
+  }));
+  if (static_cast<TypeCode>(Flag) == TypeCode::Rec) {
+    FMgr.readByte();
+    EXPECTED_TRY(uint32_t RecVecCnt, loadVecCnt().map_error([this](auto E) {
+      return logLoadError(E, FMgr.getLastOffset(),
+                          ASTNodeAttr::Comp_CoreDefType);
+    }));
+    for (uint32_t I = 0; I < RecVecCnt; ++I) {
+      STypes.emplace_back();
+      EXPECTED_TRY(loadType(STypes.back()));
+      STypes.back().setRecursiveInfo(I, RecVecCnt);
+      STypes.back().setTypeIndex(I);
+    }
+    return {};
+  }
+  STypes.emplace_back();
+  STypes.back().setTypeIndex(0);
+  return loadType(STypes.back());
 }
 
 Expect<void> Loader::loadType(AST::Component::DefType &Ty) {

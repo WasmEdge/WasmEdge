@@ -27,17 +27,6 @@ using namespace std::literals;
 
 NameRecord::NameRecord(const ExternName &Name) noexcept
     : Original(Name.getOriginalName()) {
-  // Dep, url, and integrity names compare exactly.
-  switch (Name.getKind()) {
-  case ExternName::Kind::LockedDep:
-  case ExternName::Kind::UnlockedDep:
-  case ExternName::Kind::Url:
-  case ExternName::Kind::Integrity:
-    Canonical = Original;
-    return;
-  default:
-    break;
-  }
   // Remove the hyphens and lowercase the acronyms, then strip the annotation
   // except `[constructor]`, and reduce `[*]l.l` to `l`.
   const bool Annotated = Name.getKind() == ExternName::Kind::Constructor ||

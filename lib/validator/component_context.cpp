@@ -171,13 +171,6 @@ Expect<void> Context::validate(const ComponentValType &VT) const noexcept {
 Expect<ExternName> Context::parseExternName(std::string_view Name,
                                             bool IsImport) const noexcept {
   const auto Position = IsImport ? "Import"sv : "Export"sv;
-  // `relative-url=` is not part of the extern-name grammar.
-  if (Name.rfind("relative-url="sv, 0) == 0) {
-    spdlog::error(ErrCode::Value::InvalidExternName);
-    spdlog::error("    {} name '{}' is not a valid extern name."sv, Position,
-                  Name);
-    return Unexpect(ErrCode::Value::InvalidExternName);
-  }
   ExternName CN;
   EXPECTED_TRY(CN.parse(Name));
   if (CN.getKind() == ExternName::Kind::Invalid) {
@@ -185,16 +178,6 @@ Expect<ExternName> Context::parseExternName(std::string_view Name,
     spdlog::error("    {} name '{}' is not a valid extern name."sv, Position,
                   Name);
     return Unexpect(ErrCode::Value::InvalidExternName);
-  }
-  // Dep / url / hash names are import-only.
-  if (!IsImport && (CN.getKind() == ExternName::Kind::LockedDep ||
-                    CN.getKind() == ExternName::Kind::UnlockedDep ||
-                    CN.getKind() == ExternName::Kind::Url ||
-                    CN.getKind() == ExternName::Kind::Integrity)) {
-    spdlog::error(ErrCode::Value::InvalidExportName);
-    spdlog::error("    Export name '{}' kind is not valid for exports."sv,
-                  Name);
-    return Unexpect(ErrCode::Value::InvalidExportName);
   }
   return CN;
 }
@@ -852,6 +835,30 @@ bool Context::hasBorrow(const QualValType &Q) noexcept {
   bool Found = false;
   forEachValType(D, [&](const ComponentValType &VT) noexcept {
     Found = Found || hasBorrow({VT, Entry->Home, Entry->Remap});
+  });
+  return Found;
+}
+
+bool Context::hasHandle(const QualValType &Q) noexcept {
+  if (Q.VT.isPrimValType()) {
+    return Q.VT.getPrimValType() == PrimValType::ErrorContext;
+  }
+  TypeEntry Storage;
+  const auto *Entry = getTypeEntry(Q, Storage);
+  const auto *Def = Entry != nullptr ? Entry->getDefValType() : nullptr;
+  if (Def == nullptr) {
+    return false;
+  }
+  const auto &D = *Def;
+  if (D.isPrimValType()) {
+    return D.getPrimValType() == PrimValType::ErrorContext;
+  }
+  if (D.isOwnTy() || D.isBorrowTy() || D.isStreamTy() || D.isFutureTy()) {
+    return true;
+  }
+  bool Found = false;
+  forEachValType(D, [&](const ComponentValType &VT) noexcept {
+    Found = Found || hasHandle({VT, Entry->Home, Entry->Remap});
   });
   return Found;
 }

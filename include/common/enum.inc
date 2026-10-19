@@ -1097,6 +1097,8 @@ E(InvalidOffset, 0x022B, "offset out of range")
 
 // Component model validation phase
 // @{
+
+// General
 // Argument Type Mismatch with Import Type
 E(ArgTypeMismatch, 0x1200, "type mismatch")
 // Invalid Index
@@ -1108,123 +1110,138 @@ E(ComponentNotImplValidator, 0x1203,
   "component model (validator) not implemented")
 // Component model invalid name
 E(ComponentInvalidName, 0x1204, "invalid component name")
-// DefValType: own/borrow does not reference a resource type
-E(NotADefinedType, 0x1205, "not a defined type")
-// DefValType: own/borrow type index out of bounds
+
+// Index spaces and sort references
+E(ComponentTypeIndexOutOfBounds, 0x1205, "type index out of bounds")
+// Own/borrow type index out of bounds
 E(DefTypeIndexOutOfBounds, 0x1206, "index out of bounds")
-// DefValType: name cannot be empty
-E(NameCannotBeEmpty, 0x1207, "name cannot be empty")
-// DefValType: cannot have more than 32 flags
-E(CannotHaveMoreThan32Flags, 0x1208, "cannot have more than 32 flags")
-// DefValType: record field name conflicts
-E(RecordFieldNameConflicts, 0x1209,
-  "record field name conflicts with previous field name")
-// DefValType: variant case name conflicts
-E(VariantCaseNameConflicts, 0x120A,
-  "variant case name conflicts with previous case name")
-// DefValType: flag name conflicts
-E(FlagNameConflicts, 0x120B, "flag name conflicts with previous flag name")
-// DefValType: enum tag name conflicts
-E(EnumTagNameConflicts, 0x120C,
-  "enum tag name conflicts with previous tag name")
-// DefValType: type must have at least one case/field/element
-E(VariantMustHaveCase, 0x120D, "variant type must have at least one case")
-// Export ascription is not a supertype of the inferred externdesc
-E(ExportAscriptionIncompatible, 0x120E,
-  "ascribed type of export is not compatible")
-// Instance argument is missing an export the import type requires
-E(InstanceMissingExpectedExport, 0x120F, "missing expected export")
-// Export name is syntactically valid but not allowed in an export position
-E(InvalidExportName, 0x1210, "not a valid export name")
-// Extern (import/export) name fails the extern-name grammar
-E(InvalidExternName, 0x1211, "not a valid extern name")
+E(ComponentFunctionIndexOutOfBounds, 0x1207, "function index out of bounds")
+E(ComponentMemoryIndexOutOfBounds, 0x1208, "memory index out of bounds")
+E(ComponentInstanceIndexOutOfBounds, 0x1209, "instance index out of bounds")
+E(ComponentModuleIndexOutOfBounds, 0x120A, "module index out of bounds")
 // Core tag referenced by a core-export alias or inline-export does not exist
-E(UnknownCoreTag, 0x1212, "unknown tag")
-// Component name label is not in kebab case
-E(ComponentNameNotKebab, 0x1213, "not in kebab case")
-// Component package name/namespace is not lowercase
-E(ComponentPackageNameNotLowercase, 0x1214,
-  "not lowercase in package name/namespace")
+E(UnknownCoreTag, 0x120B, "unknown tag")
 // Component alias references an export the instance does not provide
-E(ComponentUnknownExport, 0x1215, "unknown export")
-// Core instance arg memory index type does not match the import (i32 vs i64)
-E(ComponentMemoryIndexTypeMismatch, 0x1216,
-  "mismatch in index type used for memories")
-// Core instance arg table limits do not match the import
-E(ComponentTableLimitsMismatch, 0x1217, "mismatch in table limits")
-// Value linearity: each value must be consumed exactly once (GAP-EX-4)
-E(ComponentValueAlreadyConsumed, 0x1218, "value has already been consumed")
-E(ComponentValueNotConsumed, 0x1219,
-  "value was not consumed before end of component")
-// Component extern-name grammar diagnostics (import/export names)
-E(NameUnexpectedCharacter, 0x121A, "unexpected character")
-E(NameUnexpectedEnd, 0x121B, "unexpected end of input")
-E(NameEmptyString, 0x121C, "empty string")
-E(NameEmptyIdentifierSegment, 0x121D, "empty identifier segment")
-E(NameExpectedSlashAfterPackage, 0x121E, "expected `/` after package name")
-E(NameTrailingCharacters, 0x121F, "trailing characters found")
-E(NameFailedToFindDot, 0x122C, "failed to find `.` character")
-// Component import/export name uniqueness diagnostics
-E(ComponentDuplicateImportName, 0x122D, "duplicate import name")
-E(ComponentNameConflict, 0x122E, "conflicts with previous name")
+E(ComponentUnknownExport, 0x120C, "unknown export")
+E(ComponentUnknownFunctionType, 0x120D, "unknown function type")
+E(ComponentUnknownInstanceType, 0x120E, "unknown instance type")
+E(ComponentUnknownModule, 0x120F, "unknown module")
+E(ComponentUnknownComponent, 0x1210, "unknown component")
+// Own/borrow does not reference a resource type
+E(NotADefinedType, 0x1211, "not a defined type")
+E(ComponentExpectedDefinedType, 0x1212, "expected defined type")
+E(ComponentExpectedResource, 0x1213, "expected resource")
+E(ComponentExpectedComponent, 0x1214, "expected component")
+E(ComponentNotFunctionType, 0x1215, "not a function type")
+E(ComponentNotModuleType, 0x1216, "not a module type")
+E(ComponentNotInstanceType, 0x1217, "not an instance type")
+E(ComponentNotResourceType, 0x1218, "not a resource type")
+E(ComponentNotLocalResource, 0x1219, "not a local resource")
+E(ComponentExportNotAModule, 0x121A, "export is not a module")
+
+// Extern names
+// Extern (import/export) name fails the extern-name grammar
+E(InvalidExternName, 0x121B, "not a valid extern name")
+// Export name is syntactically valid but not allowed in an export position
+E(InvalidExportName, 0x121C, "not a valid export name")
+E(NameUnexpectedCharacter, 0x121D, "unexpected character")
+E(NameUnexpectedEnd, 0x121E, "unexpected end of input")
+E(NameEmptyString, 0x121F, "empty string")
+E(NameEmptyIdentifierSegment, 0x1220, "empty identifier segment")
+E(NameExpectedSlashAfterPackage, 0x1221, "expected `/` after package name")
+E(NameTrailingCharacters, 0x1222, "trailing characters found")
+E(NameFailedToFindDot, 0x1223, "failed to find `.` character")
+// Component name label is not in kebab case
+E(ComponentNameNotKebab, 0x1224, "not in kebab case")
+// Component package name/namespace is not lowercase
+E(ComponentPackageNameNotLowercase, 0x1225,
+  "not lowercase in package name/namespace")
+// The versionsuffix does not extend a canonical version into a valid semver
+E(ComponentVersionSuffixInvalid, 0x1226, "invalid `versionsuffix`")
+E(ComponentImplementsInterface, 0x1227, "must be an interface")
+E(ComponentImplementsName, 0x1228, "`implements` name is not a valid name")
+E(ComponentImplementsInstance, 0x1229,
+  "only instances can have an `implements`")
+E(ComponentImplementsPlain, 0x122A, "is not valid with `implements`")
+
+// Import and export name uniqueness
+E(ComponentDuplicateImportName, 0x122B, "duplicate import name")
+E(ComponentNameConflict, 0x122C, "conflicts with previous name")
+E(ComponentImportNameConflict, 0x122D,
+  "import name conflicts with previous name")
+E(ComponentExportNameConflict, 0x122E,
+  "export name conflicts with previous name")
 E(ComponentDeclImportNameConflict, 0x122F,
   "conflicts with previous import name")
 E(ComponentDeclExportNameConflict, 0x1230,
   "conflicts with previous export name")
-// Component type-reference diagnostics
-E(ComponentUnknownFunctionType, 0x1231, "unknown function type")
-E(ComponentUnknownInstanceType, 0x1232, "unknown instance type")
-E(ComponentNotFunctionType, 0x1233, "not a function type")
-E(ComponentNotModuleType, 0x1234, "not a module type")
-E(ComponentNotInstanceType, 0x1235, "not an instance type")
-E(ComponentNotResourceType, 0x1236, "not a resource type")
-E(ComponentNotLocalResource, 0x1237, "not a local resource")
-E(ComponentExpectedDefinedType, 0x1238, "expected defined type")
-E(ComponentExpectedResource, 0x1239, "expected resource")
-E(ComponentExpectedComponent, 0x123A, "expected component")
-E(ComponentFunctionIndexOutOfBounds, 0x123B, "function index out of bounds")
-E(ComponentMemoryIndexOutOfBounds, 0x123C, "memory index out of bounds")
-E(ComponentInstanceIndexOutOfBounds, 0x123D, "instance index out of bounds")
-E(ComponentModuleIndexOutOfBounds, 0x123E, "module index out of bounds")
-E(ComponentUnknownModule, 0x123F, "unknown module")
-E(ComponentUnknownComponent, 0x1240, "unknown component")
-// Canonical option diagnostics
-E(CanonEncodingConflict, 0x1241, "canonical encoding option conflicts")
-E(CanonMemoryRequired, 0x1242, "canonical option `memory` is required")
-E(CanonMemoryDuplicated, 0x1243,
-  "canonical option `memory` is specified more than once")
-E(CanonReallocRequired, 0x1244, "canonical option `realloc` is required")
-E(CanonReallocDuplicated, 0x1245,
-  "canonical option `realloc` is specified more than once")
-E(CanonReallocSignature, 0x1246,
-  "canonical option `realloc` uses a core function with an incorrect "
-  "signature")
-E(CanonPostReturnOnLower, 0x1247,
-  "canonical option `post-return` cannot be specified for lowerings")
-E(CanonPostReturnDuplicated, 0x1248,
-  "canonical option `post-return` is specified more than once")
-E(CanonPostReturnSignature, 0x1249,
-  "canonical option `post-return` uses a core function with an incorrect "
-  "signature")
-E(CanonLoweredParamsMismatch, 0x124A,
-  "lowered parameter types do not match parameter types")
-E(CanonLoweredResultsMismatch, 0x124B,
-  "lowered result types do not match result types")
-// Alias diagnostics
-E(ComponentInvalidOuterAliasCount, 0x124C, "invalid outer alias count")
-E(ComponentAliasResourceLeak, 0x124D,
-  "refers to resources not defined in the current component")
-// Instantiation-argument diagnostics
-E(ComponentMissingImport, 0x124E, "missing import")
-E(ComponentMissingExpectedImport, 0x124F, "missing expected import")
-E(ComponentMissingModuleArg, 0x1250, "missing module instantiation argument")
-E(ComponentDuplicateModuleArg, 0x1251,
+
+// Defined value types and function types
+// Name cannot be empty
+E(NameCannotBeEmpty, 0x1231, "name cannot be empty")
+E(RecordFieldNameEmpty, 0x1232, "record field name cannot be empty")
+E(VariantCaseNameEmpty, 0x1233, "variant case name cannot be empty")
+E(FlagNameEmpty, 0x1234, "flag name cannot be empty")
+E(EnumTagNameEmpty, 0x1235, "enum tag name cannot be empty")
+E(FuncParamNameEmpty, 0x1236, "function parameter name cannot be empty")
+// Record field name conflicts
+E(RecordFieldNameConflicts, 0x1237,
+  "record field name conflicts with previous field name")
+// Variant case name conflicts
+E(VariantCaseNameConflicts, 0x1238,
+  "variant case name conflicts with previous case name")
+// Flag name conflicts
+E(FlagNameConflicts, 0x1239, "flag name conflicts with previous flag name")
+// Enum tag name conflicts
+E(EnumTagNameConflicts, 0x123A,
+  "enum tag name conflicts with previous tag name")
+E(FuncParamNameConflict, 0x123B,
+  "function parameter name conflicts with previous parameter name")
+E(RecordMustHaveField, 0x123C, "record type must have at least one field")
+// Type must have at least one case/field/element
+E(VariantMustHaveCase, 0x123D, "variant type must have at least one case")
+E(EnumMustHaveVariant, 0x123E, "enum type must have at least one variant")
+E(FlagsMustHaveEntry, 0x123F, "flags must have at least one entry")
+E(TupleMustHaveType, 0x1240, "tuple type must have at least one type")
+// Cannot have more than 32 flags
+E(CannotHaveMoreThan32Flags, 0x1241, "cannot have more than 32 flags")
+// Fixed-length list declares more elements than the limit
+E(ComponentFixedListTooLarge, 0x1242,
+  "fixed-length list element count exceeds limit")
+// The key of a map type is outside the `keytype` subset
+E(ComponentMapKeyType, 0x1243, "invalid map key type")
+E(ComponentStreamCharInvalid, 0x1244, "`stream<char>` is not valid")
+// A stream or future element type transitively contains a borrow handle
+E(ComponentStreamFutureBorrow, 0x1245,
+  "stream or future element type cannot contain a `borrow` type")
+E(FuncResultContainsBorrow, 0x1246,
+  "function result cannot contain a `borrow` type")
+// The Canonical ABI element size of a defvaltype reaches 2^28 bytes
+E(ComponentValueSizeTooLarge, 0x1247, "exceeds maximum byte size")
+E(ComponentTypeSizeLimit, 0x1248, "effective type size exceeds the limit")
+E(ComponentTypeNestingDepth, 0x1249, "type nesting is too deep")
+
+// Type matching of imports, exports, and instantiation arguments
+// Export ascription is not a supertype of the inferred externdesc
+E(ExportAscriptionIncompatible, 0x124A,
+  "ascribed type of export is not compatible")
+// Instance argument is missing an export the import type requires
+E(InstanceMissingExpectedExport, 0x124B, "missing expected export")
+E(ComponentMissingImport, 0x124C, "missing import")
+E(ComponentMissingExpectedImport, 0x124D, "missing expected import")
+E(ComponentMissingModuleArg, 0x124E, "missing module instantiation argument")
+E(ComponentDuplicateModuleArg, 0x124F,
   "duplicate module instantiation argument")
-E(ComponentDuplicateArg, 0x1252,
+E(ComponentDuplicateArg, 0x1250,
   "instantiation argument conflicts with previous argument")
-E(ComponentMemoryLimitsMismatch, 0x1253, "mismatch in memory limits")
-E(ComponentMemorySharedMismatch, 0x1254,
+// Core instance arg memory index type does not match the import (i32 vs i64)
+E(ComponentMemoryIndexTypeMismatch, 0x1251,
+  "mismatch in index type used for memories")
+E(ComponentMemoryLimitsMismatch, 0x1252, "mismatch in memory limits")
+E(ComponentMemorySharedMismatch, 0x1253,
   "mismatch in the shared flag for memories")
+// Core instance arg table limits do not match the import
+E(ComponentTableLimitsMismatch, 0x1254, "mismatch in table limits")
 E(ComponentPrimitiveMismatch, 0x1255, "primitive mismatch")
 E(ComponentEnumMismatch, 0x1256, "mismatch in enum elements")
 E(ComponentResourceMismatch, 0x1257, "resource types are not the same")
@@ -1234,125 +1251,118 @@ E(ComponentExpectedGlobal, 0x125A, "expected global")
 E(ComponentExpectedResult, 0x125B, "expected a result")
 E(ComponentExpectedNoOkType, 0x125C, "expected ok type to not be present")
 E(ComponentExpectedNoErrType, 0x125D, "expected err type to not be present")
-E(ComponentIsNotFunc, 0x125E, "is not a func")
-// Resource and annotated-name diagnostics
-E(ComponentResourceOutsideComponent, 0x125F,
-  "resources can only be defined within a concrete component")
-E(ComponentResourceRepI32, 0x1260, "resources can only be represented by `i32`")
-E(ComponentDtorSignature, 0x1261, "wrong signature for a destructor")
-E(AnnotatedMethodSelf, 0x1262, "should have a first argument called `self`")
-E(AnnotatedMethodBorrow, 0x1263,
-  "should take a first argument of `(borrow $T)`")
-E(AnnotatedMethodArgs, 0x1264, "should have at least one argument")
-E(AnnotatedCtorReturn, 0x1265,
-  "function should return `(own $T)` or `(result (own $T))`")
-E(AnnotatedCtorReturnOne, 0x1266, "should return one value")
-E(AnnotatedFuncResourceName, 0x1267,
-  "function does not match expected resource name")
-E(AnnotatedStaticUnknown, 0x1268,
-  "static resource name is not known in this context")
-E(ComponentResourceNotNamed, 0x1269,
-  "resource used in function does not have a name in this context")
-// Extern-position restrictions (resources must be introduced first)
-E(ComponentFuncNotValidExport, 0x126A, "func not valid to be used as export")
-E(ComponentFuncNotValidImport, 0x126B, "func not valid to be used as import")
-E(ComponentTypeNotValidExport, 0x126C, "type not valid to be used as export")
-E(ComponentTypeNotValidImport, 0x126D, "type not valid to be used as import")
-E(ComponentInstanceNotValidExport, 0x126E,
+E(ComponentExpectedOwn, 0x125E, "expected own")
+E(ComponentExpectedBorrow, 0x125F, "expected borrow")
+E(ComponentIsNotFunc, 0x1260, "is not a func")
+
+// Aliases
+E(ComponentInvalidOuterAliasCount, 0x1261, "invalid outer alias count")
+E(ComponentAliasResourceLeak, 0x1262,
+  "refers to resources not defined in the current component")
+
+// Extern positions: a resource must be introduced before its use
+E(ComponentFuncNotValidExport, 0x1263, "func not valid to be used as export")
+E(ComponentFuncNotValidImport, 0x1264, "func not valid to be used as import")
+E(ComponentTypeNotValidExport, 0x1265, "type not valid to be used as export")
+E(ComponentTypeNotValidImport, 0x1266, "type not valid to be used as import")
+E(ComponentInstanceNotValidExport, 0x1267,
   "instance not valid to be used as export")
-E(ComponentInstanceNotValidImport, 0x126F,
+E(ComponentInstanceNotValidImport, 0x1268,
   "instance not valid to be used as import")
-E(ComponentTypeSizeLimit, 0x1270, "effective type size exceeds the limit")
-E(ComponentTypeNestingDepth, 0x1271, "type nesting is too deep")
-E(ComponentImplementsInterface, 0x1272, "must be an interface")
-E(ComponentImplementsName, 0x1273, "`implements` name is not a valid name")
-E(ComponentImplementsInstance, 0x1274,
-  "only instances can have an `implements`")
-E(ComponentImplementsPlain, 0x1275, "is not valid with `implements`")
-E(ComponentExpectedOwn, 0x1276, "expected own")
-E(ComponentExpectedBorrow, 0x1277, "expected borrow")
-// Empty composite type diagnostics
-E(RecordMustHaveField, 0x1278, "record type must have at least one field")
-E(EnumMustHaveVariant, 0x1279, "enum type must have at least one variant")
-E(FlagsMustHaveEntry, 0x127A, "flags must have at least one entry")
-E(TupleMustHaveType, 0x127B, "tuple type must have at least one type")
-E(FuncResultContainsBorrow, 0x127C,
-  "function result cannot contain a `borrow` type")
-E(FuncParamNameConflict, 0x127D,
-  "function parameter name conflicts with previous parameter name")
-// Async and stream type diagnostics
-E(ComponentStreamCharInvalid, 0x127E, "`stream<char>` is not valid")
-E(CanonAsyncRequiresAsyncType, 0x127F,
-  "the `async` canonical option requires an async function type")
-// Index-space and label diagnostics that the reference validator reports
-// per index space and per label kind
-E(ComponentTypeIndexOutOfBounds, 0x1280, "type index out of bounds")
-E(ComponentExportNotAModule, 0x1281, "export is not a module")
-E(ComponentImportNameConflict, 0x1282,
-  "import name conflicts with previous name")
-E(ComponentExportNameConflict, 0x1283,
-  "export name conflicts with previous name")
-E(RecordFieldNameEmpty, 0x1284, "record field name cannot be empty")
-E(VariantCaseNameEmpty, 0x1285, "variant case name cannot be empty")
-E(FlagNameEmpty, 0x1286, "flag name cannot be empty")
-E(EnumTagNameEmpty, 0x1287, "enum tag name cannot be empty")
-E(FuncParamNameEmpty, 0x1288, "function parameter name cannot be empty")
-// Fixed-length list declares more elements than the limit
-E(ComponentFixedListTooLarge, 0x1289,
-  "fixed-length list element count exceeds limit")
-// Context slot index of context.get/context.set out of bounds
-E(ComponentContextSlotOutOfBounds, 0x128A, "context slot out of bounds")
-// The key of a map type is outside the `keytype` subset
-E(ComponentMapKeyType, 0x128B, "invalid map key type")
+
+// Value definitions: decoding and linearity
 // The payload of a value definition does not decode against its declared type
-E(ComponentMalformedValue, 0x128C, "malformed value")
-// The `callback` canonical option is only allowed on `canon lift`
-E(CanonCallbackOnLower, 0x128D,
-  "canonical option `callback` cannot be specified for lowerings")
-E(CanonCallbackDuplicated, 0x128E,
-  "canonical option `callback` is specified more than once")
-E(CanonAsyncDuplicated, 0x128F,
-  "canonical option `async` is specified more than once")
-E(CanonCallbackRequiresAsync, 0x1290,
-  "canonical option `callback` requires the `async` option")
-E(CanonPostReturnWithAsync, 0x1291,
+E(ComponentMalformedValue, 0x1269, "malformed value")
+// The type of a value definition contains a handle
+E(ComponentValueHandleType, 0x126A, "value type cannot contain a handle type")
+E(ComponentValueAlreadyConsumed, 0x126B, "value has already been consumed")
+E(ComponentValueNotConsumed, 0x126C,
+  "value was not consumed before end of component")
+
+// Canonical options
+E(CanonEncodingConflict, 0x126D, "canonical encoding option conflicts")
+E(CanonMemoryRequired, 0x126E, "canonical option `memory` is required")
+E(CanonMemoryDuplicated, 0x126F,
+  "canonical option `memory` is specified more than once")
+E(CanonReallocRequired, 0x1270, "canonical option `realloc` is required")
+E(CanonReallocDuplicated, 0x1271,
+  "canonical option `realloc` is specified more than once")
+E(CanonReallocSignature, 0x1272,
+  "canonical option `realloc` uses a core function with an incorrect "
+  "signature")
+E(CanonPostReturnOnLower, 0x1273,
+  "canonical option `post-return` cannot be specified for lowerings")
+E(CanonPostReturnDuplicated, 0x1274,
+  "canonical option `post-return` is specified more than once")
+E(CanonPostReturnSignature, 0x1275,
+  "canonical option `post-return` uses a core function with an incorrect "
+  "signature")
+E(CanonPostReturnWithAsync, 0x1276,
   "canonical option `post-return` cannot be specified together with `async`")
-// The canonical built-in never allocates, so `realloc` is not applicable
-E(CanonReallocOnBuiltin, 0x1292,
-  "canonical option `realloc` cannot be specified for this built-in")
-// The canonical built-in is synchronous, so `async` is not applicable
-E(CanonAsyncOnBuiltin, 0x1293,
-  "canonical option `async` cannot be specified for this built-in")
-// The context.get/context.set type immediate is neither `i32` nor `i64`
-E(ComponentContextTypeInvalid, 0x1294, "only supports `i32` or `i64`")
-// Two context built-ins of one component declare different types
-E(ComponentContextTypeMismatch, 0x1295, "type must match previous context type")
-// A stream or future element type transitively contains a borrow handle
-E(ComponentStreamFutureBorrow, 0x1296,
-  "stream or future element type cannot contain a `borrow` type")
-// The versionsuffix does not extend a canonical version into a valid semver
-E(ComponentVersionSuffixInvalid, 0x1297, "invalid `versionsuffix`")
-// The canonical built-in accepts no options at all
-E(CanonOptionOnBuiltin, 0x1298,
-  "canonical options cannot be specified for this built-in")
+E(CanonCallbackOnLower, 0x1277,
+  "canonical option `callback` cannot be specified for lowerings")
+E(CanonCallbackDuplicated, 0x1278,
+  "canonical option `callback` is specified more than once")
+E(CanonCallbackRequiresAsync, 0x1279,
+  "canonical option `callback` requires the `async` option")
 // The `callback` core function does not have type [i32 i32 i32] -> [i32]
-E(CanonCallbackSignature, 0x1299,
+E(CanonCallbackSignature, 0x127A,
   "canonical option `callback` uses a core function with an incorrect "
   "signature")
-// The Canonical ABI element size of a defvaltype reaches 2^28 bytes
-E(ComponentValueSizeTooLarge, 0x129A, "exceeds maximum byte size")
+E(CanonAsyncDuplicated, 0x127B,
+  "canonical option `async` is specified more than once")
+E(CanonAsyncRequiresAsyncType, 0x127C,
+  "the `async` canonical option requires an async function type")
+E(CanonLoweredParamsMismatch, 0x127D,
+  "lowered parameter types do not match parameter types")
+E(CanonLoweredResultsMismatch, 0x127E,
+  "lowered result types do not match result types")
+
+// Canonical built-ins
+// The canonical built-in accepts no options at all
+E(CanonOptionOnBuiltin, 0x127F,
+  "canonical options cannot be specified for this built-in")
+// The canonical built-in never allocates, so `realloc` is not applicable
+E(CanonReallocOnBuiltin, 0x1280,
+  "canonical option `realloc` cannot be specified for this built-in")
+// The canonical built-in is synchronous, so `async` is not applicable
+E(CanonAsyncOnBuiltin, 0x1281,
+  "canonical option `async` cannot be specified for this built-in")
+// The context.get/context.set type immediate is neither `i32` nor `i64`
+E(ComponentContextTypeInvalid, 0x1282, "only supports `i32` or `i64`")
+// Two context built-ins of one component declare different types
+E(ComponentContextTypeMismatch, 0x1283, "type must match previous context type")
+// Context slot index of context.get/context.set out of bounds
+E(ComponentContextSlotOutOfBounds, 0x1284, "context slot out of bounds")
 // The type immediate of a stream built-in is not a stream type
-E(ComponentStreamTypeRequired, 0x129B, "requires a stream type")
+E(ComponentStreamTypeRequired, 0x1285, "requires a stream type")
 // The type immediate of a future built-in is not a future type
-E(ComponentFutureTypeRequired, 0x129C, "requires a future type")
-// The type of a value definition contains a handle
-E(ComponentValueHandleType, 0x129D, "value type cannot contain a handle type")
+E(ComponentFutureTypeRequired, 0x1286, "requires a future type")
 // The result type of task.return transitively contains a borrow handle
-E(CanonTaskReturnBorrow, 0x129E,
+E(CanonTaskReturnBorrow, 0x1287,
   "`task.return` result cannot contain a `borrow` type")
 // The table of thread.new-indirect does not have the element type `funcref`
-E(CanonThreadTableType, 0x129F,
+E(CanonThreadTableType, 0x1288,
   "`thread.new-indirect` table element type must be `funcref`")
+
+// Resources and annotated function names
+E(ComponentResourceOutsideComponent, 0x1289,
+  "resources can only be defined within a concrete component")
+E(ComponentDtorSignature, 0x128A, "wrong signature for a destructor")
+E(ComponentResourceNotNamed, 0x128B,
+  "resource used in function does not have a name in this context")
+E(AnnotatedMethodSelf, 0x128C, "should have a first argument called `self`")
+E(AnnotatedMethodBorrow, 0x128D,
+  "should take a first argument of `(borrow $T)`")
+E(AnnotatedMethodArgs, 0x128E, "should have at least one argument")
+E(AnnotatedCtorReturn, 0x128F,
+  "function should return `(own $T)` or `(result (own $T))`")
+E(AnnotatedCtorReturnOne, 0x1290, "should return one value")
+E(AnnotatedFuncResourceName, 0x1291,
+  "function does not match expected resource name")
+E(AnnotatedStaticUnknown, 0x1292,
+  "static resource name is not known in this context")
+E(ComponentResourceRepI32, 0x1293, "resources can only be represented by `i32`")
 // @}
 
 // Instantiation phase

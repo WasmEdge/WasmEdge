@@ -17,6 +17,10 @@ target_link_libraries(wasmedgeDriverToolTests
 )
 
 if(WASMEDGE_USE_LLVM)
+  target_compile_definitions(wasmedgeDriverToolTests
+    PRIVATE
+    WASMEDGE_USE_LLVM
+  )
   find_package(LLVM QUIET HINTS "${LLVM_CMAKE_PATH}" "${LLVM_DIR}")
   if(LLVM_FOUND)
     target_compile_definitions(wasmedgeDriverToolTests

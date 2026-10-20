@@ -71,6 +71,50 @@ TEST_P(GeneralOptions, Test) {
   }
 }
 
+TEST(ArgumentParserEdgeCases, MissingRequiredValue) {
+  Option<std::string> Name(Description("name"sv));
+
+  ArgumentParser Parser;
+  Parser.add_option("name"sv, Name);
+
+  const char *Args[] = {"test", "--name"};
+
+  EXPECT_FALSE(Parser.parse(stdout, 2, Args));
+}
+
+TEST(ArgumentParserEdgeCases, MissingValueBeforeLongOption) {
+  Option<std::string> Name(Description("name"sv));
+
+  ArgumentParser Parser;
+  Parser.add_option("name"sv, Name);
+
+  const char *Args[] = {"test", "--name", "--help"};
+
+  EXPECT_FALSE(Parser.parse(stdout, 3, Args));
+}
+
+TEST(ArgumentParserEdgeCases, MissingValueBeforeShortOption) {
+  Option<std::string> Name(Description("name"sv));
+
+  ArgumentParser Parser;
+  Parser.add_option("name"sv, Name);
+
+  const char *Args[] = {"test", "--name", "-h"};
+
+  EXPECT_FALSE(Parser.parse(stdout, 3, Args));
+}
+
+TEST(ArgumentParserEdgeCases, MissingValueInCombinedShortOptions) {
+  Option<std::string> Name(Description("name"sv));
+
+  ArgumentParser Parser;
+  Parser.add_option("n"sv, Name);
+
+  const char *Args[] = {"test", "-nh"};
+
+  EXPECT_FALSE(Parser.parse(stdout, 2, Args));
+}
+
 INSTANTIATE_TEST_SUITE_P(
     InstantiationName, GeneralOptions,
     testing::Values(

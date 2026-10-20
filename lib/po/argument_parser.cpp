@@ -31,6 +31,11 @@ cxx20::expected<bool, Error> ArgumentParser::SubCommandDescriptor::parse(
         } else {
           // long option
           if (CurrentDesc && CurrentDesc->nargs() == 0) {
+            if (CurrentDesc->min_nargs() > 0) {
+              return cxx20::unexpected<Error>(
+                  std::in_place, ErrCode::InvalidArgument,
+                  "missing required option value."s);
+            }
             CurrentDesc->default_value();
           }
           if (auto Res = consume_long_option_with_argument(Arg); !Res) {
@@ -42,6 +47,11 @@ cxx20::expected<bool, Error> ArgumentParser::SubCommandDescriptor::parse(
       } else {
         // short options
         if (CurrentDesc && CurrentDesc->nargs() == 0) {
+          if (CurrentDesc->min_nargs() > 0) {
+            return cxx20::unexpected<Error>(std::in_place,
+                                            ErrCode::InvalidArgument,
+                                            "missing required option value."s);
+          }
           CurrentDesc->default_value();
         }
         if (auto Res = consume_short_options(Arg); !Res) {
@@ -93,6 +103,10 @@ cxx20::expected<bool, Error> ArgumentParser::SubCommandDescriptor::parse(
     }
   }
   if (CurrentDesc && CurrentDesc->nargs() == 0) {
+    if (CurrentDesc->min_nargs() > 0) {
+      return cxx20::unexpected<Error>(std::in_place, ErrCode::InvalidArgument,
+                                      "missing required option value."s);
+    }
     CurrentDesc->default_value();
   }
 
@@ -255,6 +269,10 @@ ArgumentParser::SubCommandDescriptor::consume_short_options(
   ArgumentDescriptor *CurrentDesc = nullptr;
   for (std::size_t I = 1; I < Arg.size(); ++I) {
     if (CurrentDesc && CurrentDesc->nargs() == 0) {
+      if (CurrentDesc->min_nargs() > 0) {
+        return cxx20::unexpected<Error>(std::in_place, ErrCode::InvalidArgument,
+                                        "missing required option value."s);
+      }
       CurrentDesc->default_value();
     }
     std::string_view Option = Arg.substr(I, 1);

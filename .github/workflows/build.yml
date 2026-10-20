@@ -70,14 +70,14 @@ jobs:
           fetch-depth: 0
       - name: Ensure git safe directory
         run: |
-          git config --global --add safe.directory $(pwd)
+          git config --global --add safe.directory "$(pwd)"
       - name: Get version
         id: prep
         run: |
           # Retrieve annotated tags. Details: https://github.com/actions/checkout/issues/290
           git fetch --tags --force
           echo "Set version: $(git describe --match '[0-9].[0-9]*' --tag)"
-          echo "version=$(git describe --match '[0-9].[0-9]*' --tag)" >> $GITHUB_OUTPUT
+          echo "version=$(git describe --match '[0-9].[0-9]*' --tag)" >> "$GITHUB_OUTPUT"
 
   create_source_tarball:
     permissions:
@@ -148,7 +148,7 @@ jobs:
       version: ${{ needs.get_version.outputs.version }}
       matrix: "[{'name':'ubuntu-24.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'g++','build_type':'Debug','docker_tag':'ubuntu-24.04-build-gcc','tests':true},
                 {'name':'ubuntu-24.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'g++','build_type':'Release','docker_tag':'ubuntu-24.04-build-gcc','tests':true},
-                {'name':'ubuntu-24.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'clang++','build_type':'Debug','docker_tag':'ubuntu-24.04-build-clang','tests':true},
+                {'name':'ubuntu-24.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'clang++','build_type':'Debug','docker_tag':'ubuntu-24.04-build-clang','tests':true,'abi_check':true},
                 {'name':'ubuntu-24.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-24.04-build-clang','tests':true},
                 {'name':'ubuntu-20.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang','tests':true},
                 {'name':'ubuntu-20.04','arch':'aarch64','runner':'ubuntu-24.04-arm','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang-aarch64','tests':true},

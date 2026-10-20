@@ -5,9 +5,12 @@
 
 import argparse
 import os
+from pathlib import Path
 import re
 import subprocess
 import sys
+
+from abi_signatures import check_signatures
 
 
 def readelf(library, option):
@@ -55,10 +58,30 @@ def symbols(output):
     return exports
 
 
+def require_function_scope(output):
+    unsupported = []
+    for line in output.splitlines():
+        fields = line.split()
+        if len(fields) < 8 or not fields[0].endswith(":"):
+            continue
+        if fields[4] not in {"GLOBAL", "WEAK", "UNIQUE"}:
+            continue
+        if fields[5] not in {"DEFAULT", "PROTECTED"} or fields[6] in {"UND", "ABS"}:
+            continue
+        if fields[3] != "FUNC":
+            unsupported.append(fields[7])
+    if unsupported:
+        raise ValueError("Outside public-function ABI scope; review required: "
+                         + ", ".join(sorted(set(unsupported))))
+
+
 def compare(old_soname, new_soname, old_symbols, new_symbols):
     if old_soname != new_soname:
         print(f"SONAME changed: {old_soname} -> {new_soname}; ABI transition required")
         return 2
+    if old_symbols is None and new_symbols is None:
+        print(f"SONAME unchanged: {old_soname}; checking public function ABI")
+        return 0
     missing = old_symbols - new_symbols
     if missing:
         print(f"Removed ABI symbols under unchanged SONAME {old_soname}:")
@@ -74,6 +97,8 @@ def main():
     parser.add_argument("baseline")
     parser.add_argument("candidate")
     parser.add_argument("--types", action="store_true", help="Require DWARF and run abidiff")
+    parser.add_argument("--types-only", action="store_true",
+                        help="Compare types without the separate export-set check")
     args = parser.parse_args()
     try:
         if elf_identity(readelf(args.baseline, "--file-header")) != elf_identity(
@@ -83,16 +108,21 @@ def main():
         result = compare(
             soname(readelf(args.baseline, "--dynamic")),
             soname(readelf(args.candidate, "--dynamic")),
-            symbols(readelf(args.baseline, "--dyn-syms")),
-            symbols(readelf(args.candidate, "--dyn-syms")),
+            None if args.types_only else symbols(readelf(args.baseline, "--dyn-syms")),
+            None if args.types_only else symbols(readelf(args.candidate, "--dyn-syms")),
         )
-        if result == 2 or not args.types:
+        if result == 2 or not (args.types or args.types_only):
             return result
         for library in (args.baseline, args.candidate):
+            require_function_scope(readelf(library, "--dyn-syms"))
             if not re.search(r"\.(?:debug_info|zdebug_info)\s", readelf(library, "--sections")):
                 raise ValueError(f"Missing embedded DWARF type information: {library}")
+        if not check_signatures(args.baseline, args.candidate):
+            result = 1
         status = subprocess.run(
-            ["abidiff", "--no-added-syms", args.baseline, args.candidate], check=False
+            ["abidiff", "--no-added-syms", "--suppressions",
+             str(Path(__file__).with_name("abi-opaque.suppr")),
+             args.baseline, args.candidate], check=False
         ).returncode
         if status:
             print(f"abidiff reported changes or an analysis failure (status {status})")

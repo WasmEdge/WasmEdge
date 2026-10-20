@@ -1,0 +1,199 @@
+[suppress_type]
+  name = WasmEdge_ConfigureContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_StatisticsContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_ASTModuleContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_LimitContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_FunctionTypeContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_MemoryTypeContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_TableTypeContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_TagTypeContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_GlobalTypeContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_ImportTypeContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_ExportTypeContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_CompilerContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_LoaderContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_ValidatorContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_ExecutorContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_StoreContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_ModuleInstanceContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_FunctionInstanceContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_TableInstanceContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_MemoryInstanceContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_TagInstanceContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_GlobalInstanceContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_CallingFrameContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_Async
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_VMContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = WasmEdge_PluginContext
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_config_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_engine_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_store_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_valtype_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_functype_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_globaltype_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_tabletype_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_memorytype_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_tagtype_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_externtype_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_importtype_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_exporttype_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_frame_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_trap_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_foreign_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_module_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_shared_module_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_func_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_global_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_table_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_memory_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_extern_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_instance_t
+  accessed_through = pointer
+
+[suppress_type]
+  name = wasm_ref_t
+  accessed_through = pointer

@@ -47,13 +47,17 @@ class TypeTests(unittest.TestCase):
                     "-Wl,-soname,libexample.so.0", "-o", str(root / f"{name}.so"),
                 ], check=True)
             checker = pathlib.Path(__file__).with_name("check_abi.py")
-            for name in cases:
-                result = subprocess.run([
-                    sys.executable, str(checker), "--types",
-                    str(root / "old.so"), str(root / f"{name}.so"),
-                ], capture_output=True, text=True)
-                expected = 1 if name in {"signature", "layout"} else 0
-                self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+            for option in ("--types", "--types-only"):
+                for name in cases:
+                    with self.subTest(option=option, case=name):
+                        result = subprocess.run([
+                            sys.executable, str(checker), option,
+                            str(root / "old.so"), str(root / f"{name}.so"),
+                        ], capture_output=True, text=True)
+                        if option == "--types-only":
+                            self.assertNotIn("Preserved 0 ABI symbols", result.stdout)
+                        expected = 1 if name in {"signature", "layout"} else 0
+                        self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

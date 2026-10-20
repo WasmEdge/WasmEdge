@@ -5,6 +5,8 @@ on:
     paths:
       - ".github/scripts/*abi*"
       - ".github/abi-baseline-schema"
+      - "include/api/wasmedge/wasmedge_context.h"
+      - "thirdparty/wasm/wasm.h"
       - ".github/workflows/abi-script-tests.yml"
       - ".github/workflows/reusable-build-on-ubuntu.yml"
   push:
@@ -12,6 +14,8 @@ on:
     paths:
       - ".github/scripts/*abi*"
       - ".github/abi-baseline-schema"
+      - "include/api/wasmedge/wasmedge_context.h"
+      - "thirdparty/wasm/wasm.h"
       - ".github/workflows/abi-script-tests.yml"
 
 permissions:

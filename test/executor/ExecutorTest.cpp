@@ -393,6 +393,208 @@ TEST(WideArithmetic, Sub128) {
   }
 }
 
+TEST(WideArithmetic, MulWideS) {
+  // (module
+  //   (func (export "wide") (param i64 i64)
+  //         (result i64 i64 i64)
+  //     i64.const 0x9e3779b97f4a7c15
+  //     local.get 0
+  //     local.get 1
+  //     i64.mul_wide_s))
+  std::array<WasmEdge::Byte, 56> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x01, 0x60,
+      0x02, 0x7e, 0x7e, 0x03, 0x7e, 0x7e, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07,
+      0x08, 0x01, 0x04, 0x77, 0x69, 0x64, 0x65, 0x00, 0x00, 0x0a, 0x15, 0x01,
+      0x13, 0x00, 0x42, 0x95, 0xf8, 0xa9, 0xfa, 0x97, 0xb7, 0xde, 0x9b, 0x9e,
+      0x7f, 0x20, 0x00, 0x20, 0x01, 0xfc, 0x15, 0x0b};
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::WideArithmetic);
+  WasmEdge::VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  std::vector<ValType> ParamTypes = {ValType(TypeCode::I64),
+                                     ValType(TypeCode::I64)};
+  // The function returns the preceding stack value and the result low/high.
+  constexpr uint64_t Sentinel = UINT64_C(0x9e3779b97f4a7c15);
+
+  // Multiplying minus one by two preserves the negative high half.
+  {
+    std::vector<ValVariant> Params = {UINT64_MAX, UINT64_C(2)};
+    auto Result = VM.execute("wide", Params, ParamTypes);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 3U);
+    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
+    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_MAX - 1U);
+    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_MAX);
+  }
+  // Multiplying two negative operands produces a positive result.
+  {
+    std::vector<ValVariant> Params = {UINT64_MAX, UINT64_MAX};
+    auto Result = VM.execute("wide", Params, ParamTypes);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 3U);
+    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
+    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 1U);
+    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 0U);
+  }
+  // Negating the minimum signed value produces a zero high half.
+  {
+    std::vector<ValVariant> Params = {UINT64_C(0x8000000000000000), UINT64_MAX};
+    auto Result = VM.execute("wide", Params, ParamTypes);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 3U);
+    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
+    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_C(0x8000000000000000));
+    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 0U);
+  }
+  // Multiplying two minimum signed values produces a positive high half.
+  {
+    std::vector<ValVariant> Params = {UINT64_C(0x8000000000000000),
+                                      UINT64_C(0x8000000000000000)};
+    auto Result = VM.execute("wide", Params, ParamTypes);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 3U);
+    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
+    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 0U);
+    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_C(0x4000000000000000));
+  }
+  // Zero times a negative operand produces zero.
+  {
+    std::vector<ValVariant> Params = {UINT64_C(0),
+                                      UINT64_C(0x8000000000000000)};
+    auto Result = VM.execute("wide", Params, ParamTypes);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 3U);
+    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
+    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 0U);
+    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 0U);
+  }
+  // The left negative operand is sign-extended.
+  {
+    std::vector<ValVariant> Params = {UINT64_C(0x8000000000000000),
+                                      UINT64_C(1)};
+    auto Result = VM.execute("wide", Params, ParamTypes);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 3U);
+    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
+    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_C(0x8000000000000000));
+    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_MAX);
+  }
+  // The right negative operand is sign-extended.
+  {
+    std::vector<ValVariant> Params = {UINT64_C(1),
+                                      UINT64_C(0x8000000000000000)};
+    auto Result = VM.execute("wide", Params, ParamTypes);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 3U);
+    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
+    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_C(0x8000000000000000));
+    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_MAX);
+  }
+  // Doubling the minimum signed value clears the low half.
+  {
+    std::vector<ValVariant> Params = {UINT64_C(0x8000000000000000),
+                                      UINT64_C(2)};
+    auto Result = VM.execute("wide", Params, ParamTypes);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 3U);
+    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
+    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 0U);
+    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_MAX);
+  }
+  // Multiplying two maximum signed values fills both result halves.
+  {
+    std::vector<ValVariant> Params = {UINT64_C(0x7fffffffffffffff),
+                                      UINT64_C(0x7fffffffffffffff)};
+    auto Result = VM.execute("wide", Params, ParamTypes);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 3U);
+    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
+    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 1U);
+    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_C(0x3fffffffffffffff));
+  }
+  // Multiplying opposite signed extremes produces a negative result.
+  {
+    std::vector<ValVariant> Params = {UINT64_C(0x7fffffffffffffff),
+                                      UINT64_C(0x8000000000000000)};
+    auto Result = VM.execute("wide", Params, ParamTypes);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 3U);
+    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
+    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_C(0x8000000000000000));
+    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_C(0xc000000000000000));
+  }
+}
+
+TEST(WideArithmetic, MulWideU) {
+  // (module
+  //   (func (export "wide") (param i64 i64)
+  //         (result i64 i64 i64)
+  //     i64.const 0x9e3779b97f4a7c15
+  //     local.get 0
+  //     local.get 1
+  //     i64.mul_wide_u))
+  std::array<WasmEdge::Byte, 56> Wasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x01, 0x60,
+      0x02, 0x7e, 0x7e, 0x03, 0x7e, 0x7e, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x07,
+      0x08, 0x01, 0x04, 0x77, 0x69, 0x64, 0x65, 0x00, 0x00, 0x0a, 0x15, 0x01,
+      0x13, 0x00, 0x42, 0x95, 0xf8, 0xa9, 0xfa, 0x97, 0xb7, 0xde, 0x9b, 0x9e,
+      0x7f, 0x20, 0x00, 0x20, 0x01, 0xfc, 0x16, 0x0b};
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::WideArithmetic);
+  WasmEdge::VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  std::vector<ValType> ParamTypes = {ValType(TypeCode::I64),
+                                     ValType(TypeCode::I64)};
+  // The function returns the preceding stack value and the result low/high.
+  constexpr uint64_t Sentinel = UINT64_C(0x9e3779b97f4a7c15);
+
+  // Multiplying the maximum unsigned value by two carries into the high half.
+  {
+    std::vector<ValVariant> Params = {UINT64_MAX, UINT64_C(2)};
+    auto Result = VM.execute("wide", Params, ParamTypes);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 3U);
+    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
+    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), UINT64_MAX - 1U);
+    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 1U);
+  }
+  // Multiplying two maximum unsigned values fills both result halves.
+  {
+    std::vector<ValVariant> Params = {UINT64_MAX, UINT64_MAX};
+    auto Result = VM.execute("wide", Params, ParamTypes);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 3U);
+    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
+    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 1U);
+    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_MAX - 1U);
+  }
+  // Bit 63 is part of each unsigned operand's magnitude.
+  {
+    std::vector<ValVariant> Params = {UINT64_C(0x8000000000000000),
+                                      UINT64_C(0x8000000000000000)};
+    auto Result = VM.execute("wide", Params, ParamTypes);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 3U);
+    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
+    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 0U);
+    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), UINT64_C(0x4000000000000000));
+  }
+  // Zero times the maximum unsigned value produces zero.
+  {
+    std::vector<ValVariant> Params = {UINT64_C(0), UINT64_MAX};
+    auto Result = VM.execute("wide", Params, ParamTypes);
+    ASSERT_TRUE(Result);
+    ASSERT_EQ(Result->size(), 3U);
+    EXPECT_EQ((*Result)[0].first.get<uint64_t>(), Sentinel);
+    EXPECT_EQ((*Result)[1].first.get<uint64_t>(), 0U);
+    EXPECT_EQ((*Result)[2].first.get<uint64_t>(), 0U);
+  }
+}
+
 std::array<WasmEdge::Byte, 46> AsyncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
     0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07,

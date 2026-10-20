@@ -818,6 +818,8 @@ private:
   inline Expect<void> runSub128Op(ValVariant &Val1Lo, ValVariant &Val1Hi,
                                   const ValVariant &Val2Lo,
                                   const ValVariant &Val2Hi) const;
+  template <typename T>
+  TypeI<T> runMulWideOp(ValVariant &Val1, ValVariant &Val2) const;
   /// ======= Cast Numeric instructions =======
   template <typename TIn, typename TOut>
   TypeUU<TIn, TOut> runWrapOp(ValVariant &Val) const;

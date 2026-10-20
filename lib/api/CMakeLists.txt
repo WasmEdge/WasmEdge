@@ -147,6 +147,11 @@ if(WASMEDGE_BUILD_SHARED_LIB)
       PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR}/wasmedge_compat.cpp
     )
+    # GCC LTO discards the shims together with their `.symver` aliases, so the
+    # compat TU is always compiled to a regular object.
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/wasmedge_compat.cpp
+      PROPERTIES COMPILE_OPTIONS "-fno-lto"
+    )
   endif()
 
   target_link_libraries(wasmedge_shared

@@ -162,6 +162,9 @@ private:
     bool isHelp() const noexcept { return HelpOpt->value(); }
 
   private:
+    static cxx20::expected<void, Error>
+    finish_option(const ArgumentDescriptor *CurrentDesc) noexcept;
+
     cxx20::expected<ArgumentDescriptor *, Error>
     consume_short_options(std::string_view Arg) noexcept;
 

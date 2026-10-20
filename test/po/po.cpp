@@ -64,6 +64,31 @@ TEST(UnsignedOptions, RejectNegative) {
       Parser.parse(stdout, static_cast<int>(Negative.size()), Negative.data()));
 }
 
+TEST(RequiredOptions, RejectMissingValue) {
+  Option<std::string> N(Description("n option"sv));
+  Option<Toggle> A(Description("a option"sv));
+  ArgumentParser Parser;
+  Parser.add_option("n"sv, N).add_option("name"sv, N).add_option("a"sv, A);
+
+  std::vector<const char *> AtEnd = {"test", "--name"};
+  EXPECT_FALSE(
+      Parser.parse(stdout, static_cast<int>(AtEnd.size()), AtEnd.data()));
+  std::vector<const char *> BeforeLong = {"test", "--name", "--a"};
+  EXPECT_FALSE(Parser.parse(stdout, static_cast<int>(BeforeLong.size()),
+                            BeforeLong.data()));
+  std::vector<const char *> BeforeShort = {"test", "-n", "-a"};
+  EXPECT_FALSE(Parser.parse(stdout, static_cast<int>(BeforeShort.size()),
+                            BeforeShort.data()));
+  std::vector<const char *> Combined = {"test", "-na"};
+  EXPECT_FALSE(
+      Parser.parse(stdout, static_cast<int>(Combined.size()), Combined.data()));
+  std::vector<const char *> Given = {"test", "--name", "x", "-a"};
+  EXPECT_TRUE(
+      Parser.parse(stdout, static_cast<int>(Given.size()), Given.data()));
+  EXPECT_EQ(N.value(), "x");
+  EXPECT_TRUE(A.value());
+}
+
 TEST_P(GeneralOptions, Test) {
   auto P = GetParam();
   EXPECT_EQ(P.R, Parser.parse(stdout, static_cast<int>(P.Args.size()),
@@ -97,6 +122,7 @@ INSTANTIATE_TEST_SUITE_P(
         Param(true, false, -2, {}, {}, {"test", "--b_option=-2"}),
         Param(true, false, -1, {}, {}, {"test", "-b", "--"}),
         Param(true, false, -1, {}, {}, {"test", "--b", "--"}),
+        Param(true, false, -1, {}, {}, {"test", "--b", "--b"}),
         Param(true, true, -1, {}, {}, {"test", "-ba"}),
         Param(true, true, -1, {}, {}, {"test", "-b", "-a"}),
         Param(true, true, -1, {}, {}, {"test", "-b", "--a"}),
@@ -105,6 +131,7 @@ INSTANTIATE_TEST_SUITE_P(
         Param(true, true, -1, {}, {}, {"test", "--b_option", "-a"}),
         Param(true, true, -1, {}, {}, {"test", "--b", "--a"}),
         Param(true, true, 0, {0}, {}, {"test", "-c", "-a"}),
+        Param(true, true, 0, {0}, {}, {"test", "-c", "-c", "-a"}),
         Param(true, true, 0, {1}, {}, {"test", "-c", "1", "-a"}),
         Param(true, false, 0, {2}, {"1", "-a"}, {"test", "-c", "2", "1", "-a"}),
         Param(true, true, 0, {2, 1}, {}, {"test", "-c", "2", "-c", "1", "-a"}),

@@ -67,10 +67,7 @@ public:
   const T &value() const noexcept { return Store; }
   T &value() noexcept { return Store; }
 
-  void default_argument() noexcept {
-    Store = std::move(*Default);
-    Default.reset();
-  }
+  void default_argument() noexcept { Store = *Default; }
 
   cxx20::expected<void, Error> argument(std::string Argument) noexcept {
     if (auto Res = Parser<T>::parse(std::move(Argument)); !Res) {
@@ -126,10 +123,7 @@ public:
   const T &value() const noexcept { return *Store; }
   T &value() noexcept { return *Store; }
 
-  void default_argument() noexcept {
-    *Store = *Default;
-    Default = nullptr;
-  }
+  void default_argument() noexcept { *Store = *Default; }
 
   cxx20::expected<void, Error> argument(std::string Argument) noexcept {
     if (auto Res = Parser<T>::parse(std::move(Argument)); !Res) {

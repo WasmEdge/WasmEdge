@@ -1116,6 +1116,13 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::I64__atomic__rmw32__cmpxchg_u:
     return readMemImmediate();
 
+  // Wide-arithmetic instructions.
+  case OpCode::I64__add128:
+  case OpCode::I64__sub128:
+  case OpCode::I64__mul_wide_s:
+  case OpCode::I64__mul_wide_u:
+    return {};
+
   default:
     assumingUnreachable();
   }

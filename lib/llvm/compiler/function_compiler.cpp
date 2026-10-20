@@ -1162,7 +1162,8 @@ void FunctionCompiler::updateInstrCount() noexcept {
         LLVMAtomicRMWBinOpAdd, Context.getInstrCount(Builder, ExecCtx),
         Builder.createLoad(Context.Int64Ty, LocalInstrCount),
         LLVMAtomicOrderingMonotonic);
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR < 13
+#else
     Store.setAlignment(8);
 #endif
     Builder.createStore(LLContext.getInt64(0), LocalInstrCount);
@@ -1197,7 +1198,8 @@ void FunctionCompiler::updateGas() noexcept {
     auto RGasAndSucceed = Builder.createAtomicCmpXchg(
         GasPtr, PHIOldGas, NewGas, LLVMAtomicOrderingMonotonic,
         LLVMAtomicOrderingMonotonic);
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR < 13
+#else
     RGasAndSucceed.setAlignment(8);
 #endif
     RGasAndSucceed.setWeak(true);
@@ -1219,7 +1221,8 @@ void FunctionCompiler::updateGasAtTrap() noexcept {
         LLVMAtomicRMWBinOpAdd, Context.getGas(Builder, ExecCtx),
         Builder.createLoad(Context.Int64Ty, LocalGas),
         LLVMAtomicOrderingMonotonic);
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR < 13
+#else
     Update.setAlignment(8);
 #endif
   }
@@ -1672,15 +1675,64 @@ void FunctionCompiler::compileReturnCallOp(
     Args[J + 2] = stackPop();
   }
 
+  const bool IsImport = std::get<2>(Context.Functions[FuncIndex]) == nullptr;
+  auto FTy = toLLVMType(LLContext, Context.ModCtxPtrTy, Context.ExecCtxPtrTy,
+                        FuncType);
+
+  // Known limitation: musttail is only valid when the caller and callee
+  // prototypes match. A differing signature falls back to the tail hint, which
+  // LLVM may decline, so such a tail call is not guaranteed constant-space.
+  auto CreateTailRet = [&](LLVM::Value Ret) {
+    if (Ret.getInstructionCalledFunctionType().unwrap() == F.Ty.unwrap()) {
+      Ret.setMustTailCall();
+    } else {
+      Ret.setTailCall();
+    }
+    if (Ret.getType().isVoidTy()) {
+      Builder.createRetVoid();
+    } else {
+      Builder.createRet(Ret);
+    }
+  };
+
+  if (IsImport) {
+    auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "rc.not_null");
+    auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "rc.is_null");
+    auto Ref = Builder.createCall(
+        Context.getIntrinsic(Builder, Executable::Intrinsics::kRefFunc,
+                             LLVM::Type::getFunctionType(
+                                 Context.Int64x2Ty,
+                                 {Context.Int8PtrTy, Context.Int32Ty}, false)),
+        {Context.getModuleInst(Builder, ModCtx),
+         LLContext.getInt32(FuncIndex)});
+    auto FPtr = Builder.createCall(
+        Context.getIntrinsic(
+            Builder, Executable::Intrinsics::kRefGetFuncSymbol,
+            LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                        {Context.Int8PtrTy, Context.Int64x2Ty,
+                                         Context.ModCtxPtrTy.getPointerTo()},
+                                        false)),
+        {Context.getModuleInst(Builder, ModCtx), Ref, CalleeCtxSlot});
+    Builder.createCondBr(
+        Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
+        NotNullBB, IsNullBB);
+    Builder.positionAtEnd(NotNullBB);
+
+    auto Returned = Builder.createLoad(Context.ModCtxPtrTy, CalleeCtxSlot);
+    std::vector<LLVM::Value> SlowArgsVec = Args;
+    SlowArgsVec[0] = Builder.createSelect(Builder.createIsNull(Returned),
+                                          F.Fn.getFirstParam(), Returned);
+    CreateTailRet(
+        Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), SlowArgsVec));
+
+    Builder.positionAtEnd(IsNullBB);
+  }
+
   LLVM::Value Ret;
   if (IsLazyJIT) {
-    bool IsImport = std::get<2>(Context.Functions[FuncIndex]) == nullptr;
     if (IsImport) {
       Ret = Builder.createCall(Function, Args);
     } else {
-      auto FTy = toLLVMType(LLContext, Context.ModCtxPtrTy,
-                            Context.ExecCtxPtrTy, FuncType);
-
       if (Context.LazyJITCacheVars.size() <= FuncIndex) {
         Context.LazyJITCacheVars.resize(Context.Functions.size());
       }
@@ -1730,20 +1782,7 @@ void FunctionCompiler::compileReturnCallOp(
     Ret = Builder.createCall(Function, Args);
   }
 
-  // Known limitation: musttail is only valid when the caller and callee
-  // prototypes match. A differing signature falls back to the tail hint, which
-  // LLVM may decline, so such a tail call is not guaranteed constant-space.
-  if (Ret.getInstructionCalledFunctionType().unwrap() == F.Ty.unwrap()) {
-    Ret.setMustTailCall();
-  } else {
-    Ret.setTailCall();
-  }
-  auto Ty = Ret.getType();
-  if (Ty.isVoidTy()) {
-    Builder.createRetVoid();
-  } else {
-    Builder.createRet(Ret);
-  }
+  CreateTailRet(Ret);
 }
 
 void FunctionCompiler::compileReturnIndirectCallOp(
@@ -2092,7 +2131,8 @@ void FunctionCompiler::checkStop() noexcept {
   auto StopToken = Builder.createAtomicRMW(
       LLVMAtomicRMWBinOpXchg, Context.getStopToken(Builder, ExecCtx),
       LLContext.getInt32(0), LLVMAtomicOrderingMonotonic);
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR < 13
+#else
   StopToken.setAlignment(32);
 #endif
   auto NotStop = Builder.createLikely(

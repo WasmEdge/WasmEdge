@@ -18,10 +18,12 @@
 #include <random>
 #include <sstream>
 
-#if LLVM_VERSION_MAJOR >= 14
+#if LLVM_VERSION_MAJOR < 14
+#else
 #include <lld/Common/CommonLinkerContext.h>
 #endif
-#if LLVM_VERSION_MAJOR >= 17
+#if LLVM_VERSION_MAJOR < 17
+#else
 #if WASMEDGE_OS_MACOS
 LLD_HAS_DRIVER(macho)
 #elif WASMEDGE_OS_LINUX
@@ -211,13 +213,13 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #if WASMEDGE_OS_MACOS
   const auto OSVersion = getOSVersion();
   const auto SDKVersion = getSDKVersion();
-#if LLVM_VERSION_MAJOR >= 14
+#if LLVM_VERSION_MAJOR < 14
+  LinkResult = lld::mach_o::link(
+#else
   // LLVM 14 replaces the older mach_o lld implementation with the new one.
   // So we need to change the namespace after LLVM 14.x was released.
   // Reference: https://reviews.llvm.org/D114842
   LinkResult = lld::macho::link(
-#else
-  LinkResult = lld::mach_o::link(
 #endif
       std::initializer_list<const char *>{
           "lld", "-arch",
@@ -228,13 +230,13 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #else
 #error Unsupported architecture on the MacOS!
 #endif
-#if LLVM_VERSION_MAJOR >= 14
+#if LLVM_VERSION_MAJOR < 14
+          "-sdk_version", SDKVersion.c_str(),
+#else
           // LLVM 14 replaces the older mach_o lld implementation with the new
           // one. And it require -arch and -platform_version to always be
           // specified. Reference: https://reviews.llvm.org/D97799
           "-platform_version", "macos", OSVersion.c_str(), SDKVersion.c_str(),
-#else
-          "-sdk_version", SDKVersion.c_str(),
 #endif
           "-dylib", "-demangle", "-macosx_version_min", OSVersion.c_str(),
           "-syslibroot", "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
@@ -253,16 +255,17 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
           ("-out:" + u8string(OutputPath)).c_str()},
 #endif
 
-#if LLVM_VERSION_MAJOR >= 14
-      llvm::outs(), llvm::errs(), false, false
-#elif LLVM_VERSION_MAJOR >= 10
+#if LLVM_VERSION_MAJOR < 10
+      false, llvm::errs()
+#elif LLVM_VERSION_MAJOR < 14
       false, llvm::outs(), llvm::errs()
 #else
-      false, llvm::errs()
+      llvm::outs(), llvm::errs(), false, false
 #endif
   );
 
-#if LLVM_VERSION_MAJOR >= 14
+#if LLVM_VERSION_MAJOR < 14
+#else
   lld::CommonLinkerContext::destroy();
 #endif
 
@@ -544,7 +547,7 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
     Builder.positionAtEnd(LLVM::BasicBlock::create(LLContext, F, "entry"));
     Builder.createRet(LLContext.getInt32(1u));
 
-    auto A = LLModule.addAlias(F.getType(), F, "_fltused");
+    auto A = LLModule.addAlias(FTy, F, "_fltused");
     A.setLinkage(LLVMExternalLinkage);
     A.setVisibility(LLVMProtectedVisibility);
     A.setDSOLocal(true);

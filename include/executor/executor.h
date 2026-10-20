@@ -812,6 +812,12 @@ private:
   TypeF<T> runMaxOp(ValVariant &Val1, const ValVariant &Val2) const;
   template <typename T>
   TypeF<T> runCopysignOp(ValVariant &Val1, const ValVariant &Val2) const;
+  inline Expect<void> runAdd128Op(ValVariant &Val1Lo, ValVariant &Val1Hi,
+                                  const ValVariant &Val2Lo,
+                                  const ValVariant &Val2Hi) const;
+  inline Expect<void> runSub128Op(ValVariant &Val1Lo, ValVariant &Val1Hi,
+                                  const ValVariant &Val2Lo,
+                                  const ValVariant &Val2Hi) const;
   /// ======= Cast Numeric instructions =======
   template <typename TIn, typename TOut>
   TypeUU<TIn, TOut> runWrapOp(ValVariant &Val) const;

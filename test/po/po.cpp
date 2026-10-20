@@ -113,3 +113,28 @@ INSTANTIATE_TEST_SUITE_P(
       }
       return Name;
     });
+
+TEST(PoTest, UnsignedNegativeValues) {
+  Option<unsigned int> U32Opt(Description("unsigned 32 option"sv));
+  Option<uint64_t> U64Opt(Description("unsigned 64 option"sv));
+  ArgumentParser Parser;
+  Parser.add_option("u32"sv, U32Opt).add_option("u64"sv, U64Opt);
+
+  {
+    std::vector<const char *> ValidArgs = {"test", "--u32=100", "--u64=200"};
+    EXPECT_TRUE(Parser.parse(stdout, static_cast<int>(ValidArgs.size()),
+                             ValidArgs.data()));
+    EXPECT_EQ(100u, U32Opt.value());
+    EXPECT_EQ(200ull, U64Opt.value());
+  }
+  {
+    std::vector<const char *> InvalidArgs = {"test", "--u32=-1"};
+    EXPECT_FALSE(Parser.parse(stdout, static_cast<int>(InvalidArgs.size()),
+                              InvalidArgs.data()));
+  }
+  {
+    std::vector<const char *> InvalidArgs = {"test", "--u64=-1"};
+    EXPECT_FALSE(Parser.parse(stdout, static_cast<int>(InvalidArgs.size()),
+                              InvalidArgs.data()));
+  }
+}

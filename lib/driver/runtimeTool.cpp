@@ -372,6 +372,11 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
               std::chrono::milliseconds(Opt.TimeLim.value());
   }
   if (Opt.GasLim.value().size() > 0) {
+    if (std::any_of(Opt.GasLim.value().begin(), Opt.GasLim.value().end(),
+                    [](int V) { return V < 0; })) {
+      spdlog::error("--gas-limit value cannot be negative."sv);
+      return EXIT_FAILURE;
+    }
     Conf.getStatisticsConfigure().setCostMeasuring(true);
     Conf.getStatisticsConfigure().setCostLimit(
         static_cast<uint32_t>(Opt.GasLim.value().back()));

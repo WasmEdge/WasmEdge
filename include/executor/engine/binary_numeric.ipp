@@ -249,6 +249,22 @@ inline Expect<void> Executor::runSub128Op(ValVariant &Val1Lo,
   return {};
 }
 
+template <typename T>
+TypeI<T> Executor::runMulWideOp(ValVariant &Val1, ValVariant &Val2) const {
+  // Multiply two T values and store the low half in v1 and the high half in v2.
+  const uint64_t Lhs = Val1.get<uint64_t>();
+  const uint64_t Rhs = Val2.get<uint64_t>();
+  const uint128_t Product = uint128_t(Lhs) * uint128_t(Rhs);
+  uint64_t Hi = static_cast<uint64_t>(Product >> 64U);
+  if constexpr (std::is_signed_v<T>) {
+    Hi -= (Lhs >> 63U) ? Rhs : 0U;
+    Hi -= (Rhs >> 63U) ? Lhs : 0U;
+  }
+  Val1.get<uint64_t>() = static_cast<uint64_t>(Product);
+  Val2.get<uint64_t>() = Hi;
+  return {};
+}
+
 } // namespace Executor
 } // namespace WasmEdge
 

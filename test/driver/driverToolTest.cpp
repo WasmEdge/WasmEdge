@@ -713,6 +713,7 @@ TEST(CompileSubcommand, ErrorHandling) {
   std::filesystem::remove(Output.c_str());
 }
 
+#ifdef WASMEDGE_USE_LLVM
 TEST(CompileSubcommand, ValidAndInvalidModules) {
   std::string Output = TestDataPath + "/simple_aot.wasm";
   EXPECT_EQ(callCompile({simplePath().c_str(), Output.c_str()}), EXIT_SUCCESS);
@@ -847,6 +848,7 @@ TEST(CompileSubcommand, OutputFormat) {
   EXPECT_EQ(callCompile({Path, NativeOutput.c_str()}), EXIT_SUCCESS);
   std::filesystem::remove(NativeOutput.c_str());
 }
+#endif // WASMEDGE_USE_LLVM
 
 TEST(RunSubcommand, RunModeFlagParses) {
   WasmEdge::Driver::DriverToolOptions Opt;

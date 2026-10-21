@@ -533,6 +533,87 @@ TEST_F(ValidatorRegressionTest, DeclaredRefFuncToImportedFunction) {
   EXPECT_TRUE(ValidationResult);
 }
 
+// Test that a huge array.new_fixed operand count fails with a stack underflow.
+TEST_F(ValidatorRegressionTest, ArrayNewFixedHugeCountUnderflow) {
+  // Module: (module
+  //   (type (array i32))
+  //   (type (func))
+  //   (func (type 1) array.new_fixed 0 0xFFFFFFFF  drop))
+  std::array<WasmEdge::Byte, 36> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 2 types (array i32), (func)
+      0x01, 0x07, 0x02, 0x5e, 0x7f, 0x00, 0x60, 0x00, 0x00,
+      // Function section: 1 function, type index 1
+      0x03, 0x02, 0x01, 0x01,
+      // Code section: 1 body
+      0x0a, 0x0d, 0x01, 0x0b, 0x00,
+      // array.new_fixed 0 0xFFFFFFFF, drop, end
+      0xfb, 0x08, 0x00, 0xff, 0xff, 0xff, 0xff, 0x0f, 0x1a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+// Test that a huge array.new_fixed operand count after unreachable passes.
+TEST_F(ValidatorRegressionTest, ArrayNewFixedHugeCountAfterUnreachable) {
+  // Module: (module
+  //   (type (array i32))
+  //   (type (func))
+  //   (func (type 1) unreachable  array.new_fixed 0 0xFFFFFFFF  drop))
+  std::array<WasmEdge::Byte, 37> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 2 types (array i32), (func)
+      0x01, 0x07, 0x02, 0x5e, 0x7f, 0x00, 0x60, 0x00, 0x00,
+      // Function section: 1 function, type index 1
+      0x03, 0x02, 0x01, 0x01,
+      // Code section: 1 body
+      0x0a, 0x0e, 0x01, 0x0c, 0x00,
+      // unreachable, array.new_fixed 0 0xFFFFFFFF, drop, end
+      0x00, 0xfb, 0x08, 0x00, 0xff, 0xff, 0xff, 0xff, 0x0f, 0x1a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  EXPECT_TRUE(ValidEngine->validate(**Result));
+}
+
+// Test that a huge array.new_fixed operand count still checks the operands.
+TEST_F(ValidatorRegressionTest,
+       ArrayNewFixedHugeCountAfterUnreachableMismatch) {
+  // Module: (module
+  //   (type (array i32))
+  //   (type (func))
+  //   (func (type 1)
+  //     unreachable  i64.const 0  array.new_fixed 0 0xFFFFFFFF  drop))
+  std::array<WasmEdge::Byte, 39> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 2 types (array i32), (func)
+      0x01, 0x07, 0x02, 0x5e, 0x7f, 0x00, 0x60, 0x00, 0x00,
+      // Function section: 1 function, type index 1
+      0x03, 0x02, 0x01, 0x01,
+      // Code section: 1 body
+      0x0a, 0x10, 0x01, 0x0e, 0x00,
+      // unreachable, i64.const 0, array.new_fixed 0 0xFFFFFFFF, drop, end
+      0x00, 0x42, 0x00, 0xfb, 0x08, 0x00, 0xff, 0xff, 0xff, 0xff, 0x0f, 0x1a,
+      0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

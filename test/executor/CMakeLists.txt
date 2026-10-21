@@ -26,3 +26,10 @@ target_link_libraries(wasmedgeExecutorRegressionTests
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeVM
 )
+
+if(WASMEDGE_USE_LLVM)
+  target_compile_definitions(wasmedgeExecutorRegressionTests
+    PRIVATE
+    -DWASMEDGE_USE_LLVM
+  )
+endif()

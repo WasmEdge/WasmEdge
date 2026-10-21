@@ -12,13 +12,19 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "common/nan.h"
 #include "common/spdlog.h"
 #include "common/types.h"
+#include "experimental/bit.hpp"
 #include "vm/vm.h"
 
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <gtest/gtest.h>
+#include <initializer_list>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -1485,6 +1491,168 @@ TEST(ExecutorRegression, CallStackDefaultLimit) {
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), ErrCode::Value::CallStackExhausted);
 }
+
+// clang-format off
+/// Binary Wasm module: vector min, max, and rounding on caller-supplied lanes.
+///
+/// (module
+///   (func (export "f32x4.min") (param v128 v128) (result v128)
+///     (f32x4.min (local.get 0) (local.get 1)))
+///   (func (export "f32x4.max") (param v128 v128) (result v128)
+///     (f32x4.max (local.get 0) (local.get 1)))
+///   (func (export "f64x2.min") (param v128 v128) (result v128)
+///     (f64x2.min (local.get 0) (local.get 1)))
+///   (func (export "f64x2.max") (param v128 v128) (result v128)
+///     (f64x2.max (local.get 0) (local.get 1)))
+///   (func (export "f32x4.ceil") (param v128) (result v128)
+///     (f32x4.ceil (local.get 0)))
+///   (func (export "f32x4.floor") (param v128) (result v128)
+///     (f32x4.floor (local.get 0)))
+///   (func (export "f32x4.trunc") (param v128) (result v128)
+///     (f32x4.trunc (local.get 0)))
+///   (func (export "f32x4.nearest") (param v128) (result v128)
+///     (f32x4.nearest (local.get 0)))
+///   (func (export "f64x2.ceil") (param v128) (result v128)
+///     (f64x2.ceil (local.get 0)))
+///   (func (export "f64x2.floor") (param v128) (result v128)
+///     (f64x2.floor (local.get 0)))
+///   (func (export "f64x2.trunc") (param v128) (result v128)
+///     (f64x2.trunc (local.get 0)))
+///   (func (export "f64x2.nearest") (param v128) (result v128)
+///     (f64x2.nearest (local.get 0))))
+std::array<WasmEdge::Byte, 303> SimdNaNWasm{
+    0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0C, 0x02, 0x60,
+    0x02, 0x7B, 0x7B, 0x01, 0x7B, 0x60, 0x01, 0x7B, 0x01, 0x7B, 0x03, 0x0D,
+    0x0C, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+    0x01, 0x07, 0xA3, 0x01, 0x0C, 0x09, 0x66, 0x33, 0x32, 0x78, 0x34, 0x2E,
+    0x6D, 0x69, 0x6E, 0x00, 0x00, 0x09, 0x66, 0x33, 0x32, 0x78, 0x34, 0x2E,
+    0x6D, 0x61, 0x78, 0x00, 0x01, 0x09, 0x66, 0x36, 0x34, 0x78, 0x32, 0x2E,
+    0x6D, 0x69, 0x6E, 0x00, 0x02, 0x09, 0x66, 0x36, 0x34, 0x78, 0x32, 0x2E,
+    0x6D, 0x61, 0x78, 0x00, 0x03, 0x0A, 0x66, 0x33, 0x32, 0x78, 0x34, 0x2E,
+    0x63, 0x65, 0x69, 0x6C, 0x00, 0x04, 0x0B, 0x66, 0x33, 0x32, 0x78, 0x34,
+    0x2E, 0x66, 0x6C, 0x6F, 0x6F, 0x72, 0x00, 0x05, 0x0B, 0x66, 0x33, 0x32,
+    0x78, 0x34, 0x2E, 0x74, 0x72, 0x75, 0x6E, 0x63, 0x00, 0x06, 0x0D, 0x66,
+    0x33, 0x32, 0x78, 0x34, 0x2E, 0x6E, 0x65, 0x61, 0x72, 0x65, 0x73, 0x74,
+    0x00, 0x07, 0x0A, 0x66, 0x36, 0x34, 0x78, 0x32, 0x2E, 0x63, 0x65, 0x69,
+    0x6C, 0x00, 0x08, 0x0B, 0x66, 0x36, 0x34, 0x78, 0x32, 0x2E, 0x66, 0x6C,
+    0x6F, 0x6F, 0x72, 0x00, 0x09, 0x0B, 0x66, 0x36, 0x34, 0x78, 0x32, 0x2E,
+    0x74, 0x72, 0x75, 0x6E, 0x63, 0x00, 0x0A, 0x0D, 0x66, 0x36, 0x34, 0x78,
+    0x32, 0x2E, 0x6E, 0x65, 0x61, 0x72, 0x65, 0x73, 0x74, 0x00, 0x0B, 0x0A,
+    0x62, 0x0C, 0x09, 0x00, 0x20, 0x00, 0x20, 0x01, 0xFD, 0xE8, 0x01, 0x0B,
+    0x09, 0x00, 0x20, 0x00, 0x20, 0x01, 0xFD, 0xE9, 0x01, 0x0B, 0x09, 0x00,
+    0x20, 0x00, 0x20, 0x01, 0xFD, 0xF4, 0x01, 0x0B, 0x09, 0x00, 0x20, 0x00,
+    0x20, 0x01, 0xFD, 0xF5, 0x01, 0x0B, 0x06, 0x00, 0x20, 0x00, 0xFD, 0x67,
+    0x0B, 0x06, 0x00, 0x20, 0x00, 0xFD, 0x68, 0x0B, 0x06, 0x00, 0x20, 0x00,
+    0xFD, 0x69, 0x0B, 0x06, 0x00, 0x20, 0x00, 0xFD, 0x6A, 0x0B, 0x06, 0x00,
+    0x20, 0x00, 0xFD, 0x74, 0x0B, 0x06, 0x00, 0x20, 0x00, 0xFD, 0x75, 0x0B,
+    0x06, 0x00, 0x20, 0x00, 0xFD, 0x7A, 0x0B, 0x07, 0x00, 0x20, 0x00, 0xFD,
+    0x94, 0x01, 0x0B};
+// clang-format on
+
+/// Packs the bit patterns of float lanes into a v128, Wasm lane 0 first.
+template <typename T>
+uint128_t v128Of(std::initializer_list<FloatBits<T>> Lanes) {
+  uint128_t V = 0U;
+  unsigned int Shift = 0;
+  for (const auto Lane : Lanes) {
+    V |= uint128_t(Lane) << Shift;
+    Shift += sizeof(T) * 8;
+  }
+  return V;
+}
+
+/// Expects each lane of Got to match Want. A NaN in Want accepts only an
+/// arithmetic NaN, which is a NaN with the quiet bit set.
+template <typename T>
+void expectLanes(std::string_view Op, uint128_t Got,
+                 std::initializer_list<FloatBits<T>> Want) {
+  unsigned int Shift = 0;
+  for (const auto WantBits : Want) {
+    const auto GotBits =
+        static_cast<FloatBits<T>>(static_cast<uint64_t>(Got >> Shift));
+    if (std::isnan(cxx20::bit_cast<T>(WantBits))) {
+      EXPECT_TRUE(std::isnan(cxx20::bit_cast<T>(GotBits)) &&
+                  (GotBits & QuietBit<T>) != 0)
+          << Op << " lane bits " << std::hex << GotBits;
+    } else {
+      EXPECT_EQ(GotBits, WantBits) << Op;
+    }
+    Shift += sizeof(T) * 8;
+  }
+}
+
+/// Vector min, max, and rounding must return an arithmetic NaN for a NaN
+/// operand, including a signaling one. The spec test harness accepts any NaN,
+/// so it cannot catch a signaling NaN that passes through unchanged.
+void checkSimdNaNResults(const Configure &Conf) {
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(SimdNaNWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  const auto Run = [&VM](std::string_view Name,
+                         std::vector<ValVariant> Args) -> uint128_t {
+    const std::vector<ValType> Types(Args.size(), ValType(TypeCode::V128));
+    auto Result = VM.execute(Name, Args, Types);
+    EXPECT_TRUE(Result) << Name;
+    return Result ? (*Result)[0].first.get<uint128_t>() : uint128_t(0U);
+  };
+
+  constexpr uint32_t NaN32 = UINT32_C(0x7FC00000);
+  // Lanes: +sNaN, -1.5, -sNaN, 2.5 and 1.0, +sNaN, -sNaN, 3.0.
+  const auto A32 = v128Of<float>({UINT32_C(0x7FA00000), UINT32_C(0xBFC00000),
+                                  UINT32_C(0xFFA00001), UINT32_C(0x40200000)});
+  const auto B32 = v128Of<float>({UINT32_C(0x3F800000), UINT32_C(0x7F800001),
+                                  UINT32_C(0xFF800002), UINT32_C(0x40400000)});
+  for (const auto &[L, R] : {std::pair{A32, B32}, std::pair{B32, A32}}) {
+    expectLanes<float>("f32x4.min", Run("f32x4.min", {L, R}),
+                       {NaN32, NaN32, NaN32, UINT32_C(0x40200000)});
+    expectLanes<float>("f32x4.max", Run("f32x4.max", {L, R}),
+                       {NaN32, NaN32, NaN32, UINT32_C(0x40400000)});
+  }
+  expectLanes<float>(
+      "f32x4.ceil", Run("f32x4.ceil", {A32}),
+      {NaN32, UINT32_C(0xBF800000), NaN32, UINT32_C(0x40400000)});
+  expectLanes<float>(
+      "f32x4.floor", Run("f32x4.floor", {A32}),
+      {NaN32, UINT32_C(0xC0000000), NaN32, UINT32_C(0x40000000)});
+  expectLanes<float>(
+      "f32x4.trunc", Run("f32x4.trunc", {A32}),
+      {NaN32, UINT32_C(0xBF800000), NaN32, UINT32_C(0x40000000)});
+  expectLanes<float>(
+      "f32x4.nearest", Run("f32x4.nearest", {A32}),
+      {NaN32, UINT32_C(0xC0000000), NaN32, UINT32_C(0x40000000)});
+
+  constexpr uint64_t NaN64 = UINT64_C(0x7FF8000000000000);
+  // Lanes: +sNaN, -1.5 and 1.0, -sNaN.
+  const auto A64 = v128Of<double>(
+      {UINT64_C(0x7FF4000000000000), UINT64_C(0xBFF8000000000000)});
+  const auto B64 = v128Of<double>(
+      {UINT64_C(0x3FF0000000000000), UINT64_C(0xFFF0000000000001)});
+  for (const auto &[L, R] : {std::pair{A64, B64}, std::pair{B64, A64}}) {
+    expectLanes<double>("f64x2.min", Run("f64x2.min", {L, R}), {NaN64, NaN64});
+    expectLanes<double>("f64x2.max", Run("f64x2.max", {L, R}), {NaN64, NaN64});
+  }
+  expectLanes<double>("f64x2.ceil", Run("f64x2.ceil", {A64}),
+                      {NaN64, UINT64_C(0xBFF0000000000000)});
+  expectLanes<double>("f64x2.floor", Run("f64x2.floor", {B64}),
+                      {UINT64_C(0x3FF0000000000000), NaN64});
+  expectLanes<double>("f64x2.trunc", Run("f64x2.trunc", {A64}),
+                      {NaN64, UINT64_C(0xBFF0000000000000)});
+  expectLanes<double>("f64x2.nearest", Run("f64x2.nearest", {A64}),
+                      {NaN64, UINT64_C(0xC000000000000000)});
+}
+
+TEST(ExecutorRegression, SimdNaNResultsAreArithmetic) {
+  checkSimdNaNResults(Configure());
+}
+
+#ifdef WASMEDGE_USE_LLVM
+TEST(ExecutorRegression, SimdNaNResultsAreArithmeticJIT) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  checkSimdNaNResults(Conf);
+}
+#endif
 
 } // namespace
 

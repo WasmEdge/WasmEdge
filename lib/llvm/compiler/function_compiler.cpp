@@ -1098,7 +1098,7 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
     case OpCode::I64__sub128:
     case OpCode::I64__mul_wide_s:
     case OpCode::I64__mul_wide_u:
-      return Unexpect(ErrCode::Value::AOTNotImpl);
+      return compileNumericOp(Instr);
 
     default:
       assumingUnreachable();

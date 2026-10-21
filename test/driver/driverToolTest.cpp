@@ -500,6 +500,37 @@ TEST(ParseSubcommand, ExtraSectionModules) {
   EXPECT_EQ(callParse({tagSectionTestPath().c_str()}), EXIT_SUCCESS);
 }
 
+TEST(ParseSubcommand, MalformedNameCustomSection) {
+  const std::vector<uint8_t> OverlongLEB128Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      0x00,
+      0x0d,
+      0x04, 'n',  'a',  'm',  'e',
+      0x01,
+      0x06,
+      0x80, 0x80, 0x80, 0x80, 0x80, 0x00};
+  std::string Path1 = writeWasmToFile(
+      OverlongLEB128Wasm.data(), OverlongLEB128Wasm.size(), "overlong_leb.wasm");
+  EXPECT_EQ(callParse({Path1.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(Path1.c_str());
+
+  const std::vector<uint8_t> TruncatedNameWasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      0x00,
+      0x0d,
+      0x04, 'n',  'a',  'm',  'e',
+      0x01,
+      0x06,
+      0xe8, 0x07,
+      0x00,
+      0x32,
+      'x',  'y'};
+  std::string Path2 = writeWasmToFile(
+      TruncatedNameWasm.data(), TruncatedNameWasm.size(), "truncated_name.wasm");
+  EXPECT_EQ(callParse({Path2.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(Path2.c_str());
+}
+
 #if !WASMEDGE_OS_WINDOWS
 TEST(ParseSubcommand, OutputSectionHeaders) {
   auto R = callParseCaptureStdout({parseTestPath().c_str()});

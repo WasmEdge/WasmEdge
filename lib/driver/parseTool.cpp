@@ -10,6 +10,7 @@
 
 #include <cstdlib>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -30,18 +31,22 @@ uint32_t decodeLEB128U32(Span<const Byte> Data, uint32_t &Offset) {
   uint32_t Shift = 0;
   while (Offset < Data.size()) {
     uint8_t B = static_cast<uint8_t>(Data[Offset++]);
-    Result |= static_cast<uint32_t>(B & 0x7F) << Shift;
+    if (Shift < 32) {
+      Result |= static_cast<uint32_t>(B & 0x7F) << Shift;
+    }
     if ((B & 0x80) == 0)
       break;
     Shift += 7;
+    if (Shift >= 35)
+      break;
   }
   return Result;
 }
 
-std::string decodeName(Span<const Byte> Data, uint32_t &Offset) {
+std::optional<std::string> decodeName(Span<const Byte> Data, uint32_t &Offset) {
   uint32_t Len = decodeLEB128U32(Data, Offset);
   if (Len > Data.size() - Offset)
-    return {};
+    return std::nullopt;
   std::string Name(reinterpret_cast<const char *>(&Data[Offset]), Len);
   Offset += Len;
   return Name;
@@ -53,8 +58,10 @@ std::map<uint32_t, std::string> decodeNameMap(Span<const Byte> Data,
   uint32_t Count = decodeLEB128U32(Data, Offset);
   for (uint32_t I = 0; I < Count && Offset < Data.size(); I++) {
     uint32_t Idx = decodeLEB128U32(Data, Offset);
-    std::string Name = decodeName(Data, Offset);
-    Map[Idx] = std::move(Name);
+    auto Name = decodeName(Data, Offset);
+    if (!Name)
+      break;
+    Map[Idx] = std::move(*Name);
   }
   return Map;
 }
@@ -68,10 +75,11 @@ NameSection parseNameSection(Span<const Byte> Data) {
     if (SubSize > Data.size() - Offset)
       break;
     uint32_t SubEnd = Offset + SubSize;
+    auto SubData = Data.first(SubEnd);
     if (SubId == 1) {
-      NS.FuncNames = decodeNameMap(Data, Offset);
+      NS.FuncNames = decodeNameMap(SubData, Offset);
     } else if (SubId == 7) {
-      NS.GlobalNames = decodeNameMap(Data, Offset);
+      NS.GlobalNames = decodeNameMap(SubData, Offset);
     }
     Offset = SubEnd;
   }

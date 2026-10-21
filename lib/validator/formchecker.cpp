@@ -5,6 +5,7 @@
 
 #include "common/errinfo.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <tuple>
@@ -820,9 +821,15 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return StackTrans({ValType(TypeCode::I32)},
                         {ValType(TypeCode::Ref, Instr.getTargetIndex())});
     } else {
-      std::vector<ValType> Fields(Instr.getSourceIndex(), unpackType(SType));
-      return StackTrans(Fields,
-                        {ValType(TypeCode::Ref, Instr.getTargetIndex())});
+      // One pop past the frame height already decides underflow or polymorphic.
+      const auto ElemType = unpackType(SType);
+      const auto Count =
+          std::min<size_t>(Instr.getSourceIndex(),
+                           ValStack.size() - CtrlStack.back().Height + 1);
+      for (size_t I = 0; I < Count; ++I) {
+        EXPECTED_TRY(popType(ElemType));
+      }
+      return StackTrans({}, {ValType(TypeCode::Ref, Instr.getTargetIndex())});
     }
   }
   case OpCode::Array__new_data:

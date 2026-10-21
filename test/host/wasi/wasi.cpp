@@ -3862,6 +3862,69 @@ TEST(WasiTest, Random) {
   Env.fini();
 }
 
+TEST(WasiTest, PreopenHostPathWithColon) {
+  namespace fs = std::filesystem;
+
+  const auto Root =
+      fs::temp_directory_path() /
+      ("wasmedge-wasi-preopen-" +
+       std::to_string(
+           std::chrono::steady_clock::now().time_since_epoch().count()));
+  struct RootCleanup {
+    fs::path Path;
+    ~RootCleanup() {
+      std::error_code Error;
+      fs::remove_all(Path, Error);
+    }
+  } Cleanup{Root};
+
+#if WASMEDGE_OS_WINDOWS
+  const auto Names = {"plain"sv};
+  ASSERT_TRUE(Root.has_root_name());
+#else
+  const auto Names = {"plain"sv, "a:b"sv, "a:readonly:tail"sv, "a:Readonly"sv};
+#endif
+  for (const auto Name : Names) {
+    const auto HostDir = Root / Name;
+    ASSERT_TRUE(fs::create_directories(HostDir));
+    {
+      std::ofstream Data(HostDir / "data.txt", std::ios::binary);
+      ASSERT_TRUE(Data);
+      Data << "preopen";
+    }
+    for (const bool ReadOnly : {false, true}) {
+      const auto Dir =
+          "/:" + WasmEdge::u8string(HostDir) + (ReadOnly ? ":readonly" : "");
+      for (const bool WithFds : {false, true}) {
+        SCOPED_TRACE(Dir);
+        SCOPED_TRACE(WithFds);
+        WasmEdge::Host::WASI::Environ Env;
+        if (WithFds) {
+          ASSERT_TRUE(Env.initWithFds({Dir}, "test"s, {}, {}, 0, 1, 2));
+        } else {
+          Env.init({Dir}, "test"s, {}, {});
+        }
+
+        __wasi_filestat_t Filestat{};
+        ASSERT_TRUE(Env.pathFilestatGet(
+            3, "data.txt", static_cast<__wasi_lookupflags_t>(0), Filestat));
+        EXPECT_EQ(WasmEdge::EndianValue(Filestat.size).le(), 7U);
+        __wasi_fdstat_t Fdstat{};
+        ASSERT_TRUE(Env.fdFdstatGet(3, Fdstat));
+        EXPECT_EQ((WasmEdge::EndianValue(Fdstat.fs_rights_base).le() &
+                   __WASI_RIGHTS_PATH_CREATE_FILE) == 0,
+                  ReadOnly);
+        EXPECT_EQ((WasmEdge::EndianValue(Fdstat.fs_rights_inheriting).le() &
+                   __WASI_RIGHTS_FD_WRITE) == 0,
+                  ReadOnly);
+        auto CanWrite = Env.pathCanWrite("data.txt");
+        ASSERT_TRUE(CanWrite);
+        EXPECT_EQ(*CanWrite, !ReadOnly);
+      }
+    }
+  }
+}
+
 TEST(WasiTest, ReadOnlyPreopenReducesChildRights) {
   namespace fs = std::filesystem;
 

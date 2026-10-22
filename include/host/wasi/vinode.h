@@ -187,7 +187,7 @@ public:
   WasiExpect<void>
   fdFdstatSetRights(__wasi_rights_t RightsBase,
                     __wasi_rights_t RightsInheriting) noexcept {
-    if (!can(RightsBase, RightsInheriting)) {
+    if (((RightsBase & ~FsRightsBase) != 0) || ((RightsInheriting & ~FsRightsInheriting) != 0)) {
       return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
     }
     FsRightsBase = RightsBase;

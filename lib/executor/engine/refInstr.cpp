@@ -331,33 +331,15 @@ Expect<void>
 Executor::runRefTestOp(const Runtime::Instance::ModuleInstance *ModInst,
                        ValVariant &Val, const AST::Instruction &Instr,
                        const bool IsCast) const noexcept {
-  // Copy the value type here due to handling the externalized case.
-  auto VT = Val.get<RefVariant>().getType();
-  if (VT.isExternalized()) {
-    VT = ValType(VT.isNullableRefType() ? TypeCode::RefNull : TypeCode::Ref,
-                 TypeCode::ExternRef);
-  }
-  Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
-  if (!VT.isAbsHeapType()) {
-    auto *Inst =
-        Val.get<RefVariant>().getPtr<Runtime::Instance::CompositeBase>();
-    // Reference must not be nullptr here because the null references are typed
-    // with the least abstract heap type.
-    assuming(Inst);
-    if (Inst->getModule()) {
-      GotTypeList = Inst->getModule()->getTypeList();
-    }
-  }
-
-  if (AST::TypeMatcher::matchType(ModInst->getTypeList(), Instr.getValType(),
-                                  GotTypeList, VT)) {
+  if (matchRef(ModInst, Instr.getValType(), Val.get<RefVariant>())) {
     if (!IsCast) {
       Val.emplace<uint32_t>(1U);
     }
   } else {
     if (IsCast) {
       spdlog::error(ErrCode::Value::CastFailed);
-      spdlog::error(ErrInfo::InfoMismatch(Instr.getValType(), VT));
+      spdlog::error(ErrInfo::InfoMismatch(Instr.getValType(),
+                                          Val.get<RefVariant>().getType()));
       spdlog::error(
           ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
       return Unexpect(ErrCode::Value::CastFailed);

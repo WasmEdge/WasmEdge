@@ -46,8 +46,9 @@ implementation-only areas such as `lib/wasi_nn_rpc/`.
 
 - CMake 3.18+
 - C++17 compiler (GCC 11+, Clang 13+, or MSVC 19.29+)
-- Optional: LLVM/LLD development packages for AOT/JIT when
-  `WASMEDGE_USE_LLVM=ON`; use the version configured by the relevant CI or
+- Optional: LLVM development packages for AOT/JIT when
+  `WASMEDGE_USE_LLVM=ON`, plus LLD development packages when
+  `WASMEDGE_USE_LLD=ON`; use the version configured by the relevant CI or
   Docker image for the target platform.
 
 ## Code Style
@@ -114,6 +115,7 @@ each tree still keeps its own copy.
 | `WASMEDGE_BUILD_STATIC_LIB` | OFF | Build static library |
 | `WASMEDGE_USE_CXX11_ABI` | — | Deprecated; warns and has no effect (the cxx11 ABI is always used) |
 | `WASMEDGE_FORCE_DISABLE_LTO` | OFF | Disable link-time optimization in release-style builds |
+| `WASMEDGE_USE_LLD` | ON | Link AOT output with lld by default and add `--enable-native-linker`; OFF always uses the native linker |
 | `WASMEDGE_LINK_LLVM_STATIC` | OFF | Link LLVM statically |
 | `WASMEDGE_LINK_TOOLS_STATIC` | OFF | Link tools statically; forces static library and static LLVM |
 | `WASMEDGE_ENABLE_UB_SANITIZER` | OFF | Enable undefined behavior sanitizer |

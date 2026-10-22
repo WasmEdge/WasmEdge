@@ -1,7 +1,9 @@
-### 0.18.1-rc.1 (2026-10-20)
+### 0.18.1 (2026-10-23)
 
 Fixed issues:
 
+* [Validator]
+  * Bounded the `array.new_fixed` operand check by the value stack height instead of the count immediate, so a huge count fails the validation without allocating gigabytes. (#5472)
 * [CAPI]
   * Restored the backward-compatible `WasmEdge_ModuleInstanceAdd*` symbols for the applications linked against 0.17.x, by binding the shims to the `WASMEDGE_0.16` version node and building them without LTO. (#5443)
 * [AOT]
@@ -32,7 +34,7 @@ Thank all the contributors who made this release possible!
 
 Anshika Jain, hydai, Shen-Ta Hsieh(BestSteve), Yi-Ying He
 
-If you want to build from source, please use WasmEdge-0.18.1-rc.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.18.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.18.0 (2026-10-05)
 

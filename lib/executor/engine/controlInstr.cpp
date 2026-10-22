@@ -186,7 +186,7 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
     spdlog::error(ErrCode::Value::UndefinedElement);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
-                                           {ValTypeFromType<uint32_t>()}));
+                                           {ValTypeFromAddressType(AddrType)}));
     return Unexpect(ErrCode::Value::UndefinedElement);
   }
 
@@ -197,7 +197,7 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
     spdlog::error(ErrCode::Value::UninitializedElement);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
-                                           {ValTypeFromType<uint32_t>()}));
+                                           {ValTypeFromAddressType(AddrType)}));
     return Unexpect(ErrCode::Value::UninitializedElement);
   }
 
@@ -208,7 +208,7 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
     spdlog::error(ErrCode::Value::IndirectCallTypeMismatch);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
-                                           {ValTypeFromType<uint32_t>()}));
+                                           {ValTypeFromAddressType(AddrType)}));
     spdlog::error(ErrInfo::InfoMismatch(
         ExpFuncType.getParamTypes(), ExpFuncType.getReturnTypes(),
         GotFuncType.getParamTypes(), GotFuncType.getReturnTypes()));

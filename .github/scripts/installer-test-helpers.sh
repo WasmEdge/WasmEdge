@@ -54,3 +54,98 @@ verify_shell_config() {
     echo "✓ --no-modify-shell-profile works"
   fi
 }
+
+# Verify fish-native env.fish was generated with expected syntax
+verify_fish_env_generated() {
+  local ipath="${1:-$HOME/.wasmedge}"
+  local fish_env="$ipath/env.fish"
+
+  if [ ! -f "$fish_env" ]; then
+    echo "[FAIL] env.fish not found at: $fish_env"
+    exit 1
+  fi
+  if ! grep -q 'fish_add_path' "$fish_env"; then
+    echo "[FAIL] env.fish missing fish_add_path"
+    exit 1
+  fi
+  if ! grep -q 'set -gx' "$fish_env"; then
+    echo "[FAIL] env.fish missing set -gx"
+    exit 1
+  fi
+  if grep -q 'case :' "$fish_env"; then
+    echo "[FAIL] env.fish contains POSIX case syntax"
+    exit 1
+  fi
+  echo "[PASS] env.fish generated with fish-native syntax"
+}
+
+# Verify config.fish sources env.fish
+verify_fish_config_hook() {
+  local ipath="${1:-$HOME/.wasmedge}"
+  local fish_config="$HOME/.config/fish/config.fish"
+
+  if [ ! -f "$fish_config" ]; then
+    echo "[FAIL] config.fish not found at: $fish_config"
+    exit 1
+  fi
+  if ! grep -Fq "$ipath/env.fish" "$fish_config"; then
+    echo "[FAIL] config.fish missing source hook for $ipath/env.fish"
+    exit 1
+  fi
+  echo "[PASS] config.fish sources env.fish"
+}
+
+# Verify fish can source env.fish and run wasmedge
+verify_fish_env_works() {
+  local ipath="${1:-$HOME/.wasmedge}"
+  local fish_env="$ipath/env.fish"
+  local output
+
+  if ! command -v fish >/dev/null 2>&1; then
+    echo "[FAIL] fish binary not found in PATH"
+    exit 1
+  fi
+
+  output=$(fish -c "source \"$fish_env\"; wasmedge --version" 2>&1) || {
+    echo "[FAIL] fish failed to source env.fish or run wasmedge"
+    echo "$output"
+    exit 1
+  }
+  if ! echo "$output" | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' >/dev/null; then
+    echo "[FAIL] wasmedge version not found in fish output: $output"
+    exit 1
+  fi
+  echo "[PASS] fish sourced env.fish and ran wasmedge: $output"
+}
+
+# Verify bash/zsh install did not create fish artifacts
+verify_no_fish_artifacts() {
+  local ipath="${1:-$HOME/.wasmedge}"
+  local fish_config="$HOME/.config/fish/config.fish"
+
+  if [ -f "$ipath/env.fish" ]; then
+    echo "[FAIL] env.fish unexpectedly created for non-fish SHELL"
+    exit 1
+  fi
+  if [ -f "$fish_config" ] && grep -Fq "$ipath/env.fish" "$fish_config"; then
+    echo "[FAIL] config.fish unexpectedly hooked for non-fish SHELL"
+    exit 1
+  fi
+  echo "[PASS] no fish artifacts for non-fish SHELL"
+}
+
+# Verify uninstall removed env.fish and config.fish hook
+verify_fish_cleanup() {
+  local ipath="${1:-$HOME/.wasmedge}"
+  local fish_config="$HOME/.config/fish/config.fish"
+
+  if [ -f "$ipath/env.fish" ]; then
+    echo "[FAIL] env.fish still present after uninstall: $ipath/env.fish"
+    exit 1
+  fi
+  if [ -f "$fish_config" ] && grep -Fq "$ipath/env.fish" "$fish_config"; then
+    echo "[FAIL] config.fish still contains env.fish hook after uninstall"
+    exit 1
+  fi
+  echo "[PASS] fish env artifacts cleaned up after uninstall"
+}

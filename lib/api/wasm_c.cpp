@@ -249,6 +249,12 @@ struct wasm_allocmgr_t {
     }
   }
 
+  wasm_func_t *getFunc(wasm::Store *s,
+                       WasmEdge::Runtime::Instance::FunctionInstance *fi);
+  void eraseFunc(const WasmEdge::Runtime::Instance::FunctionInstance *fi) {
+    funcmap.erase(fi);
+  }
+
   ~wasm_allocmgr_t();
 
 private:
@@ -259,9 +265,11 @@ private:
 };
 
 // Value conversion forward declaration.
-inline wasm_val_t conv_cval_from_wasmedge(const WasmEdge::ValVariant &,
+inline wasm_val_t conv_cval_from_wasmedge(wasm::Store *,
+                                          const WasmEdge::ValVariant &,
                                           const WasmEdge::ValType &);
-inline wasm::Val conv_cppval_from_wasmedge(const WasmEdge::ValVariant &,
+inline wasm::Val conv_cppval_from_wasmedge(wasm::Store *,
+                                           const WasmEdge::ValVariant &,
                                            const WasmEdge::ValType &);
 inline WasmEdge::ValVariant conv_cval_to_wasmedge(const wasm_val_t &);
 inline WasmEdge::ValVariant conv_cppval_to_wasmedge(const wasm::Val &);
@@ -271,37 +279,42 @@ inline wasm_val_t conv_val_to_c(const wasm::Val &);
 // wasm_hostfunc_t: the wrapper to host function in wasm C/C++ API.
 class wasm_hostfunc_t : public WasmEdge::Runtime::HostFunctionBase {
 public:
-  wasm_hostfunc_t(const wasm::FuncType &ft, wasm_func_callback_t cb) noexcept
-      : WasmEdge::Runtime::HostFunctionBase(0), type(api_type_enum::C),
-        env(nullptr), finalizer(nullptr) {
+  wasm_hostfunc_t(wasm::Store *s, const wasm::FuncType &ft,
+                  wasm_func_callback_t cb) noexcept
+      : WasmEdge::Runtime::HostFunctionBase(0), store(s),
+        type(api_type_enum::C), env(nullptr), finalizer(nullptr) {
     callback.c = cb;
     DefType = WasmEdge::AST::SubType(make_functype_from_wasm(ft));
   }
-  wasm_hostfunc_t(const wasm::FuncType &ft, wasm_func_callback_with_env_t cb,
-                  void *e, void (*fin)(void *)) noexcept
-      : WasmEdge::Runtime::HostFunctionBase(0), type(api_type_enum::C_ENV),
-        env(e), finalizer(fin) {
+  wasm_hostfunc_t(wasm::Store *s, const wasm::FuncType &ft,
+                  wasm_func_callback_with_env_t cb, void *e,
+                  void (*fin)(void *)) noexcept
+      : WasmEdge::Runtime::HostFunctionBase(0), store(s),
+        type(api_type_enum::C_ENV), env(e), finalizer(fin) {
     callback.c_env = cb;
     DefType = WasmEdge::AST::SubType(make_functype_from_wasm(ft));
   }
-  wasm_hostfunc_t(const wasm::FuncType &ft, wasm::Func::callback cb) noexcept
-      : WasmEdge::Runtime::HostFunctionBase(0), type(api_type_enum::CPP),
-        env(nullptr), finalizer(nullptr) {
+  wasm_hostfunc_t(wasm::Store *s, const wasm::FuncType &ft,
+                  wasm::Func::callback cb) noexcept
+      : WasmEdge::Runtime::HostFunctionBase(0), store(s),
+        type(api_type_enum::CPP), env(nullptr), finalizer(nullptr) {
     callback.cpp = cb;
     DefType = WasmEdge::AST::SubType(make_functype_from_wasm(ft));
   }
-  wasm_hostfunc_t(const wasm::FuncType &ft, wasm::Func::callback_with_env cb,
-                  void *e, void (*fin)(void *)) noexcept
-      : WasmEdge::Runtime::HostFunctionBase(0), type(api_type_enum::CPP_ENV),
-        env(e), finalizer(fin) {
+  wasm_hostfunc_t(wasm::Store *s, const wasm::FuncType &ft,
+                  wasm::Func::callback_with_env cb, void *e,
+                  void (*fin)(void *)) noexcept
+      : WasmEdge::Runtime::HostFunctionBase(0), store(s),
+        type(api_type_enum::CPP_ENV), env(e), finalizer(fin) {
     callback.cpp_env = cb;
     DefType = WasmEdge::AST::SubType(make_functype_from_wasm(ft));
   }
   // Alias copy: share callback + env without the finalizer, used when
   // importing a host wasm_func_t into another instance.
   explicit wasm_hostfunc_t(const wasm_hostfunc_t &other) noexcept
-      : WasmEdge::Runtime::HostFunctionBase(0), type(other.type),
-        callback(other.callback), env(other.env), finalizer(nullptr) {
+      : WasmEdge::Runtime::HostFunctionBase(0), store(other.store),
+        type(other.type), callback(other.callback), env(other.env),
+        finalizer(nullptr) {
     DefType = other.DefType;
   }
   ~wasm_hostfunc_t() noexcept override {
@@ -324,7 +337,7 @@ public:
       wasm_val_vec_t params = {ptypes.size(), pdata.data()};
       wasm_val_vec_t returns = {rtypes.size(), rdata.data()};
       for (size_t i = 0; i < Args.size(); ++i) {
-        params.data[i] = conv_cval_from_wasmedge(Args[i], ptypes[i]);
+        params.data[i] = conv_cval_from_wasmedge(store, Args[i], ptypes[i]);
       }
 
       // Invocation.
@@ -350,7 +363,7 @@ public:
       auto params = wasm::vec<wasm::Val>::make_uninitialized(ptypes.size());
       auto returns = wasm::vec<wasm::Val>::make_uninitialized(rtypes.size());
       for (size_t i = 0; i < Args.size(); ++i) {
-        params[i] = conv_cppval_from_wasmedge(Args[i], ptypes[i]);
+        params[i] = conv_cppval_from_wasmedge(store, Args[i], ptypes[i]);
       }
 
       // Invocation.
@@ -375,6 +388,7 @@ public:
   }
 
 private:
+  wasm::Store *store = nullptr;
   enum class api_type_enum { C, CPP, C_ENV, CPP_ENV };
   api_type_enum type;
   union {
@@ -700,27 +714,27 @@ struct wasm_func_t : public wasm::Func, public wasm_ref_base_t<wasm_func_t> {
               wasm_func_callback_t cb) noexcept
       : wasm_ref_base_t<wasm_func_t>(s), owned(true) {
     inst = new WasmEdge::Runtime::Instance::FunctionInstance(
-        std::make_unique<wasm_hostfunc_t>(ft, cb));
+        std::make_unique<wasm_hostfunc_t>(s, ft, cb));
   }
   wasm_func_t(wasm::Store *s, const wasm::FuncType &ft,
               wasm_func_callback_with_env_t cb, void *env,
               void (*fin)(void *)) noexcept
       : wasm_ref_base_t<wasm_func_t>(s), owned(true) {
     inst = new WasmEdge::Runtime::Instance::FunctionInstance(
-        std::make_unique<wasm_hostfunc_t>(ft, cb, env, fin));
+        std::make_unique<wasm_hostfunc_t>(s, ft, cb, env, fin));
   }
   wasm_func_t(wasm::Store *s, const wasm::FuncType &ft,
               wasm::Func::callback cb) noexcept
       : wasm_ref_base_t<wasm_func_t>(s), owned(true) {
     inst = new WasmEdge::Runtime::Instance::FunctionInstance(
-        std::make_unique<wasm_hostfunc_t>(ft, cb));
+        std::make_unique<wasm_hostfunc_t>(s, ft, cb));
   }
   wasm_func_t(wasm::Store *s, const wasm::FuncType &ft,
               wasm::Func::callback_with_env cb, void *env,
               void (*fin)(void *)) noexcept
       : wasm_ref_base_t<wasm_func_t>(s), owned(true) {
     inst = new WasmEdge::Runtime::Instance::FunctionInstance(
-        std::make_unique<wasm_hostfunc_t>(ft, cb, env, fin));
+        std::make_unique<wasm_hostfunc_t>(s, ft, cb, env, fin));
   }
   // Non-owning view (for wasm_instance_exports / wasm_table_get funcref).
   wasm_func_t(wasm::Store *s,
@@ -731,12 +745,35 @@ struct wasm_func_t : public wasm::Func, public wasm_ref_base_t<wasm_func_t> {
   ~wasm_func_t() {
     if (owned && inst) {
       delete inst;
+    } else if (!owned && inst && this->store) {
+      this->store->allocmgr.eraseFunc(inst);
     }
   }
   const wasm::ExternKind mkind = wasm::ExternKind::FUNC;
   bool owned;
   WasmEdge::Runtime::Instance::FunctionInstance *inst;
 };
+
+namespace {
+
+inline wasm_func_t *
+wasm_allocmgr_t::getFunc(wasm::Store *s,
+                         WasmEdge::Runtime::Instance::FunctionInstance *fi) {
+  if (!fi) {
+    return nullptr;
+  }
+  auto it = funcmap.find(fi);
+  if (it != funcmap.end()) {
+    return static_cast<wasm_func_t *>(it->second);
+  }
+  auto *wf = new (std::nothrow) wasm_func_t(s, fi);
+  if (wf) {
+    funcmap[fi] = wf;
+  }
+  return wf;
+}
+
+} // namespace
 
 // wasm_global_t implementation.
 struct wasm_global_t : public wasm::Global,
@@ -1077,6 +1114,15 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
     return nullptr;                                                            \
   }
 
+inline wasm::Val make_val_funcref(wasm_ref_t *ref) {
+  wasm_val_t cv{};
+  cv.kind = wasm_valkind_enum::WASM_FUNCREF;
+  cv.of.ref = ref;
+  wasm::Val res;
+  std::memcpy(static_cast<void *>(&res), &cv, sizeof(wasm::Val));
+  return res;
+}
+
 inline wasm::Val conv_val_to_cpp(const wasm_val_t &v) {
   switch (v.kind) {
   case wasm_valkind_enum::WASM_I32:
@@ -1087,12 +1133,15 @@ inline wasm::Val conv_val_to_cpp(const wasm_val_t &v) {
     return wasm::Val(v.of.f32);
   case wasm_valkind_enum::WASM_F64:
     return wasm::Val(v.of.f64);
-  case wasm_valkind_enum::WASM_EXTERNREF:
-  case wasm_valkind_enum::WASM_FUNCREF: {
+  case wasm_valkind_enum::WASM_EXTERNREF: {
     if (v.of.ref) {
       return wasm::Val(v.of.ref->copy_ref());
     }
     return wasm::Val();
+  }
+  case wasm_valkind_enum::WASM_FUNCREF: {
+    return make_val_funcref(v.of.ref ? v.of.ref->copy_ref().release()
+                                     : nullptr);
   }
   default:
     assumingUnreachable();
@@ -1133,7 +1182,8 @@ inline wasm_val_t conv_val_to_c(const wasm::Val &v) {
 }
 
 // WasmEdge::ValVariant to wasm_val_t conversion.
-wasm_val_t conv_cval_from_wasmedge(const WasmEdge::ValVariant &v,
+wasm_val_t conv_cval_from_wasmedge(wasm::Store *s,
+                                   const WasmEdge::ValVariant &v,
                                    const WasmEdge::ValType &vt) {
   // Note: the conversion will not add the ref count of wasm_ref_t.
   wasm_val_t r{};
@@ -1160,7 +1210,17 @@ wasm_val_t conv_cval_from_wasmedge(const WasmEdge::ValVariant &v,
     }
   } else if (vt.isFuncRefType()) {
     r.kind = wasm_valkind_enum::WASM_FUNCREF;
-    // TODO: implement this
+    const auto &ref = v.get<WasmEdge::RefVariant>();
+    if (!ref.isNull()) {
+      auto *fi = ref.getPtr<WasmEdge::Runtime::Instance::FunctionInstance>();
+      if (fi && s) {
+        auto *wf = static_cast<wasm_store_t *>(s)->allocmgr.getFunc(s, fi);
+        r.of.ref = static_cast<wasm_ref_t *>(
+            static_cast<wasm::Ref *>(static_cast<wasm::Func *>(wf)));
+        return r;
+      }
+    }
+    r.of.ref = nullptr;
     return r;
   } else if (vt.isExternRefType()) {
     r.kind = wasm_valkind_enum::WASM_EXTERNREF;
@@ -1172,7 +1232,8 @@ wasm_val_t conv_cval_from_wasmedge(const WasmEdge::ValVariant &v,
 }
 
 // WasmEdge::ValVariant to wasm::Val conversion.
-wasm::Val conv_cppval_from_wasmedge(const WasmEdge::ValVariant &v,
+wasm::Val conv_cppval_from_wasmedge(wasm::Store *s,
+                                    const WasmEdge::ValVariant &v,
                                     const WasmEdge::ValType &vt) {
   // Note: the conversion will add the ref count of wasm::Ref to make the
   // wasm::Val.
@@ -1190,8 +1251,19 @@ wasm::Val conv_cppval_from_wasmedge(const WasmEdge::ValVariant &v,
       break;
     }
   } else if (vt.isFuncRefType()) {
-    // TODO: implement this
-    return wasm::Val();
+    const auto &ref = v.get<WasmEdge::RefVariant>();
+    if (!ref.isNull()) {
+      auto *fi = ref.getPtr<WasmEdge::Runtime::Instance::FunctionInstance>();
+      if (fi && s) {
+        auto *wf = static_cast<wasm_store_t *>(s)->allocmgr.getFunc(s, fi);
+        if (wf) {
+          return make_val_funcref(
+              static_cast<wasm_ref_t *>(static_cast<wasm::Ref *>(
+                  static_cast<wasm::Func *>(wf->copy_ref().release()))));
+        }
+      }
+    }
+    return make_val_funcref(nullptr);
   } else if (vt.isExternRefType()) {
     auto *ref = v.get<WasmEdge::RefVariant>().getPtr<wasm_ref_t>();
     return wasm::Val::ref(ref ? ref->copy_ref() : wasm::own<wasm_ref_t>());
@@ -1821,7 +1893,8 @@ WASMEDGE_CAPI_EXPORT OWN wasm_trap_t *wasm_func_call(const wasm_func_t *func,
   }
   if (results) {
     for (size_t i = 0; i < rtypes.size() && i < results->size; ++i) {
-      results->data[i] = conv_cval_from_wasmedge((*res)[i].first, rtypes[i]);
+      results->data[i] =
+          conv_cval_from_wasmedge(func->store, (*res)[i].first, rtypes[i]);
       // Results from wasm_func_call are owning per the wasm-c-api spec:
       // the caller is expected to wasm_val_delete (or wasm_ref_delete the
       // payload). conv_cval_from_wasmedge returns a borrowed pointer, so
@@ -2797,7 +2870,8 @@ wasm::own<wasm::Trap> wasm::Func::call(const wasm::vec<wasm::Val> &args,
     results = wasm::vec<wasm::Val>::make_uninitialized(rtypes.size());
   }
   for (size_t i = 0; i < rtypes.size(); ++i) {
-    results[i] = conv_cppval_from_wasmedge((*res)[i].first, rtypes[i]);
+    results[i] =
+        conv_cppval_from_wasmedge(self->store, (*res)[i].first, rtypes[i]);
   }
   return nullptr;
 }
@@ -2832,8 +2906,9 @@ wasm::own<wasm::GlobalType> wasm::Global::type() const {
 }
 
 wasm::Val wasm::Global::get() const {
-  auto *inst = static_cast<const wasm_global_t *>(this)->inst;
-  return conv_cppval_from_wasmedge(inst->getValue(),
+  auto *self = static_cast<const wasm_global_t *>(this);
+  auto *inst = self->inst;
+  return conv_cppval_from_wasmedge(self->store, inst->getValue(),
                                    inst->getGlobalType().getValType());
 }
 

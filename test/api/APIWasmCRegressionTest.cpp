@@ -4,6 +4,7 @@
 // Regression tests for WasmEdge's wasm-c-api implementation.
 
 #include "wasm.h"
+#include "wasm.hh"
 
 #include "gtest/gtest.h"
 
@@ -375,6 +376,111 @@ TEST(APIWasmCRegressionTest, HostfuncReentrancy) {
   wasm_extern_vec_delete(&exports);
   wasm_instance_delete(instance);
   wasm_func_delete(cb_func);
+  wasm_module_delete(module);
+  wasm_store_delete(store);
+  wasm_engine_delete(engine);
+}
+
+// Test fixture for funcref conversion (Issue #5482)
+// (module
+//   (func $dummy (result i32) (i32.const 42))
+//   (func (export "get_funcref") (result funcref) (ref.func $dummy))
+//   (func (export "get_null_funcref") (result funcref) (ref.null func))
+//   (elem declare func $dummy)
+// )
+const std::array<uint8_t, 86> FuncrefReturnWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02,
+    0x60, 0x00, 0x01, 0x7f, 0x60, 0x00, 0x01, 0x70, 0x03, 0x04, 0x03,
+    0x00, 0x01, 0x01, 0x07, 0x22, 0x02, 0x0b, 0x67, 0x65, 0x74, 0x5f,
+    0x66, 0x75, 0x6e, 0x63, 0x72, 0x65, 0x66, 0x00, 0x01, 0x10, 0x67,
+    0x65, 0x74, 0x5f, 0x6e, 0x75, 0x6c, 0x6c, 0x5f, 0x66, 0x75, 0x6e,
+    0x63, 0x72, 0x65, 0x66, 0x00, 0x02, 0x09, 0x05, 0x01, 0x03, 0x00,
+    0x01, 0x00, 0x0a, 0x10, 0x03, 0x04, 0x00, 0x41, 0x2a, 0x0b, 0x04,
+    0x00, 0xd2, 0x00, 0x0b, 0x04, 0x00, 0xd0, 0x70, 0x0b};
+
+TEST(APIWasmCRegressionTest, FuncrefConversion) {
+  wasm_engine_t *engine = wasm_engine_new();
+  wasm_store_t *store = wasm_store_new(engine);
+
+  wasm_byte_vec_t binary;
+  wasm_byte_vec_new_uninitialized(&binary, FuncrefReturnWasm.size());
+  std::copy(FuncrefReturnWasm.begin(), FuncrefReturnWasm.end(), binary.data);
+  wasm_module_t *module = wasm_module_new(store, &binary);
+  wasm_byte_vec_delete(&binary);
+  ASSERT_NE(nullptr, module);
+
+  wasm_extern_vec_t imports_vec = {0, nullptr};
+  wasm_trap_t *trap = nullptr;
+  wasm_instance_t *instance =
+      wasm_instance_new(store, module, &imports_vec, &trap);
+  ASSERT_NE(nullptr, instance);
+
+  wasm_extern_vec_t exports;
+  wasm_instance_exports(instance, &exports);
+  ASSERT_EQ(2U, exports.size);
+  wasm_func_t *get_funcref = wasm_extern_as_func(exports.data[0]);
+  wasm_func_t *get_null_funcref = wasm_extern_as_func(exports.data[1]);
+  ASSERT_NE(nullptr, get_funcref);
+  ASSERT_NE(nullptr, get_null_funcref);
+
+  // 1. C API: call get_funcref and check result is a valid non-null funcref.
+  {
+    wasm_val_t res_buf[1] = {initVal()};
+    wasm_val_vec_t no_args = {0, nullptr};
+    wasm_val_vec_t results = {1, res_buf};
+    ASSERT_EQ(nullptr, wasm_func_call(get_funcref, &no_args, &results));
+    EXPECT_EQ(WASM_FUNCREF, res_buf[0].kind);
+    ASSERT_NE(nullptr, res_buf[0].of.ref);
+
+    wasm_func_t *returned_func = wasm_ref_as_func(res_buf[0].of.ref);
+    ASSERT_NE(nullptr, returned_func);
+    wasm_val_t inner_buf[1] = {initVal()};
+    wasm_val_vec_t inner_res = {1, inner_buf};
+    ASSERT_EQ(nullptr, wasm_func_call(returned_func, &no_args, &inner_res));
+    EXPECT_EQ(WASM_I32, inner_buf[0].kind);
+    EXPECT_EQ(42, inner_buf[0].of.i32);
+
+    wasm_val_delete(&res_buf[0]);
+  }
+
+  // 2. C API: call get_null_funcref and check result is a null funcref.
+  {
+    wasm_val_t res_buf[1] = {initVal()};
+    wasm_val_vec_t no_args = {0, nullptr};
+    wasm_val_vec_t results = {1, res_buf};
+    ASSERT_EQ(nullptr, wasm_func_call(get_null_funcref, &no_args, &results));
+    EXPECT_EQ(WASM_FUNCREF, res_buf[0].kind);
+    EXPECT_EQ(nullptr, res_buf[0].of.ref);
+  }
+
+  // 3. C++ API: call via wasm::Func.
+  auto *cpp_get_funcref = reinterpret_cast<wasm::Func *>(get_funcref);
+  auto *cpp_get_null = reinterpret_cast<wasm::Func *>(get_null_funcref);
+
+  {
+    auto no_args = wasm::vec<wasm::Val>::make();
+    auto cpp_res = wasm::vec<wasm::Val>::make(wasm::Val());
+    ASSERT_EQ(nullptr, cpp_get_funcref->call(no_args, cpp_res));
+    EXPECT_EQ(wasm::ValKind::FUNCREF, cpp_res[0].kind());
+    ASSERT_NE(nullptr, cpp_res[0].ref());
+
+    auto *returned_func = reinterpret_cast<wasm::Func *>(cpp_res[0].ref());
+    auto inner_res = wasm::vec<wasm::Val>::make(wasm::Val());
+    ASSERT_EQ(nullptr, returned_func->call(no_args, inner_res));
+    EXPECT_EQ(wasm::ValKind::I32, inner_res[0].kind());
+    EXPECT_EQ(42, inner_res[0].i32());
+  }
+
+  {
+    auto no_args = wasm::vec<wasm::Val>::make();
+    auto cpp_res = wasm::vec<wasm::Val>::make(wasm::Val());
+    ASSERT_EQ(nullptr, cpp_get_null->call(no_args, cpp_res));
+    EXPECT_EQ(wasm::ValKind::FUNCREF, cpp_res[0].kind());
+    EXPECT_EQ(nullptr, cpp_res[0].ref());
+  }
+
+  wasm_extern_vec_delete(&exports);
+  wasm_instance_delete(instance);
   wasm_module_delete(module);
   wasm_store_delete(store);
   wasm_engine_delete(engine);

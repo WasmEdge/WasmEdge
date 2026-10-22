@@ -208,6 +208,57 @@ TEST_F(WasiCryptoTest, KxMlKemKeyAccessors) {
   MlKemAccessorTest("ML-KEM-1024"sv, 1568);
 }
 
+TEST_F(WasiCryptoTest, KxMlKemKeypairFromPkAndSk) {
+  auto MlKemToKeyPairTest = [this](std::string_view Alg, size_t PkSize) {
+    SCOPED_TRACE(Alg);
+
+    auto ExportRaw = [this, PkSize](__wasi_publickey_t Handle) {
+      WASI_CRYPTO_EXPECT_SUCCESS(
+          OutputHandle, publickeyExport(Handle, __WASI_PUBLICKEY_ENCODING_RAW));
+      WASI_CRYPTO_EXPECT_SUCCESS(Len, arrayOutputLen(OutputHandle));
+      EXPECT_EQ(Len, PkSize);
+      std::vector<uint8_t> Raw(PkSize);
+      WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(OutputHandle, Raw));
+      return Raw;
+    };
+
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        KpHandle,
+        keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(SkHandle, keypairSecretkey(KpHandle));
+
+    const auto Pk = ExportRaw(PkHandle);
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        ImportedPkHandle,
+        publickeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, Pk,
+                        __WASI_PUBLICKEY_ENCODING_RAW));
+    WASI_CRYPTO_EXPECT_SUCCESS(JoinedHandle,
+                               keypairFromPkAndSk(ImportedPkHandle, SkHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(JoinedPkHandle, keypairPublickey(JoinedHandle));
+    EXPECT_EQ(ExportRaw(JoinedPkHandle), Pk);
+
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        OtherKpHandle,
+        keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(OtherPkHandle, keypairPublickey(OtherKpHandle));
+    WASI_CRYPTO_EXPECT_FAILURE(keypairFromPkAndSk(OtherPkHandle, SkHandle),
+                               __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
+
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(OtherPkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(OtherKpHandle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(JoinedPkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(JoinedHandle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(ImportedPkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+  };
+  MlKemToKeyPairTest("ML-KEM-512"sv, 800);
+  MlKemToKeyPairTest("ML-KEM-768"sv, 1184);
+  MlKemToKeyPairTest("ML-KEM-1024"sv, 1568);
+}
+
 TEST_F(WasiCryptoTest, KxMlKemEncapsulate) {
   auto MlKemEncapsulateTest = [this](std::string_view Alg, size_t CtSize) {
     SCOPED_TRACE(Alg);

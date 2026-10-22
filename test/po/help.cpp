@@ -7,6 +7,7 @@
 #include "po/subcommand.h"
 #include <array>
 #include <gtest/gtest.h>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -89,4 +90,27 @@ TEST(Help, OptionFormatting) {
   EXPECT_NE(Out.find("--opt-a"), std::string::npos);
   EXPECT_NE(Out.find("\t\toption a description\n"), std::string::npos);
   EXPECT_NE(Out.find("Show this help message\n"), std::string::npos);
+}
+
+TEST(Help, WrapLongWord) {
+  const std::string LongWord(100, 'x');
+  Option<Toggle> A{Description(LongWord)};
+  ArgumentParser Parser;
+  Parser.add_option("a"sv, A);
+
+  std::FILE *Fp = std::tmpfile();
+  ASSERT_NE(Fp, nullptr);
+  Parser.help(Fp);
+  std::rewind(Fp);
+  std::string Out;
+  char Buf[256];
+  while (std::fgets(Buf, sizeof(Buf), Fp)) {
+    Out += Buf;
+  }
+  std::fclose(Fp);
+
+  // A word longer than the width is broken at the width instead of hanging.
+  EXPECT_NE(Out.find("\t\t" + LongWord.substr(0, 78) + "\n\t\t" +
+                     LongWord.substr(78) + "\n"),
+            std::string::npos);
 }

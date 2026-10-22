@@ -75,7 +75,7 @@ public:
   const std::vector<T> &value() const noexcept { return Store; }
   std::vector<T> &value() noexcept { return Store; }
 
-  void default_argument() noexcept { Store = std::move(Default); }
+  void default_argument() noexcept { Store = Default; }
 
   cxx20::expected<void, Error> argument(std::string Argument) noexcept {
     if (auto Res = ParserT::parse(std::move(Argument)); !Res) {

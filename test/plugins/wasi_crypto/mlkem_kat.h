@@ -22,12 +22,8 @@ namespace WasmEdge {
 namespace Host {
 namespace WasiCrypto {
 
-/// One official FIPS 203 known answer test vector per ML-KEM parameter set,
-/// taken from the OpenSSL 3.5.7 test data at
-/// test/recipes/30-test_evp_data/evppkey_ml_kem_<bits>_{keygen,decap}.txt
-/// (test vector 0 of each file, Apache-2.0). The decapsulation vectors use the
-/// same key as the key generation vectors, so the decapsulation key is stored
-/// once.
+/// FIPS 203 vector 0 per ML-KEM parameter set, from OpenSSL 3.5.7
+/// evppkey_ml_kem_<bits>_{keygen,decap}.txt (Apache-2.0); keys are shared.
 struct MlKemKat {
   /// FIPS 203 key generation seed, the concatenation of d and z.
   std::string_view Seed;

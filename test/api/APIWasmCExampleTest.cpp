@@ -20,9 +20,8 @@
 
 namespace {
 
-// wasm.h's WASM_*_VAL macros use C99-style designated initializers, which
-// MSVC rejects under /std:c++17. Inline helpers do the same construction
-// in plain field assignment.
+// wasm.h's WASM_*_VAL macros use designated initializers, which MSVC rejects
+// under /std:c++17.
 [[maybe_unused]] inline wasm_val_t initVal() {
   wasm_val_t v{};
   v.kind = WASM_EXTERNREF;
@@ -54,8 +53,6 @@ namespace {
   return v;
 }
 
-// Test fixture: callback.c
-//
 // (module
 //   (func $print (import "" "print") (param i32) (result i32))
 //   (func $closure (import "" "closure") (result i32))
@@ -202,8 +199,6 @@ TEST(APIWasmCExampleTest, CallbackCpp) {
   EXPECT_EQ(7, PrintCppLastArg);
 }
 
-// Test fixture: finalize.c
-//
 // (module (func (export "f")) (func (export "g")) (func (export "h")))
 const std::array<uint8_t, 47> FinalizeWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
@@ -278,8 +273,6 @@ TEST(APIWasmCExampleTest, FinalizeCpp) {
   EXPECT_EQ(0, FinalizeCppLiveCount);
 }
 
-// Test fixture: global.c
-//
 // (module
 //   (global $f32_import (import "" "const f32") f32)
 //   (global $i64_import (import "" "const i64") i64)
@@ -632,8 +625,6 @@ TEST(APIWasmCExampleTest, GlobalCpp) {
   EXPECT_EQ(78, callCppGetter(get_var_i64_export).i64());
 }
 
-// Test fixture: hello.c
-//
 // (module
 //   (func $hello (import "" "hello"))
 //   (func (export "run") (call $hello))
@@ -739,14 +730,13 @@ TEST(APIWasmCExampleTest, HelloCpp) {
   EXPECT_EQ(1, HelloCppCallCount);
 }
 
-// Test fixture: memory.c
-//
 // (module
 //   (memory (export "memory") 2 3)
 //   (func (export "size") (result i32) (memory.size))
 //   (func (export "load") (param i32) (result i32) (i32.load8_s (local.get 0)))
-//   (func (export "store") (param i32 i32) (i32.store8 (local.get 0) (local.get
-//   1))) (data (i32.const 0x1000) "\01\02\03\04"))
+//   (func (export "store") (param i32 i32)
+//     (i32.store8 (local.get 0) (local.get 1)))
+//   (data (i32.const 0x1000) "\01\02\03\04"))
 const std::array<uint8_t, 110> MemoryWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0f, 0x03,
     0x60, 0x00, 0x01, 0x7f, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x60, 0x02,
@@ -991,8 +981,6 @@ TEST(APIWasmCExampleTest, MemoryCpp) {
   EXPECT_TRUE(memory2->grow(0));
 }
 
-// Test fixture: multi.c
-//
 // (module
 //   (func $f (import "" "f") (param i32 i64 i64 i32) (result i32 i64 i64 i32))
 //   (func $g (export "g") (param i32 i64 i64 i32) (result i32 i64 i64 i32)
@@ -1126,8 +1114,6 @@ TEST(APIWasmCExampleTest, MultiCpp) {
   EXPECT_EQ(1, results[3].i32());
 }
 
-// Test fixture: reflect.c
-//
 // (module
 //   (func (export "func") (param i32 f64 f32) (result i32) (unreachable))
 //   (global (export "global") f64 (f64.const 0))
@@ -1168,9 +1154,8 @@ TEST(APIWasmCExampleTest, Reflect) {
   ASSERT_EQ(exports.size, export_types.size);
   ASSERT_EQ(4U, exports.size);
 
-  // For each export, kinds reported by the module-level export type and
-  // the runtime extern must agree, and the runtime extern's reified type
-  // must match the module-declared kind.
+  // Each export's module-level kind, runtime extern kind, and reified type
+  // must agree.
   for (size_t i = 0; i < exports.size; ++i) {
     wasm_externkind_t kind = wasm_extern_kind(exports.data[i]);
     EXPECT_EQ(kind,
@@ -1238,8 +1223,6 @@ TEST(APIWasmCExampleTest, ReflectCpp) {
   EXPECT_EQ(1U, func->result_arity());
 }
 
-// Test fixture: serialize.c
-//
 // (module
 //   (func $hello (import "" "hello"))
 //   (func (export "run") (call $hello)))
@@ -1358,8 +1341,6 @@ TEST(APIWasmCExampleTest, SerializeCpp) {
   EXPECT_EQ(1, SerializeCppHelloCount);
 }
 
-// Test fixture: start.c
-//
 // (module (func $start (unreachable)) (start $start))
 const std::array<uint8_t, 28> StartWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
@@ -1424,8 +1405,6 @@ TEST(APIWasmCExampleTest, StartCpp) {
   EXPECT_EQ(0U, origin->func_index());
 }
 
-// Test fixture: table.c
-//
 // (module
 //   (table (export "table") 2 10 funcref)
 //   (func (export "call_indirect") (param i32 i32) (result i32)
@@ -1700,8 +1679,6 @@ TEST(APIWasmCExampleTest, TableCpp) {
   EXPECT_TRUE(table2->grow(0));
 }
 
-// Test fixture: trap.c
-//
 // (module
 //   (func $callback (import "" "callback") (result i32))
 //   (func (export "callback") (result i32) (call $callback))
@@ -1855,10 +1832,6 @@ TEST(APIWasmCExampleTest, TrapCpp) {
   EXPECT_EQ(1U, trace.size());
 }
 
-// Test fixture: threads.c — share a compiled module across worker threads,
-// each obtaining a per-store module handle and running an instance multiple
-// times.
-//
 // (module
 //   (func $message (import "" "hello") (param i32))
 //   (global $id (import "" "id") i32)
@@ -1883,6 +1856,8 @@ wasm_trap_t *threadsHelloCallback(const wasm_val_vec_t *args,
   return nullptr;
 }
 
+// Share a compiled module across worker threads, each running its own
+// instance several times.
 TEST(APIWasmCExampleTest, Threads) {
   ThreadsHelloCount.store(0);
   ThreadsIdSum.store(0);
@@ -2088,9 +2063,6 @@ TEST(APIWasmCExampleTest, ThreadsCpp) {
   EXPECT_EQ(expected_sum, ThreadsCppIdSum.load());
 }
 
-// Test fixture: hostref.c — pass host references (externref) through wasm
-// globals, tables, and a host callback that just echoes its arg.
-//
 // (module
 //   (import "" "f" (func $fun (param externref) (result externref)))
 //   (global $glob (export "global") (mut externref) (ref.null extern))
@@ -2188,6 +2160,8 @@ wasm_ref_t *callRefEcho(const wasm_func_t *fn, wasm_ref_t *ref) {
 }
 } // namespace
 
+// Pass host references through wasm globals, tables, and an echoing host
+// callback.
 TEST(APIWasmCExampleTest, Hostref) {
   wasm_engine_t *engine = wasm_engine_new();
   wasm_store_t *store = wasm_store_new(engine);
@@ -2429,8 +2403,3 @@ TEST(APIWasmCExampleTest, HostrefCpp) {
 }
 
 } // namespace
-
-GTEST_API_ int main(int argc, char **argv) {
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}

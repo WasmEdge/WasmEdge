@@ -51,58 +51,50 @@ When adding new public API functions:
 
 ## C API symbol versioning
 
-On Linux/Android the exported C symbols are grouped into versioned nodes by the
-linker version script `lib/api/libwasmedge.lds` (e.g. `WASMEDGE_0.16`,
-`WASMEDGE_0.17`). This lets a single `libwasmedge.so.0` keep serving an older
-ABI alongside the current one, so a signature-only break does not force every
-dynamically linked consumer to rebuild and does not, by itself, require a
-SONAME (`WASMEDGE_CAPI_SOVERSION`) bump.
+On Linux/Android, `lib/api/libwasmedge.lds` groups the exported C symbols into
+version nodes (`WASMEDGE_0.16`, `WASMEDGE_0.17`, ...), so one
+`libwasmedge.so.0` serves both the old and the new ABI of a changed function
+without a SONAME bump. macOS and Windows export the symbols unversioned.
 
-When a release breaks the signature of an existing C API function (changed
-parameters/return type or a changed by-value struct layout):
+When a release changes the signature of a C API function (parameters, return
+type, or a by-value struct layout):
 
-1. Add a new version node to `lib/api/libwasmedge.lds` named after the release
-   that introduces the break (inheriting the previous node), and list the
-   changed symbols under its `global:` section. The literal names take
-   precedence over the `WasmEdge*` wildcard, so the current implementations
-   become the new node's default (`@@`) symbols automatically.
-2. Keep the previous behaviour available by adding a backward-compatible shim in
-   `lib/api/wasmedge_compat.cpp` (guarded by `#if defined(__ELF__) &&
-   (defined(__linux__) || defined(__ANDROID__))`) named
-   `WasmEdge_<Name>_Compat_<old>`, and bind it to the old version with
-   `__asm__(".symver WasmEdge_<Name>_Compat_<old>, WasmEdge_<Name>@WASMEDGE_<old>")`.
-   The shim lives in its own translation unit (compiled only into the shared
-   library) so that this `.symver` module-level asm does not collide with the
-   in-IR definition of `WasmEdge_<Name>` under ThinLTO.
-   Mark the shim `__attribute__((used, visibility("default")))`. The
-   `visibility("default")` is required: the project builds with
-   `-fvisibility=hidden`, and a hidden source symbol does not produce an exported
-   `.symver` alias (the compat symbol silently disappears). Because that default
-   visibility plus the `WasmEdge_*` name would otherwise export the shim's own
-   name, add its exact name to the `local:` section of the base node in
-   `lib/api/libwasmedge.lds` (an exact match outranks the `WasmEdge*` wildcard),
-   so only the `@WASMEDGE_<old>` alias is exported.
-3. `check_symbols.sh` strips the `@<version>` suffix before matching, so the
-   `whitelist.symbols` entries stay the bare function names — no whitelist
-   changes are needed for versioning.
+1. Add a node named after the release to `libwasmedge.lds`, inheriting the
+   previous node, and list the function under its `global:`. The current
+   implementation becomes the default `<name>@@<node>`.
+2. Add a shim `WasmEdge_<Name>_Compat_<old>` with the old implementation to
+   `lib/api/wasmedge_compat.cpp` and bind it with
+   `__asm__(".symver WasmEdge_<Name>_Compat_<old>, WasmEdge_<Name>@<prev>")`.
+   `<prev>` is the node the symbol had in the previous release, taken from
+   `readelf --dyn-syms --wide` of the released library: a function that never
+   changed before is in the base node `WASMEDGE_0.16`.
+3. Mark the shim `__attribute__((used, visibility("default")))`, since a hidden
+   symbol exports no alias, and add its name to the `local:` section of the base
+   node so that only the alias is exported.
 
-The limit struct -> limit context change (0.16 -> 0.17) is the worked example:
-`WasmEdge_LimitIsEqual`, `WasmEdge_MemoryTypeCreate`, `WasmEdge_MemoryTypeGetLimit`,
-`WasmEdge_TableTypeCreate`, and `WasmEdge_TableTypeGetLimit` carry both a
-`@@WASMEDGE_0.17` default and a `@WASMEDGE_0.16` compatibility symbol.
+The whitelist needs no change, because `check_symbols.sh` strips the
+`@<version>` suffix. `wasmedge_compat.cpp` is a separate translation unit built
+with `-fno-lto`: its `.symver` asm collides with the in-IR definition under
+ThinLTO, and GCC LTO drops the shims together with their aliases.
 
-> Note: this mechanism is ELF-only; macOS and Windows export the symbols
-> unversioned. A subtle but important runtime rule: an *unversioned* reference
-> (from a consumer built against a pre-versioning library — i.e. 0.16.x or the
-> released 0.17.0) binds to the **oldest** matching version definition, here
-> `@WASMEDGE_0.16` (the struct shim), **not** to the default `@@` symbol. The
-> `@@` default only selects what *newly linked* code records (it gets a
-> versioned `@WASMEDGE_0.17` reference). Consequences:
->
-> - Consumers built against **0.16.x keep working without a rebuild** — their
->   unversioned references land on the matching `@WASMEDGE_0.16` struct shim.
-> - Consumers built against the (also unversioned) **0.17.0 must be rebuilt** —
->   their unversioned references also land on the `@WASMEDGE_0.16` struct shim,
->   which mismatches the pointer/context ABI they were compiled for.
-> - Consumers built against this versioned library resolve to `@WASMEDGE_0.17`
->   and are correct.
+Examples:
+
+- 0.16 -> 0.17: the five `WasmEdge_Limit` functions export `@@WASMEDGE_0.17`
+  and `@WASMEDGE_0.16`.
+- 0.17 -> 0.18: `WasmEdge_ModuleInstanceAdd{Function,Table,Memory,Global}`
+  export `@@WASMEDGE_0.18` and `@WASMEDGE_0.16`, because 0.17.x exported them
+  from the base node.
+
+A consumer built against an unversioned library (0.16.x or 0.17.0) binds to the
+oldest version, `@WASMEDGE_0.16`, not to the `@@` default. 0.16.x consumers keep
+working, while 0.17.0 consumers of the limit functions must be rebuilt.
+
+## Symbol version check
+
+On Linux, `check_symbols.sh` also requires `<name>@@<node>` and
+`<name>@WASMEDGE_0.16` for every function listed in a non-base node of
+`libwasmedge.lds`. Without the alias, older consumers fail to load with
+`undefined symbol: <name>, version WASMEDGE_0.16`. The CI runs the check on the
+Ubuntu (Clang ThinLTO) and manylinux (GCC LTO) builds. A second signature change
+of the same function, which needs an alias at its previous non-base node, is not
+checked.

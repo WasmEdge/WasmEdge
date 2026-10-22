@@ -206,10 +206,9 @@ TEST(AOTCrossModule, CompiledCallUsesCalleeContext) {
       << "call_indirect did not keep the two modules' contexts apart";
 }
 
-// A cross-module return_call_ref must run each side with its own state. The
-// kCallRef proxy nests a proxy and an enterFunction frame (~1 KiB) per hop, so
-// the recursion stays well within a 1 MiB thread stack. This covers context
-// handling only; constant-space cross-module tail calls are not implemented.
+// Cross-module return_call, return_call_ref, and return_call_indirect to
+// compiled callees use constant space when caller and callee prototypes match.
+// This test checks that return_call_ref runs each side with its own state.
 //   callee: (global $g (mut i32) 187) (global $peer (export "peer")
 //           (mut (ref null $t)) (ref.null $t))
 //           (func $f (export "f") (param i32) (result i32)
@@ -283,6 +282,96 @@ TEST(AOTCrossModule, CompiledTailCallUsesCalleeContext) {
   ASSERT_EQ(R->size(), 1u);
   EXPECT_EQ((*R)[0].first.get<uint32_t>(), 0u)
       << "a cross-module tail call ran with the wrong module's globals";
+}
+
+// A return_call to an imported compiled function must not grow the native
+// stack.
+//   callee:
+//   (module
+//     (type $t (func (param i32) (result i32)))
+//     (table (export "tab") 1 funcref)
+//     (func (export "f") (type $t)
+//       (if (result i32) (i32.eqz (local.get 0))
+//         (then (i32.const 42))
+//         (else (return_call_indirect (type $t)
+//                 (i32.sub (local.get 0) (i32.const 1)) (i32.const 0))))))
+//   caller:
+//   (module
+//     (type $t (func (param i32) (result i32)))
+//     (import "m" "f" (func $f (type $t)))
+//     (import "m" "tab" (table 1 funcref))
+//     (elem declare func $g)
+//     (func $g (type $t) (return_call $f (local.get 0)))
+//     (func (export "run") (param i32) (result i32)
+//       (table.set (i32.const 0) (ref.func $g))
+//       (call $g (local.get 0))))
+const std::array<WasmEdge::Byte, 77> CrossModuleReturnCallCalleeWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
+    0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04,
+    0x01, 0x70, 0x00, 0x01, 0x07, 0x0b, 0x02, 0x03, 0x74, 0x61, 0x62,
+    0x01, 0x00, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x17, 0x01, 0x15, 0x00,
+    0x20, 0x00, 0x45, 0x04, 0x7f, 0x41, 0x2a, 0x05, 0x20, 0x00, 0x41,
+    0x01, 0x6b, 0x41, 0x00, 0x13, 0x00, 0x00, 0x0b, 0x0b, 0x00, 0x0b,
+    0x04, 0x6e, 0x61, 0x6d, 0x65, 0x04, 0x04, 0x01, 0x00, 0x01, 0x74};
+
+const std::array<WasmEdge::Byte, 101> CrossModuleReturnCallCallerWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+    0x01, 0x7f, 0x01, 0x7f, 0x02, 0x11, 0x02, 0x01, 0x6d, 0x01, 0x66, 0x00,
+    0x00, 0x01, 0x6d, 0x03, 0x74, 0x61, 0x62, 0x01, 0x70, 0x00, 0x01, 0x03,
+    0x03, 0x02, 0x00, 0x00, 0x07, 0x07, 0x01, 0x03, 0x72, 0x75, 0x6e, 0x00,
+    0x02, 0x09, 0x05, 0x01, 0x03, 0x00, 0x01, 0x01, 0x0a, 0x15, 0x02, 0x06,
+    0x00, 0x20, 0x00, 0x12, 0x00, 0x0b, 0x0c, 0x00, 0x41, 0x00, 0xd2, 0x01,
+    0x26, 0x00, 0x20, 0x00, 0x10, 0x01, 0x0b, 0x00, 0x14, 0x04, 0x6e, 0x61,
+    0x6d, 0x65, 0x01, 0x07, 0x02, 0x00, 0x01, 0x66, 0x01, 0x01, 0x67, 0x04,
+    0x04, 0x01, 0x00, 0x01, 0x74};
+
+TEST(AOTCrossModule, CompiledReturnCallToImportIsConstantSpace) {
+  Configure Conf;
+
+  auto CalleeMod = compileToJIT(Conf, CrossModuleReturnCallCalleeWasm);
+  ASSERT_NE(CalleeMod, nullptr);
+  auto CallerMod = compileToJIT(Conf, CrossModuleReturnCallCallerWasm);
+  ASSERT_NE(CallerMod, nullptr);
+
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+
+  auto CalleeInstOrErr = ExecEngine.registerModule(Store, *CalleeMod, "m");
+  ASSERT_TRUE(CalleeInstOrErr);
+  auto CalleeInst = std::move(*CalleeInstOrErr);
+
+  auto CallerInstOrErr = ExecEngine.instantiateModule(Store, *CallerMod);
+  ASSERT_TRUE(CallerInstOrErr);
+  auto CallerInst = std::move(*CallerInstOrErr);
+
+  const auto *Run = CallerInst->findFuncExports("run");
+  ASSERT_NE(Run, nullptr);
+  ASSERT_TRUE(Run->isCompiledFunction());
+
+  const std::array<ValVariant, 1> Args{ValVariant(uint32_t(100000U))};
+  const std::array<ValType, 1> ArgTypes{ValType(TypeCode::I32)};
+  auto R = ExecEngine.invoke(Run, Args, ArgTypes);
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 42u);
+}
+
+TEST(AOTCrossModule, LazyJITReturnCallToImportIsConstantSpace) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+  VM::VM VM(Conf);
+
+  ASSERT_TRUE(VM.registerModule("m"sv, CrossModuleReturnCallCalleeWasm));
+  ASSERT_TRUE(VM.loadWasm(CrossModuleReturnCallCallerWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  const std::array<ValVariant, 1> Args{ValVariant(uint32_t(100000U))};
+  const std::array<ValType, 1> ArgTypes{ValType(TypeCode::I32)};
+  auto R = VM.execute("run"sv, Args, ArgTypes);
+  ASSERT_TRUE(R);
+  ASSERT_EQ(R->size(), 1u);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 42u);
 }
 
 // Lazy JIT resolves calls through its own per-function symbol cache, so cover

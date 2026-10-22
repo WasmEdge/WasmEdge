@@ -321,7 +321,10 @@ public:
       }
       return Value;
     }
-    return uint128(Value.Low << (Shift - 64), 0);
+    if (Shift < 128) {
+      return uint128(Value.Low << (Shift - 64), 0);
+    }
+    return 0U;
   }
   friend constexpr uint128 operator>>(uint128 Value,
                                       unsigned int Shift) noexcept {
@@ -332,7 +335,10 @@ public:
       }
       return Value;
     }
-    return uint128(0, Value.High >> (Shift - 64));
+    if (Shift < 128) {
+      return uint128(0, Value.High >> (Shift - 64));
+    }
+    return 0U;
   }
   friend constexpr uint128 operator<<(uint128 Value, int Shift) noexcept {
     return Value << static_cast<unsigned int>(Shift);
@@ -342,10 +348,16 @@ public:
   }
   friend constexpr uint128 operator<<(uint128 Value,
                                       unsigned long long Shift) noexcept {
+    if (Shift >= 128ULL) {
+      return 0U;
+    }
     return Value << static_cast<unsigned int>(Shift);
   }
   friend constexpr uint128 operator>>(uint128 Value,
                                       unsigned long long Shift) noexcept {
+    if (Shift >= 128ULL) {
+      return 0U;
+    }
     return Value >> static_cast<unsigned int>(Shift);
   }
 
@@ -464,8 +476,8 @@ public:
   static constexpr float_round_style round_style = round_toward_zero;
   static constexpr bool is_iec559 = false;
   static constexpr bool is_bounded = true;
-  static constexpr bool is_modulo = false;
-  static constexpr int digits = 127;
+  static constexpr bool is_modulo = true;
+  static constexpr int digits = 128;
   static constexpr int digits10 = 38;
   static constexpr int max_digits10 = 0;
   static constexpr int radix = 2;

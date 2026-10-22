@@ -1,0 +1,59 @@
+name: "Good First Issue"
+description: Propose an onboarding task for newcomers to the WasmEdge project.
+title: "<type>: <title>"
+labels: [
+  "good first issue"
+]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue template is for maintainers only.
+
+        Use this template to prepare an onboarding task for newcomers. Please replace the `<type>` in the title with the matching Conventional Commit type, such as `feat`, `fix`, `docs`, or `test`, and add the component labels during triage.
+
+        Only first-time contributors may claim a good first issue. Please refer to the [issue assignment rules](https://github.com/WasmEdge/WasmEdge/blob/master/docs/CONTRIBUTING.md#issue-assignment).
+  - type: textarea
+    id: summary
+    attributes:
+      label: "Summary"
+      description: Please shortly describe the task to be done.
+      placeholder: Describe in a few lines what the contributor is expected to accomplish
+    validations:
+      required: true
+  - type: textarea
+    id: background
+    attributes:
+      label: "Background"
+      description: Provide the context a newcomer needs, including the files, functions, or components involved.
+      placeholder: |
+        e.g. the behavior lives in `lib/executor/engine/`, and the related test is in `test/executor/`
+    validations:
+      required: true
+  - type: textarea
+    id: suggested_steps
+    attributes:
+      label: "Suggested steps"
+      description: Break the task down into steps that a newcomer can follow.
+      value: |
+        1. Build WasmEdge from source and run the existing tests.
+        2. Modify '....'
+        3. Add or update the test in '....'
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: "Acceptance criteria"
+      description: Describe how to tell the task is complete.
+      placeholder: e.g. the new test fails before the change and passes after it, and the existing test suites still pass
+    validations:
+      required: true
+  - type: textarea
+    id: appendix
+    attributes:
+      label: "Appendix"
+      description: Provide anything you want to supplement.
+      placeholder: Some reference links, related issues, or documentation related to this task.
+    validations:
+      required: false

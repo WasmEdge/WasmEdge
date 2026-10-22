@@ -452,6 +452,14 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   }
 
   case OpCode::Else: {
+    // The binary loader rejects an Else outside an If frame and a second Else
+    // in the same If. Another front end can build such a sequence, so the
+    // check is here too. A second Else sees an Else frame here.
+    if (CtrlStack.empty() || CtrlStack.back().Code != OpCode::If) {
+      spdlog::error(ErrCode::Value::TypeCheckFailed);
+      spdlog::error("    Else instruction outside an if block."sv);
+      return Unexpect(ErrCode::Value::TypeCheckFailed);
+    }
     EXPECTED_TRY(auto Ctrl, popCtrl());
     pushCtrl(Ctrl.StartTypes, Ctrl.EndTypes, Ctrl.Jump, Instr.getOpCode());
     return {};
@@ -499,6 +507,14 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::Br_table: {
     EXPECTED_TRY(popType(TypeCode::I32));
     auto LabelTable = const_cast<AST::Instruction &>(Instr).getLabelList();
+    // The label list holds the default label at the end, so it is never
+    // empty. The binary loader always appends the default label. Another
+    // front end can build an empty list, and the size then underflows.
+    if (unlikely(LabelTable.empty())) {
+      spdlog::error(ErrCode::Value::TypeCheckFailed);
+      spdlog::error("    Br_table instruction has no label."sv);
+      return Unexpect(ErrCode::Value::TypeCheckFailed);
+    }
     const auto LabelTableSize = static_cast<uint32_t>(LabelTable.size() - 1);
     EXPECTED_TRY(auto M,
                  checkCtrlStackDepth(LabelTable[LabelTableSize].TargetIndex));
@@ -2028,7 +2044,17 @@ void FormChecker::pushTypes(Span<const ValType> Input) {
   }
 }
 
+Expect<void> FormChecker::checkCtrlStackNotEmpty() const {
+  if (unlikely(CtrlStack.empty())) {
+    spdlog::error(ErrCode::Value::TypeCheckFailed);
+    spdlog::error("    Control stack underflow."sv);
+    return Unexpect(ErrCode::Value::TypeCheckFailed);
+  }
+  return {};
+}
+
 Expect<VType> FormChecker::popType() {
+  EXPECTED_TRY(checkCtrlStackNotEmpty());
   if (ValStack.size() == CtrlStack.back().Height) {
     if (CtrlStack.back().IsUnreachable) {
       return unreachableVType();
@@ -2073,12 +2099,7 @@ void FormChecker::pushCtrl(Span<const ValType> In, Span<const ValType> Out,
 }
 
 Expect<FormChecker::CtrlFrame> FormChecker::popCtrl() {
-  if (CtrlStack.empty()) {
-    // Ctrl stack is empty when popping.
-    spdlog::error(ErrCode::Value::TypeCheckFailed);
-    spdlog::error("    Control stack underflow."sv);
-    return Unexpect(ErrCode::Value::TypeCheckFailed);
-  }
+  EXPECTED_TRY(checkCtrlStackNotEmpty());
   EXPECTED_TRY(popTypes(CtrlStack.back().EndTypes));
   if (ValStack.size() != CtrlStack.back().Height) {
     // Value stack size does not match.
@@ -2107,6 +2128,7 @@ FormChecker::getLabelTypes(const FormChecker::CtrlFrame &F) {
 }
 
 Expect<void> FormChecker::unreachable() {
+  EXPECTED_TRY(checkCtrlStackNotEmpty());
   while (ValStack.size() > CtrlStack.back().Height) {
     EXPECTED_TRY(popType());
   }

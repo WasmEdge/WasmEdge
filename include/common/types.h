@@ -199,12 +199,13 @@ public:
     case TypeCode::I64:
     case TypeCode::F32:
     case TypeCode::F64:
-    case TypeCode::V128:
       return true;
     default:
       return false;
     }
   }
+
+  bool isVecType() const noexcept { return Inner.Data.Code == TypeCode::V128; }
 
   bool isRefType() const noexcept {
     switch (Inner.Data.Code) {

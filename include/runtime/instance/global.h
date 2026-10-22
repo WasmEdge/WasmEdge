@@ -25,7 +25,7 @@ public:
   GlobalInstance(const AST::GlobalType &GType,
                  ValVariant Val = uint128_t(0U)) noexcept
       : GlobType(GType), Value(Val) {
-    assuming(GType.getValType().isNumType() ||
+    assuming(GType.getValType().isNumType() || GType.getValType().isVecType() ||
              GType.getValType().isNullableRefType() ||
              !Val.get<RefVariant>().isNull());
   }

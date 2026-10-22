@@ -683,6 +683,62 @@ TEST_F(ValidatorRegressionTest,
             WasmEdge::ErrCode::Value::TypeCheckFailed);
 }
 
+// Test that untyped select rejects v128 operands per WebAssembly core
+// specification.
+TEST_F(ValidatorRegressionTest, UntypedSelectRejectsV128) {
+  // Module: (module
+  //   (func (param v128 v128 i32) (result v128)
+  //     local.get 0
+  //     local.get 1
+  //     local.get 2
+  //     select))
+  std::array<WasmEdge::Byte, 35> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 1 type (param v128, v128, i32 -> result v128)
+      0x01, 0x08, 0x01, 0x60, 0x03, 0x7b, 0x7b, 0x7f, 0x01, 0x7b,
+      // Function section: 1 function, type index 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: 1 body
+      0x0a, 0x0b, 0x01, 0x09, 0x00,
+      // local.get 0, local.get 1, local.get 2, select, end
+      0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0x1b, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+// Test that typed select accepts v128 operands.
+TEST_F(ValidatorRegressionTest, TypedSelectAcceptsV128) {
+  // Module: (module
+  //   (func (param v128 v128 i32) (result v128)
+  //     local.get 0
+  //     local.get 1
+  //     local.get 2
+  //     select (result v128)))
+  std::array<WasmEdge::Byte, 37> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 1 type (param v128, v128, i32 -> result v128)
+      0x01, 0x08, 0x01, 0x60, 0x03, 0x7b, 0x7b, 0x7f, 0x01, 0x7b,
+      // Function section: 1 function, type index 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: 1 body
+      0x0a, 0x0d, 0x01, 0x0b, 0x00,
+      // local.get 0, local.get 1, local.get 2, select_t (result v128), end
+      0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0x1c, 0x01, 0x7b, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  EXPECT_TRUE(ValidEngine->validate(**Result));
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

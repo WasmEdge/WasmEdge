@@ -106,7 +106,11 @@ TEST(HexStrTest, ValVecConversions) {
   EXPECT_EQ(Hex, "030201"sv);
   std::vector<uint8_t> Dst;
   WasmEdge::convertHexStrToValVec("030201"sv, Dst);
-  EXPECT_EQ(Dst, (std::vector<uint8_t>{0x03, 0x02, 0x01}));
+  EXPECT_EQ(Dst, (std::vector<uint8_t>{0x01, 0x02, 0x03}));
+
+  std::vector<uint8_t> RoundTrip;
+  WasmEdge::convertHexStrToValVec(Hex, RoundTrip);
+  EXPECT_EQ(RoundTrip, Bytes);
 }
 
 TEST(HexStrTest, UIntToHexStr) {

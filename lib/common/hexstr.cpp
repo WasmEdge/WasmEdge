@@ -80,7 +80,7 @@ void convertHexStrToBytes(std::string_view Src, std::vector<uint8_t> &Dst,
 
 void convertHexStrToValVec(std::string_view Src, std::vector<uint8_t> &Dst,
                            const uint32_t Padding) {
-  convertHexStrToBytes(Src, Dst, Padding);
+  convertHexStrToBytes(Src, Dst, Padding, true);
 }
 
 std::string convertUIntToHexStr(const uint64_t Num, uint32_t MinLen) {

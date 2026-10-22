@@ -106,6 +106,11 @@ inline void vectorFMin(ValVariant &V1, const ValVariant &V2) noexcept {
   R = detail::vectorSelect(A == A, R, A);
   R = detail::vectorSelect(B == B, R, B);
   // NOLINTEND(misc-redundant-expression)
+  if constexpr (sizeof(T) == 4) {
+    R = VT{quietNaN(R[0]), quietNaN(R[1]), quietNaN(R[2]), quietNaN(R[3])};
+  } else if constexpr (sizeof(T) == 8) {
+    R = VT{quietNaN(R[0]), quietNaN(R[1])};
+  }
   A = R;
 }
 
@@ -123,6 +128,11 @@ inline void vectorFMax(ValVariant &V1, const ValVariant &V2) noexcept {
   R = detail::vectorSelect(A == A, R, A);
   R = detail::vectorSelect(B == B, R, B);
   // NOLINTEND(misc-redundant-expression)
+  if constexpr (sizeof(T) == 4) {
+    R = VT{quietNaN(R[0]), quietNaN(R[1]), quietNaN(R[2]), quietNaN(R[3])};
+  } else if constexpr (sizeof(T) == 8) {
+    R = VT{quietNaN(R[0]), quietNaN(R[1])};
+  }
   A = R;
 }
 
@@ -175,10 +185,10 @@ template <typename T> inline void vectorCeil(ValVariant &Val) noexcept {
   using VT [[gnu::vector_size(16)]] = T;
   VT &Result = Val.get<VT>();
   if constexpr (sizeof(T) == 4) {
-    Result = VT{std::ceil(Result[0]), std::ceil(Result[1]),
-                std::ceil(Result[2]), std::ceil(Result[3])};
+    Result = VT{quietNaN(std::ceil(Result[0])), quietNaN(std::ceil(Result[1])),
+                quietNaN(std::ceil(Result[2])), quietNaN(std::ceil(Result[3]))};
   } else if constexpr (sizeof(T) == 8) {
-    Result = VT{std::ceil(Result[0]), std::ceil(Result[1])};
+    Result = VT{quietNaN(std::ceil(Result[0])), quietNaN(std::ceil(Result[1]))};
   }
 }
 
@@ -188,10 +198,12 @@ template <typename T> inline void vectorFloor(ValVariant &Val) noexcept {
   using VT [[gnu::vector_size(16)]] = T;
   VT &Result = Val.get<VT>();
   if constexpr (sizeof(T) == 4) {
-    Result = VT{std::floor(Result[0]), std::floor(Result[1]),
-                std::floor(Result[2]), std::floor(Result[3])};
+    Result =
+        VT{quietNaN(std::floor(Result[0])), quietNaN(std::floor(Result[1])),
+           quietNaN(std::floor(Result[2])), quietNaN(std::floor(Result[3]))};
   } else if constexpr (sizeof(T) == 8) {
-    Result = VT{std::floor(Result[0]), std::floor(Result[1])};
+    Result =
+        VT{quietNaN(std::floor(Result[0])), quietNaN(std::floor(Result[1]))};
   }
 }
 
@@ -201,10 +213,12 @@ template <typename T> inline void vectorTrunc(ValVariant &Val) noexcept {
   using VT [[gnu::vector_size(16)]] = T;
   VT &Result = Val.get<VT>();
   if constexpr (sizeof(T) == 4) {
-    Result = VT{std::trunc(Result[0]), std::trunc(Result[1]),
-                std::trunc(Result[2]), std::trunc(Result[3])};
+    Result =
+        VT{quietNaN(std::trunc(Result[0])), quietNaN(std::trunc(Result[1])),
+           quietNaN(std::trunc(Result[2])), quietNaN(std::trunc(Result[3]))};
   } else if constexpr (sizeof(T) == 8) {
-    Result = VT{std::trunc(Result[0]), std::trunc(Result[1])};
+    Result =
+        VT{quietNaN(std::trunc(Result[0])), quietNaN(std::trunc(Result[1]))};
   }
 }
 

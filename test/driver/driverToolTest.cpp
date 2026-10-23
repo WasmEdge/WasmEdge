@@ -989,6 +989,31 @@ TEST(RunSubcommand, ReactorMode) {
   EXPECT_NE(callRun({"--reactor", simplePath().c_str()}), EXIT_SUCCESS);
 }
 
+TEST(RunSubcommand, NumericArgValidation) {
+  const std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  // Valid calls
+  EXPECT_EQ(callRun({"--reactor", Path, "add", "3", "5"}), EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", Path, "add", "-3", "5"}), EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", Path, "add", "2147483647", "0"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", Path, "add", "-2147483648", "0"}),
+            EXIT_SUCCESS);
+
+  // Invalid: non-numeric or trailing non-numeric characters
+  EXPECT_EQ(callRun({"--reactor", Path, "add", "abc", "5"}), EXIT_FAILURE);
+  EXPECT_EQ(callRun({"--reactor", Path, "add", "1abc", "5"}), EXIT_FAILURE);
+  EXPECT_EQ(callRun({"--reactor", Path, "add", "3", "5xyz"}), EXIT_FAILURE);
+  EXPECT_EQ(callRun({"--reactor", Path, "add", "0x10", "5"}), EXIT_FAILURE);
+
+  // Out of range for 32-bit integer
+  EXPECT_EQ(callRun({"--reactor", Path, "add", "5000000000", "5"}),
+            EXIT_FAILURE);
+  EXPECT_EQ(callRun({"--reactor", Path, "add", "-5000000000", "5"}),
+            EXIT_FAILURE);
+}
+
 TEST(RunSubcommand, ProposalFlags) {
   std::string PathStr = simplePath();
   const char *Path = PathStr.c_str();

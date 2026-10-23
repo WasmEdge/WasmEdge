@@ -15,6 +15,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -47,6 +48,162 @@ std::optional<RunMode> parseRunModeArg(std::string_view S) noexcept {
 }
 
 namespace {
+
+template <typename IntT>
+IntT parseSignedInt(const std::string &S) {
+  const char *P = S.c_str();
+  while (*P != '\0' && std::isspace(static_cast<unsigned char>(*P))) {
+    ++P;
+  }
+  if (*P == '\0') {
+    throw std::invalid_argument("empty input");
+  }
+  size_t Pos = 0;
+  long long Val = std::stoll(S, &Pos);
+  while (Pos < S.size() && std::isspace(static_cast<unsigned char>(S[Pos]))) {
+    ++Pos;
+  }
+  if (Pos != S.size()) {
+    throw std::invalid_argument("trailing characters");
+  }
+  if (Val < static_cast<long long>(std::numeric_limits<IntT>::min()) ||
+      Val > static_cast<long long>(std::numeric_limits<IntT>::max())) {
+    throw std::out_of_range("integer out of range");
+  }
+  return static_cast<IntT>(Val);
+}
+
+template <typename UIntT>
+UIntT parseUnsignedInt(const std::string &S) {
+  const char *P = S.c_str();
+  while (*P != '\0' && std::isspace(static_cast<unsigned char>(*P))) {
+    ++P;
+  }
+  if (*P == '\0') {
+    throw std::invalid_argument("empty input");
+  }
+  if (*P == '-') {
+    throw std::invalid_argument("negative unsigned integer");
+  }
+  size_t Pos = 0;
+  unsigned long long Val = std::stoull(S, &Pos);
+  while (Pos < S.size() && std::isspace(static_cast<unsigned char>(S[Pos]))) {
+    ++Pos;
+  }
+  if (Pos != S.size()) {
+    throw std::invalid_argument("trailing characters");
+  }
+  if (Val > static_cast<unsigned long long>(std::numeric_limits<UIntT>::max())) {
+    throw std::out_of_range("unsigned integer out of range");
+  }
+  return static_cast<UIntT>(Val);
+}
+
+inline int32_t parseI32(const std::string &S) {
+  const char *P = S.c_str();
+  while (*P != '\0' && std::isspace(static_cast<unsigned char>(*P))) {
+    ++P;
+  }
+  if (*P == '\0') {
+    throw std::invalid_argument("empty input");
+  }
+  size_t Pos = 0;
+  if (*P == '-') {
+    long long Val = std::stoll(S, &Pos);
+    while (Pos < S.size() && std::isspace(static_cast<unsigned char>(S[Pos]))) {
+      ++Pos;
+    }
+    if (Pos != S.size()) {
+      throw std::invalid_argument("trailing characters");
+    }
+    if (Val < static_cast<long long>(std::numeric_limits<int32_t>::min()) ||
+        Val > static_cast<long long>(std::numeric_limits<int32_t>::max())) {
+      throw std::out_of_range("i32 out of range");
+    }
+    return static_cast<int32_t>(Val);
+  } else {
+    unsigned long long Val = std::stoull(S, &Pos);
+    while (Pos < S.size() && std::isspace(static_cast<unsigned char>(S[Pos]))) {
+      ++Pos;
+    }
+    if (Pos != S.size()) {
+      throw std::invalid_argument("trailing characters");
+    }
+    if (Val >
+        static_cast<unsigned long long>(std::numeric_limits<uint32_t>::max())) {
+      throw std::out_of_range("i32 out of range");
+    }
+    return static_cast<int32_t>(static_cast<uint32_t>(Val));
+  }
+}
+
+inline int64_t parseI64(const std::string &S) {
+  const char *P = S.c_str();
+  while (*P != '\0' && std::isspace(static_cast<unsigned char>(*P))) {
+    ++P;
+  }
+  if (*P == '\0') {
+    throw std::invalid_argument("empty input");
+  }
+  size_t Pos = 0;
+  if (*P == '-') {
+    long long Val = std::stoll(S, &Pos);
+    while (Pos < S.size() && std::isspace(static_cast<unsigned char>(S[Pos]))) {
+      ++Pos;
+    }
+    if (Pos != S.size()) {
+      throw std::invalid_argument("trailing characters");
+    }
+    return static_cast<int64_t>(Val);
+  } else {
+    unsigned long long Val = std::stoull(S, &Pos);
+    while (Pos < S.size() && std::isspace(static_cast<unsigned char>(S[Pos]))) {
+      ++Pos;
+    }
+    if (Pos != S.size()) {
+      throw std::invalid_argument("trailing characters");
+    }
+    return static_cast<int64_t>(static_cast<uint64_t>(Val));
+  }
+}
+
+inline float parseFloat(const std::string &S) {
+  const char *P = S.c_str();
+  while (*P != '\0' && std::isspace(static_cast<unsigned char>(*P))) {
+    ++P;
+  }
+  if (*P == '\0') {
+    throw std::invalid_argument("empty input");
+  }
+  size_t Pos = 0;
+  float Val = std::stof(S, &Pos);
+  while (Pos < S.size() && std::isspace(static_cast<unsigned char>(S[Pos]))) {
+    ++Pos;
+  }
+  if (Pos != S.size()) {
+    throw std::invalid_argument("trailing characters");
+  }
+  return Val;
+}
+
+inline double parseDouble(const std::string &S) {
+  const char *P = S.c_str();
+  while (*P != '\0' && std::isspace(static_cast<unsigned char>(*P))) {
+    ++P;
+  }
+  if (*P == '\0') {
+    throw std::invalid_argument("empty input");
+  }
+  size_t Pos = 0;
+  double Val = std::stod(S, &Pos);
+  while (Pos < S.size() && std::isspace(static_cast<unsigned char>(S[Pos]))) {
+    ++Pos;
+  }
+  if (Pos != S.size()) {
+    throw std::invalid_argument("trailing characters");
+  }
+  return Val;
+}
 
 // Helper template to parse numeric arguments and catch conversion exceptions
 template <typename Converter, typename ValVec, typename TypeVec, typename TC>
@@ -96,10 +253,8 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case TypeCode::I32: {
       if (!parseNumericArg(
               ArgValue, I, "i32"sv,
-              [](const std::string &S) {
-                return static_cast<int32_t>(std::stol(S));
-              },
-              FuncArgs, FuncArgTypes, TCode)) {
+              [](const std::string &S) { return parseI32(S); }, FuncArgs,
+              FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
       break;
@@ -107,10 +262,8 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case TypeCode::I64: {
       if (!parseNumericArg(
               ArgValue, I, "i64"sv,
-              [](const std::string &S) {
-                return static_cast<int64_t>(std::stoll(S));
-              },
-              FuncArgs, FuncArgTypes, TCode)) {
+              [](const std::string &S) { return parseI64(S); }, FuncArgs,
+              FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
       break;
@@ -118,7 +271,7 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case TypeCode::F32: {
       if (!parseNumericArg(
               ArgValue, I, "f32"sv,
-              [](const std::string &S) { return std::stof(S); }, FuncArgs,
+              [](const std::string &S) { return parseFloat(S); }, FuncArgs,
               FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
@@ -127,7 +280,7 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case TypeCode::F64: {
       if (!parseNumericArg(
               ArgValue, I, "f64"sv,
-              [](const std::string &S) { return std::stod(S); }, FuncArgs,
+              [](const std::string &S) { return parseDouble(S); }, FuncArgs,
               FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
@@ -143,10 +296,8 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
          I < Opt.Args.value().size(); ++I) {
       if (!parseNumericArg(
               Opt.Args.value()[I], I, "i64"sv,
-              [](const std::string &S) {
-                return static_cast<uint64_t>(std::stoll(S));
-              },
-              FuncArgs, FuncArgTypes, TypeCode::I64)) {
+              [](const std::string &S) { return parseI64(S); }, FuncArgs,
+              FuncArgTypes, TypeCode::I64)) {
         return EXIT_FAILURE;
       }
     }
@@ -234,9 +385,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case ComponentTypeCode::S32: {
       if (!parseNumericArg(
               ArgValue, I, "s32"sv,
-              [](const std::string &S) {
-                return static_cast<int32_t>(std::stol(S));
-              },
+              [](const std::string &S) { return parseSignedInt<int32_t>(S); },
               FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
@@ -245,9 +394,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case ComponentTypeCode::U32: {
       if (!parseNumericArg(
               ArgValue, I, "u32"sv,
-              [](const std::string &S) {
-                return static_cast<uint32_t>(std::stoul(S));
-              },
+              [](const std::string &S) { return parseUnsignedInt<uint32_t>(S); },
               FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
@@ -256,9 +403,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case ComponentTypeCode::S64: {
       if (!parseNumericArg(
               ArgValue, I, "s64"sv,
-              [](const std::string &S) {
-                return static_cast<int64_t>(std::stoll(S));
-              },
+              [](const std::string &S) { return parseSignedInt<int64_t>(S); },
               FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
@@ -267,9 +412,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case ComponentTypeCode::U64: {
       if (!parseNumericArg(
               ArgValue, I, "u64"sv,
-              [](const std::string &S) {
-                return static_cast<uint64_t>(std::stoull(S));
-              },
+              [](const std::string &S) { return parseUnsignedInt<uint64_t>(S); },
               FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
@@ -278,7 +421,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case ComponentTypeCode::F32: {
       if (!parseNumericArg(
               ArgValue, I, "f32"sv,
-              [](const std::string &S) { return std::stof(S); }, FuncArgs,
+              [](const std::string &S) { return parseFloat(S); }, FuncArgs,
               FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
@@ -287,7 +430,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case ComponentTypeCode::F64: {
       if (!parseNumericArg(
               ArgValue, I, "f64"sv,
-              [](const std::string &S) { return std::stod(S); }, FuncArgs,
+              [](const std::string &S) { return parseDouble(S); }, FuncArgs,
               FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
@@ -309,9 +452,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
          I < Opt.Args.value().size(); ++I) {
       if (!parseNumericArg(
               Opt.Args.value()[I], I, "u64"sv,
-              [](const std::string &S) {
-                return static_cast<uint64_t>(std::stoull(S));
-              },
+              [](const std::string &S) { return parseUnsignedInt<uint64_t>(S); },
               FuncArgs, FuncArgTypes, ComponentTypeCode::U64)) {
         return EXIT_FAILURE;
       }

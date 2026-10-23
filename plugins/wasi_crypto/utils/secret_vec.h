@@ -23,6 +23,7 @@
 
 #include <climits>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {
@@ -33,16 +34,37 @@ namespace WasiCrypto {
 class SecretVec {
 public:
   SecretVec(const SecretVec &) = default;
-  SecretVec &operator=(const SecretVec &) = default;
-  SecretVec &operator=(SecretVec &&) noexcept = default;
+
+  /// Copy first, then reuse the move assignment, so the replaced content goes
+  /// through the single wipe below and self assignment needs no guard. Defined
+  /// after the class because building a `SecretVec` before `data()` is declared
+  /// makes `Span` treat the class as a non-contiguous range for the rest of the
+  /// translation unit.
+  SecretVec &operator=(const SecretVec &Rhs);
+
+  /// Assigning over a live vector releases its buffer, so wipe the replaced
+  /// content first. The wiped buffer is handed to `Rhs`, which releases it on
+  /// destruction.
+  SecretVec &operator=(SecretVec &&Rhs) noexcept {
+    if (this != &Rhs) {
+      cleanse();
+      Data.swap(Rhs.Data);
+    }
+    return *this;
+  }
+
   SecretVec(SecretVec &&) noexcept = default;
 
   SecretVec(Span<const uint8_t> Data) noexcept
       : Data(Data.begin(), Data.end()) {}
 
+  /// Take over the buffer instead of copying it through `Span`, so that only
+  /// one copy of the content exists and it is the cleansed one.
+  SecretVec(std::vector<uint8_t> &&Data) noexcept : Data(std::move(Data)) {}
+
   SecretVec(size_t Size) noexcept : Data(Size) {}
 
-  ~SecretVec() noexcept { OPENSSL_cleanse(Data.data(), Data.size()); }
+  ~SecretVec() noexcept { cleanse(); }
 
   auto begin() noexcept { return Data.begin(); }
   auto begin() const noexcept { return Data.begin(); }
@@ -71,8 +93,14 @@ public:
   }
 
 private:
+  void cleanse() noexcept { OPENSSL_cleanse(Data.data(), Data.size()); }
+
   std::vector<uint8_t> Data;
 };
+
+inline SecretVec &SecretVec::operator=(const SecretVec &Rhs) {
+  return *this = SecretVec(Rhs);
+}
 
 } // namespace WasiCrypto
 } // namespace Host

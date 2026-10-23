@@ -130,6 +130,77 @@ TEST_F(WasiCryptoTest, KxDh) {
   NewKxDhTest("P384-SHA384"sv);
 }
 
+TEST_F(WasiCryptoTest, KxX25519KeypairFromPkAndSk) {
+  auto ExportRaw = [this](__wasi_publickey_t Handle) {
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        OutputHandle, publickeyExport(Handle, __WASI_PUBLICKEY_ENCODING_RAW));
+    WASI_CRYPTO_EXPECT_SUCCESS(Len, arrayOutputLen(OutputHandle));
+    EXPECT_EQ(Len, 32);
+    std::vector<uint8_t> Raw(32);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(OutputHandle, Raw));
+    return Raw;
+  };
+
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      KpHandle,
+      keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, "X25519"sv, std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
+  WASI_CRYPTO_EXPECT_SUCCESS(SkHandle, keypairSecretkey(KpHandle));
+
+  const auto Pk = ExportRaw(PkHandle);
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      ImportedPkHandle,
+      publickeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, "X25519"sv, Pk,
+                      __WASI_PUBLICKEY_ENCODING_RAW));
+  WASI_CRYPTO_EXPECT_SUCCESS(JoinedHandle,
+                             keypairFromPkAndSk(ImportedPkHandle, SkHandle));
+  WASI_CRYPTO_EXPECT_SUCCESS(JoinedPkHandle, keypairPublickey(JoinedHandle));
+  EXPECT_EQ(ExportRaw(JoinedPkHandle), Pk);
+
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      PeerKpHandle,
+      keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, "X25519"sv, std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(PeerPkHandle, keypairPublickey(PeerKpHandle));
+  WASI_CRYPTO_EXPECT_SUCCESS(PeerSkHandle, keypairSecretkey(PeerKpHandle));
+
+  WASI_CRYPTO_EXPECT_SUCCESS(JoinedSkHandle, keypairSecretkey(JoinedHandle));
+  WASI_CRYPTO_EXPECT_SUCCESS(Secret1Handle, kxDh(PeerPkHandle, JoinedSkHandle));
+  WASI_CRYPTO_EXPECT_SUCCESS(Secret2Handle, kxDh(JoinedPkHandle, PeerSkHandle));
+
+  WASI_CRYPTO_EXPECT_SUCCESS(Secret1Size, arrayOutputLen(Secret1Handle));
+  EXPECT_EQ(Secret1Size, 32);
+  std::vector<uint8_t> Secret1(32);
+  WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(Secret1Handle, Secret1));
+
+  WASI_CRYPTO_EXPECT_SUCCESS(Secret2Size, arrayOutputLen(Secret2Handle));
+  EXPECT_EQ(Secret2Size, 32);
+  std::vector<uint8_t> Secret2(32);
+  WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(Secret2Handle, Secret2));
+
+  EXPECT_EQ(Secret1, Secret2);
+
+  WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(JoinedSkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(PeerSkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PeerPkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(keypairClose(PeerKpHandle));
+
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      OtherKpHandle,
+      keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, "X25519"sv, std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(OtherPkHandle, keypairPublickey(OtherKpHandle));
+  WASI_CRYPTO_EXPECT_FAILURE(keypairFromPkAndSk(OtherPkHandle, SkHandle),
+                             __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
+
+  WASI_CRYPTO_EXPECT_TRUE(publickeyClose(OtherPkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(keypairClose(OtherKpHandle));
+  WASI_CRYPTO_EXPECT_TRUE(publickeyClose(JoinedPkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(keypairClose(JoinedHandle));
+  WASI_CRYPTO_EXPECT_TRUE(publickeyClose(ImportedPkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+}
+
 #if OPENSSL_VERSION_NUMBER >= 0x30500000L
 TEST_F(WasiCryptoTest, KxMlKemKeypairGenerate) {
   auto MlKemGenerateTest = [this](std::string_view Alg, size_t PkSize) {

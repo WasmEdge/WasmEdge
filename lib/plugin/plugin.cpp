@@ -267,7 +267,8 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
          Sep = ExtraEnvStr.find(':')) {
       Result.push_back(u8path(ExtraEnvStr.substr(0, Sep)));
       const auto Next = ExtraEnvStr.find_first_not_of(':', Sep);
-      ExtraEnvStr = ExtraEnvStr.substr(Next);
+      ExtraEnvStr = Next == std::string_view::npos ? std::string_view{}
+                                                   : ExtraEnvStr.substr(Next);
     }
     Result.push_back(u8path(ExtraEnvStr));
   }

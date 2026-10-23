@@ -115,4 +115,41 @@ TEST(Int128Test, Int128ClzTest) {
   EXPECT_EQ(WasmEdge::clz(static_cast<uint64_t>(0x8000000000000000ULL)), 0);
 }
 
+TEST(Int128Test, Int128ShiftTest) {
+  const WasmEdge::uint128 One(0, 1ULL);
+  EXPECT_EQ(One << 127U, WasmEdge::uint128(0x8000000000000000ULL, 0));
+
+  const WasmEdge::uint128 ValLow(0, 0x12345678ULL);
+  EXPECT_EQ(ValLow << 0U, ValLow);
+  EXPECT_EQ(ValLow << 32U, WasmEdge::uint128(0, 0x1234567800000000ULL));
+  EXPECT_EQ(ValLow << 64U, WasmEdge::uint128(0x12345678ULL, 0));
+  EXPECT_EQ(ValLow << 96U, WasmEdge::uint128(0x1234567800000000ULL, 0));
+  EXPECT_EQ(ValLow << 128U, WasmEdge::uint128(0, 0));
+  EXPECT_EQ(ValLow << 129U, WasmEdge::uint128(0, 0));
+  EXPECT_EQ(ValLow << 256U, WasmEdge::uint128(0, 0));
+  EXPECT_EQ(ValLow << -1, WasmEdge::uint128(0, 0));
+  EXPECT_EQ(ValLow << 128ULL, WasmEdge::uint128(0, 0));
+
+  const WasmEdge::uint128 ValHigh(0x1234567800000000ULL, 0);
+  EXPECT_EQ(ValHigh >> 0U, ValHigh);
+  EXPECT_EQ(ValHigh >> 32U, WasmEdge::uint128(0x0000000012345678ULL, 0));
+  EXPECT_EQ(ValHigh >> 64U, WasmEdge::uint128(0, 0x1234567800000000ULL));
+  EXPECT_EQ(ValHigh >> 96U, WasmEdge::uint128(0, 0x0000000012345678ULL));
+  EXPECT_EQ(ValHigh >> 128U, WasmEdge::uint128(0, 0));
+  EXPECT_EQ(ValHigh >> 129U, WasmEdge::uint128(0, 0));
+  EXPECT_EQ(ValHigh >> 256U, WasmEdge::uint128(0, 0));
+  EXPECT_EQ(ValHigh >> -1, WasmEdge::uint128(0, 0));
+  EXPECT_EQ(ValHigh >> 128ULL, WasmEdge::uint128(0, 0));
+}
+
+TEST(Int128Test, Int128NumericLimitsTest) {
+  EXPECT_EQ(std::numeric_limits<WasmEdge::uint128>::digits, 128);
+  EXPECT_TRUE(std::numeric_limits<WasmEdge::uint128>::is_modulo);
+  EXPECT_FALSE(std::numeric_limits<WasmEdge::uint128>::is_signed);
+
+  EXPECT_EQ(std::numeric_limits<WasmEdge::int128>::digits, 127);
+  EXPECT_FALSE(std::numeric_limits<WasmEdge::int128>::is_modulo);
+  EXPECT_TRUE(std::numeric_limits<WasmEdge::int128>::is_signed);
+}
+
 } // namespace

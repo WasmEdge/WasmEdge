@@ -142,6 +142,91 @@ TEST_F(WasiCryptoTest, Signatures) {
         "00bc0ec320711b211fde92e57feb9013c3609342495ec0d7cabdec21e54acc38"_u8v}});
 }
 
+TEST_F(WasiCryptoTest, SignaturesEddsaKeypairFromPkAndSk) {
+  auto ExportRaw = [this](__wasi_publickey_t Handle) {
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        OutputHandle, publickeyExport(Handle, __WASI_PUBLICKEY_ENCODING_RAW));
+    WASI_CRYPTO_EXPECT_SUCCESS(Len, arrayOutputLen(OutputHandle));
+    EXPECT_EQ(Len, 32);
+    std::vector<uint8_t> Raw(32);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(OutputHandle, Raw));
+    return Raw;
+  };
+
+  auto ExportRawSk = [this](__wasi_secretkey_t Handle) {
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        OutputHandle, secretkeyExport(Handle, __WASI_SECRETKEY_ENCODING_RAW));
+    WASI_CRYPTO_EXPECT_SUCCESS(Len, arrayOutputLen(OutputHandle));
+    EXPECT_EQ(Len, 32);
+    std::vector<uint8_t> Raw(32);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(OutputHandle, Raw));
+    return Raw;
+  };
+
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      KpHandle,
+      keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv, std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
+  WASI_CRYPTO_EXPECT_SUCCESS(SkHandle, keypairSecretkey(KpHandle));
+
+  const auto Pk = ExportRaw(PkHandle);
+  const auto Sk = ExportRawSk(SkHandle);
+
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      ImportedPkHandle,
+      publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv, Pk,
+                      __WASI_PUBLICKEY_ENCODING_RAW));
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      ImportedSkHandle,
+      secretkeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv, Sk,
+                      __WASI_SECRETKEY_ENCODING_RAW));
+
+  // Test reconstruction using an imported private-only secret key.
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      JoinedHandle, keypairFromPkAndSk(ImportedPkHandle, ImportedSkHandle));
+  WASI_CRYPTO_EXPECT_SUCCESS(JoinedPkHandle, keypairPublickey(JoinedHandle));
+  EXPECT_EQ(ExportRaw(JoinedPkHandle), Pk);
+
+  // Verify that the reconstructed keypair can sign and verify data.
+  WASI_CRYPTO_EXPECT_SUCCESS(StateHandle, signatureStateOpen(JoinedHandle));
+  WASI_CRYPTO_EXPECT_TRUE(signatureStateUpdate(StateHandle, "test"_u8));
+  WASI_CRYPTO_EXPECT_SUCCESS(SigHandle, signatureStateSign(StateHandle));
+  WASI_CRYPTO_EXPECT_TRUE(signatureStateClose(StateHandle));
+
+  WASI_CRYPTO_EXPECT_SUCCESS(VerificationStateHandle,
+                             signatureVerificationStateOpen(JoinedPkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(
+      signatureVerificationStateUpdate(VerificationStateHandle, "test"_u8));
+  WASI_CRYPTO_EXPECT_TRUE(
+      signatureVerificationStateVerify(VerificationStateHandle, SigHandle));
+  WASI_CRYPTO_EXPECT_TRUE(
+      signatureVerificationStateClose(VerificationStateHandle));
+  WASI_CRYPTO_EXPECT_TRUE(signatureClose(SigHandle));
+
+  // Also test reconstruction using the secret key handle from keypairSecretkey.
+  WASI_CRYPTO_EXPECT_SUCCESS(JoinedFromOrigHandle,
+                             keypairFromPkAndSk(ImportedPkHandle, SkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(keypairClose(JoinedFromOrigHandle));
+
+  // Verify that mismatched keys are rejected with INCOMPATIBLE_KEYS.
+  WASI_CRYPTO_EXPECT_SUCCESS(
+      OtherKpHandle,
+      keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv, std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(OtherPkHandle, keypairPublickey(OtherKpHandle));
+  WASI_CRYPTO_EXPECT_FAILURE(keypairFromPkAndSk(OtherPkHandle, ImportedSkHandle),
+                             __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
+
+  WASI_CRYPTO_EXPECT_TRUE(publickeyClose(OtherPkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(keypairClose(OtherKpHandle));
+  WASI_CRYPTO_EXPECT_TRUE(publickeyClose(JoinedPkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(keypairClose(JoinedHandle));
+  WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(ImportedSkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(publickeyClose(ImportedPkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+  WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+}
+
 } // namespace WasiCrypto
 } // namespace Host
 } // namespace WasmEdge

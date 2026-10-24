@@ -6,7 +6,9 @@
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <common.h>
+#include <filesystem>
 #include <fmt/ranges.h>
 #include <json-schema-to-grammar.h>
 #include <limits>
@@ -66,6 +68,65 @@ void warnRemovedKey(const simdjson::dom::element &Doc, std::string_view Key) {
         "and is ignored."sv,
         Key)
   }
+}
+
+// Validate that a file path provided by a guest module remains within the
+// sandboxed directory hierarchy. Absolute paths and paths with parent directory
+// traversal ('..') escape the guest sandbox and must be rejected.
+bool isValidGuestPath(std::string_view PathStr) {
+  // 1. Check if the path is empty or contains null bytes.
+  if (PathStr.empty() || PathStr.find('\0') != std::string_view::npos) {
+    return false;
+  }
+
+  // 2. Reject absolute paths (starting with '/', '\', or Windows drive letters
+  // like 'C:').
+  if (PathStr.front() == '/' || PathStr.front() == '\\') {
+    return false;
+  }
+  if (PathStr.size() >= 2 &&
+      std::isalpha(static_cast<unsigned char>(PathStr[0])) &&
+      PathStr[1] == ':') {
+    return false;
+  }
+
+  // Convert backslashes to forward slashes for cross-platform lexical
+  // normalization.
+  std::string PosixPath;
+  PosixPath.reserve(PathStr.size());
+  for (char Ch : PathStr) {
+    if (Ch == '\\') {
+      PosixPath.push_back('/');
+    } else {
+      PosixPath.push_back(Ch);
+    }
+  }
+
+  // 3. Normalize the path using
+  // std::filesystem::path(PathStr).lexically_normal().
+  std::filesystem::path Normalized =
+      std::filesystem::path(PosixPath).lexically_normal();
+
+  if (Normalized.empty() || Normalized.is_absolute() ||
+      Normalized.has_root_name() || Normalized.has_root_directory()) {
+    return false;
+  }
+
+  // 4. Ensure that neither the normalized path nor any of its components starts
+  // with '..' or attempts to traverse above the directory root.
+  const std::string NormStr = Normalized.generic_string();
+  if (NormStr == "." || NormStr == ".." || NormStr.rfind("..", 0) == 0) {
+    return false;
+  }
+
+  for (const auto &Component : Normalized) {
+    const std::string CompStr = Component.generic_string();
+    if (CompStr == ".." || CompStr.rfind("..", 0) == 0) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 } // namespace
@@ -212,8 +273,16 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
           }
           return true;
         });
-    parseJsonWithCastAuto<std::string_view>(Doc, "mmproj",
-                                            GraphRef.Params.mmproj.path);
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "mmproj", [&GraphRef](const std::string_view &Path) -> bool {
+          if (!isValidGuestPath(Path)) {
+            LOG_ERROR("The \"mmproj\" path \"{}\" escapes the guest sandbox."sv,
+                      Path)
+            return false;
+          }
+          GraphRef.Params.mmproj.path = std::string(Path);
+          return true;
+        });
     // The TTS parameters using macros
     parseJsonAuto<bool>(Doc, "tts", GraphRef.TextToSpeech);
     parseJsonWithCastAuto<std::string_view>(Doc, "model-vocoder",
@@ -455,7 +524,16 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonAuto<int64_t>(Doc, "n-predict", ConfRef.NPredict);
     parseJsonWithCastAuto<std::string_view>(Doc, "reverse-prompt",
                                             ConfRef.ReversePrompt);
-    parseJsonWithCastAuto<std::string_view>(Doc, "image", ConfRef.ImagePath);
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "image", [&ConfRef](const std::string_view &Path) -> bool {
+          if (!isValidGuestPath(Path)) {
+            LOG_ERROR("The \"image\" path \"{}\" escapes the guest sandbox."sv,
+                      Path)
+            return false;
+          }
+          ConfRef.ImagePath = std::string(Path);
+          return true;
+        });
     parseJsonAuto<bool>(Doc, "always-regenerate-image-embd",
                         ConfRef.AlwaysRegenerateImageEmbd);
     parseJsonWithProcessorAuto<std::string_view>(

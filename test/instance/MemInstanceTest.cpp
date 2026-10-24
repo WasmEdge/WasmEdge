@@ -16,6 +16,7 @@
 #include "common/spdlog.h"
 #include "common/types.h"
 #include "runtime/instance/memory.h"
+#include "system/allocator.h"
 #include "vm/vm.h"
 
 #include <array>
@@ -27,6 +28,28 @@
 namespace {
 
 using namespace WasmEdge;
+
+TEST(AllocatorTest, ShrinkAndRegrow) {
+  constexpr uint64_t PageSize = Runtime::Instance::MemoryInstance::kPageSize;
+  auto *Pointer = Allocator::allocate(3);
+  ASSERT_NE(Pointer, nullptr);
+  std::fill_n(Pointer, 3 * PageSize, 0xA5);
+  auto *Smaller = Allocator::shrink(Pointer, 3, 1);
+  ASSERT_NE(Smaller, nullptr);
+  EXPECT_TRUE(std::all_of(Smaller, Smaller + PageSize,
+                          [](Byte B) { return B == 0xA5; }));
+  Pointer = Allocator::resize(Smaller, 1, 3);
+  ASSERT_NE(Pointer, nullptr);
+  EXPECT_TRUE(std::all_of(Pointer + PageSize, Pointer + 3 * PageSize,
+                          [](Byte B) { return B == 0; }));
+  Smaller = Allocator::shrink(Pointer, 3, 0);
+  ASSERT_NE(Smaller, nullptr);
+  Pointer = Allocator::resize(Smaller, 0, 1);
+  ASSERT_NE(Pointer, nullptr);
+  EXPECT_TRUE(
+      std::all_of(Pointer, Pointer + PageSize, [](Byte B) { return B == 0; }));
+  Allocator::release(Pointer, 1);
+}
 
 // ---------------------------------------------------------------------------
 // Memory page limit tests (formerly MemLimitTest).

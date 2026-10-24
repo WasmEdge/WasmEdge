@@ -17,13 +17,19 @@
 
 #include "common/configure.h"
 #include "common/errcode.h"
+#include "common/filesystem.h"
 #include "common/spdlog.h"
 #include "common/types.h"
+#ifdef WASMEDGE_USE_LLVM
+#include "llvm/codegen.h"
+#include "llvm/compiler.h"
+#endif
 
 #include <gtest/gtest.h>
 
 #include <array>
 #include <cstdint>
+#include <filesystem>
 #include <vector>
 
 namespace {
@@ -51,6 +57,121 @@ void expectConstResult(VM::VM &TestVM) {
   ASSERT_TRUE(Res);
   ASSERT_EQ(Res->size(), 1U);
   EXPECT_EQ((*Res)[0].first.get<uint32_t>(), 7U);
+}
+
+TEST(VMSnapshotTest, RoundTrip) {
+  const Byte Wasm[]{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x60,
+      0x00, 0x01, 0x7f, 0x60, 0x00, 0x00, 0x03, 0x05, 0x04, 0x00, 0x00, 0x00,
+      0x01, 0x04, 0x05, 0x01, 0x70, 0x01, 0x01, 0x04, 0x05, 0x04, 0x01, 0x01,
+      0x01, 0x03, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x07, 0x0b, 0x07, 0x23,
+      0x05, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x05, 0x74,
+      0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x06, 0x67, 0x6c, 0x6f, 0x62, 0x61,
+      0x6c, 0x03, 0x00, 0x01, 0x66, 0x00, 0x02, 0x01, 0x67, 0x00, 0x03, 0x09,
+      0x0b, 0x02, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x03, 0x00, 0x01, 0x01,
+      0x0a, 0x44, 0x04, 0x0a, 0x00, 0x23, 0x00, 0x41, 0x00, 0x28, 0x02, 0x00,
+      0x6a, 0x0b, 0x05, 0x00, 0x41, 0xe3, 0x00, 0x0b, 0x07, 0x00, 0x41, 0x00,
+      0x11, 0x00, 0x00, 0x0b, 0x29, 0x00, 0x41, 0x0b, 0x24, 0x00, 0x41, 0x00,
+      0x41, 0x17, 0x36, 0x02, 0x00, 0x41, 0x02, 0x40, 0x00, 0x1a, 0x41, 0x80,
+      0x80, 0x08, 0x41, 0x2a, 0x36, 0x02, 0x00, 0xd0, 0x70, 0x41, 0x02, 0xfc,
+      0x0f, 0x00, 0x1a, 0x41, 0x00, 0xd2, 0x01, 0x26, 0x00, 0x0b};
+  const auto Dir =
+      std::filesystem::temp_directory_path() / "wasmedge-vm-restore";
+  std::filesystem::create_directories(Dir);
+  struct Cleanup {
+    std::filesystem::path Path;
+    ~Cleanup() {
+      std::error_code EC;
+      std::filesystem::remove_all(Path, EC);
+    }
+  } Guard{Dir};
+  for (unsigned Mode = 0; Mode <
+#ifdef WASMEDGE_USE_LLVM
+                          4
+#else
+                          1
+#endif
+       ;
+       ++Mode) {
+    SCOPED_TRACE(Mode);
+    Configure Conf;
+    Conf.addHostRegistration(HostRegistration::Wasi);
+    if (Mode == 1)
+      Conf.getRuntimeConfigure().setRunMode(RunMode::AOT);
+    if (Mode == 2)
+      Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+    if (Mode == 3)
+      Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+    VM::VM TestVM(Conf);
+    std::vector<Byte> Code(std::begin(Wasm), std::end(Wasm));
+#ifdef WASMEDGE_USE_LLVM
+    if (Mode == 1) {
+      auto Module = TestVM.getLoader().parseModule(Code);
+      ASSERT_TRUE(Module);
+      ASSERT_TRUE(TestVM.getValidator().validate(**Module));
+      LLVM::Compiler Compiler(Conf);
+      auto CompiledData = Compiler.compile(**Module);
+      ASSERT_TRUE(CompiledData);
+      LLVM::CodeGen CodeGen(Conf);
+      ASSERT_TRUE(
+          CodeGen.codegen(Code, std::move(*CompiledData), Dir / "state.wasm"));
+      const auto Compiled = Loader::Loader::loadFile(Dir / "state.wasm");
+      ASSERT_TRUE(Compiled);
+      Code = *Compiled;
+    }
+#endif
+    ASSERT_TRUE(TestVM.registerModule("registered", Code));
+    const auto NoActive = u8string(Dir / "no-active.core");
+    ASSERT_TRUE(TestVM.snapshot(NoActive));
+    ASSERT_TRUE(TestVM.restore(NoActive));
+    ASSERT_TRUE(TestVM.loadWasm(Code));
+    ASSERT_TRUE(TestVM.validate());
+    ASSERT_TRUE(TestVM.instantiate());
+    if (Mode == 1) {
+      ASSERT_TRUE(
+          TestVM.getActiveModule()->findFuncExports("f")->isCompiledFunction());
+    }
+    auto Result = TestVM.execute("f");
+    ASSERT_TRUE(Result);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 7U);
+    const auto Path = u8string(Dir / "state.core");
+    ASSERT_TRUE(TestVM.snapshot(Path));
+    const auto Saved = Loader::Loader::loadFile(u8path(Path));
+    ASSERT_TRUE(Saved);
+    for (unsigned Iteration = 0; Iteration < 2; ++Iteration) {
+      ASSERT_TRUE(TestVM.execute("g"));
+      ASSERT_TRUE(TestVM.execute("registered", "g"));
+      ASSERT_TRUE(TestVM.restore(Path));
+      for (const bool Registered : {false, true}) {
+        Result = Registered ? TestVM.execute("registered", "f")
+                            : TestVM.execute("f");
+        ASSERT_TRUE(Result);
+        EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 7U);
+      }
+      const auto Again = u8string(Dir / "again.core");
+      ASSERT_TRUE(TestVM.snapshot(Again));
+      const auto Restored = Loader::Loader::loadFile(u8path(Again));
+      ASSERT_TRUE(Restored);
+      EXPECT_EQ(*Saved, *Restored);
+    }
+  }
+}
+
+TEST(VMSnapshotTest, RejectComponent) {
+  const std::array<Byte, 8> Component{0x00, 0x61, 0x73, 0x6D,
+                                      0x0D, 0x00, 0x01, 0x00};
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM TestVM(Conf);
+  ASSERT_TRUE(TestVM.loadWasm(Component));
+  ASSERT_TRUE(TestVM.forceValidateForComponent());
+  ASSERT_TRUE(TestVM.instantiate());
+  const auto Snapshot = TestVM.snapshot();
+  ASSERT_FALSE(Snapshot);
+  EXPECT_EQ(Snapshot.error(), ErrCode::Value::CoredumpUnsupported);
+  const auto Restore = TestVM.restore("unused.core");
+  ASSERT_FALSE(Restore);
+  EXPECT_EQ(Restore.error(), ErrCode::Value::CoredumpUnsupported);
 }
 
 TEST(VMStageTest, ValidateBeforeLoadFails) {

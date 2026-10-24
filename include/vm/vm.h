@@ -251,6 +251,14 @@ public:
   /// Stop execution
   void stop() noexcept { ExecutorEngine.stop(); }
 
+  /// Snapshot VM-owned core modules at an invocation boundary. An empty path
+  /// selects the default coredump filename. Externally registered modules are
+  /// included only through state imported by a VM-owned module.
+  Expect<std::string> snapshot(std::string_view Path = {});
+  /// Restore the same ordered VM-owned module set. Component instances and
+  /// restoring dropped segments to live segments are unsupported.
+  Expect<void> restore(std::string_view Path);
+
   /// ======= Functions which are stageless. =======
   /// Clean up VM status
   void cleanup() {
@@ -311,6 +319,8 @@ public:
 #endif
 
 private:
+  std::vector<Runtime::Instance::ModuleInstance *> collectModuleInstances();
+
   /// Release and terminate all module instances in a sequence or map
   /// container, then clear the container.
   template <typename ContainerT>

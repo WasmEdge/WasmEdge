@@ -908,6 +908,50 @@ TEST_F(CoredumpState, RestorePreflight) {
   EXPECT_EQ(Wasmgdb.error(), ErrCode::Value::CoredumpMalformed);
 }
 
+TEST_F(CoredumpState, RestoreRoundTrip) {
+  ASSERT_TRUE(VM->loadWasm(CoredumpReadBackWasm));
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  ASSERT_TRUE(VM->execute("setup"sv));
+  auto *Active =
+      const_cast<Runtime::Instance::ModuleInstance *>(VM->getActiveModule());
+  const std::array Modules{Active};
+  const std::array<const Runtime::Instance::ModuleInstance *, 1> Sources{
+      Active};
+  Coredump::Request Req;
+  Req.Modules = Sources;
+  AST::Module Dump;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Dump));
+  const auto Saved = Loader::Loader::loadFile(u8path(Path));
+  ASSERT_TRUE(Saved);
+  const auto SavedPath = Path;
+  auto &Mem = *Active->getMemoryInstances()[0];
+  auto &Table = *Active->getTableInstances()[0];
+  for (const bool Grow : {true, false}) {
+    if (Grow) {
+      ASSERT_TRUE(Mem.growPage(2));
+      ASSERT_TRUE(Table.growTable(2));
+    } else {
+      ASSERT_TRUE(Mem.shrinkPage(1));
+      ASSERT_TRUE(Table.shrinkTable(3));
+    }
+    ASSERT_TRUE(Mem.fillBytes(0xA5, 0, Mem.getSize()));
+    ASSERT_TRUE(
+        Table.fillRefs(RefVariant(TypeCode::FuncRef), 0, Table.getSize()));
+    Active->getGlobalInstances()[0]->setValue(RefVariant(TypeCode::FuncRef));
+    Active->getGlobalInstances()[1]->setValue(uint32_t(99));
+    ASSERT_TRUE(Coredump::restore({Modules, SavedPath}));
+    ASSERT_NO_FATAL_FAILURE(generate(Req, Dump));
+    const auto Restored = Loader::Loader::loadFile(u8path(Path));
+    ASSERT_TRUE(Restored);
+    EXPECT_EQ(*Saved, *Restored);
+  }
+  ASSERT_TRUE(Mem.growPage(2));
+  const auto Bytes = Mem.getBytes(Mem.kPageSize, 2 * Mem.kPageSize);
+  ASSERT_TRUE(Bytes);
+  EXPECT_TRUE(
+      std::all_of(Bytes->begin(), Bytes->end(), [](Byte B) { return B == 0; }));
+}
+
 TEST_F(CoredumpState, ModulesOnly) {
   ASSERT_NO_FATAL_FAILURE(instantiate());
   const auto *Active = VM->getActiveModule();

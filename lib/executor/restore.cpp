@@ -564,5 +564,47 @@ Expect<RestorePlan> preflight(const RestoreRequest &Req) noexcept {
 
 } // namespace Detail
 
+Expect<void> restore(const RestoreRequest &Req) noexcept {
+  EXPECTED_TRY(auto Plan, Detail::preflight(Req));
+  for (auto &Memory : Plan.Memories) {
+    auto &Instance = *Memory.Instance;
+    const auto Old = Instance.getPageSize();
+    const auto Resized = Memory.Pages < Old
+                             ? Instance.shrinkPage(Old - Memory.Pages)
+                             : Instance.growPage(Memory.Pages - Old);
+    assuming(Resized);
+    uint64_t End = 0;
+    for (const auto &[Offset, Bytes] : Memory.Segments) {
+      const auto Cleared = Instance.fillBytes(0, End, Offset - End);
+      assuming(Cleared);
+      const auto Written = Instance.setBytes(Bytes, Offset, 0, Bytes.size());
+      assuming(Written);
+      End = Offset + Bytes.size();
+    }
+    const auto Cleared = Instance.fillBytes(0, End, Instance.getSize() - End);
+    assuming(Cleared);
+  }
+  for (auto &Table : Plan.Tables) {
+    auto &Instance = *Table.Instance;
+    const auto Old = Instance.getSize();
+    const auto Size = Table.Refs.size();
+    const auto Resized = Size < Old ? Instance.shrinkTable(Old - Size)
+                                    : Instance.growTable(Size - Old);
+    assuming(Resized);
+    const auto Written = Instance.setRefs(Table.Refs, 0, 0, Size);
+    assuming(Written);
+  }
+  for (auto &[Global, Value] : Plan.Globals) {
+    Global->setValue(Value);
+  }
+  for (auto *Data : Plan.DataDrops) {
+    Data->clear();
+  }
+  for (auto *Elem : Plan.ElemDrops) {
+    Elem->clear();
+  }
+  return {};
+}
+
 } // namespace Coredump
 } // namespace WasmEdge

@@ -32,6 +32,7 @@
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <map>
 #include <memory>
@@ -950,6 +951,330 @@ TEST_F(CoredumpState, RestoreRoundTrip) {
   ASSERT_TRUE(Bytes);
   EXPECT_TRUE(
       std::all_of(Bytes->begin(), Bytes->end(), [](Byte B) { return B == 0; }));
+}
+
+TEST_F(CoredumpState, RestoreRejections) {
+  ASSERT_TRUE(VM->loadWasm(CoredumpReadBackWasm));
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  ASSERT_TRUE(VM->execute("setup"sv));
+  auto *Active =
+      const_cast<Runtime::Instance::ModuleInstance *>(VM->getActiveModule());
+  const std::array Modules{Active};
+  const std::array<const Runtime::Instance::ModuleInstance *, 1> Sources{
+      Active};
+  Coredump::Request Req;
+  Req.Modules = Sources;
+  AST::Module Original;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Original));
+  auto &Memory = *Active->getMemoryInstances()[0];
+  ASSERT_TRUE(Memory.fillBytes(0xA5, 0, Memory.getSize()));
+  Active->getGlobalInstances()[1]->setValue(uint32_t(99));
+  AST::Module Before;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Before));
+  const auto BeforeBytes = Loader::Loader::loadFile(u8path(Path));
+  ASSERT_TRUE(BeforeBytes);
+  using Edit = std::function<void(AST::Module &)>;
+  const auto Custom = [](AST::Module &Dump,
+                         std::string_view Name) -> std::vector<Byte> & {
+    for (auto &Section : Dump.getCustomSections()) {
+      if (Section.getName() == Name)
+        return Section.getContent();
+    }
+    std::abort();
+  };
+  const std::vector<std::pair<ErrCode::Value, Edit>> Cases{
+      {ErrCode::Value::CoredumpMalformed,
+       [&](auto &D) { Custom(D, "wasmedge.tables")[0] = 2; }},
+      {ErrCode::Value::CoredumpMalformed,
+       [&](auto &D) { Custom(D, "wasmedge.instances")[0] = 2; }},
+      {ErrCode::Value::CoredumpMalformed,
+       [&](auto &D) { Custom(D, "wasmedge.globals")[0] = 2; }},
+      {ErrCode::Value::CoredumpMalformed,
+       [](auto &D) { D.getCustomSections().pop_back(); }},
+      {ErrCode::Value::CoredumpMalformed,
+       [](auto &D) {
+         D.getCustomSections().push_back(D.getCustomSections().back());
+       }},
+      {ErrCode::Value::CoredumpMalformed,
+       [&](auto &D) { Custom(D, "wasmedge.tables").pop_back(); }},
+      {ErrCode::Value::CoredumpMalformed,
+       [&](auto &D) { Custom(D, "wasmedge.instances").push_back(0); }},
+      {ErrCode::Value::CoredumpMalformed,
+       [&](auto &D) { Custom(D, "coreinstances")[4] = 9; }},
+      {ErrCode::Value::CoredumpMalformed,
+       [&](auto &D) { Custom(D, "wasmedge.globals").back() = 99; }},
+      {ErrCode::Value::CoredumpMalformed,
+       [](auto &D) {
+         D.getDataSection().getContent()[0].getExpr().getInstrs()[0].setNum(
+             uint32_t(65536));
+       }},
+      {ErrCode::Value::CoredumpMalformed,
+       [](auto &D) {
+         auto Seg = D.getDataSection().getContent()[0];
+         D.getDataSection().getContent().push_back(Seg);
+       }},
+      {ErrCode::Value::CoredumpMismatch,
+       [](auto &D) {
+         D.getGlobalSection().getContent()[1].getGlobalType().setValType(
+             TypeCode::I64);
+       }},
+      {ErrCode::Value::CoredumpMismatch,
+       [&](auto &D) { Custom(D, "wasmedge.tables")[2] = 0x6F; }},
+      {ErrCode::Value::CoredumpMismatch,
+       [](auto &D) {
+         D.getMemorySection().getContent()[0].getLimit().setMin(65537);
+       }},
+      {ErrCode::Value::CoredumpUnsupported,
+       [&](auto &D) {
+         auto &B = Custom(D, "wasmedge.globals");
+         B.resize(6);
+         B[5] = Coredump::kRefMissing;
+       }},
+      {ErrCode::Value::CoredumpUnsupported, [](auto &D) {
+         D.getMemorySection().getContent()[0] =
+             AST::MemoryType(AST::Limit(1, 3, false, true));
+       }}};
+  unsigned Case = 0;
+  for (const auto &[Expected, Mutate] : Cases) {
+    SCOPED_TRACE(Case++);
+    auto Dump = Original;
+    Mutate(Dump);
+    const auto Bytes = Loader::Serializer().serializeModule(Dump);
+    ASSERT_TRUE(Bytes);
+    const auto InputPath = TempDir / "invalid.core";
+    {
+      std::ofstream Output(InputPath, std::ios::binary);
+      Output.write(reinterpret_cast<const char *>(Bytes->data()),
+                   static_cast<std::streamsize>(Bytes->size()));
+      ASSERT_TRUE(Output.good());
+    }
+    const auto Result = Coredump::restore({Modules, u8string(InputPath)});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), Expected);
+    AST::Module After;
+    ASSERT_NO_FATAL_FAILURE(generate(Req, After));
+    const auto AfterBytes = Loader::Loader::loadFile(u8path(Path));
+    ASSERT_TRUE(AfterBytes);
+    EXPECT_EQ(*BeforeBytes, *AfterBytes);
+  }
+}
+
+TEST_F(CoredumpState, RestoreDroppedSegments) {
+  ASSERT_TRUE(VM->loadWasm(CoredumpReadBackWasm));
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  auto *Active =
+      const_cast<Runtime::Instance::ModuleInstance *>(VM->getActiveModule());
+  const std::array Modules{Active};
+  const std::array<const Runtime::Instance::ModuleInstance *, 1> Sources{
+      Active};
+  Coredump::Request Req;
+  Req.Modules = Sources;
+  AST::Module Dump;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Dump));
+  const auto BeforeDrop = Path;
+  ASSERT_TRUE(VM->execute("setup"sv));
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Dump));
+  const auto DroppedPath = Path;
+  const auto Saved = Loader::Loader::loadFile(u8path(Path));
+  ASSERT_TRUE(Saved);
+  const auto Result = Coredump::restore({Modules, BeforeDrop});
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::CoredumpUnsupported);
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Dump));
+  const auto After = Loader::Loader::loadFile(u8path(Path));
+  ASSERT_TRUE(After);
+  EXPECT_EQ(*Saved, *After);
+  WasmEdge::VM::VM Fresh(Conf);
+  ASSERT_TRUE(Fresh.loadWasm(CoredumpReadBackWasm));
+  ASSERT_TRUE(Fresh.validate());
+  ASSERT_TRUE(Fresh.instantiate());
+  auto *Target =
+      const_cast<Runtime::Instance::ModuleInstance *>(Fresh.getActiveModule());
+  const std::array Targets{Target};
+  ASSERT_FALSE(Target->getOwnedDataInstances()[1]->isDropped());
+  ASSERT_FALSE(Target->getElemInstances()[2]->isDropped());
+  ASSERT_TRUE(Coredump::restore({Targets, DroppedPath}));
+  EXPECT_TRUE(Target->getOwnedDataInstances()[1]->isDropped());
+  EXPECT_TRUE(Target->getElemInstances()[2]->isDropped());
+  EXPECT_FALSE(Target->getOwnedDataInstances()[0]->isDropped());
+  EXPECT_FALSE(Target->getElemInstances()[1]->isDropped());
+}
+
+TEST_F(CoredumpState, RestoreMemoryGrowAndLimits) {
+  Runtime::Instance::ModuleInstance Source("source");
+  Runtime::Instance::ModuleInstance Target("different-name");
+  ASSERT_TRUE(Source.addHostMemory(
+      "m", std::make_unique<Runtime::Instance::MemoryInstance>(
+               AST::MemoryType(3, 3))));
+  ASSERT_TRUE(Target.addHostMemory(
+      "m", std::make_unique<Runtime::Instance::MemoryInstance>(
+               AST::MemoryType(1, 3))));
+  auto &Memory = *Source.getMemoryInstances()[0];
+  ASSERT_TRUE(Memory.fillBytes(0xA5, Memory.kPageSize * 2, Memory.kPageSize));
+  Coredump::Request Req;
+  const std::array<const Runtime::Instance::ModuleInstance *, 1> Sources{
+      &Source};
+  Req.Modules = Sources;
+  AST::Module Dump;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Dump));
+  const std::array Targets{&Target};
+  ASSERT_TRUE(Coredump::restore({Targets, Path}));
+  EXPECT_EQ(Target.getMemoryInstances()[0]->getPageSize(), 3U);
+  const auto Bytes = Target.getMemoryInstances()[0]->getBytes(
+      Memory.kPageSize * 2, Memory.kPageSize);
+  ASSERT_TRUE(Bytes);
+  EXPECT_TRUE(std::all_of(Bytes->begin(), Bytes->end(),
+                          [](Byte B) { return B == 0xA5; }));
+  for (const bool ConfigLimit : {false, true}) {
+    Runtime::Instance::ModuleInstance Limited("limited");
+    ASSERT_TRUE(Limited.addHostMemory(
+        "m",
+        std::make_unique<Runtime::Instance::MemoryInstance>(
+            AST::MemoryType(1, ConfigLimit ? 3 : 2), ConfigLimit ? 2 : 3)));
+    const std::array LimitedModules{&Limited};
+    const auto Result = Coredump::restore({LimitedModules, Path});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), ErrCode::Value::CoredumpMismatch);
+    EXPECT_EQ(Limited.getMemoryInstances()[0]->getPageSize(), 1U);
+  }
+}
+
+TEST_F(CoredumpState, RestoreSharedInstances) {
+  const Byte Imports[]{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x02,
+                       0x23, 0x02, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x06,
+                       0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x01, 0x01,
+                       0x03, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x05, 0x74,
+                       0x61, 0x62, 0x6c, 0x65, 0x01, 0x70, 0x01, 0x01, 0x04};
+  Runtime::Instance::ModuleInstance Owner("owner");
+  ASSERT_TRUE(Owner.addHostMemory(
+      "memory", std::make_unique<Runtime::Instance::MemoryInstance>(
+                    AST::MemoryType(1, 3))));
+  ASSERT_TRUE(Owner.addHostTable(
+      "table", std::make_unique<Runtime::Instance::TableInstance>(
+                   AST::TableType(TypeCode::FuncRef, 1, 4))));
+  WasmEdge::VM::VM First(Conf), Second(Conf);
+  for (auto *Instance : {&First, &Second}) {
+    ASSERT_TRUE(Instance->registerModule(Owner));
+    ASSERT_TRUE(Instance->loadWasm(Imports));
+    ASSERT_TRUE(Instance->validate());
+    ASSERT_TRUE(Instance->instantiate());
+  }
+  auto *A =
+      const_cast<Runtime::Instance::ModuleInstance *>(First.getActiveModule());
+  auto *B =
+      const_cast<Runtime::Instance::ModuleInstance *>(Second.getActiveModule());
+  const std::array Modules{A, B};
+  const std::array<const Runtime::Instance::ModuleInstance *, 2> Sources{A, B};
+  Coredump::Request Req;
+  Req.Modules = Sources;
+  AST::Module Dump;
+  auto &Mem = *Owner.getMemoryInstances()[0];
+  ASSERT_TRUE(Mem.fillBytes(42, 0, 1));
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Dump));
+  ASSERT_TRUE(Mem.fillBytes(99, 0, 1));
+  ASSERT_TRUE(Owner.getTableInstances()[0]->growTable(2));
+  ASSERT_TRUE(Coredump::restore({Modules, Path}));
+  EXPECT_EQ(A->getMemoryInstances()[0], B->getMemoryInstances()[0]);
+  EXPECT_EQ(A->getTableInstances()[0], B->getTableInstances()[0]);
+  EXPECT_EQ(Mem.getBytes(0, 1)->front(), 42);
+  EXPECT_EQ(Owner.getTableInstances()[0]->getSize(), 1U);
+  Runtime::Instance::ModuleInstance Independent("independent");
+  ASSERT_TRUE(Independent.addHostMemory(
+      "memory", std::make_unique<Runtime::Instance::MemoryInstance>(
+                    AST::MemoryType(1, 3))));
+  ASSERT_TRUE(Independent.addHostTable(
+      "table", std::make_unique<Runtime::Instance::TableInstance>(
+                   AST::TableType(TypeCode::FuncRef, 1, 4))));
+  const std::array WrongModules{A, &Independent};
+  const auto Result = Coredump::restore({WrongModules, Path});
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::CoredumpMismatch);
+  EXPECT_EQ(Mem.getBytes(0, 1)->front(), 42);
+  const std::array<const Runtime::Instance::ModuleInstance *, 2> Separate{
+      A, &Independent};
+  Req.Modules = Separate;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Dump));
+  const auto Reverse = Coredump::restore({Modules, Path});
+  ASSERT_FALSE(Reverse);
+  EXPECT_EQ(Reverse.error(), ErrCode::Value::CoredumpMismatch);
+}
+
+TEST_F(CoredumpState, RestoreExternReferences) {
+  Runtime::Instance::ModuleInstance Host("host");
+  ASSERT_TRUE(Host.addHostTable(
+      "table", std::make_unique<Runtime::Instance::TableInstance>(
+                   AST::TableType(TypeCode::ExternRef, 1, 2))));
+  ASSERT_TRUE(Host.addHostGlobal(
+      "global", std::make_unique<Runtime::Instance::GlobalInstance>(
+                    AST::GlobalType(TypeCode::ExternRef, ValMut::Var),
+                    RefVariant(TypeCode::ExternRef))));
+  const std::array Modules{&Host};
+  const std::array<const Runtime::Instance::ModuleInstance *, 1> Sources{&Host};
+  Coredump::Request Req;
+  Req.Modules = Sources;
+  AST::Module Dump;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Dump));
+  int Value = 42;
+  ASSERT_TRUE(Host.getTableInstances()[0]->setRefAddr(0, RefVariant(&Value)));
+  Host.getGlobalInstances()[0]->setValue(RefVariant(&Value));
+  ASSERT_TRUE(Coredump::restore({Modules, Path}));
+  EXPECT_TRUE(Host.getTableInstances()[0]->getRefAddr(0)->isNull());
+  EXPECT_TRUE(
+      Host.getGlobalInstances()[0]->getValue().get<RefVariant>().isNull());
+  for (const bool Table : {false, true}) {
+    if (Table) {
+      ASSERT_TRUE(
+          Host.getTableInstances()[0]->setRefAddr(0, RefVariant(&Value)));
+      Host.getGlobalInstances()[0]->setValue(RefVariant(TypeCode::ExternRef));
+    } else {
+      Host.getGlobalInstances()[0]->setValue(RefVariant(&Value));
+    }
+    ASSERT_NO_FATAL_FAILURE(generate(Req, Dump));
+    const auto Result = Coredump::restore({Modules, Path});
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), ErrCode::Value::CoredumpUnsupported);
+  }
+}
+
+TEST_F(CoredumpState, RestoreImportedTypeContext) {
+  const Byte Owner[]{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+      0x00, 0x00, 0x03, 0x03, 0x02, 0x00, 0x00, 0x04, 0x05, 0x01, 0x63, 0x00,
+      0x00, 0x01, 0x06, 0x07, 0x01, 0x63, 0x00, 0x01, 0xd0, 0x00, 0x0b, 0x07,
+      0x11, 0x03, 0x01, 0x74, 0x01, 0x00, 0x01, 0x67, 0x03, 0x00, 0x05, 0x73,
+      0x65, 0x74, 0x75, 0x70, 0x00, 0x01, 0x09, 0x05, 0x01, 0x03, 0x00, 0x01,
+      0x00, 0x0a, 0x11, 0x02, 0x02, 0x00, 0x0b, 0x0c, 0x00, 0x41, 0x00, 0xd2,
+      0x00, 0x26, 0x00, 0xd2, 0x00, 0x24, 0x00, 0x0b};
+  const Byte Importer[]{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01,
+                        0x06, 0x02, 0x5f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x1a,
+                        0x02, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x01, 0x74,
+                        0x01, 0x63, 0x01, 0x00, 0x01, 0x05, 0x6f, 0x77, 0x6e,
+                        0x65, 0x72, 0x01, 0x67, 0x03, 0x63, 0x01, 0x01};
+  Conf.addProposal(Proposal::GC);
+  Conf.addProposal(Proposal::FunctionReferences);
+  VM = std::make_unique<WasmEdge::VM::VM>(Conf);
+  ASSERT_TRUE(VM->registerModule("owner", Owner));
+  ASSERT_TRUE(VM->loadWasm(Importer));
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  const auto NullPath = u8string(TempDir / "null.core");
+  ASSERT_TRUE(VM->snapshot(NullPath));
+  ASSERT_TRUE(VM->execute("owner", "setup"));
+  ASSERT_TRUE(VM->snapshot(Path));
+  ASSERT_TRUE(VM->restore(NullPath));
+  EXPECT_TRUE(VM->getActiveModule()
+                  ->getGlobalInstances()[0]
+                  ->getValue()
+                  .get<RefVariant>()
+                  .isNull());
+  ASSERT_TRUE(VM->restore(Path));
+  const auto Ref = VM->getActiveModule()->getTableInstances()[0]->getRefAddr(0);
+  ASSERT_TRUE(Ref);
+  EXPECT_FALSE(Ref->isNull());
+  EXPECT_EQ(Ref->getPtr<void>(), VM->getActiveModule()
+                                     ->getGlobalInstances()[0]
+                                     ->getValue()
+                                     .get<RefVariant>()
+                                     .getPtr<void>());
 }
 
 TEST_F(CoredumpState, ModulesOnly) {

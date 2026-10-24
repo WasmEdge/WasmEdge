@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <array>
+#include <iterator>
 #include <limits>
 #include <unordered_map>
 #include <unordered_set>
@@ -290,9 +291,11 @@ Expect<RestorePlan> buildPlan(const RestoreRequest &Req,
       "wasmedge.globals"};
   std::array<const AST::CustomSection *, 5> Sections{};
   for (const auto &Section : Dump.getCustomSections()) {
-    const auto It = std::find(Names.begin(), Names.end(), Section.getName());
-    if (It != Names.end()) {
-      auto &Slot = Sections[It - Names.begin()];
+    const auto Idx = static_cast<size_t>(
+        std::distance(Names.begin(), std::find(Names.begin(), Names.end(),
+                                               Section.getName())));
+    if (Idx != Names.size()) {
+      auto &Slot = Sections[Idx];
       if (Slot != nullptr) {
         return Unexpect(Malformed);
       }

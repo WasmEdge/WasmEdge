@@ -114,6 +114,17 @@ public:
     return growTable(Count, InitValue);
   }
 
+  /// Shrink table.
+  bool shrinkTable(const uint64_t Count) noexcept {
+    if (Count > getSize()) {
+      return false;
+    }
+    Refs.resize(getSize() - Count);
+    DataPtr = Refs.data();
+    setLiveSize(Refs.size());
+    return true;
+  }
+
   /// Get slice of Refs[Offset : Offset + Length - 1]
   Expect<Span<const RefVariant>> getRefs(const uint64_t Offset,
                                          const uint64_t Length) const noexcept {

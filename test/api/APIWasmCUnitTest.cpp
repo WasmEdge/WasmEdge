@@ -97,6 +97,14 @@ extern void recordingFinalizer(void *env);
 
 // Helper macro for the WASM_DECLARE_REF_BASE_IMPL test.
 #define WASM_DECLARE_REF_BASE_TEST(name, obj, fin_obj)                         \
+  /* null guards */                                                            \
+  EXPECT_EQ(nullptr, wasm_##name##_copy(nullptr));                             \
+  EXPECT_TRUE(wasm_##name##_same(nullptr, nullptr));                           \
+  EXPECT_FALSE(wasm_##name##_same(nullptr, obj));                              \
+  EXPECT_FALSE(wasm_##name##_same(obj, nullptr));                              \
+  EXPECT_EQ(nullptr, wasm_##name##_get_host_info(nullptr));                    \
+  wasm_##name##_set_host_info(nullptr, nullptr);                               \
+  wasm_##name##_set_host_info_with_finalizer(nullptr, nullptr, nullptr);       \
   /* copy + same */                                                            \
   {                                                                            \
     wasm_##name##_t *cp_##name = wasm_##name##_copy(obj);                      \
@@ -625,6 +633,7 @@ TEST(APIWasmCTest, Frame) {
   EXPECT_EQ(0U, wasm_frame_func_offset(nullptr));
   EXPECT_EQ(0U, wasm_frame_module_offset(nullptr));
   EXPECT_EQ(nullptr, wasm_frame_instance(nullptr));
+  EXPECT_EQ(nullptr, wasm_frame_copy(nullptr));
 
   // Copy.
   wasm_frame_t *frame_copy = wasm_frame_copy(frame);

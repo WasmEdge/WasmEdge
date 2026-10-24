@@ -25,18 +25,6 @@ auto logOutOfRange(ErrCode Code, ErrInfo::IndexCategory Cate, uint32_t Idx,
   return Unexpect(Code);
 }
 
-// Helper function for extracting address type to TypeCode.
-TypeCode convAddrTypeToTypeCode(const AddressType AT) noexcept {
-  switch (AT) {
-  case AddressType::I32:
-    return TypeCode::I32;
-  case AddressType::I64:
-    return TypeCode::I64;
-  default:
-    assumingUnreachable();
-  }
-};
-
 // Helper function for packing TypeCode to address type.
 AddressType convTypeCodeToAddrType(const TypeCode TC) noexcept {
   switch (TC) {
@@ -106,12 +94,14 @@ void FormChecker::addFunc(const uint32_t TypeIdx, const bool IsImport) {
 }
 
 void FormChecker::addTable(const AST::TableType &Tab) {
-  Tables.emplace_back(convAddrTypeToTypeCode(Tab.getLimit().getAddrType()),
-                      Tab.getRefType());
+  Tables.emplace_back(
+      ValTypeFromAddressType(Tab.getLimit().getAddrType()).getCode(),
+      Tab.getRefType());
 }
 
 void FormChecker::addMemory(const AST::MemoryType &Mem) {
-  Mems.push_back(convAddrTypeToTypeCode(Mem.getLimit().getAddrType()));
+  Mems.push_back(
+      ValTypeFromAddressType(Mem.getLimit().getAddrType()).getCode());
 }
 
 void FormChecker::addGlobal(const AST::GlobalType &Glob, const bool IsImport) {
@@ -371,35 +361,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   // Helper lambda for downcasting into the top heap type.
   auto toTopHeapType = [this](const ValType &T) -> ValType {
     assuming(T.isRefType());
-    if (T.isAbsHeapType()) {
-      switch (T.getHeapTypeCode()) {
-      case TypeCode::NullFuncRef:
-      case TypeCode::FuncRef:
-        return TypeCode::FuncRef;
-      case TypeCode::NullExternRef:
-      case TypeCode::ExternRef:
-        return TypeCode::ExternRef;
-      case TypeCode::NullExnRef:
-      case TypeCode::ExnRef:
-        return TypeCode::ExnRef;
-      case TypeCode::NullRef:
-      case TypeCode::AnyRef:
-      case TypeCode::EqRef:
-      case TypeCode::I31Ref:
-      case TypeCode::StructRef:
-      case TypeCode::ArrayRef:
-        return TypeCode::AnyRef;
-      default:
-        assumingUnreachable();
-      }
-    } else {
-      const auto &CompType = Types[T.getTypeIndex()]->getCompositeType();
-      if (CompType.isFunc()) {
-        return TypeCode::FuncRef;
-      } else {
-        return TypeCode::AnyRef;
-      }
-    }
+    return AST::TypeMatcher::getTopHeapType(
+        T.isAbsHeapType()
+            ? T.getHeapTypeCode()
+            : Types[T.getTypeIndex()]->getCompositeType().expand());
   };
 
   switch (Instr.getOpCode()) {

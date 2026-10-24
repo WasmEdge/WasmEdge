@@ -99,6 +99,8 @@ Expect<void> Executor::instantiate(
         ModuleFinder,
     Runtime::Instance::ModuleInstance &ModInst,
     const AST::ImportSection &ImportSec) {
+  // Pairs of recursive types found equal, shared by the imports.
+  AST::TypeMatcher::RecTypePairs Equal;
   // Iterate and instantiate import descriptions.
   for (const auto &ImpDesc : ImportSec.getContent()) {
     // Get data from import description and find import module.
@@ -132,6 +134,11 @@ Expect<void> Executor::instantiate(
       return Res;
     }
     EXPECTED_TRY(checkImportMatched(ModName, ExtName, ExtType, *ImpModInst));
+    // Read the types of an instance from its defining module, if any.
+    auto GetImpTypeList = [&ImpModInst](const auto *Inst) {
+      return Inst->getModule() ? Inst->getModule()->getTypeList()
+                               : ImpModInst->getTypeList();
+    };
 
     // Add the imports to the module instance.
     switch (ExtType) {
@@ -141,16 +148,9 @@ Expect<void> Executor::instantiate(
       uint32_t TypeIdx = ImpDesc.getExternalFuncTypeIdx();
       // Import matching.
       auto *ImpInst = ImpModInst->findFuncExports(ExtName);
-      // Read the type list from the function's owning module (so an alias
-      // re-exporting a foreign func matches against the original's types).
-      auto GetImpTypeList = [&ImpModInst](const auto *Inst) {
-        return Inst->getModule() ? Inst->getModule()->getTypeList()
-                                 : ImpModInst->getTypeList();
-      };
-
       if (!AST::TypeMatcher::matchType(ModInst.getTypeList(), TypeIdx,
                                        GetImpTypeList(ImpInst),
-                                       ImpInst->getTypeIndex())) {
+                                       ImpInst->getTypeIndex(), &Equal)) {
         const auto &ExpDefType = **ModInst.getType(TypeIdx);
         bool IsMatchV2 = false;
         const auto &ExpFuncType = ExpDefType.getCompositeType().getFuncType();
@@ -181,9 +181,9 @@ Expect<void> Executor::instantiate(
               auto *ImpInstV2 =
                   ImpModInst->findFuncExports(std::string(*Iter) + "_v2");
               if (ImpInstV2 != nullptr &&
-                  AST::TypeMatcher::matchType(ModInst.getTypeList(), TypeIdx,
-                                              GetImpTypeList(ImpInstV2),
-                                              ImpInstV2->getTypeIndex())) {
+                  AST::TypeMatcher::matchType(
+                      ModInst.getTypeList(), TypeIdx, GetImpTypeList(ImpInstV2),
+                      ImpInstV2->getTypeIndex(), &Equal)) {
                 // Try to match the new version
                 ImpInst = ImpInstV2;
                 IsMatchV2 = true;
@@ -217,15 +217,9 @@ Expect<void> Executor::instantiate(
       auto *ImpInst = ImpModInst->findTableExports(ExtName);
       const auto &ImpType = ImpInst->getTableType();
       const auto &ImpLim = ImpType.getLimit();
-      // External table reference type should match the import table reference
-      // type in description, and vice versa.
-      if (!AST::TypeMatcher::matchType(
-              ModInst.getTypeList(), TabType.getRefType(),
-              ImpModInst->getTypeList(), ImpType.getRefType()) ||
-          !AST::TypeMatcher::matchType(
-              ImpModInst->getTypeList(), ImpType.getRefType(),
-              ModInst.getTypeList(), TabType.getRefType()) ||
-          !AST::TypeMatcher::matchLimit(TabLim, ImpLim)) {
+      if (!AST::TypeMatcher::matchType(ModInst.getTypeList(), TabType,
+                                       GetImpTypeList(ImpInst), ImpType,
+                                       &Equal)) {
         return logMatchError(ModName, ExtName, ExtType, TabType.getRefType(),
                              TabLim.hasMax(), TabLim.getMin(), TabLim.getMax(),
                              ImpType.getRefType(), ImpLim.hasMax(),
@@ -257,9 +251,9 @@ Expect<void> Executor::instantiate(
       const auto &TagType = ImpDesc.getExternalTagType();
       // Import matching.
       auto *ImpInst = ImpModInst->findTagExports(ExtName);
-      if (!AST::TypeMatcher::matchType(
-              ModInst.getTypeList(), TagType.getTypeIdx(),
-              ImpModInst->getTypeList(), ImpInst->getTagType().getTypeIdx())) {
+      if (!AST::TypeMatcher::matchType(ModInst.getTypeList(), TagType,
+                                       GetImpTypeList(ImpInst),
+                                       ImpInst->getTagType(), &Equal)) {
         const auto &ExpFuncType =
             TagType.getDefType().getCompositeType().getFuncType();
         const auto &ImpFuncType =
@@ -279,22 +273,9 @@ Expect<void> Executor::instantiate(
       // import description.
       auto *ImpInst = ImpModInst->findGlobalExports(ExtName);
       const auto &ImpType = ImpInst->getGlobalType();
-      bool IsMatch = false;
-      if (ImpType.getValMut() == GlobType.getValMut()) {
-        // For both const or both var: external global value type should match
-        // the import global value type in description.
-        IsMatch = AST::TypeMatcher::matchType(
-            ModInst.getTypeList(), GlobType.getValType(),
-            ImpModInst->getTypeList(), ImpType.getValType());
-        if (ImpType.getValMut() == ValMut::Var) {
-          // If both var: import global value type in description should also
-          // match the external global value type.
-          IsMatch &= AST::TypeMatcher::matchType(
-              ImpModInst->getTypeList(), ImpType.getValType(),
-              ModInst.getTypeList(), GlobType.getValType());
-        }
-      }
-      if (!IsMatch) {
+      if (!AST::TypeMatcher::matchType(ModInst.getTypeList(), GlobType,
+                                       GetImpTypeList(ImpInst), ImpType,
+                                       &Equal)) {
         return logMatchError(ModName, ExtName, ExtType, GlobType.getValType(),
                              GlobType.getValMut(), ImpType.getValType(),
                              ImpType.getValMut());

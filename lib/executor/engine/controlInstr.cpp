@@ -113,32 +113,9 @@ Expect<void> Executor::runBrOnCastOp(Runtime::StackManager &StackMgr,
                                      AST::InstrView::iterator &PC,
                                      bool IsReverse) noexcept {
   // Get the value on top of the stack.
-  const auto *ModInst = StackMgr.getModule();
   const auto &Val = StackMgr.getTop().get<RefVariant>();
-  const auto &VT = Val.getType();
-  Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
-  if (!VT.isAbsHeapType()) {
-    auto *Inst = Val.getPtr<Runtime::Instance::CompositeBase>();
-    // Reference must not be nullptr here because the null references are typed
-    // with the least abstract heap type.
-    if (Inst->getModule()) {
-      GotTypeList = Inst->getModule()->getTypeList();
-    }
-  }
-
-  ValType NormalizedVT = VT;
-  if (NormalizedVT.isExternalized()) {
-    // An externalized reference must appear as an 'externref' to the matcher.
-    // We preserve the nullability (Ref vs RefNull).
-    NormalizedVT =
-        ValType(VT.isNullableRefType() ? TypeCode::RefNull : TypeCode::Ref,
-                TypeCode::ExternRef);
-  }
-
-  bool MatchResult = AST::TypeMatcher::matchType(ModInst->getTypeList(),
-                                                 Instr.getBrCast().RType2,
-                                                 GotTypeList, NormalizedVT);
-  if (MatchResult != IsReverse) {
+  if (matchRef(StackMgr.getModule(), Instr.getBrCast().RType2, Val) !=
+      IsReverse) {
     return branchToLabel(StackMgr, Instr.getBrCast().Jump, PC);
   }
   return {};
@@ -209,7 +186,7 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
     spdlog::error(ErrCode::Value::UndefinedElement);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
-                                           {ValTypeFromType<uint32_t>()}));
+                                           {ValTypeFromAddressType(AddrType)}));
     return Unexpect(ErrCode::Value::UndefinedElement);
   }
 
@@ -220,30 +197,18 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
     spdlog::error(ErrCode::Value::UninitializedElement);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
-                                           {ValTypeFromType<uint32_t>()}));
+                                           {ValTypeFromAddressType(AddrType)}));
     return Unexpect(ErrCode::Value::UninitializedElement);
   }
 
   // Check function type.
-  bool IsMatch = false;
-  if (FuncInst->getModule()) {
-    IsMatch = AST::TypeMatcher::matchType(
-        ModInst->getTypeList(), *ExpDefType.getTypeIndex(),
-        FuncInst->getModule()->getTypeList(), FuncInst->getTypeIndex());
-  } else {
-    // Independent host module instance case. Matching the composite type
-    // directly.
-    IsMatch = AST::TypeMatcher::matchType(
-        ModInst->getTypeList(), ExpDefType.getCompositeType(),
-        FuncInst->getHostFunc().getDefinedType().getCompositeType());
-  }
-  if (!IsMatch) {
+  if (!matchRef(ModInst, ValType(TypeCode::Ref, Instr.getTargetIndex()), Ref)) {
     auto &ExpFuncType = ExpDefType.getCompositeType().getFuncType();
     auto &GotFuncType = FuncInst->getFuncType();
     spdlog::error(ErrCode::Value::IndirectCallTypeMismatch);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
-                                           {ValTypeFromType<uint32_t>()}));
+                                           {ValTypeFromAddressType(AddrType)}));
     spdlog::error(ErrInfo::InfoMismatch(
         ExpFuncType.getParamTypes(), ExpFuncType.getReturnTypes(),
         GotFuncType.getParamTypes(), GotFuncType.getReturnTypes()));

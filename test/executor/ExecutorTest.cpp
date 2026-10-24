@@ -17,6 +17,7 @@
 #include "common/filesystem.h"
 #include "common/spdlog.h"
 #include "executor/coredump.h"
+#include "executor/restore.h"
 #include "loader/serialize.h"
 #include "vm/vm.h"
 
@@ -871,6 +872,41 @@ protected:
   std::string Path;
   unsigned Generated = 0;
 };
+
+TEST_F(CoredumpState, RestorePreflight) {
+  ASSERT_TRUE(VM->loadWasm(CoredumpReadBackWasm));
+  ASSERT_NO_FATAL_FAILURE(instantiate());
+  ASSERT_TRUE(VM->execute("setup"sv));
+  auto *Active =
+      const_cast<Runtime::Instance::ModuleInstance *>(VM->getActiveModule());
+  const std::array Modules{Active};
+  Coredump::Request Req;
+  const std::array<const Runtime::Instance::ModuleInstance *, 1> Sources{
+      Active};
+  Req.Modules = Sources;
+  AST::Module Dump;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Dump));
+  const auto Plan = Coredump::Detail::preflight({Modules, Path});
+  ASSERT_TRUE(Plan);
+  ASSERT_EQ(Plan->Memories.size(), 1U);
+  EXPECT_EQ(Plan->Memories[0].Instance, Active->getMemoryInstances()[0]);
+  EXPECT_EQ(Plan->Memories[0].Pages, 1U);
+  ASSERT_EQ(Plan->Memories[0].Segments.size(), 1U);
+  EXPECT_EQ(Plan->Memories[0].Segments[0].first, 1024U);
+  ASSERT_EQ(Plan->Tables.size(), 1U);
+  EXPECT_EQ(Plan->Tables[0].Refs.size(), 4U);
+  EXPECT_EQ(Plan->Globals.size(), 2U);
+  EXPECT_TRUE(Plan->DataDrops.empty());
+  EXPECT_TRUE(Plan->ElemDrops.empty());
+  const auto WrongCount = Coredump::Detail::preflight({{}, Path});
+  ASSERT_FALSE(WrongCount);
+  EXPECT_EQ(WrongCount.error(), ErrCode::Value::CoredumpMismatch);
+  Req.ForWasmgdb = true;
+  ASSERT_NO_FATAL_FAILURE(generate(Req, Dump));
+  const auto Wasmgdb = Coredump::Detail::preflight({Modules, Path});
+  ASSERT_FALSE(Wasmgdb);
+  EXPECT_EQ(Wasmgdb.error(), ErrCode::Value::CoredumpMalformed);
+}
 
 TEST_F(CoredumpState, ModulesOnly) {
   ASSERT_NO_FATAL_FAILURE(instantiate());

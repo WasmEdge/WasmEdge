@@ -41,6 +41,24 @@ namespace Coredump {
 static inline constexpr const uint32_t kTablesVersion = 1;
 static inline constexpr const uint32_t kInstancesVersion = 1;
 static inline constexpr const uint32_t kGlobalsVersion = 1;
+static inline constexpr const Byte kRefNull = 0x00;
+static inline constexpr const Byte kRefFunction = 0x01;
+static inline constexpr const Byte kRefMissing = 0x02;
+
+struct RestoreRequest {
+  /// Live instances in coremodules order, without nulls or duplicates.
+  Span<Runtime::Instance::ModuleInstance *const> Modules;
+  std::string_view Path;
+};
+
+/// Restore data at rest after validating the complete snapshot. Call only
+/// between invocations, with exclusive access to the instances. Frames are
+/// ignored; non-null external/GC references and segment undrops are
+/// unsupported. Typed imported references require their defining module in
+/// Modules. Preflight errors leave live state unchanged. OS allocation failures
+/// during application are treated as violated assumptions rather than returned
+/// errors.
+Expect<void> restore(const RestoreRequest &Req) noexcept;
 
 /// What to dump and where to write it. The caller must keep the referenced
 /// modules, stack, instructions, and path alive until generate returns.

@@ -89,6 +89,9 @@ public:
     return MemType.getLimit().getMin();
   }
 
+  /// Get the page limit from the configuration.
+  uint64_t getPageLimit() const noexcept { return PageLimit; }
+
   /// Get a stable pointer to the live page-count field for compiled code.
   const uint64_t *getPageSizePtr() const noexcept { return &LivePageCount; }
 

@@ -259,13 +259,13 @@ void serializeRef(const Loader::Serializer &Ser, const RefVariant &Ref,
                   const FunctionIndexer &Indexer,
                   std::vector<Byte> &Out) noexcept {
   if (Ref.isNull()) {
-    Out.push_back(0x00);
+    Out.push_back(kRefNull);
   } else if (const auto Index = Indexer.lookup(Ref)) {
-    Out.push_back(0x01);
+    Out.push_back(kRefFunction);
     Ser.serializeU32(Index->first, Out);
     Ser.serializeU32(Index->second, Out);
   } else {
-    Out.push_back(0x02);
+    Out.push_back(kRefMissing);
   }
 }
 

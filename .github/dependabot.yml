@@ -20,3 +20,6 @@ updates:
       docker:
         patterns:
           - "docker/*"
+      codeql-action:
+        patterns:
+          - "github/codeql-action/*"

@@ -212,14 +212,14 @@ TEST_F(WasiCryptoTest, Asymmetric) {
         }
       };
 
-  auto ManagedNegativeCheck = [this](__wasi_secrets_manager_t SmHandle,
+  auto ManagedNegativeCheck = [this](__wasi_secrets_manager_t MngdSmHandle,
                                      __wasi_algorithm_type_e_t AlgType,
                                      std::string_view Alg,
                                      std::optional<__wasi_options_t> OptOptions,
                                      __wasi_crypto_errno_e_t ExpectedError) {
     SCOPED_TRACE(Alg);
     WASI_CRYPTO_EXPECT_FAILURE(
-        keypairGenerateManaged(SmHandle, AlgType, Alg, OptOptions),
+        keypairGenerateManaged(MngdSmHandle, AlgType, Alg, OptOptions),
         ExpectedError);
   };
 

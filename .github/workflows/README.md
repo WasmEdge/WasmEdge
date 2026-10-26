@@ -257,7 +257,7 @@ Some required checks are not `.yml` workflows in this directory:
 | Check | Where it comes from | Contributor expectation |
 | ----- | ------------------- | ----------------------- |
 | **DCO** | The DCO GitHub App | Every commit must carry a valid `Signed-off-by` line (`git commit -s`). |
-| **CodeCov** | The Ubuntu coverage job in `Core` uploads only `build/codecov.xml`, with automatic report discovery disabled (`reusable-build-on-ubuntu.yml`); the Codecov GitHub App reports the result | Maintain or improve coverage; large unexplained drops may be flagged. |
+| **CodeCov** | The Ubuntu coverage job in `Core` uploads only `build/codecov.xml`, with automatic report discovery disabled (`reusable-build-on-ubuntu.yml`); the Codecov GitHub App reports the result. Dependabot runs skip the upload because they cannot read `CODECOV_TOKEN` and Codecov rejects tokenless uploads from branches in this repository | Maintain or improve coverage; large unexplained drops may be flagged. |
 
 ## Build and Release
 

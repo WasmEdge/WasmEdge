@@ -251,11 +251,15 @@ std::unordered_map<std::string_view, std::size_t, Hash::Hash>
 void Plugin::loadFromDefaultPaths() noexcept {
   registerBuiltInPlugins();
   for (const auto &Path : Plugin::Plugin::getDefaultPluginPaths()) {
+    if (Path.empty()) {
+      continue;
+    }
     Plugin::Plugin::load(Path);
   }
 }
 
-std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
+WASMEDGE_EXPORT std::vector<std::filesystem::path>
+Plugin::getDefaultPluginPaths() noexcept {
   using namespace std::literals::string_view_literals;
   std::vector<std::filesystem::path> Result;
   std::error_code Error;
@@ -265,11 +269,19 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
     std::string_view ExtraEnvStr = ExtraEnv;
     for (auto Sep = ExtraEnvStr.find(':'); Sep != std::string_view::npos;
          Sep = ExtraEnvStr.find(':')) {
-      Result.push_back(u8path(ExtraEnvStr.substr(0, Sep)));
+      if (const auto Path = ExtraEnvStr.substr(0, Sep); !Path.empty()) {
+        Result.push_back(u8path(Path));
+      }
       const auto Next = ExtraEnvStr.find_first_not_of(':', Sep);
+      if (Next == std::string_view::npos) {
+        ExtraEnvStr = {};
+        break;
+      }
       ExtraEnvStr = ExtraEnvStr.substr(Next);
     }
-    Result.push_back(u8path(ExtraEnvStr));
+    if (!ExtraEnvStr.empty()) {
+      Result.push_back(u8path(ExtraEnvStr));
+    }
   }
 
   // Plugin directory for the WasmEdge installation.
@@ -347,6 +359,9 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
 }
 
 WASMEDGE_EXPORT bool Plugin::load(const std::filesystem::path &Path) noexcept {
+  if (Path.empty()) {
+    return false;
+  }
   std::error_code Error;
   auto Status = std::filesystem::status(Path, Error);
   if (likely(!Error)) {

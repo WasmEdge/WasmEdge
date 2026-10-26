@@ -10,12 +10,53 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <gtest/gtest.h>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
+
+class EnvGuard {
+public:
+  EnvGuard(std::string Variable) : Name(std::move(Variable)) {
+    if (const char *Val = ::getenv(Name.c_str())) {
+      OldValue = Val;
+      HadOldValue = true;
+    }
+  }
+
+  void set(const char *Value) {
+#if defined(_WIN32) || defined(_WIN64)
+    _putenv_s(Name.c_str(), Value ? Value : "");
+#else
+    if (Value) {
+      ::setenv(Name.c_str(), Value, 1);
+    } else {
+      ::unsetenv(Name.c_str());
+    }
+#endif
+  }
+
+  ~EnvGuard() {
+    if (HadOldValue) {
+      set(OldValue.c_str());
+    } else {
+#if defined(_WIN32) || defined(_WIN64)
+      _putenv_s(Name.c_str(), "");
+#else
+      ::unsetenv(Name.c_str());
+#endif
+    }
+  }
+
+private:
+  std::string Name;
+  std::string OldValue;
+  bool HadOldValue = false;
+};
 
 std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance> createModuleC() {
   using namespace std::literals::string_view_literals;
@@ -117,6 +158,72 @@ TEST(wasmedgePluginTests, CPP_Module) {
   EXPECT_EQ(TestModC->getFuncExportNum(), 2U);
   EXPECT_NE(TestModC->findFuncExports("add"), nullptr);
   EXPECT_NE(TestModC->findFuncExports("sub"), nullptr);
+}
+
+TEST(wasmedgePluginTests, PluginPathTrailingOrConsecutiveColons) {
+  EnvGuard Env("WASMEDGE_PLUGIN_PATH");
+
+  // Test trailing colon
+  Env.set("/tmp/plugins:");
+  EXPECT_NO_THROW({
+    auto Paths = WasmEdge::Plugin::Plugin::getDefaultPluginPaths();
+    auto Target = WasmEdge::u8path("/tmp/plugins");
+    EXPECT_NE(std::find(Paths.begin(), Paths.end(), Target), Paths.end());
+    for (const auto &Path : Paths) {
+      EXPECT_FALSE(Path.empty());
+    }
+    WasmEdge::Plugin::Plugin::loadFromDefaultPaths();
+  });
+
+  // Test consecutive colons
+  Env.set("::");
+  EXPECT_NO_THROW({
+    auto Paths = WasmEdge::Plugin::Plugin::getDefaultPluginPaths();
+    for (const auto &Path : Paths) {
+      EXPECT_FALSE(Path.empty());
+    }
+    WasmEdge::Plugin::Plugin::loadFromDefaultPaths();
+  });
+
+  // Test consecutive colons with multiple paths and trailing colon
+  Env.set("/tmp/plugins1::/tmp/plugins2:");
+  EXPECT_NO_THROW({
+    auto Paths = WasmEdge::Plugin::Plugin::getDefaultPluginPaths();
+    auto Target1 = WasmEdge::u8path("/tmp/plugins1");
+    auto Target2 = WasmEdge::u8path("/tmp/plugins2");
+    EXPECT_NE(std::find(Paths.begin(), Paths.end(), Target1), Paths.end());
+    EXPECT_NE(std::find(Paths.begin(), Paths.end(), Target2), Paths.end());
+    for (const auto &Path : Paths) {
+      EXPECT_FALSE(Path.empty());
+    }
+    WasmEdge::Plugin::Plugin::loadFromDefaultPaths();
+  });
+
+  // Test leading colons
+  Env.set("::/tmp/plugins3");
+  EXPECT_NO_THROW({
+    auto Paths = WasmEdge::Plugin::Plugin::getDefaultPluginPaths();
+    auto Target = WasmEdge::u8path("/tmp/plugins3");
+    EXPECT_NE(std::find(Paths.begin(), Paths.end(), Target), Paths.end());
+    for (const auto &Path : Paths) {
+      EXPECT_FALSE(Path.empty());
+    }
+    WasmEdge::Plugin::Plugin::loadFromDefaultPaths();
+  });
+
+  // Test empty environment variable
+  Env.set("");
+  EXPECT_NO_THROW({
+    auto Paths = WasmEdge::Plugin::Plugin::getDefaultPluginPaths();
+    for (const auto &Path : Paths) {
+      EXPECT_FALSE(Path.empty());
+    }
+    WasmEdge::Plugin::Plugin::loadFromDefaultPaths();
+  });
+}
+
+TEST(wasmedgePluginTests, PluginLoadEmptyPath) {
+  EXPECT_FALSE(WasmEdge::Plugin::Plugin::load(std::filesystem::path("")));
 }
 
 GTEST_API_ int main(int argc, char **argv) {

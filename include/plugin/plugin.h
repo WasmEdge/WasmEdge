@@ -148,7 +148,8 @@ public:
   WASMEDGE_EXPORT static void loadFromDefaultPaths() noexcept;
 
   // Static function to get default plugin paths.
-  static std::vector<std::filesystem::path> getDefaultPluginPaths() noexcept;
+  WASMEDGE_EXPORT static std::vector<std::filesystem::path>
+  getDefaultPluginPaths() noexcept;
 
   // Static function to load all plugins from given path.
   WASMEDGE_EXPORT static bool load(const std::filesystem::path &Path) noexcept;

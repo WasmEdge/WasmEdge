@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdlib>
 #include <cstring>
 
 namespace {
@@ -168,6 +169,28 @@ TEST(wasmedgePluginTests, C_Module) {
   EXPECT_TRUE(
       WasmEdge_StringIsEqual(NameBuf[4], WasmEdge_StringWrap("sub", 3U)));
   WasmEdge_ModuleInstanceDelete(ModInstCPP);
+}
+
+TEST(wasmedgePluginTests, C_DefaultPathsTrailingOrConsecutiveColons) {
+#if defined(_WIN32) || defined(_WIN64)
+  _putenv_s("WASMEDGE_PLUGIN_PATH", "/tmp/plugins:");
+#else
+  ::setenv("WASMEDGE_PLUGIN_PATH", "/tmp/plugins:", 1);
+#endif
+  EXPECT_NO_THROW(WasmEdge_PluginLoadWithDefaultPaths());
+
+#if defined(_WIN32) || defined(_WIN64)
+  _putenv_s("WASMEDGE_PLUGIN_PATH", "::");
+#else
+  ::setenv("WASMEDGE_PLUGIN_PATH", "::", 1);
+#endif
+  EXPECT_NO_THROW(WasmEdge_PluginLoadWithDefaultPaths());
+
+#if defined(_WIN32) || defined(_WIN64)
+  _putenv_s("WASMEDGE_PLUGIN_PATH", "");
+#else
+  ::unsetenv("WASMEDGE_PLUGIN_PATH");
+#endif
 }
 
 GTEST_API_ int main(int argc, char **argv) {

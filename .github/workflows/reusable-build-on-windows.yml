@@ -21,11 +21,12 @@ jobs:
     env:
       build_tests: ON
       SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_IDLE_TIMEOUT: "0"
       CMAKE_C_COMPILER_LAUNCHER: sccache
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           egress-policy: audit
 
@@ -36,16 +37,18 @@ jobs:
         uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
         with:
           version: "v0.10.0"
-      - name: Warm up sccache server
+      - name: Start sccache server
         run: |
           for ($i = 1; $i -le 5; $i++) {
-            sccache --show-stats
+            sccache --start-server
             if ($LASTEXITCODE -eq 0) { exit 0 }
-            Write-Host "sccache server not ready (attempt $i/5); retrying..."
+            Write-Host "sccache server failed to start (attempt $i/5); retrying..."
             Start-Sleep -Seconds ($i * 3)
           }
-          Write-Error "sccache server did not become ready; aborting before the long build"
-          exit 1
+          Write-Host "::warning::sccache server did not start; building without the compiler cache"
+          echo "CMAKE_C_COMPILER_LAUNCHER=" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
+          exit 0
       - name: Restore LLVM for Windows
         id: cache-llvm
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

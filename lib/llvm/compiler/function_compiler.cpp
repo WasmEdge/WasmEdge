@@ -1092,6 +1092,14 @@ Expect<void> FunctionCompiler::compile(AST::InstrView Instrs) noexcept {
     case OpCode::I64__atomic__rmw16__cmpxchg_u:
     case OpCode::I64__atomic__rmw32__cmpxchg_u:
       return compileAtomicOp(Instr);
+
+    // Wide Arithmetic Instructions
+    case OpCode::I64__add128:
+    case OpCode::I64__sub128:
+    case OpCode::I64__mul_wide_s:
+    case OpCode::I64__mul_wide_u:
+      return Unexpect(ErrCode::Value::AOTNotImpl);
+
     default:
       assumingUnreachable();
     }

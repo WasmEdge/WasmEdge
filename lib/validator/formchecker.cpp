@@ -25,18 +25,6 @@ auto logOutOfRange(ErrCode Code, ErrInfo::IndexCategory Cate, uint32_t Idx,
   return Unexpect(Code);
 }
 
-// Helper function for extracting address type to TypeCode.
-TypeCode convAddrTypeToTypeCode(const AddressType AT) noexcept {
-  switch (AT) {
-  case AddressType::I32:
-    return TypeCode::I32;
-  case AddressType::I64:
-    return TypeCode::I64;
-  default:
-    assumingUnreachable();
-  }
-};
-
 // Helper function for packing TypeCode to address type.
 AddressType convTypeCodeToAddrType(const TypeCode TC) noexcept {
   switch (TC) {
@@ -106,12 +94,14 @@ void FormChecker::addFunc(const uint32_t TypeIdx, const bool IsImport) {
 }
 
 void FormChecker::addTable(const AST::TableType &Tab) {
-  Tables.emplace_back(convAddrTypeToTypeCode(Tab.getLimit().getAddrType()),
-                      Tab.getRefType());
+  Tables.emplace_back(
+      ValTypeFromAddressType(Tab.getLimit().getAddrType()).getCode(),
+      Tab.getRefType());
 }
 
 void FormChecker::addMemory(const AST::MemoryType &Mem) {
-  Mems.push_back(convAddrTypeToTypeCode(Mem.getLimit().getAddrType()));
+  Mems.push_back(
+      ValTypeFromAddressType(Mem.getLimit().getAddrType()).getCode());
 }
 
 void FormChecker::addGlobal(const AST::GlobalType &Glob, const bool IsImport) {
@@ -2002,12 +1992,16 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                                {ValType(TypeCode::I64), ValType(TypeCode::I64)},
                                {ValType(TypeCode::I64)});
 
+  // Wide-arithmetic instructions.
   case OpCode::I64__add128:
   case OpCode::I64__sub128:
+    return StackTrans({ValType(TypeCode::I64), ValType(TypeCode::I64),
+                       ValType(TypeCode::I64), ValType(TypeCode::I64)},
+                      {ValType(TypeCode::I64), ValType(TypeCode::I64)});
   case OpCode::I64__mul_wide_s:
   case OpCode::I64__mul_wide_u:
-    spdlog::error(ErrCode::Value::IllegalOpCode);
-    return Unexpect(ErrCode::Value::IllegalOpCode);
+    return StackTrans({ValType(TypeCode::I64), ValType(TypeCode::I64)},
+                      {ValType(TypeCode::I64), ValType(TypeCode::I64)});
 
   default:
     assumingUnreachable();

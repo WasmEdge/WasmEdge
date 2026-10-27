@@ -43,7 +43,7 @@ Expect<void> Loader::loadDecl(AST::Component::CoreModuleDecl &Decl) {
     return E;
   };
   // core:moduledecl ::= 0x00 i:<core:importdecl> => i
-  //                   | 0x01 t:<core:type>       => t
+  //                   | 0x01 rt:<core:rectype>   => (type rt)
   //                   | 0x02 a:<core:alias>      => a
   //                   | 0x03 e:<core:exportdecl> => e
 
@@ -59,18 +59,12 @@ Expect<void> Loader::loadDecl(AST::Component::CoreModuleDecl &Decl) {
     return {};
   }
   case 0x01: {
-    // A module type cannot declare a nested module type.
-    EXPECTED_TRY(uint8_t B, FMgr.peekByte().map_error([this](auto E) {
-      return logLoadError(E, FMgr.getLastOffset(),
-                          ASTNodeAttr::Comp_Decl_CoreModule);
-    }));
-    if (B == 0x50) {
-      return logLoadError(ErrCode::Value::MalformedModuleType,
-                          FMgr.getLastOffset(),
-                          ASTNodeAttr::Comp_Decl_CoreModule);
-    }
+    // The type declarator holds a core:rectype in the core encoding, so a
+    // module type cannot nest and a non-final sub needs no 0x00 prefix.
+    std::vector<AST::SubType> STypes;
+    EXPECTED_TRY(loadRecType(STypes).map_error(ReportError));
     auto DefType = std::make_unique<AST::Component::CoreDefType>();
-    EXPECTED_TRY(loadType(*DefType).map_error(ReportError));
+    DefType->setSubTypes(std::move(STypes));
     Decl.setType(std::move(DefType));
     return {};
   }

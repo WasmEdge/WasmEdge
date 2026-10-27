@@ -49,7 +49,6 @@ public:
                                  uint32_t __attribute__((unused)) ctx,
                                  uint32_t data, uint32_t data_sz) {
     using namespace std;
-    using WasmEdge::unlikely;
     auto *memory = Frame.getMemoryByIndex(0);
     if (unlikely(!memory)) {
       return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);

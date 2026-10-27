@@ -10,9 +10,11 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <gtest/gtest.h>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -53,6 +55,45 @@ std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance> createModuleCPP() {
   return {};
 }
 } // namespace
+
+#if !defined(_WIN32)
+TEST(wasmedgePluginTests, DefaultPluginPaths) {
+  struct RestoreEnvironment {
+    const bool WasSet = std::getenv("WASMEDGE_PLUGIN_PATH") != nullptr;
+    const std::string Value = WasSet ? std::getenv("WASMEDGE_PLUGIN_PATH") : "";
+    ~RestoreEnvironment() {
+      if (WasSet) {
+        ::setenv("WASMEDGE_PLUGIN_PATH", Value.c_str(), 1);
+      } else {
+        ::unsetenv("WASMEDGE_PLUGIN_PATH");
+      }
+    }
+  } Restore;
+  ASSERT_EQ(::unsetenv("WASMEDGE_PLUGIN_PATH"), 0);
+  const auto Defaults = WasmEdge::Plugin::Plugin::getDefaultPluginPaths();
+  const std::vector<std::pair<std::string, std::vector<std::string>>> Cases = {
+      {"", {""}},
+      {"plugin-a", {"plugin-a"}},
+      {"plugin-a:plugin-b", {"plugin-a", "plugin-b"}},
+      {":plugin-a", {"", "plugin-a"}},
+      {"plugin-a::plugin-b", {"plugin-a", "plugin-b"}},
+      {"plugin-a:", {"plugin-a", ""}},
+      {"plugin-a::", {"plugin-a", ""}},
+      {":", {"", ""}},
+      {"::", {"", ""}},
+  };
+  for (const auto &[Value, Prefix] : Cases) {
+    SCOPED_TRACE(Value);
+    ASSERT_EQ(::setenv("WASMEDGE_PLUGIN_PATH", Value.c_str(), 1), 0);
+    auto Expected = std::vector<std::filesystem::path>{};
+    for (const auto &Path : Prefix) {
+      Expected.push_back(WasmEdge::u8path(Path));
+    }
+    Expected.insert(Expected.end(), Defaults.begin(), Defaults.end());
+    EXPECT_EQ(WasmEdge::Plugin::Plugin::getDefaultPluginPaths(), Expected);
+  }
+}
+#endif
 
 TEST(wasmedgePluginTests, CPP_Run) {
   // Create the wasmedge_plugintest_cpp_module module instance.

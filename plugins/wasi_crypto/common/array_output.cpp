@@ -22,7 +22,7 @@ std::tuple<size_t, bool> ArrayOutput::pull(Span<uint8_t> Buf) noexcept {
             Buf.begin());
   Pos += OutputSize;
 
-  return {OutputSize, Pos + OutputSize == Data.size()};
+  return {OutputSize, Pos == Data.size()};
 }
 
 } // namespace Common

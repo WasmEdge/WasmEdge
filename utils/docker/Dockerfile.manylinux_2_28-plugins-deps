@@ -3,10 +3,16 @@ FROM ${BASE_IMAGE} AS base
 
 WORKDIR /root
 
+ENV OPENVINO_VERSION="2025.0.0"
+ENV OPENVINO_YEAR="2025"
+
 ### deps for x86_64 ###
 FROM base AS deps-amd64
 RUN cd && (yum check-update || true) && \
   yum install -y wget unzip zlib-devel zlib-static elfutils-libelf-devel zstd
+
+COPY wasi-nn/install-openvino.sh .
+RUN [ "/bin/bash", "install-openvino.sh" ]
 
 COPY wasi-nn/install-pytorch.sh .
 # The pre-cxx11-abi libtorch is kept for the branches still building with the
@@ -39,9 +45,6 @@ COPY ffmpeg/install-ffmpeg-v7.1.1.sh .
 RUN [ "/bin/bash", "install-ffmpeg-v7.1.1.sh" ]
 ENV PKG_CONFIG_PATH=/root/FFmpeg-n7.1.1/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
 ENV LD_LIBRARY_PATH=/root/FFmpeg-n7.1.1/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
-
-ENV OPENVINO_VERSION="2025.0.0"
-ENV OPENVINO_YEAR="2025"
 
 COPY wasi-nn/install-onnxruntime.sh .
 RUN [ "/bin/bash", "install-onnxruntime.sh" ]

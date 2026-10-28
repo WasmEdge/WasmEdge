@@ -3,17 +3,17 @@
 # SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 set -e
 
-if [[ ! -v "${OPENVINOGEN_VERSION}" ]]; then
+if [[ ! -v OPENVINOGEN_VERSION ]]; then
   OPENVINOGEN_VERSION="2025.0.0.0"
 fi
-if [[ ! -v "${OPENVINOGEN_YEAR}" ]]; then
+if [[ ! -v OPENVINOGEN_YEAR ]]; then
   OPENVINOGEN_YEAR="2025.0"
 fi
-if [[ ! -v "${OPENVINOGEN_DIRNAME}" ]]; then
+if [[ ! -v OPENVINOGEN_DIRNAME ]]; then
   OPENVINOGEN_DIRNAME="openvino_genai"
 fi
 
-if [[ ! -v "${OPENVINO_UBUNTU_VERSION}" ]]; then
+if [[ ! -v OPENVINO_UBUNTU_VERSION ]]; then
   source /etc/os-release
   OPENVINO_UBUNTU_VERSION="${VERSION_ID::2}"
 fi

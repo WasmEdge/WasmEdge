@@ -225,6 +225,49 @@ TypeF<T> Executor::runCopysignOp(ValVariant &Val1,
   return {};
 }
 
+inline Expect<void> Executor::runAdd128Op(ValVariant &Val1Lo,
+                                          ValVariant &Val1Hi,
+                                          const ValVariant &Val2Lo,
+                                          const ValVariant &Val2Hi) const {
+  // Store (v1 + v2) modulo 2^128 in the low and high halves of v1.
+  const uint64_t LhsLo = Val1Lo.get<uint64_t>();
+  const uint64_t Lo = LhsLo + Val2Lo.get<uint64_t>();
+  Val1Lo.get<uint64_t>() = Lo;
+  Val1Hi.get<uint64_t>() +=
+      Val2Hi.get<uint64_t>() + static_cast<uint64_t>(Lo < LhsLo);
+  return {};
+}
+
+inline Expect<void> Executor::runSub128Op(ValVariant &Val1Lo,
+                                          ValVariant &Val1Hi,
+                                          const ValVariant &Val2Lo,
+                                          const ValVariant &Val2Hi) const {
+  // Store (v1 - v2) modulo 2^128 in the low and high halves of v1.
+  const uint64_t LhsLo = Val1Lo.get<uint64_t>();
+  const uint64_t RhsLo = Val2Lo.get<uint64_t>();
+  Val1Lo.get<uint64_t>() = LhsLo - RhsLo;
+  Val1Hi.get<uint64_t>() -=
+      Val2Hi.get<uint64_t>() + static_cast<uint64_t>(LhsLo < RhsLo);
+  return {};
+}
+
+template <typename T>
+TypeI<T> Executor::runMulWideOp(ValVariant &Val1, ValVariant &Val2) const {
+  // Multiply two T values and store the low half in v1 and the high half in v2.
+  const uint64_t Lhs = Val1.get<uint64_t>();
+  const uint64_t Rhs = Val2.get<uint64_t>();
+  const uint128_t Product =
+      static_cast<uint128_t>(Lhs) * static_cast<uint128_t>(Rhs);
+  uint64_t Hi = static_cast<uint64_t>(Product >> 64U);
+  if constexpr (std::is_signed_v<T>) {
+    Hi -= (Lhs >> 63U) ? Rhs : 0U;
+    Hi -= (Rhs >> 63U) ? Lhs : 0U;
+  }
+  Val1.get<uint64_t>() = static_cast<uint64_t>(Product);
+  Val2.get<uint64_t>() = Hi;
+  return {};
+}
+
 } // namespace Executor
 } // namespace WasmEdge
 

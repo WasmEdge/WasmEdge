@@ -2342,14 +2342,20 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
           Instr);
 
     // Wide Arithmetic Instructions
-    case OpCode::I64__add128:
-    case OpCode::I64__sub128:
+    case OpCode::I64__add128: {
+      ValVariant RhsHi = StackMgr.pop();
+      ValVariant RhsLo = StackMgr.pop();
+      return runAdd128Op(StackMgr.getTopN(2), StackMgr.getTop(), RhsLo, RhsHi);
+    }
+    case OpCode::I64__sub128: {
+      ValVariant RhsHi = StackMgr.pop();
+      ValVariant RhsLo = StackMgr.pop();
+      return runSub128Op(StackMgr.getTopN(2), StackMgr.getTop(), RhsLo, RhsHi);
+    }
     case OpCode::I64__mul_wide_s:
+      return runMulWideOp<int64_t>(StackMgr.getTopN(2), StackMgr.getTop());
     case OpCode::I64__mul_wide_u:
-      spdlog::error(ErrCode::Value::RuntimeError);
-      spdlog::error(
-          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-      return Unexpect(ErrCode::Value::RuntimeError);
+      return runMulWideOp<uint64_t>(StackMgr.getTopN(2), StackMgr.getTop());
 
     default:
       // The validator accepts only the opcodes above.

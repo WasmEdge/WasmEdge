@@ -52,6 +52,8 @@ struct DriverProposalOptions {
             PO::Description("Disable Exception handling proposal"sv)),
         PropMemory64(PO::Description("Disable Memory64 proposal"sv)),
         PropThreads(PO::Description("Enable Threads proposal"sv)),
+        PropWideArithmetic(
+            PO::Description("Enable Wide Arithmetic proposal"sv)),
         PropAll(PO::Description("Enable all features"sv)) {}
 
   PO::Option<PO::Toggle> PropWASM1;
@@ -73,6 +75,7 @@ struct DriverProposalOptions {
   PO::Option<PO::Toggle> PropExceptionHandling;
   PO::Option<PO::Toggle> PropMemory64;
   PO::Option<PO::Toggle> PropThreads;
+  PO::Option<PO::Toggle> PropWideArithmetic;
   PO::Option<PO::Toggle> PropAll;
 
   void addProposalOptions(PO::ArgumentParser &Parser) noexcept {
@@ -95,6 +98,7 @@ struct DriverProposalOptions {
         .add_option("disable-exception-handling"sv, PropExceptionHandling)
         .add_option("disable-memory64"sv, PropMemory64)
         .add_option("enable-threads"sv, PropThreads)
+        .add_option("enable-wide-arithmetic"sv, PropWideArithmetic)
         .add_option("enable-all"sv, PropAll);
   }
 };

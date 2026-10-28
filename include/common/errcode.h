@@ -16,11 +16,12 @@
 #include "common/enum_errcode.hpp"
 #include "common/expected.h"
 #include "common/fmt.h"
-#include "common/hexstr.h"
 #include "common/spdlog.h"
 
 #include <cassert>
 #include <ostream>
+#include <string>
+#include <string_view>
 
 #if defined(_MSC_VER) && !defined(__clang__)
 #define __builtin_unreachable() __assume(0)

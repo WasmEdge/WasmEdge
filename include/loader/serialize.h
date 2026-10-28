@@ -68,6 +68,13 @@ public:
   void serializeU32(uint32_t Num, std::vector<uint8_t> &OutVec) const noexcept {
     serializeUN<uint32_t, 32>(Num, OutVec, OutVec.end());
   }
+  void serializeU64(uint64_t Num, std::vector<uint8_t> &OutVec) const noexcept {
+    serializeUN<uint64_t, 64>(Num, OutVec, OutVec.end());
+  }
+  void serializeType(const AST::TableType &Type,
+                     std::vector<uint8_t> &OutVec) const noexcept;
+  void serializeType(const AST::GlobalType &Type,
+                     std::vector<uint8_t> &OutVec) const noexcept;
   void serializeS32(int32_t Num, std::vector<uint8_t> &OutVec) const noexcept {
     serializeSN<int32_t, 32>(Num, OutVec);
   }
@@ -110,11 +117,7 @@ private:
                      std::vector<uint8_t> &OutVec) const noexcept;
   void serializeType(const AST::FunctionType &Type,
                      std::vector<uint8_t> &OutVec) const noexcept;
-  void serializeType(const AST::TableType &Type,
-                     std::vector<uint8_t> &OutVec) const noexcept;
   void serializeType(const AST::MemoryType &Type,
-                     std::vector<uint8_t> &OutVec) const noexcept;
-  void serializeType(const AST::GlobalType &Type,
                      std::vector<uint8_t> &OutVec) const noexcept;
   void serializeType(const AST::FieldType &Type,
                      std::vector<uint8_t> &OutVec) const noexcept;
@@ -152,9 +155,6 @@ private:
   void serializeU64(uint64_t Num, std::vector<uint8_t> &OutVec,
                     std::vector<uint8_t>::iterator It) const noexcept {
     serializeUN<uint64_t, 64>(Num, OutVec, It);
-  }
-  void serializeU64(uint64_t Num, std::vector<uint8_t> &OutVec) const noexcept {
-    serializeUN<uint64_t, 64>(Num, OutVec, OutVec.end());
   }
 
   template <typename NumType, size_t N>

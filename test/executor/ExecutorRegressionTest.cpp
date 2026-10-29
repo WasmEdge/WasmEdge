@@ -882,6 +882,19 @@ std::array<WasmEdge::Byte, 120> HostFuncTableWasm{
     0x07, 0x00, 0x41, 0x00, 0x11, 0x00, 0x00, 0x0b, 0x07, 0x00, 0x41, 0x00,
     0x11, 0x01, 0x00, 0x0b, 0x09, 0x00, 0x41, 0x00, 0x25, 0x00, 0xfb, 0x14,
     0x00, 0x0b, 0x09, 0x00, 0x41, 0x00, 0x25, 0x00, 0xfb, 0x14, 0x01, 0x0b};
+
+/// Binary Wasm module: grows a 64-bit externref table by its argument.
+///
+/// (module
+///   (table $t i64 0 externref)
+///   (func (export "grow") (param i64) (result i64)
+///     (table.grow $t (ref.null extern) (local.get 0))))
+std::array<WasmEdge::Byte, 49> TableGrow64Wasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+    0x01, 0x7e, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01, 0x6f,
+    0x04, 0x00, 0x07, 0x08, 0x01, 0x04, 0x67, 0x72, 0x6f, 0x77, 0x00, 0x00,
+    0x0a, 0x0b, 0x01, 0x09, 0x00, 0xd0, 0x6f, 0x20, 0x00, 0xfc, 0x0f, 0x00,
+    0x0b};
 // clang-format on
 
 /// Regression test for ref.test on externalized nullable references.
@@ -1682,6 +1695,30 @@ TEST(ExecutorRegression, HostFuncMatchesItsDefinedType) {
   ASSERT_TRUE(TestRes);
   ASSERT_EQ(TestRes->size(), 1U);
   EXPECT_EQ(TestRes->at(0).first.get<uint32_t>(), 0U);
+}
+
+/// Regression test for table.grow past what the host can allocate, which must
+/// return -1 instead of aborting.
+TEST(ExecutorRegression, TableGrowOversized) {
+  Configure Conf;
+  VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(TableGrow64Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  const std::vector<ValType> ParamTypes = {ValType(TypeCode::I64)};
+  const std::vector<ValVariant> OversizedParams = {
+      ValVariant(UINT64_C(1) << 62)};
+  auto Result = VM.execute("grow", OversizedParams, ParamTypes);
+  ASSERT_TRUE(Result);
+  ASSERT_EQ(Result->size(), 1U);
+  EXPECT_EQ(Result->at(0).first.get<uint64_t>(), UINT64_MAX);
+
+  const std::vector<ValVariant> Params = {ValVariant(UINT64_C(2))};
+  Result = VM.execute("grow", Params, ParamTypes);
+  ASSERT_TRUE(Result);
+  ASSERT_EQ(Result->size(), 1U);
+  EXPECT_EQ(Result->at(0).first.get<uint64_t>(), UINT64_C(0));
 }
 
 } // namespace

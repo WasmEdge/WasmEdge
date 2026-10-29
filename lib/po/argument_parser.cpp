@@ -30,8 +30,8 @@ cxx20::expected<bool, Error> ArgumentParser::SubCommandDescriptor::parse(
           Escaped = true;
         } else {
           // long option
-          if (CurrentDesc && CurrentDesc->nargs() == 0) {
-            CurrentDesc->default_value();
+          if (auto Res = finish_option(CurrentDesc); !Res) {
+            return cxx20::unexpected(Res.error());
           }
           if (auto Res = consume_long_option_with_argument(Arg); !Res) {
             return cxx20::unexpected(Res.error());
@@ -41,8 +41,8 @@ cxx20::expected<bool, Error> ArgumentParser::SubCommandDescriptor::parse(
         }
       } else {
         // short options
-        if (CurrentDesc && CurrentDesc->nargs() == 0) {
-          CurrentDesc->default_value();
+        if (auto Res = finish_option(CurrentDesc); !Res) {
+          return cxx20::unexpected(Res.error());
         }
         if (auto Res = consume_short_options(Arg); !Res) {
           return cxx20::unexpected(Res.error());
@@ -92,8 +92,8 @@ cxx20::expected<bool, Error> ArgumentParser::SubCommandDescriptor::parse(
       }
     }
   }
-  if (CurrentDesc && CurrentDesc->nargs() == 0) {
-    CurrentDesc->default_value();
+  if (auto Res = finish_option(CurrentDesc); !Res) {
+    return cxx20::unexpected(Res.error());
   }
 
   if (VersionOpt) {
@@ -227,19 +227,22 @@ void ArgumentParser::SubCommandDescriptor::indent_output(
     std::size_t ScreenWidth, std::string_view Desc) const noexcept {
   const std::size_t Width = ScreenWidth - kIndent.size() * IndentCount;
   while (Desc.size() > Width) {
-    const std::size_t SpacePos = Desc.find_last_of(' ', Width);
-    if (SpacePos != std::string_view::npos) {
-      for (std::size_t I = 0; I < IndentCount; ++I) {
-        fmt::print(Out, "{}"sv, kIndent);
-      }
-      fmt::print(Out, "{}\n"sv, Desc.substr(0, SpacePos));
-      const std::size_t WordPos = Desc.find_first_not_of(' ', SpacePos);
-      if (WordPos != std::string_view::npos) {
-        Desc = Desc.substr(WordPos);
-      } else {
-        Desc = {};
+    // Break at the last space within the width, or inside a longer word.
+    std::size_t LineEnd = Desc.find_last_of(' ', Width);
+    std::size_t NextLine = Width;
+    if (LineEnd == std::string_view::npos) {
+      LineEnd = Width;
+    } else {
+      NextLine = Desc.find_first_not_of(' ', LineEnd);
+      if (NextLine == std::string_view::npos) {
+        NextLine = Desc.size();
       }
     }
+    for (std::size_t I = 0; I < IndentCount; ++I) {
+      fmt::print(Out, "{}"sv, kIndent);
+    }
+    fmt::print(Out, "{}\n"sv, Desc.substr(0, LineEnd));
+    Desc = Desc.substr(NextLine);
   }
   if (!Desc.empty()) {
     for (std::size_t I = 0; I < IndentCount; ++I) {
@@ -249,13 +252,29 @@ void ArgumentParser::SubCommandDescriptor::indent_output(
   }
 }
 
+cxx20::expected<void, Error>
+ArgumentParser::SubCommandDescriptor::finish_option(
+    const ArgumentDescriptor *CurrentDesc) noexcept {
+  if (!CurrentDesc || CurrentDesc->nargs() != 0) {
+    return {};
+  }
+  if (CurrentDesc->min_nargs() > 0) {
+    return cxx20::unexpected<Error>(
+        std::in_place, ErrCode::InvalidArgument,
+        fmt::format("option {} requires an argument."sv,
+                    CurrentDesc->options().front()));
+  }
+  CurrentDesc->default_value();
+  return {};
+}
+
 cxx20::expected<ArgumentParser::ArgumentDescriptor *, Error>
 ArgumentParser::SubCommandDescriptor::consume_short_options(
     std::string_view Arg) noexcept {
   ArgumentDescriptor *CurrentDesc = nullptr;
   for (std::size_t I = 1; I < Arg.size(); ++I) {
-    if (CurrentDesc && CurrentDesc->nargs() == 0) {
-      CurrentDesc->default_value();
+    if (auto Res = finish_option(CurrentDesc); !Res) {
+      return cxx20::unexpected(Res.error());
     }
     std::string_view Option = Arg.substr(I, 1);
     if (auto Res = consume_short_option(Option); !Res) {

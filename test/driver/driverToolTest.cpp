@@ -3,6 +3,7 @@
 
 #include "common/defines.h"
 #include "common/filesystem.h"
+#include "common/spdlog.h"
 #include "driver/tool.h"
 #include "driver/unitool.h"
 #include "po/argument_parser.h"
@@ -34,46 +35,36 @@ std::string writeWasmToFile(const uint8_t *Data, size_t Size,
   return Path;
 }
 
-int callParse(std::initializer_list<const char *> Args) {
+int callTool(WasmEdge::Driver::ToolType Type,
+             std::initializer_list<const char *> Args) {
   std::vector<const char *> Argv = {"wasmedge"};
   Argv.insert(Argv.end(), Args.begin(), Args.end());
   return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
-                                   WasmEdge::Driver::ToolType::Parse);
+                                   Type);
+}
+
+int callParse(std::initializer_list<const char *> Args) {
+  return callTool(WasmEdge::Driver::ToolType::Parse, Args);
 }
 
 int callValidate(std::initializer_list<const char *> Args) {
-  std::vector<const char *> Argv = {"wasmedge"};
-  Argv.insert(Argv.end(), Args.begin(), Args.end());
-  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
-                                   WasmEdge::Driver::ToolType::Validate);
+  return callTool(WasmEdge::Driver::ToolType::Validate, Args);
 }
 
 int callCompile(std::initializer_list<const char *> Args) {
-  std::vector<const char *> Argv = {"wasmedge"};
-  Argv.insert(Argv.end(), Args.begin(), Args.end());
-  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
-                                   WasmEdge::Driver::ToolType::Compiler);
+  return callTool(WasmEdge::Driver::ToolType::Compiler, Args);
 }
 
 int callInstantiate(std::initializer_list<const char *> Args) {
-  std::vector<const char *> Argv = {"wasmedge"};
-  Argv.insert(Argv.end(), Args.begin(), Args.end());
-  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
-                                   WasmEdge::Driver::ToolType::Instantiate);
+  return callTool(WasmEdge::Driver::ToolType::Instantiate, Args);
 }
 
 int callRun(std::initializer_list<const char *> Args) {
-  std::vector<const char *> Argv = {"wasmedge"};
-  Argv.insert(Argv.end(), Args.begin(), Args.end());
-  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
-                                   WasmEdge::Driver::ToolType::Tool);
+  return callTool(WasmEdge::Driver::ToolType::Tool, Args);
 }
 
 int callUniToolAll(std::initializer_list<const char *> Args) {
-  std::vector<const char *> Argv = {"wasmedge"};
-  Argv.insert(Argv.end(), Args.begin(), Args.end());
-  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
-                                   WasmEdge::Driver::ToolType::All);
+  return callTool(WasmEdge::Driver::ToolType::All, Args);
 }
 
 #if !WASMEDGE_OS_WINDOWS
@@ -83,8 +74,6 @@ struct ToolResult {
 };
 
 ToolResult callParseCaptureStdout(std::initializer_list<const char *> Args) {
-  std::vector<const char *> Argv = {"wasmedge"};
-  Argv.insert(Argv.end(), Args.begin(), Args.end());
   int Pipe[2];
   if (pipe(Pipe) != 0) {
     return {-1, {}};
@@ -92,9 +81,7 @@ ToolResult callParseCaptureStdout(std::initializer_list<const char *> Args) {
   int SavedStdout = dup(STDOUT_FILENO);
   dup2(Pipe[1], STDOUT_FILENO);
   close(Pipe[1]);
-  int Ret =
-      WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
-                                WasmEdge::Driver::ToolType::Parse);
+  int Ret = callParse(Args);
   fflush(stdout);
   dup2(SavedStdout, STDOUT_FILENO);
   close(SavedStdout);
@@ -151,6 +138,16 @@ static const std::array<uint8_t, 127> SimpleWasm{
     0x0b, 0x02, 0x00, 0x03, 0x61, 0x64, 0x64, 0x01, 0x03, 0x73, 0x75, 0x62,
     0x02, 0x05, 0x02, 0x00, 0x00, 0x01, 0x00, 0x07, 0x0a, 0x01, 0x00, 0x07,
     0x63, 0x6f, 0x75, 0x6e, 0x74, 0x65, 0x72};
+
+// numeric.wasm: exports add64 (param i64 i64) (result i64) and
+// addf (param f32 f64) (result f64).
+static const std::array<uint8_t, 66> NumericWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x02,
+    0x60, 0x02, 0x7e, 0x7e, 0x01, 0x7e, 0x60, 0x02, 0x7d, 0x7c, 0x01,
+    0x7c, 0x03, 0x03, 0x02, 0x00, 0x01, 0x07, 0x10, 0x02, 0x05, 0x61,
+    0x64, 0x64, 0x36, 0x34, 0x00, 0x00, 0x04, 0x61, 0x64, 0x64, 0x66,
+    0x00, 0x01, 0x0a, 0x12, 0x02, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01,
+    0x7c, 0x0b, 0x08, 0x00, 0x20, 0x00, 0xbb, 0x20, 0x01, 0xa0, 0x0b};
 
 // invalid.wasm: declares (func (result i32)) but body pushes two i32 values
 // without consuming the extra one, causing a type mismatch during validation.
@@ -280,6 +277,15 @@ std::string simplePath() {
   return Path;
 }
 
+std::string numericPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path =
+        writeWasmToFile(NumericWasm.data(), NumericWasm.size(), "numeric.wasm");
+  }
+  return Path;
+}
+
 std::string invalidPath() {
   static std::string Path;
   if (Path.empty()) {
@@ -389,6 +395,7 @@ std::string nonExistPath() { return TestDataPath + "/nonexist.wasm"; }
 
 TEST(ParseSubcommand, ErrorHandling) {
   EXPECT_NE(callParse({}), EXIT_SUCCESS);
+  EXPECT_NE(callParse({""}), EXIT_SUCCESS);
 
   std::string NonExist = TestDataPath + "/nonexist.wasm";
   EXPECT_NE(callParse({NonExist.c_str()}), EXIT_SUCCESS);
@@ -500,6 +507,44 @@ TEST(ParseSubcommand, ExtraSectionModules) {
   EXPECT_EQ(callParse({tagSectionTestPath().c_str()}), EXIT_SUCCESS);
 }
 
+TEST(ParseSubcommand, MalformedNameSection) {
+  // (module) with a name section whose function name count is a 6-byte LEB128.
+  std::array<uint8_t, 23> Overlong{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x00, 0x0d, 0x04, 0x6e,
+      0x61, 0x6d, 0x65, 0x01, 0x06, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00};
+  std::string OverlongPath =
+      writeWasmToFile(Overlong.data(), Overlong.size(), "name_overlong.wasm");
+  EXPECT_EQ(callParse({OverlongPath.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(OverlongPath);
+
+  // (module) with a name section of 1000 function names whose first name
+  // claims 50 bytes but has 2.
+  std::array<uint8_t, 23> Truncated{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x00, 0x0d, 0x04, 0x6e,
+      0x61, 0x6d, 0x65, 0x01, 0x06, 0xe8, 0x07, 0x00, 0x32, 0x78, 0x79};
+  std::string TruncatedPath = writeWasmToFile(
+      Truncated.data(), Truncated.size(), "name_truncated.wasm");
+  EXPECT_EQ(callParse({TruncatedPath.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(TruncatedPath);
+
+  // (module (func $f)) with a name section whose global name subsection
+  // claims 127 bytes after the function names.
+  std::array<uint8_t, 39> Oversized{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04,
+      0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x04,
+      0x01, 0x02, 0x00, 0x0b, 0x00, 0x0d, 0x04, 0x6e, 0x61, 0x6d,
+      0x65, 0x01, 0x04, 0x01, 0x00, 0x01, 0x66, 0x07, 0x7f};
+  std::string OversizedPath = writeWasmToFile(
+      Oversized.data(), Oversized.size(), "name_oversized.wasm");
+  EXPECT_EQ(callParse({OversizedPath.c_str()}), EXIT_SUCCESS);
+#if !WASMEDGE_OS_WINDOWS
+  auto R = callParseCaptureStdout({OversizedPath.c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(R.Stdout, {"func[0] size=2 <f>"}));
+#endif
+  std::filesystem::remove(OversizedPath);
+}
+
 #if !WASMEDGE_OS_WINDOWS
 TEST(ParseSubcommand, OutputSectionHeaders) {
   auto R = callParseCaptureStdout({parseTestPath().c_str()});
@@ -591,6 +636,7 @@ TEST(ParseSubcommand, OutputTagSection) {
 
 TEST(ValidateSubcommand, ErrorHandling) {
   EXPECT_NE(callValidate({}), EXIT_SUCCESS);
+  EXPECT_NE(callValidate({""}), EXIT_SUCCESS);
   EXPECT_NE(callValidate({nonExistPath().c_str()}), EXIT_SUCCESS);
   EXPECT_NE(callValidate({TestDataPath.c_str()}), EXIT_SUCCESS);
 
@@ -693,6 +739,8 @@ TEST(CompileSubcommand, ErrorHandling) {
 
   EXPECT_NE(callCompile({}), EXIT_SUCCESS);
   EXPECT_NE(callCompile({simplePath().c_str()}), EXIT_SUCCESS);
+  EXPECT_NE(callCompile({"", Output.c_str()}), EXIT_SUCCESS);
+  EXPECT_NE(callCompile({simplePath().c_str(), ""}), EXIT_SUCCESS);
   EXPECT_NE(callCompile({nonExistPath().c_str(), Output.c_str()}),
             EXIT_SUCCESS);
 
@@ -930,8 +978,7 @@ TEST(InstantiateSubcommand, LinkerFlags) {
   EXPECT_EQ(callInstantiate({"--env", "HOME=/tmp", Path}), EXIT_SUCCESS);
   EXPECT_EQ(callInstantiate({"--memory-page-limit", "256", Path}),
             EXIT_SUCCESS);
-  EXPECT_EQ(callInstantiate({"--memory-page-limit", "-1", Path}),
-            EXIT_FAILURE);
+  EXPECT_EQ(callInstantiate({"--memory-page-limit", "-1", Path}), EXIT_FAILURE);
   EXPECT_EQ(callInstantiate({"--dir", ".:.", "--env", "HOME=/tmp",
                              "--memory-page-limit", "256", Path}),
             EXIT_SUCCESS);
@@ -945,6 +992,11 @@ TEST(InstantiateSubcommand, LinkedModules) {
   EXPECT_EQ(callInstantiate({"--module", ModArg.c_str(), ConsPath.c_str()}),
             EXIT_SUCCESS);
   EXPECT_EQ(callInstantiate({"--module", "badformat", ConsPath.c_str()}),
+            EXIT_FAILURE);
+  EXPECT_EQ(callInstantiate({"--module", "provider:", ConsPath.c_str()}),
+            EXIT_FAILURE);
+  std::string NoName = ":" + ProvPath;
+  EXPECT_EQ(callInstantiate({"--module", NoName.c_str(), ConsPath.c_str()}),
             EXIT_FAILURE);
   EXPECT_EQ(
       callInstantiate({"--module", "provider:nonexist.wasm", ConsPath.c_str()}),
@@ -964,6 +1016,7 @@ TEST(InstantiateSubcommand, ForbiddenPluginFlag) {
 
 TEST(RunSubcommand, ErrorHandling) {
   EXPECT_NE(callRun({}), EXIT_SUCCESS);
+  EXPECT_NE(callRun({""}), EXIT_SUCCESS);
   EXPECT_NE(callRun({nonExistPath().c_str()}), EXIT_SUCCESS);
 
   std::string TruncPath =
@@ -1042,12 +1095,64 @@ TEST(RunSubcommand, RunSpecificFlags) {
   EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "256", Path, "add",
                      "1", "2"}),
             EXIT_SUCCESS);
-  EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "-1", Path, "add",
-                     "1", "2"}),
+  EXPECT_EQ(callRun({"--reactor", "--memory-page-limit", "-1", Path, "add", "1",
+                     "2"}),
             EXIT_FAILURE);
   EXPECT_EQ(callRun({"--reactor", "--stack-size-limit", "1048576", Path, "add",
                      "1", "2"}),
             EXIT_SUCCESS);
+}
+
+TEST(RunSubcommand, LimitFlagRanges) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callRun({"--reactor", "--gas-limit", "3000000000", Path, "add", "1",
+                     "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", "--time-limit", "18446744073709551615", Path,
+                     "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", "--gas-limit=-1", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", "--time-limit=-1", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(
+      callRun({"--reactor", "--memory-page-limit=-1", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+  EXPECT_NE(
+      callRun({"--reactor", "--stack-size-limit=-1", Path, "add", "1", "2"}),
+      EXIT_SUCCESS);
+}
+
+TEST(RunSubcommand, ArgumentRanges) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  EXPECT_EQ(callRun({"--reactor", Path, "add", "-2147483648", "4294967295"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", Path, "add", "4294967296", "1"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", Path, "add", "-2147483649", "1"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", Path, "add", "1.5", "1"}), EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", Path, "add", "1x", "1"}), EXIT_SUCCESS);
+
+  std::string NumPathStr = numericPath();
+  const char *NumPath = NumPathStr.c_str();
+  EXPECT_EQ(callRun({"--reactor", NumPath, "add64", "-9223372036854775808",
+                     "18446744073709551615"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(
+      callRun({"--reactor", NumPath, "add64", "18446744073709551616", "1"}),
+      EXIT_SUCCESS);
+  EXPECT_NE(
+      callRun({"--reactor", NumPath, "add64", "-9223372036854775809", "1"}),
+      EXIT_SUCCESS);
+  EXPECT_EQ(callRun({"--reactor", NumPath, "addf", "1.5", "-2.5e3"}),
+            EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", NumPath, "addf", "1.5x", "1"}), EXIT_SUCCESS);
+  EXPECT_NE(callRun({"--reactor", NumPath, "addf", "1e39", "1"}), EXIT_SUCCESS);
 }
 
 TEST(RunSubcommand, LinkedModules) {
@@ -1124,6 +1229,53 @@ TEST(NoSubcommand, FallbackToRun) {
   EXPECT_EQ(callUniToolAll({"--reactor", "--force-interpreter",
                             simplePath().c_str(), "add", "1", "2"}),
             EXIT_SUCCESS);
+}
+
+TEST(NoSubcommand, GlobalFlagsBeforeSubcommand) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+  std::string OutPath = TestDataPath + "/log_level.wasm";
+
+  EXPECT_EQ(callUniToolAll({"--log-level", "error", "parse", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::err);
+  EXPECT_EQ(callUniToolAll({"--log-level", "debug", "validate", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::debug);
+  EXPECT_EQ(callUniToolAll({"--log-level", "off", "instantiate", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::off);
+  EXPECT_EQ(callUniToolAll({"--log-level", "error", "validate", "--log-level",
+                            "debug", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::debug);
+  // The compile result depends on LLVM; only the level is checked.
+  callUniToolAll({"--log-level", "error", "compile", Path, OutPath.c_str()});
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::err);
+  callUniToolAll({"compile", "--log-level", "off", Path, OutPath.c_str()});
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::off);
+  std::filesystem::remove(OutPath);
+  spdlog::set_level(spdlog::level::info);
+}
+
+TEST(NoSubcommand, InvalidLogLevel) {
+  std::string PathStr = simplePath();
+  const char *Path = PathStr.c_str();
+
+  spdlog::set_level(spdlog::level::err);
+  EXPECT_EQ(callUniToolAll(
+                {"--log-level", "invalid", "--reactor", Path, "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
+  spdlog::set_level(spdlog::level::err);
+  EXPECT_EQ(callUniToolAll({"--log-level", "invalid", "run", "--reactor", Path,
+                            "add", "1", "2"}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
+  spdlog::set_level(spdlog::level::err);
+  EXPECT_EQ(callUniToolAll({"--log-level", "invalid", "validate", Path}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(spdlog::get_level(), spdlog::level::info);
 }
 
 } // namespace

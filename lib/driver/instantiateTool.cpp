@@ -7,7 +7,6 @@
 #include "vm/vm.h"
 
 #include <cstdlib>
-#include <string>
 #include <string_view>
 
 using namespace std::literals;
@@ -20,45 +19,22 @@ int InstantiateTool(struct DriverToolOptions &Opt) noexcept {
 
   Configure Conf = createConfigure(Opt);
 
-  if (Opt.MemLim.value().size() > 0) {
-    if (Opt.MemLim.value().back() < 0) {
-      spdlog::error("--memory-page-limit value cannot be negative."sv);
-      return EXIT_FAILURE;
-    }
-    Conf.getRuntimeConfigure().setMaxMemoryPage(
-        static_cast<uint32_t>(Opt.MemLim.value().back()));
-  }
+  setMemoryPageLimit(Opt, Conf);
 
   Conf.addHostRegistration(HostRegistration::Wasi);
 
-  // Reject an empty input path here: std::filesystem::absolute("") throws on
-  // some standard library implementations (e.g. libstdc++), which would
-  // std::terminate() this noexcept function instead of failing gracefully.
-  if (Opt.SoName.value().empty()) {
-    spdlog::error("No input wasm file provided."sv);
+  const auto InputPath = getInputPath(Opt);
+  if (!InputPath) {
     return EXIT_FAILURE;
   }
-  const auto InputPath = std::filesystem::absolute(u8path(Opt.SoName.value()));
 
   VM::VM VM(Conf);
 
-  for (const auto &ModEntry : Opt.LinkedModules.value()) {
-    auto Pos = ModEntry.find(':');
-    if (Pos == std::string::npos) {
-      spdlog::error("Invalid --module format: \"{}\". Expected name:path."sv,
-                    ModEntry);
-      return EXIT_FAILURE;
-    }
-    auto Name = ModEntry.substr(0, Pos);
-    auto Path = std::filesystem::absolute(u8path(ModEntry.substr(Pos + 1)));
-    if (auto Result = VM.registerModule(Name, Path); !Result) {
-      spdlog::error("Failed to register module \"{}\" from: {}"sv, Name,
-                    u8string(Path));
-      return EXIT_FAILURE;
-    }
+  if (!registerLinkedModules(Opt, VM)) {
+    return EXIT_FAILURE;
   }
 
-  if (auto Result = VM.loadWasm(u8string(InputPath)); !Result) {
+  if (auto Result = VM.loadWasm(u8string(*InputPath)); !Result) {
     return EXIT_FAILURE;
   }
   if (auto Result = VM.validate(); !Result) {

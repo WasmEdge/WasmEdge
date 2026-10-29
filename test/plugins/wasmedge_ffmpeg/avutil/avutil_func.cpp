@@ -320,6 +320,153 @@ TEST_F(FFmpegTest, AVUtilFunc) {
   }
 }
 
+TEST_F(FFmpegTest, AVUtilChannelLayoutNameBounds) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name");
+  auto &HostFuncAVGetChannelLayoutName = FuncInst->getHostFunc();
+
+  uint32_t NamePtr = UINT32_C(4);
+  uint64_t ChannelId = 1;
+  uint32_t NameLen = UINT32_C(64);
+
+  fillMemContent(MemInst, NamePtr, NameLen, UINT8_C(0xAA));
+
+  HostFuncAVGetChannelLayoutName.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{ChannelId, NamePtr, NameLen},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  char *Buf = MemInst->getPointer<char *>(NamePtr);
+  uint32_t WrittenLen = 0;
+  while (WrittenLen < UINT32_C(16) && Buf[WrittenLen] != '\0') {
+    ++WrittenLen;
+  }
+  EXPECT_LT(WrittenLen, UINT32_C(16));
+  for (uint32_t I = WrittenLen + 1; I < NameLen; ++I) {
+    EXPECT_EQ(static_cast<uint8_t>(Buf[I]), UINT8_C(0xAA));
+  }
+}
+
+TEST_F(FFmpegTest, AVUtilChannelLayoutNameLowFrequency) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name");
+  auto &HostFuncAVGetChannelLayoutName = FuncInst->getHostFunc();
+
+  uint32_t NamePtr = UINT32_C(4);
+  uint64_t ChannelId = UINT64_C(1) << 3;
+  uint32_t NameLen = UINT32_C(16);
+  fillMemContent(MemInst, NamePtr, NameLen, UINT8_C(0));
+
+  HostFuncAVGetChannelLayoutName.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{ChannelId, NamePtr, NameLen},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  char *Buf = MemInst->getPointer<char *>(NamePtr);
+  EXPECT_STREQ(Buf, "LFE");
+}
+
+TEST_F(FFmpegTest, AVUtilChannelLayoutNameStereo) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  uint64_t ChannelId = UINT64_C(0x3);
+  uint32_t NamePtr = UINT32_C(4);
+  uint32_t NameLen = UINT32_C(16);
+
+  auto *FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name_len");
+  auto &HostFuncAVGetChannelLayoutNameLen = FuncInst->getHostFunc();
+  HostFuncAVGetChannelLayoutNameLen.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{ChannelId},
+      Result);
+  int32_t const ReportedLen = Result[0].get<int32_t>();
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name");
+  auto &HostFuncAVGetChannelLayoutName = FuncInst->getHostFunc();
+  fillMemContent(MemInst, NamePtr, NameLen, UINT8_C(0));
+  HostFuncAVGetChannelLayoutName.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{ChannelId, NamePtr, NameLen},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  char *Buf = MemInst->getPointer<char *>(NamePtr);
+  EXPECT_STREQ(Buf, "stereo");
+  uint32_t WrittenLen = 0;
+  while (WrittenLen < NameLen && Buf[WrittenLen] != '\0') {
+    ++WrittenLen;
+  }
+  EXPECT_EQ(ReportedLen, static_cast<int32_t>(WrittenLen));
+}
+
+TEST_F(FFmpegTest, AVUtilChannelLayoutNameLargeCustom) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  uint64_t const ChannelId = UINT64_C(0x3FFFF);
+
+  auto *LenInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name_len");
+  ASSERT_NE(LenInst, nullptr);
+  auto &HostFuncNameLen = LenInst->getHostFunc();
+  HostFuncNameLen.run(CallFrame,
+                      std::initializer_list<WasmEdge::ValVariant>{ChannelId},
+                      Result);
+  int32_t const ReportedLen = Result[0].get<int32_t>();
+  EXPECT_GT(ReportedLen, 63);
+
+  auto *NameInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_name");
+  ASSERT_NE(NameInst, nullptr);
+  auto &HostFuncName = NameInst->getHostFunc();
+
+  uint32_t const NamePtr = UINT32_C(4);
+  uint32_t const NameLen = static_cast<uint32_t>(ReportedLen) + 1;
+  fillMemContent(MemInst, NamePtr, NameLen, UINT8_C(0));
+  HostFuncName.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{ChannelId, NamePtr, NameLen},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  char *Buf = MemInst->getPointer<char *>(NamePtr);
+  uint32_t WrittenLen = 0;
+  while (WrittenLen < NameLen && Buf[WrittenLen] != '\0') {
+    ++WrittenLen;
+  }
+  EXPECT_EQ(static_cast<int32_t>(WrittenLen), ReportedLen);
+}
+
+TEST_F(FFmpegTest, AVUtilChannelLayoutInvalidInputs) {
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto *FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_channel_layout_nb_channels");
+  auto &HostFuncNbChannels = FuncInst->getHostFunc();
+
+  HostFuncNbChannels.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT64_C(0)},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), 0);
+
+  FuncInst = AVUtilMod->findFuncExports(
+      "wasmedge_ffmpeg_avutil_av_get_default_channel_layout");
+  auto &HostFuncDefault = FuncInst->getHostFunc();
+
+  int32_t const ChannelCountWithoutNativeDefault = 63;
+  HostFuncDefault.run(CallFrame,
+                      std::initializer_list<WasmEdge::ValVariant>{
+                          ChannelCountWithoutNativeDefault},
+                      Result);
+  EXPECT_EQ(Result[0].get<uint64_t>(), UINT64_C(0));
+}
+
 TEST_F(FFmpegTest, AVTime) {
 
   ASSERT_TRUE(AVUtilMod != nullptr);

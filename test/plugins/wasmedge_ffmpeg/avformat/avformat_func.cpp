@@ -2,7 +2,10 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "avformat/avformat_func.h"
+#include "avformat/avChapter.h"
+#include "avformat/avformatContext.h"
 #include "avformat/module.h"
+#include "avutil/avDictionary.h"
 
 #include "utils.h"
 
@@ -103,6 +106,33 @@ TEST_F(FFmpegTest, AVInputFormatFunc) {
             FormatCtxId, UINT32_C(0), INT32_C(-1), INT32_C(-1), 0, 0},
         Result));
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+  }
+
+  spdlog::info("Testing AVFindBestStream rejects a nonzero decoder_ret id"sv);
+  {
+    ASSERT_TRUE(AVCodecMod != nullptr);
+    auto *CodecFuncInst = AVCodecMod->findFuncExports(
+        "wasmedge_ffmpeg_avcodec_avcodec_find_decoder");
+    ASSERT_NE(CodecFuncInst, nullptr);
+    auto &HostFuncAVCodecFindDecoder = CodecFuncInst->getHostFunc();
+
+    uint32_t CodecDecoderPtr = UINT32_C(800);
+    ASSERT_TRUE(HostFuncAVCodecFindDecoder.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1),
+                                                    CodecDecoderPtr},
+        Result));
+    uint32_t DecoderRetId = readUInt32(MemInst, CodecDecoderPtr);
+    ASSERT_TRUE(DecoderRetId > 0);
+
+    EXPECT_TRUE(HostFuncAVFindBestStream.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, UINT32_C(0),
+                                                    INT32_C(-1), INT32_C(-1),
+                                                    DecoderRetId, 0},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(),
+              static_cast<int32_t>(ErrNo::InternalError));
   }
 
   FuncInst =
@@ -320,14 +350,14 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
   uint32_t FormatCtxPtr = UINT32_C(4);
   uint32_t DictPtr = UINT32_C(16);
   uint32_t ChapterPtr = UINT32_C(20);
-  uint32_t FramePtr = UINT32_C(24);
+  uint32_t PacketPtr = UINT32_C(24);
   uint32_t KeyPtr = UINT32_C(100);
   uint32_t ValuePtr = UINT32_C(200);
 
   initDict(DictPtr, KeyPtr, std::string("Key"), ValuePtr, std::string("Value"));
-  initEmptyFrame(FramePtr);
+  allocPacket(PacketPtr);
   uint32_t DictId = readUInt32(MemInst, DictPtr);
-  uint32_t FrameId = readUInt32(MemInst, FramePtr);
+  uint32_t PacketId = readUInt32(MemInst, PacketPtr);
 
   uint32_t FormatStart = 300;
   uint32_t FormatLen = 3;
@@ -359,7 +389,8 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
             FormatCtxPtr, readUInt32(MemInst, FormatCtxPtr), FormatStart,
             FormatLen, FileStart, FileLen},
         Result));
-    EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
+    EXPECT_EQ(Result[0].get<int32_t>(),
+              static_cast<int32_t>(ErrNo::InternalError));
 
     EXPECT_TRUE(HostFuncAVFormatAllocOutputContext2.run(
         CallFrame,
@@ -516,14 +547,14 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
   auto &HostFuncAVWriteFrame = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVWriteFrame"sv);
-  // Passing Empty Frame, Hence giving Invalid Argument Error.
   {
     uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
     EXPECT_TRUE(HostFuncAVWriteFrame.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, FrameId},
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, PacketId},
         Result));
-    EXPECT_EQ(Result[0].get<int32_t>(), -22);
+    EXPECT_EQ(Result[0].get<int32_t>(),
+              static_cast<int32_t>(ErrNo::InternalError));
   }
 
   FuncInst = AVFormatMod->findFuncExports(
@@ -533,15 +564,824 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
   auto &HostFuncAVInterleavedWriteFrame = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVInterleavedWriteFrame"sv);
-  // Passing Empty Frame, Hence giving Invalid Argument Error.
   {
     uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
     EXPECT_TRUE(HostFuncAVInterleavedWriteFrame.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, FrameId},
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, PacketId},
         Result));
-    EXPECT_EQ(Result[0].get<int32_t>(), -22);
+    EXPECT_EQ(Result[0].get<int32_t>(),
+              static_cast<int32_t>(ErrNo::InternalError));
   }
+}
+
+TEST_F(FFmpegTest, AVIOOpenBounds) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+
+  auto *FuncInst =
+      AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avio_open");
+  auto &HostFuncAVIOOpen = FuncInst->getHostFunc();
+
+  uint32_t AvFormatCtxId = UINT32_C(0);
+  uint32_t OutOfBoundsFileNamePtr = UINT32_C(65000);
+  uint32_t OutOfBoundsFileNameLen = UINT32_C(2000);
+  int32_t Flags = 0;
+  HostFuncAVIOOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          AvFormatCtxId, OutOfBoundsFileNamePtr, OutOfBoundsFileNameLen, Flags},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::MissingMemory));
+}
+
+TEST_F(FFmpegTest, AVChapterDynarrayAddNullContext) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+
+  uint32_t NbChaptersPtr = UINT32_C(4);
+  writeSInt32(MemInst, 0, NbChaptersPtr);
+
+  auto *FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avchapter_dynarray_add");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncDynarrayAdd = FuncInst->getHostFunc();
+
+  uint32_t NullFormatCtxId = UINT32_C(0);
+  uint32_t AvChapterId = UINT32_C(0);
+  HostFuncDynarrayAdd.run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              NullFormatCtxId, NbChaptersPtr, AvChapterId},
+                          Result);
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
+}
+
+TEST_F(FFmpegTest, AVChapterDynarrayAddIgnoresForgedCount) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+
+  uint32_t NbChaptersPtr = UINT32_C(4);
+  uint32_t FormatCtxPtr = UINT32_C(8);
+  uint32_t ChapterPtr = UINT32_C(12);
+  uint32_t FilePtr = UINT32_C(200);
+
+  initFormatCtx(FormatCtxPtr, FilePtr,
+                std::string("ffmpeg-assets/sample_video.mp4"));
+  uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
+  ASSERT_TRUE(FormatCtxId > 0);
+
+  auto *NbInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformatContext_nb_chapters");
+  ASSERT_NE(NbInst, nullptr);
+  auto &HostFuncNbChapters = NbInst->getHostFunc();
+  HostFuncNbChapters.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
+      Result);
+  int32_t InitialNbChapters = static_cast<int32_t>(Result[0].get<uint32_t>());
+
+  auto *MalloczInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avchapter_mallocz");
+  ASSERT_NE(MalloczInst, nullptr);
+  auto &HostFuncMallocz = MalloczInst->getHostFunc();
+  HostFuncMallocz.run(CallFrame,
+                      std::initializer_list<WasmEdge::ValVariant>{ChapterPtr},
+                      Result);
+  uint32_t ChapterId = readUInt32(MemInst, ChapterPtr);
+  ASSERT_TRUE(ChapterId > 0);
+
+  auto *FuncInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avchapter_dynarray_add");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncDynarrayAdd = FuncInst->getHostFunc();
+
+  writeSInt32(MemInst, INT32_C(0x40000001), NbChaptersPtr);
+  HostFuncDynarrayAdd.run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              FormatCtxId, NbChaptersPtr, ChapterId},
+                          Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(readSInt32(MemInst, NbChaptersPtr), InitialNbChapters + 1);
+
+  HostFuncNbChapters.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
+      Result);
+  EXPECT_EQ(Result[0].get<uint32_t>(),
+            static_cast<uint32_t>(InitialNbChapters + 1));
+}
+
+TEST_F(FFmpegTest, AVFreePOnContextOwnedChapter) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+
+  uint32_t NbChaptersPtr = UINT32_C(4);
+  uint32_t FormatCtxPtr = UINT32_C(8);
+  uint32_t ChapterPtr = UINT32_C(12);
+  uint32_t FilePtr = UINT32_C(200);
+
+  initFormatCtx(FormatCtxPtr, FilePtr,
+                std::string("ffmpeg-assets/sample_video.mp4"));
+  uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
+  ASSERT_TRUE(FormatCtxId > 0);
+
+  auto *NbInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformatContext_nb_chapters");
+  ASSERT_NE(NbInst, nullptr);
+  auto &HostFuncNbChapters = NbInst->getHostFunc();
+  HostFuncNbChapters.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
+      Result);
+  uint32_t ChapterIdx = Result[0].get<uint32_t>();
+
+  auto *MalloczInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avchapter_mallocz");
+  ASSERT_NE(MalloczInst, nullptr);
+  auto &HostFuncMallocz = MalloczInst->getHostFunc();
+  HostFuncMallocz.run(CallFrame,
+                      std::initializer_list<WasmEdge::ValVariant>{ChapterPtr},
+                      Result);
+  uint32_t ChapterId = readUInt32(MemInst, ChapterPtr);
+  ASSERT_TRUE(ChapterId > 0);
+
+  auto *AddInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avchapter_dynarray_add");
+  ASSERT_NE(AddInst, nullptr);
+  auto &HostFuncDynarrayAdd = AddInst->getHostFunc();
+  writeSInt32(MemInst, static_cast<int32_t>(ChapterIdx), NbChaptersPtr);
+  HostFuncDynarrayAdd.run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              FormatCtxId, NbChaptersPtr, ChapterId},
+                          Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  auto *SetIdInst =
+      AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avChapter_set_id");
+  ASSERT_NE(SetIdInst, nullptr);
+  auto &HostFuncSetId = SetIdInst->getHostFunc();
+  int64_t const PoisonId = INT64_C(0x4141414141414141);
+  HostFuncSetId.run(CallFrame,
+                    std::initializer_list<WasmEdge::ValVariant>{
+                        FormatCtxId, ChapterIdx, PoisonId},
+                    Result);
+  ASSERT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  auto *FreePInst =
+      AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avformat_avfreep");
+  ASSERT_NE(FreePInst, nullptr);
+  auto &HostFuncFreeP =
+      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVFreeP &>(
+          FreePInst->getHostFunc());
+  HostFuncFreeP.run(CallFrame,
+                    std::initializer_list<WasmEdge::ValVariant>{ChapterId},
+                    Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  auto Env = HostFuncFreeP.getEnv();
+  EXPECT_EQ(Env->fetchData(ChapterId), nullptr);
+}
+
+TEST_F(FFmpegTest, AVFormatCtxSetMetadataCopiesDict) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  uint32_t FormatCtxPtr = UINT32_C(8);
+  uint32_t DictPtr = UINT32_C(12);
+  uint32_t MetaDictPtr = UINT32_C(16);
+  uint32_t KeyPtr = UINT32_C(200);
+  uint32_t ValuePtr = UINT32_C(220);
+  uint32_t KeyLenPtr = UINT32_C(240);
+  uint32_t ValueLenPtr = UINT32_C(244);
+  uint32_t FilePtr = UINT32_C(300);
+
+  initFormatCtx(FormatCtxPtr, FilePtr,
+                std::string("ffmpeg-assets/sample_video.mp4"));
+  uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
+  ASSERT_TRUE(FormatCtxId > 0);
+
+  std::string Key = "meta_key";
+  std::string Value = "meta_val";
+  fillMemContent(MemInst, KeyPtr, Key);
+  fillMemContent(MemInst, ValuePtr, Value);
+
+  auto *SetInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_set");
+  ASSERT_NE(SetInst, nullptr);
+  auto &HostFuncDictSet = SetInst->getHostFunc();
+  HostFuncDictSet.run(CallFrame,
+                      std::initializer_list<WasmEdge::ValVariant>{
+                          DictPtr, KeyPtr, static_cast<uint32_t>(Key.length()),
+                          ValuePtr, static_cast<uint32_t>(Value.length()),
+                          INT32_C(0)},
+                      Result);
+  uint32_t DictId = readUInt32(MemInst, DictPtr);
+  ASSERT_TRUE(DictId > 0);
+
+  auto *SetMetaInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformatContext_set_metadata");
+  ASSERT_NE(SetMetaInst, nullptr);
+  auto &HostFuncSetMetadata = SetMetaInst->getHostFunc();
+  HostFuncSetMetadata.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, DictId}, Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  auto *FreeInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_free");
+  ASSERT_NE(FreeInst, nullptr);
+  auto &HostFuncDictFree = FreeInst->getHostFunc();
+  HostFuncDictFree.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{DictId}, Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  auto *MetaInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformatContext_metadata");
+  ASSERT_NE(MetaInst, nullptr);
+  auto &HostFuncMetadata = MetaInst->getHostFunc();
+  HostFuncMetadata.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, MetaDictPtr},
+      Result);
+  uint32_t MetaDictId = readUInt32(MemInst, MetaDictPtr);
+  ASSERT_TRUE(MetaDictId > 0);
+
+  auto *GetInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_get");
+  ASSERT_NE(GetInst, nullptr);
+  auto &HostFuncDictGet = GetInst->getHostFunc();
+  HostFuncDictGet.run(CallFrame,
+                      std::initializer_list<WasmEdge::ValVariant>{
+                          MetaDictId, KeyPtr,
+                          static_cast<uint32_t>(Key.length()), UINT32_C(0),
+                          INT32_C(0), KeyLenPtr, ValueLenPtr},
+                      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), 1);
+
+  auto *CloseInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformat_close_input");
+  ASSERT_NE(CloseInst, nullptr);
+  auto &HostFuncClose = CloseInst->getHostFunc();
+  HostFuncClose.run(CallFrame,
+                    std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
+                    Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegTest, WriteFrameRejectsUnresolvedPacketHandles) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+
+  uint32_t FormatCtxPtr = UINT32_C(4);
+  uint32_t FilePtr = UINT32_C(100);
+  initFormatCtx(FormatCtxPtr, FilePtr,
+                std::string("ffmpeg-assets/sample_video.mp4"));
+  uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
+  ASSERT_TRUE(FormatCtxId > 0);
+
+  uint32_t UnresolvedId = UINT32_C(999999);
+  auto Run = [&](const char *Name) {
+    auto *Inst = AVFormatMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, UnresolvedId},
+        Result));
+    return Result[0].get<int32_t>();
+  };
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avformat_av_write_frame"),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run("wasmedge_ffmpeg_avformat_av_interleaved_write_frame"),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  auto *CloseInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformat_close_input");
+  ASSERT_NE(CloseInst, nullptr);
+  auto &HostFuncClose = CloseInst->getHostFunc();
+  HostFuncClose.run(CallFrame,
+                    std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
+                    Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegTest, SetMetadataRejectsUnresolvedDictHandle) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  uint32_t FormatCtxPtr = UINT32_C(8);
+  uint32_t DictPtr = UINT32_C(12);
+  uint32_t MetaDictPtr = UINT32_C(16);
+  uint32_t KeyPtr = UINT32_C(200);
+  uint32_t ValuePtr = UINT32_C(220);
+  uint32_t KeyLenPtr = UINT32_C(240);
+  uint32_t ValueLenPtr = UINT32_C(244);
+  uint32_t FilePtr = UINT32_C(300);
+
+  initFormatCtx(FormatCtxPtr, FilePtr,
+                std::string("ffmpeg-assets/sample_video.mp4"));
+  uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
+  ASSERT_TRUE(FormatCtxId > 0);
+
+  std::string Key = "meta_key";
+  std::string Value = "meta_val";
+  fillMemContent(MemInst, KeyPtr, Key);
+  fillMemContent(MemInst, ValuePtr, Value);
+
+  auto *SetInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_set");
+  ASSERT_NE(SetInst, nullptr);
+  auto &HostFuncDictSet = SetInst->getHostFunc();
+  HostFuncDictSet.run(CallFrame,
+                      std::initializer_list<WasmEdge::ValVariant>{
+                          DictPtr, KeyPtr, static_cast<uint32_t>(Key.length()),
+                          ValuePtr, static_cast<uint32_t>(Value.length()),
+                          INT32_C(0)},
+                      Result);
+  uint32_t DictId = readUInt32(MemInst, DictPtr);
+  ASSERT_TRUE(DictId > 0);
+
+  auto *SetMetaInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformatContext_set_metadata");
+  ASSERT_NE(SetMetaInst, nullptr);
+  auto &HostFuncSetMetadata = SetMetaInst->getHostFunc();
+  HostFuncSetMetadata.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, DictId}, Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  uint32_t UnresolvedId = UINT32_C(999999);
+  HostFuncSetMetadata.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, UnresolvedId},
+      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  auto *MetaInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformatContext_metadata");
+  ASSERT_NE(MetaInst, nullptr);
+  auto &HostFuncMetadata = MetaInst->getHostFunc();
+  HostFuncMetadata.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{FormatCtxId, MetaDictPtr},
+      Result);
+  uint32_t MetaDictId = readUInt32(MemInst, MetaDictPtr);
+  ASSERT_TRUE(MetaDictId > 0);
+
+  auto *GetInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_get");
+  ASSERT_NE(GetInst, nullptr);
+  auto &HostFuncDictGet = GetInst->getHostFunc();
+  HostFuncDictGet.run(CallFrame,
+                      std::initializer_list<WasmEdge::ValVariant>{
+                          MetaDictId, KeyPtr,
+                          static_cast<uint32_t>(Key.length()), UINT32_C(0),
+                          INT32_C(0), KeyLenPtr, ValueLenPtr},
+                      Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), 1);
+
+  auto *FreeInst =
+      AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_dict_free");
+  ASSERT_NE(FreeInst, nullptr);
+  auto &HostFuncDictFree = FreeInst->getHostFunc();
+  HostFuncDictFree.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{DictId}, Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+
+  auto *CloseInst = AVFormatMod->findFuncExports(
+      "wasmedge_ffmpeg_avformat_avformat_close_input");
+  ASSERT_NE(CloseInst, nullptr);
+  auto &HostFuncClose = CloseInst->getHostFunc();
+  HostFuncClose.run(CallFrame,
+                    std::initializer_list<WasmEdge::ValVariant>{FormatCtxId},
+                    Result);
+  EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegTest, AVIOCloseHandleSemantics) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  EXPECT_EQ(Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_avio_close",
+                {UINT32_C(0)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_avio_close",
+                {UINT32_C(999999)}),
+            static_cast<int32_t>(ErrNo::Success));
+
+  uint32_t FramePtr = UINT32_C(4);
+  initEmptyFrame(FramePtr);
+  uint32_t FrameId = readUInt32(MemInst, FramePtr);
+  ASSERT_TRUE(FrameId > 0);
+  EXPECT_EQ(
+      Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_avio_close", {FrameId}),
+      static_cast<int32_t>(ErrNo::InternalError));
+
+  EXPECT_EQ(
+      Run(AVUtilMod.get(), "wasmedge_ffmpeg_avutil_av_frame_free", {FrameId}),
+      static_cast<int32_t>(ErrNo::Success));
+
+  uint32_t FormatCtxPtr = UINT32_C(8);
+  uint32_t FilePtr = UINT32_C(100);
+  initFormatCtx(FormatCtxPtr, FilePtr,
+                std::string("ffmpeg-assets/sample_video.mp4"));
+  uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
+  ASSERT_TRUE(FormatCtxId > 0);
+
+  EXPECT_EQ(Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_avio_close",
+                {FormatCtxId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_close_input", {FormatCtxId}),
+            static_cast<int32_t>(ErrNo::Success));
+
+  uint32_t OutCtxPtr = UINT32_C(12);
+  uint32_t FormatNamePtr = UINT32_C(200);
+  uint32_t OutFilePtr = UINT32_C(220);
+  std::string FormatName("mp4");
+  std::string OutFile("avio_close.mp4");
+  fillMemContent(MemInst, FormatNamePtr, FormatName);
+  fillMemContent(MemInst, OutFilePtr, OutFile);
+  EXPECT_GE(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_alloc_output_context2",
+                {OutCtxPtr, UINT32_C(0), FormatNamePtr,
+                 static_cast<uint32_t>(FormatName.length()), OutFilePtr,
+                 static_cast<uint32_t>(OutFile.length())}),
+            0);
+  uint32_t OutCtxId = readUInt32(MemInst, OutCtxPtr);
+  ASSERT_TRUE(OutCtxId > 0);
+  EXPECT_EQ(
+      Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_avio_close", {OutCtxId}),
+      static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(
+      Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_avio_close", {OutCtxId}),
+      static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_free_context", {OutCtxId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegTest, AVFormatFindStreamInfoAppliesDictToEveryStream) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+  ASSERT_TRUE(AVUtilMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  uint32_t FormatCtxPtr = UINT32_C(8);
+  uint32_t DictPtr = UINT32_C(12);
+  uint32_t KeyLenPtr = UINT32_C(16);
+  uint32_t ValueLenPtr = UINT32_C(20);
+  uint32_t KeyPtr = UINT32_C(100);
+  uint32_t ValuePtr = UINT32_C(120);
+  uint32_t FilePtr = UINT32_C(300);
+
+  initFormatCtx(FormatCtxPtr, FilePtr,
+                std::string("ffmpeg-assets/sample_video.mp4"));
+  uint32_t FormatCtxId = readUInt32(MemInst, FormatCtxPtr);
+  ASSERT_TRUE(FormatCtxId > 0);
+  ASSERT_GE(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformatContext_nb_streams",
+                {FormatCtxId}),
+            2);
+
+  std::string Key("threads");
+  initDict(DictPtr, KeyPtr, Key, ValuePtr, std::string("1"));
+  uint32_t DictId = readUInt32(MemInst, DictPtr);
+  ASSERT_TRUE(DictId > 0);
+
+  EXPECT_GE(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_find_stream_info",
+                {FormatCtxId, DictId}),
+            0);
+
+  EXPECT_EQ(Run(AVUtilMod.get(), "wasmedge_ffmpeg_avutil_av_dict_get",
+                {DictId, KeyPtr, static_cast<uint32_t>(Key.length()),
+                 UINT32_C(0), UINT32_C(0), KeyLenPtr, ValueLenPtr}),
+            1);
+
+  EXPECT_EQ(
+      Run(AVUtilMod.get(), "wasmedge_ffmpeg_avutil_av_dict_free", {DictId}),
+      static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_close_input", {FormatCtxId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegTest, AVFormatDemuxCallsRejectOutputContext) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+  ASSERT_TRUE(AVCodecMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+  auto AllocOutput = [&](uint32_t CtxPtr, uint32_t FormatPtr,
+                         const std::string &Format, uint32_t FilePtr,
+                         const std::string &File) {
+    fillMemContent(MemInst, FormatPtr, Format);
+    fillMemContent(MemInst, FilePtr, File);
+    EXPECT_GE(Run(AVFormatMod.get(),
+                  "wasmedge_ffmpeg_avformat_avformat_alloc_output_context2",
+                  {CtxPtr, UINT32_C(0), FormatPtr,
+                   static_cast<uint32_t>(Format.length()), FilePtr,
+                   static_cast<uint32_t>(File.length())}),
+              0);
+    uint32_t Id = readUInt32(MemInst, CtxPtr);
+    EXPECT_TRUE(Id > 0);
+    return Id;
+  };
+
+  uint32_t CtxId = AllocOutput(UINT32_C(4), UINT32_C(100), "mp4", UINT32_C(200),
+                               "demux_reject.mp4");
+  uint32_t PacketPtr = UINT32_C(8);
+  allocPacket(PacketPtr);
+  uint32_t PacketId = readUInt32(MemInst, PacketPtr);
+  ASSERT_TRUE(PacketId > 0);
+
+  EXPECT_EQ(
+      Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_av_read_play", {CtxId}),
+      static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(
+      Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_av_read_pause", {CtxId}),
+      static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_seek_file",
+                {CtxId, UINT32_C(0xFFFFFFFF), INT64_C(0), INT64_C(0),
+                 INT64_C(0), INT32_C(0)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_av_read_frame",
+                {CtxId, PacketId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_find_stream_info",
+                {CtxId, UINT32_C(0)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  EXPECT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_av_packet_unref",
+                {PacketId}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_free_context", {CtxId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegTest, AVFormatMuxCallsRejectInputContext) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  uint32_t CtxPtr = UINT32_C(4);
+  uint32_t FilePtr = UINT32_C(100);
+  uint32_t ScratchPtr = UINT32_C(200);
+  initFormatCtx(CtxPtr, FilePtr, std::string("ffmpeg-assets/sample_video.mp4"));
+  uint32_t CtxId = readUInt32(MemInst, CtxPtr);
+  ASSERT_TRUE(CtxId > 0);
+  std::string Scratch("avio_reject.tmp");
+  fillMemContent(MemInst, ScratchPtr, Scratch);
+
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_write_header",
+                {CtxId, UINT32_C(0)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_write_trailer", {CtxId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_av_write_frame",
+                {CtxId, UINT32_C(0)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_av_interleaved_write_frame",
+                {CtxId, UINT32_C(0)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_new_stream",
+                {CtxId, UINT32_C(0)}),
+            0);
+  EXPECT_EQ(Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_avio_open",
+                {CtxId, ScratchPtr, static_cast<uint32_t>(Scratch.length()),
+                 INT32_C(2)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_avio_open2",
+                {CtxId, ScratchPtr, static_cast<uint32_t>(Scratch.length()),
+                 INT32_C(2), UINT32_C(0), UINT32_C(0)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(
+      Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_avio_close", {CtxId}),
+      static_cast<int32_t>(ErrNo::InternalError));
+
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_close_input", {CtxId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegTest, AVFormatMuxerStateMachine) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+  ASSERT_TRUE(AVCodecMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+  auto AllocOutput = [&](uint32_t CtxPtr, uint32_t FormatPtr,
+                         const std::string &Format, uint32_t FilePtr,
+                         const std::string &File) {
+    fillMemContent(MemInst, FormatPtr, Format);
+    fillMemContent(MemInst, FilePtr, File);
+    EXPECT_GE(Run(AVFormatMod.get(),
+                  "wasmedge_ffmpeg_avformat_avformat_alloc_output_context2",
+                  {CtxPtr, UINT32_C(0), FormatPtr,
+                   static_cast<uint32_t>(Format.length()), FilePtr,
+                   static_cast<uint32_t>(File.length())}),
+              0);
+    uint32_t Id = readUInt32(MemInst, CtxPtr);
+    EXPECT_TRUE(Id > 0);
+    return Id;
+  };
+
+  uint32_t CodecPtr = UINT32_C(4);
+  uint32_t EncCtxPtr = UINT32_C(8);
+  uint32_t CtxPtr = UINT32_C(12);
+  uint32_t ParPtr = UINT32_C(16);
+  uint32_t FormatPtr = UINT32_C(100);
+  uint32_t FilePtr = UINT32_C(200);
+
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_find_encoder",
+                {UINT32_C(216), CodecPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t CodecId = readUInt32(MemInst, CodecPtr);
+  ASSERT_TRUE(CodecId > 0);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_alloc_context3",
+                {CodecId, EncCtxPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t EncCtxId = readUInt32(MemInst, EncCtxPtr);
+  ASSERT_TRUE(EncCtxId > 0);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_format",
+                {EncCtxId, UINT32_C(2)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_rate",
+                {EncCtxId, INT32_C(48000)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channel_layout",
+                {EncCtxId, UINT64_C(3)}),
+            static_cast<int32_t>(ErrNo::Success));
+
+  uint32_t CtxId =
+      AllocOutput(CtxPtr, FormatPtr, "matroska", FilePtr, "state_machine.mkv");
+  std::string File("state_machine.mkv");
+
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_write_trailer", {CtxId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_av_write_frame",
+                {CtxId, UINT32_C(0)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_new_stream",
+                {CtxId, UINT32_C(0)}),
+            1);
+  EXPECT_EQ(Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_avStream_codecpar",
+                {CtxId, UINT32_C(0), ParPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t ParId = readUInt32(MemInst, ParPtr);
+  ASSERT_TRUE(ParId > 0);
+  EXPECT_GE(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_parameters_from_context",
+                {ParId, EncCtxId}),
+            0);
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avStream_set_timebase",
+                {UINT32_C(1), UINT32_C(48000), CtxId, UINT32_C(0)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_write_header",
+                {CtxId, UINT32_C(0)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_GE(
+      Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_avio_open",
+          {CtxId, FilePtr, static_cast<uint32_t>(File.length()), INT32_C(2)}),
+      0);
+  EXPECT_GE(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_write_header",
+                {CtxId, UINT32_C(0)}),
+            0);
+
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_new_stream",
+                {CtxId, UINT32_C(0)}),
+            0);
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_write_header",
+                {CtxId, UINT32_C(0)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_GE(Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_av_write_frame",
+                {CtxId, UINT32_C(0)}),
+            0);
+  EXPECT_EQ(
+      Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_avio_close", {CtxId}),
+      static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_GE(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_write_trailer", {CtxId}),
+            0);
+  EXPECT_EQ(Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_av_write_frame",
+                {CtxId, UINT32_C(0)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_write_trailer", {CtxId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(
+      Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_avio_close", {CtxId}),
+      static_cast<int32_t>(ErrNo::Success));
+
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_free_context", {CtxId}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_free_context", {EncCtxId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegTest, AVDumpFormatIgnoresGuestIsOutput) {
+  ASSERT_TRUE(AVFormatMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+  auto AllocOutput = [&](uint32_t CtxPtr, uint32_t FormatPtr,
+                         const std::string &Format, uint32_t FilePtr,
+                         const std::string &File) {
+    fillMemContent(MemInst, FormatPtr, Format);
+    fillMemContent(MemInst, FilePtr, File);
+    EXPECT_GE(Run(AVFormatMod.get(),
+                  "wasmedge_ffmpeg_avformat_avformat_alloc_output_context2",
+                  {CtxPtr, UINT32_C(0), FormatPtr,
+                   static_cast<uint32_t>(Format.length()), FilePtr,
+                   static_cast<uint32_t>(File.length())}),
+              0);
+    uint32_t Id = readUInt32(MemInst, CtxPtr);
+    EXPECT_TRUE(Id > 0);
+    return Id;
+  };
+
+  uint32_t InCtxPtr = UINT32_C(4);
+  uint32_t FilePtr = UINT32_C(100);
+  std::string Asset("ffmpeg-assets/sample_video.mp4");
+  initFormatCtx(InCtxPtr, FilePtr, Asset);
+  uint32_t InCtxId = readUInt32(MemInst, InCtxPtr);
+  ASSERT_TRUE(InCtxId > 0);
+  EXPECT_EQ(Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_av_dump_format",
+                {InCtxId, INT32_C(0), FilePtr,
+                 static_cast<uint32_t>(Asset.length()), INT32_C(1)}),
+            static_cast<int32_t>(ErrNo::Success));
+
+  uint32_t OutCtxId = AllocOutput(UINT32_C(8), UINT32_C(200), "mp4",
+                                  UINT32_C(300), "dump_reject.mp4");
+  EXPECT_EQ(Run(AVFormatMod.get(), "wasmedge_ffmpeg_avformat_av_dump_format",
+                {OutCtxId, INT32_C(0), FilePtr,
+                 static_cast<uint32_t>(Asset.length()), INT32_C(0)}),
+            static_cast<int32_t>(ErrNo::Success));
+
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_close_input", {InCtxId}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVFormatMod.get(),
+                "wasmedge_ffmpeg_avformat_avformat_free_context", {OutCtxId}),
+            static_cast<int32_t>(ErrNo::Success));
 }
 
 } // namespace WasmEdgeFFmpeg

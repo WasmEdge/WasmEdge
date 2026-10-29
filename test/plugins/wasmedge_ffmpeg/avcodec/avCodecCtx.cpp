@@ -27,6 +27,20 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   uint32_t AVCodecCtxId = readUInt32(MemInst, AVCodecCtxPtr);
 
+  uint32_t ScratchCtxPtr = UINT32_C(88);
+  {
+    auto *AllocInst = AVCodecMod->findFuncExports(
+        "wasmedge_ffmpeg_avcodec_avcodec_alloc_context3");
+    ASSERT_NE(AllocInst, nullptr);
+    EXPECT_TRUE(AllocInst->getHostFunc().run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), ScratchCtxPtr},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+  uint32_t ScratchCtxId = readUInt32(MemInst, ScratchCtxPtr);
+  ASSERT_TRUE(ScratchCtxId > 0);
+
   auto *FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_codec_id");
   ASSERT_NE(FuncInst, nullptr);
@@ -119,7 +133,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetWidth.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, Dimension},
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, Dimension},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
@@ -133,7 +147,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxWidth.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), Dimension);
   }
@@ -148,7 +162,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetHeight.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, Dimension},
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, Dimension},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
@@ -162,7 +176,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxHeight.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), Dimension);
   }
@@ -216,7 +230,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetChannelLayout.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId,
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId,
                                                     ChannelLayoutId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
@@ -231,7 +245,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxChannelLayout.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
         Result));
     EXPECT_EQ(Result[0].get<uint64_t>(), ChannelLayoutId);
   }
@@ -248,7 +262,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetPixFormat.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, PixFormatId},
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, PixFormatId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
@@ -262,7 +276,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxPixFormat.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), PixFormatId);
   }
@@ -278,7 +292,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetSampleFormat.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, SampleFmtId},
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, SampleFmtId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
@@ -292,7 +306,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSampleFormat.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), SampleFmtId);
   }
@@ -308,7 +322,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetSampleRate.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, SampleRate},
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, SampleRate},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
@@ -322,7 +336,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSampleRate.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), SampleRate);
   }
@@ -1075,7 +1089,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   {
     EXPECT_TRUE(HostFuncAVCodecCtxSetChannels.run(
         CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, Channels},
+        std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId, Channels},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
   }
@@ -1089,7 +1103,7 @@ TEST_F(FFmpegTest, AVCodecCtx) {
 
   {
     EXPECT_TRUE(HostFuncAVCodecCtxChannels.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId},
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
         Result));
     EXPECT_EQ(Result[0].get<int32_t>(), Channels);
   }
@@ -1454,6 +1468,150 @@ TEST_F(FFmpegTest, AVCodecCtx) {
         Result));
     ASSERT_TRUE(Result[0].get<int32_t>() >= 0);
   }
+
+  {
+    auto *FreeInst = AVCodecMod->findFuncExports(
+        "wasmedge_ffmpeg_avcodec_avcodec_free_context");
+    ASSERT_NE(FreeInst, nullptr);
+    EXPECT_TRUE(FreeInst->getHostFunc().run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ScratchCtxId},
+        Result));
+    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
+  }
+}
+
+TEST_F(FFmpegTest, AVCodecCtxRejectsFormatChangesAfterOpen) {
+  ASSERT_TRUE(AVCodecMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+  uint32_t CodecPtr = UINT32_C(4);
+  uint32_t CtxPtr = UINT32_C(8);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_find_encoder",
+                {UINT32_C(216), CodecPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t CodecId = readUInt32(MemInst, CodecPtr);
+  ASSERT_TRUE(CodecId > 0);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_alloc_context3",
+                {CodecId, CtxPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t CtxId = readUInt32(MemInst, CtxPtr);
+  ASSERT_TRUE(CtxId > 0);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_format",
+                {CtxId, UINT32_C(2)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_rate",
+                {CtxId, INT32_C(48000)}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channel_layout",
+                {CtxId, UINT64_C(3)}),
+            static_cast<int32_t>(ErrNo::Success));
+  ASSERT_EQ(Run(AVCodecMod.get(), "wasmedge_ffmpeg_avcodec_avcodec_open2",
+                {CtxId, CodecId, UINT32_C(0)}),
+            0);
+
+  uint32_t ParamPtr = UINT32_C(12);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_parameters_alloc", {ParamPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t ParamId = readUInt32(MemInst, ParamPtr);
+  ASSERT_TRUE(ParamId > 0);
+
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_format",
+                {CtxId, UINT32_C(1)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_sample_rate",
+                {CtxId, INT32_C(8000)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channel_layout",
+                {CtxId, UINT64_C(1)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channels",
+                {CtxId, INT32_C(64)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_width",
+                {CtxId, INT32_C(64)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_height",
+                {CtxId, INT32_C(64)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_pix_fmt",
+                {CtxId, UINT32_C(1)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_parameters_to_context",
+                {CtxId, ParamId}),
+            static_cast<int32_t>(ErrNo::InternalError));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_sample_rate", {CtxId}),
+            48000);
+
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_parameters_free", {ParamId}),
+            static_cast<int32_t>(ErrNo::Success));
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_free_context", {CtxId}),
+            static_cast<int32_t>(ErrNo::Success));
+}
+
+TEST_F(FFmpegTest, AVCodecCtxSetChannelsBuildsDefaultLayout) {
+  ASSERT_TRUE(AVCodecMod != nullptr);
+
+  auto Run = [&](WasmEdge::Runtime::Instance::ModuleInstance *TargetMod,
+                 const char *Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Inst = TargetMod->findFuncExports(Name);
+    EXPECT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(CallFrame, Args, Result));
+    return Result[0].get<int32_t>();
+  };
+
+  uint32_t CtxPtr = UINT32_C(4);
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_alloc_context3",
+                {UINT32_C(0), CtxPtr}),
+            static_cast<int32_t>(ErrNo::Success));
+  uint32_t CtxId = readUInt32(MemInst, CtxPtr);
+  ASSERT_TRUE(CtxId > 0);
+
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channels",
+                {CtxId, INT32_C(2)}),
+            static_cast<int32_t>(ErrNo::Success));
+  {
+    auto *Inst = AVCodecMod->findFuncExports(
+        "wasmedge_ffmpeg_avcodec_avcodeccontext_channel_layout");
+    ASSERT_NE(Inst, nullptr);
+    EXPECT_TRUE(Inst->getHostFunc().run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{CtxId}, Result));
+    EXPECT_EQ(Result[0].get<uint64_t>(), UINT64_C(134217731));
+  }
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodeccontext_set_channels",
+                {CtxId, INT32_C(-1)}),
+            static_cast<int32_t>(ErrNo::InternalError));
+
+  EXPECT_EQ(Run(AVCodecMod.get(),
+                "wasmedge_ffmpeg_avcodec_avcodec_free_context", {CtxId}),
+            static_cast<int32_t>(ErrNo::Success));
 }
 
 } // namespace WasmEdgeFFmpeg

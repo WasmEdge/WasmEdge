@@ -24,6 +24,7 @@ namespace WasmEdge {
 namespace {
 Proposal ProposalList[] = {
     // Should be in reversed order due to the proposal dependencies.
+    Proposal::WideArithmetic,
     Proposal::Memory64,
     Proposal::ExceptionHandling,
     Proposal::Threads,

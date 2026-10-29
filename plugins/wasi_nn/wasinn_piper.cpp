@@ -12,6 +12,7 @@
 #include "simdjson.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -20,7 +21,9 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <tuple>
+#include <utility>
 #include <vector>
 #endif
 
@@ -29,20 +32,24 @@ namespace WasmEdge::Host::WASINN::Piper {
 
 namespace {
 
-// Helper function to write the WAV header.
-void writeWavHeader(int SampleRate, int16_t NumChannels, int32_t NumSamples,
-                    std::vector<uint8_t> &OutputBuffer) {
-  int32_t const ByteRate = SampleRate * NumChannels * sizeof(int16_t);
-  int32_t const DataSize = NumSamples * NumChannels * sizeof(int16_t);
-  int32_t const RiffSize = 36 + DataSize;
+constexpr uint32_t WavHeaderSize = 44;
 
-  auto PushU32 = [&](int32_t Val) {
+// Helper function to write the WAV header.
+void writeWavHeader(uint32_t SampleRate, uint16_t NumChannels,
+                    uint32_t NumSamples, std::vector<uint8_t> &OutputBuffer) {
+  uint32_t const BlockAlign =
+      static_cast<uint32_t>(NumChannels * sizeof(int16_t));
+  uint32_t const ByteRate = SampleRate * BlockAlign;
+  uint32_t const DataSize = NumSamples * BlockAlign;
+  uint32_t const RiffSize = WavHeaderSize - 8 + DataSize;
+
+  auto PushU32 = [&](uint32_t Val) {
     OutputBuffer.push_back(Val & 0xFF);
     OutputBuffer.push_back((Val >> 8) & 0xFF);
     OutputBuffer.push_back((Val >> 16) & 0xFF);
     OutputBuffer.push_back((Val >> 24) & 0xFF);
   };
-  auto PushU16 = [&](int16_t Val) {
+  auto PushU16 = [&](uint16_t Val) {
     OutputBuffer.push_back(Val & 0xFF);
     OutputBuffer.push_back((Val >> 8) & 0xFF);
   };
@@ -60,10 +67,32 @@ void writeWavHeader(int SampleRate, int16_t NumChannels, int32_t NumSamples,
   PushU16(NumChannels);
   PushU32(SampleRate);
   PushU32(ByteRate);
-  PushU16(NumChannels * sizeof(int16_t));
+  PushU16(static_cast<uint16_t>(BlockAlign));
   PushU16(16);
   PushStr("data");
   PushU32(DataSize);
+}
+
+WASINN::ErrNo resolveESpeakDataPath(std::string_view Path,
+                                    std::filesystem::path &Resolved) noexcept {
+  auto Dir = u8path(Path);
+  std::error_code EC;
+  if (std::filesystem::is_regular_file(Dir / "espeak-ng-data" / "phontab",
+                                       EC)) {
+    Dir /= "espeak-ng-data";
+  } else if (!std::filesystem::is_regular_file(Dir / "phontab", EC)) {
+    spdlog::error(
+        "[WASI-NN] Piper backend: The espeak_data path is not an espeak-ng data directory."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+  if (Dir.string().size() > ESpeakMaxDataPathSize) {
+    spdlog::error(
+        "[WASI-NN] Piper backend: The espeak_data path is longer than the {} bytes espeak-ng supports."sv,
+        ESpeakMaxDataPathSize);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+  Resolved = std::move(Dir);
+  return WASINN::ErrNo::Success;
 }
 
 } // namespace
@@ -82,16 +111,42 @@ std::tuple<WASINN::ErrNo, bool> getOption(simdjson::dom::object &Object,
   return {WASINN::ErrNo::Success, true};
 }
 
-template <typename T, typename U = T>
+template <typename T>
 WASINN::ErrNo getOptionalOption(simdjson::dom::object &Object,
                                 std::string_view Key,
                                 std::optional<T> &Result) {
-  auto Value = U{};
+  auto Value = T{};
   auto [Err, HasValue] = getOption(Object, Key, Value);
   if (HasValue) {
     Result = Value;
   }
   return Err;
+}
+
+// Bound for the options that scale phoneme durations; the normal range is
+// 0.5 to 2, and the audio length grows with the value.
+constexpr double MaxDurationScale = 10.0;
+
+WASINN::ErrNo getScaleOption(simdjson::dom::object &Object,
+                             std::string_view Key, std::optional<float> &Result,
+                             bool RequirePositive, double MaxMagnitude) {
+  auto Value = std::optional<double>{};
+  if (auto Err = getOptionalOption(Object, Key, Value);
+      Err != WASINN::ErrNo::Success) {
+    return Err;
+  }
+  if (!Value) {
+    return WASINN::ErrNo::Success;
+  }
+  if (!std::isfinite(*Value) || std::fabs(*Value) > MaxMagnitude ||
+      (RequirePositive && *Value <= 0.0)) {
+    spdlog::error(
+        "[WASI-NN] Piper backend: The \"{}\" option {} is out of range."sv, Key,
+        *Value);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+  Result = static_cast<float>(*Value);
+  return WASINN::ErrNo::Success;
 }
 
 WASINN::ErrNo parseSynthesisConfig(SynthesisConfig &SynthesisConfig,
@@ -122,21 +177,30 @@ WASINN::ErrNo parseSynthesisConfig(SynthesisConfig &SynthesisConfig,
       return Err;
     }
     if (SpeakerId.has_value()) {
+      if (SpeakerId.value() < 0 ||
+          SpeakerId.value() > std::numeric_limits<int>::max()) {
+        spdlog::error(
+            "[WASI-NN] Piper backend: The speaker_id option {} is out of range."sv,
+            SpeakerId.value());
+        return WASINN::ErrNo::InvalidArgument;
+      }
       SynthesisConfig.SpeakerId = static_cast<int>(SpeakerId.value());
     }
   }
-  if (auto Err = getOptionalOption<float, double>(Object, "noise_scale",
-                                                  SynthesisConfig.NoiseScale);
+  if (auto Err =
+          getScaleOption(Object, "noise_scale", SynthesisConfig.NoiseScale,
+                         false, std::numeric_limits<float>::max());
       Err != WASINN::ErrNo::Success) {
     return Err;
   }
-  if (auto Err = getOptionalOption<float, double>(Object, "length_scale",
-                                                  SynthesisConfig.LengthScale);
+  if (auto Err =
+          getScaleOption(Object, "length_scale", SynthesisConfig.LengthScale,
+                         true, MaxDurationScale);
       Err != WASINN::ErrNo::Success) {
     return Err;
   }
-  if (auto Err = getOptionalOption<float, double>(Object, "noise_w",
-                                                  SynthesisConfig.NoiseW);
+  if (auto Err = getScaleOption(Object, "noise_w", SynthesisConfig.NoiseW,
+                                false, MaxDurationScale);
       Err != WASINN::ErrNo::Success) {
     return Err;
   }
@@ -167,8 +231,10 @@ WASINN::ErrNo parseRunConfig(RunConfig &RunConfig,
   // Verify model file exists
   if (ModelPath) {
     auto Path = u8path(ModelPath.value());
-    if (!std::filesystem::exists(Path)) {
-      spdlog::error("[WASI-NN] Piper backend: Model file doesn't exist"sv);
+    std::error_code EC;
+    if (!std::filesystem::is_regular_file(Path, EC)) {
+      spdlog::error(
+          "[WASI-NN] Piper backend: Model file doesn't exist or is not a regular file"sv);
       return WASINN::ErrNo::InvalidArgument;
     }
     RunConfig.ModelPath = Path;
@@ -190,8 +256,10 @@ WASINN::ErrNo parseRunConfig(RunConfig &RunConfig,
     RunConfig.ModelConfigPath += ".json";
   }
   // Verify model config exists
-  if (!std::filesystem::exists(RunConfig.ModelConfigPath)) {
-    spdlog::error("[WASI-NN] Piper backend: Model config doesn't exist"sv);
+  std::error_code EC;
+  if (!std::filesystem::is_regular_file(RunConfig.ModelConfigPath, EC)) {
+    spdlog::error(
+        "[WASI-NN] Piper backend: Model config doesn't exist or is not a regular file"sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 
@@ -206,7 +274,12 @@ WASINN::ErrNo parseRunConfig(RunConfig &RunConfig,
       return Err;
     }
     if (Path) {
-      RunConfig.ESpeakDataPath = u8path(Path.value());
+      std::filesystem::path DataPath;
+      if (auto Err = resolveESpeakDataPath(Path.value(), DataPath);
+          Err != WASINN::ErrNo::Success) {
+        return Err;
+      }
+      RunConfig.ESpeakDataPath = std::move(DataPath);
     }
   }
   if (auto Err =
@@ -258,10 +331,17 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
     EspeakPath = GraphRef.Config->ESpeakDataPath->string();
   }
 
-  piper_synthesizer *Synth =
-      piper_create(GraphRef.Config->ModelPath.string().c_str(),
-                   GraphRef.Config->ModelConfigPath.string().c_str(),
-                   EspeakPath.empty() ? nullptr : EspeakPath.c_str());
+  piper_synthesizer *Synth = nullptr;
+  try {
+    Synth = piper_create(GraphRef.Config->ModelPath.string().c_str(),
+                         GraphRef.Config->ModelConfigPath.string().c_str(),
+                         EspeakPath.empty() ? nullptr : EspeakPath.c_str());
+  } catch (const std::exception &E) {
+    spdlog::error(
+        "[WASI-NN] Piper backend: Failed to create piper synthesizer: {}"sv,
+        E.what());
+    return WASINN::ErrNo::InvalidArgument;
+  }
 
   if (!Synth) {
     spdlog::error(
@@ -294,34 +374,41 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
   auto &CxtRef = C.get<Context>();
   auto &GraphRef = G.get<Graph>();
 
-  CxtRef.Line =
-      std::string(reinterpret_cast<const char *>(Tensor.Tensor.data()),
-                  Tensor.Tensor.size());
-
-  if (GraphRef.Config->JsonInput) {
-    simdjson::dom::parser Parser;
-    simdjson::dom::element Doc;
-    simdjson::padded_string const PaddedInput(CxtRef.Line.value());
-
-    if (Parser.parse(PaddedInput).get(Doc) != simdjson::SUCCESS) {
-      spdlog::error("[WASI-NN] Piper backend: Failed to parse JSON input."sv);
-      return WASINN::ErrNo::InvalidArgument;
-    }
-
-    simdjson::dom::object JsonObj;
-    if (Doc.get(JsonObj) != simdjson::SUCCESS) {
-      spdlog::error("[WASI-NN] Piper backend: JSON input is not an object."sv);
-      return WASINN::ErrNo::InvalidArgument;
-    }
-
-    SynthesisConfig NewConfig;
-    if (auto Err = parseSynthesisConfig(NewConfig, JsonObj);
-        Err != WASINN::ErrNo::Success) {
-      return Err;
-    }
-    CxtRef.JsonInputSynthesisConfig =
-        std::make_unique<std::optional<SynthesisConfig>>(NewConfig);
+  std::string Input(reinterpret_cast<const char *>(Tensor.Tensor.data()),
+                    Tensor.Tensor.size());
+  if (!GraphRef.Config->JsonInput) {
+    CxtRef.Text = std::move(Input);
+    return WASINN::ErrNo::Success;
   }
+
+  simdjson::dom::parser Parser;
+  simdjson::dom::element Doc;
+  simdjson::padded_string const PaddedInput(Input);
+  if (Parser.parse(PaddedInput).get(Doc) != simdjson::SUCCESS) {
+    spdlog::error("[WASI-NN] Piper backend: Failed to parse JSON input."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  simdjson::dom::object JsonObj;
+  if (Doc.get(JsonObj) != simdjson::SUCCESS) {
+    spdlog::error("[WASI-NN] Piper backend: JSON input is not an object."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  std::string_view Text;
+  if (JsonObj["text"].get(Text) != simdjson::SUCCESS) {
+    spdlog::error(
+        "[WASI-NN] Piper backend: JSON input must contain 'text' field."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  SynthesisConfig NewConfig;
+  if (auto Err = parseSynthesisConfig(NewConfig, JsonObj);
+      Err != WASINN::ErrNo::Success) {
+    return Err;
+  }
+  CxtRef.Text = std::string(Text);
+  CxtRef.JsonInputSynthesisConfig = NewConfig;
   return WASINN::ErrNo::Success;
 }
 
@@ -365,43 +452,11 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
   auto &CxtRef = C.get<Context>();
   auto &GraphRef = G.get<Graph>();
 
-  if (!CxtRef.Line) {
+  if (!CxtRef.Text) {
     spdlog::error("[WASI-NN] Piper backend: Input is not set."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
-
-  std::string TextToSpeak = CxtRef.Line.value();
-
-  if (GraphRef.Config->JsonInput) {
-    simdjson::dom::parser Parser;
-    simdjson::dom::element Doc;
-    simdjson::padded_string const PaddedInput(TextToSpeak);
-
-    if (Parser.parse(PaddedInput).get(Doc) != simdjson::SUCCESS) {
-      spdlog::error("[WASI-NN] Piper backend: Failed to parse JSON input."sv);
-      return WASINN::ErrNo::InvalidArgument;
-    }
-
-    simdjson::dom::object JsonObj;
-    if (Doc.get(JsonObj) != simdjson::SUCCESS) {
-      spdlog::error("[WASI-NN] Piper backend: JSON input is not an object."sv);
-      return WASINN::ErrNo::InvalidArgument;
-    }
-
-    std::string_view TmpText;
-    if (JsonObj["text"].get(TmpText) != simdjson::SUCCESS) {
-      spdlog::error(
-          "[WASI-NN] Piper backend: JSON input must contain 'text' field."sv);
-      return WASINN::ErrNo::InvalidArgument;
-    }
-    TextToSpeak = std::string(TmpText);
-
-    SynthesisConfig NewConfig;
-    if (parseSynthesisConfig(NewConfig, JsonObj) == WASINN::ErrNo::Success) {
-      CxtRef.JsonInputSynthesisConfig =
-          std::make_unique<std::optional<SynthesisConfig>>(NewConfig);
-    }
-  }
+  CxtRef.Output.reset();
 
   piper_synthesize_options Options =
       piper_default_synthesize_options(GraphRef.Synth.get());
@@ -412,53 +467,76 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, WASINN::Graph &G,
     OutputType = GraphRef.Config->DefaultSynthesisConfig.OutputType.value();
   }
 
-  if (CxtRef.JsonInputSynthesisConfig &&
-      CxtRef.JsonInputSynthesisConfig->has_value()) {
-    updatePiperOptions(CxtRef.JsonInputSynthesisConfig->value(), Options);
-    if (CxtRef.JsonInputSynthesisConfig->value().OutputType) {
-      OutputType = CxtRef.JsonInputSynthesisConfig->value().OutputType.value();
+  if (CxtRef.JsonInputSynthesisConfig) {
+    updatePiperOptions(*CxtRef.JsonInputSynthesisConfig, Options);
+    if (CxtRef.JsonInputSynthesisConfig->OutputType) {
+      OutputType = CxtRef.JsonInputSynthesisConfig->OutputType.value();
     }
-  }
-
-  int const Res = piper_synthesize_start(GraphRef.Synth.get(),
-                                         TextToSpeak.c_str(), &Options);
-  if (Res != PIPER_OK) {
-    spdlog::error("[WASI-NN] Piper backend: piper_synthesize_start failed."sv);
-    return WASINN::ErrNo::RuntimeError;
   }
 
   std::vector<int16_t> AudioBuffer;
-  piper_audio_chunk Chunk;
   int SampleRate = 0;
   constexpr float MaxWavValue = 32767.0f;
 
-  while (piper_synthesize_next(GraphRef.Synth.get(), &Chunk) != PIPER_DONE) {
-    if (Chunk.num_samples == 0) {
-      continue;
+  try {
+    int const Res = piper_synthesize_start(GraphRef.Synth.get(),
+                                           CxtRef.Text->c_str(), &Options);
+    if (Res != PIPER_OK) {
+      spdlog::error(
+          "[WASI-NN] Piper backend: piper_synthesize_start failed."sv);
+      return WASINN::ErrNo::RuntimeError;
     }
-    SampleRate = Chunk.sample_rate;
-    size_t OriginalSize = AudioBuffer.size();
-    AudioBuffer.resize(OriginalSize + Chunk.num_samples);
 
-    for (size_t I = 0; I < Chunk.num_samples; I++) {
-      float Sample = Chunk.samples[I];
-      Sample = std::clamp(Sample, -1.0f, 1.0f);
-      AudioBuffer[OriginalSize + I] =
-          static_cast<int16_t>(Sample * MaxWavValue);
+    while (true) {
+      piper_audio_chunk Chunk{};
+      int const NextRes = piper_synthesize_next(GraphRef.Synth.get(), &Chunk);
+      if (NextRes != PIPER_OK && NextRes != PIPER_DONE) {
+        spdlog::error(
+            "[WASI-NN] Piper backend: piper_synthesize_next failed."sv);
+        return WASINN::ErrNo::RuntimeError;
+      }
+      if (Chunk.num_samples > 0) {
+        constexpr size_t MaxSamples =
+            (std::numeric_limits<uint32_t>::max() - WavHeaderSize) /
+            sizeof(int16_t);
+        if (Chunk.num_samples > MaxSamples - AudioBuffer.size()) {
+          spdlog::error(
+              "[WASI-NN] Piper backend: The synthesized audio exceeds the maximum output size."sv);
+          return WASINN::ErrNo::TooLarge;
+        }
+        SampleRate = Chunk.sample_rate;
+        size_t OriginalSize = AudioBuffer.size();
+        AudioBuffer.resize(OriginalSize + Chunk.num_samples);
+
+        for (size_t I = 0; I < Chunk.num_samples; I++) {
+          float Sample = std::isfinite(Chunk.samples[I])
+                             ? std::clamp(Chunk.samples[I], -1.0f, 1.0f)
+                             : 0.0f;
+          AudioBuffer[OriginalSize + I] =
+              static_cast<int16_t>(Sample * MaxWavValue);
+        }
+      }
+      if (NextRes == PIPER_DONE || Chunk.is_last) {
+        break;
+      }
     }
+  } catch (const std::exception &E) {
+    spdlog::error("[WASI-NN] Piper backend: Synthesis failed: {}"sv, E.what());
+    return WASINN::ErrNo::RuntimeError;
   }
 
   CxtRef.Output.emplace();
   constexpr int DefaultPiperSampleRate = 22050;
   if (OutputType == SynthesisConfigOutputType::OUTPUT_WAV) {
-    if (SampleRate == 0) {
+    if (SampleRate <= 0) {
       SampleRate = DefaultPiperSampleRate;
     }
-    size_t const TotalSize = 44 + (AudioBuffer.size() * sizeof(int16_t));
+    size_t const TotalSize =
+        WavHeaderSize + (AudioBuffer.size() * sizeof(int16_t));
     CxtRef.Output->reserve(TotalSize);
 
-    writeWavHeader(SampleRate, 1, static_cast<int32_t>(AudioBuffer.size()),
-                   *CxtRef.Output);
+    writeWavHeader(static_cast<uint32_t>(SampleRate), 1,
+                   static_cast<uint32_t>(AudioBuffer.size()), *CxtRef.Output);
 
     const uint8_t *RawData =
         reinterpret_cast<const uint8_t *>(AudioBuffer.data());

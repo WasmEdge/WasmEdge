@@ -16,11 +16,12 @@
 #include "common/enum_errcode.hpp"
 #include "common/expected.h"
 #include "common/fmt.h"
-#include "common/hexstr.h"
 #include "common/spdlog.h"
 
 #include <cassert>
 #include <ostream>
+#include <string>
+#include <string_view>
 
 #if defined(_MSC_VER) && !defined(__clang__)
 #define __builtin_unreachable() __assume(0)
@@ -38,12 +39,13 @@
 
 namespace WasmEdge {
 
-static inline constexpr bool likely(bool V) noexcept {
-  return __builtin_expect(V, true);
-}
-static inline constexpr bool unlikely(bool V) noexcept {
-  return __builtin_expect(V, false);
-}
+#if defined(__GNUC__) || defined(__clang__)
+#define likely(X) (__builtin_expect(!!(X), 1))
+#define unlikely(X) (__builtin_expect(!!(X), 0))
+#else
+#define likely(X) (!!(X))
+#define unlikely(X) (!!(X))
+#endif
 
 /// Type aliasing for Expected<T, ErrCode>.
 template <typename T> using Expect = Expected<T, ErrCode>;

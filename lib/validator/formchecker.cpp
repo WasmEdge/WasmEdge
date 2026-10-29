@@ -5,6 +5,7 @@
 
 #include "common/errinfo.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <tuple>
@@ -23,18 +24,6 @@ auto logOutOfRange(ErrCode Code, ErrInfo::IndexCategory Cate, uint32_t Idx,
   spdlog::error(ErrInfo::InfoForbidIndex(Cate, Idx, Bound));
   return Unexpect(Code);
 }
-
-// Helper function for extracting address type to TypeCode.
-TypeCode convAddrTypeToTypeCode(const AddressType AT) noexcept {
-  switch (AT) {
-  case AddressType::I32:
-    return TypeCode::I32;
-  case AddressType::I64:
-    return TypeCode::I64;
-  default:
-    assumingUnreachable();
-  }
-};
 
 // Helper function for packing TypeCode to address type.
 AddressType convTypeCodeToAddrType(const TypeCode TC) noexcept {
@@ -105,12 +94,14 @@ void FormChecker::addFunc(const uint32_t TypeIdx, const bool IsImport) {
 }
 
 void FormChecker::addTable(const AST::TableType &Tab) {
-  Tables.emplace_back(convAddrTypeToTypeCode(Tab.getLimit().getAddrType()),
-                      Tab.getRefType());
+  Tables.emplace_back(
+      ValTypeFromAddressType(Tab.getLimit().getAddrType()).getCode(),
+      Tab.getRefType());
 }
 
 void FormChecker::addMemory(const AST::MemoryType &Mem) {
-  Mems.push_back(convAddrTypeToTypeCode(Mem.getLimit().getAddrType()));
+  Mems.push_back(
+      ValTypeFromAddressType(Mem.getLimit().getAddrType()).getCode());
 }
 
 void FormChecker::addGlobal(const AST::GlobalType &Glob, const bool IsImport) {
@@ -370,35 +361,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   // Helper lambda for downcasting into the top heap type.
   auto toTopHeapType = [this](const ValType &T) -> ValType {
     assuming(T.isRefType());
-    if (T.isAbsHeapType()) {
-      switch (T.getHeapTypeCode()) {
-      case TypeCode::NullFuncRef:
-      case TypeCode::FuncRef:
-        return TypeCode::FuncRef;
-      case TypeCode::NullExternRef:
-      case TypeCode::ExternRef:
-        return TypeCode::ExternRef;
-      case TypeCode::NullExnRef:
-      case TypeCode::ExnRef:
-        return TypeCode::ExnRef;
-      case TypeCode::NullRef:
-      case TypeCode::AnyRef:
-      case TypeCode::EqRef:
-      case TypeCode::I31Ref:
-      case TypeCode::StructRef:
-      case TypeCode::ArrayRef:
-        return TypeCode::AnyRef;
-      default:
-        assumingUnreachable();
-      }
-    } else {
-      const auto &CompType = Types[T.getTypeIndex()]->getCompositeType();
-      if (CompType.isFunc()) {
-        return TypeCode::FuncRef;
-      } else {
-        return TypeCode::AnyRef;
-      }
-    }
+    return AST::TypeMatcher::getTopHeapType(
+        T.isAbsHeapType()
+            ? T.getHeapTypeCode()
+            : Types[T.getTypeIndex()]->getCompositeType().expand());
   };
 
   switch (Instr.getOpCode()) {
@@ -541,15 +507,13 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       for (uint32_t IdxN = static_cast<uint32_t>(NTypes.size()); IdxN >= 1;
            --IdxN) {
         const uint32_t Idx = IdxN - 1;
-        // Cannot use popTypes() here because we need the popped value.
-        EXPECTED_TRY(auto Type, popType(NTypes[Idx]));
         // Check whether `unreachableVType` occurred when an `unreachable`
         // instruction appeared before the `br_table` instruction.
-        if (CtrlStack.back().IsUnreachable) {
-          TypeBuf[Idx] = unreachableVType();
-        } else {
-          TypeBuf[Idx] = Type;
-        }
+        const bool IsBottom = ValStack.size() == CtrlStack.back().Height ||
+                              ValStack.back() == unreachableVType();
+        // Cannot use popTypes() here because we need the popped value.
+        EXPECTED_TRY(auto Type, popType(NTypes[Idx]));
+        TypeBuf[Idx] = IsBottom ? unreachableVType() : Type;
       }
       recordJump(LabelTable[LabelIdx], static_cast<uint32_t>(NTypes.size()), N);
       pushTypes(TypeBuf);
@@ -820,9 +784,15 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       return StackTrans({ValType(TypeCode::I32)},
                         {ValType(TypeCode::Ref, Instr.getTargetIndex())});
     } else {
-      std::vector<ValType> Fields(Instr.getSourceIndex(), unpackType(SType));
-      return StackTrans(Fields,
-                        {ValType(TypeCode::Ref, Instr.getTargetIndex())});
+      // One pop past the frame height already decides underflow or polymorphic.
+      const auto ElemType = unpackType(SType);
+      const auto Count =
+          std::min<size_t>(Instr.getSourceIndex(),
+                           ValStack.size() - CtrlStack.back().Height + 1);
+      for (size_t I = 0; I < Count; ++I) {
+        EXPECTED_TRY(popType(ElemType));
+      }
+      return StackTrans({}, {ValType(TypeCode::Ref, Instr.getTargetIndex())});
     }
   }
   case OpCode::Array__new_data:
@@ -2022,12 +1992,16 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                                {ValType(TypeCode::I64), ValType(TypeCode::I64)},
                                {ValType(TypeCode::I64)});
 
+  // Wide-arithmetic instructions.
   case OpCode::I64__add128:
   case OpCode::I64__sub128:
+    return StackTrans({ValType(TypeCode::I64), ValType(TypeCode::I64),
+                       ValType(TypeCode::I64), ValType(TypeCode::I64)},
+                      {ValType(TypeCode::I64), ValType(TypeCode::I64)});
   case OpCode::I64__mul_wide_s:
   case OpCode::I64__mul_wide_u:
-    spdlog::error(ErrCode::Value::IllegalOpCode);
-    return Unexpect(ErrCode::Value::IllegalOpCode);
+    return StackTrans({ValType(TypeCode::I64), ValType(TypeCode::I64)},
+                      {ValType(TypeCode::I64), ValType(TypeCode::I64)});
 
   default:
     assumingUnreachable();

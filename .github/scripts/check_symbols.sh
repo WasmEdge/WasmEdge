@@ -51,6 +51,7 @@ debug() {
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="${PROJECT_ROOT:-"${SCRIPT_DIR%/.github/scripts}"}"
 WHITELIST_FILE="$SCRIPT_DIR/whitelist.symbols"
+VERSION_SCRIPT="$PROJECT_ROOT/lib/api/libwasmedge.lds"
 
 if [ -n "${LIB_PATH:-}" ]; then
     debug "Using user-specified LIB_PATH: $LIB_PATH"
@@ -71,6 +72,7 @@ info "Checking symbol exposure for libwasmedge..."
 debug "Project root: $PROJECT_ROOT"
 debug "Library path: $LIB_PATH"
 debug "Whitelist file: $WHITELIST_FILE"
+debug "Version script: $VERSION_SCRIPT"
 
 if [ ! -f "$LIB_PATH" ]; then
     if [[ "$OSTYPE" == "linux-gnu"* ]] || [[ "$OSTYPE" == "darwin"* ]]; then
@@ -231,4 +233,48 @@ if [ "$MISSING_COUNT" -gt 0 ]; then
 fi
 
 info "Symbol exposure check passed - no unexpected symbols found!"
+
+# Symbol versions exist only in the ELF shared library.
+if [[ "$OSTYPE" != "linux-gnu"* ]]; then
+    exit 0
+fi
+
+if [ ! -f "$VERSION_SCRIPT" ]; then
+    error "Version script not found at $VERSION_SCRIPT"
+    exit 1
+fi
+
+info "Checking symbol versions for libwasmedge..."
+
+# Each function in a non-base node changed its signature and needs both the
+# default `<name>@@<node>` and the compat alias `<name>@<base>`.
+awk '
+  /^WASMEDGE_[0-9.]+ *\{/ { Node = $1; if (Base == "") Base = Node; next }
+  /^}/ { Node = ""; next }
+  /global:/ { Global = 1; next }
+  /local:/ { Global = 0; next }
+  Node != Base && Global && /^[[:space:]]+WasmEdge_[A-Za-z0-9_]+;/ {
+    gsub(/[[:space:];]/, "")
+    print $0 "@@" Node
+    print $0 "@" Base
+  }' "$VERSION_SCRIPT" | LC_ALL=C sort -u > "$TEMP_DIR/versioned_expected.symbols"
+
+nm -D --defined-only --with-symbol-versions "$LIB_PATH" 2>/dev/null | \
+    awk '/^[0-9a-fA-F]+ [TBDW] / {print $3}' | \
+    LC_ALL=C sort -u > "$TEMP_DIR/versioned_extracted.symbols"
+
+LC_ALL=C comm -23 "$TEMP_DIR/versioned_expected.symbols" \
+    "$TEMP_DIR/versioned_extracted.symbols" > "$TEMP_DIR/versioned_missing.symbols"
+
+debug "Expected versioned symbols: $(wc -l < "$TEMP_DIR/versioned_expected.symbols" | tr -d ' ')"
+
+if [ -s "$TEMP_DIR/versioned_missing.symbols" ]; then
+    echo "" 1>&2
+    error "Missing versioned symbols required by lib/api/libwasmedge.lds:"
+    cat "$TEMP_DIR/versioned_missing.symbols" 1>&2
+    echo "Older consumers fail to load; see SYMBOL_CHECKING.md." 1>&2
+    exit 1
+fi
+
+info "Symbol version check passed!"
 exit 0

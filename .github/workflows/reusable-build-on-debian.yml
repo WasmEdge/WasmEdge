@@ -24,11 +24,12 @@ jobs:
       image: debian:testing
     env:
       SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_IDLE_TIMEOUT: "0"
       CMAKE_C_COMPILER_LAUNCHER: sccache
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           egress-policy: audit
 
@@ -43,18 +44,18 @@ jobs:
         uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
         with:
           version: "v0.10.0"
-      - name: Warm up sccache server
+      - name: Start sccache server
         run: |
           for i in 1 2 3 4 5; do
-            if sccache --show-stats >/dev/null 2>&1; then
-              sccache --show-stats
+            if sccache --start-server; then
               exit 0
             fi
-            echo "sccache server not ready (attempt ${i}/5); retrying..." >&2
+            echo "sccache server failed to start (attempt ${i}/5); retrying..." >&2
             sleep $((i * 3))
           done
-          echo "sccache server did not become ready; aborting before the long build" >&2
-          exit 1
+          echo "::warning::sccache server did not start; building without the compiler cache"
+          echo "CMAKE_C_COMPILER_LAUNCHER=" >> "$GITHUB_ENV"
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=" >> "$GITHUB_ENV"
       - name: Grant the safe directory for git
         run: |
           git config --global --add safe.directory $(pwd)

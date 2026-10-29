@@ -17,6 +17,7 @@
 #include "ast/component/descriptor.h"
 #include "common/span.h"
 
+#include <memory>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -65,7 +66,7 @@ private:
 };
 
 // core:moduledecl ::= 0x00 i:<core:importdecl> => i
-//                   | 0x01 t:<core:type>       => t
+//                   | 0x01 rt:<core:rectype>   => (type rt)
 //                   | 0x02 a:<core:alias>      => a
 //                   | 0x03 e:<core:exportdecl> => e
 

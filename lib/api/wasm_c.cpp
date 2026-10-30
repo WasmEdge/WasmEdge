@@ -1013,23 +1013,39 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
   WASM_DECLARE_OWN_IMPL(name, Name)                                            \
   WASMEDGE_CAPI_EXPORT OWN wasm_##name##_t *wasm_##name##_copy(                \
       const wasm_##name##_t *t) {                                              \
-    return static_cast<wasm_##name##_t *>(t->copy().release());                \
+    if (t) {                                                                   \
+      return static_cast<wasm_##name##_t *>(t->copy().release());              \
+    }                                                                          \
+    return nullptr;                                                            \
   }                                                                            \
   WASMEDGE_CAPI_EXPORT bool wasm_##name##_same(const wasm_##name##_t *t1,      \
-                                               const wasm_##name##_t *t2) {    \
+                                                const wasm_##name##_t *t2) {    \
+    if (!t1 && !t2) {                                                          \
+      return true;                                                             \
+    }                                                                          \
+    if (!t1 || !t2) {                                                          \
+      return false;                                                            \
+    }                                                                          \
     return t1->same(t2);                                                       \
   }                                                                            \
   WASMEDGE_CAPI_EXPORT void *wasm_##name##_get_host_info(                      \
       const wasm_##name##_t *r) {                                              \
-    return r->get_host_info();                                                 \
+    if (r) {                                                                   \
+      return r->get_host_info();                                               \
+    }                                                                          \
+    return nullptr;                                                            \
   }                                                                            \
   WASMEDGE_CAPI_EXPORT void wasm_##name##_set_host_info(wasm_##name##_t *r,    \
                                                         void *info) {          \
-    r->set_host_info(info);                                                    \
+    if (r) {                                                                   \
+      r->set_host_info(info);                                                  \
+    }                                                                          \
   }                                                                            \
   WASMEDGE_CAPI_EXPORT void wasm_##name##_set_host_info_with_finalizer(        \
       wasm_##name##_t *r, void *info, void (*finalizer)(void *)) {             \
-    r->set_host_info(info, finalizer);                                         \
+    if (r) {                                                                   \
+      r->set_host_info(info, finalizer);                                       \
+    }                                                                          \
   }
 
 // Helper macro for the WASM_DECLARE_REF implementation.
@@ -1601,7 +1617,10 @@ WASM_DECLARE_VEC_PTR_IMPL(frame, wasm::Frame)
 
 WASMEDGE_CAPI_EXPORT OWN wasm_frame_t *
 wasm_frame_copy(const wasm_frame_t *frame) {
-  return static_cast<wasm_frame_t *>(frame->copy().release());
+  if (frame) {
+    return static_cast<wasm_frame_t *>(frame->copy().release());
+  }
+  return nullptr;
 }
 
 WASM_DECLARE_C_GET_ATTR(frame, wasm_instance_t *, instance, static, nullptr, , )

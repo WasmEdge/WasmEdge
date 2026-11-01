@@ -168,23 +168,23 @@ TEST_F(WasiCryptoTest, KxX25519KeypairFromPkAndSk) {
     return Raw;
   };
 
-  WASI_CRYPTO_EXPECT_SUCCESS(
-      KpHandle,
-      keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, "X25519"sv, std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(KpHandle,
+                             keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+                                             "X25519"sv, std::nullopt));
   WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
   WASI_CRYPTO_EXPECT_SUCCESS(SkHandle, keypairSecretkey(KpHandle));
 
   const auto Pk = ExportRaw(PkHandle);
   const auto Sk = ExportRawSk(SkHandle);
 
-  WASI_CRYPTO_EXPECT_SUCCESS(
-      ImportedPkHandle,
-      publickeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, "X25519"sv, Pk,
-                      __WASI_PUBLICKEY_ENCODING_RAW));
-  WASI_CRYPTO_EXPECT_SUCCESS(
-      ImportedSkHandle,
-      secretkeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, "X25519"sv, Sk,
-                      __WASI_SECRETKEY_ENCODING_RAW));
+  WASI_CRYPTO_EXPECT_SUCCESS(ImportedPkHandle,
+                             publickeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+                                             "X25519"sv, Pk,
+                                             __WASI_PUBLICKEY_ENCODING_RAW));
+  WASI_CRYPTO_EXPECT_SUCCESS(ImportedSkHandle,
+                             secretkeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+                                             "X25519"sv, Sk,
+                                             __WASI_SECRETKEY_ENCODING_RAW));
 
   // Test reconstruction using an imported private-only secret key.
   WASI_CRYPTO_EXPECT_SUCCESS(
@@ -192,10 +192,11 @@ TEST_F(WasiCryptoTest, KxX25519KeypairFromPkAndSk) {
   WASI_CRYPTO_EXPECT_SUCCESS(JoinedPkHandle, keypairPublickey(JoinedHandle));
   EXPECT_EQ(ExportRaw(JoinedPkHandle), Pk);
 
-  // Verify that the reconstructed keypair can perform Diffie-Hellman key exchange.
-  WASI_CRYPTO_EXPECT_SUCCESS(
-      PeerKpHandle,
-      keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, "X25519"sv, std::nullopt));
+  // Verify that the reconstructed keypair can perform Diffie-Hellman key
+  // exchange.
+  WASI_CRYPTO_EXPECT_SUCCESS(PeerKpHandle,
+                             keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+                                             "X25519"sv, std::nullopt));
   WASI_CRYPTO_EXPECT_SUCCESS(PeerPkHandle, keypairPublickey(PeerKpHandle));
   WASI_CRYPTO_EXPECT_SUCCESS(PeerSkHandle, keypairSecretkey(PeerKpHandle));
 
@@ -226,12 +227,13 @@ TEST_F(WasiCryptoTest, KxX25519KeypairFromPkAndSk) {
   WASI_CRYPTO_EXPECT_TRUE(keypairClose(JoinedFromOrigHandle));
 
   // Verify that mismatched keys are rejected with INCOMPATIBLE_KEYS.
-  WASI_CRYPTO_EXPECT_SUCCESS(
-      OtherKpHandle,
-      keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, "X25519"sv, std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(OtherKpHandle,
+                             keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+                                             "X25519"sv, std::nullopt));
   WASI_CRYPTO_EXPECT_SUCCESS(OtherPkHandle, keypairPublickey(OtherKpHandle));
-  WASI_CRYPTO_EXPECT_FAILURE(keypairFromPkAndSk(OtherPkHandle, ImportedSkHandle),
-                             __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
+  WASI_CRYPTO_EXPECT_FAILURE(
+      keypairFromPkAndSk(OtherPkHandle, ImportedSkHandle),
+      __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
 
   WASI_CRYPTO_EXPECT_TRUE(publickeyClose(OtherPkHandle));
   WASI_CRYPTO_EXPECT_TRUE(keypairClose(OtherKpHandle));

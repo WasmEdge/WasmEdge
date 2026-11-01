@@ -195,23 +195,23 @@ TEST_F(WasiCryptoTest, SignaturesEddsaKeypairFromPkAndSk) {
     return Raw;
   };
 
-  WASI_CRYPTO_EXPECT_SUCCESS(
-      KpHandle,
-      keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv, std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(KpHandle,
+                             keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                                             "Ed25519"sv, std::nullopt));
   WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
   WASI_CRYPTO_EXPECT_SUCCESS(SkHandle, keypairSecretkey(KpHandle));
 
   const auto Pk = ExportRaw(PkHandle);
   const auto Sk = ExportRawSk(SkHandle);
 
-  WASI_CRYPTO_EXPECT_SUCCESS(
-      ImportedPkHandle,
-      publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv, Pk,
-                      __WASI_PUBLICKEY_ENCODING_RAW));
-  WASI_CRYPTO_EXPECT_SUCCESS(
-      ImportedSkHandle,
-      secretkeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv, Sk,
-                      __WASI_SECRETKEY_ENCODING_RAW));
+  WASI_CRYPTO_EXPECT_SUCCESS(ImportedPkHandle,
+                             publickeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                                             "Ed25519"sv, Pk,
+                                             __WASI_PUBLICKEY_ENCODING_RAW));
+  WASI_CRYPTO_EXPECT_SUCCESS(ImportedSkHandle,
+                             secretkeyImport(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                                             "Ed25519"sv, Sk,
+                                             __WASI_SECRETKEY_ENCODING_RAW));
 
   // Test reconstruction using an imported private-only secret key.
   WASI_CRYPTO_EXPECT_SUCCESS(
@@ -241,12 +241,13 @@ TEST_F(WasiCryptoTest, SignaturesEddsaKeypairFromPkAndSk) {
   WASI_CRYPTO_EXPECT_TRUE(keypairClose(JoinedFromOrigHandle));
 
   // Verify that mismatched keys are rejected with INCOMPATIBLE_KEYS.
-  WASI_CRYPTO_EXPECT_SUCCESS(
-      OtherKpHandle,
-      keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv, std::nullopt));
+  WASI_CRYPTO_EXPECT_SUCCESS(OtherKpHandle,
+                             keypairGenerate(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                                             "Ed25519"sv, std::nullopt));
   WASI_CRYPTO_EXPECT_SUCCESS(OtherPkHandle, keypairPublickey(OtherKpHandle));
-  WASI_CRYPTO_EXPECT_FAILURE(keypairFromPkAndSk(OtherPkHandle, ImportedSkHandle),
-                             __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
+  WASI_CRYPTO_EXPECT_FAILURE(
+      keypairFromPkAndSk(OtherPkHandle, ImportedSkHandle),
+      __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
 
   WASI_CRYPTO_EXPECT_TRUE(publickeyClose(OtherPkHandle));
   WASI_CRYPTO_EXPECT_TRUE(keypairClose(OtherKpHandle));

@@ -27,6 +27,7 @@ target_include_directories(
 target_link_libraries(
   wasiCryptoTests PRIVATE
   ${GTEST_BOTH_LIBRARIES}
+  wasmedgePluginWasiCrypto
 )
 
 # Link to the WasmEdge library

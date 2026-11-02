@@ -154,8 +154,15 @@ WasiExpect<void> VINode::pathLink(std::shared_ptr<VINode> Old,
   if (!New->can(__WASI_RIGHTS_PATH_LINK_TARGET)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
   }
-  EXPECTED_TRY(auto OldBuffer, resolvePath(Old, OldPath, LookupFlags));
-  EXPECTED_TRY(auto NewBuffer, resolvePath(New, NewPath, LookupFlags));
+  // Following a symlink in the old path is not supported, matching Wasmtime.
+  // The new path is a name to create and is never followed.
+  if (LookupFlags & __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW) {
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
+  }
+  EXPECTED_TRY(auto OldBuffer,
+               resolvePath(Old, OldPath, static_cast<__wasi_lookupflags_t>(0)));
+  EXPECTED_TRY(auto NewBuffer,
+               resolvePath(New, NewPath, static_cast<__wasi_lookupflags_t>(0)));
 
   return INode::pathLink(Old->Node, std::string(OldPath), New->Node,
                          std::string(NewPath));

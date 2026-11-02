@@ -4789,6 +4789,37 @@ TEST(WasiTest, PathRenameDoesNotFollowSymlink) {
   Env.fini();
 }
 
+// path_link never follows a symlink: SYMLINK_FOLLOW is rejected, and an
+// existing symlink at the new path is not replaced or followed.
+TEST(WasiTest, PathLinkDoesNotFollowSymlink) {
+  namespace fs = std::filesystem;
+  SymlinkTestRoot Root("wasmedge-wasi-link-symlink");
+  std::error_code Error;
+  writeFile(Root.Path / "file", "f");
+  fs::create_symlink("elsewhere", Root.Path / "dlink", Error);
+  ASSERT_FALSE(Error);
+
+  WasmEdge::Host::WASI::Environ Env;
+  Env.init({"/:" + Root.Path.string()}, "test"s, {}, {});
+  constexpr __wasi_fd_t RootFd = 3;
+
+  auto Res = Env.pathLink(RootFd, "file"sv, RootFd, "dlink"sv,
+                          __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), __WASI_ERRNO_INVAL);
+  EXPECT_TRUE(fs::is_symlink(Root.Path / "dlink"));
+  EXPECT_FALSE(fs::exists(fs::symlink_status(Root.Path / "elsewhere")));
+
+  Res = Env.pathLink(RootFd, "file"sv, RootFd, "dlink"sv,
+                     static_cast<__wasi_lookupflags_t>(0));
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), __WASI_ERRNO_EXIST);
+  EXPECT_TRUE(fs::is_symlink(Root.Path / "dlink"));
+  EXPECT_FALSE(fs::exists(fs::symlink_status(Root.Path / "elsewhere")));
+
+  Env.fini();
+}
+
 // path_create_directory on an existing symlink fails, even when it dangles.
 TEST(WasiTest, PathCreateDirectoryDoesNotFollowSymlink) {
   namespace fs = std::filesystem;

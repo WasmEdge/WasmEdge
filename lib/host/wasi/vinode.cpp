@@ -110,7 +110,9 @@ WasiExpect<void> VINode::pathCreateDirectory(std::shared_ptr<VINode> Fd,
   if (!Fd->can(__WASI_RIGHTS_PATH_CREATE_DIRECTORY)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
   }
-  EXPECTED_TRY(auto Buffer, resolvePath(Fd, Path, false));
+  EXPECTED_TRY(auto Buffer,
+               resolvePath(Fd, Path, static_cast<__wasi_lookupflags_t>(0),
+                           static_cast<VFS::Flags>(0), 0, false));
   return Fd->Node.pathCreateDirectory(std::string(Path));
 }
 
@@ -233,7 +235,9 @@ WasiExpect<void> VINode::pathRemoveDirectory(std::shared_ptr<VINode> Fd,
   if (!Fd->can(__WASI_RIGHTS_PATH_REMOVE_DIRECTORY)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
   }
-  EXPECTED_TRY(auto Buffer, resolvePath(Fd, Path, false));
+  EXPECTED_TRY(auto Buffer,
+               resolvePath(Fd, Path, static_cast<__wasi_lookupflags_t>(0),
+                           static_cast<VFS::Flags>(0), 0, false));
 
   return Fd->Node.pathRemoveDirectory(std::string(Path));
 }
@@ -248,8 +252,12 @@ WasiExpect<void> VINode::pathRename(std::shared_ptr<VINode> Old,
   if (!New->can(__WASI_RIGHTS_PATH_RENAME_TARGET)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
   }
-  EXPECTED_TRY(auto OldBuffer, resolvePath(Old, OldPath, false));
-  EXPECTED_TRY(auto NewBuffer, resolvePath(New, NewPath, false));
+  EXPECTED_TRY(auto OldBuffer,
+               resolvePath(Old, OldPath, static_cast<__wasi_lookupflags_t>(0),
+                           static_cast<VFS::Flags>(0), 0, false));
+  EXPECTED_TRY(auto NewBuffer,
+               resolvePath(New, NewPath, static_cast<__wasi_lookupflags_t>(0),
+                           static_cast<VFS::Flags>(0), 0, false));
 
   return INode::pathRename(Old->Node, std::string(OldPath), New->Node,
                            std::string(NewPath));

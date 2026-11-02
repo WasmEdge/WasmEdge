@@ -177,8 +177,21 @@ MlKem<Bits>::SecretKey::dh(const PublicKey &) const noexcept {
 
 template <int Bits>
 WasiCryptoExpect<typename MlKem<Bits>::KeyPair>
-MlKem<Bits>::SecretKey::toKeyPair(const PublicKey &) const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+MlKem<Bits>::SecretKey::toKeyPair(const PublicKey &Pk) const noexcept {
+  auto DerivedPk = publicKey();
+  if (!DerivedPk) {
+    return WasiCryptoUnexpect(DerivedPk);
+  }
+  auto Derived = DerivedPk->exportData(__WASI_PUBLICKEY_ENCODING_RAW);
+  if (!Derived) {
+    return WasiCryptoUnexpect(Derived);
+  }
+  auto Given = Pk.exportData(__WASI_PUBLICKEY_ENCODING_RAW);
+  if (!Given) {
+    return WasiCryptoUnexpect(Given);
+  }
+  ensureOrReturn(*Derived == *Given, __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
+  return Ctx;
 }
 
 template <int Bits>

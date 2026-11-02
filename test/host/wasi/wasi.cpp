@@ -4663,8 +4663,9 @@ TEST(WasiTest, PathRemoveDirectoryDoesNotFollowSymlink) {
   Env.init({"/:" + Root.Path.string()}, "test"s, {}, {});
   constexpr __wasi_fd_t RootFd = 3;
 
-  auto Res = Env.pathRemoveDirectory(RootFd, "dirlink"sv);
-  auto SlashRes = Env.pathRemoveDirectory(RootFd, "slashlink/"sv);
+  [[maybe_unused]] auto Res = Env.pathRemoveDirectory(RootFd, "dirlink"sv);
+  [[maybe_unused]] auto SlashRes =
+      Env.pathRemoveDirectory(RootFd, "slashlink/"sv);
   EXPECT_TRUE(fs::is_directory(fs::symlink_status(Root.Path / "realdir")));
   // On Windows, RemoveDirectoryW removes a directory symlink itself.
 #if !WASMEDGE_OS_WINDOWS

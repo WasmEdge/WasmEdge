@@ -1,0 +1,33 @@
+name: ABI script tests
+
+on:
+  pull_request:
+    paths:
+      - ".github/scripts/*abi*"
+      - ".github/abi-baseline-schema"
+      - ".github/workflows/abi-script-tests.yml"
+      - ".github/workflows/reusable-build-on-ubuntu.yml"
+  push:
+    branches: [master]
+    paths:
+      - ".github/scripts/*abi*"
+      - ".github/abi-baseline-schema"
+      - ".github/workflows/abi-script-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc binutils abigail-tools
+      - name: Test ABI scripts
+        run: python3 -B -m unittest discover -s .github/scripts -p 'test_*abi*.py'

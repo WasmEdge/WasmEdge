@@ -53,6 +53,16 @@ public:
     return nullptr;
   }
 
+  /// Helper function for getting the memory instance exported with the given
+  /// name from the module.
+  Instance::MemoryInstance *
+  getMemoryByExportName(std::string_view Name) const noexcept {
+    if (Module) {
+      return Module->findMemoryExports(Name);
+    }
+    return nullptr;
+  }
+
 private:
   Executor::Executor *Exec;
   const Instance::ModuleInstance *Module;

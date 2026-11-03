@@ -88,6 +88,7 @@ jobs:
         echo "${IWYU_SHA256}  iwyu-${IWYU_VERSION}.tar.gz" | sha256sum -c -
         tar -xzf "iwyu-${IWYU_VERSION}.tar.gz"
         patch -p1 -d include-what-you-use <<EOF
+        diff --git a/iwyu.cc b/iwyu.cc
         --- a/iwyu.cc
         +++ b/iwyu.cc
         @@ -1963,8 +1963,9 @@

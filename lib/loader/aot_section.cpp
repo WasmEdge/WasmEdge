@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "loader/aot_section.h"
+#include "aot/version.h"
 #include "common/spdlog.h"
 #include "system/allocator.h"
 
@@ -84,28 +85,28 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
       return Unexpect(ErrCode::Value::IntegerTooLarge);
     }
     std::copy(Content.begin(), Content.end(), Binary + Offset);
-    switch (std::get<0>(Section)) {
-    case 1: { // Text
+    switch (static_cast<AOT::SectionKind>(std::get<0>(Section))) {
+    case AOT::SectionKind::Text: {
       const auto O = roundDownPageBoundary(Offset);
       const auto S = roundUpPageBoundary(Size + (Offset - O));
       ExecutableRanges.emplace_back(Binary + O, S);
       break;
     }
-    case 2: // Data
+    case AOT::SectionKind::Data:
       break;
-    case 3: // BSS
+    case AOT::SectionKind::BSS:
       break;
 #if WASMEDGE_OS_LINUX
-    case 4: // EHFrame
+    case AOT::SectionKind::Unwind: // EHFrame
       EHFrameAddress = reinterpret_cast<void *>(Binary + Offset);
       break;
 #elif WASMEDGE_OS_MACOS
-    case 4: // EHFrame
+    case AOT::SectionKind::Unwind: // EHFrame
       EHFrameAddress = reinterpret_cast<uint8_t *>(Binary + Offset);
       EHFrameSize = Size;
       break;
 #elif WASMEDGE_OS_WINDOWS
-    case 4: // PData
+    case AOT::SectionKind::Unwind: // PData
       PDataAddress = reinterpret_cast<void *>(Binary + Offset);
       PDataSize =
           static_cast<uint32_t>(Size / sizeof(winapi::RUNTIME_FUNCTION_));

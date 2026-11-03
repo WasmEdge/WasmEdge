@@ -123,6 +123,9 @@ jobs:
           -DWASMEDGE_USE_LLVM=ON \
           -DLLVM_DIR=/usr/lib/riscv64-linux-gnu/cmake/llvm-20 \
           .
+        cmake -DWASMEDGE_SOURCE_DIR="$PWD" -DBUILD_DIR="$PWD/build" \
+          '-DEXPECTED_BACKENDS=X86_64;AARCH64;ARM;RISCV64;S390X' \
+          -P test/llvm/VerifyRelocationBackendConfig.cmake
         cmake --build build -j $(nproc)
 
     - name: Package build artifacts

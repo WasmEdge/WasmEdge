@@ -76,11 +76,44 @@ if(DEFINED WASMEDGE_USE_CXX11_ABI)
   unset(WASMEDGE_USE_CXX11_ABI CACHE)
   unset(WASMEDGE_USE_CXX11_ABI)
 endif()
+include(CMakeDependentOption)
+cmake_dependent_option(WASMEDGE_USE_LLD "Link liblld as the default AOT linker and add the --enable-native-linker option. When OFF, lld is not required and AOT output always uses the native linker." ON "WASMEDGE_USE_LLVM" OFF)
 option(WASMEDGE_FORCE_DISABLE_LTO "Forcefully disable link time optimization when linking even in Release/RelWithDeb build." OFF)
 option(WASMEDGE_LINK_LLVM_STATIC "Statically link the LLVM library into the WasmEdge tools and libraries." OFF)
 option(WASMEDGE_LINK_TOOLS_STATIC "Statically link the wasmedge and wasmedgec tools. Will forcefully link the LLVM library statically." OFF)
 option(WASMEDGE_ENABLE_UB_SANITIZER "Enable undefined behavior sanitizer." OFF)
 option(WASMEDGE_DISABLE_LIBTINFO "Disable linking against libtinfo when linking LLVM." OFF)
+
+include(LLVMRelocationBackends)
+set(WASMEDGE_LLVM_LINKER_RELOCATION_BACKENDS
+  AUTO CACHE STRING
+  "LLVM native linker relocation backends. AUTO selects the host backend, or all supported backends for tests.")
+set_property(CACHE WASMEDGE_LLVM_LINKER_RELOCATION_BACKENDS PROPERTY STRINGS
+  AUTO ${WASMEDGE_LLVM_LINKER_ALL_RELOCATION_BACKENDS})
+
+set(WASMEDGE_LLVM_LINKER_RELOCATION_BACKEND_ARGUMENTS
+  PROCESSOR "${CMAKE_SYSTEM_PROCESSOR}")
+if(APPLE)
+  list(APPEND WASMEDGE_LLVM_LINKER_RELOCATION_BACKEND_ARGUMENTS
+    ARCHITECTURES ${CMAKE_OSX_ARCHITECTURES})
+endif()
+if(WASMEDGE_BUILD_TESTS)
+  list(APPEND WASMEDGE_LLVM_LINKER_RELOCATION_BACKEND_ARGUMENTS BUILD_TESTS)
+endif()
+if(WASMEDGE_USE_LLVM)
+  list(APPEND WASMEDGE_LLVM_LINKER_RELOCATION_BACKEND_ARGUMENTS USE_LLVM)
+endif()
+wasmedge_select_llvm_linker_backends(
+  WASMEDGE_LLVM_LINKER_RELOCATION_BACKENDS_EFFECTIVE
+  WASMEDGE_LLVM_LINKER_RELOCATION_BACKENDS_ERROR
+  ${WASMEDGE_LLVM_LINKER_RELOCATION_BACKEND_ARGUMENTS}
+  REQUESTED "${WASMEDGE_LLVM_LINKER_RELOCATION_BACKENDS}")
+if(WASMEDGE_LLVM_LINKER_RELOCATION_BACKENDS_ERROR)
+  message(FATAL_ERROR "${WASMEDGE_LLVM_LINKER_RELOCATION_BACKENDS_ERROR}")
+endif()
+set(WASMEDGE_LLVM_LINKER_RELOCATION_BACKENDS_EFFECTIVE
+  "${WASMEDGE_LLVM_LINKER_RELOCATION_BACKENDS_EFFECTIVE}" CACHE INTERNAL
+  "Effective LLVM native linker relocation backends" FORCE)
 
 # Options about plug-ins.
 #   WASI plug-in: WASI-Crypto proposal.

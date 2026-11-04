@@ -245,6 +245,9 @@ TEST(TypeTest, LoadTableType) {
   //   6.  Load limit with min and max.
   //   7.  Load invalid ExternRef without Ref-Types proposal.
   //   8.  Load invalid reference type without Ref-Types proposal.
+  //   9.  Load table limit with overflowing 32-bit min.
+  //   10. Load 64-bit table limit with min.
+  //   11. Load 64-bit table limit with min and max.
 
   Vec = {
       0x04U, // Table section
@@ -325,6 +328,38 @@ TEST(TypeTest, LoadTableType) {
       0x00U  // Min = 0
   };
   EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x04U,                            // Table section
+      0x08U,                            // Content size = 8
+      0x01U,                            // Vector length = 1
+      0x70U,                            // Reference type
+      0x00U,                            // 32-bit limit: only has min
+      0x80U, 0x80U, 0x80U, 0x80U, 0x10U // Min = 4294967296 (2^32)
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x04U,                            // Table section
+      0x08U,                            // Content size = 8
+      0x01U,                            // Vector length = 1
+      0x70U,                            // Reference type
+      0x04U,                            // 64-bit limit: only has min
+      0x80U, 0x80U, 0x80U, 0x80U, 0x10U // Min = 4294967296 (2^32)
+  };
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x04U,                             // Table section
+      0x0DU,                             // Content size = 13
+      0x01U,                             // Vector length = 1
+      0x70U,                             // Reference type
+      0x05U,                             // 64-bit limit: has min and max
+      0x80U, 0x80U, 0x80U, 0x80U, 0x10U, // Min = 4294967296 (2^32)
+      0x80U, 0x80U, 0x80U, 0x80U, 0x20U  // Max = 8589934592 (2^33)
+  };
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
 }
 
 TEST(TypeTest, LoadMemoryType) {
@@ -337,6 +372,10 @@ TEST(TypeTest, LoadMemoryType) {
   //   3.  Load limit with only min.
   //   4.  Load invalid limit that fails while loading max.
   //   5.  Load limit with min and max.
+  //   6.  Load limit with overlong 32-bit min.
+  //   7.  Load limit with overflowing 32-bit min.
+  //   8.  Load 64-bit limit with min.
+  //   9.  Load 64-bit limit with min and max.
 
   Vec = {
       0x05U, // Memory section
@@ -383,6 +422,48 @@ TEST(TypeTest, LoadMemoryType) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  // Max = 4294967295
   };
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x05U,                                   // Memory section
+      0x08U,                                   // Content size = 8
+      0x01U,                                   // Vector length = 1
+      0x00U,                                   // 32-bit limit: only has min
+      0x80U, 0x80U, 0x80U, 0x80U, 0x80U, 0x00U // Min = 0 (6 bytes LEB128)
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x05U,                            // Memory section
+      0x07U,                            // Content size = 7
+      0x01U,                            // Vector length = 1
+      0x00U,                            // 32-bit limit: only has min
+      0x80U, 0x80U, 0x80U, 0x80U, 0x10U // Min = 4294967296 (2^32)
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x05U,                            // Memory section
+      0x07U,                            // Content size = 7
+      0x01U,                            // Vector length = 1
+      0x04U,                            // 64-bit limit: only has min
+      0x80U, 0x80U, 0x80U, 0x80U, 0x10U // Min = 4294967296 (2^32)
+  };
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x05U,                             // Memory section
+      0x0CU,                             // Content size = 12
+      0x01U,                             // Vector length = 1
+      0x05U,                             // 64-bit limit: has min and max
+      0x80U, 0x80U, 0x80U, 0x80U, 0x10U, // Min = 4294967296 (2^32)
+      0x80U, 0x80U, 0x80U, 0x80U, 0x20U  // Max = 8589934592 (2^33)
+  };
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+
+  WasmEdge::Configure ConfWASM1;
+  ConfWASM1.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Loader LdrWASM1(ConfWASM1);
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
 }
 
 TEST(TypeTest, LoadGlobalType) {

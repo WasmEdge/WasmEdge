@@ -385,6 +385,28 @@ TEST(TypeTest, LoadMemoryType) {
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
 }
 
+TEST(TypeTest, LoadLimitWidthWithMemory64) {
+  WasmEdge::Configure Config;
+  Config.addProposal(WasmEdge::Proposal::Memory64);
+  WasmEdge::Loader::Loader Loader(Config);
+
+  const auto OverlongMemory = Loader.parseModule(prefixedVec(
+      {0x05U, 0x08U, 0x01U, 0x00U, 0x80U, 0x80U, 0x80U, 0x80U, 0x80U, 0x00U}));
+  ASSERT_FALSE(OverlongMemory);
+  EXPECT_EQ(OverlongMemory.error(), WasmEdge::ErrCode::Value::IntegerTooLong);
+
+  const auto OverflowingTable =
+      Loader.parseModule(prefixedVec({0x04U, 0x09U, 0x01U, 0x70U, 0x01U, 0x00U,
+                                      0x80U, 0x80U, 0x80U, 0x80U, 0x10U}));
+  ASSERT_FALSE(OverflowingTable);
+  EXPECT_EQ(OverflowingTable.error(),
+            WasmEdge::ErrCode::Value::IntegerTooLarge);
+
+  const auto Memory64 = Loader.parseModule(prefixedVec(
+      {0x05U, 0x07U, 0x01U, 0x04U, 0x80U, 0x80U, 0x80U, 0x80U, 0x10U}));
+  EXPECT_TRUE(Memory64);
+}
+
 TEST(TypeTest, LoadGlobalType) {
   std::vector<uint8_t> Vec;
 

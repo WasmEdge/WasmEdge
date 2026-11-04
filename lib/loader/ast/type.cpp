@@ -270,11 +270,9 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
                         ASTNodeAttr::Type_Limit);
   }
 
-  // Read the min and max numbers.
-  // S64 is accepted when the Memory64 proposal is enabled. Therefore, we should
-  // check the S32 representation length when the Memory64 proposal is disabled.
+  // Decode the bounds using the width specified by the limit flag.
   uint64_t MinVal = 0, MaxVal = 0;
-  if (Conf.hasProposal(Proposal::Memory64)) {
+  if (Lim.is64()) {
     EXPECTED_TRY(MinVal, FMgr.readU64().map_error([this](auto E) {
       return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
     }));

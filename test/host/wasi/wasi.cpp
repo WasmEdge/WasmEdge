@@ -4771,6 +4771,91 @@ TEST(WasiTest, PathCreateDirectoryDoesNotFollowSymlink) {
   Env.fini();
 }
 
+TEST(WasiTest, SymbolicLinkResolution) {
+  namespace fs = std::filesystem;
+  SymlinkTestRoot Root("wasmedge-wasi-symlink-resolution");
+  std::error_code Error;
+  ASSERT_TRUE(fs::create_directories(Root.Path / "sub", Error));
+  writeFile(Root.Path / "target", "t");
+
+  fs::create_symlink("self", Root.Path / "self", Error);
+  if (Error) {
+    GTEST_SKIP() << "cannot create symlinks in this environment";
+  }
+
+  // Chains a1 -> a2 -> ... -> a7 -> target and b1 -> ... -> b8 -> target.
+  const auto makeChain = [&](char Prefix, int Length) {
+    for (int I = 1; I <= Length; ++I) {
+      const auto Next =
+          I == Length ? "target"s : Prefix + std::to_string(I + 1);
+      fs::create_symlink(Next, Root.Path / (Prefix + std::to_string(I)), Error);
+      ASSERT_FALSE(Error);
+    }
+  };
+  makeChain('a', 7);
+  makeChain('b', 8);
+
+  WasmEdge::Host::WASI::Environ Env;
+  Env.init({"/:" + Root.Path.string()}, "test"s, {}, {});
+  constexpr __wasi_fd_t RootFd = 3;
+  __wasi_filestat_t Filestat{};
+
+  // At most 8 symlinks are followed in one resolution: the 8th fails with LOOP.
+  {
+    auto Res = Env.pathFilestatGet(RootFd, "a1"sv,
+                                   __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW, Filestat);
+    ASSERT_TRUE(Res);
+    EXPECT_EQ(Filestat.filetype, __WASI_FILETYPE_REGULAR_FILE);
+    Res = Env.pathFilestatGet(RootFd, "b1"sv, __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW,
+                              Filestat);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), __WASI_ERRNO_LOOP);
+    Res = Env.pathFilestatGet(RootFd, "self"sv,
+                              __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW, Filestat);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), __WASI_ERRNO_LOOP);
+  }
+
+  // `..` cannot climb above the directory fd the resolution starts from, even
+  // when the parent is still inside the preopen.
+  {
+    auto SubFd = Env.pathOpen(
+        RootFd, "sub"sv, static_cast<__wasi_lookupflags_t>(0),
+        __WASI_OFLAGS_DIRECTORY,
+        __WASI_RIGHTS_PATH_OPEN | __WASI_RIGHTS_PATH_FILESTAT_GET,
+        static_cast<__wasi_rights_t>(0), static_cast<__wasi_fdflags_t>(0));
+    ASSERT_TRUE(SubFd);
+    auto Res = Env.pathFilestatGet(
+        *SubFd, "../target"sv, static_cast<__wasi_lookupflags_t>(0), Filestat);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), __WASI_ERRNO_PERM);
+    EXPECT_TRUE(Env.fdClose(*SubFd));
+  }
+
+  // The `..` check in path_symlink only holds at creation time. Moving an
+  // in-bounds link to a shallower directory leaves an escaping target on disk,
+  // and following it must still be rejected at resolution time.
+  {
+    ASSERT_TRUE(Env.pathSymlink("../target"sv, RootFd, "sub/link"sv));
+    auto Res = Env.pathFilestatGet(RootFd, "sub/link"sv,
+                                   __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW, Filestat);
+    ASSERT_TRUE(Res);
+    EXPECT_EQ(Filestat.filetype, __WASI_FILETYPE_REGULAR_FILE);
+
+    fs::rename(Root.Path / "sub" / "link", Root.Path / "link", Error);
+    ASSERT_FALSE(Error);
+    EXPECT_EQ(fs::read_symlink(Root.Path / "link", Error),
+              fs::path("../target"));
+    EXPECT_FALSE(Error);
+    Res = Env.pathFilestatGet(RootFd, "link"sv,
+                              __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW, Filestat);
+    ASSERT_FALSE(Res);
+    EXPECT_EQ(Res.error(), __WASI_ERRNO_PERM);
+  }
+
+  Env.fini();
+}
+
 namespace {
 namespace fs = std::filesystem;
 int openFileForWrite(const fs::path &Filename) {

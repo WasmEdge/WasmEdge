@@ -1,55 +1,33 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-wasmedge_add_executable(wasmedgeLoaderFileMgrTests
-  filemgrTest.cpp
-)
-
-add_test(wasmedgeLoaderFileMgrTests wasmedgeLoaderFileMgrTests)
-
 file(COPY
   ${CMAKE_CURRENT_SOURCE_DIR}/filemgrTestData
   DESTINATION
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-target_link_libraries(wasmedgeLoaderFileMgrTests
-  PRIVATE
-  ${GTEST_BOTH_LIBRARIES}
-  wasmedgeLoaderFileMgr
+wasmedge_add_executable(wasmedgeLoaderTests
+  DescriptionTest.cpp
+  ExpressionTest.cpp
+  FileMgrTest.cpp
+  InstructionTest.cpp
+  ModuleTest.cpp
+  SectionTest.cpp
+  SegmentTest.cpp
+  SerializeDescriptionTest.cpp
+  SerializeExpressionTest.cpp
+  SerializeInstructionTest.cpp
+  SerializeModuleTest.cpp
+  SerializeSectionTest.cpp
+  SerializeSegmentTest.cpp
+  SerializeTypeTest.cpp
+  TypeTest.cpp
 )
 
-wasmedge_add_executable(wasmedgeLoaderASTTests
-  moduleTest.cpp
-  sectionTest.cpp
-  descriptionTest.cpp
-  segmentTest.cpp
-  typeTest.cpp
-  expressionTest.cpp
-  instructionTest.cpp
-)
+add_test(wasmedgeLoaderTests wasmedgeLoaderTests)
 
-add_test(wasmedgeLoaderASTTests wasmedgeLoaderASTTests)
-
-target_link_libraries(wasmedgeLoaderASTTests
-  PRIVATE
-  ${GTEST_BOTH_LIBRARIES}
-  wasmedgeLoader
-)
-
-wasmedge_add_executable(wasmedgeLoaderSerializerTests
-  serializeModuleTest.cpp
-  serializeSectionTest.cpp
-  serializeDescriptionTest.cpp
-  serializeSegmentTest.cpp
-  serializeTypeTest.cpp
-  serializeExpressionTest.cpp
-  serializeInstructionTest.cpp
-)
-
-add_test(wasmedgeLoaderSerializerTests wasmedgeLoaderSerializerTests)
-
-target_link_libraries(wasmedgeLoaderSerializerTests
+target_link_libraries(wasmedgeLoaderTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeLoader

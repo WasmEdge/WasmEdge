@@ -3,8 +3,6 @@
 
 #include "vm/vm.h"
 
-#include "plugin_modules.h"
-
 #include "ast/module.h"
 #include "common/errcode.h"
 #include "common/types.h"
@@ -69,16 +67,11 @@ void VM::unsafeLoadBuiltInHosts() {
 }
 
 void VM::unsafeLoadPlugInHosts() {
-  // Load the official plugin modules and mock them if not found.
+  // Load the modules of the installed plugins. The executor stands in for the
+  // imports of uninstalled official plugins.
   cleanupModInstContainer(PlugInModInsts);
-  PlugInModInsts = loadOfficialPluginModules();
-
-  // Load the other non-official plugins.
   for (const auto &Plugin : Plugin::Plugin::plugins()) {
     if (Conf.isForbiddenPlugins(Plugin.name())) {
-      continue;
-    }
-    if (isOfficialPlugin(Plugin.name())) {
       continue;
     }
     for (const auto &Module : Plugin.modules()) {

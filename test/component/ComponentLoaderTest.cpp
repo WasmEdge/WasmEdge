@@ -13,6 +13,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <optional>
 
 namespace {
@@ -84,7 +85,7 @@ std::vector<uint8_t> makeNestedComponents(uint32_t Depth) {
   return Vec;
 }
 
-TEST(ComponentNameParserTest, Parse) {
+TEST(ComponentLoaderTest, NameParse) {
   {
     auto CName = parseName("[constructor]my-class"sv);
     ASSERT_TRUE(CName.has_value());
@@ -143,7 +144,7 @@ TEST(ComponentNameParserTest, Parse) {
   }
 }
 
-TEST(ComponentNameParserTest, KebabLabel) {
+TEST(ComponentLoaderTest, NameKebabLabel) {
   // Valid mixed-case kebab labels
   EXPECT_TRUE(parseName("a"sv));
   EXPECT_TRUE(parseName("a1"sv));
@@ -180,7 +181,7 @@ TEST(ComponentNameParserTest, KebabLabel) {
   EXPECT_FALSE(parseName("中文字"sv));
 }
 
-TEST(ComponentNameParserTest, StronglyUniqueBasicCases) {
+TEST(ComponentLoaderTest, NameStronglyUniqueBasicCases) {
   Validator::Component::Context Ctx;
   Ctx.pushScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
@@ -210,7 +211,7 @@ TEST(ComponentNameParserTest, StronglyUniqueBasicCases) {
   EXPECT_FALSE(add("[static]foo-bar.FOOB-ar"sv));
 }
 
-TEST(ComponentNameParserTest, StronglyUnique) {
+TEST(ComponentLoaderTest, NameStronglyUnique) {
   Validator::Component::Context Ctx;
   Ctx.pushScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
@@ -234,10 +235,9 @@ TEST(ComponentNameParserTest, StronglyUnique) {
   EXPECT_FALSE(add("[static]foo.abc"sv));
 }
 
-TEST(ComponentNameParserTest, StronglyUniqueExportBasicCases) {
-  // Mirrors StronglyUniqueBasicCases on the export-side name set: the
-  // strong-uniqueness rule must apply symmetrically to import and export
-  // name sets (Explainer §Import and Export Definitions).
+TEST(ComponentLoaderTest, NameStronglyUniqueExportBasicCases) {
+  // NameStronglyUniqueBasicCases on the export-side name set: strong
+  // uniqueness applies to import and export name sets alike.
   Validator::Component::Context Ctx;
   Ctx.pushScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
@@ -267,7 +267,7 @@ TEST(ComponentNameParserTest, StronglyUniqueExportBasicCases) {
   EXPECT_FALSE(add("[static]foo-bar.FOOB-ar"sv));
 }
 
-TEST(ComponentNameParserTest, StronglyUniqueExport) {
+TEST(ComponentLoaderTest, NameStronglyUniqueExport) {
   Validator::Component::Context Ctx;
   Ctx.pushScope(Validator::Component::ScopeKind::Component);
   std::vector<Validator::Component::NameRecord> Names;
@@ -291,7 +291,7 @@ TEST(ComponentNameParserTest, StronglyUniqueExport) {
   EXPECT_FALSE(add("[static]foo.abc"sv));
 }
 
-TEST(ComponentNameParserTest, OnlyPlainAndInterfaceNames) {
+TEST(ComponentLoaderTest, NameOnlyPlainAndInterfaceNames) {
   // externname ::= <plainname> | <interfacename>: the former dependency, url
   // and integrity forms are not extern names.
   EXPECT_FALSE(parseName("locked-dep=<my-registry:sqlite>"sv));
@@ -300,7 +300,7 @@ TEST(ComponentNameParserTest, OnlyPlainAndInterfaceNames) {
   EXPECT_FALSE(parseName("integrity=<sha256-H8BRh8j>"sv));
 }
 
-TEST(ComponentNameParserTest, StronglyUniqueImportExportIndependence) {
+TEST(ComponentLoaderTest, NameStronglyUniqueImportExportIndependence) {
   // Spec: import and export name sets are checked *separately* — an import
   // and an export sharing a name is not a strong-uniqueness violation.
   Validator::Component::Context Ctx;
@@ -321,7 +321,7 @@ TEST(ComponentNameParserTest, StronglyUniqueImportExportIndependence) {
   EXPECT_FALSE(add(Exports, "foo"sv));
 }
 
-TEST(ComponentNameParserTest, Semver) {
+TEST(ComponentLoaderTest, NameSemver) {
   // Valid semver via interface names.
   EXPECT_TRUE(parseName("ns:pkg/iface@1.2.3"sv));
   EXPECT_TRUE(parseName("ns:pkg/iface@0.1.0"sv));
@@ -344,7 +344,7 @@ TEST(ComponentNameParserTest, Semver) {
   EXPECT_FALSE(parseName("ns:pkg/iface@0"sv));
 }
 
-TEST(ComponentNameParserTest, SpecExamples) {
+TEST(ComponentLoaderTest, NameSpecExamples) {
   // Examples from Explainer.md
   EXPECT_EQ(parseName("custom-hook"sv)->getKind(),
             Validator::Component::ExternName::Kind::Label);
@@ -359,16 +359,14 @@ TEST(ComponentLoaderTest, AsyncFuncType) {
   Conf.addProposal(WasmEdge::Proposal::Component);
   WasmEdge::Loader::Loader Loader(Conf);
 
-  // Component with 1 type section containing a 0x43 async functype with no
-  // params and empty result:
-  //   preamble + 0x07 0x05 (type sec, size 5) + 0x01 (1 type) +
-  //   0x43 0x00 (async functype, 0 params) + 0x01 0x00 (empty result)
-  std::vector<uint8_t> Vec = {
-      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
-      0x07, 0x05, 0x01, 0x43, 0x00, 0x01, 0x00,       // type section
-  };
+  // (component
+  //   (type (;0;) (func async))
+  // )
+  std::array<WasmEdge::Byte, 15> Wasm{0x00, 0x61, 0x73, 0x6d, 0x0d,
+                                      0x00, 0x01, 0x00, 0x07, 0x05,
+                                      0x01, 0x43, 0x00, 0x01, 0x00};
 
-  auto Res = Loader.parseWasmUnit(Vec);
+  auto Res = Loader.parseWasmUnit(Wasm);
   ASSERT_TRUE(Res);
   auto *Comp =
       std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res);
@@ -386,16 +384,11 @@ TEST(ComponentLoaderTest, ValueSection) {
   Conf.addProposal(WasmEdge::Proposal::Component);
   WasmEdge::Loader::Loader Loader(Conf);
 
-  // Component with 1 value section containing one `bool true` value:
-  //   0x0c = value section id (12), 0x04 = content size,
-  //   0x01 = vec count (1 value), 0x7f = bool valtype,
-  //   0x01 = len (1 byte), 0x01 = val(bool) true.
-  std::vector<uint8_t> Vec = {
-      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
-      0x0c, 0x04, 0x01, 0x7f, 0x01, 0x01,             // value section
-  };
+  // A component whose value section holds one `bool` value `true`.
+  std::array<WasmEdge::Byte, 14> Wasm{0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01,
+                                      0x00, 0x0c, 0x04, 0x01, 0x7f, 0x01, 0x01};
 
-  auto Res = Loader.parseWasmUnit(Vec);
+  auto Res = Loader.parseWasmUnit(Wasm);
   ASSERT_TRUE(Res);
   auto *Comp =
       std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res);
@@ -415,17 +408,12 @@ TEST(ComponentLoaderTest, ValueSectionLengthExceedsInput) {
   Conf.addProposal(WasmEdge::Proposal::Component);
   WasmEdge::Loader::Loader Loader(Conf);
 
-  // Value section declaring a value whose length exceeds the input:
-  //   0x0c = value section id (12), 0x00 = content size,
-  //   0x01 = vec count (1 value), 0x20 = valtype (type index 32),
-  //   0xffffffff0e = len (0xefffffff bytes).
-  std::vector<uint8_t> Vec = {
-      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
-      0x0c, 0x00, 0x01, 0x20,                         // value section
-      0xff, 0xff, 0xff, 0xff, 0x0e,                   // value length
-  };
+  // A value section whose one value declares a length of 0xefffffff bytes.
+  std::array<WasmEdge::Byte, 17> Wasm{0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00,
+                                      0x01, 0x00, 0x0c, 0x00, 0x01, 0x20,
+                                      0xff, 0xff, 0xff, 0xff, 0x0e};
 
-  auto Res = Loader.parseWasmUnit(Vec);
+  auto Res = Loader.parseWasmUnit(Wasm);
   ASSERT_FALSE(Res);
   EXPECT_EQ(Res.error().getEnum(), WasmEdge::ErrCode::Value::UnexpectedEnd);
 }
@@ -435,14 +423,12 @@ TEST(ComponentLoaderTest, MalformedResultList) {
   Conf.addProposal(WasmEdge::Proposal::Component);
   WasmEdge::Loader::Loader Loader(Conf);
 
-  // Same payload as func.10.wasm: resultlist flag 0x01 followed by 0x01
-  // (must be 0x00 per current spec) — expect MalformedDefType.
-  std::vector<uint8_t> Vec = {
-      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
-      0x07, 0x05, 0x01, 0x40, 0x00, 0x01, 0x01,       // type section
-  };
+  // A functype whose resultlist flag 0x01 is followed by 0x01, not 0x00.
+  std::array<WasmEdge::Byte, 15> Wasm{0x00, 0x61, 0x73, 0x6d, 0x0d,
+                                      0x00, 0x01, 0x00, 0x07, 0x05,
+                                      0x01, 0x40, 0x00, 0x01, 0x01};
 
-  auto Res = Loader.parseWasmUnit(Vec);
+  auto Res = Loader.parseWasmUnit(Wasm);
   ASSERT_FALSE(Res);
   EXPECT_EQ(Res.error().getEnum(), WasmEdge::ErrCode::Value::MalformedDefType);
 }
@@ -452,13 +438,11 @@ TEST(ComponentLoaderTest, MalformedTaskReturnResultList) {
   Conf.addProposal(WasmEdge::Proposal::Component);
   WasmEdge::Loader::Loader Loader(Conf);
 
-  // task.return takes the functype resultlist: after 0x01 only 0x00 follows.
-  std::vector<uint8_t> Vec = {
-      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
-      0x08, 0x04, 0x01, 0x09, 0x01, 0x01,             // canon section
-  };
+  // A task.return whose resultlist flag 0x01 is followed by 0x01, not 0x00.
+  std::array<WasmEdge::Byte, 14> Wasm{0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01,
+                                      0x00, 0x08, 0x04, 0x01, 0x09, 0x01, 0x01};
 
-  auto Res = Loader.parseWasmUnit(Vec);
+  auto Res = Loader.parseWasmUnit(Wasm);
   ASSERT_FALSE(Res);
   EXPECT_EQ(Res.error().getEnum(),
             WasmEdge::ErrCode::Value::MalformedCanonical);
@@ -469,16 +453,16 @@ TEST(ComponentLoaderTest, ContextTypeIsACoreValType) {
   Conf.addProposal(WasmEdge::Proposal::Component);
   WasmEdge::Loader::Loader Loader(Conf);
 
-  // Component with one canon section holding `context.get i64 0` and
-  // `context.set f32 0`. The type immediate is a core:valtype, so both
-  // decode; rejecting anything but i32/i64 is a validation rule.
-  std::vector<uint8_t> Vec = {
-      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
-      0x08, 0x07, 0x02, 0x0a, 0x7e, 0x00, 0x0b, 0x7d, // canon section
-      0x00,
-  };
+  // Both decode; rejecting types other than i32/i64 is a validation rule.
+  // (component
+  //   (core func (;0;) (canon context.get i64 0))
+  //   (core func (;1;) (canon context.set f32 0))
+  // )
+  std::array<WasmEdge::Byte, 17> Wasm{0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00,
+                                      0x01, 0x00, 0x08, 0x07, 0x02, 0x0a,
+                                      0x7e, 0x00, 0x0b, 0x7d, 0x00};
 
-  auto Res = Loader.parseWasmUnit(Vec);
+  auto Res = Loader.parseWasmUnit(Wasm);
   ASSERT_TRUE(Res);
   auto *Comp =
       std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res);
@@ -498,16 +482,14 @@ TEST(ComponentLoaderTest, NameAttributesRejectDuplicateKinds) {
   Conf.addProposal(WasmEdge::Proposal::Component);
   WasmEdge::Loader::Loader Loader(Conf);
 
-  // Component importing a func named "f" with two attributes of the given
-  // kind: 0x00 implements, 0x01 versionsuffix, 0x02 external-id.
+  // Kind: 0x00 implements, 0x01 versionsuffix, 0x02 external-id.
   auto Load = [&Loader](uint8_t Kind) {
-    std::vector<uint8_t> Vec = {
-        0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
-        0x07, 0x05, 0x01, 0x40, 0x00, 0x01, 0x00,       // functype at index 0
-        0x0a, 0x0d, 0x01, 0x02, 0x01, 0x66, 0x02, Kind, // import section
-        0x01, 0x61, Kind, 0x01, 0x62, 0x01, 0x00,
-    };
-    return Loader.parseWasmUnit(Vec);
+    // A component importing a func "f" with two name attributes of `Kind`.
+    std::array<WasmEdge::Byte, 30> Wasm{
+        0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x05,
+        0x01, 0x40, 0x00, 0x01, 0x00, 0x0a, 0x0d, 0x01, 0x02, 0x01,
+        0x66, 0x02, Kind, 0x01, 0x61, Kind, 0x01, 0x62, 0x01, 0x00};
+    return Loader.parseWasmUnit(Wasm);
   };
 
   auto Res = Load(0x00);
@@ -527,19 +509,17 @@ TEST(ComponentLoaderTest, NameAttributesRejectDuplicateKinds) {
 TEST(ComponentLoaderTest, I64ResourceRepNeedsMemory64) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Component);
-  // Default Configure enables Memory64; explicitly disable it for this test.
+  // The default Configure enables Memory64.
   Conf.removeProposal(WasmEdge::Proposal::Memory64);
   WasmEdge::Loader::Loader Loader(Conf);
 
-  // Resource type 0x3f 0x7e (sync dtor, i64 rep) with no destructor.
-  //   preamble + 0x07 0x04 (type sec, size 4) + 0x01 (1 type) +
-  //   0x3f 0x7e 0x00 (resource sync, i64 rep, no dtor)
-  std::vector<uint8_t> Vec = {
-      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01,
-      0x00, 0x07, 0x04, 0x01, 0x3f, 0x7e, 0x00,
-  };
+  // (component
+  //   (type (;0;) (resource (rep i64)))
+  // )
+  std::array<WasmEdge::Byte, 14> Wasm{0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01,
+                                      0x00, 0x07, 0x04, 0x01, 0x3f, 0x7e, 0x00};
 
-  auto Res = Loader.parseWasmUnit(Vec);
+  auto Res = Loader.parseWasmUnit(Wasm);
   ASSERT_FALSE(Res);
   EXPECT_EQ(Res.error().getEnum(), WasmEdge::ErrCode::Value::MalformedDefType);
 }
@@ -550,13 +530,13 @@ TEST(ComponentLoaderTest, I64ResourceRepWithMemory64) {
   // Memory64 proposal is enabled by default.
   WasmEdge::Loader::Loader Loader(Conf);
 
-  // Same payload as the previous test.
-  std::vector<uint8_t> Vec = {
-      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01,
-      0x00, 0x07, 0x04, 0x01, 0x3f, 0x7e, 0x00,
-  };
+  // (component
+  //   (type (;0;) (resource (rep i64)))
+  // )
+  std::array<WasmEdge::Byte, 14> Wasm{0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01,
+                                      0x00, 0x07, 0x04, 0x01, 0x3f, 0x7e, 0x00};
 
-  auto Res = Loader.parseWasmUnit(Vec);
+  auto Res = Loader.parseWasmUnit(Wasm);
   ASSERT_TRUE(Res);
   auto *Comp =
       std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res);
@@ -574,16 +554,13 @@ TEST(ComponentLoaderTest, UnallocatedResourceTypeOpcodeRejected) {
   Conf.addProposal(WasmEdge::Proposal::Component);
   WasmEdge::Loader::Loader Loader(Conf);
 
-  // 0x3e is not allocated by the specification: `resourcetype` has only the
-  // 0x3f form. An earlier draft spelled an async destructor here.
-  //   preamble + 0x07 0x05 (type sec, size 5) + 0x01 (1 type) +
-  //   0x3e 0x7e 0x00 0x00
-  std::vector<uint8_t> Vec = {
-      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
-      0x07, 0x05, 0x01, 0x3e, 0x7e, 0x00, 0x00,
-  };
+  // A resource type spelled with 0x3e, which only an earlier draft allocated
+  // (for an async destructor); `resourcetype` has only the 0x3f form now.
+  std::array<WasmEdge::Byte, 15> Wasm{0x00, 0x61, 0x73, 0x6d, 0x0d,
+                                      0x00, 0x01, 0x00, 0x07, 0x05,
+                                      0x01, 0x3e, 0x7e, 0x00, 0x00};
 
-  auto Res = Loader.parseWasmUnit(Vec);
+  auto Res = Loader.parseWasmUnit(Wasm);
   ASSERT_FALSE(Res);
   EXPECT_EQ(Res.error().getEnum(), WasmEdge::ErrCode::Value::MalformedDefType);
 }
@@ -619,8 +596,8 @@ TEST(ComponentLoaderTest, CoreModuleTypeDeclaresRecType) {
   WasmEdge::Loader::Loader Loader(Conf);
 
   // (core type (module (type (sub (func))))): a bare 0x50 is a non-final sub.
-  EXPECT_TRUE(Loader.parseWasmUnit(makeTypeSection(
-      0x03, {0x50, 0x01, 0x01, 0x50, 0x00, 0x60, 0x00, 0x00})));
+  EXPECT_TRUE(Loader.parseWasmUnit(
+      makeTypeSection(0x03, {0x50, 0x01, 0x01, 0x50, 0x00, 0x60, 0x00, 0x00})));
 
   // 0x00 does not start a core:rectype, and a nested module type is a sub
   // missing its comptype.

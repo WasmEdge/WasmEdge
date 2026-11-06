@@ -4,32 +4,32 @@
 wasmedge_add_executable(wasmedgeFFmpegTests
   main.cpp
 
-  avcodec/avcodec_func.cpp
-  avcodec/avCodec.cpp
-  avcodec/avCodecParameters.cpp
-  avcodec/avPacket.cpp
-  avcodec/avCodecCtx.cpp
+  avcodec/FFmpegAVCodecCtxTest.cpp
+  avcodec/FFmpegAVCodecFuncTest.cpp
+  avcodec/FFmpegAVCodecParametersTest.cpp
+  avcodec/FFmpegAVCodecTest.cpp
+  avcodec/FFmpegAVPacketTest.cpp
 
-  avfilter/avfilter_func.cpp
-  avfilter/avfilter.cpp
+  avfilter/FFmpegAVFilterFuncTest.cpp
+  avfilter/FFmpegAVFilterTest.cpp
 
-  avformat/avformat_func.cpp
-  avformat/avformatContext.cpp
-  avformat/avInputOutputContext.cpp
-  avformat/avStream.cpp
-  avformat/avChapter.cpp
+  avformat/FFmpegAVChapterTest.cpp
+  avformat/FFmpegAVFormatContextTest.cpp
+  avformat/FFmpegAVFormatFuncTest.cpp
+  avformat/FFmpegAVInputOutputContextTest.cpp
+  avformat/FFmpegAVStreamTest.cpp
 
-  avutil/avRational.cpp
-  avutil/avDictionary.cpp
-  avutil/avFrame.cpp
-  avutil/avutil_func.cpp
-  avutil/avError.cpp
-  avutil/avSampleFmt.cpp
-  avutil/avPixfmt.cpp
+  avutil/FFmpegAVDictionaryTest.cpp
+  avutil/FFmpegAVErrorTest.cpp
+  avutil/FFmpegAVFrameTest.cpp
+  avutil/FFmpegAVPixFmtTest.cpp
+  avutil/FFmpegAVRationalTest.cpp
+  avutil/FFmpegAVSampleFmtTest.cpp
+  avutil/FFmpegAVUtilFuncTest.cpp
 
-  swresample/swresample_func.cpp
+  swresample/FFmpegSWResampleFuncTest.cpp
 
-  swscale/swscale_func.cpp
+  swscale/FFmpegSWScaleFuncTest.cpp
 
   utils.cpp
 )

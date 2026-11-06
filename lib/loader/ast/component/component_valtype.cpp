@@ -17,7 +17,7 @@ Loader::loadNameAttributes(std::string &Name,
   //                  | 0x01 len:<u32> en:<externname> => en (if len = |en|)
   //                  | 0x02 len:<u32> en:<externname> a*:vec(<attribute>)
   // attribute      ::= 0x00 len:<u32> in:<interfacename> => (implements in)
-  //                  | 0x01 len:<u32> vs:<semversuffix>  => (versionsuffix vs)
+  //                  | 0x01 len:<u32> s:<semversuffix>   => (version-suffix s)
   //                  | 0x02 n:<name>                     => (external-id n)
 
   // Error messages will be handled in the parent scope.

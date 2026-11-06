@@ -242,7 +242,14 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
       return Unexpect(ErrCode::Value::ComponentMapKeyType);
     }
     EXPECTED_TRY(CompCtx.validate(Map.KeyTy));
-    return CompCtx.validate(Map.ValTy);
+    EXPECTED_TRY(CompCtx.validate(Map.ValTy));
+    // The value of a duplicate key is dropped, so it must own nothing.
+    if (CompCtx.hasHandle({Map.ValTy, &CompCtx.getTop(), nullptr})) {
+      spdlog::error(ErrCode::Value::ComponentMapValueHandle);
+      spdlog::error("    The map value type cannot contain a handle."sv);
+      return Unexpect(ErrCode::Value::ComponentMapValueHandle);
+    }
+    return {};
   }
   spdlog::error(ErrCode::Value::ComponentNotImplValidator);
   spdlog::error("    This defined value type is not supported yet."sv);

@@ -3035,14 +3035,26 @@ TEST(ComponentValidatorTest, ImportSingleExternalIdPasses) {
   EXPECT_TRUE(V.validate(Comp));
 }
 
-// Helper: import a func under the given name, carrying the given
-// `versionsuffix` values.
+// Helper: import an empty instance under the given name, carrying the given
+// `version-suffix` values.
 inline AST::Component::Component
 makeCompWithVersionSuffix(std::string Name, std::vector<std::string> Suffixes) {
-  auto Comp = makeCompWithImportedFunc();
+  AST::Component::Component Comp;
+  // Need an InstanceType at type index 0.
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setInstanceType(AST::Component::InstanceType());
+  // Import an instance of that type.
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
   auto &ImpSec =
       std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
   ImpSec.getContent().back().getName() = std::move(Name);
+  ImpSec.getContent().back().getDesc().setInstanceTypeIdx(0);
   ImpSec.getContent().back().getVersionSuffixes() = std::move(Suffixes);
   return Comp;
 }
@@ -3060,11 +3072,11 @@ TEST(ComponentValidatorTest, VersionSuffixMustFormSemver) {
   Validator::Validator V(Conf);
   auto Res = V.validate(Comp);
   EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixInvalid);
+  EXPECT_EQ(Res.error(), ErrCode::Value::NameUnexpectedCharacter);
 }
 
 TEST(ComponentValidatorTest, VersionSuffixNeedsCanonVersion) {
-  // A full semver is not a canonversion, so nothing was stripped to restore.
+  // 1.0.0-alpha has a pre-release, so its canonical version is itself.
   auto Comp = makeCompWithVersionSuffix("a:b/c@1.0.0", {"-alpha"});
   Validator::Validator V(Conf);
   auto Res = V.validate(Comp);
@@ -3072,12 +3084,29 @@ TEST(ComponentValidatorTest, VersionSuffixNeedsCanonVersion) {
   EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixInvalid);
 }
 
-TEST(ComponentValidatorTest, VersionSuffixNeedsInterfaceVersion) {
+TEST(ComponentValidatorTest, VersionSuffixNeedsInterfaceName) {
   auto Comp = makeCompWithVersionSuffix("f", {".2.3"});
   Validator::Validator V(Conf);
   auto Res = V.validate(Comp);
   EXPECT_FALSE(Res);
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixInvalid);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixName);
+}
+
+TEST(ComponentValidatorTest, VersionSuffixNeedsInterfaceVersion) {
+  auto Comp = makeCompWithVersionSuffix("a:b/c", {".2.3"});
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentVersionSuffixNoVersion);
+}
+
+TEST(ComponentValidatorTest, CanonVersionNeedsVersionSuffix) {
+  // `@1` alone is not a semver.
+  auto Comp = makeCompWithVersionSuffix("a:b/c@1", {});
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::NameUnexpectedEnd);
 }
 
 // =============================================================================

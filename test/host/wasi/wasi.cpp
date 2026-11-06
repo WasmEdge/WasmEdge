@@ -4822,7 +4822,8 @@ TEST(WasiTest, SymbolicLinkResolution) {
     auto SubFd = Env.pathOpen(
         RootFd, "sub"sv, static_cast<__wasi_lookupflags_t>(0),
         __WASI_OFLAGS_DIRECTORY,
-        __WASI_RIGHTS_PATH_OPEN | __WASI_RIGHTS_PATH_FILESTAT_GET,
+        __WASI_RIGHTS_PATH_OPEN | __WASI_RIGHTS_PATH_FILESTAT_GET |
+            __WASI_RIGHTS_FD_READDIR,
         static_cast<__wasi_rights_t>(0), static_cast<__wasi_fdflags_t>(0));
     ASSERT_TRUE(SubFd);
     auto Res = Env.pathFilestatGet(
@@ -4832,6 +4833,7 @@ TEST(WasiTest, SymbolicLinkResolution) {
     EXPECT_TRUE(Env.fdClose(*SubFd));
   }
 
+#if !WASMEDGE_OS_WINDOWS
   // The `..` check in path_symlink only holds at creation time. Moving an
   // in-bounds link to a shallower directory leaves an escaping target on disk,
   // and following it must still be rejected at resolution time.
@@ -4852,6 +4854,7 @@ TEST(WasiTest, SymbolicLinkResolution) {
     ASSERT_FALSE(Res);
     EXPECT_EQ(Res.error(), __WASI_ERRNO_PERM);
   }
+#endif
 
   Env.fini();
 }

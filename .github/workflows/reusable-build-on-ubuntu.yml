@@ -31,6 +31,7 @@ jobs:
     env:
       BUILD_TESTS: OFF
       SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_IDLE_TIMEOUT: "0"
       CMAKE_C_COMPILER_LAUNCHER: sccache
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
     container: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -52,18 +53,18 @@ jobs:
         uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
         with:
           version: "v0.10.0"
-      - name: Warm up sccache server
+      - name: Start sccache server
         run: |
           for i in 1 2 3 4 5; do
-            if sccache --show-stats >/dev/null 2>&1; then
-              sccache --show-stats
+            if sccache --start-server; then
               exit 0
             fi
-            echo "sccache server not ready (attempt ${i}/5); retrying..." >&2
+            echo "sccache server failed to start (attempt ${i}/5); retrying..." >&2
             sleep $((i * 3))
           done
-          echo "sccache server did not become ready; aborting before the long build" >&2
-          exit 1
+          echo "::warning::sccache server did not start; building without the compiler cache"
+          echo "CMAKE_C_COMPILER_LAUNCHER=" >> "$GITHUB_ENV"
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=" >> "$GITHUB_ENV"
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
@@ -137,7 +138,7 @@ jobs:
           mv build/WasmEdge-${{ inputs.version }}-Linux.tar.gz WasmEdge-${{ inputs.version }}-ubuntu20.04_${{ matrix.arch }}.tar.gz
           gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-ubuntu20.04_${{ matrix.arch }}.tar.gz --clobber
       - name: Create and upload coverage report to Codecov
-        if: ${{ matrix.coverage }}
+        if: ${{ matrix.coverage && github.actor != 'dependabot[bot]' }}
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

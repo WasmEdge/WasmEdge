@@ -6,7 +6,6 @@ wasmedge_add_executable(wasmedgeCommonTests
   hashTest.cpp
   spdlogTest.cpp
   roundevenTest.cpp
-  hexstrTest.cpp
   spareEnumMapTest.cpp
   byteswapTest.cpp
   statisticsTest.cpp

@@ -1225,6 +1225,66 @@ TEST(APIWasmCTest, Ref) {
   EXPECT_TRUE(true);
 }
 
+TEST(APIWasmCTest, Val) {
+  wasm_val_t vals[4] = {
+      i32Val(42),
+      i64Val(123456789LL),
+      f32Val(3.14f),
+      f64Val(2.718281828),
+  };
+
+  wasm_val_vec_t in_vec;
+  wasm_val_vec_new(&in_vec, 4, vals);
+  EXPECT_EQ(4U, in_vec.size);
+  ASSERT_NE(nullptr, in_vec.data);
+
+  wasm_val_vec_t copy_vec;
+  wasm_val_vec_new_empty(&copy_vec);
+
+  // Null checks.
+  wasm_val_vec_copy(nullptr, nullptr);
+  wasm_val_vec_copy(nullptr, &in_vec);
+  wasm_val_vec_copy(&copy_vec, nullptr);
+  EXPECT_EQ(0U, copy_vec.size);
+
+  // Perform copy.
+  wasm_val_vec_copy(&copy_vec, &in_vec);
+  EXPECT_EQ(in_vec.size, copy_vec.size);
+  ASSERT_NE(nullptr, copy_vec.data);
+
+  // Verify input vector is not corrupted.
+  EXPECT_EQ(WASM_I32, in_vec.data[0].kind);
+  EXPECT_EQ(42, in_vec.data[0].of.i32);
+  EXPECT_EQ(WASM_I64, in_vec.data[1].kind);
+  EXPECT_EQ(123456789LL, in_vec.data[1].of.i64);
+  EXPECT_EQ(WASM_F32, in_vec.data[2].kind);
+  EXPECT_FLOAT_EQ(3.14f, in_vec.data[2].of.f32);
+  EXPECT_EQ(WASM_F64, in_vec.data[3].kind);
+  EXPECT_DOUBLE_EQ(2.718281828, in_vec.data[3].of.f64);
+
+  // Verify copied vector has identical values.
+  EXPECT_EQ(WASM_I32, copy_vec.data[0].kind);
+  EXPECT_EQ(42, copy_vec.data[0].of.i32);
+  EXPECT_EQ(WASM_I64, copy_vec.data[1].kind);
+  EXPECT_EQ(123456789LL, copy_vec.data[1].of.i64);
+  EXPECT_EQ(WASM_F32, copy_vec.data[2].kind);
+  EXPECT_FLOAT_EQ(3.14f, copy_vec.data[2].of.f32);
+  EXPECT_EQ(WASM_F64, copy_vec.data[3].kind);
+  EXPECT_DOUBLE_EQ(2.718281828, copy_vec.data[3].of.f64);
+
+  wasm_val_vec_delete(&in_vec);
+  wasm_val_vec_delete(&copy_vec);
+
+  // Single val copy test.
+  wasm_val_t val_src = i32Val(100);
+  wasm_val_t val_dst;
+  wasm_val_copy(&val_dst, &val_src);
+  EXPECT_EQ(WASM_I32, val_dst.kind);
+  EXPECT_EQ(100, val_dst.of.i32);
+  wasm_val_delete(&val_src);
+  wasm_val_delete(&val_dst);
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

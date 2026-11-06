@@ -101,8 +101,8 @@ public:
   /// Append N to Names, or diagnose the clash (exact or strong-uniqueness).
   Expect<void> addUniqueName(std::vector<NameRecord> &Names,
                              const NameRecord &N, bool IsImport) const noexcept;
-  /// Name attributes: a valid versionsuffix, and `implements` only on a
-  /// plain, instance-typed name.
+  /// The interface version with its `version-suffix`, and `implements` only
+  /// on a plain, instance-typed name.
   Expect<void> checkNameAttributes(const ExternName &CN,
                                    Span<const std::string> Impls,
                                    Span<const std::string> VSuffixes,

@@ -215,12 +215,37 @@ Expect<void> Context::checkNameAttributes(const ExternName &CN,
                                           Span<const std::string> Impls,
                                           Span<const std::string> VSuffixes,
                                           bool IsInstance) const noexcept {
-  for (const auto &V : VSuffixes) {
-    EXPECTED_TRY(CN.checkVersionSuffix(V));
+  // An attribute list holds each kind at most once.
+  const std::string_view Suffix =
+      VSuffixes.empty() ? std::string_view() : std::string_view(VSuffixes[0]);
+  if (!VSuffixes.empty()) {
+    if (!IsInstance) {
+      spdlog::error(ErrCode::Value::ComponentVersionSuffixInstance);
+      spdlog::error("    only instances can have a `version-suffix`"sv);
+      return Unexpect(ErrCode::Value::ComponentVersionSuffixInstance);
+    }
+    if (Suffix.empty()) {
+      spdlog::error(ErrCode::Value::ComponentVersionSuffixEmpty);
+      spdlog::error("    the `version-suffix` of name `{}` is empty"sv,
+                    CN.getOriginalName());
+      return Unexpect(ErrCode::Value::ComponentVersionSuffixEmpty);
+    }
+    if (Impls.empty() && CN.getKind() != ExternName::Kind::InterfaceType) {
+      spdlog::error(ErrCode::Value::ComponentVersionSuffixName);
+      spdlog::error("    name `{}` is not an interface name and has no "
+                    "`implements`"sv,
+                    CN.getOriginalName());
+      return Unexpect(ErrCode::Value::ComponentVersionSuffixName);
+    }
   }
   if (Impls.empty()) {
+    // The suffix completes the version of the name itself.
+    if (CN.getKind() == ExternName::Kind::InterfaceType) {
+      return CN.checkVersion(Suffix);
+    }
     return {};
   }
+  std::vector<ExternName> Implemented;
   for (const auto &I : Impls) {
     auto Parsed = parseExternName(I, true);
     if (!Parsed.has_value()) {
@@ -233,6 +258,7 @@ Expect<void> Context::checkNameAttributes(const ExternName &CN,
       spdlog::error("    `implements` value `{}` must be an interface"sv, I);
       return Unexpect(ErrCode::Value::ComponentImplementsInterface);
     }
+    Implemented.push_back(*Parsed);
   }
   if (CN.getKind() != ExternName::Kind::Label &&
       CN.getKind() != ExternName::Kind::Constructor &&
@@ -247,6 +273,10 @@ Expect<void> Context::checkNameAttributes(const ExternName &CN,
     spdlog::error(ErrCode::Value::ComponentImplementsInstance);
     spdlog::error("    only instances can have an `implements`"sv);
     return Unexpect(ErrCode::Value::ComponentImplementsInstance);
+  }
+  // The suffix completes the version of the implemented interface.
+  for (const auto &Name : Implemented) {
+    EXPECTED_TRY(Name.checkVersion(Suffix));
   }
   return {};
 }

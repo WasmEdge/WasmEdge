@@ -45,7 +45,7 @@ namespace Component {
 
 class Context {
 public:
-  Context() noexcept = default;
+  Context() = default;
 
   // ==========================================================================
   // The scope stack. Scopes stay owned after they pop; validate() resets it.

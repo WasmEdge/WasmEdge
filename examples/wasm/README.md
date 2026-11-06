@@ -63,7 +63,7 @@ WasmEdge
 
 # Run it in the AOT mode
 $ wasmedge compile hello.wasm hello.aot.wasm
-$ wasmedge hello.aot.wasm WasmEdge 1 2 3
+$ wasmedge --run-mode=aot hello.aot.wasm WasmEdge 1 2 3
 hello
 WasmEdge
 1

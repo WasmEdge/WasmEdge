@@ -17,6 +17,10 @@
 
 #include <gtest/gtest.h>
 
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
+#include <openvino/opsets/opset8.hpp>
+#endif
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -129,6 +133,77 @@ std::vector<size_t> classSort(WasmEdge::Span<const T> Array) {
 #endif
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
+TEST(WasiNNTest, OpenVINOMultipleInputs) {
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto &MemInst = *Mod.findMemoryExports("memory");
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  auto Left =
+      std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{2});
+  auto Right =
+      std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{2});
+  auto Add = std::make_shared<ov::opset8::Add>(Left, Right);
+  auto Graph =
+      std::make_shared<WasmEdge::Host::WASINN::Graph>(Backend::OpenVINO);
+  auto &BackendGraph = Graph->get<Backend::OpenVINO>();
+  BackendGraph.OpenVINOModel = std::make_shared<ov::Model>(
+      ov::OutputVector{Add->output(0)}, ov::ParameterVector{Left, Right});
+  BackendGraph.TargetDevice = Device::CPU;
+  const auto GraphId = NNMod->getEnv().NNGraph.insert(Graph);
+  ASSERT_TRUE(GraphId.has_value());
+  auto Run = [&](std::string_view Name,
+                 std::initializer_list<WasmEdge::ValVariant> Args) {
+    auto *Func = NNMod->findFuncExports(Name);
+    EXPECT_NE(Func, nullptr);
+    std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+    if (!Func || !Func->getHostFunc().run(CallFrame, Args, Errno)) {
+      return static_cast<uint32_t>(ErrNo::RuntimeError);
+    }
+    return Errno[0].get<uint32_t>();
+  };
+  const auto Success = static_cast<uint32_t>(ErrNo::Success);
+  ASSERT_EQ(Run("init_execution_context", {*GraphId, UINT32_C(128)}), Success);
+  const auto First = *MemInst.getPointer<uint32_t *>(128);
+  ASSERT_EQ(Run("init_execution_context", {*GraphId, UINT32_C(128)}), Success);
+  const auto Second = *MemInst.getPointer<uint32_t *>(128);
+  auto SetInput = [&](uint32_t Context, uint32_t Index, uint32_t Data,
+                      std::array<float, 2> Values) {
+    uint32_t Ptr = 32;
+    writeFatPointer(MemInst, 0, 1, Ptr);
+    writeUInt32(MemInst, static_cast<uint32_t>(TensorType::F32), Ptr);
+    writeFatPointer(MemInst, Data, sizeof(Values), Ptr);
+    writeBinaries<float>(MemInst, Values, Data);
+    return Run("set_input", {Context, Index, UINT32_C(32)});
+  };
+  *MemInst.getPointer<uint32_t *>(0) = 2;
+  auto CheckOutput = [&](uint32_t Context, std::array<float, 2> Expected) {
+    ASSERT_EQ(Run("compute", {Context}), Success);
+    ASSERT_EQ(Run("get_output", {Context, UINT32_C(0), UINT32_C(256),
+                                 UINT32_C(8), UINT32_C(144)}),
+              Success);
+    ASSERT_EQ(*MemInst.getPointer<uint32_t *>(144), sizeof(Expected));
+    const auto *Output = MemInst.getPointer<float *>(256);
+    EXPECT_FLOAT_EQ(Output[0], Expected[0]);
+    EXPECT_FLOAT_EQ(Output[1], Expected[1]);
+  };
+  ASSERT_EQ(SetInput(First, 0, 1024, {2.0F, 3.0F}), Success);
+  ASSERT_EQ(SetInput(First, 1, 1032, {5.0F, 7.0F}), Success);
+  CheckOutput(First, {7.0F, 10.0F});
+  ASSERT_EQ(SetInput(Second, 1, 1048, {17.0F, 19.0F}), Success);
+  ASSERT_EQ(SetInput(Second, 0, 1040, {11.0F, 13.0F}), Success);
+  CheckOutput(Second, {28.0F, 32.0F});
+  CheckOutput(First, {7.0F, 10.0F});
+  ASSERT_EQ(SetInput(First, 0, 1024, {23.0F, 29.0F}), Success);
+  CheckOutput(First, {28.0F, 36.0F});
+  ASSERT_EQ(SetInput(First, 1, 1032, {31.0F, 37.0F}), Success);
+  CheckOutput(First, {54.0F, 66.0F});
+  CheckOutput(Second, {28.0F, 32.0F});
+}
+
 TEST(WasiNNTest, OpenVINOBackend) {
   // Create the wasi_nn module instance.
   auto NNMod = createModule();

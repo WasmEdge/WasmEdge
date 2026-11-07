@@ -8,17 +8,68 @@
 #include "ast/module.h"
 #include "common/errcode.h"
 #include "common/types.h"
+#include "executor/coredump.h"
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
 #include "llvm/compiler.h"
 #include "llvm/jit.h"
 
 #include "validator/validator.h"
+#include <algorithm>
 #include <memory>
 #include <variant>
 
 namespace WasmEdge {
 namespace VM {
+
+std::vector<Runtime::Instance::ModuleInstance *> VM::collectModuleInstances() {
+  std::vector<Runtime::Instance::ModuleInstance *> Modules;
+  auto Add = [&Modules](auto *Module) {
+    if (Module != nullptr &&
+        std::find(Modules.begin(), Modules.end(), Module) == Modules.end()) {
+      Modules.push_back(Module);
+    }
+  };
+  Add(ActiveModInst.get());
+  for (auto &Module : RegModInsts) {
+    Add(Module.get());
+  }
+  std::vector<HostRegistration> Hosts;
+  for (const auto &Entry : BuiltInModInsts) {
+    Hosts.push_back(Entry.first);
+  }
+  std::sort(Hosts.begin(), Hosts.end());
+  for (auto Host : Hosts) {
+    Add(BuiltInModInsts.at(Host).get());
+  }
+  for (auto &Module : PlugInModInsts) {
+    Add(Module.get());
+  }
+  return Modules;
+}
+
+Expect<std::string> VM::snapshot(std::string_view Path) {
+  std::unique_lock Lock(Mutex);
+  if (ActiveCompInst) {
+    return Unexpect(ErrCode::Value::CoredumpUnsupported);
+  }
+  const auto Modules = collectModuleInstances();
+  const std::vector<const Runtime::Instance::ModuleInstance *> Sources(
+      Modules.begin(), Modules.end());
+  Coredump::Request Req;
+  Req.Modules = Sources;
+  Req.Path = Path;
+  return Coredump::generate(Req);
+}
+
+Expect<void> VM::restore(std::string_view Path) {
+  std::unique_lock Lock(Mutex);
+  if (ActiveCompInst) {
+    return Unexpect(ErrCode::Value::CoredumpUnsupported);
+  }
+  const auto Modules = collectModuleInstances();
+  return Coredump::restore({Modules, Path});
+}
 
 VM::VM(const Configure &Conf)
     : Conf(Conf), Stage(VMStage::Inited),

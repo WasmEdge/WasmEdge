@@ -35,6 +35,9 @@ public:
     // When destroying this store manager, unlink all the registered module
     // instances.
     reset();
+    for (auto &Mod : FailedMods) {
+      Mod.release()->terminate();
+    }
   }
 
   /// Get the length of the list of registered modules.
@@ -149,14 +152,14 @@ private:
   mutable std::shared_mutex Mutex;
 
   /// Collect the instantiation failed module.
-  void recycleModule(std::unique_ptr<Instance::ModuleInstance> &&Mod) {
-    if (FailedMod) {
-      auto *OldMod = FailedMod.release();
-      if (OldMod) {
-        OldMod->terminate();
-      }
+  void recycleModule(std::unique_ptr<Instance::ModuleInstance> &&Mod,
+                     bool LateFailure) {
+    if (LateFailure && !Mod->Providers.empty()) {
+      std::unique_lock Lock(Mutex);
+      FailedMods.push_back(std::move(Mod));
+    } else {
+      Mod.release()->terminate();
     }
-    FailedMod = std::move(Mod);
   }
 
   /// \name Module name mapping.
@@ -165,12 +168,10 @@ private:
   std::map<std::string, const Instance::ComponentInstance *, std::less<>>
       NamedComp;
 
-  /// \name Last instantiation failed module.
-  /// According to the current spec, instances should remain referenceable even
-  /// if instantiation failed. Therefore, store the failed module instance here
-  /// to keep the instances alive.
-  /// FIXME: Is this necessary to be a vector?
-  std::unique_ptr<Instance::ModuleInstance> FailedMod;
+  /// Failed modules with import dependencies are kept after table or memory
+  /// initialization or start failure, as their references may have escaped.
+  /// They remain alive until store destruction, including across reset().
+  std::vector<std::unique_ptr<Instance::ModuleInstance>> FailedMods;
 };
 
 } // namespace Runtime

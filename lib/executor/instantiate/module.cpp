@@ -50,18 +50,18 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
     ModInst->addDefinedType(SubType);
   }
 
-  auto ReportModuleError = [&StoreMgr, &ModInst](auto E) {
+  auto ReportModuleError = [&StoreMgr, &ModInst](auto E,
+                                                 bool LateFailure = true) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-    StoreMgr.recycleModule(std::move(ModInst));
+    StoreMgr.recycleModule(std::move(ModInst), LateFailure);
     return E;
   };
 
-  auto ReportError = [&StoreMgr, &ModInst](ASTNodeAttr Attr) {
-    return [Attr, &StoreMgr, &ModInst](auto E) {
+  auto ReportError = [&ReportModuleError](ASTNodeAttr Attr,
+                                          bool LateFailure = false) {
+    return [Attr, LateFailure, &ReportModuleError](auto E) {
       spdlog::error(ErrInfo::InfoAST(Attr));
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-      StoreMgr.recycleModule(std::move(ModInst));
-      return E;
+      return ReportModuleError(E, LateFailure);
     };
   };
 
@@ -131,11 +131,11 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
 
   // Initialize table instances
   EXPECTED_TRY(initTable(StackMgr, ElemSec)
-                   .map_error(ReportError(ASTNodeAttr::Sec_Element)));
+                   .map_error(ReportError(ASTNodeAttr::Sec_Element, true)));
 
   // Initialize memory instances
   EXPECTED_TRY(initMemory(StackMgr, DataSec)
-                   .map_error(ReportError(ASTNodeAttr::Sec_Data)));
+                   .map_error(ReportError(ASTNodeAttr::Sec_Data, true)));
 
   ModInst->buildContext();
 

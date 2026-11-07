@@ -125,6 +125,9 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
 
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,
                                       const AST::Module &Module) {
+  if (needsJITCompile(Module)) {
+    return unsafeRegisterModule(Name, std::make_shared<AST::Module>(Module));
+  }
 #ifdef WASMEDGE_USE_LLVM
   if (LazyEngine) {
     // The lazy JIT engine needs to own the AST module and hook the compiled
@@ -148,6 +151,10 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
   unsafeRevertStageToValidated();
   // Validate module.
   EXPECTED_TRY(ValidatorEngine.validate(*Module));
+
+  if (needsJITCompile(*Module)) {
+    EXPECTED_TRY(unsafeLoadJITExecutable(*Module));
+  }
 
 #ifdef WASMEDGE_USE_LLVM
   if (LazyEngine && !Module->getSymbol()) {
@@ -275,8 +282,32 @@ Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
+  if (needsJITCompile(Module)) {
+    AST::Module ModuleCopy(Module);
+    return unsafeRunWasmFile(ModuleCopy, Func, Params, ParamTypes);
+  }
   unsafeRevertStageToValidated();
   EXPECTED_TRY(ValidatorEngine.validate(Module));
+  return unsafeInstantiateAndExecute(Module, Func, Params, ParamTypes);
+}
+
+Expect<std::vector<std::pair<ValVariant, ValType>>>
+VM::unsafeRunWasmFile(AST::Module &Module, std::string_view Func,
+                      Span<const ValVariant> Params,
+                      Span<const ValType> ParamTypes) {
+  unsafeRevertStageToValidated();
+  EXPECTED_TRY(ValidatorEngine.validate(Module));
+  if (needsJITCompile(Module)) {
+    EXPECTED_TRY(unsafeLoadJITExecutable(Module));
+  }
+  return unsafeInstantiateAndExecute(Module, Func, Params, ParamTypes);
+}
+
+Expect<std::vector<std::pair<ValVariant, ValType>>>
+VM::unsafeInstantiateAndExecute(const AST::Module &Module,
+                                std::string_view Func,
+                                Span<const ValVariant> Params,
+                                Span<const ValType> ParamTypes) {
 #ifdef WASMEDGE_USE_LLVM
   if (LazyEngine) {
     // This one-shot path takes no shared ownership of the module, so it is
@@ -391,6 +422,11 @@ Expect<void> VM::unsafeValidate() {
   return {};
 }
 
+bool VM::needsJITCompile(const AST::Module &Module) const noexcept {
+  return Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT &&
+         !Module.getSymbol();
+}
+
 Expect<void> VM::unsafeLoadJITExecutable() {
   if ((Conf.getRuntimeConfigure().getRunMode() != RunMode::JIT &&
        Conf.getRuntimeConfigure().getRunMode() != RunMode::LazyJIT) ||
@@ -403,6 +439,12 @@ Expect<void> VM::unsafeLoadJITExecutable() {
     EXPECTED_TRY(LoaderEngine.loadExecutable(*Mod, std::move(Exec)));
     return {};
   }
+#endif
+  return unsafeLoadJITExecutable(*Mod);
+}
+
+Expect<void> VM::unsafeLoadJITExecutable([[maybe_unused]] AST::Module &Module) {
+#ifdef WASMEDGE_USE_LLVM
   LLVM::Compiler Compiler(Conf);
   Compiler.checkConfigure()
       .map_error([](uint32_t Err) {
@@ -413,7 +455,7 @@ Expect<void> VM::unsafeLoadJITExecutable() {
         }
         return ErrCode::Value::Success;
       })
-      .and_then([&]() { return Compiler.compile(*Mod); })
+      .and_then([&]() { return Compiler.compile(Module); })
       .map_error([](uint32_t Err) {
         if (Err != ErrCode::Value::Success) {
           spdlog::error("Compilation failed. Error code: {}, use "
@@ -434,8 +476,8 @@ Expect<void> VM::unsafeLoadJITExecutable() {
         }
         return ErrCode::Value::Success;
       })
-      .and_then([&](auto Module) {
-        return LoaderEngine.loadExecutable(*Mod, std::move(Module));
+      .and_then([&](auto Exec) {
+        return LoaderEngine.loadExecutable(Module, std::move(Exec));
       })
       .map_error([](uint32_t Err) {
         if (Err != ErrCode::Value::Success) {

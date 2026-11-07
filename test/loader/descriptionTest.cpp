@@ -192,5 +192,19 @@ TEST(DescriptionTest, LoadExportDesc) {
       0x01U, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU // Table type and table index
   };
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_2);
+  Conf.removeProposal(WasmEdge::Proposal::ExceptionHandling);
+  WasmEdge::Loader::Loader LdrNoExcep(Conf);
+  Vec = {
+      0x07U,                                           // Export section
+      0x0AU,                                           // Content size = 10
+      0x01U,                                           // Vector length = 1
+      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // External name: Loader
+      0x04U, 0x00U                                     // Tag export type
+  };
+  auto ExpRes = LdrNoExcep.parseModule(prefixedVec(Vec));
+  EXPECT_FALSE(ExpRes);
+  EXPECT_EQ(ExpRes.error(), WasmEdge::ErrCode::Value::MalformedExportKind);
 }
 } // namespace

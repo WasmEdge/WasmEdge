@@ -18,11 +18,14 @@ Expect<int32_t> AVFormatCtxIFormat::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(AvInputFormatId, MemInst, uint32_t, AvInputFormatPtr,
                 "Failed when accessing the return AVInputFormat Memory"sv);
+  *AvInputFormatId = 0;
 
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatCtx, static_cast<int32_t>(ErrNo::InternalError));
 
   AVInputFormat const *AvInputFormat = AvFormatCtx->iformat;
-  FFMPEG_PTR_STORE(const_cast<AVInputFormat *>(AvInputFormat), AvInputFormatId);
+  FFMPEG_PTR_STORE_SHARED(const_cast<AVInputFormat *>(AvInputFormat),
+                          AvInputFormatId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -32,42 +35,49 @@ Expect<int32_t> AVFormatCtxOFormat::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(AvOutputFormatId, MemInst, uint32_t, AvOutputFormatPtr,
                 "Failed when accessing the return AVOutputFormat Memory"sv);
+  *AvOutputFormatId = 0;
 
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatCtx, static_cast<int32_t>(ErrNo::InternalError));
 
   AVOutputFormat const *AvOutputFormat = AvFormatCtx->oformat;
-  FFMPEG_PTR_STORE(const_cast<AVOutputFormat *>(AvOutputFormat),
-                   AvOutputFormatId);
+  FFMPEG_PTR_STORE_SHARED(const_cast<AVOutputFormat *>(AvOutputFormat),
+                          AvOutputFormatId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<int32_t> AVFormatCtxProbeScore::body(const Runtime::CallingFrame &,
                                             uint32_t AvFormatCtxId) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatContext, 0);
   return AvFormatContext->probe_score;
 }
 
 Expect<uint32_t> AVFormatCtxNbStreams::body(const Runtime::CallingFrame &,
                                             uint32_t AvFormatCtxId) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatContext, 0);
   return AvFormatContext->nb_streams;
 };
 
 Expect<int64_t> AVFormatCtxBitRate::body(const Runtime::CallingFrame &,
                                          uint32_t AvFormatCtxId) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatContext, 0);
   return AvFormatContext->bit_rate;
 }
 
 Expect<int64_t> AVFormatCtxDuration::body(const Runtime::CallingFrame &,
                                           uint32_t AvFormatCtxId) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatContext, 0);
   return AvFormatContext->duration;
 }
 
 Expect<uint32_t> AVFormatCtxNbChapters::body(const Runtime::CallingFrame &,
                                              uint32_t AvFormatCtxId) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatContext, 0);
   return AvFormatContext->nb_chapters;
 }
 
@@ -75,6 +85,14 @@ Expect<int32_t> AVFormatCtxSetNbChapters::body(const Runtime::CallingFrame &,
                                                uint32_t AvFormatCtxId,
                                                uint32_t NbChapters) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  if (AvFormatContext == nullptr ||
+      NbChapters != AvFormatContext->nb_chapters) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFormatCtxSetNbChapters: cannot set "
+                  "nb_chapters to {} (format context id {}, current {})"sv,
+                  NbChapters, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_chapters : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   AvFormatContext->nb_chapters = NbChapters;
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -85,14 +103,18 @@ Expect<int32_t> AVFormatCtxMetadata::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(DictId, MemInst, uint32_t, DictPtr,
                 "Failed when accessing the return AVDictionary memory"sv);
+  *DictId = 0;
 
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
 
-  AVDictionary **AvDictionary =
-      static_cast<AVDictionary **>(av_malloc(sizeof(AVDictionary *)));
+  if (AvFormatCtx == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFormatCtxMetadata: invalid format "
+                  "context id {}"sv,
+                  AvFormatCtxId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
 
-  *AvDictionary = AvFormatCtx->metadata;
-  FFMPEG_PTR_STORE(AvDictionary, DictId);
+  FFMPEG_PTR_STORE_CHILD(&AvFormatCtx->metadata, DictId, AvFormatCtxId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -102,12 +124,15 @@ Expect<int32_t> AVFormatCtxSetMetadata::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
   FFMPEG_PTR_FETCH(AvDictionary, DictId, AVDictionary *);
 
-  if (AvDictionary == nullptr) {
-    AvFormatCtx->metadata = nullptr;
-  } else {
-    AvFormatCtx->metadata = *AvDictionary;
+  if (AvFormatCtx == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFormatCtxSetMetadata: invalid format "
+                  "context id {}"sv,
+                  AvFormatCtxId);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
-  return static_cast<int32_t>(ErrNo::Success);
+  FFMPEG_PTR_CHECK_NONZERO(AvDictionary, DictId,
+                           static_cast<int32_t>(ErrNo::InternalError));
+  return applyMetadata(*Env, &AvFormatCtx->metadata, DictId, AvDictionary);
 }
 
 } // namespace AVFormat

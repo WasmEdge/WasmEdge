@@ -3,6 +3,8 @@
 
 #include "loader/loader.h"
 
+#include "common/component_valtype.h"
+
 namespace WasmEdge {
 namespace Loader {
 
@@ -71,8 +73,8 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   //         | 0x24                => (canon backpressure.inc (core func)) 🔀
   //         | 0x25                => (canon backpressure.dec (core func)) 🔀
   //         | 0x26                => (canon thread.index (core func)) 🧵
-  //         | 0x27 ft:<core:typeidx> tbl:<core:tableidx>
-  //           => (canon thread.new-indirect ft tbl (core func)) 🧵
+  //         | 0x27 ft:<core:typeidx> t:<core:tableidx>
+  //           => (canon thread.new-indirect ft t (core func)) 🧵
   //         | 0x28                => (canon thread.resume-later (core func)) 🧵
   //         | 0x29 0x00
   //           => (canon thread.suspend (core func)) 🧵
@@ -84,12 +86,12 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   //           => (canon thread.suspend-then-promote (core func)) 🧵
   //         | 0x2d 0x00
   //           => (canon thread.yield-then-promote (core func)) 🧵
-  //         | 0x40 shared?:<sh?> ft:<core:typeidx>
-  //           => (canon thread.spawn-ref shared? ft (core func)) 🧵②
-  //         | 0x41 shared?:<sh?> ft:<core:typeidx> tbl:<core:tableidx>
-  //           => (canon thread.spawn-indirect shared? ft tbl (core func)) 🧵②
-  //         | 0x42 shared?:<sh?>
-  //           => (canon thread.available-parallelism shared? (core func)) 🧵②
+  //         | 0x40 sh?:<sh?> ft:<core:typeidx>
+  //           => (canon thread.spawn-ref sh? ft (core func)) 🧵②
+  //         | 0x41 sh?:<sh?> ft:<core:typeidx> t:<core:tableidx>
+  //           => (canon thread.spawn-indirect sh? ft t (core func)) 🧵②
+  //         | 0x42 sh?:<sh?>
+  //           => (canon thread.available-parallelism sh? (core func)) 🧵②
   // async?  ::= 0x00 => ϵ
   //           | 0x01 => async
   // sh?     ::= 0x00 => ϵ
@@ -293,7 +295,7 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
     break;
   }
 
-  // 0x27 ft:<core:typeidx> tbl:<core:tableidx>
+  // 0x27 ft:<core:typeidx> t:<core:tableidx>
   case ComponentCanonOpCode::Thread__new_indirect: {
     EXPECTED_TRY(uint32_t TypeIdx, FMgr.readU32().map_error(ReportError));
     C.setIndex(TypeIdx);

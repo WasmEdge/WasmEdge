@@ -17,6 +17,8 @@
 #pragma once
 
 #include "ast/component/type.h"
+#include "common/component_valtype.h"
+#include "common/component_variant.h"
 #include "common/errcode.h"
 #include "common/types.h"
 #include "validator/component_types.h"
@@ -103,7 +105,7 @@ private:
 
   Expect<ComponentValVariant> decodeVal(const ComponentValType &Ty) noexcept {
     if (Ty.isPrimValType()) {
-      return decodePrim(static_cast<AST::Component::PrimValType>(Ty.getCode()));
+      return decodePrim(Ty.getPrimValType());
     }
     const auto *Entry = Types.getType(Ty.getTypeIndex());
     const AST::Component::DefValType *D =
@@ -114,49 +116,48 @@ private:
     return decodeDef(*D);
   }
 
-  Expect<ComponentValVariant>
-  decodePrim(AST::Component::PrimValType P) noexcept {
+  Expect<ComponentValVariant> decodePrim(PrimValType P) noexcept {
     switch (P) {
-    case AST::Component::PrimValType::Bool: {
+    case PrimValType::Bool: {
       EXPECTED_TRY(auto B, readByte());
       if (B > 1) {
         return Unexpect(ErrCode::Value::ComponentMalformedValue);
       }
       return ComponentValVariant{B != 0};
     }
-    case AST::Component::PrimValType::U8: {
+    case PrimValType::U8: {
       EXPECTED_TRY(auto B, readByte());
       return ComponentValVariant{static_cast<uint8_t>(B)};
     }
-    case AST::Component::PrimValType::S8: {
+    case PrimValType::S8: {
       EXPECTED_TRY(auto B, readByte());
       return ComponentValVariant{static_cast<int8_t>(B)};
     }
-    case AST::Component::PrimValType::U16: {
+    case PrimValType::U16: {
       EXPECTED_TRY(auto V, readULEB(16));
       return ComponentValVariant{static_cast<uint16_t>(V)};
     }
-    case AST::Component::PrimValType::S16: {
+    case PrimValType::S16: {
       EXPECTED_TRY(auto V, readSLEB(16));
       return ComponentValVariant{static_cast<int16_t>(V)};
     }
-    case AST::Component::PrimValType::U32: {
+    case PrimValType::U32: {
       EXPECTED_TRY(auto V, readULEB(32));
       return ComponentValVariant{static_cast<uint32_t>(V)};
     }
-    case AST::Component::PrimValType::S32: {
+    case PrimValType::S32: {
       EXPECTED_TRY(auto V, readSLEB(32));
       return ComponentValVariant{static_cast<int32_t>(V)};
     }
-    case AST::Component::PrimValType::U64: {
+    case PrimValType::U64: {
       EXPECTED_TRY(auto V, readULEB(64));
       return ComponentValVariant{V};
     }
-    case AST::Component::PrimValType::S64: {
+    case PrimValType::S64: {
       EXPECTED_TRY(auto V, readSLEB(64));
       return ComponentValVariant{V};
     }
-    case AST::Component::PrimValType::F32: {
+    case PrimValType::F32: {
       uint32_t Bits = 0;
       for (uint32_t I = 0; I < 4; ++I) {
         EXPECTED_TRY(auto B, readByte());
@@ -169,7 +170,7 @@ private:
       }
       return ComponentValVariant{F};
     }
-    case AST::Component::PrimValType::F64: {
+    case PrimValType::F64: {
       uint64_t Bits = 0;
       for (uint32_t I = 0; I < 8; ++I) {
         EXPECTED_TRY(auto B, readByte());
@@ -182,11 +183,11 @@ private:
       }
       return ComponentValVariant{D};
     }
-    case AST::Component::PrimValType::Char: {
+    case PrimValType::Char: {
       EXPECTED_TRY(auto CP, readUtf8Scalar());
       return ComponentValVariant{CP};
     }
-    case AST::Component::PrimValType::String: {
+    case PrimValType::String: {
       EXPECTED_TRY(auto Len, readULEB(32));
       if (Len > Data.size() - Off) {
         return Unexpect(ErrCode::Value::ComponentMalformedValue);

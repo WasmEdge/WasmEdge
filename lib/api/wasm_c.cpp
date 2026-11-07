@@ -1557,9 +1557,7 @@ WASMEDGE_CAPI_EXPORT void wasm_val_vec_copy(OWN wasm_val_vec_t *out,
   if (in && out && in->size < UINT32_MAX) {
     auto v = wasm::vec<wasm::Val>::make_uninitialized(in->size);
     for (size_t i = 0; i < v.size(); ++i) {
-      wasm_val_t val;
-      wasm_val_copy(&in->data[i], &val);
-      v[i] = conv_val_to_cpp(val);
+      v[i] = conv_val_to_cpp(in->data[i]);
     }
     *out = {v.size(), reinterpret_cast<wasm_val_t *>(v.release())};
   }

@@ -37,12 +37,12 @@ void Serializer::serializeSection(const AST::TypeSection &Sec,
     // Content: vec(rectype).
     for (uint32_t I = 0; I < STypes.size(); I++) {
       auto RecInfo = STypes[I].getRecursiveInfo();
-      if (!RecInfo.has_value()) {
+      if (!STypes[I].isInRecType()) {
         RecCnt++;
-      } else if (RecInfo->Index == 0) {
+      } else if (RecInfo.Index == 0) {
         // First element of a recursive type group.
         OutVec.push_back(static_cast<uint8_t>(TypeCode::Rec));
-        serializeU32(RecInfo->RecTypeSize, OutVec);
+        serializeU32(RecInfo.RecTypeSize, OutVec);
         RecCnt++;
       }
       serializeType(STypes[I], OutVec);

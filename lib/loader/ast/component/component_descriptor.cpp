@@ -3,6 +3,8 @@
 
 #include "loader/loader.h"
 
+#include "common/component_valtype.h"
+
 namespace WasmEdge {
 namespace Loader {
 

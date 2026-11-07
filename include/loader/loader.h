@@ -17,6 +17,7 @@
 #include "ast/component/component.h"
 #include "ast/module.h"
 #include "ast/type.h"
+#include "common/component_valtype.h"
 #include "common/configure.h"
 #include "common/errinfo.h"
 #include "loader/filemgr.h"
@@ -445,6 +446,7 @@ private:
   Expect<void> loadAlias(AST::Component::Alias &Alias);
   // core:deftype and deftype
   Expect<void> loadType(AST::Component::CoreDefType &Ty);
+  Expect<void> loadRecType(std::vector<AST::SubType> &STypes);
   Expect<void> loadType(AST::Component::DefType &Ty);
   Expect<void> loadType(AST::Component::DefValType &Ty, uint8_t Code);
   Expect<void> loadType(AST::Component::FuncType &Ty);

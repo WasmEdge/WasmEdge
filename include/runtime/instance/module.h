@@ -306,7 +306,8 @@ protected:
   }
   template <typename... Args> void addTable(Args &&...Values) {
     std::unique_lock Lock(Mutex);
-    unsafeAddInstance(OwnedTabInsts, TabInsts, std::forward<Args>(Values)...);
+    unsafeAddInstance(OwnedTabInsts, TabInsts, this,
+                      std::forward<Args>(Values)...);
   }
   template <typename... Args> void addMemory(Args &&...Values) {
     std::unique_lock Lock(Mutex);
@@ -314,11 +315,13 @@ protected:
   }
   template <typename... Args> void addTag(Args &&...Values) {
     std::unique_lock Lock(Mutex);
-    unsafeAddInstance(OwnedTagInsts, TagInsts, std::forward<Args>(Values)...);
+    unsafeAddInstance(OwnedTagInsts, TagInsts, this,
+                      std::forward<Args>(Values)...);
   }
   template <typename... Args> void addGlobal(Args &&...Values) {
     std::unique_lock Lock(Mutex);
-    unsafeAddInstance(OwnedGlobInsts, GlobInsts, std::forward<Args>(Values)...);
+    unsafeAddInstance(OwnedGlobInsts, GlobInsts, this,
+                      std::forward<Args>(Values)...);
   }
   template <typename... Args> void addElem(Args &&...Values) {
     std::unique_lock Lock(Mutex);

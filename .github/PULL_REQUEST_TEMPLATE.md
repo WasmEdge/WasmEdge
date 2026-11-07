@@ -12,7 +12,6 @@ Before submitting this PR, please ensure the following:
 
 If you are using AI-assisted tools, please ensure the following:
 
-- [ ] **AI Disclosure**: Disclose it using the `Assisted-by:` trailer in your commits and note it in the PR description. Please refer to the CONTRIBUTING.md/AGENTS.md files for the detailed format.
 - [ ] **Human-in-the-loop**: Submitting commits, issues, and PRs without human verification is forbidden.
 
 ## Test Evidence

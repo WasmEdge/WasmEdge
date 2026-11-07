@@ -305,34 +305,11 @@ Rules:
 - Sign-off required: `git commit -s`
 - Use `commitlint` for validation
 
-### AI Assistance Disclosure
-
-Disclose AI assistance with the `Assisted-by:` trailer, placed before
-`Signed-off-by:` so the human sign-off stays the final confirmation. See
-`docs/CONTRIBUTING.md` under "AI Assistance Disclosure" for the
-contributor-facing policy.
-
-```text
-<type>: <description>
-
-Assisted-by: <name of AI tool or service>
-Signed-off-by: Your Name <email@example.com>
-```
-
-Name the tool you actually used, by its commercial name and optionally its
-model version, for example `Assisted-by: Claude (Anthropic)` or
-`Assisted-by: Codex (OpenAI)`.
-
-For pull requests, include a statement like:
-
-> This contribution was developed with assistance from [AI tool name].
-
 ### Commit Authorship
 
 - Do not modify the git user configuration; preserve the original author
 - Do not add the AI agent itself as a `Co-Authored-By:` trailer (human
-  co-author trailers stay); AI disclosure goes in the `Assisted-by:` trailer
-  instead
+  co-author trailers stay)
 
 ## CI Checks
 
@@ -378,8 +355,7 @@ approval:
   `commitlint.yml` installs, where `<base>` is the fetched PR target such as
   `origin/master` or `origin/0.17.x`; CI lints only the PR commits, and a
   stale local `master` or another target branch adds unrelated commits to
-  the range. The commit carries `Signed-off-by:` and, for AI-assisted work,
-  `Assisted-by:`
+  the range. The commit carries `Signed-off-by:`
 - When exported C API symbols change: update
   `.github/scripts/whitelist.symbols` and run
   `bash .github/scripts/check_symbols.sh` (see

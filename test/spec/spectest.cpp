@@ -287,6 +287,9 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"wasm-3.0-relaxed-simd"sv, WasmEdge::Standard::WASM_3},
     {"wasm-3.0-simd"sv, WasmEdge::Standard::WASM_3},
     {"threads"sv, WasmEdge::Standard::WASM_2, {Proposal::Threads}},
+    {"wide-arithmetic"sv,
+     WasmEdge::Standard::WASM_3,
+     {Proposal::WideArithmetic}},
     // Currently, the component model supports only interpreter mode.
     {"component-model-async"sv,
      WasmEdge::Standard::WASM_3,

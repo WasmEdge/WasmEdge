@@ -7,10 +7,10 @@
 #include "common/config.h"
 #include "common/defines.h"
 #include "common/filesystem.h"
-#include "common/hexstr.h"
 #include "system/path.h"
 
 #include <array>
+#include <spdlog/fmt/fmt.h>
 #include <string>
 #include <system_error>
 
@@ -47,7 +47,10 @@ Expect<std::filesystem::path> Cache::getPath(Span<const Byte> Data,
   std::array<Byte, 32> Hash;
   Hasher.finalize(Hash);
   std::string HexStr;
-  convertBytesToHexStr(Hash, HexStr);
+  HexStr.reserve(Hash.size() * 2);
+  for (const auto V : Hash) {
+    HexStr += fmt::format("{:02x}"sv, V);
+  }
 
   return Root / HexStr;
 }

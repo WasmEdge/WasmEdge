@@ -50,7 +50,6 @@ ohos_copy("spdlog"){
 ohos_static_library("wasmedgeCommon") {
     output_name = "wasmedgeCommon"
     sources = [
-        "$WASMEDGE_ROOT_DIR/lib/common/hexstr.cpp",
         "$WASMEDGE_ROOT_DIR/lib/common/log.cpp",
         "$WASMEDGE_ROOT_DIR/lib/common/errinfo.cpp",
     ]

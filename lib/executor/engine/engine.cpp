@@ -2341,6 +2341,16 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
           *getMemInstByIdx(StackMgr.getModule(), Instr.getTargetIndex()),
           Instr);
 
+    // Wide Arithmetic Instructions
+    case OpCode::I64__add128:
+    case OpCode::I64__sub128:
+    case OpCode::I64__mul_wide_s:
+    case OpCode::I64__mul_wide_u:
+      spdlog::error(ErrCode::Value::RuntimeError);
+      spdlog::error(
+          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+      return Unexpect(ErrCode::Value::RuntimeError);
+
     default:
       // The validator accepts only the opcodes above.
       assumingUnreachable();

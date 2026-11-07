@@ -7,6 +7,8 @@
 #include "host/wasi/vfs.h"
 #include "host/wasi/vinode.h"
 
+#include <tuple>
+
 using namespace std::literals;
 
 namespace WasmEdge {
@@ -61,7 +63,25 @@ static inline constexpr const __wasi_rights_t kStdErrDefaultRights =
     kStdOutDefaultRights;
 static inline constexpr const __wasi_rights_t kNoInheritingRights =
     static_cast<__wasi_rights_t>(0);
-static inline constexpr const auto kReadOnly = "readonly"sv;
+static inline constexpr const auto kReadOnly = ":readonly"sv;
+
+std::tuple<std::string, std::string, bool>
+parsePreopenDir(std::string_view Dir) {
+  const auto Pos = Dir.find(':');
+  auto HostDir = (Pos == std::string_view::npos) ? Dir : Dir.substr(Pos + 1);
+  const bool ReadOnly =
+      HostDir.size() >= kReadOnly.size() &&
+      HostDir.substr(HostDir.size() - kReadOnly.size()) == kReadOnly;
+  if (ReadOnly) {
+    HostDir.remove_suffix(kReadOnly.size());
+  }
+  std::string GuestDir = VINode::canonicalGuest(
+      (Pos == std::string_view::npos) ? Dir : Dir.substr(0, Pos));
+  if (GuestDir.size() == 0) {
+    GuestDir = '/';
+  }
+  return {std::move(GuestDir), std::string(HostDir), ReadOnly};
+}
 
 } // namespace
 
@@ -72,24 +92,7 @@ void Environ::init(Span<const std::string> Dirs, const std::string &ProgramName,
     std::vector<std::shared_ptr<VINode>> PreopenedDirs;
     PreopenedDirs.reserve(Dirs.size());
     for (const auto &Dir : Dirs) {
-      const auto Pos = Dir.find(':');
-      std::string HostDir =
-          (Pos == std::string::npos) ? Dir : Dir.substr(Pos + 1);
-      // Handle the readonly flag
-      bool ReadOnly = false;
-      if (const auto ROPos = HostDir.find(':'); ROPos != std::string::npos) {
-        const auto Mode = HostDir.substr(ROPos + 1);
-        HostDir = HostDir.substr(0, ROPos);
-        if (kReadOnly == Mode) {
-          ReadOnly = true;
-        }
-      }
-      std::string GuestDir = VINode::canonicalGuest(
-          (Pos == std::string::npos) ? std::string_view(Dir)
-                                     : std::string_view(Dir).substr(0, Pos));
-      if (GuestDir.size() == 0) {
-        GuestDir = '/';
-      }
+      auto [GuestDir, HostDir, ReadOnly] = parsePreopenDir(Dir);
       const auto BaseRights =
           ReadOnly ? kPreOpenBaseRightsReadOnly : kPreOpenBaseRights;
       const auto InheritingRights = ReadOnly ? kPreOpenInheritingRightsReadOnly
@@ -156,24 +159,7 @@ Environ::initWithFds(Span<const std::string> Dirs, std::string ProgramName,
     std::vector<std::shared_ptr<VINode>> PreopenedDirs;
     PreopenedDirs.reserve(Dirs.size());
     for (const auto &Dir : Dirs) {
-      const auto Pos = Dir.find(':');
-      std::string HostDir =
-          (Pos == std::string::npos) ? Dir : Dir.substr(Pos + 1);
-      // Handle the readonly flag
-      bool ReadOnly = false;
-      if (const auto ROPos = HostDir.find(':'); ROPos != std::string::npos) {
-        const auto Mode = HostDir.substr(ROPos + 1);
-        HostDir = HostDir.substr(0, ROPos);
-        if (kReadOnly == Mode) {
-          ReadOnly = true;
-        }
-      }
-      std::string GuestDir = VINode::canonicalGuest(
-          (Pos == std::string::npos) ? std::string_view(Dir)
-                                     : std::string_view(Dir).substr(0, Pos));
-      if (GuestDir.size() == 0) {
-        GuestDir = '/';
-      }
+      auto [GuestDir, HostDir, ReadOnly] = parsePreopenDir(Dir);
       const auto BaseRights =
           ReadOnly ? kPreOpenBaseRightsReadOnly : kPreOpenBaseRights;
       const auto InheritingRights = ReadOnly ? kPreOpenInheritingRightsReadOnly

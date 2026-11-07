@@ -4618,6 +4618,160 @@ TEST(WasiTest, SymbolicLink) {
 #endif
 
 namespace {
+// A uniquely named directory used as the preopen root, removed on scope exit.
+struct SymlinkTestRoot {
+  std::filesystem::path Path;
+  explicit SymlinkTestRoot(std::string_view Name)
+      : Path(std::string(Name) + "-" +
+             std::to_string(
+                 std::chrono::steady_clock::now().time_since_epoch().count())) {
+    std::error_code Error;
+    std::filesystem::remove_all(Path, Error);
+    std::filesystem::create_directories(Path, Error);
+  }
+  ~SymlinkTestRoot() {
+    std::error_code Error;
+    std::filesystem::remove_all(Path, Error);
+  }
+};
+
+void writeFile(const std::filesystem::path &Path, std::string_view Content) {
+  std::ofstream File(Path, std::ios::binary);
+  File << Content;
+}
+
+std::string readFile(const std::filesystem::path &Path) {
+  std::ifstream File(Path, std::ios::binary);
+  return std::string(std::istreambuf_iterator<char>(File), {});
+}
+} // namespace
+
+// path_remove_directory acts on a symlink itself and never removes its target.
+TEST(WasiTest, PathRemoveDirectoryDoesNotFollowSymlink) {
+  namespace fs = std::filesystem;
+  SymlinkTestRoot Root("wasmedge-wasi-rmdir-symlink");
+  std::error_code Error;
+  ASSERT_TRUE(fs::create_directory(Root.Path / "realdir", Error));
+  fs::create_directory_symlink("realdir", Root.Path / "dirlink", Error);
+  if (Error) {
+    GTEST_SKIP() << "cannot create symlinks in this environment";
+  }
+  fs::create_directory_symlink("realdir", Root.Path / "slashlink", Error);
+  ASSERT_FALSE(Error);
+
+  WasmEdge::Host::WASI::Environ Env;
+  Env.init({"/:" + Root.Path.string()}, "test"s, {}, {});
+  constexpr __wasi_fd_t RootFd = 3;
+
+  [[maybe_unused]] auto Res = Env.pathRemoveDirectory(RootFd, "dirlink"sv);
+  [[maybe_unused]] auto SlashRes =
+      Env.pathRemoveDirectory(RootFd, "slashlink/"sv);
+  EXPECT_TRUE(fs::is_directory(fs::symlink_status(Root.Path / "realdir")));
+  // On Windows, RemoveDirectoryW removes a directory symlink itself.
+#if !WASMEDGE_OS_WINDOWS
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), __WASI_ERRNO_NOTDIR);
+  ASSERT_FALSE(SlashRes);
+  EXPECT_EQ(SlashRes.error(), __WASI_ERRNO_NOTDIR);
+  EXPECT_TRUE(fs::is_symlink(Root.Path / "dirlink"));
+  EXPECT_TRUE(fs::is_symlink(Root.Path / "slashlink"));
+#endif
+
+  Env.fini();
+}
+
+// path_rename moves or replaces a symlink itself and never touches its target.
+TEST(WasiTest, PathRenameDoesNotFollowSymlink) {
+  namespace fs = std::filesystem;
+  SymlinkTestRoot Root("wasmedge-wasi-rename-symlink");
+  std::error_code Error;
+  ASSERT_TRUE(fs::create_directory(Root.Path / "sub", Error));
+  writeFile(Root.Path / "target", "target_content");
+  fs::create_symlink("../target", Root.Path / "sub" / "link", Error);
+  if (Error) {
+    GTEST_SKIP() << "cannot create symlinks in this environment";
+  }
+  writeFile(Root.Path / "source", "source_content");
+  writeFile(Root.Path / "dest_target", "dest_target_content");
+  fs::create_symlink("dest_target", Root.Path / "dest_link", Error);
+  ASSERT_FALSE(Error);
+
+  WasmEdge::Host::WASI::Environ Env;
+  Env.init({"/:" + Root.Path.string()}, "test"s, {}, {});
+  constexpr __wasi_fd_t RootFd = 3;
+
+  // The source is a symlink: the link moves, the target stays.
+  ASSERT_TRUE(Env.pathRename(RootFd, "sub/link"sv, RootFd, "moved"sv));
+  EXPECT_FALSE(fs::is_symlink(Root.Path / "sub" / "link"));
+  EXPECT_TRUE(fs::is_symlink(Root.Path / "moved"));
+  EXPECT_EQ(readFile(Root.Path / "target"), "target_content");
+
+  // The destination is a symlink: the link is replaced, its target stays.
+  ASSERT_TRUE(Env.pathRename(RootFd, "source"sv, RootFd, "dest_link"sv));
+  EXPECT_FALSE(fs::is_symlink(Root.Path / "dest_link"));
+  EXPECT_EQ(readFile(Root.Path / "dest_link"), "source_content");
+  EXPECT_EQ(readFile(Root.Path / "dest_target"), "dest_target_content");
+
+  Env.fini();
+}
+
+// path_link never follows a symlink: SYMLINK_FOLLOW is rejected, and an
+// existing symlink at the new path is not replaced or followed.
+TEST(WasiTest, PathLinkDoesNotFollowSymlink) {
+  namespace fs = std::filesystem;
+  SymlinkTestRoot Root("wasmedge-wasi-link-symlink");
+  std::error_code Error;
+  writeFile(Root.Path / "file", "f");
+  fs::create_symlink("elsewhere", Root.Path / "dlink", Error);
+  if (Error) {
+    GTEST_SKIP() << "cannot create symlinks in this environment";
+  }
+
+  WasmEdge::Host::WASI::Environ Env;
+  Env.init({"/:" + Root.Path.string()}, "test"s, {}, {});
+  constexpr __wasi_fd_t RootFd = 3;
+
+  auto Res = Env.pathLink(RootFd, "file"sv, RootFd, "dlink"sv,
+                          __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), __WASI_ERRNO_INVAL);
+  EXPECT_TRUE(fs::is_symlink(Root.Path / "dlink"));
+  EXPECT_FALSE(fs::exists(fs::symlink_status(Root.Path / "elsewhere")));
+
+  Res = Env.pathLink(RootFd, "file"sv, RootFd, "dlink"sv,
+                     static_cast<__wasi_lookupflags_t>(0));
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), __WASI_ERRNO_EXIST);
+  EXPECT_TRUE(fs::is_symlink(Root.Path / "dlink"));
+  EXPECT_FALSE(fs::exists(fs::symlink_status(Root.Path / "elsewhere")));
+
+  Env.fini();
+}
+
+// path_create_directory on an existing symlink fails, even when it dangles.
+TEST(WasiTest, PathCreateDirectoryDoesNotFollowSymlink) {
+  namespace fs = std::filesystem;
+  SymlinkTestRoot Root("wasmedge-wasi-mkdir-symlink");
+  std::error_code Error;
+  fs::create_symlink("newdir", Root.Path / "dangle", Error);
+  if (Error) {
+    GTEST_SKIP() << "cannot create symlinks in this environment";
+  }
+
+  WasmEdge::Host::WASI::Environ Env;
+  Env.init({"/:" + Root.Path.string()}, "test"s, {}, {});
+  constexpr __wasi_fd_t RootFd = 3;
+
+  auto Res = Env.pathCreateDirectory(RootFd, "dangle"sv);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), __WASI_ERRNO_EXIST);
+  EXPECT_TRUE(fs::is_symlink(Root.Path / "dangle"));
+  EXPECT_FALSE(fs::exists(fs::symlink_status(Root.Path / "newdir")));
+
+  Env.fini();
+}
+
+namespace {
 namespace fs = std::filesystem;
 int openFileForWrite(const fs::path &Filename) {
   int Fd = -1;

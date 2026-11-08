@@ -612,7 +612,43 @@ TEST(APICoreTest, Value) {
 #endif
   Val = WasmEdge_ValueGenFuncRef(nullptr);
   EXPECT_TRUE(WasmEdge_ValTypeIsFuncRef(Val.Type));
+  EXPECT_TRUE(WasmEdge_ValueIsNullRef(Val));
   EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
+  {
+    WasmEdge_FunctionTypeContext *FuncType =
+        WasmEdge_FunctionTypeCreate(nullptr, 0, nullptr, 0);
+    WasmEdge_FunctionInstanceContext *HostFunc =
+        WasmEdge_FunctionInstanceCreate(
+            FuncType,
+            [](void *, const WasmEdge_CallingFrameContext *,
+               const WasmEdge_Value *, WasmEdge_Value *) -> WasmEdge_Result {
+              return WasmEdge_Result_Success;
+            },
+            nullptr, 0);
+    Val = WasmEdge_ValueGenFuncRef(HostFunc);
+    EXPECT_TRUE(WasmEdge_ValTypeIsFuncRef(Val.Type));
+    EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
+    EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), HostFunc);
+    EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
+    WasmEdge_FunctionInstanceDelete(HostFunc);
+    WasmEdge_FunctionTypeDelete(FuncType);
+  }
+
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(Val.Type));
+  EXPECT_TRUE(WasmEdge_ValueIsNullRef(Val));
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
+
+  char Dummy[2] = {'a', 'b'};
+  void *UnalignedPtr = static_cast<void *>(&Dummy[1]);
+  Val = WasmEdge_ValueGenExternRef(UnalignedPtr);
+  EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(Val.Type));
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
+  EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), UnalignedPtr);
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
+
   Val = WasmEdge_ValueGenExternRef(&Vec);
   EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(Val.Type));
   EXPECT_EQ(

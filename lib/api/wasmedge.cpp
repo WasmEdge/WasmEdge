@@ -750,16 +750,18 @@ WasmEdge_ValueGetFuncRef(const WasmEdge_Value Val) noexcept {
   return toFuncCxt(WasmEdge::retrieveFuncRef(
       WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
           to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
-          .get<WasmEdge::RefVariant>()
-          .getPtr<WasmEdge::Runtime::Instance::FunctionInstance>()));
+          .get<WasmEdge::RefVariant>()));
 }
 
 WASMEDGE_CAPI_EXPORT void *
 WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) noexcept {
-  return &WasmEdge::retrieveExternRef<uint32_t>(
-      WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
-          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
-          .get<WasmEdge::RefVariant>());
+  const auto &Ref = WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
+                        to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
+                        .get<WasmEdge::RefVariant>();
+  if (!Ref.getType().isExternRefType()) {
+    return nullptr;
+  }
+  return Ref.getPtr<void>();
 }
 
 // <<<<<<<< WasmEdge value functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

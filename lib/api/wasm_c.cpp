@@ -946,7 +946,7 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
       OWN wasm_##name##_t const vals[]) {                                      \
     if (out) {                                                                 \
       *out = {0, nullptr};                                                     \
-      if (size < UINT32_MAX) {                                                 \
+      if (size < UINT32_MAX && (size == 0 || vals != nullptr)) {                                                 \
         auto v = wasm::vec<Name>::make_uninitialized(size);                    \
         if (v.size() > 0) {                                                    \
           std::copy_n(vals, size, v.get());                                    \
@@ -973,7 +973,7 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
       OWN wasm_##name##_t *const data[]) {                                     \
     if (out) {                                                                 \
       *out = {0, nullptr};                                                     \
-      if (size < UINT32_MAX) {                                                 \
+      if (size < UINT32_MAX && (size == 0 || data != nullptr)) {                                                 \
         auto v = wasm::ownvec<Name>::make_uninitialized(size);                 \
         for (size_t i = 0; i < v.size(); ++i) {                                \
           v[i] = wasm::make_own(data[i]);                                      \
@@ -987,7 +987,7 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
     if (out) {                                                                 \
       *out = {0, nullptr};                                                     \
     }                                                                          \
-    if (in && out && in->size < UINT32_MAX) {                                  \
+    if (in && out && in->size < UINT32_MAX && (in->size == 0 || in->data != nullptr)) {                                  \
       auto v = wasm::ownvec<Name>::make_uninitialized(in->size);               \
       for (size_t i = 0; i < v.size(); ++i) {                                  \
         v[i] = wasm::make_own(wasm_##name##_copy(in->data[i]));                \
@@ -1539,7 +1539,7 @@ WASMEDGE_CAPI_EXPORT void wasm_val_vec_new(OWN wasm_val_vec_t *out, size_t size,
                                            OWN wasm_val_t const data[]) {
   if (out) {
     *out = {0, nullptr};
-    if (size < UINT32_MAX) {
+    if (size < UINT32_MAX && (size == 0 || data != nullptr)) {
       auto v = wasm::vec<wasm::Val>::make_uninitialized(size);
       for (size_t i = 0; i < v.size(); ++i) {
         v[i] = conv_val_to_cpp(data[i]);
@@ -1554,7 +1554,7 @@ WASMEDGE_CAPI_EXPORT void wasm_val_vec_copy(OWN wasm_val_vec_t *out,
   if (out) {
     *out = {0, nullptr};
   }
-  if (in && out && in->size < UINT32_MAX) {
+  if (in && out && in->size < UINT32_MAX && (in->size == 0 || in->data != nullptr)) {
     auto v = wasm::vec<wasm::Val>::make_uninitialized(in->size);
     for (size_t i = 0; i < v.size(); ++i) {
       v[i] = conv_val_to_cpp(in->data[i]);
@@ -1805,7 +1805,7 @@ WASMEDGE_CAPI_EXPORT OWN wasm_trap_t *wasm_func_call(const wasm_func_t *func,
   const auto &rtypes = ftype.getReturnTypes();
 
   std::vector<WasmEdge::ValVariant> params(ptypes.size());
-  if (args) {
+  if (args && args->data) {
     for (size_t i = 0; i < ptypes.size() && i < args->size; ++i) {
       params[i] = conv_cval_to_wasmedge(args->data[i]);
     }
@@ -1817,7 +1817,7 @@ WASMEDGE_CAPI_EXPORT OWN wasm_trap_t *wasm_func_call(const wasm_func_t *func,
         buildTrap(func->store, res.error(), lookupFuncIdx(func->inst))
             .release());
   }
-  if (results) {
+  if (results && results->data) {
     for (size_t i = 0; i < rtypes.size() && i < results->size; ++i) {
       results->data[i] = conv_cval_from_wasmedge((*res)[i].first, rtypes[i]);
       // Results from wasm_func_call are owning per the wasm-c-api spec:
@@ -2007,8 +2007,8 @@ wasm_instance_new(wasm_store_t *store, const wasm_module_t *module,
   // Copy the C imports vec into a wasm::vec view; the pointed-to externs are
   // borrowed.
   auto imports_vec = wasm::vec<wasm::Extern *>::make_uninitialized(
-      imports ? imports->size : 0);
-  if (imports) {
+      (imports && imports->data) ? imports->size : 0);
+  if (imports && imports->data) {
     for (size_t i = 0; i < imports->size; ++i) {
       imports_vec[i] = static_cast<wasm::Extern *>(imports->data[i]);
     }
@@ -2025,9 +2025,12 @@ wasm_instance_new(wasm_store_t *store, const wasm_module_t *module,
 WASMEDGE_CAPI_EXPORT void wasm_instance_exports(const wasm_instance_t *instance,
                                                 OWN wasm_extern_vec_t *out) {
   if (out) {
-    auto exports = instance->exports();
-    *out = {exports.size(),
-            reinterpret_cast<wasm_extern_t **>(exports.release())};
+    *out = {0, nullptr};
+    if (instance) {
+      auto exports = instance->exports();
+      *out = {exports.size(),
+              reinterpret_cast<wasm_extern_t **>(exports.release())};
+    }
   }
 }
 

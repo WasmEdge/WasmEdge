@@ -66,6 +66,10 @@ namespace {
   wasm_##name##_vec_new(&out, 0, nullptr);                                     \
   EXPECT_EQ(0U, out.size);                                                     \
   wasm_##name##_vec_delete(&out);                                              \
+  wasm_##name##_vec_new(&out, n, nullptr);                                     \
+  EXPECT_EQ(0U, out.size);                                                     \
+  EXPECT_EQ(nullptr, out.data);                                                \
+  wasm_##name##_vec_delete(&out);                                              \
   wasm_##name##_vec_new(&out, n, vals);                                        \
   EXPECT_EQ((size_t)(n), out.size);                                            \
   EXPECT_NE(nullptr, out.data);                                                \
@@ -73,6 +77,10 @@ namespace {
   wasm_##name##_vec_copy(nullptr, nullptr);                                    \
   wasm_##name##_vec_copy(nullptr, &out);                                       \
   wasm_##name##_vec_copy(&copy, nullptr);                                      \
+  wasm_##name##_vec_t corrupt_##name = {(size_t)(n), nullptr};                 \
+  wasm_##name##_vec_copy(&copy, &corrupt_##name);                              \
+  EXPECT_EQ(0U, copy.size);                                                    \
+  EXPECT_EQ(nullptr, copy.data);                                               \
   wasm_##name##_vec_copy(&copy, &out);                                         \
   EXPECT_EQ(out.size, copy.size);
 
@@ -1080,6 +1088,10 @@ TEST(APIWasmCTest, Instance) {
   wasm_instance_exports(instance, &exports);
   EXPECT_EQ(0U, exports.size);
   wasm_extern_vec_delete(&exports);
+  wasm_instance_exports(nullptr, &exports);
+  EXPECT_EQ(0U, exports.size);
+  EXPECT_EQ(nullptr, exports.data);
+  wasm_extern_vec_delete(&exports);
 
   WASM_DECLARE_REF_TEST(instance, instance, instance_fin)
 
@@ -1246,6 +1258,17 @@ TEST(APIWasmCTest, Val) {
   wasm_val_vec_copy(nullptr, &in_vec);
   wasm_val_vec_copy(&copy_vec, nullptr);
   EXPECT_EQ(0U, copy_vec.size);
+
+  wasm_val_vec_t null_data_vec;
+  wasm_val_vec_new(&null_data_vec, 4, nullptr);
+  EXPECT_EQ(0U, null_data_vec.size);
+  EXPECT_EQ(nullptr, null_data_vec.data);
+  wasm_val_vec_delete(&null_data_vec);
+
+  wasm_val_vec_t corrupt_val_vec = {4, nullptr};
+  wasm_val_vec_copy(&copy_vec, &corrupt_val_vec);
+  EXPECT_EQ(0U, copy_vec.size);
+  EXPECT_EQ(nullptr, copy_vec.data);
 
   // Perform copy.
   wasm_val_vec_copy(&copy_vec, &in_vec);

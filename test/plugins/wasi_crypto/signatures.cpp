@@ -172,6 +172,63 @@ TEST_F(WasiCryptoTest, Signatures) {
         __WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
     WASI_CRYPTO_EXPECT_TRUE(signatureClose(RsaSigHandle));
   }
+
+  auto PkVerifyTest = [this](__wasi_algorithm_type_e_t AlgType,
+                             std::string_view Alg) {
+    SCOPED_TRACE(Alg);
+    WASI_CRYPTO_EXPECT_SUCCESS(KpHandle,
+                               keypairGenerate(AlgType, Alg, std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        ExportHandle,
+        publickeyExport(PkHandle, __WASI_PUBLICKEY_ENCODING_PKCS8));
+    WASI_CRYPTO_EXPECT_SUCCESS(ExportSize, arrayOutputLen(ExportHandle));
+    std::vector<uint8_t> ExportedPk(ExportSize);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(ExportHandle, ExportedPk));
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        ReimportedPkHandle, publickeyImport(AlgType, Alg, ExportedPk,
+                                            __WASI_PUBLICKEY_ENCODING_PKCS8));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyVerify(ReimportedPkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(ReimportedPkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+  };
+  PkVerifyTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "RSA_PKCS1_2048_SHA256"sv);
+  PkVerifyTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "RSA_PSS_2048_SHA256"sv);
+
+  auto PkVerifyNegativeTest = [this](__wasi_algorithm_type_e_t AlgType,
+                                     std::string_view Alg) {
+    SCOPED_TRACE(Alg);
+    WASI_CRYPTO_EXPECT_SUCCESS(KpHandle,
+                               keypairGenerate(AlgType, Alg, std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        ExportHandle,
+        publickeyExport(PkHandle, __WASI_PUBLICKEY_ENCODING_PKCS8));
+    WASI_CRYPTO_EXPECT_SUCCESS(ExportSize, arrayOutputLen(ExportHandle));
+    std::vector<uint8_t> ExportedPk(ExportSize);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(ExportHandle, ExportedPk));
+    // In PKCS#8 / SPKI DER encoding of an RSA public key, the RSAPublicKey
+    // structure ends with INTEGER publicExponent (65537 encoded as 02 03 01 00
+    // 01). The byte immediately preceding the exponent tag (ExportedPk.size() -
+    // 6) is the least significant byte of the modulus. Flipping its lowest bit
+    // makes the modulus even (invalid for RSA), while keeping ASN.1 DER
+    // structure and key bit-length intact. This ensures publickeyImport()
+    // succeeds, while publickeyVerify() fails the validity check.
+    ASSERT_GE(ExportedPk.size(), 6U);
+    ExportedPk[ExportedPk.size() - 6] ^= 1;
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        InvalidPkHandle, publickeyImport(AlgType, Alg, ExportedPk,
+                                         __WASI_PUBLICKEY_ENCODING_PKCS8));
+    EXPECT_FALSE(publickeyVerify(InvalidPkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(InvalidPkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+  };
+  PkVerifyNegativeTest(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                       "RSA_PKCS1_2048_SHA256"sv);
+  PkVerifyNegativeTest(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                       "RSA_PSS_2048_SHA256"sv);
 }
 
 } // namespace WasiCrypto

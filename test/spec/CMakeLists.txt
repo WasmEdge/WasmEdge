@@ -36,6 +36,7 @@ set(WASMEDGE_SPECTEST_FOLDERS
   "wasm-3.0-relaxed-simd"
   "wasm-3.0-simd"
   "threads"
+  "wide-arithmetic"
   "component-model-async"
   "component-model-binary"
   "component-model-linking"

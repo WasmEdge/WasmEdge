@@ -150,8 +150,9 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     }
 
     const ValType Ptr = CompCtx.getCanonPtrType(Canon);
-    EXPECTED_TRY(auto Sig, CompCtx.flattenFuncType(FI, Ptr, ParamsNeedMemory,
-                                                   ResultsNeedMemory));
+    EXPECTED_TRY(auto Sig,
+                 CompCtx.flattenFuncType(FI, Ptr, true, ParamsNeedMemory,
+                                         ResultsNeedMemory));
     const bool ParamsIndirect =
         Sig.getParamTypes().size() > Component::Context::MaxFlatParams;
     const bool ResultsIndirect =
@@ -247,8 +248,9 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     }
 
     const ValType Ptr = CompCtx.getCanonPtrType(Canon);
-    EXPECTED_TRY(auto Sig, CompCtx.flattenFuncType(*FI, Ptr, ParamsNeedMemory,
-                                                   ResultsNeedMemory));
+    EXPECTED_TRY(auto Sig,
+                 CompCtx.flattenFuncType(*FI, Ptr, false, ParamsNeedMemory,
+                                         ResultsNeedMemory));
     const bool ParamsIndirect =
         Sig.getParamTypes().size() >
         (AsyncOpt ? Component::Context::MaxFlatAsyncParams
@@ -313,7 +315,7 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
     std::vector<ValType> Params;
     if (const auto &R = Canon.getResult(); R.has_value()) {
       const Component::QualValType Q{*R, &S, nullptr};
-      if (!CompCtx.flattenValType(Q, Params, Ptr)) {
+      if (!CompCtx.flattenValType(Q, Params, Ptr, false)) {
         spdlog::error(ErrCode::Value::InvalidTypeReference);
         return Unexpect(ErrCode::Value::InvalidTypeReference);
       }

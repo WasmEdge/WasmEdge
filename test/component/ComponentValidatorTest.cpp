@@ -3,6 +3,7 @@
 
 #include "ast/component/component.h"
 #include "ast/component/type.h"
+#include "loader/loader.h"
 #include "validator/component_value_decode.h"
 #include "validator/validator.h"
 #include "vm/vm.h"
@@ -3916,4 +3917,35 @@ TEST(ComponentValidatorTest, BuiltinCoreFuncTypeFollowsAddressType) {
   EXPECT_EQ(NewIndirect64.first, (std::vector<ValType>{I64, I32}));
 }
 
+// A borrow is sized as the widest representation a resource can have, so a
+// fixed-length list of 2^25 borrows reaches the element size limit.
+TEST(ComponentValidatorTest, BorrowCountsEightBytesTowardsTheSizeLimit) {
+  // (component
+  //   (type $r (resource (rep i32)))
+  //   (type (list (borrow $r) 33554432)))
+  const std::vector<uint8_t> AtLimit = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x0c, 0x03, 0x3f,
+      0x7f, 0x00, 0x68, 0x00, 0x67, 0x01, 0x80, 0x80, 0x80, 0x10, 0x00, 0x16,
+      0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f, 0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e,
+      0x61, 0x6d, 0x65, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x72,
+  };
+  // The same list with one element fewer.
+  const std::vector<uint8_t> BelowLimit = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x07, 0x0c, 0x03, 0x3f,
+      0x7f, 0x00, 0x68, 0x00, 0x67, 0x01, 0xff, 0xff, 0xff, 0x0f, 0x00, 0x16,
+      0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f, 0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e,
+      0x61, 0x6d, 0x65, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x72,
+  };
+  auto Validate = [](const std::vector<uint8_t> &Wasm) -> Expect<void> {
+    Loader::Loader Loader(Conf);
+    EXPECTED_TRY(auto Unit, Loader.parseWasmUnit(Wasm));
+    Validator::Validator V(Conf);
+    return V.validate(
+        *std::get<std::unique_ptr<AST::Component::Component>>(Unit));
+  };
+  auto Res = Validate(AtLimit);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentValueSizeTooLarge);
+  EXPECT_TRUE(Validate(BelowLimit));
+}
 } // namespace

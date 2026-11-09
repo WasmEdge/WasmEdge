@@ -6,8 +6,10 @@
 #include "common/configure.h"
 #include "loader/loader.h"
 #include "validator/validator.h"
+#ifdef WASMEDGE_USE_LLVM
 #include "llvm/codegen.h"
 #include "llvm/compiler.h"
+#endif
 
 namespace WasmEdge {
 namespace Driver {
@@ -39,6 +41,7 @@ int FuzzTool(const uint8_t *Data, size_t Size) noexcept {
     }
   }
 
+#ifdef WASMEDGE_USE_LLVM
   LLVM::Compiler Compiler(Conf);
   if (auto Res = Compiler.checkConfigure(); !Res) {
     const auto Err = static_cast<uint32_t>(Res.error());
@@ -57,6 +60,7 @@ int FuzzTool(const uint8_t *Data, size_t Size) noexcept {
     spdlog::error("Code Generation failed. Error code: {}"sv, Err);
     return EXIT_FAILURE;
   }
+#endif
 
   return EXIT_SUCCESS;
 }

@@ -119,6 +119,76 @@ TEST(wasmedgePluginTests, CPP_Module) {
   EXPECT_NE(TestModC->findFuncExports("sub"), nullptr);
 }
 
+TEST(wasmedgePluginTests, DefaultPluginPaths) {
+  const char *OrigEnv = ::getenv("WASMEDGE_PLUGIN_PATH");
+  std::string OrigEnvStr = OrigEnv ? OrigEnv : "";
+
+  auto SetEnvHelper = [](const char *Val) {
+#if WASMEDGE_OS_WINDOWS
+    if (Val) {
+      _putenv_s("WASMEDGE_PLUGIN_PATH", Val);
+    } else {
+      _putenv("WASMEDGE_PLUGIN_PATH=");
+    }
+#else
+    if (Val) {
+      ::setenv("WASMEDGE_PLUGIN_PATH", Val, 1);
+    } else {
+      ::unsetenv("WASMEDGE_PLUGIN_PATH");
+    }
+#endif
+  };
+
+  // Test 1: Single colon or multiple colons only (must not abort/throw out_of_range)
+  SetEnvHelper(":");
+  EXPECT_NO_THROW({
+    auto Paths = WasmEdge::Plugin::Plugin::getDefaultPluginPaths();
+    for (const auto &P : Paths) {
+      EXPECT_FALSE(P.empty());
+    }
+  });
+
+  SetEnvHelper(":::");
+  EXPECT_NO_THROW({
+    auto Paths = WasmEdge::Plugin::Plugin::getDefaultPluginPaths();
+    for (const auto &P : Paths) {
+      EXPECT_FALSE(P.empty());
+    }
+  });
+
+  // Test 2: Trailing colon (Issue #5475)
+  SetEnvHelper("/fake/plugin/path/a:");
+  EXPECT_NO_THROW({
+    auto Paths = WasmEdge::Plugin::Plugin::getDefaultPluginPaths();
+    ASSERT_GE(Paths.size(), 1U);
+    EXPECT_EQ(Paths.front(), WasmEdge::u8path("/fake/plugin/path/a"));
+  });
+
+  // Test 3: Multiple paths with trailing and consecutive colons
+  SetEnvHelper("/fake/path/1::/fake/path/2:::");
+  EXPECT_NO_THROW({
+    auto Paths = WasmEdge::Plugin::Plugin::getDefaultPluginPaths();
+    ASSERT_GE(Paths.size(), 2U);
+    EXPECT_EQ(Paths[0], WasmEdge::u8path("/fake/path/1"));
+    EXPECT_EQ(Paths[1], WasmEdge::u8path("/fake/path/2"));
+  });
+
+  // Test 4: Leading colons
+  SetEnvHelper("::/fake/path/leading");
+  EXPECT_NO_THROW({
+    auto Paths = WasmEdge::Plugin::Plugin::getDefaultPluginPaths();
+    ASSERT_GE(Paths.size(), 1U);
+    EXPECT_EQ(Paths.front(), WasmEdge::u8path("/fake/path/leading"));
+  });
+
+  // Restore original environment
+  if (OrigEnv) {
+    SetEnvHelper(OrigEnvStr.c_str());
+  } else {
+    SetEnvHelper(nullptr);
+  }
+}
+
 GTEST_API_ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

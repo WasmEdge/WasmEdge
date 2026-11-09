@@ -48,33 +48,12 @@ docs: update Contribution Guide
 Signed-off-by: Alice Chen <alice.chen@example.com>
 ```
 
-## AI Assistance Disclosure
+## AI Assistance
 
-WasmEdge allows contributors to use AI tools for assistance. If you use AI assistance, you must disclose it in your commit messages and pull request descriptions.
-
-However, the following practices are prohibited:
+WasmEdge allows contributors to use AI tools for assistance. However, the following practices are prohibited:
 
 - Using AI tools to generate code without human review and understanding.
 - Using automated AI agents to submit commits or pull requests without human oversight.
-
-### How to disclose in commit messages
-
-If you are using AI tools, use the `Assisted-by:` trailer to disclose AI assistance.
-
-The `Assisted-by:` trailer should be placed before `Signed-off-by:` to indicate that AI assistance was used, with the human sign-off as the final confirmation.
-
-```
-<type>: <description>
-
-Assisted-by: <name of AI tool or service>
-Signed-off-by: Your Name <email@example.com>
-```
-
-Example: `Assisted-by: Claude (Anthropic)`. Use the tool's commercial name, optionally with the model version.
-
-For pull requests, include a statement like:
-
-> This contribution was developed with assistance from [AI tool name].
 
 ## CI Checks
 

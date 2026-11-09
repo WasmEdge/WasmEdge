@@ -126,25 +126,13 @@ Expect<void> Executor::runVectorConvertOp(ValVariant &Val) const {
 
 inline Expect<void> Executor::runVectorDemoteOp(ValVariant &Val) const {
   using HVT = detail::Vec<float, 2>;
-  const HVT V(Val.get<doublex2_t>());
-  const HVT Zero{};
-  if constexpr (Endian::native == Endian::little) {
-    Val.emplace<floatx4_t>(cat(V, Zero));
-  } else {
-    Val.emplace<floatx4_t>(cat(Zero, permute(V, [](auto I) { return 1 - I; })));
-  }
+  Val.emplace<floatx4_t>(detail::catLowHigh(HVT(Val.get<doublex2_t>()), HVT{}));
   return {};
 }
 
 inline Expect<void> Executor::runVectorPromoteOp(ValVariant &Val) const {
-  const auto Halves =
-      detail::simd::chunk<detail::Vec<float, 2>>(Val.get<floatx4_t>());
-  if constexpr (Endian::native == Endian::little) {
-    Val.emplace<doublex2_t>(doublex2_t(Halves[0]));
-  } else {
-    Val.emplace<doublex2_t>(
-        doublex2_t(permute(Halves[1], [](auto I) { return 1 - I; })));
-  }
+  Val.emplace<doublex2_t>(
+      doublex2_t(detail::lowHalf<detail::Vec<float, 2>>(Val.get<floatx4_t>())));
   return {};
 }
 

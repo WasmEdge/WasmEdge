@@ -228,8 +228,8 @@ Expect<void> Executor::runVectorExtMulLowOp(ValVariant &Val1,
   static_assert(sizeof(TIn) * 2 == sizeof(TOut));
   using HVTIn = detail::Vec<TIn, detail::Vec<TOut>::size>;
   using VTOut = detail::Vec<TOut>;
-  const VTOut E1(detail::simd::chunk<HVTIn>(Val1.get<detail::Vec<TIn>>())[0]);
-  const VTOut E2(detail::simd::chunk<HVTIn>(Val2.get<detail::Vec<TIn>>())[0]);
+  const VTOut E1(detail::lowHalf<HVTIn>(Val1.get<detail::Vec<TIn>>()));
+  const VTOut E2(detail::lowHalf<HVTIn>(Val2.get<detail::Vec<TIn>>()));
   Val1.emplace<VTOut>(E1 * E2);
   return {};
 }
@@ -240,8 +240,8 @@ Expect<void> Executor::runVectorExtMulHighOp(ValVariant &Val1,
   static_assert(sizeof(TIn) * 2 == sizeof(TOut));
   using HVTIn = detail::Vec<TIn, detail::Vec<TOut>::size>;
   using VTOut = detail::Vec<TOut>;
-  const VTOut E1(detail::simd::chunk<HVTIn>(Val1.get<detail::Vec<TIn>>())[1]);
-  const VTOut E2(detail::simd::chunk<HVTIn>(Val2.get<detail::Vec<TIn>>())[1]);
+  const VTOut E1(detail::highHalf<HVTIn>(Val1.get<detail::Vec<TIn>>()));
+  const VTOut E2(detail::highHalf<HVTIn>(Val2.get<detail::Vec<TIn>>()));
   Val1.emplace<VTOut>(E1 * E2);
   return {};
 }

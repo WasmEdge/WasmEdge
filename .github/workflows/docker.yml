@@ -12,7 +12,6 @@ on:
       - '.github/workflows/docker.yml'
       - 'utils/docker/**'
       - 'utils/ffmpeg/**'
-      - 'utils/opencvmini/**'
       - 'utils/wasi-crypto/**'
       - 'utils/wasi-nn/**'
   pull_request:
@@ -20,7 +19,6 @@ on:
       - '.github/workflows/docker.yml'
       - 'utils/docker/**'
       - 'utils/ffmpeg/**'
-      - 'utils/opencvmini/**'
       - 'utils/wasi-crypto/**'
       - 'utils/wasi-nn/**'
   schedule:
@@ -101,7 +99,6 @@ jobs:
               - 'utils/docker/docker-bake.manylinux.hcl'
               - 'utils/docker/Dockerfile.manylinux**'
               - 'utils/ffmpeg/**'
-              - 'utils/opencvmini/**'
               - 'utils/wasi-crypto/**'
               - 'utils/wasi-nn/**'
             ubuntu:
@@ -109,7 +106,6 @@ jobs:
               - 'utils/docker/docker-bake.ubuntu.hcl'
               - 'utils/docker/Dockerfile.ubuntu-**'
               - 'utils/ffmpeg/**'
-              - 'utils/opencvmini/**'
               - 'utils/wasi-crypto/**'
               - 'utils/wasi-nn/**'
 

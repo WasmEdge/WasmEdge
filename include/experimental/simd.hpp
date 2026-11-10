@@ -30,9 +30,7 @@
 
 #pragma once
 
-#include "experimental/simd/backend_array.hpp"
-#include "experimental/simd/backend_m128i.hpp"
-#include "experimental/simd/backend_vector_ext.hpp"
 #include "experimental/simd/detail.hpp"
 #include "experimental/simd/functions.hpp"
 #include "experimental/simd/vec.hpp"
+#include "experimental/simd/vector_ext_intrinsics.hpp"

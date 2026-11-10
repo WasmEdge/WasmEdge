@@ -16,6 +16,7 @@
 #include "experimental/bit.hpp"
 #include "experimental/simd/detail.hpp"
 #include "experimental/simd/vec.hpp"
+#include "experimental/simd/vector_ext_intrinsics.hpp"
 
 #include <array>
 

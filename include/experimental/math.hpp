@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 ///
-// math - A C++17 implementation of roundeven
+// math - A C++17 implementation of roundeven, and a NaN quieting helper
 //
 // To the extent possible under law, the author(s) have dedicated all
 // copyright and related and neighboring rights to this software to the
@@ -14,9 +14,13 @@
 #pragma once
 
 #include "experimental/assume.hpp"
+#include "experimental/bit.hpp"
 
 #include <cfenv>
 #include <cmath>
+#include <cstdint>
+#include <limits>
+#include <type_traits>
 
 #if defined(__has_builtin) && defined(__GLIBC_PREREQ)
 #if __has_builtin(__builtin_roundeven) &&                                      \
@@ -75,6 +79,19 @@ inline double roundeven(double Value) noexcept {
   CXX23_ASSUME(std::fegetround() == FE_TONEAREST);
   return std::nearbyint(Value);
 #endif
+}
+
+// Non-standard. Returns Value with the most significant payload bit set when
+// it is a NaN, which makes a signaling NaN quiet. IEEE 754 operations quiet a
+// signaling NaN, but some libm functions return it unchanged.
+template <class T> T quiet_nan(T Value) noexcept {
+  static_assert(std::is_floating_point_v<T>);
+  using U = std::conditional_t<sizeof(T) == 4, std::uint32_t, std::uint64_t>;
+  if (!std::isnan(Value)) {
+    return Value;
+  }
+  return cxx20::bit_cast<T>(cxx20::bit_cast<U>(Value) |
+                            U{1} << (std::numeric_limits<T>::digits - 2));
 }
 
 } // namespace cxx26

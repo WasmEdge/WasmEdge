@@ -114,7 +114,8 @@ template <class T, simd_size_type N> struct simd_backend<T, array_abi<N>> {
 
 #define CXX26_SIMD_ARRAY_MATH(NAME, SCALAR)                                    \
   static storage_type NAME(const storage_type &A) noexcept {                   \
-    return generate([&](auto I) { return quiet_nan(SCALAR(A.Lanes[I])); });    \
+    return generate(                                                           \
+        [&](auto I) { return cxx26::quiet_nan(SCALAR(A.Lanes[I])); });         \
   }
   CXX26_SIMD_ARRAY_MATH(sqrt, std::sqrt)
   CXX26_SIMD_ARRAY_MATH(ceil, std::ceil)

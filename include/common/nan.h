@@ -13,9 +13,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "experimental/bit.hpp"
+#include "experimental/math.hpp"
 
-#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
@@ -34,11 +33,7 @@ inline constexpr FloatBits<T> QuietBit =
 /// Value with the most significant payload bit set when it is a NaN, which
 /// makes it an arithmetic NaN. Non-NaN values are returned unchanged.
 template <typename T> inline T quietNaN(T Value) noexcept {
-  static_assert(std::is_floating_point_v<T>);
-  if (!std::isnan(Value)) {
-    return Value;
-  }
-  return cxx20::bit_cast<T>(cxx20::bit_cast<FloatBits<T>>(Value) | QuietBit<T>);
+  return cxx26::quiet_nan(Value);
 }
 
 } // namespace WasmEdge

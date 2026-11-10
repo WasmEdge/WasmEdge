@@ -33,8 +33,8 @@ namespace Component {
 //                  => en a* (if len = |en|) 🏷️/🔗
 // attribute      ::= 0x00 len:<u32> in:<interfacename>
 //                  => (implements in) (if len = |in|) 🏷️
-//                  | 0x01 len:<u32> vs:<semversuffix>
-//                  => (versionsuffix vs) (if len = |vs|) 🔗
+//                  | 0x01 len:<u32> s:<semversuffix>
+//                  => (version-suffix s) (if len = |s|) 🔗
 //                  | 0x02 n:<name> => (external-id n) 🏷️
 
 /// AST Component::Import node.

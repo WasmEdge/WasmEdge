@@ -27,10 +27,6 @@ RUN cd && (yum check-update || true) && \
 ### deps for all ###
 FROM deps-${TARGETARCH} AS final
 
-COPY opencvmini/install-opencvmini.sh .
-ENV OPENCV_VERSION="4.8.0"
-RUN [ "/bin/bash", "install-opencvmini.sh" ]
-
 COPY wasi-crypto/build-openssl.sh .
 ENV OpenSSL_DIR="/root/openssl-1.1.1n/openssl"
 RUN [ "/bin/bash", "build-openssl.sh" ]

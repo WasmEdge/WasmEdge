@@ -107,7 +107,8 @@ Executor::runRefAsNonNullOp(RefVariant &Ref,
   if (Ref.isNull()) {
     return Unexpect(logError(ErrCode::Value::CastNullToNonNull, Instr));
   }
-  Ref.setType(Ref.getType().toNonNullableRef());
+  ValType Type = Ref.getType();
+  Ref.setType(Type.toNonNullableRef());
   return {};
 }
 

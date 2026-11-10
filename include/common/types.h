@@ -30,6 +30,10 @@
 #include <optional>
 #include <type_traits>
 
+#if !defined(__GNUC__) && !defined(__clang__) && defined(_M_X64)
+#include <emmintrin.h>
+#endif
+
 namespace WasmEdge {
 
 // >>>>>>>> Type definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -68,10 +72,15 @@ using doublex2_t = SIMDArray<double, 16>;
 using floatx4_t = SIMDArray<float, 16>;
 
 /// Raw 128-bit storage passed in a vector register across the AOT boundary.
-/// The std::array backend (CXX26_SIMD_FORCE_GENERIC) makes this a struct,
-/// which is not returned in a vector register, so AOT and JIT need another
-/// backend.
-using RawV128 = cxx26::simd_ext::native_type_t<uint64x2_t>;
+/// It does not depend on the cxx26::simd backend, so CXX26_SIMD_FORCE_GENERIC
+/// keeps the AOT and JIT calling convention.
+#if defined(__GNUC__) || defined(__clang__)
+using RawV128 [[gnu::vector_size(16)]] = uint64_t;
+#elif defined(_M_X64)
+using RawV128 = __m128i;
+#else
+using RawV128 = std::array<uint64_t, 2>;
+#endif
 
 namespace detail {
 template <typename V> constexpr bool isV128Layout() noexcept {
@@ -423,7 +432,7 @@ struct RefVariant {
   }
 
   // Getter and setter for type.
-  ValType getType() const noexcept {
+  const ValType getType() const noexcept {
     return cxx20::bit_cast<ValType>(toArray()[0]);
   }
   void setType(const ValType &VT) noexcept {

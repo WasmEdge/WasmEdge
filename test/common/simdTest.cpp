@@ -242,25 +242,15 @@ template <class T> std::vector<T> roundingValues() {
   return V;
 }
 
-template <class T> bool sameFloat(T Got, T Want, bool RequireQuiet) {
+template <class T> bool sameFloat(T Got, T Want) {
   if (std::isnan(Want)) {
-    return std::isnan(Got) &&
-           (!RequireQuiet || (bitsOf(Got) & WasmEdge::QuietBit<T>) != 0);
+    return std::isnan(Got) && (bitsOf(Got) & WasmEdge::QuietBit<T>) != 0;
   }
   return bitsOf(Got) == bitsOf(Want);
 }
 
 template <class F, class T> void checkRounding() {
   using V = V16<F, T>;
-  constexpr bool Quiet =
-#if defined(_M_X64) || defined(__SSE2__)
-      std::is_same_v<F, M128iFamily> ||
-#endif
-#if defined(__GNUC__) || defined(__clang__)
-      (std::is_same_v<F, VectorExtFamily> &&
-       simd::detail::vector_ext_intrinsics<T, V::size>::has_math) ||
-#endif
-      false;
   const auto In = roundingValues<T>();
   for (std::size_t K = 0; K < In.size(); K += V::size) {
     const V X([&](auto I) { return In[(K + I) % In.size()]; });
@@ -271,11 +261,11 @@ template <class F, class T> void checkRounding() {
     const V RoundEven = cxx26::simd_ext::roundeven(X);
     for (simd_size_type I = 0; I < V::size; ++I) {
       const T Y = X[I];
-      EXPECT_TRUE(sameFloat(Sqrt[I], std::sqrt(Y), Quiet)) << Y;
-      EXPECT_TRUE(sameFloat(Ceil[I], std::ceil(Y), Quiet)) << Y;
-      EXPECT_TRUE(sameFloat(Floor[I], std::floor(Y), Quiet)) << Y;
-      EXPECT_TRUE(sameFloat(Trunc[I], std::trunc(Y), Quiet)) << Y;
-      EXPECT_TRUE(sameFloat(RoundEven[I], cxx26::roundeven(Y), Quiet)) << Y;
+      EXPECT_TRUE(sameFloat(Sqrt[I], std::sqrt(Y))) << Y;
+      EXPECT_TRUE(sameFloat(Ceil[I], std::ceil(Y))) << Y;
+      EXPECT_TRUE(sameFloat(Floor[I], std::floor(Y))) << Y;
+      EXPECT_TRUE(sameFloat(Trunc[I], std::trunc(Y))) << Y;
+      EXPECT_TRUE(sameFloat(RoundEven[I], cxx26::roundeven(Y))) << Y;
     }
   }
 }

@@ -8,10 +8,12 @@
 #include "experimental/math.hpp"
 #include "experimental/simd/ext.hpp"
 
+#include <atomic>
 #include <cfenv>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <gtest/gtest.h>
 #include <limits>
 #include <stdexcept>
@@ -77,6 +79,10 @@ static_assert(!std::is_constructible_v<simd::vec<std::uint8_t, 16>, int>);
 static_assert(std::is_convertible_v<std::uint8_t, simd::vec<std::uint8_t, 16>>);
 static_assert(std::is_convertible_v<int, simd::vec<std::int32_t, 4>>);
 static_assert(!std::is_constructible_v<simd::vec<float, 4>, int>);
+static_assert(!std::is_convertible_v<std::reference_wrapper<std::uint8_t>,
+                                     simd::vec<std::uint8_t, 16>>);
+static_assert(std::is_constructible_v<simd::vec<std::uint8_t, 16>,
+                                      std::reference_wrapper<std::uint8_t>>);
 static_assert(std::is_convertible_v<simd::vec<std::int16_t, 8>,
                                     simd::vec<std::int32_t, 8>>);
 static_assert(!std::is_convertible_v<simd::vec<std::int32_t, 8>,
@@ -481,6 +487,13 @@ TYPED_TEST(SimdTest, Permute) {
   }
   const U8 Wrapped = simd::permute(X, Idx + U8(std::uint8_t{16}));
   EXPECT_EQ(lanes(Wrapped), lanes(Shuffled));
+  using U32 = V16<TypeParam, std::uint32_t>;
+  using I32 = V16<TypeParam, std::int32_t>;
+  const U32 Y([](auto I) { return static_cast<std::uint32_t>(I + 1); });
+  EXPECT_EQ(lanes(simd::permute(Y, I32(5))),
+            (std::vector<std::uint32_t>{2, 2, 2, 2}));
+  EXPECT_EQ(lanes(simd::permute(Y, I32(-1))),
+            (std::vector<std::uint32_t>{4, 4, 4, 4}));
 }
 
 TYPED_TEST(SimdTest, MaskReductions) {
@@ -621,6 +634,15 @@ TEST(ValVariantTest, ScalarsDoNotBroadcastIntoVectorAlternatives) {
   EXPECT_EQ(F.get<float>(), 1.5f);
   const WasmEdge::ValVariant U64(std::uint64_t{1} << 40);
   EXPECT_EQ(U64.get<std::uint64_t>(), std::uint64_t{1} << 40);
+}
+
+TEST(ValVariantTest, ClassTypesConvertingToScalarsPickTheScalar) {
+  std::atomic<std::uint32_t> Counter{42};
+  const WasmEdge::ValVariant FromAtomic(Counter);
+  EXPECT_EQ(FromAtomic.get<std::uint32_t>(), 42U);
+  std::uint64_t Wide = std::uint64_t{1} << 40;
+  const WasmEdge::ValVariant FromRef(std::ref(Wide));
+  EXPECT_EQ(FromRef.get<std::uint64_t>(), std::uint64_t{1} << 40);
 }
 
 static_assert(

@@ -253,6 +253,9 @@ TEST(SerializeSectionTest, SerializeElementSection) {
 
   WasmEdge::AST::ElementSegment ElementSeg;
   ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Active);
+  // The loader gives the segments of modes 0x00 to 0x03 the type (ref func).
+  ElementSeg.setRefType(
+      WasmEdge::ValType(WasmEdge::TypeCode::Ref, WasmEdge::TypeCode::FuncRef));
 
   WasmEdge::AST::Expression Expr;
   Expr.getInstrs() = {WasmEdge::AST::Instruction(WasmEdge::OpCode::I32__eqz),

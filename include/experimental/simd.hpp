@@ -23,6 +23,7 @@
 //   narrowing. The draft requires bool.
 // - chunk requires the size to divide evenly, and cat requires arguments of
 //   one type.
+// - Broadcast from a class type that converts to the lane type is explicit.
 // - roundeven requires the default round-to-nearest mode on targets that have
 //   neither a roundeven instruction nor __builtin_roundeven.
 ///

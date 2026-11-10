@@ -117,8 +117,12 @@ permute(const basic_vec<T, Abi> &X,
     return detail::access::make<basic_vec<T, Abi>>(backend::permute(
         detail::access::data(X), detail::access::data(Indices)));
   } else {
-    return detail::access::make<basic_vec<T, Abi>>(backend::generate(
-        [&](auto J) { return X[static_cast<simd_size_type>(Indices[J])]; }));
+    return detail::access::make<basic_vec<T, Abi>>(
+        backend::generate([&](auto J) {
+          return X[static_cast<simd_size_type>(
+              static_cast<std::size_t>(Indices[J]) %
+              static_cast<std::size_t>(X.size()))];
+        }));
   }
 }
 

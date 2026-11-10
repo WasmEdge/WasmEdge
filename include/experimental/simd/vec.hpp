@@ -75,14 +75,23 @@ public:
 
   constexpr basic_vec() noexcept = default;
 
-  template <class U, std::enable_if_t<
-                         std::is_convertible_v<U, value_type> &&
-                             (std::is_arithmetic_v<detail::remove_cvref_t<U>>
-                                  ? detail::is_value_preserving_v<
-                                        detail::remove_cvref_t<U>, value_type>
-                                  : !detail::is_generator_v<U, value_type, N>),
-                         int> = 0>
+  template <class U,
+            std::enable_if_t<std::is_arithmetic_v<detail::remove_cvref_t<U>> &&
+                                 detail::is_value_preserving_v<
+                                     detail::remove_cvref_t<U>, value_type>,
+                             int> = 0>
   constexpr basic_vec(U &&Value) noexcept
+      : Data(backend::broadcast(static_cast<value_type>(Value))) {}
+
+  // C++26 makes this broadcast implicit. Keeping it explicit leaves one
+  // implicit conversion from a class type that converts to the lane type, so
+  // a variant of scalars and vectors still picks the scalar.
+  template <class U,
+            std::enable_if_t<!std::is_arithmetic_v<detail::remove_cvref_t<U>> &&
+                                 std::is_convertible_v<U, value_type> &&
+                                 !detail::is_generator_v<U, value_type, N>,
+                             int> = 0>
+  constexpr explicit basic_vec(U &&Value) noexcept
       : Data(backend::broadcast(static_cast<value_type>(Value))) {}
 
   template <class U, class UAbi,

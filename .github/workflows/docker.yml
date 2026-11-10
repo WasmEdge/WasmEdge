@@ -73,6 +73,7 @@ jobs:
       ci-image-base: ${{ github.event_name == 'pull_request' && steps.filter.outputs.ci-image-base || 'true' }}
       alpine-base: ${{ github.event_name == 'pull_request' && steps.filter.outputs.alpine-base || 'true' }}
       manylinux: ${{ github.event_name == 'pull_request' && steps.filter.outputs.manylinux || 'true' }}
+      manylinux-base: ${{ github.event_name == 'pull_request' && steps.filter.outputs.manylinux-base || 'true' }}
       ubuntu: ${{ github.event_name == 'pull_request' && steps.filter.outputs.ubuntu || 'true' }}
 
     steps:
@@ -101,6 +102,11 @@ jobs:
               - 'utils/ffmpeg/**'
               - 'utils/wasi-crypto/**'
               - 'utils/wasi-nn/**'
+            manylinux-base:
+              - '.github/workflows/docker.yml'
+              - 'utils/docker/docker-bake.manylinux.hcl'
+              - 'utils/docker/Dockerfile.manylinux_2_28-base'
+              - 'utils/docker/SHA256SUM.manylinux_2_28'
             ubuntu:
               - '.github/workflows/docker.yml'
               - 'utils/docker/docker-bake.ubuntu.hcl'
@@ -246,11 +252,13 @@ jobs:
           - name: manylinux_2_28 x86_64
             docker_tag: manylinux_2_28_x86_64
             targets: x86_64,x86_64-plugins
+            plugins_target: x86_64-plugins
             host_runner: ubuntu-latest
             host_container: wasmedge/wasmedge:ci-image-base
           - name: manylinux_2_28 aarch64
             docker_tag: manylinux_2_28_aarch64
             targets: aarch64,aarch64-plugins
+            plugins_target: aarch64-plugins
             host_runner: ubuntu-24.04-arm
             host_container: wasmedge/wasmedge:ci-image-base_aarch64
 
@@ -279,9 +287,10 @@ jobs:
         uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           files: utils/docker/docker-bake.manylinux.hcl
-          targets: ${{ matrix.targets }}
+          targets: ${{ needs.paths-filter.outputs.manylinux-base == 'true' && matrix.targets || matrix.plugins_target }}
           push: ${{ github.event_name != 'pull_request' }}
           set: |
+            ${{ needs.paths-filter.outputs.manylinux-base != 'true' && format('{0}.contexts.wasmedge/wasmedge:{1}=docker-image://wasmedge/wasmedge:{1}', matrix.plugins_target, matrix.docker_tag) || '' }}
             *.labels.org.opencontainers.image.title=${{ github.event.repository.name }}
             *.labels.org.opencontainers.image.description=${{ github.event.repository.description }}
             *.labels.org.opencontainers.image.url=${{ github.event.repository.html_url }}

@@ -258,31 +258,94 @@ template <class T, simd_size_type N> struct simd_backend<T, m128i_abi<N>> {
     }
   }
 #else
-  // x86 has no rounding instruction before SSE4.1. Adding and subtracting
-  // 2^(digits-1) rounds |A| to an integer in the current rounding mode, which
-  // must be the default ties-to-even mode; ceil, floor and trunc then correct
-  // by one.
-  // Lanes at or above 2^(digits-1) are already integral, infinite or NaN, and
-  // A + 0 returns them with any signaling NaN quieted.
+  // x86 has no rounding instruction before SSE4.1. The rounding works on the
+  // bit pattern with integer instructions, so it does not depend on the MXCSR
+  // rounding mode or on denormals-are-zero.
+  using int_type = integer_from_t<sizeof(T)>;
+  static constexpr int mantissa_bits = std::numeric_limits<T>::digits - 1;
+  static constexpr int_type exponent_bias =
+      std::numeric_limits<T>::max_exponent - 1;
+
+  // For a biased exponent E with 0 <= E - bias < mantissa_bits, returns the
+  // integer 2^(mantissa_bits - (E - bias)), which is one unit in the place of
+  // the lowest integer bit of the significand. Other lanes are unspecified.
+  static storage_type integer_unit(const storage_type &Exponent) noexcept {
+    if constexpr (is_float) {
+      // The float 2^K converts exactly to the integer 2^K.
+      const __m128i Pow = _mm_slli_epi32(
+          _mm_sub_epi32(_mm_set1_epi32(2 * exponent_bias + mantissa_bits),
+                        Exponent),
+          mantissa_bits);
+      return _mm_cvttps_epi32(_mm_castsi128_ps(Pow));
+    } else {
+      const __m128i Shift = _mm_sub_epi64(
+          _mm_set1_epi64x(exponent_bias + mantissa_bits), Exponent);
+      const __m128i One = _mm_set1_epi64x(1);
+      const __m128i Low = _mm_sll_epi64(One, Shift);
+      const __m128i High = _mm_sll_epi64(One, _mm_unpackhi_epi64(Shift, Shift));
+      return _mm_castpd_si128(
+          _mm_move_sd(_mm_castsi128_pd(High), _mm_castsi128_pd(Low)));
+    }
+  }
+
   template <std::float_round_style R>
   static storage_type round(const storage_type &A) noexcept {
-    const storage_type Magic =
-        broadcast(static_cast<T>(1ULL << (std::numeric_limits<T>::digits - 1)));
-    const storage_type SignBit = broadcast(static_cast<T>(-0.0));
-    const storage_type One = broadcast(static_cast<T>(1));
-    const storage_type Sign = bit_and(A, SignBit);
-    const storage_type Abs = _mm_andnot_si128(SignBit, A);
-    storage_type Rounded = sub(add(Abs, Magic), Magic);
-    if constexpr (R == std::round_toward_zero) {
-      Rounded = sub(Rounded, bit_and(gt(Rounded, Abs), One));
-    }
-    Rounded = bit_or(Rounded, Sign);
+    using ib = signed_backend;
+    const auto Splat = [](auto Value) {
+      return ib::broadcast(static_cast<int_type>(Value));
+    };
+    const storage_type Zero = _mm_setzero_si128();
+    const storage_type SignMask = Splat(std::numeric_limits<int_type>::min());
+    const storage_type OneBits = Splat(exponent_bias << mantissa_bits);
+    const storage_type Sign = bit_and(A, SignMask);
+    const storage_type Abs = _mm_andnot_si128(SignMask, A);
+    [[maybe_unused]] const storage_type Positive = ib::eq(Sign, Zero);
+    [[maybe_unused]] const storage_type NonZero = bit_not(ib::eq(Abs, Zero));
+
+    // |A| < 1 rounds to zero or to one with the sign of A.
+    storage_type Small = Sign;
     if constexpr (R == std::round_toward_infinity) {
-      Rounded = bit_or(add(Rounded, bit_and(lt(Rounded, A), One)), Sign);
+      Small = bit_or(Small, bit_and(bit_and(Positive, NonZero), OneBits));
     } else if constexpr (R == std::round_toward_neg_infinity) {
-      Rounded = bit_or(sub(Rounded, bit_and(gt(Rounded, A), One)), Sign);
+      Small =
+          bit_or(Small, bit_and(_mm_andnot_si128(Positive, NonZero), OneBits));
+    } else if constexpr (R == std::round_to_nearest) {
+      const storage_type HalfBits = Splat((exponent_bias - 1) << mantissa_bits);
+      Small = bit_or(Small, bit_and(ib::gt(Abs, HalfBits), OneBits));
     }
-    return select(lt(Abs, Magic), Rounded, add(A, _mm_setzero_si128()));
+
+    // 1 <= |A| < 2^mantissa_bits clears the fraction bits, then adds one unit
+    // when the rounding goes away from zero.
+    const storage_type Unit = integer_unit(ib::shr(Abs, mantissa_bits));
+    const storage_type FractionMask = ib::sub(Unit, Splat(1));
+    const storage_type Fraction = bit_and(Abs, FractionMask);
+    const storage_type Truncated = _mm_andnot_si128(FractionMask, A);
+    [[maybe_unused]] const storage_type HasFraction =
+        bit_not(ib::eq(Fraction, Zero));
+    storage_type Up = Zero;
+    if constexpr (R == std::round_toward_infinity) {
+      Up = bit_and(HasFraction, Positive);
+    } else if constexpr (R == std::round_toward_neg_infinity) {
+      Up = _mm_andnot_si128(Positive, HasFraction);
+    } else if constexpr (R == std::round_to_nearest) {
+      const storage_type Half = ib::shr(Unit, 1);
+      const storage_type Odd = bit_not(ib::eq(bit_and(Truncated, Unit), Zero));
+      Up = bit_or(ib::gt(Fraction, Half), bit_and(ib::eq(Fraction, Half), Odd));
+    }
+    const storage_type Middle = ib::add(Truncated, bit_and(Up, Unit));
+
+    // |A| >= 2^mantissa_bits is already integral, infinite or NaN. A NaN gets
+    // its quiet bit set.
+    const storage_type InfBits =
+        Splat((2 * exponent_bias + 1) << mantissa_bits);
+    const storage_type QuietBit = Splat(int_type{1} << (mantissa_bits - 1));
+    const storage_type Large =
+        bit_or(A, bit_and(ib::gt(Abs, InfBits), QuietBit));
+
+    const storage_type IntegralBits =
+        Splat((exponent_bias + mantissa_bits) << mantissa_bits);
+    return select(ib::gt(OneBits, Abs), Small,
+                  select(ib::gt(IntegralBits, Abs), Middle, Large));
   }
 #endif
   static storage_type ceil(const storage_type &A) noexcept {

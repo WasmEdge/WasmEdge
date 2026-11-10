@@ -32,12 +32,12 @@ class StoreManager {
 public:
   StoreManager() = default;
   ~StoreManager() {
-    // When destroying this store manager, unlink all the registered module
-    // instances.
-    reset();
     for (auto &Mod : FailedMods) {
       Mod.release()->terminate();
     }
+    // When destroying this store manager, unlink all the registered module
+    // instances.
+    reset();
   }
 
   /// Get the length of the list of registered modules.

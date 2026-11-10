@@ -119,7 +119,6 @@ utils/corpus/                           @ibmibmibm
 utils/docker/                           @hydai @0yi0
 utils/install*                          @SAtacker
 utils/uninstall.sh                      @SAtacker
-utils/opencvmini/                       @dannypsnl
 utils/openwrt/                          @ibmibmibm
 utils/wasi-cpp-header/                  @ibmibmibm
 utils/wasi-crypto/                      @sonder-joker

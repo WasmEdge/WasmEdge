@@ -553,4 +553,12 @@ TEST(ValVariantTest, ScalarsDoNotBroadcastIntoVectorAlternatives) {
   EXPECT_EQ(U64.get<std::uint64_t>(), std::uint64_t{1} << 40);
 }
 
+static_assert(
+    std::is_const_v<decltype(std::declval<WasmEdge::RefVariant>().getType())>,
+    "a mutation of the returned copy must not compile");
+#if defined(__GNUC__) || defined(__clang__) || defined(_M_X64)
+static_assert(!std::is_class_v<WasmEdge::RawV128>,
+              "AOT and JIT code return RawV128 in a vector register");
+#endif
+
 } // namespace

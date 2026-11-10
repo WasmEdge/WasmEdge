@@ -8,6 +8,7 @@
 #include "experimental/math.hpp"
 #include "experimental/simd/ext.hpp"
 
+#include <cfenv>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -19,6 +20,7 @@
 
 #if defined(_M_X64) || defined(__SSE2__)
 #include <emmintrin.h>
+#include <xmmintrin.h>
 #endif
 
 namespace {
@@ -270,6 +272,42 @@ template <class F, class T> void checkRounding() {
   }
 }
 
+// The x86 rounding without SSE4.1 must not depend on the MXCSR rounding mode
+// or on denormals-are-zero. The other backends round with libm, the compiler
+// expansion of it, or an instruction, as the scalar instructions do.
+template <class F> constexpr bool exactRoundingOnX86() {
+#if (defined(_M_X64) || defined(__SSE2__)) && !defined(__SSE4_1__) &&          \
+    !defined(__AVX__)
+  return !std::is_same_v<F, ArrayFamily>;
+#else
+  return false;
+#endif
+}
+
+template <class F, class T> void checkRoundingIgnoresRoundingMode() {
+  using V = V16<F, T>;
+  const auto In = roundingValues<T>();
+  for (const int Mode : {FE_DOWNWARD, FE_UPWARD, FE_TOWARDZERO}) {
+    for (std::size_t K = 0; K < In.size(); K += V::size) {
+      const V X([&](auto I) { return In[(K + I) % In.size()]; });
+      ASSERT_EQ(std::fesetround(Mode), 0);
+      const V Ceil = simd::ceil(X);
+      const V Floor = simd::floor(X);
+      const V Trunc = simd::trunc(X);
+      const V RoundEven = cxx26::simd_ext::roundeven(X);
+      ASSERT_EQ(std::fesetround(FE_TONEAREST), 0);
+      for (simd_size_type I = 0; I < V::size; ++I) {
+        const T Y = X[I];
+        EXPECT_TRUE(sameFloat(Ceil[I], std::ceil(Y))) << Mode << ' ' << Y;
+        EXPECT_TRUE(sameFloat(Floor[I], std::floor(Y))) << Mode << ' ' << Y;
+        EXPECT_TRUE(sameFloat(Trunc[I], std::trunc(Y))) << Mode << ' ' << Y;
+        EXPECT_TRUE(sameFloat(RoundEven[I], cxx26::roundeven(Y)))
+            << Mode << ' ' << Y;
+      }
+    }
+  }
+}
+
 template <class F, class T> void checkMaskBits() {
   using V = V16<F, T>;
   constexpr unsigned long long All = (1ULL << V::size) - 1;
@@ -477,6 +515,38 @@ TYPED_TEST(SimdTest, RoundingMatchesScalar) {
   checkRounding<TypeParam, float>();
   checkRounding<TypeParam, double>();
 }
+
+TYPED_TEST(SimdTest, RoundingIgnoresRoundingMode) {
+  if constexpr (!exactRoundingOnX86<TypeParam>()) {
+    GTEST_SKIP() << "only the x86 rounding without SSE4.1 is checked";
+  } else {
+    checkRoundingIgnoresRoundingMode<TypeParam, float>();
+    checkRoundingIgnoresRoundingMode<TypeParam, double>();
+  }
+}
+
+#if defined(_M_X64) || defined(__SSE2__)
+TYPED_TEST(SimdTest, RoundingIgnoresDenormalsAreZero) {
+  if constexpr (!exactRoundingOnX86<TypeParam>()) {
+    GTEST_SKIP() << "only the x86 rounding without SSE4.1 is checked";
+  } else {
+    using F32 = V16<TypeParam, float>;
+    const float Tiny = std::numeric_limits<float>::denorm_min();
+    const F32 X([&](auto I) { return I % 2 == 0 ? Tiny : -Tiny; });
+    const unsigned int Saved = _mm_getcsr();
+    _mm_setcsr(Saved | 0x8040U);
+    const F32 Ceil = simd::ceil(X);
+    const F32 Floor = simd::floor(X);
+    const F32 Trunc = simd::trunc(X);
+    _mm_setcsr(Saved);
+    for (simd_size_type I = 0; I < F32::size; ++I) {
+      EXPECT_TRUE(sameFloat(Ceil[I], std::ceil(X[I]))) << I;
+      EXPECT_TRUE(sameFloat(Floor[I], std::floor(X[I]))) << I;
+      EXPECT_TRUE(sameFloat(Trunc[I], std::trunc(X[I]))) << I;
+    }
+  }
+}
+#endif
 
 TYPED_TEST(SimdTest, MaskBitsMatchLanes) {
   checkMaskBits<TypeParam, std::int8_t>();

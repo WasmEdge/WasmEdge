@@ -23,7 +23,8 @@
 //   narrowing. The draft requires bool.
 // - chunk requires the size to divide evenly, and cat requires arguments of
 //   one type.
-// - The rounding functions require the default round-to-nearest mode.
+// - roundeven requires the default round-to-nearest mode on targets that have
+//   neither a roundeven instruction nor __builtin_roundeven.
 ///
 
 #pragma once

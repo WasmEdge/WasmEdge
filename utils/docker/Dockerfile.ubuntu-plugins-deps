@@ -47,10 +47,6 @@ FROM deps-${UBUNTU_VER} AS deps-all
 
 WORKDIR /root
 
-COPY opencvmini/install-opencvmini.sh .
-ENV OPENCV_VERSION="4.8.0"
-RUN [ "/bin/bash", "install-opencvmini.sh" ]
-
 COPY wasi-nn/install-pytorch.sh .
 ENV PYTORCH_VERSION="2.12.1"
 ENV PYTORCH_INSTALL_TO="/usr/local/libtorch"
@@ -83,7 +79,6 @@ RUN [ "/bin/bash", "install-chattts.sh" ]
 FROM deps-all AS clean-apt
 
 RUN rm -f \
-    install-opencvmini.sh \
     install-ffmpeg-v7.1.1.sh \
     install-pytorch.sh \
     install-openvino.sh \

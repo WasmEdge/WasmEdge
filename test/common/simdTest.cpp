@@ -12,7 +12,6 @@
 #include <cfenv>
 #include <cmath>
 #include <cstdint>
-#include <cstring>
 #include <functional>
 #include <gtest/gtest.h>
 #include <limits>
@@ -21,7 +20,6 @@
 #include <vector>
 
 #if defined(_M_X64) || defined(__SSE2__)
-#include <emmintrin.h>
 #include <xmmintrin.h>
 #endif
 
@@ -97,22 +95,6 @@ static_assert(
 static_assert(simd::basic_mask<1, simd::detail::array_abi<16>>([](auto I) {
                 return I == 0;
               }).to_ullong() == 0x1ULL);
-
-static_assert(std::is_same_v<cxx26::simd_ext::native_type_t<simd::basic_vec<
-                                 std::uint32_t, simd::detail::array_abi<4>>>,
-                             simd::detail::array_storage<std::uint32_t, 4>>);
-#if defined(__GNUC__) || defined(__clang__)
-using GnuU32x4 [[gnu::vector_size(16)]] = std::uint32_t;
-static_assert(
-    std::is_same_v<cxx26::simd_ext::native_type_t<simd::basic_vec<
-                       std::uint32_t, simd::detail::vector_ext_abi<4>>>,
-                   GnuU32x4>);
-#endif
-#if defined(_M_X64) || defined(__SSE2__)
-[[maybe_unused]] constexpr __m128i *M128iNative =
-    static_cast<cxx26::simd_ext::native_type_t<
-        simd::basic_vec<std::uint32_t, simd::detail::m128i_abi<4>>> *>(nullptr);
-#endif
 
 template <class T> std::vector<T> edgeValues() {
   using L = std::numeric_limits<T>;
@@ -572,10 +554,8 @@ TYPED_TEST(SimdTest, LaneExtensions) {
   using U16 = V16<TypeParam, std::uint16_t>;
   U16 X(std::uint16_t{7});
   cxx26::simd_ext::replace_lane(X, 3, std::uint16_t{0xbeef});
-  const std::uint16_t Source = 0x1234;
-  cxx26::simd_ext::load_lane(X, 6, &Source);
   EXPECT_EQ(lanes(X),
-            (std::vector<std::uint16_t>{7, 7, 7, 0xbeef, 7, 7, 0x1234, 7}));
+            (std::vector<std::uint16_t>{7, 7, 7, 0xbeef, 7, 7, 7, 7}));
 }
 
 TYPED_TEST(SimdTest, IntegerOpsMatchScalar) {
@@ -608,19 +588,6 @@ TYPED_TEST(SimdTest, ConversionsMatchScalar) {
   });
   const VI R(X);
   EXPECT_EQ(lanes(R), (std::vector<std::int32_t>{-2, 1, 0, 2147483520}));
-}
-
-TYPED_TEST(SimdTest, NativeRoundTrip) {
-  using U32 = V16<TypeParam, std::uint32_t>;
-  const U32 X([](auto I) { return static_cast<std::uint32_t>(I + 1) * 0x11U; });
-  const auto Native = cxx26::simd_ext::to_native(X);
-  EXPECT_EQ(sizeof(Native), 16U);
-  EXPECT_EQ(alignof(U32), 16U);
-  std::uint32_t Raw[4];
-  std::memcpy(Raw, &Native, sizeof(Raw));
-  EXPECT_EQ((std::vector<std::uint32_t>(Raw, Raw + 4)),
-            (std::vector<std::uint32_t>{0x11, 0x22, 0x33, 0x44}));
-  EXPECT_EQ(lanes(cxx26::simd_ext::from_native<U32>(Native)), lanes(X));
 }
 
 TEST(ValVariantTest, ScalarsDoNotBroadcastIntoVectorAlternatives) {

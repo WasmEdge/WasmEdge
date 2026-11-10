@@ -287,6 +287,12 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"wasm-3.0-relaxed-simd"sv, WasmEdge::Standard::WASM_3},
     {"wasm-3.0-simd"sv, WasmEdge::Standard::WASM_3},
     {"threads"sv, WasmEdge::Standard::WASM_2, {Proposal::Threads}},
+    // Currently, the wide arithmetic proposal supports only interpreter mode.
+    {"wide-arithmetic"sv,
+     WasmEdge::Standard::WASM_3,
+     {Proposal::WideArithmetic},
+     {},
+     WasmEdge::SpecTest::TestMode::Interpreter},
     // Currently, the component model supports only interpreter mode.
     {"component-model-async"sv,
      WasmEdge::Standard::WASM_3,
@@ -366,6 +372,8 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     {"async/drop-stream",                                        {true, true, false, false}},
     {"async/drop-subtask",                                       {true, true, false, false}},
     {"async/drop-waitable-set",                                  {true, true, false, false}},
+    {"async/dtor-context-is-zero",                               {true, true, false, false}},
+    {"async/during-sync-call-blocking-ops",                      {true, true, false, false}},
     {"async/during-sync-call-exclusive-resume",                  {true, true, false, false}},
     {"async/during-sync-call-may-block-if-other-ready-threads",  {true, true, false, false}},
     {"async/during-sync-call-no-sibling-resume",                 {true, true, false, false}},
@@ -410,9 +418,11 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     {"validation/indicies",                                      {true, true, true, true}}, // codespell:ignore indicies
     {"validation/instantiation",                                 {true, true, false, false}},
     {"validation/kebab",                                         {true, true, true, true}},
+    {"validation/map",                                           {true, true, true, true}},
     {"validation/max-value-size",                                {true, true, true, true}},
     {"validation/outer-alias",                                   {true, true, true, true}},
     {"validation/resources",                                     {true, true, false, false}},
+    {"validation/version-suffix",                                {true, true, true, true}},
     {"values/alignment",                                         {true, true, false, false}},
     {"values/concat",                                            {true, true, false, false}},
     {"values/numerics",                                          {true, true, false, false}},

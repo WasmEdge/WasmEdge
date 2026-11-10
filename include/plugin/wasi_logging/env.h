@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "common/hexstr.h"
 #include "common/spdlog.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
@@ -52,7 +52,7 @@ public:
     do {
       InstanceID = RandDist(RandGen);
     } while (RegisteredID.find(InstanceID) != RegisteredID.cend());
-    LogRegName = "wasi_logging_file_" + convertUIntToHexStr(InstanceID);
+    LogRegName = fmt::format("wasi_logging_file_0x{:08x}"sv, InstanceID);
     RegisteredID.insert(InstanceID);
   }
 

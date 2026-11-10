@@ -389,13 +389,15 @@ WasiCryptoTest::symmetricKeyId(__wasi_symmetric_key_t KeyHandle,
   writeDummyMemoryContent();
   writeSpan(KeyId, 0);
   uint32_t KeyIdSize = static_cast<uint32_t>(KeyId.size());
+  uint32_t SizeOffset = (KeyIdSize + 3) & ~3;
+  uint32_t VersionOffset = (SizeOffset + 4 + 7) & ~7;
 
   auto *Func =
       getHostFunc<Symmetric::KeyId>(WasiCryptoSymmMod, "symmetric_key_id");
   EXPECT_NE(Func, nullptr);
   EXPECT_TRUE(Func->run(CallFrame,
                         std::initializer_list<WasmEdge::ValVariant>{
-                            KeyHandle, 0, KeyIdSize, KeyIdSize, KeyIdSize + 1},
+                            KeyHandle, 0, KeyIdSize, SizeOffset, VersionOffset},
                         Errno));
   ensureOrReturnOnTest(Errno[0].get<int32_t>());
 
@@ -403,8 +405,8 @@ WasiCryptoTest::symmetricKeyId(__wasi_symmetric_key_t KeyHandle,
             MemInst->getPointer<uint8_t *>(KeyIdSize), KeyId.begin());
 
   return std::make_tuple(
-      *MemInst->getPointer<size_t *>(KeyIdSize),
-      *MemInst->getPointer<__wasi_version_t *>(KeyIdSize + 1));
+      *MemInst->getPointer<__wasi_size_t *>(SizeOffset),
+      *MemInst->getPointer<__wasi_version_t *>(VersionOffset));
 }
 
 WasiCryptoExpect<__wasi_symmetric_key_t> WasiCryptoTest::symmetricKeyFromId(
@@ -413,6 +415,7 @@ WasiCryptoExpect<__wasi_symmetric_key_t> WasiCryptoTest::symmetricKeyFromId(
   writeDummyMemoryContent();
   writeSpan(KeyId, 0);
   uint32_t KeyIdSize = static_cast<uint32_t>(KeyId.size());
+  uint32_t KeyOffset = (KeyIdSize + 3) & ~3;
 
   auto *Func = getHostFunc<Symmetric::KeyFromId>(WasiCryptoSymmMod,
                                                  "symmetric_key_from_id");
@@ -420,11 +423,11 @@ WasiCryptoExpect<__wasi_symmetric_key_t> WasiCryptoTest::symmetricKeyFromId(
   EXPECT_TRUE(
       Func->run(CallFrame,
                 std::initializer_list<WasmEdge::ValVariant>{
-                    SecretsManagerHandle, 0, KeyIdSize, KeyVersion, KeyIdSize},
+                    SecretsManagerHandle, 0, KeyIdSize, KeyVersion, KeyOffset},
                 Errno));
   ensureOrReturnOnTest(Errno[0].get<int32_t>());
 
-  return *MemInst->getPointer<__wasi_symmetric_key_t *>(KeyIdSize);
+  return *MemInst->getPointer<__wasi_symmetric_key_t *>(KeyOffset);
 }
 
 WasiCryptoExpect<__wasi_symmetric_state_t> WasiCryptoTest::symmetricStateOpen(

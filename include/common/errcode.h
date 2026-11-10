@@ -16,22 +16,22 @@
 #include "common/enum_errcode.hpp"
 #include "common/expected.h"
 #include "common/fmt.h"
-#include "common/hexstr.h"
 #include "common/spdlog.h"
+#include "experimental/assume.hpp"
 
 #include <cassert>
 #include <ostream>
+#include <string>
+#include <string_view>
 
 #if defined(_MSC_VER) && !defined(__clang__)
 #define __builtin_unreachable() __assume(0)
 #endif
 
+#define assuming(R) CXX23_ASSUME(R)
 #ifdef NDEBUG
-#define assuming(R)                                                            \
-  (static_cast<bool>(R) ? static_cast<void>(0) : __builtin_unreachable())
 #define assumingUnreachable() __builtin_unreachable()
 #else
-#define assuming(expr) assert(expr)
 #define assumingUnreachable()                                                  \
   (assert(false && "unreachable"), __builtin_unreachable())
 #endif

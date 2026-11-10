@@ -45,8 +45,8 @@ public:
   /// The name without its annotation tag; empty when the name carries none.
   std::string_view getNoTagName() const noexcept { return NoTagName; }
   const Detail &getDetail() const noexcept { return NameDetail; }
-  /// The `versionsuffix` attribute: canonversion plus Suffix must be a semver.
-  Expect<void> checkVersionSuffix(std::string_view Suffix) const noexcept;
+  /// Checks the interface version, completed by Suffix when it is not empty.
+  Expect<void> checkVersion(std::string_view Suffix) const noexcept;
 
 private:
   // Cursor primitives, all consuming from Rest.
@@ -61,7 +61,6 @@ private:
   // Grammar checks over a substring; the semver scanners stay unlogged.
   Expect<void> checkWordsLabel(std::string_view Label,
                                std::string_view What) const noexcept;
-  bool isCanonVersion(std::string_view V) const noexcept;
   Expect<void> scanSemver(std::string_view V) const noexcept;
   Expect<void> scanSemverIdentifiers(std::string_view Idents,
                                      bool CheckLeadingZeros) const noexcept;

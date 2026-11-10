@@ -15,6 +15,7 @@
 #pragma once
 
 #include "common/errcode.h"
+#include "common/span.h"
 #include <array>
 #include <csetjmp>
 

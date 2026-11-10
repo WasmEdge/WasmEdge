@@ -13,6 +13,22 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVUtil {
 
+namespace {
+void zeroFrameBuffers(AVFrame *Frame) {
+  for (int I = 0; I < AV_NUM_DATA_POINTERS; ++I) {
+    if (Frame->buf[I] != nullptr) {
+      std::memset(Frame->buf[I]->data, 0, Frame->buf[I]->size);
+    }
+  }
+  for (int I = 0; I < Frame->nb_extended_buf; ++I) {
+    if (Frame->extended_buf[I] != nullptr) {
+      std::memset(Frame->extended_buf[I]->data, 0,
+                  Frame->extended_buf[I]->size);
+    }
+  }
+}
+} // namespace
+
 Expect<int32_t> AVFrameAlloc::body(const Runtime::CallingFrame &Frame,
                                    uint32_t FramePtr) {
   MEMINST_CHECK(MemInst, Frame, 0)
@@ -27,7 +43,10 @@ Expect<int32_t> AVFrameAlloc::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> AVFrameFree::body(const Runtime::CallingFrame &,
                                   uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK_FREE(AvFrame, FrameId,
+                        static_cast<int32_t>(ErrNo::InternalError));
   av_frame_free(&AvFrame);
+  Env.get()->deallocChildren(FrameId);
   FFMPEG_PTR_DELETE(FrameId);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -35,18 +54,24 @@ Expect<int32_t> AVFrameFree::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVFrameWidth::body(const Runtime::CallingFrame &,
                                    uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   return AvFrame->width;
 }
 
 Expect<int32_t> AVFrameHeight::body(const Runtime::CallingFrame &,
                                     uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   return AvFrame->height;
 }
 
 Expect<int32_t> AVFrameSetHeight::body(const Runtime::CallingFrame &,
                                        uint32_t FrameId, uint32_t Height) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
+  if (hasBuffers(AvFrame)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   AvFrame->height = Height;
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -54,6 +79,10 @@ Expect<int32_t> AVFrameSetHeight::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVFrameSetWidth::body(const Runtime::CallingFrame &,
                                       uint32_t FrameId, uint32_t Width) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
+  if (hasBuffers(AvFrame)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   AvFrame->width = Width;
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -61,6 +90,7 @@ Expect<int32_t> AVFrameSetWidth::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVFrameVideoFormat::body(const Runtime::CallingFrame &,
                                          uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   int const Format = AvFrame->format;
   if (Format == -1) {
     return -1;
@@ -69,10 +99,14 @@ Expect<int32_t> AVFrameVideoFormat::body(const Runtime::CallingFrame &,
   return FFmpegUtils::PixFmt::fromAVPixFmt(PixelFormat);
 }
 
-Expect<uint32_t> AVFrameSetVideoFormat::body(const Runtime::CallingFrame &,
-                                             uint32_t FrameId,
-                                             uint32_t AvPixFormatId) {
+Expect<int32_t> AVFrameSetVideoFormat::body(const Runtime::CallingFrame &,
+                                            uint32_t FrameId,
+                                            uint32_t AvPixFormatId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
+  if (hasBuffers(AvFrame)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   AVPixelFormat const PixelFormat =
       FFmpegUtils::PixFmt::intoAVPixFmt(AvPixFormatId);
   AvFrame->format = PixelFormat;
@@ -82,12 +116,17 @@ Expect<uint32_t> AVFrameSetVideoFormat::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVFrameIsNull::body(const Runtime::CallingFrame &,
                                     uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   return AvFrame->data[0] == nullptr;
 }
 
 Expect<int32_t> AVFrameLinesize::body(const Runtime::CallingFrame &,
                                       uint32_t FrameId, uint32_t Idx) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
+  if (Idx >= AV_NUM_DATA_POINTERS) {
+    return 0;
+  }
   return AvFrame->linesize[Idx];
 }
 
@@ -98,7 +137,49 @@ Expect<int32_t> AVFrameData::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(Buffer, MemInst, uint8_t, FrameBufPtr, FrameBufLen, "");
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
 
-  uint8_t *Data = AvFrame->data[Index];
+  if (AvFrame == nullptr || Index >= AV_NUM_DATA_POINTERS) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFrameData: invalid frame id {} or "
+                  "plane index {}"sv,
+                  FrameId, Index);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  if (FrameBufLen == 0) {
+    return static_cast<int32_t>(ErrNo::Success);
+  }
+  uint8_t const *Data = AvFrame->data[Index];
+  if (Data == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFrameData: frame id {} plane {} has "
+                  "no data"sv,
+                  FrameId, Index);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+
+  uintptr_t const Plane = reinterpret_cast<uintptr_t>(Data);
+  size_t Readable = 0;
+  for (int I = 0; I < AV_NUM_DATA_POINTERS; ++I) {
+    const AVBufferRef *Buf = AvFrame->buf[I];
+    if (Buf == nullptr || Buf->data == nullptr) {
+      continue;
+    }
+    uintptr_t const Start = reinterpret_cast<uintptr_t>(Buf->data);
+    if (Plane >= Start && Plane < Start + Buf->size) {
+      Readable = Start + Buf->size - Plane;
+      break;
+    }
+  }
+  if (Readable == 0) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFrameData: frame id {} plane {} is "
+                  "not backed by any frame buffer"sv,
+                  FrameId, Index);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+
+  if (Readable < static_cast<size_t>(FrameBufLen)) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFrameData: requested {} bytes from "
+                  "frame id {} plane {}, but only {} bytes are readable"sv,
+                  FrameBufLen, FrameId, Index, Readable);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   std::copy_n(Data, FrameBufLen, Buffer.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -106,12 +187,25 @@ Expect<int32_t> AVFrameData::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> AVFrameGetBuffer::body(const Runtime::CallingFrame &,
                                        uint32_t FrameId, int32_t Align) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
-  return av_frame_get_buffer(AvFrame, Align);
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
+  if (Align < 0 || Align > 1024 || hasBuffers(AvFrame) ||
+      (hasVideoGeometry(AvFrame) && hasAudioGeometry(AvFrame))) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  int const Res = av_frame_get_buffer(AvFrame, Align);
+  if (Res >= 0) {
+    zeroFrameBuffers(AvFrame);
+  } else if (!hasBuffers(AvFrame)) {
+    std::fill_n(AvFrame->linesize, AV_NUM_DATA_POINTERS, 0);
+    AvFrame->extended_data = AvFrame->data;
+  }
+  return Res;
 }
 
 Expect<int32_t> AVFrameAudioFormat::body(const Runtime::CallingFrame &,
                                          uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   int const Format = AvFrame->format;
   if (Format == -1) {
     return -1;
@@ -125,6 +219,10 @@ Expect<int32_t> AVFrameSetAudioFormat::body(const Runtime::CallingFrame &,
                                             uint32_t FrameId,
                                             uint32_t SampleFormatId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
+  if (hasBuffers(AvFrame)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   AVSampleFormat const SampleFormat =
       FFmpegUtils::SampleFmt::fromSampleID(SampleFormatId);
   AvFrame->format = SampleFormat;
@@ -135,15 +233,33 @@ Expect<int32_t> AVFrameSetChannelLayout::body(const Runtime::CallingFrame &,
                                               uint32_t FrameId,
                                               uint64_t ChannelLayoutID) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
+  if (hasBuffers(AvFrame)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutID);
-  av_channel_layout_from_mask(&AvFrame->ch_layout, ChannelLayout);
+  AVChannelLayout Layout{};
+  int const Ret = av_channel_layout_from_mask(&Layout, ChannelLayout);
+  if (Ret < 0) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFrameSetChannelLayout: "
+                  "av_channel_layout_from_mask failed ({}) for mask {:#x} "
+                  "(frame id {})"sv,
+                  Ret, ChannelLayout, FrameId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  av_channel_layout_uninit(&AvFrame->ch_layout);
+  AvFrame->ch_layout = Layout;
   return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<int32_t> AVFrameSetNbSamples::body(const Runtime::CallingFrame &,
                                           uint32_t FrameId, int32_t Samples) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
+  if (hasBuffers(AvFrame) && (Samples <= 0 || Samples > AvFrame->nb_samples)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   AvFrame->nb_samples = Samples;
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -151,12 +267,14 @@ Expect<int32_t> AVFrameSetNbSamples::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVFrameNbSamples::body(const Runtime::CallingFrame &,
                                        uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   return AvFrame->nb_samples;
 }
 
 Expect<int32_t> AVFrameSampleRate::body(const Runtime::CallingFrame &,
                                         uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   return AvFrame->sample_rate;
 }
 
@@ -164,6 +282,7 @@ Expect<int32_t> AVFrameSetSampleRate::body(const Runtime::CallingFrame &,
                                            uint32_t FrameId,
                                            int32_t SampleRate) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
   AvFrame->sample_rate = SampleRate;
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -171,32 +290,44 @@ Expect<int32_t> AVFrameSetSampleRate::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVFrameChannels::body(const Runtime::CallingFrame &,
                                       uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   return AvFrame->ch_layout.nb_channels;
 }
 
 Expect<int32_t> AVFrameSetChannels::body(const Runtime::CallingFrame &,
                                          uint32_t FrameId, int32_t Channels) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
-  AvFrame->ch_layout.nb_channels = Channels;
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
+  if (hasBuffers(AvFrame) || Channels < 0) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  if (AvFrame->ch_layout.nb_channels == Channels &&
+      av_channel_layout_check(&AvFrame->ch_layout)) {
+    return static_cast<int32_t>(ErrNo::Success);
+  }
+  av_channel_layout_uninit(&AvFrame->ch_layout);
+  av_channel_layout_default(&AvFrame->ch_layout, Channels);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<uint64_t> AVFrameChannelLayout::body(const Runtime::CallingFrame &,
                                             uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
-  uint64_t const ChannelLayout = AvFrame->ch_layout.u.mask;
-  return FFmpegUtils::ChannelLayout::intoChannelLayoutID(ChannelLayout);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
+  return FFmpegUtils::ChannelLayout::intoChannelLayoutID(AvFrame->ch_layout);
 }
 
 Expect<int64_t> AVFrameBestEffortTimestamp::body(const Runtime::CallingFrame &,
                                                  uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   return AvFrame->best_effort_timestamp;
 }
 
 Expect<int32_t> AVFramePictType::body(const Runtime::CallingFrame &,
                                       uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   AVPictureType const AvPictureType = AvFrame->pict_type;
   return FFmpegUtils::PictureType::fromAVPictureType(AvPictureType);
 }
@@ -204,6 +335,7 @@ Expect<int32_t> AVFramePictType::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVFrameSetPictType::body(const Runtime::CallingFrame &,
                                          uint32_t FrameId, int32_t PictureId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
   AVPictureType const AvPictureType =
       FFmpegUtils::PictureType::intoAVPictureType(PictureId);
 
@@ -214,24 +346,28 @@ Expect<int32_t> AVFrameSetPictType::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVFrameInterlacedFrame::body(const Runtime::CallingFrame &,
                                              uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   return AvFrame->interlaced_frame;
 }
 
 Expect<int32_t> AVFrameTopFieldFirst::body(const Runtime::CallingFrame &,
                                            uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   return AvFrame->top_field_first;
 }
 
 Expect<int32_t> AVFramePaletteHasChanged::body(const Runtime::CallingFrame &,
                                                uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   return AvFrame->palette_has_changed;
 }
 
 Expect<int32_t> AVFrameColorSpace::body(const Runtime::CallingFrame &,
                                         uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   AVColorSpace const AvColorSpace = AvFrame->colorspace;
   return FFmpegUtils::ColorSpace::fromAVColorSpace(AvColorSpace);
 }
@@ -240,6 +376,7 @@ Expect<int32_t> AVFrameSetColorSpace::body(const Runtime::CallingFrame &,
                                            uint32_t FrameId,
                                            int32_t ColorSpaceId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
   AvFrame->colorspace = FFmpegUtils::ColorSpace::intoAVColorSpace(ColorSpaceId);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -247,6 +384,7 @@ Expect<int32_t> AVFrameSetColorSpace::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVFrameColorRange::body(const Runtime::CallingFrame &,
                                         uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   AVColorRange const AvColorRange = AvFrame->color_range;
 
   return static_cast<int32_t>(AvColorRange);
@@ -256,6 +394,7 @@ Expect<int32_t> AVFrameSetColorRange::body(const Runtime::CallingFrame &,
                                            uint32_t FrameId,
                                            int32_t ColorRangeId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
   AvFrame->color_range = static_cast<AVColorRange>(ColorRangeId);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -264,6 +403,7 @@ Expect<int32_t>
 AVFrameColorTransferCharacteristic::body(const Runtime::CallingFrame &,
                                          uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   AVColorTransferCharacteristic const Characteristic = AvFrame->color_trc;
 
   // The binding can be used as well. Currently, the binding is commented out.
@@ -274,6 +414,7 @@ Expect<int32_t> AVFrameSetColorTransferCharacteristic::body(
     const Runtime::CallingFrame &, uint32_t FrameId,
     int32_t ColorTransferCharacteristicId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
   AvFrame->color_trc =
       static_cast<AVColorTransferCharacteristic>(ColorTransferCharacteristicId);
   return static_cast<int32_t>(ErrNo::Success);
@@ -282,6 +423,7 @@ Expect<int32_t> AVFrameSetColorTransferCharacteristic::body(
 Expect<int32_t> AVFrameChromaLocation::body(const Runtime::CallingFrame &,
                                             uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   AVChromaLocation const AvChromaLocation = AvFrame->chroma_location;
   return FFmpegUtils::ChromaLocation::fromAVChromaLocation(AvChromaLocation);
 }
@@ -289,18 +431,21 @@ Expect<int32_t> AVFrameChromaLocation::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVFrameRepeatPict::body(const Runtime::CallingFrame &,
                                         uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   return AvFrame->repeat_pict;
 }
 
 Expect<int32_t> AVFrameFlags::body(const Runtime::CallingFrame &,
                                    uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   return AvFrame->flags;
 }
 
 Expect<int32_t> AVFrameQuality::body(const Runtime::CallingFrame &,
                                      uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   return AvFrame->quality;
 }
 
@@ -309,14 +454,17 @@ Expect<int32_t> AVFrameMetadata::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(DictId, MemInst, uint32_t, DictPtr,
                 "Failed when accessing the return AVDictionary memory"sv);
+  *DictId = 0;
 
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
 
-  AVDictionary **AvDictionary =
-      static_cast<AVDictionary **>(av_malloc(sizeof(AVDictionary *)));
+  if (AvFrame == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFrameMetadata: invalid frame id {}"sv,
+                  FrameId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
 
-  *AvDictionary = AvFrame->metadata;
-  FFMPEG_PTR_STORE(AvDictionary, DictId);
+  FFMPEG_PTR_STORE_CHILD(&AvFrame->metadata, DictId, FrameId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -325,29 +473,35 @@ Expect<int32_t> AVFrameSetMetadata::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
   FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
 
-  if (AvDict == nullptr) {
-    AvFrame->metadata = nullptr;
-  } else {
-    AvFrame->metadata = *AvDict;
+  if (AvFrame == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFrameSetMetadata: invalid frame id "
+                  "{}"sv,
+                  FrameId);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
-  return static_cast<int32_t>(ErrNo::Success);
+  FFMPEG_PTR_CHECK_NONZERO(AvDict, DictId,
+                           static_cast<int32_t>(ErrNo::InternalError));
+  return applyMetadata(*Env, &AvFrame->metadata, DictId, AvDict);
 }
 
 Expect<int32_t> AVFrameKeyFrame::body(const Runtime::CallingFrame &,
                                       uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   return AvFrame->key_frame;
 }
 
 Expect<int64_t> AVFramePts::body(const Runtime::CallingFrame &,
                                  uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   return AvFrame->pts;
 }
 
 Expect<int32_t> AVFrameSetPts::body(const Runtime::CallingFrame &,
                                     uint32_t FrameId, int64_t Pts) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
   AvFrame->pts = Pts;
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -356,9 +510,13 @@ Expect<int32_t> AVFrameCopy::body(const Runtime::CallingFrame &,
                                   uint32_t DestFrameId, uint32_t SrcFrameId) {
   FFMPEG_PTR_FETCH(DestAvFrame, DestFrameId, AVFrame);
   FFMPEG_PTR_FETCH(SrcAvFrame, SrcFrameId, AVFrame);
+  FFMPEG_PTR_CHECK(DestAvFrame, static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK(SrcAvFrame, static_cast<int32_t>(ErrNo::InternalError));
 
-  av_frame_copy(DestAvFrame, SrcAvFrame);
-  return static_cast<int32_t>(ErrNo::Success);
+  if (DestAvFrame == SrcAvFrame) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  return av_frame_copy(DestAvFrame, SrcAvFrame);
 }
 
 Expect<int32_t> AVFrameCopyProps::body(const Runtime::CallingFrame &,
@@ -366,9 +524,13 @@ Expect<int32_t> AVFrameCopyProps::body(const Runtime::CallingFrame &,
                                        uint32_t SrcFrameId) {
   FFMPEG_PTR_FETCH(DestAvFrame, DestFrameId, AVFrame);
   FFMPEG_PTR_FETCH(SrcAvFrame, SrcFrameId, AVFrame);
+  FFMPEG_PTR_CHECK(DestAvFrame, static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK(SrcAvFrame, static_cast<int32_t>(ErrNo::InternalError));
 
-  av_frame_copy_props(DestAvFrame, SrcAvFrame);
-  return static_cast<int32_t>(ErrNo::Success);
+  if (DestAvFrame == SrcAvFrame) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  return av_frame_copy_props(DestAvFrame, SrcAvFrame);
 }
 
 Expect<int32_t>
@@ -377,6 +539,7 @@ AVFrameSampleAspectRatio::body(const Runtime::CallingFrame &Frame,
                                uint32_t DenPtr) {
   MEMINST_CHECK(MemInst, Frame, 0)
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
 
   MEM_PTR_CHECK(Num, MemInst, int32_t, NumPtr,
                 "Failed to access Numerator Ptr for AVRational"sv);
@@ -392,6 +555,7 @@ AVFrameSampleAspectRatio::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> AVFrameColorPrimaries::body(const Runtime::CallingFrame &,
                                             uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   AVColorPrimaries const ColorPrimaries = AvFrame->color_primaries;
   return FFmpegUtils::ColorPrimaries::fromAVColorPrimaries(ColorPrimaries);
 }
@@ -400,6 +564,7 @@ Expect<int32_t> AVFrameSetColorPrimaries::body(const Runtime::CallingFrame &,
                                                uint32_t FrameId,
                                                int32_t ColorPrimariesId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
   AVColorPrimaries const ColorPrimaries =
       FFmpegUtils::ColorPrimaries::intoAVColorPrimaries(ColorPrimariesId);
   AvFrame->color_primaries = ColorPrimaries;

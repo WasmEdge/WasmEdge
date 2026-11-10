@@ -2,11 +2,17 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "common/configure.h"
+#include "common/filesystem.h"
 #include "common/spdlog.h"
 #include "driver/options.h"
 #include "driver/tool.h"
+#include "vm/vm.h"
 
+#include <filesystem>
+#include <optional>
+#include <string>
 #include <string_view>
+#include <system_error>
 
 using namespace std::literals;
 
@@ -92,8 +98,26 @@ createProposalConfigure(const struct DriverProposalOptions &Opt) noexcept {
   return Conf;
 }
 
-Configure createConfigure(const struct DriverToolOptions &Opt) noexcept {
-  // Setup logging
+void setStatisticsConfigure(const struct DriverStatisticsOptions &Opt,
+                            Configure &Conf) noexcept {
+  if (Opt.ConfEnableAllStatistics.value()) {
+    Conf.getStatisticsConfigure().setInstructionCounting(true);
+    Conf.getStatisticsConfigure().setCostMeasuring(true);
+    Conf.getStatisticsConfigure().setTimeMeasuring(true);
+  } else {
+    if (Opt.ConfEnableInstructionCounting.value()) {
+      Conf.getStatisticsConfigure().setInstructionCounting(true);
+    }
+    if (Opt.ConfEnableGasMeasuring.value()) {
+      Conf.getStatisticsConfigure().setCostMeasuring(true);
+    }
+    if (Opt.ConfEnableTimeMeasuring.value()) {
+      Conf.getStatisticsConfigure().setTimeMeasuring(true);
+    }
+  }
+}
+
+void setLoggingLevel(const struct DriverLoggingOptions &Opt) noexcept {
   const std::string &Level =
       Opt.LogLevel.value().empty() ? "info" : Opt.LogLevel.value();
   if (!Log::setLoggingLevelFromString(Level)) {
@@ -102,6 +126,10 @@ Configure createConfigure(const struct DriverToolOptions &Opt) noexcept {
                  Level);
     Log::setInfoLoggingLevel();
   }
+}
+
+Configure createConfigure(const struct DriverToolOptions &Opt) noexcept {
+  setLoggingLevel(Opt);
 
   Configure Conf = createProposalConfigure(Opt);
 
@@ -119,6 +147,59 @@ Configure createConfigure(const struct DriverToolOptions &Opt) noexcept {
   }
 
   return Conf;
+}
+
+std::optional<std::filesystem::path>
+getAbsolutePath(const std::string &Name, std::string_view Kind) noexcept {
+  // std::filesystem::absolute throws on an empty path on some standard
+  // libraries; reject it here and take the error code for the other failures.
+  if (Name.empty()) {
+    spdlog::error("No {} provided."sv, Kind);
+    return std::nullopt;
+  }
+  std::error_code Err;
+  auto Path = std::filesystem::absolute(u8path(Name), Err);
+  if (Err) {
+    spdlog::error("Invalid {} path \"{}\": {}"sv, Kind, Name, Err.message());
+    return std::nullopt;
+  }
+  return Path;
+}
+
+std::optional<std::filesystem::path>
+getInputPath(const struct DriverToolOptions &Opt) noexcept {
+  return getAbsolutePath(Opt.SoName.value(), "input wasm file"sv);
+}
+
+void setMemoryPageLimit(const struct DriverToolOptions &Opt,
+                        Configure &Conf) noexcept {
+  if (Opt.MemLim.value().size() > 0) {
+    Conf.getRuntimeConfigure().setMaxMemoryPage(Opt.MemLim.value().back());
+  }
+}
+
+bool registerLinkedModules(const struct DriverToolOptions &Opt,
+                           VM::VM &VM) noexcept {
+  for (const auto &ModEntry : Opt.LinkedModules.value()) {
+    const auto Pos = ModEntry.find(':');
+    if (Pos == std::string::npos || Pos == 0 || Pos + 1 == ModEntry.size()) {
+      spdlog::error("Invalid --module format: \"{}\". Expected name:path."sv,
+                    ModEntry);
+      return false;
+    }
+    const auto Name = ModEntry.substr(0, Pos);
+    const auto Path =
+        getAbsolutePath(ModEntry.substr(Pos + 1), "module file"sv);
+    if (!Path) {
+      return false;
+    }
+    if (auto Result = VM.registerModule(Name, *Path); !Result) {
+      spdlog::error("Failed to register module \"{}\" from: {}"sv, Name,
+                    u8string(*Path));
+      return false;
+    }
+  }
+  return true;
 }
 
 } // namespace Driver

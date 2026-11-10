@@ -154,8 +154,17 @@ jobs:
     # Only run if files changed or if it's a scheduled/merge build
     if: ${{ needs.paths-filter.outputs.alpine-base == 'true' }}
 
-    name: Alpine Base (3.23)
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+
+    name: Alpine Base (3.23, ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -178,6 +187,7 @@ jobs:
         with:
           # Point to your new HCL file here
           files: utils/docker/docker-bake.alpine-base.hcl
+          targets: alpine-base-${{ matrix.arch }}
           push: ${{ github.event_name != 'pull_request' }}
           set: |
             *.labels.org.opencontainers.image.title=${{ github.event.repository.name }}
@@ -187,6 +197,33 @@ jobs:
             *.labels.org.opencontainers.image.revision=${{ github.sha }}
             *.labels.org.opencontainers.image.version=${{ needs.prep.outputs.version }}
             *.labels.org.opencontainers.image.created=${{ needs.prep.outputs.created }}
+
+  merge-alpine-base-images:
+    needs:
+      - build-alpine-base-images
+    if: ${{ github.event_name != 'pull_request' }}
+
+    name: Alpine Base (3.23, manifest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        with:
+          egress-policy: audit
+
+      - name: Login to DockerHub
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+
+      - name: Create the multi-arch manifest
+        run: |
+          docker buildx imagetools create \
+            --tag wasmedge/wasmedge:alpine-base-3.23 \
+            wasmedge/wasmedge:alpine-base-3.23-amd64 \
+            wasmedge/wasmedge:alpine-base-3.23-arm64
 
   build-ubuntu-images:
     needs:

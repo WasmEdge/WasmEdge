@@ -192,5 +192,23 @@ TEST(DescriptionTest, LoadExportDesc) {
       0x01U, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU // Table type and table index
   };
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+
+  // 6. Load invalid export description of tag type without ExceptionHandling proposal (Issue #5532).
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
+  Conf.removeProposal(WasmEdge::Proposal::ExceptionHandling);
+  WasmEdge::Loader::Loader LdrNoExpHndl(Conf);
+
+  Vec = {
+      0x07U,                                           // Export section
+      0x0AU,                                           // Content size = 10
+      0x01U,                                           // Vector length = 1
+      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // External name: Loader
+      0x04U, 0x00U                                     // Tag type and tag index
+  };
+  {
+    auto Res = LdrNoExpHndl.parseModule(prefixedVec(Vec));
+    EXPECT_FALSE(Res);
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::MalformedExportKind);
+  }
 }
 } // namespace

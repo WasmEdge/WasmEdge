@@ -94,9 +94,9 @@ Expect<void> Loader::loadDesc(AST::ExportDesc &ExpDesc) {
     break;
   case ExternalType::Tag:
     if (!Conf.hasProposal(Proposal::ExceptionHandling)) {
-      return logNeedProposal(ErrCode::Value::MalformedImportKind,
+      return logNeedProposal(ErrCode::Value::MalformedExportKind,
                              Proposal::ExceptionHandling, FMgr.getLastOffset(),
-                             ASTNodeAttr::Module);
+                             ASTNodeAttr::Desc_Export);
     }
     break;
   default:

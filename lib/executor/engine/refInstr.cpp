@@ -374,23 +374,20 @@ Expect<void> Executor::runRefConvOp(RefVariant &Ref,
 }
 
 Expect<void> Executor::runRefI31Op(ValVariant &Val) const noexcept {
-  uint32_t RefNum = (Val.get<uint32_t>() & 0x7FFFFFFFU) | 0x80000000U;
-  Val = RefVariant(ValType(TypeCode::Ref, TypeCode::I31Ref),
-                   reinterpret_cast<void *>(static_cast<uint64_t>(RefNum)));
+  Val = RefVariant::makeI31(Val.get<uint32_t>());
   return {};
 }
 
 Expect<void> Executor::runI31GetOp(ValVariant &Val,
                                    const AST::Instruction &Instr,
                                    const bool IsSigned) const noexcept {
-  uint32_t RefNum = static_cast<uint32_t>(
-      reinterpret_cast<uintptr_t>(Val.get<RefVariant>().getPtr<void>()));
-  if ((RefNum & 0x80000000U) == 0) {
+  const auto Payload = Val.get<RefVariant>().getI31();
+  if (!Payload) {
     return Unexpect(logError(ErrCode::Value::AccessNullI31, Instr));
   }
-  RefNum &= 0x7FFFFFFFU;
+  uint32_t RefNum = *Payload;
   if (IsSigned) {
-    RefNum |= ((RefNum & 0x40000000U) << 1);
+    RefNum = (RefNum ^ 0x40000000U) - 0x40000000U;
   }
   Val.emplace<uint32_t>(RefNum);
   return {};

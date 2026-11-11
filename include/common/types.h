@@ -26,6 +26,7 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <type_traits>
 
 #if !defined(__GNUC__) && !defined(__clang__) && defined(_M_X64)
@@ -439,6 +440,28 @@ struct RefVariant {
 
   // Check whether it is null.
   bool isNull() const { return getPtr<void>() == nullptr; }
+
+  // Tag bit of an i31 value in the pointer word.
+  static constexpr uint32_t kI31Tag = 1U;
+
+  // Make an i31 reference from the low 31 bits of the value.
+  static RefVariant makeI31(uint32_t Value) noexcept {
+    RefVariant Ref(ValType(TypeCode::Ref, TypeCode::I31Ref));
+    const auto Word =
+        static_cast<uint64_t>(((Value & 0x7FFFFFFFU) << 1) | kI31Tag);
+    std::memcpy(reinterpret_cast<unsigned char *>(&Ref.Data) + sizeof(uint64_t),
+                &Word, sizeof(Word));
+    return Ref;
+  }
+
+  // Get the 31-bit payload of an i31 reference, or nothing if it is null.
+  std::optional<uint32_t> getI31() const noexcept {
+    const auto Word = static_cast<uint32_t>(toArray()[1]);
+    if ((Word & kI31Tag) == 0U) {
+      return std::nullopt;
+    }
+    return Word >> 1;
+  }
 
   // Getter for the raw data.
   RawV128 getRawData() const noexcept { return Data; }

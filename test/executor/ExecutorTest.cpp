@@ -601,6 +601,81 @@ TEST(WideArithmetic, MulWideU) {
   }
 }
 
+// (module
+//   (func (export "mk") (param i32) (result i31ref) local.get 0 ref.i31)
+//   (func (export "get_s") (param i31ref) (result i32) local.get 0 i31.get_s)
+//   (func (export "get_u") (param i31ref) (result i32) local.get 0 i31.get_u)
+//   (func (export "null_s") (result i32) ref.null i31 i31.get_s)
+//   (func (export "eq") (param i32 i32) (result i32)
+//     local.get 0 ref.i31 local.get 1 ref.i31 ref.eq))
+std::array<WasmEdge::Byte, 120> I31Wasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x15, 0x04, 0x60,
+    0x01, 0x7f, 0x01, 0x6c, 0x60, 0x01, 0x6c, 0x01, 0x7f, 0x60, 0x00, 0x01,
+    0x7f, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x06, 0x05, 0x00, 0x01,
+    0x01, 0x02, 0x03, 0x07, 0x24, 0x05, 0x02, 0x6d, 0x6b, 0x00, 0x00, 0x05,
+    0x67, 0x65, 0x74, 0x5f, 0x73, 0x00, 0x01, 0x05, 0x67, 0x65, 0x74, 0x5f,
+    0x75, 0x00, 0x02, 0x06, 0x6e, 0x75, 0x6c, 0x6c, 0x5f, 0x73, 0x00, 0x03,
+    0x02, 0x65, 0x71, 0x00, 0x04, 0x0a, 0x29, 0x05, 0x06, 0x00, 0x20, 0x00,
+    0xfb, 0x1c, 0x0b, 0x06, 0x00, 0x20, 0x00, 0xfb, 0x1d, 0x0b, 0x06, 0x00,
+    0x20, 0x00, 0xfb, 0x1e, 0x0b, 0x06, 0x00, 0xd0, 0x6c, 0xfb, 0x1d, 0x0b,
+    0x0b, 0x00, 0x20, 0x00, 0xfb, 0x1c, 0x20, 0x01, 0xfb, 0x1c, 0xd3, 0x0b};
+
+static uint64_t refWord(const WasmEdge::RefVariant &Ref) noexcept {
+  const auto Raw = Ref.getRawData();
+  std::array<uint64_t, 2> Words;
+  std::memcpy(Words.data(), &Raw, sizeof(Words));
+  return Words[1];
+}
+
+TEST(I31Encoding, Interpreter) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  WasmEdge::VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(I31Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  const ValType I32(TypeCode::I32);
+  const ValType I31Null(TypeCode::RefNull, TypeCode::I31Ref);
+
+  auto Mk = [&](uint32_t V) -> RefVariant {
+    std::vector<ValVariant> Params = {V};
+    auto R = VM.execute("mk", Params, std::vector<ValType>{I32});
+    EXPECT_TRUE(R);
+    if (!R) {
+      return RefVariant();
+    }
+    return (*R)[0].first.get<RefVariant>();
+  };
+  // The 31-bit payload sits above a set low bit, and the upper half is zero.
+  EXPECT_EQ(refWord(Mk(0U)), UINT64_C(1));
+  EXPECT_FALSE(Mk(0U).isNull());
+  EXPECT_EQ(refWord(Mk(0x40000000U)), UINT64_C(0x80000001));
+  EXPECT_EQ(refWord(Mk(0xFFFFFFFFU)), UINT64_C(0xFFFFFFFF));
+
+  auto Get = [&](std::string_view Name, uint32_t V) -> uint32_t {
+    std::vector<ValVariant> Params = {Mk(V)};
+    auto R = VM.execute(Name, Params, std::vector<ValType>{I31Null});
+    EXPECT_TRUE(R);
+    if (!R) {
+      return 0U;
+    }
+    return (*R)[0].first.get<uint32_t>();
+  };
+  EXPECT_EQ(Get("get_s"sv, 0x40000000U), 0xC0000000U);
+  EXPECT_EQ(Get("get_u"sv, 0x40000000U), 0x40000000U);
+  EXPECT_EQ(Get("get_s"sv, 0x3FFFFFFFU), 0x3FFFFFFFU);
+  EXPECT_EQ(Get("get_u"sv, 0xFFFFFFFFU), 0x7FFFFFFFU);
+
+  auto Null = VM.execute("null_s");
+  ASSERT_FALSE(Null);
+  EXPECT_EQ(Null.error(), ErrCode::Value::AccessNullI31);
+
+  std::vector<ValVariant> EqParams = {5U, 0x80000005U};
+  auto Eq = VM.execute("eq", EqParams, std::vector<ValType>{I32, I32});
+  ASSERT_TRUE(Eq);
+  EXPECT_EQ((*Eq)[0].first.get<uint32_t>(), 1U);
+}
+
 std::array<WasmEdge::Byte, 46> AsyncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
     0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07,

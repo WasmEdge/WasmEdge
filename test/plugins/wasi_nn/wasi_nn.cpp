@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
-#include "wasinn_mlx.h"
 #include "wasinn_piper.h"
+#include "wasinn_tempfile.h"
 #include "wasinnfunc.h"
 #include "wasinnmodule.h"
 
@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <numeric>
@@ -2658,6 +2659,65 @@ TEST(WasiNNTest, WasiNNLoadByNameWithConfigRejectsOutOfBoundsExtent) {
       /*ConfigLen=*/0U);
   EXPECT_EQ(ZeroLenConfig, static_cast<uint32_t>(ErrNo::InvalidArgument));
 }
+
+TEST(WasiNNTest, GGMLBackendPreloadMarkerOnlyFromHost) {
+  // Only the nn-preload option of the host names a model path. The same marker
+  // in a builder of the guest is model data, which is no model.
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  const std::string Marker =
+      WasmEdge::Endian::native == WasmEdge::Endian::little
+          ? "preload:./wasinn_ggml_fixtures/stories260K.gguf"
+          : "preload:./wasinn_ggml_fixtures/granite-3.gguf";
+  const std::vector<uint8_t> Builder(Marker.begin(), Marker.end());
+  const std::vector<uint8_t> Name{'p', 'r', 'e', 'l', 'o', 'a', 'd', 'e', 'd'};
+  const uint32_t LoadEntryPtr = UINT32_C(0);
+  const uint32_t GraphIdPtr = UINT32_C(8);
+  const uint32_t NamePtr = UINT32_C(16);
+  const uint32_t StorePtr = UINT32_C(1024);
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  uint32_t BuilderPtr = LoadEntryPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(Builder.size()),
+                  BuilderPtr);
+  writeBinaries<uint8_t>(MemInst, Builder, StorePtr);
+  writeBinaries<uint8_t>(MemInst, Name, NamePtr);
+
+  auto *FuncInst = NNMod->findFuncExports("load");
+  ASSERT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->getHostFunc().run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          LoadEntryPtr, UINT32_C(1), static_cast<uint32_t>(Backend::GGML),
+          static_cast<uint32_t>(Device::CPU), GraphIdPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  NNMod->getEnv().RawMdMap.emplace(
+      std::string(Name.begin(), Name.end()),
+      std::make_tuple(std::vector<std::vector<uint8_t>>{Builder}, Backend::GGML,
+                      Device::CPU));
+  FuncInst = NNMod->findFuncExports("load_by_name");
+  ASSERT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->getHostFunc().run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          NamePtr, static_cast<uint32_t>(Name.size()), GraphIdPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+}
+
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 TEST(WasiNNTest, GGMLBackendWithRPC) {
   // wasi_nn_rpcserver has to be started outside this test,
@@ -3595,6 +3655,45 @@ TEST(WasiNNTest, WhisperBackend) {
     EXPECT_GE(BytesWritten, 50);
   }
 }
+
+TEST(WasiNNTest, WhisperBackendPreloadMarkerFromGuest) {
+  // A builder of the guest is model data even when it begins with the marker
+  // of the nn-preload option, and names no model path of the host.
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  const std::string Marker = "preload:./wasinn_whisper_fixtures/ggml-tiny.bin";
+  const std::vector<uint8_t> Builder(Marker.begin(), Marker.end());
+  const uint32_t LoadEntryPtr = UINT32_C(0);
+  const uint32_t GraphIdPtr = UINT32_C(8);
+  const uint32_t StorePtr = UINT32_C(1024);
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  uint32_t BuilderPtr = LoadEntryPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(Builder.size()),
+                  BuilderPtr);
+  writeBinaries<uint8_t>(MemInst, Builder, StorePtr);
+
+  auto *FuncInst = NNMod->findFuncExports("load");
+  ASSERT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->getHostFunc().run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          LoadEntryPtr, UINT32_C(1), static_cast<uint32_t>(Backend::Whisper),
+          static_cast<uint32_t>(Device::CPU), GraphIdPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+}
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
@@ -4404,25 +4503,38 @@ TEST(WasiNNTest, ChatTTSBackend) {
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS
 
-// A raw-bytes MLX load writes the model to a temporary safetensors file before
-// conversion. Concurrent loads must not share that path, or one build can
-// truncate the file another build is still reading. uniqueModelFileName is
-// backend-agnostic string logic, so this guard runs in every build.
-TEST(WasiNNTest, MLXTempPathIsUniquePerBuild) {
+// A load from the bytes of the guest writes the model to a file of the host
+// for the backends which load by path. Concurrent loads must not share that
+// file, and it goes away with its owner. This runs in every build.
+TEST(WasiNNTest, TempModelFileIsUniqueAndRemoved) {
   constexpr std::size_t Count = 64;
+  const std::vector<uint8_t> Data{'m', 'o', 'd', 'e', 'l'};
   std::vector<std::string> Paths(Count);
-  std::vector<std::thread> Workers;
-  Workers.reserve(Count);
-  for (std::size_t I = 0; I < Count; ++I) {
-    Workers.emplace_back([&Paths, I]() {
-      Paths[I] = WasmEdge::Host::WASINN::MLX::uniqueModelFileName(0);
-    });
+  {
+    std::vector<WasmEdge::Host::WASINN::TempModelFile> Files(Count);
+    std::vector<std::thread> Workers;
+    Workers.reserve(Count);
+    for (std::size_t I = 0; I < Count; ++I) {
+      Workers.emplace_back([&Files, &Paths, &Data, I]() {
+        EXPECT_TRUE(Files[I].create(Data, ".safetensors"));
+        Paths[I] = Files[I].path();
+      });
+    }
+    for (auto &Worker : Workers) {
+      Worker.join();
+    }
+    const std::set<std::string> Distinct(Paths.begin(), Paths.end());
+    EXPECT_EQ(Distinct.size(), Count);
+    for (const auto &Path : Paths) {
+      std::ifstream File(Path, std::ios::binary);
+      const std::vector<uint8_t> Content{std::istreambuf_iterator<char>(File),
+                                         std::istreambuf_iterator<char>()};
+      EXPECT_EQ(Content, Data);
+    }
   }
-  for (auto &Worker : Workers) {
-    Worker.join();
+  for (const auto &Path : Paths) {
+    EXPECT_FALSE(std::filesystem::exists(Path));
   }
-  const std::set<std::string> Distinct(Paths.begin(), Paths.end());
-  EXPECT_EQ(Distinct.size(), Count);
 }
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
@@ -4687,6 +4799,10 @@ TEST(WasiNNTest, BitNetBackend) {
   auto *FuncInst = NNMod->findFuncExports("load");
   ASSERT_NE(FuncInst, nullptr);
   auto &HostFuncLoad = FuncInst->getHostFunc();
+  // Get the function "load_by_name_with_config".
+  FuncInst = NNMod->findFuncExports("load_by_name_with_config");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncLoadByNameWithConfig = FuncInst->getHostFunc();
   // Get the function "init_execution_context".
   FuncInst = NNMod->findFuncExports("init_execution_context");
   ASSERT_NE(FuncInst, nullptr);
@@ -4842,15 +4958,39 @@ TEST(WasiNNTest, BitNetBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-  // Test: load -- load successfully.
+  // Test: load -- the preload marker in a builder of the guest is model data.
   {
     WriteLoadBuilders(MetadataStr);
-    StorePtr += ModelPreloadStr.size() + MetadataStr.size();
-    ASSERT_TRUE(HostFuncLoad.run(
+    EXPECT_TRUE(HostFuncLoad.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{
             LoadEntryPtr, 2, static_cast<uint32_t>(Backend::BitNet),
             static_cast<uint32_t>(Device::CPU), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+  // Test: load_by_name_with_config -- load the model preloaded by the host.
+  {
+    const std::string Name = "bitnet";
+    NNMod->getEnv().RawMdMap.emplace(
+        Name,
+        std::make_tuple(std::vector<std::vector<uint8_t>>{std::vector<uint8_t>(
+                            ModelPreloadStr.begin(), ModelPreloadStr.end())},
+                        Backend::BitNet, Device::CPU));
+    WriteLoadBuilders(MetadataStr);
+    const uint32_t ConfigPtr =
+        StorePtr + static_cast<uint32_t>(ModelPreloadStr.size());
+    const uint32_t NamePtr =
+        ConfigPtr + static_cast<uint32_t>(MetadataStr.size());
+    writeBinaries<uint8_t>(
+        MemInst, std::vector<uint8_t>(Name.begin(), Name.end()), NamePtr);
+    StorePtr = NamePtr + static_cast<uint32_t>(Name.size());
+    ASSERT_TRUE(HostFuncLoadByNameWithConfig.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            NamePtr, static_cast<uint32_t>(Name.size()), ConfigPtr,
+            static_cast<uint32_t>(MetadataStr.size()), BuilderPtr},
         Errno))
         << "Load failed. Ensure model file exists at: " << ModelPath;
     ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));

@@ -469,32 +469,13 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
     auto Ref = Builder.createBitCast(
         LLVM::Value::getConstVector8(LLContext, RawRef), Context.Int64x2Ty);
     auto Val = Builder.createZExt(
-        Builder.createOr(
-            Builder.createAnd(stackPop(), LLContext.getInt32(0x7FFFFFFFU)),
-            LLContext.getInt32(0x80000000U)),
+        Builder.createOr(Builder.createShl(stackPop(), LLContext.getInt32(1)),
+                         LLContext.getInt32(RefVariant::kI31Tag)),
         Context.Int64Ty);
     stackPush(Builder.createInsertElement(Ref, Val, LLContext.getInt64(1)));
     break;
   }
-  case OpCode::I31__get_s: {
-    auto Next = LLVM::BasicBlock::create(LLContext, F.Fn, "i31.get.ok");
-    auto Ref = Builder.createBitCast(stackPop(), Context.Int64x2Ty);
-    auto Val = Builder.createTrunc(
-        Builder.createExtractElement(Ref, LLContext.getInt64(1)),
-        Context.Int32Ty);
-    auto IsNotNull = Builder.createLikely(Builder.createICmpNE(
-        Builder.createAnd(Val, LLContext.getInt32(0x80000000U)),
-        LLContext.getInt32(0)));
-    Builder.createCondBr(IsNotNull, Next,
-                         getTrapBB(ErrCode::Value::AccessNullI31));
-    Builder.positionAtEnd(Next);
-    Val = Builder.createAnd(Val, LLContext.getInt32(0x7FFFFFFFU));
-    stackPush(Builder.createOr(
-        Val, Builder.createShl(
-                 Builder.createAnd(Val, LLContext.getInt32(0x40000000U)),
-                 LLContext.getInt32(1))));
-    break;
-  }
+  case OpCode::I31__get_s:
   case OpCode::I31__get_u: {
     auto Next = LLVM::BasicBlock::create(LLContext, F.Fn, "i31.get.ok");
     auto Ref = Builder.createBitCast(stackPop(), Context.Int64x2Ty);
@@ -502,12 +483,16 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
         Builder.createExtractElement(Ref, LLContext.getInt64(1)),
         Context.Int32Ty);
     auto IsNotNull = Builder.createLikely(Builder.createICmpNE(
-        Builder.createAnd(Val, LLContext.getInt32(0x80000000U)),
+        Builder.createAnd(Val, LLContext.getInt32(RefVariant::kI31Tag)),
         LLContext.getInt32(0)));
     Builder.createCondBr(IsNotNull, Next,
                          getTrapBB(ErrCode::Value::AccessNullI31));
     Builder.positionAtEnd(Next);
-    stackPush(Builder.createAnd(Val, LLContext.getInt32(0x7FFFFFFFU)));
+    if (Instr.getOpCode() == OpCode::I31__get_s) {
+      stackPush(Builder.createAShr(Val, LLContext.getInt32(1)));
+    } else {
+      stackPush(Builder.createLShr(Val, LLContext.getInt32(1)));
+    }
     break;
   }
 

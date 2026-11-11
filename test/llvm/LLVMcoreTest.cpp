@@ -33,6 +33,7 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <map>
 #include <memory>
@@ -2780,6 +2781,128 @@ TEST(AOTAtomicRMW, IdempotentOutOfBoundsTraps) {
     EXPECT_EQ(Res.error(), ErrCode::Value::MemoryOutOfBounds) << Name;
   }
   VM.cleanup();
+}
+
+// (module
+//   (func (export "mk") (param i32) (result i31ref) local.get 0 ref.i31)
+//   (func (export "get_s") (param i31ref) (result i32) local.get 0 i31.get_s)
+//   (func (export "get_u") (param i31ref) (result i32) local.get 0 i31.get_u)
+//   (func (export "null_s") (result i32) ref.null i31 i31.get_s)
+//   (func (export "eq") (param i32 i32) (result i32)
+//     local.get 0 ref.i31 local.get 1 ref.i31 ref.eq))
+std::array<WasmEdge::Byte, 120> I31Wasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x15, 0x04, 0x60,
+    0x01, 0x7f, 0x01, 0x6c, 0x60, 0x01, 0x6c, 0x01, 0x7f, 0x60, 0x00, 0x01,
+    0x7f, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x06, 0x05, 0x00, 0x01,
+    0x01, 0x02, 0x03, 0x07, 0x24, 0x05, 0x02, 0x6d, 0x6b, 0x00, 0x00, 0x05,
+    0x67, 0x65, 0x74, 0x5f, 0x73, 0x00, 0x01, 0x05, 0x67, 0x65, 0x74, 0x5f,
+    0x75, 0x00, 0x02, 0x06, 0x6e, 0x75, 0x6c, 0x6c, 0x5f, 0x73, 0x00, 0x03,
+    0x02, 0x65, 0x71, 0x00, 0x04, 0x0a, 0x29, 0x05, 0x06, 0x00, 0x20, 0x00,
+    0xfb, 0x1c, 0x0b, 0x06, 0x00, 0x20, 0x00, 0xfb, 0x1d, 0x0b, 0x06, 0x00,
+    0x20, 0x00, 0xfb, 0x1e, 0x0b, 0x06, 0x00, 0xd0, 0x6c, 0xfb, 0x1d, 0x0b,
+    0x0b, 0x00, 0x20, 0x00, 0xfb, 0x1c, 0x20, 0x01, 0xfb, 0x1c, 0xd3, 0x0b};
+
+// Calls the exports of one instance of I31Wasm.
+class I31Calls {
+public:
+  I31Calls(Executor::Executor &E, const Runtime::Instance::ModuleInstance &M)
+      : Exec(E), Mod(M) {}
+
+  RefVariant mk(uint32_t V) {
+    std::vector<ValVariant> Params = {V};
+    auto R = call("mk"sv, Params, {ValType(TypeCode::I32)});
+    return R ? (*R)[0].first.get<RefVariant>() : RefVariant();
+  }
+  uint32_t get(std::string_view Name, RefVariant Ref) {
+    std::vector<ValVariant> Params = {Ref};
+    auto R = call(Name, Params, {ValType(TypeCode::RefNull, TypeCode::I31Ref)});
+    return R ? (*R)[0].first.get<uint32_t>() : 0U;
+  }
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  call(std::string_view Name, Span<const ValVariant> Params,
+       std::vector<ValType> Types) {
+    const auto *Func = Mod.findFuncExports(Name);
+    EXPECT_NE(Func, nullptr);
+    auto R = Exec.invoke(Func, Params, Types);
+    return R;
+  }
+
+private:
+  Executor::Executor &Exec;
+  const Runtime::Instance::ModuleInstance &Mod;
+};
+
+static uint64_t refWord(const WasmEdge::RefVariant &Ref) noexcept {
+  const auto Raw = Ref.getRawData();
+  std::array<uint64_t, 2> Words;
+  std::memcpy(Words.data(), &Raw, sizeof(Words));
+  return Words[1];
+}
+
+TEST(I31Encoding, JIT) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  auto Mod = compileToJIT(Conf, I31Wasm);
+  ASSERT_NE(Mod, nullptr);
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+  auto InstOrErr = ExecEngine.registerModule(Store, *Mod, "jit");
+  ASSERT_TRUE(InstOrErr);
+  auto Inst = std::move(*InstOrErr);
+  const auto *MkFn = Inst->findFuncExports("mk");
+  ASSERT_NE(MkFn, nullptr);
+  ASSERT_TRUE(MkFn->isCompiledFunction());
+  I31Calls Jit(ExecEngine, *Inst);
+
+  // The 31-bit payload sits above a set low bit, and the upper half is zero.
+  EXPECT_EQ(refWord(Jit.mk(0U)), UINT64_C(1));
+  EXPECT_FALSE(Jit.mk(0U).isNull());
+  EXPECT_EQ(refWord(Jit.mk(0x40000000U)), UINT64_C(0x80000001));
+  EXPECT_EQ(refWord(Jit.mk(0xFFFFFFFFU)), UINT64_C(0xFFFFFFFF));
+
+  EXPECT_EQ(Jit.get("get_s"sv, Jit.mk(0x40000000U)), 0xC0000000U);
+  EXPECT_EQ(Jit.get("get_u"sv, Jit.mk(0x40000000U)), 0x40000000U);
+  EXPECT_EQ(Jit.get("get_s"sv, Jit.mk(0x3FFFFFFFU)), 0x3FFFFFFFU);
+  EXPECT_EQ(Jit.get("get_u"sv, Jit.mk(0xFFFFFFFFU)), 0x7FFFFFFFU);
+
+  auto Null = Jit.call("null_s"sv, {}, {});
+  ASSERT_FALSE(Null);
+  EXPECT_EQ(Null.error(), ErrCode::Value::AccessNullI31);
+
+  std::vector<ValVariant> EqParams = {5U, 0x80000005U};
+  auto Eq = Jit.call("eq"sv, EqParams,
+                     {ValType(TypeCode::I32), ValType(TypeCode::I32)});
+  ASSERT_TRUE(Eq);
+  EXPECT_EQ((*Eq)[0].first.get<uint32_t>(), 1U);
+}
+
+// An i31 value made by compiled code reads the same in the interpreter, and
+// the other way round.
+TEST(I31Encoding, CrossMode) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  auto JitMod = compileToJIT(Conf, I31Wasm);
+  ASSERT_NE(JitMod, nullptr);
+  auto InterpMod = loadModule(Conf, I31Wasm);
+  ASSERT_NE(InterpMod, nullptr);
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+  auto JitInstOrErr = ExecEngine.registerModule(Store, *JitMod, "jit");
+  ASSERT_TRUE(JitInstOrErr);
+  auto JitInst = std::move(*JitInstOrErr);
+  auto InterpInstOrErr = ExecEngine.registerModule(Store, *InterpMod, "interp");
+  ASSERT_TRUE(InterpInstOrErr);
+  auto InterpInst = std::move(*InterpInstOrErr);
+  ASSERT_TRUE(JitInst->findFuncExports("mk")->isCompiledFunction());
+  ASSERT_FALSE(InterpInst->findFuncExports("mk")->isCompiledFunction());
+  I31Calls Jit(ExecEngine, *JitInst);
+  I31Calls Interp(ExecEngine, *InterpInst);
+
+  constexpr uint32_t V = 0x40000000U;
+  EXPECT_EQ(Interp.get("get_s"sv, Jit.mk(V)), 0xC0000000U);
+  EXPECT_EQ(Interp.get("get_u"sv, Jit.mk(V)), 0x40000000U);
+  EXPECT_EQ(Jit.get("get_s"sv, Interp.mk(V)), 0xC0000000U);
+  EXPECT_EQ(Jit.get("get_u"sv, Interp.mk(V)), 0x40000000U);
 }
 
 } // namespace

@@ -11,7 +11,6 @@
 #include <common.h>
 #include <filesystem>
 #include <fmt/ranges.h>
-#include <fstream>
 #include <limits>
 #include <llama.h>
 #include <mutex>
@@ -1971,7 +1970,7 @@ Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
 
 } // namespace
 
-Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &G,
+Expect<ErrNo> load(WasiNNEnvironment &Env, WASINN::Graph &G,
                    Span<const Span<uint8_t>> Builders, Device) noexcept {
   if (Builders.empty()) {
     RET_ERROR(ErrNo::InvalidArgument,
@@ -2059,20 +2058,16 @@ Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &G,
   const std::string_view BinModel(reinterpret_cast<const char *>(Weight.data()),
                                   Weight.size());
 
-  if (BinModel.substr(0, 8) == "preload:"sv) {
+  if (Env.isPreloaded(Weight) && BinModel.substr(0, 8) == "preload:"sv) {
     GraphRef.Params.model = std::string(BinModel.substr(8));
   } else {
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "load: Model path not found in nn-preload, write model into "sv
               "a tmpfile."sv)
-    GraphRef.Params.model = "bitnet-model.bin"sv;
-    std::ofstream TempFile(GraphRef.Params.model,
-                           std::ios::out | std::ios::binary | std::ios::trunc);
-    if (!TempFile) {
+    if (!GraphRef.TempModel.create(Weight, ".gguf"sv)) {
       RET_ERROR(ErrNo::InvalidArgument, "Failed to create temp model file."sv)
     }
-    TempFile.write(BinModel.data(), BinModel.size());
-    TempFile.close();
+    GraphRef.Params.model = GraphRef.TempModel.path();
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "load: Write model into a tmpfile...Done"sv)
   }

@@ -382,7 +382,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
       return ErrNo::InvalidArgument;
     }
     std::string ModelFilePath;
-    if (BinModel.substr(0, 8) == "preload:"sv) {
+    if (Env.isPreloaded(WeightData) && BinModel.substr(0, 8) == "preload:"sv) {
       ModelFilePath = BinModel.substr(8);
     } else {
       if (GraphRef.EnableDebugLog) {
@@ -392,17 +392,13 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
       }
       // Write model to file.
       // TODO: handle different model format.
-      ModelFilePath = uniqueModelFileName(Idx);
-      WasmEdge::FStream::OFStream TempFile(
-          ModelFilePath, std::ios_base::out | std::ios_base::binary,
-          Env.getEnv());
-      if (!TempFile) {
+      auto &TempModel = GraphRef.TempModels.emplace_back();
+      if (!TempModel.create(WeightData, ".safetensors"sv)) {
         spdlog::error(
             "[WASI-NN] MLX backend: Failed to create the temporary file. "sv);
         return ErrNo::InvalidArgument;
       }
-      TempFile.write(BinModel.data(), BinModel.size());
-      TempFile.close();
+      ModelFilePath = TempModel.path();
       if (GraphRef.EnableDebugLog) {
         spdlog::info(
             "[WASI-NN][Debug] MLX backend: Write model into a tmpfile...Done"sv);

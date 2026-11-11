@@ -23,7 +23,9 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <new>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace WasmEdge {
@@ -66,6 +68,9 @@ static_assert(alignof(std::atomic<uint8_t *>) == alignof(uint8_t *));
 
 /// Map a C++ type to the kind of its heap slot.
 template <typename T> struct HeapTraits;
+
+template <typename T> class UniqueHeapPtr;
+template <typename T> class SharedHeapPtr;
 
 /// Heap with a data region and an object region, addressed by 32-bit offsets.
 class RefHeap {
@@ -160,7 +165,57 @@ public:
     return {};
   }
 
+  /// Construct a `T` in a new slot, with `TailBytes` more bytes after it.
+  template <typename T, typename... ArgsT>
+  Expect<UniqueHeapPtr<T>> makeUniqueWithTail(uint32_t TailBytes,
+                                              ArgsT &&...Args) noexcept;
+  template <typename T, typename... ArgsT>
+  Expect<UniqueHeapPtr<T>> makeUnique(ArgsT &&...Args) noexcept {
+    return makeUniqueWithTail<T>(0, std::forward<ArgsT>(Args)...);
+  }
+  template <typename T, typename... ArgsT>
+  Expect<SharedHeapPtr<T>> makeSharedWithTail(uint32_t TailBytes,
+                                              ArgsT &&...Args) noexcept;
+  template <typename T, typename... ArgsT>
+  Expect<SharedHeapPtr<T>> makeShared(ArgsT &&...Args) noexcept {
+    return makeSharedWithTail<T>(0, std::forward<ArgsT>(Args)...);
+  }
+
 private:
+  template <typename T> friend class UniqueHeapPtr;
+  template <typename T> friend class SharedHeapPtr;
+
+  template <typename T, typename... ArgsT>
+  Expect<std::pair<T *, uint32_t>> construct(uint32_t TailBytes,
+                                             ArgsT &&...Args) noexcept {
+    constexpr HeapKind Kind = HeapTraits<T>::Kind;
+    static_assert(alignof(T) <= alignof(HeapHeader));
+    static_assert(std::is_nothrow_constructible_v<T, ArgsT...>);
+    if constexpr (isObjectKind(Kind)) {
+      static_assert(sizeof(HeapHeader) + sizeof(T) <= getSlotSize(Kind));
+    }
+    EXPECTED_TRY(const uint32_t Off,
+                 allocateSlot(Kind,
+                              sizeof(HeapHeader) + sizeof(T) +
+                                  static_cast<uint64_t>(TailBytes),
+                              false));
+    uint8_t *Slot =
+        isObjectKind(Kind) ? ObjectBase + (Off & ~kTagObject) : DataBase + Off;
+    T *Ptr = new (Slot + sizeof(HeapHeader)) T(std::forward<ArgsT>(Args)...);
+    if constexpr (isObjectKind(Kind)) {
+      setLive(Off, true);
+    }
+    return std::make_pair(Ptr, Off);
+  }
+
+  template <typename T> void destroy(T *Ptr, uint32_t Off) noexcept {
+    if constexpr (isObjectKind(HeapTraits<T>::Kind)) {
+      setLive(Off, false);
+    }
+    Ptr->~T();
+    free(Off);
+  }
+
   static constexpr uint32_t kMinClassShift = 5;
   static constexpr uint32_t kMaxClassShift = 15;
   static constexpr uint32_t kClassCount = kMaxClassShift - kMinClassShift + 1;
@@ -223,6 +278,133 @@ private:
   std::vector<uint32_t> ClassFree[kClassCount];
   Part Parts[kPartCount];
 };
+
+/// Owning handle of a heap object. It cannot be copied.
+template <typename T> class UniqueHeapPtr {
+public:
+  UniqueHeapPtr() noexcept = default;
+  UniqueHeapPtr(std::nullptr_t) noexcept {}
+  UniqueHeapPtr(UniqueHeapPtr &&Other) noexcept
+      : Heap(std::exchange(Other.Heap, nullptr)),
+        Ptr(std::exchange(Other.Ptr, nullptr)),
+        Off(std::exchange(Other.Off, 0)) {}
+  UniqueHeapPtr &operator=(UniqueHeapPtr &&Other) noexcept {
+    if (this != &Other) {
+      reset();
+      Heap = std::exchange(Other.Heap, nullptr);
+      Ptr = std::exchange(Other.Ptr, nullptr);
+      Off = std::exchange(Other.Off, 0);
+    }
+    return *this;
+  }
+  UniqueHeapPtr(const UniqueHeapPtr &) = delete;
+  UniqueHeapPtr &operator=(const UniqueHeapPtr &) = delete;
+  ~UniqueHeapPtr() noexcept { reset(); }
+
+  T *get() const noexcept { return Ptr; }
+  T &operator*() const noexcept { return *Ptr; }
+  T *operator->() const noexcept { return Ptr; }
+  explicit operator bool() const noexcept { return Ptr != nullptr; }
+  uint32_t getOffset() const noexcept { return Off; }
+
+  void reset() noexcept {
+    if (Ptr != nullptr) {
+      Heap->destroy(std::exchange(Ptr, nullptr), std::exchange(Off, 0));
+      Heap = nullptr;
+    }
+  }
+
+private:
+  friend class RefHeap;
+  UniqueHeapPtr(RefHeap *H, T *P, uint32_t O) noexcept
+      : Heap(H), Ptr(P), Off(O) {}
+
+  RefHeap *Heap = nullptr;
+  T *Ptr = nullptr;
+  uint32_t Off = 0;
+};
+
+/// Shared handle of a heap object. The count lives in the slot header.
+template <typename T> class SharedHeapPtr {
+public:
+  SharedHeapPtr() noexcept = default;
+  SharedHeapPtr(std::nullptr_t) noexcept {}
+  SharedHeapPtr(const SharedHeapPtr &Other) noexcept
+      : Heap(Other.Heap), Ptr(Other.Ptr), Off(Other.Off) {
+    if (Ptr != nullptr) {
+      getHeader()->RefCount.fetch_add(1, std::memory_order_relaxed);
+    }
+  }
+  SharedHeapPtr(SharedHeapPtr &&Other) noexcept
+      : Heap(std::exchange(Other.Heap, nullptr)),
+        Ptr(std::exchange(Other.Ptr, nullptr)),
+        Off(std::exchange(Other.Off, 0)) {}
+  SharedHeapPtr &operator=(const SharedHeapPtr &Other) noexcept {
+    SharedHeapPtr(Other).swap(*this);
+    return *this;
+  }
+  SharedHeapPtr &operator=(SharedHeapPtr &&Other) noexcept {
+    SharedHeapPtr(std::move(Other)).swap(*this);
+    return *this;
+  }
+  ~SharedHeapPtr() noexcept { reset(); }
+
+  T *get() const noexcept { return Ptr; }
+  T &operator*() const noexcept { return *Ptr; }
+  T *operator->() const noexcept { return Ptr; }
+  explicit operator bool() const noexcept { return Ptr != nullptr; }
+  uint32_t getOffset() const noexcept { return Off; }
+  uint32_t getUseCount() const noexcept {
+    return Ptr != nullptr
+               ? getHeader()->RefCount.load(std::memory_order_relaxed)
+               : 0;
+  }
+
+  void reset() noexcept {
+    if (Ptr != nullptr) {
+      if (getHeader()->RefCount.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        Heap->destroy(Ptr, Off);
+      }
+      Heap = nullptr;
+      Ptr = nullptr;
+      Off = 0;
+    }
+  }
+
+  void swap(SharedHeapPtr &Other) noexcept {
+    std::swap(Heap, Other.Heap);
+    std::swap(Ptr, Other.Ptr);
+    std::swap(Off, Other.Off);
+  }
+
+private:
+  friend class RefHeap;
+  SharedHeapPtr(RefHeap *H, T *P, uint32_t O) noexcept
+      : Heap(H), Ptr(P), Off(O) {}
+
+  HeapHeader *getHeader() const noexcept {
+    return reinterpret_cast<HeapHeader *>(reinterpret_cast<uint8_t *>(Ptr) -
+                                          sizeof(HeapHeader));
+  }
+
+  RefHeap *Heap = nullptr;
+  T *Ptr = nullptr;
+  uint32_t Off = 0;
+};
+
+template <typename T, typename... ArgsT>
+Expect<UniqueHeapPtr<T>> RefHeap::makeUniqueWithTail(uint32_t TailBytes,
+                                                     ArgsT &&...Args) noexcept {
+  EXPECTED_TRY(auto Res, construct<T>(TailBytes, std::forward<ArgsT>(Args)...));
+  return UniqueHeapPtr<T>(this, Res.first, Res.second);
+}
+
+template <typename T, typename... ArgsT>
+Expect<SharedHeapPtr<T>> RefHeap::makeSharedWithTail(uint32_t TailBytes,
+                                                     ArgsT &&...Args) noexcept {
+  EXPECTED_TRY(auto Res, construct<T>(TailBytes, std::forward<ArgsT>(Args)...));
+  return SharedHeapPtr<T>(this, Res.first, Res.second);
+}
 
 } // namespace Runtime
 } // namespace WasmEdge

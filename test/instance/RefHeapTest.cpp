@@ -18,6 +18,44 @@
 
 namespace {
 
+struct Counted {
+  explicit Counted(int &C, uint64_t V) noexcept : Count(C), Value(V) {}
+  ~Counted() noexcept { ++Count; }
+  int &Count;
+  uint64_t Value;
+};
+
+struct Tailed {
+  uint64_t Head = 7;
+};
+
+struct Probe {
+  Probe(WasmEdge::Runtime::RefHeap &H, uint32_t &Built,
+        uint32_t &Destroyed) noexcept
+      : Heap(H), SeenAtDestroy(Destroyed) {
+    Built = Heap.getOffset(this);
+  }
+  ~Probe() noexcept { SeenAtDestroy = Heap.getOffset(this); }
+  WasmEdge::Runtime::RefHeap &Heap;
+  uint32_t &SeenAtDestroy;
+};
+
+} // namespace
+
+namespace WasmEdge::Runtime {
+template <> struct HeapTraits<Counted> {
+  static constexpr HeapKind Kind = HeapKind::Function;
+};
+template <> struct HeapTraits<Probe> {
+  static constexpr HeapKind Kind = HeapKind::Function;
+};
+template <> struct HeapTraits<Tailed> {
+  static constexpr HeapKind Kind = HeapKind::Struct;
+};
+} // namespace WasmEdge::Runtime
+
+namespace {
+
 using namespace WasmEdge;
 using Runtime::HeapHeader;
 using Runtime::HeapKind;
@@ -294,6 +332,118 @@ TEST(RefHeap, Global) {
     GTEST_SKIP() << "flat mode is not available on this host";
   }
   EXPECT_EQ(RefHeap::getGlobal(), Heap);
+}
+
+TEST(RefHeap, Unique) {
+  MAKE_HEAP_OR_SKIP(Heap);
+  int Count = 0;
+  {
+    auto P = Heap->makeUnique<Counted>(Count, UINT64_C(42));
+    ASSERT_TRUE(P);
+    ASSERT_TRUE(*P);
+    EXPECT_EQ((*P)->Value, 42U);
+    const uint32_t Off = P->getOffset();
+    EXPECT_EQ(Heap->decodeObject(HeapKind::Function, Off), P->get());
+    EXPECT_EQ(Heap->getOffset(P->get()), Off);
+
+    Runtime::UniqueHeapPtr<Counted> Q = std::move(*P);
+    EXPECT_FALSE(*P);
+    EXPECT_EQ(P->get(), nullptr);
+    EXPECT_EQ(P->getOffset(), 0U);
+    EXPECT_EQ(Q.getOffset(), Off);
+    EXPECT_EQ(Q->Value, 42U);
+    EXPECT_EQ((*Q).Value, 42U);
+    EXPECT_EQ(Count, 0);
+
+    Q.reset();
+    EXPECT_EQ(Count, 1);
+    EXPECT_FALSE(Q);
+    EXPECT_EQ(Heap->decodeObject(HeapKind::Function, Off), nullptr);
+    Q.reset();
+    EXPECT_EQ(Count, 1);
+  }
+  EXPECT_EQ(Count, 1);
+  {
+    auto P = Heap->makeUnique<Counted>(Count, UINT64_C(1));
+    ASSERT_TRUE(P);
+    auto Q = Heap->makeUnique<Counted>(Count, UINT64_C(2));
+    ASSERT_TRUE(Q);
+    *P = std::move(*Q);
+    EXPECT_EQ(Count, 2);
+    EXPECT_EQ((*P)->Value, 2U);
+  }
+  EXPECT_EQ(Count, 3);
+}
+
+TEST(RefHeap, NotLiveWhileBuilt) {
+  MAKE_HEAP_OR_SKIP(Heap);
+  uint32_t Built = 1;
+  uint32_t Destroyed = 1;
+  auto P = Heap->makeUnique<Probe>(*Heap, Built, Destroyed);
+  ASSERT_TRUE(P);
+  EXPECT_EQ(Built, 0U);
+  EXPECT_EQ(Heap->getOffset(P->get()), P->getOffset());
+  const uint32_t Off = P->getOffset();
+  P->reset();
+  EXPECT_EQ(Destroyed, 0U);
+  EXPECT_EQ(Heap->decodeObject(HeapKind::Function, Off), nullptr);
+  auto Q = Heap->allocate(HeapKind::Function, 64);
+  ASSERT_TRUE(Q);
+  EXPECT_EQ(*Q, Off);
+  Heap->free(Off);
+  Heap->free(Off);
+  auto R1 = Heap->allocate(HeapKind::Function, 64);
+  auto R2 = Heap->allocate(HeapKind::Function, 64);
+  ASSERT_TRUE(R1);
+  ASSERT_TRUE(R2);
+  EXPECT_NE(*R1, *R2);
+}
+
+TEST(RefHeap, Shared) {
+  MAKE_HEAP_OR_SKIP(Heap);
+  int Count = 0;
+  {
+    auto P = Heap->makeShared<Counted>(Count, UINT64_C(5));
+    ASSERT_TRUE(P);
+    const uint32_t Off = P->getOffset();
+    auto *Header = Heap->getHeader(Off);
+    ASSERT_NE(Header, nullptr);
+    EXPECT_EQ(P->getUseCount(), 1U);
+    {
+      Runtime::SharedHeapPtr<Counted> Q = *P;
+      EXPECT_EQ(P->getUseCount(), 2U);
+      EXPECT_EQ(Header->RefCount.load(), 2U);
+      EXPECT_EQ(Q.get(), P->get());
+      Runtime::SharedHeapPtr<Counted> R;
+      R = Q;
+      EXPECT_EQ(Q.getUseCount(), 3U);
+      Runtime::SharedHeapPtr<Counted> S = std::move(R);
+      EXPECT_FALSE(R);
+      EXPECT_EQ(S.getUseCount(), 3U);
+    }
+    EXPECT_EQ(Count, 0);
+    EXPECT_EQ(P->getUseCount(), 1U);
+    P->reset();
+    EXPECT_EQ(Count, 1);
+    EXPECT_EQ(Heap->getHeader(Off), nullptr);
+  }
+  EXPECT_EQ(Count, 1);
+}
+
+TEST(RefHeap, WithTail) {
+  MAKE_HEAP_OR_SKIP(Heap);
+  auto P = Heap->makeUniqueWithTail<Tailed>(64);
+  ASSERT_TRUE(P);
+  EXPECT_EQ((*P)->Head, 7U);
+  const uint32_t Off = P->getOffset();
+  EXPECT_EQ(Off & 15, 0U);
+  const uint32_t End =
+      static_cast<uint32_t>(sizeof(HeapHeader) + sizeof(Tailed) + 64);
+  EXPECT_TRUE(Heap->getDataSpan(Off, 0, End));
+  EXPECT_EQ(Heap->getOffset(P->get()), Off);
+  auto S = Heap->makeSharedWithTail<Tailed>(0);
+  ASSERT_TRUE(S);
+  EXPECT_EQ((*S)->Head, 7U);
 }
 
 } // namespace

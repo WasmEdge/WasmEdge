@@ -131,10 +131,14 @@ public:
   Expect<const AST::SubType *> getType(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
     if (unlikely(Idx >= Types.size())) {
+      // Error logging needs to be handled by the caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetType(Idx);
   }
+
+  /// Get defined type list.
+  Span<const AST::SubType *const> getTypeList() const noexcept { return Types; }
 
   Span<const FunctionInstance *const> getFunctionInstances() const noexcept {
     return Span<const FunctionInstance *const>(
@@ -184,6 +188,18 @@ public:
 
   Span<DataInstance *const> getOwnedDataInstances() noexcept {
     return DataInsts;
+  }
+
+  /// Check whether this module instance owns the instance.
+  bool owns(const TableInstance *Instance) const noexcept {
+    return std::any_of(
+        OwnedTabInsts.begin(), OwnedTabInsts.end(),
+        [Instance](const auto &Owned) { return Owned.get() == Instance; });
+  }
+  bool owns(const GlobalInstance *Instance) const noexcept {
+    return std::any_of(
+        OwnedGlobInsts.begin(), OwnedGlobInsts.end(),
+        [Instance](const auto &Owned) { return Owned.get() == Instance; });
   }
 
   /// Add existing instances and move ownership with the export name.
@@ -443,9 +459,6 @@ protected:
     std::unique_lock Lock(Mutex);
     ExpTags.insert_or_assign(std::string(Name), TagInsts[Idx]);
   }
-
-  /// Get defined type list.
-  Span<const AST::SubType *const> getTypeList() const noexcept { return Types; }
 
   /// Get instance pointer by index.
   const AST::SubType *unsafeGetType(uint32_t Idx) const noexcept {

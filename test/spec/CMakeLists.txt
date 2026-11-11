@@ -51,13 +51,30 @@ endforeach()
 
 wasmedge_add_library(wasmedgeTestSpec
   spectest.cpp
+  wast_parser.cpp
+  json_parser.cpp
 )
 
 target_link_libraries(wasmedgeTestSpec
   PRIVATE
   simdjson::simdjson
+  wasmedgeWat
+  wasmedgeLoader
   PUBLIC
   std::filesystem
   wasmedgeCommon
   ${GTEST_BOTH_LIBRARIES}
+)
+
+add_executable(wast2wat EXCLUDE_FROM_ALL
+  wast2wat.cpp
+  wast_parser.cpp
+)
+wasmedge_setup_target(wast2wat)
+
+target_link_libraries(wast2wat
+  PRIVATE
+  wasmedgeWat
+  wasmedgeCommon
+  std::filesystem
 )

@@ -98,6 +98,7 @@ jobs:
           cmake --build build --target wasmedge-fuzzpo
           cmake --build build --target wasmedge-fuzztool
           cmake --build build --target wasmedge-fuzzcomponent
+          cmake --build build --target wasmedge-fuzzwat
       - name: Test
         if: ${{ !matrix.coverage && !matrix.fuzzing && matrix.tests }}
         run: |

@@ -40,6 +40,16 @@ int compileModule(const Configure &Conf, Span<const Byte> Data,
     return EXIT_FAILURE;
   }
 
+  std::vector<Byte> Binary;
+  if (auto Res = Loader.serializeIfWat(*Module, Data); !Res) {
+    const auto Err = static_cast<uint32_t>(Res.error());
+    spdlog::error("Serialize Module failed. Error code: {}"sv, Err);
+    return EXIT_FAILURE;
+  } else if (*Res) {
+    Binary = std::move(**Res);
+    Data = Binary;
+  }
+
   {
     Validator::Validator ValidatorEngine(Conf);
     if (auto Res = ValidatorEngine.validate(*Module); !Res) {
@@ -80,6 +90,10 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
 #ifdef WASMEDGE_USE_LLVM
 
   Configure Conf = createProposalConfigure(Opt);
+  if (Opt.EnableWAT.value()) {
+    Conf.setEnableWAT(true);
+    spdlog::warn("WAT text format input is enabled, this is experimental."sv);
+  }
 
   using OptimizationLevel = CompilerConfigure::OptimizationLevel;
   static const std::array<std::pair<std::string_view, OptimizationLevel>, 6>

@@ -251,6 +251,13 @@ public:
   /// Serialize module into byte code.
   Expect<std::vector<Byte>> serializeModule(const AST::Module &Mod);
 
+  /// If Code is WAT text, return the WASM binary of Mod, the module that
+  /// parseModule gave for Code. Otherwise, return std::nullopt. A compiled
+  /// output embeds the binary, and the binary then loads with the same
+  /// configuration.
+  Expect<std::optional<std::vector<Byte>>>
+  serializeIfWat(const AST::Module &Mod, Span<const uint8_t> Code);
+
   /// Reset status.
   void reset() noexcept { FMgr.reset(); }
 
@@ -259,6 +266,9 @@ public:
                               std::shared_ptr<Executable> Library);
 
 private:
+  /// Convert WAT text into a module.
+  Expect<std::unique_ptr<AST::Module>> parseWatUnit(Span<const uint8_t> Code);
+
   /// \name Helper functions to print error log when loading AST nodes
   /// @{
   inline Unexpected<ErrCode> logLoadError(ErrCode Code, uint64_t Off,

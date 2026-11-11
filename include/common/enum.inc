@@ -959,6 +959,51 @@ E(MalformedCatchFlags, 0x011E, "malformed catch flags")
 E(MalformedCastFlags, 0x011F, "malformed cast flags")
 // @}
 
+// The load phase of the text format
+// @{
+// The lexical errors
+E(WatIllegalCharacter, 0x0150, "illegal character")
+E(WatUnexpectedToken, 0x0151, "unexpected token")
+E(WatUnknownOperator, 0x0152, "unknown operator")
+E(WatUnexpectedEnd, 0x0153, "unexpected end of input")
+E(WatUnclosedString, 0x0154, "unclosed string")
+E(WatUnclosedAnnotation, 0x0155, "unclosed annotation")
+E(WatEmptyAnnotationId, 0x0156, "empty annotation id")
+E(WatEmptyIdentifier, 0x0157, "empty identifier")
+// The literal errors and the constant errors
+E(WatMalformedNumber, 0x0158, "malformed number literal")
+E(WatMalformedString, 0x0159, "malformed string literal")
+E(WatConstantOutOfRange, 0x015A, "constant out of range")
+E(WatI32ConstOutOfRange, 0x015B, "i32 constant out of range")
+E(WatI32Constant, 0x015C, "i32 constant")
+E(WatI8ConstOutOfRange, 0x015D, "i8 constant out of range")
+E(WatAlignmentPow2, 0x015E, "alignment")
+// The SIMD lane errors
+E(WatWrongLaneIndexCount, 0x015F, "wrong number of lane indices")
+E(WatWrongLaneCount, 0x0160, "wrong number of lane literals")
+// The identifier errors
+E(WatDuplicateId, 0x0161, "duplicate identifier")
+E(WatDuplicateFunc, 0x0162, "duplicate func")
+E(WatDuplicateTable, 0x0163, "duplicate table")
+E(WatDuplicateMemory, 0x0164, "duplicate memory")
+E(WatDuplicateGlobal, 0x0165, "duplicate global")
+E(WatDuplicateLocal, 0x0166, "duplicate local")
+E(WatDuplicateField, 0x0167, "duplicate field")
+E(WatUnknownId, 0x0168, "unknown identifier")
+E(WatUnknownLabel, 0x0169, "unknown label")
+E(WatUnknownType, 0x016A, "unknown type")
+// The structure errors and the order errors
+E(WatImportAfterFunc, 0x016B, "import after function")
+E(WatImportAfterTable, 0x016C, "import after table")
+E(WatImportAfterMemory, 0x016D, "import after memory")
+E(WatImportAfterGlobal, 0x016E, "import after global")
+E(WatMultipleStart, 0x016F, "multiple start sections")
+E(WatResultBeforeParam, 0x0170, "result before parameter")
+E(WatMismatchingLabel, 0x0171, "mismatching label")
+E(WatInlineFuncType, 0x0172, "inline function type")
+E(WatImportAfterTag, 0x0173, "import after tag")
+// @}
+
 // Component model load phase
 // @{
 // Malformed sort

@@ -37,7 +37,9 @@ struct DriverCompilerOptions : public DriverProposalOptions,
         ConfInterruptible(PO::Description("Generate a interruptible binary"sv)),
         PropOptimizationLevel(
             PO::Description("Optimization level, one of 0, 1, 2, 3, s, z."sv),
-            PO::DefaultValue(std::string("2"))) {}
+            PO::DefaultValue(std::string("2"))),
+        EnableWAT(PO::Description(
+            "Enable WAT text format input, this is experimental"sv)) {}
 
   PO::Option<std::string> WasmName;
   PO::Option<std::string> SoName;
@@ -45,6 +47,7 @@ struct DriverCompilerOptions : public DriverProposalOptions,
   PO::Option<PO::Toggle> ConfDumpIR;
   PO::Option<PO::Toggle> ConfInterruptible;
   PO::Option<std::string> PropOptimizationLevel;
+  PO::Option<PO::Toggle> EnableWAT;
 
   void addOptions(PO::ArgumentParser &Parser) noexcept {
     addLoggingOptions(Parser);
@@ -55,7 +58,8 @@ struct DriverCompilerOptions : public DriverProposalOptions,
     addStatisticsOptions(Parser);
     Parser.add_option("generic-binary"sv, ConfGenericBinary);
     addProposalOptions(Parser);
-    Parser.add_option("optimize"sv, PropOptimizationLevel);
+    Parser.add_option("optimize"sv, PropOptimizationLevel)
+        .add_option("enable-wat"sv, EnableWAT);
   }
 };
 

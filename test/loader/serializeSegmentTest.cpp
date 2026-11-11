@@ -197,6 +197,9 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
 
   WasmEdge::AST::ElementSection ElementSec;
   WasmEdge::AST::ElementSegment ElementSeg;
+  // The loader gives the segments of modes 0x00 to 0x03 the type (ref func).
+  ElementSeg.setRefType(
+      WasmEdge::ValType(WasmEdge::TypeCode::Ref, WasmEdge::TypeCode::FuncRef));
 
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
   WasmEdge::AST::Instruction RefFunc(WasmEdge::OpCode::Ref__func);
@@ -369,6 +372,8 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   };
   EXPECT_EQ(Output, Expected);
 
+  // Mode 0x04 gives the type funcref.
+  ElementSeg.setRefType(WasmEdge::TypeCode::FuncRef);
   ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Active);
   ElementSeg.getExpr().getInstrs() = {I32Eqz, I32Eq, I32Ne, End};
   ElementSeg.getInitExprs().clear();
@@ -454,6 +459,8 @@ TEST(SerializeSegmentTest, SerializeElementSegmentAllModes) {
                                   WasmEdge::TypeCode::FuncRef);
   const WasmEdge::ValType ExternRef(WasmEdge::TypeCode::RefNull,
                                     WasmEdge::TypeCode::ExternRef);
+  const WasmEdge::ValType NonNullFuncRef(WasmEdge::TypeCode::Ref,
+                                         WasmEdge::TypeCode::FuncRef);
 
   auto refFunc = [](uint32_t Idx) {
     WasmEdge::AST::Expression Expr;
@@ -491,43 +498,43 @@ TEST(SerializeSegmentTest, SerializeElementSegmentAllModes) {
 
   using ElemMode = WasmEdge::AST::ElementSegment::ElemMode;
 
-  // Mode 0x00: active on table 0, funcref, ref.func initialisers.
+  // Mode 0x00: active on table 0, (ref func), ref.func initialisers.
   {
     WasmEdge::AST::ElementSegment Seg;
     Seg.setMode(ElemMode::Active);
     Seg.setIdx(0);
-    Seg.setRefType(FuncRef);
+    Seg.setRefType(NonNullFuncRef);
     Seg.getExpr() = offset();
     Seg.getInitExprs() = {refFunc(1)};
     EXPECT_EQ(serialize(Seg),
               std::vector<uint8_t>({0x00U, 0x41U, 0x00U, 0x0BU, 0x01U, 0x01U}));
   }
-  // Mode 0x01: passive, funcref, ref.func initialisers.
+  // Mode 0x01: passive, (ref func), ref.func initialisers.
   {
     WasmEdge::AST::ElementSegment Seg;
     Seg.setMode(ElemMode::Passive);
-    Seg.setRefType(FuncRef);
+    Seg.setRefType(NonNullFuncRef);
     Seg.getInitExprs() = {refFunc(1)};
     EXPECT_EQ(serialize(Seg),
               std::vector<uint8_t>({0x01U, 0x00U, 0x01U, 0x01U}));
   }
-  // Mode 0x02: active on a table other than 0.
+  // Mode 0x02: active on a table other than 0, (ref func).
   {
     WasmEdge::AST::ElementSegment Seg;
     Seg.setMode(ElemMode::Active);
     Seg.setIdx(2);
-    Seg.setRefType(FuncRef);
+    Seg.setRefType(NonNullFuncRef);
     Seg.getExpr() = offset();
     Seg.getInitExprs() = {refFunc(1)};
     EXPECT_EQ(serialize(Seg),
               std::vector<uint8_t>(
                   {0x02U, 0x02U, 0x41U, 0x00U, 0x0BU, 0x00U, 0x01U, 0x01U}));
   }
-  // Mode 0x03: declarative, funcref, ref.func initialisers.
+  // Mode 0x03: declarative, (ref func), ref.func initialisers.
   {
     WasmEdge::AST::ElementSegment Seg;
     Seg.setMode(ElemMode::Declarative);
-    Seg.setRefType(FuncRef);
+    Seg.setRefType(NonNullFuncRef);
     Seg.getInitExprs() = {refFunc(1)};
     EXPECT_EQ(serialize(Seg),
               std::vector<uint8_t>({0x03U, 0x00U, 0x01U, 0x01U}));
@@ -575,6 +582,29 @@ TEST(SerializeSegmentTest, SerializeElementSegmentAllModes) {
               std::vector<uint8_t>({0x07U, 0x6FU, 0x01U, 0xD0U, 0x6FU, 0x0BU}));
   }
 
+  // A funcref segment whose initialisers are all ref.func keeps its nullable
+  // type. Modes 0x00 to 0x03 would give it the type (ref func), so it takes
+  // mode 0x04 on table 0, and an explicit reftype otherwise.
+  {
+    WasmEdge::AST::ElementSegment Seg;
+    Seg.setMode(ElemMode::Active);
+    Seg.setIdx(0);
+    Seg.setRefType(FuncRef);
+    Seg.getExpr() = offset();
+    Seg.getInitExprs() = {refFunc(1)};
+    EXPECT_EQ(serialize(Seg),
+              std::vector<uint8_t>(
+                  {0x04U, 0x41U, 0x00U, 0x0BU, 0x01U, 0xD2U, 0x01U, 0x0BU}));
+  }
+  {
+    WasmEdge::AST::ElementSegment Seg;
+    Seg.setMode(ElemMode::Passive);
+    Seg.setRefType(FuncRef);
+    Seg.getInitExprs() = {refFunc(1)};
+    EXPECT_EQ(serialize(Seg),
+              std::vector<uint8_t>({0x05U, 0x70U, 0x01U, 0xD2U, 0x01U, 0x0BU}));
+  }
+
   // An empty externref segment must keep its element type instead of being
   // written as elemkind 0x00, which means funcref.
   {
@@ -596,16 +626,33 @@ TEST(SerializeSegmentTest, SerializeElementSegmentAllModes) {
               std::vector<uint8_t>({0x06U, 0x00U, 0x41U, 0x00U, 0x0BU, 0x6FU,
                                     0x01U, 0xD0U, 0x6FU, 0x0BU}));
   }
-  // A non-nullable (ref func) segment whose initialisers are all ref.func must
-  // not be degraded to elemkind, which would lose the nullability.
+  // A non-nullable (ref func) segment whose initialisers are all ref.func
+  // takes elemkind 0x00. The loader gives modes 0x00 to 0x03 the type
+  // (ref func), so the encoding keeps the nullability, and it needs no Typed
+  // Function References proposal.
   {
     WasmEdge::AST::ElementSegment Seg;
     Seg.setMode(ElemMode::Passive);
     Seg.setRefType(WasmEdge::ValType(WasmEdge::TypeCode::Ref,
                                      WasmEdge::TypeCode::FuncRef));
     Seg.getInitExprs() = {refFunc(1)};
-    EXPECT_EQ(serialize(Seg), std::vector<uint8_t>({0x05U, 0x64U, 0x70U, 0x01U,
-                                                    0xD2U, 0x01U, 0x0BU}));
+    EXPECT_EQ(serialize(Seg),
+              std::vector<uint8_t>({0x01U, 0x00U, 0x01U, 0x01U}));
+  }
+  // A non-nullable (ref func) segment with another initialiser keeps its
+  // explicit reftype.
+  {
+    WasmEdge::AST::ElementSegment Seg;
+    Seg.setMode(ElemMode::Passive);
+    Seg.setRefType(WasmEdge::ValType(WasmEdge::TypeCode::Ref,
+                                     WasmEdge::TypeCode::FuncRef));
+    Seg.getInitExprs() = {refFunc(1), refFunc(2)};
+    Seg.getInitExprs()[1].getInstrs().insert(
+        Seg.getInitExprs()[1].getInstrs().begin(),
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::Nop));
+    EXPECT_EQ(serialize(Seg),
+              std::vector<uint8_t>({0x05U, 0x64U, 0x70U, 0x02U, 0xD2U, 0x01U,
+                                    0x0BU, 0x01U, 0xD2U, 0x02U, 0x0BU}));
   }
 }
 

@@ -35,10 +35,6 @@ void Serializer::serializeSegment(const AST::ElementSegment &Seg,
   // Element segment: mode:u32 + tableidx:u32 + offset:expr + elemkind:reftype +
   // vec(u32) + vec(expr)
   //
-  // Modes 0x00 to 0x04 only express a nullable funcref element type, and 0x00
-  // and 0x04 also imply table index 0.
-  const bool IsFuncRef =
-      Seg.getRefType() == ValType(TypeCode::RefNull, TypeCode::FuncRef);
   // Modes 0x00 to 0x03 can only express ref.func initialisers.
   bool AllRefFunc = true;
   for (const auto &Expr : Seg.getInitExprs()) {
@@ -49,21 +45,29 @@ void Serializer::serializeSegment(const AST::ElementSegment &Seg,
       break;
     }
   }
-
+  // The loader gives a segment of modes 0x00 to 0x03 the type (ref func), and
+  // a segment of mode 0x04 the type funcref. Modes 0x00 and 0x04 also imply
+  // table index 0. Another type takes modes 0x05 to 0x07 and an explicit
+  // reftype. The binary then keeps the type of the segment, and a (ref func)
+  // segment needs no Typed Function References proposal to load.
   const bool IsPassive =
       Seg.getMode() == AST::ElementSegment::ElemMode::Passive;
   const bool IsDeclarative =
       Seg.getMode() == AST::ElementSegment::ElemMode::Declarative;
+  const uint8_t Kind = IsPassive           ? 0x01U
+                       : IsDeclarative     ? 0x03U
+                       : Seg.getIdx() != 0 ? 0x02U
+                                           : 0x00U;
 
   uint8_t Mode;
-  if (!IsFuncRef) {
-    // Must use mode 0x05, 0x06 or 0x07: an expression form carrying a reftype.
-    Mode = 0x04U | (IsPassive ? 0x01U : IsDeclarative ? 0x03U : 0x02U);
+  if (AllRefFunc &&
+      Seg.getRefType() == ValType(TypeCode::Ref, TypeCode::FuncRef)) {
+    Mode = Kind;
+  } else if (Kind == 0x00U && Seg.getRefType() == ValType(TypeCode::RefNull,
+                                                          TypeCode::FuncRef)) {
+    Mode = 0x04U;
   } else {
-    Mode = static_cast<uint8_t>(AllRefFunc ? 0x00U : 0x04U) |
-           (IsPassive       ? 0x01U
-            : IsDeclarative ? 0x03U
-                            : (Seg.getIdx() != 0 ? 0x02U : 0x00U));
+    Mode = 0x04U | (Kind == 0x00U ? 0x02U : Kind);
   }
   OutVec.push_back(Mode);
 

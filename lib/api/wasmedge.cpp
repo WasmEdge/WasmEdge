@@ -17,6 +17,7 @@
 #ifdef WASMEDGE_BUILD_FUZZING
 #include "driver/fuzzPO.h"
 #include "driver/fuzzTool.h"
+#include "driver/fuzzWAT.h"
 #endif
 
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
@@ -965,6 +966,22 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureHasHostRegistration(
   if (Cxt) {
     return Cxt->Conf.hasHostRegistration(
         static_cast<WasmEdge::HostRegistration>(Host));
+  }
+  return false;
+}
+
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureSetEnableWAT(WasmEdge_ConfigureContext *Cxt,
+                               const bool IsEnable) noexcept {
+  if (Cxt) {
+    Cxt->Conf.setEnableWAT(IsEnable);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ConfigureIsEnableWAT(const WasmEdge_ConfigureContext *Cxt) noexcept {
+  if (Cxt) {
+    return Cxt->Conf.isEnableWAT();
   }
   return false;
 }
@@ -1960,6 +1977,12 @@ WasmEdge_CompilerCompile(WasmEdge_CompilerContext *Cxt [[maybe_unused]],
             })
             .and_then([&](auto Result) noexcept {
               Module = std::move(Result);
+              return Cxt->Load.serializeIfWat(*Module, Data);
+            })
+            .and_then([&](auto Binary) noexcept {
+              if (Binary) {
+                Data = std::move(*Binary);
+              }
               return Cxt->Valid.validate(*Module.get());
             })
             .and_then(
@@ -1991,10 +2014,18 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromBytes(
       [&]() -> WasmEdge::Expect<void> {
         std::filesystem::path OutputPath = genPath(OutPath);
         auto Data = genSpan(Bytes.Buf, Bytes.Length);
+        std::vector<WasmEdge::Byte> Binary;
         std::unique_ptr<WasmEdge::AST::Module> Module;
         return Cxt->Load.parseModule(Data)
             .and_then([&](auto Result) noexcept {
               Module = std::move(Result);
+              return Cxt->Load.serializeIfWat(*Module, Data);
+            })
+            .and_then([&](auto Serialized) noexcept {
+              if (Serialized) {
+                Binary = std::move(*Serialized);
+                Data = Binary;
+              }
               return Cxt->Valid.validate(*Module);
             })
             .and_then([&]() noexcept { return Cxt->Compiler.compile(*Module); })
@@ -3852,6 +3883,16 @@ WASMEDGE_CAPI_EXPORT extern "C" int
 WasmEdge_Driver_FuzzPO(const uint8_t *Data, size_t Size) noexcept {
   try {
     return WasmEdge::Driver::FuzzPO(Data, Size);
+  } catch (...) {
+    handleCAPIError();
+    return EXIT_FAILURE;
+  }
+}
+
+WASMEDGE_CAPI_EXPORT extern "C" int
+WasmEdge_Driver_FuzzWAT(const uint8_t *Data, size_t Size) noexcept {
+  try {
+    return WasmEdge::Driver::FuzzWAT(Data, Size);
   } catch (...) {
     handleCAPIError();
     return EXIT_FAILURE;

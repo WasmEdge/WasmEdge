@@ -1479,6 +1479,8 @@ E(PendingException, 0x041A, "pending exception")
 E(CallStackExhausted, 0x041B, "call stack exhausted")
 // Allocation of a table or an array failed
 E(AllocationFailed, 0x041C, "allocation failed")
+// Reference heap full
+E(RefHeapFull, 0x041D, "reference heap full")
 // @}
 
 // Component model execution phase

@@ -6,6 +6,7 @@ wasmedge_add_library(wasmedgeSystem
   fault.cpp
   mmap.cpp
   path.cpp
+  refheap.cpp
   stacktrace.cpp
   typetable.cpp
 )

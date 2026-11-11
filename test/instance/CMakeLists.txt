@@ -4,6 +4,7 @@
 wasmedge_add_executable(wasmedgeRuntimeInstanceTests
   MemInstanceTest.cpp
   ModuleInstanceTest.cpp
+  RefHeapTest.cpp
   RefLifetimeTest.cpp
 )
 

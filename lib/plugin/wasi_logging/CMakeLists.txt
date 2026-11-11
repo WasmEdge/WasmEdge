@@ -12,4 +12,5 @@ wasmedge_add_library(wasmedgePluginWasiLogging
 target_link_libraries(wasmedgePluginWasiLogging
   PUBLIC
   wasmedgeCommon
+  wasmedgeHostModuleWasi
 )

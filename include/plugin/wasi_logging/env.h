@@ -8,18 +8,12 @@
 
 #include "common/spdlog.h"
 
-#include <spdlog/fmt/fmt.h>
-#include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
-#include <limits>
+#include <atomic>
 #include <memory>
-#include <mutex>
-#include <random>
 #include <string>
-#include <string_view>
-#include <unordered_set>
 
 namespace WasmEdge {
 namespace Host {
@@ -42,50 +36,13 @@ public:
       StderrLogger->set_level(spdlog::level::trace);
       StderrLogger->set_pattern(DefFormat);
     }
-
-    std::random_device RandDev;
-    std::mt19937 RandGen(RandDev());
-    std::uniform_int_distribution<uint64_t> RandDist(
-        0, std::numeric_limits<uint64_t>::max());
-
-    std::unique_lock Lock(Mutex);
-    do {
-      InstanceID = RandDist(RandGen);
-    } while (RegisteredID.find(InstanceID) != RegisteredID.cend());
-    LogRegName = fmt::format("wasi_logging_file_0x{:08x}"sv, InstanceID);
-    RegisteredID.insert(InstanceID);
   }
 
-  ~LogEnv() noexcept {
-    std::unique_lock Lock(Mutex);
-    // Drop the file logger by its registered name; never LogFileName, which is
-    // empty until a file is set and would reset the unnamed default logger.
-    if (FileLogger) {
-      spdlog::drop(LogRegName);
-    }
-    RegisteredID.erase(InstanceID);
-  }
-
-  std::string_view getLogFileName() const noexcept { return LogFileName; }
-  void setLogFileName(std::string_view Name) noexcept {
-    LogFileName = std::string(Name);
-  }
-
-  const std::string &getLogRegName() const noexcept { return LogRegName; }
-
-  uint64_t getInstanceID() const noexcept { return InstanceID; }
-
-  static std::mutex Mutex;
-  static std::unordered_set<uint64_t> RegisteredID;
   static const std::string DefFormat;
   std::shared_ptr<spdlog::logger> StdoutLogger;
   std::shared_ptr<spdlog::logger> StderrLogger;
-  std::shared_ptr<spdlog::logger> FileLogger;
-
-private:
-  std::string LogFileName;
-  std::string LogRegName;
-  uint64_t InstanceID;
+  /// Whether the warning of a context file which cannot be opened is printed.
+  std::atomic<bool> FileWarned{false};
 };
 
 } // namespace WASILogging

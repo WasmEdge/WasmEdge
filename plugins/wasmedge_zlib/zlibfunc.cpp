@@ -3,7 +3,7 @@
 
 #include "zlibfunc.h"
 
-#include "host/wasi/wasimodule.h"
+#include "host/filesystem.h"
 
 #include <cstring>
 #include <optional>
@@ -1200,48 +1200,6 @@ WasmEdgeZlibUncompress2::body(const Runtime::CallingFrame &Frame,
   return ZRes;
 }
 
-static WASI::Environ *
-getWasiEnviron(const Runtime::CallingFrame &Frame) noexcept {
-  const auto *WasiMod = Frame.getWASIModule();
-  if (WasiMod == nullptr) {
-    return nullptr;
-  }
-  const auto *Typed = dynamic_cast<const WasiModule *>(WasiMod);
-  if (Typed == nullptr) {
-    return nullptr;
-  }
-  return const_cast<WASI::Environ *>(Typed->getEnv());
-}
-
-static void releaseOwnedWasiFd(const Runtime::CallingFrame &Frame,
-                               int64_t OwnedWasiFd) noexcept {
-  if (OwnedWasiFd < 0) {
-    return;
-  }
-  if (auto *WasiEnv = getWasiEnviron(Frame); WasiEnv != nullptr) {
-    WasiEnv->fdClose(static_cast<__wasi_fd_t>(OwnedWasiFd));
-  }
-}
-
-#if defined(_WIN32)
-// TODO(zlib): Bridge Windows HANDLEs to CRT descriptors.
-static int dupNativeHandle(uint64_t) noexcept { return -1; }
-static void closeNativeFd(int) noexcept {}
-static int64_t tellNativeFd(int) noexcept { return -1; }
-static void seekNativeFd(int, int64_t) noexcept {}
-#else
-static int dupNativeHandle(uint64_t Native) noexcept {
-  return ::fcntl(static_cast<int>(Native), F_DUPFD_CLOEXEC, 0);
-}
-static void closeNativeFd(int Fd) noexcept { ::close(Fd); }
-static int64_t tellNativeFd(int Fd) noexcept {
-  return static_cast<int64_t>(::lseek(Fd, 0, SEEK_CUR));
-}
-static void seekNativeFd(int Fd, int64_t Offset) noexcept {
-  ::lseek(Fd, static_cast<off_t>(Offset), SEEK_SET);
-}
-#endif
-
 enum class GZOpenDir { None, Read, Write, Append };
 enum class GZOpenDirect { Auto, Transparent, ForceGzip };
 
@@ -1298,90 +1256,52 @@ parseGZOpenMode(std::string_view Mode) noexcept {
   return Parsed;
 }
 
+#if !defined(_WIN32)
+// TODO(zlib): Bridge Windows HANDLEs to CRT descriptors.
 static WasmEdgeZlibEnvironment::GZFileEntry
-wasiFdToGZ(WASI::Environ &WasiEnv, __wasi_fd_t WasiFd, const char *Mode,
-           bool OwnWasiFd) noexcept {
-  const auto Parsed = parseGZOpenMode(Mode);
-  if (!Parsed) {
-    spdlog::error("[WasmEdge-Zlib] [wasiFdToGZ] "sv
-                  "Unsupported gz mode \"{}\"."sv,
-                  Mode);
-    if (OwnWasiFd) {
-      WasiEnv.fdClose(WasiFd);
-    }
-    return {};
-  }
-  const __wasi_rights_t RequiredRights = Parsed->Dir == GZOpenDir::Read
-                                             ? __WASI_RIGHTS_FD_READ
-                                             : __WASI_RIGHTS_FD_WRITE;
-  if (!WasiEnv.canFd(WasiFd, RequiredRights)) {
-    spdlog::error("[WasmEdge-Zlib] [wasiFdToGZ] "sv
-                  "WASI fd lacks the rights required by mode \"{}\"."sv,
-                  Mode);
-    if (OwnWasiFd) {
-      WasiEnv.fdClose(WasiFd);
-    }
-    return {};
-  }
-  const bool CanSeek = WasiEnv.canFd(WasiFd, __WASI_RIGHTS_FD_SEEK);
-  const bool CanTell = WasiEnv.canFd(WasiFd, __WASI_RIGHTS_FD_TELL);
-  if (Parsed->Dir == GZOpenDir::Append && !CanSeek) {
-    __wasi_fdstat_t FdStat;
-    const bool AppendOnly = WasiEnv.fdFdstatGet(WasiFd, FdStat).has_value() &&
-                            (FdStat.fs_flags & __WASI_FDFLAGS_APPEND) != 0;
-    if (!AppendOnly) {
-      spdlog::error("[WasmEdge-Zlib] [wasiFdToGZ] "sv
-                    "Append mode needs FD_SEEK on a non-append-only fd."sv);
-      if (OwnWasiFd) {
-        WasiEnv.fdClose(WasiFd);
-      }
-      return {};
-    }
-  }
-  auto HandleRes = WasiEnv.getNativeHandler(WasiFd);
+fileToGZ(Host::File &File, const GZOpenMode &Parsed,
+         const char *Mode) noexcept {
+  // Seeking and telling are granted when the preopened directory allows them.
+  const bool CanTell = File.tell().has_value();
+  const bool CanSeek = File.seek(0, __WASI_WHENCE_CUR).has_value();
+  auto HandleRes = File.getNativeHandle();
   if (!HandleRes) {
-    if (OwnWasiFd) {
-      WasiEnv.fdClose(WasiFd);
-    }
     return {};
   }
-  const int DupFd = dupNativeHandle(*HandleRes);
-  if (OwnWasiFd) {
-    WasiEnv.fdClose(WasiFd);
-  }
+  // The duplicate is independent of the file, which is released by the caller.
+  const int DupFd = ::fcntl(static_cast<int>(*HandleRes), F_DUPFD_CLOEXEC, 0);
   if (DupFd < 0) {
-    spdlog::error("[WasmEdge-Zlib] [wasiFdToGZ] "sv
+    spdlog::error("[WasmEdge-Zlib] [fileToGZ] "sv
                   "Failed to duplicate the host descriptor for zlib."sv);
     return {};
   }
-  const bool RestoreOffset =
-      !OwnWasiFd && Parsed->Dir == GZOpenDir::Append && !CanSeek;
-  const int64_t SavedOffset = RestoreOffset ? tellNativeFd(DupFd) : -1;
   gzFile GZ = gzdopen(DupFd, Mode);
-  bool RestoredAppendOffset = false;
-  if (RestoreOffset && SavedOffset >= 0) {
-    seekNativeFd(DupFd, SavedOffset);
-    RestoredAppendOffset = true;
-  }
   if (GZ == nullptr) {
-    closeNativeFd(DupFd);
+    ::close(DupFd);
     return {};
   }
-  return {GZ, CanSeek, CanTell, RestoredAppendOffset,
-          Parsed->Dir == GZOpenDir::Read};
+  return {GZ, CanSeek, CanTell, Parsed.Dir == GZOpenDir::Read};
 }
+#endif
 
 static WasmEdgeZlibEnvironment::GZFileEntry
-wasiGZOpen(WASI::Environ &WasiEnv, const char *Path,
-           const char *Mode) noexcept {
+fileSystemGZOpen(const Host::FileSystem *FS, const char *Path,
+                 const char *Mode) noexcept {
   const auto Parsed = parseGZOpenMode(Mode);
   if (!Parsed) {
+    spdlog::error("[WasmEdge-Zlib] [fileSystemGZOpen] "sv
+                  "Unsupported gz mode \"{}\"."sv,
+                  Mode);
+    return {};
+  }
+  if (FS == nullptr) {
+    spdlog::error("[WasmEdge-Zlib] [fileSystemGZOpen] "sv
+                  "The module has no filesystem to open the path with."sv);
     return {};
   }
 #if defined(_WIN32)
-  static_cast<void>(WasiEnv);
   static_cast<void>(Path);
-  spdlog::error("[WasmEdge-Zlib] [wasiGZOpen] "sv
+  spdlog::error("[WasmEdge-Zlib] [fileSystemGZOpen] "sv
                 "WASI-mediated gzopen is not supported on Windows yet; "sv
                 "returning a null handle for mode \"{}\"."sv,
                 Mode);
@@ -1409,32 +1329,14 @@ wasiGZOpen(WASI::Environ &WasiEnv, const char *Path,
   if (Parsed->NonBlock) {
     FdFlags = static_cast<__wasi_fdflags_t>(FdFlags | __WASI_FDFLAGS_NONBLOCK);
   }
-  __wasi_rights_t OptionalRights =
-      __WASI_RIGHTS_FD_SEEK | __WASI_RIGHTS_FD_TELL;
-  __wasi_fdstat_t DirStat;
-  if (WasiEnv.fdFdstatGet(3, DirStat).has_value()) {
-    __wasi_rights_t Inheriting = DirStat.fs_rights_inheriting;
-    if ((Inheriting & __WASI_RIGHTS_FD_SEEK) != 0) {
-      Inheriting |= __WASI_RIGHTS_FD_TELL;
-    }
-    OptionalRights &= Inheriting;
-  }
-  Rights |= OptionalRights;
-  auto LookupFlags = __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW;
   if (Parsed->Exclusive && Parsed->Dir != GZOpenDir::Read) {
     OpenFlags |= __WASI_OFLAGS_EXCL;
-    LookupFlags = static_cast<__wasi_lookupflags_t>(0);
   }
-  while (Path[0] == '/' || (Path[0] == '.' && Path[1] == '/') ||
-         (Path[0] == '.' && Path[1] == '\0')) {
-    Path += (Path[0] == '.' && Path[1] == '/') ? 2 : 1;
-  }
-  auto FdRes = WasiEnv.pathOpen(3, Path, LookupFlags, OpenFlags, Rights, Rights,
-                                FdFlags);
-  if (!FdRes) {
+  auto FileRes = FS->open(Path, OpenFlags, Rights, FdFlags);
+  if (!FileRes) {
     return {};
   }
-  return wasiFdToGZ(WasiEnv, *FdRes, Mode, /*OwnWasiFd=*/true);
+  return fileToGZ(**FileRes, *Parsed, Mode);
 #endif
 }
 
@@ -1461,20 +1363,8 @@ Expect<uint32_t> WasmEdgeZlibGZOpen::body(const Runtime::CallingFrame &Frame,
   const std::string Path(PathStr->data(), PathStr->size());
   const std::string Mode(ModeStr->data(), ModeStr->size());
 
-  WasmEdgeZlibEnvironment::GZFileEntry Entry{};
-  if (Frame.getWASIModule() == nullptr) {
-    Entry = {gzopen(Path.c_str(), Mode.c_str()), /*CanSeek=*/true,
-             /*CanTell=*/true, /*RestoredAppendOffset=*/false};
-  } else if (auto *WasiEnv = getWasiEnviron(Frame); WasiEnv != nullptr) {
-    Entry = wasiGZOpen(*WasiEnv, Path.c_str(), Mode.c_str());
-  } else {
-    spdlog::error(
-        "[WasmEdge-Zlib] [WasmEdgeZlibGZOpen] "sv
-        "A WASI module is configured but is not one this plugin can "sv
-        "read capabilities from; refusing to open outside the "sv
-        "capability layer."sv);
-    return UINT32_C(0);
-  }
+  auto Entry =
+      fileSystemGZOpen(Frame.getFileSystem(), Path.c_str(), Mode.c_str());
   if (unlikely(Entry.GZ == nullptr)) {
     return UINT32_C(0);
   }
@@ -1735,8 +1625,7 @@ Expect<int32_t> WasmEdgeZlibGZOffset::body(const Runtime::CallingFrame &,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  if (unlikely(!GZFileIt->second.CanTell ||
-               GZFileIt->second.RestoredAppendOffset)) {
+  if (unlikely(!GZFileIt->second.CanTell)) {
     return static_cast<int32_t>(-1);
   }
 
@@ -1767,7 +1656,7 @@ Expect<int32_t> WasmEdgeZlibGZDirect::body(const Runtime::CallingFrame &,
   return gzdirect(GZFileIt->second.GZ);
 }
 
-Expect<int32_t> WasmEdgeZlibGZClose::body(const Runtime::CallingFrame &Frame,
+Expect<int32_t> WasmEdgeZlibGZClose::body(const Runtime::CallingFrame &,
                                           uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
@@ -1776,16 +1665,12 @@ Expect<int32_t> WasmEdgeZlibGZClose::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const int64_t OwnedWasiFd = GZFileIt->second.OwnedWasiFd;
   const auto ZRes = gzclose(GZFileIt->second.GZ);
-
   Env.GZFileMap.erase(GZFileIt);
-  releaseOwnedWasiFd(Frame, OwnedWasiFd);
-
   return ZRes;
 }
 
-Expect<int32_t> WasmEdgeZlibGZClose_r::body(const Runtime::CallingFrame &Frame,
+Expect<int32_t> WasmEdgeZlibGZClose_r::body(const Runtime::CallingFrame &,
                                             uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
@@ -1794,18 +1679,16 @@ Expect<int32_t> WasmEdgeZlibGZClose_r::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const int64_t OwnedWasiFd = GZFileIt->second.OwnedWasiFd;
   const auto ZRes = gzclose_r(GZFileIt->second.GZ);
 
   if (ZRes != Z_STREAM_ERROR) {
     Env.GZFileMap.erase(GZFileIt);
-    releaseOwnedWasiFd(Frame, OwnedWasiFd);
   }
 
   return ZRes;
 }
 
-Expect<int32_t> WasmEdgeZlibGZClose_w::body(const Runtime::CallingFrame &Frame,
+Expect<int32_t> WasmEdgeZlibGZClose_w::body(const Runtime::CallingFrame &,
                                             uint32_t GZFile) {
   const auto GZFileIt = Env.GZFileMap.find(GZFile);
   if (GZFileIt == Env.GZFileMap.end()) {
@@ -1814,12 +1697,10 @@ Expect<int32_t> WasmEdgeZlibGZClose_w::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const int64_t OwnedWasiFd = GZFileIt->second.OwnedWasiFd;
   const auto ZRes = gzclose_w(GZFileIt->second.GZ);
 
   if (ZRes != Z_STREAM_ERROR) {
     Env.GZFileMap.erase(GZFileIt);
-    releaseOwnedWasiFd(Frame, OwnedWasiFd);
   }
 
   return ZRes;

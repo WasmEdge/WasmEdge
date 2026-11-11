@@ -39,17 +39,11 @@ install(
 
 message(STATUS "WASI-OCR: Build Tesseract backend for WASI-OCR")
 find_package(PkgConfig REQUIRED)
-pkg_search_module(TESSERACT REQUIRED tesseract)
-pkg_search_module(LEPTONICA REQUIRED lept)
-
-target_include_directories(wasmedgePluginWasmEdgeOCR
-  PUBLIC
-  ${TESSERACT_INCLUDE_DIRS}
-  ${LEPTONICA_INCLUDE_DIRS}
-)
+pkg_search_module(TESSERACT REQUIRED IMPORTED_TARGET tesseract)
+pkg_search_module(LEPTONICA REQUIRED IMPORTED_TARGET lept)
 
 target_link_libraries(wasmedgePluginWasmEdgeOCR
   PUBLIC
-  ${TESSERACT_LIBRARIES}
-  ${LEPTONICA_LIBRARIES}
+  PkgConfig::TESSERACT
+  PkgConfig::LEPTONICA
 )

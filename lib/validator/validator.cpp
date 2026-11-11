@@ -546,9 +546,9 @@ Expect<void> Validator::validate(const AST::CodeSegment &CodeSeg,
   }
   // Add locals to this frame.
   for (auto Val : CodeSeg.getLocals()) {
+    // The local value type should be valid.
+    EXPECTED_TRY(Checker.validate(Val.second));
     for (uint32_t Cnt = 0; Cnt < Val.first; ++Cnt) {
-      // The local value type should be valid.
-      EXPECTED_TRY(Checker.validate(Val.second));
       Checker.addLocal(Val.second, false);
     }
   }

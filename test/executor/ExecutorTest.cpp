@@ -19,6 +19,7 @@
 #include "executor/coredump.h"
 #include "executor/restore.h"
 #include "loader/serialize.h"
+#include "runtime/typetable.h"
 #include "vm/vm.h"
 
 #include "../spec/hostfunc.h"
@@ -674,6 +675,137 @@ TEST(I31Encoding, Interpreter) {
   auto Eq = VM.execute("eq", EqParams, std::vector<ValType>{I32, I32});
   ASSERT_TRUE(Eq);
   EXPECT_EQ((*Eq)[0].first.get<uint32_t>(), 1U);
+}
+
+AST::SubType makeFuncType(std::vector<ValType> Params) {
+  return AST::SubType(AST::FunctionType(Params, {}));
+}
+
+AST::SubType makeStructType(std::vector<ValType> Fields,
+                            std::vector<uint32_t> Supers = {},
+                            bool Final = true) {
+  std::vector<AST::FieldType> FTypes;
+  for (const auto &Field : Fields) {
+    FTypes.emplace_back(Field, ValMut::Const);
+  }
+  AST::SubType Type;
+  Type.getCompositeType().setStructType(std::move(FTypes));
+  Type.getSuperTypeIndices() = std::move(Supers);
+  Type.setFinal(Final);
+  return Type;
+}
+
+Expect<uint32_t> registerLone(Runtime::CanonicalTypeTable &Table,
+                              const AST::SubType &Type, uint32_t Start,
+                              Span<const uint32_t> ModuleIds = {}) {
+  const AST::SubType *Group[] = {&Type};
+  return Table.registerRecGroup(Group, Start, ModuleIds);
+}
+
+TEST(CanonicalTypeTable, EqualLoneTypes) {
+  Runtime::CanonicalTypeTable Table;
+  const auto A = makeFuncType({ValType(TypeCode::I32)});
+  const auto B = makeFuncType({ValType(TypeCode::I32)});
+  auto IdA = registerLone(Table, A, 0U);
+  auto IdB = registerLone(Table, B, 3U);
+  ASSERT_TRUE(IdA);
+  ASSERT_TRUE(IdB);
+  EXPECT_EQ(*IdA, *IdB);
+  EXPECT_EQ(Table.size(), 1U);
+}
+
+TEST(CanonicalTypeTable, DistinctTypes) {
+  Runtime::CanonicalTypeTable Table;
+  auto IdA = registerLone(Table, makeFuncType({ValType(TypeCode::I32)}), 0U);
+  auto IdB = registerLone(Table, makeFuncType({ValType(TypeCode::I64)}), 0U);
+  ASSERT_TRUE(IdA);
+  ASSERT_TRUE(IdB);
+  EXPECT_NE(*IdA, *IdB);
+  EXPECT_EQ(Table.size(), 2U);
+}
+
+TEST(CanonicalTypeTable, RecGroups) {
+  Runtime::CanonicalTypeTable Table;
+  auto MakeGroup = [](uint32_t Start, uint32_t Second) {
+    std::array<AST::SubType, 2> Group = {
+        makeStructType({ValType(TypeCode::RefNull, Start + 1U)}),
+        makeStructType({ValType(TypeCode::RefNull, Second)})};
+    Group[0].setRecursiveInfo(0U, 2U);
+    Group[1].setRecursiveInfo(1U, 2U);
+    return Group;
+  };
+  const auto First = MakeGroup(0U, 0U);
+  const auto Second = MakeGroup(5U, 5U);
+  const AST::SubType *FirstPtrs[] = {&First[0], &First[1]};
+  const AST::SubType *SecondPtrs[] = {&Second[0], &Second[1]};
+  const uint32_t Outer[] = {0U, 0U, 0U, 0U, 0U};
+  auto IdA = Table.registerRecGroup(FirstPtrs, 0U, {});
+  auto IdB = Table.registerRecGroup(SecondPtrs, 5U, Outer);
+  ASSERT_TRUE(IdA);
+  ASSERT_TRUE(IdB);
+  EXPECT_EQ(*IdA, *IdB);
+  EXPECT_EQ(Table.size(), 2U);
+
+  const auto Other = MakeGroup(5U, 0U);
+  const AST::SubType *OtherPtrs[] = {&Other[0], &Other[1]};
+  auto IdC = Table.registerRecGroup(OtherPtrs, 5U, Outer);
+  ASSERT_TRUE(IdC);
+  EXPECT_NE(*IdC, *IdA);
+  EXPECT_EQ(Table.size(), 4U);
+}
+
+TEST(CanonicalTypeTable, OuterReference) {
+  Runtime::CanonicalTypeTable Table;
+  auto FuncId = registerLone(Table, makeFuncType({}), 0U);
+  ASSERT_TRUE(FuncId);
+  const uint32_t ModA[] = {*FuncId};
+  const uint32_t ModB[] = {*FuncId + 7U, *FuncId + 9U, *FuncId};
+  const auto A = makeStructType({ValType(TypeCode::Ref, 0U)});
+  const auto B = makeStructType({ValType(TypeCode::Ref, 2U)});
+  auto IdA = registerLone(Table, A, 1U, ModA);
+  auto IdB = registerLone(Table, B, 3U, ModB);
+  ASSERT_TRUE(IdA);
+  ASSERT_TRUE(IdB);
+  EXPECT_EQ(*IdA, *IdB);
+  const auto &Stored = Table.getType(*IdA);
+  ASSERT_EQ(Stored.getCompositeType().getFieldTypes().size(), 1U);
+  EXPECT_EQ(Stored.getCompositeType()
+                .getFieldTypes()[0]
+                .getStorageType()
+                .getTypeIndex(),
+            *FuncId);
+}
+
+TEST(CanonicalTypeTable, SubTypes) {
+  Runtime::CanonicalTypeTable Table;
+  auto IdA = registerLone(Table, makeStructType({}, {}, false), 0U);
+  ASSERT_TRUE(IdA);
+  const uint32_t Mod[] = {*IdA};
+  auto IdB = registerLone(
+      Table, makeStructType({ValType(TypeCode::I32)}, {0U}, true), 1U, Mod);
+  ASSERT_TRUE(IdB);
+  EXPECT_TRUE(Table.isSubType(*IdA, *IdB));
+  EXPECT_FALSE(Table.isSubType(*IdB, *IdA));
+  EXPECT_TRUE(Table.isSubType(*IdA, *IdA));
+}
+
+TEST(CanonicalTypeTable, BadReference) {
+  Runtime::CanonicalTypeTable Table;
+  auto Id = registerLone(Table, makeStructType({ValType(TypeCode::Ref, 4U)}),
+                         1U, Span<const uint32_t>{});
+  ASSERT_FALSE(Id);
+  EXPECT_EQ(Id.error(), ErrCode::Value::IncompatibleImportType);
+  EXPECT_EQ(Table.size(), 0U);
+}
+
+TEST(CanonicalTypeTable, Cap) {
+  Runtime::CanonicalTypeTable Table(2U);
+  ASSERT_TRUE(registerLone(Table, makeFuncType({ValType(TypeCode::I32)}), 0U));
+  ASSERT_TRUE(registerLone(Table, makeFuncType({ValType(TypeCode::I64)}), 0U));
+  auto Full = registerLone(Table, makeFuncType({ValType(TypeCode::F32)}), 0U);
+  ASSERT_FALSE(Full);
+  EXPECT_EQ(Full.error(), ErrCode::Value::TypeTableFull);
+  EXPECT_TRUE(registerLone(Table, makeFuncType({ValType(TypeCode::I64)}), 0U));
 }
 
 std::array<WasmEdge::Byte, 46> AsyncWasm{

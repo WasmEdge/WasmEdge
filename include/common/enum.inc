@@ -1399,6 +1399,8 @@ E(UnknownImport, 0x0302, "unknown import")
 E(DataSegDoesNotFit, 0x0303, "data segment does not fit")
 // Init failed when instantiating element segment
 E(ElemSegDoesNotFit, 0x0304, "elements segment does not fit")
+// Canonical type table is full
+E(TypeTableFull, 0x0305, "type table full")
 // @}
 
 // Component model instantiation phase

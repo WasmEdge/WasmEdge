@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+//===-- wasmedge/runtime/typetable.h - Canonical type table ---------------===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains the process-wide table of canonical defined types.
+///
+//===----------------------------------------------------------------------===//
+#pragma once
+
+#include "ast/type.h"
+#include "common/defines.h"
+#include "common/errcode.h"
+#include "common/span.h"
+
+#include <atomic>
+#include <cstdint>
+#include <memory>
+#include <mutex>
+#include <unordered_map>
+#include <vector>
+
+namespace WasmEdge {
+namespace Runtime {
+
+/// Append-only table that gives structurally equal rec groups equal ids.
+class CanonicalTypeTable {
+public:
+  static constexpr uint32_t kDefaultCap = UINT32_C(1) << 24;
+
+  explicit CanonicalTypeTable(uint32_t Cap = kDefaultCap) noexcept;
+  ~CanonicalTypeTable() noexcept;
+  CanonicalTypeTable(const CanonicalTypeTable &) = delete;
+  CanonicalTypeTable &operator=(const CanonicalTypeTable &) = delete;
+
+  /// The table shared by the whole process. It is never destroyed.
+  WASMEDGE_EXPORT static CanonicalTypeTable &getGlobal() noexcept;
+
+  /// Register a rec group and return the id of its first sub type.
+  ///
+  /// `Start` is the module type index of `Group[0]`, and `ModuleIds` holds the
+  /// canonical ids of the module types before it. The ids of a group are
+  /// consecutive.
+  WASMEDGE_EXPORT Expect<uint32_t>
+  registerRecGroup(Span<const AST::SubType *const> Group, uint32_t Start,
+                   Span<const uint32_t> ModuleIds) noexcept;
+
+  /// Number of registered sub types.
+  uint32_t size() const noexcept {
+    return Size.load(std::memory_order_acquire);
+  }
+
+  /// Get a registered sub type. Its type references are canonical ids.
+  const AST::SubType &getType(uint32_t Id) const noexcept {
+    assuming(Id < size());
+    return Blocks[Id / kBlockSize][Id % kBlockSize];
+  }
+
+  /// Check whether the type `Got` is `Exp` or one of its declared subtypes.
+  bool isSubType(uint32_t Exp, uint32_t Got) const noexcept {
+    while (Got != Exp) {
+      const auto Supers = getType(Got).getSuperTypeIndices();
+      if (Supers.empty()) {
+        return false;
+      }
+      Got = Supers[0];
+    }
+    return true;
+  }
+
+private:
+  static constexpr uint32_t kBlockSize = 4096;
+
+  struct KeyHash {
+    size_t operator()(const std::vector<uint64_t> &Key) const noexcept;
+  };
+
+  const uint32_t Cap;
+  std::unique_ptr<AST::SubType *[]> Blocks;
+  std::atomic<uint32_t> Size = 0;
+  std::mutex Mutex;
+  std::unordered_map<std::vector<uint64_t>, uint32_t, KeyHash> Groups;
+};
+
+} // namespace Runtime
+} // namespace WasmEdge

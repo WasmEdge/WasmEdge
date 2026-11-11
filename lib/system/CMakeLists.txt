@@ -7,6 +7,7 @@ wasmedge_add_library(wasmedgeSystem
   mmap.cpp
   path.cpp
   stacktrace.cpp
+  typetable.cpp
 )
 
 target_include_directories(wasmedgeSystem

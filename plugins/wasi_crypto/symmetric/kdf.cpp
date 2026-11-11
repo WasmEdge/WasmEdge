@@ -47,8 +47,8 @@ WasiCryptoExpect<typename Hkdf<ShaNid>::Expand::State>
 Hkdf<ShaNid>::Expand::State::open(const Key &Key,
                                   OptionalRef<const Options>) noexcept {
   return openStateImpl(Key.ref(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY)
-      .map([&Key](auto &&Ctx) noexcept {
-        return State{std::move(Ctx), Key.ref()};
+      .map([&Key](auto &&NewCtx) noexcept {
+        return State{std::move(NewCtx), Key.ref()};
       });
 }
 
@@ -127,8 +127,8 @@ WasiCryptoExpect<typename Hkdf<ShaNid>::Extract::State>
 Hkdf<ShaNid>::Extract::State::open(const Key &Key,
                                    OptionalRef<const Options>) noexcept {
   return openStateImpl(Key.ref(), EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY)
-      .map([&Key](auto &&Ctx) noexcept {
-        return State{std::move(Ctx), Key.ref()};
+      .map([&Key](auto &&NewCtx) noexcept {
+        return State{std::move(NewCtx), Key.ref()};
       });
 }
 

@@ -22,6 +22,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <fstream>
 #include <limits>
 #include <memory>
@@ -3721,6 +3722,13 @@ TEST(WasiNNTest, PiperBackend) {
     return static_cast<uint32_t>(Errno[0].get<int32_t>());
   };
 
+  // Test: load -- the model is not an ONNX file (onnxruntime throws).
+  EXPECT_EQ(LoadPiperConfig(
+                "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx.json\", "
+                "\"config\": \"./wasinn_piper_fixtures/test_voice.onnx.json\", "
+                "\"espeak_data\": \"./wasinn_piper_fixtures/espeak-ng-data\"}"),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
   // Test: load -- the voice config is not JSON (libpiper throws).
   EXPECT_EQ(LoadPiperConfig(
                 "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\", "
@@ -4126,6 +4134,21 @@ TEST(WasiNNTest, PiperBackend) {
                 "\"espeak_data\": \"./wasinn_piper_fixtures\"}"),
             static_cast<uint32_t>(ErrNo::Success));
   EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 2);
+
+  // Test: load -- no espeak_data and espeak-ng's own lookup finds no data.
+  {
+    const char *SavedPath = std::getenv("ESPEAK_DATA_PATH");
+    std::string Saved = SavedPath != nullptr ? SavedPath : "";
+    setenv("ESPEAK_DATA_PATH", ".", 1);
+    EXPECT_EQ(LoadPiperConfig(
+                  "{\"model\": \"./wasinn_piper_fixtures/test_voice.onnx\"}"),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+    if (SavedPath != nullptr) {
+      setenv("ESPEAK_DATA_PATH", Saved.c_str(), 1);
+    } else {
+      unsetenv("ESPEAK_DATA_PATH");
+    }
+  }
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
 

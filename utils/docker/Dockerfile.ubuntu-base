@@ -22,7 +22,7 @@ FROM base AS deps-20
 RUN curl -sSf https://apt.kitware.com/kitware-archive.sh | sh
 RUN apt-get install -y cmake
 
-RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - \
+RUN curl -4 -sSfL --retry 5 https://apt.llvm.org/llvm-snapshot.gpg.key > /etc/apt/trusted.gpg.d/apt.llvm.org.asc \
         && echo "deb http://apt.llvm.org/focal llvm-toolchain-focal-18 main" | tee /etc/apt/sources.list.d/llvm.list
 
 RUN apt-get install -y \

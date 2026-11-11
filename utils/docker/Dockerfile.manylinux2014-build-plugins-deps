@@ -13,10 +13,6 @@ RUN yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.rep
 
 WORKDIR /root
 
-COPY opencvmini/install-opencvmini.sh .
-ENV OPENCV_VERSION "4.8.0"
-RUN [ "/bin/bash", "install-opencvmini.sh" ]
-
 COPY wasi-nn/install-pytorch.sh .
 ENV PYTORCH_VERSION "2.5.1"
 ENV PYTORCH_INSTALL_TO "/root"

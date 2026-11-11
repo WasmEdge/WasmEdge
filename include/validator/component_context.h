@@ -101,8 +101,8 @@ public:
   /// Append N to Names, or diagnose the clash (exact or strong-uniqueness).
   Expect<void> addUniqueName(std::vector<NameRecord> &Names,
                              const NameRecord &N, bool IsImport) const noexcept;
-  /// Name attributes: a valid versionsuffix, and `implements` only on a
-  /// plain, instance-typed name.
+  /// The interface version with its `version-suffix`, and `implements` only
+  /// on a plain, instance-typed name.
   Expect<void> checkNameAttributes(const ExternName &CN,
                                    Span<const std::string> Impls,
                                    Span<const std::string> VSuffixes,
@@ -337,14 +337,20 @@ public:
   /// Elements a fixed-length list may declare, as the reference validator.
   static inline constexpr const uint32_t MaxFixedListElems = 1U << 30;
 
-  /// Appends Q's flat core types to Out, false if invalid; Ptr indexes memory.
+  /// Appends Q's flat core types to Out, false if invalid; Ptr indexes memory
+  /// and IsLower lowers the values into this component.
   bool flattenValType(const QualValType &Q, std::vector<ValType> &Out,
-                      const ValType &Ptr) noexcept;
+                      const ValType &Ptr, bool IsLower) noexcept;
+  /// The flat type of a borrow: the representation of a resource this
+  /// component defines when lowered into it, else an i32 handle.
+  ValType flattenBorrow(const Scope *Home, const ResourceMap *Remap,
+                        uint32_t Idx, bool IsLower) const noexcept;
   /// True iff the type transitively contains a list or string.
   bool needsMemory(const QualValType &Q) noexcept;
-  /// Flatten a function type; the flags report which side needs a memory.
+  /// Flatten a function type lifted from or lowered into this component; the
+  /// flags report which side needs a memory.
   Expect<AST::FunctionType> flattenFuncType(const FuncInfo &FI,
-                                            const ValType &Ptr,
+                                            const ValType &Ptr, bool IsLift,
                                             bool &ParamsNeedMemory,
                                             bool &ResultsNeedMemory) noexcept;
 

@@ -8,6 +8,7 @@
 #include "common/hash.h"
 #include "common/span.h"
 #include "common/types.h"
+#include "host/filesystem.h"
 #include "host/wasi/clock.h"
 #include "host/wasi/error.h"
 #include "host/wasi/vfs.h"
@@ -55,9 +56,9 @@ struct WasiAddrStorage {
 static_assert(sizeof(WasiAddrStorage) == 128, "wrong size");
 
 class EVPoller;
-class Environ : public PollerContext {
+class Environ : public PollerContext, public Host::FileSystem {
 public:
-  ~Environ() noexcept;
+  ~Environ() noexcept override;
 
   void init(Span<const std::string> Dirs, const std::string &ProgramName,
             Span<const std::string> Args, Span<const std::string> Envs);
@@ -882,6 +883,16 @@ public:
     return VINode::pathUnlinkFile(std::move(Node), Path);
   }
 
+  /// Open the file of the guest path with the rights asked for, which the guest
+  /// must have, plus seeking when the guest has it. The file is not in the file
+  /// descriptor table of the guest.
+  WasiExpect<std::shared_ptr<Host::File>>
+  open(std::string_view Path, __wasi_oflags_t OpenFlags, __wasi_rights_t Rights,
+       __wasi_fdflags_t FdFlags) const noexcept override;
+
+  WasiExpect<void>
+  createDirectory(std::string_view Path) const noexcept override;
+
   /// Check if a file exists.
   ///
   /// @param[in] Path The path to check.
@@ -1232,6 +1243,11 @@ private:
     }
     return {};
   }
+
+  /// Find the preopened directory which the guest path is under, as the WASI
+  /// libc does, and leave the path relative to it.
+  WasiExpect<std::shared_ptr<VINode>>
+  findPreopen(std::string_view &Path) const noexcept;
 
   WasiExpect<__wasi_fd_t> generateRandomFdToNode(std::shared_ptr<VINode> Node) {
     std::uniform_int_distribution<__wasi_fd_t> Distribution(0, 0x7FFFFFFF);

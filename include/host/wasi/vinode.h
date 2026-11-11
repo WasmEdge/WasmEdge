@@ -5,10 +5,13 @@
 
 #include "common/filesystem.h"
 #include "common/types.h"
+#include "host/filesystem.h"
 #include "host/wasi/error.h"
 #include "host/wasi/inode.h"
 #include "host/wasi/vfs.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -21,8 +24,12 @@ namespace WasmEdge {
 namespace Host {
 namespace WASI {
 
+/// The largest size passed to one read or write of the host for a Host::File,
+/// below the limit of every host.
+inline constexpr const std::size_t kFileIOMax = UINT32_C(1) << 30;
+
 class VPoller;
-class VINode : public std::enable_shared_from_this<VINode> {
+class VINode : public std::enable_shared_from_this<VINode>, public Host::File {
 public:
   VINode(const VINode &) = delete;
   VINode &operator=(const VINode &) = delete;
@@ -693,6 +700,55 @@ public:
                                    Span<uint8_t> Address,
                                    uint16_t *PortPtr) const noexcept {
     return Node.sockGetPeerAddr(AddressFamilyPtr, Address, PortPtr);
+  }
+
+  /// The sizes and offsets of the system node are in the byte order of the
+  /// guest, and those of a Host::File in the byte order of the host.
+  WasiExpect<std::size_t> read(Span<uint8_t> Buffer) noexcept override {
+    std::size_t Size = 0;
+    while (Size < Buffer.size()) {
+      auto Part =
+          Buffer.subspan(Size, std::min(Buffer.size() - Size, kFileIOMax));
+      __wasi_size_t NRead = 0;
+      EXPECTED_TRY(fdRead(Span<Span<uint8_t>>(&Part, 1), NRead));
+      NRead = EndianValue(NRead).le();
+      if (NRead == 0) {
+        break;
+      }
+      Size += NRead;
+    }
+    return Size;
+  }
+
+  WasiExpect<void> write(Span<const uint8_t> Buffer) noexcept override {
+    while (!Buffer.empty()) {
+      auto Part = Buffer.first(std::min(Buffer.size(), kFileIOMax));
+      __wasi_size_t NWritten = 0;
+      EXPECTED_TRY(fdWrite(Span<Span<const uint8_t>>(&Part, 1), NWritten));
+      NWritten = EndianValue(NWritten).le();
+      if (NWritten == 0) {
+        return WasiUnexpect(__WASI_ERRNO_IO);
+      }
+      Buffer = Buffer.subspan(NWritten);
+    }
+    return {};
+  }
+
+  WasiExpect<__wasi_filesize_t> seek(__wasi_filedelta_t Offset,
+                                     __wasi_whence_t Whence) noexcept override {
+    __wasi_filesize_t Size = 0;
+    EXPECTED_TRY(fdSeek(Offset, Whence, Size));
+    return EndianValue(Size).le();
+  }
+
+  WasiExpect<__wasi_filesize_t> tell() noexcept override {
+    __wasi_filesize_t Size = 0;
+    EXPECTED_TRY(fdTell(Size));
+    return EndianValue(Size).le();
+  }
+
+  WasiExpect<uint64_t> getNativeHandle() noexcept override {
+    return getNativeHandler();
   }
 
   __wasi_rights_t fsRightsBase() const noexcept { return FsRightsBase; }

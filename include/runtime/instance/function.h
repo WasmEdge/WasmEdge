@@ -17,10 +17,12 @@
 #include "common/symbol.h"
 #include "runtime/hostfunc.h"
 #include "runtime/instance/composite.h"
+#include "runtime/typetable.h"
 
 #include <cstddef>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -39,7 +41,7 @@ public:
   FunctionInstance(FunctionInstance &&Inst) noexcept
       : CompositeBase(Inst.ModInst, Inst.TypeIdx),
         CompiledCode(Inst.CompiledCode), FuncType(Inst.FuncType),
-        Data(std::move(Inst.Data)) {
+        Data(std::move(Inst.Data)), HostTypeId(Inst.HostTypeId) {
     assuming(ModInst);
   }
   /// Constructor for native function.
@@ -70,7 +72,13 @@ public:
   FunctionInstance(std::unique_ptr<HostFunctionBase> &&Func) noexcept
       : CompositeBase(), FuncType(Func->getFuncType()),
         Data(std::in_place_type_t<std::unique_ptr<HostFunctionBase>>(),
-             std::move(Func)) {}
+             std::move(Func)) {
+    const AST::SubType *Group[] = {&getHostFunc().getDefinedType()};
+    if (auto Id =
+            CanonicalTypeTable::getGlobal().registerRecGroup(Group, 0, {})) {
+      HostTypeId = *Id;
+    }
+  }
 
   /// Check whether this is a native wasm function.
   bool isWasmFunction() const noexcept {
@@ -117,6 +125,11 @@ public:
   /// Getter for host function.
   HostFunctionBase &getHostFunc() const noexcept {
     return *std::get_if<std::unique_ptr<HostFunctionBase>>(&Data)->get();
+  }
+
+  /// Getter for the canonical type id of a host function out of any module.
+  std::optional<uint32_t> getHostCanonicalTypeId() const noexcept {
+    return HostTypeId;
   }
 
   /// Field offsets read inline by the AOT/JIT compiler for the call_indirect
@@ -179,6 +192,7 @@ private:
   std::variant<WasmFunction, Symbol<CompiledFunction>,
                std::unique_ptr<HostFunctionBase>>
       Data;
+  std::optional<uint32_t> HostTypeId;
   /// @}
 };
 

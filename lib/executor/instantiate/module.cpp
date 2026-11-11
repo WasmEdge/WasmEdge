@@ -47,7 +47,12 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // Instantiate Function Types in Module Instance. (TypeSec)
   for (auto &SubType : Mod.getTypeSection().getContent()) {
     // Copy defined types to module instance.
-    ModInst->addDefinedType(SubType);
+    EXPECTED_TRY(ModInst->addDefinedType(SubType).map_error([](auto E) {
+      spdlog::error(E);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Type));
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+      return E;
+    }));
   }
 
   auto ReportModuleError = [&StoreMgr, &ModInst](auto E) {

@@ -212,7 +212,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       // Register via the host-function helper so the synthesized core
       // function's defined type lands in a ModuleInstance::Types list and
       // matchType walks find it when wasm callers import this function.
-      CompInst.addCoreHostFunction(std::move(Thunk));
+      EXPECTED_TRY(CompInst.addCoreHostFunction(std::move(Thunk)));
       break;
     }
     case ComponentCanonOpCode::Resource__new:

@@ -25,8 +25,10 @@
 #include "runtime/instance/module.h"
 #include "runtime/instance/table.h"
 #include "runtime/instance/tag.h"
+#include "runtime/typetable.h"
 
 #include <cstdint>
+#include <optional>
 
 namespace WasmEdge {
 namespace Runtime {
@@ -51,18 +53,26 @@ public:
     }
     Span<const AST::SubType *const> GotTypeList = ExpTypeList;
     const AST::SubType *HostType = nullptr;
+    std::optional<uint32_t> GotId;
     if (!VT.isAbsHeapType()) {
       const auto *Inst = Ref.getPtr<Instance::CompositeBase>();
-      if (Inst->getModule()) {
-        GotTypeList = Inst->getModule()->getTypeList();
+      const auto *GotMod = Inst->getModule() ? Inst->getModule() : ModInst;
+      if (GotMod == nullptr ||
+          VT.getTypeIndex() >= GotMod->getTypeList().size()) {
+        return false;
       }
+      GotId = GotMod->getCanonicalTypeId(VT.getTypeIndex());
     } else if (VT.getHeapTypeCode() == TypeCode::FuncRef) {
       const auto *FuncInst = retrieveFuncRef(Ref);
       if (FuncInst->getModule()) {
-        GotTypeList = FuncInst->getModule()->getTypeList();
-        VT = ValType(TypeCode::Ref, FuncInst->getTypeIndex());
+        GotId =
+            FuncInst->getModule()->getCanonicalTypeId(FuncInst->getTypeIndex());
+      } else if (const auto Id = FuncInst->getHostCanonicalTypeId();
+                 Id.has_value()) {
+        GotId = Id;
       } else {
-        // A host function out of any module is a type list of its own.
+        // A host function type that cannot be registered is a type list of
+        // its own.
         HostType = &FuncInst->getHostFunc().getDefinedType();
         GotTypeList = Span<const AST::SubType *const>(&HostType, 1);
         VT = ValType(TypeCode::Ref, 0U);
@@ -70,6 +80,18 @@ public:
     } else if (VT.getHeapTypeCode() == TypeCode::ExternRef) {
       // A reference to a host object is an any reference.
       VT = ValType(TypeCode::Ref, TypeCode::AnyRef);
+    }
+    if (GotId.has_value()) {
+      const auto &Table = CanonicalTypeTable::getGlobal();
+      if (!Exp.isAbsHeapType()) {
+        return ModInst != nullptr &&
+               Exp.getTypeIndex() < ModInst->getTypeList().size() &&
+               Table.isSubType(ModInst->getCanonicalTypeId(Exp.getTypeIndex()),
+                               *GotId);
+      }
+      // A defined type matches the abstract heap types above its expansion.
+      VT = ValType(TypeCode::Ref,
+                   Table.getType(*GotId).getCompositeType().expand());
     }
     // An extern reference is the outside view of a reference of the any
     // hierarchy.

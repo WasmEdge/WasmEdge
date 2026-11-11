@@ -46,7 +46,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           // import-time matchType lookups find it.
           auto *FI = CompInst.getCoreFunction(Idx);
           if (FI && FI->isHostFunction()) {
-            Mod->importHostFunction(FI);
+            EXPECTED_TRY(Mod->importHostFunction(FI));
           } else {
             Mod->importFunction(FI);
           }

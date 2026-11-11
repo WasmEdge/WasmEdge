@@ -28,6 +28,7 @@
 #include "runtime/instance/struct.h"
 #include "runtime/instance/table.h"
 #include "runtime/instance/tag.h"
+#include "runtime/typetable.h"
 
 #include <atomic>
 #include <cstddef>
@@ -129,6 +130,12 @@ public:
     return ModName;
   }
 
+  /// Get the canonical type id of a defined type.
+  uint32_t getCanonicalTypeId(uint32_t Idx) const noexcept {
+    assuming(Idx < CanonTypeIds.size());
+    return CanonTypeIds[Idx];
+  }
+
   void *getHostData() const noexcept { return HostData; }
 
   /// Get the defined type by index.
@@ -218,7 +225,7 @@ public:
     if (unlikely(InstantiateFinalized.load(std::memory_order_acquire))) {
       return Unexpect(ErrCode::Value::WrongVMWorkflow);
     }
-    unsafeImportDefinedType(Func->getDefinedType());
+    EXPECTED_TRY(unsafeImportDefinedType(Func->getDefinedType()));
     unsafeAddHostInstance(
         Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
         std::make_unique<FunctionInstance>(
@@ -232,7 +239,7 @@ public:
       return Unexpect(ErrCode::Value::WrongVMWorkflow);
     }
     assuming(Func->isHostFunction());
-    unsafeImportDefinedType(Func->getHostFunc().getDefinedType());
+    EXPECTED_TRY(unsafeImportDefinedType(Func->getHostFunc().getDefinedType()));
     Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
     unsafeAddHostInstance(Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
                           std::move(Func));
@@ -347,10 +354,24 @@ protected:
   friend class Runtime::CallingFrame;
 
   /// Create and copy the defined type to this module instance.
-  void addDefinedType(const AST::SubType &SType) {
+  Expect<void> addDefinedType(const AST::SubType &SType) {
     std::unique_lock Lock(Mutex);
     OwnedTypes.push_back(std::make_unique<AST::SubType>(SType));
     Types.push_back(OwnedTypes.back().get());
+    const auto Info = SType.getRecursiveInfo();
+    if (Info.Index + 1 < Info.RecTypeSize) {
+      return {};
+    }
+    const auto Start = static_cast<uint32_t>(Types.size()) - Info.RecTypeSize;
+    assuming(CanonTypeIds.size() == Start);
+    EXPECTED_TRY(auto First,
+                 CanonicalTypeTable::getGlobal().registerRecGroup(
+                     Span<const AST::SubType *const>(Types).subspan(Start),
+                     Start, CanonTypeIds));
+    for (uint32_t I = 0; I < Info.RecTypeSize; ++I) {
+      CanonTypeIds.push_back(First + I);
+    }
+    return {};
   }
 
   /// Create and add instances to this module instance.
@@ -417,12 +438,13 @@ protected:
   /// to point at the new TypeIdx. Use this when a host function is bridged
   /// into a different module than the one that originally created it (e.g.,
   /// the inline-instance machinery in component instantiation).
-  void importHostFunction(FunctionInstance *Func) {
+  Expect<void> importHostFunction(FunctionInstance *Func) {
     std::unique_lock Lock(Mutex);
     assuming(Func->isHostFunction());
-    unsafeImportDefinedType(Func->getHostFunc().getDefinedType());
+    EXPECTED_TRY(unsafeImportDefinedType(Func->getHostFunc().getDefinedType()));
     Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
     unsafeImportInstance(FuncInsts, Func);
+    return {};
   }
   void importTable(TableInstance *Tab) {
     std::unique_lock Lock(Mutex);
@@ -607,10 +629,16 @@ protected:
   }
 
   /// Unsafely import a defined type from a host function into this module.
-  void unsafeImportDefinedType(const AST::SubType &SType) {
+  Expect<void> unsafeImportDefinedType(const AST::SubType &SType) {
+    const auto Idx = static_cast<uint32_t>(Types.size());
+    assuming(CanonTypeIds.size() == Idx);
+    const AST::SubType *Group[] = {&SType};
+    EXPECTED_TRY(auto Id, CanonicalTypeTable::getGlobal().registerRecGroup(
+                              Group, Idx, CanonTypeIds));
     Types.push_back(&SType);
-    const_cast<AST::SubType *>(Types.back())
-        ->setTypeIndex(static_cast<uint32_t>(Types.size()) - 1);
+    const_cast<AST::SubType *>(Types.back())->setTypeIndex(Idx);
+    CanonTypeIds.push_back(Id);
+    return {};
   }
 
   /// Unsafely create and add the instance to this module. Only valid before
@@ -783,6 +811,7 @@ protected:
   /// Defined types.
   std::vector<const AST::SubType *> Types;
   std::vector<std::unique_ptr<const AST::SubType>> OwnedTypes;
+  std::vector<uint32_t> CanonTypeIds;
 
   /// Owned instances in this module.
   std::vector<std::unique_ptr<FunctionInstance>> OwnedFuncInsts;

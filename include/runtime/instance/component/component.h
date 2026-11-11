@@ -317,13 +317,15 @@ public:
   /// is to register the host function's defined type so that downstream
   /// import matching (which walks ModInst::getTypeList()) succeeds. This is
   /// used by canon lower to expose its thunk to core wasm.
-  void addCoreHostFunction(std::unique_ptr<Runtime::HostFunctionBase> &&Host,
-                           std::string_view Name = "$canon-lower") {
+  Expect<void>
+  addCoreHostFunction(std::unique_ptr<Runtime::HostFunctionBase> &&Host,
+                      std::string_view Name = "$canon-lower") {
     auto Mod = std::make_unique<ModuleInstance>("");
-    Mod->addHostFunc(std::string(Name), std::move(Host));
+    EXPECTED_TRY(Mod->addHostFunc(std::string(Name), std::move(Host)));
     auto *FuncPtr = Mod->findFuncExports(std::string(Name));
     CoreFuncInsts.push_back(FuncPtr);
     OwnedAuxModInsts.push_back(std::move(Mod));
+    return {};
   }
   FunctionInstance *getCoreFunction(uint32_t Index) const noexcept {
     return CoreFuncInsts[Index];

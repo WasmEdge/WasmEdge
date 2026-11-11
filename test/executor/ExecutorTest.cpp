@@ -808,6 +808,128 @@ TEST(CanonicalTypeTable, Cap) {
   EXPECT_TRUE(registerLone(Table, makeFuncType({ValType(TypeCode::I64)}), 0U));
 }
 
+std::array<WasmEdge::Byte, 48> TypesWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x15, 0x02, 0x4e,
+    0x02, 0x50, 0x00, 0x5f, 0x01, 0x63, 0x01, 0x00, 0x50, 0x00, 0x5f, 0x01,
+    0x63, 0x00, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x03, 0x02, 0x01, 0x02, 0x07,
+    0x05, 0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b};
+
+std::array<WasmEdge::Byte, 35> RefTestAWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+    0x01, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01,
+    0x66, 0x00, 0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x20, 0x00, 0x0b};
+
+std::array<WasmEdge::Byte, 48> RefTestBWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x03, 0x5f,
+    0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x60, 0x01, 0x70, 0x01, 0x7f, 0x03,
+    0x02, 0x01, 0x02, 0x07, 0x08, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00,
+    0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0xfb, 0x14, 0x01, 0x0b};
+
+class I32Sink : public Runtime::HostFunction<I32Sink> {
+public:
+  Expect<void> body(const Runtime::CallingFrame &, uint32_t) { return {}; }
+};
+
+class I32Echo : public Runtime::HostFunction<I32Echo> {
+public:
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t Value) {
+    return Value;
+  }
+};
+
+TEST(CanonicalTypeTable, Modules) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  WasmEdge::VM::VM VM1(Conf);
+  WasmEdge::VM::VM VM2(Conf);
+  for (auto *VM : {&VM1, &VM2}) {
+    ASSERT_TRUE(VM->loadWasm(TypesWasm));
+    ASSERT_TRUE(VM->validate());
+    ASSERT_TRUE(VM->instantiate());
+  }
+  const auto *Mod1 = VM1.getActiveModule();
+  const auto *Mod2 = VM2.getActiveModule();
+  ASSERT_NE(Mod1, nullptr);
+  ASSERT_NE(Mod2, nullptr);
+  for (uint32_t I = 0; I < 3; ++I) {
+    EXPECT_EQ(Mod1->getCanonicalTypeId(I), Mod2->getCanonicalTypeId(I));
+  }
+  EXPECT_EQ(Mod1->getCanonicalTypeId(1), Mod1->getCanonicalTypeId(0) + 1U);
+
+  Runtime::Instance::ModuleInstance Host("host"sv);
+  ASSERT_TRUE(Host.addHostFunc("sink"sv, std::make_unique<I32Sink>()));
+  EXPECT_EQ(Host.getCanonicalTypeId(0), Mod1->getCanonicalTypeId(2));
+}
+
+TEST(CanonicalTypeTable, RefTest) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  WasmEdge::VM::VM VM(Conf);
+  ASSERT_TRUE(VM.registerModule("a"sv, Span<const Byte>(RefTestAWasm)));
+  ASSERT_TRUE(VM.loadWasm(RefTestBWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  const auto *ModA = VM.getStoreManager().findModule("a"sv);
+  ASSERT_NE(ModA, nullptr);
+  const auto *Func = ModA->findFuncExports("f"sv);
+  ASSERT_NE(Func, nullptr);
+
+  auto Test = [&](const Runtime::Instance::FunctionInstance *F) -> uint32_t {
+    std::vector<ValVariant> Params = {RefVariant(F)};
+    auto R = VM.execute("test"sv, Params,
+                        std::vector<ValType>{ValType(TypeCode::FuncRef)});
+    EXPECT_TRUE(R);
+    if (!R) {
+      return 0U;
+    }
+    return (*R)[0].first.get<uint32_t>();
+  };
+  EXPECT_EQ(Test(Func), 1U);
+  Runtime::Instance::FunctionInstance Standalone(std::make_unique<I32Echo>());
+  EXPECT_EQ(Test(&Standalone), 1U);
+}
+
+std::array<WasmEdge::Byte, 41> RefTestFuncWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01,
+    0x60, 0x01, 0x70, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x08,
+    0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x0a, 0x09, 0x01,
+    0x07, 0x00, 0x20, 0x00, 0xfb, 0x14, 0x70, 0x0b};
+
+class TypedRefHost : public Runtime::HostFunctionBase {
+public:
+  TypedRefHost() : Runtime::HostFunctionBase(0) {
+    DefType.getCompositeType().getFuncType().getParamTypes().push_back(
+        ValType(TypeCode::Ref, 5U));
+  }
+  Expect<void> run(const Runtime::CallingFrame &, Span<const ValVariant>,
+                   Span<ValVariant>) override {
+    return {};
+  }
+};
+
+TEST(CanonicalTypeTable, StandaloneHostFunction) {
+  Runtime::Instance::FunctionInstance Standalone(std::make_unique<I32Echo>());
+  const auto Id = Standalone.getHostCanonicalTypeId();
+  ASSERT_TRUE(Id.has_value());
+  Runtime::Instance::ModuleInstance Host("host"sv);
+  ASSERT_TRUE(Host.addHostFunc("echo"sv, std::make_unique<I32Echo>()));
+  EXPECT_EQ(*Id, Host.getCanonicalTypeId(0));
+
+  Runtime::Instance::FunctionInstance Typed(std::make_unique<TypedRefHost>());
+  EXPECT_FALSE(Typed.getHostCanonicalTypeId().has_value());
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  WasmEdge::VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(RefTestFuncWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  std::vector<ValVariant> Params = {RefVariant(&Typed)};
+  auto R = VM.execute("test"sv, Params,
+                      std::vector<ValType>{ValType(TypeCode::FuncRef)});
+  ASSERT_TRUE(R);
+  EXPECT_EQ((*R)[0].first.get<uint32_t>(), 1U);
+}
+
 std::array<WasmEdge::Byte, 46> AsyncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
     0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07,

@@ -230,9 +230,10 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
         // because the independent host function instance cannot be imported and
         // be referred by instructions.
         const auto *ModInst = Inst->getModule();
-        const auto *DefType = *ModInst->getType(RefType.getTypeIndex());
+        const auto &DefType = Runtime::CanonicalTypeTable::getGlobal().getType(
+            ModInst->getCanonicalTypeId(RefType.getTypeIndex()));
         RefType =
-            ValType(RefType.getCode(), DefType->getCompositeType().expand());
+            ValType(RefType.getCode(), DefType.getCompositeType().expand());
       }
       if (!Ref.isNull()) {
         RefType.toNonNullableRef();

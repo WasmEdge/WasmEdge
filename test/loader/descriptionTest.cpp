@@ -142,6 +142,9 @@ TEST(DescriptionTest, LoadImportDesc) {
 TEST(DescriptionTest, LoadExportDesc) {
   std::vector<uint8_t> Vec;
 
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_2);
+  WasmEdge::Loader::Loader LdrNoExceptionHandling(Conf);
+
   // 2. Test load export description.
   //
   //   1.  Load invalid empty export description.
@@ -149,6 +152,8 @@ TEST(DescriptionTest, LoadExportDesc) {
   //   3.  Load export description with non-empty module name.
   //   4.  Load export description with invalid external type.
   //   5.  Load export description of table type.
+  //   6.  Load invalid export description of tag type without
+  //       Exception-Handling proposal.
 
   Vec = {
       0x07U, // Export section
@@ -192,5 +197,16 @@ TEST(DescriptionTest, LoadExportDesc) {
       0x01U, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU // Table type and table index
   };
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x07U,                                           // Export section
+      0x0AU,                                           // Content size = 10
+      0x01U,                                           // Vector length = 1
+      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // External name: Loader
+      0x04U, 0x00U                                     // Tag type and tag index
+  };
+  auto Res = LdrNoExceptionHandling.parseModule(prefixedVec(Vec));
+  EXPECT_FALSE(Res);
+  EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::MalformedExportKind);
 }
 } // namespace

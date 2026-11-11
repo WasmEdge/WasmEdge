@@ -23,14 +23,14 @@
 //   narrowing. The draft requires bool.
 // - chunk requires the size to divide evenly, and cat requires arguments of
 //   one type.
-// - The rounding functions require the default round-to-nearest mode.
+// - Broadcast from a class type that converts to the lane type is explicit.
+// - roundeven requires the default round-to-nearest mode on targets that have
+//   neither a roundeven instruction nor __builtin_roundeven.
 ///
 
 #pragma once
 
-#include "experimental/simd/backend_array.hpp"
-#include "experimental/simd/backend_m128i.hpp"
-#include "experimental/simd/backend_vector_ext.hpp"
 #include "experimental/simd/detail.hpp"
 #include "experimental/simd/functions.hpp"
 #include "experimental/simd/vec.hpp"
+#include "experimental/simd/vector_ext_intrinsics.hpp"

@@ -13,17 +13,23 @@
 
 #pragma once
 
+#include "experimental/math.hpp"
 #include "experimental/simd/detail.hpp"
 
 #if defined(__GNUC__) || defined(__clang__)
-
-#include "experimental/simd/vector_ext_intrinsics.hpp"
 
 #include <cmath>
 
 namespace cxx26 {
 namespace simd {
 namespace detail {
+
+// Target instructions for 16-byte vectors that the vector extensions do not
+// reach. experimental/simd/vector_ext_intrinsics.hpp defines it and pulls in
+// the target intrinsic headers. Only the math, permute and to_ullong
+// operations need it, so a header that only names the vector types does not
+// pay for those headers.
+template <class T, simd_size_type N, class = void> struct vector_ext_intrinsics;
 
 template <class T, simd_size_type N> struct simd_backend<T, vector_ext_abi<N>> {
   static_assert(is_power_of_two(static_cast<std::size_t>(N)));
@@ -120,7 +126,8 @@ template <class T, simd_size_type N> struct simd_backend<T, vector_ext_abi<N>> {
     if constexpr (intrinsics::has_math) {                                      \
       return intrinsics::NAME(A);                                              \
     } else {                                                                   \
-      return generate([&](auto I) { return quiet_nan(SCALAR(get(A, I))); });   \
+      return generate(                                                         \
+          [&](auto I) { return cxx26::quiet_nan(SCALAR(get(A, I))); });        \
     }                                                                          \
   }
   CXX26_SIMD_VECTOR_EXT_MATH(sqrt, std::sqrt)

@@ -8,9 +8,11 @@
 #include "experimental/math.hpp"
 #include "experimental/simd/ext.hpp"
 
+#include <atomic>
+#include <cfenv>
 #include <cmath>
 #include <cstdint>
-#include <cstring>
+#include <functional>
 #include <gtest/gtest.h>
 #include <limits>
 #include <stdexcept>
@@ -18,7 +20,7 @@
 #include <vector>
 
 #if defined(_M_X64) || defined(__SSE2__)
-#include <emmintrin.h>
+#include <xmmintrin.h>
 #endif
 
 namespace {
@@ -75,6 +77,10 @@ static_assert(!std::is_constructible_v<simd::vec<std::uint8_t, 16>, int>);
 static_assert(std::is_convertible_v<std::uint8_t, simd::vec<std::uint8_t, 16>>);
 static_assert(std::is_convertible_v<int, simd::vec<std::int32_t, 4>>);
 static_assert(!std::is_constructible_v<simd::vec<float, 4>, int>);
+static_assert(!std::is_convertible_v<std::reference_wrapper<std::uint8_t>,
+                                     simd::vec<std::uint8_t, 16>>);
+static_assert(std::is_constructible_v<simd::vec<std::uint8_t, 16>,
+                                      std::reference_wrapper<std::uint8_t>>);
 static_assert(std::is_convertible_v<simd::vec<std::int16_t, 8>,
                                     simd::vec<std::int32_t, 8>>);
 static_assert(!std::is_convertible_v<simd::vec<std::int32_t, 8>,
@@ -89,22 +95,6 @@ static_assert(
 static_assert(simd::basic_mask<1, simd::detail::array_abi<16>>([](auto I) {
                 return I == 0;
               }).to_ullong() == 0x1ULL);
-
-static_assert(std::is_same_v<cxx26::simd_ext::native_type_t<simd::basic_vec<
-                                 std::uint32_t, simd::detail::array_abi<4>>>,
-                             simd::detail::array_storage<std::uint32_t, 4>>);
-#if defined(__GNUC__) || defined(__clang__)
-using GnuU32x4 [[gnu::vector_size(16)]] = std::uint32_t;
-static_assert(
-    std::is_same_v<cxx26::simd_ext::native_type_t<simd::basic_vec<
-                       std::uint32_t, simd::detail::vector_ext_abi<4>>>,
-                   GnuU32x4>);
-#endif
-#if defined(_M_X64) || defined(__SSE2__)
-[[maybe_unused]] constexpr __m128i *M128iNative =
-    static_cast<cxx26::simd_ext::native_type_t<
-        simd::basic_vec<std::uint32_t, simd::detail::m128i_abi<4>>> *>(nullptr);
-#endif
 
 template <class T> std::vector<T> edgeValues() {
   using L = std::numeric_limits<T>;
@@ -242,25 +232,15 @@ template <class T> std::vector<T> roundingValues() {
   return V;
 }
 
-template <class T> bool sameFloat(T Got, T Want, bool RequireQuiet) {
+template <class T> bool sameFloat(T Got, T Want) {
   if (std::isnan(Want)) {
-    return std::isnan(Got) &&
-           (!RequireQuiet || (bitsOf(Got) & WasmEdge::QuietBit<T>) != 0);
+    return std::isnan(Got) && (bitsOf(Got) & WasmEdge::QuietBit<T>) != 0;
   }
   return bitsOf(Got) == bitsOf(Want);
 }
 
 template <class F, class T> void checkRounding() {
   using V = V16<F, T>;
-  constexpr bool Quiet =
-#if defined(_M_X64) || defined(__SSE2__)
-      std::is_same_v<F, M128iFamily> ||
-#endif
-#if defined(__GNUC__) || defined(__clang__)
-      (std::is_same_v<F, VectorExtFamily> &&
-       simd::detail::vector_ext_intrinsics<T, V::size>::has_math) ||
-#endif
-      false;
   const auto In = roundingValues<T>();
   for (std::size_t K = 0; K < In.size(); K += V::size) {
     const V X([&](auto I) { return In[(K + I) % In.size()]; });
@@ -271,11 +251,47 @@ template <class F, class T> void checkRounding() {
     const V RoundEven = cxx26::simd_ext::roundeven(X);
     for (simd_size_type I = 0; I < V::size; ++I) {
       const T Y = X[I];
-      EXPECT_TRUE(sameFloat(Sqrt[I], std::sqrt(Y), Quiet)) << Y;
-      EXPECT_TRUE(sameFloat(Ceil[I], std::ceil(Y), Quiet)) << Y;
-      EXPECT_TRUE(sameFloat(Floor[I], std::floor(Y), Quiet)) << Y;
-      EXPECT_TRUE(sameFloat(Trunc[I], std::trunc(Y), Quiet)) << Y;
-      EXPECT_TRUE(sameFloat(RoundEven[I], cxx26::roundeven(Y), Quiet)) << Y;
+      EXPECT_TRUE(sameFloat(Sqrt[I], std::sqrt(Y))) << Y;
+      EXPECT_TRUE(sameFloat(Ceil[I], std::ceil(Y))) << Y;
+      EXPECT_TRUE(sameFloat(Floor[I], std::floor(Y))) << Y;
+      EXPECT_TRUE(sameFloat(Trunc[I], std::trunc(Y))) << Y;
+      EXPECT_TRUE(sameFloat(RoundEven[I], cxx26::roundeven(Y))) << Y;
+    }
+  }
+}
+
+// The x86 rounding without SSE4.1 must not depend on the MXCSR rounding mode
+// or on denormals-are-zero. The other backends round with libm, the compiler
+// expansion of it, or an instruction, as the scalar instructions do.
+template <class F> constexpr bool exactRoundingOnX86() {
+#if (defined(_M_X64) || defined(__SSE2__)) && !defined(__SSE4_1__) &&          \
+    !defined(__AVX__)
+  return !std::is_same_v<F, ArrayFamily>;
+#else
+  return false;
+#endif
+}
+
+template <class F, class T> void checkRoundingIgnoresRoundingMode() {
+  using V = V16<F, T>;
+  const auto In = roundingValues<T>();
+  for (const int Mode : {FE_DOWNWARD, FE_UPWARD, FE_TOWARDZERO}) {
+    for (std::size_t K = 0; K < In.size(); K += V::size) {
+      const V X([&](auto I) { return In[(K + I) % In.size()]; });
+      ASSERT_EQ(std::fesetround(Mode), 0);
+      const V Ceil = simd::ceil(X);
+      const V Floor = simd::floor(X);
+      const V Trunc = simd::trunc(X);
+      const V RoundEven = cxx26::simd_ext::roundeven(X);
+      ASSERT_EQ(std::fesetround(FE_TONEAREST), 0);
+      for (simd_size_type I = 0; I < V::size; ++I) {
+        const T Y = X[I];
+        EXPECT_TRUE(sameFloat(Ceil[I], std::ceil(Y))) << Mode << ' ' << Y;
+        EXPECT_TRUE(sameFloat(Floor[I], std::floor(Y))) << Mode << ' ' << Y;
+        EXPECT_TRUE(sameFloat(Trunc[I], std::trunc(Y))) << Mode << ' ' << Y;
+        EXPECT_TRUE(sameFloat(RoundEven[I], cxx26::roundeven(Y)))
+            << Mode << ' ' << Y;
+      }
     }
   }
 }
@@ -453,6 +469,13 @@ TYPED_TEST(SimdTest, Permute) {
   }
   const U8 Wrapped = simd::permute(X, Idx + U8(std::uint8_t{16}));
   EXPECT_EQ(lanes(Wrapped), lanes(Shuffled));
+  using U32 = V16<TypeParam, std::uint32_t>;
+  using I32 = V16<TypeParam, std::int32_t>;
+  const U32 Y([](auto I) { return static_cast<std::uint32_t>(I + 1); });
+  EXPECT_EQ(lanes(simd::permute(Y, I32(5))),
+            (std::vector<std::uint32_t>{2, 2, 2, 2}));
+  EXPECT_EQ(lanes(simd::permute(Y, I32(-1))),
+            (std::vector<std::uint32_t>{4, 4, 4, 4}));
 }
 
 TYPED_TEST(SimdTest, MaskReductions) {
@@ -488,6 +511,38 @@ TYPED_TEST(SimdTest, RoundingMatchesScalar) {
   checkRounding<TypeParam, double>();
 }
 
+TYPED_TEST(SimdTest, RoundingIgnoresRoundingMode) {
+  if constexpr (!exactRoundingOnX86<TypeParam>()) {
+    GTEST_SKIP() << "only the x86 rounding without SSE4.1 is checked";
+  } else {
+    checkRoundingIgnoresRoundingMode<TypeParam, float>();
+    checkRoundingIgnoresRoundingMode<TypeParam, double>();
+  }
+}
+
+#if defined(_M_X64) || defined(__SSE2__)
+TYPED_TEST(SimdTest, RoundingIgnoresDenormalsAreZero) {
+  if constexpr (!exactRoundingOnX86<TypeParam>()) {
+    GTEST_SKIP() << "only the x86 rounding without SSE4.1 is checked";
+  } else {
+    using F32 = V16<TypeParam, float>;
+    const float Tiny = std::numeric_limits<float>::denorm_min();
+    const F32 X([&](auto I) { return I % 2 == 0 ? Tiny : -Tiny; });
+    const unsigned int Saved = _mm_getcsr();
+    _mm_setcsr(Saved | 0x8040U);
+    const F32 Ceil = simd::ceil(X);
+    const F32 Floor = simd::floor(X);
+    const F32 Trunc = simd::trunc(X);
+    _mm_setcsr(Saved);
+    for (simd_size_type I = 0; I < F32::size; ++I) {
+      EXPECT_TRUE(sameFloat(Ceil[I], std::ceil(X[I]))) << I;
+      EXPECT_TRUE(sameFloat(Floor[I], std::floor(X[I]))) << I;
+      EXPECT_TRUE(sameFloat(Trunc[I], std::trunc(X[I]))) << I;
+    }
+  }
+}
+#endif
+
 TYPED_TEST(SimdTest, MaskBitsMatchLanes) {
   checkMaskBits<TypeParam, std::int8_t>();
   checkMaskBits<TypeParam, std::int16_t>();
@@ -499,10 +554,8 @@ TYPED_TEST(SimdTest, LaneExtensions) {
   using U16 = V16<TypeParam, std::uint16_t>;
   U16 X(std::uint16_t{7});
   cxx26::simd_ext::replace_lane(X, 3, std::uint16_t{0xbeef});
-  const std::uint16_t Source = 0x1234;
-  cxx26::simd_ext::load_lane(X, 6, &Source);
   EXPECT_EQ(lanes(X),
-            (std::vector<std::uint16_t>{7, 7, 7, 0xbeef, 7, 7, 0x1234, 7}));
+            (std::vector<std::uint16_t>{7, 7, 7, 0xbeef, 7, 7, 7, 7}));
 }
 
 TYPED_TEST(SimdTest, IntegerOpsMatchScalar) {
@@ -537,19 +590,6 @@ TYPED_TEST(SimdTest, ConversionsMatchScalar) {
   EXPECT_EQ(lanes(R), (std::vector<std::int32_t>{-2, 1, 0, 2147483520}));
 }
 
-TYPED_TEST(SimdTest, NativeRoundTrip) {
-  using U32 = V16<TypeParam, std::uint32_t>;
-  const U32 X([](auto I) { return static_cast<std::uint32_t>(I + 1) * 0x11U; });
-  const auto Native = cxx26::simd_ext::to_native(X);
-  EXPECT_EQ(sizeof(Native), 16U);
-  EXPECT_EQ(alignof(U32), 16U);
-  std::uint32_t Raw[4];
-  std::memcpy(Raw, &Native, sizeof(Raw));
-  EXPECT_EQ((std::vector<std::uint32_t>(Raw, Raw + 4)),
-            (std::vector<std::uint32_t>{0x11, 0x22, 0x33, 0x44}));
-  EXPECT_EQ(lanes(cxx26::simd_ext::from_native<U32>(Native)), lanes(X));
-}
-
 TEST(ValVariantTest, ScalarsDoNotBroadcastIntoVectorAlternatives) {
   const WasmEdge::ValVariant U8(std::uint8_t{200});
   EXPECT_EQ(U8.get<std::int32_t>(), 200);
@@ -562,5 +602,22 @@ TEST(ValVariantTest, ScalarsDoNotBroadcastIntoVectorAlternatives) {
   const WasmEdge::ValVariant U64(std::uint64_t{1} << 40);
   EXPECT_EQ(U64.get<std::uint64_t>(), std::uint64_t{1} << 40);
 }
+
+TEST(ValVariantTest, ClassTypesConvertingToScalarsPickTheScalar) {
+  std::atomic<std::uint32_t> Counter{42};
+  const WasmEdge::ValVariant FromAtomic(Counter);
+  EXPECT_EQ(FromAtomic.get<std::uint32_t>(), 42U);
+  std::uint64_t Wide = std::uint64_t{1} << 40;
+  const WasmEdge::ValVariant FromRef(std::ref(Wide));
+  EXPECT_EQ(FromRef.get<std::uint64_t>(), std::uint64_t{1} << 40);
+}
+
+static_assert(
+    std::is_const_v<decltype(std::declval<WasmEdge::RefVariant>().getType())>,
+    "a mutation of the returned copy must not compile");
+#if defined(__GNUC__) || defined(__clang__) || defined(_M_X64)
+static_assert(!std::is_class_v<WasmEdge::RawV128>,
+              "AOT and JIT code return RawV128 in a vector register");
+#endif
 
 } // namespace

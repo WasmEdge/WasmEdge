@@ -21,14 +21,16 @@
 #include "common/variant.h"
 #include "endian.h"
 #include "experimental/bit.hpp"
-#include "experimental/simd/ext.hpp"
+#include "experimental/simd/vec.hpp"
 
 #include <array>
 #include <cstdint>
 #include <cstring>
-#include <memory>
-#include <optional>
 #include <type_traits>
+
+#if !defined(__GNUC__) && !defined(__clang__) && defined(_M_X64)
+#include <emmintrin.h>
+#endif
 
 namespace WasmEdge {
 
@@ -68,15 +70,20 @@ using doublex2_t = SIMDArray<double, 16>;
 using floatx4_t = SIMDArray<float, 16>;
 
 /// Raw 128-bit storage passed in a vector register across the AOT boundary.
-/// The std::array backend (CXX26_SIMD_FORCE_GENERIC) makes this a struct,
-/// which is not returned in a vector register, so AOT and JIT need another
-/// backend.
-using RawV128 = cxx26::simd_ext::native_type_t<uint64x2_t>;
+/// It does not depend on the cxx26::simd backend, so CXX26_SIMD_FORCE_GENERIC
+/// keeps the AOT and JIT calling convention.
+#if defined(__GNUC__) || defined(__clang__)
+using RawV128 [[gnu::vector_size(16)]] = uint64_t;
+#elif defined(_M_X64)
+using RawV128 = __m128i;
+#else
+using RawV128 = std::array<uint64_t, 2>;
+#endif
 
 namespace detail {
 template <typename V> constexpr bool isV128Layout() noexcept {
   return sizeof(V) == 16 && alignof(V) == 16 &&
-         cxx26::simd::alignment_v<V> == 16 && std::is_trivially_copyable_v<V> &&
+         std::is_trivially_copyable_v<V> &&
          std::is_trivially_default_constructible_v<V>;
 }
 template <typename... V> constexpr bool allV128Layout() noexcept {
@@ -423,7 +430,7 @@ struct RefVariant {
   }
 
   // Getter and setter for type.
-  ValType getType() const noexcept {
+  const ValType getType() const noexcept {
     return cxx20::bit_cast<ValType>(toArray()[0]);
   }
   void setType(const ValType &VT) noexcept {
@@ -466,7 +473,7 @@ using ValVariant =
             int128_t, uint64x2_t, int64x2_t, uint32x4_t, int32x4_t, uint16x8_t,
             int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t,
             RefVariant>;
-static_assert(alignof(ValVariant) == cxx26::simd::alignment_v<uint64x2_t>);
+static_assert(alignof(ValVariant) == alignof(uint64x2_t));
 
 // <<<<<<<< Value definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

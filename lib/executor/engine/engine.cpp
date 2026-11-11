@@ -45,7 +45,8 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
         Params[I].get<RefVariant>().getType().isNullableRefType()) {
       auto Val = Params[I];
       auto &Ref = Val.get<RefVariant>();
-      Ref.setType(Ref.getType().toNonNullableRef());
+      ValType Type = Ref.getType();
+      Ref.setType(Type.toNonNullableRef());
       StackMgr.push(Val);
     } else {
       StackMgr.push(Params[I]);

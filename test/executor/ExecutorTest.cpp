@@ -628,6 +628,62 @@ static uint64_t refWord(const WasmEdge::RefVariant &Ref) noexcept {
   return Words[1];
 }
 
+TEST(RefVariant, Factories) {
+  using namespace WasmEdge;
+  namespace Inst = Runtime::Instance;
+  alignas(16) static std::array<std::byte, 64> Storage{};
+  auto *Addr = Storage.data();
+  const ValType Def(TypeCode::Ref, 3);
+
+  const auto Func = RefVariant::makeFunc(
+      reinterpret_cast<const Inst::FunctionInstance *>(Addr));
+  EXPECT_EQ(Func.getType(), ValType(TypeCode::RefNull, TypeCode::FuncRef));
+  EXPECT_EQ(static_cast<const void *>(Func.getFuncInst()), Addr);
+  const auto TypedFunc = RefVariant::makeFunc(
+      Def, reinterpret_cast<const Inst::FunctionInstance *>(Addr));
+  EXPECT_EQ(TypedFunc.getType(), Def);
+  EXPECT_EQ(static_cast<const void *>(TypedFunc.getCompositeInst()), Addr);
+
+  const auto Struct = RefVariant::makeStruct(
+      Def, reinterpret_cast<const Inst::StructInstance *>(Addr + 16));
+  EXPECT_EQ(Struct.getType(), Def);
+  EXPECT_EQ(static_cast<void *>(Struct.getStructInst()), Addr + 16);
+  const auto Array = RefVariant::makeArray(
+      Def, reinterpret_cast<const Inst::ArrayInstance *>(Addr + 32));
+  EXPECT_EQ(Array.getType(), Def);
+  EXPECT_EQ(static_cast<void *>(Array.getArrayInst()), Addr + 32);
+
+  const auto Exn = RefVariant::makeException(
+      reinterpret_cast<const Inst::ExceptionInstance *>(Addr + 48));
+  EXPECT_EQ(Exn.getType(), ValType(TypeCode::Ref, TypeCode::ExnRef));
+  EXPECT_EQ(static_cast<const void *>(Exn.getExceptionInst()), Addr + 48);
+
+  const auto Extern = RefVariant::makeExtern(Addr + 8);
+  EXPECT_EQ(Extern.getType(), ValType(TypeCode::RefNull, TypeCode::ExternRef));
+  EXPECT_EQ(Extern.getExternPtr<std::byte>(), Addr + 8);
+  EXPECT_EQ(retrieveExternRef<std::byte>(Extern), Addr + 8);
+
+  for (const auto &Null :
+       {RefVariant::makeExtern(nullptr),
+        RefVariant(ValType(TypeCode::RefNull, 0)), RefVariant()}) {
+    EXPECT_TRUE(Null.isNull());
+    EXPECT_EQ(Null.getFuncInst(), nullptr);
+    EXPECT_EQ(Null.getStructInst(), nullptr);
+    EXPECT_EQ(Null.getArrayInst(), nullptr);
+    EXPECT_EQ(Null.getExceptionInst(), nullptr);
+    EXPECT_EQ(Null.getCompositeInst(), nullptr);
+    EXPECT_EQ(Null.getExternPtr<void>(), nullptr);
+    EXPECT_EQ(retrieveExternRef<void>(Null), nullptr);
+  }
+
+  EXPECT_TRUE(Func.isSameRef(TypedFunc));
+  EXPECT_FALSE(Func.isSameRef(Struct));
+  EXPECT_TRUE(RefVariant::makeI31(5).isSameRef(RefVariant::makeI31(5)));
+  EXPECT_FALSE(RefVariant::makeI31(5).isSameRef(RefVariant::makeI31(6)));
+  EXPECT_TRUE(
+      RefVariant().isSameRef(RefVariant(ValType(TypeCode::RefNull, 0))));
+}
+
 TEST(I31Encoding, Interpreter) {
   WasmEdge::Configure Conf;
   Conf.addProposal(Proposal::GC);

@@ -395,9 +395,11 @@ private:
 
 /// FuncRef definition.
 namespace Runtime::Instance {
+class CompositeBase;
 class FunctionInstance;
 class StructInstance;
 class ArrayInstance;
+class ExceptionInstance;
 } // namespace Runtime::Instance
 
 /// RefType variant definition.
@@ -441,6 +443,64 @@ struct RefVariant {
   // Check whether it is null.
   bool isNull() const { return getPtr<void>() == nullptr; }
 
+  // Check whether both refer to the same instance or the same i31 value.
+  bool isSameRef(const RefVariant &Other) const noexcept {
+    return getPtr<void>() == Other.getPtr<void>();
+  }
+
+  // Make a function reference of the abstract function type.
+  static RefVariant
+  makeFunc(const Runtime::Instance::FunctionInstance *P) noexcept {
+    return make(ValType(TypeCode::RefNull, TypeCode::FuncRef), P);
+  }
+  // Make a function reference of the given type.
+  static RefVariant
+  makeFunc(const ValType &VT,
+           const Runtime::Instance::FunctionInstance *P) noexcept {
+    return make(VT, P);
+  }
+  // Make a struct reference of the given type.
+  static RefVariant
+  makeStruct(const ValType &VT,
+             const Runtime::Instance::StructInstance *P) noexcept {
+    return make(VT, P);
+  }
+  // Make an array reference of the given type.
+  static RefVariant
+  makeArray(const ValType &VT,
+            const Runtime::Instance::ArrayInstance *P) noexcept {
+    return make(VT, P);
+  }
+  // Make an exception reference.
+  static RefVariant
+  makeException(const Runtime::Instance::ExceptionInstance *P) noexcept {
+    return make(ValType(TypeCode::Ref, TypeCode::ExnRef), P);
+  }
+  // Make an external reference to a host object.
+  static RefVariant makeExtern(const void *P) noexcept {
+    return make(ValType(TypeCode::RefNull, TypeCode::ExternRef), P);
+  }
+
+  // Getters for the referenced instance of each kind.
+  const Runtime::Instance::FunctionInstance *getFuncInst() const noexcept {
+    return getPtr<const Runtime::Instance::FunctionInstance>();
+  }
+  Runtime::Instance::StructInstance *getStructInst() const noexcept {
+    return getPtr<Runtime::Instance::StructInstance>();
+  }
+  Runtime::Instance::ArrayInstance *getArrayInst() const noexcept {
+    return getPtr<Runtime::Instance::ArrayInstance>();
+  }
+  const Runtime::Instance::ExceptionInstance *
+  getExceptionInst() const noexcept {
+    return getPtr<const Runtime::Instance::ExceptionInstance>();
+  }
+  const Runtime::Instance::CompositeBase *getCompositeInst() const noexcept {
+    return getPtr<const Runtime::Instance::CompositeBase>();
+  }
+  // Getter for the host object of an external reference.
+  template <typename T> T *getExternPtr() const noexcept { return getPtr<T>(); }
+
   // Tag bit of an i31 value in the pointer word.
   static constexpr uint32_t kI31Tag = 1U;
 
@@ -467,6 +527,14 @@ struct RefVariant {
   RawV128 getRawData() const noexcept { return Data; }
 
 private:
+  // Helper function to make a reference of the given type.
+  template <typename T>
+  static RefVariant make(const ValType &VT, const T *P) noexcept {
+    RefVariant Ref;
+    Ref.setData(VT, P);
+    return Ref;
+  }
+
   // Helper function for converting data to array.
   std::array<uint64_t, 2> toArray() const noexcept {
     return cxx20::bit_cast<std::array<uint64_t, 2>>(Data);
@@ -662,8 +730,8 @@ retrieveFuncRef(const RefVariant &Val) {
   return Val.getPtr<Runtime::Instance::FunctionInstance>();
 }
 
-template <typename T> inline T &retrieveExternRef(const RefVariant &Val) {
-  return *Val.getPtr<T>();
+template <typename T> inline T *retrieveExternRef(const RefVariant &Val) {
+  return Val.getExternPtr<T>();
 }
 
 // <<<<<<<< Functions to retrieve reference inners <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

@@ -765,7 +765,7 @@ WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) noexcept {
   if (!genValType(Val.Type).isExternRefType()) {
     return nullptr;
   }
-  return Ref.getPtr<void>();
+  return WasmEdge::retrieveExternRef<void>(Ref);
 }
 
 // <<<<<<<< WasmEdge value functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

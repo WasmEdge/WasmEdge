@@ -3898,12 +3898,15 @@ TEST(WasiTest, ReadOnlyPreopenReducesChildRights) {
   WasmEdge::Host::WASI::Environ Env;
   Env.init({"/:" + Root.string() + ":readonly"}, "test"s, {}, {});
 
-  auto CanRead = Env.pathCanRead("sub/data.txt");
-  ASSERT_TRUE(CanRead);
-  EXPECT_TRUE(*CanRead);
-  auto CanWrite = Env.pathCanWrite("sub/data.txt");
-  ASSERT_TRUE(CanWrite);
-  EXPECT_FALSE(*CanWrite);
+  // The filesystem of the guest grants reading, but not writing.
+  EXPECT_TRUE(Env.open("sub/data.txt", static_cast<__wasi_oflags_t>(0),
+                       __WASI_RIGHTS_FD_READ,
+                       static_cast<__wasi_fdflags_t>(0)));
+  auto Write =
+      Env.open("sub/data.txt", static_cast<__wasi_oflags_t>(0),
+               __WASI_RIGHTS_FD_WRITE, static_cast<__wasi_fdflags_t>(0));
+  ASSERT_FALSE(Write);
+  EXPECT_EQ(Write.error(), __WASI_ERRNO_NOTCAPABLE);
 
   constexpr __wasi_fd_t RootFd = 3;
   constexpr __wasi_rights_t CompatibleRequestedRights =
@@ -4169,9 +4172,10 @@ TEST(WasiTest, ReadWritePreopenKeepsChildRights) {
   } EnvGuard{Env};
   Env.init({"/:" + Root.string()}, "test"s, {}, {});
 
-  auto CanWrite = Env.pathCanWrite("sub/data.txt");
-  ASSERT_TRUE(CanWrite);
-  EXPECT_TRUE(*CanWrite);
+  // The filesystem of the guest grants writing.
+  EXPECT_TRUE(Env.open("sub/data.txt", static_cast<__wasi_oflags_t>(0),
+                       __WASI_RIGHTS_FD_WRITE,
+                       static_cast<__wasi_fdflags_t>(0)));
 
   constexpr __wasi_fd_t RootFd = 3;
   constexpr __wasi_rights_t RequestedRights =
@@ -4215,6 +4219,162 @@ TEST(WasiTest, ReadWritePreopenKeepsChildRights) {
   EXPECT_TRUE(fs::is_directory(Root / "sub" / "created-dir"));
   ASSERT_TRUE(Env.pathRemoveDirectory(DirFd, "created-dir"));
   EXPECT_FALSE(fs::exists(Root / "sub" / "created-dir"));
+}
+
+TEST(WasiTest, FileSystemOfGuest) {
+  namespace fs = std::filesystem;
+
+  const auto Root = fs::path(
+      "wasmedge-wasi-filesystem-" +
+      std::to_string(
+          std::chrono::steady_clock::now().time_since_epoch().count()));
+  struct RootCleanup {
+    fs::path Path;
+    ~RootCleanup() {
+      std::error_code Error;
+      fs::remove_all(Path, Error);
+    }
+  } Cleanup{Root};
+  std::error_code Error;
+  ASSERT_TRUE(fs::create_directories(Root / "root" / "logs", Error));
+  ASSERT_TRUE(fs::create_directories(Root / "logs", Error));
+
+  WasmEdge::Host::WASI::Environ Env;
+  Env.init(
+      {"/:" + (Root / "root").string(), "/logs:" + (Root / "logs").string()},
+      "test"s, {}, {});
+  const WasmEdge::Host::FileSystem &FS = Env;
+  const auto NoFlags = static_cast<__wasi_oflags_t>(0);
+  const auto NoFdFlags = static_cast<__wasi_fdflags_t>(0);
+
+  // The preopened directory with the longest guest name takes the path, and
+  // the leading "/" and "./" of the path are not significant.
+  auto File = FS.open("/logs/a.txt", __WASI_OFLAGS_CREAT,
+                      __WASI_RIGHTS_FD_WRITE, NoFdFlags);
+  ASSERT_TRUE(File);
+  const std::string_view Content = "hello"sv;
+  const WasmEdge::Span<const uint8_t> ContentBytes(
+      reinterpret_cast<const uint8_t *>(Content.data()), Content.size());
+  ASSERT_TRUE((*File)->write(ContentBytes));
+  File->reset();
+  EXPECT_EQ(fs::file_size(Root / "logs" / "a.txt", Error), Content.size());
+  EXPECT_FALSE(fs::exists(Root / "root" / "logs" / "a.txt"));
+  File = FS.open("./b.txt", __WASI_OFLAGS_CREAT, __WASI_RIGHTS_FD_WRITE,
+                 NoFdFlags);
+  ASSERT_TRUE(File);
+  File->reset();
+  EXPECT_TRUE(fs::exists(Root / "root" / "b.txt"));
+
+  // The file is read back with seeking, which the directory grants on top. A
+  // read ends at the end of the file, and the file has the rights asked for.
+  File = FS.open("logs/a.txt", NoFlags, __WASI_RIGHTS_FD_READ, NoFdFlags);
+  ASSERT_TRUE(File);
+  auto Pos = (*File)->seek(1, __WASI_WHENCE_SET);
+  ASSERT_TRUE(Pos);
+  EXPECT_EQ(*Pos, 1U);
+  std::array<uint8_t, 8> Buffer{};
+  auto Read = (*File)->read(Buffer);
+  ASSERT_TRUE(Read);
+  EXPECT_EQ(*Read, 4U);
+  EXPECT_EQ(std::string_view(reinterpret_cast<const char *>(Buffer.data()), 4),
+            "ello"sv);
+  auto Tell = (*File)->tell();
+  ASSERT_TRUE(Tell);
+  EXPECT_EQ(*Tell, 5U);
+  Read = (*File)->read(Buffer);
+  ASSERT_TRUE(Read);
+  EXPECT_EQ(*Read, 0U);
+  auto ReadOnly = (*File)->write(ContentBytes);
+  ASSERT_FALSE(ReadOnly);
+  EXPECT_EQ(ReadOnly.error(), __WASI_ERRNO_NOTCAPABLE);
+  File->reset();
+  auto Absent =
+      FS.open("/logs/absent.txt", NoFlags, __WASI_RIGHTS_FD_READ, NoFdFlags);
+  ASSERT_FALSE(Absent);
+  EXPECT_EQ(Absent.error(), __WASI_ERRNO_NOENT);
+
+  // Binary data is written whole, and read back until the buffer is full.
+  std::vector<uint8_t> Data(200000);
+  for (std::size_t I = 0; I < Data.size(); ++I) {
+    Data[I] = static_cast<uint8_t>(I * 31U);
+  }
+  File = FS.open("/data.bin", __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
+                 __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_WRITE, NoFdFlags);
+  ASSERT_TRUE(File);
+  ASSERT_TRUE((*File)->write(Data));
+  ASSERT_TRUE((*File)->seek(0, __WASI_WHENCE_SET));
+  std::vector<uint8_t> DataRead(Data.size());
+  Read = (*File)->read(DataRead);
+  ASSERT_TRUE(Read);
+  EXPECT_EQ(*Read, Data.size());
+  EXPECT_EQ(DataRead, Data);
+  File->reset();
+
+  EXPECT_TRUE(FS.createDirectory("/logs/sub"));
+  EXPECT_TRUE(fs::is_directory(Root / "logs" / "sub"));
+
+  // The path of a preopened directory itself is the existing directory.
+  auto Preopen = FS.createDirectory("/");
+  ASSERT_FALSE(Preopen);
+  EXPECT_EQ(Preopen.error(), __WASI_ERRNO_EXIST);
+  auto DirFile = FS.open("logs/", NoFlags, __WASI_RIGHTS_FD_READ, NoFdFlags);
+  ASSERT_FALSE(DirFile);
+  EXPECT_EQ(DirFile.error(), __WASI_ERRNO_ISDIR);
+
+  // A path leaving the preopened directories is denied.
+  auto Escape = FS.open("/logs/../a.txt", __WASI_OFLAGS_CREAT,
+                        __WASI_RIGHTS_FD_WRITE, NoFdFlags);
+  ASSERT_FALSE(Escape);
+  EXPECT_EQ(Escape.error(), __WASI_ERRNO_PERM);
+
+#if !WASMEDGE_OS_WINDOWS
+  // The file is not in the file descriptor table of the guest: releasing it
+  // closes the descriptor of the host.
+  File = FS.open("logs/a.txt", NoFlags, __WASI_RIGHTS_FD_READ, NoFdFlags);
+  ASSERT_TRUE(File);
+  auto Handle = (*File)->getNativeHandle();
+  ASSERT_TRUE(Handle);
+  EXPECT_NE(::fcntl(static_cast<int>(*Handle), F_GETFD), -1);
+  File->reset();
+  EXPECT_EQ(::fcntl(static_cast<int>(*Handle), F_GETFD), -1);
+
+  // Creating exclusively fails on a dangling symbolic link, as open() does.
+  fs::create_symlink("missing.txt", Root / "logs" / "dangling.txt", Error);
+  ASSERT_FALSE(Error);
+  auto Exclusive =
+      FS.open("/logs/dangling.txt", __WASI_OFLAGS_CREAT | __WASI_OFLAGS_EXCL,
+              __WASI_RIGHTS_FD_WRITE, NoFdFlags);
+  ASSERT_FALSE(Exclusive);
+  EXPECT_EQ(Exclusive.error(), __WASI_ERRNO_EXIST);
+  EXPECT_FALSE(fs::exists(Root / "logs" / "missing.txt"));
+#endif
+
+  // Without a preopened directory containing the path, nothing is opened.
+  WasmEdge::Host::WASI::Environ LogsEnv;
+  LogsEnv.init({"/logs:" + (Root / "logs").string()}, "test"s, {}, {});
+  auto NoPreopen =
+      static_cast<const WasmEdge::Host::FileSystem &>(LogsEnv).open(
+          "other/c.txt", __WASI_OFLAGS_CREAT, __WASI_RIGHTS_FD_WRITE,
+          NoFdFlags);
+  ASSERT_FALSE(NoPreopen);
+  EXPECT_EQ(NoPreopen.error(), __WASI_ERRNO_NOTCAPABLE);
+  EXPECT_FALSE(fs::exists(Root / "logs" / "other"));
+
+  // Among the preopened directories of equal names, the last one takes the
+  // path, as in the WASI libc.
+  WasmEdge::Host::WASI::Environ TieEnv;
+  TieEnv.init(
+      {".:" + (Root / "root").string(), "/:" + (Root / "logs").string()},
+      "test"s, {}, {});
+  auto Tie = static_cast<const WasmEdge::Host::FileSystem &>(TieEnv).open(
+      "tie.txt", __WASI_OFLAGS_CREAT, __WASI_RIGHTS_FD_WRITE, NoFdFlags);
+  ASSERT_TRUE(Tie);
+  Tie->reset();
+  EXPECT_TRUE(fs::exists(Root / "logs" / "tie.txt"));
+  EXPECT_FALSE(fs::exists(Root / "root" / "tie.txt"));
+  Env.fini();
+  LogsEnv.fini();
+  TieEnv.fini();
 }
 
 TEST(WasiTest, Directory) {

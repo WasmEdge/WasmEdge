@@ -150,6 +150,24 @@ public:
     return true;
   }
 
+  /// Shrink memory pages. Shared memories cannot shrink.
+  bool shrinkPage(const uint64_t Count) noexcept {
+    if (Count == 0) {
+      return true;
+    }
+    const auto Old = getPageSize();
+    if (isShared() || Count > Old) {
+      return false;
+    }
+    auto *NewPtr = Allocator::shrink(DataPtr, Old, Old - Count);
+    if (NewPtr == nullptr) {
+      return false;
+    }
+    DataPtr = NewPtr;
+    setLivePageCount(Old - Count);
+    return true;
+  }
+
   /// Get slice of Data[Offset : Offset + Length - 1]
   Expect<Span<Byte>> getBytes(const uint64_t Offset,
                               const uint64_t Length) const noexcept {

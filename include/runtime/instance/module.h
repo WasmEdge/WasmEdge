@@ -139,16 +139,42 @@ public:
         MemInsts.size());
   }
 
+  Span<MemoryInstance *const> getMemoryInstances() noexcept { return MemInsts; }
+
   Span<const GlobalInstance *const> getGlobalInstances() const noexcept {
     return Span<const GlobalInstance *const>(
         const_cast<const GlobalInstance *const *>(GlobInsts.data()),
         GlobInsts.size());
   }
 
+  Span<GlobalInstance *const> getGlobalInstances() noexcept {
+    return GlobInsts;
+  }
+
+  Span<const TableInstance *const> getTableInstances() const noexcept {
+    return Span<const TableInstance *const>(
+        const_cast<const TableInstance *const *>(TabInsts.data()),
+        TabInsts.size());
+  }
+
+  Span<TableInstance *const> getTableInstances() noexcept { return TabInsts; }
+
+  Span<const ElementInstance *const> getElemInstances() const noexcept {
+    return Span<const ElementInstance *const>(
+        const_cast<const ElementInstance *const *>(ElemInsts.data()),
+        ElemInsts.size());
+  }
+
+  Span<ElementInstance *const> getElemInstances() noexcept { return ElemInsts; }
+
   Span<const DataInstance *const> getOwnedDataInstances() const noexcept {
     return Span<const DataInstance *const>(
         const_cast<const DataInstance *const *>(DataInsts.data()),
         DataInsts.size());
+  }
+
+  Span<DataInstance *const> getOwnedDataInstances() noexcept {
+    return DataInsts;
   }
 
   /// Add existing instances and move ownership with the export name.

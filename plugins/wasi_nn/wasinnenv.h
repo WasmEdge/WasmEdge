@@ -316,6 +316,23 @@ struct WasiNNEnvironment :
     return false;
   }
 
+  // Whether the builder is one registered by the nn-preload option of the
+  // host. Only such a builder may name a path of the host; the builders of a
+  // guest are model data whatever they begin with.
+  bool isPreloaded(Span<const uint8_t> Builder) const noexcept {
+    if (Builder.empty()) {
+      return false;
+    }
+    for (const auto &Md : RawMdMap) {
+      for (const auto &Raw : std::get<0>(Md.second)) {
+        if (Raw.data() == Builder.data() && Raw.size() == Builder.size()) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   // Build a graph from the preloaded model bytes registered under Name.
   // MdMutex guards only the name -> handle map and is never held across the
   // (possibly minutes-long) model load; RawMdMap is constructor-immutable.

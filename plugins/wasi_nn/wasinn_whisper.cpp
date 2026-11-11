@@ -833,7 +833,7 @@ Expect<ErrNo> handleTranslationConfig(whisper_context *WhisperCtx,
 
 } // Namespace
 
-Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &G,
+Expect<ErrNo> load(WasiNNEnvironment &Env, WASINN::Graph &G,
                    Span<const Span<uint8_t>> Builders, Device) noexcept {
   auto &GraphRef = G.get<Graph>();
 
@@ -867,7 +867,7 @@ Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &G,
   auto Weight = Builders[0];
   const std::string_view BinModel(reinterpret_cast<char *>(Weight.data()),
                                   Weight.size());
-  if (BinModel.substr(0, 8) == "preload:"sv) {
+  if (Env.isPreloaded(Weight) && BinModel.substr(0, 8) == "preload:"sv) {
     GraphRef.ModelFilePath = BinModel.substr(8);
   }
 

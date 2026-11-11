@@ -6,6 +6,7 @@
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET
 #include "wasinn_llama_log.h"
+#include "wasinn_tempfile.h"
 #include <common.h>
 #include <llama.h>
 #include <memory>
@@ -70,6 +71,9 @@ struct Graph {
   // This graph's unit in the shared llama log gate.
   LlamaLogToken LlamaLog;
   common_params Params;
+  // The file holding a model loaded from the bytes of the guest. Declared
+  // before the model, which may keep the file mapped until it is freed.
+  TempModelFile TempModel;
   LlamaModelPtr LlamaModel = nullptr;
   LlamaContextPtr LlamaContext = nullptr;
   LocalConfig Conf;

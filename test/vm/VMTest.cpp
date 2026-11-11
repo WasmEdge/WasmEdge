@@ -20,6 +20,9 @@
 #include "common/filesystem.h"
 #include "common/spdlog.h"
 #include "common/types.h"
+#include "host/filesystem.h"
+#include "host/wasi/wasimodule.h"
+#include "runtime/callingframe.h"
 #ifdef WASMEDGE_USE_LLVM
 #include "llvm/codegen.h"
 #include "llvm/compiler.h"
@@ -43,6 +46,18 @@ static const std::array<WasmEdge::Byte, 34> ConstFuncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
     0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x05, 0x01, 0x01, 0x66,
     0x00, 0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x07, 0x0b};
+
+// Wasm module with:
+//   (import "wasi_snapshot_preview1" "proc_exit" (func (param i32)))
+//   (func (export "f") (result i32) i32.const 7)
+static const std::array<WasmEdge::Byte, 76> WasiImportWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02,
+    0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x02, 0x24, 0x01,
+    0x16, 0x77, 0x61, 0x73, 0x69, 0x5f, 0x73, 0x6e, 0x61, 0x70, 0x73,
+    0x68, 0x6f, 0x74, 0x5f, 0x70, 0x72, 0x65, 0x76, 0x69, 0x65, 0x77,
+    0x31, 0x09, 0x70, 0x72, 0x6f, 0x63, 0x5f, 0x65, 0x78, 0x69, 0x74,
+    0x00, 0x00, 0x03, 0x02, 0x01, 0x01, 0x07, 0x05, 0x01, 0x01, 0x66,
+    0x00, 0x01, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x41, 0x07, 0x0b};
 
 /// Helper: drive the VM through load, validate, and instantiate.
 void instantiateFixture(VM::VM &TestVM) {
@@ -280,6 +295,31 @@ TEST(VMPluginTest, WasiImportModulePresence) {
   Configure ConfPlain;
   VM::VM PlainVM(ConfPlain);
   EXPECT_EQ(PlainVM.getImportModule(HostRegistration::Wasi), nullptr);
+}
+
+TEST(VMPluginTest, WasiImportGrantsFileSystem) {
+  // The host functions called by a module importing WASI open its files with
+  // the filesystem of the WASI module; a module without WASI has none.
+  Configure Conf;
+  Conf.addHostRegistration(HostRegistration::Wasi);
+  VM::VM TestVM(Conf);
+  ASSERT_TRUE(TestVM.loadWasm(WasiImportWasm));
+  ASSERT_TRUE(TestVM.validate());
+  ASSERT_TRUE(TestVM.instantiate());
+  const auto *WasiMod = dynamic_cast<const Host::WasiModule *>(
+      TestVM.getImportModule(HostRegistration::Wasi));
+  ASSERT_NE(WasiMod, nullptr);
+  ASSERT_NE(TestVM.getActiveModule(), nullptr);
+  const Host::FileSystem *WasiFS = WasiMod->getEnv();
+  EXPECT_EQ(
+      Runtime::CallingFrame(nullptr, TestVM.getActiveModule()).getFileSystem(),
+      WasiFS);
+
+  instantiateFixture(TestVM);
+  ASSERT_NE(TestVM.getActiveModule(), nullptr);
+  EXPECT_EQ(
+      Runtime::CallingFrame(nullptr, TestVM.getActiveModule()).getFileSystem(),
+      nullptr);
 }
 
 TEST(VMCleanupTest, VMIsReusableAfterCleanup) {

@@ -7,6 +7,7 @@
 #include "ast/segment.h"
 #include "ast/type.h"
 #include "common/errcode.h"
+#include "common/filesystem.h"
 #include "common/spdlog.h"
 #include "common/types.h"
 #include "loader/serialize.h"
@@ -18,6 +19,7 @@
 #include <cstdint>
 #include <cstring>
 #include <ctime>
+#include <filesystem>
 #include <fstream>
 #include <map>
 #include <optional>
@@ -140,11 +142,17 @@ public:
   }
   Span<const TableInstance *const> getTables() const noexcept { return Tables; }
   const ModuleInstance *getTypeModule(const TableInstance *Tab) const noexcept {
+    if (const auto *Mod = Tab->getModule()) {
+      return Mod;
+    }
     const auto It = TableModules.find(Tab);
     return It == TableModules.end() ? nullptr : It->second;
   }
   const ModuleInstance *
   getTypeModule(const GlobalInstance *Glob) const noexcept {
+    if (const auto *Mod = Glob->getModule()) {
+      return Mod;
+    }
     const auto It = GlobalModules.find(Glob);
     return It == GlobalModules.end() ? nullptr : It->second;
   }
@@ -259,13 +267,13 @@ void serializeRef(const Loader::Serializer &Ser, const RefVariant &Ref,
                   const FunctionIndexer &Indexer,
                   std::vector<Byte> &Out) noexcept {
   if (Ref.isNull()) {
-    Out.push_back(0x00);
+    Out.push_back(kRefNull);
   } else if (const auto Index = Indexer.lookup(Ref)) {
-    Out.push_back(0x01);
+    Out.push_back(kRefFunction);
     Ser.serializeU32(Index->first, Out);
     Ser.serializeU32(Index->second, Out);
   } else {
-    Out.push_back(0x02);
+    Out.push_back(kRefMissing);
   }
 }
 
@@ -692,9 +700,9 @@ AST::GlobalSection createGlobals(const IndexSpaces &Spaces,
 
 } // namespace
 
-Expect<std::string> generateCoredump(const Runtime::StackManager &StackMgr,
-                                     AST::InstrView::iterator PC,
-                                     bool ForWasmgdb) noexcept {
+Expect<std::filesystem::path>
+generateCoredump(const Runtime::StackManager &StackMgr,
+                 AST::InstrView::iterator PC, bool ForWasmgdb) noexcept {
   std::vector<const ModuleInstance *> Modules;
   for (const auto &Frame : StackMgr.getFramesSpan()) {
     Modules.push_back(Frame.Module);
@@ -708,7 +716,7 @@ Expect<std::string> generateCoredump(const Runtime::StackManager &StackMgr,
   return generate(Req);
 }
 
-Expect<std::string> generate(const Request &Req) noexcept {
+Expect<std::filesystem::path> generate(const Request &Req) noexcept {
   spdlog::info("Generating coredump..."sv);
 
   IndexSpaces Spaces;
@@ -786,24 +794,25 @@ Expect<std::string> generate(const Request &Req) noexcept {
     return Unexpect(Res);
   }
 
-  const std::string Path =
+  const std::filesystem::path Path =
       Req.Path.empty()
-          ? "coredump." +
-                std::to_string(static_cast<uint64_t>(std::time(nullptr)))
-          : std::string(Req.Path);
+          ? u8path("coredump." +
+                   std::to_string(static_cast<uint64_t>(std::time(nullptr))))
+          : Req.Path;
+  const auto Name = u8string(Path);
   std::ofstream File(Path, std::ios::out | std::ios::binary);
   if (!File.is_open()) {
-    spdlog::error("Failed to open the coredump file {}."sv, Path);
+    spdlog::error("Failed to open the coredump file {}."sv, Name);
     return Unexpect(ErrCode::Value::IllegalPath);
   }
   File.write(reinterpret_cast<const char *>(Res->data()),
              static_cast<std::streamsize>(Res->size()));
   File.close();
   if (File.fail()) {
-    spdlog::error("Failed to write the coredump file {}."sv, Path);
+    spdlog::error("Failed to write the coredump file {}."sv, Name);
     return Unexpect(ErrCode::Value::IllegalPath);
   }
-  spdlog::info("Coredump generated at {}."sv, Path);
+  spdlog::info("Coredump generated at {}."sv, Name);
   return Path;
 }
 

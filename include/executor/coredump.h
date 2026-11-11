@@ -8,8 +8,7 @@
 #include "runtime/stackmgr.h"
 
 #include <cstdint>
-#include <string>
-#include <string_view>
+#include <filesystem>
 
 namespace WasmEdge {
 namespace Coredump {
@@ -41,6 +40,23 @@ namespace Coredump {
 static inline constexpr const uint32_t kTablesVersion = 1;
 static inline constexpr const uint32_t kInstancesVersion = 1;
 static inline constexpr const uint32_t kGlobalsVersion = 1;
+static inline constexpr const Byte kRefNull = 0x00;
+static inline constexpr const Byte kRefFunction = 0x01;
+static inline constexpr const Byte kRefMissing = 0x02;
+
+struct RestoreRequest {
+  /// Live instances in coremodules order, without nulls or duplicates.
+  Span<Runtime::Instance::ModuleInstance *const> Modules;
+  std::filesystem::path Path;
+};
+
+/// Restore data at rest after validating the complete snapshot. Call only
+/// between invocations, with exclusive access to the instances. Frames are
+/// ignored; non-null external/GC references and segment undrops are
+/// unsupported. Typed imported references require their defining module in
+/// Modules. Preflight errors and memory growth refused by the OS leave live
+/// state unchanged.
+Expect<void> restore(const RestoreRequest &Req) noexcept;
 
 /// What to dump and where to write it. The caller must keep the referenced
 /// modules, stack, instructions, and path alive until generate returns.
@@ -55,14 +71,14 @@ struct Request {
   /// Emit the layout readable by wasmgdb.
   bool ForWasmgdb = false;
   /// Output path. Empty selects coredump.<unix time> in the working directory.
-  std::string_view Path;
+  std::filesystem::path Path;
 };
 
 /// Dump the requested state, retaining none of the request's references.
 /// Modules must not be empty. Stack modules are appended when missing.
 /// A null Stack emits a main thread with zero frames.
 /// \returns the path of the written file, or an error code.
-Expect<std::string> generate(const Request &Req) noexcept;
+Expect<std::filesystem::path> generate(const Request &Req) noexcept;
 
 /// Collect the trapping execution's modules and forward to generate.
 ///
@@ -74,9 +90,9 @@ Expect<std::string> generate(const Request &Req) noexcept;
 /// therefore the operand stack is omitted in this mode.
 ///
 /// \returns the path of the generated coredump file, or an error code.
-Expect<std::string> generateCoredump(const Runtime::StackManager &StackMgr,
-                                     AST::InstrView::iterator PC,
-                                     bool ForWasmgdb) noexcept;
+Expect<std::filesystem::path>
+generateCoredump(const Runtime::StackManager &StackMgr,
+                 AST::InstrView::iterator PC, bool ForWasmgdb) noexcept;
 
 } // namespace Coredump
 } // namespace WasmEdge

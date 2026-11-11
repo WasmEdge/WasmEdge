@@ -2,11 +2,19 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "model/utils.h"
-#include "host/wasi/vfs_io.h"
+#include "host/filesystem.h"
+#include <cstdint>
 #include <fstream>
+#include <new>
 #include <sstream>
 
 namespace WasmEdge::Host::WASINN::MLX {
+
+namespace {
+
+constexpr __wasi_filesize_t MaxFileSize = UINT32_C(1) << 30;
+
+} // namespace
 
 std::vector<std::string> splitString(const std::string &S, char Delim) {
   std::vector<std::string> Result;
@@ -61,18 +69,33 @@ void saveWeights(const mx::array &Weights, const std::string &Path) {
 }
 
 std::string loadBytesFromFile(const std::string &Path,
-                              const Host::WASI::Environ *Env) {
-  WasmEdge::FStream::IFStream Fs(Path, Env);
-  if (Fs.fail()) {
+                              const Host::FileSystem *FS) {
+  WASI::WasiExpect<std::shared_ptr<Host::File>> File =
+      WASI::WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
+  if (FS != nullptr) {
+    File = FS->open(Path, static_cast<__wasi_oflags_t>(0),
+                    __WASI_RIGHTS_FD_READ, static_cast<__wasi_fdflags_t>(0));
+  }
+  if (!File) {
     spdlog::error("[WASI-NN] MLX backend: Cannot open {}."sv, Path);
     return "";
   }
+  // The size of the file is the offset of its end.
   std::string Data;
-  Fs.seekg(0, std::ios::end);
-  const size_t Size = static_cast<size_t>(Fs.tellg());
-  Fs.seekg(0, std::ios::beg);
-  Data.resize(Size);
-  Fs.read(Data.data(), Size);
+  auto Size = (*File)->seek(0, __WASI_WHENCE_END);
+  if (!Size || *Size > MaxFileSize || !(*File)->seek(0, __WASI_WHENCE_SET)) {
+    spdlog::error("[WASI-NN] MLX backend: Cannot read {}."sv, Path);
+    return Data;
+  }
+  try {
+    Data.resize(static_cast<size_t>(*Size));
+  } catch (const std::bad_alloc &) {
+    spdlog::error("[WASI-NN] MLX backend: Cannot read {}."sv, Path);
+    return Data;
+  }
+  auto ReadSize = (*File)->read(
+      Span<uint8_t>(reinterpret_cast<uint8_t *>(Data.data()), Data.size()));
+  Data.resize(ReadSize ? *ReadSize : 0);
   return Data;
 }
 

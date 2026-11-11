@@ -21,7 +21,7 @@
 
 #include <simdjson.h>
 
-#include "host/wasi/vfs_io.h"
+#include "host/filesystem.h"
 #endif
 
 namespace WasmEdge::Host::WASINN::MLX {
@@ -475,7 +475,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
 
   // Load tokenizer.
   if (!TokenizerPath.empty()) {
-    auto Bytes = loadBytesFromFile(TokenizerPath, Env.getEnv());
+    auto Bytes = loadBytesFromFile(TokenizerPath, Env.getFileSystem());
     if (Bytes.empty()) {
       spdlog::error("[WASI-NN] MLX backend: Load tokenizer failed."sv);
       return ErrNo::InvalidArgument;

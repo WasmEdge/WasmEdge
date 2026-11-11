@@ -8,6 +8,7 @@
 
 #include "common/filesystem.h"
 #include "common/types.h"
+#include "host/wasi/wasimodule.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 
@@ -49,6 +50,12 @@ using WasmEdge::Host::WASINN::TensorType;
     defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX) ||                            \
     defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET)
 namespace {
+
+class WasiWiredModule : public WasmEdge::Runtime::Instance::ModuleInstance {
+public:
+  using ModuleInstance::ModuleInstance;
+  void wireWASIModule(const ModuleInstance *M) noexcept { setWASIModule(M); }
+};
 
 template <typename T, typename U>
 inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
@@ -2389,6 +2396,47 @@ TEST(WasiNNTest, LoadByNameSkipsDetachedGraphStillInTable) {
   EXPECT_EQ(ResolvedId, RebuiltId);
 }
 
+TEST(WasiNNTest, FileSystemOfConcurrentCallers) {
+  // Two modules with their own WASI calling one wasi_nn instance at the same
+  // time each get the filesystem of their own WASI module.
+  auto NNMod = createModule();
+  if (!NNMod) {
+    GTEST_SKIP() << "wasi_nn plugin not found";
+  }
+  auto &Env = NNMod->getEnv();
+  WasmEdge::Host::WasiModule WasiA;
+  WasmEdge::Host::WasiModule WasiB;
+  WasiWiredModule ModA("");
+  WasiWiredModule ModB("");
+  ModA.wireWASIModule(&WasiA);
+  ModB.wireWASIModule(&WasiB);
+  const WasmEdge::Runtime::CallingFrame FrameA(nullptr, &ModA);
+  const WasmEdge::Runtime::CallingFrame FrameB(nullptr, &ModB);
+
+  // Both callers bind their filesystem before either of them reads it back.
+  std::atomic<uint32_t> Bound{0};
+  const WasmEdge::Host::FileSystem *SeenA = nullptr;
+  const WasmEdge::Host::FileSystem *SeenB = nullptr;
+  auto Call = [&Env, &Bound](const WasmEdge::Runtime::CallingFrame &Frame,
+                             const WasmEdge::Host::FileSystem *&Seen) {
+    Env.setFileSystem(Frame);
+    Bound.fetch_add(1);
+    while (Bound.load() < 2) {
+      std::this_thread::yield();
+    }
+    Seen = Env.getFileSystem();
+  };
+  std::thread CallerA([&]() { Call(FrameA, SeenA); });
+  std::thread CallerB([&]() { Call(FrameB, SeenB); });
+  CallerA.join();
+  CallerB.join();
+
+  const WasmEdge::Host::FileSystem *FileSystemA = WasiA.getEnv();
+  const WasmEdge::Host::FileSystem *FileSystemB = WasiB.getEnv();
+  EXPECT_EQ(SeenA, FileSystemA);
+  EXPECT_EQ(SeenB, FileSystemB);
+}
+
 TEST(WasiNNTest, GGMLBackendDrainAfterInvalidReloadUnload) {
   // A failed metadata reload leaves the graph Invalid with a null llama
   // context; unload then makes it Detached, which Drainable admits, so the
@@ -4544,7 +4592,7 @@ TEST(WasiNNTest, MLXBackend) {
   ASSERT_TRUE(NNMod != nullptr);
 
   // Create the calling frame with memory instance.
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  WasiWiredModule Mod("");
   Mod.addHostMemory(
       "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
                     WasmEdge::AST::MemoryType(60000)));
@@ -4552,6 +4600,11 @@ TEST(WasiNNTest, MLXBackend) {
   ASSERT_TRUE(MemInstPtr != nullptr);
   auto &MemInst = *MemInstPtr;
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  // The backend opens its files with the filesystem of the calling module.
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(std::vector<std::string>{".:."}, "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
 
   // Load the files.
   std::string Prompt = "How are you?";

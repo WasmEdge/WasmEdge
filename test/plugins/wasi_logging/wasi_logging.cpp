@@ -5,13 +5,26 @@
 #include "plugin/wasi_logging/module.h"
 
 #include "common/defines.h"
+#include "common/filesystem.h"
+#include "host/wasi/wasimodule.h"
 #include "runtime/instance/module.h"
 
+#include <fstream>
 #include <gtest/gtest.h>
+#include <iterator>
 #include <memory>
+#include <spdlog/sinks/ostream_sink.h>
 #include <sstream>
+#include <string>
+#include <vector>
 
 namespace {
+
+class WasiWiredModule : public WasmEdge::Runtime::Instance::ModuleInstance {
+public:
+  using ModuleInstance::ModuleInstance;
+  void wireWASIModule(const ModuleInstance *M) noexcept { setWASIModule(M); }
+};
 
 template <typename T, typename U>
 inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
@@ -76,9 +89,9 @@ TEST(WasiLoggingTests, func_log) {
   fillMemContent(MemInst, 16, "out.log"sv);
   fillMemContent(MemInst, 24, "out2.log"sv);
   fillMemContent(MemInst, 128, "This is log message"sv);
-  fillMemContent(MemInst, 160, "Message 1 to file"sv);
-  fillMemContent(MemInst, 192, "Message 2 to file"sv);
-  fillMemContent(MemInst, 224, "Message 3 to file"sv);
+  fillMemContent(MemInst, 160, "Message 1 labeled"sv);
+  fillMemContent(MemInst, 192, "Message 2 labeled"sv);
+  fillMemContent(MemInst, 224, "Message 3 labeled"sv);
 
   // Get the function "log".
   auto *FuncInst1 = WasiLoggingMod1->findFuncExports("log");
@@ -134,7 +147,16 @@ TEST(WasiLoggingTests, func_log) {
           UINT32_C(0), UINT32_C(8), UINT32_C(6), UINT32_C(128), UINT32_C(19)},
       {}));
 
-  // Log to out.txt: message 1
+  // Without a filesystem in the caller, the other contexts only label the
+  // messages.
+  std::filesystem::remove("out.log");
+  std::filesystem::remove("out2.log");
+  std::ostringstream Labeled;
+  auto StdoutLogger = WasiLoggingMod1->getEnv().StdoutLogger;
+  ASSERT_TRUE(StdoutLogger);
+  StdoutLogger->sinks().push_back(
+      std::make_shared<spdlog::sinks::ostream_sink_mt>(Labeled));
+  // Context out.log: message 1
   EXPECT_TRUE(HostFuncInst1.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
@@ -145,7 +167,7 @@ TEST(WasiLoggingTests, func_log) {
       std::initializer_list<WasmEdge::ValVariant>{
           UINT32_C(0), UINT32_C(16), UINT32_C(7), UINT32_C(160), UINT32_C(17)},
       {}));
-  // Log to out2.txt: message 2
+  // Context out2.log: message 2
   EXPECT_TRUE(HostFuncInst1.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
@@ -156,7 +178,7 @@ TEST(WasiLoggingTests, func_log) {
       std::initializer_list<WasmEdge::ValVariant>{
           UINT32_C(0), UINT32_C(24), UINT32_C(8), UINT32_C(192), UINT32_C(17)},
       {}));
-  // Log to out.txt: message 3
+  // Context out.log: message 3
   EXPECT_TRUE(HostFuncInst1.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{
@@ -167,6 +189,15 @@ TEST(WasiLoggingTests, func_log) {
       std::initializer_list<WasmEdge::ValVariant>{
           UINT32_C(0), UINT32_C(16), UINT32_C(7), UINT32_C(224), UINT32_C(17)},
       {}));
+  StdoutLogger->sinks().pop_back();
+  EXPECT_NE(Labeled.str().find("[out.log] Message 1 labeled"sv),
+            std::string::npos);
+  EXPECT_NE(Labeled.str().find("[out2.log] Message 2 labeled"sv),
+            std::string::npos);
+  EXPECT_NE(Labeled.str().find("[out.log] Message 3 labeled"sv),
+            std::string::npos);
+  EXPECT_FALSE(std::filesystem::exists("out.log"));
+  EXPECT_FALSE(std::filesystem::exists("out2.log"));
 
   // UnKnown Level
   EXPECT_FALSE(HostFuncInst1.run(
@@ -179,6 +210,116 @@ TEST(WasiLoggingTests, func_log) {
       std::initializer_list<WasmEdge::ValVariant>{
           UINT32_C(6), UINT32_C(0), UINT32_C(6), UINT32_C(128), UINT32_C(19)},
       {}));
+}
+
+TEST(WasiLoggingTests, func_log_file) {
+  using namespace std::literals::string_view_literals;
+  auto WasiLoggingMod = createModule();
+  ASSERT_TRUE(WasiLoggingMod);
+  auto *FuncInst = WasiLoggingMod->findFuncExports("log");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInst = FuncInst->getHostFunc();
+
+  WasiWiredModule Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_NE(MemInstPtr, nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  fillMemContent(MemInst, 128, "Message to file"sv);
+
+  // Log the message at the info level with the context.
+  auto Log = [&](std::string_view Context) {
+    fillMemContent(MemInst, 0, 128);
+    fillMemContent(MemInst, 0, Context);
+    return HostFuncInst
+        .run(CallFrame,
+             std::initializer_list<WasmEdge::ValVariant>{
+                 UINT32_C(2), UINT32_C(0),
+                 static_cast<uint32_t>(Context.size()), UINT32_C(128),
+                 UINT32_C(15)},
+             {})
+        .has_value();
+  };
+  auto CountLines = [](const std::filesystem::path &Path) {
+    std::ifstream File(Path);
+    const std::string Content((std::istreambuf_iterator<char>(File)),
+                              std::istreambuf_iterator<char>());
+    size_t Count = 0;
+    for (auto Pos = Content.find("[info] Message to file\n"sv);
+         Pos != std::string::npos;
+         Pos = Content.find("[info] Message to file\n"sv, Pos + 1)) {
+      ++Count;
+    }
+    return Count;
+  };
+
+  // The caller has the guest directories "." and "/logs" preopened.
+  const std::filesystem::path Root("wasi_logging_root");
+  const std::filesystem::path Logs("wasi_logging_logs");
+  std::filesystem::remove_all(Root);
+  std::filesystem::remove_all(Logs);
+  std::filesystem::remove("wasi_logging_escape.log");
+  std::filesystem::create_directory(Root);
+  std::filesystem::create_directory(Logs);
+  WasmEdge::Host::WasiModule WasiMod;
+  WasiMod.init(std::vector<std::string>{".:wasi_logging_root",
+                                        "/logs:wasi_logging_logs"},
+               "test", {}, {});
+  Mod.wireWASIModule(&WasiMod);
+
+  // The file is appended under the preopened directory of the context, with
+  // the directories of the context created.
+  EXPECT_TRUE(Log("/dir/out.log"sv));
+  EXPECT_TRUE(Log("dir/out.log"sv));
+  EXPECT_EQ(CountLines(Root / "dir" / "out.log"), 2U);
+  EXPECT_TRUE(Log("/logs/out.log"sv));
+  EXPECT_EQ(CountLines(Logs / "out.log"), 1U);
+  EXPECT_FALSE(std::filesystem::exists(Root / "logs"));
+
+  // A context leaving the preopened directory only labels the message.
+  std::ostringstream Labeled;
+  auto StdoutLogger = WasiLoggingMod->getEnv().StdoutLogger;
+  ASSERT_TRUE(StdoutLogger);
+  StdoutLogger->sinks().push_back(
+      std::make_shared<spdlog::sinks::ostream_sink_mt>(Labeled));
+  EXPECT_TRUE(Log("../wasi_logging_escape.log"sv));
+  StdoutLogger->sinks().pop_back();
+  EXPECT_NE(
+      Labeled.str().find("[../wasi_logging_escape.log] Message to file"sv),
+      std::string::npos);
+  EXPECT_FALSE(std::filesystem::exists("wasi_logging_escape.log"));
+
+  // A read-only preopened directory gets no file.
+  WasmEdge::Host::WasiModule ReadOnlyWasiMod;
+  ReadOnlyWasiMod.init(std::vector<std::string>{".:wasi_logging_root:readonly"},
+                       "test", {}, {});
+  Mod.wireWASIModule(&ReadOnlyWasiMod);
+  EXPECT_TRUE(Log("readonly.log"sv));
+  EXPECT_FALSE(std::filesystem::exists(Root / "readonly.log"));
+
+  // The directories are created under the preopened directory of the context
+  // only, whatever the directories above it are.
+  WasmEdge::Host::WasiModule NestedWasiMod;
+  NestedWasiMod.init(std::vector<std::string>{".:wasi_logging_root:readonly",
+                                              "/var/log:wasi_logging_logs"},
+                     "test", {}, {});
+  Mod.wireWASIModule(&NestedWasiMod);
+  EXPECT_TRUE(Log("/var/log/app/deep/out.log"sv));
+  EXPECT_EQ(CountLines(Logs / "app" / "deep" / "out.log"), 1U);
+  EXPECT_FALSE(std::filesystem::exists(Root / "var"));
+  WasmEdge::Host::WasiModule LogsWasiMod;
+  LogsWasiMod.init(std::vector<std::string>{"/logs:wasi_logging_logs"}, "test",
+                   {}, {});
+  Mod.wireWASIModule(&LogsWasiMod);
+  EXPECT_TRUE(Log("/logs/only/out.log"sv));
+  EXPECT_EQ(CountLines(Logs / "only" / "out.log"), 1U);
+
+  std::filesystem::remove_all(Root);
+  std::filesystem::remove_all(Logs);
 }
 
 TEST(WasiLoggingTests, func_log_oob) {

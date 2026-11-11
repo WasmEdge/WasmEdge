@@ -50,12 +50,15 @@ Two workflows further narrow their work *within* a run:
   [`.github/extensions.paths-filter.yml`](../extensions.paths-filter.yml). For
   example, editing only `plugins/wasi_nn/**` builds the `wasi_nn` plugin but not
   `wasmedge_ffmpeg`.
-  Per-backend WASI-NN dependency modules map to exact-name filters — e.g.
-  `cmake/wasi_nn/ggml.cmake` matches only the `wasi_nn-ggml` filter, so a
-  single-backend dependency bump rebuilds only that backend's matrix entries,
-  while `cmake/WASINNDeps.cmake` (the dispatcher) and `plugins/wasi_nn/**` still
-  rebuild every WASI-NN backend; `cmake/TensorflowDeps.cmake` maps to
-  `wasi_nn-tensorflowlite`, `wasmedge_tensorflow`, and `wasmedge_tensorflowlite`.
+  Per-backend WASI-NN files map to exact-name filters — e.g.
+  `cmake/wasi_nn/ggml.cmake`, `plugins/wasi_nn/GGML/**`, and
+  `test/plugins/wasi_nn/wasi_nn_ggml.cpp` match only the `wasi_nn-ggml`
+  filter, so a single-backend change rebuilds only that backend's matrix
+  entries, while the shared WASI-NN files (`cmake/WASINNDeps.cmake`, the
+  `wasinn*` sources that dispatch to every backend, and the shared test
+  files) still rebuild every WASI-NN backend; `cmake/TensorflowDeps.cmake`
+  maps to `wasi_nn-tensorflowlite`, `wasmedge_tensorflow`, and
+  `wasmedge_tensorflowlite`.
   Changes to shared plugin files (the `all` filter:
   `.github/**`, the root `CMakeLists.txt`, `plugins/CMakeLists.txt`, or
   `test/plugins/CMakeLists.txt`) and release builds build **all** plugins. The
@@ -79,12 +82,27 @@ the `Extensions` workflow to the plugins a change actually affects:
   `plugins/<name>/**` and `test/plugins/<name>/**` trees, plus shared files it
   provably uses — `thirdparty/wasi_crypto/**` is in the `wasi_crypto` key
   because the plugin's sources include `thirdparty/wasi_crypto/api.hpp`, and
-  `cmake/WASINNDeps.cmake` is in the `wasi_nn` key,
   `cmake/TensorflowDeps.cmake` is in the `wasi_nn-tensorflowlite`,
   `wasmedge_tensorflow`, and `wasmedge_tensorflowlite` keys because their
-  CMake files include it, and each `cmake/wasi_nn/<backend>.cmake` module is
-  in its exact-name `wasi_nn-<backend>` key. A path enters a key only when
-  the plugin consumes it directly.
+  CMake files include it. A path enters a key only when the plugin consumes
+  it directly.
+- WASI-NN is split by backend. The `wasi_nn` key holds the files every
+  backend build consumes: `cmake/WASINNDeps.cmake`, the plugin's
+  `CMakeLists.txt`, the `wasinn*` dispatch sources, the sources of backends
+  without a matrix entry, `wasinn_mlx.h` (the backend-agnostic
+  `wasi_nn.cpp` test uses its unconditional helper), and the shared test
+  files (`CMakeLists.txt`, `helper.*`, `resource_table_test.cpp`, and
+  `wasi_nn.cpp`). Each exact-name `wasi_nn-<backend>` key holds that
+  backend's `cmake/wasi_nn/<backend>.cmake` module, its
+  `plugins/wasi_nn/wasinn_<backend>.*` sources (plus `GGML/**`, `MLX/**`,
+  `bitnet.patch`, and the log headers they include), and its
+  `test/plugins/wasi_nn/wasi_nn_<backend>.cpp` test file, which the test
+  CMake adds only when that backend is enabled. A new backend file must be
+  added to its key, or no job builds it. `wasinnenv.h` includes every
+  `wasinn_<backend>.h`, so each backend build also compiles the other
+  backends' headers and `#else` stubs; a backend-only change compiles its
+  own header on its own platforms only and leaves its stubs to the other
+  backends' jobs.
 - The `all` key holds the files that affect every plugin (`.github/**`, the
   root `CMakeLists.txt`, `plugins/CMakeLists.txt`,
   `test/plugins/CMakeLists.txt`); matching it builds all plugins.

@@ -2383,6 +2383,20 @@ void checkCallRefTypes(const Configure &Conf) {
 
 TEST(ExecutorRegression, CallRefChecksType) { checkCallRefTypes(Configure()); }
 
+#ifdef WASMEDGE_USE_LLVM
+TEST(ExecutorRegression, CallRefChecksTypeJIT) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
+  checkCallRefTypes(Conf);
+}
+
+TEST(ExecutorRegression, CallRefChecksTypeLazyJIT) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+  checkCallRefTypes(Conf);
+}
+#endif
+
 } // namespace
 
 /// A table whose initial size cannot be allocated must fail instantiation.

@@ -81,6 +81,36 @@ LLVM::BasicBlock FunctionCompiler::getTrapBB(ErrCode::Value Error) noexcept {
   return BB;
 }
 
+LLVM::Value FunctionCompiler::createRefGetFuncSymbol(LLVM::Type FTy,
+                                                     uint32_t TypeIndex,
+                                                     LLVM::Value Ref) noexcept {
+  return Builder.createCall(
+      Context.getIntrinsic(
+          Builder, Executable::Intrinsics::kRefGetFuncSymbol,
+          LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                      {Context.Int8PtrTy, Context.Int32Ty,
+                                       Context.Int64x2Ty,
+                                       Context.ModCtxPtrTy.getPointerTo()},
+                                      false)),
+      {Context.getModuleInst(Builder, ModCtx), LLContext.getInt32(TypeIndex),
+       Ref, CalleeCtxSlot});
+}
+
+void FunctionCompiler::createCallRef(uint32_t TypeIndex, LLVM::Value Ref,
+                                     LLVM::Value Args,
+                                     LLVM::Value Rets) noexcept {
+  Builder.createCall(
+      Context.getIntrinsic(
+          Builder, Executable::Intrinsics::kCallRef,
+          LLVM::Type::getFunctionType(Context.VoidTy,
+                                      {Context.Int8PtrTy, Context.Int32Ty,
+                                       Context.Int64x2Ty, Context.Int8PtrTy,
+                                       Context.Int8PtrTy},
+                                      false)),
+      {Context.getModuleInst(Builder, ModCtx), LLContext.getInt32(TypeIndex),
+       Ref, Args, Rets});
+}
+
 LLVM::Value FunctionCompiler::getTmpValues(size_t Num) noexcept {
   if (Num > TmpValuesSize) {
     LLVM::Builder EntryBuilder(LLContext);
@@ -1713,14 +1743,8 @@ void FunctionCompiler::compileReturnCallOp(
                                  {Context.Int8PtrTy, Context.Int32Ty}, false)),
         {Context.getModuleInst(Builder, ModCtx),
          LLContext.getInt32(FuncIndex)});
-    auto FPtr = Builder.createCall(
-        Context.getIntrinsic(
-            Builder, Executable::Intrinsics::kRefGetFuncSymbol,
-            LLVM::Type::getFunctionType(FTy.getPointerTo(),
-                                        {Context.Int8PtrTy, Context.Int64x2Ty,
-                                         Context.ModCtxPtrTy.getPointerTo()},
-                                        false)),
-        {Context.getModuleInst(Builder, ModCtx), Ref, CalleeCtxSlot});
+    auto FPtr = createRefGetFuncSymbol(
+        FTy, std::get<0>(Context.Functions[FuncIndex]), Ref);
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
@@ -1919,14 +1943,7 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
   std::vector<LLVM::Value> FPtrRetsVec;
   FPtrRetsVec.reserve(RetSize);
   {
-    auto FPtr = Builder.createCall(
-        Context.getIntrinsic(
-            Builder, Executable::Intrinsics::kRefGetFuncSymbol,
-            LLVM::Type::getFunctionType(FTy.getPointerTo(),
-                                        {Context.Int8PtrTy, Context.Int64x2Ty,
-                                         Context.ModCtxPtrTy.getPointerTo()},
-                                        false)),
-        {Context.getModuleInst(Builder, ModCtx), Ref, CalleeCtxSlot});
+    auto FPtr = createRefGetFuncSymbol(FTy, TypeIndex, Ref);
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
@@ -1961,14 +1978,7 @@ void FunctionCompiler::compileCallRefOp(const unsigned int TypeIndex) noexcept {
     Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
-    Builder.createCall(
-        Context.getIntrinsic(
-            Builder, Executable::Intrinsics::kCallRef,
-            LLVM::Type::getFunctionType(Context.VoidTy,
-                                        {Context.Int8PtrTy, Context.Int64x2Ty,
-                                         Context.Int8PtrTy, Context.Int8PtrTy},
-                                        false)),
-        {Context.getModuleInst(Builder, ModCtx), Ref, Args, Rets});
+    createCallRef(TypeIndex, Ref, Args, Rets);
 
     if (RetSize == 0) {
       // nothing to do
@@ -2023,14 +2033,7 @@ void FunctionCompiler::compileReturnCallRefOp(
   }
 
   {
-    auto FPtr = Builder.createCall(
-        Context.getIntrinsic(
-            Builder, Executable::Intrinsics::kRefGetFuncSymbol,
-            LLVM::Type::getFunctionType(FTy.getPointerTo(),
-                                        {Context.Int8PtrTy, Context.Int64x2Ty,
-                                         Context.ModCtxPtrTy.getPointerTo()},
-                                        false)),
-        {Context.getModuleInst(Builder, ModCtx), Ref, CalleeCtxSlot});
+    auto FPtr = createRefGetFuncSymbol(FTy, TypeIndex, Ref);
     Builder.createCondBr(
         Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
         NotNullBB, IsNullBB);
@@ -2065,14 +2068,7 @@ void FunctionCompiler::compileReturnCallRefOp(
     Builder.createArrayPtrStore(Span<LLVM::Value>(ArgsVec.begin() + 2, ArgSize),
                                 Args, Context.Int8Ty, LLVM::kValSize);
 
-    Builder.createCall(
-        Context.getIntrinsic(
-            Builder, Executable::Intrinsics::kCallRef,
-            LLVM::Type::getFunctionType(Context.VoidTy,
-                                        {Context.Int8PtrTy, Context.Int64x2Ty,
-                                         Context.Int8PtrTy, Context.Int8PtrTy},
-                                        false)),
-        {Context.getModuleInst(Builder, ModCtx), Ref, Args, Rets});
+    createCallRef(TypeIndex, Ref, Args, Rets);
 
     if (RetSize == 0) {
       endTmpValues();

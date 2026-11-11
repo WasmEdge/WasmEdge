@@ -214,11 +214,17 @@ Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
 Expect<void>
 Executor::proxyCallRef(Runtime::StackManager &StackMgr,
                        const Runtime::Instance::ModuleInstance *ModInst,
-                       const RefVariant Ref, const ValVariant *Args,
-                       ValVariant *Rets) noexcept {
+                       const uint32_t TypeIdx, const RefVariant Ref,
+                       const ValVariant *Args, ValVariant *Rets) noexcept {
   const auto *FuncInst = retrieveFuncRef(Ref);
   if (unlikely(!FuncInst)) {
     return Unexpect(ErrCode::Value::AccessNullFunc);
+  }
+  if ((FuncInst->getModule() != ModInst ||
+       FuncInst->getTypeIndex() != TypeIdx) &&
+      !Runtime::Matcher::matchRef(ModInst, ValType(TypeCode::Ref, TypeIdx),
+                                  Ref)) {
+    return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
   EXPECTED_TRY(checkLazyCompilation(FuncInst));
@@ -591,11 +597,17 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
 
 Expect<void *> Executor::proxyRefGetFuncSymbol(
     Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
-    const RefVariant Ref,
+    const uint32_t TypeIdx, const RefVariant Ref,
     Runtime::Instance::ModuleInstance::ModuleContext **CalleeCtxOut) noexcept {
   *CalleeCtxOut = nullptr;
   const auto *FuncInst = retrieveFuncRef(Ref);
   assuming(FuncInst);
+  if ((FuncInst->getModule() != ModInst ||
+       FuncInst->getTypeIndex() != TypeIdx) &&
+      !Runtime::Matcher::matchRef(ModInst, ValType(TypeCode::Ref, TypeIdx),
+                                  Ref)) {
+    return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
+  }
   if (likely(FuncInst->isCompiledFunction())) {
     if (FuncInst->getModule() != ModInst) {
       *CalleeCtxOut = &const_cast<Runtime::Instance::ModuleInstance *>(

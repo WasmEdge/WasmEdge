@@ -244,6 +244,15 @@ private:
   LLVM::Value getTmpValues(size_t Num) noexcept;
   void endTmpValues() noexcept;
 
+  /// Native symbol of the function in `Ref` if its type matches `TypeIndex`,
+  /// else null. The callee context goes to `CalleeCtxSlot`.
+  LLVM::Value createRefGetFuncSymbol(LLVM::Type FTy, uint32_t TypeIndex,
+                                     LLVM::Value Ref) noexcept;
+  /// Call the function in `Ref` through the runtime with the arguments in
+  /// `Args` and the results to `Rets`.
+  void createCallRef(uint32_t TypeIndex, LLVM::Value Ref, LLVM::Value Args,
+                     LLVM::Value Rets) noexcept;
+
   void stackPush(LLVM::Value Value) noexcept { Stack.push_back(Value); }
   LLVM::Value stackPop() noexcept;
 

@@ -1011,8 +1011,8 @@ public:
                     ValVariant *Rets) noexcept;
   Expect<void> proxyCallRef(Runtime::StackManager &StackMgr,
                             const Runtime::Instance::ModuleInstance *ModInst,
-                            const RefVariant Ref, const ValVariant *Args,
-                            ValVariant *Rets) noexcept;
+                            const uint32_t TypeIdx, const RefVariant Ref,
+                            const ValVariant *Args, ValVariant *Rets) noexcept;
   Expect<RefVariant>
   proxyRefFunc(Runtime::StackManager &StackMgr,
                const Runtime::Instance::ModuleInstance *ModInst,
@@ -1154,7 +1154,8 @@ public:
       Runtime::Instance::ModuleInstance::ModuleContext **CalleeCtxOut) noexcept;
   Expect<void *> proxyRefGetFuncSymbol(
       Runtime::StackManager &StackMgr,
-      const Runtime::Instance::ModuleInstance *ModInst, const RefVariant Ref,
+      const Runtime::Instance::ModuleInstance *ModInst, const uint32_t TypeIdx,
+      const RefVariant Ref,
       Runtime::Instance::ModuleInstance::ModuleContext **CalleeCtxOut) noexcept;
   Expect<void *>
   proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,

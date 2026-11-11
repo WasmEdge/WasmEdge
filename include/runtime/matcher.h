@@ -55,7 +55,7 @@ public:
     const AST::SubType *HostType = nullptr;
     std::optional<uint32_t> GotId;
     if (!VT.isAbsHeapType()) {
-      const auto *Inst = Ref.getPtr<Instance::CompositeBase>();
+      const auto *Inst = Ref.getCompositeInst();
       const auto *GotMod = Inst->getModule() ? Inst->getModule() : ModInst;
       if (GotMod == nullptr ||
           VT.getTypeIndex() >= GotMod->getTypeList().size()) {

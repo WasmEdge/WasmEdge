@@ -693,13 +693,14 @@ WasmEdge_ValueGenV128(const ::int128_t Val) noexcept {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value
 WasmEdge_ValueGenFuncRef(const WasmEdge_FunctionInstanceContext *Cxt) noexcept {
-  return genWasmEdge_Value(WasmEdge::RefVariant(fromFuncCxt(Cxt)),
+  return genWasmEdge_Value(WasmEdge::RefVariant::makeFunc(fromFuncCxt(Cxt)),
                            TypeCode::FuncRef);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value
 WasmEdge_ValueGenExternRef(void *Ref) noexcept {
-  return genWasmEdge_Value(WasmEdge::RefVariant(Ref), TypeCode::ExternRef);
+  return genWasmEdge_Value(WasmEdge::RefVariant::makeExtern(Ref),
+                           TypeCode::ExternRef);
 }
 
 WASMEDGE_CAPI_EXPORT int32_t

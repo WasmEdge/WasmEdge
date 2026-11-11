@@ -931,7 +931,7 @@ TEST(CanonicalTypeTable, RefTest) {
   ASSERT_NE(Func, nullptr);
 
   auto Test = [&](const Runtime::Instance::FunctionInstance *F) -> uint32_t {
-    std::vector<ValVariant> Params = {RefVariant(F)};
+    std::vector<ValVariant> Params = {RefVariant::makeFunc(F)};
     auto R = VM.execute("test"sv, Params,
                         std::vector<ValType>{ValType(TypeCode::FuncRef)});
     EXPECT_TRUE(R);
@@ -979,7 +979,7 @@ TEST(CanonicalTypeTable, StandaloneHostFunction) {
   ASSERT_TRUE(VM.loadWasm(RefTestFuncWasm));
   ASSERT_TRUE(VM.validate());
   ASSERT_TRUE(VM.instantiate());
-  std::vector<ValVariant> Params = {RefVariant(&Typed)};
+  std::vector<ValVariant> Params = {RefVariant::makeFunc(&Typed)};
   auto R = VM.execute("test"sv, Params,
                       std::vector<ValType>{ValType(TypeCode::FuncRef)});
   ASSERT_TRUE(R);
@@ -2026,19 +2026,20 @@ TEST_F(CoredumpState, RestoreExternReferences) {
   AST::Module Dump;
   ASSERT_NO_FATAL_FAILURE(generate(Req, Dump));
   int Value = 42;
-  ASSERT_TRUE(Host.getTableInstances()[0]->setRefAddr(0, RefVariant(&Value)));
-  Host.getGlobalInstances()[0]->setValue(RefVariant(&Value));
+  ASSERT_TRUE(Host.getTableInstances()[0]->setRefAddr(
+      0, RefVariant::makeExtern(&Value)));
+  Host.getGlobalInstances()[0]->setValue(RefVariant::makeExtern(&Value));
   ASSERT_TRUE(Coredump::restore({Modules, Path}));
   EXPECT_TRUE(Host.getTableInstances()[0]->getRefAddr(0)->isNull());
   EXPECT_TRUE(
       Host.getGlobalInstances()[0]->getValue().get<RefVariant>().isNull());
   for (const bool Table : {false, true}) {
     if (Table) {
-      ASSERT_TRUE(
-          Host.getTableInstances()[0]->setRefAddr(0, RefVariant(&Value)));
+      ASSERT_TRUE(Host.getTableInstances()[0]->setRefAddr(
+          0, RefVariant::makeExtern(&Value)));
       Host.getGlobalInstances()[0]->setValue(RefVariant(TypeCode::ExternRef));
     } else {
-      Host.getGlobalInstances()[0]->setValue(RefVariant(&Value));
+      Host.getGlobalInstances()[0]->setValue(RefVariant::makeExtern(&Value));
     }
     ASSERT_NO_FATAL_FAILURE(generate(Req, Dump));
     const auto Result = Coredump::restore({Modules, Path});
@@ -2087,11 +2088,10 @@ TEST_F(CoredumpState, RestoreImportedTypeContext) {
   const auto Ref = VM->getActiveModule()->getTableInstances()[0]->getRefAddr(0);
   ASSERT_TRUE(Ref);
   EXPECT_FALSE(Ref->isNull());
-  EXPECT_EQ(Ref->getPtr<void>(), VM->getActiveModule()
-                                     ->getGlobalInstances()[0]
-                                     ->getValue()
-                                     .get<RefVariant>()
-                                     .getPtr<void>());
+  EXPECT_TRUE(Ref->isSameRef(VM->getActiveModule()
+                                 ->getGlobalInstances()[0]
+                                 ->getValue()
+                                 .get<RefVariant>()));
 }
 
 TEST_F(CoredumpState, ModulesOnly) {
@@ -2463,8 +2463,7 @@ TEST_F(CoredumpState, ExternRefTable) {
   auto Table = std::make_unique<Runtime::Instance::TableInstance>(
       AST::TableType(ValType(TypeCode::ExternRef), AST::Limit(2)));
   int Value = 42;
-  ASSERT_TRUE(
-      Table->setRefAddr(0, RefVariant(ValType(TypeCode::ExternRef), &Value)));
+  ASSERT_TRUE(Table->setRefAddr(0, RefVariant::makeExtern(&Value)));
   ASSERT_TRUE(Host.addHostTable("table"sv, std::move(Table)));
   const std::array<const Runtime::Instance::ModuleInstance *, 1> Modules{&Host};
   Coredump::Request Req;
@@ -2662,7 +2661,7 @@ TEST_F(CoredumpState, ReadBack) {
     EXPECT_EQ(GlobalFunc, Active->getGlobalInstances()[0]
                               ->getValue()
                               .get<RefVariant>()
-                              .getPtr<Runtime::Instance::FunctionInstance>());
+                              .getFuncInst());
     EXPECT_EQ(GlobalFunc, Setup ? Active->getFunctionInstances()[0] : nullptr);
     EXPECT_FALSE(GlobalReader.isFailed());
     EXPECT_TRUE(GlobalReader.isEnd());
@@ -2688,8 +2687,7 @@ TEST_F(CoredumpState, ReadBack) {
     const auto Refs = Table->getRefs(0, Size);
     ASSERT_TRUE(Refs);
     for (const auto &Ref : *Refs) {
-      EXPECT_EQ(Tables.readFunction(Modules),
-                Ref.getPtr<Runtime::Instance::FunctionInstance>());
+      EXPECT_EQ(Tables.readFunction(Modules), Ref.getFuncInst());
     }
     if (!Setup) {
       EXPECT_TRUE((*Refs)[1].isNull());

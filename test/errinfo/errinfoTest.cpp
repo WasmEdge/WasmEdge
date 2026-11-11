@@ -130,7 +130,7 @@ TEST(ErrInfoTest, Info__Mismatch) {
 TEST(ErrInfoTest, Info__Instruction) {
   std::vector<WasmEdge::ValVariant> Args = {
       0, 1000,
-      WasmEdge::RefVariant(
+      WasmEdge::RefVariant::makeFunc(
           reinterpret_cast<WasmEdge::Runtime::Instance::FunctionInstance *>(
               100))};
   WasmEdge::ErrInfo::InfoInstruction Info1(WasmEdge::OpCode::Block, 255, Args,

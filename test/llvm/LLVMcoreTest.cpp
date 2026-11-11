@@ -809,9 +809,7 @@ TEST(AOTCrossModule, CrossModuleStructNewOwnedByCallee) {
   ASSERT_TRUE(R);
   ASSERT_EQ(R->size(), 1u);
 
-  const auto *Inst = (*R)[0]
-                         .first.get<RefVariant>()
-                         .getPtr<Runtime::Instance::StructInstance>();
+  const auto *Inst = (*R)[0].first.get<RefVariant>().getStructInst();
   ASSERT_NE(Inst, nullptr);
   EXPECT_EQ(Inst->getModule(), CalleeInst.get())
       << "the struct created by the callee's struct.new_default is not "
@@ -2387,7 +2385,8 @@ TEST(AOTRefValue, TypedByValue) {
   // A host reference is non-null by its value, unlike the null reference of
   // the other table entry, and internalizes to an any that is not the struct.
   int Object = 0;
-  ASSERT_TRUE(TabInst->setRefAddr(0, WasmEdge::RefVariant(&Object)));
+  ASSERT_TRUE(
+      TabInst->setRefAddr(0, WasmEdge::RefVariant::makeExtern(&Object)));
   auto Test = VM.execute("test", {WasmEdge::ValVariant(UINT32_C(0))}, I32);
   ASSERT_TRUE(Test);
   EXPECT_EQ((*Test)[0].first.get<uint32_t>(), 1U);

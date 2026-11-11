@@ -780,17 +780,16 @@ struct wasm_table_t : public wasm::Table, public wasm_ref_base_t<wasm_table_t> {
     if (inst->getTableType().getRefType().isFuncRefType()) {
       if (r && static_cast<const wasm_ref_t *>(r)->category ==
                    wasm_category_enum::FUNC) {
-        inst->fillRefs(
-            WasmEdge::RefVariant(static_cast<const wasm_func_t *>(r)->inst), 0,
-            inst->getSize());
+        inst->fillRefs(WasmEdge::RefVariant::makeFunc(
+                           static_cast<const wasm_func_t *>(r)->inst),
+                       0, inst->getSize());
       } else {
         inst->fillRefs(WasmEdge::RefVariant(
                            WasmEdge::ValType(WasmEdge::TypeCode::FuncRef)),
                        0, inst->getSize());
       }
     } else {
-      inst->fillRefs(WasmEdge::RefVariant(const_cast<wasm::Ref *>(r)), 0,
-                     inst->getSize());
+      inst->fillRefs(WasmEdge::RefVariant::makeExtern(r), 0, inst->getSize());
     }
   }
   // Non-owning view (wasm_instance_exports).
@@ -1100,7 +1099,7 @@ retrieve_funcinst(const WasmEdge::RefVariant &ref,
     return nullptr;
   }
   if (vt.getHeapTypeCode() == WasmEdge::TypeCode::TypeIndex) {
-    const auto *base = ref.getPtr<WasmEdge::Runtime::Instance::CompositeBase>();
+    const auto *base = ref.getCompositeInst();
     if (const auto *mod = base->getModule()) {
       auto type = mod->getType(base->getTypeIndex());
       if (!type || !(*type)->getCompositeType().isFunc()) {
@@ -1108,7 +1107,8 @@ retrieve_funcinst(const WasmEdge::RefVariant &ref,
       }
     }
   }
-  return ref.getPtr<WasmEdge::Runtime::Instance::FunctionInstance>();
+  return const_cast<WasmEdge::Runtime::Instance::FunctionInstance *>(
+      ref.getFuncInst());
 }
 
 // Wrap a function instance into a non-owning wasm_func_t reference.
@@ -1145,16 +1145,16 @@ make_refvariant(const wasm::Ref *ref, const WasmEdge::ValType &vt,
   if (vt.isFuncRefType()) {
     auto *inst = retrieve_funcinst(ref);
     if (inst && vt.getHeapTypeCode() == WasmEdge::TypeCode::TypeIndex &&
-        !WasmEdge::Runtime::Matcher::matchRef(mod, vt,
-                                              WasmEdge::RefVariant(inst))) {
+        !WasmEdge::Runtime::Matcher::matchRef(
+            mod, vt, WasmEdge::RefVariant::makeFunc(inst))) {
       inst = nullptr;
     }
     if (inst) {
-      return WasmEdge::RefVariant(inst);
+      return WasmEdge::RefVariant::makeFunc(inst);
     }
     return WasmEdge::RefVariant(WasmEdge::ValType(WasmEdge::TypeCode::FuncRef));
   }
-  return WasmEdge::RefVariant(const_cast<wasm::Ref *>(ref));
+  return WasmEdge::RefVariant::makeExtern(ref);
 }
 
 // Make the wasm::Val of a reference. The wasm::Val constructors only build
@@ -1258,7 +1258,7 @@ wasm::Val conv_cppval_from_wasmedge(wasm::Store *store,
         make_funcref(store,
                      retrieve_funcinst(v.get<WasmEdge::RefVariant>(), vt)));
   } else if (vt.isExternRefType()) {
-    auto *ref = v.get<WasmEdge::RefVariant>().getPtr<wasm_ref_t>();
+    auto *ref = v.get<WasmEdge::RefVariant>().getExternPtr<wasm_ref_t>();
     return wasm::Val::ref(ref ? ref->copy_ref() : wasm::own<wasm_ref_t>());
   }
   // v128 and other types are not supported in wasm C API yet.
@@ -2967,7 +2967,7 @@ wasm::own<wasm::Ref> wasm::Table::get(wasm::Table::size_t index) const {
           self->store,
           retrieve_funcinst(*res, inst->getTableType().getRefType()));
     } else if (inst->getTableType().getRefType().isExternRefType()) {
-      auto *ref = (*res).getPtr<wasm_ref_t>();
+      auto *ref = (*res).getExternPtr<wasm_ref_t>();
       return ref ? ref->copy_ref() : nullptr;
     }
   }
@@ -2979,7 +2979,7 @@ bool wasm::Table::set(wasm::Table::size_t index, const wasm::Ref *ref) {
   if (inst->getTableType().getRefType().isExternRefType()) {
     // For the externref of the element type, set the ref.
     if (inst->setRefAddr(static_cast<uint32_t>(index),
-                         WasmEdge::RefVariant(const_cast<wasm::Ref *>(ref)))) {
+                         WasmEdge::RefVariant::makeExtern(ref))) {
       return true;
     }
   } else if (inst->getTableType().getRefType().isFuncRefType()) {
@@ -2989,8 +2989,8 @@ bool wasm::Table::set(wasm::Table::size_t index, const wasm::Ref *ref) {
       auto *cfunc =
           static_cast<const wasm_func_t *>(static_cast<const wasm::Func *>(
               static_cast<const wasm::Extern *>(ref)));
-      if (cfunc->inst &&
-          inst->setRefAddr(index, WasmEdge::RefVariant(cfunc->inst))) {
+      if (cfunc->inst && inst->setRefAddr(index, WasmEdge::RefVariant::makeFunc(
+                                                     cfunc->inst))) {
         return true;
       }
     } else {

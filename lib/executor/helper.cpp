@@ -453,8 +453,7 @@ Expect<void> Executor::throwException(
         if (C.IsAll) {
           StackMgr.eraseValueStack(AssocValSize, 0);
         }
-        StackMgr.push(
-            RefVariant(ValType(TypeCode::Ref, TypeCode::ExnRef), Inst));
+        StackMgr.push(RefVariant::makeException(Inst));
       } else if (C.IsAll) {
         StackMgr.eraseValueStack(AssocValSize, 0);
       }

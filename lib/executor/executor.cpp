@@ -223,7 +223,7 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
       if (!RefType.isAbsHeapType()) {
         // The instance must not be nullptr because the null references are
         // already dynamic typed into the top abstract heap type.
-        auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
+        auto *Inst = Ref.getCompositeInst();
         assuming(Inst);
         // The ModInst may be nullptr only in the independent host function
         // instance. Therefore the module instance here must not be nullptr

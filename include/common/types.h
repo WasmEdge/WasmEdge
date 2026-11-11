@@ -411,33 +411,12 @@ struct RefVariant {
     setData(VT, Val.getPtr<void>());
   }
 
-  template <typename T> RefVariant(const T *P) noexcept {
-    setData(TypeCode::ExternRef, reinterpret_cast<const void *>(P));
-  }
-  template <typename T> RefVariant(const ValType &VT, const T *P) noexcept {
-    setData(VT, reinterpret_cast<const void *>(P));
-  }
-  RefVariant(const Runtime::Instance::FunctionInstance *P) noexcept {
-    setData(TypeCode::FuncRef, reinterpret_cast<const void *>(P));
-  }
-  RefVariant(const Runtime::Instance::StructInstance *P) noexcept {
-    setData(TypeCode::StructRef, reinterpret_cast<const void *>(P));
-  }
-  RefVariant(const Runtime::Instance::ArrayInstance *P) noexcept {
-    setData(TypeCode::ArrayRef, reinterpret_cast<const void *>(P));
-  }
-
   // Getter and setter for type.
   const ValType getType() const noexcept {
     return cxx20::bit_cast<ValType>(toArray()[0]);
   }
   void setType(const ValType &VT) noexcept {
     std::memcpy(&Data, static_cast<const void *>(&VT), sizeof(VT));
-  }
-
-  // Getter for pointer.
-  template <typename T> T *getPtr() const noexcept {
-    return reinterpret_cast<T *>(static_cast<uintptr_t>(toArray()[1]));
   }
 
   // Check whether it is null.
@@ -527,6 +506,11 @@ struct RefVariant {
   RawV128 getRawData() const noexcept { return Data; }
 
 private:
+  // Getter for pointer.
+  template <typename T> T *getPtr() const noexcept {
+    return reinterpret_cast<T *>(static_cast<uintptr_t>(toArray()[1]));
+  }
+
   // Helper function to make a reference of the given type.
   template <typename T>
   static RefVariant make(const ValType &VT, const T *P) noexcept {
@@ -727,7 +711,7 @@ retrieveFuncRef(const RefVariant &Val) {
   if (Val.getType().getHeapTypeCode() != TypeCode::FuncRef) {
     return nullptr;
   }
-  return Val.getPtr<Runtime::Instance::FunctionInstance>();
+  return Val.getFuncInst();
 }
 
 template <typename T> inline T *retrieveExternRef(const RefVariant &Val) {

@@ -29,7 +29,7 @@ ErrCode logError(const ErrCode &Code, const AST::Instruction &Instr) noexcept {
 void logArrayOOB(const ErrCode &Code, const uint32_t Idx, const uint32_t Cnt,
                  const RefVariant &Ref) noexcept {
   if (Code == ErrCode::Value::ArrayOutOfBounds) {
-    const auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
+    const auto *Inst = Ref.getArrayInst();
     spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx), Cnt,
                                         Inst->getLength()));
   }
@@ -40,8 +40,8 @@ void logDoubleArrayOOB(const ErrCode &Code, const uint32_t Idx1,
                        const uint32_t Idx2, const uint32_t Cnt2,
                        const RefVariant &Ref2) noexcept {
   if (Code == ErrCode::Value::ArrayOutOfBounds) {
-    const auto *Inst1 = Ref1.getPtr<Runtime::Instance::ArrayInstance>();
-    const auto *Inst2 = Ref2.getPtr<Runtime::Instance::ArrayInstance>();
+    const auto *Inst1 = Ref1.getArrayInst();
+    const auto *Inst2 = Ref2.getArrayInst();
     if (static_cast<uint64_t>(Idx1) + static_cast<uint64_t>(Cnt1) >
         Inst1->getLength()) {
       spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx1), Cnt1,
@@ -91,17 +91,15 @@ Expect<void> Executor::runRefIsNullOp(ValVariant &Val) const noexcept {
 Expect<void> Executor::runRefFuncOp(Runtime::StackManager &StackMgr,
                                     uint32_t Idx) const noexcept {
   const auto *FuncInst = getFuncInstByIdx(StackMgr.getModule(), Idx);
-  StackMgr.push(
-      RefVariant(ValType(TypeCode::Ref, TypeCode::FuncRef), FuncInst));
+  StackMgr.push(RefVariant::makeFunc(ValType(TypeCode::Ref, TypeCode::FuncRef),
+                                     FuncInst));
   return {};
 }
 
 Expect<void> Executor::runRefEqOp(ValVariant &Val1,
                                   const ValVariant &Val2) const noexcept {
-  Val1.emplace<uint32_t>(Val1.get<RefVariant>().getPtr<void>() ==
-                                 Val2.get<RefVariant>().getPtr<void>()
-                             ? 1U
-                             : 0U);
+  Val1.emplace<uint32_t>(
+      Val1.get<RefVariant>().isSameRef(Val2.get<RefVariant>()) ? 1U : 0U);
   return {};
 }
 
@@ -253,8 +251,7 @@ Executor::runArraySetOp(Runtime::StackManager &StackMgr, const ValVariant &Val,
 Expect<void>
 Executor::runArrayLenOp(ValVariant &Val,
                         const AST::Instruction &Instr) const noexcept {
-  const auto *Inst =
-      Val.get<RefVariant>().getPtr<Runtime::Instance::ArrayInstance>();
+  const auto *Inst = Val.get<RefVariant>().getArrayInst();
   if (Inst == nullptr) {
     return Unexpect(logError(ErrCode::Value::AccessNullArray, Instr));
   }
@@ -416,14 +413,14 @@ Executor::structNew(const Runtime::Instance::ModuleInstance *ModInstArg,
   }
   WasmEdge::Runtime::Instance::StructInstance *Inst =
       ModInst->newStruct(TypeIdx, std::move(Vals));
-  return RefVariant(Inst->getDefType(), Inst);
+  return RefVariant::makeStruct(Inst->getDefType(), Inst);
 }
 
 Expect<ValVariant>
 Executor::structGet(const Runtime::Instance::ModuleInstance *ModInst,
                     const RefVariant Ref, const uint32_t TypeIdx,
                     const uint32_t Off, const bool IsSigned) const noexcept {
-  const auto *Inst = Ref.getPtr<Runtime::Instance::StructInstance>();
+  const auto *Inst = Ref.getStructInst();
   if (Inst == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullStruct);
   }
@@ -435,7 +432,7 @@ Expect<void>
 Executor::structSet(const Runtime::Instance::ModuleInstance *ModInst,
                     const RefVariant Ref, const ValVariant Val,
                     const uint32_t TypeIdx, const uint32_t Off) const noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::StructInstance>();
+  auto *Inst = Ref.getStructInst();
   if (Inst == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullStruct);
   }
@@ -476,7 +473,7 @@ Executor::arrayNew(const Runtime::Instance::ModuleInstance *ModInstArg,
   }
   WasmEdge::Runtime::Instance::ArrayInstance *Inst =
       ModInst->newArray(TypeIdx, std::move(Vals));
-  return RefVariant(Inst->getDefType(), Inst);
+  return RefVariant::makeArray(Inst->getDefType(), Inst);
 }
 
 Expect<RefVariant>
@@ -501,7 +498,7 @@ Executor::arrayNewData(const Runtime::Instance::ModuleInstance *ModInstArg,
   }
   WasmEdge::Runtime::Instance::ArrayInstance *Inst =
       ModInst->newArray(TypeIdx, std::move(Args));
-  return RefVariant(Inst->getDefType(), Inst);
+  return RefVariant::makeArray(Inst->getDefType(), Inst);
 }
 
 Expect<RefVariant>
@@ -522,14 +519,14 @@ Executor::arrayNewElem(const Runtime::Instance::ModuleInstance *ModInstArg,
   auto *ModInst = const_cast<Runtime::Instance::ModuleInstance *>(ModInstArg);
   WasmEdge::Runtime::Instance::ArrayInstance *Inst =
       ModInst->newArray(TypeIdx, packVals(VType, std::move(Refs)));
-  return RefVariant(Inst->getDefType(), Inst);
+  return RefVariant::makeArray(Inst->getDefType(), Inst);
 }
 
 Expect<ValVariant>
 Executor::arrayGet(const Runtime::Instance::ModuleInstance *ModInst,
                    const RefVariant &Ref, const uint32_t TypeIdx,
                    const uint32_t Idx, const bool IsSigned) const noexcept {
-  const auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
+  const auto *Inst = Ref.getArrayInst();
   if (Inst == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
@@ -544,7 +541,7 @@ Expect<void>
 Executor::arraySet(const Runtime::Instance::ModuleInstance *ModInst,
                    const RefVariant &Ref, const ValVariant &Val,
                    const uint32_t TypeIdx, const uint32_t Idx) const noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
+  auto *Inst = Ref.getArrayInst();
   if (Inst == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
@@ -561,7 +558,7 @@ Executor::arrayFill(const Runtime::Instance::ModuleInstance *ModInst,
                     const RefVariant &Ref, const ValVariant &Val,
                     const uint32_t TypeIdx, const uint32_t Idx,
                     const uint32_t Cnt) const noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
+  auto *Inst = Ref.getArrayInst();
   if (Inst == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
@@ -579,7 +576,7 @@ Expect<void> Executor::arrayInitData(
     const Runtime::Instance::ModuleInstance *ModInst, const RefVariant &Ref,
     const uint32_t TypeIdx, const uint32_t DataIdx, const uint32_t DstIdx,
     const uint32_t SrcIdx, const uint32_t Cnt) const noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
+  auto *Inst = Ref.getArrayInst();
   if (Inst == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
@@ -608,7 +605,7 @@ Expect<void> Executor::arrayInitElem(
     const Runtime::Instance::ModuleInstance *ModInst, const RefVariant &Ref,
     const uint32_t TypeIdx, const uint32_t ElemIdx, const uint32_t DstIdx,
     const uint32_t SrcIdx, const uint32_t Cnt) const noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
+  auto *Inst = Ref.getArrayInst();
   if (Inst == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
@@ -639,8 +636,8 @@ Executor::arrayCopy(const Runtime::Instance::ModuleInstance *ModInst,
                     const uint32_t DstIdx, const RefVariant &SrcRef,
                     const uint32_t SrcTypeIdx, const uint32_t SrcIdx,
                     const uint32_t Cnt) const noexcept {
-  auto *SrcInst = SrcRef.getPtr<Runtime::Instance::ArrayInstance>();
-  auto *DstInst = DstRef.getPtr<Runtime::Instance::ArrayInstance>();
+  auto *SrcInst = SrcRef.getArrayInst();
+  auto *DstInst = DstRef.getArrayInst();
   if (SrcInst == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }

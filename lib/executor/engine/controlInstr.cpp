@@ -51,7 +51,7 @@ Expect<void> Executor::runThrowRefOp(Runtime::StackManager &StackMgr,
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::AccessNullException);
   }
-  const auto *ExnInst = Ref.getPtr<Runtime::Instance::ExceptionInstance>();
+  const auto *ExnInst = Ref.getExceptionInst();
   auto *TagInst = ExnInst->getTag();
   // Re-push the captured payload to mirror an initial `throw`, then unwind.
   StackMgr.pushValVec(ExnInst->getPayload());

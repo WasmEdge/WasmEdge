@@ -200,8 +200,8 @@ Expect<RefVariant> readRef(Reader &R, const ValType &Type,
     if (FuncIdx >= Functions.size() || Functions[FuncIdx] == nullptr) {
       return Unexpect(Malformed);
     }
-    const RefVariant Ref(ValType(TypeCode::Ref, TypeCode::FuncRef),
-                         Functions[FuncIdx]);
+    const auto Ref = RefVariant::makeFunc(
+        ValType(TypeCode::Ref, TypeCode::FuncRef), Functions[FuncIdx]);
     if (!Runtime::Matcher::matchRef(&Owner, Type, Ref)) {
       return Unexpect(Mismatch);
     }

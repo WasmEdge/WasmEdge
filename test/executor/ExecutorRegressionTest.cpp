@@ -918,7 +918,7 @@ TEST(ExecutorRegression, RefTestNullAbility) {
   {
     int DummyObj = 42;
     RefVariant AnyRefVal(ValType(TypeCode::RefNull, TypeCode::AnyRef),
-                         reinterpret_cast<void *>(&DummyObj));
+                         RefVariant::makeExtern(&DummyObj));
 
     std::vector<ValVariant> Params = {ValVariant(AnyRefVal)};
     std::vector<ValType> ParamTypes = {ValType(TypeCode::AnyRef)};
@@ -987,7 +987,7 @@ TEST(ExecutorRegression, RefTestNullAbility) {
   // Both nullable and non-nullable ref.test targets should match.
   {
     int DummyObj = 42;
-    RefVariant ExternRefVal(&DummyObj);
+    auto ExternRefVal = RefVariant::makeExtern(&DummyObj);
 
     std::vector<ValVariant> Params = {ValVariant(ExternRefVal)};
     std::vector<ValType> ParamTypes = {ValType(TypeCode::ExternRef)};
@@ -1627,7 +1627,7 @@ TEST(ExecutorRegression, HostFuncMatchesItsDefinedType) {
   ASSERT_TRUE(VM.instantiate());
   auto *TabInst = VM.getActiveModule()->findTableExports("tab");
   ASSERT_NE(TabInst, nullptr);
-  ASSERT_TRUE(TabInst->setRefAddr(0, RefVariant(&HostFunc)));
+  ASSERT_TRUE(TabInst->setRefAddr(0, RefVariant::makeFunc(&HostFunc)));
 
   EXPECT_TRUE(VM.execute("call_f"));
   auto CallRes = VM.execute("call_g");
@@ -1687,7 +1687,7 @@ void checkHostRefValueType(const Configure &Conf) {
   int Object = 0;
   auto *TabInst = VM.getActiveModule()->findTableExports("tab");
   ASSERT_NE(TabInst, nullptr);
-  ASSERT_TRUE(TabInst->setRefAddr(0, RefVariant(&Object)));
+  ASSERT_TRUE(TabInst->setRefAddr(0, RefVariant::makeExtern(&Object)));
   ASSERT_TRUE(TabInst->setRefAddr(1, RefVariant(ValType(TypeCode::ExternRef))));
 
   const auto Run = [&VM](std::string_view Name, uint32_t Index) -> uint32_t {
@@ -1848,7 +1848,7 @@ void checkInvokeArgumentValueType(const Configure &Conf) {
   int Object = 0;
   auto *TabInst = VM.getActiveModule()->findTableExports("tab");
   ASSERT_NE(TabInst, nullptr);
-  ASSERT_TRUE(TabInst->setRefAddr(0, RefVariant(&Object)));
+  ASSERT_TRUE(TabInst->setRefAddr(0, RefVariant::makeExtern(&Object)));
 
   // A result goes back as it was returned, and keeps its own type.
   auto Made = VM.execute("new_struct");

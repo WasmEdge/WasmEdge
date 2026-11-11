@@ -252,7 +252,8 @@ Executor::proxyRefFunc(Runtime::StackManager &,
                        const uint32_t FuncIdx) noexcept {
   auto *FuncInst = getFuncInstByIdx(ModInst, FuncIdx);
   assuming(FuncInst);
-  return RefVariant(ValType(TypeCode::Ref, TypeCode::FuncRef), FuncInst);
+  return RefVariant::makeFunc(ValType(TypeCode::Ref, TypeCode::FuncRef),
+                              FuncInst);
 }
 
 Expect<RefVariant>
@@ -332,7 +333,7 @@ Executor::proxyArraySet(Runtime::StackManager &,
 
 Expect<uint32_t> Executor::proxyArrayLen(Runtime::StackManager &,
                                          const RefVariant Ref) noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
+  auto *Inst = Ref.getArrayInst();
   if (Inst == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
@@ -661,7 +662,7 @@ Executor::proxyThrow(Runtime::StackManager &,
 
 Expect<void> Executor::proxyThrowRef(Runtime::StackManager &,
                                      const RefVariant Ref) noexcept {
-  const auto *ExnInst = Ref.getPtr<Runtime::Instance::ExceptionInstance>();
+  const auto *ExnInst = Ref.getExceptionInst();
   if (unlikely(ExnInst == nullptr)) {
     return Unexpect(ErrCode::Value::AccessNullException);
   }
@@ -691,7 +692,7 @@ Executor::proxyCatchPop(Runtime::StackManager &,
                  ->newException(
                      TagInst, std::vector<ValVariant>(PendingExn.getPayload()));
     }
-    Out[Idx] = RefVariant(ValType(TypeCode::Ref, TypeCode::ExnRef), Inst);
+    Out[Idx] = RefVariant::makeException(Inst);
   }
   PendingExn = {};
   return {};

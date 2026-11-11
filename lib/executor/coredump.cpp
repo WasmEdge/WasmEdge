@@ -497,19 +497,48 @@ AST::GlobalSection createGlobals(const IndexSpaces &Spaces) noexcept {
 Expect<std::string> generateCoredump(const Runtime::StackManager &StackMgr,
                                      AST::InstrView::iterator PC,
                                      bool ForWasmgdb) noexcept {
+  std::vector<const ModuleInstance *> Modules;
+  for (const auto &Frame : StackMgr.getFramesSpan()) {
+    Modules.push_back(Frame.Module);
+  }
+  Modules.push_back(StackMgr.getModule());
+  Request Req;
+  Req.Modules = Modules;
+  Req.Stack = &StackMgr;
+  Req.PC = PC;
+  Req.ForWasmgdb = ForWasmgdb;
+  return generate(Req);
+}
+
+Expect<std::string> generate(const Request &Req) noexcept {
   spdlog::info("Generating coredump..."sv);
 
   IndexSpaces Spaces;
-  FunctionResolver Resolver;
-  for (const auto &Frame : StackMgr.getFramesSpan()) {
-    Spaces.addModule(Frame.Module);
-    Resolver.addModule(Frame.Module);
+  for (const auto *Mod : Req.Modules) {
+    Spaces.addModule(Mod);
   }
-  Spaces.addModule(StackMgr.getModule());
-  Resolver.addModule(StackMgr.getModule());
+  if (Req.Modules.empty()) {
+    spdlog::error("Failed to generate coredump: no module instance found."sv);
+    return Unexpect(ErrCode::Value::IllegalPath);
+  }
+  if (Req.Stack != nullptr) {
+    for (const auto &Frame : Req.Stack->getFramesSpan()) {
+      Spaces.addModule(Frame.Module);
+    }
+    Spaces.addModule(Req.Stack->getModule());
+  }
   if (Spaces.getModules().empty()) {
     spdlog::error("Failed to generate coredump: no module instance found."sv);
     return Unexpect(ErrCode::Value::IllegalPath);
+  }
+
+  std::vector<FrameInfo> Frames;
+  if (Req.Stack != nullptr) {
+    FunctionResolver Resolver;
+    for (const auto *Mod : Spaces.getModules()) {
+      Resolver.addModule(Mod);
+    }
+    Frames = collectFrames(*Req.Stack, Req.PC, Spaces, Resolver);
   }
 
   const Loader::Serializer Ser;
@@ -520,16 +549,15 @@ Expect<std::string> generateCoredump(const Runtime::StackManager &StackMgr,
   auto &Version = Module.getVersion();
   Version.assign({0x01, 0x00, 0x00, 0x00});
 
-  const auto Frames = collectFrames(StackMgr, PC, Spaces, Resolver);
   auto &CustomSections = Module.getCustomSections();
   CustomSections.push_back(
       createCore(Ser, Spaces.getModules().front()->getModuleName()));
   CustomSections.push_back(createCoreModules(Ser, Spaces));
   CustomSections.push_back(createCoreInstances(Ser, Spaces));
-  CustomSections.push_back(createCoreStack(Ser, Frames, ForWasmgdb));
+  CustomSections.push_back(createCoreStack(Ser, Frames, Req.ForWasmgdb));
   Module.getMemorySection() = createMemory(Spaces);
   Module.getGlobalSection() = createGlobals(Spaces);
-  Module.getDataSection() = createData(Spaces, ForWasmgdb);
+  Module.getDataSection() = createData(Spaces, Req.ForWasmgdb);
   // The serializer emits the sections ordered by their start offsets, assign
   // the offsets of a well-formed module to keep the section order valid.
   Module.getMemorySection().setStartOffset(1);
@@ -546,7 +574,10 @@ Expect<std::string> generateCoredump(const Runtime::StackManager &StackMgr,
   }
 
   const std::string Path =
-      "coredump." + std::to_string(static_cast<uint64_t>(std::time(nullptr)));
+      Req.Path.empty()
+          ? "coredump." +
+                std::to_string(static_cast<uint64_t>(std::time(nullptr)))
+          : std::string(Req.Path);
   std::ofstream File(Path, std::ios::out | std::ios::binary);
   if (!File.is_open()) {
     spdlog::error("Failed to open the coredump file {}."sv, Path);

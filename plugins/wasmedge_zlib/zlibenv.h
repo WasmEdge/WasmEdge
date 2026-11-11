@@ -130,9 +130,7 @@ public:
     gzFile GZ;
     bool CanSeek;
     bool CanTell;
-    bool RestoredAppendOffset;
     bool OpenedForRead = false;
-    int64_t OwnedWasiFd = -1;
   };
 
   WasmEdgeZlibEnvironment() = default;

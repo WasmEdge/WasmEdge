@@ -1667,7 +1667,7 @@ void Poller::wait() noexcept {
       bool UnknownNBytes = false;
       int ReadBufUsed = 0;
       if (auto Res = ::ioctl(KEvent.ident, FIONREAD, &ReadBufUsed);
-          unlikely(Res == 0)) {
+          unlikely(Res != 0)) {
         UnknownNBytes = true;
       }
       if (UnknownNBytes) {

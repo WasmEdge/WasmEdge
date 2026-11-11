@@ -2512,7 +2512,7 @@ void Poller::wait() noexcept {
       bool UnknownNBytes = false;
       u_long ReadBufUsed = 0;
       if (auto Res = ioctlsocket(Socket, FIONREAD, &ReadBufUsed);
-          unlikely(Res == 0)) {
+          unlikely(Res != 0)) {
         UnknownNBytes = true;
       }
       if (UnknownNBytes) {

@@ -158,6 +158,24 @@ Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::AccessNullFunc);
   }
 
+  const auto *ModInst = StackMgr.getModule();
+  const uint32_t TypeIdx = Instr.getTargetIndex();
+  if ((FuncInst->getModule() != ModInst ||
+       FuncInst->getTypeIndex() != TypeIdx) &&
+      !Runtime::Matcher::matchRef(ModInst, ValType(TypeCode::Ref, TypeIdx),
+                                  Ref)) {
+    auto &ExpFuncType =
+        ModInst->unsafeGetType(TypeIdx)->getCompositeType().getFuncType();
+    auto &GotFuncType = FuncInst->getFuncType();
+    spdlog::error(ErrCode::Value::IndirectCallTypeMismatch);
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    spdlog::error(ErrInfo::InfoMismatch(
+        ExpFuncType.getParamTypes(), ExpFuncType.getReturnTypes(),
+        GotFuncType.getParamTypes(), GotFuncType.getReturnTypes()));
+    return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
+  }
+
   // Get Function address.
   EXPECTED_TRY(auto NextPC,
                enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall));

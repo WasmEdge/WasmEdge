@@ -6,6 +6,8 @@
 #include "common/spdlog.h"
 
 #include <algorithm>
+#include <cstring>
+#include <memory>
 #include <string>
 
 namespace WasmEdge {
@@ -55,8 +57,9 @@ Expect<uint32_t> GetOutput::body(const Runtime::CallingFrame &Frame,
   }
 
   tesseract::PageIteratorLevel level = tesseract::RIL_WORD;
-  std::unique_ptr<const char[]> outText = Env.TesseractApi->GetTSVText(level);
-  std::copy_n(outText, std::min<size_t>(std::strlen(outText.get()), Buf.size()),
+  std::unique_ptr<const char[]> outText(Env.TesseractApi->GetTSVText(level));
+  std::copy_n(outText.get(),
+              std::min<size_t>(std::strlen(outText.get()), Buf.size()),
               Buf.begin());
 
   // remaining free and deltee memory stuff

@@ -24,8 +24,6 @@ using namespace std::literals;
 
 const std::string WASILogging::LogEnv::DefFormat =
     "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v";
-std::mutex WASILogging::LogEnv::Mutex;
-std::unordered_set<uint64_t> WASILogging::LogEnv::RegisteredID;
 
 WasiLoggingModule::WasiLoggingModule()
     : ModuleInstance("wasi:logging/logging"sv) {

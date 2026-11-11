@@ -4,6 +4,7 @@
 #pragma once
 
 #include "avcodec/module.h"
+#include "avdevice/module.h"
 #include "avfilter/module.h"
 #include "avformat/module.h"
 #include "avutil/module.h"
@@ -11,12 +12,24 @@
 #include "swresample/module.h"
 #include "swscale/module.h"
 
+#include "common/defines.h"
 #include "common/types.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 
 #include <gtest/gtest.h>
+
+#include <cstdint>
+#include <fstream>
+#include <iterator>
 #include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#include <fcntl.h>
+#endif
 
 namespace WasmEdge {
 namespace Host {
@@ -66,6 +79,36 @@ inline uint32_t readUInt32(WasmEdge::Runtime::Instance::MemoryInstance *MemInst,
                            uint32_t &Ptr) {
   uint32_t *BufPtr = MemInst->getPointer<uint32_t *>(Ptr);
   return *BufPtr;
+}
+
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+inline int countOpenDescriptors() {
+  int Count = 0;
+  for (int Fd = 0; Fd < 1024; ++Fd) {
+    if (fcntl(Fd, F_GETFD) != -1) {
+      ++Count;
+    }
+  }
+  return Count;
+}
+#endif
+
+// The RIFF chunk size at offset 4 of a WAV file, and the file's size. The
+// wav muxer writes the chunk size as 0xFFFFFFFF in its header and patches in
+// the real one, the file size less 8, only in its trailer.
+inline std::pair<uint32_t, uint32_t>
+wavRiffAndFileSize(const std::string &Path) {
+  std::ifstream In(Path, std::ios::binary);
+  std::vector<unsigned char> Bytes((std::istreambuf_iterator<char>(In)),
+                                   std::istreambuf_iterator<char>());
+  uint32_t RiffSize = 0;
+  if (Bytes.size() >= 8) {
+    RiffSize = static_cast<uint32_t>(Bytes[4]) |
+               (static_cast<uint32_t>(Bytes[5]) << 8) |
+               (static_cast<uint32_t>(Bytes[6]) << 16) |
+               (static_cast<uint32_t>(Bytes[7]) << 24);
+  }
+  return {RiffSize, static_cast<uint32_t>(Bytes.size())};
 }
 
 class FFmpegTest : public ::testing::Test {
@@ -122,6 +165,13 @@ public:
                                    WasmEdgeFFmpegAVFilterModule>(
                 Module->create());
       }
+      if (const auto *Module =
+              Plugin->findModule("wasmedge_ffmpeg_avdevice"sv)) {
+        AVDeviceMod =
+            dynamicPointerCast<WasmEdge::Host::WasmEdgeFFmpeg::AVDevice::
+                                   WasmEdgeFFmpegAVDeviceModule>(
+                Module->create());
+      }
     }
   }
 
@@ -166,6 +216,9 @@ protected:
   std::unique_ptr<
       WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::WasmEdgeFFmpegAVFilterModule>
       AVFilterMod;
+  std::unique_ptr<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVDevice::WasmEdgeFFmpegAVDeviceModule>
+      AVDeviceMod;
 };
 
 } // namespace WasmEdgeFFmpeg

@@ -217,18 +217,11 @@ Expect<void> ExternName::parseInterfaceName() noexcept {
     return Unexpect(ErrCode::Value::NameTrailingCharacters);
   }
 
+  // The version waits for its `version-suffix`: see checkVersion.
   std::string_view Version;
   if (!Rest.empty()) {
     Rest.remove_prefix(1);
     Version = Rest;
-    if (!isCanonVersion(Version)) {
-      if (auto Res = scanSemver(Version); !Res) {
-        spdlog::error(Res.error().getEnum());
-        spdlog::error("    Component name: version '{}' is not valid"sv,
-                      Version);
-        return Unexpect(Res);
-      }
-    }
   }
 
   NameDetail.Namespace = Namespace;
@@ -260,51 +253,49 @@ Expect<void> ExternName::checkWordsLabel(std::string_view Label,
   return {};
 }
 
-// semversuffix ::= [0-9A-Za-z.+-]*
-Expect<void>
-ExternName::checkVersionSuffix(std::string_view Suffix) const noexcept {
-  for (char C : Suffix) {
-    if (!isalnum(static_cast<unsigned char>(C)) && C != '.' && C != '+' &&
-        C != '-') {
-      spdlog::error(ErrCode::Value::ComponentVersionSuffixInvalid);
-      spdlog::error("    `versionsuffix` `{}` is not a semver suffix"sv,
-                    Suffix);
-      return Unexpect(ErrCode::Value::ComponentVersionSuffixInvalid);
+// interfaceversion ::= '@' <valid semver> | '@' <canonversion>, the latter
+// with its `version-suffix` (Explainer.md `Canonical Interface Name`).
+Expect<void> ExternName::checkVersion(std::string_view Suffix) const noexcept {
+  if (OriName.find('@') == std::string_view::npos) {
+    if (Suffix.empty()) {
+      return {};
     }
-  }
-  if (NameKind != Kind::InterfaceType || NameDetail.Version.empty() ||
-      !isCanonVersion(NameDetail.Version)) {
-    spdlog::error(ErrCode::Value::ComponentVersionSuffixInvalid);
-    spdlog::error("    `versionsuffix` needs a preceding canonical version"sv);
-    return Unexpect(ErrCode::Value::ComponentVersionSuffixInvalid);
+    spdlog::error(ErrCode::Value::ComponentVersionSuffixNoVersion);
+    spdlog::error("    name `{}` has no version for `version-suffix` `{}`"sv,
+                  OriName, Suffix);
+    return Unexpect(ErrCode::Value::ComponentVersionSuffixNoVersion);
   }
   std::string Full(NameDetail.Version);
   Full.append(Suffix);
-  if (!scanSemver(Full)) {
+  if (auto Res = scanSemver(Full); !Res) {
+    spdlog::error(Res.error().getEnum());
+    spdlog::error("    Component name: version '{}' is not valid"sv, Full);
+    return Unexpect(Res);
+  }
+  if (Suffix.empty()) {
+    return {};
+  }
+  // The split is after a non-zero `major`, else after a non-zero `minor`,
+  // else before the build; a version with a pre-release only splits there.
+  const std::string_view NoBuild =
+      std::string_view(Full).substr(0, Full.find('+'));
+  const size_t MajorLen = NoBuild.find('.');
+  const size_t MinorLen = NoBuild.find('.', MajorLen + 1) - MajorLen - 1;
+  size_t CanonLen = NoBuild.size();
+  if (NoBuild.find('-') == std::string_view::npos) {
+    if (NoBuild.substr(0, MajorLen) != "0"sv) {
+      CanonLen = MajorLen;
+    } else if (NoBuild.substr(MajorLen + 1, MinorLen) != "0"sv) {
+      CanonLen = MajorLen + 1 + MinorLen;
+    }
+  }
+  if (CanonLen != NameDetail.Version.size()) {
     spdlog::error(ErrCode::Value::ComponentVersionSuffixInvalid);
-    spdlog::error("    `{}` and `versionsuffix` `{}` are not a valid semver"sv,
-                  NameDetail.Version, Suffix);
+    spdlog::error("    `{}` is not the canonical version of `{}`"sv,
+                  NameDetail.Version, Full);
     return Unexpect(ErrCode::Value::ComponentVersionSuffixInvalid);
   }
   return {};
-}
-
-// canonversion ::= [1-9] [0-9]* | '0.' [1-9] [0-9]* | '0.0.' [1-9] [0-9]*
-bool ExternName::isCanonVersion(std::string_view V) const noexcept {
-  if (V.substr(0, 4) == "0.0."sv) {
-    V.remove_prefix(4);
-  } else if (V.substr(0, 2) == "0."sv) {
-    V.remove_prefix(2);
-  }
-  if (V.empty() || V[0] < '1' || V[0] > '9') {
-    return false;
-  }
-  for (char C : V) {
-    if (!isdigit(static_cast<unsigned char>(C))) {
-      return false;
-    }
-  }
-  return true;
 }
 
 // Scans MAJOR.MINOR.PATCH[-prerelease][+build] per semver.org 2.0, unlogged.

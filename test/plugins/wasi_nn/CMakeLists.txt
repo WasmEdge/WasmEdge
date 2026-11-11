@@ -103,14 +103,14 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   elseif(BACKEND STREQUAL "piper")
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures")
     wasmedge_download(
-      https://github.com/OHF-Voice/piper1-gpl/raw/v1.3.0/tests/test_voice.onnx
+      https://github.com/OHF-Voice/piper1-gpl/raw/v1.8.0/tests/test_voice.onnx
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/test_voice.onnx
       SHA256=1c8bbb420741358f0a356bb83eaae1b4161fbb5974f6941e10eb5a1725d78994
     )
     wasmedge_download(
-      https://github.com/OHF-Voice/piper1-gpl/raw/v1.3.0/tests/test_voice.onnx.json
+      https://github.com/OHF-Voice/piper1-gpl/raw/v1.8.0/tests/test_voice.onnx.json
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/test_voice.onnx.json
-      SHA256=ccd28e02c334fbcfc94a86c8f86f1d7dbb5bffc844af9f22243a1f9f7840db1b
+      SHA256=12da0922f6dc5f311cb7371562135f251ae6c951ae26e3a2db6092cdd1e02fc6
     )
     set(ESPEAK_SOURCE_DIR "")
 
@@ -136,34 +136,6 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     else()
         message(WARNING "Could not find espeak-ng-data under ${PIPER_ROOT}")
     endif()
-    if(DEFINED PIPER_ROOT)
-      find_library(ESPEAK_NG_LIB
-          NAMES espeak-ng libespeak-ng
-          PATHS /usr/local/lib /usr/local/lib64
-          NO_DEFAULT_PATH
-      )
-      if (NOT ESPEAK_NG_LIB)
-          find_library(ESPEAK_NG_LIB NAMES espeak-ng libespeak-ng)
-      endif()
-      find_library(UCD_LIB
-          NAMES ucd libucd
-          PATHS /usr/local/lib /usr/local/lib64
-          NO_DEFAULT_PATH
-      )
-      if (NOT UCD_LIB)
-          find_library(UCD_LIB NAMES ucd libucd)
-      endif()
-      set(ESPEAK_TARGETS ${ESPEAK_NG_LIB} ${UCD_LIB})
-
-    else()
-      set(ESPEAK_TARGETS "")
-    endif()
-
-    target_link_libraries(wasiNNTests
-      PRIVATE
-      onnxruntime
-      ${ESPEAK_TARGETS}
-    )
   elseif(BACKEND STREQUAL "whisper")
     message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_whisper_fixtures")
     wasmedge_download(

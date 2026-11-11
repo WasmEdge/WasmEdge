@@ -322,26 +322,39 @@ TEST(ComponentNameParserTest, StronglyUniqueImportExportIndependence) {
 }
 
 TEST(ComponentNameParserTest, Semver) {
+  // The version of an interface name is checked with its `version-suffix`.
+  auto Check = [](std::string_view Name, std::string_view Suffix = {}) {
+    auto CName = parseName(Name);
+    return CName.has_value() && CName->checkVersion(Suffix).has_value();
+  };
   // Valid semver via interface names.
-  EXPECT_TRUE(parseName("ns:pkg/iface@1.2.3"sv));
-  EXPECT_TRUE(parseName("ns:pkg/iface@0.1.0"sv));
-  EXPECT_TRUE(parseName("ns:pkg/iface@1.2.3-beta.1"sv));
-  EXPECT_TRUE(parseName("ns:pkg/iface@1.2.3+build"sv));
-  EXPECT_TRUE(parseName("ns:pkg/iface@1.2.3-beta.1+build.42"sv));
-  // Valid canonversion.
-  EXPECT_TRUE(parseName("ns:pkg/iface@1"sv));
-  EXPECT_TRUE(parseName("ns:pkg/iface@0.1"sv));
-  EXPECT_TRUE(parseName("ns:pkg/iface@0.0.1"sv));
-  EXPECT_TRUE(parseName("ns:pkg/iface@42"sv));
+  EXPECT_TRUE(Check("ns:pkg/iface@1.2.3"sv));
+  EXPECT_TRUE(Check("ns:pkg/iface@0.1.0"sv));
+  EXPECT_TRUE(Check("ns:pkg/iface@1.2.3-beta.1"sv));
+  EXPECT_TRUE(Check("ns:pkg/iface@1.2.3+build"sv));
+  EXPECT_TRUE(Check("ns:pkg/iface@1.2.3-beta.1+build.42"sv));
+  // A canonversion needs the suffix that completes it.
+  EXPECT_FALSE(Check("ns:pkg/iface@1"sv));
+  EXPECT_TRUE(Check("ns:pkg/iface@1"sv, ".2.3"sv));
+  EXPECT_FALSE(Check("ns:pkg/iface@0.1"sv));
+  EXPECT_TRUE(Check("ns:pkg/iface@0.1"sv, ".0+build"sv));
+  EXPECT_TRUE(Check("ns:pkg/iface@0.0.1"sv));
+  EXPECT_TRUE(Check("ns:pkg/iface@42"sv, ".0.0"sv));
+  EXPECT_TRUE(Check("ns:pkg/iface@1.2.3-beta.1"sv, "+build"sv));
+  // The version and the suffix must be the canonical split.
+  EXPECT_FALSE(Check("ns:pkg/iface@1.2"sv, ".3"sv));
+  EXPECT_FALSE(Check("ns:pkg/iface@0"sv, ".1.0"sv));
+  EXPECT_FALSE(Check("ns:pkg/iface@1"sv, ".2.3-beta"sv));
+  EXPECT_FALSE(Check("ns:pkg/iface"sv, ".2.3"sv));
   // Invalid versions.
-  EXPECT_FALSE(parseName("ns:pkg/iface@01.2.3"sv));
-  EXPECT_FALSE(parseName("ns:pkg/iface@abc"sv));
+  EXPECT_FALSE(Check("ns:pkg/iface@01.2.3"sv));
+  EXPECT_FALSE(Check("ns:pkg/iface@abc"sv));
   EXPECT_FALSE(parseName("a:B/c"sv));
   EXPECT_FALSE(parseName("ns:PKG/iface"sv));
   EXPECT_FALSE(parseName("ns:Pkg/iface"sv));
-  EXPECT_FALSE(parseName("ns:pkg/iface@"sv));
-  EXPECT_TRUE(parseName("ns:pkg/iface@0.0.0"sv));
-  EXPECT_FALSE(parseName("ns:pkg/iface@0"sv));
+  EXPECT_FALSE(Check("ns:pkg/iface@"sv));
+  EXPECT_TRUE(Check("ns:pkg/iface@0.0.0"sv));
+  EXPECT_FALSE(Check("ns:pkg/iface@0"sv));
 }
 
 TEST(ComponentNameParserTest, SpecExamples) {
@@ -499,7 +512,7 @@ TEST(ComponentLoaderTest, NameAttributesRejectDuplicateKinds) {
   WasmEdge::Loader::Loader Loader(Conf);
 
   // Component importing a func named "f" with two attributes of the given
-  // kind: 0x00 implements, 0x01 versionsuffix, 0x02 external-id.
+  // kind: 0x00 implements, 0x01 version-suffix, 0x02 external-id.
   auto Load = [&Loader](uint8_t Kind) {
     std::vector<uint8_t> Vec = {
         0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // preamble
@@ -619,8 +632,8 @@ TEST(ComponentLoaderTest, CoreModuleTypeDeclaresRecType) {
   WasmEdge::Loader::Loader Loader(Conf);
 
   // (core type (module (type (sub (func))))): a bare 0x50 is a non-final sub.
-  EXPECT_TRUE(Loader.parseWasmUnit(makeTypeSection(
-      0x03, {0x50, 0x01, 0x01, 0x50, 0x00, 0x60, 0x00, 0x00})));
+  EXPECT_TRUE(Loader.parseWasmUnit(
+      makeTypeSection(0x03, {0x50, 0x01, 0x01, 0x50, 0x00, 0x60, 0x00, 0x00})));
 
   // 0x00 does not start a core:rectype, and a nested module type is a sub
   // missing its comptype.

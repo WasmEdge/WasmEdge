@@ -172,7 +172,7 @@ Triggered by changes to `utils/install.sh`, `utils/install_v2.sh`,
 
 ### Docker assets
 
-Triggered by changes under `utils/docker/`, `utils/ffmpeg/`, `utils/opencvmini/`,
+Triggered by changes under `utils/docker/`, `utils/ffmpeg/`,
 `utils/wasi-crypto/`, or `utils/wasi-nn/`.
 
 Changes to `utils/docker/*static*` also trigger **Core** because those static
@@ -210,7 +210,7 @@ workflows are called by the entries below and are not listed here; see
 | Static Code Analysis | `static-code-analysis.yml` | `workflow_dispatch`, `push` (`master`), `pull_request` (`master`, `proposal/**`); paths: `include/`, `lib/`, `plugins/`, `test/`, `thirdparty/`, `tools/`, `cmake/`, `CMakeLists.txt` | Meta Infer; uploads report artifact |
 | Test Wasi Testsuite | `wasi-testsuite.yml` | `push` (`master`), `pull_request` (`master`); paths: adapter script + workflow, `lib/host/wasi/`, `include/host/wasi/`, `thirdparty/wasi/` | runs the WebAssembly wasi-testsuite |
 | Installers | `test-installers.yml` | `push` (`master`), `pull_request` (`master`); paths: workflow, `utils/install.sh`, `utils/install_v2.sh`, `utils/install.py`, `utils/uninstall.sh` | black check + installer/uninstaller tests |
-| docker | `docker.yml` | `push` (`master`), `pull_request`, periodic `schedule` (days 1/8/15/22/29 of each month); paths: workflow, `utils/docker/`, `utils/ffmpeg/`, `utils/opencvmini/`, `utils/wasi-crypto/`, `utils/wasi-nn/` | builds the affected base/CI images |
+| docker | `docker.yml` | `push` (`master`), `pull_request`, periodic `schedule` (days 1/8/15/22/29 of each month); paths: workflow, `utils/docker/`, `utils/ffmpeg/`, `utils/wasi-crypto/`, `utils/wasi-nn/` | builds the affected base/CI images |
 | Build and Test WasmEdge on riscv64 arch | `build_for_riscv.yml` | `push` (`master`), `pull_request` (`master`, `proposal/**`); paths: core engine paths (not `test/plugins/`) | emulated build/test |
 | Build and Test WasmEdge on s390x arch | `build_for_s390x.yml` | `workflow_dispatch` only | emulated build/test; run manually from the Actions tab |
 | Test WasmEdge on OpenWrt | `build_for_openwrt.yml` | `workflow_dispatch` only | build/test on OpenWrt; run manually from the Actions tab |

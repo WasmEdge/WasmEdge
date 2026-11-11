@@ -8,10 +8,47 @@ extern "C" {
 #include "libavformat/avformat.h"
 }
 
+#include <vector>
+
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVFormat {
+
+namespace {
+bool isInputContext(const AVFormatContext *Ctx) {
+  return Ctx->iformat != nullptr;
+}
+
+bool isOutputContext(const AVFormatContext *Ctx) {
+  return Ctx->oformat != nullptr;
+}
+
+// AVFMT_FLAG_CUSTOM_IO tells libavformat that the caller owns pb, which no
+// guest can: the only pb is the one avformat_open_input opens itself, and
+// the flag would stop avformat_close_input (and a failed open) from closing
+// it. Let libavformat parse the option set so every spelling is caught.
+bool optionsRequestCustomIo(const AVDictionary *Options) {
+  if (Options == nullptr) {
+    return false;
+  }
+  AVDictionary *Copy = nullptr;
+  if (av_dict_copy(&Copy, Options, 0) < 0) {
+    av_dict_free(&Copy);
+    return true;
+  }
+  AVFormatContext *Probe = avformat_alloc_context();
+  if (Probe == nullptr) {
+    av_dict_free(&Copy);
+    return true;
+  }
+  av_opt_set_dict(Probe, &Copy);
+  bool const CustomIo = (Probe->flags & AVFMT_FLAG_CUSTOM_IO) != 0;
+  avformat_free_context(Probe);
+  av_dict_free(&Copy);
+  return CustomIo;
+}
+} // namespace
 
 Expect<int32_t> AVFormatOpenInput::body(const Runtime::CallingFrame &Frame,
                                         uint32_t AvFormatCtxPtr,
@@ -19,20 +56,30 @@ Expect<int32_t> AVFormatOpenInput::body(const Runtime::CallingFrame &Frame,
                                         uint32_t AvInputFormatId,
                                         uint32_t AvDictionaryId) {
   MEMINST_CHECK(MemInst, Frame, 0);
-  MEM_PTR_CHECK(urlId, MemInst, char, UrlPtr,
-                "Failed when accessing the return URL memory"sv);
   MEM_PTR_CHECK(AvFormatCtxId, MemInst, uint32_t, AvFormatCtxPtr,
                 "Failed when accessing the return AVFormatContext Memory"sv);
+  *AvFormatCtxId = 0;
+  MEM_SPAN_CHECK(UrlId, MemInst, char, UrlPtr, UrlSize,
+                 "Failed when accessing the return URL memory"sv);
 
-  std::string TargetUrl;
-  std::copy_n(urlId, UrlSize, std::back_inserter(TargetUrl));
+  std::string TargetUrl(UrlId.data(), UrlSize);
 
   AVFormatContext *AvFormatContext = nullptr;
   FFMPEG_PTR_FETCH(AvDictionary, AvDictionaryId, AVDictionary *);
   FFMPEG_PTR_FETCH(AvInputFormat, AvInputFormatId, AVInputFormat);
+  FFMPEG_PTR_CHECK_NONZERO(AvDictionary, AvDictionaryId,
+                           static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK_NONZERO(AvInputFormat, AvInputFormatId,
+                           static_cast<int32_t>(ErrNo::InternalError));
+  if (AvDictionary != nullptr && optionsRequestCustomIo(*AvDictionary)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
 
   int const Res = avformat_open_input(&AvFormatContext, TargetUrl.c_str(),
                                       AvInputFormat, AvDictionary);
+  if (Res < 0) {
+    return Res;
+  }
   FFMPEG_PTR_STORE(AvFormatContext, AvFormatCtxId);
   return Res;
 }
@@ -41,14 +88,44 @@ Expect<int32_t> AVFormatFindStreamInfo::body(const Runtime::CallingFrame &,
                                              uint32_t AvFormatCtxId,
                                              uint32_t AvDictionaryId) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatContext, static_cast<int32_t>(ErrNo::InternalError));
+  if (!isInputContext(AvFormatContext)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   FFMPEG_PTR_FETCH(AvDictionary, AvDictionaryId, AVDictionary *);
-  return avformat_find_stream_info(AvFormatContext, AvDictionary);
+  FFMPEG_PTR_CHECK_NONZERO(AvDictionary, AvDictionaryId,
+                           static_cast<int32_t>(ErrNo::InternalError));
+  if (AvDictionary == nullptr || AvFormatContext->nb_streams == 0) {
+    return avformat_find_stream_info(AvFormatContext, nullptr);
+  }
+
+  std::vector<AVDictionary *> Options(AvFormatContext->nb_streams, nullptr);
+  auto FreeOptions = [&Options]() {
+    for (AVDictionary *&Dict : Options) {
+      av_dict_free(&Dict);
+    }
+  };
+  for (AVDictionary *&Dict : Options) {
+    if (av_dict_copy(&Dict, *AvDictionary, 0) < 0) {
+      FreeOptions();
+      return static_cast<int32_t>(ErrNo::InternalError);
+    }
+  }
+  int const Res = avformat_find_stream_info(AvFormatContext, Options.data());
+  FreeOptions();
+  return Res;
 }
 
 Expect<int32_t> AVFormatCloseInput::body(const Runtime::CallingFrame &,
                                          uint32_t AvFormatCtxId) {
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK_FREE(AvFormatCtx, AvFormatCtxId,
+                        static_cast<int32_t>(ErrNo::InternalError));
+  if (!isInputContext(AvFormatCtx)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   avformat_close_input(&AvFormatCtx);
+  Env.get()->deallocChildren(AvFormatCtxId);
   FFMPEG_PTR_DELETE(AvFormatCtxId);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -56,12 +133,20 @@ Expect<int32_t> AVFormatCloseInput::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVReadPause::body(const Runtime::CallingFrame &,
                                   uint32_t AvFormatCtxId) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatContext, static_cast<int32_t>(ErrNo::InternalError));
+  if (!isInputContext(AvFormatContext)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return av_read_pause(AvFormatContext);
 }
 
 Expect<int32_t> AVReadPlay::body(const Runtime::CallingFrame &,
                                  uint32_t AvFormatCtxId) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatContext, static_cast<int32_t>(ErrNo::InternalError));
+  if (!isInputContext(AvFormatContext)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return av_read_play(AvFormatContext);
 }
 
@@ -71,30 +156,45 @@ Expect<int32_t> AVFormatSeekFile::body(const Runtime::CallingFrame &,
                                        int64_t Ts, int64_t MaxTs,
                                        int32_t Flags) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatContext, static_cast<int32_t>(ErrNo::InternalError));
+  if (!isInputContext(AvFormatContext)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return avformat_seek_file(AvFormatContext, StreamIdx, MinTs, Ts, MaxTs,
                             Flags);
 }
 
 Expect<int32_t> AVDumpFormat::body(const Runtime::CallingFrame &Frame,
                                    uint32_t AvFormatCtxId, int32_t Idx,
-                                   uint32_t UrlPtr, uint32_t UrlSize,
-                                   int32_t IsOutput) {
-  std::string TargetUrl;
-
+                                   uint32_t UrlPtr, uint32_t UrlSize, int32_t) {
   MEMINST_CHECK(MemInst, Frame, 0);
-  MEM_PTR_CHECK(UrlBuf, MemInst, char, UrlPtr, "");
+  MEM_SPAN_CHECK(UrlBuf, MemInst, char, UrlPtr, UrlSize, "");
 
-  std::copy_n(UrlBuf, UrlSize, std::back_inserter(TargetUrl));
+  std::string TargetUrl(UrlBuf.data(), UrlSize);
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatCtx, static_cast<int32_t>(ErrNo::InternalError));
 
-  av_dump_format(AvFormatCtx, Idx, TargetUrl.c_str(), IsOutput);
+  av_dump_format(AvFormatCtx, Idx, TargetUrl.c_str(),
+                 isOutputContext(AvFormatCtx) ? 1 : 0);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<int32_t> AVFormatFreeContext::body(const Runtime::CallingFrame &,
                                           uint32_t AvFormatCtxId) {
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK_FREE(AvFormatCtx, AvFormatCtxId,
+                        static_cast<int32_t>(ErrNo::InternalError));
+  if (isInputContext(AvFormatCtx)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  if (Env.get()->isMuxing(AvFormatCtxId)) {
+    av_write_trailer(AvFormatCtx);
+  }
+  // An output context's pb only ever comes from the avio_open wrappers, and
+  // avformat_free_context leaves it open.
+  avio_closep(&AvFormatCtx->pb);
   avformat_free_context(AvFormatCtx);
+  Env.get()->deallocChildren(AvFormatCtxId);
   FFMPEG_PTR_DELETE(AvFormatCtxId);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -106,26 +206,41 @@ Expect<int32_t> AVFindBestStream::body(const Runtime::CallingFrame &,
                                        int32_t RelatedStream,
                                        uint32_t DecoderRetId, int32_t Flags) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  FFMPEG_PTR_FETCH(DecoderRet, DecoderRetId, const AVCodec *);
+  FFMPEG_PTR_CHECK(AvFormatContext, static_cast<int32_t>(ErrNo::InternalError));
+
+  if (DecoderRetId != 0) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
 
   AVMediaType const AvMediaType =
       FFmpegUtils::MediaType::intoMediaType(MediaTypeId);
   return av_find_best_stream(AvFormatContext, AvMediaType, WantedStream,
-                             RelatedStream, DecoderRet, Flags);
+                             RelatedStream, nullptr, Flags);
 }
 
 Expect<int32_t> AVReadFrame::body(const Runtime::CallingFrame &,
                                   uint32_t AvFormatCtxId, uint32_t PacketId) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatContext, static_cast<int32_t>(ErrNo::InternalError));
   FFMPEG_PTR_FETCH(AvPacket, PacketId, AVPacket);
+  FFMPEG_PTR_CHECK(AvPacket, static_cast<int32_t>(ErrNo::InternalError));
 
+  if (!isInputContext(AvFormatContext)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  av_packet_unref(AvPacket);
   return av_read_frame(AvFormatContext, AvPacket);
 }
 
 Expect<int32_t> AVIOClose::body(const Runtime::CallingFrame &,
                                 uint32_t AvFormatCtxId) {
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
-  avio_close(AvFormatCtx->pb);
+  FFMPEG_PTR_CHECK_FREE(AvFormatCtx, AvFormatCtxId,
+                        static_cast<int32_t>(ErrNo::InternalError));
+  if (isInputContext(AvFormatCtx) || Env.get()->isMuxing(AvFormatCtxId)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  avio_closep(&AvFormatCtx->pb);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -141,14 +256,35 @@ Expect<int32_t> AVFormatWriteHeader::body(const Runtime::CallingFrame &,
                                           uint32_t AvFormatCtxId,
                                           uint32_t DictId) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatContext, static_cast<int32_t>(ErrNo::InternalError));
   FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
-  return avformat_write_header(AvFormatContext, AvDict);
+  FFMPEG_PTR_CHECK_NONZERO(AvDict, DictId,
+                           static_cast<int32_t>(ErrNo::InternalError));
+  if (!isOutputContext(AvFormatContext) ||
+      Env.get()->isMuxerLocked(AvFormatCtxId) ||
+      (!(AvFormatContext->oformat->flags & AVFMT_NOFILE) &&
+       AvFormatContext->pb == nullptr) ||
+      (AvFormatContext->pb != nullptr && !AvFormatContext->pb->write_flag)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  int const Res = avformat_write_header(AvFormatContext, AvDict);
+  Env.get()->setFlag(AvFormatCtxId, Res >= 0
+                                        ? WasmEdgeFFmpegEnv::MuxHeaderWritten
+                                        : WasmEdgeFFmpegEnv::MuxFailed);
+  return Res;
 }
 
 Expect<int32_t> AVFormatWriteTrailer::body(const Runtime::CallingFrame &,
                                            uint32_t AvFormatCtxId) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  return av_write_trailer(AvFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatContext, static_cast<int32_t>(ErrNo::InternalError));
+  if (!isOutputContext(AvFormatContext) ||
+      !Env.get()->isMuxing(AvFormatCtxId)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  int const Res = av_write_trailer(AvFormatContext);
+  Env.get()->setFlag(AvFormatCtxId, WasmEdgeFFmpegEnv::MuxTrailerWritten);
+  return Res;
 }
 
 Expect<int32_t> AVFormatAllocOutputContext2::body(
@@ -157,22 +293,24 @@ Expect<int32_t> AVFormatAllocOutputContext2::body(
     uint32_t FileNamePtr, uint32_t FileNameLen) {
   std::string Format;
   MEMINST_CHECK(MemInst, Frame, 0);
-  MEM_PTR_CHECK(FileId, MemInst, char, FileNamePtr,
-                "Failed when accessing the return FileName memory"sv);
-  if (FormatLen > 0) {
-    MEM_PTR_CHECK(FormatId, MemInst, char, FormatNamePtr,
-                  "Failed when accessing the return FormatName memory"sv);
-
-    std::copy_n(FormatId, FormatLen, std::back_inserter(Format));
-  }
   MEM_PTR_CHECK(AvFormatCtxId, MemInst, uint32_t, AvFormatCtxPtr,
                 "Failed when accessing the return AVFormatContext Memory"sv);
+  *AvFormatCtxId = 0;
+  MEM_SPAN_CHECK(FileId, MemInst, char, FileNamePtr, FileNameLen,
+                 "Failed when accessing the return FileName memory"sv);
+  if (FormatLen > 0) {
+    MEM_SPAN_CHECK(FormatId, MemInst, char, FormatNamePtr, FormatLen,
+                   "Failed when accessing the return FormatName memory"sv);
 
-  std::string File;
-  std::copy_n(FileId, FileNameLen, std::back_inserter(File));
+    Format.assign(FormatId.data(), FormatLen);
+  }
+
+  std::string File(FileId.data(), FileNameLen);
 
   AVFormatContext *AvFormatContext = nullptr;
   FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
+  FFMPEG_PTR_CHECK_NONZERO(AvOutputFormat, AVOutputFormatId,
+                           static_cast<int32_t>(ErrNo::InternalError));
 
   int Res = 0;
   if (FormatLen == 0) {
@@ -182,6 +320,9 @@ Expect<int32_t> AVFormatAllocOutputContext2::body(
     Res = avformat_alloc_output_context2(&AvFormatContext, AvOutputFormat,
                                          Format.c_str(), File.c_str());
   }
+  if (Res < 0) {
+    return Res;
+  }
   FFMPEG_PTR_STORE(AvFormatContext, AvFormatCtxId);
   return Res;
 }
@@ -190,14 +331,18 @@ Expect<int32_t> AVIOOpen::body(const Runtime::CallingFrame &Frame,
                                uint32_t AvFormatCtxId, uint32_t FileNamePtr,
                                uint32_t FileNameLen, int32_t Flags) {
   MEMINST_CHECK(MemInst, Frame, 0);
-  MEM_PTR_CHECK(FileId, MemInst, char, FileNamePtr,
-                "Failed when accessing the return FileName memory"sv);
+  MEM_SPAN_CHECK(FileId, MemInst, char, FileNamePtr, FileNameLen,
+                 "Failed when accessing the return FileName memory"sv);
 
-  std::string File;
-  std::copy_n(FileId, FileNameLen, std::back_inserter(File));
+  std::string File(FileId.data(), FileNameLen);
 
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatContext, static_cast<int32_t>(ErrNo::InternalError));
 
+  if (isInputContext(AvFormatContext) || AvFormatContext->pb != nullptr ||
+      !(Flags & AVIO_FLAG_WRITE)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return avio_open(&(AvFormatContext->pb), File.c_str(), Flags);
 }
 
@@ -207,16 +352,24 @@ Expect<int32_t> AVIOOpen2::body(const Runtime::CallingFrame &Frame,
                                 uint32_t AVIOInterruptCBId,
                                 uint32_t AVDictionaryId) {
   MEMINST_CHECK(MemInst, Frame, 0);
-  MEM_PTR_CHECK(UrlId, MemInst, char, UrlPtr,
-                "Failed when accessing the return Url memory"sv);
+  MEM_SPAN_CHECK(UrlId, MemInst, char, UrlPtr, UrlLen,
+                 "Failed when accessing the return Url memory"sv);
 
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxtId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatCtx, static_cast<int32_t>(ErrNo::InternalError));
   FFMPEG_PTR_FETCH(AvDictionary, AVDictionaryId, AVDictionary *);
   FFMPEG_PTR_FETCH(AvIOInterruptCB, AVIOInterruptCBId, AVIOInterruptCB);
+  FFMPEG_PTR_CHECK_NONZERO(AvDictionary, AVDictionaryId,
+                           static_cast<int32_t>(ErrNo::InternalError));
+  FFMPEG_PTR_CHECK_NONZERO(AvIOInterruptCB, AVIOInterruptCBId,
+                           static_cast<int32_t>(ErrNo::InternalError));
 
-  std::string TargetUrl;
-  std::copy_n(UrlId, UrlLen, std::back_inserter(TargetUrl));
+  std::string TargetUrl(UrlId.data(), UrlLen);
 
+  if (isInputContext(AvFormatCtx) || AvFormatCtx->pb != nullptr ||
+      !(Flags & AVIO_FLAG_WRITE)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return avio_open2(&(AvFormatCtx->pb), TargetUrl.c_str(), Flags,
                     AvIOInterruptCB, AvDictionary);
 }
@@ -248,17 +401,63 @@ Expect<int32_t> AVChapterDynarrayAdd::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
   FFMPEG_PTR_FETCH(AvChapter, AvChapterId, AVChapter);
 
-  av_dynarray_add(&(AvFormatContext->chapters), NbChapters, AvChapter);
-  if (*(AvFormatContext->chapters) == nullptr && *(NbChapters) == 0) {
+  if (AvFormatContext == nullptr || AvChapter == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVChapterDynarrayAdd: invalid format "
+                  "context id {} or chapter id {}"sv,
+                  AvFormatCtxId, AvChapterId);
     return static_cast<int32_t>(ErrNo::InternalError);
   }
+
+  if (Env.get()->isBorrowed(AvChapterId)) {
+    spdlog::error("[WasmEdge-FFmpeg] AVChapterDynarrayAdd: chapter id {} is "
+                  "already linked into a format context"sv,
+                  AvChapterId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+
+  int const OldNbChaptersValue = static_cast<int>(AvFormatContext->nb_chapters);
+  std::vector<AVChapter *> ExistingChapters;
+  if (AvFormatContext->chapters != nullptr && OldNbChaptersValue > 0) {
+    ExistingChapters.assign(AvFormatContext->chapters,
+                            AvFormatContext->chapters + OldNbChaptersValue);
+  }
+  int NbChaptersValue = OldNbChaptersValue;
+  av_dynarray_add(&(AvFormatContext->chapters), &NbChaptersValue, AvChapter);
+  if (AvFormatContext->chapters == nullptr ||
+      NbChaptersValue <= OldNbChaptersValue) {
+    AvFormatContext->nb_chapters = 0;
+    *NbChapters = 0;
+    for (AVChapter *const OrphanChapter : ExistingChapters) {
+      if (OrphanChapter == nullptr) {
+        continue;
+      }
+      void *const MetadataKey = &OrphanChapter->metadata;
+      av_dict_free(&OrphanChapter->metadata);
+      AVChapter *ToFree = OrphanChapter;
+      av_freep(&ToFree);
+      Env.get()->deallocByValue(OrphanChapter);
+      Env.get()->deallocByValue(MetadataKey);
+    }
+    spdlog::error("[WasmEdge-FFmpeg] AVChapterDynarrayAdd: av_dynarray_add "
+                  "failed (format context id {})"sv,
+                  AvFormatCtxId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  AvFormatContext->nb_chapters = static_cast<unsigned int>(NbChaptersValue);
+  *NbChapters = NbChaptersValue;
+  Env.get()->markBorrowedChild(AvChapterId, AvFormatCtxId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<int32_t> AVFreeP::body(const Runtime::CallingFrame &,
                               uint32_t AvChapterId) {
   FFMPEG_PTR_FETCH(AvChapter, AvChapterId, AVChapter);
-  av_freep(AvChapter);
+  FFMPEG_PTR_CHECK_FREE(AvChapter, AvChapterId,
+                        static_cast<int32_t>(ErrNo::InternalError));
+  if (!Env.get()->isBorrowed(AvChapterId)) {
+    av_dict_free(&AvChapter->metadata);
+    av_freep(&AvChapter);
+  }
   FFMPEG_PTR_DELETE(AvChapterId);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -267,8 +466,14 @@ Expect<int32_t> AVInterleavedWriteFrame::body(const Runtime::CallingFrame &,
                                               uint32_t AvFormatCtxId,
                                               uint32_t AvPacketId) {
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatCtx, static_cast<int32_t>(ErrNo::InternalError));
   FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  FFMPEG_PTR_CHECK_NONZERO(AvPacket, AvPacketId,
+                           static_cast<int32_t>(ErrNo::InternalError));
 
+  if (!isOutputContext(AvFormatCtx) || !Env.get()->isMuxing(AvFormatCtxId)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return av_interleaved_write_frame(AvFormatCtx, AvPacket);
 }
 
@@ -276,8 +481,14 @@ Expect<int32_t> AVWriteFrame::body(const Runtime::CallingFrame &,
                                    uint32_t AvFormatCtxId,
                                    uint32_t AvPacketId) {
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatCtx, static_cast<int32_t>(ErrNo::InternalError));
   FFMPEG_PTR_FETCH(AvPacket, AvPacketId, AVPacket);
+  FFMPEG_PTR_CHECK_NONZERO(AvPacket, AvPacketId,
+                           static_cast<int32_t>(ErrNo::InternalError));
 
+  if (!isOutputContext(AvFormatCtx) || !Env.get()->isMuxing(AvFormatCtxId)) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return av_write_frame(AvFormatCtx, AvPacket);
 }
 
@@ -285,7 +496,12 @@ Expect<int32_t> AVFormatNewStream::body(const Runtime::CallingFrame &,
                                         uint32_t AvFormatCtxId,
                                         uint32_t AvCodecId) {
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatCtx, 0);
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  FFMPEG_PTR_CHECK_NONZERO(AvCodec, AvCodecId, 0);
+  if (isInputContext(AvFormatCtx) || Env.get()->isMuxerLocked(AvFormatCtxId)) {
+    return 0;
+  }
   AVStream *Stream = avformat_new_stream(AvFormatCtx, AvCodec);
   if (Stream == nullptr) {
     return 0;
@@ -299,21 +515,28 @@ Expect<uint32_t> AVGuessCodec::body(const Runtime::CallingFrame &Frame,
                                     uint32_t ShortNameLen, uint32_t FileNamePtr,
                                     uint32_t FileNameLen, uint32_t MimeTypePtr,
                                     uint32_t MimeTypeLen, int32_t MediaTypeId) {
-  MEMINST_CHECK(MemInst, Frame, 0);
-  MEM_PTR_CHECK(ShortNameBuf, MemInst, char, ShortNamePtr,
-                "Failed when accessing the return ShortName memory"sv);
-  MEM_PTR_CHECK(FileNameBuf, MemInst, char, FileNamePtr,
-                "Failed when accessing the return FileName memory"sv);
-  MEM_PTR_CHECK(MimeTypeBuf, MemInst, char, MimeTypePtr,
-                "Failed when accessing the return MimeType memory"sv);
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (unlikely(MemInst == nullptr)) {
+    spdlog::error("[WasmEdge-FFmpeg] Memory instance not found."sv);
+    return FFmpegUtils::CodecID::fromAVCodecID(AV_CODEC_ID_NONE);
+  }
+  auto ShortNameBuf = MemInst->getSpan<char>(ShortNamePtr, ShortNameLen);
+  auto FileNameBuf = MemInst->getSpan<char>(FileNamePtr, FileNameLen);
+  auto MimeTypeBuf = MemInst->getSpan<char>(MimeTypePtr, MimeTypeLen);
+  if (unlikely(ShortNameBuf.size() != ShortNameLen ||
+               FileNameBuf.size() != FileNameLen ||
+               MimeTypeBuf.size() != MimeTypeLen)) {
+    spdlog::error("[WasmEdge-FFmpeg] AVGuessCodec: failed when accessing the "
+                  "return string memory"sv);
+    return FFmpegUtils::CodecID::fromAVCodecID(AV_CODEC_ID_NONE);
+  }
   FFMPEG_PTR_FETCH(AvOutputFormat, AVIOFormatId, AVOutputFormat);
+  FFMPEG_PTR_CHECK(AvOutputFormat,
+                   FFmpegUtils::CodecID::fromAVCodecID(AV_CODEC_ID_NONE));
 
-  std::string ShortName;
-  std::string FileName;
-  std::string MimeType;
-  std::copy_n(ShortNameBuf, ShortNameLen, std::back_inserter(ShortName));
-  std::copy_n(FileNameBuf, FileNameLen, std::back_inserter(FileName));
-  std::copy_n(MimeTypeBuf, MimeTypeLen, std::back_inserter(MimeType));
+  std::string ShortName(ShortNameBuf.data(), ShortNameLen);
+  std::string FileName(FileNameBuf.data(), FileNameLen);
+  std::string MimeType(MimeTypeBuf.data(), MimeTypeLen);
 
   AVMediaType const MediaType =
       FFmpegUtils::MediaType::intoMediaType(MediaTypeId);
@@ -337,9 +560,7 @@ Expect<int32_t> AVFormatConfiguration::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
 
   const char *Config = avformat_configuration();
-  auto Actual = std::strlen(Config);
-  auto N = std::min<uint32_t>(ConfigLen, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(Config, N, ConfigBuf.data());
+  copyCStringToBuffer(ConfigBuf.data(), ConfigLen, Config);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -355,9 +576,7 @@ Expect<int32_t> AVFormatLicense::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
 
   const char *License = avformat_license();
-  auto Actual = std::strlen(License);
-  auto N = std::min<uint32_t>(LicenseLen, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(License, N, LicenseBuf.data());
+  copyCStringToBuffer(LicenseBuf.data(), LicenseLen, License);
   return static_cast<int32_t>(ErrNo::Success);
 }
 

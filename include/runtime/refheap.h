@@ -156,7 +156,7 @@ public:
   Expect<uint32_t> allocate(HeapKind Kind, uint64_t Size) noexcept;
 
   /// Free the slot at `Off`. The caller already destroyed the object.
-  void free(uint32_t Off) noexcept;
+  WASMEDGE_EXPORT void free(uint32_t Off) noexcept;
 
   /// Header of the live slot at `Off`, or null.
   HeapHeader *getHeader(uint32_t Off) const noexcept;
@@ -165,7 +165,7 @@ public:
   void *decodeObject(HeapKind Kind, uint32_t Off) const noexcept;
 
   /// Offset of the live slot whose object starts at `Obj`, or 0.
-  uint32_t getOffset(const void *Obj) const noexcept;
+  WASMEDGE_EXPORT uint32_t getOffset(const void *Obj) const noexcept;
 
   /// Checked address of `Size` bytes at `Pos` in the live data slot at `Off`.
   Expect<uint8_t *> getDataSpan(uint32_t Off, uint32_t Pos,
@@ -196,6 +196,10 @@ public:
   Expect<UniqueHeapPtr<T>> makeUnique(ArgsT &&...Args) noexcept {
     return makeUniqueWithTail<T>(0, std::forward<ArgsT>(Args)...);
   }
+  /// Owning handle of an object that `UniqueHeapPtr::release` gave out, or
+  /// an empty handle if `Ptr` is not a live object of `T` in this heap.
+  template <typename T> UniqueHeapPtr<T> adopt(T *Ptr) noexcept;
+
   template <typename T, typename... ArgsT>
   Expect<SharedHeapPtr<T>> makeSharedWithTail(uint32_t TailBytes,
                                               ArgsT &&...Args) noexcept;
@@ -213,7 +217,7 @@ private:
                                              ArgsT &&...Args) noexcept {
     constexpr HeapKind Kind = HeapTraits<T>::Kind;
     static_assert(alignof(T) <= alignof(HeapHeader));
-    static_assert(std::is_nothrow_constructible_v<T, ArgsT...>);
+    static_assert(noexcept(T(std::declval<ArgsT>()...)));
     if constexpr (isObjectKind(Kind)) {
       static_assert(sizeof(HeapHeader) + sizeof(T) <= getSlotSize(Kind));
     }
@@ -292,8 +296,14 @@ private:
   }
   static uint32_t getClassIndex(uint64_t Size) noexcept;
 
-  Expect<uint32_t> allocateSlot(HeapKind Kind, uint64_t Size,
-                                bool Live) noexcept;
+  WASMEDGE_EXPORT Expect<uint32_t> allocateSlot(HeapKind Kind, uint64_t Size,
+                                                bool Live) noexcept;
+  /// New live data slot with `FieldBytes` zero bytes after the header. The
+  /// header holds `TypeId` and `Length` before the slot becomes live.
+  WASMEDGE_EXPORT Expect<uint32_t> allocateDataSlot(HeapKind Kind,
+                                                    uint64_t FieldBytes,
+                                                    uint32_t TypeId,
+                                                    uint32_t Length) noexcept;
   Expect<uint32_t> allocateObject(HeapKind Kind, uint64_t Size,
                                   bool Live) noexcept;
   Expect<uint32_t> allocateData(HeapKind Kind, uint64_t Size) noexcept;
@@ -303,7 +313,7 @@ private:
   void freeData(uint32_t Off) noexcept;
   void initHeader(uint8_t *Slot, HeapKind Kind, uint32_t Off,
                   bool Live) noexcept;
-  void setLive(uint32_t Off, bool Live) noexcept;
+  WASMEDGE_EXPORT void setLive(uint32_t Off, bool Live) noexcept;
 
   /// Part of the object slot start at `Off`, live or not, or null.
   const Part *findSlot(uint32_t Off) const noexcept;
@@ -366,6 +376,14 @@ public:
       Heap->destroy(std::exchange(Ptr, nullptr), std::exchange(Off, 0));
       Heap = nullptr;
     }
+  }
+
+  /// Give up ownership without destroying the object. `RefHeap::adopt`
+  /// takes it back.
+  T *release() noexcept {
+    Heap = nullptr;
+    Off = 0;
+    return std::exchange(Ptr, nullptr);
   }
 
 private:
@@ -451,6 +469,21 @@ Expect<UniqueHeapPtr<T>> RefHeap::makeUniqueWithTail(uint32_t TailBytes,
                                                      ArgsT &&...Args) noexcept {
   EXPECTED_TRY(auto Res, construct<T>(TailBytes, std::forward<ArgsT>(Args)...));
   return UniqueHeapPtr<T>(this, Res.first, Res.second);
+}
+
+template <typename T> UniqueHeapPtr<T> RefHeap::adopt(T *Ptr) noexcept {
+  if (Ptr == nullptr) {
+    return {};
+  }
+  const uint32_t Off = getOffset(Ptr);
+  if (Off == 0) {
+    return {};
+  }
+  const auto *Header = getHeader(Off);
+  if (Header == nullptr || Header->Kind != HeapTraits<T>::Kind) {
+    return {};
+  }
+  return UniqueHeapPtr<T>(this, Ptr, Off);
 }
 
 template <typename T, typename... ArgsT>

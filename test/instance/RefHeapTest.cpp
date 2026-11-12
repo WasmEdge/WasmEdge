@@ -40,9 +40,22 @@ struct Probe {
   uint32_t &SeenAtDestroy;
 };
 
+class Hidden {
+public:
+  uint64_t getValue() const noexcept { return Value; }
+
+private:
+  friend class WasmEdge::Runtime::RefHeap;
+  explicit Hidden(uint64_t V) noexcept : Value(V) {}
+  uint64_t Value;
+};
+
 } // namespace
 
 namespace WasmEdge::Runtime {
+template <> struct HeapTraits<Hidden> {
+  static constexpr HeapKind Kind = HeapKind::Exception;
+};
 template <> struct HeapTraits<Counted> {
   static constexpr HeapKind Kind = HeapKind::Function;
 };
@@ -507,6 +520,55 @@ TEST_P(RefHeapModes, WithTail) {
   auto S = Heap->makeSharedWithTail<Tailed>(0);
   ASSERT_TRUE(S);
   EXPECT_EQ((*S)->Head, 7U);
+}
+
+TEST_P(RefHeapModes, ReleaseAdopt) {
+  MAKE_HEAP_OR_SKIP(Heap);
+  int Count = 0;
+  auto P = Heap->makeUnique<Counted>(Count, UINT64_C(9));
+  ASSERT_TRUE(P);
+  const uint32_t Off = P->getOffset();
+  Counted *Raw = P->release();
+  EXPECT_FALSE(*P);
+  EXPECT_EQ(P->getOffset(), 0U);
+  EXPECT_EQ(Count, 0);
+  EXPECT_NE(Heap->getHeader(Off), nullptr);
+
+  auto Q = Heap->adopt(Raw);
+  ASSERT_TRUE(Q);
+  EXPECT_EQ(Q.get(), Raw);
+  EXPECT_EQ(Q.getOffset(), Off);
+  EXPECT_EQ(Q->Value, 9U);
+  Q.reset();
+  EXPECT_EQ(Count, 1);
+  EXPECT_EQ(Heap->getHeader(Off), nullptr);
+}
+
+TEST_P(RefHeapModes, AdoptForeign) {
+  MAKE_HEAP_OR_SKIP(Heap);
+  MAKE_HEAP_OR_SKIP(Other);
+  int Count = 0;
+  Counted Local(Count, UINT64_C(1));
+  EXPECT_FALSE(Heap->adopt(&Local));
+  EXPECT_FALSE(Heap->adopt(static_cast<Counted *>(nullptr)));
+
+  auto P = Other->makeUnique<Counted>(Count, UINT64_C(2));
+  ASSERT_TRUE(P);
+  EXPECT_FALSE(Heap->adopt(P->get()));
+  EXPECT_EQ(Count, 0);
+
+  auto H = Heap->makeUnique<Hidden>(UINT64_C(3));
+  ASSERT_TRUE(H);
+  EXPECT_FALSE(Heap->adopt(reinterpret_cast<Counted *>(H->get())));
+  EXPECT_EQ(Count, 0);
+}
+
+TEST_P(RefHeapModes, PrivateConstructor) {
+  MAKE_HEAP_OR_SKIP(Heap);
+  auto P = Heap->makeUnique<Hidden>(UINT64_C(11));
+  ASSERT_TRUE(P);
+  EXPECT_EQ((*P)->getValue(), 11U);
+  EXPECT_EQ(Heap->decodeObject(HeapKind::Exception, P->getOffset()), P->get());
 }
 
 INSTANTIATE_TEST_SUITE_P(Modes, RefHeapModes,

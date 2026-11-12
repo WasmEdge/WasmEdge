@@ -178,6 +178,8 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
   //     PO::Description("Disable Memory64 proposal"sv));
   PO::Option<PO::Toggle> PropThreads(
       PO::Description("Enable Threads proposal"sv));
+  PO::Option<PO::Toggle> PropWideArithmetic(
+      PO::Description("Enable Wide Arithmetic proposal"sv));
   PO::Option<PO::Toggle> PropComponent(PO::Description(
       "Enable Component Model proposal, this is experimental"sv));
   PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
@@ -235,6 +237,7 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
       // TODO: MEMORY64 - enable the option.
       // .add_option("disable-memory64"sv, PropMemory64)
       .add_option("enable-threads"sv, PropThreads)
+      .add_option("enable-wide-arithmetic"sv, PropWideArithmetic)
       .add_option("enable-component"sv, PropComponent)
       .add_option("enable-all"sv, PropAll)
       .add_option("time-limit"sv, TimeLim)

@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "runtime/refheap.h"
+#include "runtime/instance/function.h"
 
 #include "common/config.h"
 #include "common/types.h"
@@ -81,6 +82,7 @@ Expect<std::unique_ptr<RefHeap>> RefHeap::create(const Limits &L) noexcept {
     if (Heap->DataBase == nullptr || Heap->ObjectBase == nullptr) {
       return Unexpect(ErrCode::Value::RefHeapFull);
     }
+    Heap->initDescriptor();
     return Heap;
   }
   Heap->DataTable.reset(new (std::nothrow) std::atomic<uint8_t *>[kChunkCount]);
@@ -96,7 +98,17 @@ Expect<std::unique_ptr<RefHeap>> RefHeap::create(const Limits &L) noexcept {
     std::atomic_init(&Heap->DataTable[I], Heap->NoAccess);
     std::atomic_init(&Heap->ObjectTable[I], Heap->NoAccess);
   }
+  Heap->initDescriptor();
   return Heap;
+}
+
+void RefHeap::initDescriptor() noexcept {
+  auto &P = Parts[getPartIndex(HeapKind::Function)];
+  Desc.ObjectBase = Mode == HeapMode::Flat ? ObjectBase : nullptr;
+  Desc.ObjectTable = Mode == HeapMode::Chunk ? ObjectTable.get() : nullptr;
+  Desc.FuncTop = &P.Top;
+  Desc.FuncPartBase = P.Base;
+  Desc.FuncSlotMask = P.SlotSize - 1;
 }
 
 RefHeap *RefHeap::getGlobal() noexcept {
@@ -461,7 +473,63 @@ const void *RefVariant::getExternHost() const noexcept {
   if (Heap == nullptr) {
     return nullptr;
   }
-  return Heap->unboxExtern(getPtr<const void>());
+  const auto *Box = static_cast<const Runtime::ExternBox *>(
+      Heap->decodeObject(Runtime::HeapKind::ExternBox, getOffset()));
+  return Box != nullptr ? Box->Host : nullptr;
+}
+
+uint32_t RefVariant::encode(const void *P) noexcept {
+  auto *Heap = Runtime::RefHeap::getGlobal();
+  return Heap != nullptr ? Heap->getOffset(P) : 0U;
+}
+
+namespace {
+
+void *decodeRef(Runtime::HeapKind Kind, uint32_t Off) noexcept {
+  auto *Heap = Runtime::RefHeap::getGlobal();
+  if (Heap == nullptr) {
+    return nullptr;
+  }
+  if (Runtime::RefHeap::isObjectKind(Kind)) {
+    return Heap->decodeObject(Kind, Off);
+  }
+  if ((Off & (Runtime::RefHeap::kTagI31 | Runtime::RefHeap::kTagObject)) != 0) {
+    return nullptr;
+  }
+  auto *Header = Heap->getHeader(Off);
+  if (Header == nullptr || Header->Kind != Kind) {
+    return nullptr;
+  }
+  return reinterpret_cast<uint8_t *>(Header) + sizeof(Runtime::HeapHeader);
+}
+
+} // namespace
+
+const Runtime::Instance::FunctionInstance *
+RefVariant::getFuncInst() const noexcept {
+  return static_cast<const Runtime::Instance::FunctionInstance *>(
+      decodeRef(Runtime::HeapKind::Function, getOffset()));
+}
+
+Runtime::Instance::StructInstance *RefVariant::getStructInst() const noexcept {
+  return static_cast<Runtime::Instance::StructInstance *>(
+      decodeRef(Runtime::HeapKind::Struct, getOffset()));
+}
+
+Runtime::Instance::ArrayInstance *RefVariant::getArrayInst() const noexcept {
+  return static_cast<Runtime::Instance::ArrayInstance *>(
+      decodeRef(Runtime::HeapKind::Array, getOffset()));
+}
+
+const Runtime::Instance::ExceptionInstance *
+RefVariant::getExceptionInst() const noexcept {
+  return static_cast<const Runtime::Instance::ExceptionInstance *>(
+      decodeRef(Runtime::HeapKind::Exception, getOffset()));
+}
+
+const Runtime::Instance::CompositeBase *
+RefVariant::getCompositeInst() const noexcept {
+  return getFuncInst();
 }
 
 namespace Runtime {

@@ -75,6 +75,9 @@ public:
       }
     } else if (VT.getHeapTypeCode() == TypeCode::FuncRef) {
       const auto *FuncInst = retrieveFuncRef(Ref);
+      if (FuncInst == nullptr) {
+        return false;
+      }
       if (FuncInst->getModule()) {
         GotId =
             FuncInst->getModule()->getCanonicalTypeId(FuncInst->getTypeIndex());
@@ -116,13 +119,10 @@ public:
   /// Get the header of the struct or array that a reference points to, or
   /// null for other references.
   static const HeapHeader *getDataHeader(const RefVariant &Ref) noexcept {
-    const auto *Obj = static_cast<const void *>(Ref.getStructInst());
+    const uint32_t Off = Ref.getOffset();
     auto *Heap = RefHeap::getGlobal();
-    if (Obj == nullptr || Heap == nullptr) {
-      return nullptr;
-    }
-    const uint32_t Off = Heap->getOffset(Obj);
-    if (Off == 0 || (Off & RefHeap::kTagObject) != 0) {
+    if (Off == 0 || Heap == nullptr ||
+        (Off & (RefHeap::kTagI31 | RefHeap::kTagObject)) != 0) {
       return nullptr;
     }
     const auto *Header = Heap->getHeader(Off);

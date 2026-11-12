@@ -13,7 +13,6 @@
 #include "ast/module.h"
 #include "executor/executor.h"
 #include "loader/loader.h"
-#include "runtime/refheap.h"
 #include "runtime/storemgr.h"
 #include "validator/validator.h"
 
@@ -1134,16 +1133,6 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
 // nullptr for the null references and the non-function objects.
 WasmEdge::Runtime::Instance::FunctionInstance *
 retrieve_funcinst(const WasmEdge::RefVariant &ref) {
-  if (ref.isNull()) {
-    return nullptr;
-  }
-  if (auto *heap = WasmEdge::Runtime::RefHeap::getGlobal()) {
-    const uint32_t off =
-        heap->getOffset(static_cast<const void *>(ref.getStructInst()));
-    if (off != 0 && (off & WasmEdge::Runtime::RefHeap::kTagObject) == 0) {
-      return nullptr;
-    }
-  }
   return const_cast<WasmEdge::Runtime::Instance::FunctionInstance *>(
       ref.getFuncInst());
 }

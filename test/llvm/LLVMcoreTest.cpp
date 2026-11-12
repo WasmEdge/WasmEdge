@@ -14,6 +14,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "aot/version.h"
 #include "common/defines.h"
 #include "common/filesystem.h"
 #include "common/spdlog.h"
@@ -31,10 +32,15 @@
 
 #include <gtest/gtest.h>
 
+#if WASMEDGE_OS_LINUX
+#include <elf.h>
+#endif
+
 #include <array>
 #include <chrono>
 #include <cstdint>
 #include <cstring>
+#include <fstream>
 #include <functional>
 #include <map>
 #include <memory>
@@ -149,6 +155,55 @@ std::shared_ptr<AST::Module> loadModule(const Configure &Conf,
     return nullptr;
   }
   return Mod;
+}
+
+const std::array<WasmEdge::Byte, 72> StaleTableWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x02, 0x60,
+    0x00, 0x01, 0x7f, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x03, 0x02, 0x00,
+    0x01, 0x04, 0x04, 0x01, 0x70, 0x00, 0x02, 0x07, 0x0e, 0x02, 0x03, 0x74,
+    0x61, 0x62, 0x01, 0x00, 0x04, 0x63, 0x61, 0x6c, 0x6c, 0x00, 0x01, 0x09,
+    0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x0a, 0x0e, 0x02, 0x04,
+    0x00, 0x41, 0x2a, 0x0b, 0x07, 0x00, 0x20, 0x00, 0x11, 0x00, 0x00, 0x0b};
+class SevenHost : public Runtime::HostFunction<SevenHost> {
+public:
+  Expect<uint32_t> body(const Runtime::CallingFrame &) { return 7U; }
+};
+
+TEST(AOTCrossModule, CallIndirectDecodesOffset) {
+  Configure Conf;
+  auto Mod = compileToJIT(Conf, StaleTableWasm);
+  ASSERT_NE(Mod, nullptr);
+  Executor::Executor ExecEngine(Conf);
+  Runtime::StoreManager Store;
+  auto InstOrErr = ExecEngine.instantiateModule(Store, *Mod);
+  ASSERT_TRUE(InstOrErr);
+  auto Inst = std::move(*InstOrErr);
+  const auto *Call = Inst->findFuncExports("call");
+  ASSERT_NE(Call, nullptr);
+  ASSERT_TRUE(Call->isCompiledFunction());
+  auto *Tab = Inst->findTableExports("tab");
+  ASSERT_NE(Tab, nullptr);
+  auto Host = Runtime::Instance::FunctionInstance::create(
+      std::make_unique<SevenHost>());
+  ASSERT_TRUE(Host);
+  ASSERT_TRUE(Tab->setRefAddr(1, RefVariant::makeFunc(Host->get())));
+  auto Run = [&](uint32_t I) -> Expect<uint32_t> {
+    std::vector<ValVariant> Params = {I};
+    EXPECTED_TRY(auto R, ExecEngine.invoke(
+                             Call, Params,
+                             std::vector<ValType>{ValType(TypeCode::I32)}));
+    return R[0].first.get<uint32_t>();
+  };
+  auto Live = Run(0U);
+  ASSERT_TRUE(Live);
+  EXPECT_EQ(*Live, 42U);
+  auto HostCall = Run(1U);
+  ASSERT_TRUE(HostCall);
+  EXPECT_EQ(*HostCall, 7U);
+  Host->reset();
+  auto Stale = Run(1U);
+  ASSERT_FALSE(Stale);
+  EXPECT_EQ(Stale.error(), ErrCode::Value::UninitializedElement);
 }
 
 // Both modules are compiled, then registered and instantiated in one store
@@ -1728,6 +1783,220 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     TestUnit, LazyJITCoreTest,
     testing::ValuesIn(T.enumerate(SpecTest::TestMode::JIT)));
+
+//   (type $S (struct (field (mut i32))))
+//   (func (export "f") (result i32)
+//     (struct.get $S 0 (struct.new $S (i32.const 42))))
+const std::array<WasmEdge::Byte, 45> VersionWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x09, 0x02, 0x5f,
+    0x01, 0x7f, 0x01, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x01, 0x07,
+    0x05, 0x01, 0x01, 0x66, 0x00, 0x00, 0x0a, 0x0d, 0x01, 0x0b, 0x00, 0x41,
+    0x2a, 0xfb, 0x00, 0x00, 0xfb, 0x02, 0x00, 0x00, 0x0b};
+
+// AOT version words that this runtime must reject: the word of the other heap
+// address mode, and the word of the previous AOT binary version.
+std::array<uint32_t, 2> getRejectedVersions() noexcept {
+  const uint32_t Version = AOT::getBinaryVersion();
+  return {Version ^ AOT::kChunkModeVersion, Version - 1};
+}
+
+std::vector<WasmEdge::Byte> readFile(const std::filesystem::path &Path) {
+  std::ifstream File(Path, std::ios::binary);
+  return {std::istreambuf_iterator<char>(File),
+          std::istreambuf_iterator<char>()};
+}
+
+void writeFile(const std::filesystem::path &Path,
+               Span<const WasmEdge::Byte> Data) {
+  std::ofstream File(Path, std::ios::binary | std::ios::trunc);
+  File.write(reinterpret_cast<const char *>(Data.data()),
+             static_cast<std::streamsize>(Data.size()));
+}
+
+// Copy of the universal wasm `In` whose AOT section holds `Version`.
+std::vector<WasmEdge::Byte> setUniversalVersion(Span<const WasmEdge::Byte> In,
+                                                uint32_t Version) {
+  auto ReadU32 = [&In](size_t &Pos) {
+    uint32_t Value = 0;
+    uint32_t Shift = 0;
+    WasmEdge::Byte B;
+    do {
+      B = In[Pos++];
+      Value |= static_cast<uint32_t>(B & 0x7FU) << Shift;
+      Shift += 7;
+    } while ((B & 0x80U) != 0);
+    return Value;
+  };
+  auto WriteU32 = [](std::vector<WasmEdge::Byte> &Out, uint32_t Value) {
+    do {
+      auto B = static_cast<WasmEdge::Byte>(Value & 0x7FU);
+      Value >>= 7;
+      if (Value != 0) {
+        B |= 0x80U;
+      }
+      Out.push_back(B);
+    } while (Value != 0);
+  };
+  std::vector<WasmEdge::Byte> Out(In.begin(), In.begin() + 8);
+  size_t Pos = 8;
+  while (Pos < In.size()) {
+    const WasmEdge::Byte Id = In[Pos++];
+    const uint32_t Size = ReadU32(Pos);
+    const size_t End = Pos + Size;
+    std::vector<WasmEdge::Byte> Payload(In.begin() + Pos, In.begin() + End);
+    if (Id == 0) {
+      size_t NamePos = Pos;
+      const uint32_t NameSize = ReadU32(NamePos);
+      const std::string_view Name(
+          reinterpret_cast<const char *>(In.data() + NamePos), NameSize);
+      size_t VersionPos = NamePos + NameSize;
+      if (Name == "wasmedge"sv) {
+        Payload.assign(In.begin() + Pos, In.begin() + VersionPos);
+        ReadU32(VersionPos);
+        WriteU32(Payload, Version);
+        Payload.insert(Payload.end(), In.begin() + VersionPos,
+                       In.begin() + End);
+      }
+    }
+    Out.push_back(Id);
+    WriteU32(Out, static_cast<uint32_t>(Payload.size()));
+    Out.insert(Out.end(), Payload.begin(), Payload.end());
+    Pos = End;
+  }
+  return Out;
+}
+
+TEST(AOTVersion, UniversalWasmDropsOtherVersion) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Wasm);
+  Conf.getRuntimeConfigure().setRunMode(RunMode::AOT);
+  Loader::Loader Loader(Conf);
+  Validator::Validator Validator(Conf);
+  LLVM::Compiler Compiler(Conf);
+  LLVM::CodeGen CodeGen(Conf);
+  auto Mod = Loader.parseModule(VersionWasm);
+  ASSERT_TRUE(Mod);
+  ASSERT_TRUE(Validator.validate(**Mod));
+  auto Data = Compiler.compile(**Mod);
+  ASSERT_TRUE(Data);
+  const auto Path =
+      std::filesystem::temp_directory_path() / u8path("AOTVersionTest.wasm");
+  ASSERT_TRUE(CodeGen.codegen(VersionWasm, std::move(*Data), Path));
+  const auto Universal = readFile(Path);
+
+  auto RunsCompiled = [&](Span<const WasmEdge::Byte> Code) {
+    writeFile(Path, Code);
+    Loader::Loader L(Conf, &Executor::Executor::Intrinsics);
+    auto M = L.parseModule(Path);
+    EXPECT_TRUE(M);
+    if (!M) {
+      return false;
+    }
+    EXPECT_TRUE(Validator.validate(**M));
+    Executor::Executor ExecEngine(Conf);
+    Runtime::StoreManager Store;
+    auto Inst = ExecEngine.instantiateModule(Store, **M);
+    EXPECT_TRUE(Inst);
+    if (!Inst) {
+      return false;
+    }
+    const auto *Func = (*Inst)->findFuncExports("f");
+    EXPECT_NE(Func, nullptr);
+    auto R = ExecEngine.invoke(Func, {}, {});
+    EXPECT_TRUE(R);
+    if (R) {
+      EXPECT_EQ((*R)[0].first.get<uint32_t>(), 42U);
+    }
+    return Func->isCompiledFunction();
+  };
+  EXPECT_TRUE(RunsCompiled(Universal));
+  for (const uint32_t Version : getRejectedVersions()) {
+    EXPECT_FALSE(RunsCompiled(setUniversalVersion(Universal, Version)))
+        << std::hex << Version;
+  }
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
+}
+
+#if WASMEDGE_OS_LINUX && defined(__LP64__)
+// Replace the value of the `version` symbol in the ELF64 shared library
+// `Data`. Fails if the symbol is not found.
+bool setNativeVersion(std::vector<WasmEdge::Byte> &Data, uint32_t Version) {
+  if (Data.size() < sizeof(Elf64_Ehdr)) {
+    return false;
+  }
+  Elf64_Ehdr Header;
+  std::memcpy(&Header, Data.data(), sizeof(Header));
+  auto GetSection = [&](uint32_t Idx) {
+    Elf64_Shdr Section;
+    std::memcpy(&Section, Data.data() + Header.e_shoff + Idx * sizeof(Section),
+                sizeof(Section));
+    return Section;
+  };
+  for (uint32_t I = 0; I < Header.e_shnum; ++I) {
+    const auto SymTab = GetSection(I);
+    if (SymTab.sh_type != SHT_DYNSYM) {
+      continue;
+    }
+    const auto StrTab = GetSection(SymTab.sh_link);
+    for (uint64_t Off = 0; Off + sizeof(Elf64_Sym) <= SymTab.sh_size;
+         Off += sizeof(Elf64_Sym)) {
+      Elf64_Sym Sym;
+      std::memcpy(&Sym, Data.data() + SymTab.sh_offset + Off, sizeof(Sym));
+      const char *Name = reinterpret_cast<const char *>(
+          Data.data() + StrTab.sh_offset + Sym.st_name);
+      if (Name != "version"sv || Sym.st_shndx == SHN_UNDEF) {
+        continue;
+      }
+      const auto Target = GetSection(Sym.st_shndx);
+      std::memcpy(Data.data() + Target.sh_offset +
+                      (Sym.st_value - Target.sh_addr),
+                  &Version, sizeof(Version));
+      return true;
+    }
+  }
+  return false;
+}
+
+TEST(AOTVersion, NativeLibraryRejectsOtherVersion) {
+  Configure Conf;
+  Conf.addProposal(Proposal::GC);
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Native);
+  Conf.getRuntimeConfigure().setRunMode(RunMode::AOT);
+  Loader::Loader Loader(Conf);
+  Validator::Validator Validator(Conf);
+  LLVM::Compiler Compiler(Conf);
+  LLVM::CodeGen CodeGen(Conf);
+  auto Mod = Loader.parseModule(VersionWasm);
+  ASSERT_TRUE(Mod);
+  ASSERT_TRUE(Validator.validate(**Mod));
+  auto Data = Compiler.compile(**Mod);
+  ASSERT_TRUE(Data);
+  const auto Path = std::filesystem::temp_directory_path() /
+                    u8path("AOTVersionTest" WASMEDGE_LIB_EXTENSION);
+  ASSERT_TRUE(CodeGen.codegen(VersionWasm, std::move(*Data), Path));
+  const auto Library = readFile(Path);
+
+  auto Load = [&](Span<const WasmEdge::Byte> Code) -> Expect<void> {
+    writeFile(Path, Code);
+    Loader::Loader L(Conf);
+    EXPECTED_TRY(L.parseModule(Path));
+    return {};
+  };
+  EXPECT_TRUE(Load(Library));
+  for (const uint32_t Version : getRejectedVersions()) {
+    auto Copy = Library;
+    ASSERT_TRUE(setNativeVersion(Copy, Version));
+    auto R = Load(Copy);
+    ASSERT_FALSE(R) << std::hex << Version;
+    EXPECT_EQ(R.error(), ErrCode::Value::MalformedVersion)
+        << std::hex << Version;
+  }
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
+}
+#endif
 
 std::array<WasmEdge::Byte, 46> AsyncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,

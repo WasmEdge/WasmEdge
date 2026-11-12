@@ -11,4 +11,5 @@ target_link_libraries(wasmedgeErrinfoTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeCommon
+  wasmedgeSystem
 )

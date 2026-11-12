@@ -18,6 +18,7 @@
 #include "common/errcode.h"
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <map>
@@ -75,6 +76,29 @@ static_assert(alignof(std::atomic<uint32_t>) == alignof(uint32_t));
 static_assert(std::atomic<uint8_t *>::is_always_lock_free);
 static_assert(sizeof(std::atomic<uint8_t *>) == sizeof(uint8_t *));
 static_assert(alignof(std::atomic<uint8_t *>) == alignof(uint8_t *));
+
+/// Heap fields that compiled code reads to decode a function offset.
+struct RefHeapDescriptor {
+  /// Base of the object region in flat mode, or null.
+  uint8_t *ObjectBase;
+  /// Chunk table of the object region in chunk mode, or null.
+  std::atomic<uint8_t *> *ObjectTable;
+  /// Committed bytes of the function part.
+  const std::atomic<uint32_t> *FuncTop;
+  /// Tagged offset of the first function slot.
+  uint32_t FuncPartBase;
+  /// Function slot size minus one.
+  uint32_t FuncSlotMask;
+};
+static_assert(offsetof(RefHeapDescriptor, ObjectBase) == 0);
+static_assert(offsetof(RefHeapDescriptor, ObjectBase) <
+              offsetof(RefHeapDescriptor, ObjectTable));
+static_assert(offsetof(RefHeapDescriptor, ObjectTable) <
+              offsetof(RefHeapDescriptor, FuncTop));
+static_assert(offsetof(RefHeapDescriptor, FuncTop) <
+              offsetof(RefHeapDescriptor, FuncPartBase));
+static_assert(offsetof(RefHeapDescriptor, FuncPartBase) <
+              offsetof(RefHeapDescriptor, FuncSlotMask));
 
 /// Map a C++ type to the kind of its heap slot.
 template <typename T> struct HeapTraits;
@@ -161,6 +185,9 @@ public:
   RefHeap &operator=(const RefHeap &) = delete;
 
   HeapMode getMode() const noexcept { return Mode; }
+
+  /// Descriptor that compiled code reads to decode a function offset.
+  const RefHeapDescriptor &getDescriptor() const noexcept { return Desc; }
 
   /// Allocate a slot of `Size` bytes with the header. Returns its offset.
   Expect<uint32_t> allocate(HeapKind Kind, uint64_t Size) noexcept;
@@ -296,6 +323,7 @@ private:
   };
 
   RefHeap(const Limits &L) noexcept;
+  void initDescriptor() noexcept;
 
   static uint8_t *loadChunk(const std::atomic<uint8_t *> *Table,
                             uint32_t RawOff) noexcept {
@@ -371,6 +399,7 @@ private:
   Part Parts[kPartCount];
   std::mutex BoxMutex;
   std::unordered_map<const void *, const ExternBox *> Boxes;
+  RefHeapDescriptor Desc = {};
 };
 
 /// Owning handle of a heap object. It cannot be copied.

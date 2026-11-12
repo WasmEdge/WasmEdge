@@ -104,8 +104,8 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     std::shared_ptr<SharedLibrary> Library = std::make_shared<SharedLibrary>();
     EXPECTED_TRY(Library->load(FilePath).map_error(ReportError));
     EXPECTED_TRY(auto Version, Library->getVersion().map_error(ReportError));
-    if (Version != AOT::kBinaryVersion) {
-      spdlog::error(ErrInfo::InfoMismatch(AOT::kBinaryVersion, Version));
+    if (Version != AOT::getBinaryVersion()) {
+      spdlog::error(ErrInfo::InfoMismatch(AOT::getBinaryVersion(), Version));
       spdlog::error(ErrInfo::InfoFile(FilePath));
       return Unexpect(ErrCode::Value::MalformedVersion);
     }

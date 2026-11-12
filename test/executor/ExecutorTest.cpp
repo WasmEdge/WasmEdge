@@ -653,29 +653,56 @@ TEST(RefVariant, Factories) {
   alignas(16) static std::array<std::byte, 64> Storage{};
   auto *Addr = Storage.data();
   const ValType Def(TypeCode::Ref, 3);
+  auto *Heap = Runtime::RefHeap::getGlobal();
+  ASSERT_NE(Heap, nullptr);
+  auto Word = [](const RefVariant &Ref) { return refWord(Ref); };
 
-  const auto Func = RefVariant::makeFunc(
-      reinterpret_cast<const Inst::FunctionInstance *>(Addr));
+  auto FuncObj = Inst::FunctionInstance::create(std::make_unique<NopHost>());
+  ASSERT_TRUE(FuncObj);
+  const auto *FuncPtr = FuncObj->get();
+  const auto Func = RefVariant::makeFunc(FuncPtr);
   EXPECT_EQ(Func.getType(), ValType(TypeCode::RefNull, TypeCode::FuncRef));
-  EXPECT_EQ(static_cast<const void *>(Func.getFuncInst()), Addr);
-  const auto TypedFunc = RefVariant::makeFunc(
-      Def, reinterpret_cast<const Inst::FunctionInstance *>(Addr));
+  EXPECT_EQ(Word(Func), static_cast<uint64_t>(Heap->getOffset(FuncPtr)));
+  EXPECT_EQ(Func.getOffset(), FuncObj->getOffset());
+  EXPECT_EQ(Func.getFuncInst(), FuncPtr);
+  EXPECT_EQ(Func.getStructInst(), nullptr);
+  EXPECT_EQ(Func.getExceptionInst(), nullptr);
+  const auto TypedFunc = RefVariant::makeFunc(Def, FuncPtr);
   EXPECT_EQ(TypedFunc.getType(), Def);
-  EXPECT_EQ(static_cast<const void *>(TypedFunc.getCompositeInst()), Addr);
+  EXPECT_EQ(static_cast<const void *>(TypedFunc.getCompositeInst()),
+            static_cast<const void *>(FuncPtr));
 
-  const auto Struct = RefVariant::makeStruct(
-      Def, reinterpret_cast<const Inst::StructInstance *>(Addr + 16));
+  auto StructObj = Heap->makeData<Inst::StructInstance>(0U, 0U, 16U);
+  ASSERT_TRUE(StructObj);
+  const auto Struct = RefVariant::makeStruct(Def, StructObj->get());
   EXPECT_EQ(Struct.getType(), Def);
-  EXPECT_EQ(static_cast<void *>(Struct.getStructInst()), Addr + 16);
-  const auto Array = RefVariant::makeArray(
-      Def, reinterpret_cast<const Inst::ArrayInstance *>(Addr + 32));
+  EXPECT_EQ(Word(Struct), static_cast<uint64_t>(StructObj->getOffset()));
+  EXPECT_EQ(Struct.getStructInst(), StructObj->get());
+  EXPECT_EQ(Struct.getArrayInst(), nullptr);
+  EXPECT_EQ(Struct.getFuncInst(), nullptr);
+  auto ArrayObj = Heap->makeData<Inst::ArrayInstance>(0U, 1U, 16U);
+  ASSERT_TRUE(ArrayObj);
+  const auto Array = RefVariant::makeArray(Def, ArrayObj->get());
   EXPECT_EQ(Array.getType(), Def);
-  EXPECT_EQ(static_cast<void *>(Array.getArrayInst()), Addr + 32);
+  EXPECT_EQ(Word(Array), static_cast<uint64_t>(ArrayObj->getOffset()));
+  EXPECT_EQ(Array.getArrayInst(), ArrayObj->get());
+  EXPECT_EQ(Array.getStructInst(), nullptr);
 
-  const auto Exn = RefVariant::makeException(
-      reinterpret_cast<const Inst::ExceptionInstance *>(Addr + 48));
+  auto ExnObj = Inst::ExceptionInstance::create(
+      reinterpret_cast<Inst::TagInstance *>(Addr), {});
+  ASSERT_TRUE(ExnObj);
+  const auto Exn = RefVariant::makeException(ExnObj->get());
   EXPECT_EQ(Exn.getType(), ValType(TypeCode::Ref, TypeCode::ExnRef));
-  EXPECT_EQ(static_cast<const void *>(Exn.getExceptionInst()), Addr + 48);
+  EXPECT_EQ(Word(Exn), static_cast<uint64_t>(ExnObj->getOffset()));
+  EXPECT_EQ(Exn.getExceptionInst(), ExnObj->get());
+  EXPECT_EQ(Exn.getFuncInst(), nullptr);
+
+  EXPECT_TRUE(RefVariant::makeFunc(
+                  reinterpret_cast<const Inst::FunctionInstance *>(Addr))
+                  .isNull());
+  EXPECT_TRUE(RefVariant::makeStruct(
+                  Def, reinterpret_cast<const Inst::StructInstance *>(Addr))
+                  .isNull());
 
   const auto Extern = RefVariant::makeExtern(Addr + 8);
   EXPECT_EQ(Extern.getType(), ValType(TypeCode::RefNull, TypeCode::ExternRef));
@@ -683,13 +710,11 @@ TEST(RefVariant, Factories) {
   EXPECT_EQ(retrieveExternRef<std::byte>(Extern), Addr + 8);
   EXPECT_TRUE(Extern.isSameRef(RefVariant::makeExtern(Addr + 8)));
   EXPECT_FALSE(Extern.isSameRef(RefVariant::makeExtern(Addr + 9)));
-  {
-    auto *Heap = Runtime::RefHeap::getGlobal();
-    ASSERT_NE(Heap, nullptr);
-    const void *Word = RefVariant(Def, Extern).getCompositeInst();
-    EXPECT_NE(Word, static_cast<const void *>(Addr + 8));
-    EXPECT_EQ(Heap->unboxExtern(Word), Addr + 8);
-  }
+  EXPECT_NE(Extern.getOffset() & Runtime::RefHeap::kTagObject, 0U);
+  EXPECT_EQ(Word(Extern) >> 32, 0U);
+  EXPECT_EQ(Heap->unboxExtern(Heap->decodeObject(Runtime::HeapKind::ExternBox,
+                                                 Extern.getOffset())),
+            Addr + 8);
   {
     const ValType ExternVT(TypeCode::RefNull, TypeCode::ExternRef);
     EXPECT_EQ(RefVariant(ExternVT, Func).getExternPtr<void>(), nullptr);
@@ -722,6 +747,61 @@ TEST(RefVariant, Factories) {
   EXPECT_FALSE(RefVariant::makeI31(5).isSameRef(RefVariant::makeI31(6)));
   EXPECT_TRUE(
       RefVariant().isSameRef(RefVariant(ValType(TypeCode::RefNull, 0))));
+}
+
+TEST(RefVariant, StaleFunction) {
+  using namespace WasmEdge;
+  auto FuncObj =
+      Runtime::Instance::FunctionInstance::create(std::make_unique<NopHost>());
+  ASSERT_TRUE(FuncObj);
+  const auto Func = RefVariant::makeFunc(FuncObj->get());
+  ASSERT_NE(Func.getFuncInst(), nullptr);
+  FuncObj->reset();
+  EXPECT_EQ(Func.getFuncInst(), nullptr);
+  EXPECT_EQ(Func.getCompositeInst(), nullptr);
+}
+
+const std::array<WasmEdge::Byte, 72> StaleTableWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x02, 0x60,
+    0x00, 0x01, 0x7f, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x03, 0x02, 0x00,
+    0x01, 0x04, 0x04, 0x01, 0x70, 0x00, 0x02, 0x07, 0x0e, 0x02, 0x03, 0x74,
+    0x61, 0x62, 0x01, 0x00, 0x04, 0x63, 0x61, 0x6c, 0x6c, 0x00, 0x01, 0x09,
+    0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x0a, 0x0e, 0x02, 0x04,
+    0x00, 0x41, 0x2a, 0x0b, 0x07, 0x00, 0x20, 0x00, 0x11, 0x00, 0x00, 0x0b};
+class StaleSevenHost : public Runtime::HostFunction<StaleSevenHost> {
+public:
+  Expect<uint32_t> body(const Runtime::CallingFrame &) { return 7U; }
+};
+
+TEST(RefVariant, StaleTableElement) {
+  WasmEdge::Configure Conf;
+  WasmEdge::VM::VM VM(Conf);
+  ASSERT_TRUE(VM.loadWasm(StaleTableWasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  auto *Tab = VM.getActiveModule()->findTableExports("tab");
+  ASSERT_NE(Tab, nullptr);
+  auto Host = Runtime::Instance::FunctionInstance::create(
+      std::make_unique<StaleSevenHost>());
+  ASSERT_TRUE(Host);
+  ASSERT_TRUE(Tab->setRefAddr(1, RefVariant::makeFunc(Host->get())));
+  auto Run = [&](uint32_t I) -> Expect<uint32_t> {
+    std::vector<ValVariant> Params = {I};
+    EXPECTED_TRY(auto R,
+                 VM.execute("call", Params,
+                            std::vector<ValType>{ValType(TypeCode::I32)}));
+    return R[0].first.get<uint32_t>();
+  };
+  auto Live = Run(0U);
+  ASSERT_TRUE(Live);
+  EXPECT_EQ(*Live, 42U);
+  auto HostCall = Run(1U);
+  ASSERT_TRUE(HostCall);
+  EXPECT_EQ(*HostCall, 7U);
+  Host->reset();
+  auto Stale = Run(1U);
+  ASSERT_FALSE(Stale);
+  EXPECT_EQ(Stale.error(), ErrCode::Value::UninitializedElement);
 }
 
 const std::array<WasmEdge::Byte, 41> StaleThrowRefWasm{

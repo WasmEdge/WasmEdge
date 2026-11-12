@@ -670,6 +670,9 @@ TEST(APICoreTest, Value) {
   EXPECT_FALSE(WasmEdge_ValueIsNullRef(Val));
   EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), HostFunc);
   EXPECT_EQ(WasmEdge_ValueGetExternRef(Val), nullptr);
+  WasmEdge_Value Mistyped = Val;
+  Mistyped.Type = WasmEdge_ValTypeGenExternRef();
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Mistyped), nullptr);
   WasmEdge_FunctionInstanceDelete(HostFunc);
   WasmEdge_FunctionTypeDelete(FuncType);
 

@@ -226,15 +226,10 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
         if (const auto *Header = getDataHeader(Ref)) {
           Id = Header->TypeId;
         } else {
-          // The instance must not be nullptr because the null references are
-          // already dynamic typed into the top abstract heap type.
           auto *Inst = Ref.getCompositeInst();
-          assuming(Inst);
-          // The ModInst may be nullptr only in the independent host function
-          // instance. Therefore the module instance here must not be nullptr
-          // because the independent host function instance cannot be imported
-          // and be referred by instructions.
-          Id = Inst->getModule()->getCanonicalTypeId(RefType.getTypeIndex());
+          if (Inst != nullptr && Inst->getModule() != nullptr) {
+            Id = Inst->getModule()->getCanonicalTypeId(RefType.getTypeIndex());
+          }
         }
         if (Id < Table.size()) {
           RefType = ValType(RefType.getCode(),

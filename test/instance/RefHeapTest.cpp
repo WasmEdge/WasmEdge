@@ -634,6 +634,35 @@ TEST_P(RefHeapModes, DataSlotReset) {
   EXPECT_EQ(Heap->getHeader(Off), nullptr);
 }
 
+TEST_P(RefHeapModes, Descriptor) {
+  MAKE_HEAP_OR_SKIP(Heap);
+  int Count = 0;
+  auto P = Heap->makeUnique<Counted>(Count, UINT64_C(4));
+  ASSERT_TRUE(P);
+  const uint32_t Off = P->getOffset();
+  const auto &D = Heap->getDescriptor();
+  ASSERT_NE(D.FuncTop, nullptr);
+  const uint32_t Rel = Off - D.FuncPartBase;
+  EXPECT_LT(Rel, D.FuncTop->load());
+  EXPECT_EQ(Rel & D.FuncSlotMask, 0U);
+  EXPECT_EQ(D.FuncSlotMask + 1U, RefHeap::getSlotSize(HeapKind::Function));
+  const uint32_t Raw = Off & ~RefHeap::kTagObject;
+  uint8_t *Slot = nullptr;
+  if (GetParam() == HeapMode::Flat) {
+    ASSERT_NE(D.ObjectBase, nullptr);
+    EXPECT_EQ(D.ObjectTable, nullptr);
+    Slot = D.ObjectBase + Raw;
+  } else {
+    ASSERT_NE(D.ObjectTable, nullptr);
+    EXPECT_EQ(D.ObjectBase, nullptr);
+    Slot = D.ObjectTable[Raw >> RefHeap::kChunkShift].load() +
+           (Raw & (RefHeap::kChunkSize - 1));
+  }
+  EXPECT_EQ(static_cast<void *>(Slot + sizeof(HeapHeader)),
+            static_cast<void *>(P->get()));
+  EXPECT_GE(D.FuncTop->load(), Rel + D.FuncSlotMask + 1U);
+}
+
 TEST_P(RefHeapModes, ExternBoxes) {
   MAKE_HEAP_OR_SKIP(Heap);
   int HostA = 0;

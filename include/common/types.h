@@ -408,7 +408,8 @@ struct RefVariant {
   RefVariant() noexcept { setData<void>(TypeCode::ExternRef); }
   RefVariant(const ValType &VT) noexcept { setData<void>(VT); }
   RefVariant(const ValType &VT, const RefVariant &Val) noexcept {
-    setData(VT, Val.getPtr<void>());
+    setType(VT);
+    setWord(Val.getOffset());
   }
 
   // Getter and setter for type.
@@ -420,11 +421,11 @@ struct RefVariant {
   }
 
   // Check whether it is null.
-  bool isNull() const { return getPtr<void>() == nullptr; }
+  bool isNull() const { return getOffset() == 0; }
 
   // Check whether both refer to the same instance or the same i31 value.
   bool isSameRef(const RefVariant &Other) const noexcept {
-    return getPtr<void>() == Other.getPtr<void>();
+    return getOffset() == Other.getOffset();
   }
 
   // Make a function reference of the abstract function type.
@@ -460,23 +461,23 @@ struct RefVariant {
   // reference.
   WASMEDGE_EXPORT static RefVariant makeExtern(const void *P) noexcept;
 
-  // Getters for the referenced instance of each kind.
-  const Runtime::Instance::FunctionInstance *getFuncInst() const noexcept {
-    return getPtr<const Runtime::Instance::FunctionInstance>();
+  // Getter for the heap offset or the tagged i31 value.
+  uint32_t getOffset() const noexcept {
+    return static_cast<uint32_t>(toArray()[1]);
   }
-  Runtime::Instance::StructInstance *getStructInst() const noexcept {
-    return getPtr<Runtime::Instance::StructInstance>();
-  }
-  Runtime::Instance::ArrayInstance *getArrayInst() const noexcept {
-    return getPtr<Runtime::Instance::ArrayInstance>();
-  }
-  const Runtime::Instance::ExceptionInstance *
-  getExceptionInst() const noexcept {
-    return getPtr<const Runtime::Instance::ExceptionInstance>();
-  }
-  const Runtime::Instance::CompositeBase *getCompositeInst() const noexcept {
-    return getPtr<const Runtime::Instance::CompositeBase>();
-  }
+
+  // Getters for the referenced instance of each kind. A reference that does
+  // not hold a live instance of the kind gives null.
+  WASMEDGE_EXPORT const Runtime::Instance::FunctionInstance *
+  getFuncInst() const noexcept;
+  WASMEDGE_EXPORT Runtime::Instance::StructInstance *
+  getStructInst() const noexcept;
+  WASMEDGE_EXPORT Runtime::Instance::ArrayInstance *
+  getArrayInst() const noexcept;
+  WASMEDGE_EXPORT const Runtime::Instance::ExceptionInstance *
+  getExceptionInst() const noexcept;
+  WASMEDGE_EXPORT const Runtime::Instance::CompositeBase *
+  getCompositeInst() const noexcept;
   // Getter for the host object of an external reference, or null if the
   // reference does not hold a box.
   WASMEDGE_EXPORT const void *getExternHost() const noexcept;
@@ -510,16 +511,14 @@ struct RefVariant {
   RawV128 getRawData() const noexcept { return Data; }
 
 private:
-  // Getter for pointer.
-  template <typename T> T *getPtr() const noexcept {
-    return reinterpret_cast<T *>(static_cast<uintptr_t>(toArray()[1]));
-  }
+  // Heap offset of the object at `P`, or 0 if `P` is not a live heap object.
+  WASMEDGE_EXPORT static uint32_t encode(const void *P) noexcept;
 
   // Helper function to make a reference of the given type.
   template <typename T>
   static RefVariant make(const ValType &VT, const T *P) noexcept {
-    RefVariant Ref;
-    Ref.setData(VT, P);
+    RefVariant Ref(VT);
+    Ref.setWord(P != nullptr ? encode(P) : 0U);
     return Ref;
   }
 
@@ -528,13 +527,17 @@ private:
     return cxx20::bit_cast<std::array<uint64_t, 2>>(Data);
   }
 
-  // Helper function to set the content.
-  template <typename T>
-  void setData(const ValType &VT, const T *Ptr = nullptr) noexcept {
+  // Helper function to set the type and a null word.
+  template <typename T> void setData(const ValType &VT) noexcept {
     setType(VT);
-    const uint64_t P = reinterpret_cast<uintptr_t>(Ptr);
-    std::memcpy(reinterpret_cast<unsigned char *>(&Data) + sizeof(uint64_t), &P,
-                sizeof(P));
+    setWord(0U);
+  }
+
+  // Helper function to set the second word.
+  void setWord(uint32_t Off) noexcept {
+    const auto W = static_cast<uint64_t>(Off);
+    std::memcpy(reinterpret_cast<unsigned char *>(&Data) + sizeof(uint64_t), &W,
+                sizeof(W));
   }
 
   // Member data.
@@ -712,9 +715,6 @@ inline ValVariant ValueFromType(ValType Type) noexcept {
 
 inline const Runtime::Instance::FunctionInstance *
 retrieveFuncRef(const RefVariant &Val) {
-  if (Val.getType().getHeapTypeCode() != TypeCode::FuncRef) {
-    return nullptr;
-  }
   return Val.getFuncInst();
 }
 

@@ -185,7 +185,9 @@ Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
 
   assuming(ModInst);
   const auto *FuncInst = retrieveFuncRef(*Ref);
-  assuming(FuncInst);
+  if (unlikely(FuncInst == nullptr)) {
+    return Unexpect(ErrCode::Value::UninitializedElement);
+  }
 
   EXPECTED_TRY(checkLazyCompilation(FuncInst));
 
@@ -570,7 +572,9 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
   }
 
   const auto *FuncInst = retrieveFuncRef(*Ref);
-  assuming(FuncInst);
+  if (unlikely(FuncInst == nullptr)) {
+    return Unexpect(ErrCode::Value::UninitializedElement);
+  }
   // Check the function type; the same module and type index need no matching.
   if ((FuncInst->getModule() != ModInst ||
        FuncInst->getTypeIndex() != FuncTypeIdx) &&
@@ -598,7 +602,9 @@ Expect<void *> Executor::proxyRefGetFuncSymbol(
     Runtime::Instance::ModuleInstance::ModuleContext **CalleeCtxOut) noexcept {
   *CalleeCtxOut = nullptr;
   const auto *FuncInst = retrieveFuncRef(Ref);
-  assuming(FuncInst);
+  if (unlikely(FuncInst == nullptr)) {
+    return Unexpect(ErrCode::Value::AccessNullFunc);
+  }
   if ((FuncInst->getModule() != ModInst ||
        FuncInst->getTypeIndex() != TypeIdx) &&
       !Runtime::Matcher::matchRef(ModInst, ValType(TypeCode::Ref, TypeIdx),

@@ -35,6 +35,9 @@ Executor::SavedThreadLocal::SavedThreadLocal(
 
   SavedExecutionContext = ExecutionContext;
   ExecutionContext.StopToken = &Ex.StopToken;
+  if (auto *Heap = Runtime::RefHeap::getGlobal()) {
+    ExecutionContext.Heap = &Heap->getDescriptor();
+  }
   ExecutionContext.PendingExnTagAddr =
       reinterpret_cast<void *const *>(&PendingExn.TagInst);
   if (Ex.Stat) {
@@ -669,15 +672,13 @@ Executor::getDataHeader(const RefVariant &Ref) const noexcept {
 Expect<uint32_t>
 Executor::getDataOffset(const RefVariant &Ref,
                         const Runtime::HeapKind Kind) const noexcept {
-  const auto *Obj = static_cast<const void *>(Ref.getStructInst());
-  if (Obj == nullptr) {
+  const uint32_t Off = Ref.getOffset();
+  if (Off == 0) {
     return Unexpect(Kind == Runtime::HeapKind::Struct
                         ? ErrCode::Value::AccessNullStruct
                         : ErrCode::Value::AccessNullArray);
   }
-  auto *Heap = Runtime::RefHeap::getGlobal();
-  const uint32_t Off = Heap != nullptr ? Heap->getOffset(Obj) : 0;
-  const auto *Header = Off != 0 ? Heap->getHeader(Off) : nullptr;
+  const auto *Header = getDataHeader(Ref);
   if (Header == nullptr || Header->Kind != Kind) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }

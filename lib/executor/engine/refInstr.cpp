@@ -30,8 +30,7 @@ constexpr uint32_t kFieldBase = sizeof(Runtime::HeapHeader);
 
 uint32_t arrayLength(const RefVariant &Ref) noexcept {
   auto *Heap = Runtime::RefHeap::getGlobal();
-  const uint32_t Off =
-      Heap != nullptr ? Heap->getOffset(Ref.getArrayInst()) : 0;
+  const uint32_t Off = Heap != nullptr ? Ref.getOffset() : 0;
   const auto *Header = Off != 0 ? Heap->getHeader(Off) : nullptr;
   return Header != nullptr ? Header->Length : 0;
 }
@@ -656,13 +655,16 @@ struct ArraySlot {
 /// Data slot offset and length of the array that `Ref` holds, from one
 /// checked header lookup.
 Expect<ArraySlot> resolveArray(const RefVariant &Ref) noexcept {
-  const auto *Obj = static_cast<const void *>(Ref.getArrayInst());
-  if (Obj == nullptr) {
+  const uint32_t Off = Ref.getOffset();
+  if (Off == 0) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
   auto *Heap = Runtime::RefHeap::getGlobal();
-  const uint32_t Off = Heap != nullptr ? Heap->getOffset(Obj) : 0;
-  const auto *Header = Off != 0 ? Heap->getHeader(Off) : nullptr;
+  if (Heap == nullptr ||
+      (Off & (Runtime::RefHeap::kTagI31 | Runtime::RefHeap::kTagObject)) != 0) {
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  }
+  const auto *Header = Heap->getHeader(Off);
   if (Header == nullptr || Header->Kind != Runtime::HeapKind::Array) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }

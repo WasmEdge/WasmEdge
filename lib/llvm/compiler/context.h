@@ -225,6 +225,9 @@ struct Compiler::CompileContext {
                             LLVM::Value ExecCtx) noexcept {
     return Builder.createExtractValue(ExecCtx, 6);
   }
+  LLVM::Value getRefHeap(LLVM::Builder &Builder, LLVM::Value ExecCtx) noexcept {
+    return Builder.createExtractValue(ExecCtx, 7);
+  }
   LLVM::FunctionCallee getIntrinsic(LLVM::Builder &Builder,
                                     Executable::Intrinsics Index,
                                     LLVM::Type Ty) noexcept {
@@ -254,7 +257,7 @@ struct Compiler::CompileContext {
   void addVersionGlobal() noexcept {
     LLModule.get().addGlobal(
         Int32Ty, true, LLVMExternalLinkage,
-        LLVM::Value::getConstInt(Int32Ty, AOT::kBinaryVersion), "version");
+        LLVM::Value::getConstInt(Int32Ty, AOT::getBinaryVersion()), "version");
   }
   void finalizeIntrinsicsTable() noexcept {
     if (auto Table = LLModule.get().getNamedGlobal("intrinsics")) {

@@ -4,9 +4,11 @@
 #include "compiler/function_compiler.h"
 
 #include "runtime/instance/function.h"
+#include "runtime/refheap.h"
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <limits>
 
 using namespace std::literals;
@@ -1590,7 +1592,79 @@ void FunctionCompiler::compileIndirectCallOp(
                          NonNullBB, SlowBB);
     Builder.positionAtEnd(NonNullBB);
 
-    auto FuncInstPtr = Builder.createIntToPtr(FuncInstInt, Context.Int8PtrTy);
+    using Runtime::RefHeapDescriptor;
+    auto Desc = Context.getRefHeap(Builder, ExecCtx);
+    auto LoadDesc = [&](uint64_t Off, LLVM::Type Ty) {
+      return Builder.createLoad(
+          Ty, Builder.createBitCast(
+                  Builder.createInBoundsGEP1(Context.Int8Ty, Desc,
+                                             LLContext.getInt64(Off)),
+                  Ty.getPointerTo()));
+    };
+    auto Off = Builder.createTrunc(FuncInstInt, Context.Int32Ty);
+    auto Rel = Builder.createSub(
+        Off,
+        LoadDesc(offsetof(RefHeapDescriptor, FuncPartBase), Context.Int32Ty));
+    auto Top = Builder.createLoad(
+        Context.Int32Ty,
+        LoadDesc(offsetof(RefHeapDescriptor, FuncTop), Context.Int32PtrTy));
+    Top.setOrdering(LLVMAtomicOrderingAcquire);
+    Top.setAlignment(4);
+    auto InPart = Builder.createAnd(
+        Builder.createICmpULT(Rel, Top),
+        Builder.createICmpEQ(
+            Builder.createAnd(
+                Rel, LoadDesc(offsetof(RefHeapDescriptor, FuncSlotMask),
+                              Context.Int32Ty)),
+            LLContext.getInt32(0)));
+    auto InPartBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.in_part");
+    Builder.createCondBr(Builder.createLikely(InPart), InPartBB, SlowBB);
+    Builder.positionAtEnd(InPartBB);
+
+    auto Raw = Builder.createAnd(
+        Off, LLContext.getInt32(~Runtime::RefHeap::kTagObject));
+    LLVM::Value SlotPtr;
+    if (Runtime::RefHeap::getDefaultMode() == Runtime::HeapMode::Flat) {
+      SlotPtr = Builder.createInBoundsGEP1(
+          Context.Int8Ty,
+          LoadDesc(offsetof(RefHeapDescriptor, ObjectBase), Context.Int8PtrTy),
+          Builder.createZExt(Raw, Context.Int64Ty));
+    } else {
+      auto Table =
+          LoadDesc(offsetof(RefHeapDescriptor, ObjectTable), Context.Int8PtrTy);
+      auto Entry = Builder.createLoad(
+          Context.Int8PtrTy,
+          Builder.createInBoundsGEP1(
+              Context.Int8PtrTy,
+              Builder.createBitCast(Table, Context.Int8PtrPtrTy),
+              Builder.createZExt(
+                  Builder.createLShr(
+                      Raw, LLContext.getInt32(Runtime::RefHeap::kChunkShift)),
+                  Context.Int64Ty)));
+      Entry.setOrdering(LLVMAtomicOrderingAcquire);
+      Entry.setAlignment(alignof(void *));
+      SlotPtr = Builder.createInBoundsGEP1(
+          Context.Int8Ty, Entry,
+          Builder.createZExt(
+              Builder.createAnd(
+                  Raw, LLContext.getInt32(Runtime::RefHeap::kChunkSize - 1)),
+              Context.Int64Ty));
+    }
+    auto Live = Builder.createLoad(
+        Context.Int8Ty,
+        Builder.createInBoundsGEP1(
+            Context.Int8Ty, SlotPtr,
+            LLContext.getInt64(offsetof(Runtime::HeapHeader, Live))));
+    Live.setOrdering(LLVMAtomicOrderingAcquire);
+    Live.setAlignment(1);
+    auto LiveBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.live");
+    Builder.createCondBr(
+        Builder.createLikely(Builder.createICmpNE(Live, LLContext.getInt8(0))),
+        LiveBB, SlowBB);
+    Builder.positionAtEnd(LiveBB);
+    auto FuncInstPtr = Builder.createInBoundsGEP1(
+        Context.Int8Ty, SlotPtr,
+        LLContext.getInt64(sizeof(Runtime::HeapHeader)));
     auto LoadField = [&](uint64_t Off, LLVM::Type Ty) {
       return Builder.createLoad(
           Ty, Builder.createBitCast(

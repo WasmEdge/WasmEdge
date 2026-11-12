@@ -351,7 +351,7 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
   {
     std::ostringstream OS;
     WriteName(OS, "wasmedge"sv);
-    WriteU32(OS, AOT::kBinaryVersion);
+    WriteU32(OS, AOT::getBinaryVersion());
 
 #if WASMEDGE_OS_LINUX
     WriteByte(OS, UINT8_C(1));

@@ -205,8 +205,8 @@ Expect<void> Loader::loadSection(AST::TagSection &Sec) {
 
 namespace {
 
-inline constexpr uint32_t HostVersion() noexcept {
-  return WasmEdge::AOT::kBinaryVersion;
+inline uint32_t HostVersion() noexcept {
+  return WasmEdge::AOT::getBinaryVersion();
 }
 
 inline constexpr uint8_t HostOSType() noexcept {

@@ -34,8 +34,14 @@ public:
 
   Expect<void> checkConfigure() noexcept;
 
-  /// Compile the whole module.
-  Expect<Data> compile(const AST::Module &Module) noexcept;
+  /// Consumer of the compiled LLVM module.
+  enum class Consumer { CodeGen, JIT };
+
+  /// Compile the whole module for \p Destination. CodeGen output that the
+  /// native linker links also defines the target runtime helpers it would
+  /// otherwise import.
+  Expect<Data> compile(const AST::Module &Module,
+                       Consumer Destination) noexcept;
 
   struct CompileContext;
 

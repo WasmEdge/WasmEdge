@@ -130,7 +130,10 @@ bool compileModule(const WasmEdge::Configure &Conf, std::string_view InPath,
         Module = std::move(Result);
         return Valid.validate(*Module);
       })
-      .and_then([&]() noexcept { return Compiler.compile(*Module); })
+      .and_then([&]() noexcept {
+        return Compiler.compile(*Module,
+                                WasmEdge::LLVM::Compiler::Consumer::CodeGen);
+      })
       .and_then([&](auto Result) noexcept {
         return CodeGen.codegen(Data, std::move(Result), OutPath);
       })

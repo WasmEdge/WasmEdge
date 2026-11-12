@@ -464,7 +464,9 @@ Expect<void> VM::unsafeLoadJITExecutable() {
         }
         return ErrCode::Value::Success;
       })
-      .and_then([&]() { return Compiler.compile(*Mod); })
+      .and_then([&]() {
+        return Compiler.compile(*Mod, LLVM::Compiler::Consumer::JIT);
+      })
       .map_error([](uint32_t Err) {
         if (Err != ErrCode::Value::Success) {
           spdlog::error("Compilation failed. Error code: {}, use "

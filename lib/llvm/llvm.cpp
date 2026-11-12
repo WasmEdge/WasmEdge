@@ -4,7 +4,9 @@
 #include "llvm.h"
 
 #include <llvm/IR/GlobalValue.h>
+#ifdef WASMEDGE_USE_LLD
 #include <llvm/Object/ObjectFile.h>
+#endif
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #if LLVM_VERSION_MAJOR < 12 || WASMEDGE_OS_WINDOWS
 #include <llvm/ExecutionEngine/Orc/Core.h>
@@ -96,6 +98,7 @@ void Value::eliminateUnreachableBlocks() noexcept {
       *llvm::cast<llvm::Function>(reinterpret_cast<llvm::Value *>(Ref)));
 }
 
+#ifdef WASMEDGE_USE_LLD
 bool SectionIterator::isText() const noexcept {
   auto *S = reinterpret_cast<const llvm::object::section_iterator *>(Ref);
   return (*S)->isText();
@@ -136,6 +139,7 @@ bool SectionIterator::isVirtual() const noexcept {
   auto *S = reinterpret_cast<const llvm::object::section_iterator *>(Ref);
   return (*S)->isVirtual();
 }
+#endif
 
 #if WASMEDGE_OS_WINDOWS
 namespace {

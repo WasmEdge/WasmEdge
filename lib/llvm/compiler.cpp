@@ -6,9 +6,11 @@
 #include "compiler/context.h"
 #include "compiler/function_compiler.h"
 
+#include "arm_runtime_libcalls.h"
 #include "common/spdlog.h"
 #include "data.h"
 #include "llvm.h"
+#include "llvm/codegen.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -136,13 +138,13 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
   }
 #endif
 
-  // On RISC-V we use generic-rv64 as the CPU, so also use default
-  // features; host features under QEMU can be inconsistent (e.g.
-  // zvl*b without v) which LLVM >= 20 rejects.
+  // On RISC-V we use generic-rv64 as the CPU with the RV64GC baseline that
+  // every riscv64 Linux system provides; host features under QEMU can be
+  // inconsistent (e.g. zvl*b without v) which LLVM >= 20 rejects.
   TM = LLVM::TargetMachine::create(
       TheTarget, Triple, CPUName.c_str(),
 #if defined(__riscv) && __riscv_xlen == 64
-      "",
+      "+m,+a,+f,+d,+c",
 #else
       LLVM::getHostCPUFeatures().unwrap(),
 #endif
@@ -231,7 +233,8 @@ static LLVM::Context initLLVMModule(LLVM::Data &D) noexcept {
   return LLContext;
 }
 
-Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
+Expect<Data> Compiler::compile(const AST::Module &Module,
+                               Consumer Destination) noexcept {
   // Check that the module is validated.
   if (unlikely(!Module.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
@@ -260,6 +263,11 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   // Compile ExportSection.
   compile(Module.getExportSection());
   // StartSection is not required for compilation.
+
+  if (Destination == Consumer::CodeGen && CodeGen::usesNativeLinker(Conf)) {
+    EXPECTED_TRY(
+        addARMRuntimeLibcalls(LLModule, hostARMRuntimeLibcallProfile()));
+  }
 
   spdlog::info("verify start"sv);
   if (LLVM::Message VerifyMsg; LLModule.hasVerificationError(VerifyMsg)) {

@@ -80,6 +80,7 @@ QUICK_TESTS="
 
 run_test() {
   local test_name="$1"
+  shift
   local test_bin test_dir rel_lib
 
   test_bin=$(find build/test -type f -executable -name "${test_name}" 2>/dev/null | head -1)
@@ -96,9 +97,9 @@ run_test() {
     ( cd "${test_dir}" && timeout "$TIMEOUT" qemu-riscv64-static \
       -L /usr/riscv64-linux-gnu \
       -E LD_LIBRARY_PATH="/usr/lib/riscv64-linux-gnu:${rel_lib}" \
-      "./${test_name}" )
+      "./${test_name}" "$@" )
   else
-    ( cd "${test_dir}" && timeout "$TIMEOUT" env LD_LIBRARY_PATH="${rel_lib}" "./${test_name}" )
+    ( cd "${test_dir}" && timeout "$TIMEOUT" env LD_LIBRARY_PATH="${rel_lib}" "./${test_name}" "$@" )
   fi
 }
 
@@ -111,6 +112,17 @@ for test_name in ${QUICK_TESTS}; do
     failed=$((failed + 1))
   fi
 done
+
+if [ ! -x build/test/llvm/wasmedgeLLVMCoreTests ]; then
+  echo "FAILED: wasmedgeLLVMCoreTests (required binary not found)"
+  failed=$((failed + 1))
+elif run_test wasmedgeLLVMCoreTests \
+    --gtest_filter='LinkerHostTest.*:RISCVRelocationTest.*'; then
+  echo "PASSED: wasmedgeLLVMCoreTests (RISC-V linker subset)"
+else
+  echo "FAILED: wasmedgeLLVMCoreTests (RISC-V linker subset)"
+  failed=$((failed + 1))
+fi
 
 echo "=== Quick Test Suite Complete ==="
 if [ "$failed" -gt 0 ]; then

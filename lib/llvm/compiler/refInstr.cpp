@@ -125,29 +125,29 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
     case TypeCode::I16:
     case TypeCode::I32: {
       stackPush(
-          Builder.createValuePtrLoad(Context.Int32Ty, Ret, Context.Int64x2Ty));
+          Builder.createValuePtrLoad(Context.Int32Ty, Ret, Context.Int8Ty));
       break;
     }
     case TypeCode::I64: {
       stackPush(
-          Builder.createValuePtrLoad(Context.Int64Ty, Ret, Context.Int64x2Ty));
+          Builder.createValuePtrLoad(Context.Int64Ty, Ret, Context.Int8Ty));
       break;
     }
     case TypeCode::F32: {
       stackPush(
-          Builder.createValuePtrLoad(Context.FloatTy, Ret, Context.Int64x2Ty));
+          Builder.createValuePtrLoad(Context.FloatTy, Ret, Context.Int8Ty));
       break;
     }
     case TypeCode::F64: {
       stackPush(
-          Builder.createValuePtrLoad(Context.DoubleTy, Ret, Context.Int64x2Ty));
+          Builder.createValuePtrLoad(Context.DoubleTy, Ret, Context.Int8Ty));
       break;
     }
     case TypeCode::V128:
     case TypeCode::Ref:
     case TypeCode::RefNull: {
-      stackPush(Builder.createValuePtrLoad(Context.Int64x2Ty, Ret,
-                                           Context.Int64x2Ty));
+      stackPush(
+          Builder.createValuePtrLoad(Context.Int64x2Ty, Ret, Context.Int8Ty));
       break;
     }
     default:
@@ -160,7 +160,7 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
     auto Val = stackPop();
     auto Ref = stackPop();
     LLVM::Value Arg = getTmpValues(1);
-    Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
+    Builder.createValuePtrStore(Val, Arg, Context.Int8Ty);
     Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kStructSet,
@@ -179,7 +179,7 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
     auto Length = stackPop();
     auto Val = stackPop();
     LLVM::Value Arg = getTmpValues(1);
-    Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
+    Builder.createValuePtrStore(Val, Arg, Context.Int8Ty);
     stackPush(Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kArrayNew,
@@ -283,29 +283,29 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
     case TypeCode::I16:
     case TypeCode::I32: {
       stackPush(
-          Builder.createValuePtrLoad(Context.Int32Ty, Ret, Context.Int64x2Ty));
+          Builder.createValuePtrLoad(Context.Int32Ty, Ret, Context.Int8Ty));
       break;
     }
     case TypeCode::I64: {
       stackPush(
-          Builder.createValuePtrLoad(Context.Int64Ty, Ret, Context.Int64x2Ty));
+          Builder.createValuePtrLoad(Context.Int64Ty, Ret, Context.Int8Ty));
       break;
     }
     case TypeCode::F32: {
       stackPush(
-          Builder.createValuePtrLoad(Context.FloatTy, Ret, Context.Int64x2Ty));
+          Builder.createValuePtrLoad(Context.FloatTy, Ret, Context.Int8Ty));
       break;
     }
     case TypeCode::F64: {
       stackPush(
-          Builder.createValuePtrLoad(Context.DoubleTy, Ret, Context.Int64x2Ty));
+          Builder.createValuePtrLoad(Context.DoubleTy, Ret, Context.Int8Ty));
       break;
     }
     case TypeCode::V128:
     case TypeCode::Ref:
     case TypeCode::RefNull: {
-      stackPush(Builder.createValuePtrLoad(Context.Int64x2Ty, Ret,
-                                           Context.Int64x2Ty));
+      stackPush(
+          Builder.createValuePtrLoad(Context.Int64x2Ty, Ret, Context.Int8Ty));
       break;
     }
     default:
@@ -319,7 +319,7 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
     auto Idx = stackPop();
     auto Ref = stackPop();
     LLVM::Value Arg = getTmpValues(1);
-    Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
+    Builder.createValuePtrStore(Val, Arg, Context.Int8Ty);
     Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kArraySet,
@@ -348,7 +348,7 @@ FunctionCompiler::compileRefOp(const AST::Instruction &Instr) noexcept {
     auto Off = stackPop();
     auto Ref = stackPop();
     LLVM::Value Arg = getTmpValues(1);
-    Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
+    Builder.createValuePtrStore(Val, Arg, Context.Int8Ty);
     Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kArrayFill,

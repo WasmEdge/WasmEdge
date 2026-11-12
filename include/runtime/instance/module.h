@@ -416,17 +416,13 @@ protected:
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedDataInsts, DataInsts, std::forward<Args>(Values)...);
   }
-  template <typename... Args> ArrayInstance *newArray(Args &&...Values) {
-    std::unique_lock Lock(Mutex);
-    OwnedArrayInsts.push_back(
-        std::make_unique<ArrayInstance>(this, std::forward<Args>(Values)...));
-    return OwnedArrayInsts.back().get();
+  Expect<ArrayInstance *> newArray(uint32_t TypeIdx, uint32_t Length,
+                                   uint32_t ElemSize) {
+    return newData(OwnedArrayInsts, TypeIdx, Length,
+                   static_cast<uint64_t>(Length) * ElemSize);
   }
-  template <typename... Args> StructInstance *newStruct(Args &&...Values) {
-    std::unique_lock Lock(Mutex);
-    OwnedStructInsts.push_back(
-        std::make_unique<StructInstance>(this, std::forward<Args>(Values)...));
-    return OwnedStructInsts.back().get();
+  Expect<StructInstance *> newStruct(uint32_t TypeIdx, uint64_t FieldBytes) {
+    return newData(OwnedStructInsts, TypeIdx, 0, FieldBytes);
   }
   template <typename... Args>
   Expect<ExceptionInstance *> newException(Args &&...Values) {
@@ -663,6 +659,21 @@ protected:
     InstsVec.push_back(OwnedInstsVec.back().get());
   }
 
+  /// Make a data slot of the defined type `TypeIdx` that this module owns.
+  template <typename T>
+  Expect<T *> newData(std::vector<UniqueHeapPtr<T>> &OwnedVec, uint32_t TypeIdx,
+                      uint32_t Length, uint64_t FieldBytes) {
+    auto *Heap = RefHeap::getGlobal();
+    if (Heap == nullptr) {
+      return Unexpect(ErrCode::Value::RefHeapFull);
+    }
+    EXPECTED_TRY(auto Data, Heap->makeData<T>(getCanonicalTypeId(TypeIdx),
+                                              Length, FieldBytes));
+    std::unique_lock Lock(Mutex);
+    OwnedVec.push_back(std::move(Data));
+    return OwnedVec.back().get();
+  }
+
   /// Unsafely add and export the existing instance to this module.
   template <typename T, typename OwnerT>
   std::enable_if_t<IsEntityV<T>, void> unsafeAddHostInstance(
@@ -829,8 +840,8 @@ protected:
   std::vector<std::unique_ptr<GlobalInstance>> OwnedGlobInsts;
   std::vector<std::unique_ptr<ElementInstance>> OwnedElemInsts;
   std::vector<std::unique_ptr<DataInstance>> OwnedDataInsts;
-  std::vector<std::unique_ptr<ArrayInstance>> OwnedArrayInsts;
-  std::vector<std::unique_ptr<StructInstance>> OwnedStructInsts;
+  std::vector<UniqueHeapPtr<ArrayInstance>> OwnedArrayInsts;
+  std::vector<UniqueHeapPtr<StructInstance>> OwnedStructInsts;
   std::vector<UniqueHeapPtr<ExceptionInstance>> OwnedExceptionInsts;
 
   /// Imported and added instances in this module.

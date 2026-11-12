@@ -19,6 +19,7 @@
 #include "common/spdlog.h"
 #include "executor/executor.h"
 #include "loader/loader.h"
+#include "runtime/refheap.h"
 #include "validator/validator.h"
 #include "vm/vm.h"
 #include "llvm/codegen.h"
@@ -809,17 +810,28 @@ TEST(AOTCrossModule, CrossModuleStructNewOwnedByCallee) {
   ASSERT_TRUE(R);
   ASSERT_EQ(R->size(), 1u);
 
-  const auto *Inst = (*R)[0].first.get<RefVariant>().getStructInst();
-  ASSERT_NE(Inst, nullptr);
-  EXPECT_EQ(Inst->getModule(), CalleeInst.get())
-      << "the struct created by the callee's struct.new_default is not "
-         "owned by the callee module";
-  EXPECT_NE(Inst->getModule(), CallerInst.get())
-      << "the struct is owned by the caller instead of the callee";
-  EXPECT_EQ(Inst->getField(0).get<uint32_t>(), 0u);
-  EXPECT_TRUE(Inst->getField(1).get<RefVariant>().isNull())
+  const auto Ref = (*R)[0].first.get<RefVariant>();
+  auto *Heap = Runtime::RefHeap::getGlobal();
+  ASSERT_NE(Heap, nullptr);
+  const uint32_t Off = Heap->getOffset(Ref.getStructInst());
+  ASSERT_NE(Off, 0u);
+  constexpr uint32_t FieldBase = sizeof(Runtime::HeapHeader);
+  auto Tag = Heap->load<uint32_t>(Off, FieldBase);
+  ASSERT_TRUE(Tag);
+  EXPECT_EQ(*Tag, 0u);
+  auto Next = Heap->load<RefVariant>(Off, FieldBase + 16u);
+  ASSERT_TRUE(Next);
+  EXPECT_TRUE(Next->isNull())
       << "the default-initialized concrete reference field did not resolve "
          "to a null bottom type through the callee's own type section";
+
+  CallerInst.reset();
+  EXPECT_EQ(Heap->getOffset(Ref.getStructInst()), Off)
+      << "the struct is owned by the caller instead of the callee";
+  CalleeInst.reset();
+  EXPECT_EQ(Heap->getOffset(Ref.getStructInst()), 0u)
+      << "the struct created by the callee's struct.new_default is not "
+         "owned by the callee module";
 }
 
 // A compiled throw must resolve its tag in the throwing module's tag space. The

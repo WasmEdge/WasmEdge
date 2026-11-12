@@ -661,66 +661,27 @@ void Executor::cleanNumericVal(ValVariant &Val,
   }
 }
 
-ValVariant Executor::packVal(const ValType &Type,
-                             const ValVariant &Val) const noexcept {
-  if (Type.isPackType()) {
-    switch (Type.getCode()) {
-    case TypeCode::I8:
-      if constexpr (Endian::native == Endian::little) {
-        return ValVariant(Val.get<uint32_t>() & 0xFFU);
-      } else {
-        return ValVariant(Val.get<uint32_t>() << 24);
-      }
-    case TypeCode::I16:
-      if constexpr (Endian::native == Endian::little) {
-        return ValVariant(Val.get<uint32_t>() & 0xFFFFU);
-      } else {
-        return ValVariant(Val.get<uint32_t>() << 16);
-      }
-    default:
-      assumingUnreachable();
-    }
-  }
-  return Val;
+const Runtime::HeapHeader *
+Executor::getDataHeader(const RefVariant &Ref) const noexcept {
+  return Runtime::Matcher::getDataHeader(Ref);
 }
 
-std::vector<ValVariant>
-Executor::packVals(const ValType &Type,
-                   std::vector<ValVariant> &&Vals) const noexcept {
-  for (uint32_t I = 0; I < Vals.size(); I++) {
-    Vals[I] = packVal(Type, Vals[I]);
+Expect<uint32_t>
+Executor::getDataOffset(const RefVariant &Ref,
+                        const Runtime::HeapKind Kind) const noexcept {
+  const auto *Obj = static_cast<const void *>(Ref.getStructInst());
+  if (Obj == nullptr) {
+    return Unexpect(Kind == Runtime::HeapKind::Struct
+                        ? ErrCode::Value::AccessNullStruct
+                        : ErrCode::Value::AccessNullArray);
   }
-  return std::move(Vals);
-}
-
-ValVariant Executor::unpackVal(const ValType &Type, const ValVariant &Val,
-                               bool IsSigned) const noexcept {
-  if (Type.isPackType()) {
-    uint32_t Num = Val.get<uint32_t>();
-    switch (Type.getCode()) {
-    case TypeCode::I8:
-      if constexpr (Endian::native == Endian::big) {
-        Num >>= 24;
-      }
-      if (IsSigned) {
-        return static_cast<uint32_t>(static_cast<int8_t>(Num));
-      } else {
-        return static_cast<uint32_t>(static_cast<uint8_t>(Num));
-      }
-    case TypeCode::I16:
-      if constexpr (Endian::native == Endian::big) {
-        Num >>= 16;
-      }
-      if (IsSigned) {
-        return static_cast<uint32_t>(static_cast<int16_t>(Num));
-      } else {
-        return static_cast<uint32_t>(static_cast<uint16_t>(Num));
-      }
-    default:
-      assumingUnreachable();
-    }
+  auto *Heap = Runtime::RefHeap::getGlobal();
+  const uint32_t Off = Heap != nullptr ? Heap->getOffset(Obj) : 0;
+  const auto *Header = Off != 0 ? Heap->getHeader(Off) : nullptr;
+  if (Header == nullptr || Header->Kind != Kind) {
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  return Val;
+  return Off;
 }
 
 } // namespace Executor

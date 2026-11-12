@@ -333,11 +333,7 @@ Executor::proxyArraySet(Runtime::StackManager &,
 
 Expect<uint32_t> Executor::proxyArrayLen(Runtime::StackManager &,
                                          const RefVariant Ref) noexcept {
-  auto *Inst = Ref.getArrayInst();
-  if (Inst == nullptr) {
-    return Unexpect(ErrCode::Value::AccessNullArray);
-  }
-  return Inst->getLength();
+  return arrayLen(Ref);
 }
 
 Expect<void> Executor::proxyArrayFill(

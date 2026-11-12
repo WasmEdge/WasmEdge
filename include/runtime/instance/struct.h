@@ -8,42 +8,29 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the struct instance definition in store manager.
+/// This file contains the struct instance marker type in the reference heap.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/type.h"
-#include "common/span.h"
-#include "common/types.h"
-#include "runtime/instance/composite.h"
-
-#include <vector>
+#include "runtime/refheap.h"
 
 namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
 
-class StructInstance : public CompositeBase {
+/// Marker type of a struct in a data slot of the reference heap. The fields
+/// follow the slot header, and the header holds the canonical type id.
+class StructInstance {
 public:
   StructInstance() = delete;
-  StructInstance(const ModuleInstance *Mod, const uint32_t Idx,
-                 std::vector<ValVariant> &&Init) noexcept
-      : CompositeBase(Mod, Idx), Data(std::move(Init)) {
-    assuming(ModInst);
-  }
-
-  /// Get field data in struct instance.
-  ValVariant &getField(uint32_t Idx) noexcept { return Data[Idx]; }
-  const ValVariant &getField(uint32_t Idx) const noexcept { return Data[Idx]; }
-
-private:
-  /// \name Data of struct instance.
-  /// @{
-  std::vector<ValVariant> Data;
-  /// @}
 };
 
 } // namespace Instance
+
+template <> struct HeapTraits<Instance::StructInstance> {
+  static constexpr HeapKind Kind = HeapKind::Struct;
+};
+
 } // namespace Runtime
 } // namespace WasmEdge

@@ -25,6 +25,7 @@
 #include "runtime/instance/module.h"
 #include "runtime/instance/table.h"
 #include "runtime/instance/tag.h"
+#include "runtime/refheap.h"
 #include "runtime/typetable.h"
 
 #include <cstdint>
@@ -55,13 +56,23 @@ public:
     const AST::SubType *HostType = nullptr;
     std::optional<uint32_t> GotId;
     if (!VT.isAbsHeapType()) {
-      const auto *Inst = Ref.getCompositeInst();
-      const auto *GotMod = Inst->getModule() ? Inst->getModule() : ModInst;
-      if (GotMod == nullptr ||
-          VT.getTypeIndex() >= GotMod->getTypeList().size()) {
-        return false;
+      if (const auto *Header = getDataHeader(Ref)) {
+        if (Header->TypeId >= CanonicalTypeTable::getGlobal().size()) {
+          return false;
+        }
+        GotId = Header->TypeId;
+      } else {
+        const auto *Inst = Ref.getCompositeInst();
+        if (Inst == nullptr) {
+          return false;
+        }
+        const auto *GotMod = Inst->getModule() ? Inst->getModule() : ModInst;
+        if (GotMod == nullptr ||
+            VT.getTypeIndex() >= GotMod->getTypeList().size()) {
+          return false;
+        }
+        GotId = GotMod->getCanonicalTypeId(VT.getTypeIndex());
       }
-      GotId = GotMod->getCanonicalTypeId(VT.getTypeIndex());
     } else if (VT.getHeapTypeCode() == TypeCode::FuncRef) {
       const auto *FuncInst = retrieveFuncRef(Ref);
       if (FuncInst->getModule()) {
@@ -100,6 +111,26 @@ public:
       VT = ValType(TypeCode::Ref, TypeCode::ExternRef);
     }
     return AST::TypeMatcher::matchType(ExpTypeList, Exp, GotTypeList, VT);
+  }
+
+  /// Get the header of the struct or array that a reference points to, or
+  /// null for other references.
+  static const HeapHeader *getDataHeader(const RefVariant &Ref) noexcept {
+    const auto *Obj = static_cast<const void *>(Ref.getStructInst());
+    auto *Heap = RefHeap::getGlobal();
+    if (Obj == nullptr || Heap == nullptr) {
+      return nullptr;
+    }
+    const uint32_t Off = Heap->getOffset(Obj);
+    if (Off == 0 || (Off & RefHeap::kTagObject) != 0) {
+      return nullptr;
+    }
+    const auto *Header = Heap->getHeader(Off);
+    if (Header == nullptr ||
+        (Header->Kind != HeapKind::Struct && Header->Kind != HeapKind::Array)) {
+      return nullptr;
+    }
+    return Header;
   }
 
   /// Match a reference passed with a type to a value type of a module

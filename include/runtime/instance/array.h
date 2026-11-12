@@ -8,51 +8,29 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the array instance definition in store manager.
+/// This file contains the array instance marker type in the reference heap.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/type.h"
-#include "common/span.h"
-#include "common/types.h"
-#include "runtime/instance/composite.h"
-
-#include <vector>
+#include "runtime/refheap.h"
 
 namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
 
-class ArrayInstance : public CompositeBase {
+/// Marker type of a array in a data slot of the reference heap. The fields
+/// follow the slot header, and the header holds the canonical type id.
+class ArrayInstance {
 public:
   ArrayInstance() = delete;
-  ArrayInstance(const ModuleInstance *Mod, const uint32_t Idx,
-                std::vector<ValVariant> &&Init) noexcept
-      : CompositeBase(Mod, Idx), Data(std::move(Init)) {
-    assuming(ModInst);
-  }
-
-  /// Get field data in array instance.
-  ValVariant &getData(uint32_t Idx) noexcept { return Data[Idx]; }
-  const ValVariant &getData(uint32_t Idx) const noexcept { return Data[Idx]; }
-
-  /// Get full array.
-  Span<ValVariant> getArray() noexcept { return Data; }
-  Span<const ValVariant> getArray() const noexcept { return Data; }
-
-  /// Get array length.
-  uint32_t getLength() const noexcept {
-    return static_cast<uint32_t>(Data.size());
-  }
-
-private:
-  /// \name Data of array instance.
-  /// @{
-  std::vector<ValVariant> Data;
-  /// @}
 };
 
 } // namespace Instance
+
+template <> struct HeapTraits<Instance::ArrayInstance> {
+  static constexpr HeapKind Kind = HeapKind::Array;
+};
+
 } // namespace Runtime
 } // namespace WasmEdge

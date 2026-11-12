@@ -13,6 +13,7 @@
 #include "ast/module.h"
 #include "executor/executor.h"
 #include "loader/loader.h"
+#include "runtime/refheap.h"
 #include "runtime/storemgr.h"
 #include "validator/validator.h"
 
@@ -1132,18 +1133,15 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
 // Retrieve the function instance from a reference of a funcref type. Returns
 // nullptr for the null references and the non-function objects.
 WasmEdge::Runtime::Instance::FunctionInstance *
-retrieve_funcinst(const WasmEdge::RefVariant &ref,
-                  const WasmEdge::ValType &vt) {
+retrieve_funcinst(const WasmEdge::RefVariant &ref) {
   if (ref.isNull()) {
     return nullptr;
   }
-  if (vt.getHeapTypeCode() == WasmEdge::TypeCode::TypeIndex) {
-    const auto *base = ref.getCompositeInst();
-    if (const auto *mod = base->getModule()) {
-      auto type = mod->getType(base->getTypeIndex());
-      if (!type || !(*type)->getCompositeType().isFunc()) {
-        return nullptr;
-      }
+  if (auto *heap = WasmEdge::Runtime::RefHeap::getGlobal()) {
+    const uint32_t off =
+        heap->getOffset(static_cast<const void *>(ref.getStructInst()));
+    if (off != 0 && (off & WasmEdge::Runtime::RefHeap::kTagObject) == 0) {
+      return nullptr;
     }
   }
   return const_cast<WasmEdge::Runtime::Instance::FunctionInstance *>(
@@ -1295,8 +1293,7 @@ wasm::Val conv_cppval_from_wasmedge(wasm::Store *store,
   } else if (vt.isFuncRefType()) {
     return make_cppval_ref(
         wasm::ValKind::FUNCREF,
-        make_funcref(store,
-                     retrieve_funcinst(v.get<WasmEdge::RefVariant>(), vt)));
+        make_funcref(store, retrieve_funcinst(v.get<WasmEdge::RefVariant>())));
   } else if (vt.isExternRefType()) {
     auto *ref = v.get<WasmEdge::RefVariant>().getExternPtr<wasm_ref_t>();
     return wasm::Val::ref(ref ? ref->copy_ref() : wasm::own<wasm_ref_t>());
@@ -3035,9 +3032,7 @@ wasm::own<wasm::Ref> wasm::Table::get(wasm::Table::size_t index) const {
       res && !(*res).isNull()) {
     if (inst->getTableType().getRefType().isFuncRefType()) {
       // Non-owning wrap; the FunctionInstance lives in the table's module.
-      return make_funcref(
-          self->store,
-          retrieve_funcinst(*res, inst->getTableType().getRefType()));
+      return make_funcref(self->store, retrieve_funcinst(*res));
     } else if (inst->getTableType().getRefType().isExternRefType()) {
       auto *ref = (*res).getExternPtr<wasm_ref_t>();
       return ref ? ref->copy_ref() : nullptr;

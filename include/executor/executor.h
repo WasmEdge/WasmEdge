@@ -457,6 +457,7 @@ private:
   Expect<RefVariant> arrayNew(const Runtime::Instance::ModuleInstance *ModInst,
                               const uint32_t TypeIdx, const uint32_t Length,
                               Span<const ValVariant> Args = {}) const noexcept;
+  Expect<uint32_t> arrayLen(const RefVariant &Ref) const noexcept;
   Expect<RefVariant>
   arrayNewData(const Runtime::Instance::ModuleInstance *ModInst,
                const uint32_t TypeIdx, const uint32_t DataIdx,
@@ -570,16 +571,15 @@ private:
   /// Helper function for cleaning unused bits of numeric values in ValVariant.
   void cleanNumericVal(ValVariant &Val, const ValType &Type) const noexcept;
 
-  /// Helper function for packing ValVariant for packed type.
-  ValVariant packVal(const ValType &Type, const ValVariant &Val) const noexcept;
+  /// Helper function for getting the header of the struct or array that a
+  /// reference points to, or null for other references.
+  const Runtime::HeapHeader *
+  getDataHeader(const RefVariant &Ref) const noexcept;
 
-  /// Helper function for packing ValVariant vector for packed type.
-  std::vector<ValVariant>
-  packVals(const ValType &Type, std::vector<ValVariant> &&Vals) const noexcept;
-
-  /// Helper function for unpacking ValVariant for packed type.
-  ValVariant unpackVal(const ValType &Type, const ValVariant &Val,
-                       bool IsSigned = false) const noexcept;
+  /// Helper function for getting the data slot offset of a struct or array
+  /// reference of the kind `Kind`.
+  Expect<uint32_t> getDataOffset(const RefVariant &Ref,
+                                 const Runtime::HeapKind Kind) const noexcept;
   /// @}
 
   /// \name Interpreter - Run instructions functions
@@ -653,6 +653,7 @@ private:
                                  const AST::Instruction &Instr) const noexcept;
   Expect<void> runStructNewOp(Runtime::StackManager &StackMgr,
                               const uint32_t TypeIdx,
+                              const AST::Instruction &Instr,
                               const bool IsDefault = false) const noexcept;
   Expect<void> runStructGetOp(Runtime::StackManager &StackMgr,
                               const uint32_t TypeIdx, const uint32_t Off,

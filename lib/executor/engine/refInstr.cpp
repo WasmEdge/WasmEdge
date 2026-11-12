@@ -3,7 +3,7 @@
 
 #include "executor/executor.h"
 
-#include <new>
+#include <cstring>
 #include <vector>
 
 namespace WasmEdge {
@@ -26,12 +26,109 @@ ErrCode logError(const ErrCode &Code, const AST::Instruction &Instr) noexcept {
   return Code;
 }
 
+constexpr uint32_t kFieldBase = sizeof(Runtime::HeapHeader);
+
+uint32_t arrayLength(const RefVariant &Ref) noexcept {
+  auto *Heap = Runtime::RefHeap::getGlobal();
+  const uint32_t Off =
+      Heap != nullptr ? Heap->getOffset(Ref.getArrayInst()) : 0;
+  const auto *Header = Off != 0 ? Heap->getHeader(Off) : nullptr;
+  return Header != nullptr ? Header->Length : 0;
+}
+
+void writeField(uint8_t *Dst, const ValType &Type,
+                const ValVariant &Val) noexcept {
+  auto Write = [Dst](auto V) noexcept { std::memcpy(Dst, &V, sizeof(V)); };
+  switch (Type.getCode()) {
+  case TypeCode::I8:
+    return Write(static_cast<uint8_t>(Val.get<uint32_t>()));
+  case TypeCode::I16:
+    return Write(static_cast<uint16_t>(Val.get<uint32_t>()));
+  case TypeCode::I32:
+    return Write(Val.get<uint32_t>());
+  case TypeCode::F32:
+    return Write(Val.get<float>());
+  case TypeCode::I64:
+    return Write(Val.get<uint64_t>());
+  case TypeCode::F64:
+    return Write(Val.get<double>());
+  case TypeCode::V128:
+    return Write(Val.get<uint128_t>());
+  default:
+    return Write(Val.get<RefVariant>());
+  }
+}
+
+ValVariant readField(const uint8_t *Src, const ValType &Type,
+                     const bool IsSigned) noexcept {
+  auto Read = [Src](auto V) noexcept {
+    std::memcpy(&V, Src, sizeof(V));
+    return V;
+  };
+  ValVariant Val(static_cast<uint128_t>(0U));
+  switch (Type.getCode()) {
+  case TypeCode::I8: {
+    const auto V = Read(uint8_t(0));
+    Val.emplace<uint32_t>(IsSigned ? (static_cast<uint32_t>(V) ^ 0x80U) - 0x80U
+                                   : static_cast<uint32_t>(V));
+    break;
+  }
+  case TypeCode::I16: {
+    const auto V = Read(uint16_t(0));
+    Val.emplace<uint32_t>(IsSigned
+                              ? (static_cast<uint32_t>(V) ^ 0x8000U) - 0x8000U
+                              : static_cast<uint32_t>(V));
+    break;
+  }
+  case TypeCode::I32:
+    Val.emplace<uint32_t>(Read(uint32_t(0)));
+    break;
+  case TypeCode::F32:
+    Val.emplace<float>(Read(0.0f));
+    break;
+  case TypeCode::I64:
+    Val.emplace<uint64_t>(Read(uint64_t(0)));
+    break;
+  case TypeCode::F64:
+    Val.emplace<double>(Read(0.0));
+    break;
+  case TypeCode::V128:
+    Val.emplace<uint128_t>(Read(static_cast<uint128_t>(0U)));
+    break;
+  default:
+    Val.emplace<RefVariant>(Read(RefVariant()));
+    break;
+  }
+  return Val;
+}
+
+void writeSegmentValue(uint8_t *Dst, const uint8_t *Src,
+                       const uint32_t Size) noexcept {
+  auto Write = [Dst, Src](auto X) noexcept {
+    EndianValue<decltype(X)> V;
+    std::memcpy(&V.raw(), Src, sizeof(X));
+    X = V.le();
+    std::memcpy(Dst, &X, sizeof(X));
+  };
+  switch (Size) {
+  case 1:
+    return Write(uint8_t(0));
+  case 2:
+    return Write(uint16_t(0));
+  case 4:
+    return Write(uint32_t(0));
+  case 8:
+    return Write(uint64_t(0));
+  default:
+    return Write(static_cast<uint128_t>(0U));
+  }
+}
+
 void logArrayOOB(const ErrCode &Code, const uint32_t Idx, const uint32_t Cnt,
                  const RefVariant &Ref) noexcept {
   if (Code == ErrCode::Value::ArrayOutOfBounds) {
-    const auto *Inst = Ref.getArrayInst();
     spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx), Cnt,
-                                        Inst->getLength()));
+                                        arrayLength(Ref)));
   }
 }
 
@@ -40,16 +137,15 @@ void logDoubleArrayOOB(const ErrCode &Code, const uint32_t Idx1,
                        const uint32_t Idx2, const uint32_t Cnt2,
                        const RefVariant &Ref2) noexcept {
   if (Code == ErrCode::Value::ArrayOutOfBounds) {
-    const auto *Inst1 = Ref1.getArrayInst();
-    const auto *Inst2 = Ref2.getArrayInst();
-    if (static_cast<uint64_t>(Idx1) + static_cast<uint64_t>(Cnt1) >
-        Inst1->getLength()) {
-      spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx1), Cnt1,
-                                          Inst1->getLength()));
+    const uint32_t Len1 = arrayLength(Ref1);
+    const uint32_t Len2 = arrayLength(Ref2);
+    if (static_cast<uint64_t>(Idx1) + static_cast<uint64_t>(Cnt1) > Len1) {
+      spdlog::error(
+          ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx1), Cnt1, Len1));
     } else if (static_cast<uint64_t>(Idx2) + static_cast<uint64_t>(Cnt2) >
-               Inst2->getLength()) {
-      spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx2), Cnt2,
-                                          Inst2->getLength()));
+               Len2) {
+      spdlog::error(
+          ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx2), Cnt2, Len2));
     }
   }
 }
@@ -114,15 +210,20 @@ Executor::runRefAsNonNullOp(RefVariant &Ref,
 
 Expect<void> Executor::runStructNewOp(Runtime::StackManager &StackMgr,
                                       const uint32_t TypeIdx,
+                                      const AST::Instruction &Instr,
                                       const bool IsDefault) const noexcept {
-  if (IsDefault) {
-    StackMgr.push(*structNew(StackMgr.getModule(), TypeIdx));
-  } else {
+  std::vector<ValVariant> Vals;
+  if (!IsDefault) {
     const auto &CompType = getCompositeTypeByIdx(StackMgr.getModule(), TypeIdx);
     const uint32_t N = static_cast<uint32_t>(CompType.getFieldTypes().size());
-    std::vector<ValVariant> Vals = StackMgr.pop(N);
-    StackMgr.push(*structNew(StackMgr.getModule(), TypeIdx, Vals));
+    Vals = StackMgr.pop(N);
   }
+  EXPECTED_TRY(
+      auto Ref,
+      structNew(StackMgr.getModule(), TypeIdx, Vals).map_error([&](auto E) {
+        return logError(E, Instr);
+      }));
+  StackMgr.push(Ref);
   return {};
 }
 
@@ -155,22 +256,21 @@ Executor::runArrayNewOp(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
                         const AST::Instruction &Instr) const noexcept {
   assuming(InitCnt == 0 || InitCnt == 1 || InitCnt == Length);
   auto Report = [&](auto E) { return logError(E, Instr); };
-  if (InitCnt == 0) {
-    EXPECTED_TRY(
-        auto InstRef,
-        arrayNew(StackMgr.getModule(), TypeIdx, Length).map_error(Report));
-    StackMgr.push(InstRef);
-  } else if (InitCnt == 1) {
-    EXPECTED_TRY(auto InstRef, arrayNew(StackMgr.getModule(), TypeIdx, Length,
-                                        {StackMgr.getTop()})
-                                   .map_error(Report));
-    StackMgr.getTop().emplace<RefVariant>(InstRef);
-  } else {
-    EXPECTED_TRY(auto InstRef, arrayNew(StackMgr.getModule(), TypeIdx, Length,
-                                        StackMgr.pop(Length))
-                                   .map_error(Report));
-    StackMgr.push(InstRef);
+  if (InitCnt == 1) {
+    EXPECTED_TRY(auto Ref, arrayNew(StackMgr.getModule(), TypeIdx, Length,
+                                    {StackMgr.getTop()})
+                               .map_error(Report));
+    StackMgr.getTop().emplace<RefVariant>(Ref);
+    return {};
   }
+  std::vector<ValVariant> Vals;
+  if (InitCnt > 1) {
+    Vals = StackMgr.pop(Length);
+  }
+  EXPECTED_TRY(
+      auto Ref,
+      arrayNew(StackMgr.getModule(), TypeIdx, Length, Vals).map_error(Report));
+  StackMgr.push(Ref);
   return {};
 }
 
@@ -251,11 +351,10 @@ Executor::runArraySetOp(Runtime::StackManager &StackMgr, const ValVariant &Val,
 Expect<void>
 Executor::runArrayLenOp(ValVariant &Val,
                         const AST::Instruction &Instr) const noexcept {
-  const auto *Inst = Val.get<RefVariant>().getArrayInst();
-  if (Inst == nullptr) {
-    return Unexpect(logError(ErrCode::Value::AccessNullArray, Instr));
-  }
-  Val.emplace<uint32_t>(Inst->getLength());
+  EXPECTED_TRY(auto Len, arrayLen(Val.get<RefVariant>()).map_error([&](auto E) {
+    return logError(E, Instr);
+  }));
+  Val.emplace<uint32_t>(Len);
   return {};
 }
 
@@ -398,158 +497,232 @@ Executor::structNew(const Runtime::Instance::ModuleInstance *ModInstArg,
   /// instance because they refer to the defined types of the module instances.
   /// This may be changed after applying the garbage collection mechanism.
   const auto &CompType = getCompositeTypeByIdx(ModInstArg, TypeIdx);
-  uint32_t N = static_cast<uint32_t>(CompType.getFieldTypes().size());
+  const auto &FieldTypes = CompType.getFieldTypes();
+  const auto N = static_cast<uint32_t>(FieldTypes.size());
+  const auto Positions =
+      Runtime::CanonicalTypeTable::getGlobal().getFieldPositions(
+          ModInstArg->getCanonicalTypeId(TypeIdx));
+  assuming(Positions.size() == N + 1U);
   auto *ModInst = const_cast<Runtime::Instance::ModuleInstance *>(ModInstArg);
-  std::vector<ValVariant> Vals(N);
+  EXPECTED_TRY(auto *Inst, ModInst->newStruct(TypeIdx, Positions[N]));
+  auto *Heap = Runtime::RefHeap::getGlobal();
+  const uint32_t Off = Heap->getOffset(Inst);
+  EXPECTED_TRY(uint8_t *Fields,
+               Heap->getDataSpan(Off, kFieldBase, Positions[N]));
   for (uint32_t I = 0; I < N; I++) {
-    const auto &VType = CompType.getFieldTypes()[I].getStorageType();
-    if (Args.size() > 0) {
-      Vals[I] = packVal(VType, Args[I]);
-    } else {
-      Vals[I] = VType.isRefType()
-                    ? ValVariant(RefVariant(toBottomType(ModInstArg, VType)))
-                    : ValVariant(static_cast<uint128_t>(0U));
+    const auto &VType = FieldTypes[I].getStorageType();
+    if (!Args.empty()) {
+      writeField(Fields + Positions[I], VType, Args[I]);
+    } else if (VType.isRefType()) {
+      writeField(Fields + Positions[I], VType,
+                 RefVariant(toBottomType(ModInstArg, VType)));
     }
   }
-  WasmEdge::Runtime::Instance::StructInstance *Inst =
-      ModInst->newStruct(TypeIdx, std::move(Vals));
-  return RefVariant::makeStruct(Inst->getDefType(), Inst);
+  return RefVariant::makeStruct(ValType(TypeCode::Ref, TypeIdx), Inst);
 }
 
 Expect<ValVariant>
 Executor::structGet(const Runtime::Instance::ModuleInstance *ModInst,
                     const RefVariant Ref, const uint32_t TypeIdx,
                     const uint32_t Off, const bool IsSigned) const noexcept {
-  const auto *Inst = Ref.getStructInst();
-  if (Inst == nullptr) {
-    return Unexpect(ErrCode::Value::AccessNullStruct);
-  }
+  EXPECTED_TRY(const uint32_t DataOff,
+               getDataOffset(Ref, Runtime::HeapKind::Struct));
   const auto &VType = getStructStorageTypeByIdx(ModInst, TypeIdx, Off);
-  return unpackVal(VType, Inst->getField(Off), IsSigned);
+  const auto Positions =
+      Runtime::CanonicalTypeTable::getGlobal().getFieldPositions(
+          ModInst->getCanonicalTypeId(TypeIdx));
+  assuming(Off < Positions.size());
+  EXPECTED_TRY(const uint8_t *Field,
+               Runtime::RefHeap::getGlobal()->getDataSpan(
+                   DataOff, kFieldBase + Positions[Off],
+                   Runtime::CanonicalTypeTable::getFieldSize(VType)));
+  return readField(Field, VType, IsSigned);
 }
 
 Expect<void>
 Executor::structSet(const Runtime::Instance::ModuleInstance *ModInst,
                     const RefVariant Ref, const ValVariant Val,
                     const uint32_t TypeIdx, const uint32_t Off) const noexcept {
-  auto *Inst = Ref.getStructInst();
-  if (Inst == nullptr) {
-    return Unexpect(ErrCode::Value::AccessNullStruct);
-  }
+  EXPECTED_TRY(const uint32_t DataOff,
+               getDataOffset(Ref, Runtime::HeapKind::Struct));
   const auto &VType = getStructStorageTypeByIdx(ModInst, TypeIdx, Off);
-  Inst->getField(Off) = packVal(VType, Val);
+  const auto Positions =
+      Runtime::CanonicalTypeTable::getGlobal().getFieldPositions(
+          ModInst->getCanonicalTypeId(TypeIdx));
+  assuming(Off < Positions.size());
+  EXPECTED_TRY(uint8_t *Field,
+               Runtime::RefHeap::getGlobal()->getDataSpan(
+                   DataOff, kFieldBase + Positions[Off],
+                   Runtime::CanonicalTypeTable::getFieldSize(VType)));
+  writeField(Field, VType, Val);
   return {};
 }
 
+namespace {
+
+/// Checked span of all elements of the new array `Inst`.
+Expect<uint8_t *> getNewElems(const Runtime::Instance::ArrayInstance *Inst,
+                              const uint32_t Length,
+                              const uint32_t ElemSize) noexcept {
+  auto *Heap = Runtime::RefHeap::getGlobal();
+  return Heap->getDataSpan(Heap->getOffset(Inst), kFieldBase,
+                           Length * ElemSize);
+}
+
+} // namespace
+
 Expect<RefVariant>
-Executor::arrayNew(const Runtime::Instance::ModuleInstance *ModInstArg,
+Executor::arrayNew(const Runtime::Instance::ModuleInstance *ModInst,
                    const uint32_t TypeIdx, const uint32_t Length,
                    Span<const ValVariant> Args) const noexcept {
   /// TODO: The array and struct instances are currently owned by the module
   /// instance because they refer to the defined types of the module instances.
   /// This may be changed after applying the garbage collection mechanism.
-  const auto &VType = getArrayStorageTypeByIdx(ModInstArg, TypeIdx);
-  auto *ModInst = const_cast<Runtime::Instance::ModuleInstance *>(ModInstArg);
-  std::vector<ValVariant> Vals;
-  if (Args.size() <= 1) {
-    // New and fill with the argument value or the default value.
-    ValVariant InitVal = static_cast<uint128_t>(0U);
-    if (Args.size() == 1) {
-      InitVal = packVal(VType, Args[0]);
-    } else if (VType.isRefType()) {
-      InitVal = RefVariant(toBottomType(ModInstArg, VType));
+  const auto &VType = getArrayStorageTypeByIdx(ModInst, TypeIdx);
+  const uint32_t ElemSize = Runtime::CanonicalTypeTable::getFieldSize(VType);
+  auto *Owner = const_cast<Runtime::Instance::ModuleInstance *>(ModInst);
+  EXPECTED_TRY(auto *Inst, Owner->newArray(TypeIdx, Length, ElemSize));
+  EXPECTED_TRY(uint8_t *Elems, getNewElems(Inst, Length, ElemSize));
+  if (Args.size() > 1) {
+    for (uint32_t I = 0; I < Length; I++) {
+      writeField(Elems + I * ElemSize, VType, Args[I]);
     }
-    if (Length > Vals.max_size()) {
-      return Unexpect(ErrCode::Value::AllocationFailed);
+  } else if (Args.size() == 1 || VType.isRefType()) {
+    const ValVariant Init =
+        Args.size() == 1 ? Args[0]
+                         : ValVariant(RefVariant(toBottomType(ModInst, VType)));
+    for (uint32_t I = 0; I < Length; I++) {
+      writeField(Elems + I * ElemSize, VType, Init);
     }
-    try {
-      Vals.assign(Length, InitVal);
-    } catch (const std::bad_alloc &) {
-      return Unexpect(ErrCode::Value::AllocationFailed);
-    }
-  } else {
-    // Create with arguments.
-    Vals = packVals(VType, std::vector<ValVariant>(Args.begin(), Args.end()));
   }
-  WasmEdge::Runtime::Instance::ArrayInstance *Inst =
-      ModInst->newArray(TypeIdx, std::move(Vals));
-  return RefVariant::makeArray(Inst->getDefType(), Inst);
+  return RefVariant::makeArray(ValType(TypeCode::Ref, TypeIdx), Inst);
 }
 
 Expect<RefVariant>
-Executor::arrayNewData(const Runtime::Instance::ModuleInstance *ModInstArg,
+Executor::arrayNewData(const Runtime::Instance::ModuleInstance *ModInst,
                        const uint32_t TypeIdx, const uint32_t DataIdx,
                        const uint32_t Start,
                        const uint32_t Length) const noexcept {
-  const auto &VType = getArrayStorageTypeByIdx(ModInstArg, TypeIdx);
+  const auto &VType = getArrayStorageTypeByIdx(ModInst, TypeIdx);
   const uint32_t BSize = VType.getBitWidth() / 8;
-  auto *DataInst = getDataInstByIdx(ModInstArg, DataIdx);
+  auto *DataInst = getDataInstByIdx(ModInst, DataIdx);
   assuming(DataInst);
   if (static_cast<uint64_t>(Start) + static_cast<uint64_t>(Length) * BSize >
       DataInst->getData().size()) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  auto *ModInst = const_cast<Runtime::Instance::ModuleInstance *>(ModInstArg);
-  std::vector<ValVariant> Args;
-  Args.reserve(Length);
-  for (uint32_t Idx = 0; Idx < Length; Idx++) {
-    // The value has been packed.
-    Args.push_back(DataInst->loadValue(Start + Idx * BSize, BSize));
+  auto *Owner = const_cast<Runtime::Instance::ModuleInstance *>(ModInst);
+  EXPECTED_TRY(auto *Inst, Owner->newArray(TypeIdx, Length, BSize));
+  EXPECTED_TRY(uint8_t *Elems, getNewElems(Inst, Length, BSize));
+  for (uint32_t I = 0; I < Length; I++) {
+    writeSegmentValue(Elems + I * BSize,
+                      DataInst->getData().data() + Start +
+                          static_cast<size_t>(I) * BSize,
+                      BSize);
   }
-  WasmEdge::Runtime::Instance::ArrayInstance *Inst =
-      ModInst->newArray(TypeIdx, std::move(Args));
-  return RefVariant::makeArray(Inst->getDefType(), Inst);
+  return RefVariant::makeArray(ValType(TypeCode::Ref, TypeIdx), Inst);
 }
 
 Expect<RefVariant>
-Executor::arrayNewElem(const Runtime::Instance::ModuleInstance *ModInstArg,
+Executor::arrayNewElem(const Runtime::Instance::ModuleInstance *ModInst,
                        const uint32_t TypeIdx, const uint32_t ElemIdx,
                        const uint32_t Start,
                        const uint32_t Length) const noexcept {
-  const auto &VType = getArrayStorageTypeByIdx(ModInstArg, TypeIdx);
-  auto *ElemInst = getElemInstByIdx(ModInstArg, ElemIdx);
+  const auto &VType = getArrayStorageTypeByIdx(ModInst, TypeIdx);
+  auto *ElemInst = getElemInstByIdx(ModInst, ElemIdx);
   assuming(ElemInst);
   auto ElemSrc = ElemInst->getRefs();
   if (static_cast<uint64_t>(Start) + static_cast<uint64_t>(Length) >
       ElemSrc.size()) {
     return Unexpect(ErrCode::Value::TableOutOfBounds);
   }
-  std::vector<ValVariant> Refs(ElemSrc.begin() + Start,
-                               ElemSrc.begin() + Start + Length);
-  auto *ModInst = const_cast<Runtime::Instance::ModuleInstance *>(ModInstArg);
-  WasmEdge::Runtime::Instance::ArrayInstance *Inst =
-      ModInst->newArray(TypeIdx, packVals(VType, std::move(Refs)));
-  return RefVariant::makeArray(Inst->getDefType(), Inst);
+  const uint32_t ElemSize = Runtime::CanonicalTypeTable::getFieldSize(VType);
+  auto *Owner = const_cast<Runtime::Instance::ModuleInstance *>(ModInst);
+  EXPECTED_TRY(auto *Inst, Owner->newArray(TypeIdx, Length, ElemSize));
+  EXPECTED_TRY(uint8_t *Elems, getNewElems(Inst, Length, ElemSize));
+  for (uint32_t I = 0; I < Length; I++) {
+    writeField(Elems + I * ElemSize, VType, ElemSrc[Start + I]);
+  }
+  return RefVariant::makeArray(ValType(TypeCode::Ref, TypeIdx), Inst);
 }
+
+namespace {
+
+struct ArraySlot {
+  uint32_t Off;
+  uint32_t Len;
+};
+
+/// Data slot offset and length of the array that `Ref` holds, from one
+/// checked header lookup.
+Expect<ArraySlot> resolveArray(const RefVariant &Ref) noexcept {
+  const auto *Obj = static_cast<const void *>(Ref.getArrayInst());
+  if (Obj == nullptr) {
+    return Unexpect(ErrCode::Value::AccessNullArray);
+  }
+  auto *Heap = Runtime::RefHeap::getGlobal();
+  const uint32_t Off = Heap != nullptr ? Heap->getOffset(Obj) : 0;
+  const auto *Header = Off != 0 ? Heap->getHeader(Off) : nullptr;
+  if (Header == nullptr || Header->Kind != Runtime::HeapKind::Array) {
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  }
+  return ArraySlot{Off, Header->Length};
+}
+
+} // namespace
+
+Expect<uint32_t> Executor::arrayLen(const RefVariant &Ref) const noexcept {
+  EXPECTED_TRY(const auto Slot, resolveArray(Ref));
+  return Slot.Len;
+}
+
+namespace {
+
+/// Checked span of `Cnt` elements of `ElemSize` bytes from `Idx` in the array
+/// at the data slot offset `Off`.
+Expect<uint8_t *> getElemSpan(const uint32_t Off, const uint32_t Len,
+                              const uint32_t Idx, const uint32_t Cnt,
+                              const uint32_t ElemSize) noexcept {
+  if (static_cast<uint64_t>(Idx) + static_cast<uint64_t>(Cnt) > Len) {
+    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
+  }
+  const uint64_t Pos = kFieldBase + static_cast<uint64_t>(Idx) * ElemSize;
+  const uint64_t Size = static_cast<uint64_t>(Cnt) * ElemSize;
+  if (Pos + Size > UINT32_MAX) {
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  }
+  return Runtime::RefHeap::getGlobal()->getDataSpan(
+      Off, static_cast<uint32_t>(Pos), static_cast<uint32_t>(Size));
+}
+
+} // namespace
 
 Expect<ValVariant>
 Executor::arrayGet(const Runtime::Instance::ModuleInstance *ModInst,
                    const RefVariant &Ref, const uint32_t TypeIdx,
                    const uint32_t Idx, const bool IsSigned) const noexcept {
-  const auto *Inst = Ref.getArrayInst();
-  if (Inst == nullptr) {
-    return Unexpect(ErrCode::Value::AccessNullArray);
-  }
-  if (Idx >= Inst->getLength()) {
-    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
-  }
+  EXPECTED_TRY(const auto Slot, resolveArray(Ref));
+  const uint32_t Off = Slot.Off;
+  const uint32_t Len = Slot.Len;
   const auto &VType = getArrayStorageTypeByIdx(ModInst, TypeIdx);
-  return unpackVal(VType, Inst->getData(Idx), IsSigned);
+  EXPECTED_TRY(const uint8_t *Elem,
+               getElemSpan(Off, Len, Idx, 1,
+                           Runtime::CanonicalTypeTable::getFieldSize(VType)));
+  return readField(Elem, VType, IsSigned);
 }
 
 Expect<void>
 Executor::arraySet(const Runtime::Instance::ModuleInstance *ModInst,
                    const RefVariant &Ref, const ValVariant &Val,
                    const uint32_t TypeIdx, const uint32_t Idx) const noexcept {
-  auto *Inst = Ref.getArrayInst();
-  if (Inst == nullptr) {
-    return Unexpect(ErrCode::Value::AccessNullArray);
-  }
-  if (Idx >= Inst->getLength()) {
-    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
-  }
+  EXPECTED_TRY(const auto Slot, resolveArray(Ref));
+  const uint32_t Off = Slot.Off;
+  const uint32_t Len = Slot.Len;
   const auto &VType = getArrayStorageTypeByIdx(ModInst, TypeIdx);
-  Inst->getData(Idx) = packVal(VType, Val);
+  EXPECTED_TRY(uint8_t *Elem,
+               getElemSpan(Off, Len, Idx, 1,
+                           Runtime::CanonicalTypeTable::getFieldSize(VType)));
+  writeField(Elem, VType, Val);
   return {};
 }
 
@@ -558,17 +731,15 @@ Executor::arrayFill(const Runtime::Instance::ModuleInstance *ModInst,
                     const RefVariant &Ref, const ValVariant &Val,
                     const uint32_t TypeIdx, const uint32_t Idx,
                     const uint32_t Cnt) const noexcept {
-  auto *Inst = Ref.getArrayInst();
-  if (Inst == nullptr) {
-    return Unexpect(ErrCode::Value::AccessNullArray);
-  }
-  if (static_cast<uint64_t>(Idx) + static_cast<uint64_t>(Cnt) >
-      Inst->getLength()) {
-    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
-  }
+  EXPECTED_TRY(const auto Slot, resolveArray(Ref));
+  const uint32_t Off = Slot.Off;
+  const uint32_t Len = Slot.Len;
   const auto &VType = getArrayStorageTypeByIdx(ModInst, TypeIdx);
-  auto Arr = Inst->getArray();
-  std::fill(Arr.begin() + Idx, Arr.begin() + Idx + Cnt, packVal(VType, Val));
+  const uint32_t ElemSize = Runtime::CanonicalTypeTable::getFieldSize(VType);
+  EXPECTED_TRY(uint8_t *Elems, getElemSpan(Off, Len, Idx, Cnt, ElemSize));
+  for (uint32_t I = 0; I < Cnt; I++) {
+    writeField(Elems + static_cast<size_t>(I) * ElemSize, VType, Val);
+  }
   return {};
 }
 
@@ -576,27 +747,23 @@ Expect<void> Executor::arrayInitData(
     const Runtime::Instance::ModuleInstance *ModInst, const RefVariant &Ref,
     const uint32_t TypeIdx, const uint32_t DataIdx, const uint32_t DstIdx,
     const uint32_t SrcIdx, const uint32_t Cnt) const noexcept {
-  auto *Inst = Ref.getArrayInst();
-  if (Inst == nullptr) {
-    return Unexpect(ErrCode::Value::AccessNullArray);
-  }
-  if (static_cast<uint64_t>(DstIdx) + static_cast<uint64_t>(Cnt) >
-      Inst->getLength()) {
-    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
-  }
+  EXPECTED_TRY(const auto Slot, resolveArray(Ref));
+  const uint32_t Off = Slot.Off;
+  const uint32_t Len = Slot.Len;
   const auto &VType = getArrayStorageTypeByIdx(ModInst, TypeIdx);
   const uint32_t BSize = VType.getBitWidth() / 8;
+  EXPECTED_TRY(uint8_t *Elems, getElemSpan(Off, Len, DstIdx, Cnt, BSize));
   auto *DataInst = getDataInstByIdx(ModInst, DataIdx);
   assuming(DataInst);
   if (static_cast<uint64_t>(SrcIdx) + static_cast<uint64_t>(Cnt) * BSize >
       DataInst->getData().size()) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-
-  for (uint32_t Idx = 0; Idx < Cnt; Idx++) {
-    // The value has been packed.
-    Inst->getData(DstIdx + Idx) =
-        DataInst->loadValue(SrcIdx + Idx * BSize, BSize);
+  for (uint32_t I = 0; I < Cnt; I++) {
+    writeSegmentValue(Elems + static_cast<size_t>(I) * BSize,
+                      DataInst->getData().data() + SrcIdx +
+                          static_cast<size_t>(I) * BSize,
+                      BSize);
   }
   return {};
 }
@@ -605,15 +772,12 @@ Expect<void> Executor::arrayInitElem(
     const Runtime::Instance::ModuleInstance *ModInst, const RefVariant &Ref,
     const uint32_t TypeIdx, const uint32_t ElemIdx, const uint32_t DstIdx,
     const uint32_t SrcIdx, const uint32_t Cnt) const noexcept {
-  auto *Inst = Ref.getArrayInst();
-  if (Inst == nullptr) {
-    return Unexpect(ErrCode::Value::AccessNullArray);
-  }
-  if (static_cast<uint64_t>(DstIdx) + static_cast<uint64_t>(Cnt) >
-      Inst->getLength()) {
-    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
-  }
+  EXPECTED_TRY(const auto Slot, resolveArray(Ref));
+  const uint32_t Off = Slot.Off;
+  const uint32_t Len = Slot.Len;
   const auto &VType = getArrayStorageTypeByIdx(ModInst, TypeIdx);
+  const uint32_t ElemSize = Runtime::CanonicalTypeTable::getFieldSize(VType);
+  EXPECTED_TRY(uint8_t *Elems, getElemSpan(Off, Len, DstIdx, Cnt, ElemSize));
   auto *ElemInst = getElemInstByIdx(ModInst, ElemIdx);
   assuming(ElemInst);
   auto ElemSrc = ElemInst->getRefs();
@@ -621,12 +785,10 @@ Expect<void> Executor::arrayInitElem(
       ElemSrc.size()) {
     return Unexpect(ErrCode::Value::TableOutOfBounds);
   }
-
-  auto Arr = Inst->getArray();
-  // The value has been packed.
-  std::transform(ElemSrc.begin() + SrcIdx, ElemSrc.begin() + SrcIdx + Cnt,
-                 Arr.begin() + DstIdx,
-                 [&](const RefVariant &V) { return packVal(VType, V); });
+  for (uint32_t I = 0; I < Cnt; I++) {
+    writeField(Elems + static_cast<size_t>(I) * ElemSize, VType,
+               ElemSrc[SrcIdx + I]);
+  }
   return {};
 }
 
@@ -636,40 +798,21 @@ Executor::arrayCopy(const Runtime::Instance::ModuleInstance *ModInst,
                     const uint32_t DstIdx, const RefVariant &SrcRef,
                     const uint32_t SrcTypeIdx, const uint32_t SrcIdx,
                     const uint32_t Cnt) const noexcept {
-  auto *SrcInst = SrcRef.getArrayInst();
-  auto *DstInst = DstRef.getArrayInst();
-  if (SrcInst == nullptr) {
-    return Unexpect(ErrCode::Value::AccessNullArray);
-  }
-  if (DstInst == nullptr) {
-    return Unexpect(ErrCode::Value::AccessNullArray);
-  }
-  if (static_cast<uint64_t>(SrcIdx) + static_cast<uint64_t>(Cnt) >
-      SrcInst->getLength()) {
-    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
-  }
-  if (static_cast<uint64_t>(DstIdx) + static_cast<uint64_t>(Cnt) >
-      DstInst->getLength()) {
-    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
-  }
-
-  auto SrcArr = SrcInst->getArray();
-  auto DstArr = DstInst->getArray();
-  const auto &SrcVType = getArrayStorageTypeByIdx(ModInst, SrcTypeIdx);
-  const auto &DstVType = getArrayStorageTypeByIdx(ModInst, DstTypeIdx);
-  if (DstIdx <= SrcIdx) {
-    std::transform(SrcArr.begin() + SrcIdx, SrcArr.begin() + SrcIdx + Cnt,
-                   DstArr.begin() + DstIdx, [&](const ValVariant &V) {
-                     return packVal(DstVType, unpackVal(SrcVType, V));
-                   });
-  } else {
-    std::transform(std::make_reverse_iterator(SrcArr.begin() + SrcIdx + Cnt),
-                   std::make_reverse_iterator(SrcArr.begin() + SrcIdx),
-                   std::make_reverse_iterator(DstArr.begin() + DstIdx + Cnt),
-                   [&](const ValVariant &V) {
-                     return packVal(DstVType, unpackVal(SrcVType, V));
-                   });
-  }
+  EXPECTED_TRY(const auto SrcSlot, resolveArray(SrcRef));
+  EXPECTED_TRY(const auto DstSlot, resolveArray(DstRef));
+  const uint32_t SrcOff = SrcSlot.Off;
+  const uint32_t DstOff = DstSlot.Off;
+  const uint32_t SrcLen = SrcSlot.Len;
+  const uint32_t DstLen = DstSlot.Len;
+  const uint32_t ElemSize = Runtime::CanonicalTypeTable::getFieldSize(
+      getArrayStorageTypeByIdx(ModInst, DstTypeIdx));
+  assuming(ElemSize == Runtime::CanonicalTypeTable::getFieldSize(
+                           getArrayStorageTypeByIdx(ModInst, SrcTypeIdx)));
+  EXPECTED_TRY(uint8_t *Src,
+               getElemSpan(SrcOff, SrcLen, SrcIdx, Cnt, ElemSize));
+  EXPECTED_TRY(uint8_t *Dst,
+               getElemSpan(DstOff, DstLen, DstIdx, Cnt, ElemSize));
+  std::memmove(Dst, Src, static_cast<size_t>(Cnt) * ElemSize);
   return {};
 }
 

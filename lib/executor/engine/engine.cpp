@@ -184,9 +184,9 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
 
     // Reference Instructions (GC proposal)
     case OpCode::Struct__new:
-      return runStructNewOp(StackMgr, Instr.getTargetIndex());
+      return runStructNewOp(StackMgr, Instr.getTargetIndex(), Instr);
     case OpCode::Struct__new_default:
-      return runStructNewOp(StackMgr, Instr.getTargetIndex(), true);
+      return runStructNewOp(StackMgr, Instr.getTargetIndex(), Instr, true);
     case OpCode::Struct__get:
     case OpCode::Struct__get_u:
       return runStructGetOp(StackMgr, Instr.getTargetIndex(),

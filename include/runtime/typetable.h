@@ -32,6 +32,8 @@ namespace Runtime {
 class CanonicalTypeTable {
 public:
   static constexpr uint32_t kDefaultCap = UINT32_C(1) << 24;
+  /// Largest total field size of a struct type.
+  static constexpr uint64_t kMaxFieldBytes = (UINT64_C(1) << 32) - 64;
 
   explicit CanonicalTypeTable(uint32_t Cap = kDefaultCap) noexcept;
   ~CanonicalTypeTable() noexcept;
@@ -61,6 +63,17 @@ public:
     return Blocks[Id / kBlockSize][Id % kBlockSize];
   }
 
+  /// Storage size in bytes of a field of `StorageType`.
+  WASMEDGE_EXPORT static uint32_t
+  getFieldSize(const ValType &StorageType) noexcept;
+
+  /// Positions of the fields of the struct type `Id`, relative to the first
+  /// field, then the total field size. Empty for other types.
+  Span<const uint32_t> getFieldPositions(uint32_t Id) const noexcept {
+    assuming(Id < size());
+    return Layouts[Id / kBlockSize][Id % kBlockSize];
+  }
+
   /// Check whether the type `Got` is `Exp` or one of its declared subtypes.
   bool isSubType(uint32_t Exp, uint32_t Got) const noexcept {
     while (Got != Exp) {
@@ -82,6 +95,7 @@ private:
 
   const uint32_t Cap;
   std::unique_ptr<AST::SubType *[]> Blocks;
+  std::unique_ptr<std::vector<uint32_t> *[]> Layouts;
   std::atomic<uint32_t> Size = 0;
   std::mutex Mutex;
   std::unordered_map<std::vector<uint64_t>, uint32_t, KeyHash> Groups;

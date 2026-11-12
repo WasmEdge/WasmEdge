@@ -24,14 +24,24 @@ uint64_t encodeTypeCodes(const ValType &VT) noexcept {
 
 CanonicalTypeTable::CanonicalTypeTable(uint32_t C) noexcept
     : Cap(C), Blocks(std::make_unique<AST::SubType *[]>(
-                  (static_cast<uint64_t>(C) + kBlockSize - 1) / kBlockSize)) {}
+                  (static_cast<uint64_t>(C) + kBlockSize - 1) / kBlockSize)),
+      Layouts(std::make_unique<std::vector<uint32_t> *[]>(
+          (static_cast<uint64_t>(C) + kBlockSize - 1) / kBlockSize)) {}
 
 CanonicalTypeTable::~CanonicalTypeTable() noexcept {
   const uint64_t Count =
       (static_cast<uint64_t>(Cap) + kBlockSize - 1) / kBlockSize;
   for (uint64_t I = 0; I < Count; ++I) {
     delete[] Blocks[I];
+    delete[] Layouts[I];
   }
+}
+
+uint32_t CanonicalTypeTable::getFieldSize(const ValType &StorageType) noexcept {
+  if (StorageType.isRefType()) {
+    return static_cast<uint32_t>(sizeof(RefVariant));
+  }
+  return StorageType.getBitWidth() / 8;
 }
 
 CanonicalTypeTable &CanonicalTypeTable::getGlobal() noexcept {
@@ -175,15 +185,37 @@ Expect<uint32_t> CanonicalTypeTable::registerRecGroup(
     Copy.setRecursiveInfo(I, N);
     Copy.setTypeIndex(First + I);
 
+    std::vector<uint32_t> Positions;
+    if (CompType.getContentTypeCode() == TypeCode::Struct) {
+      uint64_t Pos = 0;
+      for (const auto &Field : CompType.getFieldTypes()) {
+        const uint64_t FieldSize = getFieldSize(Field.getStorageType());
+        Pos = (Pos + FieldSize - 1) & ~(FieldSize - 1);
+        if (Pos + FieldSize > kMaxFieldBytes) {
+          return Unexpect(ErrCode::Value::TypeTableFull);
+        }
+        Positions.push_back(static_cast<uint32_t>(Pos));
+        Pos += FieldSize;
+      }
+      Positions.push_back(static_cast<uint32_t>(Pos));
+    }
+
     const uint32_t Id = First + I;
     auto &Slot = Blocks[Id / kBlockSize];
+    auto &LayoutSlot = Layouts[Id / kBlockSize];
     if (Slot == nullptr) {
       Slot = new (std::nothrow) AST::SubType[kBlockSize];
-      if (Slot == nullptr) {
+      LayoutSlot = new (std::nothrow) std::vector<uint32_t>[kBlockSize];
+      if (Slot == nullptr || LayoutSlot == nullptr) {
+        delete[] Slot;
+        delete[] LayoutSlot;
+        Slot = nullptr;
+        LayoutSlot = nullptr;
         return Unexpect(ErrCode::Value::TypeTableFull);
       }
     }
     Slot[Id % kBlockSize] = std::move(Copy);
+    LayoutSlot[Id % kBlockSize] = std::move(Positions);
   }
   Groups.emplace(std::move(Key), First);
   Size.store(First + N, std::memory_order_release);

@@ -898,6 +898,68 @@ TEST(CanonicalTypeTable, SubTypes) {
   EXPECT_TRUE(Table.isSubType(*IdA, *IdA));
 }
 
+TEST(CanonicalTypeTable, FieldLayout) {
+  using Table = Runtime::CanonicalTypeTable;
+  const ValType AnyRef(TypeCode::RefNull, TypeCode::AnyRef);
+  EXPECT_EQ(Table::getFieldSize(ValType(TypeCode::I8)), 1U);
+  EXPECT_EQ(Table::getFieldSize(ValType(TypeCode::I16)), 2U);
+  EXPECT_EQ(Table::getFieldSize(ValType(TypeCode::I32)), 4U);
+  EXPECT_EQ(Table::getFieldSize(ValType(TypeCode::F32)), 4U);
+  EXPECT_EQ(Table::getFieldSize(ValType(TypeCode::I64)), 8U);
+  EXPECT_EQ(Table::getFieldSize(ValType(TypeCode::F64)), 8U);
+  EXPECT_EQ(Table::getFieldSize(ValType(TypeCode::V128)), 16U);
+  EXPECT_EQ(Table::getFieldSize(AnyRef), 16U);
+
+  Table Types;
+  auto MixId = registerLone(
+      Types,
+      makeStructType({ValType(TypeCode::I8), ValType(TypeCode::I32),
+                      ValType(TypeCode::I8), AnyRef, ValType(TypeCode::V128),
+                      ValType(TypeCode::I16)}),
+      0U);
+  ASSERT_TRUE(MixId);
+  const auto MixedPos = Types.getFieldPositions(*MixId);
+  EXPECT_EQ(std::vector<uint32_t>(MixedPos.begin(), MixedPos.end()),
+            (std::vector<uint32_t>{0U, 4U, 8U, 16U, 32U, 48U, 50U}));
+
+  auto EmptyId = registerLone(Types, makeStructType({}), 1U);
+  ASSERT_TRUE(EmptyId);
+  const auto EmptyPos = Types.getFieldPositions(*EmptyId);
+  EXPECT_EQ(std::vector<uint32_t>(EmptyPos.begin(), EmptyPos.end()),
+            std::vector<uint32_t>{0U});
+
+  auto SuperId = registerLone(
+      Types,
+      makeStructType({ValType(TypeCode::I8), ValType(TypeCode::I32)}, {},
+                     false),
+      2U);
+  ASSERT_TRUE(SuperId);
+  const uint32_t Mod[] = {*MixId, *EmptyId, *SuperId};
+  auto SubId = registerLone(
+      Types,
+      makeStructType({ValType(TypeCode::I8), ValType(TypeCode::I32),
+                      ValType(TypeCode::I64)},
+                     {2U}),
+      3U, Mod);
+  ASSERT_TRUE(SubId);
+  const auto SuperPos = Types.getFieldPositions(*SuperId);
+  const auto SubPos = Types.getFieldPositions(*SubId);
+  EXPECT_EQ(std::vector<uint32_t>(SubPos.begin(), SubPos.end()),
+            (std::vector<uint32_t>{0U, 4U, 8U, 16U}));
+  EXPECT_EQ(std::vector<uint32_t>(SuperPos.begin(), SuperPos.end()),
+            (std::vector<uint32_t>{0U, 4U, 8U}));
+
+  AST::SubType Arr;
+  Arr.getCompositeType().setArrayType(
+      AST::FieldType(ValType(TypeCode::I64), ValMut::Var));
+  auto ArrId = registerLone(Types, Arr, 4U);
+  ASSERT_TRUE(ArrId);
+  EXPECT_TRUE(Types.getFieldPositions(*ArrId).empty());
+  auto FuncId = registerLone(Types, makeFuncType({ValType(TypeCode::I32)}), 5U);
+  ASSERT_TRUE(FuncId);
+  EXPECT_TRUE(Types.getFieldPositions(*FuncId).empty());
+}
+
 TEST(CanonicalTypeTable, BadReference) {
   Runtime::CanonicalTypeTable Table;
   auto Id = registerLone(Table, makeStructType({ValType(TypeCode::Ref, 4U)}),

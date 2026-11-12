@@ -90,9 +90,13 @@ createProposalConfigure(const struct DriverProposalOptions &Opt) noexcept {
   if (Opt.PropThreads.value()) {
     Conf.addProposal(Proposal::Threads);
   }
+  if (Opt.PropWideArithmetic.value()) {
+    Conf.addProposal(Proposal::WideArithmetic);
+  }
   if (Opt.PropAll.value()) {
     Conf.setWASMStandard(Standard::WASM_3);
     Conf.addProposal(Proposal::Threads);
+    Conf.addProposal(Proposal::WideArithmetic);
   }
 
   return Conf;

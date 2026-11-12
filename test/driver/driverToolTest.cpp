@@ -269,6 +269,15 @@ static const std::array<uint8_t, 53> TrapWasm{
     0x5f, 0x73, 0x74, 0x61, 0x72, 0x74, 0x00, 0x00, 0x0a, 0x0a, 0x01,
     0x08, 0x00, 0x41, 0x01, 0x41, 0x00, 0x6d, 0x1a, 0x0b};
 
+// wide_add128.wasm: exports "wide" (i64, i64, i64, i64) -> (i64, i64).
+// The body loads the four parameters and applies i64.add128.
+static const std::array<uint8_t, 50> Add128Wasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a,
+    0x01, 0x60, 0x04, 0x7e, 0x7e, 0x7e, 0x7e, 0x02, 0x7e, 0x7e,
+    0x03, 0x02, 0x01, 0x00, 0x07, 0x08, 0x01, 0x04, 0x77, 0x69,
+    0x64, 0x65, 0x00, 0x00, 0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x20,
+    0x00, 0x20, 0x01, 0x20, 0x02, 0x20, 0x03, 0xfc, 0x13, 0x0b};
+
 std::string simplePath() {
   static std::string Path;
   if (Path.empty()) {
@@ -387,6 +396,15 @@ std::string tagSectionTestPath() {
   return Path;
 }
 
+std::string add128Path() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(Add128Wasm.data(), Add128Wasm.size(),
+                           "wide_add128.wasm");
+  }
+  return Path;
+}
+
 std::string nonExistPath() { return TestDataPath + "/nonexist.wasm"; }
 
 // ---------------------------------------------------------------------------
@@ -467,6 +485,11 @@ TEST(ParseSubcommand, EnableProposalFlags) {
   EXPECT_EQ(callParse({"--enable-all", Path}), EXIT_SUCCESS);
   EXPECT_EQ(callParse({"--enable-threads", Path}), EXIT_SUCCESS);
   EXPECT_EQ(callParse({"--enable-component", Path}), EXIT_SUCCESS);
+
+  std::string WidePath = add128Path();
+  EXPECT_NE(callParse({WidePath.c_str()}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--enable-wide-arithmetic", WidePath.c_str()}),
+            EXIT_SUCCESS);
 }
 
 TEST(ParseSubcommand, WasmStandardFlags) {
@@ -702,6 +725,12 @@ TEST(ValidateSubcommand, EnableProposalFlags) {
   EXPECT_EQ(callValidate({"--enable-all", Path}), EXIT_SUCCESS);
   EXPECT_EQ(callValidate({"--enable-threads", Path}), EXIT_SUCCESS);
   EXPECT_EQ(callValidate({"--enable-component", Path}), EXIT_SUCCESS);
+
+  std::string WidePath = add128Path();
+  EXPECT_NE(callValidate({WidePath.c_str()}), EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--enable-wide-arithmetic", WidePath.c_str()}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callValidate({"--enable-all", WidePath.c_str()}), EXIT_SUCCESS);
 }
 
 TEST(ValidateSubcommand, WasmStandardFlags) {
@@ -791,6 +820,14 @@ TEST(CompileSubcommand, ProposalFlags) {
   EXPECT_EQ(
       callCompile({"--disable-simd", "--enable-threads", Path, Output.c_str()}),
       EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+
+  std::string WidePath = add128Path();
+  EXPECT_NE(callCompile({WidePath.c_str(), Output.c_str()}), EXIT_SUCCESS);
+  std::filesystem::remove(Output.c_str());
+  EXPECT_EQ(callCompile(
+                {"--enable-wide-arithmetic", WidePath.c_str(), Output.c_str()}),
+            EXIT_SUCCESS);
   std::filesystem::remove(Output.c_str());
 }
 

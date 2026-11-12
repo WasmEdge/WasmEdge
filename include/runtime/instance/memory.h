@@ -89,6 +89,9 @@ public:
     return MemType.getLimit().getMin();
   }
 
+  /// Get the page limit from the configuration.
+  uint64_t getPageLimit() const noexcept { return PageLimit; }
+
   /// Get a stable pointer to the live page-count field for compiled code.
   const uint64_t *getPageSizePtr() const noexcept { return &LivePageCount; }
 
@@ -147,6 +150,24 @@ public:
       DataPtr = NewPtr;
     }
     setLivePageCount(Min + Count);
+    return true;
+  }
+
+  /// Shrink memory pages. Shared memories cannot shrink.
+  bool shrinkPage(const uint64_t Count) noexcept {
+    if (Count == 0) {
+      return true;
+    }
+    const auto Old = getPageSize();
+    if (isShared() || Count > Old) {
+      return false;
+    }
+    auto *NewPtr = Allocator::shrink(DataPtr, Old, Old - Count);
+    if (NewPtr == nullptr) {
+      return false;
+    }
+    DataPtr = NewPtr;
+    setLivePageCount(Old - Count);
     return true;
   }
 

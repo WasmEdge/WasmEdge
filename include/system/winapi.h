@@ -1315,6 +1315,7 @@ using ::SHGetKnownFolderPath;
 
 namespace WasmEdge::winapi {
 static inline constexpr const DWORD_ MEM_COMMIT_ = 0x00001000;
+static inline constexpr const DWORD_ MEM_DECOMMIT_ = 0x00004000;
 static inline constexpr const DWORD_ MEM_RESERVE_ = 0x00002000;
 static inline constexpr const DWORD_ MEM_RELEASE_ = 0x00008000;
 

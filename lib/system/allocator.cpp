@@ -109,6 +109,33 @@ WASMEDGE_EXPORT uint8_t *Allocator::resize(uint8_t *Pointer,
 #endif
 }
 
+WASMEDGE_EXPORT uint8_t *Allocator::shrink(uint8_t *Pointer,
+                                           uint64_t OldPageCount,
+                                           uint64_t NewPageCount) noexcept {
+  assuming(NewPageCount < OldPageCount);
+#if WASMEDGE_OS_WINDOWS
+  if (!winapi::VirtualFree(Pointer + NewPageCount * kPageSize,
+                           (OldPageCount - NewPageCount) * kPageSize,
+                           winapi::MEM_DECOMMIT_)) {
+    return nullptr;
+  }
+  return Pointer;
+#elif defined(HAVE_MMAP) && (defined(__x86_64__) || defined(__aarch64__) ||    \
+                             (defined(__riscv) && __riscv_xlen == 64)) ||      \
+    defined(__s390x__)
+  if (mmap(Pointer + NewPageCount * kPageSize,
+           (OldPageCount - NewPageCount) * kPageSize, PROT_NONE,
+           MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED | MAP_NORESERVE, -1,
+           0) == MAP_FAILED) {
+    return nullptr;
+  }
+  return Pointer;
+#else
+  return reinterpret_cast<uint8_t *>(
+      std::realloc(Pointer, NewPageCount == 0 ? 1 : NewPageCount * kPageSize));
+#endif
+}
+
 WASMEDGE_EXPORT void Allocator::release(uint8_t *Pointer, uint64_t) noexcept {
 #if WASMEDGE_OS_WINDOWS
   winapi::VirtualFree(Pointer - k4G, 0, winapi::MEM_RELEASE_);

@@ -44,51 +44,43 @@
 
 namespace {
 
-// WasmEdge::ValType to wasm::ValKind conversion.
-wasm::ValKind conv_valtype_from_wasmedge(const WasmEdge::ValType &vt) {
+// Make wasm::own<wasm::ValType> from WasmEdge::ValType (ref type). Returns
+// nullptr for the types the wasm C API cannot express.
+wasm::own<wasm::ValType>
+make_reftype_from_wasmedge(const WasmEdge::ValType &vt) {
+  if (vt.isFuncRefType()) {
+    return wasm::ValType::make(wasm::ValKind::FUNCREF);
+  } else if (vt.isExternRefType()) {
+    return wasm::ValType::make(wasm::ValKind::EXTERNREF);
+  }
+  return nullptr;
+}
+
+// Make wasm::own<wasm::ValType> from WasmEdge::ValType. Returns nullptr for
+// the types the wasm C API cannot express.
+wasm::own<wasm::ValType>
+make_valtype_from_wasmedge(const WasmEdge::ValType &vt) {
   if (vt.isNumType()) {
     switch (vt.getCode()) {
     case WasmEdge::TypeCode::I32:
-      return wasm::ValKind::I32;
+      return wasm::ValType::make(wasm::ValKind::I32);
     case WasmEdge::TypeCode::I64:
-      return wasm::ValKind::I64;
+      return wasm::ValType::make(wasm::ValKind::I64);
     case WasmEdge::TypeCode::F32:
-      return wasm::ValKind::F32;
+      return wasm::ValType::make(wasm::ValKind::F32);
     case WasmEdge::TypeCode::F64:
-      return wasm::ValKind::F64;
+      return wasm::ValType::make(wasm::ValKind::F64);
     default:
-      break;
+      return nullptr;
     }
-  } else if (vt.isFuncRefType()) {
-    return wasm::ValKind::FUNCREF;
-  } else if (vt.isExternRefType()) {
-    return wasm::ValKind::EXTERNREF;
   }
-  // v128 and other types are not supported in wasm C API yet.
-  assumingUnreachable();
-}
-
-// WasmEdge::ValType (ref type) to wasm::ValKind conversion.
-wasm::ValKind conv_reftype_from_wasmedge(const WasmEdge::ValType &vt) {
-  if (vt.isFuncRefType()) {
-    return wasm::ValKind::FUNCREF;
-  } else if (vt.isExternRefType()) {
-    return wasm::ValKind::EXTERNREF;
-  } else {
-    assumingUnreachable();
-  }
+  return make_reftype_from_wasmedge(vt);
 }
 
 // WasmEdge::ValMut to wasm::Mutability conversion.
 wasm::Mutability conv_valmut_from_wasmedge(WasmEdge::ValMut mut) {
-  switch (mut) {
-  case WasmEdge::ValMut::Const:
-    return wasm::Mutability::CONST;
-  case WasmEdge::ValMut::Var:
-    return wasm::Mutability::VAR;
-  default:
-    assumingUnreachable();
-  }
+  return mut == WasmEdge::ValMut::Var ? wasm::Mutability::VAR
+                                      : wasm::Mutability::CONST;
 }
 
 // wasm::ValType to WasmEdge::ValType conversion.
@@ -125,14 +117,8 @@ WasmEdge::ValType conv_reftype_to_wasmedge(wasm::ValKind vt) {
 
 // wasm::Mutability to WasmEdge::ValMut conversion.
 WasmEdge::ValMut conv_valmut_to_wasmedge(wasm::Mutability mut) {
-  switch (mut) {
-  case wasm::Mutability::CONST:
-    return WasmEdge::ValMut::Const;
-  case wasm::Mutability::VAR:
-    return WasmEdge::ValMut::Var;
-  default:
-    assumingUnreachable();
-  }
+  return mut == wasm::Mutability::VAR ? WasmEdge::ValMut::Var
+                                      : WasmEdge::ValMut::Const;
 }
 
 // Make wasm::Limits from WasmEdge::AST::Limit.
@@ -151,14 +137,12 @@ make_functype_from_wasmedge(const WasmEdge::AST::FunctionType &ft) {
   auto p = wasm::ownvec<wasm::ValType>::make_uninitialized(
       ft.getParamTypes().size());
   for (size_t i = 0; i < p.size(); ++i) {
-    p[i] =
-        wasm::ValType::make(conv_valtype_from_wasmedge(ft.getParamTypes()[i]));
+    p[i] = make_valtype_from_wasmedge(ft.getParamTypes()[i]);
   }
   auto r = wasm::ownvec<wasm::ValType>::make_uninitialized(
       ft.getReturnTypes().size());
   for (size_t i = 0; i < r.size(); ++i) {
-    r[i] =
-        wasm::ValType::make(conv_valtype_from_wasmedge(ft.getReturnTypes()[i]));
+    r[i] = make_valtype_from_wasmedge(ft.getReturnTypes()[i]);
   }
   return wasm::FuncType::make(std::move(p), std::move(r));
 }
@@ -178,17 +162,15 @@ WasmEdge::AST::FunctionType make_functype_from_wasm(const wasm::FuncType &ft) {
 // Make wasm::own<wasm::GlobalType> from WasmEdge::AST::GlobalType.
 wasm::own<wasm::GlobalType>
 make_globaltype_from_wasmedge(const WasmEdge::AST::GlobalType &gt) {
-  return wasm::GlobalType::make(
-      wasm::ValType::make(conv_valtype_from_wasmedge(gt.getValType())),
-      conv_valmut_from_wasmedge(gt.getValMut()));
+  return wasm::GlobalType::make(make_valtype_from_wasmedge(gt.getValType()),
+                                conv_valmut_from_wasmedge(gt.getValMut()));
 }
 
 // Make wasm::own<wasm::TableType> from WasmEdge::AST::TableType.
 wasm::own<wasm::TableType>
 make_tabletype_from_wasmedge(const WasmEdge::AST::TableType &tt) {
-  return wasm::TableType::make(
-      wasm::ValType::make(conv_reftype_from_wasmedge(tt.getRefType())),
-      make_limits_from_wasmedge(tt.getLimit()));
+  return wasm::TableType::make(make_reftype_from_wasmedge(tt.getRefType()),
+                               make_limits_from_wasmedge(tt.getLimit()));
 }
 
 // Make wasm::own<wasm::MemoryType> from WasmEdge::AST::MemoryType.
@@ -946,7 +928,7 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
       OWN wasm_##name##_t const vals[]) {                                      \
     if (out) {                                                                 \
       *out = {0, nullptr};                                                     \
-      if (size < UINT32_MAX) {                                                 \
+      if (size < UINT32_MAX && (size == 0 || vals)) {                          \
         auto v = wasm::vec<Name>::make_uninitialized(size);                    \
         if (v.size() > 0) {                                                    \
           std::copy_n(vals, size, v.get());                                    \
@@ -973,7 +955,7 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
       OWN wasm_##name##_t *const data[]) {                                     \
     if (out) {                                                                 \
       *out = {0, nullptr};                                                     \
-      if (size < UINT32_MAX) {                                                 \
+      if (size < UINT32_MAX && (size == 0 || data)) {                          \
         auto v = wasm::ownvec<Name>::make_uninitialized(size);                 \
         for (size_t i = 0; i < v.size(); ++i) {                                \
           v[i] = wasm::make_own(data[i]);                                      \
@@ -987,7 +969,7 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
     if (out) {                                                                 \
       *out = {0, nullptr};                                                     \
     }                                                                          \
-    if (in && out && in->size < UINT32_MAX) {                                  \
+    if (in && out && in->size < UINT32_MAX && (in->size == 0 || in->data)) {   \
       auto v = wasm::ownvec<Name>::make_uninitialized(in->size);               \
       for (size_t i = 0; i < v.size(); ++i) {                                  \
         v[i] = wasm::make_own(wasm_##name##_copy(in->data[i]));                \
@@ -1013,23 +995,36 @@ wasm_valtype_t wasm_valtype_funcref(wasm::ValKind::FUNCREF);
   WASM_DECLARE_OWN_IMPL(name, Name)                                            \
   WASMEDGE_CAPI_EXPORT OWN wasm_##name##_t *wasm_##name##_copy(                \
       const wasm_##name##_t *t) {                                              \
-    return static_cast<wasm_##name##_t *>(t->copy().release());                \
+    if (t) {                                                                   \
+      return static_cast<wasm_##name##_t *>(t->copy().release());              \
+    }                                                                          \
+    return nullptr;                                                            \
   }                                                                            \
   WASMEDGE_CAPI_EXPORT bool wasm_##name##_same(const wasm_##name##_t *t1,      \
                                                const wasm_##name##_t *t2) {    \
-    return t1->same(t2);                                                       \
+    if (t1 && t2) {                                                            \
+      return t1->same(t2);                                                     \
+    }                                                                          \
+    return t1 == t2;                                                           \
   }                                                                            \
   WASMEDGE_CAPI_EXPORT void *wasm_##name##_get_host_info(                      \
       const wasm_##name##_t *r) {                                              \
-    return r->get_host_info();                                                 \
+    if (r) {                                                                   \
+      return r->get_host_info();                                               \
+    }                                                                          \
+    return nullptr;                                                            \
   }                                                                            \
   WASMEDGE_CAPI_EXPORT void wasm_##name##_set_host_info(wasm_##name##_t *r,    \
                                                         void *info) {          \
-    r->set_host_info(info);                                                    \
+    if (r) {                                                                   \
+      r->set_host_info(info);                                                  \
+    }                                                                          \
   }                                                                            \
   WASMEDGE_CAPI_EXPORT void wasm_##name##_set_host_info_with_finalizer(        \
       wasm_##name##_t *r, void *info, void (*finalizer)(void *)) {             \
-    r->set_host_info(info, finalizer);                                         \
+    if (r) {                                                                   \
+      r->set_host_info(info, finalizer);                                       \
+    }                                                                          \
   }
 
 // Helper macro for the WASM_DECLARE_REF implementation.
@@ -1095,7 +1090,7 @@ inline wasm::Val conv_val_to_cpp(const wasm_val_t &v) {
     return wasm::Val();
   }
   default:
-    assumingUnreachable();
+    return wasm::Val();
   }
 }
 
@@ -1122,12 +1117,10 @@ inline wasm_val_t conv_val_to_c(const wasm::Val &v) {
     r.kind = wasm_valkind_enum::WASM_FUNCREF;
     r.of.ref = static_cast<wasm_ref_t *>(v.ref());
     break;
-  case wasm::ValKind::EXTERNREF:
-    r.kind = wasm_valkind_enum::WASM_EXTERNREF;
-    r.of.ref = static_cast<wasm_ref_t *>(v.ref());
-    break;
   default:
-    assumingUnreachable();
+    r.kind = wasm_valkind_enum::WASM_EXTERNREF;
+    r.of.ref = v.is_ref() ? static_cast<wasm_ref_t *>(v.ref()) : nullptr;
+    break;
   }
   return r;
 }
@@ -1162,13 +1155,13 @@ wasm_val_t conv_cval_from_wasmedge(const WasmEdge::ValVariant &v,
     r.kind = wasm_valkind_enum::WASM_FUNCREF;
     // TODO: implement this
     return r;
-  } else if (vt.isExternRefType()) {
-    r.kind = wasm_valkind_enum::WASM_EXTERNREF;
-    r.of.ref = v.get<WasmEdge::RefVariant>().getPtr<wasm_ref_t>();
-    return r;
   }
   // v128 and other types are not supported in wasm C API yet.
-  assumingUnreachable();
+  r.kind = wasm_valkind_enum::WASM_EXTERNREF;
+  if (vt.isExternRefType()) {
+    r.of.ref = v.get<WasmEdge::RefVariant>().getPtr<wasm_ref_t>();
+  }
+  return r;
 }
 
 // WasmEdge::ValVariant to wasm::Val conversion.
@@ -1197,7 +1190,7 @@ wasm::Val conv_cppval_from_wasmedge(const WasmEdge::ValVariant &v,
     return wasm::Val::ref(ref ? ref->copy_ref() : wasm::own<wasm_ref_t>());
   }
   // v128 and other types are not supported in wasm C API yet.
-  assumingUnreachable();
+  return wasm::Val();
 }
 
 // wasm_val_t to WasmEdge::ValVariant conversion.
@@ -1223,7 +1216,7 @@ WasmEdge::ValVariant conv_cval_to_wasmedge(const wasm_val_t &v) {
           WasmEdge::ValType(WasmEdge::TypeCode::FuncRef));
     }
   default:
-    assumingUnreachable();
+    return WasmEdge::RefVariant();
   }
 }
 
@@ -1239,8 +1232,6 @@ WasmEdge::ValVariant conv_cppval_to_wasmedge(const wasm::Val &v) {
     return v.f32();
   case wasm::ValKind::F64:
     return v.f64();
-  case wasm::ValKind::EXTERNREF:
-    return WasmEdge::RefVariant(v.ref());
   case wasm::ValKind::FUNCREF: {
     // C-API funcrefs always come from wasm_func_as_ref / wasm_table_get, so
     // ref() is a wasm::Func — recover the wasm_func_t and store its inst.
@@ -1252,8 +1243,28 @@ WasmEdge::ValVariant conv_cppval_to_wasmedge(const wasm::Val &v) {
     return WasmEdge::RefVariant(WasmEdge::ValType(WasmEdge::TypeCode::FuncRef));
   }
   default:
-    assumingUnreachable();
+    return v.is_ref() ? WasmEdge::RefVariant(v.ref()) : WasmEdge::RefVariant();
   }
+}
+
+// Whether every param and result type is expressible in the wasm C API.
+bool is_functype_supported(const WasmEdge::AST::FunctionType &ft) {
+  auto pred = [](const WasmEdge::ValType &vt) {
+    return static_cast<bool>(make_valtype_from_wasmedge(vt));
+  };
+  return std::all_of(ft.getParamTypes().begin(), ft.getParamTypes().end(),
+                     pred) &&
+         std::all_of(ft.getReturnTypes().begin(), ft.getReturnTypes().end(),
+                     pred);
+}
+
+// Whether the vec has its data and holds no null element.
+bool is_valtype_vec_valid(const wasm_valtype_vec_t *v) {
+  if (!v || (v->size > 0 && !v->data)) {
+    return false;
+  }
+  return std::all_of(v->data, v->data + v->size,
+                     [](const wasm_valtype_t *t) { return t != nullptr; });
 }
 
 // allocmgr destructor backward implementation.
@@ -1328,22 +1339,8 @@ WASMEDGE_CAPI_EXPORT OWN wasm_valtype_t *wasm_valtype_new(wasm_valkind_t kind) {
   // Return the pointer to the instances.
   // When delete the `wasm_valtype_t`, the `destroy()` function will do nothing
   // when the unique pointer releases the pointer.
-  switch (kind) {
-  case WASM_I32:
-    return &wasm_valtype_i32;
-  case WASM_I64:
-    return &wasm_valtype_i64;
-  case WASM_F32:
-    return &wasm_valtype_f32;
-  case WASM_F64:
-    return &wasm_valtype_f64;
-  case WASM_EXTERNREF:
-    return &wasm_valtype_externref;
-  case WASM_FUNCREF:
-    return &wasm_valtype_funcref;
-  default:
-    assumingUnreachable();
-  }
+  return static_cast<wasm_valtype_t *>(
+      wasm::ValType::make(static_cast<wasm::ValKind>(kind)).release());
 }
 
 WASM_DECLARE_C_GET_ATTR(valtype, wasm_valkind_t, kind, static, WASM_I32, , )
@@ -1357,7 +1354,7 @@ WASM_DECLARE_TYPE_IMPL(functype, wasm::FuncType)
 WASMEDGE_CAPI_EXPORT OWN wasm_functype_t *
 wasm_functype_new(OWN wasm_valtype_vec_t *params,
                   OWN wasm_valtype_vec_t *results) {
-  if (params && results) {
+  if (is_valtype_vec_valid(params) && is_valtype_vec_valid(results)) {
     return new (std::nothrow) wasm_functype_t(
         wasm::ownvec<wasm::ValType>::adopt(
             params->size,
@@ -1382,7 +1379,7 @@ WASM_DECLARE_TYPE_IMPL(globaltype, wasm::GlobalType)
 
 WASMEDGE_CAPI_EXPORT OWN wasm_globaltype_t *
 wasm_globaltype_new(OWN wasm_valtype_t *valtype, wasm_mutability_t mutability) {
-  if (valtype) {
+  if (valtype && (mutability == WASM_CONST || mutability == WASM_VAR)) {
     return new (std::nothrow) wasm_globaltype_t(
         wasm::make_own(valtype), static_cast<wasm::Mutability>(mutability));
   }
@@ -1402,7 +1399,7 @@ WASM_DECLARE_TYPE_IMPL(tabletype, wasm::TableType)
 
 WASMEDGE_CAPI_EXPORT OWN wasm_tabletype_t *
 wasm_tabletype_new(OWN wasm_valtype_t *valtype, const wasm_limits_t *limits) {
-  if (valtype && limits) {
+  if (valtype && limits && valtype->is_ref()) {
     return new (std::nothrow) wasm_tabletype_t(
         wasm::make_own(valtype), wasm::Limits(limits->min, limits->max));
   }
@@ -1488,7 +1485,8 @@ WASM_DECLARE_TYPE_IMPL(importtype, wasm::ImportType)
 WASMEDGE_CAPI_EXPORT OWN wasm_importtype_t *
 wasm_importtype_new(OWN wasm_name_t *module, OWN wasm_name_t *name,
                     OWN wasm_externtype_t *externtype) {
-  if (module && name && externtype) {
+  if (module && name && externtype && (module->size == 0 || module->data) &&
+      (name->size == 0 || name->data)) {
     return new (std::nothrow)
         wasm_importtype_t(wasm::vec<byte_t>::adopt(module->size, module->data),
                           wasm::vec<byte_t>::adopt(name->size, name->data),
@@ -1512,7 +1510,7 @@ WASM_DECLARE_TYPE_IMPL(exporttype, wasm::ExportType)
 
 WASMEDGE_CAPI_EXPORT OWN wasm_exporttype_t *
 wasm_exporttype_new(OWN wasm_name_t *name, OWN wasm_externtype_t *externtype) {
-  if (name && externtype) {
+  if (name && externtype && (name->size == 0 || name->data)) {
     return new (std::nothrow)
         wasm_exporttype_t(wasm::vec<byte_t>::adopt(name->size, name->data),
                           wasm::make_own(externtype));
@@ -1539,7 +1537,7 @@ WASMEDGE_CAPI_EXPORT void wasm_val_vec_new(OWN wasm_val_vec_t *out, size_t size,
                                            OWN wasm_val_t const data[]) {
   if (out) {
     *out = {0, nullptr};
-    if (size < UINT32_MAX) {
+    if (size < UINT32_MAX && (size == 0 || data)) {
       auto v = wasm::vec<wasm::Val>::make_uninitialized(size);
       for (size_t i = 0; i < v.size(); ++i) {
         v[i] = conv_val_to_cpp(data[i]);
@@ -1554,7 +1552,7 @@ WASMEDGE_CAPI_EXPORT void wasm_val_vec_copy(OWN wasm_val_vec_t *out,
   if (out) {
     *out = {0, nullptr};
   }
-  if (in && out && in->size < UINT32_MAX) {
+  if (in && out && in->size < UINT32_MAX && (in->size == 0 || in->data)) {
     auto v = wasm::vec<wasm::Val>::make_uninitialized(in->size);
     for (size_t i = 0; i < v.size(); ++i) {
       v[i] = conv_val_to_cpp(in->data[i]);
@@ -1599,7 +1597,10 @@ WASM_DECLARE_VEC_PTR_IMPL(frame, wasm::Frame)
 
 WASMEDGE_CAPI_EXPORT OWN wasm_frame_t *
 wasm_frame_copy(const wasm_frame_t *frame) {
-  return static_cast<wasm_frame_t *>(frame->copy().release());
+  if (frame) {
+    return static_cast<wasm_frame_t *>(frame->copy().release());
+  }
+  return nullptr;
 }
 
 WASM_DECLARE_C_GET_ATTR(frame, wasm_instance_t *, instance, static, nullptr, , )
@@ -1688,7 +1689,7 @@ wasm_module_new(wasm_store_t *store, const wasm_byte_vec_t *binary) {
 
 WASMEDGE_CAPI_EXPORT bool wasm_module_validate(wasm_store_t *store,
                                                const wasm_byte_vec_t *binary) {
-  if (store && binary) {
+  if (store && binary && (binary->size == 0 || binary->data)) {
     auto mod = store->load.parseModule(WasmEdge::Span<const uint8_t>(
         reinterpret_cast<const uint8_t *>(binary->data), binary->size));
     if (!mod) {
@@ -1803,9 +1804,15 @@ WASMEDGE_CAPI_EXPORT OWN wasm_trap_t *wasm_func_call(const wasm_func_t *func,
   const auto &ftype = func->inst->getFuncType();
   const auto &ptypes = ftype.getParamTypes();
   const auto &rtypes = ftype.getReturnTypes();
+  if (!is_functype_supported(ftype)) {
+    return static_cast<wasm_trap_t *>(
+        buildTrap(func->store, WasmEdge::ErrCode::Value::FuncSigMismatch,
+                  lookupFuncIdx(func->inst))
+            .release());
+  }
 
   std::vector<WasmEdge::ValVariant> params(ptypes.size());
-  if (args) {
+  if (args && args->data) {
     for (size_t i = 0; i < ptypes.size() && i < args->size; ++i) {
       params[i] = conv_cval_to_wasmedge(args->data[i]);
     }
@@ -1817,7 +1824,7 @@ WASMEDGE_CAPI_EXPORT OWN wasm_trap_t *wasm_func_call(const wasm_func_t *func,
         buildTrap(func->store, res.error(), lookupFuncIdx(func->inst))
             .release());
   }
-  if (results) {
+  if (results && results->data) {
     for (size_t i = 0; i < rtypes.size() && i < results->size; ++i) {
       results->data[i] = conv_cval_from_wasmedge((*res)[i].first, rtypes[i]);
       // Results from wasm_func_call are owning per the wasm-c-api spec:
@@ -1975,7 +1982,10 @@ WASM_DECLARE_C_GET_ATTR(extern, wasm_externkind_t, kind, static,
 
 WASMEDGE_CAPI_EXPORT OWN wasm_externtype_t *
 wasm_extern_type(const wasm_extern_t *external) {
-  return reinterpret_cast<wasm_externtype_t *>(external->type().release());
+  if (external) {
+    return reinterpret_cast<wasm_externtype_t *>(external->type().release());
+  }
+  return nullptr;
 }
 
 WASM_EXTERNTYPE_C_CONV(func, extern, , , , )
@@ -2007,8 +2017,8 @@ wasm_instance_new(wasm_store_t *store, const wasm_module_t *module,
   // Copy the C imports vec into a wasm::vec view; the pointed-to externs are
   // borrowed.
   auto imports_vec = wasm::vec<wasm::Extern *>::make_uninitialized(
-      imports ? imports->size : 0);
-  if (imports) {
+      imports && imports->data ? imports->size : 0);
+  if (imports && imports->data) {
     for (size_t i = 0; i < imports->size; ++i) {
       imports_vec[i] = static_cast<wasm::Extern *>(imports->data[i]);
     }
@@ -2025,9 +2035,12 @@ wasm_instance_new(wasm_store_t *store, const wasm_module_t *module,
 WASMEDGE_CAPI_EXPORT void wasm_instance_exports(const wasm_instance_t *instance,
                                                 OWN wasm_extern_vec_t *out) {
   if (out) {
-    auto exports = instance->exports();
-    *out = {exports.size(),
-            reinterpret_cast<wasm_extern_t **>(exports.release())};
+    *out = {0, nullptr};
+    if (instance) {
+      auto exports = instance->exports();
+      *out = {exports.size(),
+              reinterpret_cast<wasm_extern_t **>(exports.release())};
+    }
   }
 }
 
@@ -2100,7 +2113,7 @@ wasm::own<wasm::ValType> wasm::ValType::make(wasm::ValKind kind) {
   case ValKind::FUNCREF:
     return own<ValType>(&wasm_valtype_funcref);
   default:
-    assumingUnreachable();
+    return nullptr;
   }
 }
 
@@ -2120,7 +2133,12 @@ wasm::own<wasm::FuncType>
 wasm::FuncType::make(wasm::ownvec<wasm::ValType> &&params,
                      wasm::ownvec<wasm::ValType> &&results) {
   // Check the inputs are valid.
-  if (params && results) {
+  auto pred = [](const wasm::own<wasm::ValType> &t) {
+    return static_cast<bool>(t);
+  };
+  if (params && results &&
+      std::all_of(params.get(), params.get() + params.size(), pred) &&
+      std::all_of(results.get(), results.get() + results.size(), pred)) {
     return wasm::make_own(new (std::nothrow) wasm_functype_t(
         std::move(params), std::move(results)));
   }
@@ -2151,8 +2169,12 @@ void wasm::GlobalType::destroy() {
 wasm::own<wasm::GlobalType>
 wasm::GlobalType::make(wasm::own<wasm::ValType> &&content,
                        wasm::Mutability mutability) {
-  return wasm::make_own(new (std::nothrow)
-                            wasm_globaltype_t(std::move(content), mutability));
+  if (content && (mutability == wasm::Mutability::CONST ||
+                  mutability == wasm::Mutability::VAR)) {
+    return wasm::make_own(
+        new (std::nothrow) wasm_globaltype_t(std::move(content), mutability));
+  }
+  return nullptr;
 }
 
 wasm::own<wasm::GlobalType> wasm::GlobalType::copy() const {
@@ -2177,8 +2199,11 @@ void wasm::TableType::destroy() {
 
 wasm::own<wasm::TableType>
 wasm::TableType::make(wasm::own<wasm::ValType> &&element, wasm::Limits limits) {
-  return wasm::make_own(new (std::nothrow)
-                            wasm_tabletype_t(std::move(element), limits));
+  if (element && element->is_ref()) {
+    return wasm::make_own(new (std::nothrow)
+                              wasm_tabletype_t(std::move(element), limits));
+  }
+  return nullptr;
 }
 
 wasm::own<wasm::TableType> wasm::TableType::copy() const {
@@ -2309,7 +2334,8 @@ wasm::ImportType::make(wasm::Name &&module, wasm::Name &&name,
 }
 
 wasm::own<wasm::ImportType> wasm::ImportType::copy() const {
-  return make(module().copy(), name().copy(), type()->copy());
+  return make(module().copy(), name().copy(),
+              type() ? type()->copy() : nullptr);
 }
 
 const wasm::Name &wasm::ImportType::module() const {
@@ -2339,7 +2365,7 @@ wasm::ExportType::make(wasm::Name &&name, wasm::own<wasm::ExternType> &&type) {
 }
 
 wasm::own<wasm::ExportType> wasm::ExportType::copy() const {
-  return make(name().copy(), type()->copy());
+  return make(name().copy(), type() ? type()->copy() : nullptr);
 }
 
 const wasm::Name &wasm::ExportType::name() const {
@@ -2737,21 +2763,8 @@ wasm::own<wasm::Func> wasm::Func::copy() const {
 
 wasm::own<wasm::FuncType> wasm::Func::type() const {
   if (static_cast<const wasm_func_t *>(this)->inst) {
-    const auto &type =
-        static_cast<const wasm_func_t *>(this)->inst->getFuncType();
-    auto vp =
-        wasm::ownvec<ValType>::make_uninitialized(type.getParamTypes().size());
-    auto vr =
-        wasm::ownvec<ValType>::make_uninitialized(type.getReturnTypes().size());
-    for (size_t i = 0; i < type.getParamTypes().size(); ++i) {
-      vp[i] = wasm::ValType::make(
-          conv_valtype_from_wasmedge(type.getParamTypes()[i]));
-    }
-    for (size_t i = 0; i < type.getReturnTypes().size(); ++i) {
-      vr[i] = wasm::ValType::make(
-          conv_valtype_from_wasmedge(type.getReturnTypes()[i]));
-    }
-    return wasm::FuncType::make(std::move(vp), std::move(vr));
+    return make_functype_from_wasmedge(
+        static_cast<const wasm_func_t *>(this)->inst->getFuncType());
   }
   return wasm::FuncType::make();
 }
@@ -2781,6 +2794,10 @@ wasm::own<wasm::Trap> wasm::Func::call(const wasm::vec<wasm::Val> &args,
   const auto &ftype = self->inst->getFuncType();
   const auto &ptypes = ftype.getParamTypes();
   const auto &rtypes = ftype.getReturnTypes();
+  if (!is_functype_supported(ftype)) {
+    return buildTrap(self->store, WasmEdge::ErrCode::Value::FuncSigMismatch,
+                     lookupFuncIdx(self->inst));
+  }
 
   std::vector<WasmEdge::ValVariant> params(ptypes.size());
   for (size_t i = 0; i < ptypes.size() && i < args.size(); ++i) {
@@ -2822,11 +2839,8 @@ wasm::own<wasm::Global> wasm::Global::copy() const {
 }
 
 wasm::own<wasm::GlobalType> wasm::Global::type() const {
-  const auto &type =
-      static_cast<const wasm_global_t *>(this)->inst->getGlobalType();
-  return wasm::GlobalType::make(
-      wasm::ValType::make(conv_valtype_from_wasmedge(type.getValType())),
-      conv_valmut_from_wasmedge(type.getValMut()));
+  return make_globaltype_from_wasmedge(
+      static_cast<const wasm_global_t *>(this)->inst->getGlobalType());
 }
 
 wasm::Val wasm::Global::get() const {
@@ -2839,6 +2853,9 @@ void wasm::Global::set(const wasm::Val &val) {
   // Replace the kept init value here. If the value type is a reference, this
   // will help to keep the reference count.
   auto *global = static_cast<wasm_global_t *>(this);
+  if (!make_valtype_from_wasmedge(global->inst->getGlobalType().getValType())) {
+    return;
+  }
   global->keepval = val.copy();
   global->inst->getValue() = conv_cppval_to_wasmedge(val);
 }
@@ -2865,14 +2882,8 @@ wasm::own<wasm::Table> wasm::Table::copy() const {
 }
 
 wasm::own<wasm::TableType> wasm::Table::type() const {
-  const auto &type =
-      static_cast<const wasm_table_t *>(this)->inst->getTableType();
-  return wasm::TableType::make(
-      wasm::ValType::make(conv_reftype_from_wasmedge(type.getRefType())),
-      type.getLimit().hasMax()
-          ? wasm::Limits(static_cast<uint32_t>(type.getLimit().getMin()),
-                         static_cast<uint32_t>(type.getLimit().getMax()))
-          : wasm::Limits(static_cast<uint32_t>(type.getLimit().getMin())));
+  return make_tabletype_from_wasmedge(
+      static_cast<const wasm_table_t *>(this)->inst->getTableType());
 }
 
 wasm::own<wasm::Ref> wasm::Table::get(wasm::Table::size_t index) const {
@@ -2889,7 +2900,7 @@ wasm::own<wasm::Ref> wasm::Table::get(wasm::Table::size_t index) const {
       auto *wf = new (std::nothrow) wasm_func_t(self->store, fi);
       return wasm::own<wasm::Ref>(
           static_cast<wasm::Ref *>(static_cast<wasm::Func *>(wf)));
-    } else {
+    } else if (inst->getTableType().getRefType().isExternRefType()) {
       auto *ref = (*res).getPtr<wasm_ref_t>();
       return ref ? ref->copy_ref() : nullptr;
     }
@@ -2905,7 +2916,7 @@ bool wasm::Table::set(wasm::Table::size_t index, const wasm::Ref *ref) {
                          WasmEdge::RefVariant(const_cast<wasm::Ref *>(ref)))) {
       return true;
     }
-  } else {
+  } else if (inst->getTableType().getRefType().isFuncRefType()) {
     // Funcref slot: ref was produced via wasm_func_as_ref, so we can recover
     // the wasm_func_t through the wasm::Func subobject.
     if (ref) {

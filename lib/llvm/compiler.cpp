@@ -125,27 +125,24 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
     return Unexpect(ErrCode::Value::IllegalPath);
   }
 
+  // On RISC-V we use generic-rv64 as the CPU, so also use default
+  // features; host features under QEMU can be inconsistent (e.g.
+  // zvl*b without v) which LLVM >= 20 rejects.
   std::string CPUName;
+  std::string CPUFeatures;
 #if defined(__riscv) && __riscv_xlen == 64
   CPUName = "generic-rv64"s;
 #else
   if (!Conf.getCompilerConfigure().isGenericBinary()) {
     CPUName = LLVM::getHostCPUName().string_view();
+    CPUFeatures = LLVM::getHostCPUFeatures().string_view();
   } else {
     CPUName = "generic"s;
   }
 #endif
 
-  // On RISC-V we use generic-rv64 as the CPU, so also use default
-  // features; host features under QEMU can be inconsistent (e.g.
-  // zvl*b without v) which LLVM >= 20 rejects.
   TM = LLVM::TargetMachine::create(
-      TheTarget, Triple, CPUName.c_str(),
-#if defined(__riscv) && __riscv_xlen == 64
-      "",
-#else
-      LLVM::getHostCPUFeatures().unwrap(),
-#endif
+      TheTarget, Triple, CPUName.c_str(), CPUFeatures.c_str(),
       toLLVMCodeGenLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
       LLVMRelocPIC, LLVMCodeModelDefault);
 #if LLVM_VERSION_MAJOR < 16

@@ -1,0 +1,163 @@
+name: "Mentorship Project Idea"
+description: Submit a project idea for GSoC or LFX Mentorship.
+title: "Mentorship (<program>, <year/term>): <project title>"
+projects: ["WasmEdge/8"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue template is for maintainers only.
+
+        Use this template to propose a new mentorship project idea. Submit a separate issue for each project idea.
+
+        For CNCF submissions, select `WasmEdge Runtime` as the CNCF project and use this issue's URL as the upstream issue URL.
+  - type: dropdown
+    id: program
+    attributes:
+      label: "Mentorship Program"
+      description: Select the program for which you are proposing this project.
+      multiple: false
+      options:
+        - "Google Summer of Code (GSoC)"
+        - "LFX Mentorship"
+    validations:
+      required: true
+  - type: input
+    id: term
+    attributes:
+      label: "Program Year / Term"
+      description: Enter the GSoC year or LFX term, as applicable.
+      placeholder: "e.g., GSoC 2027 or 2026 Term 3 (Sep-Nov)"
+    validations:
+      required: true
+  - type: input
+    id: project-title
+    attributes:
+      label: "Project Title"
+      description: Provide a concise project title. The full LFX program name must contain fewer than 100 characters.
+      placeholder: "e.g., Add component model support to the WasmEdge C API"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description"
+      description: Describe the project, the problem it solves, and the context a candidate needs. For LFX, the project description and expected outcomes combined must fit within the 3,000-character program description limit.
+      placeholder: Describe the project and why it is valuable to WasmEdge.
+    validations:
+      required: true
+  - type: textarea
+    id: expected-outcome
+    attributes:
+      label: "Expected Outcomes"
+      description: List concrete deliverables, contributions, or capabilities that define a successful project.
+      placeholder: |
+        - Implement the proposed feature
+        - Add automated tests
+        - Document the design and usage
+    validations:
+      required: true
+  - type: input
+    id: technologies
+    attributes:
+      label: "Technologies"
+      description: Provide a comma-separated list of languages, frameworks, and platforms relevant to the project.
+      placeholder: "e.g., C++, WebAssembly, LLVM"
+    validations:
+      required: true
+  - type: dropdown
+    id: project-size
+    attributes:
+      label: "Expected Project Size"
+      description: GSoC supports three project sizes. LFX projects are full-time, so select Large.
+      options:
+        - "Small (~90 hours; GSoC only)"
+        - "Medium (~175 hours; GSoC only)"
+        - "Large / full-time (~350 hours; GSoC or LFX)"
+    validations:
+      required: true
+  - type: textarea
+    id: mentors
+    attributes:
+      label: "Mentors"
+      description: |
+        Enter one mentor per line as `Full Name | @github-handle | Email Address | LFID`. The first line is the primary mentor.
+
+        Both GSoC and LFX Mentorship require at least two mentors. Proposals for either program must include each mentor's LFID and the email address associated with that LFID account. Use the value shown in the `LF Username` field on [Open Profile](https://openprofile.dev/profile) as the LFID.
+      placeholder: |
+        Jane Doe | @janedoe | jane@example.com | janedoe
+        Sam Lee | @samlee | sam@example.com | samlee
+    validations:
+      required: true
+  - type: checkboxes
+    id: application-prerequisites
+    attributes:
+      label: "LFX Application Prerequisites"
+      description: For LFX proposals, select all prerequisites that applicants must complete. Leave all options unchecked for GSoC-only proposals.
+      options:
+        - label: "Resume"
+          required: false
+        - label: "Cover Letter"
+          required: false
+        - label: "School Enrollment Verification"
+          required: false
+        - label: "Participation Permission from School or Employer"
+          required: false
+        - label: "Coding Challenge"
+          required: false
+        - label: "Pre-test (provide details below)"
+          required: false
+  - type: input
+    id: coding-challenge-url
+    attributes:
+      label: "LFX Coding Challenge URL"
+      description: If the Coding Challenge option is selected above, provide its URL. Leave blank otherwise.
+      placeholder: "https://github.com/WasmEdge/WasmEdge/issues/1234"
+    validations:
+      required: false
+  - type: input
+    id: pre-test-name
+    attributes:
+      label: "Pre-test Name"
+      description: If the Pre-test option is selected above, provide a short name of at most 20 characters.
+      placeholder: "e.g., pre-test report"
+    validations:
+      required: false
+  - type: textarea
+    id: pre-test-description
+    attributes:
+      label: "Pre-test Description"
+      description: Describe the pre-test in at most 500 characters. Leave blank otherwise.
+      placeholder: Describe what the applicant must complete or provide.
+    validations:
+      required: false
+  - type: checkboxes
+    id: pre-test-file-upload
+    attributes:
+      label: "Pre-test File Upload"
+      description: Specify whether the pre-test requires an uploaded file.
+      options:
+        - label: "Yes, applicants must upload a file to complete the pre-test."
+          required: false
+  - type: markdown
+    attributes:
+      value: |
+        > Before applying, read and understand the [WasmEdge Mentorship Program Policy](https://github.com/WasmEdge/WasmEdge/blob/master/docs/mentorship-policy.md).
+        >
+        > Every accepted LFX mentee must complete [Inclusive Open Source Community Orientation (LFC102)](https://training.linuxfoundation.org/training/inclusive-open-source-community-orientation-lfc102/). CNCF automatically adds this standing requirement to every LFX program.
+  - type: textarea
+    id: apply-link
+    attributes:
+      label: "Application Link"
+      description: Enter `TBD` if the application link is not yet available.
+      placeholder: TBD
+    validations:
+      required: true
+  - type: textarea
+    id: appendix
+    attributes:
+      label: "Additional Information"
+      description: Provide any other context that would help reviewers or applicants.
+      placeholder: Optional references, related issues, design documents, or notes.
+    validations:
+      required: false

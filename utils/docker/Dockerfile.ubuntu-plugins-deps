@@ -1,0 +1,89 @@
+ARG BASE_IMAGE=wasmedge/wasmedge:latest
+ARG UBUNTU_VER=20
+FROM ${BASE_IMAGE} AS base
+
+RUN apt-get update && \
+    apt-get install -y \
+        cargo \
+        libelf-dev \
+        libomp-dev \
+        libopenblas-dev \
+        libssl-dev \
+        pkg-config \
+        unzip \
+        yasm
+
+RUN apt-get install -y \
+        libgrpc++-dev \
+        libgrpc-dev \
+        protobuf-compiler-grpc
+
+# FFmpeg 6.1 (ubuntu 24.04)
+FROM base AS deps-24
+
+RUN apt-get install -y \
+        libavcodec-dev \
+        libavdevice-dev \
+        libavfilter-dev \
+        libavformat-dev \
+        libavutil-dev \
+        libswresample-dev \
+        libswscale-dev
+
+# FFmpeg 7.1.1 (ubuntu 20.04, 22.04)
+FROM base AS deps-20
+
+WORKDIR /usr/local
+
+COPY ffmpeg/install-ffmpeg-v7.1.1.sh .
+RUN [ "/bin/bash", "install-ffmpeg-v7.1.1.sh" ]
+ENV PKG_CONFIG_PATH=/usr/local/FFmpeg-n7.1.1/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+ENV LD_LIBRARY_PATH=/usr/local/FFmpeg-n7.1.1/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+
+FROM deps-20 AS deps-22
+
+# Other dependencies
+FROM deps-${UBUNTU_VER} AS deps-all
+
+WORKDIR /root
+
+COPY wasi-nn/install-pytorch.sh .
+ENV PYTORCH_VERSION="2.12.1"
+ENV PYTORCH_INSTALL_TO="/usr/local/libtorch"
+ENV Torch_DIR="/usr/local/libtorch"
+RUN [ "/bin/bash", "install-pytorch.sh"  ]
+
+ARG UBUNTU_VER
+
+COPY wasi-nn/install-openvino.sh .
+COPY wasi-nn/install-openvino-genai.sh .
+ENV OPENVINO_UBUNTU_VERSION=${UBUNTU_VER}
+ENV OPENVINO_VERSION="2025.0.0"
+ENV OPENVINO_YEAR="2025"
+ENV OPENVINOGEN_VERSION="2025.0.0.0"
+ENV OPENVINOGEN_YEAR="2025.0"
+ENV OPENVINOGEN_DIRNAME="openvino_genai"
+RUN [ "/bin/bash", "install-openvino.sh" ]
+RUN [ "/bin/bash", "install-openvino-genai.sh" ]
+RUN [ "ls", "-al" ]
+RUN [ "/bin/bash", "-c", "echo \"source ./openvino_genai/setupvars.sh\" >> .bashrc" ]
+
+COPY wasi-nn/libpiper.patch .
+COPY wasi-nn/install-libpiper.sh .
+RUN [ "/bin/bash", "install-libpiper.sh" ]
+
+COPY wasi-nn/install-chattts.sh .
+RUN [ "/bin/bash", "install-chattts.sh" ]
+
+### cleanup
+FROM deps-all AS clean-apt
+
+RUN rm -f \
+    install-ffmpeg-v7.1.1.sh \
+    install-pytorch.sh \
+    install-openvino.sh \
+    install-openvino-genai.sh \
+    install-chattts.sh \
+    install-libpiper.sh
+
+RUN rm -rf /var/lib/apt/lists/*

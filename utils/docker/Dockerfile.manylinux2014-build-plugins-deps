@@ -1,0 +1,34 @@
+ARG BASE=wasmedge/wasmedge:manylinux2014_x86_64
+FROM ${BASE}
+
+ENV PATH /opt/rh/devtoolset-11/root/usr/bin${PATH:+:${PATH}}
+ENV MANPATH /opt/rh/devtoolset-11/root/usr/share/man${MANPATH:+:${MANPATH}}
+ENV INFOPATH /opt/rh/devtoolset-11/root/usr/share/info${INFOPATH:+:${INFOPATH}}
+ENV PKG_CONFIG_PATH /opt/rh/devtoolset-11/root/usr/lib64/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+
+RUN cd && (yum check-update || true) && \
+  yum install -y cmake wget unzip zlib-devel zlib-static
+RUN yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo && \
+  yum install -y gh
+
+WORKDIR /root
+
+COPY wasi-nn/install-pytorch.sh .
+ENV PYTORCH_VERSION "2.5.1"
+ENV PYTORCH_INSTALL_TO "/root"
+ENV Torch_DIR "/root/libtorch"
+RUN [ "/bin/bash", "install-pytorch.sh", "--disable-cxx11-abi" ]
+
+COPY wasi-crypto/build-openssl.sh .
+ENV OPENSSL_ROOT_DIR "/root/openssl-1.1.1n/openssl"
+RUN [ "/bin/bash", "build-openssl.sh" ]
+
+COPY ffmpeg/install-ffmpeg-v7.1.1.sh .
+RUN [ "/bin/bash", "install-ffmpeg-v7.1.1.sh" ]
+ENV PKG_CONFIG_PATH /root/FFmpeg-n7.1.1/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+ENV LD_LIBRARY_PATH /root/FFmpeg-n7.1.1/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+
+ENV OPENVINO_VERSION "2025.0.0"
+ENV OPENVINO_YEAR "2025"
+
+RUN yum clean all

@@ -1,0 +1,54 @@
+name: "Mentorship Workspace"
+description: This template is for mentees to submit a project workspace for the mentoring programs, including OSPP, GSoC, and LFX mentorship.
+title: "<Mentoring Program, e.g. LFX> Workspace: <title>"
+labels: ["LFX Mentorship", "LFX Mentorship Workspace"]
+projects: ["WasmEdge/8"]
+body:
+  - type: textarea
+    id: project-title
+    attributes:
+      label: "Project Title"
+      description: Please shortly describe the project title
+      placeholder: Describe in one line
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: "Motivation"
+      description: Please describe the motivation for the project
+      placeholder: Describe in a few lines about the motivation for the project
+    validations:
+      required: true
+  - type: textarea
+    id: expected-outcome
+    attributes:
+      label: "Expected Outcome"
+      description: Please shortly describe the expected outcome of the project
+      placeholder: Describe in several bullet points about the expected outcome. E.g. A new feature, a new tool, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: "Details"
+      description: Please describe the details of the project
+      placeholder: Describe in a few lines about the details of the project
+    validations:
+      required: true
+  - type: textarea
+    id: milestones
+    attributes:
+      label: "Milestones"
+      description: Please describe the milestones and corresponding timeline of the project. Each milestone should be clear and measurable.
+      placeholder: Describe in several bullet points about the milestones and corresponding timeline of the project
+    validations:
+      required: true
+  - type: textarea
+    id: appendix
+    attributes:
+      label: "Appendix"
+      description: Please provide any additional information you want to share.
+      placeholder: This is optional, if you have any additional information, please describe in several bullet points.
+    validations:
+      required: false

@@ -1,0 +1,267 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+//===-- wasmedge/ast/component/canonical.h - Canon class definitions ------===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains the declaration of the Canon node related classes.
+///
+//===----------------------------------------------------------------------===//
+#pragma once
+
+#include "ast/component/valtype.h"
+#include "common/component_valtype.h"
+#include "common/enum_ast.hpp"
+#include "common/span.h"
+#include "common/types.h"
+
+#include <cstdint>
+#include <optional>
+#include <utility>
+#include <vector>
+
+namespace WasmEdge {
+namespace AST {
+namespace Component {
+
+// canonopt ::= 0x00                  => string-encoding=utf8
+//            | 0x01                  => string-encoding=utf16
+//            | 0x02                  => string-encoding=latin1+utf16
+//            | 0x03 m:<core:memidx>  => (memory m)
+//            | 0x04 f:<core:funcidx> => (realloc f)
+//            | 0x05 f:<core:funcidx> => (post-return f)
+//            | 0x06                  => async 🔀
+//            | 0x07 f:<core:funcidx> => (callback f) 🔀
+
+/// AST Component::CanonOpt definition.
+class CanonOpt {
+public:
+  CanonOpt() noexcept : Code(ComponentCanonOptCode::Encode_UTF8), Idx(0) {}
+
+  ComponentCanonOptCode getCode() const noexcept { return Code; }
+  void setCode(const ComponentCanonOptCode C) noexcept { Code = C; }
+
+  uint32_t getIndex() const noexcept { return Idx; }
+  void setIndex(const uint32_t I) noexcept { Idx = I; }
+
+private:
+  ComponentCanonOptCode Code;
+  uint32_t Idx;
+};
+
+// canon ::= 0x00 0x00 f:<core:funcidx> opts:<opts> ft:<typeidx>
+//           => (canon lift f opts type-index-space[ft])
+//         | 0x01 0x00 f:<funcidx> opts:<opts>
+//           => (canon lower f opts (core func))
+//         | 0x02 rt:<typeidx>    => (canon resource.new rt (core func))
+//         | 0x03 rt:<typeidx>    => (canon resource.drop rt (core func))
+//         | 0x04 rt:<typeidx>    => (canon resource.rep rt (core func))
+//         | 0x09 rs:<resultlist> opts:<opts>
+//           => (canon task.return rs opts (core func)) 🔀
+//         | 0x05                 => (canon task.cancel (core func)) 🔀
+//         | 0x0a t:<core:valtype> i:<u32>
+//           => (canon context.get t i (core func)) 🔀
+//         | 0x0b t:<core:valtype> i:<u32>
+//           => (canon context.set t i (core func)) 🔀
+//         | 0x0c 0x00
+//           => (canon thread.yield (core func)) 🔀
+//         | 0x06 async?:<async?>
+//           => (canon subtask.cancel async? (core func)) 🔀
+//         | 0x0d                 => (canon subtask.drop (core func)) 🔀
+//         | 0x0e t:<typeidx>     => (canon stream.new t (core func)) 🔀
+//         | 0x0f t:<typeidx> opts:<opts>
+//           => (canon stream.read t opts (core func)) 🔀
+//         | 0x10 t:<typeidx> opts:<opts>
+//           => (canon stream.write t opts (core func)) 🔀
+//         | 0x11 t:<typeidx> async?:<async?>
+//           => (canon stream.cancel-read t async? (core func)) 🔀
+//         | 0x12 t:<typeidx> async?:<async?>
+//           => (canon stream.cancel-write t async? (core func)) 🔀
+//         | 0x13 t:<typeidx> => (canon stream.drop-readable t (core func)) 🔀
+//         | 0x14 t:<typeidx> => (canon stream.drop-writable t (core func)) 🔀
+//         | 0x2e t:<typeidx> => (canon stream.forward t (core func)) ➡️
+//         | 0x15 t:<typeidx> => (canon future.new t (core func)) 🔀
+//         | 0x16 t:<typeidx> opts:<opts>
+//           => (canon future.read t opts (core func)) 🔀
+//         | 0x17 t:<typeidx> opts:<opts>
+//           => (canon future.write t opts (core func)) 🔀
+//         | 0x18 t:<typeidx> async?:<async?>
+//           => (canon future.cancel-read t async? (core func)) 🔀
+//         | 0x19 t:<typeidx> async?:<async?>
+//           => (canon future.cancel-write t async? (core func)) 🔀
+//         | 0x1a t:<typeidx> => (canon future.drop-readable t (core func)) 🔀
+//         | 0x1b t:<typeidx> => (canon future.drop-writable t (core func)) 🔀
+//         | 0x2f t:<typeidx> => (canon future.forward t (core func)) ➡️
+//         | 0x1c opts:<opts> => (canon error-context.new opts (core func)) 📝
+//         | 0x1d opts:<opts>
+//           => (canon error-context.debug-message opts (core func)) 📝
+//         | 0x1e                 => (canon error-context.drop (core func)) 📝
+//         | 0x1f                 => (canon waitable-set.new (core func)) 🔀
+//         | 0x20 0x00 m:<core:memoryidx>
+//           => (canon waitable-set.wait (memory m) (core func)) 🔀
+//         | 0x21 0x00 m:<core:memoryidx>
+//           => (canon waitable-set.poll (memory m) (core func)) 🔀
+//         | 0x22                 => (canon waitable-set.drop (core func)) 🔀
+//         | 0x23                 => (canon waitable.join (core func)) 🔀
+//         | 0x24                 => (canon backpressure.inc (core func)) 🔀
+//         | 0x25                 => (canon backpressure.dec (core func)) 🔀
+//         | 0x26                 => (canon thread.index (core func)) 🧵
+//         | 0x27 ft:<core:typeidx> t:<core:tableidx>
+//           => (canon thread.new-indirect ft t (core func)) 🧵
+//         | 0x28                 => (canon thread.resume-later (core func)) 🧵
+//         | 0x29 0x00
+//           => (canon thread.suspend (core func)) 🧵
+//         | 0x2a 0x00
+//           => (canon thread.suspend-then-resume (core func)) 🧵
+//         | 0x2b 0x00
+//           => (canon thread.yield-then-resume (core func)) 🧵
+//         | 0x2c 0x00
+//           => (canon thread.suspend-then-promote (core func)) 🧵
+//         | 0x2d 0x00
+//           => (canon thread.yield-then-promote (core func)) 🧵
+//         | 0x40 sh?:<sh?> ft:<core:typeidx>
+//           => (canon thread.spawn-ref sh? ft (core func)) 🧵②
+//         | 0x41 sh?:<sh?> ft:<core:typeidx> t:<core:tableidx>
+//           => (canon thread.spawn-indirect sh? ft t (core func)) 🧵②
+//         | 0x42 sh?:<sh?>
+//           => (canon thread.available-parallelism sh? (core func)) 🧵②
+// opts    ::= opt*:vec(<canonopt>) => opt*
+// async?  ::= 0x00 => ϵ
+//           | 0x01 => async
+// sh?     ::= 0x00 => ϵ
+//           | 0x01 => shared 🧵②
+
+// Currently implementing:
+//   0x00 0x00 (canon lift f opts type-index-space[ft])
+//   0x01 0x00 (canon lower f opts (core func))
+//   0x02      (canon resource.new rt (core func))
+//   0x03      (canon resource.drop rt (core func))
+//   0x04      (canon resource.rep rt (core func))
+
+class Canonical {
+public:
+  Canonical() noexcept = default;
+
+  ComponentCanonOpCode getOpCode() const noexcept { return Code; }
+  void setOpCode(const ComponentCanonOpCode C) noexcept { Code = C; }
+
+  // The `async?` immediate of subtask.cancel and the stream and future cancel
+  // forms.
+  bool getFlagImmediate() const noexcept { return FlagImm; }
+  void setFlagImmediate(const bool V) noexcept { FlagImm = V; }
+
+  uint32_t getIndex() const noexcept { return Idx; }
+  void setIndex(const uint32_t I) noexcept { Idx = I; }
+
+  uint32_t getTargetIndex() const noexcept { return TargetIdx; }
+  void setTargetIndex(const uint32_t I) noexcept { TargetIdx = I; }
+
+  uint32_t getConstVal() const noexcept { return I32; }
+  void setConstVal(const uint32_t V) noexcept { I32 = V; }
+
+  ValType getContextType() const noexcept { return CtxType; }
+  void setContextType(const ValType T) noexcept { CtxType = T; }
+
+  Span<const CanonOpt> getOptions() const noexcept { return Opts; }
+  /// True when the definition carries the option OptCode.
+  bool hasOption(ComponentCanonOptCode OptCode) const noexcept {
+    for (const auto &Opt : Opts) {
+      if (Opt.getCode() == OptCode) {
+        return true;
+      }
+    }
+    return false;
+  }
+  void setOptions(std::vector<CanonOpt> &&List) noexcept {
+    Opts = std::move(List);
+  }
+
+  /// The result type of task.return; none for no result.
+  const std::optional<ComponentValType> &getResult() const noexcept {
+    return Result;
+  }
+  void setResult(std::optional<ComponentValType> R) noexcept { Result = R; }
+
+  /// The core function type of the canonical built-in Code, as the Explainer's
+  /// synopsis tables give it, with AddrType for the address type of the memory
+  /// the definition names, or of the table for thread.new-indirect.
+  /// context.get and context.set take the context slot type, and task.return
+  /// the lowered results, so their callers form those types themselves.
+  static std::pair<std::vector<ValType>, std::vector<ValType>>
+  getBuiltinCoreFuncType(ComponentCanonOpCode Code,
+                         const ValType &AddrType) noexcept {
+    const ValType I32(TypeCode::I32);
+    const ValType I64(TypeCode::I64);
+    switch (Code) {
+    case ComponentCanonOpCode::Backpressure__inc:
+    case ComponentCanonOpCode::Backpressure__dec:
+    case ComponentCanonOpCode::Task__cancel:
+      return {{}, {}};
+    case ComponentCanonOpCode::Thread__yield:
+    case ComponentCanonOpCode::Waitable_set__new:
+    case ComponentCanonOpCode::Thread__index:
+    case ComponentCanonOpCode::Thread__suspend:
+      return {{}, {I32}};
+    case ComponentCanonOpCode::Waitable_set__wait:
+    case ComponentCanonOpCode::Waitable_set__poll:
+      return {{I32, AddrType}, {I32}};
+    case ComponentCanonOpCode::Waitable_set__drop:
+    case ComponentCanonOpCode::Subtask__drop:
+    case ComponentCanonOpCode::Stream__drop_readable:
+    case ComponentCanonOpCode::Stream__drop_writable:
+    case ComponentCanonOpCode::Future__drop_readable:
+    case ComponentCanonOpCode::Future__drop_writable:
+    case ComponentCanonOpCode::Error_context__drop:
+    case ComponentCanonOpCode::Thread__resume_later:
+      return {{I32}, {}};
+    case ComponentCanonOpCode::Waitable__join:
+    case ComponentCanonOpCode::Stream__forward:
+    case ComponentCanonOpCode::Future__forward:
+      return {{I32, I32}, {}};
+    case ComponentCanonOpCode::Subtask__cancel:
+    case ComponentCanonOpCode::Stream__cancel_read:
+    case ComponentCanonOpCode::Stream__cancel_write:
+    case ComponentCanonOpCode::Future__cancel_read:
+    case ComponentCanonOpCode::Future__cancel_write:
+    case ComponentCanonOpCode::Thread__yield_then_resume:
+    case ComponentCanonOpCode::Thread__suspend_then_resume:
+    case ComponentCanonOpCode::Thread__yield_then_promote:
+    case ComponentCanonOpCode::Thread__suspend_then_promote:
+      return {{I32}, {I32}};
+    case ComponentCanonOpCode::Stream__new:
+    case ComponentCanonOpCode::Future__new:
+      return {{}, {I64}};
+    case ComponentCanonOpCode::Stream__read:
+    case ComponentCanonOpCode::Stream__write:
+      return {{I32, AddrType, AddrType}, {AddrType}};
+    case ComponentCanonOpCode::Future__read:
+    case ComponentCanonOpCode::Future__write:
+      return {{I32, AddrType}, {I32}};
+    case ComponentCanonOpCode::Error_context__new:
+      return {{AddrType, AddrType}, {I32}};
+    case ComponentCanonOpCode::Error_context__debug_message:
+      return {{I32, AddrType}, {}};
+    case ComponentCanonOpCode::Thread__new_indirect:
+      return {{AddrType, I32}, {I32}};
+    default:
+      assumingUnreachable();
+    }
+  }
+
+private:
+  ComponentCanonOpCode Code = ComponentCanonOpCode::Lift;
+  bool FlagImm = false;
+  uint32_t Idx = 0, TargetIdx = 0;
+  uint32_t I32 = 0;
+  ValType CtxType = TypeCode::I32;
+  std::vector<CanonOpt> Opts;
+  std::optional<ComponentValType> Result;
+};
+
+} // namespace Component
+} // namespace AST
+} // namespace WasmEdge

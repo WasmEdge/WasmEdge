@@ -1,0 +1,631 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "common/configure.h"
+#include "common/filesystem.h"
+#include "common/spdlog.h"
+#include "common/types.h"
+#include "common/version.h"
+#include "driver/tool.h"
+#include "host/wasi/wasimodule.h"
+#include "vm/vm.h"
+
+#include <algorithm>
+#include <cctype>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <limits>
+#include <optional>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <vector>
+
+using namespace std::literals;
+
+namespace WasmEdge {
+namespace Driver {
+
+std::optional<RunMode> parseRunModeArg(std::string_view S) noexcept {
+  std::string Lower(S);
+  std::transform(Lower.begin(), Lower.end(), Lower.begin(),
+                 [](unsigned char C) -> char {
+                   return static_cast<char>(std::tolower(C));
+                 });
+  if (Lower == "interpreter") {
+    return RunMode::Interpreter;
+  }
+  if (Lower == "jit") {
+    return RunMode::JIT;
+  }
+  if (Lower == "aot") {
+    return RunMode::AOT;
+  }
+  if (Lower == "lazyjit") {
+    return RunMode::LazyJIT;
+  }
+  return std::nullopt;
+}
+
+namespace {
+
+// Helper template to parse numeric arguments and catch conversion exceptions
+template <typename Converter, typename ValVec, typename TypeVec, typename TC>
+bool parseNumericArg(const std::string &Value, size_t ParamIndex,
+                     std::string_view TypeName, Converter Conv,
+                     ValVec &FuncArgs, TypeVec &FuncArgTypes, TC TCode) {
+  try {
+    auto Out = Conv(Value);
+    FuncArgs.emplace_back(Out);
+    FuncArgTypes.emplace_back(TCode);
+    return true;
+  } catch (const std::invalid_argument &) {
+    spdlog::error("Invalid argument '{}' for parameter {}: expected {}"sv,
+                  Value, ParamIndex + 1, TypeName);
+    return false;
+  } catch (const std::out_of_range &) {
+    spdlog::error("Argument '{}' for parameter {}: {} out of range"sv, Value,
+                  ParamIndex + 1, TypeName);
+    return false;
+  }
+}
+
+// Helpers to convert the numeric arguments. The whole string must be a number
+// in the range of the type.
+int64_t toS64(const std::string &S) {
+  std::size_t Pos = 0;
+  const auto Val = std::stoll(S, &Pos);
+  if (Pos != S.size()) {
+    throw std::invalid_argument(S);
+  }
+  return Val;
+}
+
+uint64_t toU64(const std::string &S) {
+  if (S.find('-') != std::string::npos) {
+    throw std::out_of_range(S);
+  }
+  std::size_t Pos = 0;
+  const auto Val = std::stoull(S, &Pos);
+  if (Pos != S.size()) {
+    throw std::invalid_argument(S);
+  }
+  return Val;
+}
+
+// The i32 and i64 parameters take both the signed and the unsigned ranges.
+int64_t toI64(const std::string &S) {
+  try {
+    return toS64(S);
+  } catch (const std::out_of_range &) {
+    return static_cast<int64_t>(toU64(S));
+  }
+}
+
+int32_t toI32(const std::string &S) {
+  const auto Val = toS64(S);
+  if (Val < std::numeric_limits<int32_t>::min() ||
+      Val > std::numeric_limits<uint32_t>::max()) {
+    throw std::out_of_range(S);
+  }
+  return static_cast<int32_t>(static_cast<uint32_t>(Val));
+}
+
+int32_t toS32(const std::string &S) {
+  const auto Val = toS64(S);
+  if (Val < std::numeric_limits<int32_t>::min() ||
+      Val > std::numeric_limits<int32_t>::max()) {
+    throw std::out_of_range(S);
+  }
+  return static_cast<int32_t>(Val);
+}
+
+uint32_t toU32(const std::string &S) {
+  const auto Val = toU64(S);
+  if (Val > std::numeric_limits<uint32_t>::max()) {
+    throw std::out_of_range(S);
+  }
+  return static_cast<uint32_t>(Val);
+}
+
+float toF32(const std::string &S) {
+  std::size_t Pos = 0;
+  const auto Val = std::stof(S, &Pos);
+  if (Pos != S.size()) {
+    throw std::invalid_argument(S);
+  }
+  return Val;
+}
+
+double toF64(const std::string &S) {
+  std::size_t Pos = 0;
+  const auto Val = std::stod(S, &Pos);
+  if (Pos != S.size()) {
+    throw std::invalid_argument(S);
+  }
+  return Val;
+}
+
+// Helper to parse the arguments beyond the function parameters.
+template <typename Converter, typename ValVec, typename TypeVec, typename TC>
+bool parseExtraArgs(const std::vector<std::string> &Args, size_t ParamCount,
+                    std::string_view TypeName, Converter Conv, ValVec &FuncArgs,
+                    TypeVec &FuncArgTypes, TC TCode) {
+  for (size_t I = ParamCount + 1; I < Args.size(); ++I) {
+    if (!parseNumericArg(Args[I], I, TypeName, Conv, FuncArgs, FuncArgTypes,
+                         TCode)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool checkArgCount(const std::string &FuncName, size_t Expected,
+                   const std::vector<std::string> &Args) {
+  const size_t Got = Args.size() - 1;
+  if (Got < Expected) {
+    spdlog::error("function `{}` expects {} argument(s), got {}"sv, FuncName,
+                  Expected, Got);
+    return false;
+  }
+  return true;
+}
+
+// Helper to wait for the async execution until the timeout and get the result.
+template <typename AsyncT>
+auto getAsyncResult(
+    AsyncT &&AsyncResult,
+    const std::optional<std::chrono::system_clock::time_point> &Timeout) {
+  if (Timeout.has_value()) {
+    if (!AsyncResult.waitUntil(*Timeout)) {
+      AsyncResult.cancel();
+    }
+  }
+  return AsyncResult.get();
+}
+} // namespace
+
+static int
+ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
+             std::optional<std::chrono::system_clock::time_point> Timeout,
+             struct DriverToolOptions &Opt,
+             const AST::FunctionType &FuncType) noexcept {
+  std::vector<ValVariant> FuncArgs;
+  std::vector<ValType> FuncArgTypes;
+
+  if (!checkArgCount(FuncName, FuncType.getParamTypes().size(),
+                     Opt.Args.value())) {
+    return EXIT_FAILURE;
+  }
+
+  for (size_t I = 0;
+       I < FuncType.getParamTypes().size() && I + 1 < Opt.Args.value().size();
+       ++I) {
+    const auto TCode = FuncType.getParamTypes()[I].getCode();
+    const auto &ArgValue = Opt.Args.value()[I + 1];
+
+    switch (TCode) {
+    case TypeCode::I32: {
+      if (!parseNumericArg(ArgValue, I, "i32"sv, toI32, FuncArgs, FuncArgTypes,
+                           TCode)) {
+        return EXIT_FAILURE;
+      }
+      break;
+    }
+    case TypeCode::I64: {
+      if (!parseNumericArg(ArgValue, I, "i64"sv, toI64, FuncArgs, FuncArgTypes,
+                           TCode)) {
+        return EXIT_FAILURE;
+      }
+      break;
+    }
+    case TypeCode::F32: {
+      if (!parseNumericArg(ArgValue, I, "f32"sv, toF32, FuncArgs, FuncArgTypes,
+                           TCode)) {
+        return EXIT_FAILURE;
+      }
+      break;
+    }
+    case TypeCode::F64: {
+      if (!parseNumericArg(ArgValue, I, "f64"sv, toF64, FuncArgs, FuncArgTypes,
+                           TCode)) {
+        return EXIT_FAILURE;
+      }
+      break;
+    }
+    // TODO: FuncRef and ExternRef
+    default:
+      break;
+    }
+  }
+  if (!parseExtraArgs(Opt.Args.value(), FuncType.getParamTypes().size(),
+                      "i64"sv, toI64, FuncArgs, FuncArgTypes, TypeCode::I64)) {
+    return EXIT_FAILURE;
+  }
+
+  if (auto Result = getAsyncResult(
+          VM.asyncExecute(FuncName, FuncArgs, FuncArgTypes), Timeout)) {
+    // Print results.
+    for (size_t I = 0; I < Result->size(); ++I) {
+      switch ((*Result)[I].second.getCode()) {
+      case TypeCode::I32:
+        fmt::print("{}\n"sv, (*Result)[I].first.get<int32_t>());
+        break;
+      case TypeCode::I64:
+        fmt::print("{}\n"sv, (*Result)[I].first.get<int64_t>());
+        break;
+      case TypeCode::F32:
+        fmt::print("{}\n"sv, (*Result)[I].first.get<float>());
+        break;
+      case TypeCode::F64:
+        fmt::print("{}\n"sv, (*Result)[I].first.get<double>());
+        break;
+      case TypeCode::V128:
+        fmt::print("{}\n"sv, uint128((*Result)[I].first.get<uint128_t>()));
+        break;
+      case TypeCode::Ref: {
+        if ((*Result)[I].second.isFuncRefType()) {
+          fmt::print("<funcref>\n"sv);
+        } else if ((*Result)[I].second.isExternRefType()) {
+          fmt::print("<externref>\n"sv);
+        } else {
+          fmt::print("<anyref>\n"sv);
+        }
+        break;
+      }
+      case TypeCode::RefNull: {
+        if ((*Result)[I].second.isFuncRefType()) {
+          fmt::print("<null funcref>\n"sv);
+        } else if ((*Result)[I].second.isExternRefType()) {
+          fmt::print("<null externref>\n"sv);
+        } else {
+          fmt::print("<null anyref>\n"sv);
+        }
+        break;
+      }
+      default:
+        break;
+      }
+    }
+    return EXIT_SUCCESS;
+  } else {
+    // It indicates that the execution of wasm has been aborted.
+    return 128 + SIGABRT;
+  }
+}
+
+static int
+ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
+                std::optional<std::chrono::system_clock::time_point> Timeout,
+                struct DriverToolOptions &Opt,
+                const AST::Component::FuncType &FuncType) noexcept {
+  std::vector<ComponentValVariant> FuncArgs;
+  std::vector<ComponentValType> FuncArgTypes;
+
+  if (!checkArgCount(FuncName, FuncType.getParamList().size(),
+                     Opt.Args.value())) {
+    return EXIT_FAILURE;
+  }
+
+  for (size_t I = 0;
+       I < FuncType.getParamList().size() && I + 1 < Opt.Args.value().size();
+       ++I) {
+    const auto TCode = FuncType.getParamList()[I].getValType().getCode();
+    const auto &ArgValue = Opt.Args.value()[I + 1];
+
+    switch (TCode) {
+    case ComponentTypeCode::S32: {
+      if (!parseNumericArg(ArgValue, I, "s32"sv, toS32, FuncArgs, FuncArgTypes,
+                           TCode)) {
+        return EXIT_FAILURE;
+      }
+      break;
+    }
+    case ComponentTypeCode::U32: {
+      if (!parseNumericArg(ArgValue, I, "u32"sv, toU32, FuncArgs, FuncArgTypes,
+                           TCode)) {
+        return EXIT_FAILURE;
+      }
+      break;
+    }
+    case ComponentTypeCode::S64: {
+      if (!parseNumericArg(ArgValue, I, "s64"sv, toS64, FuncArgs, FuncArgTypes,
+                           TCode)) {
+        return EXIT_FAILURE;
+      }
+      break;
+    }
+    case ComponentTypeCode::U64: {
+      if (!parseNumericArg(ArgValue, I, "u64"sv, toU64, FuncArgs, FuncArgTypes,
+                           TCode)) {
+        return EXIT_FAILURE;
+      }
+      break;
+    }
+    case ComponentTypeCode::F32: {
+      if (!parseNumericArg(ArgValue, I, "f32"sv, toF32, FuncArgs, FuncArgTypes,
+                           TCode)) {
+        return EXIT_FAILURE;
+      }
+      break;
+    }
+    case ComponentTypeCode::F64: {
+      if (!parseNumericArg(ArgValue, I, "f64"sv, toF64, FuncArgs, FuncArgTypes,
+                           TCode)) {
+        return EXIT_FAILURE;
+      }
+      break;
+    }
+    case ComponentTypeCode::String: {
+      const std::string Value = Opt.Args.value()[I + 1];
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TCode);
+      break;
+    }
+    // TODO: COMPONENT - other types.
+    default:
+      break;
+    }
+  }
+  if (!parseExtraArgs(Opt.Args.value(), FuncType.getParamList().size(), "u64"sv,
+                      toU64, FuncArgs, FuncArgTypes, ComponentTypeCode::U64)) {
+    return EXIT_FAILURE;
+  }
+
+  if (auto Result = getAsyncResult(
+          VM.asyncExecuteComponent(FuncName, FuncArgs, FuncArgTypes),
+          Timeout)) {
+    // Print results.
+    for (auto &&Val : *Result) {
+      switch (Val.second.getCode()) {
+      case ComponentTypeCode::S32:
+        fmt::print("{}\n"sv, std::get<int32_t>(Val.first));
+        break;
+      case ComponentTypeCode::U32:
+        fmt::print("{}\n"sv, std::get<uint32_t>(Val.first));
+        break;
+      case ComponentTypeCode::S64:
+        fmt::print("{}\n"sv, std::get<int64_t>(Val.first));
+        break;
+      case ComponentTypeCode::U64:
+        fmt::print("{}\n"sv, std::get<uint64_t>(Val.first));
+        break;
+      case ComponentTypeCode::F32:
+        fmt::print("{}\n"sv, std::get<float>(Val.first));
+        break;
+      case ComponentTypeCode::F64:
+        fmt::print("{}\n"sv, std::get<double>(Val.first));
+        break;
+      case ComponentTypeCode::String:
+        fmt::print("{}\n"sv, std::get<std::string>(Val.first));
+        break;
+      default:
+        break;
+      }
+    }
+
+    return EXIT_SUCCESS;
+  } else {
+    // It indicates that the execution of wasm has been aborted.
+    return 128 + SIGABRT;
+  }
+}
+
+int Tool(struct DriverToolOptions &Opt) noexcept {
+  std::ios::sync_with_stdio(false);
+
+  Configure Conf = createConfigure(Opt);
+
+  std::optional<std::chrono::system_clock::time_point> Timeout;
+  if (Opt.TimeLim.value() > 0) {
+    // A limit beyond the range of the clock never expires.
+    const auto Now = std::chrono::system_clock::now();
+    const auto Remain = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::time_point::max() - Now);
+    if (Opt.TimeLim.value() < static_cast<uint64_t>(Remain.count())) {
+      Timeout = Now + std::chrono::milliseconds(Opt.TimeLim.value());
+    }
+  }
+  if (Opt.GasLim.value().size() > 0) {
+    Conf.getStatisticsConfigure().setCostMeasuring(true);
+    Conf.getStatisticsConfigure().setCostLimit(Opt.GasLim.value().back());
+  }
+  setMemoryPageLimit(Opt, Conf);
+  Conf.getRuntimeConfigure().setMaxStackSize(Opt.StackLim.value());
+  setStatisticsConfigure(Opt, Conf);
+  // Determine the effective run mode.
+  // Precedence: --run-mode > deprecated --enable-jit / --force-interpreter.
+  RunMode RunModeFromFlag = RunMode::Interpreter;
+  if (!Opt.ConfRunMode.value().empty()) {
+    if (Opt.ConfEnableJIT.value() || Opt.ConfForceInterpreter.value()) {
+      spdlog::warn("--run-mode overrides deprecated --enable-jit / "
+                   "--force-interpreter."sv);
+    }
+    if (auto Mode = parseRunModeArg(Opt.ConfRunMode.value())) {
+      RunModeFromFlag = *Mode;
+    } else {
+      spdlog::warn("Unknown --run-mode value: \"{}\"; using interpreter. "
+                   "Valid values: interpreter, jit, aot, lazyjit."sv,
+                   Opt.ConfRunMode.value());
+      RunModeFromFlag = RunMode::Interpreter;
+    }
+  } else if (Opt.ConfEnableJIT.value()) {
+    spdlog::warn("--enable-jit is deprecated, use --run-mode=jit instead."sv);
+    RunModeFromFlag = RunMode::JIT;
+  } else if (Opt.ConfForceInterpreter.value()) {
+    spdlog::warn("--force-interpreter is deprecated, use "
+                 "--run-mode=interpreter instead."sv);
+    RunModeFromFlag = RunMode::Interpreter;
+  }
+  Conf.getRuntimeConfigure().setRunMode(RunModeFromFlag);
+  if (RunModeFromFlag == RunMode::JIT || RunModeFromFlag == RunMode::LazyJIT) {
+    Conf.getCompilerConfigure().setOptimizationLevel(
+        WasmEdge::CompilerConfigure::OptimizationLevel::O1);
+  }
+  bool IsCoredumpEnabled =
+      Opt.ConfEnableCoredump.value() || Opt.ConfCoredumpWasmgdb.value();
+  if (IsCoredumpEnabled && RunModeFromFlag != RunMode::Interpreter) {
+    spdlog::warn("The coredump generation is supported by the interpreter "
+                 "only; the coredump is disabled. Use --run-mode=interpreter "
+                 "to generate a coredump."sv);
+    IsCoredumpEnabled = false;
+  }
+  if (IsCoredumpEnabled) {
+    Conf.getRuntimeConfigure().setEnableCoredump(true);
+    if (Opt.ConfCoredumpWasmgdb.value()) {
+      Conf.getRuntimeConfigure().setCoredumpWasmgdb(true);
+    }
+  }
+  if (Opt.ConfAFUNIX.value()) {
+    Conf.getRuntimeConfigure().setAllowAFUNIX(true);
+  }
+
+  Conf.addHostRegistration(HostRegistration::Wasi);
+  const auto InputPath = getInputPath(Opt);
+  if (!InputPath) {
+    return EXIT_FAILURE;
+  }
+
+  // Create VM and get WASI module instance.
+  VM::VM VM(Conf);
+  Host::WasiModule *WasiMod = dynamic_cast<Host::WasiModule *>(
+      VM.getImportModule(HostRegistration::Wasi));
+
+  if (!registerLinkedModules(Opt, VM)) {
+    return EXIT_FAILURE;
+  }
+
+  // Load, validate, and instantiate WASM or Component.
+  if (auto Result = VM.loadWasm(u8string(*InputPath)); !Result) {
+    return EXIT_FAILURE;
+  }
+  if (auto Result = VM.validate(); !Result) {
+    return EXIT_FAILURE;
+  }
+  if (auto Result = VM.instantiate(); !Result) {
+    return EXIT_FAILURE;
+  }
+
+  auto HasValidCommandModStartFunc = [&]() {
+    bool HasStart = false;
+    bool Valid = false;
+
+    auto Functions = VM.getFunctionList();
+    for (auto &[FuncName, Type] : Functions) {
+      if (FuncName == "_start") {
+        HasStart = true;
+        if (Type.getReturnTypes().size() == 0 &&
+            Type.getParamTypes().size() == 0) {
+          Valid = true;
+          break;
+        }
+      }
+    }
+
+    // If HasStart is true but Valid is false, insert _start to enter reactor
+    // mode.
+    if (HasStart && !Valid) {
+      Opt.Args.value().insert(Opt.Args.value().begin(), "_start");
+    }
+
+    return HasStart && Valid;
+  };
+
+  // TODO: COMPONENT - does component start function named as "_start"?
+  bool EnterCommandMode = !Opt.Reactor.value() && HasValidCommandModStartFunc();
+
+  // Initialize WASI module.
+  WasiMod->init(
+      Opt.Dir.value(),
+      u8string(InputPath->filename().replace_extension(u8path("wasm"sv))),
+      Opt.Args.value(), Opt.Env.value());
+
+  if (EnterCommandMode) {
+    // command mode
+
+    // TODO: COMPONENT - currently not supported.
+    if (auto Result = getAsyncResult(VM.asyncExecute("_start"sv), Timeout);
+        Result || Result.error() == ErrCode::Value::Terminated) {
+      return static_cast<int>(WasiMod->getExitCode());
+    } else {
+      // It indicates that the execution of wasm has been aborted.
+      return 128 + SIGABRT;
+    }
+  } else {
+    // reactor mode
+
+    // Get the function name to invoke.
+    if (Opt.Args.value().empty()) {
+      fmt::print(
+          stderr,
+          "A function name is required when reactor mode is enabled.\n"sv);
+      return EXIT_FAILURE;
+    }
+    const auto &FuncName = Opt.Args.value().front();
+
+    if (VM.holdsModule()) {
+      // WASM case.
+
+      // Check the exported function name and function type first.
+      const auto InitFunc = "_initialize"s;
+      bool HasInit = false;
+      const AST::FunctionType *FuncType = nullptr;
+      for (const auto &Func : VM.getFunctionList()) {
+        if (Func.first == InitFunc) {
+          // Found the init function.
+          HasInit = true;
+        }
+        if (Func.first == FuncName) {
+          // Found the function to invoke.
+          FuncType = &Func.second;
+        }
+      }
+
+      if (FuncType == nullptr) {
+        fmt::print(stderr,
+                   "Function \"{}\" not found in the module export list.\n"sv,
+                   FuncName);
+        return EXIT_FAILURE;
+      }
+
+      // If the initialize function was found and is not being called
+      // explicitly, invoke it first.
+      if (HasInit && FuncName != InitFunc) {
+        if (auto Result = getAsyncResult(VM.asyncExecute(InitFunc), Timeout);
+            unlikely(!Result)) {
+          // It indicates that the execution of wasm has been aborted.
+          return 128 + SIGABRT;
+        }
+      }
+      return ToolOnModule(VM, FuncName, Timeout, Opt, *FuncType);
+    } else if (VM.holdsComponent()) {
+      // Component case.
+
+      // Check the exported function name and function type first.
+      const AST::Component::FuncType *FuncType = nullptr;
+      for (const auto &Func : VM.getComponentFunctionList()) {
+        if (Func.first == FuncName) {
+          // Found the function to invoke.
+          FuncType = &Func.second;
+        }
+      }
+      if (FuncType == nullptr) {
+        fmt::print(
+            stderr,
+            "Function \"{}\" not found in the component export list.\n"sv,
+            FuncName);
+        return EXIT_FAILURE;
+      }
+      return ToolOnComponent(VM, FuncName, Timeout, Opt, *FuncType);
+    } else {
+      // which means VM has neither instantiated module nor instantiated
+      // component
+      return 128 + SIGABRT;
+    }
+  }
+}
+
+} // namespace Driver
+} // namespace WasmEdge

@@ -1,0 +1,328 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "executor/executor.h"
+
+#include "common/errinfo.h"
+#include "common/spdlog.h"
+#include "runtime/instance/module.h"
+#include "system/stacktrace.h"
+
+#include <algorithm>
+#include <string>
+#include <string_view>
+#include <vector>
+
+using namespace std::literals;
+
+namespace WasmEdge {
+namespace Executor {
+
+namespace {
+
+/// Render a recorded stack trace as "module:index" frames. Modules without a
+/// registered name are numbered by their order of appearance in the trace.
+void dumpStackTrace(Span<const StackTraceEntry> Stack) noexcept {
+  std::vector<const Runtime::Instance::ModuleInstance *> Anonymous;
+  std::string Out;
+  for (size_t I = 0; I < Stack.size(); ++I) {
+    if (I != 0) {
+      Out += ", "sv;
+    }
+    const auto *Module = Stack[I].Module;
+    std::string_view Name =
+        Module ? Module->getModuleName() : std::string_view{};
+    if (!Name.empty()) {
+      Out += fmt::format("{}:{}"sv, Name, Stack[I].FuncIndex);
+    } else {
+      auto Iter = std::find(Anonymous.begin(), Anonymous.end(), Module);
+      size_t Ordinal;
+      if (Iter == Anonymous.end()) {
+        Ordinal = Anonymous.size();
+        Anonymous.push_back(Module);
+      } else {
+        Ordinal = static_cast<size_t>(Iter - Anonymous.begin());
+      }
+      Out += fmt::format("module[{}]:{}"sv, Ordinal, Stack[I].FuncIndex);
+    }
+  }
+  spdlog::error("calling stack:{}"sv, Out);
+}
+
+} // namespace
+
+/// Instantiate a WASM Module. See "include/executor/executor.h".
+Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
+Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
+                            const AST::Module &Mod) {
+  return instantiate(StoreMgr, Mod).map_error([this](auto E) {
+    // If statistics are enabled, dump them here.
+    // When an error occurs, subsequent execution will not run.
+    if (Stat) {
+      Stat->dumpToLog(Conf);
+    }
+    return E;
+  });
+}
+
+/// Register a named WASM module. See "include/executor/executor.h".
+Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
+Executor::registerModule(Runtime::StoreManager &StoreMgr,
+                         const AST::Module &Mod, std::string_view Name) {
+  return instantiate(StoreMgr, Mod, Name).map_error([this](auto E) {
+    // If statistics are enabled, dump them here.
+    // When an error occurs, subsequent execution will not run.
+    if (Stat) {
+      Stat->dumpToLog(Conf);
+    }
+    return E;
+  });
+}
+
+/// Register an instantiated module. See "include/executor/executor.h".
+Expect<void>
+Executor::registerModule(Runtime::StoreManager &StoreMgr,
+                         const Runtime::Instance::ModuleInstance &ModInst) {
+  return StoreMgr.registerModule(&ModInst).map_error([](auto E) {
+    spdlog::error(E);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+    return E;
+  });
+}
+
+/// Register an instantiated module under an alias name.
+Expect<void>
+Executor::registerModule(Runtime::StoreManager &StoreMgr,
+                         const Runtime::Instance::ModuleInstance &ModInst,
+                         std::string_view Name) {
+  return StoreMgr.registerModule(&ModInst, Name).map_error([](auto E) {
+    spdlog::error(E);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+    return E;
+  });
+}
+
+/// Instantiate a Component. See "include/executor/executor.h".
+Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+Executor::instantiateComponent(Runtime::StoreManager &StoreMgr,
+                               const AST::Component::Component &Comp) {
+  return instantiate(StoreMgr, Comp);
+}
+
+/// Register a named Component. See "include/executor/executor.h".
+Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+Executor::registerComponent(Runtime::StoreManager &StoreMgr,
+                            const AST::Component::Component &Comp,
+                            std::string_view Name) {
+  return instantiate(StoreMgr, Comp, Name);
+}
+
+/// Register an instantiated Component. See "include/executor/executor.h".
+Expect<void> Executor::registerComponent(
+    Runtime::StoreManager &StoreMgr,
+    const Runtime::Instance::ComponentInstance &CompInst) {
+  return StoreMgr.registerComponent(&CompInst).map_error([](auto E) {
+    spdlog::error(E);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+    return E;
+  });
+}
+
+/// Register a host function which will be invoked before calling a
+/// host function.
+Expect<void> Executor::registerPreHostFunction(
+    void *HostData = nullptr, std::function<void(void *)> HostFunc = nullptr) {
+  HostFuncHelper.setPreHost(HostData, HostFunc);
+  return {};
+}
+
+/// Register a host function which will be invoked after calling a
+/// host function.
+Expect<void> Executor::registerPostHostFunction(
+    void *HostData = nullptr, std::function<void(void *)> HostFunc = nullptr) {
+  HostFuncHelper.setPostHost(HostData, HostFunc);
+  return {};
+}
+
+/// Invoke function. See "include/executor/executor.h".
+Expect<std::vector<std::pair<ValVariant, ValType>>>
+Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
+                 Span<const ValVariant> Params,
+                 Span<const ValType> ParamTypes) {
+  if (unlikely(FuncInst == nullptr)) {
+    spdlog::error(ErrCode::Value::FuncNotFound);
+    return Unexpect(ErrCode::Value::FuncNotFound);
+  }
+
+  // Matching arguments and function type.
+  const auto &FuncType = FuncInst->getFuncType();
+  const auto &PTypes = FuncType.getParamTypes();
+  const auto &RTypes = FuncType.getReturnTypes();
+  // The defined type list may be empty if the function is an independent
+  // function instance, that is, the module instance will be nullptr. In this
+  // case, all value types are number types or abstract heap types.
+  //
+  // If a function belongs to a component instance, its type should already be
+  // converted, so the type list is not needed.
+  WasmEdge::Span<const WasmEdge::AST::SubType *const> TypeList = {};
+  if (FuncInst->getModule()) {
+    TypeList = FuncInst->getModule()->getTypeList();
+  }
+  if (!AST::TypeMatcher::matchTypes(TypeList, ParamTypes, PTypes)) {
+    spdlog::error(ErrCode::Value::FuncSigMismatch);
+    spdlog::error(ErrInfo::InfoMismatch(
+        PTypes, RTypes, std::vector(ParamTypes.begin(), ParamTypes.end()),
+        RTypes));
+    return Unexpect(ErrCode::Value::FuncSigMismatch);
+  }
+
+  // Check the reference value validation.
+  for (uint32_t I = 0; I < ParamTypes.size(); ++I) {
+    if (ParamTypes[I].isRefType() && (!ParamTypes[I].isNullableRefType() &&
+                                      Params[I].get<RefVariant>().isNull())) {
+      spdlog::error(ErrCode::Value::NonNullRequired);
+      spdlog::error("    Cannot pass a null reference as argument of {}."sv,
+                    ParamTypes[I]);
+      return Unexpect(ErrCode::Value::NonNullRequired);
+    }
+  }
+
+  Runtime::StackManager StackMgr;
+
+  // Call runFunction.
+  EXPECTED_TRY(runFunction(StackMgr, *FuncInst, Params).map_error([](auto E) {
+    if (E != ErrCode::Value::Terminated) {
+      dumpStackTrace(
+          Span<const StackTraceEntry>{StackTrace}.first(StackTraceSize));
+    }
+    return E;
+  }));
+
+  // Get return values.
+  std::vector<std::pair<ValVariant, ValType>> Returns(RTypes.size());
+  for (uint32_t I = 0; I < RTypes.size(); ++I) {
+    auto Val = StackMgr.pop();
+    const auto &RType = RTypes[RTypes.size() - I - 1];
+    if (RType.isRefType()) {
+      // For the reference type cases of the return values, they should be
+      // transformed into abstract heap types due to the opaque of type indices.
+      ValType RefType = Val.get<RefVariant>().getType();
+      if (RefType.isExternalized()) {
+        // First handle the forced externalized value type case.
+        RefType = ValType(TypeCode::Ref, TypeCode::ExternRef);
+      }
+      if (!RefType.isAbsHeapType()) {
+        // The instance must not be nullptr because the null references are
+        // already dynamic typed into the top abstract heap type.
+        auto *Inst =
+            Val.get<RefVariant>().getPtr<Runtime::Instance::CompositeBase>();
+        assuming(Inst);
+        // The ModInst may be nullptr only in the independent host function
+        // instance. Therefore the module instance here must not be nullptr
+        // because the independent host function instance cannot be imported and
+        // be referred by instructions.
+        const auto *ModInst = Inst->getModule();
+        const auto *DefType = *ModInst->getType(RefType.getTypeIndex());
+        RefType =
+            ValType(RefType.getCode(), DefType->getCompositeType().expand());
+      }
+      Val.get<RefVariant>().setType(RefType);
+      // Should use the value type from the reference here due to the dynamic
+      // typing rule of the null references.
+      Returns[RTypes.size() - I - 1] = std::make_pair(Val, RefType);
+    } else {
+      // For the number type cases of the return values, the unused bits should
+      // be erased due to the security issue.
+      cleanNumericVal(Val, RType);
+      Returns[RTypes.size() - I - 1] = std::make_pair(Val, RType);
+    }
+  }
+
+  // After execution, the value stack size should be 0.
+  assuming(StackMgr.size() == 0);
+  return Returns;
+}
+
+/// Async invoke function. See "include/executor/executor.h".
+Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+Executor::asyncInvoke(const Runtime::Instance::FunctionInstance *FuncInst,
+                      Span<const ValVariant> Params,
+                      Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValVariant, ValType>>> (Executor::*FPtr)(
+      const Runtime::Instance::FunctionInstance *, Span<const ValVariant>,
+      Span<const ValType>) = &Executor::invoke;
+  return {FPtr, *this, FuncInst, std::vector(Params.begin(), Params.end()),
+          std::vector(ParamTypes.begin(), ParamTypes.end())};
+}
+
+/// Invoke component function. See "include/executor/executor.h".
+Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
+Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
+                 Span<const ComponentValVariant> Params,
+                 Span<const ComponentValType> ParamTypes) {
+  if (unlikely(FuncInst == nullptr)) {
+    spdlog::error(ErrCode::Value::FuncNotFound);
+    return Unexpect(ErrCode::Value::FuncNotFound);
+  }
+
+  // Matching arguments and function type.
+  // TODO: COMPONENT - type matching.
+  const auto &ExpectedFuncType = FuncInst->getFuncType();
+  const size_t ExpectedArity = ExpectedFuncType.getParamList().size();
+  if (Params.size() != ParamTypes.size() || ParamTypes.size() < ExpectedArity) {
+    spdlog::error(ErrCode::Value::FuncSigMismatch);
+    spdlog::error("    expected {} argument(s), got {}"sv, ExpectedArity,
+                  ParamTypes.size());
+    return Unexpect(ErrCode::Value::FuncSigMismatch);
+  }
+
+  // Convert the component params into core WASM params.
+  auto *ReallocFuncInst = FuncInst->getAllocFunction();
+  auto *MemInst = FuncInst->getMemoryInstance();
+  EXPECTED_TRY(auto CoreWASMArgs,
+               convValsToCoreWASM(Params, ParamTypes, ReallocFuncInst, MemInst,
+                                  FuncInst->getComponentInstance(),
+                                  FuncInst->getStringEncoding()));
+
+  // Call runFunction.
+  auto *CoreFuncInst = FuncInst->getLowerFunction();
+  assuming(CoreFuncInst);
+  const auto &CoreFuncType = CoreFuncInst->getFuncType();
+  // TODO: COMPONENT - check the ABI types between core functype and args.
+  EXPECTED_TRY(auto CoreWASMReturns, invoke(CoreFuncInst, CoreWASMArgs,
+                                            CoreFuncType.getParamTypes()));
+
+  // Get return values.
+  std::vector<ComponentValType> ReturnTypes;
+  if (const auto &R = FuncInst->getFuncType().getResult(); R.has_value()) {
+    ReturnTypes.push_back(*R);
+  }
+  EXPECTED_TRY(auto Returns,
+               convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst,
+                                   FuncInst->getComponentInstance(),
+                                   FuncInst->getStringEncoding()));
+  assuming(Returns.size() == ReturnTypes.size());
+
+  // CanonicalABI.md L3367-3372: after a sync lift completes (post
+  // task.return_), invoke the optional post-return with the ORIGINAL flat
+  // core return values as parameters. This is how Preview 2 components free
+  // buffers allocated for indirect-result / list / string returns.
+  //
+  // TODO: spec L3370 also gates this region with `may_leave = False`;
+  // WasmEdge doesn't model may_leave yet (deferred along with async).
+  // In practice sync Preview 2 post-return implementations don't re-enter.
+  if (auto *PostReturnInst = FuncInst->getPostReturnFunction()) {
+    std::vector<ValVariant> PRArgs;
+    PRArgs.reserve(CoreWASMReturns.size());
+    for (const auto &P : CoreWASMReturns) {
+      PRArgs.push_back(P.first);
+    }
+    EXPECTED_TRY(invoke(PostReturnInst, PRArgs,
+                        PostReturnInst->getFuncType().getParamTypes()));
+  }
+
+  return Returns;
+}
+
+} // namespace Executor
+} // namespace WasmEdge

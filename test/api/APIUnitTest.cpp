@@ -1,0 +1,5145 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "common/defines.h"
+#include "common/filesystem.h"
+#include "experimental/span.hpp"
+#include "wasmedge/wasmedge.h"
+
+#include <algorithm>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <fmt/format.h>
+#include <fstream>
+#include <gtest/gtest.h>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#if WASMEDGE_OS_WINDOWS
+#include "system/winapi.h"
+#endif
+
+using namespace std::literals;
+
+namespace {
+
+std::vector<uint8_t> TestWasm = {
+    0x0,  0x61, 0x73, 0x6d, 0x1,  0x0,  0x0,  0x0,  0x1,  0x1d, 0x5,  0x60,
+    0x0,  0x1,  0x7f, 0x60, 0x2,  0x6f, 0x7f, 0x1,  0x7f, 0x60, 0x2,  0x7f,
+    0x7f, 0x1,  0x7f, 0x60, 0x2,  0x7f, 0x7f, 0x2,  0x7f, 0x7f, 0x60, 0x1,
+    0x7f, 0x1,  0x7f, 0x2,  0x6f, 0x6,  0x6,  0x65, 0x78, 0x74, 0x65, 0x72,
+    0x6e, 0x8,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x61, 0x64, 0x64, 0x0,  0x1,
+    0x6,  0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x8,  0x66, 0x75, 0x6e, 0x63,
+    0x2d, 0x73, 0x75, 0x62, 0x0,  0x1,  0x6,  0x65, 0x78, 0x74, 0x65, 0x72,
+    0x6e, 0x8,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x6d, 0x75, 0x6c, 0x0,  0x1,
+    0x6,  0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x8,  0x66, 0x75, 0x6e, 0x63,
+    0x2d, 0x64, 0x69, 0x76, 0x0,  0x1,  0x6,  0x65, 0x78, 0x74, 0x65, 0x72,
+    0x6e, 0x9,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x74, 0x65, 0x72, 0x6d, 0x0,
+    0x0,  0x6,  0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x9,  0x66, 0x75, 0x6e,
+    0x63, 0x2d, 0x66, 0x61, 0x69, 0x6c, 0x0,  0x0,  0x3,  0xc,  0xb,  0x0,
+    0x0,  0x0,  0x0,  0x2,  0x3,  0x4,  0x4,  0x4,  0x4,  0x4,  0x4,  0x7,
+    0x2,  0x70, 0x0,  0xa,  0x6f, 0x0,  0xa,  0x5,  0x4,  0x1,  0x1,  0x1,
+    0x3,  0x6,  0xf,  0x2,  0x7f, 0x1,  0x41, 0x8e, 0x1,  0xb,  0x7d, 0x0,
+    0x43, 0xae, 0x47, 0x45, 0x44, 0xb,  0x7,  0xcd, 0x1,  0x10, 0x6,  0x66,
+    0x75, 0x6e, 0x63, 0x2d, 0x31, 0x0,  0x6,  0x6,  0x66, 0x75, 0x6e, 0x63,
+    0x2d, 0x32, 0x0,  0x7,  0x6,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x33, 0x0,
+    0x8,  0x6,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x34, 0x0,  0x9,  0x8,  0x66,
+    0x75, 0x6e, 0x63, 0x2d, 0x61, 0x64, 0x64, 0x0,  0xa,  0xa,  0x66, 0x75,
+    0x6e, 0x63, 0x2d, 0x6d, 0x75, 0x6c, 0x2d, 0x32, 0x0,  0xb,  0x12, 0x66,
+    0x75, 0x6e, 0x63, 0x2d, 0x63, 0x61, 0x6c, 0x6c, 0x2d, 0x69, 0x6e, 0x64,
+    0x69, 0x72, 0x65, 0x63, 0x74, 0x0,  0xc,  0xd,  0x66, 0x75, 0x6e, 0x63,
+    0x2d, 0x68, 0x6f, 0x73, 0x74, 0x2d, 0x61, 0x64, 0x64, 0x0,  0xd,  0xd,
+    0x66, 0x75, 0x6e, 0x63, 0x2d, 0x68, 0x6f, 0x73, 0x74, 0x2d, 0x73, 0x75,
+    0x62, 0x0,  0xe,  0xd,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x68, 0x6f, 0x73,
+    0x74, 0x2d, 0x6d, 0x75, 0x6c, 0x0,  0xf,  0xd,  0x66, 0x75, 0x6e, 0x63,
+    0x2d, 0x68, 0x6f, 0x73, 0x74, 0x2d, 0x64, 0x69, 0x76, 0x0,  0x10, 0x8,
+    0x74, 0x61, 0x62, 0x2d, 0x66, 0x75, 0x6e, 0x63, 0x1,  0x0,  0x7,  0x74,
+    0x61, 0x62, 0x2d, 0x65, 0x78, 0x74, 0x1,  0x1,  0x3,  0x6d, 0x65, 0x6d,
+    0x2,  0x0,  0xc,  0x67, 0x6c, 0x6f, 0x62, 0x2d, 0x6d, 0x75, 0x74, 0x2d,
+    0x69, 0x33, 0x32, 0x3,  0x0,  0xe,  0x67, 0x6c, 0x6f, 0x62, 0x2d, 0x63,
+    0x6f, 0x6e, 0x73, 0x74, 0x2d, 0x66, 0x33, 0x32, 0x3,  0x1,  0x9,  0xa,
+    0x1,  0x0,  0x41, 0x2,  0xb,  0x4,  0x6,  0x7,  0x8,  0x9,  0xa,  0x5e,
+    0xb,  0x4,  0x0,  0x41, 0x1,  0xb,  0x4,  0x0,  0x41, 0x2,  0xb,  0x4,
+    0x0,  0x41, 0x3,  0xb,  0x4,  0x0,  0x41, 0x4,  0xb,  0x7,  0x0,  0x20,
+    0x0,  0x20, 0x1,  0x6a, 0xb,  0xc,  0x0,  0x20, 0x0,  0x41, 0x2,  0x6c,
+    0x20, 0x1,  0x41, 0x2,  0x6c, 0xb,  0x7,  0x0,  0x20, 0x0,  0x11, 0x0,
+    0x0,  0xb,  0xa,  0x0,  0x41, 0x0,  0x25, 0x1,  0x20, 0x0,  0x10, 0x0,
+    0xb,  0xa,  0x0,  0x41, 0x1,  0x25, 0x1,  0x20, 0x0,  0x10, 0x1,  0xb,
+    0xa,  0x0,  0x41, 0x2,  0x25, 0x1,  0x20, 0x0,  0x10, 0x2,  0xb,  0xa,
+    0x0,  0x41, 0x3,  0x25, 0x1,  0x20, 0x0,  0x10, 0x3,  0xb,  0xb,  0x10,
+    0x1,  0x0,  0x41, 0xa,  0xb,  0xa,  0x0,  0x1,  0x2,  0x3,  0x4,  0x5,
+    0x6,  0x7,  0x8,  0x9,  0x0,  0x8f, 0x2,  0x4,  0x6e, 0x61, 0x6d, 0x65,
+    0x1,  0x8d, 0x1,  0x11, 0x0,  0x7,  0x65, 0x2d, 0x66, 0x2d, 0x61, 0x64,
+    0x64, 0x1,  0x7,  0x65, 0x2d, 0x66, 0x2d, 0x73, 0x75, 0x62, 0x2,  0x7,
+    0x65, 0x2d, 0x66, 0x2d, 0x6d, 0x75, 0x6c, 0x3,  0x7,  0x65, 0x2d, 0x66,
+    0x2d, 0x64, 0x69, 0x76, 0x4,  0x8,  0x65, 0x2d, 0x66, 0x2d, 0x74, 0x65,
+    0x72, 0x6d, 0x5,  0x8,  0x65, 0x2d, 0x66, 0x2d, 0x66, 0x61, 0x69, 0x6c,
+    0x6,  0x3,  0x66, 0x2d, 0x31, 0x7,  0x3,  0x66, 0x2d, 0x32, 0x8,  0x3,
+    0x66, 0x2d, 0x33, 0x9,  0x3,  0x66, 0x2d, 0x34, 0xa,  0x5,  0x66, 0x2d,
+    0x61, 0x64, 0x64, 0xb,  0x7,  0x66, 0x2d, 0x6d, 0x75, 0x6c, 0x2d, 0x32,
+    0xc,  0xa,  0x66, 0x2d, 0x63, 0x61, 0x6c, 0x6c, 0x2d, 0x69, 0x6e, 0x64,
+    0xd,  0x7,  0x66, 0x2d, 0x65, 0x2d, 0x61, 0x64, 0x64, 0xe,  0x7,  0x66,
+    0x2d, 0x65, 0x2d, 0x73, 0x75, 0x62, 0xf,  0x7,  0x66, 0x2d, 0x65, 0x2d,
+    0x6d, 0x75, 0x6c, 0x10, 0x7,  0x66, 0x2d, 0x65, 0x2d, 0x64, 0x69, 0x76,
+    0x2,  0x45, 0x11, 0x0,  0x2,  0x0,  0x0,  0x1,  0x0,  0x1,  0x2,  0x0,
+    0x0,  0x1,  0x0,  0x2,  0x2,  0x0,  0x0,  0x1,  0x0,  0x3,  0x2,  0x0,
+    0x0,  0x1,  0x0,  0x4,  0x0,  0x5,  0x0,  0x6,  0x0,  0x7,  0x0,  0x8,
+    0x0,  0x9,  0x0,  0xa,  0x2,  0x0,  0x0,  0x1,  0x0,  0xb,  0x2,  0x0,
+    0x0,  0x1,  0x0,  0xc,  0x1,  0x0,  0x0,  0xd,  0x1,  0x0,  0x0,  0xe,
+    0x1,  0x0,  0x0,  0xf,  0x1,  0x0,  0x0,  0x10, 0x1,  0x0,  0x0,  0x4,
+    0xf,  0x2,  0x0,  0x5,  0x74, 0x79, 0x70, 0x65, 0x30, 0x1,  0x5,  0x74,
+    0x79, 0x70, 0x65, 0x31, 0x5,  0xb,  0x2,  0x0,  0x3,  0x74, 0x2d, 0x66,
+    0x1,  0x3,  0x74, 0x2d, 0x65, 0x6,  0x4,  0x1,  0x0,  0x1,  0x6d, 0x7,
+    0xd,  0x2,  0x0,  0x4,  0x67, 0x2d, 0x6d, 0x69, 0x1,  0x4,  0x67, 0x2d,
+    0x63, 0x66};
+std::vector<uint8_t> ImportWasm = {
+    0x0,  0x61, 0x73, 0x6d, 0x1,  0x0,  0x0,  0x0,  0x1,  0x34, 0xa,  0x60,
+    0x0,  0x1,  0x7f, 0x60, 0x2,  0x6f, 0x7f, 0x1,  0x7f, 0x60, 0x1,  0x7c,
+    0x0,  0x60, 0x2,  0x7c, 0x7e, 0x0,  0x60, 0x0,  0x0,  0x60, 0x4,  0x7f,
+    0x7e, 0x7d, 0x7c, 0x0,  0x60, 0x1,  0x7d, 0x0,  0x60, 0x2,  0x7f, 0x7f,
+    0x1,  0x7f, 0x60, 0x2,  0x7f, 0x7f, 0x2,  0x7f, 0x7f, 0x60, 0x1,  0x7f,
+    0x1,  0x7f, 0x2,  0xa5, 0x2,  0x11, 0x6,  0x65, 0x78, 0x74, 0x65, 0x72,
+    0x6e, 0x8,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x61, 0x64, 0x64, 0x0,  0x1,
+    0x6,  0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x8,  0x66, 0x75, 0x6e, 0x63,
+    0x2d, 0x73, 0x75, 0x62, 0x0,  0x1,  0x6,  0x65, 0x78, 0x74, 0x65, 0x72,
+    0x6e, 0x8,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x6d, 0x75, 0x6c, 0x0,  0x1,
+    0x6,  0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x8,  0x66, 0x75, 0x6e, 0x63,
+    0x2d, 0x64, 0x69, 0x76, 0x0,  0x1,  0x6,  0x65, 0x78, 0x74, 0x65, 0x72,
+    0x6e, 0x9,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x74, 0x65, 0x72, 0x6d, 0x0,
+    0x0,  0x6,  0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x9,  0x66, 0x75, 0x6e,
+    0x63, 0x2d, 0x66, 0x61, 0x69, 0x6c, 0x0,  0x0,  0x5,  0x64, 0x75, 0x6d,
+    0x6d, 0x79, 0x8,  0x67, 0x6c, 0x6f, 0x62, 0x2d, 0x69, 0x33, 0x32, 0x3,
+    0x7f, 0x1,  0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79, 0x8,  0x67, 0x6c, 0x6f,
+    0x62, 0x2d, 0x69, 0x36, 0x34, 0x3,  0x7e, 0x0,  0x5,  0x64, 0x75, 0x6d,
+    0x6d, 0x79, 0x8,  0x67, 0x6c, 0x6f, 0x62, 0x2d, 0x66, 0x33, 0x32, 0x3,
+    0x7d, 0x1,  0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79, 0x8,  0x67, 0x6c, 0x6f,
+    0x62, 0x2d, 0x66, 0x36, 0x34, 0x3,  0x7c, 0x0,  0x5,  0x64, 0x75, 0x6d,
+    0x6d, 0x79, 0x8,  0x74, 0x61, 0x62, 0x2d, 0x66, 0x75, 0x6e, 0x63, 0x1,
+    0x70, 0x1,  0xa,  0x14, 0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79, 0x7,  0x74,
+    0x61, 0x62, 0x2d, 0x65, 0x78, 0x74, 0x1,  0x6f, 0x1,  0xa,  0x1e, 0x5,
+    0x64, 0x75, 0x6d, 0x6d, 0x79, 0x4,  0x6d, 0x65, 0x6d, 0x31, 0x2,  0x1,
+    0x1,  0x3,  0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79, 0x4,  0x6d, 0x65, 0x6d,
+    0x32, 0x2,  0x0,  0x2,  0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79, 0x4,  0x74,
+    0x61, 0x67, 0x31, 0x4,  0x0,  0x2,  0x5,  0x64, 0x75, 0x6d, 0x6d, 0x79,
+    0x4,  0x74, 0x61, 0x67, 0x32, 0x4,  0x0,  0x3,  0x5,  0x64, 0x75, 0x6d,
+    0x6d, 0x79, 0x4,  0x74, 0x61, 0x67, 0x33, 0x4,  0x0,  0x4,  0x3,  0xc,
+    0xb,  0x0,  0x0,  0x0,  0x0,  0x7,  0x8,  0x9,  0x9,  0x9,  0x9,  0x9,
+    0x4,  0x7,  0x2,  0x70, 0x0,  0xa,  0x6f, 0x0,  0xa,  0x5,  0x4,  0x1,
+    0x1,  0x1,  0x3,  0xd,  0x7,  0x3,  0x0,  0x5,  0x0,  0x4,  0x0,  0x6,
+    0x6,  0xf,  0x2,  0x7f, 0x1,  0x41, 0x8e, 0x1,  0xb,  0x7d, 0x0,  0x43,
+    0xae, 0x47, 0x45, 0x44, 0xb,  0x7,  0xe5, 0x1,  0x13, 0x6,  0x66, 0x75,
+    0x6e, 0x63, 0x2d, 0x31, 0x0,  0x6,  0x6,  0x66, 0x75, 0x6e, 0x63, 0x2d,
+    0x32, 0x0,  0x7,  0x6,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x33, 0x0,  0x8,
+    0x6,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x34, 0x0,  0x9,  0x8,  0x66, 0x75,
+    0x6e, 0x63, 0x2d, 0x61, 0x64, 0x64, 0x0,  0xa,  0xa,  0x66, 0x75, 0x6e,
+    0x63, 0x2d, 0x6d, 0x75, 0x6c, 0x2d, 0x32, 0x0,  0xb,  0x12, 0x66, 0x75,
+    0x6e, 0x63, 0x2d, 0x63, 0x61, 0x6c, 0x6c, 0x2d, 0x69, 0x6e, 0x64, 0x69,
+    0x72, 0x65, 0x63, 0x74, 0x0,  0xc,  0xd,  0x66, 0x75, 0x6e, 0x63, 0x2d,
+    0x68, 0x6f, 0x73, 0x74, 0x2d, 0x61, 0x64, 0x64, 0x0,  0xd,  0xd,  0x66,
+    0x75, 0x6e, 0x63, 0x2d, 0x68, 0x6f, 0x73, 0x74, 0x2d, 0x73, 0x75, 0x62,
+    0x0,  0xe,  0xd,  0x66, 0x75, 0x6e, 0x63, 0x2d, 0x68, 0x6f, 0x73, 0x74,
+    0x2d, 0x6d, 0x75, 0x6c, 0x0,  0xf,  0xd,  0x66, 0x75, 0x6e, 0x63, 0x2d,
+    0x68, 0x6f, 0x73, 0x74, 0x2d, 0x64, 0x69, 0x76, 0x0,  0x10, 0x8,  0x74,
+    0x61, 0x62, 0x2d, 0x66, 0x75, 0x6e, 0x63, 0x1,  0x2,  0x7,  0x74, 0x61,
+    0x62, 0x2d, 0x65, 0x78, 0x74, 0x1,  0x3,  0x3,  0x6d, 0x65, 0x6d, 0x2,
+    0x2,  0x5,  0x74, 0x61, 0x67, 0x2d, 0x31, 0x4,  0x3,  0x5,  0x74, 0x61,
+    0x67, 0x2d, 0x32, 0x4,  0x4,  0x5,  0x74, 0x61, 0x67, 0x2d, 0x33, 0x4,
+    0x5,  0xc,  0x67, 0x6c, 0x6f, 0x62, 0x2d, 0x6d, 0x75, 0x74, 0x2d, 0x69,
+    0x33, 0x32, 0x3,  0x4,  0xe,  0x67, 0x6c, 0x6f, 0x62, 0x2d, 0x63, 0x6f,
+    0x6e, 0x73, 0x74, 0x2d, 0x66, 0x33, 0x32, 0x3,  0x5,  0x9,  0xc,  0x1,
+    0x2,  0x2,  0x41, 0x2,  0xb,  0x0,  0x4,  0x6,  0x7,  0x8,  0x9,  0xa,
+    0x5e, 0xb,  0x4,  0x0,  0x41, 0x1,  0xb,  0x4,  0x0,  0x41, 0x2,  0xb,
+    0x4,  0x0,  0x41, 0x3,  0xb,  0x4,  0x0,  0x41, 0x4,  0xb,  0x7,  0x0,
+    0x20, 0x0,  0x20, 0x1,  0x6a, 0xb,  0xc,  0x0,  0x20, 0x0,  0x41, 0x2,
+    0x6c, 0x20, 0x1,  0x41, 0x2,  0x6c, 0xb,  0x7,  0x0,  0x20, 0x0,  0x11,
+    0x0,  0x2,  0xb,  0xa,  0x0,  0x41, 0x0,  0x25, 0x3,  0x20, 0x0,  0x10,
+    0x0,  0xb,  0xa,  0x0,  0x41, 0x1,  0x25, 0x3,  0x20, 0x0,  0x10, 0x1,
+    0xb,  0xa,  0x0,  0x41, 0x2,  0x25, 0x3,  0x20, 0x0,  0x10, 0x2,  0xb,
+    0xa,  0x0,  0x41, 0x3,  0x25, 0x3,  0x20, 0x0,  0x10, 0x3,  0xb,  0xb,
+    0x10, 0x1,  0x0,  0x41, 0xa,  0xb,  0xa,  0x0,  0x1,  0x2,  0x3,  0x4,
+    0x5,  0x6,  0x7,  0x8,  0x9,  0x0,  0xe0, 0x1,  0x4,  0x6e, 0x61, 0x6d,
+    0x65, 0x1,  0x8d, 0x1,  0x11, 0x0,  0x7,  0x65, 0x2d, 0x66, 0x2d, 0x61,
+    0x64, 0x64, 0x1,  0x7,  0x65, 0x2d, 0x66, 0x2d, 0x73, 0x75, 0x62, 0x2,
+    0x7,  0x65, 0x2d, 0x66, 0x2d, 0x6d, 0x75, 0x6c, 0x3,  0x7,  0x65, 0x2d,
+    0x66, 0x2d, 0x64, 0x69, 0x76, 0x4,  0x8,  0x65, 0x2d, 0x66, 0x2d, 0x74,
+    0x65, 0x72, 0x6d, 0x5,  0x8,  0x65, 0x2d, 0x66, 0x2d, 0x66, 0x61, 0x69,
+    0x6c, 0x6,  0x3,  0x66, 0x2d, 0x31, 0x7,  0x3,  0x66, 0x2d, 0x32, 0x8,
+    0x3,  0x66, 0x2d, 0x33, 0x9,  0x3,  0x66, 0x2d, 0x34, 0xa,  0x5,  0x66,
+    0x2d, 0x61, 0x64, 0x64, 0xb,  0x7,  0x66, 0x2d, 0x6d, 0x75, 0x6c, 0x2d,
+    0x32, 0xc,  0xa,  0x66, 0x2d, 0x63, 0x61, 0x6c, 0x6c, 0x2d, 0x69, 0x6e,
+    0x64, 0xd,  0x7,  0x66, 0x2d, 0x65, 0x2d, 0x61, 0x64, 0x64, 0xe,  0x7,
+    0x66, 0x2d, 0x65, 0x2d, 0x73, 0x75, 0x62, 0xf,  0x7,  0x66, 0x2d, 0x65,
+    0x2d, 0x6d, 0x75, 0x6c, 0x10, 0x7,  0x66, 0x2d, 0x65, 0x2d, 0x64, 0x69,
+    0x76, 0x4,  0xf,  0x2,  0x0,  0x5,  0x74, 0x79, 0x70, 0x65, 0x30, 0x1,
+    0x5,  0x74, 0x79, 0x70, 0x65, 0x31, 0x5,  0xb,  0x2,  0x2,  0x3,  0x74,
+    0x2d, 0x66, 0x3,  0x3,  0x74, 0x2d, 0x65, 0x6,  0x4,  0x1,  0x2,  0x1,
+    0x6d, 0x7,  0xd,  0x2,  0x4,  0x4,  0x67, 0x2d, 0x6d, 0x69, 0x5,  0x4,
+    0x67, 0x2d, 0x63, 0x66, 0xb,  0x16, 0x3,  0x3,  0x5,  0x74, 0x61, 0x67,
+    0x2d, 0x31, 0x4,  0x5,  0x74, 0x61, 0x67, 0x2d, 0x32, 0x5,  0x5,  0x74,
+    0x61, 0x67, 0x2d, 0x33};
+
+std::vector<uint8_t> ReexportedImportedTagWasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+    0x60, 0x01, 0x7f, 0x00, 0x02, 0x08, 0x01, 0x01, 0x6d, 0x01, 0x74,
+    0x04, 0x00, 0x00, 0x07, 0x05, 0x01, 0x01, 0x74, 0x04, 0x00};
+
+std::vector<uint8_t> FibonacciWasm = {
+    0x0,  0x61, 0x73, 0x6d, 0x1,  0x0,  0x0,  0x0,  0x1,  0x6,  0x1,
+    0x60, 0x1,  0x7f, 0x1,  0x7f, 0x3,  0x2,  0x1,  0x0,  0x7,  0x7,
+    0x1,  0x3,  0x66, 0x69, 0x62, 0x0,  0x0,  0xa,  0x1f, 0x1,  0x1d,
+    0x0,  0x20, 0x0,  0x41, 0x2,  0x48, 0x4,  0x40, 0x41, 0x1,  0xf,
+    0xb,  0x20, 0x0,  0x41, 0x2,  0x6b, 0x10, 0x0,  0x20, 0x0,  0x41,
+    0x1,  0x6b, 0x10, 0x0,  0x6a, 0xf,  0xb,  0x0,  0x15, 0x4,  0x6e,
+    0x61, 0x6d, 0x65, 0x1,  0x6,  0x1,  0x0,  0x3,  0x66, 0x69, 0x62,
+    0x2,  0x6,  0x1,  0x0,  0x1,  0x0,  0x1,  0x6e};
+
+std::vector<char> ArgsVec = {
+    'a', 'r', 'g', '1', '\0',
+    // arg1
+    'a', 'r', 'g', '2', '\0'
+    // arg2
+};
+std::vector<char> EnvsVec = {
+    'E', 'N', 'V', '1', '=', 'V', 'A', 'L', '1', '\0',
+    // ENV1=VAL1
+    'E', 'N', 'V', '2', '=', 'V', 'A', 'L', '2', '\0',
+    // ENV2=VAL2
+    'E', 'N', 'V', '3', '=', 'V', 'A', 'L', '3', '\0'
+    // ENV3=VAL3
+};
+std::vector<char> PreopensVec = {
+    'a', 'p', 'i', 'T', 'e', 's', 't', 'D', 'a', 't', 'a', '\0',
+    // apiTestData
+    'M', 'a', 'k', 'e', 'f', 'i', 'l', 'e', '\0',
+    // Makefile
+    'C', 'M', 'a', 'k', 'e', 'F', 'i', 'l', 'e', 's', '\0',
+    // CMakeFiles
+    's', 's', 'v', 'm', 'A', 'P', 'I', 'C', 'o', 'r', 'e', 'T', 'e', 's', 't',
+    's', '\0',
+    // wasmedgeAPICoreTests
+    '.', ':', '.', '\0'
+    // .:.
+};
+char *Args[] = {&ArgsVec[0], &ArgsVec[5]};
+char *Envs[] = {&EnvsVec[0], &EnvsVec[10], &EnvsVec[20]};
+char *Preopens[] = {&PreopensVec[0], &PreopensVec[12], &PreopensVec[21],
+                    &PreopensVec[32], &PreopensVec[49]};
+char TPath[] = "apiTestData/test.wasm";
+
+/// Binary Wasm module (Provider 1):
+///
+/// (module
+///   (func $add (param i32 i32) (result i32)
+///     local.get 0
+///     local.get 1
+///     i32.add)
+///   (export "add_func" (func $add))
+/// )
+std::vector<uint8_t> Provider1Wasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
+    0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x0c, 0x01,
+    0x08, 0x61, 0x64, 0x64, 0x5f, 0x66, 0x75, 0x6e, 0x63, 0x00, 0x00, 0x0a,
+    0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b};
+
+/// Binary Wasm module (Provider 2):
+/// Adds 100 to the sum of two integers.
+///
+/// (module
+///   (func $add (param i32 i32) (result i32)
+///     local.get 0
+///     local.get 1
+///     i32.add
+///     i32.const 100
+///     i32.add)
+///   (export "add_func" (func $add))
+/// )
+std::vector<uint8_t> Provider2Wasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07,
+    0x01, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01,
+    0x00, 0x07, 0x0c, 0x01, 0x08, 0x61, 0x64, 0x64, 0x5f, 0x66,
+    0x75, 0x6e, 0x63, 0x00, 0x00, 0x0a, 0x0d, 0x01, 0x0b, 0x00,
+    0x20, 0x00, 0x20, 0x01, 0x6a, 0x41, 0xe4, 0x00, 0x6a, 0x0b};
+
+/// Binary Wasm module (Consumer):
+/// Imports the add function from the provider and calls it.
+///
+/// (module
+///   (import "provider" "add_func" (func $add (param i32 i32) (result i32)))
+///
+///   (func (export "call_add") (param i32 i32) (result i32)
+///    local.get 0
+///    local.get 1
+///    call $add)
+/// )
+std::vector<uint8_t> ConsumerWasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
+    0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02, 0x15, 0x01, 0x08, 0x70, 0x72, 0x6f,
+    0x76, 0x69, 0x64, 0x65, 0x72, 0x08, 0x61, 0x64, 0x64, 0x5f, 0x66, 0x75,
+    0x6e, 0x63, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07, 0x0c, 0x01, 0x08,
+    0x63, 0x61, 0x6c, 0x6c, 0x5f, 0x61, 0x64, 0x64, 0x00, 0x01, 0x0a, 0x0a,
+    0x01, 0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b};
+
+void hexToFile(cxx20::span<const uint8_t> Wasm, const char *Path) {
+  std::ofstream TFile(WasmEdge::u8path(Path), std::ios_base::binary);
+  TFile.write(reinterpret_cast<const char *>(Wasm.data()),
+              static_cast<std::streamsize>(Wasm.size()));
+  TFile.close();
+}
+
+WasmEdge_Result externAdd(void *, const WasmEdge_CallingFrameContext *,
+                          const WasmEdge_Value *In, WasmEdge_Value *Out) {
+  // {externref, i32} -> {i32}
+  int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
+  const int32_t Val2 = WasmEdge_ValueGetI32(In[1]);
+  Out[0] = WasmEdge_ValueGenI32(*Val1 + Val2);
+  return WasmEdge_Result_Success;
+}
+
+WasmEdge_Result externSub(void *, const WasmEdge_CallingFrameContext *,
+                          const WasmEdge_Value *In, WasmEdge_Value *Out) {
+  // {externref, i32} -> {i32}
+  int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
+  const int32_t Val2 = WasmEdge_ValueGetI32(In[1]);
+  Out[0] = WasmEdge_ValueGenI32(*Val1 - Val2);
+  return WasmEdge_Result_Success;
+}
+
+WasmEdge_Result externMul(void *, const WasmEdge_CallingFrameContext *,
+                          const WasmEdge_Value *In, WasmEdge_Value *Out) {
+  // {externref, i32} -> {i32}
+  int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
+  const int32_t Val2 = WasmEdge_ValueGetI32(In[1]);
+  Out[0] = WasmEdge_ValueGenI32(*Val1 * Val2);
+  return WasmEdge_Result_Success;
+}
+
+WasmEdge_Result externDiv(void *, const WasmEdge_CallingFrameContext *,
+                          const WasmEdge_Value *In, WasmEdge_Value *Out) {
+  // {externref, i32} -> {i32}
+  int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
+  const int32_t Val2 = WasmEdge_ValueGetI32(In[1]);
+  Out[0] = WasmEdge_ValueGenI32(*Val1 / Val2);
+  return WasmEdge_Result_Success;
+}
+
+WasmEdge_Result externTerm(void *, const WasmEdge_CallingFrameContext *,
+                           const WasmEdge_Value *, WasmEdge_Value *Out) {
+  // {} -> {i32}
+  Out[0] = WasmEdge_ValueGenI32(1234);
+  return WasmEdge_Result_Terminate;
+}
+
+WasmEdge_Result externFail(void *, const WasmEdge_CallingFrameContext *,
+                           const WasmEdge_Value *, WasmEdge_Value *Out) {
+  // {} -> {i32}
+  Out[0] = WasmEdge_ValueGenI32(5678);
+  return WasmEdge_ResultGen(WasmEdge_ErrCategory_UserLevelError, 0x5678);
+}
+
+WasmEdge_Result externWrap(void *This, void *Data,
+                           const WasmEdge_CallingFrameContext *MemCxt,
+                           const WasmEdge_Value *In, const uint32_t,
+                           WasmEdge_Value *Out, const uint32_t) {
+  using HostFuncType =
+      WasmEdge_Result(void *, const WasmEdge_CallingFrameContext *,
+                      const WasmEdge_Value *, WasmEdge_Value *);
+  HostFuncType *Func = reinterpret_cast<HostFuncType *>(This);
+  return Func(Data, MemCxt, In, Out);
+}
+
+// Helper function to create import module instance with host functions
+WasmEdge_ModuleInstanceContext *createExternModule
+    [[maybe_unused]] (std::string_view Name, bool IsWrap = false) {
+  // Create module instance
+  WasmEdge_String HostName =
+      WasmEdge_StringWrap(Name.data(), static_cast<uint32_t>(Name.length()));
+  WasmEdge_ModuleInstanceContext *HostMod =
+      WasmEdge_ModuleInstanceCreate(HostName);
+  WasmEdge_ValType Param[2] = {WasmEdge_ValTypeGenExternRef(),
+                               WasmEdge_ValTypeGenI32()},
+                   Result[1] = {WasmEdge_ValTypeGenI32()};
+  WasmEdge_FunctionTypeContext *HostFType =
+      WasmEdge_FunctionTypeCreate(Param, 2, Result, 1);
+  WasmEdge_FunctionInstanceContext *HostFunc = nullptr;
+
+  // Add host function "func-add"
+  HostName = WasmEdge_StringCreateByCString("func-add");
+  if (IsWrap) {
+    HostFunc = WasmEdge_FunctionInstanceCreateBinding(
+        HostFType, externWrap, reinterpret_cast<void *>(externAdd), nullptr, 0);
+  } else {
+    HostFunc =
+        WasmEdge_FunctionInstanceCreate(HostFType, externAdd, nullptr, 0);
+  }
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
+  WasmEdge_StringDelete(HostName);
+  // Add host function "func-sub"
+  HostName = WasmEdge_StringCreateByCString("func-sub");
+  if (IsWrap) {
+    HostFunc = WasmEdge_FunctionInstanceCreateBinding(
+        HostFType, externWrap, reinterpret_cast<void *>(externSub), nullptr, 0);
+  } else {
+    HostFunc =
+        WasmEdge_FunctionInstanceCreate(HostFType, externSub, nullptr, 0);
+  }
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
+  WasmEdge_StringDelete(HostName);
+  // Add host function "func-mul"
+  HostName = WasmEdge_StringCreateByCString("func-mul");
+  if (IsWrap) {
+    HostFunc = WasmEdge_FunctionInstanceCreateBinding(
+        HostFType, externWrap, reinterpret_cast<void *>(externMul), nullptr, 0);
+  } else {
+    HostFunc =
+        WasmEdge_FunctionInstanceCreate(HostFType, externMul, nullptr, 0);
+  }
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
+  WasmEdge_StringDelete(HostName);
+  // Add host function "func-div"
+  HostName = WasmEdge_StringCreateByCString("func-div");
+  if (IsWrap) {
+    HostFunc = WasmEdge_FunctionInstanceCreateBinding(
+        HostFType, externWrap, reinterpret_cast<void *>(externDiv), nullptr, 0);
+  } else {
+    HostFunc =
+        WasmEdge_FunctionInstanceCreate(HostFType, externDiv, nullptr, 0);
+  }
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
+  WasmEdge_StringDelete(HostName);
+
+  WasmEdge_FunctionTypeDelete(HostFType);
+  HostFType = WasmEdge_FunctionTypeCreate(nullptr, 0, Result, 1);
+
+  // Add host function "func-term"
+  HostName = WasmEdge_StringCreateByCString("func-term");
+  if (IsWrap) {
+    HostFunc = WasmEdge_FunctionInstanceCreateBinding(
+        HostFType, externWrap, reinterpret_cast<void *>(externTerm), nullptr,
+        0);
+  } else {
+    HostFunc =
+        WasmEdge_FunctionInstanceCreate(HostFType, externTerm, nullptr, 0);
+  }
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
+  WasmEdge_StringDelete(HostName);
+  // Add host function "func-fail"
+  HostName = WasmEdge_StringCreateByCString("func-fail");
+  if (IsWrap) {
+    HostFunc = WasmEdge_FunctionInstanceCreateBinding(
+        HostFType, externWrap, reinterpret_cast<void *>(externFail), nullptr,
+        0);
+  } else {
+    HostFunc =
+        WasmEdge_FunctionInstanceCreate(HostFType, externFail, nullptr, 0);
+  }
+  WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
+  WasmEdge_StringDelete(HostName);
+
+  WasmEdge_FunctionTypeDelete(HostFType);
+  return HostMod;
+}
+
+// Helper function to load wasm file into AST module.
+WasmEdge_ASTModuleContext *loadModule(const WasmEdge_ConfigureContext *Conf,
+                                      const char *Path) {
+  WasmEdge_ASTModuleContext *Mod = nullptr;
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(Conf);
+  WasmEdge_LoaderParseFromFile(Loader, &Mod, Path);
+  WasmEdge_LoaderDelete(Loader);
+  return Mod;
+}
+
+// Helper function to validate wasm module.
+bool validateModule(const WasmEdge_ConfigureContext *Conf,
+                    const WasmEdge_ASTModuleContext *Mod) {
+  WasmEdge_ValidatorContext *Validator = WasmEdge_ValidatorCreate(Conf);
+  WasmEdge_Result Res = WasmEdge_ValidatorValidate(Validator, Mod);
+  WasmEdge_ValidatorDelete(Validator);
+  return WasmEdge_ResultOK(Res);
+}
+
+// Helper function to register AST module.
+WasmEdge_ModuleInstanceContext *
+registerModule(const WasmEdge_ConfigureContext *Conf,
+               WasmEdge_StoreContext *Store,
+               const WasmEdge_ASTModuleContext *Mod, std::string_view Name) {
+  WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(Conf, nullptr);
+  WasmEdge_String ModName =
+      WasmEdge_StringWrap(Name.data(), static_cast<uint32_t>(Name.length()));
+  WasmEdge_ModuleInstanceContext *ResMod = nullptr;
+  WasmEdge_ExecutorRegister(ExecCxt, &ResMod, Store, Mod, ModName);
+  WasmEdge_ExecutorDelete(ExecCxt);
+  return ResMod;
+}
+
+// Helper function to register existing host module.
+bool registerModule(const WasmEdge_ConfigureContext *Conf,
+                    WasmEdge_StoreContext *Store,
+                    WasmEdge_ModuleInstanceContext *ImpMod) {
+  WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(Conf, nullptr);
+  auto Res = WasmEdge_ExecutorRegisterImport(ExecCxt, Store, ImpMod);
+  WasmEdge_ExecutorDelete(ExecCxt);
+  return WasmEdge_ResultOK(Res);
+}
+
+// Helper function to instantiate module.
+WasmEdge_ModuleInstanceContext *
+instantiateModule(const WasmEdge_ConfigureContext *Conf,
+                  WasmEdge_StoreContext *Store,
+                  const WasmEdge_ASTModuleContext *Mod) {
+  WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(Conf, nullptr);
+  WasmEdge_ModuleInstanceContext *ResMod = nullptr;
+  WasmEdge_ExecutorInstantiate(ExecCxt, &ResMod, Store, Mod);
+  WasmEdge_ExecutorDelete(ExecCxt);
+  return ResMod;
+}
+
+// Helper function to read file into a buffer.
+bool readToVector(const char *Path, std::vector<uint8_t> &Buf) {
+  std::ifstream F(Path, std::ios::binary | std::ios::ate);
+  if (!F) {
+    return false;
+  }
+  F.seekg(0, std::ios::end);
+  Buf.resize(static_cast<uint32_t>(F.tellg()));
+  F.seekg(0, std::ios::beg);
+  if (!F.read(reinterpret_cast<char *>(Buf.data()),
+              static_cast<uint32_t>(Buf.size()))) {
+    return false;
+  }
+  F.close();
+  return true;
+}
+
+// Helper function to check error code.
+bool isErrMatch(WasmEdge_ErrCode Err, WasmEdge_Result Res) {
+  return static_cast<uint32_t>(Err) == WasmEdge_ResultGetCode(Res);
+}
+bool isErrMatch(WasmEdge_ErrCategory ErrCate, uint32_t Code,
+                WasmEdge_Result Res) {
+  return ErrCate == WasmEdge_ResultGetCategory(Res) &&
+         Code == WasmEdge_ResultGetCode(Res);
+}
+
+TEST(APICoreTest, Version) {
+  EXPECT_EQ(std::string_view(WASMEDGE_VERSION),
+            std::string_view(WasmEdge_VersionGet()));
+  EXPECT_EQ(static_cast<uint32_t>(WASMEDGE_VERSION_MAJOR),
+            WasmEdge_VersionGetMajor());
+  EXPECT_EQ(static_cast<uint32_t>(WASMEDGE_VERSION_MINOR),
+            WasmEdge_VersionGetMinor());
+  EXPECT_EQ(static_cast<uint32_t>(WASMEDGE_VERSION_PATCH),
+            WasmEdge_VersionGetPatch());
+}
+
+TEST(APICoreTest, Log) {
+  WasmEdge_LogSetCallback([](const WasmEdge_LogMessage *) {});
+  EXPECT_TRUE(true);
+  std::vector<WasmEdge_LogLevel> LogLevels = {
+      WasmEdge_LogLevel_Trace, WasmEdge_LogLevel_Debug,
+      WasmEdge_LogLevel_Info,  WasmEdge_LogLevel_Warn,
+      WasmEdge_LogLevel_Error, WasmEdge_LogLevel_Critical,
+  };
+  for (auto Level : LogLevels) {
+    WasmEdge_LogSetLevel(Level);
+    EXPECT_TRUE(true);
+  }
+  WasmEdge_LogSetDebugLevel();
+  EXPECT_TRUE(true);
+  WasmEdge_LogSetErrorLevel();
+  EXPECT_TRUE(true);
+  WasmEdge_LogOff();
+  EXPECT_TRUE(true);
+  WasmEdge_LogSetCallback(nullptr);
+}
+
+TEST(APICoreTest, ValType) {
+  WasmEdge_ValType VT;
+
+  VT = WasmEdge_ValTypeGenI32();
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(VT));
+  EXPECT_FALSE(WasmEdge_ValTypeIsRef(VT));
+
+  VT = WasmEdge_ValTypeGenI64();
+  EXPECT_TRUE(WasmEdge_ValTypeIsI64(VT));
+  EXPECT_FALSE(WasmEdge_ValTypeIsRef(VT));
+
+  VT = WasmEdge_ValTypeGenF32();
+  EXPECT_TRUE(WasmEdge_ValTypeIsF32(VT));
+  EXPECT_FALSE(WasmEdge_ValTypeIsRef(VT));
+
+  VT = WasmEdge_ValTypeGenF64();
+  EXPECT_TRUE(WasmEdge_ValTypeIsF64(VT));
+  EXPECT_FALSE(WasmEdge_ValTypeIsRef(VT));
+
+  VT = WasmEdge_ValTypeGenV128();
+  EXPECT_TRUE(WasmEdge_ValTypeIsV128(VT));
+  EXPECT_FALSE(WasmEdge_ValTypeIsRef(VT));
+
+  VT = WasmEdge_ValTypeGenFuncRef();
+  EXPECT_TRUE(WasmEdge_ValTypeIsFuncRef(VT));
+  EXPECT_TRUE(WasmEdge_ValTypeIsRef(VT));
+  EXPECT_TRUE(WasmEdge_ValTypeIsRefNull(VT));
+
+  VT = WasmEdge_ValTypeGenExternRef();
+  EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(VT));
+  EXPECT_TRUE(WasmEdge_ValTypeIsRef(VT));
+  EXPECT_TRUE(WasmEdge_ValTypeIsRefNull(VT));
+}
+
+TEST(APICoreTest, Value) {
+  std::vector<uint32_t> Vec = {1U, 2U, 3U};
+  WasmEdge_Value Val = WasmEdge_ValueGenI32(INT32_MAX);
+  EXPECT_EQ(WasmEdge_ValueGetI32(Val), INT32_MAX);
+  Val = WasmEdge_ValueGenI64(INT64_MAX);
+  EXPECT_EQ(WasmEdge_ValueGetI64(Val), INT64_MAX);
+  Val = WasmEdge_ValueGenF32(std::numeric_limits<float>::infinity());
+  EXPECT_EQ(WasmEdge_ValueGetF32(Val), std::numeric_limits<float>::infinity());
+  Val = WasmEdge_ValueGenF64(-std::numeric_limits<double>::infinity());
+  EXPECT_EQ(WasmEdge_ValueGetF64(Val),
+            -std::numeric_limits<double>::infinity());
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) ||       \
+    (defined(__riscv) && __riscv_xlen == 64)
+  Val = WasmEdge_ValueGenV128(static_cast<int128_t>(INT64_MAX) * 2 + 1);
+  EXPECT_EQ(WasmEdge_ValueGetV128(Val),
+            static_cast<int128_t>(INT64_MAX) * 2 + 1);
+#else
+  int128_t V = {/* Low */ UINT64_MAX, /* High */ INT64_MAX};
+  Val = WasmEdge_ValueGenV128(V);
+  EXPECT_TRUE(0 == std::memcmp(&V, &Val, sizeof(V)));
+#endif
+  Val = WasmEdge_ValueGenFuncRef(nullptr);
+  EXPECT_TRUE(WasmEdge_ValTypeIsFuncRef(Val.Type));
+  EXPECT_EQ(WasmEdge_ValueGetFuncRef(Val), nullptr);
+  Val = WasmEdge_ValueGenExternRef(&Vec);
+  EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(Val.Type));
+  EXPECT_EQ(
+      static_cast<std::vector<uint32_t> *>(WasmEdge_ValueGetExternRef(Val))
+          ->data()[1],
+      2U);
+}
+
+TEST(APICoreTest, String) {
+  // Test to delete nullptr.
+  WasmEdge_String Str = {/* Length */ 0, /* Buf */ nullptr};
+  WasmEdge_StringDelete(Str);
+  EXPECT_TRUE(true);
+  // Test strings.
+  WasmEdge_String Str1 = WasmEdge_StringCreateByCString("test_string");
+  WasmEdge_String Str2 = WasmEdge_StringCreateByCString("test_string");
+  EXPECT_TRUE(WasmEdge_StringIsEqual(Str1, Str2));
+  const char CStr[] = "test_string_.....";
+  WasmEdge_String Str3 = WasmEdge_StringCreateByBuffer(CStr, 11);
+  EXPECT_TRUE(WasmEdge_StringIsEqual(Str1, Str3));
+  WasmEdge_String Str4 = WasmEdge_StringWrap(CStr, 11);
+  EXPECT_TRUE(WasmEdge_StringIsEqual(Str3, Str4));
+  WasmEdge_String Str5 = WasmEdge_StringWrap(CStr, 13);
+  EXPECT_FALSE(WasmEdge_StringIsEqual(Str3, Str5));
+  WasmEdge_String Str6 = WasmEdge_StringCreateByCString(nullptr);
+  EXPECT_EQ(Str6.Length, 0U);
+  EXPECT_EQ(Str6.Buf, nullptr);
+  WasmEdge_String Str7 = WasmEdge_StringCreateByBuffer(CStr, 0);
+  EXPECT_EQ(Str7.Length, 0U);
+  EXPECT_EQ(Str7.Buf, nullptr);
+  WasmEdge_String Str8 = WasmEdge_StringCreateByBuffer(nullptr, 11);
+  EXPECT_EQ(Str8.Length, 0U);
+  EXPECT_EQ(Str8.Buf, nullptr);
+  char Buf[256];
+  EXPECT_EQ(WasmEdge_StringCopy(Str3, nullptr, 0), 0U);
+  EXPECT_EQ(WasmEdge_StringCopy(Str3, Buf, 5), 5U);
+  EXPECT_EQ(std::strncmp(Str3.Buf, Buf, 5), 0);
+  EXPECT_EQ(WasmEdge_StringCopy(Str3, Buf, 256), 11U);
+  WasmEdge_StringDelete(Str1);
+  WasmEdge_StringDelete(Str2);
+  WasmEdge_StringDelete(Str3);
+
+  // Boundary check for empty string
+  WasmEdge_String EmptyStr = WasmEdge_StringCreateByCString("");
+  EXPECT_TRUE(WasmEdge_StringIsEqual(EmptyStr, WasmEdge_StringWrap("", 0)));
+  WasmEdge_StringDelete(EmptyStr);
+}
+
+TEST(APICoreTest, Bytes) {
+  // Test to delete nullptr.
+  WasmEdge_Bytes Buf = {/* Length */ 0, /* Buf */ nullptr};
+  WasmEdge_BytesDelete(Buf);
+  EXPECT_TRUE(true);
+  // Test buffers.
+  const uint8_t CBuf[] = {'t', 'e', 's', 't', '_', 'b', 'u', 'f'};
+  WasmEdge_Bytes Buf1 = WasmEdge_BytesCreate(CBuf, 8U);
+  EXPECT_EQ(Buf1.Length, 8U);
+  EXPECT_NE(Buf1.Buf, nullptr);
+  WasmEdge_Bytes Buf2 = WasmEdge_BytesCreate(nullptr, 0U);
+  EXPECT_EQ(Buf2.Length, 0U);
+  EXPECT_EQ(Buf2.Buf, nullptr);
+  WasmEdge_Bytes Buf3 = WasmEdge_BytesCreate(CBuf, 0U);
+  EXPECT_EQ(Buf3.Length, 0U);
+  EXPECT_EQ(Buf3.Buf, nullptr);
+  WasmEdge_Bytes Buf4 = WasmEdge_BytesCreate(nullptr, 8U);
+  EXPECT_EQ(Buf4.Length, 0U);
+  EXPECT_EQ(Buf4.Buf, nullptr);
+  WasmEdge_Bytes Buf5 = WasmEdge_BytesWrap(CBuf, 8U);
+  EXPECT_EQ(Buf5.Length, 8U);
+  EXPECT_EQ(Buf5.Buf, CBuf);
+  WasmEdge_BytesDelete(Buf1);
+}
+
+TEST(APICoreTest, Result) {
+  WasmEdge_Result Res1 = WasmEdge_Result_Success;   // Success
+  WasmEdge_Result Res2 = WasmEdge_Result_Terminate; // Terminated -> Success
+  WasmEdge_Result Res3 = WasmEdge_Result_Fail;      // Failed
+  EXPECT_TRUE(WasmEdge_ResultOK(Res1));
+  EXPECT_TRUE(WasmEdge_ResultOK(Res2));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RuntimeError, Res3));
+  EXPECT_EQ(WasmEdge_ResultGetCode(Res1), 0x00U);
+  EXPECT_EQ(WasmEdge_ResultGetCode(Res2), 0x01U);
+  EXPECT_EQ(WasmEdge_ResultGetCode(Res3), 0x02U);
+  EXPECT_NE(WasmEdge_ResultGetMessage(Res1), nullptr);
+  EXPECT_NE(WasmEdge_ResultGetMessage(Res2), nullptr);
+  EXPECT_NE(WasmEdge_ResultGetMessage(Res3), nullptr);
+}
+
+TEST(APICoreTest, Configure) {
+  WasmEdge_ConfigureContext *ConfNull = nullptr;
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  // Tests for proposals.
+  WasmEdge_ConfigureAddProposal(ConfNull, WasmEdge_Proposal_SIMD);
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_SIMD);
+  WasmEdge_ConfigureAddProposal(ConfNull, WasmEdge_Proposal_Memory64);
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_Memory64);
+  EXPECT_FALSE(WasmEdge_ConfigureHasProposal(ConfNull, WasmEdge_Proposal_SIMD));
+  EXPECT_TRUE(WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_SIMD));
+  EXPECT_FALSE(
+      WasmEdge_ConfigureHasProposal(ConfNull, WasmEdge_Proposal_Memory64));
+  EXPECT_TRUE(WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_Memory64));
+  WasmEdge_ConfigureRemoveProposal(Conf, WasmEdge_Proposal_SIMD);
+  WasmEdge_ConfigureRemoveProposal(ConfNull, WasmEdge_Proposal_SIMD);
+  EXPECT_FALSE(WasmEdge_ConfigureHasProposal(ConfNull, WasmEdge_Proposal_SIMD));
+  EXPECT_FALSE(WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_SIMD));
+  EXPECT_FALSE(
+      WasmEdge_ConfigureHasProposal(ConfNull, WasmEdge_Proposal_Memory64));
+  EXPECT_TRUE(WasmEdge_ConfigureHasProposal(Conf, WasmEdge_Proposal_Memory64));
+  // Tests for host registrations.
+  WasmEdge_ConfigureAddHostRegistration(ConfNull,
+                                        WasmEdge_HostRegistration_Wasi);
+  WasmEdge_ConfigureAddHostRegistration(Conf, WasmEdge_HostRegistration_Wasi);
+  EXPECT_FALSE(WasmEdge_ConfigureHasHostRegistration(
+      ConfNull, WasmEdge_HostRegistration_Wasi));
+  EXPECT_TRUE(WasmEdge_ConfigureHasHostRegistration(
+      Conf, WasmEdge_HostRegistration_Wasi));
+  WasmEdge_ConfigureRemoveHostRegistration(ConfNull,
+                                           WasmEdge_HostRegistration_Wasi);
+  WasmEdge_ConfigureRemoveHostRegistration(Conf,
+                                           WasmEdge_HostRegistration_Wasi);
+  EXPECT_FALSE(WasmEdge_ConfigureHasHostRegistration(
+      ConfNull, WasmEdge_HostRegistration_Wasi));
+  EXPECT_FALSE(WasmEdge_ConfigureHasHostRegistration(
+      Conf, WasmEdge_HostRegistration_Wasi));
+  // Tests for memory limits.
+  WasmEdge_ConfigureSetMaxMemoryPage(ConfNull, 1234U);
+  WasmEdge_ConfigureSetMaxMemoryPage(Conf, 1234U);
+  EXPECT_NE(WasmEdge_ConfigureGetMaxMemoryPage(ConfNull), 1234U);
+  EXPECT_EQ(WasmEdge_ConfigureGetMaxMemoryPage(Conf), 1234U);
+  // Tests for stack size limit.
+  EXPECT_EQ(WasmEdge_ConfigureGetMaxStackSize(Conf), 0U);
+  WasmEdge_ConfigureSetMaxStackSize(ConfNull, 65536U);
+  WasmEdge_ConfigureSetMaxStackSize(Conf, 65536U);
+  EXPECT_NE(WasmEdge_ConfigureGetMaxStackSize(ConfNull), 65536U);
+  EXPECT_EQ(WasmEdge_ConfigureGetMaxStackSize(Conf), 65536U);
+  // Tests for force interpreter (deprecated API).
+  // Pre-set to JIT so the SetForceInterpreter(true) flip is observable; the
+  // default run mode is Interpreter, which would make IsForceInterpreter()
+  // already true.
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_JIT);
+  WasmEdge_ConfigureSetForceInterpreter(ConfNull, true);
+  EXPECT_EQ(WasmEdge_ConfigureIsForceInterpreter(Conf), false);
+  WasmEdge_ConfigureSetForceInterpreter(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureIsForceInterpreter(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureIsForceInterpreter(Conf), true);
+  // Tests for run mode (round-trip).
+  WasmEdge_ConfigureSetRunMode(ConfNull, WasmEdge_RunMode_JIT);
+  EXPECT_EQ(WasmEdge_ConfigureGetRunMode(ConfNull),
+            WasmEdge_RunMode_Interpreter);
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_JIT);
+  EXPECT_EQ(WasmEdge_ConfigureGetRunMode(Conf), WasmEdge_RunMode_JIT);
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_AOT);
+  EXPECT_EQ(WasmEdge_ConfigureGetRunMode(Conf), WasmEdge_RunMode_AOT);
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_Interpreter);
+  EXPECT_EQ(WasmEdge_ConfigureGetRunMode(Conf), WasmEdge_RunMode_Interpreter);
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_LazyJIT);
+  EXPECT_EQ(WasmEdge_ConfigureGetRunMode(Conf), WasmEdge_RunMode_LazyJIT);
+  // Cross-API consistency with deprecated SetForceInterpreter /
+  // IsForceInterpreter.
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_JIT);
+  EXPECT_FALSE(WasmEdge_ConfigureIsForceInterpreter(Conf));
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_Interpreter);
+  EXPECT_TRUE(WasmEdge_ConfigureIsForceInterpreter(Conf));
+  WasmEdge_ConfigureSetForceInterpreter(Conf, true);
+  EXPECT_EQ(WasmEdge_ConfigureGetRunMode(Conf), WasmEdge_RunMode_Interpreter);
+  // Reset to a deterministic mode for the rest of the test.
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_Interpreter);
+  // Tests for AOT compiler configurations.
+  WasmEdge_ConfigureCompilerSetOptimizationLevel(
+      ConfNull, WasmEdge_CompilerOptimizationLevel_Os);
+  WasmEdge_ConfigureCompilerSetOptimizationLevel(
+      Conf, WasmEdge_CompilerOptimizationLevel_Os);
+  EXPECT_NE(WasmEdge_ConfigureCompilerGetOptimizationLevel(ConfNull),
+            WasmEdge_CompilerOptimizationLevel_Os);
+  EXPECT_EQ(WasmEdge_ConfigureCompilerGetOptimizationLevel(Conf),
+            WasmEdge_CompilerOptimizationLevel_Os);
+  WasmEdge_ConfigureCompilerSetOutputFormat(
+      ConfNull, WasmEdge_CompilerOutputFormat_Native);
+  WasmEdge_ConfigureCompilerSetOutputFormat(
+      Conf, WasmEdge_CompilerOutputFormat_Native);
+  EXPECT_NE(WasmEdge_ConfigureCompilerGetOutputFormat(ConfNull),
+            WasmEdge_CompilerOutputFormat_Native);
+  EXPECT_EQ(WasmEdge_ConfigureCompilerGetOutputFormat(Conf),
+            WasmEdge_CompilerOutputFormat_Native);
+  WasmEdge_ConfigureCompilerSetDumpIR(ConfNull, true);
+  WasmEdge_ConfigureCompilerSetDumpIR(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureCompilerIsDumpIR(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureCompilerIsDumpIR(Conf), true);
+  WasmEdge_ConfigureCompilerSetGenericBinary(ConfNull, true);
+  WasmEdge_ConfigureCompilerSetGenericBinary(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureCompilerIsGenericBinary(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureCompilerIsGenericBinary(Conf), true);
+  WasmEdge_ConfigureCompilerSetInterruptible(ConfNull, true);
+  WasmEdge_ConfigureCompilerSetInterruptible(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureCompilerIsInterruptible(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureCompilerIsInterruptible(Conf), true);
+  // Tests for Statistics configurations.
+  WasmEdge_ConfigureStatisticsSetInstructionCounting(ConfNull, true);
+  WasmEdge_ConfigureStatisticsSetInstructionCounting(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureStatisticsIsInstructionCounting(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureStatisticsIsInstructionCounting(Conf), true);
+  WasmEdge_ConfigureStatisticsSetCostMeasuring(ConfNull, true);
+  WasmEdge_ConfigureStatisticsSetCostMeasuring(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureStatisticsIsCostMeasuring(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureStatisticsIsCostMeasuring(Conf), true);
+  WasmEdge_ConfigureStatisticsSetTimeMeasuring(ConfNull, true);
+  WasmEdge_ConfigureStatisticsSetTimeMeasuring(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureStatisticsIsTimeMeasuring(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureStatisticsIsTimeMeasuring(Conf), true);
+  // Test to delete nullptr.
+  WasmEdge_ConfigureDelete(ConfNull);
+  EXPECT_TRUE(true);
+  WasmEdge_ConfigureDelete(Conf);
+  EXPECT_TRUE(true);
+}
+
+TEST(APICoreTest, FunctionType) {
+  std::vector<WasmEdge_ValType> Param = {
+      WasmEdge_ValTypeGenI32(),       WasmEdge_ValTypeGenI64(),
+      WasmEdge_ValTypeGenExternRef(), WasmEdge_ValTypeGenV128(),
+      WasmEdge_ValTypeGenF64(),       WasmEdge_ValTypeGenF32()};
+  std::vector<WasmEdge_ValType> Result = {WasmEdge_ValTypeGenFuncRef(),
+                                          WasmEdge_ValTypeGenExternRef(),
+                                          WasmEdge_ValTypeGenV128()};
+  WasmEdge_ValType Buf1[6], Buf2[2];
+  WasmEdge_FunctionTypeContext *FType =
+      WasmEdge_FunctionTypeCreate(&Param[0], 6, &Result[0], 3);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParametersLength(FType), 6U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParametersLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturnsLength(FType), 3U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturnsLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParameters(FType, Buf1, 6), 6U);
+  for (uint32_t I = 0; I < 6; I++) {
+    EXPECT_TRUE(WasmEdge_ValTypeIsEqual(Param[I], Buf1[I]));
+  }
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParameters(FType, Buf2, 2), 6U);
+  for (uint32_t I = 0; I < 2; I++) {
+    EXPECT_TRUE(WasmEdge_ValTypeIsEqual(Param[I], Buf2[I]));
+  }
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParameters(nullptr, Buf1, 6), 0U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturns(FType, Buf1, 6), 3U);
+  for (uint32_t I = 0; I < 3; I++) {
+    EXPECT_TRUE(WasmEdge_ValTypeIsEqual(Result[I], Buf1[I]));
+  }
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturns(FType, Buf2, 2), 3U);
+  for (uint32_t I = 0; I < 2; I++) {
+    EXPECT_TRUE(WasmEdge_ValTypeIsEqual(Result[I], Buf2[I]));
+  }
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturns(nullptr, Buf1, 6), 0U);
+  WasmEdge_FunctionTypeDelete(FType);
+  WasmEdge_FunctionTypeDelete(nullptr);
+
+  FType = WasmEdge_FunctionTypeCreate(nullptr, 0, nullptr, 0);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParameters(FType, Buf1, 6), 0U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturns(FType, Buf1, 6), 0U);
+  WasmEdge_FunctionTypeDelete(FType);
+}
+
+TEST(APICoreTest, TableType) {
+  WasmEdge_LimitContext *Lim1 =
+      WasmEdge_LimitCreateWithMax(10, 20, false, false);
+  WasmEdge_LimitContext *Lim2 = WasmEdge_LimitCreate(30, false);
+  WasmEdge_TableTypeContext *TType =
+      WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), Lim1);
+  EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(WasmEdge_TableTypeGetRefType(TType)));
+  EXPECT_TRUE(WasmEdge_ValTypeIsFuncRef(WasmEdge_TableTypeGetRefType(nullptr)));
+  EXPECT_TRUE(WasmEdge_LimitIsEqual(WasmEdge_TableTypeGetLimit(TType), Lim1));
+  EXPECT_FALSE(
+      WasmEdge_LimitIsEqual(WasmEdge_TableTypeGetLimit(nullptr), Lim1));
+  WasmEdge_LimitDelete(Lim1);
+  WasmEdge_TableTypeDelete(TType);
+  WasmEdge_TableTypeDelete(nullptr);
+  TType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenFuncRef(), Lim2);
+  EXPECT_TRUE(WasmEdge_ValTypeIsFuncRef(WasmEdge_TableTypeGetRefType(TType)));
+  EXPECT_TRUE(WasmEdge_LimitIsEqual(WasmEdge_TableTypeGetLimit(TType), Lim2));
+  WasmEdge_LimitDelete(Lim2);
+  WasmEdge_TableTypeDelete(TType);
+  WasmEdge_TableTypeDelete(nullptr);
+}
+
+TEST(APICoreTest, MemoryType) {
+  WasmEdge_LimitContext *Lim1 =
+      WasmEdge_LimitCreateWithMax(10, 20, false, false);
+  WasmEdge_LimitContext *Lim2 = WasmEdge_LimitCreate(30, false);
+  WasmEdge_MemoryTypeContext *MType = WasmEdge_MemoryTypeCreate(Lim1);
+  EXPECT_TRUE(WasmEdge_LimitIsEqual(WasmEdge_MemoryTypeGetLimit(MType), Lim1));
+  EXPECT_FALSE(
+      WasmEdge_LimitIsEqual(WasmEdge_MemoryTypeGetLimit(nullptr), Lim1));
+  WasmEdge_LimitDelete(Lim1);
+  WasmEdge_MemoryTypeDelete(MType);
+  WasmEdge_MemoryTypeDelete(nullptr);
+  MType = WasmEdge_MemoryTypeCreate(Lim2);
+  EXPECT_TRUE(WasmEdge_LimitIsEqual(WasmEdge_MemoryTypeGetLimit(MType), Lim2));
+  WasmEdge_LimitDelete(Lim2);
+  WasmEdge_MemoryTypeDelete(MType);
+  WasmEdge_MemoryTypeDelete(nullptr);
+}
+
+TEST(APICoreTest, GlobalType) {
+  WasmEdge_GlobalTypeContext *GType = WasmEdge_GlobalTypeCreate(
+      WasmEdge_ValTypeGenV128(), WasmEdge_Mutability_Var);
+  EXPECT_TRUE(WasmEdge_ValTypeIsV128(WasmEdge_GlobalTypeGetValType(GType)));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(WasmEdge_GlobalTypeGetValType(nullptr)));
+  EXPECT_EQ(WasmEdge_GlobalTypeGetMutability(GType), WasmEdge_Mutability_Var);
+  EXPECT_EQ(WasmEdge_GlobalTypeGetMutability(nullptr),
+            WasmEdge_Mutability_Const);
+  WasmEdge_GlobalTypeDelete(GType);
+  WasmEdge_GlobalTypeDelete(nullptr);
+}
+
+TEST(APICoreTest, ImportType) {
+  WasmEdge_ASTModuleContext *Mod = nullptr;
+  const WasmEdge_ImportTypeContext *ImpTypes[20];
+  WasmEdge_LimitContext *Lim = nullptr;
+  WasmEdge_String Name;
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ExceptionHandling);
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(Conf);
+  WasmEdge_ConfigureDelete(Conf);
+
+  // Load AST module from buffer
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBytes(
+      Loader, &Mod,
+      WasmEdge_BytesWrap(ImportWasm.data(),
+                         static_cast<uint32_t>(ImportWasm.size())))));
+  EXPECT_NE(Mod, nullptr);
+
+  // AST list imports
+  EXPECT_EQ(WasmEdge_ASTModuleListImportsLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_ASTModuleListImportsLength(Mod), 17U);
+  EXPECT_EQ(WasmEdge_ASTModuleListImports(nullptr, ImpTypes, 20), 0U);
+  EXPECT_EQ(WasmEdge_ASTModuleListImports(Mod, nullptr, 20), 17U);
+  std::memset(ImpTypes, 0, sizeof(const WasmEdge_ImportTypeContext *) * 20);
+  EXPECT_EQ(WasmEdge_ASTModuleListImports(Mod, ImpTypes, 4), 17U);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[0]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[0]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-add"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[0]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "extern"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[1]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[1]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-sub"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[1]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "extern"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[2]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[2]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-mul"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[2]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "extern"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[3]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[3]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-div"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[3]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "extern"sv);
+  std::memset(ImpTypes, 0, sizeof(const WasmEdge_ImportTypeContext *) * 20);
+  EXPECT_EQ(WasmEdge_ASTModuleListImports(Mod, ImpTypes, 20), 17U);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[4]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[4]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-term"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[4]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "extern"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[5]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[5]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-fail"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[5]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "extern"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[6]),
+            WasmEdge_ExternalType_Global);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[6]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "glob-i32"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[6]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[7]),
+            WasmEdge_ExternalType_Global);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[7]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "glob-i64"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[7]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[8]),
+            WasmEdge_ExternalType_Global);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[8]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "glob-f32"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[8]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[9]),
+            WasmEdge_ExternalType_Global);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[9]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "glob-f64"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[9]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[10]),
+            WasmEdge_ExternalType_Table);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[10]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tab-func"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[10]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[11]),
+            WasmEdge_ExternalType_Table);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[11]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tab-ext"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[11]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[12]),
+            WasmEdge_ExternalType_Memory);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[12]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "mem1"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[12]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[13]),
+            WasmEdge_ExternalType_Memory);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[13]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "mem2"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[13]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[14]),
+            WasmEdge_ExternalType_Tag);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[14]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tag1"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[14]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[15]),
+            WasmEdge_ExternalType_Tag);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[15]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tag2"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[15]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[16]),
+            WasmEdge_ExternalType_Tag);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[16]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tag3"sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[16]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
+
+  // Get the external type from an import type.
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(nullptr),
+            WasmEdge_ExternalType_Function);
+  EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[13]),
+            WasmEdge_ExternalType_Memory);
+
+  // Get the module name from an import type.
+  Name = WasmEdge_ImportTypeGetModuleName(nullptr);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), ""sv);
+  Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[0]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "extern"sv);
+
+  // Get the external name from an import type.
+  Name = WasmEdge_ImportTypeGetExternalName(nullptr);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), ""sv);
+  Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[0]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-add"sv);
+
+  // Get the function type from an import type.
+  EXPECT_EQ(WasmEdge_ImportTypeGetFunctionType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetFunctionType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetFunctionType(nullptr, ImpTypes[4]), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetFunctionType(Mod, ImpTypes[8]), nullptr);
+  EXPECT_NE(WasmEdge_ImportTypeGetFunctionType(Mod, ImpTypes[4]), nullptr);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParametersLength(
+                WasmEdge_ImportTypeGetFunctionType(Mod, ImpTypes[4])),
+            0U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturnsLength(
+                WasmEdge_ImportTypeGetFunctionType(Mod, ImpTypes[4])),
+            1U);
+
+  // Get the table type from an import type.
+  EXPECT_EQ(WasmEdge_ImportTypeGetTableType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetTableType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetTableType(nullptr, ImpTypes[11]), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetTableType(Mod, ImpTypes[0]), nullptr);
+  EXPECT_NE(WasmEdge_ImportTypeGetTableType(Mod, ImpTypes[11]), nullptr);
+  EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(WasmEdge_TableTypeGetRefType(
+      WasmEdge_ImportTypeGetTableType(Mod, ImpTypes[11]))));
+  Lim = WasmEdge_LimitCreateWithMax(10, 30, false, false);
+  EXPECT_TRUE(WasmEdge_LimitIsEqual(
+      WasmEdge_TableTypeGetLimit(
+          WasmEdge_ImportTypeGetTableType(Mod, ImpTypes[11])),
+      Lim));
+  WasmEdge_LimitDelete(Lim);
+
+  // Get the memory type from an import type.
+  EXPECT_EQ(WasmEdge_ImportTypeGetMemoryType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetMemoryType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetMemoryType(nullptr, ImpTypes[13]), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetMemoryType(Mod, ImpTypes[0]), nullptr);
+  EXPECT_NE(WasmEdge_ImportTypeGetMemoryType(Mod, ImpTypes[13]), nullptr);
+  Lim = WasmEdge_LimitCreate(2, false);
+  EXPECT_TRUE(WasmEdge_LimitIsEqual(
+      WasmEdge_MemoryTypeGetLimit(
+          WasmEdge_ImportTypeGetMemoryType(Mod, ImpTypes[13])),
+      Lim));
+  WasmEdge_LimitDelete(Lim);
+
+  // Get the tag type from an import type.
+  EXPECT_EQ(WasmEdge_ImportTypeGetTagType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetTagType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetTagType(nullptr, ImpTypes[15]), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetTagType(Mod, ImpTypes[0]), nullptr);
+  EXPECT_NE(WasmEdge_ImportTypeGetTagType(Mod, ImpTypes[15]), nullptr);
+  EXPECT_EQ(WasmEdge_TagTypeGetFunctionType(nullptr), nullptr);
+  EXPECT_NE(WasmEdge_TagTypeGetFunctionType(
+                WasmEdge_ImportTypeGetTagType(Mod, ImpTypes[15])),
+            nullptr);
+  EXPECT_EQ(
+      WasmEdge_FunctionTypeGetParametersLength(WasmEdge_TagTypeGetFunctionType(
+          WasmEdge_ImportTypeGetTagType(Mod, ImpTypes[15]))),
+      2U);
+  EXPECT_EQ(
+      WasmEdge_FunctionTypeGetReturnsLength(WasmEdge_TagTypeGetFunctionType(
+          WasmEdge_ImportTypeGetTagType(Mod, ImpTypes[15]))),
+      0U);
+
+  // Get the global type from an import type.
+  EXPECT_EQ(WasmEdge_ImportTypeGetGlobalType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetGlobalType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetGlobalType(nullptr, ImpTypes[7]), nullptr);
+  EXPECT_EQ(WasmEdge_ImportTypeGetGlobalType(Mod, ImpTypes[0]), nullptr);
+  EXPECT_NE(WasmEdge_ImportTypeGetGlobalType(Mod, ImpTypes[7]), nullptr);
+  EXPECT_TRUE(WasmEdge_ValTypeIsI64(WasmEdge_GlobalTypeGetValType(
+      WasmEdge_ImportTypeGetGlobalType(Mod, ImpTypes[7]))));
+  EXPECT_EQ(WasmEdge_GlobalTypeGetMutability(
+                WasmEdge_ImportTypeGetGlobalType(Mod, ImpTypes[7])),
+            WasmEdge_Mutability_Const);
+
+  WasmEdge_LoaderDelete(Loader);
+  WasmEdge_ASTModuleDelete(Mod);
+}
+
+TEST(APICoreTest, ExportType) {
+  WasmEdge_ASTModuleContext *Mod = nullptr;
+  const WasmEdge_ExportTypeContext *ExpTypes[20];
+  WasmEdge_LimitContext *Lim = nullptr;
+  WasmEdge_String Name;
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureAddProposal(Conf, WasmEdge_Proposal_ExceptionHandling);
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(Conf);
+  WasmEdge_ConfigureDelete(Conf);
+
+  // Load AST module from buffer
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBytes(
+      Loader, &Mod,
+      WasmEdge_BytesWrap(ImportWasm.data(),
+                         static_cast<uint32_t>(ImportWasm.size())))));
+  EXPECT_NE(Mod, nullptr);
+
+  // AST list exports
+  EXPECT_EQ(WasmEdge_ASTModuleListExportsLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_ASTModuleListExportsLength(Mod), 19U);
+  EXPECT_EQ(WasmEdge_ASTModuleListExports(nullptr, ExpTypes, 20), 0U);
+  EXPECT_EQ(WasmEdge_ASTModuleListExports(Mod, nullptr, 20), 19U);
+  std::memset(ExpTypes, 0, sizeof(const WasmEdge_ExportTypeContext *) * 20);
+  EXPECT_EQ(WasmEdge_ASTModuleListExports(Mod, ExpTypes, 4), 19U);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[0]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[0]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-1"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[1]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[1]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-2"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[2]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[2]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-3"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[3]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[3]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-4"sv);
+  std::memset(ExpTypes, 0, sizeof(const WasmEdge_ExportTypeContext *) * 20);
+  EXPECT_EQ(WasmEdge_ASTModuleListExports(Mod, ExpTypes, 20), 19U);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[4]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[4]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-add"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[5]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[5]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-mul-2"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[6]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[6]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-call-indirect"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[7]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[7]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-host-add"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[8]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[8]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-host-sub"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[9]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[9]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-host-mul"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[10]),
+            WasmEdge_ExternalType_Function);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[10]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-host-div"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[11]),
+            WasmEdge_ExternalType_Table);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[11]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tab-func"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[12]),
+            WasmEdge_ExternalType_Table);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[12]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tab-ext"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[13]),
+            WasmEdge_ExternalType_Memory);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[13]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "mem"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[14]),
+            WasmEdge_ExternalType_Tag);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[14]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tag-1"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[15]),
+            WasmEdge_ExternalType_Tag);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[15]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tag-2"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[16]),
+            WasmEdge_ExternalType_Tag);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[16]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "tag-3"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[17]),
+            WasmEdge_ExternalType_Global);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[17]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "glob-mut-i32"sv);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[18]),
+            WasmEdge_ExternalType_Global);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[18]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "glob-const-f32"sv);
+
+  // Get the external type from an export type.
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(nullptr),
+            WasmEdge_ExternalType_Function);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[18]),
+            WasmEdge_ExternalType_Global);
+
+  // Get the external name from an export type.
+  Name = WasmEdge_ExportTypeGetExternalName(nullptr);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), ""sv);
+  Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[0]);
+  EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-1"sv);
+
+  // Get the function type from an export type.
+  EXPECT_EQ(WasmEdge_ExportTypeGetFunctionType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetFunctionType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetFunctionType(nullptr, ExpTypes[4]), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetFunctionType(Mod, ExpTypes[15]), nullptr);
+  EXPECT_NE(WasmEdge_ExportTypeGetFunctionType(Mod, ExpTypes[4]), nullptr);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParametersLength(
+                WasmEdge_ExportTypeGetFunctionType(Mod, ExpTypes[4])),
+            2U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturnsLength(
+                WasmEdge_ExportTypeGetFunctionType(Mod, ExpTypes[4])),
+            1U);
+
+  // Get the table type from an export type.
+  EXPECT_EQ(WasmEdge_ExportTypeGetTableType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetTableType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetTableType(nullptr, ExpTypes[12]), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetTableType(Mod, ExpTypes[0]), nullptr);
+  EXPECT_NE(WasmEdge_ExportTypeGetTableType(Mod, ExpTypes[12]), nullptr);
+  EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(WasmEdge_TableTypeGetRefType(
+      WasmEdge_ExportTypeGetTableType(Mod, ExpTypes[12]))));
+  Lim = WasmEdge_LimitCreate(10, false);
+  EXPECT_TRUE(WasmEdge_LimitIsEqual(
+      WasmEdge_TableTypeGetLimit(
+          WasmEdge_ExportTypeGetTableType(Mod, ExpTypes[12])),
+      Lim));
+  WasmEdge_LimitDelete(Lim);
+
+  // Get the memory type from an export type.
+  EXPECT_EQ(WasmEdge_ExportTypeGetMemoryType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetMemoryType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetMemoryType(nullptr, ExpTypes[13]), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetMemoryType(Mod, ExpTypes[0]), nullptr);
+  EXPECT_NE(WasmEdge_ExportTypeGetMemoryType(Mod, ExpTypes[13]), nullptr);
+  Lim = WasmEdge_LimitCreateWithMax(1, 3, false, false);
+  EXPECT_TRUE(WasmEdge_LimitIsEqual(
+      WasmEdge_MemoryTypeGetLimit(
+          WasmEdge_ExportTypeGetMemoryType(Mod, ExpTypes[13])),
+      Lim));
+  WasmEdge_LimitDelete(Lim);
+
+  // Get the tag type from an export type.
+  EXPECT_EQ(WasmEdge_ExportTypeGetTagType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetTagType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetTagType(nullptr, ExpTypes[14]), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetTagType(Mod, ExpTypes[0]), nullptr);
+  EXPECT_NE(WasmEdge_ExportTypeGetTagType(Mod, ExpTypes[14]), nullptr);
+  EXPECT_EQ(WasmEdge_TagTypeGetFunctionType(nullptr), nullptr);
+  EXPECT_NE(WasmEdge_TagTypeGetFunctionType(
+                WasmEdge_ExportTypeGetTagType(Mod, ExpTypes[14])),
+            nullptr);
+  EXPECT_EQ(
+      WasmEdge_FunctionTypeGetParametersLength(WasmEdge_TagTypeGetFunctionType(
+          WasmEdge_ExportTypeGetTagType(Mod, ExpTypes[14]))),
+      4U);
+  EXPECT_EQ(
+      WasmEdge_FunctionTypeGetReturnsLength(WasmEdge_TagTypeGetFunctionType(
+          WasmEdge_ExportTypeGetTagType(Mod, ExpTypes[14]))),
+      0U);
+
+  // Get the global type from an export type.
+  EXPECT_EQ(WasmEdge_ExportTypeGetGlobalType(nullptr, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetGlobalType(Mod, nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetGlobalType(nullptr, ExpTypes[18]), nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[0]), nullptr);
+  EXPECT_NE(WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[18]), nullptr);
+  EXPECT_TRUE(WasmEdge_ValTypeIsF32(WasmEdge_GlobalTypeGetValType(
+      WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[18]))));
+  EXPECT_EQ(WasmEdge_GlobalTypeGetMutability(
+                WasmEdge_ExportTypeGetGlobalType(Mod, ExpTypes[18])),
+            WasmEdge_Mutability_Const);
+
+  // Test retrieving the type of a re-exported imported tag.
+  WasmEdge_ASTModuleDelete(Mod);
+  Mod = nullptr;
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBytes(
+      Loader, &Mod,
+      WasmEdge_BytesWrap(
+          ReexportedImportedTagWasm.data(),
+          static_cast<uint32_t>(ReexportedImportedTagWasm.size())))));
+  EXPECT_NE(Mod, nullptr);
+
+  const WasmEdge_ExportTypeContext *ImportedTagExport = nullptr;
+  EXPECT_EQ(WasmEdge_ASTModuleListExportsLength(Mod), 1U);
+  EXPECT_EQ(WasmEdge_ASTModuleListExports(Mod, &ImportedTagExport, 1), 1U);
+  ASSERT_NE(ImportedTagExport, nullptr);
+  EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ImportedTagExport),
+            WasmEdge_ExternalType_Tag);
+  const WasmEdge_TagTypeContext *ImportedTagType =
+      WasmEdge_ExportTypeGetTagType(Mod, ImportedTagExport);
+  ASSERT_NE(ImportedTagType, nullptr);
+  const WasmEdge_FunctionTypeContext *ImportedTagFuncType =
+      WasmEdge_TagTypeGetFunctionType(ImportedTagType);
+  ASSERT_NE(ImportedTagFuncType, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParametersLength(ImportedTagFuncType), 1U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturnsLength(ImportedTagFuncType), 0U);
+
+  WasmEdge_LoaderDelete(Loader);
+  WasmEdge_ASTModuleDelete(Mod);
+}
+
+#ifdef WASMEDGE_USE_LLVM
+TEST(APICoreTest, Compiler) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  std::ifstream OutFile;
+  uint8_t Buf[4];
+  uint8_t WASMMagic[] = {0x00, 0x61, 0x73, 0x6D};
+
+  // Compiler creation and deletion
+  WasmEdge_CompilerContext *Compiler = WasmEdge_CompilerCreate(nullptr);
+  EXPECT_NE(Compiler, nullptr);
+  WasmEdge_CompilerDelete(nullptr);
+  EXPECT_TRUE(true);
+  WasmEdge_CompilerDelete(Compiler);
+  EXPECT_TRUE(true);
+  Compiler = WasmEdge_CompilerCreate(Conf);
+
+  // Prepare TPath.
+  hexToFile(TestWasm, TPath);
+  // Compile file for universal WASM output format
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_CompilerCompile(Compiler, TPath, "test_aot.wasm")));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
+      Compiler, "../spec/testSuites/wasm-2.0/binary/binary.55.wasm",
+      "success_aot.wasm")));
+  // File not found
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                         WasmEdge_CompilerCompile(Compiler, "not_exist.wasm",
+                                                  "not_exist_aot.wasm")));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_IllegalPath,
+      WasmEdge_CompilerCompile(Compiler, nullptr, "not_exist_aot.wasm")));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                         WasmEdge_CompilerCompile(Compiler, TPath, nullptr)));
+  // "" must match nullptr behavior.
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                 WasmEdge_CompilerCompile(Compiler, "", "not_exist_aot.wasm")));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                         WasmEdge_CompilerCompile(Compiler, TPath, "")));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                         WasmEdge_CompilerCompile(Compiler, nullptr, nullptr)));
+  // Parse failed
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_UnexpectedEnd,
+                         WasmEdge_CompilerCompile(
+                             Compiler,
+                             "../spec/testSuites/wasm-2.0/binary/binary.4.wasm",
+                             "parse_error_aot.wasm")));
+  WasmEdge_CompilerDelete(Compiler);
+  // Check the header of the output files.
+  OutFile.open("test_aot.wasm", std::ios::binary);
+  EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
+  OutFile.close();
+  EXPECT_TRUE(std::equal(WASMMagic, WASMMagic + 4, Buf));
+  OutFile.open("success_aot.wasm", std::ios::binary);
+  EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
+  OutFile.close();
+  EXPECT_TRUE(std::equal(WASMMagic, WASMMagic + 4, Buf));
+
+  // Compile file for shared library output format
+  WasmEdge_ConfigureCompilerSetOutputFormat(
+      Conf, WasmEdge_CompilerOutputFormat_Native);
+  Compiler = WasmEdge_CompilerCreate(Conf);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
+      Compiler, TPath, "test_aot" WASMEDGE_LIB_EXTENSION)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
+      Compiler, "../spec/testSuites/wasm-2.0/binary/binary.55.wasm",
+      "success_aot" WASMEDGE_LIB_EXTENSION)));
+  // Check the header of the output files.
+  OutFile.open("test_aot" WASMEDGE_LIB_EXTENSION, std::ios::binary);
+  EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
+  OutFile.close();
+  EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
+  OutFile.open("success_aot" WASMEDGE_LIB_EXTENSION, std::ios::binary);
+  EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
+  OutFile.close();
+  EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
+
+  // Compile file for shared library output format from buffer
+  std::error_code EC;
+  auto TPathFS = WasmEdge::u8path(TPath);
+  size_t FileSize = std::filesystem::file_size(TPathFS, EC);
+  EXPECT_FALSE(EC);
+  std::ifstream Fin(TPathFS, std::ios::in | std::ios::binary);
+  EXPECT_TRUE(Fin);
+  std::vector<uint8_t> Data(FileSize);
+  size_t Index = 0;
+  while (FileSize > 0) {
+    const uint32_t BlockSize = static_cast<uint32_t>(
+        std::min<size_t>(FileSize, std::numeric_limits<uint32_t>::max()));
+    Fin.read(reinterpret_cast<char *>(Data.data()) + Index, BlockSize);
+    const uint32_t ReadCount = static_cast<uint32_t>(Fin.gcount());
+    EXPECT_TRUE(ReadCount == BlockSize);
+    Index += static_cast<size_t>(BlockSize);
+    FileSize -= static_cast<size_t>(BlockSize);
+  }
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompileFromBuffer(
+      Compiler, Data.data(), Data.size(), "test_aot" WASMEDGE_LIB_EXTENSION)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                         WasmEdge_CompilerCompileFromBuffer(
+                             Compiler, Data.data(), Data.size(), nullptr)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                         WasmEdge_CompilerCompileFromBuffer(
+                             Compiler, Data.data(), Data.size(), "")));
+  // Check the header of the output files.
+  OutFile.open("test_aot" WASMEDGE_LIB_EXTENSION, std::ios::binary);
+  EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
+  OutFile.close();
+  EXPECT_FALSE(std::equal(WASMMagic, WASMMagic + 4, Buf));
+
+  // Compile file for universal WASM output format repeatedly
+  WasmEdge_CompilerDelete(Compiler);
+  WasmEdge_ConfigureCompilerSetOptimizationLevel(
+      Conf, WasmEdge_CompilerOptimizationLevel_O0);
+  WasmEdge_ConfigureCompilerSetOutputFormat(Conf,
+                                            WasmEdge_CompilerOutputFormat_Wasm);
+  Compiler = WasmEdge_CompilerCreate(Conf);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompileFromBuffer(
+      Compiler, FibonacciWasm.data(), FibonacciWasm.size(), "fib_aot1.wasm")));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_CompilerCompile(Compiler, "fib_aot1.wasm", "fib_aot2.wasm")));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_CompilerCompile(Compiler, "fib_aot2.wasm", "fib_aot3.wasm")));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_CompilerCompile(Compiler, "fib_aot3.wasm", "fib_aot4.wasm")));
+  // Test the output universal WASM
+  WasmEdge_Value P[1], R[1];
+  P[0] = WasmEdge_ValueGenI32(20);
+  R[0] = WasmEdge_ValueGenI32(0);
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString("fib");
+  // Test the AOT mode of the universal WASM.
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_AOT);
+  WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, nullptr);
+  EXPECT_NE(VM, nullptr);
+  WasmEdge_VMRunWasmFromFile(VM, "fib_aot4.wasm", FuncName, P, 1, R, 1);
+  WasmEdge_VMDelete(VM);
+  EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 10946);
+  // Test the force-interpreter mode of the universal WASM
+  R[0] = WasmEdge_ValueGenI32(0);
+  WasmEdge_ConfigureSetForceInterpreter(Conf, true);
+  VM = WasmEdge_VMCreate(Conf, nullptr);
+  EXPECT_NE(VM, nullptr);
+  WasmEdge_VMRunWasmFromFile(VM, "fib_aot4.wasm", FuncName, P, 1, R, 1);
+  WasmEdge_VMDelete(VM);
+  EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 10946);
+  WasmEdge_StringDelete(FuncName);
+
+  WasmEdge_CompilerDelete(Compiler);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
+// Skip APICoreTest.RunModes on riscv64 builds. The test compiles a WASM to a
+// native shared library and then loads it back via dlopen. Under
+// qemu-riscv64-static (used by the riscv64 quick test suite in CI) the
+// emulated guest dynamic linker resolves dlopen paths through its own
+// LD_LIBRARY_PATH search instead of honouring the absolute path we pass, so
+// the freshly-compiled .so cannot be found even though it exists on disk.
+// The other RunMode-related coverage in this file (the SetRunMode /
+// GetRunMode round-trip in APICoreTest.Configure and the universal-WASM AOT
+// run in APICoreTest.Compiler) does not depend on dlopen and stays enabled
+// on all platforms.
+#ifndef __riscv
+TEST(APICoreTest, RunModes) {
+  // Exercise the WasmEdge_RunMode behaviours.
+  //
+  // Compile fib to a native shared library (.so / .dylib / .dll). In
+  // Interpreter and JIT modes, loading a native shared-library artifact is
+  // rejected with MalformedMagic. In AOT mode, the library loads and its
+  // compiled native code runs. Then verify that AOT mode on a plain .wasm
+  // with no AOT section falls back to interpreter execution with a warning.
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureCompilerSetOutputFormat(
+      Conf, WasmEdge_CompilerOutputFormat_Native);
+  WasmEdge_CompilerContext *Compiler = WasmEdge_CompilerCreate(Conf);
+  EXPECT_NE(Compiler, nullptr);
+  const char *SharedLibPath = "fib_runmode_aot" WASMEDGE_LIB_EXTENSION;
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompileFromBuffer(
+      Compiler, FibonacciWasm.data(), FibonacciWasm.size(), SharedLibPath)));
+  WasmEdge_CompilerDelete(Compiler);
+
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString("fib");
+  WasmEdge_Value P[1] = {WasmEdge_ValueGenI32(20)};
+  WasmEdge_Value R[1] = {WasmEdge_ValueGenI32(0)};
+
+  // Interpreter mode: native shared-library artifacts are rejected.
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_Interpreter);
+  WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, nullptr);
+  EXPECT_NE(VM, nullptr);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_MalformedMagic,
+      WasmEdge_VMRunWasmFromFile(VM, SharedLibPath, FuncName, P, 1, R, 1)));
+  WasmEdge_VMDelete(VM);
+
+  // JIT mode: native shared-library artifacts are rejected.
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_JIT);
+  VM = WasmEdge_VMCreate(Conf, nullptr);
+  EXPECT_NE(VM, nullptr);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_MalformedMagic,
+      WasmEdge_VMRunWasmFromFile(VM, SharedLibPath, FuncName, P, 1, R, 1)));
+  WasmEdge_VMDelete(VM);
+
+  // AOT mode: keep library handle alive, run the embedded native code.
+  R[0] = WasmEdge_ValueGenI32(0);
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_AOT);
+  VM = WasmEdge_VMCreate(Conf, nullptr);
+  EXPECT_NE(VM, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMRunWasmFromFile(VM, SharedLibPath, FuncName, P, 1, R, 1)));
+  EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 10946);
+  WasmEdge_VMDelete(VM);
+
+  // AOT mode on a plain .wasm with no AOT section: emit a warning and fall
+  // back to interpreter execution. Use the in-memory FibonacciWasm buffer to
+  // exercise the no-AOT path.
+  R[0] = WasmEdge_ValueGenI32(0);
+  VM = WasmEdge_VMCreate(Conf, nullptr);
+  EXPECT_NE(VM, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBytes(
+      VM,
+      WasmEdge_BytesWrap(FibonacciWasm.data(),
+                         static_cast<uint32_t>(FibonacciWasm.size())),
+      FuncName, P, 1, R, 1)));
+  EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 10946);
+  WasmEdge_VMDelete(VM);
+
+  WasmEdge_StringDelete(FuncName);
+  WasmEdge_ConfigureDelete(Conf);
+}
+#endif // !__riscv
+#endif // WASMEDGE_USE_LLVM
+
+TEST(APICoreTest, Loader) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_ASTModuleContext *Mod = nullptr;
+  WasmEdge_ASTModuleContext **ModPtr = &Mod;
+
+  // Loader creation and deletion
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(nullptr);
+  EXPECT_NE(Loader, nullptr);
+  WasmEdge_LoaderDelete(nullptr);
+  EXPECT_TRUE(true);
+  WasmEdge_LoaderDelete(Loader);
+  EXPECT_TRUE(true);
+  Loader = WasmEdge_LoaderCreate(Conf);
+
+  // Prepare TPath.
+  hexToFile(TestWasm, TPath);
+  // Parse from a file.
+  Mod = nullptr;
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_LoaderParseFromFile(Loader, ModPtr, TPath)));
+  EXPECT_NE(Mod, nullptr);
+  WasmEdge_ASTModuleDelete(Mod);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_LoaderParseFromFile(nullptr, ModPtr, TPath)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_LoaderParseFromFile(Loader, nullptr, TPath)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                         WasmEdge_LoaderParseFromFile(Loader, ModPtr, "file")));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                 WasmEdge_LoaderParseFromFile(Loader, ModPtr, nullptr)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_LoaderParseFromFile(nullptr, nullptr, TPath)));
+
+  // Parse from buffer
+  std::vector<uint8_t> Buf;
+  EXPECT_TRUE(readToVector(TPath, Buf));
+  Mod = nullptr;
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
+      Loader, ModPtr, Buf.data(), static_cast<uint32_t>(Buf.size()))));
+  EXPECT_NE(Mod, nullptr);
+  WasmEdge_ASTModuleDelete(Mod);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_LoaderParseFromBuffer(nullptr, ModPtr, Buf.data(),
+                                     static_cast<uint32_t>(Buf.size()))));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_LoaderParseFromBuffer(Loader, nullptr, Buf.data(),
+                                     static_cast<uint32_t>(Buf.size()))));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_UnexpectedEnd,
+                 WasmEdge_LoaderParseFromBuffer(Loader, ModPtr, nullptr, 0)));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_LoaderParseFromBuffer(nullptr, nullptr, Buf.data(),
+                                     static_cast<uint32_t>(Buf.size()))));
+#ifdef WASMEDGE_USE_LLVM
+  // Failed case to parse from buffer with AOT compiled WASM
+  EXPECT_TRUE(readToVector("test_aot" WASMEDGE_LIB_EXTENSION, Buf));
+  Mod = nullptr;
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_MalformedMagic,
+      WasmEdge_LoaderParseFromBuffer(Loader, ModPtr, Buf.data(),
+                                     static_cast<uint32_t>(Buf.size()))));
+#endif
+
+  // AST module deletion
+  WasmEdge_ASTModuleDelete(nullptr);
+  EXPECT_TRUE(true);
+
+  WasmEdge_LoaderDelete(Loader);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
+TEST(APICoreTest, Validator) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+
+  // Validator creation and deletion
+  WasmEdge_ValidatorContext *Validator = WasmEdge_ValidatorCreate(nullptr);
+  EXPECT_NE(Validator, nullptr);
+  WasmEdge_ValidatorDelete(nullptr);
+  EXPECT_TRUE(true);
+  WasmEdge_ValidatorDelete(Validator);
+  EXPECT_TRUE(true);
+  Validator = WasmEdge_ValidatorCreate(Conf);
+
+  // Prepare TPath.
+  hexToFile(TestWasm, TPath);
+  // Load and parse file
+  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
+  EXPECT_NE(Mod, nullptr);
+
+  // Validation
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_ValidatorValidate(Validator, Mod)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_ValidatorValidate(nullptr, Mod)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_ValidatorValidate(Validator, nullptr)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_ValidatorValidate(nullptr, nullptr)));
+
+  WasmEdge_ASTModuleDelete(Mod);
+  WasmEdge_ValidatorDelete(Validator);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
+TEST(APICoreTest, ExecutorWithStatistics) {
+  // Create contexts
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
+
+  // Enable Statistics
+  WasmEdge_ConfigureStatisticsSetInstructionCounting(Conf, true);
+  WasmEdge_ConfigureStatisticsSetCostMeasuring(Conf, true);
+  WasmEdge_ConfigureStatisticsSetTimeMeasuring(Conf, true);
+
+  // Prepare TPath.
+  hexToFile(TestWasm, TPath);
+  // Load and validate file
+  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
+  EXPECT_NE(Mod, nullptr);
+  EXPECT_TRUE(validateModule(Conf, Mod));
+
+  // Statistics creation and deletion
+  WasmEdge_StatisticsContext *Stat = WasmEdge_StatisticsCreate();
+  EXPECT_NE(Stat, nullptr);
+  WasmEdge_StatisticsDelete(Stat);
+  EXPECT_TRUE(true);
+  WasmEdge_StatisticsDelete(nullptr);
+  EXPECT_TRUE(true);
+  Stat = WasmEdge_StatisticsCreate();
+  EXPECT_NE(Stat, nullptr);
+
+  // Statistics set cost table
+  std::vector<uint64_t> CostTable(512, 20ULL);
+  WasmEdge_StatisticsSetCostTable(nullptr, &CostTable[0], 512);
+  EXPECT_TRUE(true);
+  WasmEdge_StatisticsSetCostTable(Stat, nullptr, 0);
+  EXPECT_TRUE(true);
+  WasmEdge_StatisticsSetCostTable(Stat, &CostTable[0], 512);
+  EXPECT_TRUE(true);
+
+  // Statistics set cost limit
+  WasmEdge_StatisticsSetCostLimit(Stat, 100000000000000ULL);
+  EXPECT_TRUE(true);
+  WasmEdge_StatisticsSetCostLimit(nullptr, 1ULL);
+  EXPECT_TRUE(true);
+
+  // Executor creation and deletion
+  WasmEdge_ExecutorContext *ExecCxt = WasmEdge_ExecutorCreate(nullptr, nullptr);
+  EXPECT_NE(ExecCxt, nullptr);
+  WasmEdge_ExecutorDelete(ExecCxt);
+  EXPECT_TRUE(true);
+  ExecCxt = WasmEdge_ExecutorCreate(Conf, nullptr);
+  EXPECT_NE(ExecCxt, nullptr);
+  WasmEdge_ExecutorDelete(ExecCxt);
+  EXPECT_TRUE(true);
+  ExecCxt = WasmEdge_ExecutorCreate(nullptr, Stat);
+  EXPECT_NE(ExecCxt, nullptr);
+  WasmEdge_ExecutorDelete(ExecCxt);
+  EXPECT_TRUE(true);
+  ExecCxt = WasmEdge_ExecutorCreate(Conf, Stat);
+  EXPECT_NE(ExecCxt, nullptr);
+  WasmEdge_ExecutorDelete(nullptr);
+  EXPECT_TRUE(true);
+
+  // Register module instance
+  WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
+  EXPECT_NE(HostMod, nullptr);
+  WasmEdge_ModuleInstanceContext *HostModWrap =
+      createExternModule("extern-wrap", true);
+  EXPECT_NE(HostModWrap, nullptr);
+  WasmEdge_ModuleInstanceContext *HostMod2 = createExternModule("extern");
+  EXPECT_NE(HostMod2, nullptr);
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_ExecutorRegisterImport(nullptr, Store, HostMod)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_ExecutorRegisterImport(ExecCxt, nullptr, HostMod)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_ExecutorRegisterImport(ExecCxt, Store, nullptr)));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorRegisterImport(ExecCxt, Store, HostMod)));
+  // Name conflict
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_ModuleNameConflict,
+                 WasmEdge_ExecutorRegisterImport(ExecCxt, Store, HostMod2)));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorRegisterImport(ExecCxt, Store, HostModWrap)));
+  WasmEdge_ModuleInstanceDelete(HostMod2);
+
+  // Register module instance with alias name
+  WasmEdge_ModuleInstanceContext *HostModAlias =
+      createExternModule("extern-alias");
+  EXPECT_NE(HostModAlias, nullptr);
+  WasmEdge_String AliasName = WasmEdge_StringCreateByCString("alias-name");
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_ExecutorRegisterImportWithAlias(
+                             nullptr, Store, HostModAlias, AliasName)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_ExecutorRegisterImportWithAlias(
+                             ExecCxt, nullptr, HostModAlias, AliasName)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_ExecutorRegisterImportWithAlias(
+                             ExecCxt, Store, nullptr, AliasName)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_ExecutorRegisterImportWithAlias(
+      ExecCxt, Store, HostModAlias, AliasName)));
+  // The module should be findable by alias name
+  EXPECT_NE(WasmEdge_StoreFindModule(Store, AliasName), nullptr);
+  // Name conflict with alias name
+  WasmEdge_String AliasName2 = WasmEdge_StringCreateByCString("alias-name");
+  WasmEdge_ModuleInstanceContext *HostModAlias2 =
+      createExternModule("extern-alias2");
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_ModuleNameConflict,
+                         WasmEdge_ExecutorRegisterImportWithAlias(
+                             ExecCxt, Store, HostModAlias2, AliasName2)));
+  WasmEdge_StringDelete(AliasName);
+  WasmEdge_StringDelete(AliasName2);
+
+  // Register wasm module
+  WasmEdge_String ModName = WasmEdge_StringCreateByCString("module");
+  WasmEdge_String ModName2 = WasmEdge_StringCreateByCString("extern");
+  WasmEdge_ModuleInstanceContext *ModRegCxt = nullptr;
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_ExecutorRegister(nullptr, &ModRegCxt, Store, Mod, ModName)));
+  EXPECT_EQ(ModRegCxt, nullptr);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_ExecutorRegister(ExecCxt, nullptr, Store, Mod, ModName)));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_ExecutorRegister(ExecCxt, &ModRegCxt, nullptr, Mod, ModName)));
+  EXPECT_EQ(ModRegCxt, nullptr);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_ExecutorRegister(ExecCxt, &ModRegCxt, Store, nullptr, ModName)));
+  EXPECT_EQ(ModRegCxt, nullptr);
+  // Name conflict
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_ModuleNameConflict,
+      WasmEdge_ExecutorRegister(ExecCxt, &ModRegCxt, Store, Mod, ModName2)));
+  EXPECT_EQ(ModRegCxt, nullptr);
+  // Hasn't validated yet
+  WasmEdge_ASTModuleContext *ModNotValid = loadModule(Conf, TPath);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_NotValidated,
+                         WasmEdge_ExecutorRegister(ExecCxt, &ModRegCxt, Store,
+                                                   ModNotValid, ModName)));
+  EXPECT_EQ(ModRegCxt, nullptr);
+  WasmEdge_ASTModuleDelete(ModNotValid);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorRegister(ExecCxt, &ModRegCxt, Store, Mod, ModName)));
+  EXPECT_NE(ModRegCxt, nullptr);
+  WasmEdge_StringDelete(ModName);
+  WasmEdge_StringDelete(ModName2);
+
+  // Instantiate wasm module
+  WasmEdge_ModuleInstanceContext *ModCxt = nullptr;
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_ExecutorInstantiate(nullptr, &ModCxt, Store, Mod)));
+  EXPECT_EQ(ModCxt, nullptr);
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_ExecutorInstantiate(ExecCxt, nullptr, Store, Mod)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_ExecutorInstantiate(ExecCxt, &ModCxt, nullptr, Mod)));
+  EXPECT_EQ(ModCxt, nullptr);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_ExecutorInstantiate(ExecCxt, &ModCxt, Store, nullptr)));
+  EXPECT_EQ(ModCxt, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorInstantiate(ExecCxt, &ModCxt, Store, Mod)));
+  EXPECT_NE(ModCxt, nullptr);
+  WasmEdge_ASTModuleDelete(Mod);
+
+  // Invoke functions
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString("func-mul-2");
+  WasmEdge_FunctionInstanceContext *FuncCxt =
+      WasmEdge_ModuleInstanceFindFunction(ModCxt, FuncName);
+  EXPECT_NE(FuncCxt, nullptr);
+  WasmEdge_StringDelete(FuncName);
+  WasmEdge_Value P[2], R[2];
+  P[0] = WasmEdge_ValueGenI32(123);
+  P[1] = WasmEdge_ValueGenI32(456);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 2, R, 2)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_ExecutorInvoke(nullptr, FuncCxt, P, 2, R, 2)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_ExecutorInvoke(ExecCxt, nullptr, P, 2, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                 WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 1, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                 WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, nullptr, 0, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                 WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, nullptr, 2, R, 2)));
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                 WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 2, R, 2)));
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Discard result.
+  R[0] = WasmEdge_ValueGenI32(0);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 2, R, 1)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  // Discard result.
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 2, nullptr, 0)));
+  // Discard result.
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 2, nullptr, 1)));
+
+  // Invoke functions call to host functions
+  // Get table and set external reference
+  uint32_t TestValue;
+  WasmEdge_String TabName = WasmEdge_StringCreateByCString("tab-ext");
+  WasmEdge_TableInstanceContext *TabCxt =
+      WasmEdge_ModuleInstanceFindTable(ModCxt, TabName);
+  EXPECT_NE(TabCxt, nullptr);
+  WasmEdge_StringDelete(TabName);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_TableInstanceSetData(
+      TabCxt, WasmEdge_ValueGenExternRef(&TestValue), 0)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_TableInstanceSetData(
+      TabCxt, WasmEdge_ValueGenExternRef(&TestValue), 1)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_TableInstanceSetData(
+      TabCxt, WasmEdge_ValueGenExternRef(&TestValue), 2)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_TableInstanceSetData(
+      TabCxt, WasmEdge_ValueGenExternRef(&TestValue), 3)));
+  // Call add: (777) + (223)
+  FuncName = WasmEdge_StringCreateByCString("func-host-add");
+  FuncCxt = WasmEdge_ModuleInstanceFindFunction(ModCxt, FuncName);
+  EXPECT_NE(FuncCxt, nullptr);
+  WasmEdge_StringDelete(FuncName);
+  P[0] = WasmEdge_ValueGenI32(223);
+  TestValue = 777;
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 1, R, 1)));
+  EXPECT_EQ(1000, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+
+  // The "extern" host module is now finalized (a host function was invoked), so
+  // adding to it fails with WrongVMWorkflow and the caller keeps ownership.
+  {
+    WasmEdge_String FinName = WasmEdge_StringCreateByCString("func-finalized");
+    WasmEdge_ValType FinParam[2] = {WasmEdge_ValTypeGenExternRef(),
+                                    WasmEdge_ValTypeGenI32()},
+                     FinResult[1] = {WasmEdge_ValTypeGenI32()};
+    WasmEdge_FunctionTypeContext *FinFType =
+        WasmEdge_FunctionTypeCreate(FinParam, 2, FinResult, 1);
+    WasmEdge_FunctionInstanceContext *FinFunc =
+        WasmEdge_FunctionInstanceCreate(FinFType, externAdd, nullptr, 0);
+    EXPECT_TRUE(isErrMatch(
+        WasmEdge_ErrCode_WrongVMWorkflow,
+        WasmEdge_ModuleInstanceAddFunction(HostMod, FinName, FinFunc)));
+    // Add failed: the caller still owns FinFunc and must destroy it.
+    WasmEdge_FunctionInstanceDelete(FinFunc);
+    WasmEdge_FunctionTypeDelete(FinFType);
+    WasmEdge_StringDelete(FinName);
+  }
+
+  // Call sub: (123) - (456)
+  FuncName = WasmEdge_StringCreateByCString("func-host-sub");
+  FuncCxt = WasmEdge_ModuleInstanceFindFunction(ModCxt, FuncName);
+  EXPECT_NE(FuncCxt, nullptr);
+  WasmEdge_StringDelete(FuncName);
+  P[0] = WasmEdge_ValueGenI32(456);
+  TestValue = 123;
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 1, R, 1)));
+  EXPECT_EQ(-333, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  // Call mul: (-30) * (-66)
+  FuncName = WasmEdge_StringCreateByCString("func-host-mul");
+  FuncCxt = WasmEdge_ModuleInstanceFindFunction(ModCxt, FuncName);
+  EXPECT_NE(FuncCxt, nullptr);
+  WasmEdge_StringDelete(FuncName);
+  P[0] = WasmEdge_ValueGenI32(-66);
+  TestValue = static_cast<uint32_t>(-30);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 1, R, 1)));
+  EXPECT_EQ(1980, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  // Call div: (-9999) / (1234)
+  FuncName = WasmEdge_StringCreateByCString("func-host-div");
+  FuncCxt = WasmEdge_ModuleInstanceFindFunction(ModCxt, FuncName);
+  EXPECT_NE(FuncCxt, nullptr);
+  WasmEdge_StringDelete(FuncName);
+  P[0] = WasmEdge_ValueGenI32(1234);
+  TestValue = static_cast<uint32_t>(-9999);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 1, R, 1)));
+  EXPECT_EQ(-8, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+
+  // Invoke functions of registered module
+  FuncName = WasmEdge_StringCreateByCString("func-add");
+  FuncCxt = WasmEdge_ModuleInstanceFindFunction(HostMod, FuncName);
+  EXPECT_NE(FuncCxt, nullptr);
+  WasmEdge_StringDelete(FuncName);
+  TestValue = 5000;
+  P[0] = WasmEdge_ValueGenExternRef(&TestValue);
+  P[1] = WasmEdge_ValueGenI32(1500);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 2, R, 1)));
+  EXPECT_EQ(6500, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+
+  // Invoke host function to terminate or fail execution
+  FuncName = WasmEdge_StringCreateByCString("func-term");
+  FuncCxt = WasmEdge_ModuleInstanceFindFunction(HostMod, FuncName);
+  EXPECT_NE(FuncCxt, nullptr);
+  WasmEdge_StringDelete(FuncName);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, nullptr, 0, R, 1)));
+  FuncName = WasmEdge_StringCreateByCString("func-fail");
+  FuncCxt = WasmEdge_ModuleInstanceFindFunction(HostMod, FuncName);
+  EXPECT_NE(FuncCxt, nullptr);
+  WasmEdge_StringDelete(FuncName);
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCategory_UserLevelError, 0x5678U,
+                 WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, nullptr, 0, R, 1)));
+
+  // Invoke host function with binding to functions
+  FuncName = WasmEdge_StringCreateByCString("func-sub");
+  FuncCxt = WasmEdge_ModuleInstanceFindFunction(HostModWrap, FuncName);
+  EXPECT_NE(FuncCxt, nullptr);
+  WasmEdge_StringDelete(FuncName);
+  TestValue = 1234;
+  P[0] = WasmEdge_ValueGenExternRef(&TestValue);
+  P[1] = WasmEdge_ValueGenI32(1500);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 2, R, 1)));
+  EXPECT_EQ(-266, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  FuncName = WasmEdge_StringCreateByCString("func-term");
+  FuncCxt = WasmEdge_ModuleInstanceFindFunction(HostModWrap, FuncName);
+  EXPECT_NE(FuncCxt, nullptr);
+  WasmEdge_StringDelete(FuncName);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, nullptr, 0, R, 1)));
+  FuncName = WasmEdge_StringCreateByCString("func-fail");
+  FuncCxt = WasmEdge_ModuleInstanceFindFunction(HostModWrap, FuncName);
+  EXPECT_NE(FuncCxt, nullptr);
+  WasmEdge_StringDelete(FuncName);
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCategory_UserLevelError, 0x5678U,
+                 WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, nullptr, 0, R, 1)));
+
+  // Invoke independent host functions
+  // host function "func-add": {externref, i32} -> {i32}
+  WasmEdge_ValType Result[1] = {WasmEdge_ValTypeGenI32()};
+  WasmEdge_FunctionTypeContext *FuncType =
+      WasmEdge_FunctionTypeCreate(nullptr, 0, Result, 1);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, externTerm, nullptr, 0);
+  WasmEdge_FunctionTypeDelete(FuncType);
+  EXPECT_NE(FuncCxt, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, nullptr, 0, R, 1)));
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  EXPECT_TRUE(true);
+
+  // Statistics get instruction count
+  EXPECT_GT(WasmEdge_StatisticsGetInstrCount(Stat), 0ULL);
+  EXPECT_EQ(WasmEdge_StatisticsGetInstrCount(nullptr), 0ULL);
+
+  // Statistics get instruction per second
+  EXPECT_GT(WasmEdge_StatisticsGetInstrPerSecond(Stat), 0.0);
+  EXPECT_EQ(WasmEdge_StatisticsGetInstrPerSecond(nullptr), 0.0);
+
+  // Statistics get total cost
+  EXPECT_GT(WasmEdge_StatisticsGetTotalCost(Stat), 0ULL);
+  EXPECT_EQ(WasmEdge_StatisticsGetTotalCost(nullptr), 0ULL);
+
+  // Statistics clear
+  WasmEdge_StatisticsClear(Stat);
+  EXPECT_TRUE(true);
+  WasmEdge_StatisticsClear(nullptr);
+  EXPECT_TRUE(true);
+
+  WasmEdge_ConfigureDelete(Conf);
+  WasmEdge_ExecutorDelete(ExecCxt);
+  WasmEdge_StoreDelete(Store);
+  WasmEdge_StatisticsDelete(Stat);
+  WasmEdge_ModuleInstanceDelete(ModCxt);
+  WasmEdge_ModuleInstanceDelete(ModRegCxt);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+  WasmEdge_ModuleInstanceDelete(HostModWrap);
+  WasmEdge_ModuleInstanceDelete(HostModAlias);
+  WasmEdge_ModuleInstanceDelete(HostModAlias2);
+}
+
+TEST(APICoreTest, Store) {
+  // Create contexts
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
+  WasmEdge_String Names[15], ErrName, ModName[3];
+  ModName[0] = WasmEdge_StringCreateByCString("module");
+  ModName[1] = WasmEdge_StringCreateByCString("extern");
+  ModName[2] = WasmEdge_StringCreateByCString("no-such-module");
+  ErrName = WasmEdge_StringCreateByCString("invalid-instance-name");
+
+  // Store list module before instantiation
+  EXPECT_EQ(WasmEdge_StoreListModuleLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_StoreListModuleLength(Store), 0U);
+  EXPECT_EQ(WasmEdge_StoreListModule(nullptr, Names, 15), 0U);
+  EXPECT_EQ(WasmEdge_StoreListModule(Store, nullptr, 15), 0U);
+  EXPECT_EQ(WasmEdge_StoreListModule(Store, Names, 15), 0U);
+
+  // Prepare TPath.
+  hexToFile(TestWasm, TPath);
+  // Register host module and instantiate wasm module
+  WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_TRUE(registerModule(Conf, Store, HostMod));
+  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
+  EXPECT_NE(Mod, nullptr);
+  EXPECT_TRUE(validateModule(Conf, Mod));
+  WasmEdge_ModuleInstanceContext *ModRegCxt =
+      registerModule(Conf, Store, Mod, "module");
+  EXPECT_NE(ModRegCxt, nullptr);
+  WasmEdge_ModuleInstanceContext *ModCxt = instantiateModule(Conf, Store, Mod);
+  EXPECT_NE(ModCxt, nullptr);
+  WasmEdge_ASTModuleDelete(Mod);
+  WasmEdge_ConfigureDelete(Conf);
+
+  // Store find module
+  EXPECT_EQ(WasmEdge_StoreFindModule(Store, ModName[0]), ModRegCxt);
+  EXPECT_EQ(WasmEdge_StoreFindModule(Store, ModName[1]), HostMod);
+  EXPECT_EQ(WasmEdge_StoreFindModule(nullptr, ModName[1]), nullptr);
+  EXPECT_EQ(WasmEdge_StoreFindModule(Store, ModName[2]), nullptr);
+
+  // Store list module
+  EXPECT_EQ(WasmEdge_StoreListModuleLength(Store), 2U);
+  EXPECT_EQ(WasmEdge_StoreListModuleLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_StoreListModule(nullptr, Names, 15), 0U);
+  EXPECT_EQ(WasmEdge_StoreListModule(Store, nullptr, 15), 2U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_StoreListModule(Store, Names, 1), 2U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_StoreListModule(Store, Names, 15), 2U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "module"sv);
+
+  // Get the module name from a module instance.
+  Names[0] = WasmEdge_ModuleInstanceGetModuleName(nullptr);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), ""sv);
+  Names[0] = WasmEdge_ModuleInstanceGetModuleName(ModCxt);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), ""sv);
+  Names[0] = WasmEdge_ModuleInstanceGetModuleName(ModRegCxt);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "module"sv);
+  Names[0] = WasmEdge_ModuleInstanceGetModuleName(HostMod);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
+
+  // Module instance list function exports
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunctionLength(ModCxt), 11U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunctionLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(nullptr, Names, 15), 0U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModCxt, nullptr, 15), 11U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModCxt, Names, 4), 11U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "func-1"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "func-2"sv);
+  EXPECT_EQ(std::string_view(Names[2].Buf, Names[2].Length), "func-3"sv);
+  EXPECT_EQ(std::string_view(Names[3].Buf, Names[3].Length), "func-4"sv);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModCxt, Names, 15), 11U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "func-1"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "func-2"sv);
+  EXPECT_EQ(std::string_view(Names[2].Buf, Names[2].Length), "func-3"sv);
+  EXPECT_EQ(std::string_view(Names[3].Buf, Names[3].Length), "func-4"sv);
+  EXPECT_EQ(std::string_view(Names[4].Buf, Names[4].Length), "func-add"sv);
+  EXPECT_EQ(std::string_view(Names[5].Buf, Names[5].Length),
+            "func-call-indirect"sv);
+  EXPECT_EQ(std::string_view(Names[6].Buf, Names[6].Length), "func-host-add"sv);
+  EXPECT_EQ(std::string_view(Names[7].Buf, Names[7].Length), "func-host-div"sv);
+  EXPECT_EQ(std::string_view(Names[8].Buf, Names[8].Length), "func-host-mul"sv);
+  EXPECT_EQ(std::string_view(Names[9].Buf, Names[9].Length), "func-host-sub"sv);
+  EXPECT_EQ(std::string_view(Names[10].Buf, Names[10].Length), "func-mul-2"sv);
+
+  // Module instance find function
+  EXPECT_NE(WasmEdge_ModuleInstanceFindFunction(ModCxt, Names[7]), nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindFunction(nullptr, Names[7]), nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindFunction(ModCxt, ErrName), nullptr);
+
+  // Module instance list table exports
+  EXPECT_EQ(WasmEdge_ModuleInstanceListTableLength(ModCxt), 2U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListTableLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListTable(nullptr, Names, 15), 0U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListTable(ModCxt, nullptr, 15), 2U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListTable(ModCxt, Names, 1), 2U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "tab-ext"sv);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListTable(ModCxt, Names, 15), 2U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "tab-ext"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "tab-func"sv);
+
+  // Module instance find table
+  EXPECT_NE(WasmEdge_ModuleInstanceFindTable(ModCxt, Names[1]), nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindTable(nullptr, Names[1]), nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindTable(ModCxt, ErrName), nullptr);
+
+  // Module instance list memory exports
+  EXPECT_EQ(WasmEdge_ModuleInstanceListMemoryLength(ModCxt), 1U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListMemoryLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListMemory(nullptr, Names, 15), 0U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListMemory(ModCxt, nullptr, 15), 1U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListMemory(ModCxt, Names, 0), 1U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListMemory(ModCxt, Names, 15), 1U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "mem"sv);
+
+  // Module instance find memory
+  EXPECT_NE(WasmEdge_ModuleInstanceFindMemory(ModCxt, Names[0]), nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindMemory(nullptr, Names[0]), nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindMemory(ModCxt, ErrName), nullptr);
+
+  // Module instance list global exports
+  EXPECT_EQ(WasmEdge_ModuleInstanceListGlobalLength(ModCxt), 2U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListGlobalLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListGlobal(nullptr, Names, 15), 0U);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListGlobal(ModCxt, nullptr, 15), 2U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListGlobal(ModCxt, Names, 1), 2U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length),
+            "glob-const-f32"sv);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListGlobal(ModCxt, Names, 15), 2U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length),
+            "glob-const-f32"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "glob-mut-i32"sv);
+
+  // Module instance find global
+  EXPECT_NE(WasmEdge_ModuleInstanceFindGlobal(ModCxt, Names[1]), nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindGlobal(nullptr, Names[1]), nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceFindGlobal(ModCxt, ErrName), nullptr);
+
+  // Delete module
+  WasmEdge_ModuleInstanceDelete(HostMod);
+  WasmEdge_ModuleInstanceDelete(ModCxt);
+  WasmEdge_ModuleInstanceDelete(ModRegCxt);
+
+  // Test store after module deletion
+  EXPECT_EQ(WasmEdge_StoreListModuleLength(Store), 0U);
+
+  // Store deletion
+  WasmEdge_StoreDelete(nullptr);
+  EXPECT_TRUE(true);
+
+  WasmEdge_StringDelete(ModName[0]);
+  WasmEdge_StringDelete(ModName[1]);
+  WasmEdge_StringDelete(ModName[2]);
+  WasmEdge_StringDelete(ErrName);
+  WasmEdge_StoreDelete(Store);
+}
+
+TEST(APICoreTest, Instance) {
+  WasmEdge_ValType VType;
+  WasmEdge_Value Val, TmpVal;
+
+  // WasmEdge_ModuleInstanceContext related APIs tested in `Store` and
+  // `ModuleInstance` test case.
+
+  // Function instance
+  WasmEdge_FunctionInstanceContext *FuncCxt;
+  WasmEdge_ValType Param[2], Result[1];
+  Param[0] = WasmEdge_ValTypeGenExternRef();
+  Param[1] = WasmEdge_ValTypeGenI32();
+  Result[0] = WasmEdge_ValTypeGenI32();
+  WasmEdge_FunctionTypeContext *FuncType =
+      WasmEdge_FunctionTypeCreate(Param, 2, Result, 1);
+
+  // Function instance creation
+  // host function "func-add": {externref, i32} -> {i32}
+  FuncCxt = WasmEdge_FunctionInstanceCreate(nullptr, externAdd, nullptr, 0);
+  EXPECT_EQ(FuncCxt, nullptr);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, nullptr, nullptr, 0);
+  EXPECT_EQ(FuncCxt, nullptr);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, externAdd, nullptr, 0);
+  EXPECT_NE(FuncCxt, nullptr);
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  EXPECT_TRUE(true);
+
+  // Function instance create binding
+  // host function for binding "func-add-binding": {externref, i32} -> {i32}
+  FuncCxt = WasmEdge_FunctionInstanceCreateBinding(
+      nullptr, externWrap, reinterpret_cast<void *>(externAdd), nullptr, 0);
+  EXPECT_EQ(FuncCxt, nullptr);
+  FuncCxt = WasmEdge_FunctionInstanceCreateBinding(
+      FuncType, nullptr, reinterpret_cast<void *>(externAdd), nullptr, 0);
+  EXPECT_EQ(FuncCxt, nullptr);
+  FuncCxt = WasmEdge_FunctionInstanceCreateBinding(
+      FuncType, externWrap, reinterpret_cast<void *>(externAdd), nullptr, 0);
+  EXPECT_NE(FuncCxt, nullptr);
+  WasmEdge_FunctionTypeDelete(FuncType);
+
+  // Get the function type from a function instance.
+  EXPECT_EQ(WasmEdge_FunctionTypeGetParametersLength(
+                WasmEdge_FunctionInstanceGetFunctionType(FuncCxt)),
+            2U);
+  EXPECT_EQ(WasmEdge_FunctionTypeGetReturnsLength(
+                WasmEdge_FunctionInstanceGetFunctionType(FuncCxt)),
+            1U);
+  EXPECT_NE(WasmEdge_FunctionInstanceGetFunctionType(FuncCxt), nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetFunctionType(nullptr), nullptr);
+
+  // Function instance deletion
+  WasmEdge_FunctionInstanceDelete(nullptr);
+  EXPECT_TRUE(true);
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  EXPECT_TRUE(true);
+
+  // Get the host function data from a function instance.
+  uint32_t HostData = 0U;
+  FuncType = WasmEdge_FunctionTypeCreate(Param, 2, Result, 1);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, externAdd, &HostData, 0);
+  EXPECT_NE(FuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(FuncCxt), &HostData);
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  FuncCxt = WasmEdge_FunctionInstanceCreateBinding(
+      FuncType, externWrap, reinterpret_cast<void *>(externAdd), &HostData, 0);
+  EXPECT_NE(FuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(FuncCxt), &HostData);
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, externAdd, nullptr, 0);
+  EXPECT_NE(FuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(FuncCxt), nullptr);
+  WasmEdge_FunctionInstanceDelete(FuncCxt);
+  WasmEdge_FunctionTypeDelete(FuncType);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(nullptr), nullptr);
+
+  // Get the host function data from the function instances not created by
+  // the C API.
+  hexToFile(TestWasm, TPath);
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
+  WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_TRUE(registerModule(Conf, Store, HostMod));
+  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
+  EXPECT_NE(Mod, nullptr);
+  EXPECT_TRUE(validateModule(Conf, Mod));
+  WasmEdge_ModuleInstanceContext *ModCxt = instantiateModule(Conf, Store, Mod);
+  EXPECT_NE(ModCxt, nullptr);
+  WasmEdge_ASTModuleDelete(Mod);
+  WasmEdge_String WasmFuncName = WasmEdge_StringCreateByCString("func-mul-2");
+  WasmEdge_FunctionInstanceContext *WasmFuncCxt =
+      WasmEdge_ModuleInstanceFindFunction(ModCxt, WasmFuncName);
+  WasmEdge_StringDelete(WasmFuncName);
+  EXPECT_NE(WasmFuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(WasmFuncCxt), nullptr);
+  WasmEdge_ModuleInstanceContext *WasiMod =
+      WasmEdge_ModuleInstanceCreateWASI(nullptr, 0, nullptr, 0, nullptr, 0);
+  EXPECT_NE(WasiMod, nullptr);
+  WasmEdge_String WasiFuncName = WasmEdge_StringCreateByCString("proc_exit");
+  WasmEdge_FunctionInstanceContext *WasiFuncCxt =
+      WasmEdge_ModuleInstanceFindFunction(WasiMod, WasiFuncName);
+  WasmEdge_StringDelete(WasiFuncName);
+  EXPECT_NE(WasiFuncCxt, nullptr);
+  EXPECT_EQ(WasmEdge_FunctionInstanceGetData(WasiFuncCxt), nullptr);
+  WasmEdge_ModuleInstanceDelete(ModCxt);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+  WasmEdge_ModuleInstanceDelete(WasiMod);
+  WasmEdge_StoreDelete(Store);
+  WasmEdge_ConfigureDelete(Conf);
+
+  // Table instance
+  WasmEdge_LimitContext *TabLim;
+  WasmEdge_TableInstanceContext *TabCxt;
+  WasmEdge_TableTypeContext *TabType;
+
+  // Table instance creation
+  TabCxt = WasmEdge_TableInstanceCreate(nullptr);
+  EXPECT_EQ(TabCxt, nullptr);
+  TabLim = WasmEdge_LimitCreate(10, false);
+  TabType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
+  TabCxt = WasmEdge_TableInstanceCreate(TabType);
+  WasmEdge_LimitDelete(TabLim);
+  WasmEdge_TableTypeDelete(TabType);
+  EXPECT_NE(TabCxt, nullptr);
+  WasmEdge_TableInstanceDelete(TabCxt);
+  EXPECT_TRUE(true);
+  TabLim = WasmEdge_LimitCreateWithMax(10, 20, false, false);
+  TabType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), TabLim);
+  TabCxt = WasmEdge_TableInstanceCreate(TabType);
+  WasmEdge_LimitDelete(TabLim);
+  WasmEdge_TableTypeDelete(TabType);
+  EXPECT_NE(TabCxt, nullptr);
+
+  // Get the table type from a table instance.
+  EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(WasmEdge_TableTypeGetRefType(
+      WasmEdge_TableInstanceGetTableType(TabCxt))));
+  EXPECT_EQ(WasmEdge_TableInstanceGetTableType(nullptr), nullptr);
+
+  // Table instance set data
+  Val = WasmEdge_ValueGenExternRef(&TabCxt);
+  TmpVal = WasmEdge_ValueGenFuncRef(nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_TableInstanceSetData(TabCxt, Val, 5)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
+                         WasmEdge_TableInstanceSetData(TabCxt, TmpVal, 6)));
+  TmpVal = WasmEdge_ValueGenI32(0);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
+                         WasmEdge_TableInstanceSetData(TabCxt, TmpVal, 7)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_TableInstanceSetData(nullptr, Val, 5)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_TableOutOfBounds,
+                         WasmEdge_TableInstanceSetData(TabCxt, Val, 15)));
+
+  // Get data from a table instance.
+  Val = WasmEdge_ValueGenI32(0);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_TableInstanceGetData(TabCxt, &Val, 5)));
+  EXPECT_EQ(reinterpret_cast<WasmEdge_TableInstanceContext **>(
+                WasmEdge_ValueGetExternRef(Val)),
+            &TabCxt);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_TableInstanceGetData(nullptr, &Val, 5)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_TableOutOfBounds,
+                         WasmEdge_TableInstanceGetData(TabCxt, &Val, 15)));
+
+  // Get the size of a table instance and grow it.
+  EXPECT_EQ(WasmEdge_TableInstanceGetSize(TabCxt), 10U);
+  EXPECT_EQ(WasmEdge_TableInstanceGetSize(nullptr), 0U);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_TableInstanceGrow(nullptr, 8)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_TableInstanceGrow(TabCxt, 8)));
+  EXPECT_EQ(WasmEdge_TableInstanceGetSize(TabCxt), 18U);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_TableOutOfBounds,
+                         WasmEdge_TableInstanceGrow(TabCxt, 8)));
+  EXPECT_EQ(WasmEdge_TableInstanceGetSize(TabCxt), 18U);
+  Val = WasmEdge_ValueGenExternRef(&TabCxt);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_TableInstanceSetData(TabCxt, Val, 15)));
+  Val = WasmEdge_ValueGenI32(0);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_TableInstanceGetData(TabCxt, &Val, 15)));
+  EXPECT_EQ(reinterpret_cast<WasmEdge_TableInstanceContext **>(
+                WasmEdge_ValueGetExternRef(Val)),
+            &TabCxt);
+
+  // Table instance deletion
+  WasmEdge_TableInstanceDelete(nullptr);
+  EXPECT_TRUE(true);
+  WasmEdge_TableInstanceDelete(TabCxt);
+  EXPECT_TRUE(true);
+
+  // Table instance create with init
+  VType = WasmEdge_ValTypeGenExternRef();
+  // TODO: Forcibly change to non-nullable. Refine this after providing the
+  // corresponding API.
+  VType.Data[2] = WasmEdge_TypeCode_Ref;
+  TabLim = WasmEdge_LimitCreate(10, false);
+  TabType = WasmEdge_TableTypeCreate(VType, TabLim);
+  WasmEdge_LimitDelete(TabLim);
+  TabCxt = WasmEdge_TableInstanceCreate(TabType);
+  EXPECT_EQ(TabCxt, nullptr);
+  Val = WasmEdge_ValueGenFuncRef(nullptr);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(nullptr, Val);
+  EXPECT_EQ(TabCxt, nullptr);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
+  EXPECT_EQ(TabCxt, nullptr);
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
+  EXPECT_EQ(TabCxt, nullptr);
+  Val = WasmEdge_ValueGenExternRef(&TabType);
+  TabCxt = WasmEdge_TableInstanceCreateWithInit(TabType, Val);
+  EXPECT_NE(TabCxt, nullptr);
+  WasmEdge_TableTypeDelete(TabType);
+
+  // Table instance set data with non-nullable reference
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_TableInstanceSetData(TabCxt, Val, 5)));
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_NonNullRequired,
+                         WasmEdge_TableInstanceSetData(TabCxt, Val, 5)));
+  WasmEdge_TableInstanceDelete(TabCxt);
+
+  // Memory instance
+  WasmEdge_LimitContext *MemLim;
+  WasmEdge_MemoryInstanceContext *MemCxt;
+  WasmEdge_MemoryTypeContext *MemType;
+
+  // Memory instance creation
+  MemCxt = WasmEdge_MemoryInstanceCreate(nullptr);
+  EXPECT_EQ(MemCxt, nullptr);
+  MemLim = WasmEdge_LimitCreate(1, false);
+  MemType = WasmEdge_MemoryTypeCreate(MemLim);
+  MemCxt = WasmEdge_MemoryInstanceCreate(MemType);
+  WasmEdge_LimitDelete(MemLim);
+  WasmEdge_MemoryTypeDelete(MemType);
+  EXPECT_NE(MemCxt, nullptr);
+  WasmEdge_MemoryInstanceDelete(MemCxt);
+  EXPECT_TRUE(true);
+  MemLim = WasmEdge_LimitCreateWithMax(1, 3, false, false);
+  MemType = WasmEdge_MemoryTypeCreate(MemLim);
+  MemCxt = WasmEdge_MemoryInstanceCreate(MemType);
+  WasmEdge_LimitDelete(MemLim);
+  WasmEdge_MemoryTypeDelete(MemType);
+  EXPECT_NE(MemCxt, nullptr);
+
+  // Get the memory type from a memory instance.
+  EXPECT_NE(WasmEdge_MemoryInstanceGetMemoryType(MemCxt), nullptr);
+  EXPECT_EQ(WasmEdge_MemoryInstanceGetMemoryType(nullptr), nullptr);
+
+  // Memory instance set data
+  std::vector<uint8_t> DataSet = {'t', 'e', 's', 't', ' ',
+                                  'd', 'a', 't', 'a', '\n'};
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_MemoryInstanceSetData(MemCxt, DataSet.data(), 100, 10)));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_MemoryInstanceSetData(nullptr, DataSet.data(), 100, 10)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_MemoryInstanceSetData(MemCxt, nullptr, 100, 0)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_MemoryInstanceSetData(nullptr, nullptr, 100, 0)));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_MemoryInstanceSetData(MemCxt, DataSet.data(), 100, 0)));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_MemoryOutOfBounds,
+      WasmEdge_MemoryInstanceSetData(MemCxt, DataSet.data(), 65536, 10)));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_MemoryOutOfBounds,
+      WasmEdge_MemoryInstanceSetData(MemCxt, DataSet.data(), 65530, 10)));
+
+  // Get data from a memory instance.
+  std::vector<uint8_t> DataGet;
+  DataGet.resize(10);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_MemoryInstanceGetData(MemCxt, DataGet.data(), 100, 10)));
+  EXPECT_EQ(DataGet, DataSet);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_MemoryInstanceGetData(nullptr, DataGet.data(), 100, 10)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_MemoryInstanceGetData(MemCxt, nullptr, 100, 0)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_MemoryInstanceGetData(nullptr, nullptr, 100, 0)));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_MemoryInstanceGetData(MemCxt, DataGet.data(), 100, 0)));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_MemoryOutOfBounds,
+      WasmEdge_MemoryInstanceGetData(MemCxt, DataGet.data(), 65536, 10)));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_MemoryOutOfBounds,
+      WasmEdge_MemoryInstanceGetData(MemCxt, DataGet.data(), 65530, 10)));
+
+  // Get a pointer from a memory instance.
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointer(nullptr, 100, 10));
+  EXPECT_NE(nullptr, WasmEdge_MemoryInstanceGetPointer(MemCxt, 100, 10));
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointer(MemCxt, 65536, 10));
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointer(MemCxt, 65530, 10));
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointerConst(nullptr, 100, 10));
+  EXPECT_NE(nullptr, WasmEdge_MemoryInstanceGetPointerConst(MemCxt, 100, 10));
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointerConst(MemCxt, 65536, 10));
+  EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointerConst(MemCxt, 65530, 10));
+  EXPECT_TRUE(std::equal(DataSet.cbegin(), DataSet.cend(),
+                         WasmEdge_MemoryInstanceGetPointer(MemCxt, 100, 10)));
+  EXPECT_TRUE(
+      std::equal(DataSet.cbegin(), DataSet.cend(),
+                 WasmEdge_MemoryInstanceGetPointerConst(MemCxt, 100, 10)));
+
+  // Get the size of a memory instance and grow it.
+  EXPECT_EQ(WasmEdge_MemoryInstanceGetPageSize(MemCxt), 1U);
+  EXPECT_EQ(WasmEdge_MemoryInstanceGetPageSize(nullptr), 0U);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_MemoryInstanceGrowPage(nullptr, 1)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_MemoryInstanceGrowPage(MemCxt, 1)));
+  EXPECT_EQ(WasmEdge_MemoryInstanceGetPageSize(MemCxt), 2U);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_MemoryOutOfBounds,
+                         WasmEdge_MemoryInstanceGrowPage(MemCxt, 2)));
+  EXPECT_EQ(WasmEdge_MemoryInstanceGetPageSize(MemCxt), 2U);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_MemoryInstanceSetData(MemCxt, DataSet.data(), 70000, 10)));
+  DataGet.clear();
+  DataGet.resize(10);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_MemoryInstanceGetData(MemCxt, DataGet.data(), 70000, 10)));
+  EXPECT_EQ(DataGet, DataSet);
+
+  // Memory instance deletion
+  WasmEdge_MemoryInstanceDelete(nullptr);
+  EXPECT_TRUE(true);
+  WasmEdge_MemoryInstanceDelete(MemCxt);
+  EXPECT_TRUE(true);
+
+  // Global instance
+  WasmEdge_GlobalInstanceContext *GlobCCxt, *GlobVCxt;
+  WasmEdge_GlobalTypeContext *GlobCType, *GlobVType;
+
+  // Global instance creation
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(nullptr, WasmEdge_ValueGenI32(0));
+  EXPECT_EQ(GlobVCxt, nullptr);
+  GlobVType = WasmEdge_GlobalTypeCreate(WasmEdge_ValTypeGenF32(),
+                                        WasmEdge_Mutability_Var);
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, WasmEdge_ValueGenI32(0));
+  WasmEdge_GlobalTypeDelete(GlobVType);
+  EXPECT_EQ(GlobVCxt, nullptr);
+  GlobCType = WasmEdge_GlobalTypeCreate(WasmEdge_ValTypeGenI64(),
+                                        WasmEdge_Mutability_Const);
+  GlobVType = WasmEdge_GlobalTypeCreate(WasmEdge_ValTypeGenI64(),
+                                        WasmEdge_Mutability_Var);
+  GlobCCxt = WasmEdge_GlobalInstanceCreate(GlobCType,
+                                           WasmEdge_ValueGenI64(55555555555LL));
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType,
+                                           WasmEdge_ValueGenI64(66666666666LL));
+  WasmEdge_GlobalTypeDelete(GlobCType);
+  WasmEdge_GlobalTypeDelete(GlobVType);
+  EXPECT_NE(GlobCCxt, nullptr);
+  EXPECT_NE(GlobVCxt, nullptr);
+
+  // Get the global type from a global instance.
+  EXPECT_TRUE(WasmEdge_ValTypeIsI64(WasmEdge_GlobalTypeGetValType(
+      WasmEdge_GlobalInstanceGetGlobalType(GlobCCxt))));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI64(WasmEdge_GlobalTypeGetValType(
+      WasmEdge_GlobalInstanceGetGlobalType(GlobVCxt))));
+  EXPECT_EQ(WasmEdge_GlobalTypeGetMutability(
+                WasmEdge_GlobalInstanceGetGlobalType(GlobCCxt)),
+            WasmEdge_Mutability_Const);
+  EXPECT_EQ(WasmEdge_GlobalTypeGetMutability(
+                WasmEdge_GlobalInstanceGetGlobalType(GlobVCxt)),
+            WasmEdge_Mutability_Var);
+  EXPECT_EQ(WasmEdge_GlobalInstanceGetGlobalType(nullptr), nullptr);
+
+  // Get a value from a global instance.
+  Val = WasmEdge_GlobalInstanceGetValue(GlobCCxt);
+  EXPECT_EQ(WasmEdge_ValueGetI64(Val), 55555555555LL);
+  Val = WasmEdge_GlobalInstanceGetValue(GlobVCxt);
+  EXPECT_EQ(WasmEdge_ValueGetI64(Val), 66666666666LL);
+  Val = WasmEdge_GlobalInstanceGetValue(nullptr);
+  EXPECT_EQ(WasmEdge_ValueGetI64(Val), 0LL);
+
+  // Global instance set value
+  Val = WasmEdge_ValueGenI64(77777777777LL);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_SetValueToConst,
+                         WasmEdge_GlobalInstanceSetValue(GlobCCxt, Val)));
+  Val = WasmEdge_GlobalInstanceGetValue(GlobCCxt);
+  EXPECT_EQ(WasmEdge_ValueGetI64(Val), 55555555555LL);
+  Val = WasmEdge_ValueGenI64(88888888888LL);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
+  Val = WasmEdge_GlobalInstanceGetValue(GlobVCxt);
+  EXPECT_EQ(WasmEdge_ValueGetI64(Val), 88888888888LL);
+  Val = WasmEdge_ValueGenF32(12.345f);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_SetValueErrorType,
+                         WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
+  Val = WasmEdge_GlobalInstanceGetValue(GlobVCxt);
+  EXPECT_EQ(WasmEdge_ValueGetI64(Val), 88888888888LL);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_GlobalInstanceSetValue(nullptr, Val)));
+
+  // Global instance deletion
+  WasmEdge_GlobalInstanceDelete(nullptr);
+  EXPECT_TRUE(true);
+  WasmEdge_GlobalInstanceDelete(GlobCCxt);
+  EXPECT_TRUE(true);
+  WasmEdge_GlobalInstanceDelete(GlobVCxt);
+  EXPECT_TRUE(true);
+
+  // Global instance with non-nullable reference
+  VType = WasmEdge_ValTypeGenExternRef();
+  // TODO: Forcibly change to non-nullable. Refine this after providing the
+  // corresponding API.
+  VType.Data[2] = WasmEdge_TypeCode_Ref;
+  GlobVType = WasmEdge_GlobalTypeCreate(VType, WasmEdge_Mutability_Var);
+  Val = WasmEdge_ValueGenFuncRef(nullptr);
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
+  EXPECT_EQ(GlobVCxt, nullptr);
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
+  EXPECT_EQ(GlobVCxt, nullptr);
+  Val = WasmEdge_ValueGenExternRef(&GlobVType);
+  GlobVCxt = WasmEdge_GlobalInstanceCreate(GlobVType, Val);
+  EXPECT_NE(GlobVCxt, nullptr);
+  WasmEdge_GlobalTypeDelete(GlobVType);
+
+  // Global instance set value with non-nullable reference
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
+  Val = WasmEdge_ValueGenExternRef(nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_NonNullRequired,
+                         WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
+  Val = WasmEdge_ValueGenFuncRef(nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_RefTypeMismatch,
+                         WasmEdge_GlobalInstanceSetValue(GlobVCxt, Val)));
+  WasmEdge_GlobalInstanceDelete(GlobVCxt);
+}
+
+TEST(APICoreTest, ModuleInstance) {
+  WasmEdge_String HostName;
+  WasmEdge_ConfigureContext *Conf = nullptr;
+  WasmEdge_VMContext *VM = nullptr;
+  WasmEdge_ModuleInstanceContext *HostMod = nullptr;
+  WasmEdge_FunctionTypeContext *HostFType = nullptr;
+  WasmEdge_TableTypeContext *HostTType = nullptr;
+  WasmEdge_MemoryTypeContext *HostMType = nullptr;
+  WasmEdge_GlobalTypeContext *HostGType = nullptr;
+  WasmEdge_FunctionInstanceContext *HostFunc = nullptr;
+  WasmEdge_TableInstanceContext *HostTable = nullptr;
+  WasmEdge_MemoryInstanceContext *HostMemory = nullptr;
+  WasmEdge_GlobalInstanceContext *HostGlobal = nullptr;
+  auto HostFinalizer = [](void *Data) {
+    fmt::print("Data address: {}\n"sv, Data);
+  };
+  WasmEdge_ValType Param[2], Result[1];
+
+  // Create module instance with name ""
+  HostMod = WasmEdge_ModuleInstanceCreate({/* Length */ 0, /* Buf */ nullptr});
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(nullptr), nullptr);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+
+  // Create module instance with empty host data and finalizer
+  HostMod = WasmEdge_ModuleInstanceCreateWithData(
+      {/* Length */ 0, /* Buf */ nullptr}, nullptr, nullptr);
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), nullptr);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+
+  // Create module instance with host data and finalizer
+  HostMod = WasmEdge_ModuleInstanceCreateWithData(
+      {/* Length */ 0, /* Buf */ nullptr}, nullptr, HostFinalizer);
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), nullptr);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+  HostMod = WasmEdge_ModuleInstanceCreateWithData(
+      {/* Length */ 0, /* Buf */ nullptr}, &HostName, nullptr);
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), &HostName);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+  HostMod = WasmEdge_ModuleInstanceCreateWithData(
+      {/* Length */ 0, /* Buf */ nullptr}, &HostName, HostFinalizer);
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceGetHostData(HostMod), &HostName);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+
+  // Create module instance with name "extern"
+  HostName = WasmEdge_StringCreateByCString("extern");
+  HostMod = WasmEdge_ModuleInstanceCreate(HostName);
+  EXPECT_NE(HostMod, nullptr);
+  EXPECT_TRUE(WasmEdge_StringIsEqual(
+      HostName, WasmEdge_ModuleInstanceGetModuleName(HostMod)));
+  WasmEdge_StringDelete(HostName);
+
+  // Add host function "func-add": {externref, i32} -> {i32}
+  Param[0] = WasmEdge_ValTypeGenExternRef();
+  Param[1] = WasmEdge_ValTypeGenI32();
+  Result[0] = WasmEdge_ValTypeGenI32();
+  HostFType = WasmEdge_FunctionTypeCreate(Param, 2, Result, 1);
+  HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, externAdd, nullptr, 0);
+  EXPECT_NE(HostFunc, nullptr);
+  HostName = WasmEdge_StringCreateByCString("func-add");
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_ModuleInstanceAddFunction(nullptr, HostName, HostFunc)));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, nullptr)));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc)));
+  WasmEdge_FunctionTypeDelete(HostFType);
+  WasmEdge_StringDelete(HostName);
+
+  // Add host table "table"
+  WasmEdge_LimitContext *TabLimit =
+      WasmEdge_LimitCreateWithMax(1, 3, false, false);
+  HostTType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenFuncRef(), TabLimit);
+  WasmEdge_LimitDelete(TabLimit);
+  HostTable = WasmEdge_TableInstanceCreate(HostTType);
+  EXPECT_NE(HostTable, nullptr);
+  HostName = WasmEdge_StringCreateByCString("table");
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_ModuleInstanceAddTable(nullptr, HostName, HostTable)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_ModuleInstanceAddTable(HostMod, HostName, nullptr)));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ModuleInstanceAddTable(HostMod, HostName, HostTable)));
+  WasmEdge_TableTypeDelete(HostTType);
+  WasmEdge_StringDelete(HostName);
+
+  // Add host memory "memory"
+  WasmEdge_LimitContext *MemLimit =
+      WasmEdge_LimitCreateWithMax(1, 2, false, false);
+  HostMType = WasmEdge_MemoryTypeCreate(MemLimit);
+  WasmEdge_LimitDelete(MemLimit);
+  HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
+  EXPECT_NE(HostMemory, nullptr);
+  HostName = WasmEdge_StringCreateByCString("memory");
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_ModuleInstanceAddMemory(nullptr, HostName, HostMemory)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_ModuleInstanceAddMemory(HostMod, HostName, nullptr)));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ModuleInstanceAddMemory(HostMod, HostName, HostMemory)));
+  WasmEdge_MemoryTypeDelete(HostMType);
+  WasmEdge_StringDelete(HostName);
+
+  // Add host global "global_i32": const 666
+  HostGType = WasmEdge_GlobalTypeCreate(WasmEdge_ValTypeGenI32(),
+                                        WasmEdge_Mutability_Const);
+  HostGlobal =
+      WasmEdge_GlobalInstanceCreate(HostGType, WasmEdge_ValueGenI32(666));
+  EXPECT_NE(HostGlobal, nullptr);
+  HostName = WasmEdge_StringCreateByCString("global_i32");
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_ModuleInstanceAddGlobal(nullptr, HostName, HostGlobal)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_ModuleInstanceAddGlobal(HostMod, HostName, nullptr)));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ModuleInstanceAddGlobal(HostMod, HostName, HostGlobal)));
+  WasmEdge_GlobalTypeDelete(HostGType);
+  WasmEdge_StringDelete(HostName);
+
+  // Delete module instance.
+  WasmEdge_ModuleInstanceDelete(HostMod);
+
+  // Create WASI.
+  HostMod = WasmEdge_ModuleInstanceCreateWASI(Args, 2, Envs, 3, Preopens, 5);
+  EXPECT_NE(HostMod, nullptr);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+  HostMod =
+      WasmEdge_ModuleInstanceCreateWASI(nullptr, 0, nullptr, 0, nullptr, 0);
+  EXPECT_NE(HostMod, nullptr);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+  HostMod = WasmEdge_ModuleInstanceCreateWASI(Args, 0, Envs, 3, Preopens, 5);
+  EXPECT_NE(HostMod, nullptr);
+  // Check the Native Handler
+  {
+    // STDIN
+#if WASMEDGE_OS_WINDOWS
+    const uint64_t StdIn = reinterpret_cast<uint64_t>(
+        WasmEdge::winapi::GetStdHandle(WasmEdge::winapi::STD_INPUT_HANDLE_));
+#else
+    const uint64_t StdIn = STDIN_FILENO;
+#endif
+    uint64_t NativeHandler = 100;
+    auto RetStatus =
+        WasmEdge_ModuleInstanceWASIGetNativeHandler(HostMod, 0, &NativeHandler);
+    EXPECT_EQ(RetStatus, 0);
+    EXPECT_EQ(NativeHandler, StdIn);
+  }
+  {
+    // STDOUT
+#if WASMEDGE_OS_WINDOWS
+    const uint64_t StdOut = reinterpret_cast<uint64_t>(
+        WasmEdge::winapi::GetStdHandle(WasmEdge::winapi::STD_OUTPUT_HANDLE_));
+#else
+    const uint64_t StdOut = STDOUT_FILENO;
+#endif
+    uint64_t NativeHandler = 100;
+    auto RetStatus =
+        WasmEdge_ModuleInstanceWASIGetNativeHandler(HostMod, 1, &NativeHandler);
+    EXPECT_EQ(RetStatus, 0);
+    EXPECT_EQ(NativeHandler, StdOut);
+  }
+  {
+    // STDERR
+#if WASMEDGE_OS_WINDOWS
+    const uint64_t StdErr = reinterpret_cast<uint64_t>(
+        WasmEdge::winapi::GetStdHandle(WasmEdge::winapi::STD_ERROR_HANDLE_));
+#else
+    const uint64_t StdErr = STDERR_FILENO;
+#endif
+    uint64_t NativeHandler = 100;
+    auto RetStatus =
+        WasmEdge_ModuleInstanceWASIGetNativeHandler(HostMod, 2, &NativeHandler);
+    EXPECT_EQ(RetStatus, 0);
+    EXPECT_EQ(NativeHandler, StdErr);
+  }
+  {
+    // non-existed fd
+    uint64_t NativeHandler = 100;
+    auto RetStatus = WasmEdge_ModuleInstanceWASIGetNativeHandler(
+        HostMod, 9527, &NativeHandler);
+    EXPECT_EQ(RetStatus, 2);
+    EXPECT_EQ(NativeHandler, 100);
+  }
+  // Get WASI exit code.
+  EXPECT_EQ(WasmEdge_ModuleInstanceWASIGetExitCode(HostMod), EXIT_SUCCESS);
+  EXPECT_EQ(WasmEdge_ModuleInstanceWASIGetExitCode(nullptr), EXIT_FAILURE);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+
+  // Initialize WASI in the VM.
+  Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureAddHostRegistration(Conf, WasmEdge_HostRegistration_Wasi);
+  VM = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_ConfigureDelete(Conf);
+  HostMod =
+      WasmEdge_VMGetImportModuleContext(VM, WasmEdge_HostRegistration_Wasi);
+  EXPECT_NE(HostMod, nullptr);
+  WasmEdge_ModuleInstanceInitWASI(nullptr, Args, 2, Envs, 3, Preopens, 5);
+  EXPECT_TRUE(true);
+  WasmEdge_ModuleInstanceInitWASI(HostMod, Args, 2, Envs, 3, Preopens, 5);
+  EXPECT_TRUE(true);
+  // Get WASI exit code.
+  EXPECT_EQ(WasmEdge_ModuleInstanceWASIGetExitCode(HostMod), EXIT_SUCCESS);
+  EXPECT_EQ(WasmEdge_ModuleInstanceWASIGetExitCode(nullptr), EXIT_FAILURE);
+  WasmEdge_VMDelete(VM);
+}
+
+TEST(APICoreTest, Async) {
+  WasmEdge_VMContext *VM = WasmEdge_VMCreate(nullptr, nullptr);
+  WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
+  WasmEdge_ExecutorContext *Exec = WasmEdge_ExecutorCreate(nullptr, nullptr);
+  WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
+  WasmEdge_VMRegisterModuleFromImport(VM, HostMod);
+  WasmEdge_String ModName, ModName2, FuncName, FuncName2;
+  WasmEdge_Value P[10], R[10];
+  WasmEdge_Async *Async = nullptr;
+
+  ModName = WasmEdge_StringCreateByCString("reg-wasm-buffer");
+  ModName2 = WasmEdge_StringCreateByCString("reg-wasm-error");
+  FuncName = WasmEdge_StringCreateByCString("func-mul-2");
+  FuncName2 = WasmEdge_StringCreateByCString("func-mul-3");
+  P[0] = WasmEdge_ValueGenI32(123);
+  P[1] = WasmEdge_ValueGenI32(456);
+
+  // Prepare TPath.
+  hexToFile(TestWasm, TPath);
+  // WASM from a file.
+  std::vector<uint8_t> Buf;
+  EXPECT_TRUE(readToVector(TPath, Buf));
+
+  // Load and validate to a Wasm AST.
+  WasmEdge_ASTModuleContext *Mod = loadModule(nullptr, TPath);
+  EXPECT_NE(Mod, nullptr);
+  EXPECT_TRUE(validateModule(nullptr, Mod));
+
+  // Async deletion
+  WasmEdge_AsyncDelete(nullptr);
+  EXPECT_TRUE(true);
+
+  // Async wait and waitfor
+  WasmEdge_AsyncWait(nullptr);
+  EXPECT_TRUE(true);
+  EXPECT_FALSE(WasmEdge_AsyncWaitFor(nullptr, 1234));
+
+  // Async cancel
+  WasmEdge_AsyncCancel(nullptr);
+  EXPECT_TRUE(true);
+
+  // Async get returns length
+  EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(nullptr), 0);
+
+  // Async run from a file.
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  // Success case
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  WasmEdge_AsyncWait(Async);
+  EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(Async), 2);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  WasmEdge_AsyncDelete(Async);
+  // VM nullptr case
+  Async = WasmEdge_VMAsyncRunWasmFromFile(nullptr, TPath, FuncName, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // File path nullptr case
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, nullptr, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_IllegalPath, WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // File path not found case
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, "no_file", FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_IllegalPath, WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, P, 1);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, nullptr, 0);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, nullptr, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Function not found
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName2, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncNotFound,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result.
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 1)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  // Discard result.
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result.
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
+  WasmEdge_AsyncDelete(Async);
+
+  // Async run from buffer
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  // Success case
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  WasmEdge_AsyncWait(Async);
+  EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(Async), 2);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  WasmEdge_AsyncDelete(Async);
+  // VM nullptr case
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      nullptr, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // Buffer nullptr case
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(VM, nullptr, 0, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_UnexpectedEnd,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 1);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, nullptr, 0);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, nullptr, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Function not found
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName2, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncNotFound,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result.
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 1)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  // Discard result.
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result.
+  Async = WasmEdge_VMAsyncRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
+  WasmEdge_AsyncDelete(Async);
+
+  // Async run from AST module
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  // Success case
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  WasmEdge_AsyncWait(Async);
+  EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(Async), 2);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  WasmEdge_AsyncDelete(Async);
+  // VM nullptr case
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(nullptr, Mod, FuncName, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // AST module nullptr case
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, nullptr, FuncName, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, P, 1);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, nullptr, 0);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, nullptr, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Function not found
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName2, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncNotFound,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result.
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 1)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  // Discard result.
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result.
+  Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
+  WasmEdge_AsyncDelete(Async);
+
+  // Async VM execute
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  WasmEdge_VMCleanup(VM);
+  WasmEdge_VMRegisterModuleFromImport(VM, HostMod);
+  // Inited phase
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongInstanceAddress,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Loaded phase
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromASTModule(VM, Mod)));
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongInstanceAddress,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Validated phase
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VM)));
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongInstanceAddress,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Instantiated phase
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VM)));
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  WasmEdge_AsyncWait(Async);
+  EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(Async), 2);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  // VM nullptr case
+  Async = WasmEdge_VMAsyncExecute(nullptr, FuncName, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 1);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, nullptr, 0);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, nullptr, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Function not found
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName2, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncNotFound,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result.
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 1)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  // Discard result.
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result.
+  Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
+  WasmEdge_AsyncDelete(Async);
+
+  // Async VM execute registered
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  WasmEdge_VMCleanup(VM);
+  WasmEdge_VMRegisterModuleFromImport(VM, HostMod);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBytes(
+      VM, ModName,
+      WasmEdge_BytesWrap(Buf.data(), static_cast<uint32_t>(Buf.size())))));
+  // Success case
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  WasmEdge_AsyncWait(Async);
+  EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(Async), 2);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  // VM nullptr case
+  Async = WasmEdge_VMAsyncExecuteRegistered(nullptr, ModName, FuncName, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, P, 1);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, nullptr, 0);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, nullptr, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Module not found
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName2, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongInstanceAddress,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function not found
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName2, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncNotFound,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result.
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 1)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  // Discard result.
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result.
+  Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
+  WasmEdge_AsyncDelete(Async);
+
+  // Async Executor invoke
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_ExecutorRegisterImport(Exec, Store, HostMod)));
+  WasmEdge_ModuleInstanceContext *ModInst = nullptr;
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_ExecutorInstantiate(Exec, &ModInst, Store, Mod)));
+  EXPECT_NE(ModInst, nullptr);
+  WasmEdge_FunctionInstanceContext *FuncInst =
+      WasmEdge_ModuleInstanceFindFunction(ModInst, FuncName);
+  EXPECT_NE(FuncInst, nullptr);
+  // Success case
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
+  EXPECT_NE(Async, nullptr);
+  WasmEdge_AsyncWait(Async);
+  EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(Async), 2);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 2)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  WasmEdge_AsyncDelete(Async);
+  // Executor nullptr case
+  Async = WasmEdge_ExecutorAsyncInvoke(nullptr, FuncInst, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // Function instance nullptr case
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, nullptr, P, 2);
+  EXPECT_EQ(Async, nullptr);
+  // Function type mismatch
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 1);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, nullptr, 0);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, nullptr, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Discard result.
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, R, 1)));
+  WasmEdge_AsyncDelete(Async);
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  // Discard result.
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
+  WasmEdge_AsyncDelete(Async);
+  // Discard result.
+  Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
+  WasmEdge_AsyncDelete(Async);
+
+  WasmEdge_StringDelete(FuncName);
+  WasmEdge_StringDelete(FuncName2);
+  WasmEdge_StringDelete(ModName);
+  WasmEdge_StringDelete(ModName2);
+  WasmEdge_ASTModuleDelete(Mod);
+  WasmEdge_ModuleInstanceDelete(ModInst);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+  WasmEdge_VMDelete(VM);
+  WasmEdge_StoreDelete(Store);
+  WasmEdge_ExecutorDelete(Exec);
+}
+
+TEST(APICoreTest, VM) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureAddHostRegistration(Conf, WasmEdge_HostRegistration_Wasi);
+  WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
+  WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
+  WasmEdge_String ModName, ModName2, FuncName, FuncName2, Names[20];
+  WasmEdge_Value P[10], R[10];
+  const WasmEdge_FunctionTypeContext *FuncTypes[15];
+
+  // Prepare TPath.
+  hexToFile(TestWasm, TPath);
+  // WASM from a file.
+  std::vector<uint8_t> Buf;
+  EXPECT_TRUE(readToVector(TPath, Buf));
+
+  // Load and validate to a Wasm AST.
+  WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
+  EXPECT_NE(Mod, nullptr);
+  EXPECT_TRUE(validateModule(Conf, Mod));
+
+  // VM creation and deletion
+  WasmEdge_VMContext *VM = WasmEdge_VMCreate(nullptr, nullptr);
+  EXPECT_NE(VM, nullptr);
+  WasmEdge_VMDelete(VM);
+  EXPECT_TRUE(true);
+  WasmEdge_VMDelete(nullptr);
+  EXPECT_TRUE(true);
+  VM = WasmEdge_VMCreate(Conf, nullptr);
+  EXPECT_NE(VM, nullptr);
+  WasmEdge_VMDelete(VM);
+  VM = WasmEdge_VMCreate(nullptr, Store);
+  EXPECT_NE(VM, nullptr);
+  WasmEdge_VMDelete(VM);
+  VM = WasmEdge_VMCreate(Conf, Store);
+  WasmEdge_ConfigureDelete(Conf);
+
+  // VM register module from import
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_VMRegisterModuleFromImport(nullptr, HostMod)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_VMRegisterModuleFromImport(VM, nullptr)));
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VM, HostMod)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_ModuleNameConflict,
+                         WasmEdge_VMRegisterModuleFromImport(VM, HostMod)));
+
+  // VM register module from import with alias name
+  WasmEdge_ModuleInstanceContext *HostModAlias =
+      createExternModule("vm-alias-src");
+  EXPECT_NE(HostModAlias, nullptr);
+  WasmEdge_String AliasName = WasmEdge_StringCreateByCString("vm-alias-name");
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_VMRegisterModuleFromImportWithAlias(
+                             nullptr, AliasName, HostModAlias)));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_VMRegisterModuleFromImportWithAlias(VM, AliasName, nullptr)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImportWithAlias(
+      VM, AliasName, HostModAlias)));
+  // The module should be findable by alias name
+  WasmEdge_StoreContext *VMStore = WasmEdge_VMGetStoreContext(VM);
+  EXPECT_NE(WasmEdge_StoreFindModule(VMStore, AliasName), nullptr);
+  // Name conflict with alias name
+  WasmEdge_ModuleInstanceContext *HostModAlias2 =
+      createExternModule("vm-alias-src2");
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_ModuleNameConflict,
+                         WasmEdge_VMRegisterModuleFromImportWithAlias(
+                             VM, AliasName, HostModAlias2)));
+  WasmEdge_StringDelete(AliasName);
+
+  // Register a module in the VM from a file.
+  ModName = WasmEdge_StringCreateByCString("reg-wasm-file");
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_VMRegisterModuleFromFile(nullptr, ModName, TPath)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                 WasmEdge_VMRegisterModuleFromFile(VM, ModName, "no_file")));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                 WasmEdge_VMRegisterModuleFromFile(VM, ModName, nullptr)));
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromFile(VM, ModName, TPath)));
+  WasmEdge_StringDelete(ModName);
+
+  // VM register module from buffer
+  ModName = WasmEdge_StringCreateByCString("reg-wasm-buffer");
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_VMRegisterModuleFromBuffer(nullptr, ModName, Buf.data(),
+                                          static_cast<uint32_t>(Buf.size()))));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_UnexpectedEnd,
+                 WasmEdge_VMRegisterModuleFromBuffer(VM, ModName, nullptr, 0)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBuffer(
+      VM, ModName, Buf.data(), static_cast<uint32_t>(Buf.size()))));
+  WasmEdge_StringDelete(ModName);
+
+  // VM register module from AST module
+  ModName = WasmEdge_StringCreateByCString("reg-wasm-ast");
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_VMRegisterModuleFromASTModule(nullptr, ModName, Mod)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_VMRegisterModuleFromASTModule(VM, ModName, nullptr)));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMRegisterModuleFromASTModule(VM, ModName, Mod)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_ModuleNameConflict,
+                 WasmEdge_VMRegisterModuleFromASTModule(VM, ModName, Mod)));
+  WasmEdge_StringDelete(ModName);
+
+  ModName = WasmEdge_StringCreateByCString("reg-wasm-buffer");
+  ModName2 = WasmEdge_StringCreateByCString("reg-wasm-error");
+  FuncName = WasmEdge_StringCreateByCString("func-mul-2");
+  FuncName2 = WasmEdge_StringCreateByCString("func-mul-3");
+  P[0] = WasmEdge_ValueGenI32(123);
+  P[1] = WasmEdge_ValueGenI32(456);
+
+  // Run Wasm in the VM from a file.
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMRunWasmFromFile(VM, TPath, FuncName, P, 2, R, 2)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_VMRunWasmFromFile(nullptr, TPath, FuncName, P, 2, R, 2)));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_IllegalPath,
+      WasmEdge_VMRunWasmFromFile(VM, "no_file", FuncName, P, 2, R, 2)));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_IllegalPath,
+      WasmEdge_VMRunWasmFromFile(VM, nullptr, FuncName, P, 2, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                 WasmEdge_VMRunWasmFromFile(VM, TPath, FuncName, P, 1, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_FuncSigMismatch,
+      WasmEdge_VMRunWasmFromFile(VM, TPath, FuncName, nullptr, 0, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_FuncSigMismatch,
+      WasmEdge_VMRunWasmFromFile(VM, TPath, FuncName, nullptr, 2, R, 2)));
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                 WasmEdge_VMRunWasmFromFile(VM, TPath, FuncName, P, 2, R, 2)));
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Function not found
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_FuncNotFound,
+                 WasmEdge_VMRunWasmFromFile(VM, TPath, FuncName2, P, 2, R, 1)));
+  // Discard result.
+  R[0] = WasmEdge_ValueGenI32(0);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMRunWasmFromFile(VM, TPath, FuncName, P, 2, R, 1)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  // Discard result.
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMRunWasmFromFile(VM, TPath, FuncName, P, 2, nullptr, 0)));
+  // Discard result.
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMRunWasmFromFile(VM, TPath, FuncName, P, 2, nullptr, 1)));
+
+  // VM run wasm from buffer
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2, R,
+      2)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_VMRunWasmFromBuffer(nullptr, Buf.data(),
+                                              static_cast<uint32_t>(Buf.size()),
+                                              FuncName, P, 2, R, 2)));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_UnexpectedEnd,
+      WasmEdge_VMRunWasmFromBuffer(VM, nullptr, 0, FuncName, P, 2, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_VMRunWasmFromBuffer(
+                             VM, Buf.data(), static_cast<uint32_t>(Buf.size()),
+                             FuncName, P, 1, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_VMRunWasmFromBuffer(
+                             VM, Buf.data(), static_cast<uint32_t>(Buf.size()),
+                             FuncName, nullptr, 0, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_VMRunWasmFromBuffer(
+                             VM, Buf.data(), static_cast<uint32_t>(Buf.size()),
+                             FuncName, nullptr, 2, R, 2)));
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_VMRunWasmFromBuffer(
+                             VM, Buf.data(), static_cast<uint32_t>(Buf.size()),
+                             FuncName, P, 2, R, 2)));
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Function not found
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncNotFound,
+                         WasmEdge_VMRunWasmFromBuffer(
+                             VM, Buf.data(), static_cast<uint32_t>(Buf.size()),
+                             FuncName2, P, 2, R, 2)));
+  // Discard result.
+  R[0] = WasmEdge_ValueGenI32(0);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2, R,
+      1)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  // Discard result.
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2,
+      nullptr, 0)));
+  // Discard result.
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2,
+      nullptr, 1)));
+
+  // VM run wasm from AST module
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, P, 2, R, 2)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_VMRunWasmFromASTModule(nullptr, Mod, FuncName, P, 2, R, 2)));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_VMRunWasmFromASTModule(VM, nullptr, FuncName, P, 2, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_FuncSigMismatch,
+      WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, P, 1, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_FuncSigMismatch,
+      WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, nullptr, 0, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_FuncSigMismatch,
+      WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, nullptr, 2, R, 2)));
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_FuncSigMismatch,
+      WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, P, 2, R, 2)));
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Function not found
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_FuncNotFound,
+      WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName2, P, 2, R, 2)));
+  // Discard result.
+  R[0] = WasmEdge_ValueGenI32(0);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, P, 2, R, 1)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  // Discard result.
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, P, 2, nullptr, 0)));
+  // Discard result.
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, P, 2, nullptr, 1)));
+
+  // Get a registered module from the VM.
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM), 17U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(nullptr, Names, 20), 0U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, nullptr, 20), 17U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 20);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 1), 17U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), ""sv);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 20);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 20), 17U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "reg-wasm-ast"sv);
+  EXPECT_EQ(std::string_view(Names[2].Buf, Names[2].Length),
+            "reg-wasm-buffer"sv);
+  EXPECT_EQ(std::string_view(Names[3].Buf, Names[3].Length), "reg-wasm-file"sv);
+
+  // Load Wasm in the VM from a file.
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromFile(VM, TPath)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_VMLoadWasmFromFile(nullptr, TPath)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                         WasmEdge_VMLoadWasmFromFile(VM, "file")));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                         WasmEdge_VMLoadWasmFromFile(VM, nullptr)));
+
+  // VM load wasm from buffer
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBuffer(
+      VM, Buf.data(), static_cast<uint32_t>(Buf.size()))));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                 WasmEdge_VMLoadWasmFromBuffer(
+                     nullptr, Buf.data(), static_cast<uint32_t>(Buf.size()))));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_UnexpectedEnd,
+                         WasmEdge_VMLoadWasmFromBuffer(VM, nullptr, 0)));
+
+  // VM load wasm from AST module
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromASTModule(VM, Mod)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_VMLoadWasmFromASTModule(nullptr, Mod)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_VMLoadWasmFromASTModule(VM, nullptr)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_VMLoadWasmFromASTModule(nullptr, nullptr)));
+
+  // VM validate
+  WasmEdge_VMCleanup(VM);
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow, WasmEdge_VMValidate(VM)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromASTModule(VM, Mod)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_VMValidate(nullptr)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VM)));
+
+  // VM instantiate
+  WasmEdge_VMCleanup(VM);
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow, WasmEdge_VMInstantiate(VM)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromASTModule(VM, Mod)));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow, WasmEdge_VMInstantiate(VM)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VM)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_VMInstantiate(nullptr)));
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VM, HostMod)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VM)));
+
+  // VM execute
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  WasmEdge_VMCleanup(VM);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VM, HostMod)));
+  // Inited phase
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongInstanceAddress,
+                         WasmEdge_VMExecute(VM, FuncName, P, 2, R, 2)));
+  // Loaded phase
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromASTModule(VM, Mod)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongInstanceAddress,
+                         WasmEdge_VMExecute(VM, FuncName, P, 2, R, 2)));
+  // Validated phase
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VM)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongInstanceAddress,
+                         WasmEdge_VMExecute(VM, FuncName, P, 2, R, 2)));
+  // Instantiated phase
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VM)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMExecute(VM, FuncName, P, 2, R, 2)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_VMExecute(nullptr, FuncName, P, 2, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_VMExecute(VM, FuncName, P, 1, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_VMExecute(VM, FuncName, nullptr, 0, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_VMExecute(VM, FuncName, nullptr, 2, R, 2)));
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
+                         WasmEdge_VMExecute(VM, FuncName, P, 2, R, 2)));
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Function not found
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncNotFound,
+                         WasmEdge_VMExecute(VM, FuncName2, P, 2, R, 2)));
+  // Discard result.
+  R[0] = WasmEdge_ValueGenI32(0);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMExecute(VM, FuncName, P, 2, R, 1)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  // Discard result.
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_VMExecute(VM, FuncName, P, 2, nullptr, 0)));
+  // Discard result.
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_VMExecute(VM, FuncName, P, 2, nullptr, 1)));
+
+  // VM execute registered
+  R[0] = WasmEdge_ValueGenI32(0);
+  R[1] = WasmEdge_ValueGenI32(0);
+  WasmEdge_VMCleanup(VM);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VM, HostMod)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBytes(
+      VM, ModName,
+      WasmEdge_BytesWrap(Buf.data(), static_cast<uint32_t>(Buf.size())))));
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMExecuteRegistered(VM, ModName, FuncName, P, 2, R, 2)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  EXPECT_EQ(912, WasmEdge_ValueGetI32(R[1]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_VMExecuteRegistered(nullptr, ModName, FuncName, P, 2, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_FuncSigMismatch,
+      WasmEdge_VMExecuteRegistered(VM, ModName, FuncName, P, 1, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_FuncSigMismatch,
+      WasmEdge_VMExecuteRegistered(VM, ModName, FuncName, nullptr, 0, R, 2)));
+  // Function type mismatch
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_FuncSigMismatch,
+      WasmEdge_VMExecuteRegistered(VM, ModName, FuncName, nullptr, 2, R, 2)));
+  // Function type mismatch
+  P[0] = WasmEdge_ValueGenI64(123);
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_FuncSigMismatch,
+      WasmEdge_VMExecuteRegistered(VM, ModName, FuncName, P, 2, R, 2)));
+  P[0] = WasmEdge_ValueGenI32(123);
+  // Module not found
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongInstanceAddress,
+      WasmEdge_VMExecuteRegistered(VM, ModName2, FuncName, P, 2, R, 2)));
+  // Function not found
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_FuncNotFound,
+      WasmEdge_VMExecuteRegistered(VM, ModName, FuncName2, P, 2, R, 2)));
+  // Discard result.
+  R[0] = WasmEdge_ValueGenI32(0);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMExecuteRegistered(VM, ModName, FuncName, P, 2, R, 1)));
+  EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
+  EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
+  // Discard result.
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMExecuteRegistered(VM, ModName, FuncName, P, 2, nullptr, 0)));
+  // Discard result.
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMExecuteRegistered(VM, ModName, FuncName, P, 2, nullptr, 1)));
+
+  // Get the function type from the VM.
+  WasmEdge_VMCleanup(VM);
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VM, HostMod)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromASTModule(VM, Mod)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VM)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VM)));
+  EXPECT_NE(WasmEdge_VMGetFunctionType(VM, FuncName), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetFunctionType(nullptr, FuncName), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetFunctionType(VM, FuncName2), nullptr);
+
+  // Get the function type of a registered function from the VM.
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBytes(
+      VM, ModName,
+      WasmEdge_BytesWrap(Buf.data(), static_cast<uint32_t>(Buf.size())))));
+  EXPECT_NE(WasmEdge_VMGetFunctionTypeRegistered(VM, ModName, FuncName),
+            nullptr);
+  EXPECT_EQ(WasmEdge_VMGetFunctionTypeRegistered(nullptr, ModName, FuncName),
+            nullptr);
+  EXPECT_EQ(WasmEdge_VMGetFunctionTypeRegistered(VM, ModName2, FuncName),
+            nullptr);
+  EXPECT_EQ(WasmEdge_VMGetFunctionTypeRegistered(VM, ModName, FuncName2),
+            nullptr);
+
+  WasmEdge_StringDelete(FuncName);
+  WasmEdge_StringDelete(FuncName2);
+  WasmEdge_StringDelete(ModName);
+  WasmEdge_StringDelete(ModName2);
+
+  // Get the function list from the VM.
+  EXPECT_EQ(WasmEdge_VMGetFunctionListLength(VM), 11U);
+  EXPECT_EQ(WasmEdge_VMGetFunctionListLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_VMGetFunctionList(nullptr, Names, FuncTypes, 15), 0U);
+  EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, nullptr, FuncTypes, 15), 11U);
+
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, Names, nullptr, 15), 11U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "func-1"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "func-2"sv);
+  EXPECT_EQ(std::string_view(Names[2].Buf, Names[2].Length), "func-3"sv);
+  EXPECT_EQ(std::string_view(Names[3].Buf, Names[3].Length), "func-4"sv);
+  EXPECT_EQ(std::string_view(Names[4].Buf, Names[4].Length), "func-add"sv);
+  EXPECT_EQ(std::string_view(Names[5].Buf, Names[5].Length),
+            "func-call-indirect"sv);
+  EXPECT_EQ(std::string_view(Names[6].Buf, Names[6].Length), "func-host-add"sv);
+  EXPECT_EQ(std::string_view(Names[7].Buf, Names[7].Length), "func-host-div"sv);
+  EXPECT_EQ(std::string_view(Names[8].Buf, Names[8].Length), "func-host-mul"sv);
+  EXPECT_EQ(std::string_view(Names[9].Buf, Names[9].Length), "func-host-sub"sv);
+  EXPECT_EQ(std::string_view(Names[10].Buf, Names[10].Length), "func-mul-2"sv);
+
+  EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, nullptr, nullptr, 15), 11U);
+
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, Names, FuncTypes, 4), 11U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "func-1"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "func-2"sv);
+  EXPECT_EQ(std::string_view(Names[2].Buf, Names[2].Length), "func-3"sv);
+  EXPECT_EQ(std::string_view(Names[3].Buf, Names[3].Length), "func-4"sv);
+
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_VMGetFunctionList(VM, Names, FuncTypes, 15), 11U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "func-1"sv);
+  EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "func-2"sv);
+  EXPECT_EQ(std::string_view(Names[2].Buf, Names[2].Length), "func-3"sv);
+  EXPECT_EQ(std::string_view(Names[3].Buf, Names[3].Length), "func-4"sv);
+  EXPECT_EQ(std::string_view(Names[4].Buf, Names[4].Length), "func-add"sv);
+  EXPECT_EQ(std::string_view(Names[5].Buf, Names[5].Length),
+            "func-call-indirect"sv);
+  EXPECT_EQ(std::string_view(Names[6].Buf, Names[6].Length), "func-host-add"sv);
+  EXPECT_EQ(std::string_view(Names[7].Buf, Names[7].Length), "func-host-div"sv);
+  EXPECT_EQ(std::string_view(Names[8].Buf, Names[8].Length), "func-host-mul"sv);
+  EXPECT_EQ(std::string_view(Names[9].Buf, Names[9].Length), "func-host-sub"sv);
+  EXPECT_EQ(std::string_view(Names[10].Buf, Names[10].Length), "func-mul-2"sv);
+
+  // Get the active module from the VM.
+  EXPECT_NE(WasmEdge_VMGetActiveModule(VM), nullptr);
+  EXPECT_EQ(
+      WasmEdge_ModuleInstanceListFunctionLength(WasmEdge_VMGetActiveModule(VM)),
+      11U);
+  EXPECT_EQ(WasmEdge_VMGetActiveModule(nullptr), nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunctionLength(
+                WasmEdge_VMGetActiveModule(nullptr)),
+            0U);
+  WasmEdge_VMCleanup(VM);
+  EXPECT_EQ(WasmEdge_VMGetActiveModule(VM), nullptr);
+
+  // VM cleanup
+  WasmEdge_VMCleanup(VM);
+  EXPECT_TRUE(true);
+  WasmEdge_VMCleanup(nullptr);
+  EXPECT_TRUE(true);
+
+  // Get the pre-registered WASI module from the VM.
+  EXPECT_NE(
+      WasmEdge_VMGetImportModuleContext(VM, WasmEdge_HostRegistration_Wasi),
+      nullptr);
+  EXPECT_EQ(WasmEdge_VMGetImportModuleContext(nullptr,
+                                              WasmEdge_HostRegistration_Wasi),
+            nullptr);
+
+  // Get a registered plug-in module from the VM.
+  ModName = WasmEdge_StringCreateByCString("wasi_ephemeral_nn");
+  EXPECT_NE(WasmEdge_VMGetRegisteredModule(VM, ModName), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetRegisteredModule(nullptr, ModName), nullptr);
+  WasmEdge_StringDelete(ModName);
+  ModName = WasmEdge_StringCreateByCString("no-such-plugin");
+  EXPECT_EQ(WasmEdge_VMGetRegisteredModule(VM, ModName), nullptr);
+  WasmEdge_StringDelete(ModName);
+
+  // Get the store from the VM.
+  EXPECT_EQ(WasmEdge_VMGetStoreContext(VM), Store);
+  EXPECT_EQ(WasmEdge_VMGetStoreContext(nullptr), nullptr);
+
+  // Get the loader from the VM.
+  EXPECT_NE(WasmEdge_VMGetLoaderContext(VM), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetLoaderContext(nullptr), nullptr);
+
+  // Get the validator from the VM.
+  EXPECT_NE(WasmEdge_VMGetValidatorContext(VM), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetValidatorContext(nullptr), nullptr);
+
+  // Get the executor from the VM.
+  EXPECT_NE(WasmEdge_VMGetExecutorContext(VM), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetExecutorContext(nullptr), nullptr);
+
+  // Get statistics from the VM.
+  EXPECT_NE(WasmEdge_VMGetStatisticsContext(VM), nullptr);
+  EXPECT_EQ(WasmEdge_VMGetStatisticsContext(nullptr), nullptr);
+
+  WasmEdge_ASTModuleDelete(Mod);
+  WasmEdge_ModuleInstanceDelete(HostMod);
+  WasmEdge_ModuleInstanceDelete(HostModAlias);
+  WasmEdge_ModuleInstanceDelete(HostModAlias2);
+  WasmEdge_StoreDelete(Store);
+  WasmEdge_VMDelete(VM);
+}
+
+/**
+ * Test: VMDeleteRegistered
+ * Focus: Module lifecycle management triggered by VM-level APIs
+ * Cases:
+ * 1.  Delete a provider module that has active consumer dependencies.
+ * 2.  Delete a provider module with anonymous consumer dependencies.
+ * 3.  Delete a provider module in share store VM with cross-VM consumer.
+ * 4.  Delete a provider module through a borrower VM in a shared store VM.
+ * 5.  Unregister a host-owned provider module from a borrower VM
+ * 6.  Unregister a host-owned provider from a shared store VM.
+ * 7.  Owner VM deletion with cross-VM dependencies in a shared store.
+ * 8.  Delete a borrower VM instance while sharing a host-owned module across
+ * multiple VMs.
+ * 9.  Delete a shared store while active module dependencies exist.
+ * 10. Release host ownership of a module shared across multiple independent
+ * VMs.
+ * 11. Release host ownership of a provider module within a shared store VM.
+ */
+TEST(APICoreTest, VMDeleteRegistered) {
+  WasmEdge_ExecutorContext *Exec = WasmEdge_ExecutorCreate(nullptr, nullptr);
+
+  WasmEdge_Result Res;
+  uint32_t OriginalCount = 0;
+
+  WasmEdge_String PName = WasmEdge_StringCreateByCString("provider");
+  WasmEdge_String CName1 = WasmEdge_StringCreateByCString("consumer_1");
+  WasmEdge_String CName2 = WasmEdge_StringCreateByCString("consumer_2");
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString("call_add");
+  WasmEdge_String PFuncName = WasmEdge_StringCreateByCString("add_func");
+
+  WasmEdge_Value Params[2] = {WasmEdge_ValueGenI32(10),
+                              WasmEdge_ValueGenI32(20)};
+  WasmEdge_Value Returns[1];
+
+  WasmEdge_ValType ParamTypes[2] = {WasmEdge_ValTypeGenI32(),
+                                    WasmEdge_ValTypeGenI32()};
+  WasmEdge_ValType RetTypes[1] = {WasmEdge_ValTypeGenI32()};
+  WasmEdge_FunctionTypeContext *FType =
+      WasmEdge_FunctionTypeCreate(ParamTypes, 2, RetTypes, 1);
+
+  auto DummyAdd = [](void *, const WasmEdge_CallingFrameContext *,
+                     const WasmEdge_Value *In,
+                     WasmEdge_Value *Out) -> WasmEdge_Result {
+    Out[0] = WasmEdge_ValueGenI32(WasmEdge_ValueGetI32(In[0]) +
+                                  WasmEdge_ValueGetI32(In[1]));
+    return WasmEdge_Result_Success;
+  };
+
+  {
+    // Case 1: Delete a provider module that has active consumer dependencies.
+    // The module should be unlinked from the store registry but remain
+    // executable for existing consumers until they are destroyed.
+    //
+    // After unlink we can register a new provider module with the same
+    // name, and the new provider module will be linked to the active consumer
+    // modules instead of the zombie provider module.
+    WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(nullptr, nullptr);
+    WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(VMCxt);
+
+    // Register Provider 1
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VMCxt, PName, Provider1Wasm.data(),
+        static_cast<uint32_t>(Provider1Wasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Register Consumer 1 Linked to Provider 1
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VMCxt, CName1, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    OriginalCount = WasmEdge_VMListRegisteredModuleLength(VMCxt);
+
+    // Delete Provider 1 (It Becomes Zombie)
+    WasmEdge_VMDeleteRegisteredModule(VMCxt, PName);
+    EXPECT_EQ(WasmEdge_StoreFindModule(StoreCxt, PName), nullptr);
+    EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), OriginalCount - 1);
+
+    // Test Consumer 1 still works (Calling Zombie Provider 1)
+    Res = WasmEdge_VMExecuteRegistered(VMCxt, CName1, FuncName, Params, 2,
+                                       Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Register Provider 2 with the same name
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VMCxt, PName, Provider2Wasm.data(),
+        static_cast<uint32_t>(Provider2Wasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), OriginalCount);
+
+    // Register Consumer 2 Linked to Provider 2
+    WasmEdge_VMRegisterModuleFromBuffer(
+        VMCxt, CName2, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+
+    // Unregister Provider 2
+    WasmEdge_VMDeleteRegisteredModule(VMCxt, PName);
+    EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), OriginalCount);
+
+    // Test Consumer 2 uses Provider 2 (Result 130)
+    Res = WasmEdge_VMExecuteRegistered(VMCxt, CName2, FuncName, Params, 2,
+                                       Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 130);
+
+    // Cleanup
+    WasmEdge_VMDelete(VMCxt);
+  }
+
+  {
+    // Case 2: Delete a provider module with anonymous consumer dependencies.
+    // Verify that unlinked provider instances persist for existing anonymous
+    // consumers. Also ensures subsequent active module instantiations link to
+    // the latest registered provider instead of the unlinked instance.
+    WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(nullptr, nullptr);
+    WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(VMCxt);
+
+    // Register Provider 1
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VMCxt, PName, Provider1Wasm.data(),
+        static_cast<uint32_t>(Provider1Wasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Instantiate Anonymous Consumer 1 Links to Provider 1
+    Res = WasmEdge_VMLoadWasmFromBuffer(
+        VMCxt, ConsumerWasm.data(), static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_VMValidate(VMCxt);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_VMInstantiate(VMCxt);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    OriginalCount = WasmEdge_VMListRegisteredModuleLength(VMCxt);
+
+    // Unregister Provider 1 (It becomes Zombie)
+    WasmEdge_VMDeleteRegisteredModule(VMCxt, PName);
+    EXPECT_EQ(WasmEdge_StoreFindModule(StoreCxt, PName), nullptr);
+    EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), OriginalCount - 1);
+
+    // Consumer 1 should still work (Result 30)
+    Res = WasmEdge_VMExecute(VMCxt, FuncName, Params, 2, Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Register Provider 2 with the same name
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VMCxt, PName, Provider2Wasm.data(),
+        static_cast<uint32_t>(Provider2Wasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), OriginalCount);
+
+    // Instantiate Anonymous Consumer 2
+    // This replaces Consumer 1 as the "Active Module" and links to Provider 2
+    Res = WasmEdge_VMLoadWasmFromBuffer(
+        VMCxt, ConsumerWasm.data(), static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_VMValidate(VMCxt);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_VMInstantiate(VMCxt);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Unregister Provider 2 (It becomes Zombie)
+    WasmEdge_VMDeleteRegisteredModule(VMCxt, PName);
+    EXPECT_EQ(WasmEdge_StoreFindModule(StoreCxt, PName), nullptr);
+    EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), OriginalCount - 1);
+
+    // Consumer 2 should still work (Result 130)
+    Res = WasmEdge_VMExecute(VMCxt, FuncName, Params, 2, Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 130);
+
+    // Cleanup
+    WasmEdge_VMDelete(VMCxt);
+  }
+
+  {
+    // Case 3: Delete a provider module in share store VM with cross-VM
+    // consumer. Verify that unlinked provider instances in a shared store
+    // persist for consumers across different VM instances. Ensures that logical
+    // unregistration from one VM does not disrupt execution for borrowers in
+    // other VMs.
+    WasmEdge_StoreContext *SharedStore = WasmEdge_StoreCreate();
+    WasmEdge_VMContext *VM1 = WasmEdge_VMCreate(nullptr, SharedStore);
+    WasmEdge_VMContext *VM2 = WasmEdge_VMCreate(nullptr, SharedStore);
+
+    // Register Provider 1
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM1, PName, Provider1Wasm.data(),
+        static_cast<uint32_t>(Provider1Wasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Register Consumer 1 Linked to Provider 1
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM2, CName1, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Unregister Provider 1 (It become Zombie)
+    WasmEdge_VMDeleteRegisteredModule(VM1, PName);
+    EXPECT_EQ(WasmEdge_StoreFindModule(SharedStore, PName), nullptr);
+
+    // We can still call the zombie provider from Consumer 1 (Result 30)
+    Res = WasmEdge_VMExecuteRegistered(VM2, CName1, FuncName, Params, 2,
+                                       Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Cleanup
+    WasmEdge_VMDelete(VM1);
+    WasmEdge_VMDelete(VM2);
+    WasmEdge_StoreDelete(SharedStore);
+  }
+
+  {
+    // Case 4: Delete a provider module through a borrower VM in a shared store
+    // VM. Verify the deferred deletion logic, unlinking a module from one
+    // borrower removes it from the shared store registry, but the instance
+    // remain executable for other borrowers that still hold a reference to it.
+    WasmEdge_StoreContext *SharedStore = WasmEdge_StoreCreate();
+    WasmEdge_VMContext *VM1 = WasmEdge_VMCreate(nullptr, SharedStore);
+    WasmEdge_VMContext *VM2 = WasmEdge_VMCreate(nullptr, SharedStore);
+
+    OriginalCount = WasmEdge_VMListRegisteredModuleLength(VM1);
+
+    // Register module to the shared store via VM1
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM1, PName, Provider1Wasm.data(),
+        static_cast<uint32_t>(Provider1Wasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM1), OriginalCount + 1);
+    EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM2), OriginalCount + 1);
+
+    // Get the module instance from VM1 and find the function
+    const WasmEdge_ModuleInstanceContext *ModInst =
+        WasmEdge_VMGetRegisteredModule(VM1, PName);
+    EXPECT_NE(ModInst, nullptr);
+    const WasmEdge_FunctionInstanceContext *FuncInst =
+        WasmEdge_ModuleInstanceFindFunction(ModInst, PFuncName);
+    EXPECT_NE(FuncInst, nullptr);
+
+    // Deleting the module from VM2
+    WasmEdge_VMDeleteRegisteredModule(VM2, PName);
+
+    // We can't find the module in the Store, but it should still be alive in
+    // VM1
+    EXPECT_EQ(WasmEdge_StoreFindModule(SharedStore, PName), nullptr);
+    EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM1), OriginalCount);
+    EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM2), OriginalCount);
+
+    // We still can execute functions from the module in VM1
+    Res = WasmEdge_ExecutorInvoke(Exec, FuncInst, Params, 2, Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Cleanup
+    WasmEdge_VMDelete(VM1);
+    WasmEdge_VMDelete(VM2);
+    WasmEdge_StoreDelete(SharedStore);
+  }
+
+  {
+    // Case 5: Unregister a host-owned provider module from a borrower VM
+    // while shared across multiple independent VMs. Verify that unlinking the
+    // host module from one VM's store registry doesn't destroy the instance.
+    // The module remain executable for existing consumers in VM and
+    // accessible in other VMs, as ownership is still maintained by the
+    // host and other borrowers.
+    WasmEdge_VMContext *VM1 = WasmEdge_VMCreate(nullptr, nullptr);
+    WasmEdge_VMContext *VM2 = WasmEdge_VMCreate(nullptr, nullptr);
+    WasmEdge_StoreContext *Store1 = WasmEdge_VMGetStoreContext(VM1);
+    WasmEdge_StoreContext *Store2 = WasmEdge_VMGetStoreContext(VM2);
+
+    // Create a own host provider module
+    WasmEdge_ModuleInstanceContext *HostModP1 =
+        WasmEdge_ModuleInstanceCreate(PName);
+    WasmEdge_ModuleInstanceAddFunction(
+        HostModP1, PFuncName,
+        WasmEdge_FunctionInstanceCreate(FType, DummyAdd, nullptr, 0));
+
+    // Register the same host provider module in two VM
+    Res = WasmEdge_VMRegisterModuleFromImport(VM1, HostModP1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_VMRegisterModuleFromImport(VM2, HostModP1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Register consumer modules linked to the host provider module in two VM
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM1, CName1, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM2, CName2, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Only delete the record of the host provider module in VM1, the module
+    // instance should still be alive
+    WasmEdge_VMDeleteRegisteredModule(VM1, PName);
+    // We can't find the module in VM1
+    EXPECT_EQ(WasmEdge_StoreFindModule(Store1, PName), nullptr);
+    // We still can find module in VM2
+    EXPECT_NE(WasmEdge_StoreFindModule(Store2, PName), nullptr);
+
+    // We still can execute functions from the host provider module in VM1
+    Res = WasmEdge_VMExecuteRegistered(VM1, CName1, FuncName, Params, 2,
+                                       Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Cleanup
+    WasmEdge_VMDelete(VM1);
+    WasmEdge_VMDelete(VM2);
+    WasmEdge_ModuleInstanceDelete(HostModP1);
+  }
+
+  {
+    // Case 6: Unregister a host-owned provider from a shared store VM.
+    // Verify that unlinking the host module from the common registry doesn't
+    // affect existing consumers in any VM sharing that store. The instance
+    // remains functional for all cross-VM borrowers as long as their active
+    // dependencies persist.
+    WasmEdge_StoreContext *SharedStore = WasmEdge_StoreCreate();
+    WasmEdge_VMContext *VM1 = WasmEdge_VMCreate(nullptr, SharedStore);
+    WasmEdge_VMContext *VM2 = WasmEdge_VMCreate(nullptr, SharedStore);
+
+    // Create a own host provider module
+    WasmEdge_ModuleInstanceContext *HostModP1 =
+        WasmEdge_ModuleInstanceCreate(PName);
+    WasmEdge_ModuleInstanceAddFunction(
+        HostModP1, PFuncName,
+        WasmEdge_FunctionInstanceCreate(FType, DummyAdd, nullptr, 0));
+
+    // Register the host provider module into the shared store
+    // Since both VMs share the same store, we only need to register it once via
+    // any VM
+    Res = WasmEdge_VMRegisterModuleFromImport(VM1, HostModP1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Register consumer modules in both VMs, they will all link to the same
+    // provider in SharedStore
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM1, CName1, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM2, CName2, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Delete the host provider via VM1.
+    WasmEdge_VMDeleteRegisteredModule(VM1, PName);
+    // The record should be gone from the shared store
+    EXPECT_EQ(WasmEdge_StoreFindModule(SharedStore, PName), nullptr);
+
+    // Existing links in consumers should remain valid
+    Res = WasmEdge_VMExecuteRegistered(VM1, CName1, FuncName, Params, 2,
+                                       Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Execution in VM2 via consumer_2 should also still work
+    Res = WasmEdge_VMExecuteRegistered(VM2, CName2, FuncName, Params, 2,
+                                       Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Cleanup
+    WasmEdge_VMDelete(VM1);
+    WasmEdge_VMDelete(VM2);
+    WasmEdge_StoreDelete(SharedStore);
+    WasmEdge_ModuleInstanceDelete(HostModP1);
+  }
+
+  {
+    // Case 7: Owner VM deletion with cross-VM dependencies in a shared store.
+    // Ensure provider instances survive the destruction of their originating VM
+    // if other VMs still hold active links to them.
+    WasmEdge_StoreContext *SharedStore = WasmEdge_StoreCreate();
+    WasmEdge_VMContext *VM1 = WasmEdge_VMCreate(nullptr, SharedStore);
+    WasmEdge_VMContext *VM2 = WasmEdge_VMCreate(nullptr, SharedStore);
+
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM1, PName, Provider1Wasm.data(),
+        static_cast<uint32_t>(Provider1Wasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM2, CName1, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Delete VM1 which owns the provider module
+    WasmEdge_VMDelete(VM1);
+    // The provider module can't be find in StoreManager but still alive
+    EXPECT_EQ(WasmEdge_StoreFindModule(SharedStore, PName), nullptr);
+
+    // We still can execute the consumer module in VM2 which links to the zombie
+    // provider module (Result 30)
+    Res = WasmEdge_VMExecuteRegistered(VM2, CName1, FuncName, Params, 2,
+                                       Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Cleanup
+    WasmEdge_VMDelete(VM2);
+    WasmEdge_StoreDelete(SharedStore);
+  }
+
+  {
+    // Case 8: Delete a borrower VM instance while sharing a host-owned module
+    // across multiple VMs. Verify that destroying one borrower VM correctly
+    // decrements the provider's in-degree without affecting the module's
+    // availability in other VMs.
+    WasmEdge_VMContext *VM1 = WasmEdge_VMCreate(nullptr, nullptr);
+    WasmEdge_VMContext *VM2 = WasmEdge_VMCreate(nullptr, nullptr);
+    WasmEdge_StoreContext *Store2 = WasmEdge_VMGetStoreContext(VM2);
+
+    // Create a own host provider module
+    WasmEdge_ModuleInstanceContext *HostModP1 =
+        WasmEdge_ModuleInstanceCreate(PName);
+    WasmEdge_ModuleInstanceAddFunction(
+        HostModP1, PFuncName,
+        WasmEdge_FunctionInstanceCreate(FType, DummyAdd, nullptr, 0));
+
+    // Register the same host provider module in two VM
+    Res = WasmEdge_VMRegisterModuleFromImport(VM1, HostModP1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_VMRegisterModuleFromImport(VM2, HostModP1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Register consumer modules linked to the host provider module in two VM
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM1, CName1, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM2, CName2, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Delete VM1 entirely. It will destroy Store2 and consumer_1, decrementing
+    // provider's In-Degree.
+    WasmEdge_VMDelete(VM1);
+
+    // We still can find the host provider module in VM2's store
+    EXPECT_NE(WasmEdge_StoreFindModule(Store2, PName), nullptr);
+
+    // We still can execute functions from the host provider module via VM2
+    Res = WasmEdge_VMExecuteRegistered(VM2, CName2, FuncName, Params, 2,
+                                       Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Cleanup
+    WasmEdge_VMDelete(VM2);
+    WasmEdge_ModuleInstanceDelete(HostModP1);
+  }
+
+  {
+    // Case 9: Delete a shared store while active module dependencies exist.
+    // Verify that destroying the StoreContext unlinks all modules from the
+    // registry, but the instances remain executable via previously obtained
+    // function handles.
+    WasmEdge_StoreContext *SharedStore = WasmEdge_StoreCreate();
+    WasmEdge_VMContext *VM1 = WasmEdge_VMCreate(nullptr, SharedStore);
+    WasmEdge_VMContext *VM2 = WasmEdge_VMCreate(nullptr, SharedStore);
+
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM1, PName, Provider1Wasm.data(),
+        static_cast<uint32_t>(Provider1Wasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM2, CName1, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Get the module instance from VM2 and find the function
+    const WasmEdge_ModuleInstanceContext *ModInst =
+        WasmEdge_VMGetRegisteredModule(VM2, CName1);
+    const WasmEdge_FunctionInstanceContext *FuncInst =
+        WasmEdge_ModuleInstanceFindFunction(ModInst, FuncName);
+    ASSERT_NE(FuncInst, nullptr);
+
+    // Delete the StoreManager
+    WasmEdge_StoreDelete(SharedStore);
+
+    // We still can execute functions from the module directly
+    Res = WasmEdge_ExecutorInvoke(Exec, FuncInst, Params, 2, Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Cleanup
+    WasmEdge_VMDelete(VM1);
+    WasmEdge_VMDelete(VM2);
+  }
+
+  {
+    // Case 10: Release host ownership of a module shared across multiple
+    // independent VMs. Verify that calling WasmEdge_ModuleInstanceDelete
+    // (releasing the host's self-degree) unlinks the module from all associated
+    // store registries. The instance must remain executable for all consumers
+    // in both VM1 and VM2 via deferred deletion, persisting as long as its
+    // total in-degree remains non-zero.
+    WasmEdge_VMContext *VM1 = WasmEdge_VMCreate(nullptr, nullptr);
+    WasmEdge_VMContext *VM2 = WasmEdge_VMCreate(nullptr, nullptr);
+    WasmEdge_StoreContext *Store1 = WasmEdge_VMGetStoreContext(VM1);
+    WasmEdge_StoreContext *Store2 = WasmEdge_VMGetStoreContext(VM2);
+
+    // Create a own host provider module
+    WasmEdge_ModuleInstanceContext *HostModP1 =
+        WasmEdge_ModuleInstanceCreate(PName);
+    WasmEdge_ModuleInstanceAddFunction(
+        HostModP1, PFuncName,
+        WasmEdge_FunctionInstanceCreate(FType, DummyAdd, nullptr, 0));
+
+    // Register the same host provider module in two VM
+    Res = WasmEdge_VMRegisterModuleFromImport(VM1, HostModP1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_VMRegisterModuleFromImport(VM2, HostModP1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Register consumer modules linked to the host provider module in two VM
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM1, CName1, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM2, CName2, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Host releases the ownership of the provider module
+    WasmEdge_ModuleInstanceDelete(HostModP1);
+
+    // Module should be unlinked from both stores
+    EXPECT_EQ(WasmEdge_StoreFindModule(Store1, PName), nullptr);
+    EXPECT_EQ(WasmEdge_StoreFindModule(Store2, PName), nullptr);
+
+    // Consumers should still work via deferred deletion
+    // Test execution in VM1
+    Res = WasmEdge_VMExecuteRegistered(VM1, CName1, FuncName, Params, 2,
+                                       Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Test execution in VM2
+    Res = WasmEdge_VMExecuteRegistered(VM2, CName2, FuncName, Params, 2,
+                                       Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Cleanup
+    WasmEdge_VMDelete(VM1);
+    WasmEdge_VMDelete(VM2);
+  }
+
+  {
+    // Case 11: Release host ownership of a provider module within a shared
+    // store VM. Verify that WasmEdge_ModuleInstanceDelete unlinks the module
+    // from the common registry while preserving the instance for all consumers
+    // across different VMs sharing that store.
+    WasmEdge_StoreContext *SharedStore = WasmEdge_StoreCreate();
+    WasmEdge_VMContext *VM1 = WasmEdge_VMCreate(nullptr, SharedStore);
+    WasmEdge_VMContext *VM2 = WasmEdge_VMCreate(nullptr, SharedStore);
+
+    // Create a own host provider module
+    WasmEdge_ModuleInstanceContext *HostModP1 =
+        WasmEdge_ModuleInstanceCreate(PName);
+    WasmEdge_ModuleInstanceAddFunction(
+        HostModP1, PFuncName,
+        WasmEdge_FunctionInstanceCreate(FType, DummyAdd, nullptr, 0));
+
+    // Register the provider into the shared store
+    Res = WasmEdge_VMRegisterModuleFromImport(VM1, HostModP1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Register consumers in different VMs, both linking to the same provider
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM1, CName1, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_VMRegisterModuleFromBuffer(
+        VM2, CName2, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Host releases ownership
+    WasmEdge_ModuleInstanceDelete(HostModP1);
+
+    // The name "provider" must be gone from the shared store
+    EXPECT_EQ(WasmEdge_StoreFindModule(SharedStore, PName), nullptr);
+
+    // Existing links in both consumers should remain valid
+    Res = WasmEdge_VMExecuteRegistered(VM1, CName1, FuncName, Params, 2,
+                                       Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Consumer 2 in VM2 should also still be able to call the same provider
+    Res = WasmEdge_VMExecuteRegistered(VM2, CName2, FuncName, Params, 2,
+                                       Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Cleanup
+    WasmEdge_VMDelete(VM1);
+    WasmEdge_VMDelete(VM2);
+    WasmEdge_StoreDelete(SharedStore);
+  }
+
+  // Cleanup
+  WasmEdge_StringDelete(PFuncName);
+  WasmEdge_StringDelete(FuncName);
+  WasmEdge_StringDelete(CName2);
+  WasmEdge_StringDelete(CName1);
+  WasmEdge_StringDelete(PName);
+  WasmEdge_FunctionTypeDelete(FType);
+  WasmEdge_ExecutorDelete(Exec);
+}
+
+/**
+ * Test: ModuleDeletion
+ * Focus: Module lifecycle management triggered by direct module deletion APIs
+ * Cases:
+ * 1. Delete a host provider module and re-register a new one under the same
+ * name.
+ * 2. Delete a WASM provider module and re-register a new one under the same
+ * name.
+ * 3. Delete the store manager while leaving instantiated modules active.
+ * 4. Delete a shared provider module and destroy one of its associated stores.
+ */
+TEST(APICoreTest, ModuleDeletion) {
+  WasmEdge_ExecutorContext *Exec = WasmEdge_ExecutorCreate(nullptr, nullptr);
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(nullptr);
+  WasmEdge_ValidatorContext *Validator = WasmEdge_ValidatorCreate(nullptr);
+  WasmEdge_Result Res;
+
+  WasmEdge_String PName = WasmEdge_StringCreateByCString("provider");
+  WasmEdge_String CName1 = WasmEdge_StringCreateByCString("consumer_1");
+  WasmEdge_String CName2 = WasmEdge_StringCreateByCString("consumer_2");
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString("call_add");
+  WasmEdge_String PFuncName = WasmEdge_StringCreateByCString("add_func");
+
+  WasmEdge_Value Params[2] = {WasmEdge_ValueGenI32(10),
+                              WasmEdge_ValueGenI32(20)};
+  WasmEdge_Value Returns[1];
+
+  WasmEdge_ValType ParamTypes[2] = {WasmEdge_ValTypeGenI32(),
+                                    WasmEdge_ValTypeGenI32()};
+  WasmEdge_ValType RetTypes[1] = {WasmEdge_ValTypeGenI32()};
+  WasmEdge_FunctionTypeContext *FType =
+      WasmEdge_FunctionTypeCreate(ParamTypes, 2, RetTypes, 1);
+
+  auto DummyAdd = [](void *, const WasmEdge_CallingFrameContext *,
+                     const WasmEdge_Value *In,
+                     WasmEdge_Value *Out) -> WasmEdge_Result {
+    Out[0] = WasmEdge_ValueGenI32(WasmEdge_ValueGetI32(In[0]) +
+                                  WasmEdge_ValueGetI32(In[1]));
+    return WasmEdge_Result_Success;
+  };
+  auto DummyAddWithOffset = [](void *, const WasmEdge_CallingFrameContext *,
+                               const WasmEdge_Value *In,
+                               WasmEdge_Value *Out) -> WasmEdge_Result {
+    Out[0] = WasmEdge_ValueGenI32(WasmEdge_ValueGetI32(In[0]) +
+                                  WasmEdge_ValueGetI32(In[1]) + 100);
+    return WasmEdge_Result_Success;
+  };
+
+  {
+    // Case1: Validate that when a Host Module is logically deleted from the
+    // Store but physically kept alive by active consumers, re-registering a
+    // new Host Module with the exact same name does not corrupt existing
+    // dependency links, and new consumers route correctly.
+    WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
+    WasmEdge_ASTModuleContext *ConsumerAST1 = nullptr;
+    WasmEdge_ASTModuleContext *ConsumerAST2 = nullptr;
+    WasmEdge_ModuleInstanceContext *ProviderInst1 = nullptr;
+    WasmEdge_ModuleInstanceContext *ProviderInst2 = nullptr;
+    WasmEdge_ModuleInstanceContext *ConsumerInst1 = nullptr;
+    WasmEdge_ModuleInstanceContext *ConsumerInst2 = nullptr;
+
+    // Parse, validate, and register host provider 1 WASM
+    ProviderInst1 = WasmEdge_ModuleInstanceCreate(PName);
+    WasmEdge_ModuleInstanceAddFunction(
+        ProviderInst1, PFuncName,
+        WasmEdge_FunctionInstanceCreate(FType, DummyAdd, nullptr, 0));
+    Res = WasmEdge_ExecutorRegisterImport(Exec, Store, ProviderInst1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Parse, validate, and register Consumer 1
+    Res = WasmEdge_LoaderParseFromBuffer(
+        Loader, &ConsumerAST1, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ValidatorValidate(Validator, ConsumerAST1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ExecutorRegister(Exec, &ConsumerInst1, Store, ConsumerAST1,
+                                    CName1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Release host ownership of the provider 1
+    WasmEdge_ModuleInstanceDelete(ProviderInst1);
+    EXPECT_EQ(WasmEdge_StoreFindModule(Store, PName), nullptr);
+
+    // Verify physical survival of the dependency chain for Consumer 1
+    const WasmEdge_FunctionInstanceContext *FuncInst1 =
+        WasmEdge_ModuleInstanceFindFunction(ConsumerInst1, FuncName);
+    EXPECT_NE(FuncInst1, nullptr);
+    Res = WasmEdge_ExecutorInvoke(Exec, FuncInst1, Params, 2, Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Create and register Host Provider 2 with the same name "provider"
+    ProviderInst2 = WasmEdge_ModuleInstanceCreate(PName);
+    WasmEdge_ModuleInstanceAddFunction(
+        ProviderInst2, PFuncName,
+        WasmEdge_FunctionInstanceCreate(FType, DummyAddWithOffset, nullptr, 0));
+    Res = WasmEdge_ExecutorRegisterImport(Exec, Store, ProviderInst2);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Instantiate Consumer 2
+    Res = WasmEdge_LoaderParseFromBuffer(
+        Loader, &ConsumerAST2, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ValidatorValidate(Validator, ConsumerAST2);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ExecutorRegister(Exec, &ConsumerInst2, Store, ConsumerAST2,
+                                    CName2);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Delete Provider 2 and Verify Results
+    WasmEdge_ModuleInstanceDelete(ProviderInst2);
+    EXPECT_EQ(WasmEdge_StoreFindModule(Store, PName), nullptr);
+
+    // Verify Consumer 2 successfully invokes Host Provider 2
+    const WasmEdge_FunctionInstanceContext *FuncInst2 =
+        WasmEdge_ModuleInstanceFindFunction(ConsumerInst2, FuncName);
+    EXPECT_NE(FuncInst2, nullptr);
+    Res = WasmEdge_ExecutorInvoke(Exec, FuncInst2, Params, 2, Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 130);
+
+    // Cleanup
+    WasmEdge_ASTModuleDelete(ConsumerAST1);
+    WasmEdge_ASTModuleDelete(ConsumerAST2);
+    WasmEdge_ModuleInstanceDelete(ConsumerInst1);
+    WasmEdge_ModuleInstanceDelete(ConsumerInst2);
+    WasmEdge_StoreDelete(Store);
+  }
+
+  {
+    // Case 2: Validate name shadowing and resolution isolation using pure
+    // WASM modules. Ensures that updating the Store's registry with a new WASM
+    // bytecode instance correctly overrides the named slot without disrupting
+    // the deferred deletion lifecycle of the original WASM instance.
+    WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
+    WasmEdge_ASTModuleContext *ProviderAST1 = nullptr;
+    WasmEdge_ASTModuleContext *ProviderAST2 = nullptr;
+    WasmEdge_ASTModuleContext *ConsumerAST1 = nullptr;
+    WasmEdge_ASTModuleContext *ConsumerAST2 = nullptr;
+    WasmEdge_ModuleInstanceContext *ProviderInst1 = nullptr;
+    WasmEdge_ModuleInstanceContext *ProviderInst2 = nullptr;
+    WasmEdge_ModuleInstanceContext *ConsumerInst1 = nullptr;
+    WasmEdge_ModuleInstanceContext *ConsumerInst2 = nullptr;
+
+    // Parse, validate, and register provider 1 WASM
+    Res = WasmEdge_LoaderParseFromBuffer(
+        Loader, &ProviderAST1, Provider1Wasm.data(),
+        static_cast<uint32_t>(Provider1Wasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ValidatorValidate(Validator, ProviderAST1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ExecutorRegister(Exec, &ProviderInst1, Store, ProviderAST1,
+                                    PName);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Parse, validate, and register consumer 1 WASM
+    Res = WasmEdge_LoaderParseFromBuffer(
+        Loader, &ConsumerAST1, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ValidatorValidate(Validator, ConsumerAST1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ExecutorRegister(Exec, &ConsumerInst1, Store, ConsumerAST1,
+                                    CName1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Release host ownership of the provider
+    WasmEdge_ModuleInstanceDelete(ProviderInst1);
+    EXPECT_EQ(WasmEdge_StoreFindModule(Store, PName), nullptr);
+
+    // Verify physical survival of the dependency chain
+    const WasmEdge_FunctionInstanceContext *FuncInst1 =
+        WasmEdge_ModuleInstanceFindFunction(ConsumerInst1, FuncName);
+    EXPECT_NE(FuncInst1, nullptr);
+    Res = WasmEdge_ExecutorInvoke(Exec, FuncInst1, Params, 2, Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Parse, validate, and register provider 2 WASM with same name "provider"
+    Res = WasmEdge_LoaderParseFromBuffer(
+        Loader, &ProviderAST2, Provider2Wasm.data(),
+        static_cast<uint32_t>(Provider2Wasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ValidatorValidate(Validator, ProviderAST2);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    // Reusing PName for the new Provider 2 instance
+    Res = WasmEdge_ExecutorRegister(Exec, &ProviderInst2, Store, ProviderAST2,
+                                    PName);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Instantiate Consumer 2, which should now resolve and link to Provider 2
+    Res = WasmEdge_LoaderParseFromBuffer(
+        Loader, &ConsumerAST2, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ValidatorValidate(Validator, ConsumerAST2);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ExecutorRegister(Exec, &ConsumerInst2, Store, ConsumerAST2,
+                                    CName2);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Release host ownership of the provider
+    WasmEdge_ModuleInstanceDelete(ProviderInst2);
+    EXPECT_EQ(WasmEdge_StoreFindModule(Store, PName), nullptr);
+
+    // Verify Consumer 2 successfully invokes the newly registered Provider 2
+    const WasmEdge_FunctionInstanceContext *FuncInst2 =
+        WasmEdge_ModuleInstanceFindFunction(ConsumerInst2, FuncName);
+    EXPECT_NE(FuncInst2, nullptr);
+    Res = WasmEdge_ExecutorInvoke(Exec, FuncInst2, Params, 2, Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 130);
+
+    // Cleanup
+    WasmEdge_ASTModuleDelete(ProviderAST1);
+    WasmEdge_ASTModuleDelete(ProviderAST2);
+    WasmEdge_ASTModuleDelete(ConsumerAST1);
+    WasmEdge_ASTModuleDelete(ConsumerAST2);
+    WasmEdge_ModuleInstanceDelete(ConsumerInst1);
+    WasmEdge_ModuleInstanceDelete(ConsumerInst2);
+    WasmEdge_StoreDelete(Store);
+  }
+
+  {
+    // Case 3: Validate that when the Store manager is destroyed, the
+    // instantiated modules and their linked dependency chains remain fully
+    // functional. This proves that execution relies on direct physical
+    // pointer bindings rather than active Store lookups.
+    WasmEdge_StoreContext *Store = WasmEdge_StoreCreate();
+    WasmEdge_ASTModuleContext *ProviderAST = nullptr;
+    WasmEdge_ASTModuleContext *ConsumerAST = nullptr;
+    WasmEdge_ModuleInstanceContext *ProviderInst = nullptr;
+    WasmEdge_ModuleInstanceContext *ConsumerInst = nullptr;
+
+    // Parse, validate, and register provider WASM
+    Res = WasmEdge_LoaderParseFromBuffer(
+        Loader, &ProviderAST, Provider1Wasm.data(),
+        static_cast<uint32_t>(Provider1Wasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ValidatorValidate(Validator, ProviderAST);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ExecutorRegister(Exec, &ProviderInst, Store, ProviderAST,
+                                    PName);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Parse, validate, and register consumer WASM
+    Res = WasmEdge_LoaderParseFromBuffer(
+        Loader, &ConsumerAST, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ValidatorValidate(Validator, ConsumerAST);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ExecutorRegister(Exec, &ConsumerInst, Store, ConsumerAST,
+                                    CName1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Prematurely destroy the Store manager
+    WasmEdge_StoreDelete(Store);
+
+    // The consumer module must still run successfully
+    const WasmEdge_FunctionInstanceContext *FuncInst =
+        WasmEdge_ModuleInstanceFindFunction(ConsumerInst, FuncName);
+    EXPECT_NE(FuncInst, nullptr);
+    Res = WasmEdge_ExecutorInvoke(Exec, FuncInst, Params, 2, Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Cleanup
+    WasmEdge_ASTModuleDelete(ProviderAST);
+    WasmEdge_ASTModuleDelete(ConsumerAST);
+    WasmEdge_ModuleInstanceDelete(ProviderInst);
+    WasmEdge_ModuleInstanceDelete(ConsumerInst);
+  }
+
+  {
+    // Case 4: Validate cross-store shared dependency and partial environment
+    // destruction. A single Host Provider is shared across Store1 and Store2.
+    // Deleting the Provider forces to iterate multiple times. Then, completely
+    // destroying Store1 must drop its respective dependency refcount but leave
+    // the Provider physically alive and functional for Store2's consumer.
+    WasmEdge_StoreContext *Store1 = WasmEdge_StoreCreate();
+    WasmEdge_StoreContext *Store2 = WasmEdge_StoreCreate();
+    WasmEdge_ASTModuleContext *ConsumerAST1 = nullptr;
+    WasmEdge_ASTModuleContext *ConsumerAST2 = nullptr;
+    WasmEdge_ModuleInstanceContext *ProviderInst = nullptr;
+    WasmEdge_ModuleInstanceContext *ConsumerInst1 = nullptr;
+    WasmEdge_ModuleInstanceContext *ConsumerInst2 = nullptr;
+
+    // Create a host provider module instance
+    ProviderInst = WasmEdge_ModuleInstanceCreate(PName);
+    WasmEdge_ModuleInstanceAddFunction(
+        ProviderInst, PFuncName,
+        WasmEdge_FunctionInstanceCreate(FType, DummyAdd, nullptr, 0));
+
+    // Register host provider module into both stores
+    Res = WasmEdge_ExecutorRegisterImport(Exec, Store1, ProviderInst);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ExecutorRegisterImport(Exec, Store2, ProviderInst);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Parse, validate, and register consumer 1 WASM into store 1
+    Res = WasmEdge_LoaderParseFromBuffer(
+        Loader, &ConsumerAST1, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ValidatorValidate(Validator, ConsumerAST1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ExecutorRegister(Exec, &ConsumerInst1, Store1, ConsumerAST1,
+                                    CName1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Parse, validate, and register consumer 2 WASM into store 2
+    Res = WasmEdge_LoaderParseFromBuffer(
+        Loader, &ConsumerAST2, ConsumerWasm.data(),
+        static_cast<uint32_t>(ConsumerWasm.size()));
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ValidatorValidate(Validator, ConsumerAST2);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    Res = WasmEdge_ExecutorRegister(Exec, &ConsumerInst2, Store2, ConsumerAST2,
+                                    CName2);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+    // Release host ownership of the provider
+    WasmEdge_ModuleInstanceDelete(ProviderInst);
+
+    // Verify logical deletion from both stores
+    EXPECT_EQ(WasmEdge_StoreFindModule(Store1, PName), nullptr);
+    EXPECT_EQ(WasmEdge_StoreFindModule(Store2, PName), nullptr);
+
+    // Prematurely destroy store 1 manager
+    WasmEdge_StoreDelete(Store1);
+
+    // Verify consumer 1 successfully invokes the provider even after
+    // store 1 is destroyed
+    const WasmEdge_FunctionInstanceContext *FuncInst1 =
+        WasmEdge_ModuleInstanceFindFunction(ConsumerInst1, FuncName);
+    EXPECT_NE(FuncInst1, nullptr);
+    Res = WasmEdge_ExecutorInvoke(Exec, FuncInst1, Params, 2, Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Verify consumer 2 successfully invokes the provider
+    const WasmEdge_FunctionInstanceContext *FuncInst2 =
+        WasmEdge_ModuleInstanceFindFunction(ConsumerInst2, FuncName);
+    EXPECT_NE(FuncInst2, nullptr);
+    Res = WasmEdge_ExecutorInvoke(Exec, FuncInst2, Params, 2, Returns, 1);
+    EXPECT_TRUE(WasmEdge_ResultOK(Res));
+    EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+    // Cleanup remaining resources
+    WasmEdge_ASTModuleDelete(ConsumerAST1);
+    WasmEdge_ASTModuleDelete(ConsumerAST2);
+    WasmEdge_ModuleInstanceDelete(ConsumerInst1);
+    WasmEdge_ModuleInstanceDelete(ConsumerInst2);
+    WasmEdge_StoreDelete(Store2);
+  }
+
+  // Cleanup
+  WasmEdge_StringDelete(PFuncName);
+  WasmEdge_StringDelete(FuncName);
+  WasmEdge_StringDelete(CName2);
+  WasmEdge_StringDelete(CName1);
+  WasmEdge_StringDelete(PName);
+  WasmEdge_FunctionTypeDelete(FType);
+  WasmEdge_ValidatorDelete(Validator);
+  WasmEdge_LoaderDelete(Loader);
+  WasmEdge_ExecutorDelete(Exec);
+}
+
+#if defined(WASMEDGE_BUILD_PLUGINS)
+TEST(APICoreTest, Plugin) {
+  WasmEdge_String Names[15];
+
+  // Load from the specific path
+  EXPECT_EQ(WasmEdge_PluginListPluginsLength(), 0U);
+  WasmEdge_PluginLoadFromPath(nullptr);
+  EXPECT_EQ(WasmEdge_PluginListPluginsLength(), 0U);
+  WasmEdge_PluginLoadFromPath(
+      "../plugins/unittest/" WASMEDGE_LIB_PREFIX
+      "wasmedgePluginTestModuleCPP" WASMEDGE_LIB_EXTENSION);
+  EXPECT_EQ(WasmEdge_PluginListPluginsLength(), 1U);
+
+  // Get the loaded plugin length
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_PluginListPlugins(nullptr, 0), 1U);
+  EXPECT_EQ(WasmEdge_PluginListPlugins(Names, 0), 1U);
+  EXPECT_EQ(WasmEdge_PluginListPlugins(Names, 15), 1U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length),
+            "wasmedge_plugintest_cpp"sv);
+
+  // Find the plugin context
+  const WasmEdge_PluginContext *PluginCxt =
+      WasmEdge_PluginFind(WasmEdge_StringWrap("no-such-plugin-name", 19));
+  EXPECT_EQ(PluginCxt, nullptr);
+  PluginCxt = WasmEdge_PluginFind(Names[0]);
+  EXPECT_NE(PluginCxt, nullptr);
+
+  // Get plugin name
+  Names[0] = WasmEdge_PluginGetPluginName(PluginCxt);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length),
+            "wasmedge_plugintest_cpp"sv);
+  Names[0] = WasmEdge_PluginGetPluginName(nullptr);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), ""sv);
+
+  // List modules in the plugin
+  EXPECT_EQ(WasmEdge_PluginListModuleLength(nullptr), 0U);
+  EXPECT_EQ(WasmEdge_PluginListModuleLength(PluginCxt), 1U);
+  std::memset(Names, 0, sizeof(WasmEdge_String) * 15);
+  EXPECT_EQ(WasmEdge_PluginListModule(nullptr, Names, 15), 0U);
+  EXPECT_EQ(WasmEdge_PluginListModule(nullptr, nullptr, 0), 0U);
+  EXPECT_EQ(WasmEdge_PluginListModule(PluginCxt, nullptr, 0), 1U);
+  EXPECT_EQ(WasmEdge_PluginListModule(PluginCxt, Names, 0), 1U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), ""sv);
+  EXPECT_EQ(WasmEdge_PluginListModule(PluginCxt, Names, 15), 1U);
+  EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length),
+            "wasmedge_plugintest_cpp_module"sv);
+
+  // Create the module
+  WasmEdge_ModuleInstanceContext *ModCxt =
+      WasmEdge_PluginCreateModule(nullptr, Names[0]);
+  EXPECT_EQ(ModCxt, nullptr);
+  ModCxt = WasmEdge_PluginCreateModule(
+      PluginCxt, WasmEdge_StringWrap("no-such-plugin-name", 19));
+  EXPECT_EQ(ModCxt, nullptr);
+  ModCxt = WasmEdge_PluginCreateModule(PluginCxt, Names[0]);
+  EXPECT_NE(ModCxt, nullptr);
+  EXPECT_EQ(WasmEdge_ModuleInstanceListFunction(ModCxt, Names, 15), 5U);
+  WasmEdge_ModuleInstanceDelete(ModCxt);
+}
+#endif
+} // namespace
+
+GTEST_API_ int main(int argc, char **argv) {
+  WasmEdge_LogSetErrorLevel();
+  testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

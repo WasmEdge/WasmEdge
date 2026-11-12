@@ -1,0 +1,237 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+wasmedge_add_executable(wasiNNTests
+  wasi_nn.cpp
+  resource_table_test.cpp
+)
+
+# Prepare the testing data for each backends.
+foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
+  string(TOLOWER ${BACKEND} BACKEND)
+  if(BACKEND MATCHES "openvino")
+    message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures")
+    wasmedge_download(
+      https://github.com/intel/openvino-rs/raw/v0.3.3/crates/openvino/tests/fixtures/mobilenet/mobilenet.bin
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/mobilenet.bin
+      MD5=ae096b1f735f1e8e54bac8b2a42303bd
+    )
+    wasmedge_download(
+      https://github.com/intel/openvino-rs/raw/v0.3.3/crates/openvino/tests/fixtures/mobilenet/mobilenet.xml
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/mobilenet.xml
+      MD5=4ea3a14273587ce5c1662018878f9f90
+    )
+    wasmedge_download(
+      https://github.com/intel/openvino-rs/raw/v0.3.3/crates/openvino/tests/fixtures/mobilenet/tensor-1x224x224x3-f32.bgr
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_openvino_fixtures/tensor-1x224x224x3-f32.bgr
+      MD5=bfca546f4a3b5e6da49b7bd728e2799a
+    )
+  elseif(BACKEND MATCHES "pytorch")
+    message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures")
+    wasmedge_download(
+      https://github.com/second-state/WasmEdge-WASINN-examples/raw/master/pytorch-mobilenet-image/mobilenet.pt
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures/mobilenet.pt
+      MD5=234f446d2446e0f6fd8ed700c0b4b63b
+    )
+    wasmedge_download(
+      https://github.com/second-state/WasmEdge-WASINN-examples/raw/master/pytorch-mobilenet-image/image-1x3x224x224.rgb
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_pytorch_fixtures/image-1x3x224x224.rgb
+      MD5=551caa6f3b66c1d953655228462570a1
+    )
+  elseif(BACKEND STREQUAL "tensorflowlite")
+    message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures")
+    wasmedge_download(
+      https://raw.githubusercontent.com/gusye1234/WasmEdge-WASINN-examples/demo-tflite-image/tflite-birds_v1-image/lite-model_aiy_vision_classifier_birds_V1_3.tflite
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures/lite-model_aiy_vision_classifier_birds_V1_3.tflite
+      MD5=3e59cc3a99afeeb819c2c38b319a7938
+    )
+    wasmedge_download(
+      https://raw.githubusercontent.com/gusye1234/WasmEdge-WASINN-examples/demo-tflite-image/tflite-birds_v1-image/birdx224x224x3.rgb
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_tflite_fixtures/birdx224x224x3.rgb
+      MD5=ad51c39cfe35d2ef35c4052b78cb3c55
+    )
+  elseif(BACKEND STREQUAL "ggml")
+    message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures")
+    if (CMAKE_SYSTEM_PROCESSOR MATCHES "s390x")
+      # Use a big endian model for s390x
+      wasmedge_download(
+      https://huggingface.co/taronaeo/Granite-3.0-1B-A400M-Instruct-BE-GGUF/resolve/main/granite-3.0-1b-a400m-instruct-be.Q2_K.gguf
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/granite-3.gguf
+      MD5=2520fd8a702468942fdd1595b9dca9a2
+      )
+    else()
+      wasmedge_download(
+      https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories260K.gguf
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/stories260K.gguf
+      SHA256=270cba1bd5109f42d03350f60406024560464db173c0e387d91f0426d3bd256d
+      )
+    endif()
+    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+      target_compile_options(wasiNNTests PUBLIC
+        /wd4067 # unexpected tokens following preprocessor directive - expected a newline
+        /wd4505 # unreferenced local function has been removed
+      )
+    else()
+      # string_split<std::string> in common.h unused
+      target_compile_options(wasiNNTests PUBLIC
+        -Wno-unused-function
+      )
+    endif()
+    # The lifetime tests construct WASINN::Graph values inside the test
+    # binary, so the GGML payload's mtmd member deleters must resolve at link
+    # time here, not only in the plugin library.
+    target_link_libraries(wasiNNTests
+      PRIVATE
+      mtmd
+    )
+    # This second llama/ggml copy must stay out of the dynamic symbol table:
+    # on ELF the exported copy would interpose the dlopened plugin's global
+    # llama/ggml references while its hidden internals keep using its own
+    # copy, and the two half-mixed copies then tear down the same state twice
+    # at exit (glibc: double free or corruption). Hide only these archives
+    # rather than turning off ENABLE_EXPORTS: the test binary must keep
+    # exporting its WasmEdge internals (Hash::rapidHash in particular) so the
+    # dlopened plugin resolves them to the executable's copy. Each rapidHash
+    # copy seeds itself randomly, so if the plugin hashed PO option maps with
+    # a different copy than the test binary, option lookups would miss and
+    # the WASI-NN RPC URI would silently fail to apply.
+    if(UNIX AND NOT APPLE)
+      target_link_options(wasiNNTests PRIVATE
+        "LINKER:--exclude-libs,libllama.a:libggml.a:libggml-base.a:libggml-cpu.a:libggml-blas.a:libggml-cuda.a:libmtmd.a:libcommon.a"
+      )
+    endif()
+  elseif(BACKEND STREQUAL "piper")
+    message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures")
+    wasmedge_download(
+      https://github.com/OHF-Voice/piper1-gpl/raw/v1.8.0/tests/test_voice.onnx
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/test_voice.onnx
+      SHA256=1c8bbb420741358f0a356bb83eaae1b4161fbb5974f6941e10eb5a1725d78994
+    )
+    wasmedge_download(
+      https://github.com/OHF-Voice/piper1-gpl/raw/v1.8.0/tests/test_voice.onnx.json
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/test_voice.onnx.json
+      SHA256=12da0922f6dc5f311cb7371562135f251ae6c951ae26e3a2db6092cdd1e02fc6
+    )
+    set(ESPEAK_SOURCE_DIR "")
+
+    if (DEFINED PIPER_ROOT)
+        if (EXISTS "${PIPER_ROOT}/espeak-ng-data")
+            set(ESPEAK_SOURCE_DIR "${PIPER_ROOT}/espeak-ng-data")
+        elseif(EXISTS "${PIPER_ROOT}/share/espeak-ng-data")
+            set(ESPEAK_SOURCE_DIR "${PIPER_ROOT}/share/espeak-ng-data")
+        endif()
+    else()
+        # The piper build produces the data, so it only exists after the build.
+        set(ESPEAK_SOURCE_DIR "${CMAKE_BINARY_DIR}/espeak_ng-install/share/espeak-ng-data")
+    endif()
+
+    if (ESPEAK_SOURCE_DIR)
+        add_custom_command(
+          TARGET wasiNNTests POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${ESPEAK_SOURCE_DIR}"
+            "${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/espeak-ng-data"
+          COMMENT "Copying espeak-ng-data into the Piper test fixtures"
+        )
+    else()
+        message(WARNING "Could not find espeak-ng-data under ${PIPER_ROOT}")
+    endif()
+  elseif(BACKEND STREQUAL "whisper")
+    message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_whisper_fixtures")
+    wasmedge_download(
+      https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_whisper_fixtures/ggml-tiny.bin
+      SHA256=921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f
+    )
+    wasmedge_download(
+      https://github.com/second-state/WasmEdge-WASINN-examples/raw/master/wasmedge-ggml/whisper/test.wav
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_whisper_fixtures/test.wav
+      MD5=6cf3f7af1ebbd6b29c373e526b548dba
+    )
+    # The lifetime tests construct WASINN::Graph values inside the test
+    # binary, so whisper_free in the Whisper payload's destructor must
+    # resolve at link time here, not only in the plugin library.
+    target_link_libraries(wasiNNTests
+      PRIVATE
+      whisper
+    )
+    # Keep this second whisper/ggml copy out of the dynamic symbol table for
+    # the same reason as the ggml archives above.
+    if(UNIX AND NOT APPLE)
+      target_link_options(wasiNNTests PRIVATE
+        "LINKER:--exclude-libs,libwhisper.a:libggml.a:libggml-base.a:libggml-cpu.a:libggml-blas.a:libggml-cuda.a"
+      )
+    endif()
+  elseif(BACKEND STREQUAL "mlx")
+    message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_mlx_fixtures")
+    wasmedge_download(
+      https://huggingface.co/mlx-community/TinyLlama-1.1B-Chat-v1.0-4bit/resolve/main/weights.00.safetensors
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_mlx_fixtures/model.safetensors
+      SHA256=5e84abc79956b48bb6e4a6c319bb6313aa6c0cbab34288e9f50d063854c486a6
+    )
+    wasmedge_download(
+      https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0/resolve/main/tokenizer.json
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_mlx_fixtures/tokenizer.json
+      MD5=c9dc953a24ad2b76b4bae4bf456f18bd
+    )
+    target_compile_options(wasiNNTests PUBLIC
+      -Wno-unused-parameter
+    )
+
+  elseif(BACKEND STREQUAL "bitnet")
+    message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_bitnet_fixtures")
+    wasmedge_download(
+      https://huggingface.co/tiiuae/Falcon-E-1B-Instruct-GGUF/resolve/main/ggml-model-i2_s.gguf
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_bitnet_fixtures/ggml-model-i2_s.gguf
+      SHA256=feb7478007e916d26bb807cb1a01cc45ac16f197e355d8c30aed25e550ecd73b
+    )
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+      target_compile_options(wasiNNTests PUBLIC
+        -Wno-unused-function
+      )
+    endif()
+  else()
+    # Add the other backend test files fetching here.
+  endif()
+endforeach()
+
+add_dependencies(wasiNNTests
+  wasmedgePluginWasiNN
+)
+
+include(WASINNDeps)
+wasmedge_setup_wasinn_target(wasiNNTests)
+
+target_include_directories(wasiNNTests
+  PUBLIC
+  $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:wasmedgePluginWasiNN,INCLUDE_DIRECTORIES>
+)
+
+target_link_libraries(wasiNNTests
+  PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
+)
+
+# Link to the WasmEdge library
+if(WASMEDGE_LINK_PLUGINS_STATIC)
+  target_link_libraries(wasiNNTests
+    PRIVATE
+    wasmedgeCAPI
+  )
+else()
+  target_link_libraries(wasiNNTests
+    PRIVATE
+    wasmedge_shared
+  )
+endif()
+
+add_test(wasiNNTests wasiNNTests)
+
+if(WASMEDGE_BUILD_WASI_NN_RPC)
+  add_definitions(-DWASMEDGE_BUILD_WASI_NN_RPC)
+  target_link_libraries(wasiNNTests
+    PRIVATE
+    wasiNNRPC
+  )
+endif()

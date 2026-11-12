@@ -1,0 +1,454 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+//===-- wasmedge/runtime/instance/memory.h - Memory Instance definition ---===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains the memory instance definition in store manager.
+///
+//===----------------------------------------------------------------------===//
+#pragma once
+
+#include "ast/type.h"
+#include "common/errcode.h"
+#include "common/errinfo.h"
+#include "common/int128.h"
+#include "common/spdlog.h"
+#include "common/types.h"
+#include "system/allocator.h"
+
+#include <algorithm>
+#include <condition_variable>
+#include <cstdint>
+#include <cstring>
+#include <fstream>
+#include <memory>
+#include <mutex>
+#include <set>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+
+namespace WasmEdge {
+namespace Runtime {
+namespace Instance {
+
+class MemoryInstance {
+
+public:
+  static inline constexpr const uint64_t kPageSize = UINT64_C(65536);
+  static inline constexpr const uint64_t kPageLimit32 = UINT64_C(0x10000);
+  static inline constexpr const uint64_t kPageLimit64 =
+      UINT64_C(0x1000000000000);
+  MemoryInstance() = delete;
+  MemoryInstance(MemoryInstance &&Inst) noexcept
+      : MemType(Inst.MemType), DataPtr(Inst.DataPtr), PageLimit(Inst.PageLimit),
+        LivePageCount(Inst.LivePageCount) {
+    Inst.DataPtr = nullptr;
+  }
+  MemoryInstance(const AST::MemoryType &MType,
+                 uint64_t PageLim = kPageLimit64) noexcept
+      : MemType(MType), PageLimit(PageLim),
+        LivePageCount(MType.getLimit().getMin()) {
+    using namespace std::literals;
+    if (MemType.getLimit().is32() && PageLimit > kPageLimit32) {
+      if (PageLimit != kPageLimit64) {
+        // Only log error when the page limit is not the default value of 64-bit
+        // memory.
+        spdlog::error("Memory Instance: Limited {} page larger than the 32-bit "
+                      "page upper bound {}."sv,
+                      PageLimit, kPageLimit32);
+      }
+      PageLimit = kPageLimit32;
+    }
+    if (MemType.getLimit().getMin() > PageLimit) {
+      spdlog::error("Memory Instance: Limited {} page in configuration."sv,
+                    PageLimit);
+      setLivePageCount(PageLimit);
+    }
+    DataPtr = Allocator::allocate(MemType.getLimit().getMin());
+    if (DataPtr == nullptr) {
+      spdlog::error("Memory Instance: Unable to find usable memory address."sv);
+      setLivePageCount(0U);
+      return;
+    }
+  }
+  ~MemoryInstance() noexcept {
+    Allocator::release(DataPtr, MemType.getLimit().getMin());
+  }
+
+  bool isShared() const noexcept { return MemType.getLimit().isShared(); }
+
+  /// Get page size of memory.data
+  uint64_t getPageSize() const noexcept {
+    // The memory page size is bound to the limit in the memory type.
+    return MemType.getLimit().getMin();
+  }
+
+  /// Get the page limit from the configuration.
+  uint64_t getPageLimit() const noexcept { return PageLimit; }
+
+  /// Get a stable pointer to the live page-count field for compiled code.
+  const uint64_t *getPageSizePtr() const noexcept { return &LivePageCount; }
+
+  /// Get the stable reference to the live data buffer for compiled code.
+  uint8_t *const &getDataPtr() const noexcept { return DataPtr; }
+  uint8_t *&getDataPtr() noexcept { return DataPtr; }
+
+  /// Get memory size of memory.data
+  uint64_t getSize() const noexcept {
+    // The memory page size is bound to the limit in the memory type.
+    return MemType.getLimit().getMin() * kPageSize;
+  }
+
+  /// Getter for memory type.
+  const AST::MemoryType &getMemoryType() const noexcept { return MemType; }
+
+  /// Check access size is valid.
+  bool checkAccessBound(const uint64_t Offset,
+                        const uint64_t Length) const noexcept {
+    // Due to applying the Memory64 proposal, we should avoid the overflow issue
+    // of the following code:
+    //   return Offset + Length <= Limit;
+    const uint64_t Limit = MemType.getLimit().getMin() * kPageSize;
+    return std::numeric_limits<uint64_t>::max() - Offset >= Length &&
+           Offset + Length <= Limit;
+  }
+
+  /// Grow page
+  bool growPage(const uint64_t Count) noexcept {
+    using namespace std::literals;
+    if (Count == 0) {
+      return true;
+    }
+    uint64_t MaxPageCaped =
+        MemType.getLimit().is32() ? kPageLimit32 : kPageLimit64;
+    const uint64_t Min = MemType.getLimit().getMin();
+    assuming(MaxPageCaped >= Min);
+    if (MemType.getLimit().hasMax()) {
+      const uint64_t Max = MemType.getLimit().getMax();
+      MaxPageCaped = std::min(Max, MaxPageCaped);
+    }
+    if (Count > MaxPageCaped - Min) {
+      return false;
+    }
+    assuming(PageLimit >= Min);
+    if (Count > PageLimit - Min) {
+      spdlog::error("Memory Instance: Memory grow page failed, exceeded "
+                    "limited {} page size in configuration."sv,
+                    PageLimit);
+      return false;
+    }
+    if (auto NewPtr = Allocator::resize(DataPtr, Min, Min + Count);
+        NewPtr == nullptr) {
+      return false;
+    } else {
+      DataPtr = NewPtr;
+    }
+    setLivePageCount(Min + Count);
+    return true;
+  }
+
+  /// Shrink memory pages. Shared memories cannot shrink.
+  bool shrinkPage(const uint64_t Count) noexcept {
+    if (Count == 0) {
+      return true;
+    }
+    const auto Old = getPageSize();
+    if (isShared() || Count > Old) {
+      return false;
+    }
+    auto *NewPtr = Allocator::shrink(DataPtr, Old, Old - Count);
+    if (NewPtr == nullptr) {
+      return false;
+    }
+    DataPtr = NewPtr;
+    setLivePageCount(Old - Count);
+    return true;
+  }
+
+  /// Get slice of Data[Offset : Offset + Length - 1]
+  Expect<Span<Byte>> getBytes(const uint64_t Offset,
+                              const uint64_t Length) const noexcept {
+    // Check the memory boundary.
+    if (unlikely(!checkAccessBound(Offset, Length))) {
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+    }
+    return Span<Byte>(&DataPtr[Offset], Length);
+  }
+
+  /// Replace the bytes of Data[Offset :] by Slice[Start : Start + Length - 1]
+  Expect<void> setBytes(Span<const Byte> Slice, const uint64_t Offset,
+                        const uint64_t Start, const uint64_t Length) noexcept {
+    // Check the memory boundary.
+    if (unlikely(!checkAccessBound(Offset, Length))) {
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+    }
+
+    // Check the input data validation.
+    if (unlikely(std::numeric_limits<uint64_t>::max() - Start < Length ||
+                 Start + Length > static_cast<uint64_t>(Slice.size()))) {
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Start, Length,
+                                          static_cast<uint64_t>(Slice.size())));
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+    }
+
+    // Copy the data. The slice may be from the same memory instance, so use
+    // memmove semantics for the possible overlapping case.
+    if (likely(Length > 0)) {
+      std::memmove(DataPtr + Offset, Slice.data() + Start, Length);
+    }
+    return {};
+  }
+
+  /// Fill the bytes of Data[Offset : Offset + Length - 1] by Val.
+  Expect<void> fillBytes(const uint8_t Val, const uint64_t Offset,
+                         const uint64_t Length) noexcept {
+    // Check the memory boundary.
+    if (unlikely(!checkAccessBound(Offset, Length))) {
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+    }
+
+    // Copy the data.
+    if (likely(Length > 0)) {
+      std::fill(DataPtr + Offset, DataPtr + Offset + Length, Val);
+    }
+    return {};
+  }
+
+  /// Get an uint8 array from Data[Offset : Offset + Length - 1]
+  Expect<void> getArray(uint8_t *Arr, const uint64_t Offset,
+                        const uint64_t Length,
+                        const bool IsReverse = false) const noexcept {
+    // Check the memory boundary.
+    if (unlikely(!checkAccessBound(Offset, Length))) {
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+    }
+    if (likely(Length > 0)) {
+      // Copy the data.
+      if (IsReverse) {
+        std::reverse_copy(DataPtr + Offset, DataPtr + Offset + Length, Arr);
+      } else {
+        std::copy(DataPtr + Offset, DataPtr + Offset + Length, Arr);
+      }
+    }
+    return {};
+  }
+
+  /// Replace Data[Offset : Offset + Length - 1] to an uint8 array
+  Expect<void> setArray(const uint8_t *Arr, const uint64_t Offset,
+                        const uint64_t Length,
+                        const bool IsReverse = false) noexcept {
+    // Check the memory boundary.
+    if (unlikely(!checkAccessBound(Offset, Length))) {
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+    }
+    if (likely(Length > 0)) {
+      // Copy the data.
+      if (IsReverse) {
+        std::reverse_copy(Arr, Arr + Length, DataPtr + Offset);
+      } else {
+        std::copy(Arr, Arr + Length, DataPtr + Offset);
+      }
+    }
+    return {};
+  }
+
+  /// Get pointer to specific offset of memory or null.
+  template <typename T>
+  typename std::enable_if_t<std::is_pointer_v<T>, T>
+  getPointerOrNull(const uint64_t Offset) const noexcept {
+    using Type = std::remove_pointer_t<T>;
+    if (Offset == 0 || unlikely(!checkAccessBound(Offset, sizeof(Type)))) {
+      return nullptr;
+    }
+    return reinterpret_cast<T>(&DataPtr[Offset]);
+  }
+
+  /// Get pointer to specific offset of memory.
+  template <typename T>
+  typename std::enable_if_t<std::is_pointer_v<T>, T>
+  getPointer(const uint64_t Offset) const noexcept {
+    using Type = std::remove_pointer_t<T>;
+    if (unlikely(!checkAccessBound(Offset, sizeof(Type)))) {
+      return nullptr;
+    }
+    return reinterpret_cast<T>(&DataPtr[Offset]);
+  }
+
+  /// Get array of object with count at specific offset of memory.
+  template <typename T>
+  Span<T> getSpan(const uint64_t Offset, const uint64_t Count) const noexcept {
+    uint64_t Size;
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+    uint128_t Num =
+        static_cast<uint128_t>(sizeof(T)) * static_cast<uint128_t>(Count);
+    if ((Num >> 64).high() != 0) {
+      return Span<T>();
+    }
+    Size = Num.low();
+#else
+    if (unlikely(__builtin_mul_overflow(static_cast<uint64_t>(sizeof(T)), Count,
+                                        &Size))) {
+      return Span<T>();
+    }
+#endif
+    if (unlikely(!checkAccessBound(Offset, Size))) {
+      return Span<T>();
+    }
+    return Span<T>(reinterpret_cast<T *>(&DataPtr[Offset]), Count);
+  }
+
+  /// Get array of object at specific offset of memory.
+  std::string_view getStringView(const uint64_t Offset,
+                                 const uint64_t Size) const noexcept {
+    if (unlikely(!checkAccessBound(Offset, Size))) {
+      return {};
+    }
+    return {reinterpret_cast<const char *>(&DataPtr[Offset]), Size};
+  }
+
+  /// Template for loading bytes and converting them to a value.
+  ///
+  /// Load bytes of the specified length and construct a value.
+  /// Only output values of int32, uint32, int64, uint64, float, and double are
+  /// allowed.
+  ///
+  /// \param Value the constructed output value.
+  /// \param Offset the start offset in data array.
+  ///
+  /// \returns void on success, ErrCode on failure.
+  template <typename T, uint32_t Length = sizeof(T)>
+  typename std::enable_if_t<IsWasmNumV<T>, Expect<void>>
+  loadValue(T &Value, const uint64_t Offset) const noexcept {
+    // Check the data boundary.
+    static_assert(Length <= sizeof(T));
+    // Check the memory boundary.
+    if (unlikely(!checkAccessBound(Offset, Length))) {
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+    }
+    // Load the data to the value.
+    if (likely(Length > 0)) {
+      if constexpr (std::is_floating_point_v<T>) {
+        // Floating case. Do the memory copy.
+        EndianValue<T> LoadValue;
+        std::memcpy(&LoadValue.raw(), &DataPtr[Offset], Length);
+        Value = LoadValue.le();
+      } else {
+        if constexpr (sizeof(T) > 8) {
+          assuming(sizeof(T) == 16);
+          EndianValue<T> LoadValue = 0U;
+          std::memcpy(&LoadValue.raw(), &DataPtr[Offset], Length);
+          Value = LoadValue.le();
+        } else {
+          // Integer case. Extend to the result type.
+          EndianValue<uint64_t> LoadVal = 0;
+          std::memcpy(&LoadVal.raw(), &DataPtr[Offset], Length);
+          uint64_t Val = LoadVal.le();
+          if (std::is_signed_v<T> && (Val >> (Length * 8 - 1))) {
+            // Signed extension.
+            for (unsigned int I = Length; I < 8; I++) {
+              Val |= 0xFFULL << (I * 8);
+            }
+          }
+          Value = static_cast<T>(Val);
+        }
+      }
+    }
+    return {};
+  }
+
+  /// Template for storing a value as bytes.
+  ///
+  /// Store the value using the specified byte length.
+  /// Only input values of uint32, uint64, float, and double are allowed.
+  ///
+  /// \param Value the value to store into the data array.
+  /// \param Offset the start offset in data array.
+  ///
+  /// \returns void on success, ErrCode on failure.
+  template <typename T, uint32_t Length = sizeof(T)>
+  typename std::enable_if_t<IsWasmNativeNumV<T>, Expect<void>>
+  storeValue(const T &Value, const uint64_t Offset) noexcept {
+    // Check the data boundary.
+    static_assert(Length <= sizeof(T));
+    // Check the memory boundary.
+    if (unlikely(!checkAccessBound(Offset, Length))) {
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+    }
+    // Copy the value to memory.
+    if (likely(Length > 0)) {
+      T StoreValue = EndianValue<T>(Value).le();
+      std::memcpy(&DataPtr[Offset], &StoreValue, Length);
+    }
+    return {};
+  }
+
+  /// Waiter support for atomic wait/notify across threads.
+  struct Waiter {
+    std::mutex Mutex;
+    std::condition_variable Cond;
+    bool Notified = false;
+    Waiter() noexcept = default;
+  };
+
+  std::mutex &getWaiterMapMutex() noexcept { return WaiterMapMutex; }
+
+  std::unordered_multimap<uint64_t, Waiter> &getWaiterMap() noexcept {
+    return WaiterMap;
+  }
+
+  /// Wake all waiters on this memory instance (used by Executor::stop()).
+  void notifyAllWaiters() noexcept {
+    std::unique_lock<std::mutex> Locker(WaiterMapMutex);
+    for (auto &[Addr, W] : WaiterMap) {
+      // Lock the Waiter mutex and notify while holding it. This pairs with
+      // the wait loop which checks StopToken under this same mutex before
+      // entering Cond.wait(). The lock ensures we either:
+      // (a) block until the waiter enters Cond.wait() — then wake it, or
+      // (b) run before the waiter checks StopToken — it will see it set.
+      std::unique_lock<std::mutex> WaiterLocker(W.Mutex);
+      W.Cond.notify_all();
+    }
+  }
+
+private:
+  /// Update the page count in the limit and its live mirror synchronously.
+  void setLivePageCount(const uint64_t Count) noexcept {
+    MemType.getLimit().setMin(Count);
+    LivePageCount = Count;
+  }
+
+  /// \name Data of memory instance.
+  /// @{
+  AST::MemoryType MemType;
+  uint8_t *DataPtr = nullptr;
+  uint64_t PageLimit;
+  uint64_t LivePageCount;
+  std::mutex WaiterMapMutex;
+  std::unordered_multimap<uint64_t, Waiter> WaiterMap;
+  /// @}
+};
+
+} // namespace Instance
+} // namespace Runtime
+} // namespace WasmEdge

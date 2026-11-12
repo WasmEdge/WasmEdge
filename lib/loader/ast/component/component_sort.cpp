@@ -1,0 +1,86 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "loader/loader.h"
+
+namespace WasmEdge {
+namespace Loader {
+
+Expect<void> Loader::loadSortIndex(AST::Component::SortIndex &SortIdx,
+                                   const bool IsCore) {
+  // sortidx      ::= sort:<sort> idx:<u32>      => (sort idx)
+  // core:sortidx ::= sort:<core:sort> idx:<u32> => (sort idx)
+  if (IsCore) {
+    EXPECTED_TRY(loadCoreSort(SortIdx.getSort()));
+  } else {
+    EXPECTED_TRY(loadSort(SortIdx.getSort()));
+  }
+  EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error([this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Sort);
+  }));
+  SortIdx.setIdx(Idx);
+  return {};
+}
+
+Expect<void> Loader::loadSort(AST::Component::Sort &Sort) {
+  // sort ::= 0x00 cs:<core:sort> => core cs
+  //        | 0x01                => func
+  //        | 0x02                => value 🪙
+  //        | 0x03                => type
+  //        | 0x04                => component
+  //        | 0x05                => instance
+  EXPECTED_TRY(auto Flag, FMgr.readByte().map_error([this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Sort);
+  }));
+  if (Flag == 0x00) {
+    return loadCoreSort(Sort);
+  }
+  const auto Type = static_cast<AST::Component::Sort::SortType>(Flag);
+  switch (Type) {
+  case AST::Component::Sort::SortType::Func:
+  case AST::Component::Sort::SortType::Value:
+  case AST::Component::Sort::SortType::Type:
+  case AST::Component::Sort::SortType::Component:
+  case AST::Component::Sort::SortType::Instance:
+    Sort.setIsCore(false);
+    Sort.setSortType(Type);
+    return {};
+  default:
+    return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
+                        ASTNodeAttr::Comp_Sort);
+  }
+}
+
+Expect<void> Loader::loadCoreSort(AST::Component::Sort &Sort) {
+  // core:sort ::= 0x00 => func
+  //             | 0x01 => table
+  //             | 0x02 => memory
+  //             | 0x03 => global
+  //             | 0x04 => tag
+  //             | 0x10 => type
+  //             | 0x11 => module
+  //             | 0x12 => instance
+  EXPECTED_TRY(auto Flag, FMgr.readByte().map_error([this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Sort);
+  }));
+  const auto Type = static_cast<AST::Component::Sort::CoreSortType>(Flag);
+  switch (Type) {
+  case AST::Component::Sort::CoreSortType::Func:
+  case AST::Component::Sort::CoreSortType::Table:
+  case AST::Component::Sort::CoreSortType::Memory:
+  case AST::Component::Sort::CoreSortType::Global:
+  case AST::Component::Sort::CoreSortType::Tag:
+  case AST::Component::Sort::CoreSortType::Type:
+  case AST::Component::Sort::CoreSortType::Module:
+  case AST::Component::Sort::CoreSortType::Instance:
+    Sort.setIsCore(true);
+    Sort.setCoreSortType(Type);
+    return {};
+  default:
+    return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
+                        ASTNodeAttr::Comp_Sort);
+  }
+}
+
+} // namespace Loader
+} // namespace WasmEdge

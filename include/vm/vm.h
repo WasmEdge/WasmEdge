@@ -1,0 +1,504 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+//===-- wasmedge/vm/vm.h - VM execution flow class definition -------------===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file defines the VM class.
+///
+//===----------------------------------------------------------------------===//
+#pragma once
+
+#include "common/async.h"
+#include "common/configure.h"
+#include "common/errcode.h"
+#include "common/filesystem.h"
+#include "common/types.h"
+
+#include "executor/executor.h"
+#include "loader/loader.h"
+#include "validator/validator.h"
+
+#include "runtime/instance/module.h"
+#include "runtime/storemgr.h"
+
+#ifdef WASMEDGE_USE_LLVM
+#include "llvm/lazyjit.h"
+#endif
+
+#include <cstdint>
+#include <memory>
+#include <shared_mutex>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <variant>
+#include <vector>
+
+namespace WasmEdge {
+namespace VM {
+
+/// VM execution flow class
+class VM {
+public:
+  VM() = delete;
+  VM(const Configure &Conf);
+  VM(const Configure &Conf, Runtime::StoreManager &S);
+  ~VM() {
+    if (ActiveModInst) {
+      auto *RawMod = ActiveModInst.release();
+      if (RawMod) {
+        RawMod->terminate();
+      }
+    }
+    cleanupModInstContainer(RegModInsts);
+    cleanupModInstContainer(BuiltInModInsts);
+    cleanupModInstContainer(PlugInModInsts);
+  }
+
+  /// ======= Functions can be called before the instantiated stage. =======
+  /// Register wasm modules and host modules.
+  Expect<void> registerModule(std::string_view Name,
+                              const std::filesystem::path &Path) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRegisterModule(Name, Path);
+  }
+  Expect<void> registerModule(std::string_view Name, Span<const Byte> Code) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRegisterModule(Name, Code);
+  }
+  Expect<void> registerModule(std::string_view Name,
+                              const AST::Module &Module) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRegisterModule(Name, Module);
+  }
+  Expect<void>
+  registerModule(const Runtime::Instance::ModuleInstance &ModInst) {
+    return registerModule(ModInst.getModuleName(), ModInst);
+  }
+  Expect<void>
+  registerModule(std::string_view Name,
+                 const Runtime::Instance::ModuleInstance &ModInst) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRegisterModule(Name, ModInst);
+  }
+
+  /// Unregister a named module instance.
+  Expect<void> unregisterModule(std::string_view Name) {
+    std::unique_lock Lock(Mutex);
+    return unsafeUnregisterModule(Name);
+  }
+
+  /// Rapidly load, validate, instantiate, and run wasm function.
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  runWasmFile(const std::filesystem::path &Path, std::string_view Func,
+              Span<const ValVariant> Params = {},
+              Span<const ValType> ParamTypes = {}) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRunWasmFile(Path, Func, Params, ParamTypes);
+  }
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  runWasmFile(Span<const Byte> Code, std::string_view Func,
+              Span<const ValVariant> Params = {},
+              Span<const ValType> ParamTypes = {}) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRunWasmFile(Code, Func, Params, ParamTypes);
+  }
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  runWasmFile(const AST::Module &Module, std::string_view Func,
+              Span<const ValVariant> Params = {},
+              Span<const ValType> ParamTypes = {}) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRunWasmFile(Module, Func, Params, ParamTypes);
+  }
+
+  Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+  asyncRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
+                   Span<const ValVariant> Params = {},
+                   Span<const ValType> ParamTypes = {});
+  Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+  asyncRunWasmFile(Span<const Byte> Code, std::string_view Func,
+                   Span<const ValVariant> Params = {},
+                   Span<const ValType> ParamTypes = {});
+  Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+  asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
+                   Span<const ValVariant> Params = {},
+                   Span<const ValType> ParamTypes = {});
+
+  /// Let runtimeTool check which arguments should be prepared.
+  bool holdsModule() {
+    if (ActiveModInst) {
+      return true;
+    }
+    return false;
+  }
+  bool holdsComponent() {
+    if (ActiveCompInst) {
+      return true;
+    }
+    return false;
+  }
+
+  /// Load given wasm file, wasm bytecode, or wasm module.
+  Expect<void> loadWasm(const std::filesystem::path &Path) {
+    std::unique_lock Lock(Mutex);
+    return unsafeLoadWasm(Path);
+  }
+  Expect<void> loadWasm(Span<const Byte> Code) {
+    std::unique_lock Lock(Mutex);
+    return unsafeLoadWasm(Code);
+  }
+  Expect<void> loadWasm(const AST::Module &Module) {
+    std::unique_lock Lock(Mutex);
+    return unsafeLoadWasm(Module);
+  }
+
+  /// ======= Functions can be called after the loaded stage. =======
+  /// Validate loaded wasm module.
+  Expect<void> validate() {
+    std::unique_lock Lock(Mutex);
+    return unsafeValidate();
+  }
+
+  /// Force-set the VM stage to Validated for a loaded component without
+  /// actually running validation. Only used in spec tests and will be removed
+  /// when component-model is fully supported.
+  /// Returns failure if no component is loaded.
+  Expect<void> forceValidateForComponent() {
+    std::unique_lock Lock(Mutex);
+    if (Stage < VMStage::Loaded || !Comp) {
+      return Unexpect(ErrCode::Value::WrongVMWorkflow);
+    }
+    Comp->setIsValidated();
+    Stage = VMStage::Validated;
+    return {};
+  }
+
+  /// ======= Functions can be called after the validated stage. =======
+  /// Instantiate validated wasm module.
+  Expect<void> instantiate() {
+    std::unique_lock Lock(Mutex);
+    return unsafeInstantiate();
+  }
+
+  /// ======= Functions can be called after the instantiated stage. =======
+  /// Execute wasm with given input.
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  execute(std::string_view Func, Span<const ValVariant> Params = {},
+          Span<const ValType> ParamTypes = {}) {
+    std::shared_lock Lock(Mutex);
+    return unsafeExecute(Func, Params, ParamTypes);
+  }
+
+  /// Execute a function of a registered module with the given input.
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  execute(std::string_view ModName, std::string_view Func,
+          Span<const ValVariant> Params = {},
+          Span<const ValType> ParamTypes = {}) {
+    std::shared_lock Lock(Mutex);
+    return unsafeExecute(ModName, Func, Params, ParamTypes);
+  }
+
+  /// Execute a component function with the given input.
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
+  executeComponent(std::string_view Func,
+                   Span<const ComponentValVariant> Params = {},
+                   Span<const ComponentValType> ParamTypes = {}) {
+    std::shared_lock Lock(Mutex);
+    return unsafeExecuteComponent(Func, Params, ParamTypes);
+  }
+
+  /// Execute a function of a registered component with the given input.
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
+  executeComponent(std::string_view CompName, std::string_view Func,
+                   Span<const ComponentValVariant> Params = {},
+                   Span<const ComponentValType> ParamTypes = {}) {
+    std::shared_lock Lock(Mutex);
+    return unsafeExecuteComponent(CompName, Func, Params, ParamTypes);
+  }
+
+  /// Asynchronously execute Wasm with the given input.
+  Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+  asyncExecute(std::string_view Func, Span<const ValVariant> Params = {},
+               Span<const ValType> ParamTypes = {});
+
+  /// Asynchronously execute a function of a registered module with the given
+  /// input.
+  Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
+  asyncExecute(std::string_view ModName, std::string_view Func,
+               Span<const ValVariant> Params = {},
+               Span<const ValType> ParamTypes = {});
+
+  /// Asynchronously execute a component function with the given input.
+  Async<Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>>
+  asyncExecuteComponent(std::string_view Func,
+                        Span<const ComponentValVariant> Params = {},
+                        Span<const ComponentValType> ParamTypes = {});
+
+  /// Asynchronously execute a function of a registered component with the given
+  /// input.
+  Async<Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>>
+  asyncExecuteComponent(std::string_view ModName, std::string_view Func,
+                        Span<const ComponentValVariant> Params = {},
+                        Span<const ComponentValType> ParamTypes = {});
+
+  /// Stop execution
+  void stop() noexcept { ExecutorEngine.stop(); }
+
+  /// Snapshot VM-owned core modules at an invocation boundary. An empty path
+  /// selects the default coredump filename. Externally registered modules are
+  /// included only through state imported by a VM-owned module.
+  Expect<std::filesystem::path>
+  snapshot(const std::filesystem::path &Path = {});
+  /// Restore the same ordered VM-owned module set. Component instances and
+  /// restoring dropped segments to live segments are unsupported.
+  Expect<void> restore(const std::filesystem::path &Path);
+
+  /// ======= Functions which are stageless. =======
+  /// Clean up VM status
+  void cleanup() {
+    std::unique_lock Lock(Mutex);
+    return unsafeCleanup();
+  }
+
+  /// Get list of callable functions and corresponding function types.
+  std::vector<std::pair<std::string, const AST::FunctionType &>>
+  getFunctionList() const {
+    std::shared_lock Lock(Mutex);
+    return unsafeGetFunctionList();
+  }
+
+  /// Get list of callable component functions and corresponding function types.
+  std::vector<std::pair<std::string, const AST::Component::FuncType &>>
+  getComponentFunctionList() const {
+    std::shared_lock Lock(Mutex);
+    return unsafeGetComponentFunctionList();
+  }
+
+  /// Get pre-registered module instance by configuration.
+  Runtime::Instance::ModuleInstance *
+  getImportModule(const HostRegistration Type) const {
+    std::shared_lock Lock(Mutex);
+    return unsafeGetImportModule(Type);
+  }
+
+  /// Get current instantiated module instance.
+  const Runtime::Instance::ModuleInstance *getActiveModule() const {
+    std::shared_lock Lock(Mutex);
+    return unsafeGetActiveModule();
+  }
+
+  /// Getter for the store set in the VM.
+  Runtime::StoreManager &getStoreManager() noexcept { return StoreRef; }
+  const Runtime::StoreManager &getStoreManager() const noexcept {
+    return StoreRef;
+  }
+
+  /// Getter for the loader in the VM.
+  Loader::Loader &getLoader() noexcept { return LoaderEngine; }
+
+  /// Getter for the validator in the VM.
+  Validator::Validator &getValidator() noexcept { return ValidatorEngine; }
+
+  /// Getter for the executor in the VM.
+  Executor::Executor &getExecutor() noexcept { return ExecutorEngine; }
+
+  /// Getter for statistics.
+  Statistics::Statistics &getStatistics() noexcept { return Stat; }
+
+#ifdef WASMEDGE_USE_LLVM
+  /// Getter for the number of lazily compiled functions.
+  uint32_t getLazyCompiledFuncCount() const noexcept {
+    return LazyEngine ? LazyEngine->compiledFunctionCount() : 0;
+  }
+#endif
+
+private:
+  std::vector<Runtime::Instance::ModuleInstance *> collectModuleInstances();
+
+  /// Release and terminate all module instances in a sequence or map
+  /// container, then clear the container.
+  template <typename ContainerT>
+  void cleanupModInstContainer(ContainerT &Container) {
+    for (auto &Item : Container) {
+      Runtime::Instance::ModuleInstance *ModInst;
+      if constexpr (std::is_same_v<
+                        typename ContainerT::value_type,
+                        std::unique_ptr<Runtime::Instance::ModuleInstance>>) {
+        ModInst = Item.release();
+      } else {
+        ModInst = Item.second.release();
+      }
+      if (ModInst) {
+        ModInst->terminate();
+      }
+    }
+    Container.clear();
+  }
+
+  Expect<void> unsafeRegisterModule(std::string_view Name,
+                                    const std::filesystem::path &Path);
+  Expect<void> unsafeRegisterModule(std::string_view Name,
+                                    Span<const Byte> Code);
+  Expect<void> unsafeRegisterModule(std::string_view Name,
+                                    const AST::Module &Module);
+  Expect<void> unsafeRegisterModule(std::string_view Name,
+                                    std::shared_ptr<AST::Module> Module);
+  Expect<void>
+  unsafeRegisterModule(std::string_view Name,
+                       const Runtime::Instance::ModuleInstance &ModInst);
+
+  Expect<void> unsafeUnregisterModule(std::string_view Name);
+
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
+                    Span<const ValVariant> Params = {},
+                    Span<const ValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
+                    Span<const ValVariant> Params = {},
+                    Span<const ValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
+                    Span<const ValVariant> Params = {},
+                    Span<const ValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeRunWasmFile(const AST::Component::Component &Component,
+                    std::string_view Func, Span<const ValVariant> Params = {},
+                    Span<const ValType> ParamTypes = {});
+
+  Expect<void> unsafeLoadWasm(const std::filesystem::path &Path);
+  Expect<void> unsafeLoadWasm(Span<const Byte> Code);
+  Expect<void> unsafeLoadWasm(const AST::Module &Module);
+
+  Expect<void> unsafeValidate();
+
+  Expect<void> unsafeInstantiate();
+
+  /// In JIT or lazy JIT mode, compile and attach an executable to the loaded
+  /// module if it does not carry one yet. Eager JIT compilation failures fall
+  /// back to the interpreter; without LLVM support this only logs a warning.
+  Expect<void> unsafeLoadJITExecutable();
+
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeExecute(std::string_view Func, Span<const ValVariant> Params = {},
+                Span<const ValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeExecute(std::string_view Mod, std::string_view Func,
+                Span<const ValVariant> Params = {},
+                Span<const ValType> ParamTypes = {});
+
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
+  unsafeExecuteComponent(std::string_view Func,
+                         Span<const ComponentValVariant> Params = {},
+                         Span<const ComponentValType> ParamTypes = {});
+
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
+  unsafeExecuteComponent(std::string_view Comp, std::string_view Func,
+                         Span<const ComponentValVariant> Params = {},
+                         Span<const ComponentValType> ParamTypes = {});
+
+  void unsafeCleanup();
+
+  std::vector<std::pair<std::string, const AST::FunctionType &>>
+  unsafeGetFunctionList() const;
+
+  std::vector<std::pair<std::string, const AST::Component::FuncType &>>
+  unsafeGetComponentFunctionList() const;
+
+  Runtime::Instance::ModuleInstance *
+  unsafeGetImportModule(const HostRegistration Type) const;
+
+  const Runtime::Instance::ModuleInstance *unsafeGetActiveModule() const;
+
+  enum class VMStage : uint8_t { Inited, Loaded, Validated, Instantiated };
+  enum class WasmUnitKind : uint8_t { Module, Component };
+
+  /// Store a parsed wasm unit into the matching slot and report its kind.
+  /// The slot for the other kind keeps its previous content.
+  WasmUnitKind
+  unsafeStoreWasmUnit(std::variant<std::unique_ptr<AST::Component::Component>,
+                                   std::unique_ptr<AST::Module>> &&Unit);
+
+  /// Registering a module or running another wasm unit resets the active
+  /// instantiation in the store, so the stage falls back to Validated and
+  /// the instantiation must restart.
+  void unsafeRevertStageToValidated() {
+    if (Stage == VMStage::Instantiated) {
+      Stage = VMStage::Validated;
+    }
+  }
+
+  void unsafeInitVM();
+  void unsafeLoadBuiltInHosts();
+  void unsafeLoadPlugInHosts();
+  void unsafeRegisterBuiltInHosts();
+  void unsafeRegisterPlugInHosts();
+
+  /// Helper function for execution.
+  Expect<std::vector<std::pair<ValVariant, ValType>>>
+  unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
+                std::string_view Func, Span<const ValVariant> Params = {},
+                Span<const ValType> ParamTypes = {});
+
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
+  unsafeExecuteComponent(const Runtime::Instance::ComponentInstance *CompInst,
+                         std::string_view Func,
+                         Span<const ComponentValVariant> Params = {},
+                         Span<const ComponentValType> ParamTypes = {});
+
+  /// \name VM environment.
+  /// @{
+  const Configure Conf;
+  Statistics::Statistics Stat;
+  VMStage Stage;
+  mutable std::shared_mutex Mutex;
+  /// @}
+
+  /// \name VM components.
+  /// @{
+  Loader::Loader LoaderEngine;
+  Validator::Validator ValidatorEngine;
+#ifdef WASMEDGE_USE_LLVM
+  /// Lazy JIT engine. Created only when the run mode is LazyJIT. Declared
+  /// before the executor so it outlives the executor-registered lazy
+  /// compilation callback that references it.
+  std::unique_ptr<LLVM::LazyJITEngine> LazyEngine;
+#endif
+  Executor::Executor ExecutorEngine;
+  /// @}
+
+  /// \name VM Storage.
+  /// @{
+  /// Loaded AST module.
+  std::shared_ptr<AST::Module> Mod;
+  std::unique_ptr<AST::Component::Component> Comp;
+  /// Active module instance.
+  std::unique_ptr<Runtime::Instance::ModuleInstance> ActiveModInst;
+  std::unique_ptr<Runtime::Instance::ComponentInstance> ActiveCompInst;
+  /// Registered module instances by user.
+  std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>> RegModInsts;
+  /// Built-in module instances mapped to the configurations. For WASI.
+  std::unordered_map<HostRegistration,
+                     std::unique_ptr<Runtime::Instance::ModuleInstance>>
+      BuiltInModInsts;
+  /// Loaded module instances from plug-ins.
+  std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>>
+      PlugInModInsts;
+  std::vector<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+      PlugInCompInsts;
+  /// Self-owned store (nullptr if an outside store is assigned in constructor).
+  std::unique_ptr<Runtime::StoreManager> Store;
+  /// Reference to the store.
+  Runtime::StoreManager &StoreRef;
+  /// @}
+};
+
+} // namespace VM
+} // namespace WasmEdge

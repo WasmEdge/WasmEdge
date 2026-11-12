@@ -1,0 +1,806 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "metadata_parser.h"
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+#include <algorithm>
+#include <array>
+#include <common.h>
+#include <fmt/ranges.h>
+#include <json-schema-to-grammar.h>
+#include <limits>
+#include <sstream>
+#endif
+
+namespace WasmEdge::Host::WASINN::GGML {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+namespace {
+
+// llama.cpp caps model depth at LLAMA_MAX_LAYERS (512, llama-hparams.h), so
+// more per-layer MoE overrides than that can never match a tensor.
+constexpr int64_t MaxCpuMoeLayers = 512;
+
+// The KV cache types llama.cpp accepts for -ctk/-ctv (common/arg.cpp). Other
+// ggml_type values are deprecated (zero block size) or unsupported by the
+// cache and abort inside ggml.
+constexpr std::array<ggml_type, 9> KVCacheTypes = {
+    GGML_TYPE_F32,    GGML_TYPE_F16,  GGML_TYPE_BF16,
+    GGML_TYPE_Q8_0,   GGML_TYPE_Q4_0, GGML_TYPE_Q4_1,
+    GGML_TYPE_IQ4_NL, GGML_TYPE_Q5_0, GGML_TYPE_Q5_1};
+
+bool parseKVCacheType(std::string_view Key, int64_t Value,
+                      ggml_type &Type) noexcept {
+  for (ggml_type Candidate : KVCacheTypes) {
+    if (Value == static_cast<int64_t>(Candidate)) {
+      Type = Candidate;
+      return true;
+    }
+  }
+  std::string Allowed;
+  for (ggml_type Candidate : KVCacheTypes) {
+    Allowed +=
+        fmt::format("{}{} ({})"sv, Allowed.empty() ? ""sv : ", "sv,
+                    ggml_type_name(Candidate), static_cast<int>(Candidate));
+  }
+  LOG_ERROR("{} must be one of the KV cache types: {}."sv, Key, Allowed)
+  return false;
+}
+
+bool parseThreads(std::string_view Key, int64_t Value, int &Threads) noexcept {
+  // -1 lets llama.cpp pick the thread count.
+  if (Value < -1 || Value > GGML_MAX_N_THREADS) {
+    LOG_ERROR("{} should be in range [-1, {}]."sv, Key, GGML_MAX_N_THREADS)
+    return false;
+  }
+  Threads = static_cast<int>(Value);
+  return true;
+}
+
+// Warn about options removed from llama.cpp instead of silently ignoring
+// them.
+void warnRemovedKey(const simdjson::dom::element &Doc, std::string_view Key) {
+  if (Doc.at_key(Key).error() == simdjson::SUCCESS) {
+    LOG_WARN(
+        "metadata: the \"{}\" option is no longer supported by llama.cpp "sv
+        "and is ignored."sv,
+        Key)
+  }
+}
+
+} // namespace
+
+// Parse metadata from JSON.
+ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
+                    const std::string &Metadata, bool *IsModelUpdated,
+                    bool *IsContextUpdated, bool *IsSamplerUpdated) noexcept {
+  // Parse metadata from the json.
+  simdjson::dom::parser Parser;
+  simdjson::dom::element Doc;
+  auto ParseError = Parser.parse(Metadata).get(Doc);
+  if (ParseError) {
+    RET_ERROR(ErrNo::InvalidEncoding, "parse metadata error."sv)
+  }
+
+  // Get the current llama parameters.
+  int64_t PrevNGPULayers = GraphRef.Params.n_gpu_layers;
+  bool PrevEmbedding = GraphRef.Params.embedding;
+  // Get the current sampler parameters.
+  double PrevTemp = GraphRef.Params.sampling.temp;
+  double PrevTopP = GraphRef.Params.sampling.top_p;
+  double PrevRepeatPenalty = GraphRef.Params.sampling.penalty_repeat;
+  double PrevPresencePenalty = GraphRef.Params.sampling.penalty_present;
+  double PrevFrequencyPenalty = GraphRef.Params.sampling.penalty_freq;
+  std::string PrevGrammar =
+      common_grammar_value(GraphRef.Params.sampling.grammar);
+  uint32_t PrevSeed = GraphRef.Params.sampling.seed;
+
+  // Snapshot everything the options below may modify, so a rejected metadata
+  // object leaves the graph and the context config exactly as they were.
+  struct MetadataSnapshot {
+    bool EnableLog;
+    bool EnableDebugLog;
+    bool CpuMoe;
+    int64_t NCpuMoe;
+    bool TextToSpeech;
+    std::string TTSOutputFilePath;
+    std::string TTSSpeakerFilePath;
+    common_params_model VocoderModel;
+    common_params Params;
+    LocalConfig Conf;
+  };
+  const MetadataSnapshot Saved{GraphRef.EnableLog,
+                               GraphRef.EnableDebugLog,
+                               GraphRef.CpuMoe,
+                               GraphRef.NCpuMoe,
+                               GraphRef.TextToSpeech,
+                               GraphRef.TTSOutputFilePath,
+                               GraphRef.TTSSpeakerFilePath,
+                               GraphRef.VocoderModel,
+                               GraphRef.Params,
+                               ConfRef};
+  auto Restore = [&]() {
+    GraphRef.EnableLog = Saved.EnableLog;
+    GraphRef.EnableDebugLog = Saved.EnableDebugLog;
+    GraphRef.CpuMoe = Saved.CpuMoe;
+    GraphRef.NCpuMoe = Saved.NCpuMoe;
+    GraphRef.TextToSpeech = Saved.TextToSpeech;
+    GraphRef.TTSOutputFilePath = Saved.TTSOutputFilePath;
+    GraphRef.TTSSpeakerFilePath = Saved.TTSSpeakerFilePath;
+    GraphRef.VocoderModel = Saved.VocoderModel;
+    GraphRef.Params = Saved.Params;
+    ConfRef = Saved.Conf;
+  };
+
+  try {
+    parseJsonAuto(Doc, "enable-log", GraphRef.EnableLog);
+    parseJsonAuto(Doc, "enable-debug-log", GraphRef.EnableDebugLog);
+
+    parseJsonWithCastAuto<int64_t>(Doc, "main-gpu", GraphRef.Params.main_gpu);
+    parseJsonWithCastAuto<int64_t>(Doc, "n-gpu-layers",
+                                   GraphRef.Params.n_gpu_layers);
+
+    parseJsonAuto<bool>(Doc, "cpu-moe", GraphRef.CpuMoe);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "n-cpu-moe", [&GraphRef](const int64_t &NCpuMoe) -> bool {
+          if (NCpuMoe < 0 || NCpuMoe > MaxCpuMoeLayers) {
+            LOG_ERROR("n-cpu-moe should be in range [0, {}]."sv,
+                      MaxCpuMoeLayers)
+            return false;
+          }
+          GraphRef.NCpuMoe = NCpuMoe;
+          return true;
+        });
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "tensor-split", [&GraphRef](const std::string_view &TSV) -> bool {
+          // The TensorSplit is a comma-separated list of non-negative values.
+          // E.g., "3,2" presents 60% of the data to GPU 0 and 40% to GPU 1.
+          std::string TS(TSV);
+          std::replace(TS.begin(), TS.end(), ',', ' ');
+          std::stringstream SS(TS);
+          constexpr size_t TensorSplitCapacity =
+              sizeof(GraphRef.Params.tensor_split) /
+              sizeof(GraphRef.Params.tensor_split[0]);
+          const size_t NDevices = llama_max_devices();
+          if (NDevices > TensorSplitCapacity) {
+            LOG_ERROR("Number of MaxDevices ({}) is larger than tensor-split "sv
+                      "capacity ({})."sv,
+                      NDevices, TensorSplitCapacity)
+            throw ErrNo(ErrNo::RuntimeError);
+          }
+          std::array<float, TensorSplitCapacity> TensorSplit;
+          TensorSplit.fill(0.0f);
+          size_t TensorSplitSize = 0;
+          // Skip separators first so only a genuine end of input ends the
+          // loop; an extraction that fails then, even at EOF, is an error.
+          for (SS >> std::ws; !SS.eof(); SS >> std::ws) {
+            float TmpTensor;
+            if (!(SS >> TmpTensor)) {
+              LOG_ERROR("Invalid value in the tensor-split option."sv)
+              return false;
+            }
+            if (TensorSplitSize >= NDevices) {
+              LOG_ERROR("Number of Tensor-Split is larger than MaxDevices, "sv
+                        "please reduce the size of tensor-split."sv)
+              return false;
+            }
+            TensorSplit[TensorSplitSize++] = TmpTensor;
+          }
+          if (TensorSplitSize == 0) {
+            LOG_ERROR("The tensor-split option needs at least one value."sv)
+            return false;
+          }
+          std::copy(TensorSplit.begin(), TensorSplit.end(),
+                    GraphRef.Params.tensor_split);
+          return true;
+        });
+    parseJsonAuto<bool>(Doc, "embedding", GraphRef.Params.embedding);
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "split-mode",
+        [&GraphRef](const std::string_view &SplitMode) -> bool {
+          if (SplitMode == "none"sv) {
+            GraphRef.Params.split_mode = LLAMA_SPLIT_MODE_NONE;
+          } else if (SplitMode == "layer"sv) {
+            GraphRef.Params.split_mode = LLAMA_SPLIT_MODE_LAYER;
+          } else if (SplitMode == "row"sv) {
+            GraphRef.Params.split_mode = LLAMA_SPLIT_MODE_ROW;
+          } else {
+            spdlog::error("[WASI-NN] GGML backend: Unknown split-mode: "
+                          "{}. Valid: none, layer, row."sv,
+                          SplitMode);
+            return false;
+          }
+          return true;
+        });
+    parseJsonWithCastAuto<std::string_view>(Doc, "mmproj",
+                                            GraphRef.Params.mmproj.path);
+    // The TTS parameters using macros
+    parseJsonAuto<bool>(Doc, "tts", GraphRef.TextToSpeech);
+    parseJsonWithCastAuto<std::string_view>(Doc, "model-vocoder",
+                                            GraphRef.VocoderModel.path);
+    parseJsonWithCastAuto<std::string_view>(Doc, "tts-output-file",
+                                            GraphRef.TTSOutputFilePath);
+
+    parseJsonWithCastAuto<std::string_view>(Doc, "tts-speaker-file",
+                                            GraphRef.TTSSpeakerFilePath);
+
+    // The context parameters
+    parseJsonWithCastAuto<int64_t>(Doc, "ctx-size", GraphRef.Params.n_ctx);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "batch-size", [&GraphRef](const int64_t &BatchSize) -> bool {
+          if (BatchSize <= 0 ||
+              BatchSize >
+                  static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
+            LOG_ERROR("batch-size should be in range [1, {}]."sv,
+                      std::numeric_limits<int32_t>::max())
+            return false;
+          }
+          GraphRef.Params.n_batch = static_cast<int32_t>(BatchSize);
+          return true;
+        });
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "ubatch-size", [&GraphRef](const int64_t &UBatchSize) -> bool {
+          // llama.cpp treats 0 as "same as batch-size".
+          if (UBatchSize < 0 ||
+              UBatchSize >
+                  static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
+            LOG_ERROR("ubatch-size should be in range [0, {}]."sv,
+                      std::numeric_limits<int32_t>::max())
+            return false;
+          }
+          GraphRef.Params.n_ubatch = static_cast<int32_t>(UBatchSize);
+          return true;
+        });
+    parseJsonWithCastAuto<int64_t>(Doc, "n-keep", GraphRef.Params.n_keep);
+    parseJsonWithCastAuto<int64_t>(Doc, "n-chunks", GraphRef.Params.n_chunks);
+    parseJsonWithCastAuto<int64_t>(Doc, "n-parallel",
+                                   GraphRef.Params.n_parallel);
+    parseJsonWithCastAuto<int64_t>(Doc, "n-sequences",
+                                   GraphRef.Params.n_sequences);
+    parseJsonWithCastAuto<int64_t>(Doc, "grp-attn-n",
+                                   GraphRef.Params.grp_attn_n);
+    parseJsonWithCastAuto<int64_t>(Doc, "grp-attn-w",
+                                   GraphRef.Params.grp_attn_w);
+    parseJsonWithCastAuto<int64_t>(Doc, "n-print", GraphRef.Params.n_print);
+    parseJsonWithCastAuto<double>(Doc, "rope-freq-base",
+                                  GraphRef.Params.rope_freq_base);
+    parseJsonWithCastAuto<double>(Doc, "rope-freq-scale",
+                                  GraphRef.Params.rope_freq_scale);
+    parseJsonWithCastAuto<double>(Doc, "yarn-ext-factor",
+                                  GraphRef.Params.yarn_ext_factor);
+    parseJsonWithCastAuto<double>(Doc, "yarn-attn-factor",
+                                  GraphRef.Params.yarn_attn_factor);
+    parseJsonWithCastAuto<double>(Doc, "yarn-beta-fast",
+                                  GraphRef.Params.yarn_beta_fast);
+    parseJsonWithCastAuto<double>(Doc, "yarn-beta-slow",
+                                  GraphRef.Params.yarn_beta_slow);
+    parseJsonWithCastAuto<int64_t>(Doc, "yarn-orig-ctx",
+                                   GraphRef.Params.yarn_orig_ctx);
+    parseJsonAuto<bool>(Doc, "mask-valid",
+                        GraphRef.Params.cpuparams.mask_valid);
+    parseJsonWithCastAuto<int64_t>(Doc, "priority",
+                                   GraphRef.Params.cpuparams.priority);
+    parseJsonAuto<bool>(Doc, "strict-cpu",
+                        GraphRef.Params.cpuparams.strict_cpu);
+    parseJsonWithCastAuto<int64_t>(Doc, "poll", GraphRef.Params.cpuparams.poll);
+    parseJsonAuto<bool>(Doc, "mask-valid-batch",
+                        GraphRef.Params.cpuparams_batch.mask_valid);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "priority-batch", [&GraphRef](const int64_t &Priority) -> bool {
+          GraphRef.Params.cpuparams_batch.priority =
+              static_cast<ggml_sched_priority>(Priority);
+          return true;
+        });
+    parseJsonAuto<bool>(Doc, "strict-cpu-batch",
+                        GraphRef.Params.cpuparams_batch.strict_cpu);
+    parseJsonWithCastAuto<int64_t>(Doc, "poll-batch",
+                                   GraphRef.Params.cpuparams_batch.poll);
+
+    parseJsonWithCastAuto<int64_t>(Doc, "numa", GraphRef.Params.numa);
+
+    parseJsonWithCastAuto<int64_t>(Doc, "rope-scaling-type",
+                                   GraphRef.Params.rope_scaling_type);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "pooling-type", [&GraphRef](const int64_t &PoolingType) -> bool {
+          // Unknown pooling types make llama.cpp abort when building the
+          // embedding graph.
+          if (PoolingType < LLAMA_POOLING_TYPE_UNSPECIFIED ||
+              PoolingType > LLAMA_POOLING_TYPE_RANK) {
+            LOG_ERROR("pooling-type should be in range [{}, {}]."sv,
+                      static_cast<int>(LLAMA_POOLING_TYPE_UNSPECIFIED),
+                      static_cast<int>(LLAMA_POOLING_TYPE_RANK))
+            return false;
+          }
+          GraphRef.Params.pooling_type =
+              static_cast<enum llama_pooling_type>(PoolingType);
+          return true;
+        });
+    parseJsonWithCastAuto<int64_t>(Doc, "attention-type",
+                                   GraphRef.Params.attention_type);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "threads", [&GraphRef](const int64_t &NThreads) -> bool {
+          return parseThreads("threads"sv, NThreads,
+                              GraphRef.Params.cpuparams.n_threads);
+        });
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "threads-batch", [&GraphRef](const int64_t &NThreads) -> bool {
+          return parseThreads("threads-batch"sv, NThreads,
+                              GraphRef.Params.cpuparams_batch.n_threads);
+        });
+    parseJsonWithCastAuto<int64_t>(Doc, "n-prev",
+                                   GraphRef.Params.sampling.n_prev);
+    parseJsonWithCastAuto<int64_t>(Doc, "n-probs",
+                                   GraphRef.Params.sampling.n_probs);
+    parseJsonWithCastAuto<int64_t>(Doc, "min-keep",
+                                   GraphRef.Params.sampling.min_keep);
+    parseJsonWithCastAuto<int64_t>(Doc, "top-k",
+                                   GraphRef.Params.sampling.top_k);
+    parseJsonWithCastAuto<double>(Doc, "min-p", GraphRef.Params.sampling.min_p);
+    parseJsonWithCastAuto<double>(Doc, "xtc-probability",
+                                  GraphRef.Params.sampling.xtc_probability);
+    parseJsonWithCastAuto<double>(Doc, "xtc-threshold",
+                                  GraphRef.Params.sampling.xtc_threshold);
+    parseJsonWithCastAuto<double>(Doc, "typ-p", GraphRef.Params.sampling.typ_p);
+    parseJsonWithCastAuto<double>(Doc, "dynatemp-range",
+                                  GraphRef.Params.sampling.dynatemp_range);
+    parseJsonWithCastAuto<double>(Doc, "dynatemp-exponent",
+                                  GraphRef.Params.sampling.dynatemp_exponent);
+    parseJsonWithCastAuto<int64_t>(Doc, "last-n-penalty",
+                                   GraphRef.Params.sampling.penalty_last_n);
+    parseJsonWithProcessorAuto<double>(
+        Doc, "temp", [&GraphRef](const double &Temp) -> bool {
+          GraphRef.Params.sampling.temp =
+              static_cast<float>(std::max(0.0, Temp));
+          return true;
+        });
+
+    parseJsonWithProcessorAuto<double>(
+        Doc, "top-p", [&GraphRef](const double &TopP) -> bool {
+          GraphRef.Params.sampling.top_p =
+              static_cast<float>(std::max(0.0, TopP));
+          return true;
+        });
+    parseJsonWithProcessorAuto<double>(
+        Doc, "repeat-penalty",
+        [&GraphRef](const double &RepeatPenalty) -> bool {
+          GraphRef.Params.sampling.penalty_repeat =
+              static_cast<float>(std::max(0.0, RepeatPenalty));
+          return true;
+        });
+    parseJsonWithProcessorAuto<double>(
+        Doc, "presence-penalty",
+        [&GraphRef](const double &PresencePenalty) -> bool {
+          GraphRef.Params.sampling.penalty_present =
+              static_cast<float>(std::max(0.0, PresencePenalty));
+          return true;
+        });
+    parseJsonWithProcessorAuto<double>(
+        Doc, "frequency-penalty",
+        [&GraphRef](const double &FrequencyPenalty) -> bool {
+          GraphRef.Params.sampling.penalty_freq =
+              static_cast<float>(std::max(0.0, FrequencyPenalty));
+          return true;
+        });
+    parseJsonWithCastAuto<double>(Doc, "dry-multipier",
+                                  GraphRef.Params.sampling.dry_multiplier);
+    parseJsonWithCastAuto<double>(Doc, "dry-base",
+                                  GraphRef.Params.sampling.dry_base);
+    parseJsonWithCastAuto<int64_t>(Doc, "dry-allowed-length",
+                                   GraphRef.Params.sampling.dry_allowed_length);
+    parseJsonWithCastAuto<int64_t>(Doc, "dry-last-n-penalty",
+                                   GraphRef.Params.sampling.penalty_last_n);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "mirostat", [&GraphRef](const int64_t &Mirostat) -> bool {
+          // common_sampler_init asserts on any other mirostat version.
+          if (Mirostat < 0 || Mirostat > 2) {
+            LOG_ERROR("mirostat should be in range [0, 2]."sv)
+            return false;
+          }
+          GraphRef.Params.sampling.mirostat = static_cast<int32_t>(Mirostat);
+          return true;
+        });
+    parseJsonWithCastAuto<double>(Doc, "mirostat-eta",
+                                  GraphRef.Params.sampling.mirostat_eta);
+    parseJsonAuto<bool>(Doc, "ignore-eos", GraphRef.Params.sampling.ignore_eos);
+    parseJsonAuto<bool>(Doc, "no-perf-sampling",
+                        GraphRef.Params.sampling.no_perf);
+    parseJsonAuto<bool>(Doc, "timing-per-token",
+                        GraphRef.Params.sampling.timing_per_token);
+
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "grammar", [&GraphRef](const std::string_view &Grammar) -> bool {
+          GraphRef.Params.sampling.grammar =
+              common_grammar(COMMON_GRAMMAR_TYPE_USER, std::string(Grammar));
+          return true;
+        });
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "json-schema",
+        [&GraphRef](const std::string_view &JsonSchema) -> bool {
+          try {
+            GraphRef.Params.sampling.grammar =
+                common_grammar(COMMON_GRAMMAR_TYPE_OUTPUT_FORMAT,
+                               json_schema_to_grammar(common_json::parse(
+                                   std::string(JsonSchema))));
+          } catch (const std::exception &E) {
+            LOG_ERROR("Invalid json-schema option: {}"sv, E.what())
+            return false;
+          }
+          return true;
+        });
+    parseJsonWithCastAuto<int64_t>(Doc, "seed", GraphRef.Params.sampling.seed);
+
+    // The speculative parameters.
+    warnRemovedKey(Doc, "n-ctx-speculative"sv);
+    parseJsonWithCastAuto<int64_t>(Doc, "n-max-speculative",
+                                   GraphRef.Params.speculative.draft.n_max);
+    parseJsonWithCastAuto<int64_t>(Doc, "n-min-speculative",
+                                   GraphRef.Params.speculative.draft.n_min);
+    parseJsonWithCastAuto<int64_t>(
+        Doc, "n-gpu-layers-speculative",
+        GraphRef.Params.speculative.draft.n_gpu_layers);
+    parseJsonWithCastAuto<double>(Doc, "p-split-speculative",
+                                  GraphRef.Params.speculative.draft.p_split);
+    parseJsonWithCastAuto<double>(Doc, "p-min-speculative",
+                                  GraphRef.Params.speculative.draft.p_min);
+    // The vocoder parameters.
+    parseJsonWithCastAuto<std::string_view>(Doc, "hf-repo-vocoder",
+                                            GraphRef.VocoderModel.hf_repo);
+    parseJsonWithCastAuto<std::string_view>(Doc, "hf-file-vocoder",
+                                            GraphRef.VocoderModel.hf_file);
+    parseJsonWithCastAuto<std::string_view>(Doc, "model-url-vocoder",
+                                            GraphRef.VocoderModel.url);
+
+    // The config parameters.
+    parseJsonAuto<bool>(Doc, "stream-stdout", ConfRef.StreamStdout);
+    parseJsonAuto<int64_t>(Doc, "n-predict", ConfRef.NPredict);
+    parseJsonWithCastAuto<std::string_view>(Doc, "reverse-prompt",
+                                            ConfRef.ReversePrompt);
+    parseJsonWithCastAuto<std::string_view>(Doc, "image", ConfRef.ImagePath);
+    parseJsonAuto<bool>(Doc, "always-regenerate-image-embd",
+                        ConfRef.AlwaysRegenerateImageEmbd);
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "model-alias",
+        [&GraphRef](const std::string_view &ModelAlias) -> bool {
+          GraphRef.Params.model_alias.emplace(ModelAlias);
+          return true;
+        });
+    parseJsonWithCastAuto<std::string_view>(Doc, "model-url",
+                                            GraphRef.Params.model.url);
+    parseJsonWithCastAuto<std::string_view>(Doc, "hf-token",
+                                            GraphRef.Params.hf_token);
+    parseJsonWithCastAuto<std::string_view>(Doc, "hf-repo",
+                                            GraphRef.Params.model.hf_repo);
+    parseJsonWithCastAuto<std::string_view>(Doc, "hf-file",
+                                            GraphRef.Params.model.hf_file);
+    parseJsonWithCastAuto<std::string_view>(Doc, "prompt-file",
+                                            GraphRef.Params.prompt_file);
+    parseJsonWithCastAuto<std::string_view>(Doc, "path-prompt-cache",
+                                            GraphRef.Params.path_prompt_cache);
+    parseJsonWithCastAuto<std::string_view>(Doc, "input-prefix",
+                                            GraphRef.Params.input_prefix);
+    parseJsonWithCastAuto<std::string_view>(Doc, "input-suffix",
+                                            GraphRef.Params.input_suffix);
+    parseJsonWithCastAuto<std::string_view>(
+        Doc, "lookup-cache-static",
+        GraphRef.Params.speculative.ngram_cache.lookup_cache_static);
+    parseJsonWithCastAuto<std::string_view>(
+        Doc, "lookup-cache-dynamic",
+        GraphRef.Params.speculative.ngram_cache.lookup_cache_dynamic);
+    parseJsonWithCastAuto<std::string_view>(Doc, "logits-file",
+                                            GraphRef.Params.logits_file);
+    parseJsonAuto<bool>(Doc, "lora-init-without-apply",
+                        GraphRef.Params.lora_init_without_apply);
+    parseJsonWithCastAuto<int64_t>(Doc, "verbosity", GraphRef.Params.verbosity);
+    parseJsonWithCastAuto<int64_t>(Doc, "control-vector-layer-start",
+                                   GraphRef.Params.control_vector_layer_start);
+    parseJsonWithCastAuto<int64_t>(Doc, "control-vector-layer-end",
+                                   GraphRef.Params.control_vector_layer_end);
+    parseJsonWithCastAuto<int64_t>(Doc, "ppl-stride",
+                                   GraphRef.Params.ppl_stride);
+    parseJsonWithCastAuto<int64_t>(Doc, "ppl-output-type",
+                                   GraphRef.Params.ppl_output_type);
+    parseJsonAuto<bool>(Doc, "hellaswag", GraphRef.Params.hellaswag);
+    parseJsonWithCastAuto<uint64_t, size_t>(Doc, "hellaswag-tasks",
+                                            GraphRef.Params.hellaswag_tasks);
+    parseJsonAuto<bool>(Doc, "winogrande", GraphRef.Params.winogrande);
+    parseJsonWithCastAuto<uint64_t, size_t>(Doc, "winogrande-tasks",
+                                            GraphRef.Params.winogrande_tasks);
+    parseJsonAuto<bool>(Doc, "multiple-choice",
+                        GraphRef.Params.multiple_choice);
+    parseJsonWithCastAuto<uint64_t, size_t>(
+        Doc, "multiple-choice-tasks", GraphRef.Params.multiple_choice_tasks);
+    parseJsonAuto<bool>(Doc, "kl-divergence", GraphRef.Params.kl_divergence);
+    parseJsonAuto<bool>(Doc, "usage", GraphRef.Params.usage);
+    parseJsonAuto<bool>(Doc, "use-color", GraphRef.Params.use_color);
+    parseJsonAuto<bool>(Doc, "special", GraphRef.Params.special);
+    parseJsonAuto<bool>(Doc, "interactive", GraphRef.Params.interactive);
+    parseJsonAuto<bool>(Doc, "interactive-first",
+                        GraphRef.Params.interactive_first);
+    parseJsonAuto<bool>(Doc, "prompt-cache-all",
+                        GraphRef.Params.prompt_cache_all);
+    parseJsonAuto<bool>(Doc, "prompt-cache-ro",
+                        GraphRef.Params.prompt_cache_ro);
+    parseJsonAuto<bool>(Doc, "escape", GraphRef.Params.escape);
+    parseJsonAuto<bool>(Doc, "multiline-input",
+                        GraphRef.Params.multiline_input);
+    parseJsonAuto<bool>(Doc, "simple-io", GraphRef.Params.simple_io);
+    parseJsonAuto<bool>(Doc, "cont-batching", GraphRef.Params.cont_batching);
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "flash-attn",
+        [&GraphRef](const std::string_view &FlashAttn) -> bool {
+          if (FlashAttn == "on"sv || FlashAttn == "enabled"sv) {
+            GraphRef.Params.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;
+          } else if (FlashAttn == "off"sv || FlashAttn == "disabled"sv) {
+            GraphRef.Params.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_DISABLED;
+          } else if (FlashAttn == "auto"sv) {
+            GraphRef.Params.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_AUTO;
+          } else {
+            spdlog::error(
+                "[WASI-NN] GGML backend: The flash-attn option must be "
+                "one of: on, off, auto."sv);
+            return false;
+          }
+          return true;
+        });
+    parseJsonAuto<bool>(Doc, "no-perf", GraphRef.Params.no_perf);
+    parseJsonAuto<bool>(Doc, "ctx-shift", GraphRef.Params.ctx_shift);
+    parseJsonAuto<bool>(Doc, "input-prefix-bos",
+                        GraphRef.Params.input_prefix_bos);
+    {
+      const auto LoadMode = GraphRef.Params.load_mode;
+      bool UseMmap = LoadMode == LLAMA_LOAD_MODE_AUTO ||
+                     LoadMode == LLAMA_LOAD_MODE_MMAP ||
+                     LoadMode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+      bool UseMlock = LoadMode == LLAMA_LOAD_MODE_MLOCK ||
+                      LoadMode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+      bool LegacyLoadKeyUsed = false;
+      parseJsonWithProcessorAuto<bool>(
+          Doc, "use-mlock", [&UseMlock, &LegacyLoadKeyUsed](const bool &Value) {
+            UseMlock = Value;
+            LegacyLoadKeyUsed = true;
+            return true;
+          });
+      parseJsonWithProcessorAuto<bool>(
+          Doc, "use-mmap", [&UseMmap, &LegacyLoadKeyUsed](const bool &Value) {
+            UseMmap = Value;
+            LegacyLoadKeyUsed = true;
+            return true;
+          });
+      if (LegacyLoadKeyUsed) {
+        if (UseMlock) {
+          GraphRef.Params.load_mode =
+              UseMmap ? LLAMA_LOAD_MODE_MMAP_MLOCK : LLAMA_LOAD_MODE_MLOCK;
+        } else {
+          GraphRef.Params.load_mode =
+              UseMmap ? LLAMA_LOAD_MODE_MMAP : LLAMA_LOAD_MODE_NONE;
+        }
+      }
+    }
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "load-mode",
+        [&GraphRef](const std::string_view &LoadMode) -> bool {
+          if (LoadMode == "auto"sv) {
+            GraphRef.Params.load_mode = LLAMA_LOAD_MODE_AUTO;
+          } else if (LoadMode == "none"sv) {
+            GraphRef.Params.load_mode = LLAMA_LOAD_MODE_NONE;
+          } else if (LoadMode == "mmap"sv) {
+            GraphRef.Params.load_mode = LLAMA_LOAD_MODE_MMAP;
+          } else if (LoadMode == "mlock"sv) {
+            GraphRef.Params.load_mode = LLAMA_LOAD_MODE_MLOCK;
+          } else if (LoadMode == "mmap+mlock"sv) {
+            GraphRef.Params.load_mode = LLAMA_LOAD_MODE_MMAP_MLOCK;
+          } else if (LoadMode == "dio"sv) {
+            GraphRef.Params.load_mode = LLAMA_LOAD_MODE_DIRECT_IO;
+          } else {
+            spdlog::error(
+                "[WASI-NN] GGML backend: The load-mode option must be "
+                "one of: auto, none, mmap, mlock, mmap+mlock, dio."sv);
+            return false;
+          }
+          return true;
+        });
+    parseJsonAuto<bool>(Doc, "verbose-prompt", GraphRef.Params.verbose_prompt);
+    parseJsonAuto<bool>(Doc, "display-prompt", GraphRef.Params.display_prompt);
+    parseJsonAuto<bool>(Doc, "no-kv-offload", GraphRef.Params.no_kv_offload);
+    parseJsonAuto<bool>(Doc, "warmup", GraphRef.Params.warmup);
+    parseJsonAuto<bool>(Doc, "check-tensors", GraphRef.Params.check_tensors);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "cache-type-k", [&GraphRef](const int64_t &CacheType) -> bool {
+          return parseKVCacheType("cache-type-k"sv, CacheType,
+                                  GraphRef.Params.cache_type_k);
+        });
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "cache-type-v", [&GraphRef](const int64_t &CacheType) -> bool {
+          return parseKVCacheType("cache-type-v"sv, CacheType,
+                                  GraphRef.Params.cache_type_v);
+        });
+
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "embd-normalize",
+        [&ConfRef](const int64_t &EmbdNormalize) -> bool {
+          // -1 disables normalization, 0 is max-absolute, 2 is euclidean,
+          // and any other value is the p of a p-norm in common_embd_normalize.
+          if (EmbdNormalize < -1 ||
+              EmbdNormalize >
+                  static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
+            LOG_ERROR("embd-normalize should be in range [-1, {}]."sv,
+                      std::numeric_limits<int32_t>::max())
+            return false;
+          }
+          ConfRef.EmbdNormalize = static_cast<EmbdNormalizeType>(EmbdNormalize);
+          return true;
+        });
+    parseJsonWithCastAuto<std::string_view>(Doc, "embd-out",
+                                            GraphRef.Params.embd_out);
+
+    parseJsonWithCastAuto<std::string_view>(Doc, "embd-sep",
+                                            GraphRef.Params.embd_sep);
+    parseJsonWithProcessorAuto<bool>(
+        Doc, "reranking", [&GraphRef](const bool &) -> bool {
+          GraphRef.Params.embedding = true;
+          GraphRef.Params.pooling_type = LLAMA_POOLING_TYPE_RANK;
+          return true;
+        });
+    parseJsonWithCastAuto<int64_t>(Doc, "port", GraphRef.Params.port);
+    parseJsonWithCastAuto<int64_t>(Doc, "timeout-read",
+                                   GraphRef.Params.timeout_read);
+    parseJsonWithCastAuto<int64_t>(Doc, "timeout-write",
+                                   GraphRef.Params.timeout_write);
+    parseJsonWithCastAuto<int64_t>(Doc, "n-threads-http",
+                                   GraphRef.Params.n_threads_http);
+    parseJsonWithCastAuto<int64_t>(Doc, "n-cache-reuse",
+                                   GraphRef.Params.n_cache_reuse);
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "hostname", [&GraphRef](const std::string_view &Hostname) -> bool {
+          GraphRef.Params.hostnames = {std::string(Hostname)};
+          return true;
+        });
+    parseJsonWithCastAuto<std::string_view>(Doc, "public-path",
+                                            GraphRef.Params.public_path);
+    parseJsonWithCastAuto<std::string_view>(Doc, "chat-template",
+                                            GraphRef.Params.chat_template);
+    parseJsonAuto<bool>(Doc, "enable-chat-template",
+                        GraphRef.Params.enable_chat_template);
+    parseJsonWithCastAuto<std::string_view>(Doc, "ssl-file-key",
+                                            GraphRef.Params.ssl_file_key);
+    parseJsonWithCastAuto<std::string_view>(Doc, "ssl-file-cert",
+                                            GraphRef.Params.ssl_file_cert);
+    parseJsonAuto<bool>(Doc, "webui", GraphRef.Params.ui);
+    parseJsonAuto<bool>(Doc, "endpoint-slots", GraphRef.Params.endpoint_slots);
+    parseJsonAuto<bool>(Doc, "endpoint-props", GraphRef.Params.endpoint_props);
+    parseJsonAuto<bool>(Doc, "endpoint-metrics",
+                        GraphRef.Params.endpoint_metrics);
+    parseJsonAuto<bool>(Doc, "log-json", GraphRef.Params.log_json);
+
+    // Slot parameters
+    parseJsonWithCastAuto<std::string_view>(Doc, "slot-save-path",
+                                            GraphRef.Params.slot_save_path);
+
+    parseJsonWithCastAuto<double>(Doc, "slot-prompt-similarity",
+                                  GraphRef.Params.slot_prompt_similarity);
+    parseJsonAuto<bool>(Doc, "is-pp-shared", GraphRef.Params.is_pp_shared);
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "n-pp", [&GraphRef](const int64_t &NPP) -> bool {
+          GraphRef.Params.n_pp.emplace_back(NPP);
+          return true;
+        });
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "n-tg", [&GraphRef](const int64_t &NTG) -> bool {
+          GraphRef.Params.n_tg.emplace_back(NTG);
+          return true;
+        });
+    parseJsonWithProcessorAuto<int64_t>(
+        Doc, "n-pl", [&GraphRef](const int64_t &NPL) -> bool {
+          GraphRef.Params.n_pl.emplace_back(NPL);
+          return true;
+        });
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "context-files",
+        [&GraphRef](const std::string_view &ContextFile) -> bool {
+          GraphRef.Params.context_files.emplace_back(ContextFile);
+          return true;
+        });
+    parseJsonWithCastAuto<int64_t>(Doc, "chunk-size",
+                                   GraphRef.Params.chunk_size);
+    parseJsonWithCastAuto<std::string_view>(Doc, "chunk-separator",
+                                            GraphRef.Params.chunk_separator);
+    parseJsonWithCastAuto<int64_t>(Doc, "n-junk", GraphRef.Params.n_junk);
+    parseJsonWithCastAuto<int64_t>(Doc, "i-pos", GraphRef.Params.i_pos);
+    parseJsonWithCastAuto<std::string_view>(Doc, "out-file",
+                                            GraphRef.Params.out_file);
+    parseJsonWithCastAuto<int64_t>(Doc, "n-out-freq",
+                                   GraphRef.Params.n_out_freq);
+    parseJsonWithCastAuto<int64_t>(Doc, "n-save-freq",
+                                   GraphRef.Params.n_save_freq);
+    parseJsonWithCastAuto<int64_t>(Doc, "i-chunk", GraphRef.Params.i_chunk);
+    parseJsonAuto<bool>(Doc, "process-output", GraphRef.Params.process_output);
+    parseJsonAuto<bool>(Doc, "compute-ppl", GraphRef.Params.compute_ppl);
+    parseJsonWithCastAuto<int64_t>(Doc, "n-pca-batch",
+                                   GraphRef.Params.n_pca_batch);
+    parseJsonWithCastAuto<int64_t>(Doc, "n-pca-iterations",
+                                   GraphRef.Params.n_pca_iterations);
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "cvector-dimre-method",
+        [&GraphRef](const std::string_view &Method) -> bool {
+          if (Method == "DIMRE_METHOD_PCA") {
+            GraphRef.Params.cvector_dimre_method =
+                dimre_method::DIMRE_METHOD_PCA;
+            return true;
+          }
+          if (Method == "DIMRE_METHOD_MEAN") {
+            GraphRef.Params.cvector_dimre_method =
+                dimre_method::DIMRE_METHOD_MEAN;
+            return true;
+          }
+          return false;
+        });
+    parseJsonWithCastAuto<std::string_view>(
+        Doc, "cvector-positive-file", GraphRef.Params.cvector_positive_file);
+    parseJsonWithCastAuto<std::string_view>(
+        Doc, "cvector-negative-file", GraphRef.Params.cvector_negative_file);
+    parseJsonAuto<bool>(Doc, "spm-infill", GraphRef.Params.spm_infill);
+    parseJsonWithCastAuto<std::string_view>(Doc, "out-file",
+                                            GraphRef.Params.out_file);
+    parseJsonAuto<bool>(Doc, "batched-bench-output-jsonl",
+                        GraphRef.Params.batched_bench_output_jsonl);
+  } catch (const ErrNo &Error) {
+    Restore();
+    return Error;
+  } catch (const std::exception &E) {
+    Restore();
+    RET_ERROR(ErrNo::InvalidArgument,
+              "metadata: unexpected exception while applying options: {}"sv,
+              E.what())
+  }
+  // The override table is derived from the current MoE settings as a whole;
+  // llama.cpp reads it up to the terminating empty pattern.
+  GraphRef.Params.tensor_buft_overrides.clear();
+  GraphRef.TensorBuftOverrides.clear();
+  if (GraphRef.CpuMoe) {
+    GraphRef.TensorBuftOverrides.push_back("\\.ffn_(up|down|gate)_exps");
+  }
+  for (int64_t I = 0; I < GraphRef.NCpuMoe; I++) {
+    GraphRef.TensorBuftOverrides.push_back(
+        fmt::format("blk\\.{}\\.ffn_(up|down|gate)_exps"sv, I));
+  }
+  if (!GraphRef.TensorBuftOverrides.empty()) {
+    for (const std::string &Override : GraphRef.TensorBuftOverrides) {
+      GraphRef.Params.tensor_buft_overrides.push_back(
+          {Override.c_str(), ggml_backend_cpu_buffer_type()});
+    }
+    GraphRef.Params.tensor_buft_overrides.push_back({nullptr, nullptr});
+  }
+
+  if (GraphRef.TextToSpeech) {
+    GraphRef.Params.sampling.top_k = 4;
+    GraphRef.Params.sampling.samplers = {
+        COMMON_SAMPLER_TYPE_TOP_K,
+    };
+  }
+  // Check if the model parameters are updated.
+  if (IsModelUpdated && PrevNGPULayers != GraphRef.Params.n_gpu_layers) {
+    *IsModelUpdated = true;
+  }
+
+  // Check if the context parameters are updated.
+  if (IsContextUpdated && PrevEmbedding != GraphRef.Params.embedding) {
+    *IsContextUpdated = true;
+  }
+
+  // Check if the sampler parameters are updated.
+  if (IsSamplerUpdated &&
+      (PrevTemp != GraphRef.Params.sampling.temp ||
+       PrevTopP != GraphRef.Params.sampling.top_p ||
+       PrevRepeatPenalty != GraphRef.Params.sampling.penalty_repeat ||
+       PrevPresencePenalty != GraphRef.Params.sampling.penalty_present ||
+       PrevFrequencyPenalty != GraphRef.Params.sampling.penalty_freq ||
+       PrevGrammar != common_grammar_value(GraphRef.Params.sampling.grammar) ||
+       PrevSeed != GraphRef.Params.sampling.seed)) {
+    *IsSamplerUpdated = true;
+  }
+
+  return ErrNo::Success;
+}
+
+#endif
+} // namespace WasmEdge::Host::WASINN::GGML

@@ -1,0 +1,563 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "loader/loader.h"
+
+#include "common/component_valtype.h"
+
+namespace WasmEdge {
+namespace Loader {
+
+Expect<void> Loader::loadType(AST::Component::CoreDefType &Ty) {
+  ComponentNestGuard NestGuard(ComponentNestLevel);
+  if (unlikely(ComponentNestLevel > MaxComponentNestLevel)) {
+    return logLoadError(ErrCode::Value::ComponentNestLevelExceeded,
+                        FMgr.getLastOffset(), ASTNodeAttr::Comp_CoreDefType);
+  }
+  auto ReportError = [](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreDefType));
+    return E;
+  };
+  /// FROM:
+  /// https://github.com/WebAssembly/component-model/blob/main/design/mvp/Binary.md#type-definitions
+  ///
+  /// Unfortunately, the `core:deftype` rule results in an encoding ambiguity:
+  /// the `0x50` opcode is used by both `core:moduletype` and a non-final
+  /// `core:subtype`, which can be decoded as a top-level form of
+  /// `core:rectype`.
+  ///
+  /// To resolve this, prior to v1.0 of this specification, we require
+  /// `core:subtype` to be prefixed by `0x00` in this context (i.e., a non-final
+  /// sub as a component core type is `0x00 0x50`; elsewhere, `0x50`). By the
+  /// v1.0 release of this specification, `core:moduletype` will receive a new,
+  /// non-overlapping opcode.
+
+  // core:type       ::= dt:<core:deftype> => (type dt)
+  // core:deftype    ::= rt:<core:rectype>
+  //                   => rt (WebAssembly 3.0)
+  //                   | 0x00 0x50 x*:vec(<core:typeidx>) ct:<core:comptype>
+  //                   => sub x* ct (WebAssembly 3.0)
+  //                   | mt:<core:moduletype>
+  //                   => mt
+  // core:moduletype ::= 0x50 md*:vec(<core:moduledecl>) => (module md*)
+
+  // Peek the first byte to determine the type to load.
+  EXPECTED_TRY(uint8_t Flag, FMgr.peekByte().map_error([this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_CoreDefType);
+  }));
+  switch (Flag) {
+  case 0x50: {
+    FMgr.readByte();
+    std::vector<AST::Component::CoreModuleDecl> Decls;
+    EXPECTED_TRY(loadVec<AST::Component::CoreDefType>(
+        Decls, [this](AST::Component::CoreModuleDecl &Decl) {
+          return loadDecl(Decl);
+        }));
+    Ty.setModuleType(std::move(Decls));
+    return {};
+  }
+  case 0x00: { // sub non-final case
+    FMgr.readByte();
+    std::vector<AST::SubType> STypes(1);
+    STypes.back().setTypeIndex(0);
+    EXPECTED_TRY(loadType(STypes.back()).map_error(ReportError));
+    Ty.setSubTypes(std::move(STypes));
+    return {};
+  }
+  default: { // recursive type case
+    std::vector<AST::SubType> STypes;
+    EXPECTED_TRY(loadRecType(STypes).map_error(ReportError));
+    Ty.setSubTypes(std::move(STypes));
+    return {};
+  }
+  }
+}
+
+Expect<void> Loader::loadRecType(std::vector<AST::SubType> &STypes) {
+  // core:rectype ::= 0x4E st*:vec(<core:subtype>) => (rec st*)
+  //                | st:<core:subtype>             => (rec st)
+
+  EXPECTED_TRY(uint8_t Flag, FMgr.peekByte().map_error([this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_CoreDefType);
+  }));
+  if (static_cast<TypeCode>(Flag) == TypeCode::Rec) {
+    FMgr.readByte();
+    EXPECTED_TRY(uint32_t RecVecCnt, loadVecCnt().map_error([this](auto E) {
+      return logLoadError(E, FMgr.getLastOffset(),
+                          ASTNodeAttr::Comp_CoreDefType);
+    }));
+    for (uint32_t I = 0; I < RecVecCnt; ++I) {
+      STypes.emplace_back();
+      EXPECTED_TRY(loadType(STypes.back()));
+      STypes.back().setRecursiveInfo(I, RecVecCnt);
+      STypes.back().setTypeIndex(I);
+    }
+    return {};
+  }
+  STypes.emplace_back();
+  STypes.back().setTypeIndex(0);
+  return loadType(STypes.back());
+}
+
+Expect<void> Loader::loadType(AST::Component::DefType &Ty) {
+  ComponentNestGuard NestGuard(ComponentNestLevel);
+  if (unlikely(ComponentNestLevel > MaxComponentNestLevel)) {
+    return logLoadError(ErrCode::Value::ComponentNestLevelExceeded,
+                        FMgr.getLastOffset(), ASTNodeAttr::Comp_DefType);
+  }
+  auto ReportError = [](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
+    return E;
+  };
+  // type    ::= dt:<deftype>       => (type dt)
+  // deftype ::= dvt:<defvaltype>   => dvt
+  //           | ft:<functype>      => ft
+  //           | ct:<componenttype> => ct
+  //           | it:<instancetype>  => it
+  //           | rt:<resourcetype>  => rt
+
+  // Read the first byte to determine the type to load.
+  EXPECTED_TRY(auto Flag, FMgr.readByte().map_error([this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_DefType);
+  }));
+  switch (Flag) {
+  case 0x40:
+  case 0x43: {
+    AST::Component::FuncType FT;
+    FT.setAsync(Flag == 0x43);
+    EXPECTED_TRY(loadType(FT).map_error(ReportError));
+    Ty.setFuncType(std::move(FT));
+    return {};
+  }
+  case 0x41: {
+    AST::Component::ComponentType CT;
+    EXPECTED_TRY(loadType(CT).map_error(ReportError));
+    Ty.setComponentType(std::move(CT));
+    return {};
+  }
+  case 0x42: {
+    AST::Component::InstanceType IT;
+    EXPECTED_TRY(loadType(IT).map_error(ReportError));
+    Ty.setInstanceType(std::move(IT));
+    return {};
+  }
+  case 0x3F: {
+    AST::Component::ResourceType RT;
+    EXPECTED_TRY(loadType(RT).map_error(ReportError));
+    Ty.setResourceType(std::move(RT));
+    return {};
+  }
+  default: {
+    AST::Component::DefValType DVT;
+    EXPECTED_TRY(loadType(DVT, Flag).map_error(ReportError));
+    Ty.setDefValType(std::move(DVT));
+    return {};
+  }
+  }
+}
+
+Expect<void> Loader::loadType(AST::Component::DefValType &Ty, uint8_t Code) {
+  auto ReportError = [](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefValType));
+    return E;
+  };
+
+  // defvaltype ::= pvt:<primvaltype>          => pvt
+  //              | 0x72 lt*:vec(<labelvaltype>)
+  //                => (record (field lt)*) (if |lt*| > 0)
+  //              | 0x71 case*:vec(<case>) => (variant case+) (if |case*| > 0)/
+  //              | 0x70 t:<valtype>           => (list t)
+  //              | 0x67 t:<valtype> len:<u32> => (list t len) (if len > 0) 🔧
+  //              | 0x6f t*:vec(<valtype>)     => (tuple t+) (if |t*| > 0)
+  //              | 0x6e l*:vec(<label'>)      => (flags l+) (if 0 < |l*| <= 32)
+  //              | 0x6d l*:vec(<label'>)      => (enum l+) (if |l*| > 0)
+  //              | 0x6b t:<valtype>           => (option t)
+  //              | 0x6a t?:<valtype>? u?:<valtype>? => (result t? (error u)?)
+  //              | 0x69 i:<typeidx>           => (own i)
+  //              | 0x68 i:<typeidx>           => (borrow i)
+  //              | 0x66 t?:<valtype>?         => (stream t?) 🔀
+  //              | 0x65 t?:<valtype>?         => (future t?) 🔀
+  //              | 0x63 k:<valtype> v:<valtype> => (map k v) 🗺️
+
+  const auto TC = static_cast<ComponentTypeCode>(Code);
+  switch (TC) {
+  case ComponentTypeCode::Bool:
+  case ComponentTypeCode::S8:
+  case ComponentTypeCode::U8:
+  case ComponentTypeCode::S16:
+  case ComponentTypeCode::U16:
+  case ComponentTypeCode::S32:
+  case ComponentTypeCode::U32:
+  case ComponentTypeCode::S64:
+  case ComponentTypeCode::U64:
+  case ComponentTypeCode::F32:
+  case ComponentTypeCode::F64:
+  case ComponentTypeCode::Char:
+  case ComponentTypeCode::String:
+  case ComponentTypeCode::ErrContext:
+    Ty.setPrimValType(static_cast<PrimValType>(TC));
+    return {};
+  case ComponentTypeCode::Record: {
+    AST::Component::RecordTy RTy;
+    EXPECTED_TRY(loadType(RTy).map_error(ReportError));
+    Ty.setRecord(std::move(RTy));
+    return {};
+  }
+  case ComponentTypeCode::Variant: {
+    AST::Component::VariantTy VTy;
+    EXPECTED_TRY(loadType(VTy).map_error(ReportError));
+    Ty.setVariant(std::move(VTy));
+    return {};
+  }
+  case ComponentTypeCode::List:
+  case ComponentTypeCode::ListLen: {
+    AST::Component::ListTy LTy;
+    EXPECTED_TRY(
+        loadType(LTy, TC == ComponentTypeCode::ListLen).map_error(ReportError));
+    Ty.setList(std::move(LTy));
+    return {};
+  }
+  case ComponentTypeCode::Tuple: {
+    AST::Component::TupleTy TTy;
+    EXPECTED_TRY(loadType(TTy).map_error(ReportError));
+    Ty.setTuple(std::move(TTy));
+    return {};
+  }
+  case ComponentTypeCode::Flags: {
+    AST::Component::FlagsTy FTy;
+    EXPECTED_TRY(loadType(FTy).map_error(ReportError));
+    Ty.setFlags(std::move(FTy));
+    return {};
+  }
+  case ComponentTypeCode::Enum: {
+    AST::Component::EnumTy ETy;
+    EXPECTED_TRY(loadType(ETy).map_error(ReportError));
+    Ty.setEnum(std::move(ETy));
+    return {};
+  }
+  case ComponentTypeCode::Option: {
+    AST::Component::OptionTy OTy;
+    EXPECTED_TRY(loadType(OTy).map_error(ReportError));
+    Ty.setOption(std::move(OTy));
+    return {};
+  }
+  case ComponentTypeCode::Result: {
+    AST::Component::ResultTy RTy;
+    EXPECTED_TRY(loadType(RTy).map_error(ReportError));
+    Ty.setResult(std::move(RTy));
+    return {};
+  }
+  case ComponentTypeCode::Own: {
+    AST::Component::OwnTy OTy;
+    EXPECTED_TRY(loadType(OTy).map_error(ReportError));
+    Ty.setOwn(std::move(OTy));
+    return {};
+  }
+  case ComponentTypeCode::Borrow: {
+    AST::Component::BorrowTy BTy;
+    EXPECTED_TRY(loadType(BTy).map_error(ReportError));
+    Ty.setBorrow(std::move(BTy));
+    return {};
+  }
+  case ComponentTypeCode::Stream: {
+    AST::Component::StreamTy STy;
+    EXPECTED_TRY(loadType(STy).map_error(ReportError));
+    Ty.setStream(std::move(STy));
+    return {};
+  }
+  case ComponentTypeCode::Future: {
+    AST::Component::FutureTy FTy;
+    EXPECTED_TRY(loadType(FTy).map_error(ReportError));
+    Ty.setFuture(std::move(FTy));
+    return {};
+  }
+  case ComponentTypeCode::Map: {
+    AST::Component::MapTy MTy;
+    EXPECTED_TRY(loadType(MTy).map_error(ReportError));
+    Ty.setMap(std::move(MTy));
+    return {};
+  }
+  default:
+    return logLoadError(ErrCode::Value::MalformedDefType, FMgr.getLastOffset(),
+                        ASTNodeAttr::Comp_DefValType);
+  }
+}
+
+Expect<void> Loader::loadType(AST::Component::FuncType &Ty) {
+  // functype   ::= 0x40 ps:<paramlist> rs:<resultlist> => (func ps rs)
+  //              | 0x43 ps:<paramlist> rs:<resultlist> => (func async ps rs)
+  // paramlist  ::= lt*:vec(<labelvaltype>)             => (param lt)*
+  // resultlist ::= 0x00 t:<valtype> => (result t)
+  //              | 0x01 0x00        => ϵ
+
+  // The prefix `0x40` or `0x43` has been loaded in the parent scope.
+
+  // Load the param list.
+  std::vector<AST::Component::LabelValType> ParamList;
+  EXPECTED_TRY(loadVec<AST::Component::FuncType>(
+      ParamList,
+      [this](AST::Component::LabelValType &LV) { return loadType(LV); }));
+  Ty.setParamList(std::move(ParamList));
+
+  // Load the result list.
+  EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error([this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_FuncType);
+  }));
+  switch (Flag) {
+  case 0x00: {
+    ComponentValType VT;
+    EXPECTED_TRY(loadType(VT).map_error([](auto E) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_FuncType));
+      return E;
+    }));
+    Ty.setResult(VT);
+    return {};
+  }
+  case 0x01: {
+    EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error([this](auto E) {
+      return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_FuncType);
+    }));
+    if (B != 0x00) {
+      return logLoadError(ErrCode::Value::MalformedDefType,
+                          FMgr.getLastOffset(), ASTNodeAttr::Comp_FuncType);
+    }
+    Ty.setResult(std::nullopt);
+    return {};
+  }
+  default:
+    return logLoadError(ErrCode::Value::MalformedDefType, FMgr.getLastOffset(),
+                        ASTNodeAttr::Comp_FuncType);
+  }
+}
+
+Expect<void> Loader::loadType(AST::Component::ComponentType &Ty) {
+  // componenttype ::= 0x41 cd*:vec(<componentdecl>) => (component cd*)
+
+  // The prefix `0x41` has been loaded in the parent scope.
+  std::vector<AST::Component::ComponentDecl> Decls;
+  EXPECTED_TRY(loadVec<AST::Component::ComponentType>(
+      Decls,
+      [this](AST::Component::ComponentDecl &Decl) { return loadDecl(Decl); }));
+  Ty.setDecl(std::move(Decls));
+  return {};
+}
+
+Expect<void> Loader::loadType(AST::Component::InstanceType &Ty) {
+  // instancetype ::= 0x42 id*:vec(<instancedecl>) => (instance id*)
+
+  // The prefix `0x42` has been loaded in the parent scope.
+  std::vector<AST::Component::InstanceDecl> Decls;
+  EXPECTED_TRY(loadVec<AST::Component::InstanceType>(
+      Decls,
+      [this](AST::Component::InstanceDecl &Decl) { return loadDecl(Decl); }));
+  Ty.setDecl(std::move(Decls));
+  return {};
+}
+
+Expect<void> Loader::loadType(AST::Component::ResourceType &Ty) {
+  auto ReportError = [this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(),
+                        ASTNodeAttr::Comp_ResourceType);
+  };
+  auto LoadIdx = [this](uint32_t &CBIdx) -> Expect<void> {
+    EXPECTED_TRY(CBIdx, FMgr.readU32().map_error([this](auto E) {
+      spdlog::error(E);
+      spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
+      return E;
+    }));
+    return {};
+  };
+  // resourcetype ::= 0x3f t:<core:valtype> f?:<core:funcidx>?
+  //                => (resource (rep t) (dtor f)?)
+  // The rep is i32, or i64 under 🐘.
+
+  // The prefix `0x3F` has been loaded in the parent scope.
+  EXPECTED_TRY(auto B, FMgr.readByte().map_error(ReportError));
+  if (B == 0x7f) {
+    // i32 rep — always supported.
+  } else if (B == 0x7e) {
+    // i64 rep — memory64 proposal required.
+    if (!Conf.hasProposal(Proposal::Memory64)) {
+      return logNeedProposal(ErrCode::Value::MalformedDefType,
+                             Proposal::Memory64, FMgr.getLastOffset(),
+                             ASTNodeAttr::Comp_ResourceType);
+    }
+    Ty.setAddrI64(true);
+  } else {
+    return logLoadError(ErrCode::Value::MalformedDefType, FMgr.getLastOffset(),
+                        ASTNodeAttr::Comp_ResourceType);
+  }
+  EXPECTED_TRY(Ty.getDestructor(),
+               loadOption<AST::Component::ResourceType, uint32_t>(LoadIdx));
+  return {};
+}
+
+Expect<void> Loader::loadType(AST::Component::RecordTy &Ty) {
+  // record ::= lt*:vec(<labelvaltype>) => (record (field lt)*) (if |lt*| > 0)
+
+  EXPECTED_TRY(loadVec<AST::Component::RecordTy>(
+      Ty.LabelTypes,
+      [this](AST::Component::LabelValType &LT) { return loadType(LT); }));
+  return {};
+}
+
+Expect<void> Loader::loadType(AST::Component::VariantTy &Ty) {
+  // variant ::= case*:vec(<case>) => (variant case+) (if |case*| > 0)
+  // case    ::= l:<label'> t?:<valtype>? 0x00
+
+  auto LoadCase =
+      [this](std::pair<std::string, std::optional<ComponentValType>> &Case)
+      -> Expect<void> {
+    EXPECTED_TRY(std::string Label, FMgr.readName().map_error([this](auto E) {
+      spdlog::error(E);
+      spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
+      return E;
+    }));
+    EXPECTED_TRY(std::optional<ComponentValType> VT,
+                 loadOption<AST::Component::VariantTy, ComponentValType>(
+                     [this](ComponentValType &VTy) { return loadType(VTy); }));
+    EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error([this](auto E) {
+      spdlog::error(E);
+      spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
+      return E;
+    }));
+    if (Flag != 0x00) {
+      spdlog::error(ErrCode::Value::MalformedVariantType);
+      spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
+      return Unexpect(ErrCode::Value::MalformedVariantType);
+    }
+    Case = std::make_pair(Label, VT);
+    return {};
+  };
+  return loadVec<AST::Component::VariantTy>(
+      Ty.Cases,
+      [LoadCase](std::pair<std::string, std::optional<ComponentValType>> &C) {
+        return LoadCase(C);
+      });
+}
+
+Expect<void> Loader::loadType(AST::Component::ListTy &Ty, bool IsFixedLen) {
+  // list ::= t:<valtype>           => (list t)
+  //        | t:<valtype> len:<u32> => (list t len) (if len > 0) 🔧
+
+  EXPECTED_TRY(loadType(Ty.ValTy).map_error([](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Type_List));
+    return E;
+  }));
+  if (IsFixedLen) {
+    EXPECTED_TRY(Ty.Len, FMgr.readU32().map_error([this](auto E) {
+      return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Type_List);
+    }));
+  }
+  return {};
+}
+
+Expect<void> Loader::loadType(AST::Component::TupleTy &Ty) {
+  // tuple ::= t*:vec(<valtype>) => (tuple t+) (if |t*| > 0)
+
+  EXPECTED_TRY(loadVec<AST::Component::TupleTy>(
+      Ty.Types, [this](ComponentValType &T) { return loadType(T); }));
+  return {};
+}
+
+Expect<void> Loader::loadType(AST::Component::FlagsTy &Ty) {
+  // flags  ::= l*:vec(<label'>)    => (flags l+) (if 0 < |l*| <= 32)
+  // label' ::= len:<u32> l:<label> => l (if len = |l|)
+
+  auto LoadName = [this](std::string &Name) -> Expect<void> {
+    EXPECTED_TRY(Name, FMgr.readName().map_error([this](auto E) {
+      spdlog::error(E);
+      spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
+      return E;
+    }));
+    return {};
+  };
+  EXPECTED_TRY(loadVec<AST::Component::FlagsTy>(
+      Ty.Labels, [LoadName](std::string &Label) { return LoadName(Label); }));
+  return {};
+}
+
+Expect<void> Loader::loadType(AST::Component::EnumTy &Ty) {
+  // enum   ::= l*:vec(<label'>)    => (enum l+) (if |l*| > 0)
+  // label' ::= len:<u32> l:<label> => l (if len = |l|)
+
+  auto LoadName = [this](std::string &Name) -> Expect<void> {
+    EXPECTED_TRY(Name, FMgr.readName().map_error([this](auto E) {
+      spdlog::error(E);
+      spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
+      return E;
+    }));
+    return {};
+  };
+  return loadVec<AST::Component::EnumTy>(
+      Ty.Labels, [LoadName](std::string &Label) { return LoadName(Label); });
+}
+
+Expect<void> Loader::loadType(AST::Component::OptionTy &Ty) {
+  // option ::= t:<valtype> => (option t)
+
+  return loadType(Ty.ValTy).map_error([](auto E) {
+    spdlog::error(E);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Type_Option));
+    return E;
+  });
+}
+
+Expect<void> Loader::loadType(AST::Component::ResultTy &Ty) {
+  // result ::= t?:<valtype>? u?:<valtype>? => (result t? (error u)?)
+
+  EXPECTED_TRY(Ty.ValTy,
+               loadOption<AST::Component::ResultTy, ComponentValType>(
+                   [this](ComponentValType &VTy) { return loadType(VTy); }));
+  EXPECTED_TRY(Ty.ErrTy,
+               loadOption<AST::Component::ResultTy, ComponentValType>(
+                   [this](ComponentValType &VTy) { return loadType(VTy); }));
+  return {};
+}
+
+Expect<void> Loader::loadType(AST::Component::OwnTy &Ty) {
+  // own ::= i:<typeidx> => (own i)
+
+  EXPECTED_TRY(Ty.Idx, FMgr.readU32().map_error([this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Type_Own);
+  }));
+  return {};
+}
+
+Expect<void> Loader::loadType(AST::Component::BorrowTy &Ty) {
+  // borrow ::= i:<typeidx> => (borrow i)
+
+  EXPECTED_TRY(Ty.Idx, FMgr.readU32().map_error([this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Type_Borrow);
+  }));
+  return {};
+}
+
+Expect<void> Loader::loadType(AST::Component::StreamTy &Ty) {
+  // stream ::= t?:<valtype>? => (stream t?) 🔀
+
+  EXPECTED_TRY(Ty.ValTy,
+               loadOption<AST::Component::StreamTy, ComponentValType>(
+                   [this](ComponentValType &VTy) { return loadType(VTy); }));
+  return {};
+}
+
+Expect<void> Loader::loadType(AST::Component::FutureTy &Ty) {
+  // future ::= t?:<valtype>? => (future t?) 🔀
+
+  EXPECTED_TRY(Ty.ValTy,
+               loadOption<AST::Component::FutureTy, ComponentValType>(
+                   [this](ComponentValType &VTy) { return loadType(VTy); }));
+  return {};
+}
+
+Expect<void> Loader::loadType(AST::Component::MapTy &Ty) {
+  // map ::= k:<valtype> v:<valtype> => (map k v) (if k is in <keytype>) 🗺️
+
+  EXPECTED_TRY(loadType(Ty.KeyTy));
+  EXPECTED_TRY(loadType(Ty.ValTy));
+  return {};
+}
+
+} // namespace Loader
+} // namespace WasmEdge

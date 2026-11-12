@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+//===-- wasmedge/common/enum_configure.hpp - Configure C++ enumerations ---===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains the definitions of configuration-related C++
+/// enumerations.
+///
+//===----------------------------------------------------------------------===//
+
+#pragma once
+
+#include "dense_enum_map.h"
+
+#include <cstdint>
+#include <string_view>
+
+namespace WasmEdge {
+
+/// WASM Standard C++ enumeration class.
+enum class Standard : uint8_t {
+#define UseStandard
+#define Line(NAME) NAME,
+#include "enum.inc"
+#undef Line
+#undef UseStandard
+  Max
+};
+
+/// WASM Proposal C++ enumeration class.
+enum class Proposal : uint8_t {
+#define UseProposal
+#define Line(NAME, STRING) NAME,
+#include "enum.inc"
+#undef Line
+#undef UseProposal
+  Max
+};
+
+static inline constexpr auto ProposalStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<Proposal, std::string_view> Array[] = {
+#define UseProposal
+#define Line(NAME, STRING) {Proposal::NAME, STRING##sv},
+#include "enum.inc"
+#undef Line
+#undef UseProposal
+  };
+  return DenseEnumMap(Array);
+}();
+
+/// Host Module Registration C++ enumeration class.
+enum class HostRegistration : uint8_t {
+#define UseHostRegistration
+#define Line(NAME) NAME,
+#include "enum.inc"
+#undef Line
+#undef UseHostRegistration
+  Max
+};
+
+/// Run mode C++ enumeration class. Selects the engine used to execute a
+/// WebAssembly module: interpreter (default), JIT, or AOT.
+enum class RunMode : uint8_t {
+#define UseRunMode
+#define Line(NAME) NAME,
+#include "enum.inc"
+#undef Line
+#undef UseRunMode
+};
+
+} // namespace WasmEdge

@@ -1,0 +1,1 @@
+wasmedge-fuzzpoŞ­¾ï--memory-page-limit=1000

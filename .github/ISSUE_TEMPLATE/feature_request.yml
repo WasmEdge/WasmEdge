@@ -1,0 +1,31 @@
+name: "Feature Request"
+description: Found some fantastic features or cool ideas, but WasmEdge is not yet provided?
+title: "feat: <title>"
+labels: [
+  "enhancement"
+]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: "Summary"
+      description: Please shortly describe by example what feature you want to use or what idea you want to see in the current WasmEdge project.
+      placeholder: Describe in a few lines your feature request
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: "Details"
+      description: Indicate here some basic examples of your feature.
+      placeholder: A few specific words about your feature request.
+    validations:
+      required: true
+  - type: textarea
+    id: appendix
+    attributes:
+      label: "Appendix"
+      description: Provide anything you want to supplement.
+      placeholder: Some reference links or any information related to this feature request.
+    validations:
+      required: false

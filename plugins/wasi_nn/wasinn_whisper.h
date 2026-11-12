@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#pragma once
+
+#include "wasinntypes.h"
+
+#include "plugin/plugin.h"
+#include <cstdint>
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
+#include "wasinn_whisper_log.h"
+#include <whisper.h>
+
+#include <algorithm>
+#include <string>
+#include <thread>
+#include <vector>
+#endif
+
+namespace WasmEdge::Host::WASINN {
+struct WasiNNEnvironment;
+class Graph;
+class Context;
+} // namespace WasmEdge::Host::WASINN
+
+namespace WasmEdge::Host::WASINN::Whisper {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
+
+struct Config {
+  // Whisper parameters:
+  uint64_t ThreadsNum =
+      std::min(static_cast<uint64_t>(4),
+               static_cast<uint64_t>(std::thread::hardware_concurrency()));
+  uint64_t ProcessorsNum = 1;
+  uint64_t MaxTokenContext = 16384;
+  uint64_t TimeOffsetMS = 0;
+  uint64_t DurationMS = 0;
+  uint64_t MaxSegmentLength = 0;
+  bool EnableLog = false;
+  bool EnableDebugLog = false;
+  bool Translate = false;
+  bool DetectLanguage = false;
+  bool SplitOnWord = false;
+  bool Diarize = false;
+  bool TinyDiarize = false;
+  std::string SpokenLanguage;
+  std::string InitialPrompt;
+  uint64_t BestOf = 5;
+  uint64_t BeamSize = 5;
+  uint64_t OffsetN = 0;
+  std::string FileName = "output";
+  bool OutputSrt = false;
+  bool OutputLrc = false;
+  bool OutputJson = false;
+  bool OutputJsonFull = false;
+  bool NoTimestamps = false;
+  uint64_t AudioCtx = 0;
+  // Sampling parameters:
+  float WordThreshold = 0.01f;
+  float EntropyThreshold = 2.40f;
+  float LogprobThreshold = -1.00f;
+  float Temperature = 0.0f;
+  float TemperatureInc = 0.2f;
+  float GrammarPenalty = 100.0f;
+};
+
+struct Graph {
+  Graph() = default;
+  Graph(const Graph &) = delete;
+  Graph &operator=(const Graph &) = delete;
+  ~Graph() noexcept {
+    if (WhisperCtx != nullptr) {
+      whisper_free(WhisperCtx);
+    }
+  }
+  whisper_context *WhisperCtx = nullptr;
+  std::string ModelFilePath;
+  // This graph's unit in the shared whisper log gate.
+  WhisperLogToken WhisperLog;
+  // Whisper config:
+  Config WhisperConfig;
+  // Context parameters:
+  bool UseGPU = true;
+  int64_t MainGPU = 0; // Use GPU 0 by default
+};
+
+struct Context {
+public:
+  Context(uint32_t GId, Graph &G) noexcept
+      : GraphId(GId), WhisperConfig(G.WhisperConfig) {}
+  uint32_t GraphId;
+  // mono-channel F32 PCM input.
+  std::vector<float> InputPCM;
+  std::vector<std::vector<float>> InputPCMs;
+  // Whisper config. Inherited from the graph and updated from metadata when
+  // setting input.
+  Config WhisperConfig;
+  whisper_full_params WhisperParams;
+  // Recognition outputs.
+  std::string Outputs;
+};
+#else
+struct Graph {};
+struct Context {
+  Context(uint32_t, Graph &) noexcept {}
+};
+#endif
+
+struct Environ {};
+
+Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
+                           Span<const Span<uint8_t>> Builders,
+                           WASINN::Device Device) noexcept;
+Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
+                                  WASINN::Graph &G,
+                                  WASINN::Context &C) noexcept;
+Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
+                               WASINN::Context &C, uint32_t Index,
+                               const TensorData &Tensor) noexcept;
+Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
+                                WASINN::Graph &G, WASINN::Context &C,
+                                uint32_t Index, Span<uint8_t> OutBuffer,
+                                uint32_t &BytesWritten) noexcept;
+Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
+                              WASINN::Context &C) noexcept;
+} // namespace WasmEdge::Host::WASINN::Whisper

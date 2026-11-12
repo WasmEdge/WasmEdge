@@ -1,0 +1,1 @@
+wasmedge-fuzzpoޭ��--disable-multi-memoryޭ��--disable-tail-callޭ��--disable-extended-constޭ��--enable-threads

@@ -1,0 +1,25 @@
+name: Submit WasmEdge MSI package to the Windows Package Manager Community Repository
+
+on:
+  workflow_dispatch:
+  release:
+    types: [released]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - name: Submit WasmEdge MSI package with Winget-Releaser
+        uses: vedantmgoyal9/winget-releaser@b7370d4d152efdce803a26cc6ca9eee58cb2ad54 # main
+        with:
+          identifier: WasmEdge.WasmEdge
+          installers-regex: 'windows\.msi$'
+          token: ${{ secrets.GITHUB_TOKEN }}

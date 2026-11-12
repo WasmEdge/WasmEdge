@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+//===-- wasmedge/common/spdlog.h - Logging system -------------------------===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains the logging system linkage.
+///
+//===----------------------------------------------------------------------===//
+#pragma once
+
+#include "common/filesystem.h"
+#include "common/fmt.h"
+#include "common/int128.h"
+#define SPDLOG_NO_EXCEPTIONS 1
+#include "spdlog/spdlog.h"
+
+namespace WasmEdge {
+namespace Log {
+
+void setLogOff();
+
+void setTraceLoggingLevel();
+
+void setDebugLoggingLevel();
+
+void setInfoLoggingLevel();
+
+void setWarnLoggingLevel();
+
+void setErrorLoggingLevel();
+
+void setCriticalLoggingLevel();
+
+/// Set the logging level from a string.
+/// Supported values: off, trace, debug, info, warning, error, fatal.
+/// Returns true if level was set successfully, false if invalid.
+bool setLoggingLevelFromString(std::string_view Level);
+
+void setLoggingCallback(
+    std::function<void(const spdlog::details::log_msg &)> Callback);
+
+} // namespace Log
+} // namespace WasmEdge
+
+template <>
+struct fmt::formatter<std::filesystem::path>
+    : fmt::formatter<std::string_view> {
+  template <typename FmtCtx>
+  auto format(const std::filesystem::path &Path, FmtCtx &Ctx) WASMEDGE_FMT_CONST
+      -> decltype(Ctx.out()) {
+    // mimic std::quoted
+    constexpr const char Delimiter = '"';
+    constexpr const char Escape = '\\';
+    auto Quoted = fmt::memory_buffer();
+    auto Iter = std::back_inserter(Quoted);
+    *Iter++ = Delimiter;
+    for (const auto C : WasmEdge::u8string(Path)) {
+      if (C == Delimiter || C == Escape) {
+        *Iter++ = Escape;
+      }
+      *Iter++ = C;
+    }
+    *Iter++ = Delimiter;
+    return fmt::formatter<std::string_view>::format(
+        std::string_view(Quoted.data(), Quoted.size()), Ctx);
+  }
+};

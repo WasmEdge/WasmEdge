@@ -1,0 +1,201 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "loader/serialize.h"
+
+namespace WasmEdge {
+namespace Loader {
+
+// Serialize custom section. See "include/loader/serialize.h".
+void Serializer::serializeSection(const AST::CustomSection &Sec,
+                                  std::vector<uint8_t> &OutVec) const noexcept {
+  // Custom section: 0x00 + size:u32 + name:vec(byte) + content:byte*.
+  // Section ID.
+  OutVec.push_back(0x00U);
+  auto OrgSize = OutVec.size();
+  // Name: vec(byte).
+  serializeU32(static_cast<uint32_t>(Sec.getName().size()), OutVec);
+  OutVec.insert(OutVec.end(), Sec.getName().begin(), Sec.getName().end());
+  // Content: byte*.
+  OutVec.insert(OutVec.end(), Sec.getContent().begin(), Sec.getContent().end());
+  // Backward insert the section size.
+  serializeU32(static_cast<uint32_t>(OutVec.size() - OrgSize), OutVec,
+               std::next(OutVec.begin(), static_cast<ptrdiff_t>(OrgSize)));
+}
+
+// Serialize type section. See "include/loader/serialize.h".
+void Serializer::serializeSection(const AST::TypeSection &Sec,
+                                  std::vector<uint8_t> &OutVec) const noexcept {
+  // Type section: 0x01 + size:u32 + content:vec(rectype).
+  auto STypes = Sec.getContent();
+
+  if (STypes.size() > 0) {
+    // Section ID.
+    OutVec.push_back(0x01U);
+    auto OrgSize = OutVec.size();
+    uint32_t RecCnt = 0;
+    // Content: vec(rectype).
+    for (uint32_t I = 0; I < STypes.size(); I++) {
+      auto RecInfo = STypes[I].getRecursiveInfo();
+      if (!STypes[I].isInRecType()) {
+        RecCnt++;
+      } else if (RecInfo.Index == 0) {
+        // First element of a recursive type group.
+        OutVec.push_back(static_cast<uint8_t>(TypeCode::Rec));
+        serializeU32(RecInfo.RecTypeSize, OutVec);
+        RecCnt++;
+      }
+      serializeType(STypes[I], OutVec);
+    }
+    // Backward insert the recursive type vector size, then the section size in
+    // front of it.
+    serializeU32(RecCnt, OutVec,
+                 std::next(OutVec.begin(), static_cast<ptrdiff_t>(OrgSize)));
+    serializeU32(static_cast<uint32_t>(OutVec.size() - OrgSize), OutVec,
+                 std::next(OutVec.begin(), static_cast<ptrdiff_t>(OrgSize)));
+  }
+}
+
+// Serialize import section. See "include/loader/serialize.h".
+void Serializer::serializeSection(const AST::ImportSection &Sec,
+                                  std::vector<uint8_t> &OutVec) const noexcept {
+  // Import section: 0x02 + size:u32 + content:vec(importdesc).
+  serializeSectionContent(
+      Sec, 0x02U, OutVec,
+      [this](const AST::ImportDesc &R, std::vector<uint8_t> &V) {
+        serializeDesc(R, V);
+      });
+}
+
+// Serialize function section. See "include/loader/serialize.h".
+void Serializer::serializeSection(const AST::FunctionSection &Sec,
+                                  std::vector<uint8_t> &OutVec) const noexcept {
+  // Function section: 0x03 + size:u32 + content:vec(u32).
+  serializeSectionContent(Sec, 0x03U, OutVec,
+                          [this](const uint32_t &R, std::vector<uint8_t> &V) {
+                            serializeU32(R, V);
+                          });
+}
+
+// Serialize table section. See "include/loader/serialize.h".
+void Serializer::serializeSection(const AST::TableSection &Sec,
+                                  std::vector<uint8_t> &OutVec) const noexcept {
+  // Table section: 0x04 + size:u32 + content:vec(table).
+  serializeSectionContent(
+      Sec, 0x04U, OutVec,
+      [this](const AST::TableSegment &R, std::vector<uint8_t> &V) {
+        serializeSegment(R, V);
+      });
+}
+
+// Serialize memory section. See "include/loader/serialize.h".
+void Serializer::serializeSection(const AST::MemorySection &Sec,
+                                  std::vector<uint8_t> &OutVec) const noexcept {
+  // Memory section: 0x05 + size:u32 + content:vec(memorytype).
+  serializeSectionContent(
+      Sec, 0x05U, OutVec,
+      [this](const AST::MemoryType &R, std::vector<uint8_t> &V) {
+        serializeType(R, V);
+      });
+}
+
+// Serialize global section. See "include/loader/serialize.h".
+void Serializer::serializeSection(const AST::GlobalSection &Sec,
+                                  std::vector<uint8_t> &OutVec) const noexcept {
+  // Global section: 0x06 + size:u32 + content:vec(global).
+  serializeSectionContent(
+      Sec, 0x06U, OutVec,
+      [this](const AST::GlobalSegment &R, std::vector<uint8_t> &V) {
+        serializeSegment(R, V);
+      });
+}
+
+// Serialize export section. See "include/loader/serialize.h".
+void Serializer::serializeSection(const AST::ExportSection &Sec,
+                                  std::vector<uint8_t> &OutVec) const noexcept {
+  // Export section: 0x07 + size:u32 + content:vec(exportdesc).
+  serializeSectionContent(
+      Sec, 0x07U, OutVec,
+      [this](const AST::ExportDesc &R, std::vector<uint8_t> &V) {
+        serializeDesc(R, V);
+      });
+}
+
+// Serialize start section. See "include/loader/serialize.h".
+void Serializer::serializeSection(const AST::StartSection &Sec,
+                                  std::vector<uint8_t> &OutVec) const noexcept {
+  // Start section: 0x08 + size:u32 + idx:u32.
+  if (Sec.getContent()) {
+    // Section ID.
+    OutVec.push_back(0x08U);
+    auto OrgSize = OutVec.size();
+    // Idx: u32.
+    serializeU32(*Sec.getContent(), OutVec);
+    // Backward insert the section size.
+    serializeU32(static_cast<uint32_t>(OutVec.size() - OrgSize), OutVec,
+                 std::next(OutVec.begin(), static_cast<ptrdiff_t>(OrgSize)));
+  }
+}
+
+// Serialize element section. See "include/loader/serialize.h".
+void Serializer::serializeSection(const AST::ElementSection &Sec,
+                                  std::vector<uint8_t> &OutVec) const noexcept {
+  // Element section: 0x09 + size:u32 + content:vec(elemseg).
+  serializeSectionContent(
+      Sec, 0x09U, OutVec,
+      [this](const AST::ElementSegment &R, std::vector<uint8_t> &V) {
+        serializeSegment(R, V);
+      });
+}
+
+// Serialize code section. See "include/loader/serialize.h".
+void Serializer::serializeSection(const AST::CodeSection &Sec,
+                                  std::vector<uint8_t> &OutVec) const noexcept {
+  // Code section: 0x0A + size:u32 + content:vec(codeseg).
+  serializeSectionContent(
+      Sec, 0x0AU, OutVec,
+      [this](const AST::CodeSegment &R, std::vector<uint8_t> &V) {
+        serializeSegment(R, V);
+      });
+}
+
+// Serialize data section. See "include/loader/serialize.h".
+void Serializer::serializeSection(const AST::DataSection &Sec,
+                                  std::vector<uint8_t> &OutVec) const noexcept {
+  // Data section: 0x0B + size:u32 + content:vec(dataseg).
+  serializeSectionContent(
+      Sec, 0x0BU, OutVec,
+      [this](const AST::DataSegment &R, std::vector<uint8_t> &V) {
+        serializeSegment(R, V);
+      });
+}
+
+// Serialize datacount section. See "include/loader/serialize.h".
+void Serializer::serializeSection(const AST::DataCountSection &Sec,
+                                  std::vector<uint8_t> &OutVec) const noexcept {
+  // Datacount section: 0x0C + size:u32 + idx:u32.
+  if (Sec.getContent()) {
+    // Section ID.
+    OutVec.push_back(0x0CU);
+    auto OrgSize = OutVec.size();
+    // Idx: u32.
+    serializeU32(*Sec.getContent(), OutVec);
+    // Backward insert the section size.
+    serializeU32(static_cast<uint32_t>(OutVec.size() - OrgSize), OutVec,
+                 std::next(OutVec.begin(), static_cast<ptrdiff_t>(OrgSize)));
+  }
+}
+
+// Serialize tag section. See "include/loader/serialize.h".
+void Serializer::serializeSection(const AST::TagSection &Sec,
+                                  std::vector<uint8_t> &OutVec) const noexcept {
+  // Tag section: 0x0D + size:u32 + content:vec(tagtype)
+  serializeSectionContent(
+      Sec, 0x0DU, OutVec,
+      [this](const AST::TagType &R, std::vector<uint8_t> &V) {
+        serializeType(R, V);
+      });
+}
+
+} // namespace Loader
+} // namespace WasmEdge

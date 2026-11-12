@@ -1,0 +1,77 @@
+name: Build and Test WasmEdge on s390x arch
+
+concurrency:
+  group: build-s390x-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # TODO: Refactor `lint` with `on.workflow_run`
+  # https://docs.github.com/en/actions/using-workflows/triggering-a-workflow
+  lint:
+    uses: ./.github/workflows/reusable-call-linter.yml
+
+  build_s390x:
+    name: S390X
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+    - name: Ensure git safe directory
+      run: |
+        git config --global --add safe.directory $(pwd)
+    - name: Cache s390x apt packages
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .s390x-apt-cache
+        key: s390x-apt-${{ runner.os }}-jammy-llvm18
+        restore-keys: |
+          s390x-apt-${{ runner.os }}-jammy-
+    - uses: uraimo/run-on-arch-action@aa8e672a03e10b403401927ea2ceda57e1b68ac3 # v3
+      name: Build WasmEdge
+      with:
+        arch: s390x
+        distro: ubuntu22.04
+        githubToken: ${{ github.token }}
+        dockerRunArgs: |
+          --volume "${PWD}:/workplace"
+          --volume "${PWD}/.s390x-apt-cache:/var/cache/apt"
+        shell: /bin/sh
+        install: |
+          apt-get update -q -y
+          apt-get install -q -y curl
+          # using lld versions < 18 causes a segfault.
+          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" | tee /etc/apt/sources.list.d/llvm.list
+          apt-get update -q -y
+          apt-get install -q -y git cmake g++ dpkg ninja-build
+          apt-get install -q -y software-properties-common
+          apt-get install -q -y llvm-18-dev liblld-18-dev zlib1g-dev
+          apt-get install -q -y wabt # For generating wasm
+        run: |
+          mkdir -p build && cd build
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release .. && ninja && ninja install
+          wasmedge -v
+          wasmedgec -v
+          wasmedge compile -h
+          wasmedge run -h
+          cd ../examples/wasm
+          wat2wasm fibonacci.wat -o fibonacci.wasm
+          wasmedgec fibonacci.wasm fibonacci_aot_c.wasm
+          wasmedge --reactor fibonacci_aot_c.wasm fib 30
+          wasmedge run --reactor fibonacci_aot_c.wasm fib 30
+          wasmedge compile fibonacci.wasm fibonacci_aot_compile.wasm
+          wasmedge --reactor fibonacci_aot_compile.wasm fib 30
+          wasmedge run --reactor fibonacci_aot_compile.wasm fib 30

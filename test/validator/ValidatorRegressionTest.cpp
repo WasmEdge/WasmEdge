@@ -1,0 +1,1067 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+//===-- wasmedge/test/validator/ValidatorRegressionTest.cpp - Wasm test suites
+//===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains regression tests for WasmEdge Validator.
+///
+//===----------------------------------------------------------------------===//
+
+#include "ast/module.h"
+#include "common/spdlog.h"
+#include "vm/vm.h"
+
+#include <gtest/gtest.h>
+#include <vector>
+
+namespace {
+
+using namespace std::literals;
+using namespace WasmEdge;
+
+class ValidatorRegressionTest : public testing::Test {
+protected:
+  void SetUp() override {
+    Conf = std::make_unique<WasmEdge::Configure>();
+    Conf->addProposal(WasmEdge::Proposal::GC);
+    Conf->addProposal(WasmEdge::Proposal::WideArithmetic);
+    LoadEngine = std::make_unique<WasmEdge::Loader::Loader>(*Conf);
+    ValidEngine = std::make_unique<WasmEdge::Validator::Validator>(*Conf);
+  }
+
+  std::unique_ptr<WasmEdge::Configure> Conf;
+  std::unique_ptr<WasmEdge::Loader::Loader> LoadEngine;
+  std::unique_ptr<WasmEdge::Validator::Validator> ValidEngine;
+};
+
+// Helper function to encode an unsigned 32-bit integer as LEB128
+static std::vector<WasmEdge::Byte> encodeLEB128(uint32_t Value) {
+  std::vector<WasmEdge::Byte> Leb;
+  do {
+    WasmEdge::Byte Byte = Value & 0x7FU;
+    Value >>= 7;
+    if (Value != 0) {
+      Byte |= 0x80U;
+    }
+    Leb.push_back(Byte);
+  } while (Value != 0);
+  return Leb;
+}
+
+// Generates a Wasm module with a chain of subtypes.
+// NumTotalTypes: The total number of types to define. Type k+1 subtypes type
+// k. The maximum depth of the chain will be NumTotalTypes - 1.
+static std::vector<WasmEdge::Byte>
+generateWasmWithSubtypeChain(int NumTotalTypes) {
+  std::vector<WasmEdge::Byte> WasmBytes;
+  // Estimate capacity and Reserve a bit more to be safe. Max NumTotalTypes
+  // expected is small (e.g. < 100).
+  WasmBytes.reserve(static_cast<size_t>(NumTotalTypes) * 12 + 100);
+
+  // 1. Preamble(magic number, wasm v1)
+  WasmBytes.insert(WasmBytes.end(),
+                   {0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00});
+
+  // 2. Type Section (ID 0x01)
+  WasmBytes.push_back(0x01);
+  uint32_t const TypeSectionPayloadSize =
+      static_cast<uint32_t>(6 * NumTotalTypes);
+  std::vector<WasmEdge::Byte> TypeSectionSizeLeb =
+      encodeLEB128(TypeSectionPayloadSize);
+  WasmBytes.insert(WasmBytes.end(), TypeSectionSizeLeb.begin(),
+                   TypeSectionSizeLeb.end());
+
+  WasmBytes.push_back(static_cast<WasmEdge::Byte>(NumTotalTypes));
+
+  // First type entry (index 0): (sub (final) (func))
+  WasmBytes.insert(WasmBytes.end(), {0x50, 0x00, 0x60, 0x00, 0x00});
+
+  // Next (NumTotalTypes - 1) type entries.
+  // Type with index `k+1` subtypes type with index `k`.
+  for (int K = 0; K < NumTotalTypes - 1; ++K) {
+    WasmBytes.push_back(0x50);
+    WasmBytes.push_back(0x01);
+    WasmBytes.push_back(static_cast<WasmEdge::Byte>(K));
+    WasmBytes.push_back(0x60);
+    WasmBytes.push_back(0x00);
+    WasmBytes.push_back(0x00);
+  }
+
+  // 3. Function Section (ID 0x03) - Fixed content
+  WasmBytes.insert(WasmBytes.end(), {0x03, 0x02, 0x01, 0x00});
+
+  // 4. Export Section (ID 0x07) - Fixed content
+  WasmBytes.insert(WasmBytes.end(),
+                   {0x07, 0x08, 0x01, 0x04, 'm', 'a', 'i', 'n', 0x00, 0x00});
+
+  // 5. Code Section (ID 0x0a) - Fixed content
+  WasmBytes.insert(WasmBytes.end(), {0x0a, 0x05, 0x01, 0x03, 0x00, 0x01, 0x0b});
+
+  // 6. Custom "name" Section (ID 0x00)
+  // Build the entire payload of the "name" section to determine its size.
+  std::vector<WasmEdge::Byte> NameSectionPayloadContent;
+
+  // 6.1. Name of custom section: "name" (vec(byte))
+  NameSectionPayloadContent.push_back(0x04);
+  NameSectionPayloadContent.push_back('n');
+  NameSectionPayloadContent.push_back('a');
+  NameSectionPayloadContent.push_back('m');
+  NameSectionPayloadContent.push_back('e');
+
+  // 6.2. Function Names Subsection (ID 0x01)
+  std::vector<WasmEdge::Byte> FuncNamesSubsectionContent;
+  FuncNamesSubsectionContent.push_back(0x01);
+  FuncNamesSubsectionContent.push_back(0x00);
+  FuncNamesSubsectionContent.push_back(0x04);
+  FuncNamesSubsectionContent.push_back('m');
+  FuncNamesSubsectionContent.push_back('a');
+  FuncNamesSubsectionContent.push_back('i');
+  FuncNamesSubsectionContent.push_back('n');
+
+  NameSectionPayloadContent.push_back(0x01);
+  std::vector<WasmEdge::Byte> FuncNamesSubSizeLeb =
+      encodeLEB128(static_cast<uint32_t>(FuncNamesSubsectionContent.size()));
+  NameSectionPayloadContent.insert(NameSectionPayloadContent.end(),
+                                   FuncNamesSubSizeLeb.begin(),
+                                   FuncNamesSubSizeLeb.end());
+  NameSectionPayloadContent.insert(NameSectionPayloadContent.end(),
+                                   FuncNamesSubsectionContent.begin(),
+                                   FuncNamesSubsectionContent.end());
+
+  // 6.3. Type Names Subsection (ID 0x04)
+  std::vector<WasmEdge::Byte> TypeNamesSubsectionContent;
+  TypeNamesSubsectionContent.push_back(
+      static_cast<WasmEdge::Byte>(NumTotalTypes));
+  for (int I = 0; I < NumTotalTypes; ++I) {
+    TypeNamesSubsectionContent.push_back(static_cast<WasmEdge::Byte>(I));
+    std::string TypeNameStr = "t" + std::to_string(I);
+    TypeNamesSubsectionContent.push_back(
+        static_cast<WasmEdge::Byte>(TypeNameStr.length()));
+    for (char C : TypeNameStr) {
+      TypeNamesSubsectionContent.push_back(static_cast<WasmEdge::Byte>(C));
+    }
+  }
+
+  NameSectionPayloadContent.push_back(0x04);
+  std::vector<WasmEdge::Byte> TypeNamesSubSizeLeb =
+      encodeLEB128(static_cast<uint32_t>(TypeNamesSubsectionContent.size()));
+  NameSectionPayloadContent.insert(NameSectionPayloadContent.end(),
+                                   TypeNamesSubSizeLeb.begin(),
+                                   TypeNamesSubSizeLeb.end());
+  NameSectionPayloadContent.insert(NameSectionPayloadContent.end(),
+                                   TypeNamesSubsectionContent.begin(),
+                                   TypeNamesSubsectionContent.end());
+
+  // Add the custom "name" section to WasmBytes
+  WasmBytes.push_back(0x00);
+  std::vector<WasmEdge::Byte> NameSectionTotalSizeLeb =
+      encodeLEB128(static_cast<uint32_t>(NameSectionPayloadContent.size()));
+  WasmBytes.insert(WasmBytes.end(), NameSectionTotalSizeLeb.begin(),
+                   NameSectionTotalSizeLeb.end());
+  WasmBytes.insert(WasmBytes.end(), NameSectionPayloadContent.begin(),
+                   NameSectionPayloadContent.end());
+
+  return WasmBytes;
+}
+
+TEST_F(ValidatorRegressionTest, MaxSubtypeDepthExceeded) {
+  auto Wasm = generateWasmWithSubtypeChain(65);
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
+TEST_F(ValidatorRegressionTest, InvalidTypeIndex) {
+  std::array<WasmEdge::Byte, 24> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0E, 0x02, 0x60,
+      0x00, 0x00, 0x50, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 0x60, 0x00, 0x00};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
+TEST_F(ValidatorRegressionTest, InvalidSupertypeIndex) {
+  std::array<WasmEdge::Byte, 17> Wasm = {0x00, 0x61, 0x73, 0x6d, 0x01, 0x00,
+                                         0x00, 0x00, 0x01, 0x07, 0x01, 0x50,
+                                         0x01, 0x00, 0x60, 0x00, 0x00};
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
+TEST_F(ValidatorRegressionTest, ForwardSupertypeInRecGroup) {
+  // Module: (module
+  //   (rec
+  //     (type $mid (sub $top (func (result i32))))
+  //     (type $top (sub (func (result i32))))))
+  //
+  // $mid (type index 0) declares supertype $top (type index 1), a forward
+  // reference. The GC spec requires a declared supertype to have a smaller
+  // type index than the sub type itself, so validation must fail.
+  std::array<WasmEdge::Byte, 26> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one rec group of 2 sub types
+      0x01, 0x10, 0x01, 0x4e, 0x02,
+      // type 0 ($mid): (sub 1 (func (result i32)))  -- forward supertype 1
+      0x50, 0x01, 0x01, 0x60, 0x00, 0x01, 0x7f,
+      // type 1 ($top): (sub (func (result i32)))
+      0x50, 0x00, 0x60, 0x00, 0x01, 0x7f};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
+TEST_F(ValidatorRegressionTest, CyclicSupertypeInRecGroup) {
+  // Module: (module
+  //   (rec
+  //     (type $a (sub (func (result (ref null $a)))))
+  //     (type (sub $a (func (result (ref null $c)))))
+  //     (type $c (sub $c (func)))))
+  //
+  // Matching type 1 walks the super types of $c, which names itself, so
+  // validation must reject $c before matching instead of recursing forever.
+  std::array<WasmEdge::Byte, 34> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one rec group of 3 sub types
+      0x01, 0x18, 0x01, 0x4e, 0x03,
+      // type 0 ($a): (sub (func (result (ref null 0))))
+      0x50, 0x00, 0x60, 0x00, 0x01, 0x63, 0x00,
+      // type 1: (sub 0 (func (result (ref null 2))))
+      0x50, 0x01, 0x00, 0x60, 0x00, 0x01, 0x63, 0x02,
+      // type 2 ($c): (sub 2 (func))  -- its own supertype
+      0x50, 0x01, 0x02, 0x60, 0x00, 0x00};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
+TEST_F(ValidatorRegressionTest, CanonicalTypeIndices) {
+  // Module: (module
+  //   (type $a (func (param i32)))
+  //   (type $b (func (param i32)))
+  //   (type $c (struct (field (ref $a))))
+  //   (type $d (struct (field (ref $b))))
+  //   (rec (type $e (struct (field (ref $f)))) (type $f (struct)))
+  //   (rec (type $g (struct (field (ref $h)))) (type $h (struct)))
+  //   (type $i (sub (func (param i32)))))
+  //
+  // Equal types take the first one's canonical index; non-final $i differs.
+  std::array<WasmEdge::Byte, 53> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 7 recursive types of 9 sub types
+      0x01, 0x2b, 0x07,
+      // types 0 and 1 ($a, $b): (func (param i32))
+      0x60, 0x01, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x00,
+      // types 2 and 3 ($c, $d): (struct (field (ref 0 and 1)))
+      0x5f, 0x01, 0x64, 0x00, 0x00, 0x5f, 0x01, 0x64, 0x01, 0x00,
+      // types 4 and 5: (rec (struct (field (ref 5))) (struct))
+      0x4e, 0x02, 0x5f, 0x01, 0x64, 0x05, 0x00, 0x5f, 0x00,
+      // types 6 and 7: (rec (struct (field (ref 7))) (struct))
+      0x4e, 0x02, 0x5f, 0x01, 0x64, 0x07, 0x00, 0x5f, 0x00,
+      // type 8 ($i): (sub (func (param i32)))
+      0x50, 0x00, 0x60, 0x01, 0x7f, 0x00};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+  ASSERT_TRUE(ValidEngine->validate(**Result));
+
+  const auto Types = (*Result)->getTypeSection().getContent();
+  const std::array<uint32_t, 9> Expected = {0, 0, 2, 2, 4, 5, 4, 5, 8};
+  ASSERT_EQ(Types.size(), Expected.size());
+  for (uint32_t I = 0; I < Types.size(); I++) {
+    EXPECT_EQ(Types[I].getCanonicalIndex().value_or(UINT32_MAX), Expected[I])
+        << "type " << I;
+  }
+}
+
+TEST_F(ValidatorRegressionTest, ErrorPropagationRecursive) {
+  std::array<WasmEdge::Byte, 255> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x27, 0x02, 0x4e,
+      0x06, 0x5f, 0x01, 0x7f, 0x00, 0x5f, 0x01, 0x7d, 0x00, 0x5f, 0x01, 0x64,
+      0x00, 0x00, 0x5f, 0x01, 0x64, 0x01, 0x00, 0x5f, 0x01, 0x64, 0x02, 0x00,
+      0x50, 0x01, 0x04, 0x5f, 0x01, 0x64, 0x03, 0x00, 0x60, 0x01, 0x64, 0x05,
+      0x00, 0x03, 0x02, 0x01, 0x06, 0x07, 0x0e, 0x01, 0x0a, 0x74, 0x65, 0x73,
+      0x74, 0x5f, 0x75, 0x73, 0x61, 0x67, 0x65, 0x00, 0x00, 0x0a, 0x05, 0x01,
+      0x03, 0x00, 0x01, 0x0b, 0x00, 0xb0, 0x01, 0x04, 0x6e, 0x61, 0x6d, 0x65,
+      0x01, 0x0d, 0x01, 0x00, 0x0a, 0x74, 0x65, 0x73, 0x74, 0x5f, 0x75, 0x73,
+      0x61, 0x67, 0x65, 0x02, 0x06, 0x01, 0x00, 0x01, 0x00, 0x01, 0x70, 0x04,
+      0x91, 0x01, 0x06, 0x00, 0x1c, 0x67, 0x72, 0x61, 0x6e, 0x64, 0x70, 0x61,
+      0x72, 0x65, 0x6e, 0x74, 0x5f, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x5f, 0x73,
+      0x75, 0x70, 0x65, 0x72, 0x5f, 0x74, 0x79, 0x70, 0x65, 0x01, 0x1e, 0x67,
+      0x72, 0x61, 0x6e, 0x64, 0x70, 0x61, 0x72, 0x65, 0x6e, 0x74, 0x5f, 0x66,
+      0x69, 0x65, 0x6c, 0x64, 0x5f, 0x73, 0x75, 0x62, 0x5f, 0x74, 0x79, 0x70,
+      0x65, 0x5f, 0x42, 0x41, 0x44, 0x02, 0x11, 0x70, 0x61, 0x72, 0x65, 0x6e,
+      0x74, 0x5f, 0x73, 0x75, 0x70, 0x65, 0x72, 0x5f, 0x74, 0x79, 0x70, 0x65,
+      0x03, 0x13, 0x70, 0x61, 0x72, 0x65, 0x6e, 0x74, 0x5f, 0x73, 0x75, 0x62,
+      0x5f, 0x74, 0x79, 0x70, 0x65, 0x5f, 0x42, 0x41, 0x44, 0x04, 0x11, 0x61,
+      0x63, 0x74, 0x75, 0x61, 0x6c, 0x5f, 0x73, 0x75, 0x70, 0x65, 0x72, 0x5f,
+      0x74, 0x79, 0x70, 0x65, 0x05, 0x15, 0x61, 0x63, 0x74, 0x75, 0x61, 0x6c,
+      0x5f, 0x73, 0x75, 0x62, 0x5f, 0x74, 0x79, 0x70, 0x65, 0x5f, 0x45, 0x52,
+      0x52, 0x4f, 0x52};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
+TEST_F(ValidatorRegressionTest, ErrorPropagationInTypeHierarchy) {
+  std::array<WasmEdge::Byte, 30> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x14,
+      0x04, 0x60, 0x00, 0x00, 0x5f, 0x00, 0x50, 0x01, 0x01, 0x5f,
+      0x01, 0x7f, 0x00, 0x50, 0x01, 0x05, 0x5f, 0x01, 0x7f, 0x00};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
+TEST_F(ValidatorRegressionTest, ExactMaxSubtypeDepth) {
+  auto Wasm = generateWasmWithSubtypeChain(64);
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
+TEST_F(ValidatorRegressionTest, RejectMismatchedActiveElementRefType) {
+  // Module: (module
+  //   (type $t0 (sub (func)))
+  //   (type $t1 (sub final $t0 (func)))
+  //   (import "env" "f" (func (type $t0)))
+  //   (table 1 (ref null $t1))
+  //   (elem (table 0) (i32.const 0) (ref $t0) (ref.func 0)))
+  //
+  // The element segment's ref type (ref $t0) must be a subtype of the
+  // table's element type (ref null $t1). Since $t0 is a supertype of $t1
+  // (not a subtype), validation must fail with TypeCheckFailed.
+  std::array<WasmEdge::Byte, 54> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 2 types
+      //   type 0: (sub (func))             -- non-final, no super
+      //   type 1: (sub final 0 (func))     -- final, supertype 0
+      0x01, 0x0c, 0x02, 0x50, 0x00, 0x60, 0x00, 0x00, 0x4f, 0x01, 0x00, 0x60,
+      0x00, 0x00,
+      // Import section: "env"."f" func of type 0
+      0x02, 0x09, 0x01, 0x03, 0x65, 0x6e, 0x76, // "env"
+      0x01, 0x66,                               // "f"
+      0x00, 0x00,                               // func kind, typeidx 0
+      // Table section: 1 table of type (ref null 1), min 1
+      0x04, 0x05, 0x01, 0x63, 0x01, // reftype: ref null, typeindex 1
+      0x00, 0x01,                   // limits: min=1, no max
+      // Element section: 1 active segment, table 0, offset i32.const 0,
+      //   reftype (ref 0), init [ref.func 0]
+      0x09, 0x0c, 0x01,
+      0x06,             // form 6: active, tableidx, offset, reftype, vec(expr)
+      0x00,             // tableidx 0
+      0x41, 0x00, 0x0b, // offset: i32.const 0, end
+      0x64, 0x00,       // reftype: (ref 0)
+      0x01,             // 1 init expr
+      0xd2, 0x00, 0x0b  // ref.func 0, end
+  };
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+TEST_F(ValidatorRegressionTest, ActiveElemTypedFuncrefAssert) {
+  // Module: (module
+  //   (type $t0 (func (param i32)))
+  //   (type $t1 (func))
+  //   (func $f0 (type $t1))
+  //   (func $f1 (type $t0) (local.get 0) (drop))
+  //   (func $f2 (type $t1)
+  //     (call_ref $t1 (table.get 0 (i32.const 0))))
+  //   (table 1 (ref null $t1))
+  //   (elem (table 0) (i32.const 0) func $f1)   ;; implicit funcref
+  //   (export "trigger" (func $f2)))
+  std::array<WasmEdge::Byte, 74> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02,
+      0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x03, 0x04, 0x03, 0x01,
+      0x00, 0x01, 0x04, 0x05, 0x01, 0x63, 0x01, 0x00, 0x01, 0x07, 0x0b,
+      0x01, 0x07, 0x74, 0x72, 0x69, 0x67, 0x67, 0x65, 0x72, 0x00, 0x02,
+      0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x01, 0x0a, 0x13,
+      0x03, 0x02, 0x00, 0x0b, 0x05, 0x00, 0x20, 0x00, 0x1a, 0x0b, 0x08,
+      0x00, 0x41, 0x00, 0x25, 0x00, 0x14, 0x01, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+TEST_F(ValidatorRegressionTest, ActiveElemTypedFuncrefTrap) {
+  // Module: (module
+  //   (type $t0 (func))
+  //   (type $t1 (func (param (ref $t0))))
+  //   (type $t2 (sub final $t1 (func (param funcref))))
+  //   (type $t3 (func))
+  //   (func $f0 (type $t1) (call_ref $t0 (local.get 0)))
+  //   (func $f1 (type $t2) (local.get 0) (drop))
+  //   (func $f2 (type $t0))
+  //   (func $f3 (type $t3)
+  //     (call_ref $t2 (ref.null func) (table.get 0 (i32.const 0))))
+  //   (table 1 (ref null $t2))
+  //   (elem (table 0) (i32.const 0) func $f0)   ;; implicit funcref
+  //   (export "trigger" (func $f3)))
+  std::array<WasmEdge::Byte, 95> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x13, 0x04, 0x60,
+      0x00, 0x00, 0x60, 0x01, 0x64, 0x00, 0x00, 0x4f, 0x01, 0x01, 0x60, 0x01,
+      0x70, 0x00, 0x60, 0x00, 0x00, 0x03, 0x05, 0x04, 0x01, 0x02, 0x00, 0x03,
+      0x04, 0x05, 0x01, 0x63, 0x02, 0x00, 0x01, 0x07, 0x0b, 0x01, 0x07, 0x74,
+      0x72, 0x69, 0x67, 0x67, 0x65, 0x72, 0x00, 0x03, 0x09, 0x07, 0x01, 0x00,
+      0x41, 0x00, 0x0b, 0x01, 0x00, 0x0a, 0x1c, 0x04, 0x06, 0x00, 0x20, 0x00,
+      0x14, 0x00, 0x0b, 0x05, 0x00, 0x20, 0x00, 0x1a, 0x0b, 0x02, 0x00, 0x0b,
+      0x0a, 0x00, 0xd0, 0x70, 0x41, 0x00, 0x25, 0x00, 0x14, 0x02, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
+// Test that ref.test after unreachable passes validation.
+// The unreachable instruction produces bottom types on the stack, which should
+// be accepted by ref.test per the Wasm spec.
+TEST_F(ValidatorRegressionTest, RefTestAfterUnreachable) {
+  // Module: (module
+  //   (type (func))
+  //   (func (type 0) unreachable  ref.test (ref func)  drop  end))
+  std::array<WasmEdge::Byte, 29> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 1 type (func)
+      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+      // Function section: 1 function, type index 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: 1 body
+      // Body: unreachable (0x00), ref.test (0xfb 0x14), heaptype func (0x70),
+      //       drop (0x1a), end (0x0b)
+      0x0a, 0x09, 0x01, 0x07, 0x00, 0x00, 0xfb, 0x14, 0x70, 0x1a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
+// Test that ref.cast after unreachable passes validation.
+// The unreachable instruction produces bottom types on the stack, which should
+// be accepted by ref.cast per the Wasm spec.
+TEST_F(ValidatorRegressionTest, RefCastAfterUnreachable) {
+  // Module: (module
+  //   (type (func))
+  //   (func (type 0) unreachable  ref.cast (ref null func)  drop  end))
+  std::array<WasmEdge::Byte, 29> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 1 type (func)
+      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+      // Function section: 1 function, type index 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: 1 body
+      // Body: unreachable (0x00), ref.cast_null (0xfb 0x17),
+      //       heaptype func (0x70), drop (0x1a), end (0x0b)
+      0x0a, 0x09, 0x01, 0x07, 0x00, 0x00, 0xfb, 0x17, 0x70, 0x1a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
+// Test that ref.func on an imported function is rejected when the function is
+// not declared. Imported functions are not part of the module's declared
+// function reference set, so they need an explicit declarative element segment
+// like any other function.
+TEST_F(ValidatorRegressionTest, UndeclaredRefFuncToImportedFunction) {
+  // Module: (module
+  //   (type (func))
+  //   (import "env" "f" (func (type 0)))
+  //   (func (type 0) ref.func 0 drop))
+  std::array<WasmEdge::Byte, 38> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 1 type (func)
+      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+      // Import section: 1 import "env" "f" as function of type 0
+      0x02, 0x09, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x01, 0x66, 0x00, 0x00,
+      // Function section: 1 function, type index 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: 1 body
+      // Body: ref.func 0 (0xd2 0x00), drop (0x1a), end (0x0b)
+      0x0a, 0x07, 0x01, 0x05, 0x00, 0xd2, 0x00, 0x1a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidRefIdx);
+}
+
+// Test that ref.func on an imported function passes validation once the
+// function is declared by a declarative element segment.
+TEST_F(ValidatorRegressionTest, DeclaredRefFuncToImportedFunction) {
+  // Module: (module
+  //   (type (func))
+  //   (import "env" "f" (func (type 0)))
+  //   (elem declare func 0)
+  //   (func (type 0) ref.func 0 drop))
+  std::array<WasmEdge::Byte, 45> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 1 type (func)
+      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+      // Import section: 1 import "env" "f" as function of type 0
+      0x02, 0x09, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x01, 0x66, 0x00, 0x00,
+      // Function section: 1 function, type index 0
+      0x03, 0x02, 0x01, 0x00,
+      // Element section: 1 declarative segment declaring function 0
+      0x09, 0x05, 0x01, 0x03, 0x00, 0x01, 0x00,
+      // Code section: 1 body
+      // Body: ref.func 0 (0xd2 0x00), drop (0x1a), end (0x0b)
+      0x0a, 0x07, 0x01, 0x05, 0x00, 0xd2, 0x00, 0x1a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
+// Test that br_table after unreachable checks the operand types pushed after
+// the unreachable instruction against every label.
+TEST_F(ValidatorRegressionTest, BrTableAfterUnreachableOperandMismatch) {
+  // Module: (module
+  //   (type (func))
+  //   (func (type 0)
+  //     (block (result f32)
+  //       (block (result i32)
+  //         unreachable  i32.const 0  i32.const 0  br_table 0 1)
+  //       drop  f32.const 0)
+  //     drop))
+  std::array<WasmEdge::Byte, 46> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 1 type (func)
+      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+      // Function section: 1 function, type index 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: 1 body
+      0x0a, 0x1a, 0x01, 0x18, 0x00,
+      // block (result f32), block (result i32), unreachable
+      0x02, 0x7d, 0x02, 0x7f, 0x00,
+      // i32.const 0, i32.const 0, br_table 0 1, end
+      0x41, 0x00, 0x41, 0x00, 0x0e, 0x01, 0x00, 0x01, 0x0b,
+      // drop, f32.const 0, end, drop, end
+      0x1a, 0x43, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x1a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+// Test that br_table after unreachable keeps a bottom value pushed by select
+// as bottom for every label.
+TEST_F(ValidatorRegressionTest, BrTableAfterUnreachableBottomOperand) {
+  // Module: (module
+  //   (type (func))
+  //   (func (type 0)
+  //     (block (result f32)
+  //       (block (result i32)
+  //         unreachable  select  i32.const 0  br_table 0 1)
+  //       drop  f32.const 0)
+  //     drop))
+  std::array<WasmEdge::Byte, 45> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 1 type (func)
+      0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+      // Function section: 1 function, type index 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: 1 body
+      0x0a, 0x19, 0x01, 0x17, 0x00,
+      // block (result f32), block (result i32), unreachable
+      0x02, 0x7d, 0x02, 0x7f, 0x00,
+      // select, i32.const 0, br_table 0 1, end
+      0x1b, 0x41, 0x00, 0x0e, 0x01, 0x00, 0x01, 0x0b,
+      // drop, f32.const 0, end, drop, end
+      0x1a, 0x43, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x1a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  EXPECT_TRUE(ValidEngine->validate(**Result));
+}
+
+// Test that a huge array.new_fixed operand count fails with a stack underflow.
+TEST_F(ValidatorRegressionTest, ArrayNewFixedHugeCountUnderflow) {
+  // Module: (module
+  //   (type (array i32))
+  //   (type (func))
+  //   (func (type 1) array.new_fixed 0 0xFFFFFFFF  drop))
+  std::array<WasmEdge::Byte, 36> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 2 types (array i32), (func)
+      0x01, 0x07, 0x02, 0x5e, 0x7f, 0x00, 0x60, 0x00, 0x00,
+      // Function section: 1 function, type index 1
+      0x03, 0x02, 0x01, 0x01,
+      // Code section: 1 body
+      0x0a, 0x0d, 0x01, 0x0b, 0x00,
+      // array.new_fixed 0 0xFFFFFFFF, drop, end
+      0xfb, 0x08, 0x00, 0xff, 0xff, 0xff, 0xff, 0x0f, 0x1a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+// Test that a huge array.new_fixed operand count after unreachable passes.
+TEST_F(ValidatorRegressionTest, ArrayNewFixedHugeCountAfterUnreachable) {
+  // Module: (module
+  //   (type (array i32))
+  //   (type (func))
+  //   (func (type 1) unreachable  array.new_fixed 0 0xFFFFFFFF  drop))
+  std::array<WasmEdge::Byte, 37> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 2 types (array i32), (func)
+      0x01, 0x07, 0x02, 0x5e, 0x7f, 0x00, 0x60, 0x00, 0x00,
+      // Function section: 1 function, type index 1
+      0x03, 0x02, 0x01, 0x01,
+      // Code section: 1 body
+      0x0a, 0x0e, 0x01, 0x0c, 0x00,
+      // unreachable, array.new_fixed 0 0xFFFFFFFF, drop, end
+      0x00, 0xfb, 0x08, 0x00, 0xff, 0xff, 0xff, 0xff, 0x0f, 0x1a, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  EXPECT_TRUE(ValidEngine->validate(**Result));
+}
+
+// Test that a huge array.new_fixed operand count still checks the operands.
+TEST_F(ValidatorRegressionTest,
+       ArrayNewFixedHugeCountAfterUnreachableMismatch) {
+  // Module: (module
+  //   (type (array i32))
+  //   (type (func))
+  //   (func (type 1)
+  //     unreachable  i64.const 0  array.new_fixed 0 0xFFFFFFFF  drop))
+  std::array<WasmEdge::Byte, 39> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 2 types (array i32), (func)
+      0x01, 0x07, 0x02, 0x5e, 0x7f, 0x00, 0x60, 0x00, 0x00,
+      // Function section: 1 function, type index 1
+      0x03, 0x02, 0x01, 0x01,
+      // Code section: 1 body
+      0x0a, 0x10, 0x01, 0x0e, 0x00,
+      // unreachable, i64.const 0, array.new_fixed 0 0xFFFFFFFF, drop, end
+      0x00, 0x42, 0x00, 0xfb, 0x08, 0x00, 0xff, 0xff, 0xff, 0xff, 0x0f, 0x1a,
+      0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+TEST_F(ValidatorRegressionTest, Add128PreservesStackPrefix) {
+  // Module: (module
+  //   (func (param i32 i64 i64 i64 i64) (result i32 i64 i64)
+  //     local.get 0 local.get 1 local.get 2 local.get 3 local.get 4
+  //     i64.add128))
+  std::array<WasmEdge::Byte, 44> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one function type
+      0x01, 0x0c, 0x01, 0x60, 0x05, 0x7f, 0x7e, 0x7e, 0x7e, 0x7e, 0x03, 0x7f,
+      0x7e, 0x7e,
+      // Function section: one function of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: one body, no locals
+      0x0a, 0x10, 0x01, 0x0e, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0x20,
+      0x03, 0x20, 0x04, 0xfc, 0x13, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
+TEST_F(ValidatorRegressionTest, Sub128) {
+  // Module: (module
+  //   (func (param i64 i64 i64 i64) (result i64 i64)
+  //     local.get 0 local.get 1 local.get 2 local.get 3
+  //     i64.sub128))
+  std::array<WasmEdge::Byte, 40> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one function type
+      0x01, 0x0a, 0x01, 0x60, 0x04, 0x7e, 0x7e, 0x7e, 0x7e, 0x02, 0x7e, 0x7e,
+      // Function section: one function of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: one body, no locals
+      0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0x20,
+      0x03, 0xfc, 0x14, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
+TEST_F(ValidatorRegressionTest, SignedMulWidePreservesStackPrefix) {
+  // Module: (module
+  //   (func (param i32 i64 i64) (result i32 i64 i64)
+  //     local.get 0 local.get 1 local.get 2
+  //     i64.mul_wide_s))
+  std::array<WasmEdge::Byte, 38> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one function type
+      0x01, 0x0a, 0x01, 0x60, 0x03, 0x7f, 0x7e, 0x7e, 0x03, 0x7f, 0x7e, 0x7e,
+      // Function section: one function of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: one body, no locals
+      0x0a, 0x0c, 0x01, 0x0a, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfc,
+      0x15, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
+TEST_F(ValidatorRegressionTest, UnsignedMulWide) {
+  // Module: (module
+  //   (func (param i64 i64) (result i64 i64)
+  //     local.get 0 local.get 1
+  //     i64.mul_wide_u))
+  std::array<WasmEdge::Byte, 34> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one function type
+      0x01, 0x08, 0x01, 0x60, 0x02, 0x7e, 0x7e, 0x02, 0x7e, 0x7e,
+      // Function section: one function of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: one body, no locals
+      0x0a, 0x0a, 0x01, 0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0xfc, 0x16, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
+TEST_F(ValidatorRegressionTest, Add128RejectsOperandType) {
+  // Module: (module
+  //   (func (param i64 i64 i64 i32) (result i64 i64)
+  //     local.get 0 local.get 1 local.get 2 local.get 3
+  //     i64.add128))
+  std::array<WasmEdge::Byte, 40> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one function type
+      0x01, 0x0a, 0x01, 0x60, 0x04, 0x7e, 0x7e, 0x7e, 0x7f, 0x02, 0x7e, 0x7e,
+      // Function section: one function of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: one body, no locals
+      0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0x20,
+      0x03, 0xfc, 0x13, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+TEST_F(ValidatorRegressionTest, UnsignedMulWideRejectsOperandType) {
+  // Module: (module
+  //   (func (param f32 i64) (result i64 i64)
+  //     local.get 0 local.get 1
+  //     i64.mul_wide_u))
+  std::array<WasmEdge::Byte, 34> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one function type
+      0x01, 0x08, 0x01, 0x60, 0x02, 0x7d, 0x7e, 0x02, 0x7e, 0x7e,
+      // Function section: one function of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: one body, no locals
+      0x0a, 0x0a, 0x01, 0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0xfc, 0x16, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+TEST_F(ValidatorRegressionTest, Add128RejectsMissingOperand) {
+  // Module: (module
+  //   (func (param i64 i64 i64)
+  //     local.get 0 local.get 1 local.get 2
+  //     i64.add128 unreachable))
+  //
+  // The trailing unreachable removes the function-result constraint,
+  // so validation must reject the missing operand at the wide instruction.
+  std::array<WasmEdge::Byte, 36> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one function type
+      0x01, 0x07, 0x01, 0x60, 0x03, 0x7e, 0x7e, 0x7e, 0x00,
+      // Function section: one function of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: one body, no locals
+      0x0a, 0x0d, 0x01, 0x0b, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfc,
+      0x13, 0x00, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+TEST_F(ValidatorRegressionTest, UnsignedMulWideRejectsMissingOperand) {
+  // Module: (module
+  //   (func (param i64)
+  //     local.get 0
+  //     i64.mul_wide_u unreachable))
+  //
+  // The trailing unreachable removes the function-result constraint,
+  // so validation must reject the missing operand at the wide instruction.
+  std::array<WasmEdge::Byte, 30> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one function type
+      0x01, 0x05, 0x01, 0x60, 0x01, 0x7e, 0x00,
+      // Function section: one function of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: one body, no locals
+      0x0a, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0xfc, 0x16, 0x00, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+TEST_F(ValidatorRegressionTest, Sub128RejectsResultType) {
+  // Module: (module
+  //   (func (param i64 i64 i64 i64) (result i32 i64)
+  //     local.get 0 local.get 1 local.get 2 local.get 3
+  //     i64.sub128))
+  std::array<WasmEdge::Byte, 40> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one function type
+      0x01, 0x0a, 0x01, 0x60, 0x04, 0x7e, 0x7e, 0x7e, 0x7e, 0x02, 0x7f, 0x7e,
+      // Function section: one function of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: one body, no locals
+      0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0x20,
+      0x03, 0xfc, 0x14, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+TEST_F(ValidatorRegressionTest, SignedMulWideRejectsResultType) {
+  // Module: (module
+  //   (func (param i64 i64) (result i64 f64)
+  //     local.get 0 local.get 1
+  //     i64.mul_wide_s))
+  std::array<WasmEdge::Byte, 34> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one function type
+      0x01, 0x08, 0x01, 0x60, 0x02, 0x7e, 0x7e, 0x02, 0x7e, 0x7c,
+      // Function section: one function of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: one body, no locals
+      0x0a, 0x0a, 0x01, 0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0xfc, 0x15, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+TEST_F(ValidatorRegressionTest, Add128AfterUnreachable) {
+  // Module: (module
+  //   (func (result i64 i64)
+  //     unreachable i64.add128))
+  std::array<WasmEdge::Byte, 29> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one function type
+      0x01, 0x06, 0x01, 0x60, 0x00, 0x02, 0x7e, 0x7e,
+      // Function section: one function of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: one body, no locals
+      0x0a, 0x07, 0x01, 0x05, 0x00, 0x00, 0xfc, 0x13, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
+TEST_F(ValidatorRegressionTest, UnsignedMulWideAfterUnreachable) {
+  // Module: (module
+  //   (func (result i64 i64)
+  //     unreachable i64.mul_wide_u))
+  std::array<WasmEdge::Byte, 29> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one function type
+      0x01, 0x06, 0x01, 0x60, 0x00, 0x02, 0x7e, 0x7e,
+      // Function section: one function of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: one body, no locals
+      0x0a, 0x07, 0x01, 0x05, 0x00, 0x00, 0xfc, 0x16, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
+TEST_F(ValidatorRegressionTest, Sub128RejectsOperandTypeAfterUnreachable) {
+  // Module: (module
+  //   (func (result i64 i64)
+  //     unreachable i32.const 0 i64.sub128))
+  std::array<WasmEdge::Byte, 31> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one function type
+      0x01, 0x06, 0x01, 0x60, 0x00, 0x02, 0x7e, 0x7e,
+      // Function section: one function of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: one body, no locals
+      0x0a, 0x09, 0x01, 0x07, 0x00, 0x00, 0x41, 0x00, 0xfc, 0x14, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+TEST_F(ValidatorRegressionTest,
+       SignedMulWideRejectsOperandTypeAfterUnreachable) {
+  // Module: (module
+  //   (func (result i64 i64)
+  //     unreachable i32.const 0 i64.mul_wide_s))
+  std::array<WasmEdge::Byte, 31> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: one function type
+      0x01, 0x06, 0x01, 0x60, 0x00, 0x02, 0x7e, 0x7e,
+      // Function section: one function of type 0
+      0x03, 0x02, 0x01, 0x00,
+      // Code section: one body, no locals
+      0x0a, 0x09, 0x01, 0x07, 0x00, 0x00, 0x41, 0x00, 0xfc, 0x15, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  ASSERT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+} // namespace
+
+GTEST_API_ int main(int argc, char **argv) {
+  WasmEdge::Log::setErrorLoggingLevel();
+  testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

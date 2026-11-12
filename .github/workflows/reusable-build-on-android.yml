@@ -1,0 +1,87 @@
+name: Build on Android
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      release:
+        type: boolean
+      upload_asset_url:
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build_on_android:
+    permissions:
+      contents: write
+    name: Build on Android
+    runs-on: ubuntu-latest
+    container:
+      image: wasmedge/wasmedge:latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Restore Android NDK and CMake
+        id: cache-android
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            cmake-3.22.2-linux-x86_64.tar.gz
+            android-ndk-r23b-linux.zip
+          key: android-ndk-r23b-cmake-3.22.2
+      - name: Install dependency
+        run: |
+          apt update && apt install -y unzip
+          apt remove -y cmake
+          [ -f cmake-3.22.2-linux-x86_64.tar.gz ] || curl -sLO https://github.com/Kitware/CMake/releases/download/v3.22.2/cmake-3.22.2-linux-x86_64.tar.gz
+          tar -zxf cmake-3.22.2-linux-x86_64.tar.gz
+          cp -r cmake-3.22.2-linux-x86_64/bin /usr/local
+          cp -r cmake-3.22.2-linux-x86_64/share /usr/local
+          [ -f android-ndk-r23b-linux.zip ] || curl -sLO https://dl.google.com/android/repository/android-ndk-r23b-linux.zip
+          unzip -q android-ndk-r23b-linux.zip
+      - name: Save Android NDK and CMake
+        if: ${{ github.ref == 'refs/heads/master' && steps.cache-android.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            cmake-3.22.2-linux-x86_64.tar.gz
+            android-ndk-r23b-linux.zip
+          key: android-ndk-r23b-cmake-3.22.2
+      - name: Grant the safe directory for git
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - name: Build WasmEdge
+        run: |
+          export ANDROID_NDK_HOME=$(pwd)/android-ndk-r23b/
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_PACKAGE="TGZ" -DWASMEDGE_USE_LLVM=OFF -DCMAKE_SYSTEM_NAME=Android -DCMAKE_SYSTEM_VERSION=23 -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a -DCMAKE_ANDROID_NDK=$ANDROID_NDK_HOME -DCMAKE_ANDROID_STL_TYPE=c++_static
+          cmake --build build
+          cmake --build build --target package
+      - name: Upload artifact
+        if: ${{ !inputs.release }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: WasmEdge-${{ inputs.version }}-android_aarch64.tar.gz
+          path: build/WasmEdge-${{ inputs.version }}-Android.tar.gz
+      - name: Upload tar.gz package
+        if: ${{ inputs.release }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          type -p curl >/dev/null || (apt update && apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && apt update \
+          && apt install gh -y
+          mv build/WasmEdge-${{ inputs.version }}-Android.tar.gz WasmEdge-${{ inputs.version }}-android_aarch64.tar.gz
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-android_aarch64.tar.gz --clobber

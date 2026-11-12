@@ -1,0 +1,686 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "executor/executor.h"
+#include "system/fault.h"
+
+#include <cstdint>
+
+namespace WasmEdge {
+namespace Executor {
+
+thread_local Executor *Executor::This = nullptr;
+thread_local Runtime::StackManager *Executor::CurrentStack = nullptr;
+thread_local Executor::ExecutorContext Executor::ExecutionContext;
+thread_local Executor::PendingExnStruct Executor::PendingExn;
+thread_local std::array<StackTraceEntry, 256> Executor::StackTrace;
+thread_local size_t Executor::StackTraceSize = 0;
+
+namespace {
+
+/// Helper for the call proxies: keep an escaped exception pending for the
+/// post-call check in the compiled caller and skip the results.
+Expect<void> callFromCompiled(Runtime::StackManager &StackMgr,
+                              const Runtime::Instance::FunctionInstance &Func,
+                              ValVariant *Rets, Expect<void> Res) noexcept {
+  if (unlikely(!Res)) {
+    if (Res.error() == ErrCode::Value::PendingException) {
+      return {};
+    }
+    return Unexpect(Res.error());
+  }
+  const uint32_t ReturnsSize =
+      static_cast<uint32_t>(Func.getFuncType().getReturnTypes().size());
+  for (uint32_t I = 0; I < ReturnsSize; ++I) {
+    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
+  }
+  return {};
+}
+
+} // namespace
+
+template <typename RetT, typename... ArgsT>
+struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StackManager &,
+                                                        ArgsT...) noexcept> {
+  template <Expect<RetT> (Executor::*Func)(Runtime::StackManager &,
+                                           ArgsT...) noexcept>
+  static auto proxy(ArgsT... Args) {
+#if defined(__s390x__)
+    // Required on s390x: materializing args prevents runtime failures in
+    // release builds.
+    auto Materialize = [](auto &&A) -> decltype(auto) {
+      using T = std::decay_t<decltype(A)>;
+      if constexpr (std::is_integral_v<T>) {
+        volatile T Tmp = A;
+        return Tmp;
+      } else {
+        return std::forward<decltype(A)>(A);
+      }
+    };
+    Expect<RetT> Res = (This->*Func)(*CurrentStack, Materialize(Args)...);
+#else
+    Expect<RetT> Res = (This->*Func)(*CurrentStack, Args...);
+#endif
+    if (unlikely(!Res)) {
+      Fault::emitFault(Res.error());
+    }
+    if constexpr (std::is_same_v<RetT, RefVariant>) {
+      return (*Res).getRawData();
+    } else if constexpr (!std::is_void_v<RetT>) {
+      return *Res;
+    }
+  }
+};
+
+#if defined(__clang_major__) && __clang_major__ >= 10
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wc99-designator"
+#endif
+
+// Intrinsics table
+const Executable::IntrinsicsTable Executor::Intrinsics = {
+#if defined(_MSC_VER) && !defined(__clang__)
+#define ENTRY(NAME, FUNC)                                                      \
+  reinterpret_cast<void *>(&Executor::ProxyHelper<                             \
+                           decltype(&Executor::FUNC)>::proxy<&Executor::FUNC>)
+#else
+#define ENTRY(NAME, FUNC)                                                      \
+  [uint8_t(Executable::Intrinsics::NAME)] = reinterpret_cast<void *>(          \
+      &Executor::ProxyHelper<decltype(&Executor::FUNC)>::proxy<                \
+          &Executor::FUNC>)
+#endif
+    ENTRY(kTrap, proxyTrap),
+    ENTRY(kCall, proxyCall),
+    ENTRY(kCallIndirect, proxyCallIndirect),
+    ENTRY(kCallRef, proxyCallRef),
+    ENTRY(kRefFunc, proxyRefFunc),
+    ENTRY(kStructNew, proxyStructNew),
+    ENTRY(kStructGet, proxyStructGet),
+    ENTRY(kStructSet, proxyStructSet),
+    ENTRY(kArrayNew, proxyArrayNew),
+    ENTRY(kArrayNewData, proxyArrayNewData),
+    ENTRY(kArrayNewElem, proxyArrayNewElem),
+    ENTRY(kArrayGet, proxyArrayGet),
+    ENTRY(kArraySet, proxyArraySet),
+    ENTRY(kArrayLen, proxyArrayLen),
+    ENTRY(kArrayFill, proxyArrayFill),
+    ENTRY(kArrayCopy, proxyArrayCopy),
+    ENTRY(kArrayInitData, proxyArrayInitData),
+    ENTRY(kArrayInitElem, proxyArrayInitElem),
+    ENTRY(kRefTest, proxyRefTest),
+    ENTRY(kRefCast, proxyRefCast),
+    ENTRY(kTableInit, proxyTableInit),
+    ENTRY(kElemDrop, proxyElemDrop),
+    ENTRY(kTableCopy, proxyTableCopy),
+    ENTRY(kTableGrow, proxyTableGrow),
+    ENTRY(kTableFill, proxyTableFill),
+    ENTRY(kMemGrow, proxyMemGrow),
+    ENTRY(kMemInit, proxyMemInit),
+    ENTRY(kDataDrop, proxyDataDrop),
+    ENTRY(kMemCopy, proxyMemCopy),
+    ENTRY(kMemFill, proxyMemFill),
+    ENTRY(kMemAtomicNotify, proxyMemAtomicNotify),
+    ENTRY(kMemAtomicWait, proxyMemAtomicWait),
+    ENTRY(kTableGetFuncSymbol, proxyTableGetFuncSymbol),
+    ENTRY(kRefGetFuncSymbol, proxyRefGetFuncSymbol),
+    ENTRY(kFuncGetFuncSymbol, proxyFuncGetFuncSymbol),
+    ENTRY(kThrow, proxyThrow),
+    ENTRY(kThrowRef, proxyThrowRef),
+    ENTRY(kCatchPop, proxyCatchPop),
+#undef ENTRY
+};
+
+#if defined(__clang_major__) && __clang_major__ >= 10
+#pragma clang diagnostic pop
+#endif
+
+Expect<void> Executor::proxyTrap(Runtime::StackManager &,
+                                 const uint32_t Code) noexcept {
+  return Unexpect(static_cast<ErrCategory>(Code >> 24), Code);
+}
+
+Expect<void>
+Executor::proxyCall(Runtime::StackManager &StackMgr,
+                    const Runtime::Instance::ModuleInstance *ModInst,
+                    const uint32_t FuncIdx, const ValVariant *Args,
+                    ValVariant *Rets) noexcept {
+  const auto *FuncInst = getFuncInstByIdx(ModInst, FuncIdx);
+  assuming(FuncInst);
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+  const auto &FuncType = FuncInst->getFuncType();
+  const uint32_t ParamsSize =
+      static_cast<uint32_t>(FuncType.getParamTypes().size());
+
+  for (uint32_t I = 0; I < ParamsSize; ++I) {
+    StackMgr.push(Args[I]);
+  }
+
+  auto Instrs = FuncInst->getInstrs();
+  auto Res =
+      enterFunction(StackMgr, *FuncInst, Instrs.end(), false, true, ModInst)
+          .and_then([&](AST::InstrView::iterator StartIt) {
+            return execute(StackMgr, StartIt, Instrs.end());
+          });
+  return callFromCompiled(StackMgr, *FuncInst, Rets, std::move(Res));
+}
+
+Expect<void>
+Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
+                            const Runtime::Instance::ModuleInstance *ModInst,
+                            const uint32_t TableIdx, const uint32_t FuncTypeIdx,
+                            const uint64_t FuncIdx, const ValVariant *Args,
+                            ValVariant *Rets) noexcept {
+  const auto *TabInst = getTabInstByIdx(ModInst, TableIdx);
+  assuming(TabInst);
+
+  if (unlikely(FuncIdx >= TabInst->getSize())) {
+    return Unexpect(ErrCode::Value::UndefinedElement);
+  }
+
+  auto Ref = TabInst->getRefAddr(FuncIdx);
+  assuming(Ref);
+  if (unlikely(Ref->isNull())) {
+    return Unexpect(ErrCode::Value::UninitializedElement);
+  }
+
+  assuming(ModInst);
+  const auto *FuncInst = retrieveFuncRef(*Ref);
+  assuming(FuncInst);
+
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
+  if (!matchRef(ModInst, ValType(TypeCode::Ref, FuncTypeIdx), *Ref)) {
+    return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
+  }
+
+  const auto &FuncType = FuncInst->getFuncType();
+  const uint32_t ParamsSize =
+      static_cast<uint32_t>(FuncType.getParamTypes().size());
+
+  for (uint32_t I = 0; I < ParamsSize; ++I) {
+    StackMgr.push(Args[I]);
+  }
+
+  auto Instrs = FuncInst->getInstrs();
+  auto Res =
+      enterFunction(StackMgr, *FuncInst, Instrs.end(), false, true, ModInst)
+          .and_then([&](AST::InstrView::iterator StartIt) {
+            return execute(StackMgr, StartIt, Instrs.end());
+          });
+  return callFromCompiled(StackMgr, *FuncInst, Rets, std::move(Res));
+}
+
+Expect<void>
+Executor::proxyCallRef(Runtime::StackManager &StackMgr,
+                       const Runtime::Instance::ModuleInstance *ModInst,
+                       const RefVariant Ref, const ValVariant *Args,
+                       ValVariant *Rets) noexcept {
+  const auto *FuncInst = retrieveFuncRef(Ref);
+  if (unlikely(!FuncInst)) {
+    return Unexpect(ErrCode::Value::AccessNullFunc);
+  }
+
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
+  const auto &FuncType = FuncInst->getFuncType();
+  const uint32_t ParamsSize =
+      static_cast<uint32_t>(FuncType.getParamTypes().size());
+
+  for (uint32_t I = 0; I < ParamsSize; ++I) {
+    StackMgr.push(Args[I]);
+  }
+
+  auto Instrs = FuncInst->getInstrs();
+  auto Res =
+      enterFunction(StackMgr, *FuncInst, Instrs.end(), false, true, ModInst)
+          .and_then([&](AST::InstrView::iterator StartIt) {
+            return execute(StackMgr, StartIt, Instrs.end());
+          });
+  return callFromCompiled(StackMgr, *FuncInst, Rets, std::move(Res));
+}
+
+Expect<RefVariant>
+Executor::proxyRefFunc(Runtime::StackManager &,
+                       const Runtime::Instance::ModuleInstance *ModInst,
+                       const uint32_t FuncIdx) noexcept {
+  auto *FuncInst = getFuncInstByIdx(ModInst, FuncIdx);
+  assuming(FuncInst);
+  return RefVariant(FuncInst->getDefType(), FuncInst);
+}
+
+Expect<RefVariant>
+Executor::proxyStructNew(Runtime::StackManager &,
+                         const Runtime::Instance::ModuleInstance *ModInst,
+                         const uint32_t TypeIdx, const ValVariant *Args,
+                         const uint32_t ArgSize) noexcept {
+  if (Args == nullptr) {
+    return structNew(ModInst, TypeIdx);
+  } else {
+    return structNew(ModInst, TypeIdx, Span<const ValVariant>(Args, ArgSize));
+  }
+}
+
+Expect<void> Executor::proxyStructGet(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const RefVariant Ref, const uint32_t TypeIdx, const uint32_t Off,
+    const bool IsSigned, ValVariant *Ret) noexcept {
+  EXPECTED_TRY(auto Val, structGet(ModInst, Ref, TypeIdx, Off, IsSigned));
+  *Ret = Val;
+  return {};
+}
+
+Expect<void>
+Executor::proxyStructSet(Runtime::StackManager &,
+                         const Runtime::Instance::ModuleInstance *ModInst,
+                         const RefVariant Ref, const uint32_t TypeIdx,
+                         const uint32_t Off, const ValVariant *Val) noexcept {
+  return structSet(ModInst, Ref, *Val, TypeIdx, Off);
+}
+
+Expect<RefVariant> Executor::proxyArrayNew(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const uint32_t TypeIdx, const uint32_t Length, const ValVariant *Args,
+    const uint32_t ArgSize) noexcept {
+  assuming(ArgSize == 0 || ArgSize == 1 || ArgSize == Length);
+  if (ArgSize == 0) {
+    return arrayNew(ModInst, TypeIdx, Length);
+  } else if (ArgSize == 1) {
+    return arrayNew(ModInst, TypeIdx, Length, {Args[0]});
+  } else {
+    return arrayNew(ModInst, TypeIdx, Length,
+                    Span<const ValVariant>(Args, ArgSize));
+  }
+}
+
+Expect<RefVariant> Executor::proxyArrayNewData(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const uint32_t TypeIdx, const uint32_t DataIdx, const uint32_t Start,
+    const uint32_t Length) noexcept {
+  return arrayNewData(ModInst, TypeIdx, DataIdx, Start, Length);
+}
+
+Expect<RefVariant> Executor::proxyArrayNewElem(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const uint32_t TypeIdx, const uint32_t ElemIdx, const uint32_t Start,
+    const uint32_t Length) noexcept {
+  return arrayNewElem(ModInst, TypeIdx, ElemIdx, Start, Length);
+}
+
+Expect<void> Executor::proxyArrayGet(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const RefVariant Ref, const uint32_t TypeIdx, const uint32_t Idx,
+    const bool IsSigned, ValVariant *Ret) noexcept {
+  EXPECTED_TRY(auto Val, arrayGet(ModInst, Ref, TypeIdx, Idx, IsSigned));
+  *Ret = Val;
+  return {};
+}
+
+Expect<void>
+Executor::proxyArraySet(Runtime::StackManager &,
+                        const Runtime::Instance::ModuleInstance *ModInst,
+                        const RefVariant Ref, const uint32_t TypeIdx,
+                        const uint32_t Idx, const ValVariant *Val) noexcept {
+  return arraySet(ModInst, Ref, *Val, TypeIdx, Idx);
+}
+
+Expect<uint32_t> Executor::proxyArrayLen(Runtime::StackManager &,
+                                         const RefVariant Ref) noexcept {
+  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
+  if (Inst == nullptr) {
+    return Unexpect(ErrCode::Value::AccessNullArray);
+  }
+  return Inst->getLength();
+}
+
+Expect<void> Executor::proxyArrayFill(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const RefVariant Ref, const uint32_t TypeIdx, const uint32_t Idx,
+    const uint32_t Cnt, const ValVariant *Val) noexcept {
+  return arrayFill(ModInst, Ref, *Val, TypeIdx, Idx, Cnt);
+}
+
+Expect<void> Executor::proxyArrayCopy(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const RefVariant DstRef, const uint32_t DstTypeIdx, const uint32_t DstIdx,
+    const RefVariant SrcRef, const uint32_t SrcTypeIdx, const uint32_t SrcIdx,
+    const uint32_t Cnt) noexcept {
+  return arrayCopy(ModInst, DstRef, DstTypeIdx, DstIdx, SrcRef, SrcTypeIdx,
+                   SrcIdx, Cnt);
+}
+
+Expect<void> Executor::proxyArrayInitData(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const RefVariant Ref, const uint32_t TypeIdx, const uint32_t DataIdx,
+    const uint32_t DstIdx, const uint32_t SrcIdx, const uint32_t Cnt) noexcept {
+  return arrayInitData(ModInst, Ref, TypeIdx, DataIdx, DstIdx, SrcIdx, Cnt);
+}
+
+Expect<void> Executor::proxyArrayInitElem(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const RefVariant Ref, const uint32_t TypeIdx, const uint32_t ElemIdx,
+    const uint32_t DstIdx, const uint32_t SrcIdx, const uint32_t Cnt) noexcept {
+  return arrayInitElem(ModInst, Ref, TypeIdx, ElemIdx, DstIdx, SrcIdx, Cnt);
+}
+
+Expect<uint32_t>
+Executor::proxyRefTest(Runtime::StackManager &,
+                       const Runtime::Instance::ModuleInstance *ModInst,
+                       const RefVariant Ref, ValType VTTest) noexcept {
+  assuming(ModInst);
+  return static_cast<uint32_t>(matchRef(ModInst, VTTest, Ref) ? 1 : 0);
+}
+
+Expect<RefVariant>
+Executor::proxyRefCast(Runtime::StackManager &,
+                       const Runtime::Instance::ModuleInstance *ModInst,
+                       const RefVariant Ref, ValType VTCast) noexcept {
+  assuming(ModInst);
+  if (!matchRef(ModInst, VTCast, Ref)) {
+    return Unexpect(ErrCode::Value::CastFailed);
+  }
+  return Ref;
+}
+
+// For the runtime value of `uint64_t`, arguments are expected to be extended
+// to 64-bit width in the LLVM compiler regardless of whether the address type
+// is 32 or 64 bits. On the other hand, a `uint64_t` return should handle the
+// conversion to a 32- or 64-bit value according to the address type in the LLVM
+// compiler.
+
+Expect<void> Executor::proxyTableInit(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const uint32_t TableIdx, const uint32_t ElemIdx, const uint64_t DstOff,
+    const uint32_t SrcOff, const uint32_t Len) noexcept {
+  auto *TabInst = getTabInstByIdx(ModInst, TableIdx);
+  assuming(TabInst);
+  auto *ElemInst = getElemInstByIdx(ModInst, ElemIdx);
+  assuming(ElemInst);
+  return TabInst->setRefs(ElemInst->getRefs(), DstOff, SrcOff, Len);
+}
+
+Expect<void>
+Executor::proxyElemDrop(Runtime::StackManager &,
+                        const Runtime::Instance::ModuleInstance *ModInst,
+                        const uint32_t ElemIdx) noexcept {
+  auto *ElemInst = getElemInstByIdx(ModInst, ElemIdx);
+  assuming(ElemInst);
+  ElemInst->clear();
+  return {};
+}
+
+Expect<void> Executor::proxyTableCopy(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const uint32_t TableIdxDst, const uint32_t TableIdxSrc,
+    const uint64_t DstOff, const uint64_t SrcOff, const uint64_t Len) noexcept {
+  auto *TabInstDst = getTabInstByIdx(ModInst, TableIdxDst);
+  assuming(TabInstDst);
+  auto *TabInstSrc = getTabInstByIdx(ModInst, TableIdxSrc);
+  assuming(TabInstSrc);
+
+  EXPECTED_TRY(auto Refs, TabInstSrc->getRefs(0, SrcOff + Len));
+  return TabInstDst->setRefs(Refs, DstOff, SrcOff, Len);
+}
+
+Expect<uint64_t>
+Executor::proxyTableGrow(Runtime::StackManager &,
+                         const Runtime::Instance::ModuleInstance *ModInst,
+                         const uint32_t TableIdx, const RefVariant Val,
+                         const uint64_t NewSize) noexcept {
+  auto *TabInst = getTabInstByIdx(ModInst, TableIdx);
+  assuming(TabInst);
+  const auto AddrType = TabInst->getTableType().getLimit().getAddrType();
+  const uint64_t CurrTableSize = TabInst->getSize();
+  if (likely(TabInst->growTable(NewSize, Val))) {
+    return CurrTableSize;
+  } else {
+    switch (AddrType) {
+    case AddressType::I32:
+      return static_cast<uint32_t>(-1);
+    case AddressType::I64:
+      return static_cast<uint64_t>(-1);
+    default:
+      assumingUnreachable();
+    }
+  }
+}
+
+Expect<void>
+Executor::proxyTableFill(Runtime::StackManager &,
+                         const Runtime::Instance::ModuleInstance *ModInst,
+                         const uint32_t TableIdx, const uint64_t Off,
+                         const RefVariant Ref, const uint64_t Len) noexcept {
+  auto *TabInst = getTabInstByIdx(ModInst, TableIdx);
+  assuming(TabInst);
+  return TabInst->fillRefs(Ref, Off, Len);
+}
+
+Expect<uint64_t>
+Executor::proxyMemGrow(Runtime::StackManager &,
+                       const Runtime::Instance::ModuleInstance *ModInst,
+                       const uint32_t MemIdx, const uint64_t NewSize) noexcept {
+  auto *MemInst = getMemInstByIdx(ModInst, MemIdx);
+  assuming(MemInst);
+  const auto AddrType = MemInst->getMemoryType().getLimit().getAddrType();
+  const uint64_t CurrPageSize = MemInst->getPageSize();
+  if (MemInst->growPage(NewSize)) {
+    return CurrPageSize;
+  } else {
+    switch (AddrType) {
+    case AddressType::I32:
+      return static_cast<uint32_t>(-1);
+    case AddressType::I64:
+      return static_cast<uint64_t>(-1);
+    default:
+      assumingUnreachable();
+    }
+  }
+}
+
+Expect<void> Executor::proxyMemInit(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const uint32_t MemIdx, const uint32_t DataIdx, const uint64_t DstOff,
+    const uint32_t SrcOff, const uint32_t Len) noexcept {
+  auto *MemInst = getMemInstByIdx(ModInst, MemIdx);
+  assuming(MemInst);
+  auto *DataInst = getDataInstByIdx(ModInst, DataIdx);
+  assuming(DataInst);
+  return MemInst->setBytes(DataInst->getData(), DstOff, SrcOff, Len);
+}
+
+Expect<void>
+Executor::proxyDataDrop(Runtime::StackManager &,
+                        const Runtime::Instance::ModuleInstance *ModInst,
+                        const uint32_t DataIdx) noexcept {
+  auto *DataInst = getDataInstByIdx(ModInst, DataIdx);
+  assuming(DataInst);
+  DataInst->clear();
+  return {};
+}
+
+Expect<void> Executor::proxyMemCopy(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const uint32_t DstMemIdx, const uint32_t SrcMemIdx, const uint64_t DstOff,
+    const uint64_t SrcOff, const uint64_t Len) noexcept {
+  auto *MemInstDst = getMemInstByIdx(ModInst, DstMemIdx);
+  assuming(MemInstDst);
+  auto *MemInstSrc = getMemInstByIdx(ModInst, SrcMemIdx);
+  assuming(MemInstSrc);
+
+  EXPECTED_TRY(auto Data, MemInstSrc->getBytes(SrcOff, Len));
+  return MemInstDst->setBytes(Data, DstOff, 0, Len);
+}
+
+Expect<void>
+Executor::proxyMemFill(Runtime::StackManager &,
+                       const Runtime::Instance::ModuleInstance *ModInst,
+                       const uint32_t MemIdx, const uint64_t Off,
+                       const uint8_t Val, const uint64_t Len) noexcept {
+  auto *MemInst = getMemInstByIdx(ModInst, MemIdx);
+  assuming(MemInst);
+  return MemInst->fillBytes(Val, Off, Len);
+}
+
+Expect<uint64_t>
+Executor::proxyMemAtomicNotify(Runtime::StackManager &,
+                               const Runtime::Instance::ModuleInstance *ModInst,
+                               const uint32_t MemIdx, const uint64_t Offset,
+                               const uint64_t Count) noexcept {
+  auto *MemInst = getMemInstByIdx(ModInst, MemIdx);
+  assuming(MemInst);
+  return atomicNotify(*MemInst, Offset, Count);
+}
+
+Expect<uint64_t> Executor::proxyMemAtomicWait(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const uint32_t MemIdx, const uint64_t Offset, const uint64_t Expected,
+    const int64_t Timeout, const uint32_t BitWidth) noexcept {
+  auto *MemInst = getMemInstByIdx(ModInst, MemIdx);
+  assuming(MemInst);
+
+  if (BitWidth == 64) {
+    return atomicWait<uint64_t>(*MemInst, Offset, Expected, Timeout);
+  } else if (BitWidth == 32) {
+    return atomicWait<uint32_t>(*MemInst, Offset,
+                                static_cast<uint32_t>(Expected), Timeout);
+  }
+  assumingUnreachable();
+}
+
+Expect<void *> Executor::proxyTableGetFuncSymbol(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const uint32_t TableIdx, const uint32_t FuncTypeIdx, const uint64_t FuncIdx,
+    Runtime::Instance::ModuleInstance::ModuleContext **CalleeCtxOut) noexcept {
+  *CalleeCtxOut = nullptr;
+  const auto *TabInst = getTabInstByIdx(ModInst, TableIdx);
+  assuming(TabInst);
+
+  if (unlikely(FuncIdx >= TabInst->getSize())) {
+    return Unexpect(ErrCode::Value::UndefinedElement);
+  }
+
+  auto Ref = TabInst->getRefAddr(FuncIdx);
+  assuming(Ref);
+  if (unlikely(Ref->isNull())) {
+    return Unexpect(ErrCode::Value::UninitializedElement);
+  }
+
+  const auto *FuncInst = retrieveFuncRef(*Ref);
+  assuming(FuncInst);
+  // Check the function type; the same module and type index need no matching.
+  if ((FuncInst->getModule() != ModInst ||
+       FuncInst->getTypeIndex() != FuncTypeIdx) &&
+      !matchRef(ModInst, ValType(TypeCode::Ref, FuncTypeIdx), *Ref)) {
+    return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
+  }
+
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
+  if (unlikely(!FuncInst->isCompiledFunction())) {
+    return nullptr;
+  }
+  if (FuncInst->getModule() != ModInst) {
+    *CalleeCtxOut =
+        &const_cast<Runtime::Instance::ModuleInstance *>(FuncInst->getModule())
+             ->ModCtx;
+  }
+  return FuncInst->getSymbol().get();
+}
+
+Expect<void *> Executor::proxyRefGetFuncSymbol(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const RefVariant Ref,
+    Runtime::Instance::ModuleInstance::ModuleContext **CalleeCtxOut) noexcept {
+  *CalleeCtxOut = nullptr;
+  const auto *FuncInst = retrieveFuncRef(Ref);
+  assuming(FuncInst);
+  if (likely(FuncInst->isCompiledFunction())) {
+    if (FuncInst->getModule() != ModInst) {
+      *CalleeCtxOut = &const_cast<Runtime::Instance::ModuleInstance *>(
+                           FuncInst->getModule())
+                           ->ModCtx;
+    }
+    return FuncInst->getSymbol().get();
+  }
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
+  if (unlikely(!FuncInst->isCompiledFunction())) {
+    return nullptr;
+  }
+  if (FuncInst->getModule() != ModInst) {
+    *CalleeCtxOut =
+        &const_cast<Runtime::Instance::ModuleInstance *>(FuncInst->getModule())
+             ->ModCtx;
+  }
+  return FuncInst->getSymbol().get();
+}
+
+Expect<void *> Executor::proxyFuncGetFuncSymbol(
+    Runtime::StackManager &, const Runtime::Instance::ModuleInstance *ModInst,
+    const uint32_t FuncIdx) noexcept {
+  const auto *FuncInst = getFuncInstByIdx(ModInst, FuncIdx);
+  assuming(FuncInst);
+  if (likely(FuncInst->isCompiledFunction())) {
+    return FuncInst->getSymbol().get();
+  }
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
+  if (unlikely(!FuncInst->isCompiledFunction())) {
+    return nullptr;
+  }
+  return FuncInst->getSymbol().get();
+}
+
+Expect<void>
+Executor::proxyThrow(Runtime::StackManager &,
+                     const Runtime::Instance::ModuleInstance *ModInst,
+                     const uint32_t TagIdx, const ValVariant *Vals,
+                     const uint32_t Num) noexcept {
+  auto *TagInst = getTagInstByIdx(ModInst, TagIdx);
+  assuming(TagInst);
+  assuming(TagInst->getTagType().getAssocValSize() == Num);
+  PendingExn.TagInst = TagInst;
+  PendingExn.Inst = nullptr;
+  PendingExn.setPayload(Span<const ValVariant>(Vals, Num));
+  return {};
+}
+
+Expect<void> Executor::proxyThrowRef(Runtime::StackManager &,
+                                     const RefVariant Ref) noexcept {
+  const auto *ExnInst = Ref.getPtr<Runtime::Instance::ExceptionInstance>();
+  if (unlikely(ExnInst == nullptr)) {
+    return Unexpect(ErrCode::Value::AccessNullException);
+  }
+  PendingExn.TagInst = ExnInst->getTag();
+  PendingExn.Inst = ExnInst;
+  PendingExn.setPayload(ExnInst->getPayload());
+  return {};
+}
+
+Expect<void>
+Executor::proxyCatchPop(Runtime::StackManager &,
+                        const Runtime::Instance::ModuleInstance *ModInst,
+                        ValVariant *Out, const uint32_t PopPayload,
+                        const uint32_t NeedRef) noexcept {
+  auto *TagInst = PendingExn.TagInst;
+  assuming(TagInst);
+  uint32_t Idx = 0;
+  if (PopPayload != 0) {
+    Idx = TagInst->getTagType().getAssocValSize();
+    std::copy_n(PendingExn.getPayload().begin(), Idx, Out);
+  }
+  if (NeedRef != 0) {
+    const auto *Inst = PendingExn.Inst;
+    if (Inst == nullptr) {
+      assuming(ModInst);
+      Inst = const_cast<Runtime::Instance::ModuleInstance *>(ModInst)
+                 ->newException(
+                     TagInst, std::vector<ValVariant>(PendingExn.getPayload()));
+    }
+    Out[Idx] = RefVariant(ValType(TypeCode::Ref, TypeCode::ExnRef), Inst);
+  }
+  PendingExn = {};
+  return {};
+}
+
+} // namespace Executor
+} // namespace WasmEdge

@@ -1,0 +1,234 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "avDictionary.h"
+
+extern "C" {
+#include "libavutil/dict.h"
+}
+
+namespace WasmEdge {
+namespace Host {
+namespace WasmEdgeFFmpeg {
+namespace AVUtil {
+
+namespace {
+constexpr int SafeDictFlags = AV_DICT_MATCH_CASE | AV_DICT_IGNORE_SUFFIX |
+                              AV_DICT_DONT_OVERWRITE | AV_DICT_APPEND |
+                              AV_DICT_MULTIKEY;
+
+int sanitizeDictFlags(int Flags) { return Flags & SafeDictFlags; }
+
+AVDictionaryEntry *dictEntryAt(AVDictionary *Dict, const char *Key,
+                               uint32_t PrevIdx, int Flags, uint32_t &Steps) {
+  AVDictionaryEntry *Entry = nullptr;
+  uint32_t Curr = 0;
+  while (Curr <= PrevIdx) {
+    Entry = av_dict_get(Dict, Key, Entry, Flags);
+    Curr++;
+    if (Entry == nullptr) {
+      break;
+    }
+  }
+  Steps = Curr;
+  return Entry;
+}
+} // namespace
+
+Expect<int32_t> AVDictSet::body(const Runtime::CallingFrame &Frame,
+                                uint32_t DictPtr, uint32_t KeyPtr,
+                                uint32_t KeyLen, uint32_t ValuePtr,
+                                uint32_t ValueLen, int32_t Flags) {
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_SPAN_CHECK(KeyBuf, MemInst, char, KeyPtr, KeyLen,
+                 "Failed when accessing the return Key memory"sv);
+  MEM_SPAN_CHECK(ValueBuf, MemInst, char, ValuePtr, ValueLen,
+                 "Failed when accessing the return Value memory"sv);
+  MEM_PTR_CHECK(DictId, MemInst, uint32_t, DictPtr,
+                "Failed to access Memory for AVDict"sv)
+
+  std::string Key(KeyBuf.data(), KeyLen);
+  std::string Value(ValueBuf.data(), ValueLen);
+
+  int const SafeFlags = sanitizeDictFlags(Flags);
+  int Res = 0;
+
+  // Using Maybe::uninit(); in Rust. If Uninitialized, zero is
+  // passed. Else the Ptr contains a Number.
+  if (*DictId) {
+    FFMPEG_PTR_FETCH(AvDict, *DictId, AVDictionary *);
+    if (AvDict == nullptr) {
+      spdlog::error("[WasmEdge-FFmpeg] AVDictSet: invalid dictionary id {}"sv,
+                    *DictId);
+      return static_cast<int32_t>(ErrNo::InternalError);
+    }
+    Res = av_dict_set(AvDict, Key.c_str(), Value.c_str(), SafeFlags);
+  } else {
+    AVDictionary **AvDict =
+        static_cast<AVDictionary **>(av_mallocz(sizeof(AVDictionary *)));
+    if (AvDict == nullptr) {
+      return static_cast<int32_t>(ErrNo::InternalError);
+    }
+    Res = av_dict_set(AvDict, Key.c_str(), Value.c_str(), SafeFlags);
+    if (Res < 0) {
+      av_dict_free(AvDict);
+      av_free(AvDict);
+      return Res;
+    }
+    FFMPEG_PTR_STORE(AvDict, DictId);
+  }
+
+  return Res;
+}
+
+Expect<int32_t> AVDictCopy::body(const Runtime::CallingFrame &Frame,
+                                 uint32_t DestDictPtr, uint32_t SrcDictId,
+                                 uint32_t Flags) {
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_PTR_CHECK(DestDictId, MemInst, uint32_t, DestDictPtr,
+                "Failed to access Memory for AVDict"sv)
+
+  FFMPEG_PTR_FETCH(SrcAvDict, SrcDictId, AVDictionary *);
+
+  int const SafeFlags = sanitizeDictFlags(static_cast<int>(Flags));
+  int Res = 0;
+
+  if (SrcAvDict == nullptr) {
+    if (SrcDictId != 0) {
+      spdlog::error("[WasmEdge-FFmpeg] AVDictCopy: invalid source dictionary "
+                    "id {}"sv,
+                    SrcDictId);
+    }
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+
+  if (*DestDictId) {
+    FFMPEG_PTR_FETCH(DestAvDict, *DestDictId, AVDictionary *);
+    if (DestAvDict == nullptr) {
+      spdlog::error("[WasmEdge-FFmpeg] AVDictCopy: invalid destination "
+                    "dictionary id {}"sv,
+                    *DestDictId);
+      return static_cast<int32_t>(ErrNo::InternalError);
+    }
+    AVDictionary *Snapshot = nullptr;
+    const AVDictionary *Source = *SrcAvDict;
+    if (DestAvDict == SrcAvDict || *DestAvDict == *SrcAvDict) {
+      Res = av_dict_copy(&Snapshot, Source, AV_DICT_MULTIKEY);
+      if (Res < 0) {
+        av_dict_free(&Snapshot);
+        return Res;
+      }
+      Source = Snapshot;
+    }
+    Res = av_dict_copy(DestAvDict, Source, SafeFlags);
+    av_dict_free(&Snapshot);
+  } else {
+    AVDictionary **DestAvDict =
+        static_cast<AVDictionary **>(av_mallocz(sizeof(AVDictionary *)));
+    if (DestAvDict == nullptr) {
+      return static_cast<int32_t>(ErrNo::InternalError);
+    }
+    Res = av_dict_copy(DestAvDict, *SrcAvDict, SafeFlags);
+    if (Res < 0) {
+      av_dict_free(DestAvDict);
+      av_free(DestAvDict);
+      return Res;
+    }
+    FFMPEG_PTR_STORE(DestAvDict, DestDictId);
+  }
+
+  return Res;
+}
+
+Expect<int32_t> AVDictGet::body(const Runtime::CallingFrame &Frame,
+                                uint32_t DictId, uint32_t KeyPtr,
+                                uint32_t KeyLen, uint32_t PrevDictEntryIdx,
+                                uint32_t Flags, uint32_t KeyLenPtr,
+                                uint32_t ValueLenPtr) {
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_SPAN_CHECK(KeyStr, MemInst, char, KeyPtr, KeyLen,
+                 "Failed when accessing the return Key memory"sv);
+  MEM_PTR_CHECK(KeyLenId, MemInst, uint32_t, KeyLenPtr,
+                "Failed when accessing the return KeyLen memory"sv);
+  MEM_PTR_CHECK(ValueLenId, MemInst, uint32_t, ValueLenPtr,
+                "Failed when accessing the return ValueLen memory"sv);
+
+  FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
+
+  // Return if Dict was not created (i.e. 0 is passed as AVDictId).
+  if (AvDict == nullptr) {
+    if (DictId != 0) {
+      spdlog::error("[WasmEdge-FFmpeg] AVDictGet: invalid dictionary id {}"sv,
+                    DictId);
+    }
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  std::string Key(KeyStr.data(), KeyLen);
+
+  uint32_t Curr = 0;
+  AVDictionaryEntry *DictEntry =
+      dictEntryAt(*AvDict, Key.c_str(), PrevDictEntryIdx, Flags, Curr);
+
+  if (DictEntry == nullptr) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+
+  *KeyLenId = strlen(DictEntry->key);
+  *ValueLenId = strlen(DictEntry->value);
+  return Curr;
+}
+
+Expect<int32_t> AVDictGetKeyValue::body(
+    const Runtime::CallingFrame &Frame, uint32_t DictId, uint32_t KeyPtr,
+    uint32_t KeyLen, uint32_t ValBufPtr, uint32_t ValBufLen, uint32_t KeyBufPtr,
+    uint32_t KeyBufLen, uint32_t PrevDictEntryIdx, uint32_t Flags) {
+  MEMINST_CHECK(MemInst, Frame, 0);
+  MEM_SPAN_CHECK(KeyStr, MemInst, char, KeyPtr, KeyLen,
+                 "Failed when accessing the return Key memory"sv);
+  MEM_SPAN_CHECK(KeyBuf, MemInst, char, KeyBufPtr, KeyBufLen, "");
+  MEM_SPAN_CHECK(ValBuf, MemInst, char, ValBufPtr, ValBufLen, "");
+
+  FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
+
+  // Return if Dict was not created (i.e. 0 is passed as AVDictId).
+  if (AvDict == nullptr) {
+    if (DictId != 0) {
+      spdlog::error("[WasmEdge-FFmpeg] AVDictGetKeyValue: invalid dictionary "
+                    "id {}"sv,
+                    DictId);
+    }
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+
+  std::string Key(KeyStr.data(), KeyLen);
+
+  uint32_t Curr = 0;
+  AVDictionaryEntry *DictEntry =
+      dictEntryAt(*AvDict, Key.c_str(), PrevDictEntryIdx, Flags, Curr);
+  if (DictEntry == nullptr) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  copyCStringToBuffer(ValBuf.data(), ValBufLen, DictEntry->value);
+  copyCStringToBuffer(KeyBuf.data(), KeyBufLen, DictEntry->key);
+  return Curr;
+}
+
+Expect<int32_t> AVDictFree::body(const Runtime::CallingFrame &,
+                                 uint32_t DictId) {
+  FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
+  FFMPEG_PTR_CHECK_FREE(AvDict, DictId,
+                        static_cast<int32_t>(ErrNo::InternalError));
+  if (Env.get()->isBorrowed(DictId)) {
+    Env.get()->releaseRef(DictId);
+    return static_cast<int32_t>(ErrNo::Success);
+  }
+  av_dict_free(AvDict);
+  av_free(AvDict);
+  FFMPEG_PTR_DELETE(DictId);
+  return static_cast<int32_t>(ErrNo::Success);
+}
+
+} // namespace AVUtil
+} // namespace WasmEdgeFFmpeg
+} // namespace Host
+} // namespace WasmEdge

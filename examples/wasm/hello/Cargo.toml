@@ -1,0 +1,11 @@
+[package]
+name = "hello"
+version = "0.1.0"
+authors = ["Hung-Ying, Tai <hydai@secondstate.io>"]
+edition = "2021"
+
+[[bin]]
+name = "hello"
+path = "src/main.rs"
+
+[dependencies]

@@ -1,0 +1,295 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "executor/executor.h"
+
+#include "common/errinfo.h"
+#include "common/spdlog.h"
+
+#include <cstdint>
+#include <string_view>
+#include <utility>
+
+using namespace std::literals;
+
+namespace WasmEdge {
+namespace Executor {
+
+namespace {
+template <typename... Args>
+auto logMatchError(std::string_view ModName, std::string_view ExtName,
+                   ExternalType ExtType, Args &&...Values) {
+  spdlog::error(ErrCode::Value::IncompatibleImportType);
+  spdlog::error(ErrInfo::InfoMismatch(std::forward<Args>(Values)...));
+  spdlog::error(ErrInfo::InfoLinking(ModName, ExtName, ExtType));
+  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Desc_Import));
+  return Unexpect(ErrCode::Value::IncompatibleImportType);
+}
+
+auto logUnknownError(std::string_view ModName, std::string_view ExtName,
+                     ExternalType ExtType) {
+  spdlog::error(ErrCode::Value::UnknownImport);
+  spdlog::error(ErrInfo::InfoLinking(ModName, ExtName, ExtType));
+  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Desc_Import));
+  return Unexpect(ErrCode::Value::UnknownImport);
+}
+
+Expect<void>
+checkImportMatched(std::string_view ModName, std::string_view ExtName,
+                   const ExternalType ExtType,
+                   const Runtime::Instance::ModuleInstance &ModInst) {
+  switch (ExtType) {
+  case ExternalType::Function:
+    if (auto Res = ModInst.findFuncExports(ExtName); likely(Res != nullptr)) {
+      return {};
+    }
+    break;
+  case ExternalType::Table:
+    if (auto Res = ModInst.findTableExports(ExtName); likely(Res != nullptr)) {
+      return {};
+    }
+    break;
+  case ExternalType::Memory:
+    if (auto Res = ModInst.findMemoryExports(ExtName); likely(Res != nullptr)) {
+      return {};
+    }
+    break;
+  case ExternalType::Global:
+    if (auto Res = ModInst.findGlobalExports(ExtName); likely(Res != nullptr)) {
+      return {};
+    }
+    break;
+  case ExternalType::Tag:
+    if (auto Res = ModInst.findTagExports(ExtName); likely(Res != nullptr)) {
+      return {};
+    }
+    break;
+  default:
+    assumingUnreachable();
+  }
+
+  // Check for error external types or unknown imports.
+  if (ModInst.findFuncExports(ExtName)) {
+    return logMatchError(ModName, ExtName, ExtType, ExtType,
+                         ExternalType::Function);
+  }
+  if (ModInst.findTableExports(ExtName)) {
+    return logMatchError(ModName, ExtName, ExtType, ExtType,
+                         ExternalType::Table);
+  }
+  if (ModInst.findMemoryExports(ExtName)) {
+    return logMatchError(ModName, ExtName, ExtType, ExtType,
+                         ExternalType::Memory);
+  }
+  if (ModInst.findTagExports(ExtName)) {
+    return logMatchError(ModName, ExtName, ExtType, ExtType, ExternalType::Tag);
+  }
+  if (ModInst.findGlobalExports(ExtName)) {
+    return logMatchError(ModName, ExtName, ExtType, ExtType,
+                         ExternalType::Global);
+  }
+
+  return logUnknownError(ModName, ExtName, ExtType);
+}
+} // namespace
+
+// Instantiate imports. See "include/executor/executor.h".
+Expect<void> Executor::instantiate(
+    std::function<const Runtime::Instance::ModuleInstance *(std::string_view)>
+        ModuleFinder,
+    Runtime::Instance::ModuleInstance &ModInst,
+    const AST::ImportSection &ImportSec) {
+  // Pairs of recursive types found equal, shared by the imports.
+  AST::TypeMatcher::RecTypePairs Equal;
+  // Iterate and instantiate import descriptions.
+  for (const auto &ImpDesc : ImportSec.getContent()) {
+    // Get data from import description and find import module.
+    auto ExtType = ImpDesc.getExternalType();
+    auto ModName = ImpDesc.getModuleName();
+    auto ExtName = ImpDesc.getExternalName();
+    const auto *ImpModInst = ModuleFinder(ModName);
+    if (unlikely(ImpModInst == nullptr)) {
+      auto Res = logUnknownError(ModName, ExtName, ExtType);
+      if (ModName == "wasi_snapshot_preview1"sv) {
+        spdlog::error("    This is a WASI related import. Please ensure that "
+                      "you've turned on the WASI configuration."sv);
+      } else if (ModName == "wasi_nn"sv) {
+        spdlog::error("    This is a WASI-NN related import. Please ensure "
+                      "that you've turned on the WASI-NN configuration and "
+                      "installed the WASI-NN plug-in."sv);
+      } else if (ModName == "wasi_crypto_common"sv ||
+                 ModName == "wasi_crypto_asymmetric_common"sv ||
+                 ModName == "wasi_crypto_kx"sv ||
+                 ModName == "wasi_crypto_signatures"sv ||
+                 ModName == "wasi_crypto_symmetric"sv) {
+        spdlog::error("    This is a WASI-Crypto related import. Please ensure "
+                      "that you've turned on the WASI-Crypto configuration and "
+                      "installed the WASI-Crypto plug-in."sv);
+      } else if (ModName == "env"sv) {
+        spdlog::error(
+            "    This may be the import of host environment like JavaScript or "
+            "Golang. Please check that you've registered the necessary host "
+            "modules from the host programming language."sv);
+      }
+      return Res;
+    }
+    EXPECTED_TRY(checkImportMatched(ModName, ExtName, ExtType, *ImpModInst));
+    // Read the types of an instance from its defining module, if any.
+    auto GetImpTypeList = [&ImpModInst](const auto *Inst) {
+      return Inst->getModule() ? Inst->getModule()->getTypeList()
+                               : ImpModInst->getTypeList();
+    };
+
+    // Add the imports to the module instance.
+    switch (ExtType) {
+    case ExternalType::Function: {
+      // Get the function type index. The external type is checked in
+      // validation.
+      uint32_t TypeIdx = ImpDesc.getExternalFuncTypeIdx();
+      // Import matching.
+      auto *ImpInst = ImpModInst->findFuncExports(ExtName);
+      if (!AST::TypeMatcher::matchType(ModInst.getTypeList(), TypeIdx,
+                                       GetImpTypeList(ImpInst),
+                                       ImpInst->getTypeIndex(), &Equal)) {
+        const auto &ExpDefType = **ModInst.getType(TypeIdx);
+        bool IsMatchV2 = false;
+        const auto &ExpFuncType = ExpDefType.getCompositeType().getFuncType();
+        const auto &ImpFuncType = ImpInst->getFuncType();
+        if (ModName == "wasi_snapshot_preview1"sv) {
+          /*
+           * The following functions should provide V1 and V2.
+             "sock_open_v2",
+             "sock_bind_v2",
+             "sock_connect_v2",
+             "sock_listen_v2",
+             "sock_accept_v2",
+             "sock_recv_v2",
+             "sock_recv_from_v2",
+             "sock_send_v2",
+             "sock_send_to_v2",
+             "sock_getlocaladdr_v2",
+             "sock_getpeeraddr_v2"
+             */
+          std::vector<std::string_view> CompatibleWASISocketAPI = {
+              "sock_open"sv,         "sock_bind"sv,       "sock_connect"sv,
+              "sock_listen"sv,       "sock_accept"sv,     "sock_recv"sv,
+              "sock_recv_from"sv,    "sock_send"sv,       "sock_send_to"sv,
+              "sock_getlocaladdr"sv, "sock_getpeeraddr"sv};
+          for (auto Iter = CompatibleWASISocketAPI.begin();
+               Iter != CompatibleWASISocketAPI.end(); Iter++) {
+            if (ExtName == *Iter) {
+              auto *ImpInstV2 =
+                  ImpModInst->findFuncExports(std::string(*Iter) + "_v2");
+              if (ImpInstV2 != nullptr &&
+                  AST::TypeMatcher::matchType(
+                      ModInst.getTypeList(), TypeIdx, GetImpTypeList(ImpInstV2),
+                      ImpInstV2->getTypeIndex(), &Equal)) {
+                // Try to match the new version
+                ImpInst = ImpInstV2;
+                IsMatchV2 = true;
+                break;
+              }
+            }
+          }
+        }
+        if (!IsMatchV2) {
+          return logMatchError(
+              ModName, ExtName, ExtType, ExpFuncType.getParamTypes(),
+              ExpFuncType.getReturnTypes(), ImpFuncType.getParamTypes(),
+              ImpFuncType.getReturnTypes());
+        }
+      }
+      // Set the matched function address in the module instance.
+      ModInst.importFunction(ImpInst);
+
+      // If the imported function is a WASI function, mark it in the module.
+      if (!ModInst.getWASIModule() && ModName == "wasi_snapshot_preview1"sv) {
+        ModInst.setWASIModule(ImpModInst);
+      }
+      break;
+    }
+    case ExternalType::Table: {
+      // Get table type. External type checked in validation.
+      const auto &TabType = ImpDesc.getExternalTableType();
+      const auto &TabLim = TabType.getLimit();
+      // Import matching. External table type should match the one in import
+      // description.
+      auto *ImpInst = ImpModInst->findTableExports(ExtName);
+      const auto &ImpType = ImpInst->getTableType();
+      const auto &ImpLim = ImpType.getLimit();
+      if (!AST::TypeMatcher::matchType(ModInst.getTypeList(), TabType,
+                                       GetImpTypeList(ImpInst), ImpType,
+                                       &Equal)) {
+        return logMatchError(ModName, ExtName, ExtType, TabType.getRefType(),
+                             TabLim.hasMax(), TabLim.getMin(), TabLim.getMax(),
+                             ImpType.getRefType(), ImpLim.hasMax(),
+                             ImpLim.getMin(), ImpLim.getMax());
+      }
+      // Set the matched table address in the module instance.
+      ModInst.importTable(ImpInst);
+      break;
+    }
+    case ExternalType::Memory: {
+      // Get memory type. External type checked in validation.
+      const auto &MemType = ImpDesc.getExternalMemoryType();
+      const auto &MemLim = MemType.getLimit();
+      // Import matching. External memory type should match the one in import
+      // description.
+      auto *ImpInst = ImpModInst->findMemoryExports(ExtName);
+      const auto &ImpLim = ImpInst->getMemoryType().getLimit();
+      if (!AST::TypeMatcher::matchLimit(MemLim, ImpLim)) {
+        return logMatchError(ModName, ExtName, ExtType, MemLim.hasMax(),
+                             MemLim.getMin(), MemLim.getMax(), ImpLim.hasMax(),
+                             ImpLim.getMin(), ImpLim.getMax());
+      }
+      // Set the matched memory address in the module instance.
+      ModInst.importMemory(ImpInst);
+      break;
+    }
+    case ExternalType::Tag: {
+      // Get tag type. External type checked in validation.
+      const auto &TagType = ImpDesc.getExternalTagType();
+      // Import matching.
+      auto *ImpInst = ImpModInst->findTagExports(ExtName);
+      if (!AST::TypeMatcher::matchType(ModInst.getTypeList(), TagType,
+                                       GetImpTypeList(ImpInst),
+                                       ImpInst->getTagType(), &Equal)) {
+        const auto &ExpFuncType =
+            TagType.getDefType().getCompositeType().getFuncType();
+        const auto &ImpFuncType =
+            ImpInst->getTagType().getDefType().getCompositeType().getFuncType();
+        return logMatchError(
+            ModName, ExtName, ExtType, ExpFuncType.getParamTypes(),
+            ExpFuncType.getReturnTypes(), ImpFuncType.getParamTypes(),
+            ImpFuncType.getReturnTypes());
+      }
+      ModInst.importTag(ImpInst);
+      break;
+    }
+    case ExternalType::Global: {
+      // Get global type. External type checked in validation.
+      const auto &GlobType = ImpDesc.getExternalGlobalType();
+      // Import matching. External global type should match the one in
+      // import description.
+      auto *ImpInst = ImpModInst->findGlobalExports(ExtName);
+      const auto &ImpType = ImpInst->getGlobalType();
+      if (!AST::TypeMatcher::matchType(ModInst.getTypeList(), GlobType,
+                                       GetImpTypeList(ImpInst), ImpType,
+                                       &Equal)) {
+        return logMatchError(ModName, ExtName, ExtType, GlobType.getValType(),
+                             GlobType.getValMut(), ImpType.getValType(),
+                             ImpType.getValMut());
+      }
+      // Set the matched global address in the module instance.
+      ModInst.importGlobal(ImpInst);
+      break;
+    }
+    default:
+      assumingUnreachable();
+    }
+  }
+  return {};
+}
+
+} // namespace Executor
+} // namespace WasmEdge

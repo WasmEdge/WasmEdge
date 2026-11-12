@@ -1,0 +1,305 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "ggml_core.h"
+#include "GGML/utils.h"
+#include "common/filesystem.h"
+#include "common/types.h"
+#include "host/wasi/vfs_io.h"
+#include "wasinnenv.h"
+#include <cstdint>
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+#include "GGML/metadata/metadata_parser.h"
+#include "wasinn_ggml_log.h"
+#include <base64.hpp>
+#include <build-info.h>
+#include <common.h>
+#include <cstdlib>
+#include <fmt/ranges.h>
+#include <llama.h>
+#include <mtmd-helper.h>
+#include <mtmd.h>
+#include <sampling.h>
+
+#include <filesystem>
+#include <math.h>
+#include <mutex>
+#endif
+
+namespace WasmEdge::Host::WASINN::GGML {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+namespace {
+
+// No per-graph user pointer (would dangle); gated on the shared llama gate.
+void llamaLogCallback(ggml_log_level LogLevel, const char *LogText, void *) {
+  if (!llamaLogEnabled()) {
+    return;
+  }
+  logGgmlMessage(LogLevel, LogText, "llama.cpp"sv);
+}
+} // namespace
+
+void installLlamaLog(Graph &GraphRef) noexcept {
+  static std::once_flag LogOnce;
+  std::call_once(LogOnce, []() noexcept {
+    llama_log_set(llamaLogCallback, nullptr);
+    mtmd_helper_log_set(llamaLogCallback, nullptr);
+  });
+  GraphRef.LlamaLog.set(GraphRef.EnableLog);
+}
+
+Expect<ErrNo> load(WasiNNEnvironment &Env, WASINN::Graph &G,
+                   Span<const Span<uint8_t>> Builders, Device) noexcept {
+  auto &GraphRef = G.get<Graph>();
+
+  // Initialize the plugin parameters.
+  GraphRef.EnableLog = false;
+  GraphRef.EnableDebugLog = false;
+  common_params CommonParamsDefault;
+  CommonParamsDefault.lr.init();
+  GraphRef.Params = CommonParamsDefault;
+  GraphRef.Params.n_keep = 0;
+  GraphRef.Params.n_chunks = -1;
+  GraphRef.Params.n_parallel = 1;
+  GraphRef.Params.grp_attn_n = 1;
+  GraphRef.Params.grp_attn_w = 512;
+  GraphRef.Params.n_print = -1;
+  GraphRef.Params.split_mode = llama_split_mode::LLAMA_SPLIT_MODE_LAYER;
+  // Initialize the model parameters.
+  llama_model_params ModelParamsDefault = llama_model_default_params();
+  GraphRef.Params.n_gpu_layers = ModelParamsDefault.n_gpu_layers;
+  GraphRef.Params.mmproj.path = ""sv;
+  GraphRef.Params.warmup = false;
+
+  // Initialize the sampling parameters.
+  const common_params_sampling SamplerParamsDefault;
+  GraphRef.Params.sampling = SamplerParamsDefault;
+  // Initialize the config parameters.
+  GraphRef.Conf.StreamStdout = false;
+  GraphRef.Conf.EmbdNormalize =
+      static_cast<EmbdNormalizeType>(CommonParamsDefault.embd_normalize);
+  GraphRef.Conf.NPredict = GraphRef.Params.n_predict;
+  GraphRef.Conf.ReversePrompt = ""sv;
+  GraphRef.Conf.ImagePath = ""sv;
+
+  // If the graph builder length is greater than 1, builder[1] contains the
+  // metadata.
+  if (Builders.size() > 1) {
+    const std::string Metadata(reinterpret_cast<char *>(Builders[1].data()),
+                               Builders[1].size());
+    // Ignore context or model updates when initializing the graph.
+    auto Res = parseMetadata(GraphRef, GraphRef.Conf, Metadata);
+    if (Res != ErrNo::Success) {
+      RET_ERROR(Res, "load: Failed to parse metadata."sv)
+    }
+  }
+
+  // EnableLog is only known after metadata parsing; sync the log gate now.
+  installLlamaLog(GraphRef);
+
+  // Logging.
+  LOG_DEBUG(GraphRef.EnableDebugLog, "load"sv)
+  LOG_INFO(GraphRef.EnableLog, "LLAMA_COMMIT {}"sv, llama_commit())
+  LOG_INFO(GraphRef.EnableLog, "LLAMA_BUILD_NUMBER {}"sv, llama_build_number())
+
+  // Handle the model path.
+  LOG_DEBUG(GraphRef.EnableDebugLog, "load: handling model path."sv)
+  auto Weight = Builders[0];
+  const std::string_view BinModel(reinterpret_cast<char *>(Weight.data()),
+                                  Weight.size());
+  if (BinModel.substr(0, 8) == "preload:"sv) {
+    GraphRef.Params.model.path = BinModel.substr(8);
+  } else {
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "load: Model path not found in nn-preload, write model into "sv
+              "a tmpfile."sv)
+    // TODO: pass the model directly to ggml.
+    // Write ggml model to file.
+    GraphRef.Params.model.path = "ggml-model.bin"sv;
+    WasmEdge::FStream::OFStream TempFile(
+        GraphRef.Params.model.path, std::ios_base::out | std::ios_base::binary,
+        Env.getEnv());
+    if (!TempFile) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "load: Failed to create the temporary file. Currently, our "sv
+                "workaround involves creating a temporary model file named "sv
+                "\"ggml-model.bin\" and passing this filename as a "sv
+                "parameter to the ggml llama library."sv)
+    }
+    TempFile.write(BinModel.data(),
+                   static_cast<std::streamsize>(BinModel.size()));
+    TempFile.close();
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "load: Write model into a tmpfile...Done"sv)
+  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "load: handling model path...Done"sv)
+
+  // Check if the model exists.
+  if (!std::filesystem::exists(u8path(GraphRef.Params.model.path))) {
+    RET_ERROR(ErrNo::ModelNotFound, "load: model file not found."sv)
+  }
+  GraphRef.Params.model = GraphRef.Params.model;
+
+  // Initialize ggml parameters.
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "load: initialize ggml model with given parameters."sv)
+
+  common_params Params = GraphRef.Params;
+  llama_backend_init();
+  llama_numa_init(Params.numa);
+
+  // Initialize the llama model and context.
+  llama_model_params ModelParams = common_model_params_to_llama(Params);
+  GraphRef.LlamaModel = llama_model_ptr(
+      llama_model_load_from_file(Params.model.path.c_str(), ModelParams));
+  if (GraphRef.LlamaModel == nullptr) {
+    RET_ERROR(ErrNo::InvalidArgument, "load: unable to init model."sv)
+  }
+  GraphRef.LlamaContext = llama_context_ptr(llama_init_from_model(
+      GraphRef.LlamaModel.get(), common_context_params_to_llama(Params)));
+  if (GraphRef.LlamaContext == nullptr) {
+    RET_ERROR(ErrNo::InvalidArgument, "load: unable to init context."sv)
+  }
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "load: initialize ggml model with given parameters...Done"sv)
+
+  // Initialize the TTS related model and context.
+  if (GraphRef.TextToSpeech) {
+    LOG_DEBUG(GraphRef.EnableDebugLog, "load: initialize TTS model."sv)
+    Params.model = GraphRef.VocoderModel;
+    Params.embedding = true;
+    llama_model_params TTSModelParams = common_model_params_to_llama(Params);
+    GraphRef.TTSModel = llama_model_ptr(
+        llama_model_load_from_file(Params.model.path.c_str(), TTSModelParams));
+    if (GraphRef.TTSModel == nullptr) {
+      RET_ERROR(ErrNo::InvalidArgument, "load: unable to init TTS model."sv)
+    }
+    GraphRef.TTSContext = llama_context_ptr(llama_init_from_model(
+        GraphRef.TTSModel.get(), common_context_params_to_llama(Params)));
+    if (GraphRef.TTSContext == nullptr) {
+      RET_ERROR(ErrNo::InvalidArgument, "load: unable to init TTS context."sv)
+    }
+    LOG_DEBUG(GraphRef.EnableDebugLog, "load: initialize TTS model...Done"sv)
+  }
+
+  LOG_DEBUG(GraphRef.EnableDebugLog, "load...Done"sv)
+  return ErrNo::Success;
+}
+
+Expect<ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &G,
+                          WASINN::Context &C) noexcept {
+  auto &GraphRef = G.get<Graph>();
+  LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx"sv)
+  LOG_INFO(GraphRef.EnableLog, "llama_system_info: {}"sv,
+           llama_print_system_info())
+
+  auto &CxtRef = C.get<Context>();
+  // Allocate the batch for input string prompt tokens. On failure the caller
+  // drops the context, whose destructor frees whatever was allocated.
+  CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
+  if (CxtRef.LlamaBatch.token == nullptr) {
+    RET_ERROR(ErrNo::RuntimeError,
+              "initExecCtx: unable to allocate llama_batch."sv)
+  }
+  CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
+
+  // Allocate the batch for output sampling. The batch size is always 1.
+  CxtRef.OutputBatch = allocBatch(1);
+  if (CxtRef.OutputBatch.token == nullptr) {
+    RET_ERROR(ErrNo::RuntimeError,
+              "initExecCtx: unable to allocate output batch."sv)
+  }
+
+  // Allocate sampler.
+  try {
+    CxtRef.LlamaSampler = common_sampler_init(GraphRef.LlamaModel.get(),
+                                              GraphRef.Params.sampling);
+  } catch (const std::exception &E) {
+    RET_ERROR(ErrNo::InvalidArgument,
+              "initExecCtx: unable to init sampler: {}"sv, E.what())
+  }
+  if (CxtRef.LlamaSampler == nullptr) {
+    RET_ERROR(ErrNo::InvalidArgument, "initExecCtx: unable to init sampler."sv)
+  }
+
+  LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx...Done"sv)
+  return ErrNo::Success;
+}
+
+Expect<ErrNo> finiSingle(WasiNNEnvironment &, WASINN::Graph &G,
+                         WASINN::Context &C) noexcept {
+  auto &CxtRef = C.get<Context>();
+  auto &GraphRef = G.get<Graph>();
+  LOG_DEBUG(GraphRef.EnableDebugLog, "finiSingle"sv)
+
+  // A failed set_input reload can leave a null llama context or sampler and
+  // fini_single still admits the graph, so guard both.
+  if (GraphRef.EnableLog && GraphRef.LlamaContext != nullptr &&
+      CxtRef.LlamaSampler != nullptr) {
+    common_perf_print(GraphRef.LlamaContext.get(), CxtRef.LlamaSampler);
+  }
+
+  // Clear the outputs.
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "finiSingle: clear the previous output and tokens"sv)
+  CxtRef.LlamaOutputs.clear();
+  CxtRef.LlamaOutputTokens.clear();
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "finiSingle: clear the previous output and tokens...Done"sv)
+
+  // Reset the llama sampler.
+  if (CxtRef.LlamaSampler != nullptr) {
+    common_sampler_reset(CxtRef.LlamaSampler);
+  }
+  CxtRef.ComputeSingleStarted = false;
+  CxtRef.NPos = 0;
+
+  LOG_DEBUG(GraphRef.EnableDebugLog, "finiSingle...Done"sv)
+  return ErrNo::Success;
+}
+
+#else
+namespace {
+Expect<ErrNo> reportBackendNotSupported() noexcept {
+  spdlog::error("[WASI-NN] ggml backend is not built. use "
+                "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"ggml\" to build it."sv);
+  return ErrNo::InvalidArgument;
+}
+} // namespace
+
+Expect<ErrNo> load(WasiNNEnvironment &, WASINN::Graph &,
+                   Span<const Span<uint8_t>>, Device) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> initExecCtx(WasiNNEnvironment &, WASINN::Graph &,
+                          WASINN::Context &) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> setInput(WasiNNEnvironment &, WASINN::Graph &, WASINN::Context &,
+                       uint32_t, const TensorData &) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> getOutput(WasiNNEnvironment &, WASINN::Graph &, WASINN::Context &,
+                        uint32_t, Span<uint8_t>, uint32_t &) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> compute(WasiNNEnvironment &, WASINN::Graph &,
+                      WASINN::Context &) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> getOutputSingle(WasiNNEnvironment &, WASINN::Graph &,
+                              WASINN::Context &, uint32_t, Span<uint8_t>,
+                              uint32_t &) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> computeSingle(WasiNNEnvironment &, WASINN::Graph &,
+                            WASINN::Context &) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> finiSingle(WasiNNEnvironment &, WASINN::Graph &,
+                         WASINN::Context &) noexcept {
+  return reportBackendNotSupported();
+}
+#endif
+} // namespace WasmEdge::Host::WASINN::GGML

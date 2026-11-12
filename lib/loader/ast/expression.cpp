@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "loader/loader.h"
+
+namespace WasmEdge {
+namespace Loader {
+
+// Load to construct Expression node. See "include/loader/loader.h".
+Expect<void> Loader::loadExpression(AST::Expression &Expr,
+                                    std::optional<uint64_t> SizeBound) {
+  return loadInstrSeq(SizeBound)
+      .map_error([](auto E) {
+        // The caller checks for section size mismatches.
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
+        return E;
+      })
+      .and_then([&](auto Instrs) {
+        Expr.getInstrs() = Instrs;
+        return Expect<void>{};
+      });
+}
+
+} // namespace Loader
+} // namespace WasmEdge

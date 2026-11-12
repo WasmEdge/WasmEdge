@@ -1,0 +1,7 @@
+[package]
+name = "wasi-logging-example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wit-bindgen = { git = "https://github.com/bytecodealliance/wit-bindgen", rev = "9b50b8e78940af080ed3b7c0238e11b04a4bd17b" }

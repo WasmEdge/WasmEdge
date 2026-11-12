@@ -1,0 +1,151 @@
+name: Build on Windows
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      release:
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  build_on_windows:
+    permissions:
+      contents: write
+    name: Build on Windows Server 2025
+    runs-on: windows-2025
+    env:
+      build_tests: ON
+      SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_IDLE_TIMEOUT: "0"
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+        with:
+          version: "v0.10.0"
+      - name: Start sccache server
+        run: |
+          for ($i = 1; $i -le 5; $i++) {
+            sccache --start-server
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            Write-Host "sccache server failed to start (attempt $i/5); retrying..."
+            Start-Sleep -Seconds ($i * 3)
+          }
+          Write-Host "::warning::sccache server did not start; building without the compiler cache"
+          echo "CMAKE_C_COMPILER_LAUNCHER=" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
+          exit 0
+      - name: Restore LLVM for Windows
+        id: cache-llvm
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: LLVM-21.1.3-win64-MultiThreadedDLL
+          key: llvm-21.1.3-windows-2025
+      - name: Download LLVM for Windows
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        run: |
+          $uri = "https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-21.1.3/LLVM-21.1.3-win64-MultiThreadedDLL.zip"
+          $llvm = "LLVM-21.1.3-win64-MultiThreadedDLL.zip"
+          Invoke-WebRequest -Uri $uri -HttpVersion 2.0 -OutFile $llvm
+          Expand-Archive -Path $llvm
+          Remove-Item -Path $llvm
+      - name: Save LLVM for Windows
+        if: ${{ github.ref == 'refs/heads/master' && steps.cache-llvm.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: LLVM-21.1.3-win64-MultiThreadedDLL
+          key: llvm-21.1.3-windows-2025
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - name: Install dependency
+        uses: crazy-max/ghaction-chocolatey@dfdcf5bba9c0a16358a21c13a06ec5c89024b3ac # v4.1.0
+        with:
+          args: install --no-progress ninja vswhere
+      - name: Upgrade dependency
+        uses: crazy-max/ghaction-chocolatey@dfdcf5bba9c0a16358a21c13a06ec5c89024b3ac # v4.1.0
+        with:
+          args: upgrade --no-progress llvm
+      - name: Install Windows SDK
+        uses: GuillaumeFalourd/setup-windows10-sdk-action@d4f23d08ae372a72e47dc2616c9ec8c951f853ec # v2.5
+        with:
+          sdk-version: 26100
+      - name: Set environment variables for release
+        if: ${{ inputs.release }}
+        run: |
+          echo "build_tests=OFF" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Build WasmEdge
+        run: |
+          $vsPath = (vswhere -latest -property installationPath)
+          Import-Module (Join-Path $vsPath Common7\Tools\Microsoft.VisualStudio.DevShell.dll)
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.26100.0"
+          $llvm_dir = "$pwd\LLVM-21.1.3-win64-MultiThreadedDLL\LLVM-21.1.3-win64\lib\cmake\llvm"
+          $Env:CC = "$pwd\LLVM-21.1.3-win64-MultiThreadedDLL\LLVM-21.1.3-win64\bin\clang-cl.exe"
+          $Env:CXX = "$pwd\LLVM-21.1.3-win64-MultiThreadedDLL\LLVM-21.1.3-win64\bin\clang-cl.exe"
+          $llvm_mt = "mt"
+          $cmake_sys_version = "10.0.26100.0"
+          cmake -Bbuild -GNinja -DCMAKE_SYSTEM_VERSION="$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_MT="$llvm_mt" -DLLVM_DIR="$llvm_dir" -DWASMEDGE_BUILD_TESTS="$Env:build_tests" -DWASMEDGE_BUILD_PACKAGE=ZIP .
+          cmake --build build
+      - name: Test WasmEdge
+        run: |
+          $Env:PATH += ";$pwd\build\lib\api"
+          cd build
+          tools\wasmedge\wasmedge -v
+          ctest --output-on-failure
+          cd -
+      - name: Check symbol exposure
+        run: |
+          $vsPath = (vswhere -latest -property installationPath)
+          Import-Module (Join-Path $vsPath Common7\Tools\Microsoft.VisualStudio.DevShell.dll)
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.26100.0"
+          bash .github/scripts/check_symbols.sh
+      - name: Create WasmEdge package
+        run: |
+          cmake --build build --target package
+          Get-ChildItem -Path $pwd\build
+      - name: Generate product version and package Windows installer
+        run: |
+          $Env:product_version = ("${{ inputs.version }}").split("-")[0]
+          . $Env:WIX\bin\candle.exe -arch x64 -o build\wasmedge.wixobj .github\scripts\wasmedge.wxs
+          . $Env:WIX\bin\light.exe -out build\WasmEdge-$Env:product_version-windows.msi build\wasmedge.wixobj
+          echo product_version=$Env:product_version | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Upload artifact
+        if: ${{ !inputs.release }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: WasmEdge-${{ inputs.version }}-windows.zip
+          path: build\\WasmEdge-${{ inputs.version }}-Windows.zip
+      - name: Upload Windows installer
+        if: ${{ !inputs.release }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: WasmEdge-${{ env.product_version }}-windows.msi
+          path: build\\WasmEdge-${{ env.product_version }}-windows.msi
+      - name: Upload Windows 10 zip package
+        if: ${{ inputs.release }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv build\\WasmEdge-${{ inputs.version }}-Windows.zip WasmEdge-${{ inputs.version }}-windows.zip
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-windows.zip --clobber
+      - name: Upload Windows installer
+        if: ${{ inputs.release }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv build\\WasmEdge-${{ env.product_version }}-windows.msi WasmEdge-${{ env.product_version }}-windows.msi
+          gh release upload ${{ inputs.version }} WasmEdge-${{ env.product_version }}-windows.msi --clobber

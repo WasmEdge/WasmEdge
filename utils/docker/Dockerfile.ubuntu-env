@@ -1,0 +1,15 @@
+ARG BASE_IMAGE=wasmedge/wasmedge:latest
+ARG TOOLCHAIN=clang
+FROM ${BASE_IMAGE} AS base
+
+### env for clang
+FROM base AS deps-clang
+
+### env for gcc
+FROM base AS deps-gcc
+
+ENV CC=/usr/bin/gcc
+ENV CXX=/usr/bin/g++
+
+### final
+FROM deps-${TOOLCHAIN} AS final

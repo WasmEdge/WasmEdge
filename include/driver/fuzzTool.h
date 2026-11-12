@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+//===-- wasmedge/driver/fuzzTool.h - Fuzz Tool entry point ----------------===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains the entry point for the fuzz tool executable.
+///
+//===----------------------------------------------------------------------===//
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+
+namespace WasmEdge {
+namespace Driver {
+
+int FuzzTool(const uint8_t *Data, size_t Size) noexcept;
+
+} // namespace Driver
+} // namespace WasmEdge

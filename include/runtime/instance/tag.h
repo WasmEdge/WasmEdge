@@ -1,0 +1,52 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+//===-- wasmedge/runtime/instance/tag.h - Tag Instance definition ---===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains the tag instance definition in store manager.
+///
+//===----------------------------------------------------------------------===//
+#pragma once
+
+#include "ast/type.h"
+
+namespace WasmEdge {
+namespace Runtime {
+namespace Instance {
+
+class ModuleInstance;
+
+class TagInstance {
+public:
+  TagInstance() = delete;
+  TagInstance(const AST::TagType &T, const AST::SubType *F) noexcept
+      : TgType(T.getTypeIdx(), F) {}
+  /// Constructor for a tag instance defined by a module.
+  TagInstance(const ModuleInstance *Mod, const AST::TagType &T,
+              const AST::SubType *F) noexcept
+      : TagInstance(T, F) {
+    ModInst = Mod;
+  }
+
+  /// Getter for the defining module instance, if any.
+  const ModuleInstance *getModule() const noexcept { return ModInst; }
+
+  /// Getter for tag type.
+  const AST::TagType &getTagType() const noexcept { return TgType; }
+
+private:
+  /// \name Data of tag instance.
+  /// @{
+  const ModuleInstance *ModInst = nullptr;
+  AST::TagType TgType;
+  /// @}
+};
+
+} // namespace Instance
+} // namespace Runtime
+} // namespace WasmEdge

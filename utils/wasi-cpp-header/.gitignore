@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+/target
+Cargo.lock
+typenames.witx
+proposal_kx.witx
+proposal_asymmetric_common.witx
+proposal_common.witx
+proposal_signatures.witx
+proposal_symmetric.witx
+proposal_external_secrets.witx

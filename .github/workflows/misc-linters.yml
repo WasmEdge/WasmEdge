@@ -1,0 +1,63 @@
+name: Misc linters
+
+on: [push, pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  misc:
+    permissions:
+      contents: read
+      pull-requests: read
+    name: misc linters
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - name: check spell
+        run: |
+          python3 -m venv ./venv
+          source ./venv/bin/activate
+          pip install codespell==2.4.1
+          # The contributor thank list of every changelog entry is proper names,
+          # not prose. Skip those lines only, so that a name cannot mask a real
+          # typo of the same word anywhere else.
+          THANK_LIST='Thank all the contributors who made this release possible!\n\n[^\n]*\n'
+          # exclude files which may be synchronized from other places
+          git ls-files | grep -v "^thirdparty" | grep -v "/thirdparty/" | grep -v "/dist/" | xargs -t codespell --ignore-words .github/workflows/ignore_words --ignore-multiline-regex "$THANK_LIST" 2>/dev/null
+  lineguard:
+    name: lineguard
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - name: Install lineguard
+        run: |
+          cargo install lineguard@0.2.0
+      - name: Run lineguard
+        run: |
+          lineguard --config .lineguardrc --verbose -r . || { echo "Lineguard found issues"; exit 1; }

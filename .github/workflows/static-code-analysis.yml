@@ -1,0 +1,88 @@
+name: Static Code Analysis
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: true
+        default: 'info'
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/static-code-analysis.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+      - "cmake/**"
+  pull_request:
+    branches:
+      - master
+      - 'proposal/**'
+    paths:
+      - ".github/workflows/static-code-analysis.yml"
+      - "include/**"
+      - "lib/**"
+      - "plugins/**"
+      - "test/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+      - "cmake/**"
+
+permissions:
+  contents: read
+
+jobs:
+  static_analysis:
+    permissions:
+      contents: write
+    name: Run Static Code Analysis using Infer
+    runs-on: ubuntu-latest
+    container:
+      image: wasmedge/wasmedge:ubuntu-24.04-build-clang
+
+    steps:
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Ensure git safe directory
+      run: |
+        git config --global --add safe.directory $(pwd)
+
+    - name: Install Dependencies
+      run: |
+        apt-get update
+        apt-get upgrade -y
+        apt-get install -y libssl-dev
+        curl -sSL "https://github.com/facebook/infer/releases/download/v1.2.0/infer-linux-x86_64-v1.2.0.tar.xz" | tar -C /opt -xJ && ln -s "/opt/infer-linux-x86_64-v1.2.0/bin/infer" /usr/local/bin/infer
+
+    - name: Generate compilation database
+      run: |
+        mkdir build
+        cd build
+        infer compile -- cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON ..
+
+    - name: Run Infer Static Code Analysis
+      run: |
+        cd build
+        infer run --keep-going -- make -j 4
+
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: report
+        path: |
+          build/infer-out/report.txt
+          build/infer-out/report.json

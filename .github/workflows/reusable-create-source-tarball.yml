@@ -1,0 +1,60 @@
+name: Create Source Tarball
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      release:
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  create_source_tarball:
+    permissions:
+      contents: write
+    name: Create source tarball
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - name: Propagate version information
+        run: |
+          echo -n $VERSION | tee VERSION
+        env:
+          VERSION: ${{ inputs.version }}
+      - name: Create source tarball
+        run: |
+          echo "Get version: $VERSION"
+          TEMPDIR=$(mktemp -d)
+          SRCDIR="$TEMPDIR/wasmedge/"
+          mkdir -p "$SRCDIR"
+          git checkout-index -a --prefix="$SRCDIR"
+          cp -v VERSION $SRCDIR
+          tar --owner 0 --group 0 -czf "$GITHUB_WORKSPACE/WasmEdge-$VERSION.tar.gz" -C "$TEMPDIR" "wasmedge"
+        env:
+          VERSION: ${{ inputs.version }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: WasmEdge-${{ inputs.version }}-src.tar.gz
+          path: WasmEdge-${{ inputs.version }}.tar.gz
+      - name: Upload source tarball
+        if: ${{ inputs.release }} # Only for release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv WasmEdge-${{ inputs.version }}.tar.gz WasmEdge-${{ inputs.version }}-src.tar.gz
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-src.tar.gz --clobber

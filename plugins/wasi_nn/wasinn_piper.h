@@ -1,0 +1,124 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#pragma once
+
+#include "plugin/plugin.h"
+#include "wasinntypes.h"
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
+#include <piper.h>
+
+#include <cstddef>
+#include <filesystem>
+#include <map>
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+#endif
+
+namespace WasmEdge::Host::WASINN {
+struct WasiNNEnvironment;
+class Graph;
+class Context;
+} // namespace WasmEdge::Host::WASINN
+
+namespace WasmEdge::Host::WASINN::Piper {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
+enum class SynthesisConfigOutputType { OUTPUT_WAV, OUTPUT_RAW };
+
+// espeak-ng keeps its data directory in a fixed-size path buffer.
+#if defined(_WIN32)
+constexpr size_t ESpeakMaxDataPathSize = 229;
+#else
+constexpr size_t ESpeakMaxDataPathSize = 159;
+#endif
+struct SynthesisConfig {
+  // Type of output to produce.
+  // Default is a WAV file.
+  std::optional<SynthesisConfigOutputType> OutputType;
+
+  // Numerical id of the default speaker (multi-speaker voices)
+  std::optional<int> SpeakerId;
+
+  // Amount of noise to add during audio generation
+  std::optional<float> NoiseScale;
+
+  // Speech speed (1 = normal, < 1 is faster, > 1 is slower)
+  std::optional<float> LengthScale;
+
+  // Variation in phoneme lengths
+  std::optional<float> NoiseW;
+
+  // NOTE: Phoneme/Sentence silence configuration is not exposed
+  // in the new upstream C API (piper.h) and has been removed.
+};
+
+struct RunConfig {
+  // Path to .onnx voice file
+  std::filesystem::path ModelPath;
+
+  // Path to JSON voice config file
+  std::filesystem::path ModelConfigPath;
+
+  // Path to espeak-ng data directory
+  std::optional<std::filesystem::path> ESpeakDataPath;
+
+  // input is JSON with format:
+  // {
+  //   "text": str,               (required)
+  //   "speaker_id": int,         (optional)
+  //   "output_type": str,        (optional, "wav" or "raw")
+  // }
+  // including options in SynthesisConfig
+  bool JsonInput = false;
+
+  SynthesisConfig DefaultSynthesisConfig;
+};
+
+// Custom deleter for the piper_synthesizer
+struct PiperDeleter {
+  void operator()(piper_synthesizer *P) const {
+    if (P)
+      piper_free(P);
+  }
+};
+
+struct Graph {
+  std::unique_ptr<RunConfig> Config;
+  std::unique_ptr<piper_synthesizer, PiperDeleter> Synth;
+};
+struct Context {
+  Context(uint32_t GId, Graph &) noexcept : GraphId(GId) {}
+  uint32_t GraphId;
+  // Text to synthesize: the raw input, or the "text" field of a JSON input.
+  std::optional<std::string> Text;
+  std::optional<SynthesisConfig> JsonInputSynthesisConfig;
+  std::optional<std::vector<uint8_t>> Output;
+};
+#else
+struct Graph {};
+struct Context {
+  Context(uint32_t, Graph &) noexcept {}
+};
+#endif
+
+struct Environ {};
+
+Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
+                           Span<const Span<uint8_t>> Builders,
+                           WASINN::Device Device) noexcept;
+Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
+                                  WASINN::Graph &G,
+                                  WASINN::Context &C) noexcept;
+Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
+                               WASINN::Context &C, uint32_t Index,
+                               const TensorData &Tensor) noexcept;
+Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
+                                WASINN::Graph &G, WASINN::Context &C,
+                                uint32_t Index, Span<uint8_t> OutBuffer,
+                                uint32_t &BytesWritten) noexcept;
+Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env, WASINN::Graph &G,
+                              WASINN::Context &C) noexcept;
+} // namespace WasmEdge::Host::WASINN::Piper

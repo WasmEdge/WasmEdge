@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "executor/executor.h"
+
+namespace WasmEdge {
+namespace Executor {
+
+// Instantiate tag instance. See "include/executor/executor.h".
+Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
+                                   const AST::TagSection &TagSec) {
+  // Iterate through the tags to instantiate the tag instances.
+  for (const auto &TgType : TagSec.getContent()) {
+    // Add a tag with the corresponding type.
+    auto SubTypePtr = *ModInst.getType(TgType.getTypeIdx());
+    ModInst.addTag(TgType, SubTypePtr);
+  }
+  return {};
+}
+
+} // namespace Executor
+} // namespace WasmEdge

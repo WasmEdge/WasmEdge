@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#include "loader/serialize.h"
+
+namespace WasmEdge {
+namespace Loader {
+
+// Serialize import description. See "include/loader/serialize.h".
+void Serializer::serializeDesc(const AST::ImportDesc &Desc,
+                               std::vector<uint8_t> &OutVec) const noexcept {
+  // Import description: modname:vec(byte) + extname:vec(byte) + importdesc
+  // Module name: vec(byte).
+  serializeU32(static_cast<uint32_t>(Desc.getModuleName().size()), OutVec);
+  OutVec.insert(OutVec.end(), Desc.getModuleName().begin(),
+                Desc.getModuleName().end());
+  // External name: vec(byte).
+  serializeU32(static_cast<uint32_t>(Desc.getExternalName().size()), OutVec);
+  OutVec.insert(OutVec.end(), Desc.getExternalName().begin(),
+                Desc.getExternalName().end());
+
+  // Import Desc: extern_type:byte + content:idx|tabletype|memorytype|globaltype
+  OutVec.push_back(static_cast<uint8_t>(Desc.getExternalType()));
+  switch (Desc.getExternalType()) {
+  case ExternalType::Function:
+    serializeU32(Desc.getExternalFuncTypeIdx(), OutVec);
+    return;
+  case ExternalType::Table:
+    return serializeType(Desc.getExternalTableType(), OutVec);
+  case ExternalType::Memory:
+    return serializeType(Desc.getExternalMemoryType(), OutVec);
+  case ExternalType::Global:
+    return serializeType(Desc.getExternalGlobalType(), OutVec);
+  case ExternalType::Tag:
+    return serializeType(Desc.getExternalTagType(), OutVec);
+  default:
+    assumingUnreachable();
+  }
+}
+
+// Serialize export description. See "include/loader/serialize.h".
+void Serializer::serializeDesc(const AST::ExportDesc &Desc,
+                               std::vector<uint8_t> &OutVec) const noexcept {
+  // Export description: extname:vec(byte) + exportdesc
+  // External name: vec(byte).
+  serializeU32(static_cast<uint32_t>(Desc.getExternalName().size()), OutVec);
+  OutVec.insert(OutVec.end(), Desc.getExternalName().begin(),
+                Desc.getExternalName().end());
+  // Export Desc: extern_type:byte + idx:u32.
+  OutVec.push_back(static_cast<uint8_t>(Desc.getExternalType()));
+  serializeU32(Desc.getExternalIndex(), OutVec);
+}
+
+} // namespace Loader
+} // namespace WasmEdge

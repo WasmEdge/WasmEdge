@@ -1,0 +1,646 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+//===-- wasmedge/wasmedge_ast.h - WasmEdge C API --------------------------===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains functions for WASM ASTs (limit, module, function
+/// type, table type, memory type, tag type, global type, import type, and
+/// export type) in WasmEdge C API.
+///
+//===----------------------------------------------------------------------===//
+
+#ifndef WASMEDGE_C_API_AST_H
+#define WASMEDGE_C_API_AST_H
+
+#include "wasmedge/wasmedge_basic.h"
+#include "wasmedge/wasmedge_value.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// >>>>>>>> WasmEdge AST module functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Get the length of imports list of the AST module.
+///
+/// \param Cxt the WasmEdge_ASTModuleContext.
+///
+/// \returns length of the imports list.
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ASTModuleListImportsLength(
+    const WasmEdge_ASTModuleContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// List the imports of the AST module.
+///
+/// If the `Imports` buffer length is smaller than the result of the imports
+/// list size, the overflowed return values will be discarded.
+///
+/// \param Cxt the WasmEdge_ASTModuleContext.
+/// \param [out] Imports the import type contexts buffer. Can be NULL if import
+/// types are not needed.
+/// \param Len the buffer length.
+///
+/// \returns actual import list size.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ASTModuleListImports(const WasmEdge_ASTModuleContext *Cxt,
+                              const WasmEdge_ImportTypeContext **Imports,
+                              const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the length of exports list of the AST module.
+///
+/// \param Cxt the WasmEdge_ASTModuleContext.
+///
+/// \returns length of the exports list.
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ASTModuleListExportsLength(
+    const WasmEdge_ASTModuleContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// List the exports of the AST module.
+///
+/// If the `Exports` buffer length is smaller than the result of the exports
+/// list size, the overflowed return values will be discarded.
+///
+/// \param Cxt the WasmEdge_ASTModuleContext.
+/// \param [out] Exports the export type contexts buffer. Can be NULL if export
+/// types are not needed.
+/// \param Len the buffer length.
+///
+/// \returns actual export list size.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ASTModuleListExports(const WasmEdge_ASTModuleContext *Cxt,
+                              const WasmEdge_ExportTypeContext **Exports,
+                              const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Deletion of the WasmEdge_ASTModuleContext.
+///
+/// After calling this function, the context will be destroyed and should
+/// __NOT__ be used.
+///
+/// \param Cxt the WasmEdge_ASTModuleContext to destroy.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+// <<<<<<<< WasmEdge AST module functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge limit functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the WasmEdge_LimitContext without max value.
+///
+/// The caller owns the object and should call `WasmEdge_LimitDelete` to destroy
+/// it.
+///
+/// \param Min the minimum of this limit.
+/// \param Is64Bit determine the 64-bit address type of this limit. `false` for
+/// the 32-bit address type.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_LimitContext *
+WasmEdge_LimitCreate(const uint64_t Min,
+                     const bool Is64Bit) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Creation of the WasmEdge_LimitContext with max value.
+///
+/// The caller owns the object and should call `WasmEdge_LimitDelete` to destroy
+/// it.
+///
+/// \param Min the minimum of this limit.
+/// \param Max the maximum of this limit.
+/// \param Is64Bit determine the 64-bit address type of this limit. `false` for
+/// the 32-bit address type.
+/// \param IsShared determine the shareability of this limit when used in memory
+/// type. For table type usage, this configuration should be `false`.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_LimitContext *
+WasmEdge_LimitCreateWithMax(const uint64_t Min, const uint64_t Max,
+                            const bool Is64Bit,
+                            const bool IsShared) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the minimum value from the WasmEdge_LimitContext.
+///
+/// \param Cxt the WasmEdge_LimitContext.
+///
+/// \returns the minimum value of this limit.
+WASMEDGE_CAPI_EXPORT extern uint64_t
+WasmEdge_LimitGetMin(const WasmEdge_LimitContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the maximum value from the WasmEdge_LimitContext.
+///
+/// \param Cxt the WasmEdge_LimitContext.
+///
+/// \returns the maximum value of this limit. Should not be referenced if the
+/// limit context is configured without a maximum value.
+WASMEDGE_CAPI_EXPORT extern uint64_t
+WasmEdge_LimitGetMax(const WasmEdge_LimitContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the has-maximum option from the WasmEdge_LimitContext.
+///
+/// \param Cxt the WasmEdge_LimitContext.
+///
+/// \returns the boolean value to determine the limit context configured as
+/// having maximum value or not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_LimitHasMax(const WasmEdge_LimitContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the shareable option from the WasmEdge_LimitContext.
+///
+/// \param Cxt the WasmEdge_LimitContext.
+///
+/// \returns the boolean value to determine the shareable option.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_LimitIsShared(const WasmEdge_LimitContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the 64-bit address type option from the WasmEdge_LimitContext.
+///
+/// \param Cxt the WasmEdge_LimitContext.
+///
+/// \returns the boolean value that determines whether the limit uses a 64-bit
+/// address type. `false` if the limit uses a 32-bit address type.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_LimitIs64Bit(const WasmEdge_LimitContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Compare the two WasmEdge_LimitContext objects.
+///
+/// If both limits are set without a max value, the comparison of max values
+/// will be ignored.
+///
+/// \param Lim1 the first WasmEdge_LimitContext object to compare.
+/// \param Lim2 the second WasmEdge_LimitContext object to compare.
+///
+/// \returns true if the contents of two WasmEdge_LimitContext objects are the
+/// same, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_LimitIsEqual(const WasmEdge_LimitContext *Lim1,
+                      const WasmEdge_LimitContext *Lim2) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Deletion of the WasmEdge_LimitContext.
+///
+/// After calling this function, the context will be destroyed and should
+/// __NOT__ be used.
+///
+/// \param Cxt the WasmEdge_LimitContext to destroy.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_LimitDelete(WasmEdge_LimitContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+// <<<<<<<< WasmEdge limit functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge function type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the WasmEdge_FunctionTypeContext.
+///
+/// The caller owns the object and should call `WasmEdge_FunctionTypeDelete` to
+/// destroy it.
+///
+/// \param ParamList the list of parameter value types. NULL if the length is
+/// 0.
+/// \param ParamLen the ParamList buffer length.
+/// \param ReturnList the list of return value types. NULL if the length is 0.
+/// \param ReturnLen the ReturnList buffer length.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionTypeContext *
+WasmEdge_FunctionTypeCreate(const WasmEdge_ValType *ParamList,
+                            const uint32_t ParamLen,
+                            const WasmEdge_ValType *ReturnList,
+                            const uint32_t ReturnLen) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the parameter types list length from the WasmEdge_FunctionTypeContext.
+///
+/// \param Cxt the WasmEdge_FunctionTypeContext.
+///
+/// \returns the parameter types list length.
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_FunctionTypeGetParametersLength(
+    const WasmEdge_FunctionTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the parameter types list from the WasmEdge_FunctionTypeContext.
+///
+/// If the `List` buffer length is smaller than the length of the parameter type
+/// list, the overflowed values will be discarded.
+///
+/// \param Cxt the WasmEdge_FunctionTypeContext.
+/// \param [out] List the WasmEdge_ValType buffer to fill the parameter value
+/// types.
+/// \param Len the value type buffer length.
+///
+/// \returns the actual parameter types list length.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_FunctionTypeGetParameters(const WasmEdge_FunctionTypeContext *Cxt,
+                                   WasmEdge_ValType *List,
+                                   const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the return types list length from the WasmEdge_FunctionTypeContext.
+///
+/// \param Cxt the WasmEdge_FunctionTypeContext.
+///
+/// \returns the return types list length.
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_FunctionTypeGetReturnsLength(
+    const WasmEdge_FunctionTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the return types list from the WasmEdge_FunctionTypeContext.
+///
+/// If the `List` buffer length is smaller than the length of the return type
+/// list, the overflowed values will be discarded.
+///
+/// \param Cxt the WasmEdge_FunctionTypeContext.
+/// \param [out] List the WasmEdge_ValType buffer to fill the return value
+/// types.
+/// \param Len the value type buffer length.
+///
+/// \returns the actual return types list length.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_FunctionTypeGetReturns(const WasmEdge_FunctionTypeContext *Cxt,
+                                WasmEdge_ValType *List,
+                                const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Deletion of the WasmEdge_FunctionTypeContext.
+///
+/// After calling this function, the context will be destroyed and should
+/// __NOT__ be used.
+///
+/// \param Cxt the WasmEdge_FunctionTypeContext to destroy.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_FunctionTypeDelete(
+    WasmEdge_FunctionTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+// <<<<<<<< WasmEdge function type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge table type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the WasmEdge_TableTypeContext.
+///
+/// The caller owns the object and should call `WasmEdge_TableTypeDelete` to
+/// destroy it.
+///
+/// \param RefType the value type of the table type. This value type should be a
+/// reference type, or this function will fail.
+/// \param Limit the limit struct of the table type.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_TableTypeContext *WasmEdge_TableTypeCreate(
+    const WasmEdge_ValType RefType,
+    const WasmEdge_LimitContext *Limit) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the reference type from a table type.
+///
+/// \param Cxt the WasmEdge_TableTypeContext.
+///
+/// \returns the value type of the table type. This value type must be a
+/// reference type.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_TableTypeGetRefType(
+    const WasmEdge_TableTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the limit context from a table type.
+///
+/// \param Cxt the WasmEdge_TableTypeContext.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_LimitContext *
+WasmEdge_TableTypeGetLimit(const WasmEdge_TableTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+/// Deletion of the WasmEdge_TableTypeContext.
+///
+/// After calling this function, the context will be destroyed and should
+/// __NOT__ be used.
+///
+/// \param Cxt the WasmEdge_TableTypeContext to destroy.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_TableTypeDelete(WasmEdge_TableTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+// <<<<<<<< WasmEdge table type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge memory type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the WasmEdge_MemoryTypeContext.
+///
+/// The caller owns the object and should call `WasmEdge_MemoryTypeDelete` to
+/// destroy it.
+///
+/// \param Limit the limit struct of the memory type.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryTypeContext *
+WasmEdge_MemoryTypeCreate(const WasmEdge_LimitContext *Limit)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the limit context from a memory type.
+///
+/// \param Cxt the WasmEdge_MemoryTypeContext.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_LimitContext *
+WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+/// Deletion of the WasmEdge_MemoryTypeContext.
+///
+/// After calling this function, the context will be destroyed and should
+/// __NOT__ be used.
+///
+/// \param Cxt the WasmEdge_MemoryTypeContext to destroy.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_MemoryTypeDelete(
+    WasmEdge_MemoryTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+// <<<<<<<< WasmEdge memory type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge tag type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Get the function type from a tag type.
+///
+/// \param Cxt the WasmEdge_TagTypeContext.
+///
+/// \returns pointer to function type context of the tag type, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
+WasmEdge_TagTypeGetFunctionType(const WasmEdge_TagTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+// <<<<<<<< WasmEdge tag type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge global type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the WasmEdge_GlobalTypeContext.
+///
+/// The caller owns the object and should call `WasmEdge_GlobalTypeDelete` to
+/// destroy it.
+///
+/// \param ValType the value type of the global type.
+/// \param Mut the mutation of the global type.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_GlobalTypeContext *
+WasmEdge_GlobalTypeCreate(const WasmEdge_ValType ValType,
+                          const enum WasmEdge_Mutability Mut)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the value type from a global type.
+///
+/// \param Cxt the WasmEdge_GlobalTypeContext.
+///
+/// \returns the value type of the global type.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_GlobalTypeGetValType(
+    const WasmEdge_GlobalTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the mutability from a global type.
+///
+/// \param Cxt the WasmEdge_GlobalTypeContext.
+///
+/// \returns the mutability of the global type.
+WASMEDGE_CAPI_EXPORT extern enum WasmEdge_Mutability
+WasmEdge_GlobalTypeGetMutability(const WasmEdge_GlobalTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+/// Deletion of the WasmEdge_GlobalTypeContext.
+///
+/// After calling this function, the context will be destroyed and should
+/// __NOT__ be used.
+///
+/// \param Cxt the WasmEdge_GlobalTypeContext to destroy.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_GlobalTypeDelete(
+    WasmEdge_GlobalTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+// <<<<<<<< WasmEdge global type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge import type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Get the external type from an import type.
+///
+/// \param Cxt the WasmEdge_ImportTypeContext.
+///
+/// \returns the external type of the import type.
+WASMEDGE_CAPI_EXPORT extern enum WasmEdge_ExternalType
+WasmEdge_ImportTypeGetExternalType(const WasmEdge_ImportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the module name from an import type.
+///
+/// The returned string object is linked to the module name of the import type,
+/// and the caller should __NOT__ call the `WasmEdge_StringDelete`.
+///
+/// \param Cxt the WasmEdge_ImportTypeContext.
+///
+/// \returns string object. Length will be 0 and Buf will be NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_String WasmEdge_ImportTypeGetModuleName(
+    const WasmEdge_ImportTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the external name from an import type.
+///
+/// The returned string object is linked to the external name of the import
+/// type, and the caller should __NOT__ call the `WasmEdge_StringDelete`.
+///
+/// \param Cxt the WasmEdge_ImportTypeContext.
+///
+/// \returns string object. Length will be 0 and Buf will be NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_String WasmEdge_ImportTypeGetExternalName(
+    const WasmEdge_ImportTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the external value (which is a function type) from an import type.
+///
+/// The import type context should be the one queried from the AST module
+/// context, or this function will cause unexpected errors.
+/// The function type context links to the function type in the import type
+/// context and the AST module context. The caller should __NOT__ call the
+/// `WasmEdge_FunctionTypeDelete`.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the function type. NULL if failed or the external type of the
+/// import type is not `WasmEdge_ExternalType_Function`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
+WasmEdge_ImportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                   const WasmEdge_ImportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the external value (which is a table type) from an import type.
+///
+/// The import type context should be the one queried from the AST module
+/// context, or this function will cause unexpected errors.
+/// The table type context links to the table type in the import type context
+/// and the AST module context. The caller should __NOT__ call the
+/// `WasmEdge_TableTypeDelete`.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the table type. NULL if failed or the external type of the import
+/// type is not `WasmEdge_ExternalType_Table`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_TableTypeContext *
+WasmEdge_ImportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                const WasmEdge_ImportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the external value (which is a memory type) from an import type.
+///
+/// The import type context should be the one queried from the AST module
+/// context, or this function will cause unexpected errors.
+/// The memory type context links to the memory type in the import type context
+/// and the AST module context. The caller should __NOT__ call the
+/// `WasmEdge_MemoryTypeDelete`.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the memory type. NULL if failed or the external type of the import
+/// type is not `WasmEdge_ExternalType_Memory`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_MemoryTypeContext *
+WasmEdge_ImportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                 const WasmEdge_ImportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the external value (which is a tag type) from an import type.
+///
+/// The import type context should be the one queried from the AST module
+/// context, or this function will cause unexpected errors.
+/// The tag type context links to the tag type in the import type context
+/// and the AST module context.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the tag type. NULL if failed or the external type of the import
+/// type is not `WasmEdge_ExternalType_TagType`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_TagTypeContext *
+WasmEdge_ImportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
+                              const WasmEdge_ImportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the external value (which is a global type) from an import type.
+///
+/// The import type context should be the one queried from the AST module
+/// context, or this function will cause unexpected errors.
+/// The global type context links to the global type in the import type context
+/// and the AST module context. The caller should __NOT__ call the
+/// `WasmEdge_GlobalTypeDelete`.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ImportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the global type. NULL if failed or the external type of the import
+/// type is not `WasmEdge_ExternalType_Global`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_GlobalTypeContext *
+WasmEdge_ImportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                 const WasmEdge_ImportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+// <<<<<<<< WasmEdge import type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge export type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Get the external type from an export type.
+///
+/// \param Cxt the WasmEdge_ExportTypeContext.
+///
+/// \returns the external type of the export type.
+WASMEDGE_CAPI_EXPORT extern enum WasmEdge_ExternalType
+WasmEdge_ExportTypeGetExternalType(const WasmEdge_ExportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the external name from an export type.
+///
+/// The returned string object is linked to the external name of the export
+/// type, and the caller should __NOT__ call the `WasmEdge_StringDelete`.
+///
+/// \param Cxt the WasmEdge_ExportTypeContext.
+///
+/// \returns string object. Length will be 0 and Buf will be NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_String WasmEdge_ExportTypeGetExternalName(
+    const WasmEdge_ExportTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the external value (which is a function type) from an export type.
+///
+/// The export type context should be the one queried from the AST module
+/// context, or this function will cause unexpected errors.
+/// The function type context links to the function type in the export type
+/// context and the AST module context. The caller should __NOT__ call the
+/// `WasmEdge_FunctionTypeDelete`.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the function type. NULL if failed or the external type of the
+/// export type is not `WasmEdge_ExternalType_Function`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
+WasmEdge_ExportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                   const WasmEdge_ExportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the external value (which is a table type) from an export type.
+///
+/// The export type context should be the one queried from the AST module
+/// context, or this function will cause unexpected errors.
+/// The table type context links to the table type in the export type context
+/// and the AST module context. The caller should __NOT__ call the
+/// `WasmEdge_TableTypeDelete`.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the table type. NULL if failed or the external type of the export
+/// type is not `WasmEdge_ExternalType_Table`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_TableTypeContext *
+WasmEdge_ExportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                const WasmEdge_ExportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the external value (which is a memory type) from an export type.
+///
+/// The export type context should be the one queried from the AST module
+/// context, or this function will cause unexpected errors.
+/// The memory type context links to the memory type in the export type context
+/// and the AST module context. The caller should __NOT__ call the
+/// `WasmEdge_MemoryTypeDelete`.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the memory type. NULL if failed or the external type of the export
+/// type is not `WasmEdge_ExternalType_Memory`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_MemoryTypeContext *
+WasmEdge_ExportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                 const WasmEdge_ExportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the external value (which is a tag type) from an export type.
+///
+/// The export type context should be the one queried from the AST module
+/// context, or this function will cause unexpected errors.
+/// The tag type context links to the tag type in the export type context
+/// and the AST module context.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the tag type. NULL if failed or the external type of the export
+/// type is not `WasmEdge_ExternalType_Tag`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_TagTypeContext *
+WasmEdge_ExportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
+                              const WasmEdge_ExportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the external value (which is a global type) from an export type.
+///
+/// The export type context should be the one queried from the AST module
+/// context, or this function will cause unexpected errors.
+/// The global type context links to the global type in the export type context
+/// and the AST module context. The caller should __NOT__ call the
+/// `WasmEdge_GlobalTypeDelete`.
+///
+/// \param ASTCxt the WasmEdge_ASTModuleContext.
+/// \param Cxt the WasmEdge_ExportTypeContext which queried from the `ASTCxt`.
+///
+/// \returns the global type. NULL if failed or the external type of the export
+/// type is not `WasmEdge_ExternalType_Global`.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_GlobalTypeContext *
+WasmEdge_ExportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
+                                 const WasmEdge_ExportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
+
+// <<<<<<<< WasmEdge export type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+#ifdef __cplusplus
+} /// extern "C"
+#endif
+
+#endif /// WASMEDGE_C_API_AST_H

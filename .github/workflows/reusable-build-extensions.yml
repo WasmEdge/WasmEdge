@@ -1,0 +1,236 @@
+name: Build extensions
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      release:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  # ------------------------------------------------------------------#
+  # The list of build targets is in the file:
+  #     .github/workflows/matrix-extensions.json
+  #
+  # 'paths-filter' example:
+  #
+  #   wasi_nn:
+  #     - paths/to/wasi_nn
+  #     - other/paths/to/wasi_nn
+  #   wasi_nn-ggml:
+  #     - paths/to/wasi_nn-ggml
+  #
+  # plugin: 'wasi_nn-ggml'
+  #
+  #   process.env['wasi_nn'] => 'true' if the umbrella filter matched
+  #   process.env['wasi_nn-ggml'] => 'true' if the exact-name filter matched
+  # ------------------------------------------------------------------#
+  prepare:
+    name: Prepare ${{ inputs.asset_tag }}
+    runs-on: ubuntu-latest
+    outputs:
+      macos_x86_64: ${{ steps.readfile.outputs.macos_x86_64 }}
+      macos_arm64: ${{ steps.readfile.outputs.macos_arm64 }}
+      manylinux_2_28_x86_64: ${{ steps.readfile.outputs.manylinux_2_28_x86_64 }}
+      manylinux_2_28_aarch64: ${{ steps.readfile.outputs.manylinux_2_28_aarch64 }}
+      ubuntu2004_x86_64: ${{ steps.readfile.outputs.ubuntu2004_x86_64 }}
+      ubuntu2004_cuda11: ${{ steps.readfile.outputs.ubuntu2004_cuda11 }}
+      ubuntu2004_cuda12: ${{ steps.readfile.outputs.ubuntu2004_cuda12 }}
+      ubuntu_latest: ${{ steps.readfile.outputs.ubuntu_latest }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: '.github/extensions.paths-filter.yml'
+      - id: readfile
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          result-encoding: string
+          script: |
+            const fs = require("fs")
+            const s = fs.readFileSync(".github/workflows/matrix-extensions.json")
+            let plugins = JSON.parse(s).plugins
+            if (!${{ inputs.release || fromJSON(steps.filter.outputs.all) }}) {
+              plugins = plugins.filter(
+                (plugin) => !(
+                  process.env[plugin.plugin] != 'true' &&
+                  process.env[plugin.plugin.split('-')[0]] != 'true')
+              )
+            }
+            let asset_tags = [
+              "macos_x86_64",
+              "macos_arm64",
+              "manylinux_2_28_x86_64",
+              "manylinux_2_28_aarch64",
+              "ubuntu2004_x86_64",
+              "ubuntu2004_cuda11",
+              "ubuntu2004_cuda12",
+              "ubuntu_latest",
+            ]
+            for (const tag of asset_tags) {
+              core.setOutput(tag, plugins.filter(
+                (plugin) => plugin.platforms.includes(tag)
+              ).map((plugin) => {
+                let copy = { ...plugin }
+                delete copy.platforms
+                return copy
+              }))
+            }
+        env:
+          wasi_crypto: ${{ steps.filter.outputs.wasi_crypto }}
+          wasi_nn: ${{ steps.filter.outputs.wasi_nn }}
+          wasi_nn-bitnet-arm-tl1: ${{ steps.filter.outputs['wasi_nn-bitnet-arm-tl1'] }}
+          wasi_nn-bitnet-x86-tl2: ${{ steps.filter.outputs['wasi_nn-bitnet-x86-tl2'] }}
+          wasi_nn-chattts: ${{ steps.filter.outputs['wasi_nn-chattts'] }}
+          wasi_nn-ggml: ${{ steps.filter.outputs['wasi_nn-ggml'] }}
+          wasi_nn-mlx: ${{ steps.filter.outputs['wasi_nn-mlx'] }}
+          wasi_nn-openvino: ${{ steps.filter.outputs['wasi_nn-openvino'] }}
+          wasi_nn-openvino-genai: ${{ steps.filter.outputs['wasi_nn-openvino-genai'] }}
+          wasi_nn-piper: ${{ steps.filter.outputs['wasi_nn-piper'] }}
+          wasi_nn-pytorch: ${{ steps.filter.outputs['wasi_nn-pytorch'] }}
+          wasi_nn-tensorflowlite: ${{ steps.filter.outputs['wasi_nn-tensorflowlite'] }}
+          wasi_nn-whisper: ${{ steps.filter.outputs['wasi_nn-whisper'] }}
+          wasm_bpf: ${{ steps.filter.outputs.wasm_bpf }}
+          wasmedge_ffmpeg: ${{ steps.filter.outputs.wasmedge_ffmpeg }}
+          wasmedge_image: ${{ steps.filter.outputs.wasmedge_image }}
+          wasmedge_opencvmini: ${{ steps.filter.outputs.wasmedge_opencvmini }}
+          wasmedge_stablediffusion: ${{ steps.filter.outputs.wasmedge_stablediffusion }}
+          wasmedge_tensorflow: ${{ steps.filter.outputs.wasmedge_tensorflow }}
+          wasmedge_tensorflowlite: ${{ steps.filter.outputs.wasmedge_tensorflowlite }}
+          wasmedge_zlib: ${{ steps.filter.outputs.wasmedge_zlib }}
+
+  build_on_ubuntu:
+    needs: prepare
+    if: >-
+      ${{ needs.prepare.outputs.ubuntu2004_x86_64 != '[]'
+       || needs.prepare.outputs.ubuntu2004_cuda11 != '[]'
+       || needs.prepare.outputs.ubuntu2004_cuda12 != '[]' }}
+    permissions:
+      contents: write # Required by reusable-build-extensions-on-linux.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: 'ubuntu-latest'
+            docker_tag: 'ubuntu-20.04-build-clang-plugins-deps'
+            asset_tag: 'ubuntu20.04_x86_64'
+            plugins: ${{ needs.prepare.outputs.ubuntu2004_x86_64 }}
+          - runner: 'ubuntu-latest'
+            docker_tag: 'ubuntu-20.04-build-gcc-cuda11'
+            asset_tag: 'ubuntu20.04_x86_64'
+            plugins: ${{ needs.prepare.outputs.ubuntu2004_cuda11 }}
+          - runner: 'ubuntu-latest'
+            docker_tag: 'ubuntu-20.04-build-gcc-cuda12'
+            asset_tag: 'ubuntu20.04_x86_64'
+            plugins: ${{ needs.prepare.outputs.ubuntu2004_cuda12 }}
+    name: ${{ matrix.asset_tag }}
+    uses: ./.github/workflows/reusable-build-extensions-on-linux.yml
+    with:
+      runner: ${{ matrix.runner }}
+      docker_tag: ${{ matrix.docker_tag }}
+      asset_tag: ${{ matrix.asset_tag }}
+      plugins: ${{ matrix.plugins }}
+      version: ${{ inputs.version }}
+      release: ${{ inputs.release }}
+    secrets: inherit
+
+  build_on_ubuntu_latest:
+    needs: prepare
+    if: >-
+      ${{ !inputs.release
+       && needs.prepare.outputs.ubuntu_latest != '[]' }}
+    permissions:
+      contents: write # Required by reusable-build-extensions-on-linux.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: 'ubuntu-latest'
+            docker_tag: 'ubuntu-24.04-build-clang-plugins-deps'
+            asset_tag: 'ubuntu24.04-clang'
+            plugins: ${{ needs.prepare.outputs.ubuntu_latest }}
+          - runner: 'ubuntu-latest'
+            docker_tag: 'ubuntu-24.04-build-gcc-plugins-deps'
+            asset_tag: 'ubuntu24.04-gcc'
+            plugins: ${{ needs.prepare.outputs.ubuntu_latest }}
+    name: ${{ matrix.asset_tag }}
+    uses: ./.github/workflows/reusable-build-extensions-on-linux.yml
+    with:
+      runner: ${{ matrix.runner }}
+      docker_tag: ${{ matrix.docker_tag }}
+      asset_tag: ${{ matrix.asset_tag }}
+      plugins: ${{ matrix.plugins }}
+      version: ${{ inputs.version }}
+      release: false
+    secrets: inherit
+
+  build_on_macos:
+    needs: prepare
+    if: >-
+      ${{ needs.prepare.outputs.macos_x86_64 != '[]'
+       || needs.prepare.outputs.macos_arm64 != '[]' }}
+    permissions:
+      contents: write # Required by reusable-build-extensions-on-macos.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: 'macos-15-intel'
+            asset_tag: 'darwin_24-x86_64'
+            plugins: ${{ needs.prepare.outputs.macos_x86_64 }}
+          - runner: 'macos-15'
+            asset_tag: 'darwin_24-arm64'
+            plugins: ${{ needs.prepare.outputs.macos_arm64 }}
+    name: ${{ matrix.asset_tag }}
+    uses: ./.github/workflows/reusable-build-extensions-on-macos.yml
+    with:
+      runner: ${{ matrix.runner }}
+      asset_tag: ${{ matrix.asset_tag }}
+      plugins: ${{ matrix.plugins }}
+      version: ${{ inputs.version }}
+      release: ${{ inputs.release }}
+    secrets: inherit
+
+  build_on_manylinux:
+    needs: prepare
+    if: >-
+      ${{ needs.prepare.outputs.manylinux_2_28_x86_64 != '[]'
+       || needs.prepare.outputs.manylinux_2_28_aarch64 != '[]' }}
+    permissions:
+      contents: write # Required by reusable-build-extensions-on-linux.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: 'ubuntu-latest'
+            docker_tag: 'manylinux_2_28_x86_64-plugins-deps'
+            asset_tag: 'manylinux_2_28_x86_64'
+            plugins: ${{ needs.prepare.outputs.manylinux_2_28_x86_64 }}
+          - runner: 'ubuntu-24.04-arm'
+            docker_tag: 'manylinux_2_28_aarch64-plugins-deps'
+            asset_tag: 'manylinux_2_28_aarch64'
+            plugins: ${{ needs.prepare.outputs.manylinux_2_28_aarch64 }}
+    name: ${{ matrix.asset_tag }}
+    uses: ./.github/workflows/reusable-build-extensions-on-linux.yml
+    with:
+      runner: ${{ matrix.runner }}
+      docker_tag: ${{ matrix.docker_tag }}
+      asset_tag: ${{ matrix.asset_tag }}
+      plugins: ${{ matrix.plugins }}
+      version: ${{ inputs.version }}
+      release: ${{ inputs.release }}
+    secrets: inherit

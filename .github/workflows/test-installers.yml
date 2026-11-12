@@ -1,0 +1,813 @@
+name: Installers
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/test-installers.yml'
+      - 'utils/install.sh'
+      - 'utils/install_v2.sh'
+      - 'utils/install.py'
+      - 'utils/uninstall.sh'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/test-installers.yml'
+      - 'utils/install.sh'
+      - 'utils/install_v2.sh'
+      - 'utils/install.py'
+      - 'utils/uninstall.sh'
+
+permissions:
+  contents: read
+
+env:
+  # Common test version constants
+  # Please update these versions when necessary
+  TEST_VERSION: "0.17.1"
+  # Releases <= 0.14.1 use the manylinux2014 assets
+  TEST_2014_VERSION: "0.14.1"
+  # Releases >= 0.15.0 use the manylinux_2_28 assets
+  TEST_228_VERSION: "0.15.0"
+  DEPRECATED_TEST_VERSION: "0.9.0"
+
+jobs:
+  # Get latest release version
+  get-latest-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - name: Get latest release version
+        id: get-version
+        run: |
+          LATEST_VERSION=$(curl -w "%{url_effective}\n" -I -L -s -S https://github.com/WasmEdge/WasmEdge/releases/latest -o /dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')
+          echo "Latest WasmEdge release: ${LATEST_VERSION}"
+          echo "version=${LATEST_VERSION}" >> ${GITHUB_OUTPUT}
+
+  # Python code formatting check
+  lint-python:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+
+      - name: Install Black Formatter
+        run: pip install black==25.1.0
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check Python Code Formatting
+        run: |
+            black --check --verbose --diff ./utils/install.py
+
+  # Test install.sh on Linux containers
+  test-install-sh-linux:
+    needs: get-latest-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Ubuntu 20.04 x64
+            runner: ubuntu-latest
+            image: ubuntu:20.04
+            pkg_mgr: apt
+          - name: Ubuntu 20.04 arm64
+            runner: ubuntu-24.04-arm
+            image: ubuntu:20.04
+            pkg_mgr: apt
+          - name: manylinux_2_28 x86_64
+            runner: ubuntu-24.04
+            image: wasmedge/wasmedge:manylinux_2_28_x86_64
+            pkg_mgr: yum
+          - name: manylinux_2_28 aarch64
+            runner: ubuntu-24.04-arm
+            image: wasmedge/wasmedge:manylinux_2_28_aarch64
+            pkg_mgr: yum
+
+    name: install.sh ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: ${{ matrix.image }}
+
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+      with:
+        egress-policy: audit
+
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+
+    - name: Install System Dependencies
+      run: |
+        ${{ matrix.pkg_mgr }} update -y
+        ${{ matrix.pkg_mgr }} install -y git curl python2 python3
+
+    - name: Test install.sh Functionality
+      run: |
+        # Source helper functions
+        . ./.github/scripts/installer-test-helpers.sh
+
+        # Use the local install.py script
+        export INSTALL_PY_PATH="$(pwd)/utils/install.py"
+
+        # Use latest release version from previous job
+        LATEST_VERSION="${{ needs.get-latest-version.outputs.version }}"
+        echo "Latest WasmEdge release: ${LATEST_VERSION}"
+
+        # Test latest release installation
+        printf "\n=== Test 1: Latest release installation ===\n"
+        bash utils/install.sh -D
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+        verify_version "${LATEST_VERSION}"
+        bash utils/uninstall.sh -q -V
+
+        # Test plugin installation
+        printf "\n=== Test 2: Specific version with plugin ===\n"
+        bash utils/install.sh -v ${TEST_VERSION} --plugins wasi_nn-ggml -D
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+        verify_version "${TEST_VERSION}"
+        verify_plugin "libwasmedgePluginWasiNN.so"
+        bash utils/uninstall.sh -q -V
+
+        # Test manylinux2014 installation
+        printf "\n=== Test 3: Specific version <= ${TEST_2014_VERSION} (manylinux2014 assets) ===\n"
+        bash utils/install.sh -v ${TEST_2014_VERSION} --dist manylinux2014 --plugins wasi_nn-ggml -D
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+        verify_version "${TEST_2014_VERSION}"
+        verify_plugin "libwasmedgePluginWasiNN.so"
+        bash utils/uninstall.sh -q -V
+
+        # Test manylinux_2_28 installation
+        printf "\n=== Test 4: Specific version >= ${TEST_228_VERSION} ===\n"
+        bash utils/install.sh -v ${TEST_228_VERSION} --dist manylinux_2_28 --plugins wasi_nn-ggml -D
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+        verify_version "${TEST_228_VERSION}"
+        verify_plugin "libwasmedgePluginWasiNN.so"
+        bash utils/uninstall.sh -q -V
+
+        # Test uninstallation with duplicate env entries
+        printf "\n=== Test 5: Uninstall with duplicate env entries ===\n"
+        [ -f ~/.bashrc ] && cp ~/.bashrc ~/.bashrc.bak
+        bash utils/install.sh -D
+        echo "export DUMMY_VAR=1" >> ~/.bashrc
+        echo ". \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
+        echo "# comment mentioning . \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
+        echo "alias dummy=ls" >> ~/.bashrc
+        echo ". \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
+        bash utils/uninstall.sh -q -V
+        if grep -qFx ". \"${HOME}/.wasmedge/env\"" ~/.bashrc; then
+          echo "[FAIL] Duplicate env entries were not removed from ~/.bashrc"
+          exit 1
+        fi
+        if ! grep -qF "export DUMMY_VAR=1" ~/.bashrc || ! grep -qF "alias dummy=ls" ~/.bashrc; then
+          echo "[FAIL] Unrelated content in ~/.bashrc was corrupted"
+          exit 1
+        fi
+        if ! grep -qF "# comment mentioning" ~/.bashrc; then
+          echo "[FAIL] Comment line containing env path was incorrectly removed"
+          exit 1
+        fi
+        echo "[PASS] Duplicate env entries removed and unrelated content preserved"
+        if [ -f ~/.bashrc.bak ]; then cp ~/.bashrc.bak ~/.bashrc; rm ~/.bashrc.bak; fi
+
+  # Test install.sh on macOS
+  test-install-sh-macos:
+    needs: get-latest-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS x86_64
+            runner: macos-15-intel
+          - name: macOS arm64
+            runner: macos-15
+
+    name: install.sh ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+      with:
+        egress-policy: audit
+
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+
+    - name: Install Zsh
+      run: |
+        brew install zsh
+
+    - name: Test install.sh Functionality
+      run: |
+        # Source helper functions
+        . ./.github/scripts/installer-test-helpers.sh
+
+        # Use the local install.py script
+        export INSTALL_PY_PATH="$(pwd)/utils/install.py"
+
+        # Backup contents of existing .bash_profile (if any)
+        [ -e ~/.bash_profile ] && cp ~/.bash_profile ~/.dummy_bash_source
+        # Remove existing .bash_profile (file or symlink)
+        rm -f ~/.bash_profile
+        # Create symlink pointing to dummy source
+        ln -s ~/.dummy_bash_source ~/.bash_profile
+
+        # Use latest release version from previous job
+        LATEST_VERSION="${{ needs.get-latest-version.outputs.version }}"
+        echo "Latest WasmEdge release: ${LATEST_VERSION}"
+
+        # Test latest release installation
+        printf "\n=== Test 1: Latest release installation ===\n"
+        bash utils/install.sh -D
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+        verify_version "${LATEST_VERSION}"
+        bash utils/uninstall.sh -q -V
+
+        # Test specific version
+        printf "\n=== Test 2: Specific version ${TEST_VERSION} ===\n"
+        bash utils/install.sh -v ${TEST_VERSION} -D
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+        verify_version "${TEST_VERSION}"
+        bash utils/uninstall.sh -q -V
+
+        # Test the last version with the old tarball structure
+        printf "\n=== Test 3: Specific version ${TEST_2014_VERSION} ===\n"
+        bash utils/install.sh -v ${TEST_2014_VERSION} -D
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+        verify_version "${TEST_2014_VERSION}"
+        bash utils/uninstall.sh -q -V
+
+        # Test the first version with the new tarball structure
+        printf "\n=== Test 4: Specific version ${TEST_228_VERSION} ===\n"
+        bash utils/install.sh -v ${TEST_228_VERSION} -D
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+        verify_version "${TEST_228_VERSION}"
+        bash utils/uninstall.sh -q -V
+
+        # Test uninstallation with duplicate env entries
+        printf "\n=== Test 5: Uninstall with duplicate env entries ===\n"
+        for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          [ -f "$rc_file" ] && cp "$rc_file" "${rc_file}.bak"
+        done
+        bash utils/install.sh -D
+        # Ensure .bash_profile symlink target exists so the test is exercised
+        [ -e ~/.dummy_bash_source ] || touch ~/.dummy_bash_source
+        for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          [ -f "$rc_file" ] || continue
+          echo "export DUMMY_VAR=1" >> "$rc_file"
+          echo ". \"${HOME}/.wasmedge/env\"" >> "$rc_file"
+          echo "# comment mentioning . \"${HOME}/.wasmedge/env\"" >> "$rc_file"
+          echo "alias dummy=ls" >> "$rc_file"
+          echo ". \"${HOME}/.wasmedge/env\"" >> "$rc_file"
+        done
+        bash utils/uninstall.sh -q -V
+        for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          [ -f "$rc_file" ] || continue
+          if grep -qFx ". \"${HOME}/.wasmedge/env\"" "$rc_file"; then
+            echo "[FAIL] Duplicate env entries were not removed from $rc_file"
+            exit 1
+          fi
+          if ! grep -qF "export DUMMY_VAR=1" "$rc_file" || ! grep -qF "alias dummy=ls" "$rc_file"; then
+            echo "[FAIL] Unrelated content in $rc_file was corrupted"
+            exit 1
+          fi
+          if ! grep -qF "# comment mentioning" "$rc_file"; then
+            echo "[FAIL] Comment line containing env path was incorrectly removed"
+            exit 1
+          fi
+        done
+        echo "[PASS] Duplicate env entries removed and unrelated content preserved"
+        for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          if [ -f "${rc_file}.bak" ]; then cp "${rc_file}.bak" "$rc_file"; rm "${rc_file}.bak"; fi
+        done
+
+        # Test if the environment variable was removed
+        IPATH="$HOME/.wasmedge"
+        for file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          [ -f "$file" ] || continue
+          if grep -qFx -e ". \"$IPATH/env\"" -e "source \"$IPATH/env\"" "$file"; then
+            echo "[FAIL] Found WasmEdge source line in: $file"
+            echo "[FAIL] Uninstallation failed"
+            exit 1
+          fi
+        done
+
+  # Test install_v2.sh
+  test-install-v2:
+    needs: get-latest-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: CentOS 9 Stream
+            runner: ubuntu-latest
+            image: quay.io/centos/centos:stream9
+            setup: yum update -y && yum install -y which
+          - name: Ubuntu 20.04
+            runner: ubuntu-latest
+            image: ubuntu:20.04
+            setup: apt update -y && apt install -y curl
+            test_noavx: true
+
+    name: install_v2.sh ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: ${{ matrix.image }}
+
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+      with:
+        egress-policy: audit
+
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+
+    - name: Setup System Requirements
+      run: ${{ matrix.setup }}
+
+    - name: Test install_v2.sh Functionality
+      shell: bash
+      run: |
+        # Source helper functions
+        . ./.github/scripts/installer-test-helpers.sh
+
+        # Basic installation with GGML plugin (install_v2.sh defaults to ${TEST_VERSION})
+        printf "\n=== Test 1: Basic installation ===\n"
+        bash utils/install_v2.sh -V
+        verify_plugin "libwasmedgePluginWasiNN.so"
+
+        source ~/.wasmedge/env
+        INSTALLED_VERSION=$(wasmedge -v | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        if [[ "${INSTALLED_VERSION}" == "${TEST_VERSION}" ]]; then
+          echo "[PASS] Version: ${TEST_VERSION} (install_v2.sh default)"
+        else
+          echo "[FAIL] Version mismatch: expected ${TEST_VERSION}, got ${INSTALLED_VERSION}"
+          exit 1
+        fi
+
+        # Test re-installation
+        printf "\n=== Test 2: Re-installation ===\n"
+        bash utils/install_v2.sh -V
+        verify_plugin "libwasmedgePluginWasiNN.so"
+
+        # Test specific version with custom GGML build
+        # The GGML plugin registry has no ${TEST_VERSION} assets; pin ${TEST_2014_VERSION}
+        printf "\n=== Test 3: Custom GGML build ===\n"
+        bash utils/install_v2.sh -V --version=${TEST_2014_VERSION} --ggmlbn=b5640
+        verify_plugin "libwasmedgePluginWasiNN.so"
+
+        # Test version 0.15.0 with new tarball structure
+        printf "\n=== Test 4: Version ${TEST_228_VERSION} (new tarball structure) ===\n"
+        bash utils/install_v2.sh -V --version=${TEST_228_VERSION}
+        source ~/.wasmedge/env
+        INSTALLED_VERSION=$(wasmedge -v | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        if [[ "${INSTALLED_VERSION}" == "${TEST_228_VERSION}" ]]; then
+          echo "[PASS] Version ${TEST_228_VERSION} installed successfully"
+        else
+          echo "[FAIL] Version mismatch: expected ${TEST_228_VERSION}, got ${INSTALLED_VERSION}"
+          exit 1
+        fi
+        verify_plugin "libwasmedgePluginWasiNN.so"
+
+        # Test uninstallation
+        bash utils/uninstall.sh -q -V
+
+        # Test uninstallation with duplicate env entries
+        printf "\n=== Test 5: Uninstall with duplicate env entries ===\n"
+        [ -f ~/.bashrc ] && cp ~/.bashrc ~/.bashrc.bak
+        bash utils/install_v2.sh -V
+        echo "export DUMMY_VAR=1" >> ~/.bashrc
+        echo "source \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
+        echo "# comment mentioning source \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
+        echo "alias dummy=ls" >> ~/.bashrc
+        echo "source \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
+        bash utils/uninstall.sh -q -V
+        if grep -qFx "source \"${HOME}/.wasmedge/env\"" ~/.bashrc; then
+          echo "[FAIL] Duplicate env entries were not removed from ~/.bashrc"
+          exit 1
+        fi
+        if ! grep -qF "export DUMMY_VAR=1" ~/.bashrc || ! grep -qF "alias dummy=ls" ~/.bashrc; then
+          echo "[FAIL] Unrelated content in ~/.bashrc was corrupted"
+          exit 1
+        fi
+        if ! grep -qF "# comment mentioning" ~/.bashrc; then
+          echo "[FAIL] Comment line containing env path was incorrectly removed"
+          exit 1
+        fi
+        echo "[PASS] Duplicate env entries removed and unrelated content preserved"
+        if [ -f ~/.bashrc.bak ]; then cp ~/.bashrc.bak ~/.bashrc; rm ~/.bashrc.bak; fi
+
+    - name: Test NoAVX Installation
+      if: ${{ matrix.test_noavx }}
+      run: |
+        # Source helper functions
+        . ./.github/scripts/installer-test-helpers.sh
+
+        echo "=== Test: NoAVX installation ==="
+        bash utils/install_v2.sh -V --noavx
+        verify_plugin "libwasmedgePluginWasiNN.so"
+        bash utils/uninstall.sh -q -V
+
+  # Test install_v2.sh on macOS
+  test-install-v2-sh-macos:
+    needs: get-latest-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Intel
+            runner: macos-15-intel
+          - name: macOS Apple Silicon
+            runner: macos-15
+
+    name: install_v2.sh ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+      with:
+        egress-policy: audit
+
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+
+    - name: Install Zsh
+      run: |
+        brew install zsh
+
+    - name: Test install_v2.sh Functionality
+      shell: bash
+      run: |
+        # Source helper functions
+        . ./.github/scripts/installer-test-helpers.sh
+
+        # Backup contents of existing .bash_profile (if any)
+        [ -e ~/.bash_profile ] && cp ~/.bash_profile ~/.dummy_bash_source
+        # Remove existing .bash_profile (file or symlink)
+        rm -f ~/.bash_profile
+        # Create symlink pointing to dummy source
+        ln -s ~/.dummy_bash_source ~/.bash_profile
+
+        # Basic installation with GGML plugin (install_v2.sh defaults to ${TEST_VERSION})
+        echo "=== Test: Basic installation ==="
+        bash utils/install_v2.sh -V
+        verify_plugin "libwasmedgePluginWasiNN.dylib"
+
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+
+        INSTALLED_VERSION=$(~/.wasmedge/bin/wasmedge --version | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        echo "Installed version: ${INSTALLED_VERSION}"
+
+        if [ "${INSTALLED_VERSION}" = "${TEST_VERSION}" ]; then
+          echo "[PASS] Version: ${TEST_VERSION} (install_v2.sh default)"
+        else
+          echo "[FAIL] Version mismatch: expected ${TEST_VERSION}, got ${INSTALLED_VERSION}"
+          exit 1
+        fi
+
+        bash utils/uninstall.sh -q -V
+
+        # Test the last version with the old tarball structure
+        echo "=== Test: Version ${TEST_2014_VERSION} (old tarball structure) ==="
+        bash utils/install_v2.sh -V --version=${TEST_2014_VERSION}
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+
+        INSTALLED_VERSION=$(~/.wasmedge/bin/wasmedge --version | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        echo "Installed version: ${INSTALLED_VERSION}"
+
+        if [ "${INSTALLED_VERSION}" = "${TEST_2014_VERSION}" ]; then
+          echo "[PASS] Version ${TEST_2014_VERSION} installed successfully"
+        else
+          echo "[FAIL] Version mismatch: expected ${TEST_2014_VERSION}, got ${INSTALLED_VERSION}"
+          exit 1
+        fi
+        verify_plugin "libwasmedgePluginWasiNN.dylib"
+
+        bash utils/uninstall.sh -q -V
+
+        # Test version 0.15.0 with new tarball structure
+        echo "=== Test: Version ${TEST_228_VERSION} (new tarball structure) ==="
+        bash utils/install_v2.sh -V --version=${TEST_228_VERSION}
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+
+        INSTALLED_VERSION=$(~/.wasmedge/bin/wasmedge --version | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        echo "Installed version: ${INSTALLED_VERSION}"
+
+        if [ "${INSTALLED_VERSION}" = "${TEST_228_VERSION}" ]; then
+          echo "[PASS] Version ${TEST_228_VERSION} installed successfully"
+        else
+          echo "[FAIL] Version mismatch: expected ${TEST_228_VERSION}, got ${INSTALLED_VERSION}"
+          exit 1
+        fi
+        verify_plugin "libwasmedgePluginWasiNN.dylib"
+
+        bash utils/uninstall.sh -q -V
+
+        # Test uninstallation with duplicate env entries
+        printf "\n=== Test 5: Uninstall with duplicate env entries ===\n"
+        for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          [ -f "$rc_file" ] && cp "$rc_file" "${rc_file}.bak"
+        done
+        bash utils/install_v2.sh -V
+        # Ensure .bash_profile symlink target exists so the test is exercised
+        [ -e ~/.dummy_bash_source ] || touch ~/.dummy_bash_source
+        for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          [ -f "$rc_file" ] || continue
+          echo "export DUMMY_VAR=1" >> "$rc_file"
+          echo "source \"${HOME}/.wasmedge/env\"" >> "$rc_file"
+          echo "# comment mentioning source \"${HOME}/.wasmedge/env\"" >> "$rc_file"
+          echo "alias dummy=ls" >> "$rc_file"
+          echo "source \"${HOME}/.wasmedge/env\"" >> "$rc_file"
+        done
+        bash utils/uninstall.sh -q -V
+        for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          [ -f "$rc_file" ] || continue
+          if grep -qFx "source \"${HOME}/.wasmedge/env\"" "$rc_file"; then
+            echo "[FAIL] Duplicate env entries were not removed from $rc_file"
+            exit 1
+          fi
+          if ! grep -qF "export DUMMY_VAR=1" "$rc_file" || ! grep -qF "alias dummy=ls" "$rc_file"; then
+            echo "[FAIL] Unrelated content in $rc_file was corrupted"
+            exit 1
+          fi
+          if ! grep -qF "# comment mentioning" "$rc_file"; then
+            echo "[FAIL] Comment line containing env path was incorrectly removed"
+            exit 1
+          fi
+        done
+        echo "[PASS] Duplicate env entries removed and unrelated content preserved"
+        for rc_file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          if [ -f "${rc_file}.bak" ]; then cp "${rc_file}.bak" "$rc_file"; rm "${rc_file}.bak"; fi
+        done
+
+        # Test if the environment variable was removed
+        IPATH="$HOME/.wasmedge"
+        for file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          [ -f "$file" ] || continue
+          if grep -qFx -e ". \"$IPATH/env\"" -e "source \"$IPATH/env\"" "$file"; then
+            echo "[FAIL] Found WasmEdge source line in: $file"
+            echo "[FAIL] Uninstallation failed"
+            exit 1
+          fi
+        done
+
+  # Test install.py with comprehensive features
+  test-install-py:
+    needs: get-latest-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Ubuntu 20.04
+            runner: ubuntu-latest
+            image: ubuntu:20.04
+            pkg_mgr: apt
+            setup: apt update && apt install -y lsb-release
+            test_plugins: true
+          - name: manylinux_2_28 aarch64
+            runner: ubuntu-24.04-arm
+            image: wasmedge/wasmedge:manylinux_2_28_aarch64
+            pkg_mgr: yum
+            setup: echo "No extra setup"
+            test_plugins: true
+
+    name: install.py ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: ${{ matrix.image }}
+
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+      with:
+        egress-policy: audit
+
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+
+    - name: Install System Dependencies
+      run: |
+        ${{ matrix.setup }}
+        ${{ matrix.pkg_mgr }} update -y
+        ${{ matrix.pkg_mgr }} install -y git curl python2 python3
+
+    - name: Test install.py Functionality
+      run: |
+        # Source helper functions
+        . ./.github/scripts/installer-test-helpers.sh
+
+        # Use latest release version from previous job
+        LATEST_VERSION="${{ needs.get-latest-version.outputs.version }}"
+        echo "Latest WasmEdge release: ${LATEST_VERSION}"
+
+        for python_cmd in python2 python3; do
+          printf "\n=== Testing with ${python_cmd} ===\n"
+
+          # Test latest release
+          echo "Test 1: Latest release"
+          ${python_cmd} utils/install.py -D
+          source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+          verify_version "${LATEST_VERSION}"
+          bash utils/uninstall.sh -q -V
+
+          # Test specific version
+          echo "Test 2: Specific version"
+          ${python_cmd} utils/install.py -v ${TEST_VERSION} -D
+          verify_version "${TEST_VERSION}"
+          bash utils/uninstall.sh -q -V
+
+          # Test manylinux2014 assets version
+          echo "Test 3: Specific version with manylinux2014 assets"
+          ${python_cmd} utils/install.py -v ${TEST_2014_VERSION} --dist manylinux2014 -D
+          verify_version "${TEST_2014_VERSION}"
+          bash utils/uninstall.sh -q -V
+
+          # Test manylinux_2_28 assets version
+          echo "Test 4: Specific version with manylinux_2_28 assets"
+          ${python_cmd} utils/install.py -v ${TEST_228_VERSION} --dist manylinux_2_28 -D
+          verify_version "${TEST_228_VERSION}"
+          bash utils/uninstall.sh -q -V
+
+          # Test deprecated version handling
+          echo "Test 5: Deprecated version handling"
+          ${python_cmd} utils/install.py -v ${DEPRECATED_TEST_VERSION} -D 2>&1 | grep -q "Version not supported. Min Version: 0.13.0" && \
+            echo "[PASS] Version validation works" || (echo "[FAIL] Version validation failed" && exit 1)
+
+          # Test shell config
+          printf "\n=== Test 6: Shell config (default) ===\n"
+          tempdir="$(mktemp -d)"
+          ${python_cmd} utils/install.py -p "$tempdir"
+          verify_shell_config "$tempdir" "1"
+          bash utils/uninstall.sh -q -V -p "$tempdir"
+
+          # Test no shell config
+          printf "\n=== Test 7: Shell config (--no-modify-shell-profile) ===\n"
+          tempdir="$(mktemp -d)"
+          ${python_cmd} utils/install.py --no-modify-shell-profile -p "$tempdir"
+          verify_shell_config "$tempdir" "0"
+          bash utils/uninstall.sh -q -V -p "$tempdir"
+
+        done
+
+    - name: Test Plugin Installations
+      if: ${{ matrix.test_plugins }}
+      run: |
+        # Source helper functions
+        . ./.github/scripts/installer-test-helpers.sh
+
+        for python_cmd in python2 python3; do
+          printf "\n=== Plugin tests with ${python_cmd} ===\n"
+
+          # Test TensorFlow plugin
+          echo "Test 1: TensorFlow plugin"
+          ${python_cmd} utils/install.py -v ${TEST_VERSION} --plugins wasmedge_tensorflow -D
+          verify_version "${TEST_VERSION}"
+          verify_plugin "libwasmedgePluginWasmEdgeTensorflow.so"
+          bash utils/uninstall.sh -q -V
+
+          # Test WASI-NN GGML plugin
+          echo "Test 2: WASI-NN GGML plugin"
+          ${python_cmd} utils/install.py -v ${TEST_VERSION} --plugins wasi_nn-ggml -D
+          verify_version "${TEST_VERSION}"
+          verify_plugin "libwasmedgePluginWasiNN.so"
+          bash utils/uninstall.sh -q -V
+        done
+
+  # Test install.py on macOS
+  test-install-py-macos:
+    needs: get-latest-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Intel
+            runner: macos-15-intel
+          - name: macOS Apple Silicon
+            runner: macos-15
+
+    name: install.py on ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+      with:
+        egress-policy: audit
+
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+
+    - name: Install Python and Zsh
+      shell: zsh {0}
+      run: |
+        brew upgrade
+        brew install python zsh
+
+    - name: Test install.py Functionality
+      shell: zsh {0}
+      run: |
+        # Source helper functions
+        . ./.github/scripts/installer-test-helpers.sh
+
+        # Use latest release version from previous job
+        LATEST_VERSION="${{ needs.get-latest-version.outputs.version }}"
+        echo "Latest WasmEdge release: ${LATEST_VERSION}"
+
+        # Test latest release
+        printf "\n=== Test 1: Latest release ===\n"
+        python3 utils/install.py -D
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+        verify_version "${LATEST_VERSION}"
+        bash utils/uninstall.sh -q -V
+
+        # Test specific version
+        printf "\n=== Test 2: Specific version ===\n"
+        python3 utils/install.py -v ${TEST_VERSION} -D
+        verify_version "${TEST_VERSION}"
+        bash utils/uninstall.sh -q -V
+
+        # Test the last version with the old tarball structure
+        printf "\n=== Test 3: Specific version ${TEST_2014_VERSION} ===\n"
+        python3 utils/install.py -v ${TEST_2014_VERSION} -D
+        verify_version "${TEST_2014_VERSION}"
+        bash utils/uninstall.sh -q -V
+
+        # Test the first version with the new tarball structure
+        printf "\n=== Test 4: Specific version ${TEST_228_VERSION} ===\n"
+        python3 utils/install.py -v ${TEST_228_VERSION} -D
+        verify_version "${TEST_228_VERSION}"
+        bash utils/uninstall.sh -q -V
+
+        # Test deprecated version handling
+        printf "\n=== Test 5: Deprecated version handling ===\n"
+        python3 utils/install.py -v ${DEPRECATED_TEST_VERSION} -D 2>&1 | grep -q "Version not supported. Min Version: 0.13.0" && \
+          echo "[PASS] Version validation works" || (echo "[FAIL] Version validation failed" && exit 1)
+
+        # Test shell config
+        printf "\n=== Test 6: Shell config (default) ===\n"
+        tempdir="$(mktemp -d)"
+        python3 utils/install.py -p "$tempdir"
+        verify_shell_config "$tempdir" "1"
+        bash utils/uninstall.sh -q -V -p "$tempdir"
+
+        # Test no shell config
+        printf "\n=== Test 7: Shell config (--no-modify-shell-profile) ===\n"
+        tempdir="$(mktemp -d)"
+        python3 utils/install.py --no-modify-shell-profile -p "$tempdir"
+        verify_shell_config "$tempdir" "0"
+        bash utils/uninstall.sh -q -V -p "$tempdir"
+
+    - name: Test Plugin Installations
+      shell: zsh {0}
+      run: |
+        # Source helper functions
+        . ./.github/scripts/installer-test-helpers.sh
+
+        echo "=== Test 1: TensorFlow plugin ==="
+        python3 utils/install.py -v ${TEST_VERSION} --plugins wasmedge_tensorflow -D
+        verify_version "${TEST_VERSION}"
+        verify_plugin "libwasmedgePluginWasmEdgeTensorflow.dylib"
+        bash utils/uninstall.sh -q -V
+
+        # The <= 0.14.1 releases use the darwin_{arch} plugin assets
+        echo "=== Test 2: TensorFlow plugin with ${TEST_2014_VERSION} ==="
+        python3 utils/install.py -v ${TEST_2014_VERSION} --plugins wasmedge_tensorflow -D
+        verify_version "${TEST_2014_VERSION}"
+        verify_plugin "libwasmedgePluginWasmEdgeTensorflow.dylib"
+        bash utils/uninstall.sh -q -V

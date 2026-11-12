@@ -1,0 +1,77 @@
+# Filter design and scope: see "Extensions path-filter design" in .github/workflows/README.md
+all:
+  - '.github/**'
+  - 'CMakeLists.txt'
+  - 'plugins/CMakeLists.txt'
+  - 'test/plugins/CMakeLists.txt'
+shared_cmake:
+  - 'cmake/Helper.cmake'
+wasi_crypto:
+  - 'plugins/wasi_crypto/**'
+  - 'test/plugins/wasi_crypto/**'
+  - 'thirdparty/wasi_crypto/**'
+wasi_nn:
+  - 'cmake/WASINNDeps.cmake'
+  - 'plugins/wasi_nn/**'
+  - 'test/plugins/wasi_nn/**'
+wasi_nn-bitnet-arm-tl1:
+  - 'cmake/wasi_nn/bitnet.cmake'
+wasi_nn-bitnet-x86-tl2:
+  - 'cmake/wasi_nn/bitnet.cmake'
+wasi_nn-chattts:
+  - 'cmake/wasi_nn/chattts.cmake'
+wasi_nn-ggml:
+  - 'cmake/wasi_nn/ggml.cmake'
+wasi_nn-mlx:
+  - 'cmake/wasi_nn/mlx.cmake'
+wasi_nn-openvino:
+  - 'cmake/wasi_nn/openvino.cmake'
+wasi_nn-openvino-genai:
+  - 'cmake/wasi_nn/openvino_genai.cmake'
+wasi_nn-piper:
+  - 'cmake/wasi_nn/piper.cmake'
+wasi_nn-pytorch:
+  - 'cmake/wasi_nn/pytorch.cmake'
+wasi_nn-tensorflowlite:
+  - 'cmake/TensorflowDeps.cmake'
+wasi_nn-whisper:
+  - 'cmake/wasi_nn/whisper.cmake'
+wasi_nn_rpc:
+  - 'include/api/wasmedge/wasmedge_tools.h'
+  - 'include/driver/wasi_nn_rpc/**'
+  - 'include/driver/wasiNNRPCServerTool.h'
+  - 'lib/CMakeLists.txt'
+  - 'lib/api/CMakeLists.txt'
+  - 'lib/api/wasmedge.cpp'
+  - 'lib/driver/CMakeLists.txt'
+  - 'lib/driver/wasiNNRPCServerTool.cpp'
+  - 'lib/wasi_nn_rpc/**'
+  - 'tools/CMakeLists.txt'
+  - 'tools/wasmedge/CMakeLists.txt'
+  - 'tools/wasmedge/wasi_nn_rpcserver.cpp'
+wasm_bpf:
+  - 'plugins/wasm_bpf/**'
+  - 'test/plugins/wasm_bpf/**'
+wasmedge_ffmpeg:
+  - 'plugins/wasmedge_ffmpeg/**'
+  - 'test/plugins/wasmedge_ffmpeg/**'
+wasmedge_image:
+  - 'plugins/wasmedge_image/**'
+  - 'test/plugins/wasmedge_image/**'
+wasmedge_opencvmini:
+  - 'plugins/wasmedge_opencvmini/**'
+  - 'test/plugins/wasmedge_opencvmini/**'
+wasmedge_stablediffusion:
+  - 'plugins/wasmedge_stablediffusion/**'
+  - 'test/plugins/wasmedge_stablediffusion/**'
+wasmedge_tensorflow:
+  - 'cmake/TensorflowDeps.cmake'
+  - 'plugins/wasmedge_tensorflow/**'
+  - 'test/plugins/wasmedge_tensorflow/**'
+wasmedge_tensorflowlite:
+  - 'cmake/TensorflowDeps.cmake'
+  - 'plugins/wasmedge_tensorflowlite/**'
+  - 'test/plugins/wasmedge_tensorflowlite/**'
+wasmedge_zlib:
+  - 'plugins/wasmedge_zlib/**'
+  - 'test/plugins/wasmedge_zlib/**'

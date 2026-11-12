@@ -1,0 +1,239 @@
+name: Build and Test WasmEdge on riscv64 arch
+
+concurrency:
+  group: build-riscv64-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/build_for_riscv.yml"
+      - "include/**"
+      - "lib/**"
+      - "test/**"
+      - "!test/plugins/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+      - "cmake/**"
+  pull_request:
+    branches:
+      - master
+      - 'proposal/**'
+    paths:
+      - ".github/workflows/build_for_riscv.yml"
+      - "include/**"
+      - "lib/**"
+      - "test/**"
+      - "!test/plugins/**"
+      - "thirdparty/**"
+      - "tools/**"
+      - "CMakeLists.txt"
+      - "cmake/**"
+
+permissions:
+  contents: read
+
+jobs:
+  # TODO: Refactor `lint` with `on.workflow_run`
+  # https://docs.github.com/en/actions/using-workflows/triggering-a-workflow
+  lint:
+    uses: ./.github/workflows/reusable-call-linter.yml
+
+  cross_compile:
+    name: Cross-Compile for RISC-V64
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+    needs: lint
+    steps:
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+
+    - name: Set up riscv64 multi-arch sources
+      run: |
+        apt-get update
+        apt-get install -y --no-install-recommends git ca-certificates
+        git config --global --add safe.directory $(pwd)
+        dpkg --add-architecture riscv64
+        if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+          sed -i '/^Types:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+        fi
+        printf 'Types: deb\nURIs: http://ports.ubuntu.com/ubuntu-ports\nSuites: noble noble-updates\nComponents: main universe\nArchitectures: riscv64\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n' \
+          > /etc/apt/sources.list.d/riscv64-ports.sources
+        apt-get update
+
+    - name: Install cross-compilation toolchain
+      run: |
+        # Install amd64 build tools and riscv64 cross-compiler + zlib
+        apt-get install -y --no-install-recommends \
+          cmake g++ dpkg-dev make \
+          gcc-riscv64-linux-gnu g++-riscv64-linux-gnu \
+          zlib1g-dev:riscv64 libzstd-dev:riscv64 \
+          libffi-dev:riscv64 libxml2-dev:riscv64
+
+        # Several riscv64 packages cannot be fully installed via apt because
+        # noble-security ships newer Multi-Arch:same versions for amd64 that
+        # conflict with the older riscv64 versions on noble-ports:
+        # 1. libedit-dev -> libedit2 -> libtinfo6 (version conflict)
+        # 2. llvm-20-dev -> llvm-20-tools -> libcurl4t64 -> libssh-4 (version conflict)
+        # 3. python3-minimal:riscv64 postinst tries to run a riscv64 binary
+        # Workaround: download only the dev/lib packages needed for
+        # cross-compilation (skip tools), then extract without postinst.
+        # libbsd0/libmd0 are runtime deps of libedit2 that the linker needs
+        # to resolve libedit.so.2 when linking against libLLVM.
+        mkdir -p /tmp/riscv64-debs && cd /tmp/riscv64-debs
+        apt-get download \
+          libedit-dev:riscv64 \
+          libedit2:riscv64 \
+          libbsd0:riscv64 \
+          libmd0:riscv64 \
+          libncurses-dev:riscv64 \
+          libncurses6:riscv64 \
+          libncursesw6:riscv64 \
+          libtinfo6:riscv64 \
+          llvm-20-dev:riscv64 \
+          llvm-20:riscv64 \
+          llvm-20-runtime:riscv64 \
+          llvm-20-linker-tools:riscv64 \
+          libllvm20:riscv64 \
+          libclang-cpp20:riscv64 \
+          liblld-20-dev:riscv64 \
+          liblld-20:riscv64 \
+          lld-20:riscv64
+        for deb in *.deb; do
+          dpkg-deb -x "$deb" /
+        done
+
+    - name: Build WasmEdge
+      run: |
+        cmake -Bbuild \
+          -DCMAKE_TOOLCHAIN_FILE=$(pwd)/cmake/riscv64-linux-gnu.cmake \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DWASMEDGE_BUILD_TESTS=ON \
+          -DWASMEDGE_BUILD_TOOLS=ON \
+          -DWASMEDGE_BUILD_SHARED_LIB=ON \
+          -DWASMEDGE_USE_LLVM=ON \
+          -DLLVM_DIR=/usr/lib/riscv64-linux-gnu/cmake/llvm-20 \
+          .
+        cmake --build build -j $(nproc)
+
+    - name: Package build artifacts
+      run: |
+        mkdir -p riscv64-artifacts/build
+        cp -a build/tools riscv64-artifacts/build/
+        cp -a build/lib riscv64-artifacts/build/
+        # Copy the full test directory: executables, test data files, and
+        # spec test suites (fetched by FetchContent during CMake configure).
+        # Tests expect data files relative to their binary directory.
+        cp -a build/test riscv64-artifacts/build/
+        # Remove build intermediates to reduce artifact size
+        find riscv64-artifacts/build/test -type d -name CMakeFiles -exec rm -rf {} + 2>/dev/null || true
+        find riscv64-artifacts/build/test \( -name '*.o' -o -name '*.d' \) -delete 2>/dev/null || true
+        tar -czf riscv64-artifacts.tar.gz riscv64-artifacts/
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: riscv64-build-artifacts
+        path: riscv64-artifacts.tar.gz
+        retention-days: 1
+
+  test_riscv64:
+    name: Test on RISC-V64 (QEMU)
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+    needs: cross_compile
+    steps:
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: riscv64-build-artifacts
+
+    - name: Set up riscv64 runtime environment
+      run: |
+        dpkg --add-architecture riscv64
+        if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+          sed -i '/^Types:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+        fi
+        printf 'Types: deb\nURIs: http://ports.ubuntu.com/ubuntu-ports\nSuites: noble noble-updates\nComponents: main universe\nArchitectures: riscv64\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n' \
+          > /etc/apt/sources.list.d/riscv64-ports.sources
+        apt-get update
+
+        # Install QEMU, test utilities, and riscv64 cross-runtime for sysroot
+        apt-get install -y --no-install-recommends \
+          qemu-user-static tar wabt \
+          libc6-riscv64-cross \
+          libstdc++6-riscv64-cross \
+          libgcc-s1-riscv64-cross \
+          libatomic1-riscv64-cross
+
+        # Install riscv64 LLVM/LLD runtime libraries and their dependency
+        # closure via download+extract instead of apt-get install: libllvm20
+        # depends on libedit2 -> libtinfo6, which hits the same noble-security
+        # vs noble-ports Multi-Arch:same version skew as the cross_compile
+        # job. The extracted libraries land in /usr/lib/riscv64-linux-gnu,
+        # where LD_LIBRARY_PATH and the sysroot symlinks below resolve them
+        # without needing postinst or ldconfig.
+        mkdir -p /tmp/riscv64-debs && cd /tmp/riscv64-debs
+        apt-get download \
+          libllvm20:riscv64 \
+          liblld-20:riscv64 \
+          libedit2:riscv64 \
+          libbsd0:riscv64 \
+          libmd0:riscv64 \
+          libtinfo6:riscv64 \
+          libffi8:riscv64 \
+          libxml2:riscv64 \
+          libicu74:riscv64 \
+          liblzma5:riscv64 \
+          libzstd1:riscv64 \
+          zlib1g:riscv64
+        for deb in *.deb; do
+          dpkg-deb -x "$deb" /
+        done
+
+        # Create symlinks so QEMU sysroot can find multi-arch libraries.
+        # With -L /usr/riscv64-linux-gnu, QEMU translates guest absolute paths
+        # by prepending the sysroot prefix. The kernel resolves symlinks natively,
+        # so symlinks pointing outside the sysroot work correctly.
+        mkdir -p /usr/riscv64-linux-gnu/usr/lib
+        ln -sf /usr/lib/riscv64-linux-gnu /usr/riscv64-linux-gnu/usr/lib/riscv64-linux-gnu
+        mkdir -p /usr/riscv64-linux-gnu/lib
+        ln -sf /lib/riscv64-linux-gnu /usr/riscv64-linux-gnu/lib/riscv64-linux-gnu
+
+    - name: Extract artifacts and run quick test suite
+      run: |
+        tar -xzf riscv64-artifacts.tar.gz
+        chmod +x .github/scripts/run-riscv64-quick-tests.sh
+        ./.github/scripts/run-riscv64-quick-tests.sh riscv64-artifacts
+
+    - name: Verify WasmEdge CLI tools
+      run: |
+        cd riscv64-artifacts
+        qemu-riscv64-static \
+          -L /usr/riscv64-linux-gnu \
+          -E LD_LIBRARY_PATH=/usr/lib/riscv64-linux-gnu:build/lib \
+          build/tools/wasmedge/wasmedge -v
+        cd ../examples/wasm
+        wat2wasm fibonacci.wat -o fibonacci.wasm
+        qemu-riscv64-static \
+          -L /usr/riscv64-linux-gnu \
+          -E LD_LIBRARY_PATH=/usr/lib/riscv64-linux-gnu:../../riscv64-artifacts/build/lib \
+          ../../riscv64-artifacts/build/tools/wasmedge/wasmedge --reactor fibonacci.wasm fib 30

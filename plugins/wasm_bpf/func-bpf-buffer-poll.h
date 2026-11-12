@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+#pragma once
+
+#include "bpf-api.h"
+#include "plugin/plugin.h"
+#include "po/helper.h"
+#include "runtime/callingframe.h"
+#include "runtime/instance/module.h"
+#include "state.h"
+
+namespace WasmEdge {
+namespace Host {
+
+/// Perform a BPF buffer poll. If the map is not opened, it will be opened.
+///
+/// \param fd the map fd for the BPF buffer.
+/// \param sample_func callback function. When data is polled, it will be
+/// invoked.
+/// \param ctx user-customized variable.
+/// \param data data buffer that will be used to store the polled data.
+/// \param max_size how many bytes can be put in data.
+/// \param timeout_ms how many milliseconds to wait.
+///
+/// \return 0 on success, error code on failure.
+class BpfBufferPoll : public WasmEdge::Runtime::HostFunction<BpfBufferPoll> {
+public:
+  BpfBufferPoll(state_t state) : state(state) {}
+  WasmEdge::Expect<int32_t> body(const WasmEdge::Runtime::CallingFrame &Frame,
+                                 handle_t program, int32_t fd,
+                                 int32_t sample_func, uint32_t ctx,
+                                 uint32_t data, uint32_t max_size,
+                                 int32_t timeout_ms);
+
+private:
+  state_t state;
+};
+
+} // namespace Host
+} // namespace WasmEdge

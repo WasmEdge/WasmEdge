@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+// BUILTIN-PLUGIN: Temporarily move the wasi-logging plugin sources here until
+// the new plugin architecture is ready in 0.15.0.
+
+#pragma once
+
+#include "env.h"
+
+#include "plugin/plugin.h"
+#include "runtime/instance/module.h"
+
+namespace WasmEdge {
+namespace Host {
+
+class WasiLoggingModule : public Runtime::Instance::ModuleInstance {
+public:
+  WasiLoggingModule();
+
+  WASILogging::LogEnv &getEnv() { return Env; }
+
+  static Plugin::Plugin::PluginDescriptor PluginDescriptor;
+  static Plugin::PluginModule::ModuleDescriptor ModuleDescriptor[];
+
+private:
+  WASILogging::LogEnv Env;
+};
+
+} // namespace Host
+} // namespace WasmEdge

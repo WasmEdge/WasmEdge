@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+wasmedge_add_executable(wasmedgeExecutorCoreTests
+  ExecutorTest.cpp
+)
+
+add_test(wasmedgeExecutorCoreTests wasmedgeExecutorCoreTests)
+
+target_link_libraries(wasmedgeExecutorCoreTests
+  PRIVATE
+  wasmedgeTestSpec
+  wasmedgeVM
+)
+
+wasmedge_add_executable(wasmedgeExecutorRegressionTests
+  ExecutorRegressionTest.cpp
+)
+
+add_test(wasmedgeExecutorRegressionTests
+  wasmedgeExecutorRegressionTests
+)
+
+target_link_libraries(wasmedgeExecutorRegressionTests
+  PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
+  wasmedgeVM
+)
+
+if(WASMEDGE_USE_LLVM)
+  target_compile_definitions(wasmedgeExecutorRegressionTests
+    PRIVATE
+    -DWASMEDGE_USE_LLVM
+  )
+endif()

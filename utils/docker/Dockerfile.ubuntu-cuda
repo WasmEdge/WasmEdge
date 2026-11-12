@@ -1,0 +1,24 @@
+ARG BASE_IMAGE=wasmedge/wasmedge:latest
+FROM ${BASE_IMAGE} AS base
+
+WORKDIR /root
+
+ARG CUDA_KEYRING=cuda-keyring_1.1-1_all.deb
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/${CUDA_KEYRING} && \
+    dpkg -i ${CUDA_KEYRING} && \
+    rm -f ${CUDA_KEYRING}
+
+ARG NVCC_VER=12-0
+RUN apt-get update && \
+    apt-get install -y \
+        cuda-nvcc-${NVCC_VER} \
+        libcublas-dev-${NVCC_VER} \
+        pkg-config \
+        unzip
+
+ENV CXXFLAGS="-Wno-error"
+
+### cleanup
+FROM base AS clean-apt
+
+RUN rm -rf /var/lib/apt/lists/*

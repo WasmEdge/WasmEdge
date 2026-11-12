@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright The WasmEdge Authors
+
+//===-- wasmedge/ast/expression.h - Expression class definition -----------===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains the declaration of the Expression node class, which is
+/// the expression node in the AST.
+///
+//===----------------------------------------------------------------------===//
+#pragma once
+
+#include "ast/instruction.h"
+
+namespace WasmEdge {
+namespace AST {
+
+/// AST Expression node.
+class Expression {
+public:
+  /// Getter for instructions vector.
+  InstrView getInstrs() const noexcept { return Instrs; }
+  InstrVec &getInstrs() noexcept { return Instrs; }
+
+private:
+  /// \name Data of Expression.
+  /// @{
+  InstrVec Instrs;
+  /// @}
+};
+
+} // namespace AST
+} // namespace WasmEdge

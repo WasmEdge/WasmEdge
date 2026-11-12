@@ -243,10 +243,10 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
           u8string(ObjectName).c_str(), "-o", u8string(OutputPath).c_str()},
 #elif WASMEDGE_OS_LINUX
   LinkResult = lld::elf::link(
-      std::initializer_list<const char *>{"ld.lld", "--eh-frame-hdr",
-                                          "--shared", "--gc-sections",
-                                          "--discard-all", ObjectName.c_str(),
-                                          "-o", u8string(OutputPath).c_str()},
+      std::initializer_list<const char *>{
+          "ld.lld", "--eh-frame-hdr", "--shared", "--gc-sections",
+          "--discard-all", "--no-undefined", ObjectName.c_str(), "-o",
+          u8string(OutputPath).c_str()},
 #elif WASMEDGE_OS_WINDOWS
   LinkResult = lld::coff::link(
       std::initializer_list<const char *>{

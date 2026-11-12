@@ -755,9 +755,10 @@ WasmEdge_ValueGetFuncRef(const WasmEdge_Value Val) noexcept {
 
 WASMEDGE_CAPI_EXPORT void *
 WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) noexcept {
-  const auto &Ref = WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
-                        to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
-                        .get<WasmEdge::RefVariant>();
+  const WasmEdge::RefVariant Ref =
+      WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
+          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
+          .get<WasmEdge::RefVariant>();
   if (!Ref.getType().isExternRefType()) {
     return nullptr;
   }

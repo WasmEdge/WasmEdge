@@ -281,6 +281,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
     spdlog::info("codegen done"sv);
   } else {
     spdlog::error("link error"sv);
+    return Unexpect(ErrCode::Value::IllegalPath);
   }
 
 #if WASMEDGE_OS_MACOS
@@ -326,7 +327,11 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
     OS.close();
   }
 
-  EXPECTED_TRY(outputNativeLibrary(SharedObjectName, OSVec));
+  if (auto Res = outputNativeLibrary(SharedObjectName, OSVec); !Res) {
+    std::error_code Error;
+    std::filesystem::remove(SharedObjectName, Error);
+    return Unexpect(Res);
+  }
 
   LLVM::MemoryBuffer SOFile;
   if (auto [Res, ErrorMessage] =

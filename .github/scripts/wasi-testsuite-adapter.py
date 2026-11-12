@@ -2,7 +2,7 @@ import subprocess
 import os
 import shlex
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 # shlex.split() splits according to shell quoting rules
 WASMEDGE = shlex.split(os.getenv("WASMEDGE", "wasmedge"))
@@ -30,16 +30,16 @@ def get_wasi_worlds() -> List[str]:
 
 
 def compute_argv(test_path: str,
-                 args_env_dirs: Tuple[List[str], Dict[str, str], List[Tuple[Path, str]]],
+                 args_env_root: Tuple[List[str], Dict[str, str], Optional[Path]],
                  proposals: List[str],
                  wasi_world: str,
                  wasi_version: str) -> List[str]:
     argv = [] + WASMEDGE
-    args, env, dirs = args_env_dirs
+    args, env, root = args_env_root
     for k, v in env.items():
         argv += ["--env", f"{k}={v}"]
-    for host, guest in dirs:
-        argv += ["--dir", f"{guest}:{host}"]
+    if root:
+        argv += ["--dir", f"/:{root}"]
     argv += [test_path]
     argv += args
     return argv
